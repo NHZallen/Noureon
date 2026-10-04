@@ -410,3 +410,20 @@ test('/v1/storage tells the signed-in person how much of their space is used', a
     assert.equal((await fetch(`${base}/v1/storage`, { headers: auth })).status, 503);
   });
 });
+
+test('an answer about the window for a tool\'s login reaches the reply of the person who gives it, and carries no value', async () => {
+  const answers = [];
+  const runs = { answerCredential: async (args) => { answers.push(args); return args.runId === USER ? { ok: true, answered: true } : { ok: false, reason: 'not_running' }; } };
+  await withServer(async ({ base }) => {
+    const answer = (runId, body) => fetch(`${base}/v1/runs/${runId}/credential`, { method: 'POST', headers: { ...auth, ...json }, body: JSON.stringify(body) });
+    const ok = await answer(USER, { askId: 'ask0000000000001', decision: 'saved', value: 'ignored' });
+    assert.equal(ok.status, 200);
+    assert.deepEqual(await ok.json(), { ok: true, answered: true });
+    assert.deepEqual(answers[0], { userId: USER, runId: USER, askId: 'ask0000000000001', decision: 'saved' }, 'only the decision is passed on');
+    assert.equal((await answer(USER, { askId: 'ask0000000000001', decision: 'cancel' })).status, 200);
+    assert.equal((await answer(USER, { askId: 'ask0000000000001', decision: 'once' })).status, 400);
+    assert.equal((await answer(USER, { askId: '../x', decision: 'saved' })).status, 400);
+    assert.equal((await answer('323e4567-e89b-12d3-a456-426614174002', { askId: 'ask0000000000001', decision: 'saved' })).status, 404);
+    assert.equal((await fetch(`${base}/v1/runs/${USER}/credential`, { method: 'POST', headers: json, body: '{}' })).status, 401);
+  }, { runs });
+});

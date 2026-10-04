@@ -40,6 +40,20 @@ export const RUN_COMMAND_TOOL = Object.freeze({
   })
 });
 
+// Asks the person, in a window of the app, for the login a CLI tool needs. The values go straight from the person to the server's safe: they never reach the model.
+export const REQUEST_CREDENTIALS_TOOL = Object.freeze({
+  name: 'request_credentials',
+  description: 'Ask the user, in a secure window, for the login a CLI tool needs (a token or a cookie) and that is listed as "Not set yet" in the instructions. Call it before you run that tool, once. The values never reach you. Returns whether the user provided them. Do not call it for a tool that is not listed as not set.',
+  parameters: Object.freeze({
+    type: 'object',
+    properties: {
+      note: NOTE_PARAMETER,
+      tool: { type: 'string', description: 'The id of the CLI tool, as in the instructions (for example "twitter-cli").' }
+    },
+    required: ['tool']
+  })
+});
+
 export const MAX_RUNS_PER_REPLY = 10;
 // A document made with a CLI tool is many small commands; a reply that has one may run more steps.
 export const MAX_RUNS_WITH_CLI = 25;
@@ -48,14 +62,18 @@ export const MAX_RUNS_WITH_CLI = 25;
  * What the model is told about the CLI tools the person chose: each tool and how to use it. `tools`: [{ name, version, id, usage, problem?, missing? }]
  * (`problem`: why the tool could not be made ready; `missing`: the secure credentials it needs that the person has not added).
  */
-export function getCliGuidance(tools = []) {
+export function getCliGuidance(tools = [], { canAsk = false } = {}) {
   if (!tools.length) return '';
   const section = (tool) => {
     const head = `### ${tool.name} (\`${tool.file || tool.id}\`${tool.version ? `, version ${tool.version}` : ''})`;
     if (tool.problem) return `${head}\nNOT AVAILABLE in this reply: ${tool.problem}. Do not try to use it or to install it another way; tell the person.`;
-    const missing = Array.isArray(tool.missing) && tool.missing.length
-      ? `\nNot set yet: ${tool.missing.join(', ')}. The tool cannot log in until the person adds ${tool.missing.length === 1 ? 'it' : 'them'} under Settings → Permissions → Secure credentials: say so and stop; never look for another way to log in, and never ask for the value in the chat.\n`
-      : '\n';
+    const lacking = Array.isArray(tool.missing) && tool.missing.length;
+    // Asked already (a tool the person chose) or not asked yet (the model's own tool): the model is told what is left to do either way, never to ask in the chat.
+    const missing = !lacking
+      ? '\n'
+      : (canAsk && tool.chosen === false
+        ? `\nNot set yet: ${tool.missing.join(', ')}. The tool cannot log in without ${tool.missing.length === 1 ? 'it' : 'them'}. Before you run this tool, call request_credentials with tool "${tool.id}": the user is asked in a secure window. If the user does not provide ${tool.missing.length === 1 ? 'it' : 'them'}, say so and stop; never look for another way to log in, and never ask for the value in the chat.\n`
+        : `\nNot set yet: ${tool.missing.join(', ')}. ${canAsk ? 'The user was just asked for it and did not provide it. Do not call request_credentials again' : 'The tool cannot log in until the user adds it under Settings → Permissions → Secure credentials'}: say so and stop; never look for another way to log in, and never ask for the value in the chat.\n`);
     return `${head}${missing}${tool.usage}`;
   };
   const picked = tools.filter((tool) => tool.chosen !== false);

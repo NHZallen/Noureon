@@ -567,8 +567,105 @@ test('a credential the person has not set is told to the model as missing, with 
     fetchImpl: async (url, options) => { bodies.push(options.body); round += 1; return streamResponse(round === 1 ? sse(toolCall('c1', 'run_command', { command: 'twitter feed' })) : sse(content('Please add it.'))); }
   });
   assert.match(bodies[0], /Not set yet: TWITTER_AUTH_TOKEN/);
-  assert.match(bodies[0], /Permissions → Secure credentials/);
+  assert.match(bodies[0], /call request_credentials with tool \\"twitter-cli\\"/, 'a tool the model uses by itself may be asked for through the window');
   assert.equal(host.record.commands.find((command) => command.line === 'twitter feed').env.TWITTER_AUTH_TOKEN, undefined);
+});
+
+const SAVED = { TWITTER_AUTH_TOKEN: 'tok_value_123456', TWITTER_CT0: 'ct0_value_123456' };
+
+// The person is asked in a window: `answer` says what they do ('saved' puts the values in the store first, as the page does through /v1/credentials).
+function askingSetup({ answer, waitMs } = {}) {
+  const events = [];
+  const state = { stored: {} };
+  const credentialControl = { answer: null };
+  return {
+    events,
+    state,
+    credentialControl,
+    options: {
+      credentials: { values: async () => state.stored },
+      credentialControl,
+      ...(waitMs ? { credentialWaitMs: waitMs } : {}),
+      onLive: ({ ev }) => {
+        if (ev?.type !== 'credential') return;
+        events.push(ev);
+        if (ev.event === 'ask' && answer) {
+          if (answer === 'saved') state.stored = SAVED;
+          assert.deepEqual(credentialControl.answer(ev.id, answer), { answered: true });
+        }
+      }
+    }
+  };
+}
+
+test('a tool chosen with "@" whose login is missing asks the person before the model starts, and goes on with what they saved', async () => {
+  const host = fakeCliHost({ commandFor: (line) => (line.startsWith('pip install') ? {} : { stdout: 'timeline\n' }) });
+  const setup = askingSetup({ answer: 'saved' });
+  const bodies = [];
+  let round = 0;
+  const result = await executeReply({
+    spec: specFor({ cli: [{ id: 'twitter-cli', chosen: true }] }), secrets, userId: USER, sandboxHost: host, files: fakeFiles(), ...setup.options,
+    fetchImpl: async (url, options) => { bodies.push(options.body); round += 1; return streamResponse(round === 1 ? sse(toolCall('c1', 'run_command', { command: 'twitter feed' })) : sse(content('Here it is.'))); }
+  });
+  assert.equal(result.status, 'done');
+  assert.deepEqual(setup.events.map((event) => event.event), ['ask', 'answer']);
+  assert.equal(setup.events[0].tool.id, 'twitter-cli');
+  assert.deepEqual(setup.events[0].fields.map((field) => [field.env, field.type, field.label, field.site]), [['TWITTER_AUTH_TOKEN', 'token', 'auth_token', 'x.com'], ['TWITTER_CT0', 'cookie', 'ct0', 'x.com']]);
+  assert.equal(setup.events[1].decision, 'saved');
+  assert.doesNotMatch(bodies[0], /Not set yet/, 'what was saved is in place before the model is told about the tool');
+  const command = host.record.commands.find((entry) => entry.line === 'twitter feed');
+  assert.equal(command.env.TWITTER_AUTH_TOKEN, SAVED.TWITTER_AUTH_TOKEN);
+  assert.equal(command.env.TWITTER_CT0, SAVED.TWITTER_CT0);
+  assert.ok(!JSON.stringify(setup.events).includes(SAVED.TWITTER_AUTH_TOKEN), 'no value is ever in an event');
+});
+
+test('a person who does not answer in time, or says not now, leaves the tool without its login and the model is told so', async () => {
+  for (const [answer, decision] of [[null, 'timeout'], ['cancel', 'cancel']]) {
+    const host = fakeCliHost();
+    const setup = askingSetup({ answer, waitMs: 20 });
+    const bodies = [];
+    const result = await executeReply({
+      spec: specFor({ cli: [{ id: 'twitter-cli', chosen: true }] }), secrets, userId: USER, sandboxHost: host, files: fakeFiles(), ...setup.options,
+      fetchImpl: async (url, options) => { bodies.push(options.body); return streamResponse(sse(content('I could not log in.'))); }
+    });
+    assert.equal(result.status, 'done');
+    assert.equal(setup.events.at(-1).decision, decision);
+    assert.match(bodies[0], /Not set yet: TWITTER_AUTH_TOKEN, TWITTER_CT0/);
+    assert.match(bodies[0], /did not provide it/);
+    assert.equal(setup.credentialControl.answer('11111111-2222', 'saved').answered, false, 'a question that is over cannot be answered');
+  }
+});
+
+test('a tool the model uses by itself: it asks for the login with request_credentials, waits for the window, and goes on', async () => {
+  const host = fakeCliHost({ commandFor: (line) => (line.startsWith('pip install') ? {} : { stdout: 'timeline\n' }) });
+  const setup = askingSetup({ answer: 'saved' });
+  const bodies = [];
+  let round = 0;
+  await executeReply({
+    spec: specFor({ cli: [{ id: 'twitter-cli' }] }), secrets, userId: USER, sandboxHost: host, files: fakeFiles(), ...setup.options,
+    fetchImpl: async (url, options) => {
+      bodies.push(options.body);
+      round += 1;
+      if (round === 1) return streamResponse(sse(toolCall('c1', 'request_credentials', { tool: 'twitter-cli' })));
+      if (round === 2) return streamResponse(sse(toolCall('c2', 'run_command', { command: 'twitter feed' })));
+      return streamResponse(sse(content('Done.')));
+    }
+  });
+  assert.match(bodies[0], /"request_credentials"/, 'offered to the model');
+  assert.deepEqual(setup.events.map((event) => event.event), ['ask', 'answer']);
+  assert.match(bodies[1], /The user provided the login for twitter-cli/);
+  assert.equal(host.record.commands.find((entry) => entry.line === 'twitter feed').env.TWITTER_CT0, SAVED.TWITTER_CT0);
+});
+
+test('request_credentials is not offered when nothing the model may use by itself is missing a login', async () => {
+  const host = fakeCliHost();
+  const bodies = [];
+  await executeReply({
+    spec: specFor({ cli: [{ id: 'twitter-cli' }] }), secrets, userId: USER, sandboxHost: host, files: fakeFiles(),
+    credentials: { values: async () => SAVED }, credentialControl: { answer: null }, onLive: () => {},
+    fetchImpl: async (url, options) => { bodies.push(options.body); return streamResponse(sse(content('Hi.'))); }
+  });
+  assert.doesNotMatch(bodies[0], /request_credentials/);
 });
 
 test('a credential store that fails does not end the reply: the tool is told its credentials are not set', async () => {

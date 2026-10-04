@@ -3,7 +3,7 @@
 // answers without a call (at most MAX_RUNS_PER_REPLY runs). Returns the
 // answer text and the run record kept above it. Loaded on demand.
 
-import { MAX_RUNS_PER_REPLY, MAX_RUNS_WITH_CLI, RUN_COMMAND_TOOL, RUN_PYTHON_TOOL, RUN_PYTHON_TOOL_SERVER, getCliGuidance, getSandboxGuidance } from './sandbox-guidance.js';
+import { MAX_RUNS_PER_REPLY, MAX_RUNS_WITH_CLI, RUN_COMMAND_TOOL, RUN_PYTHON_TOOL, RUN_PYTHON_TOOL_SERVER, REQUEST_CREDENTIALS_TOOL, getCliGuidance, getSandboxGuidance } from './sandbox-guidance.js';
 import { sandboxText } from './sandbox-texts.js';
 import { RUN_STATUS } from '../../ui/sandbox/sandbox-run-block.js';
 import { partialJsonString } from '../../legacy-runtime/features/tool-call-formats.js';
@@ -80,6 +80,8 @@ export async function runSandboxReply({
   // The CLI tools the person chose with "@" (a reply on the server only): [{ id, name, version, usage, env, program?: { file, url, sha256, size },
   // install?: the command that installs a pip tool, missing?: the secure credentials it needs that are not set }]. The model gets run_command for them.
   cli: cliTools = [],
+  // Asks the person for the login a tool needs, in a window of the app: ({ toolId }) => Promise<{ provided }>. Only the server has it.
+  askCredentials = null,
   onStatus = () => {},
   // What happens in each run, for the work window: { type: 'step', n, title, code },
   // { type: 'output', n, stream, text } and { type: 'step-end', n, ok, error, files, elapsedMs }.
@@ -140,6 +142,9 @@ export async function runSandboxReply({
   let cliFailure = '';
   // A tool that could not be made ready (its install failed): the model is told, and the others work.
   const cliProblems = {};
+  // The model's own tools that need a login the person has not given: it may ask for it (the tools the person chose with "@" were asked about already).
+  const canAskCredentials = useCli && typeof askCredentials === 'function' && cliTools.some((tool) => tool.chosen === false && tool.missing?.length);
+  const isCredentialRequest = (name) => canAskCredentials && name === REQUEST_CREDENTIALS_TOOL.name;
   const isRunTool = (name) => name === RUN_PYTHON_TOOL.name || (useCli && name === RUN_COMMAND_TOOL.name);
   let roundMayCall = false;
   const deliver = (chunk) => {
@@ -233,7 +238,7 @@ export async function runSandboxReply({
     }
   };
 
-  const guidance = [getSandboxGuidance({ inputFiles, designs, host }), useCli ? getCliGuidance(cliTools.map((tool) => ({ ...tool, file: tool.program?.file || tool.pip?.command }))) : '', researchTools ? researchGuidance() : ''].filter(Boolean).join('\n\n');
+  const guidance = [getSandboxGuidance({ inputFiles, designs, host }), useCli ? getCliGuidance(cliTools.map((tool) => ({ ...tool, file: tool.program?.file || tool.pip?.command })), { canAsk: typeof askCredentials === 'function' }) : '', researchTools ? researchGuidance() : ''].filter(Boolean).join('\n\n');
   const research = researchTools
     ? createResearchCalls({ ...researchTools, language, signal, onEvent })
     : null;
@@ -295,7 +300,7 @@ export async function runSandboxReply({
           onEvent({ type: 'code', text: partialJsonString(raw, name === RUN_COMMAND_TOOL.name ? 'command' : 'code') });
         }
       },
-      tools: [...(canRun ? [host === 'server' ? RUN_PYTHON_TOOL_SERVER : RUN_PYTHON_TOOL, ...(useCli ? [RUN_COMMAND_TOOL] : [])] : []), ...(canResearch ? RESEARCH_TOOLS : [])],
+      tools: [...(canRun ? [host === 'server' ? RUN_PYTHON_TOOL_SERVER : RUN_PYTHON_TOOL, ...(useCli ? [RUN_COMMAND_TOOL] : []), ...(canAskCredentials ? [REQUEST_CREDENTIALS_TOOL] : [])] : []), ...(canResearch ? RESEARCH_TOOLS : [])],
       toolTurns,
       additionalSystemInstruction: [requestOptions.additionalSystemInstruction, guidance].filter(Boolean).join('\n\n'),
       onResponseComplete: (value) => { response = value; }
@@ -331,7 +336,7 @@ export async function runSandboxReply({
       }
       break;
     }
-    const calls = (response?.toolCalls || []).filter((call) => isRunTool(call.name) || research?.handles(call.name));
+    const calls = (response?.toolCalls || []).filter((call) => isRunTool(call.name) || isCredentialRequest(call.name) || research?.handles(call.name));
     // The thinking goes to the run it led to, or to the end of the reply.
     let roundThought = takeThought();
     if (!canCall || !calls.length) {
@@ -349,6 +354,27 @@ export async function runSandboxReply({
     const results = [];
     for (const call of calls) {
       const reply = (content) => results.push({ id: call.id, geminiId: call.geminiId, name: call.name, content });
+      if (isCredentialRequest(call.name)) {
+        // The window that asks the person for a tool's login: the reply waits for the answer, and the model only learns whether it was given.
+        const tool = cliTools.find((entry) => entry.id === String(call.args?.tool || '').trim());
+        if (!tool || !tool.missing?.length) {
+          reply({ provided: false, message: tool ? `${tool.name} has nothing missing.` : 'No such CLI tool in the instructions.' });
+          continue;
+        }
+        onStatus(sandboxText(language, 'sandboxCredentialWaiting', { tool: tool.name }));
+        let answered = { provided: false };
+        try {
+          answered = await askCredentials({ toolId: tool.id });
+        } catch (error) {
+          if (signal?.aborted) break;
+          answered = { provided: false };
+        }
+        if (answered?.provided) tool.missing = [];
+        reply(answered?.provided
+          ? { provided: true, message: `The user provided the login for ${tool.name}. Go on and use the tool.` }
+          : { provided: false, message: `The user did not provide the login for ${tool.name}. Say so and stop using it; do not ask for the value in the chat or look for another way to log in.` });
+        continue;
+      }
       if (!isRunTool(call.name)) {
         // A search or a page: what the model says about it is shown between the rows.
         notes.fromCall(call);

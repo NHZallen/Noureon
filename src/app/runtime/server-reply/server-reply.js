@@ -275,6 +275,8 @@ export function createServerReply({
     stop: () => request('POST', `/v1/runs/${runId}/stop`),
     // The person's answer ('once', 'always' or 'deny') to the question a tool's command put about a site.
     answerNet: (askId, decision) => request('POST', `/v1/runs/${runId}/net`, { body: JSON.stringify({ askId, decision }) }),
+    // The person's answer ('saved' or 'cancel') to the window that asked for the login a tool needs (the values were saved apart, through /v1/credentials).
+    answerCredential: (askId, decision) => request('POST', `/v1/runs/${runId}/credential`, { body: JSON.stringify({ askId, decision }) }),
     /**
      * Follows the reply until the server has finished it, the way a live broadcast is followed: the server pushes every small piece as
      * it is made, to every page watching, and a page that comes in late is given what there is so far (when the channel cannot be

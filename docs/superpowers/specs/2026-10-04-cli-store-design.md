@@ -185,3 +185,20 @@
 - Pandoc、SoX 仍是「即將推出」（第 2 期不含壓縮檔與自行編譯）。
 
 **部署順序**（沒有硬性順序，新舊混用都不會壞，只是新功能要兩邊都更新才有）：① 在 Supabase 套用遷移 `20261005010000_add_user_credentials.sql`（沒套用時安全憑證的端點會回錯，其他功能照常）；② VPS：`git pull && sh sandbox-host/install.sh && sh sandbox-host/smoke-test.sh`（映像檔多了 node／npm／git／curl，要重建幾分鐘）；③ 推 `main`（Vercel 與 Zeabur）。Zeabur 不用新增變數。
+
+## 11. 第 2.1 期改版（2026-10-05，owner 測完第 2 期後的修正）
+
+| 項目 | 做法 |
+|---|---|
+| 工具亂用 | 只改說明文字（`getCliGuidance`）：用 `@` 選的工具寫「使用者選了，請使用」；模型自己的工具寫「只有請求明確需要它才用；一般聊天、搜尋、寫作、問答不要用；不確定就不用」。`run-spec` 的 `tools.cli[]` 多一個 `chosen` 布林（客戶端 `server-reply.js` 送出）。沒有做「按需載入工具」。 |
+| 檔案大小 | 單檔 50 MB（`SANDBOX_OUTPUT_FILE_BYTES`）、單一步驟合計 100 MB（`SANDBOX_OUTPUT_TOTAL_BYTES`）、10 個檔案。原因：Supabase 免費方案單檔上限 50 MB、總共約 1 GB。超過的檔案不交付：步驟清單寫「沒有提供下載：檔名（80 MB，超過每個檔案 50 MB 的上限）」，並在工具結果裡寫 `skipped_note`（含大小與上限），要模型提供較小的版本、不要說已交付。 |
+| WEBM／影音檔 | `BINARY_TYPES` 補上 m4a、aac、flac、ogg、opus、weba、m4v、webm、mkv、mov、avi、mpg、mpeg、3gp。yt-dlp 說明改成「產生單一 MP4、暫存放 `/work`（`-P "temp:/work"`）、刪掉多的檔」；FFmpeg 說明加「只留完成的檔案」。 |
+| pip 工具按需安裝 | 不再在沙盒建好時一次裝完；第一次有命令用到該工具的指令名（目錄的 `pip.commands`，csvkit 有 14 個）才裝，同一回覆只裝一次。 |
+| 每人 500 MB | 資料庫函式 `user_asset_usage(uuid)`（加總 `user-assets/<userId>/` 底下所有物件）。`server/file-store.js` 存檔前：檔案已存在就不再上傳、不佔額度；否則 用量＋新檔 > 500 MB 就丟 `FileStoreError`（`code: 'quota'`），步驟清單寫「雲端空間已滿，沒有儲存」，模型被告知請使用者清出空間；**空間滿時不使用 5 MB 的內嵌備援**（否則是繞過上限的第二條路）。用量查不到時照常存檔（不因為查詢失敗丟掉使用者的檔案）。`GET /v1/storage` 給設定「資料管理」顯示「雲端空間 X / 500 MB」。 |
+| 孤兒檔清理 | 刪除對話時 App 不會刪雲端檔案，所以改成每天掃一次：`orphan_user_assets(interval, limit)` 讀 **public 底下每一張表**，用正規表示式找出所有 `<uuid>/<64 位十六進位>` 路徑，沒有任何資料列提到、且最後建立／更新超過 1 天的物件就是孤兒（以後有新表存這種路徑也會自動涵蓋）。`server/asset-sweeper.js` 預設只報告（日誌 `asset_orphans_found`），環境變數 `ASSET_SWEEP=delete` 才經由 storage API 批次刪除（`DELETE /storage/v1/object/user-assets`，只收 `<uuid>/<64hex>` 形狀的路徑）。**第一次真的刪除要 owner 看過清單同意。** 遷移 `20261005020000_user_asset_usage_and_orphans.sql` 已用 MCP 套用；孤兒函式是在 `execute_sql` 建立的（`apply_migration` 對 plpgsql 的 `create temporary table` 版本會逾時，改成動態 `union` 查詢就好了）。 |
+| 憑證輸入視窗 | 設定頁拿掉「你的命令工具需要」預設清單，只留已存的憑證（名稱依種類顯示，例如「twitter-cli · Cookie」＋ `ct0`）與手動新增。目錄的 `credentials[]` 多 `type`（`token`／`cookie`／`password`）與 `site`；twitter：`auth_token`＝Token、`ct0`＝Cookie；rdt：`reddit_session`＝Cookie。 |
+| 詢問流程 | `executor.js` 的 `askCredentials(toolId)`：發步驟事件 `{type:'credential', event:'ask', id, tool, fields:[{env,label,type,site}], waitMs}`（晚進來的頁面也看得到），等 `POST /v1/runs/:id/credential` 的 `saved`／`cancel`、10 分鐘逾時（`timeout`）或回覆被中止；`saved` 後重新讀取憑證（`toolCredentials` 就地更新，之後的命令就有環境變數與登入檔），再發 `answer` 事件。**值從不經過這條路**：頁面先 `PUT /v1/credentials/:NAME`（一律儲存，沒有「要不要儲存」的選項），再回報 `saved`。兩個觸發點：(i) 用 `@` 選的工具缺憑證 → 回覆一開始（模型開始前）就問，不用重送訊息；(ii) 模型自己的工具缺憑證 → 模型有 `request_credentials({tool})` 工具（只在有這種工具時提供），結果只告訴模型「使用者有沒有提供」。 |
+| 視窗與卡片 | `src/app/ui/cli/credential-modal.js`：標題「<工具> 需要你的登入資料」、「工具 · 網站」、每個欄位依種類標「Token／Cookie／密碼」＋欄位名＋一行取得方式（五語言，`credHow_<名稱>`）、顯示／隱藏按鈕、「先不要」與「儲存並繼續」；Esc ＝先不要。`credential-ask-card.js` 在步驟清單放一張卡（可重新開視窗、先不要），詢問一到就自動開視窗。版面是參考 ChatGPT／Claude 的登入視窗做的黑白版，**請 owner 看過再決定要不要調整**。 |
+
+**owner 要做的事**：① 之後在 Zeabur 設 `ASSET_SWEEP=delete`（看過日誌裡的孤兒清單、同意之後）；② 目前資料庫裡超過一天的孤兒有 65 個、約 85.6 MB（用 `select * from orphan_user_assets()` 可以看到名單）。
+

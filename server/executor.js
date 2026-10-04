@@ -61,7 +61,7 @@ export class ReplyError extends Error {
  * With CLI tools, `credentials` (server/cli-credentials.js) gives the person's secure credentials for them, and `netControl` is what the run manager
  * answers the person's questions about sites with (it is given the function that does so once the sandbox is there).
  */
-export async function executeReply({ spec, secrets, signal, resume: resumeFrom = null, userId = '', sandboxHost = null, files = null, credentials = null, netControl = null, watching = () => false, onUpdate = () => {}, onLive = () => {}, onCheckpoint = async () => {}, onProblem = () => {}, fetchImpl = fetch, now = Date.now }) {
+export async function executeReply({ spec, secrets, signal, resume: resumeFrom = null, userId = '', sandboxHost = null, files = null, credentials = null, netControl = null, credentialControl = null, credentialWaitMs = 10 * 60 * 1000, watching = () => false, onUpdate = () => {}, onLive = () => {}, onCheckpoint = async () => {}, onProblem = () => {}, fetchImpl = fetch, now = Date.now }) {
   const resume = spec.tools.advanced ? null : resumeFrom;
   const mode = spec.tools.webSearch;
   const language = spec.request.language;
@@ -161,6 +161,59 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
           onProblem('credentials_failed', error);
         }
       }
+      // A login a tool needs and the person has not given: the page is asked with a window, and the reply waits for the answer (the person saves
+      // the values straight to /v1/credentials; what comes back here is only "saved", "cancel" or "timeout", never a value). The credentials are
+      // read again after a "saved", so the commands that follow have them.
+      const pendingAsks = new Map();
+      if (credentialControl) {
+        credentialControl.answer = (askId, decision) => {
+          const settle = pendingAsks.get(askId);
+          if (!settle) return { answered: false };
+          settle(decision);
+          return { answered: true };
+        };
+      }
+      const askCredentials = async (toolId) => {
+        const tool = chosenTools.find((entry) => entry.id === toolId);
+        const wanted = toolCredentials.missing[toolId] || [];
+        if (!tool || !wanted.length || !credentials) return { provided: Boolean(tool) && !wanted.length };
+        const id = crypto.randomUUID();
+        const fields = (tool.credentials || []).filter((credential) => wanted.includes(credential.env)).map(({ env, label, type, site }) => ({ env, label, type, site }));
+        const decision = await new Promise((resolve) => {
+          let timer = null;
+          const onAbort = () => finish('cancel');
+          const finish = (value) => {
+            clearTimeout(timer);
+            pendingAsks.delete(id);
+            inner.signal.removeEventListener('abort', onAbort);
+            resolve(value);
+          };
+          timer = setTimeout(() => finish('timeout'), credentialWaitMs);
+          pendingAsks.set(id, finish);
+          if (inner.signal.aborted) {
+            finish('cancel');
+            return;
+          }
+          inner.signal.addEventListener('abort', onAbort, { once: true });
+          stepEvents.event({ type: 'credential', event: 'ask', id, tool: { id: tool.id, name: tool.name }, fields, waitMs: credentialWaitMs });
+        });
+        if (decision === 'saved') {
+          try {
+            const names = chosenTools.flatMap((entry) => (entry.credentials || []).map((credential) => credential.env));
+            Object.assign(toolCredentials, prepareToolCredentials(chosenTools, await credentials.values(userId, names), { nowMs: now() }));
+          } catch (error) {
+            onProblem('credentials_failed', error);
+          }
+        }
+        stepEvents.event({ type: 'credential', event: 'answer', id, decision, tool: { id: tool.id, name: tool.name } });
+        return { provided: !(toolCredentials.missing[toolId] || []).length, decision };
+      };
+      // What the person chose with "@" and cannot log in to yet: asked before the model starts, so the message does not have to be sent again.
+      if (credentials && !inner.signal.aborted) {
+        for (const tool of chosenTools) {
+          if (chosenIds.has(tool.id) && toolCredentials.missing[tool.id]?.length) await askCredentials(tool.id);
+        }
+      }
       const netPolicy = chosenTools.length ? effectiveNetPolicy(spec.tools.net || {}) : null;
       if (mode === 'briefing') {
         // Gemini cannot search and call a tool in one request: it searches first, and Python gets the briefing as reference text.
@@ -240,6 +293,7 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
             ...(toolCredentials.missing[tool.id]?.length ? { missing: toolCredentials.missing[tool.id] } : {})
           })),
           research: tools ? { searchWeb: tools.searchWeb, openPage: tools.fetchPageContents, onSources: addSources } : null,
+          askCredentials: credentials ? ({ toolId }) => askCredentials(toolId) : null,
           onEvent: stepEvents.event
         });
         stepEvents.flush();

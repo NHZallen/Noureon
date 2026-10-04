@@ -873,3 +873,25 @@ test('the person\'s answer about a site goes to the reply that asked, the reply 
   assert.deepEqual(await manager.answerNet({ userId: USER, runId, askId: 'ask0000000000001', decision: 'once' }), { ok: false, reason: 'not_running' }, 'it is over');
   assert.equal(answered.length, 2);
 });
+
+test('the person\'s answer to the window for a tool\'s login goes to the reply that asked, the reply of that person only, and only while it runs', async () => {
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  const answered = [];
+  const { manager } = managerHarness({
+    execute: async ({ credentialControl }) => {
+      credentialControl.answer = (askId, decision) => { answered.push([askId, decision]); return { answered: askId === 'ask0000000000001' }; };
+      await gate;
+      return { parts: [{ text: 'done' }], status: 'done', run: { elapsedMs: 1 }, toolCalls: 0 };
+    }
+  });
+  const runId = await manager.start({ userId: USER, spec: specOf() });
+  await settle();
+  assert.deepEqual(await manager.answerCredential({ userId: USER, runId, askId: 'ask0000000000001', decision: 'saved' }), { ok: true, answered: true });
+  assert.deepEqual(await manager.answerCredential({ userId: USER, runId, askId: 'ask0000000000009', decision: 'cancel' }), { ok: true, answered: false });
+  assert.deepEqual(await manager.answerCredential({ userId: '999e4567-e89b-12d3-a456-426614174009', runId, askId: 'ask0000000000001', decision: 'saved' }), { ok: false, reason: 'not_running' });
+  release();
+  await settle();
+  assert.deepEqual(await manager.answerCredential({ userId: USER, runId, askId: 'ask0000000000001', decision: 'saved' }), { ok: false, reason: 'not_running' });
+  assert.equal(answered.length, 2);
+});

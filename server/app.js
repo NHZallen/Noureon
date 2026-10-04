@@ -124,7 +124,7 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
         status = 200;
         return;
       }
-      const runPath = /^\/v1\/runs\/([0-9a-f-]{36})(\/stop|\/stream|\/start|\/hold|\/release|\/plan|\/steer|\/pause|\/resume|\/net)?$/i.exec(url.pathname);
+      const runPath = /^\/v1\/runs\/([0-9a-f-]{36})(\/stop|\/stream|\/start|\/hold|\/release|\/plan|\/steer|\/pause|\/resume|\/net|\/credential)?$/i.exec(url.pathname);
       if (route === 'POST /v1/runs' || route === 'POST /v1/research') {
         const deep = route === 'POST /v1/research';
         const user = await authenticate(request);
@@ -199,6 +199,19 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
         const body = await readJson(request, 4096);
         if (!/^[A-Za-z0-9-]{8,64}$/.test(String(body?.askId || '')) || !['once', 'always', 'deny'].includes(body?.decision)) throw new RequestError(ERROR_CODES.badRequest, 'That is not an answer.');
         const result = await runs.answerNet({ userId: user.id, runId: runPath[1], askId: body.askId, decision: body.decision });
+        if (!result.ok) throw new RequestError(ERROR_CODES.notFound, 'No such reply is running here.');
+        send(response, 200, { ok: true, answered: result.answered }, origin);
+        status = 200;
+        return;
+      }
+      if (runPath && request.method === 'POST' && runPath[2] === '/credential') {
+        // The person's answer to the window that asked for a login a tool needs: { askId, decision: 'saved' | 'cancel' } (the values are saved
+        // through /v1/credentials, never sent here).
+        const user = await authenticate(request);
+        if (!runs) throw new RequestError(ERROR_CODES.runsUnavailable, 'Replies on the server are not set up yet.');
+        const body = await readJson(request, 4096);
+        if (!/^[A-Za-z0-9-]{8,64}$/.test(String(body?.askId || '')) || !['saved', 'cancel'].includes(body?.decision)) throw new RequestError(ERROR_CODES.badRequest, 'That is not an answer.');
+        const result = await runs.answerCredential({ userId: user.id, runId: runPath[1], askId: body.askId, decision: body.decision });
         if (!result.ok) throw new RequestError(ERROR_CODES.notFound, 'No such reply is running here.');
         send(response, 200, { ok: true, answered: result.answered }, origin);
         status = 200;
