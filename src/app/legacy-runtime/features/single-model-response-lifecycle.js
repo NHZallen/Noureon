@@ -9,6 +9,7 @@ import { resolveReplyMode } from '../../runtime/sandbox/file-mode.js';
 import { browserSupportsSandbox } from '../../runtime/sandbox/sandbox-protocol.js';
 import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
 import { cliIdsForReply } from '../../runtime/cli/cli-state.js';
+import { createCredentialAnswerHandler } from '../../runtime/cli/credential-answer.js';
 import { createNetAnswerHandler } from '../../runtime/cli/net-answer.js';
 import { mayNeedFileGuidance } from '../../ui/files/file-intent.js';
 import { formatSandboxRunBlock } from '../../ui/sandbox/sandbox-run-block.js';
@@ -201,6 +202,7 @@ export function createSingleModelResponseLifecycle({
             : null,
           designs: { deck: conversation?.deckDesign || 'auto', document: conversation?.documentDesign || 'auto' },
           cli: cli.ids,
+          cliChosen: cli.chosen,
           inputs: userParts.filter((part) => part?.inlineData?.data).map((part) => ({
             name: part.inlineData.name || `attachment.${String(part.inlineData.mimeType || '').split('/')[1] || 'bin'}`,
             mimeType: part.inlineData.mimeType || '',
@@ -251,7 +253,7 @@ export function createSingleModelResponseLifecycle({
     let liveRun = null;
     const stepList = () => {
       if (!liveRun && targetElement.parentElement) {
-        liveRun = createSandboxLedger({ document: getDocument(), host: targetElement.parentElement, before: targetElement, language: uiLanguage, summary: true, open: getConfig().processOpen === true, ...(serverRun ? { startedAt: runStartedAt, onNetAnswer: createNetAnswerHandler({ getRun: () => serverRun }) } : {}) });
+        liveRun = createSandboxLedger({ document: getDocument(), host: targetElement.parentElement, before: targetElement, language: uiLanguage, summary: true, open: getConfig().processOpen === true, ...(serverRun ? { startedAt: runStartedAt, onNetAnswer: createNetAnswerHandler({ getRun: () => serverRun }), onCredentialAnswer: createCredentialAnswerHandler({ getRun: () => serverRun }) } : {}) });
       }
       return liveRun;
     };

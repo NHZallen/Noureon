@@ -12,14 +12,14 @@ const USER = '123e4567-e89b-12d3-a456-426614174000';
 const TOKEN = 'good-token-good-token-good-token';
 const KEY = 'sk-live-provider-key-value';
 
-async function withServer(run, { auth = true, runs = null, credentials = null } = {}) {
+async function withServer(run, { auth = true, runs = null, credentials = null, files = null } = {}) {
   const lines = [];
   const config = loadConfig({ SUPABASE_URL: 'https://project.supabase.example', SUPABASE_ANON_KEY: 'anon', SOURCE_COMMIT: 'abc123' });
   const fetchImpl = async (url, options) => {
     if (!auth) throw new Error('offline');
     return options.headers.Authorization === `Bearer ${TOKEN}` ? new Response(JSON.stringify({ id: USER }), { status: 200 }) : new Response('{}', { status: 401 });
   };
-  const server = createServer(createApp({ config, fetchImpl, runs, credentials, log: createLogger((line) => lines.push(line)) }));
+  const server = createServer(createApp({ config, fetchImpl, runs, credentials, files, log: createLogger((line) => lines.push(line)) }));
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
   try {
@@ -393,5 +393,37 @@ test('an answer about a site reaches the reply of the person who gives it, and o
     assert.equal((await answer(USER, { askId: '../x', decision: 'once' })).status, 400);
     assert.equal((await answer('323e4567-e89b-12d3-a456-426614174002', { askId: 'ask0000000000001', decision: 'once' })).status, 404, 'a reply that is not running here');
     assert.equal((await fetch(`${base}/v1/runs/${USER}/net`, { method: 'POST', headers: json, body: '{}' })).status, 401);
+  }, { runs });
+});
+
+test('/v1/storage tells the signed-in person how much of their space is used', async () => {
+  const asked = [];
+  const files = { quotaBytes: 500 * 1024 * 1024, usage: async (userId) => { asked.push(userId); return 1234; } };
+  await withServer(async ({ base }) => {
+    assert.equal((await fetch(`${base}/v1/storage`)).status, 401);
+    const response = await fetch(`${base}/v1/storage`, { headers: auth });
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { usedBytes: 1234, quotaBytes: 500 * 1024 * 1024 });
+    assert.deepEqual(asked, [USER]);
+  }, { files });
+  await withServer(async ({ base }) => {
+    assert.equal((await fetch(`${base}/v1/storage`, { headers: auth })).status, 503);
+  });
+});
+
+test('an answer about the window for a tool\'s login reaches the reply of the person who gives it, and carries no value', async () => {
+  const answers = [];
+  const runs = { answerCredential: async (args) => { answers.push(args); return args.runId === USER ? { ok: true, answered: true } : { ok: false, reason: 'not_running' }; } };
+  await withServer(async ({ base }) => {
+    const answer = (runId, body) => fetch(`${base}/v1/runs/${runId}/credential`, { method: 'POST', headers: { ...auth, ...json }, body: JSON.stringify(body) });
+    const ok = await answer(USER, { askId: 'ask0000000000001', decision: 'saved', value: 'ignored' });
+    assert.equal(ok.status, 200);
+    assert.deepEqual(await ok.json(), { ok: true, answered: true });
+    assert.deepEqual(answers[0], { userId: USER, runId: USER, askId: 'ask0000000000001', decision: 'saved' }, 'only the decision is passed on');
+    assert.equal((await answer(USER, { askId: 'ask0000000000001', decision: 'cancel' })).status, 200);
+    assert.equal((await answer(USER, { askId: 'ask0000000000001', decision: 'once' })).status, 400);
+    assert.equal((await answer(USER, { askId: '../x', decision: 'saved' })).status, 400);
+    assert.equal((await answer('323e4567-e89b-12d3-a456-426614174002', { askId: 'ask0000000000001', decision: 'saved' })).status, 404);
+    assert.equal((await fetch(`${base}/v1/runs/${USER}/credential`, { method: 'POST', headers: json, body: '{}' })).status, 401);
   }, { runs });
 });

@@ -15,6 +15,8 @@
 | `POST /v1/runs/:id/start` `hold` `release` `plan` `pause` `resume` | 是 | 對進行中的深度研究下指令：馬上開始、暫停倒數（編輯計劃中）、恢復倒數、用文字修改計劃（`{instruction}`）、暫停、繼續。階段不對回 409 `wrong_phase` |
 | `POST /v1/runs/:id/steer` | 是 | 研究進行中（或暫停中）補充一條指令（`{instruction}`，最多 2000 字、一次研究最多 20 條），之後的輪次、大綱、各章與摘要都會參考。階段不對回 409 `wrong_phase`；空白或超過上限回 400 `bad_request` |
 | `POST /v1/runs/:id/net` | 是 | 回答命令工具想連到某網站的詢問：`{askId, decision: 'once' \| 'always' \| 'deny'}`，交給正在執行的沙盒；不是這個人進行中的回覆回 404，答案不合法回 400 |
+| `POST /v1/runs/:id/credential` | 是 | 回答「命令工具需要登入資料」的視窗：`{askId, decision: 'saved' \| 'cancel'}`（內容本身先由頁面存到 `/v1/credentials`，不會經過這裡），交給正在等的那一次回覆；不是這個人進行中的回覆回 404 |
+| `GET /v1/storage` | 是 | 這個人的雲端空間用量：`{usedBytes, quotaBytes}`（每人 500 MB，附件與 AI 做出的檔案都算；`usedBytes` 為 `null` 表示暫時查不到） |
 | `GET /v1/credentials`、`PUT /v1/credentials/:NAME`（`{value}`）、`DELETE /v1/credentials/:NAME` | 是 | 命令工具的安全憑證：列出（含內容，使用者可以再看）、新增或替換、刪除。加密保存在資料表 `user_credentials`（只有服務角色能讀寫）；名稱是大寫英文、數字、底線，內容最多 4000 字，每人最多 40 個 |
 | `POST /v1/runs/:id/stop` | 是 | 停止；深度研究可帶 `{mode: 'report'}`，表示「用目前的資料寫報告」，不帶則結束 |
 
@@ -30,6 +32,7 @@
 | `SUPABASE_SERVICE_KEY`、`KEY_ENCRYPTION_KEY` | 伺服器代寫回覆用的服務金鑰與加密暫存金鑰用的主金鑰（要一起設） |
 | `SANDBOX_RUNNER_URL`、`SANDBOX_RUNNER_TOKEN` | 選填，要一起設：Python 沙盒主機的 runner 位址（如 `http://10.42.0.1:7788`）與密鑰（VPS 上 `/etc/noureon-sandbox/token` 的內容）。沒設，或沙盒主機現在連不上／拒絕，Python 回覆回 `unsupported_mode`，瀏覽器改在本機執行。啟動日誌會有 `sandbox_ok` 或 `sandbox_failed` |
 | （不用設定） | 看圖檢查在伺服器上做，需要映像裡有畫圖用的原生套件；啟動日誌 `slides_ok` 表示可用，`slides_unavailable` 表示不可用（檢查由瀏覽器照舊做） |
+| `ASSET_SWEEP` | 選填：設成 `delete` 才會真的刪除「沒有任何資料列提到、且超過一天」的孤兒檔案（每天一次，啟動後 2 分鐘先跑一次）；不設就只在日誌寫 `asset_orphans_found`（數量、位元組、前 20 個檔名），什麼都不刪。第一次刪除請先看過清單再設 |
 | `PORT` | 選填，預設 8080 |
 
 **服務金鑰、主金鑰與沙盒密鑰只能放在 Zeabur 的環境變數裡，不要寫進程式碼、不要貼到對話或日誌。**

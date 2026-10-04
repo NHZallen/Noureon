@@ -4,9 +4,10 @@
 // (pictures as thumbnails), then the files being finished. Fed by the events
 // runSandboxReply reports.
 
-import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
+import { sandboxText, skippedFileText } from '../../runtime/sandbox/sandbox-texts.js';
 import { createLedger, formatElapsed } from '../ledger/ledger.js';
 import { createCodeCard } from './run-code-card.js';
+import { createCredentialAskCards } from './credential-ask-card.js';
 import { createNetAskCards } from './net-ask-card.js';
 import { createSourceChips, mergeSources, putFirstSiteIcon, sourcesRowLabel } from './run-sources.js';
 import { keepEndInView } from '../motion/collapse-motion.js';
@@ -25,7 +26,7 @@ const sizeText = (bytes) => (bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toF
  * opens to the steps (`open`: it starts open). The steps are folded either way, newest too. Without it the steps are the list
  * itself (where this is inside a row of another list, such as the visual check's).
  */
-export function createSandboxLedger({ document, host, before = null, language = 'zh-TW', summary = false, open = false, startedAt: workStartedAt = null, onNetAnswer = null }) {
+export function createSandboxLedger({ document, host, before = null, language = 'zh-TW', summary = false, open = false, startedAt: workStartedAt = null, onNetAnswer = null, onCredentialAnswer = null }) {
   const text = (key, values) => sandboxText(language, key, values);
   const outer = summary ? createLedger({ document, host, before }) : null;
   const line = outer ? outer.addRow(text('processWorking')) : null;
@@ -52,6 +53,12 @@ export function createSandboxLedger({ document, host, before = null, language = 
   const askAboutSite = (event) => {
     netCards ||= createNetAskCards({ document, host: list.list, language, onAnswer: onNetAnswer || (async () => ({ ok: false })), commandOf: () => steps.get(currentStep)?.command || '' });
     netCards.handle(event);
+  };
+  // The window that asks for the login a CLI tool needs (a reply with tools only): the card is in the list too.
+  let credentialCards = null;
+  const askForCredentials = (event) => {
+    credentialCards ||= createCredentialAskCards({ document, host: list.list, language, onAnswer: onCredentialAnswer || (async () => ({ ok: false })) });
+    credentialCards.handle(event);
   };
   const create = (name, className, content) => {
     const node = document.createElement(name);
@@ -163,7 +170,7 @@ export function createSandboxLedger({ document, host, before = null, language = 
     step.files.hidden = false;
   };
 
-  const endStep = ({ n, ok, error, files }) => {
+  const endStep = ({ n, ok, error, files, skipped = [] }) => {
     const step = steps.get(n);
     if (!step) return;
     if (error) {
@@ -172,6 +179,8 @@ export function createSandboxLedger({ document, host, before = null, language = 
       step.output.textContent = `${step.written ? `${step.written}\n` : ''}${String(error).slice(-1200)}`;
     }
     files.forEach((file) => addFile(step, file));
+    // A file that was made but is not offered (too large, no room in the cloud space) is said, so it does not look like a file that went missing.
+    for (const file of skipped) step.row.body.append(create('p', 'sandbox-run-note is-skipped', skippedFileText(language, file)));
     step.row.setDetail('');
     step.row.setLabel(step.row.doneLabel);
     step.row.finish(ok ? 'done' : 'failed');
@@ -279,6 +288,8 @@ export function createSandboxLedger({ document, host, before = null, language = 
         endStep(event);
       } else if (event.type === 'net') {
         askAboutSite(event);
+      } else if (event.type === 'credential') {
+        askForCredentials(event);
       }
   };
 

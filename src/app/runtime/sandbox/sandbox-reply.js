@@ -3,7 +3,7 @@
 // answers without a call (at most MAX_RUNS_PER_REPLY runs). Returns the
 // answer text and the run record kept above it. Loaded on demand.
 
-import { MAX_RUNS_PER_REPLY, MAX_RUNS_WITH_CLI, RUN_COMMAND_TOOL, RUN_PYTHON_TOOL, RUN_PYTHON_TOOL_SERVER, getCliGuidance, getSandboxGuidance } from './sandbox-guidance.js';
+import { MAX_RUNS_PER_REPLY, MAX_RUNS_WITH_CLI, RUN_COMMAND_TOOL, RUN_PYTHON_TOOL, RUN_PYTHON_TOOL_SERVER, REQUEST_CREDENTIALS_TOOL, getCliGuidance, getSandboxGuidance } from './sandbox-guidance.js';
 import { sandboxText } from './sandbox-texts.js';
 import { RUN_STATUS } from '../../ui/sandbox/sandbox-run-block.js';
 import { partialJsonString } from '../../legacy-runtime/features/tool-call-formats.js';
@@ -39,7 +39,10 @@ export function toolResultFor(result = {}, { note = '' } = {}) {
     stderr: trimForModel(outputText(result.stderr)),
     ...(result.error ? { error: trimForModel(result.error, 4000) } : {}),
     files: (result.files || []).map((file) => ({ path: `/output/${file.name}`, size: file.size })),
-    ...(result.skippedFiles?.length ? { skipped_files: result.skippedFiles.map((file) => ({ path: `/output/${file.name}`, reason: file.reason })) } : {}),
+    ...(result.skippedFiles?.length ? {
+      skipped_files: result.skippedFiles.map((file) => ({ path: `/output/${file.name}`, reason: file.reason, ...(file.size ? { size_mb: Math.round(file.size / 1048576) } : {}), ...(file.limit ? { limit_mb: Math.round(file.limit / 1048576) } : {}) })),
+      skipped_note: 'These files were NOT delivered to the user. If a file was too large, make a smaller one (a lower quality or resolution, a shorter clip, audio only) and tell the user why; do not claim the file was delivered.'
+    } : {}),
     ...(result.restarted ? { restarted: true, note: 'The Python environment was restarted; variables from earlier calls are gone.' } : {}),
     ...(result.packageError ? { package_error: trimForModel(result.packageError, 2000) } : {}),
     elapsed_ms: Math.round(Number(result.elapsedMs) || 0)
@@ -77,6 +80,8 @@ export async function runSandboxReply({
   // The CLI tools the person chose with "@" (a reply on the server only): [{ id, name, version, usage, env, program?: { file, url, sha256, size },
   // install?: the command that installs a pip tool, missing?: the secure credentials it needs that are not set }]. The model gets run_command for them.
   cli: cliTools = [],
+  // Asks the person for the login a tool needs, in a window of the app: ({ toolId }) => Promise<{ provided }>. Only the server has it.
+  askCredentials = null,
   onStatus = () => {},
   // What happens in each run, for the work window: { type: 'step', n, title, code },
   // { type: 'output', n, stream, text } and { type: 'step-end', n, ok, error, files, elapsedMs }.
@@ -137,6 +142,9 @@ export async function runSandboxReply({
   let cliFailure = '';
   // A tool that could not be made ready (its install failed): the model is told, and the others work.
   const cliProblems = {};
+  // The model's own tools that need a login the person has not given: it may ask for it (the tools the person chose with "@" were asked about already).
+  const canAskCredentials = useCli && typeof askCredentials === 'function' && cliTools.some((tool) => tool.chosen === false && tool.missing?.length);
+  const isCredentialRequest = (name) => canAskCredentials && name === REQUEST_CREDENTIALS_TOOL.name;
   const isRunTool = (name) => name === RUN_PYTHON_TOOL.name || (useCli && name === RUN_COMMAND_TOOL.name);
   let roundMayCall = false;
   const deliver = (chunk) => {
@@ -200,22 +208,6 @@ export async function runSandboxReply({
           if (signal?.aborted) throw error;
           cliFailure = String(error?.message || error).slice(0, 300);
         }
-        // The Python tools are installed now, in the sandbox (the person is asked about a site the install needs that has no rule).
-        if (!cliFailure) {
-          for (const tool of cliTools.filter((entry) => entry.install)) {
-            const installing = sandboxText(language, 'sandboxCliInstalling', { name: tool.name });
-            onStatus(installing);
-            onEvent({ type: 'prepare', text: installing });
-            try {
-              const done = await sandbox.command(tool.install, { signal, plain: true, timeoutMs: 120_000 });
-              if (done?.stopped) throw Object.assign(new Error('stopped'), { code: 'stopped' });
-              if (done?.error) cliProblems[tool.id] = lastLine(outputText(done.stderr)) || String(done.error).slice(0, 200);
-            } catch (error) {
-              if (signal?.aborted || error?.code === 'stopped') throw error;
-              cliProblems[tool.id] = String(error?.message || error).slice(0, 200);
-            }
-          }
-        }
       }
       return sandbox;
     })();
@@ -223,7 +215,30 @@ export async function runSandboxReply({
     return sandboxReady;
   };
 
-  const guidance = [getSandboxGuidance({ inputFiles, designs, host }), useCli ? getCliGuidance(cliTools.map((tool) => ({ ...tool, file: tool.program?.file || tool.pip?.command }))) : '', researchTools ? researchGuidance() : ''].filter(Boolean).join('\n\n');
+  // A Python tool is installed the first time a command uses it (not for every reply that merely has it among its tools): the person is asked about
+  // a site the install needs that has no rule, and the install is told in the step that needs it.
+  const installed = new Set();
+  const installFor = async (sandbox, commandLine) => {
+    for (const tool of cliTools) {
+      if (!tool.install || installed.has(tool.id) || cliProblems[tool.id]) continue;
+      const names = Array.isArray(tool.pip?.commands) && tool.pip.commands.length ? tool.pip.commands : [tool.pip?.command].filter(Boolean);
+      if (!names.some((name) => new RegExp(`(^|[\\s;&|(\\/])${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=$|[\\s;&|)])`).test(commandLine))) continue;
+      installed.add(tool.id);
+      const installing = sandboxText(language, 'sandboxCliInstalling', { name: tool.name });
+      onStatus(installing);
+      onEvent({ type: 'prepare', text: installing });
+      try {
+        const done = await sandbox.command(tool.install, { signal, plain: true, timeoutMs: 120_000 });
+        if (done?.stopped) throw Object.assign(new Error('stopped'), { code: 'stopped' });
+        if (done?.error) cliProblems[tool.id] = lastLine(outputText(done.stderr)) || String(done.error).slice(0, 200);
+      } catch (error) {
+        if (signal?.aborted || error?.code === 'stopped') throw error;
+        cliProblems[tool.id] = String(error?.message || error).slice(0, 200);
+      }
+    }
+  };
+
+  const guidance = [getSandboxGuidance({ inputFiles, designs, host }), useCli ? getCliGuidance(cliTools.map((tool) => ({ ...tool, file: tool.program?.file || tool.pip?.command })), { canAsk: typeof askCredentials === 'function' }) : '', researchTools ? researchGuidance() : ''].filter(Boolean).join('\n\n');
   const research = researchTools
     ? createResearchCalls({ ...researchTools, language, signal, onEvent })
     : null;
@@ -285,7 +300,7 @@ export async function runSandboxReply({
           onEvent({ type: 'code', text: partialJsonString(raw, name === RUN_COMMAND_TOOL.name ? 'command' : 'code') });
         }
       },
-      tools: [...(canRun ? [host === 'server' ? RUN_PYTHON_TOOL_SERVER : RUN_PYTHON_TOOL, ...(useCli ? [RUN_COMMAND_TOOL] : [])] : []), ...(canResearch ? RESEARCH_TOOLS : [])],
+      tools: [...(canRun ? [host === 'server' ? RUN_PYTHON_TOOL_SERVER : RUN_PYTHON_TOOL, ...(useCli ? [RUN_COMMAND_TOOL] : []), ...(canAskCredentials ? [REQUEST_CREDENTIALS_TOOL] : [])] : []), ...(canResearch ? RESEARCH_TOOLS : [])],
       toolTurns,
       additionalSystemInstruction: [requestOptions.additionalSystemInstruction, guidance].filter(Boolean).join('\n\n'),
       onResponseComplete: (value) => { response = value; }
@@ -321,7 +336,7 @@ export async function runSandboxReply({
       }
       break;
     }
-    const calls = (response?.toolCalls || []).filter((call) => isRunTool(call.name) || research?.handles(call.name));
+    const calls = (response?.toolCalls || []).filter((call) => isRunTool(call.name) || isCredentialRequest(call.name) || research?.handles(call.name));
     // The thinking goes to the run it led to, or to the end of the reply.
     let roundThought = takeThought();
     if (!canCall || !calls.length) {
@@ -339,6 +354,27 @@ export async function runSandboxReply({
     const results = [];
     for (const call of calls) {
       const reply = (content) => results.push({ id: call.id, geminiId: call.geminiId, name: call.name, content });
+      if (isCredentialRequest(call.name)) {
+        // The window that asks the person for a tool's login: the reply waits for the answer, and the model only learns whether it was given.
+        const tool = cliTools.find((entry) => entry.id === String(call.args?.tool || '').trim());
+        if (!tool || !tool.missing?.length) {
+          reply({ provided: false, message: tool ? `${tool.name} has nothing missing.` : 'No such CLI tool in the instructions.' });
+          continue;
+        }
+        onStatus(sandboxText(language, 'sandboxCredentialWaiting', { tool: tool.name }));
+        let answered = { provided: false };
+        try {
+          answered = await askCredentials({ toolId: tool.id });
+        } catch (error) {
+          if (signal?.aborted) break;
+          answered = { provided: false };
+        }
+        if (answered?.provided) tool.missing = [];
+        reply(answered?.provided
+          ? { provided: true, message: `The user provided the login for ${tool.name}. Go on and use the tool.` }
+          : { provided: false, message: `The user did not provide the login for ${tool.name}. Say so and stop using it; do not ask for the value in the chat or look for another way to log in.` });
+        continue;
+      }
       if (!isRunTool(call.name)) {
         // A search or a page: what the model says about it is shown between the rows.
         notes.fromCall(call);
@@ -387,7 +423,10 @@ export async function runSandboxReply({
         result = isCommand
           ? (cliFailure
             ? { stdout: '', stderr: '', error: `The CLI tools could not be prepared (${cliFailure}). Do not call run_command again; answer without it.`, files: [], elapsedMs: 0 }
-            : await sandbox.command(code, { signal, env: cliEnv, timeoutMs: Math.min(120, Math.max(5, Number(call.args?.timeout_seconds) || 60)) * 1000 }))
+            : await (async () => {
+              await installFor(sandbox, code);
+              return sandbox.command(code, { signal, env: cliEnv, timeoutMs: Math.min(120, Math.max(5, Number(call.args?.timeout_seconds) || 60)) * 1000 });
+            })())
           : await sandbox.run(code, { signal });
       } catch (error) {
         if (signal?.aborted || error?.code === 'stopped') {
@@ -419,7 +458,7 @@ export async function runSandboxReply({
         // Kept in memory for B3, which saves them with the message.
         outputs: result.files || []
       });
-      onEvent({ type: 'step-end', n: currentStep, ok: !result.error, error: result.error || '', files: result.files || [], elapsedMs: result.elapsedMs || 0 });
+      onEvent({ type: 'step-end', n: currentStep, ok: !result.error, error: result.error || '', files: result.files || [], skipped: result.skippedFiles || [], elapsedMs: result.elapsedMs || 0 });
       let note = '';
       if (result.crashed) {
         crashes += 1;

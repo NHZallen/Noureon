@@ -393,7 +393,9 @@ test('a request names CLI tools of the store, for a reply with Python only', () 
   const base = { protocol: 1, clientVersion: '17.6.0', conversationId: '123e4567-e89b-12d3-a456-426614174000', assistantMessageId: '223e4567-e89b-12d3-a456-426614174001', sequence: 0, model: { provider: 'openrouter', id: 'm', info: modelInfo }, request: { history: [], currentMessage: { parts: [{ text: 'x' }] }, systemInstruction: '', language: 'en' }, secrets: { providerKey: KEY } };
   const ok = validateRunSpec({ ...base, tools: { webSearch: 'off', advanced: true, cli: [{ id: 'officecli' }, { id: 'officecli' }] } });
   assert.equal(ok.ok, true);
-  assert.deepEqual(ok.spec.tools.cli, [{ id: 'officecli' }], 'once each');
+  assert.deepEqual(ok.spec.tools.cli, [{ id: 'officecli', chosen: false }], 'once each');
+  assert.deepEqual(validateRunSpec({ ...base, tools: { webSearch: 'off', advanced: true, cli: [{ id: 'officecli', chosen: true }, { id: 'ffmpeg' }] } }).spec.tools.cli, [{ id: 'officecli', chosen: true }, { id: 'ffmpeg', chosen: false }], 'what the person chose with @ is told apart');
+  assert.equal(validateRunSpec({ ...base, tools: { webSearch: 'off', advanced: true, cli: [{ id: 'officecli', chosen: 'yes' }] } }).ok, false);
   for (const [cli, advanced, what] of [[[{ id: 'nothing-here' }], true, 'a tool that is not in the store'], [[{ id: 'officecli' }], false, 'a reply without Python'], [{}, true, 'not a list'], [Array.from({ length: 9 }, () => ({ id: 'officecli' })), true, 'too many']]) {
     const bad = validateRunSpec({ ...base, tools: { webSearch: 'off', advanced, cli } });
     assert.equal(bad.ok, false, what);
@@ -565,8 +567,105 @@ test('a credential the person has not set is told to the model as missing, with 
     fetchImpl: async (url, options) => { bodies.push(options.body); round += 1; return streamResponse(round === 1 ? sse(toolCall('c1', 'run_command', { command: 'twitter feed' })) : sse(content('Please add it.'))); }
   });
   assert.match(bodies[0], /Not set yet: TWITTER_AUTH_TOKEN/);
-  assert.match(bodies[0], /Permissions → Secure credentials/);
+  assert.match(bodies[0], /call request_credentials with tool \\"twitter-cli\\"/, 'a tool the model uses by itself may be asked for through the window');
   assert.equal(host.record.commands.find((command) => command.line === 'twitter feed').env.TWITTER_AUTH_TOKEN, undefined);
+});
+
+const SAVED = { TWITTER_AUTH_TOKEN: 'tok_value_123456', TWITTER_CT0: 'ct0_value_123456' };
+
+// The person is asked in a window: `answer` says what they do ('saved' puts the values in the store first, as the page does through /v1/credentials).
+function askingSetup({ answer, waitMs } = {}) {
+  const events = [];
+  const state = { stored: {} };
+  const credentialControl = { answer: null };
+  return {
+    events,
+    state,
+    credentialControl,
+    options: {
+      credentials: { values: async () => state.stored },
+      credentialControl,
+      ...(waitMs ? { credentialWaitMs: waitMs } : {}),
+      onLive: ({ ev }) => {
+        if (ev?.type !== 'credential') return;
+        events.push(ev);
+        if (ev.event === 'ask' && answer) {
+          if (answer === 'saved') state.stored = SAVED;
+          assert.deepEqual(credentialControl.answer(ev.id, answer), { answered: true });
+        }
+      }
+    }
+  };
+}
+
+test('a tool chosen with "@" whose login is missing asks the person before the model starts, and goes on with what they saved', async () => {
+  const host = fakeCliHost({ commandFor: (line) => (line.startsWith('pip install') ? {} : { stdout: 'timeline\n' }) });
+  const setup = askingSetup({ answer: 'saved' });
+  const bodies = [];
+  let round = 0;
+  const result = await executeReply({
+    spec: specFor({ cli: [{ id: 'twitter-cli', chosen: true }] }), secrets, userId: USER, sandboxHost: host, files: fakeFiles(), ...setup.options,
+    fetchImpl: async (url, options) => { bodies.push(options.body); round += 1; return streamResponse(round === 1 ? sse(toolCall('c1', 'run_command', { command: 'twitter feed' })) : sse(content('Here it is.'))); }
+  });
+  assert.equal(result.status, 'done');
+  assert.deepEqual(setup.events.map((event) => event.event), ['ask', 'answer']);
+  assert.equal(setup.events[0].tool.id, 'twitter-cli');
+  assert.deepEqual(setup.events[0].fields.map((field) => [field.env, field.type, field.label, field.site]), [['TWITTER_AUTH_TOKEN', 'token', 'auth_token', 'x.com'], ['TWITTER_CT0', 'cookie', 'ct0', 'x.com']]);
+  assert.equal(setup.events[1].decision, 'saved');
+  assert.doesNotMatch(bodies[0], /Not set yet/, 'what was saved is in place before the model is told about the tool');
+  const command = host.record.commands.find((entry) => entry.line === 'twitter feed');
+  assert.equal(command.env.TWITTER_AUTH_TOKEN, SAVED.TWITTER_AUTH_TOKEN);
+  assert.equal(command.env.TWITTER_CT0, SAVED.TWITTER_CT0);
+  assert.ok(!JSON.stringify(setup.events).includes(SAVED.TWITTER_AUTH_TOKEN), 'no value is ever in an event');
+});
+
+test('a person who does not answer in time, or says not now, leaves the tool without its login and the model is told so', async () => {
+  for (const [answer, decision] of [[null, 'timeout'], ['cancel', 'cancel']]) {
+    const host = fakeCliHost();
+    const setup = askingSetup({ answer, waitMs: 20 });
+    const bodies = [];
+    const result = await executeReply({
+      spec: specFor({ cli: [{ id: 'twitter-cli', chosen: true }] }), secrets, userId: USER, sandboxHost: host, files: fakeFiles(), ...setup.options,
+      fetchImpl: async (url, options) => { bodies.push(options.body); return streamResponse(sse(content('I could not log in.'))); }
+    });
+    assert.equal(result.status, 'done');
+    assert.equal(setup.events.at(-1).decision, decision);
+    assert.match(bodies[0], /Not set yet: TWITTER_AUTH_TOKEN, TWITTER_CT0/);
+    assert.match(bodies[0], /did not provide it/);
+    assert.equal(setup.credentialControl.answer('11111111-2222', 'saved').answered, false, 'a question that is over cannot be answered');
+  }
+});
+
+test('a tool the model uses by itself: it asks for the login with request_credentials, waits for the window, and goes on', async () => {
+  const host = fakeCliHost({ commandFor: (line) => (line.startsWith('pip install') ? {} : { stdout: 'timeline\n' }) });
+  const setup = askingSetup({ answer: 'saved' });
+  const bodies = [];
+  let round = 0;
+  await executeReply({
+    spec: specFor({ cli: [{ id: 'twitter-cli' }] }), secrets, userId: USER, sandboxHost: host, files: fakeFiles(), ...setup.options,
+    fetchImpl: async (url, options) => {
+      bodies.push(options.body);
+      round += 1;
+      if (round === 1) return streamResponse(sse(toolCall('c1', 'request_credentials', { tool: 'twitter-cli' })));
+      if (round === 2) return streamResponse(sse(toolCall('c2', 'run_command', { command: 'twitter feed' })));
+      return streamResponse(sse(content('Done.')));
+    }
+  });
+  assert.match(bodies[0], /"request_credentials"/, 'offered to the model');
+  assert.deepEqual(setup.events.map((event) => event.event), ['ask', 'answer']);
+  assert.match(bodies[1], /The user provided the login for twitter-cli/);
+  assert.equal(host.record.commands.find((entry) => entry.line === 'twitter feed').env.TWITTER_CT0, SAVED.TWITTER_CT0);
+});
+
+test('request_credentials is not offered when nothing the model may use by itself is missing a login', async () => {
+  const host = fakeCliHost();
+  const bodies = [];
+  await executeReply({
+    spec: specFor({ cli: [{ id: 'twitter-cli' }] }), secrets, userId: USER, sandboxHost: host, files: fakeFiles(),
+    credentials: { values: async () => SAVED }, credentialControl: { answer: null }, onLive: () => {},
+    fetchImpl: async (url, options) => { bodies.push(options.body); return streamResponse(sse(content('Hi.'))); }
+  });
+  assert.doesNotMatch(bodies[0], /request_credentials/);
 });
 
 test('a credential store that fails does not end the reply: the tool is told its credentials are not set', async () => {
@@ -608,4 +707,45 @@ test('what the proxy asks the person goes to the page as an event, and the perso
   assert.equal(typeof netControl.answer, 'function', 'the run manager has the way to answer');
   assert.deepEqual(await netControl.answer(ask.id, 'always'), { answered: true });
   assert.deepEqual(host.record.answers, [[ask.id, 'always']]);
+});
+
+test('what the person chose with "@" is told to the model as chosen, what it may use by itself as not chosen, with the rule to leave it alone for ordinary requests', async () => {
+  const bodies = [];
+  const run = async (cli) => {
+    bodies.length = 0;
+    await executeReply({
+      spec: specFor({ cli }), secrets, userId: USER, sandboxHost: fakeCliHost(), files: fakeFiles(), onLive: () => {},
+      fetchImpl: async (url, options) => { bodies.push(options.body); return streamResponse(sse(content('Hello.'))); }
+    });
+    return bodies[0];
+  };
+  const chosen = await run([{ id: 'officecli', chosen: true }]);
+  assert.match(chosen, /The user chose this CLI tool for this message with \\"@\\": OfficeCLI/);
+  assert.doesNotMatch(chosen, /did NOT choose/);
+  const own = await run([{ id: 'ffmpeg', chosen: false }, { id: 'yt-dlp', chosen: false }]);
+  assert.match(own, /did NOT choose any for this message: FFmpeg, yt-dlp/);
+  assert.match(own, /use no CLI tool and do not call run_command/);
+  assert.doesNotMatch(own, /The user chose/, 'the words that pushed the model to use every tool are gone');
+  const mixed = await run([{ id: 'officecli', chosen: true }, { id: 'ffmpeg', chosen: false }]);
+  assert.match(mixed, /Also available, but NOT chosen for this message: FFmpeg/);
+});
+
+test('a Python tool is installed when a command first uses it, once, and not for a reply that only has it among its tools', async () => {
+  const host = fakeCliHost({ commandFor: (line) => (line.startsWith('pip install') ? {} : { stdout: 'ok\n' }) });
+  let round = 0;
+  await executeReply({
+    spec: specFor({ cli: [{ id: 'csvkit', chosen: false }, { id: 'twitter-cli', chosen: false }, { id: 'ffmpeg', chosen: false }] }),
+    secrets, userId: USER, sandboxHost: host, files: fakeFiles(), credentials: { values: async () => ({}) }, onLive: () => {},
+    fetchImpl: async () => {
+      round += 1;
+      if (round === 1) return streamResponse(sse(toolCall('c1', 'run_command', { command: 'ffmpeg -version' })));
+      if (round === 2) return streamResponse(sse(toolCall('c2', 'run_command', { command: 'cd /output && csvcut -n /input/a.csv | head' })));
+      if (round === 3) return streamResponse(sse(toolCall('c3', 'run_command', { command: 'csvstat /input/a.csv' })));
+      return streamResponse(sse(content('Done.')));
+    }
+  });
+  const lines = host.record.commands.map((command) => command.line);
+  assert.equal(lines.filter((line) => line.startsWith('pip install')).length, 1, 'csvkit once; twitter-cli never');
+  assert.match(lines.find((line) => line.startsWith('pip install')), /csvkit==/);
+  assert.deepEqual(lines.map((line) => line.split(' ')[0]), ['ffmpeg', 'pip', 'cd', 'csvstat'], 'installed right before the first command that uses it');
 });

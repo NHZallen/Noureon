@@ -194,8 +194,10 @@ export function createRunManager({
     const controller = new AbortController();
     // How the person's answer to a question about a site gets to the sandbox that asked (the reply sets `answer` when it has one).
     const netControl = { answer: null };
+    // The same for the window that asks the person for a login a tool needs (executor.js).
+    const credentialControl = { answer: null };
     const live = { answer: '', thought: { text: '', kind: 'model', ended: false, ms: 0, first: null }, sources: [], elapsedFrom: 0, elapsedAt: now(), steps: { events: [], chars: 0 }, vision: { events: [], chars: 0 }, research: { state: null, activity: [] }, subscribers: new Set() };
-    active.set(runId, { controller, userId, live, controls, netControl });
+    active.set(runId, { controller, userId, live, controls, netControl, credentialControl });
     let finalStatus = 'error';
     const writer = createMessageWriter({
       store: db,
@@ -236,6 +238,7 @@ export function createRunManager({
         files: sandbox?.files || null,
         credentials,
         netControl,
+        credentialControl,
         // A page is watching: it can take over a reply whose Python was lost.
         watching: () => live.subscribers.size > 0,
         fetchImpl,
@@ -468,6 +471,17 @@ export function createRunManager({
         log('net_answer_failed', { runId, message: String(error?.message || '').slice(0, 160) });
         return { ok: false, reason: 'not_running' };
       }
+    },
+
+    /**
+     * A person's answer ('saved', 'cancel') to the window that asked for a login a tool needs, in a reply of theirs that is running here (the
+     * values themselves were saved by the person through the credentials endpoint; they never pass here).
+     * Resolves { ok: true, answered } or { ok: false, reason: 'not_running' }.
+     */
+    async answerCredential({ userId, runId, askId, decision }) {
+      const entry = active.get(runId);
+      if (!entry || entry.userId !== userId || !entry.credentialControl.answer) return { ok: false, reason: 'not_running' };
+      return { ok: true, answered: Boolean(entry.credentialControl.answer(askId, decision)?.answered) };
     },
 
     /** Whether this person's reply is being made by this process (so it can be watched live). */

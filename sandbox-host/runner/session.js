@@ -394,7 +394,7 @@ export function createSessionManager({ config, spawn = nodeSpawn, now = Date.now
             ? { type: 'run', code: String(code || ''), timeoutMs: limit }
             : { type: 'command', command: String(command), env: env && typeof env === 'object' ? env : {}, files: Array.isArray(files) ? files : [], timeoutMs: limit };
           const result = await request(session, message, { onProgress, timeoutMs: limit });
-          const output = collectOutput(session.dirs.output, before);
+          const output = collectOutput(session.dirs.output, before, { outputFileCount: LIMITS.outputFileCount, outputFileBytes: config.outputFileBytes, outputTotalBytes: config.outputTotalBytes });
           return { ...result, type: 'result', files: output.files, skippedFiles: output.skipped };
         } catch (error) {
           if (!(error instanceof RunnerError) || error.code !== 'sandbox_gone') throw error;

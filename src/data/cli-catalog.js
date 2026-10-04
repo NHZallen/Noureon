@@ -23,6 +23,9 @@ const STATUSES = Object.freeze(['ready', 'soon']);
 const ID = /^[a-z][a-z0-9-]{1,39}$/;
 const SHA256 = /^[0-9a-f]{64}$/;
 const LANGUAGES = Object.freeze(['zh-TW', 'en', 'fr', 'ru', 'es']);
+/** What a secure credential is, so the person is asked for the right thing (a token, a cookie or a password) and not "a password" for everything. */
+export const CREDENTIAL_TYPES = Object.freeze(['token', 'cookie', 'password']);
+
 // What the server can make a login file of (see server/cli-credentials.js).
 const CREDENTIAL_FILE_FORMATS = Object.freeze(['rdt-cookies']);
 
@@ -50,6 +53,7 @@ Every command saves the file. After a series of commands, \`officecli validate <
 const FFMPEG_USAGE = `ffmpeg converts, trims, joins and re-encodes audio and video (a static build: the program is one file; there is no ffprobe).
 Read the user's files from /input (read only) and write every result to /output. Always name an output file, add -y to overwrite and -hide_banner -loglevel error to keep the output short.
 A step may run for at most about two minutes (give timeout_seconds up to 120): work on short clips, a lower resolution or a fast preset (-preset veryfast) for long files, and say so when a file is too long.
+Leave only the finished file in /output (no intermediate files), and keep it under 50 MB: a larger file is not delivered, so lower the resolution or the bitrate (-crf 28, -vf scale=-2:480) when the result would be bigger.
 
   Convert / compress video:   ffmpeg -y -i /input/in.mov -c:v libx264 -crf 23 -preset veryfast -c:a aac /output/out.mp4
   Audio only:                 ffmpeg -y -i /input/in.mp4 -vn -c:a libmp3lame -q:a 2 /output/audio.mp3
@@ -60,13 +64,15 @@ A step may run for at most about two minutes (give timeout_seconds up to 120): w
   Join files of the same kind: put "file '/input/a.mp4'" lines in /output/list.txt, then ffmpeg -y -f concat -safe 0 -i /output/list.txt -c copy /output/joined.mp4
   What a file holds:          ffmpeg -hide_banner -i /input/in.mp4 2>&1   (it lists the streams, then complains that there is no output: that is expected)`;
 
-const YTDLP_USAGE = `yt-dlp downloads video and audio from many sites (it is run as a Python program and reaches the sites through the network that the person allows). Write everything to /output.
-  Download:            yt-dlp -o "/output/%(title).80B.%(ext)s" "URL"
-  Audio as mp3:        yt-dlp -x --audio-format mp3 -o "/output/%(title).80B.%(ext)s" "URL"     (the conversion needs the ffmpeg tool, when the user chose it too)
-  A limit on quality:  yt-dlp -f "bv*[height<=720]+ba/b[height<=720]" "URL"
-  Only one video:      add --no-playlist. Subtitles: --write-subs --sub-langs "en.*,zh.*" --skip-download
+const YTDLP_USAGE = `yt-dlp downloads video and audio from many sites (it is run as a Python program and reaches the sites through the network that the person allows).
+Deliver ONE finished file and leave nothing else in /output: ask for MP4 straight away, keep scratch files in /work (-P "temp:/work"), and delete anything else it left in /output (a .webm or .m4a source, .part files, subtitles that were not asked for) with rm before you answer.
+  Video (MP4):         yt-dlp -P "temp:/work" -f "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]/bv*+ba/b" --merge-output-format mp4 -o "/output/%(title).80B.%(ext)s" "URL"
+                       (joining a separate video and audio needs the ffmpeg tool; when it is not among the tools, use a single-file format: -f "b[ext=mp4]/b")
+  Audio as mp3:        yt-dlp -P "temp:/work" -x --audio-format mp3 -o "/output/%(title).80B.%(ext)s" "URL"     (the conversion needs the ffmpeg tool)
+  A limit on quality:  -f "bv*[height<=720][ext=mp4]+ba[ext=m4a]/b[height<=720]"
+  Only one video:      add --no-playlist. Subtitles only: --write-subs --sub-langs "en.*,zh.*" --skip-download
   What exists:         yt-dlp -F "URL"      Information only: yt-dlp -J --no-playlist "URL"
-Mind the time of a step (at most about two minutes: give timeout_seconds up to 120) and the size of files: prefer a lower quality when asked for something long.`;
+Mind the time of a step (at most about two minutes: give timeout_seconds up to 120) and the size: a file larger than 50 MB is not delivered to the user, so for anything long choose a lower quality (720p or 480p) or only the audio, and say so.`;
 
 const TWITTER_USAGE = `twitter reads and writes on X (Twitter) with the person's own login (the credentials are in the environment as TWITTER_AUTH_TOKEN and TWITTER_CT0). Add --json for structured output and --max N to limit how many.
   twitter feed [-t following]        the home timeline         twitter bookmarks
@@ -239,13 +245,13 @@ export const OFFICIAL_CLI_CATALOG = Object.freeze([
       es: 'Lee líneas de tiempo, búsquedas, marcadores y usuarios de X (Twitter) con tu cuenta, y publica.'
     }),
     pip: Object.freeze({ package: 'twitter-cli', version: '0.8.5', command: 'twitter' }),
-    credentials: Object.freeze([Object.freeze({ env: 'TWITTER_AUTH_TOKEN', label: 'auth_token' }), Object.freeze({ env: 'TWITTER_CT0', label: 'ct0' })]),
+    credentials: Object.freeze([Object.freeze({ env: 'TWITTER_AUTH_TOKEN', label: 'auth_token', type: 'token', site: 'x.com' }), Object.freeze({ env: 'TWITTER_CT0', label: 'ct0', type: 'cookie', site: 'x.com' })]),
     details: Object.freeze({
-      'zh-TW': 'twitter-cli 用你自己的 X（Twitter）帳號讀取時間軸、搜尋、書籤與使用者，也能發文、回覆與按讚。它需要網路（連到 x.com 前會先問你），也需要你的登入憑證 auth_token 與 ct0：請到設定的「權限」→「安全憑證」新增。憑證加密保存在伺服器，只在執行時使用，AI 看不到內容。請注意：X 的服務條款不允許自動化存取，帳號可能被限制；資料中心的網路位址也常被擋，所以不保證能用。',
-      en: 'twitter-cli reads X (Twitter) timelines, search, bookmarks and users with your own account, and can post, reply and like. It needs the network (you are asked before it reaches x.com) and your login credentials, auth_token and ct0: add them under Permissions → Secure credentials in the settings. They are kept encrypted on the server and only used while the tool runs; the AI never sees them. Note that X’s terms do not allow automated access, so the account may be restricted, and data-centre addresses are often blocked: it is not guaranteed to work.',
-      fr: 'twitter-cli lit les fils, la recherche, les signets et les profils de X (Twitter) avec votre propre compte, et peut publier, répondre et aimer. Il a besoin du réseau (on vous demande avant qu’il n’accède à x.com) et de vos identifiants de connexion, auth_token et ct0 : ajoutez-les dans Réglages → Autorisations → Identifiants sécurisés. Ils sont chiffrés sur le serveur et utilisés seulement pendant l’exécution ; l’IA ne les voit jamais. Attention : les conditions de X n’autorisent pas l’accès automatisé, le compte peut être restreint, et les adresses de centres de données sont souvent bloquées : le fonctionnement n’est pas garanti.',
-      ru: 'twitter-cli читает ленты, поиск, закладки и профили X (Twitter) с вашим аккаунтом, а также может публиковать, отвечать и ставить отметки. Ему нужна сеть (перед обращением к x.com вас спросят) и данные для входа auth_token и ct0: добавьте их в настройках в разделе «Разрешения» → «Защищённые учётные данные». Они хранятся на сервере в зашифрованном виде и используются только во время работы; ИИ их не видит. Учтите: условия X не разрешают автоматизированный доступ, аккаунт могут ограничить, а адреса дата-центров часто блокируются — работа не гарантируется.',
-      es: 'twitter-cli lee líneas de tiempo, búsquedas, marcadores y usuarios de X (Twitter) con tu propia cuenta, y puede publicar, responder y dar me gusta. Necesita red (se te pregunta antes de que acceda a x.com) y tus credenciales de inicio de sesión, auth_token y ct0: añádelas en Ajustes → Permisos → Credenciales seguras. Se guardan cifradas en el servidor y solo se usan mientras la herramienta se ejecuta; la IA nunca las ve. Ten en cuenta que los términos de X no permiten el acceso automatizado, así que la cuenta puede ser restringida, y las direcciones de centros de datos suelen bloquearse: no se garantiza que funcione.'
+      'zh-TW': 'twitter-cli 用你自己的 X（Twitter）帳號讀取時間軸、搜尋、書籤與使用者，也能發文、回覆與按讚。它需要網路（連到 x.com 前會先問你），也需要你的登入憑證 auth_token 與 ct0：第一次用到時會跳出視窗請你輸入（之後可在設定的「權限」→「安全憑證」查看、更換或刪除）。憑證加密保存在伺服器，只在執行時使用，AI 看不到內容。請注意：X 的服務條款不允許自動化存取，帳號可能被限制；資料中心的網路位址也常被擋，所以不保證能用。',
+      en: 'twitter-cli reads X (Twitter) timelines, search, bookmarks and users with your own account, and can post, reply and like. It needs the network (you are asked before it reaches x.com) and your login credentials, auth_token and ct0: a window asks for them the first time they are needed (you can then see, replace or delete them under Permissions → Secure credentials in the settings). They are kept encrypted on the server and only used while the tool runs; the AI never sees them. Note that X’s terms do not allow automated access, so the account may be restricted, and data-centre addresses are often blocked: it is not guaranteed to work.',
+      fr: 'twitter-cli lit les fils, la recherche, les signets et les profils de X (Twitter) avec votre propre compte, et peut publier, répondre et aimer. Il a besoin du réseau (on vous demande avant qu’il n’accède à x.com) et de vos identifiants de connexion, auth_token et ct0 : une fenêtre les demande la première fois qu’ils sont nécessaires (vous pourrez ensuite les voir, les remplacer ou les supprimer dans Réglages → Autorisations → Identifiants sécurisés). Ils sont chiffrés sur le serveur et utilisés seulement pendant l’exécution ; l’IA ne les voit jamais. Attention : les conditions de X n’autorisent pas l’accès automatisé, le compte peut être restreint, et les adresses de centres de données sont souvent bloquées : le fonctionnement n’est pas garanti.',
+      ru: 'twitter-cli читает ленты, поиск, закладки и профили X (Twitter) с вашим аккаунтом, а также может публиковать, отвечать и ставить отметки. Ему нужна сеть (перед обращением к x.com вас спросят) и данные для входа auth_token и ct0: окно запросит их при первой необходимости (позже их можно посмотреть, заменить или удалить в настройках: «Разрешения» → «Защищённые учётные данные»). Они хранятся на сервере в зашифрованном виде и используются только во время работы; ИИ их не видит. Учтите: условия X не разрешают автоматизированный доступ, аккаунт могут ограничить, а адреса дата-центров часто блокируются — работа не гарантируется.',
+      es: 'twitter-cli lee líneas de tiempo, búsquedas, marcadores y usuarios de X (Twitter) con tu propia cuenta, y puede publicar, responder y dar me gusta. Necesita red (se te pregunta antes de que acceda a x.com) y tus credenciales de inicio de sesión, auth_token y ct0: una ventana te las pedirá la primera vez que hagan falta (después podrás verlas, reemplazarlas o eliminarlas en Ajustes → Permisos → Credenciales seguras). Se guardan cifradas en el servidor y solo se usan mientras la herramienta se ejecuta; la IA nunca las ve. Ten en cuenta que los términos de X no permiten el acceso automatizado, así que la cuenta puede ser restringida, y las direcciones de centros de datos suelen bloquearse: no se garantiza que funcione.'
     }),
     env: Object.freeze({}),
     usage: TWITTER_USAGE
@@ -272,14 +278,14 @@ export const OFFICIAL_CLI_CATALOG = Object.freeze([
       es: 'Explora feeds, publicaciones y comentarios de Reddit, busca, consulta usuarios, vota y guarda.'
     }),
     pip: Object.freeze({ package: 'rdt-cli', version: '0.4.1', command: 'rdt' }),
-    credentials: Object.freeze([Object.freeze({ env: 'REDDIT_SESSION', label: 'reddit_session' })]),
+    credentials: Object.freeze([Object.freeze({ env: 'REDDIT_SESSION', label: 'reddit_session', type: 'cookie', site: 'reddit.com' })]),
     credentialFiles: Object.freeze([Object.freeze({ path: '.config/rdt-cli/credential.json', format: 'rdt-cookies', from: 'REDDIT_SESSION' })]),
     details: Object.freeze({
-      'zh-TW': 'rdt-cli 可以瀏覽 Reddit 的版面、貼文與留言、搜尋、查看使用者，也能投票與收藏。它需要網路（連到 reddit.com 前會先問你），也需要你的 Reddit 登入：它原本是從瀏覽器讀取登入，在伺服器上改用你提供的安全憑證，請到設定的「權限」→「安全憑證」新增 REDDIT_SESSION（瀏覽器開發者工具裡 reddit_session 這個 cookie 的值）。憑證加密保存在伺服器，只在執行時使用，AI 看不到內容。請自行負責遵守 Reddit 的使用條款。',
-      en: 'rdt-cli browses Reddit feeds, posts and comments, searches, looks up users, votes and saves. It needs the network (you are asked before it reaches reddit.com) and your Reddit login. It normally reads the login from a browser; on the server it uses a secure credential you provide instead: add REDDIT_SESSION under Permissions → Secure credentials in the settings (the value of the reddit_session cookie, found in your browser’s developer tools). It is kept encrypted on the server and only used while the tool runs; the AI never sees it. You are responsible for following Reddit’s terms of use.',
-      fr: 'rdt-cli parcourt les fils, publications et commentaires de Reddit, recherche, consulte des profils, vote et enregistre. Il a besoin du réseau (on vous demande avant qu’il n’accède à reddit.com) et de votre connexion Reddit. Il lit normalement la connexion depuis un navigateur ; sur le serveur, il utilise à la place un identifiant sécurisé que vous fournissez : ajoutez REDDIT_SESSION dans Réglages → Autorisations → Identifiants sécurisés (la valeur du cookie reddit_session, visible dans les outils de développement du navigateur). Il est chiffré sur le serveur et utilisé seulement pendant l’exécution ; l’IA ne le voit jamais. Il vous appartient de respecter les conditions d’utilisation de Reddit.',
-      ru: 'rdt-cli просматривает ленты, посты и комментарии Reddit, ищет, показывает профили, голосует и сохраняет. Ему нужна сеть (перед обращением к reddit.com вас спросят) и ваш вход в Reddit. Обычно он берёт вход из браузера; на сервере вместо этого используются защищённые учётные данные, которые вы укажете: добавьте REDDIT_SESSION в настройках в разделе «Разрешения» → «Защищённые учётные данные» (значение cookie reddit_session из инструментов разработчика браузера). Они хранятся на сервере в зашифрованном виде и используются только во время работы; ИИ их не видит. Вы сами отвечаете за соблюдение условий использования Reddit.',
-      es: 'rdt-cli explora feeds, publicaciones y comentarios de Reddit, busca, consulta usuarios, vota y guarda. Necesita red (se te pregunta antes de que acceda a reddit.com) y tu inicio de sesión de Reddit. Normalmente lee el inicio de sesión de un navegador; en el servidor usa en su lugar una credencial segura que tú proporcionas: añade REDDIT_SESSION en Ajustes → Permisos → Credenciales seguras (el valor de la cookie reddit_session, que se ve en las herramientas de desarrollo del navegador). Se guarda cifrada en el servidor y solo se usa mientras la herramienta se ejecuta; la IA nunca la ve. Eres responsable de cumplir los términos de uso de Reddit.'
+      'zh-TW': 'rdt-cli 可以瀏覽 Reddit 的版面、貼文與留言、搜尋、查看使用者，也能投票與收藏。它需要網路（連到 reddit.com 前會先問你），也需要你的 Reddit 登入：它原本是從瀏覽器讀取登入，在伺服器上改用你提供的安全憑證，第一次用到時會跳出視窗請你輸入 reddit_session 這個 cookie 的值（瀏覽器開發者工具裡可以找到；之後可在設定的「權限」→「安全憑證」查看、更換或刪除）。憑證加密保存在伺服器，只在執行時使用，AI 看不到內容。請自行負責遵守 Reddit 的使用條款。',
+      en: 'rdt-cli browses Reddit feeds, posts and comments, searches, looks up users, votes and saves. It needs the network (you are asked before it reaches reddit.com) and your Reddit login. It normally reads the login from a browser; on the server it uses a secure credential you provide instead: a window asks for the value of the reddit_session cookie the first time it is needed (found in your browser’s developer tools; you can then see, replace or delete it under Permissions → Secure credentials in the settings). It is kept encrypted on the server and only used while the tool runs; the AI never sees it. You are responsible for following Reddit’s terms of use.',
+      fr: 'rdt-cli parcourt les fils, publications et commentaires de Reddit, recherche, consulte des profils, vote et enregistre. Il a besoin du réseau (on vous demande avant qu’il n’accède à reddit.com) et de votre connexion Reddit. Il lit normalement la connexion depuis un navigateur ; sur le serveur, il utilise à la place un identifiant sécurisé que vous fournissez : une fenêtre demande la valeur du cookie reddit_session la première fois qu’elle est nécessaire (visible dans les outils de développement du navigateur ; vous pourrez ensuite la voir, la remplacer ou la supprimer dans Réglages → Autorisations → Identifiants sécurisés). Il est chiffré sur le serveur et utilisé seulement pendant l’exécution ; l’IA ne le voit jamais. Il vous appartient de respecter les conditions d’utilisation de Reddit.',
+      ru: 'rdt-cli просматривает ленты, посты и комментарии Reddit, ищет, показывает профили, голосует и сохраняет. Ему нужна сеть (перед обращением к reddit.com вас спросят) и ваш вход в Reddit. Обычно он берёт вход из браузера; на сервере вместо этого используются защищённые учётные данные, которые вы укажете: окно запросит значение cookie reddit_session при первой необходимости (его можно найти в инструментах разработчика браузера; позже его можно посмотреть, заменить или удалить в настройках: «Разрешения» → «Защищённые учётные данные»). Они хранятся на сервере в зашифрованном виде и используются только во время работы; ИИ их не видит. Вы сами отвечаете за соблюдение условий использования Reddit.',
+      es: 'rdt-cli explora feeds, publicaciones y comentarios de Reddit, busca, consulta usuarios, vota y guarda. Necesita red (se te pregunta antes de que acceda a reddit.com) y tu inicio de sesión de Reddit. Normalmente lee el inicio de sesión de un navegador; en el servidor usa en su lugar una credencial segura que tú proporcionas: una ventana te pedirá el valor de la cookie reddit_session la primera vez que haga falta (se ve en las herramientas de desarrollo del navegador; después podrás verlo, reemplazarlo o eliminarlo en Ajustes → Permisos → Credenciales seguras). Se guarda cifrada en el servidor y solo se usa mientras la herramienta se ejecuta; la IA nunca la ve. Eres responsable de cumplir los términos de uso de Reddit.'
     }),
     env: Object.freeze({}),
     usage: RDT_USAGE
@@ -304,7 +310,7 @@ export const OFFICIAL_CLI_CATALOG = Object.freeze([
       ru: 'Набор инструментов для CSV: статистика по столбцам, выбор, фильтрация, сортировка, объединение, SQL и преобразование в JSON.',
       es: 'Un conjunto de herramientas para archivos CSV: estadísticas por columna, selección, filtros, orden, uniones, SQL y conversión a JSON.'
     }),
-    pip: Object.freeze({ package: 'csvkit', version: '2.2.0', command: 'csvstat' }),
+    pip: Object.freeze({ package: 'csvkit', version: '2.2.0', command: 'csvstat', commands: Object.freeze(['csvstat', 'csvcut', 'csvgrep', 'csvsort', 'csvjoin', 'csvsql', 'csvjson', 'csvlook', 'csvclean', 'csvformat', 'csvstack', 'csvpy', 'in2csv', 'sql2csv']) }),
     credentials: Object.freeze([]),
     details: Object.freeze({
       'zh-TW': 'csvkit 是一組處理 CSV 檔案的工具：統計每個欄位、挑選欄位、篩選與排序列、合併多個檔案、用 SQL 查詢，並在 Excel、JSON 與 CSV 之間轉換。適合整理與分析表格資料。它是 Python 套件，第一次使用時會在沙盒裡用 pip 安裝，需要連到 pypi.org（預設已允許，可在設定的「權限」裡調整）；處理你的資料本身不需要網路。',
@@ -432,6 +438,8 @@ export function validateCliManifest(tool) {
   for (const credential of tool.credentials || []) {
     if (!/^[A-Z][A-Z0-9_]{0,63}$/.test(String(credential?.env || ''))) problems.push('credential env');
     if (!String(credential?.label || '').trim()) problems.push('credential label');
+    if (!CREDENTIAL_TYPES.includes(credential?.type)) problems.push('credential type');
+    if (!/^[a-z0-9.-]{3,80}$/.test(String(credential?.site || ''))) problems.push('credential site');
   }
   for (const file of tool.credentialFiles || []) {
     if (!/^[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)*$/.test(String(file?.path || '')) || String(file.path).includes('..')) problems.push('credential file path');
@@ -448,6 +456,18 @@ export const CLI_PIP_TARGET = '/opt/pip';
 export const cliInstallCommand = (tool) => (tool?.kind === 'pip' && tool.pip
   ? `pip install --quiet --no-input --disable-pip-version-check --no-cache-dir --target ${CLI_PIP_TARGET} ${tool.pip.package}==${tool.pip.version} && test -x ${CLI_PIP_TARGET}/bin/${tool.pip.command}`
   : '');
+
+/** The command names of a pip tool (what a command line says when it uses the tool). */
+export const cliPipCommands = (tool) => (tool?.kind === 'pip' && tool.pip ? (tool.pip.commands?.length ? [...tool.pip.commands] : [tool.pip.command]) : []);
+
+/** What the catalog knows of a credential by its name ('TWITTER_CT0'): { env, label, type, site, tool: { id, name } }, or null (a credential the person made up). */
+export function cliCredentialInfo(env) {
+  for (const tool of OFFICIAL_CLI_CATALOG) {
+    const found = (tool.credentials || []).find((credential) => credential.env === env);
+    if (found) return { ...found, tool: { id: tool.id, name: tool.name } };
+  }
+  return null;
+}
 
 /** The programs that make a tool's files for its login, in the form the sandbox's commands take: [{ path, format, from }]. */
 export const cliCredentialFiles = (tool) => (Array.isArray(tool?.credentialFiles) ? tool.credentialFiles : []);

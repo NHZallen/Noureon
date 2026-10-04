@@ -198,7 +198,7 @@ test('the sites: the ones allowed at first are there, a rule is changed from a m
   assert.ok(t.log.saved >= 3, 'every change is saved');
 });
 
-test('the secure credentials: listed hidden, shown on request, replaced, deleted after a second tap, added; what the tools need is offered', async () => {
+test('the secure credentials: listed hidden, shown on request, replaced, deleted after a second tap, added; no preset list, known ones named by their kind', async () => {
   const t = permissions({ config: { cliEnabledIds: ['twitter-cli'], cliModelUseIds: [], cliVersions: {}, netMode: 'new', netRules: {} }, credentialItems: [{ name: 'TWITTER_CT0', value: 'secret-ct0-value' }] });
   await flush();
   t.row('credentials').click();
@@ -212,11 +212,16 @@ test('the secure credentials: listed hidden, shown on request, replaced, deleted
   chip('TWITTER_CT0', 'Hide').click();
   assert.equal(cred('TWITTER_CT0').querySelector('.pm-cred-value').textContent, '••••••••••••');
 
-  // The tool needs TWITTER_AUTH_TOKEN too: offered, and set from the row.
-  assert.match(t.host.textContent, /Your CLI tools need/);
-  const needed = [...t.host.querySelectorAll('.pm-cred')].find((row) => row.textContent.includes('TWITTER_AUTH_TOKEN') && row.textContent.includes('Not set'));
-  [...needed.querySelectorAll('.pm-chip')].find((entry) => entry.textContent === 'Set').click();
+  // No preset list of what the tools need: a login is asked for in a window when a tool needs it. A known credential is named by what it is.
+  assert.doesNotMatch(t.host.textContent, /Your CLI tools need/);
+  assert.equal(cred('TWITTER_AUTH_TOKEN'), null);
+  assert.match(cred('TWITTER_CT0').querySelector('.pm-row-label').textContent, /^twitter-cli · Cookie$/);
+  assert.equal(cred('TWITTER_CT0').querySelector('.pm-row-desc').textContent, 'ct0');
+
+  // One added by hand (a login of any name), saved.
+  [...t.host.querySelectorAll('.pm-button')].find((button) => button.textContent === 'Add a secure credential').click();
   const form = t.host.querySelector('.pm-form');
+  form.querySelector('input[type="text"]').value = 'TWITTER_AUTH_TOKEN';
   form.querySelector('input[type="password"]').value = 'new-token';
   form.dispatchEvent(new t.window.Event('submit', { bubbles: true, cancelable: true }));
   await flush();

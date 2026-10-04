@@ -32,7 +32,21 @@ const BINARY_TYPES = Object.freeze({
   pkl: { family: 'data', mime: 'application/octet-stream' },
   mp3: { family: 'data', mime: 'audio/mpeg' },
   wav: { family: 'data', mime: 'audio/wav' },
-  mp4: { family: 'data', mime: 'video/mp4' }
+  m4a: { family: 'data', mime: 'audio/mp4' },
+  aac: { family: 'data', mime: 'audio/aac' },
+  flac: { family: 'data', mime: 'audio/flac' },
+  ogg: { family: 'data', mime: 'audio/ogg' },
+  opus: { family: 'data', mime: 'audio/opus' },
+  weba: { family: 'data', mime: 'audio/webm' },
+  mp4: { family: 'data', mime: 'video/mp4' },
+  m4v: { family: 'data', mime: 'video/x-m4v' },
+  webm: { family: 'data', mime: 'video/webm' },
+  mkv: { family: 'data', mime: 'video/x-matroska' },
+  mov: { family: 'data', mime: 'video/quicktime' },
+  avi: { family: 'data', mime: 'video/x-msvideo' },
+  mpg: { family: 'data', mime: 'video/mpeg' },
+  mpeg: { family: 'data', mime: 'video/mpeg' },
+  '3gp': { family: 'data', mime: 'video/3gpp' }
 });
 const TEXT_PREVIEW_BYTES = 1024 * 1024;
 

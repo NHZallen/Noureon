@@ -558,3 +558,6 @@
 .net-ask.is-resolved { padding: 0.45rem 0.85rem; border-style: dashed; }
 .net-ask.is-resolved .net-ask-head { font-weight: 500; color: var(--text-secondary, #6b7280); }
 .net-ask.is-resolved.is-refused .net-ask-title { color: #dc2626; }
+
+/* A file a step made that is not offered for download, and why. */
+.sandbox-run-note.is-skipped { margin: 0.35rem 0 0; color: #b45309; font-size: 0.82rem; }

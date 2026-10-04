@@ -29,6 +29,9 @@ export function loadConfig(env = process.env) {
     cliHosts: Object.freeze(String(env.SANDBOX_CLI_HOSTS || 'github.com,objects.githubusercontent.com,release-assets.githubusercontent.com').split(',').map((entry) => entry.trim()).filter(Boolean)),
     cliMaxBytes: number(env.SANDBOX_CLI_MAX_BYTES, 150 * 1024 * 1024, 1024, 1024 * 1024 * 1024),
     maxSessions: number(env.SANDBOX_MAX_SESSIONS, 2, 1, 8),
+    // What a step may leave in /output: each file, and all of them together (the browser's own sandbox keeps the smaller limits of protocol.js).
+    outputFileBytes: number(env.SANDBOX_OUTPUT_FILE_BYTES, 50 * 1024 * 1024, 1024, 1024 * 1024 * 1024),
+    outputTotalBytes: number(env.SANDBOX_OUTPUT_TOTAL_BYTES, 100 * 1024 * 1024, 1024, 2 * 1024 * 1024 * 1024),
     // How long the person is given to answer a question about a site before it counts as a refusal.
     netAskTimeoutMs: number(env.SANDBOX_NET_ASK_MS, 10 * 60_000, 1000, 3_600_000),
     // Per container.

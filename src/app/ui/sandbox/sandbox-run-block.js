@@ -52,7 +52,7 @@ const cleanStep = (step = {}) => {
       size: Number(file.size) || 0,
       ...(typeof file.id === 'string' && /^[\w-]{1,64}$/.test(file.id) ? { id: file.id } : {})
     })),
-    ...(Array.isArray(step.skipped) && step.skipped.length ? { skipped: step.skipped.slice(0, 20).map((file) => ({ name: String(file.name || ''), reason: String(file.reason || '') })) } : {}),
+    ...(Array.isArray(step.skipped) && step.skipped.length ? { skipped: step.skipped.slice(0, 20).map((file) => ({ name: String(file.name || ''), reason: String(file.reason || ''), ...(Number(file.size) > 0 ? { size: Number(file.size) } : {}), ...(Number(file.limit) > 0 ? { limit: Number(file.limit) } : {}) })) } : {}),
     elapsedMs: Math.max(0, Math.round(Number(step.elapsedMs) || 0)),
     ...(step.timedOut ? { timedOut: true } : {}),
     ...(step.stopped ? { stopped: true } : {})

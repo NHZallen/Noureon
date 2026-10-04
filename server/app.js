@@ -61,7 +61,7 @@ async function readJson(request, maxBytes, { optional = false } = {}) {
 }
 
 /** Returns the function that answers one request: `(request, response) => Promise<void>`. */
-export function createApp({ config, fetchImpl = fetch, log = createLogger(), now = Date.now, runs = null, credentials = null } = {}) {
+export function createApp({ config, fetchImpl = fetch, log = createLogger(), now = Date.now, runs = null, credentials = null, files = null } = {}) {
   const verify = createTokenVerifier({ supabaseUrl: config.supabaseUrl, anonKey: config.supabaseAnonKey, fetchImpl, now });
   const startLimiter = createRateLimiter({ limit: LIMITS.createPerMinute, windowMs: 60_000, now });
   const credentialLimiter = createRateLimiter({ limit: 30, windowMs: 60_000, now });
@@ -124,7 +124,7 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
         status = 200;
         return;
       }
-      const runPath = /^\/v1\/runs\/([0-9a-f-]{36})(\/stop|\/stream|\/start|\/hold|\/release|\/plan|\/steer|\/pause|\/resume|\/net)?$/i.exec(url.pathname);
+      const runPath = /^\/v1\/runs\/([0-9a-f-]{36})(\/stop|\/stream|\/start|\/hold|\/release|\/plan|\/steer|\/pause|\/resume|\/net|\/credential)?$/i.exec(url.pathname);
       if (route === 'POST /v1/runs' || route === 'POST /v1/research') {
         const deep = route === 'POST /v1/research';
         const user = await authenticate(request);
@@ -204,6 +204,19 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
         status = 200;
         return;
       }
+      if (runPath && request.method === 'POST' && runPath[2] === '/credential') {
+        // The person's answer to the window that asked for a login a tool needs: { askId, decision: 'saved' | 'cancel' } (the values are saved
+        // through /v1/credentials, never sent here).
+        const user = await authenticate(request);
+        if (!runs) throw new RequestError(ERROR_CODES.runsUnavailable, 'Replies on the server are not set up yet.');
+        const body = await readJson(request, 4096);
+        if (!/^[A-Za-z0-9-]{8,64}$/.test(String(body?.askId || '')) || !['saved', 'cancel'].includes(body?.decision)) throw new RequestError(ERROR_CODES.badRequest, 'That is not an answer.');
+        const result = await runs.answerCredential({ userId: user.id, runId: runPath[1], askId: body.askId, decision: body.decision });
+        if (!result.ok) throw new RequestError(ERROR_CODES.notFound, 'No such reply is running here.');
+        send(response, 200, { ok: true, answered: result.answered }, origin);
+        status = 200;
+        return;
+      }
       if (runPath && request.method === 'POST' && ['/start', '/hold', '/release', '/plan', '/steer', '/pause', '/resume'].includes(runPath[2])) {
         // What a person does to a deep research: start it now, hold the countdown (they are editing the plan), let it run again, change the
         // plan in their own words, pause it or let it go on.
@@ -253,6 +266,14 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
           if (error instanceof CredentialError) throw new RequestError(ERROR_CODES.badRequest, error.message, { reason: error.code });
           throw error;
         }
+        return;
+      }
+      // How much of the person's space in the cloud is used: { usedBytes, quotaBytes } (usedBytes is null when it cannot be known).
+      if (route === 'GET /v1/storage') {
+        const user = await authenticate(request);
+        if (!files) throw new RequestError(ERROR_CODES.runsUnavailable, 'Storage is not set up yet.');
+        send(response, 200, { usedBytes: await files.usage(user.id), quotaBytes: files.quotaBytes }, origin);
+        status = 200;
         return;
       }
       throw new RequestError(ERROR_CODES.notFound, 'Not found.');

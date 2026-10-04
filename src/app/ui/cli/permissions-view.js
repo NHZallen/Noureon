@@ -3,7 +3,7 @@
 // ask, refuse), and the secure credentials (add, show, replace, delete). Black and white, in the manner of the permission pages of Claude and ChatGPT.
 // Everything is saved at once (not with the Save button of the settings), like the privacy tab.
 
-import { cliDescription } from '../../../data/cli-catalog.js';
+import { cliCredentialInfo, cliDescription } from '../../../data/cli-catalog.js';
 import { listNetSites, normalizeNetHost, normalizeNetRules, NET_DEFAULT_ALLOW } from '../../../data/cli-net.js';
 import { enabledCliTools, canModelUseCli, setCliModelUse } from '../../runtime/cli/cli-state.js';
 import { getNetMode, netRuleFor, removeNetSite, setNetMode, setNetRule } from '../../runtime/cli/net-state.js';
@@ -38,6 +38,8 @@ const make = (document, tag, className = '', text) => {
  * { list, save, remove } (runtime/cli/credentials-client.js) and `hasAccount()` whether a cloud account is signed in (credentials need one);
  * `openStore()` opens the CLI store, `openLicenses()` the page of third-party software.
  */
+const TYPE_KEYS = Object.freeze({ token: 'credTypeToken', cookie: 'credTypeCookie', password: 'credTypePassword' });
+
 export function renderPermissionsView({ document, root, getLanguage, getConfig, saveConfig = async () => {}, credentials, hasAccount = () => true, openStore = () => {}, openLicenses = () => {}, showNotification = () => {} }) {
   const t = (key, values) => permissionText(getLanguage(), key, values);
   let state = views.get(root);
@@ -338,7 +340,12 @@ export function renderPermissionsView({ document, root, getLanguage, getConfig, 
     row.dataset.name = item.name;
     const head = make(document, 'div', 'pm-cred-head');
     const shown = state.shown.has(item.name);
-    head.append(make(document, 'span', 'pm-row-label pm-mono', item.name));
+    const info = cliCredentialInfo(item.name);
+    if (info) {
+      const label = make(document, 'span', 'pm-row-text');
+      label.append(make(document, 'span', 'pm-row-label', `${info.tool.name} · ${t(TYPE_KEYS[info.type] || 'credTypeToken')}`), make(document, 'span', 'pm-row-desc pm-mono', info.label));
+      head.append(label);
+    } else head.append(make(document, 'span', 'pm-row-label pm-mono', item.name));
     const value = make(document, 'span', 'pm-cred-value pm-mono', shown ? item.value : MASK);
     const actions = make(document, 'div', 'pm-cred-actions');
     const action = (label, handler, danger = false) => {
@@ -382,33 +389,11 @@ export function renderPermissionsView({ document, root, getLanguage, getConfig, 
       root.append(make(document, 'p', 'pm-empty', t('credLoading')));
       return;
     }
-    const have = new Set(state.creds.items.map((item) => item.name));
-    // What the person's tools ask for that is not set yet: one row each, to set with a tap.
-    const wanted = [];
-    for (const tool of enabledCliTools(getConfig())) for (const credential of tool.credentials || []) if (!have.has(credential.env) && !wanted.some((entry) => entry.env === credential.env)) wanted.push({ ...credential, tool: tool.name });
-    if (wanted.length) {
-      root.append(make(document, 'h5', 'pm-minor', t('credNeeded')));
-      const list = make(document, 'div', 'pm-list');
-      for (const credential of wanted) {
-        const row = make(document, 'div', 'pm-cred');
-        const head = make(document, 'div', 'pm-cred-head');
-        const label = make(document, 'span', 'pm-row-text');
-        label.append(make(document, 'span', 'pm-row-label pm-mono', credential.env), make(document, 'span', 'pm-row-desc', `${credential.tool} · ${t('credNotSet')}`));
-        const set = make(document, 'button', 'pm-chip', t('credSet'));
-        set.type = 'button';
-        set.addEventListener('click', () => { state.adding = credential.env; state.editing = null; redraw(); });
-        head.append(label, set);
-        row.append(head);
-        if (state.adding === credential.env) row.append(valueForm({ name: credential.env, fixedName: credential.env, replacing: false }));
-        list.append(row);
-      }
-      root.append(list);
-    }
     if (state.creds.items.length) {
       const list = make(document, 'div', 'pm-list');
       for (const item of state.creds.items) list.append(credentialRow(item));
       root.append(list);
-    } else if (!wanted.length) root.append(make(document, 'p', 'pm-empty', t('credNone')));
+    } else root.append(make(document, 'p', 'pm-empty', t('credNone')));
     // A credential of any name (for a tool that is not in the store yet).
     root.append(make(document, 'h5', 'pm-minor', t('credAddTitle')));
     if (state.adding === '') root.append(valueForm({ name: '', fixedName: '', replacing: false }));
