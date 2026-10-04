@@ -2,14 +2,15 @@
 
 Read these before changing anything:
 
-- Current work, rules and next steps: [`docs/superpowers/plans/2026-09-28-downloadable-files-handoff.md`](docs/superpowers/plans/2026-09-28-downloadable-files-handoff.md)
+- **Start here — latest handoff (state, rules, next steps, environment notes):** [`docs/superpowers/plans/2026-10-04-session-handoff.md`](docs/superpowers/plans/2026-10-04-session-handoff.md)
+- Downloadable files line of work: [`docs/superpowers/plans/2026-09-28-downloadable-files-handoff.md`](docs/superpowers/plans/2026-09-28-downloadable-files-handoff.md)
 - Plan and decisions: [`docs/superpowers/specs/2026-09-26-downloadable-files-design.md`](docs/superpowers/specs/2026-09-26-downloadable-files-design.md)
 - Design system and PPTX output: [`docs/superpowers/specs/2026-09-27-design-system.md`](docs/superpowers/specs/2026-09-27-design-system.md)
 - V1 visual check design and implementation notes: [`docs/superpowers/specs/2026-09-28-vision-check-design.md`](docs/superpowers/specs/2026-09-28-vision-check-design.md)
 - Plan B (Python sandbox, "Advanced" mode) design: [`docs/superpowers/specs/2026-09-28-python-sandbox-design.md`](docs/superpowers/specs/2026-09-28-python-sandbox-design.md)
 - Server-side execution (replies that continue after the page is closed, skills, command-line tools) plan: [`docs/superpowers/specs/2026-10-03-server-runtime-design.md`](docs/superpowers/specs/2026-10-03-server-runtime-design.md)
 - Deep research (計劃倒數、自主研究、報告卡與下載) design, under discussion: [`docs/superpowers/specs/2026-10-04-deep-research-design.md`](docs/superpowers/specs/2026-10-04-deep-research-design.md)
-- CLI store (命令工具商城: store tab, `@` menu, permissions, sandbox network) design, decided and waiting for the owner to confirm before phase 1: [`docs/superpowers/specs/2026-10-04-cli-store-design.md`](docs/superpowers/specs/2026-10-04-cli-store-design.md)
+- CLI store (命令工具商城: store tab, `@` menu, permissions, sandbox network) design, phase 1 shipped (implementation notes in §9), phase 2 next: [`docs/superpowers/specs/2026-10-04-cli-store-design.md`](docs/superpowers/specs/2026-10-04-cli-store-design.md)
 - Releases and deployment: [`RELEASING.md`](RELEASING.md), tests: [`TESTING.md`](TESTING.md)
 
 Rules that always apply:

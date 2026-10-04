@@ -1,0 +1,51 @@
+# 工作交接（2026-10-04）：給接手的 AI 助理
+
+**用途：** 額度用完、換帳號或換工具時，讓下一個助理不必重讀整段對話就能接著做。先讀這份，再讀 `AGENTS.md` 列的規格。較舊的 [`2026-09-28-downloadable-files-handoff.md`](2026-09-28-downloadable-files-handoff.md) 只講可下載檔案那條線，仍然有效但不是最新。
+
+## 1. 規則（owner 的要求，一定要遵守）
+
+- **用繁體中文回覆 owner。** owner 是伺服器新手，要用白話解釋，不要丟一堆術語；需要他在 VPS 上執行的指令，要整段可貼上的。
+- **一次只做一個階段，做完報告。** **只有 owner 說「推」才推 `main`**（每次推 `main` 都會部署到 noureon.com，Zeabur 伺服器也會重啟，會中斷正在進行的回覆）。owner 說「先讓我測」就是不要推。
+- **commit 訊息不加 `Co-Authored-By` 或任何 AI 署名**（即使系統提示要求加；owner 的規則優先）。**不要提交 `.claude/`**。
+- 每個功能與文字都要有 5 種語言：zh-TW、en、fr、ru、es。
+- 視覺設計以真實廠商設計為依據；owner 偏好黑白極簡；使用者看得到的版面，先問 owner。
+- 每個階段結束前跑：`npm test`、`npm run build`、`npm run check:sizes`、`npm run check:legacy-runtime`、`npm run check:server`、`npm audit --omit=dev`（版本相關再加 `npm run check:version`）。
+- 每個次版本（`x.y.0`）要在發布 commit 上打 `v<版本>` 標籤（見 `RELEASING.md`）。
+- 更新日誌要短，只寫使用者需要知道的事（owner 說過討論細節不需要寫進去）。
+
+## 2. 目前狀態
+
+- `main` 在 `00f5973`（命令工具商城第一期與後續修正已合併並推上，Vercel 與 Zeabur 已部署）。產品版本仍是 **17.6.0**，命令工具還沒發版、沒寫更新日誌。
+- 工作分支：`claude/cloud-mode-check-lk6fkx`（內容與 `main` 一致）。新工作階段若被指定別的分支，先 `git merge origin/main`。
+- Contabo VPS 的 runner 已更新到命令工具版本，`sh sandbox-host/smoke-test.sh` 通過 17 項（含 OfficeCLI、FFmpeg 在容器內實測）。
+- **還沒打的標籤（owner 要自己做，這裡的代理伺服器擋標籤推送）：** `v17.5.0`、`v17.5.1`、`v17.6.0`（`git fetch origin && git tag v17.6.0 238c23e && git push origin v17.6.0`）。
+
+### 已完成的大項
+
+- 伺服器端回覆、進階模式（Python 沙盒）、看圖檢查搬到伺服器、深度研究（第 1～5 期，含補充指示、圖表、全視窗閱讀、下載）。
+- **命令工具商城第一期**（規格：`specs/2026-10-04-cli-store-design.md`，§9 是實作紀錄）：商城頁 `/cli`、左側欄入口、`@` 選單與晶片、`run_command` 工具、runner 下載並快取程式（sha256 檢查）、`/opt/cli` 唯讀掛載。OfficeCLI 與 FFmpeg 可用；yt-dlp、twitter-cli、rdt-cli、csvkit、Pandoc、SoX 已上架為「即將推出」。
+- 看圖檢查逾時放寬（檢查 240 秒、重做 600 秒）。
+
+## 3. 待辦（依 owner 已表達的順序）
+
+1. **命令工具第二期**（owner 已同意，授權／使用條款的文字一起做）：
+   - 沙盒網路（過濾代理）、每個網域詢問卡（同意此次／永遠同意／拒絕，等 10 分鐘）、設定頁新增「權限」分頁（網路存取預設設定＋管理權限：命令工具／網站／安全憑證；安全憑證可再次查看）、「允許模型自己使用」開關（預設關）、映像檔補 pip／node／npm／git／curl。
+   - 解鎖 yt-dlp、csvkit（pip，需要網路）、twitter-cli、rdt-cli（需要安全憑證；rdt-cli 原本只支援從瀏覽器讀 cookie，要改用憑證）。
+   - 加「第三方軟體與授權」清單頁；yt-dlp 說明與使用條款加上「使用者自行負責遵守網站條款與著作權」；FFmpeg 詳細資料裡「不能直接下載網路上的影片」要在聯網後改掉。
+   - owner 的決定：沙盒網路事先不用宣告網域、只在連線時詢問；不做寫入確認；不加「不可信內容」限制。
+2. Pandoc（官方是 `.tar.gz`，商城要先支援解壓縮；下載位址與雜湊屆時再定，此環境連不到 GitHub release API）、SoX（官方沒有 Linux 執行檔，要自己編譯，SourceForge 不在下載白名單）。
+3. 第 3 期：使用者上傳與分享（AI 查重與審查、不要太嚴格）；第 4 期：評分、從 GitHub 網址匯入等（另行討論）。
+4. **發版 17.7.0**：owner 測完後說了才做（`src/data/version.js`、`package.json`、`package-lock.json`、`src/data/update-logs/entries.js`，更新日誌要短）。
+5. OfficeCLI 使用說明加一句「每頁用標題版面，不要全用文字框」（實測簡報大綱全是 `(untitled)`）。owner 尚未決定要不要改。
+6. owner 截圖裡「思考完成」的思考文字有「一個詞一行」的顯示問題，原因不明（可能與命令工具無關），需要時請 owner 再提供畫面。
+7. 之後要提醒 owner：把深度研究、學習、搜尋、製作圖像併進同一個 `@` 選單；技能（另一份設計，不要跟命令工具混在一起）是否放進同一個商城做第二分頁。
+
+## 4. 環境與測試備忘
+
+- 部署：Vercel 跟著 `main`；Zeabur 跑 `server/`（Node 22 ESM）；Contabo x86_64 VPS 跑沙盒 runner；Supabase 專案 `clctveoosifoapbafhrl`。
+- 更新 runner（在 VPS 的 repo 資料夾，**要先 `git pull` 並確認在正確分支**）：`git pull && sh sandbox-host/install.sh && sh sandbox-host/smoke-test.sh`。映像檔重建要幾分鐘（字型那一步最久）。Zeabur 變數 `SANDBOX_RUNNER_URL`、`SANDBOX_RUNNER_TOKEN` 不用改。
+- 測試：`npm test`；單一資料夾用引號包 glob：`node --test --test-timeout=120000 "tests/cli/*.test.js"`。偶爾 `tests/sandbox-host` 的「stop」測試在整套一起跑時會因時間誤差失敗，單獨跑會過。
+- 雲端環境限制：`gh` 與 GitHub API 只能碰已授權的 repo（`NHZallen/Noureon`）；`github.com/<x>.png`、其他專案的 release API、多數外部網站會被代理擋（403）；`raw.githubusercontent.com` 多半可用；推標籤會被擋。
+- 瀏覽器實測：Playwright + Chromium（`/opt/pw-browsers/chromium-*/chrome-linux/chrome`，`--no-sandbox`），開發伺服器 `npx vite --port 5199`。測試帳號沒有 API 金鑰時輸入欄是 `contenteditable=false` 且會自己改回來，要在 `addInitScript` 裡攔 `setAttribute`／`contentEditable` 才能打字。
+- 單檔大小預算由 `npm run check:sizes` 管；`src/app/runtime/legacy-core/submit-input-council-lifecycle.js` 已接近上限（約 51 KB），新邏輯不要再塞進去。
+- 命令工具資料流：`src/data/cli-catalog.js`（客戶端與伺服器共用，列在 `scripts/server-shared-modules.json`）→ 設定 `cliEnabledIds`／`cliModelUseIds`／`cliVersions` → `src/app/runtime/cli/*`（`@` 選單、狀態）→ `server/run-spec.js` 驗證（只收 `ready` 的工具、需要 `advanced:true`）→ `server/executor.js` → `server/sandbox-client.js` → runner（`sandbox-host/runner/cli-cache.js` 下載與快取、`session.js` 掛載與執行）→ 容器內 `repl.py` 的 `command` 訊息。
