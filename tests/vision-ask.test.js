@@ -55,7 +55,7 @@ test('a reply that cannot be read is asked for once more, with a reminder, and i
   assert.equal(model.calls[1].parts[0].text, `Look at the slides.${RETRY_NOTE}`);
   assert.equal(model.calls[1].parts.length, 2, 'the pictures go again');
   assert.equal(model.calls[1].options.disableReasoning, false);
-  assert.deepEqual(armed, [120_000]);
+  assert.deepEqual(armed, [240_000]);
 });
 
 test('after two unreadable replies it gives up with the same error, and it does not ask again for a stop or a failed request', async () => {

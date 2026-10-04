@@ -125,6 +125,13 @@ export const OFFICIAL_CLI_CATALOG = Object.freeze([
     }),
     // What the program needs in the sandbox: no globalization data (the image has none), no update checks, no program left running in
     // the background that holds the file (every command writes it).
+    details: Object.freeze({
+      'zh-TW': 'OfficeCLI 讓 AI 直接建立、讀取與修改 Word、Excel、PowerPoint 檔案，不需要安裝 Office。適合製作報告、簡報與報表，或批次修改你上傳的檔案，做完後會自己檢查檔案有沒有問題。它在伺服器的獨立沙盒裡執行，沒有網路；做好的檔案會出現在回覆下方，可以直接下載。',
+      en: 'OfficeCLI lets the AI create, read and edit Word, Excel and PowerPoint files without Office installed. It suits reports, presentations and spreadsheets, or changes to files you upload, and it checks the result for problems. It runs in an isolated sandbox on the server with no network; the finished files appear under the reply, ready to download.',
+      fr: 'OfficeCLI permet à l’IA de créer, lire et modifier des fichiers Word, Excel et PowerPoint sans Office installé. Il convient aux rapports, présentations et tableurs, ou à la modification de fichiers que vous envoyez, et il vérifie le résultat. Il s’exécute dans un bac à sable isolé sur le serveur, sans réseau ; les fichiers terminés apparaissent sous la réponse, prêts à être téléchargés.',
+      ru: 'OfficeCLI позволяет ИИ создавать, читать и изменять файлы Word, Excel и PowerPoint без установленного Office. Подходит для отчётов, презентаций и таблиц, а также для правки загруженных вами файлов; результат проверяется на ошибки. Работает в изолированной песочнице на сервере без доступа к сети; готовые файлы появляются под ответом и доступны для скачивания.',
+      es: 'OfficeCLI permite que la IA cree, lea y edite archivos de Word, Excel y PowerPoint sin tener Office instalado. Sirve para informes, presentaciones y hojas de cálculo, o para modificar archivos que subas, y comprueba el resultado. Se ejecuta en un entorno aislado del servidor, sin red; los archivos terminados aparecen bajo la respuesta, listos para descargar.'
+    }),
     env: Object.freeze({
       DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: '1',
       OFFICECLI_SKIP_UPDATE: '1',
@@ -160,6 +167,13 @@ export const OFFICIAL_CLI_CATALOG = Object.freeze([
         file: 'ffmpeg'
       })
     }),
+    details: Object.freeze({
+      'zh-TW': 'FFmpeg 是處理影片與音訊的標準工具：轉換格式、剪裁片段、合併檔案、壓縮、抽出聲音、擷取畫面、製作 GIF。把影音檔附加到對話後，用 @ 選它並說明想怎麼處理。每一步最長約兩分鐘，所以建議處理短片或降低畫質；它在沒有網路的獨立沙盒裡執行，不能直接下載網路上的影片。',
+      en: 'FFmpeg is the standard tool for video and audio: convert formats, trim clips, join files, compress, extract sound, capture frames and make GIFs. Attach a media file to the conversation, choose it with @ and say what you want. A step may run for about two minutes, so work on short clips or a lower quality; it runs in an isolated sandbox with no network, so it cannot fetch videos from the internet.',
+      fr: 'FFmpeg est l’outil de référence pour la vidéo et l’audio : conversion de formats, découpe, assemblage, compression, extraction du son, capture d’images et création de GIF. Joignez un fichier à la conversation, choisissez l’outil avec @ et dites ce que vous voulez. Une étape dure environ deux minutes au plus : préférez de courts extraits ou une qualité réduite ; il s’exécute dans un bac à sable isolé sans réseau et ne peut donc pas télécharger de vidéos.',
+      ru: 'FFmpeg — стандартный инструмент для видео и аудио: преобразование форматов, обрезка, склейка, сжатие, извлечение звука, снимки кадров и создание GIF. Прикрепите файл к разговору, выберите инструмент через @ и опишите, что нужно сделать. Один шаг длится не более двух минут, поэтому лучше работать с короткими фрагментами или снижать качество; инструмент работает в изолированной песочнице без сети и не может скачивать видео из интернета.',
+      es: 'FFmpeg es la herramienta estándar para vídeo y audio: convierte formatos, recorta, une archivos, comprime, extrae el sonido, captura fotogramas y crea GIF. Adjunta un archivo a la conversación, elígela con @ y di qué quieres. Un paso puede durar unos dos minutos, así que conviene usar clips cortos o menor calidad; se ejecuta en un entorno aislado sin red, por lo que no puede descargar vídeos de internet.'
+    }),
     env: Object.freeze({}),
     usage: FFMPEG_USAGE
   }),
@@ -193,6 +207,13 @@ export const OFFICIAL_CLI_CATALOG = Object.freeze([
         file: 'yt-dlp'
       })
     }),
+    details: Object.freeze({
+      'zh-TW': 'yt-dlp 可以從上千個網站下載影片、音訊與字幕，並能選擇畫質與格式，也能只查詢影片資訊。它需要連上網路，所以要等沙盒網路與權限功能推出後才能使用；到時候每次要連到的網站都會先問你。',
+      en: 'yt-dlp downloads video, audio and subtitles from thousands of sites, with a choice of quality and format, and can also just look up a video’s details. It needs the network, so it can be used once the sandbox network and permissions arrive; each site it wants to reach will be asked about first.',
+      fr: 'yt-dlp télécharge vidéos, audio et sous-titres depuis des milliers de sites, avec choix de la qualité et du format, et peut aussi simplement consulter les informations d’une vidéo. Il a besoin du réseau : il sera disponible avec le réseau du bac à sable et les autorisations ; chaque site à contacter vous sera demandé avant.',
+      ru: 'yt-dlp скачивает видео, аудио и субтитры с тысяч сайтов с выбором качества и формата, а также может просто показать сведения о видео. Ему нужна сеть, поэтому он станет доступен вместе с сетью песочницы и разрешениями; о каждом сайте, к которому нужно подключиться, вас спросят заранее.',
+      es: 'yt-dlp descarga vídeo, audio y subtítulos de miles de sitios, con elección de calidad y formato, y también puede solo consultar los datos de un vídeo. Necesita red, así que podrá usarse cuando lleguen la red del entorno aislado y los permisos; antes de conectar con cada sitio se te preguntará.'
+    }),
     env: Object.freeze({}),
     usage: YTDLP_USAGE
   }),
@@ -217,6 +238,13 @@ export const OFFICIAL_CLI_CATALOG = Object.freeze([
     }),
     pip: Object.freeze({ package: 'twitter-cli', version: '0.8.5', command: 'twitter' }),
     credentials: Object.freeze([Object.freeze({ env: 'TWITTER_AUTH_TOKEN', label: 'auth_token' }), Object.freeze({ env: 'TWITTER_CT0', label: 'ct0' })]),
+    details: Object.freeze({
+      'zh-TW': 'twitter-cli 用你自己的 X（Twitter）帳號讀取時間軸、搜尋、書籤與使用者，也能發文、回覆與按讚。需要網路和你的登入憑證（安全憑證），所以要等沙盒網路與權限功能推出後才能使用。請留意：X 的服務條款不允許自動化存取，帳號可能被限制，也不保證一定連得上。',
+      en: 'twitter-cli reads X (Twitter) timelines, search, bookmarks and users with your own account, and can post, reply and like. It needs the network and your login (a secure credential), so it can be used once the sandbox network and permissions arrive. Note that X’s terms do not allow automated access, so the account may be restricted and it is not guaranteed to work.',
+      fr: 'twitter-cli lit les fils, la recherche, les signets et les profils de X (Twitter) avec votre propre compte, et peut publier, répondre et aimer. Il a besoin du réseau et de votre connexion (identifiant sécurisé) : il sera disponible avec le réseau du bac à sable et les autorisations. Attention : les conditions de X n’autorisent pas l’accès automatisé ; le compte peut être limité et le fonctionnement n’est pas garanti.',
+      ru: 'twitter-cli читает ленты, поиск, закладки и профили X (Twitter) с вашим аккаунтом, а также может публиковать, отвечать и ставить отметки. Нужны сеть и ваши данные для входа (защищённые учётные данные), поэтому инструмент станет доступен вместе с сетью песочницы и разрешениями. Учтите: условия X не разрешают автоматизированный доступ, аккаунт могут ограничить, а работа не гарантируется.',
+      es: 'twitter-cli lee líneas de tiempo, búsquedas, marcadores y usuarios de X (Twitter) con tu propia cuenta, y puede publicar, responder y dar me gusta. Necesita red y tu inicio de sesión (una credencial segura), así que podrá usarse cuando lleguen la red del entorno aislado y los permisos. Ten en cuenta que las condiciones de X no permiten el acceso automatizado: la cuenta puede limitarse y no se garantiza que funcione.'
+    }),
     env: Object.freeze({}),
     usage: TWITTER_USAGE
   }),
@@ -242,6 +270,13 @@ export const OFFICIAL_CLI_CATALOG = Object.freeze([
     }),
     pip: Object.freeze({ package: 'rdt-cli', version: '0.4.1', command: 'rdt' }),
     credentials: Object.freeze([]),
+    details: Object.freeze({
+      'zh-TW': 'rdt-cli 可以瀏覽 Reddit 的版面、貼文與留言、搜尋、查看使用者，也能投票與收藏。需要網路與你的 Reddit 登入，所以要等沙盒網路與權限功能推出後才能使用；它原本是從瀏覽器讀取登入狀態，在伺服器上會改用你提供的安全憑證。',
+      en: 'rdt-cli browses Reddit feeds, posts and comments, searches, looks up users, votes and saves. It needs the network and your Reddit login, so it can be used once the sandbox network and permissions arrive; it normally reads the login from a browser, and on the server it will use a secure credential you provide.',
+      fr: 'rdt-cli parcourt les fils, publications et commentaires de Reddit, recherche, consulte des profils, vote et enregistre. Il a besoin du réseau et de votre connexion Reddit : il sera disponible avec le réseau du bac à sable et les autorisations ; il lit d’ordinaire la connexion depuis un navigateur, et sur le serveur il utilisera un identifiant sécurisé que vous fournissez.',
+      ru: 'rdt-cli просматривает ленты, посты и комментарии Reddit, ищет, показывает профили, голосует и сохраняет. Нужны сеть и ваш вход в Reddit, поэтому инструмент станет доступен вместе с сетью песочницы и разрешениями; обычно он берёт вход из браузера, а на сервере будет использовать защищённые учётные данные, которые вы укажете.',
+      es: 'rdt-cli explora feeds, publicaciones y comentarios de Reddit, busca, consulta usuarios, vota y guarda. Necesita red y tu inicio de sesión de Reddit, así que podrá usarse cuando lleguen la red del entorno aislado y los permisos; normalmente lee el inicio de sesión de un navegador y en el servidor usará una credencial segura que facilites.'
+    }),
     env: Object.freeze({}),
     usage: RDT_USAGE
   }),
@@ -267,6 +302,13 @@ export const OFFICIAL_CLI_CATALOG = Object.freeze([
     }),
     pip: Object.freeze({ package: 'csvkit', version: '2.2.0', command: 'csvstat' }),
     credentials: Object.freeze([]),
+    details: Object.freeze({
+      'zh-TW': 'csvkit 是一組處理 CSV 檔案的工具：統計每個欄位、挑選欄位、篩選與排序列、合併多個檔案、用 SQL 查詢，並在 Excel、JSON 與 CSV 之間轉換。適合整理與分析表格資料。它要在沙盒裡用 pip 安裝，需要網路，所以要等沙盒網路功能推出後才能使用。',
+      en: 'csvkit is a set of tools for CSV files: statistics for each column, picking columns, filtering and sorting rows, joining files, running SQL, and converting between Excel, JSON and CSV. It suits cleaning and analysing tables. It is installed with pip inside the sandbox, which needs the network, so it can be used once the sandbox network arrives.',
+      fr: 'csvkit est un ensemble d’outils pour les fichiers CSV : statistiques par colonne, sélection de colonnes, filtrage et tri des lignes, jointure de fichiers, requêtes SQL et conversion entre Excel, JSON et CSV. Il convient au nettoyage et à l’analyse de tableaux. Il s’installe avec pip dans le bac à sable, ce qui demande le réseau : il sera disponible avec le réseau du bac à sable.',
+      ru: 'csvkit — набор инструментов для CSV: статистика по столбцам, выбор столбцов, фильтрация и сортировка строк, объединение файлов, SQL-запросы и преобразование между Excel, JSON и CSV. Подходит для очистки и анализа таблиц. Устанавливается через pip в песочнице, для чего нужна сеть, поэтому станет доступен вместе с сетью песочницы.',
+      es: 'csvkit es un conjunto de herramientas para archivos CSV: estadísticas por columna, selección de columnas, filtrado y orden de filas, unión de archivos, consultas SQL y conversión entre Excel, JSON y CSV. Sirve para limpiar y analizar tablas. Se instala con pip en el entorno aislado, lo que requiere red, así que podrá usarse cuando llegue la red del entorno aislado.'
+    }),
     env: Object.freeze({}),
     usage: CSVKIT_USAGE
   }),
@@ -287,6 +329,13 @@ export const OFFICIAL_CLI_CATALOG = Object.freeze([
       fr: 'Convertir des documents entre Markdown, Word, HTML, LaTeX, EPUB et bien d’autres formats.',
       ru: 'Преобразование документов между Markdown, Word, HTML, LaTeX, EPUB и другими форматами.',
       es: 'Convierte documentos entre Markdown, Word, HTML, LaTeX, EPUB y muchos otros formatos.'
+    }),
+    details: Object.freeze({
+      'zh-TW': 'Pandoc 在 Markdown、Word、HTML、LaTeX、EPUB 等上百種文件格式之間互相轉換，例如把 Word 檔轉成 Markdown，或把筆記轉成電子書。目前還不能使用：它的官方下載是壓縮檔，商城要先支援解壓縮。',
+      en: 'Pandoc converts between Markdown, Word, HTML, LaTeX, EPUB and many other document formats, for example a Word file to Markdown, or notes to an e-book. It cannot be used yet: its official download is an archive, and the store first has to support unpacking archives.',
+      fr: 'Pandoc convertit entre Markdown, Word, HTML, LaTeX, EPUB et de nombreux autres formats de documents, par exemple un fichier Word en Markdown ou des notes en livre numérique. Il n’est pas encore utilisable : son téléchargement officiel est une archive et la boutique doit d’abord savoir la décompresser.',
+      ru: 'Pandoc преобразует документы между Markdown, Word, HTML, LaTeX, EPUB и многими другими форматами, например файл Word в Markdown или заметки в электронную книгу. Пока недоступен: официальная загрузка — архив, а магазин сначала должен научиться его распаковывать.',
+      es: 'Pandoc convierte entre Markdown, Word, HTML, LaTeX, EPUB y muchos otros formatos de documento, por ejemplo un archivo de Word a Markdown o apuntes a un libro electrónico. Aún no puede usarse: su descarga oficial es un archivo comprimido y la tienda primero debe poder descomprimirlo.'
     }),
     env: Object.freeze({}),
     usage: PANDOC_USAGE
@@ -310,12 +359,22 @@ export const OFFICIAL_CLI_CATALOG = Object.freeze([
       ru: 'Обработка звука: преобразование форматов, обрезка, микширование и эффекты.',
       es: 'Procesamiento de audio: convierte formatos, recorta, mezcla y aplica efectos.'
     }),
+    details: Object.freeze({
+      'zh-TW': 'SoX 是音訊處理工具：轉換格式、剪裁、合併、混音、調整音量，並能套用各種效果。目前還不能使用：官方只提供原始碼（以及 Windows、macOS 版本），要先在伺服器上編譯出 Linux 版本。',
+      en: 'SoX is an audio tool: convert formats, trim, join, mix, adjust volume and apply many effects. It cannot be used yet: the official release is source code (plus Windows and macOS builds), so a Linux build has to be compiled on the server first.',
+      fr: 'SoX est un outil audio : conversion de formats, découpe, assemblage, mixage, réglage du volume et nombreux effets. Il n’est pas encore utilisable : la version officielle est un code source (et des versions Windows et macOS), il faut donc d’abord compiler une version Linux sur le serveur.',
+      ru: 'SoX — инструмент для звука: преобразование форматов, обрезка, склейка, микширование, регулировка громкости и множество эффектов. Пока недоступен: официально распространяется исходный код (и сборки для Windows и macOS), поэтому сначала нужно собрать версию для Linux на сервере.',
+      es: 'SoX es una herramienta de audio: convierte formatos, recorta, une, mezcla, ajusta el volumen y aplica muchos efectos. Aún no puede usarse: la versión oficial es código fuente (y compilaciones para Windows y macOS), así que primero hay que compilar una versión para Linux en el servidor.'
+    }),
     env: Object.freeze({}),
     usage: SOX_USAGE
   })
 ]);
 
 export const getCliTool = (id) => OFFICIAL_CLI_CATALOG.find((tool) => tool.id === id) || null;
+
+/** The longer explanation of a tool (what it does, what it needs, what to keep in mind), in a language (else English). */
+export const cliDetails = (tool, language) => String(tool?.details?.[language] || tool?.details?.en || '');
 
 /** The words of a tool in a language (its own language, else English). */
 export const cliDescription = (tool, language) => String(tool?.description?.[language] || tool?.description?.en || '');
@@ -342,6 +401,7 @@ export function validateCliManifest(tool) {
   // A tool that is only listed may leave its version out until its program is set.
   if (!(tool.status === 'soon' && !tool.version) && !/^\d+(?:\.\d+){0,3}(?:[-+][\w.]+)?$/.test(String(tool.version || ''))) problems.push('version');
   if (!tool.description || !LANGUAGES.every((language) => String(tool.description[language] || '').trim())) problems.push('description in the five languages');
+  if (!tool.details || !LANGUAGES.every((language) => String(tool.details[language] || '').trim())) problems.push('details in the five languages');
   if (tool.kind === 'binary' && (tool.status === 'ready' || tool.artifacts)) {
     const artifact = tool.artifacts?.[CLI_PLATFORM];
     if (!artifact) problems.push(`artifact for ${CLI_PLATFORM}`);

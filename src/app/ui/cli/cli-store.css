@@ -42,6 +42,7 @@ html.cs-open { overflow: hidden; }
 .cs-button-primary { border-color: var(--text-primary); background: var(--text-primary); color: var(--chat-bg); }
 .cs-empty { padding: 2.2rem 0.5rem; color: var(--text-secondary); text-align: center; }
 
+.cs-about { grid-column: 2 / -1; margin: 0.4rem 0 0; font-size: 0.88rem; line-height: 1.6; color: var(--text-secondary); }
 .cs-details { grid-column: 2 / -1; display: grid; grid-template-columns: max-content 1fr; gap: 0.25rem 1rem; margin: 0.3rem 0 0; font-size: 0.85rem; }
 .cs-details dt { color: var(--text-secondary); }
 .cs-details dd { margin: 0; overflow-wrap: anywhere; }
@@ -61,7 +62,7 @@ html.cs-open { overflow: hidden; }
   .cs-mark { width: 2.6rem; height: 2.6rem; border-radius: 0.8rem; }
   .cs-added { display: none; }
   .cs-soon { padding: 0.25rem 0.6rem; font-size: 0.78rem; }
-  .cs-details { grid-column: 1 / -1; }
+  .cs-about, .cs-details { grid-column: 1 / -1; }
   .cs-menu.is-sheet { left: 0; right: 0; bottom: 0; top: auto; min-width: 0; padding: 0.6rem 0.6rem calc(0.8rem + env(safe-area-inset-bottom, 0px)); border: 0; border-radius: 1.5rem 1.5rem 0 0; box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.18); }
   .cs-menu.is-sheet .cs-menu-item { padding: 0.9rem 0.8rem; font-size: 1.02rem; }
 }

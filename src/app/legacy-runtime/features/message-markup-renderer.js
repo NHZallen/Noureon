@@ -1,4 +1,5 @@
-import { terminalIcon } from '../../ui/cli/cli-icons.js';
+import { toolIconMarkup } from '../../ui/cli/cli-icons.js';
+import { getCliTool } from '../../../data/cli-catalog.js';
 import { renderComposerToolIcon } from '../../composer-tool-icons.js';
 import { renderLinkChipHTML, splitAtAddresses } from '../../ui/links/link-chip.js';
 import { registerSandboxFileParts } from '../../ui/sandbox/sandbox-files.js';
@@ -41,7 +42,7 @@ const renderUserComposerPart = (part, renderUserText) => {
     return part.displaySegments.map((segment) => {
         if (segment?.type === 'link') return segment.url ? renderLinkChipHTML(segment.url) : '';
         if (segment?.type !== 'mode') return renderUserTextWithLinks(segment?.text || '', renderUserText);
-        const icon = COMPOSER_MODE_ICONS[segment.indicatorId] || (String(segment.indicatorId || '').startsWith('cli-indicator-') ? terminalIcon(16, 'sent-composer-mode-icon') : '');
+        const icon = COMPOSER_MODE_ICONS[segment.indicatorId] || (String(segment.indicatorId || '').startsWith('cli-indicator-') ? toolIconMarkup(getCliTool(String(segment.indicatorId).slice('cli-indicator-'.length)), 16, 'sent-composer-mode-icon') : '');
         if (!icon) return '';
         return `<span class="sent-composer-mode" data-composer-mode="${escapeHTML(segment.indicatorId)}">${icon}<span>${escapeHTML(segment.label)}</span></span>`;
     }).join('');

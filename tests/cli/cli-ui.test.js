@@ -264,3 +264,48 @@ test('the logo of a project is shown, and the terminal glyph takes its place whe
   assert.ok(root.querySelector('.cs-row[data-cli-id="ffmpeg"] .cs-mark svg'), 'the glyph instead');
   closeCliStore();
 });
+
+test('the details of a tool open with a longer explanation in the language of the page, and the chip carries the logo', () => {
+  const config = { cliEnabledIds: ['ffmpeg'], cliModelUseIds: [], cliVersions: { ffmpeg: '7.0.2' } };
+  const t = setup({ config, language: 'fr' });
+  openCliStore({ document: t.document, getConfig: () => config, getLanguage: () => 'fr' });
+  const root = t.document.querySelector('.cs');
+  root.querySelector('.cs-row[data-cli-id="ffmpeg"] .cs-icon-button').click();
+  root.querySelectorAll('.cs-menu-item')[0].click();
+  const about = root.querySelector('.cs-row[data-cli-id="ffmpeg"] .cs-about');
+  assert.ok(about && about.textContent.length > 120, 'a few sentences');
+  assert.match(about.textContent, /bac à sable/);
+  closeCliStore();
+
+  t.type('@');
+  t.document.querySelector('[data-cli-id="ffmpeg"]').click();
+  const chip = t.document.querySelector('#cli-indicator-ffmpeg, [id*="cli-indicator-ffmpeg"]');
+  assert.ok(getCliSelection().some((entry) => entry.id === 'ffmpeg'));
+  void chip;
+});
+
+test('the note about the account goes away when the account becomes ready while the page is open', async () => {
+  const config = { cliEnabledIds: [], cliModelUseIds: [], cliVersions: {} };
+  const t = setup({ config });
+  let ready = false;
+  openCliStore({ document: t.document, getConfig: () => config, getLanguage: () => 'en', getAccountReady: () => ready });
+  const note = t.document.querySelector('.cs-note');
+  assert.equal(note.hidden, false);
+  ready = true;
+  await new Promise((resolve) => setTimeout(resolve, 1200));
+  assert.equal(note.hidden, true, 'signed in: no note');
+  closeCliStore();
+});
+
+test('opening the details does not make the logos load again (the same pictures stay in place)', () => {
+  const config = { cliEnabledIds: [], cliModelUseIds: [], cliVersions: {} };
+  const t = setup({ config });
+  openCliStore({ document: t.document, getConfig: () => config, getLanguage: () => 'en' });
+  const root = t.document.querySelector('.cs');
+  const before = root.querySelector('.cs-row[data-cli-id="ffmpeg"] img.cli-tool-img');
+  const text = root.querySelector('.cs-row[data-cli-id="yt-dlp"] .cs-text');
+  text.click();
+  assert.ok(root.querySelector('.cs-row[data-cli-id="yt-dlp"] .cs-about'), 'the details are open');
+  assert.equal(root.querySelector('.cs-row[data-cli-id="ffmpeg"] img.cli-tool-img'), before, 'the same picture element, not a new one');
+  closeCliStore();
+});

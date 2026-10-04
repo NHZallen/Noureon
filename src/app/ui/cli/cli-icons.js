@@ -12,11 +12,12 @@ export const toolIconMarkup = (tool, size = 20, className = '') => (tool?.icon
   ? `<img class="cli-tool-img ${className}" src="${escapeAttribute(tool.icon)}" width="${size}" height="${size}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" draggable="false">`
   : terminalIcon(size, className));
 
-/** Puts the glyph where a logo failed to load (pictures do not bubble "error", so it is caught on the way down). */
+/** Puts the glyph where a logo failed to load (pictures do not bubble "error", so it is caught on the way down). It keeps the size and classes. */
 export function watchToolIcons(container, size = 20) {
   container.addEventListener('error', (event) => {
     const image = event.target;
-    if (!image?.classList?.contains('cli-tool-img')) return;
-    image.outerHTML = terminalIcon(size);
+    if (!image?.classList?.contains('cli-tool-img') || !image.parentNode) return;
+    const classes = [...image.classList].filter((name) => name !== 'cli-tool-img').join(' ');
+    image.outerHTML = terminalIcon(Number(image.getAttribute('width')) || size, classes);
   }, true);
 }

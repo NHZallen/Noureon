@@ -109,7 +109,7 @@
   - 新增 `NOURAS_REQUEST_PURPOSE.VISION_CHECK = 'vision-check'`（`src/app/runtime/nouras/nouras-policy.js`），**不要**加進會套用 Nouras 人格的 `VISIBLE_PURPOSES`，也不要讓它觸發檔案提示詞（`FILE_OUTPUT_PURPOSES`）。
   - `genConfig: { temperature: 0.2, topP: null, maxTokens: 4000 }`
 - 經由 `legacyRuntimeContext` 新增 binding（例如 `files.runVisionCheck`）時，**必須登記到 V5 contract map**，否則 `tests/structure/runtime-contracts.test.js` 會失敗；登記方式照該測試與 `src/app/runtime-entry.js` 的現有 binding。
-- 逾時：120 秒；可由進度通知的「停止」取消（`AbortController`）。
+- 逾時：看圖 240 秒、重做簡報 600 秒（原本 120／300 秒，實測太容易逾時）；可由進度通知的「停止」取消（`AbortController`）。
 
 ### 6.2 提示詞（英文，程式組成）
 
