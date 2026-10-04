@@ -79,7 +79,7 @@
         display: none !important;
     }
 
-    #settings-modal #settings-mobile-header {
+    #settings-modal.settings-mobile-detail-open #settings-mobile-header {
         position: absolute !important;
         inset: 0 0 auto;
         z-index: 40;
