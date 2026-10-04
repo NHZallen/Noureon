@@ -22,6 +22,7 @@
         max-width: none !important;
         max-height: none !important;
         margin: 0 !important;
+        border: 0 !important;
         border-radius: 0 !important;
         background: #f4f3f8 !important;
         overflow: hidden !important;
@@ -87,6 +88,10 @@
         min-height: 6.7rem !important;
         padding: 1.4rem 4.8rem 1rem !important;
         background: #f4f3f8 !important;
+    }
+
+    #settings-modal:not(.settings-mobile-detail-open) #settings-mobile-header {
+        display: none !important;
     }
 
     #settings-mobile-title {
@@ -168,11 +173,13 @@
         }
     }
 
-    #settings-modal #settings-mobile-list {
+    #settings-modal #settings-mobile-list,
+    #settings-modal > div #settings-mobile-list {
+        inset: 0 !important;
         display: block !important;
         flex: 1 1 auto !important;
         min-height: 0 !important;
-        padding: 0.25rem 1.15rem calc(1.4rem + env(safe-area-inset-bottom, 0px)) !important;
+        padding: 6.95rem 1.15rem calc(1.4rem + env(safe-area-inset-bottom, 0px)) !important;
         overflow-y: auto !important;
         -webkit-overflow-scrolling: touch !important;
         scrollbar-width: none !important;

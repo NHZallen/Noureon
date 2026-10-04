@@ -82,7 +82,7 @@ export function createSettingsMobileShellHelper(dependencies = {}) {
         <button type="button" id="settings-mobile-back-btn" aria-label="${escapeHTML(getSettingsText('back', 'Back'))}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"></path></svg>
         </button>
-        <h2 id="settings-mobile-title">${escapeHTML(getSettingsText('settings', '設定'))}</h2>
+        <h2 id="settings-mobile-title"></h2>
     `;
     const mobileList = document.createElement('div');
     mobileList.id = 'settings-mobile-list';
@@ -109,19 +109,19 @@ export function createSettingsMobileShellHelper(dependencies = {}) {
     const settingsModal = ALL_ELEMENTS.settingsModal;
     const finishReturn = () => {
       settingsModal.classList.remove('settings-mobile-detail-open', 'settings-mobile-returning');
-      document.getElementById('settings-mobile-title').textContent = getSettingsText('settings', '設定');
+      document.getElementById('settings-mobile-title').textContent = '';
       document.querySelectorAll('.settings-section').forEach(section => section.classList.remove('active'));
       settingsMobileViewTransitionTimer = null;
     };
     clearSettingsMobileViewTransition();
     if (animate && isMobileSettingsViewport() && settingsModal.classList.contains('settings-mobile-detail-open')) {
       settingsModal.classList.add('settings-mobile-returning');
-      document.getElementById('settings-mobile-title').textContent = getSettingsText('settings', '設定');
+      document.getElementById('settings-mobile-title').textContent = '';
       settingsMobileViewTransitionTimer = setTimeout(finishReturn, SETTINGS_MOBILE_VIEW_TRANSITION_MS);
       return;
     }
     finishReturn();
-    document.getElementById('settings-mobile-title').textContent = getSettingsText('settings', '設定');
+    document.getElementById('settings-mobile-title').textContent = '';
     document.querySelectorAll('.settings-section').forEach(section => section.classList.remove('active'));
   };
 

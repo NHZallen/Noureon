@@ -86,6 +86,8 @@ test('mobile settings cover the viewport before drilling into category details',
   assert.match(css, /@media\s*\(max-width:\s*768px\)[^{]*\{[\s\S]*#settings-modal\.visible[^{]*\{[^}]*align-items:\s*stretch\s*!important;[^}]*padding:\s*0\s*!important;/s);
   assert.match(css, /@media\s*\(max-width:\s*768px\)[^{]*\{[\s\S]*#settings-modal\s*>\s*div[^{]*\{[^}]*flex:\s*1\s+1\s+auto\s*!important;[^}]*width:\s*100vw\s*!important;[^}]*height:\s*100%\s*!important;[^}]*max-width:\s*none\s*!important;[^}]*max-height:\s*none\s*!important;[^}]*margin:\s*0\s*!important;[^}]*border-radius:\s*0\s*!important;/s);
   assert.match(css, /@media\s*\(max-width:\s*768px\)[^{]*\{[\s\S]*#settings-modal\s+#settings-mobile-list[^{]*\{[^}]*display:\s*block\s*!important;/s);
+  assert.match(css, /#settings-modal:not\(\.settings-mobile-detail-open\)\s+#settings-mobile-header[^{]*\{[^}]*display:\s*none\s*!important;/s);
+  assert.match(css, /#settings-modal\s+#settings-mobile-list[^{]*\{[^}]*inset:\s*0\s*!important;/s);
   assert.match(css, /#settings-modal\.settings-mobile-detail-open\s+#settings-mobile-list[^{]*\{[^}]*transform:\s*translateX\(-100%\)\s*!important;/s);
   assert.match(css, /#settings-modal\s+\.flex-1\.p-6\.overflow-y-auto[^{]*\{[^}]*transform:\s*translateX\(100%\)\s*!important;/s);
   assert.match(css, /#settings-modal\.settings-mobile-detail-open\s+\.flex-1\.p-6\.overflow-y-auto[^{]*\{[^}]*transform:\s*translateX\(0\)\s*!important;/s);
