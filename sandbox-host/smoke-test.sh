@@ -66,7 +66,7 @@ PY
 }
 # The programs and their hashes come from the app's own catalog (run from the repository), so this checks what the app really uses.
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
-CATALOG_JS="import('./src/data/cli-catalog.js').then((m) => console.log(JSON.stringify(m.OFFICIAL_CLI_CATALOG.filter(m.isCliReady).map((t) => ({ id: t.id, file: t.artifacts[m.CLI_PLATFORM].file, url: t.artifacts[m.CLI_PLATFORM].url, sha256: t.artifacts[m.CLI_PLATFORM].sha256, size: t.artifacts[m.CLI_PLATFORM].size })))))"
+CATALOG_JS="import('./src/data/cli-catalog.js').then((m) => console.log(JSON.stringify(m.OFFICIAL_CLI_CATALOG.filter((t) => m.isCliReady(t) && t.kind === 'binary').map((t) => ({ id: t.id, file: t.artifacts[m.CLI_PLATFORM].file, url: t.artifacts[m.CLI_PLATFORM].url, sha256: t.artifacts[m.CLI_PLATFORM].sha256, size: t.artifacts[m.CLI_PLATFORM].size })))))"
 CLI_ENV='{}'
 ENV_JS="import('./src/data/cli-catalog.js').then((m) => console.log(JSON.stringify(Object.assign({}, ...m.OFFICIAL_CLI_CATALOG.filter(m.isCliReady).map((t) => t.env || {})))))"
 if command -v node >/dev/null 2>&1; then
