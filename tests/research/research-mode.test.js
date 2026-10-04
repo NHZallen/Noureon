@@ -5,7 +5,7 @@ import { Window } from 'happy-dom';
 
 import { createResearchMode, PLAN_INDICATOR_ID, RESEARCH_INDICATOR_ID } from '../../src/app/runtime/research/research-mode.js';
 import { getResearchMode } from '../../src/app/runtime/research/research-bridge.js';
-import { resetResearchStore } from '../../src/app/runtime/research/research-store.js';
+import { resetResearchStore, updateResearch } from '../../src/app/runtime/research/research-store.js';
 import { chipCloseButton } from '../../src/app/runtime/features/composer-chip.js';
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 15));
@@ -168,4 +168,31 @@ test('an instruction for the research that runs: nothing is held, what is sent g
   await mode.beginEdit({ runId: 'run-1', messageId: 'm1', title: 'T', kind: 'steer' });
   await mode.endEdit();
   assert.equal(log.controls.length, 1, 'giving it up tells the server nothing');
+});
+
+test('while a research is being done in the open chat the box is for instructions: its words, a chip without a way out, and what is sent goes to the research', async () => {
+  const { mode, log, input, conversation } = harness();
+  assert.equal(mode.placeholder(), null, 'nothing runs: the box is the chat\'s');
+  assert.equal(mode.takes(), false);
+  conversation.messages.push({ id: 'r1', role: 'model', parts: [{ text: '' }] });
+  updateResearch('r1', { runId: 'run-9', plan: { phase: 'awaiting', title: 'Battery research', clock: 1 } });
+  assert.equal(mode.placeholder(), null, 'the countdown is not research yet: the plan has its own edit button');
+  const before = log.refreshed;
+  updateResearch('r1', { plan: { phase: 'researching', title: 'Battery research', clock: 2 } });
+  assert.ok(log.refreshed > before, 'the box is told to draw again');
+  assert.deepEqual(log.binding.at(-1), ['submit.updateSubmitButtonState', false], 'and its button and words are brought up to date');
+  assert.equal(mode.placeholder(), 'Add instructions for the research…');
+  assert.equal(mode.takes(), true);
+  const map = new Map();
+  mode.indicators(map, chipCloseButton);
+  assert.match(map.get(PLAN_INDICATOR_ID).html, /Add instructions: Battery/);
+  assert.doesNotMatch(map.get(PLAN_INDICATOR_ID).html, /close-research-plan-btn-input/, 'there is no way out: the box is only for this now');
+  input.value = ' focus on cost ';
+  await mode.submit();
+  assert.deepEqual(log.controls.at(-1), ['POST', '/v1/runs/run-9/steer', '{"instruction":"focus on cost"}']);
+  assert.equal(log.prepared, 0, 'no message of the chat is made');
+  assert.equal(mode.takes(), true, 'and the box goes on being for instructions');
+  updateResearch('r1', { plan: { phase: 'writing', title: 'Battery research', clock: 3 } });
+  assert.equal(mode.placeholder(), null, 'when the report is being written the box is the chat\'s again');
+  assert.equal(mode.takes(), false);
 });

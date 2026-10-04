@@ -93,3 +93,26 @@ test('line pointer movement snaps to nearest point and shows active guide', () =
     window.close();
   }
 });
+
+test('rows marked as a forecast are drawn as a dashed line that goes on from the last real value', () => {
+  const window = new Window({ url: 'https://example.test/' });
+  try {
+    const svg = renderLineChart(window.document, {
+      type: 'line',
+      title: 'Revenue',
+      data: [
+        { label: '2025', value: 20 },
+        { label: '2026', value: 58, forecast: true },
+        { label: '2027', value: 115, forecast: true }
+      ]
+    });
+    const dashed = svg.querySelector('.ac-chart-line-forecast');
+    assert.ok(dashed, 'a dashed part');
+    assert.equal(svg.querySelectorAll('.ac-chart-line-point.is-forecast').length, 2);
+    assert.match(dashed.getAttribute('d'), /^M /, 'it starts at the last real point so the line is whole');
+    const plain = renderLineChart(window.document, { type: 'line', data: [{ label: 'a', value: 1 }, { label: 'b', value: 2 }] });
+    assert.equal(plain.querySelector('.ac-chart-line-forecast'), null, 'none when nothing is a forecast');
+  } finally {
+    window.close();
+  }
+});

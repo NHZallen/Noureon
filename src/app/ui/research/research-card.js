@@ -5,6 +5,7 @@
 import { formatResearchTime, researchText } from '../../runtime/research/research-texts.js';
 import { getResearchMode } from '../../runtime/research/research-bridge.js';
 import { adoptMessage, getResearch, serverNow, subscribeResearch } from '../../runtime/research/research-store.js';
+import { activityLine } from './research-render.js';
 import { getFileMarkdownRenderer } from '../files/file-markdown-cards.js';
 
 const esc = (value = '') => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
@@ -17,7 +18,7 @@ const RING_LENGTH = 2 * Math.PI * 8;
 const BULLET = {
   pending: '<span class="rc-bullet rc-bullet-pending" aria-hidden="true"></span>',
   active: '<span class="rc-bullet rc-bullet-active" aria-hidden="true"></span>',
-  done: '<span class="rc-bullet rc-bullet-done" aria-hidden="true"><svg viewBox="0 0 12 12" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m2.5 6.5 2.3 2.3 4.7-5"/></svg></span>'
+  done: '<span class="rc-bullet rc-bullet-done" aria-hidden="true"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 8.5 3.2 3.2L13 4.5"/></svg></span>'
 };
 
 /** What the card says of a failed research: a reason it knows in the person's language, else the server's own words. */
@@ -32,7 +33,7 @@ export function mountResearchCard({ host, message, getLanguage, showNotification
   host.__researchCard = true;
   const id = message.id;
   adoptMessage(message);
-  const state = { confirmStop: false, menu: false, busy: false };
+  const state = { confirmStop: false, menu: false, busy: false, activity: false, shownPg: null };
   let timer = null;
   let unsubscribe = () => {};
   let closeMenu = () => {};
@@ -53,6 +54,25 @@ export function mountResearchCard({ host, message, getLanguage, showNotification
 
   const itemsHtml = (plan) => `<div class="rc-items" role="list">${(plan.items || []).map((item) => `<div class="rc-item rc-item-${esc(item.state)}" role="listitem">${BULLET[item.state] || BULLET.pending}<span>${esc(item.text)}</span></div>`).join('')}</div>`;
 
+  // How far the research is, 0 to 100 (the server counts it; a plan from before it did is counted from the items).
+  const progressOf = (plan) => {
+    if (Number.isFinite(plan.pg)) return Math.max(0, Math.min(100, Math.round(plan.pg)));
+    const items = plan.items || [];
+    return Math.round((items.filter((item) => item.state === 'done').length / Math.max(1, items.length)) * 70);
+  };
+  const progressHtml = (plan) => {
+    const pg = progressOf(plan);
+    return `<div class="rc-progress-row"><div class="rc-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pg}"><span style="width:${state.shownPg ?? pg}%"></span></div><span class="rc-pct">${pg}%</span></div>`;
+  };
+  // What the research is doing, for the person who waits: the last thing as one line; a click opens the last ones.
+  const activityHtml = () => {
+    const lines = (entry()?.activity || []).map((item) => activityLine(item, language())).filter(Boolean).slice(-8);
+    if (!lines.length) return '';
+    const latest = lines[lines.length - 1];
+    const list = state.activity ? `<div class="rc-act-list">${lines.map((line) => `<div class="rc-act-line rc-act-${esc(line.kind)}">${esc(line.text)}</div>`).join('')}</div>` : '';
+    return `<div class="rc-act"><button type="button" class="rc-act-head" data-act="activity" aria-expanded="${state.activity}" aria-label="${esc(t('activity'))}"><span class="rc-act-text">${esc(latest.text)}</span><svg class="rc-act-chev" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button>${list}</div>`;
+  };
+
   const planFooter = (plan, runId) => {
     const disabled = runId ? '' : ' disabled';
     const phase = plan.phase;
@@ -65,15 +85,14 @@ export function mountResearchCard({ host, message, getLanguage, showNotification
     }
     if (phase === 'researching') {
       const done = (plan.items || []).filter((item) => item.state === 'done').length;
-      const total = Math.max(1, (plan.items || []).length);
       const label = plan.paused ? t('paused') : plan.pausing ? t('pausing') : t('researching');
       const stats = `${plan.steers ? `${esc(t('steers', { n: plan.steers }))} · ` : ''}${t('searched', { n: plan.stats?.searches || 0 })} · <span class="rc-elapsed">${esc(t('elapsed', { t: formatResearchTime(elapsedMs()) }))}</span>`;
       if (state.confirmStop) {
         return `<div class="rc-confirm"><div class="rc-confirm-text">${esc(t('stopAsk'))}</div><div class="rc-actions">${done ? `<button type="button" class="rc-btn rc-btn-primary" data-act="stop-report"${disabled}>${esc(t('stopWrite'))}</button>` : ''}<button type="button" class="rc-btn" data-act="stop-discard"${disabled}>${esc(t('stopDiscard'))}</button><button type="button" class="rc-btn" data-act="stop-back">${esc(t('stopBack'))}</button></div></div>`;
       }
-      return `<div class="rc-status">${plan.paused ? '' : '<span class="rc-spinner" aria-hidden="true"></span>'}<span>${esc(label)}</span><span class="rc-stats">${stats}</span></div><div class="rc-progress" role="progressbar" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${done}"><span style="width:${Math.round((done / total) * 100)}%"></span></div><div class="rc-actions">${plan.paused || plan.pausing ? `<button type="button" class="rc-btn" data-act="resume"${disabled}>${esc(t('resume'))}</button>` : `<button type="button" class="rc-btn" data-act="pause"${disabled}>${esc(t('pause'))}</button>`}<button type="button" class="rc-btn" data-act="steer"${disabled}>${esc(t('steer'))}</button><button type="button" class="rc-btn" data-act="stop"${disabled}>${esc(t('stop'))}</button></div>`;
+      return `<div class="rc-status">${plan.paused ? '' : '<span class="rc-spinner" aria-hidden="true"></span>'}<span>${esc(label)}</span><span class="rc-stats">${stats}</span></div>${progressHtml(plan)}${activityHtml()}<div class="rc-actions">${plan.paused || plan.pausing ? `<button type="button" class="rc-btn" data-act="resume"${disabled}>${esc(t('resume'))}</button>` : `<button type="button" class="rc-btn" data-act="pause"${disabled}>${esc(t('pause'))}</button>`}<button type="button" class="rc-btn" data-act="steer"${disabled}>${esc(t('steer'))}</button><button type="button" class="rc-btn" data-act="stop"${disabled}>${esc(t('stop'))}</button></div>`;
     }
-    if (phase === 'writing') return `<div class="rc-status"><span class="rc-spinner" aria-hidden="true"></span><span>${esc(t('writing'))}</span>${entry()?.writing ? `<span class="rc-stats">${entry().writing.n}/${entry().writing.of}</span>` : ''}</div><div class="rc-progress rc-progress-busy"><span style="width:100%"></span></div>`;
+    if (phase === 'writing') return `<div class="rc-status"><span class="rc-spinner" aria-hidden="true"></span><span>${esc(t('writing'))}</span>${entry()?.writing ? `<span class="rc-stats">${esc(t('sectionOf', { n: entry().writing.n, of: entry().writing.of }))}</span>` : ''}</div>${progressHtml(plan)}${activityHtml()}`;
     if (phase === 'stopped') return `<div class="rc-status rc-status-end">${esc(t('stopped'))}</div>`;
     if (phase === 'failed') return `<div class="rc-status rc-status-end">${esc(failureText(language(), plan.error))}</div>`;
     return '';
@@ -123,6 +142,7 @@ export function mountResearchCard({ host, message, getLanguage, showNotification
     host.classList.toggle('rc-is-report', Boolean(current?.report));
     host.innerHTML = `<div class="rc">${html}</div>`;
     if (current?.report) fillPreview(current.report);
+    moveBar();
     tick();
     const wantsTick = !current?.report && ['awaiting', 'researching'].includes(current?.plan?.phase);
     if (wantsTick && !timer) timer = setInterval(tick, 250);
@@ -131,6 +151,26 @@ export function mountResearchCard({ host, message, getLanguage, showNotification
       timer = null;
     }
   };
+
+  // The bar is drawn at the width it had and then moved to the new one, so it slides.
+  function moveBar() {
+    const bar = host.querySelector('.rc-progress > span');
+    if (!bar) {
+      state.shownPg = null;
+      return;
+    }
+    const pg = progressOf(planOf());
+    if (state.shownPg === null || state.shownPg === pg) {
+      state.shownPg = pg;
+      return;
+    }
+    const view = host.ownerDocument.defaultView;
+    const later = view?.requestAnimationFrame ? (fn) => view.requestAnimationFrame(fn) : (fn) => setTimeout(fn, 16);
+    later(() => {
+      if (host.isConnected) bar.style.width = `${pg}%`;
+    });
+    state.shownPg = pg;
+  }
 
   // The countdown and the time spent move without drawing the card again.
   function tick() {
@@ -178,6 +218,10 @@ export function mountResearchCard({ host, message, getLanguage, showNotification
     switch (name) {
       case 'edit':
         await getResearchMode()?.beginEdit({ runId: current?.runId, messageId: id, title: current?.plan?.title });
+        break;
+      case 'activity':
+        state.activity = !state.activity;
+        draw();
         break;
       case 'steer':
         await getResearchMode()?.beginEdit({ runId: current?.runId, messageId: id, title: current?.plan?.title, kind: 'steer' });

@@ -53,7 +53,7 @@ export function renderBarChart(document, chart, options = {}) {
     );
     const labelY = Math.min(plotBox.bottom - 8, Math.max(plotBox.y + 14, y - 10));
     appendSvgElement(layer, 'path', {
-      class: 'ac-chart-bar',
+      class: `ac-chart-bar${row.forecast === true ? ' is-forecast' : ''}`,
       d: createTopRoundedRectPath({ x, y, width: barWidth, height, radius }),
       tabindex: 0,
       'data-chart-interactive': 'true',

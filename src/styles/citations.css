@@ -140,6 +140,7 @@
 .source-sheet-grip { flex: none; width: 2.4rem; height: 0.3rem; margin: 0.6rem auto 0.2rem; border-radius: 9999px; background: var(--border-color, #d1d5db); touch-action: none; }
 .source-sheet-head { position: relative; flex: none; display: flex; align-items: center; justify-content: center; min-height: 3rem; padding: 0.2rem 1rem; touch-action: none; user-select: none; -webkit-user-select: none; }
 .source-sheet-title { font-size: 1.05rem; font-weight: 600; text-align: center; }
+.source-sheet-head .history-tabs { align-self: flex-start; margin: 0.4rem auto 0 0; }
 .source-sheet.is-all .source-sheet-title { align-self: flex-start; margin-top: 0.5rem; margin-right: auto; font-size: 0.9rem; font-weight: 500; color: var(--text-secondary, #6b7280); }
 .source-sheet-close {
     position: absolute;

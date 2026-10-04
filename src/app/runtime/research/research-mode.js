@@ -4,6 +4,7 @@
 
 import { renderComposerToolIcon } from '../../composer-tool-icons.js';
 import { registerResearchMode } from './research-bridge.js';
+import { getResearch, subscribeAnyResearch } from './research-store.js';
 import { researchText } from './research-texts.js';
 
 export const RESEARCH_INDICATOR_ID = 'deep-research-indicator';
@@ -70,6 +71,18 @@ export function createResearchMode({
 
   const editingHere = () => Boolean(editing && getActiveConversation()?.id === editing.conversationId);
 
+  // A research that is being done (not yet at its report) in the open chat: what is written then is an instruction for it.
+  const runningHere = () => {
+    if (isUnavailable()) return null;
+    const messages = getActiveConversation()?.messages || [];
+    for (let index = messages.length - 1; index >= Math.max(0, messages.length - 40); index -= 1) {
+      const entry = getResearch(messages[index]?.id);
+      if (entry?.runId && entry.plan?.phase === 'researching' && !entry.report) return { runId: entry.runId, messageId: messages[index].id, title: entry.plan.title || '', kind: 'steer' };
+    }
+    return null;
+  };
+  const steeringHere = () => !armed && !editingHere() && runningHere();
+
   const setArmed = (value) => {
     armed = value;
     refresh();
@@ -132,6 +145,14 @@ export function createResearchMode({
         eventListener: (element) => element.querySelector('#close-research-btn-input').addEventListener('click', () => setArmed(false))
       });
     }
+    const steering = steeringHere();
+    if (steering) {
+      map.set(PLAN_INDICATOR_ID, {
+        id: PLAN_INDICATOR_ID,
+        html: `<span class="input-indicator-content flex items-center gap-2"><span class="input-indicator-leading">${renderComposerToolIcon('deepResearch', 'input-indicator-mode-icon')}</span><span>${escapeHTML(shorten(`${researchText(language(), 'steer')}: ${steering.title}`, 28))}</span></span>`,
+        eventListener: () => {}
+      });
+    }
     if (editingHere()) {
       map.set(PLAN_INDICATOR_ID, {
         id: PLAN_INDICATOR_ID,
@@ -142,18 +163,18 @@ export function createResearchMode({
   };
 
   /** Whether what is sent now belongs here (a new research, or the words that change a plan) and not to the chat's own reply. */
-  const takes = (options = {}) => !options.preserveComposer && ((armed && !isUnavailable()) || editingHere());
+  const takes = (options = {}) => !options.preserveComposer && ((armed && !isUnavailable()) || editingHere() || Boolean(steeringHere()));
 
-  const sendInstruction = async () => {
+  const sendInstruction = async (target) => {
     const input = getInput();
     const text = String(input.value || '').trim();
     if (!text) return;
     const rt = await loadRuntime();
-    const steering = editing.kind === 'steer';
-    const result = await rt.control(editing.runId, steering ? 'steer' : 'plan', { instruction: text });
+    const steering = target.kind === 'steer';
+    const result = await rt.control(target.runId, steering ? 'steer' : 'plan', { instruction: text });
     if (!result.ok) {
       showNotification(researchText(language(), result.code === 'wrong_phase' ? 'wrongPhase' : 'actionFailed'), 'warning');
-      if (result.code === 'wrong_phase' || result.code === 'not_found') editing = null;
+      if (target === editing && (result.code === 'wrong_phase' || result.code === 'not_found')) editing = null;
       refresh();
       return;
     }
@@ -161,13 +182,18 @@ export function createResearchMode({
     input.value = '';
     // The box is told it was emptied, so it takes its height again.
     input.dispatchEvent(new (input.ownerDocument?.defaultView || globalThis).Event('input', { bubbles: true }));
-    editing = null;
+    if (target === editing) editing = null;
     refresh();
   };
 
   const submit = async () => {
     if (editingHere()) {
-      await sendInstruction();
+      await sendInstruction(editing);
+      return;
+    }
+    const running = steeringHere();
+    if (running) {
+      await sendInstruction(running);
       return;
     }
     const input = getInput();
@@ -250,7 +276,21 @@ export function createResearchMode({
     scanHosts(document.body);
   }
 
+  // The words in the empty box while a research runs in the open chat.
+  const placeholder = () => (steeringHere() || (editingHere() && editing.kind === 'steer') ? researchText(language(), 'steerPlaceholder') : null);
+  // When a research starts or ends its work in the open chat, the box (its words, its chip) follows.
+  let lastKey = '';
+  subscribeAnyResearch(() => {
+    const running = runningHere();
+    const key = running ? `${running.runId}|${armed}` : '';
+    if (key === lastKey) return;
+    lastKey = key;
+    refresh();
+    updateSubmitButtonState(false);
+  });
+
   const mode = {
+    placeholder,
     syncMenu,
     indicators,
     takes,

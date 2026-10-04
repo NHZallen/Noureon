@@ -63,22 +63,32 @@ export function renderLineChart(document, chart, options = {}) {
     height: plotBox.height
   });
 
+  // Rows marked `forecast` are drawn as a dashed line that goes on from the last row that is not a forecast.
+  const firstForecast = rows.findIndex((_row, index) => chart.data[index]?.forecast === true);
+  const solidPoints = firstForecast < 0 ? points : points.slice(0, Math.max(1, firstForecast));
   const layer = appendSvgElement(svg, 'g', { class: 'ac-chart-series ac-chart-line-series' });
+  if (firstForecast >= 0) {
+    appendSvgElement(layer, 'path', {
+      class: 'ac-chart-line ac-chart-line-forecast',
+      d: createSmoothPathData(points.slice(Math.max(0, firstForecast - 1)), plotBox),
+      fill: 'none'
+    });
+  }
   appendSvgElement(layer, 'path', {
     class: 'ac-chart-line ac-chart-line-past',
-    d: createSmoothPathData(points, plotBox),
+    d: createSmoothPathData(solidPoints, plotBox),
     fill: 'none',
     'clip-path': `url(#${pastClipId})`
   });
   appendSvgElement(layer, 'path', {
     class: 'ac-chart-line ac-chart-line-future is-faded',
-    d: createSmoothPathData(points, plotBox),
+    d: createSmoothPathData(solidPoints, plotBox),
     fill: 'none',
     'clip-path': `url(#${futureClipId})`
   });
   points.forEach((point) => {
     appendSvgElement(layer, 'circle', {
-      class: 'ac-chart-point ac-chart-line-point',
+      class: `ac-chart-point ac-chart-line-point${chart.data[point.index]?.forecast === true ? ' is-forecast' : ''}`,
       cx: point.x,
       cy: point.y,
       r: 4.6,

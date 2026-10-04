@@ -493,3 +493,39 @@ test('a chart that is proposed goes at the end of its section, with its caption;
   assert.equal(result.status, 'done');
   assert.ok(failed.state.problems.includes('research_charts_failed'));
 });
+
+test('the progress count only goes forward, moves inside an item, is under 100 until the report is done, and is 100 at the end', async () => {
+  const harness = run({ script: scripted({ searchesPerItem: 3 }) });
+  await harness.promise;
+  const counts = harness.state.live.filter((event) => event.rs && Number.isFinite(event.rs.pg)).map((event) => event.rs.pg);
+  assert.ok(counts.length > 8);
+  for (let index = 1; index < counts.length; index += 1) assert.ok(counts[index] >= counts[index - 1], `never back (${counts[index - 1]} then ${counts[index]})`);
+  assert.equal(counts[0], 0, 'it starts at zero');
+  const researching = harness.state.updates.map((parts) => parts[1]?.researchPlan).filter((part) => part?.phase === 'researching').map((part) => part.pg);
+  assert.ok(new Set(researching).size > 3, 'the count moves with the searches, not only when an item is done');
+  assert.ok(researching.every((value) => value <= 70), 'the items are at most 70 of 100');
+  const writing = harness.state.updates.map((parts) => parts[1]?.researchPlan).filter((part) => part?.phase === 'writing').map((part) => part.pg);
+  assert.ok(writing.length && writing.every((value) => value >= 70 && value <= 99), 'the report is 70 to 99 until it is done');
+});
+
+test('the report is asked to be long: detailed notes, many sections, long sections, and all the notes are shown when it is written', async () => {
+  const script = scripted();
+  const harness = run({ script });
+  await harness.promise;
+  const asked = (kind) => script.requests.filter((request) => request.kind === kind).map((request) => request.text);
+  assert.match(asked('item')[0], /500 to 1000 words/);
+  assert.match(asked('outline')[0], /8 to 12 sections/);
+  assert.match(asked('section')[0], /800 to 1500 words/);
+  assert.match(asked('summary')[0], /200 to 350 words/);
+  assert.equal(parseOutline(Array.from({ length: 20 }, (_, index) => `SECTION: S${index}`).join('\n'), { items: [] }).length, 14, 'up to fourteen sections');
+});
+
+test('a chart with no title of its own takes the heading of its section; forecast rows keep their mark', () => {
+  const text = 'SECTION: Revenue\nCAPTION: Revenue rises. [1]\n```chart\n{"type":"line","unit":"USD billion","data":[{"label":"FY25","value":20},{"label":"FY26","value":58,"forecast":true}]}\n```';
+  const [accepted] = acceptCharts(text, { outline: ['Revenue'], notes: { i1: 'FY25 revenue was 20 [1]; guidance for FY26 is 58 [2].' } });
+  assert.equal(accepted.chart.title, 'Revenue');
+  assert.equal(accepted.chart.unit, 'USD billion');
+  assert.equal(accepted.chart.data[1].forecast, true);
+  const titled = acceptCharts(text.replace('"type":"line"', '"type":"line","title":"AI revenue"'), { outline: ['Revenue'], notes: { i1: '20 and 58' } });
+  assert.equal(titled[0].chart.title, 'AI revenue', 'a title the model wrote is kept');
+});

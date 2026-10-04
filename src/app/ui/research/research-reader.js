@@ -4,13 +4,18 @@
 // download and the activity are three floating buttons.
 
 import { formatResearchTime, researchText } from '../../runtime/research/research-texts.js';
+import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
 import { getResearch } from '../../runtime/research/research-store.js';
 import { fillSourceList } from '../citations/source-list.js';
+import { openSourceSheet } from '../citations/source-sheet.js';
+import { trackPointedRow } from '../scroll/pointed-row.js';
+import { animateDetails } from '../motion/collapse-motion.js';
 import { knownSiteName } from '../citations/site-names.js';
 import { siteIcon, hostOf } from '../sandbox/run-sources.js';
 import { getFileMarkdownRenderer } from '../files/file-markdown-cards.js';
 import { copyReport, exportWithNotice } from './research-export.js';
-import { numbersOf, renderReport } from './research-render.js';
+import { observeMessageCharts } from '../charts/chart-renderer.js';
+import { activityLine, numbersOf, renderReport } from './research-render.js';
 
 const ICONS = {
   close: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>',
@@ -41,21 +46,7 @@ let open = null;
 
 export const closeResearchReader = () => open?.close();
 
-/** What one line of the activity list says, or null when it is not shown. */
-export function activityLine(entry, language) {
-  const t = (key, values) => researchText(language, key, values);
-  switch (entry?.type) {
-    case 'plan': return { kind: 'title', text: entry.text };
-    case 'item': return { kind: 'title', text: entry.text };
-    case 'searching': return { kind: 'chip', text: entry.text };
-    case 'narration': return { kind: 'text', text: entry.text };
-    case 'section': return { kind: 'text', text: entry.text };
-    case 'steer': return { kind: 'title', text: `${t('steer')}: ${entry.text}` };
-    case 'paused': return { kind: 'text', text: t('paused') };
-    case 'resumed': return { kind: 'text', text: t('resume') };
-    default: return null;
-  }
-}
+export { activityLine };
 
 /** Opens the reader of the research whose message is `messageId`. Returns { close } (the open one when it is already open). */
 export function openResearchReader({ messageId, getLanguage, showNotification = () => {}, document = globalThis.document }) {
@@ -81,6 +72,12 @@ export function openResearchReader({ messageId, getLanguage, showNotification = 
   const { element: body, headings } = renderReport({ markdown: report.text || '', renderer: getFileMarkdownRenderer(), sources: report.sources || [], document });
   article.append(body);
   scroller.append(article);
+  // What scrolls fades into the page where it meets the edge, by strips laid over the edge (as the chat does, never a mask on the scroller).
+  const main = make(document, 'div', 'rr-main');
+  main.append(scroller, make(document, 'div', 'rr-edge rr-edge-top'), make(document, 'div', 'rr-edge rr-edge-bottom'));
+  scroller.addEventListener('scroll', () => main.classList.toggle('is-scrolled', scroller.scrollTop > 6), { passive: true });
+  // The charts of the report answer the pointer as the charts of a chat reply do (the chat's own observer does not reach this window).
+  observeMessageCharts({ root: article });
 
   // ----- the contents: ticks at the edge with a card on hover (a list in a sheet on a phone)
   const tocEntries = headings.filter((heading) => heading.level > 1);
@@ -124,53 +121,143 @@ export function openResearchReader({ messageId, getLanguage, showNotification = 
   };
   scroller.addEventListener('scroll', markCurrent, { passive: true });
 
-  // ----- the panel: sources, and what the research did
+  // ----- the panel: the sources and what the research did, made as the chat makes its own (a header with tabs, the rows of sources, a
+  // sheet from the bottom on a phone, the process as folding rows)
+  const sources = report.sources || [];
+  const said = (key, values) => sandboxText(language, key, values);
+  const isPhone = () => win.innerWidth <= 860;
   const panel = make(document, 'aside', 'rr-panel');
-  const panelHead = make(document, 'div', 'rr-panel-head');
-  const tabs = make(document, 'div', 'rr-tabs');
+  const panelHead = make(document, 'header', 'history-sidebar-head');
+  const tabs = make(document, 'div', 'history-tabs');
   tabs.setAttribute('role', 'tablist');
-  const tabSources = make(document, 'button', 'rr-tab is-active', t('sources'));
-  const tabActivity = make(document, 'button', 'rr-tab', t('activity'));
+  const tabSources = make(document, 'button', 'history-tab', said('sourcesTab'));
+  const tabActivity = make(document, 'button', 'history-tab', t('activity'));
   for (const tab of [tabSources, tabActivity]) {
     tab.type = 'button';
     tab.setAttribute('role', 'tab');
+    tab.setAttribute('aria-selected', 'false');
   }
   tabs.append(tabSources, tabActivity);
-  const panelClose = button(document, 'rr-btn rr-panel-close', t('close'), ICONS.close);
+  const panelClose = make(document, 'button', 'history-close');
+  panelClose.type = 'button';
+  panelClose.setAttribute('aria-label', said('closePanel'));
+  panelClose.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
   panelHead.append(tabs, panelClose);
   const panelBody = make(document, 'div', 'rr-panel-body');
   panel.append(panelHead, panelBody);
+  trackPointedRow(panelBody, '.source-item');
 
-  const showSources = () => {
-    panelBody.replaceChildren();
-    panelBody.append(make(document, 'div', 'rr-panel-title', t('sourcesCount', { n: (report.sources || []).length })));
-    const list = make(document, 'div', 'rr-source-list');
-    fillSourceList(list, report.sources || [], { language, detailed: true });
-    panelBody.append(list);
-    tabSources.classList.add('is-active');
-    tabActivity.classList.remove('is-active');
+  // A citation and the sources it stands for light up together (the mark of a row that is cited is the chat's own: `is-cited`).
+  const lightSources = (numbers, { scroll = false } = {}) => {
+    const wanted = new Set(numbers.map(Number));
+    let first = null;
+    panelBody.querySelectorAll('.source-item').forEach((item) => {
+      const hot = wanted.has(Number(item.dataset.n));
+      item.classList.toggle('is-cited', hot);
+      if (hot && !first) first = item;
+    });
+    if (first && scroll && root.classList.contains('rr-panel-open')) {
+      const box = panelBody.getBoundingClientRect();
+      const row = first.getBoundingClientRect();
+      if (row.top < box.top + 8 || row.bottom > box.bottom - 8) panelBody.scrollTo({ top: panelBody.scrollTop + row.top - box.top - box.height / 3, behavior: 'smooth' });
+    }
   };
-  const showActivity = () => {
-    panelBody.replaceChildren();
-    panelBody.append(make(document, 'div', 'rr-panel-title', t('activityTitle')));
-    const log = make(document, 'div', 'rr-activity');
+  const lightCitations = (number) => {
+    article.querySelectorAll('.rr-cite').forEach((mark) => {
+      mark.classList.toggle('is-hot', number !== null && numbersOf(`[${String(mark.dataset.cite || '').split(',').join('][')}]`).includes(Number(number)));
+    });
+  };
+
+  const fillSources = (container) => {
+    container.append(make(document, 'div', 'history-sources-count', said('sourcesPanelCount', { n: sources.length })));
+    const list = make(document, 'div', 'rr-source-list');
+    fillSourceList(list, sources, { language, detailed: true });
+    container.append(list);
+  };
+
+  // What the research did, as the chat shows how a reply was made: one folding row for each thing it looked into (its searches as chips,
+  // what it said as plain lines), under the time it took.
+  const fillActivity = (container) => {
+    container.append(make(document, 'div', 'history-sources-count', said('processedIn', { t: formatResearchTime(report.stats?.ms) })));
+    const run = make(document, 'div', 'sandbox-run sandbox-run-steps rr-run');
+    let body = null;
+    let chips = null;
+    const group = (label) => {
+      const row = make(document, 'details', 'ledger-row sandbox-run-row is-done');
+      row.dataset.kind = 'search';
+      const head = make(document, 'summary', 'ledger-row-head is-expandable');
+      head.append(make(document, 'span', 'ledger-mark run-icon'), make(document, 'span', 'ledger-label', label));
+      body = make(document, 'div', 'ledger-body');
+      chips = null;
+      row.append(head, body);
+      run.append(animateDetails(row));
+    };
+    const add = (node) => (body || run).append(node);
     for (const item of getResearch(messageId)?.activity || report.activity || []) {
       const line = activityLine(item, language);
       if (!line) continue;
-      log.append(make(document, 'div', `rr-act rr-act-${line.kind}`, line.text));
+      if (item.type === 'item') group(line.text);
+      else if (line.kind === 'chip') {
+        if (!chips) {
+          chips = make(document, 'div', 'run-sources');
+          add(chips);
+        }
+        const chip = make(document, 'span', 'run-source-chip');
+        chip.append(make(document, 'span', 'run-source-host', line.text));
+        chips.append(chip);
+      } else {
+        chips = null;
+        add(make(document, 'div', 'sandbox-run-narration', line.text));
+      }
     }
-    log.append(make(document, 'div', 'rr-act rr-act-title', t('workedFor', { t: formatResearchTime(report.stats?.ms) })));
-    log.append(make(document, 'div', 'rr-act rr-act-text', t('finished')));
-    log.append(make(document, 'div', 'rr-act rr-act-text', t('reportMade')));
-    panelBody.append(log);
-    tabActivity.classList.add('is-active');
-    tabSources.classList.remove('is-active');
+    body = null;
+    run.append(make(document, 'div', 'sandbox-run-narration', t('finished')), make(document, 'div', 'sandbox-run-narration', t('reportMade')));
+    container.append(run);
   };
+
+  let panelTab = 'sources';
+  const showSources = () => {
+    panelTab = 'sources';
+    panelBody.replaceChildren();
+    fillSources(panelBody);
+    tabSources.setAttribute('aria-selected', 'true');
+    tabActivity.setAttribute('aria-selected', 'false');
+  };
+  const showActivity = () => {
+    panelTab = 'activity';
+    panelBody.replaceChildren();
+    fillActivity(panelBody);
+    tabActivity.setAttribute('aria-selected', 'true');
+    tabSources.setAttribute('aria-selected', 'false');
+  };
+  panelBody.addEventListener('mouseover', (event) => {
+    const item = event.target.closest('.source-item');
+    if (item) lightCitations(item.dataset.n ?? null);
+  });
+  panelBody.addEventListener('mouseout', (event) => {
+    if (event.target.closest('.source-item')) lightCitations(null);
+  });
   tabSources.addEventListener('click', showSources);
   tabActivity.addEventListener('click', showActivity);
   const setPanel = (visible, which = null) => {
     root.classList.toggle('rr-panel-open', visible);
     if (visible) (which === 'activity' ? showActivity : showSources)();
+  };
+  // A phone has the chat's own sheet from the bottom (it can be pulled up and down), the others the panel at the side.
+  const showPanel = (which) => {
+    if (!isPhone()) {
+      setPanel(true, which);
+      return;
+    }
+    openSourceSheet({
+      document,
+      sources,
+      all: true,
+      language,
+      tabs: [{ id: 'sources', label: said('sourcesTab') }, { id: 'activity', label: t('activity') }],
+      tab: which,
+      renderTab: (id, list) => (id === 'activity' ? fillActivity(list) : fillSourceList(list, sources, { language }))
+    });
   };
   panelClose.addEventListener('click', () => setPanel(false));
 
@@ -207,8 +294,8 @@ export function openResearchReader({ messageId, getLanguage, showNotification = 
     event.stopPropagation();
     menu.hidden = !menu.hidden;
   });
-  const panelButton = button(document, 'rr-btn rr-panel-toggle', t('activity'), ICONS.panel);
-  panelButton.addEventListener('click', () => setPanel(!root.classList.contains('rr-panel-open')));
+  const panelButton = button(document, 'rr-btn rr-panel-toggle', t('sources'), ICONS.panel);
+  panelButton.addEventListener('click', () => (root.classList.contains('rr-panel-open') ? setPanel(false) : showPanel('sources')));
   const top = make(document, 'div', 'rr-top');
   top.append(downloadButton, panelButton, menu);
 
@@ -216,15 +303,17 @@ export function openResearchReader({ messageId, getLanguage, showNotification = 
   const fab = make(document, 'div', 'rr-fab');
   const fabToc = button(document, 'rr-fab-btn', t('toc'), ICONS.list);
   const fabDownload = button(document, 'rr-fab-btn', t('download'), ICONS.download);
+  const fabSources = button(document, 'rr-fab-btn', t('sources'), ICONS.panel);
   const fabActivity = button(document, 'rr-fab-btn', t('activity'), ICONS.activity);
   fabToc.addEventListener('click', () => root.classList.toggle('rr-toc-open'));
   fabDownload.addEventListener('click', (event) => {
     event.stopPropagation();
     menu.hidden = !menu.hidden;
   });
-  fabActivity.addEventListener('click', () => setPanel(true, 'sources'));
+  fabSources.addEventListener('click', () => showPanel('sources'));
+  fabActivity.addEventListener('click', () => showPanel('activity'));
   if (tocEntries.length < 2) fabToc.hidden = true;
-  fab.append(fabToc, fabDownload, fabActivity);
+  fab.append(fabToc, fabDownload, fabSources, fabActivity);
   const tocSheet = make(document, 'div', 'rr-toc-sheet');
   tocSheet.append(make(document, 'div', 'rr-toc-sheet-title', t('toc')), tocList.cloneNode(true));
   tocSheet.querySelectorAll('.rr-toc-link').forEach((link, index) => link.addEventListener('click', () => jump(tocEntries[index].id)));
@@ -277,25 +366,34 @@ export function openResearchReader({ messageId, getLanguage, showNotification = 
     popTimer = setTimeout(() => { pop.hidden = true; }, 160);
   };
   const keepPop = () => clearTimeout(popTimer);
+  const numbersOfMark = (mark) => numbersOf(`[${String(mark.dataset.cite || '').split(',').join('][')}]`);
   article.addEventListener('mouseover', (event) => {
     const mark = event.target.closest('.rr-cite');
     if (!mark) return;
     keepPop();
     showPop(mark);
+    lightSources(numbersOfMark(mark), { scroll: true });
   });
-  article.addEventListener('mouseout', (event) => { if (event.target.closest('.rr-cite')) hidePop(); });
+  article.addEventListener('mouseout', (event) => {
+    if (!event.target.closest('.rr-cite')) return;
+    hidePop();
+    lightSources([]);
+  });
   article.addEventListener('click', (event) => {
     const mark = event.target.closest('.rr-cite');
     if (mark) {
       keepPop();
       showPop(mark);
+      // A panel that shows the activity is turned to the sources, so the one that was clicked can be seen.
+      if (root.classList.contains('rr-panel-open') && panelTab !== 'sources') showSources();
+      lightSources(numbersOfMark(mark), { scroll: true });
     }
   });
   article.addEventListener('focusin', (event) => { const mark = event.target.closest?.('.rr-cite'); if (mark) showPop(mark); });
   pop.addEventListener('mouseenter', keepPop);
   pop.addEventListener('mouseleave', hidePop);
 
-  root.append(closeButton, top, ticks, scroller, panel, tocSheet, fab, pop);
+  root.append(closeButton, top, ticks, main, panel, tocSheet, fab, pop);
   document.body.append(root);
   document.documentElement.classList.add('rr-reading');
 
@@ -313,7 +411,8 @@ export function openResearchReader({ messageId, getLanguage, showNotification = 
   // An event that reaches the handler twice (a capture listener on the target itself, in some engines) is taken once.
   let lastKey = null;
   function onKey(event) {
-    if (event.key !== 'Escape' || event === lastKey) return;
+    // The sheet from the bottom closes itself first.
+    if (event.key !== 'Escape' || event === lastKey || document.documentElement.classList.contains('source-sheet-open')) return;
     lastKey = event;
     event.preventDefault();
     event.stopPropagation();

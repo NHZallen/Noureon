@@ -104,6 +104,7 @@ test('the running card shows the items\' states, the searches and the time, paus
     phase: 'researching',
     items: [{ id: 'i1', text: 'Chemistry', state: 'done' }, { id: 'i2', text: 'Makers', state: 'active' }, { id: 'i3', text: 'Cost', state: 'pending' }],
     stats: { searches: 12, sources: 9, activeMs: 65_000 },
+    pg: 31,
     running: true,
     clock: Date.now()
   });
@@ -117,7 +118,8 @@ test('the running card shows the items\' states, the searches and the time, paus
   assert.match(cardHost.textContent, /Researching…/);
   assert.match(cardHost.textContent, /12 searches/);
   assert.match(cardHost.textContent, /1m 5s so far/);
-  assert.equal(cardHost.querySelector('.rc-progress').getAttribute('aria-valuenow'), '1');
+  assert.equal(cardHost.querySelector('.rc-progress').getAttribute('aria-valuenow'), '31', 'the bar is the server\'s own count');
+  assert.equal(cardHost.querySelector('.rc-pct').textContent, '31%');
   click(window, cardHost.querySelector('[data-act="pause"]'));
   await flush();
   assert.match(notices[0][0], /cannot be done right now/, 'a refusal is told');
@@ -258,11 +260,16 @@ test('the reader shows the article with ticks for its sections, the contents on 
   // the panel: the sources, and what the research did
   click(window, root.querySelector('.rr-panel-toggle'));
   assert.ok(root.classList.contains('rr-panel-open'));
-  assert.match(root.querySelector('.rr-panel-body').textContent, /2 citations/);
+  assert.match(root.querySelector('.rr-panel-body').textContent, /Sources · 2/, 'the chat\'s own words for the count');
+  assert.ok(root.querySelector('.history-sidebar-head .history-tabs'), 'the chat\'s own header and tabs');
   assert.equal(root.querySelectorAll('.rr-source-list .source-item').length, 2);
-  click(window, [...root.querySelectorAll('.rr-tab')][1]);
-  const lines = [...root.querySelectorAll('.rr-act')].map((line) => line.textContent);
-  assert.deepEqual(lines, ['Chemistry', 'Searching: cells', 'Looking at makers', 'Worked for 13m 18s', 'Done', 'Report created']);
+  click(window, [...root.querySelectorAll('.history-tab')][1]);
+  assert.match(root.querySelector('.rr-panel-body').textContent, /Processed for 13m 18s/, 'the chat\'s own line for the time');
+  const rows = [...root.querySelectorAll('.rr-run .ledger-row')];
+  assert.deepEqual(rows.map((row) => row.querySelector('.ledger-label').textContent), ['Chemistry'], 'a folding row for each thing looked into');
+  assert.equal(rows[0].querySelector('.run-source-chip').textContent, 'Searching: cells', 'its searches as chips');
+  assert.equal(rows[0].querySelector('.sandbox-run-narration').textContent, 'Looking at makers', 'and what was said as lines');
+  assert.deepEqual([...root.querySelectorAll('.rr-run > .sandbox-run-narration')].map((line) => line.textContent), ['Done', 'Report created']);
   click(window, root.querySelector('.rr-download'));
   assert.equal(root.querySelector('.rr-menu').hidden, false);
 
@@ -289,7 +296,7 @@ test('on a phone the contents are a list behind a button, and the close button c
   updateResearch('m8', { report: REPORT });
   openResearchReader({ messageId: 'm8', getLanguage: () => 'ru', document });
   const root = document.querySelector('.rr');
-  assert.equal(root.querySelectorAll('.rr-fab-btn').length, 3);
+  assert.equal(root.querySelectorAll('.rr-fab-btn').length, 4, 'the contents, the download, the sources and the activity');
   click(window, root.querySelector('.rr-fab-btn'));
   assert.ok(root.classList.contains('rr-toc-open'));
   assert.equal(root.querySelector('.rr-toc-sheet-title').textContent, 'Оглавление');
@@ -306,4 +313,91 @@ test('the activity list says what the research did, and leaves out what is not w
   assert.deepEqual(activityLine({ type: 'paused' }, 'fr'), { kind: 'text', text: 'En pause' });
   assert.equal(activityLine({ type: 'phase', text: 'writing' }, 'en'), null);
   assert.equal(activityLine({ type: 'done' }, 'en'), null);
+});
+
+test('the card shows the last thing the research did as one line that opens to the last ones, and the section being written with the percent', async () => {
+  const { window, host, showNotification } = setup();
+  const running = plan({
+    phase: 'researching',
+    items: [{ id: 'i1', text: 'Chemistry', state: 'done' }, { id: 'i2', text: 'Makers', state: 'active' }],
+    running: true,
+    clock: Date.now()
+  });
+  host.innerHTML = '<div class="research-card-host"></div>';
+  const cardHost = host.firstChild;
+  updateResearch('m6', { runId: 'run-6' });
+  mount({ host: cardHost, message: message('m6', [{ text: '' }, { researchPlan: running }]), getLanguage: () => 'en', showNotification });
+  assert.equal(cardHost.querySelector('.rc-act'), null, 'nothing is shown before something was done');
+  assert.equal(cardHost.querySelector('.rc-progress').getAttribute('aria-valuenow'), '35', 'a plan from before the count is counted from its items');
+  updateResearch('m6', { activityAll: [{ t: 1, type: 'item', text: 'Makers' }, { t: 2, type: 'searching', text: 'Searching: solid state makers' }, { t: 3, type: 'phase', text: 'x' }] });
+  assert.equal(cardHost.querySelector('.rc-act-text').textContent, 'Searching: solid state makers');
+  assert.equal(cardHost.querySelector('.rc-act-list'), null);
+  click(window, cardHost.querySelector('[data-act="activity"]'));
+  assert.equal(cardHost.querySelectorAll('.rc-act-line').length, 2, 'the lines that are shown, not the ones that are not');
+  click(window, cardHost.querySelector('[data-act="activity"]'));
+  assert.equal(cardHost.querySelector('.rc-act-list'), null);
+  updateResearch('m6', { plan: { ...running, phase: 'writing', pg: 80, clock: Date.now() + 1 }, writing: { n: 4, of: 7, heading: 'Costs' } });
+  assert.match(cardHost.textContent, /Writing the report…/);
+  assert.match(cardHost.textContent, /Section 4 of 7/);
+  assert.equal(cardHost.querySelector('.rc-pct').textContent, '80%');
+  assert.ok(cardHost.querySelector('.rc-act'), 'the activity stays while the report is written');
+});
+
+test('a citation and its sources light up together, the panel turns to the sources when a citation is clicked, and what scrolls fades at the edges it leaves', async () => {
+  const { window, document } = setup();
+  updateResearch('m10', { report: REPORT, activityAll: REPORT.activity });
+  openResearchReader({ messageId: 'm10', getLanguage: () => 'en', document });
+  const root = document.querySelector('.rr');
+  click(window, root.querySelector('.rr-panel-toggle'));
+  const items = [...root.querySelectorAll('.rr-source-list .source-item')];
+  const mark = [...root.querySelectorAll('.rr-cite')].find((node) => node.dataset.cite === '1,2');
+  mark.dispatchEvent(new window.MouseEvent('mouseover', { bubbles: true }));
+  assert.deepEqual(items.map((item) => item.classList.contains('is-cited')), [true, true], 'both sources of the citation');
+  mark.dispatchEvent(new window.MouseEvent('mouseout', { bubbles: true }));
+  assert.deepEqual(items.map((item) => item.classList.contains('is-cited')), [false, false]);
+  const single = [...root.querySelectorAll('.rr-cite')].find((node) => node.dataset.cite === '1');
+  assert.ok(single, 'a citation of one source');
+  items[0].dispatchEvent(new window.MouseEvent('mouseover', { bubbles: true }));
+  const lit = [...root.querySelectorAll('.rr-cite')].filter((node) => node.classList.contains('is-hot'));
+  assert.ok(lit.length >= 2 && lit.every((node) => node.dataset.cite.split(',').includes('1')), 'every citation of the source');
+  items[0].dispatchEvent(new window.MouseEvent('mouseout', { bubbles: true }));
+  assert.equal(root.querySelectorAll('.rr-cite.is-hot').length, 0);
+
+  click(window, [...root.querySelectorAll('.history-tab')][1]);
+  assert.equal(root.querySelectorAll('.rr-source-list').length, 0, 'the panel shows the activity');
+  click(window, single);
+  assert.equal(root.querySelectorAll('.rr-source-list .source-item').length, 2, 'a click on a citation turns it to the sources');
+  assert.equal(root.querySelectorAll('.rr-source-list .source-item.is-cited').length, 1);
+});
+
+test('on a phone the sources and the activity are the chat\'s sheet from the bottom, which Escape closes before the reader', () => {
+  const { window, document } = setup();
+  window.innerWidth = 400;
+  updateResearch('m11', { report: REPORT, activityAll: REPORT.activity });
+  openResearchReader({ messageId: 'm11', getLanguage: () => 'en', document });
+  const root = document.querySelector('.rr');
+  const buttons = [...root.querySelectorAll('.rr-fab-btn')];
+  click(window, buttons[2]);
+  const sheet = document.querySelector('.source-sheet');
+  assert.ok(sheet, 'the sources open in the sheet');
+  const tabsOf = (node) => [...node.querySelectorAll('.history-tab')].map((tab) => `${tab.textContent}:${tab.getAttribute('aria-selected')}`);
+  assert.deepEqual(tabsOf(sheet), ['Sources:true', 'Activity:false'], 'the sheet has the tabs to switch');
+  assert.equal(sheet.querySelectorAll('.source-item').length, 2);
+  click(window, sheet.querySelectorAll('.history-tab')[1]);
+  assert.deepEqual(tabsOf(sheet), ['Sources:false', 'Activity:true'], 'a tab switches the list in the sheet');
+  assert.equal(sheet.querySelectorAll('.source-item').length, 0);
+  assert.ok(sheet.querySelector('.ledger-row'), 'to the activity');
+  click(window, sheet.querySelectorAll('.history-tab')[0]);
+  assert.equal(sheet.querySelectorAll('.source-item').length, 2, 'and back');
+  assert.equal(root.classList.contains('rr-panel-open'), false, 'the panel at the side is not used');
+  const escape = () => document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+  escape();
+  assert.ok(document.querySelector('.rr'), 'the reader stays under it');
+  assert.equal(document.documentElement.classList.contains('source-sheet-open'), false);
+  click(window, buttons[3]);
+  const activity = [...document.querySelectorAll('.source-sheet')].at(-1);
+  assert.deepEqual(tabsOf(activity), ['Sources:false', 'Activity:true'], 'the activity button opens on its own tab');
+  assert.ok(activity.querySelector('.ledger-row'), 'the activity is drawn as the chat\'s process rows');
+  closeResearchReader();
+  document.querySelector('.source-sheet-root')?.remove();
 });

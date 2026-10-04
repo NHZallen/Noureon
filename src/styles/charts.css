@@ -140,6 +140,17 @@
     opacity: 1;
 }
 
+.model-message .ac-chart-line-forecast {
+    stroke-dasharray: 7 6;
+}
+
+.model-message .ac-chart-bar.is-forecast {
+    fill-opacity: 0.35;
+    stroke: var(--ac-chart-primary);
+    stroke-width: 1.5;
+    stroke-dasharray: 5 4;
+}
+
 .model-message .ac-chart-bar {
     opacity: 0.86;
     stroke: none;

@@ -90,3 +90,14 @@ test('bar pointer state activates one bar and fades the rest', () => {
     window.close();
   }
 });
+
+test('a bar that is a forecast is marked, and the mark is only kept when it is true', () => {
+  const window = new Window({ url: 'https://example.test/' });
+  try {
+    const svg = renderBarChart(window.document, { type: 'bar', data: [{ label: '2025', value: 20 }, { label: '2026', value: 58, forecast: true }] });
+    const bars = [...svg.querySelectorAll('.ac-chart-bar')];
+    assert.deepEqual(bars.map((bar) => bar.classList.contains('is-forecast')), [false, true]);
+  } finally {
+    window.close();
+  }
+});

@@ -1,6 +1,7 @@
 import { getSearchProvider } from '../kernel/search-provider.js';
 import { chatsUnderVisionCheck } from '../features/vision-check-lock.js';
 import { visionText } from '../../ui/files/vision/vision-texts.js';
+import { getResearchMode } from '../research/research-bridge.js';
 
 export function createSettingsUpdateInputStateHelper({
     elements,
@@ -53,6 +54,9 @@ export function createSettingsUpdateInputStateHelper({
         elements.messageInput.placeholder = hasModelApiKey
             ? (isCouncilEnabled(conv) && !councilValidation.ok ? councilValidation.message : i18n[config.uiLanguage].enterMessagePlaceholder)
             : i18n[config.uiLanguage].enterApiKeyPlaceholder;
+        // A deep research is being done in this chat: what is written is an instruction for it.
+        const researchHint = hasModelApiKey ? getResearchMode()?.placeholder?.() : null;
+        if (researchHint) elements.messageInput.placeholder = researchHint;
         // The visual check of the last message is still running: nothing can be sent until it is done or stopped.
         if (chatsUnderVisionCheck.has(conv.id)) {
             elements.messageInput.placeholder = visionText(config.uiLanguage, 'sendLocked');

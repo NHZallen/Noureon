@@ -307,3 +307,11 @@ test('common Chart.js-shaped model output is adapted for all supported chart typ
   assert.equal(results[16].chart.data[0].delta, 12.5);
   assert.equal(results[17].chart.value, 75);
 });
+
+test('a row marked forecast keeps the mark; anything else is dropped', () => {
+  const kept = parseAndNormalizeChartSchema(JSON.stringify({ type: 'line', data: [{ label: 'a', value: 1 }, { label: 'b', value: 2, forecast: true }, { label: 'c', value: 3, forecast: 'yes' }] }));
+  assert.equal(kept.ok, true);
+  assert.deepEqual(kept.chart.data.map((row) => row.forecast), [undefined, true, undefined]);
+  const xy = parseAndNormalizeChartSchema(JSON.stringify({ type: 'line', data: [{ x: 1, y: 2 }, { x: 2, y: 3, forecast: true }] }));
+  assert.equal(xy.chart.data[1].forecast, true);
+});

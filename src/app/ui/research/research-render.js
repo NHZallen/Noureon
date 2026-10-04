@@ -2,6 +2,8 @@
 // has: ids on its headings (the contents and the jumps come from them) and its [n] citations as small grey circles that carry the sources
 // they stand for.
 
+import { researchText } from '../../runtime/research/research-texts.js';
+
 const SKIP = new Set(['CODE', 'PRE', 'A', 'BUTTON', 'SCRIPT', 'STYLE', 'TEXTAREA', 'SVG']);
 const GROUP = /(?:\[\d{1,4}\](?:\s*,?\s*)?)+/g;
 
@@ -58,4 +60,21 @@ export function renderReport({ markdown, renderer, sources = [], document = glob
     headings.push({ id: heading.id, level: Number(heading.tagName[1]), text: heading.textContent.trim() });
   });
   return { element, headings };
+}
+
+/** What one line of the activity list says, or null when it is not shown. */
+export function activityLine(entry, language) {
+  const t = (key, values) => researchText(language, key, values);
+  switch (entry?.type) {
+    case 'plan': return { kind: 'title', text: entry.text };
+    case 'item': return { kind: 'title', text: entry.text };
+    case 'searching': return { kind: 'chip', text: entry.text };
+    case 'narration': return { kind: 'text', text: entry.text };
+    // The step of the charts is logged with a word that is not for reading.
+    case 'section': return entry.text === 'charts' ? null : { kind: 'text', text: entry.text };
+    case 'steer': return { kind: 'title', text: `${t('steer')}: ${entry.text}` };
+    case 'paused': return { kind: 'text', text: t('paused') };
+    case 'resumed': return { kind: 'text', text: t('resume') };
+    default: return null;
+  }
 }

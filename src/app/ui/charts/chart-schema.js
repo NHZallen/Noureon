@@ -73,7 +73,7 @@ const normalizeBarRow = (row) => {
   if (!label.ok) return fail('invalid-label');
   if (!value.ok) return fail('invalid-value');
   if (!category.ok) return fail('invalid-category');
-  return { ok: true, value: { label: label.value, value: value.value, ...(category.value ? { category: category.value } : {}) } };
+  return { ok: true, value: { label: label.value, value: value.value, ...(category.value ? { category: category.value } : {}), ...(row.forecast === true ? { forecast: true } : {}) } };
 };
 
 const normalizeDonutRow = (row, index) => {
@@ -122,7 +122,7 @@ const normalizeLineRow = (row) => {
   if (!label.ok) return fail('invalid-label');
   const category = normalizeCategory(row);
   if (!category.ok) return fail('invalid-category');
-  return { ok: true, value: { label: label.value, x: x.value, y: y.value, ...(category.value ? { category: category.value } : {}) } };
+  return { ok: true, value: { label: label.value, x: x.value, y: y.value, ...(category.value ? { category: category.value } : {}), ...(row.forecast === true ? { forecast: true } : {}) } };
 };
 
 const normalizeSeries = (series) => {

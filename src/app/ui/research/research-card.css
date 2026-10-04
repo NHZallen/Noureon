@@ -10,15 +10,27 @@
 .rc .rc-bullet { flex: 0 0 auto; width: 16px; height: 16px; margin-top: 3px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; }
 .rc .rc-bullet-pending { border: 1.5px dashed var(--text-secondary); }
 .rc .rc-bullet-active { border: 2px solid var(--border-color); border-top-color: var(--text-primary); animation: rc-spin 0.9s linear infinite; }
-.rc .rc-bullet-done { background: var(--text-primary); color: var(--chat-bg); }
+.rc .rc-bullet-done { color: var(--text-primary); }
+.rc .rc-bullet-done svg { display: block; }
 
 .rc .rc-status { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; color: var(--text-secondary); margin-bottom: 8px; }
 .rc .rc-status-end { margin: 0; }
 .rc .rc-stats { margin-left: auto; font-variant-numeric: tabular-nums; }
 .rc .rc-spinner { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--border-color); border-top-color: var(--text-primary); animation: rc-spin 0.9s linear infinite; }
-.rc .rc-progress { height: 3px; border-radius: 2px; background: var(--border-color); overflow: hidden; margin-bottom: 12px; }
-.rc .rc-progress > span { display: block; height: 100%; background: var(--text-primary); transition: width 0.4s ease; }
-.rc .rc-progress-busy > span { animation: rc-pulse 1.4s ease-in-out infinite; }
+.rc .rc-progress-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.rc .rc-progress { flex: 1; min-width: 0; height: 3px; border-radius: 2px; background: var(--border-color); overflow: hidden; }
+.rc .rc-progress > span { display: block; height: 100%; background: var(--text-primary); transition: width 0.8s ease; }
+.rc .rc-pct { flex: 0 0 auto; min-width: 2.6em; text-align: right; color: var(--text-secondary); font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+.rc .rc-act { margin-bottom: 12px; }
+.rc .rc-act-head { display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 0; border: 0; background: transparent; color: var(--text-secondary); font-size: 0.82rem; text-align: left; cursor: pointer; }
+.rc .rc-act-head:hover { color: var(--text-primary); }
+.rc .rc-act-text { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rc .rc-act-chev { flex: 0 0 auto; transition: transform 0.2s ease; }
+.rc .rc-act-head[aria-expanded="true"] .rc-act-chev { transform: rotate(180deg); }
+.rc .rc-act-list { display: flex; flex-direction: column; gap: 6px; padding: 4px 0 2px 10px; border-left: 1px solid var(--border-color); }
+.rc .rc-act-line { color: var(--text-secondary); font-size: 0.8rem; line-height: 1.45; overflow-wrap: anywhere; }
+.rc .rc-act-title { color: var(--text-primary); }
+.rc .rc-act-chip { font-size: 0.78rem; }
 .rc .rc-hint, .rc .rc-confirm-text { margin: 0 0 10px; color: var(--text-secondary); }
 .rc .rc-confirm-text { color: var(--text-primary); }
 
@@ -57,7 +69,6 @@
 .rc .rc-fade { position: absolute; left: 0; right: 0; bottom: 0; height: 120px; background: linear-gradient(to bottom, transparent, var(--chat-bg)); pointer-events: none; }
 
 @keyframes rc-spin { to { transform: rotate(360deg); } }
-@keyframes rc-pulse { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
 
 @media (max-width: 640px) {
   .rc .rc-box { padding: 14px; }

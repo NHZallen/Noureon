@@ -36,7 +36,10 @@ export const RESEARCH_LIMITS = Object.freeze({
   maxItemCalls: 60
 });
 
-const NOTES_BUDGET_CHARS = 14_000;
+// What of the notes the model is shown: all the notes when it writes the report (the longer the notes, the deeper the report), fewer
+// while it researches an item (that prompt goes with every round).
+const NOTES_BUDGET_CHARS = 90_000;
+const ITEM_NOTES_BUDGET_CHARS = 24_000;
 const MAX_REPORT_CHARS = 1_000_000;
 const MAX_CHECKPOINT_TURNS_CHARS = 2_000_000;
 const PHASES = ['planning', 'awaiting', 'researching', 'writing', 'done'];
@@ -106,10 +109,10 @@ export function parsePlan(text, topic, maxItems = RESEARCH_LIMITS.maxItems) {
   return { title: clip(title || topic, 120), brief: clip(brief, 600), items: chosen };
 }
 
-const compactNotes = (items, notes) => {
+const compactNotes = (items, notes, budget = NOTES_BUDGET_CHARS) => {
   const done = items.filter((item) => notes[item.id]);
   if (!done.length) return '';
-  const each = Math.max(600, Math.floor(NOTES_BUDGET_CHARS / done.length));
+  const each = Math.max(600, Math.floor(budget / done.length));
   return done.map((item) => `### ${item.text}\n${notes[item.id].length > each ? `${notes[item.id].slice(0, each)}…` : notes[item.id]}`).join('\n\n');
 };
 
@@ -117,10 +120,10 @@ const itemPrompt = ({ topic, plan, item, notes, language }) => [
   `Deep research on: ${topic}`,
   plan.brief ? `Aim: ${plan.brief}` : '',
   `The plan:\n${plan.items.map((entry, index) => `${index + 1}. ${entry.text}${entry.id === item.id ? '   <- you are researching this one now' : ''}`).join('\n')}`,
-  compactNotes(plan.items, notes) ? `Notes from the items done before (do not repeat them; cite their numbers if you use them):\n${compactNotes(plan.items, notes)}` : '',
+  compactNotes(plan.items, notes, ITEM_NOTES_BUDGET_CHARS) ? `Notes from the items done before (do not repeat them; cite their numbers if you use them):\n${compactNotes(plan.items, notes, ITEM_NOTES_BUDGET_CHARS)}` : '',
   `Your task: research this item with the tools: ${item.text}`,
   'Search and read until you have solid, specific facts (names, numbers, dates, versions, what the sources agree and disagree on). Prefer primary and recent sources.',
-  `When you have enough, write your notes for this item: bullet points of the findings, each with the [number] of the source it comes from, in ${LANGUAGE_NAME[language] || 'English'} unless the topic is in another language. 150 to 450 words. Do not write the final report and do not add a list of sources.`
+  `When you have enough, write your notes for this item: detailed bullet points of the findings, each with the [number] of the source it comes from, in ${LANGUAGE_NAME[language] || 'English'} unless the topic is in another language. 500 to 1000 words: the report is written from these notes alone, so keep everything it will need (names, exact figures with units and dates, versions, quotes worth keeping, how the sources agree or disagree, background, caveats and what you could not find). Do not write the final report and do not add a list of sources.`
 ].filter(Boolean).join('\n\n');
 
 const outlinePrompt = ({ topic, plan, notes, language, short }) => [
@@ -128,12 +131,12 @@ const outlinePrompt = ({ topic, plan, notes, language, short }) => [
   plan.brief ? `Aim: ${plan.brief}` : '',
   `Report title: ${plan.title}`,
   `Notes:\n${compactNotes(plan.items, notes)}`,
-  `Plan the sections of the final report${short ? ' (a short report: 3 or 4 sections)' : ' (4 to 8 sections)'}. Answer only with lines like this, in order, nothing else:`,
+  `Plan the sections of the final report${short ? ' (a short report: 3 or 4 sections)' : ' (a long, thorough report: 8 to 12 sections, each with its own angle, going from the background to the details, the comparisons and what it all means)'}. Answer only with lines like this, in order, nothing else:`,
   'SECTION: the heading of the section (no number)',
   `Write the headings in ${LANGUAGE_NAME[language] || 'English'} unless the topic is in another language. Do not make a section for the summary or the sources: they are added.`
 ].filter(Boolean).join('\n\n');
 
-export const parseOutline = (text, plan, maxSections = 10) => {
+export const parseOutline = (text, plan, maxSections = 14) => {
   const headings = String(text || '').split(/\r?\n/)
     .map((line) => /^[\s>*#-]*SECTION\s*[:：]\s*(.+)$/i.exec(line)?.[1]?.replace(/^\*+|\*+$/g, '').trim())
     .filter(Boolean)
@@ -150,7 +153,7 @@ const sectionPrompt = ({ topic, plan, notes, outline, heading, sourcesText, lang
   sourcesText ? `The sources:\n${sourcesText}` : '',
   `Write the section "${heading}". Rules:`,
   `- Write only the body of the section, without its heading. Do not repeat what the other sections cover.`,
-  `- ${short ? '150 to 350 words' : '250 to 700 words'}, in ${LANGUAGE_NAME[language] || 'English'} unless the topic is in another language. Markdown: paragraphs, lists and "###" sub-headings where they help; a table when comparing things; math as LaTeX between $ signs.`,
+  `- ${short ? '150 to 350 words' : '800 to 1500 words: this is a long, thorough report that a person waited hours for, so go deep, explain the why and the how, give the specific figures, dates and names from the notes, compare, and draw out what it means. Use two to four "###" sub-headings inside the section and write mostly in full paragraphs rather than bullet lists'}, in ${LANGUAGE_NAME[language] || 'English'} unless the topic is in another language. Markdown: paragraphs, lists where they help; a table when comparing things; math as LaTeX between $ signs.`,
   '- Put the number of the source right after the sentence it supports, like [2], or [1][3] for several. Use only the numbers above, never invent one, and add no list of sources.',
   '- Say plainly what could not be found or is uncertain. Do not make up facts that are not in the notes.'
 ].filter(Boolean).join('\n');
@@ -158,8 +161,8 @@ const sectionPrompt = ({ topic, plan, notes, outline, heading, sourcesText, lang
 const summaryPrompt = ({ topic, plan, sections, language }) => [
   `A research report on: ${topic}`,
   `Title: ${plan.title}`,
-  `The sections:\n${sections.map((section) => `## ${section.heading}\n${clip(section.text, 1800)}`).join('\n\n')}`,
-  `Write the executive summary of the report: 120 to 220 words, the main findings and what they mean, in ${LANGUAGE_NAME[language] || 'English'} unless the topic is in another language. Keep the [number] source marks of the facts you use. Write only the summary, no heading.`
+  `The sections:\n${sections.map((section) => `## ${section.heading}\n${clip(section.text, 2500)}`).join('\n\n')}`,
+  `Write the executive summary of the report: 200 to 350 words, the main findings and what they mean, in ${LANGUAGE_NAME[language] || 'English'} unless the topic is in another language. Keep the [number] source marks of the facts you use. Write only the summary, no heading.`
 ].join('\n\n');
 
 const chartPrompt = ({ topic, plan, notes, outline, language }) => [
@@ -168,6 +171,7 @@ const chartPrompt = ({ topic, plan, notes, outline, language }) => [
   `Research notes (the numbers in square brackets are the sources):\n${compactNotes(plan.items, notes)}`,
   'Decide whether the report needs a chart. A chart is worth it only when the notes hold several numbers that can be compared (over time, between products or companies) and a picture shows it better than a sentence. Most reports need none, or one; never more than two.',
   'Use ONLY numbers that are written in the notes, exactly as written. Never estimate, convert or calculate a number for a chart.',
+  'Every chart needs a short "title" (what it shows, in the language of the report) and a "unit" (for example "USD billion", "%", "mS/cm"). Numbers that are forecasts, targets or guidance and not results that happened must have "forecast": true in their row, so the chart draws them dashed; say so in the caption.',
   'If no chart is worth it, answer exactly: NONE',
   'Otherwise answer with one block for each chart, in this form and nothing else:',
   'SECTION: the heading of the section the chart belongs to, exactly as listed above',
@@ -200,7 +204,9 @@ export function acceptCharts(text, { outline = [], notes = {} } = {}) {
     if (!parsed.ok) continue;
     const values = numberLeaves(parsed.chart.data ?? parsed.chart);
     if (!values.length || !values.every((value) => known.has(value))) continue;
-    accepted.push({ heading, caption: clip(match[2], 300), chart: parsed.chart });
+    // A chart without a title of its own takes the heading of its section.
+    const chart = parsed.chart.title ? parsed.chart : { ...parsed.chart, title: clip(heading, 80) };
+    accepted.push({ heading, caption: clip(match[2], 300), chart });
   }
   return accepted;
 }
@@ -294,6 +300,12 @@ export async function executeResearch({
   const steerText = () => (steering.length ? `\n\nThe person added these instructions while the research went on; follow them from now on:\n${steering.map((entry) => `- ${entry.text}`).join('\n')}` : '');
   let activity = Array.isArray(cp?.activity) ? cp.activity.slice(-limits.maxActivity) : [];
   let inItem = cp?.item && typeof cp.item === 'object' ? cp.item : null;
+  // How far the whole research is, 0 to 100: the items are 70 of it (the item being researched counts by the calls it has used, so the
+  // bar moves with every search and read), the report 30 (outline, each section, charts, summary). It never goes back.
+  let itemRunning = false;
+  let itemBase = 0;
+  let itemShare = 1;
+  let progressMax = 0;
   let report = null;
   let failure = null;
 
@@ -344,6 +356,22 @@ export async function executeResearch({
   });
 
   // ----- what the page sees
+  const progress = () => {
+    let value = 0;
+    if (phase === 'researching') {
+      const items = plan?.items || [];
+      const done = items.filter((item) => item.state === 'done').length;
+      const used = itemRunning ? Math.max(0, (research?.used || 0) - itemBase) : 0;
+      const active = itemRunning ? Math.min(0.9, 1 - Math.exp(-used / Math.max(3, itemShare * 0.4))) : 0;
+      value = ((done + active) / Math.max(1, items.length)) * 70;
+    } else if (phase === 'writing') {
+      if (!outline) value = 70;
+      else if (sections.length >= outline.length) value = chartsDone || shortReport ? 95 : 93;
+      else value = 73 + 19 * (sections.length / Math.max(1, outline.length));
+    } else if (phase === 'done') value = 100;
+    progressMax = Math.max(progressMax, Math.min(phase === 'done' ? 100 : 99, Math.floor(value)));
+    return progressMax;
+  };
   const planPart = () => ({
     title: plan?.title || '',
     topic,
@@ -357,6 +385,7 @@ export async function executeResearch({
     ...(failure ? { error: failure } : {}),
     stats: { searches: research?.used || 0, sources: new Set(sources.map((source) => source.n)).size, activeMs: activeNow() },
     running: Boolean(activeSince),
+    pg: progress(),
     clock: now(),
     countdownMs: limits.countdownMs
   });
@@ -644,6 +673,9 @@ export async function executeResearch({
           run: (call) => research.run(call)
         };
         item.state = 'active';
+        itemRunning = true;
+        itemBase = callsBefore;
+        itemShare = share;
         if (!inItem || inItem.id !== item.id) inItem = { id: item.id };
         log({ type: 'item', text: clip(item.text, 200) });
         await publish({ save: true });
@@ -705,6 +737,7 @@ export async function executeResearch({
         }
         notes[item.id] = text.trim() || 'No usable findings were written for this item.';
         item.state = 'done';
+        itemRunning = false;
         inItem = null;
         await publish({ save: true });
         if (pausing || paused) {
@@ -731,7 +764,7 @@ export async function executeResearch({
       if (!outline) {
         const text = await generate(`${outlinePrompt({ topic, plan, notes, language, short: shortReport })}${steerText()}`, { system: 'You plan the sections of a research report. Follow the answer format exactly.' });
         if (aborted()) return finishParts('stopped');
-        outline = parseOutline(text, plan, shortReport ? 4 : 10);
+        outline = parseOutline(text, plan, shortReport ? 4 : 14);
         await publish({ save: true });
       }
       const cited = new Set(citedNumbers(Object.values(notes).join('\n')));
@@ -743,7 +776,7 @@ export async function executeResearch({
         const text = await generate(`${sectionPrompt({ topic, plan, notes, outline, heading, sourcesText, language, short: shortReport })}${steerText()}`, { system: 'You write a section of a research report with the facts and the source numbers you are given.' });
         if (aborted()) return finishParts('stopped');
         sections.push({ heading, text });
-        await checkpoint();
+        await publish({ save: true });
       }
       // Charts: the model may propose one or two, with numbers that are in the notes; a failure here never costs the report.
       if (!chartsDone && !shortReport) {
@@ -760,7 +793,7 @@ export async function executeResearch({
           onProblem('research_charts_failed', error);
         }
         chartsDone = true;
-        await checkpoint();
+        await publish({ save: true });
       }
       if (!summary) {
         summary = await generate(`${summaryPrompt({ topic, plan, sections, language })}${steerText()}`, { system: 'You write the executive summary of a research report.' });

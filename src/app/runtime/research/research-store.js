@@ -5,6 +5,7 @@
 
 const entries = new Map();
 const listeners = new Map();
+const anyListeners = new Set();
 
 const entryFor = (id) => {
   if (!entries.has(id)) entries.set(id, { id, runId: null, plan: null, report: null, activity: [], sources: [], writing: null, offset: 0, live: false });
@@ -19,7 +20,20 @@ export function subscribeResearch(id, listener) {
   return () => listeners.get(id)?.delete(listener);
 }
 
+/** Told whenever any research changes (the composer follows whether one is running in the open chat). */
+export function subscribeAnyResearch(listener) {
+  anyListeners.add(listener);
+  return () => anyListeners.delete(listener);
+}
+
 const notify = (id) => {
+  for (const listener of [...anyListeners]) {
+    try {
+      listener(id);
+    } catch (error) {
+      console.warn('A research view failed to update.', error);
+    }
+  }
   for (const listener of [...(listeners.get(id) || [])]) {
     try {
       listener(entries.get(id));
