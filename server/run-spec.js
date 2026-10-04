@@ -10,7 +10,7 @@ const ROLES = ['user', 'model', 'system'];
 // reply with Python gets what it found (it cannot do both at once); 'off': no search.
 const WEB_SEARCH = ['off', 'research', 'grounding', 'briefing'];
 const SEARCH_PROVIDERS = ['tavily', 'tinyfish'];
-const TOP_LEVEL = ['protocol', 'clientVersion', 'conversationId', 'assistantMessageId', 'sequence', 'model', 'request', 'tools', 'secrets'];
+const TOP_LEVEL = ['protocol', 'clientVersion', 'conversationId', 'assistantMessageId', 'sequence', 'model', 'request', 'tools', 'secrets', 'kind', 'research'];
 
 const isObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 const text = (value, max) => typeof value === 'string' && value.length > 0 && value.length <= max;
@@ -86,6 +86,19 @@ export function validateRunSpec(input) {
     }
   }
 
+  // A deep research (server/research.js): the topic is what the person typed; the model searches for itself (not Gemini's own search, and
+  // no Python yet), so the way it searches must be the tool one.
+  if (input.kind !== undefined && input.kind !== 'research') fail('kind', 'must be "research" or left out');
+  if (input.kind === 'research') {
+    if (!isObject(input.research) || !text(input.research.topic, 4000)) fail('research.topic', 'must be a text of at most 4000 characters');
+    if (isObject(tools)) {
+      if (tools.webSearch !== 'research') fail('tools.webSearch', 'a deep research searches with tools');
+      if (tools.advanced !== false) fail('tools.advanced', 'a deep research does not run Python yet');
+    }
+    if (isObject(model) && model.provider === 'gemini') fail('model.provider', 'a deep research is not made with Gemini yet');
+    if (isObject(input.research)) for (const name of Object.keys(input.research)) if (name !== 'topic') fail(`research.${name}`, 'is not a known field');
+  } else if (input.research !== undefined) fail('research', 'is only for a deep research');
+
   const secrets = input.secrets;
   if (!isObject(secrets)) fail('secrets', 'must be an object');
   else {
@@ -99,6 +112,7 @@ export function validateRunSpec(input) {
     ok: true,
     spec: {
       protocol: input.protocol,
+      ...(input.kind === 'research' ? { kind: 'research', research: { topic: input.research.topic.trim() } } : {}),
       clientVersion: input.clientVersion,
       conversationId: input.conversationId,
       assistantMessageId: input.assistantMessageId,

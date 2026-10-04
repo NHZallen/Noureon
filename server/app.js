@@ -19,6 +19,7 @@ const STATUS_FOR = {
   [ERROR_CODES.requestTooLarge]: 413,
   [ERROR_CODES.protocolUnsupported]: 426,
   [ERROR_CODES.notFound]: 404,
+  [ERROR_CODES.wrongPhase]: 409,
   [ERROR_CODES.internal]: 500
 };
 
@@ -37,7 +38,9 @@ class RequestError extends Error {
   }
 }
 
-async function readJson(request, maxBytes) {
+// `optional`: a request with no body at all is an empty object (a stop or a start that has nothing to add).
+async function readJson(request, maxBytes, { optional = false } = {}) {
+  if (optional && !Number(request.headers['content-length'] || 0) && !request.headers['transfer-encoding']) return {};
   if (!/^application\/json\b/i.test(String(request.headers['content-type'] || ''))) throw new RequestError(ERROR_CODES.badRequest, 'The body must be application/json.');
   const declared = Number(request.headers['content-length'] || 0);
   if (declared > maxBytes) throw new RequestError(ERROR_CODES.requestTooLarge, 'The request is too large.');
@@ -48,6 +51,7 @@ async function readJson(request, maxBytes) {
     if (size > maxBytes) throw new RequestError(ERROR_CODES.requestTooLarge, 'The request is too large.');
     chunks.push(chunk);
   }
+  if (optional && size === 0) return {};
   try {
     return JSON.parse(Buffer.concat(chunks).toString('utf8'));
   } catch {
@@ -118,14 +122,17 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
         status = 200;
         return;
       }
-      const runPath = /^\/v1\/runs\/([0-9a-f-]{36})(\/stop|\/stream)?$/i.exec(url.pathname);
-      if (route === 'POST /v1/runs') {
+      const runPath = /^\/v1\/runs\/([0-9a-f-]{36})(\/stop|\/stream|\/start|\/hold|\/release|\/plan|\/pause|\/resume)?$/i.exec(url.pathname);
+      if (route === 'POST /v1/runs' || route === 'POST /v1/research') {
+        const deep = route === 'POST /v1/research';
         const user = await authenticate(request);
         if (!runs) throw new RequestError(ERROR_CODES.runsUnavailable, 'Replies on the server are not set up yet.');
         if (!startLimiter.take(user.id)) throw new RequestError(ERROR_CODES.rateLimited, 'Too many requests; wait a minute.');
         const result = validateRunSpec(await readJson(request, LIMITS.maxRequestBytes));
         if (result.unsupportedProtocol) throw new RequestError(ERROR_CODES.protocolUnsupported, 'This server speaks another protocol version.', { protocol: PROTOCOL_VERSION });
         if (!result.ok) throw new RequestError(ERROR_CODES.invalidRunSpec, 'The request is not in the right shape.', { details: result.errors });
+        // A deep research comes only to its own address, and that address takes nothing else.
+        if (deep !== (result.spec.kind === 'research')) throw new RequestError(ERROR_CODES.invalidRunSpec, deep ? 'This address is for a deep research.' : 'A deep research is started at /v1/research.');
         // Python needs the sandbox host, and it has to answer now (when it does not, the browser makes the reply with its own Python); the provider's own web search does not go with tools (the briefing is how it is done instead).
         if (result.spec.tools.advanced && (result.spec.tools.webSearch === 'grounding' || !(await runs.advancedAvailable?.()))) throw new RequestError(ERROR_CODES.unsupportedMode, 'Advanced mode is not run on the server.');
         try {
@@ -174,8 +181,27 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
       if (runPath && request.method === 'POST' && runPath[2] === '/stop') {
         const user = await authenticate(request);
         if (!runs) throw new RequestError(ERROR_CODES.runsUnavailable, 'Replies on the server are not set up yet.');
-        const found = await runs.stop({ userId: user.id, runId: runPath[1] });
+        // A deep research may be asked to write its report from what it has found: { mode: 'report' } (otherwise it is ended).
+        const body = await readJson(request, 4096, { optional: true });
+        const mode = body?.mode === 'report' ? 'report' : null;
+        const found = await runs.stop({ userId: user.id, runId: runPath[1], mode });
         if (!found) throw new RequestError(ERROR_CODES.notFound, 'No such reply is running.');
+        send(response, 200, { ok: true }, origin);
+        status = 200;
+        return;
+      }
+      if (runPath && request.method === 'POST' && ['/start', '/hold', '/release', '/plan', '/pause', '/resume'].includes(runPath[2])) {
+        // What a person does to a deep research: start it now, hold the countdown (they are editing the plan), let it run again, change the
+        // plan in their own words, pause it or let it go on.
+        const user = await authenticate(request);
+        if (!runs) throw new RequestError(ERROR_CODES.runsUnavailable, 'Replies on the server are not set up yet.');
+        const body = await readJson(request, 16 * 1024, { optional: true });
+        const result = runs.control({ userId: user.id, runId: runPath[1], action: runPath[2].slice(1), payload: { instruction: typeof body?.instruction === 'string' ? body.instruction : '' } });
+        if (!result.ok) {
+          if (result.reason === 'wrong_phase') throw new RequestError(ERROR_CODES.wrongPhase, 'The research is not at a stage where that can be done.');
+          if (result.reason === 'empty') throw new RequestError(ERROR_CODES.badRequest, 'Say what to change.');
+          throw new RequestError(ERROR_CODES.notFound, 'No such research is running here.');
+        }
         send(response, 200, { ok: true }, origin);
         status = 200;
         return;

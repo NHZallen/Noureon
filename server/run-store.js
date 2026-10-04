@@ -18,8 +18,8 @@ export function runStartErrorCode(error) {
 export function createRunStore({ db, limits, now = () => new Date() }) {
   return {
     /** Records a new run (checks the limit and the conversation in the database, under one lock); returns its id. */
-    async start({ userId, conversationId, messageId, model, envelope, keyVersion, flags = null }) {
-      const expires = new Date(now().getTime() + limits.keyTtlMs).toISOString();
+    async start({ userId, conversationId, messageId, model, envelope, keyVersion, flags = null, keyTtlMs = limits.keyTtlMs }) {
+      const expires = new Date(now().getTime() + keyTtlMs).toISOString();
       return db.rpc('server_start_run', {
         p_user_id: userId,
         p_conversation_id: conversationId,
@@ -42,9 +42,10 @@ export function createRunStore({ db, limits, now = () => new Date() }) {
       return Boolean(rows?.[0]?.stop_requested);
     },
     /** Where the run has got to, to take it up from after a restart. Too large a note is not kept (the run starts over then). */
-    async saveCheckpoint(id, checkpoint) {
+    async saveCheckpoint(id, checkpoint, { progress = false } = {}) {
       if (JSON.stringify(checkpoint).length > MAX_CHECKPOINT_BYTES) return false;
-      await db.update('server_runs', { id: `eq.${id}` }, { checkpoint, heartbeat_at: now().toISOString() });
+      // A run that goes on after being taken up again starts its count of takings-up anew (a day of research outlives several updates).
+      await db.update('server_runs', { id: `eq.${id}` }, { checkpoint, heartbeat_at: now().toISOString(), ...(progress ? { attempts: 0 } : {}) });
       return true;
     },
     /** The run is over: the key goes at once. */

@@ -225,7 +225,7 @@ test('the four search paths and NVIDIA\'s chat go straight to their services, wi
 
 // ----- the run manager
 
-function managerHarness({ execute, db = fakeDatabase(), logs = [], sandbox = null, vision, fetchImpl } = {}) {
+function managerHarness({ execute, executeDeepResearch, files = null, db = fakeDatabase(), logs = [], sandbox = null, vision, fetchImpl } = {}) {
   const vault = createKeyVault([{ version: 1, key: masterKey() }]);
   const repeating = [];
   const timers = [];
@@ -235,6 +235,8 @@ function managerHarness({ execute, db = fakeDatabase(), logs = [], sandbox = nul
     db,
     vault,
     sandbox,
+    files,
+    ...(executeDeepResearch ? { executeDeepResearch } : {}),
     ...(vision ? { vision } : {}),
     ...(fetchImpl ? { fetchImpl } : {}),
     execute,
@@ -733,4 +735,116 @@ test('the whole way: a reply writes a presentation, the server draws it, the mod
   assert.match(corrected.parts[0].text, /Revenue up 23 percent/);
   assert.deepEqual(sheets, [1], 'the model was shown the one contact sheet');
   void late;
+});
+
+// ----- deep research
+
+const researchSpecOf = () => ({ ...specOf(), kind: 'research', research: { topic: 'Solid-state batteries' }, tools: { webSearch: 'research', searchProvider: 'tavily', advanced: false } });
+
+test('a deep research is recorded with its kind, keeps its keys for a day, hands its controls and the file store to the run, and writes its parts', async () => {
+  const seen = [];
+  const files = { save: async () => ({}) };
+  const { manager, db } = managerHarness({
+    files,
+    executeDeepResearch: async ({ spec, controls, files: given, onUpdate, onLive, onCheckpoint }) => {
+      seen.push({ kind: spec.kind, topic: spec.research.topic, controls: Boolean(controls?.send), files: given === files });
+      onUpdate([{ text: '' }, { researchPlan: { phase: 'awaiting' } }]);
+      onLive({ rs: { phase: 'awaiting', title: 'T' } });
+      await onCheckpoint({ kind: 'research', phase: 'awaiting' });
+      return { parts: [{ text: '' }, { researchReport: { title: 'T' } }], status: 'done', toolCalls: 7 };
+    }
+  });
+  await manager.start({ userId: USER, spec: researchSpecOf() });
+  await settle();
+  assert.deepEqual(seen, [{ kind: 'research', topic: 'Solid-state batteries', controls: true, files: true }]);
+  const start = db.log.rpcs.find((call) => call.name === 'server_start_run').args;
+  assert.deepEqual(start.p_model, { provider: 'openrouter', id: 'm', kind: 'research' });
+  const lifetime = new Date(start.p_key_expires_at).getTime() - Date.now();
+  assert.ok(lifetime > 26 * 3600_000 && lifetime <= 27 * 3600_000 + 5000, 'the key is kept for a day and some hours');
+  assert.deepEqual(messageWrites(db).at(-1).parts, [{ text: '' }, { researchReport: { title: 'T' } }]);
+  assert.equal(messageWrites(db).at(-1).status, 'complete');
+  const checkpoint = db.log.updates.find((update) => update.values.checkpoint?.kind === 'research');
+  assert.equal(checkpoint.values.attempts, 0, 'a research that goes on after being taken up starts counting anew');
+});
+
+test('a person controls a research of their own while it runs here: only theirs, only while it is running', async () => {
+  let release;
+  const received = [];
+  const { manager } = managerHarness({
+    executeDeepResearch: ({ controls }) => new Promise((resolve) => {
+      controls.bind({ phase: () => 'awaiting', handle: (action, payload) => { received.push([action, payload]); return action === 'pause' ? { ok: false, reason: 'wrong_phase' } : { ok: true }; } });
+      release = () => resolve({ parts: [{ text: '' }], status: 'done', toolCalls: 0 });
+    })
+  });
+  const runId = await manager.start({ userId: USER, spec: researchSpecOf() });
+  await settle();
+  assert.deepEqual(manager.control({ userId: USER, runId, action: 'plan', payload: { instruction: 'shorter' } }), { ok: true });
+  assert.deepEqual(manager.control({ userId: USER, runId, action: 'pause' }), { ok: false, reason: 'wrong_phase' });
+  assert.deepEqual(manager.control({ userId: '999e4567-e89b-12d3-a456-426614174009', runId, action: 'start' }), { ok: false, reason: 'not_running' }, 'not another person\'s');
+  assert.deepEqual(manager.control({ userId: USER, runId: 'run-99', action: 'start' }), { ok: false, reason: 'not_running' });
+  assert.deepEqual(received, [['plan', { instruction: 'shorter' }], ['pause', {}]]);
+  release();
+  await settle();
+  assert.deepEqual(manager.control({ userId: USER, runId, action: 'start' }), { ok: false, reason: 'not_running' }, 'it has ended');
+});
+
+test('a stop that asks for the report goes to the research and does not end it; any other stop ends it', async () => {
+  const stops = [];
+  const { manager, db } = managerHarness({
+    executeDeepResearch: ({ controls, signal }) => new Promise((resolve) => {
+      controls.bind({ phase: () => 'researching', handle: (action, payload) => { stops.push([action, payload.mode]); return { ok: true }; } });
+      signal.addEventListener('abort', () => resolve({ parts: [{ text: '' }], status: 'stopped', toolCalls: 0 }));
+    })
+  });
+  const runId = await manager.start({ userId: USER, spec: researchSpecOf() });
+  await settle();
+  const before = db.log.updates.filter((update) => update.values.stop_requested).length;
+  assert.equal(await manager.stop({ userId: USER, runId, mode: 'report' }), true);
+  assert.deepEqual(stops, [['stop', 'report']]);
+  assert.equal(db.log.updates.filter((update) => update.values.stop_requested).length, before, 'the run is not marked as stopped');
+  assert.equal(manager.activeCount, 1, 'and it goes on');
+  db.log.stopRequested = true;
+  assert.equal(await manager.stop({ userId: USER, runId }), true);
+  await settle();
+  assert.equal(manager.activeCount, 0, 'a plain stop ends it');
+});
+
+test('a research that fails keeps its card: the error text is not written over the plan', async () => {
+  const { manager, db } = managerHarness({
+    executeDeepResearch: async () => {
+      const error = new ReplyError('The research was paused for too long.', 'pause_expired');
+      error.parts = [{ text: '' }, { researchPlan: { phase: 'failed' } }];
+      throw error;
+    }
+  });
+  await manager.start({ userId: USER, spec: researchSpecOf() });
+  await settle();
+  const last = messageWrites(db).at(-1);
+  assert.equal(last.status, 'error');
+  assert.deepEqual(last.parts, [{ text: '' }, { researchPlan: { phase: 'failed' } }]);
+  assert.equal(last.metadata.serverError.code, 'pause_expired');
+  assert.match(errorText('en', last.metadata.serverError), /paused for too long/);
+  assert.equal(db.log.updates.find((update) => update.values.status === 'failed').values.error_code, 'pause_expired');
+});
+
+test('a page that joins a research late is given where it stands, what it has done, and the server\'s clock', async () => {
+  let release;
+  const { manager } = managerHarness({
+    executeDeepResearch: ({ onLive }) => new Promise((resolve) => {
+      onLive({ rs: { phase: 'researching', title: 'T' } });
+      onLive({ ra: { type: 'item', text: 'First' } });
+      onLive({ ra: { type: 'searching', text: 'Searching: x' } });
+      release = () => resolve({ parts: [{ text: '' }], status: 'done', toolCalls: 0 });
+    })
+  });
+  const runId = await manager.start({ userId: USER, spec: researchSpecOf() });
+  await settle();
+  const events = [];
+  const unwatch = manager.watch({ userId: USER, runId, send: (event) => events.push(event), close: () => {} });
+  assert.equal(events[0].r.rs.phase, 'researching');
+  assert.deepEqual(events[0].r.ra.map((entry) => entry.type), ['item', 'searching']);
+  assert.equal(typeof events[0].r.serverNow, 'number');
+  unwatch();
+  release();
+  await settle();
 });

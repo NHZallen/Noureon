@@ -118,3 +118,21 @@ test('the Design menu\'s choices and the files of the message are checked, and k
     assert.ok(outcome.errors.some((error) => error.path === path), path);
   }
 });
+
+test('a deep research carries its topic, searches with tools, and is not made with Python or with Gemini', () => {
+  const research = () => ({ ...good(), kind: 'research', research: { topic: '  Solid-state batteries  ' }, tools: { webSearch: 'research', searchProvider: 'tavily', advanced: false } });
+  const ok = validateRunSpec(research());
+  assert.equal(ok.ok, true);
+  assert.equal(ok.spec.kind, 'research');
+  assert.deepEqual(ok.spec.research, { topic: 'Solid-state batteries' });
+  assert.equal(validateRunSpec(good()).spec.kind, undefined, 'an ordinary reply has no kind');
+  const paths = (input) => validateRunSpec(input).errors.map((error) => error.path);
+  assert.deepEqual(paths({ ...research(), research: undefined }), ['research.topic']);
+  assert.deepEqual(paths({ ...research(), research: { topic: 'x'.repeat(4001) } }), ['research.topic']);
+  assert.deepEqual(paths({ ...research(), research: { topic: 'x', extra: 1 } }), ['research.extra']);
+  assert.deepEqual(paths({ ...research(), tools: { ...research().tools, webSearch: 'off' } }), ['tools.webSearch']);
+  assert.deepEqual(paths({ ...research(), tools: { ...research().tools, advanced: true } }), ['tools.advanced']);
+  assert.deepEqual(paths({ ...research(), model: { ...research().model, provider: 'gemini' } }), ['model.provider']);
+  assert.deepEqual(paths({ ...good(), research: { topic: 'x' } }), ['research'], 'a topic is only for a research');
+  assert.deepEqual(paths({ ...good(), kind: 'vision' }), ['kind'], 'the visual check is not asked for from outside');
+});

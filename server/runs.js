@@ -5,6 +5,7 @@ import { executeReply, ReplyError, scrubMessage } from './executor.js';
 import { errorText } from './error-texts.js';
 import { createMessageWriter } from './message-writer.js';
 import { ERROR_CODES, LIMITS } from './protocol.js';
+import { createResearchControls, executeResearch } from './research.js';
 import { runStartErrorCode } from './run-store.js';
 import { executeVisionCheck, visionFiles } from './vision-check.js';
 
@@ -19,6 +20,8 @@ const MAX_WATCHERS_PER_USER = 12;
 const MAX_MIRRORED_STEP_CHARS = 600_000;
 // The same for the visual check: its pictures (small slides and sheets) make it larger.
 const MAX_MIRRORED_VISION_CHARS = 1_500_000;
+// A deep research's activity list, as far back as a page that joins late is told.
+const MAX_MIRRORED_ACTIVITY = 300;
 
 export class RunError extends Error {
   constructor(code, message) {
@@ -34,6 +37,8 @@ export function createRunManager({
   vault,
   // Where Python runs and where the files it makes are kept ({ host, files }, see server/sandbox-client.js and file-store.js), or null.
   sandbox = null,
+  // Where the files a reply makes are kept (server/file-store.js), also when there is no sandbox: a deep research keeps its report in it.
+  files = null,
   // The visual check that follows a reply with a presentation (server/vision-check.js): whether the server can draw slides, and how.
   vision = { available: async () => false, execute: executeVisionCheck, getKit: async () => null },
   limits = LIMITS,
@@ -41,6 +46,7 @@ export function createRunManager({
   log = () => {},
   now = Date.now,
   execute = executeReply,
+  executeDeepResearch = executeResearch,
   heartbeatMs = HEARTBEAT_MS,
   setTimer = setTimeout,
   clearTimer = clearTimeout,
@@ -86,6 +92,11 @@ export function createRunManager({
     } else if (Array.isArray(event.src)) live.sources = event.src;
     else if (event.ev) mirrorStepEvent(live, event.ev);
     else if (event.vc) mirrorVisionEvent(live, event.vc);
+    else if (event.rs) live.research.state = event.rs;
+    else if (event.ra) {
+      live.research.activity.push(event.ra);
+      if (live.research.activity.length > MAX_MIRRORED_ACTIVITY) live.research.activity.splice(0, live.research.activity.length - MAX_MIRRORED_ACTIVITY);
+    }
   };
   // The events of the visual check, kept so that a page that joins late draws the same line. The model's thinking is joined, and so are
   // the small pieces of the Python steps of a redoing (see mirrorStepEvent).
@@ -150,7 +161,9 @@ export function createRunManager({
       sources: live.sources,
       elapsedMs: live.elapsedFrom + (now() - live.elapsedAt),
       ...(live.steps.events.length ? { events: live.steps.events } : {}),
-      ...(live.vision.events.length ? { vc: live.vision.events } : {})
+      ...(live.vision.events.length ? { vc: live.vision.events } : {}),
+      // A deep research: where it stands and what it has done, and the server's clock (the times in them are the server's).
+      ...(live.research.state ? { rs: live.research.state, ra: live.research.activity, serverNow: now() } : {})
     }
   });
   const fan = (live, event) => {
@@ -175,9 +188,12 @@ export function createRunManager({
 
   async function run({ runId, userId, spec, secrets, resume, decks = new Map() }) {
     const isVision = spec.kind === 'vision';
+    const isResearch = spec.kind === 'research';
+    // How a person's requests reach a deep research that is running (start, pause, stop and the rest).
+    const controls = isResearch ? createResearchControls() : null;
     const controller = new AbortController();
-    const live = { answer: '', thought: { text: '', kind: 'model', ended: false, ms: 0, first: null }, sources: [], elapsedFrom: 0, elapsedAt: now(), steps: { events: [], chars: 0 }, vision: { events: [], chars: 0 }, subscribers: new Set() };
-    active.set(runId, { controller, userId, live });
+    const live = { answer: '', thought: { text: '', kind: 'model', ended: false, ms: 0, first: null }, sources: [], elapsedFrom: 0, elapsedAt: now(), steps: { events: [], chars: 0 }, vision: { events: [], chars: 0 }, research: { state: null, activity: [] }, subscribers: new Set() };
+    active.set(runId, { controller, userId, live, controls });
     let finalStatus = 'error';
     const writer = createMessageWriter({
       store: db,
@@ -205,16 +221,17 @@ export function createRunManager({
           log('heartbeat_failed', { runId, message: String(error?.message || '').slice(0, 160) });
         }
       }, heartbeatMs);
-      limit = setTimer(() => abort('time_limit'), limits.maxRunMs);
+      limit = setTimer(() => abort('time_limit'), isResearch ? limits.maxResearchRunMs : limits.maxRunMs);
 
-      const result = isVision ? await runVisionStage({ runId, userId, spec, secrets, controller, live, decks }) : await execute({
+      const result = isVision ? await runVisionStage({ runId, userId, spec, secrets, controller, live, decks }) : await (isResearch ? executeDeepResearch : execute)({
         spec,
         secrets,
         signal: controller.signal,
         resume,
         userId,
+        ...(isResearch ? { controls, files: files || sandbox?.files || null } : {}),
         sandboxHost: sandbox?.host || null,
-        files: sandbox?.files || null,
+        ...(isResearch ? {} : { files: sandbox?.files || null }),
         // A page is watching: it can take over a reply whose Python was lost.
         watching: () => live.subscribers.size > 0,
         fetchImpl,
@@ -228,7 +245,7 @@ export function createRunManager({
         },
         onCheckpoint: async (checkpoint) => {
           try {
-            await store.saveCheckpoint(runId, checkpoint);
+            await store.saveCheckpoint(runId, checkpoint, { progress: isResearch });
           } catch (error) {
             log('checkpoint_failed', { runId, message: String(error?.message || '').slice(0, 160) });
           }
@@ -266,7 +283,8 @@ export function createRunManager({
         applyLive(live, { vc: { m: 'file-end', a: [{ outcome: 'failed', code: 'failed', reason: scrubMessage(failure.message, secrets) }] } });
         fan(live, { vc: { m: 'file-end', a: [{ outcome: 'failed', code: 'failed', reason: scrubMessage(failure.message, secrets) }] } });
       } else try {
-        await writer.finish([{ text: errorText(spec.request.language, failure) }], 'error', { serverError: failure });
+        // A research that failed keeps its plan and what it had found on the card (the error carries the message as it stood).
+        await writer.finish(isResearch && Array.isArray(error?.parts) ? error.parts : [{ text: errorText(spec.request.language, failure) }], 'error', { serverError: failure });
       } catch (writeError) {
         log('final_write_failed', { runId, message: String(writeError?.message || '').slice(0, 160) });
       }
@@ -379,8 +397,19 @@ export function createRunManager({
       const { secrets, ...rest } = spec;
       const { envelope, keyVersion } = vault.seal(secrets, { userId, messageId: spec.assistantMessageId });
       let runId;
+      const research = spec.kind === 'research';
       try {
-        runId = await store.start({ userId, conversationId: spec.conversationId, messageId: spec.assistantMessageId, model: spec.model, envelope, keyVersion, flags: spec.tools.visionCheck ? { vision: true } : null });
+        runId = await store.start({
+          userId,
+          conversationId: spec.conversationId,
+          messageId: spec.assistantMessageId,
+          model: spec.model,
+          envelope,
+          keyVersion,
+          // A deep research may wait a day (paused), so its keys are kept longer.
+          ...(research ? { keyTtlMs: limits.researchKeyTtlMs } : {}),
+          flags: research ? { kind: 'research' } : spec.tools.visionCheck ? { vision: true } : null
+        });
       } catch (error) {
         const code = runStartErrorCode(error);
         if (code === ERROR_CODES.internal) log('start_failed', { message: String(error?.message || '').slice(0, 160) });
@@ -396,8 +425,13 @@ export function createRunManager({
       return runId;
     },
 
-    /** A person's request to stop their own reply. Returns whether there was one live. */
-    async stop({ userId, runId }) {
+    /**
+     * A person's request to stop their own reply. Returns whether there was one live. A deep research that is asked to write its report from
+     * what it has found (`mode: 'report'`) is told so and goes on; any other stop ends it.
+     */
+    async stop({ userId, runId, mode = null }) {
+      const entry = active.get(runId);
+      if (mode === 'report' && entry?.controls && entry.userId === userId) return entry.controls.send('stop', { mode }).ok;
       const found = await store.requestStop({ userId, runId });
       const local = active.get(runId);
       if (local && local.userId === userId && !local.controller.signal.aborted) local.controller.abort('stopped');
@@ -405,6 +439,16 @@ export function createRunManager({
     },
 
     get: (args) => store.get(args),
+
+    /**
+     * A person's request to a deep research of theirs that is running here: start, hold, release, plan {instruction}, pause, resume.
+     * Resolves { ok: true }, or { ok: false, reason }: 'not_running' (not run by this process), 'wrong_phase', 'empty', 'ended'.
+     */
+    control({ userId, runId, action, payload = {} }) {
+      const entry = active.get(runId);
+      if (!entry?.controls || entry.userId !== userId) return { ok: false, reason: 'not_running' };
+      return entry.controls.send(action, payload);
+    },
 
     /** Whether this person's reply is being made by this process (so it can be watched live). */
     isLive: ({ userId, runId }) => active.get(runId)?.userId === userId,

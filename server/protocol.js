@@ -22,6 +22,8 @@ export const ERROR_CODES = Object.freeze({
   // The Python sandbox was lost before the reply had an answer, with a page watching: the page makes the reply itself.
   sandboxUnavailable: 'sandbox_unavailable',
   stopped: 'stopped',
+  // A request to a research run that its stage does not allow (start after it has started, pause when it is paused).
+  wrongPhase: 'wrong_phase',
   notFound: 'not_found',
   internal: 'internal_error'
 });
@@ -40,7 +42,10 @@ export const LIMITS = Object.freeze({
   // Tool calls in one reply (the same number the browser uses).
   maxToolCalls: 20,
   // Resumptions of one run after a restart before it is given up.
-  maxResumes: 3
+  maxResumes: 3,
+  // A deep research waits for the person and may be paused for a day: it may run this long, and its keys are kept a little longer.
+  maxResearchRunMs: 26 * 60 * 60 * 1000,
+  researchKeyTtlMs: 27 * 60 * 60 * 1000
 });
 
 export const LANGUAGES = Object.freeze(['zh-TW', 'en', 'fr', 'ru', 'es']);

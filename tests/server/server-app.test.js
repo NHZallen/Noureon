@@ -282,3 +282,44 @@ test('/v1/runs/:id/stream pushes the reply as it comes to any page that asks, an
     assert.equal((await fetch(`${base}/v1/runs/423e4567-e89b-12d3-a456-4266141740ff/stream`, { headers: { Authorization: `Bearer ${TOKEN}` } })).status, 404, 'not a reply that is live');
   }, { runs });
 });
+
+const researchSpec = () => ({ ...spec(), kind: 'research', research: { topic: 'Solid-state batteries' }, tools: { webSearch: 'research', advanced: false } });
+
+test('a deep research is started at its own address and nowhere else, and the person\'s requests to it reach the run with the answers it gives', async () => {
+  const started = [];
+  const controls = [];
+  const stops = [];
+  const runs = {
+    start: async ({ spec: given }) => { started.push(given.kind); return RUN_ID; },
+    control: ({ userId, runId, action, payload }) => {
+      controls.push([userId, runId, action, payload]);
+      if (action === 'pause') return { ok: false, reason: 'wrong_phase' };
+      if (action === 'plan' && !payload.instruction) return { ok: false, reason: 'empty' };
+      if (action === 'resume') return { ok: false, reason: 'not_running' };
+      return { ok: true };
+    },
+    stop: async ({ mode }) => { stops.push(mode); return true; }
+  };
+  await withServer(async ({ base }) => {
+    assert.equal((await call(base, 'POST', '/v1/research', researchSpec())).status, 202);
+    assert.deepEqual(started, ['research']);
+    assert.equal((await call(base, 'POST', '/v1/research', spec())).status, 422, 'an ordinary reply is not taken there');
+    assert.equal((await call(base, 'POST', '/v1/runs', researchSpec())).status, 422, 'and a research is not taken at the ordinary address');
+    assert.deepEqual(started, ['research']);
+    assert.equal((await call(base, 'POST', `/v1/runs/${RUN_ID}/start`)).status, 200);
+    assert.equal((await call(base, 'POST', `/v1/runs/${RUN_ID}/hold`)).status, 200);
+    assert.equal((await call(base, 'POST', `/v1/runs/${RUN_ID}/release`)).status, 200);
+    assert.equal((await call(base, 'POST', `/v1/runs/${RUN_ID}/plan`, { instruction: 'only the cost' })).status, 200);
+    assert.equal((await call(base, 'POST', `/v1/runs/${RUN_ID}/plan`, { instruction: '' })).status, 400);
+    const pause = await call(base, 'POST', `/v1/runs/${RUN_ID}/pause`);
+    assert.equal(pause.status, 409);
+    assert.equal((await pause.json()).error.code, 'wrong_phase');
+    assert.equal((await call(base, 'POST', `/v1/runs/${RUN_ID}/resume`)).status, 404);
+    assert.deepEqual(controls.slice(0, 4).map((entry) => [entry[0], entry[1], entry[2]]), [[USER, RUN_ID, 'start'], [USER, RUN_ID, 'hold'], [USER, RUN_ID, 'release'], [USER, RUN_ID, 'plan']]);
+    assert.equal(controls[3][3].instruction, 'only the cost');
+    assert.equal((await fetch(`${base}/v1/runs/${RUN_ID}/start`, { method: 'POST' })).status, 401, 'only for a signed-in person');
+    assert.equal((await call(base, 'POST', `/v1/runs/${RUN_ID}/stop`, { mode: 'report' })).status, 200);
+    assert.equal((await call(base, 'POST', `/v1/runs/${RUN_ID}/stop`)).status, 200);
+    assert.deepEqual(stops, ['report', null]);
+  }, { runs });
+});

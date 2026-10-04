@@ -18,7 +18,7 @@ import { createModelAccess, DEFAULT_GENERATION } from './model-access.js';
 
 export const CHECKPOINT_VERSION = 1;
 
-const readErrorBody = async (response) => {
+export const readErrorBody = async (response) => {
   const text = await response.text();
   try {
     return JSON.parse(text);
@@ -26,7 +26,7 @@ const readErrorBody = async (response) => {
     return { error: { message: text || response.statusText } };
   }
 };
-const getErrorMessage = (errorBody, fallback = 'API request failed') => errorBody?.error?.message || errorBody?.message || fallback;
+export const getErrorMessage = (errorBody, fallback = 'API request failed') => errorBody?.error?.message || errorBody?.message || fallback;
 
 /** An error message with every key the reply was given taken out, and short enough to keep. */
 export function scrubMessage(message, secrets) {

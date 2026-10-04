@@ -32,6 +32,13 @@ const OWN = {
     ru: 'Песочница Python сейчас недоступна, поэтому ответ не удалось завершить. Попробуйте ещё раз.',
     es: 'El entorno aislado de Python no está disponible ahora, así que no se pudo terminar esta respuesta. Inténtalo de nuevo.'
   },
+  pause_expired: {
+    'zh-TW': '研究暫停太久，已經結束。請重新開始一次研究。',
+    en: 'The research was paused for too long and has ended. Please start it again.',
+    fr: 'La recherche est restée trop longtemps en pause et s’est terminée. Veuillez la relancer.',
+    ru: 'Исследование слишком долго стояло на паузе и завершено. Запустите его заново.',
+    es: 'La investigación estuvo en pausa demasiado tiempo y terminó. Vuelve a iniciarla.'
+  },
   internal_error: {
     'zh-TW': '伺服器沒能完成這則回覆。',
     en: 'The server could not finish this reply.',
