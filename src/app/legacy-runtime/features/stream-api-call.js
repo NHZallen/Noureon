@@ -2,6 +2,7 @@ import { formatMemoryContextForModel } from '../../runtime/memory/memory-context
 import { NOURAS_REQUEST_PURPOSE, resolveNourasInstructions, shouldApplyNouras } from '../../runtime/nouras/nouras-policy.js';
 import { compactFileHistoryForApi } from '../../ui/files/file-history-compaction.js';
 import { compactSandboxRunsForApi } from '../../ui/sandbox/sandbox-run-block.js';
+import { researchReportsForApi } from '../../ui/research/research-history.js';
 import { applyGeminiTools, applyOpenAiTools, applyResponsesTools, createGeminiCollector, createOpenAiCollector, createResponsesCollector, modelThinkingKind } from './tool-call-formats.js';
 
 export function mergeAdjacentModelMessages(history) {
@@ -680,9 +681,9 @@ export function createStreamApiCall({
     // as text for the browser to hand over. Nothing is asked of a provider.
     if (requestOptions.describeOnly === true) {
       const conversation = requestOptions.conversation || getActiveConversation();
-      const historyForApi = mergeAdjacentModelMessages(compactSandboxRunsForApi(compactFileHistoryForApi(
+      const historyForApi = mergeAdjacentModelMessages(researchReportsForApi(compactSandboxRunsForApi(compactFileHistoryForApi(
         requestOptions.historyForApi || (conversation?.messages || []).slice(0, -1)
-      )));
+      ))));
       const currentMessageForApi = requestOptions.currentMessageForApi || { role: 'user', parts };
       const systemInstruction = await resolveSystemInstruction({ config: getConfig(), conversation, currentMessageForApi, historyForApi, requestOptions });
       return { systemInstructionText: (systemInstruction?.parts || []).map((part) => part.text).filter(Boolean).join('\n\n') };
@@ -704,9 +705,9 @@ export function createStreamApiCall({
       throw new Error(`請先在設定中提供 ${modelInfo.name} 所需的 API 金鑰。`);
     }
 
-    const historyForApi = mergeAdjacentModelMessages(compactSandboxRunsForApi(compactFileHistoryForApi(
+    const historyForApi = mergeAdjacentModelMessages(researchReportsForApi(compactSandboxRunsForApi(compactFileHistoryForApi(
       requestOptions.historyForApi || (conversation.messages || []).slice(0, -1)
-    )));
+    ))));
     const currentMessageForApi = requestOptions.currentMessageForApi || { role: 'user', parts };
     const generationConfig = requestOptions.genConfig || conversation.genConfig || getDefaultGenConfig();
     const disableReasoning = requestOptions.disableReasoning === true;

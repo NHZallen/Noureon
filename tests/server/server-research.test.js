@@ -5,7 +5,6 @@ import { ReplyError } from '../../server/executor.js';
 import { citedNumbers, createResearchControls, executeResearch, parseOutline, parsePlan, reportHeadings, reportSources, RESEARCH_LIMITS } from '../../server/research.js';
 
 const KEY = 'sk-provider-secret-value';
-const USER = '123e4567-e89b-12d3-a456-426614174000';
 const sse = (...objects) => `${objects.map((object) => `data: ${JSON.stringify(object)}\n\n`).join('')}data: [DONE]\n\n`;
 const streamResponse = (body) => new Response(body, { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
 const content = (text) => ({ choices: [{ delta: { content: text } }] });
@@ -73,10 +72,6 @@ function scripted({ plan = PLAN, onRequest = () => {}, searchesPerItem = 1, fail
 }
 
 const fastLimits = { ...RESEARCH_LIMITS, countdownMs: 30, holdMs: 200 };
-const savedFiles = () => {
-  const saved = [];
-  return { saved, save: async ({ userId, bytes, mimeType }) => { saved.push({ userId, text: new TextDecoder().decode(bytes), mimeType }); return { __astraCloudAsset: { path: `${userId}/abc`, mimeType, encoding: 'base64' } }; } };
-};
 const until = async (condition, ms = 3000) => {
   const end = Date.now() + ms;
   while (!condition()) {
@@ -85,15 +80,13 @@ const until = async (condition, ms = 3000) => {
   }
 };
 
-function run({ script = scripted(), files = savedFiles(), controls = createResearchControls(), limits = fastLimits, resume = null, signal } = {}) {
+function run({ script = scripted(), controls = createResearchControls(), limits = fastLimits, resume = null, signal } = {}) {
   const state = { updates: [], live: [], checkpoints: [], problems: [] };
   const promise = executeResearch({
     spec: specFor(),
     secrets,
     signal,
     resume,
-    userId: USER,
-    files,
     controls,
     limits,
     fetchImpl: script.fetchImpl,
@@ -103,7 +96,7 @@ function run({ script = scripted(), files = savedFiles(), controls = createResea
     onProblem: (what) => state.problems.push(what)
   });
   const lastPlan = () => [...state.live].reverse().find((event) => event.rs)?.rs;
-  return { promise, state, controls, script, files, lastPlan };
+  return { promise, state, controls, script, lastPlan };
 }
 
 // ----- the pieces
@@ -150,20 +143,15 @@ test('a research is planned, waits out its countdown, searches each item, and wr
   assert.equal(awaiting.countdownMs, 30);
 
   const report = parts.find((part) => part.researchReport).researchReport;
-  const file = parts.find((part) => part.sandboxFile).sandboxFile;
   assert.equal(report.title, 'Solid-state battery research');
-  assert.equal(report.fileId, file.id);
-  assert.equal(file.name, 'Solid-state battery research.md');
-  assert.equal(file.mimeType, 'text/markdown');
-  assert.ok(file.data.__astraCloudAsset.path.startsWith(`${USER}/`));
-  const markdown = harness.files.saved[0].text;
+  assert.equal(parts.some((part) => part.sandboxFile), false, 'the report is in the message, not in a file');
+  const markdown = report.text;
   assert.match(markdown, /^# Solid-state battery research\n\n## Executive summary\n\nThe summary says things \[1\]\.\n\n## Overview\n\nBody of Overview with a claim \[1\]\./);
   assert.match(markdown, /## Players\n\nBody of Players/);
   assert.equal(report.stats.searches, 3);
   assert.equal(report.stats.citations, 1);
   assert.deepEqual(report.sources.map((source) => [source.n, source.url]), [[1, 'https://site1.example/page']]);
   assert.deepEqual(report.toc.map((entry) => entry.text), ['Solid-state battery research', 'Executive summary', 'Overview', 'Players']);
-  assert.equal(report.preview, markdown.trim() === report.preview ? markdown.trim() : report.preview);
   assert.ok(report.activity.some((entry) => entry.type === 'searching'));
   assert.ok(report.activity.some((entry) => entry.type === 'narration' && /Looking up/.test(entry.text)));
   assert.deepEqual(report.items.map((item) => item.text), ['How the cells work', 'Who builds them', 'Cost and timeline']);
@@ -242,7 +230,6 @@ test('a cancel before the research starts ends it with nothing written', async (
   const { status, parts } = await harness.promise;
   assert.equal(status, 'stopped');
   assert.equal(parts.find((part) => part.researchPlan).researchPlan.phase, 'stopped');
-  assert.equal(harness.files.saved.length, 0);
   assert.equal(harness.script.requests.filter((request) => request.kind === 'item').length, 0);
 });
 
@@ -276,14 +263,14 @@ test('a stop that asks for the report writes it from the items that are done; a 
   const report = result.parts.find((part) => part.researchReport).researchReport;
   assert.equal(report.short, true, 'a short report');
   assert.deepEqual(report.items.map((item) => item.text), ['How the cells work', 'Who builds them', 'Cost and timeline']);
-  assert.match(reporting.files.saved[0].text, /Body of Overview/);
+  assert.match(report.text, /Body of Overview/);
   assert.equal(reporting.script.requests.filter((request) => request.kind === 'item').length, 3, 'the item that was cut short is not finished');
   assert.doesNotMatch(reporting.script.requests.find((request) => request.kind === 'section').text, /Notes for Who builds them/, 'its half-read pages are not turned into notes');
 
   const discarding = stopAfterFirst('discard');
   const ended = await discarding.promise;
   assert.equal(ended.status, 'stopped');
-  assert.equal(discarding.files.saved.length, 0);
+  assert.equal(ended.parts.some((part) => part.researchReport), false);
   assert.equal(ended.parts.find((part) => part.researchPlan).researchPlan.phase, 'stopped');
 });
 
@@ -292,7 +279,6 @@ test('a stop that asks for a report before any item is done ends without one', a
   const harness = run({ script });
   const { status } = await harness.promise;
   assert.equal(status, 'stopped');
-  assert.equal(harness.files.saved.length, 0);
 });
 
 test('the calls are limited, and the items that are left share what remains', async () => {
@@ -304,7 +290,7 @@ test('the calls are limited, and the items that are left share what remains', as
   assert.equal(report.stats.searches, 4);
   assert.equal(script.requests.filter((request) => request.kind === 'item').length > 0, true);
   // The model is told no more tools are left once they run out, and still writes notes for the items.
-  assert.match(harness.files.saved[0].text, /Body of Overview/);
+  assert.match(parts.find((part) => part.researchReport).researchReport.text, /Body of Overview/);
 });
 
 test('the time spent researching is limited too, and the report is written when it is used up', async () => {
@@ -312,7 +298,7 @@ test('the time spent researching is limited too, and the report is written when 
   const harness = (() => {
     const script = scripted({ onRequest: (kind) => { if (kind === 'item') skipped += 40 * 60_000; } });
     const state = { live: [] };
-    const promise = executeResearch({ spec: specFor(), secrets, userId: USER, files: savedFiles(), limits: fastLimits, fetchImpl: script.fetchImpl, now: () => Date.now() + skipped, onLive: (event) => state.live.push(event) });
+    const promise = executeResearch({ spec: specFor(), secrets, limits: fastLimits, fetchImpl: script.fetchImpl, now: () => Date.now() + skipped, onLive: (event) => state.live.push(event) });
     return { promise, state, script };
   })();
   const { parts, status } = await harness.promise;
@@ -401,16 +387,6 @@ test('a provider that fails ends the research with the plan kept on the card and
     return true;
   });
   assert.ok(harness.state.problems.includes('research_call_retried'), 'a call is tried again before the research fails');
-});
-
-test('the report is kept in the message when the file store cannot take it', async () => {
-  const harness = run({ files: { save: async () => { throw new Error('storage down'); } } });
-  const { parts } = await harness.promise;
-  const report = parts.find((part) => part.researchReport).researchReport;
-  assert.match(report.text, /^# Solid-state battery research/);
-  assert.equal(report.fileId, undefined);
-  assert.equal(parts.some((part) => part.sandboxFile), false);
-  assert.ok(harness.state.problems.includes('report_save_failed'));
 });
 
 test('every change of the run reaches the page and the message, and a checkpoint is kept at each stage', async () => {

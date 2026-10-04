@@ -37,8 +37,6 @@ export function createRunManager({
   vault,
   // Where Python runs and where the files it makes are kept ({ host, files }, see server/sandbox-client.js and file-store.js), or null.
   sandbox = null,
-  // Where the files a reply makes are kept (server/file-store.js), also when there is no sandbox: a deep research keeps its report in it.
-  files = null,
   // The visual check that follows a reply with a presentation (server/vision-check.js): whether the server can draw slides, and how.
   vision = { available: async () => false, execute: executeVisionCheck, getKit: async () => null },
   limits = LIMITS,
@@ -229,9 +227,9 @@ export function createRunManager({
         signal: controller.signal,
         resume,
         userId,
-        ...(isResearch ? { controls, files: files || sandbox?.files || null } : {}),
+        ...(isResearch ? { controls } : {}),
         sandboxHost: sandbox?.host || null,
-        ...(isResearch ? {} : { files: sandbox?.files || null }),
+        files: sandbox?.files || null,
         // A page is watching: it can take over a reply whose Python was lost.
         watching: () => live.subscribers.size > 0,
         fetchImpl,

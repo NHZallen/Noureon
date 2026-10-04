@@ -34,9 +34,8 @@ export const RESEARCH_LIMITS = Object.freeze({
   maxItemCalls: 60
 });
 
-const PREVIEW_CHARS = 4000;
 const NOTES_BUDGET_CHARS = 14_000;
-const MAX_INLINE_REPORT_CHARS = 1_000_000;
+const MAX_REPORT_CHARS = 1_000_000;
 const MAX_CHECKPOINT_TURNS_CHARS = 2_000_000;
 const PHASES = ['planning', 'awaiting', 'researching', 'writing', 'done'];
 
@@ -199,18 +198,6 @@ export function reportSources(sources, cited) {
   });
 }
 
-const previewOf = (markdown) => {
-  if (markdown.length <= PREVIEW_CHARS) return markdown;
-  const cut = markdown.slice(0, PREVIEW_CHARS);
-  const paragraph = cut.lastIndexOf('\n\n');
-  return paragraph > PREVIEW_CHARS / 2 ? cut.slice(0, paragraph) : cut;
-};
-
-const fileNameOf = (title) => {
-  const safe = String(title || 'report').replace(/[\\/:*?"<>|\u0000-\u001f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80);
-  return `${safe || 'report'}.md`;
-};
-
 // ----- the run
 
 /**
@@ -223,8 +210,6 @@ export async function executeResearch({
   secrets,
   signal,
   resume = null,
-  userId = '',
-  files = null,
   controls = createResearchControls(),
   limits = RESEARCH_LIMITS,
   onUpdate = () => {},
@@ -325,7 +310,7 @@ export async function executeResearch({
     clock: now(),
     countdownMs: limits.countdownMs
   });
-  const messageParts = () => (report ? [{ text: '' }, { researchReport: report.part }, ...(report.file ? [{ sandboxFile: report.file }] : [])] : [{ text: '' }, { researchPlan: planPart() }]);
+  const messageParts = () => (report ? [{ text: '' }, { researchReport: report.part }] : [{ text: '' }, { researchPlan: planPart() }]);
   const checkpoint = async () => {
     // Where the research stands, to take it up from after a restart. The pages read in the item being researched are kept while they are not many.
     const turnsSize = inItem?.toolTurns ? JSON.stringify(inItem.toolTurns).length : 0;
@@ -712,30 +697,15 @@ export async function executeResearch({
       ].join('\n\n').concat('\n');
       const usedNumbers = citedNumbers(markdown);
       const listed = reportSources(sources, usedNumbers);
-      const bytes = new TextEncoder().encode(markdown);
-      const name = fileNameOf(plan.title);
-      let file = null;
-      let inline = null;
-      try {
-        if (!files?.save) throw new Error('no file store');
-        const data = await files.save({ userId, bytes, mimeType: 'text/markdown' });
-        file = { id: crypto.randomUUID(), name, mimeType: 'text/markdown', size: bytes.byteLength, data };
-      } catch (error) {
-        onProblem('report_save_failed', error);
-        if (markdown.length <= MAX_INLINE_REPORT_CHARS) inline = markdown;
-      }
       stopClock();
       phase = 'done';
       log({ type: 'done' });
+      // The whole report is in the message (not in a file): the model reads it in the next turns, and the page reads and exports it from here.
       report = {
-        file,
         part: {
           title: plan.title,
           topic,
-          preview: previewOf(markdown),
-          summary: clip(summary, 1500),
-          ...(file ? { fileId: file.id } : {}),
-          ...(inline ? { text: inline } : {}),
+          text: markdown.slice(0, MAX_REPORT_CHARS),
           stats: { ms: activeNow(), searches: research.used, citations: listed.length },
           sources: listed,
           toc: reportHeadings(markdown).slice(0, 200),

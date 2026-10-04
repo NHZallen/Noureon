@@ -235,6 +235,9 @@
       "path": "src/app/ui/model-picker/model-groups.js"
     },
     {
+      "path": "src/app/ui/research/research-history.js"
+    },
+    {
       "path": "src/app/ui/sandbox/free-slide-layout.js",
       "note": "Reviewed 2026-10-03: no browser globals (a `document` there is a parameter: the server gives it an XML document, a parser or a canvas)."
     },

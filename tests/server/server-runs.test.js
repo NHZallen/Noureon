@@ -225,7 +225,7 @@ test('the four search paths and NVIDIA\'s chat go straight to their services, wi
 
 // ----- the run manager
 
-function managerHarness({ execute, executeDeepResearch, files = null, db = fakeDatabase(), logs = [], sandbox = null, vision, fetchImpl } = {}) {
+function managerHarness({ execute, executeDeepResearch, db = fakeDatabase(), logs = [], sandbox = null, vision, fetchImpl } = {}) {
   const vault = createKeyVault([{ version: 1, key: masterKey() }]);
   const repeating = [];
   const timers = [];
@@ -235,7 +235,6 @@ function managerHarness({ execute, executeDeepResearch, files = null, db = fakeD
     db,
     vault,
     sandbox,
-    files,
     ...(executeDeepResearch ? { executeDeepResearch } : {}),
     ...(vision ? { vision } : {}),
     ...(fetchImpl ? { fetchImpl } : {}),
@@ -741,13 +740,11 @@ test('the whole way: a reply writes a presentation, the server draws it, the mod
 
 const researchSpecOf = () => ({ ...specOf(), kind: 'research', research: { topic: 'Solid-state batteries' }, tools: { webSearch: 'research', searchProvider: 'tavily', advanced: false } });
 
-test('a deep research is recorded with its kind, keeps its keys for a day, hands its controls and the file store to the run, and writes its parts', async () => {
+test('a deep research is recorded with its kind, keeps its keys for a day, hands its controls to the run, and writes its parts', async () => {
   const seen = [];
-  const files = { save: async () => ({}) };
   const { manager, db } = managerHarness({
-    files,
-    executeDeepResearch: async ({ spec, controls, files: given, onUpdate, onLive, onCheckpoint }) => {
-      seen.push({ kind: spec.kind, topic: spec.research.topic, controls: Boolean(controls?.send), files: given === files });
+    executeDeepResearch: async ({ spec, controls, onUpdate, onLive, onCheckpoint }) => {
+      seen.push({ kind: spec.kind, topic: spec.research.topic, controls: Boolean(controls?.send) });
       onUpdate([{ text: '' }, { researchPlan: { phase: 'awaiting' } }]);
       onLive({ rs: { phase: 'awaiting', title: 'T' } });
       await onCheckpoint({ kind: 'research', phase: 'awaiting' });
@@ -756,7 +753,7 @@ test('a deep research is recorded with its kind, keeps its keys for a day, hands
   });
   await manager.start({ userId: USER, spec: researchSpecOf() });
   await settle();
-  assert.deepEqual(seen, [{ kind: 'research', topic: 'Solid-state batteries', controls: true, files: true }]);
+  assert.deepEqual(seen, [{ kind: 'research', topic: 'Solid-state batteries', controls: true }]);
   const start = db.log.rpcs.find((call) => call.name === 'server_start_run').args;
   assert.deepEqual(start.p_model, { provider: 'openrouter', id: 'm', kind: 'research' });
   const lifetime = new Date(start.p_key_expires_at).getTime() - Date.now();

@@ -37,11 +37,10 @@ if (config.runsConfigured) {
       .catch((error) => log('runs_store_failed', { code: error?.code || '', status: error?.status || 0, message: String(error?.message || '').slice(0, 160) }));
     // Python runs on the sandbox host when it is set; the files it makes are kept in the person's storage.
     const host = config.sandboxUrl ? createSandboxHost({ url: config.sandboxUrl, token: config.sandboxToken }) : null;
-    const files = createFileStore({ url: config.supabaseUrl, serviceKey: config.serviceKey });
-    const sandbox = host ? { host, files } : null;
+    const sandbox = host ? { host, files: createFileStore({ url: config.supabaseUrl, serviceKey: config.serviceKey }) } : null;
     checkSlides = () => canDrawSlides().then((ok) => log(ok ? 'slides_ok' : 'slides_unavailable'));
     if (host) checkSandbox = () => host.check().then((state) => log(state.ok ? 'sandbox_ok' : 'sandbox_failed', { reason: state.reason }));
-    runs = createRunManager({ store: createRunStore({ db, limits: LIMITS }), db, vault: createKeyVault(config.encryptionKeys), sandbox, files, vision: { available: canDrawSlides, execute: executeVisionCheck, getKit: getFontKit }, limits: LIMITS, log });
+    runs = createRunManager({ store: createRunStore({ db, limits: LIMITS }), db, vault: createKeyVault(config.encryptionKeys), sandbox, vision: { available: canDrawSlides, execute: executeVisionCheck, getKit: getFontKit }, limits: LIMITS, log });
   } catch (error) {
     log('config_error', { message: error.message });
     process.exit(1);
