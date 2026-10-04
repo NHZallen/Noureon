@@ -51,11 +51,12 @@ print("chart")' "$ID"); [ "$(printf '%s' "$R" | json "d['files'][0]['name']")" =
 R=$(step 'from docx import Document
 d = Document(); d.add_paragraph("你好"); d.save("/output/a.docx")' "$ID"); [ "$(printf '%s' "$R" | json "d['files'][0]['name']")" = "a.docx" ] && check "a Word file is made" ok || check "a Word file is made" "$R"
 # CLI tools: the runner fetches the program (checked against its hash), the sandbox runs it from /opt/cli (no network inside).
-cli_step() { # cli_step "<command>" <session> -> the last line (the result) of the answer
-  python3 - "$1" "$2" "$BASE" "$SECRET" <<'PY'
+cli_step() { # cli_step "<command>" <session> -> the last line (the result) of the answer; the tools' environment is sent as the app does
+  python3 - "$1" "$2" "$BASE" "$SECRET" "$CLI_ENV" <<'PY'
 import json, sys, urllib.request
 command, session, base, secret = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
-request = urllib.request.Request(f"{base}/v1/sessions/{session}/run", data=json.dumps({"command": command, "timeoutMs": 60000}).encode(), headers={"Authorization": f"Bearer {secret}", "Content-Type": "application/json"}, method="POST")
+env = json.loads(sys.argv[5]) if len(sys.argv) > 5 else {}
+request = urllib.request.Request(f"{base}/v1/sessions/{session}/run", data=json.dumps({"command": command, "env": env, "timeoutMs": 60000}).encode(), headers={"Authorization": f"Bearer {secret}", "Content-Type": "application/json"}, method="POST")
 last = ""
 with urllib.request.urlopen(request, timeout=150) as response:
     for line in response:
@@ -66,11 +67,15 @@ PY
 # The programs and their hashes come from the app's own catalog (run from the repository), so this checks what the app really uses.
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 CATALOG_JS="import('./src/data/cli-catalog.js').then((m) => console.log(JSON.stringify(m.OFFICIAL_CLI_CATALOG.filter(m.isCliReady).map((t) => ({ id: t.id, file: t.artifacts[m.CLI_PLATFORM].file, url: t.artifacts[m.CLI_PLATFORM].url, sha256: t.artifacts[m.CLI_PLATFORM].sha256, size: t.artifacts[m.CLI_PLATFORM].size })))))"
+CLI_ENV='{}'
+ENV_JS="import('./src/data/cli-catalog.js').then((m) => console.log(JSON.stringify(Object.assign({}, ...m.OFFICIAL_CLI_CATALOG.filter(m.isCliReady).map((t) => t.env || {})))))"
 if command -v node >/dev/null 2>&1; then
   CATALOG=$(cd "$REPO" && node -e "$CATALOG_JS")
+  CLI_ENV=$(cd "$REPO" && node -e "$ENV_JS")
 else
   # No Node on this machine: the runner's image has it.
   CATALOG=$(docker run --rm -v "$REPO/src/data:/app/src/data:ro" -w /app --entrypoint node noureon-sandbox-runner:1 -e "$CATALOG_JS")
+  CLI_ENV=$(docker run --rm -v "$REPO/src/data:/app/src/data:ro" -w /app --entrypoint node noureon-sandbox-runner:1 -e "$ENV_JS")
 fi
 MOUNT=$(python3 - "$ID" "$BASE" "$SECRET" "$CATALOG" <<'PY'
 import json, sys, urllib.request
