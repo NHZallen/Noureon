@@ -328,8 +328,8 @@ button:active:not(:disabled),
 }
 
 .toggle-label:before {
-    top: 2px !important;
-    left: 2px !important;
+    top: 3px !important;
+    left: 3px !important;
     width: 18px !important;
     height: 18px !important;
     border-radius: 999px !important;
