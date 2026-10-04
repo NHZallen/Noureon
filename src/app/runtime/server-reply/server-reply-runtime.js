@@ -115,6 +115,12 @@ export function createBrowserServerReply({
     find: (conversationId) => serverReply.find(conversationId),
     plan: (context) => planServerReply({ ...context, hasAccount: hasAccount() }),
     start: (args) => serverReply.start({ ...args, config: args.config }),
+    startResearch: (args) => serverReply.startResearch(args),
+    readMessage: (messageId) => readMessage(messageId),
+    request: (...args) => serverReply.request(...args),
+    watchRun: (...args) => serverReply.watchRun(...args),
+    hydrateParts: (parts) => hydrateParts(parts),
+    flushSync: () => flushSync(),
     notify: (kind, language) => showNotification(serverReplyText(language, kind === 'busy' ? 'fallbackBusy' : 'fallbackUnreachable'), 'info'),
     localizeError: localizeServerError
   };

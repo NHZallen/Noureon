@@ -190,7 +190,7 @@ export function createServerReply({
    * Hands a reply to the server. Resolves { ok: true, run } when it was accepted (the server has it now) or { ok: false, reason,
    * notify } when it was not and the reply is to be made here ('notify' is true when the person should be told).
    */
-  const start = async ({ conversation, modelInfo, requestParts, webSearch = 'off', advanced = false, designs = null, inputs = [], visionCheck = null, assistantMessageId, sequence, uiLanguage, config = {}, requestOptions = {}, getHistorySourceIds = () => [] }) => {
+  const begin = async (path, { conversation, modelInfo, requestParts, webSearch = 'off', advanced = false, designs = null, inputs = [], visionCheck = null, research = null, assistantMessageId, sequence, uiLanguage, config = {}, requestOptions = {}, getHistorySourceIds = () => [] }) => {
     const providerKey = getApiKeyForProvider(modelInfo?.provider);
     if (!providerKey) return { ok: false, reason: 'no-key', notify: false };
     let search = null;
@@ -211,6 +211,8 @@ export function createServerReply({
     const metadata = historySourceIds.length ? { historySourceConversationIds: historySourceIds } : null;
     const spec = {
       protocol: SERVER_PROTOCOL_VERSION,
+      // A deep research: its topic is what the person typed (the server plans, searches and writes from it).
+      ...(research ? { kind: 'research', research: { topic: research.topic } } : {}),
       clientVersion: String(clientVersion || '0'),
       conversationId: conversation.id,
       assistantMessageId,
@@ -246,7 +248,7 @@ export function createServerReply({
     } catch (error) {
       warn('Saving the conversation before the server starts failed.', error);
     }
-    const result = await request('POST', '/v1/runs', { body });
+    const result = await request('POST', path, { body });
     if (!result.ok) {
       const busy = result.code === 'too_many_runs' || result.code === 'rate_limited';
       const quiet = ['unsupported_mode', 'runs_unavailable', 'protocol_unsupported', 'conversation_not_found'].includes(result.code);
@@ -255,8 +257,11 @@ export function createServerReply({
     }
     const runId = result.data?.runId;
     if (!runId) return { ok: false, reason: 'bad-answer', notify: 'unreachable' };
-    return { ok: true, run: createRun({ runId, assistantMessageId, vision: result.data?.vision === true }) };
+    return { ok: true, run: createRun({ runId, assistantMessageId, kind: research ? 'research' : 'reply', vision: result.data?.vision === true }) };
   };
+  const start = (args) => begin('/v1/runs', args);
+  // A deep research: the server makes the plan, waits for the person, researches and writes the report (server/research.js).
+  const startResearch = (args) => begin('/v1/research', { ...args, webSearch: 'research', advanced: false, visionCheck: null });
 
   const createRun = ({ runId, assistantMessageId, kind = 'reply', vision = false }) => ({
     runId,
@@ -488,7 +493,7 @@ export function createServerReply({
   /** A reply of this conversation the server is still making (the page was closed or left meanwhile), to follow from here, or null. */
   const find = async (conversationId) => {
     const row = await findLiveRun(conversationId);
-    return row?.id && row?.message_id ? createRun({ runId: row.id, assistantMessageId: row.message_id, kind: row.kind === 'vision' ? 'vision' : 'reply', vision: row.vision === true || row.vision === 'true' }) : null;
+    return row?.id && row?.message_id ? createRun({ runId: row.id, assistantMessageId: row.message_id, kind: row.kind === 'vision' || row.kind === 'research' ? row.kind : 'reply', vision: row.vision === true || row.vision === 'true' }) : null;
   };
 
   /**
@@ -511,5 +516,5 @@ export function createServerReply({
     return false;
   };
 
-  return { start, find, request, watchRun };
+  return { start, startResearch, find, request, watchRun, readMessage };
 }

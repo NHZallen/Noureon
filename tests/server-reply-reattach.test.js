@@ -72,3 +72,29 @@ test('the visual check of a presentation that the server is making is followed, 
   assert.deepEqual(followed, [{ runId: 'run-v', conversation: conv }]);
   assert.equal(conv.messages.length, 2, 'nothing is taken out of the chat');
 });
+
+test('a deep research the server is running is followed as a card, not shown as a reply being written', async () => {
+  const followed = [];
+  const messages = [{ id: 'u1', role: 'user', parts: [{ text: 'research batteries' }] }, { id: 'a1', role: 'model', parts: [{ text: '' }, { researchPlan: { phase: 'researching' } }] }];
+  const conv = { id: 'c1', messages };
+  const completed = [];
+  const lifecycle = createServerReplyReattach({
+    getActiveConversation: () => conv,
+    getAbortController: () => null,
+    setAbortController: () => {},
+    serverReply: { find: async () => ({ runId: 'run-5', assistantMessageId: 'a1', kind: 'research' }) },
+    messageList: () => ({ children: [] }),
+    setSubmitBusy: () => {},
+    addMessageToUI: () => ({}),
+    completeReply: async () => { completed.push(1); },
+    followResearch: (args) => { followed.push(args); },
+    document: null,
+    window: null,
+    scheduleTimeout: () => null
+  });
+  assert.equal(await lifecycle.reattachServerReply(), true);
+  assert.equal(completed.length, 0, 'no reply is drawn');
+  assert.deepEqual(messages.map((message) => message.id), ['u1', 'a1'], 'the message stays: its card is drawn from it');
+  assert.equal(followed[0].run.runId, 'run-5');
+  assert.equal(followed[0].conversation, conv);
+});

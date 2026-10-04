@@ -26,6 +26,8 @@ import { getSearchProvider } from '../kernel/search-provider.js';
 import { stopReplyAndWait } from '../features/reply-stop.js';
 import { createBrowserServerReply } from '../server-reply/server-reply-runtime.js';
 import { createServerReplyReattach } from '../server-reply/reattach.js';
+import { createResearchMode } from '../research/research-mode.js';
+import { chipCloseButton } from '../features/composer-chip.js';
 import { createWebResearchTools } from '../../legacy-runtime/features/web-research-tools.js';
 import { normalizePageReads, normalizeTinyfishSearch } from '../../legacy-runtime/features/model-request-formatting.js';
 import { getErrorMessage, readErrorBody } from './legacy-core-utilities.js';
@@ -156,16 +158,16 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
   const getLocalizedText = (key, fallback) => i18n[getUiLanguage()]?.[key] || fallback;
   const getUploadedFiles = () => state.uploadedFiles || [];
   const setUploadedFiles = (files) => { state.uploadedFiles = files; };
+  const updateSubmitButtonState = (...args) => legacyRuntimeContext.resolveBinding('submit.updateSubmitButtonState')(...args);
   const getAbortController = () => state.abortController || null;
   const setAbortController = (value) => { state.abortController = value; };
   const getIsCouncilRunning = () => Boolean(state.isCouncilRunning);
   const setIsCouncilRunning = (value) => { state.isCouncilRunning = value; };
-  const getIsAutoScrolling = () => Boolean(state.isAutoScrolling);
   const vc = createVisionCheckScheduler({ getConfig: getLiveConfig, getActiveConversation, normalizeConversationModel, isCouncilEnabled, modelSupportsVision, streamApiCall, document, window, notificationContainer: ALL_ELEMENTS.notificationContainer, addMessageToUI, saveAppData, showNotification, crypto, logger, AbortController,
     // The composer follows the checks: a chat with one running cannot send (settings-update-input-state-helper.js).
     onChange: (conversationIds) => {
       setVisionLocked('page', conversationIds);
-      legacyRuntimeContext.resolveBinding('submit.updateSubmitButtonState')(false);
+      updateSubmitButtonState(false);
     } });
   const isImageConversation = (conversation = getActiveConversation()) => modelGeneratesImages(
     normalizeConversationModel(conversation)
@@ -196,6 +198,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     isCouncilEnabled
   });
 
+  let researchMode = null;
   const getLocalizedAstraName = (ast) => {
     const officialId = ast?.officialId;
     if (!officialId) return ast?.name || '';
@@ -271,6 +274,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
       councilMenuButton.style.display = (!imageMode && !(config.isLearningMode && !councilActive)) ? 'flex' : 'none';
       councilMenuButton.classList.toggle('is-active', councilActive);
     }
+    researchMode?.syncMenu();
     imageModeControls.sync();
     if (!councilActive && provider === 'openrouter') {
       const openRouterSupportsVision = supportsVision || openRouterVisionModels.includes(modelInfo?.id);
@@ -286,9 +290,6 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     }
   };
 
-  // The four composer chips share one close-button markup; keep it in one place.
-  const CHIP_CLOSE_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
-  const chipCloseButton = (id, title, attrs = '') => `<button ${attrs}id="${id}" class="ml-2 p-1 rounded-full hover:bg-black/10" title="${title}">${CHIP_CLOSE_ICON}</button>`;
   const getCombinedRulesNotice = () => (i18n[getLiveConfig().uiLanguage] || {}).learningWithNouraNotice
     || '學習模式與 Noura 同時啟用：角色與語氣保留，衝突時以學習模式優先。';
 
@@ -424,6 +425,8 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
         })
       });
     }
+
+    researchMode?.indicators(activeIndicators, chipCloseButton);
 
     Array.from(container.children).forEach((child) => {
       if (!activeIndicators.has(child.id)) {
@@ -722,7 +725,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     showNotification,
     getUiLanguage,
     getActiveConversation,
-    onVisionLock: () => legacyRuntimeContext.resolveBinding('submit.updateSubmitButtonState')(false)
+    onVisionLock: () => updateSubmitButtonState(false)
   });
 
   const singleModelResponseLifecycle = createSingleModelResponseLifecycle({
@@ -797,6 +800,12 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     const preparedSubmit = await submitInputPreparationLifecycle.prepareSubmitResponse();
     return preparedSubmit;
   };
+  researchMode = createResearchMode({
+    document, getActiveConversation, normalizeConversationModel, modelSupportsToolCalling, isImageConversation, isCouncilEnabled, serverReply, researchTools,
+    addMessageToUI, saveAppData, showNotification, getUiLanguage, logger, closeAllPopovers, setAbortController, updateSubmitButtonState,
+    messageInput: ALL_ELEMENTS.messageInput, prepare: prepareDefaultSubmit, getConfig: getLiveConfig,
+    refresh: () => { renderInputIndicators(); updateFunctionButtonsState(); }
+  });
   const handleFormSubmit = async (event, submitOptions = {}) => {
     event?.preventDefault?.();
     let effectiveSubmitOptions = submitOptions;
@@ -816,6 +825,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     } else {
       onRegularSubmit();
     }
+    if (researchMode.takes(effectiveSubmitOptions)) return researchMode.submit();
     const preparedSubmit = Object.keys(effectiveSubmitOptions).length > 0
       ? await submitInputPreparationLifecycle.prepareSubmitResponse(effectiveSubmitOptions)
       : await prepareDefaultSubmit();
@@ -1059,9 +1069,10 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     setAbortController,
     serverReply,
     messageList: () => ALL_ELEMENTS.messageList,
-    setSubmitBusy: (busy) => legacyRuntimeContext.resolveBinding('submit.updateSubmitButtonState')(busy),
+    setSubmitBusy: updateSubmitButtonState,
     addMessageToUI,
     completeReply: completePreparedReply,
+    followResearch: (args) => researchMode.followRun(args),
     document,
     window,
     scheduleTimeout,

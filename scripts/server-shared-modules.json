@@ -197,6 +197,9 @@
       "note": "Reviewed 2026-10-03: no browser globals (a `document` there is a parameter: the server gives it an XML document, a parser or a canvas)."
     },
     {
+      "path": "src/app/ui/files/vision/free-decks.js"
+    },
+    {
       "path": "src/app/ui/files/vision/vision-ask.js",
       "note": "Reviewed 2026-10-03: no browser globals."
     },

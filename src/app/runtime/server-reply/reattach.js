@@ -13,6 +13,8 @@ export function createServerReplyReattach({
   setSubmitBusy,
   addMessageToUI,
   completeReply,
+  // A deep research the server is running: followed as a card (research/), not as a reply being written.
+  followResearch = null,
   document,
   window,
   scheduleTimeout,
@@ -39,6 +41,10 @@ export function createServerReplyReattach({
       // The visual check of a presentation that the server is making: its progress is shown under the last message, and the chat is locked.
       if (run.kind === 'vision') {
         void serverReply.followVision({ runId: run.runId, conversation: conv });
+        return true;
+      }
+      if (run.kind === 'research' && followResearch) {
+        void followResearch({ run, conversation: conv });
         return true;
       }
       const others = conv.messages.filter((message) => message.id !== run.assistantMessageId);

@@ -78,6 +78,9 @@ export function createMessageListLifecycle({
             const { data, ...sandboxFile } = part.sandboxFile;
             state.sandboxFile = { ...sandboxFile, data: summarizeAssetPayload(data) };
         }
+        // A deep research's card is drawn again when its stage moves on, or its report arrives (the live channel keeps the rest of it current).
+        if (part.researchPlan) state.researchPlan = [part.researchPlan.phase, part.researchPlan.title, part.researchPlan.paused, part.researchPlan.editing, (part.researchPlan.items || []).filter(item => item.state === 'done').length];
+        if (part.researchReport) state.researchReport = (part.researchReport.text || '').length;
         if (part.quoteReference?.text) state.quoteReference = { text: part.quoteReference.text };
         return state;
     };

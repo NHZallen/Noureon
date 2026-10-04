@@ -974,3 +974,9 @@
 .model-message .message-bubble > .absolute.bottom-2 > .text-xs {
     white-space: nowrap;
 }
+
+/* A deep research's card (ui/research/): no bubble around it, and no copy button or time under it. */
+.model-message .message-bubble.research-bubble { padding: 0; max-width: min(100%, 680px); background: transparent; box-shadow: none; }
+.model-message .message-bubble.research-bubble::before { display: none; }
+.model-message .message-bubble.research-bubble .message-content { padding-bottom: 0; }
+.model-message .message-bubble.research-bubble > .absolute { display: none; }

@@ -506,3 +506,30 @@ test('the browser\'s wiring: a reply whose check the server makes has it followe
   await outcome;
   assert.deepEqual(local, ['plain', 'plain-2'], 'the page made no check of its own');
 });
+
+test('a deep research is handed over at its own address with its topic, always searching with tools and never with Python', async () => {
+  const { reply, calls, flushed } = harness();
+  const result = await reply.startResearch(startArgs({ research: { topic: 'solid-state batteries' }, advanced: true, webSearch: 'off', visionCheck: { deckDesign: 'auto' } }));
+  assert.equal(result.ok, true);
+  assert.equal(result.run.kind, 'research');
+  assert.deepEqual(flushed, [0], 'the conversation is saved first, as for a reply');
+  assert.equal(calls[0].url, 'https://api.noureon.com/v1/research');
+  const spec = JSON.parse(calls[0].options.body);
+  assert.equal(spec.kind, 'research');
+  assert.deepEqual(spec.research, { topic: 'solid-state batteries' });
+  assert.equal(spec.tools.webSearch, 'research');
+  assert.equal(spec.tools.advanced, false);
+  assert.equal(spec.tools.visionCheck, undefined);
+  assert.equal(spec.tools.searchProvider, 'tavily');
+  assert.deepEqual(spec.secrets, { providerKey: KEY, searchKey: 'tvly-key' });
+});
+
+test('a deep research without a search key does not go, and a run found for the chat may be a research', async () => {
+  const noKey = harness({ getApiKeyForProvider: (name) => (name === 'openrouter' ? KEY : '') });
+  const refused = await noKey.reply.startResearch(startArgs({ research: { topic: 't' } }));
+  assert.equal(refused.ok, false);
+  assert.equal(noKey.calls.length, 0);
+  const { reply } = harness({ findLiveRun: async () => ({ id: 'run-7', message_id: 'm-7', kind: 'research', vision: null }) });
+  const found = await reply.find('conv-1');
+  assert.deepEqual([found.runId, found.kind, found.assistantMessageId], ['run-7', 'research', 'm-7']);
+});

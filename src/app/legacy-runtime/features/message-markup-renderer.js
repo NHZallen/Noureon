@@ -23,6 +23,8 @@ const historySourceLabel = (template, count) => String(template || '')
 const COMPOSER_MODE_ICONS = {
     'search-indicator': renderComposerToolIcon('webSearch', 'sent-composer-mode-icon'),
     'learning-mode-indicator': renderComposerToolIcon('learning', 'sent-composer-mode-icon'),
+    'deep-research-indicator': renderComposerToolIcon('deepResearch', 'sent-composer-mode-icon'),
+    'research-plan-indicator': renderComposerToolIcon('deepResearch', 'sent-composer-mode-icon'),
     'astras-input-indicator': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="m12 3 1.7 5.3L19 10l-5.3 1.7L12 17l-1.7-5.3L5 10l5.3-1.7L12 3z"></path></svg>'
 };
 
@@ -69,6 +71,7 @@ export function buildMessageRenderView({
     let historySourcesHTML = '';
     // A reply the automatic visual check asked for is marked, so it does not read as an answer to the user.
     let autoNoteHTML = '';
+    let researchCard = false;
     const isImageGenerationLoading = !isUser && message.parts.some(part => part.imageGenerationLoading);
     const isLoadingMessage = !isUser && message.parts.length === 1 && message.parts[0].text === '...';
 
@@ -109,6 +112,11 @@ export function buildMessageRenderView({
                 registerSandboxFileParts(message.parts);
                 contentHTML = `<div>${renderMarkdownWithFormulas(textParts.join('\n'))}</div>`;
             }
+        }
+        // A deep research is a card (ui/research/), drawn into this place once the message is on the page.
+        if (!isUser && message.parts.some(part => part.researchPlan || part.researchReport)) {
+            researchCard = true;
+            contentHTML = '<div class="research-card-host" data-research-card></div>';
         }
         if (mediaParts.length > 0) {
             const mediaView = buildMediaAttachmentView(mediaParts);
@@ -212,7 +220,7 @@ export function buildMessageRenderView({
                     ${generatedImageHTML}
                     ${quoteReferenceHTML}
                     ${hasBubbleContent ? `
-                        <div class="p-3 md:p-4 rounded-lg shadow-sm max-w-full md:max-w-xl message-bubble relative" >
+                        <div class="p-3 md:p-4 rounded-lg shadow-sm max-w-full md:max-w-xl message-bubble relative${researchCard ? ' research-bubble' : ''}" >
                             <div class="prose prose-sm max-w-none text-[var(--text-primary)] ${contentPaddingClass} message-content">${contentHTML}</div>
                             ${actionButtons}
                         </div>
