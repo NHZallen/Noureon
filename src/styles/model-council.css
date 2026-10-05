@@ -180,7 +180,6 @@
     font-weight: 800;
 }
 
-.single-progress-panel,
 .thinking-collapse {
     margin: 0.15rem 0 0.25rem;
     padding: 0.75rem 0.85rem;
@@ -189,7 +188,6 @@
     background: color-mix(in srgb, var(--input-field-bg) 88%, transparent);
 }
 
-.single-progress-panel summary,
 .thinking-collapse summary {
     display: flex;
     align-items: center;
@@ -200,28 +198,59 @@
     font-weight: 850;
 }
 
-.single-progress-panel[open] summary,
 .thinking-collapse[open] summary {
     margin-bottom: 0.65rem;
 }
 
-.single-progress-panel-error {
-    border-color: color-mix(in srgb, #ef4444 42%, var(--border-color));
-    background: color-mix(in srgb, #ef4444 9%, var(--input-field-bg));
+/* The wait for the first words of a reply: one dot that breathes, in the colour of the person's theme (the primary colour of the settings:
+   blue by default, their own colour or the one taken from a picture). References: the dot of ChatGPT while it waits. */
+.progress-dot {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-height: 1.5rem;
+    margin: 0.15rem 0 0.25rem;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
 }
 
-.single-progress-panel-error .council-progress-stage {
-    background: color-mix(in srgb, #ef4444 16%, transparent);
-    color: #dc2626;
+.progress-dot-mark {
+    flex: none;
+    width: 1.25rem;
+    height: 1.25rem;
+    border-radius: 50%;
+    background: var(--button-primary-bg, #3b82f6);
+    animation: progress-dot-breathe 1.2s ease-in-out infinite alternate;
 }
 
-.single-progress-panel-error .council-progress-message {
-    color: #dc2626;
+.progress-dot-label {
+    min-width: 0;
     overflow-wrap: anywhere;
 }
 
-.single-progress-panel .council-progress-orbit {
-    margin-bottom: 0.55rem;
+.progress-dot-error .progress-dot-mark {
+    background: #ef4444;
+    animation: none;
+    transform: scale(0.7);
+}
+
+.progress-dot-error {
+    color: #dc2626;
+    font-weight: 700;
+}
+
+.progress-dot-error-message {
+    margin: 0 0 0.25rem 1.85rem;
+    color: #dc2626;
+    font-size: 0.85rem;
+    overflow-wrap: anywhere;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .progress-dot-mark {
+        animation: progress-dot-fade 2.4s ease-in-out infinite alternate;
+        transform: none;
+    }
 }
 
 .translator-model-picker {
@@ -457,6 +486,16 @@ body.custom-wallpaper-active.wallpaper-is-dark .popover,body.custom-wallpaper-ac
 @keyframes council-pulse {
     0%, 100% { transform: scale(0.9); opacity: 0.65; }
     50% { transform: scale(1.18); opacity: 1; }
+}
+
+@keyframes progress-dot-breathe {
+    from { transform: scale(0.7); }
+    to { transform: scale(1); }
+}
+
+@keyframes progress-dot-fade {
+    from { opacity: 0.35; }
+    to { opacity: 1; }
 }
 
 @keyframes council-activity-bar {
