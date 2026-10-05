@@ -24,7 +24,6 @@ const MODEL_RELEASE_METADATA = Object.freeze({
     'minimax/minimax-m3': { releasedAt: 20260531, outputPricePerMillion: 1.2 },
     'moonshotai/kimi-k3': { releasedAt: 20260716, outputPricePerMillion: 15 },
     'poolside/laguna-s-2.1:free': { releasedAt: 20260721, outputPricePerMillion: 0 },
-    'stealth/space-bunny-alpha': { releasedAt: 20260923, outputPricePerMillion: 0 },
     'nvidia/nemotron-3-super-120b-a12b:free': { releasedAt: 20260311, outputPricePerMillion: 0 },
     'nvidia/nemotron-3-ultra-550b-a55b:free': { releasedAt: 20260604, outputPricePerMillion: 0 },
     'nvidia/nemotron-3.5-lightning:free': { releasedAt: 20260807, outputPricePerMillion: 0 },
@@ -78,11 +77,6 @@ export const MODEL_CATALOG = [
 
     // OpenRouter Free Models (Poolside)
     { id: 'poolside/laguna-s-2.1:free', name: 'Laguna S 2.1', provider: 'openrouter', descriptionKey: 'model_laguna_s_2_1_desc', category: 'coding' },
-
-    // OpenRouter Stealth Models (a test model of an anonymous provider; free, 1M context, text/image/video in, reasoning
-    // low to max, tools). OpenRouter takes it down on 2026-10-05: the picker shows that date (retirementDate) and lists it
-    // under the beta models.
-    { id: 'stealth/space-bunny-alpha', name: 'Space Bunny Alpha', provider: 'openrouter', descriptionKey: 'model_space_bunny_alpha_desc', category: 'general', isBeta: true, retirementDate: '2026-10-05' },
 
     // OpenRouter Free Models (NVIDIA)
     { id: 'nvidia/nemotron-3-super-120b-a12b:free', name: 'NVIDIA Nemotron 3 Super', provider: 'openrouter', descriptionKey: 'model_nemotron_3_super_120b_a12b_desc', category: 'general' },
@@ -145,7 +139,6 @@ export const OPENROUTER_VISION_MODELS = [
     'qwen/qwen3.7-flash',
     'qwen/qwen3.7-plus',
     'qwen/qwen3.8-max-0902',
-    'stealth/space-bunny-alpha',
     'xiaomi/mimo-v2.6-pro',
     'xiaomi/mimo-v2.6-flash',
     'z-ai/glm-5.3-flash',
@@ -173,7 +166,6 @@ export const TOOL_CALLING_MODEL_IDS = Object.freeze([
     'minimax/minimax-m3',
     'moonshotai/kimi-k3',
     'poolside/laguna-s-2.1:free',
-    'stealth/space-bunny-alpha',
     'nvidia/nemotron-3-super-120b-a12b:free',
     'nvidia/nemotron-3-ultra-550b-a55b:free',
     'nvidia/nemotron-3.5-lightning:free',
@@ -241,8 +233,6 @@ export const MODEL_REASONING_CONFIGS = createReasoningConfigs([
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'medium', ['openai/gpt-6.1-sol']],
     [OPENROUTER_REASONING_EFFORT, ['none', 'high'], 'high', ['xiaomi/mimo-v2.6-pro', 'xiaomi/mimo-v2.6-flash']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'high', 'max'], 'high', ['moonshotai/kimi-k3']],
-    // OpenRouter's model page: reasoning is always on, effort low, medium, high, xhigh or max (its own default is low).
-    [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'medium', ['stealth/space-bunny-alpha']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh'], 'high', ['x-ai/grok-4.6']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'high', 'max'], 'max', ['z-ai/glm-5.3', 'z-ai/glm-5.3-flash']]
 ]);

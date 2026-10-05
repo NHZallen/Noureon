@@ -600,7 +600,6 @@ const es = {
   "model_nemotron_3_super_120b_a12b_desc_tier_free": "Costo - Gratis",
   "model_nemotron_3_5_lightning_desc_tier_free": "Costo - Gratis",
   "model_laguna_s_2_1_desc_tier_free": "Costo - Gratis",
-  "model_space_bunny_alpha_desc": "Modelo de prueba gratuito de un proveedor anónimo; contexto de 1 M de tokens, entrada de imagen y vídeo, razonamiento ajustable",
   "model_gpt_image_2_5_flare_desc_tier_paid": "$5/M de entrada de texto, $8/M de entrada de imagen, $30/M de salida de imagen",
   "model_gpt_image_2_5_sunburst_desc_tier_paid": "$5/M de entrada de texto, $8/M de entrada de imagen, $30/M de salida de imagen",
   "model_gemini_3_pro_image_desc_tier_paid": "Generación de imágenes de alta calidad y edición de referencias.",
