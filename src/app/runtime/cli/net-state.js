@@ -1,6 +1,7 @@
 // The network rules of the CLI tools as the settings keep them (netMode, netRules; see data/cli-net.js). Every function here changes the
 // settings object it is given and returns whether it changed; the caller saves.
 
+import { stampItem } from '../../../data/cli-settings-merge.js';
 import { NET_DEFAULT_ALLOW, NET_MAX_RULES, NET_RULES, normalizeNetHost, normalizeNetMode, normalizeNetRules } from '../../../data/cli-net.js';
 
 export const getNetMode = (config) => normalizeNetMode(config?.netMode);
@@ -37,6 +38,7 @@ export function setNetRule(config, host, rule) {
     rules[name] = rule;
   }
   config.netRules = rules;
+  stampItem(config, 'netStamps', name);
   return true;
 }
 
@@ -47,6 +49,7 @@ export function removeNetSite(config, host) {
   if (!name || !(name in rules)) return false;
   delete rules[name];
   config.netRules = rules;
+  stampItem(config, 'netStamps', name);
   return true;
 }
 

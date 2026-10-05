@@ -61,6 +61,10 @@ export function createLegacyRuntimeConfigStore({ defaultModelId } = {}) {
     // The network of the CLI tools: ask about a site with no rule ('new') or about every site ('always'), and the person's rules for sites.
     netMode: 'new',
     netRules: {},
+    // When each item of those settings last changed (so devices merge them item by item: see sync/cloud-cli-settings-merge.js).
+    cliStamps: {},
+    cliUseStamps: {},
+    netStamps: {},
     councilTranslatorModelId: null,
     singleDocumentTranslatorModelId: null
   };

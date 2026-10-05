@@ -447,6 +447,12 @@ export function createCloudWorkspaceLiveLifecycle({
     { recordLevel: true, tombstones: event.detail?.tombstones }
   ));
   window.addEventListener('astra:cloud-config', event => applyConfig(event.detail));
+  // The lists of the CLI tools, merged with the cloud's while the settings were being sent: this page takes them up at once.
+  window.addEventListener('astra:cloud-cli-merge', event => {
+    const fields = event.detail;
+    if (!fields || typeof fields !== 'object') return;
+    configAccess.replaceConfig({ ...configAccess.getConfig(), ...fields });
+  });
   window.addEventListener('astra:cloud-memory-summary', event => applyMemorySummaryRecords(event.detail?.records));
   window.addEventListener('astra:active-conversation-changed', requestActiveConversationHydration);
   window.__astraCloudRuntimeReady = markReady;
