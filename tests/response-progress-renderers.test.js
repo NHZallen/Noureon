@@ -110,8 +110,8 @@ test('a failed request is the same dot, still, with the time and the message und
 
 test('the dot is drawn in the colour of the theme, breathes, and sits still for a person who asked for less motion', () => {
   const css = readSource('src/styles/model-council.css');
-  assert.match(css, /\.progress-dot-mark \{[^}]*background: var\(--progress-dot-color, #3960ea\);[^}]*animation: progress-dot-breathe 1\.2s ease-in-out infinite alternate/s);
-  assert.match(css, /@keyframes progress-dot-breathe \{\s*from \{ transform: scale\(0\.7\); \}\s*to \{ transform: scale\(1\); \}/);
+  assert.match(css, /\.progress-dot-mark \{[^}]*background: var\(--progress-dot-color, #3960ea\);[^}]*animation: progress-dot-breathe 0\.625s ease-in-out infinite alternate/s);
+  assert.match(css, /@keyframes progress-dot-breathe \{\s*from \{ transform: scale\(0\.84\); \}\s*to \{ transform: scale\(1\); \}/);
   assert.match(css, /prefers-reduced-motion: reduce\) \{\s*\.progress-dot-mark \{[^}]*transform: none/s);
   const dotRules = css.slice(css.indexOf('.progress-dot {'), css.indexOf('@keyframes progress-dot-breathe'));
   assert.doesNotMatch(dotRules, /#ef4444|#dc2626|\bred\b/i, 'an error has no colour of its own: the theme\'s');

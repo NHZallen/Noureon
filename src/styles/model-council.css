@@ -216,11 +216,12 @@
 
 .progress-dot-mark {
     flex: none;
-    width: 1.375rem;
-    height: 1.375rem;
+    width: 1.25rem;
+    height: 1.25rem;
     border-radius: 50%;
     background: var(--progress-dot-color, #3960ea);
-    animation: progress-dot-breathe 1.2s ease-in-out infinite alternate;
+    /* Measured on the reference: 20 px at the biggest, 17 px at the smallest (a scale of 0.84), one breath in about 1.25 seconds. */
+    animation: progress-dot-breathe 0.625s ease-in-out infinite alternate;
 }
 
 .progress-dot-label {
@@ -231,11 +232,11 @@
 /* A failed request keeps the colours of the theme: the dot stops breathing and the words say what happened. */
 .progress-dot-error .progress-dot-mark {
     animation: none;
-    transform: scale(0.7);
+    transform: scale(0.84);
 }
 
 .progress-dot-error-message {
-    margin: 0 0 0.25rem 1.975rem;
+    margin: 0 0 0.25rem 1.85rem;
     color: var(--text-secondary);
     font-size: 0.85rem;
     overflow-wrap: anywhere;
@@ -484,7 +485,7 @@ body.custom-wallpaper-active.wallpaper-is-dark .popover,body.custom-wallpaper-ac
 }
 
 @keyframes progress-dot-breathe {
-    from { transform: scale(0.7); }
+    from { transform: scale(0.84); }
     to { transform: scale(1); }
 }
 
