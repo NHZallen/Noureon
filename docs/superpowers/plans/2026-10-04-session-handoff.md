@@ -29,6 +29,7 @@
 
 ## 3. 待辦（依 owner 已表達的順序）
 
+-2. **Pandoc 與 SoX 上架（規格 §15）**：Pandoc 3.12 從官方 `.tar.gz` 解壓出單一執行檔（runner 的 `tar-member.js`，目錄的 `archive` 欄位）；SoX 用 Debian 套件放進沙盒映像檔（新種類 `image`）。要在 VPS 重建映像檔：`cd ~/Noureon && git checkout main && git pull && sh sandbox-host/install.sh && sh sandbox-host/smoke-test.sh`（smoke-test 新增 pandoc、sox 三項）。待辦第 2 項（Pandoc、SoX）已完成；商城裡已經沒有「即將推出」的工具。
 -1. **Python 工具快取與 `file`（規格 §13）**：要在 VPS 更新 runner 與映像檔才有效：`git pull && sh sandbox-host/install.sh && sh sandbox-host/smoke-test.sh`（映像檔多了 `file`，要重建；smoke-test 多三項）。伺服器端是向下相容的：runner 還是舊版時照舊在沙盒裡安裝。
 0. **命令工具第 2.1 期改版——已實作在分支 `claude/cli-store-fixes`（2026-10-05），等 owner 測試再說推不推**（做了什麼、為什麼見 `specs/2026-10-04-cli-store-design.md` §11）：憑證改成輸入視窗（`@` 選的工具缺憑證時回覆一開始就問；模型自己的工具用 `request_credentials`）、設定頁拿掉預設清單、標籤依 Token／Cookie／密碼；檔案單檔 50 MB／單步驟 100 MB 與清楚的「沒有提供下載」提示；影音檔案類型與 yt-dlp 指引；工具說明改寫降低亂用；pip 工具按需安裝；每人 500 MB 雲端空間（`GET /v1/storage`、設定「資料管理」顯示用量）；每日孤兒檔清理（預設只報告，**owner 看過日誌裡的名單、同意後才在 Zeabur 設 `ASSET_SWEEP=delete`**）。Supabase 的 `user_asset_usage`／`orphan_user_assets` 兩個函式已經建好（遷移檔 `20261005020000_*.sql` 是同一份）。
 1. **命令工具第二期——已實作（2026-10-05），等 owner 測試再說推不推**（實作紀錄與已知限制見 `specs/2026-10-04-cli-store-design.md` §10）。**要 owner 做的事：** ① 在 Supabase 套用 `supabase/migrations/20261005010000_add_user_credentials.sql`（安全憑證的資料表）；② VPS：`git pull && sh sandbox-host/install.sh && sh sandbox-host/smoke-test.sh`（映像檔多了 node／npm／git／curl，要重建；smoke-test 新增網路與 pip 的項目，這個環境沒有 Docker 服務，容器內的行為只用假 docker 測過）；③ 測 twitter／rdt 要自己的登入憑證（設定 → 權限 → 安全憑證），資料中心 IP 可能被 X 擋；④ 設定的「權限」分頁、詢問卡、授權頁的版面是照規格 §2.3／§2.4 做的，**請 owner 看過再決定要不要調整**。下面是原本的待辦清單（保留供對照）：
@@ -36,7 +37,7 @@
    - 解鎖 yt-dlp、csvkit（pip，需要網路）、twitter-cli、rdt-cli（需要安全憑證；rdt-cli 原本只支援從瀏覽器讀 cookie，要改用憑證）。
    - 加「第三方軟體與授權」清單頁；yt-dlp 說明與使用條款加上「使用者自行負責遵守網站條款與著作權」；FFmpeg 詳細資料裡「不能直接下載網路上的影片」要在聯網後改掉。
    - owner 的決定：沙盒網路事先不用宣告網域、只在連線時詢問；不做寫入確認；不加「不可信內容」限制。
-2. Pandoc（官方是 `.tar.gz`，商城要先支援解壓縮；下載位址與雜湊屆時再定，此環境連不到 GitHub release API）、SoX（官方沒有 Linux 執行檔，要自己編譯，SourceForge 不在下載白名單）。
+2. ~~Pandoc、SoX~~（2026-10-05 已完成，見 §15）。
 3. 第 3 期：使用者上傳與分享（AI 查重與審查、不要太嚴格）；第 4 期：評分、從 GitHub 網址匯入等（另行討論）。
 4. **發版 17.7.0**：owner 測完後說了才做（`src/data/version.js`、`package.json`、`package-lock.json`、`src/data/update-logs/entries.js`，更新日誌要短）。
 5. OfficeCLI 使用說明加一句「每頁用標題版面，不要全用文字框」（實測簡報大綱全是 `(untitled)`）。owner 尚未決定要不要改。

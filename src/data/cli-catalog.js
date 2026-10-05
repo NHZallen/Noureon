@@ -11,14 +11,18 @@ export const CLI_DOWNLOAD_HOSTS = Object.freeze(['github.com', 'objects.githubus
 /** Where the picture of a tool (its project's logo) may be loaded from: GitHub's pictures of a project's owner. A tool without one shows the terminal glyph. */
 export const CLI_ICON_HOSTS = Object.freeze(['github.com', 'avatars.githubusercontent.com']);
 
-/** The biggest program a tool may have (bytes). */
+/** The biggest download a tool may have (bytes). */
 export const CLI_MAX_PROGRAM_BYTES = 150 * 1024 * 1024;
 
-// What a tool is: 'binary' (a program that is one file, fetched from where its makers publish it) or 'pip' (a Python package, installed in the
-// sandbox the first time it is used). `status`: 'ready' (it can be used now) or 'soon' (it is listed, but needs what a later stage of the
+/** The biggest program that is taken out of an archive (bytes, once unpacked): Pandoc is 35 MB to download and 165 MB unpacked. */
+export const CLI_MAX_UNPACKED_BYTES = 400 * 1024 * 1024;
+
+// What a tool is: 'binary' (a program that is one file, fetched from where its makers publish it; when the download is a .tar.gz the artifact says
+// which file in it is the program, `archive`), 'pip' (a Python package, installed once on the host and shared) or 'image' (a program that is in the
+// sandbox's image already, such as SoX from Debian: nothing is fetched, the store only tells the model about it). `status`: 'ready' (it can be used now) or 'soon' (it is listed, but needs what a later stage of the
 // store brings). `needs` says what a tool asks of the sandbox: 'network' (it reaches sites, which the person is asked about) and 'credentials'
 // (the person's secure credentials, `credentials`, which the server puts in the tool's environment).
-const KINDS = Object.freeze(['binary', 'pip']);
+const KINDS = Object.freeze(['binary', 'pip', 'image']);
 const STATUSES = Object.freeze(['ready', 'soon']);
 const ID = /^[a-z][a-z0-9-]{1,39}$/;
 const SHA256 = /^[0-9a-f]{64}$/;
@@ -327,9 +331,8 @@ export const OFFICIAL_CLI_CATALOG = Object.freeze([
     id: 'pandoc',
     name: 'Pandoc',
     kind: 'binary',
-    // Its releases are archives (.tar.gz) of a large program, and the store takes one file for now; its address and hash are set when that is added.
-    status: 'soon',
-    needs: Object.freeze(['archive']),
+    status: 'ready',
+    version: '3.12',
     author: 'John MacFarlane',
     license: 'GPL-2.0-or-later',
     homepage: 'https://github.com/jgm/pandoc',
@@ -341,12 +344,22 @@ export const OFFICIAL_CLI_CATALOG = Object.freeze([
       ru: 'Преобразование документов между Markdown, Word, HTML, LaTeX, EPUB и другими форматами.',
       es: 'Convierte documentos entre Markdown, Word, HTML, LaTeX, EPUB y muchos otros formatos.'
     }),
+    artifacts: Object.freeze({
+      [CLI_PLATFORM]: Object.freeze({
+        url: 'https://github.com/jgm/pandoc/releases/download/3.12/pandoc-3.12-linux-amd64.tar.gz',
+        sha256: '67d7d011fed8c8543306022b985b9b2499ab9b74818df91d8727c7e9ebc5ba06',
+        size: 35326100,
+        file: 'pandoc',
+        // The download is an archive: only this file in it is the program (165 MB unpacked); the runner checks the archive's hash as a whole.
+        archive: Object.freeze({ format: 'tar.gz', member: 'pandoc-3.12/bin/pandoc', size: 165299760 })
+      })
+    }),
     details: Object.freeze({
-      'zh-TW': 'Pandoc 在 Markdown、Word、HTML、LaTeX、EPUB 等上百種文件格式之間互相轉換，例如把 Word 檔轉成 Markdown，或把筆記轉成電子書。目前還不能使用：它的官方下載是壓縮檔，商城要先支援解壓縮。',
-      en: 'Pandoc converts between Markdown, Word, HTML, LaTeX, EPUB and many other document formats, for example a Word file to Markdown, or notes to an e-book. It cannot be used yet: its official download is an archive, and the store first has to support unpacking archives.',
-      fr: 'Pandoc convertit entre Markdown, Word, HTML, LaTeX, EPUB et de nombreux autres formats de documents, par exemple un fichier Word en Markdown ou des notes en livre numérique. Il n’est pas encore utilisable : son téléchargement officiel est une archive et la boutique doit d’abord savoir la décompresser.',
-      ru: 'Pandoc преобразует документы между Markdown, Word, HTML, LaTeX, EPUB и многими другими форматами, например файл Word в Markdown или заметки в электронную книгу. Пока недоступен: официальная загрузка — архив, а магазин сначала должен научиться его распаковывать.',
-      es: 'Pandoc convierte entre Markdown, Word, HTML, LaTeX, EPUB y muchos otros formatos de documento, por ejemplo un archivo de Word a Markdown o apuntes a un libro electrónico. Aún no puede usarse: su descarga oficial es un archivo comprimido y la tienda primero debe poder descomprimirlo.'
+      'zh-TW': 'Pandoc 在 Markdown、Word、HTML、LaTeX、EPUB 等上百種文件格式之間互相轉換，例如把 Word 檔轉成 Markdown，或把筆記轉成電子書。它在伺服器的沙盒裡執行，不需要網路，也不需要登入憑證。要注意：沙盒裡沒有 LaTeX，所以不能直接輸出 PDF，請改輸出 Word 或 HTML。',
+      en: 'Pandoc converts between Markdown, Word, HTML, LaTeX, EPUB and many other document formats, for example a Word file to Markdown, or notes to an e-book. It runs in the server’s sandbox and needs no network and no credentials. Note that the sandbox has no LaTeX, so it cannot write PDF directly: ask for Word or HTML instead.',
+      fr: 'Pandoc convertit entre Markdown, Word, HTML, LaTeX, EPUB et de nombreux autres formats de documents, par exemple un fichier Word en Markdown ou des notes en livre numérique. Il s’exécute dans le bac à sable du serveur et n’a besoin ni du réseau ni d’identifiants. Attention : le bac à sable n’a pas LaTeX, il ne peut donc pas produire de PDF directement : demandez plutôt du Word ou du HTML.',
+      ru: 'Pandoc преобразует документы между Markdown, Word, HTML, LaTeX, EPUB и многими другими форматами, например файл Word в Markdown или заметки в электронную книгу. Он работает в песочнице на сервере, ему не нужны ни сеть, ни учётные данные. Учтите: в песочнице нет LaTeX, поэтому напрямую PDF он не создаёт — просите Word или HTML.',
+      es: 'Pandoc convierte entre Markdown, Word, HTML, LaTeX, EPUB y muchos otros formatos de documento, por ejemplo un archivo de Word a Markdown o apuntes a un libro electrónico. Se ejecuta en el entorno aislado del servidor y no necesita red ni credenciales. Ten en cuenta que el entorno no tiene LaTeX, así que no puede escribir PDF directamente: pide Word o HTML.'
     }),
     env: Object.freeze({}),
     usage: PANDOC_USAGE
@@ -354,11 +367,11 @@ export const OFFICIAL_CLI_CATALOG = Object.freeze([
   Object.freeze({
     id: 'sox',
     name: 'SoX',
-    kind: 'binary',
-    // Its official releases on SourceForge are source code (and Windows and macOS builds): a Linux program has to be built first.
-    status: 'soon',
-    needs: Object.freeze(['build']),
+    // Its official releases on SourceForge are source code: the program is the one of Debian (the same version, 14.4.2), installed in the sandbox's image.
+    kind: 'image',
+    status: 'ready',
     version: '14.4.2',
+    image: Object.freeze({ command: 'sox' }),
     author: 'SoX contributors',
     license: 'GPL-2.0-or-later',
     homepage: 'https://sourceforge.net/projects/sox/',
@@ -371,11 +384,11 @@ export const OFFICIAL_CLI_CATALOG = Object.freeze([
       es: 'Procesamiento de audio: convierte formatos, recorta, mezcla y aplica efectos.'
     }),
     details: Object.freeze({
-      'zh-TW': 'SoX 是音訊處理工具：轉換格式、剪裁、合併、混音、調整音量，並能套用各種效果。目前還不能使用：官方只提供原始碼（以及 Windows、macOS 版本），要先在伺服器上編譯出 Linux 版本。',
-      en: 'SoX is an audio tool: convert formats, trim, join, mix, adjust volume and apply many effects. It cannot be used yet: the official release is source code (plus Windows and macOS builds), so a Linux build has to be compiled on the server first.',
-      fr: 'SoX est un outil audio : conversion de formats, découpe, assemblage, mixage, réglage du volume et nombreux effets. Il n’est pas encore utilisable : la version officielle est un code source (et des versions Windows et macOS), il faut donc d’abord compiler une version Linux sur le serveur.',
-      ru: 'SoX — инструмент для звука: преобразование форматов, обрезка, склейка, микширование, регулировка громкости и множество эффектов. Пока недоступен: официально распространяется исходный код (и сборки для Windows и macOS), поэтому сначала нужно собрать версию для Linux на сервере.',
-      es: 'SoX es una herramienta de audio: convierte formatos, recorta, une, mezcla, ajusta el volumen y aplica muchos efectos. Aún no puede usarse: la versión oficial es código fuente (y compilaciones para Windows y macOS), así que primero hay que compilar una versión para Linux en el servidor.'
+      'zh-TW': 'SoX 是音訊處理工具：轉換格式、剪裁、合併、混音、調整音量，並能套用各種效果。它已經放在伺服器的沙盒映像檔裡（Debian 套件），在沙盒內執行，不需要網路，也不需要登入憑證。',
+      en: 'SoX is an audio tool: convert formats, trim, join, mix, adjust volume and apply many effects. It is already part of the server’s sandbox image (the Debian package) and runs inside the sandbox, with no network and no credentials.',
+      fr: 'SoX est un outil audio : conversion de formats, découpe, assemblage, mixage, réglage du volume et nombreux effets. Il fait déjà partie de l’image du bac à sable du serveur (le paquet Debian) et s’exécute dans le bac à sable, sans réseau ni identifiants.',
+      ru: 'SoX — инструмент для звука: преобразование форматов, обрезка, склейка, микширование, регулировка громкости и множество эффектов. Он уже входит в образ песочницы на сервере (пакет Debian) и работает внутри песочницы, без сети и без учётных данных.',
+      es: 'SoX es una herramienta de audio: convierte formatos, recorta, une, mezcla, ajusta el volumen y aplica muchos efectos. Ya forma parte de la imagen del entorno aislado del servidor (el paquete de Debian) y se ejecuta dentro de él, sin red ni credenciales.'
     }),
     env: Object.freeze({}),
     usage: SOX_USAGE
@@ -426,8 +439,15 @@ export function validateCliManifest(tool) {
       if (!SHA256.test(String(artifact.sha256 || ''))) problems.push('artifact sha256');
       if (!(Number(artifact.size) > 0 && Number(artifact.size) <= CLI_MAX_PROGRAM_BYTES)) problems.push('artifact size');
       if (!/^[A-Za-z0-9._-]{1,60}$/.test(String(artifact.file || ''))) problems.push('artifact file name');
+      if (artifact.archive !== undefined) {
+        const archive = artifact.archive;
+        if (archive?.format !== 'tar.gz') problems.push('artifact archive format');
+        if (!/^[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)*$/.test(String(archive?.member || '')) || String(archive?.member).includes('..')) problems.push('artifact archive member');
+        if (!(Number(archive?.size) > 0 && Number(archive?.size) <= CLI_MAX_UNPACKED_BYTES)) problems.push('artifact archive size');
+      }
     }
   }
+  if (tool.kind === 'image' && tool.status === 'ready' && !/^[A-Za-z0-9._-]{1,60}$/.test(String(tool.image?.command || ''))) problems.push('image command');
   if (tool.kind === 'pip') {
     const pip = tool.pip;
     if (!pip || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,80}$/.test(String(pip.package || '')) || !/^\d+(?:\.\d+){0,3}$/.test(String(pip.version || '')) || !/^[A-Za-z0-9._-]{1,60}$/.test(String(pip.command || ''))) problems.push('pip package, version and command');

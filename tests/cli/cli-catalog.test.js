@@ -7,7 +7,7 @@ import { CLI_TEXTS, cliText } from '../../src/app/runtime/cli/cli-texts.js';
 test('the store has the official tools, each a well formed manifest, and the ones still waiting for something are not usable yet', () => {
   assert.deepEqual(OFFICIAL_CLI_CATALOG.map((tool) => tool.id), ['officecli', 'ffmpeg', 'yt-dlp', 'twitter-cli', 'rdt-cli', 'csvkit', 'pandoc', 'sox']);
   for (const tool of OFFICIAL_CLI_CATALOG) assert.deepEqual(validateCliManifest(tool), [], tool.id);
-  assert.deepEqual(OFFICIAL_CLI_CATALOG.filter(isCliReady).map((tool) => tool.id), ['officecli', 'ffmpeg', 'yt-dlp', 'twitter-cli', 'rdt-cli', 'csvkit'], 'what works now, with the network and the credentials of the second stage');
+  assert.deepEqual(OFFICIAL_CLI_CATALOG.filter(isCliReady).map((tool) => tool.id), ['officecli', 'ffmpeg', 'yt-dlp', 'twitter-cli', 'rdt-cli', 'csvkit', 'pandoc', 'sox'], 'everything in the store works now');
   for (const tool of OFFICIAL_CLI_CATALOG.filter((entry) => !isCliReady(entry))) assert.ok(tool.needs.length > 0, `${tool.id} says what it waits for`);
   assert.equal(getCliTool('twitter-cli').kind, 'pip');
   assert.equal(getCliTool('nothing'), null);
@@ -24,12 +24,34 @@ test('every program is pinned to a version and a hash, and fetched from an allow
 });
 
 test('a tool that is only listed needs no program yet, but a tool that is ready does', () => {
+  const listed = { ...getCliTool('officecli'), status: 'soon', needs: ['something'], version: undefined, artifacts: undefined };
+  assert.deepEqual(validateCliManifest(listed), []);
+  assert.ok(validateCliManifest({ ...listed, status: 'ready' }).some((problem) => /artifact|version/.test(problem)), 'ready without a program is refused');
+  assert.ok(validateCliManifest({ ...listed, status: 'ready', version: '3.1' }).some((problem) => /artifact/.test(problem)));
+});
+
+test('Pandoc is taken out of an archive: the archive is pinned as a whole and the one file in it is named; SoX is the image\'s own program', () => {
   const pandoc = getCliTool('pandoc');
-  assert.equal(pandoc.status, 'soon');
-  assert.equal(pandoc.artifacts, undefined);
-  assert.deepEqual(validateCliManifest(pandoc), []);
-  assert.ok(validateCliManifest({ ...pandoc, status: 'ready' }).some((problem) => /artifact/.test(problem)), 'ready without a program is refused');
-  assert.ok(validateCliManifest({ ...pandoc, status: 'ready', version: '3.1', artifacts: undefined }).length > 0);
+  const artifact = pandoc.artifacts['linux-x64'];
+  assert.equal(artifact.file, 'pandoc');
+  assert.match(artifact.url, /\/3\.12\/pandoc-3\.12-linux-amd64\.tar\.gz$/);
+  assert.deepEqual({ ...artifact.archive }, { format: 'tar.gz', member: 'pandoc-3.12/bin/pandoc', size: 165299760 });
+  const problems = (archive) => validateCliManifest({ ...pandoc, artifacts: { 'linux-x64': { ...artifact, archive } } });
+  assert.deepEqual(problems(artifact.archive), []);
+  assert.ok(problems({ ...artifact.archive, format: 'zip' }).includes('artifact archive format'));
+  assert.ok(problems({ ...artifact.archive, member: '../bin/pandoc' }).includes('artifact archive member'));
+  assert.ok(problems({ ...artifact.archive, member: '/bin/pandoc' }).includes('artifact archive member'));
+  assert.ok(problems({ ...artifact.archive, size: 500 * 1024 * 1024 }).includes('artifact archive size'));
+  assert.ok(problems(undefined).length === 0, 'a plain file has no archive');
+  assert.ok(problems(null).includes('artifact archive format'));
+
+  const sox = getCliTool('sox');
+  assert.equal(sox.kind, 'image');
+  assert.equal(sox.image.command, 'sox');
+  assert.equal(sox.artifacts, undefined, 'nothing is fetched');
+  assert.deepEqual(validateCliManifest(sox), []);
+  assert.ok(validateCliManifest({ ...sox, image: undefined }).includes('image command'));
+  assert.ok(validateCliManifest({ ...sox, image: { command: 'a b' } }).includes('image command'));
 });
 
 test('a manifest is refused for what is wrong with it', () => {

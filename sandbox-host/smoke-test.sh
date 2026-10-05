@@ -66,7 +66,7 @@ PY
 }
 # The programs and their hashes come from the app's own catalog (run from the repository), so this checks what the app really uses.
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
-CATALOG_JS="import('./src/data/cli-catalog.js').then((m) => console.log(JSON.stringify(m.OFFICIAL_CLI_CATALOG.filter((t) => m.isCliReady(t) && t.kind === 'binary').map((t) => ({ id: t.id, file: t.artifacts[m.CLI_PLATFORM].file, url: t.artifacts[m.CLI_PLATFORM].url, sha256: t.artifacts[m.CLI_PLATFORM].sha256, size: t.artifacts[m.CLI_PLATFORM].size })))))"
+CATALOG_JS="import('./src/data/cli-catalog.js').then((m) => console.log(JSON.stringify(m.OFFICIAL_CLI_CATALOG.filter((t) => m.isCliReady(t) && t.kind === 'binary').map((t) => ({ id: t.id, file: t.artifacts[m.CLI_PLATFORM].file, url: t.artifacts[m.CLI_PLATFORM].url, sha256: t.artifacts[m.CLI_PLATFORM].sha256, size: t.artifacts[m.CLI_PLATFORM].size, archive: t.artifacts[m.CLI_PLATFORM].archive })))))"
 CLI_ENV='{}'
 ENV_JS="import('./src/data/cli-catalog.js').then((m) => console.log(JSON.stringify(Object.assign({}, ...m.OFFICIAL_CLI_CATALOG.filter(m.isCliReady).map((t) => t.env || {})))))"
 if command -v node >/dev/null 2>&1; then
@@ -88,6 +88,10 @@ PY
 printf '%s' "$MOUNT" | grep -q "mounted" && check "the CLI programs are fetched and mounted" ok || check "the CLI programs are fetched and mounted" "$MOUNT"
 R=$(cli_step 'officecli --version' "$ID"); printf '%s' "$R" | json "d['stdout']['text']" | grep -Eq "[0-9]+\.[0-9]+" && check "officecli runs (from /opt/cli, no ICU needed)" ok || check "officecli runs" "$R"
 R=$(cli_step 'ffmpeg -hide_banner -version | head -1' "$ID"); printf '%s' "$R" | json "d['stdout']['text']" | grep -qi "ffmpeg version" && check "ffmpeg runs" ok || check "ffmpeg runs" "$R"
+# Pandoc comes in an archive (35 MB to download, 165 MB unpacked): the runner opens it and keeps only the program. SoX is in the image.
+R=$(cli_step 'pandoc --version | head -1' "$ID"); printf '%s' "$R" | json "d['stdout']['text']" | grep -q "^pandoc " && check "pandoc runs (taken out of its archive)" ok || check "pandoc runs (taken out of its archive)" "$R"
+R=$(cli_step 'cd /output && printf "# Hello\n\nSome *text*.\n" | pandoc -f markdown -o t.docx && ls' "$ID"); [ "$(printf '%s' "$R" | json "d['files'][0]['name']")" = "t.docx" ] && check "pandoc makes a Word file in /output" ok || check "pandoc makes a Word file in /output" "$R"
+R=$(cli_step 'cd /output && sox -n tone.wav synth 0.3 sine 440 && sox -n tone.mp3 synth 0.3 sine 440 && sox --i tone.mp3 | head -3' "$ID"); printf '%s' "$R" | json "[f['name'] for f in d['files']]" | grep -q "tone.mp3" && check "sox is in the image and makes wav and mp3 files" ok || check "sox is in the image and makes wav and mp3 files" "$R"
 R=$(cli_step 'cd /output && officecli create t.docx && ls' "$ID"); [ "$(printf '%s' "$R" | json "d['files'][0]['name']")" = "t.docx" ] && check "officecli makes a Word file in /output" ok || check "officecli makes a Word file in /output" "$R"
 R=$(cli_step 'exit 3' "$ID"); printf '%s' "$R" | json "d['error']" | grep -q "code 3" && check "a failing command is an error" ok || check "a failing command is an error" "$R"
 # The network: the container has none; what a command reaches goes through the runner's proxy, by the person's rules.

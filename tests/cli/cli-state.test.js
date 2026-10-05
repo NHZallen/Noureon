@@ -9,7 +9,6 @@ test('a tool is added with its version, removed with everything kept about it, a
   assert.deepEqual(config.cliEnabledIds, ['officecli']);
   assert.deepEqual(config.cliVersions, { officecli: '1.0.153' });
   assert.equal(addCli(config, 'officecli'), false, 'not twice');
-  assert.equal(addCli(config, 'pandoc'), false, 'a tool that is coming cannot be added yet');
   assert.equal(addCli(config, 'nothing'), false);
   addCli(config, 'ffmpeg');
   assert.equal(setCliModelUse(config, 'ffmpeg', true), true);
@@ -18,7 +17,7 @@ test('a tool is added with its version, removed with everything kept about it, a
   assert.equal(removeCli(config, 'ffmpeg'), true);
   assert.deepEqual([config.cliEnabledIds, config.cliModelUseIds, config.cliVersions], [['officecli'], [], { officecli: '1.0.153' }]);
   assert.equal(removeCli(config, 'ffmpeg'), false);
-  assert.deepEqual(enabledCliIds({ cliEnabledIds: ['officecli', 'pandoc', 'gone'] }), ['officecli'], 'what cannot be used does not count');
+  assert.deepEqual(enabledCliIds({ cliEnabledIds: ['officecli', 'pandoc', 'gone'] }), ['officecli', 'pandoc'], 'what is not in the store does not count');
 });
 
 test('the tools chosen with "@" are read from the chips of a message, and a reply gets those and the ones the model may use by itself', () => {

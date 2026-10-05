@@ -20,7 +20,8 @@ RUN node sandbox-host/export-noureon-module.mjs /build/noureon.py \
 FROM python:3.12-slim-bookworm
 # What the command tools need when they reach the network (through the runner's proxy): node and npm, git, curl and the certificates.
 # `file` too: a model checks what a file it fetched is with it, and a command that is not found ends the step as a failure.
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl file git nodejs npm \
+# SoX (the sound tool of the store, Debian's own package) is here too: its official download is source code only.
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl file git nodejs npm sox libsox-fmt-all \
  && rm -rf /var/lib/apt/lists/*
 RUN pip install --no-cache-dir \
     numpy pandas matplotlib scipy scikit-learn sympy pillow lxml beautifulsoup4 \
