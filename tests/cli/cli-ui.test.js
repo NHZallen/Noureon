@@ -174,15 +174,13 @@ test('the store: tools to add, the ones coming, tabs, search, the menu of an add
   assert.deepEqual([config.cliEnabledIds, config.cliModelUseIds], [[], []], 'removed with what was kept about it');
   assert.match(t.log.notices.at(-1)[0], /removed/);
 
-  // updates
+  // there is no page of updates: the tools always run at the version of the store, so there is nothing to update
   config.cliEnabledIds = ['officecli'];
   config.cliVersions = { officecli: '1.0.100' };
-  root.querySelectorAll('.history-tab')[2].click();
-  assert.match(root.querySelectorAll('.history-tab')[2].textContent, /Updates · 1/);
-  root.querySelector('.cs-button-primary').click();
-  await flush();
-  assert.equal(config.cliVersions.officecli, '1.0.153');
-  assert.match(root.textContent, /No CLI tools can be updated right now/);
+  root.querySelectorAll('.history-tab')[0].click();
+  assert.equal(root.querySelectorAll('.history-tab').length, 2, 'all, and mine');
+  assert.doesNotMatch(root.textContent, /Updates|New version/);
+  assert.equal(root.querySelector('.cs-button-primary'), null, 'no update button');
 
   // closing: Escape closes the menu first, then the page
   root.querySelectorAll('.history-tab')[1].click();

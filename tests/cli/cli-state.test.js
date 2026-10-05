@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { addCli, canModelUseCli, cliIdsForReply, cliIdsOfParts, cliIndicatorId, cliUpdates, enabledCliIds, isCliEnabled, removeCli, setCliModelUse, updateCli, withCliSegments } from '../../src/app/runtime/cli/cli-state.js';
+import { addCli, canModelUseCli, cliIdsForReply, cliIdsOfParts, cliIndicatorId, enabledCliIds, isCliEnabled, removeCli, setCliModelUse, withCliSegments } from '../../src/app/runtime/cli/cli-state.js';
 
 test('a tool is added with its version, removed with everything kept about it, and only tools that can be used are added', () => {
   const config = {};
@@ -19,14 +19,6 @@ test('a tool is added with its version, removed with everything kept about it, a
   assert.deepEqual([config.cliEnabledIds, config.cliModelUseIds, config.cliVersions], [['officecli'], [], { officecli: '1.0.153' }]);
   assert.equal(removeCli(config, 'ffmpeg'), false);
   assert.deepEqual(enabledCliIds({ cliEnabledIds: ['officecli', 'pandoc', 'gone'] }), ['officecli'], 'what cannot be used does not count');
-});
-
-test('a tool whose store version moved on is an update, and updating records the new one', () => {
-  const config = { cliEnabledIds: ['officecli'], cliVersions: { officecli: '1.0.100' } };
-  assert.deepEqual(cliUpdates(config).map((tool) => tool.id), ['officecli']);
-  assert.equal(updateCli(config, 'officecli'), true);
-  assert.deepEqual(cliUpdates(config), []);
-  assert.equal(updateCli(config, 'ffmpeg'), false, 'not added');
 });
 
 test('the tools chosen with "@" are read from the chips of a message, and a reply gets those and the ones the model may use by itself', () => {

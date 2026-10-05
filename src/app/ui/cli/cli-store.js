@@ -4,7 +4,7 @@
 // A tool is added by a record in the settings (nothing is downloaded: the server fetches the program when a message first uses it).
 
 import { OFFICIAL_CLI_CATALOG, cliDescription, cliDetails, isCliReady } from '../../../data/cli-catalog.js';
-import { addCli, canModelUseCli, cliUpdates, isCliEnabled, removeCli, setCliModelUse, updateCli } from '../../runtime/cli/cli-state.js';
+import { addCli, canModelUseCli, isCliEnabled, removeCli, setCliModelUse } from '../../runtime/cli/cli-state.js';
 import { cliText } from '../../runtime/cli/cli-texts.js';
 import { permissionText } from '../../runtime/cli/permission-texts.js';
 import { terminalIcon, toolIconMarkup, watchToolIcons } from './cli-icons.js';
@@ -158,7 +158,7 @@ export function openCliStore({ document = globalThis.document, getConfig, saveCo
     return !needle || `${tool.name} ${tool.id} ${tool.author} ${cliDescription(tool, getLanguage())}`.toLowerCase().includes(needle);
   };
 
-  const row = (tool, { update = false } = {}) => {
+  const row = (tool) => {
     const config = getConfig();
     const added = isCliEnabled(config, tool.id);
     const element = make(document, 'div', `cs-row${added ? ' is-added' : ''}`);
@@ -176,19 +176,13 @@ export function openCliStore({ document = globalThis.document, getConfig, saveCo
     const name = make(document, 'span', 'cs-name');
     name.append(make(document, 'span', 'cs-name-text', tool.name), make(document, 'span', 'cs-badge', t('official')));
     text.append(name, make(document, 'span', 'cs-desc', cliDescription(tool, getLanguage())));
-    if (update) text.append(make(document, 'span', 'cs-meta', t('updateTo', { v: tool.version })));
     text.addEventListener('click', () => {
       if (state.expanded.has(tool.id)) state.expanded.delete(tool.id);
       else state.expanded.add(tool.id);
       draw();
     });
     const action = make(document, 'div', 'cs-action');
-    if (update) {
-      const updateButton = make(document, 'button', 'cs-button cs-button-primary', t('update'));
-      updateButton.type = 'button';
-      updateButton.addEventListener('click', () => change(() => updateCli(getConfig(), tool.id), t('updated_notice', { name: tool.name })));
-      action.append(updateButton);
-    } else if (added) {
+    if (added) {
       action.append(make(document, 'span', 'cs-added', t('added')));
       const more = button(document, 'cs-icon-button', t('more'), ICONS.more);
       more.setAttribute('aria-haspopup', 'menu');
@@ -239,13 +233,12 @@ export function openCliStore({ document = globalThis.document, getConfig, saveCo
 
   const draw = () => {
     const config = getConfig();
-    const updates = cliUpdates(config);
     const mine = OFFICIAL_CLI_CATALOG.filter((tool) => isCliEnabled(config, tool.id) && matches(tool));
     // The tools that can be added come first, the ones that are coming after them.
     const official = OFFICIAL_CLI_CATALOG.filter((tool) => !isCliEnabled(config, tool.id) && matches(tool)).sort((a, b) => Number(isCliReady(b)) - Number(isCliReady(a)));
     syncNote();
     note.textContent = t('needAccount');
-    tabs.replaceChildren(...[['all', t('tabAll')], ['mine', t('tabMine')], ['updates', `${t('tabUpdates')}${updates.length ? ` · ${updates.length}` : ''}`]].map(([id, label]) => {
+    tabs.replaceChildren(...[['all', t('tabAll')], ['mine', t('tabMine')]].map(([id, label]) => {
       const tab = make(document, 'button', 'history-tab', label);
       tab.type = 'button';
       tab.setAttribute('role', 'tab');
@@ -258,21 +251,11 @@ export function openCliStore({ document = globalThis.document, getConfig, saveCo
       return tab;
     }));
     const parts = [];
-    if (state.tab === 'updates') {
-      const rows = updates.filter(matches).map((tool) => row(tool, { update: true }));
-      parts.push(section(t('sectionUpdates'), rows) || make(document, 'div', 'cs-empty', t('noneUpdates')));
-    } else {
-      if (state.tab === 'all') {
-        const rows = updates.filter(matches).map((tool) => row(tool, { update: true }));
-        const box = section(t('sectionUpdates'), rows);
-        if (box) parts.push(box);
-      }
-      if (state.tab !== 'all' || mine.length) parts.push(section(t('sectionMine'), mine.map((tool) => row(tool))) || make(document, 'div', 'cs-empty', state.query ? t('noResults') : t('noneMine')));
-      if (state.tab === 'all') {
-        const box = section(t('sectionOfficial'), official.map((tool) => row(tool)));
-        if (box) parts.push(box);
-        if (!mine.length && !official.length) parts.push(make(document, 'div', 'cs-empty', t('noResults')));
-      }
+    if (state.tab !== 'all' || mine.length) parts.push(section(t('sectionMine'), mine.map((tool) => row(tool))) || make(document, 'div', 'cs-empty', state.query ? t('noResults') : t('noneMine')));
+    if (state.tab === 'all') {
+      const box = section(t('sectionOfficial'), official.map((tool) => row(tool)));
+      if (box) parts.push(box);
+      if (!mine.length && !official.length) parts.push(make(document, 'div', 'cs-empty', t('noResults')));
     }
     list.replaceChildren(...parts.filter(Boolean));
   };

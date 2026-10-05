@@ -40,16 +40,6 @@ export function setCliModelUse(config, id, allowed) {
   return true;
 }
 
-/** The added tools whose store version is newer than the one the person has. */
-export const cliUpdates = (config) => enabledCliTools(config).filter((tool) => (config?.cliVersions || {})[tool.id] !== tool.version);
-
-export function updateCli(config, id) {
-  const tool = getCliTool(id);
-  if (!tool || !isCliEnabled(config, id)) return false;
-  config.cliVersions = { ...(config.cliVersions || {}), [id]: tool.version };
-  return true;
-}
-
 export const CLI_INDICATOR_PREFIX = 'cli-indicator-';
 export const cliIndicatorId = (id) => `${CLI_INDICATOR_PREFIX}${id}`;
 
