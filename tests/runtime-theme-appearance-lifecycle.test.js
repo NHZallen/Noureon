@@ -170,12 +170,14 @@ test('applyUiTheme preserves default, custom, and adaptive gradient CSS variable
   assert.equal(document.documentElement.style.getPropertyValue('--button-primary-bg'), '#3b82f6');
   assert.equal(document.documentElement.style.getPropertyValue('--button-primary-text'), '#ffffff');
   assert.equal(document.documentElement.style.getPropertyValue('--button-primary-bg-override'), '');
+  assert.equal(document.documentElement.style.getPropertyValue('--progress-dot-color'), '#3960ea', 'the waiting dot has its own blue by default');
   assert.deepEqual(calls, []);
 
   state.config.uiTheme.mode = 'custom';
   state.config.uiTheme.customColor = '#ffffff';
   lifecycle.applyUiTheme();
   assert.equal(document.documentElement.style.getPropertyValue('--button-primary-bg'), '#ffffff');
+  assert.equal(document.documentElement.style.getPropertyValue('--progress-dot-color'), '#ffffff', 'and the colour of the person when they chose one');
   assert.equal(document.documentElement.style.getPropertyValue('--button-primary-text'), '#000000');
 
   state.config.uiTheme.mode = 'adaptive';
@@ -184,6 +186,7 @@ test('applyUiTheme preserves default, custom, and adaptive gradient CSS variable
   state.config.uiTheme.adaptivePalette = ['#abcdef'];
   lifecycle.applyUiTheme();
   assert.equal(document.documentElement.style.getPropertyValue('--button-primary-bg'), '#abcdef');
+  assert.equal(document.documentElement.style.getPropertyValue('--progress-dot-color'), '#abcdef', 'the dot is solid even when the buttons are a gradient');
   assert.equal(document.documentElement.style.getPropertyValue('--button-primary-text'), '#ffffff');
   assert.equal(
     document.documentElement.style.getPropertyValue('--button-primary-bg-override'),

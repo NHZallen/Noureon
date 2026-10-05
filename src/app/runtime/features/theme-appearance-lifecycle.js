@@ -2,6 +2,9 @@ import {
     getTextColorForBackground as getThemeTextColorForBackground,
 } from '../../../utils/color-contrast.js';
 
+/** The blue of the dot that breathes while a reply is awaited, when the person has not chosen a colour of their own (rgb 57, 96, 234). */
+export const PROGRESS_DOT_DEFAULT_COLOR = '#3960ea';
+
 export function createThemeAppearanceLifecycle(dependencies = {}) {
     const {
         window,
@@ -85,6 +88,8 @@ export function createThemeAppearanceLifecycle(dependencies = {}) {
             : getThemeTextColorForBackground(primaryBg);
         root.style.setProperty('--button-primary-bg', primaryBg);
         root.style.setProperty('--button-primary-text', textColor);
+        // The dot that breathes while a reply is awaited: its own blue by default (the blue of the ChatGPT one it follows), else the person's colour.
+        root.style.setProperty('--progress-dot-color', ['custom', 'adaptive'].includes(state.config.uiTheme.mode) ? primaryBg : PROGRESS_DOT_DEFAULT_COLOR);
         if (primaryBgOverride) {
             root.style.setProperty('--button-primary-bg-override', primaryBgOverride);
         } else {

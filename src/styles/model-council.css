@@ -202,8 +202,8 @@
     margin-bottom: 0.65rem;
 }
 
-/* The wait for the first words of a reply: one dot that breathes, in the colour of the person's theme (the primary colour of the settings:
-   blue by default, their own colour or the one taken from a picture). References: the dot of ChatGPT while it waits. */
+/* The wait for the first words of a reply: one dot that breathes, in the colour of the person's theme (the primary button colour of the settings:
+   the blue of the ChatGPT dot by default, their own colour, or the one taken from a picture; see applyUiTheme). Reference: that dot. */
 .progress-dot {
     display: flex;
     align-items: center;
@@ -216,10 +216,10 @@
 
 .progress-dot-mark {
     flex: none;
-    width: 1.25rem;
-    height: 1.25rem;
+    width: 1.375rem;
+    height: 1.375rem;
     border-radius: 50%;
-    background: var(--button-primary-bg, #3b82f6);
+    background: var(--progress-dot-color, #3960ea);
     animation: progress-dot-breathe 1.2s ease-in-out infinite alternate;
 }
 
@@ -228,20 +228,15 @@
     overflow-wrap: anywhere;
 }
 
+/* A failed request keeps the colours of the theme: the dot stops breathing and the words say what happened. */
 .progress-dot-error .progress-dot-mark {
-    background: #ef4444;
     animation: none;
     transform: scale(0.7);
 }
 
-.progress-dot-error {
-    color: #dc2626;
-    font-weight: 700;
-}
-
 .progress-dot-error-message {
-    margin: 0 0 0.25rem 1.85rem;
-    color: #dc2626;
+    margin: 0 0 0.25rem 1.975rem;
+    color: var(--text-secondary);
     font-size: 0.85rem;
     overflow-wrap: anywhere;
 }
