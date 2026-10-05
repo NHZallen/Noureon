@@ -180,6 +180,7 @@
     font-weight: 800;
 }
 
+.single-progress-panel,
 .thinking-collapse {
     margin: 0.15rem 0 0.25rem;
     padding: 0.75rem 0.85rem;
@@ -188,6 +189,7 @@
     background: color-mix(in srgb, var(--input-field-bg) 88%, transparent);
 }
 
+.single-progress-panel summary,
 .thinking-collapse summary {
     display: flex;
     align-items: center;
@@ -198,6 +200,7 @@
     font-weight: 850;
 }
 
+.single-progress-panel[open] summary,
 .thinking-collapse[open] summary {
     margin-bottom: 0.65rem;
 }
@@ -229,24 +232,26 @@
     overflow-wrap: anywhere;
 }
 
-/* A failed request keeps the colours of the theme: the dot stops breathing and the words say what happened. */
-.progress-dot-error .progress-dot-mark {
-    animation: none;
-    transform: scale(0.84);
-}
-
-.progress-dot-error-message {
-    margin: 0 0 0.25rem 1.85rem;
-    color: var(--text-secondary);
-    font-size: 0.85rem;
-    overflow-wrap: anywhere;
-}
-
 @media (prefers-reduced-motion: reduce) {
     .progress-dot-mark {
         animation: progress-dot-fade 2.4s ease-in-out infinite alternate;
         transform: none;
     }
+}
+
+.single-progress-panel-error {
+    border-color: color-mix(in srgb, #ef4444 42%, var(--border-color));
+    background: color-mix(in srgb, #ef4444 9%, var(--input-field-bg));
+}
+
+.single-progress-panel-error .council-progress-stage {
+    background: color-mix(in srgb, #ef4444 16%, transparent);
+    color: #dc2626;
+}
+
+.single-progress-panel-error .council-progress-message {
+    color: #dc2626;
+    overflow-wrap: anywhere;
 }
 
 .translator-model-picker {

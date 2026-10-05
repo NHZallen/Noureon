@@ -40,7 +40,7 @@ export function createResponseProgressRenderers({ escapeHTML, getUiLanguage, get
   const renderSingleModelError = (progress = {}, errorMessage = '') => {
     const localized = getRuntimeTexts(getLanguage());
     const elapsedSeconds = Math.max(1, Math.round((progress.elapsedMs || 0) / 1000));
-    return `<div class="progress-dot progress-dot-error single-progress-panel-error" role="alert"><span class="progress-dot-mark" aria-hidden="true"></span><span class="progress-dot-label">${escapeHTML(localized.requestFailed)} · ${elapsedSeconds}s</span></div><div class="progress-dot-error-message">${escapeHTML(errorMessage || localized.requestFailed)}</div>`;
+    return `<details class="single-progress-panel single-progress-panel-error" open><summary><span>${escapeHTML(progress.modelName || '')}</span><span>${elapsedSeconds}s</span></summary><div class="council-progress-heading"><span class="council-progress-stage">${escapeHTML(localized.requestFailed)}</span><span class="council-progress-time">${elapsedSeconds}s</span></div><div class="council-progress-message">${escapeHTML(errorMessage || localized.requestFailed)}</div><div class="council-progress-note">${escapeHTML(localized.progressFailedNote)}</div></details>`;
   };
 
   return { renderCouncilProgress, renderSingleModelError, renderSingleModelProgress };

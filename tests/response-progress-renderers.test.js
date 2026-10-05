@@ -97,15 +97,14 @@ test('the dot keeps one shape from tick to tick, so the timer changes only its t
   for (const other of others) assert.equal(other, first);
 });
 
-test('a failed request is the same dot, still, with the time and the message under it', () => {
+test('a failed request keeps the error card it always had (the dot is only for the wait)', () => {
   const { renderSingleModelError } = createHarness({ uiLanguage: 'zh-TW' });
   const errorHTML = renderSingleModelError({ elapsedMs: 999, modelName: '模型 B' }, '爆炸 <err>');
-  assert.match(errorHTML, /progress-dot-error/);
   assert.match(errorHTML, /single-progress-panel-error/);
-  assert.match(errorHTML, /請求失敗 · 1s/);
+  assert.match(errorHTML, /請求失敗/);
   assert.match(errorHTML, /爆炸 &lt;err&gt;/);
-  assert.ok(!errorHTML.includes('模型 B'), 'the model name is not repeated');
-  assert.match(renderSingleModelError({ elapsedMs: 2000 }, ''), /progress-dot-error-message">請求失敗</, 'with no message the failure is said once more as the message');
+  assert.match(errorHTML, /模型在回傳可用答案前停止。/);
+  assert.ok(!errorHTML.includes('progress-dot'), 'no dot in the error card');
 });
 
 test('the dot is drawn in the colour of the theme, breathes, and sits still for a person who asked for less motion', () => {
@@ -113,10 +112,6 @@ test('the dot is drawn in the colour of the theme, breathes, and sits still for 
   assert.match(css, /\.progress-dot-mark \{[^}]*background: var\(--progress-dot-color, #3960ea\);[^}]*animation: progress-dot-breathe 0\.625s ease-in-out infinite alternate/s);
   assert.match(css, /@keyframes progress-dot-breathe \{\s*from \{ transform: scale\(0\.84\); \}\s*to \{ transform: scale\(1\); \}/);
   assert.match(css, /prefers-reduced-motion: reduce\) \{\s*\.progress-dot-mark \{[^}]*transform: none/s);
-  const dotRules = css.slice(css.indexOf('.progress-dot {'), css.indexOf('@keyframes progress-dot-breathe'));
-  assert.doesNotMatch(dotRules, /#ef4444|#dc2626|\bred\b/i, 'an error has no colour of its own: the theme\'s');
-  assert.match(dotRules, /\.progress-dot-error \.progress-dot-mark \{\s*animation: none;/);
-  assert.doesNotMatch(css, /\.single-progress-panel\b(?!-error)/, 'the big panel has no styles left');
   assert.match(css, /\.thinking-collapse summary/, 'the folding block of the thinking keeps its own');
 });
 
