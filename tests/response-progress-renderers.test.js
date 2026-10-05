@@ -66,26 +66,53 @@ test('council progress preserves string progress fallback', () => {
   );
 });
 
-test('single-model progress and error render localized escaped output', () => {
-  const { renderSingleModelError, renderSingleModelProgress } = createHarness({ uiLanguage: 'zh-TW' });
+test('single-model progress is one dot with no words, and words only when they say something', () => {
+  const { renderSingleModelProgress } = createHarness({ uiLanguage: 'zh-TW' });
+  const label = (html) => html.match(/progress-dot-label">([^<]*)</)[1];
 
-  const progressHTML = renderSingleModelProgress({
-    elapsedMs: 1100,
-    message: '串流 <中>',
-    modelName: '模型 A',
-    receivedChars: 42,
-    stage: 'streaming',
-    translatorName: 'Translator <T>'
-  });
+  const waiting = renderSingleModelProgress({ elapsedMs: 1100, modelName: '模型 A', stage: 'streaming', message: undefined, receivedChars: 0 });
+  assert.match(waiting, /class="progress-dot"/);
+  assert.match(waiting, /progress-dot-mark/);
+  assert.equal(label(waiting), '\u200b', 'nothing to say: the dot alone');
+  for (const gone of ['模型 A', '模型作答</', 'council-progress', 'single-progress-panel', '<details', '已接收']) assert.ok(!waiting.includes(gone), `${gone} is no longer drawn`);
+  assert.match(waiting, /aria-label="模型作答"/, 'a screen reader still hears what is going on');
+
+  assert.equal(label(renderSingleModelProgress({ elapsedMs: 4000, stage: 'preparing', message: '準備請求' })), '\u200b', 'preparing is instant: no words');
+  assert.equal(label(renderSingleModelProgress({ elapsedMs: 5000, stage: 'streaming' })), '5s', 'the seconds come once the wait is long');
+  assert.equal(label(renderSingleModelProgress({ elapsedMs: 3000, stage: 'documentTranslation' })), '文件轉譯');
+  assert.equal(label(renderSingleModelProgress({ elapsedMs: 3000, stage: 'searchTranslation', message: '搜尋 <網站>' })), '搜尋 &lt;網站&gt;', 'what is said is escaped');
+  assert.equal(label(renderSingleModelProgress({ elapsedMs: 9000, stage: 'documentTranslation', translatorName: 'Translator <T>' })), '文件轉譯 · Translator &lt;T&gt; · 9s');
+  assert.equal(label(renderSingleModelProgress({ elapsedMs: 2000, stage: 'streaming', receivedChars: 42 })), '已接收字元: 42', 'output at the end: the characters are the only sign of life');
+  assert.equal(label(renderSingleModelProgress({ elapsedMs: 12000, stage: 'streaming', receivedChars: 1234 })), '已接收字元: 1234 · 12s');
+});
+
+test('the dot keeps one shape from tick to tick, so the timer changes only its text and the breathing is not started again', () => {
+  const { renderSingleModelProgress } = createHarness({ uiLanguage: 'en' });
+  const shape = (html) => html.replace(/>[^<]*</g, '><');
+  const states = [
+    { elapsedMs: 1000, stage: 'streaming' }, { elapsedMs: 6000, stage: 'streaming' }, { elapsedMs: 3000, stage: 'documentTranslation' },
+    { elapsedMs: 8000, stage: 'streaming', receivedChars: 9 }
+  ];
+  const [first, ...others] = states.map((state) => shape(renderSingleModelProgress(state)));
+  for (const other of others) assert.equal(other, first);
+});
+
+test('a failed request keeps the error card it always had (the dot is only for the wait)', () => {
+  const { renderSingleModelError } = createHarness({ uiLanguage: 'zh-TW' });
   const errorHTML = renderSingleModelError({ elapsedMs: 999, modelName: '模型 B' }, '爆炸 <err>');
-
-  assert.match(progressHTML, /模型作答/);
-  assert.match(progressHTML, /串流 &lt;中&gt;/);
-  assert.match(progressHTML, /已接收字元: 42/);
-  assert.match(progressHTML, /Translator &lt;T&gt;/);
   assert.match(errorHTML, /single-progress-panel-error/);
   assert.match(errorHTML, /請求失敗/);
   assert.match(errorHTML, /爆炸 &lt;err&gt;/);
+  assert.match(errorHTML, /模型在回傳可用答案前停止。/);
+  assert.ok(!errorHTML.includes('progress-dot'), 'no dot in the error card');
+});
+
+test('the dot is drawn in the colour of the theme, breathes, and sits still for a person who asked for less motion', () => {
+  const css = readSource('src/styles/model-council.css');
+  assert.match(css, /\.progress-dot-mark \{[^}]*background: var\(--progress-dot-color, #3960ea\);[^}]*animation: progress-dot-breathe 0\.625s ease-in-out infinite alternate/s);
+  assert.match(css, /@keyframes progress-dot-breathe \{\s*from \{ transform: scale\(0\.84\); \}\s*to \{ transform: scale\(1\); \}/);
+  assert.match(css, /prefers-reduced-motion: reduce\) \{\s*\.progress-dot-mark \{[^}]*transform: none/s);
+  assert.match(css, /\.thinking-collapse summary/, 'the folding block of the thinking keeps its own');
 });
 
 test('response progress renderers source avoids runtime side-effect ownership', () => {
