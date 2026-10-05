@@ -131,3 +131,8 @@ a.pm-lic-name { text-decoration: underline; text-underline-offset: 2px; }
 .cred-ask.is-resolved .cred-ask-icon { width: 1.8rem; height: 1.8rem; background: transparent; }
 .cred-ask.is-resolved .cred-ask-title { font-weight: 500; color: var(--text-secondary); }
 .cred-ask.is-resolved.is-refused .cred-ask-title { color: #dc2626; }
+
+/* On a phone the arrow at the top of the settings page goes back through the pages of this tab (settings-section-back.js), so the one in the page is not shown. */
+@media (max-width: 768px) {
+  .pm .pm-back { display: none; }
+}

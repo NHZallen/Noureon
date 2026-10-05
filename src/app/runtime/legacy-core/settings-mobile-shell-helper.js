@@ -3,6 +3,8 @@ import {
   getSettingsMobileGroups as getSettingsMobileGroupsBase
 } from '../../legacy-runtime/features/settings-mobile-metadata.js';
 
+import { tryHandleSettingsBack } from './settings-section-back.js';
+
 const SETTINGS_MOBILE_VIEW_TRANSITION_MS = 280;
 
 const requiredDependencies = [
@@ -89,7 +91,12 @@ export function createSettingsMobileShellHelper(dependencies = {}) {
     settingsBody.prepend(mobileList);
     settingsBody.prepend(mobileHeader);
     const settingsMobileBackBtn = document.getElementById('settings-mobile-back-btn');
-    settingsMobileBackBtn.addEventListener('click', () => showSettingsMobileList());
+    // The arrow goes back one page of the open section when it has pages of its own (Permissions), and only then leaves it.
+    settingsMobileBackBtn.addEventListener('click', () => {
+      const open = Array.from(document.querySelectorAll('.settings-section')).find((section) => section.classList.contains('active'));
+      if (open?.id && tryHandleSettingsBack(open.id)) return;
+      showSettingsMobileList();
+    });
     mobileList.addEventListener('click', (event) => {
       const item = event.target.closest('.settings-mobile-list-item');
       if (!item?.dataset.section) return;

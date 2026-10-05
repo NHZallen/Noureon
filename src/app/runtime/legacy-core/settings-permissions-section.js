@@ -3,6 +3,7 @@
 // The choices are saved as soon as they are made (not with the Save button of the settings).
 
 import { permissionText } from '../cli/permission-texts.js';
+import { onSettingsSectionBack } from './settings-section-back.js';
 import { CREDENTIALS_CHANGED, deleteCredential, listCredentials, saveCredential } from '../cli/credentials-client.js';
 
 const SECTION_ID = 'permissions-section';
@@ -46,7 +47,9 @@ export function ensurePermissionsSettingsSection({ document, elements, config, s
   const render = async (fresh) => {
     // (A page that is only a stand-in for a document, as in some tests, has nothing to draw into.)
     if (typeof section.replaceChildren !== 'function') return;
-    const { renderPermissionsView, resetPermissionsView } = await import('../../ui/cli/permissions-view.js');
+    const { goBackInPermissionsView, renderPermissionsView, resetPermissionsView } = await import('../../ui/cli/permissions-view.js');
+    // The back arrow at the top of the page (a phone) goes back one page of this tab before it leaves the tab.
+    onSettingsSectionBack(SECTION_ID, () => goBackInPermissionsView(section));
     if (fresh) resetPermissionsView(section);
     renderPermissionsView({
       document,
