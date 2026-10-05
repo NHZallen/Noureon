@@ -313,3 +313,17 @@ test('a credential saved elsewhere (the window in a chat) shows in the open tab,
   await flush();
   assert.ok(t.host.querySelector('.pm-cred[data-name="REDDIT_SESSION"]'));
 });
+
+test('the tab can be gone back through one page at a time (the arrow at the top of a phone\'s settings page does it), and says when it is on its first page', async () => {
+  const { goBackInPermissionsView } = await import('../../src/app/ui/cli/permissions-view.js');
+  const t = permissions({ config: { cliEnabledIds: ['ffmpeg'], cliModelUseIds: [], cliVersions: {}, netMode: 'new', netRules: {} } });
+  assert.equal(goBackInPermissionsView(t.host), false, 'already on the first page: the arrow leaves the tab');
+  for (const view of ['tools', 'sites', 'credentials']) {
+    t.row(view).click();
+    assert.ok(!t.host.querySelector('input[name="cli-net-mode"]'), `${view} is a page of its own`);
+    assert.equal(goBackInPermissionsView(t.host), true);
+    assert.ok(t.host.querySelector('input[name="cli-net-mode"]'), `back on the first page from ${view}`);
+    assert.equal(goBackInPermissionsView(t.host), false);
+  }
+  assert.equal(goBackInPermissionsView({}), false, 'a page that was never drawn');
+});

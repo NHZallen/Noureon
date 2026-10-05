@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { modelSupportsToolCalling, MODELS, NON_TOOL_CALLING_MODEL_IDS, TOOL_CALLING_MODEL_IDS } from '../../src/app/runtime/legacy-core/model-registry.js';
+import { modelSupportsToolCalling, MODEL_CATALOG, MODELS, NON_TOOL_CALLING_MODEL_IDS, TOOL_CALLING_MODEL_IDS } from '../../src/app/runtime/legacy-core/model-registry.js';
 import { describeFileModeState, resolveReplyMode } from '../../src/app/runtime/sandbox/file-mode.js';
 import { MAX_RUNS_PER_REPLY } from '../../src/app/runtime/sandbox/sandbox-guidance.js';
 import { runSandboxReply, toolResultFor, trimForModel } from '../../src/app/runtime/sandbox/sandbox-reply.js';
@@ -56,7 +56,9 @@ test('text models are all marked with or without tool calling', () => {
   for (const id of textModels) {
     assert.ok(TOOL_CALLING_MODEL_IDS.includes(id) !== NON_TOOL_CALLING_MODEL_IDS.includes(id), `${id} is listed exactly once`);
   }
-  assert.ok(TOOL_CALLING_MODEL_IDS.every((id) => textModels.includes(id)), 'no stale ids');
+  // A model that has retired (its retirementDate has come) is out of MODELS but may stay in the lists until it is taken out of the catalog.
+  const catalogTextModels = MODEL_CATALOG.filter((model) => model.outputModality !== 'image').map((model) => model.id);
+  assert.ok(TOOL_CALLING_MODEL_IDS.every((id) => catalogTextModels.includes(id)), 'no stale ids');
   assert.equal(modelSupportsToolCalling(MODELS.find((model) => model.id === 'gemini-3.8-flash')), true);
   assert.equal(modelSupportsToolCalling(MODELS.find((model) => model.id === 'nvidia/z-ai/glm-5.3')), false);
   assert.equal(modelSupportsToolCalling(MODELS.find((model) => model.outputModality === 'image')), false);

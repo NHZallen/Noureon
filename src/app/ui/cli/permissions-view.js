@@ -26,6 +26,9 @@ const views = new WeakMap();
 /** The tab opens at its first page again (the settings were closed and opened). */
 export const resetPermissionsView = (root) => { const state = views.get(root); if (state) { state.view = 'home'; state.editing = state.adding = state.confirming = null; state.siteError = false; state.creds.status = 'idle'; } };
 
+/** Goes back one page of the tab (to its first page) and says whether it did: false when it is already on the first page. */
+export const goBackInPermissionsView = (root) => { const state = views.get(root); return state?.goBack ? state.goBack() : false; };
+
 /** The credentials changed somewhere else (a window saved one): the list is read again the next time it is drawn. */
 export const invalidatePermissionsCredentials = (root) => { const state = views.get(root); if (state) state.creds.status = 'idle'; };
 
@@ -52,6 +55,13 @@ export function renderPermissionsView({ document, root, getLanguage, getConfig, 
   }
   const win = document.defaultView;
   const redraw = () => renderPermissionsView({ document, root, getLanguage, getConfig, saveConfig, credentials, hasAccount, openStore, openLicenses, showNotification });
+  state.goBack = () => {
+    if (state.view === 'home') return false;
+    state.view = 'home';
+    state.editing = state.adding = state.confirming = null;
+    redraw();
+    return true;
+  };
 
   let saving = Promise.resolve();
   const save = () => {
@@ -87,11 +97,7 @@ export function renderPermissionsView({ document, root, getLanguage, getConfig, 
     back.type = 'button';
     back.innerHTML = `${ICONS.back}<span></span>`;
     back.querySelector('span').textContent = t('back');
-    back.addEventListener('click', () => {
-      state.view = 'home';
-      state.editing = state.adding = state.confirming = null;
-      redraw();
-    });
+    back.addEventListener('click', () => { state.goBack(); });
     return back;
   };
 
