@@ -10,16 +10,15 @@
 - 每個功能與文字都要有 5 種語言：zh-TW、en、fr、ru、es。
 - 視覺設計以真實廠商設計為依據；owner 偏好黑白極簡；使用者看得到的版面，先問 owner。
 - 每個階段結束前跑：`npm test`、`npm run build`、`npm run check:sizes`、`npm run check:legacy-runtime`、`npm run check:server`、`npm audit --omit=dev`（版本相關再加 `npm run check:version`）。
-- 每個次版本（`x.y.0`）要在發布 commit 上打 `v<版本>` 標籤（見 `RELEASING.md`）。
+- 標籤：owner 說**不要再提醒他打標籤**（2026-10-05）。發版時不用打標籤，也不要在回報裡再提；`RELEASING.md` 裡的標籤步驟對這個專案暫不執行。
 - 更新日誌要短，只寫使用者需要知道的事（owner 說過討論細節不需要寫進去）。
 
 ## 2. 目前狀態
 
 - （2026-10-05 補充）第二期程式在這個工作階段的工作目錄裡，**還沒 commit、沒推**（owner 沒要求）；`npm test` 2708 項全過、`npm run build`、`check:sizes`、`check:legacy-runtime`、`check:server`、`npm audit --omit=dev` 都通過。這個環境原本沒有 `node_modules`，要先 `npm ci` 才跑得了完整測試。
-- `main` 在 `00f5973`（命令工具商城第一期與後續修正已合併並推上，Vercel 與 Zeabur 已部署）。產品版本仍是 **17.6.0**，命令工具還沒發版、沒寫更新日誌。
+- `main` 在 `00f5973`（命令工具商城第一期與後續修正已合併並推上，Vercel 與 Zeabur 已部署）。產品版本 **17.7.0**（命令工具已發版、更新日誌已寫）。
 - 工作分支：`claude/cloud-mode-check-lk6fkx`（內容與 `main` 一致）。新工作階段若被指定別的分支，先 `git merge origin/main`。
 - Contabo VPS 的 runner 已更新到命令工具版本，`sh sandbox-host/smoke-test.sh` 通過 17 項（含 OfficeCLI、FFmpeg 在容器內實測）。
-- **還沒打的標籤（owner 要自己做，這裡的代理伺服器擋標籤推送）：** `v17.5.0`、`v17.5.1`、`v17.6.0`（`git fetch origin && git tag v17.6.0 238c23e && git push origin v17.6.0`）。
 
 ### 已完成的大項
 
@@ -41,7 +40,7 @@
    - owner 的決定：沙盒網路事先不用宣告網域、只在連線時詢問；不做寫入確認；不加「不可信內容」限制。
 2. ~~Pandoc、SoX~~（2026-10-05 已完成，見 §15）。
 3. ~~第 3 期（使用者上傳與分享）、第 4 期（評分、從 GitHub 網址匯入等）~~：**2026-10-05 owner 決定不做**（不讓使用者上傳）。命令工具計畫已完成，之後只做目錄的增減與修正。
-4. **發版 17.7.0**：owner 測完後說了才做（`src/data/version.js`、`package.json`、`package-lock.json`、`src/data/update-logs/entries.js`，更新日誌要短）。
+4. ~~發版 17.7.0~~：已於 2026-10-05 發布（命令工具；一個版本，沒有分版）。下一次發版再從 17.7.0 往上。
 5. OfficeCLI 使用說明加一句「每頁用標題版面，不要全用文字框」（實測簡報大綱全是 `(untitled)`）。owner 尚未決定要不要改。
 6. owner 截圖裡「思考完成」的思考文字有「一個詞一行」的顯示問題，原因不明（可能與命令工具無關），需要時請 owner 再提供畫面。
 7. 之後要提醒 owner：把深度研究、學習、搜尋、製作圖像併進同一個 `@` 選單；技能（另一份設計，不要跟命令工具混在一起）是否放進同一個商城做第二分頁。

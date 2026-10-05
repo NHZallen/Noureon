@@ -2,6 +2,20 @@
 // content 為 zh-TW 的 HTML 字串（JSON 轉義、雙引號），目前不隨介面語言切換。
 export const updateLogEntries = [
   {
+    version: "17.7.0",
+    date: "2026-10-05",
+    content: [
+      "<strong>Noureon 17.7.0 發布說明</strong>",
+      "本版本新增「命令工具」：把 OfficeCLI、FFmpeg 等命令列程式交給 AI，在伺服器的獨立沙盒裡執行，做好的檔案會出現在回覆下方。",
+      "<strong>主要變更</strong>",
+      "<ul><li><strong>命令工具商城：</strong>左側欄新增「命令工具」（網址為 noureon.com/cli）。官方提供 OfficeCLI（Word、Excel、PowerPoint）、FFmpeg（影音）、yt-dlp（下載影音）、csvkit（CSV）、Pandoc（文件轉換）、SoX（音訊）、twitter-cli 與 rdt-cli。按「＋」加入後，在輸入欄輸入 @ 即可選用；工具的詳細資料頁有用途與限制說明。</li><li><strong>連網前先詢問：</strong>工具要連到網站時，每個網站第一次都會詢問「同意此次、永遠同意、拒絕」，內部位址一律不可連線。</li><li><strong>新增「權限」設定：</strong>可設定網路詢問方式、管理各網站的規則、讓 AI 自行使用某個工具，並保存工具需要的登入資料（安全憑證，加密保存，可再次查看與刪除）。</li><li><strong>看圖檢查：</strong>放寬檢查與重做簡報的等待時間，減少「等太久了」而保持原樣的情況。</li></ul>",
+      "<strong>注意事項</strong>",
+      "<ul><li>命令工具需要登入雲端帳號，並在伺服器回覆下使用。</li><li>twitter-cli 與 rdt-cli 需要你自己的登入資料；X 與 Reddit 的服務條款不允許自動化存取，帳號可能受到限制。使用 yt-dlp 請自行遵守各網站條款與著作權。</li><li>設定頁底部可查看第三方軟體與授權。</li></ul>",
+      "<strong>相容性</strong>",
+      "本次更新不需要使用者端資料遷移；新增的設定會隨雲端設定同步。"
+    ]
+  },
+  {
     version: "17.6.0",
     date: "2026-10-04",
     content: [

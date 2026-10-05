@@ -4,10 +4,10 @@ import test from 'node:test';
 
 import { PRODUCT_VERSION } from '../src/data/version.js';
 
-const UPDATE_LOG_COUNT = 107;
+const UPDATE_LOG_COUNT = 108;
 // Derived, not copied: the newest update-log entry is by definition the product version.
 const LATEST_UPDATE_VERSION = PRODUCT_VERSION;
-const UPDATE_LOGS_CONTENT_HASH = 'd5fea933b163a0b768c3b6029e485a49aea0ff1d2edaf9409896df1c4613d2cc';
+const UPDATE_LOGS_CONTENT_HASH = '2424b73f38b47529eb579268e828fc07c515210729ddb2520c3a5db060728572';
 
 const hashLogs = (logs) => createHash('sha256').update(JSON.stringify(logs)).digest('hex');
 
