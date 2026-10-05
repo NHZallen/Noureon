@@ -29,6 +29,7 @@
 
 ## 3. 待辦（依 owner 已表達的順序）
 
+-3. **等回覆時的大進度模塊：維持舊版（2026-10-05，owner 要求撤回）**：試做過「呼吸的圓點取代大卡片」，owner 看過後要求全部撤回，`main` 已還原成舊卡片（還原提交 `f4756ef`）。**沒有定案，不要再自己改**：要改之前先和 owner 逐項確認，並對照他的錄影。試做的程式碼與量測（圓點大小 20px、縮放 0.84～1、一次呼吸約 1.25 秒、預設色 `#3960ea`）留在遠端分支 `claude/progress-dot`、`claude/progress-dot-only`（沒合併）。
 -2. **Pandoc 與 SoX 上架（規格 §15）**：Pandoc 3.12 從官方 `.tar.gz` 解壓出單一執行檔（runner 的 `tar-member.js`，目錄的 `archive` 欄位）；SoX 用 Debian 套件放進沙盒映像檔（新種類 `image`）。要在 VPS 重建映像檔：`cd ~/Noureon && git checkout main && git pull && sh sandbox-host/install.sh && sh sandbox-host/smoke-test.sh`（smoke-test 新增 pandoc、sox 三項）。待辦第 2 項（Pandoc、SoX）已完成；商城裡已經沒有「即將推出」的工具。
 -1. **Python 工具快取與 `file`（規格 §13）**：要在 VPS 更新 runner 與映像檔才有效：`git pull && sh sandbox-host/install.sh && sh sandbox-host/smoke-test.sh`（映像檔多了 `file`，要重建；smoke-test 多三項）。伺服器端是向下相容的：runner 還是舊版時照舊在沙盒裡安裝。
 0. **命令工具第 2.1 期改版——已實作在分支 `claude/cli-store-fixes`（2026-10-05），等 owner 測試再說推不推**（做了什麼、為什麼見 `specs/2026-10-04-cli-store-design.md` §11）：憑證改成輸入視窗（`@` 選的工具缺憑證時回覆一開始就問；模型自己的工具用 `request_credentials`）、設定頁拿掉預設清單、標籤依 Token／Cookie／密碼；檔案單檔 50 MB／單步驟 100 MB 與清楚的「沒有提供下載」提示；影音檔案類型與 yt-dlp 指引；工具說明改寫降低亂用；pip 工具按需安裝；每人 500 MB 雲端空間（`GET /v1/storage`、設定「資料管理」顯示用量）；每日孤兒檔清理（預設只報告，**owner 看過日誌裡的名單、同意後才在 Zeabur 設 `ASSET_SWEEP=delete`**）。Supabase 的 `user_asset_usage`／`orphan_user_assets` 兩個函式已經建好（遷移檔 `20261005020000_*.sql` 是同一份）。
