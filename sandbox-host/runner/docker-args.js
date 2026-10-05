@@ -35,6 +35,8 @@ export function dockerRunArgs({ config, sessionId, dirs, language }) {
     '-v', `${dirs.output}:/output:rw`,
     // The programs of the CLI tools: put there by the runner, only read (and run) in the container.
     '-v', `${dirs.cli}:/opt/cli:ro`,
+    // The Python tools installed once on this machine (pip-cache.js): the whole cache, read only; a session is given a script for each tool it uses.
+    '-v', `${config.pipCacheDir}:/opt/pip-cache:ro`,
     // The proxy's socket: the container may connect to it and nothing else.
     '-v', `${dirs.net}:/run/noureon-net:ro`,
     '-e', `LANGUAGE=${String(language || 'zh-TW').replace(/[^A-Za-z-]/g, '').slice(0, 12) || 'zh-TW'}`,

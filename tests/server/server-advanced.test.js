@@ -352,8 +352,8 @@ test('a stop is a stop, not a lost sandbox', async () => {
 
 // ----- CLI tools (命令工具)
 
-function fakeCliHost({ commandResult = { stdout: 'created\n' }, failMount = '', commandFor = null } = {}) {
-  const record = { mountedCli: null, net: null, commands: [], disposed: 0, answers: [] };
+function fakeCliHost({ commandResult = { stdout: 'created\n' }, failMount = '', commandFor = null, pip = null } = {}) {
+  const record = { mountedCli: null, net: null, commands: [], disposed: 0, answers: [], mountedPip: [] };
   return {
     record,
     configured: true,
@@ -376,6 +376,14 @@ function fakeCliHost({ commandResult = { stdout: 'created\n' }, failMount = '', 
         return { stdout: { text: outcome.stdout || '', dropped: 0 }, stderr: { text: outcome.stderr || '', dropped: 0 }, error: outcome.error || '', elapsedMs: 80, files: outcome.files || [], skippedFiles: [] };
       },
       answerNet: async (askId, decision) => { record.answers.push([askId, decision]); return { answered: true }; },
+      // The host's cache of the Python tools (`pip`: 'cached' | 'failed' | 'throws'); without it the sandbox has no such method.
+      ...(pip ? {
+        mountPip: async (tools) => {
+          record.mountedPip.push(...tools);
+          if (pip === 'throws') throw new Error('The host could not be reached.');
+          return pip === 'cached' ? { cached: tools.map((tool) => tool.id), failed: [] } : { cached: [], failed: tools.map((tool) => ({ id: tool.id, reason: 'install_failed' })) };
+        }
+      } : {}),
       run: async () => ({ stdout: { text: '', dropped: 0 }, stderr: { text: '', dropped: 0 }, error: '', elapsedMs: 1, files: [], skippedFiles: [] }),
       dispose: async () => { record.disposed += 1; }
     })
@@ -775,4 +783,33 @@ test('the time spent waiting for the person to enter a login is not counted: the
   assert.deepEqual(set.map((event) => event.tm), [0], 'the reply had gone on for no time when it began waiting, and still has not');
   assert.ok(live.indexOf(set[0]) < live.findIndex((event) => event.ev?.event === 'answer'), 'pages hear the new clock before the answer');
   assert.equal(result.run.elapsedMs, 0, 'the record of the reply leaves the wait out too');
+});
+
+
+test('a Python tool comes from the host\'s cache of it: asked for once, with the package and version of the store, and no install runs in the sandbox', async () => {
+  const host = fakeCliHost({ pip: 'cached', commandFor: (line) => ({ stdout: line.startsWith('pip install') ? '' : 'timeline\n' }) });
+  let round = 0;
+  await executeReply({
+    spec: specFor({ cli: [{ id: 'twitter-cli', chosen: true }] }), secrets, userId: USER, sandboxHost: host, files: fakeFiles(),
+    credentials: { values: async () => ({ TWITTER_AUTH_TOKEN: 'tok_value_123456', TWITTER_CT0: 'ct0_value_123456' }) }, onLive: () => {},
+    fetchImpl: async () => { round += 1; return streamResponse(round <= 2 ? sse(toolCall(`c${round}`, 'run_command', { command: 'twitter feed' })) : sse(content('Done.'))); }
+  });
+  assert.deepEqual(host.record.mountedPip, [{ id: 'twitter-cli', pip: { package: 'twitter-cli', version: '0.8.5', command: 'twitter', commands: ['twitter'] } }], 'once for two commands');
+  assert.equal(host.record.commands.some((command) => command.line.startsWith('pip install')), false, 'nothing is installed inside the sandbox');
+  assert.equal(host.record.commands.filter((command) => command.line === 'twitter feed').length, 2);
+});
+
+test('a Python tool the host cannot give (no wheel, the host unreachable) is installed inside the sandbox as before, and the reply goes on', async () => {
+  for (const pip of ['failed', 'throws']) {
+    const host = fakeCliHost({ pip, commandFor: (line) => ({ stdout: line.startsWith('pip install') ? '' : 'timeline\n' }) });
+    let round = 0;
+    const result = await executeReply({
+      spec: specFor({ cli: [{ id: 'twitter-cli', chosen: true }] }), secrets, userId: USER, sandboxHost: host, files: fakeFiles(),
+      credentials: { values: async () => ({ TWITTER_AUTH_TOKEN: 'tok_value_123456', TWITTER_CT0: 'ct0_value_123456' }) }, onLive: () => {},
+      fetchImpl: async () => { round += 1; return streamResponse(round === 1 ? sse(toolCall('c1', 'run_command', { command: 'twitter feed' })) : sse(content('Done.'))); }
+    });
+    assert.equal(result.status, 'done', pip);
+    assert.equal(host.record.mountedPip.length, 1, pip);
+    assert.equal(host.record.commands.filter((command) => command.line.startsWith('pip install')).length, 1, `${pip}: the old way`);
+  }
 });

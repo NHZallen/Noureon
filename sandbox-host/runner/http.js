@@ -2,6 +2,7 @@
 //   POST   /v1/sessions                     { language }          -> { id }
 //   POST   /v1/sessions/:id/mount           { files: [{ name, type, data (base64) }] }
 //   POST   /v1/sessions/:id/cli             { tools: [{ id, file, url, sha256, size }], net?: { mode, rules } } -> { mounted, network }   (the programs of CLI tools, in /opt/cli; `net` gives the session its proxy)
+//   POST   /v1/sessions/:id/pip             { tools: [{ id, pip: { package, version, command, commands } }] } -> { cached, failed }   (the Python tools, from the cache of the machine; a script for each command in /opt/cli)
 //   POST   /v1/sessions/:id/net/answer      { askId, decision: 'once' | 'always' | 'deny' }  -> { answered }   (the person's answer to a question about a site, which a running step told in its stream)
 //   POST   /v1/sessions/:id/run             { code, timeoutMs } or { command, env, files, timeoutMs }  -> lines of JSON: { type: 'progress', ... } ... { type: 'result', ... }
 //   POST   /v1/sessions/:id/clear | /stop
@@ -82,6 +83,7 @@ export function createHandler({ manager, config, log = () => {} }) {
         const body = await readJson(request);
         return json(response, 200, await manager.mountCli(id, body.tools, body.net));
       }
+      if (route === 'POST /v1/sessions/:id/pip') return json(response, 200, await manager.mountPip(id, (await readJson(request)).tools));
       if (route === 'POST /v1/sessions/:id/net/answer') {
         const body = await readJson(request);
         return json(response, 200, await manager.answerNet(id, body.askId, body.decision));

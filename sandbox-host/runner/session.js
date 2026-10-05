@@ -3,12 +3,13 @@
 
 import { spawn as nodeSpawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { chmodSync, chownSync, copyFileSync, linkSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, chownSync, copyFileSync, existsSync, linkSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { createInterface } from 'node:readline';
 import { join } from 'node:path';
 import { LIMITS } from '../../public/sandbox/protocol.js';
 import { containerName, dockerRunArgs } from './docker-args.js';
 import { createCliCache } from './cli-cache.js';
+import { createDockerPipInstaller, createPipCache, pipCommandsOf } from './pip-cache.js';
 import { createNetProxy } from './net-proxy.js';
 import { collectOutput, snapshotOutput } from './output.js';
 
@@ -60,9 +61,17 @@ const CLI_ID = /^[a-z][a-z0-9-]{1,39}$/;
 const CLI_FILE = /^[A-Za-z0-9._-]{1,60}$/;
 const MAX_CLI_TOOLS = 8;
 
-export function createSessionManager({ config, spawn = nodeSpawn, now = Date.now, log = () => {}, setTimer = setTimeout, clearTimer = clearTimeout, randomId = () => randomBytes(12).toString('hex'), fetchImpl = fetch, proxyOptions = {} }) {
+export function createSessionManager({ config, spawn = nodeSpawn, now = Date.now, log = () => {}, setTimer = setTimeout, clearTimer = clearTimeout, randomId = () => randomBytes(12).toString('hex'), fetchImpl = fetch, proxyOptions = {}, pipCache = null }) {
   const sessions = new Map();
   const cliCache = createCliCache({ dir: config.cliCacheDir, hosts: config.cliHosts, maxBytes: config.cliMaxBytes, fetchImpl, log });
+  // The Python tools, installed once on this machine (and kept to a size): a session sees the whole folder read only (docker-args.js).
+  const pips = pipCache || createPipCache({ dir: config.pipCacheDir, maxBytes: config.pipCacheBytes, install: createDockerPipInstaller({ dockerBin: config.dockerBin, image: config.image, owner: config.owner, spawn }), log });
+  try {
+    mkdirSync(config.pipCacheDir, { recursive: true });
+    chmodSync(config.pipCacheDir, 0o755);
+  } catch {
+    // Docker makes the folder when a container is started.
+  }
 
   const makeDirs = (id) => {
     const root = join(config.dataDir, id);
@@ -367,6 +376,46 @@ export function createSessionManager({ config, spawn = nodeSpawn, now = Date.now
           }
         }
         return { mounted, network: Boolean(session.proxy) };
+      });
+    },
+
+    /**
+     * Gives the session the Python tools it asks for, from the cache of this machine (installed first when it has not got them yet; this can take
+     * a while the first time): [{ id, pip: { package, version, command, commands } }]. A small script for each command of a tool, in /opt/cli, runs
+     * the tool from its folder in /opt/pip-cache. Resolves { cached: [ids], failed: [{ id, reason }] }: a tool that could not be had is left to the
+     * reply to install itself, inside the sandbox.
+     */
+    async mountPip(id, tools = []) {
+      const session = get(id);
+      const list = Array.isArray(tools) ? tools.slice(0, MAX_CLI_TOOLS) : [];
+      for (const tool of list) {
+        if (!CLI_ID.test(String(tool?.id || '')) || !tool.pip || typeof tool.pip !== 'object') throw new RunnerError('bad_request', 'A tool has no valid id or Python package.', 400);
+      }
+      // Installed before the session's queue is taken: a long install must not hold up a step of this session.
+      const ready = [];
+      const failed = [];
+      for (const tool of list) {
+        try {
+          ready.push({ tool, entry: await pips.ensure(tool.pip) });
+        } catch (error) {
+          if (error?.name !== 'PipCacheError') throw error;
+          if (error.code === 'bad_request') throw new RunnerError('bad_request', error.message, 400);
+          failed.push({ id: tool.id, reason: error.code, message: String(error.message || '').slice(0, 200) });
+        }
+      }
+      return serialized(session, async () => {
+        for (const { tool, entry } of ready) {
+          for (const command of pipCommandsOf(tool.pip)) {
+            // Only a command the tool has. The script sets the path of the tool's own packages for itself, so two tools never see each other's.
+            if (!existsSync(join(entry.path, 'bin', command))) continue;
+            const script = `#!/bin/sh\nexport PYTHONPATH="/opt/pip-cache/${entry.name}\${PYTHONPATH:+:$PYTHONPATH}"\nexec "/opt/pip-cache/${entry.name}/bin/${command}" "$@"\n`;
+            const target = join(session.dirs.cli, command);
+            rmSync(target, { force: true });
+            writeFileSync(target, script, { mode: 0o755 });
+            chmodSync(target, 0o755);
+          }
+        }
+        return { cached: ready.map(({ tool }) => tool.id), failed };
       });
     },
 

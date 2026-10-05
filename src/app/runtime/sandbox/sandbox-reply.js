@@ -218,6 +218,16 @@ export async function runSandboxReply({
   // A Python tool is installed the first time a command uses it (not for every reply that merely has it among its tools): the person is asked about
   // a site the install needs that has no rule, and the install is told in the step that needs it.
   const installed = new Set();
+  const mountFromCache = async (sandbox, tool) => {
+    if (typeof sandbox.mountPip !== 'function' || !tool.pip?.package || !tool.pip?.version) return false;
+    try {
+      const result = await sandbox.mountPip([{ id: tool.id, pip: { package: tool.pip.package, version: tool.pip.version, command: tool.pip.command, commands: tool.pip.commands } }]);
+      return Array.isArray(result?.cached) && result.cached.includes(tool.id);
+    } catch (error) {
+      if (signal?.aborted) throw error;
+      return false;
+    }
+  };
   const installFor = async (sandbox, commandLine) => {
     for (const tool of cliTools) {
       if (!tool.install || installed.has(tool.id) || cliProblems[tool.id]) continue;
@@ -227,6 +237,8 @@ export async function runSandboxReply({
       const installing = sandboxText(language, 'sandboxCliInstalling', { name: tool.name });
       onStatus(installing);
       onEvent({ type: 'prepare', text: installing });
+      // From the host's cache of the tool (installed there once, for every reply after); only when that cannot be had does the reply install it itself.
+      if (await mountFromCache(sandbox, tool)) continue;
       try {
         const done = await sandbox.command(tool.install, { signal, plain: true, timeoutMs: 120_000 });
         if (done?.stopped) throw Object.assign(new Error('stopped'), { code: 'stopped' });
