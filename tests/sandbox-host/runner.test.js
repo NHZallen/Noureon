@@ -279,7 +279,8 @@ sandboxTest('the Python tools of a session come from the cache of the machine: a
   const pipCache = {
     ensure: async (pip) => {
       asked.push(pip.package);
-      if (pip.package === 'no-wheel') throw Object.assign(new PipCacheError('install_failed', 'no wheel'));
+      if (pip.package === 'no-wheel') throw new PipCacheError('install_failed', 'no wheel');
+      if (pip.package.startsWith('..')) throw new PipCacheError('bad_request', 'The tool is not valid.', 400);
       return { name: 'twitter-cli-0.8.5', path: toolDir };
     }
   };
@@ -301,7 +302,7 @@ sandboxTest('the Python tools of a session come from the cache of the machine: a
     assert.equal(statSync(join(sessionCli, 'twitter')).mode & 0o111, 0o111, 'it can be run');
     await assert.rejects(() => manager.mountPip(id, [{ id: 'Bad Id', pip: {} }]), /no valid id or Python package/);
     await assert.rejects(() => manager.mountPip(id, [{ id: 'x-tool', pip: { package: '../x', version: '1', command: 'x' } }]), (error) => error instanceof RunnerError && error.status === 400);
-    assert.deepEqual(asked, ['twitter-cli', 'no-wheel', '../x'].slice(0, 2).concat(['../x']));
+    assert.deepEqual(asked, ['twitter-cli', 'no-wheel', '../x']);
   } finally {
     await h.done();
   }
