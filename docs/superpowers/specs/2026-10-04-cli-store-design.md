@@ -248,4 +248,6 @@
 - 目錄新增 `kind: 'image'`、`image: { command: 'sox' }`：商城照常上架、加入與用 `@` 選，但伺服器不下載、不掛載任何東西（`executor.js` 傳 `image` 而不是 `program`），只是把使用說明給模型；指令本來就在容器的 PATH 上。
 - 取捨：用的是發行版打包的程式，而不是像其他工具那樣用雜湊釘住官方檔案；好處是不用維護編譯，壞處是版本跟著映像檔重建（LaTeX 也是同樣的情形）。
 
+**實測（2026-10-05，owner 在 VPS）**：重建映像檔後 `smoke-test.sh` 31 項全過（含 pandoc 從壓縮檔解壓、做出 Word、做出含中文的 PDF、sox 做出 wav 與 mp3），上面「沒能實測」的 PDF 一項已經驗證，LaTeX 套件清單夠用。映像檔多了約 630 MB。
+
 **VPS 要做的事**：`cd ~/Noureon && git checkout main && git pull && sh sandbox-host/install.sh && sh sandbox-host/smoke-test.sh`（映像檔多了 sox，要重建；`smoke-test.sh` 新增三項：pandoc 能執行、pandoc 做出 Word 檔、sox 做出 wav 與 mp3）。第一次用 Pandoc 的回覆要先下載 35 MB 並解壓，約幾秒到十幾秒。
