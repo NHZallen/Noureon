@@ -101,3 +101,11 @@ test('a tool may carry its project logo: from an allowed host over https, or non
     assert.ok(validateCliManifest({ ...base, icon: bad }).some((problem) => /icon/.test(problem)), bad);
   }
 });
+
+test('OfficeCLI is told that a slide\'s title is made with the slide, not written in a text box (else the outline says "(untitled)")', () => {
+  const usage = getCliTool('officecli').usage;
+  assert.match(usage, /officecli add slides\.pptx \/ --type slide --prop title=/);
+  assert.match(usage, /A title written in a text box or shape is not a title/);
+  assert.match(usage, /officecli view slides\.pptx outline/);
+  assert.ok(usage.length < 8000, 'within the limit of a manifest');
+});

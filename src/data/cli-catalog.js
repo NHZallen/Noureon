@@ -48,6 +48,7 @@ Change (paths use a stable id such as /body/p[@paraId=1A2B3C4D] when one is give
   officecli add report.docx /body --type paragraph --prop text="Summary" --prop style=Heading1
   officecli add slides.pptx / --type slide --prop title="Q4 report"
   officecli add slides.pptx '/slide[1]' --type shape --prop text="Revenue +25%" --prop x=2cm --prop y=5cm --prop size=24
+  Every slide gets a real title, made with the slide: --prop title="..." (add --prop layout="Title and Content" --prop text="..." for a body placeholder). A title written in a text box or shape is not a title: PowerPoint's outline, thumbnails and navigation then show the slide as "(untitled)" (check with: officecli view slides.pptx outline). Use shapes and text boxes only for the other elements of a slide.
   officecli set data.xlsx /Sheet1/A1 --prop value="Name" --prop bold=true
   officecli set report.docx '/body/p[@paraId=1A2B3C4D]' --prop text="New text"
   officecli remove report.docx '/body/p[@paraId=1A2B3C4D]'
