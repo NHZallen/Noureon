@@ -10,7 +10,7 @@ Read these before changing anything:
 - Plan B (Python sandbox, "Advanced" mode) design: [`docs/superpowers/specs/2026-09-28-python-sandbox-design.md`](docs/superpowers/specs/2026-09-28-python-sandbox-design.md)
 - Server-side execution (replies that continue after the page is closed, skills, command-line tools) plan: [`docs/superpowers/specs/2026-10-03-server-runtime-design.md`](docs/superpowers/specs/2026-10-03-server-runtime-design.md)
 - Deep research (計劃倒數、自主研究、報告卡與下載) design, under discussion: [`docs/superpowers/specs/2026-10-04-deep-research-design.md`](docs/superpowers/specs/2026-10-04-deep-research-design.md)
-- CLI store (命令工具商城: store tab, `@` menu, permissions, sandbox network) design, phase 1 shipped (notes in §9), phase 2 implemented and waiting for the owner's test (notes in §10), phase 3 next: [`docs/superpowers/specs/2026-10-04-cli-store-design.md`](docs/superpowers/specs/2026-10-04-cli-store-design.md)
+- CLI store (命令工具商城: store tab, `@` menu, permissions, sandbox network) design, phase 1 shipped (notes in §9), phase 2 done (notes in §10); phases 3 and 4 (user uploads) were cancelled by the owner on 2026-10-05, so the plan is complete: [`docs/superpowers/specs/2026-10-04-cli-store-design.md`](docs/superpowers/specs/2026-10-04-cli-store-design.md)
 - Releases and deployment: [`RELEASING.md`](RELEASING.md), tests: [`TESTING.md`](TESTING.md)
 
 Rules that always apply:
