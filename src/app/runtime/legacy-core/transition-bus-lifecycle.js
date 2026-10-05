@@ -359,6 +359,8 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
     const deviceHistoryRecallConsent = createDeviceHistoryRecallConsentRuntime({
         storage: localMemoryStorage,
         storageKey: () => `noureon:history-recall-device-consent:v1:${getMemoryOwner()}`,
+        // The setting is synced with the account, and so is the consent that was given when it was turned on.
+        isImplied: () => state.config?.historyRecallEnabled === true,
         logger: console,
         onLoaded: notifyHistoryIndexChanged
     });

@@ -216,7 +216,7 @@
         historyRecallStatusEnabled: 'Enabled. This device has {count} local index records (conversation capsules, detail fragments, and media).',
         historyRecallStatusDisabled: 'Currently off; earlier conversations are not searched and Embedding is not called.',
         historyRecallConsentTitle: 'Enable cross-conversation recall',
-        historyRecallConsentMessage: 'When cross-conversation recall is enabled, this device sends your current question to Gemini Embedding 2 and searches the local index for relevant earlier conversations. Vectors and the index are not synced. Enable it on this device?',
+        historyRecallConsentMessage: 'When cross-conversation recall is enabled, your devices send your current question to Gemini Embedding 2 and search their local index for relevant earlier conversations. This consent follows your account to all your devices, so no device asks again; vectors and the index are not synced, each device builds its own. Enable it?',
         historyRecallEnableFirst: 'Enable and save cross-conversation recall first.',
         memoryAddSuppressionRule: 'Add a do-not-use-proactively rule',
         memorySuppressionRulePrompt: 'For example: Do not proactively mention my name, health information, or other private details. This rule is used only as a necessary response constraint.',

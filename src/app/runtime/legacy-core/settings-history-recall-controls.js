@@ -203,7 +203,7 @@ export function createSettingsHistoryRecallControls({
     const status = typeof getStatus === 'function' ? await getStatus() : null;
     if (!status || status.consented) return true;
     const accepted = await showCustomConfirm(
-      getText('historyRecallConsentMessage', '啟用跨對話回憶後，這台裝置會把你目前的問題傳給 Gemini Embedding 2，並從本機索引找相關舊對話。向量與索引不會同步。要在這台裝置啟用嗎？'),
+      getText('historyRecallConsentMessage', '啟用跨對話回憶後，你的裝置會把你目前的問題傳給 Gemini Embedding 2，並從本機索引找相關舊對話。這個同意會跟著你的帳號同步到所有裝置，不用每台裝置各自同意；向量與索引不會同步，每台裝置會在本機自己建立。要啟用嗎？'),
       getText('historyRecallConsentTitle', '啟用跨對話回憶')
     );
     if (!accepted) return false;
