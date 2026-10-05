@@ -132,10 +132,12 @@ export function createSingleModelResponseLifecycle({
     // A model that calls tools searches the web by itself, in a Standard reply and next to Python in Advanced mode (the search
     // packet is for the others).
     const researchByModel = Boolean(webSearchEnabled && webResearch?.canUse(modelInfo));
-    // A web address in the message is read for the models that cannot open one (provider-request-support.js decides which).
+    // A web address in the message is read for the models that cannot open one (provider-request-support.js decides which). Not when the person
+    // chose a CLI tool with "@" and the model searches and opens pages by itself: the address is the tool's, and the model reads it if it needs to.
+    const addressIsForTool = researchByModel && Boolean(supportsToolCalling?.(modelInfo)) && cliIdsForReply(getConfig(), userParts).chosen.length > 0;
     const hasTranslationInputs = !resumeRun && (userParts.some((part) => part.inlineData) ||
       Boolean(webSearchEnabled && !researchByModel) ||
-      extractLinkedUrls(userParts.map((part) => part.text || '').join('\n')).urls.length > 0);
+      (!addressIsForTool && extractLinkedUrls(userParts.map((part) => part.text || '').join('\n')).urls.length > 0));
     let requestParts = userParts;
     // The pages a web search found (kept with the reply, shown as "Searched N sites").
     let searchSources = [];
@@ -164,6 +166,7 @@ export function createSingleModelResponseLifecycle({
         (stage, message) => renderProgress(targetElement, startedAt, stage, message),
         {
           webSearchEnabled: webSearchEnabled && !researchByModel,
+          readLinkedPages: !addressIsForTool,
           conversation,
           // The pages a search found, and then the pages that were read (marked `read`).
           onSources: (sources) => {

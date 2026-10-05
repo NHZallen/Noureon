@@ -32,6 +32,7 @@ const createHarness = ({
   fetchImpl,
   modelUsesTavilySearch = () => false,
   streamImpl,
+  linkedPagesWaitMs,
   translatorModel = { id: 'translator', name: 'Translator' }
 } = {}) => {
   const fetchCalls = [];
@@ -73,7 +74,8 @@ const createHarness = ({
       callback();
       return { delay };
     },
-    clearTimeoutFn: () => {}
+    clearTimeoutFn: () => {},
+    ...(linkedPagesWaitMs ? { linkedPagesWaitMs } : {})
   });
 
   return { fetchCalls, searchData, streamCalls, support, timers };
@@ -537,3 +539,24 @@ test('a query that is already written (the council\'s) is searched as it is, and
   assert.equal(await withRewriter.buildSearchQuery([{ text: '你去查阿' }], { conversation: { messages: [] }, modelInfo: { id: 'synth' } }), 'written for synth');
 });
 
+
+test('a page that does not answer in time is left out and the message goes on; stopping the reply is still a stop', async () => {
+  const hang = (init) => new Promise((resolve, reject) => {
+    init?.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true });
+  });
+  const { support } = createHarness({ apiKeys: { tavily: 'tv' }, linkedPagesWaitMs: 30, fetchImpl: (url, init) => hang(init) });
+  const progress = [];
+  // (A timeout signal does not keep Node's event loop alive by itself.)
+  const keepAlive = setInterval(() => {}, 10);
+  const text = await support.readLinkedPages([{ text: `read ${LINK}` }], new AbortController().signal, { onProgress: (stage) => progress.push(stage) });
+  assert.deepEqual(progress, ['linkedPages']);
+  assert.match(text, /Linked pages that could not be read/);
+  assert.match(text, new RegExp(LINK.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  assert.match(text, /did not answer in time/);
+
+  const controller = new AbortController();
+  const stopping = support.readLinkedPages([{ text: `read ${LINK}` }], controller.signal, {});
+  setTimeout(() => controller.abort(), 5);
+  await assert.rejects(() => stopping, (error) => error.name === 'AbortError');
+  clearInterval(keepAlive);
+});

@@ -51,12 +51,13 @@ export const pageCharsFor = (count) => Math.max(1000, Math.min(PAGE_CHARS, Math.
 
 const REASONS = {
   noReader: 'No page reader is set up: reading a web address needs a Tavily or TinyFish API key in Settings.',
-  failed: 'The pages could not be fetched (the site may block automated reading, need a login, or be down).'
+  failed: 'The pages could not be fetched (the site may block automated reading, need a login, or be down).',
+  timeout: 'The pages did not answer in time (the site may be slow or block automated reading), so the message was sent without them.'
 };
 
 /**
  * What the model is given: the text of the pages that were read, marked as the app's and as untrusted, and, for the ones
- * that were not, what to say to the user. `failed` is [{ url, reason }] with reason 'noReader' or 'failed'.
+ * that were not, what to say to the user. `failed` is [{ url, reason }] with reason 'noReader', 'failed' or 'timeout'.
  */
 export function buildLinkedPagesText({ pages = [], failed = [], skipped = 0 } = {}) {
   const sections = [];
