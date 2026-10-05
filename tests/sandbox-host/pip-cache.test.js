@@ -127,3 +127,10 @@ test('the container that installs a tool has the network pip needs and nothing e
   assert.equal(seen[0].filter((arg) => arg === '-v').length, 1, 'only the folder being filled is mounted');
   await assert.rejects(() => make(1, 'ERROR: x\nERROR: No matching distribution found for twitter-cli==9\n')({ package: 'twitter-cli', version: '9', target: '/t' }), (error) => error.code === 'install_failed' && /No matching distribution/.test(error.message));
 });
+
+test('the cache may hold 10 GB by default, and the setting can change it', async () => {
+  const { loadConfig } = await import('../../sandbox-host/runner/config.js');
+  const token = 'a'.repeat(40);
+  assert.equal(loadConfig({ RUNNER_TOKEN: token }).pipCacheBytes, 10 * 1024 * MB);
+  assert.equal(loadConfig({ RUNNER_TOKEN: token, SANDBOX_PIP_CACHE_BYTES: String(2 * 1024 * MB) }).pipCacheBytes, 2 * 1024 * MB);
+});

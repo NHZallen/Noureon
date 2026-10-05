@@ -14,7 +14,7 @@ Noureon server (Zeabur) ──token──▶ runner (container, this machine, 10
 | `Dockerfile.runner`, `runner/` | the runner: opens and closes the containers, answers the server |
 | `install.sh` | builds both images, makes the secret, starts the runner |
 | `runner/cli-cache.js` | fetches the programs of CLI tools (命令工具) once, checks their hash, keeps them in `cli-cache/` |
-| `runner/pip-cache.js` | installs the Python tools (twitter-cli, csvkit, ...) once on this machine, keeps them in `pip-cache/` (at most `SANDBOX_PIP_CACHE_BYTES`, 3 GB by default, the tools unused for longest go first) |
+| `runner/pip-cache.js` | installs the Python tools (twitter-cli, csvkit, ...) once on this machine, keeps them in `pip-cache/` (at most `SANDBOX_PIP_CACHE_BYTES`, 10 GB by default, the tools unused for longest go first) |
 | `runner/net-proxy.js` | the filtering proxy of a session (the only way out of a container, by a unix socket): rules of sites, internal addresses always refused, questions to the person |
 | `smoke-test.sh` | tries the sandbox for real (Python, the walls, and the CLI tools) and checks the walls hold |
 

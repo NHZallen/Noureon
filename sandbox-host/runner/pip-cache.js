@@ -102,7 +102,7 @@ export function createDockerPipInstaller({ dockerBin = 'docker', image, owner = 
   });
 }
 
-export function createPipCache({ dir, maxBytes = 3 * 1024 * 1024 * 1024, install, now = Date.now, idleMs = 10 * 60_000, log = () => {} }) {
+export function createPipCache({ dir, maxBytes = 10 * 1024 * 1024 * 1024, install, now = Date.now, idleMs = 10 * 60_000, log = () => {} }) {
   const inflight = new Map();
 
   const touch = (path) => {

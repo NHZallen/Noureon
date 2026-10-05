@@ -223,7 +223,7 @@
 **做法**：
 - runner 新增 `pip-cache.js` 與 `POST /v1/sessions/:id/pip`。第一次用到某個 Python 工具時，在主機上用一個一次性的容器安裝進 `/var/lib/noureon-sandbox/pip-cache/<套件>-<版本>/`（唯讀根目錄、沒有權限、1 GB 記憶體上限、**只裝 wheel**：`--only-binary :all:`，所以安裝時不會執行套件的任何程式碼；使用**主機的網路**，因為這台機器的 Docker 設成不動網路規則，容器自己沒有網路）；之後每次回覆直接用。
 - 沙盒把整個快取資料夾唯讀掛在 `/opt/pip-cache`；runner 為工具的每個指令在該回覆的 `/opt/cli` 寫一個小腳本，設好該工具自己的 `PYTHONPATH` 再執行快取裡的程式，兩個工具的套件不會互相看到。
-- 快取有上限（`SANDBOX_PIP_CACHE_BYTES`，預設 3 GB）：超過時先刪最久沒用的（十分鐘內用過的、剛裝好的不刪）。實測大小：twitter-cli 77 MB、csvkit 70 MB、rdt-cli 40 MB。快取裡只有公開的軟體，沒有任何人的資料。
+- 快取有上限（`SANDBOX_PIP_CACHE_BYTES`，預設 10 GB）：超過時先刪最久沒用的（十分鐘內用過的、剛裝好的不刪）。實測大小：twitter-cli 77 MB、csvkit 70 MB、rdt-cli 40 MB。快取裡只有公開的軟體，沒有任何人的資料。
 - 回覆端（`sandbox-reply.js` 的 `mountFromCache`）：第一個用到該工具的指令前先向主機要；主機給不了（沒有 wheel、主機連不上、runner 是舊版沒有這個路徑）就照舊在沙盒裡安裝，所以最壞情況和以前一樣。伺服器的 `sandbox-client.js` 記住拿到的工具，主機中斷後換新沙盒時再要一次。
 - 映像檔補上 `file`（模型常用它確認抓到的檔案；沒有時整步被標成失敗、多花一步）。
 - `smoke-test.sh` 新增三項：`file` 能用、Python 工具裝進快取並交給沙盒、從快取執行且唯讀。

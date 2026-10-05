@@ -29,7 +29,7 @@ export function loadConfig(env = process.env) {
     cliHosts: Object.freeze(String(env.SANDBOX_CLI_HOSTS || 'github.com,objects.githubusercontent.com,release-assets.githubusercontent.com').split(',').map((entry) => entry.trim()).filter(Boolean)),
     // The Python tools (twitter-cli, csvkit, ...) installed once and kept here (pip-cache.js), at most this large: the tools unused for longest go first.
     pipCacheDir: env.SANDBOX_PIP_CACHE_DIR || join(dataDir, 'pip-cache'),
-    pipCacheBytes: number(env.SANDBOX_PIP_CACHE_BYTES, 3 * 1024 * 1024 * 1024, 64 * 1024 * 1024, 200 * 1024 * 1024 * 1024),
+    pipCacheBytes: number(env.SANDBOX_PIP_CACHE_BYTES, 10 * 1024 * 1024 * 1024, 64 * 1024 * 1024, 200 * 1024 * 1024 * 1024),
     cliMaxBytes: number(env.SANDBOX_CLI_MAX_BYTES, 150 * 1024 * 1024, 1024, 1024 * 1024 * 1024),
     maxSessions: number(env.SANDBOX_MAX_SESSIONS, 2, 1, 8),
     // What a step may leave in /output: each file, and all of them together (the browser's own sandbox keeps the smaller limits of protocol.js).
