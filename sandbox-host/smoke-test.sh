@@ -107,6 +107,23 @@ R=$(cli_step 'curl -sS -m 30 -o /dev/null -w "%{http_code}" https://example.com'
 R=$(cli_step 'curl -sS -m 30 -o /dev/null -w "%{http_code}" http://127.0.0.1/; echo; curl -sS -m 30 -o /dev/null -w "%{http_code}" http://localhost:7788/healthz; echo; curl -sS -m 30 -o /dev/null -w "%{http_code}" http://169.254.169.254/' "$ID"); [ "$(printf '%s' "$R" | json "d['stdout']['text'].split()")" = "['403', '403', '403']" ] && check "this machine, the pod network and the metadata address are refused" ok || check "this machine, the pod network and the metadata address are refused" "$R"
 R=$(cli_step 'curl -sS -m 30 -o /dev/null -w "%{http_code}" --noproxy "*" -m 5 https://example.com || echo unreachable' "$ID"); printf '%s' "$R" | json "d['stdout']['text']" | grep -q "unreachable" && check "without the proxy there is no way out" ok || check "without the proxy there is no way out" "$R"
 R=$(cli_step 'pip install --quiet --no-input --target /opt/pip six && python3 -c "import six; print(six.__version__)"' "$ID"); printf '%s' "$R" | json "d['stdout']['text']" | grep -Eq "^[0-9]+\.[0-9]+" && check "pip installs a package into /opt/pip and Python finds it" ok || check "pip installs a package into /opt/pip" "$R"
+# `file` is in the image (a command that is not found ends a step as a failure).
+R=$(cli_step 'file --version | head -1' "$ID"); printf '%s' "$R" | json "d['stdout']['text']" | grep -q "^file-" && check "the command file is there" ok || check "the command file is there" "$R"
+# The Python tools: installed once on this machine (the first time takes a while), then every session runs them from the cache, read only.
+echo "== the Python tools of the machine =="
+PIP_JS="import('./src/data/cli-catalog.js').then((m) => { const t = m.getCliTool('csvkit'); console.log(JSON.stringify([{ id: t.id, pip: { package: t.pip.package, version: t.pip.version, command: t.pip.command, commands: m.cliPipCommands(t) } }])); })"
+if command -v node >/dev/null 2>&1; then PIPSPEC=$(cd "$REPO" && node -e "$PIP_JS"); else PIPSPEC=$(docker run --rm -v "$REPO/src/data:/app/src/data:ro" -w /app --entrypoint node noureon-sandbox-runner:1 -e "$PIP_JS"); fi
+PIPMOUNT=$(python3 - "$ID" "$BASE" "$SECRET" "$PIPSPEC" <<'PY'
+import json, sys, urllib.request
+session, base, secret, tools = sys.argv[1], sys.argv[2], sys.argv[3], json.loads(sys.argv[4])
+request = urllib.request.Request(f"{base}/v1/sessions/{session}/pip", data=json.dumps({"tools": tools}).encode(), headers={"Authorization": f"Bearer {secret}", "Content-Type": "application/json"}, method="POST")
+with urllib.request.urlopen(request, timeout=300) as response:
+    print(response.read().decode())
+PY
+)
+printf '%s' "$PIPMOUNT" | grep -q '"cached":\["csvkit"\]' && check "a Python tool is installed on the machine once and given to the session" ok || check "a Python tool is installed on the machine once and given to the session" "$PIPMOUNT"
+R=$(cli_step 'csvstat --version; ls -ld /opt/pip-cache/* | head -1; touch /opt/pip-cache/x 2>&1 | head -1' "$ID"); printf '%s' "$R" | json "d['stdout']['text']" | grep -q "csvstat" && check "the tool runs from the cache" ok || check "the tool runs from the cache" "$R"
+printf '%s' "$R" | json "d['stdout']['text']" | grep -qi "read-only" && check "the cache is read only inside the sandbox" ok || check "the cache is read only inside the sandbox" "$R"
 R=$(step 'x = bytearray(3 * 1024 * 1024 * 1024)' "$ID"); printf '%s' "$R" | json "d['error']" | grep -qi "memory" && check "too much memory is stopped" ok || check "too much memory is stopped" "$R"
 R=$(step 'while True: pass' "$ID" ); echo "$R" | grep -q "time limit" && check "an endless loop is stopped" ok || check "an endless loop is stopped" "(waited 60 s) $R"
 call -X DELETE "$BASE/v1/sessions/$ID" >/dev/null

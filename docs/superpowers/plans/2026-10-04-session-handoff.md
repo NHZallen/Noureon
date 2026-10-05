@@ -29,6 +29,7 @@
 
 ## 3. 待辦（依 owner 已表達的順序）
 
+-1. **Python 工具快取與 `file`（規格 §13）**：要在 VPS 更新 runner 與映像檔才有效：`git pull && sh sandbox-host/install.sh && sh sandbox-host/smoke-test.sh`（映像檔多了 `file`，要重建；smoke-test 多三項）。伺服器端是向下相容的：runner 還是舊版時照舊在沙盒裡安裝。
 0. **命令工具第 2.1 期改版——已實作在分支 `claude/cli-store-fixes`（2026-10-05），等 owner 測試再說推不推**（做了什麼、為什麼見 `specs/2026-10-04-cli-store-design.md` §11）：憑證改成輸入視窗（`@` 選的工具缺憑證時回覆一開始就問；模型自己的工具用 `request_credentials`）、設定頁拿掉預設清單、標籤依 Token／Cookie／密碼；檔案單檔 50 MB／單步驟 100 MB 與清楚的「沒有提供下載」提示；影音檔案類型與 yt-dlp 指引；工具說明改寫降低亂用；pip 工具按需安裝；每人 500 MB 雲端空間（`GET /v1/storage`、設定「資料管理」顯示用量）；每日孤兒檔清理（預設只報告，**owner 看過日誌裡的名單、同意後才在 Zeabur 設 `ASSET_SWEEP=delete`**）。Supabase 的 `user_asset_usage`／`orphan_user_assets` 兩個函式已經建好（遷移檔 `20261005020000_*.sql` 是同一份）。
 1. **命令工具第二期——已實作（2026-10-05），等 owner 測試再說推不推**（實作紀錄與已知限制見 `specs/2026-10-04-cli-store-design.md` §10）。**要 owner 做的事：** ① 在 Supabase 套用 `supabase/migrations/20261005010000_add_user_credentials.sql`（安全憑證的資料表）；② VPS：`git pull && sh sandbox-host/install.sh && sh sandbox-host/smoke-test.sh`（映像檔多了 node／npm／git／curl，要重建；smoke-test 新增網路與 pip 的項目，這個環境沒有 Docker 服務，容器內的行為只用假 docker 測過）；③ 測 twitter／rdt 要自己的登入憑證（設定 → 權限 → 安全憑證），資料中心 IP 可能被 X 擋；④ 設定的「權限」分頁、詢問卡、授權頁的版面是照規格 §2.3／§2.4 做的，**請 owner 看過再決定要不要調整**。下面是原本的待辦清單（保留供對照）：
    - 沙盒網路（過濾代理）、每個網域詢問卡（同意此次／永遠同意／拒絕，等 10 分鐘）、設定頁新增「權限」分頁（網路存取預設設定＋管理權限：命令工具／網站／安全憑證；安全憑證可再次查看）、「允許模型自己使用」開關（預設關）、映像檔補 pip／node／npm／git／curl。

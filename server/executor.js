@@ -274,6 +274,8 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
               mount: (inputs) => guard(() => real.mount(inputs)),
               // A program that cannot be fetched is a problem of that tool (the reply tells the model), not of the sandbox: no hand-back.
               mountCli: (tools) => real.mountCli(tools, { net: netPolicy }),
+              // A Python tool from the host's cache (installed there once); a failure leaves the reply to install it itself.
+              mountPip: (tools) => real.mountPip(tools),
               // `plain`: the installing of a tool, which is given no credentials.
               command: (commandLine, options = {}) => guard(async () => {
                 const plain = options.plain === true;
@@ -296,7 +298,7 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
             // Whether the person chose it for this message with "@" (else the model may use it by itself, when it is clearly needed).
             chosen: chosenIds.has(tool.id),
             env: tool.env || {},
-            ...(tool.kind === 'pip' ? { pip: { command: tool.pip.command, commands: cliPipCommands(tool) }, install: cliInstallCommand(tool) } : { program: { file: tool.artifacts[CLI_PLATFORM].file, url: tool.artifacts[CLI_PLATFORM].url, sha256: tool.artifacts[CLI_PLATFORM].sha256, size: tool.artifacts[CLI_PLATFORM].size } }),
+            ...(tool.kind === 'pip' ? { pip: { package: tool.pip.package, version: tool.pip.version, command: tool.pip.command, commands: cliPipCommands(tool) }, install: cliInstallCommand(tool) } : { program: { file: tool.artifacts[CLI_PLATFORM].file, url: tool.artifacts[CLI_PLATFORM].url, sha256: tool.artifacts[CLI_PLATFORM].sha256, size: tool.artifacts[CLI_PLATFORM].size } }),
             ...(toolCredentials.missing[tool.id]?.length ? { missing: toolCredentials.missing[tool.id] } : {})
           })),
           research: tools ? { searchWeb: tools.searchWeb, openPage: tools.fetchPageContents, onSources: addSources } : null,

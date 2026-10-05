@@ -27,6 +27,7 @@ async function fakeRunner(script = {}) {
     if (request.method === 'POST' && path.endsWith('/mount')) return json(200, { mounted: body.files.map((file) => ({ name: file.name })) });
     if (request.method === 'POST' && path.endsWith('/clear')) return json(200, {});
     if (request.method === 'POST' && path.endsWith('/cli')) return json(200, { mounted: (body.tools || []).map((tool) => ({ id: tool.id, file: tool.file })), network: Boolean(body.net) });
+    if (request.method === 'POST' && path.endsWith('/pip')) return json(200, { cached: (body.tools || []).map((tool) => tool.id).filter((id) => !(script.pipFails || []).includes(id)), failed: (script.pipFails || []).map((id) => ({ id, reason: 'install_failed' })) });
     if (request.method === 'POST' && path.endsWith('/net/answer')) return json(200, { answered: script.answered !== false });
     if (request.method === 'POST' && path.endsWith('/stop')) { script.stopped?.(); return json(200, { stopped: true }); }
     if (request.method === 'DELETE') return json(200, {});
@@ -268,4 +269,29 @@ test('a question to the person is told as progress, and the wait for the runner 
   const result = await running;
   assert.equal(result.stdout.text, 'ok\n');
   assert.deepEqual(heard.filter((message) => message.stage === 'net').map((message) => [message.event, message.id, message.host]), [['ask', 'ask0000000000001', 'x.com'], ['answer', 'ask0000000000001', undefined]]);
+});
+
+
+test('the Python tools of the host\'s cache: asked with a long wait (the first install), and given again to the new sandbox of a host that was lost', async (t) => {
+  let runs = 0;
+  const runner = await fakeRunner({
+    pipFails: ['bad-tool'],
+    run: ({ write, end, response }) => {
+      runs += 1;
+      if (runs === 1) { response.destroy(); return; }
+      write({ type: 'result', stdout: { text: 'again\n', dropped: 0 }, stderr: { text: '', dropped: 0 }, error: null, elapsedMs: 3, files: [], skippedFiles: [] });
+      end();
+    }
+  });
+  t.after(runner.close);
+  const sandbox = createSandboxHost({ url: runner.url, token: TOKEN, wait: async () => {} }).getSandbox();
+  await sandbox.prepare();
+  const tool = { id: 'twitter-cli', pip: { package: 'twitter-cli', version: '0.8.5', command: 'twitter', commands: ['twitter'] } };
+  assert.deepEqual(await sandbox.mountPip([tool, { id: 'bad-tool', pip: { package: 'x', version: '1', command: 'x' } }]), { cached: ['twitter-cli'], failed: [{ id: 'bad-tool', reason: 'install_failed' }] });
+  const pipCalls = () => runner.calls.filter((call) => call.path.endsWith('/pip'));
+  assert.equal(pipCalls().length, 1);
+  const result = await sandbox.run('print("again")');
+  assert.equal(result.restarted, true);
+  assert.equal(pipCalls().length, 2, 'the new sandbox is given the tools that were had');
+  assert.deepEqual(pipCalls()[1].body.tools, [tool], 'only the one that was cached');
 });

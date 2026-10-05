@@ -216,3 +216,15 @@
 
 **跨對話回憶的同意跟著帳號走（2026-10-05，owner 決定）**：開關 `historyRecallEnabled` 本來就在同步的設定裡，但「同意」只存在每台裝置的本機（`device-history-recall-consent.js`），換裝置會顯示開、卻不檢索，要再按一次儲存設定、再同意一次。改成：設定是開的就視同已同意（`isImplied: () => config.historyRecallEnabled === true`，`transition-bus-lifecycle.js` 傳入），所以別台裝置收到「開」就直接啟用，不再詢問；只有第一次把開關從關打開時才跳出同意視窗（說明文字五語言已改成「這個同意會跟著帳號同步到所有裝置」）。關閉時照舊清掉本機同意並把設定存成關。向量與索引仍然不同步，每台裝置各自在本機建立。這個開關仍是整份設定比新舊（還沒做逐項合併）。
 
+## 13. Python 工具改成安裝一次、全部回覆共用（2026-10-05）
+
+**問題**（owner 的錄影）：每次回覆都在全新的容器裡重裝 twitter-cli，約 15 秒，佔了一次回覆約一半的時間。
+
+**做法**：
+- runner 新增 `pip-cache.js` 與 `POST /v1/sessions/:id/pip`。第一次用到某個 Python 工具時，在主機上用一個一次性的容器安裝進 `/var/lib/noureon-sandbox/pip-cache/<套件>-<版本>/`（唯讀根目錄、沒有權限、1 GB 記憶體上限、**只裝 wheel**：`--only-binary :all:`，所以安裝時不會執行套件的任何程式碼；使用**主機的網路**，因為這台機器的 Docker 設成不動網路規則，容器自己沒有網路）；之後每次回覆直接用。
+- 沙盒把整個快取資料夾唯讀掛在 `/opt/pip-cache`；runner 為工具的每個指令在該回覆的 `/opt/cli` 寫一個小腳本，設好該工具自己的 `PYTHONPATH` 再執行快取裡的程式，兩個工具的套件不會互相看到。
+- 快取有上限（`SANDBOX_PIP_CACHE_BYTES`，預設 3 GB）：超過時先刪最久沒用的（十分鐘內用過的、剛裝好的不刪）。實測大小：twitter-cli 77 MB、csvkit 70 MB、rdt-cli 40 MB。快取裡只有公開的軟體，沒有任何人的資料。
+- 回覆端（`sandbox-reply.js` 的 `mountFromCache`）：第一個用到該工具的指令前先向主機要；主機給不了（沒有 wheel、主機連不上、runner 是舊版沒有這個路徑）就照舊在沙盒裡安裝，所以最壞情況和以前一樣。伺服器的 `sandbox-client.js` 記住拿到的工具，主機中斷後換新沙盒時再要一次。
+- 映像檔補上 `file`（模型常用它確認抓到的檔案；沒有時整步被標成失敗、多花一步）。
+- `smoke-test.sh` 新增三項：`file` 能用、Python 工具裝進快取並交給沙盒、從快取執行且唯讀。
+

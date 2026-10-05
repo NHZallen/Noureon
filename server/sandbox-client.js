@@ -19,6 +19,8 @@ const RUN_EXTRA_WAIT_MS = 45_000;
 const MAX_RUN_MS = 120_000;
 const SHORT_CALL_MS = 60_000;
 const MOUNT_CALL_MS = 180_000;
+// Installing a Python tool on the host the first time (pip-cache.js stops it after four minutes).
+const PIP_CALL_MS = 270_000;
 // All the host's sandboxes may be in use (it holds a few at a time): a reply waits for one, this long at most.
 const BUSY_WAIT_MS = 5 * 60_000;
 const BUSY_RETRY_MS = 3000;
@@ -108,6 +110,7 @@ export function createSandboxHost({ url, token, fetchImpl = fetch, inputLimitByt
     let stopped = false;
     let mountedFiles = [];
     let mountedCli = [];
+    let mountedPip = [];
     let mountedNet = null;
 
     const ensure = () => {
@@ -175,6 +178,18 @@ export function createSandboxHost({ url, token, fetchImpl = fetch, inputLimitByt
         mountedNet = net;
         return call('POST', `/v1/sessions/${id}/cli`, { body: { tools, ...(net ? { net } : {}) }, timeoutMs: MOUNT_CALL_MS, stage: 'cli' });
       },
+      /**
+       * Gives the sandbox the Python tools it needs, from the host's cache of them (installed there the first time; this can take a while):
+       * [{ id, pip: { package, version, command, commands } }]. Resolves { cached: [ids], failed: [{ id, reason }] }.
+       */
+      async mountPip(tools = []) {
+        await ensure();
+        const result = await call('POST', `/v1/sessions/${id}/pip`, { body: { tools }, timeoutMs: PIP_CALL_MS, stage: 'pip' });
+        // Kept for a new sandbox made in this one's place (the host restarted): its scripts are made again.
+        const cached = new Set(Array.isArray(result?.cached) ? result.cached : []);
+        mountedPip = [...mountedPip.filter((entry) => !cached.has(entry.id)), ...tools.filter((tool) => cached.has(tool.id))];
+        return result;
+      },
       /** The person's answer to a question about a site that a running step put (`onProgress` heard it as `stage: 'net'`): 'once', 'always' or 'deny'. */
       async answerNet(askId, decision) {
         if (!id) return { answered: false };
@@ -204,6 +219,7 @@ export function createSandboxHost({ url, token, fetchImpl = fetch, inputLimitByt
             await ensure();
             if (mountedFiles.length) await call('POST', `/v1/sessions/${id}/mount`, { body: { files: mountedFiles }, timeoutMs: MOUNT_CALL_MS, stage: 'mount' });
             if (mountedCli.length || mountedNet) await call('POST', `/v1/sessions/${id}/cli`, { body: { tools: mountedCli, ...(mountedNet ? { net: mountedNet } : {}) }, timeoutMs: MOUNT_CALL_MS, stage: 'cli' });
+            if (mountedPip.length) await call('POST', `/v1/sessions/${id}/pip`, { body: { tools: mountedPip }, timeoutMs: PIP_CALL_MS, stage: 'pip' });
           }
         }
       },

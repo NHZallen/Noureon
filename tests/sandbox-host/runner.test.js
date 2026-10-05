@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
@@ -11,6 +11,7 @@ import { loadConfig } from '../../sandbox-host/runner/config.js';
 import { containerName, dockerRunArgs } from '../../sandbox-host/runner/docker-args.js';
 import { addressAllowed, createHandler } from '../../sandbox-host/runner/http.js';
 import { createCliCache } from '../../sandbox-host/runner/cli-cache.js';
+import { PipCacheError } from '../../sandbox-host/runner/pip-cache.js';
 import { RunnerError, createSessionManager, safeFileName } from '../../sandbox-host/runner/session.js';
 
 // These start the container program (repl.py) as an ordinary process, so they need Python 3.
@@ -63,7 +64,8 @@ test('a container is started one way: no network, no rights, limited, with only 
   }
   assert.equal(args.at(-1), 'noureon-sandbox:1', 'the image is the runner\'s');
   assert.equal(args.includes('--privileged'), false);
-  assert.equal(args.filter((arg) => arg === '-v').length, 4, 'nothing else is mounted (the programs of the CLI tools and the socket of the proxy are read only)');
+  assert.equal(args.filter((arg) => arg === '-v').length, 5, 'nothing else is mounted (the programs of the CLI tools, the Python tools installed once and the socket of the proxy are read only)');
+  assert.ok(joined.includes(`-v ${config.pipCacheDir}:/opt/pip-cache:ro`), 'the Python tools of the machine are seen, never changed');
   assert.equal(args.includes('host'), false, 'the container never shares the host\'s network');
   assert.ok(args.some((arg) => arg === 'LANGUAGE=zh-TWrm-rf'), 'a language is only letters and dashes');
   assert.equal(containerName('a1b2c3d4e5f6a1b2c3d4e5f6'), 'nsb-a1b2c3d4e5f6a1b2c3d4e5f6');
@@ -265,6 +267,43 @@ test('a program is fetched once, from an allowed host, and only kept when it is 
     }
   } finally {
     rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+sandboxTest('the Python tools of a session come from the cache of the machine: a script for each command, in /opt/cli, that runs the tool from its own folder; a tool that cannot be had is told', async () => {
+  const h = harness();
+  const toolDir = join(h.root, 'cache', 'twitter-cli-0.8.5');
+  mkdirSync(join(toolDir, 'bin'), { recursive: true });
+  writeFileSync(join(toolDir, 'bin', 'twitter'), '#!/usr/bin/python\n');
+  const asked = [];
+  const pipCache = {
+    ensure: async (pip) => {
+      asked.push(pip.package);
+      if (pip.package === 'no-wheel') throw Object.assign(new PipCacheError('install_failed', 'no wheel'));
+      return { name: 'twitter-cli-0.8.5', path: toolDir };
+    }
+  };
+  const manager = createSessionManager({ config: h.config, now: () => h.clock.time, pipCache });
+  try {
+    const { id } = await manager.create({ language: 'en' });
+    const sessionCli = join(h.config.dataDir, id, 'cli');
+    const result = await manager.mountPip(id, [
+      { id: 'twitter-cli', pip: { package: 'twitter-cli', version: '0.8.5', command: 'twitter', commands: ['twitter', 'twitter-missing'] } },
+      { id: 'other-tool', pip: { package: 'no-wheel', version: '1.0', command: 'other' } }
+    ]);
+    assert.deepEqual(result.cached, ['twitter-cli']);
+    assert.deepEqual(result.failed.map((entry) => [entry.id, entry.reason]), [['other-tool', 'install_failed']]);
+    assert.deepEqual(readdirSync(sessionCli), ['twitter'], 'a script only for a command the tool has');
+    const script = readFileSync(join(sessionCli, 'twitter'), 'utf8');
+    assert.match(script, /^#!\/bin\/sh\n/);
+    assert.ok(script.includes('export PYTHONPATH="/opt/pip-cache/twitter-cli-0.8.5${PYTHONPATH:+:$PYTHONPATH}"'), 'the tool sees its own packages and no other tool\'s');
+    assert.ok(script.includes('exec "/opt/pip-cache/twitter-cli-0.8.5/bin/twitter" "$@"'));
+    assert.equal(statSync(join(sessionCli, 'twitter')).mode & 0o111, 0o111, 'it can be run');
+    await assert.rejects(() => manager.mountPip(id, [{ id: 'Bad Id', pip: {} }]), /no valid id or Python package/);
+    await assert.rejects(() => manager.mountPip(id, [{ id: 'x-tool', pip: { package: '../x', version: '1', command: 'x' } }]), (error) => error instanceof RunnerError && error.status === 400);
+    assert.deepEqual(asked, ['twitter-cli', 'no-wheel', '../x'].slice(0, 2).concat(['../x']));
+  } finally {
+    await h.done();
   }
 });
 

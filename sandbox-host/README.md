@@ -14,6 +14,7 @@ Noureon server (Zeabur) ──token──▶ runner (container, this machine, 10
 | `Dockerfile.runner`, `runner/` | the runner: opens and closes the containers, answers the server |
 | `install.sh` | builds both images, makes the secret, starts the runner |
 | `runner/cli-cache.js` | fetches the programs of CLI tools (命令工具) once, checks their hash, keeps them in `cli-cache/` |
+| `runner/pip-cache.js` | installs the Python tools (twitter-cli, csvkit, ...) once on this machine, keeps them in `pip-cache/` (at most `SANDBOX_PIP_CACHE_BYTES`, 3 GB by default, the tools unused for longest go first) |
 | `runner/net-proxy.js` | the filtering proxy of a session (the only way out of a container, by a unix socket): rules of sites, internal addresses always refused, questions to the person |
 | `smoke-test.sh` | tries the sandbox for real (Python, the walls, and the CLI tools) and checks the walls hold |
 
@@ -31,6 +32,10 @@ The CLI store (`docs/superpowers/specs/2026-10-04-cli-store-design.md`) puts pro
 After updating this folder on the machine, redeploy the runner: `sh sandbox-host/install.sh`, then `sh sandbox-host/smoke-test.sh` (it fetches OfficeCLI and FFmpeg from GitHub and tries pip and curl through the proxy, so the machine needs to reach github.com, pypi.org and example.com; the containers themselves have no network).
 
 Tests (no Docker needed, a stand-in `docker` runs `repl.py` as a plain process): `node --test tests/sandbox-host/`.
+
+## The Python tools of the CLI tools (cache)
+
+A Python tool (twitter-cli, rdt-cli, csvkit) used to be installed inside the sandbox by every reply that used it (about 15 seconds). Now `POST /v1/sessions/:id/pip` `{ tools: [{ id, pip: { package, version, command, commands } }] }` asks the runner for it: the first time it is installed once on this machine by `pip-cache.js` (a container of its own with the image of the sandbox, read only, no rights, 1 GB, **on the machine's network** because Docker here does not touch the network rules, **wheels only**: `--only-binary :all:`, so no code of the package runs while it installs) into `pip-cache/<package>-<version>/`; after that every session finds it there. A sandbox sees the whole `pip-cache/` read only at `/opt/pip-cache`, and the runner writes a small script for each command of the tool into the session's `/opt/cli` that sets the tool's own `PYTHONPATH` and runs `/opt/pip-cache/<tool>/bin/<command>` (so two tools never see each other's packages). Answer: `{ cached: [ids], failed: [{ id, reason }] }`; a tool that could not be had (no wheel, the machine without network) is installed inside the sandbox the old way by the reply. The cache holds public software only, never anything of a person. `SANDBOX_PIP_CACHE_DIR` and `SANDBOX_PIP_CACHE_BYTES` change where and how large.
 
 ## The network of the CLI tools (stage 2 of the store)
 
