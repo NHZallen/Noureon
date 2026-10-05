@@ -19,7 +19,7 @@ import { getCloudSyncBootstrapPendingKey } from './cloud-sync-bootstrap-queue.js
 import { createConversationRealtimeRefreshScheduler } from './cloud-sync-realtime-refresh.js';
 import { withWorkspaceStorageExclusive } from './workspace-storage-coordinator.js';
 import { CLI_MERGED_FIELDS, changedCliFields, mergeCliSettings } from '../../data/cli-settings-merge.js';
-import { mergeSettings, settingsMergeChanged, SETTINGS_STAMPS_FIELD } from '../../data/settings-merge.js';
+import { digestSettings, mergeSettings, settingsMergeChanged, stampChangedSettings, SETTINGS_STAMPS_FIELD } from '../../data/settings-merge.js';
 import {
   canCommitHydratedRemote,
   enqueueRecoveringTask,
@@ -191,30 +191,43 @@ export async function initializeCloudWorkspaceSync({ window, session, bootstrapQ
   // settings key by key (data/settings-merge.js). What the cloud had that this device did not is given to this device too.
   async function mergeConfigWithCloud(value) {
     if (!value || typeof value !== 'object') return value;
-    try {
-      await fetchRemote();
-    } catch {
-      return value;
-    }
-    const cloud = remote?.config;
-    if (!cloud || typeof cloud !== 'object') return value;
-    const merged = mergeCliSettings(value, cloud);
-    const cliChanged = changedCliFields(value, merged).length > 0;
-    const settings = mergeSettings(value, cloud);
-    const settingsChanged = settingsMergeChanged(value, settings);
-    if (!cliChanged && !settingsChanged) return value;
-    const cliFields = cliChanged ? Object.fromEntries(CLI_MERGED_FIELDS.map((field) => [field, merged[field]])) : {};
-    const fields = { ...cliFields, ...settings.fields, ...(settingsChanged ? { [SETTINGS_STAMPS_FIELD]: settings.stamps } : {}) };
-    // Kept on this device too (what is stored, and what the page holds), so it does not show the old values until the next change.
-    await withWorkspaceStorageExclusive(async () => {
+    // What changed on this device since the settings were last sent gets a stamp now (the digests of that time are in the meta).
+    const baseline = (await readStoredMeta()).settingsDigests;
+    const ownStamps = stampChangedSettings(baseline, value);
+    const stamped = JSON.stringify(ownStamps) === JSON.stringify(value[SETTINGS_STAMPS_FIELD] || {}) ? value : { ...value, [SETTINGS_STAMPS_FIELD]: ownStamps };
+    const keepOnThisDevice = (fields) => withWorkspaceStorageExclusive(async () => {
       const stored = parseJson(await storage.getItem(keys.config));
       if (stored && typeof stored === 'object') await storage.setItem(keys.config, JSON.stringify({ ...stored, ...fields }));
     });
-    const result = { ...value, ...fields };
+    const rememberSent = (config) => mutateMeta(latest => ({ ...latest, settingsDigests: digestSettings(config) }));
+    const finish = async (result, fields) => {
+      if (fields && Object.keys(fields).length) await keepOnThisDevice(fields);
+      await rememberSent(result);
+      // The page holds the settings too, and the next save it makes must not lose the stamps: it is told of them.
+      if (JSON.stringify(result[SETTINGS_STAMPS_FIELD] || {}) !== JSON.stringify(value[SETTINGS_STAMPS_FIELD] || {})) {
+        window.dispatchEvent(new window.CustomEvent('astra:cloud-cli-merge', { detail: { [SETTINGS_STAMPS_FIELD]: result[SETTINGS_STAMPS_FIELD] || {} } }));
+      }
+      return result;
+    };
+    try {
+      await fetchRemote();
+    } catch {
+      return finish(stamped, stamped === value ? null : { [SETTINGS_STAMPS_FIELD]: ownStamps });
+    }
+    const cloud = remote?.config;
+    if (!cloud || typeof cloud !== 'object') return finish(stamped, stamped === value ? null : { [SETTINGS_STAMPS_FIELD]: ownStamps });
+    const merged = mergeCliSettings(stamped, cloud);
+    const cliChanged = changedCliFields(stamped, merged).length > 0;
+    const settings = mergeSettings(stamped, cloud);
+    const settingsChanged = settingsMergeChanged(stamped, settings);
+    if (!cliChanged && !settingsChanged) return finish(stamped, stamped === value ? null : { [SETTINGS_STAMPS_FIELD]: ownStamps });
+    const cliFields = cliChanged ? Object.fromEntries(CLI_MERGED_FIELDS.map((field) => [field, merged[field]])) : {};
+    const fields = { ...cliFields, ...settings.fields, ...(settingsChanged ? { [SETTINGS_STAMPS_FIELD]: settings.stamps } : {}) };
+    // Kept on this device too (what is stored, and what the page holds), so it does not show the old values until the next change.
+    const result = await finish({ ...stamped, ...fields }, fields);
     if (cliChanged) window.dispatchEvent(new window.CustomEvent('astra:cloud-cli-merge', { detail: { ...cliFields } }));
     // A setting that came from the cloud is applied by the page as one that came in a download (the theme, the language, what is drawn).
     if (Object.keys(settings.fields).length) window.dispatchEvent(new window.CustomEvent('astra:cloud-config', { detail: result }));
-    else if (settingsChanged) window.dispatchEvent(new window.CustomEvent('astra:cloud-cli-merge', { detail: { [SETTINGS_STAMPS_FIELD]: settings.stamps } }));
     return result;
   }
 
