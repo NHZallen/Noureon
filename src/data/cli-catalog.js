@@ -103,7 +103,11 @@ Redirect results into /output; use csvlook to print a small table as text.`;
 const PANDOC_USAGE = `pandoc converts documents between many formats (Markdown, Word, HTML, LaTeX, EPUB, PDF, ...).
   pandoc /input/in.docx -t markdown -o /output/out.md       pandoc /input/in.md -o /output/out.docx
   pandoc /input/in.md -s -o /output/out.html                 pandoc /input/in.md --toc -o /output/out.epub
-  pandoc --list-input-formats / --list-output-formats list what it can read and write. PDF output needs a LaTeX engine that the sandbox does not have: make a Word or HTML file instead.`;
+  pandoc --list-input-formats / --list-output-formats list what it can read and write.
+PDF: LaTeX is installed (XeLaTeX), so pandoc can write a PDF. Always name the engine and a font for Chinese, Japanese and Korean, else the text is lost:
+  pandoc /input/in.md -o /output/out.pdf --pdf-engine=xelatex -V CJKmainfont="Noto Sans TC" -V geometry:margin=2.5cm [--toc] [-N]
+  Fonts that exist: Noto Sans TC, Noto Serif TC, Noto Sans SC, Noto Sans JP, Noto Sans KR (CJKmainfont), Inter (mainfont). Without any CJK text leave -V CJKmainfont out.
+A PDF takes a while (give timeout_seconds 120). If it fails, read the last lines of the error (a missing LaTeX package, a character the font does not have) and try again or make a Word or HTML file instead.`;
 
 const SOX_USAGE = `sox is the Swiss army knife of sound: it converts, trims, mixes and applies effects to audio files.
   sox /input/in.wav /output/out.mp3        sox /input/in.wav /output/short.wav trim 0 30        sox /input/in.wav /output/loud.wav gain -n -3
@@ -355,11 +359,11 @@ export const OFFICIAL_CLI_CATALOG = Object.freeze([
       })
     }),
     details: Object.freeze({
-      'zh-TW': 'Pandoc 在 Markdown、Word、HTML、LaTeX、EPUB 等上百種文件格式之間互相轉換，例如把 Word 檔轉成 Markdown，或把筆記轉成電子書。它在伺服器的沙盒裡執行，不需要網路，也不需要登入憑證。要注意：沙盒裡沒有 LaTeX，所以不能直接輸出 PDF，請改輸出 Word 或 HTML。',
-      en: 'Pandoc converts between Markdown, Word, HTML, LaTeX, EPUB and many other document formats, for example a Word file to Markdown, or notes to an e-book. It runs in the server’s sandbox and needs no network and no credentials. Note that the sandbox has no LaTeX, so it cannot write PDF directly: ask for Word or HTML instead.',
-      fr: 'Pandoc convertit entre Markdown, Word, HTML, LaTeX, EPUB et de nombreux autres formats de documents, par exemple un fichier Word en Markdown ou des notes en livre numérique. Il s’exécute dans le bac à sable du serveur et n’a besoin ni du réseau ni d’identifiants. Attention : le bac à sable n’a pas LaTeX, il ne peut donc pas produire de PDF directement : demandez plutôt du Word ou du HTML.',
-      ru: 'Pandoc преобразует документы между Markdown, Word, HTML, LaTeX, EPUB и многими другими форматами, например файл Word в Markdown или заметки в электронную книгу. Он работает в песочнице на сервере, ему не нужны ни сеть, ни учётные данные. Учтите: в песочнице нет LaTeX, поэтому напрямую PDF он не создаёт — просите Word или HTML.',
-      es: 'Pandoc convierte entre Markdown, Word, HTML, LaTeX, EPUB y muchos otros formatos de documento, por ejemplo un archivo de Word a Markdown o apuntes a un libro electrónico. Se ejecuta en el entorno aislado del servidor y no necesita red ni credenciales. Ten en cuenta que el entorno no tiene LaTeX, así que no puede escribir PDF directamente: pide Word o HTML.'
+      'zh-TW': 'Pandoc 在 Markdown、Word、HTML、LaTeX、EPUB 等上百種文件格式之間互相轉換，例如把 Word 檔轉成 Markdown，或把筆記轉成電子書。它在伺服器的沙盒裡執行，不需要網路，也不需要登入憑證。它也能輸出 PDF：沙盒裡裝了 LaTeX（XeLaTeX）和中文字型，轉 PDF 會比較慢（幾秒到幾十秒）。',
+      en: 'Pandoc converts between Markdown, Word, HTML, LaTeX, EPUB and many other document formats, for example a Word file to Markdown, or notes to an e-book. It runs in the server’s sandbox and needs no network and no credentials. It can also write PDF: the sandbox has LaTeX (XeLaTeX) and Chinese fonts installed, and a PDF takes longer to make (seconds to tens of seconds).',
+      fr: 'Pandoc convertit entre Markdown, Word, HTML, LaTeX, EPUB et de nombreux autres formats de documents, par exemple un fichier Word en Markdown ou des notes en livre numérique. Il s’exécute dans le bac à sable du serveur et n’a besoin ni du réseau ni d’identifiants. Il peut aussi produire du PDF : le bac à sable contient LaTeX (XeLaTeX) et des polices chinoises, et un PDF demande plus de temps (de quelques secondes à quelques dizaines de secondes).',
+      ru: 'Pandoc преобразует документы между Markdown, Word, HTML, LaTeX, EPUB и многими другими форматами, например файл Word в Markdown или заметки в электронную книгу. Он работает в песочнице на сервере, ему не нужны ни сеть, ни учётные данные. Он умеет и PDF: в песочнице установлены LaTeX (XeLaTeX) и китайские шрифты, а создание PDF занимает больше времени (от нескольких секунд до десятков секунд).',
+      es: 'Pandoc convierte entre Markdown, Word, HTML, LaTeX, EPUB y muchos otros formatos de documento, por ejemplo un archivo de Word a Markdown o apuntes a un libro electrónico. Se ejecuta en el entorno aislado del servidor y no necesita red ni credenciales. También puede escribir PDF: el entorno tiene LaTeX (XeLaTeX) y fuentes chinas instaladas, y un PDF tarda más en hacerse (de unos segundos a decenas de segundos).'
     }),
     env: Object.freeze({}),
     usage: PANDOC_USAGE

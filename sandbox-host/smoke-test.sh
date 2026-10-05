@@ -56,7 +56,7 @@ cli_step() { # cli_step "<command>" <session> -> the last line (the result) of t
 import json, sys, urllib.request
 command, session, base, secret = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
 env = json.loads(sys.argv[5]) if len(sys.argv) > 5 else {}
-request = urllib.request.Request(f"{base}/v1/sessions/{session}/run", data=json.dumps({"command": command, "env": env, "timeoutMs": 60000}).encode(), headers={"Authorization": f"Bearer {secret}", "Content-Type": "application/json"}, method="POST")
+request = urllib.request.Request(f"{base}/v1/sessions/{session}/run", data=json.dumps({"command": command, "env": env, "timeoutMs": 120000}).encode(), headers={"Authorization": f"Bearer {secret}", "Content-Type": "application/json"}, method="POST")
 last = ""
 with urllib.request.urlopen(request, timeout=150) as response:
     for line in response:
@@ -91,6 +91,7 @@ R=$(cli_step 'ffmpeg -hide_banner -version | head -1' "$ID"); printf '%s' "$R" |
 # Pandoc comes in an archive (35 MB to download, 165 MB unpacked): the runner opens it and keeps only the program. SoX is in the image.
 R=$(cli_step 'pandoc --version | head -1' "$ID"); printf '%s' "$R" | json "d['stdout']['text']" | grep -q "^pandoc " && check "pandoc runs (taken out of its archive)" ok || check "pandoc runs (taken out of its archive)" "$R"
 R=$(cli_step 'cd /output && printf "# Hello\n\nSome *text*.\n" | pandoc -f markdown -o t.docx && ls' "$ID"); [ "$(printf '%s' "$R" | json "d['files'][0]['name']")" = "t.docx" ] && check "pandoc makes a Word file in /output" ok || check "pandoc makes a Word file in /output" "$R"
+R=$(cli_step 'cd /output && printf "# 標題 Title\n\n中文段落 and English text.\n" | pandoc -f markdown -o t.pdf --pdf-engine=xelatex -V CJKmainfont="Noto Sans TC" -V geometry:margin=2.5cm 2>&1 | tail -3; head -c 4 t.pdf; echo; ls -l t.pdf' "$ID"); printf '%s' "$R" | json "d['stdout']['text']" | grep -q "^%PDF" && check "pandoc makes a PDF with Chinese text (XeLaTeX)" ok || check "pandoc makes a PDF with Chinese text (XeLaTeX)" "$R"
 R=$(cli_step 'cd /output && sox -n tone.wav synth 0.3 sine 440 && sox -n tone.mp3 synth 0.3 sine 440 && sox --i tone.mp3 | head -3' "$ID"); printf '%s' "$R" | json "[f['name'] for f in d['files']]" | grep -q "tone.mp3" && check "sox is in the image and makes wav and mp3 files" ok || check "sox is in the image and makes wav and mp3 files" "$R"
 R=$(cli_step 'cd /output && officecli create t.docx && ls' "$ID"); [ "$(printf '%s' "$R" | json "d['files'][0]['name']")" = "t.docx" ] && check "officecli makes a Word file in /output" ok || check "officecli makes a Word file in /output" "$R"
 R=$(cli_step 'exit 3' "$ID"); printf '%s' "$R" | json "d['error']" | grep -q "code 3" && check "a failing command is an error" ok || check "a failing command is an error" "$R"

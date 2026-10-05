@@ -45,6 +45,9 @@ test('Pandoc is taken out of an archive: the archive is pinned as a whole and th
   assert.ok(problems(undefined).length === 0, 'a plain file has no archive');
   assert.ok(problems(null).includes('artifact archive format'));
 
+  assert.match(pandoc.usage, /--pdf-engine=xelatex -V CJKmainfont="Noto Sans TC"/, 'the model is told how to make a PDF with Chinese text (LaTeX is in the image)');
+  assert.ok(Object.values(pandoc.details).every((text) => !/no LaTeX|沒有 LaTeX|n’a pas LaTeX|нет LaTeX|no tiene LaTeX/.test(text)), 'the details no longer say the sandbox has no LaTeX');
+
   const sox = getCliTool('sox');
   assert.equal(sox.kind, 'image');
   assert.equal(sox.image.command, 'sox');
