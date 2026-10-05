@@ -421,7 +421,8 @@ test('config persistence extracts only the serialized write adapter', () => {
     'getConfigKey',
     'setItem'
   ], '00 config persistence adapter wiring');
-  assert.match(fragment00Source, /const\s+saveConfig\s*=\s*async\s*\(\)\s*=>\s*\{\s*await\s+runtimeConfigPersistence\.saveConfig\(\);\s*\}/);
+  // The settings are stamped just before they are written (the persistence itself stays the write adapter: see settings-stamper.js).
+  assert.match(fragment00Source, /const\s+saveConfig\s*=\s*async\s*\(\)\s*=>\s*\{\s*await\s+settingsStamper\.stamp\(\);\s*await\s+runtimeConfigPersistence\.saveConfig\(\);\s*\}/);
   assert.match(fragment00Source, /const\s+loadConfig\s*=\s*async\s*\(\)\s*=>/);
   assert.doesNotMatch(
     storeSource,

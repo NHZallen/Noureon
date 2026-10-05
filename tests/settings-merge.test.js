@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 import { NOT_MERGED_SETTINGS, mergeSettings, normalizeSettingsStamps, settingsMergeChanged, stampChangedSettings } from '../src/data/settings-merge.js';
-import { createLegacyRuntimeConfigPersistence } from '../src/app/runtime/kernel/config-persistence.js';
+import { createSettingsStamper } from '../src/app/runtime/kernel/settings-stamper.js';
 import { createLegacyRuntimeConfigStore } from '../src/app/runtime/kernel/config-store.js';
 import { normalizeLoadedLegacyConfig } from '../src/app/runtime/kernel/config-normalization.js';
 
@@ -62,32 +62,24 @@ test('a save stamps the settings whose value differs from what was stored, and o
   assert.deepEqual(stampChangedSettings({ a: 1 }, {}, 100), { a: 100 }, 'one that went away too');
 });
 
-test('saveConfig stamps what changed since the stored config, keeps the stamps in the config, and tolerates a store that cannot be read', async () => {
+test('the stamper stamps what changed since the stored config, keeps the stamps in the config, and tolerates a store that cannot be read', async () => {
   const store = createLegacyRuntimeConfigStore({ defaultModelId: 'm' });
   const config = store.getConfig();
-  const storage = new Map([['cfg', JSON.stringify({ ...config, netMode: 'new' })]]);
-  const persistence = createLegacyRuntimeConfigPersistence({
-    getCurrentUser: () => ({ username: 'u' }), getConfig: store.getConfig, getConfigKey: () => 'cfg',
-    setItem: async (key, value) => { storage.set(key, value); }, getItem: async (key) => storage.get(key) ?? null, now: () => 4242
-  });
+  let stored = { ...config, netMode: 'new', apiKeys: undefined };
+  const stamper = createSettingsStamper({ getConfig: store.getConfig, readStoredConfig: async () => stored, now: () => 4242 });
   config.netMode = 'always';
-  await persistence.saveConfig();
-  const saved = JSON.parse(storage.get('cfg'));
-  assert.deepEqual(saved.settingsStamps, { netMode: 4242 });
-  assert.deepEqual(config.settingsStamps, { netMode: 4242 }, 'the page holds them too');
-  assert.equal('apiKeys' in saved, false, 'the API keys are still not stored in the settings')
-  await persistence.saveConfig();
-  assert.deepEqual(JSON.parse(storage.get('cfg')).settingsStamps, { netMode: 4242 }, 'nothing changed: nothing stamped again');
+  assert.equal(await stamper.stamp(), true);
+  assert.deepEqual(config.settingsStamps, { netMode: 4242 }, 'the page holds them, and saveConfig stores them with the settings');
+  stored = { ...stored, netMode: 'always', settingsStamps: { netMode: 4242 } };
+  config.uiLanguage = config.uiLanguage === 'fr' ? 'en' : 'fr';
+  await createSettingsStamper({ getConfig: store.getConfig, readStoredConfig: async () => stored, now: () => 5000 }).stamp();
+  assert.deepEqual(config.settingsStamps, { netMode: 4242, uiLanguage: 5000 }, 'only what changed since is stamped again');
 
-  const broken = createLegacyRuntimeConfigPersistence({
-    getCurrentUser: () => ({}), getConfig: () => ({ a: 1 }), getConfigKey: () => 'cfg',
-    setItem: async (key, value) => { storage.set(key, value); }, getItem: async () => { throw new Error('unreadable'); }
-  });
-  await broken.saveConfig();
-  assert.deepEqual(JSON.parse(storage.get('cfg')), { a: 1 });
-  storage.set('cfg', 'not json');
-  await persistence.saveConfig();
-  assert.ok(JSON.parse(storage.get('cfg')).netMode, 'a stored value that is not JSON does not stop a save');
+  const untouched = { a: 1, settingsStamps: { a: 1 } };
+  assert.equal(await createSettingsStamper({ getConfig: () => untouched, readStoredConfig: async () => null }).stamp(), false, 'nothing stored yet: nothing to compare');
+  assert.equal(await createSettingsStamper({ getConfig: () => untouched, readStoredConfig: async () => { throw new Error('unreadable'); } }).stamp(), false);
+  assert.equal(await createSettingsStamper({ getConfig: () => untouched, readStoredConfig: async () => 'not an object' }).stamp(), false);
+  assert.deepEqual(untouched, { a: 1, settingsStamps: { a: 1 } }, 'and the config is left as it was');
 });
 
 test('the settings carry their stamps: an empty default, and a loaded config is normalized', () => {
@@ -105,5 +97,8 @@ test('the sync merges the other settings with the cloud\'s too, in the same step
   assert.match(merge, /storage\.setItem\(keys\.config, JSON\.stringify\(\{ \.\.\.stored, \.\.\.fields \}\)\)/, 'kept on this device');
   assert.match(merge, /astra:cloud-config'[\s\S]*detail: result/, 'a setting from the cloud is applied by the page as in a download');
   const wiring = await readFile(new URL('../src/app/runtime/legacy-core/legacy-core.js', import.meta.url), 'utf8');
-  assert.match(wiring, /createLegacyRuntimeConfigPersistence\(\{[^}]*setItem,\s*getItem,/s, 'the page lets saveConfig read what was stored');
+  assert.match(wiring, /const saveConfig = async \(\) => \{ await settingsStamper\.stamp\(\); await runtimeConfigPersistence\.saveConfig\(\); \};/, 'every save is stamped first');
+  assert.match(wiring, /createSettingsStamper\(\{[\s\S]*readStoredConfig: async \(\) => \(currentUser \? JSON\.parse\(await getItem\(getConfigKey\(\)\)/, 'the page tells it where the stored settings are');
+  const persistence = await readFile(new URL('../src/app/runtime/kernel/config-persistence.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(persistence, /settings-merge|settingsStamps/, 'the persistence stays the serialized write adapter it is');
 });

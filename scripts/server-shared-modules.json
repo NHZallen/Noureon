@@ -286,6 +286,10 @@
     {
       "path": "src/data/cli-settings-merge.js",
       "note": "Reviewed 2026-10-05: pure functions over plain objects (the merge of the CLI tools' lists between devices); reached through the config normalization."
+    },
+    {
+      "path": "src/data/settings-merge.js",
+      "note": "Reviewed 2026-10-05: pure functions over plain objects (the key by key merge of the settings between devices); reached through the config normalization."
     }
   ]
 }

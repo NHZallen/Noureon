@@ -65,6 +65,7 @@ const expectedConfig = (defaultModelId) => ({
   cliStamps: {},
   cliUseStamps: {},
   netStamps: {},
+  settingsStamps: {},
   councilTranslatorModelId: null,
   singleDocumentTranslatorModelId: null
 });

@@ -46,6 +46,7 @@ import { createCloudWorkspaceLiveLifecycle } from '/src/app/runtime/features/clo
 import { createDesktopComposerLayout } from '/src/app/runtime/features/desktop-composer-layout.js';
 import { createLegacyRuntimeStorageAdapter } from '/src/app/runtime/kernel/storage-adapter.js';
 import { createLegacyRuntimeConfigPersistence } from '/src/app/runtime/kernel/config-persistence.js';
+import { createSettingsStamper } from '/src/app/runtime/kernel/settings-stamper.js';
 import { normalizeApiKeyValue, normalizeLoadedLegacyConfig } from '/src/app/runtime/kernel/config-normalization.js';
 import { normalizeLoadedLegacyAppData } from '/src/app/runtime/kernel/app-data-normalization.js';
 import { createLegacyRuntimeAppDataPersistence } from '/src/app/runtime/kernel/app-data-persistence.js';
@@ -477,7 +478,6 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             getConfig: () => runtimeConfigStore.getConfig(),
             getConfigKey,
             setItem,
-            getItem,
             onSaved: () => globalThis.__astraCloudWorkspaceSync?.queueLocalChange('config')
         });
         const {
@@ -534,7 +534,12 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             root: ALL_ELEMENTS.messageList,
             chartLabel: i18n[runtimeConfigAccess.getConfig().uiLanguage]?.chart || 'Chart'
         });
-        const saveConfig = async () => { await runtimeConfigPersistence.saveConfig(); };
+        // A setting that differs from what was stored before is stamped with this moment (what lets devices merge the settings key by key).
+        const settingsStamper = createSettingsStamper({
+            getConfig: () => runtimeConfigStore.getConfig(),
+            readStoredConfig: async () => (currentUser ? JSON.parse(await getItem(getConfigKey()) || 'null') : null)
+        });
+        const saveConfig = async () => { await settingsStamper.stamp(); await runtimeConfigPersistence.saveConfig(); };
         const loadConfig = async () => {
             if (!currentUser) return;
             await runtimeSensitiveConfigPersistence.loadSensitiveConfig();
