@@ -171,7 +171,7 @@ test('settings output, translator, theme, mobile, and desktop controls remain de
   assert.match(mobileShellHelperSource, /const\s+ensureSettingsMobileShell\s*=/);
   assert.match(mobileShellHelperSource, /const\s+showSettingsMobileList\s*=/);
   assert.match(mobileShellHelperSource, /const\s+openSettingsMobileSection\s*=/);
-  assert.match(mobileShellHelperSource, /settingsMobileBackBtn\.addEventListener\('click',\s*\(\)\s*=>\s*showSettingsMobileList\(\)\)/);
+  assert.match(mobileShellHelperSource, /settingsMobileBackBtn\.addEventListener\('click',\s*\(\)\s*=>\s*\{[\s\S]*?tryHandleSettingsBack\(open\.id\)[\s\S]*?showSettingsMobileList\(\);\s*\}\)/);
 
   assert.match(lifecycleSource, /const\s+desktopSectionHelper\s*=\s*createSettingsDesktopSectionHelper\(\{/);
   assert.match(lifecycleSource, /const\s+navItems\s*=\s*bindDesktopSettingsSections\(\);/);
