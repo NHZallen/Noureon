@@ -3,6 +3,7 @@
 // changes the settings object it is given and returns what changed; the caller saves.
 
 import { getCliTool, isCliReady, normalizeCliIds } from '../../../data/cli-catalog.js';
+import { stampItem } from '../../../data/cli-settings-merge.js';
 
 /** The ids of the tools that are added and still in the store. */
 export const enabledCliIds = (config) => normalizeCliIds(config?.cliEnabledIds).filter((id) => isCliReady(getCliTool(id)));
@@ -15,6 +16,7 @@ export function addCli(config, id) {
   if (!isCliReady(tool) || isCliEnabled(config, id)) return false;
   config.cliEnabledIds = [...enabledCliIds(config), id];
   config.cliVersions = { ...(config.cliVersions || {}), [id]: tool.version };
+  stampItem(config, 'cliStamps', id);
   return true;
 }
 
@@ -25,6 +27,8 @@ export function removeCli(config, id) {
   const versions = { ...(config.cliVersions || {}) };
   delete versions[id];
   config.cliVersions = versions;
+  stampItem(config, 'cliStamps', id);
+  stampItem(config, 'cliUseStamps', id);
   return true;
 }
 
@@ -32,6 +36,7 @@ export function setCliModelUse(config, id, allowed) {
   if (!isCliEnabled(config, id)) return false;
   const others = normalizeCliIds(config.cliModelUseIds).filter((entry) => entry !== id);
   config.cliModelUseIds = allowed ? [...others, id] : others;
+  stampItem(config, 'cliUseStamps', id);
   return true;
 }
 

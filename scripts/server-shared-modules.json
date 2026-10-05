@@ -282,6 +282,10 @@
     {
       "path": "src/data/cli-net.js",
       "note": "Reviewed 2026-10-05: plain data and checks (the rules for the network of the CLI tools); URL is a global of Node and browsers alike."
+    },
+    {
+      "path": "src/data/cli-settings-merge.js",
+      "note": "Reviewed 2026-10-05: pure functions over plain objects (the merge of the CLI tools' lists between devices); reached through the config normalization."
     }
   ]
 }

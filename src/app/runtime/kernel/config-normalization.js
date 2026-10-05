@@ -1,5 +1,6 @@
 import { normalizeCliIds, normalizeCliVersions } from '../../../data/cli-catalog.js';
-import { normalizeNetMode, normalizeNetRules } from '../../../data/cli-net.js';
+import { normalizeNetHost, normalizeNetMode, normalizeNetRules } from '../../../data/cli-net.js';
+import { normalizeStamps } from '../../../data/cli-settings-merge.js';
 import { normalizeCouncilGroups, normalizeRecentModelIds } from '../../ui/model-picker/model-groups.js';
 import { normalizeSearchProvider } from './search-provider.js';
 
@@ -169,6 +170,10 @@ export function normalizeLoadedLegacyConfig({
   // The network of those tools: whether every site is asked about, and the person's rules for sites.
   normalizedConfig.netMode = normalizeNetMode(normalizedConfig.netMode);
   normalizedConfig.netRules = normalizeNetRules(normalizedConfig.netRules);
+  // When each item of those lists last changed: what lets devices merge them item by item.
+  normalizedConfig.cliStamps = normalizeStamps(normalizedConfig.cliStamps, (key) => (/^[a-z][a-z0-9-]{1,39}$/.test(String(key)) ? String(key) : ''));
+  normalizedConfig.cliUseStamps = normalizeStamps(normalizedConfig.cliUseStamps, (key) => (/^[a-z][a-z0-9-]{1,39}$/.test(String(key)) ? String(key) : ''));
+  normalizedConfig.netStamps = normalizeStamps(normalizedConfig.netStamps, normalizeNetHost);
   if (!councilTranslatorCandidates.some(model => model.id === normalizedConfig.councilTranslatorModelId)) {
     normalizedConfig.councilTranslatorModelId = councilTranslatorCandidates[0]?.id || null;
   }

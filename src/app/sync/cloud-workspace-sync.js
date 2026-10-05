@@ -18,6 +18,7 @@ import { initializeMemorySummaryCloudSync } from './memory-summary-cloud-sync.js
 import { getCloudSyncBootstrapPendingKey } from './cloud-sync-bootstrap-queue.js';
 import { createConversationRealtimeRefreshScheduler } from './cloud-sync-realtime-refresh.js';
 import { withWorkspaceStorageExclusive } from './workspace-storage-coordinator.js';
+import { CLI_MERGED_FIELDS, changedCliFields, mergeCliSettings } from '../../data/cli-settings-merge.js';
 import {
   canCommitHydratedRemote,
   enqueueRecoveringTask,
@@ -184,9 +185,33 @@ export async function initializeCloudWorkspaceSync({ window, session, bootstrapQ
     return parseJson(await storage.getItem(keys[kind]));
   }
 
+  // The lists of the CLI tools are merged with the cloud's before the settings go up, so a device that had not heard of a change (a tool added
+  // on another device) does not wipe it out by saving anything. What the cloud had that this device did not is given to this device too.
+  async function mergeConfigWithCloud(value) {
+    if (!value || typeof value !== 'object') return value;
+    try {
+      await fetchRemote();
+    } catch {
+      return value;
+    }
+    const cloud = remote?.config;
+    if (!cloud || typeof cloud !== 'object') return value;
+    const merged = mergeCliSettings(value, cloud);
+    const changed = changedCliFields(value, merged);
+    if (!changed.length) return value;
+    const fields = Object.fromEntries(CLI_MERGED_FIELDS.map((field) => [field, merged[field]]));
+    // Kept on this device too (what is stored, and what the page holds), so it does not show the old lists until the next change.
+    await withWorkspaceStorageExclusive(async () => {
+      const stored = parseJson(await storage.getItem(keys.config));
+      if (stored && typeof stored === 'object') await storage.setItem(keys.config, JSON.stringify({ ...stored, ...fields }));
+    });
+    window.dispatchEvent(new window.CustomEvent('astra:cloud-cli-merge', { detail: fields }));
+    return { ...value, ...fields };
+  }
+
   async function prepareUpload(kind) {
     const value = await readLocal(kind);
-    if (kind === 'config') return value ? assets.externalize(value) : null;
+    if (kind === 'config') return value ? assets.externalize(await mergeConfigWithCloud(value)) : null;
     const rotation = parseJson(await storage.getItem(rotationKey));
     if (kind === 'vault') {
       if (rotation || meta.sensitive?.dirty) return undefined;
