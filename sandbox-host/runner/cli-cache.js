@@ -8,9 +8,12 @@ import { createWriteStream, existsSync, mkdirSync, renameSync, rmSync, statSync,
 import { join } from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { Readable, Transform } from 'node:stream';
+import { createGunzip } from 'node:zlib';
+import { extractTarMember } from './tar-member.js';
 
 const SHA256 = /^[0-9a-f]{64}$/;
 const MAX_REDIRECTS = 5;
+const MEMBER = /^[A-Za-z0-9._-]+(?:\/[A-Za-z0-9._-]+)*$/;
 
 export class CliCacheError extends Error {
   constructor(code, message, status = 400) {
@@ -30,19 +33,28 @@ const hostAllowed = (address, hosts) => {
   }
 };
 
-export function createCliCache({ dir, hosts, maxBytes, fetchImpl = fetch, log = () => {} }) {
+export function createCliCache({ dir, hosts, maxBytes, maxUnpackedBytes = 400 * 1024 * 1024, fetchImpl = fetch, log = () => {} }) {
   const inflight = new Map();
 
-  /** The path of the program with this hash, fetched when it is not here yet. */
-  async function ensure({ url, sha256, size }) {
+  /**
+   * The path of the program with this hash, fetched when it is not here yet. `sha256` and `size` are those of the download. When the download is
+   * an archive, `archive` = { format: 'tar.gz', member, size } names the one file in it that is the program (`size` there is its size once
+   * unpacked): the archive is checked as a whole, then only that file is kept, under the archive's hash.
+   */
+  async function ensure({ url, sha256, size, archive = null }) {
     const hash = String(sha256 || '');
     const length = Number(size);
     if (!SHA256.test(hash)) throw new CliCacheError('bad_request', 'The hash of the program is not valid.');
     if (!Number.isInteger(length) || length < 1 || length > maxBytes) throw new CliCacheError('bad_request', 'The size of the program is not valid.');
     if (!hostAllowed(url, hosts)) throw new CliCacheError('bad_request', 'The program may not be fetched from that address.');
+    if (archive && (archive.format !== 'tar.gz' || !MEMBER.test(String(archive.member || '')) || String(archive.member).includes('..') || !Number.isInteger(archive.size) || archive.size < 1 || archive.size > maxUnpackedBytes)) {
+      throw new CliCacheError('bad_request', 'The archive of the program is not described correctly.');
+    }
+    // What is kept is the program itself: the whole download, or the file taken out of the archive.
+    const keptSize = archive ? archive.size : length;
     mkdirSync(dir, { recursive: true });
     const path = join(dir, hash);
-    if (existsSync(path) && statSync(path).size === length) return path;
+    if (existsSync(path) && statSync(path).size === keptSize) return path;
     if (inflight.has(hash)) return inflight.get(hash);
     const work = (async () => {
       const part = join(dir, `${hash}.part-${process.pid}-${Date.now()}`);
@@ -69,11 +81,34 @@ export function createCliCache({ dir, hosts, maxBytes, fetchImpl = fetch, log = 
             return done(null, chunk);
           }
         });
-        await pipeline(Readable.fromWeb(response.body), check, createWriteStream(part, { mode: 0o755 }));
-        if (received !== length || digest.digest('hex') !== hash) throw new CliCacheError('bad_program', 'The program is not the one that was listed (its size or hash differs).', 502);
+        let unpacked = 0;
+        if (archive) {
+          // The archive is unpacked as it arrives: only the named file is written, and what the archive holds is counted, not trusted.
+          try {
+            let inflated = 0;
+            const bounded = new Transform({
+              transform(chunk, _encoding, done) {
+                inflated += chunk.length;
+                return inflated > maxUnpackedBytes ? done(new CliCacheError('bad_program', 'The archive of the program is larger than allowed once unpacked.', 502)) : done(null, chunk);
+              }
+            });
+            await pipeline(Readable.fromWeb(response.body), check, createGunzip(), bounded, async (source) => {
+              const result = await extractTarMember(source, archive.member, createWriteStream(part, { mode: 0o755 }), { maxBytes: archive.size });
+              if (!result.found) throw new CliCacheError('bad_program', 'The program is not in the archive that was listed.', 502);
+              unpacked = result.bytes;
+            });
+          } catch (error) {
+            if (error instanceof CliCacheError) throw error;
+            throw new CliCacheError('bad_program', `The archive of the program could not be opened (${String(error?.message || error).slice(0, 120)}).`, 502);
+          }
+        } else {
+          await pipeline(Readable.fromWeb(response.body), check, createWriteStream(part, { mode: 0o755 }));
+          unpacked = received;
+        }
+        if (received !== length || digest.digest('hex') !== hash || unpacked !== keptSize) throw new CliCacheError('bad_program', 'The program is not the one that was listed (its size or hash differs).', 502);
         chmodSync(part, 0o755);
         renameSync(part, path);
-        log('cli_cached', { sha256: hash, size: length });
+        log('cli_cached', { sha256: hash, size: keptSize });
         return path;
       } finally {
         rmSync(part, { force: true });

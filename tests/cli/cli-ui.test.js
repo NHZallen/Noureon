@@ -133,8 +133,8 @@ test('the store: tools to add, the ones coming, tabs, search, the menu of an add
   assert.equal(root.querySelector('.cs-note').hidden, true, 'no word about the account when there is one');
   const names = () => [...root.querySelectorAll('.cs-row .cs-name-text')].map((node) => node.textContent);
   assert.deepEqual(names(), ['OfficeCLI', 'FFmpeg', 'yt-dlp', 'twitter-cli', 'rdt-cli', 'csvkit', 'Pandoc', 'SoX'], 'the ones that can be added first');
-  assert.equal(root.querySelectorAll('.cs-soon').length, 2, 'the others say they are coming');
-  assert.equal(root.querySelectorAll('.cs-add').length, 6);
+  assert.equal(root.querySelectorAll('.cs-soon').length, 0, 'nothing in the store is waiting any more');
+  assert.equal(root.querySelectorAll('.cs-add').length, 8);
   assert.ok([...root.querySelectorAll('.cs-badge')].every((badge) => badge.textContent === 'Official'));
 
   root.querySelector('.cs-row[data-cli-id="ffmpeg"] .cs-add').click();

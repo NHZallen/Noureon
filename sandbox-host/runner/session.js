@@ -63,7 +63,7 @@ const MAX_CLI_TOOLS = 8;
 
 export function createSessionManager({ config, spawn = nodeSpawn, now = Date.now, log = () => {}, setTimer = setTimeout, clearTimer = clearTimeout, randomId = () => randomBytes(12).toString('hex'), fetchImpl = fetch, proxyOptions = {}, pipCache = null }) {
   const sessions = new Map();
-  const cliCache = createCliCache({ dir: config.cliCacheDir, hosts: config.cliHosts, maxBytes: config.cliMaxBytes, fetchImpl, log });
+  const cliCache = createCliCache({ dir: config.cliCacheDir, hosts: config.cliHosts, maxBytes: config.cliMaxBytes, maxUnpackedBytes: config.cliMaxUnpackedBytes, fetchImpl, log });
   // The Python tools, installed once on this machine (and kept to a size): a session sees the whole folder read only (docker-args.js).
   const pips = pipCache || createPipCache({ dir: config.pipCacheDir, maxBytes: config.pipCacheBytes, install: createDockerPipInstaller({ dockerBin: config.dockerBin, image: config.image, owner: config.owner, spawn }), log });
   try {
@@ -331,7 +331,7 @@ export function createSessionManager({ config, spawn = nodeSpawn, now = Date.now
     },
 
     /**
-     * Puts the programs of CLI tools in /opt/cli: [{ id, file, url, sha256, size }]. Each is fetched (and checked) when this machine does not
+     * Puts the programs of CLI tools in /opt/cli: [{ id, file, url, sha256, size, archive? }]. Each is fetched (and checked) when this machine does not
      * have it yet, then linked in under its file name.
      */
     async mountCli(id, tools = [], net = null) {
@@ -345,7 +345,7 @@ export function createSessionManager({ config, spawn = nodeSpawn, now = Date.now
       const paths = [];
       for (const tool of list) {
         try {
-          paths.push(await cliCache.ensure({ url: tool.url, sha256: tool.sha256, size: tool.size }));
+          paths.push(await cliCache.ensure({ url: tool.url, sha256: tool.sha256, size: tool.size, archive: tool.archive || null }));
         } catch (error) {
           if (error?.name === 'CliCacheError') throw new RunnerError(error.code, error.message, error.status);
           throw error;

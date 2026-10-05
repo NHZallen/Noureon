@@ -31,6 +31,8 @@ export function loadConfig(env = process.env) {
     pipCacheDir: env.SANDBOX_PIP_CACHE_DIR || join(dataDir, 'pip-cache'),
     pipCacheBytes: number(env.SANDBOX_PIP_CACHE_BYTES, 10 * 1024 * 1024 * 1024, 64 * 1024 * 1024, 200 * 1024 * 1024 * 1024),
     cliMaxBytes: number(env.SANDBOX_CLI_MAX_BYTES, 150 * 1024 * 1024, 1024, 1024 * 1024 * 1024),
+    // A program taken out of an archive (Pandoc: 35 MB to download, 165 MB unpacked) may be this large once unpacked.
+    cliMaxUnpackedBytes: number(env.SANDBOX_CLI_MAX_UNPACKED_BYTES, 400 * 1024 * 1024, 1024, 2 * 1024 * 1024 * 1024),
     maxSessions: number(env.SANDBOX_MAX_SESSIONS, 2, 1, 8),
     // What a step may leave in /output: each file, and all of them together (the browser's own sandbox keeps the smaller limits of protocol.js).
     outputFileBytes: number(env.SANDBOX_OUTPUT_FILE_BYTES, 50 * 1024 * 1024, 1024, 1024 * 1024 * 1024),

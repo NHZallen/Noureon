@@ -77,7 +77,7 @@ export async function runSandboxReply({
   designs = {},
   // The model's own web searching and page opening next to Python: { searchWeb, openPage, onSources }, or null.
   research: researchTools = null,
-  // The CLI tools the person chose with "@" (a reply on the server only): [{ id, name, version, usage, env, program?: { file, url, sha256, size },
+  // The CLI tools the person chose with "@" (a reply on the server only): [{ id, name, version, usage, env, program?: { file, url, sha256, size, archive? }, image?: { command },
   // install?: the command that installs a pip tool, missing?: the secure credentials it needs that are not set }]. The model gets run_command for them.
   cli: cliTools = [],
   // Asks the person for the login a tool needs, in a window of the app: ({ toolId }) => Promise<{ provided }>. Only the server has it.
@@ -250,7 +250,7 @@ export async function runSandboxReply({
     }
   };
 
-  const guidance = [getSandboxGuidance({ inputFiles, designs, host }), useCli ? getCliGuidance(cliTools.map((tool) => ({ ...tool, file: tool.program?.file || tool.pip?.command })), { canAsk: typeof askCredentials === 'function' }) : '', researchTools ? researchGuidance() : ''].filter(Boolean).join('\n\n');
+  const guidance = [getSandboxGuidance({ inputFiles, designs, host }), useCli ? getCliGuidance(cliTools.map((tool) => ({ ...tool, file: tool.program?.file || tool.pip?.command || tool.image?.command })), { canAsk: typeof askCredentials === 'function' }) : '', researchTools ? researchGuidance() : ''].filter(Boolean).join('\n\n');
   const research = researchTools
     ? createResearchCalls({ ...researchTools, language, signal, onEvent })
     : null;

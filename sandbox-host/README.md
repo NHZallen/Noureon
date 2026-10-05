@@ -13,7 +13,7 @@ Noureon server (Zeabur) ──token──▶ runner (container, this machine, 10
 | `repl.py` | the program inside a sandbox: runs one step after another, variables kept |
 | `Dockerfile.runner`, `runner/` | the runner: opens and closes the containers, answers the server |
 | `install.sh` | builds both images, makes the secret, starts the runner |
-| `runner/cli-cache.js` | fetches the programs of CLI tools (命令工具) once, checks their hash, keeps them in `cli-cache/` |
+| `runner/cli-cache.js` | fetches the programs of CLI tools (命令工具) once, checks their hash, keeps them in `cli-cache/` (a `.tar.gz` download is unpacked as it arrives: only the one file the catalog names is kept, `runner/tar-member.js`) |
 | `runner/pip-cache.js` | installs the Python tools (twitter-cli, csvkit, ...) once on this machine, keeps them in `pip-cache/` (at most `SANDBOX_PIP_CACHE_BYTES`, 10 GB by default, the tools unused for longest go first) |
 | `runner/net-proxy.js` | the filtering proxy of a session (the only way out of a container, by a unix socket): rules of sites, internal addresses always refused, questions to the person |
 | `smoke-test.sh` | tries the sandbox for real (Python, the walls, and the CLI tools) and checks the walls hold |
@@ -48,4 +48,4 @@ The proxy (`runner/net-proxy.js`) opens only ports 80 and 443; looks the site up
 
 A step may also be given `files` (a login file a tool needs, written under `/work` with mode 600 for the time of the command only) and values of up to 4096 characters in `env`. Python packages a tool installs go to `/opt/pip` (a tmpfs that may run programs, `SANDBOX_PIP_SIZE`, default 512m); it is on the `PATH` and `PYTHONPATH` of commands.
 
-After updating this folder on the machine the image has to be rebuilt (it gained node, npm, git, curl): `git pull && sh sandbox-host/install.sh && sh sandbox-host/smoke-test.sh`.
+After updating this folder on the machine the image has to be rebuilt (it gained node, npm, git, curl, and later `file` and SoX): `git pull && sh sandbox-host/install.sh && sh sandbox-host/smoke-test.sh`.

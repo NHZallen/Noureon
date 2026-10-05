@@ -410,8 +410,7 @@ test('a request names CLI tools of the store, for a reply with Python only', () 
     assert.ok(bad.errors.every((error) => error.path.startsWith('tools.cli')), what);
   }
   assert.equal(validateRunSpec({ ...base, tools: { webSearch: 'off', advanced: true } }).spec.tools.cli, undefined, 'none when none were chosen');
-  const soon = validateRunSpec({ ...base, tools: { webSearch: 'off', advanced: true, cli: [{ id: 'pandoc' }] } });
-  assert.equal(soon.ok, false, 'a tool that is only listed cannot be used yet');
+  assert.equal(validateRunSpec({ ...base, tools: { webSearch: 'off', advanced: true, cli: [{ id: 'pandoc' }, { id: 'sox' }] } }).ok, true, 'Pandoc and SoX are usable now');
   assert.equal(validateRunSpec({ ...base, tools: { webSearch: 'off', advanced: true, cli: [{ id: 'ffmpeg' }, { id: 'officecli' }] } }).ok, true);
 });
 
@@ -513,6 +512,30 @@ test('a tool that is a Python package is installed first, by the manifest\'s own
   assert.deepEqual(install.env, {}, 'the install gets no environment of the tool and no credential');
   assert.equal(step.line, 'csvstat /input/data.csv');
   assert.equal(liftSandboxRunBlock(result.parts[0].text).run.steps.length, 1, 'only the model\'s own step is a step of the reply');
+});
+
+test('Pandoc is mounted from its archive (the archive and the file in it go to the host), and SoX, which is in the image, brings nothing to mount', async () => {
+  const host = fakeCliHost({ commandResult: { stdout: 'pandoc 3.12\n' } });
+  const bodies = [];
+  let round = 0;
+  const result = await executeReply({
+    spec: specFor({ cli: [{ id: 'pandoc', chosen: true }, { id: 'sox', chosen: true }] }),
+    secrets, userId: USER, sandboxHost: host, files: fakeFiles(), onLive: () => {},
+    fetchImpl: async (url, options) => {
+      bodies.push(JSON.parse(options.body));
+      round += 1;
+      return streamResponse(round === 1 ? sse(toolCall('c1', 'run_command', { title: 'Convert', command: 'pandoc --version' })) : sse(content('Done.')));
+    }
+  });
+  assert.equal(result.status, 'done');
+  assert.equal(host.record.mountedCli.length, 1, 'only Pandoc has a program to bring');
+  const [pandoc] = host.record.mountedCli;
+  assert.deepEqual([pandoc.id, pandoc.file, pandoc.sha256, pandoc.size], ['pandoc', 'pandoc', '67d7d011fed8c8543306022b985b9b2499ab9b74818df91d8727c7e9ebc5ba06', 35326100]);
+  assert.deepEqual({ ...pandoc.archive }, { format: 'tar.gz', member: 'pandoc-3.12/bin/pandoc', size: 165299760 });
+  const told = JSON.stringify(bodies[0].messages);
+  assert.match(told, /pandoc \/input\/in\.docx/, 'the usage of Pandoc is told');
+  assert.match(told, /sox \/input\/in\.wav/, 'and the usage of SoX');
+  assert.match(told, /### SoX \(`sox`, version 14\.4\.2\)/, 'SoX is named by its command');
 });
 
 test('a sandbox with CLI tools has the sites allowed at first even when the page sent no rules', async () => {

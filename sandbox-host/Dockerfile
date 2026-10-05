@@ -20,7 +20,13 @@ RUN node sandbox-host/export-noureon-module.mjs /build/noureon.py \
 FROM python:3.12-slim-bookworm
 # What the command tools need when they reach the network (through the runner's proxy): node and npm, git, curl and the certificates.
 # `file` too: a model checks what a file it fetched is with it, and a command that is not found ends the step as a failure.
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl file git nodejs npm \
+# SoX (the sound tool of the store, Debian's own package) is here too: its official download is source code only.
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl file git nodejs npm sox libsox-fmt-all \
+ && rm -rf /var/lib/apt/lists/*
+# LaTeX, for Pandoc's PDF (`--pdf-engine=xelatex`): XeLaTeX, the packages Pandoc's template uses, and xeCJK for Chinese, Japanese and Korean (the fonts
+# are the app's own, below). About 400 MB; installed before the fonts so that a change of the fonts does not install it again.
+RUN apt-get update && apt-get install -y --no-install-recommends fontconfig lmodern texlive-xetex texlive-latex-recommended texlive-latex-extra \
+    texlive-fonts-recommended texlive-plain-generic texlive-lang-chinese \
  && rm -rf /var/lib/apt/lists/*
 RUN pip install --no-cache-dir \
     numpy pandas matplotlib scipy scikit-learn sympy pillow lxml beautifulsoup4 \
@@ -31,6 +37,7 @@ COPY --from=assets /build/pinned-fonts /fonts
 COPY sandbox-host/repl.py /opt/noureon/repl.py
 # matplotlib builds its font list once, here, so a step does not wait for it; the runner's container starts from this copy.
 RUN mkdir -p /usr/share/fonts/truetype/noureon && cp /fonts/*.ttf /usr/share/fonts/truetype/noureon/ \
+ && fc-cache -f \
  && MPLCONFIGDIR=/opt/mplcache python -c "import matplotlib.font_manager as m; print(len(m.fontManager.ttflist), 'fonts')" \
  && chmod -R a+rX /opt /fonts
 USER 65534:65534

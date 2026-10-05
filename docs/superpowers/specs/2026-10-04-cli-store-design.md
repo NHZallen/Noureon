@@ -232,3 +232,22 @@
 
 「更新」分頁列的是「目錄版本與使用者加入時記下的版本不同」的工具，按「更新」只是把記下的版本改成目前的；但伺服器每次回覆本來就用目錄裡的最新版，所以那個按鈕實際上沒有作用。已整個拿掉：商城只剩「全部」「我的」兩個分頁，`cliUpdates`／`updateCli` 與相關文字（五語言）都刪了。設定裡的 `cliVersions` 仍保留（加入時仍會記下版本，同步合併也還在用），只是目前沒有畫面用它。
 
+
+## 15. Pandoc 與 SoX 上架（2026-10-05，owner 要求先做）
+
+**Pandoc 3.12（`binary`，官方壓縮檔）**：
+- 官方下載是 `pandoc-3.12-linux-amd64.tar.gz`（35 MB，解壓後的 `bin/pandoc` 是 165 MB 的單一靜態執行檔；`pandoc-lua`、`pandoc-server` 只是指向它的連結，不收）。
+- 目錄的 `artifacts[linux-x64]` 多一個 `archive: { format: 'tar.gz', member: 'pandoc-3.12/bin/pandoc', size: 165299760 }`；`sha256`、`size` 是壓縮檔本身的。`validateCliManifest` 檢查格式、成員路徑（不能有 `..`）與解壓後大小（上限 `CLI_MAX_UNPACKED_BYTES` 400 MB，下載上限仍是 150 MB）。
+- runner：`cli-cache.js` 的 `ensure` 收到 `archive` 時，一邊下載一邊 gunzip，再交給新的 `tar-member.js`，**只把指名的那個一般檔案寫到磁碟**，其他項目讀過就丟（所以壓縮檔裡寫什麼路徑都不可能寫到別處）；整份壓縮檔的 `sha256` 與大小照舊逐位元檢查，解壓後的總量與檔案大小也有上限（防壓縮炸彈，`SANDBOX_CLI_MAX_UNPACKED_BYTES`）。留在快取的是解壓出來的程式，檔名是壓縮檔的雜湊，之後每個回覆都用硬連結掛進 `/opt/cli`（不複製）。`tar-member.js` 支援 ustar／GNU 長檔名／pax／v7，測試用系統的 `tar` 做出各種格式。
+- 用真的 3.12 壓縮檔實測：解壓約 2.7 秒，`pandoc --version` 為 3.12。
+- PDF（owner 決定用完整的方式，2026-10-05）：沙盒映像檔裝了 LaTeX（`texlive-xetex`、`-latex-recommended`、`-latex-extra`、`-fonts-recommended`、`-plain-generic`、`-lang-chinese`，含 xeCJK，約 400 MB），中日韓字型用映像檔本來就有的 Noto Sans／Serif TC、Noto Sans SC／JP／KR（`fc-cache` 在建映像檔時跑好，免得每個回覆重建字型快取）。`PANDOC_USAGE` 教模型一定要寫 `--pdf-engine=xelatex -V CJKmainfont="Noto Sans TC"`（Pandoc 預設的 pdflatex 不認中文）、一步最多給 120 秒、失敗時看最後幾行錯誤。`smoke-test.sh` 新增「pandoc 做出含中文的 PDF」一項（單步逾時由 60 秒放寬到 120 秒）。**這一項在這個環境沒能實測（沒有 Docker、也裝不了 TeX Live），要靠 VPS 的 smoke-test 驗證；套件清單若缺了某個 LaTeX 套件，錯誤會出現在那一項的輸出裡。**
+- 不需要網路、不需要憑證。沒有 logo（作者是個人帳號，依規則不用個人頭像）。
+
+**SoX 14.4.2（新的 `image` 種類）**：
+- 官方只釋出原始碼（SourceForge 也不在下載白名單），所以不自己編譯，改用 Debian 的 `sox` 套件（版本剛好就是 14.4.2）：沙盒映像檔 `apt-get install sox libsox-fmt-all`（支援 mp3、flac、ogg 等）。
+- 目錄新增 `kind: 'image'`、`image: { command: 'sox' }`：商城照常上架、加入與用 `@` 選，但伺服器不下載、不掛載任何東西（`executor.js` 傳 `image` 而不是 `program`），只是把使用說明給模型；指令本來就在容器的 PATH 上。
+- 取捨：用的是發行版打包的程式，而不是像其他工具那樣用雜湊釘住官方檔案；好處是不用維護編譯，壞處是版本跟著映像檔重建（LaTeX 也是同樣的情形）。
+
+**實測（2026-10-05，owner 在 VPS）**：重建映像檔後 `smoke-test.sh` 31 項全過（含 pandoc 從壓縮檔解壓、做出 Word、做出含中文的 PDF、sox 做出 wav 與 mp3），上面「沒能實測」的 PDF 一項已經驗證，LaTeX 套件清單夠用。映像檔多了約 630 MB。
+
+**VPS 要做的事**：`cd ~/Noureon && git checkout main && git pull && sh sandbox-host/install.sh && sh sandbox-host/smoke-test.sh`（映像檔多了 sox，要重建；`smoke-test.sh` 新增三項：pandoc 能執行、pandoc 做出 Word 檔、sox 做出 wav 與 mp3）。第一次用 Pandoc 的回覆要先下載 35 MB 並解壓，約幾秒到十幾秒。

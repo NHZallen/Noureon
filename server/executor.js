@@ -298,7 +298,7 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
             // Whether the person chose it for this message with "@" (else the model may use it by itself, when it is clearly needed).
             chosen: chosenIds.has(tool.id),
             env: tool.env || {},
-            ...(tool.kind === 'pip' ? { pip: { package: tool.pip.package, version: tool.pip.version, command: tool.pip.command, commands: cliPipCommands(tool) }, install: cliInstallCommand(tool) } : { program: { file: tool.artifacts[CLI_PLATFORM].file, url: tool.artifacts[CLI_PLATFORM].url, sha256: tool.artifacts[CLI_PLATFORM].sha256, size: tool.artifacts[CLI_PLATFORM].size } }),
+            ...(tool.kind === 'pip' ? { pip: { package: tool.pip.package, version: tool.pip.version, command: tool.pip.command, commands: cliPipCommands(tool) }, install: cliInstallCommand(tool) } : tool.kind === 'image' ? { image: { command: tool.image.command } } : { program: { file: tool.artifacts[CLI_PLATFORM].file, url: tool.artifacts[CLI_PLATFORM].url, sha256: tool.artifacts[CLI_PLATFORM].sha256, size: tool.artifacts[CLI_PLATFORM].size, ...(tool.artifacts[CLI_PLATFORM].archive ? { archive: tool.artifacts[CLI_PLATFORM].archive } : {}) } }),
             ...(toolCredentials.missing[tool.id]?.length ? { missing: toolCredentials.missing[tool.id] } : {})
           })),
           research: tools ? { searchWeb: tools.searchWeb, openPage: tools.fetchPageContents, onSources: addSources } : null,
