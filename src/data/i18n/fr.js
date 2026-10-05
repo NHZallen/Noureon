@@ -216,7 +216,7 @@
         historyRecallStatusEnabled: 'Activé. Cet appareil contient {count} enregistrements d’index local (capsules, fragments détaillés et médias).',
         historyRecallStatusDisabled: 'Actuellement désactivé ; aucune ancienne conversation n’est recherchée et Embedding n’est pas appelé.',
         historyRecallConsentTitle: 'Activer le rappel inter-conversations',
-        historyRecallConsentMessage: 'Lorsque le rappel inter-conversations est activé, cet appareil envoie votre question actuelle à Gemini Embedding 2 et recherche les anciennes conversations pertinentes dans l’index local. Les vecteurs et l’index ne sont pas synchronisés. L’activer sur cet appareil ?',
+        historyRecallConsentMessage: 'Lorsque le rappel inter-conversations est activé, vos appareils envoient votre question actuelle à Gemini Embedding 2 et recherchent les anciennes conversations pertinentes dans leur index local. Ce consentement suit votre compte sur tous vos appareils : aucun ne le redemande ; les vecteurs et l’index ne sont pas synchronisés, chaque appareil construit les siens. L’activer ?',
         historyRecallEnableFirst: 'Activez et enregistrez d’abord le rappel inter-conversations.',
         memoryAddSuppressionRule: 'Ajouter une règle de non-utilisation proactive',
         memorySuppressionRulePrompt: 'Par exemple : ne mentionnez pas spontanément mon nom, mes informations de santé ou d’autres données privées. Cette règle sert uniquement de restriction de réponse lorsque cela est nécessaire.',

@@ -212,7 +212,7 @@ const es = {
   "historyRecallStatusEnabled": "Activado. Este dispositivo tiene {count} registros de índice local (cápsulas, fragmentos detallados y medios).",
   "historyRecallStatusDisabled": "Actualmente apagado; Las conversaciones anteriores no se buscan y no se llama a la incrustación.",
   "historyRecallConsentTitle": "Habilitar la recuperación de conversaciones cruzadas",
-  "historyRecallConsentMessage": "Cuando la recuperación de conversaciones cruzadas está habilitada, este dispositivo envía su pregunta actual a Gemini Embedding 2 y busca en el índice local conversaciones anteriores relevantes. Los vectores y el índice no están sincronizados. ¿Habilitarlo en este dispositivo?",
+  "historyRecallConsentMessage": "Cuando la recuperación de conversaciones cruzadas está habilitada, tus dispositivos envían tu pregunta actual a Gemini Embedding 2 y buscan en su índice local conversaciones anteriores relevantes. Este consentimiento sigue a tu cuenta en todos tus dispositivos y ninguno vuelve a pedirlo; los vectores y el índice no se sincronizan, cada dispositivo crea los suyos. ¿Habilitarlo?",
   "historyRecallEnableFirst": "Primero habilite y guarde la recuperación de conversaciones cruzadas.",
   "memoryAddSuppressionRule": "Agregar una regla de no usar de forma proactiva",
   "memorySuppressionRulePrompt": "Por ejemplo: no mencione de manera proactiva mi nombre, información de salud u otros detalles privados. Esta regla se utiliza sólo como una restricción de respuesta necesaria.",

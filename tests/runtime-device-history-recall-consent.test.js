@@ -89,3 +89,17 @@ test('the lazy consent runtime notifies settings when loading completes', async 
   assert.equal(loadCalls, 1);
   assert.equal(loadedNotifications, 1);
 });
+
+test('the consent follows the account: while the synced setting is on, a device with no consent of its own counts as having given it', async () => {
+  const { createDeviceHistoryRecallConsent } = await import('../src/app/runtime/memory/device-history-recall-consent.js');
+  const storage = { getItem: async () => null, setItem: async () => {}, removeItem: async () => {} };
+  let on = false;
+  const consent = createDeviceHistoryRecallConsent({ storage, isImplied: () => on });
+  await consent.load();
+  assert.equal(consent.isGranted(), false, 'the setting is off and this device gave none');
+  on = true;
+  assert.equal(consent.isGranted(), true, 'the setting came from another device');
+  on = false;
+  assert.equal(consent.isGranted(), false, 'off again');
+  assert.equal(createDeviceHistoryRecallConsent({ storage }).isGranted(), false, 'without the option nothing is implied');
+});

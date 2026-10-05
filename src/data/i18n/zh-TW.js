@@ -216,7 +216,7 @@
         historyRecallStatusEnabled: '已啟用，本機有 {count} 筆索引紀錄（含對話膠囊、細節片段與媒體）。',
         historyRecallStatusDisabled: '目前關閉；不會查詢舊對話或呼叫 Embedding。',
         historyRecallConsentTitle: '啟用跨對話回憶',
-        historyRecallConsentMessage: '啟用跨對話回憶後，這台裝置會把你目前的問題傳給 Gemini Embedding 2，並從本機索引找相關舊對話。向量與索引不會同步。要在這台裝置啟用嗎？',
+        historyRecallConsentMessage: '啟用跨對話回憶後，你的裝置會把你目前的問題傳給 Gemini Embedding 2，並從本機索引找相關舊對話。這個同意會跟著你的帳號同步到所有裝置，不用每台裝置各自同意；向量與索引不會同步，每台裝置會在本機自己建立。要啟用嗎？',
         historyRecallEnableFirst: '請先開啟並儲存跨對話回憶。',
         memoryAddSuppressionRule: '新增不主動使用規則',
         memorySuppressionRulePrompt: '例如：不要主動提起我的姓名、健康資訊或其他私人資料。這條規則只會作為必要的回覆限制。',
