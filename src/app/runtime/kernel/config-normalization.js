@@ -1,6 +1,7 @@
 import { normalizeCliIds, normalizeCliVersions } from '../../../data/cli-catalog.js';
 import { normalizeNetHost, normalizeNetMode, normalizeNetRules } from '../../../data/cli-net.js';
 import { normalizeStamps } from '../../../data/cli-settings-merge.js';
+import { normalizeSettingsStamps } from '../../../data/settings-merge.js';
 import { normalizeCouncilGroups, normalizeRecentModelIds } from '../../ui/model-picker/model-groups.js';
 import { normalizeSearchProvider } from './search-provider.js';
 
@@ -174,6 +175,7 @@ export function normalizeLoadedLegacyConfig({
   normalizedConfig.cliStamps = normalizeStamps(normalizedConfig.cliStamps, (key) => (/^[a-z][a-z0-9-]{1,39}$/.test(String(key)) ? String(key) : ''));
   normalizedConfig.cliUseStamps = normalizeStamps(normalizedConfig.cliUseStamps, (key) => (/^[a-z][a-z0-9-]{1,39}$/.test(String(key)) ? String(key) : ''));
   normalizedConfig.netStamps = normalizeStamps(normalizedConfig.netStamps, normalizeNetHost);
+  normalizedConfig.settingsStamps = normalizeSettingsStamps(normalizedConfig.settingsStamps);
   if (!councilTranslatorCandidates.some(model => model.id === normalizedConfig.councilTranslatorModelId)) {
     normalizedConfig.councilTranslatorModelId = councilTranslatorCandidates[0]?.id || null;
   }

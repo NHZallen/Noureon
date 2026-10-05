@@ -477,6 +477,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             getConfig: () => runtimeConfigStore.getConfig(),
             getConfigKey,
             setItem,
+            getItem,
             onSaved: () => globalThis.__astraCloudWorkspaceSync?.queueLocalChange('config')
         });
         const {

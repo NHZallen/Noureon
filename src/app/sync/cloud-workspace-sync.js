@@ -19,6 +19,7 @@ import { getCloudSyncBootstrapPendingKey } from './cloud-sync-bootstrap-queue.js
 import { createConversationRealtimeRefreshScheduler } from './cloud-sync-realtime-refresh.js';
 import { withWorkspaceStorageExclusive } from './workspace-storage-coordinator.js';
 import { CLI_MERGED_FIELDS, changedCliFields, mergeCliSettings } from '../../data/cli-settings-merge.js';
+import { mergeSettings, settingsMergeChanged, SETTINGS_STAMPS_FIELD } from '../../data/settings-merge.js';
 import {
   canCommitHydratedRemote,
   enqueueRecoveringTask,
@@ -185,8 +186,9 @@ export async function initializeCloudWorkspaceSync({ window, session, bootstrapQ
     return parseJson(await storage.getItem(keys[kind]));
   }
 
-  // The lists of the CLI tools are merged with the cloud's before the settings go up, so a device that had not heard of a change (a tool added
-  // on another device) does not wipe it out by saving anything. What the cloud had that this device did not is given to this device too.
+  // The settings are merged with the cloud's before they go up, so a device that had not heard of a change made on another device (a tool added, the
+  // network mode set) does not wipe it out by saving anything: the lists of the CLI tools item by item (data/cli-settings-merge.js), the other
+  // settings key by key (data/settings-merge.js). What the cloud had that this device did not is given to this device too.
   async function mergeConfigWithCloud(value) {
     if (!value || typeof value !== 'object') return value;
     try {
@@ -197,16 +199,23 @@ export async function initializeCloudWorkspaceSync({ window, session, bootstrapQ
     const cloud = remote?.config;
     if (!cloud || typeof cloud !== 'object') return value;
     const merged = mergeCliSettings(value, cloud);
-    const changed = changedCliFields(value, merged);
-    if (!changed.length) return value;
-    const fields = Object.fromEntries(CLI_MERGED_FIELDS.map((field) => [field, merged[field]]));
-    // Kept on this device too (what is stored, and what the page holds), so it does not show the old lists until the next change.
+    const cliChanged = changedCliFields(value, merged).length > 0;
+    const settings = mergeSettings(value, cloud);
+    const settingsChanged = settingsMergeChanged(value, settings);
+    if (!cliChanged && !settingsChanged) return value;
+    const cliFields = cliChanged ? Object.fromEntries(CLI_MERGED_FIELDS.map((field) => [field, merged[field]])) : {};
+    const fields = { ...cliFields, ...settings.fields, ...(settingsChanged ? { [SETTINGS_STAMPS_FIELD]: settings.stamps } : {}) };
+    // Kept on this device too (what is stored, and what the page holds), so it does not show the old values until the next change.
     await withWorkspaceStorageExclusive(async () => {
       const stored = parseJson(await storage.getItem(keys.config));
       if (stored && typeof stored === 'object') await storage.setItem(keys.config, JSON.stringify({ ...stored, ...fields }));
     });
-    window.dispatchEvent(new window.CustomEvent('astra:cloud-cli-merge', { detail: fields }));
-    return { ...value, ...fields };
+    const result = { ...value, ...fields };
+    if (cliChanged) window.dispatchEvent(new window.CustomEvent('astra:cloud-cli-merge', { detail: { ...cliFields } }));
+    // A setting that came from the cloud is applied by the page as one that came in a download (the theme, the language, what is drawn).
+    if (Object.keys(settings.fields).length) window.dispatchEvent(new window.CustomEvent('astra:cloud-config', { detail: result }));
+    else if (settingsChanged) window.dispatchEvent(new window.CustomEvent('astra:cloud-cli-merge', { detail: { [SETTINGS_STAMPS_FIELD]: settings.stamps } }));
+    return result;
   }
 
   async function prepareUpload(kind) {

@@ -29,6 +29,7 @@
 
 ## 3. 待辦（依 owner 已表達的順序）
 
+-4. **退休模型清理與其他設定的逐項合併（2026-10-05）**：Space Bunny Alpha 已從模型清單、五語言文字與測試整個移除（退休日期機制 `isModelRetired` 保留給下一個）；網路模式等其他設定現在和命令工具清單一樣逐項合併（規格 §12 的補充段落、`src/data/settings-merge.js`）。
 -3. **等回覆時的大進度模塊：維持舊版（2026-10-05，owner 要求撤回）**：試做過「呼吸的圓點取代大卡片」，owner 看過後要求全部撤回，`main` 已還原成舊卡片（還原提交 `f4756ef`）。**沒有定案，不要再自己改**：要改之前先和 owner 逐項確認，並對照他的錄影。試做的程式碼與量測（圓點大小 20px、縮放 0.84～1、一次呼吸約 1.25 秒、預設色 `#3960ea`）留在遠端分支 `claude/progress-dot`、`claude/progress-dot-only`（沒合併）。
 -2. **Pandoc 與 SoX 上架（規格 §15）**：Pandoc 3.12 從官方 `.tar.gz` 解壓出單一執行檔（runner 的 `tar-member.js`，目錄的 `archive` 欄位）；SoX 用 Debian 套件放進沙盒映像檔（新種類 `image`）。要在 VPS 重建映像檔：`cd ~/Noureon && git checkout main && git pull && sh sandbox-host/install.sh && sh sandbox-host/smoke-test.sh`（smoke-test 新增 pandoc、sox 三項）。待辦第 2 項（Pandoc、SoX）已完成；商城裡已經沒有「即將推出」的工具。
 -1. **Python 工具快取與 `file`（規格 §13）**：要在 VPS 更新 runner 與映像檔才有效：`git pull && sh sandbox-host/install.sh && sh sandbox-host/smoke-test.sh`（映像檔多了 `file`，要重建；smoke-test 多三項）。伺服器端是向下相容的：runner 還是舊版時照舊在沙盒裡安裝。
