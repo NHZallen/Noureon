@@ -601,7 +601,6 @@
         model_nemotron_3_super_120b_a12b_desc_tier_free: '費用-免費',
         model_nemotron_3_5_lightning_desc_tier_free: '費用-免費',
         model_laguna_s_2_1_desc_tier_free: '費用-免費',
-        model_space_bunny_alpha_desc: '免費測試模型，供應商匿名；100 萬字元上下文，可輸入圖片與影片，可調整思考程度',
         // OpenAI Paid
         model_gpt_image_2_5_flare_desc_tier_paid: '文字輸入每百萬/5$、圖片輸入每百萬/8$、圖片輸出每百萬/30$',
         model_gpt_image_2_5_sunburst_desc_tier_paid: '文字輸入每百萬/5$、圖片輸入每百萬/8$、圖片輸出每百萬/30$',

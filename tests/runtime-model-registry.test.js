@@ -276,23 +276,9 @@ test('model registry import is inert and independent from retired runtime fragme
   assert.doesNotMatch(source, /runtime-entry|legacy-app\.js|document\.querySelector|indexedDB|localStorage|sessionStorage/);
 });
 
-test('the Space Bunny Alpha test model is listed with its retirement date, vision, tools and reasoning levels', async () => {
-  const { modelSupportsToolCalling, getModelTiers } = await import('../src/app/runtime/legacy-core/model-registry.js');
-  const model = MODEL_CATALOG.find((entry) => entry.id === 'stealth/space-bunny-alpha');
-  assert.ok(model, 'listed');
-  assert.equal(model.provider, 'openrouter');
-  assert.equal(model.retirementDate, '2026-10-05', 'OpenRouter takes it down on 5 October 2026: the picker shows the date');
-  assert.equal(model.isBeta, true, 'a test model: the beta group of the picker');
-  assert.equal(model.outputPricePerMillion, 0);
-  assert.equal(modelSupportsVision(model), true, 'images (and video) in');
-  assert.equal(modelSupportsToolCalling(model), true);
-  assert.deepEqual(getModelReasoningConfig(model)?.options, ['low', 'medium', 'high', 'xhigh', 'max']);
-  assert.equal(normalizeReasoningEffort(model, 'none'), 'medium');
-  assert.deepEqual(getModelTiers(model), [], 'a beta model has no price tier');
-});
-
 test('a model leaves the list on its retirement date by itself', () => {
-  const model = MODEL_CATALOG.find((entry) => entry.id === 'stealth/space-bunny-alpha');
+  // A model that was taken down (Space Bunny Alpha, 5 October 2026) is removed from the list for good; this is how the next one is handled.
+  const model = { id: 'a-model-that-retires', retirementDate: '2026-10-05' };
   assert.equal(isModelRetired(model, new Date('2026-10-04T23:59:59')), false, 'still there the day before');
   assert.equal(isModelRetired(model, new Date('2026-10-05T00:00:00')), true, 'gone on the day');
   assert.equal(isModelRetired(model, new Date('2027-01-01T00:00:00')), true);
