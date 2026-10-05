@@ -441,3 +441,26 @@ test('a model that decides for itself whether to search is given the search with
   assert.equal((await latest.lifecycle.prepareSubmitResponse()).webSearchEnabled, true);
   assert.ok(latest.calls.some((call) => call[0] === 'showNotification' && call[1] === 'auto search on'), 'the words that need current facts are still announced');
 });
+
+test('an address in a message that chose a CLI tool with "@" does not force the search on (it is the tool\'s); the model that decides for itself is given the search instead', async () => {
+  const { registerCliMode } = await import('../src/app/runtime/cli/cli-bridge.js');
+  const conversation = () => ({ archived: false, isTemporary: false, isWebSearchEnabled: false, messages: [], provider: 'openrouter', unsentMessage: '' });
+  const message = 'download https://x.com/someone/status/1';
+  try {
+    registerCliMode({ selection: () => [{ id: 'twitter-cli', indicatorId: 'cli-indicator-twitter-cli', label: 'twitter-cli' }], clear: () => {} });
+    // Smart search off, even: the address does not decide, but the model is given the search to use if the work needs it.
+    const tool = createHarness({ autoWebSearch: false, messageValue: message, conversation: conversation(), canModelDecideWebSearch: () => true });
+    assert.equal((await tool.lifecycle.prepareSubmitResponse()).webSearchEnabled, true);
+    assert.equal(tool.calls.some((call) => call[0] === 'showNotification'), false, 'nothing announced: the search is not turned on, it is offered');
+    // A model that cannot decide for itself keeps the old rule: the address turns the search on.
+    const cannot = createHarness({ autoWebSearch: false, messageValue: message, conversation: conversation(), canModelDecideWebSearch: () => false });
+    assert.equal((await cannot.lifecycle.prepareSubmitResponse()).webSearchEnabled, true);
+    assert.ok(cannot.calls.some((call) => call[0] === 'showNotification' && call[1] === 'auto search on'));
+  } finally {
+    registerCliMode(null);
+  }
+  // No tool chosen: an address still turns the search on, as before.
+  const plain = createHarness({ autoWebSearch: false, messageValue: message, conversation: conversation(), canModelDecideWebSearch: () => true });
+  assert.equal((await plain.lifecycle.prepareSubmitResponse()).webSearchEnabled, true);
+  assert.ok(plain.calls.some((call) => call[0] === 'showNotification' && call[1] === 'auto search on'), 'announced as before');
+});

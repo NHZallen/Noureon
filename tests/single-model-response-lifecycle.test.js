@@ -185,7 +185,7 @@ test('request-scoped search reaches both translation and provider request option
   });
 
   const { onSources, ...translateOptions } = calls.find((call) => call[0] === 'translate')[2];
-  assert.deepEqual(translateOptions, { webSearchEnabled: true, conversation });
+  assert.deepEqual(translateOptions, { webSearchEnabled: true, readLinkedPages: true, conversation });
   assert.equal(typeof onSources, 'function', 'the pages the search finds are reported back for the reply');
   assert.equal(calls.find((call) => call[0] === 'api')[4].webSearchEnabled, true);
   assert.equal(calls.find((call) => call[0] === 'api')[4].conversation, conversation);
@@ -769,4 +769,30 @@ test('the seconds of a reply the server makes are the server\'s clock, and the s
   assert.equal(lifted.run.elapsedMs, 33_000);
   assert.equal(lifted.text, 'Answer');
   assert.ok(calls.length > 0);
+});
+
+test('an address in a message that chose a CLI tool with "@" is not read first when the model searches and opens pages by itself; other messages keep the reading', async () => {
+  const link = 'https://x.com/someone/status/1';
+  const tool = { type: 'mode', indicatorId: 'cli-indicator-ffmpeg', label: 'FFmpeg' };
+  const withTool = [{ text: `FFmpeg ${link}`, displaySegments: [tool, { type: 'text', text: link }] }];
+  const plain = [{ text: `Summarize ${link}` }];
+  const run = async (userParts, { canResearch = true, chosen = true } = {}) => {
+    const { calls, lifecycle, signal, targetElement } = createHarness({
+      extraDependencies: {
+        webResearch: { canUse: () => canResearch, searchWeb: async () => ({}), openPage: async () => ({}) },
+        supportsToolCalling: () => true,
+        getConfig: () => ({ cliEnabledIds: chosen ? ['ffmpeg'] : [], cliModelUseIds: [], uiLanguage: 'en', outputMode: 'realtime' })
+      }
+    });
+    await lifecycle.run({ targetElement, userParts, modelInfo: { id: 'model', name: 'Model' }, conversation: { model: 'model', isWebSearchEnabled: false }, webSearchEnabled: true, signal, uiLanguage: 'en' });
+    return calls.filter((call) => call[0] === 'translate');
+  };
+  assert.equal((await run(withTool)).length, 0, 'the address is the tool\'s: nothing is read before the request goes');
+  const plainRun = await run(plain);
+  assert.equal(plainRun.length, 1, 'without a chosen tool the address is read as before');
+  assert.equal(plainRun[0][2].readLinkedPages, true);
+  assert.equal((await run(withTool, { chosen: false })).length, 1, 'a tool that is not added is not a chosen tool');
+  const cannot = await run(withTool, { canResearch: false });
+  assert.equal(cannot.length, 1, 'a model that cannot search by itself still has the page read for it');
+  assert.equal(cannot[0][2].readLinkedPages, true);
 });
