@@ -23,6 +23,7 @@ const RELOAD_KEY = 'noureon:stale-chunk-reload';
 const RELOAD_COOLDOWN_MS = 60_000;
 
 export const isStaleChunkError = (error) => {
+  if (error && typeof error === 'object' && error.staleChunk === true) return true;
   const message = String(error?.message ?? error ?? '');
   return PATTERNS.some((pattern) => pattern.test(message));
 };
@@ -79,9 +80,24 @@ export async function offerReloadForNewVersion({
 // asked for, leads to the same offer.
 export function installStaleChunkRecovery({ windowTarget = globalThis.window, documentTarget = globalThis.document } = {}) {
   if (!windowTarget?.addEventListener) return () => {};
-  const offer = () => { void offerReloadForNewVersion({ windowTarget, documentTarget }); };
+  // One offer at a time: the same failure can arrive here twice (as a preload error, then as a rejection nobody caught).
+  let offering = null;
+  const offer = () => {
+    if (offering) return;
+    offering = offerReloadForNewVersion({ windowTarget, documentTarget }).finally(() => { offering = null; });
+  };
   const onPreloadError = (event) => {
-    event.preventDefault?.();
+    // The failure is NOT swallowed (no preventDefault): Vite would then hand `undefined` to the code that asked for the piece, and that
+    // code would fail with a puzzling "cannot read properties of undefined" instead. The import rejects, with words a person can use.
+    const error = event?.payload;
+    if (error && typeof error === 'object') {
+      try {
+        error.staleChunk = true;
+        error.message = staleChunkMessage(documentTarget);
+      } catch {
+        // An error whose message cannot be changed keeps its own.
+      }
+    }
     offer();
   };
   const onRejection = (event) => {

@@ -75,12 +75,12 @@ test('a piece of the app that fails to load anywhere leads to the offer', async 
     };
     const stop = installStaleChunkRecovery({ windowTarget, documentTarget: { documentElement: { lang: 'zh-TW' } } });
     let prevented = 0;
-    listeners.get('vite:preloadError')({ preventDefault: () => { prevented += 1; } });
+    listeners.get('vite:preloadError')({ payload: new TypeError('Failed to fetch dynamically imported module: x'), preventDefault: () => { prevented += 1; } });
     listeners.get('unhandledrejection')({ reason: new TypeError('Failed to fetch dynamically imported module: x'), preventDefault: () => { prevented += 1; } });
     listeners.get('unhandledrejection')({ reason: new Error('something else'), preventDefault: () => { prevented += 1; } });
     await new Promise((resolve) => setTimeout(resolve, 0));
-    assert.equal(prevented, 2, 'only the stale-file failures are handled');
-    assert.equal(shown.length, 2);
+    assert.equal(prevented, 1, 'only the stale-file rejection is handled, and a preload error is not swallowed');
+    assert.equal(shown.length, 1, 'one offer at a time, however many times the same failure arrives');
     stop();
     assert.equal(listeners.size, 0);
   });
@@ -122,4 +122,24 @@ test('a reply that failed for that reason says so instead of showing the browser
     persistAppData: async () => {}
   });
   assert.equal(other.errorMessage, '抱歉，發生錯誤：HTTP 500', 'other errors are unchanged');
+});
+
+test('a preload error is let through with a plain message, so the code that asked for the piece sees a failure, not "undefined"', async () => {
+  await withDialog(false, async (shown) => {
+    const listeners = new Map();
+    const windowTarget = { sessionStorage: storage(), location: { reload() {} }, addEventListener: (name, handler) => listeners.set(name, handler), removeEventListener() {} };
+    installStaleChunkRecovery({ windowTarget, documentTarget: { documentElement: { lang: 'en' } } });
+    const error = new TypeError('Failed to fetch dynamically imported module: https://noureon.com/assets/x.js');
+    let prevented = false;
+    listeners.get('vite:preloadError')({ payload: error, preventDefault: () => { prevented = true; } });
+    assert.equal(prevented, false, 'Vite must rethrow, not return undefined');
+    assert.equal(error.message, staleChunkMessage({ documentElement: { lang: 'en' } }));
+    assert.equal(isStaleChunkError(error), true, 'it is still recognised as that failure by the code that shows replies');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.equal(shown.length, 1);
+
+    // a payload that is not an object, or an event without one, is no reason to fail
+    listeners.get('vite:preloadError')({ payload: 'text' });
+    listeners.get('vite:preloadError')({});
+  });
 });
