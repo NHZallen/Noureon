@@ -10,14 +10,14 @@ import { chipCloseButton } from '../../src/app/runtime/features/composer-chip.js
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 15));
 
-function harness({ model = { provider: 'openrouter', id: 'm' }, tools = true, key = true, account = true, image = false, council = false, started = { ok: true, run: { runId: 'run-1' } }, controlResult = { ok: true } } = {}) {
+function harness({ model = { provider: 'openrouter', id: 'm' }, tools = true, key = true, account = true, image = false, council = false, temporary = false, started = { ok: true, run: { runId: 'run-1' } }, controlResult = { ok: true } } = {}) {
   resetResearchStore();
   const window = new Window();
   const { document } = window;
   document.body.innerHTML = '<div id="file-options-popover"><button id="learning-mode-btn"></button></div>';
   const input = { value: '', focused: 0, events: [], ownerDocument: document, focus() { this.focused += 1; }, dispatchEvent(event) { this.events.push(event.type); return true; } };
   const log = { notices: [], prepared: 0, refreshed: 0, released: [], controls: [], startArgs: [], closed: 0, binding: [] };
-  const conversation = { id: 'c1', messages: [{ role: 'user', parts: [{ text: 'x' }] }] };
+  const conversation = { id: 'c1', messages: [{ role: 'user', parts: [{ text: 'x' }] }], ...(temporary ? { retentionMode: 'ephemeral' } : {}) };
   const mode = createResearchMode({
     document,
     getActiveConversation: () => conversation,
@@ -195,4 +195,18 @@ test('while a research is being done in the open chat the box is for instruction
   updateResearch('r1', { plan: { phase: 'writing', title: 'Battery research', clock: 3 } });
   assert.equal(mode.placeholder(), null, 'when the report is being written the box is the chat\'s again');
   assert.equal(mode.takes(), false);
+});
+
+test('a temporary chat has no deep research: no menu item, no chip, nothing taken on send', () => {
+  const normal = harness();
+  normal.mode.syncMenu();
+  assert.equal(normal.document.getElementById('research-mode-menu-btn').style.display, 'flex');
+  const temporary = harness({ temporary: true });
+  temporary.mode.syncMenu();
+  assert.equal(temporary.document.getElementById('research-mode-menu-btn').style.display, 'none');
+  temporary.mode.toggle();
+  const map = new Map();
+  temporary.mode.indicators(map, chipCloseButton);
+  assert.equal(map.has(RESEARCH_INDICATOR_ID), false);
+  assert.equal(temporary.mode.takes(), false);
 });

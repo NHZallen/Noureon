@@ -188,10 +188,11 @@ export function createCouncilControlsLifecycle(deps) {
     const runtimeTexts = getCouncilRuntimeTexts();
     const locked = getIsCouncilRunning() && conversation.council.enabled;
     const image = isImageConversation(conversation);
-    const councilActive = conversation.council.enabled && !image;
+    const temporary = conversation.retentionMode === 'ephemeral';
+    const councilActive = conversation.council.enabled && !image && !temporary;
     if (!wasOpen && target !== 'model') view = 'main';
     if (!councilActive && view !== 'main') view = 'main';
-    const showTabs = !image && !(config.isLearningMode && !conversation.council.enabled);
+    const showTabs = !image && !temporary && !(config.isLearningMode && !conversation.council.enabled);
     const archived = Boolean(conversation.archived);
 
     const { betaModels, currentModel, visibleModels } = prepareModelSwitcherModels({
@@ -809,7 +810,7 @@ export function createCouncilControlsLifecycle(deps) {
     const conv = getActiveConversation();
     if (!container || !conv) return false;
     conv.council = normalizeCouncilConfig(conv.council);
-    if (council && !conv.council.enabled && !isImageConversation(conv)) {
+    if (council && !conv.council.enabled && !isImageConversation(conv) && conv.retentionMode !== 'ephemeral') {
       if (getIsCouncilRunning()) return false;
       conv.council.enabled = true;
       seedCouncilParticipants(conv);

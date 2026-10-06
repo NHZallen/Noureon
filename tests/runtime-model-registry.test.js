@@ -16,6 +16,7 @@ import {
   getReasoningEffortLabel,
   getModelTiers,
   getProviderLabel,
+  isCouncilEnabled,
   isModelRetired,
   modelSupportsReasoningSelection,
   modelSupportsDocumentUpload,
@@ -286,4 +287,11 @@ test('a model leaves the list on its retirement date by itself', () => {
   assert.equal(isModelRetired({ id: 'bad', retirementDate: 'soon' }, new Date('2099-01-01')), false, 'not a date: stays');
   assert.deepEqual(MODELS.filter((entry) => isModelRetired(entry)), [], 'nothing retired is offered');
   assert.equal(MODELS.length + MODEL_CATALOG.filter((entry) => isModelRetired(entry)).length, MODEL_CATALOG.length);
+});
+
+test('a temporary chat has no council, whatever its saved settings say', () => {
+  assert.equal(isCouncilEnabled({ council: { enabled: true } }), true);
+  assert.equal(isCouncilEnabled({ council: { enabled: true }, retentionMode: 'ephemeral' }), false);
+  assert.equal(isCouncilEnabled({ council: { enabled: true }, retentionMode: 'persistent' }), true);
+  assert.equal(isCouncilEnabled(null), false);
 });

@@ -381,7 +381,8 @@ export const cloneCouncilConfig = (value = {}) => cloneLegacyCouncilConfig(value
     canonicalizeModelId: getCanonicalModelId
 });
 
-export const isCouncilEnabled = (conv) => Boolean(conv?.council?.enabled);
+// A temporary chat has no council, whatever its saved settings say.
+export const isCouncilEnabled = (conv) => Boolean(conv?.council?.enabled) && conv?.retentionMode !== 'ephemeral';
 
 export const getModelsByIds = (modelIds = []) => modelIds
     .map(modelId => MODELS.find(model => model.id === getCanonicalModelId(modelId)))

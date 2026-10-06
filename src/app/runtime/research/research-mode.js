@@ -43,7 +43,7 @@ export function createResearchMode({
   // The CLI tools (命令工具) share this host: they too put a chip in the box and an entry in the menus. A box that cannot take listeners
   // (a test) has none.
   const cli = typeof messageInput?.addEventListener === 'function' && typeof document?.addEventListener === 'function'
-    ? createCliMode({ document, messageInput, getConfig, saveConfig, getUiLanguage, refresh: () => refresh(), showNotification, getAccountReady: () => serverReply.hasAccount(), logger })
+    ? createCliMode({ document, messageInput, isLocked: () => getActiveConversation()?.retentionMode === 'ephemeral', getConfig, saveConfig, getUiLanguage, refresh: () => refresh(), showNotification, getAccountReady: () => serverReply.hasAccount(), logger })
     : null;
   const getSync = () => globalThis.__astraCloudSyncV2;
   const warn = (...args) => logger?.warn?.(...args);
@@ -51,10 +51,10 @@ export function createResearchMode({
     setAbortController(null);
     updateSubmitButtonState(false);
   };
-  // Image conversations and the model council have no deep research.
+  // Image conversations, the model council and temporary chats have no deep research.
   const isUnavailable = () => {
     const conversation = getActiveConversation();
-    return !conversation || isImageConversation(conversation) || isCouncilEnabled(conversation);
+    return !conversation || isImageConversation(conversation) || isCouncilEnabled(conversation) || conversation.retentionMode === 'ephemeral';
   };
   // The reason (a key of the research texts) this model cannot do a research now, or null.
   const canResearch = (model) => {

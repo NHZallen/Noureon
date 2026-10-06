@@ -648,7 +648,8 @@ export function createStreamApiCall({
     }
     const chartAuthoringGuidance = instructionGiven || requestOptions.requestPurpose === NOURAS_REQUEST_PURPOSE.VISION_CHECK ? ''
       : await getRuntimeChartAuthoringGuidance(getMessageTextForGuidance(currentMessageForApi));
-    const fileAuthoringGuidance = instructionGiven ? '' : await getRuntimeFileAuthoringGuidance({
+    // A temporary chat makes no files, so the model is not told how to write them.
+    const fileAuthoringGuidance = instructionGiven || conversation?.retentionMode === 'ephemeral' ? '' : await getRuntimeFileAuthoringGuidance({
       inputText: getMessageTextForGuidance(currentMessageForApi),
       history: historyForApi,
       requestPurpose: requestOptions.requestPurpose,

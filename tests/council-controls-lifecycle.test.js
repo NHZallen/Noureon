@@ -472,6 +472,19 @@ test('the council page is left out for image models and while Learning mode is o
   }
 });
 
+test('a temporary chat has no council page, and the menu item does not turn one on', async () => {
+  const { conversation, cleanup, document, lifecycle } = createHarness({ conversation: singleConversation({ retentionMode: 'ephemeral' }) });
+  try {
+    lifecycle.renderCouncilControls();
+    assert.equal(document.querySelector('.mp-tabs'), null);
+    await lifecycle.openModelPicker({ council: true });
+    assert.equal(conversation.council.enabled, false);
+    assert.equal(document.querySelector('[data-mp-tab="council"]'), null);
+  } finally {
+    cleanup();
+  }
+});
+
 test('an archived conversation cannot change its model', () => {
   const { cleanup, document, lifecycle } = createHarness({ conversation: singleConversation({ archived: true }) });
   try {

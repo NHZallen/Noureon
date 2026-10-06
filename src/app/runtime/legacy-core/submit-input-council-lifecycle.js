@@ -186,7 +186,6 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     getText: getLocalizedText
   });
 
-  // Presentation design (AI adaptive or a template), chosen before asking.
   const deckDesignControl = createDeckDesignControl({
     document,
     getActiveConversation,
@@ -272,7 +271,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     }
     const councilMenuButton = ensureCouncilMenuButton();
     if (councilMenuButton) {
-      councilMenuButton.style.display = (!imageMode && !(config.isLearningMode && !councilActive)) ? 'flex' : 'none';
+      councilMenuButton.style.display = imageMode || conv.retentionMode === 'ephemeral' || (config.isLearningMode && !councilActive) ? 'none' : 'flex';
       councilMenuButton.classList.toggle('is-active', councilActive);
     }
     researchMode?.syncMenu();

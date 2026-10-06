@@ -70,6 +70,7 @@ test('a reply uses Advanced mode only when chosen and possible, and says why not
   assert.deepEqual(resolveReplyMode(base), { advanced: true, reason: null }, 'Advanced is the default');
   assert.deepEqual(resolveReplyMode({ ...base, config: { fileModeDefault: 'standard' } }), { advanced: false, reason: null });
   assert.deepEqual(resolveReplyMode({ ...base, conversation: { fileMode: 'standard' } }), { advanced: false, reason: null });
+  assert.deepEqual(resolveReplyMode({ ...base, conversation: { retentionMode: 'ephemeral' } }), { advanced: false, reason: null }, 'a temporary chat makes no files');
   assert.equal(resolveReplyMode({ ...base, isCouncil: true }).reason, 'council');
   assert.equal(resolveReplyMode({ ...base, config: { isLearningMode: true } }).reason, 'learning');
   assert.equal(resolveReplyMode({ ...base, modelInfo: { id: 'no' } }).reason, 'model-unsupported');

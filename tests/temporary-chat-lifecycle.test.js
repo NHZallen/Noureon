@@ -142,3 +142,23 @@ test('temporary chat controls follow the empty, started, and permanently saved s
 
   window.close();
 });
+
+test('entering a temporary chat turns the model council off', () => {
+  const window = new Window();
+  const { document } = window;
+  document.body.innerHTML = '<main id="workspace"><div id="message-list"></div></main>';
+  const conversation = { id: 'chat-2', isTemporary: true, messages: [], council: { enabled: true, participantModelIds: ['a', 'b'] } };
+  const lifecycle = createTemporaryChatLifecycle({
+    document,
+    elements: { chatWorkspace: document.querySelector('#workspace'), messageList: document.querySelector('#message-list') },
+    getActiveConversation: () => conversation,
+    getText: (_key, fallback) => fallback,
+    saveAppData: async () => {},
+    renderAll: () => lifecycle.render()
+  });
+  lifecycle.render();
+  document.querySelector('#temporary-chat-entry-button').click();
+  assert.equal(conversation.retentionMode, 'ephemeral');
+  assert.equal(conversation.council.enabled, false);
+  assert.deepEqual(conversation.council.participantModelIds, ['a', 'b'], 'the members are kept');
+});

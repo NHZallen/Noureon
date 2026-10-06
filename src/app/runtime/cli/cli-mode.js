@@ -14,7 +14,8 @@ const escapeHTML = (value = '') => String(value ?? '').replace(/[&<>"']/g, (char
 const MENTION = /(^|\s)@([^\s@]{0,40})$/u;
 const ENTRY_ID = 'open-cli-store-btn';
 
-export function createCliMode({ document, messageInput, getConfig, saveConfig = async () => {}, getUiLanguage, refresh, showNotification = () => {}, getAccountReady = () => true, logger = console }) {
+// `isLocked` is true in a temporary chat, which has no CLI tools: no "@" list, no chips, and a tool chosen before is let go.
+export function createCliMode({ document, messageInput, isLocked = () => false, getConfig, saveConfig = async () => {}, getUiLanguage, refresh, showNotification = () => {}, getAccountReady = () => true, logger = console }) {
   const win = document.defaultView;
   const language = () => getUiLanguage();
   const t = (key, values) => cliText(language(), key, values);
@@ -62,12 +63,13 @@ export function createCliMode({ document, messageInput, getConfig, saveConfig = 
   };
 
   // ----- the chips of the chosen tools
-  const selection = () => selected.map((id) => getCliTool(id)).filter(Boolean).map((tool) => ({ id: tool.id, indicatorId: cliIndicatorId(tool.id), label: tool.name }));
+  const selection = () => (isLocked() ? [] : selected).map((id) => getCliTool(id)).filter(Boolean).map((tool) => ({ id: tool.id, indicatorId: cliIndicatorId(tool.id), label: tool.name }));
   const remove = (id) => {
     selected = selected.filter((entry) => entry !== id);
     refresh();
   };
   const indicators = (map, closeButton) => {
+    if (isLocked()) return;
     for (const { id, indicatorId, label } of selection()) {
       map.set(indicatorId, {
         id: indicatorId,
@@ -189,6 +191,10 @@ export function createCliMode({ document, messageInput, getConfig, saveConfig = 
   };
 
   const evaluate = () => {
+    if (isLocked()) {
+      if (menuState) closeMenu();
+      return;
+    }
     const mention = mentionAtCaret();
     if (!mention) {
       if (menuState) closeMenu();
@@ -231,7 +237,7 @@ export function createCliMode({ document, messageInput, getConfig, saveConfig = 
     ensureEntry();
     // A tool that was removed (on another device, or in the store) is not kept chosen.
     const known = new Set(enabledCliTools(getConfig()).map((tool) => tool.id));
-    const next = selected.filter((id) => known.has(id));
+    const next = isLocked() ? [] : selected.filter((id) => known.has(id));
     if (next.length !== selected.length) {
       selected = next;
       refresh();

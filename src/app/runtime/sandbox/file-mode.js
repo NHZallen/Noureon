@@ -2,6 +2,8 @@
 // actually use Advanced mode. Small and eager: the composer and every send
 // ask it.
 
+import { isEphemeralConversation } from '../features/temporary-chat-state.js';
+
 export const FILE_MODES = Object.freeze({ standard: 'standard', advanced: 'advanced' });
 export const DEFAULT_FILE_MODE = FILE_MODES.advanced;
 
@@ -46,6 +48,8 @@ export function resolveReplyMode({
   browserSupported = true
 } = {}) {
   if (chosenFileMode(conversation, config) !== FILE_MODES.advanced) return { advanced: false, reason: null };
+  // A temporary chat makes no files: nothing to explain, the picker is not shown there.
+  if (isEphemeralConversation(conversation)) return { advanced: false, reason: null };
   if (isCouncil) return { advanced: false, reason: 'council' };
   if (config.isLearningMode) return { advanced: false, reason: 'learning' };
   if (!supportsToolCalling(modelInfo)) return { advanced: false, reason: 'model-unsupported' };

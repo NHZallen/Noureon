@@ -66,6 +66,41 @@ test('the conversation\'s design choice reaches the model with the file guidance
   assert.match(system, /the user chose the "poster" template/);
 });
 
+test('a temporary chat gets no file guidance, whatever design was chosen', async () => {
+  const requests = [];
+  const conversation = { model: 'm', deckDesign: 'poster', retentionMode: 'ephemeral', messages: [{ role: 'user', parts: [{ text: '幫我做一份簡報 pptx' }] }] };
+  const streamApiCall = createStreamApiCall({
+    getActiveConversation: () => conversation,
+    normalizeConversationModel: () => ({ id: 'm', apiId: 'or/m', name: 'M', provider: 'openrouter' }),
+    getModelApiId: (model) => model.apiId,
+    getApiKeyForProvider: () => 'key',
+    getDefaultGenConfig: () => ({ temperature: null, topP: null, maxTokens: null }),
+    getConfig: () => ({ aiDefaultLanguage: 'zh-TW', isLearningMode: false, memoryEnabled1: false }),
+    getAstras: () => [],
+    getPersonalMemories: () => [],
+    modelSupportsUploadedFile: () => true,
+    modelSupportsVision: () => true,
+    fetchImpl: async (url, options) => {
+      requests.push(JSON.parse(options.body));
+      const encoder = new TextEncoder();
+      return {
+        ok: true,
+        body: new ReadableStream({
+          start(controller) {
+            controller.enqueue(encoder.encode('data: {"choices":[{"delta":{"content":"ok"}}]}\n\ndata: [DONE]\n\n'));
+            controller.close();
+          }
+        })
+      };
+    },
+    warn: () => {}
+  });
+  await streamApiCall([{ text: '幫我做一份簡報 pptx' }], () => {}, undefined, false, { conversation });
+  const system = requests[0].messages.find((message) => message.role === 'system')?.content || '';
+  assert.doesNotMatch(system, /the user chose the "poster" template/);
+  assert.doesNotMatch(system, /PowerPoint/, 'no file guidance at all');
+});
+
 test('the composer control shows and saves the conversation\'s choice', async () => {
   const { document, cleanup } = createDom('<div id="file-input-container"><button id="add-file-btn"></button></div>');
   try {
@@ -112,7 +147,7 @@ test('the composer control shows and saves the conversation\'s choice', async ()
   }
 });
 
-test('the design control is hidden while an image model is chosen, and comes back with a text model', () => {
+test('the design control is hidden while an image model is chosen or in a temporary chat, and comes back with a text model', () => {
   const { document, cleanup } = createDom('<div id="file-input-container"><button id="add-file-btn"></button></div>');
   try {
     const conversation = { id: 'a', messages: [] };
@@ -128,6 +163,12 @@ test('the design control is hidden while an image model is chosen, and comes bac
     control.render();
     assert.equal(document.getElementById('deck-design-control').style.display, 'none');
     image = false;
+    control.render();
+    assert.equal(document.getElementById('deck-design-control').style.display, 'inline-flex');
+    conversation.retentionMode = 'ephemeral';
+    control.render();
+    assert.equal(document.getElementById('deck-design-control').style.display, 'none', 'a temporary chat makes no files');
+    conversation.retentionMode = 'persistent';
     control.render();
     assert.equal(document.getElementById('deck-design-control').style.display, 'inline-flex');
   } finally {

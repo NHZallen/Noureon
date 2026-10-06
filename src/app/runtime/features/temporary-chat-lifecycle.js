@@ -200,6 +200,8 @@ export function createTemporaryChatLifecycle({
       } else {
         conversation.retentionMode = EPHEMERAL_RETENTION_MODE;
         conversation.memoryAccessEnabled = true;
+        // A temporary chat has no model council (nor deep research, designs or CLI tools): one that was on is turned off.
+        if (conversation.council?.enabled) conversation.council = { ...conversation.council, enabled: false };
       }
       renderAll({ reason: 'temporary-chat-mode-changed', animate: false });
     });

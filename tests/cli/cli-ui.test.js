@@ -10,7 +10,7 @@ import { chipCloseButton } from '../../src/app/runtime/features/composer-chip.js
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 10));
 
-function setup({ config = { cliEnabledIds: [], cliModelUseIds: [], cliVersions: {} }, language = 'en', account = true } = {}) {
+function setup({ config = { cliEnabledIds: [], cliModelUseIds: [], cliVersions: {} }, language = 'en', account = true, locked = () => false } = {}) {
   const window = new Window({ url: 'https://example.test/' });
   const { document } = window;
   document.body.innerHTML = '<aside id="sidebar"><div class="flex-1 overflow-y-auto px-2"><div id="first-section"></div></div></aside><div id="sidebar-overlay"></div><div class="composer-host"><div class="input-wrapper"><div id="editor" contenteditable="true"></div></div></div>';
@@ -19,6 +19,7 @@ function setup({ config = { cliEnabledIds: [], cliModelUseIds: [], cliVersions: 
   const mode = createCliMode({
     document,
     messageInput: editor,
+    isLocked: () => locked(),
     getConfig: () => config,
     saveConfig: async () => { log.saved += 1; },
     getUiLanguage: () => language,
@@ -55,6 +56,26 @@ test('the left menu has the entry, named in the person\'s language, that closes 
   assert.equal(setup({ language: 'fr' }).document.querySelector('.cli-sidebar-label').textContent, 'CLI');
   zh.mode.sync();
   assert.equal(zh.document.querySelectorAll('#open-cli-store-btn').length, 1, 'once');
+});
+
+test('in a temporary chat "@" opens nothing, shows no chips, and a tool chosen before is let go', () => {
+  let temporary = false;
+  const t = setup({ config: { cliEnabledIds: ['ffmpeg'], cliModelUseIds: [], cliVersions: {} }, locked: () => temporary });
+  t.type('@');
+  assert.equal(t.document.getElementById('cli-mention-menu').hidden, false);
+  t.key('Enter');
+  assert.deepEqual(getCliSelection().map((entry) => entry.id), ['ffmpeg']);
+  temporary = true;
+  t.type('hello @');
+  assert.equal(t.document.getElementById('cli-mention-menu').hidden, true, 'no list');
+  const map = new Map();
+  t.mode.indicators(map, chipCloseButton);
+  assert.equal(map.size, 0, 'no chip');
+  t.mode.sync();
+  assert.deepEqual(getCliSelection(), [], 'nothing is chosen any more');
+  temporary = false;
+  t.type('again @');
+  assert.equal(t.document.getElementById('cli-mention-menu').hidden, false, 'back in a normal chat it works again');
 });
 
 test('"@" opens the list of the tools that were added, narrows as it is typed, and Enter puts a chip in and takes the "@" away', () => {
