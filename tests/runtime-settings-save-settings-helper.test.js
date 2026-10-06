@@ -19,7 +19,6 @@ const swatches = (selector, dataset) => ({
 function createDocument({ theme = 'dark', style = 'gradient' } = {}) {
   return {
     querySelector(selector) {
-      if (selector === 'input[name="color-theme"]:checked') return { value: theme };
       return null;
     }
   };
@@ -38,7 +37,7 @@ function createElements(overrides = {}) {
     uiLanguageSelect: select('en'),
     aiLanguageSelect: select('zh-TW'),
     enableUpdateNotificationsToggle: toggle(true),
-    customColorSwatches: swatches('.selected', { color: '#123456' })
+    uiColorOptions: { dataset: { mode: 'custom', color: '#123456' } }
   };
   return { ...elements, ...overrides };
 }
@@ -68,7 +67,7 @@ test('collects checkbox, input, select, dropdown, and theme values as plain data
     aiDefaultLanguage: 'zh-TW',
     enableUpdateNotifications: true,
     uiTheme: {
-      mode: 'dark',
+      mode: 'custom',
       customColor: '#123456'
     }
   });
@@ -83,7 +82,7 @@ test('preserves existing saveSettings fallbacks for missing optional controls', 
       councilTranslatorModelSelect: undefined,
       singleDocumentTranslatorModelSelect: undefined,
       userBubbleColorDropdown: { querySelector: () => null },
-      customColorSwatches: { querySelector: () => null }
+      uiColorOptions: { dataset: {} }
     }),
     config: {
       uiTheme: {
@@ -98,7 +97,7 @@ test('preserves existing saveSettings fallbacks for missing optional controls', 
   assert.equal('outputMode' in result, false, 'there is no output mode to choose');
   assert.equal(result.userBubbleColor, 'default');
   assert.deepEqual(result.uiTheme, {
-    mode: 'light',
+    mode: 'default',
     customColor: '#abcdef'
   });
 });

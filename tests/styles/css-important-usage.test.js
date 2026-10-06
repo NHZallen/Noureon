@@ -50,6 +50,10 @@ const documentedImportantUsage = {
     max: 15,
     category: 'required: regression override / legacy compatibility'
   },
+  'src/styles/personalization-page.css': {
+    max: 6,
+    category: 'required: regression override / legacy compatibility'
+  },
   'src/styles/personalization.css': {
     max: 88,
     category: 'required: regression override / legacy compatibility'

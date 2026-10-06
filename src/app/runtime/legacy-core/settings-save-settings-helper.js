@@ -5,8 +5,9 @@ export function collectSettingsSaveFormValues({
     elements,
     config
 } = {}) {
-    const selectedThemeMode = document.querySelector('input[name="color-theme"]:checked').value;
-    const selectedCustomColor = elements.customColorSwatches.querySelector('.selected')?.dataset.color || config.uiTheme.customColor;
+    // The colour menu keeps the choice on its own element until it is saved.
+    const selectedThemeMode = (elements.uiColorOptions.dataset.mode || config.uiTheme.mode) === 'custom' ? 'custom' : 'default';
+    const selectedCustomColor = elements.uiColorOptions.dataset.color || config.uiTheme.customColor;
 
     return {
         // Kept as it was where the setting is not shown.

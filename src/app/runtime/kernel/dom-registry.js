@@ -136,7 +136,7 @@ const LEGACY_RUNTIME_DOM_ELEMENT_IDS = [
   ['autoMemoryToggleSwitch', 'auto-memory-toggle-switch'],
   ['uiColorOptions', 'ui-color-options'],
   ['customColorPickerContainer', 'custom-color-picker-container'],
-  ['customColorSwatches', 'custom-color-swatches'],
+  ['customColorInput', 'custom-color-input'],
   ['apiKeyWarningBadge', 'api-key-warning-badge'],
   ['userProfileBtn', 'user-profile-btn'],
   ['dataDashboardModal', 'data-dashboard-modal'],

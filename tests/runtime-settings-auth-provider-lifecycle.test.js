@@ -877,8 +877,6 @@ test('saveSettings writes API keys through sensitive key callbacks before normal
       createElement: () => ({ value: '', dataset: {}, style: {}, classList: { add() {}, remove() {}, contains() { return false; } } }),
       getElementById: () => ({ value: '', dataset: {}, style: {}, classList: { add() {}, remove() {}, contains() { return false; } } }),
       querySelector: (selector) => {
-        if (selector === 'input[name="color-theme"]:checked') return { value: 'dark' };
-        if (selector === 'input[name="color-style"]:checked') return { value: 'single' };
         return null;
       },
       querySelectorAll: () => []
@@ -902,8 +900,7 @@ test('saveSettings writes API keys through sensitive key callbacks before normal
   state.config.theme = 'dark';
   state.config.userBubbleColor = 'default';
   dependencies.elements.userBubbleColorDropdown.querySelector = () => ({ dataset: { color: 'default' } });
-  dependencies.elements.customColorSwatches.querySelector = () => null;
-  dependencies.elements.gradientSwatches.querySelector = () => null;
+  dependencies.elements.uiColorOptions.dataset = {};
 
   const lifecycle = createLegacySettingsAuthProviderLifecycle(dependencies);
   await lifecycle.saveSettings({ close: false, notify: false });
@@ -1018,8 +1015,6 @@ test('saveSettings preserves unchanged masked keys and never stores masked place
       createElement: () => ({ value: '', dataset: {}, style: {}, classList: { add() {}, remove() {}, contains() { return false; } } }),
       getElementById: () => ({ value: '', dataset: {}, style: {}, classList: { add() {}, remove() {}, contains() { return false; } } }),
       querySelector: (selector) => {
-        if (selector === 'input[name="color-theme"]:checked') return { value: 'dark' };
-        if (selector === 'input[name="color-style"]:checked') return { value: 'single' };
         return null;
       },
       querySelectorAll: () => []
@@ -1037,8 +1032,7 @@ test('saveSettings preserves unchanged masked keys and never stores masked place
   dependencies.elements.uiLanguageSelect.value = 'en';
   dependencies.elements.aiLanguageSelect.value = 'en';
   dependencies.elements.userBubbleColorDropdown.querySelector = () => ({ dataset: { color: 'default' } });
-  dependencies.elements.customColorSwatches.querySelector = () => null;
-  dependencies.elements.gradientSwatches.querySelector = () => null;
+  dependencies.elements.uiColorOptions.dataset = {};
 
   const lifecycle = createLegacySettingsAuthProviderLifecycle(dependencies);
   await lifecycle.saveSettings({ close: false, notify: false });
@@ -1056,8 +1050,6 @@ test('saveSettings writes new and cleared API key intents through sensitive call
       createElement: () => ({ value: '', dataset: {}, style: {}, classList: { add() {}, remove() {}, contains() { return false; } } }),
       getElementById: () => ({ value: '', dataset: {}, style: {}, classList: { add() {}, remove() {}, contains() { return false; } } }),
       querySelector: (selector) => {
-        if (selector === 'input[name="color-theme"]:checked') return { value: 'dark' };
-        if (selector === 'input[name="color-style"]:checked') return { value: 'single' };
         return null;
       },
       querySelectorAll: () => []
@@ -1075,8 +1067,7 @@ test('saveSettings writes new and cleared API key intents through sensitive call
   dependencies.elements.uiLanguageSelect.value = 'en';
   dependencies.elements.aiLanguageSelect.value = 'en';
   dependencies.elements.userBubbleColorDropdown.querySelector = () => ({ dataset: { color: 'default' } });
-  dependencies.elements.customColorSwatches.querySelector = () => null;
-  dependencies.elements.gradientSwatches.querySelector = () => null;
+  dependencies.elements.uiColorOptions.dataset = {};
 
   const lifecycle = createLegacySettingsAuthProviderLifecycle(dependencies);
   await lifecycle.saveSettings({ close: false, notify: false });

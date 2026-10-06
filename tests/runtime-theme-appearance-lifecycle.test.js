@@ -27,9 +27,11 @@ function createHarness(overrides = {}) {
     document,
     elements,
     state,
+    i18n: { 'zh-TW': { colorDefault: '預設', colorBlue: '藍色', colorPink: '粉紅色', colorCustom: '自訂' } },
     UI_THEME_COLORS: {
-      blue: '#111111',
-      red: '#ff0000'
+      default: '#3b82f6',
+      blue: '#2563eb',
+      pink: '#ec4899'
     },
     setUserBubbleColor: () => calls.push(['setUserBubbleColor']),
     ...overrides
@@ -47,17 +49,14 @@ function createHarness(overrides = {}) {
 
 function installColorOptionDom(document, elements) {
   elements.uiColorOptions = document.createElement('div');
-  elements.uiColorOptions.innerHTML = `
-    <input type="radio" name="color-theme" value="default">
-    <input type="radio" name="color-theme" value="custom">
-  `;
   elements.customColorPickerContainer = document.createElement('div');
-  elements.customColorSwatches = document.createElement('div');
+  elements.customColorInput = document.createElement('input');
+  elements.customColorInput.type = 'color';
 
   document.body.append(
     elements.uiColorOptions,
     elements.customColorPickerContainer,
-    elements.customColorSwatches
+    elements.customColorInput
   );
 }
 
@@ -82,23 +81,67 @@ test('applyUiTheme sets the default and custom button colour variables', () => {
   assert.equal(document.documentElement.style.getPropertyValue('--button-primary-bg'), '#3b82f6');
 });
 
-test('renderUiColorOptions keeps swatches, the selected colour, and the custom picker visibility', () => {
+const choiceOf = (elements) => elements.uiColorOptions.querySelector('.color-option.selected')?.dataset.choice;
+const clickChoice = (elements, id) => elements.uiColorOptions.querySelector(`.color-option[data-choice="${id}"]`).dispatchEvent(new elements.uiColorOptions.ownerDocument.defaultView.Event('click'));
+
+test('renderUiColorOptions lists the default, the named colours and a custom choice, and marks the one in use', () => {
   const { document, elements, state, lifecycle } = createHarness();
   installColorOptionDom(document, elements);
-  state.config.uiTheme.mode = 'default';
-  state.config.uiTheme.customColor = '#111111';
+  state.config.uiTheme = { mode: 'default', customColor: '#111111' };
 
   lifecycle.renderUiColorOptions();
 
-  assert.equal(elements.uiColorOptions.querySelector('input[value="default"]').checked, true);
-  assert.equal(elements.customColorSwatches.children.length, 2);
-  assert.equal(elements.customColorSwatches.querySelector('.selected').dataset.color, '#111111');
+  const options = [...elements.uiColorOptions.querySelectorAll('.color-option')];
+  assert.deepEqual(options.map((option) => option.dataset.choice), ['default', 'blue', 'pink', 'custom']);
+  assert.deepEqual(options.map((option) => option.querySelector('.color-option-label').textContent), ['預設', '藍色', '粉紅色', '自訂']);
+  assert.equal(choiceOf(elements), 'default');
+  assert.equal(elements.uiColorOptions.querySelector('.color-dropdown-btn').textContent.includes('預設'), true);
   assert.equal(elements.customColorPickerContainer.classList.contains('hidden'), true);
+  assert.equal(elements.uiColorOptions.dataset.mode, 'default');
+});
 
-  elements.uiColorOptions.querySelector('input[value="default"]').checked = false;
-  elements.uiColorOptions.querySelector('input[value="custom"]').checked = true;
-  elements.uiColorOptions.querySelector('input[value="custom"]').dispatchEvent(new document.defaultView.Event('change'));
+test('a colour saved as a custom colour shows as the named colour it equals, otherwise as custom', () => {
+  const named = createHarness();
+  installColorOptionDom(named.document, named.elements);
+  named.state.config.uiTheme = { mode: 'custom', customColor: '#EC4899' };
+  named.lifecycle.renderUiColorOptions();
+  assert.equal(choiceOf(named.elements), 'pink');
+  assert.equal(named.elements.customColorPickerContainer.classList.contains('hidden'), true);
+
+  const own = createHarness();
+  installColorOptionDom(own.document, own.elements);
+  own.state.config.uiTheme = { mode: 'custom', customColor: '#123456' };
+  own.lifecycle.renderUiColorOptions();
+  assert.equal(choiceOf(own.elements), 'custom');
+  assert.equal(own.elements.customColorPickerContainer.classList.contains('hidden'), false);
+  assert.equal(own.elements.customColorInput.value, '#123456');
+});
+
+test('choosing from the menu keeps the choice on the menu element for saving and closes the menu', () => {
+  const { document, elements, state, lifecycle } = createHarness();
+  installColorOptionDom(document, elements);
+  state.config.uiTheme = { mode: 'default', customColor: '#111111' };
+  lifecycle.renderUiColorOptions();
+  const menu = elements.uiColorOptions.querySelector('.color-dropdown-menu');
+  menu.classList.add('show');
+
+  clickChoice(elements, 'blue');
+  assert.deepEqual({ ...elements.uiColorOptions.dataset }, { mode: 'custom', color: '#2563eb' });
+  assert.equal(choiceOf(elements), 'blue');
+  assert.equal(menu.classList.contains('show'), false);
+
+  clickChoice(elements, 'custom');
+  assert.equal(choiceOf(elements), 'custom');
   assert.equal(elements.customColorPickerContainer.classList.contains('hidden'), false);
+
+  elements.customColorInput.value = '#abcdef';
+  elements.customColorInput.oninput();
+  assert.deepEqual({ ...elements.uiColorOptions.dataset }, { mode: 'custom', color: '#abcdef' });
+
+  clickChoice(elements, 'default');
+  assert.equal(elements.uiColorOptions.dataset.mode, 'default');
+  assert.equal(choiceOf(elements), 'default');
+  assert.equal(elements.customColorPickerContainer.classList.contains('hidden'), true);
 });
 
 test('applyBubbleColors refreshes the user bubble colour', () => {
