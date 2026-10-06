@@ -1,0 +1,55 @@
+/* The two windows of the update notes (ui/updates/update-log-view.js): the history, and the window that opens when there is a new version. */
+.ul-dialog { position: relative; display: flex; flex-direction: column; width: 100%; max-height: 92vh; border-radius: 1.1rem; background: var(--modal-bg); color: var(--text-primary); box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35); }
+.ul-history { max-width: 44rem; }
+.ul-hero { max-width: 34rem; }
+.ul-x { position: absolute; top: 0.9rem; right: 1.1rem; width: 2rem; height: 2rem; display: grid; place-items: center; border: 0; background: transparent; color: var(--text-secondary); font-size: 1.5rem; line-height: 1; cursor: pointer; }
+.ul-x:hover { color: var(--text-primary); }
+.ul-head { padding: 1.5rem 3.2rem 1rem 2rem; border-bottom: 1px solid var(--border-color); }
+.ul-head h2 { margin: 0; font-size: 1.05rem; font-weight: 600; }
+.ul-scroll { overflow-y: auto; }
+.ul-history .ul-scroll { padding: 0 2rem 1rem; }
+.ul-hero .ul-scroll { padding: 2.2rem 2.2rem 1.2rem; }
+.ul-kicker { margin: 0 2rem 0.9rem 0; font-size: 0.78rem; font-weight: 500; letter-spacing: 0.04em; color: var(--text-secondary); }
+.ul-v, .ul-d, .ul-n { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.ul-sec { margin: 1.1rem 0 0.3rem; font-size: 0.72rem; font-weight: 500; letter-spacing: 0.14em; color: var(--text-secondary); }
+.ul-p { margin: 0 0 0.6rem; font-size: 0.92rem; line-height: 1.6; color: var(--text-primary); }
+.ul-ul { margin: 0; padding-left: 1.1rem; font-size: 0.9rem; line-height: 1.6; list-style: disc; }
+.ul-ul li { margin: 0.3rem 0; }
+.ul-p strong, .ul-ul strong, .ul-hl strong { font-weight: 600; }
+/* history: version and date at the left, the notes at the right */
+.ul-ver { display: grid; grid-template-columns: 7.5rem 1fr; gap: 1.4rem; padding: 1.6rem 0; border-bottom: 1px solid var(--border-color); }
+.ul-ver:last-child { border-bottom: 0; }
+.ul-side { display: flex; flex-direction: column; align-items: flex-start; gap: 0.15rem; }
+.ul-ver .ul-v { font-size: 1.15rem; font-weight: 600; letter-spacing: -0.01em; }
+.ul-ver .ul-d { font-size: 0.78rem; color: var(--text-secondary); }
+.ul-tag { margin-top: 0.4rem; padding: 0.05rem 0.55rem; border: 1px solid var(--text-primary); border-radius: 9999px; font-size: 0.68rem; letter-spacing: 0.1em; }
+.ul-ver .ul-sec:first-child { margin-top: 0; }
+/* the new-version window: the version, a headline, numbered changes */
+.ul-new + .ul-new { margin-top: 2rem; padding-top: 1.6rem; border-top: 1px solid var(--border-color); }
+.ul-meta { display: flex; align-items: center; gap: 0.8rem; font-size: 0.78rem; letter-spacing: 0.04em; color: var(--text-secondary); }
+.ul-meta .ul-v { color: var(--text-primary); font-weight: 600; letter-spacing: 0.02em; }
+.ul-hl { margin: 0.9rem 0 1.2rem; font-size: 1.2rem; line-height: 1.45; font-weight: 600; letter-spacing: -0.01em; }
+.ul-new .ul-sec { margin-top: 1.5rem; }
+.ul-items { margin: 0.2rem 0 0; }
+.ul-it { display: grid; grid-template-columns: 2.2rem 1fr; gap: 0.4rem; padding: 0.85rem 0; border-top: 1px solid var(--border-color); }
+.ul-it:first-child { border-top: 0; }
+.ul-n { padding-top: 0.15rem; font-size: 0.78rem; color: var(--text-secondary); }
+.ul-it-title { font-size: 0.95rem; font-weight: 600; }
+.ul-it-desc { margin: 0.15rem 0 0; font-size: 0.88rem; line-height: 1.55; color: var(--text-secondary); }
+.ul-foot { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem 2.2rem 1.4rem; border-top: 1px solid var(--border-color); }
+.ul-link { padding: 0; border: 0; background: transparent; color: var(--text-secondary); font: inherit; font-size: 0.85rem; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.ul-link:hover { color: var(--text-primary); }
+.ul-btn { height: 2.6rem; padding: 0 1.4rem; border: 0; border-radius: 0.6rem; background: var(--button-primary-bg); color: var(--button-primary-text); font: inherit; font-size: 0.92rem; cursor: pointer; }
+@media (max-width: 560px) {
+    .ul-head { padding: 1.3rem 3rem 0.9rem 1.3rem; }
+    .ul-history .ul-scroll { padding: 0 1.3rem 1rem; }
+    .ul-hero .ul-scroll { padding: 1.8rem 1.4rem 1rem; }
+    .ul-ver { grid-template-columns: 1fr; gap: 0.5rem; }
+    .ul-side { flex-direction: row; align-items: baseline; gap: 0.7rem; }
+    .ul-side .ul-d { margin-left: auto; }
+    .ul-tag { margin: 0; }
+    .ul-hl { font-size: 1.1rem; }
+    .ul-foot { flex-direction: column-reverse; align-items: stretch; padding: 1rem 1.4rem 1.3rem; }
+    .ul-btn { width: 100%; }
+    .ul-link { text-align: center; }
+}

@@ -749,6 +749,11 @@ export function createLegacyAppBootstrapLifecycle({
                 ALL_ELEMENTS.updateInfoBtn.addEventListener('click', showUpdateHistory);
                 ALL_ELEMENTS.closeUpdateInfoModalBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.updateInfoModal, false));
                 ALL_ELEMENTS.closeLatestUpdateModalBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.latestUpdateModal, false));
+                ALL_ELEMENTS.closeLatestUpdateXBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.latestUpdateModal, false));
+                ALL_ELEMENTS.latestUpdateHistoryBtn.addEventListener('click', () => {
+                    toggleModal(ALL_ELEMENTS.latestUpdateModal, false);
+                    showUpdateHistory();
+                });
                 ALL_ELEMENTS.trashBatchSelectBtn.addEventListener('click', toggleTrashSelectionMode);
                 ALL_ELEMENTS.trashCancelSelectionBtn.addEventListener('click', toggleTrashSelectionMode);
                 ALL_ELEMENTS.trashBatchRestoreBtn.addEventListener('click', handleBatchRestoreFromTrash);

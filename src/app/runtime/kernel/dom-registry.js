@@ -179,6 +179,8 @@ const LEGACY_RUNTIME_DOM_ELEMENT_IDS = [
   ['enableUpdateNotificationsToggle', 'enable-update-notifications-toggle'],
   ['latestUpdateModal', 'latest-update-modal'],
   ['closeLatestUpdateModalBtn', 'close-latest-update-modal-btn'],
+  ['closeLatestUpdateXBtn', 'close-latest-update-x-btn'],
+  ['latestUpdateHistoryBtn', 'latest-update-history-btn'],
   ['latestUpdateContent', 'latest-update-content'],
   ['trashSection', 'trash-section'],
   ['trashBatchSelectBtn', 'trash-batch-select-btn'],

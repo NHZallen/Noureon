@@ -69,6 +69,15 @@
 #settings-modal .pz .pz-sbtn:hover:not(:disabled) { background: var(--hover-bg); }
 #settings-modal .pz .pz-sbtn:disabled { opacity: 0.45; cursor: default; }
 #settings-modal .pz .pz-sbtn-danger { color: #b91c1c !important; border-color: color-mix(in srgb, #dc2626 45%, var(--border-color)); }
+/* About tab: feedback box, mail link, the terms and policies folded until opened, the version. */
+#settings-modal .pz textarea.pz-input { display: block; height: auto; min-height: 6.5rem; padding: 0.6rem 0.75rem; resize: vertical; }
+#settings-modal .pz .pz-send { display: block; width: 100%; margin-top: 0.75rem; padding: 0.6rem 1rem; border: 0; border-radius: 0.5rem; font: inherit; font-size: 0.9rem; cursor: pointer; }
+#settings-modal .pz .pz-mail { flex: none; font-size: 0.9rem; color: var(--text-primary); text-decoration: underline; text-underline-offset: 3px; }
+#settings-modal .pz .pz-fold > summary { list-style: none; }
+#settings-modal .pz .pz-fold > summary::-webkit-details-marker { display: none; }
+#settings-modal .pz .pz-fold > summary svg { transition: transform 0.15s ease; }
+#settings-modal .pz .pz-fold[open] > summary svg { transform: rotate(90deg); }
+#settings-modal .pz .pz-fold-body { margin: 0; padding: 0 1.15rem 1.1rem; font-size: 0.8125rem; line-height: 1.6; font-weight: var(--astra-font-regular, 400) !important; }
 #settings-modal .pz .pz-gbtn { padding: 0.3rem 0.55rem; border: 0; border-radius: 0.4rem; background: transparent; font: inherit; font-size: 0.85rem; color: var(--text-secondary) !important; white-space: nowrap; cursor: pointer; }
 #settings-modal .pz .pz-gbtn:hover { background: var(--hover-bg); color: var(--text-primary) !important; }
 #settings-modal .pz .pz-gbtn-danger, #settings-modal .pz .pz-gbtn-danger:hover { color: #b91c1c !important; }

@@ -148,3 +148,22 @@ test('the Trash tab has its actions and batch bar in the page', () => {
   assert.equal(document.getElementById('trash-batch-action-bar').classList.contains('hidden'), true);
   assert.equal(document.getElementById('trash-batch-restore-btn').disabled, true);
 });
+
+test('the About tab keeps its controls and folds the terms and the privacy policy until they are opened', () => {
+  const window = new Window({ url: 'https://example.test/' });
+  const { document } = window;
+  const start = fragment04.indexOf('<div id="about-section"');
+  document.body.innerHTML = fragment04.slice(start, fragment04.indexOf('<div class="p-4 bg-[var(--sidebar-bg)]', start));
+  for (const id of ['feedback-textarea', 'send-feedback-btn', 'update-info-btn', 'enable-update-notifications-toggle', 'version-number-display']) {
+    assert.ok(document.getElementById(id), `${id} is in the page`);
+  }
+  assert.deepEqual(
+    [...document.querySelectorAll('#about-section .pz-card .pz-head h3')].map((heading) => heading.dataset.langKey),
+    ['feedback', 'settingsCardSupport', 'settingsCardLegal', 'versionInfo']
+  );
+  const folds = [...document.querySelectorAll('#about-section details.pz-fold')];
+  assert.deepEqual(folds.map((fold) => fold.querySelector('summary span').dataset.langKey), ['termsOfUse', 'privacyPolicy']);
+  assert.deepEqual(folds.map((fold) => fold.querySelector('.pz-fold-body').dataset.langKey), ['termsOfUseDesc', 'privacyPolicyDesc']);
+  assert.equal(folds.some((fold) => fold.hasAttribute('open')), false, 'both start closed');
+  assert.equal(document.querySelector('#update-info-btn span').dataset.langKey, 'viewUpdateHistory');
+});

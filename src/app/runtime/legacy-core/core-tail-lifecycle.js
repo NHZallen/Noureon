@@ -1,6 +1,7 @@
 import { buildTimeDistributionChartData } from '../../legacy-runtime/features/time-distribution-chart-data.js';
 import { buildConversationMobileContextMenuMarkup, buildFolderMobileContextMenuMarkup, buildAstraMobileContextMenuMarkup } from '../../legacy-runtime/features/mobile-context-menu-markup.js';
 import { compareVersions } from '../../legacy-runtime/features/version-compare.js';
+import { renderUpdateHistory, renderLatestUpdates } from '../../ui/updates/update-log-view.js';
 import { createLegacyTrashLifecycle } from '../features/trash-lifecycle.js';
 import { createThemeAppearanceLifecycle } from '../features/theme-appearance-lifecycle.js';
 import { createLegacyRuntimeEntryDependencies } from '../runtime-entry-dependencies.js';
@@ -840,21 +841,16 @@ export function createLegacyCoreTailLifecycle(dependencies = {}) {
 };
         const showUpdateHistory = () => {
             const container = ALL_ELEMENTS.updateInfoContent;
-            container.innerHTML = '';
             if (typeof updateLogs !== 'undefined' && updateLogs.length > 0) {
-                updateLogs.forEach(log => {
-                    const logEntry = document.createElement('div');
-                    logEntry.className = 'prose prose-sm max-w-none';
-                    logEntry.innerHTML = `
-                        <h3 class="font-bold text-lg">${escapeHTML(log.version)} <span class="text-sm font-normal text-[var(--text-secondary)]">- ${escapeHTML(log.date)}</span></h3>
-                        <ul>
-                            ${log.content.map(item => `<li>${sanitizeTrustedHTML(item)}</li>`).join('')}
-                        </ul>
-                    `;
-                    container.appendChild(logEntry);
+                renderUpdateHistory({
+                    document,
+                    container,
+                    logs: updateLogs,
+                    sanitize: sanitizeTrustedHTML,
+                    latestLabel: i18n[state.config.uiLanguage].updateLatestTag || ''
                 });
             } else {
-                container.innerHTML = `<p>${i18n[state.config.uiLanguage].noUpdateHistory || '目前沒有更新紀錄。'}</p>`;
+                container.innerHTML = `<p class="ul-p">${i18n[state.config.uiLanguage].noUpdateHistory || '目前沒有更新紀錄。'}</p>`;
             }
             toggleModal(ALL_ELEMENTS.updateInfoModal, true);
         };
@@ -871,16 +867,7 @@ export function createLegacyCoreTailLifecycle(dependencies = {}) {
         if (modalTitle) {
             modalTitle.textContent = i18n[state.config.uiLanguage].newVersionsFound.replace('{count}', newUpdates.length);
         }
-        contentContainer.innerHTML = newUpdates.map(log => `
-            <div class="prose prose-sm max-w-none mb-6 pb-4 border-b border-[var(--border-color)] last:border-b-0 last:mb-0 last:pb-0">
-                <h4 class="font-bold text-lg">${escapeHTML(log.version)} <span class="text-sm font-normal text-[var(--text-secondary)]">- ${escapeHTML(log.date)}</span></h4>
-                <ul>
-                    ${log.content.map(item => `<li>${sanitizeTrustedHTML(item)}</li>`).join('')}
-                </ul>
-            </div>
-        `).join('');
-        contentContainer.style.maxHeight = '60vh';
-        contentContainer.style.overflowY = 'auto';
+        renderLatestUpdates({ document, container: contentContainer, logs: newUpdates, sanitize: sanitizeTrustedHTML });
         toggleModal(ALL_ELEMENTS.latestUpdateModal, true);
         const latestVersionInLog = newUpdates[0].version; // 因為我們已經排序了，所以 newUpdates[0] 現在是最新版
         state.config.lastSeenVersion = latestVersionInLog;
