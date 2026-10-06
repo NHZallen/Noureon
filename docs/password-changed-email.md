@@ -20,4 +20,6 @@
 
 ## 語言
 
-範本會讀使用者帳號資料（user metadata）裡的 `language`：`en`、`fr`、`ru`、`es` 各有一版，沒有這個欄位或不認識的值一律是繁體中文。**App 要把介面語言寫進 `language` 才會依人切換**（還沒做，在等 owner 決定）。範本用 Go 的 `text/template` 和 `html/template` 都驗證過（欄位缺少、空白、不認識、型別不對都不會出錯）。
+Supabase 後台每種信只有**一個**範本欄位，沒有「每種語言各一份」的地方；多語言是在這一份範本裡用條件（Go 範本的 `if`）選，這是 Supabase 官方社群有記載的做法。
+
+範本會讀使用者帳號資料（user metadata）裡的 `language`：`en`、`fr`、`ru`、`es` 各有一版，沒有這個欄位或不認識的值一律是繁體中文。**App 要把介面語言寫進 `language` 才會依人切換**（還沒做，在等 owner 決定）。範本用 Go 的 `text/template` 和 `html/template` 都驗證過：`Data` 缺少、是空值、是空的、`language` 不認識或型別不對，都會退回繁體中文，不會出錯。沒辦法在範本裡擋掉的只有「Supabase 給的資料根本不是 map」這種不太可能的情況；貼上後請用測試帳號改一次密碼，確認收到信。

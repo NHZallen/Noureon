@@ -22,7 +22,8 @@ def t(key):
     return '{{ if eq $lang "en" }}'+d['en']+'{{ else if eq $lang "fr" }}'+d['fr']+'{{ else if eq $lang "ru" }}'+d['ru']+'{{ else if eq $lang "es" }}'+d['es']+'{{ else }}'+d['zh']+'{{ end }}'
 FONT="-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang TC','Noto Sans TC','Microsoft JhengHei',Roboto,Helvetica,Arial,sans-serif"
 ACC='#5b4fcf'
-TEMPLATE=f'''{{{{ $lang := printf "%v" .Data.language }}}}<!doctype html>
+LANG='{{ $lang := "" }}{{ with .Data }}{{ $lang = printf "%v" .language }}{{ end }}'
+TEMPLATE=f'''{LANG}<!doctype html>
 <html lang="{{{{ if eq $lang "en" }}}}en{{{{ else if eq $lang "fr" }}}}fr{{{{ else if eq $lang "ru" }}}}ru{{{{ else if eq $lang "es" }}}}es{{{{ else }}}}zh-Hant{{{{ end }}}}">
 <head>
 <meta charset="utf-8">
@@ -77,6 +78,6 @@ TEMPLATE=f'''{{{{ $lang := printf "%v" .Data.language }}}}<!doctype html>
 </html>
 '''
 open(os.path.join(HERE, 'password-changed.html'),'w').write(TEMPLATE)
-subj='{{ $lang := printf "%v" .Data.language }}{{ if eq $lang "en" }}'+S['subject']['en']+'{{ else if eq $lang "fr" }}'+S['subject']['fr']+'{{ else if eq $lang "ru" }}'+S['subject']['ru']+'{{ else if eq $lang "es" }}'+S['subject']['es']+'{{ else }}'+S['subject']['zh']+'{{ end }}'
+subj=LANG+'{{ if eq $lang "en" }}'+S['subject']['en']+'{{ else if eq $lang "fr" }}'+S['subject']['fr']+'{{ else if eq $lang "ru" }}'+S['subject']['ru']+'{{ else if eq $lang "es" }}'+S['subject']['es']+'{{ else }}'+S['subject']['zh']+'{{ end }}'
 open(os.path.join(HERE, 'password-changed.subject.txt'),'w').write(subj)
 print(len(TEMPLATE.encode()),'bytes')
