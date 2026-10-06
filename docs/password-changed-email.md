@@ -1,37 +1,23 @@
 # 「登入密碼已變更」通知信（貼到 Supabase）
 
-用途：使用者改登入密碼後，Supabase 會寄這封信到他的 Email（改密碼是不是由本人做的都會寄）。信裡的連結指向 `{{ .SiteURL }}/forgot-password`（現成的重設頁：輸入 Email、過驗證、收驗證碼），所以信裡不帶任何可以直接重設密碼的憑證。
+用途：使用者改登入密碼後，Supabase 會寄這封信到他的 Email（不管是不是本人改的都會寄）。信裡的按鈕連到 `{{ .SiteURL }}/forgot-password`（現成的重設頁：輸入 Email、過驗證、收驗證碼），所以信裡沒有任何可以直接重設密碼的憑證。
 
-設定位置：Supabase 後台 → Authentication → Emails，找「Password changed」（密碼已變更）的通知範本，開啟後貼上下面的主旨與內容。確認「Site URL」是 `https://noureon.com`。
+設計依據：照 GitHub、Linear、Dropbox 這類信的做法（靠左、單欄、一個按鈕、克制的版面），品牌色取自 Logo。信裡**沒有**時間、裝置、地點：Supabase 的這種通知只提供信箱（`{{ .Email }}`）和網站網址（`{{ .SiteURL }}`），沒有編造其他欄位。
 
-主旨：
+## 檔案
 
-```
-Noureon 登入密碼已變更 · Your Noureon password was changed
-```
+- 內容（HTML，Go 範本）：[`email-templates/password-changed.html`](email-templates/password-changed.html)
+- 主旨：[`email-templates/password-changed.subject.txt`](email-templates/password-changed.subject.txt)
+- 產生器（要改文字就改裡面的 `S` 再執行）：[`email-templates/build-password-changed.py`](email-templates/build-password-changed.py)
 
-內容（HTML，五種語言放在同一封）：
+## 貼到 Supabase
 
-```html
-<div style="font-family:-apple-system,'Segoe UI',sans-serif;max-width:520px;margin:0 auto;color:#111;line-height:1.6">
-  <h2 style="margin:0 0 8px">你的 Noureon 登入密碼已變更</h2>
-  <p>帳號 {{ .Email }} 的登入密碼剛剛被更新。如果是你本人操作，不需要做任何事。</p>
-  <p>如果不是你，請立即 <a href="{{ .SiteURL }}/forgot-password">重設密碼</a>。</p>
-  <hr style="border:0;border-top:1px solid #e5e5e5;margin:20px 0">
-  <h3 style="margin:0 0 6px">Your Noureon password was changed</h3>
-  <p>The login password for {{ .Email }} was just updated. If this was you, no action is needed.</p>
-  <p>If it was not you, <a href="{{ .SiteURL }}/forgot-password">reset your password</a> right away.</p>
-  <hr style="border:0;border-top:1px solid #e5e5e5;margin:20px 0">
-  <h3 style="margin:0 0 6px">Votre mot de passe Noureon a été modifié</h3>
-  <p>Le mot de passe de connexion de {{ .Email }} vient d'être mis à jour. Si c'est vous, vous n'avez rien à faire.</p>
-  <p>Sinon, <a href="{{ .SiteURL }}/forgot-password">réinitialisez votre mot de passe</a> immédiatement.</p>
-  <hr style="border:0;border-top:1px solid #e5e5e5;margin:20px 0">
-  <h3 style="margin:0 0 6px">Пароль Noureon изменён</h3>
-  <p>Пароль для входа в аккаунт {{ .Email }} только что обновлён. Если это были вы, ничего делать не нужно.</p>
-  <p>Если это были не вы, немедленно <a href="{{ .SiteURL }}/forgot-password">сбросьте пароль</a>.</p>
-  <hr style="border:0;border-top:1px solid #e5e5e5;margin:20px 0">
-  <h3 style="margin:0 0 6px">Tu contraseña de Noureon ha cambiado</h3>
-  <p>La contraseña de inicio de sesión de {{ .Email }} se acaba de actualizar. Si fuiste tú, no tienes que hacer nada.</p>
-  <p>Si no fuiste tú, <a href="{{ .SiteURL }}/forgot-password">restablece tu contraseña</a> de inmediato.</p>
-</div>
-```
+1. Supabase 後台 → Authentication → Emails → Security 區的「Password changed」。
+2. 打開右邊的開關，點進去。
+3. Subject 貼主旨檔的內容，內容欄貼 HTML 檔的整份內容。
+4. 回到列表按「Save changes」。
+5. Authentication → URL Configuration 確認 **Site URL** 是 `https://noureon.com`。
+
+## 語言
+
+範本會讀使用者帳號資料（user metadata）裡的 `language`：`en`、`fr`、`ru`、`es` 各有一版，沒有這個欄位或不認識的值一律是繁體中文。**App 要把介面語言寫進 `language` 才會依人切換**（還沒做，在等 owner 決定）。範本用 Go 的 `text/template` 和 `html/template` 都驗證過（欄位缺少、空白、不認識、型別不對都不會出錯）。
