@@ -78,6 +78,8 @@ export function createThemeAppearanceLifecycle(dependencies = {}) {
         button.type = 'button';
         button.className = 'color-dropdown-btn';
         button.setAttribute('aria-haspopup', 'listbox');
+        // A wide field does not sink and spring back under the press like a small button (press-feedback.js).
+        button.setAttribute('data-no-press', '');
         const menu = document.createElement('div');
         menu.className = 'color-dropdown-menu';
         menu.setAttribute('role', 'listbox');

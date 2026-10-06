@@ -53,6 +53,7 @@ export function createSettingsThemeBubbleControls(dependencies = {}) {
     const currentHex = colorMap[currentColor][DEFAULT_APPEARANCE_MODE];
     const btn = document.createElement('button');
     btn.className = 'color-dropdown-btn';
+    btn.dataset.noPress = '';
     btn.dataset.color = currentColor;
     btn.innerHTML = `
         <div class="color-preview" style="background-color: ${currentHex};"></div>

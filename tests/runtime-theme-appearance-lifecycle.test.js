@@ -101,6 +101,13 @@ test('renderUiColorOptions lists the default, the named colours and a custom cho
   assert.equal(elements.uiColorOptions.dataset.mode, 'default');
 });
 
+test('the menu button does not sink under a press', () => {
+  const { document, elements, lifecycle } = createHarness();
+  installColorOptionDom(document, elements);
+  lifecycle.renderUiColorOptions();
+  assert.equal(elements.uiColorOptions.querySelector('.color-dropdown-btn').hasAttribute('data-no-press'), true);
+});
+
 test('a colour saved as a custom colour shows as the named colour it equals, otherwise as custom', () => {
   const named = createHarness();
   installColorOptionDom(named.document, named.elements);
