@@ -90,9 +90,6 @@ export function normalizeLoadedLegacyConfig({
       apiKeys: { ...(currentConfig?.apiKeys || {}) },
       uiTheme: { ...currentConfig.uiTheme, ...(normalSavedConfig.uiTheme || {}) }
     };
-    normalizedConfig.uiTheme.style = normalizedConfig.uiTheme.style || 'single';
-    normalizedConfig.uiTheme.adaptivePalette = normalizedConfig.uiTheme.adaptivePalette || [];
-    normalizedConfig.uiTheme.adaptiveGradient = normalizedConfig.uiTheme.adaptiveGradient || '';
     normalizedConfig.outputMode = 'realtime';
     normalizedConfig.searchProvider = normalizeSearchProvider(normalizedConfig.searchProvider);
     normalizedConfig.tavilySearchDepth = normalizedConfig.tavilySearchDepth === 'advanced' ? 'advanced' : 'basic';
@@ -104,6 +101,14 @@ export function normalizeLoadedLegacyConfig({
     };
   }
   delete normalizedConfig.theme;
+  // The custom wallpaper, the colours taken from it and the AI bubble colour (only shown over a wallpaper) were removed; drop what an older config or sync still carries.
+  delete normalizedConfig.customWallpaper;
+  delete normalizedConfig.wallpaperBrightness;
+  delete normalizedConfig.aiBubbleColor;
+  normalizedConfig.uiTheme = {
+    mode: normalizedConfig.uiTheme?.mode === 'custom' ? 'custom' : 'default',
+    customColor: normalizedConfig.uiTheme?.customColor || '#3b82f6'
+  };
   normalizedConfig.uiLanguage = normalizeLanguageCode(normalizedConfig.uiLanguage);
   normalizedConfig.visionCheckEnabled = normalizedConfig.visionCheckEnabled !== false;
   normalizedConfig.processOpen = normalizedConfig.processOpen === true;

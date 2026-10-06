@@ -7,13 +7,6 @@ export function collectSettingsSaveFormValues({
 } = {}) {
     const selectedThemeMode = document.querySelector('input[name="color-theme"]:checked').value;
     const selectedCustomColor = elements.customColorSwatches.querySelector('.selected')?.dataset.color || config.uiTheme.customColor;
-    const selectedStyle = document.querySelector('input[name="color-style"]:checked')?.value || 'single';
-    const selectedGradientSwatch = elements.gradientSwatches.querySelector('.selected-gradient');
-    const selectedGradient = selectedGradientSwatch
-        ? selectedGradientSwatch.dataset.gradient
-        : (config.uiTheme.adaptivePalette?.length > 1
-            ? `linear-gradient(to right, ${config.uiTheme.adaptivePalette[0]}, ${config.uiTheme.adaptivePalette[1]})`
-            : '');
 
     return {
         // Kept as it was where the setting is not shown.
@@ -28,7 +21,6 @@ export function collectSettingsSaveFormValues({
         // Kept as it was where the setting is not shown.
         fileModeDefault: elements.fileModeDefaultSelect?.value === 'standard' ? 'standard'
             : elements.fileModeDefaultSelect ? 'advanced' : (config.fileModeDefault === 'standard' ? 'standard' : 'advanced'),
-        aiBubbleColor: elements.aiBubbleColorDropdown.querySelector('.color-dropdown-btn')?.dataset.color || 'default',
         userBubbleColor: elements.userBubbleColorDropdown.querySelector('.color-dropdown-btn')?.dataset.color || 'default',
         autoNaming: elements.autoNamingToggleSwitch.checked,
         memoryEnabled1: elements.memoryToggle1?.isConnected !== false
@@ -43,9 +35,7 @@ export function collectSettingsSaveFormValues({
         enableUpdateNotifications: elements.enableUpdateNotificationsToggle.checked,
         uiTheme: {
             mode: selectedThemeMode,
-            customColor: selectedCustomColor,
-            style: selectedStyle,
-            adaptiveGradient: selectedGradient
+            customColor: selectedCustomColor
         }
     };
 }

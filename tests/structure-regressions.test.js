@@ -703,7 +703,7 @@ test('runtime config ownership moves into a narrow non-live kernel store', () =>
     /const\s+\{\s*getItem,\s*setItem,\s*removeItem,\s*readItems,\s*setItemsAtomic\s*\}\s*=\s*runtimeStorageAdapter/
   );
   assert.doesNotMatch(fragment00Source, /async\s+function\s+(?:openDB|getItem|setItem|removeItem)/);
-  assert.equal(((laterFragmentSources.join('\n') + fragment03Source + coreTailSource + themeAppearanceSource + importExportSource + authImportSource + modelMemoryDashboardSource + submitInputCouncilSource).match(/\bsaveConfig\(\)/g) || []).length, 12);
+  assert.equal(((laterFragmentSources.join('\n') + fragment03Source + coreTailSource + themeAppearanceSource + importExportSource + authImportSource + modelMemoryDashboardSource + submitInputCouncilSource).match(/\bsaveConfig\(\)/g) || []).length, 9);
 
   assert.match(runtimeAppSource, /import\s+\{\s*createLegacyRuntimeConfigStore\s*\}/);
   assert.match(runtimeAppSource, /const\s+configStore\s*=\s*createLegacyRuntimeConfigStore\(\{\s*defaultModelId\s*\}\)/);
@@ -1290,7 +1290,7 @@ test('legacy core tail ownership stays in runtime entry with transition bus brid
   assert.match(runtimeEntrySource, /coreTailLifecycle\.registerRuntimeEntryDependencies\(\)/);
   for (const name of [
     'applyUiTheme',
-    'applyCustomWallpaper',
+    'applyBubbleColors',
     'renderStore',
     'applyLanguage',
     'showMobileContextMenu',
@@ -1455,14 +1455,9 @@ test('color contrast helper is shared without later-fragment lexical ownership',
   assert.doesNotMatch(coreTailSource, /const\s+hexToRgb\s*=/);
   assert.doesNotMatch(coreTailSource, /const\s+getTextColorForBackground\s*=/);
   assert.doesNotMatch(renderHistorySidebarContentBody, /style\.(?:color|backgroundColor)/, 'the timeline takes its colours from the theme');
-  assert.match(
-    applyUiThemeBody,
-    /const\s+textColor\s*=\s*\(state\.config\.uiTheme\.style\s*===\s*'gradient'\s*&&\s*state\.config\.uiTheme\.mode\s*===\s*'adaptive'\)\s*\?\s*'#ffffff'\s*:\s*getThemeTextColorForBackground\(primaryBg\);/
-  );
   assertMarkersInOrder(applyUiThemeBody, [
     "root.style.setProperty('--button-primary-bg', primaryBg)",
-    "root.style.setProperty('--button-primary-text', textColor)"
-  ], 'applyUiTheme color assignments');
+    "root.style.setProperty('--button-primary-text', getThemeTextColorForBackground(primaryBg))"], 'applyUiTheme color assignments');
 });
 
 test('legacy runtime real core has no remaining fragment boundary to stitch', () => {
@@ -1877,7 +1872,7 @@ test('auth and homepage import bindings remain before startup in legacy order', 
   assertMarkersInOrder(initializeAppBody, [
     'await loadConfig()',
     'await loadAppData()',
-    'applyCustomWallpaper()',
+    'applyBubbleColors()',
     'applyUiTheme()',
     "elements.authContainer.style.display = 'none'",
     "elements.appContainer.classList.remove('hidden')",
@@ -2054,7 +2049,7 @@ test('runtime lazy registrations and composition handoffs preserve legacy order'
   assertMarkersInOrder(initializeAppBody, [
     'await loadConfig()',
     'await loadAppData()',
-    'applyCustomWallpaper()',
+    'applyBubbleColors()',
     'applyUiTheme()',
     "elements.appContainer.classList.remove('hidden')",
     "elements.appContainer.classList.add('visible')",
@@ -2115,7 +2110,7 @@ test('initChatApp callers use the required runtime handoff without changing lega
     "await setItem('chat_lastUser', username)",
     'await loadConfig()',
     'await loadAppData()',
-    'applyCustomWallpaper()',
+    'applyBubbleColors()',
     'applyUiTheme()',
     "elements.authContainer.classList.add('fade-out')",
     "elements.appContainer.classList.remove('hidden')",
@@ -2138,7 +2133,7 @@ test('initChatApp callers use the required runtime handoff without changing lega
   assertMarkersInOrder(initializeAppBody, [
     'await loadConfig()',
     'await loadAppData()',
-    'applyCustomWallpaper()',
+    'applyBubbleColors()',
     'applyUiTheme()',
     "elements.authContainer.style.display = 'none'",
     "elements.appContainer.classList.remove('hidden')",

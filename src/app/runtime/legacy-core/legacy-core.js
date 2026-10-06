@@ -55,7 +55,7 @@ import { removeSensitiveConfig } from '/src/app/runtime/security/sensitive-confi
 import { CHEAP_MODEL_ID, COUNCIL_MAX_MODELS, COUNCIL_MIN_MODELS, COUNCIL_RESPONSE_CHAR_LIMIT, COUNCIL_RETRY_DELAY_MS, COUNCIL_TEXT, MODELS, OPENROUTER_VISION_MODELS, createLegacyModelRegistry, getModelReasoningConfig, modelGeneratesImages, normalizeReasoningEffort } from '/src/app/runtime/legacy-core/model-registry.js';
 import { searchSourceModel } from '/src/app/runtime/kernel/search-provider.js';
 import { getCouncilRuntimeTexts as getCouncilRuntimeTextsForLanguage } from '/src/app/runtime/legacy-core/council-runtime-texts.js';
-import { AI_BUBBLE_COLORS, FOLDER_COLORS, UI_THEME_COLORS, USER_BUBBLE_COLORS } from '/src/app/runtime/legacy-core/runtime-ui-colors.js';
+import { FOLDER_COLORS, UI_THEME_COLORS, USER_BUBBLE_COLORS } from '/src/app/runtime/legacy-core/runtime-ui-colors.js';
 
 const legacyRuntimeContext = createLegacyRuntimeContext();
 const resolveFoundationUpdateInputState = (...args) => legacyRuntimeContext.resolveBinding('input.updateInputState')(...args);
@@ -859,7 +859,6 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             getActiveConversation,
             getMessageTypeIcon,
             userBubbleColors: USER_BUBBLE_COLORS,
-            aiBubbleColors: AI_BUBBLE_COLORS,
             getConfig: () => runtimeConfigAccess.getConfig(),
             hexToRgba,
             getTextColorForBackground,
@@ -1129,7 +1128,6 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             councilResponseCharLimit: COUNCIL_RESPONSE_CHAR_LIMIT,
             councilRetryDelayMs: COUNCIL_RETRY_DELAY_MS,
             councilMaxModels: COUNCIL_MAX_MODELS,
-            aiBubbleColors: AI_BUBBLE_COLORS,
             userBubbleColors: USER_BUBBLE_COLORS,
             getActiveConversation,
             normalizeConversationModel,
@@ -1192,7 +1190,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             mergeSensitiveApiKeys,
             saveSensitiveConfig,
             saveAppData,
-            applyCustomWallpaper: (...args) => applyCustomWallpaper(...args),
+            applyBubbleColors: (...args) => applyBubbleColors(...args),
             getUserKey,
             getItem,
             setItem,
@@ -1225,9 +1223,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             openSettingsMobileSection,
             setupSettingsModal,
             saveSettings,
-            setAiBubbleColor,
             setUserBubbleColor,
-            renderAiBubbleColorDropdown,
             renderUserBubbleColorDropdown,
             createHistoryMenu,
             setTheme,
@@ -1486,7 +1482,6 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             saveSensitiveConfig,
             setTheme,
             updateThemeButtons,
-            setAiBubbleColor,
             setUserBubbleColor,
             saveConfig,
             saveAppData,
@@ -1606,14 +1601,9 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             copyTextToClipboard,
             setupTimeAnalysis,
             updateTimeDistributionChart,
-            getDominantColorPalette,
             applyUiTheme,
             renderUiColorOptions,
-            analyzeImageBrightness,
-            applyCustomWallpaper,
-            handleWallpaperUpload,
-            handleConfirmCrop,
-            restoreDefaultWallpaper,
+            applyBubbleColors,
             openStore,
             closeStore,
             renderStore,
@@ -1654,7 +1644,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             getDefaultFolder,getDefaultGenConfig,normalizeCouncilConfig,normalizeConversationModel,
             models:MODELS,maxCouncilModels:COUNCIL_MAX_MODELS,
             getCouncilTranslatorCandidates,getSingleTranslatorCandidates,
-            applyCustomWallpaper,applyUiTheme,applyLanguage,
+            applyBubbleColors,applyUiTheme,applyLanguage,
             renderSidebar,renderChat,getActiveConversation,isActiveConversationViewCurrent,
             onActiveConversationUnavailable:({conversationId})=>{
                 if (conversationStateAccess.getCurrentConversationId() !== conversationId) return;

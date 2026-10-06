@@ -20,7 +20,6 @@ function createDocument({ theme = 'dark', style = 'gradient' } = {}) {
   return {
     querySelector(selector) {
       if (selector === 'input[name="color-theme"]:checked') return { value: theme };
-      if (selector === 'input[name="color-style"]:checked') return style == null ? null : { value: style };
       return null;
     }
   };
@@ -32,7 +31,6 @@ function createElements(overrides = {}) {
     councilTranslatorModelSelect: select('gemini-translator'),
     singleDocumentTranslatorModelSelect: select('doc-translator'),
     autoWebSearchToggleSwitch: toggle(true),
-    aiBubbleColorDropdown: dropdown('blue'),
     userBubbleColorDropdown: dropdown('green'),
     autoNamingToggleSwitch: toggle(true),
     memoryToggle1: toggle(false),
@@ -40,8 +38,7 @@ function createElements(overrides = {}) {
     uiLanguageSelect: select('en'),
     aiLanguageSelect: select('zh-TW'),
     enableUpdateNotificationsToggle: toggle(true),
-    customColorSwatches: swatches('.selected', { color: '#123456' }),
-    gradientSwatches: swatches('.selected-gradient', { gradient: 'linear-gradient(red, blue)' })
+    customColorSwatches: swatches('.selected', { color: '#123456' })
   };
   return { ...elements, ...overrides };
 }
@@ -50,7 +47,7 @@ test('collects checkbox, input, select, dropdown, and theme values as plain data
   const result = collectSettingsSaveFormValues({
     document: createDocument(),
     elements: createElements(),
-    config: { uiTheme: { customColor: '#000000', adaptivePalette: [] } }
+    config: { uiTheme: { customColor: '#000000' } }
   });
 
   assert.deepEqual(result, {
@@ -62,7 +59,6 @@ test('collects checkbox, input, select, dropdown, and theme values as plain data
     visionCheckEnabled: true,
     processOpen: false,
     fileModeDefault: 'advanced',
-    aiBubbleColor: 'blue',
     userBubbleColor: 'green',
     autoNaming: true,
     memoryEnabled1: false,
@@ -73,9 +69,7 @@ test('collects checkbox, input, select, dropdown, and theme values as plain data
     enableUpdateNotifications: true,
     uiTheme: {
       mode: 'dark',
-      customColor: '#123456',
-      style: 'gradient',
-      adaptiveGradient: 'linear-gradient(red, blue)'
+      customColor: '#123456'
     }
   });
   assert.equal(Object.getPrototypeOf(result), Object.prototype);
@@ -83,20 +77,17 @@ test('collects checkbox, input, select, dropdown, and theme values as plain data
 
 test('preserves existing saveSettings fallbacks for missing optional controls', () => {
   const result = collectSettingsSaveFormValues({
-    document: createDocument({ theme: 'light', style: null }),
+    document: createDocument({ theme: 'light' }),
     elements: createElements({
       tavilySearchDepthSelect: undefined,
       councilTranslatorModelSelect: undefined,
       singleDocumentTranslatorModelSelect: undefined,
-      aiBubbleColorDropdown: dropdown(undefined),
       userBubbleColorDropdown: { querySelector: () => null },
-      customColorSwatches: { querySelector: () => null },
-      gradientSwatches: { querySelector: () => null }
+      customColorSwatches: { querySelector: () => null }
     }),
     config: {
       uiTheme: {
-        customColor: '#abcdef',
-        adaptivePalette: ['#111111', '#222222']
+        customColor: '#abcdef'
       }
     }
   });
@@ -105,13 +96,10 @@ test('preserves existing saveSettings fallbacks for missing optional controls', 
   assert.equal(result.councilTranslatorModelId, null);
   assert.equal(result.singleDocumentTranslatorModelId, null);
   assert.equal('outputMode' in result, false, 'there is no output mode to choose');
-  assert.equal(result.aiBubbleColor, 'default');
   assert.equal(result.userBubbleColor, 'default');
   assert.deepEqual(result.uiTheme, {
     mode: 'light',
-    customColor: '#abcdef',
-    style: 'single',
-    adaptiveGradient: 'linear-gradient(to right, #111111, #222222)'
+    customColor: '#abcdef'
   });
 });
 
@@ -133,7 +121,7 @@ test('does not read API key controls or sensitive fields as normal settings', ()
   const result = collectSettingsSaveFormValues({
     document: createDocument(),
     elements,
-    config: { uiTheme: { customColor: '#000000', adaptivePalette: [] } }
+    config: { uiTheme: { customColor: '#000000' } }
   });
 
   assert.equal(Object.keys(result).some((key) => key.toLowerCase().includes('apikey')), false);

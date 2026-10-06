@@ -33,8 +33,6 @@ function createHarness(overrides = {}) {
     config: {
       theme: 'light',
       uiLanguage: 'zh-TW',
-      customWallpaper: null,
-      wallpaperBrightness: 'light',
       uiTheme: {
         mode: 'default',
         style: 'solid',
@@ -57,7 +55,6 @@ function createHarness(overrides = {}) {
     isAutoScrolling: false
   };
   const elements = new Proxy({
-    wallpaperContainer: { style: {} }
   }, {
     get(target, property) {
       return target[property] ?? {
@@ -184,7 +181,7 @@ test('factory exposes the former 04 public lifecycle API', () => {
     'setupTimeAnalysis',
     'applyUiTheme',
     'renderUiColorOptions',
-    'applyCustomWallpaper',
+    'applyBubbleColors',
     'renderStore',
     'applyLanguage',
     'showMobileContextMenu',
@@ -206,26 +203,16 @@ test('runtime entry dependency facade is built and registered only when requeste
   assert.equal(facade, lifecycle.runtimeEntryDependencies);
 });
 
-test('theme and wallpaper helpers use injected live state and DOM dependencies', () => {
-  const { lifecycle, calls, documentStyle, elements, state } = createHarness();
+test('theme helpers use injected live state and DOM dependencies', () => {
+  const { lifecycle, calls, documentStyle } = createHarness();
   lifecycle.applyUiTheme();
   assert.equal(documentStyle.values.get('--button-primary-bg'), '#3b82f6');
   assert.deepEqual(calls, []);
 
-  lifecycle.applyCustomWallpaper();
-  assert.equal(elements.wallpaperContainer.style.backgroundImage, 'none');
+  lifecycle.applyBubbleColors();
   assert.deepEqual(calls, [
-    ['setAiBubbleColor'],
     ['setUserBubbleColor']
   ]);
-
-  state.config.customWallpaper = 'data:image/png;base64,wallpaper';
-  state.config.wallpaperBrightness = 'dark';
-  lifecycle.applyCustomWallpaper();
-  assert.equal(
-    elements.wallpaperContainer.style.backgroundImage,
-    'url(data:image/png;base64,wallpaper)'
-  );
 });
 
 test('core tail module owns trash composition without importing legacy fragments or virtual runtime', () => {

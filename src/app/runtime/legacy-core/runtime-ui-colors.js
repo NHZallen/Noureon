@@ -5,14 +5,6 @@ export const FOLDER_COLORS = {
     emerald: '#34d399', teal: '#2dd4bf', cyan: '#22d3ee', rose: '#fb7185'
 };
 
-export const AI_BUBBLE_COLORS = {
-    default: { light: '#f7f7f8' }, gray: { light: '#f3f4f6' },
-    blue: { light: '#eef6ff' }, green: { light: '#eef8f1' },
-    yellow: { light: '#fff9db' }, orange: { light: '#fff3e8' },
-    red: { light: '#fff1f2' }, purple: { light: '#f6f0ff' },
-    pink: { light: '#fff0f6' }, teal: { light: '#ecfdf7' }
-};
-
 export const USER_BUBBLE_COLORS = {
     default: { light: '#e8f3ff' }, gray: { light: '#eef0f3' },
     blue: { light: '#e8f3ff' }, green: { light: '#eaf7ef' },

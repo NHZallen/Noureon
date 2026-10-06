@@ -42,7 +42,7 @@ function createPreciseRenderFixture({
     maxCouncilModels: 4,
     getCouncilTranslatorCandidates: () => [],
     getSingleTranslatorCandidates: () => [],
-    applyCustomWallpaper: () => {},
+    applyBubbleColors: () => {},
     applyUiTheme: () => {},
     renderAll: () => { renderCalls.all += 1; },
     renderSidebar: () => { renderCalls.sidebar += 1; },
@@ -102,7 +102,7 @@ test('cloud workspace updates wait for runtime readiness and then render hydrate
     maxCouncilModels: 4,
     getCouncilTranslatorCandidates: () => [],
     getSingleTranslatorCandidates: () => [],
-    applyCustomWallpaper: () => {},
+    applyBubbleColors: () => {},
     applyUiTheme: () => {},
     renderAll: () => { renders += 1; }
   });
@@ -141,7 +141,7 @@ test('cloud workspace update preserves an active conversation reference and defe
     maxCouncilModels: 4,
     getCouncilTranslatorCandidates: () => [],
     getSingleTranslatorCandidates: () => [],
-    applyCustomWallpaper: () => {},
+    applyBubbleColors: () => {},
     applyUiTheme: () => {},
     renderAll: () => { renders += 1; },
     busy: () => responseActive && activeConversation,
@@ -184,7 +184,7 @@ test('cloud workspace update preserves local folder expansion state', () => {
     maxCouncilModels: 4,
     getCouncilTranslatorCandidates: () => [],
     getSingleTranslatorCandidates: () => [],
-    applyCustomWallpaper: () => {},
+    applyBubbleColors: () => {},
     applyUiTheme: () => {},
     renderAll: () => {}
   });
@@ -224,7 +224,7 @@ test('cloud workspace update keeps the fresh local draft selected after reload',
     maxCouncilModels: 4,
     getCouncilTranslatorCandidates: () => [],
     getSingleTranslatorCandidates: () => [],
-    applyCustomWallpaper: () => {},
+    applyBubbleColors: () => {},
     applyUiTheme: () => {},
     renderAll: () => {}
   });
@@ -265,7 +265,7 @@ test('record-level cloud commit preserves unsynced local rows and applies remote
     maxCouncilModels: 4,
     getCouncilTranslatorCandidates: () => [],
     getSingleTranslatorCandidates: () => [],
-    applyCustomWallpaper: () => {},
+    applyBubbleColors: () => {},
     applyUiTheme: () => {},
     renderAll: () => { renders += 1; }
   });
@@ -306,7 +306,7 @@ test('record-level cloud commit removes tombstoned local entities before merging
     maxCouncilModels: 4,
     getCouncilTranslatorCandidates: () => [],
     getSingleTranslatorCandidates: () => [],
-    applyCustomWallpaper: () => {},
+    applyBubbleColors: () => {},
     applyUiTheme: () => {},
     renderAll: () => {}
   });
@@ -345,7 +345,7 @@ test('record-level cloud tombstones request removal from the fresh memory summar
     maxCouncilModels: 4,
     getCouncilTranslatorCandidates: () => [],
     getSingleTranslatorCandidates: () => [],
-    applyCustomWallpaper: () => {},
+    applyBubbleColors: () => {},
     applyUiTheme: () => {},
     renderAll: () => {},
     onRemoteConversationsPermanentlyDeleted: async ({ conversationIds }) => removed.push(...conversationIds)
@@ -380,7 +380,7 @@ test('a cloud move to trash requests immediate removal from the fresh memory sum
     maxCouncilModels: 4,
     getCouncilTranslatorCandidates: () => [],
     getSingleTranslatorCandidates: () => [],
-    applyCustomWallpaper: () => {},
+    applyBubbleColors: () => {},
     applyUiTheme: () => {},
     renderAll: () => {},
     onRemoteConversationsMovedToTrash: async ({ conversationIds }) => removed.push(...conversationIds)
@@ -423,7 +423,7 @@ test('record-level cloud commit waits for runtime readiness and keeps its tombst
     maxCouncilModels: 4,
     getCouncilTranslatorCandidates: () => [],
     getSingleTranslatorCandidates: () => [],
-    applyCustomWallpaper: () => {},
+    applyBubbleColors: () => {},
     applyUiTheme: () => {},
     renderAll: () => {}
   });
@@ -485,7 +485,7 @@ test('the active conversation is hydrated after a cloud workspace commit', async
     maxCouncilModels: 4,
     getCouncilTranslatorCandidates: () => [],
     getSingleTranslatorCandidates: () => [],
-    applyCustomWallpaper: () => {},
+    applyBubbleColors: () => {},
     applyUiTheme: () => {},
     renderAll: () => {},
     renderSidebar: () => {},
@@ -547,7 +547,7 @@ test('a stale hydration result cannot update a conversation after selection chan
     maxCouncilModels: 4,
     getCouncilTranslatorCandidates: () => [],
     getSingleTranslatorCandidates: () => [],
-    applyCustomWallpaper: () => {},
+    applyBubbleColors: () => {},
     applyUiTheme: () => {},
     renderAll: () => {},
     getActiveConversation: () => appDataStore.getConversations()
@@ -785,7 +785,7 @@ test('cloud config applies only the small synced memory projection and persists 
     maxCouncilModels: 4,
     getCouncilTranslatorCandidates: () => [],
     getSingleTranslatorCandidates: () => [],
-    applyCustomWallpaper: () => {},
+    applyBubbleColors: () => {},
     applyUiTheme: () => {},
     renderAll: () => { renderCalls.all += 1; },
     renderSidebar: () => { renderCalls.sidebar += 1; },
@@ -841,7 +841,7 @@ test('record-level memory updates apply without a config sync and preserve a loc
     models: [], maxCouncilModels: 4,
     getCouncilTranslatorCandidates: () => [],
     getSingleTranslatorCandidates: () => [],
-    applyCustomWallpaper: () => {}, applyUiTheme: () => {}, renderAll: () => {},
+    applyBubbleColors: () => {}, applyUiTheme: () => {}, renderAll: () => {},
     saveAppData: async () => { saved += 1; }
   });
   window.__astraCloudRuntimeReady();

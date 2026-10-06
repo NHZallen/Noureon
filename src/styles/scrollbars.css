@@ -1,5 +1,5 @@
 /* Scrollbars, everywhere: thin, a round grey thumb on no track, no arrow buttons (as ChatGPT draws them). The thumb takes
-   its colour from the text colour, so dark mode and wallpapers are followed. A place that wants none says
+   its colour from the text colour, so dark mode is followed. A place that wants none says
    `scrollbar-width: none` itself. */
 :root { --scrollbar-thumb: color-mix(in srgb, var(--text-primary, #111827) 26%, transparent); }
 

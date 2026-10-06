@@ -88,9 +88,6 @@ export function createLegacyAppBootstrapLifecycle({
     createAstras,
     handleSaveAstras,
     renderPersonalMemoryList,
-    handleWallpaperUpload,
-    restoreDefaultWallpaper,
-    handleConfirmCrop,
     handleDeleteAllData,
     applyLanguage,
     openStore,
@@ -723,18 +720,6 @@ export function createLegacyAppBootstrapLifecycle({
                         await saveAppData();
                         renderPersonalMemoryList();
                         showNotification(i18n[config.uiLanguage].memoryAdded);
-                    }
-                });
-                ALL_ELEMENTS.uploadWallpaperBtn.addEventListener('click', () => ALL_ELEMENTS.wallpaperUploadInput.click());
-                ALL_ELEMENTS.wallpaperUploadInput.addEventListener('change', handleWallpaperUpload);
-                ALL_ELEMENTS.restoreWallpaperBtn.addEventListener('click', restoreDefaultWallpaper);
-                ALL_ELEMENTS.confirmCropBtn.addEventListener('click', handleConfirmCrop);
-                ALL_ELEMENTS.cancelCropBtn.addEventListener('click', () => {
-                    toggleModal(ALL_ELEMENTS.wallpaperCropModal, false);
-                    const cropper = getCropperInstance();
-                    if (cropper) {
-                        cropper.destroy();
-                        setCropperInstance(null);
                     }
                 });
                 ALL_ELEMENTS.deleteAllDataBtn.addEventListener('click', handleDeleteAllData);

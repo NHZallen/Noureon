@@ -1,4 +1,4 @@
-/* important-audit: required: regression override / legacy compatibility - custom wallpaper appearance overrides must outrank base, modal, and utility backgrounds. */
+/* important-audit: required: regression override / legacy compatibility - settings and bubble appearance overrides must outrank base, modal, and utility backgrounds. */
 
     @media (max-width: 640px) {
         .media-lightbox {
@@ -128,171 +128,6 @@
     .pinned-icon {
         color: #fbbf24;
     }
-    #wallpaper-container {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-size: cover;
-    background-position: center;
-    z-index: -1;
-    display: none;
-    transition: opacity 0.3s ease-in-out;
-    pointer-events: none;
-    -webkit-touch-callout: none;
-    user-select: none;
-    }
-    body.custom-wallpaper-active #add-file-btn {
-    color: var(--text-primary) !important;
-}
-    body.custom-wallpaper-active #history-sidebar h3 {
-    color: #111827 !important; 
-}
-body.custom-wallpaper-active .voice-input-btn {
-    color: var(--text-primary) !important;
-}
-body.custom-wallpaper-active .voice-input-btn.active {
-    color: #ef4444 !important; 
-}
-    body.custom-wallpaper-active #wallpaper-container {
-        display: block;
-    }
-    body.custom-wallpaper-active {
-        background-color: transparent !important;
-    }
-    body.custom-wallpaper-active #app-container > .bg-\[var\(--chat-bg\)\] {
-        background-color: transparent !important;
-    }
-    body.custom-wallpaper-active .bg-\[var\(--input-bar-bg\)\] {
-        background-color: transparent !important;
-        border-color: transparent !important;
-    }
-    body.custom-wallpaper-active #settings-modal .bg-\[var\(--sidebar-bg\)\] {
-        background-color: transparent !important;
-        border-color: transparent !important;
-    }
-    body.custom-wallpaper-active #settings-modal .border-t {
-        border-color: transparent !important;
-    }
-    body.custom-wallpaper-active #search-modal > div,
-    body.custom-wallpaper-active #astras-create-modal > div,
-    body.custom-wallpaper-active #data-dashboard-modal > div,
-    body.custom-wallpaper-active #settings-modal > div,
-    body.custom-wallpaper-active #custom-dialog-modal > div {
-        background-color: var(--modal-bg) !important;
-        backdrop-filter: none !important;
-        -webkit-backdrop-filter: none !important;
-        border-color: var(--border-color) !important;
-    }
-    body.custom-wallpaper-active #update-info-modal > div,
-    body.custom-wallpaper-active #latest-update-modal > div {
-        background-color: rgba(255, 255, 255, 0.65) !important;
-        backdrop-filter: blur(16px);
-        -webkit-backdrop-filter: blur(16px);
-        border-color: rgba(200, 200, 200, 0.5) !important;
-    }
-    
-    body.custom-wallpaper-active main > header {
-        background-color: rgba(255, 255, 255, 0.25) !important;
-        backdrop-filter: blur(20px) !important;
-        -webkit-backdrop-filter: blur(20px) !important;
-        border-color: rgba(255, 255, 255, 0.2) !important;
-        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-    }
-    body.custom-wallpaper-active #history-sidebar {
-    backdrop-filter: blur(20px); /* 套用背景模糊濾鏡 */
-    -webkit-backdrop-filter: blur(20px); /* 針對 Safari 等 Webkit 瀏覽器的兼容寫法 */
-    background-color: rgba(255, 255, 255, 0.55); /* 設定半透明的白色背景 */
-    border-left: 1px solid rgba(255, 255, 255, 0.6) !important; /* 設定更亮的半透明左邊框，!important 用於覆蓋原有樣式 */
-    box-shadow: -4px 0px 15px rgba(0, 0, 0, 0.05); /* 加上陰影以突顯層次感，X軸設為負值讓陰影在左側 */
-}
-
-/* 針對自訂桌布模式下的右側側邊欄 (深色桌布) */
-body.custom-wallpaper-active.wallpaper-is-dark #history-sidebar {
-    background-color: rgba(30, 30, 30, 0.5); /* 設定半透明的深色背景 */
-    border-left: 1px solid rgba(255, 255, 255, 0.1) !important; /* 設定半透明的亮色左邊框 */
-    box-shadow: -4px 0px 20px rgba(0, 0, 0, 0.2); /* 加上更深的陰影 */
-}
-
-    body.custom-wallpaper-active.wallpaper-is-dark main > header {
-        background-color: rgba(30, 30, 30, 0.25) !important;
-        border-color: rgba(255, 255, 255, 0.15) !important;
-    }
-    body.custom-wallpaper-active .input-wrapper {
-        background-color: rgba(255, 255, 255, 0.2) !important;
-        backdrop-filter: blur(20px) !important;
-        -webkit-backdrop-filter: blur(20px) !important;
-        border: 1px solid rgba(255, 255, 255, 0.3) !important;
-        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-    }
-    body.custom-wallpaper-active #message-input {
-        background-color: transparent !important;
-    }
-    body.custom-wallpaper-active .message-bubble {
-        border: 1px solid rgba(255, 255, 255, 0.4);
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-    }
-    body.custom-wallpaper-active .message-bubble::before {
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-    }
-    body.custom-wallpaper-active .model-message .message-bubble::before {
-        background-color: var(--ai-bubble-bg);
-    }
-    body.custom-wallpaper-active .model-message .message-bubble {
-        color: #111827 !important;
-    }
-    body.custom-wallpaper-active .model-message .message-bubble .prose {
-        color: #111827 !important;
-    }
-    body.custom-wallpaper-active .user-message .message-bubble::before {
-        background-color: var(--user-bubble-bg);
-    }
-    body.custom-wallpaper-active .user-message .message-bubble {
-        color: #111827 !important;
-    }
-    body.custom-wallpaper-active .user-message .message-bubble .prose {
-        color: #111827 !important;
-    }
-    body.custom-wallpaper-active .model-message .message-bubble .prose pre {
-        background-color: rgba(0, 0, 0, 0.05);
-    }
-    body.custom-wallpaper-active .model-message .message-bubble .prose code,
-    body.custom-wallpaper-active .model-message .message-bubble .prose pre code {
-         color: #111827 !important;
-    }
-    body.custom-wallpaper-active {
-        --text-primary: #111827;
-        --text-secondary: #6b7280;
-    }
-    body.custom-wallpaper-active #message-input::placeholder {
-    color: var(--text-primary) !important;
-}
-    body.custom-wallpaper-active .theme-button-group {
-        opacity: 0.5;
-        pointer-events: none;
-    }
-    body.custom-wallpaper-active #message-list > div.text-center {
-        background-color: rgba(255, 255, 255, 0.35);
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        border: 1px solid rgba(255, 255, 255, 0.3);
-        box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-        padding: 0.5rem 1rem;
-        border-radius: 9999px;
-        max-width: max-content;
-        margin: 4rem auto 0;
-    }
-    body.custom-wallpaper-active.wallpaper-is-dark {
-        --text-primary: #f9fafb;
-        --text-secondary: #9ca3af;
-    }
-    body.custom-wallpaper-active #update-info-modal .p-4.bg-\[var\(--sidebar-bg\)\],
-    body.custom-wallpaper-active #latest-update-modal .p-4.bg-\[var\(--sidebar-bg\)\] {
-        background-color: transparent !important;
-        border-top-color: rgba(200, 200, 200, 0.5) !important;
-    }
     .sidebar, .sidebar button, .sidebar input, .sidebar h2, .sidebar span {
         color: #111827;
     }
@@ -336,20 +171,6 @@ body.custom-wallpaper-active.wallpaper-is-dark #history-sidebar {
     }
     #close-astras-btn {
         color: #111827;
-    }
-    #upload-wallpaper-btn {
-        background-color: #3b82f6;
-        color: #ffffff !important;
-    }
-    #upload-wallpaper-btn:hover {
-        background-color: #2563eb;
-    }
-    #restore-wallpaper-btn {
-        background-color: #6b7280;
-        color: #ffffff !important;
-    }
-    #restore-wallpaper-btn:hover {
-        background-color: #4b5563;
     }
     #export-data-btn {
         background-color: #3b82f6;
@@ -434,14 +255,6 @@ body.custom-wallpaper-active.wallpaper-is-dark #history-sidebar {
     }
     .dialog-warning-border {
         animation: pulse-red-border 1.5s infinite;
-    }
-    #wallpaper-crop-container {
-        width: 100%;
-        max-height: 60vh;
-        margin-bottom: 1rem;
-    }
-    #wallpaper-crop-container img {
-        max-width: 100%;
     }
     .demo-model-selector .selector-btn {
         transition: all 0.3s ease;
@@ -549,40 +362,6 @@ body.custom-wallpaper-active.wallpaper-is-dark #history-sidebar {
     #avatar-crop-container .cropper-face {
         border-radius: 50%;
     }
-    body.custom-wallpaper-active .astras-store-card {
-    background-color: rgba(255, 255, 255, 0.65) !important;
-    backdrop-filter: blur(16px) !important;
-    -webkit-backdrop-filter: blur(16px) !important;
-    border: 1px solid rgba(255, 255, 255, 0.4) !important;
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1) !important;
-}
-    body.custom-wallpaper-active #store-container {
-    background-color: transparent !important;
-}
-    body.custom-wallpaper-active #store-container header h1,
-body.custom-wallpaper-active #store-container header #back-to-chat-btn,
-body.custom-wallpaper-active .astras-card-name,
-body.custom-wallpaper-active .astras-card-desc,
-body.custom-wallpaper-active .astras-card-avatar {
-    color: #000000 !important;
-}
-body.custom-wallpaper-active #store-container .border-b {
-    border-color: rgba(255, 255, 255, 0.2) !important;
-}
-body.custom-wallpaper-active .store-category-btn {
-    background-color: rgba(255, 255, 255, 0.3);
-    border-color: rgba(255, 255, 255, 0.4);
-    color: #111827;
-}
-body.custom-wallpaper-active .store-category-btn:hover {
-    background-color: rgba(255, 255, 255, 0.5);
-    border-color: rgba(255, 255, 255, 0.8);
-}
-body.custom-wallpaper-active .store-category-btn.active {
-    border-color: transparent !important;
-    color: var(--button-primary-text) !important;
-    background: var(--button-primary-bg) !important;
-}
     #mobile-context-menu-overlay {
         position: fixed;
         inset: 0;
@@ -653,24 +432,6 @@ body.custom-wallpaper-active .store-category-btn.active {
     }
      #mobile-context-menu .menu-item.delete svg {
         color: #ef4444;
-    }
-    body.custom-wallpaper-active #mobile-context-menu {
-        color: #111827 !important;
-        background-color: rgba(255, 255, 255, 0.85) !important;
-        backdrop-filter: blur(16px);
-        -webkit-backdrop-filter: blur(16px);
-        border-color: rgba(200, 200, 200, 0.5) !important;
-    }
-    body.custom-wallpaper-active #mobile-context-menu .menu-header,
-    body.custom-wallpaper-active #mobile-context-menu .menu-item {
-         color: #111827 !important;
-    }
-    body.custom-wallpaper-active #mobile-context-menu .menu-item svg {
-        color: #6b7280 !important;
-    }
-    body.custom-wallpaper-active #mobile-context-menu .menu-item.delete,
-    body.custom-wallpaper-active #mobile-context-menu .menu-item.delete svg {
-        color: #ef4444 !important;
     }
     @media (max-width: 768px) {
       input[type="text"],
@@ -791,24 +552,6 @@ body.custom-wallpaper-active .store-category-btn.active {
         box-shadow: 0 4px 8px var(--shadow-color);
         border: 1px solid var(--border-color);
     }
-    body.custom-wallpaper-active #scroll-to-bottom-btn {
-        background-color: var(--button-primary-bg);
-        color: #ffffff;
-        backdrop-filter: blur(12px);
-        -webkit-backdrop-filter: blur(12px);
-        border: 1px solid rgba(255, 255, 255, 0.3);
-        box-shadow:
-            0 4px 12px rgba(0, 0, 0, 0.2),
-            inset 0 1px 2px rgba(255, 255, 255, 0.4);
-        background-image: radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0) 60%);
-        transition: opacity 0.3s ease, transform 0.3s ease, bottom 0.3s ease, background-position 0.4s ease;
-        background-size: 200% 200%;
-        background-position: 50% 100%;
-    }
-    body.custom-wallpaper-active #scroll-to-bottom-btn:hover {
-        background-position: 50% 50%;
-        transform: translateX(-50%) scale(1.05);
-    }
     @keyframes jelly-bounce-centered {
         0%, 100% { transform: scale(1); }
         25% { transform: scale(0.9, 1.1); }
@@ -828,9 +571,6 @@ body.custom-wallpaper-active .store-category-btn.active {
         }
         #scroll-to-bottom-btn.jelly-animate {
             animation-name: jelly-bounce-centered;
-        }
-        body.custom-wallpaper-active #scroll-to-bottom-btn:hover {
-            transform: scale(1.05);
         }
     }
     #sidebar,

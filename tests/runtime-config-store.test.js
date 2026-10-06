@@ -19,7 +19,6 @@ const expectedConfig = (defaultModelId) => ({
   searchProvider: 'tavily',
   tavilySearchDepth: 'basic',
   outputMode: 'realtime',
-  aiBubbleColor: 'default',
   userBubbleColor: 'default',
   autoNaming: true,
   lastUsedModel: null,
@@ -31,15 +30,9 @@ const expectedConfig = (defaultModelId) => ({
   memorySync: { version: 1, profileEntries: [], profileCandidates: [], resolvedProfileCandidateIds: [], resolvedTopicSummaryIds: [], suppressionRules: [], longTermTopicSummaries: [] },
   memoryEnabled1: true,
   enableAutoMemory: true,
-  customWallpaper: null,
-  wallpaperBrightness: 'light',
   uiTheme: {
     mode: 'default',
-    style: 'single',
-    customColor: '#3b82f6',
-    adaptiveColor: '#3b82f6',
-    adaptivePalette: [],
-    adaptiveGradient: ''
+    customColor: '#3b82f6'
   },
   uiLanguage: 'zh-TW',
   aiDefaultLanguage: 'zh-TW',
@@ -86,7 +79,6 @@ test('config store instances keep fresh nested mutable defaults', () => {
   assert.notEqual(first.getConfig().modelSettings, second.getConfig().modelSettings);
   assert.notEqual(first.getConfig().acknowledgedStealthModelTerms, second.getConfig().acknowledgedStealthModelTerms);
   assert.notEqual(first.getConfig().uiTheme, second.getConfig().uiTheme);
-  assert.notEqual(first.getConfig().uiTheme.adaptivePalette, second.getConfig().uiTheme.adaptivePalette);
   assert.notEqual(first.getConfig().lastCouncilConfig, second.getConfig().lastCouncilConfig);
   assert.notEqual(
     first.getConfig().lastCouncilConfig.participantModelIds,

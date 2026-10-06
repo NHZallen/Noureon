@@ -55,7 +55,6 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         saveSensitiveConfig,
         setTheme,
         updateThemeButtons,
-        setAiBubbleColor,
         setUserBubbleColor,
         saveConfig,
         saveAppData,
@@ -133,8 +132,6 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         getCouncilValidation,
         callApiWithSchema,
         getOutputMode,
-        analyzeImageBrightness: injectedAnalyzeImageBrightness,
-        getDominantColorPalette: injectedGetDominantColorPalette,
         hashString,
         constantTimeEqual,
         processInChunks,
@@ -257,12 +254,9 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         hashString,
         constantTimeEqual,
         requestAnimationFrame,
-        analyzeImageBrightness,
-        getDominantColorPalette,
-        applyCustomWallpaper,
+        applyBubbleColors,
         applyUiTheme,
         applyLanguage,
-        setAiBubbleColor,
         setUserBubbleColor,
         loadChat,
         getOutputMode,
@@ -741,7 +735,6 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         UI_THEME_COLORS: uiThemeColors,
         setTheme,
         updateThemeButtons,
-        setAiBubbleColor,
         setUserBubbleColor,
         saveConfig,
         saveAppData,
@@ -850,20 +843,9 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
 
     function setupTimeAnalysis(...args) { return resolveCoreTailFunction('setupTimeAnalysis')(...args); }
     function updateTimeDistributionChart(...args) { return resolveCoreTailFunction('updateTimeDistributionChart')(...args); }
-    function getDominantColorPalette(...args) {
-        if (injectedGetDominantColorPalette) return injectedGetDominantColorPalette(...args);
-        return resolveCoreTailFunction('getDominantColorPalette')(...args);
-    }
     function applyUiTheme(...args) { return resolveCoreTailFunction('applyUiTheme')(...args); }
     function renderUiColorOptions(...args) { return resolveCoreTailFunction('renderUiColorOptions')(...args); }
-    function analyzeImageBrightness(...args) {
-        if (injectedAnalyzeImageBrightness) return injectedAnalyzeImageBrightness(...args);
-        return resolveCoreTailFunction('analyzeImageBrightness')(...args);
-    }
-    function applyCustomWallpaper(...args) { return resolveCoreTailFunction('applyCustomWallpaper')(...args); }
-    function handleWallpaperUpload(...args) { return resolveCoreTailFunction('handleWallpaperUpload')(...args); }
-    function handleConfirmCrop(...args) { return resolveCoreTailFunction('handleConfirmCrop')(...args); }
-    function restoreDefaultWallpaper(...args) { return resolveCoreTailFunction('restoreDefaultWallpaper')(...args); }
+    function applyBubbleColors(...args) { return resolveCoreTailFunction('applyBubbleColors')(...args); }
     function openStore(...args) { return resolveCoreTailFunction('openStore')(...args); }
     function closeStore(...args) { return resolveCoreTailFunction('closeStore')(...args); }
     function renderStore(...args) { return resolveCoreTailFunction('renderStore')(...args); }
@@ -921,14 +903,9 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         copyTextToClipboard,
         setupTimeAnalysis,
         updateTimeDistributionChart,
-        getDominantColorPalette,
         applyUiTheme,
         renderUiColorOptions,
-        analyzeImageBrightness,
-        applyCustomWallpaper,
-        handleWallpaperUpload,
-        handleConfirmCrop,
-        restoreDefaultWallpaper,
+        applyBubbleColors,
         openStore,
         closeStore,
         renderStore,

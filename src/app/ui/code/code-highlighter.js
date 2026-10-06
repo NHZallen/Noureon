@@ -85,18 +85,14 @@ function themeRules(scope, t) {
 
 const STYLE_ID = 'noureon-code-highlight';
 
-// Chat code blocks are dark except over a light custom wallpaper; the file
-// preview's source view is light.
+// Chat code blocks are dark; the file preview's source view is light.
 const STYLE = [
   themeRules('.prose pre code', THEMES.dark),
-  themeRules('body.custom-wallpaper-active:not(.wallpaper-is-dark) .model-message .message-bubble .prose pre code', THEMES.light),
-  // The process list's code (ledger.css) sits on the page itself, unboxed: light colours, dark ones on a dark wallpaper.
+  // The process list's code (ledger.css) sits on the page itself, unboxed: light colours.
   // Saved in a reply it is also inside .prose, whose dark rules are more specific, hence the second scope.
   ...['.ledger-code code', '.sandbox-run .ledger-code code'].flatMap((scope) => [
     themeRules(scope, THEMES.light),
-    `${scope} { color: ${THEMES.light.base}; }`,
-    themeRules(`body.custom-wallpaper-active.wallpaper-is-dark ${scope}`, THEMES.dark),
-    `body.custom-wallpaper-active.wallpaper-is-dark ${scope} { color: ${THEMES.dark.base}; }`
+    `${scope} { color: ${THEMES.light.base}; }`
   ]),
   themeRules('.ac-file-preview-source code', THEMES.light),
   `.ac-file-preview-source code { color: ${THEMES.light.base}; }`

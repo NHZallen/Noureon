@@ -303,7 +303,7 @@ test('factory exposes former 04 bridge functions with clear missing-binding erro
   for (const name of [
     'applyLanguage',
     'applyUiTheme',
-    'applyCustomWallpaper',
+    'applyBubbleColors',
     'renderUiColorOptions',
     'renderStore',
     'renderTrash',

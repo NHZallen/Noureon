@@ -1,8 +1,7 @@
 /* Where a list that scrolls meets a bar that does not, the list fades out instead of being cut off at a line: the chat
    under the header (chat-edge-fade.css), the left menu under its search row and above the account
    row, the right panel under its tabs and at its foot. Each fade is a strip laid over the edge by the bar that does not
-   scroll (a pseudo-element with no pointer), never a mask on the scroller, which made scrolling sluggish on phones. With a
-   wallpaper there is no page colour to fade into, so the strips are left out. */
+   scroll (a pseudo-element with no pointer), never a mask on the scroller, which made scrolling sluggish on phones. */
 
 :root { --edge-fade: 1rem; }
 
@@ -56,8 +55,3 @@
     pointer-events: none;
     background: linear-gradient(to top, var(--sidebar-bg), transparent);
 }
-
-body.custom-wallpaper-active #sidebar > :first-child::after,
-body.custom-wallpaper-active #sidebar > :last-child::before,
-body.custom-wallpaper-active .history-sidebar-head::after,
-body.custom-wallpaper-active #history-sidebar::after { display: none; }

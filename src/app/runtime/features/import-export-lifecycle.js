@@ -46,12 +46,8 @@ export function createLegacyImportExportLifecycle({
   processInChunks,
   getBackupUsername,
   compressImage,
-  analyzeImageBrightness,
-  getDominantColorPalette,
-  applyCustomWallpaper,
   applyUiTheme,
   applyLanguage,
-  setAiBubbleColor,
   setUserBubbleColor,
   loadChat,
   startNewChat,
@@ -212,7 +208,6 @@ export function createLegacyImportExportLifecycle({
       rawData.settings = createExportSafeConfig({
         defaultModel: config.defaultModel,
         modelSettings: config.modelSettings,
-        aiBubbleColor: config.aiBubbleColor,
         userBubbleColor: config.userBubbleColor,
         autoNaming: config.autoNaming,
         enableAutoWebSearch: config.enableAutoWebSearch,
@@ -221,8 +216,6 @@ export function createLegacyImportExportLifecycle({
         replyRunLocation: config.replyRunLocation === 'local' ? 'local' : 'server',
         memoryEnabled1: config.memoryEnabled1,
         enableAutoMemory: config.enableAutoMemory,
-        customWallpaper: config.customWallpaper,
-        wallpaperBrightness: config.wallpaperBrightness,
         uiTheme: config.uiTheme,
         uiLanguage: config.uiLanguage,
         aiDefaultLanguage: config.aiDefaultLanguage,
@@ -570,31 +563,7 @@ export function createLegacyImportExportLifecycle({
       toggleModal(elements.importDataModal, false);
       showNotification(text('importSuccess', '匯入成功！'), 'success');
 
-      const config = getConfig();
-      if (config.customWallpaper) {
-        try {
-          const brightness = await analyzeImageBrightness(config.customWallpaper);
-          mutateConfig((currentConfig) => {
-            currentConfig.wallpaperBrightness = brightness;
-            return currentConfig;
-          });
-          if (getConfig().uiTheme.mode === 'adaptive') {
-            const palette = await getDominantColorPalette(config.customWallpaper);
-            mutateConfig((currentConfig) => {
-              currentConfig.uiTheme.adaptivePalette = palette;
-              currentConfig.uiTheme.adaptiveColor = palette[0] || '#3b82f6';
-              return currentConfig;
-            });
-          }
-          await saveConfig();
-        } catch (error) {
-          // Preserve the legacy silent wallpaper-analysis failure boundary.
-        }
-      }
-
-      applyCustomWallpaper();
       applyUiTheme();
-      setAiBubbleColor();
       setUserBubbleColor();
       applyLanguage(getConfig().uiLanguage);
       resolveSearchSetupSettingsModal();

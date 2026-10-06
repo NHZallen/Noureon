@@ -188,9 +188,39 @@ test('loaded config normalization strips retired apiKeys and preserves model/cou
   assert.deepEqual(normalized.recentModelIds, ['nvidia-modern', 'gemini-default']);
   assert.equal(normalized.councilTranslatorModelId, 'nvidia-modern');
   assert.equal(normalized.singleDocumentTranslatorModelId, 'openrouter-pro');
-  assert.equal(normalized.uiTheme.style, 'single');
-  assert.deepEqual(normalized.uiTheme.adaptivePalette, []);
-  assert.equal(normalized.uiTheme.adaptiveGradient, '');
+  assert.deepEqual(normalized.uiTheme, { mode: 'default', customColor: '#3b82f6' });
+});
+
+test('loaded config drops the retired wallpaper, adaptive colour and AI bubble colour settings', () => {
+  const normalized = normalizeLoadedLegacyConfig({
+    currentConfig: baseConfig(),
+    savedConfig: {
+      customWallpaper: 'data:image/jpeg;base64,AAAA',
+      wallpaperBrightness: 'dark',
+      aiBubbleColor: 'blue',
+      uiTheme: {
+        mode: 'adaptive',
+        style: 'gradient',
+        customColor: '#123456',
+        adaptiveColor: '#abcdef',
+        adaptivePalette: ['#111111', '#222222'],
+        adaptiveGradient: 'linear-gradient(red, blue)'
+      }
+    },
+    models: [{ id: 'gemini-default' }]
+  });
+
+  assert.equal('customWallpaper' in normalized, false);
+  assert.equal('wallpaperBrightness' in normalized, false);
+  assert.equal('aiBubbleColor' in normalized, false);
+  assert.deepEqual(normalized.uiTheme, { mode: 'default', customColor: '#123456' });
+
+  const custom = normalizeLoadedLegacyConfig({
+    currentConfig: baseConfig(),
+    savedConfig: { uiTheme: { mode: 'custom', customColor: '#654321' } },
+    models: [{ id: 'gemini-default' }]
+  });
+  assert.deepEqual(custom.uiTheme, { mode: 'custom', customColor: '#654321' });
 });
 
 test('null saved config returns a normalized object without replacing current input identity', () => {

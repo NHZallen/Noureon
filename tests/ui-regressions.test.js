@@ -7,7 +7,7 @@ test('outlined settings and trash actions use the shared white outline button st
   const shell04 = readUiSource('src/templates/fragments/04-shell.fragment.js');
   const trashLifecycle = readUiSource('src/app/runtime/features/trash-lifecycle.js');
 
-  for (const id of ['upload-wallpaper-btn', 'restore-wallpaper-btn', 'export-data-btn', 'import-data-btn', 'open-archived-modal-btn']) {
+  for (const id of ['export-data-btn', 'import-data-btn', 'open-archived-modal-btn']) {
     assert.match(shell03, new RegExp(`id=\\\\"${id}\\\\"[^"]*class=\\\\"[^"]*btn-outline-white`));
   }
 

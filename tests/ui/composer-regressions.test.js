@@ -175,7 +175,7 @@ test('the header is a slim block without a divider and the chat fades under it',
   const after = /#chat-container::after\s*\{([^}]*)\}/.exec(css)?.[1] || '';
   assert.match(after, /height:\s*var\(--end-room,\s*0px\)/);
   assert.doesNotMatch(after, /position|background|gradient/);
-  assert.match(css, /body\.custom-wallpaper-active #chat-container::before/);
+  assert.doesNotMatch(css, /wallpaper/);
   assert.doesNotMatch(css, /backdrop-filter/);
 });
 

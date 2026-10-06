@@ -347,7 +347,6 @@ test('03 import and auth import paths keep bulk replacements, chunked pushes, an
     'await saveAppData()',
     'toggleModal(elements.importDataModal, false)',
     'showNotification',
-    'applyCustomWallpaper()',
     'applyUiTheme()',
     'applyLanguage(getConfig().uiLanguage)',
     'const firstConversation = getConversations().find((conversation) => !conversation.archived && !conversation.deletedAt)',

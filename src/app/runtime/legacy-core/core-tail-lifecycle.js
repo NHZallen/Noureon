@@ -80,7 +80,6 @@ export function createLegacyCoreTailLifecycle(dependencies = {}) {
         UI_THEME_COLORS,
         setTheme,
         updateThemeButtons,
-        setAiBubbleColor,
         setUserBubbleColor,
         saveConfig,
         saveAppData,
@@ -281,21 +280,15 @@ export function createLegacyCoreTailLifecycle(dependencies = {}) {
             UI_THEME_COLORS,
             setTheme,
             updateThemeButtons,
-            setAiBubbleColor,
             setUserBubbleColor,
             saveConfig,
             showNotification,
             toggleModal,
             logger: console
         });
-        const getDominantColorPalette = (...args) => themeAppearanceLifecycle.getDominantColorPalette(...args);
         const applyUiTheme = (...args) => themeAppearanceLifecycle.applyUiTheme(...args);
         const renderUiColorOptions = (...args) => themeAppearanceLifecycle.renderUiColorOptions(...args);
-        const analyzeImageBrightness = (...args) => themeAppearanceLifecycle.analyzeImageBrightness(...args);
-        const applyCustomWallpaper = (...args) => themeAppearanceLifecycle.applyCustomWallpaper(...args);
-        const handleWallpaperUpload = (...args) => themeAppearanceLifecycle.handleWallpaperUpload(...args);
-        const handleConfirmCrop = (...args) => themeAppearanceLifecycle.handleConfirmCrop(...args);
-        const restoreDefaultWallpaper = (...args) => themeAppearanceLifecycle.restoreDefaultWallpaper(...args);
+        const applyBubbleColors = (...args) => themeAppearanceLifecycle.applyBubbleColors(...args);
         const openStore = () => {
             ALL_ELEMENTS.appContainer.classList.remove('visible');
             ALL_ELEMENTS.storeContainer.classList.remove('hidden');
@@ -1121,9 +1114,6 @@ function setupMessageIntersectionObserver() {
                 createAstras,
                 handleSaveAstras,
                 renderPersonalMemoryList,
-                handleWallpaperUpload,
-                restoreDefaultWallpaper,
-                handleConfirmCrop,
                 handleDeleteAllData,
                 applyLanguage,
                 openStore,
@@ -1185,7 +1175,7 @@ function setupMessageIntersectionObserver() {
                     void globalObject.__astraMemorySummarySync?.captureMemoryState(restoredMemoryState);
                 },
                 applyLanguage,
-                applyCustomWallpaper,
+                applyBubbleColors,
                 applyUiTheme,
                 handleLogin,
                 handleImportOnAuth,
@@ -1208,14 +1198,9 @@ function setupMessageIntersectionObserver() {
         return Object.freeze({
             setupTimeAnalysis,
             updateTimeDistributionChart,
-            getDominantColorPalette,
             applyUiTheme,
             renderUiColorOptions,
-            analyzeImageBrightness,
-            applyCustomWallpaper,
-            handleWallpaperUpload,
-            handleConfirmCrop,
-            restoreDefaultWallpaper,
+            applyBubbleColors,
             openStore,
             closeStore,
             renderStore,

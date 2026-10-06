@@ -464,7 +464,7 @@ test('runtime entry start remains explicit and runs startup composition once', a
       loadConfig: async () => {},
       loadAppData: async () => {},
       applyLanguage: (lang) => calls.push(`applyLanguage:${lang}`),
-      applyCustomWallpaper: () => {},
+      applyBubbleColors: () => {},
       applyUiTheme: () => {},
       handleLogin: () => {},
       handleImportOnAuth: () => {},

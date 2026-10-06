@@ -26,7 +26,7 @@ export function createSettingsAuthActionsHelper({
     createPasswordRecord,
     loadConfig = async () => {},
     loadAppData = async () => {},
-    applyCustomWallpaper = () => {},
+    applyBubbleColors = () => {},
     applyUiTheme = () => {}
 }) {
     const getText = (key, fallback) => {
@@ -65,7 +65,7 @@ export function createSettingsAuthActionsHelper({
         await setItem('chat_lastUser', username);
         await loadConfig();
         await loadAppData();
-        applyCustomWallpaper();
+        applyBubbleColors();
         applyUiTheme();
 
 

@@ -102,7 +102,6 @@ export function createLegacySettingsAuthProviderLifecycle(dependencies = {}) {
         councilResponseCharLimit: COUNCIL_RESPONSE_CHAR_LIMIT,
         councilRetryDelayMs: COUNCIL_RETRY_DELAY_MS,
         councilMaxModels: COUNCIL_MAX_MODELS,
-        aiBubbleColors: AI_BUBBLE_COLORS,
         userBubbleColors: USER_BUBBLE_COLORS,
         getActiveConversation,
         normalizeConversationModel,
@@ -152,7 +151,7 @@ export function createLegacySettingsAuthProviderLifecycle(dependencies = {}) {
         renderStore,
         updateApiKeyWarningBadge,
         applyUiTheme,
-        applyCustomWallpaper = () => {},
+        applyBubbleColors = () => {},
         applyLanguage,
         togglePinChat,
         archiveChat,
@@ -401,7 +400,7 @@ const authActionsHelper = createSettingsAuthActionsHelper({
     createPasswordRecord,
     loadConfig,
     loadAppData,
-    applyCustomWallpaper,
+    applyBubbleColors,
     applyUiTheme
 });
 const {
@@ -547,20 +546,6 @@ const setupSettingsModal = () => {
     ALL_ELEMENTS.enableUpdateNotificationsToggle.checked = config.enableUpdateNotifications;
     renderMemorySummary();
     updateThemeButtons();
-    const aiBubbleColorTitle = document.querySelector('h3[data-lang-key="aiBubbleColor"]');
-    const aiBubbleColorDropdown = ALL_ELEMENTS.aiBubbleColorDropdown;
-    if (config.customWallpaper) {
-        // 只有在自訂桌布模式下才顯示 AI 泡泡顏色選項
-        aiBubbleColorTitle.style.display = 'block';
-        aiBubbleColorDropdown.style.display = 'block';
-        renderAiBubbleColorDropdown();
-    } else {
-        // 否則隱藏
-        aiBubbleColorTitle.style.display = 'none';
-        aiBubbleColorDropdown.style.display = 'none';
-    }
-
-
     // 使用者泡泡顏色設定總是顯示並渲染
     renderUserBubbleColorDropdown();
     renderUiColorOptions();
@@ -602,7 +587,6 @@ const saveSettings = async ({ close = true, notify = true } = {}) => {
         visionCheckEnabled: collectedSettings.visionCheckEnabled,
         processOpen: collectedSettings.processOpen,
         fileModeDefault: collectedSettings.fileModeDefault,
-        aiBubbleColor: collectedSettings.aiBubbleColor,
         userBubbleColor: collectedSettings.userBubbleColor,
         autoNaming: collectedSettings.autoNaming,
         memoryEnabled1: collectedSettings.memoryEnabled1,
@@ -614,7 +598,6 @@ const saveSettings = async ({ close = true, notify = true } = {}) => {
         enableUpdateNotifications: collectedSettings.enableUpdateNotifications
     });
     Object.assign(config.uiTheme, collectedSettings.uiTheme);
-    setAiBubbleColor();
     setUserBubbleColor();
     applyUiTheme();
     await saveConfig();
@@ -636,15 +619,12 @@ const themeBubbleControls = createSettingsThemeBubbleControls({
     document,
     elements: ALL_ELEMENTS,
     config,
-    aiBubbleColors: AI_BUBBLE_COLORS,
     userBubbleColors: USER_BUBBLE_COLORS,
     hexToRgba,
     saveConfig
 });
 const {
-    setAiBubbleColor,
     setUserBubbleColor,
-    renderAiBubbleColorDropdown,
     renderUserBubbleColorDropdown,
     setTheme,
     updateThemeButtons
@@ -692,9 +672,7 @@ const {
         openSettingsMobileSection,
         setupSettingsModal,
         saveSettings,
-        setAiBubbleColor,
         setUserBubbleColor,
-        renderAiBubbleColorDropdown,
         renderUserBubbleColorDropdown,
         createHistoryMenu,
         setTheme,

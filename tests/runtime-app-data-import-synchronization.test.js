@@ -126,7 +126,6 @@ test('handleImport keeps validation before clear and chunk mutations on active l
     'updateProgress(100',
     'toggleModal(elements.importDataModal, false)',
     "showNotification(text('importSuccess'",
-    'applyCustomWallpaper()',
     'applyUiTheme()',
     'applyLanguage(getConfig().uiLanguage)',
     'if (firstConversation) loadChat(firstConversation.id)',

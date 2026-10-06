@@ -101,7 +101,6 @@ const createDependencies = (overrides = {}) => {
       modelSettings: [],
       uiTheme: {},
       theme: 'dark',
-      aiBubbleColor: 'default',
       userBubbleColor: 'default',
       outputMode: 'realtime',
       tavilySearchDepth: 'basic'
@@ -185,7 +184,6 @@ const createDependencies = (overrides = {}) => {
     councilResponseCharLimit: 1000,
     councilRetryDelayMs: 1,
     councilMaxModels: 3,
-    aiBubbleColors: { default: {light: '#eeeeee'} },
     userBubbleColors: { default: {light: '#dddddd'} },
     getActiveConversation: () => null,
     normalizeConversationModel: (model) => model,
@@ -391,10 +389,8 @@ test('theme and bubble controls are composed through the extracted helper', () =
   );
   assert.match(source, /const\s+themeBubbleControls\s*=\s*createSettingsThemeBubbleControls\(\{/);
   assert.match(source, /elements:\s*ALL_ELEMENTS/);
-  assert.match(source, /aiBubbleColors:\s*AI_BUBBLE_COLORS/);
   assert.match(source, /userBubbleColors:\s*USER_BUBBLE_COLORS/);
-  assert.match(source, /setAiBubbleColor,\s*\n\s*setUserBubbleColor,\s*\n\s*renderAiBubbleColorDropdown,\s*\n\s*renderUserBubbleColorDropdown,/);
-  assert.doesNotMatch(source, /const\s+renderAiBubbleColorDropdown\s*=\s*\(\)\s*=>/);
+  assert.match(source, /setUserBubbleColor,\s*\n\s*renderUserBubbleColorDropdown,/);
   assert.doesNotMatch(source, /const\s+renderUserBubbleColorDropdown\s*=\s*\(\)\s*=>/);
   assert.doesNotMatch(source, /const\s+setTheme\s*=\s*async/);
   assert.doesNotMatch(source, /const\s+updateThemeButtons\s*=\s*\(\)\s*=>/);
@@ -479,7 +475,6 @@ test('factory exposes settings auth provider lifecycle API', () => {
     'handleDeleteAllData',
     'setTheme',
     'updateThemeButtons',
-    'setAiBubbleColor',
     'setUserBubbleColor',
     'createHistoryMenu'
   ]) {
@@ -888,7 +883,6 @@ test('saveSettings writes API keys through sensitive key callbacks before normal
       },
       querySelectorAll: () => []
     },
-    aiBubbleColors: { default: {light: '#eeeeee'} },
     userBubbleColors: { default: {light: '#dddddd'} },
     setApiKeyForProvider: (provider, value) => calls.push(['setApiKeyForProvider', provider, value]),
     saveSensitiveConfig: async () => calls.push('saveSensitiveConfig')
@@ -906,9 +900,7 @@ test('saveSettings writes API keys through sensitive key callbacks before normal
   dependencies.elements.aiLanguageSelect.value = 'en';
   dependencies.elements.enableUpdateNotificationsToggle.checked = true;
   state.config.theme = 'dark';
-  state.config.aiBubbleColor = 'default';
   state.config.userBubbleColor = 'default';
-  dependencies.elements.aiBubbleColorDropdown.querySelector = () => ({ dataset: { color: 'default' } });
   dependencies.elements.userBubbleColorDropdown.querySelector = () => ({ dataset: { color: 'default' } });
   dependencies.elements.customColorSwatches.querySelector = () => null;
   dependencies.elements.gradientSwatches.querySelector = () => null;
@@ -1032,7 +1024,6 @@ test('saveSettings preserves unchanged masked keys and never stores masked place
       },
       querySelectorAll: () => []
     },
-    aiBubbleColors: { default: {light: '#eeeeee'} },
     userBubbleColors: { default: {light: '#dddddd'} },
     setApiKeyForProvider: (provider, value) => calls.push(['setApiKeyForProvider', provider, value]),
     saveSensitiveConfig: async () => calls.push('saveSensitiveConfig')
@@ -1045,7 +1036,6 @@ test('saveSettings preserves unchanged masked keys and never stores masked place
   dependencies.elements.tavilySearchDepthSelect.value = 'basic';
   dependencies.elements.uiLanguageSelect.value = 'en';
   dependencies.elements.aiLanguageSelect.value = 'en';
-  dependencies.elements.aiBubbleColorDropdown.querySelector = () => ({ dataset: { color: 'default' } });
   dependencies.elements.userBubbleColorDropdown.querySelector = () => ({ dataset: { color: 'default' } });
   dependencies.elements.customColorSwatches.querySelector = () => null;
   dependencies.elements.gradientSwatches.querySelector = () => null;
@@ -1072,7 +1062,6 @@ test('saveSettings writes new and cleared API key intents through sensitive call
       },
       querySelectorAll: () => []
     },
-    aiBubbleColors: { default: {light: '#eeeeee'} },
     userBubbleColors: { default: {light: '#dddddd'} },
     setApiKeyForProvider: (provider, value) => calls.push(['setApiKeyForProvider', provider, value]),
     saveSensitiveConfig: async () => calls.push('saveSensitiveConfig')
@@ -1085,7 +1074,6 @@ test('saveSettings writes new and cleared API key intents through sensitive call
   dependencies.elements.tavilySearchDepthSelect.value = 'basic';
   dependencies.elements.uiLanguageSelect.value = 'en';
   dependencies.elements.aiLanguageSelect.value = 'en';
-  dependencies.elements.aiBubbleColorDropdown.querySelector = () => ({ dataset: { color: 'default' } });
   dependencies.elements.userBubbleColorDropdown.querySelector = () => ({ dataset: { color: 'default' } });
   dependencies.elements.customColorSwatches.querySelector = () => null;
   dependencies.elements.gradientSwatches.querySelector = () => null;
@@ -1168,7 +1156,7 @@ test('source keeps settings save ownership and composes auth actions helper', ()
   assert.match(source, /const\s+authActionsHelper\s*=\s*createSettingsAuthActionsHelper\(\{/);
   assert.match(source, /loadConfig,/);
   assert.match(source, /loadAppData,/);
-  assert.match(source, /applyCustomWallpaper,/);
+  assert.match(source, /applyBubbleColors,/);
   assert.match(source, /handleLogin,\s*\n\s*handleLogout,\s*\n\s*handleDeleteAllData\s*\n?\}\s*=\s*authActionsHelper/);
   assert.doesNotMatch(source, /const\s+handleLogin\s*=\s*async\s*\(e\)\s*=>\s*\{/);
   assert.doesNotMatch(source, /const\s+handleLogout\s*=\s*async\s*\(\)\s*=>\s*\{/);
@@ -1187,7 +1175,7 @@ test('source keeps settings save ownership and composes auth actions helper', ()
     'await setItem(\'chat_lastUser\', username);',
     'await loadConfig();',
     'await loadAppData();',
-    'applyCustomWallpaper();',
+    'applyBubbleColors();',
     'applyUiTheme();',
     'elements.authContainer.classList.remove(\'visible\');',
     'elements.authContainer.classList.add(\'fade-out\');',

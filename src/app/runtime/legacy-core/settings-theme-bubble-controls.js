@@ -3,9 +3,7 @@ const requiredDependencies = [
   'document',
   'elements',
   'config',
-  'aiBubbleColors',
   'userBubbleColors',
-  'hexToRgba',
   'saveConfig'
 ];
 
@@ -30,38 +28,16 @@ export function createSettingsThemeBubbleControls(dependencies = {}) {
     document,
     elements: ALL_ELEMENTS,
     config,
-    aiBubbleColors: AI_BUBBLE_COLORS,
     userBubbleColors: USER_BUBBLE_COLORS,
-    hexToRgba,
     saveConfig
   } = dependencies;
 
-  const setAiBubbleColor = () => {
-    const root = document.documentElement;
-    const isWallpaperActive = document.body.classList.contains('custom-wallpaper-active');
-    const mode = DEFAULT_APPEARANCE_MODE;
-    const colors = AI_BUBBLE_COLORS[config.aiBubbleColor] || AI_BUBBLE_COLORS.default;
-    const hexColor = colors[mode];
-    if (isWallpaperActive) {
-      const rgbaColor = hexToRgba(hexColor, 0.75);
-      root.style.setProperty('--ai-bubble-bg', rgbaColor);
-    } else {
-      root.style.setProperty('--ai-bubble-bg', 'transparent');
-    }
-  };
-
   const setUserBubbleColor = () => {
     const root = document.documentElement;
-    const isWallpaperActive = document.body.classList.contains('custom-wallpaper-active');
     const mode = DEFAULT_APPEARANCE_MODE;
     const colors = USER_BUBBLE_COLORS[config.userBubbleColor] || USER_BUBBLE_COLORS.default;
     const hexColor = colors[mode];
-    if (isWallpaperActive) {
-      const rgbaColor = hexToRgba(hexColor, 0.7);
-      root.style.setProperty('--user-bubble-bg', rgbaColor);
-    } else {
-      root.style.setProperty('--user-bubble-bg', hexColor);
-    }
+    root.style.setProperty('--user-bubble-bg', hexColor);
   };
 
   const renderBubbleColorDropdown = ({
@@ -122,16 +98,6 @@ export function createSettingsThemeBubbleControls(dependencies = {}) {
     container.appendChild(menu);
   };
 
-  const renderAiBubbleColorDropdown = () => {
-    renderBubbleColorDropdown({
-      container: ALL_ELEMENTS.aiBubbleColorDropdown,
-      colorMap: AI_BUBBLE_COLORS,
-      configKey: 'aiBubbleColor',
-      applyColor: setAiBubbleColor,
-      renderDropdown: renderAiBubbleColorDropdown
-    });
-  };
-
   const renderUserBubbleColorDropdown = () => {
     renderBubbleColorDropdown({
       container: ALL_ELEMENTS.userBubbleColorDropdown,
@@ -146,19 +112,15 @@ export function createSettingsThemeBubbleControls(dependencies = {}) {
 
   const setTheme = async () => {
     delete config.theme;
-    setAiBubbleColor();
     setUserBubbleColor();
     await saveConfig();
     if (!ALL_ELEMENTS.settingsModal.classList.contains('hidden')) {
-      renderAiBubbleColorDropdown();
       renderUserBubbleColorDropdown();
     }
   };
 
   return {
-    setAiBubbleColor,
     setUserBubbleColor,
-    renderAiBubbleColorDropdown,
     renderUserBubbleColorDropdown,
     renderBubbleColorDropdown,
     setTheme,

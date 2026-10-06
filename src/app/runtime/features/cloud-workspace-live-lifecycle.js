@@ -132,7 +132,7 @@ export function createCloudWorkspaceLiveLifecycle({
   maxCouncilModels,
   getCouncilTranslatorCandidates,
   getSingleTranslatorCandidates,
-  applyCustomWallpaper,
+  applyBubbleColors,
   applyUiTheme,
   renderAll,
   renderSidebar,
@@ -369,10 +369,7 @@ export function createCloudWorkspaceLiveLifecycle({
       !cloudValuesEqual(currentConfig[key], normalizedConfig[key])
     ));
     const appearanceKeys = new Set([
-      'customWallpaper',
-      'wallpaperBrightness',
       'uiTheme',
-      'aiBubbleColor',
       'userBubbleColor'
     ]);
     const appearanceChanged = changedSyncedKeys.some(key => appearanceKeys.has(key));
@@ -392,7 +389,7 @@ export function createCloudWorkspaceLiveLifecycle({
       }
     }
     if (appearanceChanged) {
-      applyCustomWallpaper();
+      applyBubbleColors();
       applyUiTheme();
     }
     if (languageChanged) applyLanguage(normalizedConfig.uiLanguage);

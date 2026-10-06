@@ -60,14 +60,6 @@
     -ms-user-select: none;     /* 適用於 Internet Explorer/Edge */
     user-select: none;         /* 標準語法 */
 }
-body.custom-wallpaper-active .input-indicator-item {
-    background-color: rgba(255, 255, 255, 0.2) !important;
-    backdrop-filter: blur(20px) !important;
-    -webkit-backdrop-filter: blur(20px) !important;
-    border: 1px solid rgba(255, 255, 255, 0.3) !important;
-    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-    color: var(--button-primary-bg) !important;
-}
 #input-bar-container .input-wrapper > .flex.items-end {
     width: 100%;
     min-width: 0;

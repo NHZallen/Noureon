@@ -92,7 +92,7 @@ const createHarness = (overrides = {}) => {
     },
     loadConfig: async () => calls.push('loadConfig'),
     loadAppData: async () => calls.push('loadAppData'),
-    applyCustomWallpaper: () => calls.push('applyCustomWallpaper'),
+    applyBubbleColors: () => calls.push('applyBubbleColors'),
     applyUiTheme: () => calls.push('applyUiTheme'),
     ...overrides
   };
@@ -132,12 +132,12 @@ test('login success writes auth storage, transitions containers, and initializes
   assert.deepEqual(calls.filter((call) => typeof call === 'string' && [
     'loadConfig',
     'loadAppData',
-    'applyCustomWallpaper',
+    'applyBubbleColors',
     'applyUiTheme'
   ].includes(call)), [
     'loadConfig',
     'loadAppData',
-    'applyCustomWallpaper',
+    'applyBubbleColors',
     'applyUiTheme'
   ]);
   assert.deepEqual(calls.slice(-2), [

@@ -71,18 +71,15 @@ function createFixture(overrides = {}) {
   const styleWrites = [];
   const calls = [];
   const config = {
-    aiBubbleColor: 'default',
     userBubbleColor: 'default'
   };
   const elements = {
-    aiBubbleColorDropdown: createElement(),
     userBubbleColorDropdown: createElement(),
     settingsModal: createElement()
   };
   elements.settingsModal.classList.add('hidden');
 
   const document = {
-    body: { classList: createClassList(overrides.wallpaper ? ['custom-wallpaper-active'] : []) },
     documentElement: {
       classList: createClassList(),
       style: {
@@ -102,15 +99,10 @@ function createFixture(overrides = {}) {
     document,
     elements,
     config,
-    aiBubbleColors: {
-      default: {light: '#eeeeee'},
-      blue: {light: '#88aaff'}
-    },
     userBubbleColors: {
       default: {light: '#dddddd'},
       green: {light: '#88ff88'}
     },
-    hexToRgba: (hex, alpha) => `rgba(${hex}, ${alpha})`,
     saveConfig: async () => calls.push('saveConfig')
   });
 
@@ -128,7 +120,7 @@ test('factory validates required dependencies', () => {
   );
 });
 
-test('setTheme compatibility clears retired theme config, refreshes bubble colors, and saves', async () => {
+test('setTheme compatibility clears retired theme config, refreshes the bubble colour, and saves', async () => {
   const { calls, config, controls, styleWrites } = createFixture();
   config.theme = 'dark';
 
@@ -136,59 +128,17 @@ test('setTheme compatibility clears retired theme config, refreshes bubble color
 
   assert.equal('theme' in config, false);
   assert.deepEqual(styleWrites, [
-    ['--ai-bubble-bg', 'transparent'],
     ['--user-bubble-bg', '#dddddd']
   ]);
   assert.deepEqual(calls, ['saveConfig']);
 });
 
-test('setTheme compatibility still clears retired theme config while custom wallpaper is active', async () => {
-  const { calls, config, controls, styleWrites } = createFixture({ wallpaper: true });
-  config.theme = 'dark';
-
-  await controls.setTheme('light');
-
-  assert.equal('theme' in config, false);
+test('the user bubble colour is always written as a solid colour', () => {
+  const { controls, styleWrites } = createFixture();
+  controls.setUserBubbleColor();
   assert.deepEqual(styleWrites, [
-    ['--ai-bubble-bg', 'rgba(#eeeeee, 0.75)'],
-    ['--user-bubble-bg', 'rgba(#dddddd, 0.7)']
-  ]);
-  assert.deepEqual(calls, ['saveConfig']);
-});
-
-test('bubble color setters preserve wallpaper and non-wallpaper behavior', () => {
-  const normal = createFixture();
-  normal.controls.setAiBubbleColor();
-  normal.controls.setUserBubbleColor();
-  assert.deepEqual(normal.styleWrites, [
-    ['--ai-bubble-bg', 'transparent'],
     ['--user-bubble-bg', '#dddddd']
   ]);
-
-  const wallpaper = createFixture({ wallpaper: true });
-  wallpaper.controls.setAiBubbleColor();
-  wallpaper.controls.setUserBubbleColor();
-  assert.deepEqual(wallpaper.styleWrites, [
-    ['--ai-bubble-bg', 'rgba(#eeeeee, 0.75)'],
-    ['--user-bubble-bg', 'rgba(#dddddd, 0.7)']
-  ]);
-});
-
-test('AI bubble color dropdown renders options and writes selected color', () => {
-  const { config, controls, elements, styleWrites } = createFixture();
-
-  controls.renderAiBubbleColorDropdown();
-  const menu = elements.aiBubbleColorDropdown.children[1];
-  const blueOption = menu.children.find((child) => child.dataset.color === 'blue');
-
-  assert.equal(elements.aiBubbleColorDropdown.children[0].dataset.color, 'default');
-  assert.ok(blueOption);
-
-  blueOption.dispatch('click');
-
-  assert.equal(config.aiBubbleColor, 'blue');
-  assert.deepEqual(styleWrites.at(-1), ['--ai-bubble-bg', 'transparent']);
-  assert.equal(menu.classList.contains('show'), false);
 });
 
 test('user bubble color dropdown renders options and writes selected color', () => {
@@ -211,9 +161,9 @@ test('user bubble color dropdown renders options and writes selected color', () 
 test('shared dropdown helper positions menu without global state', () => {
   const { controls, elements } = createFixture();
 
-  controls.renderAiBubbleColorDropdown();
-  const button = elements.aiBubbleColorDropdown.children[0];
-  const menu = elements.aiBubbleColorDropdown.children[1];
+  controls.renderUserBubbleColorDropdown();
+  const button = elements.userBubbleColorDropdown.children[0];
+  const menu = elements.userBubbleColorDropdown.children[1];
 
   button.dispatch('click');
 
@@ -225,9 +175,9 @@ test('shared dropdown helper positions menu without global state', () => {
 test('shared dropdown helper toggles the menu state on repeated button clicks', () => {
   const { controls, elements } = createFixture();
 
-  controls.renderAiBubbleColorDropdown();
-  const button = elements.aiBubbleColorDropdown.children[0];
-  const menu = elements.aiBubbleColorDropdown.children[1];
+  controls.renderUserBubbleColorDropdown();
+  const button = elements.userBubbleColorDropdown.children[0];
+  const menu = elements.userBubbleColorDropdown.children[1];
 
   button.dispatch('click');
   assert.equal(menu.classList.contains('show'), true);

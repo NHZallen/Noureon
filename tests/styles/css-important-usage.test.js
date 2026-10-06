@@ -34,10 +34,6 @@ const documentedImportantUsage = {
     max: 34,
     category: 'required: regression override / legacy compatibility'
   },
-  'src/styles/input.css': {
-    max: 5,
-    category: 'required: regression override / legacy compatibility'
-  },
   'src/styles/mobile.css': {
     max: 41,
     category: 'required: mobile override'

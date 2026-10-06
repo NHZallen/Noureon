@@ -6,7 +6,7 @@ import test from 'node:test';
 //   const { ... } = transitionBusLifecycle;
 // destructuring, but that statement sits hundreds of lines below code that already runs. Reading
 // one of those names above the declaration is a temporal dead zone error, which crashed bootstrap
-// in dev with "Cannot access 'applyCustomWallpaper' before initialization". The production bundle
+// in dev with "Cannot access 'applyBubbleColors' before initialization". The production bundle
 // happened to hide it, so nothing caught it.
 //
 // Passing such a name lazily — applyUiTheme: (...args) => applyUiTheme(...args) — is fine, because
@@ -62,7 +62,7 @@ test('legacy-core does not read transition bus bindings before they are declared
 });
 
 test('the cloud workspace live lifecycle is created after the transition bus destructuring', () => {
-  // It takes applyCustomWallpaper / applyUiTheme / applyLanguage as plain references, which is
+  // It takes applyBubbleColors / applyUiTheme / applyLanguage as plain references, which is
   // only safe below the destructuring block. Moving it back up reintroduces the dev-only TDZ
   // crash this file already shipped once.
   const destructureEnd = source.indexOf('} = transitionBusLifecycle;');

@@ -9,9 +9,7 @@
     max-width: min(100%, 34rem);
     margin: 0.75rem 0;
     padding: 0.7rem 0.75rem 0.7rem 0.8rem;
-    /* Tints derive from the current text colour, so the card stays legible on
-       the light theme and on dark custom wallpapers, where only the text
-       variables flip. */
+    /* Tints derive from the current text colour, so the card stays legible. */
     border: 1px solid color-mix(in srgb, var(--text-primary, #111827) 12%, transparent);
     border-radius: 0.9rem;
     background: color-mix(in srgb, var(--text-primary, #111827) 4%, transparent);
@@ -252,7 +250,7 @@
 
 .ac-file-preview {
     /* The dialog surface is always light (--modal-bg), so its text must not
-       follow a dark wallpaper's light text colour. */
+       follow the text colour. */
     --text-primary: #111827;
     --text-secondary: #6b7280;
     width: min(56rem, calc(100vw - 2rem));

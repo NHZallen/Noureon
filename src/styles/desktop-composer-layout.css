@@ -231,11 +231,6 @@
         padding: 0.5rem 0.7rem !important;
         border-radius: 0.78rem;
     }
-
-    body.custom-wallpaper-active #file-options-popover:not(.message-edit-shared-popover) {
-        background: rgba(255, 255, 255, 0.9) !important;
-        border-color: rgba(255, 255, 255, 0.58) !important;
-    }
 }
 
 @media (min-width: 769px) and (prefers-reduced-motion: reduce) {

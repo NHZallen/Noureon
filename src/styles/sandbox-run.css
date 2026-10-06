@@ -1,6 +1,6 @@
 /* Advanced mode in a reply: the "Ran code N times" row, its steps, and the
    note shown when a reply switched to Standard mode. Black and white; tints
-   follow the text colour so dark themes and wallpapers work too. */
+   follow the text colour so dark themes work too. */
 
 .sandbox-run {
     margin: 0 0 0.5rem;

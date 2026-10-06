@@ -2,8 +2,7 @@
    lower edge and fade out over a short distance there.
    The fade is a sticky gradient strip inside the scroller, not a mask on it: a mask on a scrolling
    element made scrolling sluggish on phones. There is no strip inside the scroller at the bottom edge: nothing is placed
-   where the scroller ends, so reaching the end behaves as the browser normally does. With a wallpaper
-   there is no page colour to fade into, so the strip is left out. */
+   where the scroller ends, so reaching the end behaves as the browser normally does. */
 
 #chat-workspace {
     --chat-fade-top: 0.75rem;
@@ -48,10 +47,6 @@
     margin-top: calc(var(--chat-pad) * -1);
     margin-bottom: calc(var(--chat-pad) - var(--chat-fade-top));
     background: linear-gradient(to bottom, var(--chat-bg), transparent);
-}
-
-body.custom-wallpaper-active #chat-container::before {
-    display: none;
 }
 
 /* Room at the end of the chat: an empty block after the messages whose height is set by the script

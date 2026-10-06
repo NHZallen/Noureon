@@ -1,7 +1,7 @@
 /* The model picker in the composer: a button naming what answers, and one panel
    for a single model, a council of models, and how deeply the model thinks
    (model-picker-markup.js). Black and white; every tint follows the text colour
-   so dark themes and wallpapers work too. Rules start with #model-council-control
+   so dark themes work too. Rules start with #model-council-control
    so the shared button and popover styles do not reach in. */
 
 #model-council-control {

@@ -14,7 +14,6 @@ export function createLegacyRuntimeConfigStore({ defaultModelId } = {}) {
     tavilySearchDepth: 'basic',
     // Replies are always shown as they are written (there is no other mode).
     outputMode: 'realtime',
-    aiBubbleColor: 'default',
     userBubbleColor: 'default',
     autoNaming: true,
     lastUsedModel: null,
@@ -27,15 +26,9 @@ export function createLegacyRuntimeConfigStore({ defaultModelId } = {}) {
     memorySync: { version: 1, profileEntries: [], profileCandidates: [], resolvedProfileCandidateIds: [], resolvedTopicSummaryIds: [], suppressionRules: [], longTermTopicSummaries: [] },
     memoryEnabled1: true,
     enableAutoMemory: true,
-    customWallpaper: null,
-    wallpaperBrightness: 'light',
     uiTheme: {
       mode: 'default',
-      style: 'single',
-      customColor: '#3b82f6',
-      adaptiveColor: '#3b82f6',
-      adaptivePalette: [],
-      adaptiveGradient: ''
+      customColor: '#3b82f6'
     },
     uiLanguage: 'zh-TW',
     aiDefaultLanguage: 'zh-TW',

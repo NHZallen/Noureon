@@ -3,11 +3,11 @@ import test from 'node:test';
 
 import { readSource } from '../helpers/source-guards.js';
 
-test('file card colours follow the text colour so dark wallpapers stay legible', () => {
+test('file card colours follow the text colour so they stay legible', () => {
   const css = readSource('src/styles/file-cards.css');
   const cardRule = /\.ac-file-card \{[\s\S]*?\n\}/.exec(css)?.[0] || '';
-  // Dark wallpapers flip only the text variables; a background built from
-  // --input-field-bg would put light text on a light card.
+  // A background built from --input-field-bg would put light text on a light card
+  // when only the text variables change.
   assert.doesNotMatch(cardRule, /input-field-bg/);
   assert.match(cardRule, /background: color-mix\(in srgb, var\(--text-primary/);
   assert.match(css, /\.ac-file-action \.ac-file-action-icon \{[\s\S]*?color: inherit;/, 'overrides the global body svg colour');

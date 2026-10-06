@@ -244,9 +244,6 @@ function createLifecycleHarness(overrides = {}) {
     createAstras: () => calls.push('createAstras'),
     handleSaveAstras: () => calls.push('handleSaveAstras'),
     renderPersonalMemoryList: () => calls.push('renderPersonalMemoryList'),
-    handleWallpaperUpload: () => calls.push('handleWallpaperUpload'),
-    restoreDefaultWallpaper: () => calls.push('restoreDefaultWallpaper'),
-    handleConfirmCrop: () => calls.push('handleConfirmCrop'),
     handleDeleteAllData: () => calls.push('handleDeleteAllData'),
     applyLanguage: (lang) => calls.push(`applyLanguage:${lang}`),
     openStore: () => calls.push('openStore'),
@@ -461,7 +458,6 @@ test('bound handlers preserve state bridges and injected handoffs', async () => 
   await initChatApp();
 
   findListener(harness.listeners, 'messageInput', 'input')({ target: { closest: () => null } });
-  findListener(harness.listeners, 'cancelCropBtn', 'click')();
   findListener(harness.listeners, 'cancelAvatarCropBtn', 'click')();
   await findListener(harness.listeners, 'addPersonalMemoryBtn', 'click')();
 
