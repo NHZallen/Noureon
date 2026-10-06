@@ -3,15 +3,17 @@ import test from 'node:test';
 import { Window } from 'happy-dom';
 
 import fragment03 from '../src/templates/fragments/03-shell.fragment.js';
+import fragment04 from '../src/templates/fragments/04-shell.fragment.js';
 import { ensureStorageUsageBlock } from '../src/app/runtime/legacy-core/settings-storage-usage.js';
+import { ensureAutoWebSearchSettingsControl, ensureFileModeSettingsControl, ensureProcessOpenSettingsControl, ensureVisionCheckSettingsControl } from '../src/app/runtime/legacy-core/settings-vision-check-control.js';
 import { createSettingsMemorySummaryControls } from '../src/app/runtime/legacy-core/settings-memory-summary-controls.js';
 
 // The Models and Data tabs are written out in full in the page (03-shell fragment): the controls that used to build them find
 // what is there and only attach to it.
-const NEXT_SECTION = { 'model-management-section': 'data-management-section', 'data-management-section': 'accessibility-section' };
+const NEXT_SECTION = { 'model-management-section': 'data-management-section', 'data-management-section': 'accessibility-section', 'accessibility-section': 'trash-section' };
 const sectionHtml = (id) => {
   const start = fragment03.indexOf(`<div id="${id}"`);
-  const end = fragment03.indexOf(`<div id="${NEXT_SECTION[id]}"`);
+  const end = id === 'accessibility-section' ? fragment03.length : fragment03.indexOf(`<div id="${NEXT_SECTION[id]}"`);
   assert.ok(start >= 0 && end > start, `${id} is in the page`);
   return fragment03.slice(start, end);
 };
@@ -106,4 +108,43 @@ test('the cloud space line becomes a card of the Data tab, above the danger card
   assert.equal(block.querySelector('.pz-head h3').textContent.length > 0, true);
   assert.equal(block.querySelector('.pz-block .storage-usage-track') !== null, true);
   assert.equal(usage.ok, true);
+});
+
+test('the Accessibility tab has its rows in the page, and the controls that used to build them only attach to them', () => {
+  const window = new Window({ url: 'https://example.test/' });
+  const { document } = window;
+  document.body.innerHTML = sectionHtml('accessibility-section');
+  const elements = {};
+  const config = { uiLanguage: 'en', processOpen: true, fileModeDefault: 'standard' };
+  const before = document.querySelectorAll('#accessibility-section .pz-row').length;
+
+  ensureAutoWebSearchSettingsControl({ document, elements });
+  ensureVisionCheckSettingsControl({ document, elements, config, saveConfig: async () => {}, showNotification: () => {} });
+  ensureProcessOpenSettingsControl({ document, elements, config });
+  ensureFileModeSettingsControl({ document, elements, config });
+
+  assert.equal(document.querySelectorAll('#accessibility-section .pz-row').length, before, 'no row is added');
+  assert.equal(document.querySelectorAll('#vision-check-setting-row, #process-open-setting-row, #file-mode-setting-row').length, 3);
+  assert.deepEqual(
+    [...document.querySelectorAll('#accessibility-section .pz-card .pz-head h3')].map((heading) => heading.dataset.langKey),
+    ['settingsCardChat', 'settingsCardRepliesFiles']
+  );
+  assert.equal(elements.visionCheckToggleSwitch, document.getElementById('vision-check-toggle-switch'));
+  assert.equal(elements.processToggle.checked, true, 'the setting is shown on the switch that is in the page');
+  assert.equal(elements.fileModeDefaultSelect.value, 'standard');
+  assert.equal(document.querySelector('#process-open-setting-row .pz-label').textContent.length > 0, true);
+  assert.notEqual(document.querySelector('#vision-check-setting-row .pz-label').textContent, '自動看圖檢查簡報', 'the words are in the language of the settings');
+});
+
+test('the Trash tab has its actions and batch bar in the page', () => {
+  const window = new Window({ url: 'https://example.test/' });
+  const { document } = window;
+  const start = fragment04.indexOf('<div id="trash-section"');
+  const end = fragment04.indexOf('<div id="about-section"');
+  document.body.innerHTML = fragment04.slice(start, end);
+  for (const id of ['trash-batch-select-btn', 'empty-trash-btn', 'trash-batch-action-bar', 'trash-selection-count', 'trash-cancel-selection-btn', 'trash-batch-restore-btn', 'trash-batch-delete-btn', 'trash-list-container']) {
+    assert.ok(document.getElementById(id), `${id} is in the page`);
+  }
+  assert.equal(document.getElementById('trash-batch-action-bar').classList.contains('hidden'), true);
+  assert.equal(document.getElementById('trash-batch-restore-btn').disabled, true);
 });

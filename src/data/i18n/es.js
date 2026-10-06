@@ -246,6 +246,8 @@ const es = {
   "document": "Documentos",
   "save": "Guardar",
   "dataSync": "Sincronización de datos",
+  "settingsCardChat": "Conversación",
+  "settingsCardRepliesFiles": "Respuestas y archivos",
   "settingsCardWebSearch": "Búsqueda web",
   "settingsCardDocTranslation": "Traducción de documentos",
   "settingsCardMemory": "Memoria",

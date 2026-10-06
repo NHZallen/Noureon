@@ -31,7 +31,21 @@ button.pm-row > .pm-row-label { flex: 1; }
 .pm-mark { flex: none; width: 2rem; height: 2rem; display: grid; place-items: center; border: 1px solid var(--border-color); border-radius: 0.55rem; }
 .pm-host { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.86rem; }
 
-.pm-link { display: block; margin-top: 0.4rem; padding: 0; border: 0; background: transparent; color: var(--text-primary); font: inherit; font-size: 0.85rem; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+/* The home page: each block is a card of the same kind as the other tabs (settings-cards.css): a head, then rows between thin lines. */
+.pm-card { margin-bottom: 1rem; border: 1px solid var(--border-color); border-radius: 0.875rem; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); overflow: hidden; }
+.pm-card-head { padding: 1.1rem 1.15rem 0.7rem; }
+.pm-card .pm-sub { margin: 0; font-size: 1rem; }
+.pm-card .pm-desc { margin: 0.15rem 0 0; }
+.pm-card .pm-options { gap: 0; }
+.pm-card .pm-option { padding: 0.9rem 1.15rem; border: 0; border-top: 1px solid var(--border-color); border-radius: 0; }
+.pm-card .pm-option:has(input:checked) { border-color: var(--border-color); background: color-mix(in srgb, var(--text-primary) 3%, transparent); }
+.pm-card .pm-option-label { font-weight: 400; }
+.pm-card .pm-list { border: 0; border-top: 1px solid var(--border-color); border-radius: 0; }
+.pm-card .pm-row { padding: 0.95rem 1.15rem; }
+.pm-card .pm-row-label { font-weight: 400; }
+.pm-link { display: flex; align-items: center; gap: 0.7rem; width: 100%; padding: 0.95rem 1.15rem; border: 0; background: transparent; color: var(--text-primary); font: inherit; text-align: left; cursor: pointer; }
+.pm-link:hover { background: var(--hover-bg); }
+.pm-link .pm-row-label { flex: 1; font-weight: 400; }
 .pm-back { display: inline-flex; align-items: center; gap: 0.3rem; margin: 0 0 0.8rem -0.2rem; padding: 0.25rem 0.5rem 0.25rem 0.2rem; border: 0; border-radius: 0.5rem; background: transparent; color: var(--text-secondary); font: inherit; font-size: 0.85rem; cursor: pointer; }
 .pm-back:hover { background: var(--hover-bg); color: var(--text-primary); }
 

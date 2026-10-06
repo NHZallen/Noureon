@@ -250,6 +250,8 @@
         document: 'Documents',
         save: 'Save',
         dataSync: 'Data Sync',
+        settingsCardChat: 'Chat',
+        settingsCardRepliesFiles: 'Replies and files',
         settingsCardWebSearch: 'Web search',
         settingsCardDocTranslation: 'Document translation',
         settingsCardMemory: 'Memory',

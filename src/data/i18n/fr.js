@@ -250,6 +250,8 @@
         document: 'Documents',
         save: 'Enregistrer',
         dataSync: 'Synchronisation des Données',
+        settingsCardChat: 'Conversation',
+        settingsCardRepliesFiles: 'Réponses et fichiers',
         settingsCardWebSearch: 'Recherche web',
         settingsCardDocTranslation: 'Traduction de documents',
         settingsCardMemory: 'Mémoire',

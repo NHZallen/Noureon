@@ -246,6 +246,8 @@ const ru = {
   "document": "Документы",
   "save": "Сохранить",
   "dataSync": "Синхронизация данных",
+  "settingsCardChat": "Чат",
+  "settingsCardRepliesFiles": "Ответы и файлы",
   "settingsCardWebSearch": "Веб-поиск",
   "settingsCardDocTranslation": "Перевод документов",
   "settingsCardMemory": "Память",

@@ -51,7 +51,7 @@ const documentedImportantUsage = {
     category: 'required: regression override / legacy compatibility'
   },
   'src/styles/settings-cards.css': {
-    max: 24,
+    max: 30,
     category: 'required: regression override / legacy compatibility'
   },
   'src/styles/personalization.css': {

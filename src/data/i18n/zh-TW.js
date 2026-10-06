@@ -250,6 +250,8 @@
         document: '文件',
         save: '儲存',
         dataSync: '資料同步',
+        settingsCardChat: '對話',
+        settingsCardRepliesFiles: '回覆與檔案',
         settingsCardWebSearch: '網路搜尋',
         settingsCardDocTranslation: '文件轉譯',
         settingsCardMemory: '記憶',

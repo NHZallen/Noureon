@@ -88,7 +88,7 @@ export function createLegacyTrashLifecycle({
       .sort((a, b) => new Date(b.deletedAt) - new Date(a.deletedAt));
     container.innerHTML = '';
     if (deletedConvs.length === 0) {
-      container.innerHTML = `<p class="text-center text-[var(--text-secondary)] py-4">${getTexts().trashIsEmpty || '垃圾桶是空的。'}</p>`;
+      container.innerHTML = `<p class="pz-empty text-[var(--text-secondary)]">${getTexts().trashIsEmpty || '垃圾桶是空的。'}</p>`;
       elements.emptyTrashBtn.disabled = true;
       elements.trashBatchSelectBtn.disabled = true;
       return;
@@ -97,21 +97,21 @@ export function createLegacyTrashLifecycle({
     elements.trashBatchSelectBtn.disabled = false;
     deletedConvs.forEach(conversation => {
       const item = document.createElement('div');
-      item.className = 'trash-item flex items-center p-2 rounded-lg bg-[var(--hover-bg)] border border-[var(--border-color)]';
+      item.className = 'trash-item pz-row';
       item.dataset.id = conversation.id;
       const checkboxHTML = isTrashSelectionMode
         ? `<input type="checkbox" class="trash-select-checkbox h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-3 flex-shrink-0" data-id="${escapeMarkup(conversation.id)}" ${selectedTrashIds.has(conversation.id) ? 'checked' : ''}>`
         : '';
       item.innerHTML = `
         ${checkboxHTML}
-        <div class="flex-1 min-w-0">
-          <p class="font-medium truncate">${escapeMarkup(conversation.title)}</p>
-          <p class="text-xs text-[var(--text-secondary)]">${getTexts().deletedOn || '刪除於'}: ${formatFullTimestamp(conversation.deletedAt)}</p>
+        <div class="pz-text">
+          <p class="pz-label truncate">${escapeMarkup(conversation.title)}</p>
+          <p class="pz-sub text-[var(--text-secondary)]">${getTexts().deletedOn || '刪除於'}: ${formatFullTimestamp(conversation.deletedAt)}</p>
         </div>
-        <div class="flex gap-2 flex-shrink-0 ml-2">
-          <button data-id="${escapeMarkup(conversation.id)}" class="trash-item-view-btn btn-outline-white text-xs px-2 py-1 rounded">${getTexts().view || '檢視'}</button>
-          <button data-id="${escapeMarkup(conversation.id)}" class="trash-item-restore-btn btn-outline-white text-xs px-2 py-1 rounded">${getTexts().restore || '還原'}</button>
-          <button data-id="${escapeMarkup(conversation.id)}" class="trash-item-delete-btn btn-outline-white text-xs px-2 py-1 rounded">${getTexts().delete || '刪除'}</button>
+        <div class="pz-acts">
+          <button data-id="${escapeMarkup(conversation.id)}" type="button" class="trash-item-view-btn pz-gbtn">${getTexts().view || '檢視'}</button>
+          <button data-id="${escapeMarkup(conversation.id)}" type="button" class="trash-item-restore-btn pz-gbtn">${getTexts().restore || '還原'}</button>
+          <button data-id="${escapeMarkup(conversation.id)}" type="button" class="trash-item-delete-btn pz-gbtn pz-gbtn-danger">${getTexts().delete || '刪除'}</button>
         </div>
       `;
       container.appendChild(item);

@@ -104,8 +104,10 @@ export function renderPermissionsView({ document, root, getLanguage, getConfig, 
   // ----- home: the default for the network, and the rows to manage
   const drawHome = () => {
     const config = getConfig();
-    const block = make(document, 'div', 'pm-block');
-    block.append(make(document, 'h4', 'pm-sub', t('netTitle')), make(document, 'p', 'pm-desc', t('netDesc')));
+    const block = make(document, 'div', 'pm-block pm-card');
+    const netHead = make(document, 'div', 'pm-card-head');
+    netHead.append(make(document, 'h4', 'pm-sub', t('netTitle')), make(document, 'p', 'pm-desc', t('netDesc')));
+    block.append(netHead);
     const group = make(document, 'div', 'pm-options');
     group.setAttribute('role', 'radiogroup');
     for (const [value, label, description] of [['new', t('netNew'), t('netNewDesc')], ['always', t('netAlways'), t('netAlwaysDesc')]]) {
@@ -123,8 +125,10 @@ export function renderPermissionsView({ document, root, getLanguage, getConfig, 
     }
     block.append(group);
 
-    const manage = make(document, 'div', 'pm-block');
-    manage.append(make(document, 'h4', 'pm-sub', t('manageTitle')));
+    const manage = make(document, 'div', 'pm-block pm-card');
+    const manageHead = make(document, 'div', 'pm-card-head');
+    manageHead.append(make(document, 'h4', 'pm-sub', t('manageTitle')));
+    manage.append(manageHead);
     const list = make(document, 'div', 'pm-list');
     const credentialCount = state.creds.status === 'ready' ? String(state.creds.items.length) : '';
     for (const [view, label, count] of [['tools', t('rowTools'), String(enabledCliTools(config).length)], ['sites', t('rowSites'), String(listNetSites(config.netRules).length)], ['credentials', t('rowCredentials'), credentialCount]]) {
@@ -143,10 +147,16 @@ export function renderPermissionsView({ document, root, getLanguage, getConfig, 
       list.append(row);
     }
     manage.append(list);
-    const licenses = make(document, 'button', 'pm-link', t('licensesLink'));
+    // The page of third-party software is one more row, in a card of its own.
+    const licensesCard = make(document, 'div', 'pm-block pm-card');
+    const licenses = make(document, 'button', 'pm-link', '');
     licenses.type = 'button';
+    const licensesChevron = make(document, 'span', 'pm-chevron');
+    licensesChevron.innerHTML = ICONS.chevron;
+    licenses.append(make(document, 'span', 'pm-row-label', t('licensesLink')), licensesChevron);
     licenses.addEventListener('click', openLicenses);
-    root.append(block, manage, licenses);
+    licensesCard.append(licenses);
+    root.append(block, manage, licensesCard);
     // The number of credentials is known once they are loaded (a person with an account sees it without opening the row).
     if (state.creds.status === 'idle') void loadCredentials();
   };

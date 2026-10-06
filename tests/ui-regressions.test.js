@@ -12,12 +12,13 @@ test('outlined settings and trash actions use the shared white outline button st
     assert.match(shell03, new RegExp(`id=\\\\"${id}\\\\" type=\\\\"button\\\\" class=\\\\"pz-nav`));
   }
 
+  // The trash actions are small buttons of the Trash tab's card (settings-cards.css), not outline pills.
   for (const id of ['trash-batch-select-btn', 'empty-trash-btn']) {
-    assert.match(shell04, new RegExp(`id=\\\\"${id}\\\\"[^"]*class=\\\\"[^"]*btn-outline-white`));
+    assert.match(shell04, new RegExp(`id=\\\\"${id}\\\\" type=\\\\"button\\\\" class=\\\\"pz-sbtn`));
   }
 
   for (const className of ['trash-item-view-btn', 'trash-item-restore-btn', 'trash-item-delete-btn']) {
-    assert.match(trashLifecycle, new RegExp(`${className}[^\\n]+btn-outline-white`));
+    assert.match(trashLifecycle, new RegExp(`${className} pz-gbtn`));
   }
 });
 
