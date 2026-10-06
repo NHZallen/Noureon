@@ -122,3 +122,22 @@ test('the resolution control follows the model: only its tiers, moved to the nea
   assert.equal(row.style.display, 'flex');
   cleanup();
 });
+
+test('the council item stays hidden in a temporary chat when the controls refresh', () => {
+  const { document, cleanup } = createDom('<div id="file-options-popover"><button id="model-council-menu-btn"></button><button id="learning-mode-btn"></button></div>');
+  const conversation = { retentionMode: 'ephemeral' };
+  const controls = createImageModeControls({
+    document,
+    getActiveConversation: () => conversation,
+    getActiveModel: () => ({ outputModality: 'text' }),
+    modelGeneratesImages: () => false,
+    saveAppData: async () => {}
+  });
+  controls.sync();
+  assert.equal(document.getElementById('model-council-menu-btn').style.display, 'none');
+  assert.equal(document.getElementById('learning-mode-btn').style.display, 'flex', 'learning mode stays');
+  conversation.retentionMode = 'persistent';
+  controls.sync();
+  assert.equal(document.getElementById('model-council-menu-btn').style.display, 'flex');
+  cleanup();
+});

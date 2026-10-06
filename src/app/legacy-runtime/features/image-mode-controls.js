@@ -232,7 +232,8 @@ export function createImageModeControls({
     advanced.details.style.display = active ? 'block' : 'none';
     const council = document.getElementById('model-council-menu-btn');
     const learning = document.getElementById('learning-mode-btn');
-    if (council) council.style.display = active ? 'none' : 'flex';
+    // A temporary chat has no council either (submit-input-council-lifecycle.js hides it; this must not bring it back).
+    if (council) council.style.display = active || conversation?.retentionMode === 'ephemeral' ? 'none' : 'flex';
     if (learning) learning.style.display = active ? 'none' : 'flex';
     return active;
   };
