@@ -112,6 +112,29 @@ test('the composer control shows and saves the conversation\'s choice', async ()
   }
 });
 
+test('the design control is hidden while an image model is chosen, and comes back with a text model', () => {
+  const { document, cleanup } = createDom('<div id="file-input-container"><button id="add-file-btn"></button></div>');
+  try {
+    const conversation = { id: 'a', messages: [] };
+    let image = true;
+    const control = createDeckDesignControl({
+      document,
+      getActiveConversation: () => conversation,
+      saveAppData: async () => {},
+      getUiLanguage: () => 'en',
+      isImageChat: () => image,
+      loadPicker: async () => ({ renderDeckDesignPicker: () => ({ setCurrent() {} }) })
+    });
+    control.render();
+    assert.equal(document.getElementById('deck-design-control').style.display, 'none');
+    image = false;
+    control.render();
+    assert.equal(document.getElementById('deck-design-control').style.display, 'inline-flex');
+  } finally {
+    cleanup();
+  }
+});
+
 test('the picker offers AI adaptive and every template, in all five languages', () => {
   for (const language of LANGUAGES) {
     const { document, window, cleanup } = createDom('<div id="picker"></div>');

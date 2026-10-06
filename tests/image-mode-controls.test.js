@@ -73,3 +73,52 @@ test('persists changed image settings on the conversation', async () => {
   assert.equal(document.getElementById('image-advanced-control').style.display, 'block');
   cleanup();
 });
+
+test('the ratio menu offers only what the chosen model supports and moves an unsupported saved ratio to the nearest', () => {
+  const { document, cleanup } = createDom('<div id="file-options-popover"><button id="learning-mode-btn"></button></div>');
+  const conversation = { imageConfig: { aspectRatio: '1:8', resolution: '1K' } };
+  let model = { outputModality: 'image', supportedImageAspectRatios: ['1:1', '2:3', '3:2', '9:16', '16:9'] };
+  const controls = createImageModeControls({
+    document,
+    getActiveConversation: () => conversation,
+    getActiveModel: () => model,
+    modelGeneratesImages: () => true,
+    saveAppData: async () => {}
+  });
+  controls.sync();
+  const select = document.getElementById('image-aspect-ratio-select');
+  const shown = () => Array.from(select.options).filter(option => !option.hidden && !option.disabled).map(option => option.value);
+  assert.deepEqual(shown().sort(), ['1:1', '16:9', '2:3', '3:2', '9:16'].sort());
+  assert.equal(select.value, '9:16', '1:8 is closest to 9:16');
+  model = { outputModality: 'image' };
+  controls.sync();
+  assert.ok(shown().includes('21:9') && shown().includes('auto'), 'a model without a list is offered every ratio');
+  cleanup();
+});
+
+test('the resolution control follows the model: only its tiers, moved to the nearest, and hidden when the model sets its own size', () => {
+  const { document, cleanup } = createDom('<div id="file-options-popover"><button id="learning-mode-btn"></button></div>');
+  const conversation = { imageConfig: { aspectRatio: '1:1', resolution: '4K' } };
+  let model = { outputModality: 'image', supportedImageResolutions: ['1K'] };
+  const controls = createImageModeControls({
+    document,
+    getActiveConversation: () => conversation,
+    getActiveModel: () => model,
+    modelGeneratesImages: () => true,
+    saveAppData: async () => {}
+  });
+  controls.sync();
+  const select = document.getElementById('image-resolution-select');
+  const row = document.getElementById('image-resolution-control');
+  assert.deepEqual(Array.from(select.options).filter(option => !option.hidden).map(option => option.value), ['1K']);
+  assert.equal(select.value, '1K');
+  assert.equal(row.style.display, 'flex');
+  model = { outputModality: 'image', supportedImageResolutions: [] };
+  controls.sync();
+  assert.equal(row.style.display, 'none');
+  assert.equal(document.getElementById('image-aspect-ratio-control').style.display, 'flex');
+  model = { outputModality: 'image', supportedImageResolutions: ['512', '1K', '2K', '4K'] };
+  controls.sync();
+  assert.equal(row.style.display, 'flex');
+  cleanup();
+});

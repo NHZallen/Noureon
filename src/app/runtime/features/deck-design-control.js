@@ -37,6 +37,8 @@ export function createDeckDesignControl({
   saveAppData,
   getUiLanguage = () => 'zh-TW',
   closeAllPopovers = () => {},
+  // An image model has nothing to design (no slides, no documents), so the control is hidden while one is chosen.
+  isImageChat = () => false,
   // For Standard or Advanced mode (the picker's "Mode" row).
   getConfig = () => ({}),
   normalizeConversationModel = () => null,
@@ -249,6 +251,12 @@ export function createDeckDesignControl({
     const deckName = choices.deck === DECK_DESIGN_AUTO ? auto : getPresetText(choices.deck, language).name;
     const documentName = choices.document === DECK_DESIGN_AUTO ? auto : getDocumentPresetText(choices.document, language).name;
     const button = control.querySelector('#deck-design-btn');
+    const hidden = Boolean(conversation && isImageChat(conversation));
+    control.style.display = hidden ? 'none' : 'inline-flex';
+    if (hidden) {
+      control.querySelector('#deck-design-popover')?.classList.remove('visible');
+      button.setAttribute('aria-expanded', 'false');
+    }
     // The button always reads "Design"; the choices show in its tooltip
     // and in the picker.
     const cjk = /^(?:zh|ja|ko)/.test(language);

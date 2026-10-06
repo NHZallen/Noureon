@@ -243,3 +243,32 @@ test('OpenRouter image payload emits reasoning effort without changing image con
   assert.equal(payload.resolution, '2K');
   assert.equal(payload.image_config, undefined);
 });
+
+test('sends the nearest ratio and resolution the model supports, and no resolution to a model that sets its own size', async () => {
+  const requests = [];
+  const lifecycle = createImageGenerationResponseLifecycle({
+    buildSingleModelTranslatedRequestParts: async parts => parts,
+    generateImage: async value => {
+      requests.push(value);
+      return { images: [{ b64Json: 'aGVsbG8=', mediaType: 'image/png' }] };
+    },
+    saveImageAsset: async () => ({ id: 'image', storageKey: 'image-key', mediaType: 'image/png', size: 5 }),
+    getStoredImageDataUrl: async () => '',
+    getApiKey: () => 'openrouter-key'
+  });
+  const conversation = { imageConfig: { aspectRatio: '1:8', resolution: '4K' }, messages: [] };
+  const run = (modelInfo) => lifecycle.run({ targetElement: { innerHTML: '' }, userParts: [{ text: 'a cat' }], modelInfo, conversation });
+
+  await run({ id: 'google/gemini-3-pro-image', provider: 'openrouter', supportedImageAspectRatios: ['1:1', '2:3', '9:16'], supportedImageResolutions: ['1K', '2K', '4K'] });
+  assert.equal(requests[0].config.aspectRatio, '9:16');
+  assert.equal(requests[0].config.resolution, '4K');
+
+  await run({ id: 'google/gemini-3.1-flash-lite-image', provider: 'openrouter', supportedImageAspectRatios: ['1:1', '1:8'], supportedImageResolutions: ['1K'] });
+  assert.equal(requests[1].config.aspectRatio, '1:8');
+  assert.equal(requests[1].config.resolution, '1K');
+
+  await run({ id: 'openai/gpt-image-2.5-flare', provider: 'openrouter', supportedImageAspectRatios: ['1:1', '9:16'], supportedImageResolutions: [] });
+  assert.equal(requests[2].config.resolution, '');
+  assert.equal('resolution' in buildOpenRouterImagePayload({ model: 'm', prompt: 'p', config: requests[2].config }), false, 'nothing is sent for it');
+  assert.equal(conversation.imageConfig.resolution, '4K', 'the saved choice itself is left alone');
+});

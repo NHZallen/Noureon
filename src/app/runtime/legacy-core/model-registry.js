@@ -43,6 +43,19 @@ const MODEL_RELEASE_METADATA = Object.freeze({
     'z-ai/glm-5.3-flash': { releasedAt: 20260826, outputPricePerMillion: 0.25 }
 });
 
+// The aspect ratios each image model accepts, as OpenRouter lists them for the model (1:1 first). The menu offers only these and
+// a saved ratio the model lacks is moved to the nearest one it has. Gemini 3 Pro has no tall/wide extremes, the Flash models add
+// 1:4, 4:1, 1:8 and 8:1, and the GPT Image models take the eight common ratios.
+const GEMINI_PRO_IMAGE_RATIOS = Object.freeze(['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9']);
+const GEMINI_FLASH_IMAGE_RATIOS = Object.freeze(['1:1', '1:4', '4:1', '1:8', '8:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9']);
+const GPT_IMAGE_RATIOS = Object.freeze(['1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16', '21:9']);
+// The sizes (resolution tiers) each model accepts. An empty list means the model advertises none: it picks the size itself, so
+// the menu hides the control and nothing is sent. Gemini 3 Pro starts at 1K, Flash adds 512, Flash Lite makes 1K only.
+const GEMINI_PRO_IMAGE_RESOLUTIONS = Object.freeze(['1K', '2K', '4K']);
+const GEMINI_FLASH_IMAGE_RESOLUTIONS = Object.freeze(['512', '1K', '2K', '4K']);
+const GEMINI_FLASH_LITE_IMAGE_RESOLUTIONS = Object.freeze(['1K']);
+const NO_IMAGE_RESOLUTIONS = Object.freeze([]);
+
 export const MODEL_CATALOG = [
     // Gemini Models (Native)
     { id: 'gemini-3.8-flash', legacyIds: ['gemini-3.7-flash'], name: 'Gemini 3.8 Flash', provider: 'gemini', descriptionKey: 'model_gemini_3_8_flash_desc' },
@@ -65,9 +78,9 @@ export const MODEL_CATALOG = [
     { id: 'deepseek/deepseek-v4.1-flash', legacyIds: ['deepseek/deepseek-v4-flash-0731', 'deepseek/deepseek-v4-flash-vision-exp', 'deepseek/deepseek-v4-pro-0813'], name: 'DeepSeek V4.1 Flash', provider: 'openrouter', descriptionKey: 'model_deepseek_v4_1_flash_desc', category: 'general' },
 
     // OpenRouter Image Models (Google)
-    { id: 'google/gemini-3.1-flash-lite-image', name: 'Gemini 3.1 Flash Lite Image', provider: 'openrouter', descriptionKey: 'model_gemini_3_1_flash_lite_image_desc', category: 'image_generation', outputModality: 'image' },
-    { id: 'google/gemini-3.1-flash-image', name: 'Gemini 3.1 Flash Image', provider: 'openrouter', descriptionKey: 'model_gemini_3_1_flash_image_desc', category: 'image_generation', outputModality: 'image' },
-    { id: 'google/gemini-3-pro-image', name: 'Gemini 3 Pro Image', provider: 'openrouter', descriptionKey: 'model_gemini_3_pro_image_desc', category: 'image_generation', outputModality: 'image' },
+    { id: 'google/gemini-3.1-flash-lite-image', name: 'Gemini 3.1 Flash Lite Image', provider: 'openrouter', descriptionKey: 'model_gemini_3_1_flash_lite_image_desc', category: 'image_generation', outputModality: 'image', supportedImageAspectRatios: GEMINI_FLASH_IMAGE_RATIOS, supportedImageResolutions: GEMINI_FLASH_LITE_IMAGE_RESOLUTIONS },
+    { id: 'google/gemini-3.1-flash-image', name: 'Gemini 3.1 Flash Image', provider: 'openrouter', descriptionKey: 'model_gemini_3_1_flash_image_desc', category: 'image_generation', outputModality: 'image', supportedImageAspectRatios: GEMINI_FLASH_IMAGE_RATIOS, supportedImageResolutions: GEMINI_FLASH_IMAGE_RESOLUTIONS },
+    { id: 'google/gemini-3-pro-image', name: 'Gemini 3 Pro Image', provider: 'openrouter', descriptionKey: 'model_gemini_3_pro_image_desc', category: 'image_generation', outputModality: 'image', supportedImageAspectRatios: GEMINI_PRO_IMAGE_RATIOS, supportedImageResolutions: GEMINI_PRO_IMAGE_RESOLUTIONS },
 
     // OpenRouter Paid Models (Minimax)
     { id: 'minimax/minimax-m3', name: 'Minimax M3', provider: 'openrouter', descriptionKey: 'model_minimax_m3_desc', category: 'general' },
@@ -89,8 +102,8 @@ export const MODEL_CATALOG = [
     { id: 'openai/gpt-5.6-terra', name: 'OpenAI GPT-5.6 Terra', provider: 'openrouter', descriptionKey: 'model_gpt_5_6_terra_desc', category: 'general' },
     // Takes tools (Advanced mode's Python) only through the Responses API, so the rounds of an Advanced reply use it.
     { id: 'openai/gpt-6.1-sol', legacyIds: ['openai/gpt-6-sol', 'openai/gpt-5.6-sol'], name: 'OpenAI GPT-6.1 Sol', provider: 'openrouter', descriptionKey: 'model_gpt_6_1_sol_desc', category: 'general', responsesApiForTools: true },
-    { id: 'openai/gpt-image-2.5-flare', legacyIds: ['openai/gpt-image-2'], name: 'OpenAI GPT Image 2.5 Flare', provider: 'openrouter', descriptionKey: 'model_gpt_image_2_5_flare_desc', category: 'image_generation', outputModality: 'image', supportsImageStreaming: true },
-    { id: 'openai/gpt-image-2.5-sunburst', name: 'OpenAI GPT Image 2.5 Sunburst', provider: 'openrouter', descriptionKey: 'model_gpt_image_2_5_sunburst_desc', category: 'image_generation', outputModality: 'image', supportsImageStreaming: true },
+    { id: 'openai/gpt-image-2.5-flare', legacyIds: ['openai/gpt-image-2'], name: 'OpenAI GPT Image 2.5 Flare', provider: 'openrouter', descriptionKey: 'model_gpt_image_2_5_flare_desc', category: 'image_generation', outputModality: 'image', supportsImageStreaming: true, supportedImageAspectRatios: GPT_IMAGE_RATIOS, supportedImageResolutions: NO_IMAGE_RESOLUTIONS },
+    { id: 'openai/gpt-image-2.5-sunburst', name: 'OpenAI GPT Image 2.5 Sunburst', provider: 'openrouter', descriptionKey: 'model_gpt_image_2_5_sunburst_desc', category: 'image_generation', outputModality: 'image', supportsImageStreaming: true, supportedImageAspectRatios: GPT_IMAGE_RATIOS, supportedImageResolutions: NO_IMAGE_RESOLUTIONS },
 
     // OpenRouter Paid Models (Qwen)
     { id: 'qwen/qwen3.7-flash', name: 'Qwen3.7 Flash', provider: 'openrouter', descriptionKey: 'model_qwen3_7_flash_desc', category: 'general' },

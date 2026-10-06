@@ -1,4 +1,4 @@
-import { normalizeImageGenerationConfig } from './image-generation-config.js';
+import { normalizeImageGenerationConfig, resolveSupportedAspectRatio, resolveSupportedResolution } from './image-generation-config.js';
 
 const resolveImageAspectRatio = (requestedRatio) => ({
   '1:1': '1 / 1', '16:9': '16 / 9', '9:16': '9 / 16', '4:3': '4 / 3', '3:4': '3 / 4',
@@ -48,7 +48,14 @@ export function createImageGenerationResponseLifecycle({
   showNotification = () => {}
 }) {
   const run = async ({ targetElement, userParts, modelInfo, conversation, webSearchEnabled = false, signal }) => {
-    const normalizedConfig = normalizeImageGenerationConfig(conversation.imageConfig);
+    const savedConfig = normalizeImageGenerationConfig(conversation.imageConfig);
+    // A ratio or resolution saved under another model may not exist on this one: use the nearest it has.
+    const normalizedConfig = {
+      ...savedConfig,
+      aspectRatio: resolveSupportedAspectRatio(savedConfig.aspectRatio, modelInfo.supportedImageAspectRatios),
+      // '' (the model sets its own size) is dropped from the request.
+      resolution: resolveSupportedResolution(savedConfig.resolution, modelInfo.supportedImageResolutions)
+    };
     const imageAspectRatio = resolveImageAspectRatio(normalizedConfig.aspectRatio);
     targetElement.innerHTML = `
       <div class="generated-image-skeleton generated-image-skeleton-preparing" role="status" aria-live="polite" data-target-aspect-ratio="${normalizedConfig.aspectRatio}">

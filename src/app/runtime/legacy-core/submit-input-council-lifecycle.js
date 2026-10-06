@@ -193,6 +193,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     saveAppData,
     getUiLanguage,
     closeAllPopovers,
+    isImageChat: isImageConversation,
     getConfig: getLiveConfig,
     normalizeConversationModel,
     isCouncilEnabled
@@ -276,6 +277,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     }
     researchMode?.syncMenu();
     imageModeControls.sync();
+    deckDesignControl.render();
     if (!councilActive && provider === 'openrouter') {
       const openRouterSupportsVision = supportsVision || openRouterVisionModels.includes(modelInfo?.id);
       if (webSearchPopoverBtn) webSearchPopoverBtn.style.display = supportsWebSearch ? 'flex' : 'none';

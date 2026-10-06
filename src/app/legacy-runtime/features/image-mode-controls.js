@@ -1,7 +1,9 @@
 import {
   IMAGE_ASPECT_RATIOS,
   IMAGE_RESOLUTIONS,
-  normalizeImageGenerationConfig
+  normalizeImageGenerationConfig,
+  resolveSupportedAspectRatio,
+  resolveSupportedResolution
 } from './image-generation-config.js';
 
 const createSelectControl = ({ document, id, label, values }) => {
@@ -197,9 +199,7 @@ export function createImageModeControls({
     const active = Boolean(conversation && modelGeneratesImages(activeModel));
     const supportedAspectRatios = activeModel?.supportedImageAspectRatios || IMAGE_ASPECT_RATIOS;
     const config = normalizeImageGenerationConfig(conversation?.imageConfig);
-    const aspectRatio = supportedAspectRatios.includes(config.aspectRatio)
-      ? config.aspectRatio
-      : supportedAspectRatios[0];
+    const aspectRatio = resolveSupportedAspectRatio(config.aspectRatio, supportedAspectRatios);
     if (conversation && aspectRatio !== config.aspectRatio) {
       conversation.imageConfig = { ...config, aspectRatio };
     }
@@ -209,9 +209,20 @@ export function createImageModeControls({
       option.hidden = !supported;
     });
     ratio.select.value = aspectRatio;
-    resolution.select.value = config.resolution;
+    const supportedResolutions = activeModel?.supportedImageResolutions;
+    const resolutionValue = resolveSupportedResolution(config.resolution, supportedResolutions);
+    Array.from(resolution.select.options).forEach((option) => {
+      const supported = !Array.isArray(supportedResolutions) || supportedResolutions.includes(option.value);
+      option.disabled = !supported;
+      option.hidden = !supported;
+    });
+    if (conversation && resolutionValue && resolutionValue !== config.resolution) {
+      conversation.imageConfig = { ...(conversation.imageConfig || config), resolution: resolutionValue };
+    }
+    resolution.select.value = resolutionValue || config.resolution;
     ratio.row.style.display = active ? 'flex' : 'none';
-    resolution.row.style.display = active ? 'flex' : 'none';
+    // A model that sets its own size has no resolution to choose.
+    resolution.row.style.display = active && resolutionValue !== '' ? 'flex' : 'none';
     const advancedConfig = { ...advancedDefaults, ...(conversation?.imageAdvancedConfig || {}) };
     Object.entries(advanced.fields).forEach(([key, field]) => {
       field.value = key === 'provider'
