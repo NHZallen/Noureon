@@ -97,7 +97,7 @@ test('a first save writes every record and the index, and a second save of the s
     'chatWS2:alice:conv:c1', 'chatWS2:alice:conv:c2', 'chatWS2:alice:memory', 'chatWS2:alice:meta', 'chatWS2:alice:shared'
   ]);
   const second = await store.save(workspace('c1', 'c2'));
-  assert.deepEqual(second, { written: 0, removed: 0, shared: false, memory: false, skipped: 2, wrote: false });
+  assert.deepEqual(second, { written: 0, removed: 0, shared: false, memory: false, skipped: 2, attachments: 0, wrote: false });
   assert.equal(storage.log.applies.length, 1, 'no transaction for an unchanged workspace');
 });
 
@@ -294,7 +294,7 @@ test('saves started together run one after the other and leave a consistent stor
   await Promise.all(saves);
   const loaded = await store.load();
   assert.deepEqual(loaded.workspace.conversations.map(item => item.id), ['c1', 'c2', 'c3', 'c4']);
-  assert.deepEqual(await store.checkIntegrity(), { state: 'ok', missing: [], orphans: [] });
+  assert.deepEqual(await store.checkIntegrity(), { state: 'ok', missing: [], orphans: [], missingAttachments: [] });
 });
 
 test('migration copies the old item into records, checks them, and leaves the old item exactly as it was', async () => {
@@ -461,7 +461,7 @@ test('rewrite changes only the records the transform changes and gives the journ
   assert.deepEqual(result.changedConversationIds, ['c2']);
   assert.deepEqual(storage.log.applies.at(-1).puts.sort(), ['chatWS2:alice:conv:c2', 'chatWS2:alice:meta', 'journal']);
   assert.equal(JSON.parse(storage.values.get('chatWS2:alice:conv:c2')).messages[0].parts[1].generatedImage.storageKey, 'new-key');
-  assert.deepEqual(await store.save(data.conversations && { ...data, conversations: (await store.load()).workspace.conversations }), { written: 0, removed: 0, shared: false, memory: false, skipped: 3, wrote: false }, 'the index matches what was written');
+  assert.deepEqual(await store.save(data.conversations && { ...data, conversations: (await store.load()).workspace.conversations }), { written: 0, removed: 0, shared: false, memory: false, skipped: 3, attachments: 0, wrote: false }, 'the index matches what was written');
 
   const none = await store.rewrite({ transform: async () => false });
   assert.deepEqual(none, { changed: false, state: 'ok' });
@@ -547,7 +547,7 @@ test('the integrity check reports records the index lacks and records the storag
   storage.values.set('chatWS2:alice:conv:ghost', '{}');
   storage.values.delete('chatWS2:alice:conv:c2');
   const report = await store.checkIntegrity();
-  assert.deepEqual(report, { state: 'ok', missing: ['c2'], orphans: ['chatWS2:alice:conv:ghost'] });
+  assert.deepEqual(report, { state: 'ok', missing: ['c2'], orphans: ['chatWS2:alice:conv:ghost'], missingAttachments: [] });
   assert.equal((await makeStore(createFakeStorage()).checkIntegrity()).state, 'absent');
 });
 
@@ -598,6 +598,222 @@ test('a save of a large workspace with one changed conversation writes one recor
   assert.deepEqual(written.puts.sort(), ['chatWS2:alice:conv:c57', 'chatWS2:alice:meta']);
   const writtenSize = written.puts.reduce((sum, key) => sum + storage.values.get(key).length, 0);
   assert.ok(writtenSize < total / 20, `wrote ${writtenSize} of ${total}`);
+});
+
+// ---- attachments: kept out of the conversation record, one record each ----------------------------------------------------------------
+
+const bigData = (seed, length = 40000) => `${seed}`.repeat(Math.ceil(length / `${seed}`.length)).slice(0, length);
+const withFile = (id, data, extra = {}) => conversation(id, {
+  messages: [{ id: `${id}-1`, role: 'user', parts: [{ text: '看這張圖' }, { inlineData: { mimeType: 'image/jpeg', name: 'a.jpg', size: data.length, data } }] }],
+  ...extra
+});
+const attachmentKeys = storage => [...storage.values.keys()].filter(key => key.includes(':att:'));
+
+test('a large attachment is stored in a record of its own and the conversation record holds only a marker', async () => {
+  const storage = createFakeStorage();
+  const store = makeStore(storage);
+  const data = bigData('QUJD');
+  await store.save({ conversations: [withFile('c1', data), conversation('c2')] });
+
+  const keysOfAttachments = attachmentKeys(storage);
+  assert.equal(keysOfAttachments.length, 1);
+  assert.equal(storage.values.get(keysOfAttachments[0]), data, 'the attachment record is the base64 text itself');
+  const record = storage.values.get('chatWS2:alice:conv:c1');
+  assert.ok(record.length < 1000, `the conversation record is small (${record.length})`);
+  assert.equal(record.includes(data.slice(0, 200)), false);
+  assert.match(record, /"data":\{"__att":"/);
+
+  const loaded = (await store.load()).workspace;
+  assert.equal(loaded.conversations[0].messages[0].parts[1].inlineData.data, data);
+  assert.deepEqual(loaded.conversations[0].messages[0].parts[1].inlineData.name, 'a.jpg');
+  const meta = JSON.parse(storage.values.get('chatWS2:alice:meta'));
+  assert.deepEqual(Object.keys(meta.attachments), [meta.conversations.c1.atts[0]]);
+  assert.equal(meta.conversations.c2.atts, undefined, 'a conversation without a file lists none');
+});
+
+test('small strings, strings that are not a file, and other "data" keys stay in the record', async () => {
+  const storage = createFakeStorage();
+  const store = makeStore(storage);
+  const smallFile = withFile('c1', 'tiny');
+  const notAFile = conversation('c2', { messages: [{ id: 'm', role: 'model', parts: [{ text: 'x' }, { somethingElse: { data: bigData('Z') } }, { inlineData: { mimeType: 'text/plain', data: { nested: true } } }] }] });
+  await store.save({ conversations: [smallFile, notAFile] });
+  assert.equal(attachmentKeys(storage).length, 0);
+  assert.deepEqual((await store.load()).workspace.conversations, [smallFile, notAFile]);
+});
+
+test('saving again writes nothing, and changing the text of a conversation does not write its attachment again', async () => {
+  const storage = createFakeStorage();
+  const store = makeStore(storage);
+  const data = bigData('QUJD');
+  const workspaceData = { conversations: [withFile('c1', data), withFile('c2', bigData('REVG'))] };
+  await store.save(workspaceData);
+  assert.deepEqual(await store.save(workspaceData), { written: 0, removed: 0, shared: false, memory: false, skipped: 2, attachments: 0, wrote: false });
+
+  workspaceData.conversations[0].title = 'renamed';
+  const result = await store.save(workspaceData);
+  assert.equal(result.written, 1);
+  assert.equal(result.attachments, 0);
+  assert.deepEqual(storage.log.applies.at(-1).puts.sort(), ['chatWS2:alice:conv:c1', 'chatWS2:alice:meta']);
+});
+
+test('one file in two conversations is one record, and it stays until the last conversation that uses it is gone', async () => {
+  const storage = createFakeStorage();
+  const store = makeStore(storage);
+  const data = bigData('QUJD');
+  const both = { conversations: [withFile('c1', data), withFile('c2', data)] };
+  await store.save(both);
+  assert.equal(attachmentKeys(storage).length, 1);
+  assert.deepEqual((await store.load()).workspace.conversations.map(item => item.messages[0].parts[1].inlineData.data === data), [true, true]);
+
+  await store.save({ conversations: [both.conversations[1]] });
+  assert.equal(attachmentKeys(storage).length, 1, 'c2 still uses it');
+  await store.save({ conversations: [] });
+  assert.equal(attachmentKeys(storage).length, 0, 'no conversation uses it any more');
+});
+
+test('replacing the file of a conversation stores the new one and removes the old record', async () => {
+  const storage = createFakeStorage();
+  const store = makeStore(storage);
+  await store.save({ conversations: [withFile('c1', bigData('QUJD'))] });
+  const before = attachmentKeys(storage);
+  const result = await store.save({ conversations: [withFile('c1', bigData('REVG'))] });
+  assert.equal(result.attachments, 1);
+  const after = attachmentKeys(storage);
+  assert.equal(after.length, 1);
+  assert.notEqual(after[0], before[0]);
+  assert.deepEqual(storage.log.applies.at(-1).removes, before);
+});
+
+test('a conversation whose attachment record is missing is reported and left alone, and its other attachments are kept', async () => {
+  const storage = createFakeStorage();
+  const store = makeStore(storage);
+  await store.save({ conversations: [withFile('c1', bigData('QUJD')), withFile('c2', bigData('REVG'))] });
+  const meta = JSON.parse(storage.values.get('chatWS2:alice:meta'));
+  const lost = `chatWS2:alice:att:${meta.conversations.c2.atts[0]}`;
+  storage.values.delete(lost);
+
+  const fresh = makeStore(storage);
+  const loaded = await fresh.load();
+  assert.equal(loaded.state, 'degraded');
+  assert.deepEqual(loaded.problems.map(problem => [problem.id, problem.reason]), [['c2', 'attachment-missing']]);
+  assert.deepEqual(loaded.workspace.conversations.map(item => item.id), ['c1']);
+
+  await fresh.save({ conversations: [...loaded.workspace.conversations, conversation('c3')] });
+  assert.ok(storage.values.has('chatWS2:alice:conv:c2'), 'the conversation record was not deleted');
+  assert.deepEqual(JSON.parse(storage.values.get('chatWS2:alice:meta')).conversations.c2.atts, meta.conversations.c2.atts);
+});
+
+test('migration moves the attachments of the old item into records and checks them, leaving the old item as it was', async () => {
+  const data = bigData('QUJD');
+  const legacy = JSON.stringify({ conversations: [withFile('c1', data), withFile('c2', data), conversation('c3')], folders: [] });
+  const storage = createFakeStorage({ [LEGACY_KEY]: legacy });
+  const store = makeStore(storage);
+  const result = await store.migrateFromLegacy({ legacyKey: LEGACY_KEY });
+  assert.equal(result.state, 'migrated');
+  assert.equal(result.messages, 3);
+  assert.equal(storage.values.get(LEGACY_KEY), legacy);
+  assert.equal(attachmentKeys(storage).length, 1, 'the file used twice is stored once');
+  assert.ok(storage.values.get('chatWS2:alice:conv:c1').length < 1000);
+  assert.deepEqual((await store.load()).workspace, JSON.parse(legacy));
+});
+
+test('a migration whose attachment does not read back as written is removed again', async () => {
+  const legacy = JSON.stringify({ conversations: [withFile('c1', bigData('QUJD'))] });
+  const storage = createFakeStorage({ [LEGACY_KEY]: legacy });
+  const store = makeStore(storage);
+  storage.hooks.corruptRead = (key, value) => (key.includes(':att:') ? `${value}!` : value);
+  const result = await store.migrateFromLegacy({ legacyKey: LEGACY_KEY });
+  assert.equal(result.state, 'failed');
+  assert.equal([...storage.values.keys()].some(key => key.startsWith('chatWS2:alice:') && !key.endsWith(':failed')), false, 'the attachment records are gone too');
+});
+
+test('what an older tab wrote after the migration is merged in with its attachments, and replaced files are cleaned up', async () => {
+  const first = bigData('QUJD');
+  const storage = createFakeStorage({ [LEGACY_KEY]: JSON.stringify({ conversations: [withFile('c1', first)] }) });
+  const store = makeStore(storage);
+  await store.migrateFromLegacy({ legacyKey: LEGACY_KEY });
+
+  const stale = JSON.parse(storage.values.get(LEGACY_KEY));
+  stale.conversations[0] = { ...stale.conversations[0], lastUpdatedAt: '2026-10-05T00:00:00.000Z', messages: withFile('c1', bigData('REVG')).messages };
+  stale.conversations.unshift(withFile('c9', bigData('R0hJ'), { lastUpdatedAt: '2026-10-05T00:00:00.000Z' }));
+  storage.values.set(LEGACY_KEY, JSON.stringify(stale));
+
+  const merged = await store.mergeStaleLegacy({ legacyKey: LEGACY_KEY });
+  assert.deepEqual(merged, { state: 'merged', added: ['c9'], replaced: ['c1'] });
+  const loaded = (await store.load()).workspace.conversations;
+  assert.equal(loaded.find(item => item.id === 'c9').messages[0].parts[1].inlineData.data, bigData('R0hJ'));
+  assert.equal(loaded.find(item => item.id === 'c1').messages[0].parts[1].inlineData.data, bigData('REVG'));
+  assert.equal(attachmentKeys(storage).length, 2, 'the replaced file is gone');
+  assert.deepEqual(await store.checkIntegrity(), { state: 'ok', missing: [], orphans: [], missingAttachments: [] });
+});
+
+test('rewrite passes the attachment markers through untouched and keeps them listed', async () => {
+  const storage = createFakeStorage();
+  const store = makeStore(storage);
+  const data = bigData('QUJD');
+  await store.save({ conversations: [withFile('c1', data)] });
+  const before = JSON.parse(storage.values.get('chatWS2:alice:meta')).conversations.c1.atts;
+  const reads = [];
+  const watched = { ...storage, readItems: async keys => { reads.push(...keys); return storage.readItems(keys); } };
+  const rewriter = makeStore(Object.assign(Object.create(storage), { readItems: watched.readItems }));
+  await rewriter.rewrite({ transform: async value => { if (value.title === 'Chat c1') { value.title = 'repaired'; return true; } return false; } });
+  assert.equal(reads.some(key => key.includes(':att:')), false, 'no attachment was read');
+  const meta = JSON.parse(storage.values.get('chatWS2:alice:meta'));
+  assert.deepEqual(meta.conversations.c1.atts, before);
+  const loaded = (await store.load()).workspace.conversations[0];
+  assert.equal(loaded.title, 'repaired');
+  assert.equal(loaded.messages[0].parts[1].inlineData.data, data);
+});
+
+test('the previous version of a conversation read for a comparison has its attachments back', async () => {
+  const storage = createFakeStorage();
+  const store = makeStore(storage);
+  const data = bigData('QUJD');
+  const snapshot = { conversations: [withFile('c1', data)] };
+  await store.save(snapshot);
+  snapshot.conversations[0].title = 'edited';
+  let previousData;
+  await store.save(snapshot, {
+    beforeWrite: async plan => {
+      previousData = (await plan.readPreviousConversations(['c1'])).get('c1').messages[0].parts[1].inlineData.data;
+      return { skip: true };
+    }
+  });
+  assert.equal(previousData, data);
+});
+
+test('the integrity check and the usage know about attachments', async () => {
+  const storage = createFakeStorage();
+  const store = makeStore(storage);
+  await store.save({ conversations: [withFile('c1', bigData('QUJD')), withFile('c2', bigData('REVG'))] });
+  assert.ok((await store.getUsage()).bytes > 80000, 'the attachments are counted');
+
+  const [first] = attachmentKeys(storage);
+  storage.values.delete(first);
+  storage.values.set('chatWS2:alice:att:ghost', 'x');
+  const report = await store.checkIntegrity();
+  assert.deepEqual(report.missingAttachments, [first]);
+  assert.deepEqual(report.orphans, ['chatWS2:alice:att:ghost']);
+});
+
+test('the old format (attachments inside the conversation record) still loads, and is moved out when the conversation is saved again', async () => {
+  const data = bigData('QUJD');
+  const inline = withFile('c1', data);
+  const json = JSON.stringify(inline);
+  const storage = createFakeStorage({
+    'chatWS2:alice:conv:c1': json,
+    'chatWS2:alice:shared': '{}',
+    'chatWS2:alice:meta': JSON.stringify({ version: 2, createdAt: 'x', savedAt: 'x', order: ['c1'], conversations: { c1: { fp: fingerprintText(json), size: json.length, updatedAt: null } }, shared: { fp: fingerprintText('{}'), size: 2 }, memory: null, migratedFrom: null })
+  });
+  const store = makeStore(storage);
+  const loaded = await store.load();
+  assert.equal(loaded.state, 'ready');
+  assert.equal(loaded.workspace.conversations[0].messages[0].parts[1].inlineData.data, data);
+
+  const result = await store.save(loaded.workspace);
+  assert.equal(result.written, 1, 'its fingerprint changes because the attachment now leaves the record');
+  assert.equal(attachmentKeys(storage).length, 1);
+  assert.ok(storage.values.get('chatWS2:alice:conv:c1').length < 1000);
 });
 
 test('the module is storage-only: no page, no runtime, no old-item writes', () => {

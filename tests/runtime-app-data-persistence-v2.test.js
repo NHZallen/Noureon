@@ -127,6 +127,31 @@ test('the journal of the split store lists the same entities the old whole-works
   assert.deepEqual(loaded, JSON.parse(legacy.storage.values.get('chatAppData_v8.6_supabase:user-1')));
 });
 
+test('with large attachments in the conversations the journal still matches the old whole-workspace comparison, and the attachments survive', async () => {
+  const { legacy, v2 } = createBackends('supabase');
+  const file = (seed, length = 40000) => ({ inlineData: { mimeType: 'image/png', name: `${seed}.png`, data: seed.repeat(Math.ceil(length / seed.length)).slice(0, length) } });
+  const steps = [
+    snapshot => { snapshot.conversations.push(conversation('c1', { messages: [{ id: 'm1', role: 'user', parts: [{ text: 'a' }, file('QUJD')] }] }), conversation('c2'), conversation('c3', { messages: [{ id: 'm3', role: 'user', parts: [file('REVG')] }] })); },
+    snapshot => { snapshot.conversations[0].title = 'renamed'; },
+    snapshot => { snapshot.conversations[2].messages[0].parts = [file('R0hJ')]; },
+    snapshot => { snapshot.conversations[1].messages.push({ id: 'm9', role: 'user', parts: [file('QUJD')] }); },
+    snapshot => { snapshot.conversations.splice(0, 1); },
+    () => {}
+  ];
+  for (const [index, step] of steps.entries()) {
+    const next = clone(legacy.snapshot);
+    step(next);
+    legacy.snapshot = clone(next);
+    v2.snapshot = clone(next);
+    await legacy.save();
+    await v2.save();
+    assert.deepEqual(v2.journal(), legacy.journal(), `step ${index + 1}: the journal`);
+  }
+  assert.deepEqual((await v2.store.load()).workspace, JSON.parse(legacy.storage.values.get('chatAppData_v8.6_supabase:user-1')));
+  const attachmentRecords = [...v2.storage.values.keys()].filter(key => key.includes(':att:'));
+  assert.equal(attachmentRecords.length, 2, 'only the files still in use are kept (c2 and c3 hold one each)');
+});
+
 test('an unchanged cloud workspace with a clean journal writes nothing; with a dirty journal it only re-announces the same revision', async () => {
   const { v2 } = createBackends('supabase');
   v2.snapshot = { ...v2.snapshot, conversations: [conversation('c1')] };
