@@ -1,30 +1,27 @@
 # Generates password-changed.html and password-changed.subject.txt (the "password changed" email for Supabase).
-# The texts of the five languages are in S below; each one becomes a Go-template conditional on the user's `language` metadata
-# (zh-TW when it is missing or unknown). Run: python3 docs/email-templates/build-password-changed.py
+# English only (Supabase has one template per email, and the owner chose English). The texts are in S below. Run: python3 docs/email-templates/build-password-changed.py
 import os
 HERE = os.path.dirname(os.path.abspath(__file__))
 S = {
-'subject': dict(zh='你的 Noureon 登入密碼已更新', en='Your Noureon password was changed', fr='Votre mot de passe Noureon a été modifié', ru='Пароль Noureon изменён', es='Tu contraseña de Noureon ha cambiado'),
-'preheader': dict(zh='如果不是你本人操作，請立即重設密碼。', en="If this wasn't you, reset your password right away.", fr="Si ce n'est pas vous, réinitialisez votre mot de passe immédiatement.", ru='Если это были не вы, сразу сбросьте пароль.', es='Si no fuiste tú, restablece tu contraseña de inmediato.'),
-'title': dict(zh='你的登入密碼已更新', en='Your login password was updated', fr='Votre mot de passe de connexion a été mis à jour', ru='Пароль для входа обновлён', es='Tu contraseña de inicio de sesión se actualizó'),
-'intro': dict(zh='帳號 <strong>{{ .Email }}</strong> 的登入密碼剛剛被更新。', en='The login password for <strong>{{ .Email }}</strong> was just updated.', fr='Le mot de passe de connexion de <strong>{{ .Email }}</strong> vient d\'être mis à jour.', ru='Пароль для входа в аккаунт <strong>{{ .Email }}</strong> только что обновлён.', es='La contraseña de inicio de sesión de <strong>{{ .Email }}</strong> se acaba de actualizar.'),
-'fine': dict(zh='<strong>如果是你本人操作</strong>，不需要做任何事。如果你更新時勾選了「登出所有裝置」，所有裝置（包含你正在用的這台）都需要用新密碼重新登入。', en='<strong>If this was you</strong>, there is nothing to do. If you chose “sign out of all devices” when updating, every device, including the one you used, will need to sign in again with the new password.', fr='<strong>Si c\'était vous</strong>, vous n\'avez rien à faire. Si vous avez choisi « Se déconnecter de tous les appareils » lors de la mise à jour, chaque appareil, y compris celui que vous avez utilisé, devra se reconnecter avec le nouveau mot de passe.', ru='<strong>Если это были вы</strong>, ничего делать не нужно. Если при обновлении вы выбрали «Выйти на всех устройствах», на каждом устройстве, включая то, с которого вы меняли пароль, придётся войти заново с новым паролем.', es='<strong>Si fuiste tú</strong>, no tienes que hacer nada. Si al actualizar elegiste «Cerrar sesión en todos los dispositivos», cada dispositivo, incluido el que usaste, tendrá que iniciar sesión de nuevo con la nueva contraseña.'),
-'notyou': dict(zh='<strong>如果不是你本人操作</strong>，請立即重設密碼：', en='<strong>If this wasn\'t you</strong>, reset your password right away:', fr='<strong>Si ce n\'était pas vous</strong>, réinitialisez votre mot de passe immédiatement :', ru='<strong>Если это были не вы</strong>, немедленно сбросьте пароль:', es='<strong>Si no fuiste tú</strong>, restablece tu contraseña de inmediato:'),
-'button': dict(zh='重設密碼', en='Reset password', fr='Réinitialiser le mot de passe', ru='Сбросить пароль', es='Restablecer contraseña'),
-'after': dict(zh='重設時會寄一組驗證碼到這個信箱，只有你收得到。重設後，請到「設定 → 使用者」再改一次登入密碼，並勾選「更新後登出所有裝置」，把不明的登入全部登出。如果你在其他服務也用同一組密碼，也請一併更換。', en='We send a verification code to this mailbox, so only you can finish the reset. Afterwards, open Settings → User, change the password once more and tick “sign out of all devices after updating” to end any sign-ins you do not recognize. If you use the same password on other services, change it there too.', fr='Un code de vérification est envoyé à cette boîte mail : vous seul pouvez terminer la réinitialisation. Ensuite, ouvrez Paramètres → Utilisateur, modifiez à nouveau le mot de passe et cochez « Se déconnecter de tous les appareils après la mise à jour » pour fermer toute connexion inconnue. Si vous utilisez le même mot de passe ailleurs, changez-le aussi.', ru='Код подтверждения придёт на эту почту, поэтому завершить сброс сможете только вы. Затем откройте «Настройки → Пользователь», смените пароль ещё раз и отметьте «После обновления выйти на всех устройствах», чтобы завершить все незнакомые сеансы. Если вы используете этот же пароль в других сервисах, смените его и там.', es='Enviamos un código de verificación a este correo, así que solo tú puedes completar el restablecimiento. Después, ve a Configuración → Usuario, cambia la contraseña otra vez y marca «Cerrar sesión en todos los dispositivos tras actualizar» para cerrar cualquier sesión que no reconozcas. Si usas la misma contraseña en otros servicios, cámbiala también allí.'),
-'keys': dict(zh='登入密碼和「同步密碼」是兩組不同的密碼。你的 API 金鑰由同步密碼加密、只在你的裝置上解開，更改登入密碼不會動到它。', en='The login password and the “sync password” are two different passwords. Your API keys are encrypted with the sync password and unlocked only on your devices, so changing the login password does not affect them.', fr='Le mot de passe de connexion et le « mot de passe de synchronisation » sont deux mots de passe différents. Vos clés API sont chiffrées avec le mot de passe de synchronisation et ne sont déverrouillées que sur vos appareils : changer le mot de passe de connexion ne les touche pas.', ru='Пароль для входа и «пароль синхронизации» — два разных пароля. Ваши ключи API зашифрованы паролем синхронизации и расшифровываются только на ваших устройствах, поэтому смена пароля для входа их не затрагивает.', es='La contraseña de inicio de sesión y la «contraseña de sincronización» son dos contraseñas distintas. Tus claves de API se cifran con la contraseña de sincronización y solo se descifran en tus dispositivos, así que cambiar la de inicio de sesión no las afecta.'),
-'open': dict(zh='開啟 Noureon', en='Open Noureon', fr='Ouvrir Noureon', ru='Открыть Noureon', es='Abrir Noureon'),
-'support': dict(zh='聯絡支援', en='Contact support', fr='Contacter le support', ru='Связаться с поддержкой', es='Contactar con soporte'),
-'footer': dict(zh='這是自動寄出的安全通知。我們不會在信中要求你提供密碼、驗證碼或 API 金鑰。', en='This is an automated security notice. We never ask for your password, verification codes or API keys by email.', fr='Ceci est une alerte de sécurité automatique. Nous ne vous demandons jamais votre mot de passe, vos codes de vérification ni vos clés API par e-mail.', ru='Это автоматическое уведомление безопасности. Мы никогда не просим по почте пароль, коды подтверждения или ключи API.', es='Este es un aviso de seguridad automático. Nunca te pedimos por correo tu contraseña, códigos de verificación ni claves de API.'),
+  "subject": "Your Noureon password was changed",
+  "preheader": "If this wasn't you, reset your password right away.",
+  "title": "Your login password was updated",
+  "intro": "The login password for <strong>{{ .Email }}</strong> was just updated.",
+  "fine": "<strong>If this was you</strong>, there is nothing to do. If you chose “sign out of all devices” when updating, every device, including the one you used, will need to sign in again with the new password.",
+  "notyou": "<strong>If this wasn't you</strong>, reset your password right away:",
+  "button": "Reset password",
+  "after": "We send a verification code to this mailbox, so only you can finish the reset. Afterwards, open Settings → User, change the password once more and tick “sign out of all devices after updating” to end any sign-ins you do not recognize. If you use the same password on other services, change it there too.",
+  "keys": "The login password and the “sync password” are two different passwords. Your API keys are encrypted with the sync password and unlocked only on your devices, so changing the login password does not affect them.",
+  "open": "Open Noureon",
+  "support": "Contact support",
+  "footer": "This is an automated security notice. We never ask for your password, verification codes or API keys by email.",
 }
 def t(key):
-    d=S[key]
-    return '{{ if eq $lang "en" }}'+d['en']+'{{ else if eq $lang "fr" }}'+d['fr']+'{{ else if eq $lang "ru" }}'+d['ru']+'{{ else if eq $lang "es" }}'+d['es']+'{{ else }}'+d['zh']+'{{ end }}'
+    return S[key]
 FONT="-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang TC','Noto Sans TC','Microsoft JhengHei',Roboto,Helvetica,Arial,sans-serif"
 ACC='#5b4fcf'
-LANG='{{ $lang := "" }}{{ with .Data }}{{ $lang = printf "%v" .language }}{{ end }}'
-TEMPLATE=f'''{LANG}<!doctype html>
-<html lang="{{{{ if eq $lang "en" }}}}en{{{{ else if eq $lang "fr" }}}}fr{{{{ else if eq $lang "ru" }}}}ru{{{{ else if eq $lang "es" }}}}es{{{{ else }}}}zh-Hant{{{{ end }}}}">
+TEMPLATE=f'''<!doctype html>
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -78,6 +75,6 @@ TEMPLATE=f'''{LANG}<!doctype html>
 </html>
 '''
 open(os.path.join(HERE, 'password-changed.html'),'w').write(TEMPLATE)
-subj=LANG+'{{ if eq $lang "en" }}'+S['subject']['en']+'{{ else if eq $lang "fr" }}'+S['subject']['fr']+'{{ else if eq $lang "ru" }}'+S['subject']['ru']+'{{ else if eq $lang "es" }}'+S['subject']['es']+'{{ else }}'+S['subject']['zh']+'{{ end }}'
+subj=S['subject']
 open(os.path.join(HERE, 'password-changed.subject.txt'),'w').write(subj)
 print(len(TEMPLATE.encode()),'bytes')
