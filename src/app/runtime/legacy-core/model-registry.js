@@ -18,9 +18,7 @@ const MODEL_RELEASE_METADATA = Object.freeze({
     'anthropic/claude-opus-5.5': { releasedAt: 20260922, outputPricePerMillion: 20 },
     'anthropic/claude-fable-5.1': { releasedAt: 20260901, outputPricePerMillion: 50 },
     'deepseek/deepseek-v4.1-flash': { releasedAt: 20260910, outputPricePerMillion: 1.2 },
-    'google/gemini-3.1-flash-lite-image': { releasedAt: 20260630, outputPricePerMillion: 1.5 },
-    'google/gemini-3.1-flash-image': { releasedAt: 20260618, outputPricePerMillion: 3 },
-    'google/gemini-3-pro-image': { releasedAt: 20260618, outputPricePerMillion: 12 },
+    'google/gemini-nano-banana-2.1': { releasedAt: 20261006, outputPricePerMillion: 7.5 },
     'minimax/minimax-m3': { releasedAt: 20260531, outputPricePerMillion: 1.2 },
     'moonshotai/kimi-k3': { releasedAt: 20260716, outputPricePerMillion: 15 },
     'poolside/laguna-s-2.1:free': { releasedAt: 20260721, outputPricePerMillion: 0 },
@@ -44,16 +42,13 @@ const MODEL_RELEASE_METADATA = Object.freeze({
 });
 
 // The aspect ratios each image model accepts, as OpenRouter lists them for the model (1:1 first). The menu offers only these and
-// a saved ratio the model lacks is moved to the nearest one it has. Gemini 3 Pro has no tall/wide extremes, the Flash models add
-// 1:4, 4:1, 1:8 and 8:1, and the GPT Image models take the eight common ratios.
-const GEMINI_PRO_IMAGE_RATIOS = Object.freeze(['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9']);
-const GEMINI_FLASH_IMAGE_RATIOS = Object.freeze(['1:1', '1:4', '4:1', '1:8', '8:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9']);
+// a saved ratio the model lacks is moved to the nearest one it has. Gemini Nano Banana 2.1 takes the common ratios and the tall/wide
+// extremes 1:4, 4:1, 1:8 and 8:1; the GPT Image models take the eight common ratios.
+const GEMINI_IMAGE_RATIOS = Object.freeze(['1:1', '1:4', '4:1', '1:8', '8:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9']);
 const GPT_IMAGE_RATIOS = Object.freeze(['1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16', '21:9']);
-// The sizes (resolution tiers) each model accepts. Gemini 3 Pro starts at 1K, Flash adds 512, Flash Lite makes 1K only, and the
-// GPT Image 2.5 models take 1K, 2K and 4K. (A model whose list is empty would get no resolution control and none is sent.)
-const GEMINI_PRO_IMAGE_RESOLUTIONS = Object.freeze(['1K', '2K', '4K']);
-const GEMINI_FLASH_IMAGE_RESOLUTIONS = Object.freeze(['512', '1K', '2K', '4K']);
-const GEMINI_FLASH_LITE_IMAGE_RESOLUTIONS = Object.freeze(['1K']);
+// The sizes (resolution tiers) each model accepts. Gemini Nano Banana 2.1 makes 1K, 2K and 4K (it has no 512 size, a saved 512 moves to
+// 1K), and so do the GPT Image 2.5 models. (A model whose list is empty would get no resolution control and none is sent.)
+const GEMINI_IMAGE_RESOLUTIONS = Object.freeze(['1K', '2K', '4K']);
 const GPT_IMAGE_RESOLUTIONS = Object.freeze(['1K', '2K', '4K']);
 
 export const MODEL_CATALOG = [
@@ -78,9 +73,7 @@ export const MODEL_CATALOG = [
     { id: 'deepseek/deepseek-v4.1-flash', legacyIds: ['deepseek/deepseek-v4-flash-0731', 'deepseek/deepseek-v4-flash-vision-exp', 'deepseek/deepseek-v4-pro-0813'], name: 'DeepSeek V4.1 Flash', provider: 'openrouter', descriptionKey: 'model_deepseek_v4_1_flash_desc', category: 'general' },
 
     // OpenRouter Image Models (Google)
-    { id: 'google/gemini-3.1-flash-lite-image', name: 'Gemini 3.1 Flash Lite Image', provider: 'openrouter', descriptionKey: 'model_gemini_3_1_flash_lite_image_desc', category: 'image_generation', outputModality: 'image', supportedImageAspectRatios: GEMINI_FLASH_IMAGE_RATIOS, supportedImageResolutions: GEMINI_FLASH_LITE_IMAGE_RESOLUTIONS },
-    { id: 'google/gemini-3.1-flash-image', name: 'Gemini 3.1 Flash Image', provider: 'openrouter', descriptionKey: 'model_gemini_3_1_flash_image_desc', category: 'image_generation', outputModality: 'image', supportedImageAspectRatios: GEMINI_FLASH_IMAGE_RATIOS, supportedImageResolutions: GEMINI_FLASH_IMAGE_RESOLUTIONS },
-    { id: 'google/gemini-3-pro-image', name: 'Gemini 3 Pro Image', provider: 'openrouter', descriptionKey: 'model_gemini_3_pro_image_desc', category: 'image_generation', outputModality: 'image', supportedImageAspectRatios: GEMINI_PRO_IMAGE_RATIOS, supportedImageResolutions: GEMINI_PRO_IMAGE_RESOLUTIONS },
+    { id: 'google/gemini-nano-banana-2.1', legacyIds: ['google/gemini-3.1-flash-image', 'google/gemini-3.1-flash-lite-image', 'google/gemini-3-pro-image'], name: 'Gemini Nano Banana 2.1', provider: 'openrouter', descriptionKey: 'model_gemini_nano_banana_2_1_desc', category: 'image_generation', outputModality: 'image', supportedImageAspectRatios: GEMINI_IMAGE_RATIOS, supportedImageResolutions: GEMINI_IMAGE_RESOLUTIONS },
 
     // OpenRouter Paid Models (Minimax)
     { id: 'minimax/minimax-m3', name: 'Minimax M3', provider: 'openrouter', descriptionKey: 'model_minimax_m3_desc', category: 'general' },
@@ -132,9 +125,7 @@ export const MODELS = MODEL_CATALOG.filter((model) => !isModelRetired(model));
 export const IMAGE_GENERATION_MODEL_IDS = Object.freeze([
     'openai/gpt-image-2.5-flare',
     'openai/gpt-image-2.5-sunburst',
-    'google/gemini-3-pro-image',
-    'google/gemini-3.1-flash-image',
-    'google/gemini-3.1-flash-lite-image'
+    'google/gemini-nano-banana-2.1'
 ]);
 export const CHEAP_MODEL_ID = 'gemini-3.5-flash-lite';
 export const OPENROUTER_VISION_MODELS = [
@@ -236,7 +227,7 @@ export const MODEL_REASONING_CONFIGS = createReasoningConfigs([
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'high', ['anthropic/claude-fable-5.1']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'medium', ['anthropic/claude-opus-5.5']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'high', 'max'], 'high', ['deepseek/deepseek-v4.1-flash']],
-    [OPENROUTER_REASONING_EFFORT, ['minimal', 'high'], 'minimal', ['google/gemini-3.1-flash-lite-image', 'google/gemini-3.1-flash-image']],
+    [OPENROUTER_REASONING_EFFORT, ['minimal', 'high'], 'minimal', ['google/gemini-nano-banana-2.1']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium'], 'medium', ['nvidia/nemotron-3-super-120b-a12b:free'], { supportsMaxTokens: true }],
     [OPENROUTER_REASONING_EFFORT, ['medium', 'high'], 'high', ['nvidia/nemotron-3-ultra-550b-a55b:free'], { supportsMaxTokens: true }],
     [OPENROUTER_REASONING_EFFORT, ['none', 'low', 'medium', 'xhigh'], 'xhigh', ['qwen/qwen3.8-max-0902']],

@@ -193,7 +193,7 @@ test('passes selected image reasoning effort into generation requests', async ()
   await lifecycle.run({
     targetElement: { innerHTML: '' },
     userParts: [{ text: 'make the lighting more cinematic' }],
-    modelInfo: { id: 'google/gemini-3.1-flash-image', provider: 'openrouter' },
+    modelInfo: { id: 'google/gemini-nano-banana-2.1', provider: 'openrouter' },
     conversation: { reasoningEffort: 'high', messages: [] }
   });
 
@@ -219,7 +219,7 @@ test('adds precise edit guidance for annotated references', async () => {
       { text: 'replace this fruit with flowers' },
       { inlineData: { mimeType: 'image/png', data: 'annotated', targetedEdit: true } }
     ],
-    modelInfo: { id: 'google/gemini-3.1-flash-image', provider: 'openrouter' },
+    modelInfo: { id: 'google/gemini-nano-banana-2.1', provider: 'openrouter' },
     conversation: { messages: [] }
   });
 
@@ -229,7 +229,7 @@ test('adds precise edit guidance for annotated references', async () => {
 
 test('OpenRouter image payload emits reasoning effort without changing image config fields', () => {
   const payload = buildOpenRouterImagePayload({
-    model: 'google/gemini-3.1-flash-image',
+    model: 'google/gemini-nano-banana-2.1',
     prompt: 'paint a neon alley',
     config: {
       aspectRatio: '16:9',
@@ -259,11 +259,11 @@ test('sends the nearest ratio and resolution the model supports, and no resoluti
   const conversation = { imageConfig: { aspectRatio: '1:8', resolution: '4K' }, messages: [] };
   const run = (modelInfo) => lifecycle.run({ targetElement: { innerHTML: '' }, userParts: [{ text: 'a cat' }], modelInfo, conversation });
 
-  await run({ id: 'google/gemini-3-pro-image', provider: 'openrouter', supportedImageAspectRatios: ['1:1', '2:3', '9:16'], supportedImageResolutions: ['1K', '2K', '4K'] });
+  await run({ id: 'x/ratios-without-extremes', provider: 'openrouter', supportedImageAspectRatios: ['1:1', '2:3', '9:16'], supportedImageResolutions: ['1K', '2K', '4K'] });
   assert.equal(requests[0].config.aspectRatio, '9:16');
   assert.equal(requests[0].config.resolution, '4K');
 
-  await run({ id: 'google/gemini-3.1-flash-lite-image', provider: 'openrouter', supportedImageAspectRatios: ['1:1', '1:8'], supportedImageResolutions: ['1K'] });
+  await run({ id: 'x/one-size-only', provider: 'openrouter', supportedImageAspectRatios: ['1:1', '1:8'], supportedImageResolutions: ['1K'] });
   assert.equal(requests[1].config.aspectRatio, '1:8');
   assert.equal(requests[1].config.resolution, '1K');
 

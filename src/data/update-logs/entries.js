@@ -2,6 +2,20 @@
 // content 為 zh-TW 的 HTML 字串（JSON 轉義、雙引號），目前不隨介面語言切換。
 export const updateLogEntries = [
   {
+    version: "17.8.1",
+    date: "2026-10-06",
+    content: [
+      "<strong>Noureon 17.8.1 發布說明</strong>",
+      "本版本把 Google 的圖片生成模型換成最新的 Nano Banana 2.1，並讓設定頁清楚顯示你的資料目前存放的方式。",
+      "<strong>主要變更</strong>",
+      "<ul><li><strong>新的圖片生成模型：</strong>原本的 Gemini 3.1 Flash Image、Gemini 3.1 Flash Lite Image 與 Gemini 3 Pro Image 合併為「Gemini Nano Banana 2.1」。支援 1:1、2:3、3:2、3:4、4:3、4:5、5:4、9:16、16:9、21:9，以及很窄或很寬的 1:4、4:1、1:8、8:1 等比例；畫質有 1K、2K、4K 三種。</li><li><strong>自動換成新模型：</strong>你原本選用舊模型的對話與設定，會自動改用新模型；原本選的 512 畫質會改為 1K，因為新模型沒有 512。</li><li><strong>設定頁顯示儲存方式：</strong>資料管理最下方會有一行小字，說明你的資料已用分開儲存；沒有這一行就代表還在使用舊的儲存方式。</li></ul>",
+      "<strong>注意事項</strong>",
+      "<ul><li>圖片生成需要 OpenRouter 金鑰；2K、4K 畫質的費用比 1K 高。</li><li>Google 將在 2026 年 10 月 29 日停用舊的 Gemini 3.1 Flash Image，這次更新已先換成新模型，不需要自己處理。</li></ul>",
+      "<strong>相容性</strong>",
+      "本次更新不需要資料遷移。"
+    ]
+  },
+  {
     version: "17.8.0",
     date: "2026-10-06",
     content: [

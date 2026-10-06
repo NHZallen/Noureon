@@ -604,9 +604,7 @@
         // OpenAI Paid
         model_gpt_image_2_5_flare_desc_tier_paid: '$5/M text input, $8/M image input, $30/M image output',
         model_gpt_image_2_5_sunburst_desc_tier_paid: '$5/M text input, $8/M image input, $30/M image output',
-        model_gemini_3_pro_image_desc_tier_paid: 'High-quality image generation and reference editing',
-        model_gemini_3_1_flash_image_desc_tier_paid: 'Fast image generation and iterative editing',
-        model_gemini_3_1_flash_lite_image_desc_tier_paid: 'Lightweight, fast image generation',
+        model_gemini_nano_banana_2_1_desc_tier_paid: 'Google\'s latest image generation and reference editing, with many aspect ratios and 1K / 2K / 4K quality',
         imageReadyToEdit: 'Image attached. Describe the changes you want.',
         imageReferenceUnavailable: 'The local file for the previous image is missing, so it cannot be reused as a reference. A new image will be generated from your description instead.',
         imageReferenceUnavailableLabel: 'Reference image unavailable, generating a new image',

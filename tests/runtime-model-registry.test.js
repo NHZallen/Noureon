@@ -159,7 +159,7 @@ test('model registry exposes precise reasoning depth options for supported model
   const gpt56Model = MODELS.find((model) => model.id === 'openai/gpt-5.6-terra');
   const gpt61SolModel = MODELS.find((model) => model.id === 'openai/gpt-6.1-sol');
   const sonnet55Model = MODELS.find((model) => model.id === 'anthropic/claude-sonnet-5.5');
-  const imageModel = MODELS.find((model) => model.id === 'google/gemini-3.1-flash-image');
+  const imageModel = MODELS.find((model) => model.id === 'google/gemini-nano-banana-2.1');
   const geminiFlashModel = MODELS.find((model) => model.id === 'gemini-3.8-flash');
   const geminiFlashLiteModel = MODELS.find((model) => model.id === 'gemini-3.5-flash-lite');
   const kimiK3Model = MODELS.find((model) => model.id === 'moonshotai/kimi-k3');
@@ -223,7 +223,6 @@ test('reasoning labels support Russian and Spanish', () => {
 test('model registry leaves excluded models on default reasoning', () => {
   const excludedIds = [
     'anthropic/claude-haiku-4.5',
-    'google/gemini-3-pro-image',
     'minimax/minimax-m3',
     'poolside/laguna-s-2.1:free',
     'nvidia/nemotron-3.5-lightning:free',
