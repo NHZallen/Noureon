@@ -671,7 +671,7 @@ const es = {
   "accountBound": "Vinculado",
   "accountNotBound": "No vinculado",
   "enableEmailLogin": "Establecer contraseña de inicio de sesión de correo electrónico",
-  "emailLoginProviderDesc": "Inicia sesión en Noureon con tu correo electrónico y una contraseña.",
+  "emailLoginProviderDesc": "Iniciar sesión con correo electrónico.",
   "googleLoginProviderDesc": "Utilice una cuenta de Google para iniciar sesión en Noureon.",
   "loginPasswordTitle": "Cambiar contraseña de inicio de sesión",
   "loginPasswordDesc": "Los usuarios que inician sesión por correo electrónico pueden actualizar su contraseña con la contraseña actual; un correo electrónico de reinicio está disponible si es necesario.",

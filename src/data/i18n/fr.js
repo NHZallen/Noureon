@@ -682,7 +682,7 @@
         accountBound: 'Associé',
         accountNotBound: 'Non associé',
         enableEmailLogin: 'Définir le mot de passe Email',
-        emailLoginProviderDesc: 'Connectez-vous à Noureon avec votre e-mail et un mot de passe.',
+        emailLoginProviderDesc: 'Se connecter avec l\'e-mail.',
         googleLoginProviderDesc: 'Utiliser un compte Google pour se connecter à Noureon.',
         loginPasswordTitle: 'Modifier le mot de passe de connexion',
         loginPasswordDesc: 'Les utilisateurs avec connexion par e-mail peuvent le modifier avec le mot de passe actuel ; un e-mail de réinitialisation est disponible si besoin.',

@@ -671,7 +671,7 @@ const ru = {
   "accountBound": "Связано",
   "accountNotBound": "Не связано",
   "enableEmailLogin": "Установить пароль для входа в электронную почту",
-  "emailLoginProviderDesc": "Вход в Noureon по Email и паролю.",
+  "emailLoginProviderDesc": "Вход через Email.",
   "googleLoginProviderDesc": "Используйте учетную запись Google для входа в Noureon.",
   "loginPasswordTitle": "Изменить пароль для входа",
   "loginPasswordDesc": "Пользователи для входа в систему по электронной почте могут обновить свой пароль, указав текущий пароль; При необходимости доступен адрес электронной почты для сброса.",

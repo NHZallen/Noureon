@@ -145,7 +145,7 @@ export function createSettingsSyncVaultControls({
             <span class="us-mark">${ICONS.mail}</span>
             <div class="us-row-text">
               <span class="us-row-title">Email</span>
-              <span class="us-row-desc" data-lang-key="emailLoginProviderDesc">用 Email 與密碼登入 Noureon。</span>
+              <span class="us-row-desc" data-lang-key="emailLoginProviderDesc">使用 Email 登入。</span>
             </div>
             ${statusMarkup('account-email-status')}
             <button id="account-email-link-toggle" type="button" class="us-btn hidden" aria-expanded="false" aria-controls="account-email-link-form">綁定 Email</button>

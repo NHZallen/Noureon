@@ -682,7 +682,7 @@
         accountBound: '已綁定',
         accountNotBound: '尚未綁定',
         enableEmailLogin: '設定 Email 登入密碼',
-        emailLoginProviderDesc: '用 Email 與密碼登入 Noureon。',
+        emailLoginProviderDesc: '使用 Email 登入。',
         googleLoginProviderDesc: '使用 Google 帳號登入 Noureon。',
         loginPasswordTitle: '修改登入密碼',
         loginPasswordDesc: 'Email 登入使用者可以用目前密碼更新新密碼；忘記密碼時會寄送重設信。',

@@ -682,7 +682,7 @@
         accountBound: 'Linked',
         accountNotBound: 'Not linked',
         enableEmailLogin: 'Set Email login password',
-        emailLoginProviderDesc: 'Sign in to Noureon with your Email and a password.',
+        emailLoginProviderDesc: 'Sign in with Email.',
         googleLoginProviderDesc: 'Use a Google account to sign in to Noureon.',
         loginPasswordTitle: 'Change login password',
         loginPasswordDesc: 'Email sign-in users can update their password with the current password; a reset email is available if needed.',
