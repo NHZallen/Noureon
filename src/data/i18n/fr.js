@@ -605,6 +605,7 @@
         model_gpt_image_2_5_flare_desc_tier_paid: '5 $/M entrée texte, 8 $/M entrée image, 30 $/M sortie image',
         model_gpt_image_2_5_sunburst_desc_tier_paid: '5 $/M entrée texte, 8 $/M entrée image, 30 $/M sortie image',
         model_gemini_nano_banana_2_1_desc_tier_paid: 'Dernier modèle d’images de Google : génération et retouche par référence, nombreux formats et qualité 1K / 2K / 4K',
+        model_flux_3_image_desc_tier_paid: 'Le dernier modèle d’images de Black Forest Labs : génération et retouche multi-références (jusqu’à 10), jusqu’en 4K, facturé à l’image',
         imageReadyToEdit: 'Image jointe. Décrivez les modifications souhaitées.',
         imageReferenceUnavailable: 'Le fichier local de l’image précédente est introuvable ; elle ne peut pas servir de référence. Une nouvelle image sera générée à partir de votre description.',
         imageReferenceUnavailableLabel: 'Image de référence indisponible, génération d’une nouvelle image',

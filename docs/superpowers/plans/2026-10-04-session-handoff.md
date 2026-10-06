@@ -75,3 +75,10 @@
 - 推理選項沿用舊 Flash 圖片模型的 `minimal`／`high`（預設 `minimal`），依據 LiteLLM 對該模型標示支援 reasoning，OpenRouter 頁面未能直接確認。
 - 同一版：設定頁「已使用分開儲存」那一行改成對所有人顯示（沒有那行就代表還在舊的儲存方式）。
 
+## 2026-10-06（17.8.2）FLUX.3 Image
+
+- 新增 OpenRouter 的 `black-forest-labs/flux-3-image`（2026-10-01 發布）：比例 15 個（1:1、21:9、2:1、16:9、3:2、7:5、4:3、5:4、4:5、3:4、5:7、2:3、9:16、1:2、9:21）、畫質 768／1K／1.5K／2K／4K、最多 10 張參考圖、依張數計費（上市優惠 1K $0.024／2K $0.05，到 10 月 8 日，之後約 1K $0.048／2K $0.10，4K 約 $0.607；另加 OpenRouter 手續費）。資料來源：OpenRouter 模型頁（搜尋結果）與 pollinations 的整合 PR；官方頁面在這個環境被擋，沒有逐字讀到。
+- App 的比例與畫質清單新增 7:5、5:7（含三處比例轉 CSS 的對照表）與 768、1.5K；`resolveSupportedResolution` 改依實際大小（0.5K、0.75K、1K、1.5K、2K、4K）找最近的畫質，不再依清單順序。
+- 已知：沒有設定推理強度；進階設定裡的「種子」填了可能會被上游回 400（pollinations 的整合在 FLUX.3 上省略了 seed）；沒有串流部分圖。
+- 請求仍走既有的 `/api/v1/images`（`aspect_ratio`、`resolution`），沒有用真的 OpenRouter 金鑰實際生過圖，只有單元測試。
+

@@ -605,6 +605,7 @@
         model_gpt_image_2_5_flare_desc_tier_paid: '$5/M text input, $8/M image input, $30/M image output',
         model_gpt_image_2_5_sunburst_desc_tier_paid: '$5/M text input, $8/M image input, $30/M image output',
         model_gemini_nano_banana_2_1_desc_tier_paid: 'Google\'s latest image generation and reference editing, with many aspect ratios and 1K / 2K / 4K quality',
+        model_flux_3_image_desc_tier_paid: 'Black Forest Labs\' newest image generation and multi-reference editing (up to 10 references), up to 4K natively, priced per image',
         imageReadyToEdit: 'Image attached. Describe the changes you want.',
         imageReferenceUnavailable: 'The local file for the previous image is missing, so it cannot be reused as a reference. A new image will be generated from your description instead.',
         imageReferenceUnavailableLabel: 'Reference image unavailable, generating a new image',

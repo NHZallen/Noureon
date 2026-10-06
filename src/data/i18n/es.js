@@ -603,6 +603,7 @@ const es = {
   "model_gpt_image_2_5_flare_desc_tier_paid": "$5/M de entrada de texto, $8/M de entrada de imagen, $30/M de salida de imagen",
   "model_gpt_image_2_5_sunburst_desc_tier_paid": "$5/M de entrada de texto, $8/M de entrada de imagen, $30/M de salida de imagen",
   "model_gemini_nano_banana_2_1_desc_tier_paid": "Lo último de Google en generación de imágenes y edición con referencias, con muchas proporciones y calidad 1K / 2K / 4K",
+  "model_flux_3_image_desc_tier_paid": "Lo último de Black Forest Labs en generación de imágenes y edición con varias referencias (hasta 10), hasta 4K, precio por imagen",
   "imageReadyToEdit": "Imagen adjunta. Describe los cambios que deseas.",
   "imageReferenceUnavailable": "Falta el archivo local de la imagen anterior, por lo que no se puede reutilizar como referencia. Se generará una imagen nueva a partir de tu descripción.",
   "imageReferenceUnavailableLabel": "Imagen de referencia no disponible, generando una imagen nueva",

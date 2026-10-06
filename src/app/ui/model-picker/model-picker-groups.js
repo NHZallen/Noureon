@@ -19,7 +19,8 @@ const COMPANY_LABELS = Object.freeze({
   minimaxai: 'MiniMax',
   microsoft: 'Microsoft',
   cohere: 'Cohere',
-  perplexity: 'Perplexity'
+  perplexity: 'Perplexity',
+  'black-forest-labs': 'Black Forest Labs'
 });
 
 const titleCase = (value) => String(value || '').replace(/(^|[-_ ])([a-z])/g, (match, lead, letter) => `${lead ? ' ' : ''}${letter.toUpperCase()}`).trim();

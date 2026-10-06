@@ -605,6 +605,7 @@
         model_gpt_image_2_5_flare_desc_tier_paid: '文字輸入每百萬/5$、圖片輸入每百萬/8$、圖片輸出每百萬/30$',
         model_gpt_image_2_5_sunburst_desc_tier_paid: '文字輸入每百萬/5$、圖片輸入每百萬/8$、圖片輸出每百萬/30$',
         model_gemini_nano_banana_2_1_desc_tier_paid: 'Google 最新圖片生成與參考圖編輯，支援多種比例與 1K／2K／4K 畫質',
+        model_flux_3_image_desc_tier_paid: 'Black Forest Labs 最新圖片生成與多張參考圖編輯（最多 10 張），可直出 4K，依張數計費',
         imageReadyToEdit: '圖片已加入，可繼續描述修改內容',
         imageReferenceUnavailable: '上一張圖片的本機檔案已遺失，無法沿用為參考圖，將依你的描述重新生成一張新圖片。',
         imageReferenceUnavailableLabel: '參考圖已遺失，正在重新生成',

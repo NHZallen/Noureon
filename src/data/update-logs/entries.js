@@ -2,6 +2,20 @@
 // content 為 zh-TW 的 HTML 字串（JSON 轉義、雙引號），目前不隨介面語言切換。
 export const updateLogEntries = [
   {
+    version: "17.8.2",
+    date: "2026-10-06",
+    content: [
+      "<strong>Noureon 17.8.2 發布說明</strong>",
+      "本版本新增圖片生成模型 FLUX.3 Image（Black Forest Labs），也支援更多圖片比例與畫質。",
+      "<strong>主要變更</strong>",
+      "<ul><li><strong>FLUX.3 Image：</strong>在模型選單的 Black Forest Labs 底下。可以一次參考最多 10 張圖片來編輯或合成，最高可直接畫出 4K。</li><li><strong>更多畫質與比例：</strong>FLUX.3 Image 提供 768、1K、1.5K、2K、4K 五種畫質，以及 1:1、16:9、9:16、3:2、4:3、7:5、5:7、9:21、21:9 等 15 種比例。新增的 768、1.5K 畫質與 7:5、5:7 比例，只有支援的模型才會出現在選單裡。</li></ul>",
+      "<strong>注意事項</strong>",
+      "<ul><li>需要 OpenRouter 金鑰；FLUX.3 Image 依張數計費，畫質越高越貴（4K 比 1K 貴很多），請留意用量。</li><li>FLUX.3 Image 不支援「種子」設定，在進階設定裡填了種子可能會失敗。</li></ul>",
+      "<strong>相容性</strong>",
+      "本次更新不需要資料遷移。"
+    ]
+  },
+  {
     version: "17.8.1",
     date: "2026-10-06",
     content: [

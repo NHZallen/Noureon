@@ -223,6 +223,7 @@ test('reasoning labels support Russian and Spanish', () => {
 test('model registry leaves excluded models on default reasoning', () => {
   const excludedIds = [
     'anthropic/claude-haiku-4.5',
+    'black-forest-labs/flux-3-image',
     'minimax/minimax-m3',
     'poolside/laguna-s-2.1:free',
     'nvidia/nemotron-3.5-lightning:free',
