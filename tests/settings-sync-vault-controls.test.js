@@ -252,3 +252,58 @@ test('a password that is too short or does not match changes nothing', async () 
   await new Promise((resolve) => setTimeout(resolve, 20));
   assert.deepEqual(calls, []);
 });
+
+const identitiesClient = (providers) => ({ auth: { getUserIdentities: async () => ({ data: { identities: providers.map((provider) => ({ provider })) }, error: null }) } });
+
+test('a way to sign in that is not set up has a button, the Email one opens its form, and a bound one shows its status instead', async () => {
+  const { window, controls, setCurrentUser } = createFixture({ getSupabase: () => identitiesClient(['google']), isConfigured: () => true });
+  setCurrentUser(cloudUser);
+  controls.ensureSyncVaultSettings();
+  await controls.refreshSyncVaultControls();
+  const { document } = window;
+  const toggle = document.getElementById('account-email-link-toggle');
+  const form = document.getElementById('account-email-link-form');
+
+  assert.equal(toggle.classList.contains('hidden'), false, 'there is a button to set Email up');
+  assert.equal(toggle.textContent, '綁定 Email');
+  assert.equal(document.getElementById('account-email-link-btn').textContent, '設定 Email 登入密碼', 'an account that is signed in already only needs a password');
+  assert.equal(document.getElementById('account-email-status').classList.contains('hidden'), true, 'the button stands in for the status');
+  assert.equal(form.classList.contains('hidden'), true, 'the form starts folded');
+  assert.equal(document.getElementById('account-link-email').closest('.us-field').classList.contains('hidden'), true, 'its Email is known: no box for it');
+  toggle.click();
+  assert.equal(form.classList.contains('hidden'), false);
+  assert.equal(toggle.getAttribute('aria-expanded'), 'true');
+  assert.equal(toggle.textContent, '取消');
+  toggle.click();
+  assert.equal(form.classList.contains('hidden'), true);
+  assert.equal(toggle.textContent, '綁定 Email');
+
+  assert.equal(document.getElementById('account-google-link-btn').classList.contains('hidden'), true, 'Google is bound: no button');
+  assert.equal(document.getElementById('account-google-status').classList.contains('hidden'), false);
+  assert.equal(document.getElementById('account-google-status').textContent.trim(), '已綁定');
+});
+
+test('a local account is asked for its Email and a password, and bound Email shows only its status', async () => {
+  const local = createFixture({ getSupabase: () => identitiesClient([]), isConfigured: () => true });
+  local.controls.ensureSyncVaultSettings();
+  await local.controls.refreshSyncVaultControls();
+  assert.equal(local.window.document.getElementById('account-email-link-toggle').textContent, '綁定 Email');
+  assert.equal(local.window.document.getElementById('account-link-email').closest('.us-field').classList.contains('hidden'), false);
+  assert.equal(local.window.document.getElementById('account-google-link-btn').classList.contains('hidden'), false);
+
+  const both = createFixture({ getSupabase: () => identitiesClient(['email', 'google']), isConfigured: () => true });
+  both.setCurrentUser(cloudUser);
+  both.controls.ensureSyncVaultSettings();
+  await both.controls.refreshSyncVaultControls();
+  assert.equal(both.window.document.getElementById('account-email-link-toggle').classList.contains('hidden'), true);
+  assert.equal(both.window.document.getElementById('account-email-status').classList.contains('hidden'), false);
+  assert.equal(both.window.document.getElementById('login-password-row').classList.contains('hidden'), false, 'with Email set up the password can be changed');
+});
+
+test('without a cloud connection there is no bind button, only the status', async () => {
+  const { window, controls } = createFixture({ isConfigured: () => false });
+  controls.ensureSyncVaultSettings();
+  await controls.refreshSyncVaultControls();
+  assert.equal(window.document.getElementById('account-email-link-toggle').classList.contains('hidden'), true);
+  assert.equal(window.document.getElementById('account-email-status').classList.contains('hidden'), false);
+});

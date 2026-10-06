@@ -31,6 +31,7 @@ export function createSettingsSyncVaultControls({
   // The page's stylesheet loads with it, keeping the startup CSS small.
   loadStyles = () => import('../../../styles/user-settings.css'),
   getSupabase = getSupabaseClient,
+  isConfigured = isSupabaseConfigured,
   reloadPage = () => window.location.reload(),
   scheduleTimeout = (callback, delay) => window.setTimeout(callback, delay)
 } = {}) {
@@ -47,6 +48,7 @@ export function createSettingsSyncVaultControls({
     emailStatus: document.getElementById('account-email-status'),
     googleStatus: document.getElementById('account-google-status'),
     emailForm: document.getElementById('account-email-link-form'),
+    emailToggle: document.getElementById('account-email-link-toggle'),
     emailInput: document.getElementById('account-link-email'),
     emailPassword: document.getElementById('account-link-password'),
     emailConfirmation: document.getElementById('account-link-password-confirmation'),
@@ -143,9 +145,10 @@ export function createSettingsSyncVaultControls({
             <span class="us-mark">${ICONS.mail}</span>
             <div class="us-row-text">
               <span class="us-row-title">Email</span>
-              <span class="us-row-desc" data-lang-key="emailLoginProviderDesc">使用 Email 登入與收取驗證信。</span>
+              <span class="us-row-desc" data-lang-key="emailLoginProviderDesc">用 Email 與密碼登入 Noureon。</span>
             </div>
             ${statusMarkup('account-email-status')}
+            <button id="account-email-link-toggle" type="button" class="us-btn hidden" aria-expanded="false" aria-controls="account-email-link-form">綁定 Email</button>
           </div>
           <form id="account-email-link-form" class="us-form hidden">
             <div class="us-field">
@@ -380,6 +383,22 @@ export function createSettingsSyncVaultControls({
     return recoveryState === await storage.getItem(getRecoveryStorageKey(username));
   };
 
+  // The form's own button: "Set up Email login" for an account that is signed in already (its Email is known), "Bind Email" for a local one.
+  const emailBindLabel = () => (getCurrentUser?.()?.authProvider === 'supabase'
+    ? text('enableEmailLogin', '設定 Email 登入密碼')
+    : text('bindEmail', '綁定 Email'));
+
+  const setEmailFormOpen = (open) => {
+    const { emailForm, emailToggle } = getElements();
+    if (!emailForm) return;
+    emailForm.classList.toggle('hidden', !open);
+    if (!emailToggle) return;
+    emailToggle.setAttribute('aria-expanded', String(open));
+    emailToggle.textContent = open ? text('userCancelAction', '取消') : text('bindEmail', '綁定 Email');
+    // The human check of a local account's Email is drawn when the form is opened, not while it is folded away.
+    if (open && getCurrentUser?.()?.authProvider !== 'supabase') void ensureAccountTurnstile().catch(() => {});
+  };
+
   // The login password and the sync password settings are folded away until asked for.
   const setLoginPasswordOpen = (open) => {
     const { loginPasswordPanel, loginPasswordToggle } = getElements();
@@ -401,7 +420,7 @@ export function createSettingsSyncVaultControls({
     if (!user?.username || !elements.emailStatus) return;
     const isCloudUser = user.authProvider === 'supabase';
     let providers = [];
-    if (isCloudUser && isSupabaseConfigured()) {
+    if (isCloudUser && isConfigured()) {
       const { data, error } = await getSupabase().auth.getUserIdentities();
       if (!error) providers = (data?.identities || []).map(identity => identity.provider);
     }
@@ -419,23 +438,26 @@ export function createSettingsSyncVaultControls({
             ? text('userSignedInGoogle', '以 Google 登入')
             : text('userSignedInEmail', '以 Email 登入');
     }
-    elements.emailForm.classList.toggle('hidden', emailBound || !isSupabaseConfigured());
-    elements.emailInput.classList.toggle('hidden', isCloudUser);
+    // A way not set up yet has a button instead of a status; the Email one opens the form for it.
+    const canBindEmail = !emailBound && isConfigured();
+    const canBindGoogle = !googleBound && isConfigured();
+    elements.emailToggle?.classList.toggle('hidden', !canBindEmail);
+    elements.emailStatus.classList.toggle('hidden', canBindEmail);
+    elements.googleStatus.classList.toggle('hidden', canBindGoogle);
+    if (!canBindEmail) setEmailFormOpen(false);
+    // A signed-in account already has its Email: only the password is asked for.
+    elements.emailInput.closest('.us-field')?.classList.toggle('hidden', isCloudUser);
     elements.emailInput.required = !isCloudUser;
-    elements.googleButton.classList.toggle('hidden', googleBound || !isSupabaseConfigured());
+    elements.googleButton.classList.toggle('hidden', !canBindGoogle);
     elements.loginPasswordRow?.classList.toggle('hidden', !canChangeLoginPassword);
     if (!canChangeLoginPassword) setLoginPasswordOpen(false);
     elements.loginPasswordUnavailable?.classList.toggle('hidden', !isCloudUser || canChangeLoginPassword);
-    elements.emailButton.textContent = isCloudUser
-      ? text('enableEmailLogin', '設定 Email 登入密碼')
-      : text('bindEmail', '綁定 Email');
+    elements.emailButton.textContent = emailBindLabel();
+    if (elements.emailToggle && elements.emailForm.classList.contains('hidden')) elements.emailToggle.textContent = text('bindEmail', '綁定 Email');
     elements.googleButton.textContent = text('bindGoogle', '綁定 Google');
-    if (!isSupabaseConfigured()) {
+    if (!isConfigured()) {
       setAccountMessage(text('cloudAccountUnavailable', '尚未連接 Supabase，無法綁定雲端帳號。'));
       return;
-    }
-    if (!isCloudUser) {
-      await ensureAccountTurnstile();
     }
   };
 
@@ -523,6 +545,9 @@ export function createSettingsSyncVaultControls({
   const bindEvents = () => {
     const elements = getElements();
     syncNow.bind();
+    elements.emailToggle?.addEventListener('click', () => {
+      setEmailFormOpen(elements.emailForm.classList.contains('hidden'));
+    });
     elements.loginPasswordToggle?.addEventListener('click', () => {
       setLoginPasswordOpen(elements.loginPasswordPanel.classList.contains('hidden'));
     });
