@@ -12,9 +12,17 @@ export function canCaptureConversationMessage(conversation = {}, message) {
   return messageIndex >= captureStartIndex;
 }
 
+// The empty chat the app opens for the next message is not kept: the next start removes it and opens a new one anyway (startNewChat),
+// so storing it only made the stored workspace differ at every start.
+export function isEmptyTemporaryConversation(conversation = {}) {
+  return conversation?.isTemporary === true && !(conversation.messages?.length > 0);
+}
+
 export function createPersistableAppDataSnapshot(snapshot = {}) {
   const conversations = snapshot.conversations || [];
-  const persistentConversations = conversations.filter(conversation => !isEphemeralConversation(conversation));
+  const persistentConversations = conversations.filter(conversation => (
+    !isEphemeralConversation(conversation) && !isEmptyTemporaryConversation(conversation)
+  ));
   if (persistentConversations.length === conversations.length) return snapshot;
   return {
     ...snapshot,

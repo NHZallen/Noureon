@@ -31,7 +31,7 @@ export function createLegacyRuntimeAppDataPersistence({
   onSaved = () => {},
   logger = console
 } = {}) {
-  async function saveAppData({ immediateCloudSync = false } = {}) {
+  async function persistAppData({ immediateCloudSync = false } = {}) {
     let notification = null;
     await withWorkspaceStorageExclusive(async () => {
       const currentUser = getCurrentUser();
@@ -91,6 +91,17 @@ export function createLegacyRuntimeAppDataPersistence({
           ...(immediateCloudSync ? { immediate: true } : {})
         };
       } else {
+        // The whole workspace is one item, so a write of unchanged data is the most expensive thing the app does for nothing:
+        // when what is stored is already this snapshot, leave it alone.
+        if (typeof readItem === 'function') {
+          let stored = null;
+          try {
+            stored = await readItem(appDataKey);
+          } catch (error) {
+            logger.warn('Noureon stored workspace could not be compared; writing it again.', error);
+          }
+          if (typeof stored === 'string' && stored === serializedSnapshot) return;
+        }
         await setItem(appDataKey, serializedSnapshot);
       }
       notification = { snapshot, syncMetadata };
@@ -99,6 +110,38 @@ export function createLegacyRuntimeAppDataPersistence({
     await Promise.resolve(onSaved(notification.snapshot, notification.syncMetadata)).then(undefined, error => {
       logger.warn('Noureon cloud conversation sync could not observe a local save.', error);
     });
+  }
+
+  // Saves that pile up (the app starts several at once: memory, a new chat, the memory summary) are served by as few writes as possible:
+  // one runs, and everything that asks while it runs shares one follow-up, which takes its snapshot only when it starts, so it holds
+  // everything asked before it.
+  let running = null;
+  let followUp = null;
+
+  function start(options) {
+    const run = persistAppData(options);
+    running = run;
+    const done = () => {
+      if (running === run) running = null;
+    };
+    run.then(done, done);
+    return run;
+  }
+
+  function saveAppData(options = {}) {
+    const immediateCloudSync = options?.immediateCloudSync === true;
+    if (!running) return start({ immediateCloudSync });
+    if (followUp) {
+      followUp.immediateCloudSync ||= immediateCloudSync;
+      return followUp.promise;
+    }
+    const pending = { immediateCloudSync };
+    pending.promise = running.catch(() => {}).then(() => {
+      followUp = null;
+      return start({ immediateCloudSync: pending.immediateCloudSync });
+    });
+    followUp = pending;
+    return pending.promise;
   }
 
   return {

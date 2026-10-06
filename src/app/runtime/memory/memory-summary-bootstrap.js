@@ -25,6 +25,11 @@ export function createMemorySummaryBootstrap({
     if (!force && memoryState.memorySummary && memoryState.memorySummary.needsRefresh !== true) {
       return Promise.resolve({ skipped: true });
     }
+    // A rebuild that failed is not run again by every start of the app (each try writes the whole workspace twice and calls the memory
+    // and embedding models again for what failed): it runs again when a chat finishes, when synced data arrives, or when it is asked for in Settings.
+    if (!force && memoryState.memorySummary?.status === 'failed') {
+      return Promise.resolve({ skipped: true, reason: 'previous-rebuild-failed' });
+    }
     return rebuildSummary();
   };
 }

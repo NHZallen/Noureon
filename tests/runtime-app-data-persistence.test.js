@@ -458,7 +458,7 @@ test('local accounts keep the legacy single-item persistence path', async () => 
     getAppData: () => ({ conversations: [] }),
     getAppDataKey: () => 'chatAppData_v8.6_alice',
     setItem: async (...args) => calls.push(args),
-    readItem: async () => assert.fail('local account must not read a cloud journal'),
+    readItem: async () => null,
     setItemsAtomic: async () => assert.fail('local account must not write a cloud journal')
   });
 
@@ -467,6 +467,153 @@ test('local accounts keep the legacy single-item persistence path', async () => 
     'chatAppData_v8.6_alice',
     JSON.stringify({ conversations: [] })
   ]]);
+});
+
+test('a local save of data that is already stored writes nothing and notifies nothing', async () => {
+  const writes = [];
+  const saved = [];
+  const stored = JSON.stringify({ conversations: [{ id: 'a' }] });
+  const persistence = createLegacyRuntimeAppDataPersistence({
+    getCurrentUser: () => ({ username: 'alice', authProvider: 'local' }),
+    getAppData: () => ({ conversations: [{ id: 'a' }] }),
+    getAppDataKey: () => 'chatAppData_v8.6_alice',
+    setItem: async (...args) => writes.push(args),
+    readItem: async () => stored,
+    onSaved: (...args) => saved.push(args)
+  });
+
+  await persistence.saveAppData();
+  assert.deepEqual(writes, []);
+  assert.deepEqual(saved, []);
+});
+
+test('a local save writes when the stored data differs or cannot be read', async () => {
+  const writes = [];
+  let stored = JSON.stringify({ conversations: [{ id: 'old' }] });
+  const persistence = createLegacyRuntimeAppDataPersistence({
+    getCurrentUser: () => ({ username: 'alice', authProvider: 'local' }),
+    getAppData: () => ({ conversations: [{ id: 'new' }] }),
+    getAppDataKey: () => 'chatAppData_v8.6_alice',
+    setItem: async (...args) => writes.push(args),
+    readItem: async () => { if (stored === 'broken') throw new Error('read failed'); return stored; },
+    logger: { warn() {} }
+  });
+
+  await persistence.saveAppData();
+  assert.equal(writes.length, 1);
+  stored = 'broken';
+  await persistence.saveAppData();
+  assert.equal(writes.length, 2, 'an unreadable stored copy is written over, as before');
+});
+
+const createSlowStore = () => {
+  const writes = [];
+  let release = () => {};
+  let first = true;
+  return {
+    writes,
+    release: () => release(),
+    setItem: async (key, value) => {
+      writes.push(JSON.parse(value));
+      if (first) {
+        first = false;
+        await new Promise(resolve => { release = resolve; });
+      }
+    }
+  };
+};
+
+test('saves asked while one is writing share a single follow-up that holds the latest data', async () => {
+  const store = createSlowStore();
+  let snapshot = { conversations: [{ id: 'v1' }] };
+  const persistence = createLegacyRuntimeAppDataPersistence({
+    getCurrentUser: () => ({ username: 'alice' }),
+    getAppData: () => snapshot,
+    getAppDataKey: () => 'chatAppData_v8.6_alice',
+    setItem: store.setItem
+  });
+
+  const first = persistence.saveAppData();
+  await new Promise(resolve => setTimeout(resolve, 20));
+  snapshot = { conversations: [{ id: 'v2' }] };
+  const second = persistence.saveAppData();
+  snapshot = { conversations: [{ id: 'v3' }] };
+  const third = persistence.saveAppData();
+  const fourth = persistence.saveAppData();
+  store.release();
+  await Promise.all([first, second, third, fourth]);
+
+  assert.equal(store.writes.length, 2, 'four saves are two writes');
+  assert.equal(store.writes[0].conversations[0].id, 'v1');
+  assert.equal(store.writes[1].conversations[0].id, 'v3', 'the follow-up holds the newest data, not the data of the first caller who joined it');
+});
+
+test('saves that are not overlapping are each written', async () => {
+  const writes = [];
+  let n = 0;
+  const persistence = createLegacyRuntimeAppDataPersistence({
+    getCurrentUser: () => ({ username: 'alice' }),
+    getAppData: () => ({ conversations: [{ id: `v${n}` }] }),
+    getAppDataKey: () => 'chatAppData_v8.6_alice',
+    setItem: async (key, value) => writes.push(JSON.parse(value))
+  });
+  for (n = 1; n <= 3; n += 1) await persistence.saveAppData();
+  assert.deepEqual(writes.map(w => w.conversations[0].id), ['v1', 'v2', 'v3']);
+});
+
+test('the follow-up still runs when the save before it failed, and each caller gets its own outcome', async () => {
+  let fail = true;
+  const writes = [];
+  let release = () => {};
+  const persistence = createLegacyRuntimeAppDataPersistence({
+    getCurrentUser: () => ({ username: 'alice' }),
+    getAppData: () => ({ conversations: [] }),
+    getAppDataKey: () => 'chatAppData_v8.6_alice',
+    setItem: async (key, value) => {
+      if (fail) {
+        fail = false;
+        await new Promise(resolve => { release = resolve; });
+        throw new Error('storage failed');
+      }
+      writes.push(value);
+    }
+  });
+
+  const first = persistence.saveAppData();
+  const firstOutcome = first.then(() => 'ok', error => error.message);
+  await new Promise(resolve => setTimeout(resolve, 20));
+  const second = persistence.saveAppData();
+  release();
+  assert.equal(await firstOutcome, 'storage failed');
+  await second;
+  assert.equal(writes.length, 1);
+});
+
+test('an immediate cloud save asked while another save is writing is not lost in the follow-up', async () => {
+  const seen = [];
+  let release = () => {};
+  const persistence = createLegacyRuntimeAppDataPersistence({
+    getCurrentUser: () => ({ username: 'alice', authProvider: 'supabase' }),
+    getAppData: () => ({ conversations: [{ id: String(seen.length) }] }),
+    getAppDataKey: () => 'chatAppData_v8.6_alice',
+    setItem: async () => {},
+    readItems: async () => [null, null],
+    setItemsAtomic: async () => {
+      if (!seen.length) await new Promise(resolve => { release = resolve; });
+    },
+    createSyncRevision: () => 'rev',
+    onSaved: (snapshot, metadata) => { seen.push(metadata); }
+  });
+
+  const first = persistence.saveAppData();
+  await new Promise(resolve => setTimeout(resolve, 20));
+  const second = persistence.saveAppData({ immediateCloudSync: true });
+  release();
+  await Promise.all([first, second]);
+
+  assert.equal(seen.length, 2);
+  assert.equal(seen[0].immediate, undefined);
+  assert.equal(seen[1].immediate, true);
 });
 
 test('atomic cloud persistence failure rejects before notifying shadow sync', async () => {
