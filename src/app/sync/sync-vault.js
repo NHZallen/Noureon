@@ -35,9 +35,12 @@ function base64ToBytes(value) {
   return Uint8Array.from(binary, character => character.charCodeAt(0));
 }
 
+// The pages show these errors in the person's language by their `code`; the English message is for logs and tests.
+const withCode = (error, code) => Object.assign(error, { code });
+
 function requireVaultPassword(password) {
   if (typeof password !== 'string' || password.length < VAULT_MIN_PASSWORD_LENGTH) {
-    throw new TypeError(`Sync vault password must contain at least ${VAULT_MIN_PASSWORD_LENGTH} characters.`);
+    throw withCode(new TypeError(`Sync vault password must contain at least ${VAULT_MIN_PASSWORD_LENGTH} characters.`), 'vault-password-too-short');
   }
 }
 
@@ -115,7 +118,7 @@ export async function unlockSyncVaultRecord(password, record, {
     );
     if (decoder.decode(plaintext) !== VAULT_CHECK_TEXT) throw new Error('Invalid vault check.');
   } catch {
-    throw new Error('Incorrect sync vault password.');
+    throw withCode(new Error('Incorrect sync vault password.'), 'vault-password-incorrect');
   }
   return key;
 }
@@ -142,7 +145,7 @@ export async function createAndUnlockSyncVault({ storage, username, password, cr
 
 export async function unlockSyncVault({ storage, username, password, cryptoProvider } = {}) {
   const record = await readSyncVaultRecord(storage, username);
-  if (!record) throw new Error('No sync vault password has been configured.');
+  if (!record) throw withCode(new Error('No sync vault password has been configured.'), 'vault-not-configured');
   const key = await unlockSyncVaultRecord(password, record, { cryptoProvider });
   unlockedVaultKeys.set(username, key);
   return key;

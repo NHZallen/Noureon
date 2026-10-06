@@ -147,11 +147,16 @@ test('the password row opens and folds its settings, and the show/hide button tu
   const input = document.getElementById('login-current-password');
   const eye = input.parentElement.querySelector('[data-us-eye]');
   assert.equal(input.type, 'password');
+  assert.ok(eye.querySelector('.us-eye-off') && eye.querySelector('.us-eye-on'), 'the slashed eye and the open eye are both there');
+  assert.ok(eye.querySelector('.us-eye-off path[d="m3 3 18 18"]'), 'the one for a hidden password has the slash');
+  assert.equal(eye.querySelector('.us-eye-on path[d="m3 3 18 18"]'), null, 'the open one has none');
+  assert.equal(eye.getAttribute('aria-pressed'), 'false', 'hidden: the slashed eye is the one drawn');
   eye.click();
   assert.equal(input.type, 'text');
-  assert.equal(eye.getAttribute('aria-pressed'), 'true');
+  assert.equal(eye.getAttribute('aria-pressed'), 'true', 'shown: the open eye is the one drawn');
   eye.click();
   assert.equal(input.type, 'password');
+  assert.equal(eye.getAttribute('aria-pressed'), 'false');
 });
 
 test('the sync state beside the title follows the vault: locked, unlocked, and the manage row only opens while it is unlocked', async () => {
@@ -306,4 +311,54 @@ test('without a cloud connection there is no bind button, only the status', asyn
   await controls.refreshSyncVaultControls();
   assert.equal(window.document.getElementById('account-email-link-toggle').classList.contains('hidden'), true);
   assert.equal(window.document.getElementById('account-email-status').classList.contains('hidden'), false);
+});
+
+const flush = () => new Promise((resolve) => setTimeout(resolve, 20));
+
+test('a sync password that is too short is reported in the person\'s language, not in the vault\'s English', async () => {
+  const notices = [];
+  const { window, controls, setCurrentUser, storage } = createFixture({ showNotification: (message, kind) => notices.push([message, kind]) });
+  setCurrentUser(cloudUser);
+  await createAndUnlockSyncVault({ storage, username: cloudUser.username, password: 'correct horse battery' });
+  lockSyncVault(cloudUser.username);
+  controls.ensureSyncVaultSettings();
+  await controls.refreshSyncVaultControls();
+  window.document.getElementById('sync-vault-unlock-password').value = 'short';
+  window.document.getElementById('sync-vault-unlock-btn').click();
+  await flush();
+  assert.deepEqual(notices.at(-1), ['同步密碼至少需要 10 碼。', 'error']);
+
+  const before = notices.length;
+  window.document.getElementById('sync-vault-unlock-password').value = 'a wrong password, long enough';
+  window.document.getElementById('sync-vault-unlock-btn').click();
+  // Unlocking derives a key, which takes a moment.
+  for (let waited = 0; notices.length === before && waited < 5000; waited += 20) await flush();
+  assert.deepEqual(notices.at(-1), ['同步密碼不正確。', 'error']);
+});
+
+test('the errors Supabase answers in English are shown in the person\'s language when changing the login password', async () => {
+  const failing = (error) => ({ auth: {
+    getUserIdentities: async () => ({ data: { identities: [] }, error: null }),
+    getUser: async () => ({ data: { user: { email: 'person@example.com' } }, error: null }),
+    signInWithPassword: async () => ({ error: error.at === 'signIn' ? error.value : null }),
+    updateUser: async () => ({ error: error.at === 'update' ? error.value : null }),
+    signOut: async () => ({ error: null })
+  } });
+  const cases = [
+    [{ at: 'signIn', value: { code: 'invalid_credentials', message: 'Invalid login credentials' } }, '目前登入密碼不正確。'],
+    [{ at: 'update', value: { code: 'same_password', message: 'New password should be different from the old password.' } }, '新密碼不能和目前的密碼相同。'],
+    [{ at: 'update', value: { code: 'over_request_rate_limit', status: 429, message: 'Request rate limit reached' } }, '嘗試次數過多，請稍後再試。'],
+    [{ at: 'update', value: { message: 'Something else from the server' } }, 'Something else from the server']
+  ];
+  for (const [error, expected] of cases) {
+    const { window, controls, setCurrentUser } = createFixture({ getSupabase: () => failing(error), scheduleTimeout: (callback) => callback() });
+    setCurrentUser(cloudUser);
+    controls.ensureSyncVaultSettings();
+    fillPasswordChange(window.document);
+    window.document.getElementById('login-password-change-btn').click();
+    await flush();
+    const message = window.document.getElementById('account-link-message');
+    assert.equal(message.textContent, expected);
+    assert.equal(message.classList.contains('is-error'), true);
+  }
 });

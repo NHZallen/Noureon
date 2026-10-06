@@ -103,12 +103,14 @@ export function createSettingsSyncVaultControls({
     key: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="3.5"/><path d="m10.5 12.5 8-8M16 7l2.5 2.5M14 9l2 2"/></svg>',
     cloud: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.5 19a4.5 4.5 0 0 0 .4-9A6 6 0 0 0 6.3 8.6 4.8 4.8 0 0 0 7 19z"/></svg>',
     chevron: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>',
-    eye: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>'
+    // Hidden (dots): the eye with a slash. Shown (text): the open eye. The button's aria-pressed picks which one is drawn (user-settings.css).
+    eyeOff: '<svg class="us-eye-off" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/><path d="m3 3 18 18"/></svg>',
+    eye: '<svg class="us-eye-on" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>'
   };
 
   const eyeButton = () => {
     const label = text('userShowPassword', '顯示密碼');
-    return `<button type="button" class="us-eye" data-us-eye aria-pressed="false" title="${label}" aria-label="${label}">${ICONS.eye}</button>`;
+    return `<button type="button" class="us-eye" data-us-eye aria-pressed="false" title="${label}" aria-label="${label}">${ICONS.eyeOff}${ICONS.eye}</button>`;
   };
 
   /** A labelled password box with the show/hide button; `hint` is the small line under it. */
@@ -308,10 +310,27 @@ export function createSettingsSyncVaultControls({
     }
   };
 
+  // Errors of the sync vault carry a code; the message is shown in the person's language.
+  const vaultErrorText = (error) => {
+    if (error?.code === 'vault-password-too-short') return text('cloudSyncPasswordTooShort', '同步密碼至少需要 10 碼。');
+    if (error?.code === 'vault-password-incorrect' || error?.message?.includes('Incorrect')) return text('cloudSyncPasswordIncorrect', '同步密碼不正確。');
+    if (error?.code === 'vault-not-configured') return text('cloudSyncPasswordNotSet', '尚未設定同步密碼');
+    return '';
+  };
+
+  // The errors Supabase answers with (in English) that a person is likely to meet on this page.
+  const authErrorText = (error) => {
+    const code = error?.code || '';
+    const message = String(error?.message || '');
+    if (code === 'invalid_credentials' || /invalid login credentials/i.test(message)) return text('loginPasswordCurrentIncorrect', '目前登入密碼不正確。');
+    if (code === 'same_password' || /different from the old password/i.test(message)) return text('loginPasswordSameAsOld', '新密碼不能和目前的密碼相同。');
+    if (/rate_limit/.test(code) || error?.status === 429 || /rate limit/i.test(message)) return text('authRateLimited', '嘗試次數過多，請稍後再試。');
+    return '';
+  };
+
   const notifyError = (error) => {
-    const incorrect = error?.message?.includes('Incorrect');
     showNotification(
-      incorrect ? text('cloudSyncPasswordIncorrect', '同步密碼不正確。') : (error?.message || text('cloudSyncPasswordError', '同步密碼操作失敗。')),
+      vaultErrorText(error) || authErrorText(error) || error?.message || text('cloudSyncPasswordError', '同步密碼操作失敗。'),
       'error'
     );
   };
@@ -622,7 +641,7 @@ export function createSettingsSyncVaultControls({
         }
         setAccountMessage(text('confirmEmailToBind', '驗證信已寄出；完成 Email 驗證後會自動綁定本機資料。'));
       } catch (error) {
-        setAccountMessage(error?.message || text('accountLinkFailed', '帳號綁定失敗。'), 'error');
+        setAccountMessage(authErrorText(error) || error?.message || text('accountLinkFailed', '帳號綁定失敗。'), 'error');
       } finally {
         setBusy(false);
       }
@@ -652,7 +671,7 @@ export function createSettingsSyncVaultControls({
         }
       } catch (error) {
         setBusy(false);
-        setAccountMessage(error?.message || text('accountLinkFailed', '帳號綁定失敗。'), 'error');
+        setAccountMessage(authErrorText(error) || error?.message || text('accountLinkFailed', '帳號綁定失敗。'), 'error');
       }
     });
     elements.loginPasswordButton?.addEventListener('click', async () => {
@@ -696,7 +715,7 @@ export function createSettingsSyncVaultControls({
         setAccountMessage(text('loginPasswordChangedSignedOut', '登入密碼已更新，所有裝置已登出。'));
         scheduleTimeout(reloadPage, 1500);
       } catch (error) {
-        setAccountMessage(error?.message || text('loginPasswordChangeFailed', '登入密碼更新失敗。'), 'error');
+        setAccountMessage(authErrorText(error) || error?.message || text('loginPasswordChangeFailed', '登入密碼更新失敗。'), 'error');
       } finally {
         setBusy(false);
       }
@@ -778,7 +797,7 @@ export function createSettingsSyncVaultControls({
         if (error) throw error;
         setAccountMessage(text('cloudSyncRecoveryEmailSent', '重設驗證信已寄出，請從信件連結返回。'));
       } catch (error) {
-        setAccountMessage(error?.message || text('cloudSyncRecoveryFailed', '無法寄出重設驗證信。'), 'error');
+        setAccountMessage(authErrorText(error) || error?.message || text('cloudSyncRecoveryFailed', '無法寄出重設驗證信。'), 'error');
       } finally {
         setBusy(false);
       }

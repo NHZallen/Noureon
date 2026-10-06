@@ -45,6 +45,9 @@
 #settings-modal #user-section .us-input input::placeholder { color: var(--text-secondary) !important; opacity: 0.7; }
 #settings-modal #user-section .us-input input:focus { outline: none; border-color: color-mix(in srgb, var(--text-primary) 45%, transparent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--text-primary) 10%, transparent); }
 #settings-modal #user-section .us-eye { position: absolute; top: 0; right: 0; width: 2.75rem; height: 2.75rem; display: grid; place-items: center; border: 0; background: transparent; color: var(--text-secondary) !important; cursor: pointer; }
+#settings-modal #user-section .us-eye .us-eye-on { display: none; }
+#settings-modal #user-section .us-eye[aria-pressed="true"] .us-eye-on { display: block; }
+#settings-modal #user-section .us-eye[aria-pressed="true"] .us-eye-off { display: none; }
 #settings-modal #user-section .us-eye:hover { color: var(--text-primary) !important; }
 #settings-modal #user-section .us-hint { font-size: 0.8125rem; color: var(--text-secondary) !important; }
 #settings-modal #user-section .us-check { display: flex; align-items: flex-start; gap: 0.65rem; font-size: 0.875rem; cursor: pointer; }
