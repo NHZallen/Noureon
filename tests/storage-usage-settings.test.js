@@ -56,3 +56,16 @@ test('when the usage cannot be read, the block says so, and it follows the langu
   elements.uiLanguageSelect.dispatchEvent(new document.defaultView.Event('change'));
   assert.ok(document.getElementById('storage-usage-block').textContent.includes(PERMISSION_TEXTS.fr.storageUnknown));
 });
+
+test('without a cloud account the block is hidden (an empty card would still draw its border as a thin bar), and shown once there is one', async () => {
+  const { document, elements } = page();
+  let enabled = false;
+  const sync = () => ({ getStatus: () => ({ enabled }) });
+  ensureStorageUsageBlock({ document, elements, config: { uiLanguage: 'en' }, getSync: sync, read: async () => ({ ok: true, usedBytes: MB, quotaBytes: 500 * MB }) });
+  assert.equal(document.getElementById('storage-usage-block').classList.contains('hidden'), true);
+
+  enabled = true;
+  ensureStorageUsageBlock({ document, elements, config: { uiLanguage: 'en' }, getSync: sync, read: async () => ({ ok: true, usedBytes: MB, quotaBytes: 500 * MB }) });
+  await flush();
+  assert.equal(document.getElementById('storage-usage-block').classList.contains('hidden'), false);
+});

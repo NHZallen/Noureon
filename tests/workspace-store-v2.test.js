@@ -816,6 +816,75 @@ test('the old format (attachments inside the conversation record) still loads, a
   assert.ok(storage.values.get('chatWS2:alice:conv:c1').length < 1000);
 });
 
+// ---- the way back ----------------------------------------------------------------------------------------------------------------------
+
+test('exportToLegacy writes the whole workspace, attachments included, into the old item together with the disabled marker', async () => {
+  const data = bigData('QUJD');
+  const storage = createFakeStorage();
+  const store = makeStore(storage);
+  const current = { ...workspace('c1', 'c2'), conversations: [withFile('c1', data), conversation('c2')], futureField: 1 };
+  await store.save(current);
+  const before = storage.log.applies.length;
+
+  const result = await store.exportToLegacy({ legacyKey: LEGACY_KEY });
+  assert.deepEqual(result, { state: 'exported', conversations: 2, bytes: storage.values.get(LEGACY_KEY).length, skipped: 0 });
+  assert.deepEqual(JSON.parse(storage.values.get(LEGACY_KEY)), current);
+  assert.equal(storage.log.applies.length, before + 1, 'one transaction');
+  assert.deepEqual(storage.log.applies.at(-1).puts.sort(), [LEGACY_KEY, 'chatWS2:alice:disabled']);
+  assert.equal(await store.isDisabled(), true);
+  assert.ok(storage.values.has('chatWS2:alice:meta') && attachmentKeys(storage).length === 1, 'the split records stay');
+});
+
+test('exportToLegacy refuses a workspace with a record it cannot read unless told to leave it out', async () => {
+  const storage = createFakeStorage();
+  const store = makeStore(storage);
+  await store.save(workspace('c1', 'c2', 'c3'));
+  storage.values.set('chatWS2:alice:conv:c2', '{broken');
+
+  const refused = await store.exportToLegacy({ legacyKey: LEGACY_KEY });
+  assert.equal(refused.state, 'degraded');
+  assert.deepEqual(refused.problems.map(problem => problem.id), ['c2']);
+  assert.equal(storage.values.has(LEGACY_KEY), false);
+  assert.equal(await store.isDisabled(), false);
+
+  const forced = await store.exportToLegacy({ legacyKey: LEGACY_KEY, allowDamaged: true });
+  assert.equal(forced.state, 'exported');
+  assert.equal(forced.skipped, 1);
+  assert.deepEqual(JSON.parse(storage.values.get(LEGACY_KEY)).conversations.map(item => item.id), ['c1', 'c3']);
+  assert.ok(storage.values.has('chatWS2:alice:conv:c2'), 'the damaged record is still kept');
+});
+
+test('exportToLegacy has nothing to export without a usable store, and a failed transaction changes nothing', async () => {
+  assert.deepEqual(await makeStore(createFakeStorage()).exportToLegacy({ legacyKey: LEGACY_KEY }), { state: 'absent' });
+  const broken = createFakeStorage({ 'chatWS2:alice:meta': '{nope' });
+  assert.equal((await makeStore(broken).exportToLegacy({ legacyKey: LEGACY_KEY })).state, 'corrupt');
+  await assert.rejects(() => makeStore(createFakeStorage()).exportToLegacy({}), /key of the old item/);
+
+  const storage = createFakeStorage({ [LEGACY_KEY]: 'old' });
+  const store = makeStore(storage);
+  await store.save(workspace('c1'));
+  storage.hooks.failApply = ({ puts }) => puts.some(entry => entry.key === LEGACY_KEY);
+  await assert.rejects(() => store.exportToLegacy({ legacyKey: LEGACY_KEY }), /quota/);
+  assert.equal(storage.values.get(LEGACY_KEY), 'old');
+  assert.equal(await store.isDisabled(), false);
+});
+
+test('a file is hashed once: the same object holding the same string keeps its name, and a different string gets a new one', async () => {
+  const storage = createFakeStorage();
+  const store = makeStore(storage);
+  const snapshot = { conversations: [withFile('c1', bigData('QUJD'))] };
+  await store.save(snapshot);
+  const first = attachmentKeys(storage);
+
+  const result = await store.save(snapshot);
+  assert.equal(result.written, 0);
+  snapshot.conversations[0].messages[0].parts[1].inlineData.data = bigData('REVG');
+  const changed = await store.save(snapshot);
+  assert.equal(changed.attachments, 1, 'the same object with new data is a new file');
+  assert.notDeepEqual(attachmentKeys(storage), first);
+  assert.equal((await store.load()).workspace.conversations[0].messages[0].parts[1].inlineData.data, bigData('REVG'));
+});
+
 test('the module is storage-only: no page, no runtime, no old-item writes', () => {
   const source = readFileSync(new URL('../src/app/runtime/kernel/workspace-store-v2.js', import.meta.url), 'utf8');
   assert.doesNotMatch(source, /\b(document|window|localStorage|indexedDB)\b/);

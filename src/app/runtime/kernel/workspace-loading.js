@@ -2,7 +2,7 @@
 // store for the cloud sync and the saves, and hand back the workspace, normalized, when it lives in the split store.
 
 import { normalizeLoadedLegacyAppData } from './app-data-normalization.js';
-import { isWorkspaceV2Enabled, selectWorkspaceStorage } from './workspace-storage-selection.js';
+import { isWorkspaceV2Enabled, readWorkspaceV2Request, selectWorkspaceStorage } from './workspace-storage-selection.js';
 import { setActiveWorkspaceStore } from './workspace-store-registry.js';
 
 const emptyWorkspace = () => ({ conversations: [], folders: [], astras: [], personalMemories: [] });
@@ -13,10 +13,17 @@ export async function loadSplitWorkspace({ storage, user, context, logger = cons
   const username = user.username;
   // The old single item (the same key as getAppDataKey in legacy-core.js).
   const legacyKey = `chatAppData_v8.6_${username}`;
-  const selection = await selectWorkspaceStorage({ storage, username, legacyKey, enabled: isWorkspaceV2Enabled(), logger });
+  const request = readWorkspaceV2Request();
+  const selection = await selectWorkspaceStorage({ storage, username, legacyKey, enabled: isWorkspaceV2Enabled(), request, logger });
   setActiveWorkspaceStore(username, selection.mode === 'v2' ? selection.store : null);
   // For diagnosis from the console: which storage is in use, and why.
-  globalThis.__noureonWorkspaceStorage = { mode: selection.mode, reason: selection.reason || null, problems: selection.loaded?.problems || [] };
+  globalThis.__noureonWorkspaceStorage = {
+    mode: selection.mode,
+    reason: selection.reason || null,
+    problems: selection.loaded?.problems || [],
+    migrationAttempts: selection.migration?.attempts || 0,
+    rollbackFailed: Boolean(selection.rollback && selection.rollback.state !== 'exported')
+  };
   if (selection.mode !== 'v2') return null;
   if (selection.loaded?.state === 'degraded') {
     logger.warn?.('Some conversations could not be read from the split workspace; they are kept in storage.', selection.loaded.problems);

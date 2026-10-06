@@ -137,13 +137,25 @@ function serialize(value, what) {
 const ATTACHMENT_MIN_LENGTH = 32768;
 const ATTACHMENT_MARKER = '__att';
 
+// A file is hashed once: the name is remembered against the object that holds it, and used again as long as that object still holds the very
+// same string (comparing a string with itself is instant). Loading fills it in without hashing, so saving a workspace whose files did not
+// change costs nothing for them.
+const knownAttachmentIds = new WeakMap();
+
 function encodeConversation(conversation, what) {
   const attachments = new Map();
   let json;
   try {
     json = JSON.stringify(conversation, function replacer(key, value) {
       if (key === 'data' && typeof value === 'string' && value.length >= ATTACHMENT_MIN_LENGTH && typeof this?.mimeType === 'string') {
-        const id = attachmentIdOf(value);
+        const known = knownAttachmentIds.get(this);
+        let id;
+        if (known && known.data === value) {
+          id = known.id;
+        } else {
+          id = attachmentIdOf(value);
+          knownAttachmentIds.set(this, { data: value, id });
+        }
         attachments.set(id, value);
         return { [ATTACHMENT_MARKER]: id };
       }
@@ -164,8 +176,12 @@ function hydrateConversation(value, attachments) {
       const child = node[key];
       if (isPlainObject(child) && typeof child[ATTACHMENT_MARKER] === 'string' && Object.keys(child).length === 1) {
         const data = attachments.get(child[ATTACHMENT_MARKER]);
-        if (typeof data === 'string') node[key] = data;
-        else missing.push(child[ATTACHMENT_MARKER]);
+        if (typeof data === 'string') {
+          node[key] = data;
+          knownAttachmentIds.set(node, { data, id: child[ATTACHMENT_MARKER] });
+        } else {
+          missing.push(child[ATTACHMENT_MARKER]);
+        }
       } else {
         walk(child);
       }
@@ -744,6 +760,39 @@ export function createWorkspaceStoreV2({
     });
   }
 
+  // The way back: writes the whole workspace into the old single item and sets the "disabled" marker, in ONE transaction, after reading it
+  // all back from the split records. The split records stay (nothing is deleted), so the move can be undone by asking for the split
+  // storage again, which clears them and migrates the old item afresh. A workspace with a record that cannot be read is not exported (the
+  // old item would lose it); allowDamaged overrides that.
+  function exportToLegacy({ legacyKey, allowDamaged = false } = {}) {
+    return exclusive(async () => {
+      if (!legacyKey) throw new TypeError('exportToLegacy needs the key of the old item.');
+      const result = await readMeta();
+      if (result.state !== 'ok') return { state: result.state };
+      const { meta } = result;
+      const [sharedRaw, memoryRaw] = await readMany([keys.shared, keys.memory]);
+      const shared = parseJson(sharedRaw);
+      if (!shared.ok || !isPlainObject(shared.value)) return { state: 'corrupt', reason: 'shared-unreadable' };
+      const workspace = { conversations: [], ...shared.value };
+      if (meta.memory !== null) {
+        const memory = parseJson(memoryRaw);
+        if (!memory.ok) return { state: 'corrupt', reason: 'memory-unreadable' };
+        workspace.memoryState = memory.value;
+      }
+      const { conversations, problems } = await readAllRecords(meta);
+      const lost = problems.filter(problem => !problem.usable);
+      if (lost.length && !allowDamaged) return { state: 'degraded', problems: lost };
+      workspace.conversations = meta.order.filter(id => conversations.has(id)).map(id => conversations.get(id));
+      const json = JSON.stringify(workspace);
+      await storage.applyAtomic({ puts: [{ key: legacyKey, value: json }, { key: keys.disabled, value: now() }] });
+      if ((await storage.getItem(legacyKey)) !== json) {
+        await storage.applyAtomic({ removes: [keys.disabled] });
+        return { state: 'failed', reason: 'the old item does not read back as written' };
+      }
+      return { state: 'exported', conversations: workspace.conversations.length, bytes: json.length, skipped: lost.length };
+    });
+  }
+
   async function getUsage() {
     const result = await readMeta();
     if (result.state !== 'ok') return { conversations: 0, bytes: 0 };
@@ -776,6 +825,7 @@ export function createWorkspaceStoreV2({
     readMemoryState,
     migrateFromLegacy,
     mergeStaleLegacy,
+    exportToLegacy,
     checkIntegrity,
     getUsage,
     getMigrationFailure: readFailure,

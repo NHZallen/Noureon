@@ -27,7 +27,10 @@ export function ensureStorageUsageBlock({ document, elements, config, getSync = 
   let usage = null;
   const draw = () => {
     block.replaceChildren();
-    if (getSync()?.getStatus?.()?.enabled !== true) return;
+    // Without a cloud account there is nothing to show, and an empty card would still draw its border as a thin bar.
+    const enabled = getSync()?.getStatus?.()?.enabled === true;
+    if (typeof block.classList?.toggle === 'function') block.classList.toggle('hidden', !enabled);
+    if (!enabled) return;
     const card = block.classList?.contains?.('pz-card') === true;
     const title = document.createElement('h3');
     title.textContent = permissionText(language, 'storageTitle');

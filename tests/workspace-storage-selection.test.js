@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { MAX_MIGRATION_ATTEMPTS, WS2_FLAG_KEY, isWorkspaceV2Enabled, selectWorkspaceStorage } from '../src/app/runtime/kernel/workspace-storage-selection.js';
+import { MAX_MIGRATION_ATTEMPTS, WS2_FLAG_KEY, isWorkspaceV2Enabled, readWorkspaceV2Flag, readWorkspaceV2Request, selectWorkspaceStorage } from '../src/app/runtime/kernel/workspace-storage-selection.js';
 import { loadSplitWorkspace } from '../src/app/runtime/kernel/workspace-loading.js';
 import { getActiveWorkspaceStore, setActiveWorkspaceStore } from '../src/app/runtime/kernel/workspace-store-registry.js';
 import { createWorkspaceStoreV2 } from '../src/app/runtime/kernel/workspace-store-v2.js';
@@ -187,7 +187,7 @@ test('loadSplitWorkspace returns the normalized workspace of a split store, regi
     const plain = createFakeStorage({ [LEGACY_KEY]: legacy });
     assert.equal(await loadSplitWorkspace({ storage: plain, user: { username: 'alice' }, context, logger: quiet }), null);
     assert.equal(getActiveWorkspaceStore('alice'), null, 'a user on the old item has no registered store');
-    assert.deepEqual(globalThis.__noureonWorkspaceStorage, { mode: 'legacy', reason: 'not-enabled', problems: [] });
+    assert.deepEqual(globalThis.__noureonWorkspaceStorage, { mode: 'legacy', reason: 'not-enabled', problems: [], migrationAttempts: 0, rollbackFailed: false });
 
     environment.values.set(WS2_FLAG_KEY, '1');
     const fresh = await loadSplitWorkspace({ storage: createFakeStorage(), user: { username: 'alice' }, context, logger: quiet });
@@ -198,4 +198,69 @@ test('loadSplitWorkspace returns the normalized workspace of a split store, regi
     setActiveWorkspaceStore('alice', null);
     delete globalThis.__noureonWorkspaceStorage;
   }
+});
+
+test('the address asks for the split storage with ?ws2=1, drops it with ?ws2=0 and goes back with ?ws2=rollback, which also forgets the switch', () => {
+  assert.equal(readWorkspaceV2Request({ location: { search: '?ws2=1' } }), 'enable');
+  assert.equal(readWorkspaceV2Request({ location: { search: '?x=1&ws2=0' } }), 'disable');
+  assert.equal(readWorkspaceV2Request({ location: { search: '?ws2=rollback' } }), 'rollback');
+  assert.equal(readWorkspaceV2Request({ location: { search: '?ws2=nonsense' } }), null);
+  assert.equal(readWorkspaceV2Request({ location: undefined }), null);
+
+  const environment = createFlagEnvironment('', '1');
+  assert.equal(readWorkspaceV2Flag(environment), true);
+  environment.location.search = '?ws2=rollback';
+  assert.equal(isWorkspaceV2Enabled(environment), false);
+  assert.equal(readWorkspaceV2Flag(environment), false);
+  assert.equal(readWorkspaceV2Flag({ localStorage: { getItem() { throw new Error('blocked'); } } }), false);
+});
+
+test('a rollback writes the workspace back into the old item, switches the split storage off and keeps its records', async () => {
+  const storage = createFakeStorage({ [LEGACY_KEY]: JSON.stringify(legacyWorkspace('c1')) });
+  await select(storage, true);
+  const store = createWorkspaceStoreV2({ storage, username: 'alice', logger: quiet });
+  const current = { ...legacyWorkspace('c1', 'c2'), folders: [{ id: 'f1' }, { id: 'f2' }] };
+  current.conversations[1].messages.push({ id: 'new', role: 'user', parts: [{ text: 'written after the migration' }] });
+  await store.save(current);
+
+  const result = await select(storage, true, { request: 'rollback' });
+  assert.equal(result.mode, 'legacy');
+  assert.equal(result.reason, 'rolled-back');
+  assert.equal(result.rollback.state, 'exported');
+  assert.deepEqual(JSON.parse(storage.values.get(LEGACY_KEY)), current, 'the old item holds the newest workspace');
+  assert.ok(storage.values.has('chatWS2:alice:meta'), 'the split records are still there');
+  assert.deepEqual(await select(storage, true), { mode: 'legacy', reason: 'disabled' }, 'and the next start uses the old item');
+});
+
+test('asking for the split storage again after a rollback starts over from the old item', async () => {
+  const storage = createFakeStorage({ [LEGACY_KEY]: JSON.stringify(legacyWorkspace('c1')) });
+  await select(storage, true);
+  await select(storage, true, { request: 'rollback' });
+  // the old item moves on while the split storage is off
+  const moved = JSON.parse(storage.values.get(LEGACY_KEY));
+  moved.conversations.push(conversation('c-new'));
+  storage.values.set(LEGACY_KEY, JSON.stringify(moved));
+
+  const again = await select(storage, true, { request: 'enable' });
+  assert.equal(again.mode, 'v2');
+  assert.deepEqual(again.loaded.workspace.conversations.map(item => item.id), ['c1', 'c-new']);
+  assert.equal(await createWorkspaceStoreV2({ storage, username: 'alice', logger: quiet }).isDisabled(), false);
+});
+
+test('a rollback that would lose a conversation that cannot be read does not happen, and the split storage stays in use', async () => {
+  const storage = createFakeStorage({ [LEGACY_KEY]: JSON.stringify(legacyWorkspace('c1', 'c2')) });
+  await select(storage, true);
+  const before = storage.values.get(LEGACY_KEY);
+  storage.values.set('chatWS2:alice:conv:c2', '{broken');
+  const result = await select(storage, true, { request: 'rollback' });
+  assert.equal(result.mode, 'v2');
+  assert.equal(result.rollback.state, 'degraded');
+  assert.equal(storage.values.get(LEGACY_KEY), before, 'the old item was not touched');
+  assert.equal(await createWorkspaceStoreV2({ storage, username: 'alice', logger: quiet }).isDisabled(), false);
+});
+
+test('a rollback request for a user without a split storage changes nothing', async () => {
+  const storage = createFakeStorage({ [LEGACY_KEY]: JSON.stringify(legacyWorkspace('c1')) });
+  assert.deepEqual(await select(storage, false, { request: 'rollback' }), { mode: 'legacy', reason: 'not-enabled' });
+  assert.equal(storage.applies.length, 0);
 });
