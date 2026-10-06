@@ -1,21 +1,20 @@
-// One quiet line at the very bottom of the Data management tab about where the workspace is kept (workspace-store-v2.js). Nothing is shown for
-// the old single item, so for most people there is no line at all; it appears when the split storage is on in this browser (while it is
-// being tried out), and whenever something is worth knowing: conversations that could not be read, a migration that failed or was given
-// up, a split storage that could not be used, a rollback that did not happen.
+// One quiet line at the very bottom of the Data management tab about where the workspace is kept (workspace-store-v2.js). It says so when the
+// split storage is in use (so that a missing line means the old single item is in use), and when something is worth knowing: conversations
+// that could not be read, a migration that failed or was given up, a split storage that could not be used, a rollback that did not happen.
+// Nothing is shown for the old single item.
 
 import { permissionText } from '../cli/permission-texts.js';
-import { readWorkspaceV2Flag } from '../kernel/workspace-storage-selection.js';
 
 const LINE_ID = 'workspace-storage-status';
 const languageBound = new WeakSet();
 
 // Which sentence to show for what the loading code recorded (globalThis.__noureonWorkspaceStorage), or null for none.
-export function pickWorkspaceStorageStatus(status, flagOn = false) {
+export function pickWorkspaceStorageStatus(status) {
   if (!status) return null;
   if (status.mode === 'v2') {
     if (status.rollbackFailed) return { key: 'wsRollbackFailed' };
     if (status.problems?.length) return { key: 'wsDegraded', values: { count: status.problems.length } };
-    return flagOn ? { key: 'wsActive' } : null;
+    return { key: 'wsActive' };
   }
   if (status.reason === 'migration-failed') return { key: 'wsFailed' };
   if (status.reason === 'migration-gave-up') return { key: 'wsGaveUp' };
@@ -27,8 +26,7 @@ export function ensureWorkspaceStorageStatus({
   document,
   elements,
   config,
-  getStatus = () => globalThis.__noureonWorkspaceStorage,
-  readFlag = readWorkspaceV2Flag
+  getStatus = () => globalThis.__noureonWorkspaceStorage
 }) {
   const section = document.getElementById('data-management-section');
   if (!section || typeof section.appendChild !== 'function') return;
@@ -43,7 +41,7 @@ export function ensureWorkspaceStorageStatus({
 
   let language = config.uiLanguage;
   const draw = () => {
-    const picked = pickWorkspaceStorageStatus(getStatus(), readFlag());
+    const picked = pickWorkspaceStorageStatus(getStatus());
     line.textContent = picked ? permissionText(language, picked.key, picked.values) : '';
     // (A page built from a minimal fake document has no classList.toggle.)
     if (typeof line.classList?.toggle === 'function') line.classList.toggle('hidden', !picked);

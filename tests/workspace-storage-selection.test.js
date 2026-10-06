@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { MAX_MIGRATION_ATTEMPTS, WS2_FLAG_KEY, isWorkspaceV2Enabled, readWorkspaceV2Flag, readWorkspaceV2Request, selectWorkspaceStorage } from '../src/app/runtime/kernel/workspace-storage-selection.js';
+import { MAX_MIGRATION_ATTEMPTS, WS2_FLAG_KEY, isWorkspaceV2Enabled, readWorkspaceV2Request, selectWorkspaceStorage } from '../src/app/runtime/kernel/workspace-storage-selection.js';
 import { loadSplitWorkspace } from '../src/app/runtime/kernel/workspace-loading.js';
 import { getActiveWorkspaceStore, setActiveWorkspaceStore } from '../src/app/runtime/kernel/workspace-store-registry.js';
 import { createWorkspaceStoreV2, getWorkspaceV2Keys } from '../src/app/runtime/kernel/workspace-store-v2.js';
@@ -214,12 +214,8 @@ test('the address asks for the split storage with ?ws2=1, drops it with ?ws2=0 a
   assert.equal(readWorkspaceV2Request({ location: undefined }), null);
 
   const environment = createFlagEnvironment('', '1');
-  assert.equal(readWorkspaceV2Flag(environment), true);
   environment.location.search = '?ws2=rollback';
   assert.equal(isWorkspaceV2Enabled(environment), true, 'the switch is back to the default; the "disabled" marker of the store is what keeps the old item in use');
-  assert.equal(readWorkspaceV2Flag(environment), false);
-  assert.equal(readWorkspaceV2Flag(createFlagEnvironment('', '0')), false, 'asked off is not asked on');
-  assert.equal(readWorkspaceV2Flag({ localStorage: { getItem() { throw new Error('blocked'); } } }), false);
 });
 
 test('a rollback writes the workspace back into the old item, switches the split storage off and keeps its records', async () => {

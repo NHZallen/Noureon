@@ -21,18 +21,17 @@ test('every sentence of the storage line exists in the five languages, and the c
 
 test('which sentence is shown for what the loading code recorded', () => {
   const v2 = { mode: 'v2', reason: null, problems: [] };
-  assert.equal(pickWorkspaceStorageStatus(undefined, true), null);
-  assert.equal(pickWorkspaceStorageStatus({ mode: 'legacy', reason: 'not-enabled', problems: [] }, true), null, 'the old item says nothing');
-  assert.equal(pickWorkspaceStorageStatus({ mode: 'legacy', reason: 'disabled', problems: [] }, false), null);
-  assert.equal(pickWorkspaceStorageStatus({ mode: 'legacy', reason: 'rolled-back', problems: [] }, false), null);
-  assert.deepEqual(pickWorkspaceStorageStatus(v2, true), { key: 'wsActive' });
-  assert.equal(pickWorkspaceStorageStatus(v2, false), null, 'a working split storage is only announced while the switch is on');
-  assert.deepEqual(pickWorkspaceStorageStatus({ ...v2, problems: [{ id: 'a' }, { id: 'b' }] }, false), { key: 'wsDegraded', values: { count: 2 } });
-  assert.deepEqual(pickWorkspaceStorageStatus({ ...v2, rollbackFailed: true }, false), { key: 'wsRollbackFailed' });
-  assert.deepEqual(pickWorkspaceStorageStatus({ mode: 'legacy', reason: 'migration-failed' }, true), { key: 'wsFailed' });
-  assert.deepEqual(pickWorkspaceStorageStatus({ mode: 'legacy', reason: 'migration-gave-up' }, true), { key: 'wsGaveUp' });
-  assert.deepEqual(pickWorkspaceStorageStatus({ mode: 'legacy', reason: 'unusable-corrupt' }, true), { key: 'wsUnusable' });
-  assert.deepEqual(pickWorkspaceStorageStatus({ mode: 'legacy', reason: 'error' }, false), { key: 'wsUnusable' });
+  assert.equal(pickWorkspaceStorageStatus(undefined), null);
+  assert.equal(pickWorkspaceStorageStatus({ mode: 'legacy', reason: 'not-enabled', problems: [] }), null, 'the old item says nothing');
+  assert.equal(pickWorkspaceStorageStatus({ mode: 'legacy', reason: 'disabled', problems: [] }), null);
+  assert.equal(pickWorkspaceStorageStatus({ mode: 'legacy', reason: 'rolled-back', problems: [] }), null);
+  assert.deepEqual(pickWorkspaceStorageStatus(v2), { key: 'wsActive' }, 'a working split storage is announced to everyone');
+  assert.deepEqual(pickWorkspaceStorageStatus({ ...v2, problems: [{ id: 'a' }, { id: 'b' }] }), { key: 'wsDegraded', values: { count: 2 } });
+  assert.deepEqual(pickWorkspaceStorageStatus({ ...v2, rollbackFailed: true }), { key: 'wsRollbackFailed' });
+  assert.deepEqual(pickWorkspaceStorageStatus({ mode: 'legacy', reason: 'migration-failed' }), { key: 'wsFailed' });
+  assert.deepEqual(pickWorkspaceStorageStatus({ mode: 'legacy', reason: 'migration-gave-up' }), { key: 'wsGaveUp' });
+  assert.deepEqual(pickWorkspaceStorageStatus({ mode: 'legacy', reason: 'unusable-corrupt' }), { key: 'wsUnusable' });
+  assert.deepEqual(pickWorkspaceStorageStatus({ mode: 'legacy', reason: 'error' }), { key: 'wsUnusable' });
 });
 
 function createTab() {
@@ -44,7 +43,7 @@ function createTab() {
 test('the line sits at the end of the cards, is hidden when there is nothing to say, and follows the language menu', () => {
   const { document, elements } = createTab();
   let status = { mode: 'legacy', reason: 'not-enabled', problems: [] };
-  ensureWorkspaceStorageStatus({ document, elements, config: { uiLanguage: 'zh-TW' }, getStatus: () => status, readFlag: () => false });
+  ensureWorkspaceStorageStatus({ document, elements, config: { uiLanguage: 'zh-TW' }, getStatus: () => status });
 
   const line = document.getElementById('workspace-storage-status');
   assert.ok(line);
@@ -54,7 +53,7 @@ test('the line sits at the end of the cards, is hidden when there is nothing to 
   assert.equal(document.querySelectorAll('#workspace-storage-status').length, 1);
 
   status = { mode: 'v2', reason: null, problems: [{ id: 'a' }, { id: 'b' }, { id: 'c' }] };
-  ensureWorkspaceStorageStatus({ document, elements, config: { uiLanguage: 'zh-TW' }, getStatus: () => status, readFlag: () => false });
+  ensureWorkspaceStorageStatus({ document, elements, config: { uiLanguage: 'zh-TW' }, getStatus: () => status });
   assert.equal(document.querySelectorAll('#workspace-storage-status').length, 1, 'drawn again, not added again');
   assert.equal(line.classList.contains('hidden'), false);
   assert.equal(line.textContent, permissionText('zh-TW', 'wsDegraded', { count: 3 }));

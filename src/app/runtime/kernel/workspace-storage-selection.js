@@ -24,16 +24,6 @@ export function readWorkspaceV2Request({ location = globalThis.location } = {}) 
   }
 }
 
-// Whether the browser asked for the split storage by hand (?ws2=1; remembered here). Without the side effects: for the settings line, which
-// is only shown to those who asked.
-export function readWorkspaceV2Flag({ localStorage = globalThis.localStorage } = {}) {
-  try {
-    return localStorage?.getItem(WS2_FLAG_KEY) === '1';
-  } catch {
-    return false;
-  }
-}
-
 export function isWorkspaceV2Enabled({ location = globalThis.location, localStorage = globalThis.localStorage } = {}) {
   try {
     const request = readWorkspaceV2Request({ location });
