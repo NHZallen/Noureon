@@ -148,26 +148,31 @@ export function createSettingsApiKeyControls(dependencies = {}) {
       }
     });
 
-    if (document.getElementById('clear-all-api-keys-btn')) return;
-    const lastKeyInput = elements.tavilyApiKeyInput || elements.openrouterApiKeyInputAll || elements.geminiApiKeyInput;
-    const lastKeyWrapper = lastKeyInput?.closest?.('div');
-    if (!lastKeyWrapper?.insertAdjacentElement && !lastKeyWrapper?.appendChild) return;
-    const clearAllButton = document.createElement('button');
-    clearAllButton.type = 'button';
-    clearAllButton.id = 'clear-all-api-keys-btn';
-    clearAllButton.className = 'api-key-clear-all-btn';
+    // The button is in the page already (the Models tab); an older page without it gets one after the last key.
+    let clearAllButton = document.getElementById('clear-all-api-keys-btn');
+    if (!clearAllButton) {
+      const lastKeyInput = elements.tavilyApiKeyInput || elements.openrouterApiKeyInputAll || elements.geminiApiKeyInput;
+      const lastKeyWrapper = lastKeyInput?.closest?.('div');
+      if (!lastKeyWrapper?.insertAdjacentElement && !lastKeyWrapper?.appendChild) return;
+      clearAllButton = document.createElement('button');
+      clearAllButton.type = 'button';
+      clearAllButton.id = 'clear-all-api-keys-btn';
+      clearAllButton.className = 'api-key-clear-all-btn';
+      if (lastKeyWrapper.insertAdjacentElement) {
+        lastKeyWrapper.insertAdjacentElement('afterend', clearAllButton);
+      } else {
+        lastKeyWrapper.appendChild(clearAllButton);
+      }
+    }
     clearAllButton.textContent = text().clearAllApiKeys;
+    if (clearAllButton.dataset.clearAllBound === 'true') return;
+    clearAllButton.dataset.clearAllBound = 'true';
     clearAllButton.addEventListener('click', async (event) => {
       event.preventDefault();
       getApiKeyInputDescriptors().forEach(({ input }) => markApiKeyInputCleared(input));
       await clearSensitiveApiKeys();
       await saveSensitiveConfig();
     });
-    if (lastKeyWrapper.insertAdjacentElement) {
-      lastKeyWrapper.insertAdjacentElement('afterend', clearAllButton);
-    } else {
-      lastKeyWrapper.appendChild(clearAllButton);
-    }
   };
 
   const prepareApiKeyInputsForSettings = () => {

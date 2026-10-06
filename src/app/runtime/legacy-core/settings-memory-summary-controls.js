@@ -196,14 +196,8 @@ export function createSettingsMemorySummaryControls({
       const select = document.createElement('select');
       select.id = 'memory-model-select';
       select.className = 'w-full p-2 border border-[var(--border-color)] rounded-md bg-[var(--input-field-bg)]';
-      select.addEventListener('change', async () => {
-        getConfig().memoryModelId = select.value;
-        await saveConfig();
-        showNotification(getCopy(getLanguage()).modelSaved, 'success');
-      });
       control.append(title, description, select);
       target.appendChild(control);
-      memoryModelControlRefs = { control, title, description, select };
     }
     const text = getCopy(getLanguage());
     const refs = memoryModelControlRefs || {
@@ -212,6 +206,16 @@ export function createSettingsMemorySummaryControls({
       description: control.querySelector?.('#memory-model-description'),
       select: control.querySelector?.('#memory-model-select')
     };
+    memoryModelControlRefs = refs;
+    // The control is in the page already (the Models tab) or was just made: the choice is saved once either way.
+    if (refs.select && refs.select.dataset?.memoryModelBound !== 'true') {
+      if (refs.select.dataset) refs.select.dataset.memoryModelBound = 'true';
+      refs.select.addEventListener('change', async () => {
+        getConfig().memoryModelId = refs.select.value;
+        await saveConfig();
+        showNotification(getCopy(getLanguage()).modelSaved, 'success');
+      });
+    }
     if (!refs.title || !refs.description || !refs.select) return;
     refs.title.textContent = text.modelTitle;
     refs.description.textContent = text.modelDescription;

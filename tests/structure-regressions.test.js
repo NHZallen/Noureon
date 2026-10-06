@@ -2733,7 +2733,7 @@ test('main css is an ordered split manifest with every imported file under the s
     'generated-image-editor.css',
     'modals.css',
     'personalization.css',
-    'personalization-page.css',
+    'settings-cards.css',
     'input-polish.css',
     'quote-inquiry.css',
     'model-council.css',

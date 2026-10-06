@@ -7,8 +7,9 @@ test('outlined settings and trash actions use the shared white outline button st
   const shell04 = readUiSource('src/templates/fragments/04-shell.fragment.js');
   const trashLifecycle = readUiSource('src/app/runtime/features/trash-lifecycle.js');
 
+  // The data actions are whole rows of the Data tab's card (settings-cards.css), not outline buttons.
   for (const id of ['export-data-btn', 'import-data-btn', 'open-archived-modal-btn']) {
-    assert.match(shell03, new RegExp(`id=\\\\"${id}\\\\"[^"]*class=\\\\"[^"]*btn-outline-white`));
+    assert.match(shell03, new RegExp(`id=\\\\"${id}\\\\" type=\\\\"button\\\\" class=\\\\"pz-nav`));
   }
 
   for (const id of ['trash-batch-select-btn', 'empty-trash-btn']) {

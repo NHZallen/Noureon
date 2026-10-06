@@ -172,20 +172,6 @@
     #close-astras-btn {
         color: #111827;
     }
-    #export-data-btn {
-        background-color: #3b82f6;
-        color: #ffffff !important;
-    }
-    #export-data-btn:hover {
-        background-color: #2563eb;
-    }
-    #import-data-btn {
-        background-color: #16a34a;
-        color: #ffffff !important;
-    }
-    #import-data-btn:hover {
-        background-color: #15803d;
-    }
     .modal > div, .popover {
         color: #111827;
     }

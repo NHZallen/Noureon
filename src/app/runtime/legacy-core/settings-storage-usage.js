@@ -12,10 +12,14 @@ export function ensureStorageUsageBlock({ document, elements, config, getSync = 
   if (!section || typeof section.appendChild !== 'function') return;
   let block = document.getElementById(BLOCK_ID);
   if (!block) {
+    // In the cards of the tab it is a card of its own above the danger card; in a page without them, a block at the end.
+    const cards = section.querySelector?.('.pz');
     block = document.createElement('div');
     block.id = BLOCK_ID;
-    block.className = 'mt-6';
-    section.appendChild(block);
+    block.className = cards ? 'pz-card' : 'mt-6';
+    const danger = cards?.querySelector?.('.pz-danger');
+    if (danger) cards.insertBefore(block, danger);
+    else (cards || section).appendChild(block);
   }
   if (typeof block.replaceChildren !== 'function') return;
 
@@ -24,15 +28,26 @@ export function ensureStorageUsageBlock({ document, elements, config, getSync = 
   const draw = () => {
     block.replaceChildren();
     if (getSync()?.getStatus?.()?.enabled !== true) return;
+    const card = block.classList?.contains?.('pz-card') === true;
     const title = document.createElement('h3');
-    title.className = 'text-lg font-semibold mb-2';
     title.textContent = permissionText(language, 'storageTitle');
-    block.appendChild(title);
+    let out = block;
+    if (card) {
+      const head = document.createElement('div');
+      head.className = 'pz-head';
+      head.appendChild(title);
+      out = document.createElement('div');
+      out.className = 'pz-block';
+      block.append(head, out);
+    } else {
+      title.className = 'text-lg font-semibold mb-2';
+      block.appendChild(title);
+    }
     if (!usage?.ok || usage.usedBytes === null) {
       const unknown = document.createElement('p');
       unknown.className = 'text-xs text-[var(--text-secondary)]';
       unknown.textContent = usage ? permissionText(language, 'storageUnknown') : '…';
-      block.appendChild(unknown);
+      out.appendChild(unknown);
       return;
     }
     const full = usage.usedBytes >= usage.quotaBytes;
@@ -45,17 +60,17 @@ export function ensureStorageUsageBlock({ document, elements, config, getSync = 
     fill.className = `storage-usage-fill${full ? ' is-full' : ''}`;
     fill.style.width = `${Math.min(100, Math.round((usage.usedBytes / usage.quotaBytes) * 100))}%`;
     track.appendChild(fill);
-    block.append(label, track);
+    out.append(label, track);
     if (full) {
       const warning = document.createElement('p');
       warning.className = 'text-xs mt-2';
       warning.textContent = permissionText(language, 'storageFull');
-      block.appendChild(warning);
+      out.appendChild(warning);
     }
     const note = document.createElement('p');
     note.className = 'text-xs text-[var(--text-secondary)] mt-2';
     note.textContent = permissionText(language, 'storageNote');
-    block.appendChild(note);
+    out.appendChild(note);
   };
 
   draw();

@@ -1,0 +1,59 @@
+/* important-audit: required: regression override / legacy compatibility - the settings modal forces the font weight of everything inside it (typography.css), and the colour menu has to override the shared colour-dropdown rules (settings-theme-bubble.css). */
+/* The cards of the Personalization, Models and Data tabs of the settings (index shell; the colour menu is theme-appearance-lifecycle.js): thin-bordered
+   cards with rows, the same look as the User tab (user-settings.css). A tab puts its cards inside a `.pz`. */
+#settings-modal .pz { max-width: 44rem; }
+#settings-modal .pz .pz-card { border: 1px solid var(--border-color); border-radius: 0.875rem; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); }
+#settings-modal .pz .pz-card + .pz-card { margin-top: 1rem; }
+#settings-modal .pz .pz-head { padding: 1.1rem 1.15rem 0.6rem; }
+#settings-modal .pz .pz-head h3 { margin: 0; font-size: 1rem; font-weight: var(--astra-font-semibold) !important; }
+#settings-modal .pz .pz-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.9rem 1.15rem; border-top: 1px solid var(--border-color); }
+#settings-modal .pz .pz-row.hidden { display: none; }
+#settings-modal .pz .pz-text { min-width: 0; }
+#settings-modal .pz .pz-label { display: block; font-size: 1rem; font-weight: var(--astra-font-regular, 400) !important; }
+#settings-modal .pz .pz-sub { margin: 0.15rem 0 0; font-size: 0.8125rem; font-weight: var(--astra-font-regular, 400) !important; }
+#settings-modal .pz .pz-select { flex: none; min-width: 11rem; height: 2.5rem; padding: 0 0.75rem; border: 1px solid var(--border-color); border-radius: 0.5rem; background-color: var(--input-field-bg); font: inherit; font-size: 0.9rem; }
+#settings-modal .pz .pz-control { flex: none; min-width: 11rem; }
+#settings-modal .pz .pz-controls { flex: none; display: flex; align-items: center; gap: 0.6rem; }
+#settings-modal .pz .pz-hex { flex: none; display: inline-flex; align-items: center; gap: 0.5rem; height: 2.5rem; padding: 0 0.75rem; border: 1px solid var(--border-color); border-radius: 0.5rem; background: var(--input-field-bg); }
+#settings-modal .pz .pz-hex:focus-within { border-color: var(--text-secondary); }
+#settings-modal .pz .pz-hex.hidden { display: none; }
+#settings-modal .pz .pz-hex .color-dot { position: relative; cursor: pointer; }
+#settings-modal .pz .pz-hex-input { position: absolute; inset: 0; width: 100% !important; height: 100% !important; min-height: 0 !important; padding: 0 !important; border: 0 !important; opacity: 0; cursor: pointer; }
+#settings-modal .pz .pz-hex-text { width: 5.2rem !important; height: 100% !important; min-height: 0 !important; padding: 0 !important; border: 0 !important; border-radius: 0 !important; background: transparent !important; font: inherit; font-size: 0.85rem; font-variant-numeric: tabular-nums; outline: none !important; box-shadow: none !important; }
+#settings-modal .pz .pz-control .color-dropdown-btn { width: 100%; min-height: 2.5rem; padding: 0 0.75rem; gap: 0.5rem; border-radius: 0.5rem !important; font-size: 0.9rem; }
+#settings-modal .pz .pz-control .color-dropdown-btn svg { margin-left: auto; flex: none; }
+#settings-modal .pz .pz-control .color-dropdown-menu { left: auto; right: 0; width: max-content; min-width: 100%; max-height: none; transform: none; transition: opacity 0.12s ease; }
+#settings-modal .pz .color-dot { flex: none; width: 1.1rem; height: 1.1rem; border-radius: 9999px; border: 1px solid rgba(0, 0, 0, 0.1); }
+#settings-modal .pz .color-option { display: flex; align-items: center; gap: 0.75rem; }
+#settings-modal .pz .color-option-label { flex: 1; }
+#settings-modal .pz .color-option-check { flex: none; visibility: hidden; }
+#settings-modal .pz .color-option.selected .color-option-check { visibility: visible; }
+@media (max-width: 560px) {
+    #settings-modal .pz .pz-danger-btn { width: 100%; }
+    #settings-modal .pz .pz-danger .pz-row { flex-direction: column; align-items: stretch; }
+    #settings-modal .pz .pz-row { flex-direction: column; align-items: stretch; gap: 0.6rem; }
+    #settings-modal .pz .pz-select, #settings-modal .pz .pz-control { min-width: 0; width: 100%; }
+    #settings-modal .pz .pz-controls { width: 100%; }
+    #settings-modal .pz .pz-controls .pz-control { flex: 1; width: auto; }
+}
+/* The Models tab: a key or a model picker is a block with its label and note on top; the rest are rows. */
+#settings-modal .pz .pz-key, #settings-modal .pz .pz-block { padding: 0.9rem 1.15rem; border-top: 1px solid var(--border-color); }
+#settings-modal .pz .pz-key.api-key-input-group { gap: 0.55rem 0.5rem; align-items: center; }
+#settings-modal .pz .pz-key .pz-sub, #settings-modal .pz .pz-block .pz-sub { margin: -0.3rem 0 0; }
+#settings-modal .pz .pz-block .pz-sub { margin: 0.1rem 0 0.55rem; }
+#settings-modal .pz .pz-input { width: 100%; min-width: 0; height: 2.5rem; padding: 0 0.75rem; border: 1px solid var(--border-color); border-radius: 0.5rem; background-color: var(--input-field-bg); font: inherit; font-size: 0.9rem; }
+#settings-modal .pz .api-key-visibility-btn, #settings-modal .pz .api-key-clear-btn { height: 2.5rem; border-radius: 0.5rem; }
+#settings-modal .pz .api-key-visibility-btn { width: 2.5rem; }
+#settings-modal .pz .pz-foot { display: flex; justify-content: flex-end; padding: 0.7rem 1.15rem; border-top: 1px solid var(--border-color); }
+#settings-modal .pz .pz-foot .api-key-clear-all-btn { width: auto; margin: 0; padding: 0; border: 0; background: transparent; font-size: 0.85rem; font-weight: var(--astra-font-regular, 400) !important; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+#settings-modal .pz .pz-foot .api-key-clear-all-btn:hover { border: 0; }
+/* The Data tab: a row that is a button (the whole row is pressed), and the danger card. */
+#settings-modal .pz .pz-nav { display: flex; align-items: center; justify-content: space-between; gap: 1rem; width: 100%; padding: 0.95rem 1.15rem; border: 0; border-top: 1px solid var(--border-color); border-radius: 0; background: transparent; font: inherit; text-align: left; cursor: pointer; }
+#settings-modal .pz .pz-nav:hover { background: var(--hover-bg); }
+#settings-modal .pz .pz-nav span { font-weight: var(--astra-font-regular, 400) !important; }
+#settings-modal .pz .pz-nav svg { flex: none; color: var(--text-secondary); }
+#settings-modal .pz .pz-danger { border-color: color-mix(in srgb, #dc2626 35%, var(--border-color)); }
+#settings-modal .pz .pz-danger .pz-head h3 { color: #b91c1c !important; }
+#settings-modal .pz .pz-danger .pz-head .pz-sub { margin-top: 0.15rem; }
+#settings-modal .pz .pz-danger .pz-row { border-top-color: color-mix(in srgb, #dc2626 25%, var(--border-color)); }
+#settings-modal .pz .pz-danger-btn:hover { background: color-mix(in srgb, #dc2626 8%, transparent); }
