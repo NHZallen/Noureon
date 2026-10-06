@@ -15,6 +15,6 @@ export const USER_BUBBLE_COLORS = {
 
 // The choices of the primary button colour, in the order of the menu. `default` is the colour used when nothing was chosen.
 export const UI_THEME_COLORS = {
-    default: '#3b82f6', blue: '#2563eb', green: '#10b981', yellow: '#facc15',
+    default: '#3b82f6', green: '#10b981', yellow: '#facc15',
     pink: '#ec4899', orange: '#f97316', purple: '#8b5cf6'
 };

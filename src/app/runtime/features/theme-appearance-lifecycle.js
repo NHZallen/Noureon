@@ -25,7 +25,6 @@ export function createThemeAppearanceLifecycle(dependencies = {}) {
 
     const COLOR_LABEL_KEYS = {
         default: ['colorDefault', 'Default'],
-        blue: ['colorBlue', 'Blue'],
         green: ['colorGreen', 'Green'],
         yellow: ['colorYellow', 'Yellow'],
         pink: ['colorPink', 'Pink'],
@@ -50,9 +49,14 @@ export function createThemeAppearanceLifecycle(dependencies = {}) {
             ? text('colorCustom', 'Custom')
             : text(...COLOR_LABEL_KEYS[choice]));
         const hexFor = (choice) => (choice === CUSTOM_CHOICE ? customColorInput.value : UI_THEME_COLORS[choice]);
+        const showHex = () => {
+            customColorPickerContainer.querySelector('.color-dot').style.backgroundColor = customColorInput.value;
+            customColorPickerContainer.querySelector('.pz-hex-text').textContent = customColorInput.value.toUpperCase();
+        };
 
         let choice = getColorChoice(theme);
         customColorInput.value = theme.customColor;
+        showHex();
         uiColorOptions.dataset.mode = theme.mode === 'custom' ? 'custom' : 'default';
         uiColorOptions.dataset.color = theme.customColor;
 
@@ -99,6 +103,7 @@ export function createThemeAppearanceLifecycle(dependencies = {}) {
                 } else {
                     uiColorOptions.dataset.mode = 'custom';
                     if (id !== CUSTOM_CHOICE) customColorInput.value = UI_THEME_COLORS[id];
+                    showHex();
                     uiColorOptions.dataset.color = customColorInput.value;
                 }
                 renderButton();
@@ -126,6 +131,7 @@ export function createThemeAppearanceLifecycle(dependencies = {}) {
         customColorInput.oninput = () => {
             uiColorOptions.dataset.mode = 'custom';
             uiColorOptions.dataset.color = customColorInput.value;
+            showHex();
             renderButton();
         };
 

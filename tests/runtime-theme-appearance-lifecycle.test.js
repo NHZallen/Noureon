@@ -27,10 +27,10 @@ function createHarness(overrides = {}) {
     document,
     elements,
     state,
-    i18n: { 'zh-TW': { colorDefault: '預設', colorBlue: '藍色', colorPink: '粉紅色', colorCustom: '自訂' } },
+    i18n: { 'zh-TW': { colorDefault: '預設', colorGreen: '綠色', colorPink: '粉紅色', colorCustom: '自訂' } },
     UI_THEME_COLORS: {
       default: '#3b82f6',
-      blue: '#2563eb',
+      green: '#10b981',
       pink: '#ec4899'
     },
     setUserBubbleColor: () => calls.push(['setUserBubbleColor']),
@@ -49,7 +49,8 @@ function createHarness(overrides = {}) {
 
 function installColorOptionDom(document, elements) {
   elements.uiColorOptions = document.createElement('div');
-  elements.customColorPickerContainer = document.createElement('div');
+  elements.customColorPickerContainer = document.createElement('label');
+  elements.customColorPickerContainer.innerHTML = '<span class="color-dot"></span><span class="pz-hex-text"></span>';
   elements.customColorInput = document.createElement('input');
   elements.customColorInput.type = 'color';
 
@@ -92,8 +93,8 @@ test('renderUiColorOptions lists the default, the named colours and a custom cho
   lifecycle.renderUiColorOptions();
 
   const options = [...elements.uiColorOptions.querySelectorAll('.color-option')];
-  assert.deepEqual(options.map((option) => option.dataset.choice), ['default', 'blue', 'pink', 'custom']);
-  assert.deepEqual(options.map((option) => option.querySelector('.color-option-label').textContent), ['預設', '藍色', '粉紅色', '自訂']);
+  assert.deepEqual(options.map((option) => option.dataset.choice), ['default', 'green', 'pink', 'custom']);
+  assert.deepEqual(options.map((option) => option.querySelector('.color-option-label').textContent), ['預設', '綠色', '粉紅色', '自訂']);
   assert.equal(choiceOf(elements), 'default');
   assert.equal(elements.uiColorOptions.querySelector('.color-dropdown-btn').textContent.includes('預設'), true);
   assert.equal(elements.customColorPickerContainer.classList.contains('hidden'), true);
@@ -115,6 +116,7 @@ test('a colour saved as a custom colour shows as the named colour it equals, oth
   assert.equal(choiceOf(own.elements), 'custom');
   assert.equal(own.elements.customColorPickerContainer.classList.contains('hidden'), false);
   assert.equal(own.elements.customColorInput.value, '#123456');
+  assert.equal(own.elements.customColorPickerContainer.querySelector('.pz-hex-text').textContent, '#123456'.toUpperCase());
 });
 
 test('choosing from the menu keeps the choice on the menu element for saving and closes the menu', () => {
@@ -125,9 +127,9 @@ test('choosing from the menu keeps the choice on the menu element for saving and
   const menu = elements.uiColorOptions.querySelector('.color-dropdown-menu');
   menu.classList.add('show');
 
-  clickChoice(elements, 'blue');
-  assert.deepEqual({ ...elements.uiColorOptions.dataset }, { mode: 'custom', color: '#2563eb' });
-  assert.equal(choiceOf(elements), 'blue');
+  clickChoice(elements, 'green');
+  assert.deepEqual({ ...elements.uiColorOptions.dataset }, { mode: 'custom', color: '#10b981' });
+  assert.equal(choiceOf(elements), 'green');
   assert.equal(menu.classList.contains('show'), false);
 
   clickChoice(elements, 'custom');
@@ -137,6 +139,7 @@ test('choosing from the menu keeps the choice on the menu element for saving and
   elements.customColorInput.value = '#abcdef';
   elements.customColorInput.oninput();
   assert.deepEqual({ ...elements.uiColorOptions.dataset }, { mode: 'custom', color: '#abcdef' });
+  assert.equal(elements.customColorPickerContainer.querySelector('.pz-hex-text').textContent, '#ABCDEF');
 
   clickChoice(elements, 'default');
   assert.equal(elements.uiColorOptions.dataset.mode, 'default');
