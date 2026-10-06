@@ -15,7 +15,6 @@ import { DOCUMENT_PRESET_IDS, getDocumentPresetText } from '../../ui/files/desig
 import { getFileText } from '../../ui/files/file-texts.js';
 import { modelSupportsToolCalling } from '../legacy-core/model-registry.js';
 import { describeFileModeState } from '../sandbox/file-mode.js';
-import { isEphemeralConversation } from './temporary-chat-state.js';
 import { browserSupportsSandbox } from '../sandbox/sandbox-protocol.js';
 
 export const DECK_DESIGN_AUTO = 'auto';
@@ -38,7 +37,7 @@ export function createDeckDesignControl({
   saveAppData,
   getUiLanguage = () => 'zh-TW',
   closeAllPopovers = () => {},
-  // An image model has nothing to design (no slides, no documents), and a temporary chat makes no files: the control is hidden then.
+  // An image model has nothing to design (no slides, no documents), so the control is hidden while one is chosen.
   isImageChat = () => false,
   // For Standard or Advanced mode (the picker's "Mode" row).
   getConfig = () => ({}),
@@ -252,7 +251,7 @@ export function createDeckDesignControl({
     const deckName = choices.deck === DECK_DESIGN_AUTO ? auto : getPresetText(choices.deck, language).name;
     const documentName = choices.document === DECK_DESIGN_AUTO ? auto : getDocumentPresetText(choices.document, language).name;
     const button = control.querySelector('#deck-design-btn');
-    const hidden = Boolean(conversation && (isImageChat(conversation) || isEphemeralConversation(conversation)));
+    const hidden = Boolean(conversation && isImageChat(conversation));
     control.style.display = hidden ? 'none' : 'inline-flex';
     if (hidden) {
       control.querySelector('#deck-design-popover')?.classList.remove('visible');

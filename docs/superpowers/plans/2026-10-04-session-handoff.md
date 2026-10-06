@@ -26,7 +26,7 @@
 - **命令工具商城第一期**（規格：`specs/2026-10-04-cli-store-design.md`，§9 是實作紀錄）：商城頁 `/cli`、左側欄入口、`@` 選單與晶片、`run_command` 工具、runner 下載並快取程式（sha256 檢查）、`/opt/cli` 唯讀掛載。OfficeCLI 與 FFmpeg 可用；yt-dlp、twitter-cli、rdt-cli、csvkit、Pandoc、SoX 已上架為「即將推出」。
 - 看圖檢查逾時放寬（檢查 240 秒、重做 600 秒）。
 - **圖片模型的比例與解析度依模型自適應（2026-10-06）**：每個圖片模型在 `model-registry.js` 有 `supportedImageAspectRatios`／`supportedImageResolutions`（Gemini 3 Pro、3.1 Flash、3.1 Flash Lite、GPT Image 2.5 兩個），「+」選單只列該模型支援的，存過的值不支援時換成最接近的（`image-generation-config.js` 的 `resolveSupportedAspectRatio`／`resolveSupportedResolution`），送出前也再檢查一次；選圖片模型時「設計」按鈕隱藏。清單來自第三方資料（OpenRouter 官網在開發環境被擋），GPT Image 2.5 的比例只放有依據的 8 個、不含 `auto`。
-- **臨時對話鎖住的功能（2026-10-06，owner 指定）**：臨時對話（`retentionMode === 'ephemeral'`）只開放網頁搜尋、學習模式、Nouras／Astras、附件、語音、圖片模型、記憶的個人化選擇；鎖住（直接隱藏）多模型議會、深度研究、「設計」按鈕與檔案生成指引、進階模式（Python 沙盒）、`@` 命令工具選單。進入臨時對話時議會會被關掉。左側欄的命令工具商城入口是全域頁面，沒有鎖。
+- **臨時對話鎖住的功能（2026-10-06，owner 指定）**：臨時對話（`retentionMode === 'ephemeral'`）只開放網頁搜尋、學習模式、Nouras／Astras、附件、語音、圖片模型、設計與檔案生成、記憶的個人化選擇；鎖住（直接隱藏）多模型議會、深度研究、`@` 命令工具選單；「設計」按鈕、檔案生成與進階模式照常開放（owner 後來改成開放）。進入臨時對話時議會會被關掉。左側欄的命令工具商城入口是全域頁面，沒有鎖。
 
 ## 3. 待辦（依 owner 已表達的順序）
 
