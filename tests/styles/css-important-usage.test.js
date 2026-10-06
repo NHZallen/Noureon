@@ -90,6 +90,10 @@ const documentedImportantUsage = {
     max: 5,
     category: 'required: regression override / legacy compatibility'
   },
+  'src/styles/user-settings.css': {
+    max: 36,
+    category: 'required: regression override / legacy compatibility'
+  },
   'src/styles/typography.css': {
     max: 63,
     category: 'required: regression override / legacy compatibility'

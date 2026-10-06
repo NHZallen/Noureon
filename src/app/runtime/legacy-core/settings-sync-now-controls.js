@@ -19,7 +19,7 @@ const STATE_TEXTS = Object.freeze({
 export const syncNowMarkup = () => `
             <div id="sync-now-panel" class="space-y-3 pb-4 border-b border-[var(--border-color)]">
               <div class="flex flex-wrap items-center gap-3">
-                <button id="sync-now-btn" type="button" class="px-4 py-2 rounded-md btn-primary" data-lang-key="syncNow">立即同步</button>
+                <button id="sync-now-btn" type="button" class="us-btn is-primary" data-lang-key="syncNow">立即同步</button>
                 <span id="sync-now-summary" class="text-sm text-[var(--text-secondary)]" role="status" aria-live="polite"></span>
               </div>
               <ul id="sync-now-details" class="text-sm space-y-1"></ul>

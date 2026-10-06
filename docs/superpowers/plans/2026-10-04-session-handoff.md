@@ -26,6 +26,7 @@
 - **命令工具商城第一期**（規格：`specs/2026-10-04-cli-store-design.md`，§9 是實作紀錄）：商城頁 `/cli`、左側欄入口、`@` 選單與晶片、`run_command` 工具、runner 下載並快取程式（sha256 檢查）、`/opt/cli` 唯讀掛載。OfficeCLI 與 FFmpeg 可用；yt-dlp、twitter-cli、rdt-cli、csvkit、Pandoc、SoX 已上架為「即將推出」。
 - 看圖檢查逾時放寬（檢查 240 秒、重做 600 秒）。
 - **圖片模型的比例與解析度依模型自適應（2026-10-06）**：每個圖片模型在 `model-registry.js` 有 `supportedImageAspectRatios`／`supportedImageResolutions`（Gemini 3 Pro、3.1 Flash、3.1 Flash Lite、GPT Image 2.5 兩個），「+」選單只列該模型支援的，存過的值不支援時換成最接近的（`image-generation-config.js` 的 `resolveSupportedAspectRatio`／`resolveSupportedResolution`），送出前也再檢查一次；選圖片模型時「設計」按鈕隱藏。清單來自第三方資料（OpenRouter 官網在開發環境被擋），GPT Image 2.5 的比例只放有依據的 8 個、不含 `auto`。
+- **「使用者」設定頁改版（2026-10-06，owner 核准示意圖）**：`settings-sync-vault-controls.js` 重寫版面（身分卡、「登入方式」卡含收合的登入密碼、「雲端同步」卡含狀態點與「管理同步密碼」），樣式在 `src/styles/user-settings.css`（因為設定視窗用 `!important` 強制文字顏色與字重，這檔的顏色與字重也必須 `!important`，已登記在 `css-important-usage.test.js`）；所有原有元素 id 保留；舊的死程式碼（被覆蓋的舊版版面）已刪。改登入密碼多了「更新後登出所有裝置（包含這一台）」勾選框（預設勾選）：成功後 `signOut({scope:'global'})`、清掉 `chat_lastUser`、1.5 秒後重新載入。Cloudflare 驗證有固定高度的位置（`#sync-vault-turnstile-slot`），它是給「忘記同步密碼」寄信用的。密碼變更通知信範本（五語言，信裡連到 `/forgot-password`）在 `docs/password-changed-email.md`，要由 owner 在 Supabase 後台貼上並開啟；改密碼流程裡的重新登入沒有帶 Cloudflare token，要用真實帳號實測一次（若 Supabase 開了登入驗證可能被擋）。
 - **臨時對話鎖住的功能（2026-10-06，owner 指定）**：臨時對話（`retentionMode === 'ephemeral'`）只開放網頁搜尋、學習模式、Nouras／Astras、附件、語音、圖片模型、設計與檔案生成、記憶的個人化選擇；鎖住（直接隱藏）多模型議會、深度研究、`@` 命令工具選單；「設計」按鈕、檔案生成與進階模式照常開放（owner 後來改成開放）。進入臨時對話時議會會被關掉。左側欄的命令工具商城入口是全域頁面，沒有鎖。
 
 ## 3. 待辦（依 owner 已表達的順序）
