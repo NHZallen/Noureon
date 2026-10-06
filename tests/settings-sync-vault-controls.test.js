@@ -303,7 +303,8 @@ test('a cloud account shows its UID under the email with a copy button, and a lo
   assert.equal(row.classList.contains('hidden'), false);
   assert.equal(document.getElementById('user-uid-value').textContent, 'NR-48201735');
   assert.equal(document.getElementById('user-uid-copy').getAttribute('aria-label'), '複製 UID');
-  assert.equal(document.getElementById('sync-vault-account').nextElementSibling, row, 'it sits right under the email');
+  assert.equal(document.getElementById('sync-vault-account').nextElementSibling, row.parentElement, 'the tags come right under the email');
+  assert.equal(row.previousElementSibling, document.getElementById('user-signin-summary'), 'the UID sits next to the way of signing in');
 
   const local = createFixture({ getSupabase: () => uidClient('48201735'), isConfigured: () => true });
   local.controls.ensureSyncVaultSettings();

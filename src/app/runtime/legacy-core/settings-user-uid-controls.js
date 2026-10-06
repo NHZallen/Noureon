@@ -9,11 +9,11 @@ const COPIED_MS = 1600;
 export const UID_PREFIX = 'NR';
 
 export const userUidMarkup = (copyLabel) => `
-          <p id="user-uid-row" class="us-uid hidden">
+          <span id="user-uid-row" class="us-uid hidden">
             <span class="us-uid-label">UID</span>
             <span id="user-uid-value" class="us-uid-value"></span>
             <button id="user-uid-copy" type="button" class="us-copy" data-no-press title="${copyLabel}" aria-label="${copyLabel}">${COPY_ICON}</button>
-          </p>`;
+          </span>`;
 
 const copyText = async (document, value) => {
   const clipboard = document.defaultView?.navigator?.clipboard;

@@ -135,8 +135,10 @@ export function createSettingsSyncVaultControls({
         <div class="us-identity">
           <div id="user-avatar" class="us-avatar" aria-hidden="true"></div>
           <div class="min-w-0">
-            <p id="sync-vault-account" class="us-email"></p>${userUidMarkup(text('userUidCopy', '複製 UID'))}
-            <p id="user-signin-summary" class="us-sub"></p>
+            <p id="sync-vault-account" class="us-email"></p>
+            <div class="us-tags">
+              <span id="user-signin-summary" class="us-chip"></span>${userUidMarkup(text('userUidCopy', '複製 UID'))}
+            </div>
           </div>
         </div>
 
