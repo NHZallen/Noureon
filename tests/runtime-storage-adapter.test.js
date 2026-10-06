@@ -129,6 +129,7 @@ function createAtomicFakeIndexedDB(initialValues = {}) {
     open: 0,
     transactions: [],
     put: [],
+    delete: [],
     abort: 0
   };
   let activeTransaction = null;
@@ -146,6 +147,10 @@ function createAtomicFakeIndexedDB(initialValues = {}) {
             put(entry) {
               calls.put.push(entry);
               pending.push(entry);
+            },
+            delete(key) {
+              calls.delete.push(key);
+              pending.push({ remove: key });
             }
           };
         },
@@ -157,7 +162,10 @@ function createAtomicFakeIndexedDB(initialValues = {}) {
       };
       activeTransaction = {
         complete() {
-          for (const entry of pending) values.set(entry.key, entry.value);
+          for (const entry of pending) {
+            if ('remove' in entry) values.delete(entry.remove);
+            else values.set(entry.key, entry.value);
+          }
           transaction.oncomplete?.();
         },
         fail(error) {
@@ -464,4 +472,50 @@ test('storage adapter source preserves legacy IndexedDB semantics', () => {
   assert.match(source, /request\.onerror\s*=\s*reject/);
   assert.match(source, /getAllKeys\(\)/);
   assert.doesNotMatch(source, /currentUser|loadConfig|loadAppData|showNotification|renderAll/);
+});
+
+test('storage adapter applies writes and deletions in one atomic transaction', async () => {
+  const fake = createAtomicFakeIndexedDB({ keep: 'kept', gone: 'old', other: 'old' });
+  const adapter = createLegacyRuntimeStorageAdapter({ indexedDBFactory: fake.indexedDBFactory });
+
+  const applying = adapter.applyAtomic({
+    puts: [{ key: 'new', value: 'v' }, { key: 'other', value: 'new' }],
+    removes: ['gone']
+  });
+  await new Promise(resolve => setImmediate(resolve));
+
+  assert.deepEqual(fake.calls.transactions, [['keyValue', 'readwrite']]);
+  assert.equal(fake.values.has('gone'), true, 'nothing is applied before the transaction completes');
+  fake.complete();
+  await applying;
+  assert.equal(fake.values.has('gone'), false);
+  assert.equal(fake.values.get('new'), 'v');
+  assert.equal(fake.values.get('other'), 'new');
+  assert.equal(fake.values.get('keep'), 'kept');
+});
+
+test('a failed atomic transaction keeps every write and every deletion from happening', async () => {
+  const fake = createAtomicFakeIndexedDB({ gone: 'old', other: 'old' });
+  const adapter = createLegacyRuntimeStorageAdapter({ indexedDBFactory: fake.indexedDBFactory });
+  const failure = new Error('quota');
+
+  const applying = adapter.applyAtomic({ puts: [{ key: 'other', value: 'new' }], removes: ['gone'] });
+  await new Promise(resolve => setImmediate(resolve));
+  fake.fail(failure);
+
+  await assert.rejects(applying, failure);
+  assert.equal(fake.values.get('gone'), 'old');
+  assert.equal(fake.values.get('other'), 'old');
+});
+
+test('applyAtomic validates its input before opening IndexedDB and ignores an empty request', async () => {
+  const fake = createAtomicFakeIndexedDB();
+  const adapter = createLegacyRuntimeStorageAdapter({ indexedDBFactory: fake.indexedDBFactory });
+
+  await adapter.applyAtomic({});
+  await adapter.applyAtomic({ puts: [], removes: [] });
+  await assert.rejects(() => adapter.applyAtomic({ puts: null }), /must be an array/i);
+  await assert.rejects(() => adapter.applyAtomic({ puts: [{ value: 'x' }] }), /include a key/i);
+  await assert.rejects(() => adapter.applyAtomic({ removes: [1] }), /array of strings/i);
+  assert.equal(fake.calls.open, 0);
 });

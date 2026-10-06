@@ -59,16 +59,21 @@ export function createLegacyRuntimeStorageAdapter({
     });
   }
 
-  async function setItemsAtomic(entries) {
-    if (!Array.isArray(entries)) {
+  // Writes and deletions in ONE readwrite transaction: either all of them happen or none does. The split workspace
+  // (workspace-store-v2.js) relies on it so that its index never describes records that were not written.
+  async function applyAtomic({ puts = [], removes = [] } = {}) {
+    if (!Array.isArray(puts)) {
       throw new TypeError('Atomic storage entries must be an array.');
     }
-    for (const entry of entries) {
+    if (!Array.isArray(removes) || removes.some(key => typeof key !== 'string')) {
+      throw new TypeError('Atomic storage removals must be an array of strings.');
+    }
+    for (const entry of puts) {
       if (!entry || typeof entry !== 'object' || !Object.prototype.hasOwnProperty.call(entry, 'key')) {
         throw new TypeError('Each atomic storage entry must include a key.');
       }
     }
-    if (entries.length === 0) return;
+    if (puts.length === 0 && removes.length === 0) return;
 
     const idb = await openDB();
     return new Promise((resolve, reject) => {
@@ -82,8 +87,11 @@ export function createLegacyRuntimeStorageAdapter({
 
       try {
         const store = transaction.objectStore(storeName);
-        for (const { key, value } of entries) {
+        for (const { key, value } of puts) {
           store.put({ key, value });
+        }
+        for (const key of removes) {
+          store.delete(key);
         }
       } catch (error) {
         reject(error);
@@ -94,6 +102,13 @@ export function createLegacyRuntimeStorageAdapter({
         }
       }
     });
+  }
+
+  async function setItemsAtomic(entries) {
+    if (!Array.isArray(entries)) {
+      throw new TypeError('Atomic storage entries must be an array.');
+    }
+    return applyAtomic({ puts: entries });
   }
 
   async function removeItem(key) {
@@ -145,6 +160,7 @@ export function createLegacyRuntimeStorageAdapter({
     readItems,
     setItem,
     setItemsAtomic,
+    applyAtomic,
     removeItem,
     clear,
     getKeys,

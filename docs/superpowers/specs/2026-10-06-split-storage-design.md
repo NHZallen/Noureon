@@ -1,7 +1,7 @@
 # 工作空間分開儲存：每個對話一筆紀錄
 
 **日期：** 2026-10-06
-**狀態：** 設計草案，等 owner 確認 §7 的決定後才開始寫程式。
+**狀態：** §7 的五個決定已由 owner 確認（2026-10-06，「全照你的」）。**P1 已完成（見 §9）**，等 owner 看過結果再進 P2；目前產品行為完全沒有改變。
 **前置閱讀：** [`AGENTS.md`](../../../AGENTS.md)（工作規則）、[交接文件](../plans/2026-10-04-session-handoff.md)（2026-10-06 的「啟動時重複儲存的調查與修正」那一條）、雲端同步 V2 設計（`2026-07-05-cloud-sync-v2-design.md`）。
 
 ## 1. 為什麼要做
@@ -174,3 +174,30 @@ owner 回報「一開網頁記憶體飆很高又很卡」。2026-10-06 的調查
 ## 8. 附錄：調查用的腳本
 
 在工作階段的 scratchpad（不進 repo）：`heavy2.cjs`／`heavy5.cjs`（合成資料並量記憶體峰值與開啟時間）、`puts*.cjs`（記錄 IndexedDB 寫入次數與呼叫堆疊）、`syncmem.mjs`（Node 中量雲端同步的記憶體）。若之後要重做 P3 的量測，需要重新建立這些腳本，做法是：用 Playwright 開正式版建置，以 `indexedDB` 寫入一個合成的 `chatAppData_v8.6_tester`，重新整理，每 250 毫秒用 `ps` 取樣渲染程序的 RSS。
+
+## 9. P1 完成紀錄（2026-10-06）
+
+**做了什麼（沒有接進產品）**
+- `src/app/runtime/kernel/storage-adapter.js` 新增 `applyAtomic({ puts, removes })`：同一個 IndexedDB 交易裡寫入與刪除，全有或全無；`setItemsAtomic` 改成呼叫它，行為不變。
+- 新模組 `src/app/runtime/kernel/workspace-store-v2.js`（純模組：只用注入的儲存物件，沒有任何 import、沒有碰頁面）：
+  - `createWorkspaceStoreV2({ storage, username })` 提供 `load`、`save(snapshot, { conversationIds })`、`migrateFromLegacy`、`mergeStaleLegacy`、`checkIntegrity`、`getUsage`、`getMigrationFailure`、`setDisabled`／`isDisabled`、`removeAll`。
+  - key 前綴 `chatWS2:<encodeURIComponent(帳號)>:`（`:` 不會出現在編碼後的名稱，所以一個帳號的前綴不會是另一個帳號前綴的開頭）；項目是 `meta`、`conv:<id>`、`shared`、`memory`，另有 `failed`、`disabled` 兩個標記。
+  - 指紋：兩個 32 位元雜湊合成 53 位元加字串長度（`fingerprintText`），46M 字元約 170 毫秒。
+  - 儲存：逐個對話序列化、比對指紋，只寫有變的，連同索引一個交易寫完；沒有任何變動時不開交易。索引壞掉或版本較新時**拒絕寫入**，不覆蓋。載入時讀不到或損毀的對話會回報（`degraded`），下一次儲存不會把它們當成已刪除。
+  - 遷移：舊項目只讀不寫；新項目與索引在一個交易裡寫入，之後讀回逐項比對並核對訊息總數，不過就全部移除、寫入 `failed` 標記（含失敗次數）、繼續用舊格式；成功時清除標記。
+  - 舊分頁合併：新增的加入、較新且被改過的取代、本機已刪除的不復活、舊分頁的刪除不複製。
+- 測試 `tests/workspace-store-v2.test.js`（31 項）加 `tests/runtime-storage-adapter.test.js` 的 3 項；另外對模組做了 7 種故意改壞（略過索引寫入、忽略「讀不到的記錄」保護、對沒變的對話也重寫、提示參數失效、遷移不驗證、覆蓋已存在的儲存、合併時重複加入），測試都抓得到。
+
+**量測（Node，46.5MB、150 個對話、40 張 1MB 圖片，記憶體內的假儲存）**
+
+| 動作 | 舊做法（整份） | 新模組 |
+|---|---|---|
+| 整份轉文字／第一次完整儲存 | 1270 毫秒，額外峰值約 186MB | 393 毫秒 |
+| 沒有變動的儲存（完整掃描） | 同上（舊版要先讀回比對） | 404 毫秒，不開交易 |
+| 改了一個對話（完整掃描） | 同上，整份寫入 | 351 毫秒，只寫 1 個對話加索引 |
+| 改了一個對話（帶 `conversationIds` 提示） | 同上 | **1 毫秒** |
+| 載入 150 個對話 | 讀整份再解析 | 239 毫秒 |
+
+**已知限制（P2 要處理）**
+- 舊分頁合併只合併對話；舊分頁新增的資料夾、Noura、個人記憶、記憶狀態不會合併（這些資料量小、出現的機會也只在部署當下有舊分頁時）。
+- 目前沒有任何程式使用這個模組：載入、儲存、雲端同步、帳號合併、清除資料、設定頁用量都還在用舊的整份項目。
