@@ -5,6 +5,8 @@
 const COPY_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>';
 const DONE_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>';
 const COPIED_MS = 1600;
+// What is shown in front of the number. It is only for the eye: the UID in the database and what the button copies are the 8 digits.
+export const UID_PREFIX = 'NR';
 
 export const userUidMarkup = (copyLabel) => `
           <p id="user-uid-row" class="us-uid hidden">
@@ -19,15 +21,15 @@ const copyText = async (document, value) => {
     await clipboard.writeText(value);
     return;
   }
-  // A page without the clipboard API (not secure, or an old browser): select the number and use the old way.
-  const holder = document.getElementById('user-uid-value');
-  const range = document.createRange();
-  range.selectNodeContents(holder);
-  const selection = document.defaultView.getSelection();
-  selection.removeAllRanges();
-  selection.addRange(range);
+  // A page without the clipboard API (not secure, or an old browser): put the number in a field and use the old way.
+  const field = document.createElement('textarea');
+  field.value = value;
+  field.setAttribute('readonly', '');
+  field.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+  document.body.appendChild(field);
+  field.select();
   const done = document.execCommand('copy');
-  selection.removeAllRanges();
+  field.remove();
   if (!done) throw new Error('copy failed');
 };
 
@@ -46,7 +48,10 @@ export function createUserUidControls({
     const row = document.getElementById('user-uid-row');
     if (!row) return;
     row.classList.toggle('hidden', !uid);
-    if (uid) document.getElementById('user-uid-value').textContent = uid;
+    if (!uid) return;
+    const value = document.getElementById('user-uid-value');
+    value.dataset.uid = uid;
+    value.textContent = `${UID_PREFIX}-${uid}`;
   };
 
   /** Reads the UID of the signed-in account (once per account) and shows it, or no line at all. */
@@ -76,7 +81,7 @@ export function createUserUidControls({
     if (!button || bound) return;
     bound = true;
     button.addEventListener('click', async () => {
-      const value = document.getElementById('user-uid-value')?.textContent || '';
+      const value = document.getElementById('user-uid-value')?.dataset.uid || '';
       if (!value) return;
       const label = text('userUidCopied', '已複製 UID');
       try {

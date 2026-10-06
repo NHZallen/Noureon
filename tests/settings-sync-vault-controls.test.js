@@ -301,7 +301,7 @@ test('a cloud account shows its UID under the email with a copy button, and a lo
   const { document } = cloud.window;
   const row = document.getElementById('user-uid-row');
   assert.equal(row.classList.contains('hidden'), false);
-  assert.equal(document.getElementById('user-uid-value').textContent, '48201735');
+  assert.equal(document.getElementById('user-uid-value').textContent, 'NR-48201735');
   assert.equal(document.getElementById('user-uid-copy').getAttribute('aria-label'), '複製 UID');
   assert.equal(document.getElementById('sync-vault-account').nextElementSibling, row, 'it sits right under the email');
 

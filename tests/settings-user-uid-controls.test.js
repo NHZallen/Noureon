@@ -31,20 +31,22 @@ function createHarness({ rows = {}, error = null, configured = true, clipboard }
   });
   const row = () => document.getElementById('user-uid-row');
   const value = () => document.getElementById('user-uid-value').textContent;
-  return { document, controls, queries, timers, row, value };
+  const digits = () => document.getElementById('user-uid-value').dataset.uid;
+  return { document, controls, queries, timers, row, value, digits };
 }
 
 const cloudUser = { authProvider: 'supabase', supabaseUserId: 'user-1' };
 
 test('the UID of a cloud account is read from its own row and shown', async () => {
-  const { controls, queries, row, value } = createHarness({ rows: { 'user-1': '48201735' } });
+  const { controls, queries, row, value, digits } = createHarness({ rows: { 'user-1': '48201735' } });
   assert.equal(row().classList.contains('hidden'), true, 'nothing is shown before it is known');
 
   await controls.refresh(cloudUser);
 
   assert.deepEqual(queries, [['user_uids', 'uid', 'user_id', 'user-1']]);
   assert.equal(row().classList.contains('hidden'), false);
-  assert.equal(value(), '48201735');
+  assert.equal(value(), 'NR-48201735', 'the prefix is for the eye');
+  assert.equal(digits(), '48201735');
 });
 
 test('the same account is asked only once', async () => {
@@ -52,7 +54,7 @@ test('the same account is asked only once', async () => {
   await controls.refresh(cloudUser);
   await controls.refresh(cloudUser);
   assert.equal(queries.length, 1);
-  assert.equal(value(), '48201735');
+  assert.equal(value(), 'NR-48201735');
 });
 
 test('a local account, an account without a UID, a failed read and a bad value show no line', async () => {
@@ -82,12 +84,12 @@ test('another account replaces the shown UID, and signing out hides it', async (
   const { controls, row, value } = createHarness({ rows: { 'user-1': '48201735', 'user-2': '61937402' } });
   await controls.refresh(cloudUser);
   await controls.refresh({ authProvider: 'supabase', supabaseUserId: 'user-2' });
-  assert.equal(value(), '61937402');
+  assert.equal(value(), 'NR-61937402');
   await controls.refresh(null);
   assert.equal(row().classList.contains('hidden'), true);
 });
 
-test('the copy button copies the plain digits and says so for a moment', async () => {
+test('the copy button copies the 8 digits without the prefix and says so for a moment', async () => {
   const written = [];
   const { document, controls, timers } = createHarness({
     rows: { 'user-1': '48201735' },
