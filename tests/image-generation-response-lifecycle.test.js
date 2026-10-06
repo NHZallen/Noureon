@@ -244,7 +244,7 @@ test('OpenRouter image payload emits reasoning effort without changing image con
   assert.equal(payload.image_config, undefined);
 });
 
-test('sends the nearest ratio and resolution the model supports, and no resolution to a model that sets its own size', async () => {
+test('sends the nearest ratio and resolution the model supports, and no resolution to a model with none to choose', async () => {
   const requests = [];
   const lifecycle = createImageGenerationResponseLifecycle({
     buildSingleModelTranslatedRequestParts: async parts => parts,
@@ -267,7 +267,7 @@ test('sends the nearest ratio and resolution the model supports, and no resoluti
   assert.equal(requests[1].config.aspectRatio, '1:8');
   assert.equal(requests[1].config.resolution, '1K');
 
-  await run({ id: 'openai/gpt-image-2.5-flare', provider: 'openrouter', supportedImageAspectRatios: ['1:1', '9:16'], supportedImageResolutions: [] });
+  await run({ id: 'x/no-sizes', provider: 'openrouter', supportedImageAspectRatios: ['1:1', '9:16'], supportedImageResolutions: [] });
   assert.equal(requests[2].config.resolution, '');
   assert.equal('resolution' in buildOpenRouterImagePayload({ model: 'm', prompt: 'p', config: requests[2].config }), false, 'nothing is sent for it');
   assert.equal(conversation.imageConfig.resolution, '4K', 'the saved choice itself is left alone');

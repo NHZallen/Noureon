@@ -76,13 +76,13 @@ test('a ratio the model lacks moves to the nearest one it has', () => {
   assert.equal(resolveSupportedAspectRatio('1:8', undefined), '1:8', 'without a list everything is allowed');
 });
 
-test('every image model lists its resolutions, and one that sets its own size sends none', () => {
+test('every image model lists its resolutions', () => {
   const byId = (id) => MODELS.find(model => model.id === id).supportedImageResolutions;
   assert.deepEqual(byId('google/gemini-3-pro-image'), ['1K', '2K', '4K']);
   assert.deepEqual(byId('google/gemini-3.1-flash-image'), ['512', '1K', '2K', '4K']);
   assert.deepEqual(byId('google/gemini-3.1-flash-lite-image'), ['1K']);
-  assert.deepEqual(byId('openai/gpt-image-2.5-flare'), []);
-  assert.deepEqual(byId('openai/gpt-image-2.5-sunburst'), []);
+  assert.deepEqual(byId('openai/gpt-image-2.5-flare'), ['1K', '2K', '4K']);
+  assert.deepEqual(byId('openai/gpt-image-2.5-sunburst'), ['1K', '2K', '4K']);
 });
 
 test('a resolution the model lacks moves to the nearest tier it has', () => {

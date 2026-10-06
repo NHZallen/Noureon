@@ -96,7 +96,7 @@ test('the ratio menu offers only what the chosen model supports and moves an uns
   cleanup();
 });
 
-test('the resolution control follows the model: only its tiers, moved to the nearest, and hidden when the model sets its own size', () => {
+test('the resolution control follows the model: only its tiers, moved to the nearest, and hidden when the model has none to choose', () => {
   const { document, cleanup } = createDom('<div id="file-options-popover"><button id="learning-mode-btn"></button></div>');
   const conversation = { imageConfig: { aspectRatio: '1:1', resolution: '4K' } };
   let model = { outputModality: 'image', supportedImageResolutions: ['1K'] };
