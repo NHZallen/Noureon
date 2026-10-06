@@ -21,10 +21,13 @@ export async function repairCloudWorkspaceGeneratedImageKeys({
   storage,
   username,
   appDataKey,
+  // The split workspace store when this user's workspace is kept in it, otherwise null (the old single item).
+  workspaceStore = null,
   repair = repairGeneratedImageStorageKeys,
   withExclusive = withWorkspaceStorageExclusive
 } = {}) {
   if (!storage || !username || !appDataKey) return { changed: false };
+  if (workspaceStore) return repairInSplitStore({ storage, username, workspaceStore, repair, withExclusive });
   if (typeof storage.setItemsAtomic !== 'function') {
     throw new TypeError('Cloud workspace image repair requires atomic storage writes.');
   }
@@ -52,5 +55,47 @@ export async function repairCloudWorkspaceGeneratedImageKeys({
       { key: journalKey, value: JSON.stringify(journal) }
     ]);
     return { changed: true, workspace, journal };
+  });
+}
+
+// The same repair for a workspace kept as one record per conversation: each record is read, repaired and (only if it changed) written
+// back one at a time, so the whole workspace is never held in memory, and the journal is marked in the same transaction.
+async function repairInSplitStore({ storage, username, workspaceStore, repair, withExclusive }) {
+  return withExclusive(async () => {
+    const journalKey = getCloudSyncJournalKey(username);
+    const journalRaw = await storage.getItem(journalKey);
+    const before = { conversations: [] };
+    const after = { conversations: [] };
+    let sharedBefore = null;
+    let sharedAfter = null;
+    let journal = null;
+    const result = await workspaceStore.rewrite({
+      transform: async (value, info) => {
+        const copy = structuredClone(value);
+        if (!(await repair({ value, storage, username }))) return false;
+        if (info.kind === 'conversation') {
+          before.conversations.push(copy);
+          after.conversations.push(value);
+        } else if (info.kind === 'shared') {
+          sharedBefore = copy;
+          sharedAfter = value;
+        }
+        return true;
+      },
+      beforeWrite: () => {
+        journal = markCloudSyncJournalDirty(
+          normalizeCloudSyncJournal(journalRaw, { username }),
+          {
+            username,
+            dirtyEntities: diffCloudSyncWorkspaceEntities(
+              { ...(sharedBefore || {}), ...before },
+              { ...(sharedAfter || {}), ...after }
+            )
+          }
+        );
+        return { extraPuts: [{ key: journalKey, value: JSON.stringify(journal) }] };
+      }
+    });
+    return result.changed ? { changed: true, journal } : { changed: false };
   });
 }

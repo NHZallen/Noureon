@@ -4,6 +4,7 @@ import {
   removeStoredUserWorkspace
 } from '../runtime/kernel/user-data-retention.js';
 import { repairGeneratedImageStorageKeys } from '../sync/generated-image-key-repair.js';
+import { createWorkspaceStoreV2, getWorkspaceV2Keys } from '../runtime/kernel/workspace-store-v2.js';
 
 export const PENDING_CLOUD_LINK_KEY = 'chat_pendingCloudLink_v1';
 
@@ -49,6 +50,24 @@ export async function completePendingCloudAccountLink({
     const image = await storage.getItem(sourceKey);
     const targetKey = `generatedImage:${targetUsername}:${String(sourceKey).slice(imagePrefix.length)}`;
     if (image != null) await storage.setItem(targetKey, image);
+  }
+
+  // A workspace kept as one record per conversation moves with its owner: every record is copied under the target's prefix (the old item
+  // above is frozen for such a user, so copying only that one would lose what was saved since).
+  const sourceWorkspacePrefix = getWorkspaceV2Keys(sourceUsername).prefix;
+  const targetWorkspacePrefix = getWorkspaceV2Keys(targetUsername).prefix;
+  let copiedWorkspaceRecords = 0;
+  for (const sourceKey of (await storage.getKeys?.() || []).filter(key => String(key).startsWith(sourceWorkspacePrefix))) {
+    const record = await storage.getItem(sourceKey);
+    if (record != null) {
+      await storage.setItem(`${targetWorkspacePrefix}${String(sourceKey).slice(sourceWorkspacePrefix.length)}`, record);
+      copiedWorkspaceRecords += 1;
+    }
+  }
+  if (copiedWorkspaceRecords > 0 && typeof storage.applyAtomic === 'function') {
+    await createWorkspaceStoreV2({ storage, username: targetUsername }).rewrite({
+      transform: value => repairGeneratedImageStorageKeys({ value, storage, username: targetUsername })
+    });
   }
 
   const targetAppDataKey = `chatAppData_v8.6_${targetUsername}`;

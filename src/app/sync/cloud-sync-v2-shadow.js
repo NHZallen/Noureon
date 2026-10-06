@@ -75,6 +75,8 @@ class ShadowSyncStoppedError extends Error {
 
 function parseLocalWorkspace(raw) {
   if (raw == null) return {};
+  // A workspace that is already an object (read from the split store) needs no parsing.
+  if (typeof raw === 'object') return raw;
   try {
     return JSON.parse(raw);
   } catch (error) {
@@ -2013,6 +2015,8 @@ export function initializeConversationShadowSync({
   username,
   assetTransport,
   onWorkspaceCommitted,
+  // Returns the split workspace store when this user's workspace is kept in it, otherwise null (the old single item).
+  getWorkspaceStore = () => null,
   cryptoProvider = globalThis.crypto,
   schedule,
   cancel,
@@ -2029,7 +2033,25 @@ export function initializeConversationShadowSync({
   const storageKey = `chatAppData_v8.6_${username}`;
   const journalKey = getCloudSyncJournalKey(username);
   const journalNow = typeof now === 'function' ? now : Date.now;
+  // The stored workspace as an object. From the split store it is put together from its records; a store that cannot give the whole
+  // workspace (a record missing or damaged) is refused like a damaged old item, so that the sync never uploads a partial workspace.
+  const readStoredWorkspace = async workspaceStore => {
+    const loaded = await workspaceStore.load();
+    if (loaded.state === 'absent') return null;
+    if (loaded.state !== 'ready') {
+      throw new LocalWorkspaceDataError('Local split workspace is not readable.', { cause: new Error(loaded.reason || loaded.state) });
+    }
+    return loaded.workspace;
+  };
   const writeWorkspaceAndJournal = async (workspace, journal) => {
+    const workspaceStore = getWorkspaceStore();
+    if (workspaceStore) {
+      // The journal goes in the same transaction as the conversations it describes.
+      await workspaceStore.save(workspace, {
+        beforeWrite: () => ({ extraPuts: [{ key: journalKey, value: JSON.stringify(journal) }] })
+      });
+      return;
+    }
     const entries = [
       { key: storageKey, value: JSON.stringify(workspace) },
       { key: journalKey, value: JSON.stringify(journal) }
@@ -2040,14 +2062,16 @@ export function initializeConversationShadowSync({
     }
     for (const { key, value } of entries) await storage.setItem(key, value);
   };
-  const readWorkspaceAndJournal = async () => (
-    typeof storage.readItems === 'function'
+  const readWorkspaceAndJournal = async () => {
+    const workspaceStore = getWorkspaceStore();
+    if (workspaceStore) return [await readStoredWorkspace(workspaceStore), await storage.getItem(journalKey)];
+    return typeof storage.readItems === 'function'
       ? storage.readItems([storageKey, journalKey])
       : Promise.all([
           storage.getItem(storageKey),
           storage.getItem(journalKey)
-        ])
-  );
+        ]);
+  };
   const markJournalForUpload = (journal, fullResyncRequired = false, dirtyEntities) => {
     const dirty = markCloudSyncJournalDirty(journal, {
       username,
@@ -2083,7 +2107,8 @@ export function initializeConversationShadowSync({
   const sync = createConversationShadowSync({
     repository,
     readWorkspace: async () => {
-      const raw = await storage.getItem(storageKey);
+      const workspaceStore = getWorkspaceStore();
+      const raw = workspaceStore ? await readStoredWorkspace(workspaceStore) : await storage.getItem(storageKey);
       return hydrateLocalAstraAssets(parseLocalWorkspace(raw));
     },
     commitWorkspace: ({ remoteWorkspace, tombstoneIndex, astraTombstoneIds, assertCurrent }) => withWorkspaceStorageExclusive(async () => {

@@ -4,6 +4,7 @@ import test from 'node:test';
 
 import { createLegacyRuntimeAppDataPersistence } from '../src/app/runtime/kernel/app-data-persistence.js';
 import { initializeConversationShadowSync } from '../src/app/sync/cloud-sync-v2-shadow.js';
+import { createWorkspaceStoreV2, fingerprintText, getWorkspaceV2Keys } from '../src/app/runtime/kernel/workspace-store-v2.js';
 import {
   acknowledgeCloudSyncJournal,
   getCloudSyncJournalKey,
@@ -51,7 +52,14 @@ function createCleanJournal(revision = 'clean-revision') {
   }).journal;
 }
 
-function createStorage(workspace, journalRaw) {
+// Every journey below runs twice: with the workspace in the old single item, and with it in the split store (one record per conversation).
+const BACKENDS = ['single item', 'split store'];
+function eachBackend(name, run) {
+  for (const backend of BACKENDS) test(`${name} [${backend}]`, t => run(backend, t));
+}
+
+function createStorage(workspace, journalRaw, backend = 'single item') {
+  if (backend === 'split store') return createSplitStorage(workspace, journalRaw);
   const values = new Map([[appDataKey, JSON.stringify(workspace)]]);
   if (journalRaw !== undefined) values.set(journalKey, journalRaw);
   const atomicBatches = [];
@@ -64,9 +72,78 @@ function createStorage(workspace, journalRaw) {
       atomicBatches.push(entries.map(entry => ({ ...entry })));
       for (const { key, value } of entries) values.set(key, value);
     },
+    persistenceOptions() {
+      return { setItem: this.setItem, readItem: this.getItem, setItemsAtomic: this.setItemsAtomic };
+    },
     workspace: () => JSON.parse(values.get(appDataKey)),
     journal: () => JSON.parse(values.get(journalKey))
   };
+}
+
+// The same fake storage, with the workspace seeded as records and read back by putting the records together again.
+function createSplitStorage(workspace, journalRaw) {
+  const values = new Map();
+  const keys = getWorkspaceV2Keys(username);
+  const { conversations = [], memoryState, ...shared } = workspace;
+  const entries = {};
+  for (const conversation of conversations) {
+    const json = JSON.stringify(conversation);
+    values.set(keys.conversation(conversation.id), json);
+    entries[conversation.id] = { fp: fingerprintText(json), size: json.length, updatedAt: conversation.lastUpdatedAt || conversation.createdAt || null };
+  }
+  const sharedJson = JSON.stringify(shared);
+  values.set(keys.shared, sharedJson);
+  let memory = null;
+  if (memoryState !== undefined) {
+    const memoryJson = JSON.stringify(memoryState);
+    values.set(keys.memory, memoryJson);
+    memory = { fp: fingerprintText(memoryJson), size: memoryJson.length };
+  }
+  values.set(keys.meta, JSON.stringify({
+    version: 2,
+    createdAt: '2026-07-15T00:00:00.000Z',
+    savedAt: '2026-07-15T00:00:00.000Z',
+    order: conversations.map(conversation => conversation.id),
+    conversations: entries,
+    shared: { fp: fingerprintText(sharedJson), size: sharedJson.length },
+    memory,
+    migratedFrom: null
+  }));
+  if (journalRaw !== undefined) values.set(journalKey, journalRaw);
+
+  const assemble = () => {
+    const meta = JSON.parse(values.get(keys.meta));
+    const result = { conversations: meta.order.map(id => JSON.parse(values.get(keys.conversation(id)))), ...JSON.parse(values.get(keys.shared)) };
+    if (meta.memory !== null) result.memoryState = JSON.parse(values.get(keys.memory));
+    return result;
+  };
+  const atomicBatches = [];
+  const storage = {
+    values,
+    atomicBatches,
+    async getItem(key) { return values.get(key) ?? null; },
+    async readItems(names) { return names.map(name => values.get(name) ?? null); },
+    async setItem(key, value) { values.set(key, value); },
+    async setItemsAtomic(entries) { for (const { key, value } of entries) values.set(key, value); },
+    async getKeys() { return [...values.keys()]; },
+    async applyAtomic({ puts = [], removes = [] }) {
+      for (const { key, value } of puts) values.set(key, value);
+      for (const key of removes) values.delete(key);
+      // Seen from the old format: a batch that wrote the workspace and the journal together.
+      if (puts.some(entry => entry.key === journalKey) && puts.some(entry => entry.key.startsWith(keys.prefix))) {
+        atomicBatches.push([
+          { key: appDataKey, value: JSON.stringify(assemble()) },
+          puts.find(entry => entry.key === journalKey)
+        ]);
+      }
+    },
+    workspace: assemble,
+    journal: () => JSON.parse(values.get(journalKey))
+  };
+  const store = createWorkspaceStoreV2({ storage, username, logger: { warn() {}, info() {} } });
+  storage.getWorkspaceStore = () => store;
+  storage.persistenceOptions = () => ({ setItem: storage.setItem, readItem: storage.getItem, readItems: storage.readItems, setItemsAtomic: storage.setItemsAtomic, getWorkspaceStore: () => store });
+  return storage;
 }
 
 function createSupabase({
@@ -176,6 +253,7 @@ function initialize({ storage, remote, schedule, cancel, now } = {}) {
     storage,
     user: { id: userId },
     username,
+    getWorkspaceStore: storage.getWorkspaceStore,
     cryptoProvider: webcrypto,
     schedule,
     cancel,
@@ -184,8 +262,8 @@ function initialize({ storage, remote, schedule, cancel, now } = {}) {
   });
 }
 
-test('a proven-clean journal still pulls and commits remote state but skips the full upload', async () => {
-  const storage = createStorage(createWorkspace(), JSON.stringify(createCleanJournal()));
+eachBackend('a proven-clean journal still pulls and commits remote state but skips the full upload', async backend => {
+  const storage = createStorage(createWorkspace(), JSON.stringify(createCleanJournal()), backend);
   const remote = createSupabase();
   const sync = initialize({ storage, remote });
 
@@ -203,7 +281,7 @@ test('a proven-clean journal still pulls and commits remote state but skips the 
   assert.deepEqual(storage.workspace().deviceOnlyWorkspaceState, { preserved: true });
 });
 
-test('missing, corrupt, and unknown journals each recover with one verified upload then skip on reload', async t => {
+eachBackend('missing, corrupt, and unknown journals each recover with one verified upload then skip on reload', async (backend, t) => {
   const cases = [
     ['missing', undefined],
     ['corrupt', '{broken-json'],
@@ -211,7 +289,7 @@ test('missing, corrupt, and unknown journals each recover with one verified uplo
   ];
   for (const [name, journalRaw] of cases) {
     await t.test(name, async () => {
-      const storage = createStorage(createWorkspace(), journalRaw);
+      const storage = createStorage(createWorkspace(), journalRaw, backend);
       const remote = createSupabase();
       const first = initialize({ storage, remote });
       assert.equal((await first.ready).state, 'ready');
@@ -231,7 +309,7 @@ test('missing, corrupt, and unknown journals each recover with one verified uplo
   }
 });
 
-test('a newer persisted revision during upload survives the old ACK and is captured next', async () => {
+eachBackend('a newer persisted revision during upload survives the old ACK and is captured next', async backend => {
   let releaseFirstUpload;
   let markFirstUploadStarted;
   const firstUploadStarted = new Promise(resolve => { markFirstUploadStarted = resolve; });
@@ -243,7 +321,7 @@ test('a newer persisted revision during upload survives the old ACK and is captu
       await firstUploadGate;
     }
   });
-  const storage = createStorage(createWorkspace(), undefined);
+  const storage = createStorage(createWorkspace(), undefined, backend);
   let scheduled;
   const sync = initialize({
     storage,
@@ -267,9 +345,7 @@ test('a newer persisted revision during upload survives the old ACK and is captu
     getCurrentUser: () => ({ username, authProvider: 'supabase' }),
     getAppData: () => laterWorkspace,
     getAppDataKey: () => appDataKey,
-    setItem: storage.setItem,
-    readItem: storage.getItem,
-    setItemsAtomic: storage.setItemsAtomic,
+    ...storage.persistenceOptions(),
     createSyncRevision: () => 'newer-revision',
     now: () => '2026-07-15T00:04:00.000Z',
     onSaved: (snapshot, metadata) => sync.captureWorkspace(snapshot, {
@@ -293,7 +369,7 @@ test('a newer persisted revision during upload survives the old ACK and is captu
   assert.equal(remote.data.workspace_conversations.length, 2);
 });
 
-test('a failed dirty upload remains durable and retry resumes it without a reload', async () => {
+eachBackend('a failed dirty upload remains durable and retry resumes it without a reload', async backend => {
   let failNextUpload = true;
   const remote = createSupabase({
     onConversationUpload: async () => {
@@ -302,7 +378,7 @@ test('a failed dirty upload remains durable and retry resumes it without a reloa
       throw new Error('temporary upload failure');
     }
   });
-  const storage = createStorage(createWorkspace(), undefined);
+  const storage = createStorage(createWorkspace(), undefined, backend);
   const first = initialize({ storage, remote });
 
   assert.equal((await first.ready).state, 'retry');
@@ -316,7 +392,7 @@ test('a failed dirty upload remains durable and retry resumes it without a reloa
   assert.equal(storage.journal().lastAcknowledgedRevision, pendingRevision);
 });
 
-test('ID repair atomically marks a previously clean workspace dirty before upload', async () => {
+eachBackend('ID repair atomically marks a previously clean workspace dirty before upload', async backend => {
   let releaseUpload;
   let markUploadStarted;
   const uploadStarted = new Promise(resolve => { markUploadStarted = resolve; });
@@ -334,7 +410,7 @@ test('ID repair atomically marks a previously clean workspace dirty before uploa
   legacyWorkspace.conversations[0].id = 'legacy-conversation';
   legacyWorkspace.conversations[0].folderId = 'legacy-folder';
   legacyWorkspace.astras[0].id = 'legacy-astra';
-  const storage = createStorage(legacyWorkspace, JSON.stringify(createCleanJournal()));
+  const storage = createStorage(legacyWorkspace, JSON.stringify(createCleanJournal()), backend);
   const sync = initialize({ storage, remote });
   await uploadStarted;
 
@@ -361,7 +437,7 @@ test('ID repair atomically marks a previously clean workspace dirty before uploa
   assert.equal(storage.journal().fullResyncRequired, false);
 });
 
-test('save during remote fetch preserves dirty same-ID folder, Noura, and conversation metadata', async () => {
+eachBackend('save during remote fetch preserves dirty same-ID folder, Noura, and conversation metadata', async backend => {
   let releaseFetch;
   let markFetchStarted;
   const fetchStarted = new Promise(resolve => { markFetchStarted = resolve; });
@@ -424,7 +500,7 @@ test('save during remote fetch preserves dirty same-ID folder, Noura, and conver
       await fetchGate;
     }
   });
-  const storage = createStorage(createWorkspace(), JSON.stringify(createCleanJournal()));
+  const storage = createStorage(createWorkspace(), JSON.stringify(createCleanJournal()), backend);
   const sync = initialize({ storage, remote });
   await fetchStarted;
 
@@ -438,9 +514,7 @@ test('save during remote fetch preserves dirty same-ID folder, Noura, and conver
     getCurrentUser: () => ({ username, authProvider: 'supabase' }),
     getAppData: () => latest,
     getAppDataKey: () => appDataKey,
-    setItem: storage.setItem,
-    readItem: storage.getItem,
-    setItemsAtomic: storage.setItemsAtomic,
+    ...storage.persistenceOptions(),
     createSyncRevision: () => 'fetch-save-revision',
     now: () => '2026-07-15T00:05:00.000Z'
   });
@@ -460,7 +534,7 @@ test('save during remote fetch preserves dirty same-ID folder, Noura, and conver
   assert.deepEqual(committed.deviceOnlyWorkspaceState, { preserved: true });
 });
 
-test('a local folder edit does not hide another device new conversation message', async () => {
+eachBackend('a local folder edit does not hide another device new conversation message', async backend => {
   let releaseFetch;
   let markFetchStarted;
   const fetchStarted = new Promise(resolve => { markFetchStarted = resolve; });
@@ -513,7 +587,7 @@ test('a local folder edit does not hide another device new conversation message'
       await fetchGate;
     }
   });
-  const storage = createStorage(createWorkspace(), JSON.stringify(createCleanJournal()));
+  const storage = createStorage(createWorkspace(), JSON.stringify(createCleanJournal()), backend);
   const sync = initialize({ storage, remote });
   await fetchStarted;
 
@@ -523,9 +597,7 @@ test('a local folder edit does not hide another device new conversation message'
     getCurrentUser: () => ({ username, authProvider: 'supabase' }),
     getAppData: () => localEdit,
     getAppDataKey: () => appDataKey,
-    setItem: storage.setItem,
-    readItem: storage.getItem,
-    setItemsAtomic: storage.setItemsAtomic,
+    ...storage.persistenceOptions(),
     createSyncRevision: () => 'folder-only-revision'
   });
   await persistence.saveAppData();
@@ -545,7 +617,7 @@ test('a local folder edit does not hide another device new conversation message'
   assert.equal(committed.conversations[0].messages[1].parts[0].text, 'Message added on device B');
 });
 
-test('editing Astra X locally preserves a concurrent remote edit to Astra Y', async () => {
+eachBackend('editing Astra X locally preserves a concurrent remote edit to Astra Y', async backend => {
   const astraYId = '55555555-5555-4555-8555-555555555555';
   let releaseFetch;
   let markFetchStarted;
@@ -581,7 +653,7 @@ test('editing Astra X locally preserves a concurrent remote edit to Astra Y', as
       await fetchGate;
     }
   });
-  const storage = createStorage(initial, JSON.stringify(createCleanJournal()));
+  const storage = createStorage(initial, JSON.stringify(createCleanJournal()), backend);
   const sync = initialize({ storage, remote });
   await fetchStarted;
 
@@ -592,9 +664,7 @@ test('editing Astra X locally preserves a concurrent remote edit to Astra Y', as
     getCurrentUser: () => ({ username, authProvider: 'supabase' }),
     getAppData: () => localEdit,
     getAppDataKey: () => appDataKey,
-    setItem: storage.setItem,
-    readItem: storage.getItem,
-    setItemsAtomic: storage.setItemsAtomic,
+    ...storage.persistenceOptions(),
     createSyncRevision: () => 'astra-x-revision'
   });
   await persistence.saveAppData();
@@ -609,7 +679,7 @@ test('editing Astra X locally preserves a concurrent remote edit to Astra Y', as
   assert.equal(committedById.get(astraYId).instructions, 'Y remote edit');
 });
 
-test('a remote tombstone wins over a same-entity local edit during fetch', async () => {
+eachBackend('a remote tombstone wins over a same-entity local edit during fetch', async backend => {
   let releaseFetch;
   let markFetchStarted;
   const fetchStarted = new Promise(resolve => { markFetchStarted = resolve; });
@@ -643,7 +713,7 @@ test('a remote tombstone wins over a same-entity local edit during fetch', async
       await fetchGate;
     }
   });
-  const storage = createStorage(createWorkspace(), JSON.stringify(createCleanJournal()));
+  const storage = createStorage(createWorkspace(), JSON.stringify(createCleanJournal()), backend);
   const sync = initialize({ storage, remote });
   await fetchStarted;
 
@@ -653,9 +723,7 @@ test('a remote tombstone wins over a same-entity local edit during fetch', async
     getCurrentUser: () => ({ username, authProvider: 'supabase' }),
     getAppData: () => localEdit,
     getAppDataKey: () => appDataKey,
-    setItem: storage.setItem,
-    readItem: storage.getItem,
-    setItemsAtomic: storage.setItemsAtomic,
+    ...storage.persistenceOptions(),
     createSyncRevision: () => 'tombstoned-conversation-revision'
   });
   await persistence.saveAppData();

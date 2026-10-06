@@ -53,6 +53,8 @@ export function initializeMemorySummaryCloudSync({
   user,
   username,
   appDataKey,
+  // The split workspace store when this user's workspace is kept in it, otherwise null (the old single item).
+  getWorkspaceStore = () => null,
   logger = console
 } = {}) {
   if (!window || !supabase || !storage || !user?.id || !appDataKey) {
@@ -102,6 +104,8 @@ export function initializeMemorySummaryCloudSync({
     emitRecords();
   };
   const readLocalMemoryState = async () => {
+    const workspaceStore = getWorkspaceStore();
+    if (workspaceStore) return (await workspaceStore.readMemoryState()).memoryState || {};
     const appData = parseJson(await storage.getItem(appDataKey));
     return appData?.memoryState || {};
   };

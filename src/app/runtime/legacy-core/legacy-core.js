@@ -49,6 +49,7 @@ import { createLegacyRuntimeConfigPersistence } from '/src/app/runtime/kernel/co
 import { normalizeApiKeyValue, normalizeLoadedLegacyConfig } from '/src/app/runtime/kernel/config-normalization.js';
 import { normalizeLoadedLegacyAppData } from '/src/app/runtime/kernel/app-data-normalization.js';
 import { createLegacyRuntimeAppDataPersistence } from '/src/app/runtime/kernel/app-data-persistence.js';
+import { loadSplitWorkspace } from '/src/app/runtime/kernel/workspace-loading.js';
 import { notifyCloudConversationSave } from '/src/app/runtime/kernel/cloud-conversation-save-observer.js';
 import { createSensitiveConfigPersistence, createSensitiveConfigStore } from '/src/app/runtime/security/sensitive-config-store.js';
 import { removeSensitiveConfig } from '/src/app/runtime/security/sensitive-config-redaction.js';
@@ -582,6 +583,8 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             (await cloudDeletionLifecycle).deleteFolder(...args);
         const loadAppData = async () => {
             if (!currentUser) return;
+            const split = await loadSplitWorkspace({ storage: runtimeStorageAdapter, user: currentUser, context: { getDefaultFolder, getDefaultGenConfig, runtimeConfigAccess, normalizeCouncilConfig, normalizeConversationModel } });
+            if (split) { runtimeAppDataStore.replaceAll(split.data); await (await getFolderUiStatePersistence()).restore(runtimeAppDataStore.getFolders()); return; }
             const saved = await getItem(getAppDataKey());
             if (saved) {
                 try {

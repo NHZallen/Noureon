@@ -14,6 +14,7 @@ import { createCloudAssetTransport } from './cloud-assets.js';
 import { repairCloudWorkspaceGeneratedImageKeys } from './cloud-workspace-image-repair.js';
 import { ensureWorkspaceRecoveryBackup } from './workspace-recovery-backup.js';
 import { initializeConversationShadowSync } from './cloud-sync-v2-shadow.js';
+import { getActiveWorkspaceStore } from '../runtime/kernel/workspace-store-registry.js';
 import { initializeMemorySummaryCloudSync } from './memory-summary-cloud-sync.js';
 import { getCloudSyncBootstrapPendingKey } from './cloud-sync-bootstrap-queue.js';
 import { createConversationRealtimeRefreshScheduler } from './cloud-sync-realtime-refresh.js';
@@ -148,10 +149,14 @@ export async function initializeCloudWorkspaceSync({ window, session, bootstrapQ
     appDataKey: keys.appData
   });
 
+  // The split workspace store of this tab (set when the workspace was loaded), or null for a workspace still in the old single item.
+  const getWorkspaceStore = () => getActiveWorkspaceStore(username);
+
   await repairCloudWorkspaceGeneratedImageKeys({
     storage,
     username,
-    appDataKey: keys.appData
+    appDataKey: keys.appData,
+    workspaceStore: getWorkspaceStore()
   });
 
   const readStoredMeta = async () => parseJson(await storage.getItem(metaKey)) || {};
@@ -663,7 +668,8 @@ export async function initializeCloudWorkspaceSync({ window, session, bootstrapQ
     storage,
     user,
     username,
-    assetTransport: assets
+    assetTransport: assets,
+    getWorkspaceStore
   });
   try {
     await conversationShadowSync.ready;
@@ -676,7 +682,8 @@ export async function initializeCloudWorkspaceSync({ window, session, bootstrapQ
     storage,
     user,
     username,
-    appDataKey: keys.appData
+    appDataKey: keys.appData,
+    getWorkspaceStore
   });
   try {
     await memorySummarySync.ready;

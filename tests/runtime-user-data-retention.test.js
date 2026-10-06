@@ -77,6 +77,7 @@ test('switching workspace owner removes the previous account namespace', async (
     ['removeItem', 'chatRecoveryBackup_v1_alice'],
     ['removeItem', 'chatFolderUiState_v1_alice'],
     ['removeItemsByPrefix', 'generatedImage:alice:'],
+    ['removeItemsByPrefix', 'chatWS2:alice:'],
     ['setItem', STORAGE_OWNER_KEY, 'bob']
   ]);
 });

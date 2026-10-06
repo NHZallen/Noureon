@@ -1,3 +1,5 @@
+import { getWorkspaceV2Keys } from './workspace-store-v2.js';
+
 export const STORAGE_OWNER_KEY = 'chat_storageOwnerUser';
 
 export function getStoredUserWorkspaceKeys(username) {
@@ -31,6 +33,8 @@ export async function removeStoredUserWorkspace({
     await removeItem(key);
   }
   await storageAdapter?.removeItemsByPrefix?.(`generatedImage:${username}:`);
+  // The workspace kept as one record per conversation (workspace-store-v2.js).
+  await storageAdapter?.removeItemsByPrefix?.(getWorkspaceV2Keys(username).prefix);
 }
 
 export async function reconcileStoredWorkspaceOwner({

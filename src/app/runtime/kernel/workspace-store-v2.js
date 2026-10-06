@@ -221,7 +221,10 @@ export function createWorkspaceStoreV2({
     });
   }
 
-  function save(snapshot, { conversationIds = null } = {}) {
+  // beforeWrite(plan) runs inside the same exclusive section, after the changes are known and before anything is written. It may return
+  // { skip: true } to write nothing, or { extraPuts } to write more records in the SAME transaction (the cloud sync journal, which must
+  // never disagree with the conversations it describes). plan.readPrevious* give what is stored now, for working out what changed.
+  function save(snapshot, { conversationIds = null, beforeWrite = null } = {}) {
     return exclusive(async () => {
       const current = await readMeta();
       if (current.state === 'corrupt' || current.state === 'unsupported') {
@@ -235,7 +238,7 @@ export function createWorkspaceStoreV2({
       const puts = [];
       const removes = [];
       const entries = {};
-      let written = 0;
+      const changedIds = [];
       for (const [position, conversation] of conversations.entries()) {
         const id = ids[position];
         const known = previous?.conversations[id];
@@ -251,13 +254,13 @@ export function createWorkspaceStoreV2({
         }
         puts.push({ key: keys.conversation(id), value: json });
         entries[id] = { fp, size: json.length, updatedAt: conversation.lastUpdatedAt || conversation.createdAt || null };
-        written += 1;
+        changedIds.push(id);
       }
 
       // A record that could not be read last time is not a deleted conversation: keep it, at the end of the order.
       const order = [...ids];
       const present = new Set(ids);
-      let removed = 0;
+      const removedIds = [];
       for (const id of previous?.order || []) {
         if (present.has(id)) continue;
         if (unreadable.has(id)) {
@@ -265,7 +268,7 @@ export function createWorkspaceStoreV2({
           order.push(id);
         } else {
           removes.push(keys.conversation(id));
-          removed += 1;
+          removedIds.push(id);
         }
       }
 
@@ -287,8 +290,51 @@ export function createWorkspaceStoreV2({
       }
 
       const orderChanged = !previous || !sameList(previous.order, order);
-      if (previous && puts.length === 0 && removes.length === 0 && !orderChanged) {
-        return { written: 0, removed: 0, shared: false, memory: false, skipped: ids.length };
+      const unchanged = Boolean(previous) && puts.length === 0 && removes.length === 0 && !orderChanged;
+      const stats = () => ({
+        written: changedIds.length,
+        removed: removedIds.length,
+        shared: sharedChanged,
+        memory: memoryChanged,
+        skipped: ids.length - changedIds.length
+      });
+
+      let extraPuts = [];
+      if (beforeWrite) {
+        const plan = {
+          unchanged,
+          hadPrevious: Boolean(previous),
+          changedConversationIds: [...changedIds],
+          removedConversationIds: [...removedIds],
+          sharedChanged,
+          memoryChanged,
+          readPreviousConversations: async wanted => {
+            const found = new Map();
+            const known = (wanted || []).filter(id => previous?.conversations[id]);
+            for (let start = 0; start < known.length; start += LOAD_BATCH_SIZE) {
+              const batch = known.slice(start, start + LOAD_BATCH_SIZE);
+              const values = await readMany(batch.map(id => keys.conversation(id)));
+              batch.forEach((id, offset) => {
+                const parsed = parseJson(values[offset]);
+                if (parsed.ok && isPlainObject(parsed.value)) found.set(id, parsed.value);
+              });
+            }
+            return found;
+          },
+          readPreviousShared: async () => {
+            const parsed = parseJson(await storage.getItem(keys.shared));
+            return parsed.ok && isPlainObject(parsed.value) ? parsed.value : null;
+          }
+        };
+        const decision = (await beforeWrite(plan)) || {};
+        if (decision.skip) return { ...stats(), wrote: false };
+        extraPuts = Array.isArray(decision.extraPuts) ? decision.extraPuts : [];
+      }
+      if (unchanged && extraPuts.length === 0) return { ...stats(), wrote: false };
+
+      if (unchanged) {
+        await storage.applyAtomic({ puts: extraPuts, removes: [] });
+        return { ...stats(), wrote: true };
       }
       const meta = {
         ...(previous || { createdAt: now(), migratedFrom: null }),
@@ -299,10 +345,74 @@ export function createWorkspaceStoreV2({
         shared: sharedEntry,
         memory: memoryEntry
       };
-      puts.push({ key: keys.meta, value: JSON.stringify(meta) });
-      await storage.applyAtomic({ puts, removes });
-      return { written, removed, shared: sharedChanged, memory: memoryChanged, skipped: ids.length - written };
+      await storage.applyAtomic({ puts: [...puts, { key: keys.meta, value: JSON.stringify(meta) }, ...extraPuts], removes });
+      return { ...stats(), wrote: true };
     });
+  }
+
+  // Applies transform(value, { kind, id }) to every record (each conversation, the shared data, the memory state), one at a time, and writes
+  // back only the ones it changed (transform changes the value in place and returns true). For repairs that must touch old data without
+  // holding all of it in memory.
+  function rewrite({ transform, beforeWrite = null } = {}) {
+    return exclusive(async () => {
+      const current = await readMeta();
+      if (current.state !== 'ok') return { changed: false, state: current.state };
+      const { meta } = current;
+      const puts = [];
+      const entries = { ...meta.conversations };
+      const changedConversationIds = [];
+      for (let start = 0; start < meta.order.length; start += LOAD_BATCH_SIZE) {
+        const batch = meta.order.slice(start, start + LOAD_BATCH_SIZE);
+        const values = await readMany(batch.map(id => keys.conversation(id)));
+        for (const [offset, id] of batch.entries()) {
+          const parsed = parseJson(values[offset]);
+          if (!parsed.ok || !isPlainObject(parsed.value)) continue;
+          if (!(await transform(parsed.value, { kind: 'conversation', id }))) continue;
+          const json = serialize(parsed.value, `Conversation ${id}`);
+          puts.push({ key: keys.conversation(id), value: json });
+          entries[id] = { fp: fingerprintText(json), size: json.length, updatedAt: parsed.value.lastUpdatedAt || parsed.value.createdAt || null };
+          changedConversationIds.push(id);
+        }
+      }
+      let sharedEntry = meta.shared;
+      let sharedChanged = false;
+      const sharedParsed = parseJson(await storage.getItem(keys.shared));
+      if (sharedParsed.ok && isPlainObject(sharedParsed.value) && await transform(sharedParsed.value, { kind: 'shared' })) {
+        const json = serialize(sharedParsed.value, 'The shared workspace data');
+        puts.push({ key: keys.shared, value: json });
+        sharedEntry = { fp: fingerprintText(json), size: json.length };
+        sharedChanged = true;
+      }
+      let memoryEntry = meta.memory;
+      let memoryChanged = false;
+      if (meta.memory !== null) {
+        const memoryParsed = parseJson(await storage.getItem(keys.memory));
+        if (memoryParsed.ok && await transform(memoryParsed.value, { kind: 'memory' })) {
+          const json = serialize(memoryParsed.value, 'The memory state');
+          puts.push({ key: keys.memory, value: json });
+          memoryEntry = { fp: fingerprintText(json), size: json.length };
+          memoryChanged = true;
+        }
+      }
+      if (puts.length === 0) return { changed: false, state: 'ok' };
+      const result = { changed: true, state: 'ok', changedConversationIds, sharedChanged, memoryChanged };
+      const decision = (beforeWrite && (await beforeWrite(result))) || {};
+      const next = { ...meta, savedAt: now(), conversations: entries, shared: sharedEntry, memory: memoryEntry };
+      await storage.applyAtomic({
+        puts: [...puts, { key: keys.meta, value: JSON.stringify(next) }, ...(Array.isArray(decision.extraPuts) ? decision.extraPuts : [])],
+        removes: []
+      });
+      return result;
+    });
+  }
+
+  // Only the memory state (the cloud memory sync needs nothing else, and must not load the conversations for it).
+  async function readMemoryState() {
+    const current = await readMeta();
+    if (current.state !== 'ok') return { state: current.state };
+    if (current.meta.memory === null) return { state: 'ok', memoryState: undefined };
+    const parsed = parseJson(await storage.getItem(keys.memory));
+    return parsed.ok ? { state: 'ok', memoryState: parsed.value } : { state: 'corrupt', reason: 'memory-unreadable' };
   }
 
   async function readLegacy(legacyKey) {
@@ -527,6 +637,8 @@ export function createWorkspaceStoreV2({
     keys,
     load,
     save,
+    rewrite,
+    readMemoryState,
     migrateFromLegacy,
     mergeStaleLegacy,
     checkIntegrity,

@@ -97,7 +97,7 @@ test('a first save writes every record and the index, and a second save of the s
     'chatWS2:alice:conv:c1', 'chatWS2:alice:conv:c2', 'chatWS2:alice:memory', 'chatWS2:alice:meta', 'chatWS2:alice:shared'
   ]);
   const second = await store.save(workspace('c1', 'c2'));
-  assert.deepEqual(second, { written: 0, removed: 0, shared: false, memory: false, skipped: 2 });
+  assert.deepEqual(second, { written: 0, removed: 0, shared: false, memory: false, skipped: 2, wrote: false });
   assert.equal(storage.log.applies.length, 1, 'no transaction for an unchanged workspace');
 });
 
@@ -374,6 +374,113 @@ test('a migration that does not read back as written is removed again, so the ap
   assert.equal(storage.values.get(LEGACY_KEY), legacy);
   assert.equal((await store.getMigrationFailure()).attempts, 1);
   assert.deepEqual(await store.load(), { state: 'absent' });
+});
+
+test('beforeWrite sees what changed, can add records to the same transaction, and can cancel the write', async () => {
+  const storage = createFakeStorage();
+  const store = makeStore(storage);
+  const data = workspace('c1', 'c2');
+  await store.save(data);
+
+  data.conversations[0].title = 'edited';
+  data.folders.push({ id: 'f2', name: 'More' });
+  let seen;
+  const result = await store.save(data, {
+    beforeWrite: async plan => {
+      seen = {
+        unchanged: plan.unchanged,
+        hadPrevious: plan.hadPrevious,
+        changed: plan.changedConversationIds,
+        removed: plan.removedConversationIds,
+        shared: plan.sharedChanged,
+        previous: [...(await plan.readPreviousConversations(['c1', 'c2', 'nope'])).entries()].map(([id, value]) => [id, value.title]),
+        previousFolders: (await plan.readPreviousShared()).folders.length
+      };
+      return { extraPuts: [{ key: 'journal', value: 'dirty' }] };
+    }
+  });
+  assert.deepEqual(seen, { unchanged: false, hadPrevious: true, changed: ['c1'], removed: [], shared: true, previous: [['c1', 'Chat c1'], ['c2', 'Chat c2']], previousFolders: 1 });
+  assert.equal(result.wrote, true);
+  const applied = storage.log.applies.at(-1);
+  assert.deepEqual(applied.puts.sort(), ['chatWS2:alice:conv:c1', 'chatWS2:alice:meta', 'chatWS2:alice:shared', 'journal']);
+  assert.equal(storage.values.get('journal'), 'dirty', 'the journal was written by the same transaction');
+
+  data.conversations[1].title = 'skipped';
+  const before = storage.log.applies.length;
+  const skipped = await store.save(data, { beforeWrite: () => ({ skip: true }) });
+  assert.equal(skipped.wrote, false);
+  assert.equal(storage.log.applies.length, before);
+});
+
+test('with nothing changed, beforeWrite is told so, and extra records alone are still written', async () => {
+  const storage = createFakeStorage();
+  const store = makeStore(storage);
+  const data = workspace('c1');
+  await store.save(data);
+  let unchanged;
+  await store.save(data, { beforeWrite: plan => { unchanged = plan.unchanged; } });
+  assert.equal(unchanged, true);
+  assert.equal(storage.log.applies.length, 1, 'no transaction when there is nothing to write');
+
+  await store.save(data, { beforeWrite: () => ({ extraPuts: [{ key: 'journal', value: 'x' }] }) });
+  assert.deepEqual(storage.log.applies.at(-1), { puts: ['journal'], removes: [] }, 'only the extra record, not the index');
+});
+
+test('a failed transaction also leaves the journal that was to be written with it unwritten', async () => {
+  const storage = createFakeStorage();
+  const store = makeStore(storage);
+  const data = workspace('c1');
+  await store.save(data);
+  data.conversations[0].title = 'edited';
+  storage.hooks.failApply = () => true;
+  await assert.rejects(() => store.save(data, { beforeWrite: () => ({ extraPuts: [{ key: 'journal', value: 'dirty' }] }) }), /quota/);
+  assert.equal(storage.values.has('journal'), false);
+});
+
+test('rewrite changes only the records the transform changes and gives the journal a place in the same transaction', async () => {
+  const storage = createFakeStorage();
+  const store = makeStore(storage);
+  const data = workspace('c1', 'c2', 'c3');
+  data.conversations[1].messages[0].parts.push({ generatedImage: { id: 'img', storageKey: 'old-key' } });
+  await store.save(data);
+
+  const visited = [];
+  const result = await store.rewrite({
+    transform: async (value, info) => {
+      visited.push(info.kind === 'conversation' ? info.id : info.kind);
+      let changed = false;
+      for (const part of value.messages?.[0]?.parts || []) {
+        if (part.generatedImage?.storageKey === 'old-key') { part.generatedImage.storageKey = 'new-key'; changed = true; }
+      }
+      return changed;
+    },
+    beforeWrite: info => ({ extraPuts: [{ key: 'journal', value: JSON.stringify(info.changedConversationIds) }] })
+  });
+  assert.deepEqual(visited, ['c1', 'c2', 'c3', 'shared', 'memory']);
+  assert.equal(result.changed, true);
+  assert.deepEqual(result.changedConversationIds, ['c2']);
+  assert.deepEqual(storage.log.applies.at(-1).puts.sort(), ['chatWS2:alice:conv:c2', 'chatWS2:alice:meta', 'journal']);
+  assert.equal(JSON.parse(storage.values.get('chatWS2:alice:conv:c2')).messages[0].parts[1].generatedImage.storageKey, 'new-key');
+  assert.deepEqual(await store.save(data.conversations && { ...data, conversations: (await store.load()).workspace.conversations }), { written: 0, removed: 0, shared: false, memory: false, skipped: 3, wrote: false }, 'the index matches what was written');
+
+  const none = await store.rewrite({ transform: async () => false });
+  assert.deepEqual(none, { changed: false, state: 'ok' });
+  assert.deepEqual(await makeStore(createFakeStorage()).rewrite({ transform: async () => true }), { changed: false, state: 'absent' });
+});
+
+test('readMemoryState reads only the memory record', async () => {
+  const storage = createFakeStorage();
+  const store = makeStore(storage);
+  assert.deepEqual(await store.readMemoryState(), { state: 'absent' });
+  await store.save(workspace('c1', 'c2'));
+  storage.log.reads.length = 0;
+  const result = await store.readMemoryState();
+  assert.deepEqual(result.memoryState, workspace('c1').memoryState);
+  assert.deepEqual(storage.log.reads, ['chatWS2:alice:meta', 'chatWS2:alice:memory'], 'no conversation was read');
+  const noMemory = workspace('c1');
+  delete noMemory.memoryState;
+  await store.save(noMemory);
+  assert.deepEqual(await store.readMemoryState(), { state: 'ok', memoryState: undefined });
 });
 
 test('after a migration, what an older tab wrote to the old item is merged in without bringing back deleted chats', async () => {

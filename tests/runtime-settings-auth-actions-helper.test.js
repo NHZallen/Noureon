@@ -229,7 +229,8 @@ test('login as another stored owner removes the previous workspace data', async 
     ['removeItem', 'chatFolderUiState_v1_alice']
   ]);
   assert.deepEqual(calls.filter((call) => Array.isArray(call) && call[0] === 'removeItemsByPrefix'), [
-    ['removeItemsByPrefix', 'generatedImage:alice:']
+    ['removeItemsByPrefix', 'generatedImage:alice:'],
+    ['removeItemsByPrefix', 'chatWS2:alice:']
   ]);
 });
 
