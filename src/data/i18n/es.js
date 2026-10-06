@@ -685,6 +685,8 @@ const es = {
   "accountLinkFailed": "Error al vincular la cuenta.",
   "userSignInMethods": "Métodos de inicio de sesión",
   "userSignedInEmail": "Sesión iniciada con correo electrónico",
+  "userUidCopy": "Copiar UID",
+  "userUidCopied": "UID copiado",
   "userSignedInGoogle": "Sesión iniciada con Google",
   "userSignedInBoth": "Sesión iniciada con correo electrónico y Google",
   "loginPasswordRowTitle": "Contraseña de inicio de sesión",

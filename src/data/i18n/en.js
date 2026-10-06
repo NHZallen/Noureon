@@ -696,6 +696,8 @@
         accountLinkFailed: 'Account linking failed.',
         userSignInMethods: 'Sign-in methods',
         userSignedInEmail: 'Signed in with Email',
+        userUidCopy: 'Copy UID',
+        userUidCopied: 'UID copied',
         userSignedInGoogle: 'Signed in with Google',
         userSignedInBoth: 'Signed in with Email and Google',
         loginPasswordRowTitle: 'Login password',

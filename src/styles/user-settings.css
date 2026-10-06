@@ -6,6 +6,13 @@
 #settings-modal #user-section .us-identity { display: flex; align-items: center; gap: 0.9rem; padding: 0.2rem 0.1rem 0.4rem; }
 #settings-modal #user-section .us-avatar { flex: none; width: 3.25rem; height: 3.25rem; display: grid; place-items: center; border: 1px solid var(--border-color); border-radius: 9999px; font-size: 1.25rem; font-weight: var(--astra-font-medium) !important; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); }
 #settings-modal #user-section .us-email { font-size: 1rem; font-weight: var(--astra-font-semibold) !important; line-height: 1.3; overflow-wrap: anywhere; }
+#settings-modal #user-section .us-uid { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.15rem; font-size: 0.875rem; color: var(--text-secondary) !important; }
+#settings-modal #user-section .us-uid.hidden { display: none; }
+#settings-modal #user-section .us-uid-label { letter-spacing: 0.04em; }
+#settings-modal #user-section .us-uid-value { font-variant-numeric: tabular-nums; letter-spacing: 0.06em; color: var(--text-primary) !important; user-select: all; }
+#settings-modal #user-section .us-copy { display: inline-grid; place-items: center; width: 1.6rem; height: 1.6rem; padding: 0; border: 0; border-radius: 0.4rem; background: transparent; color: var(--text-secondary) !important; cursor: pointer; }
+#settings-modal #user-section .us-copy:hover { background: var(--hover-bg); color: var(--text-primary) !important; }
+#settings-modal #user-section .us-copy.is-copied { color: var(--text-primary) !important; }
 #settings-modal #user-section .us-sub { margin-top: 0.15rem; font-size: 0.875rem; color: var(--text-secondary) !important; }
 #settings-modal #user-section .us-card { margin-top: 1rem; border: 1px solid var(--border-color); border-radius: 0.875rem; overflow: hidden; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); }
 #settings-modal #user-section .us-head { padding: 1.1rem 1.15rem 0.5rem; }

@@ -696,6 +696,8 @@
         accountLinkFailed: 'Échec de l\'association du compte.',
         userSignInMethods: 'Méthodes de connexion',
         userSignedInEmail: 'Connecté avec l\'e-mail',
+        userUidCopy: 'Copier l’UID',
+        userUidCopied: 'UID copié',
         userSignedInGoogle: 'Connecté avec Google',
         userSignedInBoth: 'Connecté avec l\'e-mail et Google',
         loginPasswordRowTitle: 'Mot de passe de connexion',

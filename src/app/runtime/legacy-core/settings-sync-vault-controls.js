@@ -1,4 +1,5 @@
 import { createSyncNowControls, syncNowMarkup } from './settings-sync-now-controls.js';
+import { createUserUidControls, userUidMarkup } from './settings-user-uid-controls.js';
 import {
   cancelSyncVaultRotation,
   changeSyncVaultPassword,
@@ -38,6 +39,7 @@ export function createSettingsSyncVaultControls({
   const text = (key, fallback) => getText?.(key, fallback) || fallback;
   let busy = false;
   const syncNow = createSyncNowControls({ document, getText: text });
+  const userUid = createUserUidControls({ document, getSupabase: () => getSupabase(), isConfigured: () => isConfigured(), getText: text, scheduleTimeout: (...a) => scheduleTimeout(...a) });
   let accountTurnstile;
   let accountTurnstileMounted = false;
   let recoveryTurnstileMounted = false;
@@ -133,7 +135,7 @@ export function createSettingsSyncVaultControls({
         <div class="us-identity">
           <div id="user-avatar" class="us-avatar" aria-hidden="true"></div>
           <div class="min-w-0">
-            <p id="sync-vault-account" class="us-email"></p>
+            <p id="sync-vault-account" class="us-email"></p>${userUidMarkup(text('userUidCopy', '複製 UID'))}
             <p id="user-signin-summary" class="us-sub"></p>
           </div>
         </div>
@@ -495,6 +497,7 @@ export function createSettingsSyncVaultControls({
       ? (user.email || user.displayName || user.username)
       : (user.displayName || user.username);
     elements.account.textContent = accountLabel;
+    void userUid.refresh(user);
     if (elements.avatar) elements.avatar.textContent = Array.from(String(user.email || user.displayName || user.username).trim())[0]?.toUpperCase() || '?';
     elements.status.textContent = !isCloudUser
       ? text('cloudSyncUnavailableForLocal', '本機帳號尚未綁定，雲端同步不可用')
@@ -564,6 +567,7 @@ export function createSettingsSyncVaultControls({
   const bindEvents = () => {
     const elements = getElements();
     syncNow.bind();
+    userUid.bind();
     elements.emailToggle?.addEventListener('click', () => {
       setEmailFormOpen(elements.emailForm.classList.contains('hidden'));
     });

@@ -696,6 +696,8 @@
         accountLinkFailed: '帳號綁定失敗。',
         userSignInMethods: '登入方式',
         userSignedInEmail: '以 Email 登入',
+        userUidCopy: '複製 UID',
+        userUidCopied: '已複製 UID',
         userSignedInGoogle: '以 Google 登入',
         userSignedInBoth: '以 Email 與 Google 登入',
         loginPasswordRowTitle: '登入密碼',

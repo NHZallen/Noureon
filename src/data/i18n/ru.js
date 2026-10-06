@@ -685,6 +685,8 @@ const ru = {
   "accountLinkFailed": "Привязка аккаунта не удалась.",
   "userSignInMethods": "Способы входа",
   "userSignedInEmail": "Вход через Email",
+  "userUidCopy": "Скопировать UID",
+  "userUidCopied": "UID скопирован",
   "userSignedInGoogle": "Вход через Google",
   "userSignedInBoth": "Вход через Email и Google",
   "loginPasswordRowTitle": "Пароль для входа",

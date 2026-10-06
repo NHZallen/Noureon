@@ -288,6 +288,30 @@ test('a way to sign in that is not set up has a button, the Email one opens its 
   assert.equal(document.getElementById('account-google-status').textContent.trim(), '已綁定');
 });
 
+test('a cloud account shows its UID under the email with a copy button, and a local account shows none', async () => {
+  const uidClient = (uid) => ({
+    ...identitiesClient(['google']),
+    from: () => ({ select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { uid }, error: null }) }) }) })
+  });
+  const cloud = createFixture({ getSupabase: () => uidClient('48201735'), isConfigured: () => true });
+  cloud.setCurrentUser({ ...cloudUser, supabaseUserId: 'user-1' });
+  cloud.controls.ensureSyncVaultSettings();
+  await cloud.controls.refreshSyncVaultControls();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  const { document } = cloud.window;
+  const row = document.getElementById('user-uid-row');
+  assert.equal(row.classList.contains('hidden'), false);
+  assert.equal(document.getElementById('user-uid-value').textContent, '48201735');
+  assert.equal(document.getElementById('user-uid-copy').getAttribute('aria-label'), '複製 UID');
+  assert.equal(document.getElementById('sync-vault-account').nextElementSibling, row, 'it sits right under the email');
+
+  const local = createFixture({ getSupabase: () => uidClient('48201735'), isConfigured: () => true });
+  local.controls.ensureSyncVaultSettings();
+  await local.controls.refreshSyncVaultControls();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(local.window.document.getElementById('user-uid-row').classList.contains('hidden'), true);
+});
+
 test('a local account is asked for its Email and a password, and bound Email shows only its status', async () => {
   const local = createFixture({ getSupabase: () => identitiesClient([]), isConfigured: () => true });
   local.controls.ensureSyncVaultSettings();
