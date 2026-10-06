@@ -5,6 +5,8 @@ import test from 'node:test';
 import {
   WorkspaceStoreError,
   createWorkspaceStoreV2,
+  LEGACY_KEEP_DAYS,
+  LEGACY_KEEP_LOADS,
   fingerprintText,
   getWorkspaceV2Keys
 } from '../src/app/runtime/kernel/workspace-store-v2.js';
@@ -890,4 +892,90 @@ test('the module is storage-only: no page, no runtime, no old-item writes', () =
   assert.doesNotMatch(source, /\b(document|window|localStorage|indexedDB)\b/);
   assert.doesNotMatch(source, /^import /m);
   assert.doesNotMatch(source, /setItem\(|removeItem\(\s*legacyKey/);
+});
+
+// ---- Removing the frozen old item (after 30 days and 10 good loads) ----
+const DAY = 86400000;
+const clockAt = offsetDays => () => new Date(Date.parse(clock()) + offsetDays * DAY).toISOString();
+
+async function migrated() {
+  const storage = createFakeStorage({ [LEGACY_KEY]: JSON.stringify(workspace('c1', 'c2')) });
+  await makeStore(storage).migrateFromLegacy({ legacyKey: LEGACY_KEY });
+  return storage;
+}
+
+async function loadsOf(storage, count, days) {
+  let last;
+  for (let index = 0; index < count; index += 1) last = await makeStore(storage, { now: clockAt(days) }).recordSuccessfulLoad({ legacyKey: LEGACY_KEY });
+  return last;
+}
+
+test('the old item is kept for 30 days AND 10 good loads, and removed only when both are reached', async () => {
+  assert.equal(LEGACY_KEEP_DAYS, 30);
+  assert.equal(LEGACY_KEEP_LOADS, 10);
+
+  const early = await migrated();
+  assert.deepEqual(await loadsOf(early, 12, 5), { state: 'counted', loads: 10 }, 'many loads, too early (the count stops at the threshold)');
+  assert.ok(early.values.has(LEGACY_KEY));
+
+  const few = await migrated();
+  assert.deepEqual(await loadsOf(few, 9, 40), { state: 'counted', loads: 9 }, 'old enough, too few loads');
+  assert.ok(few.values.has(LEGACY_KEY));
+  const tenth = await makeStore(few, { now: clockAt(40) }).recordSuccessfulLoad({ legacyKey: LEGACY_KEY });
+  assert.equal(tenth.state, 'removed');
+  assert.equal(few.values.has(LEGACY_KEY), false);
+  const meta = JSON.parse(few.values.get(getWorkspaceV2Keys('alice').meta));
+  assert.equal(meta.migratedFrom.legacyRemovedAt, clockAt(40)());
+  assert.deepEqual((await makeStore(few).load()).workspace.conversations.map(item => item.id), ['c1', 'c2'], 'the workspace is unaffected');
+  assert.equal((await makeStore(few).recordSuccessfulLoad({ legacyKey: LEGACY_KEY })).state, 'removed', 'afterwards nothing is counted or written');
+});
+
+test('the count stops growing once it reaches the threshold (no needless writes while the age is waited for)', async () => {
+  const storage = await migrated();
+  await loadsOf(storage, 10, 1);
+  const writes = storage.log.applies.length;
+  await loadsOf(storage, 5, 1);
+  assert.equal(storage.log.applies.length, writes);
+});
+
+test('the old item is not removed when it holds something the split storage lacks, when records are missing, or after a rollback', async () => {
+  const changed = await migrated();
+  await loadsOf(changed, 10, 1);
+  changed.values.set(LEGACY_KEY, JSON.stringify(workspace('c1', 'c2', 'c7')));
+  assert.equal((await makeStore(changed, { now: clockAt(40) }).recordSuccessfulLoad({ legacyKey: LEGACY_KEY })).state, 'kept-changed');
+  assert.ok(changed.values.has(LEGACY_KEY));
+
+  const incomplete = await migrated();
+  await loadsOf(incomplete, 10, 1);
+  incomplete.values.delete(getWorkspaceV2Keys('alice').conversation('c2'));
+  assert.equal((await makeStore(incomplete, { now: clockAt(40) }).recordSuccessfulLoad({ legacyKey: LEGACY_KEY })).state, 'kept-incomplete');
+  assert.ok(incomplete.values.has(LEGACY_KEY));
+
+  const rolledBack = await migrated();
+  await loadsOf(rolledBack, 10, 1);
+  await makeStore(rolledBack).setDisabled(true);
+  assert.equal((await makeStore(rolledBack, { now: clockAt(40) }).recordSuccessfulLoad({ legacyKey: LEGACY_KEY })).state, 'disabled');
+  assert.ok(rolledBack.values.has(LEGACY_KEY));
+});
+
+test('a store that was not migrated counts nothing, and an old item that is already gone is only noted', async () => {
+  const storage = createFakeStorage();
+  const store = makeStore(storage);
+  await store.save(workspace('c1'));
+  assert.deepEqual(await store.recordSuccessfulLoad({ legacyKey: LEGACY_KEY }), { state: 'not-migrated' });
+
+  const gone = await migrated();
+  await loadsOf(gone, 10, 1);
+  gone.values.delete(LEGACY_KEY);
+  assert.equal((await makeStore(gone, { now: clockAt(40) }).recordSuccessfulLoad({ legacyKey: LEGACY_KEY })).state, 'removed');
+  await assert.rejects(() => store.recordSuccessfulLoad({}), TypeError);
+});
+
+test('a rollback after the old item was removed brings it back whole', async () => {
+  const storage = await migrated();
+  await loadsOf(storage, 10, 40);
+  assert.equal(storage.values.has(LEGACY_KEY), false);
+  const result = await makeStore(storage).exportToLegacy({ legacyKey: LEGACY_KEY });
+  assert.equal(result.state, 'exported');
+  assert.deepEqual(JSON.parse(storage.values.get(LEGACY_KEY)).conversations.map(item => item.id), ['c1', 'c2']);
 });

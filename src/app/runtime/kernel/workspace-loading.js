@@ -28,6 +28,11 @@ export async function loadSplitWorkspace({ storage, user, context, logger = cons
   if (selection.loaded?.state === 'degraded') {
     logger.warn?.('Some conversations could not be read from the split workspace; they are kept in storage.', selection.loaded.problems);
   }
+  // A good load counts towards removing the old frozen item (after 30 days and 10 good loads; see recordSuccessfulLoad). Never fatal, and
+  // not waited for: the workspace is handed to the app first.
+  if (selection.loaded?.state === 'ready') {
+    selection.store.recordSuccessfulLoad({ legacyKey }).catch(error => logger.warn?.('The old storage item could not be checked for removal.', error));
+  }
   if (!selection.loaded?.workspace) return { data: emptyWorkspace() };
   // The same normalization the old single item goes through (legacy-core.js), with what it needs from there.
   return {

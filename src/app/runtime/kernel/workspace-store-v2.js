@@ -20,6 +20,9 @@ export const WS2_VERSION = 2;
 
 const LOAD_BATCH_SIZE = 16;
 const ATTACHMENT_BATCH_SIZE = 4;
+// How long the frozen old item is kept after the migration: days AND good loads, both.
+export const LEGACY_KEEP_DAYS = 30;
+export const LEGACY_KEEP_LOADS = 10;
 
 export class WorkspaceStoreError extends Error {
   constructor(code, message, details = {}) {
@@ -742,6 +745,47 @@ export function createWorkspaceStoreV2({
     });
   }
 
+  // The old single item is frozen after the migration and only kept as a safety net. This counts a load that went well (the store was read
+  // completely), and removes the old item once the net is no longer needed: at least `minDays` after the migration AND `minLoads` good loads,
+  // the records all there, and nothing in the old item that the split storage does not have. Returns { state, loads }.
+  async function recordSuccessfulLoad({ legacyKey, minDays = LEGACY_KEEP_DAYS, minLoads = LEGACY_KEEP_LOADS } = {}) {
+    if (!legacyKey) throw new TypeError('recordSuccessfulLoad needs the key of the old item.');
+    const counted = await exclusive(async () => {
+      const current = await readMeta();
+      if (current.state !== 'ok' || !current.meta.migratedFrom) return { state: 'not-migrated' };
+      const { meta } = current;
+      if (meta.migratedFrom.legacyRemovedAt) return { state: 'removed', loads: meta.migratedFrom.successfulLoads || 0 };
+      if (await isDisabled()) return { state: 'disabled' };
+      const loads = (meta.migratedFrom.successfulLoads || 0) + 1;
+      // Past the threshold the count stops growing (no needless writes while the other conditions are waited for).
+      if (loads <= minLoads) {
+        await storage.applyAtomic({ puts: [{ key: keys.meta, value: JSON.stringify({ ...meta, migratedFrom: { ...meta.migratedFrom, successfulLoads: loads } }) }] });
+      }
+      const age = Date.parse(now()) - Date.parse(meta.migratedFrom.at || '');
+      const due = loads >= minLoads && Number.isFinite(age) && age >= minDays * 86400000;
+      return { state: due ? 'due' : 'counted', loads: Math.min(loads, minLoads) };
+    });
+    if (counted.state !== 'due') return counted;
+
+    const integrity = await checkIntegrity();
+    if (integrity.state !== 'ok' || integrity.missing.length || integrity.missingAttachments.length) return { state: 'kept-incomplete', loads: counted.loads };
+    return exclusive(async () => {
+      const current = await readMeta();
+      if (current.state !== 'ok' || !current.meta.migratedFrom || current.meta.migratedFrom.legacyRemovedAt || await isDisabled()) return { state: 'kept', loads: counted.loads };
+      const { meta } = current;
+      const raw = await storage.getItem(legacyKey);
+      if (raw == null) {
+        await storage.applyAtomic({ puts: [{ key: keys.meta, value: JSON.stringify({ ...meta, migratedFrom: { ...meta.migratedFrom, legacyRemovedAt: now() } }) }] });
+        return { state: 'removed', loads: counted.loads };
+      }
+      // Something changed the old item since the last merge: it is not removed (the next load merges it first).
+      if (fingerprintText(raw) !== meta.migratedFrom.fingerprint) return { state: 'kept-changed', loads: counted.loads };
+      const next = { ...meta, migratedFrom: { ...meta.migratedFrom, legacyRemovedAt: now() } };
+      await storage.applyAtomic({ puts: [{ key: keys.meta, value: JSON.stringify(next) }], removes: [legacyKey] });
+      return { state: 'removed', loads: counted.loads, bytes: raw.length };
+    });
+  }
+
   // Records that the index does not know (orphans) and records the index lists but the storage lacks (missing). Reporting only.
   function checkIntegrity() {
     return exclusive(async () => {
@@ -827,6 +871,7 @@ export function createWorkspaceStoreV2({
     mergeStaleLegacy,
     exportToLegacy,
     checkIntegrity,
+    recordSuccessfulLoad,
     getUsage,
     getMigrationFailure: readFailure,
     setDisabled,

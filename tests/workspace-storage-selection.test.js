@@ -4,7 +4,7 @@ import test from 'node:test';
 import { MAX_MIGRATION_ATTEMPTS, WS2_FLAG_KEY, isWorkspaceV2Enabled, readWorkspaceV2Flag, readWorkspaceV2Request, selectWorkspaceStorage } from '../src/app/runtime/kernel/workspace-storage-selection.js';
 import { loadSplitWorkspace } from '../src/app/runtime/kernel/workspace-loading.js';
 import { getActiveWorkspaceStore, setActiveWorkspaceStore } from '../src/app/runtime/kernel/workspace-store-registry.js';
-import { createWorkspaceStoreV2 } from '../src/app/runtime/kernel/workspace-store-v2.js';
+import { createWorkspaceStoreV2, getWorkspaceV2Keys } from '../src/app/runtime/kernel/workspace-store-v2.js';
 
 const LEGACY_KEY = 'chatAppData_v8.6_alice';
 const quiet = { warn() {}, error() {}, info() {} };
@@ -42,24 +42,25 @@ function createFlagEnvironment(search = '', stored = null) {
   };
 }
 
-test('?ws2=1 turns the split storage on and the browser remembers it; ?ws2=0 turns it off; nothing in the address leaves it as it was', () => {
-  const environment = createFlagEnvironment('?ws2=1');
+test('the split storage is on by default; ?ws2=0 turns it off and the browser remembers it; ?ws2=1 turns it on again', () => {
+  assert.equal(isWorkspaceV2Enabled(createFlagEnvironment('', null)), true, 'on by default');
+  const environment = createFlagEnvironment('?ws2=0');
+  assert.equal(isWorkspaceV2Enabled(environment), false);
+  assert.equal(environment.values.get(WS2_FLAG_KEY), '0');
+
+  environment.location.search = '';
+  assert.equal(isWorkspaceV2Enabled(environment), false, 'remembered');
+  environment.location.search = '?other=1&ws2=1';
   assert.equal(isWorkspaceV2Enabled(environment), true);
   assert.equal(environment.values.get(WS2_FLAG_KEY), '1');
-
   environment.location.search = '';
   assert.equal(isWorkspaceV2Enabled(environment), true, 'remembered');
-  environment.location.search = '?other=1&ws2=0';
-  assert.equal(isWorkspaceV2Enabled(environment), false);
-  environment.location.search = '';
-  assert.equal(isWorkspaceV2Enabled(environment), false, 'forgotten');
-  assert.equal(isWorkspaceV2Enabled(createFlagEnvironment('', null)), false, 'off by default');
 });
 
-test('an unavailable address or storage means the split storage is off, never an error', () => {
-  assert.equal(isWorkspaceV2Enabled({ location: undefined, localStorage: undefined }), false);
+test('an unavailable address or storage means the default (on), never an error', () => {
+  assert.equal(isWorkspaceV2Enabled({ location: undefined, localStorage: undefined }), true);
   const blocked = { location: { search: '?ws2=1' }, localStorage: { getItem() { throw new Error('blocked'); }, setItem() { throw new Error('blocked'); } } };
-  assert.equal(isWorkspaceV2Enabled(blocked), false);
+  assert.equal(isWorkspaceV2Enabled(blocked), true);
 });
 
 test('with the switch off and no split store, the old item is used and nothing is written', async () => {
@@ -183,7 +184,12 @@ test('loadSplitWorkspace returns the normalized workspace of a split store, regi
     assert.ok(getActiveWorkspaceStore('alice'));
     assert.equal(globalThis.__noureonWorkspaceStorage.mode, 'v2');
 
-    environment.values.delete(WS2_FLAG_KEY);
+    // each good load is counted towards removing the old item (the first load migrated it, the second finds it migrated)
+    await new Promise(resolve => setTimeout(resolve, 5));
+    const countedMeta = JSON.parse(storage.values.get(getWorkspaceV2Keys('alice').meta));
+    assert.equal(countedMeta.migratedFrom.successfulLoads, 1);
+
+    environment.values.set(WS2_FLAG_KEY, '0');
     const plain = createFakeStorage({ [LEGACY_KEY]: legacy });
     assert.equal(await loadSplitWorkspace({ storage: plain, user: { username: 'alice' }, context, logger: quiet }), null);
     assert.equal(getActiveWorkspaceStore('alice'), null, 'a user on the old item has no registered store');
@@ -210,8 +216,9 @@ test('the address asks for the split storage with ?ws2=1, drops it with ?ws2=0 a
   const environment = createFlagEnvironment('', '1');
   assert.equal(readWorkspaceV2Flag(environment), true);
   environment.location.search = '?ws2=rollback';
-  assert.equal(isWorkspaceV2Enabled(environment), false);
+  assert.equal(isWorkspaceV2Enabled(environment), true, 'the switch is back to the default; the "disabled" marker of the store is what keeps the old item in use');
   assert.equal(readWorkspaceV2Flag(environment), false);
+  assert.equal(readWorkspaceV2Flag(createFlagEnvironment('', '0')), false, 'asked off is not asked on');
   assert.equal(readWorkspaceV2Flag({ localStorage: { getItem() { throw new Error('blocked'); } } }), false);
 });
 

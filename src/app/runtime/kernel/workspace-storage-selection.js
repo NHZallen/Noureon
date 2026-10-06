@@ -3,7 +3,8 @@
 //
 //  - A user who already has a split store keeps using it, whatever the switch says: after a migration the old item is frozen, so going
 //    back to it would show stale data.
-//  - The switch (?ws2=1 in the address once, remembered by the browser; ?ws2=0 forgets it) only decides whether the NEXT migration happens.
+//  - The split storage is on for everyone. The switch only decides whether the NEXT migration happens: ?ws2=0 in the address turns it off
+//    (remembered by the browser, the old item stays in use), ?ws2=1 turns it on again.
 //  - ?ws2=rollback is the way back: the whole workspace is written into the old item and the split storage is switched off (its records
 //    stay). ?ws2=1 asked for again afterwards clears them and migrates the old item afresh.
 //  - Anything that goes wrong leaves the old item in use and untouched.
@@ -23,7 +24,8 @@ export function readWorkspaceV2Request({ location = globalThis.location } = {}) 
   }
 }
 
-// Whether the browser has the switch on (what was asked in the address is remembered here). Without the side effects: for the settings line.
+// Whether the browser asked for the split storage by hand (?ws2=1; remembered here). Without the side effects: for the settings line, which
+// is only shown to those who asked.
 export function readWorkspaceV2Flag({ localStorage = globalThis.localStorage } = {}) {
   try {
     return localStorage?.getItem(WS2_FLAG_KEY) === '1';
@@ -36,10 +38,12 @@ export function isWorkspaceV2Enabled({ location = globalThis.location, localStor
   try {
     const request = readWorkspaceV2Request({ location });
     if (request === 'enable') localStorage?.setItem(WS2_FLAG_KEY, '1');
-    else if (request === 'disable' || request === 'rollback') localStorage?.removeItem(WS2_FLAG_KEY);
-    return localStorage?.getItem(WS2_FLAG_KEY) === '1';
+    else if (request === 'disable') localStorage?.setItem(WS2_FLAG_KEY, '0');
+    else if (request === 'rollback') localStorage?.removeItem(WS2_FLAG_KEY);
+    return localStorage?.getItem(WS2_FLAG_KEY) !== '0';
   } catch {
-    return false;
+    // Storage that cannot be read: the default (on) applies.
+    return true;
   }
 }
 
