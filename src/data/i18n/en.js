@@ -175,6 +175,7 @@
         primaryButtonColor: 'Primary Button Color',
         colorDefault: 'Default',
         colorCustom: 'Custom',
+        customColorPalette: 'Color palette',
         appearanceSettings: 'Appearance',
         colorGreen: 'Green',
         colorYellow: 'Yellow',

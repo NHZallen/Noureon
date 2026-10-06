@@ -49,8 +49,8 @@ function createHarness(overrides = {}) {
 
 function installColorOptionDom(document, elements) {
   elements.uiColorOptions = document.createElement('div');
-  elements.customColorPickerContainer = document.createElement('label');
-  elements.customColorPickerContainer.innerHTML = '<span class="color-dot"></span><span class="pz-hex-text"></span>';
+  elements.customColorPickerContainer = document.createElement('div');
+  elements.customColorPickerContainer.innerHTML = '<span class="color-dot"></span><input type="text" class="pz-hex-text">';
   elements.customColorInput = document.createElement('input');
   elements.customColorInput.type = 'color';
 
@@ -116,7 +116,7 @@ test('a colour saved as a custom colour shows as the named colour it equals, oth
   assert.equal(choiceOf(own.elements), 'custom');
   assert.equal(own.elements.customColorPickerContainer.classList.contains('hidden'), false);
   assert.equal(own.elements.customColorInput.value, '#123456');
-  assert.equal(own.elements.customColorPickerContainer.querySelector('.pz-hex-text').textContent, '#123456'.toUpperCase());
+  assert.equal(own.elements.customColorPickerContainer.querySelector('.pz-hex-text').value, '#123456'.toUpperCase());
 });
 
 test('choosing from the menu keeps the choice on the menu element for saving and closes the menu', () => {
@@ -139,12 +139,40 @@ test('choosing from the menu keeps the choice on the menu element for saving and
   elements.customColorInput.value = '#abcdef';
   elements.customColorInput.oninput();
   assert.deepEqual({ ...elements.uiColorOptions.dataset }, { mode: 'custom', color: '#abcdef' });
-  assert.equal(elements.customColorPickerContainer.querySelector('.pz-hex-text').textContent, '#ABCDEF');
+  assert.equal(elements.customColorPickerContainer.querySelector('.pz-hex-text').value, '#ABCDEF');
 
   clickChoice(elements, 'default');
   assert.equal(elements.uiColorOptions.dataset.mode, 'default');
   assert.equal(choiceOf(elements), 'default');
   assert.equal(elements.customColorPickerContainer.classList.contains('hidden'), true);
+});
+
+test('the colour code can be typed: a colour is taken in any case or short form, anything else goes back', () => {
+  const { document, elements, state, lifecycle } = createHarness();
+  installColorOptionDom(document, elements);
+  state.config.uiTheme = { mode: 'custom', customColor: '#123456' };
+  lifecycle.renderUiColorOptions();
+  const hexText = elements.customColorPickerContainer.querySelector('.pz-hex-text');
+  const dot = elements.customColorPickerContainer.querySelector('.color-dot');
+  const type = (value) => {
+    hexText.value = value;
+    hexText.dispatchEvent(new document.defaultView.Event('change'));
+  };
+
+  type('F80');
+  assert.deepEqual({ ...elements.uiColorOptions.dataset }, { mode: 'custom', color: '#ff8800' });
+  assert.equal(hexText.value, '#FF8800');
+  assert.equal(elements.customColorInput.value, '#ff8800');
+  assert.equal(dot.style.backgroundColor === '' ? '' : 'set', 'set');
+
+  type('  #A1B2C3 ');
+  assert.equal(elements.uiColorOptions.dataset.color, '#a1b2c3');
+
+  type('not a colour');
+  assert.equal(elements.uiColorOptions.dataset.color, '#a1b2c3');
+  assert.equal(hexText.value, '#A1B2C3', 'a code that is not a colour goes back to the one in use');
+  type('#12345');
+  assert.equal(hexText.value, '#A1B2C3');
 });
 
 test('applyBubbleColors refreshes the user bubble colour', () => {

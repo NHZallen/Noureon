@@ -32,6 +32,13 @@ export function createThemeAppearanceLifecycle(dependencies = {}) {
         purple: ['colorPurple', 'Purple']
     };
     const CUSTOM_CHOICE = 'custom';
+    // #RGB or #RRGGBB, with or without the #, in any case; the colour input wants #rrggbb.
+    const normalizeHex = (value) => {
+        const match = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(String(value).trim());
+        if (!match) return null;
+        const digits = match[1].length === 3 ? [...match[1]].map((digit) => digit + digit).join('') : match[1];
+        return `#${digits.toLowerCase()}`;
+    };
     let closeMenuOnOutsideClickBound = false;
 
     // The choice shown in the menu: the default, one of the named colours, or a colour of the person's own.
@@ -49,9 +56,10 @@ export function createThemeAppearanceLifecycle(dependencies = {}) {
             ? text('colorCustom', 'Custom')
             : text(...COLOR_LABEL_KEYS[choice]));
         const hexFor = (choice) => (choice === CUSTOM_CHOICE ? customColorInput.value : UI_THEME_COLORS[choice]);
+        const hexText = customColorPickerContainer.querySelector('.pz-hex-text');
         const showHex = () => {
             customColorPickerContainer.querySelector('.color-dot').style.backgroundColor = customColorInput.value;
-            customColorPickerContainer.querySelector('.pz-hex-text').textContent = customColorInput.value.toUpperCase();
+            hexText.value = customColorInput.value.toUpperCase();
         };
 
         let choice = getColorChoice(theme);
@@ -133,6 +141,17 @@ export function createThemeAppearanceLifecycle(dependencies = {}) {
             uiColorOptions.dataset.color = customColorInput.value;
             showHex();
             renderButton();
+        };
+
+        // The colour code can be typed; the palette opens from the dot. A code that is not a colour goes back to the one in use.
+        hexText.onchange = () => {
+            const hex = normalizeHex(hexText.value);
+            if (hex) {
+                customColorInput.value = hex;
+                customColorInput.oninput();
+            } else {
+                showHex();
+            }
         };
 
         uiColorOptions.replaceChildren(button, menu);

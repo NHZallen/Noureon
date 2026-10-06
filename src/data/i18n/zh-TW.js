@@ -175,6 +175,7 @@
         primaryButtonColor: '主按鈕顏色',
         colorDefault: '預設',
         colorCustom: '自訂',
+        customColorPalette: '調色盤',
         appearanceSettings: '外觀',
         colorGreen: '綠色',
         colorYellow: '黃色',

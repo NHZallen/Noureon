@@ -171,6 +171,7 @@ const es = {
   "primaryButtonColor": "Color del botón principal",
   "colorDefault": "Predeterminado",
   "colorCustom": "Personalizado",
+  "customColorPalette": "Paleta de colores",
   "appearanceSettings": "Apariencia",
   "colorGreen": "Verde",
   "colorYellow": "Amarillo",

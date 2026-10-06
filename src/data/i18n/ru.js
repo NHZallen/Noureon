@@ -171,6 +171,7 @@ const ru = {
   "primaryButtonColor": "Основной цвет кнопки",
   "colorDefault": "По умолчанию",
   "colorCustom": "Свой цвет",
+  "customColorPalette": "Палитра",
   "appearanceSettings": "Внешний вид",
   "colorGreen": "Зелёный",
   "colorYellow": "Жёлтый",

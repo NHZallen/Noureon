@@ -175,6 +175,7 @@
         primaryButtonColor: 'Couleur du Bouton Principal',
         colorDefault: 'Par défaut',
         colorCustom: 'Personnalisée',
+        customColorPalette: 'Palette de couleurs',
         appearanceSettings: 'Apparence',
         colorGreen: 'Vert',
         colorYellow: 'Jaune',
