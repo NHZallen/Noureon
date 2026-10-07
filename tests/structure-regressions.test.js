@@ -2650,7 +2650,7 @@ test('settings sidebar button remains wired to initialize and open the settings 
   assert.match(appBootstrapLifecycleSource, /const\s+resolveEventsUpdateInputState\s*=\s*updateInputState;/);
   assert.match(
     appBootstrapLifecycleSource,
-    /ALL_ELEMENTS\.settingsBtn\.addEventListener\('click',\s*\(\)\s*=>\s*\{\s*resolveEventsSetupSettingsModal\(\);\s*toggleModal\(ALL_ELEMENTS\.settingsModal,\s*true\);\s*\}\);/
+    /ALL_ELEMENTS\.settingsBtn\.addEventListener\('click',\s*\(\)\s*=>\s*openWhenBuilt\(\{\s*setup:\s*resolveEventsSetupSettingsModal,\s*show:\s*\(\)\s*=>\s*toggleModal\(ALL_ELEMENTS\.settingsModal,\s*true\)\s*\}\)\);/
   );
   assert.match(appBootstrapLifecycleSource, /ALL_ELEMENTS\.closeSettingsBtn\.addEventListener\('click',\s*\(\)\s*=>\s*toggleModal\(ALL_ELEMENTS\.settingsModal,\s*false\)\);/);
   assert.match(sidebarChatAstraRenderSource, /updateInputState:\s*\(\)\s*=>\s*legacyRuntimeContext\.resolveBinding\('input\.updateInputState'\)\(\)/);

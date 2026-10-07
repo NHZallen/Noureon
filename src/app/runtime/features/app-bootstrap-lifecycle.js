@@ -5,6 +5,7 @@ import { createTurnstileClient } from '../security/turnstile-client.js';
 import { addConfirmedProfileEntry } from '../memory/memory-profile-management.js';
 import { getRuntimeText } from '../i18n/runtime-texts.js';
 import { removeLastComposerIndicatorOnDelete } from './composer-indicator-keyboard.js';
+import { openWhenBuilt } from './open-settings-when-built.js';
 import { installFileCardInteractions } from '../../ui/files/file-card-interactions.js';
 import { collectSandboxInputs, setSandboxFileHooks } from '../../ui/sandbox/sandbox-files.js';
 import { installCodeHighlighting } from '../../ui/code/code-highlighting.js';
@@ -390,7 +391,7 @@ export function createLegacyAppBootstrapLifecycle({
                 const closeTrashView = () => toggleModal(ALL_ELEMENTS.trashViewModal, false);
                 ALL_ELEMENTS.closeTrashViewModalBtn.addEventListener('click', closeTrashView);
                 ALL_ELEMENTS.trashViewCloseBtn.addEventListener('click', closeTrashView);
-                ALL_ELEMENTS.settingsBtn.addEventListener('click', () => { resolveEventsSetupSettingsModal(); toggleModal(ALL_ELEMENTS.settingsModal, true); });
+                ALL_ELEMENTS.settingsBtn.addEventListener('click', () => openWhenBuilt({ setup: resolveEventsSetupSettingsModal, show: () => toggleModal(ALL_ELEMENTS.settingsModal, true) }));
                 ALL_ELEMENTS.saveSettingsBtn?.remove();
                 const scheduleInstantSettingsSave = (() => {
                     let saveTimer = null;

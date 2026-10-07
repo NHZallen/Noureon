@@ -79,7 +79,7 @@ test('settings modal source keeps Tavily depth fallback local to setupSettingsMo
   );
   assert.match(
     appBootstrapLifecycleSource,
-    /ALL_ELEMENTS\.settingsBtn\.addEventListener\('click',\s*\(\)\s*=>\s*\{\s*resolveEventsSetupSettingsModal\(\);\s*toggleModal\(ALL_ELEMENTS\.settingsModal,\s*true\);\s*\}\);/
+    /ALL_ELEMENTS\.settingsBtn\.addEventListener\('click',\s*\(\)\s*=>\s*openWhenBuilt\(\{\s*setup:\s*resolveEventsSetupSettingsModal,\s*show:\s*\(\)\s*=>\s*toggleModal\(ALL_ELEMENTS\.settingsModal,\s*true\)\s*\}\)\);/
   );
 });
 

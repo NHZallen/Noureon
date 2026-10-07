@@ -554,15 +554,23 @@ const setupSettingsModal = () => {
     const navItems = bindDesktopSettingsSections();
     activateDefaultDesktopSettingsSection(navItems);
     syncSettingsSectionForViewport(navItems);
-    void loadSyncVaultControls().then(async (controls) => {
+    // The account part of the page is built once, when its module has loaded (the first open); the page is then built again from the start.
+    // Every later open only refreshes its values: rebuilding the page again while it slides in made it flicker.
+    const built = loadSyncVaultControls().then((controls) => {
+        const alreadyBuilt = document.getElementById('user-section')?.dataset.syncVaultSettingsInitialized === 'true';
         controls.ensureSyncVaultSettings();
-        applyLanguage(config.uiLanguage);
-        renderSettingsMobileList();
-        const nextNavItems = bindDesktopSettingsSections();
-        activateDefaultDesktopSettingsSection(nextNavItems);
-        syncSettingsSectionForViewport(nextNavItems);
-        await controls.refreshSyncVaultControls();
-    }).catch(error => console.error('Failed to load sync vault settings:', error));
+        if (!alreadyBuilt) {
+            applyLanguage(config.uiLanguage);
+            renderSettingsMobileList();
+            const nextNavItems = bindDesktopSettingsSections();
+            activateDefaultDesktopSettingsSection(nextNavItems);
+            syncSettingsSectionForViewport(nextNavItems);
+        }
+        return controls;
+    });
+    built.then((controls) => controls.refreshSyncVaultControls()).catch(error => console.error('Failed to load sync vault settings:', error));
+    // Resolves when the page is built (what the opener may wait for a moment, so it is not built while it moves).
+    return built.catch(() => null);
 };
 const saveSettings = async ({ close = true, notify = true } = {}) => {
     await persistApiKeyInputIntents();
