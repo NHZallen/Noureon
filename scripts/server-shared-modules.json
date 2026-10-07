@@ -2,10 +2,18 @@
   "comment": "Modules of src/ the server may use, with everything they import. Read a module for browser use (window, document, storage, import.meta.env) before adding it; the check fails when the server starts using a module that is not here, or when one here is no longer used.",
   "modules": [
     {
+      "path": "src/app/legacy-runtime/features/image-generation-config.js",
+      "note": "Reviewed 2026-10-07: no browser globals (the lists of ratios and sizes and their checks)."
+    },
+    {
       "path": "src/app/legacy-runtime/features/learning-mode-prompt.js"
     },
     {
       "path": "src/app/legacy-runtime/features/model-request-formatting.js"
+    },
+    {
+      "path": "src/app/legacy-runtime/features/openrouter-image-generation.js",
+      "note": "Reviewed 2026-10-07: no browser globals (a `fetch` that is passed in, a stream reader; the server makes images without streaming)."
     },
     {
       "path": "src/app/legacy-runtime/features/stream-api-call.js",

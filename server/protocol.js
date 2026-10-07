@@ -22,6 +22,8 @@ export const ERROR_CODES = Object.freeze({
   // The Python sandbox was lost before the reply had an answer, with a page watching: the page makes the reply itself.
   sandboxUnavailable: 'sandbox_unavailable',
   stopped: 'stopped',
+  // The image was made but could not be kept in the person's cloud space.
+  imageNotSaved: 'image_not_saved',
   // A request to a research run that its stage does not allow (start after it has started, pause when it is paused).
   wrongPhase: 'wrong_phase',
   notFound: 'not_found',
@@ -45,7 +47,13 @@ export const LIMITS = Object.freeze({
   maxResumes: 3,
   // A deep research waits for the person and may be paused for a day: it may run this long, and its keys are kept a little longer.
   maxResearchRunMs: 26 * 60 * 60 * 1000,
-  researchKeyTtlMs: 27 * 60 * 60 * 1000
+  researchKeyTtlMs: 27 * 60 * 60 * 1000,
+  // An image is one call to the provider (4K can take a minute or two): it may run this long, and its key is kept a little longer.
+  maxImageRunMs: 10 * 60 * 1000,
+  imageKeyTtlMs: 30 * 60 * 1000,
+  // Sanity limits of an image request (what the models take is up to the provider: Nano Banana 14 pictures, FLUX.3 10, GPT Image 16).
+  maxImageReferences: 32,
+  maxImagePromptChars: 40_000
 });
 
 export const LANGUAGES = Object.freeze(['zh-TW', 'en', 'fr', 'ru', 'es']);

@@ -39,6 +39,13 @@ const OWN = {
     ru: 'Исследование слишком долго стояло на паузе и завершено. Запустите его заново.',
     es: 'La investigación estuvo en pausa demasiado tiempo y terminó. Vuelve a iniciarla.'
   },
+  image_not_saved: {
+    'zh-TW': '圖片畫好了，但沒能存進你的雲端空間，請再試一次。',
+    en: 'The image was made, but it could not be kept in your cloud space. Please try again.',
+    fr: 'L’image a été créée, mais elle n’a pas pu être conservée dans votre espace cloud. Veuillez réessayer.',
+    ru: 'Изображение создано, но его не удалось сохранить в вашем облачном хранилище. Попробуйте ещё раз.',
+    es: 'La imagen se creó, pero no se pudo guardar en tu espacio en la nube. Inténtalo de nuevo.'
+  },
   internal_error: {
     'zh-TW': '伺服器沒能完成這則回覆。',
     en: 'The server could not finish this reply.',

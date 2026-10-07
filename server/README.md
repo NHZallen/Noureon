@@ -12,6 +12,7 @@
 | `GET /v1/whoami` | 是 | 回傳目前登入者的 id，用來確認「瀏覽器的登入」和「伺服器」接得上 |
 | `POST /v1/runs/validate` | 是 | 檢查一份回覆請求的格式，不會真的執行（S1 的 `POST /v1/runs` 會用同一份檢查） |
 | `POST /v1/research` | 是 | 開始一次深度研究（請求內 `kind: 'research'`、`research.topic`）；一般回覆走 `POST /v1/runs`，兩個位址互不接對方的請求 |
+| `POST /v1/runs`（`kind: 'image'`） | 是 | 圖片生成（P1，2026-10-07）：請求內是 `image.prompt`、`image.config`（比例、畫質與進階欄位）、`image.references`（參考圖：data 位址或雲端空間裡的檔案標記），金鑰只放 OpenRouter 的；伺服器呼叫 OpenRouter 的 `/api/v1/images`（不串流，沒有預覽），把每張圖存進使用者的雲端空間（`encoding: 'blob'`，**不受 500MB 檢查**），訊息先寫 `imageGenerationLoading` 佔位，最後寫 `generatedImage` 加 `cloudAsset` 標記。逾時 10 分鐘、金鑰 30 分鐘；沒有 `files`（儲存桶）時回 422 `unsupported_mode`，頁面改自己生圖 |
 | `POST /v1/runs/:id/start` `hold` `release` `plan` `pause` `resume` | 是 | 對進行中的深度研究下指令：馬上開始、暫停倒數（編輯計劃中）、恢復倒數、用文字修改計劃（`{instruction}`）、暫停、繼續。階段不對回 409 `wrong_phase` |
 | `POST /v1/runs/:id/steer` | 是 | 研究進行中（或暫停中）補充一條指令（`{instruction}`，最多 2000 字、一次研究最多 20 條），之後的輪次、大綱、各章與摘要都會參考。階段不對回 409 `wrong_phase`；空白或超過上限回 400 `bad_request` |
 | `POST /v1/runs/:id/net` | 是 | 回答命令工具想連到某網站的詢問：`{askId, decision: 'once' \| 'always' \| 'deny'}`，交給正在執行的沙盒；不是這個人進行中的回覆回 404，答案不合法回 400 |

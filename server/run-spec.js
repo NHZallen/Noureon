@@ -4,6 +4,7 @@
 
 import { getCliTool, isCliReady } from '../src/data/cli-catalog.js';
 import { NET_MAX_RULES, NET_MODES, NET_RULES, normalizeNetHost, normalizeNetMode, normalizeNetRules } from '../src/data/cli-net.js';
+import { IMAGE_ASPECT_RATIOS, IMAGE_RESOLUTIONS } from '../src/app/legacy-runtime/features/image-generation-config.js';
 import { LANGUAGES, LIMITS, PROTOCOL_VERSION } from './protocol.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -13,9 +14,106 @@ const ROLES = ['user', 'model', 'system'];
 const WEB_SEARCH = ['off', 'research', 'grounding', 'briefing'];
 const SEARCH_PROVIDERS = ['tavily', 'tinyfish'];
 const TOP_LEVEL = ['protocol', 'clientVersion', 'conversationId', 'assistantMessageId', 'sequence', 'model', 'request', 'tools', 'secrets', 'kind', 'research'];
+const IMAGE_TOP_LEVEL = ['protocol', 'clientVersion', 'conversationId', 'assistantMessageId', 'sequence', 'model', 'request', 'image', 'secrets', 'kind'];
+// What the page may ask of an image model (the fields of the request to OpenRouter's images endpoint that the app sets).
+const IMAGE_CONFIG_FIELDS = ['aspectRatio', 'resolution', 'n', 'size', 'quality', 'outputFormat', 'background', 'outputCompression', 'seed', 'provider', 'reasoningEffort'];
+const CLOUD_ASSET = '__astraCloudAsset';
 
 const isObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 const text = (value, max) => typeof value === 'string' && value.length > 0 && value.length <= max;
+
+const isInteger = (value, min, max) => Number.isInteger(value) && value >= min && value <= max;
+const isDataImage = (value) => typeof value === 'string' && value.startsWith('data:image/') && value.indexOf(';base64,') > 10;
+// A picture the person's cloud space already keeps (the marker the app's sync writes): the server reads it from there.
+const isImageMarker = (value) => isObject(value) && isObject(value[CLOUD_ASSET]) && text(value[CLOUD_ASSET].path, 300) && String(value[CLOUD_ASSET].mimeType || '').startsWith('image/');
+
+/** A request for an image (`kind: 'image'`): the prompt, the size and shape, the pictures to start from, and the key. */
+function validateImageSpec(input) {
+  const errors = [];
+  const fail = (path, message) => errors.push({ path, message });
+  for (const name of Object.keys(input)) if (!IMAGE_TOP_LEVEL.includes(name)) fail(name, 'is not a known field');
+  if (!text(input.clientVersion, 40)) fail('clientVersion', 'must be a short text');
+  if (!UUID.test(String(input.conversationId || ''))) fail('conversationId', 'must be an id');
+  if (!UUID.test(String(input.assistantMessageId || ''))) fail('assistantMessageId', 'must be an id');
+  if (!Number.isInteger(input.sequence) || input.sequence < 0) fail('sequence', 'must be a whole number from 0');
+
+  const model = input.model;
+  if (!isObject(model)) fail('model', 'must be an object');
+  else {
+    // Image models are OpenRouter's (the images endpoint).
+    if (model.provider !== 'openrouter') fail('model.provider', 'an image is made with OpenRouter');
+    if (!text(model.id, 200)) fail('model.id', 'must be a short text');
+    if (!isObject(model.info)) fail('model.info', 'must be an object');
+  }
+
+  const request = input.request;
+  if (!isObject(request)) fail('request', 'must be an object');
+  else {
+    if (!LANGUAGES.includes(request.language)) fail('request.language', `must be one of ${LANGUAGES.join(', ')}`);
+    if (request.messageMetadata !== undefined && (!isObject(request.messageMetadata) || JSON.stringify(request.messageMetadata).length > 8192)) fail('request.messageMetadata', 'must be an object of at most 8 KB');
+    for (const name of Object.keys(request)) if (!['language', 'messageMetadata'].includes(name)) fail(`request.${name}`, 'is not a known field');
+  }
+
+  const image = input.image;
+  let config = {};
+  let references = [];
+  if (!isObject(image)) fail('image', 'must be an object');
+  else {
+    for (const name of Object.keys(image)) if (!['prompt', 'config', 'references'].includes(name)) fail(`image.${name}`, 'is not a known field');
+    if (!text(image.prompt, LIMITS.maxImagePromptChars)) fail('image.prompt', `must be a text of at most ${LIMITS.maxImagePromptChars} characters`);
+    if (!isObject(image.config)) fail('image.config', 'must be an object');
+    else {
+      const given = image.config;
+      for (const name of Object.keys(given)) if (!IMAGE_CONFIG_FIELDS.includes(name)) fail(`image.config.${name}`, 'is not a known field');
+      if (!IMAGE_ASPECT_RATIOS.includes(given.aspectRatio)) fail('image.config.aspectRatio', 'is not a ratio the app offers');
+      // '' (the model sets its own size) is left out of the request to the provider.
+      if (given.resolution !== undefined && given.resolution !== '' && !IMAGE_RESOLUTIONS.includes(given.resolution)) fail('image.config.resolution', 'is not a size the app offers');
+      if (given.n !== undefined && !isInteger(given.n, 1, 4)) fail('image.config.n', 'must be a whole number from 1 to 4');
+      for (const [name, max] of [['size', 40], ['quality', 40], ['outputFormat', 20], ['background', 20], ['reasoningEffort', 40]]) {
+        if (given[name] !== undefined && !text(given[name], max)) fail(`image.config.${name}`, `must be a short text (at most ${max} characters)`);
+      }
+      if (given.outputCompression !== undefined && !isInteger(given.outputCompression, 0, 100)) fail('image.config.outputCompression', 'must be a whole number from 0 to 100');
+      if (given.seed !== undefined && !Number.isSafeInteger(given.seed)) fail('image.config.seed', 'must be a whole number');
+      if (given.provider !== undefined && (!isObject(given.provider) || JSON.stringify(given.provider).length > 4096)) fail('image.config.provider', 'must be an object of at most 4 KB');
+      config = Object.fromEntries(IMAGE_CONFIG_FIELDS.filter((name) => given[name] !== undefined && given[name] !== '').map((name) => [name, given[name]]));
+    }
+    if (image.references !== undefined) {
+      if (!Array.isArray(image.references) || image.references.length > LIMITS.maxImageReferences) fail('image.references', `must be a list of at most ${LIMITS.maxImageReferences} pictures`);
+      else {
+        image.references.forEach((reference, index) => {
+          if (!isDataImage(reference) && !isImageMarker(reference)) fail(`image.references[${index}]`, 'must be a picture (a data address or a file of the cloud space)');
+        });
+        references = image.references;
+      }
+    }
+  }
+
+  const secrets = input.secrets;
+  if (!isObject(secrets)) fail('secrets', 'must be an object');
+  else {
+    if (!text(secrets.providerKey, 600)) fail('secrets.providerKey', 'is needed');
+    for (const name of Object.keys(secrets)) if (name !== 'providerKey') fail(`secrets.${name}`, 'is not a known field');
+  }
+
+  if (errors.length) return { ok: false, errors: errors.slice(0, 20) };
+  return {
+    ok: true,
+    spec: {
+      protocol: input.protocol,
+      kind: 'image',
+      clientVersion: input.clientVersion,
+      conversationId: input.conversationId,
+      assistantMessageId: input.assistantMessageId,
+      sequence: input.sequence,
+      model: { provider: model.provider, id: model.id, info: model.info },
+      // What the rest of the server reads of any reply (the language of its error, the metadata of its message); an image has no history.
+      request: { history: [], currentMessage: { parts: [] }, systemInstruction: '', language: request.language, ...(request.messageMetadata ? { messageMetadata: request.messageMetadata } : {}) },
+      tools: { webSearch: 'off', searchProvider: 'tavily', advanced: false },
+      image: { prompt: image.prompt, config, references },
+      secrets: { providerKey: secrets.providerKey }
+    }
+  };
+}
 
 /**
  * Checks a request body. Returns { ok: true, spec } (the checked copy, with only the known fields) or { ok: false, errors: [{ path, message }] }.
@@ -26,6 +124,7 @@ export function validateRunSpec(input) {
   const fail = (path, message) => errors.push({ path, message });
   if (!isObject(input)) return { ok: false, errors: [{ path: '', message: 'must be an object' }] };
   if (input.protocol !== PROTOCOL_VERSION) return { ok: false, unsupportedProtocol: true, errors: [{ path: 'protocol', message: `this server speaks protocol ${PROTOCOL_VERSION}` }] };
+  if (input.kind === 'image') return validateImageSpec(input);
   for (const name of Object.keys(input)) if (!TOP_LEVEL.includes(name)) fail(name, 'is not a known field');
 
   if (!text(input.clientVersion, 40)) fail('clientVersion', 'must be a short text');

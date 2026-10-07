@@ -137,6 +137,8 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
         if (deep !== (result.spec.kind === 'research')) throw new RequestError(ERROR_CODES.invalidRunSpec, deep ? 'This address is for a deep research.' : 'A deep research is started at /v1/research.');
         // Python needs the sandbox host, and it has to answer now (when it does not, the browser makes the reply with its own Python); the provider's own web search does not go with tools (the briefing is how it is done instead).
         if (result.spec.tools.advanced && (result.spec.tools.webSearch === 'grounding' || !(await runs.advancedAvailable?.()))) throw new RequestError(ERROR_CODES.unsupportedMode, 'Advanced mode is not run on the server.');
+        // An image needs the store that keeps the pictures; without it the browser makes the image itself.
+        if (result.spec.kind === 'image' && !runs.imageAvailable?.()) throw new RequestError(ERROR_CODES.unsupportedMode, 'Images are not made on the server.');
         try {
           const runId = await runs.start({ userId: user.id, spec: result.spec });
           // Whether the check of a presentation it writes is made here too (otherwise the page makes it, as it always did).

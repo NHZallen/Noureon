@@ -63,15 +63,17 @@ export function createFileStore({ url, serviceKey, db = null, quotaBytes = USER_
 
   /**
    * Keeps the bytes as the person's file. Resolves the marker to put where the file's data goes ({ __astraCloudAsset: { path, mimeType,
-   * encoding } }). The same bytes are kept once (a file that is already there costs no space). Throws a FileStoreError with code 'quota'
-   * when the file would take the person over their space.
+   * encoding } }; `encoding` is how the app reads the file back: 'base64' for the data of an attachment or a sandbox file, 'blob' for a
+   * generated image). The same bytes are kept once (a file that is already there costs no space). Throws a FileStoreError with code 'quota'
+   * when the file would take the person over their space, unless `quota` is false (a generated image: like the ones the app's own sync
+   * keeps, it is not stopped by the person's space).
    */
-  async function save({ userId, bytes, mimeType = 'application/octet-stream' }) {
+  async function save({ userId, bytes, mimeType = 'application/octet-stream', encoding = 'base64', quota = true }) {
     const hash = createHash('sha256').update(bytes).digest('hex');
     const path = `${userId}/${hash}`;
-    const marker = { [ASSET_MARKER]: { path, mimeType, encoding: 'base64' } };
+    const marker = { [ASSET_MARKER]: { path, mimeType, encoding } };
     if (await exists(path)) return marker;
-    const used = await usage(userId);
+    const used = quota ? await usage(userId) : null;
     if (used !== null && used + bytes.byteLength > quotaBytes) throw new FileStoreError('The person\'s space is full.', 507, 'quota');
     let response;
     try {

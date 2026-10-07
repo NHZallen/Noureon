@@ -1,7 +1,7 @@
 # 圖片生成搬到伺服器（關掉頁面也會畫完）
 
 **日期：** 2026-10-06
-**狀態：** 討論完成，owner 已決定 §2 的事項（逾時 10 分鐘、版本 17.9.0 也已同意，2026-10-06）；**P0 小實驗已完成（§8）**，沒有改任何產品程式；下一步是 P1（伺服器），要 owner 說開始才做。
+**狀態：** 討論完成，owner 已決定 §2 的事項（逾時 10 分鐘、版本 17.9.0 也已同意，2026-10-06）；**P0 小實驗已完成（§8）；P1 伺服器端已完成（§9），客戶端（P2）還沒做，所以網站上的行為完全沒變**；下一步是 P2，要 owner 說開始才做。另外 owner 已決定（2026-10-07）：圖片生成先做、「先搜一包」用完整做法（伺服器自己搜）排第二、多模型會議最後（需另寫設計）。
 **前置閱讀：** [`AGENTS.md`](../../../AGENTS.md)、[伺服器執行設計](2026-10-03-server-runtime-design.md)（RunSpec、金鑰暫存、接續、§5 訊息寫入）、[交接文件](../plans/2026-10-04-session-handoff.md)。
 
 ## 1. 為什麼要做
@@ -115,4 +115,24 @@
 - **雲端儲存桶 `user-assets` 的單檔上限是 50MB**（`file_size_limit = 52428800`，不限檔案型別）。4K PNG 通常低於此值，但極端情況可能超過；超過時存圖會失敗，P1 要把這當成一個明確的錯誤（圖畫好了卻存不進去，要告訴使用者，而不是靜默失敗）。專案層級的全域上限我沒有看到，不確定。
 - 目前整個儲存桶：122 個檔案、約 74MB、最大一個 8MB（所有使用者合計）。
 - **參考圖可以只送標記：** 客戶端已有 `externalizeParts`（文字回覆用它先把附件存進雲端、請求裡只放位置）。圖片任務可以比照，先把參考圖存進雲端，請求只帶標記，伺服器再用 `file-store.load` 讀出來。這樣請求幾乎一定遠小於 25MB，上限實際上不太會卡到；owner 決定維持 25MB 不變，這只是讓「太大就退回本機」很少發生的做法，是否採用留到 P1／P2 決定。
+
+## 9. P1 完成紀錄（2026-10-07，伺服器端）
+
+只改伺服器與測試；客戶端（P2）還沒接，所以使用者看到的行為沒有任何改變。
+
+**新增與修改**
+- `server/run-spec.js`：`kind: 'image'` 的驗證（`validateImageSpec`）。模型提供商必須是 `openrouter`；`image.prompt`（最多 40,000 字）、`image.config`（比例必須是 App 的比例清單之一、畫質是清單之一或空字串＝不送、`n` 1 到 4、`quality`／`outputFormat`／`background`／`size`／`reasoningEffort`／`seed`／`outputCompression`／`provider` 有各自的限制，未知欄位拒絕）、`image.references`（最多 32 張，每張是 `data:image/…;base64,…` 或雲端空間裡的檔案標記）、金鑰只收 `providerKey`。回傳的 spec 補上其餘伺服器程式會讀的東西（`request.language`、空的歷史、`tools` 預設），所以 `runs.js` 的寫訊息與錯誤文字不用改。
+- `server/image-run.js`（新）：`executeImage`。先寫佔位 `{ imageGenerationLoading, imageAspectRatio }`；參考圖若是標記就用 `file-store.load` 讀出；用 `createOpenRouterImageGenerator`（和瀏覽器同一份程式，不串流）呼叫 OpenRouter；每張圖用 `file-store.save`（`encoding: 'blob'`、`quota: false`）存起來，失敗重試 2 次，仍失敗就丟 `image_not_saved`；回傳 `{ generatedImage: { id, storageKey: 'generatedImage:supabase:<使用者>:<id>', mediaType, size, aspectRatio, cloudAsset } }`。停止或逾時：放下請求、不存任何東西，回傳空文字與 `stopped`（和文字回覆一致）。供應商的錯誤訊息保留，金鑰會被遮蔽。
+- `server/runs.js`：`kind: 'image'` 走 `executeImage`；逾時 10 分鐘（`LIMITS.maxImageRunMs`）；金鑰存活 30 分鐘（`imageKeyTtlMs`）；`server_runs` 記 `{ kind: 'image' }`（P2 的 `reattach` 要靠它辨認）；`imageAvailable()`；新增建構參數 `files`（`main.js` 把已有的檔案儲存傳進去，不再只經由沙盒）。
+- `server/app.js`：`POST /v1/runs` 收圖片請求；沒有檔案儲存時回 422 `unsupported_mode`，讓頁面自己生圖。
+- `server/protocol.js`：新錯誤碼 `image_not_saved`、`LIMITS` 的圖片上限；`server/error-texts.js`：`image_not_saved` 的五語言文字（「圖片畫好了，但沒能存進你的雲端空間，請再試一次。」）。
+- `server/file-store.js`：`save` 多了 `encoding`（預設 `'base64'`，不變）與 `quota`（預設 `true`，不變）兩個選項。
+- `scripts/server-shared-modules.json`：伺服器新增使用兩個共用模組 `image-generation-config.js`、`openrouter-image-generation.js`（都看過，沒有瀏覽器全域）。
+
+**測試**（`tests/server/server-image.test.js`，13 項）：驗證接受與拒絕（含不重複值）、對 OpenRouter 的請求內容、存圖與回傳的部件、標記參考圖、供應商錯誤與沒有圖片、停止（含「圖片剛到的同時按停止」）、存圖重試與 `image_not_saved`、整個 run（佔位先寫、完成、金鑰 30 分鐘並在結束時清除、錯誤五語言文字不含金鑰、停止、10 分鐘逾時）、沒有儲存時不能做、`file-store` 的額度行為，以及 `POST /v1/runs` 的收與拒。全部 2964 項測試（不含卡住的 `runner.test.js`）、build、體積、舊執行層與伺服器邊界、版本、`npm audit` 通過。
+
+**沒做／留給 P2 與之後**
+- 客戶端：圖片版的「伺服器還是本機」、組 RunSpec、跟著執行、`reattach` 的圖片分支、移除本機預覽、五語言文字與隱私說明、更新紀錄與版本。
+- 每人同時上限：現在圖片和文字共用同一個上限（5）。尚未量記憶體，P2 完成、真實使用後再決定要不要為圖片另設。
+- 還沒有用真的 OpenRouter 與真的 Supabase 儲存桶實測；只有假的。
 

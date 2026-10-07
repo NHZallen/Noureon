@@ -3,6 +3,7 @@
 
 import { executeReply, ReplyError, scrubMessage } from './executor.js';
 import { errorText } from './error-texts.js';
+import { executeImage } from './image-run.js';
 import { createMessageWriter } from './message-writer.js';
 import { ERROR_CODES, LIMITS } from './protocol.js';
 import { createResearchControls, executeResearch } from './research.js';
@@ -39,6 +40,8 @@ export function createRunManager({
   sandbox = null,
   // The person's secure credentials for CLI tools (server/cli-credentials.js), or null.
   credentials = null,
+  // Where the pictures an image run makes are kept (server/file-store.js), or null: then images are not made here.
+  files = null,
   // The visual check that follows a reply with a presentation (server/vision-check.js): whether the server can draw slides, and how.
   vision = { available: async () => false, execute: executeVisionCheck, getKit: async () => null },
   limits = LIMITS,
@@ -47,6 +50,7 @@ export function createRunManager({
   now = Date.now,
   execute = executeReply,
   executeDeepResearch = executeResearch,
+  executeImageRun = executeImage,
   heartbeatMs = HEARTBEAT_MS,
   setTimer = setTimeout,
   clearTimer = clearTimeout,
@@ -193,6 +197,7 @@ export function createRunManager({
   async function run({ runId, userId, spec, secrets, resume, decks = new Map() }) {
     const isVision = spec.kind === 'vision';
     const isResearch = spec.kind === 'research';
+    const isImage = spec.kind === 'image';
     // How a person's requests reach a deep research that is running (start, pause, stop and the rest).
     const controls = isResearch ? createResearchControls() : null;
     const controller = new AbortController();
@@ -237,11 +242,21 @@ export function createRunManager({
           log('heartbeat_failed', { runId, message: String(error?.message || '').slice(0, 160) });
         }
       }, heartbeatMs);
-      const limitMs = isResearch ? limits.maxResearchRunMs : limits.maxRunMs;
+      const limitMs = isResearch ? limits.maxResearchRunMs : isImage ? limits.maxImageRunMs : limits.maxRunMs;
       limitAt = now() + limitMs;
       limit = setTimer(() => abort('time_limit'), limitMs);
 
-      const result = isVision ? await runVisionStage({ runId, userId, spec, secrets, controller, live, decks }) : await (isResearch ? executeDeepResearch : execute)({
+      const result = isVision ? await runVisionStage({ runId, userId, spec, secrets, controller, live, decks }) : isImage ? await executeImageRun({
+        spec,
+        secrets,
+        signal: controller.signal,
+        userId,
+        files,
+        fetchImpl,
+        now,
+        onUpdate: (parts) => writer.update(parts),
+        onProblem: (what, error) => log(what, { runId, ...diagnosis(error, secrets) })
+      }) : await (isResearch ? executeDeepResearch : execute)({
         spec,
         secrets,
         signal: controller.signal,
@@ -413,6 +428,9 @@ export function createRunManager({
       }
     },
 
+    /** Whether images can be made here: the store that keeps the pictures is there. */
+    imageAvailable: () => Boolean(files),
+
     /** Accepts a reply: seals its keys, records it (the limit and the conversation are checked in the database), and starts it. */
     async start({ userId, spec }) {
       if (draining) throw new RunError(ERROR_CODES.runsUnavailable, 'The server is restarting; try again in a moment.');
@@ -420,6 +438,7 @@ export function createRunManager({
       const { envelope, keyVersion } = vault.seal(secrets, { userId, messageId: spec.assistantMessageId });
       let runId;
       const research = spec.kind === 'research';
+      const image = spec.kind === 'image';
       try {
         runId = await store.start({
           userId,
@@ -429,8 +448,8 @@ export function createRunManager({
           envelope,
           keyVersion,
           // A deep research may wait a day (paused), so its keys are kept longer.
-          ...(research ? { keyTtlMs: limits.researchKeyTtlMs } : {}),
-          flags: research ? { kind: 'research' } : spec.tools.visionCheck ? { vision: true } : null
+          ...(research ? { keyTtlMs: limits.researchKeyTtlMs } : image ? { keyTtlMs: limits.imageKeyTtlMs } : {}),
+          flags: research ? { kind: 'research' } : image ? { kind: 'image' } : spec.tools.visionCheck ? { vision: true } : null
         });
       } catch (error) {
         const code = runStartErrorCode(error);
