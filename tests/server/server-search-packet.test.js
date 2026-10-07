@@ -233,3 +233,24 @@ test('a request for a packet is checked: no Python, a search key, and the depth 
   const plain = base(); delete plain.tools.searchDepth;
   assert.equal(validateRunSpec(plain).spec.tools.searchDepth, 'basic');
 });
+
+test('the pages watching are told which source is searched, and when that is over, before the first words of the answer', async () => {
+  const world = fakeWorld();
+  const live = [];
+  await executeReply({ spec: specFor(), secrets: { providerKey: KEY, searchKey: TAVILY }, fetchImpl: world.fetchImpl, onLive: (event) => live.push(event) });
+  const kinds = live.map((event) => (typeof event.ss === 'string' ? `ss:${event.ss}` : typeof event.a === 'string' ? 'answer' : 'other'));
+  assert.deepEqual(kinds.filter((kind) => kind !== 'other'), ['ss:tavily', 'ss:', 'answer']);
+  const tinyfish = [];
+  await executeReply({ spec: specFor({ tools: { searchProvider: 'tinyfish' } }), secrets: { providerKey: KEY, searchKey: TINYFISH }, fetchImpl: world.fetchImpl, onLive: (event) => tinyfish.push(event) }).catch(() => {});
+  assert.equal(tinyfish.find((event) => typeof event.ss === 'string' && event.ss).ss, 'tinyfish');
+
+  // A search that fails is over too: nobody is left "searching".
+  const failing = [];
+  await assert.rejects(() => executeReply({
+    spec: specFor(),
+    secrets: { providerKey: KEY, searchKey: TAVILY },
+    onLive: (event) => failing.push(event),
+    fetchImpl: async (url, options) => (String(url) === 'https://api.tavily.com/search' ? new Response('{}', { status: 500 }) : world.fetchImpl(url, options))
+  }));
+  assert.deepEqual(failing.filter((event) => typeof event.ss === 'string').map((event) => event.ss), ['tavily', '']);
+});

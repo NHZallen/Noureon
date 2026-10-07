@@ -331,6 +331,8 @@ export function createSingleModelResponseLifecycle({
           // What the model thinks is shown as it thinks, as in a reply made here.
           onThought: (chunk, kind, soFarMs) => showThinking(chunk, kind === 'summary' ? 'summary' : undefined, soFarMs),
           onThoughtEnd: (ms) => endThinking(ms),
+          // The server is searching first (for a model that cannot search): the line the page shows when it does that itself.
+          onSearching: (source) => { if (source && !answered) renderProgress(targetElement, startedAt, 'searchTranslation', getRuntimeText(uiLanguage, source === 'tinyfish' ? 'searchingTinyfish' : 'searchingTavily')); },
           // The steps of Python (and the pages it searched) as they happen, in the same step list as a reply made here.
           // Each event says when it happened on the server, so every page draws the same times.
           onEvent: (event) => {

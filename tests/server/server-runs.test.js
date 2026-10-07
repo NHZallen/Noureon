@@ -448,6 +448,35 @@ test('the words of a failed reply are in the language of the page, the provider\
 
 // ----- watching a reply live
 
+test('a page that joins while the reply is searching first is told which source it searches with, and not after it is over', async () => {
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  const { manager } = managerHarness({
+    execute: async ({ onLive }) => {
+      onLive({ r: { answer: '', thought: { text: '', kind: 'model' }, sources: [], elapsedMs: 0 } });
+      onLive({ ss: 'tavily' });
+      await gate;
+      onLive({ ss: '' });
+      onLive({ a: 'Hi' });
+      return { parts: [{ text: 'Hi' }], status: 'done', run: {}, toolCalls: 0 };
+    }
+  });
+  await manager.start({ userId: USER, spec: specOf() });
+  await settle();
+  const joined = [];
+  manager.watch({ userId: USER, runId: 'run-1', send: (event) => joined.push(event), close() {} });
+  assert.equal(joined[0].r.ss, 'tavily', 'the page that joins now shows "Searching with Tavily"');
+  release();
+  await settle();
+  assert.deepEqual(joined.slice(1, 3), [{ ss: '' }, { a: 'Hi' }]);
+  const after = managerHarness({ execute: async ({ onLive }) => { onLive({ r: { answer: '', thought: { text: '', kind: 'model' }, sources: [], elapsedMs: 0 } }); onLive({ ss: 'tavily' }); onLive({ ss: '' }); await new Promise(() => {}); } });
+  await after.manager.start({ userId: USER, spec: specOf() });
+  await settle();
+  const late = [];
+  after.manager.watch({ userId: USER, runId: 'run-1', send: (event) => late.push(event), close() {} });
+  assert.equal('ss' in late[0].r, false, 'a search that is over is not told to a page that joins later');
+});
+
 test('a reply can be watched live: the page gets what there is now, then every piece, then that it is over (after the message is written)', async () => {
   let release;
   const gate = new Promise((resolve) => { release = resolve; });

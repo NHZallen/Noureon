@@ -18,13 +18,14 @@ const textOf = (parts) => parts
 /**
  * Searches for the message and returns the request parts with the packet in front (inside the leading context part when the page made one).
  * `access` is what server/model-access.js resolves; `errorFor(message)` makes the error a failed search ends the reply with (the same as the
- * page, where a search that fails ends the reply with its message). Pages found go to `onSources`.
+ * page, where a search that fails ends the reply with its message). Pages found go to `onSources`; `onSearching(source)` says which search source the search is made with, as it begins.
  */
-export async function withSearchPacket({ parts, history, access, signal, onSources = () => {}, errorFor = (message) => new Error(message), createTools = createWebResearchTools, getErrorMessage, readErrorBody }) {
+export async function withSearchPacket({ parts, history, access, signal, onSources = () => {}, onSearching = () => {}, errorFor = (message) => new Error(message), createTools = createWebResearchTools, getErrorMessage, readErrorBody }) {
   const { config, keyFor, language, modelInfo, streamApiCall, upstreamFetch } = access;
   const source = config.searchProvider === 'tinyfish' ? 'tinyfish' : 'tavily';
   if (!keyFor(source)) throw errorFor(getRuntimeText(language, source === 'tinyfish' ? 'tinyfishKeyRequired' : 'tavilyKeyRequired'));
 
+  onSearching(source);
   const userParts = personParts(parts);
   const text = textOf(userParts);
   const messages = [...history, { role: 'user', parts: userParts }];

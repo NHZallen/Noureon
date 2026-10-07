@@ -860,3 +860,24 @@ test('a search packet with files in the message: the page prepares the files, th
   assert.ok(translation, 'the file is prepared here');
   assert.equal(translation[2].webSearchEnabled, false, 'but the search is not made here');
 });
+
+test('while the server searches first, the page shows "Searching with ..." for the source, until the answer comes', async () => {
+  const serverReply = serverReplyDouble({
+    plan: { ok: true, webSearch: 'packet' },
+    follow: async ({ onSearching, onText }) => { onSearching('tavily'); onSearching(''); onText('Answer'); onSearching('tinyfish'); return { text: 'Answer', run: null, rewritten: false }; }
+  });
+  const { calls, lifecycle, signal, targetElement } = createHarness({ extraDependencies: { serverReply } });
+  await lifecycle.run({
+    targetElement,
+    userParts: [{ text: 'What is new?' }],
+    modelInfo: { id: 'model', name: 'Model', provider: 'openrouter' },
+    conversation: { id: 'c1', model: 'model', isWebSearchEnabled: true, messages: [] },
+    webSearchEnabled: true,
+    signal,
+    uiLanguage: 'en',
+    assistantMessageId: 'm1',
+    sequence: 2
+  });
+  const stages = calls.filter((call) => call[0] === 'render-progress').map((call) => call[1]);
+  assert.equal(stages.filter((stage) => stage === 'searchTranslation').length, 1, 'once, for the search; a late word after the answer began changes nothing');
+});

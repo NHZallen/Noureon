@@ -278,6 +278,18 @@ test('a reply watched live is given to the page piece by piece as the server mak
   assert.equal(streamCall.options.headers.Authorization, 'Bearer token-123');
 });
 
+test('a search the server makes first is told to the page as it begins, and also to a page that joins while it goes on', async () => {
+  const { reply } = liveHarness({
+    events: [{ r: { answer: '', thought: { text: '', kind: 'model' }, sources: [], ss: 'tinyfish' } }, { ss: '' }, { a: 'Done' }, { done: 'complete' }],
+    rows: [row('Done', 'complete')],
+    extra: { wait: async () => {} }
+  });
+  const { run } = await reply.start(startArgs());
+  const searching = [];
+  await run.follow({ onSearching: (source) => searching.push(source), onText: () => {} });
+  assert.deepEqual(searching, ['tinyfish', ''], 'the source it searches with, then the end of the search');
+});
+
 test('the live channel is joined again when it breaks while the reply goes on, the steps are drawn afresh, and a reply that began again goes on in the steps only', async () => {
   const streams = [
     sseBody([{ r: { answer: 'Old words', thought: { text: '', kind: 'model' }, sources: [], events: [{ type: 'step', n: 1 }] } }, { ev: { type: 'step-end', n: 1 } }]).body,

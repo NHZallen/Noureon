@@ -100,6 +100,7 @@ export function createRunManager({
     } else if (Array.isArray(event.src)) live.sources = event.src;
     else if (event.ev) mirrorStepEvent(live, event.ev);
     else if (event.vc) mirrorVisionEvent(live, event.vc);
+    else if (typeof event.ss === 'string') live.searching = event.ss;
     else if (event.rs) live.research.state = event.rs;
     else if (event.ra) {
       live.research.activity.push(event.ra);
@@ -167,6 +168,8 @@ export function createRunManager({
       answer: live.answer,
       thought: { text: live.thought.text, kind: live.thought.kind, ended: live.thought.ended, ms: live.thought.ended ? live.thought.ms : (live.thought.first ? now() - live.thought.first : live.thought.ms) },
       sources: live.sources,
+      // A search the reply is making first (a packet): the source it uses, so a page that joins late shows "Searching with ..." too.
+      ...(live.searching ? { ss: live.searching } : {}),
       elapsedMs: live.elapsedFrom + (now() - live.elapsedAt),
       ...(live.steps.events.length ? { events: live.steps.events } : {}),
       ...(live.vision.events.length ? { vc: live.vision.events } : {}),
@@ -205,7 +208,7 @@ export function createRunManager({
     const netControl = { answer: null };
     // The same for the window that asks the person for a login a tool needs (executor.js).
     const credentialControl = { answer: null };
-    const live = { answer: '', thought: { text: '', kind: 'model', ended: false, ms: 0, first: null }, sources: [], elapsedFrom: 0, elapsedAt: now(), steps: { events: [], chars: 0 }, vision: { events: [], chars: 0 }, research: { state: null, activity: [] }, subscribers: new Set() };
+    const live = { answer: '', thought: { text: '', kind: 'model', ended: false, ms: 0, first: null }, sources: [], elapsedFrom: 0, elapsedAt: now(), steps: { events: [], chars: 0 }, vision: { events: [], chars: 0 }, research: { state: null, activity: [] }, searching: '', subscribers: new Set() };
     active.set(runId, { controller, userId, live, controls, netControl, credentialControl });
     let finalStatus = 'error';
     const writer = createMessageWriter({

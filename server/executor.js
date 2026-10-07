@@ -332,16 +332,23 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
       toolCalls = result.calls || 0;
     } else if (mode === 'packet') {
       // A model that cannot search: the search is made first (a failed one ends the reply with its message, as on the page).
-      const searched = await withSearchPacket({
-        parts,
-        history: spec.request.history,
-        access,
-        signal,
-        onSources: addSources,
-        errorFor: (message) => new ReplyError(scrubMessage(message, secrets), 'provider_error'),
-        getErrorMessage,
-        readErrorBody
-      });
+      // The pages watching are told which source it searches with (they show "Searching with Tavily"), and when that is over.
+      let searched;
+      try {
+        searched = await withSearchPacket({
+          parts,
+          history: spec.request.history,
+          access,
+          signal,
+          onSources: addSources,
+          onSearching: (source) => onLive({ ss: source }),
+          errorFor: (message) => new ReplyError(scrubMessage(message, secrets), 'provider_error'),
+          getErrorMessage,
+          readErrorBody
+        });
+      } finally {
+        onLive({ ss: '' });
+      }
       if (!signal?.aborted) await streamApiCall(searched, onChunk, signal, false, requestOptions);
     } else {
       await streamApiCall(parts, onChunk, signal, false, requestOptions);
