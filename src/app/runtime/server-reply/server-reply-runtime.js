@@ -4,7 +4,7 @@
 import { cliText } from '../cli/cli-texts.js';
 import { registerServerRequest } from '../cli/cli-server-bridge.js';
 import { PRODUCT_VERSION } from '../../../data/version.js';
-import { createServerReply, localizeServerError, planServerImage, planServerReply } from './server-reply.js';
+import { createServerReply, localizeServerError, planServerCouncil, planServerImage, planServerReply } from './server-reply.js';
 import { serverReplyText } from './server-reply-texts.js';
 
 export function createBrowserServerReply({
@@ -20,6 +20,9 @@ export function createBrowserServerReply({
   getUiLanguage = () => 'zh-TW',
   getActiveConversation = () => null,
   onVisionLock = () => {},
+  // For a council: the models the conversation chose, and the one that writes its attachments down.
+  getCouncilSelectedModels = () => ({ participants: [], synthesizer: null, council: {} }),
+  getCouncilTranslatorModel = () => null,
   document = globalThis.document,
   // The conversation sync (src/app/sync/cloud-sync-v2-shadow.js): enabled only for a signed-in cloud account.
   getSync = () => globalThis.__astraCloudSyncV2,
@@ -135,8 +138,30 @@ export function createBrowserServerReply({
   // What the server said of a reply it made: whether it checks its presentations, and the id of the check when it began.
   const visionNotes = new Map();
 
+  const notify = (kind, language) => {
+    // A CLI tool (命令工具) that was chosen but could not be used: it needs a model that calls tools and the server.
+    if (kind === 'cli-local' || kind === 'cli-tool-model') showNotification(cliText(language, kind === 'cli-local' ? 'notOnServer' : 'needToolModel'), 'warning');
+    else showNotification(serverReplyText(language, kind === 'busy' ? 'fallbackBusy' : 'fallbackUnreachable'), 'info');
+  };
+
+  // A council: held by the server when it takes it (the page's own council otherwise). Its code is loaded when a council is first held.
+  let councilHold = null;
+  const council = (args) => {
+    councilHold ||= import('./server-council.js').then((module) => module.createServerCouncil({
+      plan: (context) => planServerCouncil({ config: getConfig(), ...context, hasAccount: hasAccount() }),
+      start: (startArgs) => serverReply.startCouncil(startArgs),
+      notify,
+      getCouncilSelectedModels,
+      getCouncilTranslatorModel,
+      getConfig,
+      getUiLanguage
+    }));
+    return councilHold.then((hold) => hold(args));
+  };
+
   return {
     hasAccount,
+    council,
     // The visual check of the presentations a reply wrote, when the server makes it (server-vision.js).
     noteVision: (messageId, { vision: checked = false, visionRunId = null } = {}) => {
       if (messageId && (checked || visionRunId)) visionNotes.set(messageId, { vision: checked, visionRunId });
@@ -176,11 +201,7 @@ export function createBrowserServerReply({
     watchRun: (...args) => serverReply.watchRun(...args),
     hydrateParts: (parts) => hydrateParts(parts),
     flushSync: () => flushSync(),
-    notify: (kind, language) => {
-      // A CLI tool (命令工具) that was chosen but could not be used: it needs a model that calls tools and the server.
-      if (kind === 'cli-local' || kind === 'cli-tool-model') showNotification(cliText(language, kind === 'cli-local' ? 'notOnServer' : 'needToolModel'), 'warning');
-      else showNotification(serverReplyText(language, kind === 'busy' ? 'fallbackBusy' : 'fallbackUnreachable'), 'info');
-    },
+    notify,
     localizeError: localizeServerError
   };
 }

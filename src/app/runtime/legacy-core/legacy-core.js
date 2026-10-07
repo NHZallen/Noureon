@@ -961,6 +961,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             getCouncilRuntimeTexts,
             getCouncilSelectedModels,
             getCouncilTexts,
+            getCouncilTranslatorModel,
             getCouncilValidation,
             getModelApiId,
             getModelFamilyKey,

@@ -88,6 +88,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     runtimeConfigAccess = { getUiLanguage: () => getLiveConfig().uiLanguage },
     getCouncilRuntimeTexts = () => ({}),
     getCouncilSelectedModels = () => ({ participants: [], synthesizer: null, council: {} }),
+    getCouncilTranslatorModel = () => null,
     getCouncilTexts = () => ({}),
     getCouncilValidation = () => ({ ok: true, message: '' }),
     getModelApiId = (model) => model?.id || '',
@@ -164,7 +165,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
   const getIsCouncilRunning = () => Boolean(state.isCouncilRunning);
   const setIsCouncilRunning = (value) => { state.isCouncilRunning = value; };
   const vc = createVisionCheckScheduler({ getConfig: getLiveConfig, getActiveConversation, normalizeConversationModel, isCouncilEnabled, modelSupportsVision, streamApiCall, document, window, notificationContainer: ALL_ELEMENTS.notificationContainer, addMessageToUI, saveAppData, showNotification, crypto, logger, AbortController,
-    // The composer follows the checks: a chat with one running cannot send (settings-update-input-state-helper.js).
+    // The composer follows the checks: a chat with one running cannot send.
     onChange: (conversationIds) => {
       setVisionLocked('page', conversationIds);
       updateSubmitButtonState(false);
@@ -308,7 +309,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     updateFunctionButtonsState();
     ALL_ELEMENTS.fileOptionsPopover?.classList.remove('visible');
     const text = i18n[config.uiLanguage] || {};
-    // With a Noura active, explain how the two rule sets combine instead of the plain toast.
+    // With a Noura active, explain how the two rule sets combine, not the plain toast.
     showNotification(
       config.isLearningMode
         ? (getActiveAstrasId()
@@ -336,7 +337,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     const astrasId = getActiveAstrasId();
     const activeAstra = astrasId ? (state.astras || []).find((item) => item.id === astrasId) : null;
     const learningActive = config.isLearningMode && !isImageConversation(conv);
-    // Both rule sets are active at once: surface how they combine on both chips.
+    // Both rule sets are active: surface how they combine on both chips.
     const combinedRulesNotice = learningActive && activeAstra ? getCombinedRulesNotice() : '';
     const combinedRulesTitle = combinedRulesNotice ? ` title="${escapeHTML(combinedRulesNotice)}"` : '';
     if (learningActive) {
@@ -475,7 +476,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     const conv = getActiveConversation();
     const modelInfo = MODELS.find((model) => model.id === conv?.model);
     if (modelInfo?.provider !== 'gemini' && getUploadedFiles().length > 0) {
-      // Legacy no-op: the branch exists only to preserve the historical capability check.
+      // Legacy no-op: kept only for the historical capability check.
     }
   };
 
@@ -517,7 +518,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
 
   const getCouncilModeLabel = (council = {}) => {
     const texts = getCouncilTexts();
-    // Just how it works (Consensus or Discussion): the icon beside it already says it is the council.
+    // Only how it works (Consensus or Discussion): the icon beside it says it is the council.
     return council.mode === 'deliberation' ? texts.deliberation : texts.consensus;
   };
 
@@ -707,7 +708,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
 
   const { startProgressTicker, stopProgressTicker } = createProgressTicker(scheduleTimeout, clearScheduledTimeout);
 
-  // What a model that calls tools searches the web with, by itself, in a reply (web-research-reply.js).
+  // What a tool-calling model searches the web with, by itself (web-research-reply.js).
   const researchTools = createWebResearchTools({ getConfig: getLiveConfig, getApiKeyForProvider, getErrorMessage, readErrorBody, normalizePageReads, normalizeTinyfishSearch });
   const webResearch = {
     canUse: (model) => Boolean(modelUsesTavilySearch(model) && modelSupportsToolCalling(model) && researchTools.hasKey()),
@@ -715,17 +716,19 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     openPage: researchTools.fetchPageContents
   };
 
-  // Replies the server makes while the page may be closed (see runtime/server-reply/).
+  // Replies the server makes while the page may be closed.
   const serverReply = createBrowserServerReply({
     getConfig: getLiveConfig, getApiKeyForProvider,
     getModelApiId,
     getDefaultGenConfig,
-    // stream-api-call.js puts the system instruction together (and asks no provider) for `describeOnly`.
+    // stream-api-call.js builds the system instruction (and asks no provider) for `describeOnly`.
     describeRequest: (parts, options) => streamApiCall(parts, null, undefined, false, { ...options, describeOnly: true }),
     saveAppData,
     showNotification,
     getUiLanguage,
     getActiveConversation,
+    getCouncilSelectedModels,
+    getCouncilTranslatorModel,
     onVisionLock: () => updateSubmitButtonState(false)
   });
 
@@ -814,13 +817,13 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     const isEdit = Boolean(effectiveSubmitOptions.preserveComposer);
     const activeId = getActiveConversation()?.id;
     if (isEdit) {
-      // An edit cuts the conversation at the edited message: a reply still being written, or a visual check looking at one,
+      // An edit cuts the conversation at the edited message: a reply being written, or a visual check looking at one,
       // would add itself back after the cut. Both are stopped first, then the conversation is cut.
       vc.cancel(activeId);
       await stopReplyAndWait({ getAbortController, wait: (ms) => new Promise((resolve) => scheduleTimeout(resolve, ms)) });
       await effectiveSubmitOptions.prepare?.();
     } else if (vc.isRunning(activeId)) {
-      // The visual check is still looking at the last message: nothing is sent until it is done or stopped.
+      // The visual check is still on the last message: nothing is sent until it is done or stopped.
       showNotification(visionText(getUiLanguage(), 'sendLockedNotice'), 'warning');
       return;
     } else {
@@ -834,7 +837,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     await completePreparedReply(preparedSubmit);
   };
 
-  // What follows the preparation: the reply is made (or, when the server is still making it, followed), shown, and kept.
+  // What follows the preparation: the reply is made (or followed, when the server makes it), shown and kept.
   const completePreparedReply = async (preparedSubmit, { resumeRun = null } = {}) => {
     const {
       abortController: submitAbortController,
@@ -848,7 +851,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
       userParts
     } = preparedSubmit;
 
-    // The id of the reply's message is chosen first: the server writes under it, and an error it reports is saved under it.
+    // The reply's message id comes first: the server writes under it, and an error it reports is saved under it.
     const assistantMessageId = resumeRun?.assistantMessageId || crypto.randomUUID();
     try {
       let fullResponse = '';
@@ -868,10 +871,9 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
           userParts,
           signal: submitAbortController.signal,
           getOutputMode,
-          runModelCouncil: (...args) => runModelCouncil(...args, {
-            webSearchEnabled,
-            conversation: conv,
-            onMemoryContextResolved: collectHistorySources
+          runModelCouncil: (...args) => serverReply.council({
+            args, local: runModelCouncil, webSearchEnabled, conversation: conv, onMemoryContextResolved: collectHistorySources,
+            getHistorySourceIds: () => [...historySourceConversationIds], assistantMessageId, sequence: conv.messages.length, resumeRun
           }),
           renderCouncilProgress,
           createStreamingMarkdownRenderer,
@@ -905,7 +907,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
             onMemoryContextResolved: collectHistorySources,
             signal: submitAbortController.signal,
             uiLanguage: getLiveConfig().uiLanguage,
-            // The message the reply becomes: the server writes it under this id, at the place the reply will take.
+            // The message the reply becomes: the server writes it under this id, at the place the reply takes.
             assistantMessageId,
             sequence: conv.messages.length,
             getHistorySourceIds: () => [...historySourceConversationIds],
@@ -1025,7 +1027,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
         stopSingleModelLifecycle: () => singleModelResponseLifecycle.stop(),
         renderError: renderSingleModelError,
         persistAppData: saveAppData,
-        // An error the server reported is saved under the id of the message it wrote, so there is one message, not two.
+        // An error the server reported is saved under the id of the message it wrote (one message, not two).
         messageId: error?.serverRun ? assistantMessageId : null
       });
     } finally {
@@ -1036,7 +1038,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
       if (nothingSent) {
         loadingMessageDiv?.remove();
       } else {
-        // The models this message went to are the ones offered first next time.
+        // The models this message went to are offered first next time.
         noteConversationModels(conv).catch(() => {});
       }
       const lastMessageElement = runSubmitFinalCleanupLifecycle(
@@ -1058,7 +1060,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     }
   };
 
-  // A reply the server is still making when the page is opened again (or returned to) is shown being written (server-reply/reattach.js).
+  // A reply the server is still making when the page opens or is returned to is shown being written (reattach.js).
   const { reattachServerReply } = createServerReplyReattach({
     getActiveConversation,
     getAbortController,

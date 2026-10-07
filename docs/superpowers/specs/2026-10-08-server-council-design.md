@@ -1,7 +1,7 @@
 # 多模型會議（Council）搬到伺服器（關掉頁面也會開完會）
 
 **日期：** 2026-10-08
-**狀態：** owner 已決定 §2（2026-10-08），**P0（§7）、P1 伺服器端（§8）已完成**；客戶端（P2）還沒做，所以網站上的行為沒有任何變化（客戶端不會送 `council`）。這是「圖片 → 先搜一包 → 會議」三件事的最後一件。
+**狀態：** owner 已決定 §2（2026-10-08），**P0（§7）、P1 伺服器端（§8）、P2 客戶端（§9）已完成**；P3（隱私說明、更新紀錄、版本 17.11.0、驗收清單）還沒做，**P3 之前不建議推上線**（推上線後，登入雲端帳號的使用者開會議就會由伺服器進行）。這是「圖片 → 先搜一包 → 會議」三件事的最後一件。
 **前置閱讀：** [`AGENTS.md`](../../../AGENTS.md)、[伺服器執行設計](2026-10-03-server-runtime-design.md)、[圖片生成搬到伺服器](2026-10-06-server-image-generation-design.md)（新增一種任務類型的做法）、[先搜一包搬到伺服器](2026-10-07-server-search-packet-design.md)（搜尋包、備援金鑰、搜尋中顯示、共用的寫法）。
 
 ## 1. 現況與要解決的事
@@ -125,3 +125,14 @@
 - **共用程式：** 新增 `council-attachments.js`（哪些附件需要轉譯包；`legacy-core.js` 改用它，頁面行為不變）；共用清單加 5 個模組（皆已讀、無瀏覽器全域物件）；`scrubMessage` 現在會遞迴遮蔽巢狀金鑰（新增 `scrubText`）。
 - **測試：** `tests/server/server-council.test.js`（9 項：分金鑰與用途指令、辯論兩輪與搜尋、成員失敗與逾時、全部失敗不洩金鑰、合成中斷不重試、重啟接續不重問、停止、規格驗證、巢狀金鑰遮蔽；改壞重試規則、遮蔽、記憶，測試都會失敗），`tests/server/server-runs.test.js`（council 執行：金鑰封存與刪除、檢查點算進度、晚加入的快照）。
 - **還沒做：** 客戶端（P2）；另外，和文字回覆一樣，council 結束後 `server_runs.spec`（含對話歷史與附件）目前不會清掉（待 owner 決定是否清）。
+
+## 9. P2 客戶端完成（2026-10-08）
+
+- **接縫：** 頁面呼叫會議的位置（`runModelCouncil(parts, signal, onProgress, onFinalChunk, options) → { text, metadata }`）現在是 `serverReply.council({ args, local, ... })`：先問伺服器，不收就呼叫原本的 `runModelCouncil`（參數與以前相同），所以進度面板、合成串流、完成後處理一行都沒動。
+- **`server-reply.js`：** `planServerCouncil`（與圖片同一套條件：設定、雲端帳號、非暫時對話）、`startCouncil`（組請求：每個模型 `{ provider, id, info }`、完整歷史、原始訊息含附件、三種用途的系統指令、每個供應商的金鑰、搜尋金鑰與備援金鑰、搜尋深度、記憶來源對話；沒有金鑰、搜尋要金鑰卻沒有、請求超過 20MB、伺服器沒收，都靜默退回原本做法）、`follow` 多一個 `onCouncil`、`find` 認得 `council` 這種執行。成員與辯論的系統指令相同，所以只組一次；合成另組一次（可寫檔，並回報記憶來源）。
+- **`server-council.js`（新，第一次開會議時才載入，主頁面的程式碼增加得很少）：** `startCouncilRun`（上述組請求）與 `createServerCouncil`（跟隨伺服器的會議：`cs` 轉成面板用的進度，秒數由伺服器給、頁面接著算；合成的字交給 `onFinalChunk`；回傳 `{ text, metadata }`，metadata 只含頁面判斷「這是會議」需要的欄位）。伺服器已經在做的會議（重新打開頁面時）直接跟隨，不重開。
+- **`reattach.js`：** `council` 這種進行中的執行以會議方式接回（`responseUsesCouncil`），模型選單照會議進行中的方式鎖住。
+- **轉譯模型：** 只有訊息帶附件時才送（由頁面現有的 `getCouncilTranslatorModel` 決定）；`legacy-core.js` 多傳這個函式給提交流程。
+- **檔案大小：** `submit-input-council-lifecycle.js` 剛好在 51200 位元組上限內（縮短了幾行註解）；`legacy-submit-input` 的壓縮後大小剛好 150.0KB（上限 150KB）：把隱私頁新增說明縮短、並把會議的客戶端程式碼改成按需載入才通過。**這個區塊已經沒有餘裕，下一次再加東西要先把別的東西搬成按需載入。**
+- **測試：** `tests/server-council-client.test.js`（13 項：規劃、組請求、搜尋金鑰、附件與轉譯模型、退回各種情況、跟隨與進度對應、重新打開頁面接回、即時頻道 `cs`、接線檢查、**頁面送的每一種請求都通過伺服器自己的驗證**）；改壞進度對應測試會失敗。
+- **還沒做：** P3；真實帳號驗收；結束後 `server_runs.spec`（含歷史與附件）不清（待 owner 決定）。

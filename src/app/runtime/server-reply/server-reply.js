@@ -65,6 +65,9 @@ export function planServerImage({ config = {}, conversation = null, hasAccount =
   return { ok: true };
 }
 
+/** Whether a council can be held by the server: the same rules as for an image (the setting, a cloud account, a chat that is kept in the cloud). */
+export const planServerCouncil = planServerImage;
+
 const textOf = (parts) => (Array.isArray(parts) ? parts.map((part) => (typeof part?.text === 'string' ? part.text : '')).join('') : '');
 
 export class ServerReplyError extends Error {
@@ -318,6 +321,13 @@ export function createServerReply({
     if (!runId) return { ok: false, reason: 'bad-answer', notify: 'unreachable' };
     return { ok: true, run: createRun({ runId, assistantMessageId, kind: 'image' }) };
   };
+  /**
+   * Hands a council to the server (docs/superpowers/specs/2026-10-08-server-council-design.md). The code of it is loaded when a council is first
+   * held (server-council.js): most pages never hold one. Resolves like `begin`: { ok: true, run } or { ok: false, reason, notify }.
+   */
+  const startCouncil = async (args) => (await import('./server-council.js')).startCouncilRun({
+    getApiKeyForProvider, describeRequest, searchKeyFor, withCloudFiles, request, flushSync, warn, clientVersion, createRun, reasons: LOCAL_REASONS, protocol: SERVER_PROTOCOL_VERSION, maxChars: MAX_REQUEST_CHARS
+  }, args);
   // A deep research: the server makes the plan, waits for the person, researches and writes the report (server/research.js).
   const startResearch = (args) => begin('/v1/research', { ...args, webSearch: 'research', advanced: false, visionCheck: null });
 
@@ -387,7 +397,7 @@ export function createServerReply({
      * had, the message is read instead, a few times a second). `onText(delta)` gets the answer as it grows, `onThought(text, kind, msSoFar)` the thinking, `onThoughtEnd(ms)` how long it thought, `onTiming(ms)` how long the reply has gone on. `onRun(run)` gets the run record when it has more pages. Resolves { text, run, rewritten }
      * ('rewritten': the finished text is not just the streamed one with more at the end; `extraParts`: the files the reply made), or throws a ServerReplyError. `onEvent(event)` gets what the steps of a reply with Python do, for the step list.
      */
-    async follow({ onText = () => {}, onRun = () => {}, onThought = () => {}, onThoughtEnd = () => {}, onTiming = () => {}, onEvent = () => {}, onSearching = () => {}, signal } = {}) {
+    async follow({ onText = () => {}, onRun = () => {}, onThought = () => {}, onThoughtEnd = () => {}, onTiming = () => {}, onEvent = () => {}, onSearching = () => {}, onCouncil = () => {}, signal } = {}) {
       const startedAt = now();
       let answerSoFar = '';
       let stopSent = false;
@@ -443,6 +453,7 @@ export function createServerReply({
           // The times are the server's: how long the reply has gone on, and how long it thought, so every page shows the same.
           if (Number.isFinite(event.r.elapsedMs)) onTiming(event.r.elapsedMs);
           if (event.r.ss) onSearching(event.r.ss);
+          if (event.r.cs) onCouncil(event.r.cs);
           if (event.r.thought?.text) onThought(event.r.thought.text, event.r.thought.kind, event.r.thought.ms);
           if (event.r.thought?.ended) onThoughtEnd(event.r.thought.ms);
           if (event.r.sources?.length > sourceCount) {
@@ -451,7 +462,8 @@ export function createServerReply({
           }
           // A page that joins late is given the steps so far, to draw the same list.
           if (Array.isArray(event.r.events)) for (const step of event.r.events) onEvent(withFileBytes(step));
-        } else if (typeof event.ss === 'string') onSearching(event.ss);
+        } else if (event.cs) onCouncil(event.cs);
+        else if (typeof event.ss === 'string') onSearching(event.ss);
         else if (Number.isFinite(event.tm)) onTiming(event.tm);
         else if (event.ev) onEvent(withFileBytes(event.ev));
         else if (typeof event.a === 'string') {
@@ -607,7 +619,7 @@ export function createServerReply({
   /** A reply of this conversation the server is still making (the page was closed or left meanwhile), to follow from here, or null. */
   const find = async (conversationId) => {
     const row = await findLiveRun(conversationId);
-    return row?.id && row?.message_id ? createRun({ runId: row.id, assistantMessageId: row.message_id, kind: row.kind === 'vision' || row.kind === 'research' || row.kind === 'image' ? row.kind : 'reply', vision: row.vision === true || row.vision === 'true' }) : null;
+    return row?.id && row?.message_id ? createRun({ runId: row.id, assistantMessageId: row.message_id, kind: row.kind === 'vision' || row.kind === 'research' || row.kind === 'image' || row.kind === 'council' ? row.kind : 'reply', vision: row.vision === true || row.vision === 'true' }) : null;
   };
 
   /**
@@ -633,5 +645,5 @@ export function createServerReply({
   /** The latest run of this conversation that failed on the server (a recent one), or null: for the chat that was left with no word of it. */
   const findFailure = (conversationId) => findFailedRun(conversationId);
 
-  return { start, startResearch, startImage, find, findFailure, request, watchRun, readMessage };
+  return { start, startResearch, startImage, startCouncil, find, findFailure, request, watchRun, readMessage };
 }

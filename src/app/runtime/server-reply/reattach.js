@@ -72,7 +72,8 @@ export function createServerReplyReattach({
         contentDiv: loadingMessageDiv.querySelector('.message-content') || loadingMessageDiv,
         conversation: conv,
         loadingMessageDiv,
-        responseUsesCouncil: false,
+        // A council the server is holding is followed as the page's own would be (the panel, then the answer as it is written).
+        responseUsesCouncil: run.kind === 'council',
         webSearchEnabled: false,
         userMessage: (userMessageObject.parts || []).map((part) => part.text || '').join(''),
         userMessageObject,
