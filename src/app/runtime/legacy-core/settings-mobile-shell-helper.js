@@ -40,6 +40,8 @@ export function createSettingsMobileShellHelper(dependencies = {}) {
   } = dependencies;
 
   let settingsMobileViewTransitionTimer = null;
+  let renderedList = null;
+  let renderedHtml = '';
 
   const isMobileSettingsViewport = () => window.matchMedia('(max-width: 768px)').matches;
   const getSettingsMobileGroups = () => getSettingsMobileGroupsBase(getSettingsText);
@@ -47,7 +49,7 @@ export function createSettingsMobileShellHelper(dependencies = {}) {
   const renderSettingsMobileList = () => {
     const settingsMobileList = document.getElementById('settings-mobile-list');
     if (!settingsMobileList) return;
-    settingsMobileList.innerHTML = getSettingsMobileGroups().map(group => `
+    const html = getSettingsMobileGroups().map(group => `
         <section class="settings-mobile-group">
             <h3 class="settings-mobile-group-title">${escapeHTML(group.title)}</h3>
             <div class="settings-mobile-card">
@@ -72,6 +74,11 @@ export function createSettingsMobileShellHelper(dependencies = {}) {
             </div>
         </section>
     `;
+    // The same list is not drawn again: replacing it while the page is on screen makes the phone paint it from nothing (a white flash).
+    if (renderedList === settingsMobileList && renderedHtml === html && settingsMobileList.firstChild) return;
+    renderedList = settingsMobileList;
+    renderedHtml = html;
+    settingsMobileList.innerHTML = html;
     settingsMobileList.querySelector('#settings-mobile-logout-btn')?.addEventListener('click', handleLogout);
   };
 

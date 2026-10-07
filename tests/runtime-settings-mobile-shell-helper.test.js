@@ -232,3 +232,44 @@ test('helper exposes injected viewport and transition helpers without global lif
 test('import is inert', () => {
   assert.equal(typeof createSettingsMobileShellHelper, 'function');
 });
+
+test('the same list is not drawn again while the page is on screen (a phone paints a replaced list from nothing: a white flash)', () => {
+  const { helper, mobileList } = createFixture();
+  // What a real element has once it holds something.
+  let writes = 0;
+  let html = '';
+  Object.defineProperty(mobileList, 'innerHTML', { get: () => html, set: (value) => { writes += 1; html = value; mobileList.firstChild = value ? {} : null; } });
+  helper.renderSettingsMobileList();
+  helper.renderSettingsMobileList();
+  helper.renderSettingsMobileList();
+  assert.equal(writes, 1, 'drawn once; the next draws find it the same');
+  mobileList.innerHTML = '';
+  helper.renderSettingsMobileList();
+  assert.equal(writes, 3, 'but a list that was emptied is drawn again (the clearing above is write 2)');
+});
+
+test('a list in another language is drawn again', () => {
+  let language = 'Settings';
+  const { helper, mobileList } = createFixture();
+  let writes = 0;
+  let html = '';
+  Object.defineProperty(mobileList, 'innerHTML', { get: () => html, set: (value) => { writes += 1; html = value; mobileList.firstChild = value ? {} : null; } });
+  const changing = createSettingsMobileShellHelper({
+    window: { matchMedia: () => ({ matches: true }) },
+    document: { getElementById: (id) => (id === 'settings-mobile-list' ? mobileList : null), createElement },
+    elements: { settingsModal: createElement('m') },
+    escapeHTML: (value) => String(value),
+    getSettingsText: (key, fallback) => (key === 'logout' ? language : fallback),
+    handleLogout: () => {},
+    setTimeout: () => 1,
+    clearTimeout: () => {}
+  });
+  changing.renderSettingsMobileList();
+  changing.renderSettingsMobileList();
+  assert.equal(writes, 1);
+  language = 'Se déconnecter';
+  changing.renderSettingsMobileList();
+  assert.equal(writes, 2, 'another language is another list');
+  assert.match(html, /Se déconnecter/);
+  void helper;
+});

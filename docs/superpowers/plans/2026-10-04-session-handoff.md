@@ -104,3 +104,10 @@
 - 實作重點：`server/council-run.js` 用真正的 `createCouncilResponseLifecycle`，依供應商分金鑰（`secrets.keys`）、依用途注入系統指令、逾時、合成開始輸出後失敗不重試、完成的呼叫與搜尋記在檢查點（重啟只重做合成）、金鑰遞迴遮蔽；客戶端 `server-council.js` 按需載入。
 - **注意：** 主要程式區塊壓縮後剩 0.3KB 餘裕（`legacy-submit-input` 上限 150KB），詳見設計文件 §10；`submit-input-council-lifecycle.js` 也剛好貼在 51200 位元組上限。
 - 三件「搬上伺服器」的事（圖片、先搜一包、多模型會議）到此全部完成。待決定：已結束回覆（文字、會議）的 `server_runs.spec` 不清（內含歷史與附件）；Zeabur 的 `ASSET_SWEEP`。
+
+## 2026-10-08（17.11.1）設定頁第一次打開白一下
+
+- owner 錄影（`ScreenRecording_10-07-2026_20-32-15_1.mp4`，約 60 格每秒）逐格看：設定頁淡入後，整個畫面只剩右上角的「×」約 0.2 秒（內容整份消失），然後清單才出現。原因：第一次打開時，帳號那一部分要等一個程式模組載入；17.9.2 起打開前最多等 250 毫秒，手機網路慢就先顯示，模組載完後 `setupSettingsModal` 的尾巴把整份清單用 `innerHTML` 換掉，手機把被換掉的圖層從空白重畫，所以白一下。
+- 修正：①`renderSettingsMobileList` 內容相同就不重畫（`settings-mobile-shell-helper.js`）；②等待上限 250→500 毫秒；③網頁打開 4 秒後、瀏覽器空閒時先把設定頁準備好（`prepareWhenIdle`，`open-settings-when-built.js`），第一次點開直接顯示。
+- 驗證（Chromium 手機模擬，擋掉 Service Worker、把帳號模組延遲 1.5 秒）：舊版在顯示後清單被改動 2 次，新版 0 次；打開前已準備好時 27 毫秒內顯示。iPhone 上的畫面沒辦法在這裡看，請 owner 實測。
+
