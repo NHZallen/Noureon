@@ -135,8 +135,21 @@ export function createSingleModelResponseLifecycle({
     // A web address in the message is read for the models that cannot open one (provider-request-support.js decides which). Not when the person
     // chose a CLI tool with "@" and the model searches and opens pages by itself: the address is the tool's, and the model reads it if it needs to.
     const addressIsForTool = researchByModel && Boolean(supportsToolCalling?.(modelInfo)) && cliIdsForReply(getConfig(), userParts).chosen.length > 0;
+    // Whether the server makes this reply, and so (for a model that cannot search) the search too: the page then only prepares the files and
+    // pages of the message. When the server does not take the reply, the search is made here, below.
+    const canCallTools = Boolean(supportsToolCalling?.(modelInfo));
+    const cli = canCallTools ? cliIdsForReply(getConfig(), userParts) : { chosen: [], ids: [] };
+    // Advanced mode is the default, so most replies are "advanced" by the setting alone. Python is only needed when the request is
+    // about files or data, or the conversation already has some; any other reply is the same without it, and the server makes it.
+    // The CLI tools chosen with "@" (and those the person lets the model use by itself) run in the same sandbox, so they need it whatever the
+    // setting says; a model that cannot call tools cannot use them.
+    const needsPython = cli.ids.length > 0 || (replyMode.advanced && (looksLikeFileTask(userParts) || conversationHasFiles(conversation)));
+    const plan = !resumeRun && serverReply && assistantMessageId
+      ? serverReply.plan({ conversation, advanced: needsPython, webSearchEnabled, researchByModel, provider: modelInfo?.provider })
+      : null;
+    const serverSearches = plan?.ok && plan.webSearch === 'packet';
     const hasTranslationInputs = !resumeRun && (userParts.some((part) => part.inlineData) ||
-      Boolean(webSearchEnabled && !researchByModel) ||
+      Boolean(webSearchEnabled && !researchByModel && !serverSearches) ||
       (!addressIsForTool && extractLinkedUrls(userParts.map((part) => part.text || '').join('\n')).urls.length > 0));
     let requestParts = userParts;
     // The pages a web search found (kept with the reply, shown as "Searched N sites").
@@ -165,7 +178,7 @@ export function createSingleModelResponseLifecycle({
         signal,
         (stage, message) => renderProgress(targetElement, startedAt, stage, message),
         {
-          webSearchEnabled: webSearchEnabled && !researchByModel,
+          webSearchEnabled: webSearchEnabled && !researchByModel && !serverSearches,
           readLinkedPages: !addressIsForTool,
           conversation,
           // The pages a search found, and then the pages that were read (marked `read`).
@@ -179,15 +192,7 @@ export function createSingleModelResponseLifecycle({
     // The server makes the reply when it can (settings, the kind of reply and the account allow it, and it takes it); the page then
     // only follows what the server writes. Otherwise it is made here, as always.
     let serverRun = resumeRun;
-    if (!serverRun && serverReply && assistantMessageId) {
-      // Advanced mode is the default, so most replies are "advanced" by the setting alone. Python is only needed when the request is
-      // about files or data, or the conversation already has some; any other reply is the same without it, and the server makes it.
-      // The CLI tools chosen with "@" (and those the person lets the model use by itself) run in the same sandbox, so they need it whatever the
-      // setting says; a model that cannot call tools cannot use them.
-      const canCallTools = Boolean(supportsToolCalling?.(modelInfo));
-      const cli = canCallTools ? cliIdsForReply(getConfig(), userParts) : { chosen: [], ids: [] };
-      const needsPython = cli.ids.length > 0 || (replyMode.advanced && (looksLikeFileTask(userParts) || conversationHasFiles(conversation)));
-      const plan = serverReply.plan({ conversation, advanced: needsPython, webSearchEnabled, researchByModel, provider: modelInfo?.provider });
+    if (!serverRun && plan) {
       // A tool was chosen but cannot be used for this reply: the person is told (the reply is made without it).
       if (!canCallTools && cliIdsForReply(getConfig(), userParts).chosen.length) serverReply.notify('cli-tool-model', uiLanguage);
       else if (!plan.ok && cli.chosen.length) serverReply.notify('cli-local', uiLanguage);
@@ -221,6 +226,20 @@ export function createSingleModelResponseLifecycle({
         if (started.ok) serverRun = started.run;
         else if (started.notify) serverReply.notify(started.notify, uiLanguage);
       }
+    }
+    // The server did not take the reply (or there is no account to make it with): the search it was to make is made here, as before.
+    if (serverSearches && !serverRun) {
+      stop();
+      renderProgress(targetElement, startedAt, 'preparing', 'Checking model capabilities');
+      startTicker(targetElement, startedAt);
+      requestParts = await buildSingleModelTranslatedRequestParts(userParts, modelInfo, signal, (stage, message) => renderProgress(targetElement, startedAt, stage, message), {
+        webSearchEnabled: true,
+        baseParts: requestParts,
+        conversation,
+        onSources: (sources) => {
+          addSearchSources(sources);
+        }
+      });
     }
 
     let receivedChars = 0;

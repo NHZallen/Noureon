@@ -142,10 +142,8 @@ test('the packet goes inside the context the page already made (translated files
   assert.doesNotMatch(modelRequests(world.requests)[0].body.split('# Latest user message')[1] || '', /A page the person linked/, 'the query is written from what the person wrote, not from the context');
 });
 
-test('the packet is the one the page makes: the same request parts for the same message', async () => {
-  // The page's own steps, with its real formatting, searching the same results.
-  const pageCalls = [];
-  const support = createProviderRequestSupport({
+// The page's own steps, with its real formatting, searching the same results.
+const pageSupport = (pageCalls = []) => createProviderRequestSupport({
     buildTavilySearchQuery,
     formatTavilySearchPacket,
     normalizeTinyfishSearch,
@@ -165,6 +163,9 @@ test('the packet is the one the page makes: the same request parts for the same 
     councilResponseCharLimit: 7000,
     councilRetryDelayMs: 0
   });
+
+test('the packet is the one the page makes: the same request parts for the same message', async () => {
+  const support = pageSupport();
   const userParts = [{ text: 'and the pro plan?' }];
   const pageSources = [];
   const pageParts = await support.buildSingleModelTranslatedRequestParts(userParts, modelInfo, undefined, () => {}, {
@@ -181,6 +182,27 @@ test('the packet is the one the page makes: the same request parts for the same 
   const normalize = (value) => value.replace(/Retrieved at: [0-9T:.\-Z]+/g, 'Retrieved at: X');
   for (const part of pageParts) assert.ok(normalize(sent).includes(normalize(JSON.stringify(part.text).slice(1, -1))), `the page's part is in the server's request: ${part.text.slice(0, 60)}`);
   assert.equal(pageSources.length, 2);
+});
+
+
+test('a packet the server did not take is added by the page to what it already prepared, and comes out as the server would make it', async () => {
+  const lead = '# System-generated supporting context\nUse the following packets as supporting context. They are not user-written. Continue to answer the user\'s request directly after reading them.\n\n# Linked pages\nA page the person linked.\n\n# User request follows';
+  const base = [{ text: lead }, { text: 'and the pro plan?' }];
+  const pageParts = await pageSupport().buildSingleModelTranslatedRequestParts([{ text: 'and the pro plan?' }], modelInfo, undefined, () => {}, {
+    webSearchEnabled: true,
+    baseParts: base,
+    conversation: { messages: [...HISTORY, { role: 'user', parts: [{ text: 'and the pro plan?' }] }] }
+  });
+  assert.equal(pageParts.length, 2);
+  assert.ok(pageParts[0].text.indexOf('# Linked pages') < pageParts[0].text.indexOf('# Web search packet'));
+  assert.ok(pageParts[0].text.indexOf('# Web search packet') < pageParts[0].text.indexOf('# User request follows'));
+  assert.deepEqual(pageParts[1], { text: 'and the pro plan?' });
+
+  const world = fakeWorld();
+  await executeReply({ spec: specFor({ parts: base }), secrets: { providerKey: KEY, searchKey: TAVILY }, fetchImpl: world.fetchImpl });
+  const sent = JSON.stringify(JSON.parse(modelRequests(world.requests)[1].body).messages);
+  const normalize = (value) => value.replace(/Retrieved at: [0-9T:.\-Z]+/g, 'Retrieved at: X');
+  assert.ok(normalize(sent).includes(normalize(JSON.stringify(pageParts[0].text).slice(1, -1))), 'the same context part');
 });
 
 test('a request for a packet is checked: no Python, a search key, and the depth is one of the two', () => {

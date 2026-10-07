@@ -15,7 +15,7 @@ test('the plan: the server is used unless the person chose this device, or the r
   assert.deepEqual(planServerReply({ config: { replyRunLocation: 'server' } }), { ok: true, webSearch: 'off' });
   assert.equal(planServerReply({ config: { replyRunLocation: 'local' } }).reason, LOCAL_REASONS.setting);
   assert.equal(planServerReply({ config: {}, hasAccount: false }).reason, LOCAL_REASONS.noAccount);
-  // Python runs on the server too, with the model's own web search; a search packet is still made here.
+  // Python runs on the server too, with the model's own web search; a search packet cannot go with Python (those models call no tools), so it is made here.
   assert.deepEqual(planServerReply({ config: {}, advanced: true }), { ok: true, webSearch: 'off', advanced: true });
   assert.deepEqual(planServerReply({ config: {}, advanced: true, webSearchEnabled: true, researchByModel: true }), { ok: true, webSearch: 'research', advanced: true });
   assert.deepEqual(planServerReply({ config: {}, advanced: true, webSearchEnabled: true, provider: 'gemini' }), { ok: true, webSearch: 'briefing', advanced: true });
@@ -25,7 +25,8 @@ test('the plan: the server is used unless the person chose this device, or the r
   assert.equal(planServerReply({ config: {}, conversation: { retentionMode: 'ephemeral' } }).reason, LOCAL_REASONS.notSynced);
   assert.deepEqual(planServerReply({ config: {}, webSearchEnabled: true, researchByModel: true }), { ok: true, webSearch: 'research' });
   assert.deepEqual(planServerReply({ config: {}, webSearchEnabled: true, provider: 'gemini' }), { ok: true, webSearch: 'grounding' });
-  assert.equal(planServerReply({ config: {}, webSearchEnabled: true, provider: 'openrouter' }).reason, LOCAL_REASONS.packetSearch, 'a search packet is made in the browser');
+  assert.deepEqual(planServerReply({ config: {}, webSearchEnabled: true, provider: 'openrouter' }), { ok: true, webSearch: 'packet' }, 'the server searches first and puts the packet in front of the request');
+  assert.equal(planServerReply({ config: { replyRunLocation: 'local' }, webSearchEnabled: true, provider: 'openrouter' }).reason, LOCAL_REASONS.setting);
 });
 
 function harness(overrides = {}) {
@@ -79,12 +80,19 @@ test('a search by the model sends the key of the search source in use, or the ot
   const { reply, calls } = harness();
   await reply.start(startArgs({ webSearch: 'research', config: { searchProvider: 'tavily' } }));
   const spec = JSON.parse(calls[0].options.body);
-  assert.deepEqual(spec.tools, { webSearch: 'research', searchProvider: 'tavily', advanced: false });
+  assert.deepEqual(spec.tools, { webSearch: 'research', searchProvider: 'tavily', searchDepth: 'basic', advanced: false });
   assert.deepEqual(spec.secrets, { providerKey: KEY, searchKey: 'tvly-key' });
   const other = harness();
   await other.reply.start(startArgs({ webSearch: 'research', config: { searchProvider: 'tinyfish' } }));
   assert.equal(JSON.parse(other.calls[0].options.body).tools.searchProvider, 'tavily', 'the one there is a key for');
+  // Both keys: the chosen source's goes first, the other's is the backup; the depth of Settings goes with them.
+  const both = harness({ getApiKeyForProvider: (name) => ({ openrouter: KEY, tavily: 'tvly-key', tinyfish: 'tf-key' }[name] || '') });
+  await both.reply.start(startArgs({ webSearch: 'packet', config: { searchProvider: 'tinyfish', tavilySearchDepth: 'advanced' } }));
+  const both1 = JSON.parse(both.calls[0].options.body);
+  assert.deepEqual(both1.tools, { webSearch: 'packet', searchProvider: 'tinyfish', searchDepth: 'advanced', advanced: false });
+  assert.deepEqual(both1.secrets, { providerKey: KEY, searchKey: 'tf-key', searchKeyAlt: 'tvly-key' });
   const none = harness({ getApiKeyForProvider: (name) => (name === 'openrouter' ? KEY : '') });
+  assert.equal((await none.reply.start(startArgs({ webSearch: 'packet' }))).reason, LOCAL_REASONS.packetSearch, 'no search key: made here, where the missing key is told');
   const result = await none.reply.start(startArgs({ webSearch: 'research' }));
   assert.equal(result.ok, false);
   assert.equal(none.calls.length, 0);

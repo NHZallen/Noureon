@@ -1,7 +1,7 @@
 # 「先搜一包」搬到伺服器（關掉頁面也會搜完、答完）
 
 **日期：** 2026-10-07
-**狀態：** owner 已決定 §2（2026-10-07：深度照設定、要備援、失敗行為沿用現狀）。**P0（§7）、P1 伺服器端（§8）已完成**；客戶端（P2）還沒做，所以網站上的行為沒有任何變化（客戶端不會送 `packet`）。
+**狀態：** owner 已決定 §2（2026-10-07：深度照設定、要備援、失敗行為沿用現狀）。**P0（§7）、P1 伺服器端（§8）、P2 客戶端（§9）已完成**；P3（隱私說明、更新紀錄、版本）還沒做。推上線後，沒有搜尋工具的模型開了網路搜尋，就由伺服器搜尋。
 **前置閱讀：** [`AGENTS.md`](../../../AGENTS.md)、[伺服器執行設計](2026-10-03-server-runtime-design.md)、[圖片生成搬到伺服器](2026-10-06-server-image-generation-design.md)（新增一種任務類型的做法、§12 §13 的教訓）、[交接文件](../plans/2026-10-04-session-handoff.md)。
 
 ## 1. 現況與要解決的事
@@ -89,3 +89,11 @@
 - `scripts/server-shared-modules.json`：加入 `search-query-rewriter.js`、`runtime-texts.js`（已讀過，沒有瀏覽器全域物件）。
 - 測試（`tests/server/server-search-packet.test.js`，9 項）：查詢由對話改寫、深度、備援金鑰（另一家的金鑰只送給另一家）、失敗與金鑰遮蔽、空訊息、搜尋中停止、上下文合併，以及**與頁面自己的 `buildSingleModelTranslatedRequestParts` 逐字對照**（除了「Retrieved at」時間）；改壞深度或備援金鑰，測試會失敗。
 - 還沒做：接續（重啟）時 packet 模式沿用一般回覆的行為（沒有檢查點，整則重做）；P2 之前客戶端不會送 `packet`，所以現在沒有任何使用者受影響。
+
+## 9. P2 客戶端完成（2026-10-07）
+
+- `server-reply.js`：`planServerReply` 對「沒有工具、不是 Gemini、沒有 Python」的搜尋回覆回傳 `{ ok: true, webSearch: 'packet' }`（搜尋加 Python 仍留在本機）。`searchKeyFor` 回傳選定供應商的金鑰、另一家的金鑰（`searchKeyAlt`）與 Settings 的搜尋深度；`research`、`packet` 兩種都送。沒有任何搜尋金鑰時仍留在本機（顯示現有的「需要金鑰」訊息）。
+- `single-model-response-lifecycle.js`：計畫（原本在翻譯之後）移到準備請求之前。計畫是伺服器搜尋時，頁面只準備文件與網址，不搜尋；伺服器沒收（連不上、協定不符、請求太大……）才在本機補搜，而且只補搜尋，不重做文件轉譯與網址讀取。
+- `search-packet-parts.js`（新共用模組，伺服器也引用）：搜尋包怎麼放進請求的唯一寫法（開頭上下文、`# Web search packet` 區塊、七千字截斷、插進頁面已做過的上下文），頁面與伺服器不會各寫各的；`provider-request-support.js` 改用它，並多一個 `baseParts` 選項（只補搜尋）。
+- 測試：`tests/server-reply.test.js`（計畫、兩把金鑰與深度）、`tests/single-model-response-lifecycle.test.js`（伺服器搜尋時頁面不搜、沒收時補搜且只補搜尋、有檔案時頁面準備檔案伺服器搜尋；改壞任一處測試會失敗）、`tests/server/server-search-packet.test.js`（頁面補搜與伺服器組出同一段上下文）。
+- 已知差異：伺服器搜尋的那幾秒，頁面不會像本機搜尋那樣顯示「正在搜尋 Tavily」（顯示一般的回覆中狀態）；要顯示得多送一種即時事件，之後 owner 想要再做。

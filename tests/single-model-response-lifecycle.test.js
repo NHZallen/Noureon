@@ -796,3 +796,67 @@ test('an address in a message that chose a CLI tool with "@" is not read first w
   assert.equal(cannot.length, 1, 'a model that cannot search by itself still has the page read for it');
   assert.equal(cannot[0][2].readLinkedPages, true);
 });
+
+test('a search packet is the server\'s to make: the page does not search first, and the server is asked for it with the message\'s own parts', async () => {
+  const serverReply = serverReplyDouble({
+    plan: { ok: true, webSearch: 'packet' },
+    follow: async ({ onText }) => { onText('Answer'); return { text: 'Answer', run: null, rewritten: false }; }
+  });
+  const { calls, lifecycle, signal, targetElement } = createHarness({ extraDependencies: { serverReply } });
+  await lifecycle.run({
+    targetElement,
+    userParts: [{ text: 'What is new?' }],
+    modelInfo: { id: 'model', name: 'Model', provider: 'openrouter' },
+    conversation: { id: 'c1', model: 'model', isWebSearchEnabled: true, messages: [] },
+    webSearchEnabled: true,
+    signal,
+    uiLanguage: 'en',
+    assistantMessageId: 'm1',
+    sequence: 2
+  });
+  assert.equal(calls.some((call) => call[0] === 'translate'), false, 'nothing to prepare: the search is the server\'s');
+  assert.equal(serverReply.record.starts[0].webSearch, 'packet');
+  assert.equal(calls.some((call) => call[0] === 'api'), false);
+});
+
+test('a search packet the server did not take is made here, added to what was already prepared, and the reply goes on as before', async () => {
+  const declined = serverReplyDouble({ plan: { ok: true, webSearch: 'packet' }, started: { ok: false, reason: 'unreachable', notify: false } });
+  const { calls, lifecycle, signal, targetElement } = createHarness({ extraDependencies: { serverReply: declined } });
+  const parts = [{ text: 'What is new?' }];
+  const result = await lifecycle.run({
+    targetElement,
+    userParts: parts,
+    modelInfo: { id: 'model', name: 'Model', provider: 'openrouter' },
+    conversation: { id: 'c1', model: 'model', isWebSearchEnabled: true, messages: [] },
+    webSearchEnabled: true,
+    signal,
+    uiLanguage: 'en',
+    assistantMessageId: 'm1',
+    sequence: 2
+  });
+  assert.equal(result.fullResponse, 'Hello Astra');
+  const translations = calls.filter((call) => call[0] === 'translate');
+  assert.equal(translations.length, 1, 'the files and pages of the message were not prepared when only the search was left');
+  assert.equal(translations[0][2].webSearchEnabled, true);
+  assert.deepEqual(translations[0][2].baseParts, parts, 'the search is added to the request already made');
+  assert.ok(calls.some((call) => call[0] === 'api'));
+});
+
+test('a search packet with files in the message: the page prepares the files, the server searches', async () => {
+  const serverReply = serverReplyDouble({ plan: { ok: true, webSearch: 'packet' }, follow: async ({ onText }) => { onText('A'); return { text: 'A', run: null, rewritten: false }; } });
+  const { calls, lifecycle, signal, targetElement } = createHarness({ extraDependencies: { serverReply } });
+  await lifecycle.run({
+    targetElement,
+    userParts: [{ text: 'Summarise this' }, { inlineData: { mimeType: 'application/pdf', data: 'AAAA', name: 'a.pdf' } }],
+    modelInfo: { id: 'model', name: 'Model', provider: 'openrouter' },
+    conversation: { id: 'c1', model: 'model', isWebSearchEnabled: true, messages: [] },
+    webSearchEnabled: true,
+    signal,
+    uiLanguage: 'en',
+    assistantMessageId: 'm1',
+    sequence: 2
+  });
+  const translation = calls.find((call) => call[0] === 'translate');
+  assert.ok(translation, 'the file is prepared here');
+  assert.equal(translation[2].webSearchEnabled, false, 'but the search is not made here');
+});

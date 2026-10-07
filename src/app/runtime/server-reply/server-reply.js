@@ -49,9 +49,9 @@ export function planServerReply({ config = {}, conversation = null, advanced = f
   }
   if (!webSearchEnabled) return { ok: true, webSearch: 'off' };
   if (researchByModel) return { ok: true, webSearch: 'research' };
-  // Gemini searches by itself; for the others a search is a packet put in front of the request, made in the browser.
+  // Gemini searches by itself; for the others the server searches first and puts what it found in front of the request (a packet).
   if (provider === 'gemini') return { ok: true, webSearch: 'grounding' };
-  return { ok: false, reason: LOCAL_REASONS.packetSearch };
+  return { ok: true, webSearch: 'packet' };
 }
 
 /**
@@ -166,11 +166,10 @@ export function createServerReply({
   const searchKeyFor = (config) => {
     const chosen = config?.searchProvider === 'tinyfish' ? 'tinyfish' : 'tavily';
     const other = chosen === 'tinyfish' ? 'tavily' : 'tinyfish';
-    for (const name of [chosen, other]) {
-      const key = getApiKeyForProvider(name);
-      if (key) return { searchProvider: name, searchKey: key };
-    }
-    return null;
+    // The chosen source's key (the other's when there is none), and the other one's too: the search goes on with it when the first finds nothing.
+    const [first, second] = [chosen, other].filter((name) => getApiKeyForProvider(name));
+    if (!first) return null;
+    return { searchProvider: first, searchKey: getApiKeyForProvider(first), ...(second ? { searchKeyAlt: getApiKeyForProvider(second) } : {}), searchDepth: config?.tavilySearchDepth === 'advanced' ? 'advanced' : 'basic' };
   };
 
   // The files earlier replies made are kept in the cloud (first, if they are not there yet); the request names where they are instead
@@ -209,7 +208,7 @@ export function createServerReply({
     const providerKey = getApiKeyForProvider(modelInfo?.provider);
     if (!providerKey) return { ok: false, reason: 'no-key', notify: false };
     let search = null;
-    if (webSearch === 'research') {
+    if (webSearch === 'research' || webSearch === 'packet') {
       search = searchKeyFor(config);
       if (!search) return { ok: false, reason: LOCAL_REASONS.packetSearch, notify: false };
     }
@@ -244,7 +243,7 @@ export function createServerReply({
       },
       tools: {
         webSearch,
-        ...(search ? { searchProvider: search.searchProvider } : {}),
+        ...(search ? { searchProvider: search.searchProvider, searchDepth: search.searchDepth } : {}),
         advanced: Boolean(advanced),
         // What Python is given: the Design menu's choices, and the files attached to this message.
         ...(advanced && designs ? { designs } : {}),
@@ -254,7 +253,7 @@ export function createServerReply({
         // The check of a presentation the reply writes (the page's setting is on and the model can see images): the server makes it too.
         ...(visionCheck ? { visionCheck } : {})
       },
-      secrets: { providerKey, ...(search ? { searchKey: search.searchKey } : {}) }
+      secrets: { providerKey, ...(search ? { searchKey: search.searchKey, ...(search.searchKeyAlt ? { searchKeyAlt: search.searchKeyAlt } : {}) } : {}) }
     };
     const body = JSON.stringify(spec);
     if (body.length > MAX_REQUEST_CHARS) return { ok: false, reason: LOCAL_REASONS.tooLarge, notify: false };
