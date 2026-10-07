@@ -124,6 +124,8 @@ export function createServerReply({
   externalizeParts = async (parts) => parts,
   // (conversationId) => { id, message_id } | null: the reply of this conversation the server is still making
   findLiveRun = async () => null,
+  // (conversationId) => { id, message_id, error_code, finished_at } | null: the latest run of this conversation that the server failed
+  findFailedRun = async () => null,
   fetchImpl = (...args) => fetch(...args),
   clientVersion = '',
   now = () => Date.now(),
@@ -627,5 +629,8 @@ export function createServerReply({
     return false;
   };
 
-  return { start, startResearch, startImage, find, request, watchRun, readMessage };
+  /** The latest run of this conversation that failed on the server (a recent one), or null: for the chat that was left with no word of it. */
+  const findFailure = (conversationId) => findFailedRun(conversationId);
+
+  return { start, startResearch, startImage, find, findFailure, request, watchRun, readMessage };
 }

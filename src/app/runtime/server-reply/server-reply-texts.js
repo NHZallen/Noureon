@@ -28,6 +28,7 @@ export const SERVER_REPLY_TEXTS = Object.freeze({
     serverRestarted: '伺服器更新時中斷了這則回覆，請再試一次。',
     sandboxUnavailable: 'Python 沙盒暫時不能用，這則回覆沒能完成，請再試一次。',
     imageNotSaved: '圖片畫好了，但沒能存進你的雲端空間，請再試一次。',
+    errorPrefix: '抱歉，發生錯誤：',
     unknownError: '伺服器沒能完成這則回覆。',
     working: '回覆正在伺服器上產生'
   },
@@ -58,6 +59,7 @@ export const SERVER_REPLY_TEXTS = Object.freeze({
     serverRestarted: 'The server was updated and this reply was interrupted. Please try again.',
     sandboxUnavailable: 'The Python sandbox is not available right now, so this reply could not be finished. Please try again.',
     imageNotSaved: 'The image was made, but it could not be kept in your cloud space. Please try again.',
+    errorPrefix: 'Sorry, an error occurred: ',
     unknownError: 'The server could not finish this reply.',
     working: 'The reply is being made on the server'
   },
@@ -88,6 +90,7 @@ export const SERVER_REPLY_TEXTS = Object.freeze({
     serverRestarted: 'Le serveur a été mis à jour et cette réponse a été interrompue. Veuillez réessayer.',
     sandboxUnavailable: 'Le bac à sable Python n’est pas disponible pour le moment ; cette réponse n’a pas pu être terminée. Veuillez réessayer.',
     imageNotSaved: 'L’image a été créée, mais elle n’a pas pu être conservée dans votre espace cloud. Veuillez réessayer.',
+    errorPrefix: 'Désolé, une erreur est survenue : ',
     unknownError: 'Le serveur n’a pas pu terminer cette réponse.',
     working: 'La réponse est en cours de génération sur le serveur'
   },
@@ -118,6 +121,7 @@ export const SERVER_REPLY_TEXTS = Object.freeze({
     serverRestarted: 'Сервер обновлялся, и этот ответ прервался. Попробуйте ещё раз.',
     sandboxUnavailable: 'Песочница Python сейчас недоступна, поэтому ответ не удалось завершить. Попробуйте ещё раз.',
     imageNotSaved: 'Изображение создано, но его не удалось сохранить в вашем облачном хранилище. Попробуйте ещё раз.',
+    errorPrefix: 'Извините, произошла ошибка: ',
     unknownError: 'Сервер не смог завершить этот ответ.',
     working: 'Ответ создаётся на сервере'
   },
@@ -148,6 +152,7 @@ export const SERVER_REPLY_TEXTS = Object.freeze({
     serverRestarted: 'El servidor se actualizó y esta respuesta se interrumpió. Inténtalo de nuevo.',
     sandboxUnavailable: 'El entorno aislado de Python no está disponible ahora, así que no se pudo terminar esta respuesta. Inténtalo de nuevo.',
     imageNotSaved: 'La imagen se creó, pero no se pudo guardar en tu espacio en la nube. Inténtalo de nuevo.',
+    errorPrefix: 'Lo sentimos, ocurrió un error: ',
     unknownError: 'El servidor no pudo terminar esta respuesta.',
     working: 'La respuesta se está generando en el servidor'
   }

@@ -37,7 +37,14 @@ export function createServerReplyReattach({
         return false;
       }
       // Asked a moment ago: the reply may be over, a new one may have started here, another chat may have been opened.
-      if (!run || getAbortController() || conv.__astraPendingResponse || getActiveConversation()?.id !== conv.id) return false;
+      if (getAbortController() || conv.__astraPendingResponse || getActiveConversation()?.id !== conv.id) return false;
+      // No reply under way, but the server may have failed one that never reached the chat (while the page was closed): it is told then.
+      if (!run) {
+        const failed = await serverReply.failedReply?.(conv).catch(() => null);
+        if (!failed || getAbortController() || conv.__astraPendingResponse || getActiveConversation()?.id !== conv.id) return false;
+        addMessageToUI(failed, conv.messages.length, true, true, { conversation: conv });
+        return true;
+      }
       // The visual check of a presentation that the server is making: its progress is shown under the last message, and the chat is locked.
       if (run.kind === 'vision') {
         void serverReply.followVision({ runId: run.runId, conversation: conv });

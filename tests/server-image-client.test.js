@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import test, { after } from 'node:test';
 
 import { createImageGenerationResponseLifecycle } from '../src/app/legacy-runtime/features/image-generation-response-lifecycle.js';
 import { createServerReplyReattach } from '../src/app/runtime/server-reply/reattach.js';
@@ -326,4 +326,105 @@ test('every text of the image exists in all five languages', () => {
     assert.ok(serverReplyText(language, 'sent6').length > 20, `${language} sent6`);
     assert.ok(serverReplyText(language, 'imageNotSaved').length > 20, `${language} imageNotSaved`);
   }
+});
+
+// ----- a reply the server failed and could not tell the chat of
+
+// The browser's small store of what was already told (node has none).
+const noted = new Map();
+globalThis.localStorage = { getItem: (key) => (noted.has(key) ? noted.get(key) : null), setItem: (key, value) => noted.set(key, String(value)), removeItem: (key) => noted.delete(key) };
+after(() => { delete globalThis.localStorage; });
+
+const wiringWith = ({ rows = [], language = 'zh-TW', session = { user: 1 }, onQuery = () => {} } = {}) => createBrowserServerReply({
+  getConfig: () => ({}),
+  getApiKeyForProvider: () => '',
+  getModelApiId: () => '',
+  getDefaultGenConfig: () => ({}),
+  describeRequest: async () => ({}),
+  getUiLanguage: () => language,
+  getSync: () => ({ getStatus: () => ({ enabled: true }) }),
+  getClient: async () => ({
+    auth: { getSession: async () => ({ data: { session } }) },
+    from: (table) => {
+      const query = { table, filters: [] };
+      const builder = {
+        select: (columns) => { query.columns = columns; return builder; },
+        eq: (column, value) => { query.filters.push(['eq', column, value]); return builder; },
+        gte: (column, value) => { query.filters.push(['gte', column, value]); return builder; },
+        order: () => builder,
+        limit: async () => { onQuery(query); return { data: rows, error: null }; }
+      };
+      return builder;
+    }
+  }),
+  document: null
+});
+const FAILED = { id: 'run-9', message_id: 'm-9', error_code: 'internal_error', finished_at: '2026-10-07T06:35:37.000Z' };
+const chatEndingWithTheQuestion = () => ({ id: 'c1', messages: [{ id: 'u1', role: 'user', parts: [{ text: 'a cow' }], createdAt: '2026-10-07T06:35:00.000Z' }] });
+
+test('a chat left with only the person\'s message is told what happened to its reply, once, in the language of the page', async () => {
+  globalThis.localStorage?.removeItem?.('noureon:failed-runs-told');
+  const queries = [];
+  const wiring = wiringWith({ rows: [FAILED], onQuery: (query) => queries.push(query) });
+  const message = await wiring.failedReply(chatEndingWithTheQuestion());
+  assert.equal(message.id, 'm-9', 'under the id the server wrote with, so there is one message');
+  assert.equal(message.role, 'model');
+  assert.equal(message.parts[0].text, `${serverReplyText('zh-TW', 'errorPrefix')}${serverReplyText('zh-TW', 'unknownError')}`);
+  assert.deepEqual(queries[0].filters.map(([kind, column, value]) => [kind, column, kind === 'gte' ? 'a day ago' : value]), [['eq', 'conversation_id', 'c1'], ['eq', 'status', 'failed'], ['gte', 'finished_at', 'a day ago']]);
+  assert.equal(queries[0].table, 'server_runs');
+  assert.equal(await wiring.failedReply(chatEndingWithTheQuestion()), null, 'told once: a message the person deletes does not come back');
+});
+
+test('nothing is told when the chat does not end with the person\'s message, the reply is there, or the failure is older than the last message', async () => {
+  globalThis.localStorage?.removeItem?.('noureon:failed-runs-told');
+  const wiring = wiringWith({ rows: [FAILED] });
+  assert.equal(await wiring.failedReply({ id: 'c1', messages: [] }), null);
+  assert.equal(await wiring.failedReply({ id: 'c1', messages: [{ id: 'u1', role: 'user', parts: [], createdAt: 'x' }, { id: 'a1', role: 'model', parts: [] }] }), null, 'the chat ends with an answer');
+  const there = chatEndingWithTheQuestion();
+  there.messages.unshift({ id: 'm-9', role: 'model', parts: [] });
+  assert.equal(await wiring.failedReply(there), null, 'the message is already in the chat');
+  const newer = chatEndingWithTheQuestion();
+  newer.messages[0].createdAt = '2026-10-07T07:00:00.000Z';
+  assert.equal(await wiring.failedReply(newer), null, 'a failure from before the question that is last now belongs to an earlier one');
+  assert.equal(await wiringWith({ rows: [] }).failedReply(chatEndingWithTheQuestion()), null, 'no failed run');
+  assert.equal(await wiringWith({ rows: [FAILED], session: null }).failedReply(chatEndingWithTheQuestion()), null, 'nobody signed in to the cloud: nothing of the server');
+});
+
+test('each reason is told in its own words, and what is not known in the general ones', async () => {
+  for (const [code, key] of [['time_limit', 'timeLimit'], ['server_restarted', 'serverRestarted'], ['image_not_saved', 'imageNotSaved'], ['provider_error', 'unknownError']]) {
+    globalThis.localStorage?.removeItem?.('noureon:failed-runs-told');
+    const message = await wiringWith({ rows: [{ ...FAILED, error_code: code }], language: 'fr' }).failedReply(chatEndingWithTheQuestion());
+    assert.equal(message.parts[0].text, `${serverReplyText('fr', 'errorPrefix')}${serverReplyText('fr', key)}`, code);
+  }
+});
+
+test('on opening the chat, when no reply is under way the failure is put in the chat, saved, and the page is not left waiting', async () => {
+  const conv = chatEndingWithTheQuestion();
+  const added = [];
+  const lifecycle = createServerReplyReattach({
+    getActiveConversation: () => conv,
+    getAbortController: () => null,
+    setAbortController() {},
+    serverReply: { find: async () => null, failedReply: async () => ({ id: 'm-9', role: 'model', parts: [{ text: 'sorry' }] }) },
+    messageList: () => ({ children: [] }),
+    setSubmitBusy() {},
+    addMessageToUI: (...args) => { added.push(args); return {}; },
+    completeReply: async () => { throw new Error('nothing to follow'); },
+    document: null,
+    window: null,
+    scheduleTimeout: () => null
+  });
+  assert.equal(await lifecycle.reattachServerReply(), true);
+  assert.equal(added.length, 1);
+  assert.equal(added[0][0].id, 'm-9');
+  assert.equal(added[0][1], 1, 'at the place after the question');
+  assert.equal(added[0][2], true, 'the chat keeps it (the page saves it)');
+  assert.deepEqual(added[0][4], { conversation: conv });
+
+  const quiet = createServerReplyReattach({
+    getActiveConversation: () => conv, getAbortController: () => null, setAbortController() {},
+    serverReply: { find: async () => null, failedReply: async () => { throw new Error('offline'); } },
+    messageList: () => ({ children: [] }), setSubmitBusy() {}, addMessageToUI: () => { throw new Error('nothing to show'); }, completeReply: async () => {}, document: null, window: null, scheduleTimeout: () => null
+  });
+  assert.equal(await quiet.reattachServerReply(), false, 'a look that failed says nothing');
 });

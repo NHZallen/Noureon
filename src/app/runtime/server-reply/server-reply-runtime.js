@@ -70,6 +70,36 @@ export function createBrowserServerReply({
     return data?.[0] || null;
   };
 
+  // A run that failed lately and left no message in the chat (the server could not write one, or the page was closed at the time).
+  const FAILED_RUN_WINDOW_MS = 24 * 60 * 60 * 1000;
+  const findFailedRun = async (conversationId) => {
+    const client = await getClient();
+    if (!client || !conversationId) return null;
+    const { data: auth } = await client.auth.getSession();
+    if (!auth?.session) return null;
+    const since = new Date(Date.now() - FAILED_RUN_WINDOW_MS).toISOString();
+    const { data, error } = await client.from('server_runs').select('id,message_id,error_code,finished_at').eq('conversation_id', conversationId).eq('status', 'failed').gte('finished_at', since).order('finished_at', { ascending: false }).limit(1);
+    if (error) throw error;
+    return data?.[0] || null;
+  };
+  // The runs already told to the person (kept in this browser), so a message the person deletes does not come back.
+  const NOTED_KEY = 'noureon:failed-runs-told';
+  const readNoted = () => {
+    try {
+      return new Set(JSON.parse(globalThis.localStorage?.getItem(NOTED_KEY) || '[]'));
+    } catch {
+      return new Set();
+    }
+  };
+  const writeNoted = (ids) => {
+    try {
+      globalThis.localStorage?.setItem(NOTED_KEY, JSON.stringify([...ids].slice(-50)));
+    } catch {
+      // Not kept: the worst is a message told again.
+    }
+  };
+  const FAILURE_TEXT = { time_limit: 'timeLimit', server_restarted: 'serverRestarted', sandbox_unavailable: 'sandboxUnavailable', image_not_saved: 'imageNotSaved' };
+
   const flushSync = async () => {
     await saveAppData();
     await getSync()?.flush?.();
@@ -86,6 +116,7 @@ export function createBrowserServerReply({
     hydrateParts,
     externalizeParts,
     findLiveRun,
+    findFailedRun,
     fetchImpl,
     clientVersion: PRODUCT_VERSION,
     paceMs: 45,
@@ -120,6 +151,21 @@ export function createBrowserServerReply({
     },
     followVision: (args) => vision().then((follow) => follow.attach(args)),
     find: (conversationId) => serverReply.find(conversationId),
+    // The error message of a reply the server failed while the chat was left (or that it could not write), as a message to put in the chat, or null:
+    // only for a chat that ends with the person's own message, for a run that came after it, and once for each run.
+    failedReply: async (conversation) => {
+      const last = conversation?.messages?.at(-1);
+      if (!last || last.role !== 'user') return null;
+      const row = await serverReply.findFailure(conversation.id);
+      if (!row || conversation.messages.some((message) => message.id === row.message_id)) return null;
+      if (Date.parse(row.finished_at) < Date.parse(last.createdAt || 0)) return null;
+      const noted = readNoted();
+      if (noted.has(row.id)) return null;
+      noted.add(row.id);
+      writeNoted(noted);
+      const language = getUiLanguage();
+      return { id: row.message_id, role: 'model', parts: [{ text: `${serverReplyText(language, 'errorPrefix')}${serverReplyText(language, FAILURE_TEXT[row.error_code] || 'unknownError')}` }], createdAt: row.finished_at };
+    },
     plan: (context) => planServerReply({ config: getConfig(), ...context, hasAccount: hasAccount() }),
     planImage: (context) => planServerImage({ config: getConfig(), ...context, hasAccount: hasAccount() }),
     start: (args) => serverReply.start({ ...args, config: args.config }),
