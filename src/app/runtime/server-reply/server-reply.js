@@ -304,6 +304,8 @@ export function createServerReply({
     kind,
     vision,
     stop: () => request('POST', `/v1/runs/${runId}/stop`),
+    // The person lets one model of a council leave it.
+    exitMember: (modelId) => request('POST', `/v1/runs/${runId}/member`, { body: JSON.stringify({ modelId }) }),
     // The person's answer ('once', 'always' or 'deny') to the question a tool's command put about a site.
     answerNet: (askId, decision) => request('POST', `/v1/runs/${runId}/net`, { body: JSON.stringify({ askId, decision }) }),
     // The person's answer ('saved' or 'cancel') to the window that asked for the login a tool needs (the values were saved apart, through /v1/credentials).

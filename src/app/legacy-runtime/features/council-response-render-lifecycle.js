@@ -1,3 +1,5 @@
+import { patchHTML } from '../../ui/dom/patch-html.js';
+
 export async function runCouncilResponseRenderLifecycle({
   contentDiv,
   userParts,
@@ -13,6 +15,8 @@ export async function runCouncilResponseRenderLifecycle({
   renderCouncilControls,
   renderInputIndicators,
   requestFrame,
+  // Asks the person whether a model may leave the council (resolves true when it may): { modelName } -> Promise<boolean>.
+  confirmExit = async () => false,
   now = () => Date.now()
 }) {
   setCouncilRunning(true);
@@ -28,7 +32,7 @@ export async function runCouncilResponseRenderLifecycle({
   const renderCouncilProgressState = (progressState) => {
     if (responseRenderedInRealtime && getOutputMode() === 'realtime') return;
     latestCouncilProgress = progressState;
-    contentDiv.innerHTML = renderCouncilProgress(progressState);
+    patchHTML(contentDiv, renderCouncilProgress(progressState));
   };
 
   const renderCouncilSynthesisChunk = (chunk) => {
@@ -55,7 +59,16 @@ export async function runCouncilResponseRenderLifecycle({
       tick: (latestCouncilProgress.tick || 0) + 1,
       elapsedMs: now() - startedAt
     };
-    contentDiv.innerHTML = renderCouncilProgress(latestCouncilProgress);
+    patchHTML(contentDiv, renderCouncilProgress(latestCouncilProgress));
+  });
+
+  // A model leaves when the person asks (and is sure): the panel is drawn on a timer, so the one listener is on the panel and finds the button by its mark.
+  contentDiv.addEventListener?.('click', async (event) => {
+    const id = event.target?.closest?.('[data-council-exit]')?.dataset?.councilExit;
+    const progress = latestCouncilProgress;
+    if (!id || !progress?.exit) return;
+    const modelName = progress.modelStates?.find((state) => state.modelId === id)?.modelName || id;
+    if (await confirmExit({ modelName })) progress.exit(id);
   });
 
   try {

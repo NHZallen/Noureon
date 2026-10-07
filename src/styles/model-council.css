@@ -166,6 +166,42 @@
     opacity: 1;
 }
 
+.council-progress-dot.exited {
+    background: var(--text-secondary);
+    opacity: 0.35;
+}
+
+.council-progress-model.exited {
+    opacity: 0.6;
+}
+
+/* The way to let a model leave the council: a small plain button at the end of its row, only while it is answering. */
+.council-progress-exit {
+    flex: 0 0 auto;
+    padding: 0.18rem 0.55rem;
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-primary);
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 1.2;
+    cursor: pointer;
+    align-self: center;
+}
+
+@media (pointer: coarse) {
+    .council-progress-exit {
+        min-height: 2.25rem;
+        padding-inline: 0.9rem;
+    }
+}
+
+.council-progress-exit:hover,
+.council-progress-exit:focus-visible {
+    background: var(--hover-bg);
+}
+
 .council-collapse {
     margin: 1rem 0;
     padding: 0.65rem 0.8rem;

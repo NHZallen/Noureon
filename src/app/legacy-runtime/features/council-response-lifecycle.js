@@ -320,7 +320,10 @@ export function createCouncilResponseLifecycle({
   async function runModelCouncil(parts, signal, onProgress, onFinalChunk, {
       webSearchEnabled = null,
       conversation = null,
-      onMemoryContextResolved = () => {}
+      onMemoryContextResolved = () => {},
+      // Models that already left this council (a council taken up again after a restart), and what is told when another leaves.
+      exitedModelIds = [],
+      onMemberExit = () => {}
   } = {}) {
       const conv = conversation || getActiveConversation();
       const { council, participants, synthesizer } = getCouncilSelectedModels(conv);
@@ -339,6 +342,17 @@ export function createCouncilResponseLifecycle({
               detail: isSkipped ? runtimeTexts.skippedVisualReason : runtimeTexts.pending
           });
       });
+      // A person may let a model that is still answering leave the council: its answers do not count, and the others go on.
+      const exitedIds = new Set(exitedModelIds);
+      exitedIds.forEach(id => {
+          const state = modelStates.get(id);
+          if (state) {
+              state.status = 'exited';
+              state.detail = runtimeTexts.exited;
+          }
+      });
+      const memberControllers = new Map();
+      let currentStage = 'firstRound';
       const searchState = (webSearchEnabled === true || conv.isWebSearchEnabled)
           ? { status: 'pending', label: runtimeTexts.sharedSearch, detail: runtimeTexts.pending }
           : null;
@@ -346,6 +360,7 @@ export function createCouncilResponseLifecycle({
       let progressTick = 0;
       const progress = (stage, message = stage, extra = {}) => {
           if (typeof onProgress !== 'function') return;
+          currentStage = stage;
           onProgress({
               stage,
               message,
@@ -356,10 +371,38 @@ export function createCouncilResponseLifecycle({
               searchEnabled: Boolean(searchState),
               totalParticipants: participants.length,
               activeParticipants: activeParticipants.length,
-              modelStates: Array.from(modelStates.values()),
+              modelStates: Array.from(modelStates.values()).map(state => ({ ...state, canExit: canExitModel(state.modelId) })),
               search: searchState ? { ...searchState } : null,
+              exit: exitModel,
               ...extra
           });
+      };
+      // A model may leave while it is answering, when at least two others (or it and one more) would still be in the council.
+      const canExitModel = (modelId) => ['firstRound', 'deliberation'].includes(currentStage)
+          && modelStates.get(modelId)?.status === 'running'
+          && participants.filter(model => model.id !== modelId && !['failed', 'exited', 'skipped'].includes(modelStates.get(model.id)?.status)).length >= 2;
+      const exitModel = (modelId) => {
+          if (!canExitModel(modelId)) return false;
+          const state = modelStates.get(modelId);
+          exitedIds.add(modelId);
+          state.status = 'exited';
+          state.detail = runtimeTexts.exited;
+          memberControllers.get(modelId)?.abort();
+          onMemberExit(modelId);
+          progress(currentStage, `${runtimeTexts.exited}: ${state.modelName}`);
+          return true;
+      };
+      // The signal of a member's call: the council's stop, or that member leaving.
+      const memberSignal = (modelId) => {
+          const controller = memberControllers.get(modelId) || new AbortController();
+          memberControllers.set(modelId, controller);
+          if (!signal) return controller.signal;
+          const linked = new AbortController();
+          const stop = () => linked.abort();
+          if (signal.aborted || controller.signal.aborted) stop();
+          signal.addEventListener?.('abort', stop, { once: true });
+          controller.signal.addEventListener('abort', stop, { once: true });
+          return linked.signal;
       };
       const createCouncilStreamTracker = (state, stage, modelName) => {
           let receivedChars = 0;
@@ -448,7 +491,8 @@ export function createCouncilResponseLifecycle({
           }
       }
       progress('firstRound', `${runtimeTexts.firstRound}: ${activeParticipants.length}/${participants.length}`);
-      const firstRoundSettled = await Promise.allSettled(activeParticipants.map(async (modelInfo) => {
+      const roundOneMembers = activeParticipants.filter(model => !exitedIds.has(model.id));
+      const firstRoundSettled = await Promise.allSettled(roundOneMembers.map(async (modelInfo) => {
           const state = modelStates.get(modelInfo.id);
           if (state) {
               state.status = 'running';
@@ -459,7 +503,7 @@ export function createCouncilResponseLifecycle({
           const text = await streamCouncilApiCallWithRetry(
               councilParts,
               createCouncilStreamTracker(state, 'firstRound', modelInfo.name),
-              signal,
+              memberSignal(modelInfo.id),
               false,
               {
                   modelInfo,
@@ -476,6 +520,7 @@ export function createCouncilResponseLifecycle({
                   }
               }
           );
+          if (exitedIds.has(modelInfo.id)) return null;
           if (state) {
               state.status = 'done';
               state.detail = runtimeTexts.done;
@@ -488,9 +533,11 @@ export function createCouncilResponseLifecycle({
               finalText: text
           };
       }));
-      const firstRoundResults = [];
+      let firstRoundResults = [];
       firstRoundSettled.forEach((result, index) => {
-          const modelInfo = activeParticipants[index];
+          const modelInfo = roundOneMembers[index];
+          // A model that left is neither an answer nor a failure.
+          if (exitedIds.has(modelInfo.id)) return;
           if (result.status === 'fulfilled' && result.value?.roundOne?.trim()) {
               firstRoundResults.push(result.value);
           } else {
@@ -576,7 +623,7 @@ export function createCouncilResponseLifecycle({
   Do not change your judgment merely because most other models disagree. Only revise your position when another model provides clear evidence or stronger reasoning. If you keep a minority view, state the reason clearly.`
                   }],
                   createCouncilStreamTracker(state, 'deliberation', result.modelName),
-                  signal,
+                  memberSignal(result.modelId),
                   false,
                   {
                       modelInfo,
@@ -594,6 +641,7 @@ export function createCouncilResponseLifecycle({
                       }
                   }
               );
+              if (exitedIds.has(result.modelId)) return null;
               if (state) {
                   state.status = 'done';
                   state.detail = runtimeTexts.done;
@@ -602,8 +650,10 @@ export function createCouncilResponseLifecycle({
               return { ...result, roundTwo: text, finalText: text || result.roundOne };
           }));
           finalRoundResults = secondRoundSettled.map((result, index) => {
-              if (result.status === 'fulfilled') return result.value;
               const fallback = firstRoundResults[index];
+              // A model that left takes its first answer with it.
+              if (exitedIds.has(fallback.modelId)) return null;
+              if (result.status === 'fulfilled') return result.value;
               const state = modelStates.get(fallback.modelId);
               if (state) {
                   state.status = 'failed';
@@ -616,7 +666,8 @@ export function createCouncilResponseLifecycle({
                   error: result.reason?.message || 'Second round failed'
               });
               return fallback;
-          });
+          }).filter(Boolean);
+          firstRoundResults = firstRoundResults.filter(result => !exitedIds.has(result.modelId));
       }
   
       progress('synthesis', `${runtimeTexts.synthesis}: ${synthesizer.name}`);
@@ -676,6 +727,7 @@ export function createCouncilResponseLifecycle({
               firstRoundResults,
               finalRoundResults,
               failures,
+              exitedParticipantModelIds: [...exitedIds],
               synthesisError: synthesisError?.message || null
           }
       };

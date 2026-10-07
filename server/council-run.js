@@ -80,7 +80,9 @@ export async function executeCouncil({
   fetchImpl = fetch,
   now = Date.now,
   callTimeoutMs = LIMITS.councilCallMs,
-  retryDelayMs = COUNCIL_RETRY_DELAY_MS
+  retryDelayMs = COUNCIL_RETRY_DELAY_MS,
+  // Where the council hands out what a person's request to let a model leave goes to (`control.exit(modelId)`).
+  control = {}
 }) {
   const language = spec.request.language;
   const startedAt = now() - (Number(resume?.elapsedMs) || 0);
@@ -161,15 +163,20 @@ export async function executeCouncil({
   const memo = new Map(Object.entries(resume?.memo && typeof resume.memo === 'object' ? resume.memo : {}));
   let memoChars = [...memo.values()].reduce((sum, value) => sum + String(value).length, 0);
   let saving = Promise.resolve();
+  // The models that left the council (kept with the checkpoint, so a council taken up again does not ask them).
+  const exited = new Set(Array.isArray(resume?.exited) ? resume.exited : []);
+  const save = () => {
+    // One save after another, so an older one never lands after a newer one.
+    saving = saving
+      .then(() => onCheckpoint({ version: COUNCIL_CHECKPOINT_VERSION, kind: 'council', elapsedMs: elapsed(), memo: Object.fromEntries(memo), exited: [...exited] }))
+      .catch((error) => onProblem('council_checkpoint_failed', error));
+  };
   const remember = (key, value) => {
     const text = String(value ?? '');
     if (memoChars + text.length > MEMO_MAX_CHARS) return;
     memo.set(key, text);
     memoChars += text.length;
-    // One save after another, so an older one never lands after a newer one.
-    saving = saving
-      .then(() => onCheckpoint({ version: COUNCIL_CHECKPOINT_VERSION, kind: 'council', elapsedMs: elapsed(), memo: Object.fromEntries(memo) }))
-      .catch((error) => onProblem('council_checkpoint_failed', error));
+    save();
   };
 
   // ----- a call of a model: with a time limit, one more try, and the memory
@@ -258,19 +265,25 @@ export async function executeCouncil({
 
   // ----- what the page sees: the progress of the council, and the words of the synthesis as they are written
   let answer = '';
-  const onProgress = (progress) => onLive({
-    cs: {
-      stage: progress.stage,
-      message: progress.message,
-      mode: progress.mode,
-      elapsedMs: elapsed(),
-      searchEnabled: progress.searchEnabled,
-      totalParticipants: progress.totalParticipants,
-      activeParticipants: progress.activeParticipants,
-      modelStates: progress.modelStates,
-      search: progress.search
-    }
-  });
+  // What makes a model leave is handed out by the council with every report of how it stands; a request before the first one has nobody to go to.
+  let leave = null;
+  control.exit = (modelId) => Boolean(leave?.(modelId));
+  const onProgress = (progress) => {
+    leave = progress.exit;
+    onLive({
+      cs: {
+        stage: progress.stage,
+        message: progress.message,
+        mode: progress.mode,
+        elapsedMs: elapsed(),
+        searchEnabled: progress.searchEnabled,
+        totalParticipants: progress.totalParticipants,
+        activeParticipants: progress.activeParticipants,
+        modelStates: progress.modelStates,
+        search: progress.search
+      }
+    });
+  };
   const onFinalChunk = (chunk) => {
     if (!chunk) return;
     answer += chunk;
@@ -309,7 +322,15 @@ export async function executeCouncil({
 
   let outcome;
   try {
-    outcome = await lifecycle.runModelCouncil(spec.request.currentMessage.parts, signal, onProgress, onFinalChunk, { webSearchEnabled: searchOn, conversation });
+    outcome = await lifecycle.runModelCouncil(spec.request.currentMessage.parts, signal, onProgress, onFinalChunk, {
+      webSearchEnabled: searchOn,
+      conversation,
+      exitedModelIds: [...exited],
+      onMemberExit: (modelId) => {
+        exited.add(modelId);
+        save();
+      }
+    });
   } catch (error) {
     await saving;
     // A stop keeps what the synthesis had written.

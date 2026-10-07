@@ -518,7 +518,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
 
   const getCouncilModeLabel = (council = {}) => {
     const texts = getCouncilTexts();
-    // Only how it works (Consensus or Discussion): the icon beside it says it is the council.
+    // Only how it works: the icon beside it says it is the council.
     return council.mode === 'deliberation' ? texts.deliberation : texts.consensus;
   };
 
@@ -708,7 +708,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
 
   const { startProgressTicker, stopProgressTicker } = createProgressTicker(scheduleTimeout, clearScheduledTimeout);
 
-  // What a tool-calling model searches the web with, by itself (web-research-reply.js).
+  // What a tool-calling model searches the web with (web-research-reply.js).
   const researchTools = createWebResearchTools({ getConfig: getLiveConfig, getApiKeyForProvider, getErrorMessage, readErrorBody, normalizePageReads, normalizeTinyfishSearch });
   const webResearch = {
     canUse: (model) => Boolean(modelUsesTavilySearch(model) && modelSupportsToolCalling(model) && researchTools.hasKey()),
@@ -721,7 +721,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     getConfig: getLiveConfig, getApiKeyForProvider,
     getModelApiId,
     getDefaultGenConfig,
-    // stream-api-call.js builds the system instruction (and asks no provider) for `describeOnly`.
+    // stream-api-call.js builds the system instruction for `describeOnly`.
     describeRequest: (parts, options) => streamApiCall(parts, null, undefined, false, { ...options, describeOnly: true }),
     saveAppData,
     showNotification,
@@ -837,7 +837,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     await completePreparedReply(preparedSubmit);
   };
 
-  // What follows the preparation: the reply is made (or followed, when the server makes it), shown and kept.
+  // After the preparation: the reply is made (or followed), shown and kept.
   const completePreparedReply = async (preparedSubmit, { resumeRun = null } = {}) => {
     const {
       abortController: submitAbortController,
@@ -851,7 +851,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
       userParts
     } = preparedSubmit;
 
-    // The reply's message id comes first: the server writes under it, and an error it reports is saved under it.
+    // The reply's message id comes first: the server writes under it.
     const assistantMessageId = resumeRun?.assistantMessageId || crypto.randomUUID();
     try {
       let fullResponse = '';
@@ -883,7 +883,8 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
           setCouncilRunning: setIsCouncilRunning,
           renderCouncilControls,
           renderInputIndicators,
-          requestFrame: (callback) => requestAnimationFrame(callback)
+          requestFrame: (callback) => requestAnimationFrame(callback),
+          confirmExit: ({ modelName }) => import('../../legacy-runtime/features/council-exit-dialog.js').then((module) => module.confirmCouncilExit({ showCustomDialog, language: getLiveConfig().uiLanguage, modelName }))
         });
         fullResponse = councilResult.fullResponse;
         responseRenderedInRealtime = councilResult.responseRenderedInRealtime;
@@ -907,7 +908,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
             onMemoryContextResolved: collectHistorySources,
             signal: submitAbortController.signal,
             uiLanguage: getLiveConfig().uiLanguage,
-            // The message the reply becomes: the server writes it under this id, at the place the reply takes.
+            // The message the reply becomes: the server writes it under this id.
             assistantMessageId,
             sequence: conv.messages.length,
             getHistorySourceIds: () => [...historySourceConversationIds],
@@ -1027,7 +1028,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
         stopSingleModelLifecycle: () => singleModelResponseLifecycle.stop(),
         renderError: renderSingleModelError,
         persistAppData: saveAppData,
-        // An error the server reported is saved under the id of the message it wrote (one message, not two).
+        // An error the server reported is saved under its message id.
         messageId: error?.serverRun ? assistantMessageId : null
       });
     } finally {
@@ -1060,7 +1061,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     }
   };
 
-  // A reply the server is still making when the page opens or is returned to is shown being written (reattach.js).
+  // A reply the server is still making is shown being written when the page opens (reattach.js).
   const { reattachServerReply } = createServerReplyReattach({
     getActiveConversation,
     getAbortController,

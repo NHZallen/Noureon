@@ -111,3 +111,9 @@
 - 修正：①`renderSettingsMobileList` 內容相同就不重畫（`settings-mobile-shell-helper.js`）；②等待上限 250→500 毫秒；③網頁打開 4 秒後、瀏覽器空閒時先把設定頁準備好（`prepareWhenIdle`，`open-settings-when-built.js`），第一次點開直接顯示。
 - 驗證（Chromium 手機模擬，擋掉 Service Worker、把帳號模組延遲 1.5 秒）：舊版在顯示後清單被改動 2 次，新版 0 次；打開前已準備好時 27 毫秒內顯示。iPhone 上的畫面沒辦法在這裡看，請 owner 實測。
 
+## 2026-10-08（17.12.0）會議可以讓單一模型退出
+
+- 設計與完成紀錄在 `docs/superpowers/specs/2026-10-08-server-council-design.md` §11。還在回答的模型那列有「退出」按鈕（先確認）；退出的模型整個不算（含第一輪答案）；至少留 2 個模型；合成模型不能退；沒有「不等了」總開關。本機與伺服器會議都可以。
+- 更新紀錄一律用一般使用者看得懂的話寫（owner 提醒過兩次），不寫原因、做法與技術名詞。
+- **注意：** 主要程式區塊壓縮後剛好 150.0KB（上限 150KB）、`submit-input-council-lifecycle.js` 剛好在上限內；下一個功能要先把別的東西（最大的是各功能的文字檔）改成按需載入。
+

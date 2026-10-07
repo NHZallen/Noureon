@@ -229,3 +229,59 @@ test('a key is hidden from a message wherever it sits in the secrets', () => {
   assert.equal(/secret-value/.test(text), false);
   assert.match(text, /\[hidden\]/);
 });
+
+// ----- a model leaving the council
+
+const OPUS = 'anthropic/claude-opus-5.5';
+const threeModels = { participants: [MEMBER_A, MEMBER_B, OPUS] };
+const hangUntilStopped = (fragment) => ({ model, options }) => (model.includes(fragment)
+  ? new Promise((_, reject) => options.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError'))))
+  : null);
+const until = async (condition) => {
+  for (let index = 0; index < 200 && !condition(); index += 1) await new Promise((resolve) => setTimeout(resolve, 5));
+  assert.ok(condition(), 'it did not come about in time');
+};
+
+test('a person lets a model leave the council: it stops, the others go on, and the page is told', async () => {
+  const w = world({ answer: hangUntilStopped('haiku') });
+  const control = {};
+  const live = [];
+  const checkpoints = [];
+  const done = executeCouncil({ ...specFor(threeModels), secrets: secretsOf(threeModels), fetchImpl: w.fetchImpl, control, onLive: (event) => live.push(event), onCheckpoint: async (checkpoint) => { checkpoints.push(checkpoint); } });
+  await until(() => onlyModel(w.requests, 'haiku').length === 1);
+  await until(() => live.some((event) => event.cs?.modelStates?.some((state) => state.status === 'running')));
+  const running = live.filter((event) => event.cs).at(-1).cs.modelStates.find((state) => state.modelId === MEMBER_A);
+  assert.equal(running.canExit, true, 'the page is told which models may leave');
+  assert.equal(control.exit(MEMBER_A), true);
+  const result = await done;
+  assert.equal(result.status, 'done');
+  const states = live.filter((event) => event.cs).at(-1).cs.modelStates;
+  assert.equal(states.find((state) => state.modelId === MEMBER_A).status, 'exited');
+  assert.equal(states.find((state) => state.modelId === MEMBER_B).status, 'done');
+  assert.doesNotMatch(result.parts[0].text, /ANSWER of anthropic\/claude-haiku/, 'its answer is not in the council');
+  assert.match(result.parts[0].text, /ANSWER of deepseek/);
+  assert.equal(onlyModel(w.requests, 'haiku').length, 1, 'it was not asked again');
+  assert.deepEqual(checkpoints.at(-1).exited, [MEMBER_A], 'kept with the checkpoint');
+  assert.equal(JSON.stringify(live).includes(KEYS.openrouter), false);
+});
+
+test('a request to let a model leave that cannot be done is told so, and one before the council has begun has nobody to go to', async () => {
+  const w = world({ answer: hangUntilStopped('haiku') });
+  const control = {};
+  assert.equal(control.exit?.('x') ?? false, false);
+  const done = executeCouncil({ ...specFor(), secrets: secretsOf(), fetchImpl: w.fetchImpl, control, callTimeoutMs: 80, retryDelayMs: 1 });
+  assert.equal(control.exit(MEMBER_A), false, 'before the first report');
+  await until(() => onlyModel(w.requests, 'haiku').length === 1);
+  assert.equal(control.exit(MEMBER_A), false, 'two models: neither may leave (two have to stay)');
+  assert.equal(control.exit('not-a-model'), false);
+  await done;
+});
+
+test('a council taken up after a restart does not ask the models that had left', async () => {
+  const first = world();
+  const checkpoints = [];
+  await executeCouncil({ ...specFor(threeModels), secrets: secretsOf(threeModels), resume: { version: 1, kind: 'council', memo: {}, exited: [MEMBER_A] }, fetchImpl: first.fetchImpl, onCheckpoint: async (checkpoint) => { checkpoints.push(checkpoint); } });
+  assert.equal(onlyModel(first.requests, 'haiku').length, 0, 'the model that had left is not asked');
+  assert.equal(onlyModel(first.requests, 'deepseek').length, 1);
+  assert.deepEqual(checkpoints.at(-1).exited, [MEMBER_A], 'and it stays out of the next checkpoint');
+});

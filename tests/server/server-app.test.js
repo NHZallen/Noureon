@@ -427,3 +427,20 @@ test('an answer about the window for a tool\'s login reaches the reply of the pe
     assert.equal((await fetch(`${base}/v1/runs/${USER}/credential`, { method: 'POST', headers: json, body: '{}' })).status, 401);
   }, { runs });
 });
+
+test('a person\'s request to let a model of their council leave reaches that council, and only a valid request is taken', async () => {
+  const asked = [];
+  const runs = { exitCouncilMember: async (args) => { asked.push(args); return args.runId === USER ? { ok: true, exited: args.modelId === 'can-leave' } : { ok: false, reason: 'not_running' }; } };
+  await withServer(async ({ base }) => {
+    const exit = (runId, body, headers = { ...auth, ...json }) => fetch(`${base}/v1/runs/${runId}/member`, { method: 'POST', headers, body: JSON.stringify(body) });
+    const ok = await exit(USER, { modelId: 'can-leave' });
+    assert.equal(ok.status, 200);
+    assert.deepEqual(await ok.json(), { ok: true, exited: true });
+    assert.deepEqual(asked[0], { userId: USER, runId: USER, modelId: 'can-leave' });
+    assert.deepEqual(await (await exit(USER, { modelId: 'other' })).json(), { ok: true, exited: false });
+    assert.equal((await exit(USER, { modelId: '' })).status, 400);
+    assert.equal((await exit(USER, { modelId: 5 })).status, 400);
+    assert.equal((await exit('323e4567-e89b-12d3-a456-426614174002', { modelId: 'can-leave' })).status, 404, 'a council that is not running here');
+    assert.equal((await exit(USER, { modelId: 'can-leave' }, json)).status, 401);
+  }, { runs });
+});

@@ -127,7 +127,8 @@ export function createServerCouncil({
       signal,
       onText: (delta) => onFinalChunk?.(delta),
       // The panel as the server has it; the seconds are the server's (the time here is only counted on from them).
-      onCouncil: (state) => onProgress?.({ ...state, tick: (tick += 1), startedAt: now() - (Number(state.elapsedMs) || 0) })
+      // A model leaves when the server is asked to let it (it tells every page how the council stands then).
+      onCouncil: (state) => onProgress?.({ ...state, tick: (tick += 1), startedAt: now() - (Number(state.elapsedMs) || 0), exit: (modelId) => run.exitMember(modelId) })
     });
     const council = conversation?.council || {};
     return {

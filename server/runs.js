@@ -217,8 +217,10 @@ export function createRunManager({
     const netControl = { answer: null };
     // The same for the window that asks the person for a login a tool needs (executor.js).
     const credentialControl = { answer: null };
+    // How a person's request to let one model of a council leave reaches the council (it sets `exit`).
+    const councilControl = { exit: null };
     const live = { answer: '', thought: { text: '', kind: 'model', ended: false, ms: 0, first: null }, sources: [], elapsedFrom: 0, elapsedAt: now(), steps: { events: [], chars: 0 }, vision: { events: [], chars: 0 }, research: { state: null, activity: [] }, searching: '', council: null, councilAt: 0, subscribers: new Set() };
-    active.set(runId, { controller, userId, live, controls, netControl, credentialControl });
+    active.set(runId, { controller, userId, live, controls, netControl, credentialControl, councilControl });
     let finalStatus = 'error';
     const writer = createMessageWriter({
       store: db,
@@ -273,6 +275,7 @@ export function createRunManager({
         secrets,
         signal: controller.signal,
         resume,
+        control: councilControl,
         fetchImpl,
         now,
         onUpdate: (parts) => writer.update(parts),
@@ -538,6 +541,17 @@ export function createRunManager({
         log('net_answer_failed', { runId, message: String(error?.message || '').slice(0, 160) });
         return { ok: false, reason: 'not_running' };
       }
+    },
+
+    /**
+     * A person's request to let a model of their council leave it (docs/superpowers/specs/2026-10-08-server-council-design.md), in a council of
+     * theirs that is running here. Resolves { ok: true, exited } (exited: false when that model could not leave: it is done, or too few would be left),
+     * or { ok: false, reason: 'not_running' }.
+     */
+    async exitCouncilMember({ userId, runId, modelId }) {
+      const entry = active.get(runId);
+      if (!entry || entry.userId !== userId || !entry.councilControl?.exit) return { ok: false, reason: 'not_running' };
+      return { ok: true, exited: Boolean(entry.councilControl.exit(modelId)) };
     },
 
     /**

@@ -1004,3 +1004,34 @@ test('time the reply spent waiting for the person is given back to its time limi
   release();
   await settle();
 });
+
+test('a person lets a model of their council leave: the request reaches their running council only, and only while it runs', async () => {
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  const asked = [];
+  const { manager } = managerHarness({
+    executeCouncilRun: async ({ control }) => {
+      control.exit = (modelId) => { asked.push(modelId); return modelId === 'can-leave'; };
+      await gate;
+      return { parts: [{ text: 'done' }], status: 'done', run: { elapsedMs: 1 }, toolCalls: 0 };
+    }
+  });
+  const council = {
+    protocol: 1, kind: 'council', clientVersion: '17.12.0', conversationId: CONVERSATION, assistantMessageId: MESSAGE, sequence: 2,
+    model: { provider: 'openrouter', id: 'synth', info: { provider: 'openrouter' } },
+    council: { mode: 'consensus', participants: [], synthesizer: { provider: 'openrouter', id: 'synth', info: {} }, translator: null, showRawResponses: true, showComparisonTable: true },
+    request: { history: [], currentMessage: { parts: [{ text: 'hi' }] }, systemInstruction: '', systemInstructions: { participant: '', deliberation: '', synthesis: '' }, language: 'en' },
+    tools: { webSearch: 'off', searchProvider: 'tavily', searchDepth: 'basic', advanced: false },
+    secrets: { keys: { openrouter: KEY } }
+  };
+  const runId = await manager.start({ userId: USER, spec: council });
+  await settle();
+  assert.deepEqual(await manager.exitCouncilMember({ userId: USER, runId, modelId: 'can-leave' }), { ok: true, exited: true });
+  assert.deepEqual(await manager.exitCouncilMember({ userId: USER, runId, modelId: 'cannot' }), { ok: true, exited: false }, 'it could not leave');
+  assert.deepEqual(await manager.exitCouncilMember({ userId: '999e4567-e89b-12d3-a456-426614174009', runId, modelId: 'can-leave' }), { ok: false, reason: 'not_running' }, 'not another person\'s council');
+  assert.deepEqual(await manager.exitCouncilMember({ userId: USER, runId: 'nothing', modelId: 'can-leave' }), { ok: false, reason: 'not_running' });
+  assert.deepEqual(asked, ['can-leave', 'cannot']);
+  release();
+  await settle();
+  assert.deepEqual(await manager.exitCouncilMember({ userId: USER, runId, modelId: 'can-leave' }), { ok: false, reason: 'not_running' }, 'it is over');
+});
