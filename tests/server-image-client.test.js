@@ -116,6 +116,7 @@ test('an image that cannot go says why, and what the person is told is only for 
   assert.deepEqual(await refused(422, 'unsupported_mode'), { ok: false, reason: 'unsupported_mode', notify: false }, 'a server that cannot make images is not mentioned');
   assert.equal((await refused(429, 'too_many_runs')).notify, 'busy');
   assert.equal((await refused(404, 'conversation_not_found')).notify, false);
+  assert.deepEqual(await refused(422, 'invalid_run_spec'), { ok: false, reason: 'invalid_run_spec', notify: false }, 'a server not yet updated does not know images: no word of it');
   const down = harness({ respond: async () => { throw new Error('offline'); } });
   assert.equal((await down.reply.startImage(imageArgs())).notify, 'unreachable');
 });

@@ -300,12 +300,12 @@ export function createRunManager({
       }
       if (controller.signal.reason === 'time_limit') {
         await writer.finish(result.parts, 'error', { serverError: { code: ERROR_CODES.timeLimit, message: 'The reply took too long.' } });
-        await store.finish(runId, { status: 'failed', errorCode: ERROR_CODES.timeLimit, usage: { toolCalls: result.toolCalls } });
+        await store.finish(runId, { status: 'failed', errorCode: ERROR_CODES.timeLimit, usage: { toolCalls: result.toolCalls }, ...(isImage ? { clearSpec: true } : {}) });
         return;
       }
       await writer.finish(result.parts, 'complete');
       finalStatus = 'complete';
-      await store.finish(runId, { status: result.status === 'stopped' ? 'stopped' : 'done', usage: { toolCalls: result.toolCalls, elapsedMs: result.run?.elapsedMs } });
+      await store.finish(runId, { status: result.status === 'stopped' ? 'stopped' : 'done', usage: { toolCalls: result.toolCalls, elapsedMs: result.run?.elapsedMs }, ...(isImage ? { clearSpec: true } : {}) });
       // A reply that wrote a presentation is looked at next, as a run of its own (recorded before the page is told this one is over).
       if (result.status === 'done' && !controller.signal.aborted) visionNext = await planVision({ userId, spec, secrets, result }).catch((error) => {
         log('vision_not_started', { runId, message: String(error?.message || '').slice(0, 160) });
@@ -326,7 +326,7 @@ export function createRunManager({
         log('final_write_failed', { runId, message: String(writeError?.message || '').slice(0, 160) });
       }
       try {
-        await store.finish(runId, { status: 'failed', errorCode: failure.code });
+        await store.finish(runId, { status: 'failed', errorCode: failure.code, ...(isImage ? { clearSpec: true } : {}) });
       } catch (storeError) {
         log('finish_failed', { runId, message: String(storeError?.message || '').slice(0, 160) });
       }

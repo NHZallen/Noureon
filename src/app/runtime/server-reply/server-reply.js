@@ -308,7 +308,8 @@ export function createServerReply({
     const result = await request('POST', '/v1/runs', { body });
     if (!result.ok) {
       const busy = result.code === 'too_many_runs' || result.code === 'rate_limited';
-      const quiet = ['unsupported_mode', 'runs_unavailable', 'protocol_unsupported', 'conversation_not_found'].includes(result.code);
+      // A server that is not yet updated does not know images and calls the request malformed: the picture is made here, with no word of it.
+      const quiet = ['unsupported_mode', 'runs_unavailable', 'protocol_unsupported', 'conversation_not_found', 'invalid_run_spec'].includes(result.code);
       if (!busy && !quiet && result.code !== 'unreachable' && result.status !== 401) warn(`The server did not take the image (${result.code || result.status}).`);
       return { ok: false, reason: result.code || `http-${result.status}`, notify: busy ? 'busy' : quiet ? false : 'unreachable' };
     }

@@ -259,6 +259,7 @@ test('an image run writes the place-holder, then the picture; its key lives half
   assert.equal(files.saved.length, 1);
   const done = db.log.updates.find((update) => update.values.status === 'done');
   assert.equal(done.values.key_envelope, null);
+  assert.equal(done.values.spec, null, 'the request (with the pictures it started from) goes with the run');
   assert.equal(manager.activeCount, 0);
   assert.equal(logs.join('').includes(KEY), false);
 });
@@ -273,7 +274,7 @@ test('an image run that fails writes the error in the language of the page, with
   assert.match(last.parts[0].text, /^Sorry, an error occurred: No credits left on/);
   assert.equal(JSON.stringify(last).includes(KEY), false);
   assert.equal(last.metadata.serverError.code, 'provider_error');
-  assert.equal(db.log.updates.some((update) => update.values.status === 'failed' && update.values.error_code === 'provider_error' && update.values.key_envelope === null), true);
+  assert.equal(db.log.updates.some((update) => update.values.status === 'failed' && update.values.error_code === 'provider_error' && update.values.key_envelope === null && update.values.spec === null), true);
   assert.equal(logs.join('').includes(KEY), false);
 
   const notKept = harness({ fetchImpl: openRouter().fetchImpl, files: memoryFiles({ failSaves: 99 }) });

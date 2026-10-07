@@ -48,8 +48,8 @@ export function createRunStore({ db, limits, now = () => new Date() }) {
       await db.update('server_runs', { id: `eq.${id}` }, { checkpoint, heartbeat_at: now().toISOString(), ...(progress ? { attempts: 0 } : {}) });
       return true;
     },
-    /** The run is over: the key goes at once. */
-    async finish(id, { status, errorCode = null, usage = null }) {
+    /** The run is over: the key goes at once (and the request, for `clearSpec`: an image run keeps the pictures it started from in it). */
+    async finish(id, { status, errorCode = null, usage = null, clearSpec = false }) {
       await db.update('server_runs', { id: `eq.${id}` }, {
         status,
         error_code: errorCode,
@@ -57,7 +57,8 @@ export function createRunStore({ db, limits, now = () => new Date() }) {
         finished_at: now().toISOString(),
         key_envelope: null,
         key_expires_at: null,
-        checkpoint: null
+        checkpoint: null,
+        ...(clearSpec ? { spec: null } : {})
       });
     },
     /** A person's request to stop their own run. Returns whether there was a live run of theirs. */
