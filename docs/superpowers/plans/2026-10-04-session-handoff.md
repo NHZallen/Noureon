@@ -95,4 +95,4 @@
 - owner 的決定：搜尋深度照設定（伺服器以前寫死 basic，「模型自己搜」也一併修好）、要備援金鑰（`secrets.searchKeyAlt`，也讓「模型自己搜」有備援）、搜尋失敗沿用瀏覽器的行為、搜尋的那幾秒顯示「正在使用 Tavily 搜尋」（新的即時事件 `ss`，晚加入的頁面由快照 `r.ss` 得知）。
 - 共用模組 `src/app/legacy-runtime/features/search-packet-parts.js` 是搜尋包放進請求的唯一寫法，頁面與伺服器都用它。
 - **owner 說過不要打標籤，也不要再提到標籤**，這條 AGENTS.md 的規則先不照做、也不用再問。
-- 還沒做：多模型會議（最後做，要先寫自己的設計文件）；搜尋加 Python 與會議的搜尋仍在瀏覽器。待決定：已結束文字回覆的 `server_runs.spec` 不清；Zeabur 的 `ASSET_SWEEP`。
+- 還沒做：多模型會議（最後做，要先寫自己的設計文件）；會議的搜尋仍在瀏覽器（搜尋加 Python 的回覆早就在伺服器上，沒有「搜尋包加 Python」這個組合）。待決定：已結束文字回覆的 `server_runs.spec` 不清；Zeabur 的 `ASSET_SWEEP`。
