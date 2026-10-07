@@ -227,6 +227,19 @@ test('when the server can make the picture, the page hands it over and only foll
   assert.deepEqual(result.descriptors, [PICTURE.generatedImage]);
 });
 
+test('the message of the picture takes the place after the person\'s message, without the caller having to say so', async () => {
+  const serverReply = fakeServerReply();
+  const { run } = lifecycleHarness({ serverReply });
+  const conversation = { id: CONVERSATION.id, imageConfig: { aspectRatio: '1:1', resolution: '1K' }, messages: [{ id: 'u0', role: 'user', parts: [{ text: 'a cat' }] }] };
+  await run({ conversation, sequence: undefined });
+  assert.equal(serverReply.started[0].sequence, 1, 'the first message of a chat is at 0: the picture is at 1, not on top of it');
+  conversation.messages.push({ id: 'a1', role: 'model', parts: [] }, { id: 'u2', role: 'user', parts: [{ text: 'again' }] });
+  await run({ conversation, sequence: undefined });
+  assert.equal(serverReply.started[1].sequence, 3, 'three messages are there: the reply takes the fourth place, at 3');
+  await run({ conversation, sequence: 9 });
+  assert.equal(serverReply.started[2].sequence, 9, 'what the caller says still wins');
+});
+
 test('the picture is made here when the server is not chosen, does not take it, or there is no message to write under', async () => {
   const notChosen = fakeServerReply({ plan: { ok: false, reason: LOCAL_REASONS.setting } });
   const first = lifecycleHarness({ serverReply: notChosen });

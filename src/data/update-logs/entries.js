@@ -2,6 +2,20 @@
 // content 為 zh-TW 的 HTML 字串（JSON 轉義、雙引號），目前不隨介面語言切換。
 export const updateLogEntries = [
   {
+    version: "17.9.1",
+    date: "2026-10-07",
+    content: [
+      "<strong>Noureon 17.9.1 發布說明</strong>",
+      "本版本修正圖片交給伺服器生成時，圖片畫好卻沒有出現在對話裡的問題。",
+      "<strong>主要變更</strong>",
+      "<ul><li><strong>修正圖片沒有出現：</strong>17.9.0 的伺服器圖片生成，在伺服器要把圖片放進對話時，位置算錯，和你的訊息撞在一起，造成放不進去、圖片消失。現在圖片會放在你的訊息後面，關掉頁面再回來也會看到。</li></ul>",
+      "<strong>注意事項</strong>",
+      "<ul><li>在 17.9.0 期間送出而失敗的圖片請求，需要重新送出一次。</li></ul>",
+      "<strong>相容性</strong>",
+      "本次更新不需要資料遷移。"
+    ]
+  },
+  {
     version: "17.9.0",
     date: "2026-10-07",
     content: [

@@ -69,10 +69,11 @@ export function createImageGenerationResponseLifecycle({
     signal,
     uiLanguage,
     // For a picture the server may make: where replies are made is the person's choice (settings), the server writes the message under
-    // `assistantMessageId`, and `resumeRun` is a picture it was already making when the page was opened again (it is only followed).
+    // `assistantMessageId` at the place the reply takes in the chat (after the person's message), and `resumeRun` is a picture it was
+    // already making when the page was opened again (it is only followed).
     serverReply = null,
     assistantMessageId = null,
-    sequence = 0,
+    sequence = conversation?.messages?.length ?? 0,
     resumeRun = null
   }) => {
     if (resumeRun) return followServerImage(resumeRun, { signal, serverReply, uiLanguage });
