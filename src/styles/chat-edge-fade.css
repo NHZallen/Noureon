@@ -57,9 +57,10 @@
     height: var(--end-room, 0px);
 }
 
-/* A chat too short to scroll still scrolls: its list is one pixel taller than the scroller. On iPhone a scroller with nothing to
-   scroll does not take the swipe, the page behind it does, and the chat looks frozen. With a pixel of range the swipe is the
-   chat's, and it springs back as it does when it is longer. */
+/* A chat too short to scroll still scrolls: its list is a few pixels taller than the scroller. On iPhone a scroller with nothing to
+   scroll does not take the swipe, the page behind it does, and the chat looks frozen. With range the swipe is the chat's, and it
+   springs back as it does when it is longer. The range is more than the 4 pixels reader-scroll-guard.js asks for before it gives a
+   chat resting on its end more room: with a single pixel the chat rested exactly on its end, where iPhone hands the swipe to the page. */
 #message-list {
-    min-height: calc(100% + 1px);
+    min-height: calc(100% + 6px);
 }

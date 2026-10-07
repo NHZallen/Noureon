@@ -71,3 +71,15 @@ test('the room stays at most a few pixels however often the chat comes to rest o
   }
   assert.equal(room(chat), '12px');
 });
+
+test('a chat too short to scroll gets more range than the guard needs before it gives room (one pixel left it resting on its end)', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { EDGE_ROOM } = await import('../src/app/ui/motion/reader-scroll-guard.js');
+  const css = readFileSync(new URL('../src/styles/chat-edge-fade.css', import.meta.url), 'utf8');
+  const px = Number(css.match(/#message-list\s*\{[^}]*min-height:\s*calc\(100%\s*\+\s*(\d+)px\)/s)?.[1]);
+  assert.ok(px > EDGE_ROOM * 2, `range ${px}px must be above ${EDGE_ROOM * 2}px, or giveEndRoom skips the chat`);
+  const short = createScroller({ scrollTop: px, scrollHeight: 600 + px, clientHeight: 600 });
+  keepChatOffItsEdges(short);
+  short.touch();
+  assert.equal(room(short), '2px');
+});
