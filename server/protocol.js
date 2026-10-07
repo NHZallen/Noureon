@@ -53,7 +53,11 @@ export const LIMITS = Object.freeze({
   imageKeyTtlMs: 30 * 60 * 1000,
   // Sanity limits of an image request (what the models take is up to the provider: Nano Banana 14 pictures, FLUX.3 10, GPT Image 16).
   maxImageReferences: 32,
-  maxImagePromptChars: 40_000
+  maxImagePromptChars: 40_000,
+  // One call of a council (a member's answer, the synthesis): a model that thinks may take long, and one that hangs must not hold the whole
+  // council to the run's limit. The call that runs out of time counts as that model's failure.
+  councilCallMs: 30 * 60 * 1000,
+  maxCouncilModels: 5
 });
 
 export const LANGUAGES = Object.freeze(['zh-TW', 'en', 'fr', 'ru', 'es']);

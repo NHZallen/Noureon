@@ -55,6 +55,7 @@ import { createSensitiveConfigPersistence, createSensitiveConfigStore } from '/s
 import { removeSensitiveConfig } from '/src/app/runtime/security/sensitive-config-redaction.js';
 import { CHEAP_MODEL_ID, COUNCIL_MAX_MODELS, COUNCIL_MIN_MODELS, COUNCIL_RESPONSE_CHAR_LIMIT, COUNCIL_RETRY_DELAY_MS, COUNCIL_TEXT, MODELS, OPENROUTER_VISION_MODELS, createLegacyModelRegistry, getModelReasoningConfig, modelGeneratesImages, normalizeReasoningEffort } from '/src/app/runtime/legacy-core/model-registry.js';
 import { searchSourceModel } from '/src/app/runtime/kernel/search-provider.js';
+import { createCouncilAttachmentNeed, getCouncilDocumentFiles as getCouncilDocumentFilesOf, getCouncilVisualFiles as getCouncilVisualFilesOf, isVisualUploadedFile } from '/src/app/legacy-runtime/features/council-attachments.js';
 import { getCouncilRuntimeTexts as getCouncilRuntimeTextsForLanguage } from '/src/app/runtime/legacy-core/council-runtime-texts.js';
 import { FOLDER_COLORS, UI_THEME_COLORS, USER_BUBBLE_COLORS } from '/src/app/runtime/legacy-core/runtime-ui-colors.js';
 
@@ -173,28 +174,11 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             const uiLanguage = runtimeConfigAccess.getUiLanguage();
             return getCouncilRuntimeTextsForLanguage(uiLanguage);
         };
-        const isVisualUploadedFile = (file) => {
-            const mimeType = file?.type || file?.mimeType || file?.inlineData?.mimeType || '';
-            return mimeType.startsWith('image/') || mimeType.startsWith('video/');
-        };
         const getUploadedFileKind = (file) => isVisualUploadedFile(file) ? 'visual' : 'document';
-        const isUploadedAttachmentLike = (file) => Boolean(file?.inlineData || file?.base64 || file?.type || file?.mimeType);
-        const getCouncilVisualFiles = (files = uploadedFiles) => (files || []).filter(file => isUploadedAttachmentLike(file) && isVisualUploadedFile(file));
-        const getCouncilDocumentFiles = (files = uploadedFiles) => (files || []).filter(file => isUploadedAttachmentLike(file) && !isVisualUploadedFile(file));
-        const getCouncilAttachmentTranslationNeed = (models = [], files = uploadedFiles) => {
-            const selectedModels = (models || []).filter(Boolean);
-            const visualFiles = getCouncilVisualFiles(files);
-            const documentFiles = getCouncilDocumentFiles(files);
-            const needsVisualPacket = visualFiles.length > 0 && selectedModels.some(model => !modelSupportsVision(model));
-            const needsDocumentPacket = documentFiles.length > 0 && selectedModels.some(model => !modelSupportsDocumentUpload(model));
-            return {
-                needsVisualPacket,
-                needsDocumentPacket,
-                needsAnyPacket: needsVisualPacket || needsDocumentPacket,
-                visualFiles,
-                documentFiles
-            };
-        };
+        const getCouncilVisualFiles = (files = uploadedFiles) => getCouncilVisualFilesOf(files);
+        const getCouncilDocumentFiles = (files = uploadedFiles) => getCouncilDocumentFilesOf(files);
+        const councilAttachmentNeed = createCouncilAttachmentNeed({ modelSupportsVision, modelSupportsDocumentUpload });
+        const getCouncilAttachmentTranslationNeed = (models = [], files = uploadedFiles) => councilAttachmentNeed(models, files);
         const getCouncilRunnableParticipants = (participants = [], files = uploadedFiles) => {
             const visualFiles = getCouncilVisualFiles(files);
             if (visualFiles.length === 0) {

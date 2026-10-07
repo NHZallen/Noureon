@@ -1,7 +1,7 @@
 # 多模型會議（Council）搬到伺服器（關掉頁面也會開完會）
 
 **日期：** 2026-10-08
-**狀態：** owner 已決定 §2（2026-10-08），尚無任何程式變更；**P0 已完成（§7）**。這是「圖片 → 先搜一包 → 會議」三件事的最後一件。
+**狀態：** owner 已決定 §2（2026-10-08），**P0（§7）、P1 伺服器端（§8）已完成**；客戶端（P2）還沒做，所以網站上的行為沒有任何變化（客戶端不會送 `council`）。這是「圖片 → 先搜一包 → 會議」三件事的最後一件。
 **前置閱讀：** [`AGENTS.md`](../../../AGENTS.md)、[伺服器執行設計](2026-10-03-server-runtime-design.md)、[圖片生成搬到伺服器](2026-10-06-server-image-generation-design.md)（新增一種任務類型的做法）、[先搜一包搬到伺服器](2026-10-07-server-search-packet-design.md)（搜尋包、備援金鑰、搜尋中顯示、共用的寫法）。
 
 ## 1. 現況與要解決的事
@@ -111,3 +111,17 @@
 - **共用模組清單：** 需新增 4 個：`council-response-lifecycle.js`、`provider-request-support.js`、`linked-pages.js`、`council-runtime-texts.js`；逐一讀過，沒有瀏覽器全域物件（`provider-request-support.js` 用的 `DOMException`、`AbortSignal.any` 在 Node 22 都有）。其餘引用的模組已在清單上。
 - **要自己寫的兩個小函式：** `getCouncilAttachmentTranslationNeed`（現在寫在 `legacy-core.js` 裡、依瀏覽器的 `uploadedFiles`，伺服器版改從請求的附件判斷，需抽成共用函式）、`getCouncilSelectedModels`（伺服器版直接用請求帶來的模型資料，不查伺服器自己的清單）。
 - **確認的既有問題（P1 要處理）：** 重試前沒有清掉已收到的片段（合成重試會重複輸出）、模型串流沒有逾時（30 分鐘）、`scrubMessage` 不遞迴遮蔽巢狀金鑰。
+
+## 8. P1 伺服器端完成（2026-10-08）
+
+- **`server/run-spec.js`：** `kind: 'council'` 有自己的驗證：2 到 5 個成員（不可重複）、合成模型、可選的轉譯模型（各為 `{ provider, id, info }`，`info` 上限 16KB）、`mode`、兩個顯示選項；`request.history`、`currentMessage`、三種用途的系統指令（`participant`、`deliberation`、`synthesis`）、`language`；`tools.webSearch` 為 `off`／`on`（加 `searchProvider`、`searchDepth`）；`secrets.keys`（`gemini`、`openrouter`、`nvidia`，每個成員用到的供應商都要有金鑰）、`searchKey`／`searchKeyAlt`（合成不是 Gemini 又要搜尋時必須有 `searchKey`）。與執行共用的欄位照舊（`model` 記的是合成模型，`tools.advanced` 固定 false，所以 `app.js`、`runs.js` 的其他程式不用改）。
+- **`server/council-run.js`（新）：** `executeCouncil` 用**真正的會議主程式**，依賴改由伺服器給：
+  - 每個模型用自己供應商的金鑰，用途（成員、辯論、合成）決定用哪一段系統指令；成員看到完整歷史。
+  - **每次呼叫 30 分鐘逾時**（`LIMITS.councilCallMs`），逾時算該成員失敗、不重試；其他失敗重試一次；**合成已經開始輸出後失敗就不重試**（否則字會寫兩次），會議改給成員的答案（原本的備案）。
+  - 供應商的錯誤訊息若重複了金鑰會被遮蔽（失敗說明會寫進答案，所以來源與最後的文字都遮蔽）。
+  - **每個完成的呼叫與搜尋都記在檢查點**（`memo`，上限 300 萬字元，檢查點上限 6MB），重啟接續時不再問成員、不再搜尋，只重做合成。
+  - 進度以新的即時事件 `cs` 送出（階段、每個成員的狀態、搜尋、已進行的秒數）；合成的字沿用 `a`，會議在合成之後加的區塊（原始回答）最後補送，所以看著的頁面拿到完整文字；訊息隨合成寫入。停止保留已寫出的合成文字。
+- **`server/runs.js`：** `council` 分派（`executeCouncilRun`）、`flags: { kind: 'council' }`、檢查點算進度（重試次數歸零）、`cs` 進入鏡像與快照（晚加入的頁面得到目前進度，秒數補上經過的時間）。
+- **共用程式：** 新增 `council-attachments.js`（哪些附件需要轉譯包；`legacy-core.js` 改用它，頁面行為不變）；共用清單加 5 個模組（皆已讀、無瀏覽器全域物件）；`scrubMessage` 現在會遞迴遮蔽巢狀金鑰（新增 `scrubText`）。
+- **測試：** `tests/server/server-council.test.js`（9 項：分金鑰與用途指令、辯論兩輪與搜尋、成員失敗與逾時、全部失敗不洩金鑰、合成中斷不重試、重啟接續不重問、停止、規格驗證、巢狀金鑰遮蔽；改壞重試規則、遮蔽、記憶，測試都會失敗），`tests/server/server-runs.test.js`（council 執行：金鑰封存與刪除、檢查點算進度、晚加入的快照）。
+- **還沒做：** 客戶端（P2）；另外，和文字回覆一樣，council 結束後 `server_runs.spec`（含對話歷史與附件）目前不會清掉（待 owner 決定是否清）。

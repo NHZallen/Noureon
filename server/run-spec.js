@@ -16,6 +16,9 @@ const WEB_SEARCH = ['off', 'research', 'grounding', 'briefing', 'packet'];
 const SEARCH_PROVIDERS = ['tavily', 'tinyfish'];
 const SEARCH_DEPTHS = ['basic', 'advanced'];
 const TOP_LEVEL = ['protocol', 'clientVersion', 'conversationId', 'assistantMessageId', 'sequence', 'model', 'request', 'tools', 'secrets', 'kind', 'research'];
+const COUNCIL_TOP_LEVEL = ['protocol', 'clientVersion', 'conversationId', 'assistantMessageId', 'sequence', 'request', 'council', 'tools', 'secrets', 'kind'];
+const COUNCIL_MODES = ['consensus', 'deliberation'];
+const COUNCIL_PROVIDERS = ['gemini', 'openrouter', 'nvidia'];
 const IMAGE_TOP_LEVEL = ['protocol', 'clientVersion', 'conversationId', 'assistantMessageId', 'sequence', 'model', 'request', 'image', 'secrets', 'kind'];
 // What the page may ask of an image model (the fields of the request to OpenRouter's images endpoint that the app sets).
 const IMAGE_CONFIG_FIELDS = ['aspectRatio', 'resolution', 'n', 'size', 'quality', 'outputFormat', 'background', 'outputCompression', 'seed', 'provider', 'reasoningEffort'];
@@ -119,6 +122,137 @@ function validateImageSpec(input) {
 }
 
 /**
+ * A request for a council (`kind: 'council'`, docs/superpowers/specs/2026-10-08-server-council-design.md): 2 to 5 models answer the same
+ * message (twice, in a deliberation), and a synthesizer writes the answer. Each model comes with the information the page has about it, as for
+ * any reply; the keys are one for each provider the models use.
+ */
+function validateCouncilSpec(input) {
+  const errors = [];
+  const fail = (path, message) => errors.push({ path, message });
+  for (const name of Object.keys(input)) if (!COUNCIL_TOP_LEVEL.includes(name)) fail(name, 'is not a known field');
+  if (!text(input.clientVersion, 40)) fail('clientVersion', 'must be a short text');
+  if (!UUID.test(String(input.conversationId || ''))) fail('conversationId', 'must be an id');
+  if (!UUID.test(String(input.assistantMessageId || ''))) fail('assistantMessageId', 'must be an id');
+  if (!Number.isInteger(input.sequence) || input.sequence < 0) fail('sequence', 'must be a whole number from 0');
+
+  const checkModel = (model, path) => {
+    if (!isObject(model)) {
+      fail(path, 'must be an object');
+      return null;
+    }
+    if (!COUNCIL_PROVIDERS.includes(model.provider)) fail(`${path}.provider`, `must be one of ${COUNCIL_PROVIDERS.join(', ')}`);
+    if (!text(model.id, 200)) fail(`${path}.id`, 'must be a short text');
+    if (!isObject(model.info) || JSON.stringify(model.info).length > 16_384) fail(`${path}.info`, 'must be an object of at most 16 KB');
+    for (const name of Object.keys(model)) if (!['provider', 'id', 'info'].includes(name)) fail(`${path}.${name}`, 'is not a known field');
+    return { provider: model.provider, id: model.id, info: model.info };
+  };
+
+  const council = input.council;
+  let participants = [];
+  let synthesizer = null;
+  let translator = null;
+  if (!isObject(council)) fail('council', 'must be an object');
+  else {
+    for (const name of Object.keys(council)) if (!['mode', 'showRawResponses', 'showComparisonTable', 'participants', 'synthesizer', 'translator'].includes(name)) fail(`council.${name}`, 'is not a known field');
+    if (!COUNCIL_MODES.includes(council.mode)) fail('council.mode', `must be one of ${COUNCIL_MODES.join(', ')}`);
+    for (const name of ['showRawResponses', 'showComparisonTable']) if (typeof council[name] !== 'boolean') fail(`council.${name}`, 'must be true or false');
+    if (!Array.isArray(council.participants) || council.participants.length < 2 || council.participants.length > LIMITS.maxCouncilModels) fail('council.participants', `must be a list of 2 to ${LIMITS.maxCouncilModels} models`);
+    else {
+      participants = council.participants.map((model, index) => checkModel(model, `council.participants[${index}]`));
+      if (new Set(council.participants.map((model) => model?.id)).size !== council.participants.length) fail('council.participants', 'must name each model once');
+    }
+    synthesizer = checkModel(council.synthesizer, 'council.synthesizer');
+    if (council.translator !== undefined && council.translator !== null) translator = checkModel(council.translator, 'council.translator');
+  }
+
+  const request = input.request;
+  if (!isObject(request)) fail('request', 'must be an object');
+  else {
+    if (!Array.isArray(request.history)) fail('request.history', 'must be a list');
+    else {
+      if (request.history.length > LIMITS.maxHistoryMessages) fail('request.history', `has more than ${LIMITS.maxHistoryMessages} messages`);
+      request.history.slice(0, LIMITS.maxHistoryMessages).forEach((message, index) => {
+        if (!isObject(message) || !ROLES.includes(message.role) || !Array.isArray(message.parts)) fail(`request.history[${index}]`, 'must have a role and parts');
+      });
+    }
+    if (!isObject(request.currentMessage) || !Array.isArray(request.currentMessage.parts) || request.currentMessage.parts.length === 0) fail('request.currentMessage', 'must have parts');
+    // What each kind of call is told (memory, the persona, the learning mode and so on, put together by the page for the three purposes).
+    if (!isObject(request.systemInstructions)) fail('request.systemInstructions', 'must be an object');
+    else for (const name of ['participant', 'deliberation', 'synthesis']) {
+      if (typeof request.systemInstructions[name] !== 'string' || request.systemInstructions[name].length > LIMITS.maxSystemInstructionChars) fail(`request.systemInstructions.${name}`, `must be a text of at most ${LIMITS.maxSystemInstructionChars} characters`);
+    }
+    if (request.messageMetadata !== undefined && (!isObject(request.messageMetadata) || JSON.stringify(request.messageMetadata).length > 8192)) fail('request.messageMetadata', 'must be an object of at most 8 KB');
+    if (!LANGUAGES.includes(request.language)) fail('request.language', `must be one of ${LANGUAGES.join(', ')}`);
+    for (const name of Object.keys(request)) if (!['history', 'currentMessage', 'systemInstructions', 'messageMetadata', 'language'].includes(name)) fail(`request.${name}`, 'is not a known field');
+  }
+
+  const tools = input.tools;
+  if (!isObject(tools)) fail('tools', 'must be an object');
+  else {
+    if (!['off', 'on'].includes(tools.webSearch)) fail('tools.webSearch', 'must be off or on');
+    if (tools.searchProvider !== undefined && !SEARCH_PROVIDERS.includes(tools.searchProvider)) fail('tools.searchProvider', `must be one of ${SEARCH_PROVIDERS.join(', ')}`);
+    if (tools.searchDepth !== undefined && !SEARCH_DEPTHS.includes(tools.searchDepth)) fail('tools.searchDepth', `must be one of ${SEARCH_DEPTHS.join(', ')}`);
+    for (const name of Object.keys(tools)) if (!['webSearch', 'searchProvider', 'searchDepth'].includes(name)) fail(`tools.${name}`, 'is not a known field');
+  }
+
+  const secrets = input.secrets;
+  const keys = {};
+  if (!isObject(secrets)) fail('secrets', 'must be an object');
+  else {
+    for (const name of Object.keys(secrets)) if (!['keys', 'searchKey', 'searchKeyAlt'].includes(name)) fail(`secrets.${name}`, 'is not a known field');
+    if (!isObject(secrets.keys)) fail('secrets.keys', 'must be an object');
+    else {
+      for (const [name, key] of Object.entries(secrets.keys)) {
+        if (!COUNCIL_PROVIDERS.includes(name)) fail(`secrets.keys.${name}`, 'is not a known provider');
+        else if (!text(key, 600)) fail(`secrets.keys.${name}`, 'must be a key');
+        else keys[name] = key;
+      }
+      // Every provider a model of the council is asked at has to have its key.
+      for (const model of [...participants, synthesizer, translator]) {
+        if (model && COUNCIL_PROVIDERS.includes(model.provider) && !keys[model.provider]) fail(`secrets.keys.${model.provider}`, 'is needed for a model of the council');
+      }
+    }
+    if (secrets.searchKey !== undefined && !text(secrets.searchKey, 600)) fail('secrets.searchKey', 'must be a key or left out');
+    if (secrets.searchKeyAlt !== undefined && (!text(secrets.searchKeyAlt, 600) || !text(secrets.searchKey, 600))) fail('secrets.searchKeyAlt', 'must be a key, and only with a searchKey');
+    // The search of a council is a packet (Tavily or TinyFish) unless its synthesizer is Gemini, which searches by itself.
+    if (isObject(tools) && tools.webSearch === 'on' && synthesizer && synthesizer.provider !== 'gemini' && !text(secrets.searchKey, 600)) fail('secrets.searchKey', 'is needed to search for a council');
+  }
+
+  if (errors.length) return { ok: false, errors: errors.slice(0, 20) };
+  return {
+    ok: true,
+    spec: {
+      protocol: input.protocol,
+      kind: 'council',
+      clientVersion: input.clientVersion,
+      conversationId: input.conversationId,
+      assistantMessageId: input.assistantMessageId,
+      sequence: input.sequence,
+      // What the rest of the server reads of any reply: the model recorded with the run is the synthesizer's.
+      model: synthesizer,
+      council: {
+        mode: council.mode,
+        showRawResponses: council.showRawResponses,
+        showComparisonTable: council.showComparisonTable,
+        participants,
+        synthesizer,
+        translator
+      },
+      request: {
+        history: request.history,
+        currentMessage: request.currentMessage,
+        systemInstruction: '',
+        systemInstructions: { participant: request.systemInstructions.participant, deliberation: request.systemInstructions.deliberation, synthesis: request.systemInstructions.synthesis },
+        language: request.language,
+        ...(request.messageMetadata ? { messageMetadata: request.messageMetadata } : {})
+      },
+      tools: { webSearch: tools.webSearch, searchProvider: tools.searchProvider || 'tavily', searchDepth: tools.searchDepth === 'advanced' ? 'advanced' : 'basic', advanced: false },
+      secrets: { keys, ...(secrets.searchKey ? { searchKey: secrets.searchKey } : {}), ...(secrets.searchKeyAlt ? { searchKeyAlt: secrets.searchKeyAlt } : {}) }
+    }
+  };
+}
+
+/**
  * Checks a request body. Returns { ok: true, spec } (the checked copy, with only the known fields) or { ok: false, errors: [{ path, message }] }.
  * A request of another protocol version is told apart (`unsupportedProtocol`) so it can be answered with 426.
  */
@@ -128,6 +262,7 @@ export function validateRunSpec(input) {
   if (!isObject(input)) return { ok: false, errors: [{ path: '', message: 'must be an object' }] };
   if (input.protocol !== PROTOCOL_VERSION) return { ok: false, unsupportedProtocol: true, errors: [{ path: 'protocol', message: `this server speaks protocol ${PROTOCOL_VERSION}` }] };
   if (input.kind === 'image') return validateImageSpec(input);
+  if (input.kind === 'council') return validateCouncilSpec(input);
   for (const name of Object.keys(input)) if (!TOP_LEVEL.includes(name)) fail(name, 'is not a known field');
 
   if (!text(input.clientVersion, 40)) fail('clientVersion', 'must be a short text');

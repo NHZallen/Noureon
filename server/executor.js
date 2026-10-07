@@ -33,12 +33,24 @@ export const readErrorBody = async (response) => {
 export const getErrorMessage = (errorBody, fallback = 'API request failed') => errorBody?.error?.message || errorBody?.message || fallback;
 
 /** An error message with every key the reply was given taken out, and short enough to keep. */
-export function scrubMessage(message, secrets) {
-  let text = String(message ?? 'The reply failed.');
-  for (const value of Object.values(secrets || {})) {
-    if (typeof value === 'string' && value.length >= 6) text = text.split(value).join('[hidden]');
+// Every key in the secrets, however deep (a council has one key for each provider, in `keys`).
+const secretStrings = (value, found = []) => {
+  if (typeof value === 'string') found.push(value);
+  else if (value && typeof value === 'object') for (const inner of Object.values(value)) secretStrings(inner, found);
+  return found;
+};
+
+/** The text with every key of the secrets taken out (whole, not cut). */
+export function scrubText(text, secrets) {
+  let result = String(text ?? '');
+  for (const value of secretStrings(secrets)) {
+    if (value.length >= 6) result = result.split(value).join('[hidden]');
   }
-  return text.slice(0, 300);
+  return result;
+}
+
+export function scrubMessage(message, secrets) {
+  return scrubText(message ?? 'The reply failed.', secrets).slice(0, 300);
 }
 
 export class ReplyError extends Error {

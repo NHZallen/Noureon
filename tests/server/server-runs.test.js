@@ -225,7 +225,7 @@ test('the four search paths and NVIDIA\'s chat go straight to their services, wi
 
 // ----- the run manager
 
-function managerHarness({ execute, executeDeepResearch, db = fakeDatabase(), logs = [], sandbox = null, vision, fetchImpl, credentials = null } = {}) {
+function managerHarness({ execute, executeDeepResearch, executeCouncilRun, db = fakeDatabase(), logs = [], sandbox = null, vision, fetchImpl, credentials = null } = {}) {
   const vault = createKeyVault([{ version: 1, key: masterKey() }]);
   const repeating = [];
   const timers = [];
@@ -237,6 +237,7 @@ function managerHarness({ execute, executeDeepResearch, db = fakeDatabase(), log
     sandbox,
     credentials,
     ...(executeDeepResearch ? { executeDeepResearch } : {}),
+    ...(executeCouncilRun ? { executeCouncilRun } : {}),
     ...(vision ? { vision } : {}),
     ...(fetchImpl ? { fetchImpl } : {}),
     execute,
@@ -290,6 +291,57 @@ test('a reply is accepted, run, written, and finished, and its key goes with it'
   const done = db.log.updates.find((update) => update.values.status === 'done');
   assert.equal(done.values.key_envelope, null);
   assert.equal(manager.activeCount, 0);
+});
+
+test('a council is a run of its own kind: its keys (one for each provider) are sealed and gone at the end, its checkpoints count as progress, and a page that joins late is given how it stands', async () => {
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  const seen = [];
+  const { manager, db, vault } = managerHarness({
+    executeCouncilRun: async ({ spec, secrets, onUpdate, onLive, onCheckpoint }) => {
+      seen.push({ kind: spec.kind, secrets });
+      onLive({ r: { answer: '', thought: { text: '', kind: 'model' }, sources: [], elapsedMs: 0 } });
+      onLive({ cs: { stage: 'firstRound', elapsedMs: 1000, modelStates: [{ modelId: 'a', status: 'running' }] } });
+      await onCheckpoint({ version: 1, kind: 'council', memo: { k: 'v' } });
+      await gate;
+      onUpdate([{ text: 'The synthesis' }]);
+      return { parts: [{ text: 'The synthesis' }], status: 'done', run: { elapsedMs: 5 }, toolCalls: 0 };
+    }
+  });
+  const council = {
+    protocol: 1,
+    kind: 'council',
+    clientVersion: '17.11.0',
+    conversationId: CONVERSATION,
+    assistantMessageId: MESSAGE,
+    sequence: 2,
+    model: { provider: 'openrouter', id: 'synth', info: { provider: 'openrouter' } },
+    council: { mode: 'consensus', participants: [], synthesizer: { provider: 'openrouter', id: 'synth', info: {} }, translator: null, showRawResponses: true, showComparisonTable: true },
+    request: { history: [], currentMessage: { parts: [{ text: 'hi' }] }, systemInstruction: '', systemInstructions: { participant: '', deliberation: '', synthesis: '' }, language: 'en' },
+    tools: { webSearch: 'off', searchProvider: 'tavily', searchDepth: 'basic', advanced: false },
+    secrets: { keys: { openrouter: KEY, nvidia: 'nv-secret-value' } }
+  };
+  await manager.start({ userId: USER, spec: council });
+  await settle();
+  assert.deepEqual(seen[0], { kind: 'council', secrets: { keys: { openrouter: KEY, nvidia: 'nv-secret-value' } } });
+  const start = db.log.rpcs.find((call) => call.name === 'server_start_run').args;
+  assert.equal(start.p_model.kind, 'council', 'the page can tell what kind of run it is from the run\'s record');
+  assert.deepEqual(vault.open(start.p_key_envelope, start.p_key_version, { userId: USER, messageId: MESSAGE }).keys.nvidia, 'nv-secret-value');
+  const saved = db.log.updates.find((update) => update.values.spec);
+  assert.equal(JSON.stringify(saved.values.spec).includes(KEY), false, 'the kept request has no key');
+  const checkpoint = db.log.updates.find((update) => update.values.checkpoint?.kind === 'council');
+  assert.equal(checkpoint.values.attempts, 0, 'each call that finished counts as progress');
+
+  const joined = [];
+  manager.watch({ userId: USER, runId: 'run-1', send: (event) => joined.push(event), close() {} });
+  assert.equal(joined[0].r.cs.stage, 'firstRound', 'a page that joins late is given how the council stands');
+  assert.ok(joined[0].r.cs.elapsedMs >= 1000, 'with the time it has gone on');
+  release();
+  await settle();
+  assert.equal(messageWrites(db).at(-1).status, 'complete');
+  assert.deepEqual(messageWrites(db).at(-1).parts, [{ text: 'The synthesis' }]);
+  const done = db.log.updates.find((update) => update.values.status === 'done');
+  assert.equal(done.values.key_envelope, null, 'the keys are gone at the end');
 });
 
 test('a reply that cannot be started says why', async () => {

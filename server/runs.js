@@ -1,6 +1,7 @@
 // The replies the server is running: accepting one, running it in the background, keeping its record alive, stopping it, and
 // taking up the ones that lost their process (a restart, an update, a crash). See the design, §3, §6 and §6a.
 
+import { executeCouncil } from './council-run.js';
 import { executeReply, ReplyError, scrubMessage } from './executor.js';
 import { errorText } from './error-texts.js';
 import { executeImage } from './image-run.js';
@@ -51,6 +52,7 @@ export function createRunManager({
   execute = executeReply,
   executeDeepResearch = executeResearch,
   executeImageRun = executeImage,
+  executeCouncilRun = executeCouncil,
   heartbeatMs = HEARTBEAT_MS,
   setTimer = setTimeout,
   clearTimer = clearTimeout,
@@ -100,6 +102,10 @@ export function createRunManager({
     } else if (Array.isArray(event.src)) live.sources = event.src;
     else if (event.ev) mirrorStepEvent(live, event.ev);
     else if (event.vc) mirrorVisionEvent(live, event.vc);
+    else if (event.cs) {
+      live.council = event.cs;
+      live.councilAt = now();
+    }
     else if (typeof event.ss === 'string') live.searching = event.ss;
     else if (event.rs) live.research.state = event.rs;
     else if (event.ra) {
@@ -170,6 +176,8 @@ export function createRunManager({
       sources: live.sources,
       // A search the reply is making first (a packet): the source it uses, so a page that joins late shows "Searching with ..." too.
       ...(live.searching ? { ss: live.searching } : {}),
+      // A council: how it stands (the stage, each model's state, the search), so a page that joins late draws the same panel.
+      ...(live.council ? { cs: { ...live.council, elapsedMs: (Number(live.council.elapsedMs) || 0) + (now() - live.councilAt) } } : {}),
       elapsedMs: live.elapsedFrom + (now() - live.elapsedAt),
       ...(live.steps.events.length ? { events: live.steps.events } : {}),
       ...(live.vision.events.length ? { vc: live.vision.events } : {}),
@@ -201,6 +209,7 @@ export function createRunManager({
     const isVision = spec.kind === 'vision';
     const isResearch = spec.kind === 'research';
     const isImage = spec.kind === 'image';
+    const isCouncil = spec.kind === 'council';
     // How a person's requests reach a deep research that is running (start, pause, stop and the rest).
     const controls = isResearch ? createResearchControls() : null;
     const controller = new AbortController();
@@ -208,7 +217,7 @@ export function createRunManager({
     const netControl = { answer: null };
     // The same for the window that asks the person for a login a tool needs (executor.js).
     const credentialControl = { answer: null };
-    const live = { answer: '', thought: { text: '', kind: 'model', ended: false, ms: 0, first: null }, sources: [], elapsedFrom: 0, elapsedAt: now(), steps: { events: [], chars: 0 }, vision: { events: [], chars: 0 }, research: { state: null, activity: [] }, searching: '', subscribers: new Set() };
+    const live = { answer: '', thought: { text: '', kind: 'model', ended: false, ms: 0, first: null }, sources: [], elapsedFrom: 0, elapsedAt: now(), steps: { events: [], chars: 0 }, vision: { events: [], chars: 0 }, research: { state: null, activity: [] }, searching: '', council: null, councilAt: 0, subscribers: new Set() };
     active.set(runId, { controller, userId, live, controls, netControl, credentialControl });
     let finalStatus = 'error';
     const writer = createMessageWriter({
@@ -259,6 +268,27 @@ export function createRunManager({
         now,
         onUpdate: (parts) => writer.update(parts),
         onProblem: (what, error) => log(what, { runId, ...diagnosis(error, secrets) })
+      }) : isCouncil ? await executeCouncilRun({
+        spec,
+        secrets,
+        signal: controller.signal,
+        resume,
+        fetchImpl,
+        now,
+        onUpdate: (parts) => writer.update(parts),
+        onProblem: (what, error) => log(what, { runId, ...diagnosis(error, secrets) }),
+        onLive: (event) => {
+          applyLive(live, event);
+          if (!event.r) fan(live, event);
+        },
+        // Each call that finished is kept, and counts as progress (so a long council is not given up after a few restarts).
+        onCheckpoint: async (checkpoint) => {
+          try {
+            await store.saveCheckpoint(runId, checkpoint, { progress: true });
+          } catch (error) {
+            log('checkpoint_failed', { runId, message: String(error?.message || '').slice(0, 160) });
+          }
+        }
       }) : await (isResearch ? executeDeepResearch : execute)({
         spec,
         secrets,
@@ -452,7 +482,7 @@ export function createRunManager({
           keyVersion,
           // A deep research may wait a day (paused), so its keys are kept longer.
           ...(research ? { keyTtlMs: limits.researchKeyTtlMs } : image ? { keyTtlMs: limits.imageKeyTtlMs } : {}),
-          flags: research ? { kind: 'research' } : image ? { kind: 'image' } : spec.tools.visionCheck ? { vision: true } : null
+          flags: research ? { kind: 'research' } : image ? { kind: 'image' } : spec.kind === 'council' ? { kind: 'council' } : spec.tools.visionCheck ? { vision: true } : null
         });
       } catch (error) {
         const code = runStartErrorCode(error);
