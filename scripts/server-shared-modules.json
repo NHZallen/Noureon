@@ -16,6 +16,10 @@
       "note": "Reviewed 2026-10-07: no browser globals (a `fetch` that is passed in; no streaming any more)."
     },
     {
+      "path": "src/app/legacy-runtime/features/search-query-rewriter.js",
+      "note": "Reviewed 2026-10-07: no browser globals (a model call with its timers passed in)."
+    },
+    {
       "path": "src/app/legacy-runtime/features/stream-api-call.js",
       "note": "Reviewed 2026-10-03: no browser globals (\"document.pdf\" is a file name)."
     },
@@ -34,6 +38,10 @@
     },
     {
       "path": "src/app/runtime/features/auto-web-search.js"
+    },
+    {
+      "path": "src/app/runtime/i18n/runtime-texts.js",
+      "note": "Reviewed 2026-10-07: no browser globals (texts by language)."
     },
     {
       "path": "src/app/runtime/kernel/config-normalization.js"

@@ -5,6 +5,8 @@ import { createStreamApiCall } from '../src/app/legacy-runtime/features/stream-a
 import { getModelReasoningConfig, modelSupportsUploadedFile, modelSupportsVision, normalizeReasoningEffort } from '../src/app/runtime/legacy-core/model-registry.js';
 import { createUpstreamFetch } from './upstream-fetch.js';
 
+const SEARCH_SOURCES = ['tavily', 'tinyfish'];
+
 export const DEFAULT_GENERATION = Object.freeze({ temperature: 0.7, topP: 0.95, maxTokens: null });
 
 /** Resolves { streamApiCall, upstreamFetch, modelInfo, conversation, keyFor, config, language }. */
@@ -16,9 +18,11 @@ export function createModelAccess({ spec, secrets, fetchImpl = fetch, grounding 
   const keyFor = (name) => {
     if (name === modelInfo.provider) return secrets.providerKey || '';
     if (name === spec.tools.searchProvider) return secrets.searchKey || '';
+    // The other search source (the page falls back to it when the chosen one finds nothing).
+    if (SEARCH_SOURCES.includes(name)) return secrets.searchKeyAlt || '';
     return '';
   };
-  const config = { searchProvider: spec.tools.searchProvider, tavilySearchDepth: 'basic', aiDefaultLanguage: language, uiLanguage: language, memorySystemVersion: 1, memoryEnabled1: false, isLearningMode: false };
+  const config = { searchProvider: spec.tools.searchProvider, tavilySearchDepth: spec.tools.searchDepth === 'advanced' ? 'advanced' : 'basic', aiDefaultLanguage: language, uiLanguage: language, memorySystemVersion: 1, memoryEnabled1: false, isLearningMode: false };
   const streamApiCall = createStreamApiCall({
     getActiveConversation: () => conversation,
     normalizeConversationModel: () => modelInfo,

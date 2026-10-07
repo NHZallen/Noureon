@@ -10,9 +10,11 @@ import { LANGUAGES, LIMITS, PROTOCOL_VERSION } from './protocol.js';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ROLES = ['user', 'model', 'system'];
 // 'research': the model calls search tools itself; 'grounding': the provider's own search (Gemini); 'briefing': Gemini searches first, then the
-// reply with Python gets what it found (it cannot do both at once); 'off': no search.
-const WEB_SEARCH = ['off', 'research', 'grounding', 'briefing'];
+// reply with Python gets what it found (it cannot do both at once); 'packet': for a model that cannot search or call tools, the server searches
+// first and puts what it found in front of the request (docs/superpowers/specs/2026-10-07-server-search-packet-design.md); 'off': no search.
+const WEB_SEARCH = ['off', 'research', 'grounding', 'briefing', 'packet'];
 const SEARCH_PROVIDERS = ['tavily', 'tinyfish'];
+const SEARCH_DEPTHS = ['basic', 'advanced'];
 const TOP_LEVEL = ['protocol', 'clientVersion', 'conversationId', 'assistantMessageId', 'sequence', 'model', 'request', 'tools', 'secrets', 'kind', 'research'];
 const IMAGE_TOP_LEVEL = ['protocol', 'clientVersion', 'conversationId', 'assistantMessageId', 'sequence', 'model', 'request', 'image', 'secrets', 'kind'];
 // What the page may ask of an image model (the fields of the request to OpenRouter's images endpoint that the app sets).
@@ -164,7 +166,9 @@ export function validateRunSpec(input) {
   else {
     if (!WEB_SEARCH.includes(tools.webSearch)) fail('tools.webSearch', `must be one of ${WEB_SEARCH.join(', ')}`);
     if (tools.searchProvider !== undefined && !SEARCH_PROVIDERS.includes(tools.searchProvider)) fail('tools.searchProvider', `must be one of ${SEARCH_PROVIDERS.join(', ')}`);
+    if (tools.searchDepth !== undefined && !SEARCH_DEPTHS.includes(tools.searchDepth)) fail('tools.searchDepth', `must be one of ${SEARCH_DEPTHS.join(', ')}`);
     if (typeof tools.advanced !== 'boolean') fail('tools.advanced', 'must be true or false');
+    if (tools.webSearch === 'packet' && tools.advanced !== false) fail('tools.webSearch', 'a search packet is for replies without Python');
     if (tools.webSearch === 'briefing' && tools.advanced !== true) fail('tools.webSearch', 'briefing is for replies with Python');
     // The Design menu's choices (a template name each, or "auto"), and the files of this message that Python is given.
     if (tools.designs !== undefined) {
@@ -230,7 +234,10 @@ export function validateRunSpec(input) {
   else {
     if (!text(secrets.providerKey, 600)) fail('secrets.providerKey', 'is needed');
     if (secrets.searchKey !== undefined && !text(secrets.searchKey, 600)) fail('secrets.searchKey', 'must be a key or left out');
-    for (const name of Object.keys(secrets)) if (!['providerKey', 'searchKey'].includes(name)) fail(`secrets.${name}`, 'is not a known field');
+    // The other search source's key: when the chosen one finds nothing or fails, the search goes on with it (as the page does).
+    if (secrets.searchKeyAlt !== undefined && (!text(secrets.searchKeyAlt, 600) || !text(secrets.searchKey, 600))) fail('secrets.searchKeyAlt', 'must be a key, and only with a searchKey');
+    if (isObject(tools) && tools.webSearch === 'packet' && !text(secrets.searchKey, 600)) fail('secrets.searchKey', 'is needed for a search packet');
+    for (const name of Object.keys(secrets)) if (!['providerKey', 'searchKey', 'searchKeyAlt'].includes(name)) fail(`secrets.${name}`, 'is not a known field');
   }
 
   if (errors.length) return { ok: false, errors: errors.slice(0, 20) };
@@ -256,6 +263,7 @@ export function validateRunSpec(input) {
       tools: {
         webSearch: tools.webSearch,
         searchProvider: tools.searchProvider || 'tavily',
+        searchDepth: tools.searchDepth === 'advanced' ? 'advanced' : 'basic',
         advanced: tools.advanced,
         ...(isObject(tools.visionCheck) ? { visionCheck: { deckDesign: tools.visionCheck.deckDesign || 'auto', advanced: tools.visionCheck.advanced === true } } : {}),
         ...(tools.designs ? { designs: { deck: tools.designs.deck || 'auto', document: tools.designs.document || 'auto' } } : {}),
@@ -263,7 +271,7 @@ export function validateRunSpec(input) {
         ...(Array.isArray(tools.cli) && tools.cli.length && isObject(tools.net) ? { net: { mode: normalizeNetMode(tools.net.mode), rules: normalizeNetRules(tools.net.rules) } } : {}),
         ...(tools.inputs?.length ? { inputs: tools.inputs.map((file) => ({ name: file.name, mimeType: file.mimeType || '', data: file.data })) } : {})
       },
-      secrets: { providerKey: secrets.providerKey, ...(secrets.searchKey ? { searchKey: secrets.searchKey } : {}) }
+      secrets: { providerKey: secrets.providerKey, ...(secrets.searchKey ? { searchKey: secrets.searchKey } : {}), ...(secrets.searchKeyAlt ? { searchKeyAlt: secrets.searchKeyAlt } : {}) }
     }
   };
 }

@@ -18,6 +18,7 @@ import { sandboxText } from '../src/app/runtime/sandbox/sandbox-texts.js';
 import { collectInputFiles, createStepEvents, finishAdvancedReply } from './advanced-reply.js';
 import { ERROR_CODES } from './protocol.js';
 import { createModelAccess, DEFAULT_GENERATION } from './model-access.js';
+import { withSearchPacket } from './search-packet.js';
 
 export const CHECKPOINT_VERSION = 1;
 
@@ -329,6 +330,19 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
         onRound: (round) => onCheckpoint({ version: CHECKPOINT_VERSION, ...round, sources, thought: { text: thought.text, kind: thought.kind }, elapsedMs: now() - startedAt })
       });
       toolCalls = result.calls || 0;
+    } else if (mode === 'packet') {
+      // A model that cannot search: the search is made first (a failed one ends the reply with its message, as on the page).
+      const searched = await withSearchPacket({
+        parts,
+        history: spec.request.history,
+        access,
+        signal,
+        onSources: addSources,
+        errorFor: (message) => new ReplyError(scrubMessage(message, secrets), 'provider_error'),
+        getErrorMessage,
+        readErrorBody
+      });
+      if (!signal?.aborted) await streamApiCall(searched, onChunk, signal, false, requestOptions);
     } else {
       await streamApiCall(parts, onChunk, signal, false, requestOptions);
     }

@@ -1,7 +1,7 @@
 # 「先搜一包」搬到伺服器（關掉頁面也會搜完、答完）
 
 **日期：** 2026-10-07
-**狀態：** owner 已決定 §2（2026-10-07：深度照設定、要備援、失敗行為沿用現狀）。**P0 已完成（§7）**；P1 以後還沒做，網站上的行為沒有任何變化。
+**狀態：** owner 已決定 §2（2026-10-07：深度照設定、要備援、失敗行為沿用現狀）。**P0（§7）、P1 伺服器端（§8）已完成**；客戶端（P2）還沒做，所以網站上的行為沒有任何變化（客戶端不會送 `packet`）。
 **前置閱讀：** [`AGENTS.md`](../../../AGENTS.md)、[伺服器執行設計](2026-10-03-server-runtime-design.md)、[圖片生成搬到伺服器](2026-10-06-server-image-generation-design.md)（新增一種任務類型的做法、§12 §13 的教訓）、[交接文件](../plans/2026-10-04-session-handoff.md)。
 
 ## 1. 現況與要解決的事
@@ -79,3 +79,13 @@
 - 唯一要加進 `scripts/server-shared-modules.json` 的新模組是 `search-query-rewriter.js`（它引用的 `nouras-policy.js` 已在清單上，沒有瀏覽器全域物件）。
 - `truncateCouncilText`（7000 字截斷）是 `provider-request-support.js` 裡的區域函式，伺服器版要自己寫同樣的兩行（含 `\n\n[truncated]` 結尾），並用測試與瀏覽器的輸出對照。
 - 瀏覽器版的失敗行為見 §2 第 3 點。
+
+## 8. P1 伺服器端完成（2026-10-07）
+
+- `server/run-spec.js`：`tools.webSearch` 多了 `'packet'`（不可搭 Python、一定要有 `secrets.searchKey`）；新欄位 `tools.searchDepth`（`basic`／`advanced`，沒給就是 `basic`）與 `secrets.searchKeyAlt`（只能和 `searchKey` 一起出現）。
+- `server/model-access.js`：`keyFor` 兩家搜尋服務都回得出金鑰（選定的用 `searchKey`，另一家用 `searchKeyAlt`），所以共用的 `searchAcross` 備援在伺服器上也有效（包含既有的「模型自己搜」）；搜尋深度照 `tools.searchDepth`（以前寫死 basic）。
+- `server/search-packet.js`（新）：`withSearchPacket`。從請求去掉頁面放的開頭上下文後取出人寫的字、用 `request.history` 加目前訊息改寫搜尋詞、搜尋、把頁面找到的網頁交給 `onSources`、組出與頁面相同格式的 `# Web search packet`，放進開頭上下文那一段（頁面已做過文件轉譯或讀過網址就插在其中，順序不變），沒有就新建。缺金鑰、沒有可搜的字，丟出和頁面相同文字的錯誤；搜尋出錯照一般錯誤處理（金鑰會被遮蔽）。
+- `server/executor.js`：`packet` 模式先搜尋再串流；搜尋途中被停止就不再問模型。
+- `scripts/server-shared-modules.json`：加入 `search-query-rewriter.js`、`runtime-texts.js`（已讀過，沒有瀏覽器全域物件）。
+- 測試（`tests/server/server-search-packet.test.js`，9 項）：查詢由對話改寫、深度、備援金鑰（另一家的金鑰只送給另一家）、失敗與金鑰遮蔽、空訊息、搜尋中停止、上下文合併，以及**與頁面自己的 `buildSingleModelTranslatedRequestParts` 逐字對照**（除了「Retrieved at」時間）；改壞深度或備援金鑰，測試會失敗。
+- 還沒做：接續（重啟）時 packet 模式沿用一般回覆的行為（沒有檢查點，整則重做）；P2 之前客戶端不會送 `packet`，所以現在沒有任何使用者受影響。
