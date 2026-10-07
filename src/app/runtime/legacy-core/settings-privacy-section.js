@@ -57,7 +57,7 @@ export function renderPrivacySection({ document, section, config, language, hasA
     for (const key of keys) list.appendChild(el(document, 'li', '', t(key)));
     info.appendChild(list);
   };
-  block('sentTitle', ['sent1', 'sent2', 'sent3', 'sent4', 'sent5', 'sent6', 'sent7']);
+  block('sentTitle', ['sent1', 'sent2', 'sent3', 'sent4', 'sent5', 'sent6', 'sent7', 'sent8']);
   block('localTitle', ['local2', 'local3']);
   block('storageTitle', ['storage1', 'storage2']);
   section.appendChild(wrap);

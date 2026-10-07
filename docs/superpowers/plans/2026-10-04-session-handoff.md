@@ -96,3 +96,11 @@
 - 共用模組 `src/app/legacy-runtime/features/search-packet-parts.js` 是搜尋包放進請求的唯一寫法，頁面與伺服器都用它。
 - **owner 說過不要打標籤，也不要再提到標籤**，這條 AGENTS.md 的規則先不照做、也不用再問。
 - 還沒做：多模型會議（最後做，要先寫自己的設計文件）；會議的搜尋仍在瀏覽器（搜尋加 Python 的回覆早就在伺服器上，沒有「搜尋包加 Python」這個組合）。待決定：已結束文字回覆的 `server_runs.spec` 不清；Zeabur 的 `ASSET_SWEEP`。
+
+## 2026-10-08（17.11.0）多模型會議搬到伺服器
+
+- 設計與完成紀錄在 `docs/superpowers/specs/2026-10-08-server-council-design.md`（§7 P0、§8 伺服器端、§9 客戶端、§10 P3 與驗收清單）。登入雲端帳號、設定選伺服器、非暫時對話時，多模型會議由伺服器進行（轉譯、讀網址、搜尋、第一輪、辯論輪、合成都在伺服器），關掉頁面也會開完；重新打開頁面接回進度面板。頁面呼叫會議的位置（`runModelCouncil` 簽名）沒變，伺服器沒收就退回原本的瀏覽器會議。
+- owner 的決定：全部（含附件轉譯與讀網址）搬上去；進度只走即時頻道（新事件 `cs`，晚加入的頁面由快照 `r.cs` 得知）；詳細結果不同步；同時進行不加限制；沿用「回覆在伺服器或這個裝置上」；每個模型每次呼叫 30 分鐘逾時；不打標籤。
+- 實作重點：`server/council-run.js` 用真正的 `createCouncilResponseLifecycle`，依供應商分金鑰（`secrets.keys`）、依用途注入系統指令、逾時、合成開始輸出後失敗不重試、完成的呼叫與搜尋記在檢查點（重啟只重做合成）、金鑰遞迴遮蔽；客戶端 `server-council.js` 按需載入。
+- **注意：** 主要程式區塊壓縮後剩 0.3KB 餘裕（`legacy-submit-input` 上限 150KB），詳見設計文件 §10；`submit-input-council-lifecycle.js` 也剛好貼在 51200 位元組上限。
+- 三件「搬上伺服器」的事（圖片、先搜一包、多模型會議）到此全部完成。待決定：已結束回覆（文字、會議）的 `server_runs.spec` 不清（內含歷史與附件）；Zeabur 的 `ASSET_SWEEP`。
