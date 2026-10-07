@@ -47,7 +47,35 @@ export function createImageGenerationResponseLifecycle({
   getText = (_key, fallback) => fallback,
   showNotification = () => {}
 }) {
-  const run = async ({ targetElement, userParts, modelInfo, conversation, webSearchEnabled = false, signal }) => {
+  // A picture the server makes: followed until it is over, then given back as one made here ({ parts, descriptors }). A stop (the page's
+  // `signal`) is told to the server; a picture that came to nothing because of it ends like any stopped reply.
+  const followServerImage = async (serverRun, { signal, serverReply, uiLanguage }) => {
+    let outcome;
+    try {
+      outcome = await serverRun.followImage({ signal });
+    } catch (error) {
+      throw serverReply?.localizeError ? serverReply.localizeError(error, uiLanguage) : error;
+    }
+    if (signal?.aborted || !outcome.parts.length) throw Object.assign(new Error('The image was stopped.'), { name: 'AbortError' });
+    return { parts: outcome.parts, descriptors: outcome.parts.map(part => part.generatedImage) };
+  };
+
+  const run = async ({
+    targetElement,
+    userParts,
+    modelInfo,
+    conversation,
+    webSearchEnabled = false,
+    signal,
+    uiLanguage,
+    // For a picture the server may make: where replies are made is the person's choice (settings), the server writes the message under
+    // `assistantMessageId`, and `resumeRun` is a picture it was already making when the page was opened again (it is only followed).
+    serverReply = null,
+    assistantMessageId = null,
+    sequence = 0,
+    resumeRun = null
+  }) => {
+    if (resumeRun) return followServerImage(resumeRun, { signal, serverReply, uiLanguage });
     const savedConfig = normalizeImageGenerationConfig(conversation.imageConfig);
     // A ratio or resolution saved under another model may not exist on this one: use the nearest it has.
     const normalizedConfig = {
@@ -128,12 +156,21 @@ export function createImageGenerationResponseLifecycle({
       generationRequest.config.reasoningEffort = reasoningEffort;
     }
     if (!generationRequest.apiKey) throw new Error('請先在設定中輸入 OpenRouter API 金鑰');
-    // OpenRouter accepts image streaming for generation, but not for edit requests
-    // that include input_references. Keep edits buffered to avoid provider rejection.
-    if (modelInfo.supportsImageStreaming && inputReferences.length === 0) {
-      generationRequest.onPartial = partial => {
-        targetElement.innerHTML = `<img class="generated-image-partial" alt="圖像生成預覽" src="data:${partial.mediaType};base64,${partial.b64Json}">`;
-      };
+    // The server makes the picture when it can (the setting, the account and the kind of chat allow it, and it takes it): the page then only
+    // follows it, and a page that is closed meanwhile finds it done. Otherwise it is made here, as always.
+    if (serverReply && assistantMessageId && serverReply.planImage({ conversation }).ok) {
+      const started = await serverReply.startImage({
+        conversation,
+        modelInfo,
+        prompt,
+        config: generationRequest.config,
+        references: inputReferences,
+        assistantMessageId,
+        sequence,
+        uiLanguage
+      });
+      if (started.ok) return followServerImage(started.run, { signal, serverReply, uiLanguage });
+      if (started.notify) serverReply.notify(started.notify, uiLanguage);
     }
     const result = await generateImage(generationRequest);
     if (!result.images?.length) throw new Error('圖像生成完成，但沒有收到可顯示的圖片');

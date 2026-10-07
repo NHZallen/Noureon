@@ -13,7 +13,7 @@
     },
     {
       "path": "src/app/legacy-runtime/features/openrouter-image-generation.js",
-      "note": "Reviewed 2026-10-07: no browser globals (a `fetch` that is passed in, a stream reader; the server makes images without streaming)."
+      "note": "Reviewed 2026-10-07: no browser globals (a `fetch` that is passed in; no streaming any more)."
     },
     {
       "path": "src/app/legacy-runtime/features/stream-api-call.js",

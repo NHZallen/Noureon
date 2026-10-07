@@ -54,6 +54,17 @@ export function planServerReply({ config = {}, conversation = null, advanced = f
   return { ok: false, reason: LOCAL_REASONS.packetSearch };
 }
 
+/**
+ * Whether an image can be made by the server: the same rules as for a reply (the setting, a cloud account, a chat that is kept in the cloud),
+ * without the ones about search and Python. The picture is then followed here, and it is made here when the server cannot take it.
+ */
+export function planServerImage({ config = {}, conversation = null, hasAccount = true } = {}) {
+  if (config.replyRunLocation === 'local') return { ok: false, reason: LOCAL_REASONS.setting };
+  if (!hasAccount) return { ok: false, reason: LOCAL_REASONS.noAccount };
+  if (conversation?.isTemporary || conversation?.retentionMode === 'ephemeral') return { ok: false, reason: LOCAL_REASONS.notSynced };
+  return { ok: true };
+}
+
 const textOf = (parts) => (Array.isArray(parts) ? parts.map((part) => (typeof part?.text === 'string' ? part.text : '')).join('') : '');
 
 export class ServerReplyError extends Error {
@@ -68,7 +79,7 @@ export class ServerReplyError extends Error {
 
 /** The error of a reply the server could not finish, in the language of the page (the provider's own words stay as they are). */
 export function localizeServerError(error, language) {
-  const key = { time_limit: 'timeLimit', server_restarted: 'serverRestarted', sandbox_unavailable: 'sandboxUnavailable', unknown: 'unknownError', internal_error: 'unknownError' }[error?.code];
+  const key = { time_limit: 'timeLimit', server_restarted: 'serverRestarted', sandbox_unavailable: 'sandboxUnavailable', image_not_saved: 'imageNotSaved', unknown: 'unknownError', internal_error: 'unknownError' }[error?.code];
   if (!key) return error;
   return new ServerReplyError(serverReplyText(language, key), error.code);
 }
@@ -121,6 +132,7 @@ export function createServerReply({
   // the words come out smoothly and not once in a while.
   paceMs = 0,
   setTimer = (...args) => setTimeout(...args),
+  clearTimer = (...args) => clearTimeout(...args),
   setRepeating = (...args) => setInterval(...args),
   clearRepeating = (...args) => clearInterval(...args),
   warn = () => {}
@@ -263,6 +275,47 @@ export function createServerReply({
     return { ok: true, run: createRun({ runId, assistantMessageId, kind: research ? 'research' : 'reply', vision: result.data?.vision === true }) };
   };
   const start = (args) => begin('/v1/runs', args);
+
+  /**
+   * Hands the making of an image to the server (docs/superpowers/specs/2026-10-06-server-image-generation-design.md): the prompt, the shape and
+   * size and the pictures to start from (data addresses), with the key of OpenRouter. Resolves like `begin`: { ok: true, run } or
+   * { ok: false, reason, notify } (the image is then made here).
+   */
+  const startImage = async ({ conversation, modelInfo, prompt, config = {}, references = [], assistantMessageId, sequence = 0, uiLanguage = 'en' }) => {
+    const providerKey = getApiKeyForProvider(modelInfo?.provider);
+    if (!providerKey) return { ok: false, reason: 'no-key', notify: false };
+    // Only what has a value goes (the server refuses an empty text); the pictures go as they are, and a request too large is made here.
+    const imageConfig = Object.fromEntries(Object.entries(config).filter(([, value]) => value !== undefined && value !== null && value !== ''));
+    const spec = {
+      protocol: SERVER_PROTOCOL_VERSION,
+      kind: 'image',
+      clientVersion: String(clientVersion || '0'),
+      conversationId: conversation.id,
+      assistantMessageId,
+      sequence,
+      model: { provider: modelInfo.provider, id: getModelApiId(modelInfo), info: modelInfo },
+      request: { language: uiLanguage },
+      image: { prompt, config: imageConfig, references },
+      secrets: { providerKey }
+    };
+    const body = JSON.stringify(spec);
+    if (body.length > MAX_REQUEST_CHARS) return { ok: false, reason: LOCAL_REASONS.tooLarge, notify: false };
+    try {
+      await flushSync();
+    } catch (error) {
+      warn('Saving the conversation before the server starts failed.', error);
+    }
+    const result = await request('POST', '/v1/runs', { body });
+    if (!result.ok) {
+      const busy = result.code === 'too_many_runs' || result.code === 'rate_limited';
+      const quiet = ['unsupported_mode', 'runs_unavailable', 'protocol_unsupported', 'conversation_not_found'].includes(result.code);
+      if (!busy && !quiet && result.code !== 'unreachable' && result.status !== 401) warn(`The server did not take the image (${result.code || result.status}).`);
+      return { ok: false, reason: result.code || `http-${result.status}`, notify: busy ? 'busy' : quiet ? false : 'unreachable' };
+    }
+    const runId = result.data?.runId;
+    if (!runId) return { ok: false, reason: 'bad-answer', notify: 'unreachable' };
+    return { ok: true, run: createRun({ runId, assistantMessageId, kind: 'image' }) };
+  };
   // A deep research: the server makes the plan, waits for the person, researches and writes the report (server/research.js).
   const startResearch = (args) => begin('/v1/research', { ...args, webSearch: 'research', advanced: false, visionCheck: null });
 
@@ -277,6 +330,55 @@ export function createServerReply({
     answerNet: (askId, decision) => request('POST', `/v1/runs/${runId}/net`, { body: JSON.stringify({ askId, decision }) }),
     // The person's answer ('saved' or 'cancel') to the window that asked for the login a tool needs (the values were saved apart, through /v1/credentials).
     answerCredential: (askId, decision) => request('POST', `/v1/runs/${runId}/credential`, { body: JSON.stringify({ askId, decision }) }),
+    /**
+     * Follows an image the server is making until it is over: resolves { parts } (the message parts of the pictures, their files brought here;
+     * none when it was stopped) or throws a ServerReplyError. A stop (`signal`) is told to the server, and the end is still waited for.
+     */
+    async followImage({ signal } = {}) {
+      let stopSent = false;
+      const watching = new AbortController();
+      let graceTimer = null;
+      const onStopAsked = () => {
+        if (stopSent) return;
+        stopSent = true;
+        void this.stop().catch(() => {});
+        // The server says it is over once the message is written; a little time is given for that, then the message is read as it is.
+        graceTimer = setTimer(() => watching.abort(), STOP_GRACE_MS);
+      };
+      if (signal?.aborted) onStopAsked();
+      signal?.addEventListener?.('abort', onStopAsked, { once: true });
+      try {
+        await watchRun(runId, { signal: watching.signal });
+      } finally {
+        signal?.removeEventListener?.('abort', onStopAsked);
+        if (graceTimer) clearTimer(graceTimer);
+      }
+      // The end of the message is written before the run says it is over; it is read a few times in case the cloud is a moment behind.
+      let row = null;
+      for (let attempt = 0; attempt < 20; attempt += 1) {
+        try {
+          row = await readMessage(assistantMessageId);
+        } catch (error) {
+          warn('Reading the image failed; trying again.', error);
+        }
+        if (row && (row.status === 'complete' || row.status === 'error')) break;
+        await wait(1000);
+      }
+      if (!row || (row.status !== 'complete' && row.status !== 'error')) throw new ServerReplyError('The image did not finish.', 'time_limit');
+      if (row.status === 'error') {
+        const failure = row.metadata?.serverError || {};
+        throw new ServerReplyError(failure.message || 'The server could not finish this image.', failure.code || 'unknown');
+      }
+      const pictures = (Array.isArray(row.parts) ? row.parts : []).filter((part) => part?.generatedImage);
+      if (!pictures.length) return { parts: [] };
+      let parts = pictures;
+      try {
+        parts = await hydrateParts(pictures);
+      } catch (error) {
+        warn('Bringing the pictures here failed; the cloud sync brings them later.', error);
+      }
+      return { parts };
+    },
     /**
      * Follows the reply until the server has finished it, the way a live broadcast is followed: the server pushes every small piece as
      * it is made, to every page watching, and a page that comes in late is given what there is so far (when the channel cannot be
@@ -501,7 +603,7 @@ export function createServerReply({
   /** A reply of this conversation the server is still making (the page was closed or left meanwhile), to follow from here, or null. */
   const find = async (conversationId) => {
     const row = await findLiveRun(conversationId);
-    return row?.id && row?.message_id ? createRun({ runId: row.id, assistantMessageId: row.message_id, kind: row.kind === 'vision' || row.kind === 'research' ? row.kind : 'reply', vision: row.vision === true || row.vision === 'true' }) : null;
+    return row?.id && row?.message_id ? createRun({ runId: row.id, assistantMessageId: row.message_id, kind: row.kind === 'vision' || row.kind === 'research' || row.kind === 'image' ? row.kind : 'reply', vision: row.vision === true || row.vision === 'true' }) : null;
   };
 
   /**
@@ -524,5 +626,5 @@ export function createServerReply({
     return false;
   };
 
-  return { start, startResearch, find, request, watchRun, readMessage };
+  return { start, startResearch, startImage, find, request, watchRun, readMessage };
 }

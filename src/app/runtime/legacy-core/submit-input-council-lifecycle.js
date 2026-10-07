@@ -717,7 +717,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
 
   // Replies the server makes while the page may be closed (see runtime/server-reply/).
   const serverReply = createBrowserServerReply({
-    getApiKeyForProvider,
+    getConfig: getLiveConfig, getApiKeyForProvider,
     getModelApiId,
     getDefaultGenConfig,
     // stream-api-call.js puts the system instruction together (and asks no provider) for `describeOnly`.
@@ -834,7 +834,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     await completePreparedReply(preparedSubmit);
   };
 
-  // What follows the preparation of a reply: it is made (or, for a reply the server is still making, followed), shown, and kept.
+  // What follows the preparation: the reply is made (or, when the server is still making it, followed), shown, and kept.
   const completePreparedReply = async (preparedSubmit, { resumeRun = null } = {}) => {
     const {
       abortController: submitAbortController,
@@ -891,13 +891,8 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
         if (modelGeneratesImages(modelInfo)) {
           if (!imageGenerationResponseLifecycle) throw new Error('圖片生成功能尚未初始化');
           const imageResult = await imageGenerationResponseLifecycle.run({
-            targetElement: contentDiv,
-            userParts,
-            modelInfo,
-            conversation: conv,
-            webSearchEnabled,
-            signal: submitAbortController.signal,
-            uiLanguage: getLiveConfig().uiLanguage
+            targetElement: contentDiv, userParts, modelInfo, conversation: conv, webSearchEnabled, signal: submitAbortController.signal,
+            uiLanguage: getLiveConfig().uiLanguage, serverReply, assistantMessageId, resumeRun
           });
           generatedImageParts = imageResult.parts;
         } else {

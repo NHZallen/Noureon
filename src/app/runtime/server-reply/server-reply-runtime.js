@@ -4,7 +4,7 @@
 import { cliText } from '../cli/cli-texts.js';
 import { registerServerRequest } from '../cli/cli-server-bridge.js';
 import { PRODUCT_VERSION } from '../../../data/version.js';
-import { createServerReply, localizeServerError, planServerReply } from './server-reply.js';
+import { createServerReply, localizeServerError, planServerImage, planServerReply } from './server-reply.js';
 import { serverReplyText } from './server-reply-texts.js';
 
 export function createBrowserServerReply({
@@ -14,6 +14,8 @@ export function createBrowserServerReply({
   describeRequest,
   saveAppData = async () => {},
   showNotification = () => {},
+  // The settings as they are now (the choice of where replies run is read from them when a reply is planned).
+  getConfig = () => ({}),
   // For the visual check the server makes: the language of the page, the open chat, what to do when a chat is locked or freed.
   getUiLanguage = () => 'zh-TW',
   getActiveConversation = () => null,
@@ -118,9 +120,11 @@ export function createBrowserServerReply({
     },
     followVision: (args) => vision().then((follow) => follow.attach(args)),
     find: (conversationId) => serverReply.find(conversationId),
-    plan: (context) => planServerReply({ ...context, hasAccount: hasAccount() }),
+    plan: (context) => planServerReply({ config: getConfig(), ...context, hasAccount: hasAccount() }),
+    planImage: (context) => planServerImage({ config: getConfig(), ...context, hasAccount: hasAccount() }),
     start: (args) => serverReply.start({ ...args, config: args.config }),
     startResearch: (args) => serverReply.startResearch(args),
+    startImage: (args) => serverReply.startImage(args),
     readMessage: (messageId) => readMessage(messageId),
     request: (...args) => serverReply.request(...args),
     watchRun: (...args) => serverReply.watchRun(...args),

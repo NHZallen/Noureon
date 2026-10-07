@@ -66,12 +66,9 @@ test('model registry exports the canonical model inventory', () => {
   assert.equal(MODELS.some((model) => model.id === 'anthropic/claude-fable-5'), false);
   assert.ok(MODELS.some((model) => model.id === 'openai/gpt-6-astra' && model.provider === 'openrouter'));
   assert.equal(MODELS.some((model) => model.id === 'openai/gpt-5.5'), false);
-  assert.ok(MODELS.some((model) => model.id === 'openai/gpt-image-2.5-flare'
-    && model.provider === 'openrouter'
-    && model.supportsImageStreaming === true));
-  assert.ok(MODELS.some((model) => model.id === 'openai/gpt-image-2.5-sunburst'
-    && model.provider === 'openrouter'
-    && model.supportsImageStreaming === true));
+  assert.ok(MODELS.some((model) => model.id === 'openai/gpt-image-2.5-flare' && model.provider === 'openrouter'));
+  assert.ok(MODELS.some((model) => model.id === 'openai/gpt-image-2.5-sunburst' && model.provider === 'openrouter'));
+  assert.equal(MODELS.some((model) => 'supportsImageStreaming' in model), false, 'no image model streams preview pictures');
   assert.equal(MODELS.some((model) => model.id === 'openai/gpt-image-2'), false);
   assert.equal(MODELS.some((model) => model.id === 'stealth/ox-alpha'), false);
   assert.ok(MODELS.some((model) => model.provider === 'openrouter'));

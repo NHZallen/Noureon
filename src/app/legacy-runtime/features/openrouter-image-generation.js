@@ -4,7 +4,7 @@ const copyIfDefined = (target, key, value) => {
   if (value !== undefined && value !== null && value !== '') target[key] = value;
 };
 
-export function buildOpenRouterImagePayload({ model, prompt, config = {}, inputReferences = [], stream = false }) {
+export function buildOpenRouterImagePayload({ model, prompt, config = {}, inputReferences = [] }) {
   const payload = { model, prompt };
   copyIfDefined(payload, 'n', config.n);
   copyIfDefined(payload, 'resolution', config.resolution);
@@ -17,7 +17,6 @@ export function buildOpenRouterImagePayload({ model, prompt, config = {}, inputR
   copyIfDefined(payload, 'seed', config.seed);
   if (config.provider) payload.provider = config.provider;
   if (config.reasoningEffort) payload.reasoning = { effort: config.reasoningEffort };
-  if (stream) payload.stream = true;
   if (inputReferences.length > 0) {
     payload.input_references = inputReferences.map(url => ({
       type: 'image_url',
@@ -42,36 +41,6 @@ async function readError(response) {
   }
 }
 
-async function consumeImageStream(response, onPartial) {
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
-  const images = [];
-  while (true) {
-    const { value, done } = await reader.read();
-    buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
-    const lines = buffer.split('\n');
-    buffer = done ? '' : lines.pop();
-    for (const line of lines) {
-      if (!line.startsWith('data: ')) continue;
-      const data = line.slice(6).trim();
-      if (!data || data === '[DONE]') continue;
-      const event = JSON.parse(data);
-      if (event.type === 'error') throw new Error(event.error?.message || 'Image generation failed');
-      if (event.type === 'image_generation.partial_image') {
-        onPartial?.({
-          index: event.partial_image_index || 0,
-          b64Json: event.b64_json || '',
-          mediaType: event.media_type || 'image/png'
-        });
-      }
-      if (event.type === 'image_generation.completed') images.push(normalizeImage(event));
-    }
-    if (done) break;
-  }
-  return { images };
-}
-
 export function createOpenRouterImageGenerator({ fetchImpl = fetch } = {}) {
   return async function generateOpenRouterImage({
     apiKey,
@@ -79,21 +48,18 @@ export function createOpenRouterImageGenerator({ fetchImpl = fetch } = {}) {
     prompt,
     config = {},
     inputReferences = [],
-    signal,
-    onPartial
+    signal
   }) {
-    const stream = typeof onPartial === 'function';
     const response = await fetchImpl(IMAGE_API_URL, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(buildOpenRouterImagePayload({ model, prompt, config, inputReferences, stream })),
+      body: JSON.stringify(buildOpenRouterImagePayload({ model, prompt, config, inputReferences })),
       signal
     });
     if (!response.ok) throw new Error(await readError(response));
-    if (stream) return consumeImageStream(response, onPartial);
     const body = await response.json();
     return { images: (body.data || []).map(normalizeImage).filter(image => image.b64Json) };
   };

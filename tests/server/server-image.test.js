@@ -61,7 +61,8 @@ test('an image request that is not in the right shape says where, and never repe
   assert.ok(paths(bad({ image: { prompt: 'x'.repeat(LIMITS.maxImagePromptChars + 1), config: { aspectRatio: '1:1' } } })).includes('image.prompt'));
   assert.ok(paths(bad({ image: { prompt: 'x', config: { aspectRatio: '5:9' } } })).includes('image.config.aspectRatio'));
   assert.ok(paths(bad({ image: { prompt: 'x', config: { aspectRatio: '1:1', resolution: '8K' } } })).includes('image.config.resolution'));
-  assert.ok(paths(bad({ image: { prompt: 'x', config: { aspectRatio: '1:1', n: 9 } } })).includes('image.config.n'));
+  assert.ok(paths(bad({ image: { prompt: 'x', config: { aspectRatio: '1:1', n: 11 } } })).includes('image.config.n'));
+  assert.equal(bad({ image: { prompt: 'x', config: { aspectRatio: '1:1', n: 10 } } }).ok, true, 'the Count menu of the page goes up to 10');
   assert.ok(paths(bad({ image: { prompt: 'x', config: { aspectRatio: '1:1', evil: 1 } } })).includes('image.config.evil'));
   assert.ok(paths(bad({ image: { prompt: 'x', config: { aspectRatio: '1:1' }, references: ['https://example.com/a.png'] } })).includes('image.references[0]'));
   assert.ok(paths(bad({ image: { prompt: 'x', config: { aspectRatio: '1:1' }, references: Array(LIMITS.maxImageReferences + 1).fill('data:image/png;base64,AA') } })).includes('image.references'));

@@ -121,7 +121,7 @@
 只改伺服器與測試；客戶端（P2）還沒接，所以使用者看到的行為沒有任何改變。
 
 **新增與修改**
-- `server/run-spec.js`：`kind: 'image'` 的驗證（`validateImageSpec`）。模型提供商必須是 `openrouter`；`image.prompt`（最多 40,000 字）、`image.config`（比例必須是 App 的比例清單之一、畫質是清單之一或空字串＝不送、`n` 1 到 4、`quality`／`outputFormat`／`background`／`size`／`reasoningEffort`／`seed`／`outputCompression`／`provider` 有各自的限制，未知欄位拒絕）、`image.references`（最多 32 張，每張是 `data:image/…;base64,…` 或雲端空間裡的檔案標記）、金鑰只收 `providerKey`。回傳的 spec 補上其餘伺服器程式會讀的東西（`request.language`、空的歷史、`tools` 預設），所以 `runs.js` 的寫訊息與錯誤文字不用改。
+- `server/run-spec.js`：`kind: 'image'` 的驗證（`validateImageSpec`）。模型提供商必須是 `openrouter`；`image.prompt`（最多 40,000 字）、`image.config`（比例必須是 App 的比例清單之一、畫質是清單之一或空字串＝不送、`n` 1 到 10（App 的「數量」選單就是 1 到 10）、`quality`／`outputFormat`／`background`／`size`／`reasoningEffort`／`seed`／`outputCompression`／`provider` 有各自的限制，未知欄位拒絕）、`image.references`（最多 32 張，每張是 `data:image/…;base64,…` 或雲端空間裡的檔案標記）、金鑰只收 `providerKey`。回傳的 spec 補上其餘伺服器程式會讀的東西（`request.language`、空的歷史、`tools` 預設），所以 `runs.js` 的寫訊息與錯誤文字不用改。
 - `server/image-run.js`（新）：`executeImage`。先寫佔位 `{ imageGenerationLoading, imageAspectRatio }`；參考圖若是標記就用 `file-store.load` 讀出；用 `createOpenRouterImageGenerator`（和瀏覽器同一份程式，不串流）呼叫 OpenRouter；每張圖用 `file-store.save`（`encoding: 'blob'`、`quota: false`）存起來，失敗重試 2 次，仍失敗就丟 `image_not_saved`；回傳 `{ generatedImage: { id, storageKey: 'generatedImage:supabase:<使用者>:<id>', mediaType, size, aspectRatio, cloudAsset } }`。停止或逾時：放下請求、不存任何東西，回傳空文字與 `stopped`（和文字回覆一致）。供應商的錯誤訊息保留，金鑰會被遮蔽。
 - `server/runs.js`：`kind: 'image'` 走 `executeImage`；逾時 10 分鐘（`LIMITS.maxImageRunMs`）；金鑰存活 30 分鐘（`imageKeyTtlMs`）；`server_runs` 記 `{ kind: 'image' }`（P2 的 `reattach` 要靠它辨認）；`imageAvailable()`；新增建構參數 `files`（`main.js` 把已有的檔案儲存傳進去，不再只經由沙盒）。
 - `server/app.js`：`POST /v1/runs` 收圖片請求；沒有檔案儲存時回 422 `unsupported_mode`，讓頁面自己生圖。
@@ -135,4 +135,25 @@
 - 客戶端：圖片版的「伺服器還是本機」、組 RunSpec、跟著執行、`reattach` 的圖片分支、移除本機預覽、五語言文字與隱私說明、更新紀錄與版本。
 - 每人同時上限：現在圖片和文字共用同一個上限（5）。尚未量記憶體，P2 完成、真實使用後再決定要不要為圖片另設。
 - 還沒有用真的 OpenRouter 與真的 Supabase 儲存桶實測；只有假的。
+
+## 10. P2 完成紀錄（2026-10-07，客戶端）
+
+**行為**
+- 送出圖片生成時，頁面先問「伺服器還是本機」（`planServerImage`：設定選本機、沒有雲端帳號、暫時對話都走本機）。走伺服器就送 `kind: 'image'`（提示詞、比例、畫質與進階設定、參考圖的 data 位址、OpenRouter 金鑰），然後只「跟著」：`followImage` 用既有的即時通道等伺服器說完成，再讀訊息、把圖用 `hydrateParts` 下載回本機，回傳和本機生成一樣的 `{ parts, descriptors }`。
+- 伺服器沒接（不支援、連不上、太忙、請求超過上限、沒有金鑰）就退回本機生成，除了「不支援」外會用既有的提示告訴你。
+- 停止：照樣通知伺服器，並等結束狀態；沒有圖就當作停止（丟 `AbortError`，和本機停止一樣）。其他頁面停掉的，會顯示錯誤。
+- 重新打開頁面：`server_runs` 的 `kind: 'image'` 讓 `find` 認得出；`reattach.js` 為圖片畫「正在建立圖像」佔位（比例取對話設定），再交給圖片流程用 `resumeRun` 只跟著（不會重新生圖）。
+- **預覽圖移除（owner 的決定）**：本機的 GPT 逐步預覽沒有了。刪掉 `onPartial`、`openrouter-image-generation.js` 的串流解析、請求的 `stream`、模型登錄的 `supportsImageStreaming`。
+
+**順手修掉的既有問題（17.5.0 起）**：設定「回覆在本機」其實沒有生效。`planServerReply` 要從 `config.replyRunLocation` 讀這個選擇，但頁面端的 `plan` 沒有把設定傳進去，所以選了本機，文字回覆還是照樣送到伺服器。現在 `createBrowserServerReply` 多一個 `getConfig`（提交流程傳 `getLiveConfig`），`plan` 與新的 `planImage` 都讀即時的設定；`tests/server-image-client.test.js` 的第 2 項在還原這個修正時會失敗，確認有擋住。
+
+**檔案**：`server-reply.js`（`planServerImage`、`startImage`、`followImage`、`find` 認得 image、`image_not_saved` 本地化）、`server-reply-runtime.js`（`getConfig`、`planImage`、`startImage`）、`image-generation-response-lifecycle.js`（伺服器路徑與 `resumeRun`）、`reattach.js`、`submit-input-council-lifecycle.js`（把 `serverReply`、訊息 id、`resumeRun` 傳給圖片流程；這個檔案接近大小上限，所以呼叫寫成緊湊的幾行）、`server-reply-texts.js`（隱私頁新增 `sent6`、`imageNotSaved` 五語言）、`settings-privacy-section.js`。
+
+**測試**：`tests/server-image-client.test.js`（16 項：規劃規則、設定生效、送出內容與只送有值的欄位、無法送出的各種原因與提示、跟隨與錯誤與停止與逾時、重新打開頁面、五語言文字），並更新移除預覽造成的測試。全部 2979 項（不含卡住的 `runner.test.js`）、build、體積、舊執行層與伺服器邊界、版本、`npm audit` 通過。
+
+**沒做／要注意**
+- 還沒有用真的 OpenRouter、真的伺服器、真的 Supabase 實測；瀏覽器端到端也只靠單元測試（測試環境沒有雲端帳號）。上線後第一次實測要用你自己的帳號。
+- 參考圖照原樣放進請求（維持 25MB 上限），超過就退回本機；沒有先存雲端再送標記。
+- `hydrateParts` 在雲端同步沒開的情況下不會把圖下載回來（沒有 `__astraCloudAssets`）；這時訊息已在雲端，等同步把圖還原。
+- 版本、更新紀錄、隱私說明以外的文件（P3）還沒做。
 

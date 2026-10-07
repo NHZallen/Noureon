@@ -101,8 +101,8 @@ export const MODEL_CATALOG = [
     { id: 'openai/gpt-5.6-terra', name: 'OpenAI GPT-5.6 Terra', provider: 'openrouter', descriptionKey: 'model_gpt_5_6_terra_desc', category: 'general' },
     // Takes tools (Advanced mode's Python) only through the Responses API, so the rounds of an Advanced reply use it.
     { id: 'openai/gpt-6.1-sol', legacyIds: ['openai/gpt-6-sol', 'openai/gpt-5.6-sol'], name: 'OpenAI GPT-6.1 Sol', provider: 'openrouter', descriptionKey: 'model_gpt_6_1_sol_desc', category: 'general', responsesApiForTools: true },
-    { id: 'openai/gpt-image-2.5-flare', legacyIds: ['openai/gpt-image-2'], name: 'OpenAI GPT Image 2.5 Flare', provider: 'openrouter', descriptionKey: 'model_gpt_image_2_5_flare_desc', category: 'image_generation', outputModality: 'image', supportsImageStreaming: true, supportedImageAspectRatios: GPT_IMAGE_RATIOS, supportedImageResolutions: GPT_IMAGE_RESOLUTIONS },
-    { id: 'openai/gpt-image-2.5-sunburst', name: 'OpenAI GPT Image 2.5 Sunburst', provider: 'openrouter', descriptionKey: 'model_gpt_image_2_5_sunburst_desc', category: 'image_generation', outputModality: 'image', supportsImageStreaming: true, supportedImageAspectRatios: GPT_IMAGE_RATIOS, supportedImageResolutions: GPT_IMAGE_RESOLUTIONS },
+    { id: 'openai/gpt-image-2.5-flare', legacyIds: ['openai/gpt-image-2'], name: 'OpenAI GPT Image 2.5 Flare', provider: 'openrouter', descriptionKey: 'model_gpt_image_2_5_flare_desc', category: 'image_generation', outputModality: 'image', supportedImageAspectRatios: GPT_IMAGE_RATIOS, supportedImageResolutions: GPT_IMAGE_RESOLUTIONS },
+    { id: 'openai/gpt-image-2.5-sunburst', name: 'OpenAI GPT Image 2.5 Sunburst', provider: 'openrouter', descriptionKey: 'model_gpt_image_2_5_sunburst_desc', category: 'image_generation', outputModality: 'image', supportedImageAspectRatios: GPT_IMAGE_RATIOS, supportedImageResolutions: GPT_IMAGE_RESOLUTIONS },
 
     // OpenRouter Paid Models (Qwen)
     { id: 'qwen/qwen3.7-flash', name: 'Qwen3.7 Flash', provider: 'openrouter', descriptionKey: 'model_qwen3_7_flash_desc', category: 'general' },

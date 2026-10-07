@@ -68,7 +68,8 @@ function validateImageSpec(input) {
       if (!IMAGE_ASPECT_RATIOS.includes(given.aspectRatio)) fail('image.config.aspectRatio', 'is not a ratio the app offers');
       // '' (the model sets its own size) is left out of the request to the provider.
       if (given.resolution !== undefined && given.resolution !== '' && !IMAGE_RESOLUTIONS.includes(given.resolution)) fail('image.config.resolution', 'is not a size the app offers');
-      if (given.n !== undefined && !isInteger(given.n, 1, 4)) fail('image.config.n', 'must be a whole number from 1 to 4');
+      // The page offers 1 to 10 in its Count menu.
+      if (given.n !== undefined && !isInteger(given.n, 1, 10)) fail('image.config.n', 'must be a whole number from 1 to 10');
       for (const [name, max] of [['size', 40], ['quality', 40], ['outputFormat', 20], ['background', 20], ['reasoningEffort', 40]]) {
         if (given[name] !== undefined && !text(given[name], max)) fail(`image.config.${name}`, `must be a short text (at most ${max} characters)`);
       }

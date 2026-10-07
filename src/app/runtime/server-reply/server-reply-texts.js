@@ -14,6 +14,7 @@ export const SERVER_REPLY_TEXTS = Object.freeze({
     sent3: '你的 API 金鑰：加密暫存，回覆結束或最久 2 小時 15 分後就刪除，不會長期保存',
     sent4: '需要 Python 時：模型寫的程式與你附加的檔案，會在伺服器上與外界隔離（無法連網）的容器中執行，回覆結束即刪除；產生的檔案存到你自己的雲端空間',
     sent5: '自動看圖檢查開啟時：AI 寫的簡報會在伺服器上畫成圖片，交給你選的模型檢查，圖片不會保存',
+    sent6: '生成圖片時：提示詞與你附加的參考圖會送到伺服器，由伺服器向 OpenRouter 取得圖片，存進你自己的雲端空間；伺服器剛好重啟時可能重新請求一次，你可能被收兩次費用',
     localTitle: '目前一定在本機的功能',
     local2: '不支援工具呼叫的模型的網路搜尋',
     local3: '語音輸入、圖片相機',
@@ -26,6 +27,7 @@ export const SERVER_REPLY_TEXTS = Object.freeze({
     timeLimit: '這則回覆花的時間太久，已被停止。',
     serverRestarted: '伺服器更新時中斷了這則回覆，請再試一次。',
     sandboxUnavailable: 'Python 沙盒暫時不能用，這則回覆沒能完成，請再試一次。',
+    imageNotSaved: '圖片畫好了，但沒能存進你的雲端空間，請再試一次。',
     unknownError: '伺服器沒能完成這則回覆。',
     working: '回覆正在伺服器上產生'
   },
@@ -42,6 +44,7 @@ export const SERVER_REPLY_TEXTS = Object.freeze({
     sent3: 'Your API key: kept encrypted for the reply only, and deleted when it ends or after 2 hours 15 minutes at most; it is never stored long term',
     sent4: 'When Python is needed: the code the model writes and the files you attached run in an isolated container on the server with no internet access, removed when the reply ends; the files it makes are saved in your own cloud storage',
     sent5: 'When the automatic visual check is on: presentations the AI writes are drawn into pictures on the server and shown to your model to check; the pictures are not kept',
+    sent6: 'When an image is made: your prompt and the reference pictures you attach go to the server, which gets the image from OpenRouter and keeps it in your own cloud space; if the server restarts at that moment it may ask again, and you may be charged twice',
     localTitle: 'What always runs on this device for now',
     local2: 'Web search for models that cannot call tools',
     local3: 'Voice input and the camera',
@@ -54,6 +57,7 @@ export const SERVER_REPLY_TEXTS = Object.freeze({
     timeLimit: 'This reply took too long and was stopped.',
     serverRestarted: 'The server was updated and this reply was interrupted. Please try again.',
     sandboxUnavailable: 'The Python sandbox is not available right now, so this reply could not be finished. Please try again.',
+    imageNotSaved: 'The image was made, but it could not be kept in your cloud space. Please try again.',
     unknownError: 'The server could not finish this reply.',
     working: 'The reply is being made on the server'
   },
@@ -70,6 +74,7 @@ export const SERVER_REPLY_TEXTS = Object.freeze({
     sent3: 'Votre clé API : conservée chiffrée pour la durée de la réponse, puis supprimée à la fin ou après 2 h 15 au plus ; elle n’est jamais conservée durablement',
     sent4: 'Quand Python est nécessaire : le code du modèle et les fichiers joints s’exécutent dans un conteneur isolé du serveur, sans accès à internet, supprimé à la fin de la réponse ; les fichiers créés sont enregistrés dans votre propre stockage cloud',
     sent5: 'Lorsque la vérification visuelle automatique est activée : les présentations écrites par l’IA sont dessinées en images sur le serveur et montrées à votre modèle pour vérification ; les images ne sont pas conservées',
+    sent6: 'Pour une image : votre prompt et les images de référence jointes vont au serveur, qui obtient l’image auprès d’OpenRouter et la garde dans votre propre espace cloud ; si le serveur redémarre à ce moment, il peut redemander l’image et vous pourriez être facturé deux fois',
     localTitle: 'Ce qui s’exécute toujours sur cet appareil pour l’instant',
     local2: 'La recherche web pour les modèles qui n’appellent pas d’outils',
     local3: 'La saisie vocale et l’appareil photo',
@@ -82,6 +87,7 @@ export const SERVER_REPLY_TEXTS = Object.freeze({
     timeLimit: 'Cette réponse a pris trop de temps et a été arrêtée.',
     serverRestarted: 'Le serveur a été mis à jour et cette réponse a été interrompue. Veuillez réessayer.',
     sandboxUnavailable: 'Le bac à sable Python n’est pas disponible pour le moment ; cette réponse n’a pas pu être terminée. Veuillez réessayer.',
+    imageNotSaved: 'L’image a été créée, mais elle n’a pas pu être conservée dans votre espace cloud. Veuillez réessayer.',
     unknownError: 'Le serveur n’a pas pu terminer cette réponse.',
     working: 'La réponse est en cours de génération sur le serveur'
   },
@@ -98,6 +104,7 @@ export const SERVER_REPLY_TEXTS = Object.freeze({
     sent3: 'Ваш API-ключ: хранится в зашифрованном виде только на время ответа и удаляется по его окончании или не позже чем через 2 ч 15 мин; надолго он не сохраняется',
     sent4: 'Когда нужен Python: код модели и приложенные файлы выполняются в изолированном контейнере на сервере без доступа в интернет, который удаляется по окончании ответа; созданные файлы сохраняются в вашем облачном хранилище',
     sent5: 'Когда включена автоматическая визуальная проверка: презентации, написанные ИИ, рисуются на сервере в виде картинок и показываются вашей модели для проверки; картинки не сохраняются',
+    sent6: 'При создании изображения: ваш запрос и прикреплённые образцы отправляются на сервер, который получает изображение от OpenRouter и сохраняет его в вашем облачном хранилище; если сервер как раз перезапустится, он может запросить изображение снова, и с вас могут списать оплату дважды',
     localTitle: 'Что пока всегда выполняется на этом устройстве',
     local2: 'Веб-поиск для моделей без вызова инструментов',
     local3: 'Голосовой ввод и камера',
@@ -110,6 +117,7 @@ export const SERVER_REPLY_TEXTS = Object.freeze({
     timeLimit: 'Этот ответ шёл слишком долго и был остановлен.',
     serverRestarted: 'Сервер обновлялся, и этот ответ прервался. Попробуйте ещё раз.',
     sandboxUnavailable: 'Песочница Python сейчас недоступна, поэтому ответ не удалось завершить. Попробуйте ещё раз.',
+    imageNotSaved: 'Изображение создано, но его не удалось сохранить в вашем облачном хранилище. Попробуйте ещё раз.',
     unknownError: 'Сервер не смог завершить этот ответ.',
     working: 'Ответ создаётся на сервере'
   },
@@ -126,6 +134,7 @@ export const SERVER_REPLY_TEXTS = Object.freeze({
     sent3: 'Tu clave de API: se guarda cifrada solo mientras dura la respuesta y se borra al terminar o, como máximo, a las 2 h 15 min; nunca se guarda a largo plazo',
     sent4: 'Cuando se necesita Python: el código del modelo y los archivos adjuntos se ejecutan en un contenedor aislado del servidor, sin acceso a internet, que se elimina al terminar la respuesta; los archivos que crea se guardan en tu propio almacenamiento en la nube',
     sent5: 'Cuando la revisión visual automática está activada: las presentaciones que escribe la IA se dibujan como imágenes en el servidor y se muestran a tu modelo para revisarlas; las imágenes no se guardan',
+    sent6: 'Al crear una imagen: tu instrucción y las imágenes de referencia que adjuntes van al servidor, que obtiene la imagen de OpenRouter y la guarda en tu propio espacio en la nube; si el servidor se reinicia justo entonces, puede pedirla de nuevo y es posible que te cobren dos veces',
     localTitle: 'Qué se ejecuta siempre en este dispositivo por ahora',
     local2: 'La búsqueda web de los modelos que no llaman a herramientas',
     local3: 'La entrada de voz y la cámara',
@@ -138,6 +147,7 @@ export const SERVER_REPLY_TEXTS = Object.freeze({
     timeLimit: 'Esta respuesta tardó demasiado y se detuvo.',
     serverRestarted: 'El servidor se actualizó y esta respuesta se interrumpió. Inténtalo de nuevo.',
     sandboxUnavailable: 'El entorno aislado de Python no está disponible ahora, así que no se pudo terminar esta respuesta. Inténtalo de nuevo.',
+    imageNotSaved: 'La imagen se creó, pero no se pudo guardar en tu espacio en la nube. Inténtalo de nuevo.',
     unknownError: 'El servidor no pudo terminar esta respuesta.',
     working: 'La respuesta se está generando en el servidor'
   }

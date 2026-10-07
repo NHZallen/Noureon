@@ -109,7 +109,7 @@ test('tells the user when the latest generated image can no longer be reused', a
   await lifecycle.run({
     targetElement: { innerHTML: '', querySelector: () => label },
     userParts: [{ text: 'make it darker' }],
-    modelInfo: { id: 'openai/gpt-image-2.5-flare', provider: 'openrouter', supportsImageStreaming: true },
+    modelInfo: { id: 'openai/gpt-image-2.5-flare', provider: 'openrouter' },
     conversation: {
       messages: [{ role: 'model', parts: [{ generatedImage: { id: 'latest', storageKey: 'gone' } }] }]
     }
@@ -118,9 +118,8 @@ test('tells the user when the latest generated image can no longer be reused', a
   assert.deepEqual(notices, [{ message: '上一張圖片已遺失', type: 'warning' }]);
   assert.equal(label.textContent, '參考圖已遺失，正在重新生成');
   assert.deepEqual(request.inputReferences, []);
-  // A missing asset silently switches the request from a buffered edit to streaming generation.
-  // Pin that consequence so it stays visible rather than surprising.
-  assert.notEqual(request.onPartial, undefined);
+  // There are no preview pictures any more: the request never carries a callback for them.
+  assert.equal(request.onPartial, undefined);
 });
 
 test('stays silent when the conversation has no generated image to reuse', async () => {
@@ -163,7 +162,7 @@ test('keeps image-to-image requests buffered even when the model supports genera
       { text: 'make it winter' },
       { inlineData: { mimeType: 'image/png', data: 'reference' } }
     ],
-    modelInfo: { id: 'openai/gpt-image-2.5-flare', provider: 'openrouter', supportsImageStreaming: true },
+    modelInfo: { id: 'openai/gpt-image-2.5-flare', provider: 'openrouter' },
     conversation: { messages: [] }
   });
 
