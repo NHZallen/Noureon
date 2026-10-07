@@ -2,6 +2,20 @@
 // content 為 zh-TW 的 HTML 字串（JSON 轉義、雙引號），目前不隨介面語言切換。
 export const updateLogEntries = [
   {
+    version: "17.12.1",
+    date: "2026-10-08",
+    content: [
+      "<strong>Noureon 17.12.1 發布說明</strong>",
+      "本版本把 OpenRouter 上的 Claude 4.5 Haiku 更新為新發布的 Claude Haiku 5.5。",
+      "<strong>主要變更</strong>",
+      "<ul><li><strong>Claude Haiku 5.5：</strong>取代 Claude 4.5 Haiku，在模型選單的 Anthropic 底下。價格為每百萬輸入 0.10 美元、輸出 0.50 美元（提示超過 10 萬 token 時，為輸入 0.50 美元、輸出 2.50 美元）；上下文長度 100 萬 token，單次最多輸出 12.8 萬 token。支援圖片與檔案輸入，輸出為文字；可用於進階模式（Python）的工具呼叫。</li><li><strong>思考程度：</strong>低、中、高、超高、極致五段，預設為中（與 Anthropic API 的預設相同）。</li><li><strong>既有對話：</strong>原本選用 Claude 4.5 Haiku 的對話、模型理事會分組與最近使用的模型，會自動改用 Claude Haiku 5.5。</li></ul>",
+      "<strong>注意事項</strong>",
+      "<ul><li>Claude Haiku 5.5 使用較新的分詞器，同一段文字的 token 數約比 Claude 4.5 Haiku 多 30%，實際花費不會等比例下降。</li></ul>",
+      "<strong>相容性</strong>",
+      "本次更新不需要資料遷移，既有對話、記憶與同步資料不受影響。"
+    ]
+  },
+  {
     version: "17.12.0",
     date: "2026-10-08",
     content: [

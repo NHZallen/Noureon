@@ -627,7 +627,7 @@
         // Anthropic Paid
         model_claude_opus_5_5_desc_tier_paid: '百萬輸入/4$、百萬輸出/20$',
         model_claude_sonnet_5_5_desc_tier_paid: '百萬輸入/2$、百萬輸出/10$',
-        model_claude_haiku_4_5_desc_tier_paid: '百萬輸入/1$、百萬輸出/5$',
+        model_claude_haiku_5_5_desc_tier_paid: '百萬輸入/0.10$、百萬輸出/0.50$',
         model_claude_fable_5_1_desc_tier_paid: '百萬輸入/10$、百萬輸出/50$',
         // Qwen Paid
         model_qwen3_8_max_desc_tier_paid: '百萬輸入/2$、百萬輸出/6$',

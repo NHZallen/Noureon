@@ -627,7 +627,7 @@
         // Anthropic Paid
         model_claude_opus_5_5_desc_tier_paid: '4 $/M entrée, 20 $/M sortie',
         model_claude_sonnet_5_5_desc_tier_paid: '2 $/M entrée, 10 $/M sortie',
-        model_claude_haiku_4_5_desc_tier_paid: '1 $/M entrée, 5 $/M sortie',
+        model_claude_haiku_5_5_desc_tier_paid: '0,10 $/M entrée, 0,50 $/M sortie',
         model_claude_fable_5_1_desc_tier_paid: '10 $/M entrée, 50 $/M sortie',
         // Qwen Paid
         model_qwen3_8_max_desc_tier_paid: '2 $/M entrée, 6 $/M sortie',

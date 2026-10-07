@@ -8,6 +8,7 @@ import {
   COUNCIL_MIN_MODELS,
   MODELS,
   MODEL_CATALOG,
+  TOOL_CALLING_MODEL_IDS,
   createLegacyModelRegistry,
   getCanonicalModelId,
   getModelApiId,
@@ -185,6 +186,13 @@ test('model registry exposes precise reasoning depth options for supported model
   assert.equal(gpt61SolModel.responsesApiForTools, true, 'GPT-6.1 Sol takes tools through the Responses API');
   assert.equal(MODELS.filter((model) => model.responsesApiForTools).length, 1, 'and no other model is sent there');
   assert.equal(getModelReasoningConfig(sonnet55Model)?.defaultEffort, 'high', 'Sonnet 5.5 starts at high, as Anthropic\'s API does');
+  const haiku55Model = MODELS.find((model) => model.id === 'anthropic/claude-haiku-5.5');
+  assert.deepEqual(getModelReasoningConfig(haiku55Model)?.options, ['low', 'medium', 'high', 'xhigh', 'max']);
+  assert.equal(getModelReasoningConfig(haiku55Model)?.defaultEffort, 'medium', 'Haiku 5.5 starts at medium, as Anthropic\'s API does');
+  assert.equal(getCanonicalModelId('anthropic/claude-haiku-4.5'), 'anthropic/claude-haiku-5.5', 'chats saved with Haiku 4.5 move to 5.5');
+  assert.equal(MODELS.some((model) => model.id === 'anthropic/claude-haiku-4.5'), false);
+  assert.equal(modelSupportsVision(haiku55Model), true, 'Haiku 5.5 takes images');
+  assert.ok(TOOL_CALLING_MODEL_IDS.includes('anthropic/claude-haiku-5.5'));
   assert.equal(normalizeReasoningEffort(gpt56Model, 'max'), 'max');
   assert.equal(getReasoningEffortLabel('none', 'zh-TW'), '快速模式');
 
@@ -219,7 +227,6 @@ test('reasoning labels support Russian and Spanish', () => {
 
 test('model registry leaves excluded models on default reasoning', () => {
   const excludedIds = [
-    'anthropic/claude-haiku-4.5',
     'black-forest-labs/flux-3-image',
     'minimax/minimax-m3',
     'poolside/laguna-s-2.1:free',

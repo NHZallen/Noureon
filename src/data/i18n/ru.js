@@ -624,7 +624,7 @@ const ru = {
   "model_gpt_6_1_sol_desc_tier_paid": "Вход $2/млн, выход $10/млн",
   "model_claude_opus_5_5_desc_tier_paid": "Вход $4/млн, выход $20/млн",
   "model_claude_sonnet_5_5_desc_tier_paid": "Вход $2/млн, выход $10/млн",
-  "model_claude_haiku_4_5_desc_tier_paid": "Вход $1/млн, выход $5/млн",
+  "model_claude_haiku_5_5_desc_tier_paid": "Вход $0,10/млн, выход $0,50/млн",
   "model_claude_fable_5_1_desc_tier_paid": "Вход $10/млн, выход $50/млн",
   "model_qwen3_8_max_desc_tier_paid": "Вход $2/млн, выход $6/млн",
   "model_qwen3_7_plus_desc_tier_paid": "0,32 доллара США за миллион на входе, 1,28 доллара за миллион на выходе",

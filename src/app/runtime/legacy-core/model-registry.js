@@ -13,7 +13,7 @@ const MODEL_RELEASE_METADATA = Object.freeze({
     'nvidia/z-ai/glm-5.3-flash': { releasedAt: 20260825, outputPricePerMillion: 0 },
     'nvidia/z-ai/glm-5.3': { releasedAt: 20260827, outputPricePerMillion: 0 },
     'nvidia/moonshotai/kimi-k3': { releasedAt: 20260716, outputPricePerMillion: 0 },
-    'anthropic/claude-haiku-4.5': { releasedAt: 20251015, outputPricePerMillion: 5 },
+    'anthropic/claude-haiku-5.5': { releasedAt: 20261007, outputPricePerMillion: 0.5 },
     'anthropic/claude-sonnet-5.5': { releasedAt: 20260928, outputPricePerMillion: 10 },
     'anthropic/claude-opus-5.5': { releasedAt: 20260922, outputPricePerMillion: 20 },
     'anthropic/claude-fable-5.1': { releasedAt: 20260901, outputPricePerMillion: 50 },
@@ -68,7 +68,7 @@ export const MODEL_CATALOG = [
     { id: 'nvidia/moonshotai/kimi-k3', apiId: 'moonshotai/kimi-k3', legacyIds: ['nvidia/moonshotai/kimi-k2.6', 'moonshotai/kimi-k2.6'], name: 'NVIDIA Kimi K3', provider: 'nvidia', descriptionKey: 'model_nvidia_kimi_k3_desc', tier: ['free'], category: 'general' },
 
     // OpenRouter Paid Models (Anthropic)
-    { id: 'anthropic/claude-haiku-4.5', name: 'Claude 4.5 Haiku', provider: 'openrouter', descriptionKey: 'model_claude_haiku_4_5_desc' },
+    { id: 'anthropic/claude-haiku-5.5', legacyIds: ['anthropic/claude-haiku-4.5'], name: 'Claude Haiku 5.5', provider: 'openrouter', descriptionKey: 'model_claude_haiku_5_5_desc' },
     { id: 'anthropic/claude-sonnet-5.5', legacyIds: ['anthropic/claude-sonnet-5'], name: 'Claude Sonnet 5.5', provider: 'openrouter', descriptionKey: 'model_claude_sonnet_5_5_desc' },
     { id: 'anthropic/claude-opus-5.5', legacyIds: ['anthropic/claude-opus-5'], name: 'Claude Opus 5.5', provider: 'openrouter', descriptionKey: 'model_claude_opus_5_5_desc' },
     { id: 'anthropic/claude-fable-5.1', legacyIds: ['anthropic/claude-fable-5'], name: 'Claude Fable 5.1', provider: 'openrouter', descriptionKey: 'model_claude_fable_5_1_desc' },
@@ -136,7 +136,7 @@ export const IMAGE_GENERATION_MODEL_IDS = Object.freeze([
 ]);
 export const CHEAP_MODEL_ID = 'gemini-3.5-flash-lite';
 export const OPENROUTER_VISION_MODELS = [
-    'anthropic/claude-haiku-4.5',
+    'anthropic/claude-haiku-5.5',
     'anthropic/claude-sonnet-5.5',
     'anthropic/claude-opus-5.5',
     'anthropic/claude-fable-5.1',
@@ -169,7 +169,7 @@ export const TOOL_CALLING_MODEL_IDS = Object.freeze([
     'gemini-3.8-flash',
     'gemini-3.5-flash-lite',
     'gemini-3.1-pro-preview',
-    'anthropic/claude-haiku-4.5',
+    'anthropic/claude-haiku-5.5',
     'anthropic/claude-sonnet-5.5',
     'anthropic/claude-opus-5.5',
     'anthropic/claude-fable-5.1',
@@ -230,6 +230,7 @@ export const MODEL_REASONING_CONFIGS = createReasoningConfigs([
     [NVIDIA_REASONING_EFFORT, ['low', 'medium', 'high', 'max'], 'max', ['nvidia/deepseek-ai/deepseek-v4.1-flash'], { effortValues: { low: 25, medium: 50, high: 75, max: 100 } }],
     [NVIDIA_REASONING_EFFORT, ['low', 'high', 'max'], 'max', ['nvidia/z-ai/glm-5.3', 'nvidia/z-ai/glm-5.3-flash']],
     [NVIDIA_REASONING_EFFORT, ['low', 'high', 'max'], 'max', ['nvidia/moonshotai/kimi-k3']],
+    [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'medium', ['anthropic/claude-haiku-5.5']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'high', ['anthropic/claude-sonnet-5.5']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'high', ['anthropic/claude-fable-5.1']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'medium', ['anthropic/claude-opus-5.5']],

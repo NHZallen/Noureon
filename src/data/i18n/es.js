@@ -624,7 +624,7 @@ const es = {
   "model_gpt_6_1_sol_desc_tier_paid": "$2/M de entrada, $10/M de salida",
   "model_claude_opus_5_5_desc_tier_paid": "$4/M de entrada, $20/M de salida",
   "model_claude_sonnet_5_5_desc_tier_paid": "$2/M de entrada, $10/M de salida",
-  "model_claude_haiku_4_5_desc_tier_paid": "$1/M de entrada, $5/M de salida",
+  "model_claude_haiku_5_5_desc_tier_paid": "$0,10/M de entrada, $0,50/M de salida",
   "model_claude_fable_5_1_desc_tier_paid": "$10/M de entrada, $50/M de salida",
   "model_qwen3_8_max_desc_tier_paid": "$2/M de entrada, $6/M de salida",
   "model_qwen3_7_plus_desc_tier_paid": "$0,32/M de entrada, $1,28/M de salida",

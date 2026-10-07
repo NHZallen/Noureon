@@ -8,7 +8,7 @@ import { NOURAS_REQUEST_PURPOSE } from '../src/app/runtime/nouras/nouras-policy.
 
 const KEYS = { openrouter: 'sk-or-key-value', nvidia: 'nv-key-value', gemini: 'gm-key-value', tavily: 'tvly-key', tinyfish: 'tf-key' };
 const MESSAGE_ID = '223e4567-e89b-12d3-a456-426614174001';
-const MEMBER_A = { provider: 'openrouter', id: 'anthropic/claude-haiku-4.5', name: 'Haiku' };
+const MEMBER_A = { provider: 'openrouter', id: 'anthropic/claude-haiku-5.5', name: 'Haiku' };
 const MEMBER_B = { provider: 'nvidia', id: 'nvidia/deepseek', name: 'DeepSeek' };
 const SYNTH = { provider: 'openrouter', id: 'anthropic/claude-sonnet-5.5', name: 'Sonnet' };
 const GEMINI = { provider: 'gemini', id: 'gemini-2.5-flash', name: 'Gemini' };

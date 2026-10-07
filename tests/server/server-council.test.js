@@ -11,7 +11,7 @@ const KEYS = { openrouter: 'sk-or-secret-value', nvidia: 'nv-secret-value' };
 const TAVILY = 'tvly-secret-value';
 const byId = (id) => JSON.parse(JSON.stringify(MODELS.find((model) => model.id === id)));
 const entry = (id) => { const model = byId(id); return { provider: model.provider, id: model.id, info: model }; };
-const MEMBER_A = 'anthropic/claude-haiku-4.5';
+const MEMBER_A = 'anthropic/claude-haiku-5.5';
 const MEMBER_B = 'nvidia/deepseek-ai/deepseek-v4.1-flash';
 const SYNTH = 'anthropic/claude-sonnet-5.5';
 
@@ -73,7 +73,7 @@ test('a council: the members answer with the key of their own provider, the synt
   const result = await executeCouncil({ ...specFor(), secrets: secretsOf(), fetchImpl: w.fetchImpl, onLive: (event) => live.push(event), onUpdate: (parts) => updates.push(parts[0].text) });
   assert.equal(result.status, 'done');
   assert.match(result.parts[0].text, /^SYNTH-ANSWER/);
-  assert.match(result.parts[0].text, /ANSWER of anthropic\/claude-haiku-4\.5/, 'the answers of the first round are in the block the council adds');
+  assert.match(result.parts[0].text, /ANSWER of anthropic\/claude-haiku-5\.5/, 'the answers of the first round are in the block the council adds');
 
   const [a] = onlyModel(w.requests, 'haiku');
   const [b] = onlyModel(w.requests, 'deepseek');
@@ -142,7 +142,7 @@ test('a synthesis that broke after it began is not tried again (the words would 
   const result = await executeCouncil({ ...specFor(), secrets: secretsOf(), fetchImpl: w.fetchImpl, retryDelayMs: 1, onLive: (event) => live.push(event) });
   assert.equal(onlyModel(w.requests, 'sonnet').length, 1, 'one call to the synthesizer');
   assert.equal(result.status, 'done');
-  assert.match(result.parts[0].text, /ANSWER of anthropic\/claude-haiku-4\.5/, 'what the members said, as the council does when the synthesis fails');
+  assert.match(result.parts[0].text, /ANSWER of anthropic\/claude-haiku-5\.5/, 'what the members said, as the council does when the synthesis fails');
 });
 
 test('a council taken up after a restart does not ask the models (or the search) again; only the synthesis is made again', async () => {
