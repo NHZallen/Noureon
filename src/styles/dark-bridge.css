@@ -17,6 +17,8 @@
 :root[data-theme="dark"] .hover\:bg-gray-200:hover { background-color: var(--active-bg); }
 :root[data-theme="dark"] :is(.text-gray-900, .text-gray-800, .text-gray-700) { color: var(--text-primary); }
 :root[data-theme="dark"] :is(.text-gray-600, .text-gray-500) { color: var(--text-secondary); }
+/* The light theme too: the pale grey of the hints and the times is the one colour of the names (3.2 against white; Tailwind's own grey is 2.5). */
+.text-gray-400 { color: var(--text-tertiary); }
 :root[data-theme="dark"] :is(.text-gray-400, .text-gray-300) { color: var(--text-tertiary); }
 :root[data-theme="dark"] :is(.hover\:text-gray-900:hover, .hover\:text-gray-800:hover) { color: var(--text-primary); }
 :root[data-theme="dark"] :is(.border-gray-100, .border-gray-200, .border-gray-300) { border-color: var(--border-color); }

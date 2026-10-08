@@ -426,8 +426,6 @@
 }
 
 /* The pictures of the tools are dark drawings: on the dark theme tokens.css inverts them. */
-.composer-menu-icon,
-.input-indicator-mode-icon:not(.astras-sidebar-avatar),
-.sent-composer-mode-icon {
+img[src^="/assets/composer-tools/"] {
     filter: var(--tool-icon-filter);
 }

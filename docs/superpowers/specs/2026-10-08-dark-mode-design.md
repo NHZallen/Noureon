@@ -82,10 +82,11 @@ owner 想讓深色模式回來。當初拿掉的原因（owner 回報）：**太
 
 - 方法：登入後填一組假的 API 金鑰、真的送出四則訊息（網路被擋，回覆是「請求失敗」，但對話會建立），得到真實的歷史清單；引用標記與來源面板用程式直接畫（`applyCitationPills`、`openSourceSheet`）。
 - 逐一在深色截圖並跑文字對比度稽核：歷史清單（含選中、滑過）、對話選單（重新命名、釘選、移至資料夾、封存、刪除）、`@` 選單、行內引用藥丸、來源面板（桌面）、個人數據面板（有資料的圓餅圖與長條圖，格線與文字色跟著主題）、請求失敗卡片；手機的側欄、對話選單、`@` 選單、「＋」選單、來源底部面板。全部 0 處問題。
-- 抓到並修好：「＋」選單、輸入欄模式標記、已送出訊息上的模式標記用的是黑色線稿 PNG（`/assets/composer-tools/*.png`），深色下幾乎看不見。新名字 `--tool-icon-filter`（淺色 `none`，深色 `invert(1) hue-rotate(180deg)`），`.composer-menu-icon`、`.input-indicator-mode-icon`（頭像除外）、`.sent-composer-mode-icon` 套用。
+- 抓到並修好：「＋」選單、輸入欄模式標記、已送出訊息上的模式標記用的是黑色線稿 PNG（`/assets/composer-tools/*.png`），深色下幾乎看不見。新名字 `--tool-icon-filter`（淺色 `none`，深色 `invert(1) hue-rotate(180deg)`），套用在所有 `img[src^="/assets/composer-tools/"]`（只動這幾張 PNG，不動命令工具的圖示與廠商標誌）。
 - 瀏覽器列：`public/theme-init.js` 在第一次繪製前，深色時就把 `<meta name="theme-color">` 插到最前面（`#212121`），安裝成 App 時狀態列從第一幀就是深色；之後仍由 `color-scheme.js` 更新。
 - 做不到的：`manifest.json` 的 `background_color`（安裝後啟動畫面的底色）是靜態的，沒有深色版本，所以深色使用者啟動 App 的瞬間仍會看到白底。
-- 觀察（淺色，沒改）：訊息時間（`text-gray-400` on 白底）對比 2.5，低於 3；這是原本就有的淡色，深色版已經是 3.2。要不要把淺色的淡字加深，等 owner 決定。
+- 淺色的淡字：訊息時間（`text-gray-400` on 白底）對比只有 2.5。照 owner 第 2 條決定（淺色也收斂、提示字對比偏低），`--text-tertiary` 淺色 `#9ca3af` → `#838a96`（白底 3.5、側欄底 3.25），並讓 Tailwind 的 `.text-gray-400` 在淺色也走這個名字（`dark-bridge.css` 最上面一行）。
+- `@` 選單裡有已加入的工具、輸入框裡的工具晶片（`OfficeCLI`）也在深色看過：選單與晶片正常。這一輪抓到自己的一個錯：圖示反白一開始套得太寬，把晶片的終端機圖示（SVG，本來就跟字同色）也反成黑色，已改成只動那幾張 PNG。
 
 ## 6. 還沒做（下一步）
 
