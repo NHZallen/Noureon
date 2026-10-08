@@ -101,7 +101,6 @@ const createDependencies = (overrides = {}) => {
       modelSettings: [],
       uiTheme: {},
       theme: 'dark',
-      userBubbleColor: 'default',
       outputMode: 'realtime',
       tavilySearchDepth: 'basic'
     },
@@ -184,7 +183,6 @@ const createDependencies = (overrides = {}) => {
     councilResponseCharLimit: 1000,
     councilRetryDelayMs: 1,
     councilMaxModels: 3,
-    userBubbleColors: { default: {light: '#dddddd'} },
     getActiveConversation: () => null,
     normalizeConversationModel: (model) => model,
     getModelApiId: (model) => model?.id || '',
@@ -388,14 +386,10 @@ test('theme and bubble controls are composed through the extracted helper', () =
     /import\s+\{\s*createSettingsThemeBubbleControls\s*\}\s+from\s+['"]\.\/settings-theme-bubble-controls\.js['"]/
   );
   assert.match(source, /const\s+themeBubbleControls\s*=\s*createSettingsThemeBubbleControls\(\{/);
-  assert.match(source, /elements:\s*ALL_ELEMENTS/);
-  assert.match(source, /userBubbleColors:\s*USER_BUBBLE_COLORS/);
-  assert.match(source, /setUserBubbleColor,\s*\n\s*renderUserBubbleColorDropdown,/);
-  assert.doesNotMatch(source, /const\s+renderUserBubbleColorDropdown\s*=\s*\(\)\s*=>/);
+  assert.doesNotMatch(source, /USER_BUBBLE_COLORS|setUserBubbleColor|renderUserBubbleColorDropdown/, 'the colour of a bubble is no longer a setting');
   assert.doesNotMatch(source, /const\s+setTheme\s*=\s*async/);
   assert.doesNotMatch(source, /const\s+updateThemeButtons\s*=\s*\(\)\s*=>/);
   assert.match(controlsSource, /export\s+function\s+createSettingsThemeBubbleControls/);
-  assert.match(controlsSource, /const\s+renderBubbleColorDropdown\s*=/);
   assert.match(controlsSource, /const\s+setTheme\s*=\s*async/);
   assert.match(controlsSource, /const\s+updateThemeButtons\s*=/);
 });
@@ -475,7 +469,6 @@ test('factory exposes settings auth provider lifecycle API', () => {
     'handleDeleteAllData',
     'setTheme',
     'updateThemeButtons',
-    'setUserBubbleColor',
     'createHistoryMenu'
   ]) {
     assert.equal(typeof lifecycle[name], 'function', `${name} should be exposed`);
@@ -881,7 +874,6 @@ test('saveSettings writes API keys through sensitive key callbacks before normal
       },
       querySelectorAll: () => []
     },
-    userBubbleColors: { default: {light: '#dddddd'} },
     setApiKeyForProvider: (provider, value) => calls.push(['setApiKeyForProvider', provider, value]),
     saveSensitiveConfig: async () => calls.push('saveSensitiveConfig')
   });
@@ -898,8 +890,6 @@ test('saveSettings writes API keys through sensitive key callbacks before normal
   dependencies.elements.aiLanguageSelect.value = 'en';
   dependencies.elements.enableUpdateNotificationsToggle.checked = true;
   state.config.theme = 'dark';
-  state.config.userBubbleColor = 'default';
-  dependencies.elements.userBubbleColorDropdown.querySelector = () => ({ dataset: { color: 'default' } });
   dependencies.elements.uiColorOptions.dataset = {};
 
   const lifecycle = createLegacySettingsAuthProviderLifecycle(dependencies);
@@ -1019,7 +1009,6 @@ test('saveSettings preserves unchanged masked keys and never stores masked place
       },
       querySelectorAll: () => []
     },
-    userBubbleColors: { default: {light: '#dddddd'} },
     setApiKeyForProvider: (provider, value) => calls.push(['setApiKeyForProvider', provider, value]),
     saveSensitiveConfig: async () => calls.push('saveSensitiveConfig')
   });
@@ -1031,7 +1020,6 @@ test('saveSettings preserves unchanged masked keys and never stores masked place
   dependencies.elements.tavilySearchDepthSelect.value = 'basic';
   dependencies.elements.uiLanguageSelect.value = 'en';
   dependencies.elements.aiLanguageSelect.value = 'en';
-  dependencies.elements.userBubbleColorDropdown.querySelector = () => ({ dataset: { color: 'default' } });
   dependencies.elements.uiColorOptions.dataset = {};
 
   const lifecycle = createLegacySettingsAuthProviderLifecycle(dependencies);
@@ -1054,7 +1042,6 @@ test('saveSettings writes new and cleared API key intents through sensitive call
       },
       querySelectorAll: () => []
     },
-    userBubbleColors: { default: {light: '#dddddd'} },
     setApiKeyForProvider: (provider, value) => calls.push(['setApiKeyForProvider', provider, value]),
     saveSensitiveConfig: async () => calls.push('saveSensitiveConfig')
   });
@@ -1066,7 +1053,6 @@ test('saveSettings writes new and cleared API key intents through sensitive call
   dependencies.elements.tavilySearchDepthSelect.value = 'basic';
   dependencies.elements.uiLanguageSelect.value = 'en';
   dependencies.elements.aiLanguageSelect.value = 'en';
-  dependencies.elements.userBubbleColorDropdown.querySelector = () => ({ dataset: { color: 'default' } });
   dependencies.elements.uiColorOptions.dataset = {};
 
   const lifecycle = createLegacySettingsAuthProviderLifecycle(dependencies);
@@ -1147,7 +1133,6 @@ test('source keeps settings save ownership and composes auth actions helper', ()
   assert.match(source, /const\s+authActionsHelper\s*=\s*createSettingsAuthActionsHelper\(\{/);
   assert.match(source, /loadConfig,/);
   assert.match(source, /loadAppData,/);
-  assert.match(source, /applyBubbleColors,/);
   assert.match(source, /handleLogin,\s*\n\s*handleLogout,\s*\n\s*handleDeleteAllData\s*\n?\}\s*=\s*authActionsHelper/);
   assert.doesNotMatch(source, /const\s+handleLogin\s*=\s*async\s*\(e\)\s*=>\s*\{/);
   assert.doesNotMatch(source, /const\s+handleLogout\s*=\s*async\s*\(\)\s*=>\s*\{/);
@@ -1166,7 +1151,6 @@ test('source keeps settings save ownership and composes auth actions helper', ()
     'await setItem(\'chat_lastUser\', username);',
     'await loadConfig();',
     'await loadAppData();',
-    'applyBubbleColors();',
     'applyUiTheme();',
     'elements.authContainer.classList.remove(\'visible\');',
     'elements.authContainer.classList.add(\'fade-out\');',

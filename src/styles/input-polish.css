@@ -139,12 +139,12 @@
 #submit-btn {
     border: 0 !important;
     border-radius: 999px !important;
-    background: var(--brand-blue) !important;
+    background: var(--button-primary-bg) !important;
     color: var(--button-primary-text) !important;
     box-shadow: none !important;
 }
 #submit-btn:hover {
-    background: var(--brand-blue-hover) !important;
+    background: var(--button-primary-hover-bg) !important;
 }
 #submit-btn:disabled {
     background: var(--button-primary-bg) !important;

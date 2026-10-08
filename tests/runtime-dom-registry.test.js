@@ -21,10 +21,10 @@ test('DOM registry preserves the complete legacy key and element id order', () =
   const registry = createLegacyRuntimeDomRegistry(rootDocument);
   const keys = Object.keys(registry);
 
-  assert.equal(keys.length, 213);
-  assert.equal(requestedIds.length, 213);
-  assert.equal(hashJson(keys), '2a33a3c564b57efcd154ee212d207c2fda9cfdf2958f2fa7793e6efc235ca223');
-  assert.equal(hashJson(requestedIds), '02358970fed7bd1b9ec910392e16897abb4980b7296e19e4cfb9b835b38da42b');
+  assert.equal(keys.length, 212);
+  assert.equal(requestedIds.length, 212);
+  assert.equal(hashJson(keys), '854c643a9cec434f60a541f8ddc38bbe7cbfc6dfd884e2f2aeb78111131bbdc6');
+  assert.equal(hashJson(requestedIds), 'e62343dad87432b6ba2977a09e7ecb916a8cf58a8a73ef3e251e643795435af7');
   assert.deepEqual(registry.authContainer, { id: 'auth-container' });
   assert.deepEqual(registry.messageInput, { id: 'message-input' });
   assert.deepEqual(registry.expandInputButton, { id: 'expand-input-btn' });

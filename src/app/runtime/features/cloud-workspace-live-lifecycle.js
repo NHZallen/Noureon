@@ -132,7 +132,6 @@ export function createCloudWorkspaceLiveLifecycle({
   maxCouncilModels,
   getCouncilTranslatorCandidates,
   getSingleTranslatorCandidates,
-  applyBubbleColors,
   applyUiTheme,
   renderAll,
   renderSidebar,
@@ -370,7 +369,6 @@ export function createCloudWorkspaceLiveLifecycle({
     ));
     const appearanceKeys = new Set([
       'uiTheme',
-      'userBubbleColor'
     ]);
     const appearanceChanged = changedSyncedKeys.some(key => appearanceKeys.has(key));
     const languageChanged = changedSyncedKeys.includes('uiLanguage');
@@ -389,7 +387,6 @@ export function createCloudWorkspaceLiveLifecycle({
       }
     }
     if (appearanceChanged) {
-      applyBubbleColors();
       applyUiTheme();
     }
     if (languageChanged) applyLanguage(normalizedConfig.uiLanguage);

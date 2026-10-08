@@ -97,6 +97,16 @@ owner 想讓深色模式回來。當初拿掉的原因（owner 回報）：**太
 - **檔案預覽（簡報）**：頁面的底（`--active-bg`，深色是半透明白，很灰很亮）改成 `--page-well`（淺色 `#e5e7eb`，深色 `#1c1c1c`，比對話框更深）；頁碼原本用紙張專用的深灰 `#4b5563`，深色底上看不到，改成跟文字色走（`--text-primary` 70%）；深色的投影看不到，簡報邊緣加一圈 `--paper-ring`（深色半透明白細線，淺色透明）。
 - **設定名稱**：「色彩模式」改名「外觀」（五種語言：外觀、Appearance、Apparence、Оформление、Apariencia），更新說明同步改。
 
+## 5g. 強調色變成唯一的顏色（2026-10-08，17.15.0）
+
+owner 的決定：「主按鈕顏色」改名「強調色」，換成新的十種顏色（藍色〔預設，就是原本的藍，只留一個藍〕、青色、綠色、萊姆綠、黃色、橘色、粉色、洋紅色、紫色、黑色，加上自訂色碼），**刪除「使用者訊息泡泡底色」設定，泡泡跟著強調色**。
+
+- 整個介面只有一個強調色 `--button-primary-bg`：送出鈕、開關打開、被選中的框（原本寫死的 `--brand-blue`，已刪）、泡泡底色都用它。`--user-bubble-bg` 是強調色疊在頁面上的淡色調（淺色 12%、深色 22%）；`--button-primary-hover-bg` 也由強調色算出（淺色加黑、深色加白），所以換強調色時按下的顏色跟著變。預設藍在淺色是 `#3b82f6`、深色是 `#5b9bff`（`theme-appearance-lifecycle.js`）。
+- 深色主題下，看不清楚的強調色自動調亮：`src/utils/color-contrast.js` 的 `accentForDarkTheme`（亮度太低的黑色變 `#ececec`，其他不足對比 3 的顏色往白色調亮到對比 3）。淺色不變。
+- 顏色取自 owner 給的圖；選單的第一個是預設藍，標成「藍色」。原本存的具名顏色（綠、黃、粉、橘、紫）色碼變了，選過的人會顯示成「自訂」同一個色碼，不需遷移。
+- 刪掉的東西：設定畫面那一列與 `userBubbleColorDropdown`、`USER_BUBBLE_COLORS`、`setUserBubbleColor`、`renderUserBubbleColorDropdown`、`applyBubbleColors`、設定欄位 `userBubbleColor`（讀取時 `config-normalization.js` 丟掉；雲端同步與匯出入的清單也拿掉）、`--user-bubble-choice-*`。`settings-theme-bubble-controls.js` 只剩 `setTheme`（清掉舊版的 theme 欄位）與 `updateThemeButtons`。
+- 名稱：`primaryButtonColor` → `accentColor`，新增 `colorBlue`、`colorCyan`、`colorLime`、`colorMagenta`、`colorBlack`，刪 `colorDefault`、`userBubbleColor`（五種語言）。
+
 ## 6. 還沒做（下一步）
 
 1. （已做，見 §5e）沒有資料就看不到的畫面。

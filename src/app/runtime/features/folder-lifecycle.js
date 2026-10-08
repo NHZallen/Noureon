@@ -112,7 +112,7 @@ export function createLegacyFolderLifecycle({
       swatch.dataset.color = name;
       if (normalizeFolderColorSelection(folder.color, folderColors) === name) {
         swatch.classList.add('selected');
-        swatch.style.borderColor = 'var(--brand-blue)';
+        swatch.style.borderColor = 'var(--button-primary-bg)';
       }
       swatch.addEventListener('click', () => {
         elements.colorSwatchesContainer.querySelectorAll('.selected').forEach(element => {
@@ -120,7 +120,7 @@ export function createLegacyFolderLifecycle({
           element.style.borderColor = 'transparent';
         });
         swatch.classList.add('selected');
-        swatch.style.borderColor = 'var(--brand-blue)';
+        swatch.style.borderColor = 'var(--button-primary-bg)';
       });
       elements.colorSwatchesContainer.appendChild(swatch);
     });
@@ -136,8 +136,8 @@ export function createLegacyFolderLifecycle({
 
       if (folder.icon === key || (!folder.icon && key === 'default')) {
         iconOption.classList.add('selected');
-        iconOption.style.borderColor = 'var(--brand-blue)';
-        iconOption.style.color = 'var(--brand-blue)';
+        iconOption.style.borderColor = 'var(--button-primary-bg)';
+        iconOption.style.color = 'var(--button-primary-bg)';
         iconOption.style.backgroundColor = 'var(--active-bg)';
       } else {
         iconOption.style.color = 'var(--text-secondary)';
@@ -151,8 +151,8 @@ export function createLegacyFolderLifecycle({
           element.style.backgroundColor = '';
         });
         iconOption.classList.add('selected');
-        iconOption.style.borderColor = 'var(--brand-blue)';
-        iconOption.style.color = 'var(--brand-blue)';
+        iconOption.style.borderColor = 'var(--button-primary-bg)';
+        iconOption.style.color = 'var(--button-primary-bg)';
         iconOption.style.backgroundColor = 'var(--active-bg)';
       });
       elements.iconOptionsContainer.appendChild(iconOption);
@@ -190,8 +190,8 @@ export function createLegacyFolderLifecycle({
       if (folder.textColor === key || (!folder.textColor && key === 'gray')) {
         button.classList.add('selected-text');
         button.innerHTML = `<svg class="w-5 h-5 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 ${key === 'white' ? 'text-black' : 'text-white'}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
-        if (key === 'white') button.style.borderColor = 'var(--brand-blue)';
-        else button.style.boxShadow = '0 0 0 2px var(--brand-blue)';
+        if (key === 'white') button.style.borderColor = 'var(--button-primary-bg)';
+        else button.style.boxShadow = '0 0 0 2px var(--button-primary-bg)';
       }
 
       button.addEventListener('click', () => {
@@ -203,8 +203,8 @@ export function createLegacyFolderLifecycle({
         });
         button.classList.add('selected-text');
         button.innerHTML = `<svg class="w-5 h-5 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 ${key === 'white' ? 'text-black' : 'text-white'}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
-        if (key === 'white') button.style.borderColor = 'var(--brand-blue)';
-        else button.style.boxShadow = '0 0 0 2px var(--brand-blue)';
+        if (key === 'white') button.style.borderColor = 'var(--button-primary-bg)';
+        else button.style.boxShadow = '0 0 0 2px var(--button-primary-bg)';
       });
       textColorOptions.appendChild(button);
     });

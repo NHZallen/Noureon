@@ -25,7 +25,6 @@ export function collectSettingsSaveFormValues({
         // Kept as it was where the setting is not shown.
         fileModeDefault: elements.fileModeDefaultSelect?.value === 'standard' ? 'standard'
             : elements.fileModeDefaultSelect ? 'advanced' : (config.fileModeDefault === 'standard' ? 'standard' : 'advanced'),
-        userBubbleColor: elements.userBubbleColorDropdown.querySelector('.color-dropdown-btn')?.dataset.color || 'default',
         autoNaming: elements.autoNamingToggleSwitch.checked,
         memoryEnabled1: elements.memoryToggle1?.isConnected !== false
             ? elements.memoryToggle1.checked

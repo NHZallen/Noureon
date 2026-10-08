@@ -1,9 +1,7 @@
+// What is left of the old theme and bubble settings: the theme of an earlier version is dropped from the settings, and the colour of a
+// message bubble is no longer a setting (it follows the accent, see --user-bubble-bg in src/styles/tokens.css).
 const requiredDependencies = [
-  'window',
-  'document',
-  'elements',
   'config',
-  'userBubbleColors',
   'saveConfig'
 ];
 
@@ -14,118 +12,19 @@ function assertRequiredDependencies(dependencies) {
   }
 }
 
-function getColorName(color) {
-  return color.charAt(0).toUpperCase() + color.slice(1);
-}
-
-// The colours of a bubble are given for the light and for the dark theme; the one of the theme in use is shown.
-const currentMode = () => (globalThis.document?.documentElement?.getAttribute('data-theme') === 'dark' ? 'dark' : 'light');
-const colorFor = (colors, mode = currentMode()) => colors?.[mode] || colors?.light;
-
 export function createSettingsThemeBubbleControls(dependencies = {}) {
   assertRequiredDependencies(dependencies);
 
-  const {
-    window,
-    document,
-    elements: ALL_ELEMENTS,
-    config,
-    userBubbleColors: USER_BUBBLE_COLORS,
-    saveConfig
-  } = dependencies;
-
-  const setUserBubbleColor = () => {
-    const root = document.documentElement;
-    const colors = USER_BUBBLE_COLORS[config.userBubbleColor] || USER_BUBBLE_COLORS.default;
-    // Both versions are given; src/styles/tokens.css picks the one of the theme in use, so a change of theme needs nothing more here.
-    root.style.setProperty('--user-bubble-choice-light', colors.light);
-    root.style.setProperty('--user-bubble-choice-dark', colors.dark || colors.light);
-  };
-
-  const renderBubbleColorDropdown = ({
-    container,
-    colorMap,
-    configKey,
-    applyColor,
-    renderDropdown
-  }) => {
-    container.innerHTML = '';
-    const currentColor = config[configKey];
-    const currentName = getColorName(currentColor);
-    const currentHex = colorFor(colorMap[currentColor]);
-    const btn = document.createElement('button');
-    btn.className = 'color-dropdown-btn';
-    btn.dataset.noPress = '';
-    btn.dataset.color = currentColor;
-    btn.innerHTML = `
-        <div class="color-preview" style="background-color: ${currentHex};"></div>
-        <span>${currentName}</span>
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-    `;
-    const menu = document.createElement('div');
-    menu.className = 'color-dropdown-menu';
-    Object.keys(colorMap).forEach(color => {
-      const option = document.createElement('div');
-      option.className = 'color-option';
-      option.dataset.color = color;
-      const preview = document.createElement('div');
-      preview.className = 'color-preview';
-      preview.style.backgroundColor = colorFor(colorMap[color]);
-      const name = getColorName(color);
-      option.appendChild(preview);
-      option.appendChild(document.createTextNode(name));
-      option.addEventListener('click', () => {
-        config[configKey] = color;
-        renderDropdown();
-        applyColor();
-        menu.classList.remove('show');
-      });
-      menu.appendChild(option);
-    });
-    btn.addEventListener('click', () => {
-      menu.classList.toggle('show');
-      const rect = btn.getBoundingClientRect();
-      const menuRect = menu.getBoundingClientRect();
-      const roomBelow = window.innerHeight - rect.bottom;
-      const roomAbove = rect.top;
-      // Open upward only when it does not fit below and there is more room above; the gap matches the CSS default.
-      if (menuRect.height > roomBelow && roomAbove > roomBelow) {
-        menu.style.top = 'auto';
-        menu.style.bottom = 'calc(100% + 0.45rem)';
-      } else {
-        menu.style.top = 'calc(100% + 0.45rem)';
-        menu.style.bottom = 'auto';
-      }
-    });
-    container.appendChild(btn);
-    container.appendChild(menu);
-  };
-
-  const renderUserBubbleColorDropdown = () => {
-    renderBubbleColorDropdown({
-      container: ALL_ELEMENTS.userBubbleColorDropdown,
-      colorMap: USER_BUBBLE_COLORS,
-      configKey: 'userBubbleColor',
-      applyColor: setUserBubbleColor,
-      renderDropdown: renderUserBubbleColorDropdown
-    });
-  };
+  const { config, saveConfig } = dependencies;
 
   const updateThemeButtons = () => {};
 
   const setTheme = async () => {
     delete config.theme;
-    setUserBubbleColor();
     await saveConfig();
-    if (!ALL_ELEMENTS.settingsModal.classList.contains('hidden')) {
-      renderUserBubbleColorDropdown();
-    }
   };
 
   return {
-    setUserBubbleColor,
-    renderUserBubbleColorDropdown,
-    renderBubbleColorDropdown,
     setTheme,
     updateThemeButtons
   };

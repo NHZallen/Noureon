@@ -1,4 +1,5 @@
 import {
+    accentForDarkTheme,
     getTextColorForBackground as getThemeTextColorForBackground,
 } from '../../../utils/color-contrast.js';
 import { createColorScheme } from './color-scheme.js';
@@ -13,8 +14,7 @@ export function createThemeAppearanceLifecycle(dependencies = {}) {
         elements: ALL_ELEMENTS,
         state,
         i18n,
-        UI_THEME_COLORS,
-        setUserBubbleColor
+        UI_THEME_COLORS
     } = dependencies;
 
     const colorScheme = createColorScheme({ window, document });
@@ -23,21 +23,24 @@ export function createThemeAppearanceLifecycle(dependencies = {}) {
         const root = document.documentElement;
         // The light or the dark theme first (the accent below follows it).
         const theme = colorScheme.apply(state.config.colorScheme);
-        const primaryBg = state.config.uiTheme.mode === 'custom'
-            ? state.config.uiTheme.customColor
-            : DEFAULT_ACCENT[theme];
+        const chosen = state.config.uiTheme.mode === 'custom' ? state.config.uiTheme.customColor : null;
+        const primaryBg = chosen ? (theme === 'dark' ? accentForDarkTheme(chosen) : chosen) : DEFAULT_ACCENT[theme];
         root.style.setProperty('--button-primary-bg', primaryBg);
         root.style.setProperty('--button-primary-text', getThemeTextColorForBackground(primaryBg));
         root.style.removeProperty('--button-primary-bg-override');
     };
 
     const COLOR_LABEL_KEYS = {
-        default: ['colorDefault', 'Default'],
+        default: ['colorBlue', 'Blue'],
+        cyan: ['colorCyan', 'Cyan'],
         green: ['colorGreen', 'Green'],
+        lime: ['colorLime', 'Lime'],
         yellow: ['colorYellow', 'Yellow'],
-        pink: ['colorPink', 'Pink'],
         orange: ['colorOrange', 'Orange'],
-        purple: ['colorPurple', 'Purple']
+        pink: ['colorPink', 'Pink'],
+        magenta: ['colorMagenta', 'Magenta'],
+        purple: ['colorPurple', 'Purple'],
+        black: ['colorBlack', 'Black']
     };
     const CUSTOM_CHOICE = 'custom';
     // #RGB or #RRGGBB, with or without the #, in any case; the colour input wants #rrggbb.
@@ -175,13 +178,8 @@ export function createThemeAppearanceLifecycle(dependencies = {}) {
         }
     };
 
-    const applyBubbleColors = () => {
-        setUserBubbleColor();
-    };
-
     return {
         applyUiTheme,
-        renderUiColorOptions,
-        applyBubbleColors
+        renderUiColorOptions
     };
 }

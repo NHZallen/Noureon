@@ -47,7 +47,6 @@ function createHarness({
     defaultModel: 'model-a',
     theme: 'dark',
     modelSettings: [],
-    userBubbleColor: '#222222',
     autoNaming: true,
     enableAutoWebSearch: false,
     memoryEnabled1: true,
@@ -217,7 +216,6 @@ function createHarness({
     compressImage: async (data, mimeType) => ({ data, mimeType, ext: 'png' }),
     applyUiTheme: () => calls.push(['applyUiTheme']),
     applyLanguage: (language) => calls.push(['applyLanguage', language]),
-    setUserBubbleColor: () => calls.push(['setUserBubbleColor']),
     loadChat: (id) => calls.push(['loadChat', id]),
     startNewChat: () => calls.push(['startNewChat']),
     showCustomConfirm: async (message, title) => {
@@ -358,7 +356,6 @@ test('handleImport validates, confirms, clears through bridges, chunks live arra
     'toggleModal',
     'notification',
     'applyUiTheme',
-    'setUserBubbleColor',
     'applyLanguage',
     'resolveSearchSetupSettingsModal',
     'loadChat'
@@ -375,7 +372,6 @@ test('handleImport validates, confirms, clears through bridges, chunks live arra
     'toggleModal',
     'notification',
     'applyUiTheme',
-    'setUserBubbleColor',
     'applyLanguage',
     'resolveSearchSetupSettingsModal',
     'loadChat'
@@ -461,7 +457,6 @@ test('handleExport excludes apiKeys from normal settings exports by default', as
       defaultModel: 'model-a',
       theme: 'dark',
       modelSettings: [],
-      userBubbleColor: '#222222',
       autoNaming: true,
       enableAutoWebSearch: false,
       memoryEnabled1: true,
@@ -499,7 +494,6 @@ test('handleExport encrypts explicit API key exports and uses localized warning 
       defaultModel: 'model-a',
       theme: 'dark',
       modelSettings: [],
-      userBubbleColor: '#222222',
       autoNaming: true,
       enableAutoWebSearch: false,
       memoryEnabled1: true,

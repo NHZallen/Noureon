@@ -102,7 +102,6 @@ export function createLegacySettingsAuthProviderLifecycle(dependencies = {}) {
         councilResponseCharLimit: COUNCIL_RESPONSE_CHAR_LIMIT,
         councilRetryDelayMs: COUNCIL_RETRY_DELAY_MS,
         councilMaxModels: COUNCIL_MAX_MODELS,
-        userBubbleColors: USER_BUBBLE_COLORS,
         getActiveConversation,
         normalizeConversationModel,
         getModelApiId,
@@ -151,7 +150,6 @@ export function createLegacySettingsAuthProviderLifecycle(dependencies = {}) {
         renderStore,
         updateApiKeyWarningBadge,
         applyUiTheme,
-        applyBubbleColors = () => {},
         applyLanguage,
         togglePinChat,
         archiveChat,
@@ -400,7 +398,6 @@ const authActionsHelper = createSettingsAuthActionsHelper({
     createPasswordRecord,
     loadConfig,
     loadAppData,
-    applyBubbleColors,
     applyUiTheme
 });
 const {
@@ -547,8 +544,6 @@ const setupSettingsModal = () => {
     ALL_ELEMENTS.enableUpdateNotificationsToggle.checked = config.enableUpdateNotifications;
     renderMemorySummary();
     updateThemeButtons();
-    // 使用者泡泡顏色設定總是顯示並渲染
-    renderUserBubbleColorDropdown();
     renderUiColorOptions();
     renderTrash();
     renderSettingsMobileList();
@@ -597,7 +592,6 @@ const saveSettings = async ({ close = true, notify = true } = {}) => {
         colorScheme: collectedSettings.colorScheme,
         processOpen: collectedSettings.processOpen,
         fileModeDefault: collectedSettings.fileModeDefault,
-        userBubbleColor: collectedSettings.userBubbleColor,
         autoNaming: collectedSettings.autoNaming,
         memoryEnabled1: collectedSettings.memoryEnabled1,
         memoryProfileEnabled: collectedSettings.memoryEnabled1,
@@ -608,7 +602,6 @@ const saveSettings = async ({ close = true, notify = true } = {}) => {
         enableUpdateNotifications: collectedSettings.enableUpdateNotifications
     });
     Object.assign(config.uiTheme, collectedSettings.uiTheme);
-    setUserBubbleColor();
     applyUiTheme();
     await saveConfig();
     await refreshHistoryRecallStatus();
@@ -625,17 +618,10 @@ const saveSettings = async ({ close = true, notify = true } = {}) => {
     }
 };
 const themeBubbleControls = createSettingsThemeBubbleControls({
-    window,
-    document,
-    elements: ALL_ELEMENTS,
     config,
-    userBubbleColors: USER_BUBBLE_COLORS,
-    hexToRgba,
     saveConfig
 });
 const {
-    setUserBubbleColor,
-    renderUserBubbleColorDropdown,
     setTheme,
     updateThemeButtons
 } = themeBubbleControls;
@@ -682,8 +668,6 @@ const {
         openSettingsMobileSection,
         setupSettingsModal,
         saveSettings,
-        setUserBubbleColor,
-        renderUserBubbleColorDropdown,
         createHistoryMenu,
         setTheme,
         updateThemeButtons,

@@ -110,7 +110,6 @@ const REQUIRED_STARTUP_FIELDS = [
   'loadAppData',
   'restoreMemorySync',
   'applyLanguage',
-  'applyBubbleColors',
   'applyUiTheme',
   'handleLogin',
   'handleImportOnAuth',

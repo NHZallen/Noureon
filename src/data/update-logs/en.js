@@ -1,6 +1,16 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "17.15.0": [
+    "<strong>Noureon 17.15.0 Release Notes</strong>",
+    "This version renames \"Primary Button Color\" in the settings to \"Accent Color\", replaces its choices with ten new colours, and makes the background of a user message bubble follow the accent.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Accent color:</strong> \"Primary Button Color\" in Settings → Personalization → Appearance is renamed \"Accent Color\", with Blue (the default), Cyan, Green, Lime, Yellow, Orange, Pink, Magenta, Purple, Black and a custom colour code. The whole interface has this one accent: the send button, switches, selected frames and the bubble background all follow it.</li><li><strong>Message bubble:</strong> the \"User Message Bubble Color\" setting is removed; the bubble background is a pale tint of the accent, with a strength that suits the light and the dark theme.</li><li><strong>Dark theme:</strong> an accent that is hard to see on the dark theme is lightened automatically; black shows as a light grey on the dark theme, like the black-and-white main button.</li></ul>",
+    "<strong>Notes</strong>",
+    "<ul><li>The colour that was chosen for the bubble background no longer applies; an accent that was chosen earlier from green, yellow, pink, orange or purple is shown as \"Custom\" with the same colour code.</li></ul>",
+    "<strong>Compatibility</strong>",
+    "This update requires no data migration; the userBubbleColor field of the settings is dropped when they are read."
+  ],
   "17.14.1": [
     "<strong>Noureon 17.14.1 Release Notes</strong>",
     "This version fixes three display problems reported after the dark mode of 17.14.0 and renames the setting to \"Appearance\".",

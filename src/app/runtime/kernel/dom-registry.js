@@ -126,7 +126,6 @@ const LEGACY_RUNTIME_DOM_ELEMENT_IDS = [
   ['saveAstrasBtn', 'save-astras-btn'],
   ['cancelAstrasBtn', 'cancel-astras-btn'],
   ['currentAstrasName', 'current-astras-name'],
-  ['userBubbleColorDropdown', 'user-bubble-color-dropdown'],
   ['settingsNav', 'settings-nav'],
   ['voiceInputBtnMessage', 'voice-input-btn-message'],
   ['voiceInputBtnSearch', 'voice-input-btn-search'],

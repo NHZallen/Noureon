@@ -186,7 +186,6 @@ function createHarness(overrides = {}) {
     setTheme: noop,
     updateThemeButtons: noop,
     setAiBubbleColor: noop,
-    setUserBubbleColor: noop,
     saveConfig: async () => calls.push(['saveConfig']),
     saveAppData: async () => calls.push(['saveAppData']),
     deleteConversationsFromCloud: async (...args) => calls.push(['deleteConversationsFromCloud', ...args]),
@@ -303,7 +302,6 @@ test('factory exposes former 04 bridge functions with clear missing-binding erro
   for (const name of [
     'applyLanguage',
     'applyUiTheme',
-    'applyBubbleColors',
     'renderUiColorOptions',
     'renderStore',
     'renderTrash',

@@ -95,13 +95,13 @@
     }
     .toggle-checkbox:checked {
         right: 0;
-        border-color: var(--brand-blue);
+        border-color: var(--button-primary-bg);
     }
     .toggle-checkbox:checked + .toggle-label {
-        background-color: var(--brand-blue);
+        background-color: var(--button-primary-bg);
     }
     .toggle-checkbox:focus + .toggle-label {
-        box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-blue) 40%, transparent);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--button-primary-bg) 40%, transparent);
     }
     .toggle-checkbox:checked + .toggle-label:before {
         transform: translateX(1.5rem);

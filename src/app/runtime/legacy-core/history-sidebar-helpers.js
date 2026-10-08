@@ -34,7 +34,6 @@ export function createHistorySidebarHelpers({
   getRequiredElement,
   getActiveConversation,
   getMessageTypeIcon,
-  userBubbleColors,
   getConfig,
   hexToRgba,
   getTextColorForBackground,

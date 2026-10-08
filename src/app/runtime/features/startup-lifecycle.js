@@ -14,7 +14,6 @@ export function createLegacyStartupLifecycle({
     loadAppData,
     restoreMemorySync,
     applyLanguage,
-    applyBubbleColors,
     applyUiTheme,
     initChatApp,
     handleLogin,
@@ -98,7 +97,6 @@ export function createLegacyStartupLifecycle({
                 await loadConfig();
                 await loadAppData();
                 await restoreMemorySync();
-                applyBubbleColors();
                 applyUiTheme();
                 elements.authContainer.style.display = 'none';
                 elements.appContainer.classList.remove('hidden');

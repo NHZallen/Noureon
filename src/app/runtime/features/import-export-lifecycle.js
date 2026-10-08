@@ -48,7 +48,6 @@ export function createLegacyImportExportLifecycle({
   compressImage,
   applyUiTheme,
   applyLanguage,
-  setUserBubbleColor,
   loadChat,
   startNewChat,
   showCustomConfirm,
@@ -208,7 +207,6 @@ export function createLegacyImportExportLifecycle({
       rawData.settings = createExportSafeConfig({
         defaultModel: config.defaultModel,
         modelSettings: config.modelSettings,
-        userBubbleColor: config.userBubbleColor,
         autoNaming: config.autoNaming,
         enableAutoWebSearch: config.enableAutoWebSearch,
         visionCheckEnabled: config.visionCheckEnabled !== false,
@@ -564,7 +562,6 @@ export function createLegacyImportExportLifecycle({
       showNotification(text('importSuccess', '匯入成功！'), 'success');
 
       applyUiTheme();
-      setUserBubbleColor();
       applyLanguage(getConfig().uiLanguage);
       resolveSearchSetupSettingsModal();
 

@@ -157,9 +157,7 @@ test('settings output, translator, theme, mobile, and desktop controls remain de
   assert.match(lifecycleSource, /getCouncilTranslatorCandidates,/);
   assert.match(lifecycleSource, /getSingleTranslatorCandidates,/);
   assert.match(lifecycleSource, /const\s+themeBubbleControls\s*=\s*createSettingsThemeBubbleControls\(\{/);
-  assert.match(lifecycleSource, /userBubbleColors:\s*USER_BUBBLE_COLORS/);
-  assert.match(lifecycleSource, /setUserBubbleColor,\s*\n\s*renderUserBubbleColorDropdown,/);
-  assert.match(themeBubbleControlsSource, /const\s+renderBubbleColorDropdown\s*=/);
+  assert.doesNotMatch(lifecycleSource, /USER_BUBBLE_COLORS|setUserBubbleColor|renderUserBubbleColorDropdown/, 'the colour of a bubble is no longer a setting');
   assert.match(themeBubbleControlsSource, /const\s+setTheme\s*=\s*async/);
   assert.match(themeBubbleControlsSource, /const\s+updateThemeButtons\s*=/);
 
@@ -189,7 +187,6 @@ test('settings auth provider lifecycle no longer owns extracted inline helper bo
   const outputTranslatorControlsSource = readSource('src/app/runtime/legacy-core/settings-output-translator-controls.js');
   const authActionsHelperSource = readSource('src/app/runtime/legacy-core/settings-auth-actions-helper.js');
   const updateInputStateHelperSource = readSource('src/app/runtime/legacy-core/settings-update-input-state-helper.js');
-  assert.doesNotMatch(lifecycleSource, /const\s+renderUserBubbleColorDropdown\s*=\s*\(\)\s*=>/);
   assert.doesNotMatch(lifecycleSource, /const\s+setTheme\s*=\s*async/);
   assert.doesNotMatch(lifecycleSource, /const\s+updateThemeButtons\s*=\s*\(\)\s*=>/);
   assert.doesNotMatch(lifecycleSource, /const\s+renderSettingsMobileList\s*=\s*\(\)\s*=>/);

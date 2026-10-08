@@ -28,7 +28,7 @@ test('color contrast helper preserves the strict luminance threshold', () => {
 test('color contrast helper keeps its parser private and has no runtime responsibilities', () => {
   const source = readSource('src/utils/color-contrast.js');
 
-  assert.deepEqual(Object.keys(colorContrast), ['getTextColorForBackground']);
+  assert.deepEqual(Object.keys(colorContrast), ['accentForDarkTheme', 'getTextColorForBackground']);
   assert.match(source, /const\s+hexToRgb\s*=/);
   assert.doesNotMatch(source, /export\s+(?:const|function)\s+hexToRgb|export\s*\{[^}]*hexToRgb/);
   assert.doesNotMatch(source, /document|window|globalThis|ALL_ELEMENTS/);

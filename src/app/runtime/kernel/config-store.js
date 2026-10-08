@@ -16,7 +16,6 @@ export function createLegacyRuntimeConfigStore({ defaultModelId } = {}) {
     tavilySearchDepth: 'basic',
     // Replies are always shown as they are written (there is no other mode).
     outputMode: 'realtime',
-    userBubbleColor: 'default',
     autoNaming: true,
     lastUsedModel: null,
     acknowledgedStealthModelTerms: [],

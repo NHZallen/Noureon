@@ -139,7 +139,6 @@ function createHarness(overrides = {}) {
     setTheme: (theme) => calls.push(['setTheme', theme]),
     updateThemeButtons: () => calls.push(['updateThemeButtons']),
     setAiBubbleColor: () => calls.push(['setAiBubbleColor']),
-    setUserBubbleColor: () => calls.push(['setUserBubbleColor']),
     saveConfig: async () => {},
     saveAppData: async () => {},
     showNotification: noop,
@@ -181,7 +180,6 @@ test('factory exposes the former 04 public lifecycle API', () => {
     'setupTimeAnalysis',
     'applyUiTheme',
     'renderUiColorOptions',
-    'applyBubbleColors',
     'renderStore',
     'applyLanguage',
     'showMobileContextMenu',
@@ -208,11 +206,6 @@ test('theme helpers use injected live state and DOM dependencies', () => {
   lifecycle.applyUiTheme();
   assert.equal(documentStyle.values.get('--button-primary-bg'), '#3b82f6');
   assert.deepEqual(calls, []);
-
-  lifecycle.applyBubbleColors();
-  assert.deepEqual(calls, [
-    ['setUserBubbleColor']
-  ]);
 });
 
 test('core tail module owns trash composition without importing legacy fragments or virtual runtime', () => {

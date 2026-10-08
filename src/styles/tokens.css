@@ -40,11 +40,11 @@
 
     /* messages */
     --ai-bubble-bg: transparent;
-    --user-bubble-bg: var(--user-bubble-choice-light, #e8f3ff);
+    --user-bubble-bg: color-mix(in srgb, var(--button-primary-bg) 12%, var(--chat-bg));
 
     /* the accent (the person may choose another colour in Settings) */
-    --button-primary-bg: #4f8df7;
-    --button-primary-hover-bg: #3f7ee6;
+    --button-primary-bg: #3b82f6;
+    --button-primary-hover-bg: color-mix(in srgb, var(--button-primary-bg) 88%, black);
     --button-primary-text: #ffffff;
 
     /* the black-and-white main button (dark pill on light, light pill on dark) and the surfaces of the settings and menus */
@@ -90,9 +90,6 @@
     --scrim: rgba(0, 0, 0, 0.5);
     --scrim-strong: rgba(0, 0, 0, 0.88);
 
-    /* the blue of the send button, the switch that is on and the choice that is selected */
-    --brand-blue: #3b82f6;
-    --brand-blue-hover: #2563eb;
 
     /* the colour that flashes a line that was just jumped to */
     --flash-bg: rgba(250, 204, 21, 0.7);
@@ -173,10 +170,10 @@
     --paper-ring: rgba(255, 255, 255, 0.14);
 
     --ai-bubble-bg: transparent;
-    --user-bubble-bg: var(--user-bubble-choice-dark, #303030);
+    --user-bubble-bg: color-mix(in srgb, var(--button-primary-bg) 22%, var(--chat-bg));
 
     --button-primary-bg: #5b9bff;
-    --button-primary-hover-bg: #78acff;
+    --button-primary-hover-bg: color-mix(in srgb, var(--button-primary-bg) 85%, white);
     --button-primary-text: #0b0b0b;
 
     --gpt-surface: #2a2a2a;
@@ -216,8 +213,6 @@
     --scrim-soft: rgba(0, 0, 0, 0.5);
     --scrim: rgba(0, 0, 0, 0.65);
 
-    --brand-blue: #5b9bff;
-    --brand-blue-hover: #78acff;
 
     --flash-bg: rgba(250, 204, 21, 0.35);
 

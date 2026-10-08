@@ -20,7 +20,6 @@ const expectedConfig = (defaultModelId) => ({
   searchProvider: 'tavily',
   tavilySearchDepth: 'basic',
   outputMode: 'realtime',
-  userBubbleColor: 'default',
   autoNaming: true,
   lastUsedModel: null,
   acknowledgedStealthModelTerms: [],

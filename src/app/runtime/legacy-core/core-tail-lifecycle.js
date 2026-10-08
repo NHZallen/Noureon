@@ -83,7 +83,6 @@ export function createLegacyCoreTailLifecycle(dependencies = {}) {
         UI_THEME_COLORS,
         setTheme,
         updateThemeButtons,
-        setUserBubbleColor,
         saveConfig,
         saveAppData,
         deleteConversationsFromCloud,
@@ -284,7 +283,6 @@ export function createLegacyCoreTailLifecycle(dependencies = {}) {
             UI_THEME_COLORS,
             setTheme,
             updateThemeButtons,
-            setUserBubbleColor,
             saveConfig,
             showNotification,
             toggleModal,
@@ -292,7 +290,6 @@ export function createLegacyCoreTailLifecycle(dependencies = {}) {
         });
         const applyUiTheme = (...args) => themeAppearanceLifecycle.applyUiTheme(...args);
         const renderUiColorOptions = (...args) => themeAppearanceLifecycle.renderUiColorOptions(...args);
-        const applyBubbleColors = (...args) => themeAppearanceLifecycle.applyBubbleColors(...args);
         const openStore = () => {
             ALL_ELEMENTS.appContainer.classList.remove('visible');
             ALL_ELEMENTS.storeContainer.classList.remove('hidden');
@@ -1152,7 +1149,6 @@ function setupMessageIntersectionObserver() {
                     void globalObject.__astraMemorySummarySync?.captureMemoryState(restoredMemoryState);
                 },
                 applyLanguage,
-                applyBubbleColors,
                 applyUiTheme,
                 handleLogin,
                 handleImportOnAuth,
@@ -1177,7 +1173,6 @@ function setupMessageIntersectionObserver() {
             updateTimeDistributionChart,
             applyUiTheme,
             renderUiColorOptions,
-            applyBubbleColors,
             openStore,
             closeStore,
             renderStore,

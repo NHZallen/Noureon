@@ -1,6 +1,16 @@
 // The update notes in French (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "17.15.0": [
+    "<strong>Notes de version de Noureon 17.15.0</strong>",
+    "Cette version renomme « Couleur du bouton principal » en « Couleur d'accent » dans les paramètres, remplace ses choix par dix nouvelles couleurs et fait suivre l'accent au fond de la bulle des messages de l'utilisateur.",
+    "<strong>Changements principaux</strong>",
+    "<ul><li><strong>Couleur d'accent :</strong> « Couleur du bouton principal » dans Paramètres → Personnalisation → Apparence devient « Couleur d'accent », avec Bleu (par défaut), Cyan, Vert, Citron vert, Jaune, Orange, Rose, Magenta, Violet, Noir et un code couleur personnalisé. Toute l'interface n'a que cet accent : le bouton d'envoi, les interrupteurs, les cadres sélectionnés et le fond des bulles le suivent.</li><li><strong>Bulle de message :</strong> le réglage « Couleur de bulle de l'utilisateur » est supprimé ; le fond de la bulle est une teinte pâle de l'accent, d'une intensité adaptée au thème clair et au thème sombre.</li><li><strong>Thème sombre :</strong> un accent difficile à voir sur le thème sombre est éclairci automatiquement ; le noir s'affiche en gris clair sur le thème sombre, comme le bouton principal noir et blanc.</li></ul>",
+    "<strong>Remarques</strong>",
+    "<ul><li>La couleur choisie pour le fond de la bulle ne s'applique plus ; un accent choisi auparavant parmi vert, jaune, rose, orange ou violet s'affiche comme « Personnalisée » avec le même code couleur.</li></ul>",
+    "<strong>Compatibilité</strong>",
+    "Cette mise à jour ne nécessite aucune migration de données ; le champ userBubbleColor des paramètres est ignoré à la lecture."
+  ],
   "17.14.1": [
     "<strong>Notes de version de Noureon 17.14.1</strong>",
     "Cette version corrige trois problèmes d'affichage signalés après le mode sombre de la 17.14.0 et renomme le réglage en « Apparence ».",

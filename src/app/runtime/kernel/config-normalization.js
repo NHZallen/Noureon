@@ -106,6 +106,8 @@ export function normalizeLoadedLegacyConfig({
   delete normalizedConfig.customWallpaper;
   delete normalizedConfig.wallpaperBrightness;
   delete normalizedConfig.aiBubbleColor;
+  // The colour of a message bubble is no longer a setting: it follows the accent.
+  delete normalizedConfig.userBubbleColor;
   normalizedConfig.uiTheme = {
     mode: normalizedConfig.uiTheme?.mode === 'custom' ? 'custom' : 'default',
     customColor: normalizedConfig.uiTheme?.customColor || '#3b82f6'

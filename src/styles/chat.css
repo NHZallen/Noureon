@@ -44,8 +44,8 @@
 }
     @keyframes pulse-glow {
         from {
-            box-shadow: 0 0 0 0px color-mix(in srgb, var(--brand-blue) 40%, transparent);
-            border-color: color-mix(in srgb, var(--brand-blue) 80%, transparent);
+            box-shadow: 0 0 0 0px color-mix(in srgb, var(--button-primary-bg) 40%, transparent);
+            border-color: color-mix(in srgb, var(--button-primary-bg) 80%, transparent);
         }
         to   {
             box-shadow: 0 0 0 4px transparent;
@@ -722,8 +722,8 @@
     }
     .color-swatch, .icon-option { transition: transform 0.2s; border: 2px solid transparent; }
     .color-swatch:hover, .icon-option:hover { transform: scale(1.1); }
-    .color-swatch.selected { border-color: var(--brand-blue); }
-    .icon-option.selected { background-color: var(--active-bg); border-color: var(--brand-blue); }
+    .color-swatch.selected { border-color: var(--button-primary-bg); }
+    .icon-option.selected { background-color: var(--active-bg); border-color: var(--button-primary-bg); }
     #sidebar.open {
         transform: translateX(0);
     }

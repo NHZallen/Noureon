@@ -1,6 +1,16 @@
 // The update notes in Spanish (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "17.15.0": [
+    "<strong>Notas de la versión de Noureon 17.15.0</strong>",
+    "Esta versión cambia el nombre de «Color del botón principal» a «Color de acento» en los ajustes, sustituye sus opciones por diez colores nuevos y hace que el fondo de la burbuja de los mensajes del usuario siga al acento.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Color de acento:</strong> «Color del botón principal» en Ajustes → Personalización → Apariencia pasa a llamarse «Color de acento», con Azul (predeterminado), Cian, Verde, Lima, Amarillo, Naranja, Rosa, Magenta, Morado, Negro y un código de color personalizado. Toda la interfaz tiene este único acento: el botón de envío, los interruptores, los marcos seleccionados y el fondo de las burbujas lo siguen.</li><li><strong>Burbuja de mensaje:</strong> se elimina el ajuste «Color de burbuja de mensaje de usuario»; el fondo de la burbuja es un tono pálido del acento, con una intensidad adecuada para el tema claro y el oscuro.</li><li><strong>Tema oscuro:</strong> un acento difícil de ver en el tema oscuro se aclara automáticamente; el negro se muestra como gris claro en el tema oscuro, como el botón principal en blanco y negro.</li></ul>",
+    "<strong>Notas</strong>",
+    "<ul><li>El color elegido antes para el fondo de la burbuja ya no se aplica; un acento elegido antes entre verde, amarillo, rosa, naranja o morado se muestra como «Personalizado» con el mismo código de color.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "Esta actualización no requiere migración de datos; el campo userBubbleColor de los ajustes se descarta al leerlos."
+  ],
   "17.14.1": [
     "<strong>Notas de la versión de Noureon 17.14.1</strong>",
     "Esta versión corrige tres problemas de visualización notificados tras el modo oscuro de la 17.14.0 y cambia el nombre del ajuste a «Apariencia».",
