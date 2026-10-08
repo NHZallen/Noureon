@@ -229,14 +229,14 @@ test('without a cloud account the store says CLI tools need one, and the page ca
   assert.equal(t.document.querySelector('.cs'), null);
 });
 
-test('the page has its own address: /store/<part> while open, / after, the back button closes it, and the address opens it', async () => {
+test('the page has its own address: /skill or /cli while open, / after, the back button closes it, and the address opens it', async () => {
   const config = { cliEnabledIds: [], cliModelUseIds: [], cliVersions: {} };
   const t = setup({ config });
   const path = () => t.window.location.pathname;
   const open = (kind) => openCliStore({ kind, document: t.document, getConfig: () => config, getLanguage: () => 'en' });
   // opened from the menu: the address is added to the history, closing goes back
   open('cli');
-  assert.equal(path(), '/store/cli');
+  assert.equal(path(), '/cli');
   t.document.querySelector('.cs-back').click();
   assert.equal(t.document.querySelector('.cs'), null);
   await flush();
@@ -244,36 +244,27 @@ test('the page has its own address: /store/<part> while open, / after, the back 
 
   // with no part said, the first (skills) opens
   open();
-  assert.equal(path(), '/store/skills');
+  assert.equal(path(), '/skill');
   // turning to the other part changes the address in place: one step back still closes the page
   t.document.querySelector('.cs-nav-item[data-kind="cli"]').click();
-  assert.equal(path(), '/store/cli');
+  assert.equal(path(), '/cli');
+  t.document.querySelector('.cs-nav-item[data-kind="skills"]').click();
+  assert.equal(path(), '/skill');
   t.window.history.back();
   await flush();
   assert.equal(t.document.querySelector('.cs'), null);
   assert.equal(path(), '/');
 
-  // opened by the address itself: nothing to go back to, closing puts / in its place
-  t.window.history.replaceState({}, '', '/store/cli');
+  // opened by the address itself: nothing to go back to, closing puts / in its place, and the address says which part
+  t.window.history.replaceState({}, '', '/cli');
   open('skills');
-  assert.equal(t.document.querySelector('.cs-nav-item[aria-selected="true"]').dataset.kind, 'cli', 'the address says which part');
-  assert.equal(path(), '/store/cli');
+  assert.equal(t.document.querySelector('.cs-nav-item[aria-selected="true"]').dataset.kind, 'cli');
+  assert.equal(path(), '/cli');
   closeCliStore();
   assert.equal(path(), '/');
-
-  // /store alone is the first part, and the old address /cli is put right
-  t.window.history.replaceState({}, '', '/store');
-  open();
-  assert.equal(path(), '/store/skills');
-  closeCliStore();
-  t.window.history.replaceState({}, '', '/cli');
-  open();
-  assert.equal(path(), '/store/cli');
-  assert.equal(t.document.querySelector('.cs-nav-item[aria-selected="true"]').dataset.kind, 'cli');
-  closeCliStore();
 });
 
-for (const [address, expected] of [['/store', 'skills'], ['/store/skills', 'skills'], ['/store/cli', 'cli'], ['/cli', 'cli']]) {
+for (const [address, expected] of [['/skill', 'skills'], ['/skill/', 'skills'], ['/cli', 'cli']]) {
   test(`a page loaded at ${address} opens the page on ${expected}`, async () => {
     const window = new Window({ url: `https://example.test${address}` });
     const { document } = window;
@@ -283,7 +274,7 @@ for (const [address, expected] of [['/store', 'skills'], ['/store/skills', 'skil
     await new Promise((resolve) => setTimeout(resolve, 80));
     assert.ok(document.querySelector('.cs'), 'the page is there');
     assert.equal(document.querySelector('.cs-nav-item[aria-selected="true"]').dataset.kind, expected);
-    assert.equal(window.location.pathname, `/store/${expected}`);
+    assert.equal(window.location.pathname, expected === 'cli' ? '/cli' : '/skill', 'a closing slash is put right');
     closeCliStore();
     assert.equal(window.location.pathname, '/');
   });

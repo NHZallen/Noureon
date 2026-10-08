@@ -266,7 +266,7 @@ export function createCliMode({ document, messageInput, isLocked = () => false, 
     }
   };
 
-  // The addresses noureon.com/store, /store/skills and /store/cli (and the old /cli) open the page (a refresh, a bookmark, a shared link).
+  // The addresses noureon.com/skill and noureon.com/cli open the page (a refresh, a bookmark, a shared link).
   if (storeKindFromPath(win.location?.pathname)) void openStore();
 
   // What a person's answer to a question about a site leaves in the settings (a rule for "always" and for a refusal, the site in the list for "once").

@@ -113,15 +113,7 @@
       "destination": "/index.html"
     },
     {
-      "source": "/store",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/store/skills",
-      "destination": "/index.html"
-    },
-    {
-      "source": "/store/cli",
+      "source": "/skill",
       "destination": "/index.html"
     },
     {

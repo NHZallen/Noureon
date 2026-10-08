@@ -269,7 +269,7 @@
 - **手機（640px 以下）**：子層清單隱藏，改成標題列右邊的一個小開關（黑白，選中的實心黑；兩顆按鈕等寬，以較寬的「命令工具」為準）。小於 360px 時標題前的圖示隱藏，把位置讓給標題與開關。
 - 標題永遠是「擴充」，不隨子層改變；搜尋欄在上方；每一層各有自己的「全部／我的」、自己的搜尋字（切換時各記各的，頁面關閉後重來）。
 - 技能層目前是空頁（「技能即將推出」加一句說明；「我的」分頁是「還沒有加入任何技能」）；命令工具專屬的帳號提示與「第三方軟體與授權」連結只在命令工具層出現。
-- 網址：`/store/skills`、`/store/cli`（開啟時加進瀏覽器歷史；切換子層用 `replaceState` 原地改，不增加歷史，所以上一頁仍是關閉頁面）。`/store` 等於 `/store/skills`；舊的 `/cli` 仍會開啟頁面並被改成 `/store/cli`。`vercel.json` 新增三條 rewrite（`/cli` 那條保留）。位址的判讀在 `src/app/ui/cli/store-path.js`（不載入頁面本身也能讀）。
+- 網址（owner 2026-10-09 決定簡化）：技能是 `/skill`，命令工具是 `/cli`（本來就有的網址，所以不需要任何轉址；沒有 `/store`，也不另外接受 `/skills`）。開啟時加進瀏覽器歷史；切換子層用 `replaceState` 原地改，不增加歷史，所以上一頁仍是關閉頁面；結尾多一個斜線會被改正。`vercel.json` 新增 `/skill` 一條 rewrite（`/cli` 本來就有）。位址的判讀在 `src/app/ui/cli/store-path.js`（不載入頁面本身也能讀）。
 - 入口：左側欄「擴充」開技能層；`@` 清單裡「前往命令工具商城」、設定「權限」裡的連結開命令工具層（`openStore(kind)`）。
 - 程式：`src/app/ui/cli/cli-store.js`（`openCliStore({ kind })`，`state.views` 每層一份 tab／query；`current.setKind`）、`cli-store.css`（`.cs-split`、`.cs-nav`、`.cs-switch`）、`cli-texts.js`（新增 `kindSkills`、`kindCli`、`switchLabel`、`skills*` 五種語言；`entry`、`storeTitle` 改成「擴充」）。
 - 沒有改版本號、沒有寫更新日誌（owner 沒要求）。

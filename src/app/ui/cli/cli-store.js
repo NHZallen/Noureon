@@ -362,9 +362,9 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
   win.addEventListener('keydown', onKey, true);
   win.addEventListener('click', onClick, true);
   back.addEventListener('click', close);
-  // The address: opening adds /store/<part> to the history (the browser's back button closes the page); when the page was opened by the address
+  // The address: opening adds /skill or /cli to the history (the browser's back button closes the page); when the page was opened by the address
   // itself there is nothing to go back to, so closing puts / in its place. Turning to the other part changes the address in place (no new
-  // history entry), and the old address /cli, or /store alone, is put right.
+  // history entry).
   let pushed = false;
   const history = win.history;
   const atStore = () => storeKindFromPath(win.location?.pathname) !== null;
