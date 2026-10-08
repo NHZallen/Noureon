@@ -1,6 +1,14 @@
 // The update notes in Spanish (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "17.16.0": [
+    "<strong>Notas de la versión de Noureon 17.16.0</strong>",
+    "Esta versión añade un modelo de juicio: al enviar un mensaje, el pequeño modelo Decisions de OpenRouter juzga si necesita una búsqueda web, un archivo, un gráfico o una herramienta de comandos, en lugar de adivinar solo por palabras clave.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Cuatro preguntas a la vez:</strong> con una clave de OpenRouter, cada mensaje hace una sola llamada que plantea cuatro preguntas al modelo de juicio (¿necesita datos actuales, un archivo, un gráfico, una herramienta de comandos?); una probabilidad del 60 % o más cuenta como sí.</li><li><strong>Herramientas de comandos, con cuidado:</strong> solo se decide sobre las herramientas que dejas que el modelo use por sí solo (si se le ofrecen en este turno); las que eliges con @ se dan siempre.</li><li><strong>Si falla, el método de antes:</strong> sin clave de OpenRouter, con una llamada fallida o más lenta de 1 segundo, deciden las listas de palabras clave como antes y no se muestra nada; tras dos fallos seguidos espera 10 minutos antes de volver a intentarlo. Las conversaciones de imágenes no envían nada.</li><li><strong>Privacidad:</strong> el texto del mensaje (con breves extractos de los dos mensajes anteriores, si hay un archivo adjunto y los nombres de las herramientas de comandos que dejas que el modelo use por sí solo) se envía a OpenRouter y Noureon no guarda nada; Ajustes → Privacidad y PRIVACY.md lo explican.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "Esta actualización no requiere migración de datos."
+  ],
   "17.15.4": [
     "<strong>Notas de la versión de Noureon 17.15.4</strong>",
     "Esta versión elimina el desvanecido de la lista de la barra lateral bajo la fila de búsqueda y hace que el desvanecido sobre la fila de la cuenta ya no deje una línea de corte.",

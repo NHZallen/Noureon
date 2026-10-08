@@ -9,6 +9,7 @@ import { resolveReplyMode } from '../../runtime/sandbox/file-mode.js';
 import { browserSupportsSandbox } from '../../runtime/sandbox/sandbox-protocol.js';
 import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
 import { cliIdsForReply } from '../../runtime/cli/cli-state.js';
+import { decisionsFor, verdictOf } from '../../runtime/decisions/decision-store.js';
 import { createCredentialAnswerHandler } from '../../runtime/cli/credential-answer.js';
 import { createNetAnswerHandler } from '../../runtime/cli/net-answer.js';
 import { mayNeedFileGuidance } from '../../ui/files/file-intent.js';
@@ -25,8 +26,10 @@ const loadSandboxReply = () => Promise.all([
 
 // A switch to Standard mode is worth saying only when the request looks like
 // a task Advanced mode is for: files, data or attachments.
+// The Decisions model's judgement of the message decides when there is one (decision-client.js), the word lists otherwise.
+const textOfParts = (parts = []) => parts.map((part) => part?.text || '').join('\n');
 const looksLikeFileTask = (parts = []) => parts.some((part) => part?.inlineData)
-  || mayNeedFileGuidance(parts.map((part) => part?.text || '').join('\n'));
+  || (verdictOf(decisionsFor(textOfParts(parts)), 'file') ?? mayNeedFileGuidance(textOfParts(parts)));
 
 // Files in the conversation (attached by the person, or made by Python): a follow-up may well be about them.
 const conversationHasFiles = (conversation) => (conversation?.messages || []).some((message) => (
@@ -138,7 +141,9 @@ export function createSingleModelResponseLifecycle({
     // Whether the server makes this reply, and so (for a model that cannot search) the search too: the page then only prepares the files and
     // pages of the message. When the server does not take the reply, the search is made here, below.
     const canCallTools = Boolean(supportsToolCalling?.(modelInfo));
-    const cli = canCallTools ? cliIdsForReply(getConfig(), userParts) : { chosen: [], ids: [] };
+    // The tools the model may use by itself are only given when the message is judged to need one; the ones chosen with "@" always are.
+    const ownToolsAllowed = verdictOf(decisionsFor(textOfParts(userParts)), 'tool') !== false;
+    const cli = canCallTools ? cliIdsForReply(getConfig(), userParts, { ownAllowed: ownToolsAllowed }) : { chosen: [], ids: [] };
     // Advanced mode is the default, so most replies are "advanced" by the setting alone. Python is only needed when the request is
     // about files or data, or the conversation already has some; any other reply is the same without it, and the server makes it.
     // The CLI tools chosen with "@" (and those the person lets the model use by itself) run in the same sandbox, so they need it whatever the

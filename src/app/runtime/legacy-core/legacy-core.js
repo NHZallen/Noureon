@@ -899,6 +899,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
 
         import { createLegacySidebarChatAstraRenderLifecycle } from '/src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js';
         import { createLegacySubmitInputCouncilLifecycle } from '/src/app/runtime/legacy-core/submit-input-council-lifecycle.js';
+        import { createRequestDecisions } from '/src/app/runtime/decisions/decision-request.js';
         import { createLegacySettingsAuthProviderLifecycle } from '/src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js';
 
         let renderFolders;
@@ -970,6 +971,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             getModelTiers,
             getModelsByIds,
             getApiKeyForProvider,
+            requestDecisions: createRequestDecisions({ getApiKeyForProvider, getConfig: () => runtimeConfigAccess.getConfig(), logger: console }),
             getOutputMode,
             getProviderLabel,
             getSingleDocumentTranslatorModel,

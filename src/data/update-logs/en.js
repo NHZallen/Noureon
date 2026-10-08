@@ -1,6 +1,14 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "17.16.0": [
+    "<strong>Noureon 17.16.0 Release Notes</strong>",
+    "This version adds a judgement model: when you send a message, OpenRouter's small Decisions model judges whether it needs a web search, a file, a chart or a command tool, instead of guessing from keywords alone.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Four questions at once:</strong> with an OpenRouter key, each message makes one call that asks the judgement model four things (does it need current facts, a file, a chart, a command tool); a probability of 60% or more counts as yes.</li><li><strong>Command tools, carefully:</strong> only the tools you let the model use by itself are decided on (offered this turn or not); tools you choose with @ are always given.</li><li><strong>If it fails, the old way:</strong> with no OpenRouter key, a failed call or one slower than 1 second, the keyword lists decide exactly as before and nothing is shown; after two failures in a row it waits 10 minutes before trying again. Image conversations send nothing.</li><li><strong>Privacy:</strong> the message text (with short excerpts of the last two messages, whether a file is attached, and the names of the command tools you let the model use by itself) is sent to OpenRouter and Noureon keeps none of it; Settings → Privacy and PRIVACY.md say so.</li></ul>",
+    "<strong>Compatibility</strong>",
+    "This update requires no data migration."
+  ],
   "17.15.4": [
     "<strong>Noureon 17.15.4 Release Notes</strong>",
     "This version removes the fade of the side bar list under the search row and makes the fade above the account row leave no cut line.",

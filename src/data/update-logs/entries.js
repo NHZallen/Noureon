@@ -2,6 +2,18 @@
 // content 為 zh-TW 的 HTML 字串（JSON 轉義、雙引號），目前不隨介面語言切換。
 export const updateLogEntries = [
   {
+    version: "17.16.0",
+    date: "2026-10-08",
+    content: [
+      "<strong>Noureon 17.16.0 發布說明</strong>",
+      "本版本加入「判斷模型」：送出訊息時，用 OpenRouter 的 Decisions 小模型判斷這則訊息要不要上網搜尋、要不要做成檔案、要不要畫圖表、要不要給模型命令工具，取代原本只看關鍵字的猜法。",
+      "<strong>主要變更</strong>",
+      "<ul><li><strong>一次問四件事：</strong>有 OpenRouter 金鑰時，每次送出會用一次呼叫問判斷模型四個問題（需要最新資訊嗎、要做成檔案嗎、要圖表嗎、要用命令工具嗎），機率達 60% 以上才算「是」。</li><li><strong>命令工具保守處理：</strong>只決定「允許模型自己使用」的工具這一輪要不要交給模型；用 @ 選的工具一律照給。</li><li><strong>失敗就退回：</strong>沒有 OpenRouter 金鑰、呼叫失敗或超過 1 秒時，完全照原本的關鍵字判斷，不會出現錯誤；連續失敗兩次後暫停 10 分鐘再試。圖片對話不會送出判斷。</li><li><strong>隱私：</strong>訊息文字（加上前兩則訊息的簡短節錄、是否有附檔，以及允許模型自己使用的命令工具名稱）會送到 OpenRouter，Noureon 不保存；「設定 → 隱私」與 PRIVACY.md 已說明。</li></ul>",
+      "<strong>相容性</strong>",
+      "本次更新不需要資料遷移。"
+    ]
+  },
+  {
     version: "17.15.4",
     date: "2026-10-08",
     content: [

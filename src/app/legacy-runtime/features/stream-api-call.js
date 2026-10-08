@@ -17,6 +17,7 @@ export function mergeAdjacentModelMessages(history) {
   }, []);
 }
 import { shouldInjectFileGuidance } from '../../ui/files/file-intent.js';
+import { decisionsFor, verdictOf } from '../../runtime/decisions/decision-store.js';
 
 const LANGUAGE_INSTRUCTIONS = {
   'zh-TW': '請用繁體中文回覆，除非使用者有特別要求。',
@@ -98,9 +99,12 @@ const mayNeedChartGuidance = (text) => (
 );
 
 const getRuntimeChartAuthoringGuidance = async (inputText) => {
-  if (!mayNeedChartGuidance(String(inputText || ''))) return '';
-  const { getChartAuthoringGuidance } = await import('../../ui/charts/chart-selection-policy.js');
-  return getChartAuthoringGuidance(inputText);
+  // The Decisions model's judgement of the message, when there is one (decision-client.js); otherwise the word lists above decide.
+  const decided = verdictOf(decisionsFor(inputText), 'chart');
+  if (decided === false) return '';
+  if (decided === null && !mayNeedChartGuidance(String(inputText || ''))) return '';
+  const { getChartAuthoringGuidance, getCompactChartGuidance } = await import('../../ui/charts/chart-selection-policy.js');
+  return getChartAuthoringGuidance(inputText) || (decided ? getCompactChartGuidance() : '');
 };
 
 // Council members and background tasks never hand files to the user directly;
@@ -113,7 +117,7 @@ const FILE_OUTPUT_PURPOSES = new Set([
 
 const getRuntimeFileAuthoringGuidance = async ({ inputText, history, requestPurpose, deckDesign, documentDesign }) => {
   if (!FILE_OUTPUT_PURPOSES.has(requestPurpose)) return '';
-  if (!shouldInjectFileGuidance({ currentText: inputText, history })) return '';
+  if (!shouldInjectFileGuidance({ currentText: inputText, history, decided: verdictOf(decisionsFor(inputText), 'file') })) return '';
   const { getFileAuthoringGuidance } = await import('../../ui/files/file-authoring-guidance.js');
   // The designs chosen in the composer before the file is written.
   return getFileAuthoringGuidance({ deckDesign, documentDesign });

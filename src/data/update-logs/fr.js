@@ -1,6 +1,14 @@
 // The update notes in French (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "17.16.0": [
+    "<strong>Notes de version de Noureon 17.16.0</strong>",
+    "Cette version ajoute un modèle de jugement : à l’envoi d’un message, le petit modèle Decisions d’OpenRouter juge s’il faut une recherche web, un fichier, un graphique ou un outil de commande, au lieu de deviner à partir des seuls mots-clés.",
+    "<strong>Principales modifications</strong>",
+    "<ul><li><strong>Quatre questions à la fois :</strong> avec une clé OpenRouter, chaque message fait un seul appel qui pose quatre questions au modèle de jugement (faut-il des informations récentes, un fichier, un graphique, un outil de commande) ; une probabilité de 60 % ou plus vaut oui.</li><li><strong>Outils de commande, prudemment :</strong> seuls les outils que vous laissez le modèle utiliser seul sont concernés (proposés ou non à ce tour) ; les outils choisis avec @ sont toujours donnés.</li><li><strong>En cas d’échec, l’ancienne méthode :</strong> sans clé OpenRouter, avec un appel échoué ou plus lent qu’une seconde, les listes de mots-clés décident comme avant et rien n’est affiché ; après deux échecs de suite, l’application attend 10 minutes avant de réessayer. Les conversations d’images n’envoient rien.</li><li><strong>Confidentialité :</strong> le texte du message (avec de courts extraits des deux messages précédents, l’indication d’un fichier joint et les noms des outils de commande que vous laissez le modèle utiliser seul) est envoyé à OpenRouter et Noureon n’en conserve rien ; Paramètres → Confidentialité et PRIVACY.md le disent.</li></ul>",
+    "<strong>Compatibilité</strong>",
+    "Cette mise à jour ne nécessite aucune migration de données."
+  ],
   "17.15.4": [
     "<strong>Notes de version de Noureon 17.15.4</strong>",
     "Cette version supprime le fondu de la liste de la barre latérale sous la ligne de recherche et fait que le fondu au-dessus de la ligne du compte ne laisse plus de ligne de coupe.",

@@ -99,6 +99,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     getModelTiers = () => [],
     getModelsByIds = () => [],
     getApiKeyForProvider = () => '',
+    requestDecisions,
     getOutputMode = () => 'typewriter',
     getProviderLabel = (provider) => provider || '',
     getSingleDocumentTranslatorModel = () => null,
@@ -774,6 +775,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     generateTitleAndSummary: (...args) => legacyRuntimeContext.resolveBinding('submit.generateTitleAndSummary')(...args),
     saveAppData,
     getAutoWebSearchEnabled: () => getLiveConfig().enableAutoWebSearch,
+    requestDecisions,
     canAutoEnableWebSearch: (conversation) => {
       const modelInfo = normalizeConversationModel(conversation);
       if (isCouncilEnabled(conversation)) {
@@ -837,7 +839,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     await completePreparedReply(preparedSubmit);
   };
 
-  // After the preparation: the reply is made (or followed), shown and kept.
+  // After the preparation: the reply is made, shown and kept.
   const completePreparedReply = async (preparedSubmit, { resumeRun = null } = {}) => {
     const {
       abortController: submitAbortController,
@@ -1061,7 +1063,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     }
   };
 
-  // A reply the server is still making is shown being written when the page opens (reattach.js).
+  // A reply the server is still making is shown when the page opens (reattach.js).
   const { reattachServerReply } = createServerReplyReattach({
     getActiveConversation,
     getAbortController,

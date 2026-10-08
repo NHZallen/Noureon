@@ -31,6 +31,14 @@ test('the tools chosen with "@" are read from the chips of a message, and a repl
   assert.deepEqual(cliIdsForReply({ cliEnabledIds: [] }, parts, { all: true }).chosen, ['officecli'], 'but it can be told that one was chosen');
 });
 
+test('a tool the model may use by itself is left out when it is judged not needed, and a tool chosen with "@" is always given', () => {
+  const parts = [{ text: 'make a deck', displaySegments: [{ type: 'mode', indicatorId: cliIndicatorId('officecli'), label: 'OfficeCLI' }, { type: 'text', text: 'make a deck' }] }];
+  const config = { cliEnabledIds: ['officecli', 'ffmpeg'], cliModelUseIds: ['ffmpeg'] };
+  assert.deepEqual(cliIdsForReply(config, parts, { ownAllowed: false }), { chosen: ['officecli'], ids: ['officecli'] });
+  assert.deepEqual(cliIdsForReply(config, [{ text: 'hi' }], { ownAllowed: false }), { chosen: [], ids: [] });
+  assert.deepEqual(cliIdsForReply(config, [{ text: 'hi' }], { ownAllowed: true }), { chosen: [], ids: ['ffmpeg'] });
+});
+
 test('chips that are not in the box (a phone) are put into the message before its words, and not twice', () => {
   const picked = [{ id: 'officecli', indicatorId: cliIndicatorId('officecli'), label: 'OfficeCLI' }];
   const plain = withCliSegments({ text: 'make a deck' }, picked);

@@ -57,6 +57,10 @@
       "path": "src/app/legacy-runtime/features/web-research-tools.js"
     },
     {
+      "path": "src/app/runtime/decisions/decision-store.js",
+      "note": "Reviewed 2026-10-08: no browser globals (a module variable and the clock); the judgements of a message are only asked for in the page, the server only reads them through stream-api-call.js."
+    },
+    {
       "path": "src/app/runtime/features/auto-web-search.js"
     },
     {
@@ -316,10 +320,6 @@
       "path": "src/app/ui/sandbox/sandbox-run-block.js"
     },
     {
-      "path": "src/data/color-scheme-choices.js",
-      "note": "Reviewed 2026-10-08: plain data, no browser globals (the choices of the colour theme and how a saved one is read)."
-    },
-    {
       "path": "src/data/cli-catalog.js",
       "note": "Reviewed 2026-10-04: plain data and checks, no browser globals."
     },
@@ -330,6 +330,10 @@
     {
       "path": "src/data/cli-settings-merge.js",
       "note": "Reviewed 2026-10-05: pure functions over plain objects (the merge of the CLI tools' lists between devices); reached through the config normalization."
+    },
+    {
+      "path": "src/data/color-scheme-choices.js",
+      "note": "Reviewed 2026-10-08: plain data, no browser globals (the choices of the colour theme and how a saved one is read)."
     },
     {
       "path": "src/data/settings-merge.js",

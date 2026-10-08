@@ -136,3 +136,8 @@
 ## 5. 深色模式（2026-10-08 開始）
 
 owner 要深色模式回來（當初拿掉是因為太醜、顏色與字色沒統一）。已決定：淺色／深色／跟隨系統三選一、預設淺色、深色風格選 A 深灰（參考 ChatGPT）。**規則：樣式只准用 `src/styles/tokens.css` 的顏色名字，不得自己寫色碼。** 做法、已完成與待做清單見 [`specs/2026-10-08-dark-mode-design.md`](../specs/2026-10-08-dark-mode-design.md)。已隨 17.14.0 合併進 `main`（owner 2026-10-08 說「推」）。第 2～7 步（基礎＋主畫面＋設定、彈窗與圖表、樣式檔與腳本的寫死色碼清到 0 並由 `tests/color-literals.test.js`、`tests/js-color-literals.test.js` 守住、有資料才看得到的畫面、手機浮層、深色的瀏覽器列／啟動畫面／iOS 啟動圖）完成；owner 實機使用後的回報照設計文件 §6 處理。新增顏色一律用 `tokens.css` 的名字。
+
+## 6. 判斷模型（2026-10-08，17.16.0）
+
+送出訊息時用 OpenRouter Decisions API 判斷：上網搜尋、檔案指引、圖表指引、命令工具（保守：只決定「允許模型自己使用」的工具本輪給不給）。
+設計與檔案清單在 `docs/superpowers/specs/2026-10-08-decisions-design.md`。**真實端點與 CORS 沒在沙盒測過**，要 owner 用真實 OpenRouter 金鑰測；失敗會靜默退回關鍵字清單。

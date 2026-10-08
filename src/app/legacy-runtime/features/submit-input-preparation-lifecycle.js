@@ -2,6 +2,7 @@ import { shouldAutoEnableWebSearch } from '../../runtime/features/auto-web-searc
 import { extractLinkedUrls } from './linked-pages.js';
 import { clearCliSelection, getCliSelection } from '../../runtime/cli/cli-bridge.js';
 import { cliIdsOfParts, withCliSegments } from '../../runtime/cli/cli-state.js';
+import { rememberDecisions, verdictOf } from '../../runtime/decisions/decision-store.js';
 
 export function createSubmitInputPreparationLifecycle({
   elements,
@@ -23,6 +24,8 @@ export function createSubmitInputPreparationLifecycle({
   generateTitleAndSummary,
   saveAppData,
   getAutoWebSearchEnabled,
+  // The Decisions model's judgements of a message ({ search, file, chart, tool }: probabilities), or null: see runtime/decisions/decision-client.js and decision-store.js.
+  requestDecisions = async () => null,
   canAutoEnableWebSearch = () => true,
   // A model that searches by itself, when it judges that it needs to, is given the search with every message.
   canModelDecideWebSearch = () => false,
@@ -115,6 +118,8 @@ export function createSubmitInputPreparationLifecycle({
     }
 
     const responseUsesCouncil = isCouncilEnabled(conversation);
+    // The judgements are asked for while the message is put on the screen, and waited for where they are first needed (the search below).
+    const decisionsPromise = Promise.resolve(isImageConversation(conversation) ? null : requestDecisions({ conversation, userMessage, uploadedFiles, signal: abortController.signal })).catch(() => null);
     beginFirstSubmit();
     const userMessageObject = { role: 'user', parts: userParts, createdAt: new Date().toISOString() };
     const userMessageDiv = addMessageToUI(userMessageObject, conversation.messages.length, true);
@@ -157,27 +162,6 @@ export function createSubmitInputPreparationLifecycle({
       }
     }
 
-    // A message with a web address turns the search on whatever the settings say (where search can work at all): it is about
-    // something on the web. Without one, only the automatic search does, and only for what needs current facts.
-    // Except when the address is for a CLI tool the person chose with "@" and the model calls tools: the address is the tool's (a post to
-    // download), reading it first is a wait for nothing, and the model has the search and the page reading at hand if the work needs them.
-    const hasAddress = extractLinkedUrls(userMessage).urls.length > 0;
-    const addressIsForTool = hasAddress && cliIdsOfParts(userParts).length > 0 && canModelDecideWebSearch(conversation);
-    const autoWebSearchEnabled = !conversation.isWebSearchEnabled
-      && canAutoEnableWebSearch(conversation)
-      && ((hasAddress && !addressIsForTool)
-        || (getAutoWebSearchEnabled() && shouldAutoEnableWebSearch(userMessage)));
-    if (autoWebSearchEnabled) {
-      showNotification(getAutoSearchNotice(), 'warning');
-    }
-    // Smart search on, and a model that calls tools: it has the search at hand and decides for itself whether the question
-    // needs it, so there is nothing to announce (the step list shows each search it makes). The words that need current
-    // facts are only what turns the search on for the other models.
-    const searchOfferedToModel = !conversation.isWebSearchEnabled
-      && !autoWebSearchEnabled
-      && (getAutoWebSearchEnabled() || addressIsForTool)
-      && canModelDecideWebSearch(conversation);
-
     const loadingParts = isImageConversation(conversation)
       ? [{
           imageGenerationLoading: true,
@@ -198,6 +182,31 @@ export function createSubmitInputPreparationLifecycle({
     requestFrame(() => {
       loadingMessageDiv.scrollIntoView({ behavior: 'smooth', block: 'end' });
     });
+    // A message with a web address turns the search on whatever the settings say (where search can work at all): it is about
+    // something on the web. Without one, only the automatic search does, and only for what needs current facts.
+    // Except when the address is for a CLI tool the person chose with "@" and the model calls tools: the address is the tool's (a post to
+    // download), reading it first is a wait for nothing, and the model has the search and the page reading at hand if the work needs them.
+    // The loading message is already on the screen, so the wait for the judgements (at most their time limit) is not a blank wait.
+    const decisions = await decisionsPromise;
+    rememberDecisions(userMessage, decisions);
+    // What needs current facts is the Decisions model's judgement when there is one, the word lists when there is not.
+    const needsCurrentFacts = verdictOf(decisions, 'search') ?? shouldAutoEnableWebSearch(userMessage);
+    const hasAddress = extractLinkedUrls(userMessage).urls.length > 0;
+    const addressIsForTool = hasAddress && cliIdsOfParts(userParts).length > 0 && canModelDecideWebSearch(conversation);
+    const autoWebSearchEnabled = !conversation.isWebSearchEnabled
+      && canAutoEnableWebSearch(conversation)
+      && ((hasAddress && !addressIsForTool)
+        || (getAutoWebSearchEnabled() && needsCurrentFacts));
+    if (autoWebSearchEnabled) {
+      showNotification(getAutoSearchNotice(), 'warning');
+    }
+    // Smart search on, and a model that calls tools: it has the search at hand and decides for itself whether the question
+    // needs it, so there is nothing to announce (the step list shows each search it makes). The words that need current
+    // facts are only what turns the search on for the other models.
+    const searchOfferedToModel = !conversation.isWebSearchEnabled
+      && !autoWebSearchEnabled
+      && (getAutoWebSearchEnabled() || addressIsForTool)
+      && canModelDecideWebSearch(conversation);
     try {
       if (initialSave) await initialSave;
       if (startedTemporaryConversation) onConversationStarted(conversation);

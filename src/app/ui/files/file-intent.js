@@ -35,6 +35,10 @@ export function conversationHasRecentFile(history = []) {
   return false;
 }
 
-export function shouldInjectFileGuidance({ currentText = '', history = [] } = {}) {
-  return mayNeedFileGuidance(currentText) || conversationHasRecentFile(history);
+/**
+ * `decided` is the judgement of the Decisions model about the message (true, false), or null when there is none: then the word lists decide, as before.
+ * A follow-up on a file just made still gets the guidance either way.
+ */
+export function shouldInjectFileGuidance({ currentText = '', history = [], decided = null } = {}) {
+  return (decided ?? mayNeedFileGuidance(currentText)) || conversationHasRecentFile(history);
 }

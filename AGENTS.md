@@ -17,6 +17,7 @@ Read these before changing anything:
 - Server-side multi-model council (多模型會議搬到伺服器，關掉頁面也會開完會) design, done (17.11.0; the real-account checklist is in §10; the last of image, search packet, council): [`docs/superpowers/specs/2026-10-08-server-council-design.md`](docs/superpowers/specs/2026-10-08-server-council-design.md)
 - Public pages (使用條款、隱私權政策、更新紀錄做成 noureon.com/terms、/privacy、/updates 的獨立靜態頁) design, done (17.13.0; the open choices of the owner are in §4.3 and the handoff): [`docs/superpowers/specs/2026-10-08-public-pages-design.md`](docs/superpowers/specs/2026-10-08-public-pages-design.md)
 - Dark mode (the colour names of `src/styles/tokens.css`, light/dark/system, the dark grey theme; what is done and what is left): [`docs/superpowers/specs/2026-10-08-dark-mode-design.md`](docs/superpowers/specs/2026-10-08-dark-mode-design.md)
+- Decisions judgement model (判斷模型: OpenRouter Decisions API decides web search, file guidance, chart guidance, command tools; falls back to the word lists; 17.16.0; the live endpoint and CORS were never tested from the sandbox, see §4): [`docs/superpowers/specs/2026-10-08-decisions-design.md`](docs/superpowers/specs/2026-10-08-decisions-design.md)
 - Releases and deployment: [`RELEASING.md`](RELEASING.md), tests: [`TESTING.md`](TESTING.md)
 
 Rules that always apply:
