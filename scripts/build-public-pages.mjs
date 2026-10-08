@@ -17,11 +17,11 @@ export const SITE = 'https://noureon.com';
 export const LANGUAGES = Object.freeze(['zh-TW', 'en', 'fr', 'ru', 'es']);
 const LANGUAGE_NAMES = Object.freeze({ 'zh-TW': '繁體中文', en: 'English', fr: 'Français', ru: 'Русский', es: 'Español' });
 const WORDS = Object.freeze({
-  'zh-TW': { goToApp: '前往 Noureon', index: '索引', currentVersion: '目前版本' },
-  en: { goToApp: 'Go to Noureon', index: 'Index', currentVersion: 'Current version' },
-  fr: { goToApp: 'Aller sur Noureon', index: 'Sommaire', currentVersion: 'Version actuelle' },
-  ru: { goToApp: 'Перейти в Noureon', index: 'Содержание', currentVersion: 'Текущая версия' },
-  es: { goToApp: 'Ir a Noureon', index: 'Índice', currentVersion: 'Versión actual' }
+  'zh-TW': { goToApp: '前往 Noureon', index: '索引', currentVersion: '目前版本', toTop: '移至最上方' },
+  en: { goToApp: 'Go to Noureon', index: 'Index', currentVersion: 'Current version', toTop: 'Back to top' },
+  fr: { goToApp: 'Aller sur Noureon', index: 'Sommaire', currentVersion: 'Version actuelle', toTop: 'Haut de page' },
+  ru: { goToApp: 'Перейти в Noureon', index: 'Содержание', currentVersion: 'Текущая версия', toTop: 'Наверх' },
+  es: { goToApp: 'Ir a Noureon', index: 'Índice', currentVersion: 'Versión actual', toTop: 'Ir arriba' }
 });
 const UPDATES_TITLE = Object.freeze({
   'zh-TW': '更新紀錄',
@@ -129,7 +129,12 @@ const renderUpdatesBody = () => {
   const months = groupByMonth(updateLogEntries);
   const { side, folded } = renderIndex(months);
   const list = months.map((month) => `<section class="pg-month" id="m${month.key}"><h2>${month.key}</h2>${month.logs.map(renderVersion).join('')}</section>`).join('');
-  return `${folded}<div class="pg-split"><div class="pg-logs">${list}</div>${side}</div>`;
+  // On a narrow window the folded index stays at the top of the notes; once it has scrolled away, a bar at the top of the window takes its place: the month
+  // that is being read at the left, the button of the index at the right, and the index opens under it (pages.js builds the list of the sheet from the folded one).
+  const bar = `<div class="pg-stick"><span class="pg-cur" id="pg-cur">${months[0].key}</span>`
+    + `<button type="button" class="pg-ix-btn" aria-expanded="false" aria-controls="pg-sheet">${perLanguage((lang, attrs) => `<span${attrs}>${escapeHtml(WORDS[lang].index)}</span>`)}</button></div>`
+    + '<div class="pg-sheet" id="pg-sheet" hidden></div>';
+  return `${folded}${bar}<div class="pg-split"><div class="pg-logs">${list}</div>${side}</div>`;
 };
 
 /** The HTML of one page. Every language is in the page (the first is shown, the others hidden) so that a reader without script and a search engine still get the words. */
@@ -166,6 +171,7 @@ export function renderPublicPage(name) {
 ${header}
 <main class="pg-main">${hero}${page.kind === 'updates' ? renderUpdatesBody() : renderTextBody(page)}</main>
 ${footer}
+<button type="button" class="pg-up" hidden>${perLanguage((lang, attrs) => `<span class="pg-sr"${attrs}>${escapeHtml(WORDS[lang].toTop)}</span>`)}<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="m6 14.5 6-6 6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
 <script src="/pages.js" defer></script>
 </body>
 </html>

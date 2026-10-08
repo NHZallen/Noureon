@@ -123,7 +123,7 @@ test('the script of the pages chooses the remembered language, then the browser 
       documentElement: { lang: 'zh-TW' },
       title: '',
       querySelectorAll: (selector) => (selector === '[data-lang]' ? nodes : []),
-      querySelector: (selector) => (selector.startsWith('.pg-go') ? top : meta),
+      querySelector: (selector) => (selector.startsWith('.pg-go') ? top : selector.startsWith('meta') ? meta : null),
       getElementById: () => select
     };
     const window = {
@@ -184,4 +184,90 @@ test('the index at the side lights the version that is being read and opens its 
   assert.deepEqual(folds.map((fold) => fold.open), [false, true], 'only the month in view is open');
   callback([{ target: { id: 'v17.9.2' }, isIntersecting: false }]);
   assert.deepEqual(lit(), ['m2026-09', 'v17.9.2'], 'with none in the band, what was lit stays');
+});
+
+test('the button to the top shows once the page is scrolled, and goes to the top', async () => {
+  const source = await readFile(new URL('../public/pages.js', import.meta.url), 'utf8');
+  const handlers = {};
+  const up = { hidden: true, handlers: {}, addEventListener(type, fn) { this.handlers[type] = fn; } };
+  const scrolls = [];
+  const window = {
+    pageYOffset: 0,
+    localStorage: { getItem: () => null },
+    requestAnimationFrame: (fn) => fn(),
+    addEventListener: (type, fn) => { handlers[type] = fn; },
+    scrollTo: (options) => scrolls.push(options)
+  };
+  const document = {
+    documentElement: {},
+    querySelectorAll: () => [],
+    querySelector: (selector) => (selector === '.pg-up' ? up : null),
+    getElementById: () => null,
+    addEventListener() {}
+  };
+  vm.runInNewContext(source, { window, document, navigator: { languages: ['en'] } });
+  assert.equal(up.hidden, true, 'at the top of the page there is nothing to go back to');
+  window.pageYOffset = 900;
+  handlers.scroll();
+  assert.equal(up.hidden, false, 'a page that has been scrolled shows it');
+  up.handlers.click();
+  assert.equal(JSON.stringify(scrolls), '[{"top":0}]');
+  window.pageYOffset = 10;
+  handlers.scroll();
+  assert.equal(up.hidden, true);
+});
+
+test('on a narrow window the bar of the index takes the place of the folded index once it has scrolled away, and its button opens the sheet', async () => {
+  const source = await readFile(new URL('../public/pages.js', import.meta.url), 'utf8');
+  const listeners = { window: {}, document: {}, sheet: {}, button: {} };
+  let bottom = 120;
+  const folded = { getBoundingClientRect: () => ({ bottom }), querySelectorAll: () => [{ cloneNode: () => ({ cloned: true }) }, { cloneNode: () => ({ cloned: true }) }] };
+  const stick = { className: 'pg-stick' };
+  const sheet = { hidden: true, children: [], appendChild(node) { this.children.push(node); }, addEventListener: (type, fn) => { listeners.sheet[type] = fn; } };
+  const attributes = {};
+  const button = { setAttribute: (name, value) => { attributes[name] = value; }, addEventListener: (type, fn) => { listeners.button[type] = fn; } };
+  const window = { pageYOffset: 0, localStorage: { getItem: () => null }, requestAnimationFrame: (fn) => fn(), addEventListener: (type, fn) => { listeners.window[type] = fn; }, scrollTo() {} };
+  const document = {
+    documentElement: {},
+    querySelectorAll: () => [],
+    querySelector: (selector) => ({ '.pg-stick': stick, '.pg-index': folded, '.pg-ix-btn': button })[selector] || null,
+    getElementById: (id) => (id === 'pg-sheet' ? sheet : null),
+    addEventListener: (type, fn) => { listeners.document[type] = fn; }
+  };
+  vm.runInNewContext(source, { window, document, navigator: { languages: ['en'] } });
+  assert.equal(sheet.children.length, 2, 'the sheet gets a copy of the folded index');
+  assert.equal(stick.className, 'pg-stick', 'while the folded index is in sight the bar stays away');
+  bottom = -5;
+  listeners.window.scroll();
+  assert.equal(stick.className, 'pg-stick is-on', 'once it has scrolled away the bar comes');
+  listeners.button.click();
+  assert.equal(sheet.hidden, false);
+  assert.equal(attributes['aria-expanded'], 'true');
+  listeners.button.click();
+  assert.equal(sheet.hidden, true);
+  listeners.button.click();
+  listeners.document.keydown({ key: 'Escape' });
+  assert.equal(sheet.hidden, true, 'Escape closes it');
+  listeners.button.click();
+  listeners.document.click({ target: { closest: (selector) => (selector === '#pg-sheet' ? null : null) } });
+  assert.equal(sheet.hidden, true, 'a tap elsewhere closes it');
+  listeners.button.click();
+  listeners.sheet.click({ target: { closest: (selector) => (selector === 'a' ? {} : null) } });
+  assert.equal(sheet.hidden, true, 'a link of the sheet closes it (the page goes to the version)');
+  listeners.button.click();
+  bottom = 50;
+  listeners.window.scroll();
+  assert.equal(stick.className, 'pg-stick', 'back at the top the bar goes and the sheet closes');
+  assert.equal(sheet.hidden, true);
+});
+
+test('the page has the bar of the index, its sheet and the button to the top, in every language', () => {
+  const html = renderPublicPage('updates');
+  assert.match(html, /<div class="pg-stick"><span class="pg-cur" id="pg-cur">2026-10<\/span><button type="button" class="pg-ix-btn" aria-expanded="false" aria-controls="pg-sheet">/);
+  assert.match(html, /<div class="pg-sheet" id="pg-sheet" hidden><\/div>/);
+  for (const name of Object.keys(PUBLIC_PAGES)) {
+    const page = renderPublicPage(name);
+    assert.match(page, /<button type="button" class="pg-up" hidden>/, `${name} has the button to the top`);
+    for (const label of ['移至最上方', 'Back to top', 'Haut de page', 'Наверх', 'Ir arriba']) assert.ok(page.includes(`>${label}</span>`), `${name}: ${label}`);
+  }
 });

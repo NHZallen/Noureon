@@ -97,6 +97,21 @@ h1 { margin: 0; font-size: clamp(2rem, 5.2vw, 3.5rem); line-height: 1.12; font-w
   .pg-split { grid-template-columns: minmax(0, 1fr); gap: 0; }
   .pg-toc { display: none; }
   .pg-index { display: block; }
+  /* the month is told by the bar at the top of the window, not by a heading that sticks */
+  .pg-month h2 { position: static; }
+  .pg-month, .pg-ver { scroll-margin-top: 3.8rem; }
+  .pg-stick { position: fixed; top: 0; left: 0; right: 0; z-index: 30; display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: env(safe-area-inset-top, 0) 1rem 0; min-height: 3.2rem; background: var(--bg); border-bottom: 1px solid var(--line); transform: translateY(-110%); visibility: hidden; transition: transform 0.22s ease, visibility 0s linear 0.22s; }
+  .pg-stick.is-on { transform: none; visibility: visible; transition: transform 0.22s ease; }
+  .pg-cur { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8rem; letter-spacing: 0.1em; color: var(--muted); }
+  .pg-ix-btn { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.4rem 0.85rem; border: 1px solid var(--line); border-radius: 999px; background: var(--bg); color: var(--text); font: inherit; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
+  .pg-ix-btn::after { content: ""; width: 0.45rem; height: 0.45rem; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: translateY(-2px) rotate(45deg); transition: transform 0.15s ease; }
+  .pg-ix-btn[aria-expanded="true"]::after { transform: translateY(1px) rotate(-135deg); }
+  .pg-sheet { position: fixed; z-index: 29; top: calc(3.2rem + env(safe-area-inset-top, 0px)); left: 0.75rem; right: 0.75rem; max-height: calc(100vh - 6.5rem); overflow-y: auto; background: var(--bg); border: 1px solid var(--line); border-radius: 0.75rem; box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18); overscroll-behavior: contain; }
+  .pg-sheet .pg-ix { padding: 0.7rem 1rem; border-top: 1px solid var(--line); }
+  .pg-sheet .pg-ix:first-child { border-top: 0; }
+  .pg-sheet .pg-ix-m { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8rem; letter-spacing: 0.1em; color: var(--muted); text-decoration: none; }
+  .pg-sheet .pg-ix p { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.45rem 0 0; }
+  .pg-sheet .pg-ix p a { padding: 0.2rem 0.6rem; border: 1px solid var(--line); border-radius: 999px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.82rem; text-decoration: none; }
 }
 @media (max-width: 40rem) {
   h1 { font-size: clamp(1.75rem, 8.4vw, 2.4rem); }
@@ -112,3 +127,8 @@ h1 { margin: 0; font-size: clamp(2rem, 5.2vw, 3.5rem); line-height: 1.12; font-w
 }
 @media (max-width: 26rem) { .pg-globe { display: none; } }
 @media (max-width: 23rem) { .pg-name { display: none; } }
+/* the button at the corner that goes back to the top (shown once the page has been scrolled) */
+.pg-up { position: fixed; right: max(1rem, env(safe-area-inset-right, 0px)); bottom: max(1rem, env(safe-area-inset-bottom, 0px)); z-index: 25; display: grid; place-items: center; width: 2.9rem; height: 2.9rem; border: 0; border-radius: 50%; background: var(--text); color: var(--bg); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25); cursor: pointer; }
+.pg-up:hover { opacity: 0.85; }
+.pg-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+@media (min-width: 62.01rem) { .pg-stick, .pg-sheet { display: none; } }

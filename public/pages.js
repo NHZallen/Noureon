@@ -64,6 +64,8 @@
       for (var key in byId) if (Object.prototype.hasOwnProperty.call(byId, key)) byId[key].className = '';
       link.className = 'is-active';
       if (month && byId[month]) byId[month].className = 'is-active';
+      var label = document.getElementById('pg-cur');
+      if (label && month) label.textContent = month.slice(1);
       var folds = document.querySelectorAll('.pg-toc details');
       for (var f = 0; f < folds.length; f += 1) folds[f].open = false;
       var fold = link.closest ? link.closest('details') : null;
@@ -78,5 +80,59 @@
       if (current) light(current);
     }, { rootMargin: '0px 0px -85% 0px' });
     for (var m = 0; m < versions.length; m += 1) { var article = document.getElementById(versions[m]); if (article) observer.observe(article); }
+  }
+
+  // The way back to the top: the button at the corner shows when the page has been scrolled; on a narrow window the bar of the index shows once the folded
+  // index has scrolled out of sight, and its button opens the index as a sheet under the bar.
+  var up = document.querySelector('.pg-up');
+  var stick = document.querySelector('.pg-stick');
+  var folded = document.querySelector('.pg-index');
+  var sheet = document.getElementById('pg-sheet');
+  var indexButton = document.querySelector('.pg-ix-btn');
+  var monthLabel = document.getElementById('pg-cur');
+  var firstMonth = monthLabel ? monthLabel.textContent : '';
+  var closeSheet = function () {
+    if (!sheet || sheet.hidden) return;
+    sheet.hidden = true;
+    if (indexButton) indexButton.setAttribute('aria-expanded', 'false');
+  };
+  var update = function () {
+    var y = window.pageYOffset || (document.documentElement && document.documentElement.scrollTop) || 0;
+    if (up) up.hidden = y < 480;
+    if (stick) {
+      var away = folded ? folded.getBoundingClientRect().bottom < 0 : y > 480;
+      stick.className = away ? 'pg-stick is-on' : 'pg-stick';
+      if (!away) {
+        closeSheet();
+        if (monthLabel && firstMonth) monthLabel.textContent = firstMonth;
+      }
+    }
+  };
+  if (up) up.addEventListener('click', function () { window.scrollTo({ top: 0 }); });
+  if (sheet && folded) {
+    var blocks = folded.querySelectorAll('.pg-ix');
+    for (var b = 0; b < blocks.length; b += 1) sheet.appendChild(blocks[b].cloneNode(true));
+    sheet.addEventListener('click', function (event) { if (event.target && event.target.closest && event.target.closest('a')) closeSheet(); });
+  }
+  if (indexButton && sheet) {
+    indexButton.addEventListener('click', function () {
+      sheet.hidden = !sheet.hidden;
+      indexButton.setAttribute('aria-expanded', sheet.hidden ? 'false' : 'true');
+    });
+    document.addEventListener('click', function (event) {
+      if (sheet.hidden || !event.target || !event.target.closest) return;
+      if (!event.target.closest('#pg-sheet') && !event.target.closest('.pg-ix-btn')) closeSheet();
+    });
+    document.addEventListener('keydown', function (event) { if (event.key === 'Escape') closeSheet(); });
+  }
+  if (up || stick) {
+    var waiting = false;
+    window.addEventListener('scroll', function () {
+      if (waiting) return;
+      waiting = true;
+      var frame = window.requestAnimationFrame || function (fn) { return setTimeout(fn, 16); };
+      frame(function () { waiting = false; update(); });
+    }, { passive: true });
+    update();
   }
 }());
