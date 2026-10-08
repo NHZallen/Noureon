@@ -180,7 +180,10 @@ export function renderPickerTrigger(state, ctx) {
 export function renderDepthTrigger(state, ctx) {
   const { t, escape } = ctx;
   const label = state.depth.levels[state.depth.index].label;
-  return `<button type="button" id="model-depth-btn" class="mp-trigger mp-depth-trigger" aria-haspopup="dialog" aria-expanded="${state.depthOpen ? 'true' : 'false'}" title="${escape(t('thinkingDepthOf', { level: label }))}" aria-label="${escape(t('thinkingDepthOf', { level: label }))}" ${state.disabled ? 'disabled' : ''}><span class="mp-depth-trigger-value">${escape(label)}</span>${ICONS.chevron}</button>`;
+  // Every level name is laid in the same place, unseen (a pseudo element made from this list, see model-picker.css), so the button is as wide as
+  // the longest name and does not change width (and move the panel above it) as the level changes.
+  const sizer = state.depth.levels.map((level) => escape(level.label)).join('\n');
+  return `<button type="button" id="model-depth-btn" class="mp-trigger mp-depth-trigger" aria-haspopup="dialog" aria-expanded="${state.depthOpen ? 'true' : 'false'}" title="${escape(t('thinkingDepthOf', { level: label }))}" aria-label="${escape(t('thinkingDepthOf', { level: label }))}" ${state.disabled ? 'disabled' : ''}><span class="mp-depth-trigger-label" data-sizer="${sizer}"><span class="mp-depth-trigger-value">${escape(label)}</span></span>${ICONS.chevron}</button>`;
 }
 
 /** The small panel behind it: the level named, the slider, and what each end means. */
