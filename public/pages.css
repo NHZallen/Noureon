@@ -1,38 +1,85 @@
-/* The public pages (terms, privacy, updates): one plain column, black and white, light or dark with the system. */
-:root { --bg: #ffffff; --text: #111111; --muted: #6b6b6b; --line: #e4e4e4; }
-@media (prefers-color-scheme: dark) { :root { --bg: #0b0b0b; --text: #f2f2f2; --muted: #9a9a9a; --line: #262626; } }
+/* The public pages (terms, privacy, updates). The layout follows the legal and release-note pages of Anthropic (a wordmark and the language at the
+   top, a large centred title, a thin rule, a reading column of 640px with a serif text, release notes grouped by month with an "On this page" list at
+   the side), in black and white, light or dark with the system. */
+:root { --bg: #ffffff; --text: #111111; --muted: #6b6b6b; --line: #e2e2e2; --soft: #f5f5f5; --serif: ui-serif, Georgia, "Iowan Old Style", "Times New Roman", serif; --sans: system-ui, -apple-system, "Segoe UI", "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif; }
+@media (prefers-color-scheme: dark) { :root { --bg: #0b0b0b; --text: #f2f2f2; --muted: #9a9a9a; --line: #272727; --soft: #161616; } }
 * { box-sizing: border-box; }
-html { color-scheme: light dark; }
-body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.7 system-ui, -apple-system, "Segoe UI", "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif; -webkit-text-size-adjust: 100%; }
-a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+html { color-scheme: light dark; scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 var(--sans); -webkit-text-size-adjust: 100%; -webkit-font-smoothing: antialiased; }
+a { color: inherit; }
 [hidden] { display: none !important; }
-.pg-bar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; max-width: 46rem; margin: 0 auto; padding: 1.25rem 1rem 0; }
-.pg-top { min-width: 0; }
-.pg-home { font-size: 0.9rem; text-decoration: none; border-bottom: 1px solid var(--text); padding-bottom: 1px; }
-#pg-lang { font: inherit; font-size: 0.85rem; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 0.5rem; padding: 0.3rem 0.5rem; }
-.pg-main { max-width: 46rem; margin: 0 auto; padding: 2.5rem 1rem 3rem; }
-h1 { margin: 0 0 1.5rem; font-size: 1.9rem; line-height: 1.25; font-weight: 650; letter-spacing: -0.01em; }
-.pg-text { margin: 0; font-size: 1rem; line-height: 1.85; overflow-wrap: anywhere; }
-.pg-foot { max-width: 46rem; margin: 0 auto; padding: 1.5rem 1rem 3rem; border-top: 1px solid var(--line); font-size: 0.85rem; color: var(--muted); }
-.pg-foot p { margin: 0; }
-/* update notes: the version and date at the left, the notes at the right (above each other on a phone) */
-.pg-ver { display: grid; grid-template-columns: 7.5rem 1fr; gap: 1.4rem; padding: 1.6rem 0; border-top: 1px solid var(--line); scroll-margin-top: 1rem; }
-.pg-ver:first-child { border-top: 0; padding-top: 0; }
-.pg-side { display: flex; flex-direction: column; align-items: flex-start; gap: 0.15rem; }
-.pg-v, .pg-d { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-.pg-v { font-size: 1.15rem; font-weight: 600; text-decoration: none; }
-.pg-d { font-size: 0.78rem; color: var(--muted); }
-.pg-body { min-width: 0; font-size: 0.92rem; line-height: 1.65; overflow-wrap: anywhere; }
-.pg-body p { margin: 0 0 0.6rem; }
-.pg-body ul { margin: 0; padding-left: 1.1rem; }
-.pg-body li { margin: 0.3rem 0; }
+
+/* top: the wordmark at the left, the language and the way into the application at the right */
+.pg-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.6rem 1rem; max-width: 72rem; margin: 0 auto; padding: 1.25rem 1.5rem; }
+.pg-brand { font-size: 1.2rem; font-weight: 650; letter-spacing: -0.01em; text-decoration: none; }
+.pg-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 0.4rem 0.75rem; }
+.pg-lang { display: inline-flex; align-items: center; gap: 0.35rem; color: var(--muted); }
+.pg-lang:hover, .pg-lang:focus-within { color: var(--text); }
+#pg-lang { appearance: none; -webkit-appearance: none; font: inherit; font-size: 0.9rem; color: inherit; background: transparent; border: 0; padding: 0.3rem 0.2rem; cursor: pointer; }
+#pg-lang option { color: #111111; background: #ffffff; }
+.pg-go { display: inline-block; padding: 0.5rem 1rem; border-radius: 999px; background: var(--text); color: var(--bg); font-size: 0.9rem; font-weight: 500; line-height: 1.2; text-decoration: none; white-space: nowrap; }
+.pg-go:hover { opacity: 0.82; }
+:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; border-radius: 4px; }
+
+/* the title */
+.pg-main { padding: 0 1.5rem; }
+.pg-hero { padding: 4rem 0 2.25rem; text-align: center; }
+h1 { margin: 0; font-size: clamp(2rem, 5.2vw, 3.5rem); line-height: 1.12; font-weight: 650; letter-spacing: -0.02em; overflow-wrap: break-word; hyphens: auto; }
+.pg-meta { margin: 1.1rem 0 0; font-size: 0.95rem; color: var(--muted); }
+.pg-meta b { color: var(--text); font-weight: 600; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+/* the terms and the privacy policy: a thin rule, then a reading column of 640px (serif for the Latin languages) */
+.pg-col { max-width: 40rem; margin: 0 auto; padding: 1.75rem 0 6rem; border-top: 1px solid var(--text); }
+.pg-text p { margin: 0 0 1.05rem; font-family: var(--serif); font-size: 1.0625rem; line-height: 1.6; overflow-wrap: anywhere; }
+.pg-text:lang(zh-TW) p { font-family: var(--sans); font-size: 1rem; line-height: 1.95; }
+
+/* the update notes: months, versions with a link to themselves, and the list of months at the side */
+.pg-split { display: grid; grid-template-columns: minmax(0, 46rem) 12rem; gap: 4rem; max-width: 62rem; margin: 0 auto; padding: 0 0 6rem; border-top: 1px solid var(--text); }
+.pg-logs { min-width: 0; padding-top: 0.5rem; }
+.pg-month { scroll-margin-top: 1rem; }
+.pg-month h2 { position: sticky; top: 0; z-index: 1; margin: 0; padding: 1.1rem 0 0.7rem; background: var(--bg); border-bottom: 1px solid var(--line); font-size: 0.8rem; font-weight: 500; letter-spacing: 0.14em; color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.pg-ver { padding: 1.9rem 0 0.6rem; scroll-margin-top: 3.5rem; }
+.pg-ver + .pg-ver { border-top: 1px solid var(--line); margin-top: 1.3rem; }
+.pg-ver h3 { display: flex; align-items: baseline; gap: 0.9rem; margin: 0 0 0.9rem; }
+.pg-v { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1.5rem; font-weight: 600; letter-spacing: -0.02em; text-decoration: none; }
+.pg-v:hover::after { content: " #"; color: var(--muted); font-weight: 400; }
+.pg-d { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.82rem; color: var(--muted); }
+.pg-body { font-size: 0.95rem; line-height: 1.7; overflow-wrap: anywhere; }
+.pg-body p { margin: 0 0 0.7rem; }
+.pg-body ul { margin: 0 0 0.7rem; padding-left: 1.2rem; }
+.pg-body li { margin: 0.35rem 0; }
 .pg-body strong { font-weight: 600; }
-.pg-body code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.85em; }
-.pg-sec { margin: 1.1rem 0 0.3rem; font-size: 0.72rem; font-weight: 500; letter-spacing: 0.14em; color: var(--muted); }
+.pg-body code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.86em; background: var(--soft); padding: 0.05em 0.35em; border-radius: 0.3rem; }
+.pg-sec { margin: 1.3rem 0 0.35rem; font-size: 0.72rem; font-weight: 500; letter-spacing: 0.14em; color: var(--muted); }
 .pg-body > .pg-sec:first-child { margin-top: 0; }
-.pg-ver:target .pg-v { text-decoration: underline; }
+.pg-ver:target .pg-v { text-decoration: underline; text-underline-offset: 6px; }
+.pg-toc { position: sticky; top: 1.5rem; align-self: start; max-height: calc(100vh - 3rem); overflow-y: auto; padding-top: 1.1rem; font-size: 0.85rem; }
+.pg-toc-title { margin: 0 0 0.7rem; font-size: 0.8rem; font-weight: 600; }
+.pg-toc ol { margin: 0; padding: 0; list-style: none; border-left: 1px solid var(--line); }
+.pg-toc a { display: block; margin-left: -1px; padding: 0.22rem 0 0.22rem 0.9rem; border-left: 1px solid transparent; color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; text-decoration: none; }
+.pg-toc a:hover { color: var(--text); }
+.pg-toc a.is-active { color: var(--text); border-left-color: var(--text); }
+
+/* the foot: the other pages and the way to write to us */
+.pg-footer { max-width: 72rem; margin: 0 auto; padding: 2rem 1.5rem 3rem; border-top: 1px solid var(--line); font-size: 0.88rem; color: var(--muted); }
+.pg-links { display: flex; flex-wrap: wrap; gap: 0.5rem 1.6rem; margin-bottom: 1rem; }
+.pg-links a { text-decoration: none; color: var(--text); }
+.pg-links a:hover { text-decoration: underline; text-underline-offset: 4px; }
+.pg-links a[aria-current="page"] { color: var(--muted); }
+.pg-support { margin: 0; }
+
+@media (max-width: 62rem) {
+  .pg-split { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .pg-toc { display: none; }
+}
 @media (max-width: 40rem) {
-  h1 { font-size: 1.6rem; }
-  .pg-ver { grid-template-columns: 1fr; gap: 0.6rem; }
-  .pg-side { flex-direction: row; align-items: baseline; gap: 0.8rem; }
+  h1 { font-size: clamp(1.75rem, 8.4vw, 2.4rem); }
+  h1:lang(ru), h1:lang(fr), h1:lang(es) { font-size: clamp(1.5rem, 6.4vw, 2.2rem); }
+  .pg-header { padding: 1rem; }
+  .pg-go { padding: 0.45rem 0.85rem; font-size: 0.85rem; }
+  .pg-main { padding: 0 1rem; }
+  .pg-hero { padding: 2.75rem 0 1.75rem; }
+  .pg-footer { padding: 1.75rem 1rem 2.5rem; }
+  .pg-v { font-size: 1.3rem; }
 }
