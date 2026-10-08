@@ -87,3 +87,51 @@ test('a chat with nothing in it does not scroll, and one with messages keeps its
   assert.match(css, /#message-list \{\s*min-height: calc\(100% \+ 6px\);\s*\}/);
   assert.match(css, /#message-list:has\(> \.chat-greeting-message:only-child\) \{\s*min-height: 0;\s*\}/);
 });
+
+// A finger moving on the page: the start, then one move, as a phone sends them.
+const drag = (t, target, { fromY = 300, toY = 200, fromX = 100, toX = 100, fingers = 1 } = {}) => {
+  const send = (type, x, y) => {
+    const event = new t.window.Event(type, { bubbles: true, cancelable: true });
+    Object.defineProperty(event, 'touches', { value: Array.from({ length: fingers }, () => ({ clientX: x, clientY: y })) });
+    target.dispatchEvent(event);
+    return event;
+  };
+  send('touchstart', fromX, fromY);
+  return send('touchmove', toX, toY).defaultPrevented;
+};
+// With the keyboard up the page is taller than what is seen (measured on an iPhone: 685 against 331).
+const keyboardUp = (t) => {
+  Object.defineProperty(t.root, 'scrollHeight', { configurable: true, value: 685 });
+  t.viewport.height = 331;
+};
+
+test('with the keyboard up, a finger on something that does not scroll does not drag the whole page (the composer jumped with it)', () => {
+  const t = page();
+  installViewportLock(t.window, t.document);
+  const text = t.document.getElementById('text');
+  Object.defineProperty(t.root, 'scrollHeight', { configurable: true, value: 800 });
+  assert.equal(drag(t, text), false, 'no keyboard: the page cannot be dragged anyway, nothing is held');
+  keyboardUp(t);
+  assert.equal(drag(t, text), true, 'up');
+  assert.equal(drag(t, text, { fromY: 200, toY: 300 }), true, 'and down');
+  assert.equal(drag(t, text, { fromX: 100, toX: 200, fromY: 300, toY: 290 }), false, 'a sideways move is left alone');
+  assert.equal(drag(t, text, { fingers: 2 }), false, 'two fingers still zoom');
+  t.viewport.scale = 2;
+  assert.equal(drag(t, text), false, 'a zoomed page can still be moved around');
+});
+
+test('with the keyboard up, a box that can still scroll the way the finger goes still scrolls', () => {
+  const t = page();
+  installViewportLock(t.window, t.document);
+  keyboardUp(t);
+  t.document.body.insertAdjacentHTML('beforeend', '<div id="list" style="overflow-y: auto"><p id="row">row</p></div>');
+  const list = t.document.getElementById('list');
+  const row = t.document.getElementById('row');
+  Object.defineProperty(list, 'scrollHeight', { configurable: true, value: 500 });
+  Object.defineProperty(list, 'clientHeight', { configurable: true, value: 200 });
+  list.scrollTop = 0;
+  assert.equal(drag(t, row), false, 'at its top, the finger moving up scrolls the box on');
+  assert.equal(drag(t, row, { fromY: 200, toY: 300 }), true, 'but moving down there is nothing left to scroll: the page would be dragged');
+  list.scrollTop = 150;
+  assert.equal(drag(t, row, { fromY: 200, toY: 300 }), false, 'off its top, both ways scroll the box');
+});

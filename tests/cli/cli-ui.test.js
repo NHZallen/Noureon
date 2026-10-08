@@ -349,6 +349,20 @@ test('the list is no taller than the room seen above the box (the keyboard and t
   assert.equal(menu.style.maxHeight, '96px', 'and not squeezed to nothing');
 });
 
+test('a page the phone has scrolled with the keyboard up still limits the list (offsetTop moves with the scroll, the box measures do not)', () => {
+  const listeners = {};
+  const viewport = { offsetTop: 0, addEventListener: (name, fn) => { listeners[name] = fn; } };
+  const t = setup({ config: { cliEnabledIds: ['officecli', 'ffmpeg'], cliModelUseIds: [], cliVersions: {} }, visualViewport: viewport });
+  const wrapper = t.document.querySelector('.input-wrapper');
+  wrapper.getBoundingClientRect = () => ({ top: 206 });
+  t.type('@');
+  // Measured on an iPhone (Google app): scrollY 250, offsetTop 250, the box 206 from the top of what is seen. The list lost its limit here.
+  Object.defineProperty(t.window, 'scrollY', { configurable: true, value: 250 });
+  viewport.offsetTop = 250;
+  listeners.scroll();
+  assert.equal(t.document.getElementById('cli-mention-menu').style.maxHeight, '190px');
+});
+
 test('moving the choice in the list scrolls the list only, never the page', () => {
   const t = setup({ config: { cliEnabledIds: ['officecli', 'ffmpeg', 'pandoc'], cliModelUseIds: [], cliVersions: {} } });
   let pageScrolls = 0;
