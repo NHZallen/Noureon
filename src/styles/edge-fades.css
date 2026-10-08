@@ -23,6 +23,8 @@
 
 #sidebar > :last-child { border-top-color: transparent; }
 
+/* The first quarter of each strip is solid: text right at the edge is hidden, not shown faint against the search row, which read
+   as a cut line. */
 #sidebar > .scroll-area::before,
 #sidebar > .scroll-area::after {
     content: "";
@@ -42,10 +44,10 @@
     margin-bottom: calc((var(--menu-list-fade) - var(--menu-list-pad)) * -1);
     background: linear-gradient(to bottom,
         var(--sidebar-veil) 0%,
-        color-mix(in srgb, var(--sidebar-veil) 88%, transparent) 20%,
-        color-mix(in srgb, var(--sidebar-veil) 60%, transparent) 45%,
-        color-mix(in srgb, var(--sidebar-veil) 28%, transparent) 70%,
-        color-mix(in srgb, var(--sidebar-veil) 8%, transparent) 90%,
+        var(--sidebar-veil) 25%,
+        color-mix(in srgb, var(--sidebar-veil) 75%, transparent) 45%,
+        color-mix(in srgb, var(--sidebar-veil) 40%, transparent) 65%,
+        color-mix(in srgb, var(--sidebar-veil) 12%, transparent) 85%,
         transparent 100%);
 }
 
@@ -55,10 +57,10 @@
     margin-bottom: calc(var(--menu-list-pad) * -1);
     background: linear-gradient(to top,
         var(--sidebar-veil) 0%,
-        color-mix(in srgb, var(--sidebar-veil) 88%, transparent) 20%,
-        color-mix(in srgb, var(--sidebar-veil) 60%, transparent) 45%,
-        color-mix(in srgb, var(--sidebar-veil) 28%, transparent) 70%,
-        color-mix(in srgb, var(--sidebar-veil) 8%, transparent) 90%,
+        var(--sidebar-veil) 25%,
+        color-mix(in srgb, var(--sidebar-veil) 75%, transparent) 45%,
+        color-mix(in srgb, var(--sidebar-veil) 40%, transparent) 65%,
+        color-mix(in srgb, var(--sidebar-veil) 12%, transparent) 85%,
         transparent 100%);
 }
 

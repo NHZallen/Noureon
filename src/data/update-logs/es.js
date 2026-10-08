@@ -1,6 +1,14 @@
 // The update notes in Spanish (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "17.15.4": [
+    "<strong>Notas de la versión de Noureon 17.15.4</strong>",
+    "Esta versión hace que el desvanecido de la lista de la barra lateral bajo la fila de búsqueda ya no deje una línea de corte.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Desvanecido de la barra lateral:</strong> la parte de cada desvanecido más cercana al borde es ahora totalmente opaca, de modo que el texto pegado a la fila de búsqueda y a la fila de la cuenta queda totalmente cubierto y luego aparece de forma gradual, en lugar de dejar una línea de corte de medias letras pálidas. En reposo, los desvanecidos no cubren texto de la primera ni de la última fila.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "Esta actualización no requiere migración de datos."
+  ],
   "17.15.3": [
     "<strong>Notas de la versión de Noureon 17.15.3</strong>",
     "Esta versión corrige la posición del desvanecido de la barra lateral de la 17.15.2: el desvanecido se quedaba a cierta distancia del borde, así que una parte de la lista bajo la fila de búsqueda seguía sin cubrir.",

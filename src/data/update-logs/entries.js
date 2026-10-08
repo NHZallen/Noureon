@@ -2,6 +2,18 @@
 // content 為 zh-TW 的 HTML 字串（JSON 轉義、雙引號），目前不隨介面語言切換。
 export const updateLogEntries = [
   {
+    version: "17.15.4",
+    date: "2026-10-08",
+    content: [
+      "<strong>Noureon 17.15.4 發布說明</strong>",
+      "本版本讓左側欄清單在搜尋列下方的淡出不再留下切口。",
+      "<strong>主要變更</strong>",
+      "<ul><li><strong>左側欄漸隱：</strong>淡出條最靠近邊緣的一段改為完全不透明，貼著搜尋列與帳號列的文字會被完全蓋住，再往內逐步淡出，不再以淡淡的半截字留下一條切口。靜止時淡出條不會蓋到第一列與最後一列的文字。</li></ul>",
+      "<strong>相容性</strong>",
+      "本次更新不需要資料遷移。"
+    ]
+  },
+  {
     version: "17.15.3",
     date: "2026-10-08",
     content: [
