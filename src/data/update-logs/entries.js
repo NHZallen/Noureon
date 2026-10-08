@@ -2,6 +2,18 @@
 // content 為 zh-TW 的 HTML 字串（JSON 轉義、雙引號），目前不隨介面語言切換。
 export const updateLogEntries = [
   {
+    version: "17.15.1",
+    date: "2026-10-08",
+    content: [
+      "<strong>Noureon 17.15.1 發布說明</strong>",
+      "本版本修正手機上輸入 P2P 分享代碼的欄位顯示、左側欄上下緣的漸隱，並提高深色模式提示文字的對比。",
+      "<strong>主要變更</strong>",
+      "<ul><li><strong>P2P 分享代碼欄位：</strong>接收資料夾與接收 Nouras 輸入 5 碼代碼的欄位在 iPhone 上被系統畫上自己的內陰影與焦點框而看起來破損；改為與其他欄位一致的樣式。</li><li><strong>左側欄漸隱：</strong>清單在搜尋列下方與帳號列上方的漸隱改為較長、逐步變淡的漸層，第一行文字不再被攔腰切開；右側面板同步調整。</li><li><strong>深色提示文字：</strong>深色主題的次要文字與提示文字（輸入欄的提示字、時間等）調亮，在對話框底色上的對比由 2.9 提高到 4.3。</li></ul>",
+      "<strong>相容性</strong>",
+      "本次更新不需要資料遷移。"
+    ]
+  },
+  {
     version: "17.15.0",
     date: "2026-10-08",
     content: [

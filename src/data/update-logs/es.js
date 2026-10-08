@@ -1,6 +1,14 @@
 // The update notes in Spanish (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "17.15.1": [
+    "<strong>Notas de la versión de Noureon 17.15.1</strong>",
+    "Esta versión corrige el aspecto del campo del código de uso compartido P2P en el teléfono, el desvanecido en la parte superior e inferior de la barra lateral, y aumenta el contraste del texto de sugerencia del tema oscuro.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Campo del código P2P:</strong> en un iPhone, el campo donde se escribe el código de 5 caracteres, al recibir carpetas y al recibir Nouras, se dibujaba con la sombra interior y el marco de enfoque del sistema y parecía roto; ahora tiene el mismo estilo que los demás campos.</li><li><strong>Desvanecido de la barra lateral:</strong> el desvanecido de la lista bajo la fila de búsqueda y sobre la fila de la cuenta es un degradado más largo y progresivo, de modo que la primera línea de texto ya no se corta por la mitad; el panel derecho se ajusta igual.</li><li><strong>Texto de sugerencia del tema oscuro:</strong> el texto secundario y el de sugerencia del tema oscuro (la sugerencia del campo de entrada, las horas, etc.) es más claro, y su contraste sobre el color de un diálogo sube de 2,9 a 4,3.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "Esta actualización no requiere migración de datos."
+  ],
   "17.15.0": [
     "<strong>Notas de la versión de Noureon 17.15.0</strong>",
     "Esta versión cambia el nombre de «Color del botón principal» a «Color de acento» en los ajustes, sustituye sus opciones por diez colores nuevos y hace que el fondo de la burbuja de los mensajes del usuario siga al acento.",

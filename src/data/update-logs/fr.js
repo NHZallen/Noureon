@@ -1,6 +1,14 @@
 // The update notes in French (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "17.15.1": [
+    "<strong>Notes de version de Noureon 17.15.1</strong>",
+    "Cette version corrige l'aspect du champ du code de partage P2P sur téléphone, le fondu en haut et en bas de la barre latérale, et augmente le contraste du texte d'indication du thème sombre.",
+    "<strong>Changements principaux</strong>",
+    "<ul><li><strong>Champ du code de partage P2P :</strong> sur iPhone, le champ où l'on saisit le code à 5 caractères, pour recevoir des dossiers et pour recevoir des Nouras, était dessiné avec l'ombre intérieure et le cadre de focus du système et paraissait cassé ; il a maintenant le même style que les autres champs.</li><li><strong>Fondu de la barre latérale :</strong> le fondu de la liste sous la ligne de recherche et au-dessus de la ligne du compte est un dégradé plus long et progressif, de sorte que la première ligne de texte n'est plus coupée en deux ; le panneau de droite est ajusté de la même façon.</li><li><strong>Texte d'indication du thème sombre :</strong> le texte secondaire et le texte d'indication du thème sombre (indication du champ de saisie, heures, etc.) sont plus clairs, ce qui fait passer leur contraste sur la couleur d'une boîte de dialogue de 2,9 à 4,3.</li></ul>",
+    "<strong>Compatibilité</strong>",
+    "Cette mise à jour ne nécessite aucune migration de données."
+  ],
   "17.15.0": [
     "<strong>Notes de version de Noureon 17.15.0</strong>",
     "Cette version renomme « Couleur du bouton principal » en « Couleur d'accent » dans les paramètres, remplace ses choix par dix nouvelles couleurs et fait suivre l'accent au fond de la bulle des messages de l'utilisateur.",

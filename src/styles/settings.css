@@ -245,6 +245,39 @@ button:active:not(:disabled),
     color: var(--text-secondary);
 }
 
+/* The field where the code of a P2P share is typed. Without appearance: none, iOS draws its own inset field over the border (a line at the top, a ring
+   that does not follow the corners), which on the dark theme looked broken. It is styled like the other fields of the app. */
+#p2p-code-input {
+    -webkit-appearance: none;
+    appearance: none;
+    min-width: 0;
+    height: 2.75rem;
+    padding: 0 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.75rem;
+    background: var(--input-field-bg);
+    color: var(--text-primary);
+    font-size: 1rem;
+    letter-spacing: 0.2em;
+    box-shadow: none;
+    outline: none;
+}
+
+#p2p-code-input::placeholder {
+    color: var(--text-tertiary);
+    letter-spacing: normal;
+}
+
+#p2p-code-input:focus {
+    border-color: color-mix(in srgb, var(--text-primary) 45%, transparent);
+}
+
+#p2p-connect-btn {
+    height: 2.75rem;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
 .toggle-checkbox {
     position: absolute !important;
     inset: 0 auto auto 0 !important;

@@ -1,6 +1,14 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "17.15.1": [
+    "<strong>Noureon 17.15.1 Release Notes</strong>",
+    "This version fixes how the field for the P2P share code looks on a phone, the fade at the top and the bottom of the side bar, and raises the contrast of hint text in the dark theme.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>P2P share code field:</strong> on an iPhone the field where the 5-character code is typed, when receiving folders and when receiving Nouras, was drawn with the system's own inner shadow and focus frame and looked broken; it now has the same style as the other fields.</li><li><strong>Side bar fade:</strong> the fade of the list under the search row and above the account row is a longer gradient that eases out, so the first line of text is no longer cut in half; the right panel is adjusted the same way.</li><li><strong>Dark theme hint text:</strong> secondary text and hint text in the dark theme (the hint of the input, times and so on) is brighter, raising its contrast on the colour of a dialog from 2.9 to 4.3.</li></ul>",
+    "<strong>Compatibility</strong>",
+    "This update requires no data migration."
+  ],
   "17.15.0": [
     "<strong>Noureon 17.15.0 Release Notes</strong>",
     "This version renames \"Primary Button Color\" in the settings to \"Accent Color\", replaces its choices with ten new colours, and makes the background of a user message bubble follow the accent.",

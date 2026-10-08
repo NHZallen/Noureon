@@ -107,6 +107,12 @@ owner 的決定：「主按鈕顏色」改名「強調色」，換成新的十�
 - 刪掉的東西：設定畫面那一列與 `userBubbleColorDropdown`、`USER_BUBBLE_COLORS`、`setUserBubbleColor`、`renderUserBubbleColorDropdown`、`applyBubbleColors`、設定欄位 `userBubbleColor`（讀取時 `config-normalization.js` 丟掉；雲端同步與匯出入的清單也拿掉）、`--user-bubble-choice-*`。`settings-theme-bubble-controls.js` 只剩 `setTheme`（清掉舊版的 theme 欄位）與 `updateThemeButtons`。
 - 名稱：`primaryButtonColor` → `accentColor`，新增 `colorBlue`、`colorCyan`、`colorLime`、`colorMagenta`、`colorBlack`，刪 `colorDefault`、`userBubbleColor`（五種語言）。
 
+## 5h. 17.15.1：P2P 代碼欄位、側欄漸隱、深色提示字（2026-10-08）
+
+- **P2P 接收代碼欄位在 iPhone 上破損**（資料夾與 Nouras 的接收是同一個欄位 `#p2p-code-input`）：它是整個 App 唯一沒有自己樣式的欄位（只有 Tailwind 的 `border`），iOS 於是在邊框上畫系統自己的內陰影與不貼合圓角的焦點框。`settings.css` 給它 `appearance: none`、與其他欄位一致的底色／邊框／16px 字／聚焦時的邊框，並讓「連線」鈕同高。
+- **側欄上緣漸隱還是不順**（owner 螢幕錄影）：1rem 的直線漸層讓搜尋列下方第一行文字被攔腰切開、像殘影。左側欄與右側面板的上下緣淡出改成 2.5rem（`--menu-fade`）、分段變淡的漸層。色差問題（5f）在錄影裡已沒有（實測整欄同色）。
+- **深色的次要與提示文字再調亮**：`--text-secondary` `#a8a8a8` → `#b0b0b0`、`--text-tertiary` `#6f6f6f` → `#8c8c8c`（在對話框底 `#2a2a2a` 上對比由 2.9 提高到 4.3）。
+
 ## 6. 還沒做（下一步）
 
 1. （已做，見 §5e）沒有資料就看不到的畫面。
