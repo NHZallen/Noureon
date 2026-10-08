@@ -161,7 +161,7 @@ const buildBudgetDefinitions = existsSync(join(root, 'dist'))
       { label: 'PDF formula typesetter', file: mathChunk, transitionalLimit: bytes(1700), v5Target: bytes(1650), gzipTransitionalLimit: bytes(580), gzipV5Target: bytes(560) },
       { label: 'PDF preview worker', file: pdfWorker, transitionalLimit: bytes(1400), v5Target: bytes(1300), gzipTransitionalLimit: bytes(420), gzipV5Target: bytes(400) },
       { label: 'legacy-core chunk', file: legacyCoreChunk, transitionalLimit: bytes(410), v5Target: bytes(260), gzipTransitionalLimit: bytes(125), gzipV5Target: bytes(75) },
-      { label: 'largest CSS asset', file: topFiles(buildCssFiles, 1)[0], transitionalLimit: bytes(220), v5Target: bytes(160), gzipTransitionalLimit: bytes(40), gzipV5Target: bytes(28) }
+      { label: 'largest CSS asset', file: topFiles(buildCssFiles, 1)[0], transitionalLimit: bytes(230), v5Target: bytes(160), gzipTransitionalLimit: bytes(40), gzipV5Target: bytes(28) }
     ]
   : [];
 

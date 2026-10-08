@@ -7,9 +7,7 @@
  * costs nothing. New markup should use the names (var(--text-primary), var(--modal-bg)...) and not these classes.
  */
 :root[data-theme="dark"] .bg-white { background-color: var(--modal-bg); }
-:root[data-theme="dark"] .bg-white\/80,
-:root[data-theme="dark"] .bg-white\/90,
-:root[data-theme="dark"] .bg-white\/70 { background-color: color-mix(in srgb, var(--modal-bg) 80%, transparent); }
+:root[data-theme="dark"] :is(.bg-white\/80, .bg-white\/90, .bg-white\/70) { background-color: color-mix(in srgb, var(--modal-bg) 80%, transparent); }
 :root[data-theme="dark"] .bg-gray-50 { background-color: var(--input-field-bg); }
 :root[data-theme="dark"] .bg-gray-100 { background-color: var(--hover-bg); }
 :root[data-theme="dark"] .bg-gray-200 { background-color: var(--active-bg); }
@@ -17,36 +15,17 @@
 :root[data-theme="dark"] .bg-slate-700 { background-color: var(--gpt-subtle-hover); }
 :root[data-theme="dark"] .hover\:bg-gray-100:hover { background-color: var(--hover-bg); }
 :root[data-theme="dark"] .hover\:bg-gray-200:hover { background-color: var(--active-bg); }
-
-:root[data-theme="dark"] .text-gray-900,
-:root[data-theme="dark"] .text-gray-800,
-:root[data-theme="dark"] .text-gray-700 { color: var(--text-primary); }
-:root[data-theme="dark"] .text-gray-600,
-:root[data-theme="dark"] .text-gray-500 { color: var(--text-secondary); }
-:root[data-theme="dark"] .text-gray-400,
-:root[data-theme="dark"] .text-gray-300 { color: var(--text-tertiary); }
-:root[data-theme="dark"] .hover\:text-gray-900:hover,
-:root[data-theme="dark"] .hover\:text-gray-800:hover { color: var(--text-primary); }
-
-:root[data-theme="dark"] .border-gray-100,
-:root[data-theme="dark"] .border-gray-200,
-:root[data-theme="dark"] .border-gray-300 { border-color: var(--border-color); }
+:root[data-theme="dark"] :is(.text-gray-900, .text-gray-800, .text-gray-700) { color: var(--text-primary); }
+:root[data-theme="dark"] :is(.text-gray-600, .text-gray-500) { color: var(--text-secondary); }
+:root[data-theme="dark"] :is(.text-gray-400, .text-gray-300) { color: var(--text-tertiary); }
+:root[data-theme="dark"] :is(.hover\:text-gray-900:hover, .hover\:text-gray-800:hover) { color: var(--text-primary); }
+:root[data-theme="dark"] :is(.border-gray-100, .border-gray-200, .border-gray-300) { border-color: var(--border-color); }
 :root[data-theme="dark"] .divide-gray-200 > :not([hidden]) ~ :not([hidden]) { border-color: var(--border-color); }
-
-:root[data-theme="dark"] .bg-blue-50,
-:root[data-theme="dark"] .bg-blue-100 { background-color: color-mix(in srgb, var(--button-primary-bg) 16%, var(--chat-bg)); }
-:root[data-theme="dark"] .text-blue-600,
-:root[data-theme="dark"] .text-blue-700,
-:root[data-theme="dark"] .text-blue-500 { color: var(--link-color); }
+:root[data-theme="dark"] :is(.bg-blue-50, .bg-blue-100) { background-color: color-mix(in srgb, var(--button-primary-bg) 16%, var(--chat-bg)); }
+:root[data-theme="dark"] :is(.text-blue-600, .text-blue-700, .text-blue-500) { color: var(--link-color); }
 :root[data-theme="dark"] .bg-red-50 { background-color: color-mix(in srgb, var(--state-danger) 14%, var(--chat-bg)); }
 :root[data-theme="dark"] .bg-green-50 { background-color: color-mix(in srgb, var(--state-success) 14%, var(--chat-bg)); }
-:root[data-theme="dark"] .text-red-500,
-:root[data-theme="dark"] .text-red-600,
-:root[data-theme="dark"] .text-red-700 { color: var(--state-danger); }
-:root[data-theme="dark"] .text-green-600,
-:root[data-theme="dark"] .text-green-700 { color: var(--state-success); }
-:root[data-theme="dark"] .text-amber-600,
-:root[data-theme="dark"] .text-amber-700 { color: var(--state-warning); }
-:root[data-theme="dark"] .bg-gray-900,
-:root[data-theme="dark"] .bg-gray-800 { background-color: var(--gpt-primary-action-bg); color: var(--gpt-primary-action-text); }
-
+:root[data-theme="dark"] :is(.text-red-500, .text-red-600, .text-red-700) { color: var(--state-danger); }
+:root[data-theme="dark"] :is(.text-green-600, .text-green-700) { color: var(--state-success); }
+:root[data-theme="dark"] :is(.text-amber-600, .text-amber-700) { color: var(--state-warning); }
+:root[data-theme="dark"] :is(.bg-gray-900, .bg-gray-800) { background-color: var(--gpt-primary-action-bg); color: var(--gpt-primary-action-text); }

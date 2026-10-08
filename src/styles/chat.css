@@ -210,7 +210,7 @@
         backdrop-filter: blur(20px);
         -webkit-backdrop-filter: blur(20px);
         background-color: color-mix(in srgb, var(--sidebar-bg) 55%, transparent);
-        border-right: 1px solid var(--border-color);
+        border-right: 1px solid var(--sidebar-edge);
         box-shadow: 4px 0px 15px rgba(0, 0, 0, 0.05);
     }
     .popover {

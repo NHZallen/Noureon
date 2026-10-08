@@ -29,6 +29,8 @@
     --active-bg: #e5e7eb;
     --shadow-color: rgba(0, 0, 0, 0.1);
 
+    --sidebar-edge: rgba(255, 255, 255, 0.6);
+
     /* messages */
     --ai-bubble-bg: transparent;
     --user-bubble-bg: var(--user-bubble-choice-light, #e8f3ff);
@@ -84,6 +86,8 @@
     --hover-bg: rgba(255, 255, 255, 0.07);
     --active-bg: rgba(255, 255, 255, 0.12);
     --shadow-color: rgba(0, 0, 0, 0.5);
+
+    --sidebar-edge: var(--border-color);
 
     --ai-bubble-bg: transparent;
     --user-bubble-bg: var(--user-bubble-choice-dark, #303030);

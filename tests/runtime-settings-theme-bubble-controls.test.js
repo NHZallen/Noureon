@@ -128,7 +128,8 @@ test('setTheme compatibility clears retired theme config, refreshes the bubble c
 
   assert.equal('theme' in config, false);
   assert.deepEqual(styleWrites, [
-    ['--user-bubble-bg', '#dddddd']
+    ['--user-bubble-choice-light', '#dddddd'],
+    ['--user-bubble-choice-dark', '#dddddd']
   ]);
   assert.deepEqual(calls, ['saveConfig']);
 });
@@ -137,7 +138,8 @@ test('the user bubble colour is always written as a solid colour', () => {
   const { controls, styleWrites } = createFixture();
   controls.setUserBubbleColor();
   assert.deepEqual(styleWrites, [
-    ['--user-bubble-bg', '#dddddd']
+    ['--user-bubble-choice-light', '#dddddd'],
+    ['--user-bubble-choice-dark', '#dddddd']
   ]);
 });
 
@@ -154,7 +156,7 @@ test('user bubble color dropdown renders options and writes selected color', () 
   greenOption.dispatch('click');
 
   assert.equal(config.userBubbleColor, 'green');
-  assert.deepEqual(styleWrites.at(-1), ['--user-bubble-bg', '#88ff88']);
+  assert.deepEqual(styleWrites.slice(-2), [['--user-bubble-choice-light', '#88ff88'], ['--user-bubble-choice-dark', '#88ff88']]);
   assert.equal(menu.classList.contains('show'), false);
 });
 
