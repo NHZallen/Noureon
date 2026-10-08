@@ -15,7 +15,7 @@
         align-items: stretch !important;
         justify-content: center !important;
         padding: 0 !important;
-        background: var(--hover-bg) !important;
+        background: var(--surface-muted) !important;
     }
 
     #settings-modal > div {
@@ -27,7 +27,7 @@
         margin: 0 !important;
         border: 0 !important;
         border-radius: 0 !important;
-        background: var(--hover-bg) !important;
+        background: var(--surface-muted) !important;
         overflow: hidden !important;
         box-shadow: none !important;
     }
@@ -74,7 +74,7 @@
         display: flex !important;
         flex-direction: column !important;
         height: 100% !important;
-        background: var(--hover-bg) !important;
+        background: var(--surface-muted) !important;
         overflow: hidden !important;
     }
 
@@ -194,7 +194,7 @@
         overflow-y: auto !important;
         -webkit-overflow-scrolling: touch !important;
         scrollbar-width: none !important;
-        background: var(--hover-bg) !important;
+        background: var(--surface-muted) !important;
     }
 
     #settings-modal #settings-mobile-list::-webkit-scrollbar {

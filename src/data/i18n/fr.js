@@ -172,7 +172,7 @@
         languageNameFr: 'Français',
         languageNameRu: 'Russe',
         languageNameEs: 'Espagnol',
-        colorScheme: 'Mode de couleur',
+        colorScheme: 'Apparence',
         colorSchemeLight: 'Clair',
         colorSchemeDark: 'Sombre',
         colorSchemeSystem: 'Suivre le système',

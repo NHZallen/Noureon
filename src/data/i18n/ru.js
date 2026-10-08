@@ -168,7 +168,7 @@ const ru = {
   "languageNameFr": "Французский",
   "languageNameRu": "Русский",
   "languageNameEs": "Испанский",
-  "colorScheme": "Цветовой режим",
+  "colorScheme": "Оформление",
   "colorSchemeLight": "Светлый",
   "colorSchemeDark": "Тёмный",
   "colorSchemeSystem": "Как в системе",

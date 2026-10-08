@@ -172,7 +172,7 @@
         languageNameFr: '法文',
         languageNameRu: '俄文',
         languageNameEs: '西班牙文',
-        colorScheme: '色彩模式',
+        colorScheme: '外觀',
         colorSchemeLight: '淺色',
         colorSchemeDark: '深色',
         colorSchemeSystem: '跟隨系統',

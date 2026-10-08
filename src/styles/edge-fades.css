@@ -16,7 +16,7 @@
     top: 100%;
     height: var(--edge-fade);
     pointer-events: none;
-    background: linear-gradient(to bottom, var(--chat-bg), transparent);
+    background: linear-gradient(to bottom, var(--sidebar-veil), transparent);
 }
 
 #sidebar > :last-child { position: relative; z-index: 2; border-top-color: transparent; }
@@ -28,7 +28,7 @@
     bottom: 100%;
     height: var(--edge-fade);
     pointer-events: none;
-    background: linear-gradient(to top, var(--chat-bg), transparent);
+    background: linear-gradient(to top, var(--sidebar-veil), transparent);
 }
 
 /* The right panel: under its tabs and at its foot. */

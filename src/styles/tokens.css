@@ -31,6 +31,13 @@
 
     --sidebar-edge: rgba(255, 255, 255, 0.6);
 
+    /* the base of a full page of cards (the settings on a phone): opaque, unlike --hover-bg which is a veil */
+    --surface-muted: #f3f4f6;
+    /* what the pages of a file preview lie on */
+    --page-well: #e5e7eb;
+    /* the left menu is a veil of --sidebar-bg over the page; the strips that fade a list into it must be that same colour */
+    --sidebar-veil: color-mix(in srgb, var(--sidebar-bg) 55%, var(--chat-bg));
+
     /* messages */
     --ai-bubble-bg: transparent;
     --user-bubble-bg: var(--user-bubble-choice-light, #e8f3ff);
@@ -115,6 +122,7 @@
     --paper-text: #111827;
     --paper-text-soft: #4b5563;
     --paper-shadow: 0 1px 3px rgba(15, 23, 42, 0.18), 0 6px 18px rgba(15, 23, 42, 0.08);
+    --paper-ring: transparent;
 
     /* the raised button (the large main button of a dialog) */
     --btn-raised-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.45), 0 4px 8px rgba(0, 0, 0, 0.2);
@@ -159,6 +167,10 @@
     --shadow-color: rgba(0, 0, 0, 0.5);
 
     --sidebar-edge: var(--border-color);
+
+    --surface-muted: #212121;
+    --page-well: #1c1c1c;
+    --paper-ring: rgba(255, 255, 255, 0.14);
 
     --ai-bubble-bg: transparent;
     --user-bubble-bg: var(--user-bubble-choice-dark, #303030);

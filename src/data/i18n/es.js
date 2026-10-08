@@ -168,7 +168,7 @@ const es = {
   "languageNameFr": "Francés",
   "languageNameRu": "Ruso",
   "languageNameEs": "Español",
-  "colorScheme": "Modo de color",
+  "colorScheme": "Apariencia",
   "colorSchemeLight": "Claro",
   "colorSchemeDark": "Oscuro",
   "colorSchemeSystem": "Seguir el sistema",

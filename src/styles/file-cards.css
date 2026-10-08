@@ -435,7 +435,7 @@
 .ac-file-preview-pages {
     padding: 1rem;
     border-radius: 0.6rem;
-    background: var(--active-bg);
+    background: var(--page-well);
 }
 
 .ac-file-preview-pages[hidden] {
@@ -482,12 +482,12 @@
     stroke: none;
     border-radius: 0.3rem;
     background: var(--paper-bg);
-    box-shadow: var(--paper-shadow);
+    box-shadow: 0 0 0 1px var(--paper-ring), var(--paper-shadow);
 }
 
 .ac-slide-caption {
     margin-top: 0.35rem;
-    color: var(--paper-text-soft);
+    color: color-mix(in srgb, var(--text-primary) 70%, transparent);
     font-size: 0.75rem;
     text-align: center;
     font-variant-numeric: tabular-nums;
