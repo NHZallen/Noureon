@@ -1,6 +1,7 @@
 import { buildTimeDistributionChartData } from '../../legacy-runtime/features/time-distribution-chart-data.js';
 import { buildConversationMobileContextMenuMarkup, buildFolderMobileContextMenuMarkup, buildAstraMobileContextMenuMarkup } from '../../legacy-runtime/features/mobile-context-menu-markup.js';
 import { compareVersions } from '../../legacy-runtime/features/version-compare.js';
+import { localizeUpdateLogs } from '../../../data/update-logs/translations.js';
 import { renderLatestUpdates } from '../../ui/updates/update-log-view.js';
 import { createLegacyTrashLifecycle } from '../features/trash-lifecycle.js';
 import { createThemeAppearanceLifecycle } from '../features/theme-appearance-lifecycle.js';
@@ -852,7 +853,9 @@ export function createLegacyCoreTailLifecycle(dependencies = {}) {
         if (modalTitle) {
             modalTitle.textContent = i18n[state.config.uiLanguage].newVersionsFound.replace('{count}', newUpdates.length);
         }
-        renderLatestUpdates({ document, container: contentContainer, logs: newUpdates, sanitize: sanitizeTrustedHTML });
+        // The notes are written in Traditional Chinese; the other languages are loaded as they are asked for (data/update-logs/translations.js).
+        const shown = await localizeUpdateLogs(newUpdates, state.config.uiLanguage);
+        renderLatestUpdates({ document, container: contentContainer, logs: shown, sanitize: sanitizeTrustedHTML });
         toggleModal(ALL_ELEMENTS.latestUpdateModal, true);
         const latestVersionInLog = newUpdates[0].version; // 因為我們已經排序了，所以 newUpdates[0] 現在是最新版
         state.config.lastSeenVersion = latestVersionInLog;

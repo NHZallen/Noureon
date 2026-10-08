@@ -47,22 +47,36 @@
     });
   }
 
-  // The list of months at the side of the update notes follows the page: the month that is in view is the one that is lit.
+  // The index at the side of the update notes follows the page: the version that is at the top of the window is lit, and so is its month, which is the one
+  // that is open (the other months are folded).
   var links = document.querySelectorAll('.pg-toc a');
   if (links.length && 'IntersectionObserver' in window) {
     var byId = {};
-    for (var k = 0; k < links.length; k += 1) byId[links[k].getAttribute('href').slice(1)] = links[k];
-    var light = function (id) {
-      for (var key in byId) if (Object.prototype.hasOwnProperty.call(byId, key)) byId[key].className = key === id ? 'is-active' : '';
+    var versions = [];
+    for (var k = 0; k < links.length; k += 1) {
+      var id = links[k].getAttribute('href').slice(1);
+      byId[id] = links[k];
+      if (id.charAt(0) === 'v') versions.push(id);
+    }
+    var light = function (current) {
+      var link = byId[current];
+      var month = link.getAttribute('data-month');
+      for (var key in byId) if (Object.prototype.hasOwnProperty.call(byId, key)) byId[key].className = '';
+      link.className = 'is-active';
+      if (month && byId[month]) byId[month].className = 'is-active';
+      var folds = document.querySelectorAll('.pg-toc details');
+      for (var f = 0; f < folds.length; f += 1) folds[f].open = false;
+      var fold = link.closest ? link.closest('details') : null;
+      if (fold) fold.open = true;
     };
     var seen = {};
     var observer = new IntersectionObserver(function (entries) {
       for (var e = 0; e < entries.length; e += 1) seen[entries[e].target.id] = entries[e].isIntersecting;
-      // The months are in the page from the newest down; of those that touch the top of the window, the last is the one being read.
+      // The versions are in the page from the newest down; of those that touch the top of the window, the last is the one being read.
       var current = '';
-      for (var id in byId) if (Object.prototype.hasOwnProperty.call(byId, id) && seen[id]) current = id;
+      for (var v = 0; v < versions.length; v += 1) if (seen[versions[v]]) current = versions[v];
       if (current) light(current);
     }, { rootMargin: '0px 0px -85% 0px' });
-    for (var m in byId) if (Object.prototype.hasOwnProperty.call(byId, m)) { var section = document.getElementById(m); if (section) observer.observe(section); }
+    for (var m = 0; m < versions.length; m += 1) { var article = document.getElementById(versions[m]); if (article) observer.observe(article); }
   }
 }());

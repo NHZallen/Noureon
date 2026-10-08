@@ -125,6 +125,10 @@
   - 內容：條款與隱私權政策用 i18n 的 `termsOfUse`、`termsOfUseDesc`、`privacyPolicy`、`privacyPolicyDesc`（依句號拆成一句一段，字沒改）；更新紀錄用 `entries.js`。所以**這四個 i18n 鍵不能刪**，即使設定頁已不用它們。
   - `service-worker.js` 對這三個路徑的導覽直接放行（不攔截、不快取），否則會把它們存成離線用的 App 外殼。
   - App 端：設定「條款與政策」「版本資訊」改成連結（新分頁）；登入頁底部加連結；新版本彈窗的「查看完整更新紀錄」連到 `/updates`；舊的更新紀錄歷史彈窗（`showUpdateHistory`、`renderUpdateHistory`、相關 DOM 與 CSS、i18n 鍵 `updateHistory`、`updateLatestTag`、`noUpdateHistory`）都移除。
+  - **更新紀錄五種語言：**`src/data/update-logs/{en,fr,ru,es}.js`（`{ "版本": [字串陣列] }`），由 `translations.js` 載入（新版本通知視窗依介面語言載入對應檔案；公開頁 `/updates` 一次放五種語言）。`tests/update-logs-translations.test.js` 要求每個有內容的版本在四個檔案裡都有翻譯，字串數量與 HTML 標籤要和原文一致，且不得殘留中文（「繁體中文」這個語言名稱除外）。**之後新增更新紀錄，四個語言都要補**（見 `RELEASING.md`）。
+  - **更新頁索引：**桌面右側（月份可展開成版本，捲動時標示目前版本）；窄螢幕收合在標題下的「索引」。
+  - **頂部列不換行：**頁面頂部列固定一行，切換語言時整頁不位移（法文、俄文原本會換成兩行）；語言選單選完不留外框（iOS 的 `:focus-visible`）。
+  - 登入頁底部改成一行連結（使用條款、隱私權政策、客服信箱、GitHub）加下面一行版權。
   - 版面參考 Anthropic 的法律頁與更新紀錄頁（沙盒只連得到 anthropic.com 與 claude.com，其他公司沒看過，不要憑印象寫成參考）。
   - **待 owner 決定：**法律頁要不要顯示生效日期（我們沒有，不要編造）；條款與隱私權政策要不要加編號章節（等換成完整版內容時一起做）；隱私權政策要不要換成 `PRIVACY.md` 的完整版（對外的法律文字，內容由 owner 確認）。
   - **待 owner 實機確認：**三個網址部署後能打開、手機版面（沒有 iPhone 實機）、設定頁的連結在新分頁開啟。

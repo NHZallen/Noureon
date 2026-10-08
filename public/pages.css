@@ -11,11 +11,11 @@ a { color: inherit; }
 [hidden] { display: none !important; }
 
 /* top: the wordmark at the left, the language and the way into the application at the right */
-.pg-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.6rem 1rem; max-width: 72rem; margin: 0 auto; padding: 1.25rem 1.5rem; }
-.pg-brand { display: inline-flex; align-items: center; gap: 0.5rem; font-size: 1.2rem; font-weight: 650; letter-spacing: -0.01em; text-decoration: none; }
+.pg-header { display: flex; min-height: 4.1rem; align-items: center; justify-content: space-between; gap: 0.75rem; max-width: 72rem; margin: 0 auto; padding: 1.25rem 1.5rem; }
+.pg-brand { display: inline-flex; flex: none; align-items: center; gap: 0.5rem; font-size: 1.2rem; font-weight: 650; letter-spacing: -0.01em; text-decoration: none; }
 /* the mark of the application: its icon, in its own colour */
 .pg-mark { display: block; width: 1.65rem; height: 1.65rem; }
-.pg-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 0.4rem 0.75rem; }
+.pg-tools { display: flex; flex: none; align-items: center; gap: 0.75rem; }
 .pg-lang { display: inline-flex; align-items: center; gap: 0.35rem; color: var(--muted); }
 .pg-lang:hover, .pg-lang:focus-within { color: var(--text); }
 #pg-lang { appearance: none; -webkit-appearance: none; font: inherit; font-size: 0.9rem; color: inherit; background: transparent; border: 0; padding: 0.3rem 0.2rem; cursor: pointer; }
@@ -23,6 +23,9 @@ a { color: inherit; }
 .pg-go { display: inline-block; padding: 0.5rem 1rem; border-radius: 999px; background: var(--text); color: var(--bg); font-size: 0.9rem; font-weight: 500; line-height: 1.2; text-decoration: none; white-space: nowrap; }
 .pg-go:hover { opacity: 0.82; }
 :focus-visible { outline: 2px solid var(--text); outline-offset: 3px; border-radius: 4px; }
+/* the language list is the one of the system, and iOS marks a list as focused after a choice: no frame round it (the colour of the label is the sign) */
+#pg-lang:focus, #pg-lang:focus-visible { outline: none; }
+a, select, label { -webkit-tap-highlight-color: transparent; }
 
 /* the title */
 .pg-main { padding: 0 1.5rem; }
@@ -58,10 +61,29 @@ h1 { margin: 0; font-size: clamp(2rem, 5.2vw, 3.5rem); line-height: 1.12; font-w
 .pg-ver:target .pg-v { text-decoration: underline; text-underline-offset: 6px; }
 .pg-toc { position: sticky; top: 1.5rem; align-self: start; max-height: calc(100vh - 3rem); overflow-y: auto; padding-top: 1.1rem; font-size: 0.85rem; }
 .pg-toc-title { margin: 0 0 0.7rem; font-size: 0.8rem; font-weight: 600; }
-.pg-toc ol { margin: 0; padding: 0; list-style: none; border-left: 1px solid var(--line); }
+.pg-toc ol { margin: 0; padding: 0; list-style: none; }
+.pg-toc > ol { border-left: 1px solid var(--line); }
 .pg-toc a { display: block; margin-left: -1px; padding: 0.22rem 0 0.22rem 0.9rem; border-left: 1px solid transparent; color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; text-decoration: none; }
 .pg-toc a:hover { color: var(--text); }
 .pg-toc a.is-active { color: var(--text); border-left-color: var(--text); }
+.pg-toc summary { list-style: none; cursor: pointer; }
+.pg-toc summary::-webkit-details-marker { display: none; }
+.pg-toc details ol { margin-bottom: 0.4rem; }
+.pg-toc details ol a { padding-left: 1.7rem; font-size: 0.8rem; }
+/* the same index on a narrow window: folded above the notes, the versions of every month as links in a row */
+.pg-index { display: none; max-width: 40rem; margin: 0 auto 1.25rem; border: 1px solid var(--line); border-radius: 0.75rem; }
+.pg-index > summary { display: flex; align-items: center; justify-content: space-between; padding: 0.8rem 1rem; font-weight: 600; cursor: pointer; list-style: none; }
+.pg-index > summary::-webkit-details-marker { display: none; }
+.pg-index > summary::after { content: ""; width: 0.55rem; height: 0.55rem; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg); transition: transform 0.15s ease; margin-right: 0.2rem; }
+.pg-index[open] > summary::after { transform: rotate(-135deg); }
+.pg-index[open] > summary { border-bottom: 1px solid var(--line); }
+.pg-index .pg-ix { padding: 0.7rem 1rem; border-top: 1px solid var(--line); }
+.pg-index .pg-ix:first-of-type { border-top: 0; }
+.pg-index .pg-ix-m { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8rem; letter-spacing: 0.1em; color: var(--muted); text-decoration: none; }
+.pg-index .pg-ix p { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.45rem 0 0; }
+.pg-index .pg-ix p a { padding: 0.2rem 0.6rem; border: 1px solid var(--line); border-radius: 999px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.82rem; text-decoration: none; }
+.pg-index .pg-ix p a:hover { border-color: var(--text); }
+.pg-index[open] { max-height: 70vh; overflow-y: auto; }
 
 /* the foot: the other pages and the way to write to us */
 .pg-footer { max-width: 72rem; margin: 0 auto; padding: 2rem 1.5rem 3rem; border-top: 1px solid var(--line); font-size: 0.88rem; color: var(--muted); }
@@ -74,14 +96,19 @@ h1 { margin: 0; font-size: clamp(2rem, 5.2vw, 3.5rem); line-height: 1.12; font-w
 @media (max-width: 62rem) {
   .pg-split { grid-template-columns: minmax(0, 1fr); gap: 0; }
   .pg-toc { display: none; }
+  .pg-index { display: block; }
 }
 @media (max-width: 40rem) {
   h1 { font-size: clamp(1.75rem, 8.4vw, 2.4rem); }
   h1:lang(ru), h1:lang(fr), h1:lang(es) { font-size: clamp(1.5rem, 6.4vw, 2.2rem); }
   .pg-header { padding: 1rem; }
-  .pg-go { padding: 0.45rem 0.85rem; font-size: 0.85rem; }
+  .pg-go { padding: 0.45rem 0.8rem; font-size: 0.82rem; }
+  .pg-tools { gap: 0.5rem; }
+  #pg-lang { font-size: 0.82rem; }
   .pg-main { padding: 0 1rem; }
   .pg-hero { padding: 2.75rem 0 1.75rem; }
   .pg-footer { padding: 1.75rem 1rem 2.5rem; }
   .pg-v { font-size: 1.3rem; }
 }
+@media (max-width: 26rem) { .pg-globe { display: none; } }
+@media (max-width: 23rem) { .pg-name { display: none; } }

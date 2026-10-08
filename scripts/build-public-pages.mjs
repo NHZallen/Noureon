@@ -9,6 +9,7 @@ import { pathToFileURL } from 'node:url';
 
 import i18n from '../src/data/i18n/index.js';
 import updateLogEntries from '../src/data/update-logs/entries.js';
+import { loadUpdateTranslations } from '../src/data/update-logs/translations.js';
 import { PRODUCT_VERSION } from '../src/data/version.js';
 import { parseLogBlocks } from '../src/app/ui/updates/update-log-view.js';
 
@@ -16,11 +17,11 @@ export const SITE = 'https://noureon.com';
 export const LANGUAGES = Object.freeze(['zh-TW', 'en', 'fr', 'ru', 'es']);
 const LANGUAGE_NAMES = Object.freeze({ 'zh-TW': '繁體中文', en: 'English', fr: 'Français', ru: 'Русский', es: 'Español' });
 const WORDS = Object.freeze({
-  'zh-TW': { goToApp: '前往 Noureon', onThisPage: '本頁內容', currentVersion: '目前版本' },
-  en: { goToApp: 'Go to Noureon', onThisPage: 'On this page', currentVersion: 'Current version' },
-  fr: { goToApp: 'Aller sur Noureon', onThisPage: 'Sur cette page', currentVersion: 'Version actuelle' },
-  ru: { goToApp: 'Перейти в Noureon', onThisPage: 'На этой странице', currentVersion: 'Текущая версия' },
-  es: { goToApp: 'Ir a Noureon', onThisPage: 'En esta página', currentVersion: 'Versión actual' }
+  'zh-TW': { goToApp: '前往 Noureon', index: '索引', currentVersion: '目前版本' },
+  en: { goToApp: 'Go to Noureon', index: 'Index', currentVersion: 'Current version' },
+  fr: { goToApp: 'Aller sur Noureon', index: 'Sommaire', currentVersion: 'Version actuelle' },
+  ru: { goToApp: 'Перейти в Noureon', index: 'Содержание', currentVersion: 'Текущая версия' },
+  es: { goToApp: 'Ir a Noureon', index: 'Índice', currentVersion: 'Versión actual' }
 });
 const UPDATES_TITLE = Object.freeze({
   'zh-TW': '更新紀錄',
@@ -63,18 +64,28 @@ export const sentences = (text) => String(text).split(/(?<=。)|(?<=[.!?])\s+(?=
 // A style written in an old note is dropped: the pages carry their look in pages.css only.
 const withoutInlineStyle = (html) => html.replace(/\sstyle=(?:'[^']*'|"[^"]*")/gi, '');
 
-// One version of the update notes. The notes are trusted HTML kept in the repository (the app shows them the same way).
-const renderVersion = (log) => {
-  let blocks = parseLogBlocks(log.content.map(withoutInlineStyle));
+// The notes of every language: Traditional Chinese is the entry itself, the others are src/data/update-logs/{en,fr,ru,es}.js.
+const translations = await loadUpdateTranslations();
+const contentOf = (log, lang) => (lang === 'zh-TW' ? log.content : translations[lang]?.[log.version] || log.content);
+
+// The notes of one version in one language, as HTML. The notes are trusted HTML kept in the repository (the app shows them the same way).
+const renderNotes = (log, lang) => {
+  let blocks = parseLogBlocks(contentOf(log, lang).map(withoutInlineStyle));
   // A first line that only says which release this is ("Noureon 17.7.0 release notes") repeats the version above it.
   if (blocks[0]?.type === 'heading' && blocks[0].html.includes(log.version)) blocks = blocks.slice(1);
-  const html = blocks.map((block) => {
+  return blocks.map((block) => {
     if (block.type === 'heading') return `<h4 class="pg-sec">${trimColon(block.html)}</h4>`;
     if (block.type === 'paragraph') return `<p>${block.html}</p>`;
     return `<ul>${block.items.map((item) => `<li>${item}</li>`).join('')}</ul>`;
-  });
+  }).join('');
+};
+
+// One version: its number, its date and its link are the same in every language; the notes are written once for each language.
+const renderVersion = (log) => {
   const id = `v${escapeHtml(log.version)}`;
-  return `<article class="pg-ver" id="${id}"><h3><a class="pg-v" href="#${id}">${escapeHtml(log.version)}</a><time class="pg-d">${escapeHtml(log.date)}</time></h3><div class="pg-body">${html.join('')}</div></article>`;
+  return `<article class="pg-ver" id="${id}"><h3><a class="pg-v" href="#${id}">${escapeHtml(log.version)}</a><time class="pg-d">${escapeHtml(log.date)}</time></h3>`
+    + perLanguage((lang, attrs) => `<div class="pg-body"${attrs}>${renderNotes(log, lang)}</div>`)
+    + '</article>';
 };
 
 // The versions grouped by the month of their date, newest first (the notes are in that order already). A date is "2025-10-8" in the oldest notes.
@@ -101,12 +112,24 @@ const description = (page, lang) => {
 
 const renderTextBody = (page) => `<div class="pg-col">${perLanguage((lang, attrs) => `<div class="pg-text"${attrs}>${sentences(page.body(lang)).map((part) => `<p>${escapeHtml(part)}</p>`).join('')}</div>`)}</div>`;
 
+// The index of the update notes: the months, and the versions of each. At the side of the page on a wide window (the month in view is lit and opened by
+// pages.js); above the notes, folded, on a narrow one.
+const renderIndex = (months) => {
+  const side = `<nav class="pg-toc" aria-label="Index">${perLanguage((lang, attrs) => `<p class="pg-toc-title"${attrs}>${escapeHtml(WORDS[lang].index)}</p>`)}<ol>`
+    + months.map((month) => `<li><details><summary><a href="#m${month.key}">${month.key}</a></summary><ol>${month.logs.map((log) => `<li><a href="#v${escapeHtml(log.version)}" data-month="m${month.key}">${escapeHtml(log.version)}</a></li>`).join('')}</ol></details></li>`).join('')
+    + '</ol></nav>';
+  const folded = '<details class="pg-index">'
+    + `<summary>${perLanguage((lang, attrs) => `<span${attrs}>${escapeHtml(WORDS[lang].index)}</span>`)}</summary>`
+    + months.map((month) => `<div class="pg-ix"><a class="pg-ix-m" href="#m${month.key}">${month.key}</a><p>${month.logs.map((log) => `<a href="#v${escapeHtml(log.version)}">${escapeHtml(log.version)}</a>`).join('')}</p></div>`).join('')
+    + '</details>';
+  return { side, folded };
+};
+
 const renderUpdatesBody = () => {
   const months = groupByMonth(updateLogEntries);
-  const toc = months.map((month) => `<li><a href="#m${month.key}">${month.key}</a></li>`).join('');
+  const { side, folded } = renderIndex(months);
   const list = months.map((month) => `<section class="pg-month" id="m${month.key}"><h2>${month.key}</h2>${month.logs.map(renderVersion).join('')}</section>`).join('');
-  return `<div class="pg-split"><div class="pg-logs">${list}</div>`
-    + `<nav class="pg-toc" aria-label="On this page">${perLanguage((lang, attrs) => `<p class="pg-toc-title"${attrs}>${escapeHtml(WORDS[lang].onThisPage)}</p>`)}<ol>${toc}</ol></nav></div>`;
+  return `${folded}<div class="pg-split"><div class="pg-logs">${list}</div>${side}</div>`;
 };
 
 /** The HTML of one page. Every language is in the page (the first is shown, the others hidden) so that a reader without script and a search engine still get the words. */
@@ -115,7 +138,7 @@ export function renderPublicPage(name) {
   if (!page) throw new Error(`Unknown public page: ${name}`);
   const first = LANGUAGES[0];
   const options = LANGUAGES.map((lang) => `<option value="${lang}">${LANGUAGE_NAMES[lang]}</option>`).join('');
-  const header = '<header class="pg-header"><a class="pg-brand" href="/"><img class="pg-mark" src="/icon-192.png" width="26" height="26" alt="">Noureon</a><div class="pg-tools">'
+  const header = '<header class="pg-header"><a class="pg-brand" href="/"><img class="pg-mark" src="/icon-192.png" width="26" height="26" alt=""><span class="pg-name">Noureon</span></a><div class="pg-tools">'
     + `<label class="pg-lang">${GLOBE}<select id="pg-lang" aria-label="Language">${options}</select></label>`
     + perLanguage((lang, attrs) => `<a class="pg-go" href="/"${attrs} data-title="${escapeHtml(page.title(lang))} · Noureon" data-description="${escapeHtml(description(page, lang))}">${escapeHtml(WORDS[lang].goToApp)}</a>`)
     + '</div></header>';

@@ -48,9 +48,6 @@ const composerShell = appShellWithoutLegacyDemo.replace(
   /<textarea id="message-input"[^>]*><\/textarea>/,
   composerRichEditor
 ).replace(
-  '<p class="mt-1"><a href="mailto:support@noureon.com" class="text-blue-600 hover:underline">support@noureon.com</a></p>',
-  '<p class="mt-1"><a href="mailto:support@noureon.com" class="text-blue-600 hover:underline">support@noureon.com</a></p>\n                    <p class="mt-1"><a href="https://github.com/NHZallen/Noureon" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">GitHub</a></p>'
-).replace(
   '<p class="text-sm text-[var(--text-secondary)] mb-2"><a href="mailto:support@noureon.com" class="text-blue-600 hover:underline">support@noureon.com</a></p>',
   '<p class="text-sm text-[var(--text-secondary)] mb-2"><a href="mailto:support@noureon.com" class="text-blue-600 hover:underline">support@noureon.com</a></p>\n                        <p class="text-sm text-[var(--text-secondary)] mb-4"><a href="https://github.com/NHZallen/Noureon" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">GitHub</a></p>'
 ).replace(

@@ -45,7 +45,7 @@
 
 1. 更新 `src/data/version.js` 的 `PRODUCT_VERSION`。
 2. 同步更新 `package.json`、`package-lock.json`。
-3. 在 `src/data/update-logs/entries.js` 最前面加入新版本的使用者變更紀錄。
+3. 在 `src/data/update-logs/entries.js` 最前面加入新版本的使用者變更紀錄，並在 `en.js`、`fr.js`、`ru.js`、`es.js`（同一資料夾）加入同一版本的翻譯（見〈變更紀錄格式〉）。
 4. 執行完整品質門檻：
 
    ```bash
@@ -90,4 +90,4 @@
 - 每項內容描述實際交付的功能、修正及影響範圍，避免「更棒」、「更貼心」等無法驗證的主觀形容。
 - `tests/update-logs-data.test.js` 的 `UPDATE_LOGS_CONTENT_HASH` 釘住資料內容（`JSON.stringify` 後的 sha256）；純格式調整不會改變它，新增或修改條目才需要更新該常數與 `UPDATE_LOG_COUNT`。
 
-`content` 是原始 HTML 字串陣列，目前僅有繁體中文，顯示時不隨介面語言切換。發布紀錄不得包含秘密、內部權杖或真實使用者資料。
+`content` 是原始 HTML 字串陣列，`entries.js` 的是繁體中文（原文）。其他語言在同一資料夾的 `en.js`、`fr.js`、`ru.js`、`es.js`，每個檔案是 `{ "版本": [翻譯後的字串陣列] }`；每個有內容的版本都必須在四個檔案裡有翻譯，字串數量、HTML 標籤的種類與順序要與原文完全相同（`tests/update-logs-translations.test.js` 會檢查，缺一個就失敗）。新版本通知視窗依介面語言載入對應檔案，公開頁面 `/updates` 一次顯示五種語言。發布紀錄不得包含秘密、內部權杖或真實使用者資料。

@@ -21,7 +21,7 @@ test('each public page holds every language, shows only the first, and writes no
     assert.doesNotMatch(html, /<style|\sstyle=|\sonclick=/, 'no style or event written in the page');
     for (const lang of LANGUAGES) assert.match(html, new RegExp(`<h1[^>]* data-lang="${lang}" lang="${lang}"`), `${name} has ${lang}`);
     assert.equal((html.match(/<h1 hidden /g) || []).length, LANGUAGES.length - 1, 'every language but the first is hidden');
-    assert.match(html, /<a class="pg-brand" href="\/"><img class="pg-mark" src="\/icon-192\.png" width="26" height="26" alt="">Noureon<\/a>/);
+    assert.match(html, /<a class="pg-brand" href="\/"><img class="pg-mark" src="\/icon-192\.png" width="26" height="26" alt=""><span class="pg-name">Noureon<\/span><\/a>/);
     assert.match(html, /<a class="pg-go" href="\/" data-lang="zh-TW" lang="zh-TW" data-title="[^"]+" data-description="[^"]*">前往 Noureon<\/a>/);
     assert.match(html, /Go to Noureon/);
     assert.match(html, /Aller sur Noureon/);
@@ -54,7 +54,7 @@ test('the update page has every version once, with a link target for each', () =
   assert.ok(html.includes(`目前版本 <b>${PRODUCT_VERSION}</b>`), 'the current version is told under the title');
 });
 
-test('the update notes are grouped by month, newest first, and each month has a link in the list at the side', () => {
+test('the update notes are grouped by month, newest first, and the index lists every month and every version, at the side and folded above the notes', () => {
   const months = groupByMonth(updateLogEntries);
   assert.equal(months.reduce((sum, month) => sum + month.logs.length, 0), updateLogEntries.length, 'every version is in a month');
   assert.equal(months[0].key, '2026-10');
@@ -62,7 +62,12 @@ test('the update notes are grouped by month, newest first, and each month has a 
   const html = renderPublicPage('updates');
   for (const month of months) {
     assert.ok(html.includes(`<section class="pg-month" id="m${month.key}">`), `section ${month.key}`);
-    assert.ok(html.includes(`<li><a href="#m${month.key}">${month.key}</a></li>`), `link ${month.key}`);
+    assert.ok(html.includes(`<summary><a href="#m${month.key}">${month.key}</a></summary>`), `link ${month.key} at the side`);
+    assert.ok(html.includes(`<a class="pg-ix-m" href="#m${month.key}">${month.key}</a>`), `link ${month.key} in the folded index`);
+    for (const log of month.logs) {
+      assert.ok(html.includes(`<a href="#v${log.version}" data-month="m${month.key}">${log.version}</a>`), `${log.version} at the side`);
+      assert.ok(html.includes(`<a href="#v${log.version}">${log.version}</a>`), `${log.version} in the folded index`);
+    }
   }
   assert.doesNotMatch(html, /style=/, 'no style written in an old note stays');
 });
@@ -150,27 +155,33 @@ test('the script of the pages chooses the remembered language, then the browser 
   assert.deepEqual(shown(blocked), ['es']);
 });
 
-test('the list of months at the side lights the month that is being read: of those at the top of the window, the last one', async () => {
+test('the index at the side lights the version that is being read and opens its month: of those at the top of the window, the last one', async () => {
   const source = await readFile(new URL('../public/pages.js', import.meta.url), 'utf8');
-  const links = ['m2026-10', 'm2026-09', 'm2026-08'].map((id) => ({ id, className: '', getAttribute: () => `#${id}` }));
-  const sections = Object.fromEntries(links.map((link) => [link.id, { id: link.id }]));
+  const folds = [{ open: true }, { open: false }];
+  const make = (id, month, fold) => ({ id, className: '', getAttribute: (name) => (name === 'href' ? `#${id}` : name === 'data-month' ? month : null), closest: () => fold });
+  const links = [make('m2026-10', null, null), make('v17.13.0', 'm2026-10', folds[0]), make('v17.12.1', 'm2026-10', folds[0]), make('m2026-09', null, null), make('v17.9.2', 'm2026-09', folds[1])];
+  const articles = Object.fromEntries(links.filter((link) => link.id.startsWith('v')).map((link) => [link.id, { id: link.id }]));
   let callback = null;
   let options = null;
   const observed = [];
   class FakeObserver { constructor(fn, opts) { callback = fn; options = opts; } observe(node) { observed.push(node.id); } }
   const document = {
     documentElement: {},
-    querySelectorAll: (selector) => (selector === '.pg-toc a' ? links : []),
+    querySelectorAll: (selector) => (selector === '.pg-toc a' ? links : selector === '.pg-toc details' ? folds : []),
     querySelector: () => null,
-    getElementById: (id) => sections[id] || null
+    getElementById: (id) => articles[id] || null
   };
   vm.runInNewContext(source, { window: { IntersectionObserver: FakeObserver, localStorage: { getItem: () => null } }, IntersectionObserver: FakeObserver, document, navigator: { languages: ['en'] } });
-  assert.deepEqual(observed, ['m2026-10', 'm2026-09', 'm2026-08'], 'every month is watched');
+  assert.deepEqual(observed, ['v17.13.0', 'v17.12.1', 'v17.9.2'], 'every version is watched');
   assert.match(options.rootMargin, /-85%/, 'only the top of the window counts');
-  callback([{ target: { id: 'm2026-10' }, isIntersecting: true }]);
-  assert.deepEqual(links.map((link) => link.className), ['is-active', '', '']);
-  callback([{ target: { id: 'm2026-09' }, isIntersecting: true }]);
-  assert.deepEqual(links.map((link) => link.className), ['', 'is-active', ''], 'a month that starts while the one before still ends is the one that is lit');
-  callback([{ target: { id: 'm2026-10' }, isIntersecting: false }]);
-  assert.deepEqual(links.map((link) => link.className), ['', 'is-active', '']);
+  const lit = () => links.filter((link) => link.className === 'is-active').map((link) => link.id);
+  callback([{ target: { id: 'v17.13.0' }, isIntersecting: true }]);
+  assert.deepEqual(lit(), ['m2026-10', 'v17.13.0']);
+  callback([{ target: { id: 'v17.12.1' }, isIntersecting: true }]);
+  assert.deepEqual(lit(), ['m2026-10', 'v17.12.1'], 'a version that starts while the one before still ends is the one that is lit');
+  callback([{ target: { id: 'v17.13.0' }, isIntersecting: false }, { target: { id: 'v17.12.1' }, isIntersecting: false }, { target: { id: 'v17.9.2' }, isIntersecting: true }]);
+  assert.deepEqual(lit(), ['m2026-09', 'v17.9.2'], 'the month of the version is lit with it');
+  assert.deepEqual(folds.map((fold) => fold.open), [false, true], 'only the month in view is open');
+  callback([{ target: { id: 'v17.9.2' }, isIntersecting: false }]);
+  assert.deepEqual(lit(), ['m2026-09', 'v17.9.2'], 'with none in the band, what was lit stays');
 });
