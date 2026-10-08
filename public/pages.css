@@ -1,0 +1,38 @@
+/* The public pages (terms, privacy, updates): one plain column, black and white, light or dark with the system. */
+:root { --bg: #ffffff; --text: #111111; --muted: #6b6b6b; --line: #e4e4e4; }
+@media (prefers-color-scheme: dark) { :root { --bg: #0b0b0b; --text: #f2f2f2; --muted: #9a9a9a; --line: #262626; } }
+* { box-sizing: border-box; }
+html { color-scheme: light dark; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.7 system-ui, -apple-system, "Segoe UI", "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif; -webkit-text-size-adjust: 100%; }
+a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+[hidden] { display: none !important; }
+.pg-bar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; max-width: 46rem; margin: 0 auto; padding: 1.25rem 1rem 0; }
+.pg-top { min-width: 0; }
+.pg-home { font-size: 0.9rem; text-decoration: none; border-bottom: 1px solid var(--text); padding-bottom: 1px; }
+#pg-lang { font: inherit; font-size: 0.85rem; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 0.5rem; padding: 0.3rem 0.5rem; }
+.pg-main { max-width: 46rem; margin: 0 auto; padding: 2.5rem 1rem 3rem; }
+h1 { margin: 0 0 1.5rem; font-size: 1.9rem; line-height: 1.25; font-weight: 650; letter-spacing: -0.01em; }
+.pg-text { margin: 0; font-size: 1rem; line-height: 1.85; overflow-wrap: anywhere; }
+.pg-foot { max-width: 46rem; margin: 0 auto; padding: 1.5rem 1rem 3rem; border-top: 1px solid var(--line); font-size: 0.85rem; color: var(--muted); }
+.pg-foot p { margin: 0; }
+/* update notes: the version and date at the left, the notes at the right (above each other on a phone) */
+.pg-ver { display: grid; grid-template-columns: 7.5rem 1fr; gap: 1.4rem; padding: 1.6rem 0; border-top: 1px solid var(--line); scroll-margin-top: 1rem; }
+.pg-ver:first-child { border-top: 0; padding-top: 0; }
+.pg-side { display: flex; flex-direction: column; align-items: flex-start; gap: 0.15rem; }
+.pg-v, .pg-d { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.pg-v { font-size: 1.15rem; font-weight: 600; text-decoration: none; }
+.pg-d { font-size: 0.78rem; color: var(--muted); }
+.pg-body { min-width: 0; font-size: 0.92rem; line-height: 1.65; overflow-wrap: anywhere; }
+.pg-body p { margin: 0 0 0.6rem; }
+.pg-body ul { margin: 0; padding-left: 1.1rem; }
+.pg-body li { margin: 0.3rem 0; }
+.pg-body strong { font-weight: 600; }
+.pg-body code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.85em; }
+.pg-sec { margin: 1.1rem 0 0.3rem; font-size: 0.72rem; font-weight: 500; letter-spacing: 0.14em; color: var(--muted); }
+.pg-body > .pg-sec:first-child { margin-top: 0; }
+.pg-ver:target .pg-v { text-decoration: underline; }
+@media (max-width: 40rem) {
+  h1 { font-size: 1.6rem; }
+  .pg-ver { grid-template-columns: 1fr; gap: 0.6rem; }
+  .pg-side { flex-direction: row; align-items: baseline; gap: 0.8rem; }
+}

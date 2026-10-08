@@ -265,3 +265,20 @@ test('install precaches every manifest code asset before activating the new work
   assert.equal(harness.cacheAddAll[0].includes('/assets/ui-font-Aa12_bb3.woff2'), false);
   assert.ok(harness.cachePuts.some(([key]) => key === '/__noureon-shell-ready-v24__'));
 });
+
+test('a navigation to a public page (terms, privacy, updates) goes to the network alone and never replaces the cached shell', async () => {
+  const harness = await createHarness({ fetchImpl: async () => createResponse('terms-html') });
+  for (const path of ['/terms', '/privacy', '/updates', '/terms/']) {
+    const event = createFetchEvent(`https://noureon.test${path}`, { mode: 'navigate' });
+    harness.handlers.get('fetch')(event);
+    await Promise.all(event.pendingTasks);
+    assert.equal(event.response, null, `${path} is not answered by the worker`);
+  }
+  assert.equal(harness.cachePuts.length, 0, 'nothing is stored as the shell');
+  assert.equal(harness.fetchCalls.length, 0);
+  const app = createFetchEvent('https://noureon.test/cli', { mode: 'navigate' });
+  harness.handlers.get('fetch')(app);
+  await Promise.all(app.pendingTasks);
+  assert.ok(app.response, 'an application address is still answered by the worker');
+  assert.equal(harness.cachePuts.length, 1);
+});

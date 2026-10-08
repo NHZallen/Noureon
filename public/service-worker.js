@@ -24,6 +24,15 @@ const NETWORK_ONLY_PATH_PREFIXES = [
   '/graphql/v1/'
 ];
 
+// The public pages (terms, privacy, updates) are plain HTML files, not the application. A navigation to one of them must go to the network
+// alone: the worker stores every successful HTML navigation as the cached shell ('/'), and a terms page stored there would open in
+// place of the application when the network is slow or away.
+const PUBLIC_PAGE_PATHS = ['/terms', '/privacy', '/updates'];
+
+function isPublicPageRequest(url) {
+  return PUBLIC_PAGE_PATHS.includes(url.pathname.replace(/\/+$/, ''));
+}
+
 function pathMatchesPrefix(pathname, prefix) {
   const withoutTrailingSlash = prefix.slice(0, -1);
   return pathname === withoutTrailingSlash || pathname.startsWith(prefix);
@@ -192,6 +201,8 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url);
 
   if (isNetworkOnlyRequest(request, url)) return;
+
+  if (request.mode === 'navigate' && isPublicPageRequest(url)) return;
 
   if (request.mode === 'navigate') {
     event.respondWith(networkFirstNavigation(event));

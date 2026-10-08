@@ -115,6 +115,18 @@
     {
       "source": "/nouras",
       "destination": "/index.html"
+    },
+    {
+      "source": "/terms",
+      "destination": "/terms.html"
+    },
+    {
+      "source": "/privacy",
+      "destination": "/privacy.html"
+    },
+    {
+      "source": "/updates",
+      "destination": "/updates.html"
     }
   ]
 }
