@@ -29,3 +29,15 @@
 :root[data-theme="dark"] :is(.text-green-600, .text-green-700) { color: var(--state-success); }
 :root[data-theme="dark"] :is(.text-amber-600, .text-amber-700) { color: var(--state-warning); }
 :root[data-theme="dark"] :is(.bg-gray-900, .bg-gray-800) { background-color: var(--gpt-primary-action-bg); color: var(--gpt-primary-action-text); }
+:root[data-theme="dark"] body.bg-gray-50 { background-color: var(--chat-bg); }
+:root[data-theme="dark"] :is(.bg-indigo-100, .bg-indigo-50, .hover\:bg-blue-100:hover, .hover\:bg-blue-200:hover) { background-color: color-mix(in srgb, var(--button-primary-bg) 18%, var(--chat-bg)); }
+:root[data-theme="dark"] :is(.bg-red-100, .hover\:bg-red-200:hover) { background-color: color-mix(in srgb, var(--state-danger) 20%, var(--chat-bg)); }
+:root[data-theme="dark"] :is(.bg-green-100, .hover\:bg-green-200:hover) { background-color: color-mix(in srgb, var(--state-success) 20%, var(--chat-bg)); }
+:root[data-theme="dark"] :is(.text-red-800, .hover\:text-red-800:hover) { color: var(--state-danger); }
+:root[data-theme="dark"] .text-green-800 { color: var(--state-success); }
+:root[data-theme="dark"] .text-blue-800 { color: var(--link-color); }
+:root[data-theme="dark"] .hover\:bg-gray-50:hover { background-color: var(--hover-bg); }
+:root[data-theme="dark"] :is(.disabled\:bg-gray-300:disabled, .disabled\:bg-gray-400:disabled) { background-color: var(--switch-off-bg); }
+:root[data-theme="dark"] .disabled\:text-gray-400:disabled { color: var(--text-tertiary); }
+:root[data-theme="dark"] :is(.bg-green-600, .hover\:bg-green-700:hover) { background-color: #15803d; color: #ffffff; }
+:root[data-theme="dark"] .modal .bg-green-600 { color: #ffffff; }

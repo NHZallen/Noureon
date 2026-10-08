@@ -175,6 +175,7 @@ export function renderPublicPage(name) {
 <link rel="canonical" href="${SITE}${page.path}">
 <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
 <link rel="stylesheet" href="/pages.css">
+<script src="/theme-init.js"></script>
 </head>
 <body class="pg-${page.kind}">
 ${header}

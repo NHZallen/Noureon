@@ -12,6 +12,7 @@ import {
     projectMemoryStateForSync
 } from '../memory/memory-sync-projection.js';
 import { consolidateOverlappingTopicSummaries } from '../memory/topic-summaries.js';
+import { applyChartThemeDefaults } from '../../../utils/theme-colors.js';
 
 const REQUIRED_DEPENDENCIES = [
     'window',
@@ -243,6 +244,7 @@ export function createLegacyCoreTailLifecycle(dependencies = {}) {
             if (state.timeDistChart) {
                 state.timeDistChart.destroy();
             }
+            applyChartThemeDefaults(Chart);
             state.timeDistChart = new Chart(ctx, {
                 type: chartType,
                 data: {

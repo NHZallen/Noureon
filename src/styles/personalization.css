@@ -199,7 +199,7 @@
     .modal .text-\[var\(--text-secondary\)\] {
         color: var(--text-secondary) !important;
     }
-    .modal .btn-primary, .modal #confirm-import-btn {
+    .modal .btn-primary, .modal #confirm-import-btn, .modal .ul-btn {
         color: var(--button-primary-text) !important;
     }
     .modal .text-red-500, .modal .text-red-600, .popover .text-red-600 {

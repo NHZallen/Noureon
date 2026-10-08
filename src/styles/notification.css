@@ -22,11 +22,11 @@
     gap: 0.6rem;
     width: 100%;
     padding: 0.65rem 0.6rem 0.65rem 0.8rem;
-    border: 1px solid var(--border-color, var(--border-color));
+    border: 1px solid var(--border-color);
     border-radius: 0.75rem;
-    background: var(--modal-bg, var(--modal-bg));
+    background: var(--modal-bg);
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
-    color: var(--text-primary, var(--text-primary));
+    color: var(--text-primary);
     font-size: 0.9rem;
     font-weight: 500;
     line-height: 1.4;
@@ -53,10 +53,10 @@
 #notification-container .notification-action {
     flex: none;
     padding: 0.3rem 0.65rem;
-    border: 1px solid var(--border-color, var(--border-color));
+    border: 1px solid var(--border-color);
     border-radius: 0.5rem;
     background: transparent;
-    color: var(--text-primary, var(--text-primary));
+    color: var(--text-primary);
     font: inherit;
     font-size: 0.8125rem;
     cursor: pointer;
@@ -72,14 +72,14 @@
     border: 0;
     border-radius: 50%;
     background: transparent;
-    color: var(--text-secondary, var(--text-secondary));
+    color: var(--text-secondary);
     cursor: pointer;
 }
 
 #notification-container .notification-action:hover,
 #notification-container .notification-close:hover {
-    background: var(--hover-bg, var(--hover-bg));
-    color: var(--text-primary, var(--text-primary));
+    background: var(--hover-bg);
+    color: var(--text-primary);
     transform: none;
     filter: none;
 }

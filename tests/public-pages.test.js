@@ -17,7 +17,8 @@ test('each public page holds every language, shows only the first, and writes no
     assert.match(html, new RegExp(`<link rel="canonical" href="https://noureon.com/${name}">`));
     assert.match(html, /<link rel="stylesheet" href="\/pages\.css">/);
     assert.match(html, /<script src="\/pages\.js" defer><\/script>/);
-    assert.equal((html.match(/<script/g) || []).length, 1, 'the only script is the outside file (the policy allows none in the page)');
+    assert.match(html, /<script src="\/theme-init\.js"><\/script>/, 'the colour theme the person chose in the application is set before the first paint');
+    assert.equal((html.match(/<script/g) || []).length, 2, 'the only scripts are the two outside files (the policy allows none in the page)');
     assert.doesNotMatch(html, /<style|\sstyle=|\sonclick=/, 'no style or event written in the page');
     for (const lang of LANGUAGES) assert.match(html, new RegExp(`<h1[^>]* data-lang="${lang}" lang="${lang}"`), `${name} has ${lang}`);
     assert.equal((html.match(/<h1 hidden /g) || []).length, LANGUAGES.length - 1, 'every language but the first is hidden');

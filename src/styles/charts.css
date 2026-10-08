@@ -1,9 +1,10 @@
 .model-message .ac-chart {
     --ac-chart-primary: var(--button-primary-bg, #60A5FA);
     --ac-chart-grid: rgba(156, 163, 175, 0.22);
-    --ac-chart-text: #111827;
-    --ac-chart-muted: #6b7280;
-    --ac-chart-tooltip-bg: rgba(17, 24, 39, 0.94);
+    --ac-chart-text: var(--text-primary);
+    --ac-chart-muted: var(--text-secondary);
+    --ac-chart-tooltip-bg: color-mix(in srgb, var(--gpt-primary-action-bg) 94%, transparent);
+    --ac-chart-tooltip-text: var(--gpt-primary-action-text);
     width: 100%;
     max-width: min(100%, 45rem);
     margin: 1rem 0 1.35rem;
@@ -293,7 +294,7 @@
     padding: 0.52rem 0.64rem;
     border-radius: 12px;
     background: var(--ac-chart-tooltip-bg);
-    color: #ffffff;
+    color: var(--ac-chart-tooltip-text);
     box-shadow: 0 8px 22px rgba(17, 24, 39, 0.14);
     opacity: 0;
     transform: translateY(4px);
@@ -319,16 +320,16 @@
 }
 
 .model-message .ac-chart-tooltip-label {
-    color: rgba(255, 255, 255, 0.72);
+    color: color-mix(in srgb, var(--ac-chart-tooltip-text) 72%, transparent);
 }
 
 .model-message .ac-chart-tooltip-value {
-    color: #ffffff;
+    color: var(--ac-chart-tooltip-text);
 }
 
 .model-message .ac-chart-tooltip-value.is-strong {
     font-weight: 600;
-    color: #ffffff;
+    color: var(--ac-chart-tooltip-text);
 }
 
 .model-message .ac-chart-donut-layout {

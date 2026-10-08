@@ -2,9 +2,14 @@
    top, a large centred title, a thin rule, a reading column of 640px with a serif text, release notes grouped by month with an "On this page" list at
    the side), in black and white, light or dark with the system. */
 :root { --bg: #ffffff; --text: #111111; --muted: #6b6b6b; --line: #e2e2e2; --soft: #f5f5f5; --serif: ui-serif, Georgia, "Iowan Old Style", "Times New Roman", serif; --sans: system-ui, -apple-system, "Segoe UI", "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif; }
-@media (prefers-color-scheme: dark) { :root { --bg: #0b0b0b; --text: #f2f2f2; --muted: #9a9a9a; --line: #272727; --soft: #161616; } }
+/* dark: with the device, unless the person chose light in the application (theme-init.js), or always when they chose dark */
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #0b0b0b; --text: #f2f2f2; --muted: #9a9a9a; --line: #272727; --soft: #161616; } }
+:root[data-theme="dark"] { --bg: #0b0b0b; --text: #f2f2f2; --muted: #9a9a9a; --line: #272727; --soft: #161616; }
 * { box-sizing: border-box; }
-html { color-scheme: light dark; scroll-behavior: smooth; }
+html { color-scheme: light dark; }
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
+html { scroll-behavior: smooth; }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 var(--sans); -webkit-text-size-adjust: 100%; -webkit-font-smoothing: antialiased; }
 a { color: inherit; }
