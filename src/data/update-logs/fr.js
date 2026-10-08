@@ -1,6 +1,16 @@
 // The update notes in French (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "17.14.0": [
+    "<strong>Notes de version de Noureon 17.14.0</strong>",
+    "Cette version ajoute un mode sombre et regroupe les couleurs de l'interface sous un seul jeu de noms fixes.",
+    "<strong>Changements principaux</strong>",
+    "<ul><li><strong>Mode de couleur :</strong> Paramètres → Personnalisation → Apparence propose un nouveau « Mode de couleur » : clair, sombre ou selon le système. Le mode clair est le choix par défaut ; le choix s'applique aussitôt et est synchronisé avec les paramètres du cloud. Le thème sombre est un gris foncé.</li><li><strong>Tous les écrans :</strong> l'écran principal, la barre latérale, les conversations, tous les onglets des paramètres, les boîtes de dialogue, la boutique d'outils en ligne de commande, la boutique Nouras, la recherche, la recherche approfondie, le panneau des données personnelles et ses graphiques, ainsi que les panneaux de citations et de sources ont une version sombre ; les aperçus de fichiers (Word, PDF, présentations, tableurs) et les images générées gardent un fond blanc, comme du papier.</li><li><strong>Un seul jeu de couleurs :</strong> le texte a trois niveaux et les fonds trois couches, avec des lignes, un accent, des couleurs d'état et des ombres communs ; le texte pâle du thème clair (indications, heures des messages) est plus foncé, et son contraste sur blanc passe de 2,5 à environ 3,5.</li><li><strong>Écran de démarrage :</strong> en thème sombre, la page ne clignote plus en blanc à l'ouverture ; la barre du navigateur, la barre d'état d'une application installée et son écran de lancement sont sombres aussi. L'application de l'écran d'accueil sur iPhone et iPad a une image de démarrage claire et une sombre, selon l'apparence de l'appareil.</li></ul>",
+    "<strong>Remarques</strong>",
+    "<ul><li>L'image de démarrage sur iPhone et iPad suit l'apparence de l'appareil, et non le mode de couleur réglé dans l'application ; l'écran d'un nouveau modèle qui n'est pas encore répertorié démarre en blanc.</li><li>Après un changement de mode de couleur, une application installée ne change son écran de lancement qu'à la prochaine vérification de mise à jour du navigateur.</li></ul>",
+    "<strong>Compatibilité</strong>",
+    "Cette mise à jour ne nécessite aucune migration de données ; les paramètres gagnent un champ colorScheme que les anciennes versions ignorent."
+  ],
   "17.13.0": [
     "<strong>Notes de version de Noureon 17.13.0</strong>",
     "Cette version transforme les Conditions d’utilisation, la Politique de confidentialité et les notes de mise à jour en pages web publiques autonomes, lisibles et partageables sans connexion.",

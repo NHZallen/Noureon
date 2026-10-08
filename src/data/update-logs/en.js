@@ -1,6 +1,16 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "17.14.0": [
+    "<strong>Noureon 17.14.0 Release Notes</strong>",
+    "This version adds a dark mode and brings the colours of the interface under one fixed set of names.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Colour mode:</strong> Settings → Personalization → Appearance has a new \"Colour mode\" with Light, Dark and Follow system. The default is Light; the choice applies at once and is synced with the cloud settings. The dark theme is a dark grey.</li><li><strong>Every screen:</strong> the main screen, the side bar, conversations, all settings tabs, dialogs, the command tool store, the Nouras store, search, deep research, the personal data panel and its charts, and the citation and source panels have a dark version; file previews (Word, PDF, slides, spreadsheets) and generated images keep a white, paper-like background.</li><li><strong>One set of colours:</strong> text has three levels and backgrounds three layers, with shared lines, accent, state colours and shadows; the pale text of the light theme (hints, message times) is darker, raising its contrast on white from 2.5 to about 3.5.</li><li><strong>Start-up screen:</strong> a person who uses the dark theme no longer sees a white flash when the page opens; the browser bar, the status bar of an installed app and its splash screen are dark too. The home-screen app on iPhone and iPad has a light and a dark start-up picture that follow the appearance of the device.</li></ul>",
+    "<strong>Notes</strong>",
+    "<ul><li>The start-up picture on iPhone and iPad follows the appearance of the device, not the colour mode set in the app; the screen of a new model that is not listed yet starts white.</li><li>After the colour mode is changed, an installed app changes its splash screen only when the browser next checks for an update.</li></ul>",
+    "<strong>Compatibility</strong>",
+    "This update requires no data migration; the settings gain a colorScheme field that older versions ignore."
+  ],
   "17.13.0": [
     "<strong>Noureon 17.13.0 Release Notes</strong>",
     "This version turns the Terms of Use, the Privacy Policy and the update notes into standalone public web pages that can be read and shared without signing in.",

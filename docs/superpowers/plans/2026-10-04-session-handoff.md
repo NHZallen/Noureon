@@ -135,4 +135,4 @@
 
 ## 5. 深色模式（2026-10-08 開始）
 
-owner 要深色模式回來（當初拿掉是因為太醜、顏色與字色沒統一）。已決定：淺色／深色／跟隨系統三選一、預設淺色、深色風格選 A 深灰（參考 ChatGPT）。**規則：樣式只准用 `src/styles/tokens.css` 的顏色名字，不得自己寫色碼。** 做法、已完成與待做清單見 [`specs/2026-10-08-dark-mode-design.md`](../specs/2026-10-08-dark-mode-design.md)。工作分支 `claude/dark-mode`，第 2～4 步（基礎＋主畫面＋設定、彈窗與圖表、樣式檔寫死色碼清到 0 並由 `tests/color-literals.test.js` 守住）完成後等 owner 測試，其餘照設計文件 §6 清單分階段做。
+owner 要深色模式回來（當初拿掉是因為太醜、顏色與字色沒統一）。已決定：淺色／深色／跟隨系統三選一、預設淺色、深色風格選 A 深灰（參考 ChatGPT）。**規則：樣式只准用 `src/styles/tokens.css` 的顏色名字，不得自己寫色碼。** 做法、已完成與待做清單見 [`specs/2026-10-08-dark-mode-design.md`](../specs/2026-10-08-dark-mode-design.md)。已隨 17.14.0 合併進 `main`（owner 2026-10-08 說「推」）。第 2～7 步（基礎＋主畫面＋設定、彈窗與圖表、樣式檔與腳本的寫死色碼清到 0 並由 `tests/color-literals.test.js`、`tests/js-color-literals.test.js` 守住、有資料才看得到的畫面、手機浮層、深色的瀏覽器列／啟動畫面／iOS 啟動圖）完成；owner 實機使用後的回報照設計文件 §6 處理。新增顏色一律用 `tokens.css` 的名字。
