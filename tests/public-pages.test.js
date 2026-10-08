@@ -20,7 +20,7 @@ test('each public page holds every language, shows only the first, and writes no
     assert.doesNotMatch(html, /<style|\sstyle=|\sonclick=/, 'no style or event written in the page');
     for (const lang of LANGUAGES) assert.match(html, new RegExp(`<h1[^>]* data-lang="${lang}" lang="${lang}"`), `${name} has ${lang}`);
     assert.equal((html.match(/<h1 hidden /g) || []).length, LANGUAGES.length - 1, 'every language but the first is hidden');
-    assert.match(html, /<a class="pg-brand" href="\/">Noureon<\/a>/);
+    assert.match(html, /<a class="pg-brand" href="\/"><span class="pg-mark" aria-hidden="true"><\/span>Noureon<\/a>/);
     assert.match(html, /<a class="pg-go" href="\/" data-lang="zh-TW" lang="zh-TW" data-title="[^"]+" data-description="[^"]*">前往 Noureon<\/a>/);
     assert.match(html, /Go to Noureon/);
     assert.match(html, /Aller sur Noureon/);

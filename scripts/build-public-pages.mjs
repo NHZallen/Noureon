@@ -115,7 +115,7 @@ export function renderPublicPage(name) {
   if (!page) throw new Error(`Unknown public page: ${name}`);
   const first = LANGUAGES[0];
   const options = LANGUAGES.map((lang) => `<option value="${lang}">${LANGUAGE_NAMES[lang]}</option>`).join('');
-  const header = '<header class="pg-header"><a class="pg-brand" href="/">Noureon</a><div class="pg-tools">'
+  const header = '<header class="pg-header"><a class="pg-brand" href="/"><span class="pg-mark" aria-hidden="true"></span>Noureon</a><div class="pg-tools">'
     + `<label class="pg-lang">${GLOBE}<select id="pg-lang" aria-label="Language">${options}</select></label>`
     + perLanguage((lang, attrs) => `<a class="pg-go" href="/"${attrs} data-title="${escapeHtml(page.title(lang))} · Noureon" data-description="${escapeHtml(description(page, lang))}">${escapeHtml(WORDS[lang].goToApp)}</a>`)
     + '</div></header>';
