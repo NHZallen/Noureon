@@ -142,3 +142,7 @@ owner 的決定：「主按鈕顏色」改名「強調色」，換成新的十�
 ## 7. 驗收方式
 
 每一階段：`npm test`、`npm run build`、`npm run check:sizes`、`npm run check:legacy-runtime`、`npm run check:server`、`npm audit --omit=dev`；在 Chromium 以淺色與深色逐頁截圖（腳本在作業用的 scratchpad，不進 repo）；淺色與基準逐像素比對；給 owner 看畫面，同意才推 `main`。
+
+## 17.17.0：泡泡配色表
+訊息泡泡不再是「強調色淡化」：`src/utils/accent-bubble.js` 的 `ACCENT_BUBBLES` 是十種強調色各自的淺色／深色泡泡底色與字色（取自 owner 給的參考圖），`applyUiTheme` 設成 `--user-bubble-bg`、`--user-bubble-text`（tokens.css 的 color-mix 只剩第一次繪製前的備援）。自訂顏色用「左右相鄰兩個預設色按色相內插」推算，灰色系退到黑色那組的灰泡泡。選單最後一格在深色模式叫「白色」（id 仍是 `black`，設定值不變）。「跟隨系統」時裝置切換主題會呼叫 `applyUiTheme`（`createColorScheme` 的 `onThemeChange`）。
+

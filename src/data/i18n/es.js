@@ -186,6 +186,7 @@ const es = {
   "colorPurple": "Morado",
   "colorMagenta": "Magenta",
   "colorBlack": "Negro",
+  "colorWhite": "Blanco",
   "memorySwitch": "Configuraciones de memoria",
   "personalMemory": "Utilice preferencias personales confirmadas",
   "crossDialogueMemory": "Recuerdo de conversación cruzada",

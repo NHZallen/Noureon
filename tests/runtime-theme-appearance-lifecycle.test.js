@@ -224,3 +224,46 @@ test('theme appearance helper is isolated while core-tail keeps the documented b
   assert.doesNotMatch(helperSource, /registerLazyBinding|resolveBinding|resolveOptionalBinding/);
   assert.doesNotMatch(helperSource, /runtime-entry|app-bootstrap|submit-input|provider|security|api-key|legacy-runtime\/fragments|virtual:legacy-app-runtime/);
 });
+
+test('applyUiTheme gives the message bubble the colours of the chosen accent in the light and the dark theme, and works one out for a colour of the person\'s own', () => {
+  const { document, state, lifecycle } = createHarness();
+  const root = document.documentElement.style;
+
+  lifecycle.applyUiTheme();
+  assert.deepEqual([root.getPropertyValue('--user-bubble-bg'), root.getPropertyValue('--user-bubble-text')], ['#ecf2fe', '#0e39ab']);
+
+  state.config.colorScheme = 'dark';
+  lifecycle.applyUiTheme();
+  assert.deepEqual([root.getPropertyValue('--user-bubble-bg'), root.getPropertyValue('--user-bubble-text')], ['#020462', '#e6f2ff']);
+
+  state.config.uiTheme = { mode: 'custom', customColor: '#ec4899' };
+  lifecycle.applyUiTheme();
+  assert.deepEqual([root.getPropertyValue('--user-bubble-bg'), root.getPropertyValue('--user-bubble-text')], ['#4a0024', '#ffd7ee'], 'a named choice: its own bubble');
+
+  state.config.uiTheme = { mode: 'custom', customColor: '#e91e63' };
+  lifecycle.applyUiTheme();
+  assert.match(root.getPropertyValue('--user-bubble-bg'), /^#[0-9a-f]{6}$/);
+  assert.notEqual(root.getPropertyValue('--user-bubble-bg'), '#4a0024', 'a colour of the person\'s own: worked out, not looked up');
+});
+
+test('the black choice of the accent menu is white in the dark theme (name and dot), black again in the light theme, also while the menu is open', () => {
+  const { document, elements, state, lifecycle } = createHarness({
+    i18n: { 'zh-TW': { colorBlue: '藍色', colorGreen: '綠色', colorPink: '粉紅色', colorBlack: '黑色', colorWhite: '白色', colorCustom: '自訂' } }
+  });
+  installColorOptionDom(document, elements);
+  const blackOption = () => elements.uiColorOptions.querySelector('.color-option[data-choice="black"]');
+
+  lifecycle.applyUiTheme();
+  lifecycle.renderUiColorOptions();
+  assert.equal(blackOption().querySelector('.color-option-label').textContent, '黑色');
+  assert.equal(blackOption().querySelector('.color-dot').style.backgroundColor, '#111111');
+
+  state.config.colorScheme = 'dark';
+  lifecycle.applyUiTheme();
+  assert.equal(blackOption().querySelector('.color-option-label').textContent, '白色');
+  assert.equal(blackOption().querySelector('.color-dot').style.backgroundColor, '#ececec');
+
+  state.config.colorScheme = 'light';
+  lifecycle.applyUiTheme();
+  assert.equal(blackOption().querySelector('.color-option-label').textContent, '黑色');
+});

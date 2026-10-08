@@ -1,6 +1,14 @@
 // The update notes in French (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "17.17.0": [
+    "<strong>Notes de version de Noureon 17.17.0</strong>",
+    "Cette version donne à chaque couleur d’accent ses propres couleurs de bulle de message et ajoute le blanc aux couleurs d’accent du thème sombre.",
+    "<strong>Principales modifications</strong>",
+    "<ul><li><strong>Couleurs de bulle :</strong> dans le thème clair, la bulle est une teinte pâle de la couleur avec un texte foncé ; dans le thème sombre, une nuance profonde avec un texte clair ; chacune des dix couleurs d’accent a sa propre paire, au lieu d’un simple éclaircissement de l’accent.</li><li><strong>Couleurs personnalisées :</strong> pour une couleur que vous choisissez vous-même, la bulle est calculée entre les deux couleurs prédéfinies voisines avec les mêmes proportions (clarté, profondeur, teinte) ; une couleur grise donne une bulle grise.</li><li><strong>Noir et blanc :</strong> les couleurs d’accent du thème clair comprennent le noir ; dans le thème sombre, ce même choix devient le blanc (le nom et le point changent aussi, même menu ouvert).</li><li><strong>Suivre le système :</strong> avec l’apparence réglée sur le système, lorsque l’appareil passe du clair au sombre, l’accent et les couleurs de bulle changent aussitôt, sans rechargement.</li></ul>",
+    "<strong>Compatibilité</strong>",
+    "Cette mise à jour ne nécessite aucune migration de données."
+  ],
   "17.16.0": [
     "<strong>Notes de version de Noureon 17.16.0</strong>",
     "Cette version ajoute un modèle de jugement : à l’envoi d’un message, le petit modèle Decisions d’OpenRouter juge s’il faut une recherche web, un fichier, un graphique ou un outil de commande, au lieu de deviner à partir des seuls mots-clés.",

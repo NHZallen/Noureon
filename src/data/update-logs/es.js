@@ -1,6 +1,14 @@
 // The update notes in Spanish (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "17.17.0": [
+    "<strong>Notas de la versión de Noureon 17.17.0</strong>",
+    "Esta versión da a cada color de acento sus propios colores de burbuja de mensaje y añade el blanco a los colores de acento del tema oscuro.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Colores de burbuja:</strong> en el tema claro la burbuja es un tono pálido del color con letras oscuras; en el tema oscuro, un tono profundo con letras claras; cada uno de los diez colores de acento tiene su propio par, en lugar de limitarse a aclarar el acento.</li><li><strong>Colores personalizados:</strong> para un color que eliges tú, la burbuja se calcula entre los dos colores predefinidos vecinos con las mismas proporciones (luz, profundidad, tono); un color gris da una burbuja gris.</li><li><strong>Negro y blanco:</strong> los colores de acento del tema claro incluyen el negro; en el tema oscuro, esa misma opción pasa a ser el blanco (el nombre y el punto también cambian, incluso con el menú abierto).</li><li><strong>Seguir el sistema:</strong> con la apariencia en «seguir el sistema», cuando el dispositivo cambia entre claro y oscuro, el acento y los colores de la burbuja cambian al instante, sin recargar.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "Esta actualización no requiere migración de datos."
+  ],
   "17.16.0": [
     "<strong>Notas de la versión de Noureon 17.16.0</strong>",
     "Esta versión añade un modelo de juicio: al enviar un mensaje, el pequeño modelo Decisions de OpenRouter juzga si necesita una búsqueda web, un archivo, un gráfico o una herramienta de comandos, en lugar de adivinar solo por palabras clave.",

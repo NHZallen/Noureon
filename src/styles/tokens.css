@@ -41,6 +41,7 @@
     /* messages */
     --ai-bubble-bg: transparent;
     --user-bubble-bg: color-mix(in srgb, var(--button-primary-bg) 12%, var(--chat-bg));
+    --user-bubble-text: var(--text-primary);
 
     /* the accent (the person may choose another colour in Settings) */
     --button-primary-bg: #3b82f6;
@@ -171,6 +172,7 @@
 
     --ai-bubble-bg: transparent;
     --user-bubble-bg: color-mix(in srgb, var(--button-primary-bg) 22%, var(--chat-bg));
+    --user-bubble-text: var(--text-primary);
 
     --button-primary-bg: #5b9bff;
     --button-primary-hover-bg: color-mix(in srgb, var(--button-primary-bg) 85%, white);

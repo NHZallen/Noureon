@@ -190,6 +190,7 @@
         colorPurple: '紫色',
         colorMagenta: '洋紅色',
         colorBlack: '黑色',
+        colorWhite: '白色',
         memorySwitch: '記憶設定',
         personalMemory: '使用已確認的個人偏好',
         crossDialogueMemory: '跨對話回憶',

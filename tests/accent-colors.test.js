@@ -35,7 +35,7 @@ test('every language names the accent and its colours, and no longer has the old
   globalThis.window = {};
   const { default: i18n } = await import('../src/data/i18n.js');
   for (const [locale, texts] of Object.entries(i18n)) {
-    for (const key of ['accentColor', 'colorBlue', 'colorCyan', 'colorGreen', 'colorLime', 'colorYellow', 'colorOrange', 'colorPink', 'colorMagenta', 'colorPurple', 'colorBlack', 'colorCustom']) {
+    for (const key of ['accentColor', 'colorBlue', 'colorCyan', 'colorGreen', 'colorLime', 'colorYellow', 'colorOrange', 'colorPink', 'colorMagenta', 'colorPurple', 'colorBlack', 'colorWhite', 'colorCustom']) {
       assert.equal(typeof texts[key], 'string', `${locale}.${key}`);
     }
     for (const key of ['primaryButtonColor', 'userBubbleColor', 'colorDefault']) assert.equal(key in texts, false, `${locale}.${key} is gone`);

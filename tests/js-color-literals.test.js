@@ -20,6 +20,7 @@ const EXEMPT_FILES = new Map([
   ['src/app/runtime/legacy-core/settings-history-menu-helper.js', 'the folder colours of the history menu (the same choices as runtime-ui-colors.js)'],
   ['src/app/legacy-runtime/data/folder-metadata.js', 'the text colours a person chooses for a folder'],
   ['src/utils/folder-colors.js', 'the grey a folder gets when its colour is unknown'],
+  ['src/utils/accent-bubble.js', 'the bubble colours that go with each choice of the accent'],
   ['src/utils/color-contrast.js', 'picks black or white text for a colour a person chose'],
   ['src/app/runtime/legacy-core/legacy-core-utilities.js', 'hexToRgba: turns the colour a person chose into one with transparency'],
   ['src/app/runtime/kernel/config-store.js', 'the default accent of the settings'],

@@ -1,6 +1,14 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "17.17.0": [
+    "<strong>Noureon 17.17.0 Release Notes</strong>",
+    "This version gives each accent colour its own message bubble colours and adds white to the accent colours of the dark theme.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Bubble colours:</strong> in the light theme the bubble is a pale tint of the colour with dark letters, in the dark theme a deep shade of it with light letters; each of the ten accent colours has its own pair, instead of the accent simply being thinned out.</li><li><strong>Custom colours:</strong> for a colour you pick yourself, the bubble is worked out between the two neighbouring preset colours with the same proportions (light, depth, tint); a grey custom colour gets a grey bubble.</li><li><strong>Black and white:</strong> the light theme's accent colours include Black; in the dark theme the same choice becomes White (the name and the dot change too, even while the menu is open).</li><li><strong>Follow the system:</strong> with the appearance set to follow the system, when the device switches between light and dark the accent and the bubble colours change at once, with no reload.</li></ul>",
+    "<strong>Compatibility</strong>",
+    "This update requires no data migration."
+  ],
   "17.16.0": [
     "<strong>Noureon 17.16.0 Release Notes</strong>",
     "This version adds a judgement model: when you send a message, OpenRouter's small Decisions model judges whether it needs a web search, a file, a chart or a command tool, instead of guessing from keywords alone.",

@@ -56,3 +56,15 @@ test('without storage or matchMedia it still works', () => {
   assert.equal(scheme.apply('dark'), 'dark');
   assert.equal(scheme.apply('system'), 'light');
 });
+
+test('a change of the device while the choice is "system" tells the page, so what depends on the theme (the accent, the bubble) is shown again', () => {
+  const t = page({ dark: false });
+  let told = 0;
+  const scheme = createColorScheme({ window: t.window, document: t.document, onThemeChange: () => { told += 1; } });
+  scheme.apply('system');
+  t.flip(true);
+  assert.equal(told, 1);
+  scheme.apply('light');
+  t.flip(false);
+  assert.equal(told, 1, 'a fixed choice does not follow the device');
+});

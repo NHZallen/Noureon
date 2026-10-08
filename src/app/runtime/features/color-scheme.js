@@ -13,7 +13,8 @@ const BROWSER_BAR = Object.freeze({ light: '#3b82f6', dark: '#212121' });
 /** The theme to show for a choice: 'light' or 'dark'. */
 export const resolveTheme = (scheme, deviceIsDark = false) => (scheme === 'dark' || (normalizeColorScheme(scheme) === 'system' && deviceIsDark) ? 'dark' : 'light');
 
-export function createColorScheme({ window, document }) {
+// `onThemeChange` is called when the device changes between light and dark while the choice is "system" (what depends on the theme is shown again).
+export function createColorScheme({ window, document, onThemeChange = () => {} }) {
   const root = document.documentElement;
   const query = typeof window?.matchMedia === 'function' ? window.matchMedia('(prefers-color-scheme: dark)') : null;
   let scheme = 'light';
@@ -26,7 +27,11 @@ export function createColorScheme({ window, document }) {
     if (meta) meta.setAttribute('content', BROWSER_BAR[theme]);
     return theme;
   };
-  const onDeviceChange = () => { if (scheme === 'system') paint(); };
+  const onDeviceChange = () => {
+    if (scheme !== 'system') return;
+    paint();
+    onThemeChange();
+  };
   query?.addEventListener?.('change', onDeviceChange);
 
   return {

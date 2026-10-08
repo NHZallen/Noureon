@@ -190,6 +190,7 @@
         colorPurple: 'Violet',
         colorMagenta: 'Magenta',
         colorBlack: 'Noir',
+        colorWhite: 'Blanc',
         memorySwitch: 'Paramètres de mémoire',
         personalMemory: 'Utiliser les préférences personnelles confirmées',
         crossDialogueMemory: 'Rappel inter-conversations',

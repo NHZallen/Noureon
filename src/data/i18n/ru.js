@@ -186,6 +186,7 @@ const ru = {
   "colorPurple": "Фиолетовый",
   "colorMagenta": "Пурпурный",
   "colorBlack": "Чёрный",
+  "colorWhite": "Белый",
   "memorySwitch": "Настройки памяти",
   "personalMemory": "Используйте подтвержденные личные предпочтения",
   "crossDialogueMemory": "Запоминание перекрестного разговора",
