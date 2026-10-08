@@ -483,14 +483,13 @@
     border: 0.2rem solid var(--button-primary-bg);
     border-radius: 50%;
     background: var(--text-primary);
-    transform: translate(-50%, -50%) scale(var(--mp-press, 1));
+    transform: translate(-50%, -50%);
     pointer-events: none;
-    transition: box-shadow 0.15s ease, transform 0.14s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+    transition: box-shadow 0.15s ease;
 }
 
 .mp-slider-wrap:has(.mp-slider:focus-visible) .mp-thumb { box-shadow: 0 0 0 3px color-mix(in srgb, var(--text-primary) 35%, transparent); }
 .mp-slider-wrap:has(.mp-slider:disabled) { opacity: 0.5; }
-.mp-slider-wrap:has(.mp-slider:active) .mp-thumb { --mp-press: 1.1; }
 
 #model-council-control .mp-slider {
     position: absolute;

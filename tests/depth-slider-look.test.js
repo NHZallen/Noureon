@@ -21,3 +21,8 @@ test('the slider is a frame with the track inside it, and the thumb is ringed wi
   assert.match(css, /\.mp-slider-fill \{[^}]*background: var\(--button-primary-bg\)/);
   assert.match(css, /\.mp-thumb \{[^}]*border: 0\.2rem solid var\(--button-primary-bg\)[^}]*background: var\(--text-primary\)/);
 });
+
+test('the thumb does not grow when it is pressed', () => {
+  assert.doesNotMatch(css, /--mp-press/);
+  assert.match(css, /\.mp-thumb \{[^}]*transform: translate\(-50%, -50%\);/);
+});
