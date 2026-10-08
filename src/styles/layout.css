@@ -34,8 +34,8 @@ button:not(.btn-primary):active:not(:disabled) {
     }
     .scroll-area::-webkit-scrollbar { width: 8px; }
     .scroll-area::-webkit-scrollbar-track { background: transparent; }
-    .scroll-area::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
-    .scroll-area::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+    .scroll-area::-webkit-scrollbar-thumb { background: var(--gpt-scrollbar); border-radius: 4px; }
+    .scroll-area::-webkit-scrollbar-thumb:hover { background: var(--text-tertiary); }
     .modal {
         opacity: 0;
         visibility: hidden;

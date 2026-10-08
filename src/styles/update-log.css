@@ -1,5 +1,5 @@
 /* The window of the update notes that opens when there is a new version (ui/updates/update-log-view.js); the whole history is the page noureon.com/updates. */
-.ul-dialog { position: relative; display: flex; flex-direction: column; width: 100%; max-height: 92vh; border-radius: 1.1rem; background: var(--modal-bg); color: var(--text-primary); box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35); }
+.ul-dialog { position: relative; display: flex; flex-direction: column; width: 100%; max-height: 92vh; border-radius: 1.1rem; background: var(--modal-bg); color: var(--text-primary); box-shadow: var(--shadow-xl); }
 .ul-hero { max-width: 34rem; }
 .ul-x { position: absolute; top: 0.9rem; right: 1.1rem; width: 2rem; height: 2rem; display: grid; place-items: center; border: 0; background: transparent; color: var(--text-secondary); font-size: 1.5rem; line-height: 1; cursor: pointer; }
 .ul-x:hover { color: var(--text-primary); }

@@ -156,8 +156,8 @@
     line-height: 1.6;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
-    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 var(--thought-fade), #000 calc(100% - var(--thought-fade)), transparent);
-    mask-image: linear-gradient(to bottom, transparent, #000 var(--thought-fade), #000 calc(100% - var(--thought-fade)), transparent);
+    -webkit-mask-image: linear-gradient(to bottom, transparent, black var(--thought-fade), black calc(100% - var(--thought-fade)), transparent);
+    mask-image: linear-gradient(to bottom, transparent, black var(--thought-fade), black calc(100% - var(--thought-fade)), transparent);
 }
 
 /* No mask on a touch screen: a mask on a scrolling box made it drag on phones. */
@@ -228,7 +228,7 @@
 
 .ledger-thumb img { display: block; width: 100%; height: 100%; object-fit: contain; animation: ledger-in 0.25s ease; }
 .ledger-thumb.is-current { outline: 1.5px solid var(--text-primary, #111827); outline-offset: 1px; }
-.ledger-thumb.has-issue { border-color: #dc2626; box-shadow: 0 0 0 1.5px #dc2626; }
+.ledger-thumb.has-issue { border-color: var(--state-danger); box-shadow: 0 0 0 1.5px var(--state-danger); }
 
 .ledger-thumb-number {
     position: absolute;
@@ -505,7 +505,7 @@
     border: 1px solid var(--border-color);
     border-radius: 0.8rem;
     background: var(--modal-bg, var(--chat-bg));
-    box-shadow: 0 8px 28px rgba(15, 23, 42, 0.14);
+    box-shadow: var(--shadow-md);
 }
 
 /* The mark on a reply the automatic visual check asked for (message-markup-renderer.js). */

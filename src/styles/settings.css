@@ -558,7 +558,7 @@ body svg {
 
 /* Restore pill outlines for normal buttons; only model row icon controls stay frameless. */
 .store-category-btn:not(.active),.section-add-btn,#archived-chats-modal .view-archived-btn,#archived-chats-modal .unarchive-btn,#archived-chats-modal .delete-btn,#close-view-archived-modal-btn-footer {
-    border: 1px solid #000000 !important;
+    border: 1px solid var(--gpt-control-border) !important;
     background: var(--modal-bg) !important;
     color: var(--text-primary) !important;
 }

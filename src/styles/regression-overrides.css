@@ -39,7 +39,7 @@
 .btn-outline-white {
     background: var(--modal-bg) !important;
     color: var(--text-primary) !important;
-    border: 1px solid #000000 !important;
+    border: 1px solid var(--gpt-control-border) !important;
     box-shadow: none !important;
     text-shadow: none !important;
 }

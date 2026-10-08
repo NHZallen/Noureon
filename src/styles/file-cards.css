@@ -1,7 +1,7 @@
 /* Downloadable file cards rendered from ```file blocks in model replies. */
 
 .ac-file-card {
-    --ac-file-accent: #64748b;
+    --ac-file-accent: var(--file-default);
     display: flex;
     align-items: center;
     gap: 0.75rem;
@@ -19,19 +19,19 @@
     line-height: 1.35;
 }
 
-.ac-file-card[data-file-family="word"] { --ac-file-accent: #2b579a; }
-.ac-file-card[data-file-family="excel"] { --ac-file-accent: #217346; }
-.ac-file-card[data-file-family="powerpoint"] { --ac-file-accent: #c43e1c; }
-.ac-file-card[data-file-family="pdf"] { --ac-file-accent: #d93025; }
-.ac-file-card[data-file-family="csv"] { --ac-file-accent: #1e8e3e; }
-.ac-file-card[data-file-family="markdown"] { --ac-file-accent: #475569; }
-.ac-file-card[data-file-family="code"] { --ac-file-accent: #6d5ce7; }
-.ac-file-card[data-file-family="data"] { --ac-file-accent: #0284c7; }
-.ac-file-card[data-file-family="web"] { --ac-file-accent: #e44d26; }
-.ac-file-card[data-file-family="calendar"] { --ac-file-accent: #d97706; }
-.ac-file-card[data-file-family="contact"] { --ac-file-accent: #7c3aed; }
-.ac-file-card[data-file-family="subtitle"] { --ac-file-accent: #0d9488; }
-.ac-file-card[data-file-family="blocked"] { --ac-file-accent: #9ca3af; }
+.ac-file-card[data-file-family="word"] { --ac-file-accent: var(--file-word); }
+.ac-file-card[data-file-family="excel"] { --ac-file-accent: var(--file-excel); }
+.ac-file-card[data-file-family="powerpoint"] { --ac-file-accent: var(--file-powerpoint); }
+.ac-file-card[data-file-family="pdf"] { --ac-file-accent: var(--file-pdf); }
+.ac-file-card[data-file-family="csv"] { --ac-file-accent: var(--file-csv); }
+.ac-file-card[data-file-family="markdown"] { --ac-file-accent: var(--file-markdown); }
+.ac-file-card[data-file-family="code"] { --ac-file-accent: var(--file-code); }
+.ac-file-card[data-file-family="data"] { --ac-file-accent: var(--file-data); }
+.ac-file-card[data-file-family="web"] { --ac-file-accent: var(--file-web); }
+.ac-file-card[data-file-family="calendar"] { --ac-file-accent: var(--file-calendar); }
+.ac-file-card[data-file-family="contact"] { --ac-file-accent: var(--file-contact); }
+.ac-file-card[data-file-family="subtitle"] { --ac-file-accent: var(--file-subtitle); }
+.ac-file-card[data-file-family="blocked"] { --ac-file-accent: var(--file-blocked); }
 
 .ac-file-icon {
     position: relative;
@@ -69,7 +69,7 @@
     padding: 0.08rem 0.2rem;
     border-radius: 0.25rem;
     background: var(--ac-file-accent);
-    color: #ffffff;
+    color: var(--on-color);
     font-size: 0.52rem;
     font-weight: 700;
     letter-spacing: 0.02em;
@@ -114,7 +114,7 @@
 .ac-file-notice-blocked,
 .ac-file-notice-too-large,
 .ac-file-notice-unavailable {
-    color: color-mix(in srgb, #c81e1e 78%, var(--text-primary));
+    color: color-mix(in srgb, var(--state-danger) 78%, var(--text-primary));
 }
 
 .ac-file-actions {
@@ -256,7 +256,7 @@
     border-radius: 1rem;
     background: var(--modal-bg);
     color: var(--text-primary);
-    box-shadow: 0 24px 64px rgba(15, 23, 42, 0.28);
+    box-shadow: var(--shadow-xl);
     overflow: hidden;
 }
 
@@ -266,7 +266,7 @@
 }
 
 .ac-file-preview::backdrop {
-    background: rgba(15, 23, 42, 0.45);
+    background: var(--scrim);
 }
 
 .ac-file-preview-header {
@@ -376,7 +376,7 @@
     justify-content: center;
     padding: 1rem;
     border-radius: 0.6rem;
-    background: repeating-conic-gradient(rgba(148, 163, 184, 0.18) 0% 25%, transparent 0% 50%) 50% / 1rem 1rem;
+    background: repeating-conic-gradient(color-mix(in srgb, var(--text-tertiary) 18%, transparent) 0% 25%, transparent 0% 50%) 50% / 1rem 1rem;
 }
 
 .ac-file-preview-image img {
@@ -418,7 +418,7 @@
 
 .ac-file-preview-view[aria-pressed="true"] {
     background: var(--modal-bg, var(--chat-bg));
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
+    box-shadow: var(--shadow-xs);
     color: var(--text-primary);
 }
 
@@ -457,7 +457,7 @@
 
 /* The pages inside (Word, PDF, slides, sheets, web pages) are paper: white, with dark text whatever the theme is. */
 .ac-file-preview-pages > :not(.ac-file-preview-note):not(.ac-file-preview-status) {
-    color: #111827;
+    color: var(--paper-text);
 }
 
 /* Slides: 16:9 frames drawn from the same layout as the .pptx. */
@@ -481,13 +481,13 @@
     /* The app strokes icon SVGs by default; slide elements set their own. */
     stroke: none;
     border-radius: 0.3rem;
-    background: #ffffff;
-    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.18), 0 6px 18px rgba(15, 23, 42, 0.08);
+    background: var(--paper-bg);
+    box-shadow: var(--paper-shadow);
 }
 
 .ac-slide-caption {
     margin-top: 0.35rem;
-    color: #4b5563;
+    color: var(--paper-text-soft);
     font-size: 0.75rem;
     text-align: center;
     font-variant-numeric: tabular-nums;

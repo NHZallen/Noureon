@@ -41,7 +41,7 @@
 
 #model-council-control .mp-trigger:disabled { cursor: default; opacity: 0.55; }
 .mp-trigger-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.mp-trigger-dot { flex: none; width: 0.4rem; height: 0.4rem; border-radius: 50%; background: #d97706; }
+.mp-trigger-dot { flex: none; width: 0.4rem; height: 0.4rem; border-radius: 50%; background: var(--state-warning); }
 .mp-chevron { flex: none; transition: transform 0.22s cubic-bezier(0.25, 0.8, 0.25, 1); }
 .mp-trigger[aria-expanded='true'] .mp-chevron { transform: rotate(180deg); }
 
@@ -472,13 +472,13 @@
     height: var(--mp-thumb);
     border-radius: 50%;
     background: var(--chat-bg);
-    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--thumb-shadow);
     transform: translate(-50%, -50%) scale(var(--mp-press, 1));
     pointer-events: none;
     transition: box-shadow 0.15s ease, transform 0.14s cubic-bezier(0.2, 0.9, 0.3, 1.2);
 }
 
-.mp-slider-wrap:has(.mp-slider:focus-visible) .mp-thumb { box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35), 0 0 0 3px color-mix(in srgb, var(--text-primary) 35%, transparent); }
+.mp-slider-wrap:has(.mp-slider:focus-visible) .mp-thumb { box-shadow: var(--thumb-shadow), 0 0 0 3px color-mix(in srgb, var(--text-primary) 35%, transparent); }
 .mp-slider-wrap:has(.mp-slider:disabled) { opacity: 0.5; }
 .mp-slider-wrap:has(.mp-slider:active) .mp-thumb { --mp-press: 1.1; }
 

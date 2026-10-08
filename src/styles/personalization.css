@@ -3,7 +3,7 @@
     @media (max-width: 640px) {
         .media-lightbox {
             padding: 4rem 0 6.6rem;
-            background: #000;
+            background: var(--media-black);
         }
         .media-lightbox-stage {
             width: 100vw;
@@ -126,7 +126,7 @@
         background-color: var(--hover-bg);
     }
     .pinned-icon {
-        color: #fbbf24;
+        color: var(--pin-color);
     }
     .sidebar, .sidebar button, .sidebar input, .sidebar h2, .sidebar span {
         color: var(--text-primary);
@@ -141,7 +141,7 @@
         color: var(--text-primary);
     }
     .pinned-icon {
-        color: #fbbf24;
+        color: var(--pin-color);
     }
     #settings-modal .settings-section {
         color: var(--text-primary);
@@ -231,12 +231,12 @@
     }
     @keyframes pulse-red-border {
         0%, 100% {
-            border-color: #ef4444;
-            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.4);
+            border-color: var(--state-danger);
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--state-danger) 40%, transparent);
         }
         50% {
-            border-color: #f87171;
-            box-shadow: 0 0 0 0px rgba(239, 68, 68, 0);
+            border-color: color-mix(in srgb, var(--state-danger) 70%, var(--chat-bg));
+            box-shadow: 0 0 0 0px transparent;
         }
     }
     .dialog-warning-border {
@@ -248,9 +248,9 @@
     .demo-model-selector .selector-btn.active {
         color: var(--link-color);
         background-color: color-mix(in srgb, var(--button-primary-bg) 12%, var(--chat-bg));
-        border-color: #2563eb;
+        border-color: var(--link-color);
         transform: translateY(-2px);
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        box-shadow: var(--shadow-sm);
     }
     .demo-chat-content {
         display: none;
@@ -323,11 +323,11 @@
         font-weight: 500;
     }
     .subscribe-btn.subscribed {
-        background-color: #10b981;
+        background-color: var(--state-success);
         color: white;
     }
     .subscribe-btn.subscribed:hover {
-        background-color: #059669;
+        background-color: color-mix(in srgb, var(--state-success) 85%, var(--text-primary));
     }
     .astras-sidebar-avatar {
         width: 24px;
@@ -351,7 +351,7 @@
     #mobile-context-menu-overlay {
         position: fixed;
         inset: 0;
-        background-color: rgba(0,0,0,0.5);
+        background-color: var(--scrim);
         z-index: 99;
         opacity: 0;
         transition: opacity 0.3s ease;

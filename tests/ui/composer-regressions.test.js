@@ -75,12 +75,12 @@ test('composer upload previews occupy a full-width row above desktop input contr
   assert.doesNotMatch(previewLifecycle, /removeButton\.innerHTML\s*=\s*'&times;'/);
   assert.match(css, /\.file-preview-remove\s*\{[^}]*display:\s*grid;[^}]*place-items:\s*center;[^}]*padding:\s*0;[^}]*line-height:\s*0;/s);
   assert.match(css, /\.file-preview-remove\s+svg\s*\{[^}]*display:\s*block;[^}]*width:\s*0\.8rem;[^}]*height:\s*0\.8rem;/s);
-  assert.match(css, /\.file-preview-remove\s*\{[^}]*color:\s*#ffffff;/s);
-  assert.match(css, /\.file-preview-remove\s+svg\s*\{[^}]*stroke:\s*#ffffff;/s);
+  assert.match(css, /\.file-preview-remove\s*\{[^}]*color:\s*var\(--on-color\);/s);
+  assert.match(css, /\.file-preview-remove\s+svg\s*\{[^}]*stroke:\s*var\(--on-color\);/s);
   assert.match(previewLifecycle, /removeButton\.innerHTML\s*=\s*'<svg[^']*stroke="#ffffff"/);
-  assert.match(css, /video\[data-video-thumbnail\][^{]*\{[^}]*background:\s*#111827;/s);
+  assert.match(css, /video\[data-video-thumbnail\][^{]*\{[^}]*background:\s*var\(--media-bg\);/s);
   assert.doesNotMatch(css, /video\[data-video-thumbnail\][^{]*\{[^}]*opacity:\s*0;/s);
-  assert.match(css, /\.input-media-preview\s+\.file-preview-item\.file-preview-video\s*\{[^}]*background:\s*#111827;/s);
+  assert.match(css, /\.input-media-preview\s+\.file-preview-item\.file-preview-video\s*\{[^}]*background:\s*var\(--media-bg\);/s);
 });
 
 test('desktop active modes have no hover close control and remain selectable text', () => {
@@ -131,7 +131,7 @@ test('desktop tools menu follows the centered or docked composer without changin
   assert.match(css, /#chat-workspace\[data-composer-layout="empty"\]\s+#file-options-popover:not\(\.message-edit-shared-popover\)[^{]*\{[^}]*top:\s*calc\(100%\s*\+\s*1\.75rem\)\s*!important;[^}]*bottom:\s*auto\s*!important/s);
   assert.match(css, /#file-options-popover\s+\.composer-menu-label[^{]*\{[^}]*font-size:\s*0\.84rem/s);
   assert.match(css, /#file-options-popover\s+\.composer-menu-description[^{]*\{[^}]*font-size:\s*0\.76rem/s);
-  assert.match(css, /#file-options-popover:not\(\.message-edit-shared-popover\)\s*>\s*button:hover[\s\S]*background:\s*rgba\(107,\s*114,\s*128,\s*0\.12\)\s*!important/s);
+  assert.match(css, /#file-options-popover:not\(\.message-edit-shared-popover\)\s*>\s*button:hover[\s\S]*background:\s*color-mix\(in srgb, var\(--text-secondary\) 12%, transparent\)\s*!important/s);
   assert.match(css, /#file-options-popover:not\(\.message-edit-shared-popover\)[^{]*\{[^}]*transform:\s*none\s*!important;[^}]*transition:\s*opacity\s+0\.16s\s+ease-out,\s*visibility\s+0\.16s\s*!important/s);
   assert.match(css, /#add-file-btn\s+svg[^{]*\{[^}]*stroke-width:\s*1\.5/s);
   assert.match(css, /#voice-input-btn-message\s+svg[^{]*\{[^}]*stroke-width:\s*1\.6/s);

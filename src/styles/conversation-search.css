@@ -14,9 +14,9 @@
     max-width: 47.5rem;
     max-height: calc(100vh - 2.5rem) !important;
     background: var(--modal-bg) !important;
-    border: 1px solid #dfe1e5;
+    border: 1px solid var(--border-color);
     border-radius: 1rem !important;
-    box-shadow: 0 20px 58px rgba(15, 23, 42, 0.16);
+    box-shadow: var(--shadow-lg);
     overflow: hidden;
 }
 
@@ -183,16 +183,16 @@
     -webkit-appearance: none;
     appearance: none;
     background:
-        linear-gradient(45deg, transparent 45%, #6b7280 45%, #6b7280 55%, transparent 55%),
-        linear-gradient(-45deg, transparent 45%, #6b7280 45%, #6b7280 55%, transparent 55%);
+        linear-gradient(45deg, transparent 45%, var(--text-secondary) 45%, var(--text-secondary) 55%, transparent 55%),
+        linear-gradient(-45deg, transparent 45%, var(--text-secondary) 45%, var(--text-secondary) 55%, transparent 55%);
     border-radius: 999px;
     cursor: pointer;
 }
 
 #search-modal #modal-search-input::-webkit-search-cancel-button:hover {
     background:
-        linear-gradient(45deg, transparent 45%, #374151 45%, #374151 55%, transparent 55%),
-        linear-gradient(-45deg, transparent 45%, #374151 45%, #374151 55%, transparent 55%);
+        linear-gradient(45deg, transparent 45%, var(--text-primary) 45%, var(--text-primary) 55%, transparent 55%),
+        linear-gradient(-45deg, transparent 45%, var(--text-primary) 45%, var(--text-primary) 55%, transparent 55%);
 }
 
 #search-modal #voice-input-btn-search {
@@ -367,7 +367,7 @@
         background: var(--modal-bg);
         border: 1px solid var(--border-color);
         border-radius: 999px;
-        box-shadow: 0 3px 10px rgba(15, 23, 42, 0.08);
+        box-shadow: var(--shadow-sm);
     }
 
     #search-modal #close-search-modal-btn:hover,
@@ -401,7 +401,7 @@
         background: var(--hover-bg);
         border: 1px solid var(--border-color);
         border-radius: 0.72rem;
-        box-shadow: 0 3px 12px rgba(15, 23, 42, 0.06);
+        box-shadow: var(--shadow-sm);
     }
 
     .conversation-search-mode-control button {
@@ -419,7 +419,7 @@
     .conversation-search-mode-control button.is-active {
         color: var(--button-primary-bg, #4f8df7);
         background: var(--modal-bg);
-        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.1);
+        box-shadow: var(--shadow-xs);
     }
 
     .conversation-search-enter-hint {
@@ -436,7 +436,7 @@
         background-color: var(--hover-bg);
         border-color: var(--border-color);
         border-radius: 999px !important;
-        box-shadow: 0 3px 12px rgba(15, 23, 42, 0.06);
+        box-shadow: var(--shadow-sm);
         line-height: 3rem;
     }
 

@@ -61,8 +61,8 @@
         height: 2.75rem !important;
         min-height: 2.75rem !important;
         background: var(--modal-bg) !important;
-        border: 1px solid #d9d9dd !important;
-        box-shadow: 0 1px 8px rgba(0, 0, 0, 0.08) !important;
+        border: 1px solid var(--gpt-border) !important;
+        box-shadow: var(--shadow-sm) !important;
     }
 
     #close-settings-btn::before {
@@ -124,7 +124,7 @@
         width: 2.75rem !important;
         height: 2.75rem !important;
         padding: 0 !important;
-        border: 1px solid #d9d9dd !important;
+        border: 1px solid var(--gpt-border) !important;
         border-radius: 999px !important;
         background: var(--modal-bg) !important;
         color: var(--text-primary) !important;
@@ -137,7 +137,7 @@
             opacity 0.34s ease-in-out,
             translate 0.34s ease-in-out,
             scale 0.34s ease-in-out !important;
-        box-shadow: 0 1px 8px rgba(0, 0, 0, 0.08) !important;
+        box-shadow: var(--shadow-sm) !important;
     }
 
     #settings-mobile-back-btn svg,
@@ -213,7 +213,7 @@
 
     #settings-modal .settings-mobile-group-title {
         margin: 0 0 0.55rem 1.35rem;
-        color: #8d8d93;
+        color: var(--text-secondary);
         font-size: 1.05rem;
         font-weight: 700;
         line-height: 1.2;
@@ -275,7 +275,7 @@
     }
 
     #settings-modal .settings-mobile-chevron {
-        color: #c6c6ca;
+        color: var(--text-tertiary);
         font-size: 2rem;
         font-weight: 300;
         line-height: 1;
@@ -284,7 +284,7 @@
     #settings-modal .settings-mobile-list-item-danger,
     #settings-modal .settings-mobile-list-item-danger .settings-mobile-row-icon,
     #settings-modal .settings-mobile-list-item-danger .settings-mobile-row-label {
-        color: #e11919 !important;
+        color: var(--state-danger) !important;
     }
 
     #settings-modal .flex-1.p-6.overflow-y-auto {
@@ -333,7 +333,7 @@
 
     #settings-modal.settings-mobile-detail-open .settings-section > h3 {
         margin: 1.2rem 0 0.55rem 1.35rem !important;
-        color: #8d8d93 !important;
+        color: var(--text-secondary) !important;
         font-size: 1.05rem !important;
         font-weight: 700 !important;
     }

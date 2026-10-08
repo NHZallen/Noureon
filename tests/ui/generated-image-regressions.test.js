@@ -6,7 +6,7 @@ test('generated image cards keep mobile AI spacing, white controls, calm skeleto
   const css = readUiSource('src/styles/chat.css');
   const lifecycle = readUiSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
 
-  assert.match(css, /\.generated-image-action-btn\s+svg[^{]*\{[^}]*stroke:\s*#fff;/s);
+  assert.match(css, /\.generated-image-action-btn\s+svg[^{]*\{[^}]*stroke:\s*var\(--on-color\);/s);
   assert.match(css, /\.generated-image-card\s*\{[\s\S]*width:\s*fit-content;[\s\S]*background:\s*transparent;[\s\S]*border:\s*0;/s);
   assert.match(css, /\.generated-image-preview-btn\s*\{[\s\S]*display:\s*inline-block;[\s\S]*width:\s*auto;/s);
   assert.match(css, /\.generated-image-card\.has-natural-aspect\s*\{[\s\S]*aspect-ratio:\s*auto\s*!important;/s);

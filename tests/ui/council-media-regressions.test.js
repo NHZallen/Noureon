@@ -6,16 +6,16 @@ test('media preview download and share icons stay white over dark media', () => 
   const css = readUiSource('src/styles/main.css');
   const mediaPreviewLifecycle = readUiSource('src/app/legacy-runtime/features/media-preview-lifecycle.js');
 
-  assert.match(css, /\.media-lightbox-action,\s*\.media-lightbox-action\s+svg,\s*\.media-lightbox-action\s+svg\s+\*[^{]*\{[^}]*color:\s*#ffffff\s!important;[^}]*stroke:\s*#ffffff\s!important;/s);
+  assert.match(css, /\.media-lightbox-action,\s*\.media-lightbox-action\s+svg,\s*\.media-lightbox-action\s+svg\s+\*[^{]*\{[^}]*color:\s*var\(--on-color\)\s!important;[^}]*stroke:\s*var\(--on-color\)\s!important;/s);
   assert.match(css, /\.media-lightbox-action\s+svg\s*\{[^}]*fill:\s*none\s!important;/s);
-  assert.match(css, /\.media-lightbox-action\s+svg\s+\[fill\]:not\(\[fill="none"\]\)[^{]*\{[^}]*fill:\s*#ffffff\s!important;/s);
-  assert.match(css, /\.media-lightbox-close\s*\{[^}]*top:\s*1\.15rem;[^}]*display:\s*inline-flex;[^}]*align-items:\s*center;[^}]*justify-content:\s*center;[^}]*background:\s*rgba\([^)]+\);/s);
+  assert.match(css, /\.media-lightbox-action\s+svg\s+\[fill\]:not\(\[fill="none"\]\)[^{]*\{[^}]*fill:\s*var\(--on-color\)\s!important;/s);
+  assert.match(css, /\.media-lightbox-close\s*\{[^}]*top:\s*1\.15rem;[^}]*display:\s*inline-flex;[^}]*align-items:\s*center;[^}]*justify-content:\s*center;[^}]*background:\s*var\(--media-control-bg\);/s);
   assert.match(css, /\.media-lightbox-close\s+svg\s*\{[^}]*display:\s*block;[^}]*width:\s*1\.5rem;[^}]*height:\s*1\.5rem;/s);
-  assert.match(css, /\.media-lightbox-close\s*\{[^}]*color:\s*#ffffff;/s);
-  assert.match(css, /\.media-lightbox-close\s+svg\s*\{[^}]*stroke:\s*#ffffff;/s);
+  assert.match(css, /\.media-lightbox-close\s*\{[^}]*color:\s*var\(--on-color\);/s);
+  assert.match(css, /\.media-lightbox-close\s+svg\s*\{[^}]*stroke:\s*var\(--on-color\);/s);
   assert.match(mediaPreviewLifecycle, /class="media-lightbox-close"[^>]*><svg[^>]*stroke="#ffffff"/);
-  assert.match(css, /\.message-media-play\s+svg\s+path\s*\{[^}]*fill:\s*#ffffff;/s);
-  assert.match(css, /\.message-media-thumb\.message-media-video\s*\{[^}]*background:\s*#111827;/s);
+  assert.match(css, /\.message-media-play\s+svg\s+path\s*\{[^}]*fill:\s*var\(--on-color\);/s);
+  assert.match(css, /\.message-media-thumb\.message-media-video\s*\{[^}]*background:\s*var\(--media-bg\);/s);
   assert.match(mediaPreviewLifecycle, /class="media-lightbox-close"[^>]*><svg[^>]*aria-hidden="true"/);
   assert.doesNotMatch(mediaPreviewLifecycle, /media-lightbox-close[^\n]*&times;/);
   assert.match(css, /\.media-lightbox-toolbar\s*\{[\s\S]*top:\s*1\.15rem;/s);

@@ -106,7 +106,7 @@ body {
 
 
 @keyframes highlight-fade {
-    0% { background-color: rgba(250, 204, 21, 0.7); } /* 黃色的高亮 */
+    0% { background-color: var(--flash-bg); } /* 黃色的高亮 */
     100% { background-color: transparent; }
 }
     .sidebar-item {

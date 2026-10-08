@@ -164,7 +164,7 @@ test('charts css exposes visible plot hit areas guides and durable donut active 
   const css = readFileSync(join(process.cwd(), 'src/styles/charts.css'), 'utf8');
 
   assert.match(css, /\.ac-chart-interaction-overlay\s*\{[^}]*pointer-events:\s*all;/s);
-  assert.match(css, /\.ac-chart-guide-line\s*\{[^}]*stroke:\s*rgba\([^)]*0\.62\);[^}]*opacity:\s*1;/s);
+  assert.match(css, /\.ac-chart-guide-line\s*\{[^}]*stroke:\s*color-mix\(in srgb, var\(--text-secondary\) 62%, transparent\);[^}]*opacity:\s*1;/s);
   assert.match(css, /data-chart-active-index[^}]*\.ac-chart-donut-segment\[data-chart-active="false"\][^{]*\{[^}]*opacity:\s*0\.32;[^}]*grayscale/s);
   assert.match(css, /data-chart-active-index[^}]*\.ac-chart-legend-item\[data-chart-active="true"\][^{]*\{[^}]*background:[^;]+;[^}]*opacity:\s*1;/s);
   assert.doesNotMatch(css, /\.ac-chart-legend-item[^}]*::before/);
