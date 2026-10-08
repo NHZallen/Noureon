@@ -161,7 +161,7 @@ export function createCliMode({ document, messageInput, isLocked = () => false, 
     const wrapper = messageInput.closest('.input-wrapper');
     if (!menu || menu.hidden || !wrapper?.getBoundingClientRect) return;
     // The top of what is seen, in the measures of getBoundingClientRect: those already take the page's scroll off, and on an iPhone with the
-    // keyboard up the seen area's offsetTop moves with that same scroll (measured with ?debugViewport: offsetTop equal to scrollY), so it is
+    // keyboard up the seen area's offsetTop moves with that same scroll (measured on an iPhone: offsetTop equal to scrollY), so it is
     // taken off too. Without it the room came out below zero as soon as the page was moved, and the list lost its limit and ran off the top.
     const seenTop = (Number(win.visualViewport?.offsetTop) || 0) - (Number(win.scrollY) || 0);
     const room = wrapper.getBoundingClientRect().top - seenTop - 16;

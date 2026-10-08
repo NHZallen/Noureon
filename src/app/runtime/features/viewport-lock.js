@@ -2,7 +2,7 @@
 // its full height, so the app, fixed to the whole page, had its box covered by the keyboard and its top slid out of sight. This hands the app
 // where the seen area ends (--vv-bottom on <html>: the top of the keyboard in the page's measures), and styles/layout.css makes the app end
 // there, from the top of the page.
-// That end moves when the page is moved (measured on an iPhone with ?debugViewport: offsetTop rises with scrollY, the seen height stays), and the
+// That end moves when the page is moved (measured on an iPhone: offsetTop rises with scrollY, the seen height stays), and the
 // app can only follow a frame late, so a page dragged by a finger made the composer jump 10 to 30 pixels on every frame. With the keyboard up the
 // page is about twice as tall as what is seen, and a finger on anything that does not scroll (the composer's frame, an empty chat) dragged all
 // of it: every jump in the recordings came between a touchstart and its touchend, and the page's own code asked for no scroll at all. So while
