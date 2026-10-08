@@ -965,3 +965,36 @@ test('a genuine remote change still repaints', async () => {
   emitCommitted(archiveFixture, archived);
   assert.equal(archiveFixture.renderCalls.sidebar, 1, 'a remote archive repaints the sidebar');
 });
+
+test('a colour theme (light, dark, system) that comes from another device is shown at once, like the accent', () => {
+  const window = createWindowFixture();
+  const appDataStore = createLegacyRuntimeAppDataStore({ initialMemoryState: {} });
+  let config = { colorScheme: 'light', uiTheme: { mode: 'default', customColor: '#3b82f6' }, modelSettings: [], lastCouncilConfig: {} };
+  let themeApplied = 0;
+  createCloudWorkspaceLiveLifecycle({
+    window,
+    configAccess: { getConfig: () => config, replaceConfig: next => { config = next; } },
+    appDataStore,
+    getDefaultFolder: () => ({ id: 'root' }),
+    getDefaultGenConfig: () => ({}),
+    normalizeCouncilConfig: value => value,
+    normalizeConversationModel: value => value,
+    models: [],
+    maxCouncilModels: 4,
+    getCouncilTranslatorCandidates: () => [],
+    getSingleTranslatorCandidates: () => [],
+    applyUiTheme: () => { themeApplied += 1; },
+    renderAll: () => {},
+    renderSidebar: () => {},
+    renderChat: () => {},
+    saveAppData: async () => {}
+  });
+  window.__astraCloudRuntimeReady();
+
+  window.emit('astra:cloud-config', { colorScheme: 'dark' });
+  assert.equal(config.colorScheme, 'dark');
+  assert.equal(themeApplied, 1, 'the page is told to show the new theme, not only to keep it');
+
+  window.emit('astra:cloud-config', { colorScheme: 'dark', uiTheme: { mode: 'custom', customColor: '#9961f6' } });
+  assert.equal(themeApplied, 2, 'the accent still does the same');
+});
