@@ -2,6 +2,20 @@
 // content 為 zh-TW 的 HTML 字串（JSON 轉義、雙引號），目前不隨介面語言切換。
 export const updateLogEntries = [
   {
+    version: "17.13.0",
+    date: "2026-10-08",
+    content: [
+      "<strong>Noureon 17.13.0 發布說明</strong>",
+      "本版本將使用條款、隱私權政策與更新紀錄改為獨立的公開網頁，不需登入即可閱讀與分享。",
+      "<strong>主要變更</strong>",
+      "<ul><li><strong>公開網頁：</strong>使用條款（noureon.com/terms）、隱私權政策（noureon.com/privacy）與完整更新紀錄（noureon.com/updates）各有獨立網址，不需登入、不載入 App。頁面支援繁體中文、English、Français、Русский、Español，語言依瀏覽器設定自動選擇，也可在頁面右上角切換；淺色與深色模式跟隨系統。</li><li><strong>更新紀錄頁：</strong>依月份分組，每個版本有可分享的連結（例如 noureon.com/updates#v17.13.0），桌面版右側有月份清單，捲動時標示目前所在的月份。更新內容目前僅提供繁體中文。</li><li><strong>入口：</strong>設定的「條款與政策」與「版本資訊」改為連結，在新分頁開啟；登入頁底部新增使用條款與隱私權政策連結；新版本通知視窗的「查看完整更新紀錄」連到更新紀錄頁。原本設定中的更新紀錄視窗與條款展開區塊已移除。</li></ul>",
+      "<strong>注意事項</strong>",
+      "<ul><li>三個頁面是獨立的網頁，不屬於 App，也不會被離線快取；離線時無法開啟。</li></ul>",
+      "<strong>相容性</strong>",
+      "本次更新不需要資料遷移。"
+    ]
+  },
+  {
     version: "17.12.1",
     date: "2026-10-08",
     content: [

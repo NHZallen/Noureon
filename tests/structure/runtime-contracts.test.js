@@ -22,7 +22,6 @@ const CORE_TAIL_BINDING_NAMES = [
   'showMobileContextMenuForFolder',
   'showMobileContextMenuForAstras',
   'setupScrollToBottomButton',
-  'showUpdateHistory',
   'checkAndShowLatestUpdate',
   'setupMessageIntersectionObserver',
   'renderTrash',

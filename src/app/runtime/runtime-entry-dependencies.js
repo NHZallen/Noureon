@@ -74,7 +74,6 @@ const REQUIRED_APP_BOOTSTRAP_FIELDS = [
   'closeStore',
   'handleAvatarUpload',
   'handleConfirmAvatarCrop',
-  'showUpdateHistory',
   'toggleTrashSelectionMode',
   'handleBatchRestoreFromTrash',
   'handleBatchDeleteFromTrash',

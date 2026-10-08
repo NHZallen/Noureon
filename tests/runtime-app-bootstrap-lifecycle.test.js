@@ -250,7 +250,6 @@ function createLifecycleHarness(overrides = {}) {
     closeStore: () => calls.push('closeStore'),
     handleAvatarUpload: () => calls.push('handleAvatarUpload'),
     handleConfirmAvatarCrop: () => calls.push('handleConfirmAvatarCrop'),
-    showUpdateHistory: () => calls.push('showUpdateHistory'),
     toggleTrashSelectionMode: () => calls.push('toggleTrashSelectionMode'),
     handleBatchRestoreFromTrash: () => calls.push('handleBatchRestoreFromTrash'),
     handleBatchDeleteFromTrash: () => calls.push('handleBatchDeleteFromTrash'),

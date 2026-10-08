@@ -117,3 +117,15 @@
 - 更新紀錄是給所有使用者看的，可以寫技術細節（歷來都是這樣，owner 也要技術內容），但**不要把跟 owner 的討論與過程寫進去**：例如看了哪支錄影、owner 的決定與選項、我怎麼找到原因、怎麼驗證、測試數字。只寫這一版改了什麼、使用者會看到什麼、做法與限制。
 - **注意：** 主要程式區塊壓縮後剛好 150.0KB（上限 150KB）、`submit-input-council-lifecycle.js` 剛好在上限內；下一個功能要先把別的東西（最大的是各功能的文字檔）改成按需載入。
 
+## 2026-10-08（17.12.1 到 17.13.0）換模型、整理更新紀錄、公開頁面
+
+- **17.12.1：**OpenRouter 的 Claude 4.5 Haiku 換成 Claude Haiku 5.5（`anthropic/claude-haiku-5.5`，舊 id 放 `legacyIds`）。思考程度低、中、高、超高、極致，預設中；支援圖片與工具呼叫（依 Anthropic 文件，沙盒連不到 openrouter.ai，沒有直接看 OpenRouter 的頁面）。價格每百萬輸入 0.10、輸出 0.50 美元（提示超過 10 萬 token 為 0.50 / 2.50）。
+- **更新紀錄整理（沒升版）：**全部 118 筆刪掉私下溝通與過程內容、口語改成官方用語。之後新增的更新紀錄照 §1 的規則寫。
+- **17.13.0 公開頁面：**`noureon.com/terms`、`/privacy`、`/updates` 是建置時產生的靜態 HTML（`scripts/build-public-pages.mjs`，接在 `npm run build` 後面；樣式與腳本是 `public/pages.css`、`public/pages.js`，因為 CSP 不允許行內 script）。設計與決定見 [`docs/superpowers/specs/2026-10-08-public-pages-design.md`](../specs/2026-10-08-public-pages-design.md)。
+  - 內容：條款與隱私權政策用 i18n 的 `termsOfUse`、`termsOfUseDesc`、`privacyPolicy`、`privacyPolicyDesc`（依句號拆成一句一段，字沒改）；更新紀錄用 `entries.js`。所以**這四個 i18n 鍵不能刪**，即使設定頁已不用它們。
+  - `service-worker.js` 對這三個路徑的導覽直接放行（不攔截、不快取），否則會把它們存成離線用的 App 外殼。
+  - App 端：設定「條款與政策」「版本資訊」改成連結（新分頁）；登入頁底部加連結；新版本彈窗的「查看完整更新紀錄」連到 `/updates`；舊的更新紀錄歷史彈窗（`showUpdateHistory`、`renderUpdateHistory`、相關 DOM 與 CSS、i18n 鍵 `updateHistory`、`updateLatestTag`、`noUpdateHistory`）都移除。
+  - 版面參考 Anthropic 的法律頁與更新紀錄頁（沙盒只連得到 anthropic.com 與 claude.com，其他公司沒看過，不要憑印象寫成參考）。
+  - **待 owner 決定：**法律頁要不要顯示生效日期（我們沒有，不要編造）；條款與隱私權政策要不要加編號章節（等換成完整版內容時一起做）；隱私權政策要不要換成 `PRIVACY.md` 的完整版（對外的法律文字，內容由 owner 確認）。
+  - **待 owner 實機確認：**三個網址部署後能打開、手機版面（沒有 iPhone 實機）、設定頁的連結在新分頁開啟。
+

@@ -1,6 +1,6 @@
-// The update notes (src/data/update-logs/entries.js) drawn for the two windows that show them: the history (every version, one under the
-// other, version and date on the left) and the "new version" window (the newest version first, as a headline, a few numbered changes
-// and the rest). A note is a list of strings of trusted HTML, written over the years in a few shapes: a bold line alone is a heading, a
+// The update notes (src/data/update-logs/entries.js) drawn for the "new version" window (the newest version first, as a headline, a few
+// numbered changes and the rest). The whole history is the page noureon.com/updates (scripts/build-public-pages.mjs), which uses
+// parseLogBlocks too. A note is a list of strings of trusted HTML, written over the years in a few shapes: a bold line alone is a heading, a
 // string that is a <ul> is a list, anything else is a sentence or a point. parseLogBlocks tells them apart so that old notes need no change.
 
 const HEADING = /^<strong>([^<]*)<\/strong>$/;
@@ -70,27 +70,6 @@ function appendBlocks({ document, parent, blocks, sanitize, numbered }) {
       parent.appendChild(list);
     }
   }
-}
-
-/** The history: every version in a row of its own. `latestLabel` is the small tag on the newest. */
-export function renderUpdateHistory({ document, container, logs, sanitize, latestLabel = '' }) {
-  container.replaceChildren();
-  logs.forEach((log, index) => {
-    const version = make(document, 'section', 'ul-ver');
-    const side = make(document, 'div', 'ul-side');
-    side.append(make(document, 'span', 'ul-v', ''), make(document, 'span', 'ul-d', ''));
-    side.children[0].textContent = log.version;
-    side.children[1].textContent = log.date;
-    if (index === 0 && latestLabel) {
-      const tag = make(document, 'span', 'ul-tag', '');
-      tag.textContent = latestLabel;
-      side.appendChild(tag);
-    }
-    const body = make(document, 'div', 'ul-body');
-    appendBlocks({ document, parent: body, blocks: parseLogBlocks(log.content), sanitize, numbered: false });
-    version.append(side, body);
-    container.appendChild(version);
-  });
 }
 
 /** The new versions, newest first: the version and date, a headline (the first sentence of the note), then the rest. */

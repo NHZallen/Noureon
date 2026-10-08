@@ -95,7 +95,6 @@ export function createLegacyAppBootstrapLifecycle({
     closeStore,
     handleAvatarUpload,
     handleConfirmAvatarCrop,
-    showUpdateHistory,
     toggleTrashSelectionMode,
     handleBatchRestoreFromTrash,
     handleBatchDeleteFromTrash,
@@ -748,14 +747,10 @@ export function createLegacyAppBootstrapLifecycle({
                     }
                     setEditingAstraForAvatarId(null);
                 });
-                ALL_ELEMENTS.updateInfoBtn.addEventListener('click', showUpdateHistory);
-                ALL_ELEMENTS.closeUpdateInfoModalBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.updateInfoModal, false));
                 ALL_ELEMENTS.closeLatestUpdateModalBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.latestUpdateModal, false));
                 ALL_ELEMENTS.closeLatestUpdateXBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.latestUpdateModal, false));
-                ALL_ELEMENTS.latestUpdateHistoryBtn.addEventListener('click', () => {
-                    toggleModal(ALL_ELEMENTS.latestUpdateModal, false);
-                    showUpdateHistory();
-                });
+                // The link opens the update notes page (/updates) in a new tab; the window of the new version closes as it is followed.
+                ALL_ELEMENTS.latestUpdateHistoryBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.latestUpdateModal, false));
                 ALL_ELEMENTS.trashBatchSelectBtn.addEventListener('click', toggleTrashSelectionMode);
                 ALL_ELEMENTS.trashCancelSelectionBtn.addEventListener('click', toggleTrashSelectionMode);
                 ALL_ELEMENTS.trashBatchRestoreBtn.addEventListener('click', handleBatchRestoreFromTrash);

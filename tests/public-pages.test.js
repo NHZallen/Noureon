@@ -5,6 +5,7 @@ import vm from 'node:vm';
 
 import i18n from '../src/data/i18n/index.js';
 import updateLogEntries from '../src/data/update-logs/entries.js';
+import { PRODUCT_VERSION } from '../src/data/version.js';
 import { LANGUAGES, PUBLIC_PAGES, buildPublicPages, groupByMonth, renderPublicPage, sentences } from '../scripts/build-public-pages.mjs';
 
 const readJson = async (path) => JSON.parse(await readFile(new URL(`../${path}`, import.meta.url), 'utf8'));
@@ -47,10 +48,10 @@ test('the update page has every version once, with a link target for each', () =
   assert.equal((html.match(/<article class="pg-ver"/g) || []).length, updateLogEntries.length);
   for (const entry of updateLogEntries) assert.ok(html.includes(`id="v${entry.version}"`), `version ${entry.version}`);
   assert.ok(html.indexOf(`id="v${updateLogEntries[0].version}"`) < html.indexOf(`id="v${updateLogEntries[1].version}"`), 'the newest is first');
-  assert.doesNotMatch(html, /<h4 class="pg-sec">Noureon 17\.12\.1 發布說明<\/h4>/, 'a first line that only repeats the version is left out');
+  assert.doesNotMatch(html, new RegExp(`<h4 class="pg-sec">Noureon ${PRODUCT_VERSION.replace(/\./g, '\\.')} 發布說明</h4>`), 'a first line that only repeats the version is left out');
   assert.match(html, /<h4 class="pg-sec">主要變更<\/h4>/, 'a bold line alone is a heading, as in the app');
   assert.match(html, />Historique des mises à jour</);
-  assert.match(html, /目前版本 <b>17\.12\.1<\/b>/, 'the current version is told under the title');
+  assert.ok(html.includes(`目前版本 <b>${PRODUCT_VERSION}</b>`), 'the current version is told under the title');
 });
 
 test('the update notes are grouped by month, newest first, and each month has a link in the list at the side', () => {

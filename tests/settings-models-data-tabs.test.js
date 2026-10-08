@@ -149,7 +149,7 @@ test('the Trash tab has its actions and batch bar in the page', () => {
   assert.equal(document.getElementById('trash-batch-restore-btn').disabled, true);
 });
 
-test('the About tab keeps its controls and folds the terms and the privacy policy until they are opened', () => {
+test('the About tab keeps its controls and links the terms, the privacy policy and the update notes to their pages, each in a new tab', () => {
   const window = new Window({ url: 'https://example.test/' });
   const { document } = window;
   const start = fragment04.indexOf('<div id="about-section"');
@@ -161,9 +161,33 @@ test('the About tab keeps its controls and folds the terms and the privacy polic
     [...document.querySelectorAll('#about-section .pz-card .pz-head h3')].map((heading) => heading.dataset.langKey),
     ['feedback', 'settingsCardSupport', 'settingsCardLegal', 'versionInfo']
   );
-  const folds = [...document.querySelectorAll('#about-section details.pz-fold')];
-  assert.deepEqual(folds.map((fold) => fold.querySelector('summary span').dataset.langKey), ['termsOfUse', 'privacyPolicy']);
-  assert.deepEqual(folds.map((fold) => fold.querySelector('.pz-fold-body').dataset.langKey), ['termsOfUseDesc', 'privacyPolicyDesc']);
-  assert.equal(folds.some((fold) => fold.hasAttribute('open')), false, 'both start closed');
-  assert.equal(document.querySelector('#update-info-btn span').dataset.langKey, 'viewUpdateHistory');
+  assert.equal(document.querySelectorAll('#about-section details').length, 0, 'nothing is folded any more');
+  const links = [...document.querySelectorAll('#about-section a.pz-nav')];
+  assert.deepEqual(links.map((link) => [link.getAttribute('href'), link.querySelector('span').dataset.langKey]), [
+    ['/terms', 'termsOfUse'],
+    ['/privacy', 'privacyPolicy'],
+    ['/updates', 'viewUpdateHistory']
+  ]);
+  for (const link of links) {
+    assert.equal(link.getAttribute('target'), '_blank', 'a new tab: the page has no way back to the settings');
+    assert.match(link.getAttribute('rel'), /noopener/);
+  }
+  assert.equal(document.getElementById('update-info-btn'), links[2]);
+});
+
+test('the landing page links the terms and the privacy policy, and the new-version window links the update notes, each in a new tab', async () => {
+  const shell = await import('../src/templates/fragments/00-shell.fragment.js');
+  const more = await import('../src/templates/fragments/06-shell.fragment.js');
+  const { document } = new Window({ url: 'https://example.test/' });
+  document.body.innerHTML = shell.default + more.default;
+  const footer = [...document.querySelectorAll('footer a[href^="/"]')];
+  assert.deepEqual(footer.map((link) => [link.getAttribute('href'), link.dataset.langKey, link.getAttribute('target')]), [
+    ['/terms', 'termsOfUse', '_blank'],
+    ['/privacy', 'privacyPolicy', '_blank']
+  ]);
+  const notes = document.getElementById('latest-update-history-btn');
+  assert.equal(notes.tagName, 'A');
+  assert.equal(notes.getAttribute('href'), '/updates');
+  assert.equal(notes.getAttribute('target'), '_blank');
+  assert.equal(document.getElementById('update-info-modal'), null, 'the old window of the history is gone');
 });

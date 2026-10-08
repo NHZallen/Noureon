@@ -4,7 +4,7 @@ import { Window } from 'happy-dom';
 
 import updateLogs from '../src/data/update-logs/entries.js';
 import fragment06 from '../src/templates/fragments/06-shell.fragment.js';
-import { parseLogBlocks, renderLatestUpdates, renderUpdateHistory } from '../src/app/ui/updates/update-log-view.js';
+import { parseLogBlocks, renderLatestUpdates } from '../src/app/ui/updates/update-log-view.js';
 
 const entry = (version) => updateLogs.find((log) => log.version === version);
 const plain = (html) => html;
@@ -33,18 +33,6 @@ test('every note that has text has something to show; the few old empty ones sta
   }
 });
 
-test('the history shows every version with its date and tags only the newest', () => {
-  const { document } = new Window({ url: 'https://example.test/' });
-  const container = document.createElement('div');
-  renderUpdateHistory({ document, container, logs: updateLogs, sanitize: plain, latestLabel: '最新' });
-  const sections = container.querySelectorAll('.ul-ver');
-  assert.equal(sections.length, updateLogs.length);
-  assert.equal(sections[0].querySelector('.ul-v').textContent, updateLogs[0].version);
-  assert.equal(sections[0].querySelector('.ul-d').textContent, updateLogs[0].date);
-  assert.equal(container.querySelectorAll('.ul-tag').length, 1);
-  assert.equal(sections[0].querySelector('.ul-tag').textContent, '最新');
-});
-
 test('the new-version window turns the first sentence into the headline and numbers the labelled changes', () => {
   const { document } = new Window({ url: 'https://example.test/' });
   const container = document.createElement('div');
@@ -64,11 +52,12 @@ test('the new-version window lists several versions newest first', () => {
   assert.deepEqual([...container.querySelectorAll('.ul-new .ul-v')].map((node) => node.textContent), updateLogs.slice(0, 2).map((log) => log.version));
 });
 
-test('the two update windows keep the ids the app binds to', () => {
+test('the new-version window keeps the ids the app binds to, and the window of the history is gone (it is the page /updates)', () => {
   const { document } = new Window({ url: 'https://example.test/' });
   document.body.innerHTML = fragment06;
-  for (const id of ['update-info-modal', 'update-info-content', 'close-update-info-modal-btn', 'latest-update-modal', 'latest-update-content', 'close-latest-update-modal-btn', 'close-latest-update-x-btn', 'latest-update-history-btn']) {
+  for (const id of ['latest-update-modal', 'latest-update-content', 'close-latest-update-modal-btn', 'close-latest-update-x-btn', 'latest-update-history-btn']) {
     assert.ok(document.getElementById(id), `${id} is in the page`);
   }
   assert.equal(document.querySelector('#latest-update-modal h2').dataset.langKey, 'newVersionReleased');
+  for (const id of ['update-info-modal', 'update-info-content', 'close-update-info-modal-btn']) assert.equal(document.getElementById(id), null, `${id} is gone`);
 });

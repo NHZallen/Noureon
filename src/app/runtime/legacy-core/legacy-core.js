@@ -1604,7 +1604,6 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             showMobileContextMenuForFolder,
             showMobileContextMenuForAstras,
             setupScrollToBottomButton,
-            showUpdateHistory,
             checkAndShowLatestUpdate,
             setupMessageIntersectionObserver,
             renderTrash,

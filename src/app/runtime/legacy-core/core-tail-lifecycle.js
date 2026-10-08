@@ -1,7 +1,7 @@
 import { buildTimeDistributionChartData } from '../../legacy-runtime/features/time-distribution-chart-data.js';
 import { buildConversationMobileContextMenuMarkup, buildFolderMobileContextMenuMarkup, buildAstraMobileContextMenuMarkup } from '../../legacy-runtime/features/mobile-context-menu-markup.js';
 import { compareVersions } from '../../legacy-runtime/features/version-compare.js';
-import { renderUpdateHistory, renderLatestUpdates } from '../../ui/updates/update-log-view.js';
+import { renderLatestUpdates } from '../../ui/updates/update-log-view.js';
 import { createLegacyTrashLifecycle } from '../features/trash-lifecycle.js';
 import { createThemeAppearanceLifecycle } from '../features/theme-appearance-lifecycle.js';
 import { createLegacyRuntimeEntryDependencies } from '../runtime-entry-dependencies.js';
@@ -839,21 +839,6 @@ export function createLegacyCoreTailLifecycle(dependencies = {}) {
     resizeObserver.observe(ALL_ELEMENTS.inputBarContainer);
     updateButtonPosition();
 };
-        const showUpdateHistory = () => {
-            const container = ALL_ELEMENTS.updateInfoContent;
-            if (typeof updateLogs !== 'undefined' && updateLogs.length > 0) {
-                renderUpdateHistory({
-                    document,
-                    container,
-                    logs: updateLogs,
-                    sanitize: sanitizeTrustedHTML,
-                    latestLabel: i18n[state.config.uiLanguage].updateLatestTag || ''
-                });
-            } else {
-                container.innerHTML = `<p class="ul-p">${i18n[state.config.uiLanguage].noUpdateHistory || '目前沒有更新紀錄。'}</p>`;
-            }
-            toggleModal(ALL_ELEMENTS.updateInfoModal, true);
-        };
         const checkAndShowLatestUpdate = async () => {
     if (!state.config.enableUpdateNotifications || typeof updateLogs === 'undefined' || updateLogs.length === 0) {
         return;
@@ -1107,7 +1092,6 @@ function setupMessageIntersectionObserver() {
                 closeStore,
                 handleAvatarUpload,
                 handleConfirmAvatarCrop,
-                showUpdateHistory,
                 toggleTrashSelectionMode,
                 handleBatchRestoreFromTrash,
                 handleBatchDeleteFromTrash,
@@ -1200,7 +1184,6 @@ function setupMessageIntersectionObserver() {
             showMobileContextMenuForFolder,
             showMobileContextMenuForAstras,
             setupScrollToBottomButton,
-            showUpdateHistory,
             checkAndShowLatestUpdate,
             setupMessageIntersectionObserver,
             renderTrash,

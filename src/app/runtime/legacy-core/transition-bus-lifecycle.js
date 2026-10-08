@@ -858,7 +858,6 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
     function showMobileContextMenuForFolder(...args) { return resolveCoreTailFunction('showMobileContextMenuForFolder')(...args); }
     function showMobileContextMenuForAstras(...args) { return resolveCoreTailFunction('showMobileContextMenuForAstras')(...args); }
     function setupScrollToBottomButton(...args) { return resolveCoreTailFunction('setupScrollToBottomButton')(...args); }
-    function showUpdateHistory(...args) { return resolveCoreTailFunction('showUpdateHistory')(...args); }
     function checkAndShowLatestUpdate(...args) { return resolveCoreTailFunction('checkAndShowLatestUpdate')(...args); }
     function setupMessageIntersectionObserver(...args) { return resolveCoreTailFunction('setupMessageIntersectionObserver')(...args); }
     function renderTrash(...args) { return resolveCoreTailFunction('renderTrash')(...args); }
@@ -918,7 +917,6 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         showMobileContextMenuForFolder,
         showMobileContextMenuForAstras,
         setupScrollToBottomButton,
-        showUpdateHistory,
         checkAndShowLatestUpdate,
         setupMessageIntersectionObserver,
         renderTrash,
