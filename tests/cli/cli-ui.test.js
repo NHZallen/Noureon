@@ -10,8 +10,9 @@ import { chipCloseButton } from '../../src/app/runtime/features/composer-chip.js
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 10));
 
-function setup({ config = { cliEnabledIds: [], cliModelUseIds: [], cliVersions: {} }, language = 'en', account = true, locked = () => false } = {}) {
+function setup({ config = { cliEnabledIds: [], cliModelUseIds: [], cliVersions: {} }, language = 'en', account = true, locked = () => false, visualViewport = null } = {}) {
   const window = new Window({ url: 'https://example.test/' });
+  if (visualViewport) window.visualViewport = visualViewport;
   const { document } = window;
   document.body.innerHTML = '<aside id="sidebar"><div class="flex-1 overflow-y-auto px-2"><div id="first-section"></div></div></aside><div id="sidebar-overlay"></div><div class="composer-host"><div class="input-wrapper"><div id="editor" contenteditable="true"></div></div></div>';
   const editor = document.getElementById('editor');
@@ -327,4 +328,35 @@ test('opening the details does not make the logos load again (the same pictures 
   assert.ok(root.querySelector('.cs-row[data-cli-id="yt-dlp"] .cs-about'), 'the details are open');
   assert.equal(root.querySelector('.cs-row[data-cli-id="ffmpeg"] img.cli-tool-img'), before, 'the same picture element, not a new one');
   closeCliStore();
+});
+
+test('the list is no taller than the room seen above the box (the keyboard and the browser bars take some), and follows the seen area as it changes', () => {
+  const listeners = {};
+  const viewport = { offsetTop: 100, addEventListener: (name, fn) => { listeners[name] = fn; } };
+  const t = setup({ config: { cliEnabledIds: ['officecli', 'ffmpeg'], cliModelUseIds: [], cliVersions: {} }, visualViewport: viewport });
+  const wrapper = t.document.querySelector('.input-wrapper');
+  let top = 300;
+  wrapper.getBoundingClientRect = () => ({ top });
+  t.type('@');
+  const menu = t.document.getElementById('cli-mention-menu');
+  assert.equal(menu.style.maxHeight, '184px', 'the room from the top of what is seen to the box, less a margin');
+  top = 700;
+  viewport.offsetTop = 0;
+  listeners.resize();
+  assert.equal(menu.style.maxHeight, '352px', 'never taller than the list was before');
+  top = 60;
+  listeners.resize();
+  assert.equal(menu.style.maxHeight, '96px', 'and not squeezed to nothing');
+});
+
+test('moving the choice in the list scrolls the list only, never the page', () => {
+  const t = setup({ config: { cliEnabledIds: ['officecli', 'ffmpeg', 'pandoc'], cliModelUseIds: [], cliVersions: {} } });
+  let pageScrolls = 0;
+  t.window.HTMLElement.prototype.scrollIntoView = () => { pageScrolls += 1; };
+  t.type('@');
+  t.key('ArrowDown');
+  t.key('ArrowDown');
+  assert.equal(pageScrolls, 0);
+  const active = t.document.querySelector('.cli-menu-item.is-active');
+  assert.equal(active.getAttribute('aria-selected'), 'true');
 });

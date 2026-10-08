@@ -146,9 +146,26 @@ export function createCliMode({ document, messageInput, isLocked = () => false, 
       const active = index === menuState?.active;
       item.classList.toggle('is-active', active);
       item.setAttribute('aria-selected', String(active));
-      if (active) item.scrollIntoView?.({ block: 'nearest' });
+      // Only the list is scrolled to the row (scrollIntoView would scroll the page too, and on a phone with the keyboard up the page then jumps).
+      const list = item.parentElement;
+      if (active && list) {
+        if (item.offsetTop < list.scrollTop) list.scrollTop = item.offsetTop;
+        else if (item.offsetTop + item.offsetHeight > list.scrollTop + list.clientHeight) list.scrollTop = item.offsetTop + item.offsetHeight - list.clientHeight;
+      }
     });
   };
+
+  // The list is no taller than the room that is seen above the box: the keyboard and the bars of the browser take part of the screen, and a list sized by
+  // the whole screen would reach under them (its first rows cut off).
+  const fitMenu = () => {
+    const wrapper = messageInput.closest('.input-wrapper');
+    if (!menu || menu.hidden || !wrapper?.getBoundingClientRect) return;
+    const seenTop = Number(win.visualViewport?.offsetTop) || 0;
+    const room = wrapper.getBoundingClientRect().top - seenTop - 16;
+    menu.style.maxHeight = room > 0 ? `${Math.max(96, Math.min(room, 352))}px` : '';
+  };
+  win.visualViewport?.addEventListener?.('resize', fitMenu);
+  win.visualViewport?.addEventListener?.('scroll', fitMenu);
 
   const showMenu = (mention) => {
     const element = ensureMenu();
@@ -164,6 +181,7 @@ export function createCliMode({ document, messageInput, isLocked = () => false, 
     const wrapper = messageInput.closest('.input-wrapper');
     const host = element.parentElement;
     if (wrapper && host) element.style.bottom = `${Math.max(0, host.clientHeight - wrapper.offsetTop) + 8}px`;
+    fitMenu();
     markActive();
   };
 

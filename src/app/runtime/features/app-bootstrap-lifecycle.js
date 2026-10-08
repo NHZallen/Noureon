@@ -629,15 +629,17 @@ export function createLegacyAppBootstrapLifecycle({
                             scheduleAnimationFrame(() => {
                                 const PADDING_BOTTOM = 10;
                                 const inputBarRect = inputBarContainer.getBoundingClientRect();
-                                const viewportHeight = window.visualViewport.height;
-                                const offset = inputBarRect.bottom - viewportHeight + PADDING_BOTTOM;
+                                // The bottom of what is seen is the top of the visual viewport plus its height (not 0 when the phone has scrolled the page for the
+                                // keyboard), and the move is at once: a smooth one fights the phone's own and the box jumps.
+                                const seenBottom = (Number(window.visualViewport.offsetTop) || 0) + window.visualViewport.height;
+                                const offset = inputBarRect.bottom - seenBottom + PADDING_BOTTOM;
     
     
                                 if (offset > 0) {
                                     const newScrollPosition = window.scrollY + offset;
                                     window.scrollTo({
                                         top: newScrollPosition,
-                                        behavior: 'smooth'
+                                        behavior: 'auto'
                                     });
                                 }
                             });
