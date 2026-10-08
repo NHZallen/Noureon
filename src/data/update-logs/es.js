@@ -1,6 +1,14 @@
 // The update notes in Spanish (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "17.15.2": [
+    "<strong>Notas de la versión de Noureon 17.15.2</strong>",
+    "Esta versión vuelve a corregir la costura donde la lista de la barra lateral se cortaba bajo la fila de búsqueda.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Desvanecido de la barra lateral:</strong> el desvanecido era una franja puesta sobre la lista desde fuera, y en un iPhone la lista que se desplaza se dibujaba encima, así que la lista quedaba cortada en seco bajo la fila de búsqueda. Ahora el desvanecido es una franja dentro de la lista, fija en sus bordes superior e inferior (como en la conversación), y también cubre el texto en un iPhone.</li><li><strong>Fondo de la barra lateral:</strong> la barra lateral es opaca, del color que mostraba cuando era translúcida; en el teléfono ya no se ven a través de ella la conversación y el cuadro de mensaje, y los desvanecidos de sus bordes coinciden exactamente con su color.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "Esta actualización no requiere migración de datos."
+  ],
   "17.15.1": [
     "<strong>Notas de la versión de Noureon 17.15.1</strong>",
     "Esta versión corrige el aspecto del campo del código de uso compartido P2P en el teléfono, el desvanecido en la parte superior e inferior de la barra lateral, y aumenta el contraste del texto de sugerencia del tema oscuro.",

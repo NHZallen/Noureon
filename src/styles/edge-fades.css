@@ -1,7 +1,6 @@
 /* Where a list that scrolls meets a bar that does not, the list fades out instead of being cut off at a line: the chat
    under the header (chat-edge-fade.css), the left menu under its search row and above the account
-   row, the right panel under its tabs and at its foot. Each fade is a strip laid over the edge by the bar that does not
-   scroll (a pseudo-element with no pointer), never a mask on the scroller, which made scrolling sluggish on phones. */
+   row, the right panel under its tabs and at its foot. Never a mask on the scroller, which made scrolling sluggish on phones. */
 
 :root { --edge-fade: 1rem; }
 
@@ -10,16 +9,34 @@
 :root { --menu-fade: 2.5rem; }
 
 /* The left menu: the search row above the list, the account row below it. The menu is a pale veil over the page, so it fades
-   into the page's colour. */
-#sidebar > :first-child { position: relative; z-index: 2; }
-#sidebar > :first-child::after {
+   into the colour of that veil.
+   The strips are sticky blocks inside the scroller, the way the chat does it (chat-edge-fade.css), and not strips laid over the
+   scroller by the rows around it: on iPhone a scroller is drawn above such strips, so the list was cut at a hard line under the
+   search row. Each strip sits in a band of the scroller's own padding and reaches half a rem further, over the empty padding of
+   the first (or last) row, so at rest it covers no text; it stays at the edge while the list scrolls under it. */
+#sidebar > .scroll-area {
+    --menu-list-pad: 1rem;
+    --menu-list-fade: 1.5rem;
+    padding-top: var(--menu-list-pad);
+    padding-bottom: var(--menu-list-pad);
+}
+
+#sidebar > :last-child { border-top-color: transparent; }
+
+#sidebar > .scroll-area::before,
+#sidebar > .scroll-area::after {
     content: "";
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 100%;
-    height: var(--menu-fade);
+    display: block;
+    position: sticky;
+    z-index: 3;
+    height: var(--menu-list-fade);
     pointer-events: none;
+}
+
+#sidebar > .scroll-area::before {
+    top: 0;
+    margin-top: calc(var(--menu-list-pad) * -1);
+    margin-bottom: calc((var(--menu-list-fade) - var(--menu-list-pad)) * -1);
     background: linear-gradient(to bottom,
         var(--sidebar-veil) 0%,
         color-mix(in srgb, var(--sidebar-veil) 88%, transparent) 20%,
@@ -29,15 +46,10 @@
         transparent 100%);
 }
 
-#sidebar > :last-child { position: relative; z-index: 2; border-top-color: transparent; }
-#sidebar > :last-child::before {
-    content: "";
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 100%;
-    height: var(--menu-fade);
-    pointer-events: none;
+#sidebar > .scroll-area::after {
+    bottom: 0;
+    margin-top: calc((var(--menu-list-fade) - var(--menu-list-pad)) * -1);
+    margin-bottom: calc(var(--menu-list-pad) * -1);
     background: linear-gradient(to top,
         var(--sidebar-veil) 0%,
         color-mix(in srgb, var(--sidebar-veil) 88%, transparent) 20%,

@@ -1,6 +1,14 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "17.15.2": [
+    "<strong>Noureon 17.15.2 Release Notes</strong>",
+    "This version fixes again the seam where the list of the side bar was cut under the search row.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Side bar fade:</strong> the fade was a strip laid over the list from outside, and on an iPhone the scrolling list was drawn above it, so the list was cut at a hard edge under the search row. The fade is now a strip inside the list that stays at its top and bottom edges (the way the chat does it), and it covers the text on an iPhone too.</li><li><strong>Side bar background:</strong> the side bar is opaque, in the colour it used to show when it was see-through; on a phone the chat and the message box no longer show through it, and the fades at its edges match its colour exactly.</li></ul>",
+    "<strong>Compatibility</strong>",
+    "This update requires no data migration."
+  ],
   "17.15.1": [
     "<strong>Noureon 17.15.1 Release Notes</strong>",
     "This version fixes how the field for the P2P share code looks on a phone, the fade at the top and the bottom of the side bar, and raises the contrast of hint text in the dark theme.",

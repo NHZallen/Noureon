@@ -207,9 +207,10 @@
         animation: subtleFadeInUp 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
     }
     .sidebar {
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-        background-color: color-mix(in srgb, var(--sidebar-bg) 55%, transparent);
+        /* Opaque, in the colour the pale veil it used to be had over the page (tokens.css --sidebar-veil). On a phone the menu lies over the
+           chat, and a see-through menu showed the chat and the message box through it, in a colour the fades of its list (edge-fades.css)
+           could not match. */
+        background-color: var(--sidebar-veil);
         border-right: 1px solid var(--sidebar-edge);
         box-shadow: var(--shadow-side);
     }

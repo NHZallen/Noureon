@@ -1,6 +1,14 @@
 // The update notes in French (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "17.15.2": [
+    "<strong>Notes de version de Noureon 17.15.2</strong>",
+    "Cette version corrige de nouveau la coupure de la liste de la barre latérale sous la ligne de recherche.",
+    "<strong>Changements principaux</strong>",
+    "<ul><li><strong>Fondu de la barre latérale :</strong> le fondu était une bande posée sur la liste depuis l'extérieur, et sur iPhone la liste qui défile était dessinée au-dessus, si bien que la liste était coupée net sous la ligne de recherche. Le fondu est maintenant une bande à l'intérieur de la liste, fixée à ses bords haut et bas (comme dans la conversation), et il recouvre aussi le texte sur iPhone.</li><li><strong>Fond de la barre latérale :</strong> la barre latérale est opaque, dans la couleur qu'elle avait quand elle était translucide ; sur téléphone, la conversation et la zone de saisie ne se voient plus à travers, et les fondus de ses bords correspondent exactement à sa couleur.</li></ul>",
+    "<strong>Compatibilité</strong>",
+    "Cette mise à jour ne nécessite aucune migration de données."
+  ],
   "17.15.1": [
     "<strong>Notes de version de Noureon 17.15.1</strong>",
     "Cette version corrige l'aspect du champ du code de partage P2P sur téléphone, le fondu en haut et en bas de la barre latérale, et augmente le contraste du texte d'indication du thème sombre.",

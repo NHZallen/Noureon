@@ -2,6 +2,18 @@
 // content 為 zh-TW 的 HTML 字串（JSON 轉義、雙引號），目前不隨介面語言切換。
 export const updateLogEntries = [
   {
+    version: "17.15.2",
+    date: "2026-10-08",
+    content: [
+      "<strong>Noureon 17.15.2 發布說明</strong>",
+      "本版本再次修正左側欄清單在搜尋列下方被切出一條縫的問題。",
+      "<strong>主要變更</strong>",
+      "<ul><li><strong>左側欄漸隱：</strong>原本的漸隱是蓋在清單外面的一條漸層，在 iPhone 上會被捲動的清單畫在下面，清單於是在搜尋列下方被切成一條硬邊。漸隱改為放在清單裡、固定在上下緣的漸層（與對話區相同的做法），在 iPhone 上也會蓋在文字上。</li><li><strong>左側欄底色：</strong>左側欄改為不透明，顏色與原本半透明時看起來的顏色相同；在手機上不再透出後面的對話與輸入框，上下緣的漸隱顏色也因此完全一致。</li></ul>",
+      "<strong>相容性</strong>",
+      "本次更新不需要資料遷移。"
+    ]
+  },
+  {
     version: "17.15.1",
     date: "2026-10-08",
     content: [
