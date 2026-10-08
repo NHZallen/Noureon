@@ -485,6 +485,9 @@ export function createCouncilControlsLifecycle(deps) {
       }
     }
     input.setAttribute('aria-valuetext', label);
+    // The button in the composer follows the thumb while it is dragged, not only when it lands (its width does not change: it keeps the longest name).
+    const shown = input.closest('#model-council-control')?.querySelector('.mp-depth-trigger-value');
+    if (shown && shown.textContent !== label) shown.textContent = label;
     return label;
   };
 

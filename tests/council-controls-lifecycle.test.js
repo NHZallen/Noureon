@@ -262,6 +262,7 @@ test('how deeply it thinks is a slider with a dot for each of the model\'s own l
     slider.dispatchEvent(new document.defaultView.Event('input', { bubbles: true }));
     assert.equal(Number(wrap.style.getPropertyValue('--mp-p')), 1);
     assert.equal(document.querySelector('[data-mp-depth-value]').textContent, 'High');
+    assert.equal(document.querySelector('.mp-depth-trigger-value').textContent, 'High', 'the button in the composer follows the thumb while it is dragged');
     assert.equal(conversation.reasoningEffort, 'medium', 'nothing saved until it is let go');
     slider.dispatchEvent(new document.defaultView.Event('input', { bubbles: true }));
     assert.equal(buzzes.length, 1, 'one tick for the one step, none for staying on it');
