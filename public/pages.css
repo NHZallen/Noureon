@@ -13,8 +13,8 @@ a { color: inherit; }
 /* top: the wordmark at the left, the language and the way into the application at the right */
 .pg-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.6rem 1rem; max-width: 72rem; margin: 0 auto; padding: 1.25rem 1.5rem; }
 .pg-brand { display: inline-flex; align-items: center; gap: 0.5rem; font-size: 1.2rem; font-weight: 650; letter-spacing: -0.01em; text-decoration: none; }
-/* the mark of the application (its icon, the ring) drawn in the colour of the text, so that it is black on white and white on black */
-.pg-mark { width: 1.6rem; height: 1.6rem; background: currentColor; -webkit-mask: url(/icon-192.png) center / contain no-repeat; mask: url(/icon-192.png) center / contain no-repeat; }
+/* the mark of the application: its icon, in its own colour */
+.pg-mark { display: block; width: 1.65rem; height: 1.65rem; }
 .pg-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 0.4rem 0.75rem; }
 .pg-lang { display: inline-flex; align-items: center; gap: 0.35rem; color: var(--muted); }
 .pg-lang:hover, .pg-lang:focus-within { color: var(--text); }
