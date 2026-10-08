@@ -1,4 +1,4 @@
-/* The CLI store page (命令工具). Black and white; rows with the action on the right, as the directories of
+/* The Extensions page (擴充: skills and CLI tools; it began as the CLI tools' store). Black and white; rows with the action on the right, as the directories of
    ChatGPT (Apps) and Claude (Connectors) have them. The fades at the edges are strips laid over the edge, as the chat's. */
 
 html.cs-open { overflow: hidden; }
@@ -8,8 +8,18 @@ html.cs-open { overflow: hidden; }
 .cs-back { flex: none; width: 2.4rem; height: 2.4rem; display: grid; place-items: center; border: 1px solid var(--border-color); border-radius: 9999px; background: transparent; color: inherit; cursor: pointer; }
 .cs-back:hover { background: var(--hover-bg); }
 .cs-title { display: flex; align-items: center; gap: 0.55rem; margin: 0; font-size: 1.15rem; font-weight: 600; }
-.cs-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0.4rem 1rem calc(3.5rem + env(safe-area-inset-bottom, 0px)); }
+.cs-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0.4rem 1rem calc(3.5rem + env(safe-area-inset-bottom, 0px)); }
 .cs-column { max-width: 46rem; margin: 0 auto; }
+
+/* The two parts. Wide screen: a list at the left of the page. Phone: a switch in the header, right of the title, the two buttons as wide as the wider. */
+.cs-split { flex: 1; min-height: 0; display: grid; grid-template-columns: 11rem minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+.cs-nav { display: grid; gap: 0.15rem; align-content: start; padding: 0.4rem 0 0 0.8rem; }
+.cs-nav-item { display: flex; align-items: center; gap: 0.6rem; width: 100%; padding: 0.6rem 0.8rem; border: 0; border-radius: 0.8rem; background: transparent; color: var(--text-secondary); font: inherit; font-weight: 500; text-align: left; cursor: pointer; }
+.cs-nav-item:hover { background: color-mix(in srgb, var(--text-primary) 5%, transparent); }
+.cs-nav-item[aria-selected="true"] { background: var(--hover-bg); color: var(--text-primary); font-weight: 600; }
+.cs-nav + .cs-body { padding-left: 0.4rem; }
+.cs-switch { display: none; }
+.cs-title { white-space: nowrap; flex: none; }
 .cs-edge-bottom { position: absolute; left: 0; right: 0; bottom: 0; z-index: 3; height: calc(var(--edge-fade, 1rem) * 2.4); background: linear-gradient(to top, var(--chat-bg), transparent); pointer-events: none; }
 
 .cs-note { margin: 0.2rem 0 0.8rem; padding: 0.65rem 0.9rem; border: 1px solid var(--border-color); border-radius: 0.9rem; color: var(--text-secondary); font-size: 0.85rem; }
@@ -55,7 +65,12 @@ html.cs-open { overflow: hidden; }
 .cs-sheet-backdrop { position: absolute; inset: 0; z-index: 4; background: var(--scrim-soft); }
 
 @media (max-width: 640px) {
-  .cs-body { padding-inline: 0.7rem; }
+  .cs-split { grid-template-columns: minmax(0, 1fr); }
+  .cs-nav { display: none; }
+  .cs-switch { margin-left: auto; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; flex: none; padding: 0.18rem; border: 1px solid var(--border-color); border-radius: 9999px; }
+  .cs-switch-item { padding: 0.38rem 0.85rem; border: 0; border-radius: 9999px; background: transparent; color: var(--text-secondary); font: inherit; font-size: 0.85rem; font-weight: 600; text-align: center; white-space: nowrap; cursor: pointer; }
+  .cs-switch-item[aria-selected="true"] { background: var(--text-primary); color: var(--chat-bg); }
+  .cs-body, .cs-nav + .cs-body { padding-inline: 0.7rem; }
   .cs-row { gap: 0.7rem; padding: 0.8rem 0.2rem; }
   .cs-row + .cs-row::before { left: 3.6rem; right: 0.2rem; }
   .cs-mark { width: 2.6rem; height: 2.6rem; border-radius: 0.8rem; }
@@ -67,3 +82,15 @@ html.cs-open { overflow: hidden; }
 }
 
 .cs-footer-link { display: block; margin: 1.6rem 0.3rem 2.6rem; padding: 0; border: 0; background: transparent; font: inherit; font-size: 0.85rem; cursor: pointer; }
+.cs-footer-link[hidden] { display: none; }
+
+/* A very narrow phone: the title and the switch share the row, so the little picture of the title gives its place. */
+@media (max-width: 359px) {
+  .cs-title-icon { display: none; }
+  .cs-switch-item { padding-inline: 0.7rem; }
+}
+
+/* The skills have no list yet: the page says so, in the middle. */
+.cs-empty-soon { display: grid; gap: 0.4rem; justify-items: center; padding: 3rem 1rem; }
+.cs-empty-title { color: var(--text-primary); font-size: 1.05rem; }
+.cs-empty-note { max-width: 24rem; margin: 0; font-size: 0.9rem; line-height: 1.6; }

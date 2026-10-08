@@ -2,6 +2,12 @@
 
 export const terminalIcon = (size = 20, className = '') => `<svg class="${className}" viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="18" height="15" rx="3.2"/><path d="m7.5 9.5 3 2.5-3 2.5"/><path d="M13 14.5h3.5"/></svg>`;
 
+/** The four squares of the Extensions page (the entry of the left menu, the page's title). */
+export const extensionsIcon = (size = 20, className = '') => `<svg class="${className}" viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.8"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.8"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.8"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.8"/></svg>`;
+
+/** The star of the skills. */
+export const skillIcon = (size = 20, className = '') => `<svg class="${className}" viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3.2 2.5 5.3 5.8.8-4.2 4 1 5.7L12 16.2 6.9 19l1-5.7-4.2-4 5.8-.8z"/></svg>`;
+
 const escapeAttribute = (value = '') => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
 
 /**

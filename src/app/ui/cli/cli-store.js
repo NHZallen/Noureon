@@ -1,5 +1,7 @@
-// The CLI store page (命令工具, docs/superpowers/specs/2026-10-04-cli-store-design.md): a page over the chat with a back button, a search box, the tabs
-// All | Mine | Updates and the tools as rows (the tool's mark, its name and words, a "+" to add it, a "…" to manage it once added). The look
+// The Extensions page (擴充; it began as the CLI tools' store, 命令工具, docs/superpowers/specs/2026-10-04-cli-store-design.md): a page over the chat
+// with a back button and two parts, skills and CLI tools. On a wide screen the parts are a list at the left; on a phone they are a switch in the
+// header, to the right of the title (docs/superpowers/specs/2026-10-04-cli-store-design.md, §15). Each part has a search box, the tabs All | Mine
+// and its rows. The CLI part shows the tools as rows (the tool's mark, its name and words, a "+" to add it, a "…" to manage it once added). The look
 // follows the directories of ChatGPT (Apps) and Claude (Connectors): one row for each, the action on the right, black and white.
 // A tool is added by a record in the settings (nothing is downloaded: the server fetches the program when a message first uses it).
 
@@ -7,7 +9,8 @@ import { OFFICIAL_CLI_CATALOG, cliDescription, cliDetails, isCliReady } from '..
 import { addCli, canModelUseCli, isCliEnabled, removeCli, setCliModelUse } from '../../runtime/cli/cli-state.js';
 import { cliText } from '../../runtime/cli/cli-texts.js';
 import { permissionText } from '../../runtime/cli/permission-texts.js';
-import { terminalIcon, toolIconMarkup, watchToolIcons } from './cli-icons.js';
+import { extensionsIcon, skillIcon, terminalIcon, toolIconMarkup, watchToolIcons } from './cli-icons.js';
+import { DEFAULT_STORE_KIND, STORE_KINDS, storeKindFromPath, storePath } from './store-path.js';
 
 const ICONS = {
   back: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 6-6 6 6 6"/></svg>',
@@ -37,16 +40,27 @@ let current = null;
 
 export const closeCliStore = () => current?.close();
 
-/** The address of the page: noureon.com/cli while it is open (a refresh or a shared link comes back to it), noureon.com when it is closed. */
-export const CLI_STORE_PATH = '/cli';
-
-/** Opens the page (once). Returns { close, element }. `onChange` is told when the tools the person has changed. */
-export function openCliStore({ document = globalThis.document, getConfig, saveConfig = async () => {}, getLanguage, showNotification = () => {}, getAccountReady = () => true, onChange = () => {} }) {
-  if (current) return current;
+/**
+ * Opens the page (once; opened again it only turns to `kind`). Returns { close, element, setKind }. `kind` is the part to show ('skills', the
+ * first, or 'cli'); when the page is opened by its address the address says which. `onChange` is told when the tools the person has changed.
+ */
+export function openCliStore({ document = globalThis.document, kind = DEFAULT_STORE_KIND, getConfig, saveConfig = async () => {}, getLanguage, showNotification = () => {}, getAccountReady = () => true, onChange = () => {} }) {
+  if (current) {
+    current.setKind(kind);
+    return current;
+  }
   const win = document.defaultView;
   const t = (key, values) => cliText(getLanguage(), key, values);
   const opener = document.activeElement;
-  const state = { tab: 'all', query: '', expanded: new Set(), menuFor: null };
+  const addressKind = storeKindFromPath(win.location?.pathname);
+  // Each part keeps its own tab and its own search while the page is open.
+  const state = {
+    kind: addressKind || (STORE_KINDS.includes(kind) ? kind : DEFAULT_STORE_KIND),
+    views: { skills: { tab: 'all', query: '' }, cli: { tab: 'all', query: '' } },
+    expanded: new Set(),
+    menuFor: null
+  };
+  const view = () => state.views[state.kind];
 
   const root = make(document, 'div', 'cs');
   watchToolIcons(root, 22);
@@ -57,18 +71,40 @@ export function openCliStore({ document = globalThis.document, getConfig, saveCo
   const head = make(document, 'header', 'cs-head');
   const back = button(document, 'cs-back', t('back'), ICONS.back);
   const title = make(document, 'h1', 'cs-title');
-  title.innerHTML = `${terminalIcon(22, 'cs-title-icon')}<span></span>`;
+  title.innerHTML = `${extensionsIcon(22, 'cs-title-icon')}<span></span>`;
   title.querySelector('span').textContent = t('storeTitle');
-  head.append(back, title);
+  // The two parts: a switch in the header on a phone, a list at the left on a wide screen (the style shows one of them).
+  const kindLabel = (id) => t(id === 'skills' ? 'kindSkills' : 'kindCli');
+  const switcher = make(document, 'div', 'cs-switch');
+  switcher.setAttribute('role', 'tablist');
+  switcher.setAttribute('aria-label', t('switchLabel'));
+  const nav = make(document, 'nav', 'cs-nav');
+  nav.setAttribute('role', 'tablist');
+  nav.setAttribute('aria-orientation', 'vertical');
+  nav.setAttribute('aria-label', t('switchLabel'));
+  for (const id of STORE_KINDS) {
+    const choose = make(document, 'button', 'cs-switch-item', kindLabel(id));
+    choose.type = 'button';
+    choose.dataset.kind = id;
+    choose.setAttribute('role', 'tab');
+    switcher.append(choose);
+    const side = make(document, 'button', 'cs-nav-item');
+    side.type = 'button';
+    side.dataset.kind = id;
+    side.setAttribute('role', 'tab');
+    side.innerHTML = id === 'skills' ? skillIcon(18) : terminalIcon(18);
+    side.append(make(document, 'span', '', kindLabel(id)));
+    nav.append(side);
+  }
+  head.append(back, title, switcher);
 
+  const split = make(document, 'div', 'cs-split');
   const body = make(document, 'main', 'cs-body');
   const column = make(document, 'div', 'cs-column');
   const note = make(document, 'div', 'cs-note');
   const search = make(document, 'label', 'cs-search');
   const searchInput = make(document, 'input', 'cs-search-input');
   searchInput.type = 'search';
-  searchInput.placeholder = t('searchPlaceholder');
-  searchInput.setAttribute('aria-label', t('searchPlaceholder'));
   searchInput.autocomplete = 'off';
   const searchIcon = make(document, 'span', 'cs-search-icon');
   searchIcon.innerHTML = ICONS.search;
@@ -85,8 +121,9 @@ export function openCliStore({ document = globalThis.document, getConfig, saveCo
   });
   column.append(note, search, tabs, list, licenses);
   body.append(column);
+  split.append(nav, body);
   const edgeBottom = make(document, 'div', 'cs-edge-bottom');
-  root.append(head, body, edgeBottom);
+  root.append(head, split, edgeBottom);
 
   // ----- the menu of a row (a bottom sheet on a phone)
   let menu = null;
@@ -154,7 +191,7 @@ export function openCliStore({ document = globalThis.document, getConfig, saveCo
 
   // ----- drawing
   const matches = (tool) => {
-    const needle = state.query.trim().toLowerCase();
+    const needle = view().query.trim().toLowerCase();
     return !needle || `${tool.name} ${tool.id} ${tool.author} ${cliDescription(tool, getLanguage())}`.toLowerCase().includes(needle);
   };
 
@@ -228,31 +265,63 @@ export function openCliStore({ document = globalThis.document, getConfig, saveCo
 
   // Whether the account is ready is known a little after the page starts (when the page is opened by its address, or right after signing in): it is looked at again while the page is open.
   const marks = new Map();
-  const syncNote = () => { note.hidden = Boolean(getAccountReady()); };
+  // The note about the account is for the CLI tools (they run on the server); the skills have nothing to say about it yet.
+  const syncNote = () => { note.hidden = state.kind !== 'cli' || Boolean(getAccountReady()); };
   const noteTimer = win.setInterval(syncNote, 400);
 
-  const draw = () => {
-    const config = getConfig();
-    const mine = OFFICIAL_CLI_CATALOG.filter((tool) => isCliEnabled(config, tool.id) && matches(tool));
-    // The tools that can be added come first, the ones that are coming after them.
-    const official = OFFICIAL_CLI_CATALOG.filter((tool) => !isCliEnabled(config, tool.id) && matches(tool)).sort((a, b) => Number(isCliReady(b)) - Number(isCliReady(a)));
-    syncNote();
-    note.textContent = t('needAccount');
+  // The parts: which one is chosen shows on the switch (a phone) and on the list (a wide screen), and the search box follows it.
+  const drawKinds = () => {
+    for (const choose of root.querySelectorAll('[data-kind]')) choose.setAttribute('aria-selected', String(choose.dataset.kind === state.kind));
+    const placeholder = t(state.kind === 'skills' ? 'skillsSearchPlaceholder' : 'searchPlaceholder');
+    searchInput.placeholder = placeholder;
+    searchInput.setAttribute('aria-label', placeholder);
+    if (searchInput.value !== view().query) searchInput.value = view().query;
+    licenses.hidden = state.kind !== 'cli';
+  };
+
+  const drawTabs = () => {
     tabs.replaceChildren(...[['all', t('tabAll')], ['mine', t('tabMine')]].map(([id, label]) => {
       const tab = make(document, 'button', 'history-tab', label);
       tab.type = 'button';
       tab.setAttribute('role', 'tab');
-      tab.setAttribute('aria-selected', String(state.tab === id));
+      tab.setAttribute('aria-selected', String(view().tab === id));
       tab.addEventListener('click', () => {
-        state.tab = id;
+        view().tab = id;
         closeMenu();
         draw();
       });
       return tab;
     }));
+  };
+
+  // No skill is on offer yet: the part is there, its list says so.
+  const drawSkills = () => {
+    const empty = make(document, 'div', 'cs-empty');
+    if (view().tab === 'all') {
+      empty.classList.add('cs-empty-soon');
+      empty.append(make(document, 'strong', 'cs-empty-title', t('skillsSoon')), make(document, 'p', 'cs-empty-note', t('skillsSoonNote')));
+    } else {
+      empty.textContent = t('skillsNoneMine');
+    }
+    list.replaceChildren(empty);
+  };
+
+  const draw = () => {
+    drawKinds();
+    syncNote();
+    note.textContent = t('needAccount');
+    drawTabs();
+    if (state.kind === 'skills') {
+      drawSkills();
+      return;
+    }
+    const config = getConfig();
+    const mine = OFFICIAL_CLI_CATALOG.filter((tool) => isCliEnabled(config, tool.id) && matches(tool));
+    // The tools that can be added come first, the ones that are coming after them.
+    const official = OFFICIAL_CLI_CATALOG.filter((tool) => !isCliEnabled(config, tool.id) && matches(tool)).sort((a, b) => Number(isCliReady(b)) - Number(isCliReady(a)));
     const parts = [];
-    if (state.tab !== 'all' || mine.length) parts.push(section(t('sectionMine'), mine.map((tool) => row(tool))) || make(document, 'div', 'cs-empty', state.query ? t('noResults') : t('noneMine')));
-    if (state.tab === 'all') {
+    if (view().tab !== 'all' || mine.length) parts.push(section(t('sectionMine'), mine.map((tool) => row(tool))) || make(document, 'div', 'cs-empty', view().query ? t('noResults') : t('noneMine')));
+    if (view().tab === 'all') {
       const box = section(t('sectionOfficial'), official.map((tool) => row(tool)));
       if (box) parts.push(box);
       if (!mine.length && !official.length) parts.push(make(document, 'div', 'cs-empty', t('noResults')));
@@ -293,17 +362,32 @@ export function openCliStore({ document = globalThis.document, getConfig, saveCo
   win.addEventListener('keydown', onKey, true);
   win.addEventListener('click', onClick, true);
   back.addEventListener('click', close);
-  // The address: opening adds /cli to the history (the browser's back button closes the page); when the page was opened by the address itself
-  // there is nothing to go back to, so closing puts / in its place.
+  // The address: opening adds /store/<part> to the history (the browser's back button closes the page); when the page was opened by the address
+  // itself there is nothing to go back to, so closing puts / in its place. Turning to the other part changes the address in place (no new
+  // history entry), and the old address /cli, or /store alone, is put right.
   let pushed = false;
   const history = win.history;
-  const atStore = () => win.location?.pathname === CLI_STORE_PATH;
-  try {
-    if (history && win.location && !atStore()) {
-      history.pushState({ cliStore: true }, '', CLI_STORE_PATH);
-      pushed = true;
-    }
-  } catch { /* the address cannot be changed here: the page works without it */ }
+  const atStore = () => storeKindFromPath(win.location?.pathname) !== null;
+  const showAddress = () => {
+    try {
+      if (!history || !win.location) return;
+      if (atStore()) {
+        if (win.location.pathname !== storePath(state.kind)) history.replaceState(history.state, '', storePath(state.kind));
+      } else {
+        history.pushState({ cliStore: true }, '', storePath(state.kind));
+        pushed = true;
+      }
+    } catch { /* the address cannot be changed here: the page works without it */ }
+  };
+  showAddress();
+  const setKind = (next) => {
+    if (!STORE_KINDS.includes(next) || next === state.kind || closed) return;
+    closeMenu();
+    state.kind = next;
+    showAddress();
+    draw();
+  };
+  for (const choose of root.querySelectorAll('[data-kind]')) choose.addEventListener('click', () => setKind(choose.dataset.kind));
   function onPopState() {
     if (!atStore()) close();
   }
@@ -316,7 +400,7 @@ export function openCliStore({ document = globalThis.document, getConfig, saveCo
   }
   win.addEventListener('popstate', onPopState);
   searchInput.addEventListener('input', () => {
-    state.query = searchInput.value;
+    view().query = searchInput.value;
     draw();
   });
 
@@ -324,6 +408,6 @@ export function openCliStore({ document = globalThis.document, getConfig, saveCo
   document.documentElement.classList.add('cs-open');
   draw();
   back.focus?.({ preventScroll: true });
-  current = { close, element: root };
+  current = { close, element: root, setKind, get kind() { return state.kind; } };
   return current;
 }

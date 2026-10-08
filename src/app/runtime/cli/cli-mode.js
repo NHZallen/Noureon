@@ -3,7 +3,8 @@
 // entry that opens the store page. The store page itself (ui/cli/) is loaded when it is opened.
 
 import { getCliTool } from '../../../data/cli-catalog.js';
-import { terminalIcon, toolIconMarkup, watchToolIcons } from '../../ui/cli/cli-icons.js';
+import { extensionsIcon, terminalIcon, toolIconMarkup, watchToolIcons } from '../../ui/cli/cli-icons.js';
+import { storeKindFromPath } from '../../ui/cli/store-path.js';
 import { registerCliMode } from './cli-bridge.js';
 import { cliIndicatorId, enabledCliTools } from './cli-state.js';
 import { cliText } from './cli-texts.js';
@@ -24,12 +25,12 @@ export function createCliMode({ document, messageInput, isLocked = () => false, 
   let menuState = null;
   let storeApi = null;
 
-  // ----- the store page (loaded when it is first opened)
-  const openStore = async () => {
+  // ----- the Extensions page (loaded when it is first opened); `kind` is the part to show, skills when none is said
+  const openStore = async (kind) => {
     try {
       // The styles are a separate file: if they fail to load the page still opens (plain), and the reason is logged.
       const [{ openCliStore }] = await Promise.all([import('../../ui/cli/cli-store.js'), import('../../ui/cli/cli-store.css').catch((error) => { logger?.warn?.('Loading the CLI store styles failed.', error); })]);
-      storeApi = openCliStore({ document, getConfig, saveConfig, getLanguage: language, showNotification, getAccountReady, onChange: () => { refresh(); } });
+      storeApi = openCliStore({ document, kind, getConfig, saveConfig, getLanguage: language, showNotification, getAccountReady, onChange: () => { refresh(); } });
     } catch (error) {
       logger?.warn?.('Opening the CLI store failed.', error);
     }
@@ -46,7 +47,7 @@ export function createCliMode({ document, messageInput, isLocked = () => false, 
       entry.id = ENTRY_ID;
       entry.type = 'button';
       entry.className = 'sidebar-item cli-sidebar-entry w-full text-left rounded-lg flex items-center';
-      entry.innerHTML = `${terminalIcon(18, 'cli-sidebar-icon')}<span class="cli-sidebar-label"></span>`;
+      entry.innerHTML = `${extensionsIcon(18, 'cli-sidebar-icon')}<span class="cli-sidebar-label"></span>`;
       entry.addEventListener('click', () => {
         // On a phone the menu is a drawer over the chat: it goes away as the page comes.
         const overlay = document.getElementById('sidebar-overlay');
@@ -125,7 +126,7 @@ export function createCliMode({ document, messageInput, isLocked = () => false, 
       if (item) choose(item.dataset.cliId);
       else if (event.target.closest('[data-cli-store]')) {
         closeMenu();
-        void openStore();
+        void openStore('cli');
       }
     });
     menu.addEventListener('mousemove', (event) => {
@@ -265,8 +266,8 @@ export function createCliMode({ document, messageInput, isLocked = () => false, 
     }
   };
 
-  // The address noureon.com/cli opens the page (a refresh, a bookmark, a shared link).
-  if (win.location?.pathname === '/cli') void openStore();
+  // The addresses noureon.com/store, /store/skills and /store/cli (and the old /cli) open the page (a refresh, a bookmark, a shared link).
+  if (storeKindFromPath(win.location?.pathname)) void openStore();
 
   // What a person's answer to a question about a site leaves in the settings (a rule for "always" and for a refusal, the site in the list for "once").
   const rememberNet = async (host, decision) => {

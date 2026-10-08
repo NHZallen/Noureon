@@ -103,6 +103,7 @@ test('the three addresses are rewritten to their files and are in the site map',
     assert.ok(rewrites.some((rule) => rule.source === `/${name}` && rule.destination === `/${name}.html`), `/${name}`);
   }
   assert.ok(rewrites.some((rule) => rule.source === '/cli' && rule.destination === '/index.html'), 'the application routes stay');
+  for (const route of ['/store', '/store/skills', '/store/cli']) assert.ok(rewrites.some((rule) => rule.source === route && rule.destination === '/index.html'), `${route}: the Extensions page's addresses are the application`);
   const sitemap = await readFile(new URL('../public/sitemap.xml', import.meta.url), 'utf8');
   for (const name of ['terms', 'privacy', 'updates']) assert.match(sitemap, new RegExp(`<loc>https://noureon\\.com/${name}</loc>`));
 });

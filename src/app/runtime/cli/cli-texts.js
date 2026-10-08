@@ -1,10 +1,14 @@
 // The words of the CLI tools (命令工具: the store page, the "@" menu, its chips) in the app's five languages. {name} placeholders are
-// filled by cliText. Chinese calls them 命令工具; the other languages call them CLI.
+// filled by cliText. Chinese calls them 命令工具; the other languages call them CLI. The page that holds them is called 擴充 (Extensions): it has two
+// parts, skills and CLI tools, and `entry` and `storeTitle` name the page, `kindSkills` and `kindCli` its parts.
 
 export const CLI_TEXTS = Object.freeze({
   'zh-TW': {
-    entry: '命令工具',
-    storeTitle: '命令工具',
+    entry: '擴充',
+    storeTitle: '擴充',
+    kindSkills: '技能',
+    kindCli: '命令工具',
+    switchLabel: '擴充的類型',
     back: '返回',
     searchPlaceholder: '搜尋命令工具',
     tabAll: '全部',
@@ -21,6 +25,10 @@ export const CLI_TEXTS = Object.freeze({
     more: '更多',
     allowModel: '允許模型自己使用',
     noneMine: '還沒有加入任何命令工具。',
+    skillsSearchPlaceholder: '搜尋技能',
+    skillsSoon: '技能即將推出',
+    skillsSoonNote: '技能是教模型怎麼做一件事的說明與流程，上架後會出現在這裡。',
+    skillsNoneMine: '還沒有加入任何技能。',
     noResults: '找不到符合的命令工具。',
     author: '作者',
     license: '授權',
@@ -39,8 +47,11 @@ export const CLI_TEXTS = Object.freeze({
     needToolModel: '這個模型不能呼叫工具，請換一個支援工具的模型才能使用命令工具。'
   },
   en: {
-    entry: 'CLI',
-    storeTitle: 'CLI',
+    entry: 'Extensions',
+    storeTitle: 'Extensions',
+    kindSkills: 'Skills',
+    kindCli: 'CLI',
+    switchLabel: 'Type of extension',
     back: 'Back',
     searchPlaceholder: 'Search CLI tools',
     tabAll: 'All',
@@ -57,6 +68,10 @@ export const CLI_TEXTS = Object.freeze({
     more: 'More',
     allowModel: 'Let the model use it by itself',
     noneMine: 'No CLI tools added yet.',
+    skillsSearchPlaceholder: 'Search skills',
+    skillsSoon: 'Skills are coming soon',
+    skillsSoonNote: 'A skill teaches the model how to do one thing, step by step. Skills will appear here once they are available.',
+    skillsNoneMine: 'No skills added yet.',
     noResults: 'No CLI tools match your search.',
     author: 'Author',
     license: 'License',
@@ -75,8 +90,11 @@ export const CLI_TEXTS = Object.freeze({
     needToolModel: 'This model cannot call tools. Pick a model that supports tools to use CLI tools.'
   },
   fr: {
-    entry: 'CLI',
-    storeTitle: 'CLI',
+    entry: 'Extensions',
+    storeTitle: 'Extensions',
+    kindSkills: 'Compétences',
+    kindCli: 'CLI',
+    switchLabel: 'Type d’extension',
     back: 'Retour',
     searchPlaceholder: 'Rechercher des outils CLI',
     tabAll: 'Tous',
@@ -93,6 +111,10 @@ export const CLI_TEXTS = Object.freeze({
     more: 'Plus',
     allowModel: 'Autoriser le modèle à l’utiliser seul',
     noneMine: 'Aucun outil CLI ajouté.',
+    skillsSearchPlaceholder: 'Rechercher des compétences',
+    skillsSoon: 'Les compétences arrivent bientôt',
+    skillsSoonNote: 'Une compétence explique au modèle comment faire une tâche, étape par étape. Elles apparaîtront ici dès leur lancement.',
+    skillsNoneMine: 'Aucune compétence ajoutée.',
     noResults: 'Aucun outil CLI ne correspond.',
     author: 'Auteur',
     license: 'Licence',
@@ -111,8 +133,11 @@ export const CLI_TEXTS = Object.freeze({
     needToolModel: 'Ce modèle ne peut pas appeler d’outils. Choisissez un modèle compatible pour utiliser les outils CLI.'
   },
   ru: {
-    entry: 'CLI',
-    storeTitle: 'CLI',
+    entry: 'Расширения',
+    storeTitle: 'Расширения',
+    kindSkills: 'Навыки',
+    kindCli: 'CLI',
+    switchLabel: 'Тип расширения',
     back: 'Назад',
     searchPlaceholder: 'Поиск CLI-инструментов',
     tabAll: 'Все',
@@ -129,6 +154,10 @@ export const CLI_TEXTS = Object.freeze({
     more: 'Ещё',
     allowModel: 'Разрешить модели использовать самой',
     noneMine: 'CLI-инструменты ещё не добавлены.',
+    skillsSearchPlaceholder: 'Поиск навыков',
+    skillsSoon: 'Навыки скоро появятся',
+    skillsSoonNote: 'Навык объясняет модели, как выполнить одну задачу, шаг за шагом. Здесь они появятся после запуска.',
+    skillsNoneMine: 'Навыки ещё не добавлены.',
     noResults: 'Подходящих CLI-инструментов нет.',
     author: 'Автор',
     license: 'Лицензия',
@@ -147,8 +176,11 @@ export const CLI_TEXTS = Object.freeze({
     needToolModel: 'Эта модель не умеет вызывать инструменты. Выберите модель с поддержкой инструментов, чтобы использовать CLI-инструменты.'
   },
   es: {
-    entry: 'CLI',
-    storeTitle: 'CLI',
+    entry: 'Extensiones',
+    storeTitle: 'Extensiones',
+    kindSkills: 'Habilidades',
+    kindCli: 'CLI',
+    switchLabel: 'Tipo de extensión',
     back: 'Volver',
     searchPlaceholder: 'Buscar herramientas CLI',
     tabAll: 'Todas',
@@ -165,6 +197,10 @@ export const CLI_TEXTS = Object.freeze({
     more: 'Más',
     allowModel: 'Permitir que el modelo la use por sí solo',
     noneMine: 'Aún no has añadido herramientas CLI.',
+    skillsSearchPlaceholder: 'Buscar habilidades',
+    skillsSoon: 'Las habilidades llegarán pronto',
+    skillsSoonNote: 'Una habilidad enseña al modelo a hacer una tarea paso a paso. Aparecerán aquí cuando estén disponibles.',
+    skillsNoneMine: 'Aún no has añadido habilidades.',
     noResults: 'Ninguna herramienta CLI coincide.',
     author: 'Autor',
     license: 'Licencia',

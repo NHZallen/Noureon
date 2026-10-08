@@ -113,6 +113,18 @@
       "destination": "/index.html"
     },
     {
+      "source": "/store",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/store/skills",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/store/cli",
+      "destination": "/index.html"
+    },
+    {
       "source": "/nouras",
       "destination": "/index.html"
     },

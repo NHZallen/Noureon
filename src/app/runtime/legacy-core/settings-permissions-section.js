@@ -61,7 +61,7 @@ export function ensurePermissionsSettingsSection({ document, elements, config, s
       hasAccount: () => getSync()?.getStatus?.()?.enabled === true,
       openStore: async () => {
         const { getCliMode } = await import('../cli/cli-bridge.js');
-        getCliMode()?.openStore?.();
+        getCliMode()?.openStore?.('cli');
       },
       openLicenses: async () => {
         const { openLicenses } = await import('../../ui/cli/licenses-view.js');
