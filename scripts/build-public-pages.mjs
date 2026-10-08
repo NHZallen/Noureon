@@ -112,29 +112,38 @@ const description = (page, lang) => {
 
 const renderTextBody = (page) => `<div class="pg-col">${perLanguage((lang, attrs) => `<div class="pg-text"${attrs}>${sentences(page.body(lang)).map((part) => `<p>${escapeHtml(part)}</p>`).join('')}</div>`)}</div>`;
 
-// The index of the update notes: the months, and the versions of each. At the side of the page on a wide window (the month in view is lit and opened by
-// pages.js); above the notes, folded, on a narrow one.
+// The index of the update notes: years, the months of a year, and the versions of a month, each level folding open and shut (pages.js does the folding and keeps
+// the month in view open). It is meant to stay usable as the notes grow: only one year and one month are open at a time. At the side of the page on a wide window;
+// on a narrow one the same index opens as a sheet from the bar that sticks to the top of the window (pages.js copies it into the sheet).
+// The first year and the first month are written open; a reader without script gets every fold open (see pages.css).
+const monthIndex = (month, open) => `<div class="pg-im${open ? ' is-open' : ''}"><div class="pg-im-row"><a class="pg-im-a" href="#m${month.key}">${month.key}</a>`
+  + `<span class="pg-im-n">${month.logs.length}</span>`
+  + `<button type="button" class="pg-im-t" aria-expanded="${open}" aria-label="${month.key}"><i class="pg-chev" aria-hidden="true"></i></button></div>`
+  + `<div class="pg-fold"><div class="pg-fold-in"><p class="pg-iv">${month.logs.map((log) => `<a href="#v${escapeHtml(log.version)}" data-month="m${month.key}">${escapeHtml(log.version)}</a>`).join('')}</p></div></div></div>`;
+
 const renderIndex = (months) => {
-  const side = `<nav class="pg-toc" aria-label="Index">${perLanguage((lang, attrs) => `<p class="pg-toc-title"${attrs}>${escapeHtml(WORDS[lang].index)}</p>`)}<ol>`
-    + months.map((month) => `<li><details><summary><a href="#m${month.key}">${month.key}</a></summary><ol>${month.logs.map((log) => `<li><a href="#v${escapeHtml(log.version)}" data-month="m${month.key}">${escapeHtml(log.version)}</a></li>`).join('')}</ol></details></li>`).join('')
-    + '</ol></nav>';
-  const folded = '<details class="pg-index">'
-    + `<summary>${perLanguage((lang, attrs) => `<span${attrs}>${escapeHtml(WORDS[lang].index)}</span>`)}</summary>`
-    + months.map((month) => `<div class="pg-ix"><a class="pg-ix-m" href="#m${month.key}">${month.key}</a><p>${month.logs.map((log) => `<a href="#v${escapeHtml(log.version)}">${escapeHtml(log.version)}</a>`).join('')}</p></div>`).join('')
-    + '</details>';
-  return { side, folded };
+  const years = [];
+  for (const month of months) {
+    const year = month.key.slice(0, 4);
+    const last = years[years.length - 1];
+    if (last && last.key === year) last.months.push(month);
+    else years.push({ key: year, months: [month] });
+  }
+  return '<div class="pg-idx">' + years.map((year, yearIndex) => `<section class="pg-iy${yearIndex ? '' : ' is-open'}">`
+    + `<button type="button" class="pg-iy-h" aria-expanded="${!yearIndex}"><span>${year.key}</span><i class="pg-chev" aria-hidden="true"></i></button>`
+    + `<div class="pg-fold"><div class="pg-fold-in">${year.months.map((month, monthIndexInYear) => monthIndex(month, !yearIndex && !monthIndexInYear)).join('')}</div></div></section>`).join('') + '</div>';
 };
 
 const renderUpdatesBody = () => {
   const months = groupByMonth(updateLogEntries);
-  const { side, folded } = renderIndex(months);
+  const index = renderIndex(months);
   const list = months.map((month) => `<section class="pg-month" id="m${month.key}"><h2>${month.key}</h2>${month.logs.map(renderVersion).join('')}</section>`).join('');
-  // On a narrow window the folded index stays at the top of the notes; once it has scrolled away, a bar at the top of the window takes its place: the month
-  // that is being read at the left, the button of the index at the right, and the index opens under it (pages.js builds the list of the sheet from the folded one).
+  // The bar of the index sticks to the top of the window when the page is scrolled (on a narrow window); the sheet of the index opens under it.
   const bar = `<div class="pg-stick"><span class="pg-cur" id="pg-cur">${months[0].key}</span>`
-    + `<button type="button" class="pg-ix-btn" aria-expanded="false" aria-controls="pg-sheet">${perLanguage((lang, attrs) => `<span${attrs}>${escapeHtml(WORDS[lang].index)}</span>`)}</button></div>`
-    + '<div class="pg-sheet" id="pg-sheet" hidden></div>';
-  return `${folded}${bar}<div class="pg-split"><div class="pg-logs">${list}</div>${side}</div>`;
+    + `<button type="button" class="pg-ix-btn" aria-expanded="false" aria-controls="pg-sheet">${perLanguage((lang, attrs) => `<span${attrs}>${escapeHtml(WORDS[lang].index)}</span>`)}</button>`
+    + '<div class="pg-sheet" id="pg-sheet"></div></div>';
+  const side = `<nav class="pg-toc" aria-label="Index">${perLanguage((lang, attrs) => `<p class="pg-toc-title"${attrs}>${escapeHtml(WORDS[lang].index)}</p>`)}${index}</nav>`;
+  return `${bar}<div class="pg-split"><div class="pg-logs">${list}</div>${side}</div>`;
 };
 
 /** The HTML of one page. Every language is in the page (the first is shown, the others hidden) so that a reader without script and a search engine still get the words. */
@@ -171,7 +180,7 @@ export function renderPublicPage(name) {
 ${header}
 <main class="pg-main">${hero}${page.kind === 'updates' ? renderUpdatesBody() : renderTextBody(page)}</main>
 ${footer}
-<button type="button" class="pg-up" hidden>${perLanguage((lang, attrs) => `<span class="pg-sr"${attrs}>${escapeHtml(WORDS[lang].toTop)}</span>`)}<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="m6 14.5 6-6 6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+<button type="button" class="pg-up">${perLanguage((lang, attrs) => `<span class="pg-sr"${attrs}>${escapeHtml(WORDS[lang].toTop)}</span>`)}<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="m6 14.5 6-6 6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
 <script src="/pages.js" defer></script>
 </body>
 </html>

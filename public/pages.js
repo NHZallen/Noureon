@@ -47,30 +47,68 @@
     });
   }
 
-  // The index at the side of the update notes follows the page: the version that is at the top of the window is lit, and so is its month, which is the one
-  // that is open (the other months are folded).
-  var links = document.querySelectorAll('.pg-toc a');
-  if (links.length && 'IntersectionObserver' in window) {
-    var byId = {};
-    var versions = [];
-    for (var k = 0; k < links.length; k += 1) {
-      var id = links[k].getAttribute('href').slice(1);
-      byId[id] = links[k];
-      if (id.charAt(0) === 'v') versions.push(id);
+  // ---- the update notes: the index, the bar of the index, the way back to the top ----
+
+  var hasClass = function (node, name) { return !!node && (' ' + node.className + ' ').indexOf(' ' + name + ' ') >= 0; };
+  var setClass = function (node, name, on) {
+    if (!node) return;
+    var classes = String(node.className || '').split(/\s+/).filter(function (item) { return item && item !== name; });
+    if (on) classes.push(name);
+    node.className = classes.join(' ');
+  };
+  var all = function (selector, root) { return Array.prototype.slice.call((root || document).querySelectorAll(selector)); };
+
+  // A fold of the index (a year or a month) opens or shuts; the button of the fold says so.
+  var setOpen = function (fold, open) {
+    setClass(fold, 'is-open', open);
+    var button = fold.querySelector('.pg-iy-h') || fold.querySelector('.pg-im-t');
+    if (button) button.setAttribute('aria-expanded', open ? 'true' : 'false');
+  };
+  // Only one month is open at a time, and the year that holds it: the index stays short however long the notes get.
+  var openOnly = function (root, month) {
+    var open = null;
+    all('.pg-im', root).forEach(function (fold) {
+      var link = fold.querySelector('.pg-im-a');
+      var here = !!link && link.getAttribute('href') === '#' + month;
+      if (here) open = fold;
+      setOpen(fold, here);
+    });
+    all('.pg-iy', root).forEach(function (fold) {
+      var holds = false;
+      var months = all('.pg-im', fold);
+      for (var m = 0; m < months.length; m += 1) if (months[m] === open) holds = true;
+      setOpen(fold, holds);
+    });
+  };
+
+  var label = document.getElementById('pg-cur');
+  var firstMonth = label ? label.textContent : '';
+  var shownMonth = firstMonth;
+  var setLabel = function (text) {
+    if (!label || !text || label.textContent === text) return;
+    label.textContent = text;
+    setClass(label, 'is-swap', false);
+    if (label.offsetWidth !== undefined) void label.offsetWidth; // so that the move starts again
+    setClass(label, 'is-swap', true);
+  };
+
+  // The version at the top of the window is lit in the index, and so is its month; when the month changes, that month is the one that is open.
+  var lastMonth = '';
+  var light = function (id) {
+    var link = document.querySelector('.pg-toc a[href="#' + id + '"]');
+    var month = link ? link.getAttribute('data-month') : '';
+    all('.pg-idx a.is-active').forEach(function (node) { setClass(node, 'is-active', false); });
+    all('.pg-idx a[href="#' + id + '"]').forEach(function (node) { setClass(node, 'is-active', true); });
+    if (month) all('.pg-idx a.pg-im-a[href="#' + month + '"]').forEach(function (node) { setClass(node, 'is-active', true); });
+    if (month && month !== lastMonth) {
+      lastMonth = month;
+      all('.pg-idx').forEach(function (root) { openOnly(root, month); });
     }
-    var light = function (current) {
-      var link = byId[current];
-      var month = link.getAttribute('data-month');
-      for (var key in byId) if (Object.prototype.hasOwnProperty.call(byId, key)) byId[key].className = '';
-      link.className = 'is-active';
-      if (month && byId[month]) byId[month].className = 'is-active';
-      var label = document.getElementById('pg-cur');
-      if (label && month) label.textContent = month.slice(1);
-      var folds = document.querySelectorAll('.pg-toc details');
-      for (var f = 0; f < folds.length; f += 1) folds[f].open = false;
-      var fold = link.closest ? link.closest('details') : null;
-      if (fold) fold.open = true;
-    };
+    if (month) { shownMonth = month.slice(1); setLabel(shownMonth); }
+  };
+
+  var versions = all('.pg-toc .pg-iv a').map(function (node) { return node.getAttribute('href').slice(1); });
+  if (versions.length && 'IntersectionObserver' in window) {
     var seen = {};
     var observer = new IntersectionObserver(function (entries) {
       for (var e = 0; e < entries.length; e += 1) seen[entries[e].target.id] = entries[e].isIntersecting;
@@ -79,52 +117,53 @@
       for (var v = 0; v < versions.length; v += 1) if (seen[versions[v]]) current = versions[v];
       if (current) light(current);
     }, { rootMargin: '0px 0px -85% 0px' });
-    for (var m = 0; m < versions.length; m += 1) { var article = document.getElementById(versions[m]); if (article) observer.observe(article); }
+    versions.forEach(function (id) { var article = document.getElementById(id); if (article) observer.observe(article); });
   }
 
-  // The way back to the top: the button at the corner shows when the page has been scrolled; on a narrow window the bar of the index shows once the folded
-  // index has scrolled out of sight, and its button opens the index as a sheet under the bar.
   var up = document.querySelector('.pg-up');
   var stick = document.querySelector('.pg-stick');
-  var folded = document.querySelector('.pg-index');
   var sheet = document.getElementById('pg-sheet');
   var indexButton = document.querySelector('.pg-ix-btn');
-  var monthLabel = document.getElementById('pg-cur');
-  var firstMonth = monthLabel ? monthLabel.textContent : '';
+  var tree = document.querySelector('.pg-toc .pg-idx');
   var closeSheet = function () {
-    if (!sheet || sheet.hidden) return;
-    sheet.hidden = true;
+    if (!sheet || !hasClass(sheet, 'is-open')) return;
+    setClass(sheet, 'is-open', false);
     if (indexButton) indexButton.setAttribute('aria-expanded', 'false');
   };
+  var openSheet = function () {
+    if (!sheet) return;
+    // The sheet opens at the month that is being read.
+    all('.pg-idx', sheet).forEach(function (root) { openOnly(root, lastMonth || ('m' + firstMonth)); });
+    setClass(sheet, 'is-open', true);
+    if (indexButton) indexButton.setAttribute('aria-expanded', 'true');
+  };
+  if (sheet && tree) sheet.appendChild(tree.cloneNode(true));
+
+  // One listener for the folds and the links of every copy of the index (the side and the sheet), for the button and for a tap elsewhere.
+  document.addEventListener('click', function (event) {
+    var target = event.target;
+    if (!target || !target.closest) return;
+    var yearButton = target.closest('.pg-iy-h');
+    if (yearButton) { var year = yearButton.parentNode; setOpen(year, !hasClass(year, 'is-open')); return; }
+    var monthButton = target.closest('.pg-im-t');
+    if (monthButton) { var month = monthButton.closest('.pg-im'); setOpen(month, !hasClass(month, 'is-open')); return; }
+    if (target.closest('.pg-ix-btn')) { if (hasClass(sheet, 'is-open')) closeSheet(); else openSheet(); return; }
+    if (target.closest('#pg-sheet')) { if (target.closest('a')) closeSheet(); return; }
+    closeSheet();
+  });
+  document.addEventListener('keydown', function (event) { if (event.key === 'Escape') closeSheet(); });
+  if (up) up.addEventListener('click', function () { window.scrollTo({ top: 0 }); });
+
+  // The way back to the top comes in once the page has been scrolled; the bar of the index gets a shadow once it sticks to the top of the window.
   var update = function () {
     var y = window.pageYOffset || (document.documentElement && document.documentElement.scrollTop) || 0;
-    if (up) up.hidden = y < 480;
+    if (up) setClass(up, 'is-on', y > 480);
     if (stick) {
-      var away = folded ? folded.getBoundingClientRect().bottom < 0 : y > 480;
-      stick.className = away ? 'pg-stick is-on' : 'pg-stick';
-      if (!away) {
-        closeSheet();
-        if (monthLabel && firstMonth) monthLabel.textContent = firstMonth;
-      }
+      var stuck = stick.getBoundingClientRect().top <= 0.5;
+      setClass(stick, 'is-stuck', stuck);
+      if (!stuck) setLabel(firstMonth);
     }
   };
-  if (up) up.addEventListener('click', function () { window.scrollTo({ top: 0 }); });
-  if (sheet && folded) {
-    var blocks = folded.querySelectorAll('.pg-ix');
-    for (var b = 0; b < blocks.length; b += 1) sheet.appendChild(blocks[b].cloneNode(true));
-    sheet.addEventListener('click', function (event) { if (event.target && event.target.closest && event.target.closest('a')) closeSheet(); });
-  }
-  if (indexButton && sheet) {
-    indexButton.addEventListener('click', function () {
-      sheet.hidden = !sheet.hidden;
-      indexButton.setAttribute('aria-expanded', sheet.hidden ? 'false' : 'true');
-    });
-    document.addEventListener('click', function (event) {
-      if (sheet.hidden || !event.target || !event.target.closest) return;
-      if (!event.target.closest('#pg-sheet') && !event.target.closest('.pg-ix-btn')) closeSheet();
-    });
-    document.addEventListener('keydown', function (event) { if (event.key === 'Escape') closeSheet(); });
-  }
   if (up || stick) {
     var waiting = false;
     window.addEventListener('scroll', function () {
