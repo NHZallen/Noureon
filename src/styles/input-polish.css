@@ -225,13 +225,15 @@
     font-size: 0.92rem;
     text-align: left;
 }
-/* The bar of the choice under the finger and of the one in use follows the accent, with the colours of the message bubble (utils/accent-bubble.js). */
-.reasoning-depth-option:hover,
-.reasoning-depth-option.active {
-    background: var(--user-bubble-bg);
-    color: var(--user-bubble-text);
+/* The choice in use is a bar in the accent colour (like the filled track of ChatGPT's thinking depth slider); the one under the pointer is only greyed. */
+.reasoning-depth-option:hover {
+    background: var(--hover-bg);
+    color: var(--text-primary);
 }
-.reasoning-depth-option:hover small,
+.reasoning-depth-option.active {
+    background: var(--button-primary-bg);
+    color: var(--button-primary-text);
+}
 .reasoning-depth-option.active small {
     color: inherit;
     opacity: 0.75;
