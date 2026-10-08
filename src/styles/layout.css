@@ -1,21 +1,4 @@
-    :root {
-        --chat-bg: #ffffff;
-        --sidebar-bg: #f7f7f8;
-        --input-bar-bg: #ffffff;
-        --input-field-bg: #f9fafb;
-        --text-primary: #111827;
-        --text-secondary: #6b7280;
-        --border-color: #e5e7eb;
-        --hover-bg: #f3f4f6;
-        --active-bg: #e5e7eb;
-        --modal-bg: #ffffff;
-        --shadow-color: rgba(0, 0, 0, 0.1);
-        --ai-bubble-bg: transparent;
-        --user-bubble-bg: #e8f3ff;
-        --button-primary-bg: #4f8df7;
-        --button-primary-hover-bg: #3f7ee6;
-        --button-primary-text: #ffffff;
-    }
+
     @keyframes subtleFadeInUp {
         from { opacity: 0; transform: translateY(10px); }
         to { opacity: 1; transform: translateY(0); }

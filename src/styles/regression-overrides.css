@@ -37,8 +37,8 @@
 }
 
 .btn-outline-white {
-    background: #ffffff !important;
-    color: #000000 !important;
+    background: var(--modal-bg) !important;
+    color: var(--text-primary) !important;
     border: 1px solid #000000 !important;
     box-shadow: none !important;
     text-shadow: none !important;
@@ -46,14 +46,14 @@
 
 .btn-outline-white:hover:not(:disabled),
 .btn-outline-white:active:not(:disabled) {
-    background: #ffffff !important;
-    color: #000000 !important;
+    background: var(--modal-bg) !important;
+    color: var(--text-primary) !important;
 }
 
 .btn-outline-white:disabled {
     opacity: 0.45 !important;
-    background: #ffffff !important;
-    color: #000000 !important;
+    background: var(--modal-bg) !important;
+    color: var(--text-primary) !important;
 }
 
 #settings-modal .settings-sidebar {

@@ -316,6 +316,10 @@
       "path": "src/app/ui/sandbox/sandbox-run-block.js"
     },
     {
+      "path": "src/data/color-scheme-choices.js",
+      "note": "Reviewed 2026-10-08: plain data, no browser globals (the choices of the colour theme and how a saved one is read)."
+    },
+    {
       "path": "src/data/cli-catalog.js",
       "note": "Reviewed 2026-10-04: plain data and checks, no browser globals."
     },

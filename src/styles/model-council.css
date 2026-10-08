@@ -248,11 +248,11 @@
 
 .single-progress-panel-error .council-progress-stage {
     background: color-mix(in srgb, #ef4444 16%, transparent);
-    color: #dc2626;
+    color: var(--state-danger);
 }
 
 .single-progress-panel-error .council-progress-message {
-    color: #dc2626;
+    color: var(--state-danger);
     overflow-wrap: anywhere;
 }
 
@@ -474,7 +474,7 @@
 }
 
 .popover,#file-options-popover,.color-dropdown-menu,.translator-picker-menu,#mobile-context-menu,#attachment-menu {
-    background-color: rgba(255, 255, 255, 0.96) !important;
+    background-color: color-mix(in srgb, var(--chat-bg) 96%, transparent) !important;
     border-color: rgba(209, 213, 219, 0.95) !important;
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);

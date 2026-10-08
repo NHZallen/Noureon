@@ -128,19 +128,19 @@
 #voice-input-btn-message {
     border-radius: 999px !important;
     background: transparent !important;
-    color: #111827 !important;
+    color: var(--text-primary) !important;
     box-shadow: none !important;
 }
 #add-file-btn:hover,
 #voice-input-btn-message:hover {
     background: transparent !important;
-    color: #111827 !important;
+    color: var(--text-primary) !important;
 }
 #submit-btn {
     border: 0 !important;
     border-radius: 999px !important;
     background: #3b82f6 !important;
-    color: #ffffff !important;
+    color: var(--button-primary-text) !important;
     box-shadow: none !important;
 }
 #submit-btn:hover {

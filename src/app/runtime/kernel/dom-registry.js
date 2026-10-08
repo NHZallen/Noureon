@@ -153,6 +153,7 @@ const LEGACY_RUNTIME_DOM_ELEMENT_IDS = [
   ['loginLangMenu', 'login-lang-menu'],
   ['loginLangLabel', 'login-lang-label'],
   ['uiLanguageSelect', 'ui-language-select'],
+  ['colorSchemeSelect', 'color-scheme-select'],
   ['aiLanguageSelect', 'ai-language-select'],
   ['storeContainer', 'store-container'],
   ['openStoreBtn', 'open-store-btn'],

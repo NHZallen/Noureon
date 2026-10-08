@@ -73,8 +73,8 @@
     justify-content: center !important;
     box-sizing: border-box !important;
     border: 0 !important;
-    background: #ffffff !important;
-    color: #000000 !important;
+    background: var(--modal-bg) !important;
+    color: var(--text-primary) !important;
     line-height: 1 !important;
     text-align: center !important;
     vertical-align: middle !important;
@@ -89,12 +89,12 @@
 }
 
 .theme-btn:not(.active):hover {
-    background: #f2f2f2 !important;
-    color: #000000 !important;
+    background: var(--hover-bg) !important;
+    color: var(--text-primary) !important;
 }
 
 .theme-btn:not(.active):active {
-    background: #eeeeee !important;
+    background: var(--hover-bg) !important;
 }
 
 .theme-btn.active,
@@ -105,6 +105,6 @@
 
 .theme-btn:not(.active) {
     border: 1px solid #000000 !important;
-    background: #ffffff !important;
-    color: #000000 !important;
+    background: var(--modal-bg) !important;
+    color: var(--text-primary) !important;
 }

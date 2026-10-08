@@ -5,6 +5,8 @@ export function createLegacyRuntimeConfigStore({ defaultModelId } = {}) {
     modelSettings: [],
     enableAutoWebSearch: false,
     visionCheckEnabled: true,
+    // "light", "dark" or "system" (follow the device): src/app/runtime/features/color-scheme.js
+    colorScheme: 'light',
     // Whether the steps of a reply being made start open (otherwise they are folded into one line).
     processOpen: false,
     fileModeDefault: 'advanced',

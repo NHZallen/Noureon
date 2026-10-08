@@ -52,7 +52,7 @@
 .rc .rc-stats-line { color: var(--text-secondary); font-size: 0.8rem; margin: 0 2px 8px; }
 .rc .rc-report { border: 1px solid var(--border-color); border-radius: 16px; background: var(--chat-bg); overflow: visible; }
 .rc .rc-report-head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--border-color); }
-.rc .rc-doc { color: #2563eb; display: inline-flex; }
+.rc .rc-doc { color: var(--link-color); display: inline-flex; }
 .rc .rc-doc svg { stroke: #2563eb; }
 .rc .rc-report-title { flex: 1; min-width: 0; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rc .rc-report-actions { display: inline-flex; gap: 6px; flex: 0 0 auto; }

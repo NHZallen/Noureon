@@ -73,16 +73,6 @@ button:active:not(:disabled),
     padding-left: 0.35rem !important;
 }
 
-:root {
-    --gpt-surface: #ffffff;
-    --gpt-subtle: #f4f4f4;
-    --gpt-subtle-hover: #ececec;
-    --gpt-border: #dedede;
-    --gpt-menu-border: #d7d7d7;
-    --gpt-shadow: 0 10px 28px rgba(0, 0, 0, 0.13);
-    --gpt-primary-action-bg: #111827;
-    --gpt-primary-action-text: #ffffff;
-}
 
 #settings-modal > div {
     border-radius: 1.25rem !important;
@@ -200,7 +190,7 @@ button:active:not(:disabled),
 #export-data-modal,
 #import-data-modal,
 #custom-dialog-modal {
-    background: rgba(255, 255, 255, 0.72) !important;
+    background: color-mix(in srgb, var(--chat-bg) 72%, transparent) !important;
     backdrop-filter: blur(10px) saturate(1.02) !important;
     -webkit-backdrop-filter: blur(10px) saturate(1.02) !important;
 }
@@ -272,7 +262,7 @@ button:active:not(:disabled),
     height: 24px !important;
     border: 1px solid var(--gpt-border) !important;
     border-radius: 999px !important;
-    background: #d9d9d9 !important;
+    background: var(--switch-off-bg) !important;
     overflow: hidden !important;
     box-shadow: none !important;
 }
@@ -283,7 +273,7 @@ button:active:not(:disabled),
     width: 18px !important;
     height: 18px !important;
     border-radius: 999px !important;
-    background: #ffffff !important;
+    background: var(--chat-bg) !important;
     box-shadow: none !important;
     transform: translateX(0) !important;
 }
@@ -306,19 +296,10 @@ button:active:not(:disabled),
     accent-color: var(--gpt-primary-action-bg) !important;
 }
 
-/* GPT-like settings modal: centered, instant-save, black/white UI */
-:root {
-    --gpt-primary-action-bg: #000000;
-    --gpt-primary-action-text: #ffffff;
-    --gpt-icon: #000000;
-    --gpt-control-bg: #ffffff;
-    --gpt-control-text: #000000;
-    --gpt-control-border: #000000;
-    --gpt-scrollbar: #d8d8d8;
-}
+/* GPT-like settings modal: centered, instant-save, black/white UI (its colours are in tokens.css) */
 
 body svg {
-    color: #000000;
+    color: var(--text-primary);
     stroke: currentColor;
 }
 
@@ -421,7 +402,7 @@ body svg {
 }
 
 .toggle-label {
-    background: #e3e3e3 !important;
+    background: var(--switch-off-bg) !important;
     border: 0 !important;
 }
 
@@ -430,7 +411,7 @@ body svg {
 }
 
 .toggle-checkbox:checked + .toggle-label:before {
-    background: #ffffff !important;
+    background: var(--chat-bg) !important;
 }
 
 /* Final button alignment and modal cleanup pass */
@@ -460,8 +441,8 @@ body svg {
     justify-content: center !important;
     box-sizing: border-box !important;
     border: 0 !important;
-    background: #ffffff !important;
-    color: #000000 !important;
+    background: var(--modal-bg) !important;
+    color: var(--text-primary) !important;
     line-height: 1 !important;
     text-align: center !important;
     vertical-align: middle !important;
@@ -484,12 +465,12 @@ body svg {
 }
 
 .store-category-btn:not(.active):hover,.section-add-btn:hover,#archived-chats-modal .view-archived-btn:hover,#archived-chats-modal .unarchive-btn:hover,#archived-chats-modal .delete-btn:hover,#close-view-archived-modal-btn-footer:hover,.model-row-action:hover {
-    background: #f2f2f2 !important;
-    color: #000000 !important;
+    background: var(--hover-bg) !important;
+    color: var(--text-primary) !important;
 }
 
 .store-category-btn:not(.active):active,.section-add-btn:active,#archived-chats-modal .view-archived-btn:active,#archived-chats-modal .unarchive-btn:active,#archived-chats-modal .delete-btn:active,#close-view-archived-modal-btn-footer:active,.model-row-action:active {
-    background: #eeeeee !important;
+    background: var(--hover-bg) !important;
 }
 
 .store-category-btn.active,#settings-modal .store-category-btn.active {
@@ -567,23 +548,23 @@ body svg {
 
 #folder-settings-modal .icon-option.selected {
     color: var(--button-primary-bg);
-    background: #ffffff;
+    background: var(--modal-bg);
     border-color: transparent;
 }
 
 #folder-settings-modal .icon-option:hover {
-    background: #f2f2f2;
+    background: var(--hover-bg);
 }
 
 /* Restore pill outlines for normal buttons; only model row icon controls stay frameless. */
 .store-category-btn:not(.active),.section-add-btn,#archived-chats-modal .view-archived-btn,#archived-chats-modal .unarchive-btn,#archived-chats-modal .delete-btn,#close-view-archived-modal-btn-footer {
     border: 1px solid #000000 !important;
-    background: #ffffff !important;
-    color: #000000 !important;
+    background: var(--modal-bg) !important;
+    color: var(--text-primary) !important;
 }
 .memory-action-button {
     border: 0;
-    background: #fff;
+    background: var(--modal-bg);
     color: var(--text-secondary);
     transition: background-color 160ms ease, color 160ms ease;
 }
@@ -596,7 +577,7 @@ body svg {
 .memory-action-button:active,
 .memory-action-button:focus,
 .memory-action-button:focus-visible {
-    background: #fff;
+    background: var(--modal-bg);
     color: var(--button-primary-bg);
 }
 

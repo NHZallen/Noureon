@@ -13,6 +13,7 @@ const expectedConfig = (defaultModelId) => ({
   modelSettings: [],
   enableAutoWebSearch: false,
   visionCheckEnabled: true,
+  colorScheme: 'light',
   processOpen: false,
   fileModeDefault: 'advanced',
   replyRunLocation: 'server',

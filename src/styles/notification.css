@@ -22,11 +22,11 @@
     gap: 0.6rem;
     width: 100%;
     padding: 0.65rem 0.6rem 0.65rem 0.8rem;
-    border: 1px solid var(--border-color, #e5e7eb);
+    border: 1px solid var(--border-color, var(--border-color));
     border-radius: 0.75rem;
-    background: var(--modal-bg, #ffffff);
+    background: var(--modal-bg, var(--modal-bg));
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
-    color: var(--text-primary, #111827);
+    color: var(--text-primary, var(--text-primary));
     font-size: 0.9rem;
     font-weight: 500;
     line-height: 1.4;
@@ -43,9 +43,9 @@
 @keyframes notification-bump { 40% { transform: scale(1.03); } }
 
 .notification-icon { display: grid; flex: none; place-items: center; width: 1.25rem; height: 1.25rem; }
-.notification.success .notification-icon { color: #16a34a; }
-.notification.warning .notification-icon { color: #d97706; }
-.notification.error .notification-icon { color: #dc2626; }
+.notification.success .notification-icon { color: var(--state-success); }
+.notification.warning .notification-icon { color: var(--state-warning); }
+.notification.error .notification-icon { color: var(--state-danger); }
 .notification-icon svg,
 .notification-close svg { color: inherit; stroke: currentColor; }
 .notification-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
@@ -53,10 +53,10 @@
 #notification-container .notification-action {
     flex: none;
     padding: 0.3rem 0.65rem;
-    border: 1px solid var(--border-color, #e5e7eb);
+    border: 1px solid var(--border-color, var(--border-color));
     border-radius: 0.5rem;
     background: transparent;
-    color: var(--text-primary, #111827);
+    color: var(--text-primary, var(--text-primary));
     font: inherit;
     font-size: 0.8125rem;
     cursor: pointer;
@@ -72,14 +72,14 @@
     border: 0;
     border-radius: 50%;
     background: transparent;
-    color: var(--text-secondary, #6b7280);
+    color: var(--text-secondary, var(--text-secondary));
     cursor: pointer;
 }
 
 #notification-container .notification-action:hover,
 #notification-container .notification-close:hover {
-    background: var(--hover-bg, #f3f4f6);
-    color: var(--text-primary, #111827);
+    background: var(--hover-bg, var(--hover-bg));
+    color: var(--text-primary, var(--text-primary));
     transform: none;
     filter: none;
 }

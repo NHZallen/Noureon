@@ -56,6 +56,7 @@ test('collects checkbox, input, select, dropdown, and theme values as plain data
     singleDocumentTranslatorModelId: 'doc-translator',
     enableAutoWebSearch: true,
     visionCheckEnabled: true,
+    colorScheme: 'light',
     processOpen: false,
     fileModeDefault: 'advanced',
     userBubbleColor: 'green',

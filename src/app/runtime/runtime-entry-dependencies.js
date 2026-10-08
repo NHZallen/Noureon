@@ -70,6 +70,7 @@ const REQUIRED_APP_BOOTSTRAP_FIELDS = [
   'renderPersonalMemoryList',
   'handleDeleteAllData',
   'applyLanguage',
+  'applyUiTheme',
   'openStore',
   'closeStore',
   'handleAvatarUpload',

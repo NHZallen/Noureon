@@ -50,7 +50,7 @@ html.cs-open { overflow: hidden; }
 .cs-menu { position: fixed; z-index: 5; min-width: 15rem; padding: 0.35rem; border: 1px solid var(--border-color); border-radius: 1rem; background: var(--modal-bg, var(--chat-bg)); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.16); }
 .cs-menu-item { display: flex; align-items: center; justify-content: space-between; gap: 1rem; width: 100%; padding: 0.65rem 0.8rem; border: 0; border-radius: 0.7rem; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .cs-menu-item:hover { background: var(--hover-bg); }
-.cs-menu-item.is-danger { color: #dc2626; }
+.cs-menu-item.is-danger { color: var(--state-danger); }
 .cs-menu-check { display: inline-flex; width: 1rem; justify-content: center; }
 .cs-sheet-backdrop { position: absolute; inset: 0; z-index: 4; background: rgba(0, 0, 0, 0.32); }
 

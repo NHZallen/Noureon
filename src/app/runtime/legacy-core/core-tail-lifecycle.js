@@ -1091,6 +1091,7 @@ function setupMessageIntersectionObserver() {
                 renderPersonalMemoryList,
                 handleDeleteAllData,
                 applyLanguage,
+                applyUiTheme,
                 openStore,
                 closeStore,
                 handleAvatarUpload,

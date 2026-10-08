@@ -474,7 +474,7 @@
 .model-message .ac-chart-kpi-item.is-active {
     opacity: 1;
     transform: translateY(-1px);
-    background: rgba(255, 255, 255, 0.6);
+    background: color-mix(in srgb, var(--chat-bg) 60%, transparent);
 }
 
 .model-message .ac-chart-kpi-label {
@@ -834,7 +834,7 @@
         margin-bottom: 1.55rem;
         padding: 0.65rem 0.8rem 0.85rem;
         border-radius: 18px;
-        background: rgba(255, 255, 255, 0.58);
+        background: color-mix(in srgb, var(--chat-bg) 58%, transparent);
     }
 
     .model-message .ac-chart-svg {

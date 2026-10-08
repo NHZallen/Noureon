@@ -1,0 +1,61 @@
+# 深色模式回歸：設計與進度
+
+**日期：** 2026-10-08
+**狀態：** 第 2 步（基礎＋主畫面＋設定）完成，等 owner 測試；其餘頁面分階段做。
+
+## 1. 為什麼要重做、當初為什麼拿掉
+
+owner 想讓深色模式回來。當初拿掉的原因（owner 回報）：**太醜，而且很多地方的顏色（尤其是字色）沒有統一，很亂。**
+所以這次的重點不是「多一組深色」，而是**先訂一套固定的顏色規則，之後所有畫面只准用這套**。
+
+## 2. owner 的決定（2026-10-08）
+
+1. 切換方式：**淺色／深色／跟隨系統**三選一，**預設淺色**（不要讓現有使用者一覺醒來變黑）。
+2. 深色風格：**A 深灰**（參考 ChatGPT 的深色：頁面 `#212121`、側欄 `#171717`、輸入框 `#2f2f2f`）。沒有選純黑。
+3. 色版定下後，慢慢把全部頁面做完。
+4. 預設維持白底的東西：Word／PDF／簡報預覽（像紙張）、生成的圖片。
+5. 淺色版也一起照同一套規則收斂（淺色的提示字與強調色原本對比偏低）。
+
+## 3. 顏色規則（`src/styles/tokens.css` 是唯一來源）
+
+- **字三種**：`--text-primary`（內文）、`--text-secondary`（標籤、說明）、`--text-tertiary`（提示字、停用）。
+- **背景三層**：`--chat-bg`（頁面）、`--modal-bg`（卡片、彈窗、選單）、`--input-field-bg` ／ `--input-bar-bg`（輸入）；另有 `--sidebar-bg`、`--hover-bg`、`--active-bg`。
+- **一條邊線色** `--border-color`、**一個強調色** `--button-primary-bg`（使用者可在設定選別的顏色）、**三個狀態色** `--state-success` ／ `--state-danger` ／ `--state-warning`、連結 `--link-color`。
+- **黑白主按鈕**：`--gpt-primary-action-bg` ／ `-text`（淺色是黑底白字，深色反過來是白底黑字）。
+- 程式碼區塊 `--code-block-*`、開關關閉的底色 `--switch-off-bg`。
+- **新的樣式只能用這些名字，不得自己寫色碼。** 深色版只改這個檔案裡的值。
+- 對比度（字色在背景上）：深色 A 的主要文字 13.6、次要 6.8、淡色 3.2、強調色 5.8；都比原本的淺色（次要 4.8、淡色 2.5、強調色 3.2）好讀。
+
+## 4. 結構
+
+| 檔案 | 作用 |
+|---|---|
+| `src/styles/tokens.css` | 顏色名字的淺色與深色值（`:root` 與 `:root[data-theme="dark"]`），也是 `color-scheme` |
+| `src/styles/dark-bridge.css` | 還在用 Tailwind 顏色類別（`bg-white`、`text-gray-500`…）的標記，在深色下改成對應的名字；只有這個檔案與 tokens.css 可以寫 `[data-theme]` |
+| `public/theme-init.js` | 在第一次繪製前設定 `data-theme`（讀 localStorage 的複本），避免深色頁面先閃一下白 |
+| `src/app/runtime/features/color-scheme.js` | 把設定 `colorScheme` 變成 `data-theme`、更新瀏覽器列顏色、記在 localStorage、「跟隨系統」時追著裝置變 |
+| `src/data/color-scheme-choices.js` | 三個選項與讀取的純資料（伺服器也會讀設定，所以獨立成純資料） |
+| 設定 → 個人化 → 外觀 →「色彩模式」 | 選擇；立即套用，與設定一起雲端同步（設定鍵 `colorScheme`） |
+
+原本散在各檔案、數值還不一致的變數（`layout.css`、`chat.css` 各一份 `:root`，`settings.css` 兩份，其中 `--gpt-primary-action-bg` 一處 `#111827`、一處 `#000000`）全部併進 `tokens.css`。
+
+## 5. 已完成（第 2 步）
+
+- 基礎：token、切換、設定、避免閃白、tests。
+- 把樣式檔裡約 300 處寫死的淺色改成名字（用一次性的腳本依屬性轉換：字色、背景、邊線、狀態色、白色半透明的毛玻璃），其餘手動修（側欄邊線、檔案選單、搜尋遮罩、開關底色…）。
+- 使用者訊息泡泡色現在有淺色與深色兩版（`USER_BUBBLE_COLORS` 的 `dark`），泡泡的選擇不依賴當下的主題。
+- 在真實瀏覽器逐頁檢查過深色：主畫面、側欄、對話（程式碼、表格、引用）、深度研究卡與閱讀畫面、設定全部分頁、命令工具商城、Nouras 商店、搜尋；手機版主畫面、閱讀、設定、商城。淺色與改動前逐像素比對，只有極少數像素差（統一 `#000` → `#111827` 之類）。
+- 測試中釘死色碼的幾支（`quote-inquiry`、設定、搜尋的 CSS 回歸測試）改成接受名字；原本「CSS 不得出現 `[data-theme]`」的守門改成「只有 tokens.css 與 dark-bridge.css 可以」。
+
+## 6. 還沒做（下一步）
+
+1. 圖表（`charts.css`，標題色、軸線；Chart.js 的顏色在 JS 裡）、程式碼高亮的深色配色確認。
+2. 檔案卡片與檔案預覽對話框（`.ac-file-preview` 目前把文字色寫死成淺色版；對話框外殼要跟主題，裡面的「紙張」維持白）。
+3. 沙盒執行紀錄（`ledger.css`）、引用與來源面板（`citations.css`）、模型選單（`model-picker.css`）、模型會議、輸入框周邊（`+` 選單、模型切換）、通知、對話框（modals）、更新日誌頁（`/updates`、`/terms`、`/privacy`）、登入頁。
+4. JS 裡寫死顏色的地方（約 290 處，多半是圖表與預覽）。
+5. 手機的各個浮層、PWA 外殼顏色、`prefers-color-scheme` 下的第一次載入。
+6. 加一個自動檢查：樣式檔不得新增寫死的色碼（只能用名字），避免之後再亂。
+
+## 7. 驗收方式
+
+每一階段：`npm test`、`npm run build`、`npm run check:sizes`、`npm run check:legacy-runtime`、`npm run check:server`、`npm audit --omit=dev`；在 Chromium 以淺色與深色逐頁截圖（腳本在作業用的 scratchpad，不進 repo）；淺色與基準逐像素比對；給 owner 看畫面，同意才推 `main`。

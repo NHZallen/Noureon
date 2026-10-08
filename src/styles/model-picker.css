@@ -390,7 +390,7 @@
 .mp-switch:disabled { cursor: default; opacity: 0.5; }
 
 .mp-status { margin: 0.4rem 0.5rem 0.25rem; color: var(--text-secondary); font-size: 0.8125rem; }
-.mp-status.is-warning { color: #b45309; }
+.mp-status.is-warning { color: var(--state-warning); }
 
 .mp-pick-head { display: flex; flex: none; align-items: center; justify-content: space-between; gap: 0.5rem; margin: 0 0 0.4rem; }
 .mp-pick-title { flex: 1; overflow: hidden; font-size: 0.9375rem; font-weight: 500; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
@@ -471,7 +471,7 @@
     width: var(--mp-thumb);
     height: var(--mp-thumb);
     border-radius: 50%;
-    background: #ffffff;
+    background: var(--chat-bg);
     box-shadow: 0 1px 5px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(0, 0, 0, 0.1);
     transform: translate(-50%, -50%) scale(var(--mp-press, 1));
     pointer-events: none;

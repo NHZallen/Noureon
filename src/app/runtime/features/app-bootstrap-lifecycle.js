@@ -91,6 +91,7 @@ export function createLegacyAppBootstrapLifecycle({
     renderPersonalMemoryList,
     handleDeleteAllData,
     applyLanguage,
+    applyUiTheme,
     openStore,
     closeStore,
     handleAvatarUpload,
@@ -728,6 +729,10 @@ export function createLegacyAppBootstrapLifecycle({
                     config.uiLanguage = e.target.value;
                     applyLanguage(config.uiLanguage);
                     renderInputIndicators();
+                });
+                ALL_ELEMENTS.colorSchemeSelect?.addEventListener('change', (e) => {
+                    config.colorScheme = e.target.value;
+                    applyUiTheme();
                 });
                 const storeNavigationLifecycle = createStoreNavigationLifecycle({
                     getOpenStoreButton: () => ALL_ELEMENTS.openStoreBtn,

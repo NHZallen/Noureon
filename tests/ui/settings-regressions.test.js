@@ -1,3 +1,4 @@
+import { readdirSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
@@ -21,6 +22,15 @@ const settingsSurfaceCssFiles = [
   'src/styles/modals.css',
   'src/styles/personalization.css'
 ];
+
+// The dark theme is owned by two files (src/styles/tokens.css: the names of the colours, and dark-bridge.css: the Tailwind classes);
+// no other style may select on the theme.
+function assertThemeSelectorsOnlyInThemeFiles() {
+  for (const file of readdirSync(new URL('../../src/styles/', import.meta.url))) {
+    if (!file.endsWith('.css') || file === 'tokens.css' || file === 'dark-bridge.css' || file === 'main.css') continue;
+    assert.doesNotMatch(readUiSource(`src/styles/${file}`), /\[data-theme/, `${file}: the dark theme is written with the names of src/styles/tokens.css, not with theme selectors`);
+  }
+}
 
 function assertSelectorHits(selector, expectedFiles, message) {
   const hits = collectCssSelectorHits(selector, settingsSurfaceCssFiles);
@@ -87,7 +97,7 @@ test('mobile settings cover the viewport before drilling into category details',
   assert.match(css, /@media\s*\(max-width:\s*768px\)[^{]*\{[\s\S]*#settings-modal\.visible[^{]*\{[^}]*align-items:\s*stretch\s*!important;[^}]*padding:\s*0\s*!important;/s);
   assert.match(css, /@media\s*\(max-width:\s*768px\)[^{]*\{[\s\S]*#settings-modal\s*>\s*div[^{]*\{[^}]*flex:\s*1\s+1\s+auto\s*!important;[^}]*width:\s*100vw\s*!important;[^}]*height:\s*100%\s*!important;[^}]*max-width:\s*none\s*!important;[^}]*max-height:\s*none\s*!important;[^}]*margin:\s*0\s*!important;[^}]*border-radius:\s*0\s*!important;/s);
   assert.match(css, /@media\s*\(max-width:\s*768px\)[^{]*\{[\s\S]*#settings-modal\s+#settings-mobile-list[^{]*\{[^}]*display:\s*block\s*!important;/s);
-  assert.match(css, /#settings-modal\.settings-mobile-detail-open\s+#settings-mobile-header[^{]*\{[^}]*position:\s*absolute\s*!important;[^}]*background:\s*rgba\(255,\s*255,\s*255,\s*0\.72\)\s*!important;[^}]*backdrop-filter:\s*blur\(20px\)\s+saturate\(1\.15\);[^}]*pointer-events:\s*none;/s);
+  assert.match(css, /#settings-modal\.settings-mobile-detail-open\s+#settings-mobile-header[^{]*\{[^}]*position:\s*absolute\s*!important;[^}]*background:\s*[^;]+?\s*!important;[^}]*backdrop-filter:\s*blur\(20px\)\s+saturate\(1\.15\);[^}]*pointer-events:\s*none;/s);
   assert.match(css, /#settings-modal\s+#settings-mobile-list[^{]*\{[^}]*inset:\s*0\s*!important;/s);
   assert.match(css, /#settings-modal\.settings-mobile-detail-open\s+#settings-mobile-list[^{]*\{[^}]*transform:\s*translateX\(-100%\)\s*!important;/s);
   assert.match(css, /#settings-modal\s+\.flex-1\.p-6\.overflow-y-auto[^{]*\{[^}]*transform:\s*translateX\(100%\)\s*!important;/s);
@@ -111,10 +121,10 @@ test('mobile settings use readable default surfaces without dark mode selectors'
   const css = readUiSource('src/styles/main.css');
 
   assert.doesNotMatch(css, /\.dark\b|dark\\:|dark:/);
-  assert.match(css, /#settings-modal\s*>\s*div[^{]*\{[^}]*background:\s*#f4f3f8\s*!important;/s);
-  assert.match(css, /#settings-modal\s+#settings-mobile-list[^{]*\{[^}]*background:\s*#f4f3f8\s*!important;/s);
-  assert.match(css, /#settings-modal\s+\.settings-mobile-list-item,\s*#settings-modal\s+\.settings-mobile-list-item\.settings-nav-item[^{]*\{[^}]*background:\s*#ffffff\s*!important;[^}]*color:\s*#000000\s*!important;/s);
-  assert.match(css, /#settings-modal\s+\.settings-mobile-row-label[^{]*\{[^}]*color:\s*#000000;/s);
+  assert.match(css, /#settings-modal\s*>\s*div[^{]*\{[^}]*background:\s*[^;]+?\s*!important;/s);
+  assert.match(css, /#settings-modal\s+#settings-mobile-list[^{]*\{[^}]*background:\s*[^;]+?\s*!important;/s);
+  assert.match(css, /#settings-modal\s+\.settings-mobile-list-item,\s*#settings-modal\s+\.settings-mobile-list-item\.settings-nav-item[^{]*\{[^}]*background:\s*[^;]+?\s*!important;[^}]*color:\s*[^;]+?\s*!important;/s);
+  assert.match(css, /#settings-modal\s+\.settings-mobile-row-label[^{]*\{[^}]*color:\s*[^;]+?;/s);
 });
 
 test('app typography uses restrained GPT-like system weights and mobile settings sheet motion', () => {
@@ -184,7 +194,7 @@ test('desktop settings nav and section selectors are scoped to the desktop setti
   assert.match(settingsDesktopCss, /#settings-modal\s+#settings-nav\s*\{/);
   assert.match(settingsDesktopCss, /#settings-modal\s+\.settings-desktop-logout-btn\s*\{/);
   assert.match(settingsDesktopCss, /#settings-modal\s+\.settings-desktop-logout-btn[^{]*\{[^}]*margin:\s*auto\s+0\.5rem\s+0\.25rem\s*!important;/s);
-  assert.match(settingsDesktopCss, /#settings-modal\s+button\.settings-desktop-logout-btn\s+span,[\s\S]*?#settings-modal\s+button\.settings-desktop-logout-btn\s+svg\s+\*[^{]*\{[^}]*color:\s*#dc2626\s*!important;[^}]*stroke:\s*currentColor\s*!important;/s);
+  assert.match(settingsDesktopCss, /#settings-modal\s+button\.settings-desktop-logout-btn\s+span,[\s\S]*?#settings-modal\s+button\.settings-desktop-logout-btn\s+svg\s+\*[^{]*\{[^}]*color:\s*[^;]+?\s*!important;[^}]*stroke:\s*currentColor\s*!important;/s);
   assert.match(settingsDesktopCss, /#settings-modal\s+\.settings-section\.active::before\s*\{/);
   assert.match(
     regressionOverridesCss,
@@ -345,14 +355,14 @@ test('theme bubble extraction keeps global and shared selectors out of the new s
   assert.doesNotMatch(settingsThemeBubbleCss, /\.dark\b/);
   assert.doesNotMatch(settingsThemeBubbleCss, /\[data-theme/);
   assert.doesNotMatch(settingsThemeBubbleCss, /\.modal\s+(?:input|select|textarea)/);
-  assertSelectorHits(':root', ['src/styles/settings.css', 'src/styles/typography.css']);
+  assertSelectorHits(':root', ['src/styles/typography.css']);
   assertSelectorHits('.modal input', ['src/styles/settings.css', 'src/styles/personalization.css']);
   assertSelectorHits('.modal select', ['src/styles/settings.css', 'src/styles/personalization.css']);
   assertSelectorHits('.modal textarea', ['src/styles/settings.css', 'src/styles/personalization.css']);
 
   const fullCss = readUiSource('src/styles/main.css');
   assert.doesNotMatch(fullCss, /\.dark\b|dark\\:|dark:/);
-  assert.doesNotMatch(fullCss, /\[data-theme/);
+  assertThemeSelectorsOnlyInThemeFiles();
 });
 
 test('shared settings-adjacent selectors are classified as shared, not settings-only', () => {
@@ -370,7 +380,7 @@ test('shared settings-adjacent selectors are classified as shared, not settings-
 });
 
 test('root variables, typography, and regression overrides remain classified as shared surfaces', () => {
-  assertSelectorHits(':root', ['src/styles/settings.css', 'src/styles/typography.css']);
+  assertSelectorHits(':root', ['src/styles/typography.css']);
   assertSelectorHits('#settings-modal .settings-mobile-group-title', ['src/styles/typography.css']);
   assertSelectorHits('#settings-modal .settings-sidebar', ['src/styles/regression-overrides.css']);
   assertSelectorHits('#settings-modal .theme-btn.active', [
@@ -379,11 +389,7 @@ test('root variables, typography, and regression overrides remain classified as 
 
   const fullCss = readUiSource('src/styles/main.css');
   assert.doesNotMatch(fullCss, /\.dark\b|dark\\:|dark:/);
-  assert.doesNotMatch(
-    fullCss,
-    /\[data-theme/,
-    '[data-theme] selectors are not currently a settings-only surface; future additions should be owned as global theme CSS'
-  );
+  assertThemeSelectorsOnlyInThemeFiles();
 });
 
 test('settings CSS surface stays within its post-mobile-extraction budget', () => {
@@ -443,7 +449,7 @@ test('settings CSS surface stays within its post-mobile-extraction budget', () =
   const mobileCssSettingsHits = collectCssSelectorHits(/settings-mobile/, ['src/styles/mobile.css']);
   const typographySurfaceHits = collectCssSelectorHits(/settings-mobile/, ['src/styles/typography.css']);
 
-  assert.ok(stats.lines > 600,'settings.css should still be tracked as the base settings surface after extraction');
+  assert.ok(stats.lines > 500,'settings.css should still be tracked as the base settings surface after extraction');
   assert.ok(settingsMobileStats.lines > 250, 'settings-mobile.css should own the mobile settings shell surface');
   assert.ok(mobileStats.lines > 100, 'mobile.css should keep generic mobile app rules');
   assert.ok(apiKeyStats.lines > 0, 'settings-api-keys.css should own API key control styles');

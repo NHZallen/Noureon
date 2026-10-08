@@ -1,0 +1,119 @@
+/*
+ * The colours of the app, in one place.
+ *
+ * Every colour of the interface comes from these names (docs/superpowers/specs/2026-10-08-dark-mode-design.md): text has three
+ * levels, surfaces have three layers, there is one border colour, one accent and three state colours. A new style uses them and
+ * never writes a colour of its own, so that the light and the dark theme stay in step.
+ *
+ * `data-theme` on <html> is "light" or "dark" (public/theme-init.js sets it before the first paint, color-scheme.js keeps it up to date).
+ * The dark theme is a dark grey after ChatGPT's (page #212121, side bar #171717, input #2f2f2f).
+ */
+:root {
+    color-scheme: light;
+
+    /* surfaces: page, side bar, the box of the message input and its field, popups and dialogs */
+    --chat-bg: #ffffff;
+    --sidebar-bg: #f7f7f8;
+    --input-bar-bg: #ffffff;
+    --input-field-bg: #f9fafb;
+    --modal-bg: #ffffff;
+
+    /* text: primary, secondary (labels, descriptions), tertiary (placeholders, disabled) */
+    --text-primary: #111827;
+    --text-secondary: #6b7280;
+    --text-tertiary: #9ca3af;
+
+    /* lines and the states of a row */
+    --border-color: #e5e7eb;
+    --hover-bg: #f3f4f6;
+    --active-bg: #e5e7eb;
+    --shadow-color: rgba(0, 0, 0, 0.1);
+
+    /* messages */
+    --ai-bubble-bg: transparent;
+    --user-bubble-bg: var(--user-bubble-choice-light, #e8f3ff);
+
+    /* the accent (the person may choose another colour in Settings) */
+    --button-primary-bg: #4f8df7;
+    --button-primary-hover-bg: #3f7ee6;
+    --button-primary-text: #ffffff;
+
+    /* the black-and-white main button (dark pill on light, light pill on dark) and the surfaces of the settings and menus */
+    --gpt-surface: #ffffff;
+    --gpt-subtle: #f4f4f4;
+    --gpt-subtle-hover: #ececec;
+    --gpt-border: #dedede;
+    --gpt-menu-border: #d7d7d7;
+    --gpt-shadow: 0 10px 28px rgba(0, 0, 0, 0.13);
+    --gpt-primary-action-bg: #000000;
+    --gpt-primary-action-text: #ffffff;
+    --gpt-icon: #000000;
+    --gpt-control-bg: #ffffff;
+    --gpt-control-text: #000000;
+    --gpt-control-border: #000000;
+    --gpt-scrollbar: #d8d8d8;
+
+    /* states and links */
+    --state-success: #16a34a;
+    --state-danger: #dc2626;
+    --state-warning: #b45309;
+    --link-color: #2563eb;
+
+    /* code blocks and the track of a switch that is off */
+    --code-bg: #f6f7f9;
+    --code-block-bg: #111827;
+    --code-block-text: #f3f4f6;
+    --code-block-border: transparent;
+    --switch-off-bg: #d9d9d9;
+}
+
+:root[data-theme="dark"] {
+    color-scheme: dark;
+
+    --chat-bg: #212121;
+    --sidebar-bg: #171717;
+    --input-bar-bg: #2a2a2a;
+    --input-field-bg: #2f2f2f;
+    --modal-bg: #2a2a2a;
+
+    --text-primary: #ececec;
+    --text-secondary: #a8a8a8;
+    --text-tertiary: #6f6f6f;
+
+    --border-color: rgba(255, 255, 255, 0.12);
+    --hover-bg: rgba(255, 255, 255, 0.07);
+    --active-bg: rgba(255, 255, 255, 0.12);
+    --shadow-color: rgba(0, 0, 0, 0.5);
+
+    --ai-bubble-bg: transparent;
+    --user-bubble-bg: var(--user-bubble-choice-dark, #303030);
+
+    --button-primary-bg: #5b9bff;
+    --button-primary-hover-bg: #78acff;
+    --button-primary-text: #0b0b0b;
+
+    --gpt-surface: #2a2a2a;
+    --gpt-subtle: #303030;
+    --gpt-subtle-hover: #383838;
+    --gpt-border: rgba(255, 255, 255, 0.12);
+    --gpt-menu-border: rgba(255, 255, 255, 0.14);
+    --gpt-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
+    --gpt-primary-action-bg: #ececec;
+    --gpt-primary-action-text: #171717;
+    --gpt-icon: #ececec;
+    --gpt-control-bg: #2f2f2f;
+    --gpt-control-text: #ececec;
+    --gpt-control-border: rgba(255, 255, 255, 0.2);
+    --gpt-scrollbar: #4a4a4a;
+
+    --state-success: #4ade80;
+    --state-danger: #f87171;
+    --state-warning: #fbbf24;
+    --link-color: #8ab8ff;
+
+    --code-bg: #181818;
+    --code-block-bg: #181818;
+    --code-block-text: #ececec;
+    --code-block-border: var(--border-color);
+    --switch-off-bg: #4a4a4a;
+}

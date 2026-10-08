@@ -6,11 +6,11 @@ export const FOLDER_COLORS = {
 };
 
 export const USER_BUBBLE_COLORS = {
-    default: { light: '#e8f3ff' }, gray: { light: '#eef0f3' },
-    blue: { light: '#e8f3ff' }, green: { light: '#eaf7ef' },
-    yellow: { light: '#fff7d6' }, orange: { light: '#fff0e3' },
-    red: { light: '#ffedf0' }, purple: { light: '#f2ecff' },
-    pink: { light: '#ffedf5' }, teal: { light: '#e7f8f5' }
+    default: { light: '#e8f3ff', dark: '#303030' }, gray: { light: '#eef0f3', dark: '#363636' },
+    blue: { light: '#e8f3ff', dark: '#1f3350' }, green: { light: '#eaf7ef', dark: '#1f3a2b' },
+    yellow: { light: '#fff7d6', dark: '#3d3515' }, orange: { light: '#fff0e3', dark: '#3d2a1a' },
+    red: { light: '#ffedf0', dark: '#3d1f26' }, purple: { light: '#f2ecff', dark: '#2e2547' },
+    pink: { light: '#ffedf5', dark: '#3d1f31' }, teal: { light: '#e7f8f5', dark: '#1b3733' }
 };
 
 // The choices of the primary button colour, in the order of the menu. `default` is the colour used when nothing was chosen.

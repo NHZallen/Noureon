@@ -122,29 +122,29 @@
         background-color: var(--hover-bg);
     }
     .voice-input-btn.active {
-        color: #ef4444;
+        color: var(--state-danger);
         background-color: var(--hover-bg);
     }
     .pinned-icon {
         color: #fbbf24;
     }
     .sidebar, .sidebar button, .sidebar input, .sidebar h2, .sidebar span {
-        color: #111827;
+        color: var(--text-primary);
     }
     .sidebar .text-\[var\(--text-secondary\)\] {
-        color: #6b7280 !important;
+        color: var(--text-secondary) !important;
     }
     #logout-btn, .folder-options-btn, .chat-options-btn, .astras-options-btn, #new-folder-btn, #new-astras-btn {
-        color: #6b7280;
+        color: var(--text-secondary);
     }
     #logout-btn:hover, .folder-options-btn:hover, .chat-options-btn:hover, .astras-options-btn:hover, #new-folder-btn:hover, #new-astras-btn:hover {
-        color: #111827;
+        color: var(--text-primary);
     }
     .pinned-icon {
         color: #fbbf24;
     }
     #settings-modal .settings-section {
-        color: #111827;
+        color: var(--text-primary);
     }
     #settings-modal .settings-section h3,
     #settings-modal .settings-section label,
@@ -154,26 +154,26 @@
     #settings-modal .settings-section select,
     #settings-modal .settings-section textarea,
     #settings-modal .settings-section span {
-        color: #111827;
+        color: var(--text-primary);
     }
     #settings-modal .settings-section .text-\[var\(--text-secondary\)\] {
-        color: #6b7280 !important;
+        color: var(--text-secondary) !important;
     }
     
     #settings-modal .p-6.border-b h2 {
-        color: #111827;
+        color: var(--text-primary);
     }
     #settings-modal .settings-nav-item {
-        color: #111827;
+        color: var(--text-primary);
     }
     #close-settings-btn {
-        color: #111827;
+        color: var(--text-primary);
     }
     #close-astras-btn {
-        color: #111827;
+        color: var(--text-primary);
     }
     .modal > div, .popover {
-        color: #111827;
+        color: var(--text-primary);
     }
     .modal { pointer-events: none; }
 .modal.visible { pointer-events: auto; }
@@ -191,19 +191,19 @@
     .modal h2, .modal h3, .modal p, .modal label, .modal span,
 .modal li, .modal ul, .modal ol, 
 .modal input, .modal select, .modal textarea {
-    color: #111827;
+    color: var(--text-primary);
 }
     .modal button, .popover button {
-        color: #111827;
+        color: var(--text-primary);
     }
     .modal .text-\[var\(--text-secondary\)\] {
-        color: #6b7280 !important;
+        color: var(--text-secondary) !important;
     }
     .modal .btn-primary, .modal #confirm-import-btn {
-        color: #ffffff !important;
+        color: var(--button-primary-text) !important;
     }
     .modal .text-red-500, .modal .text-red-600, .popover .text-red-600 {
-        color: #ef4444 !important;
+        color: var(--state-danger) !important;
     }
     .conversation-sidebar-copy {
         display: flex;
@@ -246,8 +246,8 @@
         transition: all 0.3s ease;
     }
     .demo-model-selector .selector-btn.active {
-        color: #2563eb;
-        background-color: #eff6ff;
+        color: var(--link-color);
+        background-color: color-mix(in srgb, var(--button-primary-bg) 12%, var(--chat-bg));
         border-color: #2563eb;
         transform: translateY(-2px);
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
@@ -409,7 +409,7 @@
         background-color: var(--hover-bg);
     }
     #mobile-context-menu .menu-item.delete {
-        color: #ef4444;
+        color: var(--state-danger);
     }
     #mobile-context-menu .menu-item svg {
         width: 24px;
@@ -417,7 +417,7 @@
         color: var(--text-secondary);
     }
      #mobile-context-menu .menu-item.delete svg {
-        color: #ef4444;
+        color: var(--state-danger);
     }
     @media (max-width: 768px) {
       input[type="text"],
@@ -533,8 +533,8 @@
         animation: jelly-bounce 0.5s ease-out;
     }
     #scroll-to-bottom-btn {
-        background-color: rgba(255, 255, 255, 0.9);
-        color: #111827;
+        background-color: color-mix(in srgb, var(--chat-bg) 90%, transparent);
+        color: var(--text-primary);
         box-shadow: 0 4px 8px var(--shadow-color);
         border: 1px solid var(--border-color);
     }

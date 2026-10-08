@@ -2724,6 +2724,7 @@ test('bootstrap helpers keep narrow responsibilities', () => {
 test('main css is an ordered split manifest with every imported file under the source size limit', () => {
   const mainCss = readSource('src/styles/main.css');
   const expectedImports = [
+    'tokens.css',
     'base.css',
     'sidebar.css',
     'input.css',
@@ -2754,12 +2755,13 @@ test('main css is an ordered split manifest with every imported file under the s
     'mobile-composer-layout.css',
     'chat-edge-fade.css',
     'busy-feedback.css',
-    'typography.css'
+    'typography.css',
+    'dark-bridge.css'
   ];
 
   const imports = [...mainCss.matchAll(/@import\s+['"]\.\/(.+?)['"];/g)].map((match) => match[1]);
   assert.deepEqual(imports, expectedImports);
-  assert.equal(mainCss.trimStart().startsWith("@import './base.css';"), true);
+  assert.equal(mainCss.trimStart().startsWith("@import './tokens.css';"), true);
 
   const baseCss = readSource('src/styles/base.css');
   assert.match(baseCss, /@tailwind base;\s*@tailwind components;\s*@tailwind utilities;/);

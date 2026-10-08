@@ -1,6 +1,10 @@
 import {
     getTextColorForBackground as getThemeTextColorForBackground,
 } from '../../../utils/color-contrast.js';
+import { createColorScheme } from './color-scheme.js';
+
+// The accent when the person has not chosen a colour of their own: the blue of the theme in use.
+const DEFAULT_ACCENT = Object.freeze({ light: '#3b82f6', dark: '#5b9bff' });
 
 export function createThemeAppearanceLifecycle(dependencies = {}) {
     const {
@@ -13,11 +17,15 @@ export function createThemeAppearanceLifecycle(dependencies = {}) {
         setUserBubbleColor
     } = dependencies;
 
+    const colorScheme = createColorScheme({ window, document });
+
     const applyUiTheme = () => {
         const root = document.documentElement;
+        // The light or the dark theme first (the accent below follows it).
+        const theme = colorScheme.apply(state.config.colorScheme);
         const primaryBg = state.config.uiTheme.mode === 'custom'
             ? state.config.uiTheme.customColor
-            : '#3b82f6';
+            : DEFAULT_ACCENT[theme];
         root.style.setProperty('--button-primary-bg', primaryBg);
         root.style.setProperty('--button-primary-text', getThemeTextColorForBackground(primaryBg));
         root.style.removeProperty('--button-primary-bg-override');

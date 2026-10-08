@@ -1,3 +1,4 @@
+import { normalizeColorScheme } from '../../../data/color-scheme-choices.js';
 import { normalizeCliIds, normalizeCliVersions } from '../../../data/cli-catalog.js';
 import { normalizeNetHost, normalizeNetMode, normalizeNetRules } from '../../../data/cli-net.js';
 import { normalizeStamps } from '../../../data/cli-settings-merge.js';
@@ -111,6 +112,7 @@ export function normalizeLoadedLegacyConfig({
   };
   normalizedConfig.uiLanguage = normalizeLanguageCode(normalizedConfig.uiLanguage);
   normalizedConfig.visionCheckEnabled = normalizedConfig.visionCheckEnabled !== false;
+  normalizedConfig.colorScheme = normalizeColorScheme(normalizedConfig.colorScheme);
   normalizedConfig.processOpen = normalizedConfig.processOpen === true;
   normalizedConfig.fileModeDefault = normalizedConfig.fileModeDefault === 'standard' ? 'standard' : 'advanced';
   normalizedConfig.replyRunLocation = normalizedConfig.replyRunLocation === 'local' ? 'local' : 'server';

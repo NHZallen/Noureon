@@ -12,8 +12,8 @@
     /* Tints derive from the current text colour, so the card stays legible. */
     border: 1px solid color-mix(in srgb, var(--text-primary, #111827) 12%, transparent);
     border-radius: 0.9rem;
-    background: color-mix(in srgb, var(--text-primary, #111827) 4%, transparent);
-    color: var(--text-primary, #111827);
+    background: color-mix(in srgb, var(--text-primary, var(--gpt-primary-action-bg)) 4%, transparent);
+    color: var(--text-primary, var(--text-primary));
     box-sizing: border-box;
     font-family: inherit;
     line-height: 1.35;
@@ -93,7 +93,7 @@
 .ac-file-meta {
     margin-top: 0.12rem;
     overflow: hidden;
-    color: var(--text-secondary, #6b7280);
+    color: var(--text-secondary, var(--text-secondary));
     font-size: 0.78rem;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -101,20 +101,20 @@
 
 .ac-file-notice {
     margin-top: 0.3rem;
-    color: var(--text-secondary, #6b7280);
+    color: var(--text-secondary, var(--text-secondary));
     font-size: 0.76rem;
     line-height: 1.4;
 }
 
 .ac-file-notice-warning,
 .ac-file-notice-incomplete {
-    color: color-mix(in srgb, #b45309 78%, var(--text-primary, #111827));
+    color: color-mix(in srgb, var(--state-warning) 78%, var(--text-primary, var(--text-primary)));
 }
 
 .ac-file-notice-blocked,
 .ac-file-notice-too-large,
 .ac-file-notice-unavailable {
-    color: color-mix(in srgb, #c81e1e 78%, var(--text-primary, #111827));
+    color: color-mix(in srgb, #c81e1e 78%, var(--text-primary, var(--text-primary)));
 }
 
 .ac-file-actions {
@@ -135,7 +135,7 @@
     border: 1px solid transparent;
     border-radius: 0.6rem;
     background: transparent;
-    color: var(--text-secondary, #6b7280);
+    color: var(--text-secondary, var(--text-secondary));
     cursor: pointer;
     font: inherit;
     font-size: 0.82rem;
@@ -144,8 +144,8 @@
 }
 
 .ac-file-action:hover {
-    background: var(--hover-bg, rgba(0, 0, 0, 0.05));
-    color: var(--text-primary, #111827);
+    background: var(--hover-bg, var(--hover-bg));
+    color: var(--text-primary, var(--text-primary));
 }
 
 .ac-file-action:focus-visible {
@@ -256,10 +256,10 @@
     width: min(56rem, calc(100vw - 2rem));
     max-height: min(85vh, 60rem);
     padding: 0;
-    border: 1px solid var(--border-color, rgba(0, 0, 0, 0.1));
+    border: 1px solid var(--border-color, var(--border-color));
     border-radius: 1rem;
-    background: var(--modal-bg, #ffffff);
-    color: var(--text-primary, #111827);
+    background: var(--modal-bg, var(--modal-bg));
+    color: var(--text-primary, var(--text-primary));
     box-shadow: 0 24px 64px rgba(15, 23, 42, 0.28);
     overflow: hidden;
 }
@@ -297,14 +297,14 @@
     border: none;
     border-radius: 0.5rem;
     background: transparent;
-    color: var(--text-secondary, #6b7280);
+    color: var(--text-secondary, var(--text-secondary));
     cursor: pointer;
     font-size: 1.4rem;
     line-height: 1;
 }
 
 .ac-file-preview-close:hover {
-    background: var(--hover-bg, rgba(0, 0, 0, 0.05));
+    background: var(--hover-bg, var(--hover-bg));
 }
 
 /* The dialog puts the focus on the close button as it opens, and a ring round it on every opening is not wanted. */
@@ -331,7 +331,7 @@
     margin: 0;
     padding: 0.85rem 1rem;
     border-radius: 0.6rem;
-    background: color-mix(in srgb, var(--text-primary, #111827) 5%, transparent);
+    background: color-mix(in srgb, var(--text-primary, var(--gpt-primary-action-bg)) 5%, transparent);
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
     font-size: 0.8rem;
     line-height: 1.55;
@@ -345,7 +345,7 @@
 
 .ac-file-preview-table {
     overflow: auto;
-    border: 1px solid var(--border-color, rgba(0, 0, 0, 0.1));
+    border: 1px solid var(--border-color, var(--border-color));
     border-radius: 0.6rem;
 }
 
@@ -359,7 +359,7 @@
 .ac-file-preview-table th,
 .ac-file-preview-table td {
     padding: 0.4rem 0.7rem;
-    border-bottom: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
+    border-bottom: 1px solid var(--border-color, var(--border-color));
     text-align: left;
     white-space: nowrap;
 }
@@ -367,7 +367,7 @@
 .ac-file-preview-table th {
     position: sticky;
     top: 0;
-    background: var(--modal-bg, #ffffff);
+    background: var(--modal-bg, var(--modal-bg));
     font-weight: 600;
 }
 
@@ -390,7 +390,7 @@
 
 .ac-file-preview-note {
     margin: 0.6rem 0 0;
-    color: var(--text-secondary, #6b7280);
+    color: var(--text-secondary, var(--text-secondary));
     font-size: 0.8rem;
 }
 
@@ -406,7 +406,7 @@
     display: inline-flex;
     padding: 0.2rem;
     border-radius: 0.6rem;
-    background: color-mix(in srgb, var(--text-primary, #111827) 6%, transparent);
+    background: color-mix(in srgb, var(--text-primary, var(--gpt-primary-action-bg)) 6%, transparent);
 }
 
 .ac-file-preview-view {
@@ -414,16 +414,16 @@
     border: none;
     border-radius: 0.45rem;
     background: transparent;
-    color: var(--text-secondary, #6b7280);
+    color: var(--text-secondary, var(--text-secondary));
     font-size: 0.82rem;
     font-weight: 500;
     cursor: pointer;
 }
 
 .ac-file-preview-view[aria-pressed="true"] {
-    background: var(--modal-bg, #ffffff);
+    background: var(--modal-bg, var(--chat-bg));
     box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
-    color: var(--text-primary, #111827);
+    color: var(--text-primary, var(--text-primary));
 }
 
 .ac-file-preview-view:focus-visible {
@@ -439,7 +439,7 @@
 .ac-file-preview-pages {
     padding: 1rem;
     border-radius: 0.6rem;
-    background: #e5e7eb;
+    background: var(--active-bg);
 }
 
 .ac-file-preview-pages[hidden] {
@@ -448,7 +448,7 @@
 
 .ac-file-preview-status {
     margin: 2rem 0;
-    color: #4b5563;
+    color: var(--text-secondary);
     font-size: 0.85rem;
     text-align: center;
 }

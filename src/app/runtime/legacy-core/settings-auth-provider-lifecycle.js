@@ -542,6 +542,7 @@ const setupSettingsModal = () => {
     }
     void refreshHistoryRecallStatus();
     ALL_ELEMENTS.uiLanguageSelect.value = config.uiLanguage;
+    if (ALL_ELEMENTS.colorSchemeSelect) ALL_ELEMENTS.colorSchemeSelect.value = config.colorScheme || 'light';
     ALL_ELEMENTS.aiLanguageSelect.value = config.aiDefaultLanguage;
     ALL_ELEMENTS.enableUpdateNotificationsToggle.checked = config.enableUpdateNotifications;
     renderMemorySummary();
@@ -593,6 +594,7 @@ const saveSettings = async ({ close = true, notify = true } = {}) => {
         singleDocumentTranslatorModelId: collectedSettings.singleDocumentTranslatorModelId,
         enableAutoWebSearch: collectedSettings.enableAutoWebSearch,
         visionCheckEnabled: collectedSettings.visionCheckEnabled,
+        colorScheme: collectedSettings.colorScheme,
         processOpen: collectedSettings.processOpen,
         fileModeDefault: collectedSettings.fileModeDefault,
         userBubbleColor: collectedSettings.userBubbleColor,

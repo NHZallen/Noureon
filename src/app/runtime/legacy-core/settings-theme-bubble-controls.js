@@ -18,7 +18,9 @@ function getColorName(color) {
   return color.charAt(0).toUpperCase() + color.slice(1);
 }
 
-const DEFAULT_APPEARANCE_MODE = 'light';
+// The colours of a bubble are given for the light and for the dark theme; the one of the theme in use is shown.
+const currentMode = () => (globalThis.document?.documentElement?.getAttribute('data-theme') === 'dark' ? 'dark' : 'light');
+const colorFor = (colors, mode = currentMode()) => colors?.[mode] || colors?.light;
 
 export function createSettingsThemeBubbleControls(dependencies = {}) {
   assertRequiredDependencies(dependencies);
@@ -34,10 +36,10 @@ export function createSettingsThemeBubbleControls(dependencies = {}) {
 
   const setUserBubbleColor = () => {
     const root = document.documentElement;
-    const mode = DEFAULT_APPEARANCE_MODE;
     const colors = USER_BUBBLE_COLORS[config.userBubbleColor] || USER_BUBBLE_COLORS.default;
-    const hexColor = colors[mode];
-    root.style.setProperty('--user-bubble-bg', hexColor);
+    // Both versions are given; src/styles/tokens.css picks the one of the theme in use, so a change of theme needs nothing more here.
+    root.style.setProperty('--user-bubble-choice-light', colors.light);
+    root.style.setProperty('--user-bubble-choice-dark', colors.dark || colors.light);
   };
 
   const renderBubbleColorDropdown = ({
@@ -50,7 +52,7 @@ export function createSettingsThemeBubbleControls(dependencies = {}) {
     container.innerHTML = '';
     const currentColor = config[configKey];
     const currentName = getColorName(currentColor);
-    const currentHex = colorMap[currentColor][DEFAULT_APPEARANCE_MODE];
+    const currentHex = colorFor(colorMap[currentColor]);
     const btn = document.createElement('button');
     btn.className = 'color-dropdown-btn';
     btn.dataset.noPress = '';
@@ -68,7 +70,7 @@ export function createSettingsThemeBubbleControls(dependencies = {}) {
       option.dataset.color = color;
       const preview = document.createElement('div');
       preview.className = 'color-preview';
-      preview.style.backgroundColor = colorMap[color][DEFAULT_APPEARANCE_MODE];
+      preview.style.backgroundColor = colorFor(colorMap[color]);
       const name = getColorName(color);
       option.appendChild(preview);
       option.appendChild(document.createTextNode(name));
