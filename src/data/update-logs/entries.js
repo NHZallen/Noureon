@@ -2,6 +2,18 @@
 // content 為 zh-TW 的 HTML 字串（JSON 轉義、雙引號），目前不隨介面語言切換。
 export const updateLogEntries = [
   {
+    version: "17.14.1",
+    date: "2026-10-08",
+    content: [
+      "<strong>Noureon 17.14.1 發布說明</strong>",
+      "本版本修正 17.14.0 深色模式上線後回報的三個顯示問題，並將設定名稱改為「外觀」。",
+      "<strong>主要變更</strong>",
+      "<ul><li><strong>手機設定頁：</strong>深色模式下設定頁整頁是半透明的，會透出後面的側欄；改為不透明的底色。</li><li><strong>左側欄遮罩：</strong>側欄上下緣的淡出遮罩與側欄底色不一致，深色下出現一條亮帶並讓清單文字從縫隙露出；淡出遮罩改用與側欄相同的顏色。</li><li><strong>檔案預覽：</strong>簡報等頁面預覽的底板在深色下改為較深的顏色，頁碼改為跟隨文字色而不再看不清，簡報邊緣在深色下加上細線。</li><li><strong>設定名稱：</strong>設定 → 個人化 → 外觀中的「色彩模式」改名為「外觀」。</li></ul>",
+      "<strong>相容性</strong>",
+      "本次更新不需要資料遷移。"
+    ]
+  },
+  {
     version: "17.14.0",
     date: "2026-10-08",
     content: [

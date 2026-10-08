@@ -1,6 +1,14 @@
 // The update notes in French (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "17.14.1": [
+    "<strong>Notes de version de Noureon 17.14.1</strong>",
+    "Cette version corrige trois problèmes d'affichage signalés après le mode sombre de la 17.14.0 et renomme le réglage en « Apparence ».",
+    "<strong>Changements principaux</strong>",
+    "<ul><li><strong>Paramètres sur téléphone :</strong> en mode sombre, toute la page des paramètres était translucide et laissait voir la barre latérale derrière ; elle a maintenant un fond opaque.</li><li><strong>Fondu de la barre latérale :</strong> le fondu en haut et en bas de la barre latérale ne correspondait pas à sa couleur, ce qui faisait apparaître une bande plus claire en mode sombre et laissait passer le texte de la liste ; le fondu utilise maintenant la même couleur que la barre latérale.</li><li><strong>Aperçu de fichier :</strong> le fond sous les pages d'un aperçu, comme les présentations, est plus foncé en mode sombre, les numéros de page suivent la couleur du texte et sont de nouveau lisibles, et le bord d'une diapositive a un fin trait en mode sombre.</li><li><strong>Nom du réglage :</strong> « Mode de couleur » dans Paramètres → Personnalisation → Apparence devient « Apparence ».</li></ul>",
+    "<strong>Compatibilité</strong>",
+    "Cette mise à jour ne nécessite aucune migration de données."
+  ],
   "17.14.0": [
     "<strong>Notes de version de Noureon 17.14.0</strong>",
     "Cette version ajoute un mode sombre et regroupe les couleurs de l'interface sous un seul jeu de noms fixes.",

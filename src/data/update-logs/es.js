@@ -1,6 +1,14 @@
 // The update notes in Spanish (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "17.14.1": [
+    "<strong>Notas de la versión de Noureon 17.14.1</strong>",
+    "Esta versión corrige tres problemas de visualización notificados tras el modo oscuro de la 17.14.0 y cambia el nombre del ajuste a «Apariencia».",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Ajustes en el teléfono:</strong> en modo oscuro, toda la página de ajustes era translúcida y dejaba ver la barra lateral detrás; ahora tiene un fondo opaco.</li><li><strong>Desvanecido de la barra lateral:</strong> el desvanecido en la parte superior e inferior de la barra lateral no coincidía con su color, por lo que aparecía una banda más clara en modo oscuro y el texto de la lista se veía por la rendija; ahora el desvanecido usa el mismo color que la barra lateral.</li><li><strong>Vista previa de archivos:</strong> el fondo bajo las páginas de una vista previa, como las presentaciones, es más oscuro en modo oscuro, los números de página siguen el color del texto y vuelven a leerse, y el borde de una diapositiva tiene una línea fina en modo oscuro.</li><li><strong>Nombre del ajuste:</strong> «Modo de color» en Ajustes → Personalización → Apariencia pasa a llamarse «Apariencia».</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "Esta actualización no requiere migración de datos."
+  ],
   "17.14.0": [
     "<strong>Notas de la versión de Noureon 17.14.0</strong>",
     "Esta versión añade un modo oscuro y reúne los colores de la interfaz bajo un único conjunto de nombres fijos.",

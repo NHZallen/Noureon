@@ -1,6 +1,14 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "17.14.1": [
+    "<strong>Noureon 17.14.1 Release Notes</strong>",
+    "This version fixes three display problems reported after the dark mode of 17.14.0 and renames the setting to \"Appearance\".",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Settings on a phone:</strong> in dark mode the whole settings page was translucent and showed the side bar behind it; it now has an opaque background.</li><li><strong>Side bar fade:</strong> the fade at the top and the bottom of the side bar did not match the colour of the side bar, so a lighter band appeared in dark mode and the text of the list showed through the gap; the fade now uses the same colour as the side bar.</li><li><strong>File preview:</strong> the board under the pages of a preview, such as slides, is darker in dark mode, the page numbers follow the text colour and are readable again, and the edge of a slide has a thin line in dark mode.</li><li><strong>Name of the setting:</strong> \"Colour mode\" in Settings → Personalization → Appearance is renamed \"Appearance\".</li></ul>",
+    "<strong>Compatibility</strong>",
+    "This update requires no data migration."
+  ],
   "17.14.0": [
     "<strong>Noureon 17.14.0 Release Notes</strong>",
     "This version adds a dark mode and brings the colours of the interface under one fixed set of names.",
