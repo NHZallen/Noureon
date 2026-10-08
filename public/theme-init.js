@@ -16,6 +16,12 @@
       bar.name = 'theme-color';
       bar.content = '#212121';
       document.head.insertBefore(bar, document.head.firstChild);
+      // The same for the manifest: a browser reads the background of the splash screen and the colour of the bar from it when the app is installed
+      // (and again when it checks for an update), so a person who uses the dark theme gets the dark ones. The first manifest link wins.
+      var manifest = document.createElement('link');
+      manifest.rel = 'manifest';
+      manifest.href = '/manifest-dark.json';
+      document.head.insertBefore(manifest, document.head.firstChild);
     }
   } catch (error) { /* the page stays as it is */ }
 })();

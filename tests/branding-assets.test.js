@@ -44,3 +44,15 @@ test('service worker refreshes and precaches the new logo asset', async () => {
   const manifest = JSON.parse(await readFile(projectFile('public/manifest.json'), 'utf8'));
   assert.equal('orientation' in manifest, false);
 });
+
+test('the dark manifest is the manifest with the dark colours, and the dark theme links it before the first paint', async () => {
+  const light = JSON.parse(await readFile(projectFile('public/manifest.json'), 'utf8'));
+  const dark = JSON.parse(await readFile(projectFile('public/manifest-dark.json'), 'utf8'));
+  assert.deepEqual({ ...dark, background_color: light.background_color, theme_color: light.theme_color }, light, 'only the two colours differ');
+  assert.equal(dark.background_color, '#212121');
+  assert.equal(dark.theme_color, '#212121');
+  const init = await readFile(projectFile('public/theme-init.js'), 'utf8');
+  assert.match(init, /manifest\.href\s*=\s*'\/manifest-dark\.json'/);
+  const index = await readFile(projectFile('index.html'), 'utf8');
+  assert.match(index, /html\[data-theme="dark"\]\s*\[data-startup-skeleton\]\s*\{[^}]*background:\s*#212121/, 'the start-up screen is dark too');
+});
