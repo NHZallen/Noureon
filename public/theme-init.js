@@ -9,6 +9,13 @@
     var dark = choice === 'dark' || (choice === 'system' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
     var root = document.documentElement;
     root.setAttribute('data-theme', dark ? 'dark' : 'light');
-    if (dark) root.style.backgroundColor = '#212121';
+    if (dark) {
+      root.style.backgroundColor = '#212121';
+      // The browser bar (and the status bar of an installed app) is dark from the first frame: this tag comes first, so it wins over the one of the page.
+      var bar = document.createElement('meta');
+      bar.name = 'theme-color';
+      bar.content = '#212121';
+      document.head.insertBefore(bar, document.head.firstChild);
+    }
   } catch (error) { /* the page stays as it is */ }
 })();

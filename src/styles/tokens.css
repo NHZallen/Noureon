@@ -99,6 +99,9 @@
     --chart-up-soft: #5aa987;
     --chart-down-soft: #d48787;
 
+    /* the pictures of the tools (a dark drawing on a clear background) are inverted on the dark theme */
+    --tool-icon-filter: none;
+
     /* the same in both themes: text and icons on a photo, a video or a dark scrim; what is behind a video; the paper of a document */
     --on-color: #ffffff;
     --media-bg: #111827;
@@ -208,4 +211,6 @@
 
     --chart-up: #4fb98b;
     --chart-down: #e07a7a;
+
+    --tool-icon-filter: invert(1) hue-rotate(180deg);
 }
