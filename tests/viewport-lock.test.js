@@ -22,15 +22,21 @@ const page = ({ userAgent = 'Safari', innerHeight = 800 } = {}) => {
 };
 const value = (t, name) => t.root.style.getPropertyValue(name);
 
-test('the app is given the geometry of what is seen, and follows it as the keyboard comes and the phone slides the page', () => {
+test('the app is told where the seen area ends, and that stays the same whether or not the phone has slid the page', () => {
   const t = page();
   installViewportLock(t.window, t.document);
-  assert.deepEqual([value(t, '--vv-top'), value(t, '--vv-height')], ['0px', '800px']);
+  assert.equal(value(t, '--vv-bottom'), '800px');
 
   t.viewport.height = 450;
-  t.viewport.offsetTop = 120;
+  t.viewport.offsetTop = 0;
   t.listeners.resize();
-  assert.deepEqual([value(t, '--vv-top'), value(t, '--vv-height')], ['120px', '450px']);
+  assert.equal(value(t, '--vv-bottom'), '450px');
+
+  // The phone slides the page up by 120: the seen area starts lower, but the keyboard's top is where it was.
+  t.viewport.height = 330;
+  t.viewport.offsetTop = 120;
+  t.listeners.scroll();
+  assert.equal(value(t, '--vv-bottom'), '450px', 'so the app does not move with the slide');
 });
 
 test('Chrome on iPhone keeps its own bar over the foot of the page while a box is typed in: that much is left free, and only then', () => {
@@ -39,19 +45,19 @@ test('Chrome on iPhone keeps its own bar over the foot of the page while a box i
   chrome.viewport.height = 450;
   chrome.document.getElementById('editor').focus();
   chrome.listeners.resize();
-  assert.equal(value(chrome, '--vv-height'), '402px');
+  assert.equal(value(chrome, '--vv-bottom'), '402px');
 
   const safari = page();
   installViewportLock(safari.window, safari.document);
   safari.viewport.height = 450;
   safari.document.getElementById('editor').focus();
   safari.listeners.resize();
-  assert.equal(value(safari, '--vv-height'), '450px', 'other browsers have no such bar');
+  assert.equal(value(safari, '--vv-bottom'), '450px', 'other browsers have no such bar');
 
   chrome.document.getElementById('editor').blur();
   chrome.viewport.height = 760;
   chrome.listeners.resize();
-  assert.equal(value(chrome, '--vv-height'), '760px', 'a small change of height, or nothing typed in, is not a keyboard');
+  assert.equal(value(chrome, '--vv-bottom'), '760px', 'a small change of height, or nothing typed in, is not a keyboard');
 });
 
 test('a page the person has zoomed is left as it is, and the lock lets go when it is taken off', () => {
@@ -59,18 +65,25 @@ test('a page the person has zoomed is left as it is, and the lock lets go when i
   const dispose = installViewportLock(t.window, t.document);
   t.viewport.scale = 2;
   t.listeners.resize();
-  assert.equal(value(t, '--vv-height'), '');
+  assert.equal(value(t, '--vv-bottom'), '');
   t.viewport.scale = 1;
   t.listeners.resize();
-  assert.equal(value(t, '--vv-height'), '800px');
+  assert.equal(value(t, '--vv-bottom'), '800px');
   dispose();
-  assert.equal(value(t, '--vv-height'), '');
+  assert.equal(value(t, '--vv-bottom'), '');
   assert.deepEqual(t.listeners, {});
 });
 
 test('the app and the start-up screen lie over what is seen on a phone, and the page does not bounce', () => {
   const css = readFileSync(new URL('../src/styles/layout.css', import.meta.url), 'utf8');
   assert.match(css, /html, body \{ overscroll-behavior: none; \}/);
-  assert.match(css, /@media \(pointer: coarse\) \{\s*#app-container, html \[data-startup-skeleton\] \{\s*top: var\(--vv-top, 0px\);\s*bottom: auto;\s*height: var\(--vv-height, 100%\);/);
+  assert.match(css, /@media \(pointer: coarse\) \{\s*#app-container, html \[data-startup-skeleton\] \{\s*bottom: auto;\s*height: var\(--vv-bottom, 100%\);/);
+  assert.doesNotMatch(css, /--vv-top/, 'the app is not moved with the seen area');
   assert.match(css, /\[data-startup-skeleton\] \{ touch-action: none; overscroll-behavior: none; \}/);
+});
+
+test('a chat with nothing in it does not scroll, and one with messages keeps its few pixels of range', () => {
+  const css = readFileSync(new URL('../src/styles/chat-edge-fade.css', import.meta.url), 'utf8');
+  assert.match(css, /#message-list \{\s*min-height: calc\(100% \+ 6px\);\s*\}/);
+  assert.match(css, /#message-list:has\(> \.chat-greeting-message:only-child\) \{\s*min-height: 0;\s*\}/);
 });

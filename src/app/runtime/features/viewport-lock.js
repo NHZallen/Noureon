@@ -1,6 +1,8 @@
 // On a phone the page does not shrink when the keyboard comes up: the phone slides what is seen (the visual viewport) up over a page that keeps
-// its full height, so the app, fixed to the whole page, had its top cut off, its box moved, and could be dragged about under the finger.
-// This hands the app the geometry of what is seen (--vv-top, --vv-height on <html>), and styles/layout.css lays the app over exactly that.
+// its full height, so the app, fixed to the whole page, had its box covered by the keyboard and its top slid out of sight. This hands the app
+// where the seen area ends (--vv-bottom on <html>: the top of the keyboard, which does not change as the phone slides the page), and
+// styles/layout.css makes the app end there, from the top of the page. The box is NOT moved with the seen area: a box that follows it makes the
+// phone slide again to show the caret, and the two chase each other (the box shook).
 // Chrome on iPhone also puts its own bar (the cog, the arrows and the tick) over the foot of the page while a box is being typed in, and the
 // page is not told of it, so that much is kept free at the foot while the keyboard is up.
 
@@ -20,14 +22,14 @@ export function installViewportLock(win = window, doc = document) {
     frame = 0;
     // A page the person has zoomed is left as it is.
     if (Math.abs((viewport.scale || 1) - 1) > 0.01) {
-      root.style.removeProperty('--vv-top');
-      root.style.removeProperty('--vv-height');
+      root.style.removeProperty('--vv-bottom');
       return;
     }
-    const keyboardUp = isTypingTarget(doc.activeElement) && (win.innerHeight || 0) - viewport.height > KEYBOARD_MIN_HEIGHT;
+    // Where the seen area ends in the page's own measures: the same whether or not the phone has slid the page.
+    const seenBottom = (viewport.offsetTop || 0) + viewport.height;
+    const keyboardUp = isTypingTarget(doc.activeElement) && (win.innerHeight || 0) - seenBottom > KEYBOARD_MIN_HEIGHT;
     const reserved = keyboardUp && chromeOnIphone ? CHROME_IOS_ACCESSORY_BAR : 0;
-    root.style.setProperty('--vv-top', `${Math.round(viewport.offsetTop || 0)}px`);
-    root.style.setProperty('--vv-height', `${Math.max(0, Math.round(viewport.height - reserved))}px`);
+    root.style.setProperty('--vv-bottom', `${Math.max(0, Math.round(seenBottom - reserved))}px`);
   };
   const queue = () => {
     if (frame) return;
@@ -51,7 +53,6 @@ export function installViewportLock(win = window, doc = document) {
     viewport.removeEventListener('scroll', queue);
     doc.removeEventListener('focusin', queue);
     doc.removeEventListener('focusout', afterFocusLeaves);
-    root.style.removeProperty('--vv-top');
-    root.style.removeProperty('--vv-height');
+    root.style.removeProperty('--vv-bottom');
   };
 }

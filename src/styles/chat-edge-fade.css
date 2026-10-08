@@ -64,3 +64,9 @@
 #message-list {
     min-height: calc(100% + 6px);
 }
+
+/* A chat with nothing in it (the greeting only) does not scroll at all: there is nothing to read, and the page behind does not move either
+   (html and body do not bounce, layout.css). */
+#message-list:has(> .chat-greeting-message:only-child) {
+    min-height: 0;
+}

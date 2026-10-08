@@ -635,7 +635,8 @@ export function createLegacyAppBootstrapLifecycle({
                                 const offset = inputBarRect.bottom - seenBottom + PADDING_BOTTOM;
     
     
-                                if (offset > 0) {
+                                // Only when the box really is hidden (the app ends where the seen area ends, so it normally is not).
+                                if (inputBarRect.bottom - seenBottom > 1) {
                                     const newScrollPosition = window.scrollY + offset;
                                     window.scrollTo({
                                         top: newScrollPosition,

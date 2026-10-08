@@ -50,13 +50,13 @@ button:not(.btn-primary):active:not(:disabled) {
 
 /* The page is not dragged or bounced: the app is fixed to what is seen, and there is nothing to scroll behind it. */
 html, body { overscroll-behavior: none; }
-/* On a phone the app (and the screen shown while it starts) lies over what is seen, which the keyboard and the browser's bars shrink and slide
-   (runtime/features/viewport-lock.js). Without the script the values are those of the whole page. */
+/* On a phone the app (and the screen shown while it starts) ends where what is seen ends: the keyboard and the browser's bars cover the rest
+   (runtime/features/viewport-lock.js). It starts at the top of the page as before, and is not moved with the seen area. Without the script the
+   value is the whole page. */
 @media (pointer: coarse) {
     #app-container, html [data-startup-skeleton] {
-        top: var(--vv-top, 0px);
         bottom: auto;
-        height: var(--vv-height, 100%);
+        height: var(--vv-bottom, 100%);
     }
 }
 [data-startup-skeleton] { touch-action: none; overscroll-behavior: none; }
