@@ -34,7 +34,10 @@
 }
 
 #sidebar > .scroll-area::before {
-    top: 0;
+    /* A sticky offset is measured from inside the scroller's padding, so -padding puts the strip at the very edge of what is
+       seen (the chat does the same, chat-edge-fade.css). With top: 0 it stuck one padding below the edge and the list showed,
+       uncovered, between the search row and the strip. */
+    top: calc(var(--menu-list-pad) * -1);
     margin-top: calc(var(--menu-list-pad) * -1);
     margin-bottom: calc((var(--menu-list-fade) - var(--menu-list-pad)) * -1);
     background: linear-gradient(to bottom,
@@ -47,7 +50,7 @@
 }
 
 #sidebar > .scroll-area::after {
-    bottom: 0;
+    bottom: calc(var(--menu-list-pad) * -1);
     margin-top: calc((var(--menu-list-fade) - var(--menu-list-pad)) * -1);
     margin-bottom: calc(var(--menu-list-pad) * -1);
     background: linear-gradient(to top,

@@ -1,6 +1,14 @@
 // The update notes in Spanish (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "17.15.3": [
+    "<strong>Notas de la versión de Noureon 17.15.3</strong>",
+    "Esta versión corrige la posición del desvanecido de la barra lateral de la 17.15.2: el desvanecido se quedaba a cierta distancia del borde, así que una parte de la lista bajo la fila de búsqueda seguía sin cubrir.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Desvanecido de la barra lateral:</strong> la posición de las franjas fijas en los bordes de la lista se mide desde dentro del relleno de la lista, por lo que en la 17.15.2 se fijaban 16 píxeles por debajo del borde, y el texto bajo la fila de búsqueda no se desvanecía nada en esa distancia y parecía cortado. Ahora las franjas están justo en los bordes superior e inferior de la lista; una medición por píxeles confirma que el texto en el borde queda totalmente cubierto y aparece de forma gradual.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "Esta actualización no requiere migración de datos."
+  ],
   "17.15.2": [
     "<strong>Notas de la versión de Noureon 17.15.2</strong>",
     "Esta versión vuelve a corregir la costura donde la lista de la barra lateral se cortaba bajo la fila de búsqueda.",

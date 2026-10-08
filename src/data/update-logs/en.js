@@ -1,6 +1,14 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "17.15.3": [
+    "<strong>Noureon 17.15.3 Release Notes</strong>",
+    "This version fixes the position of the side bar fade of 17.15.2: the fade stopped some distance from the edge, so part of the list under the search row was still uncovered.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Side bar fade:</strong> the position of the strips that stay at the edges of the list is measured from inside the list's padding, so in 17.15.2 they stuck 16 pixels below the edge, and the text under the search row was not faded at all for that distance and looked cut. The strips now sit exactly at the top and bottom edges of the list; a pixel measurement confirms the text at the edge is fully covered and fades in gradually.</li></ul>",
+    "<strong>Compatibility</strong>",
+    "This update requires no data migration."
+  ],
   "17.15.2": [
     "<strong>Noureon 17.15.2 Release Notes</strong>",
     "This version fixes again the seam where the list of the side bar was cut under the search row.",

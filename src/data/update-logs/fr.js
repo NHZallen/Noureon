@@ -1,6 +1,14 @@
 // The update notes in French (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "17.15.3": [
+    "<strong>Notes de version de Noureon 17.15.3</strong>",
+    "Cette version corrige la position du fondu de la barre latérale de la 17.15.2 : le fondu s'arrêtait à une certaine distance du bord, si bien qu'une partie de la liste sous la ligne de recherche restait découverte.",
+    "<strong>Changements principaux</strong>",
+    "<ul><li><strong>Fondu de la barre latérale :</strong> la position des bandes fixées aux bords de la liste se mesure depuis l'intérieur de la marge intérieure de la liste ; dans la 17.15.2 elles se fixaient donc 16 pixels sous le bord, et le texte sous la ligne de recherche n'était pas du tout estompé sur cette distance et paraissait coupé. Les bandes sont maintenant exactement aux bords haut et bas de la liste ; une mesure au pixel confirme que le texte au bord est entièrement recouvert et apparaît progressivement.</li></ul>",
+    "<strong>Compatibilité</strong>",
+    "Cette mise à jour ne nécessite aucune migration de données."
+  ],
   "17.15.2": [
     "<strong>Notes de version de Noureon 17.15.2</strong>",
     "Cette version corrige de nouveau la coupure de la liste de la barre latérale sous la ligne de recherche.",
