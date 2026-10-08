@@ -134,6 +134,8 @@ async function bootstrap() {
   easeSavedDetails(document);
   watchSourceIcons(document);
   installPressFeedback(document);
+  // `?debugViewport`: a panel of what the phone tells the page while the keyboard is up, for finding what moves the composer (ui/motion/viewport-debug.js).
+  if (/[?&]debugViewport\b/.test(window.location.search)) void import('./app/ui/motion/viewport-debug.js').then((module) => module.installViewportDebug(document)).catch(() => {});
   recordBootstrapMilestone(
     STARTUP_MARKS.RUNTIME_INTERACTIVE,
     STARTUP_MEASURES.TO_RUNTIME_INTERACTIVE
