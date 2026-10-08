@@ -225,18 +225,10 @@
     font-size: 0.92rem;
     text-align: left;
 }
-/* The choice in use is a bar in the accent colour (like the filled track of ChatGPT's thinking depth slider); the one under the pointer is only greyed. */
-.reasoning-depth-option:hover {
+.reasoning-depth-option:hover,
+.reasoning-depth-option.active {
     background: var(--hover-bg);
     color: var(--text-primary);
-}
-.reasoning-depth-option.active {
-    background: var(--button-primary-bg);
-    color: var(--button-primary-text);
-}
-.reasoning-depth-option.active small {
-    color: inherit;
-    opacity: 0.75;
 }
 .reasoning-depth-option small {
     color: var(--text-secondary);
