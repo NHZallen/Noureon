@@ -32,7 +32,7 @@ export function createUploadedFilePreviewLifecycle({
                 previewElement.innerHTML = `
                     <video src="${file.base64}" class="w-full h-full object-cover" preload="auto" muted playsinline data-video-thumbnail></video>
                     <span class="message-media-play file-preview-play" aria-hidden="true">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="#ffffff"><path fill="#ffffff" d="M8 5v14l11-7z"></path></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path fill="currentColor" d="M8 5v14l11-7z"></path></svg>
                     </span>
                 `;
                 videoElement = previewElement.querySelector('video');
@@ -49,7 +49,7 @@ export function createUploadedFilePreviewLifecycle({
             const removeButton = document.createElement('button');
             removeButton.type = 'button';
             removeButton.className = 'file-preview-remove';
-            removeButton.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
+            removeButton.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
             removeButton.onclick = (event) => {
                 event.stopPropagation();
                 removeFile(file.id);

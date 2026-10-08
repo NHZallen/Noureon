@@ -112,7 +112,7 @@ export function openDictation({ document, window, navigator, host, language = 'z
     const { width, height, ratio } = size();
     context.setTransform(ratio, 0, 0, ratio, 0, 0);
     context.clearRect(0, 0, width, height);
-    const colour = window?.getComputedStyle?.(canvas)?.color || '#6b7280';
+    const colour = window?.getComputedStyle?.(canvas)?.color || 'currentColor';
     context.fillStyle = colour;
     // The dotted line the bars grow along.
     context.globalAlpha = 0.4;

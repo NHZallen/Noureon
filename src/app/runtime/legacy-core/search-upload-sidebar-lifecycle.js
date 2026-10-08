@@ -309,7 +309,7 @@ export function createLegacySearchUploadSidebarLifecycle(dependencies = {}) {
                 resolve({ base64: dataUrl, type: mimeType });
                 return;
             }
-            ctx.fillStyle = '#ffffff';
+            ctx.fillStyle = 'white'; // a JPEG has no transparency: the picture is flattened on white
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
             resolve({

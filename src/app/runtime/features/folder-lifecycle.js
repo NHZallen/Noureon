@@ -1,3 +1,5 @@
+import { FOLDER_TEXT_COLORS } from '../../legacy-runtime/data/folder-metadata.js';
+
 export function createLegacyFolderLifecycle({
   document,
   elements,
@@ -110,7 +112,7 @@ export function createLegacyFolderLifecycle({
       swatch.dataset.color = name;
       if (normalizeFolderColorSelection(folder.color, folderColors) === name) {
         swatch.classList.add('selected');
-        swatch.style.borderColor = '#3b82f6';
+        swatch.style.borderColor = 'var(--brand-blue)';
       }
       swatch.addEventListener('click', () => {
         elements.colorSwatchesContainer.querySelectorAll('.selected').forEach(element => {
@@ -118,7 +120,7 @@ export function createLegacyFolderLifecycle({
           element.style.borderColor = 'transparent';
         });
         swatch.classList.add('selected');
-        swatch.style.borderColor = '#3b82f6';
+        swatch.style.borderColor = 'var(--brand-blue)';
       });
       elements.colorSwatchesContainer.appendChild(swatch);
     });
@@ -134,8 +136,8 @@ export function createLegacyFolderLifecycle({
 
       if (folder.icon === key || (!folder.icon && key === 'default')) {
         iconOption.classList.add('selected');
-        iconOption.style.borderColor = '#3b82f6';
-        iconOption.style.color = '#3b82f6';
+        iconOption.style.borderColor = 'var(--brand-blue)';
+        iconOption.style.color = 'var(--brand-blue)';
         iconOption.style.backgroundColor = 'var(--active-bg)';
       } else {
         iconOption.style.color = 'var(--text-secondary)';
@@ -149,8 +151,8 @@ export function createLegacyFolderLifecycle({
           element.style.backgroundColor = '';
         });
         iconOption.classList.add('selected');
-        iconOption.style.borderColor = '#3b82f6';
-        iconOption.style.color = '#3b82f6';
+        iconOption.style.borderColor = 'var(--brand-blue)';
+        iconOption.style.color = 'var(--brand-blue)';
         iconOption.style.backgroundColor = 'var(--active-bg)';
       });
       elements.iconOptionsContainer.appendChild(iconOption);
@@ -172,9 +174,9 @@ export function createLegacyFolderLifecycle({
     const textColorOptions = document.getElementById('text-color-options');
     textColorOptions.innerHTML = '';
     const textColorMap = {
-      gray: { label: getTexts().folderTextColorGray || 'Default gray', bg: '#6b7280', border: 'transparent' },
-      black: { label: getTexts().folderTextColorBlack || 'Deep black', bg: '#111827', border: 'transparent' },
-      white: { label: getTexts().folderTextColorWhite || 'Pure white', bg: '#ffffff', border: '#e5e7eb' }
+      gray: { label: getTexts().folderTextColorGray || 'Default gray', bg: FOLDER_TEXT_COLORS.gray, border: 'transparent' },
+      black: { label: getTexts().folderTextColorBlack || 'Deep black', bg: FOLDER_TEXT_COLORS.black, border: 'transparent' },
+      white: { label: getTexts().folderTextColorWhite || 'Pure white', bg: FOLDER_TEXT_COLORS.white, border: 'var(--border-color)' }
     };
 
     Object.entries(textColorMap).forEach(([key, info]) => {
@@ -188,8 +190,8 @@ export function createLegacyFolderLifecycle({
       if (folder.textColor === key || (!folder.textColor && key === 'gray')) {
         button.classList.add('selected-text');
         button.innerHTML = `<svg class="w-5 h-5 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 ${key === 'white' ? 'text-black' : 'text-white'}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
-        if (key === 'white') button.style.borderColor = '#3b82f6';
-        else button.style.boxShadow = '0 0 0 2px #3b82f6';
+        if (key === 'white') button.style.borderColor = 'var(--brand-blue)';
+        else button.style.boxShadow = '0 0 0 2px var(--brand-blue)';
       }
 
       button.addEventListener('click', () => {
@@ -197,12 +199,12 @@ export function createLegacyFolderLifecycle({
           element.classList.remove('selected-text');
           element.innerHTML = '';
           element.style.boxShadow = '';
-          if (element.dataset.textColor === 'white') element.style.borderColor = '#e5e7eb';
+          if (element.dataset.textColor === 'white') element.style.borderColor = 'var(--border-color)';
         });
         button.classList.add('selected-text');
         button.innerHTML = `<svg class="w-5 h-5 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 ${key === 'white' ? 'text-black' : 'text-white'}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
-        if (key === 'white') button.style.borderColor = '#3b82f6';
-        else button.style.boxShadow = '0 0 0 2px #3b82f6';
+        if (key === 'white') button.style.borderColor = 'var(--brand-blue)';
+        else button.style.boxShadow = '0 0 0 2px var(--brand-blue)';
       });
       textColorOptions.appendChild(button);
     });

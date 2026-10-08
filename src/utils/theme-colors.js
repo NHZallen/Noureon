@@ -13,6 +13,9 @@ export const readThemeColor = (name, fallback = '') => {
 /** Makes the text and the lines Chart.js draws by default follow the theme (the labels of axes and the legend, the grid). */
 export function applyChartThemeDefaults(Chart) {
   if (!Chart?.defaults) return;
-  Chart.defaults.color = readThemeColor('--text-secondary', '#666666');
-  Chart.defaults.borderColor = readThemeColor('--border-color', 'rgba(0, 0, 0, 0.1)');
+  const text = readThemeColor('--text-secondary');
+  const line = readThemeColor('--border-color');
+  // Without a theme (a test without a page) Chart.js keeps its own defaults.
+  if (text) Chart.defaults.color = text;
+  if (line) Chart.defaults.borderColor = line;
 }

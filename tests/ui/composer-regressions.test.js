@@ -77,7 +77,7 @@ test('composer upload previews occupy a full-width row above desktop input contr
   assert.match(css, /\.file-preview-remove\s+svg\s*\{[^}]*display:\s*block;[^}]*width:\s*0\.8rem;[^}]*height:\s*0\.8rem;/s);
   assert.match(css, /\.file-preview-remove\s*\{[^}]*color:\s*var\(--on-color\);/s);
   assert.match(css, /\.file-preview-remove\s+svg\s*\{[^}]*stroke:\s*var\(--on-color\);/s);
-  assert.match(previewLifecycle, /removeButton\.innerHTML\s*=\s*'<svg[^']*stroke="#ffffff"/);
+  assert.match(previewLifecycle, /removeButton\.innerHTML\s*=\s*'<svg[^']*stroke="currentColor"/);
   assert.match(css, /video\[data-video-thumbnail\][^{]*\{[^}]*background:\s*var\(--media-bg\);/s);
   assert.doesNotMatch(css, /video\[data-video-thumbnail\][^{]*\{[^}]*opacity:\s*0;/s);
   assert.match(css, /\.input-media-preview\s+\.file-preview-item\.file-preview-video\s*\{[^}]*background:\s*var\(--media-bg\);/s);
