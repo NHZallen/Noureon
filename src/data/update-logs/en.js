@@ -3,9 +3,9 @@
 export default {
   "17.15.4": [
     "<strong>Noureon 17.15.4 Release Notes</strong>",
-    "This version makes the fade of the side bar list under the search row leave no cut line.",
+    "This version removes the fade of the side bar list under the search row and makes the fade above the account row leave no cut line.",
     "<strong>Main changes</strong>",
-    "<ul><li><strong>Side bar fade:</strong> the part of each fade closest to the edge is now fully opaque, so text right against the search row and the account row is fully covered and then fades in gradually, instead of leaving a cut line of faint half letters. At rest the fades cover no text of the first or the last row.</li></ul>",
+    "<ul><li><strong>Under the search row:</strong> the fade is removed; the list simply scrolls under the search row, and the space between the search row and the list is as it was before.</li><li><strong>Above the account row:</strong> the part of the fade closest to the edge is now fully opaque, so text right against the account row is fully covered and then fades in gradually, instead of leaving a cut line of faint half letters; at rest it covers no text of the last row.</li></ul>",
     "<strong>Compatibility</strong>",
     "This update requires no data migration."
   ],

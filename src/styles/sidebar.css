@@ -164,8 +164,7 @@
 }
     #sidebar > .p-2:first-child {
     gap: 0.5rem;
-    /* No padding under the search row: the list below has a band of its own there, where its fade sits (edge-fades.css). */
-    padding: 0.6rem 0.75rem 0;
+    padding: 0.6rem 0.75rem 0.5rem;
 }
 #open-search-btn {
     min-height: 2.75rem;

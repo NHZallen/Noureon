@@ -3,9 +3,9 @@
 export default {
   "17.15.4": [
     "<strong>Notas de la versión de Noureon 17.15.4</strong>",
-    "Esta versión hace que el desvanecido de la lista de la barra lateral bajo la fila de búsqueda ya no deje una línea de corte.",
+    "Esta versión elimina el desvanecido de la lista de la barra lateral bajo la fila de búsqueda y hace que el desvanecido sobre la fila de la cuenta ya no deje una línea de corte.",
     "<strong>Cambios principales</strong>",
-    "<ul><li><strong>Desvanecido de la barra lateral:</strong> la parte de cada desvanecido más cercana al borde es ahora totalmente opaca, de modo que el texto pegado a la fila de búsqueda y a la fila de la cuenta queda totalmente cubierto y luego aparece de forma gradual, en lugar de dejar una línea de corte de medias letras pálidas. En reposo, los desvanecidos no cubren texto de la primera ni de la última fila.</li></ul>",
+    "<ul><li><strong>Bajo la fila de búsqueda:</strong> se elimina el desvanecido; la lista simplemente se desplaza bajo la fila de búsqueda, y el espacio entre la fila de búsqueda y la lista vuelve a ser el de antes.</li><li><strong>Sobre la fila de la cuenta:</strong> la parte del desvanecido más cercana al borde es ahora totalmente opaca, de modo que el texto pegado a la fila de la cuenta queda totalmente cubierto y luego aparece de forma gradual, en lugar de dejar una línea de corte de medias letras pálidas; en reposo no cubre texto de la última fila.</li></ul>",
     "<strong>Compatibilidad</strong>",
     "Esta actualización no requiere migración de datos."
   ],

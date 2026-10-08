@@ -3,9 +3,9 @@
 export default {
   "17.15.4": [
     "<strong>Notes de version de Noureon 17.15.4</strong>",
-    "Cette version fait que le fondu de la liste de la barre latérale sous la ligne de recherche ne laisse plus de ligne de coupe.",
+    "Cette version supprime le fondu de la liste de la barre latérale sous la ligne de recherche et fait que le fondu au-dessus de la ligne du compte ne laisse plus de ligne de coupe.",
     "<strong>Changements principaux</strong>",
-    "<ul><li><strong>Fondu de la barre latérale :</strong> la partie de chaque fondu la plus proche du bord est maintenant entièrement opaque : le texte collé à la ligne de recherche et à la ligne du compte est entièrement recouvert puis apparaît progressivement, au lieu de laisser une ligne de coupe faite de demi-lettres pâles. Au repos, les fondus ne recouvrent aucun texte de la première ni de la dernière ligne.</li></ul>",
+    "<ul><li><strong>Sous la ligne de recherche :</strong> le fondu est supprimé ; la liste défile simplement sous la ligne de recherche, et l'espace entre la ligne de recherche et la liste est redevenu celui d'avant.</li><li><strong>Au-dessus de la ligne du compte :</strong> la partie du fondu la plus proche du bord est maintenant entièrement opaque : le texte collé à la ligne du compte est entièrement recouvert puis apparaît progressivement, au lieu de laisser une ligne de coupe faite de demi-lettres pâles ; au repos, il ne recouvre aucun texte de la dernière ligne.</li></ul>",
     "<strong>Compatibilité</strong>",
     "Cette mise à jour ne nécessite aucune migration de données."
   ],
