@@ -7,7 +7,6 @@ import { registerResearchMode } from './research-bridge.js';
 import { getResearch, subscribeAnyResearch } from './research-store.js';
 import { createCliMode } from '../cli/cli-mode.js';
 import { createLazySkillMode } from '../skill/lazy-skill-mode.js';
-import { createQuizWatch } from '../quiz/quiz-watch.js';
 import { createLazySkillStore } from '../skill/lazy-skill-store.js';
 import { researchText } from './research-texts.js';
 
@@ -62,8 +61,6 @@ export function createResearchMode({
   const skills = typeof messageInput?.addEventListener === 'function' && typeof document?.addEventListener === 'function'
     ? createLazySkillMode({ document, messageInput, getConfig, getUiLanguage, refresh: () => refresh(), skillStore, openStore: (kind) => cli?.openStore?.(kind), isTemporary: () => { const conversation = getActiveConversation(); return Boolean(conversation?.isTemporary || conversation?.retentionMode === 'ephemeral'); }, saveConfig, showNotification, getAccountReady: () => serverReply.hasAccount(), logger })
     : null;
-  // The cards of the quizzes a model wrote (```quiz): made when a placeholder is on the page.
-  if (typeof document?.addEventListener === 'function') createQuizWatch({ document, getUiLanguage, getActiveConversation, saveAppData, logger });
   const getSync = () => globalThis.__astraCloudSyncV2;
   const warn = (...args) => logger?.warn?.(...args);
   const releaseBusy = () => {

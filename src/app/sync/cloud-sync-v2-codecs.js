@@ -105,7 +105,7 @@ function conversationMetadata(conversation = {}) {
   };
 }
 
-const KEPT_MESSAGE_METADATA = ['visionCheck', 'visionChecked', 'serverError', 'quiz'];
+const KEPT_MESSAGE_METADATA = ['visionCheck', 'visionChecked', 'serverError'];
 const KEPT_METADATA_CHARS = 20_000;
 
 function messageMetadata(message = {}) {
@@ -117,7 +117,7 @@ function messageMetadata(message = {}) {
       .filter(isUuid)
   )];
   const metadata = historySourceConversationIds.length > 0 ? { historySourceConversationIds } : {};
-  // What the visual check, the server and the quiz cards (what a person answered) leave on a message: kept in the cloud too, or a copy that comes back from it loses the label of a
+  // What the visual check and the server leave on a message: kept in the cloud too, or a copy that comes back from it loses the label of a
   // checked reply, the marks of the decks already checked, and the error a reply ended with.
   for (const key of KEPT_MESSAGE_METADATA) {
     const value = message?.metadata?.[key];

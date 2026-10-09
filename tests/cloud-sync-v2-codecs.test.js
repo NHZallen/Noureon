@@ -151,7 +151,6 @@ test('what the visual check and the server leave on a message goes to the cloud 
             visionCheck: { note: 'clean' },
             visionChecked: ['file-1'],
             serverError: { code: 'time_limit', message: 'The reply took too long.' },
-            quiz: { abc: { v: 1, pos: 1, phase: 'answering' } },
             huge: 'x'.repeat(50),
             privateValue: 'must not sync'
           }
@@ -165,8 +164,7 @@ test('what the visual check and the server leave on a message goes to the cloud 
     }
   });
   const decoded = decodeWorkspaceConversationShadow(encoded);
-  // (The answers a person gave in a quiz card are kept too, so a conversation opened on another device shows them.)
-  const kept = { visionCheck: { note: 'clean' }, visionChecked: ['file-1'], serverError: { code: 'time_limit', message: 'The reply took too long.' }, quiz: { abc: { v: 1, pos: 1, phase: 'answering' } } };
+  const kept = { visionCheck: { note: 'clean' }, visionChecked: ['file-1'], serverError: { code: 'time_limit', message: 'The reply took too long.' } };
   assert.deepEqual(encoded.messages[0].metadata, kept);
   assert.deepEqual(decoded.conversations[0].messages[0].metadata, kept);
   assert.equal(JSON.stringify(encoded).includes('privateValue'), false);

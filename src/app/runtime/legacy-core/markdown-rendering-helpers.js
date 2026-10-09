@@ -236,14 +236,6 @@ export function createMarkdownRenderingHelpers({
       code.parentElement.replaceWith(placeholder);
     });
 
-    // A quiz a model wrote (a ```quiz block of JSON): only a placeholder here; the card is made when the quiz part of the page has loaded (runtime/quiz/quiz-watch.js).
-    documentFragment.body.querySelectorAll('pre > code.language-quiz').forEach((code) => {
-      const placeholder = documentFragment.createElement('div');
-      placeholder.className = 'quiz-card';
-      placeholder.dataset.quiz = encodeURIComponent(code.textContent || '');
-      code.parentElement.replaceWith(placeholder);
-    });
-
     // Files the reply's Python runs made, newest version of each. Pictures a
     // document of the reply shows ("asset:name") are part of that document.
     const canRerun = Boolean(sandboxRun?.steps?.some((step) => step.code));
