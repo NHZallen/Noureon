@@ -48,6 +48,19 @@ export const OFFICIAL_SKILL_CATALOG = [
       ru: { title: 'Вычитка', description: 'Исправляет орфографию, грамматику, пунктуацию и формулировки, не меняя смысла и стиля, и показывает, что изменилось.' },
       es: { title: 'Corrección', description: 'Corrige ortografía, gramática, puntuación y redacción sin cambiar el sentido ni el tono, y muestra qué ha cambiado.' }
     }
+  },
+  {
+    name: 'fact-check',
+    description: 'Checks the factual claims in a text in any language: one verdict per claim (supported, partly true, contradicted, outdated, cannot verify) with evidence and source, and says what was not checked. Use whenever the user asks to fact-check or verify something, or if a claim, number or date is true.',
+    version: '1',
+    author: 'Noureon',
+    i18n: {
+      'zh-TW': { title: '事實查核', description: '逐項查證文字裡的事實主張，給出判定、證據與來源，並說明哪些沒查、哪些無法查證。' },
+      en: { title: 'Fact-check', description: 'Check each factual claim in a text, with a verdict, the evidence and the source, and say what was not checked or could not be verified.' },
+      fr: { title: 'Vérification des faits', description: 'Vérifie chaque affirmation factuelle d’un texte, avec un verdict, les preuves et la source, et indique ce qui n’a pas été vérifié ou ne peut pas l’être.' },
+      ru: { title: 'Проверка фактов', description: 'Проверяет каждое фактическое утверждение в тексте: вердикт, доказательства и источник, а также что не проверено или не поддаётся проверке.' },
+      es: { title: 'Verificación de datos', description: 'Comprueba cada afirmación factual de un texto, con un veredicto, las pruebas y la fuente, e indica qué no se comprobó o no se pudo verificar.' }
+    }
   }
 ];
 
