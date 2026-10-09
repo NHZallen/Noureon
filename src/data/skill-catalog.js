@@ -100,6 +100,19 @@ export const OFFICIAL_SKILL_CATALOG = [
       ru: { title: 'Исследование темы', description: 'Изучает тему и собирает доказательства, разные точки зрения и источники: сначала ответ, затем насколько ему можно доверять.' },
       es: { title: 'Informe de investigación', description: 'Investiga un tema y reúne las pruebas, los distintos puntos de vista y las fuentes, con la respuesta primero y su grado de fiabilidad.' }
     }
+  },
+  {
+    name: 'source-compare',
+    description: 'Compares several articles, reports or studies in any language: what they agree on, where they conflict and why, and how reliable each source is. Use whenever the user gives or names two or more sources and asks to compare, cross-check, reconcile or judge them, or asks which one to trust.',
+    version: '1',
+    author: 'Noureon',
+    i18n: {
+      'zh-TW': { title: '來源比較', description: '比較多篇文章或研究的共識、衝突與品質，說明差異的原因，以及每個說法該信到什麼程度。' },
+      en: { title: 'Source comparison', description: 'Compare several articles or studies: what they agree on, where they conflict and why, and how far each claim can be trusted.' },
+      fr: { title: 'Comparaison de sources', description: 'Compare plusieurs articles ou études : points d’accord, conflits et leurs causes, et le degré de confiance à accorder à chaque affirmation.' },
+      ru: { title: 'Сравнение источников', description: 'Сравнивает несколько статей или исследований: в чём они согласны, где расходятся и почему, и насколько можно доверять каждому утверждению.' },
+      es: { title: 'Comparación de fuentes', description: 'Compara varios artículos o estudios: en qué coinciden, dónde chocan y por qué, y hasta qué punto se puede confiar en cada afirmación.' }
+    }
   }
 ];
 
