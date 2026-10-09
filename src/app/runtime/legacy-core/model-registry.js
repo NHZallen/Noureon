@@ -18,8 +18,9 @@ const MODEL_RELEASE_METADATA = Object.freeze({
     'anthropic/claude-opus-5.5': { releasedAt: 20260922, outputPricePerMillion: 20 },
     'anthropic/claude-fable-5.1': { releasedAt: 20260901, outputPricePerMillion: 50 },
     'deepseek/deepseek-v4.1-flash': { releasedAt: 20260910, outputPricePerMillion: 1.2 },
-    // The same Gemini models as the native ones above, reached through OpenRouter (one key instead of Google's): same release days and list prices.
-    'google/gemini-3.8-flash': { releasedAt: 20260903, outputPricePerMillion: 3.75 },
+    // The same Gemini models as the native ones above, reached through OpenRouter (one key instead of Google's): same list prices; the release day is the one OpenRouter
+    // gives (3.8 Flash: 2 September, the native entry says 3 September).
+    'google/gemini-3.8-flash': { releasedAt: 20260902, outputPricePerMillion: 3.75 },
     'google/gemini-3.5-flash-lite': { releasedAt: 20260721, outputPricePerMillion: 2.5 },
     'google/gemini-3.1-pro-preview': { releasedAt: 20260219, outputPricePerMillion: 12 },
     'google/gemini-nano-banana-2.1': { releasedAt: 20261006, outputPricePerMillion: 7.5 },

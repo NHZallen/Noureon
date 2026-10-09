@@ -311,7 +311,8 @@ test('the Gemini models are also on OpenRouter, with the settings of their nativ
     assert.equal(viaOpenRouter.provider, 'openrouter');
     assert.equal(viaOpenRouter.name, native.name, 'the same name: the row says where it comes from');
     assert.equal(viaOpenRouter.descriptionKey, native.descriptionKey, 'the same price line');
-    assert.equal(viaOpenRouter.releasedAt, native.releasedAt);
+    // The release day is the one OpenRouter gives: the same as the native one, except 3.8 Flash (2 September there, 3 September on the native entry).
+    assert.equal(viaOpenRouter.releasedAt, nativeId === 'gemini-3.8-flash' ? 20260902 : native.releasedAt);
     assert.equal(viaOpenRouter.outputPricePerMillion, native.outputPricePerMillion);
     assert.equal(modelSupportsVision(viaOpenRouter), true);
     assert.equal(modelSupportsDocumentUpload(viaOpenRouter), true);
