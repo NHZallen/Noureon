@@ -10,6 +10,7 @@ import { clearSkillSelection } from '../src/app/runtime/skill/skill-bridge.js';
 import { createSkillStore } from '../src/app/runtime/skill/skill-store.js';
 import { createMarkdownRenderingHelpers } from '../src/app/runtime/legacy-core/markdown-rendering-helpers.js';
 import { draftOf, hydrateSkillDrafts } from '../src/app/ui/skill/skill-draft-card.js';
+import { draftHasFiles, readDraftBundle, splitDraft } from '../src/data/skill-draft.js';
 
 afterEach(() => clearSkillSelection());
 
@@ -75,8 +76,11 @@ test('the card speaks the language of the page', () => {
 // ----- the page: placeholders turn into cards by themselves, and the button opens the window with the draft in it
 function memoryClient() {
   const rows = [];
+  const stored = new Map();
   const client = {
     rows,
+    stored,
+    storage: { from: () => ({ upload: async (path, body) => { stored.set(path, body); return { data: {}, error: null }; }, remove: async () => ({ error: null }), download: async () => ({ data: null, error: { message: 'x' } }) }) },
     from: () => {
       const state = { op: 'select', payload: null, filters: {} };
       const chain = {
@@ -168,4 +172,120 @@ test('the draft card styles use the tokens only, and live in their own file, not
   assert.equal(/#[0-9a-fA-F]{3,8}\b|rgba?\(/.test(css), false);
   assert.match(css, /\.skill-draft-add \{[^}]*var\(--button-primary-bg\)/);
   assert.equal(readFileSync(new URL('../src/styles/permissions.css', import.meta.url), 'utf8').includes('skill-draft'), false);
+});
+
+// ----- a draft with files
+const SCRIPT_DRAFT = [
+  '=== SKILL.md ===',
+  '---',
+  'name: sales-report',
+  'description: Builds the monthly sales report from a spreadsheet.',
+  '---',
+  '',
+  'Run scripts/summary.py on the spreadsheet, then read references/format.md.',
+  '=== scripts/summary.py ===',
+  'import sys',
+  'print("summary", sys.argv[1])',
+  '=== references/format.md ===',
+  '# Format',
+  'Use bullets.',
+  ''
+].join('\n');
+
+test('a draft names its files after lines of the form "=== path ==="; text before the first one is the SKILL.md too; without such a line it is the SKILL.md alone', () => {
+  assert.equal(draftHasFiles(SCRIPT_DRAFT), true);
+  assert.equal(draftHasFiles(DRAFT), false);
+  assert.deepEqual(splitDraft(DRAFT), [{ path: 'SKILL.md', text: DRAFT }], 'a draft without files is one file');
+  const parts = splitDraft(SCRIPT_DRAFT);
+  assert.deepEqual(parts.map((part) => part.path), ['SKILL.md', 'scripts/summary.py', 'references/format.md']);
+  assert.equal(parts[1].text, 'import sys\nprint("summary", sys.argv[1])\n');
+  assert.equal(parts[2].text, '# Format\nUse bullets.\n');
+  // Without the first line the text before the second is the SKILL.md.
+  const implicit = splitDraft(`${DRAFT}=== scripts/a.py ===\nprint(1)\n`);
+  assert.deepEqual(implicit.map((part) => part.path), ['SKILL.md', 'scripts/a.py']);
+  assert.equal(implicit[0].text, DRAFT);
+  assert.equal(draftHasFiles('=== not a marker\n=== also not ==x'), false);
+  assert.deepEqual(splitDraft('=== a.md ===\r\ntext\r\n').map((part) => part.text), ['text\n']);
+});
+
+test('a draft with files is checked as an uploaded pack: its skill, its files and their kinds; what a pack refuses is refused with the same reason', async () => {
+  const read = await readDraftBundle(SCRIPT_DRAFT);
+  assert.equal(read.ok, true);
+  assert.equal(read.skill.name, 'sales-report');
+  assert.deepEqual(read.files.map((file) => [file.path, file.kind]), [['references/format.md', 'text'], ['scripts/summary.py', 'script']]);
+  assert.ok(read.bundle instanceof Uint8Array, 'and the clean zip to keep');
+  assert.equal((await readDraftBundle(SCRIPT_DRAFT.replace('=== SKILL.md ===\n', ''))).ok, true, 'the first line is not needed');
+  const without = await readDraftBundle('=== scripts/a.py ===\nprint(1)\n');
+  assert.deepEqual([without.error, without.detail], ['skill_md_missing', 'SKILL.md']);
+  const twice = await readDraftBundle(`${SCRIPT_DRAFT}=== SKILL.md ===\n${DRAFT}`);
+  assert.deepEqual([twice.error, twice.detail], ['duplicate_path', 'SKILL.md']);
+  const exe = await readDraftBundle(`${SCRIPT_DRAFT}=== tool.exe ===\nx\n`);
+  assert.deepEqual([exe.error, exe.detail], ['blocked_file', 'tool.exe']);
+  const escape = await readDraftBundle(`${SCRIPT_DRAFT}=== /etc/evil.py ===\nx\n`);
+  assert.equal(escape.error, 'bad_path');
+  const header = await readDraftBundle('=== SKILL.md ===\nno header\n=== a.md ===\nx\n');
+  assert.equal(header.error, 'no_header', 'the SKILL.md follows the rules of a skill');
+  const same = await readDraftBundle(`${SCRIPT_DRAFT}=== references/FORMAT.md ===\nx\n`);
+  assert.equal(same.error, 'duplicate_path', 'the same path with other capitals');
+});
+
+test('four backticks hold a draft whose files have three in them: it is one block, and one card', () => {
+  const draft = `=== SKILL.md ===\n${DRAFT}=== references/code.md ===\nExample:\n\n\`\`\`python\nprint(1)\n\`\`\`\n`;
+  const html = renderer().renderMarkdown(`Done:\n\n\`\`\`\`skill-draft\n${draft}\`\`\`\`\n\nTry it.`);
+  const window = new Window();
+  window.document.body.innerHTML = html;
+  const cards = window.document.querySelectorAll('.skill-draft-card');
+  assert.equal(cards.length, 1);
+  assert.equal(draftOf(cards[0]), draft);
+});
+
+test('the card of a draft with files lists them, marks the scripts, and gives the whole draft to the button; a draft the pack would refuse shows why', async () => {
+  const window = new Window();
+  const { document } = window;
+  document.body.innerHTML = `<div class="skill-draft-card" data-draft="${encodeURIComponent(SCRIPT_DRAFT)}"></div><div class="skill-draft-card" data-draft="${encodeURIComponent(`${SCRIPT_DRAFT}=== tool.exe ===\nx\n`)}"></div>`;
+  const added = [];
+  assert.equal(hydrateSkillDrafts({ root: document, language: 'en', onAdd: (text) => added.push(text) }), 2);
+  await tick(150);
+  const [good, bad] = [...document.querySelectorAll('.skill-draft-card')];
+  assert.equal(good.querySelector('.skill-draft-name').textContent, 'sales-report');
+  assert.deepEqual([...good.querySelectorAll('.skill-draft-file-path')].map((node) => node.textContent), ['references/format.md', 'scripts/summary.py']);
+  assert.equal(good.querySelectorAll('.skill-draft-script').length, 1, 'only the script is marked');
+  assert.match(good.querySelector('.skill-draft-files-title').textContent, /Files \(2\)/);
+  good.querySelector('.skill-draft-add').click();
+  assert.deepEqual(added, [SCRIPT_DRAFT]);
+  assert.equal(bad.classList.contains('is-invalid'), true);
+  assert.match(bad.querySelector('.skill-draft-note').textContent, /cannot hold programs or installers\. \(tool\.exe\) Ask the model to fix it/);
+  assert.equal(bad.querySelector('.skill-draft-add'), null);
+});
+
+test('the button of a draft with files opens the window of a skill pack with every file to read, and "Add" keeps the zip and the row', async () => {
+  const t = page();
+  t.show(SCRIPT_DRAFT);
+  await tick(250);
+  t.chat.querySelector('.skill-draft-add').click();
+  await tick(300);
+  const modal = t.document.querySelector('.skill-bundle');
+  assert.ok(modal, 'the window of a pack');
+  assert.deepEqual([...modal.querySelectorAll('.skill-bundle-file-path')].map((node) => node.textContent), ['SKILL.md', 'references/format.md', 'scripts/summary.py']);
+  assert.equal(modal.querySelectorAll('.skill-bundle-script').length, 1);
+  assert.match(modal.querySelector('.skill-bundle-scripts-warning').textContent, /may run them in the sandbox/);
+  assert.equal(t.cloud.stored.size, 0, 'nothing is kept before "Add"');
+  modal.querySelector('button[type="submit"]').click();
+  await tick(250);
+  assert.equal(t.document.querySelector('.skill-bundle') === null, true);
+  assert.equal(t.cloud.stored.size, 1);
+  assert.deepEqual(t.cloud.rows[0].files.map((file) => file.path), ['references/format.md', 'scripts/summary.py']);
+  assert.deepEqual(t.settings.skillEnabledIds, ['sales-report']);
+  assert.deepEqual(t.log.notices.at(-1), ['Skill “sales-report” added.', 'success']);
+  assert.equal(t.log.saved, 1);
+});
+
+test('a draft with files that the pack would refuse opens no window and says why', async () => {
+  const t = page();
+  const { createSkillDrafts } = await import('../src/app/runtime/skill/skill-drafts.js');
+  const drafts = createSkillDrafts({ document: t.document, language: () => 'en', getConfig: () => t.settings, showNotification: (text, kind) => t.log.notices.push([text, kind]), getAccountReady: () => true, skillStore: t.skillStore, own: () => [] });
+  await drafts.addDraft(`${SCRIPT_DRAFT}=== tool.exe ===\nx\n`);
+  assert.equal(t.document.querySelector('.skill-bundle') === null, true);
+  assert.match(t.log.notices.at(-1)[0], /programs or installers\. \(tool\.exe\)/);
+  assert.equal(t.log.notices.at(-1)[1], 'error');
 });

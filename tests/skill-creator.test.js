@@ -47,6 +47,11 @@ test('the text of skill-creator teaches the steps and the block that becomes a c
   assert.match(body, /three backticks followed by skill-draft/);
   assert.match(body, /You cannot save a skill yourself/);
   assert.match(body, /ordinary code block \(language markdown\)/, 'a draft in progress does not become a card');
+  assert.match(body, /## Skills with files/);
+  assert.match(body, /three equals signs, a space, the path/, 'how a draft names its files');
+  assert.match(body, /four backticks instead of three/, 'a file with backticks in it does not end the block early');
+  assert.match(body, /Python or shell/);
+  assert.match(body, /only in the Python sandbox on the server/);
   assert.match(body, /at most 1024 characters/);
   assert.match(body, /at most 64 characters/);
   assert.doesNotMatch(body, /<\/skill/i, 'it cannot close the block it is given in');

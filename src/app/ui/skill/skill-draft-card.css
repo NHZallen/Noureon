@@ -15,3 +15,10 @@
 .skill-draft-hint, .skill-draft-note { color: var(--text-secondary); font-size: 0.8rem; }
 .skill-draft-card.is-invalid { padding: 0.2rem 1rem 0.6rem; }
 .skill-draft-note { margin: 0 0 0.4rem; }
+
+.skill-draft-files { padding: 0.2rem 1rem 0; font-size: 0.85rem; }
+.skill-draft-files-title { display: block; margin-bottom: 0.2rem; color: var(--text-secondary); font-size: 0.8rem; font-weight: 600; }
+.skill-draft-file-list { margin: 0; padding: 0; list-style: none; }
+.skill-draft-file { display: flex; align-items: center; gap: 0.5rem; padding: 0.2rem 0; }
+.skill-draft-file-path { flex: 1; min-width: 0; overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.8rem; }
+.skill-draft-file-size { flex: none; color: var(--text-secondary); font-size: 0.78rem; }
