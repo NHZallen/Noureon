@@ -22,6 +22,8 @@ import {
   modelSupportsReasoningSelection,
   modelSupportsDocumentUpload,
   modelSupportsVision,
+  modelSupportsToolCalling,
+  modelSupportsWebSearch,
   normalizeReasoningEffort
 } from '../src/app/runtime/legacy-core/model-registry.js';
 
@@ -299,3 +301,31 @@ test('a temporary chat has no council, whatever its saved settings say', () => {
   assert.equal(isCouncilEnabled({ council: { enabled: true }, retentionMode: 'persistent' }), true);
   assert.equal(isCouncilEnabled(null), false);
 });
+
+test('the Gemini models are also on OpenRouter, with the settings of their native twins; StepFun Step 5 Preview is added with only what is known', () => {
+  const twins = [['gemini-3.8-flash', 'google/gemini-3.8-flash'], ['gemini-3.5-flash-lite', 'google/gemini-3.5-flash-lite'], ['gemini-3.1-pro-preview', 'google/gemini-3.1-pro-preview']];
+  for (const [nativeId, openRouterId] of twins) {
+    const native = MODELS.find((model) => model.id === nativeId);
+    const viaOpenRouter = MODELS.find((model) => model.id === openRouterId);
+    assert.ok(native && viaOpenRouter, openRouterId);
+    assert.equal(viaOpenRouter.provider, 'openrouter');
+    assert.equal(viaOpenRouter.name, native.name, 'the same name: the row says where it comes from');
+    assert.equal(viaOpenRouter.descriptionKey, native.descriptionKey, 'the same price line');
+    assert.equal(viaOpenRouter.releasedAt, native.releasedAt);
+    assert.equal(viaOpenRouter.outputPricePerMillion, native.outputPricePerMillion);
+    assert.equal(modelSupportsVision(viaOpenRouter), true);
+    assert.equal(modelSupportsDocumentUpload(viaOpenRouter), true);
+    assert.equal(modelSupportsToolCalling(viaOpenRouter), true);
+    assert.equal(modelSupportsWebSearch(viaOpenRouter), true);
+    assert.deepEqual(getModelReasoningConfig(viaOpenRouter).options, getModelReasoningConfig(native).options, 'the same thinking levels');
+    assert.equal(getModelReasoningConfig(viaOpenRouter).defaultEffort, getModelReasoningConfig(native).defaultEffort);
+    assert.equal(getModelReasoningConfig(viaOpenRouter).providerParameter, 'openrouterReasoningEffort');
+  }
+  const step = MODELS.find((model) => model.id === 'stepfun/step-5-preview');
+  assert.ok(step);
+  assert.equal(step.provider, 'openrouter');
+  assert.equal(modelSupportsVision(step), false, 'not shown to see pictures yet');
+  assert.equal(modelSupportsToolCalling(step), false, 'nor to call tools');
+  assert.equal(getModelReasoningConfig(step), null, 'and with no thinking control');
+});
+
