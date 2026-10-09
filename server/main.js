@@ -45,13 +45,14 @@ if (config.runsConfigured) {
     // Python runs on the sandbox host when it is set; the files it makes are kept in the person's storage.
     const host = config.sandboxUrl ? createSandboxHost({ url: config.sandboxUrl, token: config.sandboxToken }) : null;
     files = createFileStore({ url: config.supabaseUrl, serviceKey: config.serviceKey, db });
+    const skillBundles = createSkillBundleStore({ url: config.supabaseUrl, serviceKey: config.serviceKey });
     const sandbox = host ? { host, files } : null;
-    sweeper = createAssetSweeper({ db, files, log, mode: process.env.ASSET_SWEEP === 'delete' ? 'delete' : 'report' });
+    sweeper = createAssetSweeper({ db, files, bundles: skillBundles, log, mode: process.env.ASSET_SWEEP === 'delete' ? 'delete' : 'report' });
     checkSlides = () => canDrawSlides().then((ok) => log(ok ? 'slides_ok' : 'slides_unavailable'));
     if (host) checkSandbox = () => host.check().then((state) => log(state.ok ? 'sandbox_ok' : 'sandbox_failed', { reason: state.reason }));
     const vault = createKeyVault(config.encryptionKeys);
     credentials = createCredentialStore({ db, vault });
-    runs = createRunManager({ store: createRunStore({ db, limits: LIMITS }), db, vault, sandbox, files, credentials, skills: createServerSkills({ db, bundles: createSkillBundleStore({ url: config.supabaseUrl, serviceKey: config.serviceKey }) }), vision: { available: canDrawSlides, execute: executeVisionCheck, getKit: getFontKit }, limits: LIMITS, log });
+    runs = createRunManager({ store: createRunStore({ db, limits: LIMITS }), db, vault, sandbox, files, credentials, skills: createServerSkills({ db, bundles: skillBundles }), vision: { available: canDrawSlides, execute: executeVisionCheck, getKit: getFontKit }, limits: LIMITS, log });
   } catch (error) {
     log('config_error', { message: error.message });
     process.exit(1);

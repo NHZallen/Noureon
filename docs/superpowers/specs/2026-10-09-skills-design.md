@@ -255,7 +255,7 @@
 - **伺服器：** `sandbox-client.js` 新增 `mountSkills`（記下清單，主機掉了換新沙盒時重新送）；`skills.js` 新增 `files(userId, name)`（技能全部檔案與位元組，同樣重新檢查 zip）。`executor.js` 的 Python 回覆：①載入有腳本的技能時，把資料夾送進沙盒（沙盒還沒建立就先記著，建立時在輸入檔之後送；已存在就立刻把目前所有已載入的技能一起送），成功才告訴模型「腳本放在 `/skills/<名稱>/`，用 `run_command` 或 Python 執行、不要修改」；沒有腳本的技能、取不到 zip、主機拒絕都告訴模型「這個回覆跑不了腳本」，回覆照常繼續，並記一筆 `skill_folder_failed` 到日誌；②用 `/` 指定、帶腳本的技能從一開始就放進沙盒（模型不必載入）。一般與搜尋回覆沒有沙盒，所以一律說跑不了腳本。
 - **臨時對話：** 臨時對話（`isTemporary` 或 `retentionMode === 'ephemeral'`，從不送到伺服器）不列出、不能選、不能指定、也不提供給模型有腳本的技能（`skill-mode.js` 的 `isTemporary`，由 `research-mode.js` 接上目前的對話）；只有文字檔案的技能照常。這是 §9 第 4 項的決定。
 - **隱私：** `PRIVACY.md` 與五語 `privacyPolicyDesc` 補上技能 zip 的保存位置、檔案文字會送給供應商、腳本只在模型明確執行時於沙盒執行（技能資料夾唯讀、沒有網路）、臨時對話不提供有腳本的技能；`tests/i18n-data.test.js` 的雜湊已更新。`sandbox-host/README.md` 補上端點與規則。
-- **已知限制：** ①帳號刪除後，儲存桶 `user-skill-bundles` 裡該帳號的 zip 不會自動清掉（資料列會隨帳號刪除，檔案不會），之後要補一個清理；②沙盒裡的腳本一律沒有使用者的憑證；③瀏覽器內的 Python 沙盒沒有 `/skills`，所以本機回覆只能讀文字檔不能跑腳本（清單說明會告訴模型）；④技能資料夾在回覆結束後隨容器一起刪除，下次回覆要重新載入。
+- **已知限制：** ①帳號刪除後，儲存桶 `user-skill-bundles` 裡該帳號的 zip 不會自動清掉（資料列會隨帳號刪除，檔案不會）——已在 §23 補上清理；②沙盒裡的腳本一律沒有使用者的憑證；③瀏覽器內的 Python 沙盒沒有 `/skills`，所以本機回覆只能讀文字檔不能跑腳本（清單說明會告訴模型）；④技能資料夾在回覆結束後隨容器一起刪除，下次回覆要重新載入。
 - **測試：** `tests/sandbox-host/runner.test.js`（資料夾與權限、直譯器執行、取代、各種錯誤清單與大小，docker 參數）、`server-adapter.test.js`（真實 runner 上掛載並執行）、`server-advanced.test.js`（載入前沒有沙盒、載入時沙盒已存在、`/` 指定、沒有腳本／取不到／被拒絕）、`skill-files.test.js`（臨時對話）。
 
 ## 21. P3a 與 P3b 實作紀錄（2026-10-09）
@@ -279,3 +279,11 @@
 - **`skill-creator` 的全文多了一節「Skills with files」**（約 5.4 KB）：什麼時候才值得加檔案（一定要每次一樣的步驟用腳本、長又偶爾才需要的文字放 references/、固定版面放 assets/）、腳本是 Python 或 shell、只在伺服器的 Python 沙盒（進階模式）執行、沒有網路、模型決定要跑才會跑（其他回覆只能讀）、保持小而易讀、輸入讀 /input 結果寫 /output、失敗時印出原因、不放金鑰；說明裡用技能內的相對路徑稱呼每個檔案（載入時的提示會說資料夾在沙盒的哪裡）；草稿裡怎麼寫檔案行、何時用四個反引號；自己寫給這個對話的腳本要自己再讀一遍，檢查輸入不見或是空的時候。
 - **沒有改動的：** 加入的路徑、儲存、`/skills` 掛載、臨時對話過濾都沿用 P2。草稿的腳本不會在加入前執行。
 - **測試：** `skill-draft` 新增 6 項（標記規則、檢查與各種拒收原因、四個反引號、有檔案的卡片、按鈕開技能包視窗並加入、不合格的草稿不開視窗）；`skill-creator` 檢查新的一節。
+
+## 23. 孤兒 zip 的清理（2026-10-09）
+
+帳號刪除時 `user_skills` 的資料列會跟著刪（`on delete cascade`），儲存桶 `user-skill-bundles` 裡的 zip 不會；上傳到一半失敗留下的 zip，或有人在自己的資料夾放的其他檔案，也沒有資料列指著它們。
+- **`orphan_skill_bundles(older, limit)`**（`supabase/migrations/20261009030000_orphan_skill_bundles.sql`，已套用到專案）：列出儲存桶裡「沒有任何 `user_skills` 資料列的 `<user_id>/<name>.zip` 指到」而且最後更動時間早於 `older`（預設一天：zip 比它的資料列早一點上傳，所以年輕的檔案絕不算孤兒）的檔案。只有服務角色能執行（`anon`、`authenticated` 都不行）。用「會自動還原」的區塊驗證過：有資料列指著的、一天內的都不會列出，沒有資料列的 zip 與名稱不是技能的雜檔會列出，驗證沒有留下任何資料。
+- **`server/skill-bundles.js` 的 `removeAll(paths)`**：用儲存 API 刪（同時釋放空間），只收「某人的資料夾加上名稱」的路徑，向上的路徑、反斜線、不在人的資料夾裡的都不收。
+- **`server/asset-sweeper.js`**：每天一次的清理（伺服器啟動兩分鐘後第一次）在附件與回覆檔案那一輪之後，多一輪技能 zip；兩輪各自記錄、各自失敗不影響對方（`skill_bundle_orphans_found`、`skill_bundle_orphans_removed`、`skill_bundle_sweep_failed`）。**和原來的清理一樣，預設只報告不刪除，環境變數 `ASSET_SWEEP=delete` 時才真的刪**——所以第一次真正刪除仍是擁有者讀過報告後的決定。`sweepOnce()` 的回傳在原本的欄位之外多了 `bundles`（只有帶了技能 zip 的儲存時才有）。
+- **測試：** `server-storage`（儲存的路徑規則、兩輪的報告與刪除、其中一輪失敗不影響另一輪、SQL 檔的重點）。
