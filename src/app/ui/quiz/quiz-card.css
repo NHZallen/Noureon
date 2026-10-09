@@ -1,5 +1,6 @@
 /* The quiz card (docs/superpowers/specs/2026-10-09-quiz-card-design.md, §3, §8): a quiet white card, a stepped progress bar, big tactile answer rows, and a result band that docks to the bottom of the card (the pattern of Duolingo's check bar, in black and white). Only the names of src/styles/tokens.css (no colour of its own). Loaded with the card. */
-.quiz-card { position: relative; display: flex; flex-direction: column; width: min(100%, 36rem); margin: .75rem 0; border: 1px solid var(--border-color); border-radius: 1.1rem; background: var(--modal-bg); color: var(--text-primary); font-size: 1rem; line-height: 1.55; overflow: hidden; }
+.quiz-card { position: relative; display: flex; flex-direction: column; width: min(100%, 36rem); margin: .75rem 0; border: 1px solid var(--border-color); border-radius: 1.1rem; background: var(--modal-bg); color: var(--text-primary); font-size: 1rem; line-height: 1.55; }
+.quiz-card > :last-child { border-bottom-left-radius: calc(1.1rem - 1px); border-bottom-right-radius: calc(1.1rem - 1px); }
 .quiz-card *, .quiz-card *::before, .quiz-card *::after { box-sizing: border-box; }
 .quiz-ico { width: 1.15em; height: 1.15em; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .quiz-ico.is-fill { fill: currentColor; stroke: none; }
@@ -80,7 +81,7 @@
 .message-content .quiz-card .quiz-misses li { display: flex; padding: .85rem 0; }
 @media (max-width: 480px) { .quiz-head { padding-left: 1.1rem; } .quiz-steps { padding-inline: 1.1rem; } .quiz-body { padding: 1.3rem 1.1rem 1.15rem; } .quiz-dock { padding: 0 1.1rem 1.15rem; } .quiz-band { padding: 1.1rem 1.1rem 1.2rem; } .quiz-question { font-size: 1.2rem; } .quiz-primary { flex: 1; } .quiz-dock p { display: none; } .quiz-dock { justify-content: stretch; } }
 /* the chat colours every svg with the text colour; the icons here follow their button */
-.message-content .quiz-card .quiz-ico { color: inherit; }
+.quiz-card .quiz-ico { color: inherit; }
 
 .quiz-card.is-preparing, .quiz-card.is-invalid { padding: 1rem 1.2rem; gap: .7rem; background: var(--gpt-subtle); }
 .quiz-note { margin: 0; color: var(--text-secondary); font-size: .92rem; }
@@ -89,3 +90,21 @@
 .quiz-missed { display: flex; flex-direction: column; gap: .4rem; }
 .quiz-steps i, .quiz-option > button, .quiz-primary { transition: background-color .15s ease, border-color .15s ease; }
 @media (prefers-reduced-motion: reduce) { .quiz-steps i, .quiz-option > button, .quiz-primary { transition: none; } .quiz-option:not(.is-locked) > button:active { transform: none; } }
+
+.quiz-tool .quiz-ico { width: 1.2em; height: 1.2em; }
+.quiz-menu-wrap { position: relative; margin-left: auto; }
+.quiz-menu { position: absolute; right: 0; z-index: 5; width: min(20rem, 82vw); padding: .45rem; border: 1px solid var(--gpt-menu-border); border-radius: 1rem; background: var(--gpt-surface); box-shadow: var(--gpt-shadow); display: flex; flex-direction: column; }
+.quiz-menu.is-head { top: calc(100% + .35rem); }
+.quiz-menu.is-dock { bottom: calc(100% + .4rem); }
+.quiz-menu h4 { margin: .6rem .7rem .2rem; font-size: .72rem; font-weight: 700; letter-spacing: .06em; color: var(--text-tertiary); }
+.quiz-menu h4 span { font-weight: 400; letter-spacing: 0; }
+.quiz-menu button { all: unset; box-sizing: border-box; display: flex; justify-content: space-between; gap: .75rem; padding: .6rem .7rem; border-radius: .65rem; cursor: pointer; font-size: .95rem; }
+.quiz-menu button:hover { background: var(--hover-bg); }
+.quiz-menu button:focus-visible { outline: 2px solid var(--text-primary); outline-offset: -2px; }
+.quiz-menu button small { color: var(--text-tertiary); font-size: .78rem; }
+.quiz-toast { margin: 0; padding: .7rem 1.35rem; border-top: 1px solid var(--border-color); background: var(--gpt-subtle); color: var(--text-secondary); font-size: .9rem; }
+.message-content .quiz-card .quiz-menu h4 { margin: .6rem .7rem .2rem; }
+/* the enlarged card: a layer over the whole window, the card in the middle of it */
+.quiz-overlay { position: fixed; inset: 0; z-index: 60; overflow-y: auto; overscroll-behavior: contain; background: var(--modal-bg); padding: max(.75rem, env(safe-area-inset-top)) .75rem max(.75rem, env(safe-area-inset-bottom)); }
+.quiz-overlay .quiz-card.is-expanded { width: min(100%, 44rem); margin: 0 auto; border: 0; }
+.quiz-overlay .quiz-card.is-expanded .quiz-question { font-size: 1.45rem; }

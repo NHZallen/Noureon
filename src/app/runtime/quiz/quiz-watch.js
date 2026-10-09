@@ -1,8 +1,6 @@
 // The quiz cards in the chat (docs/superpowers/specs/2026-10-09-quiz-card-design.md): the markdown makes a placeholder for each ```quiz block (markdown-rendering-helpers.js), and this
 // makes the card when the placeholder is on the page. The card, its words and its styles are loaded the first time one is needed, so a page without a quiz never loads them.
-// What a person answers is kept on the message (quiz-store.js).
-
-import { createQuizStores } from './quiz-store.js';
+// What a person answers is kept on the message (quiz-store.js, loaded with the card).
 
 const RETRY_MS = 80;
 const RETRIES = 6;
@@ -16,7 +14,7 @@ export function createQuizWatch({ document, getUiLanguage = () => 'en', getActiv
     if (!document?.querySelector?.('.quiz-card[data-quiz]:not([data-ready])')) return;
     try {
       card ||= await Promise.all([import('../../ui/quiz/quiz-card.js'), import('../../ui/quiz/quiz-card.css').catch(() => {})]);
-      storeFor ||= createQuizStores({ memory: card[0].memoryStore, getActiveConversation, saveAppData, logger });
+      storeFor ||= (await import('./quiz-store.js')).createQuizStores({ memory: card[0].memoryStore, getActiveConversation, saveAppData, logger });
       card[0].hydrateQuizCards({ root: document, language: getUiLanguage(), storeFor });
       // A card whose message is not on the page yet (the chat is still being drawn) is tried again a few times.
       const waiting = [...document.querySelectorAll('.quiz-card[data-quiz]:not([data-ready])')].some((element) => !element.classList.contains('is-preparing') && element.closest('[data-message-index]'));
