@@ -114,3 +114,20 @@ html.cs-open { overflow: hidden; }
 .cs-empty-soon { display: grid; gap: 0.4rem; justify-items: center; padding: 3rem 1rem; }
 .cs-empty-title { color: var(--text-primary); font-size: 1.05rem; }
 .cs-empty-note { max-width: 24rem; margin: 0; font-size: 0.9rem; line-height: 1.6; }
+
+/* Motion. What moves on its own (the page arriving, a row opening, the list changing, the menu) is made in cli-motion.js; here are the small changes of colour, and the
+   logos fading in. A person who asked for less motion gets none of it. */
+.cs-row { box-sizing: border-box; transition: background-color 0.16s ease; }
+.cs-nav-item, .cs-switch-item, .cs-button, .cs-back, .cs-add, .cs-icon-button, .cs-menu-item, .cs-skill-file-button { transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease; }
+.cs-tabs .history-tab { transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease; }
+.cs-mark .cli-tool-img { opacity: 0; transition: opacity 0.3s ease; }
+.cs-mark .cli-tool-img.is-loaded { opacity: 1; }
+.cs-menu:not(.is-sheet) { transform-origin: top right; }
+.cs-menu.is-leaving, .cs-sheet-backdrop.is-leaving { pointer-events: none; }
+.cs-search { transition: background-color 0.18s ease; }
+.cs-search:focus-within { background: color-mix(in srgb, var(--text-primary) 9%, var(--hover-bg)); }
+
+@media (prefers-reduced-motion: reduce) {
+  .cs *, .cs *::before, .cs *::after { transition: none !important; }
+  .cs-mark .cli-tool-img { opacity: 1; }
+}

@@ -14,6 +14,7 @@ import { formatFileSize } from '../skill/skill-file-size.js';
 import { activeSkills, addSkill, canModelUseSkill, isSkillEnabled, removeSkill, setSkillModelUse } from '../../runtime/skill/skill-state.js';
 import { permissionText } from '../../runtime/cli/permission-texts.js';
 import { extensionsIcon, skillIcon, terminalIcon, toolIconMarkup, watchToolIcons } from './cli-icons.js';
+import { enterMenu, enterPage, leaveMenu, leavePage, measureRows, playRows } from './cli-motion.js';
 import { DEFAULT_STORE_KIND, STORE_KINDS, storeKindFromPath, storePath } from './store-path.js';
 
 const ICONS = {
@@ -153,10 +154,10 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
   // ----- the menu of a row (a bottom sheet on a phone)
   let menu = null;
   const closeMenu = () => {
-    menu?.remove();
+    const leaving = menu;
     menu = null;
     state.menuFor = null;
-    root.querySelector('.cs-sheet-backdrop')?.remove();
+    leaveMenu(leaving, root.querySelector('.cs-sheet-backdrop:not(.is-leaving)'));
   };
   // `owner` is the id of the row the menu belongs to; `items` are [{ label, action, check?, danger? }].
   const showMenu = (owner, anchor, items) => {
@@ -188,18 +189,20 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
       backdrop.addEventListener('click', closeMenu);
       root.append(backdrop, menu);
       menu.classList.add('is-sheet');
+      enterMenu(menu, backdrop);
     } else {
       const rect = anchor.getBoundingClientRect();
       menu.style.top = `${Math.min(rect.bottom + 6, win.innerHeight - 190)}px`;
       menu.style.right = `${Math.max(12, win.innerWidth - rect.right)}px`;
       root.append(menu);
+      enterMenu(menu, null);
     }
   };
 
   const toggleDetails = (id) => {
     if (state.expanded.has(id)) state.expanded.delete(id);
     else state.expanded.add(id);
-    draw();
+    draw({ open: `${state.kind === 'skills' ? 's' : 'c'}:${id}` });
   };
   const openMenu = (tool, anchor) => {
     const config = getConfig();
@@ -247,18 +250,25 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
       mark = make(document, 'div', 'cs-mark');
       mark.innerHTML = toolIconMarkup(tool, 30);
       marks.set(tool.id, mark);
+      // A logo fades in when it has loaded (the style hides it until then); one that is already there, or is late, shows anyway.
+      for (const image of mark.querySelectorAll('img')) {
+        const show = () => image.classList.add('is-loaded');
+        if (image.complete && image.naturalWidth) show();
+        else {
+          image.addEventListener('load', show, { once: true });
+          win.setTimeout(show, 4000);
+        }
+      }
     }
     const text = make(document, 'button', 'cs-text');
     text.type = 'button';
     text.setAttribute('aria-expanded', String(state.expanded.has(tool.id)));
     const name = make(document, 'span', 'cs-name');
     name.append(make(document, 'span', 'cs-name-text', tool.name), make(document, 'span', 'cs-badge', t('official')));
-    text.append(name, make(document, 'span', 'cs-desc', cliDescription(tool, getLanguage())));
-    text.addEventListener('click', () => {
-      if (state.expanded.has(tool.id)) state.expanded.delete(tool.id);
-      else state.expanded.add(tool.id);
-      draw();
-    });
+    // Open, the longer explanation below says it: the line of the list is not repeated.
+    text.append(name);
+    if (!state.expanded.has(tool.id)) text.append(make(document, 'span', 'cs-desc', cliDescription(tool, getLanguage())));
+    text.addEventListener('click', () => toggleDetails(tool.id));
     const action = make(document, 'div', 'cs-action');
     if (added) {
       action.append(make(document, 'span', 'cs-added', t('added')));
@@ -280,7 +290,7 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
     }
     element.append(mark, text, action);
     if (state.expanded.has(tool.id)) {
-      const about = cliDetails(tool, getLanguage());
+      const about = cliDetails(tool, getLanguage()) || cliDescription(tool, getLanguage());
       if (about) element.append(make(document, 'p', 'cs-about', about));
       const details = make(document, 'dl', 'cs-details');
       const entries = [[t('author'), tool.author], [t('license'), tool.license], [t('version'), tool.version]].filter(([, value]) => value);
@@ -322,19 +332,28 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
     upload.hidden = state.kind !== 'skills';
   };
 
+  // The two tabs are made once and only change their state, so that the change can be seen (the style moves the colour from one to the other).
   const drawTabs = () => {
-    tabs.replaceChildren(...[['all', t('tabAll')], ['mine', t('tabMine')]].map(([id, label]) => {
-      const tab = make(document, 'button', 'history-tab', label);
-      tab.type = 'button';
-      tab.setAttribute('role', 'tab');
+    const labels = [['all', t('tabAll')], ['mine', t('tabMine')]];
+    if (tabs.children.length !== labels.length) {
+      tabs.replaceChildren(...labels.map(([id]) => {
+        const tab = make(document, 'button', 'history-tab');
+        tab.type = 'button';
+        tab.dataset.tab = id;
+        tab.setAttribute('role', 'tab');
+        tab.addEventListener('click', () => {
+          view().tab = id;
+          closeMenu();
+          draw();
+        });
+        return tab;
+      }));
+    }
+    for (const [index, [id, label]] of labels.entries()) {
+      const tab = tabs.children[index];
+      tab.textContent = label;
       tab.setAttribute('aria-selected', String(view().tab === id));
-      tab.addEventListener('click', () => {
-        view().tab = id;
-        closeMenu();
-        draw();
-      });
-      return tab;
-    }));
+    }
   };
 
   // ----- the skills: the official ones the person may add, and the ones they have (their own pasted ones come from the cloud, skill-store.js)
@@ -600,7 +619,13 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
     list.replaceChildren(...parts);
   };
 
-  const draw = () => {
+  // Every drawing is the whole list again; the motion is made from where each row was (cli-motion.js).
+  const draw = (options) => {
+    const before = measureRows(list);
+    drawNow();
+    playRows(list, before, options);
+  };
+  const drawNow = () => {
     drawKinds();
     syncNote();
     note.textContent = t('needAccount');
@@ -634,7 +659,7 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
     win.removeEventListener('popstate', onPopState);
     win.clearInterval(noteTimer);
     leaveAddress();
-    root.remove();
+    leavePage(root, () => root.remove());
     document.documentElement.classList.remove('cs-open');
     current = null;
     try {
@@ -703,6 +728,7 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
   document.body.append(root);
   document.documentElement.classList.add('cs-open');
   draw();
+  enterPage(root);
   back.focus?.({ preventScroll: true });
   current = { close, element: root, setKind, get kind() { return state.kind; } };
   return current;

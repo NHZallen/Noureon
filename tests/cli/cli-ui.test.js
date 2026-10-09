@@ -399,6 +399,23 @@ test('the details of a tool open with a longer explanation in the language of th
   void chip;
 });
 
+test('opened, a tool says its explanation once: the line of the list goes while the details are open and comes back after', () => {
+  const config = { cliEnabledIds: [], cliModelUseIds: [], cliVersions: {} };
+  const t = setup({ config, language: 'en' });
+  openCliStore({ kind: 'cli', document: t.document, getConfig: () => config, getLanguage: () => 'en' });
+  const root = t.document.querySelector('.cs');
+  const rowOf = () => root.querySelector('.cs-row[data-cli-id="ffmpeg"]');
+  assert.equal(rowOf().querySelectorAll('.cs-desc').length, 1, 'closed: the line of the list');
+  assert.equal(rowOf().querySelectorAll('.cs-about').length, 0);
+  rowOf().querySelector('.cs-text').click();
+  assert.equal(rowOf().querySelectorAll('.cs-desc').length, 0, 'open: not repeated');
+  assert.equal(rowOf().querySelectorAll('.cs-about').length, 1, 'the explanation, once');
+  rowOf().querySelector('.cs-text').click();
+  assert.equal(rowOf().querySelectorAll('.cs-desc').length, 1, 'closed again');
+  assert.equal(rowOf().querySelectorAll('.cs-about').length, 0);
+  closeCliStore();
+});
+
 test('the note about the account goes away when the account becomes ready while the page is open', async () => {
   const config = { cliEnabledIds: [], cliModelUseIds: [], cliVersions: {} };
   const t = setup({ config });
