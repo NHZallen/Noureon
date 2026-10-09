@@ -341,11 +341,3 @@ owner 看第一版的截圖後要求面板頂端升到頂端那一列圖示的�
 - **設計面板：** `deck-design-control.js` 的 `PHONE_TOP_ROOM` 從 108 改成 56（量到的實際畫面：頂端列圖示的下緣在頁面可見區頂端下方約 51px）。
 - **模型面板：** 高度不再是視窗的固定比例，改成開啟時依輸入框的位置量一次：`council-controls-lifecycle.js` 的 `fitPhonePanel` 算出「輸入框上緣 − 12px − 56px」，夾在 200 到 544px 之間，寫進 `#model-council-control` 的 `--mp-phone-height`；`model-picker.css` 用 `height: var(--mp-phone-height, min(70vh, 34rem))`。兩個入口（點按鈕、選單的「模型理事會」）都會量；寬螢幕會把這個變數移掉，交回樣式。輸入框變高（多行輸入）時，面板頂端也不會超過那條線。設計面板用的是同一套數字。
 
-
-### 25.4 聊天室表格：第一欄固定在左邊（2026-10-10）
-
-owner 錄影顯示：模型貼的比較表比手機寬，往右滑時最左邊那一欄（每一列是什麼）整欄滑走，只剩一排 ✅／❌，分不出是哪一列。`chat.css` 現在讓 `.table-scroll-container` 裡每個表格的第一欄 `position: sticky`：`left: -1px`（蓋住合併邊框留下的 1px 縫）、不透明背景（`--modal-bg`；表頭與偶數列再疊上 `--hover-bg` 的色層，所以滑過去的內容不會透出來）、`min-width: 5.5rem`、`max-width: 12rem`、`overflow-wrap: break-word`。合併邊框不會跟著格子移動，所以用內縮的 1px 陰影代替右邊那條線。沒有 `z-index`（有定位的格子本來就畫在沒定位的格子上面）。實測（Chromium，393px，亮色與暗色）：捲到最右邊，第一欄位置不動。測試：`tests/table-sticky-column.test.js`。
-
-**踩過的坑：** 一開始用 `overflow-wrap: anywhere`，表格會把這欄擠到一個字寬，字一個一個斷行，已改掉；用 `:is()` 縮短選擇器反而讓打包後的 CSS 變大（壓縮工具會展開它），已退回。
-
-**注意：最大的 CSS 檔（`index-*.css`）現在是 235,515 位元組，過渡上限是 235,520（230 KB），只剩 5 位元組。** 之後要在這個檔案加任何 CSS，要先清掉別的，或由 owner 決定調高 `scripts/check-file-sizes.mjs` 裡的上限。
