@@ -74,6 +74,19 @@ export const OFFICIAL_SKILL_CATALOG = [
       ru: { title: 'Структура презентации', description: 'Превращает тему или заметки в сюжет презентации: аудитория и цель, главная мысль и план по слайдам с доказательствами и временем.' },
       es: { title: 'Guion de presentación', description: 'Convierte un tema o unas notas en el hilo de una presentación: público y objetivo, un mensaje clave y un esquema diapositiva a diapositiva con pruebas y tiempos.' }
     }
+  },
+  {
+    name: 'email-writer',
+    description: 'Writes, adjusts and replies to emails, letters and chat messages in any language, formal or casual: finds the purpose, reader and tone, then gives a ready-to-send draft in the right format. Use whenever the user wants to write, reply to, rewrite, shorten, soften or firm up a message to a person.',
+    version: '1',
+    author: 'Noureon',
+    i18n: {
+      'zh-TW': { title: '郵件撰寫', description: '撰寫、調整及回覆正式或日常的電子郵件、信件與訊息，依對象與語氣給出可以直接送出的草稿。' },
+      en: { title: 'Email writer', description: 'Write, adjust and reply to formal or everyday emails, letters and messages, with a draft that is ready to send.' },
+      fr: { title: 'Rédaction d’e-mails', description: 'Rédige, adapte et répond à des e-mails, lettres et messages, formels ou courants, avec un brouillon prêt à envoyer.' },
+      ru: { title: 'Написание писем', description: 'Пишет, правит и отвечает на официальные и повседневные письма и сообщения: готовый к отправке черновик.' },
+      es: { title: 'Redacción de correos', description: 'Redacta, ajusta y responde correos, cartas y mensajes formales o cotidianos, con un borrador listo para enviar.' }
+    }
   }
 ];
 
