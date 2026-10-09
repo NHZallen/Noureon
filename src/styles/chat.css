@@ -684,6 +684,25 @@
     .prose table th, .prose table td { border: 1px solid var(--border-color); padding: 0.75rem; text-align: left; }
     .prose table thead { background-color: var(--hover-bg); }
     .prose table tr:nth-child(even) { background-color: var(--hover-bg); }
+    /* A table wider than the screen scrolls sideways, and its first column (what each row is) stays at the left while the rest slides under it, so a row of
+       values is never separated from its name. A cell that stays has to cover what slides under it: the tint of its row (the header, the even rows) is laid
+       over the solid background of the table, not left see-through. The border of a collapsed table does not move with the cell, so an inset line stands in for it. */
+    .table-scroll-container th:first-child,
+    .table-scroll-container td:first-child {
+        position: sticky;
+        /* 1px past the edge: the border of a collapsed table does not move with the cell, and what slides under it would show through that gap. */
+        left: -1px;
+        /* Wide enough to be read (it wraps at the spaces, a long word only breaks when it has to), never wider than 12rem. */
+        min-width: 5.5rem;
+        max-width: 12rem;
+        overflow-wrap: break-word;
+        background-color: var(--modal-bg);
+        box-shadow: inset -1px 0 0 var(--border-color);
+    }
+    .table-scroll-container thead th:first-child,
+    .table-scroll-container tr:nth-child(even) td:first-child {
+        background-image: linear-gradient(var(--hover-bg), var(--hover-bg));
+    }
     .prose ul, .prose ol { margin-bottom: 1em; padding-left: 1.5em; }
     .prose ol { list-style-type: decimal; }
     .prose ul { list-style-type: disc; }
