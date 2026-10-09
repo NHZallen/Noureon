@@ -224,6 +224,39 @@ test('the picker never takes layout space and always fits on screen', async () =
   }
 });
 
+test('on a phone the picker hangs from the top of the composer box and keeps clear of the top bar', async () => {
+  const { document, window, cleanup } = createDom('<div id="file-input-container"></div>');
+  try {
+    const control = createDeckDesignControl({
+      document,
+      window,
+      getActiveConversation: () => ({ id: 'a', messages: [] }),
+      saveAppData: async () => {},
+      getUiLanguage: () => 'zh-TW',
+      loadPicker: async () => ({ renderDeckDesignPicker: () => ({ setCurrent() {} }) })
+    });
+    control.render();
+    const button = document.getElementById('deck-design-btn');
+    const popover = document.getElementById('deck-design-popover');
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 393 });
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 852 });
+    // The box of the composer is what the popover hangs from (its offset parent); the button is lower, in the row of tools.
+    const box = { top: 611, bottom: 700, left: 8, right: 385, width: 377, height: 89 };
+    Object.defineProperty(popover, 'offsetParent', { configurable: true, value: { getBoundingClientRect: () => box } });
+    button.getBoundingClientRect = () => ({ top: 655, bottom: 691, left: 60, right: 140, width: 80, height: 36 });
+    button.click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.equal(popover.style.bottom, '100%');
+    assert.equal(popover.style.marginBottom, '12px', 'a little above the box, as the model panel and the "+" menu are');
+    // The room is counted from the box, not from the button, and the top bar is kept clear: 611 - 12 - 108.
+    assert.equal(Number.parseFloat(popover.style.maxHeight), 611 - 12 - 108);
+    assert.equal(popover.style.left, '4px', 'it starts 12px from the screen edge, the box being 8px in');
+  } finally {
+    cleanup();
+  }
+});
+
 test('a chosen template is enforced on the reply: only its accent colours can change', async () => {
   const { enforceDeckTemplate } = await import('../../src/app/ui/files/design/deck-template-enforcer.js');
   const { parseDocumentSpec } = await import('../../src/app/ui/files/design/document-spec.js');

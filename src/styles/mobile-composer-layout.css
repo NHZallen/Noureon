@@ -66,4 +66,19 @@
     #submit-btn {
         grid-area: submit;
     }
+
+    /* The three panels that open above the tools (the "+" menu, the design panel and the model panel) hang from the top edge of the
+       composer box, so each one ends just above the box and none covers the editor. The two controls that hold the first two take no
+       position of their own here, which makes the box (.input-wrapper, positioned) the one they are placed against; the model panel
+       is placed against it already (model-picker.css), and the design panel's own placement is in deck-design-control.js. */
+    #file-input-container,
+    #deck-design-control {
+        position: static;
+    }
+
+    /* Its left edge is where the other two panels start (12px from the screen edge, the box being 8px in). */
+    #file-options-popover:not(.message-edit-shared-popover) {
+        left: 0.2rem;
+        margin-bottom: 0.75rem;
+    }
 }

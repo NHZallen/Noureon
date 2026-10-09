@@ -604,10 +604,9 @@
 }
 
 /* On a phone the panel opens the way the design picker does (deck-design-control.js): above the
-   tools row, starting at the first button and shifted in from the right edge, with the same width,
-   height limit and distance from that row. It is positioned against the composer, so the control
-   itself stays unpositioned. The tools row is 2.5rem tall inside 0.45rem of padding, and the
-   design button sits 4px below the row's top. */
+   composer box, starting at the first button and shifted in from the right edge, with the same
+   width and distance from the box (the "+" menu does the same, mobile-composer-layout.css). It is
+   positioned against the composer box, so the control itself stays unpositioned. */
 @media (max-width: 768px) {
     #model-council-control,
     #model-council-control .mp-anchor:first-child { position: static; }
@@ -616,13 +615,14 @@
         --mp-phone-width: max(200px, min(400px, calc(100vw - 24px)));
         position: absolute;
         right: auto;
-        bottom: calc(0.45rem + 2.75rem);
+        bottom: calc(100% + 0.75rem);
         left: min(0.55rem, calc(100vw - 21px - var(--mp-phone-width)));
         width: var(--mp-phone-width);
         /* A fixed size: searching does not shrink the panel, and the on-screen keyboard does not
-           resize it (following the keyboard made it shake as the keyboard slid in and out). */
-        height: min(70vh, 34rem);
-        max-height: min(70vh, 34rem);
+           resize it (following the keyboard made it shake as the keyboard slid in and out). It ends
+           above the composer box, so it is a little lower than before to keep clear of the top bar. */
+        height: min(58vh, 34rem);
+        max-height: min(58vh, 34rem);
         transform-origin: bottom left;
     }
 }
