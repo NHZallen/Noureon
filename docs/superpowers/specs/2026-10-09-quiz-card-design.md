@@ -79,3 +79,17 @@
 
 - 第三版樣式 owner 是否滿意（完成畫面、手機按鈕換行、題目字型）。
 - 跨對話的學習紀錄（B）排不排進計畫。
+
+## 11. Q1 實作紀錄（2026-10-09）
+
+做好了：格式解析、答題邏輯、卡片、樣式、五語文字、延遲載入、測試。**沒有做**（後面的階段）：存分數（Q2）、下載、「…」選單、「放大」（Q3）、「解釋」與「傳送結果」按鈕（Q4）、技能加進目錄（Q5）。所以現在的卡片只有：提示、選項、確認、結果帶、下一題、完成畫面、只重做答錯的、全部重來。
+
+- **`src/data/quiz-schema.js`**：`parseQuiz(text)`。限制 30 題、每題 2 到 6 個選項、是非題剛好 2 個選項、多選要 2 個以上正確且至少 1 個錯、答案從 0 算起（一律轉成清單）；文字清掉多餘空白、過長就截斷（不拒收）；選項可以是純字串；題目可以直接是陣列。錯誤：`empty`、`incomplete`（文字被截斷，括號沒關完或字串沒結束、而且沒有關錯括號：判斷成「還在串流」）、`not_json`、`not_object`、`no_questions`、`too_many_questions`、`bad_question`／`bad_options`／`bad_answer`（附第幾題）。
+- **`src/app/runtime/quiz/quiz-engine.js`**：`createQuizSession(quiz, { state, shuffleOptions, shuffleQuestions, random })`。選項每題打亂顯示（每個選擇都用選項在測驗裡的編號記，所以打亂不會讓答案錯位）；第一輪題目維持原順序，「全部重來」與「只重做答錯的」才打亂題目；單選一次選一個、多選可切換、**多選全對才算對**；確認前不能下一題、確認後不能改；`steps()` 給進度條；`score()`；`retryMissed()`；`restart()`；`state()` 是純資料，可存可還原（Q2 用），不合這份測驗的狀態會被忽略。
+- **`src/app/ui/quiz/quiz-card.js`**：`hydrateQuizCards({ root, language, store })`。占位 `div.quiz-card[data-quiz]`：串流中（`incomplete`）顯示「測驗準備中…」並下次再試；格式有誤顯示原文加原因；正常的畫成卡片。結果帶：答對先給正確選項的說明和補充說明，其他選項要按「看其他選項為什麼不對」；答錯給每個選項的說明（正確的標「正確答案」、選的標「你選的」），再給補充說明。鍵盤：字母選答案、Enter 確認與下一題（焦點在按鈕上時 Enter 由按鈕自己處理；Ctrl／Alt／Cmd 不攔）。目前作答先記在記憶體（`memoryStore`，用區塊內容的雜湊當鍵），卡片重畫時回到原位。
+- **`src/app/runtime/quiz/quiz-watch.js`**：像技能草稿一樣，用 MutationObserver 看到占位才動態載入卡片與樣式；接在 `research-mode.js`。**主要 JS 區塊 gzip 153.6 KB（上限 155），主要 CSS 沒有增加**（卡片 JS 19.6 KB／gzip 7.6 KB、樣式 9.6 KB／gzip 2.2 KB 都是獨立檔案，沒有測驗的頁面不會載入）。
+- **`markdown-rendering-helpers.js`**：` ```quiz ` 區塊換成占位。
+- **`quiz-texts.js`**：五語言（zh-TW、en、fr、ru、es），每個語言的鍵與 `{}` 欄位都一樣（有測試）。
+- **`quiz-card.css`**：只用 `tokens.css` 的色名（有測試：沒有十六進位色、rgb()、hsl()、`!important`），淺色、深色、手機都在真實程式裡看過（`quiz-card-drafts/render-in-app.mjs` 的做法）。
+- **測試：** `quiz-schema`、`quiz-engine`、`quiz-card`（共 21 項）。
+- **已知限制：** 作答目前只在這個頁面開著時記得（Q2 才存進對話）；題目文字目前是純文字（沒有 Markdown 與數學式）。
