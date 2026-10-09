@@ -40,7 +40,7 @@ export function stampItem(config, field, key, now = Date.now()) {
 const stampOf = (stamps, key) => Number(stamps?.[key]) || 0;
 
 /** Merges a list of items: { ids, stamps }. Local order first. */
-function mergeSet(localIds, localStamps, remoteIds, remoteStamps) {
+export function mergeSet(localIds, localStamps, remoteIds, remoteStamps) {
   const local = new Set(localIds);
   const remote = new Set(remoteIds);
   const keys = [...new Set([...localIds, ...remoteIds, ...Object.keys(localStamps), ...Object.keys(remoteStamps)])];

@@ -5,13 +5,14 @@
 //     it was when the settings were last sent (digestSettings), and stamps the ones that differ when it sends them again;
 //   - when settings meet the cloud's, a setting whose cloud stamp is later than this device's is taken from the cloud; otherwise this device keeps
 //     its own (so settings with no stamp on either side, made before stamps, behave as they always did: the device that sends wins).
-// Not merged here: the CLI lists (their own merge), the API keys (the vault), and the memory (it has its own merge). Pure functions.
+// Not merged here: the CLI and skill lists (their own merge), the API keys (the vault), and the memory (it has its own merge). Pure functions.
 
 import { CLI_MERGED_FIELDS, normalizeStamps } from './cli-settings-merge.js';
+import { SKILL_MERGED_FIELDS } from './skill-settings-merge.js';
 
 export const SETTINGS_STAMPS_FIELD = 'settingsStamps';
 /** Settings that are not merged key by key. */
-export const NOT_MERGED_SETTINGS = Object.freeze(new Set([...CLI_MERGED_FIELDS, SETTINGS_STAMPS_FIELD, 'apiKeys', 'memorySync']));
+export const NOT_MERGED_SETTINGS = Object.freeze(new Set([...CLI_MERGED_FIELDS, ...SKILL_MERGED_FIELDS, SETTINGS_STAMPS_FIELD, 'apiKeys', 'memorySync']));
 
 const settingKey = (key) => {
   const name = String(key || '');

@@ -58,6 +58,10 @@ const expectedConfig = (defaultModelId) => ({
   cliStamps: {},
   cliUseStamps: {},
   netStamps: {},
+  skillEnabledIds: [],
+  skillModelUseIds: [],
+  skillStamps: {},
+  skillUseStamps: {},
   settingsStamps: {},
   councilTranslatorModelId: null,
   singleDocumentTranslatorModelId: null
