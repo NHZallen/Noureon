@@ -13,6 +13,9 @@ import { openSkillBundleModal } from '../src/app/ui/skill/skill-bundle-modal.js'
 import { formatFileSize } from '../src/app/ui/skill/skill-file-size.js';
 import { readSkillBundle } from '../src/data/skill-bundle.js';
 
+// These tests put the official skills they need in the list themselves; the real ones are looked at in skill-settings-merge.test.js and skill-creator.test.js.
+OFFICIAL_SKILL_CATALOG.length = 0;
+
 afterEach(() => closeCliStore());
 
 const tick = (ms = 20) => new Promise((resolve) => setTimeout(resolve, ms));

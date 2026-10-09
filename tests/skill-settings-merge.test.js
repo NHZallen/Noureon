@@ -43,9 +43,11 @@ test('a change leaves a stamp, and the merge says what it changed', () => {
   assert.deepEqual(changedSkillFields(config, merged), ['skillEnabledIds', 'skillStamps']);
 });
 
-test('the skill lists are not merged as ordinary settings, and the official catalog follows its rules', () => {
+test('the skill lists are not merged as ordinary settings, and the official catalog follows its rules', async () => {
   for (const field of SKILL_MERGED_FIELDS) assert.ok(NOT_MERGED_SETTINGS.has(field), field);
-  for (const skill of OFFICIAL_SKILL_CATALOG) assert.deepEqual(validateSkillEntry(skill), [], skill.name);
+  const { OFFICIAL_SKILL_BODIES } = await import('../src/data/skill-catalog-bodies.js');
+  for (const skill of OFFICIAL_SKILL_CATALOG) assert.deepEqual(validateSkillEntry({ ...skill, body: skill.body || OFFICIAL_SKILL_BODIES[skill.name] }), [], skill.name);
+  assert.deepEqual(Object.keys(OFFICIAL_SKILL_BODIES).sort(), OFFICIAL_SKILL_CATALOG.filter((skill) => !skill.body).map((skill) => skill.name).sort(), 'every official skill has its text, and no text is left over');
   assert.equal(new Set(OFFICIAL_SKILL_CATALOG.map((skill) => skill.name)).size, OFFICIAL_SKILL_CATALOG.length, 'names are unique');
   assert.equal(getOfficialSkill('nothing'), null);
   assert.equal(isOfficialSkillName('nothing'), false);

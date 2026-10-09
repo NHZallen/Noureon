@@ -228,6 +228,14 @@ export function createMarkdownRenderingHelpers({
       chartLabel: getText('chart', runtimeTexts.chart)
     });
 
+    // A skill a model wrote for the person (a ```skill-draft block): only a placeholder here; the card is made when the skill part of the page has loaded (skill-draft-watch.js).
+    documentFragment.body.querySelectorAll('pre > code.language-skill-draft').forEach((code) => {
+      const placeholder = documentFragment.createElement('div');
+      placeholder.className = 'skill-draft-card';
+      placeholder.dataset.draft = encodeURIComponent(code.textContent || '');
+      code.parentElement.replaceWith(placeholder);
+    });
+
     // Files the reply's Python runs made, newest version of each. Pictures a
     // document of the reply shows ("asset:name") are part of that document.
     const canRerun = Boolean(sandboxRun?.steps?.some((step) => step.code));

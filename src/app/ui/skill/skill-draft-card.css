@@ -1,0 +1,17 @@
+/* The card of a skill a model wrote (skill-draft-card.js): the chat's own look, black and white, from the tokens only. Loaded with the first card. */
+.skill-draft-card { box-sizing: border-box; margin: 0.8rem 0; border: 1px solid var(--border-color); border-radius: 1rem; }
+.skill-draft-card:not([data-ready]) { min-height: 0; border: 0; }
+.skill-draft-head { display: flex; align-items: flex-start; gap: 0.8rem; padding: 0.9rem 1rem 0.5rem; }
+.skill-draft-mark { display: inline-flex; flex: none; align-items: center; justify-content: center; width: 2.4rem; height: 2.4rem; border: 1px solid var(--border-color); border-radius: 0.7rem; }
+.skill-draft-titles { display: flex; flex-direction: column; min-width: 0; gap: 0.1rem; }
+.skill-draft-kind { color: var(--text-secondary); font-size: 0.75rem; }
+.skill-draft-name { overflow-wrap: anywhere; font-size: 1rem; }
+.skill-draft-description { color: var(--text-secondary); font-size: 0.88rem; line-height: 1.5; overflow-wrap: anywhere; }
+.skill-draft-details { padding: 0 1rem; }
+.skill-draft-details > summary { cursor: pointer; padding: 0.4rem 0; color: var(--text-secondary); font-size: 0.85rem; }
+.skill-draft-text, .skill-draft-code { box-sizing: border-box; max-height: 18rem; overflow: auto; margin: 0.2rem 0 0.6rem; padding: 0.7rem 0.8rem; border: 1px solid var(--border-color); border-radius: 0.7rem; background: var(--hover-bg); font: 0.8rem/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+.skill-draft-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.7rem; padding: 0.5rem 1rem 0.9rem; }
+.skill-draft-add { padding: 0.5rem 1.1rem; border: 0; border-radius: 9999px; background: var(--button-primary-bg); color: var(--button-primary-text); font: inherit; font-size: 0.9rem; font-weight: 600; cursor: pointer; }
+.skill-draft-hint, .skill-draft-note { color: var(--text-secondary); font-size: 0.8rem; }
+.skill-draft-card.is-invalid { padding: 0.2rem 1rem 0.6rem; }
+.skill-draft-note { margin: 0 0 0.4rem; }

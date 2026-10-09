@@ -352,6 +352,10 @@
       "note": "Reviewed 2026-10-09: pure functions over bytes (reading and checking the zip of a skill with files; jszip is loaded when it is used, as the server already does for the office fonts); the server opens a stored zip with it before it gives a model a file."
     },
     {
+      "path": "src/data/skill-catalog-bodies.js",
+      "note": "Reviewed 2026-10-09: one frozen object of texts (the text of each official skill); the server reads the text of an official skill from it."
+    },
+    {
       "path": "src/data/skill-catalog.js",
       "note": "Reviewed 2026-10-09: plain data and pure functions (the official skills, and what the page calls them); the server reads the text of an official skill from it."
     },

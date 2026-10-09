@@ -65,6 +65,8 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
     expanded: new Set(),
     // The files of skills with files that are open for reading: 'skill-name/path' -> { status: 'loading' | 'ready' | 'failed', text?, cut? }.
     openFiles: new Map(),
+    // The text of the official skills whose details were opened (it is a file of its own, loaded then): name -> text.
+    officialBodies: new Map(),
     menuFor: null
   };
   const view = () => state.views[state.kind];
@@ -376,15 +378,27 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
     if (state.expanded.has(skill.name)) {
       element.append(make(document, 'p', 'cs-about', skillDescription(skill, getLanguage())));
       // What the model is given, in full: a skill is read before it is trusted.
-      element.append(make(document, 'pre', 'cs-skill-text', skill.body));
+      const body = skill.body || state.officialBodies.get(skill.name) || '';
+      if (!body && skill.source === 'official') loadOfficialBody(skill.name);
+      element.append(make(document, 'pre', 'cs-skill-text', body || t('skillFileLoading')));
       const details = make(document, 'dl', 'cs-details');
       details.append(make(document, 'dt', '', t('skillDetailsSource')), make(document, 'dd', '', t(skill.source === 'official' ? 'skillSourceOfficial' : 'skillSourceYours')));
       if (skill.version) details.append(make(document, 'dt', '', t('version')), make(document, 'dd', '', skill.version));
-      details.append(make(document, 'dt', '', t('skillDetailsSize')), make(document, 'dd', '', t('skillSizeChars', { count: skill.body.length })));
+      if (body) details.append(make(document, 'dt', '', t('skillDetailsSize')), make(document, 'dd', '', t('skillSizeChars', { count: body.length })));
       element.append(details);
       if (skill.files?.length) element.append(skillFiles(skill));
     }
     return element;
+  };
+
+  const askedBodies = new Set();
+  const loadOfficialBody = (name) => {
+    if (askedBodies.has(name)) return;
+    askedBodies.add(name);
+    import('../../../data/skill-catalog.js').then(({ loadOfficialSkillBody }) => loadOfficialSkillBody(name)).then((text) => {
+      state.officialBodies.set(name, text || '');
+      draw();
+    }).catch(() => { askedBodies.delete(name); });
   };
 
   // The files of a skill that came as a zip: their names, and the text of one when it is clicked (the zip is opened from the cloud the first time).

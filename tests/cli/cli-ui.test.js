@@ -8,6 +8,10 @@ import { createCliMode } from '../../src/app/runtime/cli/cli-mode.js';
 import { getCliSelection } from '../../src/app/runtime/cli/cli-bridge.js';
 import { closeCliStore, openCliStore } from '../../src/app/ui/cli/cli-store.js';
 import { chipCloseButton } from '../../src/app/runtime/features/composer-chip.js';
+import { OFFICIAL_SKILL_CATALOG } from '../../src/data/skill-catalog.js';
+
+// The page of the skills is tried empty here (its "coming soon" page); the official skills of the app are looked at in skill-creator.test.js.
+OFFICIAL_SKILL_CATALOG.length = 0;
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 10));
 

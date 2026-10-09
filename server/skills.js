@@ -3,7 +3,7 @@
 // table user_skills (only the rows of that person; the server reads them with its service role). A skill that came as a zip also has files: the list is in its
 // row, and a text file is read from the stored zip, which is opened again with the checks of src/data/skill-bundle.js (what is stored is not trusted).
 
-import { getOfficialSkill } from '../src/data/skill-catalog.js';
+import { getOfficialSkill, loadOfficialSkillBody } from '../src/data/skill-catalog.js';
 import { isSkillName } from '../src/data/skill-format.js';
 import { SKILL_BUNDLE_LIMITS, bundleFileList, bundleFileText, readSkillBundle } from '../src/data/skill-bundle.js';
 
@@ -39,7 +39,10 @@ export function createServerSkills({ db, bundles = null, now = Date.now }) {
     async body(userId, name) {
       if (!isSkillName(name)) return null;
       const official = getOfficialSkill(name);
-      if (official) return { name: official.name, body: official.body };
+      if (official) {
+        const body = await loadOfficialSkillBody(name);
+        return body ? { name: official.name, body } : null;
+      }
       if (!userId) return null;
       const rows = await db.select('user_skills', { filters: { user_id: `eq.${userId}`, name: `eq.${name}` }, select: 'name,body,files', limit: 1 });
       const row = Array.isArray(rows) ? rows[0] : null;

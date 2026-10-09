@@ -7,9 +7,10 @@ import { skillText } from '../../runtime/skill/skill-texts.js';
 
 /**
  * `onSubmit(text, { replace })` resolves { ok: true } (the window closes) or { ok: false, error } (it stays, with the reason; `name_taken` offers
- * "Replace"). `existing(name)` tells whether the person already has a skill of that name. Returns { close }.
+ * "Replace"). `existing(name)` tells whether the person already has a skill of that name. `initialText` is a text to start with (the draft a model wrote:
+ * it is checked at once, and the person reads it and presses "Add"). Returns { close }.
  */
-export function openSkillPasteModal({ document, language, onSubmit, existing = () => false, onClose = () => {} }) {
+export function openSkillPasteModal({ document, language, onSubmit, existing = () => false, initialText = '', onClose = () => {} }) {
   const t = (key, values) => skillText(language, key, values);
   const make = (tag, className, content) => {
     const node = document.createElement(tag);
@@ -133,6 +134,10 @@ export function openSkillPasteModal({ document, language, onSubmit, existing = (
     refresh();
   });
 
+  if (initialText) {
+    area.value = String(initialText);
+    refresh();
+  }
   area.focus?.();
   return { close, element: overlay };
 }

@@ -15,6 +15,8 @@ export function createLazySkillStore(options) {
     ensure: async () => (await load()).ensure(),
     list: async (listOptions) => (await load()).list(listOptions),
     add: async (text, addOptions) => (await load()).add(text, addOptions),
+    addBundle: async (input, addOptions) => (await load()).addBundle(input, addOptions),
+    openBundle: async (name) => (await load()).openBundle(name),
     remove: async (name) => (await load()).remove(name)
   };
 }

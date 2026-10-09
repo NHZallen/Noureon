@@ -226,6 +226,19 @@ test('the store the page holds loads the real one the first time it is asked, an
   assert.equal(await store.ensure(), true);
 });
 
+test('the store the page holds has every call the page makes (a skill as a zip too), not only the ones of a pasted skill', async () => {
+  const { createLazySkillStore } = await import('../src/app/runtime/skill/lazy-skill-store.js');
+  const { createSkillStore } = await import('../src/app/runtime/skill/skill-store.js');
+  const real = createSkillStore({ getClient: () => fakeClient().client, getUserId: () => 'u1' });
+  const lazy = createLazySkillStore({ getClient: () => fakeClient().client, getUserId: () => 'u1' });
+  // Whatever the real store offers as a function, the one the page holds offers too (a call that is missing is a page that breaks only when it is used).
+  for (const name of Object.keys(real).filter((key) => typeof real[key] === 'function')) assert.equal(typeof lazy[name], 'function', name);
+  const fake = fakeClient();
+  const held = createLazySkillStore({ getClient: () => fake.client, getUserId: () => 'u1' });
+  assert.equal((await held.addBundle(await zipWith('zip-skill', { 'references/a.md': 'a' }))).ok, true);
+  assert.equal(new TextDecoder().decode((await held.openBundle('zip-skill')).files[0].bytes), 'a');
+});
+
 const zipWith = async (name, extra = {}) => {
   const zip = new JSZip();
   zip.file('SKILL.md', text(name));

@@ -48,6 +48,9 @@ function page({ language = 'en', config = {}, rows = [], opened = [] } = {}) {
 }
 const own = (name, description = 'd', body = `Text of ${name}.`) => ({ name, description, body });
 
+// These tests put the official skills they need in the list themselves; the real ones are looked at in skill-settings-merge.test.js and skill-creator.test.js.
+OFFICIAL_SKILL_CATALOG.length = 0;
+
 afterEach(() => clearSkillSelection());
 
 test('"/" opens the list of the skills the person has, narrows as it is typed, and Enter puts a chip in and takes the "/" away', async () => {

@@ -10,6 +10,9 @@ import { createSkillBundleStore } from '../../server/skill-bundles.js';
 import { SKILL_BUNDLE_LIMITS, skillBundlePath } from '../../src/data/skill-bundle.js';
 import JSZip from 'jszip';
 
+// These tests put the official skills they need in the list themselves; the real ones are looked at in skill-settings-merge.test.js and skill-creator.test.js.
+OFFICIAL_SKILL_CATALOG.length = 0;
+
 const ID_A = '123e4567-e89b-12d3-a456-426614174000';
 const ID_B = '223e4567-e89b-12d3-a456-426614174001';
 const sse = (...objects) => `${objects.map((object) => `data: ${JSON.stringify(object)}\n\n`).join('')}data: [DONE]\n\n`;

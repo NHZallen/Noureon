@@ -6,7 +6,7 @@ import { renderComposerToolIcon } from '../../composer-tool-icons.js';
 import { registerResearchMode } from './research-bridge.js';
 import { getResearch, subscribeAnyResearch } from './research-store.js';
 import { createCliMode } from '../cli/cli-mode.js';
-import { createSkillMode } from '../skill/skill-mode.js';
+import { createLazySkillMode } from '../skill/lazy-skill-mode.js';
 import { createLazySkillStore } from '../skill/lazy-skill-store.js';
 import { researchText } from './research-texts.js';
 
@@ -59,7 +59,7 @@ export function createResearchMode({
     : null;
   // The skills share it too: "/" in the box, and the chip of a skill (a temporary chat has them as well, those that are only words: not those with a script).
   const skills = typeof messageInput?.addEventListener === 'function' && typeof document?.addEventListener === 'function'
-    ? createSkillMode({ document, messageInput, getConfig, getUiLanguage, refresh: () => refresh(), skillStore, openStore: (kind) => cli?.openStore?.(kind), isTemporary: () => { const conversation = getActiveConversation(); return Boolean(conversation?.isTemporary || conversation?.retentionMode === 'ephemeral'); }, logger })
+    ? createLazySkillMode({ document, messageInput, getConfig, getUiLanguage, refresh: () => refresh(), skillStore, openStore: (kind) => cli?.openStore?.(kind), isTemporary: () => { const conversation = getActiveConversation(); return Boolean(conversation?.isTemporary || conversation?.retentionMode === 'ephemeral'); }, saveConfig, showNotification, getAccountReady: () => serverReply.hasAccount(), logger })
     : null;
   const getSync = () => globalThis.__astraCloudSyncV2;
   const warn = (...args) => logger?.warn?.(...args);

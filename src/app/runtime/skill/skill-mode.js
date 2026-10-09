@@ -251,7 +251,13 @@ export function createSkillMode({ document, messageInput, getConfig, getUiLangua
   };
   const resolve = async (names) => {
     await readOwn();
-    return resolveSkillBodies(getConfig(), own(), names).filter((skill) => !hasScript(skill) || !isTemporary());
+    const found = resolveSkillBodies(getConfig(), own(), names).filter((skill) => !hasScript(skill) || !isTemporary());
+    // The text of an official skill is in a file of its own, loaded when a skill is used.
+    if (found.some((skill) => !skill.body)) {
+      const { loadOfficialSkillBody } = await import('../../../data/skill-catalog.js');
+      for (const skill of found) if (!skill.body) skill.body = await loadOfficialSkillBody(skill.name);
+    }
+    return found;
   };
   /**
    * The skills the model may load by itself in this reply: [{ name, description, files?, given? }], without the ones asked for with "/" (they are given
@@ -284,7 +290,7 @@ export function createSkillMode({ document, messageInput, getConfig, getUiLangua
     }
   };
 
-  const mode = { sync, indicators, selection, clear, closeMenu, resolve, available, lookup, readFile };
+  const mode = { sync, indicators, selection, clear, closeMenu, resolve, available, lookup, readFile, evaluate };
   registerSkillMode(mode);
   return mode;
 }

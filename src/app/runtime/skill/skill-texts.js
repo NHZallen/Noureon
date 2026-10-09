@@ -70,7 +70,12 @@ export const SKILL_TEXTS = Object.freeze({
     skillErr_too_many_files: '檔案最多 60 個。',
     skillErr_file_too_large: '單一檔案最大 2 MB。',
     skillErr_bundle_too_large: '全部檔案加起來最大 10 MB。',
-    skillErr_skill_md_missing: '技能包裡找不到 SKILL.md。'
+    skillErr_skill_md_missing: '技能包裡找不到 SKILL.md。',
+    skillDraftLabel: '技能草稿',
+    skillDraftShowText: '看全文（{count} 字）',
+    skillDraftAdd: '檢視並加入',
+    skillDraftHint: '會打開視窗，讓你看過全文再按「加入」。',
+    skillDraftInvalid: '這份草稿還不能加入：{reason}請請模型修正。'
   },
   en: {
     skillsSearchPlaceholder: 'Search skills',
@@ -139,7 +144,12 @@ export const SKILL_TEXTS = Object.freeze({
     skillErr_too_many_files: 'At most 60 files.',
     skillErr_file_too_large: 'One file can be 2 MB at most.',
     skillErr_bundle_too_large: 'All the files together can be 10 MB at most.',
-    skillErr_skill_md_missing: 'No SKILL.md was found in the pack.'
+    skillErr_skill_md_missing: 'No SKILL.md was found in the pack.',
+    skillDraftLabel: 'Skill draft',
+    skillDraftShowText: 'Read the text ({count} characters)',
+    skillDraftAdd: 'Review and add',
+    skillDraftHint: 'A window opens so you can read it all before you press “Add”.',
+    skillDraftInvalid: 'This draft cannot be added yet: {reason} Ask the model to fix it.'
   },
   fr: {
     skillsSearchPlaceholder: 'Rechercher des compétences',
@@ -208,7 +218,12 @@ export const SKILL_TEXTS = Object.freeze({
     skillErr_too_many_files: '60 fichiers au maximum.',
     skillErr_file_too_large: 'Un fichier fait 2 Mo au maximum.',
     skillErr_bundle_too_large: 'L’ensemble des fichiers fait 10 Mo au maximum.',
-    skillErr_skill_md_missing: 'Aucun SKILL.md dans le pack.'
+    skillErr_skill_md_missing: 'Aucun SKILL.md dans le pack.',
+    skillDraftLabel: 'Brouillon de compétence',
+    skillDraftShowText: 'Lire le texte ({count} caractères)',
+    skillDraftAdd: 'Relire et ajouter',
+    skillDraftHint: 'Une fenêtre s’ouvre pour tout lire avant d’appuyer sur « Ajouter ».',
+    skillDraftInvalid: 'Ce brouillon ne peut pas encore être ajouté : {reason} Demandez au modèle de le corriger.'
   },
   ru: {
     skillsSearchPlaceholder: 'Поиск навыков',
@@ -277,7 +292,12 @@ export const SKILL_TEXTS = Object.freeze({
     skillErr_too_many_files: 'Не более 60 файлов.',
     skillErr_file_too_large: 'Один файл — не более 2 МБ.',
     skillErr_bundle_too_large: 'Все файлы вместе — не более 10 МБ.',
-    skillErr_skill_md_missing: 'В пакете нет файла SKILL.md.'
+    skillErr_skill_md_missing: 'В пакете нет файла SKILL.md.',
+    skillDraftLabel: 'Черновик навыка',
+    skillDraftShowText: 'Прочитать текст ({count} символов)',
+    skillDraftAdd: 'Проверить и добавить',
+    skillDraftHint: 'Откроется окно, где можно прочесть всё, прежде чем нажать «Добавить».',
+    skillDraftInvalid: 'Этот черновик пока нельзя добавить: {reason} Попросите модель исправить его.'
   },
   es: {
     skillsSearchPlaceholder: 'Buscar habilidades',
@@ -346,7 +366,12 @@ export const SKILL_TEXTS = Object.freeze({
     skillErr_too_many_files: 'Máximo 60 archivos.',
     skillErr_file_too_large: 'Un archivo puede tener 2 MB como máximo.',
     skillErr_bundle_too_large: 'Todos los archivos juntos pueden tener 10 MB como máximo.',
-    skillErr_skill_md_missing: 'No se encontró SKILL.md en el paquete.'
+    skillErr_skill_md_missing: 'No se encontró SKILL.md en el paquete.',
+    skillDraftLabel: 'Borrador de habilidad',
+    skillDraftShowText: 'Leer el texto ({count} caracteres)',
+    skillDraftAdd: 'Revisar y añadir',
+    skillDraftHint: 'Se abre una ventana para leerlo todo antes de pulsar «Añadir».',
+    skillDraftInvalid: 'Este borrador aún no se puede añadir: {reason} Pide al modelo que lo corrija.'
   }
 });
 
