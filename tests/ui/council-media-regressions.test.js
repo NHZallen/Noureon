@@ -52,7 +52,7 @@ test('the model picker is one panel with a bounded, quietly scrolling list and a
   assert.match(css, /\.mp-slider-track\s*\{[^}]*inset:\s*var\(--mp-inset\);/s);
   assert.match(css, /\.mp-slider-fill\s*\{[^}]*opacity:\s*clamp\(0,/s);
   // A phone gets the panel where the design picker opens: the same width and bottom edge, just above the composer box (the '+' menu too).
-  assert.match(css, /@media\s*\(max-width:\s*768px\)\s*\{[\s\S]*\.mp-panel:not\(\.mp-depth-panel\)\s*\{[^}]*position:\s*absolute;[^}]*bottom:\s*calc\(100% \+ 0\.75rem\);[^}]*width:\s*var\(--mp-phone-width\);[^}]*height:\s*min\(58vh,\s*34rem\);[^}]*max-height:\s*min\(58vh,\s*34rem\);/);
+  assert.match(css, /@media\s*\(max-width:\s*768px\)\s*\{[\s\S]*\.mp-panel:not\(\.mp-depth-panel\)\s*\{[^}]*position:\s*absolute;[^}]*bottom:\s*calc\(100% \+ 0\.75rem\);[^}]*width:\s*var\(--mp-phone-width\);[^}]*height:\s*var\(--mp-phone-height,\s*min\(70vh,\s*34rem\)\);[^}]*max-height:\s*var\(--mp-phone-height,\s*min\(70vh,\s*34rem\)\);/);
   // The thinking control is small: its own button and a narrow panel, not part of the model list.
   assert.match(css, /\.mp-panel\.mp-depth-panel\s*\{[^}]*width:\s*min\(14\.5rem,/);
   assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)/);

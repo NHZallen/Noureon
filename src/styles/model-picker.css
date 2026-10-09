@@ -619,10 +619,11 @@
         left: min(0.55rem, calc(100vw - 21px - var(--mp-phone-width)));
         width: var(--mp-phone-width);
         /* A fixed size: searching does not shrink the panel, and the on-screen keyboard does not
-           resize it (following the keyboard made it shake as the keyboard slid in and out). It ends
-           above the composer box, so it is a little lower than before to keep clear of the top bar. */
-        height: min(58vh, 34rem);
-        max-height: min(58vh, 34rem);
+           resize it (following the keyboard made it shake as the keyboard slid in and out). The height
+           is set when it opens (council-controls-lifecycle.js): from just above the composer box up to
+           just under the row of buttons at the top; without it, a share of the screen. */
+        height: var(--mp-phone-height, min(70vh, 34rem));
+        max-height: var(--mp-phone-height, min(70vh, 34rem));
         transform-origin: bottom left;
     }
 }

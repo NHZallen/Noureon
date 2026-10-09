@@ -333,3 +333,11 @@ owner 用截圖指出：手機上「+」選單、設計面板、模型選擇面�
 
 - **現在三個都掛在整個輸入框（`.input-wrapper`，本來就有定位）的頂端，底邊在框上方 0.75rem：** `mobile-composer-layout.css`（768px 以下）把 `#file-input-container` 和 `#deck-design-control` 設成 `position: static`，面板就以輸入框為定位基準；「+」選單 `left: 0.2rem`，三個面板的左緣都在離螢幕邊 12px 的位置；模型面板 `bottom: calc(100% + 0.75rem)`，高度改成 `min(58vh, 34rem)`（底邊升高了，不然頂端會碰到上方的列）；設計面板由 `deck-design-control.js` 的 `place()` 在手機寬度改用輸入框的上緣算位置（距離 12px，並替上方的列留 108px，最高 544px），桌面版維持原本以按鈕為準。
 - 實測（Chromium，393 × 852，用打包出來的真實 CSS 搭的輸入框）：輸入框頂端 749，三個面板的底邊都在 738（設計面板的 JS 距離在真實頁面才會加上，結果同為 738）。
+
+### 25.3 手機上的面板往上多撐一些（2026-10-09，同一天第三次）
+
+owner 看第一版的截圖後要求面板頂端升到頂端那一列圖示的正下方（他畫紅線的位置），能多顯示一些內容。第一版替上方留了 108px（設計面板），模型面板的高度只有視窗的 58%，頂端離那條線還有很大一段。
+
+- **設計面板：** `deck-design-control.js` 的 `PHONE_TOP_ROOM` 從 108 改成 56（量到的實際畫面：頂端列圖示的下緣在頁面可見區頂端下方約 51px）。
+- **模型面板：** 高度不再是視窗的固定比例，改成開啟時依輸入框的位置量一次：`council-controls-lifecycle.js` 的 `fitPhonePanel` 算出「輸入框上緣 − 12px − 56px」，夾在 200 到 544px 之間，寫進 `#model-council-control` 的 `--mp-phone-height`；`model-picker.css` 用 `height: var(--mp-phone-height, min(70vh, 34rem))`。兩個入口（點按鈕、選單的「模型理事會」）都會量；寬螢幕會把這個變數移掉，交回樣式。輸入框變高（多行輸入）時，面板頂端也不會超過那條線。設計面板用的是同一套數字。
+

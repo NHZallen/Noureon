@@ -395,6 +395,24 @@ export function createCouncilControlsLifecycle(deps) {
     return container;
   };
 
+  // On a phone the model panel is a fixed height (searching does not shrink it) that reaches from just above the composer box up to just under the row of buttons at the
+  // top of the screen, as the design panel does (deck-design-control.js); measured once when it opens, from where the box is then.
+  const PHONE_PANEL_TOP_ROOM = 56;
+  const PHONE_PANEL_GAP = 12;
+  const PHONE_PANEL_MAX = 544;
+  const PHONE_PANEL_MIN = 200;
+  const fitPhonePanel = (container) => {
+    const view = document.defaultView;
+    if (!container || !view || view.innerWidth > 768) {
+      container?.style.removeProperty('--mp-phone-height');
+      return;
+    }
+    const box = container.closest('.input-wrapper');
+    if (!box) return;
+    const room = box.getBoundingClientRect().top - PHONE_PANEL_GAP - PHONE_PANEL_TOP_ROOM;
+    container.style.setProperty('--mp-phone-height', `${Math.round(Math.max(PHONE_PANEL_MIN, Math.min(PHONE_PANEL_MAX, room)))}px`);
+  };
+
   // Opens the model panel or the thinking panel, or closes both. Only one is open at a time.
   const setPanelOpen = (container, which, open) => {
     closeAllPopovers();
@@ -403,6 +421,7 @@ export function createCouncilControlsLifecycle(deps) {
         view = 'main';
         query = '';
       }
+      if (which === 'model') fitPhonePanel(container);
       renderCouncilControls({ open: which });
       if (which === 'model') {
         const search = container.querySelector('[data-mp-search]');
@@ -822,6 +841,7 @@ export function createCouncilControlsLifecycle(deps) {
     closeAllPopovers();
     view = 'main';
     query = '';
+    fitPhonePanel(container);
     renderCouncilControls({ open: 'model' });
     return true;
   };

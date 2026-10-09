@@ -224,7 +224,7 @@ test('the picker never takes layout space and always fits on screen', async () =
   }
 });
 
-test('on a phone the picker hangs from the top of the composer box and keeps clear of the top bar', async () => {
+test('on a phone the picker hangs from the top of the composer box and rises to just under the top row of buttons', async () => {
   const { document, window, cleanup } = createDom('<div id="file-input-container"></div>');
   try {
     const control = createDeckDesignControl({
@@ -241,7 +241,7 @@ test('on a phone the picker hangs from the top of the composer box and keeps cle
     Object.defineProperty(window, 'innerWidth', { configurable: true, value: 393 });
     Object.defineProperty(window, 'innerHeight', { configurable: true, value: 852 });
     // The box of the composer is what the popover hangs from (its offset parent); the button is lower, in the row of tools.
-    const box = { top: 611, bottom: 700, left: 8, right: 385, width: 377, height: 89 };
+    const box = { top: 520, bottom: 609, left: 8, right: 385, width: 377, height: 89 };
     Object.defineProperty(popover, 'offsetParent', { configurable: true, value: { getBoundingClientRect: () => box } });
     button.getBoundingClientRect = () => ({ top: 655, bottom: 691, left: 60, right: 140, width: 80, height: 36 });
     button.click();
@@ -249,8 +249,8 @@ test('on a phone the picker hangs from the top of the composer box and keeps cle
     await new Promise((resolve) => setTimeout(resolve, 0));
     assert.equal(popover.style.bottom, '100%');
     assert.equal(popover.style.marginBottom, '12px', 'a little above the box, as the model panel and the "+" menu are');
-    // The room is counted from the box, not from the button, and the top bar is kept clear: 611 - 12 - 108.
-    assert.equal(Number.parseFloat(popover.style.maxHeight), 611 - 12 - 108);
+    // The room is counted from the box, not from the button, up to just under the top row of buttons: 520 - 12 - 56.
+    assert.equal(Number.parseFloat(popover.style.maxHeight), 520 - 12 - 56);
     assert.equal(popover.style.left, '4px', 'it starts 12px from the screen edge, the box being 8px in');
   } finally {
     cleanup();

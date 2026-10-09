@@ -78,15 +78,15 @@ export function createDeckDesignControl({
   // never taller than the space on that side. On a phone the panel hangs from
   // the top edge of the whole composer box (its offset parent: the style gives
   // the control no position of its own there), so it ends above the box and
-  // does not cover the editor, like the model panel and the "+" menu; it keeps
-  // clear of the bar at the top of the screen.
+  // does not cover the editor, like the model panel and the "+" menu; it rises
+  // to just under the row of buttons at the top of the screen.
   const EDGE = 12;
   const PREFERRED_HEIGHT = 544;
   const MIN_ABOVE = 320;
   const PREFERRED_WIDTH = 400;
   const PHONE_WIDTH = 768;
   const PHONE_GAP = 12;
-  const PHONE_TOP_ROOM = 108;
+  const PHONE_TOP_ROOM = 56;
   const place = (button, popover) => {
     const rect = button.getBoundingClientRect();
     const viewportHeight = window?.innerHeight || document.documentElement.clientHeight || 800;
