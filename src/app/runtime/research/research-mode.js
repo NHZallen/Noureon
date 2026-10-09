@@ -63,7 +63,7 @@ export function createResearchMode({
     ? createLazySkillMode({ document, messageInput, getConfig, getUiLanguage, refresh: () => refresh(), skillStore, openStore: (kind) => cli?.openStore?.(kind), isTemporary: () => { const conversation = getActiveConversation(); return Boolean(conversation?.isTemporary || conversation?.retentionMode === 'ephemeral'); }, saveConfig, showNotification, getAccountReady: () => serverReply.hasAccount(), logger })
     : null;
   // The cards of the quizzes a model wrote (```quiz): made when a placeholder is on the page.
-  if (typeof document?.addEventListener === 'function') createQuizWatch({ document, getUiLanguage, logger });
+  if (typeof document?.addEventListener === 'function') createQuizWatch({ document, getUiLanguage, getActiveConversation, saveAppData, logger });
   const getSync = () => globalThis.__astraCloudSyncV2;
   const warn = (...args) => logger?.warn?.(...args);
   const releaseBusy = () => {

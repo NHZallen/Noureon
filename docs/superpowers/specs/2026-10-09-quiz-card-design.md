@@ -93,3 +93,11 @@
 - **`quiz-card.css`**：只用 `tokens.css` 的色名（有測試：沒有十六進位色、rgb()、hsl()、`!important`），淺色、深色、手機都在真實程式裡看過（`quiz-card-drafts/render-in-app.mjs` 的做法）。
 - **測試：** `quiz-schema`、`quiz-engine`、`quiz-card`（共 21 項）。
 - **已知限制：** 作答目前只在這個頁面開著時記得（Q2 才存進對話）；題目文字目前是純文字（沒有 Markdown 與數學式）。
+
+## 12. Q2 實作紀錄（2026-10-09）：存分數（A）
+
+- **存在哪裡：** 訊息的 `metadata.quiz`，每個測驗區塊一筆（鍵是區塊內容的雜湊），內容是答題引擎的 `state()`（哪一輪、第幾題、每題選了什麼、對錯、選項順序）。**不新增資料表**；跟著訊息存進本機，雲端同步時也跟著（`cloud-sync-v2-codecs.js` 的 `KEPT_MESSAGE_METADATA` 加了 `quiz`，單一訊息的 metadata 上限 20,000 字元；每筆記錄超過 8,000 字或同一則訊息加起來超過 16,000 字就不存，只留在頁面）。訊息的畫面簽章（`messageViewSignature`）本來就不含 metadata，所以存作答不會讓訊息重畫。
+- **`src/app/runtime/quiz/quiz-store.js`**：`createQuizStores({ memory, getActiveConversation, saveAppData })` 回傳 `storeFor(element)`：卡片所在的訊息（`[data-message-index]` 的 `__astraRenderedMessage`）用物件或 id 對到目前對話自己的那則訊息，寫在它的 `metadata.quiz` 並更新對話的 `lastUpdatedAt`，400 毫秒內的多次點擊合併成一次 `saveAppData()`。**臨時對話**（`isTemporary` 或 `retentionMode==='ephemeral'`）、不在目前對話裡的訊息、不在訊息裡的卡片，只留在頁面的記憶體。訊息還沒掛上頁面時回傳 `null`，卡片先不畫，`quiz-watch.js` 隔 80 毫秒再試（最多 6 次）。
+- **重新打開對話或換裝置：** 卡片還原到離開時的位置（做到第幾題、已答的題目、分數、選項順序不變），沒做完的可以接著做；做完的顯示完成畫面。
+- **隱私：** `PRIVACY.md` 與五語言的隱私政策文字各加一句（作答和分數跟著訊息保存、雲端同步時也在使用者自己的帳號、除非按按鈕送出結果否則不會送給任何 AI、臨時對話只在頁面開著時記得）；`tests/i18n-data.test.js` 的雜湊已重算。
+- **測試：** `quiz-store`（8 項：存在訊息上並合併儲存、重新打開還原並接著做、同一則訊息的兩份測驗分開、臨時對話與不在對話裡的訊息不存、訊息還沒掛上就等、記錄太大不存、用 id 找對話自己的那則訊息、看門員等到訊息掛上才畫卡片）、`cloud-sync-v2-codecs`（`quiz` 一起往返）。

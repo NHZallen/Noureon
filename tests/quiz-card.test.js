@@ -199,14 +199,14 @@ test('a card drawn again is where it was left, and what is answered goes to the 
   const saved = [];
   const store = { get: (name) => memoryStore.get(name), set: (name, state) => { saved.push(name); memoryStore.set(name, state); } };
   const first = page();
-  hydrateQuizCards({ root: first.document, language: 'en', store });
+  hydrateQuizCards({ root: first.document, language: 'en', storeFor: () => store });
   let card = first.document.querySelector('.quiz-card');
   click(optionByText(card, 'Glucose'));
   click(primary(card));
   assert.ok(saved.length >= 2);
   // The same block drawn again (a new placeholder): the answered question and the order of the options are back.
   const again = page();
-  hydrateQuizCards({ root: again.document, language: 'en', store });
+  hydrateQuizCards({ root: again.document, language: 'en', storeFor: () => store });
   card = again.document.querySelector('.quiz-card');
   assert.ok(card.querySelector('.quiz-band.is-wrong'));
   assert.ok(optionByText(card, 'Glucose').closest('.quiz-option').classList.contains('is-wrong'));

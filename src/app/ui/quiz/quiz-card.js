@@ -289,10 +289,13 @@ function plainCard({ element, text, language, reason }) {
 
 /**
  * Makes the cards of the placeholders on the page (`div.quiz-card[data-quiz]`). A block that is still being written (cut off) is shown as "preparing" and tried again the next time;
- * a block that is not a quiz is shown as its text with the reason. `store` keeps what a person has answered ({ get(key), set(key, state) }); `random` is for the tests.
+ * a block that is not a quiz is shown as its text with the reason. `storeFor(element)` gives the store that keeps what a person has answered ({ get(key), set(key, state) }) for the
+ * card in `element`, or null when the message it is in is not on the page yet (the card is left for the next time); `random` is for the tests.
+ * Returns the number of cards that were looked at and are not waiting.
  */
-export function hydrateQuizCards({ root, language, store = memoryStore, random = Math.random }) {
+export function hydrateQuizCards({ root, language, storeFor = () => memoryStore, random = Math.random }) {
   const cards = [...(root?.querySelectorAll?.('.quiz-card[data-quiz]:not([data-ready])') || [])];
+  const skipped = new Set();
   for (const element of cards) {
     const text = quizOf(element);
     const parsed = parseQuiz(text);
@@ -303,15 +306,22 @@ export function hydrateQuizCards({ root, language, store = memoryStore, random =
       }
       continue;
     }
-    element.dataset.ready = '1';
     element.classList.remove('is-preparing');
     if (!parsed.ok) {
+      element.dataset.ready = '1';
       plainCard({ element, text, language, reason: quizText(language, `quizErr_${parsed.error}`, { n: parsed.question || 1 }) });
+      continue;
+    }
+    element.dataset.ready = '1';
+    const store = storeFor(element);
+    if (!store) {
+      delete element.dataset.ready;
+      skipped.add(element);
       continue;
     }
     const key = hashOf(text);
     const session = createQuizSession(parsed.quiz, { state: store.get(key), random });
     mountCard({ element, quiz: parsed.quiz, session, language, onChange: (state) => store.set(key, state) });
   }
-  return cards.length;
+  return cards.length - skipped.size;
 }
