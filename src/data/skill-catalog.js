@@ -35,6 +35,19 @@ export const OFFICIAL_SKILL_CATALOG = [
       ru: { title: 'Протокол встречи', description: 'Превращает черновые заметки или расшифровку в итоги, решения, задачи с исполнителями и сроками и открытые вопросы.' },
       es: { title: 'Acta de reunión', description: 'Convierte notas desordenadas o una transcripción en resumen, decisiones, tareas con responsable y fecha, y preguntas abiertas.' }
     }
+  },
+  {
+    name: 'proofread',
+    description: 'Proofreads and polishes the wording of a text without changing its meaning or voice: fixes spelling, grammar, punctuation and typos, and shows what changed. Use whenever the user pastes text and asks to proofread, correct, polish or edit its language, or asks if the wording or grammar is right.',
+    version: '1',
+    author: 'Noureon',
+    i18n: {
+      'zh-TW': { title: '校對', description: '修正文字的拼字、文法、標點與用詞，不改原意和語氣，並列出改了什麼。' },
+      en: { title: 'Proofread', description: 'Fix spelling, grammar, punctuation and wording without changing the meaning or voice, and see what changed.' },
+      fr: { title: 'Relecture', description: 'Corrige l’orthographe, la grammaire, la ponctuation et les tournures sans changer le sens ni le ton, et montre ce qui a changé.' },
+      ru: { title: 'Вычитка', description: 'Исправляет орфографию, грамматику, пунктуацию и формулировки, не меняя смысла и стиля, и показывает, что изменилось.' },
+      es: { title: 'Corrección', description: 'Corrige ortografía, gramática, puntuación y redacción sin cambiar el sentido ni el tono, y muestra qué ha cambiado.' }
+    }
   }
 ];
 
