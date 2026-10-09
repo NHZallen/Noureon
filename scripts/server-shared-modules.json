@@ -356,6 +356,10 @@
       "note": "Reviewed 2026-10-09: one frozen object of texts (the text of each official skill); the server reads the text of an official skill from it."
     },
     {
+      "path": "src/data/skill-catalog-guides.js",
+      "note": "Reviewed 2026-10-09: one frozen object of texts (what the page tells about each official skill: an explanation and requests to try); only the page loads it, the server reaches it only because skill-catalog.js imports it when the page asks."
+    },
+    {
       "path": "src/data/skill-catalog.js",
       "note": "Reviewed 2026-10-09: plain data and pure functions (the official skills, and what the page calls them); the server reads the text of an official skill from it."
     },

@@ -67,6 +67,8 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
     openFiles: new Map(),
     // The text of the official skills whose details were opened (it is a file of its own, loaded then): name -> text.
     officialBodies: new Map(),
+    // What the details of an official skill tell (the longer explanation and the requests to try; also a file of its own): name -> { about, examples }, in the language of the page when it was loaded.
+    officialGuides: new Map(),
     menuFor: null
   };
   const view = () => state.views[state.kind];
@@ -356,7 +358,9 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
     name.append(make(document, 'span', 'cs-name-text', skillTitle(skill, getLanguage())));
     if (skill.source === 'official') name.append(make(document, 'span', 'cs-badge', t('official')));
     if ((skill.files || []).some((file) => file.kind === 'script')) name.append(make(document, 'span', 'cs-badge cs-badge-scripts', t('skillKindScript')));
-    text.append(name, make(document, 'span', 'cs-desc', skillDescription(skill, getLanguage())));
+    // Open, the explanation below says it in full: the line of the list is not repeated.
+    text.append(name);
+    if (!state.expanded.has(skill.name)) text.append(make(document, 'span', 'cs-desc', skillDescription(skill, getLanguage())));
     text.addEventListener('click', () => toggleDetails(skill.name));
     const action = make(document, 'div', 'cs-action');
     if (added) {
@@ -376,19 +380,43 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
     }
     element.append(mark, text, action);
     if (state.expanded.has(skill.name)) {
-      element.append(make(document, 'p', 'cs-about', skillDescription(skill, getLanguage())));
+      // The explanation: an official skill has a longer one (and requests to try) in a file of its own; until it is loaded, and for the skills of the person, the description says it.
+      const loaded = skill.source === 'official' ? state.officialGuides.get(skill.name) : null;
+      const guide = loaded?.language === getLanguage() ? loaded : null;
+      if (skill.source === 'official' && !guide) loadOfficialGuide(skill.name);
+      element.append(make(document, 'p', 'cs-about', guide?.about || skillDescription(skill, getLanguage())));
+      if (guide?.examples?.length) {
+        const examples = make(document, 'div', 'cs-examples');
+        examples.append(make(document, 'h3', 'cs-examples-title', t('skillExamplesTitle')));
+        const list = make(document, 'ul', 'cs-examples-list');
+        for (const example of guide.examples) list.append(make(document, 'li', '', example));
+        examples.append(list);
+        element.append(examples);
+      }
       // What the model is given, in full: a skill is read before it is trusted.
       const body = skill.body || state.officialBodies.get(skill.name) || '';
       if (!body && skill.source === 'official') loadOfficialBody(skill.name);
       element.append(make(document, 'pre', 'cs-skill-text', body || t('skillFileLoading')));
       const details = make(document, 'dl', 'cs-details');
-      details.append(make(document, 'dt', '', t('skillDetailsSource')), make(document, 'dd', '', t(skill.source === 'official' ? 'skillSourceOfficial' : 'skillSourceYours')));
+      // An official skill already says so by its badge: the source is only told for the skills the person added.
+      if (skill.source !== 'official') details.append(make(document, 'dt', '', t('skillDetailsSource')), make(document, 'dd', '', t('skillSourceYours')));
       if (skill.version) details.append(make(document, 'dt', '', t('version')), make(document, 'dd', '', skill.version));
       if (body) details.append(make(document, 'dt', '', t('skillDetailsSize')), make(document, 'dd', '', t('skillSizeChars', { count: body.length })));
       element.append(details);
       if (skill.files?.length) element.append(skillFiles(skill));
     }
     return element;
+  };
+
+  const askedGuides = new Map();
+  const loadOfficialGuide = (name) => {
+    const language = getLanguage();
+    if (askedGuides.get(name) === language) return;
+    askedGuides.set(name, language);
+    import('../../../data/skill-catalog.js').then(({ loadOfficialSkillGuide }) => loadOfficialSkillGuide(name, language)).then((guide) => {
+      if (guide) state.officialGuides.set(name, { ...guide, language });
+      draw();
+    }).catch(() => { askedGuides.delete(name); });
   };
 
   const askedBodies = new Set();

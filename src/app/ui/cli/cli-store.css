@@ -57,6 +57,10 @@ html.cs-open { overflow: hidden; }
 .cs-empty { padding: 2.2rem 0.5rem; color: var(--text-secondary); text-align: center; }
 
 .cs-about { grid-column: 2 / -1; margin: 0.4rem 0 0; font-size: 0.88rem; line-height: 1.6; color: var(--text-secondary); }
+.cs-examples { grid-column: 2 / -1; margin: 0.6rem 0 0; }
+.cs-examples-title { margin: 0 0 0.35rem; font-size: 0.82rem; font-weight: 600; color: var(--text-secondary); }
+.cs-examples-list { display: grid; gap: 0.4rem; margin: 0; padding: 0; list-style: none; }
+.cs-examples-list li { padding: 0.5rem 0.75rem; border: 1px solid var(--border-color); border-radius: 0.7rem; background: var(--hover-bg); font-size: 0.88rem; line-height: 1.5; overflow-wrap: anywhere; }
 .cs-details { grid-column: 2 / -1; display: grid; grid-template-columns: max-content 1fr; gap: 0.25rem 1rem; margin: 0.3rem 0 0; font-size: 0.85rem; }
 .cs-details dt { color: var(--text-secondary); }
 .cs-details dd { margin: 0; overflow-wrap: anywhere; }
@@ -92,7 +96,7 @@ html.cs-open { overflow: hidden; }
   .cs-mark { width: 2.6rem; height: 2.6rem; border-radius: 0.8rem; }
   .cs-added { display: none; }
   .cs-soon { padding: 0.25rem 0.6rem; font-size: 0.78rem; }
-  .cs-about, .cs-details, .cs-skill-text, .cs-skill-files { grid-column: 1 / -1; }
+  .cs-about, .cs-examples, .cs-details, .cs-skill-text, .cs-skill-files { grid-column: 1 / -1; }
   .cs-menu.is-sheet { left: 0; right: 0; bottom: 0; top: auto; min-width: 0; padding: 0.6rem 0.6rem calc(0.8rem + env(safe-area-inset-bottom, 0px)); border: 0; border-radius: 1.5rem 1.5rem 0 0; box-shadow: var(--shadow-up); }
   .cs-menu.is-sheet .cs-menu-item { padding: 0.9rem 0.8rem; font-size: 1.02rem; }
 }

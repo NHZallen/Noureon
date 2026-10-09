@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { OFFICIAL_SKILL_BODIES } from '../src/data/skill-catalog-bodies.js';
-import { OFFICIAL_SKILL_CATALOG, getOfficialSkill, loadOfficialSkillBody, skillDescription, skillTitle, validateSkillEntry } from '../src/data/skill-catalog.js';
+import { OFFICIAL_SKILL_GUIDES } from '../src/data/skill-catalog-guides.js';
+import { OFFICIAL_SKILL_CATALOG, getOfficialSkill, loadOfficialSkillBody, loadOfficialSkillGuide, skillDescription, skillTitle, validateSkillEntry } from '../src/data/skill-catalog.js';
 import { SKILL_BODY_MAX, SKILL_DESCRIPTION_MAX, parseSkillMarkdown, serializeSkillMarkdown } from '../src/data/skill-format.js';
 import { LISTED_DESCRIPTION_CHARS, availableSkillsInstruction, listedSkills } from '../src/data/skill-tool.js';
 
@@ -369,4 +370,26 @@ test('summarize: faithful to the source, honest about what was read, length from
   assert.match(body, /make the new version from the source and not by trimming your first version/);
   // The example is made from its own source: every number in the summary is in the source.
   for (const fact of ['18,400', '62%', '410,000', '150,000', '900', '71%', '9%']) assert.ok(body.split(fact).length >= 3, `${fact} is in the source and in the summary`);
+});
+
+test('every official skill has a guide in each language: an explanation a little longer than its line, and three requests to try', async () => {
+  assert.deepEqual(Object.keys(OFFICIAL_SKILL_GUIDES).sort(), OFFICIAL_SKILL_CATALOG.map((skill) => skill.name).sort(), 'every skill has its guide and none is left over');
+  for (const skill of OFFICIAL_SKILL_CATALOG) {
+    for (const language of LANGUAGES) {
+      const guide = OFFICIAL_SKILL_GUIDES[skill.name][language];
+      assert.ok(guide, `${skill.name} ${language}`);
+      assert.ok(guide.about.trim().length > skillDescription(skill, language).length, `${skill.name} ${language}: says more than the line of the list`);
+      assert.ok(guide.about.length <= 700, `${skill.name} ${language}: still short`);
+      assert.equal(guide.examples.length, 3, `${skill.name} ${language} examples`);
+      for (const example of guide.examples) {
+        assert.ok(example.trim() && example.length <= 140, `${skill.name} ${language}: an example is a request, not a text`);
+        assert.doesNotMatch(example, /\[|\]|TODO/, `${skill.name} ${language}: no placeholder is left`);
+      }
+      assert.equal(new Set(guide.examples).size, 3, `${skill.name} ${language}: three different requests`);
+    }
+    const loaded = await loadOfficialSkillGuide(skill.name, 'fr');
+    assert.deepEqual(loaded, { about: OFFICIAL_SKILL_GUIDES[skill.name].fr.about, examples: OFFICIAL_SKILL_GUIDES[skill.name].fr.examples });
+    assert.equal((await loadOfficialSkillGuide(skill.name, 'xx')).about, OFFICIAL_SKILL_GUIDES[skill.name].en.about, 'another language falls back to English');
+  }
+  assert.equal(await loadOfficialSkillGuide('no-such-skill', 'en'), null);
 });

@@ -177,6 +177,15 @@ export async function loadOfficialSkillBody(name) {
   return OFFICIAL_SKILL_BODIES[name] || '';
 }
 
+/** What the details of an official skill tell, in a language: { about, examples } from skill-catalog-guides.js (a separate file of the page, loaded when the details are opened); null when the skill has none. */
+export async function loadOfficialSkillGuide(name, language) {
+  if (!getOfficialSkill(name)) return null;
+  const { OFFICIAL_SKILL_GUIDES } = await import('./skill-catalog-guides.js');
+  const guide = OFFICIAL_SKILL_GUIDES[name];
+  const words = guide?.[language] || guide?.en;
+  return words ? { about: words.about, examples: [...words.examples] } : null;
+}
+
 /** Whether an entry follows the rules (the tests run every entry through this, with its text from skill-catalog-bodies.js when it has none of its own). */
 export function validateSkillEntry(skill) {
   const problems = [];
