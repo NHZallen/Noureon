@@ -87,6 +87,19 @@ export const OFFICIAL_SKILL_CATALOG = [
       ru: { title: 'Написание писем', description: 'Пишет, правит и отвечает на официальные и повседневные письма и сообщения: готовый к отправке черновик.' },
       es: { title: 'Redacción de correos', description: 'Redacta, ajusta y responde correos, cartas y mensajes formales o cotidianos, con un borrador listo para enviar.' }
     }
+  },
+  {
+    name: 'research-brief',
+    description: 'Researches a topic in any language and writes a brief: the answer first, the evidence, the viewpoints in proportion to their support, what is uncertain, and the sources. Use whenever the user asks to research, investigate or get an overview of a topic, question, market or technology.',
+    version: '1',
+    author: 'Noureon',
+    i18n: {
+      'zh-TW': { title: '主題研究', description: '研究指定主題，彙整證據、不同觀點與來源，結論先講並說明有多可靠、哪些還不確定。' },
+      en: { title: 'Research brief', description: 'Research a topic and bring together the evidence, the different viewpoints and the sources, with the answer first and how far to trust it.' },
+      fr: { title: 'Dossier de recherche', description: 'Étudie un sujet et rassemble les preuves, les points de vue et les sources, avec la réponse en premier et son degré de fiabilité.' },
+      ru: { title: 'Исследование темы', description: 'Изучает тему и собирает доказательства, разные точки зрения и источники: сначала ответ, затем насколько ему можно доверять.' },
+      es: { title: 'Informe de investigación', description: 'Investiga un tema y reúne las pruebas, los distintos puntos de vista y las fuentes, con la respuesta primero y su grado de fiabilidad.' }
+    }
   }
 ];
 
