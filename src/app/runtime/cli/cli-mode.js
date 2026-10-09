@@ -16,7 +16,7 @@ const MENTION = /(^|\s)@([^\s@]{0,40})$/u;
 const ENTRY_ID = 'open-cli-store-btn';
 
 // `isLocked` is true in a temporary chat, which has no CLI tools: no "@" list, no chips, and a tool chosen before is let go.
-export function createCliMode({ document, messageInput, isLocked = () => false, getConfig, saveConfig = async () => {}, getUiLanguage, refresh, showNotification = () => {}, getAccountReady = () => true, logger = console }) {
+export function createCliMode({ document, messageInput, isLocked = () => false, getConfig, saveConfig = async () => {}, getUiLanguage, refresh, showNotification = () => {}, getAccountReady = () => true, skillStore = null, logger = console }) {
   const win = document.defaultView;
   const language = () => getUiLanguage();
   const t = (key, values) => cliText(language(), key, values);
@@ -30,7 +30,7 @@ export function createCliMode({ document, messageInput, isLocked = () => false, 
     try {
       // The styles are a separate file: if they fail to load the page still opens (plain), and the reason is logged.
       const [{ openCliStore }] = await Promise.all([import('../../ui/cli/cli-store.js'), import('../../ui/cli/cli-store.css').catch((error) => { logger?.warn?.('Loading the CLI store styles failed.', error); })]);
-      storeApi = openCliStore({ document, kind, getConfig, saveConfig, getLanguage: language, showNotification, getAccountReady, onChange: () => { refresh(); } });
+      storeApi = openCliStore({ document, kind, getConfig, saveConfig, getLanguage: language, showNotification, getAccountReady, skillStore, onChange: () => { refresh(); } });
     } catch (error) {
       logger?.warn?.('Opening the CLI store failed.', error);
     }

@@ -6,7 +6,8 @@
 
 import { SKILL_BODY_MAX, SKILL_DESCRIPTION_MAX, isSkillName } from './skill-format.js';
 
-export const OFFICIAL_SKILL_CATALOG = Object.freeze([]);
+// A plain list (the tests put an entry in it and take it out again); entries are added here by the owner and not changed while the app runs.
+export const OFFICIAL_SKILL_CATALOG = [];
 
 const byName = () => new Map(OFFICIAL_SKILL_CATALOG.map((skill) => [skill.name, skill]));
 

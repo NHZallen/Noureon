@@ -338,6 +338,14 @@
     {
       "path": "src/data/settings-merge.js",
       "note": "Reviewed 2026-10-05: pure functions over plain objects (the key by key merge of the settings between devices); reached through the config normalization."
+    },
+    {
+      "path": "src/data/skill-format.js",
+      "note": "Reviewed 2026-10-09: pure functions (reading and checking the text of a skill, SKILL.md); reached through the merge of the skill lists, and used by the server when skills reach a reply."
+    },
+    {
+      "path": "src/data/skill-settings-merge.js",
+      "note": "Reviewed 2026-10-09: pure functions over plain objects (the merge of the skills' lists between devices); reached through the config normalization."
     }
   ]
 }

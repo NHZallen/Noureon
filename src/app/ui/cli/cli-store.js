@@ -6,8 +6,11 @@
 // A tool is added by a record in the settings (nothing is downloaded: the server fetches the program when a message first uses it).
 
 import { OFFICIAL_CLI_CATALOG, cliDescription, cliDetails, isCliReady } from '../../../data/cli-catalog.js';
+import { OFFICIAL_SKILL_CATALOG, skillDescription, skillTitle } from '../../../data/skill-catalog.js';
 import { addCli, canModelUseCli, isCliEnabled, removeCli, setCliModelUse } from '../../runtime/cli/cli-state.js';
 import { cliText } from '../../runtime/cli/cli-texts.js';
+import { skillText } from '../../runtime/skill/skill-texts.js';
+import { activeSkills, addSkill, canModelUseSkill, isSkillEnabled, removeSkill, setSkillModelUse } from '../../runtime/skill/skill-state.js';
 import { permissionText } from '../../runtime/cli/permission-texts.js';
 import { extensionsIcon, skillIcon, terminalIcon, toolIconMarkup, watchToolIcons } from './cli-icons.js';
 import { DEFAULT_STORE_KIND, STORE_KINDS, storeKindFromPath, storePath } from './store-path.js';
@@ -44,13 +47,14 @@ export const closeCliStore = () => current?.close();
  * Opens the page (once; opened again it only turns to `kind`). Returns { close, element, setKind }. `kind` is the part to show ('skills', the
  * first, or 'cli'); when the page is opened by its address the address says which. `onChange` is told when the tools the person has changed.
  */
-export function openCliStore({ document = globalThis.document, kind = DEFAULT_STORE_KIND, getConfig, saveConfig = async () => {}, getLanguage, showNotification = () => {}, getAccountReady = () => true, onChange = () => {} }) {
+export function openCliStore({ document = globalThis.document, kind = DEFAULT_STORE_KIND, getConfig, saveConfig = async () => {}, getLanguage, showNotification = () => {}, getAccountReady = () => true, onChange = () => {}, skillStore = null }) {
   if (current) {
     current.setKind(kind);
     return current;
   }
   const win = document.defaultView;
-  const t = (key, values) => cliText(getLanguage(), key, values);
+  // The words of the skills are in their own table (they are only needed here); every other word is the CLI part's.
+  const t = (key, values) => (/^skill/.test(key) ? skillText(getLanguage(), key, values) : cliText(getLanguage(), key, values));
   const opener = document.activeElement;
   const addressKind = storeKindFromPath(win.location?.pathname);
   // Each part keeps its own tab and its own search while the page is open.
@@ -109,8 +113,13 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
   const searchIcon = make(document, 'span', 'cs-search-icon');
   searchIcon.innerHTML = ICONS.search;
   search.append(searchIcon, searchInput);
+  const bar = make(document, 'div', 'cs-bar');
   const tabs = make(document, 'div', 'history-tabs cs-tabs');
   tabs.setAttribute('role', 'tablist');
+  // Skills only: adding one by pasting its text.
+  const paste = make(document, 'button', 'cs-button cs-paste', t('skillPaste'));
+  paste.type = 'button';
+  bar.append(tabs, paste);
   const list = make(document, 'div', 'cs-list');
   // The page of third-party software and licences (the tools' licences are there too).
   const licenses = make(document, 'button', 'cs-link cs-footer-link', permissionText(getLanguage(), 'licensesLink'));
@@ -119,7 +128,7 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
     const { openLicenses } = await import('./licenses-view.js');
     openLicenses({ document, getLanguage });
   });
-  column.append(note, search, tabs, list, licenses);
+  column.append(note, search, bar, list, licenses);
   body.append(column);
   split.append(nav, body);
   const edgeBottom = make(document, 'div', 'cs-edge-bottom');
@@ -133,10 +142,10 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
     state.menuFor = null;
     root.querySelector('.cs-sheet-backdrop')?.remove();
   };
-  const openMenu = (tool, anchor) => {
+  // `owner` is the id of the row the menu belongs to; `items` are [{ label, action, check?, danger? }].
+  const showMenu = (owner, anchor, items) => {
     closeMenu();
-    state.menuFor = tool.id;
-    const config = getConfig();
+    state.menuFor = owner;
     menu = make(document, 'div', 'cs-menu');
     menu.setAttribute('role', 'menu');
     const item = (label, action, { check = null, danger = false } = {}) => {
@@ -157,13 +166,7 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
       });
       menu.append(entry);
     };
-    item(state.expanded.has(tool.id) ? t('hideDetails') : t('details'), () => {
-      if (state.expanded.has(tool.id)) state.expanded.delete(tool.id);
-      else state.expanded.add(tool.id);
-      draw();
-    });
-    item(t('allowModel'), () => change(() => setCliModelUse(getConfig(), tool.id, !canModelUseCli(getConfig(), tool.id))), { check: canModelUseCli(config, tool.id) });
-    item(t('remove'), () => change(() => removeCli(getConfig(), tool.id), t('removed_notice', { name: tool.name })), { danger: true });
+    for (const entry of items) item(entry.label, entry.action, { check: entry.check ?? null, danger: Boolean(entry.danger) });
     if (win.matchMedia?.('(max-width: 640px)').matches) {
       const backdrop = make(document, 'div', 'cs-sheet-backdrop');
       backdrop.addEventListener('click', closeMenu);
@@ -175,6 +178,28 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
       menu.style.right = `${Math.max(12, win.innerWidth - rect.right)}px`;
       root.append(menu);
     }
+  };
+
+  const toggleDetails = (id) => {
+    if (state.expanded.has(id)) state.expanded.delete(id);
+    else state.expanded.add(id);
+    draw();
+  };
+  const openMenu = (tool, anchor) => {
+    const config = getConfig();
+    showMenu(tool.id, anchor, [
+      { label: state.expanded.has(tool.id) ? t('hideDetails') : t('details'), action: () => toggleDetails(tool.id) },
+      { label: t('allowModel'), action: () => change(() => setCliModelUse(getConfig(), tool.id, !canModelUseCli(getConfig(), tool.id))), check: canModelUseCli(config, tool.id) },
+      { label: t('remove'), action: () => change(() => removeCli(getConfig(), tool.id), t('removed_notice', { name: tool.name })), danger: true }
+    ]);
+  };
+  const openSkillMenu = (skill, anchor) => {
+    const config = getConfig();
+    showMenu(skill.name, anchor, [
+      { label: state.expanded.has(skill.name) ? t('hideDetails') : t('details'), action: () => toggleDetails(skill.name) },
+      { label: t('allowModel'), action: () => change(() => setSkillModelUse(getConfig(), skill.name, !canModelUseSkill(getConfig(), skill.name))), check: canModelUseSkill(config, skill.name) },
+      { label: t('remove'), action: () => removeOwnSkill(skill), danger: true }
+    ]);
   };
 
   // ----- changing what the person has
@@ -277,6 +302,7 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
     searchInput.setAttribute('aria-label', placeholder);
     if (searchInput.value !== view().query) searchInput.value = view().query;
     licenses.hidden = state.kind !== 'cli';
+    paste.hidden = state.kind !== 'skills';
   };
 
   const drawTabs = () => {
@@ -294,16 +320,132 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
     }));
   };
 
-  // No skill is on offer yet: the part is there, its list says so.
-  const drawSkills = () => {
-    const empty = make(document, 'div', 'cs-empty');
-    if (view().tab === 'all') {
-      empty.classList.add('cs-empty-soon');
-      empty.append(make(document, 'strong', 'cs-empty-title', t('skillsSoon')), make(document, 'p', 'cs-empty-note', t('skillsSoonNote')));
+  // ----- the skills: the official ones the person may add, and the ones they have (their own pasted ones come from the cloud, skill-store.js)
+  const skillMatches = (skill) => {
+    const needle = state.views.skills.query.trim().toLowerCase();
+    return !needle || `${skill.name} ${skillTitle(skill, getLanguage())} ${skillDescription(skill, getLanguage())}`.toLowerCase().includes(needle);
+  };
+  const ownSkills = () => (skillStore ? skillStore.cached() : []);
+
+  const skillRow = (skill) => {
+    const config = getConfig();
+    const added = skill.source === 'user' || isSkillEnabled(config, skill.name);
+    const element = make(document, 'div', `cs-row cs-skill${added ? ' is-added' : ''}`);
+    element.dataset.skillName = skill.name;
+    const mark = make(document, 'div', 'cs-mark');
+    mark.innerHTML = skillIcon(22);
+    const text = make(document, 'button', 'cs-text');
+    text.type = 'button';
+    text.setAttribute('aria-expanded', String(state.expanded.has(skill.name)));
+    const name = make(document, 'span', 'cs-name');
+    name.append(make(document, 'span', 'cs-name-text', skillTitle(skill, getLanguage())));
+    if (skill.source === 'official') name.append(make(document, 'span', 'cs-badge', t('official')));
+    text.append(name, make(document, 'span', 'cs-desc', skillDescription(skill, getLanguage())));
+    text.addEventListener('click', () => toggleDetails(skill.name));
+    const action = make(document, 'div', 'cs-action');
+    if (added) {
+      action.append(make(document, 'span', 'cs-added', t('added')));
+      const more = button(document, 'cs-icon-button', t('more'), ICONS.more);
+      more.setAttribute('aria-haspopup', 'menu');
+      more.addEventListener('click', (event) => {
+        event.stopPropagation();
+        if (state.menuFor === skill.name) closeMenu();
+        else openSkillMenu(skill, more);
+      });
+      action.append(more);
     } else {
-      empty.textContent = t('skillsNoneMine');
+      const add = button(document, 'cs-add', `${t('add')}: ${skillTitle(skill, getLanguage())}`, ICONS.plus);
+      add.addEventListener('click', () => change(() => addSkill(getConfig(), skill.name), t('skillAdded_notice', { name: skillTitle(skill, getLanguage()) })));
+      action.append(add);
     }
-    list.replaceChildren(empty);
+    element.append(mark, text, action);
+    if (state.expanded.has(skill.name)) {
+      element.append(make(document, 'p', 'cs-about', skillDescription(skill, getLanguage())));
+      // What the model is given, in full: a skill is read before it is trusted.
+      element.append(make(document, 'pre', 'cs-skill-text', skill.body));
+      const details = make(document, 'dl', 'cs-details');
+      details.append(make(document, 'dt', '', t('skillDetailsSource')), make(document, 'dd', '', t(skill.source === 'official' ? 'skillSourceOfficial' : 'skillSourceYours')));
+      if (skill.version) details.append(make(document, 'dt', '', t('version')), make(document, 'dd', '', skill.version));
+      details.append(make(document, 'dt', '', t('skillDetailsSize')), make(document, 'dd', '', t('skillSizeChars', { count: skill.body.length })));
+      element.append(details);
+    }
+    return element;
+  };
+
+  // A skill the person has is taken off the list; one they pasted is also deleted from the cloud (a failure leaves it as it was).
+  const removeOwnSkill = async (skill) => {
+    if (skill.source === 'user' && skillStore) {
+      const result = await skillStore.remove(skill.name);
+      if (!result.ok) {
+        showNotification(t(`skillErr_${result.error}`), 'error');
+        return;
+      }
+    }
+    await change(() => removeSkill(getConfig(), skill.name), t('skillRemoved_notice', { name: skillTitle(skill, getLanguage()) }));
+    draw();
+  };
+
+  // The person's own skills are read from the cloud once while the skills are on show; one that is in the cloud but not on the list (a save that
+  // stopped half way) is put on it.
+  let skillsAsked = false;
+  const loadOwnSkills = () => {
+    if (skillsAsked || !skillStore) return;
+    skillsAsked = true;
+    skillStore.list().then((result) => {
+      if (closed || !result.ok) return;
+      const config = getConfig();
+      const missing = result.skills.filter((skill) => !isSkillEnabled(config, skill.name));
+      if (missing.length) void change(() => missing.map((skill) => addSkill(getConfig(), skill.name)).some(Boolean));
+      else draw();
+    }).catch(() => {});
+  };
+
+  paste.addEventListener('click', async () => {
+    if (!skillStore || !getAccountReady()) {
+      showNotification(t('skillsNeedAccount'), 'error');
+      return;
+    }
+    await skillStore.list().catch(() => {});
+    const { openSkillPasteModal } = await import('../skill/skill-paste-modal.js');
+    openSkillPasteModal({
+      document,
+      language: getLanguage(),
+      existing: (name) => ownSkills().some((skill) => skill.name === name),
+      onSubmit: async (text, { replace }) => {
+        const result = await skillStore.add(text, { replace });
+        if (!result.ok) return result;
+        await change(() => addSkill(getConfig(), result.skill.name), t('skillAdded_notice', { name: result.skill.name }));
+        draw();
+        return result;
+      }
+    });
+  });
+
+  const drawSkills = () => {
+    loadOwnSkills();
+    const config = getConfig();
+    const mine = activeSkills(config, ownSkills()).filter(skillMatches);
+    const official = OFFICIAL_SKILL_CATALOG.filter((skill) => !isSkillEnabled(config, skill.name)).map((skill) => ({ ...skill, source: 'official' })).filter(skillMatches);
+    const parts = [];
+    const query = state.views.skills.query.trim();
+    if (view().tab === 'all') {
+      const mineBox = section(t('skillsSectionMine'), mine.map((skill) => skillRow(skill)));
+      const officialBox = section(t('sectionOfficial'), official.map((skill) => skillRow(skill)));
+      if (mineBox) parts.push(mineBox);
+      if (officialBox) parts.push(officialBox);
+      if (!parts.length) {
+        if (query) parts.push(make(document, 'div', 'cs-empty', t('skillsNoResults')));
+        else {
+          // No skill is on offer yet and the person has none: the part is there, its list says so.
+          const empty = make(document, 'div', 'cs-empty cs-empty-soon');
+          empty.append(make(document, 'strong', 'cs-empty-title', t('skillsSoon')), make(document, 'p', 'cs-empty-note', t('skillsSoonNote')));
+          parts.push(empty);
+        }
+      }
+    } else {
+      parts.push(section(t('skillsSectionMine'), mine.map((skill) => skillRow(skill))) || make(document, 'div', 'cs-empty', query ? t('skillsNoResults') : t('skillsNoneMine')));
+    }
+    list.replaceChildren(...parts);
   };
 
   const draw = () => {
@@ -350,6 +492,8 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
   let lastKey = null;
   function onKey(event) {
     if (event.key !== 'Escape' || event === lastKey) return;
+    // A window over the page (the one that takes a pasted skill) has the key first: it closes, and the page stays.
+    if (document.querySelector('.skill-paste')) return;
     lastKey = event;
     event.preventDefault();
     event.stopPropagation();

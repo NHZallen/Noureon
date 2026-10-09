@@ -6,6 +6,7 @@ import { renderComposerToolIcon } from '../../composer-tool-icons.js';
 import { registerResearchMode } from './research-bridge.js';
 import { getResearch, subscribeAnyResearch } from './research-store.js';
 import { createCliMode } from '../cli/cli-mode.js';
+import { createSkillStore } from '../skill/skill-store.js';
 import { researchText } from './research-texts.js';
 
 export const RESEARCH_INDICATOR_ID = 'deep-research-indicator';
@@ -42,8 +43,18 @@ export function createResearchMode({
   const getInput = () => messageInput;
   // The CLI tools (命令工具) share this host: they too put a chip in the box and an entry in the menus. A box that cannot take listeners
   // (a test) has none.
+  // The skills the person pasted are kept in their cloud account: the account library is loaded when first needed.
+  const skillStore = createSkillStore({
+    getClient: async () => (await import('../../auth/supabase-client.js')).getSupabaseClient(),
+    getUserId: async () => {
+      if (!serverReply.hasAccount()) return '';
+      const client = (await import('../../auth/supabase-client.js')).getSupabaseClient();
+      const { data } = (await client?.auth?.getSession?.()) || {};
+      return data?.session?.user?.id || '';
+    }
+  });
   const cli = typeof messageInput?.addEventListener === 'function' && typeof document?.addEventListener === 'function'
-    ? createCliMode({ document, messageInput, isLocked: () => getActiveConversation()?.retentionMode === 'ephemeral', getConfig, saveConfig, getUiLanguage, refresh: () => refresh(), showNotification, getAccountReady: () => serverReply.hasAccount(), logger })
+    ? createCliMode({ document, messageInput, isLocked: () => getActiveConversation()?.retentionMode === 'ephemeral', getConfig, saveConfig, getUiLanguage, refresh: () => refresh(), showNotification, getAccountReady: () => serverReply.hasAccount(), skillStore, logger })
     : null;
   const getSync = () => globalThis.__astraCloudSyncV2;
   const warn = (...args) => logger?.warn?.(...args);

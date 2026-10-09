@@ -1,7 +1,7 @@
 # 技能（Skills）設計
 
 **日期：** 2026-10-09
-**狀態：** 草案，等 owner 確認 §9 的待決事項後才開始寫程式。擴充頁的「技能」那一層已經有了（空頁，見 `2026-10-04-cli-store-design.md` §16），這份設計是它的內容。
+**狀態：** §9 的決定已確認（2026-10-09，第 3 項「第一批官方技能」留待之後討論）。第一期開始實作。擴充頁的「技能」那一層已經有了（空頁，見 `2026-10-04-cli-store-design.md` §16），這份設計是它的內容。
 
 ## 0. 摘要
 
@@ -53,6 +53,8 @@
 4. **不套用「判斷模型」（Decisions）**：判斷模型負責網頁搜尋、檔案指引這類，技能是模型看描述自己選，不另外加一層。
 5. **處理時間顯示**：載入技能算一個步驟，顯示在回覆的處理時間裡（「載入技能：寫作潤飾」），讓使用者知道模型用了哪個。
 
+**補充（2026-10-09，看過程式後）：** 現有的工具迴圈只有兩個：搜尋模式（`runWebResearchReply`，工具 `web_search`／`open_page`／`find_in_page`）與進階模式（沙盒），**一般回覆沒有工具迴圈**（`streamApiCall` 直接串流到結束）。所以 P1b 要做的是：①搜尋與進階兩個迴圈把 `load_skill` 加進各自的工具清單；②一般回覆在使用者有「允許模型使用」的技能時，改走一個只有 `load_skill` 的小迴圈（用同樣的 `tools`／`toolTurns`／`onResponseComplete` 機制）；③不支援工具的模型（`modelSupportsToolCalling` 為否）收不到技能清單，只有 `/` 明確指定的技能（全文直接放進提示詞）能用，和命令工具的 `needToolModel` 同一個道理。
+
 ## 5. 畫面（待 owner 確認，見 §9）
 
 - **擴充頁「技能」層**：版面和命令工具一樣（搜尋欄、「全部／我的」、列式卡片：圖示、名稱、描述、右邊的「＋」或「已加入 ✓」＋「…」）。圖示用星形（已有的 `skillIcon`）。
@@ -76,20 +78,31 @@
 
 | 期 | 內容 | 驗收 |
 |---|---|---|
-| **P1** | 資料表與遷移、`skill-catalog.js` 與驗證模組（共用）、設定欄位與合併、技能層列表與詳細資料、貼上視窗、`/` 清單與晶片、提示詞清單與 `load_skill`（本機與伺服器兩邊）、處理時間步驟、五種語言文字、`PRIVACY.md`、更新日誌 | 加入一個技能後：問一件符合描述的事，模型會載入並照做，處理時間看得到「載入技能」；用 `/` 指定時一定用；換裝置還在；移除後模型不再看到 |
+| **P1a**（✅ 2026-10-09 完成，等 owner 測試） | 資料層與畫面：SKILL.md 解析與驗證（`src/data/skill-format.js`）、官方目錄（空）、設定欄位與逐項合併、`user_skills` 資料表與存取、技能層列表／詳細資料／「…」選單／貼上視窗、五種語言文字 | 在擴充頁「技能」層貼上一個技能，列表出現，換裝置還在，詳細資料看得到全文，移除後從雲端刪除 |
+| **P1b** | 模型使用技能：`/` 清單與晶片、指定時把全文放進提示詞、提示詞裡的技能清單與 `load_skill`（見 §4 的補充）、處理時間步驟、`PRIVACY.md`、更新日誌 | 問一件符合描述的事，模型會載入並照做，處理時間看得到「載入技能」；用 `/` 指定時一定用；移除後模型不再看到 |
 | **P2** | 技能附 `scripts/` 與 `references/`（P1 的資料表加檔案欄位或另存儲存空間），腳本在沙盒執行（重用 `run_command`、權限、網路詢問、憑證），`allowed-tools` 開始生效 | 附腳本的技能能在沙盒跑出檔案卡片；沒授權網路時照樣詢問 |
 | **P3** | 製作技能：貼網址匯入（顯示來源）、從對話整理成技能、把做過的流程存成技能 | 另一份設計 |
 
-## 9. 待 owner 決定的事
+## 9. owner 的決定（2026-10-09）
 
-1. **呼叫符號**：技能用 `/`、命令工具用 `@`（兩個符號分開），還是全部併進 `@`？建議分開（技能是「照這個做法做」，命令工具是「用這個程式」）。
-2. **P1 誰能加入技能**：①只有 owner 上架的官方技能；②官方技能＋使用者自己貼上 SKILL.md。建議②（有安裝前看全文與警語的防線），但①最保守。
-3. **第一批官方技能要放哪些**：這是 owner 的產品決定。我可以提出 3 到 5 個候選（例如寫作潤飾、會議紀錄整理、程式碼審查、簡報大綱設計），由 owner 挑，並請 owner 看過內容文字再上架。
-4. **臨時對話可不可以用技能**：建議可以。
-5. **使用者貼上的技能預設是否「允許模型自己使用」**：建議預設開（已看過全文並確認），也可以改成預設關、由使用者自己打開。
+1. **呼叫符號：分開。** 技能用 `/`、命令工具用 `@`。
+2. **P1 誰能加入：官方技能＋使用者自己貼上 SKILL.md。**
+3. **第一批官方技能放哪些：留待之後討論。** P1 的官方目錄先是空的（結構、驗證、顯示都做好），使用者自己貼的技能先能用。
+4. **臨時對話可以用技能，但附腳本的技能不行**（P2 才有附腳本的技能；到時候臨時對話只放行純說明的技能，附腳本的技能在臨時對話裡不列出也不能指定）。P1 沒有附腳本的技能，所以臨時對話全部放行。
+5. **使用者貼上的技能預設「允許模型自己使用」：開。**
 
 ## 10. 實作時會碰到的檔案（供預估）
 
 - 新增：`src/data/skill-catalog.js`、`src/data/skill-format.js`（解析與驗證 SKILL.md，客戶端與伺服器共用）、`src/data/skill-settings-merge.js`（或擴充 `cli-settings-merge.js`）、`src/app/runtime/skill/*`（狀態、`/` 清單、提示詞組裝）、`src/app/ui/skill/*`（列表列、貼上視窗）、`supabase/migrations/*_user_skills.sql`。
 - 修改：`src/app/ui/cli/cli-store.js`（技能層從空頁換成真的列表，建議把「列」與「選單」抽成兩層共用）、`cli-texts.js`（或新的 `skill-texts.js`）、共用工具迴圈（加 `load_skill`）、`server/run-spec.js`（技能清單與被指定的技能進入 RunSpec，並驗證長度）、`server/executor.js`、處理時間的步驟顯示。
 - 預算：`check:sizes` 對單檔 50 KB 有限制，`submit-input-council-lifecycle.js` 已接近上限，提示詞組裝要放在新檔，不要塞進去。
+
+## 11. P1a 實作紀錄（2026-10-09）
+
+- 資料：`src/data/skill-format.js`（`parseSkillMarkdown`／`serializeSkillMarkdown`，限制 64／1024／20,000／60,000 字元、50 個）、`skill-catalog.js`（`OFFICIAL_SKILL_CATALOG` 目前是空陣列，測試會暫時放一筆）、`skill-settings-merge.js`（`skillEnabledIds`、`skillModelUseIds`、`skillStamps`、`skillUseStamps`，併進雲端同步的同一個合併步驟；`cli-settings-merge.js` 的 `mergeSet` 改成匯出）。三個檔都列進 `scripts/server-shared-modules.json`（`skill-catalog.js` 等 P1b 伺服器用到時再列）。
+- 設定：`config-store.js` 預設值、`config-normalization.js` 正規化（只留有效名稱、`skillModelUseIds` 必須在已加入裡）、`settings-merge.js` 的 `NOT_MERGED_SETTINGS`。
+- 雲端：`supabase/migrations/20261009010000_add_user_skills.sql`（名稱、描述、本文的長度與格式檢查，列層級安全：每人只能讀寫自己的列，伺服器用 service role；另有一個觸發器擋第 51 個）。**這份遷移要 owner 在 Supabase 套用**，在套用前「貼上技能」會回「儲存失敗」。
+- 存取：`src/app/runtime/skill/skill-store.js`（`ensure`／`list`／`add`／`remove`，帳號換人時丟掉暫存；`getClient`／`getUserId` 可以非同步）、`skill-state.js`（`addSkill`／`removeSkill`／`setSkillModelUse`／`activeSkills`；加入時預設「允許模型自己使用」為開）。接線在 `research-mode.js` 建立 store 並交給 `createCliMode`，再交給 `openCliStore({ skillStore })`。
+- 畫面：`cli-store.js` 的技能層（列：星形圖示、名稱、官方徽章、描述、＋或「已加入」＋「…」；詳細資料展開看全文；「…」選單：詳細資料、允許模型自己使用（打勾）、移除；移除自己貼的技能會先從雲端刪除，失敗就保留）；`ui/skill/skill-paste-modal.js`（貼上視窗，樣式沿用 `permissions.css` 的 `cred-modal`：即時檢查、顯示找到的名稱與描述、警語、同名時按鈕變「取代」；開著時 Escape 只關視窗不關頁面）；雲端裡有、清單裡沒有的技能（儲存到一半中斷）會在列表載入時自動補進清單。
+- 文字：`cli-texts.js` 五種語言新增 `skill*`／`skills*`／`skillErr_*`（每個解析與儲存錯誤一句）。
+- 測試：`skill-format`、`skill-settings-merge`（含官方目錄規則）、`skill-store`、`skill-ui`（列表、詳細資料、選單、官方技能加入、搜尋、貼上、同名取代、沒有帳號、貼上視窗單獨）、`store-path`／`cli-ui`（技能層的行為）。測試裡不要把 DOM 節點直接給 `assert.equal`：失敗時印出整棵樹會卡住。

@@ -150,3 +150,15 @@ a.pm-lic-name { text-decoration: underline; text-underline-offset: 2px; }
 @media (max-width: 768px) {
   .pm .pm-back { display: none; }
 }
+
+/* The window that takes a pasted skill (ui/skill/skill-paste-modal.js): the window of the credentials, wider, with a box for the text. */
+.skill-paste-dialog { width: min(36rem, 100%); }
+.skill-paste-hint { margin-top: 0.4rem; }
+.skill-paste-text { display: block; width: 100%; box-sizing: border-box; min-height: 12rem; max-height: 50vh; resize: vertical; padding: 0.7rem 0.8rem; border: 1px solid var(--border-color); border-radius: 0.7rem; background: var(--input-field-bg, transparent); color: inherit; font-size: 0.85rem; line-height: 1.5; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; outline: none; }
+.skill-paste-text:focus { border-color: var(--text-primary); }
+.skill-paste-check { min-height: 1.2rem; margin: 0.6rem 0 0.2rem; }
+.skill-paste-found { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 0.2rem 0.8rem; margin: 0; font-size: 0.82rem; }
+.skill-paste-found dt { color: var(--text-secondary); }
+.skill-paste-found dd { margin: 0; overflow-wrap: anywhere; }
+.skill-paste-found .skill-paste-size { grid-column: 1 / -1; color: var(--text-secondary); }
+.skill-paste-error { margin: 0.2rem 0 0; }

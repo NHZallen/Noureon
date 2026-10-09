@@ -73,7 +73,9 @@ test('with nobody signed in, or no cloud, nothing is read or kept; another accou
   client = fake.client;
   assert.equal((await store.list()).skills.length, 1);
   userId = 'u2';
+  assert.equal(await store.ensure(), true);
   assert.deepEqual(store.cached(), [], 'the next account starts empty');
+  assert.equal(store.loaded, false);
   assert.equal((await store.list()).skills.length, 0);
 });
 
@@ -148,4 +150,35 @@ test('the migration has the same limits as the app, and each person reaches only
   for (const action of ['select', 'insert', 'update', 'delete']) assert.match(sql, new RegExp(`for ${action} to authenticated`), action);
   assert.equal((sql.match(/\(select auth\.uid\(\)\)/g) || []).length >= 5, true);
   assert.doesNotMatch(sql, /to anon/);
+});
+
+test('the account library may answer later (it is loaded when first needed)', async () => {
+  const fake = fakeClient({ rows: [{ user_id: 'u1', name: 'late-one', description: 'd', body: 'b' }] });
+  const store = createSkillStore({ getClient: async () => fake.client, getUserId: async () => 'u1' });
+  assert.equal(await store.ensure(), true);
+  assert.deepEqual((await store.list()).skills.map((skill) => skill.name), ['late-one']);
+  const nobody = createSkillStore({ getClient: async () => fake.client, getUserId: async () => '' });
+  assert.equal(await nobody.ensure(), false);
+});
+
+test('the words of the skills are in all five languages with the same keys, every placeholder in each, and every refusal has a sentence', async () => {
+  const { SKILL_TEXTS, skillText } = await import('../src/app/runtime/skill/skill-texts.js');
+  const languages = Object.keys(SKILL_TEXTS);
+  assert.deepEqual(languages, ['zh-TW', 'en', 'fr', 'ru', 'es']);
+  const keys = Object.keys(SKILL_TEXTS.en).sort();
+  const placeholders = (text) => [...String(text).matchAll(/\{(\w+)\}/g)].map((match) => match[1]).sort().join();
+  for (const language of languages) {
+    assert.deepEqual(Object.keys(SKILL_TEXTS[language]).sort(), keys, language);
+    for (const key of keys) {
+      assert.ok(String(SKILL_TEXTS[language][key]).trim(), `${language} ${key}`);
+      assert.equal(placeholders(SKILL_TEXTS[language][key]), placeholders(SKILL_TEXTS.en[key]), `${language} ${key} placeholders`);
+    }
+  }
+  const { parseSkillMarkdown } = await import('../src/data/skill-format.js');
+  // every reason the parser can give has a sentence, and so have the ones the store gives
+  const reasons = ['empty', 'text_too_long', 'no_header', 'header_unclosed', 'header_invalid', 'name_missing', 'name_invalid', 'description_missing', 'description_too_long', 'body_empty', 'body_too_long', 'name_taken', 'too_many', 'failed', 'signed_out'];
+  for (const reason of reasons) assert.ok(SKILL_TEXTS.en[`skillErr_${reason}`], reason);
+  assert.equal(parseSkillMarkdown('x').ok, false);
+  assert.equal(skillText('en', 'skillAdded_notice', { name: 'a-b' }), 'Skill “a-b” added.');
+  assert.equal(skillText('xx', 'skillPasteCancel'), 'Cancel', 'English for a language it does not have');
 });
