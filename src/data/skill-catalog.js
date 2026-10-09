@@ -126,6 +126,19 @@ export const OFFICIAL_SKILL_CATALOG = [
       ru: { title: 'Объяснение понятий', description: 'Объясняет сложную идею на вашем уровне простыми словами и примерами и говорит, что упрощённая картина опускает.' },
       es: { title: 'Explicador de conceptos', description: 'Explica una idea difícil a tu nivel, con palabras sencillas y ejemplos, y dice qué deja fuera la versión simplificada.' }
     }
+  },
+  {
+    name: 'document-qa',
+    description: 'Answers specific questions about a document, file or pasted text in any language, locating the evidence and saying clearly what is missing or could not be read. Use when the user asks what a document says or where. Not for whole-document summaries, fact-checking or comparing documents.',
+    version: '1',
+    author: 'Noureon',
+    i18n: {
+      'zh-TW': { title: '文件問答', description: '根據你提供的文件回答問題，指出相關段落；文件沒寫或讀不到時會明說。' },
+      en: { title: 'Document Q&A', description: 'Answer questions from a document you provide, with the relevant passages shown, and say plainly when the document does not say or could not be read.' },
+      fr: { title: 'Questions sur un document', description: 'Répond aux questions à partir d’un document que vous fournissez, avec les passages concernés, et dit clairement quand le document ne le dit pas ou n’a pas pu être lu.' },
+      ru: { title: 'Вопросы по документу', description: 'Отвечает на вопросы по предоставленному вами документу, показывая нужные фрагменты, и прямо говорит, если в документе этого нет или его не удалось прочитать.' },
+      es: { title: 'Preguntas sobre un documento', description: 'Responde preguntas a partir de un documento que aportas, mostrando los pasajes relevantes, y dice claramente cuando el documento no lo dice o no se pudo leer.' }
+    }
   }
 ];
 
