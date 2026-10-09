@@ -10,6 +10,7 @@ import { OFFICIAL_SKILL_CATALOG, skillDescription, skillTitle } from '../../../d
 import { addCli, canModelUseCli, isCliEnabled, removeCli, setCliModelUse } from '../../runtime/cli/cli-state.js';
 import { cliText } from '../../runtime/cli/cli-texts.js';
 import { skillText } from '../../runtime/skill/skill-texts.js';
+import { formatFileSize } from '../skill/skill-file-size.js';
 import { activeSkills, addSkill, canModelUseSkill, isSkillEnabled, removeSkill, setSkillModelUse } from '../../runtime/skill/skill-state.js';
 import { permissionText } from '../../runtime/cli/permission-texts.js';
 import { extensionsIcon, skillIcon, terminalIcon, toolIconMarkup, watchToolIcons } from './cli-icons.js';
@@ -62,6 +63,8 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
     kind: addressKind || (STORE_KINDS.includes(kind) ? kind : DEFAULT_STORE_KIND),
     views: { skills: { tab: 'all', query: '' }, cli: { tab: 'all', query: '' } },
     expanded: new Set(),
+    // The files of skills with files that are open for reading: 'skill-name/path' -> { status: 'loading' | 'ready' | 'failed', text?, cut? }.
+    openFiles: new Map(),
     menuFor: null
   };
   const view = () => state.views[state.kind];
@@ -119,7 +122,16 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
   // Skills only: adding one by pasting its text.
   const paste = make(document, 'button', 'cs-button cs-paste', t('skillPaste'));
   paste.type = 'button';
-  bar.append(tabs, paste);
+  // Skills only: adding one as a zip with files (a hidden file box the button opens).
+  const upload = make(document, 'button', 'cs-button cs-upload', t('skillUpload'));
+  upload.type = 'button';
+  const uploadInput = make(document, 'input', 'cs-upload-input');
+  uploadInput.type = 'file';
+  uploadInput.accept = '.zip,application/zip,application/x-zip-compressed';
+  uploadInput.hidden = true;
+  const barActions = make(document, 'div', 'cs-bar-actions');
+  barActions.append(upload, paste);
+  bar.append(tabs, barActions, uploadInput);
   const list = make(document, 'div', 'cs-list');
   // The page of third-party software and licences (the tools' licences are there too).
   const licenses = make(document, 'button', 'cs-link cs-footer-link', permissionText(getLanguage(), 'licensesLink'));
@@ -303,6 +315,7 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
     if (searchInput.value !== view().query) searchInput.value = view().query;
     licenses.hidden = state.kind !== 'cli';
     paste.hidden = state.kind !== 'skills';
+    upload.hidden = state.kind !== 'skills';
   };
 
   const drawTabs = () => {
@@ -340,6 +353,7 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
     const name = make(document, 'span', 'cs-name');
     name.append(make(document, 'span', 'cs-name-text', skillTitle(skill, getLanguage())));
     if (skill.source === 'official') name.append(make(document, 'span', 'cs-badge', t('official')));
+    if ((skill.files || []).some((file) => file.kind === 'script')) name.append(make(document, 'span', 'cs-badge cs-badge-scripts', t('skillKindScript')));
     text.append(name, make(document, 'span', 'cs-desc', skillDescription(skill, getLanguage())));
     text.addEventListener('click', () => toggleDetails(skill.name));
     const action = make(document, 'div', 'cs-action');
@@ -368,8 +382,64 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
       if (skill.version) details.append(make(document, 'dt', '', t('version')), make(document, 'dd', '', skill.version));
       details.append(make(document, 'dt', '', t('skillDetailsSize')), make(document, 'dd', '', t('skillSizeChars', { count: skill.body.length })));
       element.append(details);
+      if (skill.files?.length) element.append(skillFiles(skill));
     }
     return element;
+  };
+
+  // The files of a skill that came as a zip: their names, and the text of one when it is clicked (the zip is opened from the cloud the first time).
+  const fileKey = (skill, path) => `${skill.name}/${path}`;
+  const toggleFile = async (skill, path) => {
+    const key = fileKey(skill, path);
+    if (state.openFiles.has(key)) {
+      state.openFiles.delete(key);
+      draw();
+      return;
+    }
+    state.openFiles.set(key, { status: 'loading' });
+    draw();
+    let entry = { status: 'failed' };
+    try {
+      const opened = await skillStore?.openBundle(skill.name);
+      if (opened?.ok) {
+        const { bundleFileText } = await import('../../../data/skill-bundle.js');
+        const text = bundleFileText(opened.files, path);
+        entry = text ? { status: 'ready', text: text.text, cut: text.cut } : { status: 'ready', binary: true };
+      }
+    } catch {
+      entry = { status: 'failed' };
+    }
+    if (state.openFiles.has(key)) state.openFiles.set(key, entry);
+    draw();
+  };
+  const skillFiles = (skill) => {
+    const box = make(document, 'div', 'cs-skill-files');
+    box.append(make(document, 'strong', 'cs-skill-files-title', t('skillBundleFiles', { count: skill.files.length })));
+    const listing = make(document, 'ul', 'cs-skill-file-list');
+    for (const file of skill.files) {
+      const item = make(document, 'li', 'cs-skill-file');
+      const open = state.openFiles.get(fileKey(skill, file.path));
+      const choose = make(document, 'button', 'cs-skill-file-button');
+      choose.type = 'button';
+      choose.setAttribute('aria-expanded', String(Boolean(open)));
+      choose.append(make(document, 'span', 'cs-skill-file-path', file.path));
+      if (file.kind === 'script') choose.append(make(document, 'span', 'cs-badge cs-badge-scripts', t('skillKindScript')));
+      choose.append(make(document, 'span', 'cs-skill-file-size', formatFileSize(file.size)));
+      choose.addEventListener('click', () => toggleFile(skill, file.path));
+      item.append(choose);
+      if (open) {
+        if (open.status === 'loading') item.append(make(document, 'p', 'cs-skill-file-note', t('skillFileLoading')));
+        else if (open.status === 'failed') item.append(make(document, 'p', 'cs-skill-file-note', t('skillFileFailed')));
+        else if (open.binary) item.append(make(document, 'p', 'cs-skill-file-note', t('skillFileNoPreview')));
+        else {
+          item.append(make(document, 'pre', 'cs-skill-text cs-skill-file-text', open.text));
+          if (open.cut) item.append(make(document, 'p', 'cs-skill-file-note', t('skillFileCut', { count: open.text.length })));
+        }
+      }
+      listing.append(item);
+    }
+    box.append(listing);
+    return box;
   };
 
   // A skill the person has is taken off the list; one they pasted is also deleted from the cloud (a failure leaves it as it was).
@@ -414,6 +484,46 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
       onSubmit: async (text, { replace }) => {
         const result = await skillStore.add(text, { replace });
         if (!result.ok) return result;
+        await change(() => addSkill(getConfig(), result.skill.name), t('skillAdded_notice', { name: result.skill.name }));
+        draw();
+        return result;
+      }
+    });
+  });
+
+  upload.addEventListener('click', () => {
+    if (!skillStore || !getAccountReady()) {
+      showNotification(t('skillsNeedAccount'), 'error');
+      return;
+    }
+    uploadInput.value = '';
+    uploadInput.click();
+  });
+  uploadInput.addEventListener('change', async () => {
+    const file = uploadInput.files?.[0];
+    uploadInput.value = '';
+    if (!file || !skillStore) return;
+    // The zip is read and every file in it checked before anything is shown; a pack that fails says why.
+    const [{ readSkillBundle, SKILL_BUNDLE_LIMITS }, { openSkillBundleModal }] = await Promise.all([import('../../../data/skill-bundle.js'), import('../skill/skill-bundle-modal.js'), import('../skill/skill-bundle-modal.css').catch(() => {})]);
+    if (file.size > SKILL_BUNDLE_LIMITS.zipBytes) {
+      showNotification(t('skillErr_zip_too_large'), 'error');
+      return;
+    }
+    const read = await readSkillBundle(new Uint8Array(await file.arrayBuffer())).catch(() => ({ ok: false, error: 'not_a_zip' }));
+    if (!read.ok) {
+      showNotification(`${t(`skillErr_${read.error}`)}${read.detail ? ` (${read.detail})` : ''}`, 'error');
+      return;
+    }
+    await skillStore.list().catch(() => {});
+    openSkillBundleModal({
+      document,
+      language: getLanguage(),
+      read,
+      existing: (name) => ownSkills().some((skill) => skill.name === name),
+      onSubmit: async (pack, { replace }) => {
+        const result = await skillStore.addBundle(pack, { replace });
+        if (!result.ok) return result;
+        state.openFiles.clear();
         await change(() => addSkill(getConfig(), result.skill.name), t('skillAdded_notice', { name: result.skill.name }));
         draw();
         return result;

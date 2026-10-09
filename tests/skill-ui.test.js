@@ -3,11 +3,15 @@ import { readFileSync } from 'node:fs';
 import test, { afterEach } from 'node:test';
 
 import { Window } from 'happy-dom';
+import JSZip from 'jszip';
 
 import { OFFICIAL_SKILL_CATALOG } from '../src/data/skill-catalog.js';
 import { createSkillStore } from '../src/app/runtime/skill/skill-store.js';
 import { closeCliStore, openCliStore } from '../src/app/ui/cli/cli-store.js';
 import { openSkillPasteModal } from '../src/app/ui/skill/skill-paste-modal.js';
+import { openSkillBundleModal } from '../src/app/ui/skill/skill-bundle-modal.js';
+import { formatFileSize } from '../src/app/ui/skill/skill-file-size.js';
+import { readSkillBundle } from '../src/data/skill-bundle.js';
 
 afterEach(() => closeCliStore());
 
@@ -15,7 +19,20 @@ const tick = (ms = 20) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // The cloud table behind the store, in memory.
 function memoryClient(rows = []) {
-  const table = { rows };
+  const stored = new Map();
+  const table = {
+    rows,
+    stored,
+    storage: {
+      from: () => ({
+        upload: async (path, body) => { stored.set(path, body); return { data: { path }, error: null }; },
+        remove: async (paths) => { for (const path of paths) stored.delete(path); return { data: [], error: null }; },
+        download: async (path) => (stored.has(path)
+          ? { data: { arrayBuffer: async () => stored.get(path).buffer.slice(stored.get(path).byteOffset, stored.get(path).byteOffset + stored.get(path).byteLength) }, error: null }
+          : { data: null, error: { message: 'missing' } })
+      })
+    }
+  };
   table.from = () => {
     const state = { op: 'select', filters: {}, payload: null };
     const chain = {
@@ -273,4 +290,144 @@ test('the CLI part has no paste button, and the style of the skills is in black 
   assert.match(css, /\.cs-paste\[hidden\] \{ display: none; \}/);
   assert.match(css, /\.cs-skill-text \{[^}]*var\(--border-color\)/);
   assert.match(css, /\.skill-paste-text \{[^}]*var\(--border-color\)/);
+});
+
+// ----- skills as a zip (docs/superpowers/specs/2026-10-09-skills-design.md, §14)
+const packOf = async (files) => {
+  const zip = new JSZip();
+  for (const [path, content] of Object.entries(files)) zip.file(path, content);
+  return zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE' });
+};
+const PACK_SKILL = skillText('sales-report', 'Builds the monthly sales report.', 'Run scripts/summary.py, then read references/format.md.');
+const chooseFile = async (t, bytes, name = 'pack.zip') => {
+  const input = t.root.querySelector('.cs-upload-input');
+  const file = new t.window.File([bytes], name, { type: 'application/zip' });
+  Object.defineProperty(input, 'files', { value: [file], configurable: true });
+  input.dispatchEvent(new t.window.Event('change'));
+  await tick(120);
+};
+
+test('the upload button is on the skills part only, and without a cloud account it says so and takes no file', async () => {
+  const t = page({ accountReady: false });
+  const upload = t.root.querySelector('.cs-upload');
+  assert.equal(upload.hidden, false);
+  assert.equal(upload.textContent, 'Upload a skill pack');
+  upload.click();
+  assert.equal(t.log.notices.length, 1);
+  assert.match(t.log.notices[0][0], /Pasting or uploading a skill needs a cloud account/);
+  t.root.querySelector('[data-kind="cli"]').click();
+  assert.equal(upload.hidden, true);
+  t.root.querySelector('[data-kind="skills"]').click();
+  assert.equal(upload.hidden, false);
+});
+
+test('a pack that is not a skill says why and opens nothing', async () => {
+  const t = page();
+  await tick(30);
+  await chooseFile(t, new Uint8Array([1, 2, 3, 4]));
+  assert.match(t.log.notices.at(-1)[0], /not a valid zip/);
+  await chooseFile(t, await packOf({ 'references/a.md': 'a' }));
+  assert.match(t.log.notices.at(-1)[0], /No SKILL\.md/);
+  await chooseFile(t, await packOf({ 'SKILL.md': PACK_SKILL, 'tool.exe': 'x' }));
+  assert.match(t.log.notices.at(-1)[0], /cannot hold programs or installers\. \(tool\.exe\)/);
+  assert.equal(t.document.querySelector('.skill-bundle') === null, true);
+  assert.equal(t.cloud.stored.size, 0);
+});
+
+test('a skill pack: its files are listed (scripts marked), one can be read, the warning says scripts can run, and adding keeps the zip and the row', async () => {
+  const t = page();
+  await tick(30);
+  await chooseFile(t, await packOf({ 'SKILL.md': PACK_SKILL, 'scripts/summary.py': 'print("hi")\n', 'references/format.md': '# Format\nUse bullets.\n', 'assets/logo.png': new Uint8Array([0x89, 0xff, 0xfe, 0x00]) }));
+  const modal = t.document.querySelector('.skill-bundle');
+  assert.ok(modal, 'the window is open');
+  assert.equal(modal.querySelector('.cred-modal-title').textContent, 'Upload a skill pack');
+  assert.match(modal.querySelector('.skill-paste-found').textContent, /sales-report/);
+  assert.deepEqual([...modal.querySelectorAll('.skill-bundle-file-path')].map((node) => node.textContent), ['SKILL.md', 'assets/logo.png', 'references/format.md', 'scripts/summary.py']);
+  assert.equal(modal.querySelectorAll('.skill-bundle-script').length, 1, 'only the script is marked');
+  assert.equal(modal.querySelector('.skill-bundle-view').textContent, 'Run scripts/summary.py, then read references/format.md.', 'SKILL.md is shown first');
+  assert.match(modal.querySelector('.skill-bundle-scripts-warning').textContent, /may run them in the sandbox/);
+  const buttons = [...modal.querySelectorAll('.skill-bundle-file-button')];
+  buttons[2].click();
+  assert.equal(modal.querySelector('.skill-bundle-view').textContent, '# Format\nUse bullets.\n');
+  assert.equal(buttons[2].getAttribute('aria-pressed'), 'true');
+  buttons[1].click();
+  assert.equal(modal.querySelector('.skill-bundle-view').textContent, '');
+  assert.match(modal.querySelector('.skill-bundle-note').textContent, /not text and cannot be shown/);
+  assert.equal(t.cloud.stored.size, 0, 'nothing is kept before "Add"');
+
+  modal.querySelector('button[type="submit"]').click();
+  await tick(120);
+  assert.equal(t.document.querySelector('.skill-bundle') === null, true, 'the window closes');
+  assert.equal(t.cloud.stored.size, 1);
+  assert.deepEqual(t.settings.skillEnabledIds, ['sales-report']);
+  const rowFiles = t.cloud.rows[0].files.map((file) => file.path);
+  assert.deepEqual(rowFiles, ['assets/logo.png', 'references/format.md', 'scripts/summary.py']);
+  assert.match(t.log.notices.at(-1)?.[0] || '', /./, 'a notice is not required, but nothing was an error');
+  assert.equal(t.log.notices.filter(([, kind]) => kind === 'error').length, 0);
+  // The list marks the skill that has a script, and the details list the files; a click reads one from the zip in the cloud.
+  assert.equal(t.root.querySelectorAll('.cs-skill .cs-badge-scripts').length, 1);
+  t.root.querySelector('.cs-skill .cs-text').click();
+  const files = [...t.root.querySelectorAll('.cs-skill-file-path')].map((node) => node.textContent);
+  assert.deepEqual(files, ['assets/logo.png', 'references/format.md', 'scripts/summary.py']);
+  t.root.querySelectorAll('.cs-skill-file-button')[1].click();
+  await tick(120);
+  assert.equal(t.root.querySelector('.cs-skill-file-text').textContent, '# Format\nUse bullets.\n');
+  t.root.querySelectorAll('.cs-skill-file-button')[0].click();
+  await tick(120);
+  assert.match(t.root.querySelector('.cs-skill-file-note').textContent, /not text/);
+  t.root.querySelectorAll('.cs-skill-file-button')[1].click();
+  assert.equal(t.root.querySelector('.cs-skill-file-text') === null, true, 'a second click closes it');
+});
+
+test('a pack with a name the person has offers "Replace"; a refusal stays on the window with its reason; escape closes the window and not the page', async () => {
+  const t = page({ rows: [row('sales-report', 'Old.', 'Old body.')], config: { skillEnabledIds: ['sales-report'] } });
+  await tick(50);
+  await chooseFile(t, await packOf({ 'SKILL.md': PACK_SKILL, 'references/a.md': 'a' }));
+  const modal = t.document.querySelector('.skill-bundle');
+  assert.equal(modal.querySelector('button[type="submit"]').textContent, 'Replace');
+  assert.equal(modal.querySelector('.skill-bundle-scripts-warning') === null, true, 'no script, no extra warning');
+  t.document.dispatchEvent(new t.window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+  assert.equal(t.document.querySelector('.skill-bundle') === null, true);
+  assert.ok(t.document.querySelector('.cs'), 'the page stays');
+  assert.equal(t.cloud.stored.size, 0);
+});
+
+test('the pack window alone: a refusal shows its reason and the path it is about', async () => {
+  const window = new Window({ url: 'https://example.test/' });
+  const read = await readSkillBundle(await packOf({ 'SKILL.md': PACK_SKILL, 'references/a.md': 'a' }));
+  let answer = { ok: false, error: 'too_many' };
+  openSkillBundleModal({ document: window.document, language: 'fr', read, onSubmit: async () => answer });
+  const modal = window.document.querySelector('.skill-bundle');
+  assert.equal(modal.querySelector('.cred-modal-title').textContent, 'Importer un pack de compétence');
+  modal.querySelector('button[type="submit"]').click();
+  await tick(30);
+  assert.match(modal.querySelector('.skill-paste-error').textContent, /50 compétences|Maximum 50/);
+  assert.equal(modal.querySelector('button[type="submit"]').disabled, false, 'it can be tried again');
+  answer = { ok: false, error: 'blocked_file', detail: 'a/b.exe' };
+  modal.querySelector('button[type="submit"]').click();
+  await tick(30);
+  assert.match(modal.querySelector('.skill-paste-error').textContent, /\(a\/b\.exe\)$/);
+  answer = { ok: true };
+  modal.querySelector('button[type="submit"]').click();
+  await tick(30);
+  assert.equal(window.document.querySelector('.skill-bundle') === null, true);
+});
+
+test('sizes are told in B, KB and MB', () => {
+  assert.equal(formatFileSize(0), '0 B');
+  assert.equal(formatFileSize(999), '999 B');
+  assert.equal(formatFileSize(1024), '1 KB');
+  assert.equal(formatFileSize(1536), '2 KB');
+  assert.equal(formatFileSize(1.5 * 1024 * 1024), '1.5 MB');
+  assert.equal(formatFileSize('x'), '0 B');
+});
+
+test('the style of the pack window and of the files in the details uses the tokens only', () => {
+  const css = readFileSync(new URL('../src/app/ui/skill/skill-bundle-modal.css', import.meta.url), 'utf8') + readFileSync(new URL('../src/app/ui/cli/cli-store.css', import.meta.url), 'utf8');
+  assert.equal(readFileSync(new URL('../src/styles/permissions.css', import.meta.url), 'utf8').includes('skill-bundle'), false, 'not in the main style sheet');
+  for (const selector of ['.skill-bundle-view', '.skill-bundle-files', '.cs-skill-file-button', '.cs-skill-files']) {
+    const rule = css.split('\n').find((line) => line.startsWith(selector));
+    assert.ok(rule, selector);
+    assert.equal(/#[0-9a-fA-F]{3,8}\b|rgba?\(/.test(rule), false, `${selector} has no colour of its own`);
+  }
 });

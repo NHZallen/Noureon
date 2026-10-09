@@ -29,9 +29,11 @@ html.cs-open { overflow: hidden; }
 .cs-search-input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--text-primary); font: inherit; }
 .cs-search-input::placeholder { color: var(--text-secondary); }
 .cs-tabs { margin-bottom: 0; max-width: 100%; }
-.cs-bar { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; margin-bottom: 0.4rem; }
+.cs-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.6rem; margin-bottom: 0.4rem; }
+.cs-bar-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.5rem; margin-left: auto; }
 .cs-paste[hidden] { display: none; }
-.cs-paste { flex: none; white-space: nowrap; }
+.cs-upload[hidden] { display: none; }
+.cs-paste, .cs-upload { flex: none; white-space: nowrap; }
 
 .cs-section-title { margin: 1.3rem 0.3rem 0.25rem; color: var(--text-secondary); font-size: 0.8rem; font-weight: 600; letter-spacing: 0.01em; }
 .cs-row { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 0.9rem; padding: 0.85rem 0.5rem; border-radius: 1rem; }
@@ -58,6 +60,16 @@ html.cs-open { overflow: hidden; }
 .cs-details { grid-column: 2 / -1; display: grid; grid-template-columns: max-content 1fr; gap: 0.25rem 1rem; margin: 0.3rem 0 0; font-size: 0.85rem; }
 .cs-details dt { color: var(--text-secondary); }
 .cs-details dd { margin: 0; overflow-wrap: anywhere; }
+.cs-badge-scripts { margin-left: 0.4rem; }
+.cs-skill-files { grid-column: 2 / -1; margin: 0.5rem 0 0; font-size: 0.85rem; }
+.cs-skill-files-title { display: block; margin-bottom: 0.2rem; color: var(--text-secondary); font-size: 0.8rem; font-weight: 600; }
+.cs-skill-file-list { margin: 0; padding: 0; list-style: none; }
+.cs-skill-file-button { display: flex; align-items: center; gap: 0.5rem; width: 100%; padding: 0.35rem 0.3rem; border: 0; border-radius: 0.5rem; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.cs-skill-file-button:hover { background: var(--hover-bg); }
+.cs-skill-file-path { flex: 1; min-width: 0; overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.8rem; }
+.cs-skill-file-size { flex: none; color: var(--text-secondary); font-size: 0.78rem; }
+.cs-skill-file-note { margin: 0.2rem 0.3rem 0.4rem; color: var(--text-secondary); font-size: 0.8rem; }
+.cs-skill-file-text { grid-column: auto; margin: 0.2rem 0 0.3rem; }
 .cs-skill-text { grid-column: 2 / -1; box-sizing: border-box; max-height: 16rem; overflow: auto; margin: 0.4rem 0 0; padding: 0.7rem 0.8rem; border: 1px solid var(--border-color); border-radius: 0.7rem; background: var(--hover-bg); font: 0.8rem/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
 .cs-link { color: var(--text-primary); text-decoration: underline; text-underline-offset: 2px; }
 
@@ -80,7 +92,7 @@ html.cs-open { overflow: hidden; }
   .cs-mark { width: 2.6rem; height: 2.6rem; border-radius: 0.8rem; }
   .cs-added { display: none; }
   .cs-soon { padding: 0.25rem 0.6rem; font-size: 0.78rem; }
-  .cs-about, .cs-details, .cs-skill-text { grid-column: 1 / -1; }
+  .cs-about, .cs-details, .cs-skill-text, .cs-skill-files { grid-column: 1 / -1; }
   .cs-menu.is-sheet { left: 0; right: 0; bottom: 0; top: auto; min-width: 0; padding: 0.6rem 0.6rem calc(0.8rem + env(safe-area-inset-bottom, 0px)); border: 0; border-radius: 1.5rem 1.5rem 0 0; box-shadow: var(--shadow-up); }
   .cs-menu.is-sheet .cs-menu-item { padding: 0.9rem 0.8rem; font-size: 1.02rem; }
 }
