@@ -145,4 +145,4 @@ owner 要深色模式回來（當初拿掉是因為太醜、顏色與字色沒�
 ## 2026-10-09 加進 OpenRouter 的模型
 
 - **三個 Gemini 走 OpenRouter：** `google/gemini-3.8-flash`、`google/gemini-3.5-flash-lite`、`google/gemini-3.1-pro-preview`（`model-registry.js`），給只有 OpenRouter 金鑰的人。名稱、價格說明（同一個 `descriptionKey`）、發布日、輸出價格、思考程度都照原生那三個，能力（看圖、上傳文件、工具、搜尋＝OpenRouter 的 Tavily）照 OpenRouter 模型的規則。**這些數字是照原生模型填的，沒有在 OpenRouter 的模型頁核對過**（開發環境連不到 OpenRouter）：上線前請對一次 id、價格、思考程度（尤其 3.5 Flash Lite 的 `minimal`）。
-- **`stepfun/step-5-preview`：** 只用名稱已知的資訊加入：不能傳圖、不能用工具（所以沒有進階模式）、沒有思考程度、沒有價格說明（選單顯示「OpenRouter pricing」）、沒有發布日。查過 OpenRouter 的模型頁後，要分別補進 `OPENROUTER_VISION_MODELS`、`TOOL_CALLING_MODEL_IDS`（並從 `NON_TOOL_CALLING_MODEL_IDS` 拿掉）、`MODEL_REASONING_CONFIGS`、`MODEL_RELEASE_METADATA`，以及五種語言的 `model_step_5_preview_desc_tier_paid`。公司名稱 `stepfun` 在選單顯示為 StepFun。
+- **`stepfun/step-5-preview`：** 規格由 owner 從 OpenRouter 的模型頁提供：能傳圖、能用工具（進階模式可用）、思考 low／medium／high 三級且不能關閉（預設級沒給，先用 medium）、價格輸入 $1／輸出 $2.70 每百萬 tokens（五種語言的 `model_step_5_preview_desc_tier_paid`）。**發布日不知道，沒有填 `releasedAt`**（選單依加入順序排）。公司名稱 `stepfun` 在選單顯示為 StepFun。

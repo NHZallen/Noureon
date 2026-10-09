@@ -636,6 +636,7 @@ const es = {
   "model_qwen3_7_flash_desc_tier_paid": "$0.03/M de entrada, $0.13/M de salida (hasta 32K)",
   "model_mimo_v2_6_pro_desc_tier_paid": "$0,435/M de entrada, $0,87/M de salida",
   "model_mimo_v2_6_flash_desc_tier_paid": "$0,14/M de entrada, $0,28/M de salida",
+  "model_step_5_preview_desc_tier_paid": "$1/M de entrada, $2.70/M de salida",
   "model_grok_4_6_desc_tier_paid": "$2/M de entrada, $6/M de salida (hasta 200K)",
   "model_minimax_m3_desc_tier_paid": "$0,3/M de entrada, $1,2/M de salida",
   "model_glm_5_3_desc_tier_paid": "$1.15/M de entrada, $3.50/M de salida",

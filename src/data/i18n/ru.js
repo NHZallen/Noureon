@@ -636,6 +636,7 @@ const ru = {
   "model_qwen3_7_flash_desc_tier_paid": "Вход $0,03/млн, выход $0,13/млн (до 32K)",
   "model_mimo_v2_6_pro_desc_tier_paid": "Вход $0,435/млн, выход $0,87/млн",
   "model_mimo_v2_6_flash_desc_tier_paid": "Вход $0,14/млн, выход $0,28/млн",
+  "model_step_5_preview_desc_tier_paid": "Вход $1/млн, выход $2,7/млн",
   "model_grok_4_6_desc_tier_paid": "Вход $2/млн, выход $6/млн (до 200K)",
   "model_minimax_m3_desc_tier_paid": "0,3 доллара США на вход, 1,2 доллара США на выход.",
   "model_glm_5_3_desc_tier_paid": "Вход $1,15/млн, выход $3,50/млн",

@@ -641,6 +641,7 @@
         // Xiaomi Paid
         model_mimo_v2_6_pro_desc_tier_paid: '百萬輸入/0.435$、百萬輸出/0.87$',
         model_mimo_v2_6_flash_desc_tier_paid: '百萬輸入/0.14$、百萬輸出/0.28$',
+        model_step_5_preview_desc_tier_paid: '百萬輸入/1$、百萬輸出/2.7$',
         // xAI Paid
         model_grok_4_6_desc_tier_paid: '200K 輸入內：百萬輸入/2$、百萬輸出/6$',
         // Minimax Paid

@@ -641,6 +641,7 @@
         // Xiaomi Paid
         model_mimo_v2_6_pro_desc_tier_paid: '$0.435/M input, $0.87/M output',
         model_mimo_v2_6_flash_desc_tier_paid: '$0.14/M input, $0.28/M output',
+        model_step_5_preview_desc_tier_paid: '$1/M input, $2.70/M output',
         // xAI Paid
         model_grok_4_6_desc_tier_paid: '$2/M input, $6/M output (up to 200K input)',
         // Minimax Paid

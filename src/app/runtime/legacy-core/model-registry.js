@@ -40,6 +40,8 @@ const MODEL_RELEASE_METADATA = Object.freeze({
     'qwen/qwen3.7-flash': { releasedAt: 20260727, outputPricePerMillion: 0.13 },
     'qwen/qwen3.7-plus': { releasedAt: 20260603, outputPricePerMillion: 1.28 },
     'qwen/qwen3.8-max-0902': { releasedAt: 20260903, outputPricePerMillion: 6 },
+    // No release day is known for Step 5 Preview: it is placed by the order it was added in.
+    'stepfun/step-5-preview': { outputPricePerMillion: 2.7 },
     'xiaomi/mimo-v2.6-pro': { releasedAt: 20260921, outputPricePerMillion: 0.87 },
     'xiaomi/mimo-v2.6-flash': { releasedAt: 20260921, outputPricePerMillion: 0.28 },
     'x-ai/grok-4.6': { releasedAt: 20260810, outputPricePerMillion: 6 },
@@ -119,8 +121,7 @@ export const MODEL_CATALOG = [
     { id: 'qwen/qwen3.7-plus', name: 'Qwen3.7 Plus', provider: 'openrouter', descriptionKey: 'model_qwen3_7_plus_desc', category: 'general' },
     { id: 'qwen/qwen3.8-max-0902', legacyIds: ['qwen/qwen3.8-max'], name: 'Qwen3.8 Max 0902', provider: 'openrouter', descriptionKey: 'model_qwen3_8_max_desc', category: 'general' },
 
-    // OpenRouter Paid Models (StepFun). Added with what is known from its name only: no pictures, no tools (so no Advanced mode), no thinking control, and no price line
-    // (the picker says "OpenRouter pricing"); each is added to its list below once it is checked on OpenRouter's model page.
+    // OpenRouter Paid Models (StepFun): sees pictures, calls tools, thinks at three levels that cannot be turned off, $1 / $2.70 per million tokens in / out.
     { id: 'stepfun/step-5-preview', name: 'StepFun Step 5 Preview', provider: 'openrouter', descriptionKey: 'model_step_5_preview_desc', category: 'general' },
 
     // OpenRouter Paid Models (Xiaomi)
@@ -167,6 +168,7 @@ export const OPENROUTER_VISION_MODELS = [
     'qwen/qwen3.7-flash',
     'qwen/qwen3.7-plus',
     'qwen/qwen3.8-max-0902',
+    'stepfun/step-5-preview',
     'xiaomi/mimo-v2.6-pro',
     'xiaomi/mimo-v2.6-flash',
     'z-ai/glm-5.3-flash',
@@ -207,6 +209,7 @@ export const TOOL_CALLING_MODEL_IDS = Object.freeze([
     'qwen/qwen3.7-flash',
     'qwen/qwen3.7-plus',
     'qwen/qwen3.8-max-0902',
+    'stepfun/step-5-preview',
     'xiaomi/mimo-v2.6-pro',
     'xiaomi/mimo-v2.6-flash',
     'x-ai/grok-4.6',
@@ -218,9 +221,7 @@ export const NON_TOOL_CALLING_MODEL_IDS = Object.freeze([
     'nvidia/deepseek-ai/deepseek-v4.1-flash',
     'nvidia/z-ai/glm-5.3-flash',
     'nvidia/z-ai/glm-5.3',
-    'nvidia/moonshotai/kimi-k3',
-    // Not checked on OpenRouter's model page yet (see its entry in the catalog).
-    'stepfun/step-5-preview'
+    'nvidia/moonshotai/kimi-k3'
 ]);
 export const GEMINI_DOCUMENT_MODELS = [
     'gemini-3.8-flash',
@@ -269,6 +270,8 @@ export const MODEL_REASONING_CONFIGS = createReasoningConfigs([
     [OPENROUTER_REASONING_EFFORT, ['none', 'low', 'medium', 'high', 'xhigh', 'max'], 'medium', ['openai/gpt-6-luna', 'openai/gpt-5.6-terra']],
     // GPT-6.1 Sol has no "none" (OpenAI docs, OpenRouter model page: low, medium, high, xhigh, max; default medium).
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'medium', ['openai/gpt-6.1-sol']],
+    // Step 5 Preview thinks at three levels and cannot be turned off (the owner, from OpenRouter's model page; the default level was not given: medium).
+    [OPENROUTER_REASONING_EFFORT, LOW_MEDIUM_HIGH, 'medium', ['stepfun/step-5-preview']],
     [OPENROUTER_REASONING_EFFORT, ['none', 'high'], 'high', ['xiaomi/mimo-v2.6-pro', 'xiaomi/mimo-v2.6-flash']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'high', 'max'], 'high', ['moonshotai/kimi-k3']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh'], 'high', ['x-ai/grok-4.6']],

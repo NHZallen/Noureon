@@ -302,7 +302,7 @@ test('a temporary chat has no council, whatever its saved settings say', () => {
   assert.equal(isCouncilEnabled(null), false);
 });
 
-test('the Gemini models are also on OpenRouter, with the settings of their native twins; StepFun Step 5 Preview is added with only what is known', () => {
+test('the Gemini models are also on OpenRouter, with the settings of their native twins; StepFun Step 5 Preview sees pictures, calls tools and thinks at three levels', () => {
   const twins = [['gemini-3.8-flash', 'google/gemini-3.8-flash'], ['gemini-3.5-flash-lite', 'google/gemini-3.5-flash-lite'], ['gemini-3.1-pro-preview', 'google/gemini-3.1-pro-preview']];
   for (const [nativeId, openRouterId] of twins) {
     const native = MODELS.find((model) => model.id === nativeId);
@@ -324,8 +324,13 @@ test('the Gemini models are also on OpenRouter, with the settings of their nativ
   const step = MODELS.find((model) => model.id === 'stepfun/step-5-preview');
   assert.ok(step);
   assert.equal(step.provider, 'openrouter');
-  assert.equal(modelSupportsVision(step), false, 'not shown to see pictures yet');
-  assert.equal(modelSupportsToolCalling(step), false, 'nor to call tools');
-  assert.equal(getModelReasoningConfig(step), null, 'and with no thinking control');
+  assert.equal(modelSupportsVision(step), true);
+  assert.equal(modelSupportsToolCalling(step), true);
+  assert.equal(modelSupportsWebSearch(step), true);
+  assert.equal(step.outputPricePerMillion, 2.7);
+  const config = getModelReasoningConfig(step);
+  assert.deepEqual(config.options, ['low', 'medium', 'high'], 'three levels, and it cannot be turned off');
+  assert.equal(config.providerParameter, 'openrouterReasoningEffort');
+  assert.equal(config.options.includes('none'), false);
 });
 
