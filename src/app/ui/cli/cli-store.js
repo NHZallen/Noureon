@@ -13,7 +13,7 @@ import { skillText } from '../../runtime/skill/skill-texts.js';
 import { formatFileSize } from '../skill/skill-file-size.js';
 import { activeSkills, addSkill, canModelUseSkill, isSkillEnabled, removeSkill, setSkillModelUse } from '../../runtime/skill/skill-state.js';
 import { permissionText } from '../../runtime/cli/permission-texts.js';
-import { extensionsIcon, skillIcon, terminalIcon, toolIconMarkup, watchToolIcons } from './cli-icons.js';
+import { extensionsIcon, skillIcon, skillMark, terminalIcon, toolIconMarkup, watchToolIcons } from './cli-icons.js';
 import { canAnimate, enterMenu, enterPage, leaveMenu, leavePage, measureRows, playRows } from './cli-motion.js';
 import { DEFAULT_STORE_KIND, STORE_KINDS, storeKindFromPath, storePath } from './store-path.js';
 
@@ -435,7 +435,7 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
     const element = make(document, 'div', `cs-row cs-skill${added ? ' is-added' : ''}`);
     element.dataset.skillName = skill.name;
     const mark = make(document, 'div', 'cs-mark');
-    mark.innerHTML = skillIcon(22);
+    mark.innerHTML = skillMark(skill.name, skillTitle(skill, getLanguage()), 22, '', { framed: false });
     const text = make(document, 'button', 'cs-text');
     text.type = 'button';
     text.setAttribute('aria-expanded', String(state.expanded.has(skill.name)));

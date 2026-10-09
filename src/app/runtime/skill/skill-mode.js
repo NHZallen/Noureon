@@ -5,7 +5,7 @@
 
 import { MAX_INVOKED_SKILLS, skillIndicatorId } from '../../../data/skill-prompt.js';
 import { skillDescription, skillTitle } from '../../../data/skill-catalog.js';
-import { skillIcon } from '../../ui/cli/cli-icons.js';
+import { skillIcon, skillMark } from '../../ui/cli/cli-icons.js';
 import { cliText } from '../cli/cli-texts.js';
 import { registerSkillMode } from './skill-bridge.js';
 import { activeSkills, canModelUseSkill, resolveSkillBodies } from './skill-state.js';
@@ -43,7 +43,7 @@ export function createSkillMode({ document, messageInput, getConfig, getUiLangua
     for (const { name, indicatorId, label } of selection()) {
       map.set(indicatorId, {
         id: indicatorId,
-        html: `<span class="input-indicator-content flex items-center gap-2"><span class="input-indicator-leading">${skillIcon(18, 'input-indicator-mode-icon')}</span><span>${escapeHTML(label)}</span></span>${closeButton(`close-skill-btn-input-${name}`, escapeHTML(t('chipClose', { name: label })))}`,
+        html: `<span class="input-indicator-content flex items-center gap-2"><span class="input-indicator-leading">${skillMark(name, label, 18, 'input-indicator-mode-icon')}</span><span>${escapeHTML(label)}</span></span>${closeButton(`close-skill-btn-input-${name}`, escapeHTML(t('chipClose', { name: label })))}`,
         eventListener: (element) => element.querySelector(`#close-skill-btn-input-${name}`)?.addEventListener('click', () => remove(name))
       });
     }
@@ -138,7 +138,7 @@ export function createSkillMode({ document, messageInput, getConfig, getUiLangua
     if (!menu || !menuState) return;
     const list = menuState.skills;
     const none = skills().length === 0;
-    const rows = list.map((skill) => `<button type="button" class="cli-menu-item" role="option" data-skill-name="${escapeHTML(skill.name)}"><span class="cli-menu-icon">${skillIcon(18)}</span><span class="cli-menu-name">${escapeHTML(titleOf(skill))}</span><span class="cli-menu-kind">${escapeHTML(t('slashLabel'))}</span></button>`).join('');
+    const rows = list.map((skill) => `<button type="button" class="cli-menu-item" role="option" data-skill-name="${escapeHTML(skill.name)}"><span class="cli-menu-icon">${skillMark(skill.name, titleOf(skill), 18)}</span><span class="cli-menu-name">${escapeHTML(titleOf(skill))}</span><span class="cli-menu-kind">${escapeHTML(t('slashLabel'))}</span></button>`).join('');
     const empty = list.length ? '' : `<div class="cli-menu-empty">${escapeHTML(t(none ? 'slashEmpty' : 'slashNoMatch'))}</div>${none ? `<button type="button" class="cli-menu-store" data-skill-store>${skillIcon(16)}<span>${escapeHTML(t('slashOpenStore'))}</span></button>` : ''}`;
     menu.innerHTML = `<div class="cli-menu-header">${escapeHTML(t('slashHeader'))}</div><div class="cli-menu-list">${rows}${empty}</div>`;
     markActive();

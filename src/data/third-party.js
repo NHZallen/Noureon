@@ -40,6 +40,7 @@ export const APP_LIBRARIES = Object.freeze([
   { name: 'html5-qrcode', license: 'Apache-2.0', url: 'https://github.com/mebjas/html5-qrcode' },
   { name: 'JSZip', license: 'MIT OR GPL-3.0-or-later', url: 'https://stuk.github.io/jszip/' },
   { name: 'KaTeX', license: 'MIT', url: 'https://katex.org/' },
+  { name: 'Lucide', license: 'ISC', url: 'https://lucide.dev/', note: 'Copyright (c) 2026 Lucide Icons and Contributors' },
   { name: 'marked', license: 'MIT', url: 'https://marked.js.org/' },
   { name: 'MathJax', license: 'Apache-2.0', url: 'https://www.mathjax.org/' },
   { name: 'PDF.js', license: 'Apache-2.0', url: 'https://mozilla.github.io/pdf.js/' },

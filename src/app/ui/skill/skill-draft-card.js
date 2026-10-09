@@ -6,7 +6,7 @@
 import { draftHasFiles, readDraftBundle } from '../../../data/skill-draft.js';
 import { parseSkillMarkdown } from '../../../data/skill-format.js';
 import { skillText } from '../../runtime/skill/skill-texts.js';
-import { skillIcon } from '../cli/cli-icons.js';
+import { skillMark } from '../cli/cli-icons.js';
 import { formatFileSize } from './skill-file-size.js';
 
 /** The draft text a placeholder carries ('' when it cannot be read). */
@@ -29,7 +29,7 @@ function goodCard({ element, text, skill, files, t, onAdd }) {
   };
   const head = make('div', 'skill-draft-head');
   const mark = make('span', 'skill-draft-mark');
-  mark.innerHTML = skillIcon(20);
+  mark.innerHTML = skillMark(skill.name, skill.name, 20, '', { framed: false });
   const titles = make('div', 'skill-draft-titles');
   titles.append(make('span', 'skill-draft-kind', t('skillDraftLabel')), make('strong', 'skill-draft-name', skill.name), make('span', 'skill-draft-description', skill.description));
   head.append(mark, titles);

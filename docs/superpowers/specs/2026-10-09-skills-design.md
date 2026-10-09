@@ -341,3 +341,13 @@ owner 看第一版的截圖後要求面板頂端升到頂端那一列圖示的�
 - **設計面板：** `deck-design-control.js` 的 `PHONE_TOP_ROOM` 從 108 改成 56（量到的實際畫面：頂端列圖示的下緣在頁面可見區頂端下方約 51px）。
 - **模型面板：** 高度不再是視窗的固定比例，改成開啟時依輸入框的位置量一次：`council-controls-lifecycle.js` 的 `fitPhonePanel` 算出「輸入框上緣 − 12px − 56px」，夾在 200 到 544px 之間，寫進 `#model-council-control` 的 `--mp-phone-height`；`model-picker.css` 用 `height: var(--mp-phone-height, min(70vh, 34rem))`。兩個入口（點按鈕、選單的「模型理事會」）都會量；寬螢幕會把這個變數移掉，交回樣式。輸入框變高（多行輸入）時，面板頂端也不會超過那條線。設計面板用的是同一套數字。
 
+
+## 26. 技能的圖示（2026-10-10）
+
+以前所有技能都用同一顆星星（容易被當成「我的最愛」）。owner 選了「一個一個專屬」，並決定用開源的 Lucide 圖示（先看過 11 個圖示套進列表的樣子再決定）。
+
+- **官方技能一個一個：** `src/data/skill-icons.js` 放 11 個 Lucide 圖示（只留 `<svg>` 裡面的形狀，約 3 KB）和「技能名稱 → 圖示」的對照：製作技能＝魔法棒加星光（`wand-sparkles`）、會議記錄＝夾板清單（`clipboard-list`）、校對＝文字加勾（`spell-check`）、事實查核＝放大鏡打勾（`search-check`）、簡報大綱＝簡報架（`presentation`）、郵件撰寫＝信封（`mail`）、主題研究＝望遠鏡（`telescope`）、來源比較＝兩個節點的對照（`git-compare`）、概念解釋＝燈泡（`lightbulb`）、文件問答＝文件加問號（`file-question`）、智慧摘要＝往內收的清單（`list-collapse`）。**新增官方技能時，也要在這個檔案挑一個圖示（`tests/skill-icons.test.js` 檢查每個官方技能都有、互相不重複、沒有多餘的）。**
+- **自己加的技能：** 沒有圖示欄位，顯示標題的第一個字（一整個字元，拉丁字母轉大寫；沒有標題才退回星星）。放在晶片和選單裡有一個小圓角框，放在擴充頁列表和草稿卡裡不加框（它們本來就有方框）。字用逐項的 `font-weight`／`font-size`，不用 `font:` 簡寫（簡寫裡放 `inherit` 會被瀏覽器整條丟掉）；字元會做 HTML 跳脫。
+- **用到圖示的地方：** 擴充頁的技能列表、輸入欄的技能晶片、`/` 選單、已送出訊息裡的技能晶片、技能草稿卡（用草稿的名稱）。畫法集中在 `cli-icons.js` 的 `skillMark(name, title, size, className, { framed })`。星星（`skillIcon`）只留給「技能」這個分類本身（左側清單／「/」選單的商城按鈕）。
+- **授權：** Lucide 是 ISC（Copyright (c) 2026 Lucide Icons and Contributors），已登記在「第三方軟體與授權」頁（`third-party.js` 的 `APP_LIBRARIES`，附版權聲明）。
+- **注意：** 圖示在主程式裡（輸入欄晶片要用），主程式壓縮後大小 154.8 KB，上限 155.0 KB，**只剩約 0.2 KB**。之後主程式再加東西前要先瘦身，或由 owner 決定調高 `scripts/check-file-sizes.mjs` 裡的上限。
