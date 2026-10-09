@@ -13,11 +13,11 @@ const esc = (value = '') => String(value ?? '').replace(/[&<>"']/g, (char) => ({
 const DOC_ICON = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/></svg>';
 const DOWNLOAD_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>';
 const EXPAND_ICON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="m21 3-7 7"/><path d="m3 21 7-7"/></svg>';
-const RING_LENGTH = 2 * Math.PI * 8;
 
 const BULLET = {
   pending: '<span class="rc-bullet rc-bullet-pending" aria-hidden="true"></span>',
   active: '<span class="rc-bullet rc-bullet-active" aria-hidden="true"></span>',
+  still: '<span class="rc-bullet rc-bullet-still" aria-hidden="true"></span>',
   done: '<span class="rc-bullet rc-bullet-done" aria-hidden="true"><svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 8.5 3.2 3.2L13 4.5"/></svg></span>'
 };
 
@@ -52,7 +52,14 @@ export function mountResearchCard({ host, message, getLanguage, showNotification
     return (plan.stats?.activeMs || 0) + (plan.running ? Math.max(0, serverNow(id) - (plan.clock || 0)) : 0);
   };
 
-  const itemsHtml = (plan) => `<div class="rc-items" role="list">${(plan.items || []).map((item) => `<div class="rc-item rc-item-${esc(item.state)}" role="listitem">${BULLET[item.state] || BULLET.pending}<span>${esc(item.text)}</span></div>`).join('')}</div>`;
+  // The item the research is working on turns only while it really is: paused (or on its way to a pause) it stands still, and once the research has stopped, failed or moved on
+  // to the report it waits like the others (a stop leaves the item "active" in what was saved).
+  const bulletOf = (plan, item) => {
+    if (item.state !== 'active') return BULLET[item.state] || BULLET.pending;
+    if (plan.phase !== 'researching') return BULLET.pending;
+    return plan.paused || plan.pausing ? BULLET.still : BULLET.active;
+  };
+  const itemsHtml = (plan) => `<div class="rc-items" role="list">${(plan.items || []).map((item) => `<div class="rc-item rc-item-${esc(item.state)}" role="listitem">${bulletOf(plan, item)}<span>${esc(item.text)}</span></div>`).join('')}</div>`;
 
   // How far the research is, 0 to 100 (the server counts it; a plan from before it did is counted from the items).
   const progressOf = (plan) => {
@@ -81,7 +88,7 @@ export function mountResearchCard({ host, message, getLanguage, showNotification
       if (plan.revising) return `<div class="rc-status"><span class="rc-spinner" aria-hidden="true"></span><span>${esc(t('revising'))}</span></div>`;
       const left = secondsLeft();
       const editing = plan.editing;
-      return `${editing ? `<div class="rc-hint">${esc(t('editingHint'))}</div>` : ''}<div class="rc-actions"><button type="button" class="rc-btn" data-act="edit"${disabled}>${esc(t('edit'))}</button><button type="button" class="rc-btn" data-act="cancel"${disabled}>${esc(t('cancel'))}</button><button type="button" class="rc-btn rc-btn-primary rc-start" data-act="start"${disabled}><span>${esc(t('start'))}</span>${editing || left === null ? '' : `<span class="rc-ring"><svg viewBox="0 0 20 20" aria-hidden="true"><circle class="rc-ring-bg" cx="10" cy="10" r="8"/><circle class="rc-ring-fg" cx="10" cy="10" r="8" stroke-dasharray="${RING_LENGTH.toFixed(2)}" stroke-dashoffset="0"/></svg><span class="rc-secs">${left}</span></span>`}</button></div>`;
+      return `${editing ? `<div class="rc-hint">${esc(t('editingHint'))}</div>` : ''}<div class="rc-actions"><button type="button" class="rc-btn" data-act="edit"${disabled}>${esc(t('edit'))}</button><button type="button" class="rc-btn" data-act="cancel"${disabled}>${esc(t('cancel'))}</button><button type="button" class="rc-btn rc-btn-primary rc-start" data-act="start"${disabled}><span>${esc(t('start'))}</span>${editing || left === null ? '' : `<span class="rc-secs">${left}</span>`}</button></div>`;
     }
     if (phase === 'researching') {
       const done = (plan.items || []).filter((item) => item.state === 'done').length;
@@ -90,7 +97,7 @@ export function mountResearchCard({ host, message, getLanguage, showNotification
       if (state.confirmStop) {
         return `<div class="rc-confirm"><div class="rc-confirm-text">${esc(t('stopAsk'))}</div><div class="rc-actions">${done ? `<button type="button" class="rc-btn rc-btn-primary" data-act="stop-report"${disabled}>${esc(t('stopWrite'))}</button>` : ''}<button type="button" class="rc-btn" data-act="stop-discard"${disabled}>${esc(t('stopDiscard'))}</button><button type="button" class="rc-btn" data-act="stop-back">${esc(t('stopBack'))}</button></div></div>`;
       }
-      return `<div class="rc-status">${plan.paused ? '' : '<span class="rc-spinner" aria-hidden="true"></span>'}<span>${esc(label)}</span><span class="rc-stats">${stats}</span></div>${progressHtml(plan)}${activityHtml()}<div class="rc-actions">${plan.paused || plan.pausing ? `<button type="button" class="rc-btn" data-act="resume"${disabled}>${esc(t('resume'))}</button>` : `<button type="button" class="rc-btn" data-act="pause"${disabled}>${esc(t('pause'))}</button>`}<button type="button" class="rc-btn" data-act="steer"${disabled}>${esc(t('steer'))}</button><button type="button" class="rc-btn" data-act="stop"${disabled}>${esc(t('stop'))}</button></div>`;
+      return `<div class="rc-status">${plan.paused ? '' : '<span class="rc-spinner" aria-hidden="true"></span>'}<span>${esc(label)}</span><span class="rc-stats">${stats}</span></div>${progressHtml(plan)}${activityHtml()}<div class="rc-actions">${plan.paused || plan.pausing ? `<button type="button" class="rc-btn" data-act="resume"${disabled}>${esc(t('resume'))}</button>` : `<button type="button" class="rc-btn" data-act="pause"${disabled}>${esc(t('pause'))}</button>`}<button type="button" class="rc-btn" data-act="stop"${disabled}>${esc(t('stop'))}</button></div>`;
     }
     if (phase === 'writing') return `<div class="rc-status"><span class="rc-spinner" aria-hidden="true"></span><span>${esc(t('writing'))}</span>${entry()?.writing ? `<span class="rc-stats">${esc(t('sectionOf', { n: entry().writing.n, of: entry().writing.of }))}</span>` : ''}</div>${progressHtml(plan)}${activityHtml()}`;
     if (phase === 'stopped') return `<div class="rc-status rc-status-end">${esc(t('stopped'))}</div>`;
@@ -182,12 +189,7 @@ export function mountResearchCard({ host, message, getLanguage, showNotification
     if (plan.phase === 'awaiting') {
       const left = secondsLeft();
       const secs = host.querySelector('.rc-secs');
-      const ring = host.querySelector('.rc-ring-fg');
       if (secs && left !== null) secs.textContent = String(left);
-      if (ring && left !== null) {
-        const total = Math.max(1, (plan.countdownMs || 60000) / 1000);
-        ring.setAttribute('stroke-dashoffset', (RING_LENGTH * (1 - Math.min(1, left / total))).toFixed(2));
-      }
     } else if (plan.phase === 'researching') {
       const elapsed = host.querySelector('.rc-elapsed');
       if (elapsed) elapsed.textContent = t('elapsed', { t: formatResearchTime(elapsedMs()) });
@@ -222,9 +224,6 @@ export function mountResearchCard({ host, message, getLanguage, showNotification
       case 'activity':
         state.activity = !state.activity;
         draw();
-        break;
-      case 'steer':
-        await getResearchMode()?.beginEdit({ runId: current?.runId, messageId: id, title: current?.plan?.title, kind: 'steer' });
         break;
       case 'cancel': await control('stop', { mode: 'discard' }); break;
       case 'start': await control('start'); break;

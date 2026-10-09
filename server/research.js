@@ -554,6 +554,8 @@ export async function executeResearch({
     if (!report) {
       phase = status === 'done' ? 'done' : 'stopped';
       stopClock();
+      // An item the research was in the middle of when it stopped waits like the others (the card turns the one that is "active").
+      for (const item of plan?.items || []) if (item.state === 'active') item.state = 'pending';
     }
     return { parts: messageParts(), status, toolCalls: research.used };
   };

@@ -172,14 +172,6 @@ export function createResearchMode({
         eventListener: (element) => element.querySelector('#close-research-btn-input').addEventListener('click', () => setArmed(false))
       });
     }
-    const steering = steeringHere();
-    if (steering) {
-      map.set(PLAN_INDICATOR_ID, {
-        id: PLAN_INDICATOR_ID,
-        html: `<span class="input-indicator-content flex items-center gap-2"><span class="input-indicator-leading">${renderComposerToolIcon('deepResearch', 'input-indicator-mode-icon')}</span><span>${escapeHTML(shorten(`${researchText(language(), 'steer')}: ${steering.title}`, 28))}</span></span>`,
-        eventListener: () => {}
-      });
-    }
     if (editingHere()) {
       map.set(PLAN_INDICATOR_ID, {
         id: PLAN_INDICATOR_ID,

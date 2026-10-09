@@ -10,6 +10,7 @@
 .rc .rc-bullet { flex: 0 0 auto; width: 16px; height: 16px; margin-top: 3px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; }
 .rc .rc-bullet-pending { border: 1.5px dashed var(--text-secondary); }
 .rc .rc-bullet-active { border: 2px solid var(--border-color); border-top-color: var(--text-primary); animation: rc-spin 0.9s linear infinite; }
+.rc .rc-bullet-still { border: 2px solid var(--border-color); border-top-color: var(--text-primary); }
 .rc .rc-bullet-done { color: var(--text-primary); }
 .rc .rc-bullet-done svg { display: block; }
 
@@ -40,12 +41,8 @@
 .rc .rc-btn:disabled { opacity: 0.45; cursor: default; }
 .rc .rc-btn-primary { background: var(--text-primary); color: var(--chat-bg); border-color: var(--text-primary); }
 .rc .rc-btn-primary:hover:not(:disabled) { background: var(--text-primary); opacity: 0.88; }
-.rc .rc-ring { position: relative; width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; }
-.rc .rc-ring svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); fill: none; stroke-width: 2; }
-.rc .rc-ring-bg { stroke: color-mix(in srgb, var(--chat-bg) 35%, transparent); }
-.rc .rc-ring-fg { stroke: var(--chat-bg); stroke-linecap: round; transition: stroke-dashoffset 0.25s linear; }
 
-.rc .rc-secs { color: inherit; font-size: 0.65rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.rc .rc-secs { margin-left: 0.4rem; opacity: 0.7; font-size: 0.9em; font-variant-numeric: tabular-nums; }
 
 .rc .rc-note { margin: 10px 2px 0; color: var(--text-secondary); font-size: 0.8rem; }
 

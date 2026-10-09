@@ -170,7 +170,7 @@ test('an instruction for the research that runs: nothing is held, what is sent g
   assert.equal(log.controls.length, 1, 'giving it up tells the server nothing');
 });
 
-test('while a research is being done in the open chat the box is for instructions: its words, a chip without a way out, and what is sent goes to the research', async () => {
+test('while a research is being done in the open chat the box is for instructions: its words, no chip above it, and what is sent goes to the research', async () => {
   const { mode, log, input, conversation } = harness();
   assert.equal(mode.placeholder(), null, 'nothing runs: the box is the chat\'s');
   assert.equal(mode.takes(), false);
@@ -185,8 +185,7 @@ test('while a research is being done in the open chat the box is for instruction
   assert.equal(mode.takes(), true);
   const map = new Map();
   mode.indicators(map, chipCloseButton);
-  assert.match(map.get(PLAN_INDICATOR_ID).html, /Add instructions: Battery/);
-  assert.doesNotMatch(map.get(PLAN_INDICATOR_ID).html, /close-research-plan-btn-input/, 'there is no way out: the box is only for this now');
+  assert.equal(map.has(PLAN_INDICATOR_ID), false, 'no line above the box saying "Add instructions": its words already say it');
   input.value = ' focus on cost ';
   await mode.submit();
   assert.deepEqual(log.controls.at(-1), ['POST', '/v1/runs/run-9/steer', '{"instruction":"focus on cost"}']);
