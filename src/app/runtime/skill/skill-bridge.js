@@ -18,13 +18,22 @@ export async function getAvailableSkills(exclude = []) {
     return [];
   }
 }
-/** The text of one skill the person has: { name, body } or null. Never rejects. */
+/** The text of one skill the person has: { name, body, files? } or null. Never rejects. */
 export async function lookupSkill(name) {
   if (!mode?.lookup) return null;
   try {
     return await mode.lookup(name);
   } catch {
     return null;
+  }
+}
+/** The text of one text file of a skill that came as a zip: { ok: true, text, cut } or { ok: false, reason }. Never rejects. */
+export async function readSkillFile(name, path) {
+  if (!mode?.readFile) return { ok: false, reason: 'failed' };
+  try {
+    return await mode.readFile(name, path);
+  } catch {
+    return { ok: false, reason: 'failed' };
   }
 }
 /** The skills a message asks for, with their text: [{ name, body }] (those the person still has). Never rejects. */

@@ -49,8 +49,8 @@ export function activeSkills(config, userSkills = []) {
   return [...official, ...own];
 }
 
-/** The skills named, as [{ name, body }], for the ones the person has now (a name that is not among them is left out). Order of `names`. */
+/** The skills named, as [{ name, body, files? }] (`files` for a skill that came as a zip), for the ones the person has now (a name that is not among them is left out). Order of `names`. */
 export function resolveSkillBodies(config, userSkills, names) {
   const have = new Map(activeSkills(config, userSkills).map((skill) => [skill.name, skill]));
-  return [...new Set(Array.isArray(names) ? names : [])].map((name) => have.get(name)).filter(Boolean).map((skill) => ({ name: skill.name, body: skill.body }));
+  return [...new Set(Array.isArray(names) ? names : [])].map((name) => have.get(name)).filter(Boolean).map((skill) => ({ name: skill.name, body: skill.body, ...(skill.files?.length ? { files: skill.files } : {}) }));
 }

@@ -146,7 +146,7 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
   const parts = spec.request.currentMessage.parts;
   // The skills the model may load by itself: not with Gemini's own search (the provider refuses its tools next to that search).
   const skillList = skills && mode !== 'grounding' ? spec.tools.skills || [] : [];
-  const makeSkillLoader = () => (skillList.length ? createSkillLoader({ available: skillList, lookup: (name) => skills.body(userId, name) }) : null);
+  const makeSkillLoader = () => (skillList.length ? createSkillLoader({ available: skillList, lookup: (name) => skills.body(userId, name), readFile: skills.readFile ? (name, path) => skills.readFile(userId, name, path) : null }) : null);
   // A skill being loaded is a row of the step list the pages show (the other steps of a reply without Python are not).
   const skillEvents = (event) => { if (event.type === 'skill') onLive({ ev: { ...event, t: Math.max(0, now() - startedAt) } }); };
 

@@ -251,16 +251,38 @@ export function createSkillMode({ document, messageInput, getConfig, getUiLangua
     await readOwn();
     return resolveSkillBodies(getConfig(), own(), names);
   };
-  /** The skills the model may load by itself in this reply: [{ name, description }], without the ones asked for with "/" (they are given whole already). */
+  /**
+   * The skills the model may load by itself in this reply: [{ name, description, files?, given? }], without the ones asked for with "/" (they are given
+   * whole already), except those with files: the model may read those files, so they stay in the list marked `given` (loaded from the start), whether or
+   * not the person lets the model use that skill by itself (they asked for it).
+   */
   const available = async (exclude = []) => {
     await readOwn();
     const skip = new Set(exclude);
-    return skills().filter((skill) => canModelUseSkill(getConfig(), skill.name) && !skip.has(skill.name)).map((skill) => ({ name: skill.name, description: skill.description }));
+    return skills()
+      .filter((skill) => (canModelUseSkill(getConfig(), skill.name) && !skip.has(skill.name)) || (skip.has(skill.name) && skill.files?.length))
+      .map((skill) => ({ name: skill.name, description: skill.description, ...(skill.files?.length ? { files: true } : {}), ...(skip.has(skill.name) ? { given: true } : {}) }));
   };
-  /** The text of one skill the person has: { name, body } or null. */
+  /** The text of one skill the person has: { name, body, files? } or null. */
   const lookup = async (name) => (await resolve([name]))[0] || null;
+  /** The text of one text file of a skill that came as a zip: { ok: true, text, cut } or { ok: false, reason } ('not_found', 'binary', 'failed'). Never rejects. */
+  const readFile = async (name, path) => {
+    try {
+      await readOwn();
+      const skill = byName(name);
+      if (!skill?.files?.some((file) => file.path === path)) return { ok: false, reason: 'not_found' };
+      const opened = skillStore ? await skillStore.openBundle(name) : { ok: false };
+      if (!opened.ok) return { ok: false, reason: 'failed' };
+      const { bundleFileText, SKILL_BUNDLE_LIMITS } = await import('../../../data/skill-bundle.js');
+      const text = bundleFileText(opened.files, path, SKILL_BUNDLE_LIMITS.readChars);
+      return text ? { ok: true, text: text.text, cut: text.cut } : { ok: false, reason: 'binary' };
+    } catch (error) {
+      logger?.warn?.('Reading a file of a skill failed.', error);
+      return { ok: false, reason: 'failed' };
+    }
+  };
 
-  const mode = { sync, indicators, selection, clear, closeMenu, resolve, available, lookup };
+  const mode = { sync, indicators, selection, clear, closeMenu, resolve, available, lookup, readFile };
   registerSkillMode(mode);
   return mode;
 }

@@ -9,7 +9,7 @@ import { resolveReplyMode } from '../../runtime/sandbox/file-mode.js';
 import { browserSupportsSandbox } from '../../runtime/sandbox/sandbox-protocol.js';
 import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
 import { cliIdsForReply } from '../../runtime/cli/cli-state.js';
-import { getAvailableSkills, lookupSkill, resolveInvokedSkills } from '../../runtime/skill/skill-bridge.js';
+import { getAvailableSkills, lookupSkill, readSkillFile, resolveInvokedSkills } from '../../runtime/skill/skill-bridge.js';
 import { invokedSkillsInstruction, skillNamesOfParts } from '../../../data/skill-prompt.js';
 import { decisionsFor, verdictOf } from '../../runtime/decisions/decision-store.js';
 import { createCredentialAnswerHandler } from '../../runtime/cli/credential-answer.js';
@@ -148,14 +148,17 @@ export function createSingleModelResponseLifecycle({
     const cli = canCallTools ? cliIdsForReply(getConfig(), userParts, { ownAllowed: ownToolsAllowed }) : { chosen: [], ids: [] };
     // The skills asked for with "/" in this message are given to the model in full, with this reply only (whatever the kind of reply: they go in the
     // system instructions, which the server is sent as they are).
-    const skillInstruction = invokedSkillsInstruction(await resolveInvokedSkills(skillNamesOfParts(userParts)));
+    // A search the provider makes itself (some refuse our tools next to it) or a search packet put in front of the request: no skill tool then.
+    const ownSearchReply = Boolean(webSearchEnabled && !researchByModel);
+    // The files of a skill asked for are told about only when the model has a tool to read them.
+    const invokedSkills = await resolveInvokedSkills(skillNamesOfParts(userParts));
+    const filesNote = canCallTools && !ownSearchReply && invokedSkills.some((skill) => skill.files?.length) ? (await import('../../../data/skill-files-note.js')).skillFilesNote : null;
+    const skillInstruction = invokedSkillsInstruction(invokedSkills, { filesNote });
     const skillOptions = skillInstruction ? { additionalSystemInstruction: skillInstruction } : {};
     // The skills the model may load by itself (the ones it is told about, and not those it was just given whole): only for a model that calls tools.
     const availableSkills = canCallTools ? await getAvailableSkills(skillNamesOfParts(userParts)) : [];
-    // A search the provider makes itself (some refuse our tools next to it) or a search packet put in front of the request: no skill tool then.
-    const ownSearchReply = Boolean(webSearchEnabled && !researchByModel);
     const { createSkillLoader } = availableSkills.length && !ownSearchReply ? await import('../../../data/skill-tool.js') : {};
-    const makeSkillLoader = () => (createSkillLoader ? createSkillLoader({ available: availableSkills, lookup: lookupSkill }) : null);
+    const makeSkillLoader = () => (createSkillLoader ? createSkillLoader({ available: availableSkills, lookup: lookupSkill, readFile: readSkillFile }) : null);
     // Advanced mode is the default, so most replies are "advanced" by the setting alone. Python is only needed when the request is
     // about files or data, or the conversation already has some; any other reply is the same without it, and the server makes it.
     // The CLI tools chosen with "@" (and those the person lets the model use by itself) run in the same sandbox, so they need it whatever the

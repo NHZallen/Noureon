@@ -4,8 +4,8 @@
 // call's `note`, shown between the rows; every word it writes as text is the answer and streams as it comes. For the models that have
 // no search of their own but do call tools (OpenRouter's); the others get a search packet in front of the request.
 
-import { LOAD_SKILL_TOOL, availableSkillsInstruction } from '../../../data/skill-tool.js';
-import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
+import { availableSkillsInstruction } from '../../../data/skill-tool.js';
+import { sandboxText, skillStepEvent } from '../../runtime/sandbox/sandbox-texts.js';
 import { hostOf } from '../../ui/sandbox/run-sources.js';
 import { resultDate } from './model-request-formatting.js';
 import { NOTE_PARAMETER, partialJsonString } from './tool-call-formats.js';
@@ -364,7 +364,8 @@ export async function runWebResearchReply({
   const takesSkills = (name) => Boolean(skills?.handles(name));
 
   for (;;) {
-    const canCall = research.left > 0 || (skills?.left || 0) > 0;
+    const skillTools = skills ? skills.tools : [];
+    const canCall = research.left > 0 || skillTools.length > 0;
     let response = null;
     let roundStarted = false;
     notes.reset();
@@ -382,7 +383,7 @@ export async function runWebResearchReply({
     try {
       await streamApiCall(requestParts, emit, signal, false, {
         ...requestOptions,
-        tools: canCall ? [...(research.left > 0 ? RESEARCH_TOOLS : []), ...((skills?.left || 0) > 0 ? [LOAD_SKILL_TOOL] : [])] : [],
+        tools: canCall ? [...(research.left > 0 ? RESEARCH_TOOLS : []), ...skillTools] : [],
         toolTurns,
         additionalSystemInstruction: [requestOptions.additionalSystemInstruction, guidance].filter(Boolean).join('\n\n'),
         onToolArguments: ({ name, arguments: raw }) => {
@@ -408,8 +409,8 @@ export async function runWebResearchReply({
     for (const call of calls) {
       let content;
       if (takesSkills(call.name)) {
-        const wanted = typeof call.args?.name === 'string' ? call.args.name.trim() : '';
-        if (wanted) onEvent({ type: 'skill', name: wanted, label: sandboxText(language, 'skillLoading', { name: wanted }) });
+        const step = skillStepEvent(language, skills.noteFor(call));
+        if (step) onEvent(step);
         content = await skills.run(call);
       } else {
         notes.fromCall(call);

@@ -237,3 +237,14 @@
 - 五語文字：`skill-texts.js` 新增 26 個鍵（每種語言 67 個，測試檢查鍵與占位符一致），含 10 個 zip 拒收原因；`skillsNeedAccount` 改成「貼上或上傳」。
 - 樣式只用 `tokens.css` 的名稱。確認視窗的樣式放在自己的 `skill-bundle-modal.css`，打開視窗時才載入（主樣式表因為這一頁多了約 1 KB，超過 230 KB 的上限，所以不放在 `permissions.css`）。用真實瀏覽器看過電腦淺色與手機深色兩種畫面。
 - 測試：`skill-ui` 新增 7 項（按鈕只在技能層、沒帳號、壞 zip 的各種原因、整個上傳流程含讀檔、取代與 Escape、視窗單獨測、大小顯示、樣式用 token）。
+
+## 19. P2c 實作紀錄（2026-10-09）
+
+- **共用（頁面與伺服器同一份）：** `src/data/skill-tool.js` 新增工具 `read_skill_file(skill, path)`；`createSkillLoader` 多了 `readFile`（讀一個文字檔，沒有它就不提供這個工具）、`canRun`（這個回覆有沒有放了技能資料夾的沙盒：`true`／`false`／`null` 代表還不知道）、`tools`（現在值得給模型的工具：還能載入技能時給 `load_skill`，載入過有檔案的技能且還能讀時再給 `read_skill_file`）、`noteFor(call)`（這個呼叫是關於哪個技能或檔案，給步驟列用）。`load_skill` 的結果在本文後面接一段「這個技能有 N 個檔案」的清單（路徑、種類、大小）與怎麼用：讀文字檔用 `read_skill_file`；腳本依 `canRun` 說明能不能跑。檔案文字用 `<skill-file skill=".." path="..">` 包住並註明優先度與技能相同、不給新能力；檔案裡的 `</skill-file` 會被破壞掉不能提早關閉區塊。模型只能讀已載入技能的清單裡的檔案；一個回覆最多讀 10 個檔，超過會被告知；二進位檔、不存在的路徑（回覆會列出有哪些）、讀不到各有說明。
+- **用 `/` 指定的技能也能讀檔：** 帶檔案的技能被 `/` 指定時，仍然留在可讀清單裡，標為 `given`（視為已載入，不需再 `load_skill`），即使使用者沒讓模型自己用這個技能；指定時放進系統指令的全文後面會附檔案清單（`src/data/skill-files-note.js`，只在有這種技能而且模型有工具可讀時才載入，不增加主要區塊的大小）。模型不能呼叫工具、供應商自己搜尋或先搜一包的回覆沒有讀檔工具，所以不附清單；模型團也不附。
+- **三種迴圈：** 一般（`skills-reply.js`）、搜尋（`web-research-reply.js`）、Python（`sandbox-reply.js`）都改成用 `loader.tools` 決定給哪些工具，用 `skillStepEvent(language, loader.noteFor(call))` 產生步驟列的一列：載入是「載入技能：名稱」，讀檔是「讀取技能檔案：路徑」（五語文字 `skillFileReading`，同一種星形列）。
+- **頁面：** `skill-mode.js` 的 `available` 帶 `files`／`given`，`lookup` 帶檔案清單，新增 `readFile(name, path)`（從 `skillStore.openBundle` 取，二進位檔回 `binary`，不是自己的技能或不在清單的路徑回 `not_found`）；`skill-bridge.js` 新增 `readSkillFile`。交給伺服器時 RunSpec 的 `tools.skills` 每一項可多帶 `files: true`、`given: true`（`run-spec.js` 只收布林值）。
+- **伺服器：** 新增 `server/skill-bundles.js`（用服務金鑰讀 `user-skill-bundles` 裡本人那個技能的 zip；名稱或使用者編號不合法、找不到、讀不到、太大都回 null）；`server/skills.js` 的 `body` 回傳檔案清單（來自資料列，只當清單），新增 `readFile(userId, name, path)`：從儲存桶取 zip，用頁面同一份 `readSkillBundle` 再檢查一次才給（存的東西不信任），打開過的 zip 暫存 60 秒（最多 12 個），讓模型連續讀幾個檔不必重抓。`src/data/skill-bundle.js` 與 `skill-files-note.js` 列進 `scripts/server-shared-modules.json`。
+- **還沒做（P2d）：** `canRun` 目前一律 `false`，也就是說明「腳本在這個回覆跑不了」。P2d 要在伺服器的 Python 沙盒把技能資料夾掛在 `/skills/<名稱>/`，並把那個回覆的 `canRun` 設成 `true`。
+- **大小：** 最大的 JS 區塊 gzip 154.5 KB（上限 155，只剩 0.5 KB）。為此 `skill-files-note.js` 獨立成小模組、動態載入。P2d 在頁面這一側幾乎不加程式，但之後再加功能要先想辦法騰出空間。
+- **測試：** 新增 `tests/skill-files.test.js`（14 項：工具、載入器各種情形、`/` 指定的技能、步驟列、一般與搜尋兩種迴圈、頁面端的 `available`／`lookup`／`readFile`）、`server-skills`（RunSpec 的兩個旗標、伺服器讀檔與重新檢查、zip 儲存、整個伺服器回覆含載入與讀檔）、`sandbox-reply`（Python 迴圈讀檔）。

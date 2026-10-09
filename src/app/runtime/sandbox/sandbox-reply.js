@@ -4,11 +4,11 @@
 // answer text and the run record kept above it. Loaded on demand.
 
 import { MAX_RUNS_PER_REPLY, MAX_RUNS_WITH_CLI, RUN_COMMAND_TOOL, RUN_PYTHON_TOOL, RUN_PYTHON_TOOL_SERVER, REQUEST_CREDENTIALS_TOOL, getCliGuidance, getSandboxGuidance } from './sandbox-guidance.js';
-import { sandboxText } from './sandbox-texts.js';
+import { sandboxText, skillStepEvent } from './sandbox-texts.js';
 import { RUN_STATUS } from '../../ui/sandbox/sandbox-run-block.js';
 import { partialJsonString } from '../../legacy-runtime/features/tool-call-formats.js';
 import { RESEARCH_TOOLS, createNotes, createResearchCalls, researchGuidance } from '../../legacy-runtime/features/web-research-reply.js';
-import { LOAD_SKILL_TOOL, availableSkillsInstruction } from '../../../data/skill-tool.js';
+import { availableSkillsInstruction } from '../../../data/skill-tool.js';
 
 const MODEL_TEXT_CHARS = 10_000;
 const MAX_CRASHES = 2;
@@ -261,7 +261,8 @@ export async function runSandboxReply({
   for (;;) {
     const canRun = toolsAllowed && run.steps.length < maxRuns;
     const canResearch = Boolean(research && research.left > 0);
-    const canSkill = Boolean(skillLoader && skillLoader.left > 0);
+    const skillTools = skillLoader ? skillLoader.tools : [];
+    const canSkill = skillTools.length > 0;
     const canCall = canRun || canResearch || canSkill;
     let response = null;
     deliver.continuing = false;
@@ -316,7 +317,7 @@ export async function runSandboxReply({
           onEvent({ type: 'code', text: partialJsonString(raw, name === RUN_COMMAND_TOOL.name ? 'command' : 'code') });
         }
       },
-      tools: [...(canRun ? [host === 'server' ? RUN_PYTHON_TOOL_SERVER : RUN_PYTHON_TOOL, ...(useCli ? [RUN_COMMAND_TOOL] : []), ...(canAskCredentials ? [REQUEST_CREDENTIALS_TOOL] : [])] : []), ...(canResearch ? RESEARCH_TOOLS : []), ...(canSkill ? [LOAD_SKILL_TOOL] : [])],
+      tools: [...(canRun ? [host === 'server' ? RUN_PYTHON_TOOL_SERVER : RUN_PYTHON_TOOL, ...(useCli ? [RUN_COMMAND_TOOL] : []), ...(canAskCredentials ? [REQUEST_CREDENTIALS_TOOL] : [])] : []), ...(canResearch ? RESEARCH_TOOLS : []), ...(canSkill ? skillTools : [])],
       toolTurns,
       additionalSystemInstruction: [requestOptions.additionalSystemInstruction, guidance].filter(Boolean).join('\n\n'),
       onResponseComplete: (value) => { response = value; }
@@ -393,8 +394,8 @@ export async function runSandboxReply({
       }
       if (skillLoader?.handles(call.name)) {
         // A skill the model loads: its text is the answer to the call (it never fails: the answer says what went wrong).
-        const wanted = typeof call.args?.name === 'string' ? call.args.name.trim() : '';
-        if (wanted) onEvent({ type: 'skill', name: wanted, label: sandboxText(language, 'skillLoading', { name: wanted }) });
+        const step = skillStepEvent(language, skillLoader.noteFor(call));
+        if (step) onEvent(step);
         reply(await skillLoader.run(call));
         continue;
       }

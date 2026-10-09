@@ -350,6 +350,8 @@ export function validateRunSpec(input) {
       if (!Array.isArray(tools.skills) || tools.skills.length > MAX_LISTED_SKILLS) fail('tools.skills', `must be a list of at most ${MAX_LISTED_SKILLS} skills`);
       else tools.skills.forEach((entry, index) => {
         if (!isObject(entry) || !isSkillName(entry.name) || !text(entry.description, SKILL_DESCRIPTION_MAX)) fail(`tools.skills[${index}]`, 'must have a skill name and a description');
+        // `files`: the skill has files the model may read; `given`: the person asked for it with "/", so its text was given whole.
+        else if ((entry.files !== undefined && typeof entry.files !== 'boolean') || (entry.given !== undefined && typeof entry.given !== 'boolean')) fail(`tools.skills[${index}]`, '`files` and `given` must be true or false');
       });
     }
     if (tools.inputs !== undefined) {
