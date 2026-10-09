@@ -61,6 +61,19 @@ export const OFFICIAL_SKILL_CATALOG = [
       ru: { title: 'Проверка фактов', description: 'Проверяет каждое фактическое утверждение в тексте: вердикт, доказательства и источник, а также что не проверено или не поддаётся проверке.' },
       es: { title: 'Verificación de datos', description: 'Comprueba cada afirmación factual de un texto, con un veredicto, las pruebas y la fuente, e indica qué no se comprobó o no se pudo verificar.' }
     }
+  },
+  {
+    name: 'storyline',
+    description: 'Plans a presentation storyline in any language: audience and goal, one key message, and a slide-by-slide outline with titles that make the point, the evidence each slide needs, and timing. Use whenever the user wants a deck, pitch or talk outline, or help structuring what to say on slides.',
+    version: '1',
+    author: 'Noureon',
+    i18n: {
+      'zh-TW': { title: '簡報大綱', description: '把主題或筆記整理成簡報的故事線：聽眾與目標、一句主訊息，以及逐頁大綱（標題講重點、每頁需要的證據、時間）。' },
+      en: { title: 'Presentation storyline', description: 'Turn a topic or notes into the story of a presentation: audience and goal, one key message, and a slide-by-slide outline with the evidence and timing.' },
+      fr: { title: 'Plan de présentation', description: 'Transforme un sujet ou des notes en fil conducteur : public et objectif, un message clé, et un plan diapo par diapo avec les preuves et le temps.' },
+      ru: { title: 'Структура презентации', description: 'Превращает тему или заметки в сюжет презентации: аудитория и цель, главная мысль и план по слайдам с доказательствами и временем.' },
+      es: { title: 'Guion de presentación', description: 'Convierte un tema o unas notas en el hilo de una presentación: público y objetivo, un mensaje clave y un esquema diapositiva a diapositiva con pruebas y tiempos.' }
+    }
   }
 ];
 
