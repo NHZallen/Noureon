@@ -9,6 +9,8 @@ import { resolveReplyMode } from '../../runtime/sandbox/file-mode.js';
 import { browserSupportsSandbox } from '../../runtime/sandbox/sandbox-protocol.js';
 import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
 import { cliIdsForReply } from '../../runtime/cli/cli-state.js';
+import { resolveInvokedSkills } from '../../runtime/skill/skill-bridge.js';
+import { invokedSkillsInstruction, skillNamesOfParts } from '../../../data/skill-prompt.js';
 import { decisionsFor, verdictOf } from '../../runtime/decisions/decision-store.js';
 import { createCredentialAnswerHandler } from '../../runtime/cli/credential-answer.js';
 import { createNetAnswerHandler } from '../../runtime/cli/net-answer.js';
@@ -144,6 +146,10 @@ export function createSingleModelResponseLifecycle({
     // The tools the model may use by itself are only given when the message is judged to need one; the ones chosen with "@" always are.
     const ownToolsAllowed = verdictOf(decisionsFor(textOfParts(userParts)), 'tool') !== false;
     const cli = canCallTools ? cliIdsForReply(getConfig(), userParts, { ownAllowed: ownToolsAllowed }) : { chosen: [], ids: [] };
+    // The skills asked for with "/" in this message are given to the model in full, with this reply only (whatever the kind of reply: they go in the
+    // system instructions, which the server is sent as they are).
+    const skillInstruction = invokedSkillsInstruction(await resolveInvokedSkills(skillNamesOfParts(userParts)));
+    const skillOptions = skillInstruction ? { additionalSystemInstruction: skillInstruction } : {};
     // Advanced mode is the default, so most replies are "advanced" by the setting alone. Python is only needed when the request is
     // about files or data, or the conversation already has some; any other reply is the same without it, and the server makes it.
     // The CLI tools chosen with "@" (and those the person lets the model use by itself) run in the same sandbox, so they need it whatever the
@@ -225,7 +231,7 @@ export function createSingleModelResponseLifecycle({
           sequence,
           uiLanguage,
           config: getConfig(),
-          requestOptions: { onMemoryContextResolved, requestPurpose: NOURAS_REQUEST_PURPOSE.USER_VISIBLE_ANSWER },
+          requestOptions: { onMemoryContextResolved, requestPurpose: NOURAS_REQUEST_PURPOSE.USER_VISIBLE_ANSWER, ...skillOptions },
           getHistorySourceIds
         });
         if (started.ok) serverRun = started.run;
@@ -267,7 +273,7 @@ export function createSingleModelResponseLifecycle({
       }
     };
 
-    const streamOptions = { modelInfo, conversation, webSearchEnabled, onMemoryContextResolved, onSources: addSearchSources, onSupports: (supports) => { groundingSupports = supports; }, requestPurpose: NOURAS_REQUEST_PURPOSE.USER_VISIBLE_ANSWER };
+    const streamOptions = { modelInfo, conversation, webSearchEnabled, onMemoryContextResolved, onSources: addSearchSources, onSupports: (supports) => { groundingSupports = supports; }, requestPurpose: NOURAS_REQUEST_PURPOSE.USER_VISIBLE_ANSWER, ...skillOptions };
     // The run record (or the reason for Standard mode) kept above the answer.
     let sandboxRun = !replyMode.advanced && replyMode.reason && looksLikeFileTask(userParts)
       ? { status: 'done', steps: [], fallback: replyMode.reason }

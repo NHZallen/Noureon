@@ -1,6 +1,7 @@
 import { shouldAutoEnableWebSearch } from '../../runtime/features/auto-web-search.js';
 import { extractLinkedUrls } from './linked-pages.js';
 import { clearCliSelection, getCliSelection } from '../../runtime/cli/cli-bridge.js';
+import { clearSkillSelection, getSkillSelection } from '../../runtime/skill/skill-bridge.js';
 import { cliIdsOfParts, withCliSegments } from '../../runtime/cli/cli-state.js';
 import { rememberDecisions, verdictOf } from '../../runtime/decisions/decision-store.js';
 
@@ -102,7 +103,8 @@ export function createSubmitInputPreparationLifecycle({
     }
     // The CLI tools chosen with "@" are in the message as chips (on a phone the chips are not in the box, so they are put in here).
     const cliTarget = composerTextPart || userParts.find((part) => typeof part?.text === 'string');
-    if (cliTarget) withCliSegments(cliTarget, getCliSelection());
+    // The skills chosen with "/" are chips in it in the same way.
+    if (cliTarget) withCliSegments(cliTarget, [...getCliSelection(), ...getSkillSelection()]);
     userParts.push(...buildUserParts('', uploadedFiles));
     const userMessage = userParts
       .filter(part => part?.text)
@@ -131,6 +133,7 @@ export function createSubmitInputPreparationLifecycle({
 
     if (!preserveComposer) {
       clearCliSelection();
+      clearSkillSelection();
       elements.messageInput.value = '';
       setUploadedFiles([]);
       clearQuoteReference();

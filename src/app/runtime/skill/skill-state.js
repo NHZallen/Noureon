@@ -48,3 +48,9 @@ export function activeSkills(config, userSkills = []) {
   const own = (Array.isArray(userSkills) ? userSkills : []).filter((skill) => names.has(skill.name)).map((skill) => ({ ...skill, source: 'user' }));
   return [...official, ...own];
 }
+
+/** The skills named, as [{ name, body }], for the ones the person has now (a name that is not among them is left out). Order of `names`. */
+export function resolveSkillBodies(config, userSkills, names) {
+  const have = new Map(activeSkills(config, userSkills).map((skill) => [skill.name, skill]));
+  return [...new Set(Array.isArray(names) ? names : [])].map((name) => have.get(name)).filter(Boolean).map((skill) => ({ name: skill.name, body: skill.body }));
+}

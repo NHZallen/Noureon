@@ -6,6 +6,7 @@ import { renderComposerToolIcon } from '../../composer-tool-icons.js';
 import { registerResearchMode } from './research-bridge.js';
 import { getResearch, subscribeAnyResearch } from './research-store.js';
 import { createCliMode } from '../cli/cli-mode.js';
+import { createSkillMode } from '../skill/skill-mode.js';
 import { createSkillStore } from '../skill/skill-store.js';
 import { researchText } from './research-texts.js';
 
@@ -55,6 +56,10 @@ export function createResearchMode({
   });
   const cli = typeof messageInput?.addEventListener === 'function' && typeof document?.addEventListener === 'function'
     ? createCliMode({ document, messageInput, isLocked: () => getActiveConversation()?.retentionMode === 'ephemeral', getConfig, saveConfig, getUiLanguage, refresh: () => refresh(), showNotification, getAccountReady: () => serverReply.hasAccount(), skillStore, logger })
+    : null;
+  // The skills share it too: "/" in the box, and the chip of a skill (a temporary chat has them as well: a skill is only words).
+  const skills = typeof messageInput?.addEventListener === 'function' && typeof document?.addEventListener === 'function'
+    ? createSkillMode({ document, messageInput, getConfig, getUiLanguage, refresh: () => refresh(), skillStore, openStore: (kind) => cli?.openStore?.(kind), logger })
     : null;
   const getSync = () => globalThis.__astraCloudSyncV2;
   const warn = (...args) => logger?.warn?.(...args);
@@ -149,6 +154,7 @@ export function createResearchMode({
   /** Called when the buttons of the "+" menu are brought up to date. */
   const syncMenu = () => {
     cli?.sync();
+    skills?.sync();
     const button = ensureMenuButton();
     if (!button) return;
     button.style.display = isUnavailable() ? 'none' : 'flex';
@@ -158,6 +164,7 @@ export function createResearchMode({
   /** Adds this mode's chips to the composer's (the same markup as the others: `closeButton(id, title)` gives the ✕). */
   const indicators = (map, closeButton) => {
     cli?.indicators(map, closeButton);
+    skills?.indicators(map, closeButton);
     if (armed && !isUnavailable()) {
       map.set(RESEARCH_INDICATOR_ID, {
         id: RESEARCH_INDICATOR_ID,

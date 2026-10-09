@@ -881,3 +881,29 @@ test('while the server searches first, the page shows "Searching with ..." for t
   const stages = calls.filter((call) => call[0] === 'render-progress').map((call) => call[1]);
   assert.equal(stages.filter((stage) => stage === 'searchTranslation').length, 1, 'once, for the search; a late word after the answer began changes nothing');
 });
+
+test('the skills a message asks for with "/" are given to the model in full, for this reply only', async () => {
+  const { registerSkillMode } = await import('../src/app/runtime/skill/skill-bridge.js');
+  const { skillIndicatorId } = await import('../src/data/skill-prompt.js');
+  registerSkillMode({ resolve: async (names) => names.filter((name) => name === 'meeting-notes').map((name) => ({ name, body: 'List the decisions first.' })) });
+  try {
+    const asked = createHarness();
+    await asked.lifecycle.run({
+      targetElement: asked.targetElement,
+      userParts: [{ text: 'tidy these notes', displaySegments: [{ type: 'mode', indicatorId: skillIndicatorId('meeting-notes'), label: 'meeting-notes' }, { type: 'mode', indicatorId: skillIndicatorId('gone-skill'), label: 'gone' }, { type: 'text', text: 'tidy these notes' }] }],
+      modelInfo: { id: 'model', name: 'Model' },
+      conversation: { model: 'model' },
+      signal: asked.signal,
+      uiLanguage: 'en'
+    });
+    const options = asked.calls.find((call) => call[0] === 'api')[4];
+    assert.match(options.additionalSystemInstruction, /<skill name="meeting-notes">\nList the decisions first\.\n<\/skill>/);
+    assert.doesNotMatch(options.additionalSystemInstruction, /gone-skill/, 'a skill the person no longer has is not given');
+
+    const plain = createHarness();
+    await plain.lifecycle.run({ targetElement: plain.targetElement, userParts: [{ text: 'no skill here' }], modelInfo: { id: 'model', name: 'Model' }, conversation: { model: 'model' }, signal: plain.signal, uiLanguage: 'en' });
+    assert.equal('additionalSystemInstruction' in plain.calls.find((call) => call[0] === 'api')[4], false, 'nothing added when no skill was asked for');
+  } finally {
+    registerSkillMode(null);
+  }
+});
