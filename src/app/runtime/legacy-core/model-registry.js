@@ -40,8 +40,7 @@ const MODEL_RELEASE_METADATA = Object.freeze({
     'qwen/qwen3.7-flash': { releasedAt: 20260727, outputPricePerMillion: 0.13 },
     'qwen/qwen3.7-plus': { releasedAt: 20260603, outputPricePerMillion: 1.28 },
     'qwen/qwen3.8-max-0902': { releasedAt: 20260903, outputPricePerMillion: 6 },
-    // No release day is known for Step 5 Preview: it is placed by the order it was added in.
-    'stepfun/step-5-preview': { outputPricePerMillion: 2.7 },
+    'stepfun/step-5-preview': { releasedAt: 20261008, outputPricePerMillion: 2.7 },
     'xiaomi/mimo-v2.6-pro': { releasedAt: 20260921, outputPricePerMillion: 0.87 },
     'xiaomi/mimo-v2.6-flash': { releasedAt: 20260921, outputPricePerMillion: 0.28 },
     'x-ai/grok-4.6': { releasedAt: 20260810, outputPricePerMillion: 6 },
@@ -270,7 +269,7 @@ export const MODEL_REASONING_CONFIGS = createReasoningConfigs([
     [OPENROUTER_REASONING_EFFORT, ['none', 'low', 'medium', 'high', 'xhigh', 'max'], 'medium', ['openai/gpt-6-luna', 'openai/gpt-5.6-terra']],
     // GPT-6.1 Sol has no "none" (OpenAI docs, OpenRouter model page: low, medium, high, xhigh, max; default medium).
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'medium', ['openai/gpt-6.1-sol']],
-    // Step 5 Preview thinks at three levels and cannot be turned off (the owner, from OpenRouter's model page; the default level was not given: medium).
+    // Step 5 Preview thinks at three levels and cannot be turned off (the owner, from OpenRouter's model page; default level: medium).
     [OPENROUTER_REASONING_EFFORT, LOW_MEDIUM_HIGH, 'medium', ['stepfun/step-5-preview']],
     [OPENROUTER_REASONING_EFFORT, ['none', 'high'], 'high', ['xiaomi/mimo-v2.6-pro', 'xiaomi/mimo-v2.6-flash']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'high', 'max'], 'high', ['moonshotai/kimi-k3']],

@@ -328,9 +328,11 @@ test('the Gemini models are also on OpenRouter, with the settings of their nativ
   assert.equal(modelSupportsToolCalling(step), true);
   assert.equal(modelSupportsWebSearch(step), true);
   assert.equal(step.outputPricePerMillion, 2.7);
+  assert.equal(step.releasedAt, 20261008, 'released on 8 October 2026');
   const config = getModelReasoningConfig(step);
   assert.deepEqual(config.options, ['low', 'medium', 'high'], 'three levels, and it cannot be turned off');
   assert.equal(config.providerParameter, 'openrouterReasoningEffort');
   assert.equal(config.options.includes('none'), false);
+  assert.equal(config.defaultEffort, 'medium');
 });
 
