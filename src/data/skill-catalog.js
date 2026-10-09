@@ -139,6 +139,19 @@ export const OFFICIAL_SKILL_CATALOG = [
       ru: { title: 'Вопросы по документу', description: 'Отвечает на вопросы по предоставленному вами документу, показывая нужные фрагменты, и прямо говорит, если в документе этого нет или его не удалось прочитать.' },
       es: { title: 'Preguntas sobre un documento', description: 'Responde preguntas a partir de un documento que aportas, mostrando los pasajes relevantes, y dice claramente cuando el documento no lo dice o no se pudo leer.' }
     }
+  },
+  {
+    name: 'summarize',
+    description: 'Condenses long articles, documents, papers, emails and conversations into the key points in any language, faithful to the source and at the length the user asks for. Use when the user asks to summarize, shorten, condense or give the gist. Not for answering specific questions about a document.',
+    version: '1',
+    author: 'Noureon',
+    i18n: {
+      'zh-TW': { title: '智慧摘要', description: '把長文章、文件、郵件或對話濃縮成重點，忠於原文，長度由你決定，並說明讀了哪些部分。' },
+      en: { title: 'Summarize', description: 'Condense a long article, document, email thread or conversation into its key points, faithful to the source, at the length you want.' },
+      fr: { title: 'Résumé', description: 'Condense un long article, document, fil d’e-mails ou conversation en points clés, fidèle à la source, à la longueur que vous voulez.' },
+      ru: { title: 'Краткое изложение', description: 'Сжимает длинную статью, документ, переписку или беседу до главных пунктов, верно источнику и нужной вам длины.' },
+      es: { title: 'Resumen', description: 'Condensa un artículo, documento, hilo de correos o conversación largos en sus puntos clave, fiel a la fuente y con la extensión que quieras.' }
+    }
   }
 ];
 
