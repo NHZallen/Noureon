@@ -36,7 +36,8 @@ html.cs-open { overflow: hidden; }
 .cs-paste, .cs-upload { flex: none; white-space: nowrap; }
 
 .cs-section-title { margin: 1.3rem 0.3rem 0.25rem; color: var(--text-secondary); font-size: 0.8rem; font-weight: 600; letter-spacing: 0.01em; }
-.cs-row { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 0.9rem; padding: 0.85rem 0.5rem; border-radius: 1rem; }
+.cs-row { position: relative; padding: 0.85rem 0.5rem; border-radius: 1rem; }
+.cs-row-main { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 0.9rem; }
 .cs-row + .cs-row::before { content: ""; position: absolute; left: 4.1rem; right: 0.5rem; top: 0; border-top: 1px solid var(--border-color); }
 .cs-row:hover { background: color-mix(in srgb, var(--text-primary) 5%, transparent); }
 .cs-row:hover::before, .cs-row:hover + .cs-row::before { border-color: transparent; }
@@ -56,16 +57,16 @@ html.cs-open { overflow: hidden; }
 .cs-button-primary { border-color: var(--text-primary); background: var(--text-primary); color: var(--chat-bg); }
 .cs-empty { padding: 2.2rem 0.5rem; color: var(--text-secondary); text-align: center; }
 
-.cs-about { grid-column: 2 / -1; margin: 0.4rem 0 0; font-size: 0.88rem; line-height: 1.6; color: var(--text-secondary); }
-.cs-examples { grid-column: 2 / -1; margin: 0.6rem 0 0; }
+.cs-about { margin: 0.4rem 0 0; font-size: 0.88rem; line-height: 1.6; color: var(--text-secondary); }
+.cs-examples { margin: 0.6rem 0 0; }
 .cs-examples-title { margin: 0 0 0.35rem; font-size: 0.82rem; font-weight: 600; color: var(--text-secondary); }
 .cs-examples-list { display: grid; gap: 0.4rem; margin: 0; padding: 0; list-style: none; }
 .cs-examples-list li { padding: 0.5rem 0.75rem; border: 1px solid var(--border-color); border-radius: 0.7rem; background: var(--hover-bg); font-size: 0.88rem; line-height: 1.5; overflow-wrap: anywhere; }
-.cs-details { grid-column: 2 / -1; display: grid; grid-template-columns: max-content 1fr; gap: 0.25rem 1rem; margin: 0.3rem 0 0; font-size: 0.85rem; }
+.cs-details { display: grid; grid-template-columns: max-content 1fr; gap: 0.25rem 1rem; margin: 0.3rem 0 0; font-size: 0.85rem; }
 .cs-details dt { color: var(--text-secondary); }
 .cs-details dd { margin: 0; overflow-wrap: anywhere; }
 .cs-badge-scripts { margin-left: 0.4rem; }
-.cs-skill-files { grid-column: 2 / -1; margin: 0.5rem 0 0; font-size: 0.85rem; }
+.cs-skill-files { margin: 0.5rem 0 0; font-size: 0.85rem; }
 .cs-skill-files-title { display: block; margin-bottom: 0.2rem; color: var(--text-secondary); font-size: 0.8rem; font-weight: 600; }
 .cs-skill-file-list { margin: 0; padding: 0; list-style: none; }
 .cs-skill-file-button { display: flex; align-items: center; gap: 0.5rem; width: 100%; padding: 0.35rem 0.3rem; border: 0; border-radius: 0.5rem; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
@@ -73,8 +74,8 @@ html.cs-open { overflow: hidden; }
 .cs-skill-file-path { flex: 1; min-width: 0; overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.8rem; }
 .cs-skill-file-size { flex: none; color: var(--text-secondary); font-size: 0.78rem; }
 .cs-skill-file-note { margin: 0.2rem 0.3rem 0.4rem; color: var(--text-secondary); font-size: 0.8rem; }
-.cs-skill-file-text { grid-column: auto; margin: 0.2rem 0 0.3rem; }
-.cs-skill-text { grid-column: 2 / -1; box-sizing: border-box; max-height: 16rem; overflow: auto; margin: 0.4rem 0 0; padding: 0.7rem 0.8rem; border: 1px solid var(--border-color); border-radius: 0.7rem; background: var(--hover-bg); font: 0.8rem/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+.cs-skill-file-text { margin: 0.2rem 0 0.3rem; }
+.cs-skill-text { box-sizing: border-box; max-height: 16rem; overflow: auto; margin: 0.4rem 0 0; padding: 0.7rem 0.8rem; border: 1px solid var(--border-color); border-radius: 0.7rem; background: var(--hover-bg); font: 0.8rem/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
 .cs-link { color: var(--text-primary); text-decoration: underline; text-underline-offset: 2px; }
 
 .cs-menu { position: fixed; z-index: 5; min-width: 15rem; padding: 0.35rem; border: 1px solid var(--border-color); border-radius: 1rem; background: var(--modal-bg, var(--chat-bg)); box-shadow: var(--shadow-lg); }
@@ -91,12 +92,12 @@ html.cs-open { overflow: hidden; }
   .cs-switch-item { padding: 0.38rem 0.85rem; border: 0; border-radius: 9999px; background: transparent; color: var(--text-secondary); font: inherit; font-size: 0.85rem; font-weight: 600; text-align: center; white-space: nowrap; cursor: pointer; }
   .cs-switch-item[aria-selected="true"] { background: var(--text-primary); color: var(--chat-bg); }
   .cs-body, .cs-nav + .cs-body { padding-inline: 0.7rem; }
-  .cs-row { gap: 0.7rem; padding: 0.8rem 0.2rem; }
+  .cs-row { padding: 0.8rem 0.2rem; }
+  .cs-row-main { gap: 0.7rem; }
   .cs-row + .cs-row::before { left: 3.6rem; right: 0.2rem; }
   .cs-mark { width: 2.6rem; height: 2.6rem; border-radius: 0.8rem; }
   .cs-added { display: none; }
   .cs-soon { padding: 0.25rem 0.6rem; font-size: 0.78rem; }
-  .cs-about, .cs-examples, .cs-details, .cs-skill-text, .cs-skill-files { grid-column: 1 / -1; }
   .cs-menu.is-sheet { left: 0; right: 0; bottom: 0; top: auto; min-width: 0; padding: 0.6rem 0.6rem calc(0.8rem + env(safe-area-inset-bottom, 0px)); border: 0; border-radius: 1.5rem 1.5rem 0 0; box-shadow: var(--shadow-up); }
   .cs-menu.is-sheet .cs-menu-item { padding: 0.9rem 0.8rem; font-size: 1.02rem; }
 }
@@ -115,9 +116,17 @@ html.cs-open { overflow: hidden; }
 .cs-empty-title { color: var(--text-primary); font-size: 1.05rem; }
 .cs-empty-note { max-width: 24rem; margin: 0; font-size: 0.9rem; line-height: 1.6; }
 
-/* Motion. What moves on its own (the page arriving, a row opening, the list changing, the menu) is made in cli-motion.js; here are the small changes of colour, and the
-   logos fading in. A person who asked for less motion gets none of it. */
+/* Motion. The page arriving, the list changing and the menus are made in cli-motion.js; the details of a row open and close here, in place: the box under the row
+   goes from no height to its content (a grid row from 0fr to 1fr, so the height does not have to be known) while the content fades, and the line of the list folds
+   away as it opens. A person who asked for less motion gets none of it. */
 .cs-row { box-sizing: border-box; transition: background-color 0.16s ease; }
+.cs-more { display: grid; grid-template-rows: 0fr; visibility: hidden; transition: grid-template-rows 0.34s cubic-bezier(0.3, 0.7, 0.2, 1), visibility 0s linear 0.34s; }
+.cs-more.is-open { grid-template-rows: 1fr; visibility: visible; transition: grid-template-rows 0.44s cubic-bezier(0.25, 0.9, 0.25, 1), visibility 0s; }
+.cs-more-inner { min-height: 0; overflow: hidden; padding: 0 0 0 3.8rem; opacity: 0; transition: opacity 0.16s ease; }
+.cs-more.is-open .cs-more-inner { opacity: 1; transition: opacity 0.32s ease 0.12s; }
+.cs-desc { max-height: 3em; transition: max-height 0.3s cubic-bezier(0.3, 0.7, 0.2, 1), margin-top 0.3s cubic-bezier(0.3, 0.7, 0.2, 1), opacity 0.2s ease; }
+.cs-row.is-open .cs-desc { max-height: 0; margin-top: 0; opacity: 0; }
+.cs-skill-text.is-loading { min-height: 8rem; }
 .cs-nav-item, .cs-switch-item, .cs-button, .cs-back, .cs-add, .cs-icon-button, .cs-menu-item, .cs-skill-file-button { transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease; }
 .cs-tabs .history-tab { transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease; }
 .cs-mark .cli-tool-img { opacity: 0; transition: opacity 0.3s ease; }
@@ -126,6 +135,10 @@ html.cs-open { overflow: hidden; }
 .cs-menu.is-leaving, .cs-sheet-backdrop.is-leaving { pointer-events: none; }
 .cs-search { transition: background-color 0.18s ease; }
 .cs-search:focus-within { background: color-mix(in srgb, var(--text-primary) 9%, var(--hover-bg)); }
+
+@media (max-width: 640px) {
+  .cs-more-inner { padding-left: 0; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   .cs *, .cs *::before, .cs *::after { transition: none !important; }

@@ -145,32 +145,43 @@ test('a skill whose removal from the cloud fails stays', async () => {
   closeCliStore();
 });
 
-test('opened, a skill says its description once: the line of the list goes, and the source is not told twice for an official skill', async () => {
+test('opened in place, a skill says its description once: the line of the list folds away, and the source is not told twice for an official skill', async () => {
   const mine = page({ rows: [row('write-up', 'Polishes writing.', 'Keep the meaning.')], config: { skillEnabledIds: ['write-up'], skillModelUseIds: ['write-up'] } });
-  await tick(50);
-  assert.equal(mine.root.querySelectorAll('.cs-skill .cs-desc').length, 1, 'closed: the line of the list');
-  mine.root.querySelector('.cs-skill .cs-text').click();
-  assert.equal(mine.root.querySelectorAll('.cs-skill .cs-desc').length, 0, 'open: not repeated');
-  assert.equal(mine.root.querySelector('.cs-about').textContent, 'Polishes writing.');
-  assert.equal(mine.root.querySelector('.cs-examples') === null, true, 'a skill of the person has no requests to try');
-  closeCliStore();
+  try {
+    await tick(50);
+    const card = mine.root.querySelector('.cs-skill');
+    assert.equal(card.querySelector('.cs-desc').getAttribute('aria-hidden'), 'false', 'closed: the line of the list');
+    card.querySelector('.cs-text').click();
+    assert.equal(mine.root.querySelector('.cs-skill'), card, 'the same row: the list was not drawn again');
+    assert.equal(card.querySelector('.cs-desc').getAttribute('aria-hidden'), 'true', 'open: not repeated');
+    assert.equal(card.querySelector('.cs-about').textContent, 'Polishes writing.');
+    assert.equal(card.querySelector('.cs-examples') === null, true, 'a skill of the person has no requests to try');
+  } finally {
+    closeCliStore();
+  }
 
   OFFICIAL_SKILL_CATALOG.push({ name: 'meeting-notes', description: 'English description.', body: 'Official text.', version: '1', author: 'Noureon', i18n: { 'zh-TW': { title: '會議記錄', description: '中文描述' } } });
   try {
     const t = page({ language: 'zh-TW' });
     await tick(30);
-    t.root.querySelector('.cs-skill .cs-text').click();
+    const card = t.root.querySelector('.cs-skill');
+    card.querySelector('.cs-text').click();
+    assert.equal(card.querySelector('.cs-about').textContent, '中文描述', 'the description until the longer explanation has loaded');
     await tick(60);
-    assert.equal(t.root.querySelectorAll('.cs-skill .cs-desc').length, 0);
+    assert.equal(t.root.querySelector('.cs-skill'), card, 'the explanation arrives in the open row, which is not drawn again');
     const { OFFICIAL_SKILL_GUIDES } = await import('../src/data/skill-catalog-guides.js');
     const guide = OFFICIAL_SKILL_GUIDES['meeting-notes']['zh-TW'];
-    assert.equal(t.root.querySelector('.cs-about').textContent, guide.about, 'the longer explanation, once it is loaded');
-    assert.equal(t.root.querySelector('.cs-examples-title').textContent, '用例');
-    assert.deepEqual([...t.root.querySelectorAll('.cs-examples-list li')].map((node) => node.textContent), guide.examples);
-    assert.ok(![...t.root.querySelectorAll('.cs-details dt')].some((node) => node.textContent === '來源'), 'the badge already says it is official');
-    t.root.querySelector('.cs-skill .cs-text').click();
-    assert.equal(t.root.querySelectorAll('.cs-skill .cs-desc').length, 1, 'closed again: the line comes back');
+    assert.equal(card.querySelector('.cs-about').textContent, guide.about, 'the longer explanation, once it is loaded');
+    assert.equal(card.querySelector('.cs-examples-title').textContent, '用例');
+    assert.deepEqual([...card.querySelectorAll('.cs-examples-list li')].map((node) => node.textContent), guide.examples);
+    assert.equal(card.querySelector('.cs-skill-text').textContent, 'Official text.');
+    assert.equal(card.querySelector('.cs-skill-text').classList.contains('is-loading'), false);
+    assert.ok(![...card.querySelectorAll('.cs-details dt')].some((node) => node.textContent === '來源'), 'the badge already says it is official');
+    card.querySelector('.cs-text').click();
+    assert.equal(card.querySelector('.cs-desc').getAttribute('aria-hidden'), 'false', 'closed again: the line comes back');
+    assert.equal(card.querySelector('.cs-about'), null);
   } finally {
+    closeCliStore();
     OFFICIAL_SKILL_CATALOG.length = 0;
   }
 });

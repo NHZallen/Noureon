@@ -399,21 +399,36 @@ test('the details of a tool open with a longer explanation in the language of th
   void chip;
 });
 
-test('opened, a tool says its explanation once: the line of the list goes while the details are open and comes back after', () => {
+test('the details of a tool open in place (the row is not drawn again): the line of the list folds away, the explanation is there once, and it is taken out after it closed', () => {
   const config = { cliEnabledIds: [], cliModelUseIds: [], cliVersions: {} };
   const t = setup({ config, language: 'en' });
-  openCliStore({ kind: 'cli', document: t.document, getConfig: () => config, getLanguage: () => 'en' });
-  const root = t.document.querySelector('.cs');
-  const rowOf = () => root.querySelector('.cs-row[data-cli-id="ffmpeg"]');
-  assert.equal(rowOf().querySelectorAll('.cs-desc').length, 1, 'closed: the line of the list');
-  assert.equal(rowOf().querySelectorAll('.cs-about').length, 0);
-  rowOf().querySelector('.cs-text').click();
-  assert.equal(rowOf().querySelectorAll('.cs-desc').length, 0, 'open: not repeated');
-  assert.equal(rowOf().querySelectorAll('.cs-about').length, 1, 'the explanation, once');
-  rowOf().querySelector('.cs-text').click();
-  assert.equal(rowOf().querySelectorAll('.cs-desc').length, 1, 'closed again');
-  assert.equal(rowOf().querySelectorAll('.cs-about').length, 0);
-  closeCliStore();
+  try {
+    openCliStore({ kind: 'cli', document: t.document, getConfig: () => config, getLanguage: () => 'en' });
+    const root = t.document.querySelector('.cs');
+    const rowOf = () => root.querySelector('.cs-row[data-cli-id="ffmpeg"]');
+    const row = rowOf();
+    assert.equal(row.classList.contains('is-open'), false);
+    assert.equal(row.querySelector('.cs-desc').getAttribute('aria-hidden'), 'false', 'closed: the line of the list');
+    assert.equal(row.querySelectorAll('.cs-about').length, 0, 'nothing made yet');
+    assert.equal(row.querySelector('.cs-more').hasAttribute('inert'), true, 'and the closed box cannot be reached');
+
+    row.querySelector('.cs-text').click();
+    assert.equal(rowOf(), row, 'the same row: the list was not drawn again');
+    assert.equal(row.classList.contains('is-open'), true);
+    assert.equal(row.querySelector('.cs-text').getAttribute('aria-expanded'), 'true');
+    assert.equal(row.querySelector('.cs-desc').getAttribute('aria-hidden'), 'true', 'open: the line folds away, the explanation says it');
+    assert.equal(row.querySelectorAll('.cs-about').length, 1, 'the explanation, once');
+    assert.equal(row.querySelector('.cs-more').classList.contains('is-open'), true);
+    assert.equal(row.querySelector('.cs-more').hasAttribute('inert'), false);
+
+    row.querySelector('.cs-text').click();
+    assert.equal(rowOf(), row);
+    assert.equal(row.classList.contains('is-open'), false);
+    assert.equal(row.querySelector('.cs-desc').getAttribute('aria-hidden'), 'false', 'closed again');
+    assert.equal(row.querySelectorAll('.cs-about').length, 0, 'taken out when it has closed (at once here: nothing animates)');
+  } finally {
+    closeCliStore();
+  }
 });
 
 test('the note about the account goes away when the account becomes ready while the page is open', async () => {

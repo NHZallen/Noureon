@@ -14,7 +14,7 @@ import { formatFileSize } from '../skill/skill-file-size.js';
 import { activeSkills, addSkill, canModelUseSkill, isSkillEnabled, removeSkill, setSkillModelUse } from '../../runtime/skill/skill-state.js';
 import { permissionText } from '../../runtime/cli/permission-texts.js';
 import { extensionsIcon, skillIcon, terminalIcon, toolIconMarkup, watchToolIcons } from './cli-icons.js';
-import { enterMenu, enterPage, leaveMenu, leavePage, measureRows, playRows } from './cli-motion.js';
+import { canAnimate, enterMenu, enterPage, leaveMenu, leavePage, measureRows, playRows } from './cli-motion.js';
 import { DEFAULT_STORE_KIND, STORE_KINDS, storeKindFromPath, storePath } from './store-path.js';
 
 const ICONS = {
@@ -199,10 +199,71 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
     }
   };
 
+  // The details of a row open and close in place: each row has a box under it (cs-more) whose height goes from nothing to its content and back (the style does it),
+  // and the page is not drawn again. The content of a row is made when it opens first, and taken out again when the box has closed.
+  const details = new WeakMap();
+  const rowOf = (id) => [...list.querySelectorAll('.cs-row')].find((element) => (state.kind === 'skills' ? element.dataset.skillName : element.dataset.cliId) === id) || null;
+  const setOpen = (element, open) => {
+    const detail = details.get(element);
+    element.classList.toggle('is-open', open);
+    detail.text.setAttribute('aria-expanded', String(open));
+    detail.desc.setAttribute('aria-hidden', String(open));
+    detail.more.classList.toggle('is-open', open);
+    detail.more.setAttribute('aria-hidden', String(!open));
+    detail.more.toggleAttribute('inert', !open);
+  };
+  const emptyWhenClosed = (element) => {
+    const detail = details.get(element);
+    const empty = () => {
+      if (!detail.more.classList.contains('is-open')) detail.inner.replaceChildren();
+    };
+    if (!canAnimate(detail.more)) {
+      empty();
+      return;
+    }
+    const done = () => {
+      detail.more.removeEventListener('transitionend', onEnd);
+      empty();
+    };
+    const onEnd = (event) => {
+      if (event.target === detail.more && event.propertyName === 'grid-template-rows') done();
+    };
+    detail.more.addEventListener('transitionend', onEnd);
+    win.setTimeout(done, 800);
+  };
+  // `parts` makes the content again from what is known now (the explanation and the text arrive a little after the row opens).
+  const detailsBox = (element, text, desc, id, parts) => {
+    const more = make(document, 'div', 'cs-more');
+    const inner = make(document, 'div', 'cs-more-inner');
+    more.append(inner);
+    details.set(element, { text, desc, more, inner, parts });
+    if (state.expanded.has(id)) {
+      inner.replaceChildren(...parts());
+      setOpen(element, true);
+    } else setOpen(element, false);
+    return more;
+  };
+  const refreshDetails = (id) => {
+    const element = rowOf(id);
+    const detail = element && details.get(element);
+    if (detail && state.expanded.has(id)) detail.inner.replaceChildren(...detail.parts());
+  };
   const toggleDetails = (id) => {
-    if (state.expanded.has(id)) state.expanded.delete(id);
-    else state.expanded.add(id);
-    draw({ open: `${state.kind === 'skills' ? 's' : 'c'}:${id}` });
+    const element = rowOf(id);
+    const detail = element && details.get(element);
+    if (!detail) {
+      if (state.expanded.has(id)) state.expanded.delete(id);
+      else state.expanded.add(id);
+      draw();
+      return;
+    }
+    const open = !state.expanded.has(id);
+    if (open) {
+      state.expanded.add(id);
+      detail.inner.replaceChildren(...detail.parts());
+    } else state.expanded.delete(id);
+    setOpen(element, open);
+    if (!open) emptyWhenClosed(element);
   };
   const openMenu = (tool, anchor) => {
     const config = getConfig();
@@ -266,8 +327,9 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
     const name = make(document, 'span', 'cs-name');
     name.append(make(document, 'span', 'cs-name-text', tool.name), make(document, 'span', 'cs-badge', t('official')));
     // Open, the longer explanation below says it: the line of the list is not repeated.
-    text.append(name);
-    if (!state.expanded.has(tool.id)) text.append(make(document, 'span', 'cs-desc', cliDescription(tool, getLanguage())));
+    // The line of the list is there while the details are closed; open, the explanation below says it and the line folds away (the style).
+    const desc = make(document, 'span', 'cs-desc', cliDescription(tool, getLanguage()));
+    text.append(name, desc);
     text.addEventListener('click', () => toggleDetails(tool.id));
     const action = make(document, 'div', 'cs-action');
     if (added) {
@@ -288,22 +350,26 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
       add.addEventListener('click', () => change(() => addCli(getConfig(), tool.id), t('added_notice', { name: tool.name })));
       action.append(add);
     }
-    element.append(mark, text, action);
-    if (state.expanded.has(tool.id)) {
+    const main = make(document, 'div', 'cs-row-main');
+    main.append(mark, text, action);
+    const parts = () => {
+      const nodes = [];
       const about = cliDetails(tool, getLanguage()) || cliDescription(tool, getLanguage());
-      if (about) element.append(make(document, 'p', 'cs-about', about));
-      const details = make(document, 'dl', 'cs-details');
+      if (about) nodes.push(make(document, 'p', 'cs-about', about));
+      const facts = make(document, 'dl', 'cs-details');
       const entries = [[t('author'), tool.author], [t('license'), tool.license], [t('version'), tool.version]].filter(([, value]) => value);
-      for (const [label, value] of entries) details.append(make(document, 'dt', '', label), make(document, 'dd', '', value));
+      for (const [label, value] of entries) facts.append(make(document, 'dt', '', label), make(document, 'dd', '', value));
       const link = make(document, 'a', 'cs-link', tool.homepage.replace(/^https?:\/\//, ''));
       link.href = tool.homepage;
       link.target = '_blank';
       link.rel = 'noopener noreferrer';
       const site = make(document, 'dd');
       site.append(link);
-      details.append(make(document, 'dt', '', t('website')), site);
-      element.append(details);
-    }
+      facts.append(make(document, 'dt', '', t('website')), site);
+      nodes.push(facts);
+      return nodes;
+    };
+    element.append(main, detailsBox(element, text, desc, tool.id, parts));
     return element;
   };
 
@@ -377,9 +443,9 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
     name.append(make(document, 'span', 'cs-name-text', skillTitle(skill, getLanguage())));
     if (skill.source === 'official') name.append(make(document, 'span', 'cs-badge', t('official')));
     if ((skill.files || []).some((file) => file.kind === 'script')) name.append(make(document, 'span', 'cs-badge cs-badge-scripts', t('skillKindScript')));
-    // Open, the explanation below says it in full: the line of the list is not repeated.
-    text.append(name);
-    if (!state.expanded.has(skill.name)) text.append(make(document, 'span', 'cs-desc', skillDescription(skill, getLanguage())));
+    // The line of the list is there while the details are closed; open, the explanation below says it in full and the line folds away (the style).
+    const desc = make(document, 'span', 'cs-desc', skillDescription(skill, getLanguage()));
+    text.append(name, desc);
     text.addEventListener('click', () => toggleDetails(skill.name));
     const action = make(document, 'div', 'cs-action');
     if (added) {
@@ -397,33 +463,37 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
       add.addEventListener('click', () => change(() => addSkill(getConfig(), skill.name), t('skillAdded_notice', { name: skillTitle(skill, getLanguage()) })));
       action.append(add);
     }
-    element.append(mark, text, action);
-    if (state.expanded.has(skill.name)) {
+    const main = make(document, 'div', 'cs-row-main');
+    main.append(mark, text, action);
+    const parts = () => {
+      const nodes = [];
       // The explanation: an official skill has a longer one (and requests to try) in a file of its own; until it is loaded, and for the skills of the person, the description says it.
       const loaded = skill.source === 'official' ? state.officialGuides.get(skill.name) : null;
       const guide = loaded?.language === getLanguage() ? loaded : null;
       if (skill.source === 'official' && !guide) loadOfficialGuide(skill.name);
-      element.append(make(document, 'p', 'cs-about', guide?.about || skillDescription(skill, getLanguage())));
+      nodes.push(make(document, 'p', 'cs-about', guide?.about || skillDescription(skill, getLanguage())));
       if (guide?.examples?.length) {
         const examples = make(document, 'div', 'cs-examples');
         examples.append(make(document, 'h3', 'cs-examples-title', t('skillExamplesTitle')));
-        const list = make(document, 'ul', 'cs-examples-list');
-        for (const example of guide.examples) list.append(make(document, 'li', '', example));
-        examples.append(list);
-        element.append(examples);
+        const examplesList = make(document, 'ul', 'cs-examples-list');
+        for (const example of guide.examples) examplesList.append(make(document, 'li', '', example));
+        examples.append(examplesList);
+        nodes.push(examples);
       }
       // What the model is given, in full: a skill is read before it is trusted.
       const body = skill.body || state.officialBodies.get(skill.name) || '';
       if (!body && skill.source === 'official') loadOfficialBody(skill.name);
-      element.append(make(document, 'pre', 'cs-skill-text', body || t('skillFileLoading')));
-      const details = make(document, 'dl', 'cs-details');
+      nodes.push(make(document, 'pre', `cs-skill-text${body ? '' : ' is-loading'}`, body || t('skillFileLoading')));
+      const facts = make(document, 'dl', 'cs-details');
       // An official skill already says so by its badge: the source is only told for the skills the person added.
-      if (skill.source !== 'official') details.append(make(document, 'dt', '', t('skillDetailsSource')), make(document, 'dd', '', t('skillSourceYours')));
-      if (skill.version) details.append(make(document, 'dt', '', t('version')), make(document, 'dd', '', skill.version));
-      if (body) details.append(make(document, 'dt', '', t('skillDetailsSize')), make(document, 'dd', '', t('skillSizeChars', { count: body.length })));
-      element.append(details);
-      if (skill.files?.length) element.append(skillFiles(skill));
-    }
+      if (skill.source !== 'official') facts.append(make(document, 'dt', '', t('skillDetailsSource')), make(document, 'dd', '', t('skillSourceYours')));
+      if (skill.version) facts.append(make(document, 'dt', '', t('version')), make(document, 'dd', '', skill.version));
+      if (body) facts.append(make(document, 'dt', '', t('skillDetailsSize')), make(document, 'dd', '', t('skillSizeChars', { count: body.length })));
+      nodes.push(facts);
+      if (skill.files?.length) nodes.push(skillFiles(skill));
+      return nodes;
+    };
+    element.append(main, detailsBox(element, text, desc, skill.name, parts));
     return element;
   };
 
@@ -434,7 +504,7 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
     askedGuides.set(name, language);
     import('../../../data/skill-catalog.js').then(({ loadOfficialSkillGuide }) => loadOfficialSkillGuide(name, language)).then((guide) => {
       if (guide) state.officialGuides.set(name, { ...guide, language });
-      draw();
+      refreshDetails(name);
     }).catch(() => { askedGuides.delete(name); });
   };
 
@@ -444,7 +514,7 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
     askedBodies.add(name);
     import('../../../data/skill-catalog.js').then(({ loadOfficialSkillBody }) => loadOfficialSkillBody(name)).then((text) => {
       state.officialBodies.set(name, text || '');
-      draw();
+      refreshDetails(name);
     }).catch(() => { askedBodies.delete(name); });
   };
 

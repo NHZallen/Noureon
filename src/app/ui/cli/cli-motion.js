@@ -4,8 +4,6 @@
 
 const EASE_OUT = 'cubic-bezier(0.22, 1, 0.36, 1)';
 const EASE_IN = 'cubic-bezier(0.5, 0, 0.75, 0)';
-// What a row that is open adds to it; they fade in as the row grows.
-const OPENED_PARTS = '.cs-about, .cs-examples, .cs-skill-text, .cs-details, .cs-skill-files';
 
 export const canAnimate = (element) => {
   if (typeof element?.animate !== 'function') return false;
@@ -103,11 +101,10 @@ export const measureRows = (list) => {
 };
 
 /**
- * After the list was drawn again: `before` is what measureRows saw. A row that opened or closed (`open` is its key) grows or shrinks from its old height, and the rows
- * below follow it; otherwise a row that moved slides from its old place, and a row that was not there fades in, one after the other. The first drawing (nothing
- * before) does not move: the page arrives as a whole.
+ * After the list was drawn again: `before` is what measureRows saw. A row that moved slides from its old place, and a row that was not there fades in, one after the
+ * other. The first drawing (nothing before) does not move: the page arrives as a whole. (The details of a row open and close in place, by the style: see cli-store.css.)
  */
-export const playRows = (list, before, { open = null } = {}) => {
+export const playRows = (list, before) => {
   if (!before.size || !canAnimate(list)) return;
   let entering = 0;
   for (const row of list.querySelectorAll('.cs-row')) {
@@ -118,17 +115,7 @@ export const playRows = (list, before, { open = null } = {}) => {
       entering += 1;
       continue;
     }
-    const now = row.getBoundingClientRect();
-    if (open) {
-      if (key !== open || Math.abs(now.height - previous.height) < 1) continue;
-      row.style.overflow = 'hidden';
-      // A tall change takes a little longer than a short one, so that it does not look like a jump.
-      const duration = Math.round(Math.min(460, Math.max(260, 220 + Math.abs(now.height - previous.height) * 0.3)));
-      afterwards(play(row, [{ height: `${previous.height}px` }, { height: `${now.height}px` }], { duration }), () => { row.style.overflow = ''; });
-      for (const part of row.querySelectorAll(OPENED_PARTS)) play(part, [{ opacity: 0, transform: 'translateY(-6px)' }, { opacity: 1, transform: 'none' }], { duration: 260, delay: 80, fill: 'backwards' });
-      continue;
-    }
-    const shift = previous.top - now.top;
+    const shift = previous.top - row.getBoundingClientRect().top;
     if (Math.abs(shift) >= 1) play(row, [{ transform: `translateY(${shift}px)` }, { transform: 'none' }], { duration: 320 });
   }
 };

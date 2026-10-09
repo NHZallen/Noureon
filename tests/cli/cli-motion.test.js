@@ -125,25 +125,14 @@ test('the first drawing does not move; a row that stays slides from where it was
   assert.ok(e.options.delay > d.options.delay, 'one after the other');
 });
 
-test('a row that opens grows from its old height with its new parts fading in, and the other rows follow instead of moving by themselves', () => {
-  const t = page();
-  t.redraw([['c:a', 0, 60], ['c:b', 60, 60]]);
-  const before = measureRows(t.list);
-  const rows = t.redraw([['c:a', 0, 200, '<p class="cs-about">x</p><dl class="cs-details"></dl>'], ['c:b', 200, 60]]);
-  playRows(t.list, before, { open: 'c:a' });
-  const grow = t.played.find((animation) => animation.element === rows[0]);
-  assert.deepEqual(grow.keyframes, [{ height: '60px' }, { height: '200px' }]);
-  assert.equal(rows[0].style.overflow, 'hidden', 'clipped while it grows');
-  grow.onfinish();
-  assert.equal(rows[0].style.overflow, '', 'and free after');
-  assert.equal(t.played.filter((animation) => animation.element === rows[1]).length, 0, 'the row below is moved by the layout, not by a second animation');
-  assert.equal(t.played.filter((animation) => animation.element.className === 'cs-about' || animation.element.className === 'cs-details').length, 2, 'the new parts fade in');
-});
-
 test('the styles do the small changes of colour, fade the logos in, and give no motion to a person who asked for less', async () => {
   const { readFileSync } = await import('node:fs');
   const css = readFileSync(new URL('../../src/app/ui/cli/cli-store.css', import.meta.url), 'utf8');
-  assert.match(css, /\.cs-row \{[^}]*box-sizing: border-box/, 'the height of a row is the one that is measured');
+  // The details of a row open and close in place by the style: a grid row from nothing to the content, the content fading, the line of the list folding away.
+  assert.match(css, /\.cs-more \{[^}]*grid-template-rows: 0fr[^}]*visibility: hidden[^}]*transition: grid-template-rows/);
+  assert.match(css, /\.cs-more\.is-open \{[^}]*grid-template-rows: 1fr[^}]*visibility: visible/);
+  assert.match(css, /\.cs-more-inner \{[^}]*min-height: 0[^}]*overflow: hidden/);
+  assert.match(css, /\.cs-row\.is-open \.cs-desc \{[^}]*max-height: 0/);
   assert.match(css, /\.cs-mark \.cli-tool-img \{[^}]*opacity: 0[^}]*transition: opacity/);
   assert.match(css, /\.cs-mark \.cli-tool-img\.is-loaded \{ opacity: 1/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{[^}]*\.cs \*[^}]*transition: none/);
