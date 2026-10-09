@@ -218,3 +218,13 @@
 2. **技能草稿卡片（P3）**：聊天室裡的卡片版面照既有的檔案卡／報告卡的樣式（黑白極簡，標題＋兩個按鈕＋可展開全文），可以嗎？
 3. **`allowed-tools` 不生效**（§14.1 的理由）：同意嗎？
 4. **順序**：P2a → P2b → P2c → P2d → P3a → P3b → P3c，每一階段做完回報。
+
+## 17. P2a 實作紀錄（2026-10-09）
+
+- `src/data/skill-bundle.js`（頁面與伺服器共用，只在需要時載入 jszip）：`readSkillBundle(bytes)` 讀 zip 並檢查，成功回 `{ skill, files: [{ path, size, kind, bytes }], bundle }`，`bundle` 是用通過檢查的檔案重新壓的乾淨 zip（根目錄就是 `SKILL.md`），存的是這一份，不是原始上傳的 zip。限制照 §14.1：zip 5 MB、展開 10 MB、60 個檔案、單檔 2 MB、路徑 200 字。
+- 和設計不同的一處：**程式與安裝檔直接拒收**（`.exe .dll .so .dylib .bat .cmd .com .msi .scr .app .apk .jar .bin .ps1 .vbs .lnk` 回 `blocked_file`），不是「存下來但標不能執行」。理由：技能是說明與輔助腳本，沒有任何理由帶程式；拒收比標示簡單，也少一種要向使用者解釋的狀況。
+- 檔案種類：`script`（`.py`、`.sh`）、`text`（能以 UTF-8 解碼）、`binary`。隱藏檔與隱藏資料夾（`.git`、`.env`、`.DS_Store`）和 `__MACOSX/` 靜默略過；`..`、絕對路徑、`C:`、反斜線、符號連結、大小寫不同但同名的檔案都拒收。外面包一層資料夾的 zip（`my-skill/SKILL.md`）會自動拿掉那層。JSZip 本身讀 zip 時就會拿掉路徑裡的 `..`，所以這一項測的是路徑清理函式；其餘的檢查是第二層。
+- 大小在展開前就看 zip 宣告的大小（`_data.uncompressedSize`），所以一個很小但會展開成好幾 GB 的 zip 不會被展開；展開後再逐檔、逐總量檢查一次。
+- `supabase/migrations/20261009020000_add_user_skill_bundles.sql`（已套用到專案；直接執行時 `storage.objects` 的政策語句一次送多條會逾時，所以實際是分段套用：欄位用一個 migration `add_user_skill_bundles_columns`，儲存桶與四條政策用 SQL 逐條建立，結果與檔案內容相同）：`user_skills` 多 `file_count`（0 到 60）與 `files`（JSON 陣列）；私有儲存桶 `user-skill-bundles`（5 MB）；四條政策只讓本人讀寫自己的資料夾。已驗證：兩個欄位、儲存桶為私有且 5242880 位元組、DELETE／INSERT／SELECT／UPDATE 四條政策；安全性檢查沒有新增項目。
+- `skill-store.js`：技能多了 `files`（路徑、大小、種類）；新增 `addBundle(input, { replace })`（先上傳乾淨 zip，再寫資料列；資料列寫不進去時把新上傳的 zip 收回；儲存失敗不寫資料列）、`openBundle(name)`（從儲存桶取回 zip 並重新檢查，結果暫存到技能被改動為止）；`remove` 一併刪 zip；用純文字取代有檔案的技能時，檔案清單清空、zip 刪除。
+- 測試：`skill-bundle`（13 項）與 `skill-store`（新增 6 項）。

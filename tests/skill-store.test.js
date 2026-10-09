@@ -2,14 +2,42 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
+import JSZip from 'jszip';
+
 import { MAX_USER_SKILLS } from '../src/data/skill-format.js';
+import { SKILL_BUNDLE_BUCKET, readSkillBundle, skillBundlePath } from '../src/data/skill-bundle.js';
 import { createSkillStore } from '../src/app/runtime/skill/skill-store.js';
 
 // A table of rows behind the few calls the store makes.
-function fakeClient({ rows = [], failWith = null, failOps = {} } = {}) {
+function fakeClient({ rows = [], failWith = null, failOps = {}, storageFail = {} } = {}) {
   const calls = [];
+  const stored = new Map();
   const table = {
     rows,
+    stored,
+    storage: {
+      from(bucket) {
+        return {
+          async upload(path, body, options) {
+            calls.push({ op: 'upload', bucket, path, options });
+            if (storageFail.upload) return { data: null, error: { message: storageFail.upload } };
+            stored.set(path, body);
+            return { data: { path }, error: null };
+          },
+          async remove(paths) {
+            calls.push({ op: 'remove-file', bucket, paths });
+            for (const path of paths) stored.delete(path);
+            return { data: [], error: null };
+          },
+          async download(path) {
+            calls.push({ op: 'download', bucket, path });
+            if (storageFail.download || !stored.has(path)) return { data: null, error: { message: 'missing' } };
+            const bytes = stored.get(path);
+            return { data: { arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) }, error: null };
+          }
+        };
+      }
+    },
     from(name) {
       assert.equal(name, 'user_skills');
       const state = { op: 'select', filters: {}, payload: null };
@@ -196,4 +224,113 @@ test('the store the page holds loads the real one the first time it is asked, an
   assert.deepEqual(store.cached().map((skill) => skill.name), ['late-one', 'second-one']);
   assert.deepEqual(await store.remove('late-one'), { ok: true });
   assert.equal(await store.ensure(), true);
+});
+
+const zipWith = async (name, extra = {}) => {
+  const zip = new JSZip();
+  zip.file('SKILL.md', text(name));
+  for (const [path, content] of Object.entries(extra)) zip.file(path, content);
+  return zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE' });
+};
+
+test('a skill with files: the clean zip goes to the bucket of bundles, then the row with the list of files', async () => {
+  const fake = fakeClient();
+  const store = createSkillStore({ getClient: () => fake.client, getUserId: () => 'u1' });
+  const added = await store.addBundle(await zipWith('sales-report', { 'scripts/summary.py': 'print(1)\n', 'references/format.md': '# F\n' }));
+  assert.equal(added.ok, true);
+  assert.deepEqual(added.skill.files, [{ path: 'references/format.md', size: 4, kind: 'text' }, { path: 'scripts/summary.py', size: 9, kind: 'script' }]);
+  const upload = fake.calls.find((call) => call.op === 'upload');
+  assert.equal(upload.bucket, SKILL_BUNDLE_BUCKET);
+  assert.equal(upload.path, skillBundlePath('u1', 'sales-report'));
+  assert.deepEqual(upload.options, { upsert: true, contentType: 'application/zip' });
+  const insert = fake.calls.find((call) => call.op === 'insert');
+  assert.deepEqual(Object.keys(insert.payload).sort(), ['body', 'description', 'file_count', 'files', 'name', 'updated_at', 'user_id']);
+  assert.equal(insert.payload.file_count, 2);
+  // The copy that was kept reads back as the same skill.
+  const kept = await readSkillBundle(fake.client.stored.get(upload.path), { buildBundle: false });
+  assert.equal(kept.ok, true);
+  assert.equal(kept.skill.name, 'sales-report');
+  // Read again from the cloud the list comes back from the row.
+  const again = await store.list({ force: true });
+  assert.deepEqual(again.skills[0].files.map((file) => file.path), ['references/format.md', 'scripts/summary.py']);
+});
+
+test('what is wrong with a zip is said before anything is stored; the name rules are those of a pasted skill', async () => {
+  const fake = fakeClient({ rows: [{ user_id: 'u1', name: 'taken', description: 'd', body: 'b' }] });
+  const store = createSkillStore({ getClient: () => fake.client, getUserId: () => 'u1', isOfficial: (name) => name === 'official-one' });
+  assert.equal((await store.addBundle(new Uint8Array([1, 2, 3]))).error, 'not_a_zip');
+  assert.equal((await store.addBundle(await zipWith('a-skill', { 'tool.exe': 'x' }))).error, 'blocked_file');
+  assert.equal((await store.addBundle(await zipWith('official-one'))).error, 'name_taken');
+  assert.equal((await store.addBundle(await zipWith('taken'))).error, 'name_taken');
+  assert.equal(fake.calls.some((call) => call.op === 'upload' || call.op === 'insert'), false);
+  const replaced = await store.addBundle(await zipWith('taken', { 'references/a.md': 'a' }), { replace: true });
+  assert.equal(replaced.ok, true);
+  assert.ok(fake.calls.some((call) => call.op === 'update' && call.payload.file_count === 1));
+});
+
+test('a row that cannot be written takes the new copy back; a copy that cannot be stored writes no row', async () => {
+  const row = fakeClient({ failOps: { insert: 'boom' } });
+  const store = createSkillStore({ getClient: () => row.client, getUserId: () => 'u1' });
+  assert.deepEqual(await store.addBundle(await zipWith('a-skill', { 'a.md': 'a' })), { ok: false, error: 'failed' });
+  assert.equal(row.client.stored.size, 0, 'the copy is taken back');
+  const limit = fakeClient({ failOps: { insert: 'skill_limit' } });
+  assert.equal((await createSkillStore({ getClient: () => limit.client, getUserId: () => 'u1' }).addBundle(await zipWith('a-skill'))).error, 'too_many');
+  const storage = fakeClient({ storageFail: { upload: 'quota' } });
+  assert.equal((await createSkillStore({ getClient: () => storage.client, getUserId: () => 'u1' }).addBundle(await zipWith('a-skill'))).error, 'failed');
+  assert.equal(storage.calls.some((call) => call.op === 'insert'), false);
+});
+
+test('with nobody signed in a zip is not taken', async () => {
+  const store = createSkillStore({ getClient: () => null, getUserId: () => '' });
+  assert.deepEqual(await store.addBundle(await zipWith('a-skill')), { ok: false, error: 'signed_out' });
+  assert.deepEqual(await store.openBundle('a-skill'), { ok: false, error: 'signed_out' });
+});
+
+test('the files of a skill are opened from its zip once, and held until the skill changes', async () => {
+  const fake = fakeClient();
+  const store = createSkillStore({ getClient: () => fake.client, getUserId: () => 'u1' });
+  await store.addBundle(await zipWith('sales-report', { 'references/format.md': '# Format\n' }));
+  await store.add(text('plain-skill'));
+  const first = await store.openBundle('sales-report');
+  assert.equal(first.ok, true);
+  assert.equal(new TextDecoder().decode(first.files[0].bytes), '# Format\n');
+  await store.openBundle('sales-report');
+  assert.equal(fake.calls.filter((call) => call.op === 'download').length, 1, 'held after the first');
+  assert.deepEqual(await store.openBundle('plain-skill'), { ok: false, error: 'no_files' });
+  assert.deepEqual(await store.openBundle('nobody'), { ok: false, error: 'no_files' });
+  assert.equal((await store.openBundle('Bad Name')).error, 'name_invalid');
+  await store.addBundle(await zipWith('sales-report', { 'references/format.md': 'new' }), { replace: true });
+  const changed = await store.openBundle('sales-report');
+  assert.equal(new TextDecoder().decode(changed.files[0].bytes), 'new');
+  assert.equal(fake.calls.filter((call) => call.op === 'download').length, 2);
+  const lost = fakeClient({ storageFail: { download: 'x' }, rows: [{ user_id: 'u1', name: 'sales-report', description: 'd', body: 'b', files: [{ path: 'a.md', size: 1, kind: 'text' }] }] });
+  assert.deepEqual(await createSkillStore({ getClient: () => lost.client, getUserId: () => 'u1' }).openBundle('sales-report'), { ok: false, error: 'failed' });
+});
+
+test('removing a skill with files removes its zip; a text that takes the place of one leaves it without files', async () => {
+  const fake = fakeClient();
+  const store = createSkillStore({ getClient: () => fake.client, getUserId: () => 'u1' });
+  await store.addBundle(await zipWith('sales-report', { 'a.md': 'a' }));
+  await store.addBundle(await zipWith('other-skill', { 'b.md': 'b' }));
+  assert.equal(fake.client.stored.size, 2);
+  assert.equal((await store.remove('sales-report')).ok, true);
+  assert.deepEqual([...fake.client.stored.keys()], [skillBundlePath('u1', 'other-skill')]);
+  const replaced = await store.add(text('other-skill'), { replace: true });
+  assert.equal(replaced.ok, true);
+  assert.deepEqual(replaced.skill.files, []);
+  assert.equal(fake.client.stored.size, 0);
+  assert.ok(fake.calls.some((call) => call.op === 'update' && call.payload.file_count === 0));
+  const plain = await store.add(text('plain-skill'));
+  assert.equal(plain.ok, true);
+  await store.remove('plain-skill');
+  assert.equal(fake.calls.filter((call) => call.op === 'remove-file').length, 2, 'a skill without files asks for no removal');
+});
+
+test('the migration of the bundles: the columns, the private bucket, and each person reaches only their own folder', () => {
+  const sql = readFileSync(new URL('../supabase/migrations/20261009020000_add_user_skill_bundles.sql', import.meta.url), 'utf8');
+  assert.match(sql, /add column if not exists file_count integer not null default 0 check \(file_count between 0 and 60\)/);
+  assert.match(sql, /add column if not exists files jsonb not null default '\[\]'::jsonb/);
+  assert.match(sql, /'user-skill-bundles', 'user-skill-bundles', false, 5242880/);
+  for (const operation of ['select', 'insert', 'update', 'delete']) assert.match(sql, new RegExp(`on storage\\.objects for ${operation} to authenticated`));
+  assert.equal((sql.match(/\(storage\.foldername\(name\)\)\[1\] = \(select auth\.uid\(\)\)::text/g) || []).length, 5, 'the four policies, the update with both clauses');
 });
