@@ -205,7 +205,7 @@ const zipOf = async (files) => {
 };
 const SKILL_MD = '---\nname: sales-report\ndescription: Builds the sales report.\n---\n\nRun the script, then read the format.\n';
 
-async function pageWithPack({ config = {}, storageFails = false } = {}) {
+async function pageWithPack({ config = {}, storageFails = false, temporary = false } = {}) {
   const window = new Window({ url: 'https://example.test/' });
   const { document } = window;
   document.body.innerHTML = '<div class="composer-host"><div class="input-wrapper"><div id="editor" contenteditable="true"></div></div></div>';
@@ -234,7 +234,7 @@ async function pageWithPack({ config = {}, storageFails = false } = {}) {
   };
   const skillStore = createSkillStore({ getClient: () => cloud, getUserId: () => 'u1' });
   const settings = { skillEnabledIds: ['sales-report', 'plain'], skillModelUseIds: ['sales-report', 'plain'], skillStamps: {}, skillUseStamps: {}, ...config };
-  const mode = createSkillMode({ document, messageInput: document.getElementById('editor'), getConfig: () => settings, getUiLanguage: () => 'en', refresh: () => {}, skillStore });
+  const mode = createSkillMode({ document, messageInput: document.getElementById('editor'), getConfig: () => settings, getUiLanguage: () => 'en', refresh: () => {}, skillStore, isTemporary: () => temporary.value ?? temporary });
   await skillStore.addBundle(await zipOf({ 'SKILL.md': SKILL_MD, 'references/format.md': '# Format\nUse bullets.\n', 'scripts/summary.py': 'print(1)\n', 'assets/logo.png': new Uint8Array([0x89, 0xff, 0xfe]) }));
   await skillStore.add('---\nname: plain\ndescription: Plain skill.\n---\n\nPlain text.\n');
   return { mode, settings, skillStore };
@@ -273,4 +273,19 @@ test('the bridge answers "failed" when no composer is registered', async () => {
   const { registerSkillMode } = await import('../src/app/runtime/skill/skill-bridge.js');
   registerSkillMode(null);
   assert.deepEqual(await readSkillFile('a1', 'b.md'), { ok: false, reason: 'failed' });
+});
+
+test('in a temporary chat a skill with a script is not listed, cannot be chosen or asked for, and cannot be offered to the model; a skill with only text files stays', async () => {
+  const flag = { value: true };
+  const t = await pageWithPack({ temporary: flag });
+  t.settings.skillEnabledIds.push('notes-only');
+  t.settings.skillModelUseIds.push('notes-only');
+  await t.skillStore.addBundle(await zipOf({ 'SKILL.md': '---\nname: notes-only\ndescription: Notes.\n---\n\nRead the notes.\n', 'references/a.md': 'a' }));
+  assert.deepEqual((await t.mode.available()).map((skill) => skill.name), ['notes-only', 'plain'], 'no sales-report, which has a script');
+  assert.deepEqual((await t.mode.resolve(['sales-report', 'plain', 'notes-only'])).map((skill) => skill.name), ['plain', 'notes-only']);
+  assert.equal(await t.mode.lookup('sales-report'), null);
+  assert.deepEqual((await t.mode.available(['sales-report'])).map((skill) => skill.name), ['notes-only', 'plain']);
+  flag.value = false;
+  assert.deepEqual((await t.mode.available()).map((skill) => skill.name), ['notes-only', 'plain', 'sales-report'], 'in a chat that is kept it is there');
+  assert.equal((await t.mode.lookup('sales-report')).body, 'Run the script, then read the format.');
 });

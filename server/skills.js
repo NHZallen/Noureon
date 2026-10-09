@@ -47,6 +47,11 @@ export function createServerSkills({ db, bundles = null, now = Date.now }) {
       const files = Array.isArray(row.files) ? bundleFileList(row.files.filter((file) => file && typeof file.path === 'string' && file.path)) : [];
       return { name: row.name, body: row.body, ...(files.length ? { files } : {}) };
     },
+    /** All the files of a skill of the person's, with their bytes, for the sandbox: [{ path, size, kind, bytes }] or null (no zip, or a zip that does not pass the checks). */
+    async files(userId, name) {
+      if (!userId || !isSkillName(name)) return null;
+      return open(userId, name);
+    },
     /** The text of one file of a skill of the person's: { ok: true, text, cut } or { ok: false, reason } ('not_found', 'binary', 'failed'). */
     async readFile(userId, name, path) {
       if (!userId || !isSkillName(name) || typeof path !== 'string' || !path) return { ok: false, reason: 'not_found' };

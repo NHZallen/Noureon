@@ -57,9 +57,9 @@ export function createResearchMode({
   const cli = typeof messageInput?.addEventListener === 'function' && typeof document?.addEventListener === 'function'
     ? createCliMode({ document, messageInput, isLocked: () => getActiveConversation()?.retentionMode === 'ephemeral', getConfig, saveConfig, getUiLanguage, refresh: () => refresh(), showNotification, getAccountReady: () => serverReply.hasAccount(), skillStore, logger })
     : null;
-  // The skills share it too: "/" in the box, and the chip of a skill (a temporary chat has them as well: a skill is only words).
+  // The skills share it too: "/" in the box, and the chip of a skill (a temporary chat has them as well, those that are only words: not those with a script).
   const skills = typeof messageInput?.addEventListener === 'function' && typeof document?.addEventListener === 'function'
-    ? createSkillMode({ document, messageInput, getConfig, getUiLanguage, refresh: () => refresh(), skillStore, openStore: (kind) => cli?.openStore?.(kind), logger })
+    ? createSkillMode({ document, messageInput, getConfig, getUiLanguage, refresh: () => refresh(), skillStore, openStore: (kind) => cli?.openStore?.(kind), isTemporary: () => { const conversation = getActiveConversation(); return Boolean(conversation?.isTemporary || conversation?.retentionMode === 'ephemeral'); }, logger })
     : null;
   const getSync = () => globalThis.__astraCloudSyncV2;
   const warn = (...args) => logger?.warn?.(...args);

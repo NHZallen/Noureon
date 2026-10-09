@@ -18,7 +18,7 @@ const SLASH = /(^|\s)\/([^\s/]{0,40})$/u;
  * `skillStore` (skill-store.js) holds the skills the person pasted; `openStore(kind)` opens the Extensions page; `getConfig` the settings;
  * `refresh()` redraws the chips of the box.
  */
-export function createSkillMode({ document, messageInput, getConfig, getUiLanguage, refresh, skillStore = null, openStore = () => {}, logger = console }) {
+export function createSkillMode({ document, messageInput, getConfig, getUiLanguage, refresh, skillStore = null, openStore = () => {}, isTemporary = () => false, logger = console }) {
   const win = document.defaultView;
   const language = () => getUiLanguage();
   const t = (key, values) => cliText(language(), key, values);
@@ -27,7 +27,9 @@ export function createSkillMode({ document, messageInput, getConfig, getUiLangua
   let menuState = null;
 
   const own = () => (skillStore ? skillStore.cached() : []);
-  const skills = () => activeSkills(getConfig(), own());
+  // In a temporary chat a skill with a script is neither listed nor can be asked for (its scripts run on the server, and a temporary chat is never sent there).
+  const hasScript = (skill) => Boolean(skill.files?.some((file) => file.kind === 'script'));
+  const skills = () => activeSkills(getConfig(), own()).filter((skill) => !hasScript(skill) || !isTemporary());
   const byName = (name) => skills().find((skill) => skill.name === name) || null;
   const titleOf = (skill) => skillTitle(skill, language());
 
@@ -249,7 +251,7 @@ export function createSkillMode({ document, messageInput, getConfig, getUiLangua
   };
   const resolve = async (names) => {
     await readOwn();
-    return resolveSkillBodies(getConfig(), own(), names);
+    return resolveSkillBodies(getConfig(), own(), names).filter((skill) => !hasScript(skill) || !isTemporary());
   };
   /**
    * The skills the model may load by itself in this reply: [{ name, description, files?, given? }], without the ones asked for with "/" (they are given

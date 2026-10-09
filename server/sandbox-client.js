@@ -111,6 +111,7 @@ export function createSandboxHost({ url, token, fetchImpl = fetch, inputLimitByt
     let mountedFiles = [];
     let mountedCli = [];
     let mountedPip = [];
+    let mountedSkills = [];
     let mountedNet = null;
 
     const ensure = () => {
@@ -179,6 +180,15 @@ export function createSandboxHost({ url, token, fetchImpl = fetch, inputLimitByt
         return call('POST', `/v1/sessions/${id}/cli`, { body: { tools, ...(net ? { net } : {}) }, timeoutMs: MOUNT_CALL_MS, stage: 'cli' });
       },
       /**
+       * Puts the folders of skills in /skills (read only): [{ name, files: [{ path, data (base64) }] }]. They replace what was there, so this is every skill the reply has loaded
+       * so far. Kept, to give a new sandbox the same folders if the host is lost and the step is made again.
+       */
+      async mountSkills(skills = []) {
+        await ensure();
+        mountedSkills = skills;
+        return call('POST', `/v1/sessions/${id}/skills`, { body: { skills }, timeoutMs: MOUNT_CALL_MS, stage: 'skills' });
+      },
+      /**
        * Gives the sandbox the Python tools it needs, from the host's cache of them (installed there the first time; this can take a while):
        * [{ id, pip: { package, version, command, commands } }]. Resolves { cached: [ids], failed: [{ id, reason }] }.
        */
@@ -219,6 +229,7 @@ export function createSandboxHost({ url, token, fetchImpl = fetch, inputLimitByt
             await ensure();
             if (mountedFiles.length) await call('POST', `/v1/sessions/${id}/mount`, { body: { files: mountedFiles }, timeoutMs: MOUNT_CALL_MS, stage: 'mount' });
             if (mountedCli.length || mountedNet) await call('POST', `/v1/sessions/${id}/cli`, { body: { tools: mountedCli, ...(mountedNet ? { net: mountedNet } : {}) }, timeoutMs: MOUNT_CALL_MS, stage: 'cli' });
+            if (mountedSkills.length) await call('POST', `/v1/sessions/${id}/skills`, { body: { skills: mountedSkills }, timeoutMs: MOUNT_CALL_MS, stage: 'skills' });
             if (mountedPip.length) await call('POST', `/v1/sessions/${id}/pip`, { body: { tools: mountedPip }, timeoutMs: PIP_CALL_MS, stage: 'pip' });
           }
         }

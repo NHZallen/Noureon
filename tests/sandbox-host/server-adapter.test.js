@@ -83,3 +83,30 @@ sandboxTest('the server\'s sandbox mounts the program of a CLI tool and runs a c
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+sandboxTest('the server\'s sandbox puts the folder of a skill in /skills and runs its script with an interpreter, on the real runner', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'noureon-adapter-'));
+  process.env.FAKE_DOCKER_STATE = join(root, 'state');
+  const config = loadConfig({ RUNNER_TOKEN: SECRET, DOCKER_BIN: fakeDocker, SANDBOX_DATA_DIR: join(root, 'data'), RUNNER_ALLOW: '127.0.0.1/32', SANDBOX_KILL_GRACE_MS: '400' });
+  const manager = createSessionManager({ config });
+  const server = createServer(createHandler({ manager, config }));
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const host = createSandboxHost({ url: `http://127.0.0.1:${server.address().port}`, token: SECRET });
+  try {
+    const sandbox = host.getSandbox();
+    await sandbox.prepare();
+    await sandbox.clear();
+    const skills = [{ name: 'sales-report', files: [{ path: 'scripts/summary.py', data: Buffer.from('import sys\nprint("summary", sys.argv[1])\n').toString('base64') }] }];
+    assert.deepEqual((await sandbox.mountSkills(skills)).mounted, [{ name: 'sales-report', files: 1 }]);
+    const result = await sandbox.command('python3 "$NOUREON_SKILLS/sales-report/scripts/summary.py" real', { timeoutMs: 20_000 });
+    assert.equal(result.error, '');
+    assert.equal(result.stdout.text.trim(), 'summary real');
+    await sandbox.dispose();
+  } finally {
+    server.closeAllConnections();
+    server.close();
+    await manager.shutdown();
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    rmSync(root, { recursive: true, force: true });
+  }
+});

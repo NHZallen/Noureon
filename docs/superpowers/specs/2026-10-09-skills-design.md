@@ -248,3 +248,12 @@
 - **還沒做（P2d）：** `canRun` 目前一律 `false`，也就是說明「腳本在這個回覆跑不了」。P2d 要在伺服器的 Python 沙盒把技能資料夾掛在 `/skills/<名稱>/`，並把那個回覆的 `canRun` 設成 `true`。
 - **大小：** 最大的 JS 區塊 gzip 154.5 KB（上限 155，只剩 0.5 KB）。為此 `skill-files-note.js` 獨立成小模組、動態載入。P2d 在頁面這一側幾乎不加程式，但之後再加功能要先想辦法騰出空間。
 - **測試：** 新增 `tests/skill-files.test.js`（14 項：工具、載入器各種情形、`/` 指定的技能、步驟列、一般與搜尋兩種迴圈、頁面端的 `available`／`lookup`／`readFile`）、`server-skills`（RunSpec 的兩個旗標、伺服器讀檔與重新檢查、zip 儲存、整個伺服器回覆含載入與讀檔）、`sandbox-reply`（Python 迴圈讀檔）。
+
+## 20. P2d 實作紀錄（2026-10-09）
+
+- **沙盒主機（`sandbox-host/runner/`）：** 每個沙盒多一個 `skills/` 資料夾，容器裡唯讀掛在 `/skills`（`docker-args.js`，掛載從 5 個變成 6 個）；新端點 `POST /v1/sessions/:id/skills`（`http.js`）呼叫 `manager.mountSkills`（`session.js`）。先檢查整份清單才寫任何東西：最多 5 個技能、每個最多 61 個檔案、全部 12 MB、名稱規則同技能名稱、路徑最多 200 字且不可有空的／`.`／`..`／隱藏的部分、不可有反斜線、同路徑（不分大小寫）不可重複；失敗回 400（太大 413），不寫任何檔案。寫入時資料夾 `0755`、檔案 `0644`，沒有任何檔案被給執行權限；每次呼叫取代原有的內容，所以伺服器每次送「這個回覆到目前為止載入的全部技能」。`/tmp` 與 `/work` 仍然不能執行，所以腳本是由直譯器讀取執行（`python /skills/<名稱>/scripts/x.py`），模型自己寫的檔案沒有新的執行途徑。
+- **伺服器：** `sandbox-client.js` 新增 `mountSkills`（記下清單，主機掉了換新沙盒時重新送）；`skills.js` 新增 `files(userId, name)`（技能全部檔案與位元組，同樣重新檢查 zip）。`executor.js` 的 Python 回覆：①載入有腳本的技能時，把資料夾送進沙盒（沙盒還沒建立就先記著，建立時在輸入檔之後送；已存在就立刻把目前所有已載入的技能一起送），成功才告訴模型「腳本放在 `/skills/<名稱>/`，用 `run_command` 或 Python 執行、不要修改」；沒有腳本的技能、取不到 zip、主機拒絕都告訴模型「這個回覆跑不了腳本」，回覆照常繼續，並記一筆 `skill_folder_failed` 到日誌；②用 `/` 指定、帶腳本的技能從一開始就放進沙盒（模型不必載入）。一般與搜尋回覆沒有沙盒，所以一律說跑不了腳本。
+- **臨時對話：** 臨時對話（`isTemporary` 或 `retentionMode === 'ephemeral'`，從不送到伺服器）不列出、不能選、不能指定、也不提供給模型有腳本的技能（`skill-mode.js` 的 `isTemporary`，由 `research-mode.js` 接上目前的對話）；只有文字檔案的技能照常。這是 §9 第 4 項的決定。
+- **隱私：** `PRIVACY.md` 與五語 `privacyPolicyDesc` 補上技能 zip 的保存位置、檔案文字會送給供應商、腳本只在模型明確執行時於沙盒執行（技能資料夾唯讀、沒有網路）、臨時對話不提供有腳本的技能；`tests/i18n-data.test.js` 的雜湊已更新。`sandbox-host/README.md` 補上端點與規則。
+- **已知限制：** ①帳號刪除後，儲存桶 `user-skill-bundles` 裡該帳號的 zip 不會自動清掉（資料列會隨帳號刪除，檔案不會），之後要補一個清理；②沙盒裡的腳本一律沒有使用者的憑證；③瀏覽器內的 Python 沙盒沒有 `/skills`，所以本機回覆只能讀文字檔不能跑腳本（清單說明會告訴模型）；④技能資料夾在回覆結束後隨容器一起刪除，下次回覆要重新載入。
+- **測試：** `tests/sandbox-host/runner.test.js`（資料夾與權限、直譯器執行、取代、各種錯誤清單與大小，docker 參數）、`server-adapter.test.js`（真實 runner 上掛載並執行）、`server-advanced.test.js`（載入前沒有沙盒、載入時沙盒已存在、`/` 指定、沒有腳本／取不到／被拒絕）、`skill-files.test.js`（臨時對話）。

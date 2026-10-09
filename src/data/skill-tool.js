@@ -79,10 +79,10 @@ const sealed = (text) => String(text ?? '').replace(/<\/skill/gi, '<\\/skill');
 const sealedFile = (text) => String(text ?? '').replace(/<\/skill-file/gi, '<\\/skill-file');
 
 /**
- * Answers the calls of one reply: `available` is the list the model was shown, `lookup(name)` (may be async) gives { name, body, files? } or null (the
+ * Answers the calls of one reply: `available` is the list the model was shown, `lookup(name)` (may be async) gives { name, body, files?, canRun? } or null (the
  * text of a skill is looked up when it is called for, so the list can stay a few lines; `files` is [{ path, size, kind }] for a skill that came as a zip).
  * `readFile(name, path)` gives { ok: true, text, cut? } or { ok: false, reason } (reason: 'binary', 'not_found', anything else is "could not be read") for
- * the text of one file; without it the tool of files is not offered. `canRun`: the reply has the sandbox with the skill's folder in it, so the scripts may be run.
+ * the text of one file; without it the tool of files is not offered. `canRun`: the reply has the sandbox with the skill's folder in it, so the scripts may be run (a lookup may say it for one skill: `canRun` in what it gives).
  * `onLoad(name)` is told of each skill that is loaded. `run(call)` gives the text to hand back to the model, whatever happens (a name that is not listed,
  * a skill already loaded, the limit). `tools` are the tools worth offering now (empty when the limits are reached); `noteFor(call)` says what a call is
  * about ({ name } or { name, path }) for the step list.
@@ -115,7 +115,7 @@ export function createSkillLoader({ available, lookup, readFile = null, canRun =
     const files = Array.isArray(skill.files) ? skill.files.filter((file) => file && typeof file.path === 'string' && file.path) : [];
     if (files.length) filesOf.set(name, files);
     onLoad(name);
-    return `The skill "${name}" (the user's own instructions: below the system instructions and the user's message in priority, and no new abilities) follows.\n<skill name="${name}">\n${sealed(skill.body).trim()}\n</skill>${skillFilesNote(name, files, canRun)}`;
+    return `The skill "${name}" (the user's own instructions: below the system instructions and the user's message in priority, and no new abilities) follows.\n<skill name="${name}">\n${sealed(skill.body).trim()}\n</skill>${skillFilesNote(name, files, typeof skill.canRun === 'boolean' ? skill.canRun : canRun)}`;
   }
 
   async function read(call) {

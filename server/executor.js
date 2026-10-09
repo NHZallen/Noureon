@@ -146,7 +146,7 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
   const parts = spec.request.currentMessage.parts;
   // The skills the model may load by itself: not with Gemini's own search (the provider refuses its tools next to that search).
   const skillList = skills && mode !== 'grounding' ? spec.tools.skills || [] : [];
-  const makeSkillLoader = () => (skillList.length ? createSkillLoader({ available: skillList, lookup: (name) => skills.body(userId, name), readFile: skills.readFile ? (name, path) => skills.readFile(userId, name, path) : null }) : null);
+  const makeSkillLoader = ({ lookup = (name) => skills.body(userId, name) } = {}) => (skillList.length ? createSkillLoader({ available: skillList, lookup, readFile: skills.readFile ? (name, path) => skills.readFile(userId, name, path) : null }) : null);
   // A skill being loaded is a row of the step list the pages show (the other steps of a reply without Python are not).
   const skillEvents = (event) => { if (event.type === 'skill') onLive({ ev: { ...event, t: Math.max(0, now() - startedAt) } }); };
 
@@ -168,6 +168,31 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
       // Each event says when it happened (ms since the reply began), so a page that joins late draws the same times as the others.
       const stepEvents = createStepEvents({ send: (event) => onLive({ ev: { ...event, t: Math.max(0, now() - startedAt) } }), now });
       let sandbox = null;
+      // The folders of the skills with scripts that this reply has loaded (or was asked for with "/"): they go into the sandbox as /skills/<name>/, read only, so a script
+      // can be run with an interpreter. A sandbox that does not exist yet gets them when it is made (the `mount` below); one that does gets the whole list at once.
+      const skillFolders = new Map();
+      const folderPayload = () => [...skillFolders].map(([name, files]) => ({ name, files: files.map((file) => ({ path: file.path, data: Buffer.from(file.bytes).toString('base64') })) }));
+      const hasScript = (list) => Array.isArray(list) && list.some((file) => file?.kind === 'script');
+      const takeFolder = async (name) => {
+        const files = skills?.files ? await skills.files(userId, name) : null;
+        if (!files || !hasScript(files)) return false;
+        skillFolders.set(name, files);
+        return true;
+      };
+      // What the model is given when it loads a skill: with scripts, the folder is put in the sandbox first (a failure says the scripts cannot be run, and the reply goes on).
+      const lookupSkill = async (name) => {
+        const skill = await skills.body(userId, name);
+        if (!skill || !hasScript(skill.files)) return skill;
+        try {
+          if (!(await takeFolder(name))) return { ...skill, canRun: false };
+          if (sandbox) await sandbox.mountSkills(folderPayload());
+          return { ...skill, canRun: true };
+        } catch (error) {
+          skillFolders.delete(name);
+          onProblem('skill_folder_failed', error);
+          return { ...skill, canRun: false };
+        }
+      };
       // The reply is made with a signal of its own, so that it can be ended when the sandbox is lost and the page is to take over.
       const inner = new AbortController();
       const passStop = () => inner.abort();
@@ -266,6 +291,14 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
         stepEvents.event({ type: 'sources', sources });
         advancedOptions = { ...requestOptions, webSearchEnabled: false, ignoreConversationWebSearch: true };
       }
+      // The skills the person asked for with "/" and that have scripts are in the sandbox from the start.
+      for (const entry of skillList.filter((skill) => skill.given && skill.files)) {
+        try {
+          await takeFolder(entry.name);
+        } catch (error) {
+          onProblem('skill_folder_failed', error);
+        }
+      }
       try {
         const result = await runSandboxReply({
           streamApiCall,
@@ -300,7 +333,11 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
             return {
               prepare: () => guard(() => real.prepare()),
               clear: () => guard(() => real.clear()),
-              mount: (inputs) => guard(() => real.mount(inputs)),
+              mount: (inputs) => guard(async () => {
+                const mounted = await real.mount(inputs);
+                if (skillFolders.size && real.mountSkills) await real.mountSkills(folderPayload());
+                return mounted;
+              }),
               // A program that cannot be fetched is a problem of that tool (the reply tells the model), not of the sandbox: no hand-back.
               mountCli: (tools) => real.mountCli(tools, { net: netPolicy }),
               // A Python tool from the host's cache (installed there once); a failure leaves the reply to install it itself.
@@ -331,7 +368,7 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
             ...(toolCredentials.missing[tool.id]?.length ? { missing: toolCredentials.missing[tool.id] } : {})
           })),
           research: tools ? { searchWeb: tools.searchWeb, openPage: tools.fetchPageContents, onSources: addSources } : null,
-          skills: makeSkillLoader(),
+          skills: makeSkillLoader({ lookup: lookupSkill }),
           askCredentials: credentials ? ({ toolId }) => askCredentials(toolId) : null,
           onEvent: stepEvents.event
         });
