@@ -431,3 +431,20 @@ test('council lifecycle source avoids DOM, storage, package, and provider parser
     assert.equal(source.includes(forbidden), false, `source should not include ${forbidden}`);
   }
 });
+
+test('the skills asked for with "/" in the message are in every call of the council (the members, the second round and the synthesis), and none is added otherwise', async () => {
+  const { registerSkillMode } = await import('../src/app/runtime/skill/skill-bridge.js');
+  const { skillIndicatorId } = await import('../src/data/skill-prompt.js');
+  registerSkillMode({ resolve: async (names) => names.filter((name) => name === 'meeting-notes').map((name) => ({ name, body: 'List the decisions first.' })) });
+  try {
+    const asked = createHarness({ mode: 'deliberation' });
+    await asked.run([{ text: 'Question', displaySegments: [{ type: 'mode', indicatorId: skillIndicatorId('meeting-notes'), label: 'meeting-notes' }, { type: 'text', text: 'Question' }] }]);
+    assert.ok(asked.calls.length >= 5, 'two members, two corrections, the synthesis');
+    for (const call of asked.calls) assert.match(call.options.additionalSystemInstruction, /<skill name="meeting-notes">\nList the decisions first\.\n<\/skill>/, call.id);
+    const plain = createHarness({ mode: 'deliberation' });
+    await plain.run();
+    for (const call of plain.calls) assert.doesNotMatch(String(call.options.additionalSystemInstruction), /<skill name=/);
+  } finally {
+    registerSkillMode(null);
+  }
+});

@@ -7,11 +7,11 @@ const EXPECTED_LOCALES = ['zh-TW', 'en', 'fr', 'ru', 'es'];
 const EXPECTED_LOCALE_KEY_COUNT = 766;
 const EXPECTED_SHELL_LANG_KEY_COUNT = 189;
 const EXPECTED_LOCALE_HASHES = {
-  'zh-TW': '0824766e927ccfb24f7a23f7d34762224f3f182855663ef6b096e779b9e6ae52',
-  en: '2cf511ded59fd59eff471e19eb9a59a0aa69a57ddc2482be3abbaf31188989d6',
-  fr: 'ec248fb41234f5ec5486c6b1a3ab6d4fb692448c50c7d5d1933bca78f6d21a78',
-  ru: '80f654c26649e661a050cc7666bc496281ae3e1667231a6e1c0cd862561e0b8b',
-  es: '418fd4a456262355d6f559fbbcbcedaece970abe1ad04f64b943fd00542b2194'
+  'zh-TW': '22c9fe790dbe56b01e22140d92eb55e1933513d0c67692842d26a973d2fffea9',
+  en: '8d9d7769a434373d8181ee6dacbb1f377ba8e05121d9d0ac34db0b76b4a0069f',
+  fr: 'cc7400ce46ca7d9e60b7f50bf4fe1ded2e7c5f9614bb93b3589cc3df5a18287b',
+  ru: '5c0b2743199d504bc6b92e339ae917589e3fe11b5d1010cb44faa34b3ab96a9e',
+  es: 'dfc63f362a5cf78a2e7c3ed339e0d79bdf5285666aec60bf7dcd713fcddf8ce3'
 };
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);

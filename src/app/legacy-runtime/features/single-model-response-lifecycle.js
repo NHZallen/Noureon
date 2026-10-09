@@ -9,7 +9,7 @@ import { resolveReplyMode } from '../../runtime/sandbox/file-mode.js';
 import { browserSupportsSandbox } from '../../runtime/sandbox/sandbox-protocol.js';
 import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
 import { cliIdsForReply } from '../../runtime/cli/cli-state.js';
-import { resolveInvokedSkills } from '../../runtime/skill/skill-bridge.js';
+import { getAvailableSkills, lookupSkill, resolveInvokedSkills } from '../../runtime/skill/skill-bridge.js';
 import { invokedSkillsInstruction, skillNamesOfParts } from '../../../data/skill-prompt.js';
 import { decisionsFor, verdictOf } from '../../runtime/decisions/decision-store.js';
 import { createCredentialAnswerHandler } from '../../runtime/cli/credential-answer.js';
@@ -150,6 +150,12 @@ export function createSingleModelResponseLifecycle({
     // system instructions, which the server is sent as they are).
     const skillInstruction = invokedSkillsInstruction(await resolveInvokedSkills(skillNamesOfParts(userParts)));
     const skillOptions = skillInstruction ? { additionalSystemInstruction: skillInstruction } : {};
+    // The skills the model may load by itself (the ones it is told about, and not those it was just given whole): only for a model that calls tools.
+    const availableSkills = canCallTools ? await getAvailableSkills(skillNamesOfParts(userParts)) : [];
+    // A search the provider makes itself (some refuse our tools next to it) or a search packet put in front of the request: no skill tool then.
+    const ownSearchReply = Boolean(webSearchEnabled && !researchByModel);
+    const { createSkillLoader } = availableSkills.length && !ownSearchReply ? await import('../../../data/skill-tool.js') : {};
+    const makeSkillLoader = () => (createSkillLoader ? createSkillLoader({ available: availableSkills, lookup: lookupSkill }) : null);
     // Advanced mode is the default, so most replies are "advanced" by the setting alone. Python is only needed when the request is
     // about files or data, or the conversation already has some; any other reply is the same without it, and the server makes it.
     // The CLI tools chosen with "@" (and those the person lets the model use by itself) run in the same sandbox, so they need it whatever the
@@ -222,6 +228,7 @@ export function createSingleModelResponseLifecycle({
           designs: { deck: conversation?.deckDesign || 'auto', document: conversation?.documentDesign || 'auto' },
           cli: cli.ids,
           cliChosen: cli.chosen,
+          skills: ownSearchReply ? [] : availableSkills,
           inputs: userParts.filter((part) => part?.inlineData?.data).map((part) => ({
             name: part.inlineData.name || `attachment.${String(part.inlineData.mimeType || '').split('/')[1] || 'bin'}`,
             mimeType: part.inlineData.mimeType || '',
@@ -420,6 +427,7 @@ export function createSingleModelResponseLifecycle({
           inputFiles: collectSandboxInputs(conversation, userParts),
           designs: { deck: conversation?.deckDesign || 'auto', document: conversation?.documentDesign || 'auto' },
           research: researchByModel ? { searchWeb: webResearch.searchWeb, openPage: webResearch.openPage, onSources: addSearchSources } : null,
+          skills: makeSkillLoader(),
           onStatus: showRunStatus,
           onEvent: (event) => stepList()?.event(event)
         });
@@ -462,8 +470,9 @@ export function createSingleModelResponseLifecycle({
               openPage: webResearch.openPage,
               language: uiLanguage,
               onSources: addSearchSources,
+              skills: makeSkillLoader(),
               onEvent: (event) => {
-                if (event.type === 'searching') {
+                if (event.type === 'searching' || event.type === 'skill') {
                   started = true;
                   workResumed();
                 }
@@ -478,6 +487,31 @@ export function createSingleModelResponseLifecycle({
           requestParts = await buildSingleModelTranslatedRequestParts(userParts, modelInfo, signal, () => {}, {
             webSearchEnabled, conversation, onSources: addSearchSources
           });
+        }
+        // No search and no Python, but skills the model may load: a small loop that gives it the tool (a provider that refuses the tools answers without it).
+        const skillLoader = makeSkillLoader();
+        if (skillLoader) {
+          let begun = false;
+          try {
+            const { runSkillsReply } = await import('./skills-reply.js');
+            const result = await runSkillsReply({
+              streamApiCall,
+              requestParts,
+              onChunk: (chunk) => { begun = true; onAnswer(chunk); },
+              signal,
+              requestOptions: { ...streamOptions, onReasoning: showThinking },
+              loader: skillLoader,
+              language: uiLanguage,
+              onEvent: (event) => {
+                begun = true;
+                workResumed();
+                stepList()?.event(event);
+              }
+            });
+            return result.text;
+          } catch (error) {
+            if (signal?.aborted || begun) throw error;
+          }
         }
         return streamApiCall(requestParts, onAnswer, signal, false, { ...streamOptions, onReasoning: showThinking });
     };

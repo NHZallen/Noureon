@@ -12,6 +12,7 @@ import { createRunManager } from './runs.js';
 import { createRunStore } from './run-store.js';
 import { createFileStore } from './file-store.js';
 import { createSandboxHost } from './sandbox-client.js';
+import { createServerSkills } from './skills.js';
 import { createServiceClient } from './supabase-rest.js';
 import { canDrawSlides } from './slides/available.js';
 import { getFontKit } from './slides/font-kit.js';
@@ -49,7 +50,7 @@ if (config.runsConfigured) {
     if (host) checkSandbox = () => host.check().then((state) => log(state.ok ? 'sandbox_ok' : 'sandbox_failed', { reason: state.reason }));
     const vault = createKeyVault(config.encryptionKeys);
     credentials = createCredentialStore({ db, vault });
-    runs = createRunManager({ store: createRunStore({ db, limits: LIMITS }), db, vault, sandbox, files, credentials, vision: { available: canDrawSlides, execute: executeVisionCheck, getKit: getFontKit }, limits: LIMITS, log });
+    runs = createRunManager({ store: createRunStore({ db, limits: LIMITS }), db, vault, sandbox, files, credentials, skills: createServerSkills({ db }), vision: { available: canDrawSlides, execute: executeVisionCheck, getKit: getFontKit }, limits: LIMITS, log });
   } catch (error) {
     log('config_error', { message: error.message });
     process.exit(1);

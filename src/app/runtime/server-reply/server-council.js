@@ -6,6 +6,8 @@
 // This module is loaded when a council is first held: most pages never hold one.
 
 import { NOURAS_REQUEST_PURPOSE } from '../nouras/nouras-policy.js';
+import { resolveInvokedSkills } from '../skill/skill-bridge.js';
+import { invokedSkillsInstruction, skillNamesOfParts } from '../../../data/skill-prompt.js';
 
 /**
  * Hands a council to the server: the models (as the page knows them), the message as the person sent it (attachments included: the server
@@ -27,7 +29,9 @@ export async function startCouncilRun({ getApiKeyForProvider, describeRequest, s
   try {
     // What the app adds to every call (language, Noura, learning mode, memory, guidance), as the council's calls would get it here. The members
     // and the deliberation are told the same; the synthesis is the one that may write files, and it reports the memory the answer drew on.
-    const describe = async (extra) => (await describeRequest(userParts, { conversation, modelInfo: synthesizer, ...extra })).systemInstructionText || '';
+    // The skills asked for with "/" in this message are in every one of them.
+    const skillText = invokedSkillsInstruction(await resolveInvokedSkills(skillNamesOfParts(userParts)));
+    const describe = async (extra) => (await describeRequest(userParts, { conversation, modelInfo: synthesizer, ...(skillText ? { additionalSystemInstruction: skillText } : {}), ...extra })).systemInstructionText || '';
     const member = await describe({ requestPurpose: NOURAS_REQUEST_PURPOSE.COUNCIL_PARTICIPANT });
     instructions = { participant: member, deliberation: member, synthesis: await describe({ requestPurpose: NOURAS_REQUEST_PURPOSE.COUNCIL_SYNTHESIS, historyForApi: [], onMemoryContextResolved }) };
   } catch (error) {

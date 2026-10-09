@@ -4,6 +4,7 @@
 // call's `note`, shown between the rows; every word it writes as text is the answer and streams as it comes. For the models that have
 // no search of their own but do call tools (OpenRouter's); the others get a search packet in front of the request.
 
+import { LOAD_SKILL_TOOL, availableSkillsInstruction } from '../../../data/skill-tool.js';
 import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
 import { hostOf } from '../../ui/sandbox/run-sources.js';
 import { resultDate } from './model-request-formatting.js';
@@ -351,16 +352,19 @@ export async function runWebResearchReply({
   // A reply taken up again after an interruption: { toolTurns, text, research } as `onRound` last reported them.
   resume = null,
   // Called after every round of calls with what is needed to take the reply up again from there.
-  onRound = () => {}
+  onRound = () => {},
+  // The skills the model may load next to searching: createSkillLoader(...) (data/skill-tool.js), or null. `onEvent` is told { type: 'skill', name, label }.
+  skills = null
 }) {
   const toolTurns = Array.isArray(resume?.toolTurns) ? [...resume.toolTurns] : [];
   const research = createResearchCalls({ searchWeb, openPage, language, maxCalls, signal, onEvent, onSources, resume: resume?.research });
   const notes = createNotes(onEvent);
   let text = typeof resume?.text === 'string' ? resume.text : '';
-  const guidance = researchGuidance(today);
+  const guidance = [researchGuidance(today), skills ? availableSkillsInstruction(skills.list) : ''].filter(Boolean).join('\n\n');
+  const takesSkills = (name) => Boolean(skills?.handles(name));
 
   for (;;) {
-    const canCall = research.left > 0;
+    const canCall = research.left > 0 || (skills?.left || 0) > 0;
     let response = null;
     let roundStarted = false;
     notes.reset();
@@ -378,7 +382,7 @@ export async function runWebResearchReply({
     try {
       await streamApiCall(requestParts, emit, signal, false, {
         ...requestOptions,
-        tools: canCall ? RESEARCH_TOOLS : [],
+        tools: canCall ? [...(research.left > 0 ? RESEARCH_TOOLS : []), ...((skills?.left || 0) > 0 ? [LOAD_SKILL_TOOL] : [])] : [],
         toolTurns,
         additionalSystemInstruction: [requestOptions.additionalSystemInstruction, guidance].filter(Boolean).join('\n\n'),
         onToolArguments: ({ name, arguments: raw }) => {
@@ -391,7 +395,7 @@ export async function runWebResearchReply({
       // A stop keeps what was written; anything else is the caller's to handle.
       if (!signal?.aborted) throw error;
     }
-    const calls = (response?.toolCalls || []).filter((call) => research.handles(call.name));
+    const calls = (response?.toolCalls || []).filter((call) => research.handles(call.name) || takesSkills(call.name));
     if (signal?.aborted || !canCall || calls.length === 0) {
       // The words of the round were the answer: the work is over.
       if (roundStarted && canCall) onEvent({ type: 'answered' });
@@ -402,8 +406,15 @@ export async function runWebResearchReply({
     research.prefetch(calls);
     const results = [];
     for (const call of calls) {
-      notes.fromCall(call);
-      const content = await research.run(call);
+      let content;
+      if (takesSkills(call.name)) {
+        const wanted = typeof call.args?.name === 'string' ? call.args.name.trim() : '';
+        if (wanted) onEvent({ type: 'skill', name: wanted, label: sandboxText(language, 'skillLoading', { name: wanted }) });
+        content = await skills.run(call);
+      } else {
+        notes.fromCall(call);
+        content = await research.run(call);
+      }
       results.push({ id: call.id, geminiId: call.geminiId, name: call.name, content });
       if (signal?.aborted) break;
     }
@@ -412,5 +423,5 @@ export async function runWebResearchReply({
     onRound({ toolTurns: [...toolTurns], text, research: research.snapshot() });
   }
 
-  return { text, calls: research.used };
+  return { text, calls: research.used + (skills?.used || 0) };
 }

@@ -632,3 +632,29 @@ test('a reply that searched the web but ran no Python has the one line with how 
     cleanup();
   }
 });
+
+test('the model may load a skill next to Python: the tool is offered with the list, the call is answered with the skill\'s text, and a row says so', async () => {
+  const { createSkillLoader } = await import('../../src/data/skill-tool.js');
+  const model = scriptedModel([
+    { calls: [{ id: 's1', name: 'load_skill', arguments: '{"name":"write-up"}', args: { name: 'write-up' } }] },
+    { text: 'Written with the skill.' }
+  ]);
+  const { sandbox, runs } = fakeSandbox([]);
+  const events = [];
+  const loader = createSkillLoader({ available: [{ name: 'write-up', description: 'Use for polishing writing.' }], lookup: async (name) => ({ name, body: 'Keep the meaning.' }) });
+  const result = await runSandboxReply({ streamApiCall: model.streamApiCall, requestParts: [{ text: 'polish this' }], getSandbox: () => sandbox, language: 'en', skills: loader, onEvent: (event) => events.push(event) });
+  assert.equal(result.text, 'Written with the skill.');
+  assert.deepEqual(runs, [], 'no Python was needed');
+  assert.ok(model.requests[0].tools.some((tool) => tool.name === 'load_skill'), 'the tool is offered next to Python');
+  assert.match(model.requests[0].additionalSystemInstruction, /- write-up: Use for polishing writing\./);
+  assert.ok(events.some((event) => event.type === 'skill' && event.label === 'Loading skill: write-up'));
+  const turn = model.requests[1].toolTurns[0];
+  assert.equal(turn.results[0].name, 'load_skill');
+  assert.match(turn.results[0].content, /<skill name="write-up">\nKeep the meaning\.\n<\/skill>/);
+  assert.equal(result.run, null, 'a skill alone makes no run record');
+
+  // with no skills the tool is not there
+  const plain = scriptedModel([{ text: 'Plain.' }]);
+  await runSandboxReply({ streamApiCall: plain.streamApiCall, requestParts: [{ text: 'x' }], getSandbox: () => fakeSandbox([]).sandbox });
+  assert.equal(plain.requests[0].tools.some((tool) => tool.name === 'load_skill'), false);
+});

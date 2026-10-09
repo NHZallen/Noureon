@@ -8,6 +8,7 @@ import { sandboxText } from './sandbox-texts.js';
 import { RUN_STATUS } from '../../ui/sandbox/sandbox-run-block.js';
 import { partialJsonString } from '../../legacy-runtime/features/tool-call-formats.js';
 import { RESEARCH_TOOLS, createNotes, createResearchCalls, researchGuidance } from '../../legacy-runtime/features/web-research-reply.js';
+import { LOAD_SKILL_TOOL, availableSkillsInstruction } from '../../../data/skill-tool.js';
 
 const MODEL_TEXT_CHARS = 10_000;
 const MAX_CRASHES = 2;
@@ -77,6 +78,8 @@ export async function runSandboxReply({
   designs = {},
   // The model's own web searching and page opening next to Python: { searchWeb, openPage, onSources }, or null.
   research: researchTools = null,
+  // The skills the model may load (createSkillLoader, data/skill-tool.js), or null. `onEvent` is told { type: 'skill', name, label }.
+  skills: skillLoader = null,
   // The CLI tools the person chose with "@" (a reply on the server only): [{ id, name, version, usage, env, program?: { file, url, sha256, size, archive? }, image?: { command },
   // install?: the command that installs a pip tool, missing?: the secure credentials it needs that are not set }]. The model gets run_command for them.
   cli: cliTools = [],
@@ -250,7 +253,7 @@ export async function runSandboxReply({
     }
   };
 
-  const guidance = [getSandboxGuidance({ inputFiles, designs, host }), useCli ? getCliGuidance(cliTools.map((tool) => ({ ...tool, file: tool.program?.file || tool.pip?.command || tool.image?.command })), { canAsk: typeof askCredentials === 'function' }) : '', researchTools ? researchGuidance() : ''].filter(Boolean).join('\n\n');
+  const guidance = [getSandboxGuidance({ inputFiles, designs, host }), useCli ? getCliGuidance(cliTools.map((tool) => ({ ...tool, file: tool.program?.file || tool.pip?.command || tool.image?.command })), { canAsk: typeof askCredentials === 'function' }) : '', researchTools ? researchGuidance() : '', skillLoader ? availableSkillsInstruction(skillLoader.list) : ''].filter(Boolean).join('\n\n');
   const research = researchTools
     ? createResearchCalls({ ...researchTools, language, signal, onEvent })
     : null;
@@ -258,7 +261,8 @@ export async function runSandboxReply({
   for (;;) {
     const canRun = toolsAllowed && run.steps.length < maxRuns;
     const canResearch = Boolean(research && research.left > 0);
-    const canCall = canRun || canResearch;
+    const canSkill = Boolean(skillLoader && skillLoader.left > 0);
+    const canCall = canRun || canResearch || canSkill;
     let response = null;
     deliver.continuing = false;
     roundMayCall = canCall;
@@ -312,7 +316,7 @@ export async function runSandboxReply({
           onEvent({ type: 'code', text: partialJsonString(raw, name === RUN_COMMAND_TOOL.name ? 'command' : 'code') });
         }
       },
-      tools: [...(canRun ? [host === 'server' ? RUN_PYTHON_TOOL_SERVER : RUN_PYTHON_TOOL, ...(useCli ? [RUN_COMMAND_TOOL] : []), ...(canAskCredentials ? [REQUEST_CREDENTIALS_TOOL] : [])] : []), ...(canResearch ? RESEARCH_TOOLS : [])],
+      tools: [...(canRun ? [host === 'server' ? RUN_PYTHON_TOOL_SERVER : RUN_PYTHON_TOOL, ...(useCli ? [RUN_COMMAND_TOOL] : []), ...(canAskCredentials ? [REQUEST_CREDENTIALS_TOOL] : [])] : []), ...(canResearch ? RESEARCH_TOOLS : []), ...(canSkill ? [LOAD_SKILL_TOOL] : [])],
       toolTurns,
       additionalSystemInstruction: [requestOptions.additionalSystemInstruction, guidance].filter(Boolean).join('\n\n'),
       onResponseComplete: (value) => { response = value; }
@@ -348,7 +352,7 @@ export async function runSandboxReply({
       }
       break;
     }
-    const calls = (response?.toolCalls || []).filter((call) => isRunTool(call.name) || isCredentialRequest(call.name) || research?.handles(call.name));
+    const calls = (response?.toolCalls || []).filter((call) => isRunTool(call.name) || isCredentialRequest(call.name) || research?.handles(call.name) || skillLoader?.handles(call.name));
     // The thinking goes to the run it led to, or to the end of the reply.
     let roundThought = takeThought();
     if (!canCall || !calls.length) {
@@ -385,6 +389,13 @@ export async function runSandboxReply({
         reply(answered?.provided
           ? { provided: true, message: `The user provided the login for ${tool.name}. Go on and use the tool.` }
           : { provided: false, message: `The user did not provide the login for ${tool.name}. Say so and stop using it; do not ask for the value in the chat or look for another way to log in.` });
+        continue;
+      }
+      if (skillLoader?.handles(call.name)) {
+        // A skill the model loads: its text is the answer to the call (it never fails: the answer says what went wrong).
+        const wanted = typeof call.args?.name === 'string' ? call.args.name.trim() : '';
+        if (wanted) onEvent({ type: 'skill', name: wanted, label: sandboxText(language, 'skillLoading', { name: wanted }) });
+        reply(await skillLoader.run(call));
         continue;
       }
       if (!isRunTool(call.name)) {

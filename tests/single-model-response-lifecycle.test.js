@@ -907,3 +907,41 @@ test('the skills a message asks for with "/" are given to the model in full, for
     registerSkillMode(null);
   }
 });
+
+test('skills the model may load by itself: a plain reply gets the small loop with the tool; a model without tools, or with Gemini\'s own search, a plain request', async () => {
+  const { registerSkillMode } = await import('../src/app/runtime/skill/skill-bridge.js');
+  registerSkillMode({
+    resolve: async () => [],
+    available: async () => [{ name: 'meeting-notes', description: 'Turns a transcript into decisions.' }],
+    lookup: async (name) => ({ name, body: 'List the decisions first.' })
+  });
+  try {
+    const rounds = [];
+    const make = (extra = {}) => {
+      let round = 0;
+      return createHarness({
+        extraDependencies: {
+          supportsToolCalling: () => true,
+          ...extra
+        },
+        streamResult: 'ok'
+      });
+    };
+    // A model that calls tools, in the lifecycle's own plain path: the harness's streamApiCall answers at once, so the loop is one round with the tool offered.
+    const harness = make();
+    await harness.lifecycle.run({ targetElement: harness.targetElement, userParts: [{ text: 'tidy these notes' }], modelInfo: { id: 'model', name: 'Model' }, conversation: { model: 'model' }, signal: harness.signal, uiLanguage: 'en' });
+    const options = harness.calls.find((call) => call[0] === 'api')[4];
+    assert.deepEqual((options.tools || []).map((tool) => tool.name), ['load_skill']);
+    assert.match(options.additionalSystemInstruction, /- meeting-notes: Turns a transcript into decisions\./);
+    assert.equal(rounds.length, 0);
+
+    // a model that cannot call tools is not offered skills
+    const noTools = createHarness();
+    await noTools.lifecycle.run({ targetElement: noTools.targetElement, userParts: [{ text: 'tidy these notes' }], modelInfo: { id: 'model', name: 'Model' }, conversation: { model: 'model' }, signal: noTools.signal, uiLanguage: 'en' });
+    const plain = noTools.calls.find((call) => call[0] === 'api')[4];
+    assert.equal(plain.tools, undefined);
+    assert.equal('additionalSystemInstruction' in plain, false);
+  } finally {
+    registerSkillMode(null);
+  }
+});

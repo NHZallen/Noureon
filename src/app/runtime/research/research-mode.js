@@ -7,7 +7,7 @@ import { registerResearchMode } from './research-bridge.js';
 import { getResearch, subscribeAnyResearch } from './research-store.js';
 import { createCliMode } from '../cli/cli-mode.js';
 import { createSkillMode } from '../skill/skill-mode.js';
-import { createSkillStore } from '../skill/skill-store.js';
+import { createLazySkillStore } from '../skill/lazy-skill-store.js';
 import { researchText } from './research-texts.js';
 
 export const RESEARCH_INDICATOR_ID = 'deep-research-indicator';
@@ -45,7 +45,7 @@ export function createResearchMode({
   // The CLI tools (命令工具) share this host: they too put a chip in the box and an entry in the menus. A box that cannot take listeners
   // (a test) has none.
   // The skills the person pasted are kept in their cloud account: the account library is loaded when first needed.
-  const skillStore = createSkillStore({
+  const skillStore = createLazySkillStore({
     getClient: async () => (await import('../../auth/supabase-client.js')).getSupabaseClient(),
     getUserId: async () => {
       if (!serverReply.hasAccount()) return '';

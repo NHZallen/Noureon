@@ -40,6 +40,10 @@
       "note": "Reviewed 2026-10-07: no browser globals (a model call with its timers passed in)."
     },
     {
+      "path": "src/app/legacy-runtime/features/skills-reply.js",
+      "note": "Reviewed 2026-10-09: the loop of a plain reply that may load skills; it only calls the functions it is given (streamApiCall) and has no browser globals."
+    },
+    {
       "path": "src/app/legacy-runtime/features/stream-api-call.js",
       "note": "Reviewed 2026-10-03: no browser globals (\"document.pdf\" is a file name)."
     },
@@ -100,6 +104,10 @@
     {
       "path": "src/app/runtime/sandbox/search-briefing.js",
       "note": "Reviewed 2026-10-03: no browser globals."
+    },
+    {
+      "path": "src/app/runtime/skill/skill-bridge.js",
+      "note": "Reviewed 2026-10-09: a module-level variable and plain functions, no browser globals; nothing is registered on the server, so the council loop finds no skill to add there (the page put them in the instructions it sent)."
     },
     {
       "path": "src/app/ui/charts/chart-schema.js",
@@ -340,12 +348,24 @@
       "note": "Reviewed 2026-10-05: pure functions over plain objects (the key by key merge of the settings between devices); reached through the config normalization."
     },
     {
+      "path": "src/data/skill-catalog.js",
+      "note": "Reviewed 2026-10-09: plain data and pure functions (the official skills, and what the page calls them); the server reads the text of an official skill from it."
+    },
+    {
       "path": "src/data/skill-format.js",
       "note": "Reviewed 2026-10-09: pure functions (reading and checking the text of a skill, SKILL.md); reached through the merge of the skill lists, and used by the server when skills reach a reply."
     },
     {
+      "path": "src/data/skill-prompt.js",
+      "note": "Reviewed 2026-10-09: pure functions (the chips of a message that ask for a skill, and the system instructions that give the skills asked for); reached through the council loop."
+    },
+    {
       "path": "src/data/skill-settings-merge.js",
       "note": "Reviewed 2026-10-09: pure functions over plain objects (the merge of the skills' lists between devices); reached through the config normalization."
+    },
+    {
+      "path": "src/data/skill-tool.js",
+      "note": "Reviewed 2026-10-09: pure functions (the load_skill tool, the list of skills a model is shown and the loader that answers its calls); used by the loops of the replies on the server."
     }
   ]
 }

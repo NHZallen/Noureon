@@ -8,7 +8,7 @@ import { skillDescription, skillTitle } from '../../../data/skill-catalog.js';
 import { skillIcon } from '../../ui/cli/cli-icons.js';
 import { cliText } from '../cli/cli-texts.js';
 import { registerSkillMode } from './skill-bridge.js';
-import { activeSkills, resolveSkillBodies } from './skill-state.js';
+import { activeSkills, canModelUseSkill, resolveSkillBodies } from './skill-state.js';
 
 const escapeHTML = (value = '') => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
 // "/" and what is typed after it, at the end of the text before the caret, at the start or after a space.
@@ -238,19 +238,29 @@ export function createSkillMode({ document, messageInput, getConfig, getUiLangua
    * The text of the named skills the person has now: [{ name, body }]. The pasted ones are looked up in the cloud first (the account may have changed, or
    * the page just started); a failure leaves what is held.
    */
-  const resolve = async (names) => {
-    if (skillStore) {
-      try {
-        await skillStore.ensure();
-        if (!skillStore.loaded) await skillStore.list();
-      } catch (error) {
-        logger?.warn?.('Reading the skills failed.', error);
-      }
+  const readOwn = async () => {
+    if (!skillStore) return;
+    try {
+      await skillStore.ensure();
+      if (!skillStore.loaded) await skillStore.list();
+    } catch (error) {
+      logger?.warn?.('Reading the skills failed.', error);
     }
+  };
+  const resolve = async (names) => {
+    await readOwn();
     return resolveSkillBodies(getConfig(), own(), names);
   };
+  /** The skills the model may load by itself in this reply: [{ name, description }], without the ones asked for with "/" (they are given whole already). */
+  const available = async (exclude = []) => {
+    await readOwn();
+    const skip = new Set(exclude);
+    return skills().filter((skill) => canModelUseSkill(getConfig(), skill.name) && !skip.has(skill.name)).map((skill) => ({ name: skill.name, description: skill.description }));
+  };
+  /** The text of one skill the person has: { name, body } or null. */
+  const lookup = async (name) => (await resolve([name]))[0] || null;
 
-  const mode = { sync, indicators, selection, clear, closeMenu, resolve };
+  const mode = { sync, indicators, selection, clear, closeMenu, resolve, available, lookup };
   registerSkillMode(mode);
   return mode;
 }

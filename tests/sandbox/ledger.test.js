@@ -473,3 +473,26 @@ test('steps told later keep the time they happened at: a page that joins late sh
   ledger.remove();
   window.happyDOM.abort();
 });
+
+test('a skill the model loads is a row of its own (with its own icon), over when the next thing begins', () => {
+  const { window, document, message } = setup();
+  const list = createSandboxLedger({ document, host: message, language: 'en' });
+  list.event({ type: 'skill', name: 'meeting-notes', label: 'Loading skill: meeting-notes' });
+  let rows = [...message.querySelectorAll('.ledger-row')];
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].dataset.kind, 'skill');
+  assert.equal(rows[0].querySelector('.ledger-label').textContent, 'Loading skill: meeting-notes');
+  assert.equal(rows[0].classList.contains('is-running'), true);
+  list.event({ type: 'searching', label: 'Searching the web…' });
+  rows = [...message.querySelectorAll('.ledger-row')];
+  assert.equal(rows.length, 2);
+  assert.equal(rows[0].classList.contains('is-done'), true, 'the skill row is over once the next thing began');
+  list.remove();
+  window.happyDOM.abort();
+});
+
+test('the row of a skill has an icon in the style', async () => {
+  const { readFileSync } = await import('node:fs');
+  const css = readFileSync(new URL('../../src/styles/ledger.css', import.meta.url), 'utf8');
+  assert.match(css, /\.ledger-row\[data-kind='skill'\] \{ --run-icon: url\(/);
+});

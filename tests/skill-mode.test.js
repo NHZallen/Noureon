@@ -161,3 +161,17 @@ test('the text of the skills a message asks for: the ones the person has, in the
   assert.deepEqual(await resolveInvokedSkills([]), []);
   assert.deepEqual(await t.mode.resolve(['a1']), [{ name: 'a1', body: 'A text.' }]);
 });
+
+test('the skills the model may load by itself: the ones the person has and allowed, without the ones just given whole; and one skill\'s text by name', async () => {
+  const t = page({
+    rows: [own('a1', 'Does a.', 'A text.'), own('b2', 'Does b.', 'B text.'), own('c3', 'Does c.', 'C text.')],
+    config: { skillEnabledIds: ['a1', 'b2', 'c3'], skillModelUseIds: ['a1', 'b2'] }
+  });
+  assert.deepEqual(await t.mode.available(), [{ name: 'a1', description: 'Does a.' }, { name: 'b2', description: 'Does b.' }], 'c3 is not allowed for the model');
+  assert.deepEqual(await t.mode.available(['a1']), [{ name: 'b2', description: 'Does b.' }]);
+  assert.deepEqual(await t.mode.lookup('c3'), { name: 'c3', body: 'C text.' }, 'asked for by name it is still found');
+  assert.equal(await t.mode.lookup('nothing'), null);
+  const { getAvailableSkills, lookupSkill } = await import('../src/app/runtime/skill/skill-bridge.js');
+  assert.deepEqual((await getAvailableSkills()).map((entry) => entry.name), ['a1', 'b2']);
+  assert.deepEqual(await lookupSkill('a1'), { name: 'a1', body: 'A text.' });
+});

@@ -9,6 +9,24 @@ export const getSkillMode = () => mode;
 /** What was chosen with "/" for the next message: [{ name, indicatorId, label }]. */
 export const getSkillSelection = () => mode?.selection?.() || [];
 export const clearSkillSelection = () => mode?.clear?.();
+/** The skills the model may load by itself: [{ name, description }] (not the ones in `exclude`). Never rejects. */
+export async function getAvailableSkills(exclude = []) {
+  if (!mode?.available) return [];
+  try {
+    return await mode.available(exclude);
+  } catch {
+    return [];
+  }
+}
+/** The text of one skill the person has: { name, body } or null. Never rejects. */
+export async function lookupSkill(name) {
+  if (!mode?.lookup) return null;
+  try {
+    return await mode.lookup(name);
+  } catch {
+    return null;
+  }
+}
 /** The skills a message asks for, with their text: [{ name, body }] (those the person still has). Never rejects. */
 export async function resolveInvokedSkills(names) {
   if (!mode?.resolve || !Array.isArray(names) || !names.length) return [];

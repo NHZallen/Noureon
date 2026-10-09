@@ -5,6 +5,8 @@
 import { getCliTool, isCliReady } from '../src/data/cli-catalog.js';
 import { NET_MAX_RULES, NET_MODES, NET_RULES, normalizeNetHost, normalizeNetMode, normalizeNetRules } from '../src/data/cli-net.js';
 import { IMAGE_ASPECT_RATIOS, IMAGE_RESOLUTIONS } from '../src/app/legacy-runtime/features/image-generation-config.js';
+import { SKILL_DESCRIPTION_MAX, isSkillName } from '../src/data/skill-format.js';
+import { MAX_LISTED_SKILLS, listedSkills } from '../src/data/skill-tool.js';
 import { LANGUAGES, LIMITS, PROTOCOL_VERSION } from './protocol.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -343,6 +345,13 @@ export function validateRunSpec(input) {
         for (const name of Object.keys(tools.net)) if (!['mode', 'rules'].includes(name)) fail(`tools.net.${name}`, 'is not a known field');
       }
     }
+    // The skills the model may load by itself (the person's skills, each a name and when it applies): their text is read by the server when one is called for.
+    if (tools.skills !== undefined) {
+      if (!Array.isArray(tools.skills) || tools.skills.length > MAX_LISTED_SKILLS) fail('tools.skills', `must be a list of at most ${MAX_LISTED_SKILLS} skills`);
+      else tools.skills.forEach((entry, index) => {
+        if (!isObject(entry) || !isSkillName(entry.name) || !text(entry.description, SKILL_DESCRIPTION_MAX)) fail(`tools.skills[${index}]`, 'must have a skill name and a description');
+      });
+    }
     if (tools.inputs !== undefined) {
       if (!Array.isArray(tools.inputs) || tools.inputs.length > 40) fail('tools.inputs', 'must be a list of at most 40 files');
       else tools.inputs.forEach((file, index) => {
@@ -404,6 +413,7 @@ export function validateRunSpec(input) {
         ...(tools.designs ? { designs: { deck: tools.designs.deck || 'auto', document: tools.designs.document || 'auto' } } : {}),
         ...(Array.isArray(tools.cli) && tools.cli.length ? { cli: [...new Set(tools.cli.map((entry) => entry.id))].map((id) => ({ id, chosen: tools.cli.some((entry) => entry.id === id && entry.chosen === true) })) } : {}),
         ...(Array.isArray(tools.cli) && tools.cli.length && isObject(tools.net) ? { net: { mode: normalizeNetMode(tools.net.mode), rules: normalizeNetRules(tools.net.rules) } } : {}),
+        ...(Array.isArray(tools.skills) && listedSkills(tools.skills).length ? { skills: listedSkills(tools.skills) } : {}),
         ...(tools.inputs?.length ? { inputs: tools.inputs.map((file) => ({ name: file.name, mimeType: file.mimeType || '', data: file.data })) } : {})
       },
       secrets: { providerKey: secrets.providerKey, ...(secrets.searchKey ? { searchKey: secrets.searchKey } : {}), ...(secrets.searchKeyAlt ? { searchKeyAlt: secrets.searchKeyAlt } : {}) }

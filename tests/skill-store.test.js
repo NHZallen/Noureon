@@ -182,3 +182,18 @@ test('the words of the skills are in all five languages with the same keys, ever
   assert.equal(skillText('en', 'skillAdded_notice', { name: 'a-b' }), 'Skill “a-b” added.');
   assert.equal(skillText('xx', 'skillPasteCancel'), 'Cancel', 'English for a language it does not have');
 });
+
+test('the store the page holds loads the real one the first time it is asked, and holds nothing before', async () => {
+  const { createLazySkillStore } = await import('../src/app/runtime/skill/lazy-skill-store.js');
+  const fake = fakeClient({ rows: [{ user_id: 'u1', name: 'late-one', description: 'd', body: 'b' }] });
+  const store = createLazySkillStore({ getClient: () => fake.client, getUserId: () => 'u1' });
+  assert.deepEqual(store.cached(), []);
+  assert.equal(store.loaded, false);
+  assert.deepEqual((await store.list()).skills.map((skill) => skill.name), ['late-one']);
+  assert.equal(store.loaded, true);
+  assert.deepEqual(store.cached().map((skill) => skill.name), ['late-one']);
+  assert.equal((await store.add(text('second-one'))).ok, true);
+  assert.deepEqual(store.cached().map((skill) => skill.name), ['late-one', 'second-one']);
+  assert.deepEqual(await store.remove('late-one'), { ok: true });
+  assert.equal(await store.ensure(), true);
+});

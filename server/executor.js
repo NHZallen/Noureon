@@ -3,6 +3,7 @@
 // `onUpdate` with the message so far (the caller writes it out, a few times a second at most).
 
 import { normalizePageReads, normalizeTinyfishSearch } from '../src/app/legacy-runtime/features/model-request-formatting.js';
+import { runSkillsReply } from '../src/app/legacy-runtime/features/skills-reply.js';
 import { runWebResearchReply } from '../src/app/legacy-runtime/features/web-research-reply.js';
 import { createWebResearchTools } from '../src/app/legacy-runtime/features/web-research-tools.js';
 import { NOURAS_REQUEST_PURPOSE } from '../src/app/runtime/nouras/nouras-policy.js';
@@ -12,6 +13,7 @@ import { RUN_STATUS, formatSandboxRunBlock } from '../src/app/ui/sandbox/sandbox
 import { briefingPart, runSearchBriefing } from '../src/app/runtime/sandbox/search-briefing.js';
 import { CLI_PLATFORM, cliInstallCommand, cliPipCommands, getCliTool, isCliReady } from '../src/data/cli-catalog.js';
 import { effectiveNetPolicy } from '../src/data/cli-net.js';
+import { createSkillLoader } from '../src/data/skill-tool.js';
 import { prepareToolCredentials, scrubResult, scrubSecrets } from './cli-credentials.js';
 import { runSandboxReply } from '../src/app/runtime/sandbox/sandbox-reply.js';
 import { sandboxText } from '../src/app/runtime/sandbox/sandbox-texts.js';
@@ -71,10 +73,11 @@ export class ReplyError extends Error {
  * and `userId`; it is made again from its start when it is taken up after a restart (the sandbox was lost with the process). When the
  * sandbox cannot be had before any answer was written and a page is watching (`watching()`), it ends with a ReplyError of code
  * `sandbox_unavailable`: the page then makes the reply itself, with its own Python.
+ * `skills` (server/skills.js) reads the text of a skill the model loads by itself (the names it may load are in `spec.tools.skills`).
  * With CLI tools, `credentials` (server/cli-credentials.js) gives the person's secure credentials for them, and `netControl` is what the run manager
  * answers the person's questions about sites with (it is given the function that does so once the sandbox is there).
  */
-export async function executeReply({ spec, secrets, signal, resume: resumeFrom = null, userId = '', sandboxHost = null, files = null, credentials = null, netControl = null, credentialControl = null, credentialWaitMs = 10 * 60 * 1000, onPaused = () => {}, watching = () => false, onUpdate = () => {}, onLive = () => {}, onCheckpoint = async () => {}, onProblem = () => {}, fetchImpl = fetch, now = Date.now }) {
+export async function executeReply({ spec, secrets, signal, resume: resumeFrom = null, userId = '', sandboxHost = null, files = null, credentials = null, skills = null, netControl = null, credentialControl = null, credentialWaitMs = 10 * 60 * 1000, onPaused = () => {}, watching = () => false, onUpdate = () => {}, onLive = () => {}, onCheckpoint = async () => {}, onProblem = () => {}, fetchImpl = fetch, now = Date.now }) {
   const resume = spec.tools.advanced ? null : resumeFrom;
   const mode = spec.tools.webSearch;
   const language = spec.request.language;
@@ -141,7 +144,20 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
     onSupports: (found) => { supports = found; }
   };
   const parts = spec.request.currentMessage.parts;
+  // The skills the model may load by itself: not with Gemini's own search (the provider refuses its tools next to that search).
+  const skillList = skills && mode !== 'grounding' ? spec.tools.skills || [] : [];
+  const makeSkillLoader = () => (skillList.length ? createSkillLoader({ available: skillList, lookup: (name) => skills.body(userId, name) }) : null);
+  // A skill being loaded is a row of the step list the pages show (the other steps of a reply without Python are not).
+  const skillEvents = (event) => { if (event.type === 'skill') onLive({ ev: { ...event, t: Math.max(0, now() - startedAt) } }); };
 
+  // A plain answer (after the search packet, or with none): with skills the model may load, a small loop gives it the tool; else it is one request.
+  const streamWithSkills = async (requestParts) => {
+    const loader = makeSkillLoader();
+    if (!loader) return streamApiCall(requestParts, onChunk, signal, false, requestOptions);
+    const result = await runSkillsReply({ streamApiCall, requestParts, onChunk, signal, requestOptions, loader, language, onEvent: skillEvents });
+    toolCalls += result.calls;
+    return result;
+  };
   let toolCalls = 0;
   // A reply with Python: the run and what it made, set when the loop is over.
   let advanced = null;
@@ -315,6 +331,7 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
             ...(toolCredentials.missing[tool.id]?.length ? { missing: toolCredentials.missing[tool.id] } : {})
           })),
           research: tools ? { searchWeb: tools.searchWeb, openPage: tools.fetchPageContents, onSources: addSources } : null,
+          skills: makeSkillLoader(),
           askCredentials: credentials ? ({ toolId }) => askCredentials(toolId) : null,
           onEvent: stepEvents.event
         });
@@ -338,6 +355,8 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
         openPage: tools.fetchPageContents,
         language,
         onSources: addSources,
+        skills: makeSkillLoader(),
+        onEvent: skillEvents,
         resume: resume && Array.isArray(resume.toolTurns) ? { toolTurns: resume.toolTurns, text: resume.text, research: resume.research } : null,
         onRound: (round) => onCheckpoint({ version: CHECKPOINT_VERSION, ...round, sources, thought: { text: thought.text, kind: thought.kind }, elapsedMs: now() - startedAt })
       });
@@ -361,9 +380,9 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
       } finally {
         onLive({ ss: '' });
       }
-      if (!signal?.aborted) await streamApiCall(searched, onChunk, signal, false, requestOptions);
+      if (!signal?.aborted) await streamWithSkills(searched);
     } else {
-      await streamApiCall(parts, onChunk, signal, false, requestOptions);
+      await streamWithSkills(parts);
     }
   } catch (error) {
     // A stop keeps what was written; anything else is the reply's failure.

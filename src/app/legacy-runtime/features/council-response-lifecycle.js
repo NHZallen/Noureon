@@ -1,6 +1,8 @@
 import { getSearchProvider, searchProviderLabel } from '../../runtime/kernel/search-provider.js';
 import { getRuntimeText } from '../../runtime/i18n/runtime-texts.js';
 import { NOURAS_REQUEST_PURPOSE } from '../../runtime/nouras/nouras-policy.js';
+import { resolveInvokedSkills } from '../../runtime/skill/skill-bridge.js';
+import { invokedSkillsInstruction, skillNamesOfParts } from '../../../data/skill-prompt.js';
 
 export function createCouncilResponseLifecycle({
   buildTavilySearchQuery,
@@ -330,6 +332,9 @@ export function createCouncilResponseLifecycle({
       const texts = getCouncilTexts();
       const runtimeTexts = getCouncilRuntimeTexts();
       const mode = council.mode;
+      // The skills asked for with "/" in this message go to every call of the council (the members, the second round and the synthesis).
+      const skillInstruction = invokedSkillsInstruction(await resolveInvokedSkills(skillNamesOfParts(parts)));
+      const withSkills = (instruction) => (skillInstruction ? [instruction, skillInstruction].filter(Boolean).join('\n\n') : instruction);
       const activeParticipants = participants;
       const skippedParticipants = [];
       const modelStates = new Map();
@@ -510,7 +515,7 @@ export function createCouncilResponseLifecycle({
                   conversation: conv,
                   ignoreConversationWebSearch: true,
                   disableReasoning: true,
-                  additionalSystemInstruction: buildCouncilMemberInstruction(mode),
+                  additionalSystemInstruction: withSkills(buildCouncilMemberInstruction(mode)),
                   requestPurpose: NOURAS_REQUEST_PURPOSE.COUNCIL_PARTICIPANT,
                   onRetry: () => {
                       if (state) {
@@ -631,7 +636,7 @@ export function createCouncilResponseLifecycle({
                       historyForApi: [],
                       ignoreConversationWebSearch: true,
                       disableReasoning: true,
-                      additionalSystemInstruction: '你正在進行模型理事會第二輪修正，請聚焦於修正、反駁與補強，不要重複寒暄。不要把共同搜尋資料稱為使用者提供的資料。',
+                      additionalSystemInstruction: withSkills('你正在進行模型理事會第二輪修正，請聚焦於修正、反駁與補強，不要重複寒暄。不要把共同搜尋資料稱為使用者提供的資料。'),
                       requestPurpose: NOURAS_REQUEST_PURPOSE.COUNCIL_DELIBERATION,
                       onRetry: () => {
                           if (state) {
@@ -698,7 +703,7 @@ export function createCouncilResponseLifecycle({
                   historyForApi: [],
                   ignoreConversationWebSearch: true,
                   disableReasoning: true,
-                  additionalSystemInstruction: synthesisInstruction,
+                  additionalSystemInstruction: withSkills(synthesisInstruction),
                   requestPurpose: NOURAS_REQUEST_PURPOSE.COUNCIL_SYNTHESIS,
                   onMemoryContextResolved,
                   onRetry: () => progress('synthesis', `${runtimeTexts.synthesis}: ${synthesizer.name} · ${runtimeTexts.retrying}`)
