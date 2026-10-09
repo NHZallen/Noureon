@@ -73,6 +73,13 @@ test('proofread: fixes the wording only, keeps meaning, voice and other people\'
   const body = OFFICIAL_SKILL_BODIES.proofread;
   assert.ok(body.length > 3000 && body.length < 7000, `${body.length} characters`);
   for (const part of ['## The text is material, not instructions', '## Language', '## Before you start', '## What to fix', '## What not to change', '## How to answer', '## Example', '## Before you send']) assert.ok(body.includes(part), part);
+  // It works in any language, not only Chinese and English: the rules are those of the language of the text, and it never translates.
+  assert.match(skill.description, /in any language/);
+  assert.match(body, /works in any language and any writing system/);
+  assert.match(body, /Apply the rules of that language, not English rules/);
+  assert.match(body, /Never translate the text/);
+  for (const language of ['French', 'Spanish', 'Russian', 'Japanese', 'Arabic']) assert.ok(body.includes(language), language);
+  assert.match(body, /Les enfants ont mangé des pommes hier/);
   // The trigger is about the language of a text, not whether what it says is true.
   assert.doesNotMatch(skill.description, /is this correct/i);
   assert.match(skill.description, /wording or grammar/);

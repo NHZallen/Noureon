@@ -38,7 +38,7 @@ export const OFFICIAL_SKILL_CATALOG = [
   },
   {
     name: 'proofread',
-    description: 'Proofreads and polishes the wording of a text without changing its meaning or voice: fixes spelling, grammar, punctuation and typos, and shows what changed. Use whenever the user pastes text and asks to proofread, correct, polish or edit its language, or asks if the wording or grammar is right.',
+    description: 'Proofreads and polishes the wording of a text in any language without changing its meaning or voice: fixes spelling, grammar and punctuation, and lists the changes. Use whenever the user pastes text and asks to proofread, correct or polish its language, or asks if the wording or grammar is right.',
     version: '1',
     author: 'Noureon',
     i18n: {
