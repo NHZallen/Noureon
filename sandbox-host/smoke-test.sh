@@ -129,6 +129,13 @@ PY
 printf '%s' "$PIPMOUNT" | grep -q '"cached":\["csvkit"\]' && check "a Python tool is installed on the machine once and given to the session" ok || check "a Python tool is installed on the machine once and given to the session" "$PIPMOUNT"
 R=$(cli_step 'csvstat --version; ls -ld /opt/pip-cache/* | head -1; touch /opt/pip-cache/x 2>&1 | head -1' "$ID"); printf '%s' "$R" | json "d['stdout']['text']" | grep -q "csvstat" && check "the tool runs from the cache" ok || check "the tool runs from the cache" "$R"
 printf '%s' "$R" | json "d['stdout']['text']" | grep -qi "read-only" && check "the cache is read only inside the sandbox" ok || check "the cache is read only inside the sandbox" "$R"
+# Skills with files: the runner puts the folder of a skill in /skills (read only, nothing in it is given the right to run); a script is run by an interpreter.
+echo "== the folders of skills =="
+SKILLMOUNT=$(call -X POST "$BASE/v1/sessions/$ID/skills" -d '{"skills":[{"name":"demo-skill","files":[{"path":"scripts/hello.py","data":"cHJpbnQoImhlbGxvIGZyb20gYSBza2lsbCIpCg=="},{"path":"references/a.md","data":"IyBBCg=="}]}]}')
+printf '%s' "$SKILLMOUNT" | grep -q '"demo-skill"' && check "the folder of a skill is put in the sandbox" ok || check "the folder of a skill is put in the sandbox" "$SKILLMOUNT"
+R=$(cli_step 'python3 /skills/demo-skill/scripts/hello.py; cat /skills/demo-skill/references/a.md' "$ID"); printf '%s' "$R" | json "d['stdout']['text']" | grep -q "hello from a skill" && check "a script of a skill is run by Python, and its files can be read" ok || check "a script of a skill is run by Python, and its files can be read" "$R"
+R=$(cli_step 'touch /skills/demo-skill/new.txt 2>&1 | head -1; rm /skills/demo-skill/references/a.md 2>&1 | head -1' "$ID"); [ "$(printf '%s' "$R" | json "d['stdout']['text'].lower().count('read-only')")" = "2" ] && check "/skills is read only: nothing can be written or removed" ok || check "/skills is read only: nothing can be written or removed" "$R"
+R=$(cli_step '/skills/demo-skill/scripts/hello.py 2>&1 | head -1' "$ID"); printf '%s' "$R" | json "d['stdout']['text']" | grep -qi "permission denied" && check "a file of a skill is never run as a program by itself" ok || check "a file of a skill is never run as a program by itself" "$R"
 R=$(step 'x = bytearray(3 * 1024 * 1024 * 1024)' "$ID"); printf '%s' "$R" | json "d['error']" | grep -qi "memory" && check "too much memory is stopped" ok || check "too much memory is stopped" "$R"
 R=$(step 'while True: pass' "$ID" ); echo "$R" | grep -q "time limit" && check "an endless loop is stopped" ok || check "an endless loop is stopped" "(waited 60 s) $R"
 call -X DELETE "$BASE/v1/sessions/$ID" >/dev/null
