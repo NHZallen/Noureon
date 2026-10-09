@@ -113,6 +113,19 @@ export const OFFICIAL_SKILL_CATALOG = [
       ru: { title: 'Сравнение источников', description: 'Сравнивает несколько статей или исследований: в чём они согласны, где расходятся и почему, и насколько можно доверять каждому утверждению.' },
       es: { title: 'Comparación de fuentes', description: 'Compara varios artículos o estudios: en qué coinciden, dónde chocan y por qué, y hasta qué punto se puede confiar en cada afirmación.' }
     }
+  },
+  {
+    name: 'concept-explainer',
+    description: 'Explains ideas, theories, terms and how things work in principle, in any language, in plain words pitched to the learner, with examples. Use when the user wants to understand a concept. Not for setup steps, troubleshooting a specific problem, or checking whether a claim is true.',
+    version: '1',
+    author: 'Noureon',
+    i18n: {
+      'zh-TW': { title: '概念解釋', description: '按照你的程度，用淺顯的話、例子與比喻解釋艱澀的概念，並說明簡化掉了什麼。' },
+      en: { title: 'Concept explainer', description: 'Explain a hard idea at your level, in plain words with examples, and say what the simple picture leaves out.' },
+      fr: { title: 'Explication de concepts', description: 'Explique une idée difficile à votre niveau, avec des mots simples et des exemples, en précisant ce que l’image simplifiée laisse de côté.' },
+      ru: { title: 'Объяснение понятий', description: 'Объясняет сложную идею на вашем уровне простыми словами и примерами и говорит, что упрощённая картина опускает.' },
+      es: { title: 'Explicador de conceptos', description: 'Explica una idea difícil a tu nivel, con palabras sencillas y ejemplos, y dice qué deja fuera la versión simplificada.' }
+    }
   }
 ];
 
