@@ -7,6 +7,10 @@ import JSZip from 'jszip';
 import { MAX_USER_SKILLS } from '../src/data/skill-format.js';
 import { SKILL_BUNDLE_BUCKET, readSkillBundle, skillBundlePath } from '../src/data/skill-bundle.js';
 import { createSkillStore } from '../src/app/runtime/skill/skill-store.js';
+import { OFFICIAL_SKILL_CATALOG } from '../src/data/skill-catalog.js';
+
+// These tests use names of their own (some are the names of official skills, which a person cannot take): the official skills are looked at in official-skills.test.js.
+OFFICIAL_SKILL_CATALOG.length = 0;
 
 // A table of rows behind the few calls the store makes.
 function fakeClient({ rows = [], failWith = null, failOps = {}, storageFail = {} } = {}) {

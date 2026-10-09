@@ -6,6 +6,10 @@ import { Window } from 'happy-dom';
 import { clearSkillSelection, getAvailableSkills, getSkillSelection, lookupSkill, readSkillFile, resolveInvokedSkills } from '../src/app/runtime/skill/skill-bridge.js';
 import { createLazySkillMode } from '../src/app/runtime/skill/lazy-skill-mode.js';
 import { createSkillStore } from '../src/app/runtime/skill/skill-store.js';
+import { OFFICIAL_SKILL_CATALOG } from '../src/data/skill-catalog.js';
+
+// These tests use names of their own (some are the names of official skills, which a person cannot take): the official skills are looked at in official-skills.test.js.
+OFFICIAL_SKILL_CATALOG.length = 0;
 
 afterEach(() => clearSkillSelection());
 

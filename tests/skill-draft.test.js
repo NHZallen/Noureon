@@ -11,6 +11,10 @@ import { createSkillStore } from '../src/app/runtime/skill/skill-store.js';
 import { createMarkdownRenderingHelpers } from '../src/app/runtime/legacy-core/markdown-rendering-helpers.js';
 import { draftOf, hydrateSkillDrafts } from '../src/app/ui/skill/skill-draft-card.js';
 import { draftHasFiles, readDraftBundle, splitDraft } from '../src/data/skill-draft.js';
+import { OFFICIAL_SKILL_CATALOG } from '../src/data/skill-catalog.js';
+
+// These tests use names of their own (some are the names of official skills, which a person cannot take): the official skills are looked at in official-skills.test.js.
+OFFICIAL_SKILL_CATALOG.length = 0;
 
 afterEach(() => clearSkillSelection());
 

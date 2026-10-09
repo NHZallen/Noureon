@@ -12,7 +12,7 @@ import { SKILL_BODY_MAX, SKILL_DESCRIPTION_MAX, isSkillName } from './skill-form
 export const OFFICIAL_SKILL_CATALOG = [
   {
     name: 'skill-creator',
-    description: 'Helps the user create a new skill for their collection or improve one. Use whenever the user wants to make a skill, turn what they just did or a workflow into a reusable skill, write a SKILL.md, save "this way of doing it" for next time, or fix a skill that does not trigger or does not work well.',
+    description: 'Helps the user create a new skill or improve one. Use whenever the user wants to make a skill, turn what they just did or a workflow into a reusable skill, write a SKILL.md, or fix a skill that does not trigger or work well.',
     version: '1',
     author: 'Noureon',
     i18n: {
@@ -21,6 +21,19 @@ export const OFFICIAL_SKILL_CATALOG = [
       fr: { title: 'Créer une compétence', description: 'Vous aide à transformer une façon de faire en compétence : comprend à quoi elle sert, rédige un brouillon, l’essaie, l’améliore, et vous laisse tout lire avant de l’ajouter.' },
       ru: { title: 'Создать навык', description: 'Помогает превратить ваш способ работы в навык: выясняет, для чего он нужен, пишет черновик, пробует его, улучшает и даёт прочесть всё перед добавлением.' },
       es: { title: 'Crear una habilidad', description: 'Te ayuda a convertir una forma de hacer algo en una habilidad: averigua para qué sirve, redacta un borrador, lo prueba, lo mejora y te deja leerlo todo antes de añadirlo.' }
+    }
+  },
+  {
+    name: 'meeting-notes',
+    description: 'Turns raw meeting notes or a transcript into a clear record: summary, decisions, action items with owners and dates, open questions, and an optional follow-up message. Use whenever the user pastes notes from a meeting, call, interview or workshop, or asks for minutes, a recap or action items.',
+    version: '1',
+    author: 'Noureon',
+    i18n: {
+      'zh-TW': { title: '會議記錄', description: '把雜亂的會議筆記或逐字稿整理成摘要、決議、待辦事項（含負責人與期限）和待解問題。' },
+      en: { title: 'Meeting notes', description: 'Turn messy notes or a transcript into a summary, decisions, action items with owners and dates, and open questions.' },
+      fr: { title: 'Compte rendu de réunion', description: 'Transforme des notes brutes ou une transcription en résumé, décisions, actions (responsable, échéance) et questions ouvertes.' },
+      ru: { title: 'Протокол встречи', description: 'Превращает черновые заметки или расшифровку в итоги, решения, задачи с исполнителями и сроками и открытые вопросы.' },
+      es: { title: 'Acta de reunión', description: 'Convierte notas desordenadas o una transcripción en resumen, decisiones, tareas con responsable y fecha, y preguntas abiertas.' }
     }
   }
 ];
