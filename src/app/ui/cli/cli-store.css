@@ -156,6 +156,8 @@ html.cs-open { overflow: hidden; }
 .cs-conn-status::before { content: ""; width: 0.45rem; height: 0.45rem; border-radius: 9999px; background: currentColor; }
 .cs-conn-status.is-warning { color: var(--state-warning); }
 .cs-connect { display: inline-flex; align-items: center; gap: 0.15rem; padding: 0.3rem 0.2rem 0.3rem 0.6rem; font-weight: 600; white-space: nowrap; cursor: pointer; }
+.cs-pending { display: inline-block; padding: 0.3rem 0.2rem 0.3rem 0.6rem; color: var(--text-secondary); font-size: 0.85rem; white-space: nowrap; cursor: pointer; }
+.cs-pending-note { margin: 0.5rem 0 0; color: var(--text-secondary); font-size: 0.85rem; line-height: 1.55; }
 .cs-connect-arrow { display: inline-flex; color: var(--text-secondary); }
 .cs-connector .cs-action { cursor: pointer; }
 

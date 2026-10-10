@@ -140,10 +140,26 @@ test('a login that is refused says why, in the code and the status the service g
   const t = setup({ connections: [] });
   await settle(t);
   registerServerRequest(async (method) => (method === 'GET' ? { ok: true, status: 200, data: { connectors: [] } } : { ok: false, status: 400, code: 'bad_request', data: { error: { code: 'bad_request', message: 'x', reason: 'failed', detail: 'registration_refused 403' } } }));
-  t.host.querySelector('[data-connector-id="vercel"] .cs-action').click();
+  t.host.querySelector('[data-connector-id="upstash"] .cs-action').click();
   t.host.querySelector('.cs-dialog .cs-button-primary').click();
   await flush();
   assert.equal(t.host.querySelector('.cs-dialog-error').textContent, '無法開始登入，請稍後再試。 (registration_refused 403)');
+});
+
+test('a service that has not approved Noureon yet says "Under review", opens its words, and does not begin a login', async () => {
+  const t = setup({ connections: [] });
+  await settle(t);
+  const row = t.host.querySelector('[data-connector-id="vercel"]');
+  assert.equal(row.querySelector('.cs-pending').textContent, '審核中');
+  assert.equal(row.querySelector('.cs-connect'), null, 'no "Connect"');
+  row.querySelector('.cs-action').click();
+  assert.equal(t.host.querySelector('.cs-dialog'), null, 'no sheet, no login');
+  assert.match(row.querySelector('.cs-pending-note').textContent, /Vercel 要先核准 Noureon/);
+  assert.ok(!t.calls.some(([method, path]) => method === 'POST' && /connect$/.test(path)), 'nothing is asked of the server');
+  row.querySelector('.cs-text').click();
+  assert.ok(row.querySelector('.cs-about').textContent.length > 20, 'the words of what it will do are there');
+  // The other connectors of the same group are not touched.
+  assert.ok(t.host.querySelector('[data-connector-id="upstash"] .cs-connect'));
 });
 
 test('Mine: a connection shows its access and its tools in two groups; the group is one setting, the tools each their own', async () => {

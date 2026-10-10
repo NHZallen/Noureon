@@ -8,7 +8,7 @@ export const updateLogEntries = [
       "<strong>Noureon 18.6.0 發布說明</strong>",
       "本版本為連接器新增三個服務：Context7、Upstash 與 Vercel。",
       "<strong>主要變更</strong>",
-      "<ul><li><strong>Context7：</strong>查程式套件與框架最新的官方文件與範例。只有查文件的工具，不碰你的資料，所以預設全部允許。</li><li><strong>Upstash：</strong>管理你的 Redis 資料庫（列出、查看用量、執行指令、建立、刪除、備份）。登入頁有 Upstash 自己的「唯讀」開關，由你決定是否開啟；不開就是可讀寫，Noureon 不強制唯讀。</li><li><strong>Vercel：</strong>查看團隊、專案、部署與日誌，搜尋文件，也能部署與管理網域。Vercel 的授權沒有讀寫之分，所以每個工具由你設定允許、詢問或拒絕；部署、買網域這類會修改或花錢的動作預設每次都先問你。</li><li><strong>設定：</strong>三個連接器和 Notion、Linear 一樣，每個工具都可以在「擴充」頁與設定的「權限」分頁調整，確認卡也一樣會顯示完整參數。</li></ul>",
+      "<ul><li><strong>Context7：</strong>查程式套件與框架最新的官方文件與範例。只有查文件的工具，不碰你的資料，所以預設全部允許。</li><li><strong>Upstash：</strong>管理你的 Redis 資料庫（列出、查看用量、執行指令、建立、刪除、備份）。登入頁有 Upstash 自己的「唯讀」開關，由你決定是否開啟；不開就是可讀寫，Noureon 不強制唯讀。</li><li><strong>Vercel（審核中）：</strong>Vercel 只讓它核准過的用戶端登入，Noureon 的申請已送出，核准前暫時不能連線。連線後可以查看團隊、專案、部署與日誌，搜尋文件，也能部署與管理網域。Vercel 的授權沒有讀寫之分，所以每個工具由你設定允許、詢問或拒絕；部署、買網域這類會修改或花錢的動作預設每次都先問你。</li><li><strong>設定：</strong>三個連接器和 Notion、Linear 一樣，每個工具都可以在「擴充」頁與設定的「權限」分頁調整，確認卡也一樣會顯示完整參數。</li></ul>",
       "<strong>注意事項</strong>",
       "<ul><li>三個服務的登入都在它們自己的頁面完成，Noureon 看不到你的密碼。Vercel 的 MCP 目前是 Beta。</li><li>Vercel 與 Upstash 的授權畫面可能只顯示網址，不顯示 Noureon 的名稱與標誌，這是對方的做法。</li></ul>",
       "<strong>相容性</strong>",

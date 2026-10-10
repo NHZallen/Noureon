@@ -328,7 +328,10 @@ export function createConnectorsPart({ document, win, t, getLanguage, getAccount
     name.append(make('span', 'cs-name-text', connector.name));
     text.append(name, make('span', 'cs-desc', connectorDescription(connector, getLanguage())));
     const action = make('div', 'cs-action');
-    if (connected) {
+    // A service that has not yet approved Noureon (Vercel): it is said so, and no login begins.
+    const pending = Boolean(connector.pending) && !connected;
+    if (pending) action.append(make('span', 'cs-pending', t('connectorPending')));
+    else if (connected) {
       const needs = connection.status === 'needs_login';
       action.append(make('span', `cs-conn-status${needs ? ' is-warning' : ''}`, t(needs ? 'connectorNeedsLogin' : 'connectorConnected')));
     } else {
@@ -355,6 +358,7 @@ export function createConnectorsPart({ document, win, t, getLanguage, getAccount
         box.append(listing);
         nodes.push(box);
       }
+      if (pending) nodes.push(make('p', 'cs-pending-note', t('connectorPendingNote', { name: connector.name })));
       if (connected) {
         const manage = make('button', 'cs-link cs-feature-manage', t('connectorManage'));
         manage.type = 'button';
@@ -384,7 +388,7 @@ export function createConnectorsPart({ document, win, t, getLanguage, getAccount
     text.addEventListener('click', toggle);
     // The right side: a connection that needs a login logs in again, one that is not connected begins (the status of a good one only opens the words).
     action.addEventListener('click', () => {
-      if (connected && connection.status === 'connected') toggle();
+      if (pending || (connected && connection.status === 'connected')) toggle();
       else if (connected) openSheet(connector, { mode: connection.mode });
       else if (!getAccountReady()) showNotification(t('connectorNeedAccount'), 'error');
       else openSheet(connector);

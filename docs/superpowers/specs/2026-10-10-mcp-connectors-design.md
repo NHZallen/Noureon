@@ -237,3 +237,11 @@ owner 回報：從服務登入回到 Noureon，「我的」要切換頁面才出
 - 要求的範圍是照對方公布的 `scopes_supported` 選的，沒被實測過；若對方回 `invalid_scope`，就把目錄裡該連接器的 `scopes` 改成空陣列（像 Notion 那樣不指定）再試。
 - Upstash、Vercel 的工具名稱是憑記憶列的：名稱寫錯不會出事（沒列到的工具一律當寫入、先問），只是少數讀取工具會多問一次；登入後可從擴充頁的實際工具清單校正。
 - Vercel 與 Upstash 的授權畫面大概只顯示網址、不顯示 Noureon 的名稱和標誌（和 Notion 官方 MCP 相同的原因）。
+
+### 13.1 Vercel: not approved (2026-10-11)
+
+owner 真實登入時，Vercel 回 `registration_refused 400: invalid_redirect_uri: The provided redirect URIs are not approved for use by this authorization server.`。Vercel 的 MCP 只接受它核准過的用戶端（回呼網址要加進它的白名單），自動註冊走不通。處置：
+
+- 目錄裡 `vercel` 加 `pending: true`：清單上顯示「審核中」，點開有說明，不開始登入。核准後把這一行拿掉即可，其他程式不用改（註冊應該就會成功）。
+- owner 已向 Vercel 送出用戶端申請表（Google 表單）：用戶端名稱 Noureon、傳輸 Streamable HTTP、回呼網址 `https://api.noureon.com/mcp/callback`、Logo `https://noureon.com/logo.png`、字標 `https://noureon.com/wordmark.svg`（和 `wordmark.png`）。
+- 這次也加了診斷：登入失敗時畫面會顯示服務回的錯誤代碼與狀態；註冊被回 400／422 時，會用只含必要欄位的內容再註冊一次。

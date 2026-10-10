@@ -72,7 +72,9 @@ export const CONNECTOR_TEXTS = Object.freeze({
     connectorErr_bad_state: '這個登入連結已失效，請重新連線。',
     connectorErr_failed: '連線失敗，請稍後再試。',
     connectorErr_busy: '現在連線的人太多，請稍後再試。',
-    connectorSaveFailed: '設定沒有儲存，請再試一次。'
+    connectorSaveFailed: '設定沒有儲存，請再試一次。',
+    connectorPending: '審核中',
+    connectorPendingNote: '{name} 要先核准 Noureon 才能連線。申請已經送出，核准之前暫時不能連線。'
   },
   en: {
     connectorExamplesTitle: 'Try asking',
@@ -143,7 +145,9 @@ export const CONNECTOR_TEXTS = Object.freeze({
     connectorErr_bad_state: 'This login link is no longer valid. Connect again.',
     connectorErr_failed: 'The connection failed. Try again in a moment.',
     connectorErr_busy: 'Too many people are connecting now. Try again in a moment.',
-    connectorSaveFailed: 'The setting was not saved. Try again.'
+    connectorSaveFailed: 'The setting was not saved. Try again.',
+    connectorPending: 'Under review',
+    connectorPendingNote: '{name} must approve Noureon before it can be connected. The application has been sent; until it is approved, it cannot be connected.'
   },
   fr: {
     connectorExamplesTitle: 'Exemples à essayer',
@@ -214,7 +218,9 @@ export const CONNECTOR_TEXTS = Object.freeze({
     connectorErr_bad_state: 'Ce lien de connexion n’est plus valable. Reconnectez-vous.',
     connectorErr_failed: 'La connexion a échoué. Réessayez dans un instant.',
     connectorErr_busy: 'Trop de personnes se connectent en ce moment. Réessayez dans un instant.',
-    connectorSaveFailed: 'Le réglage n’a pas été enregistré. Réessayez.'
+    connectorSaveFailed: 'Le réglage n’a pas été enregistré. Réessayez.',
+    connectorPending: 'En cours de validation',
+    connectorPendingNote: '{name} doit d’abord approuver Noureon avant qu’on puisse s’y connecter. La demande a été envoyée ; tant qu’elle n’est pas approuvée, la connexion est impossible.'
   },
   ru: {
     connectorExamplesTitle: 'Примеры запросов',
@@ -285,7 +291,9 @@ export const CONNECTOR_TEXTS = Object.freeze({
     connectorErr_bad_state: 'Эта ссылка для входа больше не действует. Подключите снова.',
     connectorErr_failed: 'Не удалось подключиться. Попробуйте чуть позже.',
     connectorErr_busy: 'Сейчас подключается слишком много людей. Попробуйте чуть позже.',
-    connectorSaveFailed: 'Настройка не сохранена. Попробуйте ещё раз.'
+    connectorSaveFailed: 'Настройка не сохранена. Попробуйте ещё раз.',
+    connectorPending: 'На рассмотрении',
+    connectorPendingNote: '{name} должен сначала одобрить Noureon, чтобы можно было подключиться. Заявка отправлена; пока она не одобрена, подключиться нельзя.'
   },
   es: {
     connectorExamplesTitle: 'Prueba a pedir',
@@ -356,7 +364,9 @@ export const CONNECTOR_TEXTS = Object.freeze({
     connectorErr_bad_state: 'Este enlace de acceso ya no es válido. Vuelve a conectar.',
     connectorErr_failed: 'La conexión falló. Inténtalo de nuevo en un momento.',
     connectorErr_busy: 'Demasiadas personas se están conectando. Inténtalo de nuevo en un momento.',
-    connectorSaveFailed: 'El ajuste no se guardó. Inténtalo de nuevo.'
+    connectorSaveFailed: 'El ajuste no se guardó. Inténtalo de nuevo.',
+    connectorPending: 'En revisión',
+    connectorPendingNote: '{name} debe aprobar primero a Noureon para poder conectarlo. La solicitud ya se envió; hasta que se apruebe, no se puede conectar.'
   }
 });
 

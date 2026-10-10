@@ -152,6 +152,9 @@ export const CONNECTORS = Object.freeze([
     category: 'dev',
     endpoint: 'https://mcp.vercel.com',
     icon: 'https://github.com/vercel.png?size=96',
+    // Vercel only lets the clients it has approved log in (its login answered our registration with "invalid_redirect_uri: not approved for use by this authorization server"); the application to be approved is sent (2026-10-11).
+    // The page says "Under review" and does not begin a login until this line is taken out.
+    pending: true,
     // Vercel announces scopes with no difference between reading and writing, so the login is one: what a reply may do is the person's setting for each tool (some of its tools deploy or buy domains; the person decides, as for every tool).
     scopes: Object.freeze({ readwrite: Object.freeze(['openid', 'email', 'profile', 'offline_access']) }),
     description: Object.freeze({
