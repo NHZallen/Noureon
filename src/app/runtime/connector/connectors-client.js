@@ -3,7 +3,7 @@
 
 import { serverRequest } from '../cli/cli-server-bridge.js';
 
-const failure = (result) => ({ ok: false, code: result.code || `http-${result.status}`, reason: result.data?.error?.reason || '' });
+const failure = (result) => ({ ok: false, code: result.code || `http-${result.status}`, reason: result.data?.error?.reason || '', detail: String(result.data?.error?.detail || '').slice(0, 80) });
 
 /** The state of every connector of the catalog for this person: { ok, connectors: [{ id, status: 'none' | 'connected' | 'needs_login', mode, tools: [{ name, description, kind, state, changed }], error }] }. */
 export async function listConnectors() {

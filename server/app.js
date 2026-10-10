@@ -351,7 +351,7 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
         } catch (error) {
           if (error instanceof ConnectorError) {
             const known = { unknown_connector: ERROR_CODES.notFound, not_connected: 409, bad_request: ERROR_CODES.badRequest };
-            throw new RequestError(known[error.code] === 409 ? ERROR_CODES.wrongPhase : known[error.code] || ERROR_CODES.badRequest, error.message, { reason: error.code });
+            throw new RequestError(known[error.code] === 409 ? ERROR_CODES.wrongPhase : known[error.code] || ERROR_CODES.badRequest, error.message, { reason: error.code, ...(error.detail ? { detail: error.detail } : {}) });
           }
           throw error;
         }

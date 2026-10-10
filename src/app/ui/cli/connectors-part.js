@@ -133,7 +133,8 @@ export function createConnectorsPart({ document, win, t, getLanguage, getAccount
         return;
       }
       reset();
-      failure.textContent = t('connectorSheetFailed');
+      // The reason the service gave (an error code and a status, nothing else) is added, so that a service that refuses us can be told from one that is down.
+      failure.textContent = result.detail ? `${t('connectorSheetFailed')} (${result.detail})` : t('connectorSheetFailed');
       failure.hidden = false;
     });
     (document.querySelector('.cs') || document.body).append(backdrop);

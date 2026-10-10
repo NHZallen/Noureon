@@ -136,6 +136,16 @@ test('a login that cannot begin says so and leaves the sheet to try again', asyn
   assert.deepEqual(t.assigned, []);
 });
 
+test('a login that is refused says why, in the code and the status the service gave, and nothing more', async () => {
+  const t = setup({ connections: [] });
+  await settle(t);
+  registerServerRequest(async (method) => (method === 'GET' ? { ok: true, status: 200, data: { connectors: [] } } : { ok: false, status: 400, code: 'bad_request', data: { error: { code: 'bad_request', message: 'x', reason: 'failed', detail: 'registration_refused 403' } } }));
+  t.host.querySelector('[data-connector-id="vercel"] .cs-action').click();
+  t.host.querySelector('.cs-dialog .cs-button-primary').click();
+  await flush();
+  assert.equal(t.host.querySelector('.cs-dialog-error').textContent, '無法開始登入，請稍後再試。 (registration_refused 403)');
+});
+
 test('Mine: a connection shows its access and its tools in two groups; the group is one setting, the tools each their own', async () => {
   const t = setup();
   t.view.tab = 'mine';

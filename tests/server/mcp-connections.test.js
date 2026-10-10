@@ -216,6 +216,20 @@ test('permissions refuse a tool or a state that does not exist, and a connector 
   await assert.rejects(service.startLogin(USER, 'nothing', 'readwrite'), (error) => error.code === 'unknown_connector');
 });
 
+test('a service that refuses our registration, or does not say how to log in, is told apart: the error carries the code and the status the service gave, and nothing else', async () => {
+  const db = fakeDb();
+  const vault = createKeyVault([{ version: 1, key: randomBytes(32).toString('base64') }]);
+  const routes = {
+    'https://mcp.vercel.com/.well-known/oauth-protected-resource': json({ resource: 'https://mcp.vercel.com', authorization_servers: ['https://vercel.com'] }),
+    'https://vercel.com/.well-known/oauth-authorization-server': json({ issuer: 'https://vercel.com', authorization_endpoint: 'https://vercel.com/oauth/authorize', token_endpoint: 'https://vercel.com/api/login/oauth/token', registration_endpoint: 'https://vercel.com/api/login/oauth/register', code_challenge_methods_supported: ['S256'] })
+  };
+  const refusing = async (url, options = {}) => (options.method === 'POST' && String(url).endsWith('/register') ? json({ error: 'invalid_redirect_uri', secret: 'must-not-travel' }, 403) : routes[String(url)] || new Response('nothing', { status: 404 }));
+  const service = createConnectorService({ db, vault, fetchImpl: refusing, config: { redirectUri: REDIRECT, cimdUrl: CIMD } });
+  await assert.rejects(service.startLogin(USER, 'vercel', 'readwrite'), (error) => error.code === 'failed' && error.detail === 'registration_refused 403' && !JSON.stringify(error).includes('must-not-travel'));
+  const silent = createConnectorService({ db, vault, fetchImpl: async () => new Response('nothing', { status: 404 }), config: { redirectUri: REDIRECT, cimdUrl: CIMD } });
+  await assert.rejects(silent.startLogin(USER, 'vercel', 'readwrite'), (error) => error.code === 'failed' && error.detail === 'no_metadata');
+});
+
 test('the list of tools is asked for again when it is an hour old, not on every reply', async () => {
   let time = 20_000_000;
   const { world, service } = setup({ now: () => time });

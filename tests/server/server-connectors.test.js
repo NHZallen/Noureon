@@ -364,7 +364,7 @@ function fakeService() {
   const service = {
     calls,
     list: async (userId) => { calls.push(['list', userId]); return [{ id: 'linear', status: 'connected', mode: 'readwrite', tools: [], error: '', connectedAt: '' }]; },
-    startLogin: async (userId, id, mode) => { calls.push(['connect', userId, id, mode]); if (id === 'nothing') throw new ConnectorError('unknown_connector', 'There is no such connector.'); return { url: 'https://auth.linear.app/authorize?x=1' }; },
+    startLogin: async (userId, id, mode) => { calls.push(['connect', userId, id, mode]); if (id === 'nothing') throw new ConnectorError('unknown_connector', 'There is no such connector.'); if (id === 'refused') throw new ConnectorError('failed', 'This service cannot be logged in to right now.', 'registration_refused 403'); return { url: 'https://auth.linear.app/authorize?x=1' }; },
     disconnect: async (userId, id) => { calls.push(['disconnect', userId, id]); return { revoked: true }; },
     refreshTools: async (userId, id) => { calls.push(['refresh', userId, id]); },
     setPermissions: async (userId, id, states) => { calls.push(['permissions', userId, id, states]); if (id === 'notion') throw new ConnectorError('not_connected', 'This connector is not connected.'); },
@@ -386,6 +386,9 @@ test('the connectors endpoints: a signed-in person lists theirs, begins a login,
     await fetch(`${base}/v1/connectors/linear/connect`, { method: 'POST', headers: auth });
     assert.deepEqual(service.calls.at(-1), ['connect', USER, 'linear', 'readwrite'], 'a request with no body is the full login');
     assert.equal((await fetch(`${base}/v1/connectors/nothing/connect`, { method: 'POST', headers: auth })).status, 404);
+    const refused = await fetch(`${base}/v1/connectors/refused/connect`, { method: 'POST', headers: auth });
+    assert.equal(refused.status, 400);
+    assert.deepEqual((await refused.json()).error, { code: 'bad_request', message: 'This service cannot be logged in to right now.', reason: 'failed', detail: 'registration_refused 403' });
     const cut = await fetch(`${base}/v1/connectors/linear/disconnect`, { method: 'POST', headers: auth });
     assert.deepEqual(await cut.json(), { ok: true, revoked: true });
     assert.deepEqual(service.calls.at(-1), ['disconnect', USER, 'linear']);

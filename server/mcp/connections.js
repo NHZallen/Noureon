@@ -19,10 +19,12 @@ const MAX_SCHEMA_CHARS = 20_000;
 
 export class ConnectorError extends Error {
   /** `code`: 'unknown_connector', 'not_connected', 'login_needed' (the person must log in again), 'bad_state', 'denied', 'failed', 'bad_request'. */
-  constructor(code, message) {
+  constructor(code, message, detail = '') {
     super(message);
     this.name = 'ConnectorError';
     this.code = code;
+    // Why, in a few words that hold no secret (an error code of the login and the status the service answered): the page shows it, so that a service that refuses us can be told from one that is down.
+    this.detail = detail;
   }
 }
 
@@ -119,7 +121,7 @@ export function createConnectorService({ db, vault, fetchImpl = fetch, now = Dat
     } catch (error) {
       if (error instanceof OAuthError) {
         log('connector_login_unavailable', { connector: connectorId, code: error.code });
-        throw new ConnectorError('failed', 'This service cannot be logged in to right now.');
+        throw new ConnectorError('failed', 'This service cannot be logged in to right now.', `${error.code}${error.status ? ` ${error.status}` : ''}`);
       }
       throw error;
     }
