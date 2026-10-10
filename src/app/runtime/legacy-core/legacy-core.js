@@ -78,7 +78,6 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
 
     document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('auth-container').classList.add('visible');
-        document.querySelector('.demo-model-selector')?.closest('section')?.remove();
     });
         const ALL_ELEMENTS = createLegacyRuntimeDomRegistry();
         const runtimeDomAccess = createRuntimeDomAccess({

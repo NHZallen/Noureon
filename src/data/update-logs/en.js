@@ -1,6 +1,12 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.1.0": [
+    "<strong>Noureon 18.1.0 Release Notes</strong>",
+    "The page shown before sign-in has been redone: scroll down to see, in real screens, how the Model Council, deep research and files work, followed by extensions, specs, server-side running, privacy and sign-in.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>New home page:</strong>three scrolling introductions made from screenshots of Noureon's own components, one set for the light and dark themes in each of the five languages; the footer has the updates, GitHub, the official X account @NoureonAi, the terms and the privacy policy.</li><li><strong>Link preview text:</strong>the title and description shown when noureon.com is shared are rewritten.</li><li><strong>Housekeeping:</strong>removed the sample conversations and code of the old home page, which were no longer used.</li></ul>"
+  ],
   "18.0.0": [
     "<strong>Noureon 18.0.0 Release Notes</strong>",
     "This version adds Skills: once you add a skill on the Extensions page, the model follows its instructions. There are 11 official skills; you can also paste your own or upload a zip, and ask the model to help you make one. It is the first major version since the CLI store became the Extensions page.",

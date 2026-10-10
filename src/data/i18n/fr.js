@@ -1,10 +1,8 @@
 ﻿const fr = {
         // Login Page
         login: 'Connexion',
-        welcome: 'Bienvenue à',
-        heroSubtitle: 'De la réflexion à la décision basée sur les données, en un clic. Expérimentez une collaboration IA sans precedent et libérez votre plein potentiel.',
         loginOrRegister: 'Connexion ou Inscription',
-        startJourney: 'Commencez votre voyage intelligent',
+        startJourney: 'Première visite ? Saisissez un nouveau nom et un mot de passe pour créer un compte.',
         authEmailLabel: 'Email',
         authEmailPlaceholder: 'nom@example.com',
         authPasswordPlaceholder: 'Au moins 8 caracteres',
@@ -72,9 +70,6 @@
         passwordPlaceholder: 'Utilisé pour la vérification de la connexion',
         loginRegisterButton: 'Connexion / Inscription',
         importRecords: 'Importer des Données',
-        exploreModels: 'Découvrez Nos Modèles d\'IA',
-        exploreModelsDesc: 'Nous proposons une gamme de modèles de pointe pour différentes tâches. Que ce soit pour l\'écriture créative, la programmation ou l\'analyse commerciale, il y en a un pour vous.',
-        demoChatTitle: 'Exemple de Conversation Noureon-ProMax',
         copyright: 'Copyright © Noureon',
         currentLanguageName: 'Français',
         // Main App UI

@@ -182,6 +182,7 @@ test('the landing page links the terms and the privacy policy, and the new-versi
   document.body.innerHTML = shell.default + more.default;
   const footer = [...document.querySelectorAll('footer a[href^="/"]')];
   assert.deepEqual(footer.map((link) => [link.getAttribute('href'), link.dataset.langKey, link.getAttribute('target')]), [
+    ['/updates', undefined, '_blank'],
     ['/terms', 'termsOfUse', '_blank'],
     ['/privacy', 'privacyPolicy', '_blank']
   ]);

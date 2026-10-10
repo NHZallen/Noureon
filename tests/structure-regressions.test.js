@@ -2667,7 +2667,6 @@ test('main bootstrap delegates vendor bridge, shell mount, and vendor script loa
     'installVendorBridge({',
     'mountAppShell(appShell)',
     "import('./data/i18n.js')",
-    "import('./data/demo-conversations.js')",
     "import('./data/astras-data.js')",
     "import('./data/update-logs.js')",
     "loadVendorScript('/vendor/mhchem.min.js')",

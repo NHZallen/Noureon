@@ -2,6 +2,16 @@
 // content 為 zh-TW 的 HTML 字串（JSON 轉義、雙引號），目前不隨介面語言切換。
 export const updateLogEntries = [
   {
+    version: "18.1.0",
+    date: "2026-10-10",
+    content: [
+      "<strong>Noureon 18.1.0 發布說明</strong>",
+      "登入前的首頁整個重做：往下滑，用真實的畫面看模型理事會、深度研究、檔案怎麼運作，後面接著擴充、規格、伺服器執行、隱私與登入。",
+      "<strong>主要變更</strong>",
+      "<ul><li><strong>新首頁：</strong>三段隨捲動播放的介紹，畫面都是 Noureon 本身的元件截圖，亮色與暗色、五種語言各一組；頁尾有更新紀錄、GitHub、官方 X 帳號 @NoureonAi、使用條款與隱私權政策。</li><li><strong>連結預覽文字：</strong>分享 noureon.com 時顯示的標題與說明改寫。</li><li><strong>內部整理：</strong>移除舊首頁沒有在用的範例對話資料與程式。</li></ul>"
+    ]
+  },
+  {
     version: "18.0.0",
     date: "2026-10-09",
     content: [

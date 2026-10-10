@@ -9,9 +9,7 @@ const EXPECTED_FIRST_ASTRA = {
   category: '生產力'
 };
 const EXPECTED_ASTRAS_HASH = '2ee2c5e84c26ae01dd615eed2cd116bb29eecf0c57335936052ae94c5091d019';
-const EXPECTED_DEMO_KEYS = ['proMax', 'proPV', 'pro', 'plusPV', 'mini', 'mill', 'nano'];
-const EXPECTED_DEMO_HASH = 'eb83bb2c6ce275d9018d4d44ddc805a1ec0945c01b033c20bf582f366f3dccb7';
-const GLOBAL_KEYS_TO_RESTORE = ['window', 'OFFICIAL_ASTRAS', 'demoConversations'];
+const GLOBAL_KEYS_TO_RESTORE = ['window', 'OFFICIAL_ASTRAS'];
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 
@@ -116,43 +114,4 @@ test('official mental-health Nouras expose bounded, non-clinical runtime instruc
     assert.match(nouras.instructions, /不診斷/);
     assert.match(nouras.instructions, /緊急服務/);
   }
-});
-
-test('demo conversations keep legacy window/global bridge, exports, key order, and content hash', async () => {
-  await withGlobalSnapshot(async () => {
-    delete globalThis.demoConversations;
-    globalThis.window = {};
-
-    const module = await importFresh('src/data/demo-conversations.js');
-    const demoConversations = module.default;
-
-    assert.equal(Array.isArray(demoConversations), false);
-    assert.equal(module.demoConversations, demoConversations);
-    assert.equal(globalThis.demoConversations, demoConversations);
-    assert.equal(globalThis.window.demoConversations, demoConversations);
-    assert.deepEqual(Object.keys(demoConversations), EXPECTED_DEMO_KEYS);
-    assert.equal(hashValue(demoConversations), EXPECTED_DEMO_HASH);
-  });
-});
-
-test('demo conversation entries keep the runtime-expected HTML message shape', async () => {
-  await withGlobalSnapshot(async () => {
-    delete globalThis.demoConversations;
-    globalThis.window = {};
-
-    const { default: demoConversations } = await importFresh('src/data/demo-conversations.js');
-
-    for (const key of EXPECTED_DEMO_KEYS) {
-      const value = demoConversations[key];
-      assert.equal(typeof value, 'string', `${key} demo conversation should stay a string`);
-      assert.ok(value.trim().length > 0, `${key} demo conversation should not be empty`);
-      assert.match(value, /<!-- Round 1 -->/, `${key} should keep the first demo round marker`);
-      assert.match(value, /<!-- Round 2 -->/, `${key} should keep the second demo round marker`);
-      assert.match(value, /<!-- Round 3 -->/, `${key} should keep the third demo round marker`);
-      assert.match(value, /class="flex (?:justify-end )?gap-3/, `${key} should keep message row markup`);
-      assert.match(value, /class="[^"]*message|class="[^"]*max-w-\[80%\]/, `${key} should keep message bubble-like markup`);
-      assert.match(value, />AI</, `${key} should keep model avatar/content marker`);
-      assert.match(value, />U</, `${key} should keep user avatar/content marker`);
-    }
-  });
 });

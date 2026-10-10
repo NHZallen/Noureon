@@ -1,6 +1,12 @@
 // The update notes in Spanish (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.1.0": [
+    "<strong>Notas de la versión de Noureon 18.1.0</strong>",
+    "La página que se muestra antes de iniciar sesión se ha rehecho: desplázate para ver, en pantallas reales, cómo funcionan el Consejo de modelos, la investigación profunda y los archivos, y después las extensiones, las cifras, la ejecución en el servidor, la privacidad y el inicio de sesión.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Nueva página de inicio:</strong>tres presentaciones con desplazamiento hechas con capturas de los propios componentes de Noureon, un juego para el tema claro y el oscuro en cada uno de los cinco idiomas; el pie de página incluye las novedades, GitHub, la cuenta oficial de X @NoureonAi, las condiciones de uso y la política de privacidad.</li><li><strong>Texto de vista previa del enlace:</strong>se reescriben el título y la descripción que se muestran al compartir noureon.com.</li><li><strong>Limpieza:</strong>se eliminaron las conversaciones de ejemplo y el código de la antigua página de inicio, que ya no se usaban.</li></ul>"
+  ],
   "18.0.0": [
     "<strong>Notas de la versión de Noureon 18.0.0</strong>",
     "Esta versión añade las habilidades: una vez añadida una habilidad en la página Extensiones, el modelo sigue sus instrucciones. Hay 11 habilidades oficiales; también puedes pegar la tuya o subir un zip, y pedir al modelo que te ayude a crear una. Es la primera versión principal desde que la tienda de herramientas de línea de comandos pasó a ser la página Extensiones.",

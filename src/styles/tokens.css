@@ -68,6 +68,8 @@
     --state-danger: #dc2626;
     --state-warning: #b45309;
     --link-color: #2563eb;
+    /* the indigo of the logo: the glow of the home page */
+    --brand-logo: #5b4fcf;
 
     /* code blocks and the track of a switch that is off */
     --code-bg: #f6f7f9;
@@ -196,6 +198,7 @@
     --state-danger: #f87171;
     --state-warning: #fbbf24;
     --link-color: #8ab8ff;
+    --brand-logo: #9a90f5;
 
     --code-bg: #181818;
     --code-block-bg: #181818;

@@ -1,10 +1,8 @@
 ﻿const en = {
         // Login Page
         login: 'Login',
-        welcome: 'Welcome to',
-        heroSubtitle: 'From brainstorming to data-driven decisions, all in one click. Experience unprecedented AI collaboration and unlock your full potential.',
         loginOrRegister: 'Login or Register',
-        startJourney: 'Start your intelligent journey',
+        startJourney: 'First time here? Enter a new name and password to create an account.',
         authEmailLabel: 'Email',
         authEmailPlaceholder: 'name@example.com',
         authPasswordPlaceholder: 'At least 8 characters',
@@ -72,9 +70,6 @@
         passwordPlaceholder: 'Used for login verification',
         loginRegisterButton: 'Login / Register',
         importRecords: 'Import Records',
-        exploreModels: 'Explore Our AI Models',
-        exploreModelsDesc: 'We offer a range of top-tier models tailored for different tasks. Whether it\'s creative writing, programming, or business analysis, there\'s one for you.',
-        demoChatTitle: 'Noureon-ProMax Conversation Example',
         copyright: 'Copyright © Noureon',
         currentLanguageName: 'English',
         // Main App UI

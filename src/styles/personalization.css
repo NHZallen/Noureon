@@ -242,23 +242,6 @@
     .dialog-warning-border {
         animation: pulse-red-border 1.5s infinite;
     }
-    .demo-model-selector .selector-btn {
-        transition: all 0.3s ease;
-    }
-    .demo-model-selector .selector-btn.active {
-        color: var(--link-color);
-        background-color: color-mix(in srgb, var(--button-primary-bg) 12%, var(--chat-bg));
-        border-color: var(--link-color);
-        transform: translateY(-2px);
-        box-shadow: var(--shadow-sm);
-    }
-    .demo-chat-content {
-        display: none;
-        animation: fadeIn 0.5s ease-in-out;
-    }
-    .demo-chat-content.active {
-        display: block;
-    }
     @keyframes fadeIn {
         from { opacity: 0; }
         to { opacity: 1; }

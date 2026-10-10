@@ -86,7 +86,6 @@ async function bootstrap() {
   );
   const startupDataReady = Promise.all([
     import('./data/i18n.js'),
-    import('./data/demo-conversations.js'),
     import('./data/astras-data.js'),
     import('./data/update-logs.js'),
     import('./data/version.js'),

@@ -1,10 +1,8 @@
 ﻿const zhTW = {
         // Login Page
         login: '登入',
-        welcome: '歡迎使用',
-        heroSubtitle: '從創意激盪到數據決策，一鍵直達。體驗前所未有的 AI 協作，釋放您的全部潛力。',
         loginOrRegister: '登入或註冊',
-        startJourney: '開始您的智慧旅程',
+        startJourney: '第一次使用，輸入新的名稱與密碼即可建立帳號。',
         authEmailLabel: 'Email',
         authEmailPlaceholder: 'name@example.com',
         authPasswordPlaceholder: '至少 8 個字元',
@@ -72,9 +70,6 @@
         passwordPlaceholder: '用於登入驗證',
         loginRegisterButton: '登入 / 註冊',
         importRecords: '匯入紀錄',
-        exploreModels: '探索我們的 AI 模型',
-        exploreModelsDesc: '我們提供一系列為不同任務量身打造的頂尖模型，無論是創意寫作、程式設計還是商業分析，總有一款適合您。',
-        demoChatTitle: 'Noureon-ProMax 對話範例',
         copyright: 'Noureon 版權所有',
         currentLanguageName: '繁體中文',
         // Main App UI

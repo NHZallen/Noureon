@@ -33,7 +33,6 @@ button:active:not(:disabled),
 .btn-primary:hover:not(:disabled),
 .btn-primary:active:not(:disabled),
 .store-category-btn.active,
-.demo-model-selector .selector-btn.active,
 .astras-store-card:hover {
     box-shadow: none !important;
     filter: none !important;

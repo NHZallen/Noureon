@@ -16,7 +16,8 @@ async function readPngDimensions(path) {
 test('login header uses the project logo instead of the robot mark', async () => {
   const shell = await readFile(projectFile('src/templates/fragments/00-shell.fragment.js'), 'utf8');
 
-  assert.match(shell, /\/logo\.png/);
+  // The mark of the home page is the project logo cropped to its ring (public/home/logo-mark.png).
+  assert.match(shell, /\/home\/logo-mark\.png/);
   assert.doesNotMatch(shell, /M12 8V4H8/);
 });
 

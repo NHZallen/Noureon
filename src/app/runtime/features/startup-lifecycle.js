@@ -110,6 +110,10 @@ export function createLegacyStartupLifecycle({
             elements.usernameInput.value = lastUsername;
         }
         document.getElementById('auth-container').classList.add('visible');
+        // The home page between the first screen and the form is built once the sign-in page shows (ui/home/home-page.js).
+        import('../../ui/home/home-page.js')
+            .then(({ mountHomePage }) => mountHomePage({ document, window }))
+            .catch((error) => console.warn('The home page could not be built', error));
     }
 
     function adjustTextareaHeight() {
