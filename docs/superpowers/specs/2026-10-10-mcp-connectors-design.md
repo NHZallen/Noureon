@@ -1,6 +1,6 @@
 # 連接器（MCP）設計：擴充的第三層
 
-**狀態：** 討論中，**還沒有寫產品程式**（只有第 0 期的探測腳本 `scripts/mcp-probe.mjs`）。「§2 owner 的決定」是 2026-10-10 討論的結果；§9 的名稱、預設權限、危險工具、第 0 期已定案，畫面還在比較（三組渲染已給 owner 看）。
+**狀態：** 第 1 期（登入引擎、Notion 與 Linear、工具權限、確認卡、擴充頁第三部分）已在 18.4.0 寫完，本機測試全過，**還沒有用真實帳號登入過**（見 §12）。第 2 期（Context7、Upstash、Vercel）與第 3 期（GitHub）還沒做。「§2 owner 的決定」是 2026-10-10 討論的結果；畫面選 C 組（§9）；第 0 期的探測結果在 §4。
 **起因：** owner 想做第三種擴充（技能、命令工具之後）：連到使用者自己帳號上的服務（Notion、GitHub 等），讓模型能查資料、做事。
 **研究來源：** 我查的官方文件，加上 owner 請 ChatGPT 逐項查證的結果（兩者互相核對過，下面標「已查證」「未確認」）。端到端的實際登入**沒有人測過**，所以第 0 期先做實驗（§7）。
 
@@ -164,3 +164,36 @@ GitHub    HTTP 401  pre-registered  yes        yes      no          offline_acce
 - Vercel MCP：<https://vercel.com/docs/mcp>
 - MCP 規格 2026-07-28：<https://blog.modelcontextprotocol.io/posts/2026-07-28-release-candidate/>
 - MCP 授權（OAuth 2.1 與 Streamable HTTP 的來源）：<https://modelcontextprotocol.io/specification/2025-03-26/basic/authorization>
+
+## 12. 第 1 期的實作記錄（18.4.0，2026-10-10）
+
+**做了什麼（檔案）：**
+
+| 部分 | 檔案 |
+|---|---|
+| 目錄（兩邊共用，不用瀏覽器） | `src/data/connector-catalog.js`：Notion 與 Linear 的端點、登入範圍、說明五語言、工具「讀／寫」的判斷（`toolKind`，只看工具名稱，不信對方標的唯讀） |
+| 登入引擎 | `server/mcp/oauth.js`：探索（RFC 9728、RFC 8414／OIDC）、取得身分（預先註冊 → CIMD → DCR）、PKCE S256、`resource` 參數、換令牌、刷新、撤銷；對方給的位址必須是公開 https |
+| MCP 用戶端 | `server/mcp/client.js`：Streamable HTTP（回應是 JSON 或事件流都讀）、session、401 換一次令牌、404 重開 session、回應大小上限 |
+| 連線與令牌 | `server/mcp/connections.js`：登入交易（只存 state 的雜湊與密封的 verifier）、令牌密封（沿用 `key-vault.js`，綁使用者與 `mcp:<連接器>`）、刷新一次一個（鎖）、工具清單與指紋、改變的工具先停用、每個工具的狀態 |
+| 給模型的工具 | `server/mcp/tool-loader.js`：不把所有工具塞進提示，只給兩個工具：`connector_tools`（取得某個服務的工具說明與輸入格式）與 `connector_call`（呼叫，輸入用 `arguments_json` 字串，各家模型的函式格式都接得住）；`combineLoaders` 把技能與連接器合成同一個載入器，所以三種回覆迴圈（一般、網頁研究、Python 沙盒）只改了「說明文字」與「步驟列」兩處 |
+| 確認卡 | `server/mcp/ask.js`（伺服器）、`src/app/ui/sandbox/connector-ask-card.js`（畫面）：事件 `{type:'connector', event:'ask'｜'answer'}`，答案走 `POST /v1/runs/:id/connector`；等待的時間不算進回覆的時限 |
+| 端點 | `GET /v1/connectors`、`POST /v1/connectors/:id/connect｜disconnect｜refresh`、`PUT /v1/connectors/:id/permissions`、`GET /mcp/callback`（服務把人導回來，不需要登入標頭；結果以 `/connectors?connector=…&connected=1` 或 `&connector_error=…` 帶回 App，網址裡沒有任何登入資料） |
+| 資料表 | `supabase/migrations/20261010010000_add_user_mcp_connections.sql`：`user_mcp_connections`、`mcp_oauth_clients`（只有服務角色能讀寫，**瀏覽器完全碰不到**；和 §5.3 原本想的「使用者可讀自己的狀態欄位」不同：一律走伺服器，更簡單也更安全） |
+| 畫面 | `src/app/ui/cli/connectors-part.js`（C 組：分組清單、「我的」裡每個連線一張卡、連線範圍、讀取／寫入兩組各有一個整組設定與「個別設定」）、連線前的說明視窗（可選唯讀連線；說明資料會經伺服器送給模型供應商）、位址 `/connectors` |
+| 其他 | CIMD 檔案 `public/.well-known/oauth-client.json`、五語言文字（`connector-texts.js`）、隱私政策／使用條款／協助中心五語言與 `PRIVACY.md`、更新紀錄 |
+
+**決定的細節（沒有逐項討論過的，如果 owner 想改請說）：**
+- 預設連線範圍：可讀寫（和畫面 C 一致）；Linear 可以選唯讀。
+- 連線前一定先出說明視窗（連 Notion 也是），因為要誠實說明「授權包含寫入權限」與資料去向。
+- 一則回覆最多呼叫服務 30 次；單次結果超過 30,000 字元截斷；等確認最多 10 分鐘。
+- 沒有「暫停連接器」的開關；要停就把工具設成拒絕，或中斷連線。
+- 連接器只在由伺服器執行的回覆使用（臨時對話不提供，頁面自己做的回覆也沒有）。
+
+**還沒用真實帳號驗證的（只靠假網路測過）：**
+1. Notion、Linear 是否真的接受我們的 CIMD 檔案（第 0 期只證明它們「公布支援」）；若被拒絕，要改走 DCR 或預先註冊。
+2. Linear 的 `read` 範圍是否真的讓令牌唯讀、`/mcp` 是否接受 `resource` 參數；Notion 的登入是否需要帶範圍。
+3. Notion、Linear 實際的工具名稱：目錄裡 Notion 的 11 個與 Linear 的寫入工具是憑記憶寫的；不在清單裡的工具，名稱以讀取字（get／list／search…）開頭的算「讀取」，其他都算「寫入」（預設每次詢問，比較安全）。
+4. 令牌效期與 refresh token 輪替的實際行為。
+5. iPhone 上整頁導向登入再回來的順暢度。
+
+**owner 要做的（部署前）：** 在 Supabase 的 SQL 編輯器貼上並執行 `supabase/migrations/20261010010000_add_user_mcp_connections.sql` 的內容。沒做的話：連接器頁會顯示「暫時無法讀取」，回覆照常（伺服器只在記錄裡寫一行，不影響回覆）。Zeabur 不需要新增環境變數（`APP_URL`、`CONNECTOR_REDIRECT_URI`、`CONNECTOR_CLIENT_ID` 都有預設值）。
