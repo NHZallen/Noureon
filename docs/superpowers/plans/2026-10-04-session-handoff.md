@@ -122,6 +122,7 @@
 - **17.12.1：**OpenRouter 的 Claude 4.5 Haiku 換成 Claude Haiku 5.5（`anthropic/claude-haiku-5.5`，舊 id 放 `legacyIds`）。思考程度低、中、高、超高、極致，預設中；支援圖片與工具呼叫（依 Anthropic 文件，沙盒連不到 openrouter.ai，沒有直接看 OpenRouter 的頁面）。價格每百萬輸入 0.10、輸出 0.50 美元（提示超過 10 萬 token 為 0.50 / 2.50）。
 - **更新紀錄整理（沒升版）：**全部 118 筆刪掉私下溝通與過程內容、口語改成官方用語。之後新增的更新紀錄照 §1 的規則寫。
 - **17.13.0 公開頁面：**`noureon.com/terms`、`/privacy`、`/updates` 是建置時產生的靜態 HTML（`scripts/build-public-pages.mjs`，接在 `npm run build` 後面；樣式與腳本是 `public/pages.css`、`public/pages.js`，因為 CSP 不允許行內 script）。設計與決定見 [`docs/superpowers/specs/2026-10-08-public-pages-design.md`](../specs/2026-10-08-public-pages-design.md)。
+- **17.14.0 生成圖片等待畫面（2026-10-10，本機已實作、尚未推）：**點陣動畫（強調色）加依時間切換的四段一般說明，不顯示百分比、不做計時量測（owner 決定）。規格 `specs/2026-10-10-image-wait-design.md`；程式在 `src/app/ui/image-wait/`（延遲載入）。owner 說「推」之前不要推；推之前先給他看截圖。這取代了上面「待辦 -3」裡「維持舊版」的結論，因為 owner 這次已核准新做法。
   - 內容：條款與隱私權政策用 i18n 的 `termsOfUse`、`termsOfUseDesc`、`privacyPolicy`、`privacyPolicyDesc`（依句號拆成一句一段，字沒改）；更新紀錄用 `entries.js`。所以**這四個 i18n 鍵不能刪**，即使設定頁已不用它們。
   - `service-worker.js` 對這三個路徑的導覽直接放行（不攔截、不快取），否則會把它們存成離線用的 App 外殼。
   - App 端：設定「條款與政策」「版本資訊」改成連結（新分頁）；登入頁底部加連結；新版本彈窗的「查看完整更新紀錄」連到 `/updates`；舊的更新紀錄歷史彈窗（`showUpdateHistory`、`renderUpdateHistory`、相關 DOM 與 CSS、i18n 鍵 `updateHistory`、`updateLatestTag`、`noUpdateHistory`）都移除。

@@ -1,6 +1,14 @@
 // The update notes in Spanish (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "17.14.0": [
+    "<strong>Notas de la versión de Noureon 17.14.0</strong>",
+    "Esta versión mejora la pantalla de espera mientras se genera una imagen: una animación de puntos con textos de etapa.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Animación de puntos:</strong> el bloque de espera muestra un patrón de nube en movimiento formado por puntos. Los puntos usan el color de énfasis seleccionado y se ven con claridad tanto en modo claro como en modo oscuro. Si el sistema está configurado para reducir el movimiento, se muestra un único patrón estático.</li><li><strong>Textos de etapa:</strong> el texto de la esquina superior izquierda del bloque cambia según el tiempo de espera: «Creando la imagen», «Componiendo la imagen», «Afinando los detalles» y, pasados unos 40 segundos, «Sigue en proceso. Las imágenes de alta calidad tardan más». Los textos siguen el tiempo y no indican el progreso real, por lo que no se muestra ningún porcentaje.</li><li><strong>Al reabrir la página:</strong> si la página se cierra y se vuelve a abrir mientras una imagen aún se genera en el servidor, la espera se cuenta desde la hora real de inicio, de modo que los textos no empiezan de nuevo.</li><li><strong>Transición al terminar:</strong> cuando la imagen está lista, los puntos se desvanecen y dan paso a la imagen.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "Esta actualización no requiere migración de datos."
+  ],
   "17.13.0": [
     "<strong>Notas de la versión de Noureon 17.13.0</strong>",
     "Esta versión convierte las Condiciones de uso, la Política de privacidad y las notas de actualización en páginas web públicas independientes, que se pueden leer y compartir sin iniciar sesión.",

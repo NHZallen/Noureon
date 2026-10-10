@@ -1,5 +1,6 @@
 import { fadeOutPreviousChat } from '../../ui/motion/chat-switch-ghost.js';
 import { isReaderScrolling } from '../../ui/motion/reader-scroll-guard.js';
+import { loadImageWait } from '../../ui/image-wait/image-wait-markup.js';
 
 export function createMessageListLifecycle({
     document,
@@ -64,6 +65,7 @@ export function createMessageListLifecycle({
         if (part.imageGenerationLoading) {
             state.imageGenerationLoading = true;
             state.imageAspectRatio = part.imageAspectRatio || null;
+            state.imageStartedAt = part.imageStartedAt || null;
         }
         if (part.inlineData) {
             const { data, ...inlineData } = part.inlineData;
@@ -206,6 +208,7 @@ export function createMessageListLifecycle({
         });
         messageElement.className = messageView.messageClassName;
         messageElement.innerHTML = messageView.messageHTML;
+        if (message.parts?.some(part => part.imageGenerationLoading)) void loadImageWait();
         bindHistorySourceButtons(messageElement, historySourceViews);
         bindMediaPreviewButtons(messageElement, messageView.previewMediaParts);
         void bindGeneratedImageAssets(messageElement, messageView.generatedImageAssets || [])

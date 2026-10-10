@@ -16,6 +16,7 @@ Read these before changing anything:
 - Server-side web search packet (「先搜一包」搬到伺服器，關掉頁面也會搜完、答完) design, done (17.10.0; the real-account checklist is in §10): [`docs/superpowers/specs/2026-10-07-server-search-packet-design.md`](docs/superpowers/specs/2026-10-07-server-search-packet-design.md)
 - Server-side multi-model council (多模型會議搬到伺服器，關掉頁面也會開完會) design, done (17.11.0; the real-account checklist is in §10; the last of image, search packet, council): [`docs/superpowers/specs/2026-10-08-server-council-design.md`](docs/superpowers/specs/2026-10-08-server-council-design.md)
 - Public pages (使用條款、隱私權政策、更新紀錄做成 noureon.com/terms、/privacy、/updates 的獨立靜態頁) design, done (17.13.0; the open choices of the owner are in §4.3 and the handoff): [`docs/superpowers/specs/2026-10-08-public-pages-design.md`](docs/superpowers/specs/2026-10-08-public-pages-design.md)
+- Image generation wait (點陣動畫與階段說明，強調色、無百分比、無計時量測) design, implemented locally in 17.14.0, awaiting the owner's check before push: [`docs/superpowers/specs/2026-10-10-image-wait-design.md`](docs/superpowers/specs/2026-10-10-image-wait-design.md)
 - Releases and deployment: [`RELEASING.md`](RELEASING.md), tests: [`TESTING.md`](TESTING.md)
 
 Rules that always apply:

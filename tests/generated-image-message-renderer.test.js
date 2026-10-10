@@ -45,5 +45,16 @@ test('renders an image-generation skeleton for loading messages', () => {
   assert.match(view.messageHTML, /aspect-ratio: 16 \/ 9/);
   assert.match(view.messageHTML, /data-target-aspect-ratio="16:9"/);
   assert.match(view.messageHTML, /image-message-stack/);
-  assert.match(view.messageHTML, /正在建立圖像/);
+  assert.match(view.messageHTML, /<span class="generated-image-wait-label"><\/span>/, "the words of the stage are put in by image-wait.js");
+  assert.match(view.messageHTML, /<noureon-image-wait aria-hidden="true"><\/noureon-image-wait>/, 'the field of dots');
+  assert.doesNotMatch(view.messageHTML, /generated-image-skeleton-shimmer/);
+});
+
+test('the place-holder keeps the time the picture was begun, for a picture found again after the page was closed', () => {
+  const view = render({
+    role: 'model',
+    parts: [{ imageGenerationLoading: true, imageAspectRatio: '1:1', imageStartedAt: 1760000000000 }],
+    createdAt: '2026-07-01T15:52:00.000Z'
+  });
+  assert.match(view.messageHTML, /<noureon-image-wait data-started="1760000000000"/);
 });

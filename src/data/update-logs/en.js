@@ -1,6 +1,14 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "17.14.0": [
+    "<strong>Noureon 17.14.0 Release Notes</strong>",
+    "This version improves the waiting screen while an image is being generated: a dot animation with stage captions.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Dot animation:</strong> the waiting block shows a moving cloud pattern made of dots. The dots use the accent colour currently selected, and stay clear in both light and dark mode. When the system is set to reduce motion, a single still pattern is shown instead.</li><li><strong>Stage captions:</strong> the text at the top left of the block changes with the waiting time: “Creating the image”, “Composing the picture”, “Refining the details”, and after about 40 seconds “Still working. High-quality images take longer”. The captions follow the time and do not report real progress, so no percentage is shown.</li><li><strong>Reopening the page:</strong> when the page is closed and opened again while an image is still being generated on the server, the wait is counted from the real start time, so the captions do not start over.</li><li><strong>Transition on completion:</strong> when the image is ready, the dots fade out and give way to the image.</li></ul>",
+    "<strong>Compatibility</strong>",
+    "This update requires no data migration."
+  ],
   "17.13.0": [
     "<strong>Noureon 17.13.0 Release Notes</strong>",
     "This version turns the Terms of Use, the Privacy Policy and the update notes into standalone public web pages that can be read and shared without signing in.",

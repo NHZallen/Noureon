@@ -1,6 +1,14 @@
 // The update notes in French (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "17.14.0": [
+    "<strong>Notes de version de Noureon 17.14.0</strong>",
+    "Cette version améliore l’écran d’attente pendant la génération d’une image : une animation de points avec des légendes d’étape.",
+    "<strong>Principaux changements</strong>",
+    "<ul><li><strong>Animation de points :</strong> le bloc d’attente affiche un motif de nuage en mouvement formé de points. Les points reprennent la couleur d’accentuation sélectionnée et restent lisibles en mode clair comme en mode sombre. Lorsque le système est réglé pour réduire les animations, un seul motif fixe est affiché.</li><li><strong>Légendes d’étape :</strong> le texte en haut à gauche du bloc change selon le temps d’attente : « Création de l’image », « Composition de l’image », « Affinage des détails », puis, après environ 40 secondes, « Toujours en cours. Les images en haute qualité demandent plus de temps ». Les légendes suivent le temps et n’indiquent pas l’avancement réel ; aucun pourcentage n’est donc affiché.</li><li><strong>Réouverture de la page :</strong> lorsque la page est fermée puis rouverte alors qu’une image est encore en cours de génération sur le serveur, l’attente est comptée depuis l’heure de début réelle ; les légendes ne repartent donc pas du début.</li><li><strong>Transition à la fin :</strong> lorsque l’image est prête, les points disparaissent progressivement pour laisser place à l’image.</li></ul>",
+    "<strong>Compatibilité</strong>",
+    "Cette mise à jour ne nécessite aucune migration de données."
+  ],
   "17.13.0": [
     "<strong>Notes de version de Noureon 17.13.0</strong>",
     "Cette version transforme les Conditions d’utilisation, la Politique de confidentialité et les notes de mise à jour en pages web publiques autonomes, lisibles et partageables sans connexion.",

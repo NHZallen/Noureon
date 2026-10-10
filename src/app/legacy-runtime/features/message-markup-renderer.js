@@ -78,13 +78,14 @@ export function buildMessageRenderView({
     const isLoadingMessage = !isUser && message.parts.length === 1 && message.parts[0].text === '...';
 
     if (isImageGenerationLoading) {
-        const requestedRatio = message.parts.find(part => part.imageGenerationLoading)?.imageAspectRatio;
+        const loadingPart = message.parts.find(part => part.imageGenerationLoading);
+        const requestedRatio = loadingPart?.imageAspectRatio;
         const imageAspectRatio = resolveImageAspectRatio(requestedRatio) || '1 / 1';
+        // The dots and the words of the stages are drawn by ui/image-wait/image-wait.js, which the message list loads when it shows this place-holder.
         generatedImageHTML = `
             <div class="generated-image-stage message-content" data-image-generation-stage>
                 <div class="generated-image-skeleton generated-image-skeleton-sized" role="status" aria-live="polite" data-target-aspect-ratio="${requestedRatio || '1:1'}" style="aspect-ratio: ${imageAspectRatio}">
-                    <span>正在建立圖像</span>
-                    <div class="generated-image-skeleton-shimmer"></div>
+                    <span class="generated-image-wait-label"></span><noureon-image-wait${Number(loadingPart?.imageStartedAt) > 0 ? ` data-started="${Math.round(Number(loadingPart.imageStartedAt))}"` : ''} aria-hidden="true"></noureon-image-wait>
                 </div>
             </div>`;
     } else if (isLoadingMessage) {

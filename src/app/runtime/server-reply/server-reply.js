@@ -297,9 +297,11 @@ export function createServerReply({
   // A deep research: the server makes the plan, waits for the person, researches and writes the report (server/research.js).
   const startResearch = (args) => begin('/v1/research', { ...args, webSearch: 'research', advanced: false, visionCheck: null });
 
-  const createRun = ({ runId, assistantMessageId, kind = 'reply', vision = false }) => ({
+  const createRun = ({ runId, assistantMessageId, kind = 'reply', vision = false, startedAt = 0 }) => ({
     runId,
     assistantMessageId,
+    // When the server began it (ms), for a run found again after the page was closed: the wait for a picture goes on from there.
+    startedAt,
     // 'vision': the check of a presentation (not a reply); `vision`: the server makes the check of this reply's presentations.
     kind,
     vision,
@@ -542,7 +544,7 @@ export function createServerReply({
   /** A reply of this conversation the server is still making (the page was closed or left meanwhile), to follow from here, or null. */
   const find = async (conversationId) => {
     const row = await findLiveRun(conversationId);
-    return row?.id && row?.message_id ? createRun({ runId: row.id, assistantMessageId: row.message_id, kind: row.kind === 'vision' || row.kind === 'research' || row.kind === 'image' || row.kind === 'council' ? row.kind : 'reply', vision: row.vision === true || row.vision === 'true' }) : null;
+    return row?.id && row?.message_id ? createRun({ runId: row.id, assistantMessageId: row.message_id, kind: row.kind === 'vision' || row.kind === 'research' || row.kind === 'image' || row.kind === 'council' ? row.kind : 'reply', vision: row.vision === true || row.vision === 'true', startedAt: Date.parse(row.created_at) || 0 }) : null;
   };
 
   /**

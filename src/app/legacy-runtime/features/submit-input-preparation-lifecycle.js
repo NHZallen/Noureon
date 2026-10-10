@@ -181,7 +181,8 @@ export function createSubmitInputPreparationLifecycle({
     const loadingParts = isImageConversation(conversation)
       ? [{
           imageGenerationLoading: true,
-          imageAspectRatio: conversation.imageConfig?.aspectRatio || '1:1'
+          imageAspectRatio: conversation.imageConfig?.aspectRatio || '1:1',
+          imageStartedAt: Date.now()
         }]
       : [{ text: '...' }];
     const loadingMessageDiv = addMessageToUI(

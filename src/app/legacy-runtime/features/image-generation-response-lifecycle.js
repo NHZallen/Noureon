@@ -1,4 +1,5 @@
 import { normalizeImageGenerationConfig, resolveSupportedAspectRatio, resolveSupportedResolution } from './image-generation-config.js';
+import { imageWaitMarkup, loadImageWait } from '../../ui/image-wait/image-wait-markup.js';
 
 const resolveImageAspectRatio = (requestedRatio) => ({
   '1:1': '1 / 1', '16:9': '16 / 9', '9:16': '9 / 16', '4:3': '4 / 3', '3:4': '3 / 4',
@@ -86,9 +87,10 @@ export function createImageGenerationResponseLifecycle({
       resolution: resolveSupportedResolution(savedConfig.resolution, modelInfo.supportedImageResolutions)
     };
     const imageAspectRatio = resolveImageAspectRatio(normalizedConfig.aspectRatio);
+    void loadImageWait();
     targetElement.innerHTML = `
       <div class="generated-image-skeleton generated-image-skeleton-preparing" role="status" aria-live="polite" data-target-aspect-ratio="${normalizedConfig.aspectRatio}">
-        <span>正在建立圖像</span><div class="generated-image-skeleton-shimmer"></div>
+        ${imageWaitMarkup({ label: getText('imageWaitStage1', '正在建立圖像'), startedAt: Date.now() })}
       </div>`;
     const skeleton = targetElement.querySelector?.('.generated-image-skeleton');
     if (skeleton) {
@@ -105,10 +107,19 @@ export function createImageGenerationResponseLifecycle({
         signal,
         (_stage, message) => {
           const label = targetElement.querySelector?.('.generated-image-skeleton span');
-          if (label && message) label.textContent = message;
+          // What the page says about the request (its translation) stays in place of the stage words until the request is ready.
+          if (label && message) {
+            label.textContent = message;
+            if (label.dataset) label.dataset.pinned = '1';
+          }
         },
         { webSearchEnabled, conversation }
       );
+    const waitingLabel = targetElement.querySelector?.('.generated-image-skeleton span');
+    if (waitingLabel?.dataset?.pinned) {
+      delete waitingLabel.dataset.pinned;
+      targetElement.querySelector?.('noureon-image-wait')?.__imageWait?.refresh?.();
+    }
     const basePrompt = getTextPrompt(requestParts);
     if (!basePrompt) throw new Error('請輸入要生成的圖像描述');
     const hasTargetedEditReference = requestParts.some(part => part.inlineData?.targetedEdit);
@@ -132,7 +143,11 @@ export function createImageGenerationResponseLifecycle({
           ), 'warning');
           const label = targetElement.querySelector?.('.generated-image-skeleton span');
           const labelText = getText('imageReferenceUnavailableLabel', 'Reference image unavailable, generating a new image');
-          if (label && labelText) label.textContent = labelText;
+          if (label && labelText) {
+            label.textContent = labelText;
+            // This one is told for good: the stage words do not take its place.
+            if (label.dataset) label.dataset.pinned = '1';
+          }
         }
       }
     }
