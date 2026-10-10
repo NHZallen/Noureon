@@ -9,6 +9,7 @@ import { enabledCliTools, canModelUseCli, setCliModelUse } from '../../runtime/c
 import { getNetMode, netRuleFor, removeNetSite, setNetMode, setNetRule } from '../../runtime/cli/net-state.js';
 import { CREDENTIAL_NAME } from '../../runtime/cli/credentials-client.js';
 import { permissionText } from '../../runtime/cli/permission-texts.js';
+import { connectorText } from '../../runtime/connector/connector-texts.js';
 import { toolIconMarkup, watchToolIcons } from './cli-icons.js';
 
 const ICONS = {
@@ -131,7 +132,7 @@ export function renderPermissionsView({ document, root, getLanguage, getConfig, 
     manage.append(manageHead);
     const list = make(document, 'div', 'pm-list');
     const credentialCount = state.creds.status === 'ready' ? String(state.creds.items.length) : '';
-    for (const [view, label, count] of [['tools', t('rowTools'), String(enabledCliTools(config).length)], ['sites', t('rowSites'), String(listNetSites(config.netRules).length)], ['credentials', t('rowCredentials'), credentialCount], ['connectors', t('rowConnectors'), '']]) {
+    for (const [view, label, count] of [['tools', t('rowTools'), String(enabledCliTools(config).length)], ['sites', t('rowSites'), String(listNetSites(config.netRules).length)], ['credentials', t('rowCredentials'), credentialCount], ['connectors', connectorText(getLanguage(), 'connectorRowTitle'), '']]) {
       const row = make(document, 'button', 'pm-row');
       row.type = 'button';
       row.dataset.view = view;
@@ -208,7 +209,7 @@ export function renderPermissionsView({ document, root, getLanguage, getConfig, 
 
   // ----- the connectors: what each tool of a connection may do (the part and its style are loaded when this page is first opened)
   const drawConnectors = () => {
-    root.append(backButton(), make(document, 'h4', 'pm-sub', t('rowConnectors')), make(document, 'p', 'pm-desc', t('connectorsDesc')));
+    root.append(backButton(), make(document, 'h4', 'pm-sub', connectorText(getLanguage(), 'connectorRowTitle')), make(document, 'p', 'pm-desc', connectorText(getLanguage(), 'connectorSettingsDesc')));
     const box = make(document, 'div', 'pm-connectors');
     root.append(box);
     state.connectorsBox = box;
@@ -217,7 +218,7 @@ export function renderPermissionsView({ document, root, getLanguage, getConfig, 
       show();
       return;
     }
-    Promise.all([import('./connectors-part.js'), import('../../runtime/connector/connector-texts.js'), import('./cli-store.css').catch(() => {})]).then(([{ createConnectorsPart }, { connectorText }]) => {
+    Promise.all([import('./connectors-part.js'), import('./cli-store.css').catch(() => {})]).then(([{ createConnectorsPart }]) => {
       state.connectors = createConnectorsPart({
         document,
         win,

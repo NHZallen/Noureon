@@ -4,6 +4,8 @@
 
 export const CONNECTOR_TEXTS = Object.freeze({
   'zh-TW': {
+    connectorRowTitle: '連接器',
+    connectorSettingsDesc: '每個連接器的工具可以設為允許、每次詢問或拒絕。連線與中斷連線在「擴充」頁。',
     connectorPermissions: '權限',
     connectorFeatures: '功能',
     connectorKindRead: '讀取',
@@ -76,6 +78,8 @@ export const CONNECTOR_TEXTS = Object.freeze({
     connectorSaveFailed: '設定沒有儲存，請再試一次。'
   },
   en: {
+    connectorRowTitle: 'Connectors',
+    connectorSettingsDesc: 'Set each tool of a connector to allow, ask each time or refuse. Connecting and disconnecting are in the Extensions page.',
     connectorPermissions: 'Permissions',
     connectorFeatures: 'Features',
     connectorKindRead: 'Read',
@@ -148,6 +152,8 @@ export const CONNECTOR_TEXTS = Object.freeze({
     connectorSaveFailed: 'The setting was not saved. Try again.'
   },
   fr: {
+    connectorRowTitle: 'Connecteurs',
+    connectorSettingsDesc: 'Réglez chaque outil d’un connecteur sur autoriser, demander à chaque fois ou refuser. La connexion et la déconnexion se font dans la page Extensions.',
     connectorPermissions: 'Autorisations',
     connectorFeatures: 'Fonctions',
     connectorKindRead: 'Lecture',
@@ -220,6 +226,8 @@ export const CONNECTOR_TEXTS = Object.freeze({
     connectorSaveFailed: 'Le réglage n’a pas été enregistré. Réessayez.'
   },
   ru: {
+    connectorRowTitle: 'Коннекторы',
+    connectorSettingsDesc: 'Для каждого инструмента коннектора выберите «разрешить», «спрашивать каждый раз» или «отказать». Подключение и отключение — на странице «Расширения».',
     connectorPermissions: 'Разрешения',
     connectorFeatures: 'Возможности',
     connectorKindRead: 'Чтение',
@@ -292,6 +300,8 @@ export const CONNECTOR_TEXTS = Object.freeze({
     connectorSaveFailed: 'Настройка не сохранена. Попробуйте ещё раз.'
   },
   es: {
+    connectorRowTitle: 'Conectores',
+    connectorSettingsDesc: 'Ajusta cada herramienta de un conector en permitir, preguntar cada vez o rechazar. Conectar y desconectar se hace en la página Extensiones.',
     connectorPermissions: 'Permisos',
     connectorFeatures: 'Funciones',
     connectorKindRead: 'Lectura',

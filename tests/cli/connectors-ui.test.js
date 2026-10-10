@@ -510,6 +510,7 @@ test('the Permissions tab of the settings has a page for the connectors, with th
   await flush();
   await flush();
   assert.equal(root.querySelector('.pm-desc').textContent, '每個連接器的工具可以設為允許、每次詢問或拒絕。連線與中斷連線在「擴充」頁。');
+  assert.equal(root.querySelector('.pm-sub').textContent, '連接器');
   assert.deepEqual([...root.querySelectorAll('.pm-connectors .cs-fold-title')].map((node) => node.textContent), ['Linear']);
   assert.equal(root.querySelectorAll('.pm-connectors .cs-group').length, 0, 'folded');
   root.querySelector('.pm-connectors .cs-fold-head').click();
