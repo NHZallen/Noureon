@@ -218,3 +218,33 @@ test('the times pages show come from the server: the reply\'s own clock, and how
   assert.equal(ended[0].te, 6000, 'from the first thought to the first words of the answer');
   assert.ok(events.indexOf(ended[0]) < events.findIndex((event) => event.a === 'Hi'), 'before the answer');
 });
+
+test('a model that searches by itself may also use a connector in the same reply (one loop, both kinds of tool)', async () => {
+  const requests = [];
+  let round = 0;
+  const called = [];
+  const connectors = {
+    forRun: async () => [{ id: 'linear', name: 'Linear', tools: [{ name: 'list_issues', description: 'Lists issues.', inputSchema: { type: 'object' }, kind: 'read', state: 'allow' }] }],
+    clientFor: () => ({ callTool: async (name, args) => { called.push([name, args]); return { text: 'ENG-1 Login fails', isError: false, images: 0 }; }, close: async () => {} }),
+    setPermissions: async () => {}
+  };
+  const live = [];
+  const result = await executeReply({
+    spec: specFor({ tools: { webSearch: 'research', searchProvider: 'tavily', advanced: false, connectors: true } }),
+    secrets,
+    userId: '123e4567-e89b-12d3-a456-426614174000',
+    connectors,
+    onLive: (event) => live.push(event),
+    fetchImpl: async (url, options) => {
+      requests.push(JSON.parse(options.body));
+      round += 1;
+      return streamResponse(round === 1 ? sse(toolCall('call_1', 'connector_call', { connector: 'linear', tool: 'list_issues', arguments_json: '{}' })) : sse(content('One open issue.')));
+    }
+  });
+  assert.equal(result.status, 'done');
+  assert.deepEqual(called, [['list_issues', {}]]);
+  const names = requests[0].tools.map((tool) => tool.function?.name || tool.name);
+  assert.ok(names.includes('web_search') && names.includes('connector_call'), 'the search tools and the connector tools together');
+  assert.match(JSON.stringify(requests[1].messages), /ENG-1 Login fails/);
+  assert.ok(live.some((event) => event.ev?.type === 'connector' && event.ev.event === 'call'));
+});
