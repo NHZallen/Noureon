@@ -46,4 +46,8 @@ ISSUE-21 (a formula that KaTeX could not render was put into the page as raw tex
 - ISSUE-32 (the cloud-sync objects on `window`) is not changed: moving them off `window` is not a wall (a script in the page can import the same modules); the wall is to keep scripts out of the page (the CSP below).
 - Under the name of `HOME` (`/work`) a step can still leave a configuration file that a tool reads (a `.curlrc`, a `.gitconfig`); a fresh `HOME` for each command with credentials would close it, at the price that what a tool keeps in `HOME` between commands is lost (the owner's decision).
 - ISSUE-32 (the cloud-sync objects on `window`) is not changed: moving them off `window` is not a wall (a script in the page can import the same modules); the wall is to keep scripts out of the page (an enforced CSP, see the notes of the release).
-- ISSUE-37 (the output folder has no size limit), 38 (the build context of the runner image may hold `.env`), 40 (an error echoes Docker's text) were not checked.
+- ISSUE-38 (the build context of the runner image may hold `.env`) was judged a false positive by Neo and by the code (the image is built from a staging folder).
+
+## 5. Later in 18.3.4: ISSUE-37 and 40
+
+Checked against the code, both were true. 37: the limits of the output folder only decided what was sent back, not what a step could write on the host's disk; the runner now ends a step that makes the folder grow past 1 GiB and removes what it wrote. 40: the answer for a container that would not start held the last line of Docker's own text; it now says only that it failed and the text goes to the runner's log. See `sandbox-host/README.md`.

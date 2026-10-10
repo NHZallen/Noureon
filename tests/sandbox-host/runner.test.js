@@ -548,3 +548,58 @@ sandboxTest('the folders of skills are put in /skills, read only and never run; 
     await h.done();
   }
 });
+
+sandboxTest('a step that writes more than it may while it runs is ended, and what it wrote is not kept; the files of earlier steps stay', async () => {
+  const { manager, config, done } = harness({ SANDBOX_OUTPUT_GROWTH_BYTES: '4096', SANDBOX_DISK_CHECK_MS: '50' });
+  try {
+    const { id } = await manager.create();
+    const output = join(config.dataDir, id, 'output');
+    const kept = await manager.run(id, { code: 'open(__import__("os").environ["NOUREON_OUTPUT"] + "/keep.txt", "w").write("small")' });
+    assert.deepEqual(kept.files.map((file) => file.name), ['keep.txt']);
+    const big = await manager.run(id, { code: 'import os, time\nwith open(os.environ["NOUREON_OUTPUT"] + "/big.bin", "wb") as handle:\n    for _ in range(400):\n        handle.write(b"x" * 65536); handle.flush()\n        time.sleep(0.05)', timeoutMs: 20000 });
+    assert.match(big.error, /wrote more files than a step may/);
+    assert.equal(big.restarted, true);
+    assert.equal(existsSync(join(output, 'big.bin')), false, 'what it filled the disk with is removed');
+    assert.equal(existsSync(join(output, 'keep.txt')), true, 'the files of the earlier step stay');
+    const after = await manager.run(id, { code: 'print("again")' });
+    assert.equal(after.stdout.text, 'again\n', 'and the session goes on with a new container');
+  } finally {
+    await done();
+  }
+});
+
+sandboxTest('a step that writes a little is not stopped, and a file with holes is counted for what it takes on the disk', async () => {
+  const { manager, done } = harness({ SANDBOX_OUTPUT_GROWTH_BYTES: '65536', SANDBOX_DISK_CHECK_MS: '50' });
+  try {
+    const { id } = await manager.create();
+    const result = await manager.run(id, { code: 'import os, time\nwith open(os.environ["NOUREON_OUTPUT"] + "/sparse.bin", "wb") as handle:\n    handle.truncate(500 * 1024 * 1024)\nopen(os.environ["NOUREON_OUTPUT"] + "/small.txt", "w").write("x")\ntime.sleep(0.4)' });
+    assert.equal(result.error, null, 'a long file with nothing in it takes no room');
+    assert.ok(result.files.some((file) => file.name === 'small.txt'));
+  } finally {
+    await done();
+  }
+});
+
+sandboxTest('a sandbox that cannot start says only that: what Docker said (paths, image names) is for the log of the runner', async () => {
+  const logged = [];
+  const root = mkdtempSync(join(tmpdir(), 'noureon-runner-'));
+  process.env.FAKE_DOCKER_STATE = join(root, 'state');
+  process.env.FAKE_DOCKER_FAIL = '1';
+  const config = loadConfig({ RUNNER_TOKEN: SECRET, DOCKER_BIN: fakeDocker, SANDBOX_DATA_DIR: join(root, 'data'), RUNNER_ALLOW: '127.0.0.1/32' });
+  const manager = createSessionManager({ config, log: (event, detail) => logged.push([event, detail]) });
+  try {
+    await assert.rejects(() => manager.create(), (error) => {
+      assert.equal(error.code, 'start_failed');
+      assert.match(error.message, /The sandbox stopped while starting \(125\)\./);
+      assert.doesNotMatch(error.message, /secret-image|\/var\/lib|permission denied|Docker/i);
+      return true;
+    });
+    const entry = logged.find(([event]) => event === 'sandbox_start_failed');
+    assert.ok(entry, 'it is in the log of the runner');
+    assert.match(entry[1].detail, /secret-image-name/);
+  } finally {
+    delete process.env.FAKE_DOCKER_FAIL;
+    await manager.shutdown();
+    rmSync(root, { recursive: true, force: true });
+  }
+});

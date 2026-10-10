@@ -1,6 +1,16 @@
 // The update notes in Spanish (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.3.4": [
+    "<strong>Notas de la versión de Noureon 18.3.4</strong>",
+    "Esta versión limita cuánto puede escribir un paso del sandbox y evita que el mensaje de un arranque fallido revele información del host.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Límite de escritura:</strong> la carpeta de salida del sandbox está en el disco del host, y sus límites de tamaño solo decidían cuántos archivos se devolvían, no cuánto podía escribir un paso, por lo que un paso descontrolado podía llenar el disco del host. Ahora, si la carpeta de salida crece más de 1 GiB mientras se ejecuta un paso, el paso se termina de inmediato y se eliminan los archivos que escribió; los archivos de los pasos anteriores de la misma respuesta no se tocan. Se informa «El código escribió más archivos de los que puede escribir un paso.» con la indicación de que el entorno se reinició. Un archivo con huecos cuenta por el espacio de disco que realmente ocupa.</li><li><strong>Mensaje de un arranque fallido:</strong> cuando un contenedor del sandbox no puede arrancar, la respuesta solo indica que el arranque falló y el código de salida; la salida original de Docker (que puede contener rutas del host y nombres de imágenes) se escribe únicamente en el registro del runner.</li></ul>",
+    "<strong>Notas</strong>",
+    "<ul><li>Estos cambios surten efecto cuando se actualiza el runner del host del sandbox.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "Esta actualización no requiere migración de datos."
+  ],
   "18.3.3": [
     "<strong>Notas de la versión de Noureon 18.3.3</strong>",
     "Esta versión corrige cómo informa el sandbox de que se superó el límite de memoria.",

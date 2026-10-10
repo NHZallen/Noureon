@@ -1,6 +1,16 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.3.4": [
+    "<strong>Noureon 18.3.4 Release Notes</strong>",
+    "This version limits how much a sandbox step may write, and keeps the message of a failed start from giving away information about the host.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Limit on what is written:</strong> the output folder of the sandbox is on the host’s disk, and its size limits only decided how many files were sent back, not how much a step could write, so a runaway step could fill the host’s disk. Now, if the output folder grows by more than 1 GiB while a step runs, the step is ended at once and the files it wrote are removed; the files of the earlier steps of the same reply are not touched. “The code wrote more files than a step may.” is reported, with a mark that the environment was restarted. A file with holes is counted for the disk space it really takes.</li><li><strong>Message of a failed start:</strong> when a sandbox container cannot start, the answer says only that the start failed and the exit code; the original output of Docker (which may hold paths of the host and names of images) is written only to the log of the runner.</li></ul>",
+    "<strong>Notes</strong>",
+    "<ul><li>These changes take effect once the runner on the sandbox host is updated.</li></ul>",
+    "<strong>Compatibility</strong>",
+    "This update requires no data migration."
+  ],
   "18.3.3": [
     "<strong>Noureon 18.3.3 Release Notes</strong>",
     "This version fixes how the sandbox reports that the memory limit was exceeded.",

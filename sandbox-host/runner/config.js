@@ -37,6 +37,9 @@ export function loadConfig(env = process.env) {
     // What a step may leave in /output: each file, and all of them together (the browser's own sandbox keeps the smaller limits of protocol.js).
     outputFileBytes: number(env.SANDBOX_OUTPUT_FILE_BYTES, 50 * 1024 * 1024, 1024, 1024 * 1024 * 1024),
     outputTotalBytes: number(env.SANDBOX_OUTPUT_TOTAL_BYTES, 100 * 1024 * 1024, 1024, 2 * 1024 * 1024 * 1024),
+    // What a step may write to /output (on the host's disk) while it runs, more than what is sent back: past it the container is ended and what the step wrote is removed.
+    outputGrowthBytes: number(env.SANDBOX_OUTPUT_GROWTH_BYTES, 1024 * 1024 * 1024, 1024, 64 * 1024 * 1024 * 1024),
+    diskCheckMs: number(env.SANDBOX_DISK_CHECK_MS, 1000, 20, 60_000),
     // How long the person is given to answer a question about a site before it counts as a refusal.
     netAskTimeoutMs: number(env.SANDBOX_NET_ASK_MS, 10 * 60_000, 1000, 3_600_000),
     // Per container.

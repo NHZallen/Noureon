@@ -177,6 +177,12 @@ R=$(files_step 'a=$(wc -c < /tmp/bg.log); sleep 1; b=$(wc -c < /tmp/bg.log); ech
 OUT=$(printf '%s' "$R" | json "d['stdout']['text'].split()")
 [ "$OUT" != "" ] && [ "$(printf '%s' "$R" | json "d['stdout']['text'].split()[0] == d['stdout']['text'].split()[1]")" = "True" ] && check "what a step left running (even in a session of its own) is stopped while a command with credentials runs" ok || check "what a step left running is stopped while a command with credentials runs" "$R"
 R=$(step 'x = bytearray(3 * 1024 * 1024 * 1024)' "$ID"); printf '%s' "$R" | json "d['error']" | grep -qi "memory" && check "too much memory is stopped" ok || check "too much memory is stopped" "$R"
+R=$(step 'import os
+chunk = b"x" * (1024 * 1024)
+with open("/output/fill.bin", "wb") as handle:
+    for _ in range(1500):
+        handle.write(chunk); handle.flush()
+print("WROTE ALL")' "$ID"); { printf '%s' "$R" | json "d['error']" | grep -qi "wrote more files" && ! printf '%s' "$R" | grep -q "WROTE ALL"; } && check "a step that fills the disk is stopped, and what it wrote is removed" ok || check "a step that fills the disk is stopped" "$R"
 R=$(step 'while True: pass' "$ID" ); echo "$R" | grep -q "time limit" && check "an endless loop is stopped" ok || check "an endless loop is stopped" "(waited 60 s) $R"
 call -X DELETE "$BASE/v1/sessions/$ID" >/dev/null
 sleep 1

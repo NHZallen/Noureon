@@ -1,6 +1,16 @@
 // The update notes in French (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.3.4": [
+    "<strong>Notes de version de Noureon 18.3.4</strong>",
+    "Cette version limite la quantité qu’une étape du bac à sable peut écrire, et empêche le message d’un échec de démarrage de révéler des informations sur l’hôte.",
+    "<strong>Principaux changements</strong>",
+    "<ul><li><strong>Limite d’écriture :</strong> le dossier de sortie du bac à sable se trouve sur le disque de l’hôte, et ses limites de taille ne décidaient que du nombre de fichiers renvoyés, pas de la quantité qu’une étape pouvait écrire ; une étape hors de contrôle pouvait donc remplir le disque de l’hôte. Désormais, si le dossier de sortie grandit de plus de 1 Gio pendant l’exécution d’une étape, celle-ci est arrêtée aussitôt et les fichiers qu’elle a écrits sont supprimés ; les fichiers des étapes précédentes de la même réponse ne sont pas touchés. Le message « Le code a écrit plus de fichiers qu’une étape n’y est autorisée. » est signalé, avec l’indication que l’environnement a redémarré. Un fichier creux est compté pour l’espace disque qu’il occupe réellement.</li><li><strong>Message d’un échec de démarrage :</strong> lorsqu’un conteneur du bac à sable ne peut pas démarrer, la réponse indique seulement que le démarrage a échoué et le code de sortie ; la sortie d’origine de Docker (qui peut contenir des chemins de l’hôte et des noms d’images) n’est écrite que dans le journal du runner.</li></ul>",
+    "<strong>Remarques</strong>",
+    "<ul><li>Ces changements ne prennent effet qu’une fois le runner de l’hôte du bac à sable mis à jour.</li></ul>",
+    "<strong>Compatibilité</strong>",
+    "Cette mise à jour ne nécessite aucune migration de données."
+  ],
   "18.3.3": [
     "<strong>Notes de version de Noureon 18.3.3</strong>",
     "Cette version corrige la manière dont le bac à sable signale un dépassement de la limite de mémoire.",

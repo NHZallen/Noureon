@@ -68,3 +68,8 @@ What this does not do: a command the model writes itself still has the credentia
 `tests/sandbox-host/repl.test.js` runs `repl.py` for real (with `NOUREON_FREEZE` left at its test value, which stops only the worker's session) and checks each of the points above; `smoke-test.sh` checks them again in the real container ("a step cannot reach the commands").
 
 To use it on the machine: `cd ~/Noureon && git pull && sh sandbox-host/install.sh && sh sandbox-host/smoke-test.sh`.
+
+## Limits on what a step writes, and what an error says (18.3.4)
+
+- The output folder is on this machine's disk. While a step runs the runner measures how much the folder has grown (what is allocated, every `SANDBOX_DISK_CHECK_MS`, 1 s); past `SANDBOX_OUTPUT_GROWTH_BYTES` (1 GiB) the container is ended, the step answers "The code wrote more files than a step may." with `restarted`, and what the step wrote is removed (the files of earlier steps stay). The limits of what is *sent back* (`SANDBOX_OUTPUT_FILE_BYTES`, `SANDBOX_OUTPUT_TOTAL_BYTES`) are unchanged.
+- When a container cannot start the answer says only "The sandbox stopped while starting (N)." What Docker printed (paths of the machine, names of images) goes to the runner's log, `docker logs noureon-sandbox-runner`, as `sandbox_start_failed`.

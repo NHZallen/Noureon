@@ -10,7 +10,11 @@ const state = process.env.FAKE_DOCKER_STATE;
 mkdirSync(state, { recursive: true });
 const repl = join(dirname(new URL(import.meta.url).pathname), '..', '..', 'sandbox-host', 'repl.py');
 
-if (args[0] === 'run') {
+if (args[0] === 'run' && process.env.FAKE_DOCKER_FAIL) {
+  // A start that fails, with the kind of words Docker uses (paths of the machine, names of images).
+  process.stderr.write('docker: Error response from daemon: pull access denied for secret-image-name, mount /var/lib/noureon-sandbox/abc/output: permission denied.\n');
+  process.exit(125);
+} else if (args[0] === 'run') {
   const get = (flag) => { const at = args.indexOf(flag); return at >= 0 ? args[at + 1] : null; };
   const name = get('--name');
   const mounts = [];
