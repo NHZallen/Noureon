@@ -144,9 +144,9 @@
  .hm-cap p{font-size:14.5px;line-height:1.5}
  .hm-facts{display:none}
  .hm-steps{margin-top:12px}
- /* the window hangs right under the words, and is never taller than 80% of the screen */
+ /* the window hangs right under the words and takes what is left of the screen below them (a little less than all of it: 6% stays free) */
  .hm-stage{container-type:normal;height:auto;min-height:0;display:grid;justify-items:center;align-items:start}
- .hm-win{width:min(100%,calc((100svh * .8 - 52px - var(--caph,190px) - 36px - var(--lab)) * var(--wr)),680px);border-radius:18px}
+ .hm-win{width:min(100%,calc((100svh * .94 - 52px - var(--caph,190px) - 24px - var(--lab)) * var(--wr)),680px);border-radius:18px}
  .hm-sec{padding-top:72px;gap:22px}
  .hm-footer{margin-top:72px}
  .hm-grid,.hm-trow{grid-template-columns:minmax(0,1fr)}
