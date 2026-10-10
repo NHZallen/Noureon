@@ -4,14 +4,11 @@
 
 export const CONNECTOR_TEXTS = Object.freeze({
   'zh-TW': {
+    connectorExamplesTitle: '可以這樣問',
     connectorRowTitle: '連接器',
     connectorSettingsDesc: '每個連接器的工具可以設為允許、每次詢問或拒絕。連線與中斷連線在「擴充」頁。',
     connectorPermissions: '權限',
-    connectorFeatures: '功能',
-    connectorKindRead: '讀取',
-    connectorKindWrite: '寫入',
     connectorManage: '管理工具權限',
-    connectorNoFeatures: '還沒有讀到這個服務的工具。',
     connectorCalling: '使用連接器：{connector} · {tool}',
     connectorListing: '查看連接器的工具：{connector}',
     connectorWaiting: '等你回答：要不要讓 {connector} 執行 {tool}？',
@@ -78,14 +75,11 @@ export const CONNECTOR_TEXTS = Object.freeze({
     connectorSaveFailed: '設定沒有儲存，請再試一次。'
   },
   en: {
+    connectorExamplesTitle: 'Try asking',
     connectorRowTitle: 'Connectors',
     connectorSettingsDesc: 'Set each tool of a connector to allow, ask each time or refuse. Connecting and disconnecting are in the Extensions page.',
     connectorPermissions: 'Permissions',
-    connectorFeatures: 'Features',
-    connectorKindRead: 'Read',
-    connectorKindWrite: 'Write',
     connectorManage: 'Manage tool permissions',
-    connectorNoFeatures: 'The tools of this service have not been read yet.',
     connectorCalling: 'Using connector: {connector} · {tool}',
     connectorListing: 'Looking at the tools of {connector}',
     connectorWaiting: 'Waiting for you: may {connector} run {tool}?',
@@ -152,14 +146,11 @@ export const CONNECTOR_TEXTS = Object.freeze({
     connectorSaveFailed: 'The setting was not saved. Try again.'
   },
   fr: {
+    connectorExamplesTitle: 'Exemples à essayer',
     connectorRowTitle: 'Connecteurs',
     connectorSettingsDesc: 'Réglez chaque outil d’un connecteur sur autoriser, demander à chaque fois ou refuser. La connexion et la déconnexion se font dans la page Extensions.',
     connectorPermissions: 'Autorisations',
-    connectorFeatures: 'Fonctions',
-    connectorKindRead: 'Lecture',
-    connectorKindWrite: 'Écriture',
     connectorManage: 'Gérer les autorisations des outils',
-    connectorNoFeatures: 'Les outils de ce service n’ont pas encore été lus.',
     connectorCalling: 'Connecteur utilisé : {connector} · {tool}',
     connectorListing: 'Consultation des outils de {connector}',
     connectorWaiting: 'En attente de vous : {connector} peut-il exécuter {tool} ?',
@@ -226,14 +217,11 @@ export const CONNECTOR_TEXTS = Object.freeze({
     connectorSaveFailed: 'Le réglage n’a pas été enregistré. Réessayez.'
   },
   ru: {
+    connectorExamplesTitle: 'Примеры запросов',
     connectorRowTitle: 'Коннекторы',
     connectorSettingsDesc: 'Для каждого инструмента коннектора выберите «разрешить», «спрашивать каждый раз» или «отказать». Подключение и отключение — на странице «Расширения».',
     connectorPermissions: 'Разрешения',
-    connectorFeatures: 'Возможности',
-    connectorKindRead: 'Чтение',
-    connectorKindWrite: 'Запись',
     connectorManage: 'Управление разрешениями инструментов',
-    connectorNoFeatures: 'Инструменты этого сервиса ещё не прочитаны.',
     connectorCalling: 'Используется коннектор: {connector} · {tool}',
     connectorListing: 'Просмотр инструментов {connector}',
     connectorWaiting: 'Ждём вас: может ли {connector} выполнить {tool}?',
@@ -300,14 +288,11 @@ export const CONNECTOR_TEXTS = Object.freeze({
     connectorSaveFailed: 'Настройка не сохранена. Попробуйте ещё раз.'
   },
   es: {
+    connectorExamplesTitle: 'Prueba a pedir',
     connectorRowTitle: 'Conectores',
     connectorSettingsDesc: 'Ajusta cada herramienta de un conector en permitir, preguntar cada vez o rechazar. Conectar y desconectar se hace en la página Extensiones.',
     connectorPermissions: 'Permisos',
-    connectorFeatures: 'Funciones',
-    connectorKindRead: 'Lectura',
-    connectorKindWrite: 'Escritura',
     connectorManage: 'Gestionar permisos de herramientas',
-    connectorNoFeatures: 'Aún no se han leído las herramientas de este servicio.',
     connectorCalling: 'Usando conector: {connector} · {tool}',
     connectorListing: 'Consultando las herramientas de {connector}',
     connectorWaiting: 'Esperando por ti: ¿puede {connector} ejecutar {tool}?',

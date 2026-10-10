@@ -5,7 +5,7 @@
 // groups, reading and writing, each with one setting for the group (allow, ask, refuse) and a list that sets each tool apart. Whatever the person sets stands.
 // Everything a service says (a tool's description) is put in as text, never as markup.
 
-import { CONNECTORS, CONNECTOR_CATEGORIES, connectorDescription, hasReadonlyLogin } from '../../../data/connector-catalog.js';
+import { CONNECTORS, CONNECTOR_CATEGORIES, connectorDescription, connectorDetails, connectorExamples, hasReadonlyLogin } from '../../../data/connector-catalog.js';
 import { connectorMark } from './connector-mark.js';
 import { disconnectConnector, listConnectors, refreshConnector, saveToolStates, startConnector } from '../../runtime/connector/connectors-client.js';
 
@@ -339,30 +339,27 @@ export function createConnectorsPart({ document, win, t, getLanguage, getAccount
     }
     const main = make('div', 'cs-row-main');
     main.append(mark(connector), text, action);
-    // What it can do: the tools it gave, read only (the settings of each tool are under Mine and in the settings, Permissions).
+    // What it is for: a few words about what it can do, and requests to try (the same in every state). The settings of its tools are under Mine and in the settings.
     const more = make('div', 'cs-more');
     const inner = make('div', 'cs-more-inner');
     more.append(inner);
     const fill = () => {
-      const tools = connectionOf(connector.id).tools;
-      const nodes = [make('p', 'cs-about', connectorDescription(connector, getLanguage()))];
-      if (tools.length) {
-        nodes.push(make('h3', 'cs-features-title', `${t('connectorFeatures')} (${tools.length})`));
-        const listing = make('ul', 'cs-features');
-        for (const tool of tools) {
-          const item = make('li', 'cs-feature');
-          const head = make('div', 'cs-feature-head');
-          head.append(make('code', 'cs-tool-name', tool.name), make('span', 'cs-badge', t(tool.kind === 'read' ? 'connectorKindRead' : 'connectorKindWrite')));
-          item.append(head);
-          if (tool.description) item.append(make('span', 'cs-tool-desc', tool.description));
-          listing.append(item);
-        }
-        nodes.push(listing);
-      } else nodes.push(make('p', 'cs-conn-note', t('connectorNoFeatures')));
-      const manage = make('button', 'cs-link cs-feature-manage', t('connectorManage'));
-      manage.type = 'button';
-      manage.addEventListener('click', onShowMine);
-      nodes.push(manage);
+      const nodes = [make('p', 'cs-about', connectorDetails(connector, getLanguage()) || connectorDescription(connector, getLanguage()))];
+      const examples = connectorExamples(connector, getLanguage());
+      if (examples.length) {
+        const box = make('div', 'cs-examples');
+        box.append(make('h3', 'cs-examples-title', t('connectorExamplesTitle')));
+        const listing = make('ul', 'cs-examples-list');
+        for (const example of examples) listing.append(make('li', '', example));
+        box.append(listing);
+        nodes.push(box);
+      }
+      if (connected) {
+        const manage = make('button', 'cs-link cs-feature-manage', t('connectorManage'));
+        manage.type = 'button';
+        manage.addEventListener('click', onShowMine);
+        nodes.push(manage);
+      }
       inner.replaceChildren(...nodes);
     };
     const setOpen = (open) => {
@@ -372,25 +369,25 @@ export function createConnectorsPart({ document, win, t, getLanguage, getAccount
       more.setAttribute('aria-hidden', String(!open));
       more.toggleAttribute('inert', !open);
     };
-    if (connected && connection.status === 'connected') {
-      if (state.expanded.has(connector.id)) fill();
-      setOpen(state.expanded.has(connector.id));
-    } else setOpen(false);
-    const choose = () => {
-      if (connected && connection.status === 'connected') {
-        // The details open and close where they are (the page is not drawn again, so they move).
-        const open = !state.expanded.has(connector.id);
-        if (open) {
-          state.expanded.add(connector.id);
-          fill();
-        } else state.expanded.delete(connector.id);
-        setOpen(open);
-      } else if (connected) openSheet(connector, { mode: connection.mode });
+    if (state.expanded.has(connector.id)) fill();
+    setOpen(state.expanded.has(connector.id));
+    // The words open and close where they are (the page is not drawn again, so they move).
+    const toggle = () => {
+      const open = !state.expanded.has(connector.id);
+      if (open) {
+        state.expanded.add(connector.id);
+        fill();
+      } else state.expanded.delete(connector.id);
+      setOpen(open);
+    };
+    text.addEventListener('click', toggle);
+    // The right side: a connection that needs a login logs in again, one that is not connected begins (the status of a good one only opens the words).
+    action.addEventListener('click', () => {
+      if (connected && connection.status === 'connected') toggle();
+      else if (connected) openSheet(connector, { mode: connection.mode });
       else if (!getAccountReady()) showNotification(t('connectorNeedAccount'), 'error');
       else openSheet(connector);
-    };
-    text.addEventListener('click', choose);
-    action.addEventListener('click', choose);
+    });
     element.append(main, more);
     return element;
   };

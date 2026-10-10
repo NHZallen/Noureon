@@ -97,7 +97,7 @@ test('without an account there is nothing to list (the page says why), and a con
 test('connecting: the sheet says what happens, a service with a read-only login lets the person choose it, and the whole page goes to the service', async () => {
   const t = setup({ connections: [] });
   await settle(t);
-  t.host.querySelector('[data-connector-id="linear"] .cs-text').click();
+  t.host.querySelector('[data-connector-id="linear"] .cs-action').click();
   const sheet = t.host.querySelector('.cs-dialog');
   assert.ok(sheet, 'the sheet opens inside the page');
   assert.match(sheet.textContent, /連線 Linear/);
@@ -117,7 +117,7 @@ test('connecting: the sheet says what happens, a service with a read-only login 
 
   // A service that has only one login says so, and there is no choice.
   t.draw();
-  t.host.querySelector('[data-connector-id="notion"] .cs-text').click();
+  t.host.querySelector('[data-connector-id="notion"] .cs-action').click();
   assert.equal(t.host.querySelector('.cs-dialog .cs-seg'), null);
   assert.match(t.host.querySelector('.cs-dialog').textContent, /授權包含寫入權限/);
 });
@@ -126,7 +126,7 @@ test('a login that cannot begin says so and leaves the sheet to try again', asyn
   const t = setup({ connections: [] });
   registerServerRequest(async (method, path) => (method === 'GET' ? { ok: true, status: 200, data: { connectors: [] } } : { ok: false, status: 502, code: 'internal_error', data: {} }));
   await settle(t);
-  t.host.querySelector('[data-connector-id="notion"] .cs-text').click();
+  t.host.querySelector('[data-connector-id="notion"] .cs-action').click();
   t.host.querySelector('.cs-dialog .cs-button-primary').click();
   await flush();
   const error = t.host.querySelector('.cs-dialog-error');
@@ -378,7 +378,7 @@ test('the questions to the person are in the conversation under the line of the 
 test('the sheet that begins a login can always be closed, and the button is put back when the person comes back from the service with the back button', async () => {
   const t = setup({ connections: [] });
   await settle(t);
-  t.host.querySelector('[data-connector-id="linear"] .cs-text').click();
+  t.host.querySelector('[data-connector-id="linear"] .cs-action').click();
   const go = t.host.querySelector('.cs-dialog .cs-button-primary');
   go.click();
   await flush();
@@ -394,7 +394,7 @@ test('the sheet that begins a login can always be closed, and the button is put 
   assert.equal(t.listeners.has('pageshow'), false, 'the listener goes with the sheet');
 });
 
-test('in the list a connected connector opens where it is, with what it can do; it does not turn the page to Mine, and one that is not connected still opens the sheet', async () => {
+test('in the list every connector opens where it is, with words about what it can do and requests to try; the page does not turn to Mine, and the right side still connects', async () => {
   const t = setup();
   await settle(t);
   const linear = () => t.host.querySelector('[data-connector-id="linear"]');
@@ -404,36 +404,44 @@ test('in the list a connected connector opens where it is, with what it can do; 
   assert.equal(linear().classList.contains('is-open'), true);
   assert.equal(linear().querySelector('.cs-more').classList.contains('is-open'), true);
   assert.equal(linear().querySelector('.cs-text').getAttribute('aria-expanded'), 'true');
-  assert.equal(linear().querySelector('.cs-features-title').textContent, '功能 (5)');
-  assert.deepEqual([...linear().querySelectorAll('.cs-feature .cs-tool-name')].map((node) => node.textContent), ['list_issues', 'get_issue', 'create_issue', 'update_issue', 'delete_comment']);
-  assert.deepEqual([...linear().querySelectorAll('.cs-feature .cs-badge')].map((node) => node.textContent), ['讀取', '讀取', '寫入', '寫入', '寫入']);
+  assert.match(linear().querySelector('.cs-about').textContent, /連接 Linear 後，模型可以查詢你的議題、專案與週期/);
+  assert.equal(linear().querySelector('.cs-examples-title').textContent, '可以這樣問');
+  assert.equal(linear().querySelectorAll('.cs-examples-list li').length, 3);
+  assert.equal(linear().querySelector('.cs-feature'), null, 'words about it, not a list of its tools');
   const element = linear();
   // It opens and closes in place: the row is the same element, not a new one.
   element.querySelector('.cs-text').click();
   assert.equal(linear(), element);
   assert.equal(element.classList.contains('is-open'), false);
   assert.equal(element.querySelector('.cs-more').getAttribute('aria-hidden'), 'true');
-  // An open row stays open when the page is drawn again (a search, a setting).
-  element.querySelector('.cs-text').click();
+  // The status of a good connection opens the words too; an open row stays open when the page is drawn again (a search, a setting).
+  element.querySelector('.cs-action').click();
   t.draw();
   assert.equal(linear().classList.contains('is-open'), true);
-  // The way to the settings of the tools.
+  // The way to the settings of the tools (only for a connection).
   linear().querySelector('.cs-feature-manage').click();
   assert.equal(t.view.tab, 'mine');
-  // A connector that is not connected opens the sheet as before.
+  // One that is not connected opens its words too (a person reads what it is before connecting); the right side connects.
   t.view.tab = 'all';
   t.draw();
-  t.host.querySelector('[data-connector-id="notion"] .cs-text').click();
-  assert.ok(t.host.querySelector('.cs-dialog'));
-  assert.equal(t.host.querySelector('[data-connector-id="notion"]').classList.contains('is-open'), false);
+  const notion = () => t.host.querySelector('[data-connector-id="notion"]');
+  notion().querySelector('.cs-text').click();
+  assert.equal(notion().classList.contains('is-open'), true);
+  assert.equal(notion().querySelector('.cs-feature-manage'), null, 'nothing to manage before it is connected');
+  assert.equal(t.host.querySelector('.cs-dialog'), null);
+  notion().querySelector('.cs-action').click();
+  assert.ok(t.host.querySelector('.cs-dialog'), 'the right side begins the connection');
 });
 
-test('a connection that needs a login: the row opens the sheet to log in again', async () => {
+test('a connection that needs a login: the right side opens the sheet to log in again, the words open from the left', async () => {
   const t = setup({ connections: [{ ...LINEAR, status: 'needs_login' }] });
   await settle(t);
-  t.host.querySelector('[data-connector-id="linear"] .cs-text').click();
-  assert.match(t.host.querySelector('.cs-dialog').textContent, /切換連線範圍|連線 Linear/);
-  assert.equal(t.host.querySelector('[data-connector-id="linear"]').classList.contains('is-open'), false);
+  const row = () => t.host.querySelector('[data-connector-id="linear"]');
+  row().querySelector('.cs-text').click();
+  assert.equal(row().classList.contains('is-open'), true);
+  assert.equal(t.host.querySelector('.cs-dialog'), null);
+  row().querySelector('.cs-action').click();
+  assert.match(t.host.querySelector('.cs-dialog').textContent, /連線 Linear/);
 });
 
 test('under Mine the permissions fold and unfold; they are open at first', async () => {
