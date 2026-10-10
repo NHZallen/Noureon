@@ -560,7 +560,7 @@ test('the style files of the connectors are well formed: every comment is closed
     assert.ok(!bare.includes('/*') && !bare.includes('*/'), name);
   }
   const bare = store.replace(/\/\*[\s\S]*?\*\//g, '');
-  assert.match(bare, /\.cs-conn-mark \.connector-mark \{ width: 1\.9rem; height: 1\.9rem; border-radius: 0\.5rem; \}/);
+  assert.match(bare, /\.cs-conn-mark \.connector-mark \{ width: 1\.9rem; height: 1\.9rem; border-radius: 0\.4rem; \}/);
   assert.match(bare, /\.cs-fold-mark \{[^}]*border-radius/);
   const logo = ledger.replace(/\/\*[\s\S]*?\*\//g, '');
   assert.match(logo, /\.connector-mark-img \{[^}]*border-radius: inherit/);
