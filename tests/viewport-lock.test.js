@@ -135,3 +135,14 @@ test('with the keyboard up, a box that can still scroll the way the finger goes 
   list.scrollTop = 150;
   assert.equal(drag(t, row, { fromY: 200, toY: 300 }), false, 'off its top, both ways scroll the box');
 });
+
+test('the sign-in page (the home page) is a long page the person scrolls by touch: nothing is held there, and the lock returns once it is hidden', () => {
+  const t = page();
+  installViewportLock(t.window, t.document);
+  t.document.body.insertAdjacentHTML('beforeend', '<div id="auth-container"></div>');
+  const text = t.document.getElementById('text');
+  Object.defineProperty(t.root, 'scrollHeight', { configurable: true, value: 15000 });
+  assert.equal(drag(t, text), false, 'the home page scrolls');
+  t.document.getElementById('auth-container').style.display = 'none';
+  assert.equal(drag(t, text), true, 'in the app the page is held again');
+});

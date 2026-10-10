@@ -63,6 +63,10 @@ export function installViewportLock(win = window, doc = document) {
   // what is seen) and is not zoomed. Sideways moves and two fingers are left alone.
   let lastX = 0;
   let lastY = 0;
+  const isSignInPageShown = () => {
+    const signIn = doc.getElementById?.('auth-container');
+    return Boolean(signIn) && signIn.style.display !== 'none';
+  };
   const onTouchStart = (event) => {
     const touch = event.touches?.[0];
     if (!touch) return;
@@ -78,6 +82,8 @@ export function installViewportLock(win = window, doc = document) {
     lastY = touch.clientY;
     if (!event.cancelable || dy === 0 || Math.abs(dx) > Math.abs(dy)) return;
     if (Math.abs((viewport.scale || 1) - 1) > 0.01) return;
+    // The page before sign-in (the home page) is a long page the person scrolls: nothing is held there.
+    if (isSignInPageShown()) return;
     const page = doc.scrollingElement || root;
     if (page.scrollHeight - viewport.height <= 1) return;
     if (scrollsToward(win, event.target, root, dy)) return;
