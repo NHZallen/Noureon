@@ -7,6 +7,7 @@ import { createRateLimiter } from './rate-limit.js';
 import { validateRunSpec } from './run-spec.js';
 import { CREDENTIAL_NAME, CredentialError } from './cli-credentials.js';
 import { ConnectorError } from './mcp/connections.js';
+import { NotionError } from './notion/oauth.js';
 import { TOOL_STATES } from '../src/data/connector-catalog.js';
 
 const STATUS_FOR = {
@@ -63,7 +64,7 @@ async function readJson(request, maxBytes, { optional = false } = {}) {
 }
 
 /** Returns the function that answers one request: `(request, response) => Promise<void>`. */
-export function createApp({ config, fetchImpl = fetch, log = createLogger(), now = Date.now, runs = null, credentials = null, files = null, connectors = null } = {}) {
+export function createApp({ config, fetchImpl = fetch, log = createLogger(), now = Date.now, runs = null, credentials = null, files = null, connectors = null, notion = null } = {}) {
   const verify = createTokenVerifier({ supabaseUrl: config.supabaseUrl, anonKey: config.supabaseAnonKey, fetchImpl, now });
   const startLimiter = createRateLimiter({ limit: LIMITS.createPerMinute, windowMs: 60_000, now });
   const credentialLimiter = createRateLimiter({ limit: 30, windowMs: 60_000, now });
@@ -319,6 +320,51 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
         };
         const outcome = await connectors.completeLogin({ state: pick('state'), code: pick('code'), error: pick('error'), iss: pick('iss') });
         back(outcome.ok ? { connector: outcome.connectorId, connected: '1' } : { ...(outcome.connectorId ? { connector: outcome.connectorId } : {}), connector_error: outcome.error });
+        return;
+      }
+      // Notion's own login (server/notion/oauth.js), next to the hosted connector: where Notion sends the person back (a page navigation, with no sign-in header: the state in the
+      // address says who began it), and what the signed-in person does about their own connection. Nothing of the login is in the address the person is sent on to.
+      if (route === 'GET /oauth/notion/callback') {
+        if (!notion) throw new RequestError(ERROR_CODES.runsUnavailable, 'Notion is not set up yet.');
+        const back = (params) => {
+          const target = new URL('/notion-test', config.appUrl || 'https://noureon.com');
+          for (const [name, value] of Object.entries(params)) target.searchParams.set(name, value);
+          response.writeHead(302, { ...SECURITY_HEADERS, Location: target.toString() });
+          response.end();
+          status = 302;
+        };
+        if (!callbackLimiter.take('callback')) {
+          back({ notion_error: 'busy' });
+          return;
+        }
+        const pick = (name) => {
+          const value = url.searchParams.get(name);
+          return typeof value === 'string' ? value : undefined;
+        };
+        const outcome = await notion.completeLogin({ state: pick('state'), code: pick('code'), error: pick('error') });
+        back(outcome.ok ? { notion: 'connected' } : { notion_error: outcome.error });
+        return;
+      }
+      const notionPath = /^\/v1\/notion\/(status|connect|disconnect|whoami)$/.exec(url.pathname);
+      if (notionPath) {
+        const user = await authenticate(request);
+        if (!notion) throw new RequestError(ERROR_CODES.runsUnavailable, 'Notion is not set up yet.');
+        const action = notionPath[1];
+        try {
+          if (request.method === 'GET' && action === 'status') send(response, 200, await notion.status(user.id), origin);
+          else if (request.method === 'POST' && action === 'connect') {
+            if (!connectorLimiter.take(user.id)) throw new RequestError(ERROR_CODES.rateLimited, 'Too many requests; wait a minute.');
+            send(response, 200, await notion.startLogin(user.id), origin);
+          } else if (request.method === 'POST' && action === 'disconnect') send(response, 200, { ok: true, ...(await notion.disconnect(user.id)) }, origin);
+          else if (request.method === 'GET' && action === 'whoami') {
+            if (!connectorLimiter.take(user.id)) throw new RequestError(ERROR_CODES.rateLimited, 'Too many requests; wait a minute.');
+            send(response, 200, await notion.whoami(user.id), origin);
+          } else throw new RequestError(ERROR_CODES.notFound, 'Not found.');
+          status = 200;
+        } catch (error) {
+          if (error instanceof NotionError) throw new RequestError(error.code === 'not_connected' ? ERROR_CODES.wrongPhase : ERROR_CODES.badRequest, error.message, { reason: error.code });
+          throw error;
+        }
         return;
       }
       // The person's connectors: the state of each, and what they do about it.

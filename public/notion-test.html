@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="color-scheme" content="light dark">
+  <title>Notion 授權測試 · Noureon</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body { margin: 0; font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; background: Canvas; color: CanvasText; }
+    main { max-width: 34rem; margin: 0 auto; padding: 2.5rem 1.2rem 4rem; }
+    h1 { margin: 0 0 0.4rem; font-size: 1.4rem; }
+    p { margin: 0.6rem 0; }
+    .note { color: GrayText; font-size: 0.9rem; }
+    .card { margin: 1.4rem 0; padding: 1rem 1.1rem; border: 1px solid GrayText; border-radius: 0.9rem; }
+    .row { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 1rem; }
+    button { padding: 0.55rem 1.1rem; border: 1px solid CanvasText; border-radius: 9999px; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+    button.primary { background: CanvasText; color: Canvas; }
+    button:disabled { opacity: 0.5; cursor: default; }
+    #message { min-height: 1.6em; font-weight: 600; }
+    pre { margin: 0.6rem 0 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Notion 授權測試</h1>
+    <p class="note">這是給管理者用的測試入口：確認 Notion 的授權畫面有沒有顯示 Noureon 的名稱與標誌。需要先在 noureon.com 登入。</p>
+    <div class="card">
+      <p id="message"></p>
+      <p id="state" class="note">讀取中……</p>
+      <pre id="detail" hidden></pre>
+      <div class="row">
+        <button id="connect" class="primary" type="button">開始授權</button>
+        <button id="whoami" type="button" hidden>驗證 Token</button>
+        <button id="disconnect" type="button" hidden>解除連接</button>
+      </div>
+    </div>
+    <p class="note">按「開始授權」會前往 Notion 的授權頁；授權後回到這裡。Token 只保存在伺服器（加密），這個頁面看不到它。</p>
+    <p><a href="/">回到 Noureon</a></p>
+  </main>
+  <script src="/notion-test.js"></script>
+</body>
+</html>

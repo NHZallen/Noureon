@@ -139,6 +139,10 @@
     {
       "source": "/updates",
       "destination": "/updates.html"
+    },
+    {
+      "source": "/notion-test",
+      "destination": "/notion-test.html"
     }
   ]
 }

@@ -6,6 +6,7 @@ import { loadConfig } from './config.js';
 import { createAssetSweeper } from './asset-sweeper.js';
 import { createCredentialStore } from './cli-credentials.js';
 import { createConnectorService, createDbClientStore } from './mcp/connections.js';
+import { createNotionOAuth } from './notion/oauth.js';
 import { createKeyVault } from './key-vault.js';
 import { createLogger } from './log.js';
 import { LIMITS } from './protocol.js';
@@ -32,6 +33,7 @@ try {
 let runs = null;
 let credentials = null;
 let connectors = null;
+let notion = null;
 let files = null;
 let sweeper = null;
 let checkRunsStore = async () => {};
@@ -55,6 +57,7 @@ if (config.runsConfigured) {
     const vault = createKeyVault(config.encryptionKeys);
     credentials = createCredentialStore({ db, vault });
     connectors = createConnectorService({ db, vault, log, config: { redirectUri: config.connectorRedirectUri, cimdUrl: config.connectorClientId, identity: { clientUri: config.appUrl, logoUri: `${config.appUrl}/logo.png`, tosUri: `${config.appUrl}/terms`, policyUri: `${config.appUrl}/privacy` }, clientStore: createDbClientStore(db) } });
+    if (config.notion.configured) notion = createNotionOAuth({ db, vault, log, config: config.notion });
     runs = createRunManager({ store: createRunStore({ db, limits: LIMITS }), db, vault, sandbox, files, credentials, connectors, skills: createServerSkills({ db, bundles: skillBundles }), vision: { available: canDrawSlides, execute: executeVisionCheck, getKit: getFontKit }, limits: LIMITS, log });
   } catch (error) {
     log('config_error', { message: error.message });
@@ -62,7 +65,7 @@ if (config.runsConfigured) {
   }
 }
 
-const server = createServer(createApp({ config, log, runs, credentials, files, connectors }));
+const server = createServer(createApp({ config, log, runs, credentials, files, connectors, notion }));
 // A long request (a reply that streams) is never cut by these; the replies themselves run apart from the request.
 server.requestTimeout = 60_000;
 server.headersTimeout = 30_000;

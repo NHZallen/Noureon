@@ -36,6 +36,12 @@ export function loadConfig(env = process.env) {
   const appUrl = String(env.APP_URL || 'https://noureon.com').replace(/\/+$/, '');
   const connectorRedirectUri = String(env.CONNECTOR_REDIRECT_URI || 'https://api.noureon.com/mcp/callback');
   const connectorClientId = String(env.CONNECTOR_CLIENT_ID || `${appUrl}/.well-known/oauth-client.json`);
+  // Notion's own login (server/notion/oauth.js): the client id and the secret of the public connection made in Notion's developer portal (both or neither; the secret only ever lives here).
+  const notionClientId = String(env.NOTION_CLIENT_ID || '');
+  const notionClientSecret = String(env.NOTION_CLIENT_SECRET || '');
+  const notionRedirectUri = String(env.NOTION_REDIRECT_URI || 'https://api.noureon.com/oauth/notion/callback');
+  if (Boolean(notionClientId) !== Boolean(notionClientSecret)) problems.push('NOTION_CLIENT_ID and NOTION_CLIENT_SECRET go together: set both or neither');
+  if (!/^https:\/\/[^\s]+$/i.test(notionRedirectUri)) problems.push('NOTION_REDIRECT_URI must be an https address');
   for (const [name, value] of [['APP_URL', appUrl], ['CONNECTOR_REDIRECT_URI', connectorRedirectUri], ['CONNECTOR_CLIENT_ID', connectorClientId]]) if (!/^https:\/\/[^\s]+$/i.test(value)) problems.push(`${name} must be an https address`);
   if (problems.length) throw new Error(`Server settings are not right: ${problems.join('; ')}`);
   return Object.freeze({
@@ -48,6 +54,7 @@ export function loadConfig(env = process.env) {
     sandboxUrl,
     sandboxToken,
     appUrl,
+    notion: Object.freeze({ clientId: notionClientId, clientSecret: notionClientSecret, redirectUri: notionRedirectUri, configured: Boolean(notionClientId && notionClientSecret) }),
     connectorRedirectUri,
     connectorClientId,
     allowedOrigins: Object.freeze(list(env.ALLOWED_ORIGINS, DEFAULT_ALLOWED_ORIGINS)),
