@@ -85,6 +85,26 @@ test('Context7, Upstash and Vercel: their own endpoints, one login each (no read
   for (const name of ['deploy_to_vercel', 'buy_domain', 'get_access_to_vercel_url', 'create_project', 'update_project']) assert.equal(defaultToolState(vercel, name), 'ask', name);
 });
 
+test('a registration that is refused as not right is asked again with only what a registration needs, and what the service says about a refusal is kept as plain short text', async () => {
+  const redirectUri = 'https://api.noureon.com/mcp/callback';
+  const cimdUrl = 'https://noureon.com/.well-known/oauth-client.json';
+  const dcr = { cimd: false, registrationEndpoint: 'https://auth.example.com/register', issuer: 'https://auth.example.com' };
+  const bodies = [];
+  const picky = async (url, options = {}) => {
+    if (options.method !== 'POST') return new Response('no', { status: 404 });
+    const body = JSON.parse(options.body);
+    bodies.push(body);
+    return 'logo_uri' in body ? json({ error: 'invalid_client_metadata' }, 400) : json({ client_id: 'issued-id' }, 201);
+  };
+  const client = await resolveClient({ connectorId: 'v', metadata: dcr, redirectUri, cimdUrl, identity: { clientUri: 'https://noureon.com', logoUri: 'https://noureon.com/logo.png', tosUri: 'https://noureon.com/terms', policyUri: 'https://noureon.com/privacy' }, fetchImpl: picky });
+  assert.deepEqual(client, { clientId: 'issued-id', how: 'dcr' });
+  assert.equal(bodies.length, 2);
+  assert.deepEqual(Object.keys(bodies[1]).sort(), ['client_name', 'grant_types', 'redirect_uris', 'response_types', 'token_endpoint_auth_method']);
+  // A refusal of the plain request is the end; its words are kept, cut and with only plain characters.
+  const never = async () => json({ error: 'invalid_redirect_uri', error_description: `This redirect\nis not allowed \u0007${'x'.repeat(300)}` }, 400);
+  await assert.rejects(resolveClient({ connectorId: 'v', metadata: dcr, redirectUri, cimdUrl, identity: { logoUri: 'https://noureon.com/logo.png' }, fetchImpl: never }), (error) => error.code === 'registration_refused' && error.status === 400 && /^invalid_redirect_uri: This redirect is not allowed x+$/.test(error.info) && error.info.length <= 60 + 2 + 120);
+});
+
 test('a PKCE pair has a verifier of 43 or more characters and its S256 challenge; the states hash the same way and are never equal', () => {
   const { verifier, challenge } = pkcePair();
   assert.match(verifier, /^[A-Za-z0-9_-]{43,128}$/);

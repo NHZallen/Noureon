@@ -225,7 +225,7 @@ test('a service that refuses our registration, or does not say how to log in, is
   };
   const refusing = async (url, options = {}) => (options.method === 'POST' && String(url).endsWith('/register') ? json({ error: 'invalid_redirect_uri', secret: 'must-not-travel' }, 403) : routes[String(url)] || new Response('nothing', { status: 404 }));
   const service = createConnectorService({ db, vault, fetchImpl: refusing, config: { redirectUri: REDIRECT, cimdUrl: CIMD } });
-  await assert.rejects(service.startLogin(USER, 'vercel', 'readwrite'), (error) => error.code === 'failed' && error.detail === 'registration_refused 403' && !JSON.stringify(error).includes('must-not-travel'));
+  await assert.rejects(service.startLogin(USER, 'vercel', 'readwrite'), (error) => error.code === 'failed' && error.detail === 'registration_refused 403: invalid_redirect_uri' && !JSON.stringify(error).includes('must-not-travel'));
   const silent = createConnectorService({ db, vault, fetchImpl: async () => new Response('nothing', { status: 404 }), config: { redirectUri: REDIRECT, cimdUrl: CIMD } });
   await assert.rejects(silent.startLogin(USER, 'vercel', 'readwrite'), (error) => error.code === 'failed' && error.detail === 'no_metadata');
 });

@@ -7,11 +7,13 @@
 import { createHash, randomBytes } from 'node:crypto';
 
 export class OAuthError extends Error {
-  constructor(code, message, { status = 0 } = {}) {
+  constructor(code, message, { status = 0, info = '' } = {}) {
     super(message);
     this.name = 'OAuthError';
     this.code = code;
     this.status = status;
+    // What the service said about why (its error code and a short description, with nothing but plain characters): for the person to read, never for the log of secrets.
+    this.info = info;
   }
 }
 
@@ -170,29 +172,40 @@ export async function resolveClient({ connectorId, metadata, redirectUri, cimdUr
     const key = `${connectorId}|${metadata.issuer}|${redirectUri}`;
     const kept = clientStore ? await clientStore.get(key) : null;
     if (kept?.clientId) return { clientId: kept.clientId, how: 'dcr' };
-    const response = await withTimeout(fetchImpl, metadata.registrationEndpoint, {
+    const minimal = {
+      client_name: clientName,
+      redirect_uris: [redirectUri],
+      grant_types: ['authorization_code', 'refresh_token'],
+      response_types: ['code'],
+      token_endpoint_auth_method: 'none'
+    };
+    const full = {
+      ...minimal,
+      ...(identity.clientUri ? { client_uri: identity.clientUri } : {}),
+      ...(identity.logoUri ? { logo_uri: identity.logoUri } : {}),
+      ...(identity.tosUri ? { tos_uri: identity.tosUri } : {}),
+      ...(identity.policyUri ? { policy_uri: identity.policyUri } : {})
+    };
+    const post = (payload) => withTimeout(fetchImpl, metadata.registrationEndpoint, {
       method: 'POST',
       redirect: 'error',
       headers: { 'content-type': 'application/json', accept: 'application/json' },
-      body: JSON.stringify({
-        client_name: clientName,
-        ...(identity.clientUri ? { client_uri: identity.clientUri } : {}),
-        ...(identity.logoUri ? { logo_uri: identity.logoUri } : {}),
-        ...(identity.tosUri ? { tos_uri: identity.tosUri } : {}),
-        ...(identity.policyUri ? { policy_uri: identity.policyUri } : {}),
-        redirect_uris: [redirectUri],
-        grant_types: ['authorization_code', 'refresh_token'],
-        response_types: ['code'],
-        token_endpoint_auth_method: 'none'
-      })
+      body: JSON.stringify(payload)
     }, timeoutMs);
+    let response = await post(full);
+    // A service that does not take the optional words about us (an address, a picture, the terms) says the request is not right: it is asked again with only what a registration needs.
+    if ((response.status === 400 || response.status === 422) && Object.keys(full).length > Object.keys(minimal).length) response = await post(minimal);
     let body = null;
     try {
       body = JSON.parse(await readText(response));
     } catch {
       body = null;
     }
-    if (!response.ok || typeof body?.client_id !== 'string' || !body.client_id) throw new OAuthError('registration_refused', 'The service did not accept the registration.', { status: response.status });
+    if (!response.ok || typeof body?.client_id !== 'string' || !body.client_id) {
+      const plain = (value, limit) => (typeof value === 'string' ? value.replace(/[^\x20-\x7e]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, limit) : '');
+      const info = [plain(body?.error, 60), plain(body?.error_description, 120)].filter(Boolean).join(': ');
+      throw new OAuthError('registration_refused', 'The service did not accept the registration.', { status: response.status, info });
+    }
     if (clientStore) await clientStore.set(key, { clientId: body.client_id });
     return { clientId: body.client_id, how: 'dcr' };
   };

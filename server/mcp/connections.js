@@ -121,7 +121,7 @@ export function createConnectorService({ db, vault, fetchImpl = fetch, now = Dat
     } catch (error) {
       if (error instanceof OAuthError) {
         log('connector_login_unavailable', { connector: connectorId, code: error.code });
-        throw new ConnectorError('failed', 'This service cannot be logged in to right now.', `${error.code}${error.status ? ` ${error.status}` : ''}`);
+        throw new ConnectorError('failed', 'This service cannot be logged in to right now.', `${error.code}${error.status ? ` ${error.status}` : ''}${error.info ? `: ${error.info}` : ''}`);
       }
       throw error;
     }
