@@ -15,7 +15,7 @@
 .hm-brand img{width:22px;height:22px}
 .hm-links{display:flex;gap:28px;color:var(--text-secondary)}
 .hm-links a:hover{color:var(--text-primary)}
-.hm-nr{display:flex;gap:12px;align-items:center}
+.hm-nr{display:flex;gap:8px;align-items:center}
 .hm-pill{display:inline-flex;align-items:center;justify-content:center;border-radius:99px;font-size:15px;padding:11px 22px;border:0;cursor:pointer;background:var(--gpt-primary-action-bg);color:var(--gpt-primary-action-text);white-space:nowrap}
 .hm .hm-pill{color:var(--gpt-primary-action-text)}
 .hm-pill.hm-sm{font-size:13px;padding:6px 14px}
@@ -24,6 +24,11 @@
 .hm-block{width:100%}
 .hm-ghost{padding:11px 8px;white-space:nowrap}
 .hm-ghost::after{content:" ›";font-size:1.2em}
+.hm-theme-btn{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;background:none;border:0;color:var(--text-secondary);cursor:pointer}
+.hm-theme-btn:hover{color:var(--text-primary);background:var(--hover-bg)}
+.hm-theme-btn .hm-sun{display:none}
+:root[data-theme="dark"] .hm-theme-btn .hm-sun{display:block}
+:root[data-theme="dark"] .hm-theme-btn .hm-moon{display:none}
 .hm-lang{position:relative}
 .hm-lang-btn{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-secondary);background:none;border:0;cursor:pointer;padding:6px 4px}
 .hm-lang-btn:hover{color:var(--text-primary)}

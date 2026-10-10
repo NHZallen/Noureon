@@ -5,6 +5,7 @@
 // own language menu and the colour scheme set.
 
 import { HOME_BRANDS, HOME_TEXTS } from '../../../data/home-texts.js';
+import { createColorScheme } from '../../runtime/features/color-scheme.js';
 import { HOME_EXTENSIONS_IMAGE, HOME_STORIES, homeImagePath } from './home-frames.js';
 import { installHomeScroll, installReveal } from './home-scroll.js';
 
@@ -196,6 +197,10 @@ export function applyHomeTexts({ document, container, language }) {
     const value = textAt(texts, node.dataset.hmLabel);
     if (typeof value === 'string') node.setAttribute('aria-label', value);
   });
+  container.querySelectorAll('[data-hm-title]').forEach((node) => {
+    const value = textAt(texts, node.dataset.hmTitle);
+    if (typeof value === 'string') node.setAttribute('title', value);
+  });
   fillLists(h, container, texts);
 }
 
@@ -257,8 +262,16 @@ export function mountHomePage({ document = globalThis.document, window = globalT
   });
   follow.observe(document.documentElement, { attributes: true, attributeFilter: ['lang', 'data-theme'] });
 
+  // The person may choose light or dark here too: it is kept for the next visit like the choice in the settings (color-scheme.js).
+  const scheme = createColorScheme({ window, document });
+  const themeButton = document.getElementById('hm-theme-btn');
+  const toggleTheme = () => scheme.apply(resolveTheme(document) === 'dark' ? 'light' : 'dark');
+  themeButton?.addEventListener('click', toggleTheme);
+
   return () => {
     follow.disconnect();
+    themeButton?.removeEventListener('click', toggleTheme);
+    scheme.dispose();
     stopScroll();
     host.dataset.mounted = '0';
   };

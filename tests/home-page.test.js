@@ -131,3 +131,19 @@ test('the news and policy links of the footer point where they should', () => {
     assert.ok(hrefs.includes(href), `${href} should be in the footer`);
   }
 });
+
+test('the home page has a button that switches light and dark, and keeps the choice for the next visit', () => {
+  const { window, document } = mountedPage();
+  const stop = mountHomePage({ document, window });
+  const button = document.getElementById('hm-theme-btn');
+  assert.ok(button, 'the button is in the shell');
+  assert.equal(button.dataset.hmLabel, 'nav.theme');
+  for (const language of LANGUAGES) assert.ok(HOME_TEXTS[language].nav.theme, `${language} needs its label`);
+  button.dispatchEvent(new window.Event('click', { bubbles: true }));
+  assert.equal(document.documentElement.getAttribute('data-theme'), 'dark');
+  assert.equal(window.localStorage.getItem('noureon-color-scheme'), 'dark');
+  button.dispatchEvent(new window.Event('click', { bubbles: true }));
+  assert.equal(document.documentElement.getAttribute('data-theme'), 'light');
+  assert.equal(window.localStorage.getItem('noureon-color-scheme'), 'light');
+  stop();
+});

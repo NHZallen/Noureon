@@ -16,7 +16,7 @@ export const HOME_LINKS = Object.freeze({
 
 export const HOME_TEXTS = {
   'zh-TW': {
-    nav: { council: '理事會', research: '深度研究', files: '檔案', extensions: '擴充', privacy: '隱私' },
+    nav: { council: '理事會', research: '深度研究', files: '檔案', extensions: '擴充', privacy: '隱私', theme: '切換深淺色' },
     hero: {
       title: '思考，\n不止一個模型。',
       lead: 'Noureon 把 14 家廠商、38 個模型選項放進同一個工作空間。讓它們同席議事、替你深度研究，最後交出可以直接使用的檔案。',
@@ -97,7 +97,7 @@ export const HOME_TEXTS = {
     }
   },
   en: {
-    nav: { council: 'Council', research: 'Deep research', files: 'Files', extensions: 'Extensions', privacy: 'Privacy' },
+    nav: { council: 'Council', research: 'Deep research', files: 'Files', extensions: 'Extensions', privacy: 'Privacy', theme: 'Switch light or dark' },
     hero: {
       title: 'Think with more\nthan one model.',
       lead: 'Noureon puts 14 vendors and 38 models in one workspace. Have them debate a question, research it for you, and hand back files you can use right away.',
@@ -178,7 +178,7 @@ export const HOME_TEXTS = {
     }
   },
   fr: {
-    nav: { council: 'Conseil', research: 'Recherche approfondie', files: 'Fichiers', extensions: 'Extensions', privacy: 'Confidentialité' },
+    nav: { council: 'Conseil', research: 'Recherche approfondie', files: 'Fichiers', extensions: 'Extensions', privacy: 'Confidentialité', theme: 'Changer de thème clair ou sombre' },
     hero: {
       title: 'Réfléchir avec\nplus d’un modèle.',
       lead: 'Noureon réunit 14 fournisseurs et 38 modèles dans un seul espace de travail. Faites-les débattre, laissez-les enquêter à votre place, et recevez des fichiers prêts à l’emploi.',
@@ -259,7 +259,7 @@ export const HOME_TEXTS = {
     }
   },
   ru: {
-    nav: { council: 'Совет', research: 'Глубокое исследование', files: 'Файлы', extensions: 'Расширения', privacy: 'Конфиденциальность' },
+    nav: { council: 'Совет', research: 'Глубокое исследование', files: 'Файлы', extensions: 'Расширения', privacy: 'Конфиденциальность', theme: 'Переключить светлую или тёмную тему' },
     hero: {
       title: 'Думайте не с одной\nмоделью.',
       lead: 'Noureon собирает 14 поставщиков и 38 моделей в одном рабочем пространстве. Пусть они спорят над вопросом, исследуют его за вас и возвращают готовые файлы.',
@@ -340,7 +340,7 @@ export const HOME_TEXTS = {
     }
   },
   es: {
-    nav: { council: 'Consejo', research: 'Investigación profunda', files: 'Archivos', extensions: 'Extensiones', privacy: 'Privacidad' },
+    nav: { council: 'Consejo', research: 'Investigación profunda', files: 'Archivos', extensions: 'Extensiones', privacy: 'Privacidad', theme: 'Cambiar entre tema claro y oscuro' },
     hero: {
       title: 'Piensa con más\nde un modelo.',
       lead: 'Noureon reúne 14 proveedores y 38 modelos en un solo espacio de trabajo. Haz que debatan una pregunta, que investiguen por ti y que te entreguen archivos listos para usar.',
