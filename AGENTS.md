@@ -20,6 +20,7 @@ Read these before changing anything:
 - Dark mode (the colour names of `src/styles/tokens.css`, light/dark/system, the dark grey theme; what is done and what is left): [`docs/superpowers/specs/2026-10-08-dark-mode-design.md`](docs/superpowers/specs/2026-10-08-dark-mode-design.md)
 - Decisions judgement model (判斷模型: OpenRouter Decisions API decides web search, file guidance, chart guidance, command tools; falls back to the word lists; 17.16.0; the live endpoint and CORS were never tested from the sandbox, see §4): [`docs/superpowers/specs/2026-10-08-decisions-design.md`](docs/superpowers/specs/2026-10-08-decisions-design.md)
 - Homepage (登入前首頁: three pinned scroll stories made from screenshots of the real components, five languages, light and dark; `public/home.css`, `src/app/ui/home/`, `src/data/home-texts.js`, `public/home/`; done in 18.1.0): [`docs/superpowers/specs/2026-10-10-homepage-design.md`](docs/superpowers/specs/2026-10-10-homepage-design.md)
+- Help Center, Terms of Use, Privacy Policy (協助中心、使用條款、隱私權政策: full documents with sections in the five languages in `src/data/legal/`, built into noureon.com/help, /terms, /privacy; `PRIVACY.md` is generated from the English privacy policy; when a feature or data flow changes, change them in all five languages; 18.2.0): [`docs/superpowers/specs/2026-10-08-public-pages-design.md`](docs/superpowers/specs/2026-10-08-public-pages-design.md) (the 18.2.0 section at its end)
 - Releases and deployment: [`RELEASING.md`](RELEASING.md), tests: [`TESTING.md`](TESTING.md)
 
 Rules that always apply:

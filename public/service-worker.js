@@ -24,10 +24,10 @@ const NETWORK_ONLY_PATH_PREFIXES = [
   '/graphql/v1/'
 ];
 
-// The public pages (terms, privacy, updates) are plain HTML files, not the application. A navigation to one of them must go to the network
+// The public pages (help, terms, privacy, updates) are plain HTML files, not the application. A navigation to one of them must go to the network
 // alone: the worker stores every successful HTML navigation as the cached shell ('/'), and a terms page stored there would open in
 // place of the application when the network is slow or away.
-const PUBLIC_PAGE_PATHS = ['/terms', '/privacy', '/updates'];
+const PUBLIC_PAGE_PATHS = ['/help', '/terms', '/privacy', '/updates'];
 
 function isPublicPageRequest(url) {
   return PUBLIC_PAGE_PATHS.includes(url.pathname.replace(/\/+$/, ''));

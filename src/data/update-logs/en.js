@@ -1,6 +1,12 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.2.0": [
+    "<strong>Noureon 18.2.0 Release Notes</strong>",
+    "The Help Center, the Terms of Use and the Privacy Policy have been rewritten in full, with sections and an index, covering every feature and data flow there is now.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Help Center:</strong>a new page, noureon.com/help, with 18 sections from getting started to troubleshooting; the \"Help Center\" in Settings and the footer of the home page link to it.</li><li><strong>Terms of Use:</strong>16 sections on what the service is, responsibility for accounts and data, the limits of AI replies, providers and costs, server-side running and its limits, skills and command tools, prohibited conduct, disclaimer and limitation of liability, and more.</li><li><strong>Privacy Policy:</strong>20 sections explaining what is kept in the browser and in the cloud, what is sent to providers, server-side running and how long keys are kept, the data flow of each feature, memory, voice, peer-to-peer transfer, third-party services and retention.</li><li><strong>Also:</strong>all three documents are in five languages; PRIVACY.md on GitHub is now made from the English version.</li></ul>"
+  ],
   "18.1.0": [
     "<strong>Noureon 18.1.0 Release Notes</strong>",
     "The page shown before sign-in has been redone: scroll down to see, in real screens, how the Model Council, deep research and files work, followed by extensions, specs, server-side running, privacy and sign-in.",

@@ -1,6 +1,12 @@
 // The update notes in French (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.2.0": [
+    "<strong>Notes de version de Noureon 18.2.0</strong>",
+    "Le Centre d’aide, les Conditions d’utilisation et la Politique de confidentialité sont entièrement réécrits, avec des sections et un sommaire, et couvrent toutes les fonctions et tous les flux de données actuels.",
+    "<strong>Principaux changements</strong>",
+    "<ul><li><strong>Centre d’aide :</strong>une nouvelle page, noureon.com/help, de 18 sections, des premiers pas au dépannage ; le « Centre d’aide » des réglages et le pied de page de l’accueil y renvoient.</li><li><strong>Conditions d’utilisation :</strong>16 sections sur ce qu’est le service, la responsabilité des comptes et des données, les limites des réponses de l’IA, les fournisseurs et les coûts, l’exécution sur le serveur et ses limites, les compétences et outils en ligne de commande, les comportements interdits, l’exclusion de garantie et la limitation de responsabilité, et plus.</li><li><strong>Politique de confidentialité :</strong>20 sections expliquant ce qui est conservé dans le navigateur et dans le cloud, ce qui est envoyé aux fournisseurs, l’exécution sur le serveur et la durée de conservation des clés, le flux de données de chaque fonction, la mémoire, la voix, le transfert d’appareil à appareil, les services tiers et les durées de conservation.</li><li><strong>Aussi :</strong>les trois documents existent en cinq langues ; PRIVACY.md sur GitHub est désormais généré à partir de la version anglaise.</li></ul>"
+  ],
   "18.1.0": [
     "<strong>Notes de version de Noureon 18.1.0</strong>",
     "La page affichée avant la connexion est refaite : faites défiler pour voir, sur de vrais écrans, comment fonctionnent le Conseil des modèles, la recherche approfondie et les fichiers, puis les extensions, les caractéristiques, l'exécution sur le serveur, la confidentialité et la connexion.",

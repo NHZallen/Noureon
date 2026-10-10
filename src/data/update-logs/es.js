@@ -1,6 +1,12 @@
 // The update notes in Spanish (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.2.0": [
+    "<strong>Notas de la versión de Noureon 18.2.0</strong>",
+    "El Centro de ayuda, los Términos de uso y la Política de privacidad se han reescrito por completo, con secciones e índice, y cubren todas las funciones y flujos de datos actuales.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Centro de ayuda:</strong>una página nueva, noureon.com/help, con 18 secciones, desde los primeros pasos hasta la solución de problemas; el «Centro de ayuda» de Ajustes y el pie de la página de inicio enlazan a ella.</li><li><strong>Términos de uso:</strong>16 secciones sobre qué es el servicio, la responsabilidad sobre cuentas y datos, los límites de las respuestas de la IA, proveedores y costes, la ejecución en el servidor y sus límites, habilidades y herramientas de línea de comandos, conductas prohibidas, exención de garantías y limitación de responsabilidad, y más.</li><li><strong>Política de privacidad:</strong>20 secciones que explican qué se guarda en el navegador y en la nube, qué se envía a los proveedores, la ejecución en el servidor y cuánto se guardan las claves, el flujo de datos de cada función, la memoria, la voz, la transferencia directa entre dispositivos, los servicios de terceros y los plazos de conservación.</li><li><strong>Además:</strong>los tres documentos están en cinco idiomas; PRIVACY.md en GitHub se genera ahora a partir de la versión en inglés.</li></ul>"
+  ],
   "18.1.0": [
     "<strong>Notas de la versión de Noureon 18.1.0</strong>",
     "La página que se muestra antes de iniciar sesión se ha rehecho: desplázate para ver, en pantallas reales, cómo funcionan el Consejo de modelos, la investigación profunda y los archivos, y después las extensiones, las cifras, la ejecución en el servidor, la privacidad y el inicio de sesión.",

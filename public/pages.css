@@ -43,6 +43,21 @@ h1 { margin: 0; font-size: clamp(2rem, 5.2vw, 3.5rem); line-height: 1.12; font-w
 .pg-col { max-width: 40rem; margin: 0 auto; padding: 1.75rem 0 6rem; border-top: 1px solid var(--text); }
 .pg-text p { margin: 0 0 1.05rem; font-family: var(--serif); font-size: 1.0625rem; line-height: 1.6; overflow-wrap: anywhere; }
 .pg-text:lang(zh-TW) p { font-family: var(--sans); font-size: 1rem; line-height: 1.95; }
+/* a document of sections (help center, terms, privacy): the date, the list of sections, then each section under its heading */
+.pg-text .pg-updated { margin: 0 0 1.4rem; font-family: var(--sans); font-size: 0.85rem; color: var(--muted); }
+.pg-doc-toc { margin: 1.6rem 0 2.4rem; padding: 1.1rem 1.25rem; border: 1px solid var(--line); border-radius: 0.75rem; background: var(--soft); font-family: var(--sans); }
+.pg-doc-toc-title { margin: 0 0 0.6rem !important; font-family: var(--sans) !important; font-size: 0.8rem !important; font-weight: 600; letter-spacing: 0.08em; color: var(--muted); }
+.pg-doc-toc ol { margin: 0; padding: 0; list-style: none; columns: 2 15rem; column-gap: 2rem; }
+.pg-doc-toc li { margin: 0; padding: 0.18rem 0; break-inside: avoid; font-size: 0.9rem; line-height: 1.45; }
+.pg-doc-toc a { text-decoration: none; }
+.pg-doc-toc a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.pg-doc-sec { scroll-margin-top: 1.25rem; padding-top: 1.1rem; }
+.pg-doc-sec + .pg-doc-sec { margin-top: 0.6rem; border-top: 1px solid var(--line); }
+.pg-doc-sec h2 { margin: 0.4rem 0 0.9rem; font-family: var(--sans); font-size: 1.3rem; font-weight: 620; line-height: 1.3; letter-spacing: -0.01em; overflow-wrap: anywhere; }
+.pg-doc-sec ul { margin: 0 0 1.05rem; padding-left: 1.25rem; font-family: var(--serif); font-size: 1.0625rem; line-height: 1.6; overflow-wrap: anywhere; }
+.pg-doc-sec li { margin: 0.45rem 0; }
+.pg-text:lang(zh-TW) .pg-doc-sec ul { font-family: var(--sans); font-size: 1rem; line-height: 1.95; }
+.pg-doc-sec:target h2 { text-decoration: underline; text-underline-offset: 6px; }
 
 /* the update notes: months, versions with a link to themselves, and the list of months at the side */
 .pg-split { display: grid; grid-template-columns: minmax(0, 46rem) 12rem; gap: 4rem; max-width: 62rem; margin: 0 auto; padding: 0 0 6rem; border-top: 1px solid var(--text); }

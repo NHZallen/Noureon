@@ -92,7 +92,7 @@ export const HOME_TEXTS = {
     footer: {
       tagline: '思考，不止一個模型。',
       product: '產品', council: '模型理事會', research: '深度研究', files: '檔案與簡報', extensions: '擴充',
-      resources: '資源', updates: '更新紀錄', license: '開源授權',
+      resources: '資源', help: '協助中心', updates: '更新紀錄', license: '開源授權',
       legal: '法務', xLabel: 'Noureon 的官方 X 帳號 @NoureonAi'
     }
   },
@@ -173,7 +173,7 @@ export const HOME_TEXTS = {
     footer: {
       tagline: 'Think with more than one model.',
       product: 'Product', council: 'Model Council', research: 'Deep research', files: 'Files and decks', extensions: 'Extensions',
-      resources: 'Resources', updates: 'Updates', license: 'Open source license',
+      resources: 'Resources', help: 'Help Center', updates: 'Updates', license: 'Open source license',
       legal: 'Legal', xLabel: 'Noureon on X, @NoureonAi'
     }
   },
@@ -254,7 +254,7 @@ export const HOME_TEXTS = {
     footer: {
       tagline: 'Réfléchir avec plus d’un modèle.',
       product: 'Produit', council: 'Conseil des modèles', research: 'Recherche approfondie', files: 'Fichiers et présentations', extensions: 'Extensions',
-      resources: 'Ressources', updates: 'Mises à jour', license: 'Licence open source',
+      resources: 'Ressources', help: 'Centre d’aide', updates: 'Mises à jour', license: 'Licence open source',
       legal: 'Mentions légales', xLabel: 'Noureon sur X, @NoureonAi'
     }
   },
@@ -335,7 +335,7 @@ export const HOME_TEXTS = {
     footer: {
       tagline: 'Думайте не с одной моделью.',
       product: 'Продукт', council: 'Совет моделей', research: 'Глубокое исследование', files: 'Файлы и презентации', extensions: 'Расширения',
-      resources: 'Ресурсы', updates: 'Обновления', license: 'Открытая лицензия',
+      resources: 'Ресурсы', help: 'Центр помощи', updates: 'Обновления', license: 'Открытая лицензия',
       legal: 'Правовая информация', xLabel: 'Noureon в X, @NoureonAi'
     }
   },
@@ -416,7 +416,7 @@ export const HOME_TEXTS = {
     footer: {
       tagline: 'Piensa con más de un modelo.',
       product: 'Producto', council: 'Consejo de modelos', research: 'Investigación profunda', files: 'Archivos y presentaciones', extensions: 'Extensiones',
-      resources: 'Recursos', updates: 'Novedades', license: 'Licencia de código abierto',
+      resources: 'Recursos', help: 'Centro de ayuda', updates: 'Novedades', license: 'Licencia de código abierto',
       legal: 'Legal', xLabel: 'Noureon en X, @NoureonAi'
     }
   }

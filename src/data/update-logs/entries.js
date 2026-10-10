@@ -2,6 +2,16 @@
 // content 為 zh-TW 的 HTML 字串（JSON 轉義、雙引號），目前不隨介面語言切換。
 export const updateLogEntries = [
   {
+    version: "18.2.0",
+    date: "2026-10-10",
+    content: [
+      "<strong>Noureon 18.2.0 發布說明</strong>",
+      "協助中心、使用條款與隱私權政策全部重寫，改成有章節與目錄的完整文件，涵蓋目前所有功能與資料流。",
+      "<strong>主要變更</strong>",
+      "<ul><li><strong>協助中心：</strong>新增 noureon.com/help 頁面，從開始使用到疑難排解共 18 節；設定裡的「協助中心」與首頁頁尾都連到這一頁。</li><li><strong>使用條款：</strong>16 節，說明服務內容、帳號與資料責任、AI 回覆的限制、供應商與費用、伺服器執行與限制、技能與命令工具、禁止行為、免責與責任限制等。</li><li><strong>隱私權政策：</strong>20 節，逐項說明存在瀏覽器與雲端的資料、傳給供應商的內容、伺服器執行與金鑰保存時間、各項功能的資料流、記憶、語音、點對點傳輸、第三方服務與保存期間。</li><li><strong>其他：</strong>三份文件都有五種語言；GitHub 上的 PRIVACY.md 改由英文版自動產生。</li></ul>"
+    ]
+  },
+  {
     version: "18.1.0",
     date: "2026-10-10",
     content: [

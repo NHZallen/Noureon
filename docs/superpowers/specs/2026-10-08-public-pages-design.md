@@ -116,3 +116,12 @@
 - CSP：腳本與樣式必須是外部檔案，否則日後 CSP 從 report-only 改成強制就會壞。
 - 隱私權政策是對外的法律文字：這次只搬現有內容、不改字；完整版內容要 owner 確認後才換。
 - 更新紀錄只有繁中：其他語言的使用者看到的是繁中，頁面上不另外說明。
+
+
+## 18.2.0 更新：協助中心頁、分節文件
+
+- 條款與隱私權政策不再取自 i18n 的 `termsOfUseDesc`／`privacyPolicyDesc`（已刪除，連同 `helpCenterDesc`）；三份文件（協助中心 `/help`、使用條款 `/terms`、隱私權政策 `/privacy`）的內容是 `src/data/legal/{zh-TW,en,fr,ru,es}.js`，結構是 `{ title, updated, intro, sections: [{ id, h, blocks }] }`，`blocks` 的字串是段落、陣列是清單。
+- 產生器（`scripts/build-public-pages.mjs`）把每個文件寫成：日期、前言、目錄、各節（標題＋段落＋清單）；節的錨點帶語言（`<lang>-<文件>-<id>`），因為五種語言都在同一頁。`/help` 加進 `vercel.json` 的 rewrite、`sitemap.xml`、service worker 的 `PUBLIC_PAGE_PATHS`。
+- 設定的「協助中心」改成連到 `/help` 的一列（像條款與隱私權政策一樣），首頁頁尾也連它。
+- `PRIVACY.md` 由英文版產生（`node scripts/generate-privacy-md.mjs`），`tests/legal-texts.test.js` 檢查它是最新的。
+- **以後改功能或資料流：** 改 `src/data/legal` 五種語言（測試會擋掉少了某一節、某個服務名稱、某個上限數字的情況），重新產生 `PRIVACY.md`，再 `npm run build`。內容依據是程式與 `PRIVACY.md` 舊稿，不是法律審閱；管轄法律、營運主體等仍要由擁有者決定。

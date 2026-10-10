@@ -121,6 +121,10 @@
       "destination": "/index.html"
     },
     {
+      "source": "/help",
+      "destination": "/help.html"
+    },
+    {
       "source": "/terms",
       "destination": "/terms.html"
     },
