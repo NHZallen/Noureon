@@ -4,7 +4,7 @@
 // answers, the server counts it as a refusal after ten minutes, and the card says so. A page that joins late is told the question again (and the answer, if there is one),
 // so the card can be answered from any page. Everything shown comes from the model's call: it is put in as text, never as markup.
 
-import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
+import { connectorText } from '../../runtime/connector/connector-texts.js';
 
 const RESULT_KEYS = Object.freeze({ once: 'connectorAnsweredOnce', always: 'connectorAnsweredAlways', deny: 'connectorAnsweredDeny', timeout: 'connectorAnsweredTimeout', cancel: 'connectorAnsweredDeny' });
 const SUMMARY_VALUES = 3;
@@ -34,7 +34,7 @@ export function argumentSummary(argsText) {
  * { type: 'connector', event: 'ask' | 'answer', ... }.
  */
 export function createConnectorAskCards({ document, host, language, onAnswer = async () => ({ ok: false }) }) {
-  const text = (key, values) => sandboxText(language, key, values);
+  const text = (key, values) => connectorText(language, key, values);
   const cards = new Map();
   const make = (tag, className, content) => {
     const node = document.createElement(tag);
@@ -124,6 +124,8 @@ export function createConnectorAskCards({ document, host, language, onAnswer = a
         if (card) resolve(card, event.decision);
       }
     },
+    /** The line the step list shows while the question waits for the person. */
+    waitingText: (event) => text('connectorWaiting', { connector: event.connector?.name || '', tool: event.tool || '' }),
     get open() { return [...cards.values()].filter((card) => !card.resolved).length; }
   };
 }

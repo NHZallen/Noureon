@@ -7,7 +7,7 @@
 import { availableSkillsInstruction } from '../../src/data/skill-tool.js';
 import { ConnectorError } from './connections.js';
 import { McpError } from './client.js';
-import { sandboxText } from '../../src/app/runtime/sandbox/sandbox-texts.js';
+import { connectorText } from '../../src/app/runtime/connector/connector-texts.js';
 
 export const CONNECTOR_TOOLS_TOOL = Object.freeze({
   name: 'connector_tools',
@@ -162,9 +162,9 @@ export function createConnectorLoader({ connectors, callTool, ask = async () => 
     stepEvent(call) {
       const connector = byId.get(String(call?.args?.connector || '').trim());
       if (!connector) return null;
-      if (call.name === CONNECTOR_TOOLS_TOOL.name) return { type: 'connector', event: 'call', connector: connector.id, tool: '', label: sandboxText(language, 'connectorListing', { connector: connector.name }) };
+      if (call.name === CONNECTOR_TOOLS_TOOL.name) return { type: 'connector', event: 'call', connector: connector.id, tool: '', label: connectorText(language, 'connectorListing', { connector: connector.name }) };
       const tool = String(call?.args?.tool || '').trim().slice(0, 64);
-      return { type: 'connector', event: 'call', connector: connector.id, tool, label: sandboxText(language, 'connectorCalling', { connector: connector.name, tool }) };
+      return { type: 'connector', event: 'call', connector: connector.id, tool, label: connectorText(language, 'connectorCalling', { connector: connector.name, tool }) };
     },
     async run(call) {
       return call.name === CONNECTOR_TOOLS_TOOL.name ? listTools(call) : callOne(call);

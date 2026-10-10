@@ -6,7 +6,6 @@ import { Window } from 'happy-dom';
 
 import { registerServerRequest } from '../../src/app/runtime/cli/cli-server-bridge.js';
 import { CONNECTOR_TEXTS, connectorText } from '../../src/app/runtime/connector/connector-texts.js';
-import { sandboxText } from '../../src/app/runtime/sandbox/sandbox-texts.js';
 import { createConnectorAskCards, argumentSummary } from '../../src/app/ui/sandbox/connector-ask-card.js';
 import { createConnectorsPart } from '../../src/app/ui/cli/connectors-part.js';
 import { CONNECTORS } from '../../src/data/connector-catalog.js';
@@ -76,11 +75,9 @@ test('every word is in the five languages, the same keys in each', () => {
     for (const [key, value] of Object.entries(table)) assert.ok(String(value).trim(), `${language} ${key}`);
   }
   assert.equal(Object.keys(CONNECTOR_TEXTS).length, 5);
-  // The words of the card in the step list, in the five languages too.
+  // The words of the rows of the step list (the server writes them), in the five languages too.
   for (const language of ['zh-TW', 'en', 'fr', 'ru', 'es']) {
-    for (const key of ['connectorCalling', 'connectorListing', 'connectorAskTitle', 'connectorAskOnce', 'connectorAskAlways', 'connectorAskDeny', 'connectorAskParams', 'connectorAskHideParams', 'connectorAskWait', 'connectorAnsweredOnce', 'connectorAnsweredAlways', 'connectorAnsweredDeny', 'connectorAnsweredTimeout', 'connectorAskFailed', 'connectorWaiting']) {
-      assert.notEqual(sandboxText(language, key, { connector: 'C', tool: 'T', minutes: 10 }), key, `${language} ${key}`);
-    }
+    for (const key of ['connectorCalling', 'connectorListing', 'connectorWaiting', 'connectorAskTitle', 'connectorAskOnce', 'connectorAskAlways', 'connectorAskDeny', 'connectorAskParams', 'connectorAskHideParams', 'connectorAskWait', 'connectorAnsweredOnce', 'connectorAnsweredAlways', 'connectorAnsweredDeny', 'connectorAnsweredTimeout', 'connectorAskFailed']) assert.ok(key in CONNECTOR_TEXTS[language], `${language} ${key}`);
   }
 });
 

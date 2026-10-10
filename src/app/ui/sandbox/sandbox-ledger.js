@@ -9,7 +9,6 @@ import { createLedger, formatElapsed } from '../ledger/ledger.js';
 import { createCodeCard } from './run-code-card.js';
 import { createCredentialAskCards } from './credential-ask-card.js';
 import { createNetAskCards } from './net-ask-card.js';
-import { createConnectorAskCards } from './connector-ask-card.js';
 import { createSourceChips, mergeSources, putFirstSiteIcon, sourcesRowLabel } from './run-sources.js';
 import { keepEndInView } from '../motion/collapse-motion.js';
 import { fillThinkingText } from '../thinking/thinking-text.js';
@@ -64,10 +63,18 @@ export function createSandboxLedger({ document, host, before = null, language = 
     credentialCards.handle(event);
   };
   // The question whether a tool of a connector may run: a card in the list too.
+  // The card is a file of its own (loaded when the first question comes); the events wait for it in the order they came.
   let connectorCards = null;
   const askAboutConnector = (event) => {
-    connectorCards ||= createConnectorAskCards({ document, host: list.list, language, onAnswer: onConnectorAnswer || (async () => ({ ok: false })) });
-    connectorCards.handle(event);
+    connectorCards = (connectorCards || import('./connector-ask-card.js').then(({ createConnectorAskCards }) => createConnectorAskCards({ document, host: list.list, language, onAnswer: onConnectorAnswer || (async () => ({ ok: false })) })))
+      .then((cards) => {
+        cards.handle(event);
+        // While the question waits, the line of the list says so (above everything else).
+        waitingLabel = event.event === 'ask' ? cards.waitingText(event) : '';
+        syncLine();
+        return cards;
+      });
+    connectorCards.catch(() => {});
   };
   const create = (name, className, content) => {
     const node = document.createElement(name);
@@ -258,10 +265,7 @@ export function createSandboxLedger({ document, host, before = null, language = 
       } else if (event.type === 'connector') {
         // The model uses a connector: a row of its own (the call), and the card that asks when the person set the tool to ask.
         if (event.event === 'call') begin(event.label, { kind: 'connector' });
-        else {
-          waitingLabel = event.event === 'ask' ? text('connectorWaiting', { connector: event.connector?.name || '', tool: event.tool || '' }) : '';
-          askAboutConnector(event);
-        }
+        else askAboutConnector(event);
       } else if (event.type === 'searching') {
         startSearch(event);
       } else if (event.type === 'sources') {
