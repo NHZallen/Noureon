@@ -61,10 +61,6 @@
       "path": "src/app/legacy-runtime/features/web-research-tools.js"
     },
     {
-      "path": "src/app/runtime/connector/connector-texts.js",
-      "note": "Reviewed 2026-10-10: no browser globals (the words of the connectors in the five languages; the server writes the rows of the step list from them)."
-    },
-    {
       "path": "src/app/runtime/decisions/decision-store.js",
       "note": "Reviewed 2026-10-08: no browser globals (a module variable and the clock); the judgements of a message are only asked for in the page, the server only reads them through stream-api-call.js."
     },

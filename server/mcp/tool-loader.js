@@ -7,7 +7,7 @@
 import { availableSkillsInstruction } from '../../src/data/skill-tool.js';
 import { ConnectorError } from './connections.js';
 import { McpError } from './client.js';
-import { connectorText } from '../../src/app/runtime/connector/connector-texts.js';
+import { sandboxText } from '../../src/app/runtime/sandbox/sandbox-texts.js';
 
 export const CONNECTOR_TOOLS_TOOL = Object.freeze({
   name: 'connector_tools',
@@ -67,10 +67,10 @@ export function connectorsInstruction(connectors) {
 /**
  * `connectors`: [{ id, name, tools: [{ name, description, inputSchema, kind, state }] }] for the person (the states are what the person set; from
  * server/mcp/connections.js). `callTool(connectorId, toolName, args, { signal })` calls the service and gives { text, isError, images }. `ask({ connector, tool,
- * args, kind })` asks the person and resolves 'once', 'always', 'deny' or 'timeout'; `remember(connectorId, toolName)` keeps an "always". `onEvent`
- * is told the row of the step list. `signal` is the reply's stop.
+ * args, kind })` asks the person and resolves 'once', 'always', 'deny' or 'timeout'; `remember(connectorId, toolName)` keeps an "always". `onUsed({ id, name })`
+ * is told each time a tool of a service really runs (the reply keeps which connectors it used). `signal` is the reply's stop.
  */
-export function createConnectorLoader({ connectors, callTool, ask = async () => 'deny', remember = async () => {}, language = 'zh-TW', maxCalls = MAX_CONNECTOR_CALLS, signal = null }) {
+export function createConnectorLoader({ connectors, callTool, ask = async () => 'deny', remember = async () => {}, language = 'zh-TW', maxCalls = MAX_CONNECTOR_CALLS, signal = null, onUsed = null }) {
   const byId = new Map(connectors.map((connector) => [connector.id, { ...connector, tools: connector.tools.map((tool) => ({ ...tool })) }]));
   let calls = 0;
   const callsLeft = () => Math.max(0, maxCalls - calls);
@@ -131,6 +131,7 @@ export function createConnectorLoader({ connectors, callTool, ask = async () => 
       }
     }
     calls += 1;
+    onUsed?.({ id: connector.id, name: connector.name });
     let result;
     try {
       result = await callTool(connector.id, name, args, { signal });
@@ -162,9 +163,8 @@ export function createConnectorLoader({ connectors, callTool, ask = async () => 
     stepEvent(call) {
       const connector = byId.get(String(call?.args?.connector || '').trim());
       if (!connector) return null;
-      if (call.name === CONNECTOR_TOOLS_TOOL.name) return { type: 'connector', event: 'call', connector: connector.id, tool: '', label: connectorText(language, 'connectorListing', { connector: connector.name }) };
-      const tool = String(call?.args?.tool || '').trim().slice(0, 64);
-      return { type: 'connector', event: 'call', connector: connector.id, tool, label: connectorText(language, 'connectorCalling', { connector: connector.name, tool }) };
+      // The row names the connector and nothing else (which tool it was is not for the step list: a reply makes many calls, and the person is asked about a tool on its own card).
+      return { type: 'connector', event: 'call', connector: connector.id, name: connector.name, label: sandboxText(language, 'connectorUsing', { connector: connector.name }) };
     },
     async run(call) {
       return call.name === CONNECTOR_TOOLS_TOOL.name ? listTools(call) : callOne(call);

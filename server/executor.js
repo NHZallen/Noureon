@@ -93,14 +93,17 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
   const thought = { text: typeof resume?.thought?.text === 'string' ? resume.thought.text : '', kind: resume?.thought?.kind === 'summary' ? 'summary' : 'model', first: null, last: null };
   let supports = [];
 
+  // The connectors the reply really used (each once, in the order they were first used): the saved reply shows a row for each, as the live step list did.
+  const usedConnectors = new Map();
   const record = (status) => ({
     status,
     steps: [],
     elapsedMs: now() - startedAt,
     ...(sources.length ? { sources } : {}),
+    ...(usedConnectors.size ? { connectors: [...usedConnectors.values()] } : {}),
     ...(thought.text ? { thought: thought.text, thoughtKind: thought.kind, ...(thought.first && thought.last > thought.first ? { thoughtMs: thought.last - thought.first } : {}) } : {})
   });
-  const messageText = (status) => `${sources.length || thought.text ? formatSandboxRunBlock(record(status)) : ''}${answer}`;
+  const messageText = (status) => `${sources.length || thought.text || usedConnectors.size ? formatSandboxRunBlock(record(status)) : ''}${answer}`;
   const update = () => onUpdate([{ text: messageText('running') }]);
   // The times every page shows come from here, so they agree: how long the reply has been going, and how long it thought.
   let thoughtClosed = false;
@@ -172,6 +175,7 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
           language,
           signal,
           ask: asker.ask,
+          onUsed: ({ id, name }) => { if (!usedConnectors.has(id)) usedConnectors.set(id, name); },
           remember: (id, tool) => connectors.setPermissions(userId, id, { [tool]: 'allow' }),
           callTool: (id, name, args, options) => {
             if (!connectorClients.has(id)) connectorClients.set(id, connectors.clientFor(userId, id));
@@ -467,7 +471,7 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
 
   if (advanced) {
     const stopped = Boolean(signal?.aborted) || advanced.run?.status === RUN_STATUS.stopped;
-    const run = advanced.run || (sources.length ? { status: RUN_STATUS.done, steps: [] } : null);
+    const run = advanced.run || (sources.length || usedConnectors.size ? { status: RUN_STATUS.done, steps: [] } : null);
     if (!run || (!advanced.text.trim() && !run.steps.length && !run.thought)) {
       if (!advanced.text.trim() && !sources.length) {
         if (stopped) return { parts: [{ text: '' }], status: 'stopped', run: record('stopped'), toolCalls };
@@ -477,6 +481,7 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
     }
     // The pages the reply searched and the time it took are kept with the steps, as the browser keeps them.
     if (sources.length) run.sources = sources;
+    if (usedConnectors.size) run.connectors = [...usedConnectors.values()];
     run.elapsedMs = now() - startedAt;
     if (stopped) run.status = RUN_STATUS.stopped;
     toolCalls = run.steps.length;
@@ -504,7 +509,7 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
     const numberOf = (url) => Number(sources.find((source) => source.url === url)?.n) || 0;
     answer = insertGroundingMarkers(answer, supports, numberOf);
   }
-  if (!answer.trim() && !sources.length && !thought.text) {
+  if (!answer.trim() && !sources.length && !thought.text && !usedConnectors.size) {
     if (signal?.aborted) return { parts: [{ text: '' }], status: 'stopped', run: record('stopped'), toolCalls };
     throw new ReplyError('The model gave no answer.', 'provider_error');
   }

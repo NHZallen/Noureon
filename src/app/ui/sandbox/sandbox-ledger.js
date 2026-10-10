@@ -257,6 +257,21 @@ export function createSandboxLedger({ document, host, before = null, language = 
     webSources = all;
   };
 
+  // A connector is one row however many calls the reply makes to it ("Using connector: GitHub"): the first call makes the row, the next ones make it run again.
+  const connectorRows = new Map();
+  const connectorCall = ({ connector, label }) => {
+    const key = String(connector || label);
+    const row = connectorRows.get(key);
+    if (row && list.rows.includes(row)) {
+      if (list.current !== row) {
+        endCurrent();
+        row.resume();
+      }
+      return;
+    }
+    connectorRows.set(key, begin(label, { kind: 'connector' }));
+  };
+
   // Words the model wrote before a call (it was asked to put that in the call's note) were taken for the answer, and the
   // line said the work was over. When more work follows, the line goes back to running.
   let answered = false;
@@ -275,7 +290,7 @@ export function createSandboxLedger({ document, host, before = null, language = 
         begin(event.label, { kind: 'skill' });
       } else if (event.type === 'connector') {
         // The model uses a connector: a row of its own (the call), and the card that asks when the person set the tool to ask.
-        if (event.event === 'call') begin(event.label, { kind: 'connector' });
+        if (event.event === 'call') connectorCall(event);
         else askAboutConnector(event);
       } else if (event.type === 'searching') {
         startSearch(event);

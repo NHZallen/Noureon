@@ -154,10 +154,10 @@ test('a reply that is stopped while it waits for the person runs nothing', async
   assert.equal(calls.length, 0);
 });
 
-test('the step rows say the connector and the tool, in the language of the person', () => {
+test('the step row says the connector, and only that, in the language of the person (the same row for listing the tools and for calling one)', () => {
   const { loader } = loaderWith({ language: 'fr' });
-  assert.deepEqual(loader.stepEvent(call('connector_call', { connector: 'linear', tool: 'list_issues' })), { type: 'connector', event: 'call', connector: 'linear', tool: 'list_issues', label: 'Connecteur utilisé : Linear · list_issues' });
-  assert.equal(loader.stepEvent(call('connector_tools', { connector: 'linear' })).label, 'Consultation des outils de Linear');
+  assert.deepEqual(loader.stepEvent(call('connector_call', { connector: 'linear', tool: 'list_issues' })), { type: 'connector', event: 'call', connector: 'linear', name: 'Linear', label: 'Connecteur utilisé : Linear' });
+  assert.equal(loader.stepEvent(call('connector_tools', { connector: 'linear' })).label, 'Connecteur utilisé : Linear');
   assert.equal(loader.stepEvent(call('connector_call', { connector: 'nope', tool: 'x' })), null);
 });
 
@@ -279,7 +279,9 @@ test('a reply on the server uses a connector: the model reads the tools, calls o
     }
   });
   assert.equal(result.status, 'done');
-  assert.equal(result.parts[0].text, 'Filed ENG-1.');
+  // The reply keeps which connector it used (a row of the saved reply, as the live step list had), and the answer follows the record.
+  assert.deepEqual(result.run.connectors, ['Linear']);
+  assert.match(result.parts[0].text, /^```noureon-run\n\{[^\n]*"connectors":\["Linear"\][^\n]*\}\n```\n\nFiled ENG-1\.$/);
   assert.equal(result.toolCalls, 1);
   assert.equal(requests.length, 3);
   assert.ok(requests[0].tools.some((tool) => (tool.function?.name || tool.name) === 'connector_call'), 'the tools are offered');
@@ -290,7 +292,7 @@ test('a reply on the server uses a connector: the model reads the tools, calls o
   assert.equal(connectors.log.closed, 1, 'the connection to the service is closed when the reply is over');
   const events = live.map((entry) => entry.ev).filter((event) => event?.type === 'connector');
   assert.deepEqual(events.map((event) => event.event), ['call', 'call', 'ask', 'answer']);
-  assert.equal(events[1].label, 'Using connector: Linear · create_issue');
+  assert.equal(events[1].label, 'Using connector: Linear', 'the row says the connector, not the tool');
   assert.equal(JSON.parse(events[2].args).title, 'Login fails');
   assert.equal(events[3].decision, 'once');
   assert.ok(events.every((event) => Number.isFinite(event.t)));

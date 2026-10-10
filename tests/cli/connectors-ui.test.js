@@ -85,7 +85,7 @@ test('every word is in the five languages, the same keys in each', () => {
   assert.equal(Object.keys(CONNECTOR_TEXTS).length, 5);
   // The words of the rows of the step list (the server writes them), in the five languages too.
   for (const language of ['zh-TW', 'en', 'fr', 'ru', 'es']) {
-    for (const key of ['connectorCalling', 'connectorListing', 'connectorWaiting', 'connectorAskTitle', 'connectorAskOnce', 'connectorAskAlways', 'connectorAskDeny', 'connectorAskParams', 'connectorAskHideParams', 'connectorAskWait', 'connectorAnsweredOnce', 'connectorAnsweredAlways', 'connectorAnsweredDeny', 'connectorAnsweredTimeout', 'connectorAskFailed']) assert.ok(key in CONNECTOR_TEXTS[language], `${language} ${key}`);
+    for (const key of ['connectorWaiting', 'connectorAskTitle', 'connectorAskOnce', 'connectorAskAlways', 'connectorAskDeny', 'connectorAskParams', 'connectorAskHideParams', 'connectorAskWait', 'connectorAnsweredOnce', 'connectorAnsweredAlways', 'connectorAnsweredDeny', 'connectorAnsweredTimeout', 'connectorAskFailed']) assert.ok(key in CONNECTOR_TEXTS[language], `${language} ${key}`);
   }
 });
 
@@ -394,7 +394,7 @@ test('the questions to the person are in the conversation under the line of the 
   const { document } = window;
   document.body.innerHTML = '<div id="message"><div id="answer"></div></div>';
   const ledger = createSandboxLedger({ document, host: document.getElementById('message'), before: document.getElementById('answer'), language: 'zh-TW', summary: true, onConnectorAnswer: async () => ({ ok: true }) });
-  ledger.event({ type: 'connector', event: 'call', connector: 'notion', tool: 'notion-create-pages', label: '使用連接器：Notion · notion-create-pages' });
+  ledger.event({ type: 'connector', event: 'call', connector: 'notion', tool: 'notion-create-pages', label: '使用連接器：Notion' });
   ledger.event({ ...ASK, connector: { id: 'notion', name: 'Notion' }, tool: 'notion-create-pages' });
   ledger.event({ type: 'net', event: 'ask', id: 'net-ask-0001', host: 'example.org', port: 443, waitMs: 600000 });
   await flush();
@@ -611,4 +611,58 @@ test('in the settings, where one colour is forced on everything, the status of a
 test('the cards under Mine sit closer: the space under a connection is a little, not two lines', () => {
   const css = readFileSync(new URL('../../src/app/ui/cli/cli-store.css', import.meta.url), 'utf8');
   assert.match(css, /\.cs-conn \{ margin: 0\.2rem 0 0\.9rem; \}/);
+});
+
+// ----- the connectors a reply used: a row each, in the live step list and in the saved reply
+
+test('the live step list has one row for a connector however many calls the reply makes to it, and the row runs again for the next call', async () => {
+  const { createSandboxLedger } = await import('../../src/app/ui/sandbox/sandbox-ledger.js');
+  const window = new Window({ url: 'https://example.test/' });
+  const { document } = window;
+  document.body.innerHTML = '<div id="message"><div id="answer"></div></div>';
+  const ledger = createSandboxLedger({ document, host: document.getElementById('message'), before: document.getElementById('answer'), language: 'zh-TW', summary: false });
+  const call = (connector, label) => ledger.event({ type: 'connector', event: 'call', connector, name: label, label: `使用連接器：${label}` });
+  call('github', 'GitHub');
+  call('github', 'GitHub');
+  call('github', 'GitHub');
+  ledger.event({ type: 'round', label: '思考中', doneLabel: '思考完成' });
+  call('github', 'GitHub');
+  call('linear', 'Linear');
+  const rows = [...document.querySelectorAll('.ledger-row[data-kind="connector"]')];
+  assert.deepEqual(rows.map((row) => row.querySelector('.ledger-label').textContent), ['使用連接器：GitHub', '使用連接器：Linear'], 'one row for each connector, with its name and nothing else');
+  assert.equal(rows[0].classList.contains('is-done'), true, 'the row of GitHub ends when the next thing begins');
+  assert.equal(rows[1].classList.contains('is-running'), true);
+  call('github', 'GitHub');
+  assert.equal(document.querySelectorAll('.ledger-row[data-kind="connector"]').length, 2, 'a later call makes no new row');
+  assert.equal(rows[0].classList.contains('is-running'), true, 'it runs again');
+  assert.equal(rows[1].classList.contains('is-done'), true);
+  ledger.remove();
+});
+
+test('the saved reply keeps the connectors it used and shows a row for each, with the name only and nothing to open', async () => {
+  const { createSandboxRunElement } = await import('../../src/app/ui/sandbox/sandbox-run-view.js');
+  const { formatSandboxRunBlock, liftSandboxRunBlock, normalizeConnectors } = await import('../../src/app/ui/sandbox/sandbox-run-block.js');
+  assert.deepEqual(normalizeConnectors(['GitHub', ' GitHub ', '', 'Linear', 5, null, 'x'.repeat(100)]), ['GitHub', 'Linear', '5', 'x'.repeat(60)]);
+  assert.deepEqual(normalizeConnectors('GitHub'), []);
+  assert.equal(normalizeConnectors(Array.from({ length: 30 }, (_, index) => `C${index}`)).length, 12);
+  const window = new Window({ url: 'https://example.test/' });
+  const { document } = window;
+  // A reply without Python: the connectors and the thinking, in the one process line with the time the reply took.
+  const saved = formatSandboxRunBlock({ status: 'done', steps: [], elapsedMs: 21_000, connectors: ['GitHub'], thought: 'Let me look.', thoughtMs: 5000 });
+  const { run } = liftSandboxRunBlock(`${saved}The answer.`);
+  assert.deepEqual(run.connectors, ['GitHub']);
+  const view = createSandboxRunElement(document, run, { language: 'zh-TW' });
+  const row = view.querySelector('.sandbox-run-row[data-kind="connector"]');
+  assert.ok(row, 'the row is there');
+  assert.equal(row.querySelector('.ledger-label').textContent, '使用連接器：GitHub');
+  assert.equal(row.querySelector('.is-expandable'), null, 'nothing to open');
+  assert.ok(view.querySelector('.sandbox-run-summary'), 'under the one line of the process');
+  // With no time kept, and with Python steps, the rows are still there.
+  const bare = createSandboxRunElement(document, liftSandboxRunBlock(formatSandboxRunBlock({ status: 'done', steps: [], connectors: ['Notion', 'Linear'] })).run, { language: 'en' });
+  assert.deepEqual([...bare.querySelectorAll('.ledger-label')].map((node) => node.textContent), ['Using connector: Notion', 'Using connector: Linear']);
+  const withPython = createSandboxRunElement(document, liftSandboxRunBlock(formatSandboxRunBlock({ status: 'done', steps: [{ title: 'Count', code: 'print(1)', stdout: '1' }], connectors: ['GitHub'] })).run, { language: 'zh-TW' });
+  assert.ok(withPython.querySelector('.sandbox-run-row[data-kind="connector"]'));
+  // Replies saved before have none, and look as they did.
+  const old = createSandboxRunElement(document, liftSandboxRunBlock(formatSandboxRunBlock({ status: 'done', steps: [], thought: 'x' })).run, { language: 'zh-TW' });
+  assert.equal(old.querySelector('[data-kind="connector"]'), null);
 });
