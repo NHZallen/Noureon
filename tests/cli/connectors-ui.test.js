@@ -549,3 +549,19 @@ test('the page opened by its address before the account is known lists the conne
   assert.equal(root.querySelector('.cs-conn-name').textContent, 'Linear');
   closeCliStore();
 });
+
+test('the style files of the connectors are well formed: every comment is closed (an open one swallows the rules after it), and the mark of a connector is rounded and sized', () => {
+  const store = readFileSync(new URL('../../src/app/ui/cli/cli-store.css', import.meta.url), 'utf8');
+  const ledger = readFileSync(new URL('../../src/styles/ledger.css', import.meta.url), 'utf8');
+  for (const [name, css] of [['cli-store.css', store], ['ledger.css', ledger]]) {
+    assert.equal(css.split('/*').length, css.split('*/').length, `${name}: as many comments opened as closed`);
+    // No rule hides inside a comment: take the comments out and the rules of the marks are still there.
+    const bare = css.replace(/\/\*[\s\S]*?\*\//g, '');
+    assert.ok(!bare.includes('/*') && !bare.includes('*/'), name);
+  }
+  const bare = store.replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.match(bare, /\.cs-conn-mark \.connector-mark \{ width: 1\.9rem; height: 1\.9rem; border-radius: 0\.5rem; \}/);
+  assert.match(bare, /\.cs-fold-mark \{[^}]*border-radius/);
+  const logo = ledger.replace(/\/\*[\s\S]*?\*\//g, '');
+  assert.match(logo, /\.connector-mark-img \{[^}]*border-radius: inherit/);
+});

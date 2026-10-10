@@ -145,8 +145,8 @@ html.cs-open { overflow: hidden; }
   .cs-mark .cli-tool-img { opacity: 1; }
 }
 
-/* The picture of a connector (connector-mark.js; its basic style is with the step list, ledger.css, which the card uses too).
-.cs-conn-mark .connector-mark { width: 1.9rem; height: 1.9rem; border-radius: 0.5rem; }
+/* The picture of a connector (connector-mark.js; its basic style is with the step list, ledger.css, which the card uses too). */
+.cs-conn-mark .connector-mark { width: 1.9rem; height: 1.9rem; border-radius: 0.4rem; }
 .cs-conn-mark .connector-mark-letter { font-size: 1.15rem; }
 .cs-fold-mark { width: 1.4rem; height: 1.4rem; border-radius: 0.35rem; }
 
