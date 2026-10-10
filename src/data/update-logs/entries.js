@@ -2,6 +2,20 @@
 // content 為 zh-TW 的 HTML 字串（JSON 轉義、雙引號），目前不隨介面語言切換。
 export const updateLogEntries = [
   {
+    version: "18.4.1",
+    date: "2026-10-10",
+    content: [
+      "<strong>Noureon 18.4.1 發布說明</strong>",
+      "本版本修正連接器第一次實際使用時發現的三個問題。",
+      "<strong>主要變更</strong>",
+      "<ul><li><strong>詢問卡的位置：</strong>連接器的確認卡、命令工具要連到網站的詢問與要登入資料的詢問，原本放在折疊的步驟裡，使用者不知道要展開。現在顯示在對話中、步驟列的正下方。</li><li><strong>連線視窗：</strong>前往服務登入後，按瀏覽器的「上一頁」回到 Noureon，視窗會停在「正在前往……」，按鈕無法按、也無法取消。現在回來時按鈕會恢復，「取消」也不再被停用。</li><li><strong>Notion 的名稱與圖示：</strong>Notion 對只靠登入檔案認識的用戶端，授權頁只顯示重新導向的網址（api.noureon.com）。現在 Notion 會先以註冊的方式認識 Noureon（附上名稱、圖示與條款網址），註冊被拒絕時才回到登入檔案。</li></ul>",
+      "<strong>注意事項</strong>",
+      "<ul><li>已連線的 Notion 要中斷連線後重新連線，才會使用新的註冊。</li></ul>",
+      "<strong>相容性</strong>",
+      "本次更新不需要資料遷移。"
+    ]
+  },
+  {
     version: "18.4.0",
     date: "2026-10-10",
     content: [

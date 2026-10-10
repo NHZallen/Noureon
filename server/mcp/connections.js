@@ -101,6 +101,8 @@ export function createConnectorService({ db, vault, fetchImpl = fetch, now = Dat
     redirectUri: config.redirectUri,
     cimdUrl: config.cimdUrl,
     preregistered: config.preregistered || {},
+    identity: config.identity || {},
+    prefer: connector.registration || '',
     clientStore: config.clientStore || null,
     fetchImpl
   });

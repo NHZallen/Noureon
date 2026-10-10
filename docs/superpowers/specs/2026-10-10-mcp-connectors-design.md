@@ -197,3 +197,11 @@ GitHub    HTTP 401  pre-registered  yes        yes      no          offline_acce
 5. iPhone 上整頁導向登入再回來的順暢度。
 
 **owner 要做的（部署前）：** 在 Supabase 的 SQL 編輯器貼上並執行 `supabase/migrations/20261010010000_add_user_mcp_connections.sql` 的內容。沒做的話：連接器頁會顯示「暫時無法讀取」，回覆照常（伺服器只在記錄裡寫一行，不影響回覆）。Zeabur 不需要新增環境變數（`APP_URL`、`CONNECTOR_REDIRECT_URI`、`CONNECTOR_CLIENT_ID` 都有預設值）。
+
+### 12.1 第一次實際使用後的修正（18.4.1）
+
+owner 用真實的 Notion 帳號試過：登入、工具呼叫（`notion-fetch`、`notion-search`、`notion-create-pages`）、確認卡都動了。發現三件事，已修：
+
+1. **確認卡藏在折疊的步驟裡**，使用者不知道要展開 → 連接器、命令工具（網站與登入）的詢問卡一律放在對話中、步驟列的正下方（`ask-host`），不在步驟裡。
+2. **連線視窗卡在「正在前往……」**：到服務登入後按瀏覽器上一頁，頁面以離開時的樣子回來（按鈕停用、取消也停用）→ 回來時（`pageshow`）按鈕恢復，「取消」永遠不停用。
+3. **Notion 授權頁只顯示 `api.noureon.com`，沒有名稱與圖示**：Notion 對只靠 CIMD 檔案認識的用戶端，只顯示重新導向的網址（Notion 的說明頁也寫「用連線時收到的重新導向網址替自訂 AI 應用程式命名」，管理員可以在 Notion 裡手動改名稱與圖示；DCR 的 `client_name` 會顯示在授權頁，來源是第三方文件，**沒有親自驗證**）。→ 目錄加 `registration: 'dcr'`（只有 Notion）：服務有註冊位址時先註冊（附 `client_name`、`client_uri`、`logo_uri`、`tos_uri`、`policy_uri`），被拒絕才退回 CIMD 檔案。已連線的要中斷後重連才會用新註冊。授權頁上的「我知道並信任此網址」勾選框是 Notion 對這個重新導向網址的警告，不一定會消失。

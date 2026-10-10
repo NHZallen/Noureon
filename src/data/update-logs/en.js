@@ -1,6 +1,16 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.4.1": [
+    "<strong>Noureon 18.4.1 Release Notes</strong>",
+    "This version fixes three problems found the first time connectors were used for real.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Where the questions are:</strong> the confirmation card of a connector, and the questions of a command tool about a website and about a login, were inside the folded steps, so people did not know to open them. They now appear in the conversation, right under the line of the steps.</li><li><strong>The connection window:</strong> after going to a service to log in and pressing the browser's Back button, the window stayed on \"Going there…\" with buttons that could not be pressed and no way to cancel. When you come back the button is now restored, and \"Cancel\" is never disabled.</li><li><strong>The name and the icon in Notion:</strong> for a client it knows only from a login file, Notion's authorization page shows just the address of the redirect (api.noureon.com). Notion now gets to know Noureon by registration first (with the name, the icon and the address of the terms), and the login file is used only when the registration is refused.</li></ul>",
+    "<strong>Notes</strong>",
+    "<ul><li>A Notion connection that already exists has to be disconnected and connected again to use the new registration.</li></ul>",
+    "<strong>Compatibility</strong>",
+    "This update requires no data migration."
+  ],
   "18.4.0": [
     "<strong>Noureon 18.4.0 Release Notes</strong>",
     "This version adds Connectors: the third part of Extensions, which lets the model reach your own accounts at other services.",

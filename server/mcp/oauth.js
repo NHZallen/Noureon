@@ -157,31 +157,56 @@ export async function discover(endpoint, { fetchImpl = fetch, timeoutMs = DEFAUL
 /**
  * Who this client is to the service, in the order the specification prefers: a client registered by hand (`preregistered[connectorId] = { clientId, clientSecret? }`
  * from the environment), our Client ID Metadata Document (when the service says it takes one), a client registered dynamically. `clientStore` keeps
- * what a dynamic registration gave ({ get(key), set(key, value) }: one registration serves every person). Returns { clientId, clientSecret?, how }.
+ * what a dynamic registration gave ({ get(key), set(key, value) }: one registration serves every person). `prefer: 'dcr'`: register first when the service
+ * has a registration address, because a service that shows the client on its consent screen shows the name and the picture it was registered with and,
+ * for a client known only by a metadata document, may show just the address of the redirect (Notion does). `identity`: { clientUri, logoUri, tosUri,
+ * policyUri } told to the service in a registration. Returns { clientId, clientSecret?, how }.
  */
-export async function resolveClient({ connectorId, metadata, redirectUri, cimdUrl, preregistered = {}, clientStore = null, clientName = 'Noureon', fetchImpl = fetch, timeoutMs = DEFAULT_TIMEOUT_MS }) {
+export async function resolveClient({ connectorId, metadata, redirectUri, cimdUrl, preregistered = {}, clientStore = null, clientName = 'Noureon', identity = {}, prefer = '', fetchImpl = fetch, timeoutMs = DEFAULT_TIMEOUT_MS }) {
   const hand = preregistered[connectorId];
   if (hand?.clientId) return { clientId: hand.clientId, ...(hand.clientSecret ? { clientSecret: hand.clientSecret } : {}), how: 'preregistered' };
-  if (metadata.cimd && cimdUrl) return { clientId: cimdUrl, how: 'cimd' };
-  if (!metadata.registrationEndpoint) throw new OAuthError('no_client', 'The service takes no client that we can be.');
-  const key = `${connectorId}|${metadata.issuer}|${redirectUri}`;
-  const kept = clientStore ? await clientStore.get(key) : null;
-  if (kept?.clientId) return { clientId: kept.clientId, how: 'dcr' };
-  const response = await withTimeout(fetchImpl, metadata.registrationEndpoint, {
-    method: 'POST',
-    redirect: 'error',
-    headers: { 'content-type': 'application/json', accept: 'application/json' },
-    body: JSON.stringify({ client_name: clientName, redirect_uris: [redirectUri], grant_types: ['authorization_code', 'refresh_token'], response_types: ['code'], token_endpoint_auth_method: 'none' })
-  }, timeoutMs);
-  let body = null;
-  try {
-    body = JSON.parse(await readText(response));
-  } catch {
-    body = null;
+  const useCimd = Boolean(metadata.cimd && cimdUrl);
+  const register = async () => {
+    const key = `${connectorId}|${metadata.issuer}|${redirectUri}`;
+    const kept = clientStore ? await clientStore.get(key) : null;
+    if (kept?.clientId) return { clientId: kept.clientId, how: 'dcr' };
+    const response = await withTimeout(fetchImpl, metadata.registrationEndpoint, {
+      method: 'POST',
+      redirect: 'error',
+      headers: { 'content-type': 'application/json', accept: 'application/json' },
+      body: JSON.stringify({
+        client_name: clientName,
+        ...(identity.clientUri ? { client_uri: identity.clientUri } : {}),
+        ...(identity.logoUri ? { logo_uri: identity.logoUri } : {}),
+        ...(identity.tosUri ? { tos_uri: identity.tosUri } : {}),
+        ...(identity.policyUri ? { policy_uri: identity.policyUri } : {}),
+        redirect_uris: [redirectUri],
+        grant_types: ['authorization_code', 'refresh_token'],
+        response_types: ['code'],
+        token_endpoint_auth_method: 'none'
+      })
+    }, timeoutMs);
+    let body = null;
+    try {
+      body = JSON.parse(await readText(response));
+    } catch {
+      body = null;
+    }
+    if (!response.ok || typeof body?.client_id !== 'string' || !body.client_id) throw new OAuthError('registration_refused', 'The service did not accept the registration.', { status: response.status });
+    if (clientStore) await clientStore.set(key, { clientId: body.client_id });
+    return { clientId: body.client_id, how: 'dcr' };
+  };
+  if (prefer === 'dcr' && metadata.registrationEndpoint) {
+    try {
+      return await register();
+    } catch (error) {
+      // Refused or not reachable: the metadata document is the other way, when the service takes one.
+      if (!useCimd) throw error;
+    }
   }
-  if (!response.ok || typeof body?.client_id !== 'string' || !body.client_id) throw new OAuthError('registration_refused', 'The service did not accept the registration.', { status: response.status });
-  if (clientStore) await clientStore.set(key, { clientId: body.client_id });
-  return { clientId: body.client_id, how: 'dcr' };
+  if (useCimd) return { clientId: cimdUrl, how: 'cimd' };
+  if (!metadata.registrationEndpoint) throw new OAuthError('no_client', 'The service takes no client that we can be.');
+  return register();
 }
 
 /** The address the person is sent to, to log in. */

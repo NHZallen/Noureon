@@ -41,13 +41,19 @@ function setup({ account = true, connections = [LINEAR], language = 'zh-TW', fai
   const notices = [];
   const assigned = [];
   const replaced = [];
-  const fakeWin = { location: { assign: (url) => assigned.push(url) }, history: { state: null, replaceState: (state, title, url) => replaced.push(url) } };
+  const listeners = new Map();
+  const fakeWin = {
+    location: { assign: (url) => assigned.push(url) },
+    history: { state: null, replaceState: (state, title, url) => replaced.push(url) },
+    addEventListener: (name, fn) => listeners.set(name, fn),
+    removeEventListener: (name, fn) => { if (listeners.get(name) === fn) listeners.delete(name); }
+  };
   const view = { tab: 'all', query: '' };
   const host = document.querySelector('.cs');
   let part = null;
   const draw = () => host.replaceChildren(...part.draw(view, { showMine: () => { view.tab = 'mine'; draw(); } }));
   part = createConnectorsPart({ document, win: fakeWin, t: (key, values) => connectorText(language, key, values), getLanguage: () => language, getAccountReady: () => account, redraw: draw, showNotification: (text, kind) => notices.push([text, kind]) });
-  return { window, document, host, part, view, draw, calls, notices, assigned, replaced, data };
+  return { window, document, host, part, view, draw, calls, notices, assigned, replaced, data, listeners };
 }
 const settle = async (t) => { t.draw(); await flush(); await flush(); };
 const names = (t, selector) => [...t.host.querySelectorAll(selector)].map((node) => node.textContent);
@@ -346,4 +352,44 @@ test('the styles of the part use the colours of the app and nothing of their own
   const ledger = readFileSync(new URL('../../src/styles/ledger.css', import.meta.url), 'utf8');
   const ask = ledger.slice(ledger.indexOf('The question whether a tool of a connector may run'), ledger.indexOf('A file a step made that is not offered'));
   assert.ok(!/#[0-9a-fA-F]{3,8}\b|rgba?\(/.test(ask));
+});
+
+test('the questions to the person are in the conversation under the line of the steps, not inside the folded steps', async () => {
+  const { createSandboxLedger } = await import('../../src/app/ui/sandbox/sandbox-ledger.js');
+  const window = new Window({ url: 'https://example.test/' });
+  const { document } = window;
+  document.body.innerHTML = '<div id="message"><div id="answer"></div></div>';
+  const ledger = createSandboxLedger({ document, host: document.getElementById('message'), before: document.getElementById('answer'), language: 'zh-TW', summary: true, onConnectorAnswer: async () => ({ ok: true }) });
+  ledger.event({ type: 'connector', event: 'call', connector: 'notion', tool: 'notion-create-pages', label: '使用連接器：Notion · notion-create-pages' });
+  ledger.event({ ...ASK, connector: { id: 'notion', name: 'Notion' }, tool: 'notion-create-pages' });
+  ledger.event({ type: 'net', event: 'ask', id: 'net-ask-0001', host: 'example.org', port: 443, waitMs: 600000 });
+  await flush();
+  await flush();
+  const hostBox = document.querySelector('.ask-host');
+  assert.ok(hostBox, 'a place for the questions');
+  assert.equal(hostBox.querySelectorAll('.net-ask').length, 2, 'the question about the tool and the one about the site');
+  assert.equal(document.querySelector('.ledger-body .net-ask, .ledger-list .net-ask'), null, 'none of them inside the steps');
+  assert.equal(hostBox.previousElementSibling.classList.contains('ledger'), true, 'right under the line of the steps');
+  assert.equal(hostBox.nextElementSibling.id, 'answer', 'and above the answer');
+  ledger.remove();
+  assert.equal(document.querySelector('.ask-host'), null);
+});
+
+test('the sheet that begins a login can always be closed, and the button is put back when the person comes back from the service with the back button', async () => {
+  const t = setup({ connections: [] });
+  await settle(t);
+  t.host.querySelector('[data-connector-id="linear"] .cs-text').click();
+  const go = t.host.querySelector('.cs-dialog .cs-button-primary');
+  go.click();
+  await flush();
+  assert.equal(go.disabled, true, 'while it goes');
+  assert.equal(t.host.querySelector('.cs-dialog .cs-button:not(.cs-button-primary)').disabled, false, 'cancel is never disabled');
+  assert.equal(go.textContent, '正在前往……');
+  // The person comes back with the back button: the page is shown as it was left, and is put back.
+  t.listeners.get('pageshow')();
+  assert.equal(go.disabled, false);
+  assert.equal(go.textContent, '前往登入');
+  t.host.querySelector('.cs-dialog .cs-button:not(.cs-button-primary)').click();
+  assert.equal(t.host.querySelector('.cs-dialog'), null);
+  assert.equal(t.listeners.has('pageshow'), false, 'the listener goes with the sheet');
 });

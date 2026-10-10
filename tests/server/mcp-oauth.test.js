@@ -54,6 +54,8 @@ test('the catalog is right: every entry has its five languages, and the tools ar
   assert.equal(toolKind(null, 'list_things'), 'read');
   assert.equal(defaultToolState(linear, 'get_issue'), 'allow');
   assert.equal(defaultToolState(linear, 'create_issue'), 'ask');
+  assert.equal(notion.registration, 'dcr');
+  assert.equal(linear.registration, undefined);
   assert.equal(hasReadonlyLogin(linear), true);
   assert.equal(hasReadonlyLogin(notion), false);
   assert.deepEqual(loginScopes(linear, 'readonly'), ['read']);
@@ -116,6 +118,18 @@ test('the client is known the way the specification prefers: by hand, then by ou
   // A registration is kept: the second person is not another registration.
   await resolveClient({ connectorId: 'upstash', metadata: dcr, redirectUri, cimdUrl, clientStore, fetchImpl: network.fetchImpl });
   assert.equal(registered.length, 1);
+  // A service that shows the client on its consent screen: registered first (with the name and the picture), the document when the registration is refused.
+  const identity = { clientUri: 'https://noureon.com', logoUri: 'https://noureon.com/logo.png', tosUri: 'https://noureon.com/terms', policyUri: 'https://noureon.com/privacy' };
+  const sent = [];
+  const both = { cimd: true, registrationEndpoint: 'https://auth.example.com/register', issuer: 'https://auth.example.com' };
+  const registering = fakeNetwork({ 'POST https://auth.example.com/register': ({ options }) => { sent.push(JSON.parse(options.body)); return json({ client_id: 'dyn-notion' }, 201); } });
+  assert.deepEqual(await resolveClient({ connectorId: 'notion', metadata: both, redirectUri, cimdUrl, identity, prefer: 'dcr', clientStore: { get: async () => null, set: async () => {} }, fetchImpl: registering.fetchImpl }), { clientId: 'dyn-notion', how: 'dcr' });
+  assert.equal(sent[0].client_name, 'Noureon');
+  assert.equal(sent[0].logo_uri, 'https://noureon.com/logo.png');
+  assert.equal(sent[0].client_uri, 'https://noureon.com');
+  assert.deepEqual(await resolveClient({ connectorId: 'notion', metadata: both, redirectUri, cimdUrl, prefer: 'dcr', fetchImpl: fakeNetwork({ 'POST https://auth.example.com/register': json({ error: 'nope' }, 400) }).fetchImpl }), { clientId: cimdUrl, how: 'cimd' }, 'refused: the document');
+  assert.deepEqual(await resolveClient({ connectorId: 'notion', metadata: { ...both, registrationEndpoint: '' }, redirectUri, cimdUrl, prefer: 'dcr' }), { clientId: cimdUrl, how: 'cimd' }, 'no registration address: the document');
+  await assert.rejects(resolveClient({ connectorId: 'x', metadata: { cimd: false, registrationEndpoint: 'https://auth.example.com/register', issuer: 'https://auth.example.com' }, redirectUri, cimdUrl, prefer: 'dcr', fetchImpl: fakeNetwork({ 'POST https://auth.example.com/register': json({}, 400) }).fetchImpl }), (error) => error.code === 'registration_refused', 'no document to fall back to');
   // A service that takes nothing, and one that refuses.
   await assert.rejects(resolveClient({ connectorId: 'x', metadata: { cimd: false, registrationEndpoint: '', issuer: 'https://a.example.com' }, redirectUri, cimdUrl }), (error) => error.code === 'no_client');
   await assert.rejects(resolveClient({ connectorId: 'y', metadata: dcr, redirectUri, cimdUrl, fetchImpl: fakeNetwork({ 'POST https://auth.example.com/register': json({ error: 'invalid_redirect_uri' }, 400) }).fetchImpl }), (error) => error.code === 'registration_refused');

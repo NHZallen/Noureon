@@ -59,9 +59,12 @@ export function createConnectorsPart({ document, win, t, getLanguage, getAccount
   };
 
   // ----- the sheet that begins a login
+  let leavePageshow = null;
   const closeSheet = () => {
     state.sheet?.remove();
     state.sheet = null;
+    leavePageshow?.();
+    leavePageshow = null;
   };
   const segmented = (options, current, onPick, label) => {
     const box = make('div', 'cs-seg');
@@ -109,9 +112,16 @@ export function createConnectorsPart({ document, win, t, getLanguage, getAccount
     backdrop.append(dialog);
     backdrop.addEventListener('click', (event) => { if (event.target === backdrop) closeSheet(); });
     cancel.addEventListener('click', closeSheet);
+    // The person may come back from the service's page with the browser's back button: the page is then shown as it was left (a "Going there…" button that
+    // cannot be pressed). It is put back, and "Cancel" is never disabled, so the sheet can always be closed.
+    const reset = () => {
+      go.disabled = false;
+      go.textContent = t('connectorSheetGo');
+    };
+    win.addEventListener?.('pageshow', reset);
+    leavePageshow = () => win.removeEventListener?.('pageshow', reset);
     go.addEventListener('click', async () => {
       go.disabled = true;
-      cancel.disabled = true;
       go.textContent = t('connectorSheetBusy');
       failure.hidden = true;
       const result = await startConnector(connector.id, chosen);
@@ -120,9 +130,7 @@ export function createConnectorsPart({ document, win, t, getLanguage, getAccount
         win.location.assign(result.url);
         return;
       }
-      go.disabled = false;
-      cancel.disabled = false;
-      go.textContent = t('connectorSheetGo');
+      reset();
       failure.textContent = t('connectorSheetFailed');
       failure.hidden = false;
     });

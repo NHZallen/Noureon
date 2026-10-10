@@ -1,6 +1,16 @@
 // The update notes in Spanish (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.4.1": [
+    "<strong>Notas de la versión de Noureon 18.4.1</strong>",
+    "Esta versión corrige tres problemas encontrados la primera vez que se usaron los conectores de verdad.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Dónde están las preguntas:</strong> la tarjeta de confirmación de un conector, y las preguntas de una herramienta de línea de comandos sobre un sitio y sobre un acceso, estaban dentro de los pasos plegados y la gente no sabía que había que abrirlos. Ahora aparecen en la conversación, justo debajo de la línea de los pasos.</li><li><strong>La ventana de conexión:</strong> tras ir a un servicio a iniciar sesión y pulsar el botón Atrás del navegador, la ventana se quedaba en «Redirigiendo…» con botones que no se podían pulsar y sin forma de cancelar. Ahora, al volver, el botón se restablece y «Cancelar» nunca queda desactivado.</li><li><strong>El nombre y el icono en Notion:</strong> para un cliente que solo conoce por un archivo de acceso, la página de autorización de Notion muestra solo la dirección de redirección (api.noureon.com). Ahora Notion conoce primero a Noureon por registro (con el nombre, el icono y la dirección de las condiciones), y el archivo de acceso solo se usa si se rechaza el registro.</li></ul>",
+    "<strong>Notas</strong>",
+    "<ul><li>Una conexión de Notion que ya existe debe desconectarse y volver a conectarse para usar el nuevo registro.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "Esta actualización no requiere migración de datos."
+  ],
   "18.4.0": [
     "<strong>Notas de la versión de Noureon 18.4.0</strong>",
     "Esta versión añade los conectores: la tercera parte de las extensiones, que permite al modelo acceder a tus propias cuentas en otros servicios.",

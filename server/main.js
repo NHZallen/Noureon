@@ -54,7 +54,7 @@ if (config.runsConfigured) {
     if (host) checkSandbox = () => host.check().then((state) => log(state.ok ? 'sandbox_ok' : 'sandbox_failed', { reason: state.reason }));
     const vault = createKeyVault(config.encryptionKeys);
     credentials = createCredentialStore({ db, vault });
-    connectors = createConnectorService({ db, vault, log, config: { redirectUri: config.connectorRedirectUri, cimdUrl: config.connectorClientId, clientStore: createDbClientStore(db) } });
+    connectors = createConnectorService({ db, vault, log, config: { redirectUri: config.connectorRedirectUri, cimdUrl: config.connectorClientId, identity: { clientUri: config.appUrl, logoUri: `${config.appUrl}/logo.png`, tosUri: `${config.appUrl}/terms`, policyUri: `${config.appUrl}/privacy` }, clientStore: createDbClientStore(db) } });
     runs = createRunManager({ store: createRunStore({ db, limits: LIMITS }), db, vault, sandbox, files, credentials, connectors, skills: createServerSkills({ db, bundles: skillBundles }), vision: { available: canDrawSlides, execute: executeVisionCheck, getKit: getFontKit }, limits: LIMITS, log });
   } catch (error) {
     log('config_error', { message: error.message });

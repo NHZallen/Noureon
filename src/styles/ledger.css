@@ -562,6 +562,8 @@
 .net-ask.is-resolved.is-refused .net-ask-title { color: var(--state-danger); }
 
 /* The question whether a tool of a connector may run (connector-ask-card.js): the same card as the one about a site, with the connector's mark and the inputs. */
+.ask-host:empty { display: none; }
+.ask-host .net-ask, .ask-host .cred-ask { margin: 0.6rem 0; }
 .connector-ask-mark {
     display: inline-flex;
     align-items: center;

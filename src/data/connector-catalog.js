@@ -19,6 +19,9 @@ export const CONNECTORS = Object.freeze([
     name: 'Notion',
     category: 'notes',
     endpoint: 'https://mcp.notion.com/mcp',
+    // How a client is made known to the service when the service takes both a registration and a metadata document: Notion shows on its consent screen the
+    // name and the picture that a registration gave (and only the address of the redirect for a client known by a document), so it is registered first.
+    registration: 'dcr',
     // The service names no scope of its own to ask for (its login announces only "default").
     scopes: Object.freeze({ readwrite: Object.freeze([]) }),
     description: Object.freeze({
@@ -83,6 +86,7 @@ export function connectorProblems(connector) {
   if (!String(connector?.name || '').trim()) problems.push('name');
   if (!CONNECTOR_CATEGORIES.includes(connector?.category)) problems.push('category');
   if (!/^https:\/\/[^\s/]+(?:\/[^\s]*)?$/.test(String(connector?.endpoint || ''))) problems.push('endpoint');
+  if (connector?.registration !== undefined && connector.registration !== 'dcr') problems.push('registration');
   if (!connector?.scopes?.readwrite) problems.push('scopes');
   if (!connector?.description || !LANGUAGES.every((language) => String(connector.description[language] || '').trim())) problems.push('description in the five languages');
   return problems;

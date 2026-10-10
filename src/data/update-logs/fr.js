@@ -1,6 +1,16 @@
 // The update notes in French (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.4.1": [
+    "<strong>Notes de version de Noureon 18.4.1</strong>",
+    "Cette version corrige trois problèmes découverts à la première utilisation réelle des connecteurs.",
+    "<strong>Principaux changements</strong>",
+    "<ul><li><strong>Où sont les questions :</strong> la carte de confirmation d’un connecteur, et les questions d’un outil en ligne de commande sur un site et sur une connexion, étaient dans les étapes repliées, et on ne savait pas qu’il fallait les ouvrir. Elles apparaissent maintenant dans la discussion, juste sous la ligne des étapes.</li><li><strong>La fenêtre de connexion :</strong> après être allé se connecter sur un service puis avoir appuyé sur le bouton Retour du navigateur, la fenêtre restait sur « Redirection… » avec des boutons inutilisables et sans moyen d’annuler. Au retour, le bouton est maintenant rétabli et « Annuler » n’est jamais désactivé.</li><li><strong>Le nom et l’icône dans Notion :</strong> pour un client qu’il ne connaît que par un fichier de connexion, la page d’autorisation de Notion n’affiche que l’adresse de redirection (api.noureon.com). Notion fait maintenant connaissance avec Noureon d’abord par enregistrement (avec le nom, l’icône et l’adresse des conditions), et le fichier de connexion n’est utilisé que si l’enregistrement est refusé.</li></ul>",
+    "<strong>Remarques</strong>",
+    "<ul><li>Une connexion Notion existante doit être déconnectée puis reconnectée pour utiliser le nouvel enregistrement.</li></ul>",
+    "<strong>Compatibilité</strong>",
+    "Cette mise à jour ne nécessite aucune migration de données."
+  ],
   "18.4.0": [
     "<strong>Notes de version de Noureon 18.4.0</strong>",
     "Cette version ajoute les connecteurs : la troisième partie des extensions, qui permet au modèle d’accéder à vos propres comptes sur d’autres services.",

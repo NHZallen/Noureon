@@ -47,26 +47,37 @@ export function createSandboxLedger({ document, host, before = null, language = 
     const doing = waitingLabel || list.current?.label || activityLabel;
     line.setLabel(doing ? `${text('processWorking')} · ${doing}` : text('processWorking'));
   };
+  // The questions to the person (a site a tool reaches for, a login a tool needs, a tool of a connector): cards in the conversation, right under the line of the steps and
+  // outside them (the steps are folded, and a question that waits for the person must be seen without opening anything). Without a line the steps are open, and the cards go in the list.
+  let askHost = null;
+  const askCardHost = () => {
+    if (!outer) return list.list;
+    if (!askHost) {
+      askHost = document.createElement('div');
+      askHost.className = 'ask-host';
+      outer.element.after(askHost);
+    }
+    return askHost;
+  };
   const urls = [];
   const steps = new Map();
   // The question about a site a CLI tool reaches for (only a reply with tools has one): the card is in the list, answered from the page.
   let currentStep = 0;
   let netCards = null;
   const askAboutSite = (event) => {
-    netCards ||= createNetAskCards({ document, host: list.list, language, onAnswer: onNetAnswer || (async () => ({ ok: false })), commandOf: () => steps.get(currentStep)?.command || '' });
+    netCards ||= createNetAskCards({ document, host: askCardHost(), language, onAnswer: onNetAnswer || (async () => ({ ok: false })), commandOf: () => steps.get(currentStep)?.command || '' });
     netCards.handle(event);
   };
   // The window that asks for the login a CLI tool needs (a reply with tools only): the card is in the list too.
   let credentialCards = null;
   const askForCredentials = (event) => {
-    credentialCards ||= createCredentialAskCards({ document, host: list.list, language, onAnswer: onCredentialAnswer || (async () => ({ ok: false })) });
+    credentialCards ||= createCredentialAskCards({ document, host: askCardHost(), language, onAnswer: onCredentialAnswer || (async () => ({ ok: false })) });
     credentialCards.handle(event);
   };
-  // The question whether a tool of a connector may run: a card in the list too.
   // The card is a file of its own (loaded when the first question comes); the events wait for it in the order they came.
   let connectorCards = null;
   const askAboutConnector = (event) => {
-    connectorCards = (connectorCards || import('./connector-ask-card.js').then(({ createConnectorAskCards }) => createConnectorAskCards({ document, host: list.list, language, onAnswer: onConnectorAnswer || (async () => ({ ok: false })) })))
+    connectorCards = (connectorCards || import('./connector-ask-card.js').then(({ createConnectorAskCards }) => createConnectorAskCards({ document, host: askCardHost(), language, onAnswer: onConnectorAnswer || (async () => ({ ok: false })) })))
       .then((cards) => {
         cards.handle(event);
         // While the question waits, the line of the list says so (above everything else).
@@ -350,6 +361,7 @@ export function createSandboxLedger({ document, host, before = null, language = 
       // Each list has its own clock: both are stopped.
       list.remove();
       outer?.remove();
+      askHost?.remove();
       urls.forEach((url) => document.defaultView.URL.revokeObjectURL(url));
     }
   };
