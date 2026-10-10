@@ -1,5 +1,5 @@
 // The wait for a picture (docs/superpowers/specs/2026-10-10-image-wait-design.md): a field of dots in the colour the person chose for the buttons,
-// moving slowly like a cloud, and a line of words that goes through four stages as time passes. There is no percentage: the model gives no sign of how
+// soft clouds that drift over it, and a line of words that goes through four stages as time passes. There is no percentage: the model gives no sign of how
 // far it is, and the words are about how long it has been, not about what it is doing at the moment (see `stageForElapsed`).
 
 // How long it has been, in seconds, when each stage begins. The last one is the honest one: it is taking long, and a picture of high quality does.
@@ -7,6 +7,8 @@ export const IMAGE_WAIT_STAGE_STARTS = Object.freeze([0, 6, 16, 40]);
 const STAGE_KEYS = Object.freeze(['imageWaitStage1', 'imageWaitStage2', 'imageWaitStage3', 'imageWaitStage4']);
 const FALLBACK_COLOR = 'currentColor';
 const CELL = 14; // px between two dots
+const DOT_MIN = 0.35; // radius of the smallest dot, and the extra radius of the strongest
+const DOT_GROWTH = 2.5;
 const FRAME_MS = 1000 / 30;
 
 /** The stage (0 to 3) for a time of waiting, in seconds. */
@@ -16,25 +18,32 @@ export function stageForElapsed(seconds) {
   return stage;
 }
 
-const BLOBS = Object.freeze([
-  { ax: 0.30, ay: 0.26, fx: 0.31, fy: 0.23, px: 0.0, py: 1.2, r: 0.23 },
-  { ax: 0.26, ay: 0.30, fx: 0.19, fy: 0.37, px: 2.1, py: 0.4, r: 0.20 },
-  { ax: 0.32, ay: 0.22, fx: 0.27, fy: 0.17, px: 4.0, py: 2.6, r: 0.25 }
-]);
+// Six soft clouds that drift on slow paths: [width, height, speed across, speed down, phase, reach, weight].
+const CLOUDS = Object.freeze([
+  [0.31, 0.22, 0.7, 0.5, 0.0, 1.1, 0.9],
+  [0.26, 0.18, 0.45, 0.65, 1.7, 0.8, 0.7],
+  [0.22, 0.2, 0.6, 0.4, 3.1, 1.3, 0.6],
+  [0.34, 0.24, 0.35, 0.55, 4.4, 0.7, 0.8],
+  [0.2, 0.16, 0.8, 0.7, 2.2, 1.0, 0.55],
+  [0.28, 0.2, 0.5, 0.3, 5.3, 0.9, 0.75]
+].map((cloud) => Object.freeze(cloud)));
 
-/** How strong the field is at a place (nx, ny in 0 to 1) at a time (seconds): 0 to 1, the sum of three soft patches that wander about, and a faint ripple. */
+const smoothStep = (from, to, value) => {
+  const x = Math.min(1, Math.max(0, (value - from) / (to - from)));
+  return x * x * (3 - 2 * x);
+};
+
+/** How strong the field is at a place (nx, ny in 0 to 1) at a time (seconds): 0 to 1. Soft clouds drift over the grid and there are places where it is almost empty. */
 export function dotIntensity(nx, ny, seconds) {
-  let value = 0;
-  for (const blob of BLOBS) {
-    const cx = 0.5 + blob.ax * Math.sin(blob.fx * seconds + blob.px);
-    const cy = 0.5 + blob.ay * Math.cos(blob.fy * seconds + blob.py);
-    const r = blob.r + 0.03 * Math.sin(0.5 * seconds + blob.px);
-    const dx = nx - cx;
-    const dy = ny - cy;
-    value += Math.exp(-(dx * dx + dy * dy) / (2 * r * r));
+  let sum = 0;
+  for (const [width, height, speedX, speedY, phase, reach, weight] of CLOUDS) {
+    const cx = 0.5 + 0.42 * Math.sin(speedX * seconds * 0.7 + phase) * reach * 0.9;
+    const cy = 0.5 + 0.38 * Math.cos(speedY * seconds * 0.7 + phase * 1.7);
+    const dx = (nx - cx) / width;
+    const dy = (ny - cy) / height;
+    sum += weight * Math.exp(-(dx * dx + dy * dy) * 0.5);
   }
-  value += 0.07 * Math.sin(7 * nx + 1.3 * seconds) * Math.sin(6 * ny - 0.9 * seconds);
-  return Math.max(0, Math.min(1, value));
+  return smoothStep(0.14, 0.52, sum * 0.3);
 }
 
 const COLOR_FORM = /^(#[0-9a-f]{3,8}|(?:rgb|hsl)a?\([^)]*\))$/i;
@@ -54,9 +63,9 @@ export function drawDots(context, { width, height, seconds, color }) {
   for (let row = 0; row < rows; row += 1) {
     for (let column = 0; column < columns; column += 1) {
       const strength = dotIntensity(columns > 1 ? column / (columns - 1) : 0.5, rows > 1 ? row / (rows - 1) : 0.5, seconds);
-      context.globalAlpha = 0.1 + 0.78 * strength;
+      context.globalAlpha = 0.16 + 0.84 * strength ** 0.6;
       context.beginPath();
-      context.arc(offsetX + column * CELL, offsetY + row * CELL, 0.9 + (CELL * 0.46 - 0.9) * strength, 0, Math.PI * 2);
+      context.arc(offsetX + column * CELL, offsetY + row * CELL, DOT_MIN + DOT_GROWTH * strength ** 0.85, 0, Math.PI * 2);
       context.fill();
     }
   }

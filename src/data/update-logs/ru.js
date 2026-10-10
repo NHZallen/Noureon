@@ -1,6 +1,14 @@
 // The update notes in Russian (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.3.1": [
+    "<strong>Примечания к выпуску Noureon 18.3.1</strong>",
+    "В этой версии переработан экран ожидания при создании изображения: анимация из точек стала тоньше.",
+    "<strong>Основные изменения</strong>",
+    "<ul><li><strong>Анимация из точек:</strong> точки теперь рисуются прямо на странице, без фона карточки и рамки. Они стали мельче и реже, а их размер и яркость следуют за мягкими облаками, медленно плывущими по сетке; некоторые области остаются почти пустыми. Сетка занимает область, которую займёт готовое изображение, а цвет по-прежнему выбранный акцентный.</li><li><strong>Подписи этапов:</strong> текст перенесён над точками и исчезает вместе с ними, когда изображение готово.</li></ul>",
+    "<strong>Совместимость</strong>",
+    "Для этого обновления миграция данных не требуется."
+  ],
   "18.3.0": [
     "<strong>Примечания к выпуску Noureon 18.3.0</strong>",
     "В этой версии улучшен экран ожидания при создании изображения: анимация из точек и подписи этапов.",

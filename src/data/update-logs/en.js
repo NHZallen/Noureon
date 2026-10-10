@@ -1,6 +1,14 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.3.1": [
+    "<strong>Noureon 18.3.1 Release Notes</strong>",
+    "This version redesigns the waiting screen for image generation, with a finer dot animation.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Dot animation:</strong> the dots are now drawn directly on the page, with no card background or border. They are smaller and sparser, and their size and strength follow soft clouds that drift slowly over the grid, leaving some areas almost empty. The grid covers the area the finished image will fill, and the colour is still the accent colour currently selected.</li><li><strong>Stage captions:</strong> the text moves above the dots and fades out together with them when the image is ready.</li></ul>",
+    "<strong>Compatibility</strong>",
+    "This update requires no data migration."
+  ],
   "18.3.0": [
     "<strong>Noureon 18.3.0 Release Notes</strong>",
     "This version improves the waiting screen while an image is being generated: a dot animation with stage captions.",

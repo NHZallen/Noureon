@@ -842,25 +842,20 @@
     min-height: 24rem;
     max-height: 72vh;
     aspect-ratio: 1 / 1;
-    transition: width .46s cubic-bezier(.2, .8, .2, 1), height .46s cubic-bezier(.2, .8, .2, 1), aspect-ratio .46s cubic-bezier(.2, .8, .2, 1), min-height .46s cubic-bezier(.2, .8, .2, 1), border-radius .46s cubic-bezier(.2, .8, .2, 1);
+    transition: width .46s cubic-bezier(.2, .8, .2, 1), height .46s cubic-bezier(.2, .8, .2, 1), aspect-ratio .46s cubic-bezier(.2, .8, .2, 1), min-height .46s cubic-bezier(.2, .8, .2, 1);
     overflow: hidden;
-    border-radius: 1.5rem;
-    padding: 1.25rem;
     color: color-mix(in srgb, var(--text-secondary) 78%, transparent);
-    background:
-        linear-gradient(180deg, color-mix(in srgb, var(--input-field-bg) 96%, var(--chat-bg)), color-mix(in srgb, var(--input-field-bg) 88%, var(--hover-bg))),
-        var(--input-field-bg);
-    border: 1px solid color-mix(in srgb, var(--border-color) 72%, transparent);
-    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--modal-bg) 52%, transparent), var(--shadow-sm);
     isolation: isolate;
 }
 
-/* The wait for a picture (ui/image-wait/): a field of dots in the colour of the buttons drawn on a canvas, and the words of the stage at the top left. */
+/* The wait for a picture (ui/image-wait/): a field of dots in the colour of the buttons, drawn straight on the page (no card, no frame) the way the picture will
+   fill it, and the words of the stage above it. */
 .generated-image-skeleton > .generated-image-wait-label {
     position: relative;
     z-index: 2;
-    display: inline-block;
+    display: block;
     max-width: 100%;
+    transition: opacity .3s ease;
     font-size: .8125rem;
     line-height: 1.4;
     color: var(--text-secondary);
@@ -872,7 +867,7 @@
 
 noureon-image-wait {
     position: absolute;
-    inset: 0;
+    inset: 2rem 0 0;
     z-index: 1;
     display: block;
     pointer-events: none;
@@ -885,11 +880,8 @@ noureon-image-wait .generated-image-dots {
     height: 100%;
 }
 
-.generated-image-skeleton-finalizing {
-    box-shadow: var(--shadow-md);
-}
-
-.generated-image-skeleton-finalizing noureon-image-wait {
+.generated-image-skeleton-finalizing noureon-image-wait,
+.generated-image-skeleton-finalizing > .generated-image-wait-label {
     opacity: 0;
 }
 

@@ -10,9 +10,10 @@ test('generated image cards keep mobile AI spacing, white controls, calm skeleto
   assert.match(css, /\.generated-image-card\s*\{[\s\S]*width:\s*fit-content;[\s\S]*background:\s*transparent;[\s\S]*border:\s*0;/s);
   assert.match(css, /\.generated-image-preview-btn\s*\{[\s\S]*display:\s*inline-block;[\s\S]*width:\s*auto;/s);
   assert.match(css, /\.generated-image-card\.has-natural-aspect\s*\{[\s\S]*aspect-ratio:\s*auto\s*!important;/s);
-  assert.match(css, /\.generated-image-skeleton\s*\{[\s\S]*color-mix\(in srgb,\s*var\(--input-field-bg\)[\s\S]*box-shadow:/s);
-  assert.match(css, /noureon-image-wait\s*\{[^}]*position:\s*absolute;[^}]*inset:\s*0;/s, 'the field of dots fills the place-holder');
-  assert.match(css, /\.generated-image-skeleton-finalizing noureon-image-wait\s*\{[^}]*opacity:\s*0;/s, 'the dots fade as the picture comes');
+  const skeletonRule = css.match(/\.generated-image-skeleton\s*\{[^}]*\}/)?.[0] || '';
+  assert.ok(skeletonRule && !/background|border:|box-shadow/.test(skeletonRule), 'the wait has no card: the dots are drawn on the page');
+  assert.match(css, /noureon-image-wait\s*\{[^}]*position:\s*absolute;[^}]*inset:\s*2rem 0 0;/s, 'the field of dots fills the place-holder below the words');
+  assert.match(css, /\.generated-image-skeleton-finalizing noureon-image-wait,\s*\.generated-image-skeleton-finalizing > \.generated-image-wait-label\s*\{[^}]*opacity:\s*0;/s, 'the dots and the words fade as the picture comes');
   assert.doesNotMatch(css, /generated-image-soft-sheen|generated-image-shimmer/, 'the old sweeping light is gone');
   assert.doesNotMatch(css, /@keyframes\s+generated-image-particles/);
   assert.match(css, /transition:\s*width\s*\.46s[\s\S]*height\s*\.46s[\s\S]*aspect-ratio\s*\.46s/s);

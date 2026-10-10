@@ -30,7 +30,7 @@ test('the four lines of the stages are in every language, and none of them promi
   }
 });
 
-test('the field of dots is between 0 and 1, moves with the time, and differs from place to place', () => {
+test('the field of dots is between 0 and 1, has places that are almost empty, moves with the time, and differs from place to place', () => {
   let low = 1;
   let high = 0;
   for (let step = 0; step < 400; step += 1) {
@@ -40,6 +40,7 @@ test('the field of dots is between 0 and 1, moves with the time, and differs fro
     high = Math.max(high, value);
   }
   assert.ok(high - low > 0.5, 'there are strong and faint places');
+  assert.ok(low < 0.05, 'a place can be almost empty');
   assert.equal(dotIntensity(0.3, 0.6, 4.2), dotIntensity(0.3, 0.6, 4.2), 'the same place and time give the same value');
   assert.notEqual(dotIntensity(0.3, 0.6, 4.2), dotIntensity(0.3, 0.6, 9.9), 'later it is another');
   assert.notEqual(dotIntensity(0.1, 0.1, 4.2), dotIntensity(0.8, 0.7, 4.2));
@@ -68,7 +69,7 @@ test('a picture of the field is one dot for each place of the grid, in the colou
   assert.equal(context.calls.clears, 1);
   for (const { x, y, radius } of context.calls.arcs) {
     assert.ok(x >= 0 && x <= 140 && y >= 0 && y <= 70, 'inside');
-    assert.ok(radius > 0.5 && radius < 7, `radius ${radius}`);
+    assert.ok(radius >= 0.35 && radius <= 2.85, `radius ${radius}: small dots, the strongest about a fifth of the space between two`);
   }
   assert.ok(Math.max(...context.calls.alphas) > Math.min(...context.calls.alphas), 'strong and faint dots');
   assert.equal(context.calls.alphas.at(-1), 1, 'the context is left as it was found');

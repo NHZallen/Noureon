@@ -1,6 +1,14 @@
 // The update notes in Spanish (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.3.1": [
+    "<strong>Notas de la versión de Noureon 18.3.1</strong>",
+    "Esta versión rediseña la pantalla de espera de la generación de imágenes, con una animación de puntos más fina.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Animación de puntos:</strong> los puntos se dibujan ahora directamente sobre la página, sin fondo de tarjeta ni borde. Son más pequeños y espaciados, y su tamaño e intensidad siguen nubes suaves que se desplazan lentamente sobre la cuadrícula, dejando algunas zonas casi vacías. La cuadrícula cubre el área que ocupará la imagen terminada, y el color sigue siendo el color de énfasis seleccionado.</li><li><strong>Textos de etapa:</strong> el texto pasa a la parte superior de los puntos y se desvanece con ellos cuando la imagen está lista.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "Esta actualización no requiere migración de datos."
+  ],
   "18.3.0": [
     "<strong>Notas de la versión de Noureon 18.3.0</strong>",
     "Esta versión mejora la pantalla de espera mientras se genera una imagen: una animación de puntos con textos de etapa.",

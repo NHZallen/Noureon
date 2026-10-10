@@ -2,6 +2,18 @@
 // content 為 zh-TW 的 HTML 字串（JSON 轉義、雙引號），目前不隨介面語言切換。
 export const updateLogEntries = [
   {
+    version: "18.3.1",
+    date: "2026-10-10",
+    content: [
+      "<strong>Noureon 18.3.1 發布說明</strong>",
+      "本版本重新設計生成圖片的等待畫面，讓點陣動畫更細緻。",
+      "<strong>主要變更</strong>",
+      "<ul><li><strong>點陣動畫：</strong>圓點改為直接顯示在頁面上，不再有卡片底與邊框；圓點更小、更疏，大小與濃淡隨柔和的雲狀圖樣漸變，雲會在網格上緩慢飄移，部分區域幾乎為空。網格範圍即為圖片完成後的大小，顏色仍為目前選定的強調色。</li><li><strong>階段說明：</strong>文字移到點陣上方，圖片完成時與圓點一同淡出。</li></ul>",
+      "<strong>相容性</strong>",
+      "本次更新不需要資料遷移。"
+    ]
+  },
+  {
     version: "18.3.0",
     date: "2026-10-10",
     content: [
