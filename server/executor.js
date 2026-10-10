@@ -21,6 +21,8 @@ import { collectInputFiles, createStepEvents, finishAdvancedReply } from './adva
 import { ERROR_CODES } from './protocol.js';
 import { createModelAccess, DEFAULT_GENERATION } from './model-access.js';
 import { withSearchPacket } from './search-packet.js';
+import { createConnectorAsk } from './mcp/ask.js';
+import { combineLoaders, createConnectorLoader } from './mcp/tool-loader.js';
 
 export const CHECKPOINT_VERSION = 1;
 
@@ -74,10 +76,12 @@ export class ReplyError extends Error {
  * sandbox cannot be had before any answer was written and a page is watching (`watching()`), it ends with a ReplyError of code
  * `sandbox_unavailable`: the page then makes the reply itself, with its own Python.
  * `skills` (server/skills.js) reads the text of a skill the model loads by itself (the names it may load are in `spec.tools.skills`).
+ * `connectors` (server/mcp/connections.js) gives the services the person has logged in to (the tools of them are offered when `spec.tools.connectors`), and
+ * `connectorControl` is what the run manager answers the person's question about a tool with (the reply sets `answer`).
  * With CLI tools, `credentials` (server/cli-credentials.js) gives the person's secure credentials for them, and `netControl` is what the run manager
  * answers the person's questions about sites with (it is given the function that does so once the sandbox is there).
  */
-export async function executeReply({ spec, secrets, signal, resume: resumeFrom = null, userId = '', sandboxHost = null, files = null, credentials = null, skills = null, netControl = null, credentialControl = null, credentialWaitMs = 10 * 60 * 1000, onPaused = () => {}, watching = () => false, onUpdate = () => {}, onLive = () => {}, onCheckpoint = async () => {}, onProblem = () => {}, fetchImpl = fetch, now = Date.now }) {
+export async function executeReply({ spec, secrets, signal, resume: resumeFrom = null, userId = '', sandboxHost = null, files = null, credentials = null, skills = null, connectors = null, netControl = null, credentialControl = null, connectorControl = null, credentialWaitMs = 10 * 60 * 1000, onPaused = () => {}, watching = () => false, onUpdate = () => {}, onLive = () => {}, onCheckpoint = async () => {}, onProblem = () => {}, fetchImpl = fetch, now = Date.now }) {
   const resume = spec.tools.advanced ? null : resumeFrom;
   const mode = spec.tools.webSearch;
   const language = spec.request.language;
@@ -146,9 +150,40 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
   const parts = spec.request.currentMessage.parts;
   // The skills the model may load by itself: not with Gemini's own search (the provider refuses its tools next to that search).
   const skillList = skills && mode !== 'grounding' ? spec.tools.skills || [] : [];
-  const makeSkillLoader = ({ lookup = (name) => skills.body(userId, name) } = {}) => (skillList.length ? createSkillLoader({ available: skillList, lookup, readFile: skills.readFile ? (name, path) => skills.readFile(userId, name, path) : null }) : null);
+  const makeSkillsOnly = ({ lookup = (name) => skills.body(userId, name) } = {}) => (skillList.length ? createSkillLoader({ available: skillList, lookup, readFile: skills.readFile ? (name, path) => skills.readFile(userId, name, path) : null }) : null);
+  // What the reply's loops are given: the skills and the connectors as one loader (either may be missing).
+  const makeSkillLoader = (options) => combineLoaders(makeSkillsOnly(options), connectorLoader);
   // A skill being loaded is a row of the step list the pages show (the other steps of a reply without Python are not).
-  const skillEvents = (event) => { if (event.type === 'skill') onLive({ ev: { ...event, t: Math.max(0, now() - startedAt) } }); };
+  const skillEvents = (event) => { if (event.type === 'skill' || event.type === 'connector') onLive({ ev: { ...event, t: Math.max(0, now() - startedAt) } }); };
+
+  // The connectors (連接器): the services the person logged in to, with the tools they let a reply use. Not with Gemini's own search either (it refuses the tools beside it).
+  // The question about a tool is a card in the step list, and the time the reply waits for the answer is not the reply's (as with a tool's login).
+  let emitEvent = (event) => onLive({ ev: { ...event, t: Math.max(0, now() - startedAt) } });
+  let connectorLoader = null;
+  const connectorClients = new Map();
+  if (connectors && spec.tools.connectors === true && mode !== 'grounding' && userId) {
+    try {
+      const available = await connectors.forRun(userId);
+      if (available.length) {
+        const asker = createConnectorAsk({ emit: (event) => emitEvent(event), signal, now, onWaited: (waited) => { startedAt += waited; onPaused(waited); onLive({ tm: Math.max(0, now() - startedAt) }); } });
+        if (connectorControl) connectorControl.answer = asker.answer;
+        connectorLoader = createConnectorLoader({
+          connectors: available,
+          language,
+          signal,
+          ask: asker.ask,
+          remember: (id, tool) => connectors.setPermissions(userId, id, { [tool]: 'allow' }),
+          callTool: (id, name, args, options) => {
+            if (!connectorClients.has(id)) connectorClients.set(id, connectors.clientFor(userId, id));
+            return connectorClients.get(id).callTool(name, args, options);
+          }
+        });
+      }
+    } catch (error) {
+      onProblem('connectors_failed', error);
+    }
+  }
+  const closeConnectors = () => Promise.all([...connectorClients.values()].map((client) => client.close().catch(() => {})));
 
   // A plain answer (after the search packet, or with none): with skills the model may load, a small loop gives it the tool; else it is one request.
   const streamWithSkills = async (requestParts) => {
@@ -167,6 +202,7 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
       const tools = mode === 'research' ? createWebResearchTools({ getConfig: () => config, getApiKeyForProvider: keyFor, fetchImpl: upstreamFetch, getErrorMessage, readErrorBody, normalizePageReads, normalizeTinyfishSearch }) : null;
       // Each event says when it happened (ms since the reply began), so a page that joins late draws the same times as the others.
       const stepEvents = createStepEvents({ send: (event) => onLive({ ev: { ...event, t: Math.max(0, now() - startedAt) } }), now });
+      emitEvent = stepEvents.event;
       let sandbox = null;
       // The folders of the skills with scripts that this reply has loaded (or was asked for with "/"): they go into the sandbox as /skills/<name>/, read only, so a script
       // can be run with an interpreter. A sandbox that does not exist yet gets them when it is made (the `mount` below); one that does gets the whole list at once.
@@ -425,6 +461,8 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
     // A stop keeps what was written; anything else is the reply's failure.
     if (error instanceof ReplyError && error.code === ERROR_CODES.sandboxUnavailable) throw error;
     if (!signal?.aborted) throw new ReplyError(scrubMessage(error?.message, secrets), 'provider_error');
+  } finally {
+    await closeConnectors();
   }
 
   if (advanced) {

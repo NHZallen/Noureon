@@ -6,6 +6,8 @@ import { ERROR_CODES, LIMITS, PROTOCOL_VERSION } from './protocol.js';
 import { createRateLimiter } from './rate-limit.js';
 import { validateRunSpec } from './run-spec.js';
 import { CREDENTIAL_NAME, CredentialError } from './cli-credentials.js';
+import { ConnectorError } from './mcp/connections.js';
+import { TOOL_STATES } from '../src/data/connector-catalog.js';
 
 const STATUS_FOR = {
   [ERROR_CODES.unauthorized]: 401,
@@ -61,10 +63,12 @@ async function readJson(request, maxBytes, { optional = false } = {}) {
 }
 
 /** Returns the function that answers one request: `(request, response) => Promise<void>`. */
-export function createApp({ config, fetchImpl = fetch, log = createLogger(), now = Date.now, runs = null, credentials = null, files = null } = {}) {
+export function createApp({ config, fetchImpl = fetch, log = createLogger(), now = Date.now, runs = null, credentials = null, files = null, connectors = null } = {}) {
   const verify = createTokenVerifier({ supabaseUrl: config.supabaseUrl, anonKey: config.supabaseAnonKey, fetchImpl, now });
   const startLimiter = createRateLimiter({ limit: LIMITS.createPerMinute, windowMs: 60_000, now });
   const credentialLimiter = createRateLimiter({ limit: 30, windowMs: 60_000, now });
+  const connectorLimiter = createRateLimiter({ limit: 30, windowMs: 60_000, now });
+  const callbackLimiter = createRateLimiter({ limit: 120, windowMs: 60_000, now });
   const startedAt = now();
 
   const corsHeaders = (origin) => (origin && config.allowedOrigins.includes(origin)
@@ -124,7 +128,7 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
         status = 200;
         return;
       }
-      const runPath = /^\/v1\/runs\/([0-9a-f-]{36})(\/stop|\/stream|\/start|\/hold|\/release|\/plan|\/steer|\/pause|\/resume|\/net|\/credential|\/member)?$/i.exec(url.pathname);
+      const runPath = /^\/v1\/runs\/([0-9a-f-]{36})(\/stop|\/stream|\/start|\/hold|\/release|\/plan|\/steer|\/pause|\/resume|\/net|\/credential|\/connector|\/member)?$/i.exec(url.pathname);
       if (route === 'POST /v1/runs' || route === 'POST /v1/research') {
         const deep = route === 'POST /v1/research';
         const user = await authenticate(request);
@@ -231,6 +235,18 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
         status = 200;
         return;
       }
+      if (runPath && request.method === 'POST' && runPath[2] === '/connector') {
+        // The person's answer to the card that asks whether a tool of a connector may run: { askId, decision: 'once' | 'always' | 'deny' }.
+        const user = await authenticate(request);
+        if (!runs) throw new RequestError(ERROR_CODES.runsUnavailable, 'Replies on the server are not set up yet.');
+        const body = await readJson(request, 4096);
+        if (!/^[A-Za-z0-9-]{8,64}$/.test(String(body?.askId || '')) || !['once', 'always', 'deny'].includes(body?.decision)) throw new RequestError(ERROR_CODES.badRequest, 'That is not an answer.');
+        const result = await runs.answerConnector({ userId: user.id, runId: runPath[1], askId: body.askId, decision: body.decision });
+        if (!result.ok) throw new RequestError(ERROR_CODES.notFound, 'No such reply is running here.');
+        send(response, 200, { ok: true, answered: result.answered }, origin);
+        status = 200;
+        return;
+      }
       if (runPath && request.method === 'POST' && ['/start', '/hold', '/release', '/plan', '/steer', '/pause', '/resume'].includes(runPath[2])) {
         // What a person does to a deep research: start it now, hold the countdown (they are editing the plan), let it run again, change the
         // plan in their own words, pause it or let it go on.
@@ -278,6 +294,65 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
           status = 200;
         } catch (error) {
           if (error instanceof CredentialError) throw new RequestError(ERROR_CODES.badRequest, error.message, { reason: error.code });
+          throw error;
+        }
+        return;
+      }
+      // Where the service sends the person back after they logged in to a connector (a page navigation, with no sign-in header: the state in the address is what
+      // says who began it). The person is sent on to the app with the result, and nothing of the login is in what is sent.
+      if (route === 'GET /mcp/callback') {
+        if (!connectors) throw new RequestError(ERROR_CODES.runsUnavailable, 'Connectors are not set up yet.');
+        const back = (params) => {
+          const target = new URL(config.appUrl || 'https://noureon.com');
+          for (const [name, value] of Object.entries(params)) target.searchParams.set(name, value);
+          response.writeHead(302, { ...SECURITY_HEADERS, Location: target.toString() });
+          response.end();
+          status = 302;
+        };
+        if (!callbackLimiter.take('callback')) {
+          back({ connector_error: 'busy' });
+          return;
+        }
+        const pick = (name) => {
+          const value = url.searchParams.get(name);
+          return typeof value === 'string' ? value : undefined;
+        };
+        const outcome = await connectors.completeLogin({ state: pick('state'), code: pick('code'), error: pick('error'), iss: pick('iss') });
+        back(outcome.ok ? { connector: outcome.connectorId, connected: '1' } : { ...(outcome.connectorId ? { connector: outcome.connectorId } : {}), connector_error: outcome.error });
+        return;
+      }
+      // The person's connectors: the state of each, and what they do about it.
+      const connectorPath = /^\/v1\/connectors(?:\/([a-z][a-z0-9-]{1,31})(?:\/(connect|disconnect|permissions|refresh))?)?$/.exec(url.pathname);
+      if (connectorPath) {
+        const user = await authenticate(request);
+        if (!connectors) throw new RequestError(ERROR_CODES.runsUnavailable, 'Connectors are not set up yet.');
+        const [, id, action] = connectorPath;
+        try {
+          if (request.method === 'GET' && !id) {
+            send(response, 200, { connectors: await connectors.list(user.id) }, origin);
+          } else if (request.method === 'POST' && id && action === 'connect') {
+            if (!connectorLimiter.take(user.id)) throw new RequestError(ERROR_CODES.rateLimited, 'Too many requests; wait a minute.');
+            const body = await readJson(request, 2048, { optional: true });
+            send(response, 200, await connectors.startLogin(user.id, id, body?.mode === 'readonly' ? 'readonly' : 'readwrite'), origin);
+          } else if (request.method === 'POST' && id && action === 'disconnect') {
+            send(response, 200, { ok: true, ...(await connectors.disconnect(user.id, id)) }, origin);
+          } else if (request.method === 'POST' && id && action === 'refresh') {
+            if (!connectorLimiter.take(user.id)) throw new RequestError(ERROR_CODES.rateLimited, 'Too many requests; wait a minute.');
+            await connectors.refreshTools(user.id, id);
+            send(response, 200, { ok: true, connectors: (await connectors.list(user.id)).filter((entry) => entry.id === id) }, origin);
+          } else if (request.method === 'PUT' && id && action === 'permissions') {
+            const body = await readJson(request, 32 * 1024);
+            const states = body?.tools;
+            if (!states || typeof states !== 'object' || Array.isArray(states) || Object.keys(states).length > 400 || Object.values(states).some((state) => !TOOL_STATES.includes(state))) throw new RequestError(ERROR_CODES.badRequest, 'That is not a list of tools with states.');
+            await connectors.setPermissions(user.id, id, states);
+            send(response, 200, { ok: true }, origin);
+          } else throw new RequestError(ERROR_CODES.notFound, 'Not found.');
+          status = 200;
+        } catch (error) {
+          if (error instanceof ConnectorError) {
+            const known = { unknown_connector: ERROR_CODES.notFound, not_connected: 409, bad_request: ERROR_CODES.badRequest };
+            throw new RequestError(known[error.code] === 409 ? ERROR_CODES.wrongPhase : known[error.code] || ERROR_CODES.badRequest, error.message, { reason: error.code });
+          }
           throw error;
         }
         return;

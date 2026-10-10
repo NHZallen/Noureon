@@ -4,11 +4,11 @@
 // answer text and the run record kept above it. Loaded on demand.
 
 import { MAX_RUNS_PER_REPLY, MAX_RUNS_WITH_CLI, RUN_COMMAND_TOOL, RUN_PYTHON_TOOL, RUN_PYTHON_TOOL_SERVER, REQUEST_CREDENTIALS_TOOL, getCliGuidance, getSandboxGuidance } from './sandbox-guidance.js';
-import { sandboxText, skillStepEvent } from './sandbox-texts.js';
+import { loaderStepEvent, sandboxText } from './sandbox-texts.js';
 import { RUN_STATUS } from '../../ui/sandbox/sandbox-run-block.js';
 import { partialJsonString } from '../../legacy-runtime/features/tool-call-formats.js';
 import { RESEARCH_TOOLS, createNotes, createResearchCalls, researchGuidance } from '../../legacy-runtime/features/web-research-reply.js';
-import { availableSkillsInstruction } from '../../../data/skill-tool.js';
+import { loaderInstruction } from '../../../data/skill-tool.js';
 
 const MODEL_TEXT_CHARS = 10_000;
 const MAX_CRASHES = 2;
@@ -253,7 +253,7 @@ export async function runSandboxReply({
     }
   };
 
-  const guidance = [getSandboxGuidance({ inputFiles, designs, host }), useCli ? getCliGuidance(cliTools.map((tool) => ({ ...tool, file: tool.program?.file || tool.pip?.command || tool.image?.command })), { canAsk: typeof askCredentials === 'function' }) : '', researchTools ? researchGuidance() : '', skillLoader ? availableSkillsInstruction(skillLoader.list) : ''].filter(Boolean).join('\n\n');
+  const guidance = [getSandboxGuidance({ inputFiles, designs, host }), useCli ? getCliGuidance(cliTools.map((tool) => ({ ...tool, file: tool.program?.file || tool.pip?.command || tool.image?.command })), { canAsk: typeof askCredentials === 'function' }) : '', researchTools ? researchGuidance() : '', skillLoader ? loaderInstruction(skillLoader) : ''].filter(Boolean).join('\n\n');
   const research = researchTools
     ? createResearchCalls({ ...researchTools, language, signal, onEvent })
     : null;
@@ -394,7 +394,7 @@ export async function runSandboxReply({
       }
       if (skillLoader?.handles(call.name)) {
         // A skill the model loads: its text is the answer to the call (it never fails: the answer says what went wrong).
-        const step = skillStepEvent(language, skillLoader.noteFor(call));
+        const step = loaderStepEvent(skillLoader, call, language);
         if (step) onEvent(step);
         reply(await skillLoader.run(call));
         continue;

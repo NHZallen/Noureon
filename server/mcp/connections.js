@@ -312,6 +312,24 @@ export function createConnectorService({ db, vault, fetchImpl = fetch, now = Dat
       const row = await getRow(userId, connectorId);
       return row?.status === 'connected' ? { connector, row } : null;
     },
+    /**
+     * What a reply is given: the person's connected connectors with their tools and the states the person set, [{ id, name, tools: [{ name, description, inputSchema, kind,
+     * state }] }]. A connector with no tool is left out. Never throws (a connector that cannot be read now is left out and the reply goes on without it).
+     */
+    async forRun(userId) {
+      const found = await Promise.all(CONNECTORS.map(async (connector) => {
+        try {
+          const connection = await service.freshConnection(userId, connector.id);
+          if (!connection) return null;
+          const tools = asArray(connection.row.tools).map((tool) => ({ name: tool.name, description: tool.description, inputSchema: tool.inputSchema, kind: tool.kind === 'read' ? 'read' : 'write', state: effectiveState(connector, connection.row, tool.name) }));
+          return tools.length ? { id: connector.id, name: connector.name, tools } : null;
+        } catch (error) {
+          log('connector_for_run_failed', { connector: connector.id, code: error?.code || error?.name || 'error' });
+          return null;
+        }
+      }));
+      return found.filter(Boolean);
+    },
     /** The tools list is asked for again when it is an hour old (or never asked). */
     async freshConnection(userId, connectorId) {
       const found = await service.connection(userId, connectorId);

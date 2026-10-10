@@ -344,6 +344,10 @@
       "note": "Reviewed 2026-10-08: plain data, no browser globals (the choices of the colour theme and how a saved one is read)."
     },
     {
+      "path": "src/data/connector-catalog.js",
+      "note": "Reviewed 2026-10-10: no browser globals (the list of connectors and the kinds of their tools; written to be shared by the page and the server)."
+    },
+    {
       "path": "src/data/settings-merge.js",
       "note": "Reviewed 2026-10-05: pure functions over plain objects (the key by key merge of the settings between devices); reached through the config normalization."
     },

@@ -5,6 +5,7 @@ import { createApp } from './app.js';
 import { loadConfig } from './config.js';
 import { createAssetSweeper } from './asset-sweeper.js';
 import { createCredentialStore } from './cli-credentials.js';
+import { createConnectorService, createDbClientStore } from './mcp/connections.js';
 import { createKeyVault } from './key-vault.js';
 import { createLogger } from './log.js';
 import { LIMITS } from './protocol.js';
@@ -30,6 +31,7 @@ try {
 
 let runs = null;
 let credentials = null;
+let connectors = null;
 let files = null;
 let sweeper = null;
 let checkRunsStore = async () => {};
@@ -52,14 +54,15 @@ if (config.runsConfigured) {
     if (host) checkSandbox = () => host.check().then((state) => log(state.ok ? 'sandbox_ok' : 'sandbox_failed', { reason: state.reason }));
     const vault = createKeyVault(config.encryptionKeys);
     credentials = createCredentialStore({ db, vault });
-    runs = createRunManager({ store: createRunStore({ db, limits: LIMITS }), db, vault, sandbox, files, credentials, skills: createServerSkills({ db, bundles: skillBundles }), vision: { available: canDrawSlides, execute: executeVisionCheck, getKit: getFontKit }, limits: LIMITS, log });
+    connectors = createConnectorService({ db, vault, log, config: { redirectUri: config.connectorRedirectUri, cimdUrl: config.connectorClientId, clientStore: createDbClientStore(db) } });
+    runs = createRunManager({ store: createRunStore({ db, limits: LIMITS }), db, vault, sandbox, files, credentials, connectors, skills: createServerSkills({ db, bundles: skillBundles }), vision: { available: canDrawSlides, execute: executeVisionCheck, getKit: getFontKit }, limits: LIMITS, log });
   } catch (error) {
     log('config_error', { message: error.message });
     process.exit(1);
   }
 }
 
-const server = createServer(createApp({ config, log, runs, credentials, files }));
+const server = createServer(createApp({ config, log, runs, credentials, files, connectors }));
 // A long request (a reply that streams) is never cut by these; the replies themselves run apart from the request.
 server.requestTimeout = 60_000;
 server.headersTimeout = 30_000;

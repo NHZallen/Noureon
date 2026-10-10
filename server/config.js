@@ -32,6 +32,11 @@ export function loadConfig(env = process.env) {
   if (Boolean(sandboxUrl) !== Boolean(sandboxToken)) problems.push('SANDBOX_RUNNER_URL and SANDBOX_RUNNER_TOKEN go together: set both or neither');
   if (sandboxUrl && !/^https?:\/\/[^\s/]+(?::\d+)?$/i.test(sandboxUrl)) problems.push('SANDBOX_RUNNER_URL must be an address like http://10.42.0.1:7788');
   if (sandboxToken && sandboxToken.length < 32) problems.push('SANDBOX_RUNNER_TOKEN is too short');
+  // The connectors (連接器): where the services send the person back after a login, and the address of our client metadata document (docs/superpowers/specs/2026-10-10-mcp-connectors-design.md).
+  const appUrl = String(env.APP_URL || 'https://noureon.com').replace(/\/+$/, '');
+  const connectorRedirectUri = String(env.CONNECTOR_REDIRECT_URI || 'https://api.noureon.com/mcp/callback');
+  const connectorClientId = String(env.CONNECTOR_CLIENT_ID || `${appUrl}/.well-known/oauth-client.json`);
+  for (const [name, value] of [['APP_URL', appUrl], ['CONNECTOR_REDIRECT_URI', connectorRedirectUri], ['CONNECTOR_CLIENT_ID', connectorClientId]]) if (!/^https:\/\/[^\s]+$/i.test(value)) problems.push(`${name} must be an https address`);
   if (problems.length) throw new Error(`Server settings are not right: ${problems.join('; ')}`);
   return Object.freeze({
     port,
@@ -42,6 +47,9 @@ export function loadConfig(env = process.env) {
     runsConfigured: Boolean(serviceKey && encryptionKeys.length),
     sandboxUrl,
     sandboxToken,
+    appUrl,
+    connectorRedirectUri,
+    connectorClientId,
     allowedOrigins: Object.freeze(list(env.ALLOWED_ORIGINS, DEFAULT_ALLOWED_ORIGINS)),
     // The version of the server (shown by /healthz): the Git commit when the deployment gives it.
     build: String(env.SOURCE_COMMIT || env.GIT_COMMIT || 'dev').slice(0, 12)

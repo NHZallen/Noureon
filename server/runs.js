@@ -43,6 +43,8 @@ export function createRunManager({
   credentials = null,
   // The text of the skills a reply may load (server/skills.js), or null: then the skills of a reply are not offered to the model.
   skills = null,
+  // The services a person has logged in to (server/mcp/connections.js), or null: then no connector is offered to a reply.
+  connectors = null,
   // Where the pictures an image run makes are kept (server/file-store.js), or null: then images are not made here.
   files = null,
   // The visual check that follows a reply with a presentation (server/vision-check.js): whether the server can draw slides, and how.
@@ -219,10 +221,12 @@ export function createRunManager({
     const netControl = { answer: null };
     // The same for the window that asks the person for a login a tool needs (executor.js).
     const credentialControl = { answer: null };
+    // And for the question about whether a tool of a connector may run (server/mcp/ask.js).
+    const connectorControl = { answer: null };
     // How a person's request to let one model of a council leave reaches the council (it sets `exit`).
     const councilControl = { exit: null };
     const live = { answer: '', thought: { text: '', kind: 'model', ended: false, ms: 0, first: null }, sources: [], elapsedFrom: 0, elapsedAt: now(), steps: { events: [], chars: 0 }, vision: { events: [], chars: 0 }, research: { state: null, activity: [] }, searching: '', council: null, councilAt: 0, subscribers: new Set() };
-    active.set(runId, { controller, userId, live, controls, netControl, credentialControl, councilControl });
+    active.set(runId, { controller, userId, live, controls, netControl, credentialControl, connectorControl, councilControl });
     let finalStatus = 'error';
     const writer = createMessageWriter({
       store: db,
@@ -305,8 +309,10 @@ export function createRunManager({
         files: sandbox?.files || null,
         credentials,
         skills,
+        connectors,
         netControl,
         credentialControl,
+        connectorControl,
         onPaused: extendLimit,
         // A page is watching: it can take over a reply whose Python was lost.
         watching: () => live.subscribers.size > 0,
@@ -566,6 +572,16 @@ export function createRunManager({
       const entry = active.get(runId);
       if (!entry || entry.userId !== userId || !entry.credentialControl.answer) return { ok: false, reason: 'not_running' };
       return { ok: true, answered: Boolean(entry.credentialControl.answer(askId, decision)?.answered) };
+    },
+
+    /**
+     * A person's answer ('once', 'always' or 'deny') to the question whether a tool of a connector may run, in a reply of theirs that is running here.
+     * Resolves { ok: true, answered } or { ok: false, reason: 'not_running' }.
+     */
+    async answerConnector({ userId, runId, askId, decision }) {
+      const entry = active.get(runId);
+      if (!entry || entry.userId !== userId || !entry.connectorControl?.answer) return { ok: false, reason: 'not_running' };
+      return { ok: true, answered: Boolean(entry.connectorControl.answer(askId, decision)?.answered) };
     },
 
     /** Whether this person's reply is being made by this process (so it can be watched live). */
