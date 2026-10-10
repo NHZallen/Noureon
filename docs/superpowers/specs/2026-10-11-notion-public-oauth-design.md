@@ -1,6 +1,6 @@
 # Notion 自己的 OAuth 登入（Public Connection）：品牌測試
 
-**狀態：** 第 1 步（登入流程、安全保存、解除連接、獨立測試入口）已寫完並測試（假網路）；**還沒有用真實的 Notion 授權畫面驗證**，也還沒有接到工具執行器（第 2 步，要等品牌測試成功再評估，見 §5）。原本的 Hosted MCP 連接器（`server/mcp/`、擴充頁「連接器」）完全沒有動。
+**狀態：** 第 1 步（登入流程、安全保存、解除連接、獨立測試入口）已寫完、已部署，**品牌測試成功**（2026-10-11，owner 從 `noureon.com/notion-test` 看到 Notion 授權畫面顯示 Noureon 的名稱與 Logo）。擴充頁的 Notion「連線」仍然走 Hosted MCP（授權畫面仍顯示 `api.noureon.com`，這是刻意的）。還沒有接到工具執行器：第 2 步的評估在 §5，等 owner 決定做法。原本的 Hosted MCP 連接器（`server/mcp/`、擴充頁「連接器」）完全沒有動。
 
 ## 1. 為什麼
 
