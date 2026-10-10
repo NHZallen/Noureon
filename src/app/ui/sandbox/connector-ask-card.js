@@ -5,6 +5,8 @@
 // so the card can be answered from any page. Everything shown comes from the model's call: it is put in as text, never as markup.
 
 import { connectorText } from '../../runtime/connector/connector-texts.js';
+import { getConnector } from '../../../data/connector-catalog.js';
+import { connectorMark } from '../cli/connector-mark.js';
 
 const RESULT_KEYS = Object.freeze({ once: 'connectorAnsweredOnce', always: 'connectorAnsweredAlways', deny: 'connectorAnsweredDeny', timeout: 'connectorAnsweredTimeout', cancel: 'connectorAnsweredDeny' });
 const SUMMARY_VALUES = 3;
@@ -62,8 +64,7 @@ export function createConnectorAskCards({ document, host, language, onAnswer = a
     node.dataset.askId = id;
     node.setAttribute('role', 'group');
     const head = make('div', 'net-ask-head');
-    const mark = make('span', 'connector-ask-mark', String(connector?.name || '?').trim().slice(0, 1).toUpperCase());
-    mark.setAttribute('aria-hidden', 'true');
+    const mark = connectorMark(document, getConnector(connector?.id) || connector, { size: 22, className: 'connector-ask-mark' });
     const title = make('span', 'net-ask-title', text('connectorAskTitle', label(connector, tool)));
     head.append(mark, title);
     const argsText = String(args || '');

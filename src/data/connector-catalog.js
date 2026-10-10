@@ -19,6 +19,8 @@ export const CONNECTORS = Object.freeze([
     name: 'Notion',
     category: 'notes',
     endpoint: 'https://mcp.notion.com/mcp',
+    // The logo: the picture of the project's owner on GitHub (the CLI tools have theirs the same way); the page shows the first letter while it is not there.
+    icon: 'https://github.com/makenotion.png?size=96',
     // How a client is made known to the service when the service takes both a registration and a metadata document: Notion shows on its consent screen the
     // name and the picture that a registration gave (and only the address of the redirect for a client known by a document), so it is registered first.
     registration: 'dcr',
@@ -39,6 +41,7 @@ export const CONNECTORS = Object.freeze([
     name: 'Linear',
     category: 'notes',
     endpoint: 'https://mcp.linear.app/mcp',
+    icon: 'https://github.com/linear.png?size=96',
     scopes: Object.freeze({ readonly: Object.freeze(['read']), readwrite: Object.freeze(['read', 'write']) }),
     description: Object.freeze({
       'zh-TW': '查詢議題、專案與週期；建立與更新議題、留言。',
@@ -86,6 +89,7 @@ export function connectorProblems(connector) {
   if (!String(connector?.name || '').trim()) problems.push('name');
   if (!CONNECTOR_CATEGORIES.includes(connector?.category)) problems.push('category');
   if (!/^https:\/\/[^\s/]+(?:\/[^\s]*)?$/.test(String(connector?.endpoint || ''))) problems.push('endpoint');
+  if (!/^https:\/\/github\.com\/[A-Za-z0-9-]{1,39}\.png\?size=\d{2,3}$/.test(String(connector?.icon || ''))) problems.push('icon');
   if (connector?.registration !== undefined && connector.registration !== 'dcr') problems.push('registration');
   if (!connector?.scopes?.readwrite) problems.push('scopes');
   if (!connector?.description || !LANGUAGES.every((language) => String(connector.description[language] || '').trim())) problems.push('description in the five languages');

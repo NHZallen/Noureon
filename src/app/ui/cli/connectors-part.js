@@ -6,6 +6,7 @@
 // Everything a service says (a tool's description) is put in as text, never as markup.
 
 import { CONNECTORS, CONNECTOR_CATEGORIES, connectorDescription, hasReadonlyLogin } from '../../../data/connector-catalog.js';
+import { connectorMark } from './connector-mark.js';
 import { disconnectConnector, listConnectors, refreshConnector, saveToolStates, startConnector } from '../../runtime/connector/connectors-client.js';
 
 const STATES = Object.freeze(['allow', 'ask', 'deny']);
@@ -25,7 +26,8 @@ export function createConnectorsPart({ document, win, t, getLanguage, getAccount
     return node;
   };
   // What the server says: { status: 'idle' | 'loading' | 'ready' | 'failed', byId: Map(id -> { id, status, mode, tools, error }) }.
-  const state = { status: 'idle', byId: new Map(), openGroups: new Set(), confirming: null, sheet: null };
+  // `closedPerms`: the permissions of a connection the person folded under Mine; `openPerms`: the ones opened in the settings (folded at first); `expanded`: the rows of the list opened in place.
+  const state = { status: 'idle', byId: new Map(), openGroups: new Set(), closedPerms: new Set(), openPerms: new Set(), expanded: new Set(), confirming: null, sheet: null };
   const connectionOf = (id) => state.byId.get(id) || { id, status: 'none', mode: 'readwrite', tools: [], error: '' };
 
   const load = async () => {
@@ -211,7 +213,7 @@ export function createConnectorsPart({ document, win, t, getLanguage, getAccount
 
   const mark = (connector) => {
     const node = make('div', 'cs-mark cs-conn-mark');
-    node.append(make('span', 'cs-conn-letter', connector.name.slice(0, 1).toUpperCase()));
+    node.append(connectorMark(document, connector, { size: 30 }));
     return node;
   };
 
@@ -258,6 +260,17 @@ export function createConnectorsPart({ document, win, t, getLanguage, getAccount
     head.append(mark(connector), who, side);
     box.append(head);
 
+    // The permissions fold and unfold (open at first under Mine).
+    const key = `${connector.id}`;
+    const open = !state.closedPerms.has(key);
+    box.append(foldable({ title: t('connectorPermissions'), open, onToggle: () => { if (state.closedPerms.has(key)) state.closedPerms.delete(key); else state.closedPerms.add(key); redraw(); }, body: () => permissionBody(connector, connection) }));
+    return box;
+  };
+
+  // What the person sets for one connection: the access, the tools in two groups, the refresh. Used under Mine and in the Permissions tab of the settings.
+  const permissionBody = (connector, connection) => {
+    const needsLogin = connection.status === 'needs_login';
+    const nodes = [];
     // The access: where the service lets the login itself be read-only, the person may choose; changing it is a new login.
     const scope = make('section', 'cs-conn-card');
     scope.append(make('h3', 'cs-group-title', t('connectorScopeTitle')));
@@ -265,12 +278,11 @@ export function createConnectorsPart({ document, win, t, getLanguage, getAccount
       scope.append(segmented([['readonly', t('connectorScopeReadonly')], ['readwrite', t('connectorScopeReadwrite')]], connection.mode, (value) => openSheet(connector, { mode: value, switching: true })));
       scope.append(make('p', 'cs-conn-note', t(connection.mode === 'readonly' ? 'connectorScopeNoteReadonly' : 'connectorScopeNoteReadwrite', { name: connector.name })));
     } else scope.append(make('p', 'cs-conn-note', t('connectorScopeFixed')));
-    box.append(scope);
-
-    if (needsLogin) return box;
+    nodes.push(scope);
+    if (needsLogin) return nodes;
     const groups = [group(connector, connection, 'read'), group(connector, connection, 'write')].filter(Boolean);
-    if (groups.length) box.append(...groups);
-    else box.append(make('p', 'cs-conn-note', t('connectorNoTools')));
+    if (groups.length) nodes.push(...groups);
+    else nodes.push(make('p', 'cs-conn-note', t('connectorNoTools')));
     const refresh = make('button', 'cs-link cs-conn-refresh', t('connectorRefresh'));
     refresh.type = 'button';
     refresh.addEventListener('click', async () => {
@@ -282,7 +294,24 @@ export function createConnectorsPart({ document, win, t, getLanguage, getAccount
       } else showNotification(t('connectorSaveFailed'), 'error');
       redraw();
     });
-    box.append(refresh);
+    nodes.push(refresh);
+    return nodes;
+  };
+
+  // A header that folds and unfolds what is under it (the body is made only while it is open).
+  const foldable = ({ title, open, onToggle, body, status = '', icon = null }) => {
+    const box = make('section', `cs-fold${open ? ' is-open' : ''}`);
+    const head = make('button', 'cs-fold-head');
+    head.type = 'button';
+    head.setAttribute('aria-expanded', String(open));
+    head.append(...[].concat(icon || []), make('span', 'cs-fold-title', title));
+    if (status) head.append(status);
+    const arrow = make('span', 'cs-fold-arrow');
+    arrow.innerHTML = CHEVRON;
+    head.append(arrow);
+    head.addEventListener('click', onToggle);
+    box.append(head);
+    if (open) box.append(...[].concat(body()));
     return box;
   };
 
@@ -310,14 +339,59 @@ export function createConnectorsPart({ document, win, t, getLanguage, getAccount
     }
     const main = make('div', 'cs-row-main');
     main.append(mark(connector), text, action);
+    // What it can do: the tools it gave, read only (the settings of each tool are under Mine and in the settings, Permissions).
+    const more = make('div', 'cs-more');
+    const inner = make('div', 'cs-more-inner');
+    more.append(inner);
+    const fill = () => {
+      const tools = connectionOf(connector.id).tools;
+      const nodes = [make('p', 'cs-about', connectorDescription(connector, getLanguage()))];
+      if (tools.length) {
+        nodes.push(make('h3', 'cs-features-title', `${t('connectorFeatures')} (${tools.length})`));
+        const listing = make('ul', 'cs-features');
+        for (const tool of tools) {
+          const item = make('li', 'cs-feature');
+          const head = make('div', 'cs-feature-head');
+          head.append(make('code', 'cs-tool-name', tool.name), make('span', 'cs-badge', t(tool.kind === 'read' ? 'connectorKindRead' : 'connectorKindWrite')));
+          item.append(head);
+          if (tool.description) item.append(make('span', 'cs-tool-desc', tool.description));
+          listing.append(item);
+        }
+        nodes.push(listing);
+      } else nodes.push(make('p', 'cs-conn-note', t('connectorNoFeatures')));
+      const manage = make('button', 'cs-link cs-feature-manage', t('connectorManage'));
+      manage.type = 'button';
+      manage.addEventListener('click', onShowMine);
+      nodes.push(manage);
+      inner.replaceChildren(...nodes);
+    };
+    const setOpen = (open) => {
+      element.classList.toggle('is-open', open);
+      text.setAttribute('aria-expanded', String(open));
+      more.classList.toggle('is-open', open);
+      more.setAttribute('aria-hidden', String(!open));
+      more.toggleAttribute('inert', !open);
+    };
+    if (connected && connection.status === 'connected') {
+      if (state.expanded.has(connector.id)) fill();
+      setOpen(state.expanded.has(connector.id));
+    } else setOpen(false);
     const choose = () => {
-      if (connected) onShowMine();
+      if (connected && connection.status === 'connected') {
+        // The details open and close where they are (the page is not drawn again, so they move).
+        const open = !state.expanded.has(connector.id);
+        if (open) {
+          state.expanded.add(connector.id);
+          fill();
+        } else state.expanded.delete(connector.id);
+        setOpen(open);
+      } else if (connected) openSheet(connector, { mode: connection.mode });
       else if (!getAccountReady()) showNotification(t('connectorNeedAccount'), 'error');
       else openSheet(connector);
     };
     text.addEventListener('click', choose);
     action.addEventListener('click', choose);
-    element.append(main);
+    element.append(main, more);
     return element;
   };
 
@@ -357,5 +431,36 @@ export function createConnectorsPart({ document, win, t, getLanguage, getAccount
     return nodes.length ? nodes : [make('div', 'cs-empty', t('connectorNoResults'))];
   };
 
-  return { draw, load, handleReturn, closeSheet, state };
+  /**
+   * The permissions of every connection, for the Permissions tab of the settings: one folded section for each connection (its tools in two groups, the access).
+   * The connections are read when they are first needed and the tab is drawn again by `redraw` when they have come.
+   */
+  const permissionNodes = () => {
+    if (!getAccountReady()) return [make('p', 'pm-empty', t('connectorNeedAccount'))];
+    if (state.status === 'idle') void load();
+    if (state.status === 'loading' || state.status === 'idle') return [make('p', 'pm-empty', t('connectorLoading'))];
+    if (state.status === 'failed') {
+      const box = make('div', 'pm-empty');
+      box.append(make('p', '', t('connectorLoadFailed')));
+      const retry = make('button', 'cs-button', t('connectorRetry'));
+      retry.type = 'button';
+      retry.addEventListener('click', () => { state.status = 'idle'; redraw(); });
+      box.append(retry);
+      return [box];
+    }
+    const mine = CONNECTORS.filter((connector) => connectionOf(connector.id).status !== 'none');
+    if (!mine.length) return [make('p', 'pm-empty', t('connectorNoneMine'))];
+    return mine.map((connector) => {
+      const connection = connectionOf(connector.id);
+      const needs = connection.status === 'needs_login';
+      const open = state.openPerms.has(connector.id);
+      const status = make('span', `cs-conn-status${needs ? ' is-warning' : ''}`, t(needs ? 'connectorNeedsLogin' : 'connectorConnected'));
+      const box = foldable({ title: connector.name, open, status, icon: connectorMark(document, connector, { size: 22, className: 'cs-fold-mark' }), onToggle: () => { if (state.openPerms.has(connector.id)) state.openPerms.delete(connector.id); else state.openPerms.add(connector.id); redraw(); }, body: () => permissionBody(connector, connection) });
+      box.classList.add('cs-conn-card', 'cs-perm');
+      box.dataset.connectorId = connector.id;
+      return box;
+    });
+  };
+
+  return { draw, permissionNodes, load, handleReturn, closeSheet, state };
 }

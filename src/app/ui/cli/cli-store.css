@@ -145,6 +145,11 @@ html.cs-open { overflow: hidden; }
   .cs-mark .cli-tool-img { opacity: 1; }
 }
 
+/* The picture of a connector (connector-mark.js; its basic style is with the step list, ledger.css, which the card uses too).
+.cs-conn-mark .connector-mark { width: 1.9rem; height: 1.9rem; border-radius: 0.5rem; }
+.cs-conn-mark .connector-mark-letter { font-size: 1.15rem; }
+.cs-fold-mark { width: 1.4rem; height: 1.4rem; border-radius: 0.35rem; }
+
 /* The connectors part (connectors-part.js): the list is rows like the others; a connection under Mine is a card with its access and its tools. */
 .cs-conn-letter { font-size: 1.15rem; font-weight: 700; line-height: 1; }
 .cs-conn-status { display: inline-flex; align-items: center; gap: 0.4rem; color: var(--state-success); font-size: 0.85rem; white-space: nowrap; }
@@ -200,3 +205,19 @@ html.cs-open { overflow: hidden; }
   .cs-dialog-backdrop { place-items: end center; padding: 0; }
   .cs-dialog { width: 100%; border: 0; border-radius: 1.5rem 1.5rem 0 0; padding-bottom: calc(1.1rem + env(safe-area-inset-bottom, 0px)); box-shadow: var(--shadow-up); }
 }
+
+/* A header that folds and unfolds what is under it (the permissions of a connection, under Mine and in the settings), and the features of a connector in its row. */
+.cs-fold { margin-top: 0.8rem; }
+.cs-fold-head { display: flex; align-items: center; gap: 0.6rem; width: 100%; padding: 0.4rem 0.1rem; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.cs-fold-title { flex: 1; min-width: 0; font-size: 1rem; font-weight: 600; overflow-wrap: anywhere; }
+.cs-fold-arrow { display: inline-flex; color: var(--text-secondary); transition: transform 0.18s ease; }
+.cs-fold.is-open > .cs-fold-head .cs-fold-arrow { transform: rotate(90deg); }
+.cs-fold.cs-conn-card { margin-top: 0.7rem; padding: 0.55rem 0.9rem; }
+.cs-fold.cs-conn-card.is-open { padding-bottom: 0.9rem; }
+.cs-fold.cs-conn-card .cs-conn-card { margin-top: 0.6rem; }
+.pm-connectors { display: grid; gap: 0.2rem; }
+.cs-features-title { margin: 0.9rem 0 0.2rem; font-size: 0.82rem; font-weight: 600; color: var(--text-secondary); }
+.cs-features { margin: 0; padding: 0; list-style: none; }
+.cs-feature { display: grid; gap: 0.1rem; padding: 0.5rem 0; border-top: 1px solid var(--border-color); }
+.cs-feature-head { display: flex; align-items: center; gap: 0.5rem; }
+.cs-feature-manage { display: block; margin: 0.7rem 0 0.4rem; padding: 0; border: 0; background: transparent; font: inherit; font-size: 0.85rem; cursor: pointer; }

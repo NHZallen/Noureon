@@ -393,3 +393,128 @@ test('the sheet that begins a login can always be closed, and the button is put 
   assert.equal(t.host.querySelector('.cs-dialog'), null);
   assert.equal(t.listeners.has('pageshow'), false, 'the listener goes with the sheet');
 });
+
+test('in the list a connected connector opens where it is, with what it can do; it does not turn the page to Mine, and one that is not connected still opens the sheet', async () => {
+  const t = setup();
+  await settle(t);
+  const linear = () => t.host.querySelector('[data-connector-id="linear"]');
+  assert.equal(linear().classList.contains('is-open'), false);
+  linear().querySelector('.cs-text').click();
+  assert.equal(t.view.tab, 'all', 'the page stays where it is');
+  assert.equal(linear().classList.contains('is-open'), true);
+  assert.equal(linear().querySelector('.cs-more').classList.contains('is-open'), true);
+  assert.equal(linear().querySelector('.cs-text').getAttribute('aria-expanded'), 'true');
+  assert.equal(linear().querySelector('.cs-features-title').textContent, '功能 (5)');
+  assert.deepEqual([...linear().querySelectorAll('.cs-feature .cs-tool-name')].map((node) => node.textContent), ['list_issues', 'get_issue', 'create_issue', 'update_issue', 'delete_comment']);
+  assert.deepEqual([...linear().querySelectorAll('.cs-feature .cs-badge')].map((node) => node.textContent), ['讀取', '讀取', '寫入', '寫入', '寫入']);
+  const element = linear();
+  // It opens and closes in place: the row is the same element, not a new one.
+  element.querySelector('.cs-text').click();
+  assert.equal(linear(), element);
+  assert.equal(element.classList.contains('is-open'), false);
+  assert.equal(element.querySelector('.cs-more').getAttribute('aria-hidden'), 'true');
+  // An open row stays open when the page is drawn again (a search, a setting).
+  element.querySelector('.cs-text').click();
+  t.draw();
+  assert.equal(linear().classList.contains('is-open'), true);
+  // The way to the settings of the tools.
+  linear().querySelector('.cs-feature-manage').click();
+  assert.equal(t.view.tab, 'mine');
+  // A connector that is not connected opens the sheet as before.
+  t.view.tab = 'all';
+  t.draw();
+  t.host.querySelector('[data-connector-id="notion"] .cs-text').click();
+  assert.ok(t.host.querySelector('.cs-dialog'));
+  assert.equal(t.host.querySelector('[data-connector-id="notion"]').classList.contains('is-open'), false);
+});
+
+test('a connection that needs a login: the row opens the sheet to log in again', async () => {
+  const t = setup({ connections: [{ ...LINEAR, status: 'needs_login' }] });
+  await settle(t);
+  t.host.querySelector('[data-connector-id="linear"] .cs-text').click();
+  assert.match(t.host.querySelector('.cs-dialog').textContent, /切換連線範圍|連線 Linear/);
+  assert.equal(t.host.querySelector('[data-connector-id="linear"]').classList.contains('is-open'), false);
+});
+
+test('under Mine the permissions fold and unfold; they are open at first', async () => {
+  const t = setup();
+  t.view.tab = 'mine';
+  await settle(t);
+  const fold = () => t.host.querySelector('[data-connector-id="linear"] .cs-fold');
+  assert.equal(fold().classList.contains('is-open'), true);
+  assert.equal(fold().querySelector('.cs-fold-title').textContent, '權限');
+  assert.ok(fold().querySelector('.cs-group'));
+  fold().querySelector('.cs-fold-head').click();
+  assert.equal(fold().classList.contains('is-open'), false);
+  assert.equal(fold().querySelector('.cs-group'), null, 'folded: nothing of them is drawn');
+  assert.equal(fold().querySelector('.cs-fold-head').getAttribute('aria-expanded'), 'false');
+  fold().querySelector('.cs-fold-head').click();
+  assert.ok(fold().querySelector('.cs-group'));
+});
+
+test('the permissions for the settings: one folded section for each connection, opened one at a time by the person', async () => {
+  const t = setup({ connections: [LINEAR, { ...LINEAR, id: 'notion', tools: [tool('notion-search', 'read', 'allow'), tool('notion-create-pages', 'write', 'ask')] }] });
+  await flush();
+  let nodes = t.part.permissionNodes();
+  await flush();
+  await flush();
+  const box = t.document.createElement('div');
+  const show = () => box.replaceChildren(...t.part.permissionNodes());
+  show();
+  assert.deepEqual([...box.querySelectorAll('.cs-perm .cs-fold-title')].map((node) => node.textContent), ['Notion', 'Linear']);
+  assert.equal(box.querySelectorAll('.cs-group').length, 0, 'folded at first');
+  assert.equal(box.querySelector('.cs-perm .cs-conn-status').textContent, '已連線');
+  box.querySelector('[data-connector-id="linear"] .cs-fold-head').click();
+  show();
+  assert.equal(box.querySelectorAll('[data-connector-id="linear"] .cs-group').length, 2);
+  assert.equal(box.querySelectorAll('[data-connector-id="notion"] .cs-group').length, 0);
+  void nodes;
+});
+
+test('the picture of a connector is its logo, and its first letter takes its place when the picture cannot be loaded or there is none', async () => {
+  const { connectorMark } = await import('../../src/app/ui/cli/connector-mark.js');
+  const window = new Window({ url: 'https://example.test/' });
+  const { document } = window;
+  const linear = CONNECTORS.find((entry) => entry.id === 'linear');
+  const mark = connectorMark(document, linear, { size: 30 });
+  const image = mark.querySelector('img');
+  assert.equal(image.getAttribute('src'), 'https://github.com/linear.png?size=96');
+  assert.equal(image.getAttribute('referrerpolicy'), 'no-referrer');
+  assert.equal(image.getAttribute('alt'), '');
+  image.dispatchEvent(new window.Event('error'));
+  assert.equal(mark.querySelector('img'), null);
+  assert.equal(mark.textContent, 'L');
+  assert.equal(connectorMark(document, { name: 'Zed' }).textContent, 'Z');
+  for (const connector of CONNECTORS) assert.match(connector.icon, /^https:\/\/github\.com\/[A-Za-z0-9-]+\.png\?size=\d+$/, connector.id);
+});
+
+test('the card that asks shows the logo of the connector', () => {
+  const { document, cards } = cardSetup();
+  cards.handle({ ...ASK, connector: { id: 'linear', name: 'Linear' }, tool: 'create_issue' });
+  assert.equal(document.querySelector('.connector-ask-mark img').getAttribute('src'), 'https://github.com/linear.png?size=96');
+});
+
+test('the Permissions tab of the settings has a page for the connectors, with their permissions folded', async () => {
+  const { renderPermissionsView } = await import('../../src/app/ui/cli/permissions-view.js');
+  const t = setup({ connections: [LINEAR] });
+  const root = t.document.createElement('div');
+  t.document.body.append(root);
+  const config = { cliEnabledIds: [], cliModelUseIds: [], cliVersions: {} };
+  const options = { document: t.document, root, getLanguage: () => 'zh-TW', getConfig: () => config, credentials: { list: async () => ({ ok: true, credentials: [] }), save: async () => ({ ok: true }), remove: async () => ({ ok: true }) }, hasAccount: () => true };
+  renderPermissionsView(options);
+  const row = root.querySelector('.pm-row[data-view="connectors"]');
+  assert.ok(row, 'a row for the connectors');
+  assert.equal(row.querySelector('.pm-row-label').textContent, '連接器');
+  row.click();
+  await flush();
+  await flush();
+  await flush();
+  assert.equal(root.querySelector('.pm-desc').textContent, '每個連接器的工具可以設為允許、每次詢問或拒絕。連線與中斷連線在「擴充」頁。');
+  assert.deepEqual([...root.querySelectorAll('.pm-connectors .cs-fold-title')].map((node) => node.textContent), ['Linear']);
+  assert.equal(root.querySelectorAll('.pm-connectors .cs-group').length, 0, 'folded');
+  root.querySelector('.pm-connectors .cs-fold-head').click();
+  assert.equal(root.querySelectorAll('.pm-connectors .cs-group').length, 2, 'opened by the person');
+  root.querySelectorAll('.pm-connectors .cs-group')[0].querySelectorAll('.cs-group-head .cs-seg-item')[1].click();
+  await flush();
+  assert.deepEqual(t.calls.at(-1), ['PUT', '/v1/connectors/linear/permissions', { tools: { list_issues: 'ask', get_issue: 'ask' } }]);
+});

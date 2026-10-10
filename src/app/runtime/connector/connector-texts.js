@@ -4,6 +4,12 @@
 
 export const CONNECTOR_TEXTS = Object.freeze({
   'zh-TW': {
+    connectorPermissions: '權限',
+    connectorFeatures: '功能',
+    connectorKindRead: '讀取',
+    connectorKindWrite: '寫入',
+    connectorManage: '管理工具權限',
+    connectorNoFeatures: '還沒有讀到這個服務的工具。',
     connectorCalling: '使用連接器：{connector} · {tool}',
     connectorListing: '查看連接器的工具：{connector}',
     connectorWaiting: '等你回答：要不要讓 {connector} 執行 {tool}？',
@@ -70,6 +76,12 @@ export const CONNECTOR_TEXTS = Object.freeze({
     connectorSaveFailed: '設定沒有儲存，請再試一次。'
   },
   en: {
+    connectorPermissions: 'Permissions',
+    connectorFeatures: 'Features',
+    connectorKindRead: 'Read',
+    connectorKindWrite: 'Write',
+    connectorManage: 'Manage tool permissions',
+    connectorNoFeatures: 'The tools of this service have not been read yet.',
     connectorCalling: 'Using connector: {connector} · {tool}',
     connectorListing: 'Looking at the tools of {connector}',
     connectorWaiting: 'Waiting for you: may {connector} run {tool}?',
@@ -136,6 +148,12 @@ export const CONNECTOR_TEXTS = Object.freeze({
     connectorSaveFailed: 'The setting was not saved. Try again.'
   },
   fr: {
+    connectorPermissions: 'Autorisations',
+    connectorFeatures: 'Fonctions',
+    connectorKindRead: 'Lecture',
+    connectorKindWrite: 'Écriture',
+    connectorManage: 'Gérer les autorisations des outils',
+    connectorNoFeatures: 'Les outils de ce service n’ont pas encore été lus.',
     connectorCalling: 'Connecteur utilisé : {connector} · {tool}',
     connectorListing: 'Consultation des outils de {connector}',
     connectorWaiting: 'En attente de vous : {connector} peut-il exécuter {tool} ?',
@@ -202,6 +220,12 @@ export const CONNECTOR_TEXTS = Object.freeze({
     connectorSaveFailed: 'Le réglage n’a pas été enregistré. Réessayez.'
   },
   ru: {
+    connectorPermissions: 'Разрешения',
+    connectorFeatures: 'Возможности',
+    connectorKindRead: 'Чтение',
+    connectorKindWrite: 'Запись',
+    connectorManage: 'Управление разрешениями инструментов',
+    connectorNoFeatures: 'Инструменты этого сервиса ещё не прочитаны.',
     connectorCalling: 'Используется коннектор: {connector} · {tool}',
     connectorListing: 'Просмотр инструментов {connector}',
     connectorWaiting: 'Ждём вас: может ли {connector} выполнить {tool}?',
@@ -268,6 +292,12 @@ export const CONNECTOR_TEXTS = Object.freeze({
     connectorSaveFailed: 'Настройка не сохранена. Попробуйте ещё раз.'
   },
   es: {
+    connectorPermissions: 'Permisos',
+    connectorFeatures: 'Funciones',
+    connectorKindRead: 'Lectura',
+    connectorKindWrite: 'Escritura',
+    connectorManage: 'Gestionar permisos de herramientas',
+    connectorNoFeatures: 'Aún no se han leído las herramientas de este servicio.',
     connectorCalling: 'Usando conector: {connector} · {tool}',
     connectorListing: 'Consultando las herramientas de {connector}',
     connectorWaiting: 'Esperando por ti: ¿puede {connector} ejecutar {tool}?',

@@ -564,19 +564,12 @@
 /* The question whether a tool of a connector may run (connector-ask-card.js): the same card as the one about a site, with the connector's mark and the inputs. */
 .ask-host:empty { display: none; }
 .ask-host .net-ask, .ask-host .cred-ask { margin: 0.6rem 0; }
-.connector-ask-mark {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 1.3rem;
-    height: 1.3rem;
-    border-radius: 0.35rem;
-    background: var(--gpt-primary-action-bg);
-    color: var(--gpt-primary-action-text);
-    font-size: 0.72rem;
-    font-weight: 700;
-    flex: none;
-}
+/* The picture of a connector (connector-mark.js): its logo, or its first letter; the Extensions page sizes it for its own rows. */
+.connector-mark { display: inline-flex; align-items: center; justify-content: center; flex: none; overflow: hidden; }
+.connector-mark-img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
+.connector-mark-letter { font-weight: 700; line-height: 1; }
+.connector-ask-mark { width: 1.3rem; height: 1.3rem; border-radius: 0.35rem; border: 1px solid var(--border-color); }
+.connector-ask-mark .connector-mark-letter { font-size: 0.72rem; }
 .connector-ask-summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.2rem 0.75rem; margin: 0.3rem 0 0 1.8rem; font-size: 0.82rem; color: var(--text-secondary); }
 .connector-ask-values { overflow-wrap: anywhere; }
 .connector-ask-toggle { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-decoration: underline; cursor: pointer; }
