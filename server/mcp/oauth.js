@@ -237,10 +237,11 @@ export function buildAuthorizationUrl({ metadata, clientId, redirectUri, scopes 
   return url.toString();
 }
 
-async function tokenRequest(url, form, { clientSecret = '', fetchImpl, timeoutMs }) {
-  const body = new URLSearchParams(form);
+async function tokenRequest(url, form, { clientSecret = '', auth = 'basic', fetchImpl, timeoutMs }) {
+  // `auth: 'post'`: the secret goes in the body (client_secret_post), as GitHub documents it; otherwise in the Authorization header (client_secret_basic, the default of the specification).
+  const body = new URLSearchParams(clientSecret && auth === 'post' ? { ...form, client_secret: clientSecret } : form);
   const headers = { 'content-type': 'application/x-www-form-urlencoded', accept: 'application/json' };
-  if (clientSecret) headers.authorization = `Basic ${Buffer.from(`${encodeURIComponent(form.client_id)}:${encodeURIComponent(clientSecret)}`).toString('base64')}`;
+  if (clientSecret && auth !== 'post') headers.authorization = `Basic ${Buffer.from(`${encodeURIComponent(form.client_id)}:${encodeURIComponent(clientSecret)}`).toString('base64')}`;
   const response = await withTimeout(fetchImpl, url, { method: 'POST', redirect: 'error', headers, body }, timeoutMs);
   let data = null;
   try {
@@ -248,7 +249,8 @@ async function tokenRequest(url, form, { clientSecret = '', fetchImpl, timeoutMs
   } catch {
     data = null;
   }
-  if (!response.ok) {
+  // GitHub answers a refused request with 200 and { error } in the body.
+  if (!response.ok || (typeof data?.error === 'string' && !data.access_token)) {
     // `invalid_grant`: the code or the refresh token is no longer good (the person must log in again).
     const code = typeof data?.error === 'string' && /^[a-z_]{1,40}$/.test(data.error) ? data.error : 'token_refused';
     throw new OAuthError(code, 'The service refused the token request.', { status: response.status });
@@ -265,12 +267,12 @@ async function tokenRequest(url, form, { clientSecret = '', fetchImpl, timeoutMs
 
 /** Trades the code the service sent back for tokens. Returns { accessToken, refreshToken, expiresInSeconds, scope }. */
 export function exchangeCode({ metadata, client, redirectUri, code, verifier, fetchImpl = fetch, timeoutMs = DEFAULT_TIMEOUT_MS }) {
-  return tokenRequest(metadata.tokenEndpoint, { grant_type: 'authorization_code', code, redirect_uri: redirectUri, client_id: client.clientId, code_verifier: verifier, resource: metadata.resource }, { clientSecret: client.clientSecret, fetchImpl, timeoutMs });
+  return tokenRequest(metadata.tokenEndpoint, { grant_type: 'authorization_code', code, redirect_uri: redirectUri, client_id: client.clientId, code_verifier: verifier, resource: metadata.resource }, { clientSecret: client.clientSecret, auth: client.auth, fetchImpl, timeoutMs });
 }
 
 /** Trades a refresh token for new tokens (a service that rotates gives a new refresh token: it must be kept, the old one is dead). */
 export function refreshTokens({ metadata, client, refreshToken, fetchImpl = fetch, timeoutMs = DEFAULT_TIMEOUT_MS }) {
-  return tokenRequest(metadata.tokenEndpoint, { grant_type: 'refresh_token', refresh_token: refreshToken, client_id: client.clientId, resource: metadata.resource }, { clientSecret: client.clientSecret, fetchImpl, timeoutMs });
+  return tokenRequest(metadata.tokenEndpoint, { grant_type: 'refresh_token', refresh_token: refreshToken, client_id: client.clientId, resource: metadata.resource }, { clientSecret: client.clientSecret, auth: client.auth, fetchImpl, timeoutMs });
 }
 
 /** Tells the service the token is no longer wanted (RFC 7009), when it has an address for that. Returns whether the service accepted; it never throws. */
@@ -278,8 +280,8 @@ export async function revokeToken({ metadata, client, token, hint = 'refresh_tok
   if (!metadata?.revocationEndpoint || !token) return false;
   try {
     const headers = { 'content-type': 'application/x-www-form-urlencoded' };
-    if (client.clientSecret) headers.authorization = `Basic ${Buffer.from(`${encodeURIComponent(client.clientId)}:${encodeURIComponent(client.clientSecret)}`).toString('base64')}`;
-    const response = await withTimeout(fetchImpl, metadata.revocationEndpoint, { method: 'POST', redirect: 'error', headers, body: new URLSearchParams({ token, token_type_hint: hint, client_id: client.clientId }) }, timeoutMs);
+    if (client.clientSecret && client.auth !== 'post') headers.authorization = `Basic ${Buffer.from(`${encodeURIComponent(client.clientId)}:${encodeURIComponent(client.clientSecret)}`).toString('base64')}`;
+    const response = await withTimeout(fetchImpl, metadata.revocationEndpoint, { method: 'POST', redirect: 'error', headers, body: new URLSearchParams({ token, token_type_hint: hint, client_id: client.clientId, ...(client.clientSecret && client.auth === 'post' ? { client_secret: client.clientSecret } : {}) }) }, timeoutMs);
     return response.ok;
   } catch {
     return false;

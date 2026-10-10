@@ -180,6 +180,40 @@ export const CONNECTORS = Object.freeze([
     }),
     reads: Object.freeze(['search_vercel_documentation', 'web_fetch_vercel_url', 'check_domain_availability_and_price', 'count_events', 'count_pageviews', 'aggregate_events', 'aggregate_pageviews', 'artifact_query', 'search_domains', 'search_repo', 'filter_project_envs', 'git_namespaces']),
     writes: Object.freeze(['get_access_to_vercel_url', 'buy_domain', 'buy_domains', 'buy_single_domain', 'deploy_to_vercel', 'create_deployment'])
+  }),
+  Object.freeze({
+    id: 'github',
+    name: 'GitHub',
+    category: 'dev',
+    endpoint: 'https://api.githubcopilot.com/mcp/',
+    icon: 'https://github.com/github.png?size=96',
+    // GitHub has no registration of its own: Noureon is an OAuth App that the owner made in GitHub (its id and secret are in the server's environment, CONNECTOR_GITHUB_CLIENT_ID and _SECRET).
+    // GitHub documents the secret in the body of the request, not in the header; it has no revocation address and its login is one for reading and writing (repo).
+    clientAuth: 'post',
+    scopes: Object.freeze({ readwrite: Object.freeze(['repo', 'read:org', 'read:user']) }),
+    description: Object.freeze({
+      'zh-TW': '搜尋與讀取你的倉庫、程式碼、議題與 Pull Request；建立議題、留言、提交與 Pull Request。',
+      en: 'Search and read your repositories, code, issues and pull requests; create issues, comments, commits and pull requests.',
+      fr: 'Rechercher et lire vos dépôts, votre code, vos tickets et pull requests ; créer tickets, commentaires, commits et pull requests.',
+      ru: 'Поиск и чтение ваших репозиториев, кода, задач и pull request; создание задач, комментариев, коммитов и pull request.',
+      es: 'Busca y lee tus repositorios, código, incidencias y pull requests; crea incidencias, comentarios, commits y pull requests.'
+    }),
+    details: Object.freeze({
+      'zh-TW': '連接 GitHub 後，模型可以搜尋與讀取你能看到的倉庫、檔案內容、議題與 Pull Request，也能在你允許時建立議題、留言、建立分支、提交檔案、開 Pull Request，甚至合併。GitHub 的授權包含你倉庫的寫入權限，所以每個工具由你決定；會修改或刪除資料的動作預設每次都先問你。GitHub 沒有提供撤銷令牌的功能：中斷連線時我們會刪除保存的令牌，若要在 GitHub 端取消授權，請到 GitHub 的 Settings → Applications 移除 Noureon。',
+      en: 'Once GitHub is connected, the model can search and read the repositories, file contents, issues and pull requests you can see, and, where you allow it, create issues, comment, create branches, commit files, open pull requests and even merge them. GitHub\'s authorisation includes write access to your repositories, so each tool is up to you; an action that changes or deletes data asks you first by default. GitHub does not offer a way to revoke a token: when you disconnect, we delete the token we keep, and to cancel the authorisation at GitHub you remove Noureon under Settings → Applications there.',
+      fr: 'Une fois GitHub connecté, le modèle peut chercher et lire les dépôts, le contenu des fichiers, les tickets et les pull requests que vous pouvez voir et, si vous l’autorisez, créer des tickets, commenter, créer des branches, valider des fichiers, ouvrir des pull requests et même les fusionner. L’autorisation de GitHub inclut l’écriture sur vos dépôts : c’est donc à vous de régler chaque outil ; une action qui modifie ou supprime des données vous demande d’abord, par défaut. GitHub ne permet pas de révoquer un jeton : à la déconnexion, nous supprimons le jeton que nous gardons ; pour annuler l’autorisation chez GitHub, retirez Noureon dans Settings → Applications.',
+      ru: 'После подключения GitHub модель может искать и читать доступные вам репозитории, содержимое файлов, задачи и pull request и, если вы разрешите, создавать задачи, комментировать, создавать ветки, коммитить файлы, открывать pull request и даже сливать их. Авторизация GitHub включает запись в ваши репозитории, поэтому каждый инструмент настраиваете вы; действие, меняющее или удаляющее данные, по умолчанию сначала спрашивает вас. GitHub не позволяет отозвать токен: при отключении мы удаляем сохранённый токен, а чтобы отменить авторизацию на стороне GitHub, удалите Noureon в Settings → Applications.',
+      es: 'Una vez conectado GitHub, el modelo puede buscar y leer los repositorios, el contenido de archivos, las incidencias y los pull requests que puedes ver y, si lo permites, crear incidencias, comentar, crear ramas, confirmar archivos, abrir pull requests e incluso fusionarlos. La autorización de GitHub incluye escritura en tus repositorios, así que cada herramienta la decides tú; una acción que cambia o borra datos te pregunta antes, por defecto. GitHub no ofrece revocar un token: al desconectar borramos el token que guardamos, y para cancelar la autorización en GitHub quita Noureon en Settings → Applications.'
+    }),
+    examples: Object.freeze({
+      'zh-TW': Object.freeze(['列出我的倉庫裡還沒關閉的議題，按優先度整理', '看一下 noureon 這個倉庫最近的 Pull Request，哪些還沒有人審查？', '幫我在這個倉庫開一個議題：登入頁面在 Safari 壞掉']),
+      en: Object.freeze(['List the open issues in my repositories, ordered by priority', 'Look at the latest pull requests of the noureon repository: which ones have no reviewer yet?', 'Open an issue in this repository: the login page is broken in Safari']),
+      fr: Object.freeze(['Liste les tickets ouverts de mes dépôts, classés par priorité', 'Regarde les dernières pull requests du dépôt noureon : lesquelles n’ont pas encore de relecteur ?', 'Ouvre un ticket dans ce dépôt : la page de connexion est cassée dans Safari']),
+      ru: Object.freeze(['Покажи открытые задачи в моих репозиториях по приоритету', 'Посмотри последние pull request репозитория noureon: у каких ещё нет ревьюера?', 'Создай задачу в этом репозитории: страница входа не работает в Safari']),
+      es: Object.freeze(['Lista las incidencias abiertas de mis repositorios, por prioridad', 'Mira los últimos pull requests del repositorio noureon: ¿cuáles aún no tienen revisor?', 'Abre una incidencia en este repositorio: la página de inicio de sesión falla en Safari'])
+    }),
+    reads: Object.freeze(['issue_read', 'pull_request_read', 'actions_get', 'actions_list']),
+    writes: Object.freeze(['issue_write', 'sub_issue_write', 'pull_request_review_write', 'create_or_update_file', 'delete_file', 'push_files', 'create_pull_request', 'merge_pull_request', 'update_pull_request', 'update_pull_request_branch', 'create_branch', 'create_repository', 'fork_repository', 'add_issue_comment', 'add_comment_to_pending_review', 'add_reply_to_pull_request_comment', 'assign_copilot_to_issue', 'request_copilot_review', 'actions_run_trigger', 'enable_pr_auto_merge', 'disable_pr_auto_merge'])
   })
 ]);
 
@@ -221,6 +255,7 @@ export function connectorProblems(connector) {
   if (!/^https:\/\/[^\s/]+(?:\/[^\s]*)?$/.test(String(connector?.endpoint || ''))) problems.push('endpoint');
   if (!/^https:\/\/github\.com\/[A-Za-z0-9-]{1,39}\.png\?size=\d{2,3}$/.test(String(connector?.icon || ''))) problems.push('icon');
   if (connector?.registration !== undefined && connector.registration !== 'dcr') problems.push('registration');
+  if (connector?.clientAuth !== undefined && connector.clientAuth !== 'post') problems.push('clientAuth');
   if (!connector?.scopes?.readwrite) problems.push('scopes');
   if (!connector?.description || !LANGUAGES.every((language) => String(connector.description[language] || '').trim())) problems.push('description in the five languages');
   if (!connector?.details || !LANGUAGES.every((language) => String(connector.details[language] || '').trim())) problems.push('details in the five languages');

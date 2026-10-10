@@ -465,3 +465,11 @@ test('our client metadata document is what the server says it is: its address is
   // The settings are checked: an address that is not https is refused.
   assert.throws(() => loadConfig({ SUPABASE_URL: 'https://project.supabase.example', SUPABASE_ANON_KEY: 'anon', CONNECTOR_REDIRECT_URI: 'http://api.noureon.com/mcp/callback' }), /CONNECTOR_REDIRECT_URI/);
 });
+
+test('the client made by hand at GitHub is set with both its id and its secret or with neither, and it never appears in the settings that are logged', () => {
+  const base = { SUPABASE_URL: 'https://project.supabase.example', SUPABASE_ANON_KEY: 'anon' };
+  assert.deepEqual(loadConfig(base).connectorPreregistered, {});
+  assert.deepEqual(loadConfig({ ...base, CONNECTOR_GITHUB_CLIENT_ID: 'Ov23liabc', CONNECTOR_GITHUB_CLIENT_SECRET: 'shh' }).connectorPreregistered, { github: { clientId: 'Ov23liabc', clientSecret: 'shh' } });
+  assert.throws(() => loadConfig({ ...base, CONNECTOR_GITHUB_CLIENT_ID: 'Ov23liabc' }), /CONNECTOR_GITHUB_CLIENT_ID and CONNECTOR_GITHUB_CLIENT_SECRET go together/);
+  assert.throws(() => loadConfig({ ...base, CONNECTOR_GITHUB_CLIENT_SECRET: 'shh' }), /go together/);
+});

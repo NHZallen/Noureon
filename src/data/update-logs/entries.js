@@ -2,6 +2,20 @@
 // content 為 zh-TW 的 HTML 字串（JSON 轉義、雙引號），目前不隨介面語言切換。
 export const updateLogEntries = [
   {
+    version: "18.7.0",
+    date: "2026-10-11",
+    content: [
+      "<strong>Noureon 18.7.0 發布說明</strong>",
+      "本版本為連接器新增 GitHub，並修正設定頁裡「已連線」的顏色。",
+      "<strong>主要變更</strong>",
+      "<ul><li><strong>GitHub：</strong>搜尋與讀取你能看到的倉庫、程式碼、議題與 Pull Request，也能在你允許時建立議題、留言、建立分支、提交檔案、開與合併 Pull Request。GitHub 的授權包含倉庫的寫入權限，所以每個工具由你決定；會修改或刪除資料的動作預設每次都先問你，其他連接器的設定方式相同。</li><li><strong>已連線的顏色：</strong>設定的「權限」頁裡，連接器的「已連線」原本是白色，現在和擴充頁一樣是綠色（需要重新登入是黃色）。</li><li><strong>登入失敗的原因：</strong>連接器無法開始登入時，畫面會多顯示服務回的錯誤代碼；服務拒絕註冊時，會用只含必要欄位的內容再試一次。</li><li><strong>Vercel 審核中：</strong>Vercel 只讓它核准過的用戶端登入，Noureon 的申請已送出，核准前清單上標示「審核中」，暫時不能連線。</li></ul>",
+      "<strong>注意事項</strong>",
+      "<ul><li>GitHub 沒有提供撤銷令牌的功能：中斷連線時我們會刪除保存的令牌，要在 GitHub 端取消授權，請到 GitHub 的 Settings → Applications 移除 Noureon。</li><li>GitHub 連線需要伺服器設定 CONNECTOR_GITHUB_CLIENT_ID 與 CONNECTOR_GITHUB_CLIENT_SECRET；沒有設定時無法登入。</li></ul>",
+      "<strong>相容性</strong>",
+      "本次更新不需要資料遷移。"
+    ]
+  },
+  {
     version: "18.6.0",
     date: "2026-10-11",
     content: [

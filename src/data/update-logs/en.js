@@ -1,6 +1,16 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.7.0": [
+    "<strong>Noureon 18.7.0 Release Notes</strong>",
+    "This version adds GitHub to the connectors and fixes the colour of “Connected” in the settings.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>GitHub:</strong> searches and reads the repositories, code, issues and pull requests you can see, and, where you allow it, creates issues, comments, creates branches, commits files, and opens and merges pull requests. GitHub’s authorisation includes write access to repositories, so each tool is up to you; an action that changes or deletes data asks you first by default, as with the other connectors.</li><li><strong>The colour of Connected:</strong> in the Permissions page of the settings, “Connected” of a connector was white; it is now green as in the Extensions page (a login needed is yellow).</li><li><strong>Why a login failed:</strong> when a connector cannot begin a login, the page now also shows the error code the service gave; when a service refuses the registration, it is asked again with only what a registration needs.</li><li><strong>Vercel under review:</strong> Vercel lets only the clients it has approved log in; Noureon’s application has been sent, and until it is approved the list says “Under review” and Vercel cannot be connected.</li></ul>",
+    "<strong>Notes</strong>",
+    "<ul><li>GitHub does not offer a way to revoke a token: when you disconnect, we delete the token we keep, and to cancel the authorisation at GitHub you remove Noureon under Settings → Applications there.</li><li>GitHub needs CONNECTOR_GITHUB_CLIENT_ID and CONNECTOR_GITHUB_CLIENT_SECRET to be set on the server; without them it cannot be logged in to.</li></ul>",
+    "<strong>Compatibility</strong>",
+    "This update requires no data migration."
+  ],
   "18.6.0": [
     "<strong>Noureon 18.6.0 Release Notes</strong>",
     "This version adds three services to the connectors: Context7, Upstash and Vercel.",

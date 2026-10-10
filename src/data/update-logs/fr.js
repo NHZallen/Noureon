@@ -1,6 +1,16 @@
 // The update notes in French (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.7.0": [
+    "<strong>Notes de version de Noureon 18.7.0</strong>",
+    "Cette version ajoute GitHub aux connecteurs et corrige la couleur de « Connecté » dans les réglages.",
+    "<strong>Principaux changements</strong>",
+    "<ul><li><strong>GitHub :</strong> cherche et lit les dépôts, le code, les tickets et les pull requests que vous pouvez voir et, si vous l’autorisez, crée des tickets, commente, crée des branches, valide des fichiers, ouvre et fusionne des pull requests. L’autorisation de GitHub inclut l’écriture sur les dépôts : c’est donc à vous de régler chaque outil ; une action qui modifie ou supprime des données vous demande d’abord, par défaut, comme pour les autres connecteurs.</li><li><strong>La couleur de « Connecté » :</strong> dans la page Autorisations des réglages, « Connecté » d’un connecteur était blanc ; il est maintenant vert comme dans la page des extensions (une connexion à refaire est en jaune).</li><li><strong>Pourquoi une connexion a échoué :</strong> quand un connecteur ne peut pas commencer la connexion, la page affiche aussi le code d’erreur donné par le service ; quand un service refuse l’enregistrement, on le lui redemande avec seulement le nécessaire.</li><li><strong>Vercel en cours de validation :</strong> Vercel ne laisse se connecter que les clients qu’il a approuvés ; la demande de Noureon a été envoyée et, tant qu’elle n’est pas approuvée, la liste indique « En cours de validation » et Vercel ne peut pas être connecté.</li></ul>",
+    "<strong>Remarques</strong>",
+    "<ul><li>GitHub ne permet pas de révoquer un jeton : à la déconnexion, nous supprimons le jeton que nous gardons ; pour annuler l’autorisation chez GitHub, retirez Noureon dans Settings → Applications.</li><li>GitHub exige que CONNECTOR_GITHUB_CLIENT_ID et CONNECTOR_GITHUB_CLIENT_SECRET soient définis sur le serveur ; sans eux, la connexion est impossible.</li></ul>",
+    "<strong>Compatibilité</strong>",
+    "Cette mise à jour ne nécessite aucune migration de données."
+  ],
   "18.6.0": [
     "<strong>Notes de version de Noureon 18.6.0</strong>",
     "Cette version ajoute trois services aux connecteurs : Context7, Upstash et Vercel.",

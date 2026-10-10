@@ -97,6 +97,13 @@ export function createConnectorService({ db, vault, fetchImpl = fetch, now = Dat
     metadataKept.set(connector.id, { at: now(), metadata });
     return metadata;
   }
+  // The client as the engine uses it: the pre-registered one has its secret from the environment (not the copy kept with the login, which a new secret would leave out of date), and
+  // a service that wants the secret in the body (GitHub) is told so by the catalog.
+  const oauthClientOf = (connector, kept) => {
+    const hand = (config.preregistered || {})[connector.id];
+    const clientSecret = hand?.clientId && hand.clientId === kept.clientId && hand.clientSecret ? hand.clientSecret : kept.clientSecret;
+    return { clientId: kept.clientId, ...(clientSecret ? { clientSecret } : {}), ...(connector.clientAuth === 'post' ? { auth: 'post' } : {}) };
+  };
   const clientOf = (connector, metadata) => resolveClient({
     connectorId: connector.id,
     metadata,
@@ -104,7 +111,7 @@ export function createConnectorService({ db, vault, fetchImpl = fetch, now = Dat
     cimdUrl: config.cimdUrl,
     preregistered: config.preregistered || {},
     identity: config.identity || {},
-    prefer: connector.registration || '',
+    prefer: connector.registration === 'dcr' ? 'dcr' : '',
     clientStore: config.clientStore || null,
     fetchImpl
   });
@@ -165,7 +172,7 @@ export function createConnectorService({ db, vault, fetchImpl = fetch, now = Dat
       const metadata = await metadataOf(connector);
       // RFC 9207: a service that says it sends its issuer back must send ours (a login sent by another server is not accepted).
       if (metadata.issuerInResponse && String(iss || '').replace(/\/+$/, '') !== metadata.issuer) throw new OAuthError('bad_metadata', 'The login came from another server.');
-      const client = { clientId: pending.clientId, ...(pending.clientSecret ? { clientSecret: pending.clientSecret } : {}) };
+      const client = oauthClientOf(connector, { clientId: pending.clientId, clientSecret: pending.clientSecret });
       const tokens = await exchangeCode({ metadata, client, redirectUri: config.redirectUri, code, verifier: pending.verifier, fetchImpl });
       const sealed = sealTokens({ accessToken: tokens.accessToken, refreshToken: tokens.refreshToken, expiresAt: tokens.expiresInSeconds ? now() + tokens.expiresInSeconds * 1000 : 0, clientId: client.clientId, clientSecret: client.clientSecret || '' }, userId, connectorId);
       await saveRow(userId, connectorId, {
@@ -225,7 +232,7 @@ export function createConnectorService({ db, vault, fetchImpl = fetch, now = Dat
       }
       try {
         const metadata = await metadataOf(connector);
-        const next = await refreshTokens({ metadata, client: { clientId: tokens.clientId, ...(tokens.clientSecret ? { clientSecret: tokens.clientSecret } : {}) }, refreshToken: tokens.refreshToken, fetchImpl });
+        const next = await refreshTokens({ metadata, client: oauthClientOf(connector, tokens), refreshToken: tokens.refreshToken, fetchImpl });
         const sealed = sealTokens({ ...tokens, accessToken: next.accessToken, refreshToken: next.refreshToken || tokens.refreshToken, expiresAt: next.expiresInSeconds ? now() + next.expiresInSeconds * 1000 : 0 }, userId, connectorId);
         await saveRow(userId, connectorId, { ...sealed, ...(next.scope ? { scope: next.scope } : {}), last_error: null });
         return next.accessToken;
@@ -364,7 +371,7 @@ export function createConnectorService({ db, vault, fetchImpl = fetch, now = Dat
         try {
           const tokens = openTokens(row, userId);
           const metadata = await metadataOf(connector);
-          const client = { clientId: tokens.clientId, ...(tokens.clientSecret ? { clientSecret: tokens.clientSecret } : {}) };
+          const client = oauthClientOf(connector, tokens);
           revoked = tokens.refreshToken
             ? await revokeToken({ metadata, client, token: tokens.refreshToken, fetchImpl })
             : await revokeToken({ metadata, client, token: tokens.accessToken, hint: 'access_token', fetchImpl });

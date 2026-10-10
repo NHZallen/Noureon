@@ -1,6 +1,16 @@
 // The update notes in Spanish (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.7.0": [
+    "<strong>Notas de la versión de Noureon 18.7.0</strong>",
+    "Esta versión añade GitHub a los conectores y corrige el color de «Conectado» en los ajustes.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>GitHub:</strong> busca y lee los repositorios, el código, las incidencias y los pull requests que puedes ver y, si lo permites, crea incidencias, comenta, crea ramas, confirma archivos, abre y fusiona pull requests. La autorización de GitHub incluye escritura en los repositorios, así que cada herramienta la decides tú; una acción que cambia o borra datos te pregunta antes, por defecto, como en los demás conectores.</li><li><strong>El color de Conectado:</strong> en la página Permisos de los ajustes, «Conectado» de un conector era blanco; ahora es verde, como en la página de extensiones (un acceso por rehacer es amarillo).</li><li><strong>Por qué falló un acceso:</strong> cuando un conector no puede empezar el acceso, la página muestra también el código de error que dio el servicio; cuando un servicio rechaza el registro, se le pide de nuevo solo con lo necesario.</li><li><strong>Vercel en revisión:</strong> Vercel solo deja entrar a los clientes que ha aprobado; la solicitud de Noureon ya se envió y, hasta que se apruebe, la lista dice «En revisión» y Vercel no se puede conectar.</li></ul>",
+    "<strong>Notas</strong>",
+    "<ul><li>GitHub no ofrece revocar un token: al desconectar borramos el token que guardamos, y para cancelar la autorización en GitHub quita Noureon en Settings → Applications.</li><li>GitHub necesita que CONNECTOR_GITHUB_CLIENT_ID y CONNECTOR_GITHUB_CLIENT_SECRET estén definidos en el servidor; sin ellos no se puede iniciar sesión.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "Esta actualización no requiere migración de datos."
+  ],
   "18.6.0": [
     "<strong>Notas de la versión de Noureon 18.6.0</strong>",
     "Esta versión añade tres servicios a los conectores: Context7, Upstash y Vercel.",

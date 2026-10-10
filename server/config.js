@@ -36,6 +36,15 @@ export function loadConfig(env = process.env) {
   const appUrl = String(env.APP_URL || 'https://noureon.com').replace(/\/+$/, '');
   const connectorRedirectUri = String(env.CONNECTOR_REDIRECT_URI || 'https://api.noureon.com/mcp/callback');
   const connectorClientId = String(env.CONNECTOR_CLIENT_ID || `${appUrl}/.well-known/oauth-client.json`);
+  // Services that have no registration of their own (GitHub): the client made by hand in the service's portal, one id and one secret for every person; both or neither. The secret only ever lives here.
+  const preregistered = {};
+  for (const id of ['github']) {
+    const key = `CONNECTOR_${id.toUpperCase()}_CLIENT`;
+    const clientId = String(env[`${key}_ID`] || '');
+    const clientSecret = String(env[`${key}_SECRET`] || '');
+    if (Boolean(clientId) !== Boolean(clientSecret)) problems.push(`${key}_ID and ${key}_SECRET go together: set both or neither`);
+    if (clientId && clientSecret) preregistered[id] = Object.freeze({ clientId, clientSecret });
+  }
   for (const [name, value] of [['APP_URL', appUrl], ['CONNECTOR_REDIRECT_URI', connectorRedirectUri], ['CONNECTOR_CLIENT_ID', connectorClientId]]) if (!/^https:\/\/[^\s]+$/i.test(value)) problems.push(`${name} must be an https address`);
   if (problems.length) throw new Error(`Server settings are not right: ${problems.join('; ')}`);
   return Object.freeze({
@@ -50,6 +59,7 @@ export function loadConfig(env = process.env) {
     appUrl,
     connectorRedirectUri,
     connectorClientId,
+    connectorPreregistered: Object.freeze(preregistered),
     allowedOrigins: Object.freeze(list(env.ALLOWED_ORIGINS, DEFAULT_ALLOWED_ORIGINS)),
     // The version of the server (shown by /healthz): the Git commit when the deployment gives it.
     build: String(env.SOURCE_COMMIT || env.GIT_COMMIT || 'dev').slice(0, 12)

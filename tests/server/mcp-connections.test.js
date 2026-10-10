@@ -230,6 +230,57 @@ test('a service that refuses our registration, or does not say how to log in, is
   await assert.rejects(silent.startLogin(USER, 'vercel', 'readwrite'), (error) => error.code === 'failed' && error.detail === 'no_metadata');
 });
 
+test('GitHub: the client made by hand is the one used (id and secret from the environment), the secret goes in the body, a login with no such client says so, and a secret made again is used at once', async () => {
+  const db = fakeDb();
+  const vault = createKeyVault([{ version: 1, key: randomBytes(32).toString('base64') }]);
+  const tokenForms = [];
+  let issued = 0;
+  let accepted = 'secret-then';
+  const world = async (url, options = {}) => {
+    const target = String(url);
+    if (target === 'https://api.githubcopilot.com/.well-known/oauth-protected-resource/mcp') return json({ resource: 'https://api.githubcopilot.com/mcp/', authorization_servers: ['https://github.com/login/oauth'] });
+    if (target === 'https://github.com/.well-known/oauth-authorization-server/login/oauth') return json({ issuer: 'https://github.com/login/oauth', authorization_endpoint: 'https://github.com/login/oauth/authorize', token_endpoint: 'https://github.com/login/oauth/access_token', code_challenge_methods_supported: ['S256'] });
+    if (target === 'https://github.com/login/oauth/access_token') {
+      const form = Object.fromEntries(new URLSearchParams(String(options.body)));
+      tokenForms.push({ form, authorization: options.headers.authorization });
+      if (form.client_secret !== accepted) return json({ error: 'incorrect_client_credentials' });
+      issued += 1;
+      return json({ access_token: `ghu_${issued}`, refresh_token: `ghr_${issued}`, expires_in: 1, token_type: 'bearer' });
+    }
+    if (target === 'https://api.githubcopilot.com/mcp/') {
+      if ((options.method || 'GET') === 'DELETE') return new Response('', { status: 204 });
+      const body = JSON.parse(options.body);
+      if (body.id === undefined) return new Response('', { status: 202 });
+      if (body.method === 'initialize') return json({ jsonrpc: '2.0', id: body.id, result: { protocolVersion: '2025-06-18' } });
+      return json({ jsonrpc: '2.0', id: body.id, result: { tools: [{ name: 'get_me', description: 'Who', inputSchema: { type: 'object' } }, { name: 'create_issue', description: 'Makes an issue', inputSchema: { type: 'object' } }] } });
+    }
+    return new Response('nothing', { status: 404 });
+  };
+  const make = (preregistered) => createConnectorService({ db, vault, fetchImpl: world, now: () => Date.now(), config: { redirectUri: REDIRECT, cimdUrl: CIMD, preregistered } });
+  // Without the client made by hand, the login cannot begin, and says why.
+  await assert.rejects(make({}).startLogin(USER, 'github', 'readwrite'), (error) => error.code === 'failed' && error.detail === 'no_client');
+  // With it: the login asks with that client, and the three scopes of the catalog.
+  const service = make({ github: { clientId: 'Ov23liabc', clientSecret: 'secret-then' } });
+  const { url } = await service.startLogin(USER, 'github', 'readwrite');
+  const login = new URL(url);
+  assert.equal(login.origin + login.pathname, 'https://github.com/login/oauth/authorize');
+  assert.equal(login.searchParams.get('client_id'), 'Ov23liabc');
+  assert.equal(login.searchParams.get('scope'), 'repo read:org read:user');
+  const done = await service.completeLogin({ state: login.searchParams.get('state'), code: 'the-code' });
+  assert.deepEqual(done, { ok: true, connectorId: 'github' });
+  assert.equal(tokenForms[0].form.client_secret, 'secret-then');
+  assert.equal(tokenForms[0].authorization, undefined, 'the secret is in the body, not in the header');
+  // The secret is made again in GitHub and set in the environment; the token is only valid for a second here, so it is renewed with the secret as it is now (the one kept with the login is old).
+  accepted = 'secret-now';
+  await new Promise((resolve) => setTimeout(resolve, 1100));
+  const row = db.rows.find((entry) => entry.__table === 'user_mcp_connections' && entry.connector_id === 'github');
+  assert.ok(row.envelope && !JSON.stringify(row).includes('secret-then'), 'the secret is not in the row in plain');
+  const renewed = make({ github: { clientId: 'Ov23liabc', clientSecret: 'secret-now' } });
+  assert.equal(await renewed.accessToken(USER, 'github'), `ghu_${issued}`);
+  assert.equal(tokenForms.at(-1).form.grant_type, 'refresh_token');
+  assert.equal(tokenForms.at(-1).form.client_secret, 'secret-now');
+});
+
 test('the list of tools is asked for again when it is an hour old, not on every reply', async () => {
   let time = 20_000_000;
   const { world, service } = setup({ now: () => time });

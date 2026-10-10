@@ -1,6 +1,16 @@
 // The update notes in Russian (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.7.0": [
+    "<strong>Заметки о выпуске Noureon 18.7.0</strong>",
+    "В этой версии в коннекторы добавлен GitHub и исправлен цвет «Подключено» в настройках.",
+    "<strong>Основные изменения</strong>",
+    "<ul><li><strong>GitHub:</strong> ищет и читает доступные вам репозитории, код, задачи и pull request и, если вы разрешите, создаёт задачи, комментирует, создаёт ветки, коммитит файлы, открывает и сливает pull request. Авторизация GitHub включает запись в репозитории, поэтому каждый инструмент настраиваете вы; действие, меняющее или удаляющее данные, по умолчанию сначала спрашивает вас, как и у других коннекторов.</li><li><strong>Цвет «Подключено»:</strong> на странице «Разрешения» в настройках надпись «Подключено» у коннектора была белой; теперь она зелёная, как на странице расширений (нужен повторный вход — жёлтая).</li><li><strong>Почему вход не удался:</strong> если коннектор не может начать вход, страница показывает ещё и код ошибки сервиса; если сервис отказывает в регистрации, запрос повторяется только с необходимым.</li><li><strong>Vercel на рассмотрении:</strong> Vercel пускает только одобренных им клиентов; заявка Noureon отправлена, и пока она не одобрена, в списке написано «На рассмотрении», а подключить Vercel нельзя.</li></ul>",
+    "<strong>Примечания</strong>",
+    "<ul><li>GitHub не позволяет отозвать токен: при отключении мы удаляем сохранённый токен, а чтобы отменить авторизацию на стороне GitHub, удалите Noureon в Settings → Applications.</li><li>Для GitHub на сервере должны быть заданы CONNECTOR_GITHUB_CLIENT_ID и CONNECTOR_GITHUB_CLIENT_SECRET; без них войти нельзя.</li></ul>",
+    "<strong>Совместимость</strong>",
+    "Это обновление не требует миграции данных."
+  ],
   "18.6.0": [
     "<strong>Заметки о выпуске Noureon 18.6.0</strong>",
     "В этой версии в коннекторы добавлены три сервиса: Context7, Upstash и Vercel.",

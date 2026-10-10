@@ -1,6 +1,6 @@
 # 連接器（MCP）設計：擴充的第三層
 
-**狀態：** 第 1 期（登入引擎、Notion 與 Linear、工具權限、確認卡、擴充頁第三部分）已在 18.4.0 寫完，本機測試全過，**還沒有用真實帳號登入過**（見 §12）。第 2 期（Context7、Upstash、Vercel）已在 18.6.0 寫完（§13），還沒用真實帳號登入過；第 3 期（GitHub）還沒做。「§2 owner 的決定」是 2026-10-10 討論的結果；畫面選 C 組（§9）；第 0 期的探測結果在 §4。
+**狀態：** 第 1 期（登入引擎、Notion 與 Linear、工具權限、確認卡、擴充頁第三部分）已在 18.4.0 寫完，本機測試全過，**還沒有用真實帳號登入過**（見 §12）。第 2 期（Context7、Upstash、Vercel）已在 18.6.0 寫完（§13），還沒用真實帳號登入過；第 3 期（GitHub）已在 18.7.0 寫完（§14），還沒用真實帳號登入過。「§2 owner 的決定」是 2026-10-10 討論的結果；畫面選 C 組（§9）；第 0 期的探測結果在 §4。
 **起因：** owner 想做第三種擴充（技能、命令工具之後）：連到使用者自己帳號上的服務（Notion、GitHub 等），讓模型能查資料、做事。
 **研究來源：** 我查的官方文件，加上 owner 請 ChatGPT 逐項查證的結果（兩者互相核對過，下面標「已查證」「未確認」）。端到端的實際登入**沒有人測過**，所以第 0 期先做實驗（§7）。
 
@@ -245,3 +245,22 @@ owner 真實登入時，Vercel 回 `registration_refused 400: invalid_redirect_u
 - 目錄裡 `vercel` 加 `pending: true`：清單上顯示「審核中」，點開有說明，不開始登入。核准後把這一行拿掉即可，其他程式不用改（註冊應該就會成功）。
 - owner 已向 Vercel 送出用戶端申請表（Google 表單）：用戶端名稱 Noureon、傳輸 Streamable HTTP、回呼網址 `https://api.noureon.com/mcp/callback`、Logo `https://noureon.com/logo.png`、字標 `https://noureon.com/wordmark.svg`（和 `wordmark.png`）。
 - 這次也加了診斷：登入失敗時畫面會顯示服務回的錯誤代碼與狀態；註冊被回 400／422 時，會用只含必要欄位的內容再註冊一次。
+
+## 14. 第 3 期的實作記錄（18.7.0，2026-10-11）
+
+加了 GitHub，並修正設定頁裡「已連線」是白色的（設定頁有一條 `#settings-modal *:not(.toggle-label) { color: … !important }`，所以狀態字要用同樣權重的 `!important` 才有自己的顏色）。
+
+**GitHub 怎麼接：**
+- owner 在 GitHub 建了 OAuth App「Noureon」（Settings → Developer settings → OAuth Apps；重定向 URI `https://api.noureon.com/mcp/callback`；勾「使用者存取權杖過期」，所以令牌 8 小時過期、有 refresh token），Client ID 與 Secret 放在 Zeabur：`CONNECTOR_GITHUB_CLIENT_ID`、`CONNECTOR_GITHUB_CLIENT_SECRET`（`server/config.js` 成對檢查，只設一個啟動失敗）。
+- 引擎的「預先註冊」路徑本來就有（`preregistered[id]`）；這次新增：
+  - 目錄 `clientAuth: 'post'`：GitHub 文件寫的是把 secret 放在請求內容（client_secret_post），不是 Authorization 標頭；換令牌、換新、撤銷都照這個。
+  - GitHub 拒絕請求時回 HTTP 200 加 `{error}`；原本會被當成「沒有令牌」，現在照錯誤代碼處理（`invalid_grant` 會變成「需要重新登入」）。
+  - 預先註冊的 secret 以環境變數為準（每次用的時候讀），不用和登入一起密封保存的那份：owner 重新產生 secret 後，已經連線的人不用重新登入。
+- 範圍：`repo read:org read:user`（一種登入，可讀寫；不提供 `/mcp/readonly` 端點的唯讀連線，owner 的決定：能不強制唯讀就不強制，寫入工具預設每次詢問）。
+- 沒有撤銷端點：中斷連線只刪我們保存的令牌，使用者要到 GitHub 的 Settings → Applications 移除 Noureon（目錄說明、隱私政策、協助中心都有寫）。
+- 工具：預設 `get_`／`list_`／`search_` 與 `issue_read`、`pull_request_read`、`actions_get`、`actions_list` 允許，其餘（建立、更新、合併、推送檔案、觸發工作流程…）與沒見過的工具都先問。
+
+**沒驗證的（要真實登入才知道）：**
+- GitHub 的遠端 MCP 是否接受我們這個 OAuth App 發的令牌（沒接受的話改用 GitHub App，要在後台一項一項勾權限，而且使用者要把它安裝到帳號或倉庫）。
+- 範圍夠不夠：有些工具（Projects、通知、工作流程）可能需要別的範圍；缺範圍的工具會回 403，要補範圍並重新登入。
+- GitHub 的授權畫面顯示的是 OAuth App 的名稱與標誌（Noureon 與紫色圓環）；登入網址與令牌換新的格式照文件寫，沒實測。

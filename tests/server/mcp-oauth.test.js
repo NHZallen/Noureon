@@ -105,6 +105,36 @@ test('a registration that is refused as not right is asked again with only what 
   await assert.rejects(resolveClient({ connectorId: 'v', metadata: dcr, redirectUri, cimdUrl, identity: { logoUri: 'https://noureon.com/logo.png' }, fetchImpl: never }), (error) => error.code === 'registration_refused' && error.status === 400 && /^invalid_redirect_uri: This redirect is not allowed x+$/.test(error.info) && error.info.length <= 60 + 2 + 120);
 });
 
+test('a service that wants the secret in the body (GitHub) gets it there and not in the header, and its refusal that comes with a 200 is a refusal', async () => {
+  const metadata = { tokenEndpoint: 'https://github.com/login/oauth/access_token', resource: 'https://api.githubcopilot.com/mcp/' };
+  const seen = [];
+  const answer = (body, status = 200) => async (url, options) => { seen.push({ headers: options.headers, form: Object.fromEntries(new URLSearchParams(String(options.body))) }); return json(body, status); };
+  const client = { clientId: 'Ov23liabc', clientSecret: 'the-secret', auth: 'post' };
+  const tokens = await exchangeCode({ metadata, client, redirectUri: 'https://api.noureon.com/mcp/callback', code: 'c', verifier: 'v'.repeat(43), fetchImpl: answer({ access_token: 'ghu_1', refresh_token: 'ghr_1', expires_in: 28800, token_type: 'bearer' }) });
+  assert.deepEqual([tokens.accessToken, tokens.refreshToken, tokens.expiresInSeconds], ['ghu_1', 'ghr_1', 28800]);
+  assert.equal(seen[0].form.client_secret, 'the-secret');
+  assert.equal(seen[0].headers.authorization, undefined, 'the secret is in one place only');
+  // The default is the header.
+  await exchangeCode({ metadata, client: { clientId: 'x', clientSecret: 'other' }, redirectUri: 'https://api.noureon.com/mcp/callback', code: 'c', verifier: 'v'.repeat(43), fetchImpl: answer({ access_token: 'AT', token_type: 'bearer' }) });
+  assert.match(seen[1].headers.authorization, /^Basic /);
+  assert.equal(seen[1].form.client_secret, undefined);
+  // GitHub answers a refused code with 200 and an error in the body.
+  await assert.rejects(exchangeCode({ metadata, client, redirectUri: 'https://api.noureon.com/mcp/callback', code: 'bad', verifier: 'v'.repeat(43), fetchImpl: answer({ error: 'bad_verification_code', error_description: 'x' }) }), (error) => error.code === 'bad_verification_code');
+  await assert.rejects(refreshTokens({ metadata, client, refreshToken: 'old', fetchImpl: answer({ error: 'invalid_grant' }) }), (error) => error.code === 'invalid_grant');
+  await refreshTokens({ metadata, client, refreshToken: 'ghr_1', fetchImpl: answer({ access_token: 'ghu_2', refresh_token: 'ghr_2', expires_in: 28800, token_type: 'bearer' }) });
+  assert.deepEqual([seen.at(-1).form.grant_type, seen.at(-1).form.refresh_token, seen.at(-1).form.client_secret], ['refresh_token', 'ghr_1', 'the-secret']);
+});
+
+test('GitHub: its login is one for reading and writing with the secret in the body, and its tools are told read from write', () => {
+  const github = getConnector('github');
+  assert.equal(github.endpoint, 'https://api.githubcopilot.com/mcp/');
+  assert.equal(github.clientAuth, 'post');
+  assert.equal(hasReadonlyLogin(github), false);
+  assert.deepEqual(loginScopes(github, 'readwrite'), ['repo', 'read:org', 'read:user']);
+  for (const name of ['get_me', 'get_file_contents', 'list_issues', 'search_code', 'issue_read', 'pull_request_read', 'actions_get', 'actions_list']) assert.equal(defaultToolState(github, name), 'allow', name);
+  for (const name of ['create_issue', 'issue_write', 'merge_pull_request', 'push_files', 'delete_file', 'create_or_update_file', 'actions_run_trigger', 'something_new']) assert.equal(defaultToolState(github, name), 'ask', name);
+});
+
 test('a PKCE pair has a verifier of 43 or more characters and its S256 challenge; the states hash the same way and are never equal', () => {
   const { verifier, challenge } = pkcePair();
   assert.match(verifier, /^[A-Za-z0-9_-]{43,128}$/);

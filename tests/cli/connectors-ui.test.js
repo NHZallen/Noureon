@@ -62,7 +62,7 @@ test('the list: the connectors are in their groups, each with its words, "Connec
   const t = setup();
   await settle(t);
   assert.deepEqual(names(t, '.cs-section-title'), ['筆記與專案', '開發']);
-  assert.deepEqual(names(t, '.cs-name-text'), ['Notion', 'Linear', 'Context7', 'Upstash', 'Vercel']);
+  assert.deepEqual(names(t, '.cs-name-text'), ['Notion', 'Linear', 'Context7', 'Upstash', 'Vercel', 'GitHub']);
   assert.equal(t.host.querySelector('[data-connector-id="linear"] .cs-conn-status').textContent, '已連線');
   assert.match(t.host.querySelector('[data-connector-id="notion"] .cs-connect').textContent, /連線/);
   assert.equal(t.calls.filter(([method, path]) => path === '/v1/connectors' && method === 'GET').length, 1, 'read once, not at every drawing');
@@ -590,4 +590,12 @@ test('the style files of the connectors are well formed: every comment is closed
   assert.match(bare, /\.cs-fold-mark \{[^}]*border-radius/);
   const logo = ledger.replace(/\/\*[\s\S]*?\*\//g, '');
   assert.match(logo, /\.connector-mark-img \{[^}]*border-radius: inherit/);
+});
+
+test('in the settings, where one colour is forced on everything, the status of a connection asks for its own colour the same way', () => {
+  const css = readFileSync(new URL('../../src/app/ui/cli/cli-store.css', import.meta.url), 'utf8');
+  assert.match(css, /#settings-modal \.cs-conn-status \{ color: var\(--state-success\) !important; \}/);
+  assert.match(css, /#settings-modal \.cs-conn-status\.is-warning \{ color: var\(--state-warning\) !important; \}/);
+  const forced = readFileSync(new URL('../../src/styles/settings.css', import.meta.url), 'utf8');
+  assert.match(forced, /#settings-modal \*:not\(\.toggle-label\) \{\s*color: var\(--gpt-control-text\) !important;/, 'the rule that makes it necessary is still there');
 });
