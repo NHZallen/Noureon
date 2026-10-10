@@ -2,6 +2,18 @@
 // content 為 zh-TW 的 HTML 字串（JSON 轉義、雙引號），目前不隨介面語言切換。
 export const updateLogEntries = [
   {
+    version: "18.4.2",
+    date: "2026-10-10",
+    content: [
+      "<strong>Noureon 18.4.2 發布說明</strong>",
+      "本版本修正連接器登入返回後，清單沒有立刻出現的問題。",
+      "<strong>主要變更</strong>",
+      "<ul><li><strong>登入返回：</strong>在服務完成登入、回到 Noureon 後，「我的」是空的，要切換頁面才會出現連線。原因是頁面由網址直接開啟時，帳號狀態要稍晚才確定，清單在那之前已畫成空的，之後沒有再畫。現在帳號確定後會自動重畫。</li></ul>",
+      "<strong>相容性</strong>",
+      "本次更新不需要資料遷移。"
+    ]
+  },
+  {
     version: "18.4.1",
     date: "2026-10-10",
     content: [

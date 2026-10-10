@@ -1,6 +1,14 @@
 // The update notes in Spanish (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.4.2": [
+    "<strong>Notas de la versión de Noureon 18.4.2</strong>",
+    "Esta versión corrige que la lista de conectores no apareciera enseguida tras un inicio de sesión.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Al volver de un inicio de sesión:</strong> tras iniciar sesión en un servicio y volver a Noureon, «Mis conectores» estaba vacío y la conexión solo aparecía al cambiar de página. Cuando la página se abre por su dirección, el estado de la cuenta se conoce un poco más tarde, y la lista se había dibujado vacía antes y no se volvía a dibujar. Ahora se vuelve a dibujar en cuanto se conoce la cuenta.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "Esta actualización no requiere migración de datos."
+  ],
   "18.4.1": [
     "<strong>Notas de la versión de Noureon 18.4.1</strong>",
     "Esta versión corrige problemas encontrados la primera vez que se usaron los conectores de verdad, y cambia la lista y los permisos de los conectores.",

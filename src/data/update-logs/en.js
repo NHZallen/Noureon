@@ -1,6 +1,14 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.4.2": [
+    "<strong>Noureon 18.4.2 Release Notes</strong>",
+    "This version fixes the list of connectors not appearing right away after a login.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Coming back from a login:</strong> after logging in at a service and coming back to Noureon, Mine was empty and the connection showed only after switching pages. When the page is opened by its address the state of the account is known a little later, and the list had been drawn empty before that and was not drawn again. It is now drawn again as soon as the account is known.</li></ul>",
+    "<strong>Compatibility</strong>",
+    "This update requires no data migration."
+  ],
   "18.4.1": [
     "<strong>Noureon 18.4.1 Release Notes</strong>",
     "This version fixes problems found the first time connectors were used for real, and changes the list and the permissions of connectors.",

@@ -1,6 +1,14 @@
 // The update notes in Russian (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.4.2": [
+    "<strong>Заметки о выпуске Noureon 18.4.2</strong>",
+    "Эта версия исправляет ситуацию, когда список коннекторов не появлялся сразу после входа.",
+    "<strong>Основные изменения</strong>",
+    "<ul><li><strong>Возврат после входа:</strong> после входа в сервисе и возврата в Noureon вкладка «Мои» была пустой, и подключение появлялось только после переключения страницы. Когда страница открывается по адресу, состояние аккаунта становится известно чуть позже, а список к тому времени уже был нарисован пустым и больше не перерисовывался. Теперь он перерисовывается, как только аккаунт определён.</li></ul>",
+    "<strong>Совместимость</strong>",
+    "Это обновление не требует миграции данных."
+  ],
   "18.4.1": [
     "<strong>Заметки о выпуске Noureon 18.4.1</strong>",
     "Эта версия исправляет проблемы, найденные при первом реальном использовании коннекторов, и меняет список и разрешения коннекторов.",

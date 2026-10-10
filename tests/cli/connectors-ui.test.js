@@ -527,3 +527,25 @@ test('the Permissions tab of the settings has a page for the connectors, with th
   await flush();
   assert.deepEqual(t.calls.at(-1), ['PUT', '/v1/connectors/linear/permissions', { tools: { list_issues: 'ask', get_issue: 'ask' } }]);
 });
+
+test('the page opened by its address before the account is known lists the connectors as soon as the account is ready (coming back from a service\'s login)', async () => {
+  const { openCliStore, closeCliStore } = await import('../../src/app/ui/cli/cli-store.js');
+  const window = new Window({ url: 'https://example.test/connectors?connector=linear&connected=1' });
+  const { document } = window;
+  document.body.innerHTML = '';
+  registerServerRequest(async (method, path) => (method === 'GET' && path === '/v1/connectors'
+    ? { ok: true, status: 200, data: { connectors: CONNECTORS.map((connector) => (connector.id === 'linear' ? { ...LINEAR } : { id: connector.id, status: 'none', mode: 'readwrite', tools: [], error: '' })) } }
+    : { ok: false, status: 404, code: 'not_found', data: {} }));
+  let ready = false;
+  const notices = [];
+  openCliStore({ document, kind: 'connectors', getConfig: () => ({ cliEnabledIds: [], cliModelUseIds: [], cliVersions: {} }), getLanguage: () => 'zh-TW', getAccountReady: () => ready, showNotification: (text, kind) => notices.push([text, kind]) });
+  const root = document.querySelector('.cs');
+  assert.deepEqual(notices.at(-1), ['已連線：Linear', 'success'], 'the result of the login is told at once');
+  assert.equal(root.querySelector('.history-tab[aria-selected="true"]').textContent, '我的', 'a new connection is shown under Mine');
+  assert.equal(root.querySelectorAll('.cs-conn').length, 0, 'the account is not known yet: nothing to list');
+  ready = true;
+  await new Promise((resolve) => setTimeout(resolve, 900));
+  assert.equal(root.querySelectorAll('.cs-conn').length, 1, 'listed without the person switching pages');
+  assert.equal(root.querySelector('.cs-conn-name').textContent, 'Linear');
+  closeCliStore();
+});

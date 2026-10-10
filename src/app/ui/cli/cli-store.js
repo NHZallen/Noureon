@@ -386,7 +386,16 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
   const marks = new Map();
   // The note about the account is for the CLI tools (they run on the server); the skills have nothing to say about it yet.
   const syncNote = () => { note.hidden = state.kind === 'skills' || Boolean(getAccountReady()); };
-  const noteTimer = win.setInterval(syncNote, 400);
+  // The connectors are listed from the server, which needs the account: when it becomes ready (the page was opened by its address, and the account is known a moment
+  // later, as when the person comes back from a service's login) the list is drawn again, not only the note.
+  let wasReady = Boolean(getAccountReady());
+  const noteTimer = win.setInterval(() => {
+    syncNote();
+    const ready = Boolean(getAccountReady());
+    if (ready === wasReady) return;
+    wasReady = ready;
+    if (state.kind === 'connectors') draw();
+  }, 400);
 
   // The parts: which one is chosen shows on the switch (a phone) and on the list (a wide screen), and the search box follows it.
   const drawKinds = () => {
