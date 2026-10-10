@@ -1,6 +1,16 @@
 // The update notes in French (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.3.5": [
+    "<strong>Notes de version de Noureon 18.3.5</strong>",
+    "Cette version corrige un démarrage qui pouvait échouer juste après la fin d’un conteneur du bac à sable.",
+    "<strong>Principaux changements</strong>",
+    "<ul><li><strong>Nouveau démarrage :</strong> lorsqu’une étape terminait son conteneur à cause de la limite d’écriture, de mémoire ou de temps, l’étape suivante démarrait un nouveau conteneur du même nom ; tant que l’ancien n’était pas entièrement supprimé, Docker refusait le démarrage car le nom était pris (code de sortie 125). Désormais, ce qui reste d’un conteneur de ce nom est supprimé avant un démarrage, et lorsque Docker refuse un démarrage avec le code 125, il est retenté un peu plus tard, trois fois au plus.</li></ul>",
+    "<strong>Remarques</strong>",
+    "<ul><li>Ce changement ne prend effet qu’une fois le runner de l’hôte du bac à sable mis à jour.</li></ul>",
+    "<strong>Compatibilité</strong>",
+    "Cette mise à jour ne nécessite aucune migration de données."
+  ],
   "18.3.4": [
     "<strong>Notes de version de Noureon 18.3.4</strong>",
     "Cette version limite la quantité qu’une étape du bac à sable peut écrire, et empêche le message d’un échec de démarrage de révéler des informations sur l’hôte.",

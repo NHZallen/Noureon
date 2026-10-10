@@ -2,6 +2,20 @@
 // content 為 zh-TW 的 HTML 字串（JSON 轉義、雙引號），目前不隨介面語言切換。
 export const updateLogEntries = [
   {
+    version: "18.3.5",
+    date: "2026-10-10",
+    content: [
+      "<strong>Noureon 18.3.5 發布說明</strong>",
+      "本版本修正沙盒容器被結束後，緊接著重新啟動可能失敗的問題。",
+      "<strong>主要變更</strong>",
+      "<ul><li><strong>重新啟動：</strong>步驟因寫入量、記憶體或時間限制而結束容器後，下一個步驟會以同一個名稱啟動新容器；Docker 在舊容器尚未完全移除時會因名稱重複拒絕啟動（結束代碼 125）。現在啟動前會先移除同名的殘留容器，若 Docker 以代碼 125 拒絕啟動，會稍後重試，最多三次。</li></ul>",
+      "<strong>注意事項</strong>",
+      "<ul><li>此變更需要在沙盒主機上更新 runner 才會生效。</li></ul>",
+      "<strong>相容性</strong>",
+      "本次更新不需要資料遷移。"
+    ]
+  },
+  {
     version: "18.3.4",
     date: "2026-10-10",
     content: [

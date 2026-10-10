@@ -2,7 +2,7 @@
 // Stands in for `docker` in the tests: `run` starts the program of the container (repl.py) as an ordinary process whose folders are the
 // host folders that were to be mounted, so the runner can be tried end to end where there is no Docker. `kill` ends it.
 import { spawn } from 'node:child_process';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
 const args = process.argv.slice(2);
@@ -10,7 +10,12 @@ const state = process.env.FAKE_DOCKER_STATE;
 mkdirSync(state, { recursive: true });
 const repl = join(dirname(new URL(import.meta.url).pathname), '..', '..', 'sandbox-host', 'repl.py');
 
-if (args[0] === 'run' && process.env.FAKE_DOCKER_FAIL) {
+if (args[0] === 'run' && process.env.FAKE_DOCKER_FAIL_ONCE && !existsSync(join(state, 'failed-once'))) {
+  // The first start is refused, as Docker does when the name of a container that was just killed is not free yet.
+  writeFileSync(join(state, 'failed-once'), '1');
+  process.stderr.write('docker: Error response from daemon: Conflict. The container name "/nsb-x" is already in use.\n');
+  process.exit(125);
+} else if (args[0] === 'run' && process.env.FAKE_DOCKER_FAIL) {
   // A start that fails, with the kind of words Docker uses (paths of the machine, names of images).
   process.stderr.write('docker: Error response from daemon: pull access denied for secret-image-name, mount /var/lib/noureon-sandbox/abc/output: permission denied.\n');
   process.exit(125);

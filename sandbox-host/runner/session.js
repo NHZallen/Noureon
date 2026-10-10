@@ -296,11 +296,40 @@ export function createSessionManager({ config, spawn = nodeSpawn, now = Date.now
     await request(session, { type: 'net', on: true }, { timeoutMs: 20_000 });
   };
 
+  /** Removes what is left of a container of this name (one that was just killed may still be being removed, and its name is not free until it is gone). */
+  const removeStale = (session) => new Promise((resolve) => {
+    try {
+      const child = spawn(config.dockerBin, ['rm', '-f', containerName(session.id)], { stdio: 'ignore' });
+      const timer = setTimer(resolve, 10_000);
+      const finish = () => { clearTimer(timer); resolve(); };
+      child.on('error', finish);
+      child.on('exit', finish);
+    } catch {
+      resolve();
+    }
+  });
+  /**
+   * Starts the container of a session. The name is made free first, and a start that Docker itself refuses (exit 125: the name still taken, the daemon busy)
+   * is tried again a little later, twice at most, because that is what a container started right after another was killed meets.
+   */
+  const startContainerReliably = async (session) => {
+    for (let attempt = 1; ; attempt += 1) {
+      await removeStale(session);
+      try {
+        await startContainer(session);
+        return;
+      } catch (error) {
+        if (!(error instanceof RunnerError) || error.code !== 'start_failed' || !/\(125\)/.test(error.message) || attempt >= 3) throw error;
+        await new Promise((resolve) => setTimer(resolve, 300 * attempt));
+      }
+    }
+  };
+
   /** A container that is not running (killed by a stop or a limit) is started again, empty, before the next step. */
   const ensureRunning = async (session) => {
     if (session.state?.alive) return;
     emptyFolder(session.dirs.output);
-    await startContainer(session);
+    await startContainerReliably(session);
     await request(session, { type: 'init', language: session.language }, { timeoutMs: 20_000 });
     if (session.proxy) await enableNet(session);
     session.fresh = true;
@@ -329,7 +358,7 @@ export function createSessionManager({ config, spawn = nodeSpawn, now = Date.now
       const session = { id, language, dirs: makeDirs(id), createdAt: now(), lastUsed: now(), state: null, queue: null, proxy: null, asks: new Map(), emit: null };
       sessions.set(id, session);
       try {
-        await startContainer(session);
+        await startContainerReliably(session);
         await request(session, { type: 'init', language }, { timeoutMs: 20_000 });
       } catch (error) {
         await manager.destroy(id);

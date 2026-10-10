@@ -1,6 +1,16 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.3.5": [
+    "<strong>Noureon 18.3.5 Release Notes</strong>",
+    "This version fixes a start that could fail right after a sandbox container was ended.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Starting again:</strong> after a step ended its container for the limit of what it wrote, of memory or of time, the next step started a new container with the same name; while the old one was not yet fully removed Docker refused the start because the name was taken (exit code 125). Now what is left of a container of that name is removed before a start, and when Docker refuses a start with code 125 it is tried again a little later, three times at most.</li></ul>",
+    "<strong>Notes</strong>",
+    "<ul><li>This change takes effect once the runner on the sandbox host is updated.</li></ul>",
+    "<strong>Compatibility</strong>",
+    "This update requires no data migration."
+  ],
   "18.3.4": [
     "<strong>Noureon 18.3.4 Release Notes</strong>",
     "This version limits how much a sandbox step may write, and keeps the message of a failed start from giving away information about the host.",

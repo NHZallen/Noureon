@@ -603,3 +603,16 @@ sandboxTest('a sandbox that cannot start says only that: what Docker said (paths
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+sandboxTest('a start that Docker refuses once (the name of the container just killed is not free yet) is tried again, and goes on', async () => {
+  process.env.FAKE_DOCKER_FAIL_ONCE = '1';
+  const { manager, done } = harness();
+  try {
+    const { id } = await manager.create();
+    const result = await manager.run(id, { code: 'print("started")' });
+    assert.equal(result.stdout.text, 'started\n');
+  } finally {
+    delete process.env.FAKE_DOCKER_FAIL_ONCE;
+    await done();
+  }
+});
