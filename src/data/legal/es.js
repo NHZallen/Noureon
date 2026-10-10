@@ -3,9 +3,9 @@
 export default {
   help: {
     title: 'Centro de ayuda',
-    updated: 'Última actualización: 10 de octubre de 2026 (desde Noureon 18.1.0)',
+    updated: 'Última actualización: 10 de octubre de 2026 (desde Noureon 18.4.0)',
     intro: [
-      'Noureon es una aplicación web que reúne modelos de IA de muchos proveedores en un solo espacio de trabajo: chat con varios modelos, Consejo de modelos, investigación profunda, archivos y presentaciones, generación de imágenes, extensiones (habilidades y herramientas de línea de comandos), memoria y sincronización en la nube. Todo funciona en el navegador y se puede instalar como aplicación. Esta página explica cómo funciona cada función, adónde van tus datos y qué hacer cuando algo falla.',
+      'Noureon es una aplicación web que reúne modelos de IA de muchos proveedores en un solo espacio de trabajo: chat con varios modelos, Consejo de modelos, investigación profunda, archivos y presentaciones, generación de imágenes, extensiones (habilidades, herramientas de línea de comandos y conectores), memoria y sincronización en la nube. Todo funciona en el navegador y se puede instalar como aplicación. Esta página explica cómo funciona cada función, adónde van tus datos y qué hacer cuando algo falla.',
       'Si no encuentras la respuesta, escribe a support@noureon.com (lo que conviene incluir está en «Contacto e informe de problemas», al final). Los Términos de uso y la Política de privacidad son documentos aparte; léelos antes de usar las funciones en la nube.'
     ],
     sections: [
@@ -144,16 +144,17 @@ export default {
       },
       {
         id: 'extensions',
-        h: '11. Extensiones: habilidades y herramientas de línea de comandos',
+        h: '11. Extensiones: habilidades, herramientas de línea de comandos y conectores',
         blocks: [
-          'La página Extensiones (barra lateral izquierda, o lista izquierda en el ordenador) tiene dos partes.',
+          'La página Extensiones (barra lateral izquierda, o lista izquierda en el ordenador) tiene tres partes.',
           [
             'Habilidades: una forma de trabajo ya escrita (SKILL.md: nombre, descripción, texto). Hay 11 habilidades oficiales (incluida la habilidad oficial para crear habilidades). Escribe / en el cuadro de mensaje y elige una habilidad, y esa respuesta la seguirá; el modelo también puede decidir por sí mismo: solo ve el nombre y una línea de cada habilidad permitida, y carga el texto completo cuando lo necesita (como máximo 5 por respuesta; cada habilidad tiene un interruptor «permitir que el modelo la use por sí mismo»).',
             'Tus propias habilidades: pega texto o sube un zip (SKILL.md con notas, scripts y recursos; hasta 5 MB y 60 archivos; se comprueba en el navegador y otra vez en el servidor, que rechazan programas e instaladores, enlaces y rutas inseguras). Hasta 50 habilidades. También puedes pedir al modelo que te ayude a crear una; el borrador se muestra como tarjeta y solo se guarda cuando lo confirmas.',
             'Habilidades con scripts: un script solo se ejecuta cuando el modelo lo ejecuta de forma explícita, en un contenedor aislado del servidor (la carpeta de la habilidad es de solo lectura y no ejecutable, y por defecto no hay red); los chats temporales no ofrecen habilidades con scripts.',
             'Herramientas de línea de comandos: 8 herramientas oficiales (por ejemplo, Pandoc, FFmpeg, yt-dlp, csvkit), que se ejecutan en un contenedor aislado del servidor. Actívalas en la página Extensiones y luego elige una con @, o permite que el modelo las use por sí mismo. El programa de una herramienta lo descarga el anfitrión del entorno aislado desde su versión oficial (GitHub) y lo comprueba con un hash fijo.',
             'Conexiones a sitios y consentimiento: siempre que una herramienta necesita un sitio web, la conexión pasa por un proxy de filtrado del servidor, que solo abre los puertos 80 y 443 y nunca llega al propio servidor ni a su red interna. Cada sitio se trata según tus reglas en Ajustes → Permisos: permitir, preguntar o rechazar; de un sitio sin regla se pregunta en la conversación, y no responder en 10 minutos cuenta como rechazo.',
-            'Credenciales seguras: cuando una herramienta necesita iniciar sesión (por ejemplo, la cookie de acceso de una cuenta), una ventana te la pide y se guarda cifrada en el servidor; puedes verla, sustituirla o eliminarla en cualquier momento en Ajustes → Permisos. El modelo nunca ve el valor, y una credencial en la salida de un comando se oculta.'
+            'Credenciales seguras: cuando una herramienta necesita iniciar sesión (por ejemplo, la cookie de acceso de una cuenta), una ventana te la pide y se guarda cifrada en el servidor; puedes verla, sustituirla o eliminarla en cualquier momento en Ajustes → Permisos. El modelo nunca ve el valor, y una credencial en la salida de un comando se oculta.',
+            'Conectores: inicia sesión en tu propia cuenta de un servicio y el modelo podrá leer lo que es tuyo allí y, si lo permites, modificarlo (por ahora Notion y Linear). El inicio de sesión se hace en la página del propio servicio; Noureon nunca ve tu contraseña y el acceso se guarda cifrado en el servidor. En Extensiones → Conectores ajustas cada herramienta en permitir, preguntar cada vez o rechazar: las de lectura empiezan en permitir y las de escritura en preguntar. Una herramienta que pregunta muestra en la conversación una tarjeta con sus parámetros exactos y tres respuestas (permitir una vez, permitir siempre, rechazar); sin respuesta en 10 minutos se considera rechazada. Cuando el servicio lo permite (Linear) puedes elegir una conexión de solo lectura. Una respuesta hace como máximo 30 llamadas a servicios. Los conectores solo se usan en respuestas hechas por el servidor, no en conversaciones temporales; lo que el modelo lee de un servicio va al proveedor de modelos que elegiste.'
           ],
           'Cuando una herramienta obtiene contenido de sitios web, respeta las condiciones y las normas de derechos de autor de esos sitios; consulta los Términos de uso.'
         ]
@@ -255,7 +256,7 @@ export default {
 
   terms: {
     title: 'Términos de uso',
-    updated: 'Última actualización: 10 de octubre de 2026 (desde Noureon 18.1.0)',
+    updated: 'Última actualización: 10 de octubre de 2026 (desde Noureon 18.4.0)',
     intro: [
       'Te damos la bienvenida a Noureon. Estos términos fijan los derechos y deberes de ambas partes cuando usas el servicio Noureon en noureon.com («el servicio»). Al usar el servicio confirmas que has leído y aceptas estos términos y la Política de privacidad; si no estás de acuerdo, no uses el servicio.',
       'Los términos los ofrece el equipo que opera Noureon («nosotros»). El código fuente de Noureon se publica aparte con licencia MIT; estos términos rigen el servicio que operamos y no cambian los derechos que esa licencia de código abierto te da.'
@@ -265,7 +266,7 @@ export default {
         id: 'service',
         h: '1. Qué es el servicio',
         blocks: [
-          'Noureon es un espacio de trabajo de IA: con tus propias claves de API usas modelos de IA de varios proveedores en una sola interfaz, y ofrece el Consejo de modelos, la investigación profunda, la búsqueda web, el análisis de adjuntos, la creación de archivos y presentaciones, la generación de imágenes, el modo avanzado (un entorno aislado de Python), extensiones (habilidades y herramientas de línea de comandos), Nouras, carpetas y búsqueda, memoria, importación y exportación, transferencia directa entre dispositivos, instalación como PWA, y sincronización en la nube y ejecución en el servidor opcionales.',
+          'Noureon es un espacio de trabajo de IA: con tus propias claves de API usas modelos de IA de varios proveedores en una sola interfaz, y ofrece el Consejo de modelos, la investigación profunda, la búsqueda web, el análisis de adjuntos, la creación de archivos y presentaciones, la generación de imágenes, el modo avanzado (un entorno aislado de Python), extensiones (habilidades, herramientas de línea de comandos y conectores), Nouras, carpetas y búsqueda, memoria, importación y exportación, transferencia directa entre dispositivos, instalación como PWA, y sincronización en la nube y ejecución en el servidor opcionales.',
           'Un hecho importante: Noureon no proporciona ni revende el acceso a ningún modelo ni su uso. Los modelos los proporcionan los proveedores externos de IA y de búsqueda que elijas, y liquidas el coste directamente con ellos.'
         ]
       },
@@ -332,7 +333,7 @@ export default {
       },
       {
         id: 'extensions',
-        h: '7. Habilidades, herramientas de línea de comandos y código',
+        h: '7. Habilidades, herramientas de línea de comandos, conectores y código',
         blocks: [
           [
             'Las habilidades que añades tú (incluidas las notas y los scripts de un zip) son responsabilidad tuya. Asegúrate de tener derecho a usar su contenido y de que no contengan código malicioso. Un script solo se ejecuta cuando el modelo lo ejecuta de forma explícita, en el entorno aislado.',
@@ -340,7 +341,8 @@ export default {
             'Las conexiones a sitios se tratan según las reglas que fijes (permitir, preguntar, rechazar). Eres responsable de las conexiones que permitas o confirmes.',
             'No uses herramientas de línea de comandos ni habilidades para nada ilícito, para eludir muros de pago o controles de acceso, para invadir la privacidad de otros, para enviar spam, para atacar otros sistemas ni para extraer datos en masa contra las normas de un sitio.',
             'Las herramientas de línea de comandos y el software del entorno aislado son software de terceros, cada uno con su licencia y su exención de responsabilidad; los obtenemos de la versión oficial y comprobamos el hash, pero no prometemos que carezcan de defectos o de inseguridad.',
-            'Usa solo tus propias cuentas para las credenciales seguras que guardes (por ejemplo, cookies de acceso); puedes verlas, sustituirlas o eliminarlas en cualquier momento.'
+            'Usa solo tus propias cuentas para las credenciales seguras que guardes (por ejemplo, cookies de acceso); puedes verlas, sustituirlas o eliminarlas en cualquier momento.',
+            'Los conectores actúan sobre tus propias cuentas en otros servicios (por ahora Notion y Linear). Lo que pueden hacer depende de lo que permitas en los ajustes de las herramientas y de lo que permita el acceso al servicio; eres responsable de lo que permites o confirmas, incluidos los cambios y borrados hechos en esos servicios, y de cumplir sus condiciones de uso. Lo que devuelve un servicio queda fuera de nuestro control y el modelo puede equivocarse o ser engañado por ese contenido, así que revisa una herramienta que modifique o elimine datos antes de permitirla.'
           ]
         ]
       },
@@ -439,7 +441,7 @@ export default {
 
   privacy: {
     title: 'Política de privacidad',
-    updated: 'Última actualización: 10 de octubre de 2026 (desde Noureon 18.1.0)',
+    updated: 'Última actualización: 10 de octubre de 2026 (desde Noureon 18.4.0)',
     intro: [
       'Esta política explica qué datos trata Noureon, dónde se guardan, quién los recibe, durante cuánto tiempo y qué opciones tienes. Abarca los flujos de datos por defecto y los adicionales que aparecen cuando activas la sincronización en la nube, la ejecución en el servidor, la memoria y otras funciones.',
       'En una frase: Noureon es «primero en local» por defecto, así que las conversaciones, los ajustes y las claves se guardan en tu navegador; lo que envías va a los proveedores de IA y de búsqueda que elijas; solo cuando inicias sesión en una cuenta en la nube, activas la sincronización o haces que el servidor ejecute respuestas, los datos necesarios se guardan en los servidores de Noureon o pasan por ellos. No vendemos datos personales ni tenemos publicidad integrada ni seguimiento entre sitios.',
@@ -453,7 +455,7 @@ export default {
           [
             'En tu navegador: conversaciones, carpetas y archivo, ajustes, Nouras, recuerdos e índice local, claves de API, preferencias de apariencia, datos de la cuenta local.',
             'Enviado a los proveedores de IA y de búsqueda: tus peticiones, el contexto de la conversación, los adjuntos, las instrucciones del sistema y las opciones de modelo que eliges (sección 6).',
-            'En la nube de Noureon (cuando inicias sesión y sincronizas): datos del espacio de trabajo (conversaciones, mensajes, carpetas, Nouras, resúmenes de memoria), archivos subidos y generados, una copia cifrada de la contraseña de sincronización, habilidades y paquetes de habilidades, credenciales seguras (secciones 4 y 8).',
+            'En la nube de Noureon (cuando inicias sesión y sincronizas): datos del espacio de trabajo (conversaciones, mensajes, carpetas, Nouras, resúmenes de memoria), archivos subidos y generados, una copia cifrada de la contraseña de sincronización, habilidades y paquetes de habilidades, accesos y ajustes de herramientas de los conectores, credenciales seguras (secciones 4 y 8).',
             'Pasando un tiempo por el servidor de Noureon (cuando eliges la ejecución en el servidor): el historial, las instrucciones del sistema y tu clave que necesita esa respuesta, que se eliminan al terminar la respuesta (sección 7).',
             'Infraestructura de terceros: Supabase, Cloudflare Turnstile, GitHub, Vercel, PeerJS y otras (sección 17).'
           ]
@@ -550,6 +552,7 @@ export default {
             'Herramientas de línea de comandos: la lista de herramientas que añadiste se guarda en tus ajustes (y se sincroniza con ellos). Una herramienta solo se ejecuta en un contenedor aislado del servidor de entorno aislado; el comando que escribe el modelo y los archivos de la conversación se tratan como arriba; el programa de la herramienta lo descarga el anfitrión del entorno aislado desde su versión oficial (GitHub) y lo comprueba con un hash. La página Extensiones carga el icono de cada proyecto desde GitHub, por lo que GitHub ve esa petición.',
             'Conexiones a sitios: cuando una herramienta necesita Internet (descargar un vídeo, leer una red social, instalar su propio paquete de Python), solo puede llegar a él a través del proxy de filtrado del anfitrión del entorno aislado. El proxy decide según tus reglas en Ajustes → Permisos (permitir, preguntar o rechazar; pypi.org, files.pythonhosted.org, registry.npmjs.org, github.com y dos anfitriones de archivos de GitHub están permitidos al principio); de un sitio sin regla se pregunta en la conversación, y no responder en 10 minutos cuenta como rechazo. El proxy solo abre los puertos 80 y 443, resuelve él mismo el sitio y rechaza toda dirección interna del servidor (la propia máquina, redes privadas y de pods, direcciones de enlace local y de metadatos, y su propia dirección pública), digan lo que digan las reglas. Ve el nombre del sitio y el puerto, nunca la página ni lo que se envía, y registra el nombre del sitio y el puerto con la decisión (sin dirección de página ni contenido). Tus reglas se guardan en tus ajustes (y se sincronizan con ellos).',
             'Credenciales seguras: una credencial que añades para una herramienta (por ejemplo, la cookie de acceso de una cuenta) se guarda cifrada con AES-256-GCM en el servidor, bajo una clave maestra que solo existe en el entorno del servidor y vinculada a ti y al nombre de la credencial, en una tabla que solo el servidor puede leer. Solo se pone en el entorno de la herramienta (o en el archivo de acceso que la herramienta guardaría por sí misma, para un solo comando) mientras se ejecuta tu propia herramienta; lo que imprime el comando se limpia de la credencial antes de que lo vean el modelo o la página, y el modelo nunca recibe el valor. Puedes verla, sustituirla o eliminarla en Ajustes → Permisos; se elimina cuando la eliminas tú o eliminas la cuenta.',
+            'Conectores: cuando conectas uno (por ahora Notion y Linear), inicias sesión en la página del propio servicio (Noureon nunca ve tu contraseña); el servidor guarda el token de acceso y el de renovación cifrados con AES-256-GCM, bajo una clave maestra que solo existe en el entorno del servidor y vinculada a ti y al conector, en una tabla que solo el servidor puede leer, y nunca los entrega al navegador ni al modelo. El servidor también guarda la lista de herramientas del servicio y lo que permites para cada una (permitir, preguntar o rechazar). Los conectores solo se usan en respuestas hechas por el servidor, no en conversaciones temporales. Cuando el modelo usa una herramienta, el servidor llama al servicio con tu token y envía lo que el servicio devuelve (por ejemplo, el contenido de una página o de una incidencia) al proveedor de modelos que elegiste, como parte de la conversación; una herramienta en «preguntar» muestra antes sus parámetros exactos en una tarjeta. Una respuesta hace como máximo 30 llamadas a servicios, y un resultado se corta a los 30 000 caracteres. Al desconectar, el token se revoca en el servicio cuando este lo permite y se borra todo lo que se guarda aquí.',
             'Iconos y nombres de las fuentes citadas: junto a una fuente en una respuesta se muestran el pequeño icono y el nombre del sitio. El servidor de Noureon los obtiene (leyendo el marcado de la propia página del sitio, solo sitios públicos, con límite de tamaño y de tiempo y comprobando cada redirección), de modo que los sitios que miraste quedan entre tú y el servidor de Noureon y no se consulta a ningún servicio de iconos de terceros.',
             'Comentarios y propuestas de Noura: estos formularios son opcionales y envían solo los campos que rellenas, solo a través del proxy del mismo origen de este sitio (/api/google-form-submit, que exige una comprobación de Turnstile); si el operador no ha fijado un punto de recepción, el proxy no reenvía nada. Lo enviado va al formulario de Google que configuró el operador.'
           ]
@@ -615,6 +618,7 @@ export default {
             'Contenedores del entorno aislado y lo que hay en memoria: se eliminan al terminar la respuesta.',
             'Archivos en la nube: los archivos a los que no remite ninguna conversación se eliminan automáticamente al cabo de un día aproximadamente; el zip de una habilidad se elimina con la habilidad, y un zip al que no apunta ninguna habilidad lo retira la limpieza diaria.',
             'Credenciales seguras: hasta que las elimines o elimines la cuenta.',
+            'Accesos de los conectores: hasta que desconectes (el token se revoca entonces en el servicio cuando este lo permite, y se borra aquí) o elimines la cuenta.',
             'Registros del servidor: solo registros de eventos sin contenido, conservados según lo exija la operación. Los registros de ejecución (sin claves) se conservan hasta que se retiran; el prompt y las imágenes de referencia de una imagen se eliminan cuando termina la imagen.',
             'Correos enviados al soporte: se conservan para atender tu consulta y, cuando haga falta, se eliminan a petición tuya.'
           ]
@@ -629,7 +633,7 @@ export default {
             'En Ajustes → Privacidad elige hacer las respuestas solo en tu dispositivo, y el historial y las claves no se enviarán a nuestros servidores.',
             'Desactiva la memoria automática y el recuerdo entre conversaciones para detener esos flujos de datos.',
             'Exporta, importa, elimina, restaura o elimina para siempre tus datos en cualquier momento; usa «Borrar todos los registros y datos» para vaciar este navegador.',
-            'Consulta, sustituye o elimina tus credenciales seguras, habilidades y reglas de sitios.',
+            'Consulta, sustituye o elimina tus credenciales seguras, conectores, habilidades y reglas de sitios.',
             'Para obtener, corregir o eliminar los datos de tu cuenta en la nube, escribe a support@noureon.com desde el correo con el que te registraste; responderemos en un plazo razonable. Según la ley del lugar donde vivas, también puedes tener derechos de acceso, rectificación, supresión, limitación, portabilidad y oposición; escríbenos para ejercerlos.'
           ]
         ]
@@ -653,6 +657,7 @@ export default {
             'Cloudflare: la comprobación anti-bots Turnstile.',
             'Google Gemini, OpenRouter, NVIDIA, Tavily, TinyFish: los proveedores de modelos y de búsqueda que configuras.',
             'GitHub: descargas e iconos de las herramientas de línea de comandos, y el código fuente.',
+            'Notion, Linear: los servicios que conectas como conectores, cuando los conectas (cada uno tiene sus propias condiciones y política de privacidad).',
             'Vercel: alojamiento y entrega del sitio web.',
             'jsDelivr: carga de Python en el navegador (Pyodide).',
             'PeerJS: el servidor de emparejamiento de la transferencia directa entre dispositivos.',

@@ -1,6 +1,16 @@
 // The update notes in Spanish (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.4.0": [
+    "<strong>Notas de la versión de Noureon 18.4.0</strong>",
+    "Esta versión añade los conectores: la tercera parte de las extensiones, que permite al modelo acceder a tus propias cuentas en otros servicios.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Conectores:</strong> conecta Notion y Linear en Extensiones → Conectores. Inicias sesión en la página del propio servicio con OAuth (con PKCE) y Noureon nunca ve tu contraseña; el token de acceso y el de renovación se guardan cifrados con AES-256-GCM en el servidor y no se entregan al navegador ni al modelo. Toda la página va al servicio para iniciar sesión y vuelve a la aplicación al terminar, sin ventana emergente, por lo que también funciona en un teléfono.</li><li><strong>Ajustes de las herramientas:</strong> cada herramienta puede ponerse en permitir, preguntar cada vez o rechazar: las de lectura empiezan en permitir y las de escritura en preguntar cada vez, y después decides tú, sin otro límite. Linear ofrece una conexión de solo lectura, cuyo token no puede escribir en absoluto; el acceso a Notion no distingue lectura de escritura, así que solo valen los ajustes de las herramientas. Cuando cambian las herramientas de un servicio, las nuevas o modificadas quedan desactivadas hasta que las confirmes.</li><li><strong>La tarjeta de confirmación:</strong> cuando el modelo llama a una herramienta puesta en preguntar, aparece en los pasos una tarjeta con el conector, la herramienta y todos los parámetros, y puedes permitir una vez, permitir siempre o rechazar; sin respuesta en 10 minutos se considera rechazada.</li><li><strong>Seguridad:</strong> lo que devuelve un servicio se trata siempre como datos y no puede cambiar lo que permitiste; una respuesta hace como máximo 30 llamadas a servicios, y un resultado de más de 30 000 caracteres se corta. Los conectores solo se usan en respuestas hechas por el servidor, no en conversaciones temporales. Al desconectar, el token se revoca en el servicio cuando este lo permite y se borra lo guardado.</li></ul>",
+    "<strong>Notas</strong>",
+    "<ul><li>Las nuevas tablas (user_mcp_connections y mcp_oauth_clients) deben aplicarse primero a la base de datos del lado del servidor.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "Esta actualización añade tablas y no cambia los datos existentes."
+  ],
   "18.3.6": [
     "<strong>Notas de la versión de Noureon 18.3.6</strong>",
     "Esta versión reduce cuánto puede pasarse un paso del límite de escritura en el sandbox.",

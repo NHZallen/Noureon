@@ -3,9 +3,9 @@
 export default {
   help: {
     title: 'Centre d’aide',
-    updated: 'Dernière mise à jour : 10 octobre 2026 (à partir de Noureon 18.1.0)',
+    updated: 'Dernière mise à jour : 10 octobre 2026 (à partir de Noureon 18.4.0)',
     intro: [
-      'Noureon est une application web qui réunit les modèles d’IA de nombreux fournisseurs dans un seul espace de travail : discussion multi-modèles, Conseil des modèles, recherche approfondie, fichiers et présentations, génération d’images, extensions (compétences et outils en ligne de commande), mémoire et synchronisation cloud, le tout dans le navigateur, avec une installation possible comme application. Cette page explique comment fonctionne chaque fonction, où vont vos données et que faire en cas de problème.',
+      'Noureon est une application web qui réunit les modèles d’IA de nombreux fournisseurs dans un seul espace de travail : discussion multi-modèles, Conseil des modèles, recherche approfondie, fichiers et présentations, génération d’images, extensions (compétences, outils en ligne de commande et connecteurs), mémoire et synchronisation cloud, le tout dans le navigateur, avec une installation possible comme application. Cette page explique comment fonctionne chaque fonction, où vont vos données et que faire en cas de problème.',
       'Si vous ne trouvez pas de réponse, écrivez à support@noureon.com (ce qu’il faut joindre est indiqué dans « Nous contacter et signaler un problème », à la fin). Les Conditions d’utilisation et la Politique de confidentialité sont des documents séparés ; lisez-les avant d’utiliser les fonctions cloud.'
     ],
     sections: [
@@ -144,16 +144,17 @@ export default {
       },
       {
         id: 'extensions',
-        h: '11. Extensions : compétences et outils en ligne de commande',
+        h: '11. Extensions : compétences, outils en ligne de commande et connecteurs',
         blocks: [
-          'La page Extensions (barre latérale gauche, ou liste de gauche sur ordinateur) comporte deux parties.',
+          'La page Extensions (barre latérale gauche, ou liste de gauche sur ordinateur) comporte trois parties.',
           [
             'Compétences : une méthode de travail écrite (SKILL.md : nom, description, texte). Il y a 11 compétences officielles (dont la compétence officielle pour créer des compétences). Tapez / dans la zone de message et choisissez une compétence, et cette réponse la suivra ; le modèle peut aussi décider seul : il ne voit que le nom et une ligne de chaque compétence autorisée, et charge le texte complet quand il en a besoin (au plus 5 par réponse ; chaque compétence a un interrupteur « autoriser le modèle à l’utiliser seul »).',
             'Vos propres compétences : collez du texte ou importez un zip (SKILL.md avec notes, scripts et ressources ; 5 Mo et 60 fichiers au maximum ; vérifié dans le navigateur puis de nouveau sur le serveur, qui refusent programmes et installateurs, liens et chemins dangereux). Jusqu’à 50 compétences. Vous pouvez aussi demander au modèle de vous aider à en créer une ; le brouillon s’affiche sous forme de carte et n’est enregistré qu’après votre confirmation.',
             'Compétences avec scripts : un script ne s’exécute que si le modèle l’exécute explicitement, dans un conteneur de bac à sable isolé sur le serveur (le dossier de la compétence est en lecture seule et non exécutable, sans réseau par défaut) ; les discussions temporaires n’offrent pas de compétences avec scripts.',
             'Outils en ligne de commande : 8 outils officiels (par exemple Pandoc, FFmpeg, yt-dlp, csvkit), exécutés dans un conteneur isolé sur le serveur. Activez-les dans la page Extensions, puis choisissez-en un avec @, ou autorisez le modèle à les utiliser seul. Le programme d’un outil est téléchargé par l’hôte du bac à sable depuis sa publication officielle (GitHub) et vérifié par rapport à une empreinte fixe.',
             'Connexions aux sites et consentement : chaque fois qu’un outil a besoin d’un site, la connexion passe par un proxy de filtrage du serveur, qui n’ouvre que les ports 80 et 443 et n’atteint jamais le serveur lui-même ni son réseau interne. Chaque site est traité selon vos règles dans Réglages → Autorisations : autoriser, demander ou refuser ; un site sans règle est demandé dans la discussion, et l’absence de réponse en 10 minutes vaut refus.',
-            'Identifiants sécurisés : quand un outil a besoin d’une connexion (par exemple le cookie de connexion d’un compte), une fenêtre vous le demande et il est conservé chiffré sur le serveur ; vous pouvez le consulter, le remplacer ou le supprimer à tout moment dans Réglages → Autorisations. Le modèle ne voit jamais la valeur, et un identifiant dans la sortie d’une commande est masqué.'
+            'Identifiants sécurisés : quand un outil a besoin d’une connexion (par exemple le cookie de connexion d’un compte), une fenêtre vous le demande et il est conservé chiffré sur le serveur ; vous pouvez le consulter, le remplacer ou le supprimer à tout moment dans Réglages → Autorisations. Le modèle ne voit jamais la valeur, et un identifiant dans la sortie d’une commande est masqué.',
+            'Connecteurs : connectez-vous à votre propre compte sur un service et le modèle pourra lire ce qui vous y appartient et, si vous l’autorisez, le modifier (pour l’instant Notion et Linear). La connexion se fait sur la page du service lui-même ; Noureon ne voit jamais votre mot de passe, et la connexion est conservée chiffrée sur le serveur. Dans Extensions → Connecteurs, vous réglez chaque outil sur autoriser, demander à chaque fois ou refuser : les outils de lecture sont autorisés au départ, les outils d’écriture demandent. Un outil qui demande affiche dans la discussion une carte avec ses paramètres exacts et trois réponses (autoriser une fois, toujours autoriser, refuser) ; sans réponse en 10 minutes, c’est un refus. Quand le service le permet (Linear), vous pouvez choisir une connexion en lecture seule. Une réponse fait au plus 30 appels à des services. Les connecteurs ne servent que dans les réponses faites par le serveur, pas dans les discussions temporaires ; ce que le modèle lit sur un service va au fournisseur de modèle que vous avez choisi.'
           ],
           'Quand un outil récupère du contenu de sites web, respectez les conditions et les règles de droit d’auteur de ces sites ; voir les Conditions d’utilisation.'
         ]
@@ -255,7 +256,7 @@ export default {
 
   terms: {
     title: 'Conditions d’utilisation',
-    updated: 'Dernière mise à jour : 10 octobre 2026 (à partir de Noureon 18.1.0)',
+    updated: 'Dernière mise à jour : 10 octobre 2026 (à partir de Noureon 18.4.0)',
     intro: [
       'Bienvenue sur Noureon. Ces conditions fixent les droits et devoirs des deux parties quand vous utilisez le service Noureon sur noureon.com (« le service »). En utilisant le service, vous confirmez avoir lu et accepté ces conditions et la Politique de confidentialité ; si vous n’êtes pas d’accord, n’utilisez pas le service.',
       'Ces conditions sont proposées par l’équipe qui exploite Noureon (« nous »). Le code source de Noureon est publié séparément sous licence MIT ; ces conditions régissent le service que nous exploitons et ne changent pas les droits que cette licence open source vous donne.'
@@ -265,7 +266,7 @@ export default {
         id: 'service',
         h: '1. Ce qu’est le service',
         blocks: [
-          'Noureon est un espace de travail IA : avec vos propres clés API, vous utilisez les modèles de plusieurs fournisseurs dans une seule interface, et il offre le Conseil des modèles, la recherche approfondie, la recherche web, l’analyse de pièces jointes, la création de fichiers et de présentations, la génération d’images, le mode avancé (un bac à sable Python), des extensions (compétences et outils en ligne de commande), des Nouras, des dossiers et une recherche, la mémoire, l’import et l’export, le transfert d’appareil à appareil, l’installation en PWA, ainsi que la synchronisation cloud et l’exécution sur le serveur, facultatives.',
+          'Noureon est un espace de travail IA : avec vos propres clés API, vous utilisez les modèles de plusieurs fournisseurs dans une seule interface, et il offre le Conseil des modèles, la recherche approfondie, la recherche web, l’analyse de pièces jointes, la création de fichiers et de présentations, la génération d’images, le mode avancé (un bac à sable Python), des extensions (compétences, outils en ligne de commande et connecteurs), des Nouras, des dossiers et une recherche, la mémoire, l’import et l’export, le transfert d’appareil à appareil, l’installation en PWA, ainsi que la synchronisation cloud et l’exécution sur le serveur, facultatives.',
           'Un fait important : Noureon ne fournit ni ne revend l’accès à un modèle ni son usage. Les modèles sont fournis par les fournisseurs tiers d’IA et de recherche que vous choisissez, et vous réglez le coût directement avec eux.'
         ]
       },
@@ -332,7 +333,7 @@ export default {
       },
       {
         id: 'extensions',
-        h: '7. Compétences, outils en ligne de commande et code',
+        h: '7. Compétences, outils en ligne de commande, connecteurs et code',
         blocks: [
           [
             'Les compétences que vous ajoutez vous-même (y compris les notes et scripts d’un zip) relèvent de votre responsabilité. Assurez-vous d’avoir le droit d’en utiliser le contenu et qu’elles ne contiennent aucun code malveillant. Un script ne s’exécute que si le modèle l’exécute explicitement, dans le bac à sable.',
@@ -340,7 +341,8 @@ export default {
             'Les connexions aux sites sont traitées selon les règles que vous fixez (autoriser, demander, refuser). Vous êtes responsable des connexions que vous autorisez ou confirmez.',
             'N’utilisez pas les outils ou compétences pour des actes illégaux, pour contourner des accès payants ou des contrôles d’accès, pour porter atteinte à la vie privée d’autrui, envoyer du spam, attaquer d’autres systèmes ou collecter en masse contre les règles d’un site.',
             'Les outils en ligne de commande et les logiciels du bac à sable sont des logiciels tiers, chacun avec sa licence et son exclusion de garantie ; nous les obtenons depuis la publication officielle et vérifions l’empreinte, mais nous ne promettons pas qu’ils soient exempts de défauts ou de failles.',
-            'N’utilisez que vos propres comptes pour les identifiants sécurisés que vous enregistrez (par exemple des cookies de connexion) ; vous pouvez les consulter, les remplacer ou les supprimer à tout moment.'
+            'N’utilisez que vos propres comptes pour les identifiants sécurisés que vous enregistrez (par exemple des cookies de connexion) ; vous pouvez les consulter, les remplacer ou les supprimer à tout moment.',
+            'Les connecteurs agissent sur vos propres comptes dans d’autres services (pour l’instant Notion et Linear). Ce qu’ils peuvent faire dépend de ce que vous autorisez dans les réglages des outils et de ce que la connexion au service permet ; vous êtes responsable de ce que vous autorisez ou confirmez, y compris les modifications et suppressions faites dans ces services, et du respect de leurs conditions d’utilisation. Ce qu’un service renvoie échappe à notre contrôle et le modèle peut se tromper ou être induit en erreur par ce contenu : examinez un outil qui modifie ou supprime des données avant de l’autoriser.'
           ]
         ]
       },
@@ -439,7 +441,7 @@ export default {
 
   privacy: {
     title: 'Politique de confidentialité',
-    updated: 'Dernière mise à jour : 10 octobre 2026 (à partir de Noureon 18.1.0)',
+    updated: 'Dernière mise à jour : 10 octobre 2026 (à partir de Noureon 18.4.0)',
     intro: [
       'Cette politique explique quelles données Noureon traite, où elles sont conservées, qui les reçoit, combien de temps, et quels choix vous avez. Elle couvre les flux de données par défaut et ceux qui s’ajoutent quand vous activez la synchronisation cloud, l’exécution sur le serveur, la mémoire et d’autres fonctions.',
       'En une phrase : Noureon est « local d’abord » par défaut, donc discussions, réglages et clés sont conservés dans votre navigateur ; ce que vous envoyez va aux fournisseurs d’IA et de recherche que vous choisissez ; ce n’est que si vous vous connectez à un compte cloud, activez la synchronisation ou faites produire les réponses par le serveur que les données nécessaires sont stockées sur les serveurs de Noureon ou y transitent. Nous ne vendons pas de données personnelles et n’avons ni publicité intégrée ni suivi inter-sites.',
@@ -453,7 +455,7 @@ export default {
           [
             'Dans votre navigateur : discussions, dossiers et archives, réglages, Nouras, souvenirs et index local, clés API, préférences d’apparence, données du compte local.',
             'Envoyé aux fournisseurs d’IA et de recherche : vos requêtes, le contexte de la discussion, les pièces jointes, les instructions système et les options de modèle choisies (section 6).',
-            'Dans le cloud de Noureon (quand vous vous connectez et synchronisez) : données de l’espace de travail (discussions, messages, dossiers, Nouras, résumés de mémoire), fichiers importés et générés, une copie chiffrée du mot de passe de synchronisation, compétences et paquets de compétences, identifiants sécurisés (sections 4 et 8).',
+            'Dans le cloud de Noureon (quand vous vous connectez et synchronisez) : données de l’espace de travail (discussions, messages, dossiers, Nouras, résumés de mémoire), fichiers importés et générés, une copie chiffrée du mot de passe de synchronisation, compétences et paquets de compétences, connexions et réglages d’outils des connecteurs, identifiants sécurisés (sections 4 et 8).',
             'Transitant un temps par le serveur de Noureon (quand vous choisissez l’exécution sur le serveur) : l’historique, les instructions système et votre clé dont cette seule réponse a besoin, supprimés à la fin de la réponse (section 7).',
             'Infrastructures tierces : Supabase, Cloudflare Turnstile, GitHub, Vercel, PeerJS et d’autres (section 17).'
           ]
@@ -550,6 +552,7 @@ export default {
             'Outils en ligne de commande : la liste des outils ajoutés est conservée dans vos réglages (et synchronisée avec eux). Un outil ne s’exécute que dans un conteneur isolé du serveur de bac à sable ; la commande écrite par le modèle et les fichiers de la discussion sont traités comme ci-dessus ; le programme de l’outil est téléchargé par l’hôte du bac à sable depuis sa publication officielle (GitHub) et vérifié par empreinte. La page Extensions charge l’icône de chaque projet depuis GitHub, qui voit donc cette requête.',
             'Connexions aux sites : quand un outil a besoin d’Internet (télécharger une vidéo, lire un réseau social, installer son propre paquet Python), il ne peut l’atteindre que par le proxy de filtrage de l’hôte du bac à sable. Le proxy décide selon vos règles dans Réglages → Autorisations (autoriser, demander ou refuser ; pypi.org, files.pythonhosted.org, registry.npmjs.org, github.com et deux hôtes de fichiers GitHub sont d’abord autorisés) ; un site sans règle est demandé dans la discussion, et l’absence de réponse en 10 minutes vaut refus. Le proxy n’ouvre que les ports 80 et 443, résout lui-même le site et refuse toute adresse interne au serveur (la machine elle-même, réseaux privés et de pods, adresses lien-local et de métadonnées, et sa propre adresse publique), quelles que soient les règles. Il voit le nom du site et le port, jamais la page ni ce qui est envoyé, et journalise le nom du site et le port avec la décision (sans adresse de page ni contenu). Vos règles sont conservées dans vos réglages (et synchronisées avec eux).',
             'Identifiants sécurisés : un identifiant que vous ajoutez pour un outil (par exemple le cookie de connexion d’un compte) est conservé chiffré en AES-256-GCM sur le serveur, sous une clé maîtresse qui n’existe que dans l’environnement du serveur et liée à vous et au nom de l’identifiant, dans une table que seul le serveur peut lire. Il n’est mis dans l’environnement de l’outil (ou dans le fichier de connexion que l’outil enregistrerait lui-même, pour une seule commande) que pendant l’exécution de votre propre outil ; ce que la commande affiche est purgé de l’identifiant avant que le modèle ou la page ne le voie, et le modèle ne reçoit jamais la valeur. Vous pouvez le consulter, le remplacer ou le supprimer dans Réglages → Autorisations ; il est supprimé quand vous le supprimez ou supprimez le compte.',
+            'Connecteurs : quand vous en connectez un (pour l’instant Notion et Linear), vous vous connectez sur la page du service lui-même (Noureon ne voit jamais votre mot de passe) ; le serveur conserve le jeton d’accès et le jeton de renouvellement chiffrés en AES-256-GCM, sous une clé maîtresse qui n’existe que dans l’environnement du serveur et liée à vous et au connecteur, dans une table que seul le serveur peut lire, et ne les donne jamais au navigateur ni au modèle. Le serveur conserve aussi la liste des outils du service et ce que vous autorisez pour chaque outil (autoriser, demander ou refuser). Les connecteurs ne servent que dans les réponses faites par le serveur, pas dans les discussions temporaires. Quand le modèle utilise un outil, le serveur appelle le service avec votre jeton et envoie ce que le service renvoie (par exemple le contenu d’une page ou d’un ticket) au fournisseur de modèle que vous avez choisi, comme partie de la discussion ; un outil réglé sur demander montre d’abord ses paramètres exacts dans une carte. Une réponse fait au plus 30 appels à des services, et un résultat est coupé à 30 000 caractères. La déconnexion révoque le jeton auprès du service quand il le permet et supprime tout ce qui est conservé ici.',
             'Icônes et noms des sources citées : à côté d’une source dans une réponse s’affichent la petite icône et le nom du site. Le serveur de Noureon les récupère (en lisant le balisage de la page du site, sites publics seulement, avec limite de taille et de temps et contrôle de chaque redirection), de sorte que les sites que vous avez consultés restent entre vous et le serveur de Noureon et qu’aucun service d’icônes tiers n’est sollicité.',
             'Retours et propositions de Noura : ces formulaires sont facultatifs et n’envoient que les champs remplis, uniquement via le proxy de même origine de ce site (/api/google-form-submit, qui exige un contrôle Turnstile) ; si l’exploitant n’a pas défini de point de réception, le proxy ne transmet rien. Ce qui est envoyé va au Google Form configuré par l’exploitant.'
           ]
@@ -615,6 +618,7 @@ export default {
             'Conteneurs de bac à sable et contenu en mémoire : supprimés à la fin de la réponse.',
             'Fichiers cloud : les fichiers que plus aucune discussion n’utilise sont supprimés automatiquement après environ un jour ; le zip d’une compétence est supprimé avec la compétence, et un zip sur lequel aucune compétence ne pointe est retiré par le nettoyage quotidien.',
             'Identifiants sécurisés : jusqu’à ce que vous les supprimiez ou supprimiez le compte.',
+            'Connexions des connecteurs : jusqu’à ce que vous vous déconnectiez (le jeton est alors révoqué auprès du service quand il le permet, et supprimé ici) ou supprimiez le compte.',
             'Journaux du serveur : seulement des enregistrements d’événements sans contenu, conservés selon les besoins d’exploitation. Les traces d’exécution (sans clés) sont conservées jusqu’à leur retrait ; la requête et les images de référence d’une image sont supprimées à la fin de l’image.',
             'Courriers adressés au support : conservés pour traiter votre question et, au besoin, supprimés à votre demande.'
           ]
@@ -629,7 +633,7 @@ export default {
             'Dans Réglages → Confidentialité, choisissez de produire les réponses sur votre seul appareil, et l’historique et les clés ne sont pas envoyés à nos serveurs.',
             'Désactivez la mémoire automatique et le rappel entre discussions pour arrêter ces flux de données.',
             'Exportez, importez, supprimez, restaurez ou supprimez définitivement vos données à tout moment ; utilisez « Effacer tous les enregistrements et données » pour vider ce navigateur.',
-            'Consultez, remplacez ou supprimez vos identifiants sécurisés, vos compétences et vos règles de sites.',
+            'Consultez, remplacez ou supprimez vos identifiants sécurisés, vos connecteurs, vos compétences et vos règles de sites.',
             'Pour obtenir, corriger ou supprimer les données de votre compte cloud, écrivez à support@noureon.com depuis l’e-mail d’inscription ; nous répondrons dans un délai raisonnable. Selon la loi de votre lieu de résidence, vous pouvez aussi avoir des droits d’accès, de rectification, d’effacement, de limitation, de portabilité et d’opposition ; écrivez-nous pour les exercer.'
           ]
         ]
@@ -653,6 +657,7 @@ export default {
             'Cloudflare : le contrôle anti-robot Turnstile.',
             'Google Gemini, OpenRouter, NVIDIA, Tavily, TinyFish : les fournisseurs de modèles et de recherche que vous configurez.',
             'GitHub : téléchargements et icônes des outils en ligne de commande, et code source.',
+            'Notion, Linear : les services que vous connectez comme connecteurs, quand vous les connectez (chacun a ses propres conditions et sa politique de confidentialité).',
             'Vercel : hébergement et diffusion du site.',
             'jsDelivr : chargement de Python dans le navigateur (Pyodide).',
             'PeerJS : le serveur d’appairage du transfert d’appareil à appareil.',

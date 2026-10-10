@@ -1,6 +1,16 @@
 // The update notes in French (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.4.0": [
+    "<strong>Notes de version de Noureon 18.4.0</strong>",
+    "Cette version ajoute les connecteurs : la troisième partie des extensions, qui permet au modèle d’accéder à vos propres comptes sur d’autres services.",
+    "<strong>Principaux changements</strong>",
+    "<ul><li><strong>Connecteurs :</strong> connectez Notion et Linear dans Extensions → Connecteurs. Vous vous connectez sur la page du service lui-même avec OAuth (avec PKCE), et Noureon ne voit jamais votre mot de passe ; le jeton d’accès et le jeton de renouvellement sont conservés chiffrés en AES-256-GCM sur le serveur et ne sont donnés ni au navigateur ni au modèle. Toute la page va vers le service pour la connexion et revient à l’application ensuite, sans fenêtre contextuelle, ce qui fonctionne aussi sur téléphone.</li><li><strong>Réglage des outils :</strong> chaque outil peut être réglé sur autoriser, demander à chaque fois ou refuser : les outils de lecture sont autorisés au départ et les outils d’écriture demandent à chaque fois, puis c’est à vous de décider, sans autre limite. Linear propose une connexion en lecture seule, dont le jeton ne peut pas écrire du tout ; la connexion à Notion ne distingue pas lecture et écriture, seuls les réglages des outils s’appliquent. Quand les outils d’un service changent, les outils nouveaux ou modifiés sont désactivés jusqu’à votre confirmation.</li><li><strong>La carte de confirmation :</strong> quand le modèle appelle un outil réglé sur demander, une carte apparaît dans les étapes avec le connecteur, l’outil et tous les paramètres, et vous pouvez autoriser une fois, toujours autoriser ou refuser ; sans réponse en 10 minutes, c’est un refus.</li><li><strong>Sécurité :</strong> ce qu’un service renvoie est toujours traité comme une donnée et ne peut pas changer ce que vous avez autorisé ; une réponse fait au plus 30 appels à des services, et un résultat de plus de 30 000 caractères est coupé. Les connecteurs ne servent que dans les réponses faites par le serveur, pas dans les discussions temporaires. À la déconnexion, le jeton est révoqué auprès du service quand il le permet et ce qui est conservé est supprimé.</li></ul>",
+    "<strong>Remarques</strong>",
+    "<ul><li>Les nouvelles tables (user_mcp_connections et mcp_oauth_clients) doivent d’abord être appliquées à la base de données côté serveur.</li></ul>",
+    "<strong>Compatibilité</strong>",
+    "Cette mise à jour ajoute des tables et ne modifie pas les données existantes."
+  ],
   "18.3.6": [
     "<strong>Notes de version de Noureon 18.3.6</strong>",
     "Cette version réduit de combien une étape peut dépasser la limite d’écriture dans le bac à sable.",

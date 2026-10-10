@@ -1,6 +1,6 @@
 # Privacy
 
-_Last updated: October 10, 2026 (applies from Noureon 18.1.0)_
+_Last updated: October 10, 2026 (applies from Noureon 18.4.0)_
 
 > This file is made from `src/data/legal/en.js` (`node scripts/generate-privacy-md.mjs`). The same text, in five languages, is published at https://noureon.com/privacy.
 
@@ -14,7 +14,7 @@ In one sentence: Noureon is "local first" by default, so conversations, settings
 
 - In your browser: conversations, folders and the archive, settings, Nouras, memories and the local index, API keys, appearance preferences, local account data.
 - Sent to AI and search providers: your prompts, conversation context, attachments, system instructions and the model options you choose (section 6).
-- In Noureon's cloud (when you sign in and sync): workspace data (conversations, messages, folders, Nouras, memory summaries), uploaded and generated files, an encrypted copy of the sync password, skills and skill packs, secure credentials (section 4 and section 8).
+- In Noureon's cloud (when you sign in and sync): workspace data (conversations, messages, folders, Nouras, memory summaries), uploaded and generated files, an encrypted copy of the sync password, skills and skill packs, the logins and tool settings of connectors, secure credentials (section 4 and section 8).
 - Passing through Noureon's server for a while (when you choose server-side running): the history, system instructions and your key that one reply needs, deleted when the reply ends (section 7).
 - Third-party infrastructure: Supabase, Cloudflare Turnstile, GitHub, Vercel, PeerJS and others (section 17).
 
@@ -81,6 +81,7 @@ Feature by feature, this is which data passes where.
 - Command tools: the list of tools you added is kept in your settings (and synced with them). A tool runs only in an isolated container on the sandbox server; the command the model writes and the files of the conversation are handled as above; the tool's program is downloaded by the sandbox host from its official release (GitHub) and checked against a hash. The Extensions page loads each project's icon from GitHub, so GitHub sees that request.
 - Website connections: when a tool needs the internet (to download a video, to read a social network, to install its own Python package) it can reach it only through the sandbox host's filtering proxy. The proxy decides by your rules in Settings → Permissions (allow, ask or refuse; pypi.org, files.pythonhosted.org, registry.npmjs.org, github.com and two GitHub file hosts are allowed at first); a site with no rule is asked about in the conversation, and no answer in 10 minutes counts as a refusal. The proxy opens only ports 80 and 443, looks up the site itself and refuses every address inside the server (the machine itself, private and pod networks, link-local and metadata addresses and its own public address), whatever the rules say. It sees the site name and the port, never the page or what is sent, and logs the site name and port with the decision (no page address, no content). Your rules are kept in your settings (and synced with them).
 - Secure credentials: a credential you add for a tool (for example the login cookie of an account) is kept encrypted with AES-256-GCM on the server, under a master key that lives only in the server's environment and bound to you and the credential's name, in a table only the server can read. It is put in the environment of the tool (or in the login file the tool would save itself, for one command only) only while your own tool runs; what the command prints is scrubbed of the credential before the model or the page sees it, and the model never receives the value. You can look at, replace or delete it in Settings → Permissions; it is deleted when you delete it or the account.
+- Connectors: when you connect one (for now Notion and Linear), you log in on the service's own page (Noureon never sees your password); the server keeps the access token and the refresh token encrypted with AES-256-GCM under a master key that lives only in the server's environment, bound to you and the connector, in a table only the server can read, and never gives them to the browser or the model. The server also keeps the list of the service's tools and what you let each tool do (allow, ask or refuse). Connectors work only in replies the server makes, not in temporary chats. When the model uses a tool, the server calls the service with your token and sends what the service returns (for example the content of a page or an issue) to the model provider you chose, as part of the conversation; a tool you set to ask shows its exact inputs in a card first. A reply makes at most 30 calls to services, and a result is cut at 30,000 characters. Disconnecting revokes the token at the service where it offers that and deletes everything kept here.
 - Icons and names of cited sources: beside a source in an answer the site's small icon and name are shown. Noureon's server fetches these (reading the site's own page markup, public sites only, with a size and time limit and every redirect checked), so the sites you looked at stay between you and Noureon's server and no third-party icon service is asked.
 - Feedback and Noura proposals: these forms are optional and send only the fields you fill in, only through this site's same-origin proxy (/api/google-form-submit, which requires a Turnstile check); if the operator has not set a receiving endpoint the proxy forwards nothing. What is sent goes to the Google Form the operator set up.
 
@@ -120,6 +121,7 @@ Noureon has no built-in analytics, advertising tracking or cross-site tracking s
 - Sandbox containers and what is in memory: deleted when the reply ends.
 - Cloud files: files that no conversation refers to are removed automatically after about a day; a skill's zip is deleted with the skill, and a zip no skill points to is removed by the daily clean-up.
 - Secure credentials: until you delete them or delete the account.
+- Connector logins: until you disconnect (the token is then revoked at the service where it offers that, and deleted here) or delete the account.
 - Server logs: only event records without content, kept as operations require. Run records (without keys) are kept until they are removed; the prompt and reference pictures of an image are deleted when the image ends.
 - Mail sent to support: kept to deal with your question and, where needed, deleted at your request.
 
@@ -129,7 +131,7 @@ Noureon has no built-in analytics, advertising tracking or cross-site tracking s
 - In Settings → Privacy choose to make replies only on your own device, and the history and keys are not sent to our servers.
 - Turn off automatic memory and cross-conversation recall to stop those data flows.
 - Export, import, delete, restore or permanently delete your data at any time; use "Clear all records and data" to empty this browser.
-- Look at, replace or delete your secure credentials, skills and website rules.
+- Look at, replace or delete your secure credentials, connectors, skills and website rules.
 - To obtain, correct or delete the data of your cloud account, write to support@noureon.com from the Email you registered with; we will reply within a reasonable time. Depending on the law where you live you may also have rights of access, correction, erasure, restriction, portability and objection; write to us to exercise them.
 
 ## 16. Children and international transfer
@@ -143,6 +145,7 @@ Noureon has no built-in analytics, advertising tracking or cross-site tracking s
 - Cloudflare: the Turnstile bot check.
 - Google Gemini, OpenRouter, NVIDIA, Tavily, TinyFish: the model and search providers you set up.
 - GitHub: downloads and icons of command tools, and the source code.
+- Notion, Linear: the services you connect as connectors, when you connect them (each has its own terms and privacy policy).
 - Vercel: web hosting and delivery.
 - jsDelivr: loading of Python in the browser (Pyodide).
 - PeerJS: the pairing server of peer-to-peer transfer.

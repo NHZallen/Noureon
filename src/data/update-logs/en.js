@@ -1,6 +1,16 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.4.0": [
+    "<strong>Noureon 18.4.0 Release Notes</strong>",
+    "This version adds Connectors: the third part of Extensions, which lets the model reach your own accounts at other services.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Connectors:</strong> connect Notion and Linear in Extensions → Connectors. You log in on the service's own page with OAuth (with PKCE), and Noureon never sees your password; the access token and the refresh token are kept encrypted with AES-256-GCM on the server and are not given to the browser or the model. The whole page goes to the service to log in and comes back to the app when it is done, with no pop-up window, so it also works on a phone.</li><li><strong>Tool settings:</strong> each tool can be set to allow, ask each time or refuse: reading tools start as allow and writing tools as ask each time, and after that it is up to you, with no other limit. Linear offers a read-only connection, whose token cannot write at all; the login of Notion does not tell reading from writing, so only the tool settings apply. When the tools of a service change, new or changed tools are switched off until you confirm them.</li><li><strong>The confirmation card:</strong> when the model calls a tool that is set to ask, a card appears in the steps with the connector, the tool and every input, and you can allow once, always allow or refuse; no answer in 10 minutes counts as a refusal.</li><li><strong>Safety:</strong> what a service returns is always treated as data and cannot change what you allowed; a reply makes at most 30 calls to services, and a result longer than 30,000 characters is cut. Connectors are used only in replies the server makes, not in temporary chats. When you disconnect, the token is revoked at the service where it allows that and what is kept is deleted.</li></ul>",
+    "<strong>Notes</strong>",
+    "<ul><li>The new tables (user_mcp_connections and mcp_oauth_clients) must be applied to the database on the server side first.</li></ul>",
+    "<strong>Compatibility</strong>",
+    "This update adds tables and does not change existing data."
+  ],
   "18.3.6": [
     "<strong>Noureon 18.3.6 Release Notes</strong>",
     "This version reduces how far a step can go past the limit on what it writes in the sandbox.",
