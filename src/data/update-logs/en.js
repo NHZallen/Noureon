@@ -3,9 +3,9 @@
 export default {
   "18.5.0": [
     "<strong>Noureon 18.5.0 Release Notes</strong>",
-    "This version prepares Noureon's own login for Notion and ten tools, but does not offer them for now: Notion still has one connection, Notion's hosted connector (full access).",
+    "This version settles that Notion has one kind of connection: Notion's hosted connector (full access).",
     "<strong>Main changes</strong>",
-    "<ul><li><strong>One kind of Notion connection:</strong> Notion in the Extensions page has only “Full access (MCP)”, with no “Chosen pages” option.</li><li><strong>Kept ready:</strong> Notion's own login (its authorisation screen shows the name and logo of Noureon) and the ten tools are written and tested, but off by default and can be turned on again.</li></ul>",
+    "<ul><li><strong>One kind of Notion connection:</strong> a login of our own for Notion (sharing only chosen pages) was tried and then removed; Notion in the Extensions page stays “Full access (MCP)” as before.</li></ul>",
     "<strong>Compatibility</strong>",
     "This update requires no data migration."
   ],

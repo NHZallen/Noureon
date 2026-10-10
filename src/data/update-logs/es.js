@@ -3,9 +3,9 @@
 export default {
   "18.5.0": [
     "<strong>Notas de la versión de Noureon 18.5.0</strong>",
-    "Esta versión prepara el acceso propio de Noureon para Notion y diez herramientas, pero por ahora no los ofrece: Notion sigue teniendo una sola conexión, el conector alojado de Notion (acceso completo).",
+    "Esta versión confirma que Notion tiene un solo tipo de conexión: el conector alojado de Notion (acceso completo).",
     "<strong>Cambios principales</strong>",
-    "<ul><li><strong>Un solo tipo de conexión de Notion:</strong> en la página de extensiones, Notion solo tiene «Acceso completo (MCP)», sin la opción «Páginas elegidas».</li><li><strong>Dejado listo:</strong> el acceso propio de Notion (su pantalla de autorización muestra el nombre y el logotipo de Noureon) y las diez herramientas están escritos y probados, pero desactivados por defecto y se pueden volver a activar.</li></ul>",
+    "<ul><li><strong>Un solo tipo de conexión de Notion:</strong> se probó un acceso propio de Noureon para Notion (que solo compartía las páginas elegidas) y luego se retiró; en la página de extensiones Notion sigue siendo «Acceso completo (MCP)» como antes.</li></ul>",
     "<strong>Compatibilidad</strong>",
     "Esta actualización no requiere migración de datos."
   ],

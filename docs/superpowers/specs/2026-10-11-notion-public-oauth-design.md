@@ -1,4 +1,6 @@
-# Notion 自己的 OAuth 登入（Public Connection）：品牌測試
+# Notion 自己的 OAuth 登入（Public Connection）：品牌測試（**已移除，只留作紀錄**）
+
+> **2026-10-11 結論：owner 決定 Notion 只用官方託管連接器（完整存取），自己的登入與十個工具已從程式碼移除**（見 §9）。下面的內容是當時的設計與紀錄；程式碼可從 commit `66da20d1` 找回。
 
 **狀態：** 第 1 步（登入流程、安全保存、解除連接、獨立測試入口）已寫完、已部署，**品牌測試成功**（2026-10-11，owner 從 `noureon.com/notion-test` 看到 Notion 授權畫面顯示 Noureon 的名稱與 Logo）。擴充頁的 Notion「連線」仍然走 Hosted MCP（授權畫面仍顯示 `api.noureon.com`，這是刻意的）。還沒有接到工具執行器：第 2 步的評估在 §5，等 owner 決定做法。原本的 Hosted MCP 連接器（`server/mcp/`、擴充頁「連接器」）完全沒有動。
 
@@ -76,3 +78,9 @@ Hosted MCP（`https://mcp.notion.com/mcp`）的授權畫面對只用網址認識
 ## 8. 後來的決定（2026-10-11，仍是 18.5.0）：Notion 不分種類，全部用完整存取
 
 owner 看過兩種連線並存的畫面後決定：**Notion 不分，全部用完整存取（Hosted MCP）**。所以 `server/main.js` 不再把 Notion 登入與十個工具接進連接器服務（環境變數 `NOTION_REST_IN_CONNECTORS` 有設才接回）；擴充頁因為伺服器不再列出 `notion-public`，只提供 Hosted（連線視窗沒有「改用…」的切換）。程式、測試與畫面碼（§7）保留，需要時設定該環境變數即可重新打開；測試頁 `/notion-test` 與 `/v1/notion/*` 不變。隱私政策、協助中心、使用條款回到只講 Hosted 連線。
+
+## 9. 移除（2026-10-11，仍是 18.5.0）
+
+owner 比較過兩種授權畫面與工具數量後決定「用官方算了，不要用我的自訂」。已移除：`server/notion/`（登入與十個工具）、`/oauth/notion/callback` 與 `/v1/notion/*`、測試頁 `/notion-test`、環境變數 `NOTION_CLIENT_ID`／`NOTION_CLIENT_SECRET`／`NOTION_REDIRECT_URI`／`NOTION_REST_IN_CONNECTORS`、連接器服務與擴充頁裡所有「所選頁面」的程式與文字、相關測試。需要時從 `66da20d1`（移除前的最後一版）取回。
+
+**owner 要做的：** 在 Zeabur 刪掉那些 `NOTION_*` 變數（沒刪也沒關係，程式不再讀它們）；Notion 開發者後台的那個 Public Connection 不用了可以刪除；如果之前用「所選頁面」連過，到 Notion 的「設定 → 連線」把 Noureon 移除。資料表 `user_mcp_connections` 裡 `connector_id = 'notion-public'` 的舊資料列，以及伺服器上還沒用完的登入暫存，可以用 SQL 刪掉（見回覆）。

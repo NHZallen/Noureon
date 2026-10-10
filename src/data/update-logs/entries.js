@@ -6,9 +6,9 @@ export const updateLogEntries = [
     date: "2026-10-11",
     content: [
       "<strong>Noureon 18.5.0 發布說明</strong>",
-      "本版本為 Notion 準備了 Noureon 自己的登入與十個工具，但目前不開放：Notion 仍然只有一種連線，使用 Notion 官方託管連接器（完整存取）。",
+      "本版本確定 Notion 只有一種連線：使用 Notion 官方託管連接器（完整存取）。",
       "<strong>主要變更</strong>",
-      "<ul><li><strong>Notion 連線不分種類：</strong>擴充頁的 Notion 只有「完整存取（MCP）」一種，沒有「所選頁面」的選項。</li><li><strong>保留的準備：</strong>Notion 自己的登入（授權畫面顯示 Noureon 的名稱與標誌）與十個工具已寫好並測試，但預設關閉，需要時可以再打開。</li></ul>",
+      "<ul><li><strong>Notion 連線不分種類：</strong>曾經試做過 Noureon 自己的 Notion 登入（只分享所選頁面），測試後決定不採用並移除，擴充頁的 Notion 維持原本的「完整存取（MCP）」。</li></ul>",
       "<strong>相容性</strong>",
       "本次更新不需要資料遷移。"
     ]

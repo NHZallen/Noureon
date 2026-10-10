@@ -3,9 +3,9 @@
 export default {
   "18.5.0": [
     "<strong>Notes de version de Noureon 18.5.0</strong>",
-    "Cette version prépare la connexion propre à Noureon pour Notion et dix outils, mais ne les propose pas pour l’instant : Notion n’a toujours qu’une seule connexion, le connecteur hébergé par Notion (accès complet).",
+    "Cette version confirme que Notion n’a qu’une seule sorte de connexion : le connecteur hébergé par Notion (accès complet).",
     "<strong>Principaux changements</strong>",
-    "<ul><li><strong>Une seule sorte de connexion Notion :</strong> dans la page des extensions, Notion n’a que « Accès complet (MCP) », sans option « Pages choisies ».</li><li><strong>Gardé en réserve :</strong> la connexion propre à Notion (son écran d’autorisation affiche le nom et le logo de Noureon) et les dix outils sont écrits et testés, mais désactivés par défaut et peuvent être réactivés.</li></ul>",
+    "<ul><li><strong>Une seule sorte de connexion Notion :</strong> une connexion propre à Noureon pour Notion (qui ne partageait que les pages choisies) a été essayée puis retirée ; dans la page des extensions, Notion reste « Accès complet (MCP) » comme avant.</li></ul>",
     "<strong>Compatibilité</strong>",
     "Cette mise à jour ne nécessite aucune migration de données."
   ],

@@ -6,8 +6,6 @@ import { loadConfig } from './config.js';
 import { createAssetSweeper } from './asset-sweeper.js';
 import { createCredentialStore } from './cli-credentials.js';
 import { createConnectorService, createDbClientStore } from './mcp/connections.js';
-import { createNotionOAuth } from './notion/oauth.js';
-import { createNotionTools } from './notion/tools.js';
 import { createKeyVault } from './key-vault.js';
 import { createLogger } from './log.js';
 import { LIMITS } from './protocol.js';
@@ -34,7 +32,6 @@ try {
 let runs = null;
 let credentials = null;
 let connectors = null;
-let notion = null;
 let files = null;
 let sweeper = null;
 let checkRunsStore = async () => {};
@@ -57,12 +54,7 @@ if (config.runsConfigured) {
     if (host) checkSandbox = () => host.check().then((state) => log(state.ok ? 'sandbox_ok' : 'sandbox_failed', { reason: state.reason }));
     const vault = createKeyVault(config.encryptionKeys);
     credentials = createCredentialStore({ db, vault });
-    // Notion through Noureon's own login (when its client id and secret are set): the login, and the tools made of Notion's REST API for a reply.
-    if (config.notion.configured) notion = createNotionOAuth({ db, vault, log, config: config.notion });
-    // The owner decided (2026-10-11) that Notion is one connector with full access (the hosted MCP one). Noureon's own Notion login and its ten tools are built and tested
-    // but not offered: set NOTION_REST_IN_CONNECTORS (any value) to bring them back into the Extensions page. The test page and /v1/notion/* stay as they were.
-    const notionInConnectors = Boolean(notion && process.env.NOTION_REST_IN_CONNECTORS);
-    connectors = createConnectorService({ db, vault, log, notion: notionInConnectors ? { oauth: notion, tools: createNotionTools({ oauth: notion }) } : null, config: { redirectUri: config.connectorRedirectUri, cimdUrl: config.connectorClientId, identity: { clientUri: config.appUrl, logoUri: `${config.appUrl}/logo.png`, tosUri: `${config.appUrl}/terms`, policyUri: `${config.appUrl}/privacy` }, clientStore: createDbClientStore(db) } });
+    connectors = createConnectorService({ db, vault, log, config: { redirectUri: config.connectorRedirectUri, cimdUrl: config.connectorClientId, identity: { clientUri: config.appUrl, logoUri: `${config.appUrl}/logo.png`, tosUri: `${config.appUrl}/terms`, policyUri: `${config.appUrl}/privacy` }, clientStore: createDbClientStore(db) } });
     runs = createRunManager({ store: createRunStore({ db, limits: LIMITS }), db, vault, sandbox, files, credentials, connectors, skills: createServerSkills({ db, bundles: skillBundles }), vision: { available: canDrawSlides, execute: executeVisionCheck, getKit: getFontKit }, limits: LIMITS, log });
   } catch (error) {
     log('config_error', { message: error.message });
@@ -70,7 +62,7 @@ if (config.runsConfigured) {
   }
 }
 
-const server = createServer(createApp({ config, log, runs, credentials, files, connectors, notion }));
+const server = createServer(createApp({ config, log, runs, credentials, files, connectors }));
 // A long request (a reply that streams) is never cut by these; the replies themselves run apart from the request.
 server.requestTimeout = 60_000;
 server.headersTimeout = 30_000;
