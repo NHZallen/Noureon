@@ -37,14 +37,28 @@
 
 ## 4. 這 6 個連接器（已查證的與未確認的）
 
-| 連接器 | 端點 | 用戶端怎麼取得身分 | 唯讀的程度 | 備註 |
+| 連接器 | 端點 | 用戶端怎麼取得身分（第 0 期實測） | 唯讀的程度 | 備註 |
 |---|---|---|---|---|
-| Notion | `https://mcp.notion.com/mcp` | 自動註冊（DCR，官方確認） | 授權沒有獨立的唯讀範圍 | 工具含建立、更新 |
-| Linear | `https://mcp.linear.app/mcp`（唯讀：`/mcp/readonly`） | 自動註冊（DCR，官方確認） | **可以只授權 read 範圍**，令牌就寫不了 | |
-| Context7 | `https://mcp.context7.com/mcp/oauth` | 未確認（待第 0 期） | 只有兩個查文件的工具，不碰使用者資料 | 本來就唯讀 |
-| Upstash | `https://mcp.upstash.com/mcp` | 未確認（待第 0 期） | 登入頁有**唯讀開關**，伺服器強制 | 也能選個人或團隊 |
-| Vercel | `https://mcp.vercel.com` | 未確認（待第 0 期） | 未確認；Beta | 含「部署」「買網域」等危險工具 |
-| GitHub | `https://api.githubcopilot.com/mcp/`（唯讀：`/readonly`） | **要我們自己建 OAuth App**（C 類） | 伺服器端唯讀模式可選 | 唯一要 owner 動手 |
+| Notion | `https://mcp.notion.com/mcp` | **CIMD**（公布支援） | 公布的範圍只有 `default`，沒有獨立唯讀範圍 | 工具含建立、更新 |
+| Linear | `https://mcp.linear.app/mcp`（唯讀：`/mcp/readonly`） | **CIMD**（公布支援） | 公布 `read write`，**可以只授權 read**，令牌就寫不了 | |
+| Context7 | `https://mcp.context7.com/mcp/oauth` | **CIMD**（公布支援） | 只有兩個查文件的工具，不碰使用者資料 | 本來就唯讀 |
+| Upstash | `https://mcp.upstash.com/mcp` | **DCR**（有註冊端點） | 登入頁有**唯讀開關**，伺服器強制 | 也能選個人或團隊 |
+| Vercel | `https://mcp.vercel.com` | **DCR**（有註冊端點） | 公布的範圍沒有讀寫之分（`openid email profile offline_access`） | Beta；含「部署」「買網域」等工具 |
+| GitHub | `https://api.githubcopilot.com/mcp/`（唯讀：`/readonly`） | **預先註冊**（沒有註冊端點，要我們自己建 OAuth App） | 伺服器端唯讀模式可選 | 唯一要 owner 動手；**沒有撤銷端點** |
+
+**第 0 期實測結果（2026-10-10，owner 的 VPS，`scripts/mcp-probe.mjs`）：** 六個都回 HTTP 401（正常的 OAuth 保護），都公布 PKCE S256 與 refresh token；只有 GitHub 沒有撤銷端點。
+
+```
+Server    Reached   Registration    PKCE S256  Refresh  Revocation  Scopes announced
+Notion    HTTP 401  CIMD            yes        yes      yes         default
+Linear    HTTP 401  CIMD            yes        yes      yes         read write openid email
+Context7  HTTP 401  CIMD            yes        yes      yes         openid profile email public_metadata private_metadata offline_access
+Upstash   HTTP 401  DCR             yes        yes      yes         openid profile email public_metadata private_metadata offline_access
+Vercel    HTTP 401  DCR             yes        yes      yes         openid email profile offline_access
+GitHub    HTTP 401  pre-registered  yes        yes      no          offline_access
+```
+
+**這個結果能證明什麼、不能證明什麼：** 它是對方「公布」的設定。它不證明對方真的會接受我們的 CIMD 檔案或 DCR 註冊（有些服務只接受名單內的用戶端，Vercel 尤其要留意），也不證明 Notion 和 Linear 沒有 DCR 作備援（探測在公布 CIMD 時不再往下看註冊端點）。這些要到第 1、2 期真的登入時才知道；實作時三種方式都支援，優先順序 預先註冊 → CIMD → DCR，其中一種被拒絕就退到下一種。腳本在 VPS 上要加 `--network host` 才連得出去（預設的 Docker 橋接網路連不出去，沒有影響 sandbox 本身的設定）。
 
 「用戶端怎麼取得身分」有三種，我們的共用引擎都要支援，依 MCP 規格 2026-07-28 的建議順序：**預先註冊 → CIMD → DCR**。
 
@@ -107,11 +121,11 @@
 
 ## 7. 分期
 
-**第 0 期（先做實驗，沒有畫面）：** `scripts/mcp-probe.mjs`：對六個連接器只做**唯讀查詢**（先送每個 MCP 用戶端都會送的第一個請求，得到 401；再讀公開的登入設定檔 RFC 9728／RFC 8414），列出各自是 CIMD、DCR 還是只能預先註冊，有沒有 PKCE S256、refresh token、撤銷端點、公布的範圍。**不註冊、不登入、不留下任何紀錄。** 這個開發環境的網路政策連不上這些網站，所以要在 owner 的 VPS 上跑：`docker run --rm -v ~/Noureon:/app -w /app --entrypoint node noureon-sandbox-runner:1 scripts/mcp-probe.mjs`（`--json` 輸出全部細節）。結果要寫回 §4。注意：它只說明「對方公布了什麼」；真正的 CIMD 登入要等我們的 CIMD 檔案部署後才能測。
+**第 0 期（先做實驗，沒有畫面）：** `scripts/mcp-probe.mjs`：對六個連接器只做**唯讀查詢**（先送每個 MCP 用戶端都會送的第一個請求，得到 401；再讀公開的登入設定檔 RFC 9728／RFC 8414），列出各自是 CIMD、DCR 還是只能預先註冊，有沒有 PKCE S256、refresh token、撤銷端點、公布的範圍。**不註冊、不登入、不留下任何紀錄。** 這個開發環境的網路政策連不上這些網站，所以要在 owner 的 VPS 上跑：`docker run --rm --network host -v ~/Noureon:/app -w /app --entrypoint node noureon-sandbox-runner:1 scripts/mcp-probe.mjs`（`--json` 輸出全部細節）。結果要寫回 §4。注意：它只說明「對方公布了什麼」；真正的 CIMD 登入要等我們的 CIMD 檔案部署後才能測。
 
 **第 1 期：登入引擎與第一批。** 引擎（§5.2、§5.3）、資料表、CIMD 檔案、Notion 與 Linear；工具呼叫與權限（§5.4、§5.5）、確認卡；擴充頁第三層；五種語言；隱私政策。
 
-**第 2 期：** 依第 0 期結果加 Context7、Upstash、Vercel。Vercel 含「部署」「買網域」等工具；依 owner 的決定，和其他寫入工具一樣由使用者自己決定，不加警告。
+**第 2 期：** 依第 0 期結果加 Context7（CIMD）、Upstash（DCR）、Vercel（DCR，要先確認它肯不肯讓我們註冊）。Vercel 含「部署」「買網域」等工具；依 owner 的決定，和其他寫入工具一樣由使用者自己決定，不加警告。
 
 **第 3 期：** GitHub（owner 先建 OAuth App，我教步驟；伺服器端唯讀模式可選）。
 
@@ -136,8 +150,8 @@
 
 ## 10. 風險與沒有證據的地方
 
-- 所有「未確認」都等第 0 期實驗；GitHub 的遠端 OAuth 是否強制 PKCE、各服務的 refresh token 效期都未確認。
-- Notion 的授權沒有獨立唯讀範圍；Vercel 的唯讀範圍未確認。這兩個靠使用者的工具權限與確認卡把關，**不是令牌層級的唯讀**，畫面要誠實講。
+- 第 0 期已確認各家公布的登入方式（§4）；仍未確認：對方是否真的接受我們的 CIMD／DCR、GitHub 的遠端 OAuth 是否強制 PKCE、各服務的 refresh token 效期。
+- Notion 的授權沒有獨立唯讀範圍（公布的範圍只有 `default`）；Vercel 公布的範圍沒有讀寫之分。這兩個靠使用者的工具權限與確認卡把關，**不是令牌層級的唯讀**，畫面要誠實講。
 - 規格仍在演進（2026-07-28 剛發布），各服務的升級速度不一。
 
 ## 11. 來源

@@ -7,7 +7,7 @@
 //   node scripts/mcp-probe.mjs            a table
 //   node scripts/mcp-probe.mjs --json     everything it found, as JSON
 //
-// On a machine with no Node:  docker run --rm -v ~/Noureon:/app -w /app --entrypoint node noureon-sandbox-runner:1 scripts/mcp-probe.mjs
+// On a machine with no Node:  docker run --rm --network host -v ~/Noureon:/app -w /app --entrypoint node noureon-sandbox-runner:1 scripts/mcp-probe.mjs
 
 export const TARGETS = Object.freeze([
   { id: 'notion', name: 'Notion', url: 'https://mcp.notion.com/mcp' },
