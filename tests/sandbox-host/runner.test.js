@@ -12,7 +12,7 @@ import { containerName, dockerRunArgs } from '../../sandbox-host/runner/docker-a
 import { addressAllowed, createHandler } from '../../sandbox-host/runner/http.js';
 import { createCliCache } from '../../sandbox-host/runner/cli-cache.js';
 import { PipCacheError } from '../../sandbox-host/runner/pip-cache.js';
-import { RunnerError, createSessionManager, safeFileName } from '../../sandbox-host/runner/session.js';
+import { RunnerError, createSessionManager, safeFileName, safeSkillPath } from '../../sandbox-host/runner/session.js';
 
 // These start the container program (repl.py) as an ordinary process, so they need Python 3.
 const sandboxTest = spawnSync('python3', ['--version']).status === 0 ? test : test.skip;
@@ -57,14 +57,14 @@ test('the settings need a real secret and have safe defaults: only the machine i
 
 test('a container is started one way: no network, no rights, limited, with only its folders; nothing of a request can change that', () => {
   const config = loadConfig({ RUNNER_TOKEN: SECRET });
-  const args = dockerRunArgs({ config, sessionId: 'a1b2c3d4e5f6a1b2c3d4e5f6', dirs: { input: '/data/x/input', output: '/data/x/output', cli: '/data/x/cli', net: '/data/x/net' }, language: 'zh-TW; rm -rf /' });
+  const args = dockerRunArgs({ config, sessionId: 'a1b2c3d4e5f6a1b2c3d4e5f6', dirs: { input: '/data/x/input', output: '/data/x/output', cli: '/data/x/cli', skills: '/data/x/skills', net: '/data/x/net' }, language: 'zh-TW; rm -rf /' });
   const joined = args.join(' ');
-  for (const wanted of ['--network none', '--read-only', '--cap-drop ALL', '--security-opt no-new-privileges', '--pids-limit 256', '--memory 2g', '--memory-swap 2g', '--cpus 2', '--user 65534:65534', '-v /data/x/input:/input:ro', '-v /data/x/output:/output:rw', '-v /data/x/cli:/opt/cli:ro', '-v /data/x/net:/run/noureon-net:ro', '--tmpfs /opt/pip:rw,exec,nosuid,nodev,size=512m,uid=65534']) {
+  for (const wanted of ['--network none', '--read-only', '--cap-drop ALL', '--security-opt no-new-privileges', '--pids-limit 256', '--memory 2g', '--memory-swap 2g', '--cpus 2', '--user 65534:65534', '-v /data/x/input:/input:ro', '-v /data/x/output:/output:rw', '-v /data/x/cli:/opt/cli:ro', '-v /data/x/skills:/skills:ro', '-v /data/x/net:/run/noureon-net:ro', '--tmpfs /opt/pip:rw,exec,nosuid,nodev,size=512m,uid=65534']) {
     assert.ok(joined.includes(wanted), wanted);
   }
   assert.equal(args.at(-1), 'noureon-sandbox:1', 'the image is the runner\'s');
   assert.equal(args.includes('--privileged'), false);
-  assert.equal(args.filter((arg) => arg === '-v').length, 5, 'nothing else is mounted (the programs of the CLI tools, the Python tools installed once and the socket of the proxy are read only)');
+  assert.equal(args.filter((arg) => arg === '-v').length, 6, 'nothing else is mounted (the programs of the CLI tools, the folders of skills, the Python tools installed once and the socket of the proxy are read only)');
   assert.ok(joined.includes(`-v ${config.pipCacheDir}:/opt/pip-cache:ro`), 'the Python tools of the machine are seen, never changed');
   assert.equal(args.includes('host'), false, 'the container never shares the host\'s network');
   assert.ok(args.some((arg) => arg === 'LANGUAGE=zh-TWrm-rf'), 'a language is only letters and dashes');
@@ -498,5 +498,53 @@ sandboxTest('a command may be given files for its home (a tool\'s login) that on
     await n.manager.destroy(id);
   } finally {
     await n.done();
+  }
+});
+
+sandboxTest('the folders of skills are put in /skills, read only and never run; a script is run by an interpreter; a new list replaces the old; a wrong list writes nothing', async () => {
+  const h = harness();
+  const manager = createSessionManager({ config: h.config, now: () => h.clock.time });
+  try {
+    const { id } = await manager.create({ language: 'en' });
+    const folder = join(h.root, 'data', id, 'skills');
+    const mounted = await manager.mountSkills(id, [{ name: 'sales-report', files: [
+      { path: 'SKILL.md', data: b64('# skill') },
+      { path: 'scripts/summary.py', data: b64('import sys\nprint("summary", sys.argv[1])\n') },
+      { path: 'references/deep/format.md', data: b64('# Format') }
+    ] }, { name: 'plain-skill', files: [] }]);
+    assert.deepEqual(mounted, { mounted: [{ name: 'sales-report', files: 3 }, { name: 'plain-skill', files: 0 }] });
+    assert.equal(readFileSync(join(folder, 'sales-report', 'references', 'deep', 'format.md'), 'utf8'), '# Format');
+    for (const path of ['SKILL.md', 'scripts/summary.py', 'references/deep/format.md']) assert.equal(statSync(join(folder, 'sales-report', path)).mode & 0o111, 0, `${path} is not made a program`);
+    for (const path of ['', 'scripts', 'references', 'references/deep']) assert.equal(statSync(join(folder, 'sales-report', path)).mode & 0o555, 0o555, `${path || 'the folder'} can be read and entered`);
+    const ran = await manager.run(id, { command: 'python3 "$NOUREON_SKILLS/sales-report/scripts/summary.py" ok', timeoutMs: 20_000 });
+    assert.equal(ran.stdout.text, 'summary ok\n');
+    assert.equal(ran.error, null);
+
+    // A new list replaces the old one.
+    await manager.mountSkills(id, [{ name: 'other-skill', files: [{ path: 'a.md', data: b64('a') }] }]);
+    assert.deepEqual(readdirSync(folder), ['other-skill']);
+
+    // What is wrong is refused before anything is written.
+    const bad = [
+      [{ name: 'Bad Name', files: [] }],
+      [{ name: 'a-skill', files: [] }, { name: 'a-skill', files: [] }],
+      [{ name: 'a-skill', files: [{ path: '../evil.py', data: b64('x') }] }],
+      [{ name: 'a-skill', files: [{ path: '/abs.py', data: b64('x') }] }],
+      [{ name: 'a-skill', files: [{ path: 'a\\b.py', data: b64('x') }] }],
+      [{ name: 'a-skill', files: [{ path: '.hidden/a.md', data: b64('x') }] }],
+      [{ name: 'a-skill', files: [{ path: 'A.md', data: b64('x') }, { path: 'a.md', data: b64('y') }] }],
+      [{ name: 'a-skill', files: Array.from({ length: 62 }, (_, index) => ({ path: `f${index}.md`, data: b64('x') })) }],
+      Array.from({ length: 6 }, (_, index) => ({ name: `skill-${index}`, files: [] }))
+    ];
+    for (const list of bad) await assert.rejects(() => manager.mountSkills(id, list), (error) => error instanceof RunnerError && error.status === 400, JSON.stringify(list).slice(0, 80));
+    await assert.rejects(() => manager.mountSkills(id, [{ name: 'big-skill', files: [{ path: 'big.bin', data: Buffer.alloc(13 * 1024 * 1024).toString('base64') }] }]), (error) => error instanceof RunnerError && error.status === 413);
+    assert.deepEqual(readdirSync(folder), ['other-skill'], 'nothing was written by the lists that were refused');
+    assert.deepEqual(await manager.mountSkills(id, []), { mounted: [] });
+    assert.deepEqual(readdirSync(folder), []);
+    assert.equal(safeSkillPath('a/b.md'), 'a/b.md');
+    assert.equal(safeSkillPath('a//b.md'), null);
+    assert.equal(safeSkillPath(`${'a/'.repeat(120)}b`), null);
+  } finally {
+    await h.done();
   }
 });

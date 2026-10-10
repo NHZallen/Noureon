@@ -30,7 +30,6 @@ function createElements(overrides = {}) {
     councilTranslatorModelSelect: select('gemini-translator'),
     singleDocumentTranslatorModelSelect: select('doc-translator'),
     autoWebSearchToggleSwitch: toggle(true),
-    userBubbleColorDropdown: dropdown('green'),
     autoNamingToggleSwitch: toggle(true),
     memoryToggle1: toggle(false),
     autoMemoryToggleSwitch: toggle(true),
@@ -56,9 +55,9 @@ test('collects checkbox, input, select, dropdown, and theme values as plain data
     singleDocumentTranslatorModelId: 'doc-translator',
     enableAutoWebSearch: true,
     visionCheckEnabled: true,
+    colorScheme: 'light',
     processOpen: false,
     fileModeDefault: 'advanced',
-    userBubbleColor: 'green',
     autoNaming: true,
     memoryEnabled1: false,
     historyRecallEnabled: false,
@@ -81,7 +80,6 @@ test('preserves existing saveSettings fallbacks for missing optional controls', 
       tavilySearchDepthSelect: undefined,
       councilTranslatorModelSelect: undefined,
       singleDocumentTranslatorModelSelect: undefined,
-      userBubbleColorDropdown: { querySelector: () => null },
       uiColorOptions: { dataset: {} }
     }),
     config: {
@@ -95,7 +93,6 @@ test('preserves existing saveSettings fallbacks for missing optional controls', 
   assert.equal(result.councilTranslatorModelId, null);
   assert.equal(result.singleDocumentTranslatorModelId, null);
   assert.equal('outputMode' in result, false, 'there is no output mode to choose');
-  assert.equal(result.userBubbleColor, 'default');
   assert.deepEqual(result.uiTheme, {
     mode: 'default',
     customColor: '#abcdef'

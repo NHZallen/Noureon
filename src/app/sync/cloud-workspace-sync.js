@@ -20,6 +20,7 @@ import { getCloudSyncBootstrapPendingKey } from './cloud-sync-bootstrap-queue.js
 import { createConversationRealtimeRefreshScheduler } from './cloud-sync-realtime-refresh.js';
 import { withWorkspaceStorageExclusive } from './workspace-storage-coordinator.js';
 import { CLI_MERGED_FIELDS, changedCliFields, mergeCliSettings } from '../../data/cli-settings-merge.js';
+import { SKILL_MERGED_FIELDS, changedSkillFields, mergeSkillSettings } from '../../data/skill-settings-merge.js';
 import { digestSettings, mergeSettings, settingsMergeChanged, stampChangedSettings, SETTINGS_STAMPS_FIELD } from '../../data/settings-merge.js';
 import {
   canCommitHydratedRemote,
@@ -221,12 +222,13 @@ export async function initializeCloudWorkspaceSync({ window, session, bootstrapQ
     }
     const cloud = remote?.config;
     if (!cloud || typeof cloud !== 'object') return finish(stamped, stamped === value ? null : { [SETTINGS_STAMPS_FIELD]: ownStamps });
-    const merged = mergeCliSettings(stamped, cloud);
-    const cliChanged = changedCliFields(stamped, merged).length > 0;
+    // The lists of the CLI tools and of the skills are merged item by item, and travel together.
+    const merged = { ...mergeCliSettings(stamped, cloud), ...mergeSkillSettings(stamped, cloud) };
+    const cliChanged = changedCliFields(stamped, merged).length > 0 || changedSkillFields(stamped, merged).length > 0;
     const settings = mergeSettings(stamped, cloud);
     const settingsChanged = settingsMergeChanged(stamped, settings);
     if (!cliChanged && !settingsChanged) return finish(stamped, stamped === value ? null : { [SETTINGS_STAMPS_FIELD]: ownStamps });
-    const cliFields = cliChanged ? Object.fromEntries(CLI_MERGED_FIELDS.map((field) => [field, merged[field]])) : {};
+    const cliFields = cliChanged ? Object.fromEntries([...CLI_MERGED_FIELDS, ...SKILL_MERGED_FIELDS].map((field) => [field, merged[field]])) : {};
     const fields = { ...cliFields, ...settings.fields, ...(settingsChanged ? { [SETTINGS_STAMPS_FIELD]: settings.stamps } : {}) };
     // Kept on this device too (what is stored, and what the page holds), so it does not show the old values until the next change.
     const result = await finish({ ...stamped, ...fields }, fields);

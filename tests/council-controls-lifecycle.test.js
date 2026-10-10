@@ -262,6 +262,7 @@ test('how deeply it thinks is a slider with a dot for each of the model\'s own l
     slider.dispatchEvent(new document.defaultView.Event('input', { bubbles: true }));
     assert.equal(Number(wrap.style.getPropertyValue('--mp-p')), 1);
     assert.equal(document.querySelector('[data-mp-depth-value]').textContent, 'High');
+    assert.equal(document.querySelector('.mp-depth-trigger-value').textContent, 'High', 'the button in the composer follows the thumb while it is dragged');
     assert.equal(conversation.reasoningEffort, 'medium', 'nothing saved until it is let go');
     slider.dispatchEvent(new document.defaultView.Event('input', { bubbles: true }));
     assert.equal(buzzes.length, 1, 'one tick for the one step, none for staying on it');
@@ -503,6 +504,41 @@ test('the menu item opens the panel on the council page', async () => {
     assert.equal(conversation.council.enabled, true);
     assert.equal(document.querySelector('#model-picker-popover').classList.contains('visible'), true);
     assert.equal(document.querySelector('#model-picker-btn').getAttribute('aria-expanded'), 'true');
+  } finally {
+    cleanup();
+  }
+});
+
+test('on a phone the model panel is as tall as the room above the composer box up to just under the top row of buttons, and a wide screen is left to the style', async () => {
+  const { cleanup, document, lifecycle } = createHarness({ conversation: singleConversation() });
+  try {
+    const view = document.defaultView;
+    const box = document.createElement('div');
+    box.className = 'input-wrapper';
+    document.body.append(box);
+    box.append(document.querySelector('#input-controls'));
+    let top = 520;
+    box.getBoundingClientRect = () => ({ top, bottom: top + 89, left: 8, right: 385, width: 377, height: 89 });
+    const set = (name, value) => Object.defineProperty(view, name, { configurable: true, value });
+    const height = () => document.querySelector('#model-council-control').style.getPropertyValue('--mp-phone-height');
+
+    set('innerWidth', 393);
+    assert.equal(await lifecycle.openModelPicker({}), true);
+    assert.equal(height(), `${520 - 12 - 56}px`, 'from just above the box up to just under the top row of buttons');
+    top = 900;
+    document.querySelector('#model-picker-popover')?.classList.remove('visible');
+    assert.equal(await lifecycle.openModelPicker({}), true);
+    assert.equal(height(), '544px', 'never taller than the panel was');
+
+    top = 120;
+    document.querySelector('#model-picker-popover')?.classList.remove('visible');
+    assert.equal(await lifecycle.openModelPicker({}), true);
+    assert.equal(height(), '200px', 'and never so short that it cannot be used');
+
+    set('innerWidth', 1024);
+    document.querySelector('#model-picker-popover')?.classList.remove('visible');
+    assert.equal(await lifecycle.openModelPicker({}), true);
+    assert.equal(height(), '', 'a wide screen has the style\'s own height');
   } finally {
     cleanup();
   }

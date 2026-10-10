@@ -2,7 +2,7 @@
 /* The cards of the Personalization, Models and Data tabs of the settings (index shell; the colour menu is theme-appearance-lifecycle.js): thin-bordered
    cards with rows, the same look as the User tab (user-settings.css). A tab puts its cards inside a `.pz`. */
 #settings-modal .pz { max-width: 44rem; }
-#settings-modal .pz .pz-card { border: 1px solid var(--border-color); border-radius: 0.875rem; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); }
+#settings-modal .pz .pz-card { border: 1px solid var(--border-color); border-radius: 0.875rem; box-shadow: var(--shadow-xs); }
 #settings-modal .pz .pz-card + .pz-card { margin-top: 1rem; }
 #settings-modal .pz .pz-head { padding: 1.1rem 1.15rem 0.6rem; }
 #settings-modal .pz .pz-head h3 { margin: 0; font-size: 1rem; font-weight: var(--astra-font-semibold) !important; }
@@ -23,7 +23,7 @@
 #settings-modal .pz .pz-control .color-dropdown-btn { width: 100%; min-height: 2.5rem; padding: 0 0.75rem; gap: 0.5rem; border-radius: 0.5rem !important; font-size: 0.9rem; }
 #settings-modal .pz .pz-control .color-dropdown-btn svg { margin-left: auto; flex: none; }
 #settings-modal .pz .pz-control .color-dropdown-menu { left: auto; right: 0; width: max-content; min-width: 100%; max-height: none; transform: none; transition: opacity 0.12s ease; }
-#settings-modal .pz .color-dot { flex: none; width: 1.1rem; height: 1.1rem; border-radius: 9999px; border: 1px solid rgba(0, 0, 0, 0.1); }
+#settings-modal .pz .color-dot { flex: none; width: 1.1rem; height: 1.1rem; border-radius: 9999px; border: 1px solid var(--border-color); }
 #settings-modal .pz .color-option { display: flex; align-items: center; gap: 0.75rem; }
 #settings-modal .pz .color-option-label { flex: 1; }
 #settings-modal .pz .color-option-check { flex: none; visibility: hidden; }
@@ -56,11 +56,11 @@
 #settings-modal .pz a.pz-nav { color: inherit; text-decoration: none; }
 #settings-modal .pz .pz-nav span { font-weight: var(--astra-font-regular, 400) !important; }
 #settings-modal .pz .pz-nav svg { flex: none; color: var(--text-secondary); }
-#settings-modal .pz .pz-danger { border-color: color-mix(in srgb, #dc2626 35%, var(--border-color)); }
-#settings-modal .pz .pz-danger .pz-head h3 { color: #b91c1c !important; }
+#settings-modal .pz .pz-danger { border-color: color-mix(in srgb, var(--state-danger) 35%, var(--border-color)); }
+#settings-modal .pz .pz-danger .pz-head h3 { color: var(--state-danger) !important; }
 #settings-modal .pz .pz-danger .pz-head .pz-sub { margin-top: 0.15rem; }
-#settings-modal .pz .pz-danger .pz-row { border-top-color: color-mix(in srgb, #dc2626 25%, var(--border-color)); }
-#settings-modal .pz .pz-danger-btn:hover { background: color-mix(in srgb, #dc2626 8%, transparent); }
+#settings-modal .pz .pz-danger .pz-row { border-top-color: color-mix(in srgb, var(--state-danger) 25%, var(--border-color)); }
+#settings-modal .pz .pz-danger-btn:hover { background: color-mix(in srgb, var(--state-danger) 8%, transparent); }
 /* The Accessibility and Trash tabs: toggles at the end of a row, small buttons, the list of deleted chats. */
 #settings-modal .pz .pz-toggle { flex: none; }
 #settings-modal .pz .pz-head-actions { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem 1rem; flex-wrap: wrap; padding-bottom: 0.85rem; }
@@ -69,14 +69,14 @@
 #settings-modal .pz .pz-sbtn { height: 2.2rem; padding: 0 0.85rem; border: 1px solid var(--border-color); border-radius: 0.5rem; background: transparent; font: inherit; font-size: 0.85rem; white-space: nowrap; cursor: pointer; }
 #settings-modal .pz .pz-sbtn:hover:not(:disabled) { background: var(--hover-bg); }
 #settings-modal .pz .pz-sbtn:disabled { opacity: 0.45; cursor: default; }
-#settings-modal .pz .pz-sbtn-danger { color: #b91c1c !important; border-color: color-mix(in srgb, #dc2626 45%, var(--border-color)); }
+#settings-modal .pz .pz-sbtn-danger { color: var(--state-danger) !important; border-color: color-mix(in srgb, var(--state-danger) 45%, var(--border-color)); }
 /* About tab: feedback box, mail link, the terms and policies folded until opened, the version. */
 #settings-modal .pz textarea.pz-input { display: block; height: auto; min-height: 6.5rem; padding: 0.6rem 0.75rem; resize: vertical; }
 #settings-modal .pz .pz-send { display: block; width: 100%; margin-top: 0.75rem; padding: 0.6rem 1rem; border: 0; border-radius: 0.5rem; font: inherit; font-size: 0.9rem; cursor: pointer; }
 #settings-modal .pz .pz-mail { flex: none; font-size: 0.9rem; color: var(--text-primary); text-decoration: underline; text-underline-offset: 3px; }
 #settings-modal .pz .pz-gbtn { padding: 0.3rem 0.55rem; border: 0; border-radius: 0.4rem; background: transparent; font: inherit; font-size: 0.85rem; color: var(--text-secondary) !important; white-space: nowrap; cursor: pointer; }
 #settings-modal .pz .pz-gbtn:hover { background: var(--hover-bg); color: var(--text-primary) !important; }
-#settings-modal .pz .pz-gbtn-danger, #settings-modal .pz .pz-gbtn-danger:hover { color: #b91c1c !important; }
+#settings-modal .pz .pz-gbtn-danger, #settings-modal .pz .pz-gbtn-danger:hover { color: var(--state-danger) !important; }
 #settings-modal .pz .pz-bar { padding: 0.7rem 1.15rem; border-top: 1px solid var(--border-color); background: color-mix(in srgb, var(--text-primary) 3%, transparent); }
 #settings-modal .pz .pz-bar.hidden { display: none; }
 #settings-modal .pz .pz-bar-top { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }

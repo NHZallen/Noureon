@@ -122,7 +122,7 @@
 - **17.12.1：**OpenRouter 的 Claude 4.5 Haiku 換成 Claude Haiku 5.5（`anthropic/claude-haiku-5.5`，舊 id 放 `legacyIds`）。思考程度低、中、高、超高、極致，預設中；支援圖片與工具呼叫（依 Anthropic 文件，沙盒連不到 openrouter.ai，沒有直接看 OpenRouter 的頁面）。價格每百萬輸入 0.10、輸出 0.50 美元（提示超過 10 萬 token 為 0.50 / 2.50）。
 - **更新紀錄整理（沒升版）：**全部 118 筆刪掉私下溝通與過程內容、口語改成官方用語。之後新增的更新紀錄照 §1 的規則寫。
 - **17.13.0 公開頁面：**`noureon.com/terms`、`/privacy`、`/updates` 是建置時產生的靜態 HTML（`scripts/build-public-pages.mjs`，接在 `npm run build` 後面；樣式與腳本是 `public/pages.css`、`public/pages.js`，因為 CSP 不允許行內 script）。設計與決定見 [`docs/superpowers/specs/2026-10-08-public-pages-design.md`](../specs/2026-10-08-public-pages-design.md)。
-- **17.14.0 生成圖片等待畫面（2026-10-10，本機已實作、尚未推）：**點陣動畫（強調色）加依時間切換的四段一般說明，不顯示百分比、不做計時量測（owner 決定）。規格 `specs/2026-10-10-image-wait-design.md`；程式在 `src/app/ui/image-wait/`（延遲載入）。owner 說「推」之前不要推；推之前先給他看截圖。這取代了上面「待辦 -3」裡「維持舊版」的結論，因為 owner 這次已核准新做法。
+- **18.3.0 生成圖片等待畫面（2026-10-10，owner 驗收後推上）：**點陣動畫（強調色）加依時間切換的四段一般說明，不顯示百分比、不做計時量測（owner 決定）。規格 `specs/2026-10-10-image-wait-design.md`；程式在 `src/app/ui/image-wait/`（延遲載入）。這取代了上面「待辦 -3」裡「維持舊版」的結論，因為 owner 這次已核准新做法。
   - 內容：條款與隱私權政策用 i18n 的 `termsOfUse`、`termsOfUseDesc`、`privacyPolicy`、`privacyPolicyDesc`（依句號拆成一句一段，字沒改）；更新紀錄用 `entries.js`。所以**這四個 i18n 鍵不能刪**，即使設定頁已不用它們。
   - `service-worker.js` 對這三個路徑的導覽直接放行（不攔截、不快取），否則會把它們存成離線用的 App 外殼。
   - App 端：設定「條款與政策」「版本資訊」改成連結（新分頁）；登入頁底部加連結；新版本彈窗的「查看完整更新紀錄」連到 `/updates`；舊的更新紀錄歷史彈窗（`showUpdateHistory`、`renderUpdateHistory`、相關 DOM 與 CSS、i18n 鍵 `updateHistory`、`updateLatestTag`、`noUpdateHistory`）都移除。
@@ -134,3 +134,16 @@
   - **待 owner 決定：**法律頁要不要顯示生效日期（我們沒有，不要編造）；條款與隱私權政策要不要加編號章節（等換成完整版內容時一起做）；隱私權政策要不要換成 `PRIVACY.md` 的完整版（對外的法律文字，內容由 owner 確認）。
   - **待 owner 實機確認：**三個網址部署後能打開、手機版面（沒有 iPhone 實機）、設定頁的連結在新分頁開啟。
 
+## 5. 深色模式（2026-10-08 開始）
+
+owner 要深色模式回來（當初拿掉是因為太醜、顏色與字色沒統一）。已決定：淺色／深色／跟隨系統三選一、預設淺色、深色風格選 A 深灰（參考 ChatGPT）。**規則：樣式只准用 `src/styles/tokens.css` 的顏色名字，不得自己寫色碼。** 做法、已完成與待做清單見 [`specs/2026-10-08-dark-mode-design.md`](../specs/2026-10-08-dark-mode-design.md)。已隨 17.14.0 合併進 `main`（owner 2026-10-08 說「推」）。第 2～7 步（基礎＋主畫面＋設定、彈窗與圖表、樣式檔與腳本的寫死色碼清到 0 並由 `tests/color-literals.test.js`、`tests/js-color-literals.test.js` 守住、有資料才看得到的畫面、手機浮層、深色的瀏覽器列／啟動畫面／iOS 啟動圖）完成；owner 實機使用後的回報照設計文件 §6 處理。新增顏色一律用 `tokens.css` 的名字。
+
+## 6. 判斷模型（2026-10-08，17.16.0）
+
+送出訊息時用 OpenRouter Decisions API 判斷：上網搜尋、檔案指引、圖表指引、命令工具（保守：只決定「允許模型自己使用」的工具本輪給不給）。
+設計與檔案清單在 `docs/superpowers/specs/2026-10-08-decisions-design.md`。**真實端點與 CORS 沒在沙盒測過**，要 owner 用真實 OpenRouter 金鑰測；失敗會靜默退回關鍵字清單。
+
+## 2026-10-09 加進 OpenRouter 的模型
+
+- **三個 Gemini 走 OpenRouter：** `google/gemini-3.8-flash`、`google/gemini-3.5-flash-lite`、`google/gemini-3.1-pro-preview`（`model-registry.js`），給只有 OpenRouter 金鑰的人。名稱、價格說明（同一個 `descriptionKey`）、輸出價格、思考程度都照原生那三個；發布日照 OpenRouter 給的（3.8 Flash 是 2026-09-02，原生那筆寫 09-03）。owner 貼了 OpenRouter 的比較表，思考級別、預設級、價格、看圖與工具都對得上，能力（看圖、上傳文件、工具、搜尋＝OpenRouter 的 Tavily）照 OpenRouter 模型的規則。思考級別、預設級、價格、看圖與工具已和 owner 貼的比較表核對過（3.8 Flash 與 3.1 Pro 沒有 minimal；預設級依序是 medium、minimal、high）。
+- **`stepfun/step-5-preview`：** 規格由 owner 從 OpenRouter 的模型頁提供：能傳圖、能用工具（進階模式可用）、思考 low／medium／high 三級且不能關閉（預設 medium）、價格輸入 $1／輸出 $2.70 每百萬 tokens（五種語言的 `model_step_5_preview_desc_tier_paid`）。發布日 2026-10-08（`releasedAt: 20261008`）。公司名稱 `stepfun` 在選單顯示為 StepFun。

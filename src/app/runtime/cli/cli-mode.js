@@ -3,7 +3,8 @@
 // entry that opens the store page. The store page itself (ui/cli/) is loaded when it is opened.
 
 import { getCliTool } from '../../../data/cli-catalog.js';
-import { terminalIcon, toolIconMarkup, watchToolIcons } from '../../ui/cli/cli-icons.js';
+import { extensionsIcon, terminalIcon, toolIconMarkup, watchToolIcons } from '../../ui/cli/cli-icons.js';
+import { storeKindFromPath } from '../../ui/cli/store-path.js';
 import { registerCliMode } from './cli-bridge.js';
 import { cliIndicatorId, enabledCliTools } from './cli-state.js';
 import { cliText } from './cli-texts.js';
@@ -15,7 +16,7 @@ const MENTION = /(^|\s)@([^\s@]{0,40})$/u;
 const ENTRY_ID = 'open-cli-store-btn';
 
 // `isLocked` is true in a temporary chat, which has no CLI tools: no "@" list, no chips, and a tool chosen before is let go.
-export function createCliMode({ document, messageInput, isLocked = () => false, getConfig, saveConfig = async () => {}, getUiLanguage, refresh, showNotification = () => {}, getAccountReady = () => true, logger = console }) {
+export function createCliMode({ document, messageInput, isLocked = () => false, getConfig, saveConfig = async () => {}, getUiLanguage, refresh, showNotification = () => {}, getAccountReady = () => true, skillStore = null, logger = console }) {
   const win = document.defaultView;
   const language = () => getUiLanguage();
   const t = (key, values) => cliText(language(), key, values);
@@ -24,12 +25,12 @@ export function createCliMode({ document, messageInput, isLocked = () => false, 
   let menuState = null;
   let storeApi = null;
 
-  // ----- the store page (loaded when it is first opened)
-  const openStore = async () => {
+  // ----- the Extensions page (loaded when it is first opened); `kind` is the part to show, skills when none is said
+  const openStore = async (kind) => {
     try {
       // The styles are a separate file: if they fail to load the page still opens (plain), and the reason is logged.
       const [{ openCliStore }] = await Promise.all([import('../../ui/cli/cli-store.js'), import('../../ui/cli/cli-store.css').catch((error) => { logger?.warn?.('Loading the CLI store styles failed.', error); })]);
-      storeApi = openCliStore({ document, getConfig, saveConfig, getLanguage: language, showNotification, getAccountReady, onChange: () => { refresh(); } });
+      storeApi = openCliStore({ document, kind, getConfig, saveConfig, getLanguage: language, showNotification, getAccountReady, skillStore, onChange: () => { refresh(); } });
     } catch (error) {
       logger?.warn?.('Opening the CLI store failed.', error);
     }
@@ -46,7 +47,7 @@ export function createCliMode({ document, messageInput, isLocked = () => false, 
       entry.id = ENTRY_ID;
       entry.type = 'button';
       entry.className = 'sidebar-item cli-sidebar-entry w-full text-left rounded-lg flex items-center';
-      entry.innerHTML = `${terminalIcon(18, 'cli-sidebar-icon')}<span class="cli-sidebar-label"></span>`;
+      entry.innerHTML = `${extensionsIcon(18, 'cli-sidebar-icon')}<span class="cli-sidebar-label"></span>`;
       entry.addEventListener('click', () => {
         // On a phone the menu is a drawer over the chat: it goes away as the page comes.
         const overlay = document.getElementById('sidebar-overlay');
@@ -125,7 +126,7 @@ export function createCliMode({ document, messageInput, isLocked = () => false, 
       if (item) choose(item.dataset.cliId);
       else if (event.target.closest('[data-cli-store]')) {
         closeMenu();
-        void openStore();
+        void openStore('cli');
       }
     });
     menu.addEventListener('mousemove', (event) => {
@@ -146,9 +147,29 @@ export function createCliMode({ document, messageInput, isLocked = () => false, 
       const active = index === menuState?.active;
       item.classList.toggle('is-active', active);
       item.setAttribute('aria-selected', String(active));
-      if (active) item.scrollIntoView?.({ block: 'nearest' });
+      // Only the list is scrolled to the row (scrollIntoView would scroll the page too, and on a phone with the keyboard up the page then jumps).
+      const list = item.parentElement;
+      if (active && list) {
+        if (item.offsetTop < list.scrollTop) list.scrollTop = item.offsetTop;
+        else if (item.offsetTop + item.offsetHeight > list.scrollTop + list.clientHeight) list.scrollTop = item.offsetTop + item.offsetHeight - list.clientHeight;
+      }
     });
   };
+
+  // The list is no taller than the room that is seen above the box: the keyboard and the bars of the browser take part of the screen, and a list sized by
+  // the whole screen would reach under them (its first rows cut off).
+  const fitMenu = () => {
+    const wrapper = messageInput.closest('.input-wrapper');
+    if (!menu || menu.hidden || !wrapper?.getBoundingClientRect) return;
+    // The top of what is seen, in the measures of getBoundingClientRect: those already take the page's scroll off, and on an iPhone with the
+    // keyboard up the seen area's offsetTop moves with that same scroll (measured on an iPhone: offsetTop equal to scrollY), so it is
+    // taken off too. Without it the room came out below zero as soon as the page was moved, and the list lost its limit and ran off the top.
+    const seenTop = (Number(win.visualViewport?.offsetTop) || 0) - (Number(win.scrollY) || 0);
+    const room = wrapper.getBoundingClientRect().top - seenTop - 16;
+    menu.style.maxHeight = room > 0 ? `${Math.max(96, Math.min(room, 352))}px` : '';
+  };
+  win.visualViewport?.addEventListener?.('resize', fitMenu);
+  win.visualViewport?.addEventListener?.('scroll', fitMenu);
 
   const showMenu = (mention) => {
     const element = ensureMenu();
@@ -164,6 +185,7 @@ export function createCliMode({ document, messageInput, isLocked = () => false, 
     const wrapper = messageInput.closest('.input-wrapper');
     const host = element.parentElement;
     if (wrapper && host) element.style.bottom = `${Math.max(0, host.clientHeight - wrapper.offsetTop) + 8}px`;
+    fitMenu();
     markActive();
   };
 
@@ -244,8 +266,8 @@ export function createCliMode({ document, messageInput, isLocked = () => false, 
     }
   };
 
-  // The address noureon.com/cli opens the page (a refresh, a bookmark, a shared link).
-  if (win.location?.pathname === '/cli') void openStore();
+  // The addresses noureon.com/skill and noureon.com/cli open the page (a refresh, a bookmark, a shared link).
+  if (storeKindFromPath(win.location?.pathname)) void openStore();
 
   // What a person's answer to a question about a site leaves in the settings (a rule for "always" and for a refusal, the site in the list for "once").
   const rememberNet = async (host, decision) => {

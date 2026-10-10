@@ -6,7 +6,7 @@
 .pm-minor { margin: 1.1rem 0 0.4rem; font-size: 0.82rem; font-weight: 600; color: var(--text-secondary); }
 .pm-desc { margin: 0 0 0.8rem; font-size: 0.85rem; line-height: 1.55; color: var(--text-secondary); }
 .pm-empty { margin: 0.6rem 0; font-size: 0.88rem; color: var(--text-secondary); }
-.pm-error { margin: 0.4rem 0; font-size: 0.82rem; color: #dc2626; }
+.pm-error { margin: 0.4rem 0; font-size: 0.82rem; color: var(--state-danger); }
 .pm-mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.85rem; }
 
 .pm-options { display: flex; flex-direction: column; gap: 0.5rem; }
@@ -32,7 +32,7 @@ button.pm-row > .pm-row-label { flex: 1; }
 .pm-host { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.86rem; }
 
 /* The home page: each block is a card of the same kind as the other tabs (settings-cards.css): a head, then rows between thin lines. */
-.pm-card { margin-bottom: 1rem; border: 1px solid var(--border-color); border-radius: 0.875rem; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); overflow: hidden; }
+.pm-card { margin-bottom: 1rem; border: 1px solid var(--border-color); border-radius: 0.875rem; box-shadow: var(--shadow-xs); overflow: hidden; }
 .pm-card-head { padding: 1.1rem 1.15rem 0.7rem; }
 .pm-card .pm-sub { margin: 0; font-size: 1rem; }
 .pm-card .pm-desc { margin: 0.15rem 0 0; }
@@ -53,10 +53,10 @@ button.pm-row > .pm-row-label { flex: 1; }
 .pm-button { padding: 0.45rem 1rem; font-size: 0.85rem; }
 .pm-button:hover, .pm-chip:hover, .pm-rule:hover { background: var(--hover-bg); }
 .pm-button:disabled { opacity: 0.5; cursor: default; }
-.pm-button.is-primary { border-color: transparent; background: var(--gpt-primary-action-bg, #111827); color: var(--gpt-primary-action-text, #ffffff); }
-.pm-button.is-primary:hover { opacity: 0.88; background: var(--gpt-primary-action-bg, #111827); }
+.pm-button.is-primary { border-color: transparent; background: var(--gpt-primary-action-bg); color: var(--gpt-primary-action-text); }
+.pm-button.is-primary:hover { opacity: 0.88; background: var(--gpt-primary-action-bg); }
 .pm-chip { padding: 0.25rem 0.7rem; font-size: 0.78rem; }
-.pm-chip.is-danger { color: #dc2626; }
+.pm-chip.is-danger { color: var(--state-danger); }
 .pm-rule { display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.3rem 0.7rem 0.3rem 0.85rem; font-size: 0.82rem; }
 .pm-rule-icon { display: inline-flex; color: var(--text-secondary); }
 
@@ -75,12 +75,12 @@ button.pm-row > .pm-row-label { flex: 1; }
 
 /* The menu of a site's rule: a small menu next to the button, a sheet from below on a phone. */
 .pm-backdrop { position: fixed; inset: 0; z-index: 1300; }
-.pm-backdrop.is-sheet { background: rgba(0, 0, 0, 0.32); }
-.pm-menu { position: fixed; z-index: 1301; width: 12rem; padding: 0.35rem; border: 1px solid var(--border-color); border-radius: 0.9rem; background: var(--modal-bg, var(--chat-bg)); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.16); }
+.pm-backdrop.is-sheet { background: var(--scrim-soft); }
+.pm-menu { position: fixed; z-index: 1301; width: 12rem; padding: 0.35rem; border: 1px solid var(--border-color); border-radius: 0.9rem; background: var(--modal-bg, var(--chat-bg)); box-shadow: var(--shadow-lg); }
 .pm-menu.is-sheet { left: 0; right: 0; bottom: 0; top: auto; width: auto; padding: 0.6rem 0.6rem max(0.8rem, env(safe-area-inset-bottom, 0px)); border-radius: 1.2rem 1.2rem 0 0; }
 .pm-menu-item { display: flex; align-items: center; justify-content: space-between; gap: 1rem; width: 100%; padding: 0.65rem 0.8rem; border: 0; border-radius: 0.65rem; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .pm-menu-item:hover, .pm-menu-item:focus-visible { background: var(--hover-bg); outline: 0; }
-.pm-menu-item.is-danger { color: #dc2626; }
+.pm-menu-item.is-danger { color: var(--state-danger); }
 .pm-menu-check { display: inline-flex; width: 1rem; justify-content: center; }
 
 /* The page of third-party software. */
@@ -103,11 +103,11 @@ a.pm-lic-name { text-decoration: underline; text-underline-offset: 2px; }
 /* The cloud space bar of the Data management tab (settings-storage-usage.js): thin, black on grey, like the rest. */
 .storage-usage-track { height: 6px; border-radius: 3px; background: var(--border-color); overflow: hidden; }
 .storage-usage-fill { height: 100%; border-radius: 3px; background: var(--text-primary); transition: width 0.2s ease; }
-.storage-usage-fill.is-full { background: #c0392b; }
+.storage-usage-fill.is-full { background: var(--state-danger); }
 
 /* The window that asks for the login a CLI tool needs (ui/cli/credential-modal.js): black and white, like a sign-in window. */
-.cred-modal { position: fixed; inset: 0; z-index: 1300; display: grid; place-items: center; padding: 1rem; background: rgba(0, 0, 0, 0.45); overflow-y: auto; }
-.cred-modal-dialog { width: min(26rem, 100%); box-sizing: border-box; margin: auto; padding: 1.4rem 1.3rem 1.2rem; border: 1px solid var(--border-color); border-radius: 1rem; background: var(--chat-bg); color: var(--text-primary); box-shadow: 0 18px 50px rgba(0, 0, 0, 0.25); }
+.cred-modal { position: fixed; inset: 0; z-index: 1300; display: grid; place-items: center; padding: 1rem; background: var(--scrim); overflow-y: auto; }
+.cred-modal-dialog { width: min(26rem, 100%); box-sizing: border-box; margin: auto; padding: 1.4rem 1.3rem 1.2rem; border: 1px solid var(--border-color); border-radius: 1rem; background: var(--chat-bg); color: var(--text-primary); box-shadow: var(--shadow-xl); }
 .cred-modal-title { margin: 0; font-size: 1.15rem; font-weight: 600; }
 .cred-modal-site { margin: 0.25rem 0 1rem; font-size: 0.85rem; color: var(--text-secondary); overflow-wrap: anywhere; }
 .cred-modal-field { margin-bottom: 0.9rem; }
@@ -120,33 +120,45 @@ a.pm-lic-name { text-decoration: underline; text-underline-offset: 2px; }
 .cred-modal-eye { flex: none; display: grid; place-items: center; width: 2.4rem; height: 2.4rem; border: 0; background: transparent; color: var(--text-secondary); cursor: pointer; }
 .cred-modal-eye:hover { color: var(--text-primary); }
 .cred-modal-note { margin: 0.3rem 0 0.9rem; font-size: 0.78rem; line-height: 1.45; color: var(--text-secondary); }
-.cred-modal-error { margin: 0 0 0.7rem; font-size: 0.82rem; color: #dc2626; }
+.cred-modal-error { margin: 0 0 0.7rem; font-size: 0.82rem; color: var(--state-danger); }
 .cred-modal-actions { display: flex; justify-content: flex-end; gap: 0.5rem; }
 .cred-modal-button { padding: 0.55rem 1rem; border: 1px solid var(--border-color); border-radius: 9999px; background: transparent; color: inherit; font-size: 0.88rem; cursor: pointer; }
 .cred-modal-button:hover:not(:disabled) { background: var(--hover-bg); }
 .cred-modal-button:disabled { opacity: 0.5; cursor: default; }
-.cred-modal-button.is-primary { border-color: transparent; background: var(--gpt-primary-action-bg, #111827); color: var(--gpt-primary-action-text, #ffffff); }
-.cred-modal-button.is-primary:hover:not(:disabled) { background: var(--gpt-primary-action-bg, #111827); opacity: 0.88; }
+.cred-modal-button.is-primary { border-color: transparent; background: var(--gpt-primary-action-bg); color: var(--gpt-primary-action-text); }
+.cred-modal-button.is-primary:hover:not(:disabled) { background: var(--gpt-primary-action-bg); opacity: 0.88; }
 
 /* The small card in the step list for the login a tool needs (ui/sandbox/credential-ask-card.js); the buttons are the pills of the settings. */
-.cred-ask { box-sizing: border-box; max-width: 22rem; margin: 0.5rem 0; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 1rem; background: var(--hover-bg, #f4f4f4); color: var(--text-primary); }
+.cred-ask { box-sizing: border-box; max-width: 22rem; margin: 0.5rem 0; padding: 0.8rem; border: 1px solid var(--border-color); border-radius: 1rem; background: var(--hover-bg); color: var(--text-primary); }
 .cred-ask-head { display: flex; align-items: center; gap: 0.7rem; }
-.cred-ask-icon { flex: none; display: grid; place-items: center; width: 2.6rem; height: 2.6rem; border-radius: 0.7rem; background: var(--chat-bg, #fff); color: var(--text-primary); }
+.cred-ask-icon { flex: none; display: grid; place-items: center; width: 2.6rem; height: 2.6rem; border-radius: 0.7rem; background: var(--chat-bg); color: var(--text-primary); }
 .cred-ask-texts { min-width: 0; }
 .cred-ask-title { font-size: 0.92rem; font-weight: 600; overflow-wrap: anywhere; }
 .cred-ask-sub { font-size: 0.8rem; color: var(--text-secondary); overflow-wrap: anywhere; }
 .cred-ask-actions { display: flex; gap: 0.5rem; margin-top: 0.7rem; }
 .cred-ask-button { flex: 1; padding: 0.55rem 0.9rem; border: 1px solid var(--gpt-border, var(--border-color)); border-radius: 9999px; background: transparent; color: inherit; font-size: 0.88rem; cursor: pointer; }
 .cred-ask-button:hover:not(:disabled) { background: var(--gpt-subtle, var(--hover-bg)); }
-.cred-ask-button.is-primary { border-color: transparent; background: var(--gpt-primary-action-bg, #111827); color: var(--gpt-primary-action-text, #ffffff); }
-.cred-ask-button.is-primary:hover:not(:disabled) { background: var(--gpt-primary-action-bg, #111827); opacity: 0.88; }
+.cred-ask-button.is-primary { border-color: transparent; background: var(--gpt-primary-action-bg); color: var(--gpt-primary-action-text); }
+.cred-ask-button.is-primary:hover:not(:disabled) { background: var(--gpt-primary-action-bg); opacity: 0.88; }
 .cred-ask-note { margin-top: 0.5rem; font-size: 0.75rem; color: var(--text-secondary); }
 .cred-ask.is-resolved { padding: 0.5rem 0.8rem; background: transparent; border-style: dashed; }
 .cred-ask.is-resolved .cred-ask-icon { width: 1.8rem; height: 1.8rem; background: transparent; }
 .cred-ask.is-resolved .cred-ask-title { font-weight: 500; color: var(--text-secondary); }
-.cred-ask.is-resolved.is-refused .cred-ask-title { color: #dc2626; }
+.cred-ask.is-resolved.is-refused .cred-ask-title { color: var(--state-danger); }
 
 /* On a phone the arrow at the top of the settings page goes back through the pages of this tab (settings-section-back.js), so the one in the page is not shown. */
 @media (max-width: 768px) {
   .pm .pm-back { display: none; }
 }
+
+/* The window that takes a pasted skill (ui/skill/skill-paste-modal.js): the window of the credentials, wider, with a box for the text. */
+.skill-paste-dialog { width: min(36rem, 100%); }
+.skill-paste-hint { margin-top: 0.4rem; }
+.skill-paste-text { display: block; width: 100%; box-sizing: border-box; min-height: 12rem; max-height: 50vh; resize: vertical; padding: 0.7rem 0.8rem; border: 1px solid var(--border-color); border-radius: 0.7rem; background: var(--input-field-bg, transparent); color: inherit; font-size: 0.85rem; line-height: 1.5; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; outline: none; }
+.skill-paste-text:focus { border-color: var(--text-primary); }
+.skill-paste-check { min-height: 1.2rem; margin: 0.6rem 0 0.2rem; }
+.skill-paste-found { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 0.2rem 0.8rem; margin: 0; font-size: 0.82rem; }
+.skill-paste-found dt { color: var(--text-secondary); }
+.skill-paste-found dd { margin: 0; overflow-wrap: anywhere; }
+.skill-paste-found .skill-paste-size { grid-column: 1 / -1; color: var(--text-secondary); }
+.skill-paste-error { margin: 0.2rem 0 0; }

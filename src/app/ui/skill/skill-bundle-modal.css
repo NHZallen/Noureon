@@ -1,0 +1,14 @@
+/* The window that shows a skill pack (skill-bundle-modal.js): the window that takes a pasted skill (permissions.css), with the list of the files and the text of one.
+   Loaded with the window, so the main style sheet does not carry it. */
+.skill-bundle-dialog { max-height: calc(100dvh - 2rem); overflow-y: auto; }
+.skill-bundle-heading { margin: 0.9rem 0 0.3rem; color: var(--text-secondary); font-size: 0.8rem; font-weight: 600; }
+.skill-bundle-files { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; max-height: 9rem; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 0.7rem; }
+.skill-bundle-file + .skill-bundle-file { border-top: 1px solid var(--border-color); }
+.skill-bundle-file-button { display: flex; align-items: center; gap: 0.5rem; width: 100%; padding: 0.4rem 0.7rem; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.skill-bundle-file-button:hover { background: var(--hover-bg); }
+.skill-bundle-file-button[aria-pressed="true"] { background: var(--hover-bg); font-weight: 600; }
+.skill-bundle-file-path { flex: 1; min-width: 0; overflow-wrap: anywhere; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.8rem; }
+.skill-bundle-file-size { flex: none; color: var(--text-secondary); font-size: 0.78rem; }
+.skill-bundle-view { box-sizing: border-box; max-height: 14rem; overflow: auto; margin: 0.5rem 0 0; padding: 0.7rem 0.8rem; border: 1px solid var(--border-color); border-radius: 0.7rem; background: var(--hover-bg); font: 0.8rem/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+.skill-bundle-note { margin: 0.3rem 0 0; color: var(--text-secondary); font-size: 0.8rem; }
+.skill-bundle-note:empty { display: none; }

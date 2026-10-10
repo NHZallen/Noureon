@@ -149,7 +149,7 @@ test('the Trash tab has its actions and batch bar in the page', () => {
   assert.equal(document.getElementById('trash-batch-restore-btn').disabled, true);
 });
 
-test('the About tab keeps its controls and links the terms, the privacy policy and the update notes to their pages, each in a new tab', () => {
+test('the About tab keeps its controls and links the help center, the terms, the privacy policy and the update notes to their pages, each in a new tab', () => {
   const window = new Window({ url: 'https://example.test/' });
   const { document } = window;
   const start = fragment04.indexOf('<div id="about-section"');
@@ -164,6 +164,7 @@ test('the About tab keeps its controls and links the terms, the privacy policy a
   assert.equal(document.querySelectorAll('#about-section details').length, 0, 'nothing is folded any more');
   const links = [...document.querySelectorAll('#about-section a.pz-nav')];
   assert.deepEqual(links.map((link) => [link.getAttribute('href'), link.querySelector('span').dataset.langKey]), [
+    ['/help', 'helpCenter'],
     ['/terms', 'termsOfUse'],
     ['/privacy', 'privacyPolicy'],
     ['/updates', 'viewUpdateHistory']
@@ -172,7 +173,7 @@ test('the About tab keeps its controls and links the terms, the privacy policy a
     assert.equal(link.getAttribute('target'), '_blank', 'a new tab: the page has no way back to the settings');
     assert.match(link.getAttribute('rel'), /noopener/);
   }
-  assert.equal(document.getElementById('update-info-btn'), links[2]);
+  assert.equal(document.getElementById('update-info-btn'), links[3]);
 });
 
 test('the landing page links the terms and the privacy policy, and the new-version window links the update notes, each in a new tab', async () => {
@@ -182,6 +183,8 @@ test('the landing page links the terms and the privacy policy, and the new-versi
   document.body.innerHTML = shell.default + more.default;
   const footer = [...document.querySelectorAll('footer a[href^="/"]')];
   assert.deepEqual(footer.map((link) => [link.getAttribute('href'), link.dataset.langKey, link.getAttribute('target')]), [
+    ['/help', undefined, '_blank'],
+    ['/updates', undefined, '_blank'],
     ['/terms', 'termsOfUse', '_blank'],
     ['/privacy', 'privacyPolicy', '_blank']
   ]);

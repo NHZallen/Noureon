@@ -151,7 +151,7 @@ test('chart focus and typography avoid black focus frames and heavy inherited SV
   assert.match(css, /\.ac-chart\s+svg,\s*\.model-message \.ac-chart\s+text\s*\{[^}]*font-weight:\s*400;/s);
   assert.match(css, /\.ac-chart-axis-label,[^{]*\.ac-chart-axis-title\s*\{[^}]*font-weight:\s*400;/s);
   assert.match(css, /\.ac-chart\s+text\.ac-chart-value-label\s*\{[^}]*font-weight:\s*500;/s);
-  assert.match(css, /\.ac-chart-tooltip-value\.is-strong\s*\{[^}]*color:\s*#ffffff;/s);
+  assert.match(css, /\.ac-chart-tooltip-value\.is-strong\s*\{[^}]*color:\s*var\(--ac-chart-tooltip-text\);/s);
   assert.match(css, /\.ac-chart-bar\s*\{[^}]*stroke:\s*none;/s);
   assert.match(css, /\.ac-chart\s+\.ac-chart-line-point:not\(\.is-active\)\s*\{[^}]*opacity:\s*0;/s);
   assert.match(css, /\.ac-chart\s+text\s*\{[^}]*stroke:\s*none;[^}]*text-shadow:\s*none;/s);
@@ -164,7 +164,7 @@ test('charts css exposes visible plot hit areas guides and durable donut active 
   const css = readFileSync(join(process.cwd(), 'src/styles/charts.css'), 'utf8');
 
   assert.match(css, /\.ac-chart-interaction-overlay\s*\{[^}]*pointer-events:\s*all;/s);
-  assert.match(css, /\.ac-chart-guide-line\s*\{[^}]*stroke:\s*rgba\([^)]*0\.62\);[^}]*opacity:\s*1;/s);
+  assert.match(css, /\.ac-chart-guide-line\s*\{[^}]*stroke:\s*color-mix\(in srgb, var\(--text-secondary\) 62%, transparent\);[^}]*opacity:\s*1;/s);
   assert.match(css, /data-chart-active-index[^}]*\.ac-chart-donut-segment\[data-chart-active="false"\][^{]*\{[^}]*opacity:\s*0\.32;[^}]*grayscale/s);
   assert.match(css, /data-chart-active-index[^}]*\.ac-chart-legend-item\[data-chart-active="true"\][^{]*\{[^}]*background:[^;]+;[^}]*opacity:\s*1;/s);
   assert.doesNotMatch(css, /\.ac-chart-legend-item[^}]*::before/);

@@ -41,6 +41,8 @@ export function createRunManager({
   sandbox = null,
   // The person's secure credentials for CLI tools (server/cli-credentials.js), or null.
   credentials = null,
+  // The text of the skills a reply may load (server/skills.js), or null: then the skills of a reply are not offered to the model.
+  skills = null,
   // Where the pictures an image run makes are kept (server/file-store.js), or null: then images are not made here.
   files = null,
   // The visual check that follows a reply with a presentation (server/vision-check.js): whether the server can draw slides, and how.
@@ -302,6 +304,7 @@ export function createRunManager({
         sandboxHost: sandbox?.host || null,
         files: sandbox?.files || null,
         credentials,
+        skills,
         netControl,
         credentialControl,
         onPaused: extendLimit,

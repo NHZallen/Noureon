@@ -8,7 +8,7 @@ import fragment06 from './fragments/06-shell.fragment.js';
 import fragment07 from './fragments/07-shell.fragment.js';
 import { renderComposerToolIcon } from '../app/composer-tool-icons.js';
 
-const appShellWithLegacyDemo = [
+const shellMarkup = [
   fragment00,
   fragment01,
   fragment02,
@@ -18,11 +18,6 @@ const appShellWithLegacyDemo = [
   fragment06,
   fragment07
 ].join('');
-
-const appShellWithoutLegacyDemo = appShellWithLegacyDemo.replace(
-  /\s*<section class="py-20 lg:py-24 bg-gray-50">[\s\S]*?<div id="demo-chat-window"[\s\S]*?<\/section>/,
-  ''
-);
 
 const decorateComposerMenuItem = (shell, { id, labelKey, descriptionKey, description, icon }) => {
   const pattern = new RegExp(`(<button id="${id}"[^>]*>[\\s\\S]*?)(<span data-lang-key="${labelKey}">[^<]*<\\/span>)`);
@@ -41,7 +36,7 @@ const composerExpandButton = `
 
 const composerRichEditor = `<div id="message-input" role="textbox" aria-multiline="true" aria-disabled="true" contenteditable="false" data-composer-editor data-placeholder="請先在設定中輸入 API 金鑰..." class="w-full p-2 bg-transparent border-0 focus:ring-0 overflow-y-hidden" autocomplete="off" data-lang-key-placeholder="enterApiKeyPlaceholder"></div>`;
 
-const composerShell = appShellWithoutLegacyDemo.replace(
+const composerShell = shellMarkup.replace(
   /\s*<button(?=[^>]*\bid="expand-input-btn")[\s\S]*?<\/button>/,
   composerExpandButton
 ).replace(

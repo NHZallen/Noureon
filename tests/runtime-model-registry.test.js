@@ -22,6 +22,8 @@ import {
   modelSupportsReasoningSelection,
   modelSupportsDocumentUpload,
   modelSupportsVision,
+  modelSupportsToolCalling,
+  modelSupportsWebSearch,
   normalizeReasoningEffort
 } from '../src/app/runtime/legacy-core/model-registry.js';
 
@@ -299,3 +301,39 @@ test('a temporary chat has no council, whatever its saved settings say', () => {
   assert.equal(isCouncilEnabled({ council: { enabled: true }, retentionMode: 'persistent' }), true);
   assert.equal(isCouncilEnabled(null), false);
 });
+
+test('the Gemini models are also on OpenRouter, with the settings of their native twins; StepFun Step 5 Preview sees pictures, calls tools and thinks at three levels', () => {
+  const twins = [['gemini-3.8-flash', 'google/gemini-3.8-flash'], ['gemini-3.5-flash-lite', 'google/gemini-3.5-flash-lite'], ['gemini-3.1-pro-preview', 'google/gemini-3.1-pro-preview']];
+  for (const [nativeId, openRouterId] of twins) {
+    const native = MODELS.find((model) => model.id === nativeId);
+    const viaOpenRouter = MODELS.find((model) => model.id === openRouterId);
+    assert.ok(native && viaOpenRouter, openRouterId);
+    assert.equal(viaOpenRouter.provider, 'openrouter');
+    assert.equal(viaOpenRouter.name, native.name, 'the same name: the row says where it comes from');
+    assert.equal(viaOpenRouter.descriptionKey, native.descriptionKey, 'the same price line');
+    // The release day is the one OpenRouter gives: the same as the native one, except 3.8 Flash (2 September there, 3 September on the native entry).
+    assert.equal(viaOpenRouter.releasedAt, nativeId === 'gemini-3.8-flash' ? 20260902 : native.releasedAt);
+    assert.equal(viaOpenRouter.outputPricePerMillion, native.outputPricePerMillion);
+    assert.equal(modelSupportsVision(viaOpenRouter), true);
+    assert.equal(modelSupportsDocumentUpload(viaOpenRouter), true);
+    assert.equal(modelSupportsToolCalling(viaOpenRouter), true);
+    assert.equal(modelSupportsWebSearch(viaOpenRouter), true);
+    assert.deepEqual(getModelReasoningConfig(viaOpenRouter).options, getModelReasoningConfig(native).options, 'the same thinking levels');
+    assert.equal(getModelReasoningConfig(viaOpenRouter).defaultEffort, getModelReasoningConfig(native).defaultEffort);
+    assert.equal(getModelReasoningConfig(viaOpenRouter).providerParameter, 'openrouterReasoningEffort');
+  }
+  const step = MODELS.find((model) => model.id === 'stepfun/step-5-preview');
+  assert.ok(step);
+  assert.equal(step.provider, 'openrouter');
+  assert.equal(modelSupportsVision(step), true);
+  assert.equal(modelSupportsToolCalling(step), true);
+  assert.equal(modelSupportsWebSearch(step), true);
+  assert.equal(step.outputPricePerMillion, 2.7);
+  assert.equal(step.releasedAt, 20261008, 'released on 8 October 2026');
+  const config = getModelReasoningConfig(step);
+  assert.deepEqual(config.options, ['low', 'medium', 'high'], 'three levels, and it cannot be turned off');
+  assert.equal(config.providerParameter, 'openrouterReasoningEffort');
+  assert.equal(config.options.includes('none'), false);
+  assert.equal(config.defaultEffort, 'medium');
+});
+

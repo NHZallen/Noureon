@@ -1,7 +1,7 @@
 {
   "name": "Noureon",
   "short_name": "Noureon",
-  "description": "A multi-provider AI workspace with reusable Nouras, model collaboration, image generation, cloud sync, and searchable conversations.",
+  "description": "Think with more than one model. Model Council, deep research and downloadable files in one workspace. Bring your own API key. Open source.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

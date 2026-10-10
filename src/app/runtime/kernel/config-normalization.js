@@ -1,6 +1,8 @@
+import { normalizeColorScheme } from '../../../data/color-scheme-choices.js';
 import { normalizeCliIds, normalizeCliVersions } from '../../../data/cli-catalog.js';
 import { normalizeNetHost, normalizeNetMode, normalizeNetRules } from '../../../data/cli-net.js';
 import { normalizeStamps } from '../../../data/cli-settings-merge.js';
+import { normalizeSkillIds, normalizeSkillStamps } from '../../../data/skill-settings-merge.js';
 import { normalizeSettingsStamps } from '../../../data/settings-merge.js';
 import { normalizeCouncilGroups, normalizeRecentModelIds } from '../../ui/model-picker/model-groups.js';
 import { normalizeSearchProvider } from './search-provider.js';
@@ -105,12 +107,15 @@ export function normalizeLoadedLegacyConfig({
   delete normalizedConfig.customWallpaper;
   delete normalizedConfig.wallpaperBrightness;
   delete normalizedConfig.aiBubbleColor;
+  // The colour of a message bubble is no longer a setting: it follows the accent.
+  delete normalizedConfig.userBubbleColor;
   normalizedConfig.uiTheme = {
     mode: normalizedConfig.uiTheme?.mode === 'custom' ? 'custom' : 'default',
     customColor: normalizedConfig.uiTheme?.customColor || '#3b82f6'
   };
   normalizedConfig.uiLanguage = normalizeLanguageCode(normalizedConfig.uiLanguage);
   normalizedConfig.visionCheckEnabled = normalizedConfig.visionCheckEnabled !== false;
+  normalizedConfig.colorScheme = normalizeColorScheme(normalizedConfig.colorScheme);
   normalizedConfig.processOpen = normalizedConfig.processOpen === true;
   normalizedConfig.fileModeDefault = normalizedConfig.fileModeDefault === 'standard' ? 'standard' : 'advanced';
   normalizedConfig.replyRunLocation = normalizedConfig.replyRunLocation === 'local' ? 'local' : 'server';
@@ -180,6 +185,11 @@ export function normalizeLoadedLegacyConfig({
   normalizedConfig.cliStamps = normalizeStamps(normalizedConfig.cliStamps, (key) => (/^[a-z][a-z0-9-]{1,39}$/.test(String(key)) ? String(key) : ''));
   normalizedConfig.cliUseStamps = normalizeStamps(normalizedConfig.cliUseStamps, (key) => (/^[a-z][a-z0-9-]{1,39}$/.test(String(key)) ? String(key) : ''));
   normalizedConfig.netStamps = normalizeStamps(normalizedConfig.netStamps, normalizeNetHost);
+  // The skills the person added, the ones the model may use by itself (always among the added), and when each changed.
+  normalizedConfig.skillEnabledIds = normalizeSkillIds(normalizedConfig.skillEnabledIds);
+  normalizedConfig.skillModelUseIds = normalizeSkillIds(normalizedConfig.skillModelUseIds).filter((name) => normalizedConfig.skillEnabledIds.includes(name));
+  normalizedConfig.skillStamps = normalizeSkillStamps(normalizedConfig.skillStamps);
+  normalizedConfig.skillUseStamps = normalizeSkillStamps(normalizedConfig.skillUseStamps);
   normalizedConfig.settingsStamps = normalizeSettingsStamps(normalizedConfig.settingsStamps);
   if (!councilTranslatorCandidates.some(model => model.id === normalizedConfig.councilTranslatorModelId)) {
     normalizedConfig.councilTranslatorModelId = councilTranslatorCandidates[0]?.id || null;

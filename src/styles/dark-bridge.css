@@ -1,0 +1,45 @@
+/*
+ * Tailwind colour classes in the dark theme.
+ *
+ * Some markup, mostly what the scripts draw, still names its colours with Tailwind classes (bg-white, text-gray-500...) that are
+ * light colours by definition. In the dark theme these classes are given the names of src/styles/tokens.css instead, so that the
+ * screens that have not been moved to the names yet look right. A class that is not used anywhere is never built, so the list
+ * costs nothing. New markup should use the names (var(--text-primary), var(--modal-bg)...) and not these classes.
+ */
+:root[data-theme="dark"] .bg-white { background-color: var(--modal-bg); }
+:root[data-theme="dark"] :is(.bg-white\/80, .bg-white\/90, .bg-white\/70) { background-color: color-mix(in srgb, var(--modal-bg) 80%, transparent); }
+:root[data-theme="dark"] .bg-gray-50 { background-color: var(--input-field-bg); }
+:root[data-theme="dark"] .bg-gray-100 { background-color: var(--hover-bg); }
+:root[data-theme="dark"] .bg-gray-200 { background-color: var(--active-bg); }
+:root[data-theme="dark"] .bg-gray-300 { background-color: var(--switch-off-bg); }
+:root[data-theme="dark"] .bg-slate-700 { background-color: var(--gpt-subtle-hover); }
+:root[data-theme="dark"] .hover\:bg-gray-100:hover { background-color: var(--hover-bg); }
+:root[data-theme="dark"] .hover\:bg-gray-200:hover { background-color: var(--active-bg); }
+:root[data-theme="dark"] :is(.text-gray-900, .text-gray-800, .text-gray-700) { color: var(--text-primary); }
+:root[data-theme="dark"] :is(.text-gray-600, .text-gray-500) { color: var(--text-secondary); }
+/* The light theme too: the pale grey of the hints and the times is the one colour of the names (3.2 against white; Tailwind's own grey is 2.5). */
+.text-gray-400 { color: var(--text-tertiary); }
+:root[data-theme="dark"] :is(.text-gray-400, .text-gray-300) { color: var(--text-tertiary); }
+:root[data-theme="dark"] :is(.hover\:text-gray-900:hover, .hover\:text-gray-800:hover) { color: var(--text-primary); }
+:root[data-theme="dark"] :is(.border-gray-100, .border-gray-200, .border-gray-300) { border-color: var(--border-color); }
+:root[data-theme="dark"] .divide-gray-200 > :not([hidden]) ~ :not([hidden]) { border-color: var(--border-color); }
+:root[data-theme="dark"] :is(.bg-blue-50, .bg-blue-100) { background-color: color-mix(in srgb, var(--button-primary-bg) 16%, var(--chat-bg)); }
+:root[data-theme="dark"] :is(.text-blue-600, .text-blue-700, .text-blue-500) { color: var(--link-color); }
+:root[data-theme="dark"] .bg-red-50 { background-color: color-mix(in srgb, var(--state-danger) 14%, var(--chat-bg)); }
+:root[data-theme="dark"] .bg-green-50 { background-color: color-mix(in srgb, var(--state-success) 14%, var(--chat-bg)); }
+:root[data-theme="dark"] :is(.text-red-500, .text-red-600, .text-red-700) { color: var(--state-danger); }
+:root[data-theme="dark"] :is(.text-green-600, .text-green-700) { color: var(--state-success); }
+:root[data-theme="dark"] :is(.text-amber-600, .text-amber-700) { color: var(--state-warning); }
+:root[data-theme="dark"] :is(.bg-gray-900, .bg-gray-800) { background-color: var(--gpt-primary-action-bg); color: var(--gpt-primary-action-text); }
+:root[data-theme="dark"] body.bg-gray-50 { background-color: var(--chat-bg); }
+:root[data-theme="dark"] :is(.bg-indigo-100, .bg-indigo-50, .hover\:bg-blue-100:hover, .hover\:bg-blue-200:hover) { background-color: color-mix(in srgb, var(--button-primary-bg) 18%, var(--chat-bg)); }
+:root[data-theme="dark"] :is(.bg-red-100, .hover\:bg-red-200:hover) { background-color: color-mix(in srgb, var(--state-danger) 20%, var(--chat-bg)); }
+:root[data-theme="dark"] :is(.bg-green-100, .hover\:bg-green-200:hover) { background-color: color-mix(in srgb, var(--state-success) 20%, var(--chat-bg)); }
+:root[data-theme="dark"] :is(.text-red-800, .hover\:text-red-800:hover) { color: var(--state-danger); }
+:root[data-theme="dark"] .text-green-800 { color: var(--state-success); }
+:root[data-theme="dark"] .text-blue-800 { color: var(--link-color); }
+:root[data-theme="dark"] .hover\:bg-gray-50:hover { background-color: var(--hover-bg); }
+:root[data-theme="dark"] :is(.disabled\:bg-gray-300:disabled, .disabled\:bg-gray-400:disabled) { background-color: var(--switch-off-bg); }
+:root[data-theme="dark"] .disabled\:text-gray-400:disabled { color: var(--text-tertiary); }
+:root[data-theme="dark"] :is(.bg-green-600, .hover\:bg-green-700:hover) { background-color: #15803d; color: #ffffff; }
+:root[data-theme="dark"] .modal .bg-green-600 { color: #ffffff; }

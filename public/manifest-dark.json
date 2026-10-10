@@ -1,0 +1,22 @@
+{
+  "name": "Noureon",
+  "short_name": "Noureon",
+  "description": "Think with more than one model. Model Council, deep research and downloadable files in one workspace. Bring your own API key. Open source.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#212121",
+  "theme_color": "#212121",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ]
+}

@@ -77,7 +77,7 @@ test('the settings keep ids and versions that look like them, once each', () => 
   assert.deepEqual(normalizeCliVersions([1]), {});
 });
 
-test('the words of the CLI tools are in all five languages with the same keys; Chinese says 命令工具 and the others CLI', () => {
+test('the words of the CLI tools are in all five languages with the same keys; the page is called 擴充 (Extensions); Chinese calls the tools 命令工具 and the others CLI', () => {
   const languages = Object.keys(CLI_TEXTS);
   assert.deepEqual(languages, ['zh-TW', 'en', 'fr', 'ru', 'es']);
   const keys = Object.keys(CLI_TEXTS.en).sort();
@@ -85,8 +85,10 @@ test('the words of the CLI tools are in all five languages with the same keys; C
     assert.deepEqual(Object.keys(CLI_TEXTS[language]).sort(), keys, language);
     for (const key of keys) assert.ok(String(CLI_TEXTS[language][key]).trim(), `${language} ${key}`);
   }
-  assert.equal(cliText('zh-TW', 'entry'), '命令工具');
-  for (const language of ['en', 'fr', 'ru', 'es']) assert.equal(cliText(language, 'entry'), 'CLI');
+  assert.equal(cliText('zh-TW', 'entry'), '擴充');
+  assert.equal(cliText('zh-TW', 'kindCli'), '命令工具');
+  for (const language of ['en', 'fr', 'ru', 'es']) assert.equal(cliText(language, 'kindCli'), 'CLI');
+  assert.deepEqual(['en', 'fr', 'ru', 'es'].map((language) => cliText(language, 'entry')), ['Extensions', 'Extensions', 'Расширения', 'Extensiones']);
   assert.equal(cliText('en', 'added_notice', { name: 'FFmpeg' }), '“FFmpeg” added. Type @ in the message box to use it.');
   assert.equal(cliText('xx', 'back'), 'Back', 'English for a language it does not have');
   for (const tool of OFFICIAL_CLI_CATALOG) assert.ok(cliDescription(tool, 'ru').length > 10);

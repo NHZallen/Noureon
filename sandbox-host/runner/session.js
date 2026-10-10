@@ -5,7 +5,7 @@ import { spawn as nodeSpawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { chmodSync, chownSync, copyFileSync, existsSync, linkSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { createInterface } from 'node:readline';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { LIMITS } from '../../public/sandbox/protocol.js';
 import { containerName, dockerRunArgs } from './docker-args.js';
 import { createCliCache } from './cli-cache.js';
@@ -60,6 +60,20 @@ const cleanNet = (net) => {
 const CLI_ID = /^[a-z][a-z0-9-]{1,39}$/;
 const CLI_FILE = /^[A-Za-z0-9._-]{1,60}$/;
 const MAX_CLI_TOOLS = 8;
+// The folders of skills (docs/superpowers/specs/2026-10-09-skills-design.md, §14.3): a skill is a name and its files; a reply loads at most five skills, a skill has at most 61 files
+// (SKILL.md and 60), and what one reply keeps in /skills is bounded as a skill pack is (10 MB, a little more here for the path names).
+const SKILL_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const MAX_SKILLS = 5;
+const MAX_SKILL_FILES = 61;
+const MAX_SKILLS_BYTES = 12 * 1024 * 1024;
+/** A path inside a skill's folder, cleaned: forward slashes, no empty, "." or ".." parts, no hidden parts, at most 200 characters; null when it cannot be one. */
+export function safeSkillPath(raw) {
+  const text = String(raw ?? '');
+  if (!text || text.length > 200 || /[\u0000-\u001f\\]/.test(text) || text.startsWith('/')) return null;
+  const parts = text.split('/');
+  if (parts.some((part) => !part || part === '.' || part === '..' || part.startsWith('.'))) return null;
+  return parts.join('/');
+}
 
 export function createSessionManager({ config, spawn = nodeSpawn, now = Date.now, log = () => {}, setTimer = setTimeout, clearTimer = clearTimeout, randomId = () => randomBytes(12).toString('hex'), fetchImpl = fetch, proxyOptions = {}, pipCache = null }) {
   const sessions = new Map();
@@ -75,12 +89,15 @@ export function createSessionManager({ config, spawn = nodeSpawn, now = Date.now
 
   const makeDirs = (id) => {
     const root = join(config.dataDir, id);
-    const dirs = { root, input: join(root, 'input'), output: join(root, 'output'), cli: join(root, 'cli'), net: join(root, 'net') };
+    const dirs = { root, input: join(root, 'input'), output: join(root, 'output'), cli: join(root, 'cli'), skills: join(root, 'skills'), net: join(root, 'net') };
     mkdirSync(dirs.input, { recursive: true });
     mkdirSync(dirs.output, { recursive: true });
     // Held by the runner, read (and run) by the container.
     mkdirSync(dirs.cli, { recursive: true });
     chmodSync(dirs.cli, 0o755);
+    // The folders of the skills a reply loaded (mountSkills): written by the runner, only read in the container (as /skills), never run.
+    mkdirSync(dirs.skills, { recursive: true });
+    chmodSync(dirs.skills, 0o755);
     // The socket of the session's proxy (and a sign that a question to the person is open) lives here: the runner writes, the container only looks.
     mkdirSync(dirs.net, { recursive: true });
     chmodSync(dirs.net, 0o755);
@@ -327,6 +344,55 @@ export function createSessionManager({ config, spawn = nodeSpawn, now = Date.now
           mounted.push({ name, size: bytes.byteLength });
         }
         return { mounted, skippedInputs: skipped };
+      });
+    },
+
+    /**
+     * Puts the folders of skills in /skills (read only in the container): [{ name, files: [{ path, data (base64) }] }]. What was there is replaced, so the list is
+     * every skill the reply has loaded so far. Nothing is written when something in the list is wrong. Returns { mounted: [{ name, files }] }.
+     */
+    async mountSkills(id, skills = []) {
+      const session = get(id);
+      const list = Array.isArray(skills) ? skills : [];
+      if (list.length > MAX_SKILLS) throw new RunnerError('bad_request', `At most ${MAX_SKILLS} skills.`, 400);
+      const prepared = [];
+      const names = new Set();
+      let total = 0;
+      for (const skill of list) {
+        const name = String(skill?.name || '');
+        if (!SKILL_NAME.test(name) || name.length > 64 || names.has(name)) throw new RunnerError('bad_request', 'A skill has no valid name.', 400);
+        names.add(name);
+        const files = Array.isArray(skill?.files) ? skill.files : [];
+        if (files.length > MAX_SKILL_FILES) throw new RunnerError('bad_request', 'A skill has too many files.', 400);
+        const seen = new Set();
+        const entries = [];
+        for (const file of files) {
+          const path = safeSkillPath(file?.path);
+          if (!path || seen.has(path.toLowerCase())) throw new RunnerError('bad_request', 'A file of a skill has no valid path.', 400);
+          seen.add(path.toLowerCase());
+          const bytes = Buffer.from(String(file?.data || ''), 'base64');
+          total += bytes.byteLength;
+          if (total > MAX_SKILLS_BYTES) throw new RunnerError('too_large', 'The skills are too large.', 413);
+          entries.push({ path, bytes });
+        }
+        prepared.push({ name, entries });
+      }
+      return serialized(session, async () => {
+        emptyFolder(session.dirs.skills);
+        for (const skill of prepared) {
+          const folder = join(session.dirs.skills, skill.name);
+          mkdirSync(folder, { recursive: true });
+          chmodSync(folder, 0o755);
+          for (const { path, bytes } of skill.entries) {
+            const target = join(folder, ...path.split('/'));
+            mkdirSync(dirname(target), { recursive: true });
+            // The folders on the way are readable by the container; a file is never given the right to run.
+            for (let up = dirname(target); up.startsWith(folder) && up !== dirname(folder); up = dirname(up)) chmodSync(up, 0o755);
+            writeFileSync(target, bytes);
+            chmodSync(target, 0o644);
+          }
+        }
+        return { mounted: prepared.map((skill) => ({ name: skill.name, files: skill.entries.length })) };
       });
     },
 

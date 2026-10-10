@@ -66,7 +66,8 @@ test('the plan card counts down on the server\'s clock, and its buttons act on t
   assert.match(cardHost.textContent, /Deep research has started on “batteries”/, 'the fixed line under the card');
   const secs = Number(cardHost.querySelector('.rc-secs').textContent);
   assert.ok(secs >= 41 && secs <= 42, `about forty-two seconds left, got ${secs}`);
-  assert.ok(cardHost.querySelector('.rc-ring-fg'));
+  assert.equal(cardHost.querySelector('.rc-ring'), null, 'the countdown is the number alone, no ring');
+  assert.equal(cardHost.querySelector('.rc-start svg'), null);
   click(window, cardHost.querySelector('[data-act="start"]'));
   await flush();
   click(window, cardHost.querySelector('[data-act="cancel"]'));
@@ -127,11 +128,7 @@ test('the running card shows the items\' states, the searches and the time, paus
   assert.match(cardHost.textContent, /Paused/);
   click(window, cardHost.querySelector('[data-act="resume"]'));
   await flush();
-  const edits = [];
-  registerResearchMode({ control: async (runId, action, payload) => { controls.push([runId, action, payload]); return { ok: true }; }, beginEdit: async (info) => { edits.push(info); return true; } });
-  click(window, cardHost.querySelector('[data-act="steer"]'));
-  await flush();
-  assert.deepEqual(edits, [{ runId: 'run-4', messageId: 'm4', title: 'Battery research', kind: 'steer' }], 'the card offers to add an instruction');
+  assert.equal(cardHost.querySelector('[data-act="steer"]'), null, 'there is no button for instructions: the box takes them while the research runs');
   updateResearch('m4', { plan: { ...running, steers: 2, clock: Date.now() + 2 } });
   assert.match(cardHost.textContent, /2 instructions added/);
   click(window, cardHost.querySelector('[data-act="stop"]'));
@@ -426,3 +423,28 @@ test('on a phone the sources and the activity are the chat\'s sheet from the bot
   closeResearchReader();
   document.querySelector('.source-sheet-root')?.remove();
 });
+
+test('the item being worked on turns only while the research works: paused it stands still, and stopped or failed it waits like the others', () => {
+  const { host } = setup();
+  const items = [{ id: 'a', text: 'First', state: 'done' }, { id: 'b', text: 'Second', state: 'active' }, { id: 'c', text: 'Third', state: 'pending' }];
+  const draw = (id, extra) => {
+    host.innerHTML = `<div class="research-card-host" id="h-${id}"></div>`;
+    const cardHost = host.firstChild;
+    mount({ host: cardHost, message: message(id, [{ text: '' }, { researchPlan: plan({ phase: 'researching', items, clock: Date.now(), ...extra }) }]), getLanguage: () => 'en', showNotification: () => {} });
+    return cardHost;
+  };
+  const running = draw('b1', {});
+  assert.equal(running.querySelectorAll('.rc-bullet-active').length, 1, 'working: it turns');
+  const paused = draw('b2', { paused: true });
+  assert.equal(paused.querySelectorAll('.rc-bullet-active').length, 0);
+  assert.equal(paused.querySelectorAll('.rc-bullet-still').length, 1, 'paused: it stands still');
+  const pausing = draw('b3', { pausing: true });
+  assert.equal(pausing.querySelectorAll('.rc-bullet-active').length, 0, 'on its way to a pause: it stands still');
+  for (const [id, phase] of [['b4', 'stopped'], ['b5', 'failed'], ['b6', 'writing']]) {
+    const card = draw(id, { phase });
+    assert.equal(card.querySelectorAll('.rc-bullet-active').length, 0, `${phase}: nothing turns`);
+    assert.equal(card.querySelectorAll('.rc-bullet-still').length, 0);
+    assert.equal(card.querySelectorAll('.rc-bullet-pending').length, 2, `${phase}: it waits like the other one`);
+  }
+});
+

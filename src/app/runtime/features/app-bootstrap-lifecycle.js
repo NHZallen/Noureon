@@ -91,6 +91,7 @@ export function createLegacyAppBootstrapLifecycle({
     renderPersonalMemoryList,
     handleDeleteAllData,
     applyLanguage,
+    applyUiTheme,
     openStore,
     closeStore,
     handleAvatarUpload,
@@ -628,15 +629,18 @@ export function createLegacyAppBootstrapLifecycle({
                             scheduleAnimationFrame(() => {
                                 const PADDING_BOTTOM = 10;
                                 const inputBarRect = inputBarContainer.getBoundingClientRect();
-                                const viewportHeight = window.visualViewport.height;
-                                const offset = inputBarRect.bottom - viewportHeight + PADDING_BOTTOM;
+                                // The bottom of what is seen is the top of the visual viewport plus its height (not 0 when the phone has scrolled the page for the
+                                // keyboard), and the move is at once: a smooth one fights the phone's own and the box jumps.
+                                const seenBottom = (Number(window.visualViewport.offsetTop) || 0) + window.visualViewport.height;
+                                const offset = inputBarRect.bottom - seenBottom + PADDING_BOTTOM;
     
     
-                                if (offset > 0) {
+                                // Only when the box really is hidden (the app ends where the seen area ends, so it normally is not).
+                                if (inputBarRect.bottom - seenBottom > 1) {
                                     const newScrollPosition = window.scrollY + offset;
                                     window.scrollTo({
                                         top: newScrollPosition,
-                                        behavior: 'smooth'
+                                        behavior: 'auto'
                                     });
                                 }
                             });
@@ -728,6 +732,10 @@ export function createLegacyAppBootstrapLifecycle({
                     config.uiLanguage = e.target.value;
                     applyLanguage(config.uiLanguage);
                     renderInputIndicators();
+                });
+                ALL_ELEMENTS.colorSchemeSelect?.addEventListener('change', (e) => {
+                    config.colorScheme = e.target.value;
+                    applyUiTheme();
                 });
                 const storeNavigationLifecycle = createStoreNavigationLifecycle({
                     getOpenStoreButton: () => ALL_ELEMENTS.openStoreBtn,

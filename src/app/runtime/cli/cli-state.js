@@ -59,10 +59,12 @@ export function cliIdsOfParts(parts) {
  * The tools a reply is given: `chosen` (the ones picked with "@" in this message that are still added) and `ids` (those and the ones the person
  * lets the model use by itself). `all` ignores which tools are added (to tell that something was chosen).
  */
-export function cliIdsForReply(config, parts, { all = false } = {}) {
+export function cliIdsForReply(config, parts, { all = false, ownAllowed = true } = {}) {
   const picked = cliIdsOfParts(parts);
   const chosen = all ? picked : picked.filter((id) => isCliEnabled(config, id));
-  const own = normalizeCliIds(config?.cliModelUseIds).filter((id) => isCliEnabled(config, id));
+  // The tools the model may use by itself are left out when they are judged not to be needed for this message (decisions/decision-client.js); the ones
+  // the person chose with "@" are always given.
+  const own = ownAllowed ? normalizeCliIds(config?.cliModelUseIds).filter((id) => isCliEnabled(config, id)) : [];
   return { chosen, ids: [...new Set([...chosen, ...own])] };
 }
 

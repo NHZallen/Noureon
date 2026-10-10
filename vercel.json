@@ -113,8 +113,16 @@
       "destination": "/index.html"
     },
     {
+      "source": "/skill",
+      "destination": "/index.html"
+    },
+    {
       "source": "/nouras",
       "destination": "/index.html"
+    },
+    {
+      "source": "/help",
+      "destination": "/help.html"
     },
     {
       "source": "/terms",

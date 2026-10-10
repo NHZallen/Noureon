@@ -1,9 +1,10 @@
 .model-message .ac-chart {
     --ac-chart-primary: var(--button-primary-bg, #60A5FA);
-    --ac-chart-grid: rgba(156, 163, 175, 0.22);
-    --ac-chart-text: #111827;
-    --ac-chart-muted: #6b7280;
-    --ac-chart-tooltip-bg: rgba(17, 24, 39, 0.94);
+    --ac-chart-grid: color-mix(in srgb, var(--text-tertiary) 22%, transparent);
+    --ac-chart-text: var(--text-primary);
+    --ac-chart-muted: var(--text-secondary);
+    --ac-chart-tooltip-bg: color-mix(in srgb, var(--gpt-primary-action-bg) 94%, transparent);
+    --ac-chart-tooltip-text: var(--gpt-primary-action-text);
     width: 100%;
     max-width: min(100%, 45rem);
     margin: 1rem 0 1.35rem;
@@ -117,7 +118,7 @@
 }
 
 .model-message .ac-chart-point {
-    stroke: #ffffff;
+    stroke: var(--modal-bg);
     stroke-width: 2;
     cursor: pointer;
 }
@@ -200,7 +201,7 @@
 }
 
 .model-message .ac-chart-guide-line {
-    stroke: rgba(107, 114, 128, 0.62);
+    stroke: color-mix(in srgb, var(--text-secondary) 62%, transparent);
     stroke-width: 1.15;
     opacity: 1;
     pointer-events: none;
@@ -237,7 +238,7 @@
 
 .model-message .ac-chart-bubble-point {
     fill: color-mix(in srgb, var(--ac-chart-primary) 66%, transparent);
-    stroke: color-mix(in srgb, var(--ac-chart-primary) 82%, #ffffff);
+    stroke: color-mix(in srgb, var(--ac-chart-primary) 82%, var(--modal-bg));
     stroke-width: 1.5;
 }
 
@@ -248,7 +249,7 @@
 
 .model-message .ac-chart-stacked-segment {
     cursor: pointer;
-    stroke: rgba(255, 255, 255, 0.72);
+    stroke: color-mix(in srgb, var(--modal-bg) 72%, transparent);
     stroke-width: 1;
 }
 
@@ -293,8 +294,8 @@
     padding: 0.52rem 0.64rem;
     border-radius: 12px;
     background: var(--ac-chart-tooltip-bg);
-    color: #ffffff;
-    box-shadow: 0 8px 22px rgba(17, 24, 39, 0.14);
+    color: var(--ac-chart-tooltip-text);
+    box-shadow: var(--shadow-md);
     opacity: 0;
     transform: translateY(4px);
     pointer-events: none;
@@ -319,16 +320,16 @@
 }
 
 .model-message .ac-chart-tooltip-label {
-    color: rgba(255, 255, 255, 0.72);
+    color: color-mix(in srgb, var(--ac-chart-tooltip-text) 72%, transparent);
 }
 
 .model-message .ac-chart-tooltip-value {
-    color: #ffffff;
+    color: var(--ac-chart-tooltip-text);
 }
 
 .model-message .ac-chart-tooltip-value.is-strong {
     font-weight: 600;
-    color: #ffffff;
+    color: var(--ac-chart-tooltip-text);
 }
 
 .model-message .ac-chart-donut-layout {
@@ -343,7 +344,7 @@
 }
 
 .model-message .ac-chart-donut-segment {
-    stroke: #ffffff;
+    stroke: var(--modal-bg);
     stroke-width: 4.5;
     transform-box: fill-box;
     transform-origin: center;
@@ -392,7 +393,7 @@
 
 .model-message .ac-chart-legend-item.is-selected,
 .model-message .ac-chart-legend-item.is-active {
-    background: rgba(17, 24, 39, 0.055);
+    background: color-mix(in srgb, var(--text-primary) 6%, transparent);
     opacity: 1;
 }
 
@@ -405,7 +406,7 @@
 }
 
 .model-message .ac-chart[data-chart-active-index]:not([data-chart-active-index=""]) .ac-chart-legend-item[data-chart-active="true"] {
-    background: rgba(17, 24, 39, 0.075);
+    background: color-mix(in srgb, var(--text-primary) 8%, transparent);
     opacity: 1;
 }
 
@@ -463,7 +464,7 @@
     padding: 0.72rem 0.78rem;
     border-left: 3px solid color-mix(in srgb, var(--ac-chart-primary) 48%, transparent);
     border-radius: 0.45rem;
-    background: rgba(255, 255, 255, 0.34);
+    background: color-mix(in srgb, var(--modal-bg) 34%, transparent);
     cursor: pointer;
 }
 
@@ -474,7 +475,7 @@
 .model-message .ac-chart-kpi-item.is-active {
     opacity: 1;
     transform: translateY(-1px);
-    background: rgba(255, 255, 255, 0.6);
+    background: color-mix(in srgb, var(--chat-bg) 60%, transparent);
 }
 
 .model-message .ac-chart-kpi-label {
@@ -505,11 +506,11 @@
 }
 
 .model-message .ac-chart-kpi-delta.is-up {
-    color: #27835e;
+    color: var(--chart-up);
 }
 
 .model-message .ac-chart-kpi-delta.is-down {
-    color: #b45353;
+    color: var(--chart-down);
 }
 
 .model-message .ac-chart-kpi-delta.is-flat {
@@ -523,7 +524,7 @@
 }
 
 .model-message .ac-chart-gauge-track {
-    fill: rgba(156, 163, 175, 0.2);
+    fill: color-mix(in srgb, var(--text-tertiary) 20%, transparent);
 }
 
 .model-message .ac-chart-gauge-progress {
@@ -533,7 +534,7 @@
 }
 
 .model-message .ac-chart-gauge-progress.is-active {
-    filter: saturate(1.08) drop-shadow(0 3px 5px rgba(17, 24, 39, 0.12));
+    filter: saturate(1.08) drop-shadow(0 3px 5px color-mix(in srgb, var(--text-primary) 12%, transparent));
     transform: scale(1.012);
 }
 
@@ -579,7 +580,7 @@
 }
 
 .model-message .ac-chart-heatmap-cell {
-    stroke: rgba(255, 255, 255, 0.72);
+    stroke: color-mix(in srgb, var(--modal-bg) 72%, transparent);
     stroke-width: 1;
 }
 
@@ -589,13 +590,13 @@
 
 .model-message .ac-chart-heatmap-cell.is-active {
     opacity: 1;
-    stroke: color-mix(in srgb, var(--ac-chart-primary) 70%, #ffffff);
+    stroke: color-mix(in srgb, var(--ac-chart-primary) 70%, var(--modal-bg));
     stroke-width: 2.5;
     transform: scale(1.035);
 }
 
 .model-message .ac-chart-treemap-node {
-    stroke: rgba(255, 255, 255, 0.82);
+    stroke: color-mix(in srgb, var(--modal-bg) 82%, transparent);
     stroke-width: 2;
     opacity: 0.78;
 }
@@ -614,7 +615,7 @@
 .model-message .ac-chart-treemap-label,
 .model-message .ac-chart-treemap-value,
 .model-message .ac-chart-funnel-label {
-    fill: #ffffff;
+    fill: var(--on-color);
     font-size: 14px;
     font-weight: 500;
     pointer-events: none;
@@ -653,7 +654,7 @@
 }
 
 .model-message .ac-chart-radar-point {
-    stroke: #ffffff;
+    stroke: var(--modal-bg);
     stroke-width: 2;
 }
 
@@ -672,7 +673,7 @@
 }
 
 .model-message .ac-chart-funnel-stage {
-    stroke: rgba(255, 255, 255, 0.74);
+    stroke: color-mix(in srgb, var(--modal-bg) 74%, transparent);
     stroke-width: 2;
 }
 
@@ -687,7 +688,7 @@
 }
 
 .model-message .ac-chart-waterfall-bar {
-    stroke: rgba(255, 255, 255, 0.72);
+    stroke: color-mix(in srgb, var(--modal-bg) 72%, transparent);
     stroke-width: 1;
 }
 
@@ -697,12 +698,12 @@
 }
 
 .model-message .ac-chart-waterfall-bar.is-positive {
-    fill: #5aa987;
+    fill: var(--chart-up-soft);
     opacity: 0.84;
 }
 
 .model-message .ac-chart-waterfall-bar.is-negative {
-    fill: #d48787;
+    fill: var(--chart-down-soft);
     opacity: 0.84;
 }
 
@@ -738,7 +739,7 @@
 }
 
 .model-message .ac-chart-sankey-node {
-    fill: color-mix(in srgb, var(--ac-chart-primary) 72%, #ffffff);
+    fill: color-mix(in srgb, var(--ac-chart-primary) 72%, var(--modal-bg));
     opacity: 0.92;
 }
 
@@ -767,7 +768,7 @@
 
 .model-message .ac-chart-boxplot-box {
     fill: color-mix(in srgb, var(--ac-chart-primary) 22%, transparent);
-    stroke: color-mix(in srgb, var(--ac-chart-primary) 70%, #ffffff);
+    stroke: color-mix(in srgb, var(--ac-chart-primary) 70%, var(--modal-bg));
     stroke-width: 1.4;
 }
 
@@ -778,8 +779,8 @@
 }
 
 .model-message .ac-chart-boxplot-outlier {
-    fill: #ffffff;
-    stroke: color-mix(in srgb, var(--ac-chart-primary) 82%, #111827);
+    fill: var(--modal-bg);
+    stroke: color-mix(in srgb, var(--ac-chart-primary) 82%, var(--text-primary));
     stroke-width: 1.5;
 }
 
@@ -798,7 +799,7 @@
 }
 
 .model-message .ac-chart-gantt-track {
-    fill: rgba(156, 163, 175, 0.22);
+    fill: color-mix(in srgb, var(--text-tertiary) 22%, transparent);
 }
 
 .model-message .ac-chart-gantt-progress {
@@ -813,8 +814,8 @@
 }
 
 .model-message .ac-chart-gantt-milestone {
-    fill: color-mix(in srgb, var(--ac-chart-primary) 72%, #ffffff);
-    stroke: #ffffff;
+    fill: color-mix(in srgb, var(--ac-chart-primary) 72%, var(--modal-bg));
+    stroke: var(--modal-bg);
     stroke-width: 1.4;
 }
 
@@ -825,7 +826,7 @@
 }
 
 .model-message .ac-chart-gantt-item.is-active {
-    filter: saturate(1.1) drop-shadow(0 3px 5px rgba(17, 24, 39, 0.12));
+    filter: saturate(1.1) drop-shadow(0 3px 5px color-mix(in srgb, var(--text-primary) 12%, transparent));
 }
 
 @media (min-width: 1025px) {
@@ -834,7 +835,7 @@
         margin-bottom: 1.55rem;
         padding: 0.65rem 0.8rem 0.85rem;
         border-radius: 18px;
-        background: rgba(255, 255, 255, 0.58);
+        background: color-mix(in srgb, var(--chat-bg) 58%, transparent);
     }
 
     .model-message .ac-chart-svg {

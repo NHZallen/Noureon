@@ -6,6 +6,8 @@ import { renderComposerToolIcon } from '../../composer-tool-icons.js';
 import { registerResearchMode } from './research-bridge.js';
 import { getResearch, subscribeAnyResearch } from './research-store.js';
 import { createCliMode } from '../cli/cli-mode.js';
+import { createLazySkillMode } from '../skill/lazy-skill-mode.js';
+import { createLazySkillStore } from '../skill/lazy-skill-store.js';
 import { researchText } from './research-texts.js';
 
 export const RESEARCH_INDICATOR_ID = 'deep-research-indicator';
@@ -42,8 +44,22 @@ export function createResearchMode({
   const getInput = () => messageInput;
   // The CLI tools (命令工具) share this host: they too put a chip in the box and an entry in the menus. A box that cannot take listeners
   // (a test) has none.
+  // The skills the person pasted are kept in their cloud account: the account library is loaded when first needed.
+  const skillStore = createLazySkillStore({
+    getClient: async () => (await import('../../auth/supabase-client.js')).getSupabaseClient(),
+    getUserId: async () => {
+      if (!serverReply.hasAccount()) return '';
+      const client = (await import('../../auth/supabase-client.js')).getSupabaseClient();
+      const { data } = (await client?.auth?.getSession?.()) || {};
+      return data?.session?.user?.id || '';
+    }
+  });
   const cli = typeof messageInput?.addEventListener === 'function' && typeof document?.addEventListener === 'function'
-    ? createCliMode({ document, messageInput, isLocked: () => getActiveConversation()?.retentionMode === 'ephemeral', getConfig, saveConfig, getUiLanguage, refresh: () => refresh(), showNotification, getAccountReady: () => serverReply.hasAccount(), logger })
+    ? createCliMode({ document, messageInput, isLocked: () => getActiveConversation()?.retentionMode === 'ephemeral', getConfig, saveConfig, getUiLanguage, refresh: () => refresh(), showNotification, getAccountReady: () => serverReply.hasAccount(), skillStore, logger })
+    : null;
+  // The skills share it too: "/" in the box, and the chip of a skill (a temporary chat has them as well, those that are only words: not those with a script).
+  const skills = typeof messageInput?.addEventListener === 'function' && typeof document?.addEventListener === 'function'
+    ? createLazySkillMode({ document, messageInput, getConfig, getUiLanguage, refresh: () => refresh(), skillStore, openStore: (kind) => cli?.openStore?.(kind), isTemporary: () => { const conversation = getActiveConversation(); return Boolean(conversation?.isTemporary || conversation?.retentionMode === 'ephemeral'); }, saveConfig, showNotification, getAccountReady: () => serverReply.hasAccount(), logger })
     : null;
   const getSync = () => globalThis.__astraCloudSyncV2;
   const warn = (...args) => logger?.warn?.(...args);
@@ -138,6 +154,7 @@ export function createResearchMode({
   /** Called when the buttons of the "+" menu are brought up to date. */
   const syncMenu = () => {
     cli?.sync();
+    skills?.sync();
     const button = ensureMenuButton();
     if (!button) return;
     button.style.display = isUnavailable() ? 'none' : 'flex';
@@ -147,19 +164,12 @@ export function createResearchMode({
   /** Adds this mode's chips to the composer's (the same markup as the others: `closeButton(id, title)` gives the ✕). */
   const indicators = (map, closeButton) => {
     cli?.indicators(map, closeButton);
+    skills?.indicators(map, closeButton);
     if (armed && !isUnavailable()) {
       map.set(RESEARCH_INDICATOR_ID, {
         id: RESEARCH_INDICATOR_ID,
         html: `<span class="input-indicator-content flex items-center gap-2"><span class="input-indicator-leading">${renderComposerToolIcon('deepResearch', 'input-indicator-mode-icon')}</span><span>${escapeHTML(researchText(language(), 'menuLabel'))}</span></span>${closeButton('close-research-btn-input', escapeHTML(researchText(language(), 'closeChip')))}`,
         eventListener: (element) => element.querySelector('#close-research-btn-input').addEventListener('click', () => setArmed(false))
-      });
-    }
-    const steering = steeringHere();
-    if (steering) {
-      map.set(PLAN_INDICATOR_ID, {
-        id: PLAN_INDICATOR_ID,
-        html: `<span class="input-indicator-content flex items-center gap-2"><span class="input-indicator-leading">${renderComposerToolIcon('deepResearch', 'input-indicator-mode-icon')}</span><span>${escapeHTML(shorten(`${researchText(language(), 'steer')}: ${steering.title}`, 28))}</span></span>`,
-        eventListener: () => {}
       });
     }
     if (editingHere()) {

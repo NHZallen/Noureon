@@ -5,16 +5,9 @@ export const FOLDER_COLORS = {
     emerald: '#34d399', teal: '#2dd4bf', cyan: '#22d3ee', rose: '#fb7185'
 };
 
-export const USER_BUBBLE_COLORS = {
-    default: { light: '#e8f3ff' }, gray: { light: '#eef0f3' },
-    blue: { light: '#e8f3ff' }, green: { light: '#eaf7ef' },
-    yellow: { light: '#fff7d6' }, orange: { light: '#fff0e3' },
-    red: { light: '#ffedf0' }, purple: { light: '#f2ecff' },
-    pink: { light: '#ffedf5' }, teal: { light: '#e7f8f5' }
-};
-
-// The choices of the primary button colour, in the order of the menu. `default` is the colour used when nothing was chosen.
+// The choices of the accent colour, in the order of the menu. `default` is the blue used when nothing was chosen (the dark theme has a lighter
+// blue of its own, see theme-appearance-lifecycle.js); the others are the same in both themes (a colour too dark for the dark theme is lightened).
 export const UI_THEME_COLORS = {
-    default: '#3b82f6', green: '#10b981', yellow: '#facc15',
-    pink: '#ec4899', orange: '#f97316', purple: '#8b5cf6'
+    default: '#3b82f6', cyan: '#50affa', green: '#55b8a1', lime: '#bfd848', yellow: '#f7cf5a',
+    orange: '#f08870', pink: '#fe5cab', magenta: '#cf72d6', purple: '#9961f6', black: '#111111'
 };

@@ -1,8 +1,8 @@
 /* important-audit: required: regression override / legacy compatibility - search surface overrides global modal utility classes and must win late in the cascade. */
 /* Conversation search uses a compact desktop dialog and a dedicated light mobile canvas. */
 #search-modal {
-    color: #202123;
-    background: rgba(248, 249, 250, 0.72) !important;
+    color: var(--text-primary);
+    background: color-mix(in srgb, var(--chat-bg) 72%, transparent) !important;
     backdrop-filter: blur(12px) saturate(1.04) !important;
     -webkit-backdrop-filter: blur(12px) saturate(1.04) !important;
 }
@@ -13,10 +13,10 @@
     height: min(70vh, 42rem) !important;
     max-width: 47.5rem;
     max-height: calc(100vh - 2.5rem) !important;
-    background: #ffffff !important;
-    border: 1px solid #dfe1e5;
+    background: var(--modal-bg) !important;
+    border: 1px solid var(--border-color);
     border-radius: 1rem !important;
-    box-shadow: 0 20px 58px rgba(15, 23, 42, 0.16);
+    box-shadow: var(--shadow-lg);
     overflow: hidden;
 }
 
@@ -42,7 +42,7 @@
     width: 2.35rem;
     height: 2.35rem;
     padding: 0;
-    color: #4b5563;
+    color: var(--text-secondary);
     background: transparent;
     border: 0;
     border-radius: 0.65rem;
@@ -58,8 +58,8 @@
 }
 
 #search-modal #close-search-modal-btn:hover {
-    color: #111827;
-    background: #f3f4f6;
+    color: var(--text-primary);
+    background: var(--hover-bg);
 }
 
 #search-modal .conversation-search-toolbar {
@@ -71,7 +71,7 @@
     align-items: center;
     gap: 0.65rem 0.5rem;
     padding: 1rem 4.2rem 0.75rem 1rem;
-    border-bottom: 1px solid #eceef1;
+    border-bottom: 1px solid var(--border-color);
 }
 
 .conversation-search-native-select {
@@ -89,7 +89,7 @@
 .conversation-search-mode-control button {
     min-height: 2rem;
     padding: 0.38rem 0.72rem;
-    color: #6b7280;
+    color: var(--text-secondary);
     background: transparent;
     border: 0;
     border-radius: 0.55rem;
@@ -101,13 +101,13 @@
 }
 
 .conversation-search-mode-control button:hover {
-    color: #202123;
-    background: #f3f4f6;
+    color: var(--text-primary);
+    background: var(--hover-bg);
 }
 
 .conversation-search-mode-control button.is-active {
     color: var(--button-primary-bg, #4f8df7);
-    background: #ffffff;
+    background: var(--modal-bg);
 }
 
 .conversation-search-mode-control button:focus,
@@ -123,7 +123,7 @@
     grid-area: hint;
     align-self: center;
     margin: 0;
-    color: #667085;
+    color: var(--text-secondary);
     font-size: 0.75rem;
     line-height: 1.3;
     text-align: left;
@@ -150,7 +150,7 @@
     z-index: 1;
     width: 1.3rem;
     height: 1.3rem;
-    color: #6b7280;
+    color: var(--text-secondary);
     pointer-events: none;
     transform: translateY(-50%);
 }
@@ -161,8 +161,8 @@
     min-width: 0;
     min-height: 2.9rem;
     padding: 0 0.9rem 0 2.75rem;
-    color: #111827;
-    background-color: #f7f7f8;
+    color: var(--text-primary);
+    background-color: var(--sidebar-bg);
     border: 1px solid transparent;
     border-radius: 0.7rem;
     outline: 0;
@@ -171,7 +171,7 @@
 }
 
 #search-modal #modal-search-input:focus {
-    background-color: #ffffff;
+    background-color: var(--modal-bg);
     border-color: var(--button-primary-bg, #4f8df7);
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--button-primary-bg, #4f8df7) 14%, transparent);
 }
@@ -183,16 +183,16 @@
     -webkit-appearance: none;
     appearance: none;
     background:
-        linear-gradient(45deg, transparent 45%, #6b7280 45%, #6b7280 55%, transparent 55%),
-        linear-gradient(-45deg, transparent 45%, #6b7280 45%, #6b7280 55%, transparent 55%);
+        linear-gradient(45deg, transparent 45%, var(--text-secondary) 45%, var(--text-secondary) 55%, transparent 55%),
+        linear-gradient(-45deg, transparent 45%, var(--text-secondary) 45%, var(--text-secondary) 55%, transparent 55%);
     border-radius: 999px;
     cursor: pointer;
 }
 
 #search-modal #modal-search-input::-webkit-search-cancel-button:hover {
     background:
-        linear-gradient(45deg, transparent 45%, #374151 45%, #374151 55%, transparent 55%),
-        linear-gradient(-45deg, transparent 45%, #374151 45%, #374151 55%, transparent 55%);
+        linear-gradient(45deg, transparent 45%, var(--text-primary) 45%, var(--text-primary) 55%, transparent 55%),
+        linear-gradient(-45deg, transparent 45%, var(--text-primary) 45%, var(--text-primary) 55%, transparent 55%);
 }
 
 #search-modal #voice-input-btn-search {
@@ -203,15 +203,15 @@
     width: 2.9rem;
     height: 2.9rem;
     padding: 0;
-    color: #6b7280;
+    color: var(--text-secondary);
     background: transparent;
     border: 0;
     border-radius: 0.7rem;
 }
 
 #search-modal #voice-input-btn-search:hover {
-    color: #202123;
-    background: #f3f4f6;
+    color: var(--text-primary);
+    background: var(--hover-bg);
 }
 
 #search-modal #perform-search-btn {
@@ -220,13 +220,13 @@
 
 #search-modal #search-results-container {
     padding: 0.8rem 1rem 1rem;
-    background: #ffffff;
+    background: var(--modal-bg);
 }
 
 .conversation-search-recent-title {
     margin: 0.25rem 0 0.45rem;
     padding: 0 0.65rem;
-    color: #4b5563;
+    color: var(--text-secondary);
     font-size: 0.82rem;
     font-weight: 600;
 }
@@ -239,7 +239,7 @@
     min-height: 3.35rem;
     gap: 0.78rem;
     padding: 0.7rem 0.65rem;
-    color: #202123;
+    color: var(--text-primary);
     background: transparent;
     border: 0;
     border-radius: 0.65rem;
@@ -249,14 +249,14 @@
 
 .conversation-search-recent-item:hover,
 .conversation-search-result:hover {
-    background: #f5f5f6;
+    background: var(--hover-bg);
 }
 
 .conversation-search-chat-icon {
     width: 1.3rem;
     height: 1.3rem;
     flex: 0 0 auto;
-    color: #667085;
+    color: var(--text-secondary);
 }
 
 .conversation-search-recent-item span,
@@ -276,7 +276,7 @@
 .conversation-search-result-copy p {
     margin: 0.2rem 0 0;
     overflow: hidden;
-    color: #667085;
+    color: var(--text-secondary);
     font-size: 0.78rem;
     line-height: 1.4;
     text-overflow: ellipsis;
@@ -294,7 +294,7 @@
 .conversation-search-empty,
 #search-modal #search-results-container > .text-center {
     padding: 2.5rem 1rem;
-    color: #667085;
+    color: var(--text-secondary);
     text-align: center;
 }
 
@@ -314,8 +314,8 @@
         width: 100%;
         height: 100%;
         padding: 0;
-        color: #202123;
-        background: #ffffff !important;
+        color: var(--text-primary);
+        background: var(--modal-bg) !important;
         backdrop-filter: none !important;
         -webkit-backdrop-filter: none !important;
         overflow: hidden;
@@ -340,7 +340,7 @@
         height: var(--search-viewport-height, 100dvh) !important;
         max-width: none !important;
         max-height: none !important;
-        background: #ffffff !important;
+        background: var(--modal-bg) !important;
         border: 0;
         border-radius: 0 !important;
         box-shadow: none;
@@ -363,17 +363,17 @@
         z-index: 4;
         width: 3rem;
         height: 3rem;
-        color: #4b5563;
-        background: #ffffff;
-        border: 1px solid #e5e7eb;
+        color: var(--text-secondary);
+        background: var(--modal-bg);
+        border: 1px solid var(--border-color);
         border-radius: 999px;
-        box-shadow: 0 3px 10px rgba(15, 23, 42, 0.08);
+        box-shadow: var(--shadow-sm);
     }
 
     #search-modal #close-search-modal-btn:hover,
     #search-modal #close-search-modal-btn:active {
-        color: #111827;
-        background: #ffffff;
+        color: var(--text-primary);
+        background: var(--modal-bg);
     }
 
     #search-modal .conversation-search-toolbar {
@@ -398,10 +398,10 @@
         justify-content: flex-start;
         gap: 0.12rem;
         padding: 0.18rem;
-        background: #f5f5f6;
-        border: 1px solid #eceef1;
+        background: var(--hover-bg);
+        border: 1px solid var(--border-color);
         border-radius: 0.72rem;
-        box-shadow: 0 3px 12px rgba(15, 23, 42, 0.06);
+        box-shadow: var(--shadow-sm);
     }
 
     .conversation-search-mode-control button {
@@ -410,7 +410,7 @@
         min-height: 1.95rem;
         padding: 0.35rem 0.28rem;
         overflow: hidden;
-        color: #667085;
+        color: var(--text-secondary);
         font-size: 0.7rem;
         text-align: center;
         text-overflow: ellipsis;
@@ -418,8 +418,8 @@
 
     .conversation-search-mode-control button.is-active {
         color: var(--button-primary-bg, #4f8df7);
-        background: #ffffff;
-        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.1);
+        background: var(--modal-bg);
+        box-shadow: var(--shadow-xs);
     }
 
     .conversation-search-enter-hint {
@@ -432,11 +432,11 @@
         height: 3rem;
         min-height: 3rem;
         padding: 0 0.85rem 0 2.7rem;
-        color: #111827 !important;
-        background-color: #f5f5f6;
-        border-color: #e5e7eb;
+        color: var(--text-primary) !important;
+        background-color: var(--hover-bg);
+        border-color: var(--border-color);
         border-radius: 999px !important;
-        box-shadow: 0 3px 12px rgba(15, 23, 42, 0.06);
+        box-shadow: var(--shadow-sm);
         line-height: 3rem;
     }
 
@@ -458,7 +458,7 @@
         overflow-y: auto;
         overscroll-behavior: contain;
         padding: max(1rem, env(safe-area-inset-top)) 1rem 1rem;
-        background: #ffffff;
+        background: var(--modal-bg);
     }
 
     .conversation-search-recent-title,
@@ -469,12 +469,12 @@
     .conversation-search-result {
         min-height: 3.8rem;
         padding: 0.8rem 0.35rem;
-        border-bottom: 1px solid #eceef1;
+        border-bottom: 1px solid var(--border-color);
         border-radius: 0;
     }
 
     .conversation-search-result:hover,
     .conversation-search-result:active {
-        background: #f7f7f8;
+        background: var(--sidebar-bg);
     }
 }

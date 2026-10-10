@@ -1,13 +1,109 @@
 // The update notes in Spanish (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
-  "17.14.0": [
-    "<strong>Notas de la versión de Noureon 17.14.0</strong>",
+  "18.3.0": [
+    "<strong>Notas de la versión de Noureon 18.3.0</strong>",
     "Esta versión mejora la pantalla de espera mientras se genera una imagen: una animación de puntos con textos de etapa.",
     "<strong>Cambios principales</strong>",
     "<ul><li><strong>Animación de puntos:</strong> el bloque de espera muestra un patrón de nube en movimiento formado por puntos. Los puntos usan el color de énfasis seleccionado y se ven con claridad tanto en modo claro como en modo oscuro. Si el sistema está configurado para reducir el movimiento, se muestra un único patrón estático.</li><li><strong>Textos de etapa:</strong> el texto de la esquina superior izquierda del bloque cambia según el tiempo de espera: «Creando la imagen», «Componiendo la imagen», «Afinando los detalles» y, pasados unos 40 segundos, «Sigue en proceso. Las imágenes de alta calidad tardan más». Los textos siguen el tiempo y no indican el progreso real, por lo que no se muestra ningún porcentaje.</li><li><strong>Al reabrir la página:</strong> si la página se cierra y se vuelve a abrir mientras una imagen aún se genera en el servidor, la espera se cuenta desde la hora real de inicio, de modo que los textos no empiezan de nuevo.</li><li><strong>Transición al terminar:</strong> cuando la imagen está lista, los puntos se desvanecen y dan paso a la imagen.</li></ul>",
     "<strong>Compatibilidad</strong>",
     "Esta actualización no requiere migración de datos."
+  ],
+  "18.2.0": [
+    "<strong>Notas de la versión de Noureon 18.2.0</strong>",
+    "El Centro de ayuda, los Términos de uso y la Política de privacidad se han reescrito por completo, con secciones e índice, y cubren todas las funciones y flujos de datos actuales.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Centro de ayuda:</strong>una página nueva, noureon.com/help, con 18 secciones, desde los primeros pasos hasta la solución de problemas; el «Centro de ayuda» de Ajustes y el pie de la página de inicio enlazan a ella.</li><li><strong>Términos de uso:</strong>16 secciones sobre qué es el servicio, la responsabilidad sobre cuentas y datos, los límites de las respuestas de la IA, proveedores y costes, la ejecución en el servidor y sus límites, habilidades y herramientas de línea de comandos, conductas prohibidas, exención de garantías y limitación de responsabilidad, y más.</li><li><strong>Política de privacidad:</strong>20 secciones que explican qué se guarda en el navegador y en la nube, qué se envía a los proveedores, la ejecución en el servidor y cuánto se guardan las claves, el flujo de datos de cada función, la memoria, la voz, la transferencia directa entre dispositivos, los servicios de terceros y los plazos de conservación.</li><li><strong>Además:</strong>los tres documentos están en cinco idiomas; PRIVACY.md en GitHub se genera ahora a partir de la versión en inglés.</li></ul>"
+  ],
+  "18.1.0": [
+    "<strong>Notas de la versión de Noureon 18.1.0</strong>",
+    "La página que se muestra antes de iniciar sesión se ha rehecho: desplázate para ver, en pantallas reales, cómo funcionan el Consejo de modelos, la investigación profunda y los archivos, y después las extensiones, las cifras, la ejecución en el servidor, la privacidad y el inicio de sesión.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Nueva página de inicio:</strong>tres presentaciones con desplazamiento hechas con capturas de los propios componentes de Noureon, un juego para el tema claro y el oscuro en cada uno de los cinco idiomas; el pie de página incluye las novedades, GitHub, la cuenta oficial de X @NoureonAi, las condiciones de uso y la política de privacidad.</li><li><strong>Texto de vista previa del enlace:</strong>se reescriben el título y la descripción que se muestran al compartir noureon.com.</li><li><strong>Limpieza:</strong>se eliminaron las conversaciones de ejemplo y el código de la antigua página de inicio, que ya no se usaban.</li></ul>"
+  ],
+  "18.0.0": [
+    "<strong>Notas de la versión de Noureon 18.0.0</strong>",
+    "Esta versión añade las habilidades: una vez añadida una habilidad en la página Extensiones, el modelo sigue sus instrucciones. Hay 11 habilidades oficiales; también puedes pegar la tuya o subir un zip, y pedir al modelo que te ayude a crear una. Es la primera versión principal desde que la tienda de herramientas de línea de comandos pasó a ser la página Extensiones.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Página Extensiones:</strong>la tienda de herramientas de línea de comandos se llama ahora Extensiones y tiene dos partes, Habilidades y Herramientas de línea de comandos; sus direcciones se acortan a /skill y /cli.</li><li><strong>Habilidades:</strong>una habilidad es un archivo SKILL.md (nombre, descripción, texto). Las habilidades que pegas se guardan en tu propia cuenta en la nube, que solo tú puedes leer y cambiar, hasta 50; las listas de habilidades añadidas se combinan entre dispositivos elemento por elemento.</li><li><strong>Usar una habilidad:</strong>escribe / en el cuadro de mensaje y elige una habilidad, y esa respuesta la sigue; el modelo también puede decidir por sí mismo: ve el nombre y una línea de cada habilidad que permites, y carga el texto completo solo cuando lo necesita (puedes desactivar «permitir que el modelo la use por sí mismo» en cada habilidad, y se cargan 5 como máximo en una respuesta). Las respuestas normales, con búsqueda y en modo avanzado se admiten, en este dispositivo y en el servidor.</li><li><strong>Habilidades con archivos:</strong>puedes subir un zip (SKILL.md con referencias, scripts y recursos; hasta 5 MB y 60 archivos), que se comprueba en el navegador y de nuevo en el servidor, y rechaza programas, instaladores, enlaces y rutas inseguras. El modelo puede leer los archivos de texto de una habilidad; los scripts de Python y shell solo se ejecutan en el entorno aislado del servidor, con la carpeta de la habilidad montada en solo lectura en /skills. Las habilidades con scripts no se ofrecen en un chat temporal.</li><li><strong>Crear habilidades:</strong>la habilidad oficial «Crear una habilidad» averigua para qué sirve, redacta un borrador, lo prueba y lo mejora, y luego pone una tarjeta de borrador en el chat; su botón abre una ventana donde lo lees todo (cada archivo de un borrador con archivos se puede leer) y pulsas Añadir para guardarla. El modelo no puede guardar una habilidad por sí mismo.</li><li><strong>11 habilidades oficiales:</strong>Crear una habilidad, Acta de reunión, Corrección, Verificación de datos, Guion de presentación, Redacción de correos, Informe de investigación, Comparación de fuentes, Explicador de conceptos, Preguntas sobre un documento y Resumen. Ninguna se añade por defecto: pulsa + en la página Extensiones; cada una tiene su nombre y descripción en cinco idiomas, y responde en el idioma que usas.</li><li><strong>Privacidad:</strong>el texto completo de una habilidad se envía con el mensaje que la usa al proveedor de IA que elegiste (y a través del servidor cuando es el servidor quien hace la respuesta); una habilidad que no se usa no se envía. Ajustes → Privacidad y PRIVACY.md lo explican.</li><li><strong>Limpieza:</strong>un zip al que ya no apunta ninguna habilidad (una cuenta eliminada, un guardado que no terminó) lo trata la limpieza diaria del servidor, que solo informa mientras no se cambie a eliminar; no se borra nada antes.</li><li><strong>Otros cambios:</strong>el control de profundidad de razonamiento es una pista dentro de un marco con un botón rodeado del color de acento; en iPhone, con el teclado abierto, la aplicación termina donde termina el área visible, un dedo ya no arrastra toda la página y la lista @ se ajusta al área visible; un tema de color que llega de otro dispositivo se muestra al instante.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "Esta actualización añade la tabla user_skills, el bucket user-skill-bundles y una función de limpieza (ya aplicados al proyecto en producción). Para que el modelo cargue habilidades, lea sus archivos y ejecute scripts en el servidor, el servidor y el host del entorno aislado deben actualizarse a esta versión."
+  ],
+  "17.17.0": [
+    "<strong>Notas de la versión de Noureon 17.17.0</strong>",
+    "Esta versión da a cada color de acento sus propios colores de burbuja de mensaje y añade el blanco a los colores de acento del tema oscuro.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Colores de burbuja:</strong> en el tema claro la burbuja es un tono pálido del color con letras oscuras; en el tema oscuro, un tono profundo con letras claras; cada uno de los diez colores de acento tiene su propio par, en lugar de limitarse a aclarar el acento.</li><li><strong>Colores personalizados:</strong> para un color que eliges tú, la burbuja se calcula entre los dos colores predefinidos vecinos con las mismas proporciones (luz, profundidad, tono); un color gris da una burbuja gris.</li><li><strong>Negro y blanco:</strong> los colores de acento del tema claro incluyen el negro; en el tema oscuro, esa misma opción pasa a ser el blanco (el nombre y el punto también cambian, incluso con el menú abierto).</li><li><strong>Seguir el sistema:</strong> con la apariencia en «seguir el sistema», cuando el dispositivo cambia entre claro y oscuro, el acento y los colores de la burbuja cambian al instante, sin recargar.</li><li><strong>Control de profundidad de razonamiento:</strong> el control ahora es una pista dentro de un marco: la parte rellena tiene el color de acento y el botón es un disco oscuro (claro en el tema oscuro) rodeado por un anillo de acento por todos lados, dentro del marco; el botón de profundidad de razonamiento del cuadro de entrada conserva el ancho de su nombre más largo, y su nombre sigue al botón mientras se arrastra, así que el panel de encima ya no salta de lado al cambiar de nivel.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "Esta actualización no requiere migración de datos."
+  ],
+  "17.16.0": [
+    "<strong>Notas de la versión de Noureon 17.16.0</strong>",
+    "Esta versión añade un modelo de juicio: al enviar un mensaje, el pequeño modelo Decisions de OpenRouter juzga si necesita una búsqueda web, un archivo, un gráfico o una herramienta de comandos, en lugar de adivinar solo por palabras clave.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Cuatro preguntas a la vez:</strong> con una clave de OpenRouter, cada mensaje hace una sola llamada que plantea cuatro preguntas al modelo de juicio (¿necesita datos actuales, un archivo, un gráfico, una herramienta de comandos?); una probabilidad del 60 % o más cuenta como sí.</li><li><strong>Herramientas de comandos, con cuidado:</strong> solo se decide sobre las herramientas que dejas que el modelo use por sí solo (si se le ofrecen en este turno); las que eliges con @ se dan siempre.</li><li><strong>Si falla, el método de antes:</strong> sin clave de OpenRouter, con una llamada fallida o más lenta de 1 segundo, deciden las listas de palabras clave como antes y no se muestra nada; tras dos fallos seguidos espera 10 minutos antes de volver a intentarlo. Las conversaciones de imágenes no envían nada.</li><li><strong>Privacidad:</strong> el texto del mensaje (con breves extractos de los dos mensajes anteriores, si hay un archivo adjunto y los nombres de las herramientas de comandos que dejas que el modelo use por sí solo) se envía a OpenRouter y Noureon no guarda nada; Ajustes → Privacidad y PRIVACY.md lo explican.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "Esta actualización no requiere migración de datos."
+  ],
+  "17.15.4": [
+    "<strong>Notas de la versión de Noureon 17.15.4</strong>",
+    "Esta versión elimina el desvanecido de la lista de la barra lateral bajo la fila de búsqueda y hace que el desvanecido sobre la fila de la cuenta ya no deje una línea de corte.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Bajo la fila de búsqueda:</strong> se elimina el desvanecido; la lista simplemente se desplaza bajo la fila de búsqueda, y el espacio entre la fila de búsqueda y la lista vuelve a ser el de antes.</li><li><strong>Sobre la fila de la cuenta:</strong> la parte del desvanecido más cercana al borde es ahora totalmente opaca, de modo que el texto pegado a la fila de la cuenta queda totalmente cubierto y luego aparece de forma gradual, en lugar de dejar una línea de corte de medias letras pálidas; en reposo no cubre texto de la última fila.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "Esta actualización no requiere migración de datos."
+  ],
+  "17.15.3": [
+    "<strong>Notas de la versión de Noureon 17.15.3</strong>",
+    "Esta versión corrige la posición del desvanecido de la barra lateral de la 17.15.2: el desvanecido se quedaba a cierta distancia del borde, así que una parte de la lista bajo la fila de búsqueda seguía sin cubrir.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Desvanecido de la barra lateral:</strong> la posición de las franjas fijas en los bordes de la lista se mide desde dentro del relleno de la lista, por lo que en la 17.15.2 se fijaban 16 píxeles por debajo del borde, y el texto bajo la fila de búsqueda no se desvanecía nada en esa distancia y parecía cortado. Ahora las franjas están justo en los bordes superior e inferior de la lista; una medición por píxeles confirma que el texto en el borde queda totalmente cubierto y aparece de forma gradual.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "Esta actualización no requiere migración de datos."
+  ],
+  "17.15.2": [
+    "<strong>Notas de la versión de Noureon 17.15.2</strong>",
+    "Esta versión vuelve a corregir la costura donde la lista de la barra lateral se cortaba bajo la fila de búsqueda.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Desvanecido de la barra lateral:</strong> el desvanecido era una franja puesta sobre la lista desde fuera, y en un iPhone la lista que se desplaza se dibujaba encima, así que la lista quedaba cortada en seco bajo la fila de búsqueda. Ahora el desvanecido es una franja dentro de la lista, fija en sus bordes superior e inferior (como en la conversación), y también cubre el texto en un iPhone.</li><li><strong>Fondo de la barra lateral:</strong> la barra lateral es opaca, del color que mostraba cuando era translúcida; en el teléfono ya no se ven a través de ella la conversación y el cuadro de mensaje, y los desvanecidos de sus bordes coinciden exactamente con su color.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "Esta actualización no requiere migración de datos."
+  ],
+  "17.15.1": [
+    "<strong>Notas de la versión de Noureon 17.15.1</strong>",
+    "Esta versión corrige el aspecto del campo del código de uso compartido P2P en el teléfono, el desvanecido en la parte superior e inferior de la barra lateral, y aumenta el contraste del texto de sugerencia del tema oscuro.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Campo del código P2P:</strong> en un iPhone, el campo donde se escribe el código de 5 caracteres, al recibir carpetas y al recibir Nouras, se dibujaba con la sombra interior y el marco de enfoque del sistema y parecía roto; ahora tiene el mismo estilo que los demás campos.</li><li><strong>Desvanecido de la barra lateral:</strong> el desvanecido de la lista bajo la fila de búsqueda y sobre la fila de la cuenta es un degradado más largo y progresivo, de modo que la primera línea de texto ya no se corta por la mitad; el panel derecho se ajusta igual.</li><li><strong>Texto de sugerencia del tema oscuro:</strong> el texto secundario y el de sugerencia del tema oscuro (la sugerencia del campo de entrada, las horas, etc.) es más claro, y su contraste sobre el color de un diálogo sube de 2,9 a 4,3.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "Esta actualización no requiere migración de datos."
+  ],
+  "17.15.0": [
+    "<strong>Notas de la versión de Noureon 17.15.0</strong>",
+    "Esta versión cambia el nombre de «Color del botón principal» a «Color de acento» en los ajustes, sustituye sus opciones por diez colores nuevos y hace que el fondo de la burbuja de los mensajes del usuario siga al acento.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Color de acento:</strong> «Color del botón principal» en Ajustes → Personalización → Apariencia pasa a llamarse «Color de acento», con Azul (predeterminado), Cian, Verde, Lima, Amarillo, Naranja, Rosa, Magenta, Morado, Negro y un código de color personalizado. Toda la interfaz tiene este único acento: el botón de envío, los interruptores, los marcos seleccionados y el fondo de las burbujas lo siguen.</li><li><strong>Burbuja de mensaje:</strong> se elimina el ajuste «Color de burbuja de mensaje de usuario»; el fondo de la burbuja es un tono pálido del acento, con una intensidad adecuada para el tema claro y el oscuro.</li><li><strong>Tema oscuro:</strong> un acento difícil de ver en el tema oscuro se aclara automáticamente; el negro se muestra como gris claro en el tema oscuro, como el botón principal en blanco y negro.</li></ul>",
+    "<strong>Notas</strong>",
+    "<ul><li>El color elegido antes para el fondo de la burbuja ya no se aplica; un acento elegido antes entre verde, amarillo, rosa, naranja o morado se muestra como «Personalizado» con el mismo código de color.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "Esta actualización no requiere migración de datos; el campo userBubbleColor de los ajustes se descarta al leerlos."
+  ],
+  "17.14.1": [
+    "<strong>Notas de la versión de Noureon 17.14.1</strong>",
+    "Esta versión corrige tres problemas de visualización notificados tras el modo oscuro de la 17.14.0 y cambia el nombre del ajuste a «Apariencia».",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Ajustes en el teléfono:</strong> en modo oscuro, toda la página de ajustes era translúcida y dejaba ver la barra lateral detrás; ahora tiene un fondo opaco.</li><li><strong>Desvanecido de la barra lateral:</strong> el desvanecido en la parte superior e inferior de la barra lateral no coincidía con su color, por lo que aparecía una banda más clara en modo oscuro y el texto de la lista se veía por la rendija; ahora el desvanecido usa el mismo color que la barra lateral.</li><li><strong>Vista previa de archivos:</strong> el fondo bajo las páginas de una vista previa, como las presentaciones, es más oscuro en modo oscuro, los números de página siguen el color del texto y vuelven a leerse, y el borde de una diapositiva tiene una línea fina en modo oscuro.</li><li><strong>Nombre del ajuste:</strong> «Modo de color» en Ajustes → Personalización → Apariencia pasa a llamarse «Apariencia».</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "Esta actualización no requiere migración de datos."
+  ],
+  "17.14.0": [
+    "<strong>Notas de la versión de Noureon 17.14.0</strong>",
+    "Esta versión añade un modo oscuro y reúne los colores de la interfaz bajo un único conjunto de nombres fijos.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Apariencia:</strong> Ajustes → Personalización → Apariencia incluye una nueva opción «Apariencia»: claro, oscuro o seguir el sistema. El predeterminado es el claro; la elección se aplica al instante y se sincroniza con los ajustes de la nube. El tema oscuro es un gris oscuro.</li><li><strong>Todas las pantallas:</strong> la pantalla principal, la barra lateral, las conversaciones, todas las pestañas de ajustes, los diálogos, la tienda de herramientas de línea de comandos, la tienda de Nouras, la búsqueda, la investigación profunda, el panel de datos personales con sus gráficos y los paneles de citas y fuentes tienen versión oscura; las vistas previas de archivos (Word, PDF, presentaciones, hojas de cálculo) y las imágenes generadas conservan un fondo blanco, como el papel.</li><li><strong>Un solo conjunto de colores:</strong> el texto tiene tres niveles y los fondos tres capas, con líneas, acento, colores de estado y sombras comunes; el texto pálido del tema claro (sugerencias, hora de los mensajes) es más oscuro y su contraste sobre blanco sube de 2,5 a unos 3,5.</li><li><strong>Pantalla de inicio:</strong> con el tema oscuro, la página ya no parpadea en blanco al abrirse; la barra del navegador, la barra de estado de una aplicación instalada y su pantalla de lanzamiento también son oscuras. La aplicación de la pantalla de inicio en iPhone y iPad tiene una imagen de inicio clara y otra oscura, según la apariencia del dispositivo.</li></ul>",
+    "<strong>Notas</strong>",
+    "<ul><li>La imagen de inicio en iPhone y iPad sigue la apariencia del dispositivo, no la apariencia ajustada en la aplicación; la pantalla de un modelo nuevo que aún no figura en la lista arranca en blanco.</li><li>Tras cambiar el ajuste de apariencia, una aplicación instalada solo cambia su pantalla de lanzamiento cuando el navegador comprueba la siguiente actualización.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "Esta actualización no requiere migración de datos; los ajustes ganan un campo colorScheme que las versiones anteriores ignoran."
   ],
   "17.13.0": [
     "<strong>Notas de la versión de Noureon 17.13.0</strong>",

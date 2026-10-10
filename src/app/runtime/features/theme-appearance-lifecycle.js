@@ -1,6 +1,12 @@
 import {
+    accentForDarkTheme,
     getTextColorForBackground as getThemeTextColorForBackground,
 } from '../../../utils/color-contrast.js';
+import { bubbleColorsFor } from '../../../utils/accent-bubble.js';
+import { createColorScheme } from './color-scheme.js';
+
+// The accent when the person has not chosen a colour of their own: the blue of the theme in use.
+const DEFAULT_ACCENT = Object.freeze({ light: '#3b82f6', dark: '#5b9bff' });
 
 export function createThemeAppearanceLifecycle(dependencies = {}) {
     const {
@@ -9,27 +15,49 @@ export function createThemeAppearanceLifecycle(dependencies = {}) {
         elements: ALL_ELEMENTS,
         state,
         i18n,
-        UI_THEME_COLORS,
-        setUserBubbleColor
+        UI_THEME_COLORS
     } = dependencies;
+
+    // The theme shown now ('light' or 'dark'): the black of the accent menu is white in the dark theme.
+    let shownTheme = 'light';
+    let refreshColorChoices = () => {};
+    const colorScheme = createColorScheme({ window, document, onThemeChange: () => applyUiTheme() });
 
     const applyUiTheme = () => {
         const root = document.documentElement;
-        const primaryBg = state.config.uiTheme.mode === 'custom'
-            ? state.config.uiTheme.customColor
-            : '#3b82f6';
+        // The light or the dark theme first (the accent below follows it).
+        const theme = colorScheme.apply(state.config.colorScheme);
+        const chosen = state.config.uiTheme.mode === 'custom' ? state.config.uiTheme.customColor : null;
+        const primaryBg = chosen ? (theme === 'dark' ? accentForDarkTheme(chosen) : chosen) : DEFAULT_ACCENT[theme];
         root.style.setProperty('--button-primary-bg', primaryBg);
         root.style.setProperty('--button-primary-text', getThemeTextColorForBackground(primaryBg));
         root.style.removeProperty('--button-primary-bg-override');
+        // The message bubble: the one of the chosen accent (or worked out from a colour of the person's own), see utils/accent-bubble.js.
+        const bubble = bubbleColorsFor(chosen || UI_THEME_COLORS.default, theme, UI_THEME_COLORS);
+        root.style.setProperty('--user-bubble-bg', bubble.bg);
+        root.style.setProperty('--user-bubble-text', bubble.text);
+        shownTheme = theme;
+        refreshColorChoices();
     };
 
     const COLOR_LABEL_KEYS = {
-        default: ['colorDefault', 'Default'],
+        default: ['colorBlue', 'Blue'],
+        cyan: ['colorCyan', 'Cyan'],
         green: ['colorGreen', 'Green'],
+        lime: ['colorLime', 'Lime'],
         yellow: ['colorYellow', 'Yellow'],
-        pink: ['colorPink', 'Pink'],
         orange: ['colorOrange', 'Orange'],
-        purple: ['colorPurple', 'Purple']
+        pink: ['colorPink', 'Pink'],
+        magenta: ['colorMagenta', 'Magenta'],
+        purple: ['colorPurple', 'Purple'],
+        black: ['colorBlack', 'Black']
+    };
+    // In the dark theme the black choice is white (the accent of the dark theme is the light grey of its black-and-white main button).
+    const labelKeysFor = (choice) => (choice === 'black' && shownTheme === 'dark' ? ['colorWhite', 'White'] : COLOR_LABEL_KEYS[choice]);
+    // The colour of the dot of a choice as the theme shows it.
+    const dotHexFor = (choice, hex) => {
+        if (shownTheme !== 'dark') return hex;
+        return choice === 'default' ? DEFAULT_ACCENT.dark : accentForDarkTheme(hex);
     };
     const CUSTOM_CHOICE = 'custom';
     // #RGB or #RRGGBB, with or without the #, in any case; the colour input wants #rrggbb.
@@ -54,8 +82,8 @@ export function createThemeAppearanceLifecycle(dependencies = {}) {
         const text = (key, fallback) => i18n?.[state.config.uiLanguage]?.[key] || fallback;
         const labelFor = (choice) => (choice === CUSTOM_CHOICE
             ? text('colorCustom', 'Custom')
-            : text(...COLOR_LABEL_KEYS[choice]));
-        const hexFor = (choice) => (choice === CUSTOM_CHOICE ? customColorInput.value : UI_THEME_COLORS[choice]);
+            : text(...labelKeysFor(choice)));
+        const hexFor = (choice) => dotHexFor(choice, choice === CUSTOM_CHOICE ? customColorInput.value : UI_THEME_COLORS[choice]);
         const hexText = customColorPickerContainer.querySelector('.pz-hex-text');
         const showHex = () => {
             customColorPickerContainer.querySelector('.color-dot').style.backgroundColor = customColorInput.value;
@@ -100,7 +128,7 @@ export function createThemeAppearanceLifecycle(dependencies = {}) {
             option.className = 'color-option';
             option.dataset.choice = id;
             option.setAttribute('role', 'option');
-            if (id !== CUSTOM_CHOICE) option.appendChild(dot(UI_THEME_COLORS[id]));
+            if (id !== CUSTOM_CHOICE) option.appendChild(dot(hexFor(id)));
             const label = document.createElement('span');
             label.className = 'color-option-label';
             label.textContent = labelFor(id);
@@ -158,6 +186,16 @@ export function createThemeAppearanceLifecycle(dependencies = {}) {
 
         uiColorOptions.replaceChildren(button, menu);
         renderButton();
+        // A change of theme (the choice in the settings, or the device) repaints the dots and the names (black or white).
+        refreshColorChoices = () => {
+            menu.querySelectorAll('.color-option').forEach((option) => {
+                const id = option.dataset.choice;
+                if (id === CUSTOM_CHOICE) return;
+                option.querySelector('.color-dot').style.backgroundColor = hexFor(id);
+                option.querySelector('.color-option-label').textContent = labelFor(id);
+            });
+            renderButton();
+        };
 
         if (!closeMenuOnOutsideClickBound) {
             closeMenuOnOutsideClickBound = true;
@@ -167,13 +205,8 @@ export function createThemeAppearanceLifecycle(dependencies = {}) {
         }
     };
 
-    const applyBubbleColors = () => {
-        setUserBubbleColor();
-    };
-
     return {
         applyUiTheme,
-        renderUiColorOptions,
-        applyBubbleColors
+        renderUiColorOptions
     };
 }

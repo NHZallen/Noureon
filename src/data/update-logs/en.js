@@ -1,13 +1,109 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
-  "17.14.0": [
-    "<strong>Noureon 17.14.0 Release Notes</strong>",
+  "18.3.0": [
+    "<strong>Noureon 18.3.0 Release Notes</strong>",
     "This version improves the waiting screen while an image is being generated: a dot animation with stage captions.",
     "<strong>Main changes</strong>",
     "<ul><li><strong>Dot animation:</strong> the waiting block shows a moving cloud pattern made of dots. The dots use the accent colour currently selected, and stay clear in both light and dark mode. When the system is set to reduce motion, a single still pattern is shown instead.</li><li><strong>Stage captions:</strong> the text at the top left of the block changes with the waiting time: “Creating the image”, “Composing the picture”, “Refining the details”, and after about 40 seconds “Still working. High-quality images take longer”. The captions follow the time and do not report real progress, so no percentage is shown.</li><li><strong>Reopening the page:</strong> when the page is closed and opened again while an image is still being generated on the server, the wait is counted from the real start time, so the captions do not start over.</li><li><strong>Transition on completion:</strong> when the image is ready, the dots fade out and give way to the image.</li></ul>",
     "<strong>Compatibility</strong>",
     "This update requires no data migration."
+  ],
+  "18.2.0": [
+    "<strong>Noureon 18.2.0 Release Notes</strong>",
+    "The Help Center, the Terms of Use and the Privacy Policy have been rewritten in full, with sections and an index, covering every feature and data flow there is now.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Help Center:</strong>a new page, noureon.com/help, with 18 sections from getting started to troubleshooting; the \"Help Center\" in Settings and the footer of the home page link to it.</li><li><strong>Terms of Use:</strong>16 sections on what the service is, responsibility for accounts and data, the limits of AI replies, providers and costs, server-side running and its limits, skills and command tools, prohibited conduct, disclaimer and limitation of liability, and more.</li><li><strong>Privacy Policy:</strong>20 sections explaining what is kept in the browser and in the cloud, what is sent to providers, server-side running and how long keys are kept, the data flow of each feature, memory, voice, peer-to-peer transfer, third-party services and retention.</li><li><strong>Also:</strong>all three documents are in five languages; PRIVACY.md on GitHub is now made from the English version.</li></ul>"
+  ],
+  "18.1.0": [
+    "<strong>Noureon 18.1.0 Release Notes</strong>",
+    "The page shown before sign-in has been redone: scroll down to see, in real screens, how the Model Council, deep research and files work, followed by extensions, specs, server-side running, privacy and sign-in.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>New home page:</strong>three scrolling introductions made from screenshots of Noureon's own components, one set for the light and dark themes in each of the five languages; the footer has the updates, GitHub, the official X account @NoureonAi, the terms and the privacy policy.</li><li><strong>Link preview text:</strong>the title and description shown when noureon.com is shared are rewritten.</li><li><strong>Housekeeping:</strong>removed the sample conversations and code of the old home page, which were no longer used.</li></ul>"
+  ],
+  "18.0.0": [
+    "<strong>Noureon 18.0.0 Release Notes</strong>",
+    "This version adds Skills: once you add a skill on the Extensions page, the model follows its instructions. There are 11 official skills; you can also paste your own or upload a zip, and ask the model to help you make one. It is the first major version since the CLI store became the Extensions page.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Extensions page:</strong>the CLI store is now called Extensions and has two parts, Skills and CLI tools; its addresses are shortened to /skill and /cli.</li><li><strong>Skills:</strong>a skill is a SKILL.md file (name, description, text). The skills you paste are kept in your own cloud account, which only you can read and change, up to 50 of them; the lists of added skills are merged between devices item by item.</li><li><strong>Using a skill:</strong>type / in the message box and choose a skill, and that reply follows it; the model can also decide by itself: it sees the name and a line about each skill you allow, and loads the full text only when it needs it (you can turn off \"allow the model to use it by itself\" for each skill, and at most 5 are loaded in a reply). Normal, search and Advanced replies are all supported, on this device and on the server.</li><li><strong>Skills with files:</strong>you can upload a zip (SKILL.md with references, scripts and assets; up to 5 MB and 60 files), which is checked in the browser and again on the server, and refuses programs, installers, links and unsafe paths. The model can read the text files of a skill; Python and shell scripts run only in the server sandbox, with the skill folder mounted read only at /skills. Skills with scripts are not offered in a temporary chat.</li><li><strong>Making skills:</strong>the official Make a skill skill finds out what the skill is for, drafts it, tries it and improves it, then puts a skill draft card in the chat; its button opens a window where you read it all (every file of a draft with files can be read) and press Add to save it. The model cannot save a skill itself.</li><li><strong>11 official skills:</strong>Make a skill, Meeting notes, Proofread, Fact-check, Presentation storyline, Email writer, Research brief, Source comparison, Concept explainer, Document Q&A and Summarize. None is added by default: press + on the Extensions page; each has its name and description in five languages, and answers in the language you use.</li><li><strong>Privacy:</strong>the full text of a skill is sent with the message that uses it to the AI provider you chose (and through the server when the server makes the reply); a skill that is not used is not sent. Settings → Privacy and PRIVACY.md explain it.</li><li><strong>Clean-up:</strong>a zip that no skill points to any more (an account that was deleted, a save that did not finish) is handled by the server's daily clean-up, which only reports until it is switched to removing; nothing is deleted before that.</li><li><strong>Other changes:</strong>the thinking depth slider is a track inside a frame with a thumb ringed in the accent colour; on iPhone, while the keyboard is up, the app ends where the visible area ends, a finger no longer drags the whole page, and the @ list fits the visible area; a colour theme that comes from another device is shown at once.</li></ul>",
+    "<strong>Compatibility</strong>",
+    "This update adds the table user_skills, the bucket user-skill-bundles and a clean-up function (already applied to the live project). For the model to load skills, read skill files and run scripts on the server, the server and the sandbox host need to be updated to this version."
+  ],
+  "17.17.0": [
+    "<strong>Noureon 17.17.0 Release Notes</strong>",
+    "This version gives each accent colour its own message bubble colours and adds white to the accent colours of the dark theme.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Bubble colours:</strong> in the light theme the bubble is a pale tint of the colour with dark letters, in the dark theme a deep shade of it with light letters; each of the ten accent colours has its own pair, instead of the accent simply being thinned out.</li><li><strong>Custom colours:</strong> for a colour you pick yourself, the bubble is worked out between the two neighbouring preset colours with the same proportions (light, depth, tint); a grey custom colour gets a grey bubble.</li><li><strong>Black and white:</strong> the light theme's accent colours include Black; in the dark theme the same choice becomes White (the name and the dot change too, even while the menu is open).</li><li><strong>Follow the system:</strong> with the appearance set to follow the system, when the device switches between light and dark the accent and the bubble colours change at once, with no reload.</li><li><strong>Thinking depth slider:</strong> the slider is now a track inside a frame: the filled part is the accent colour, and the thumb is a dark disc (a light one in the dark theme) ringed with the accent all round, kept inside the frame; the thinking depth button in the input box keeps the width of its longest name, and its name follows the thumb while it is dragged, so the panel above it no longer jumps sideways when the level changes.</li></ul>",
+    "<strong>Compatibility</strong>",
+    "This update requires no data migration."
+  ],
+  "17.16.0": [
+    "<strong>Noureon 17.16.0 Release Notes</strong>",
+    "This version adds a judgement model: when you send a message, OpenRouter's small Decisions model judges whether it needs a web search, a file, a chart or a command tool, instead of guessing from keywords alone.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Four questions at once:</strong> with an OpenRouter key, each message makes one call that asks the judgement model four things (does it need current facts, a file, a chart, a command tool); a probability of 60% or more counts as yes.</li><li><strong>Command tools, carefully:</strong> only the tools you let the model use by itself are decided on (offered this turn or not); tools you choose with @ are always given.</li><li><strong>If it fails, the old way:</strong> with no OpenRouter key, a failed call or one slower than 1 second, the keyword lists decide exactly as before and nothing is shown; after two failures in a row it waits 10 minutes before trying again. Image conversations send nothing.</li><li><strong>Privacy:</strong> the message text (with short excerpts of the last two messages, whether a file is attached, and the names of the command tools you let the model use by itself) is sent to OpenRouter and Noureon keeps none of it; Settings → Privacy and PRIVACY.md say so.</li></ul>",
+    "<strong>Compatibility</strong>",
+    "This update requires no data migration."
+  ],
+  "17.15.4": [
+    "<strong>Noureon 17.15.4 Release Notes</strong>",
+    "This version removes the fade of the side bar list under the search row and makes the fade above the account row leave no cut line.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Under the search row:</strong> the fade is removed; the list simply scrolls under the search row, and the space between the search row and the list is as it was before.</li><li><strong>Above the account row:</strong> the part of the fade closest to the edge is now fully opaque, so text right against the account row is fully covered and then fades in gradually, instead of leaving a cut line of faint half letters; at rest it covers no text of the last row.</li></ul>",
+    "<strong>Compatibility</strong>",
+    "This update requires no data migration."
+  ],
+  "17.15.3": [
+    "<strong>Noureon 17.15.3 Release Notes</strong>",
+    "This version fixes the position of the side bar fade of 17.15.2: the fade stopped some distance from the edge, so part of the list under the search row was still uncovered.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Side bar fade:</strong> the position of the strips that stay at the edges of the list is measured from inside the list's padding, so in 17.15.2 they stuck 16 pixels below the edge, and the text under the search row was not faded at all for that distance and looked cut. The strips now sit exactly at the top and bottom edges of the list; a pixel measurement confirms the text at the edge is fully covered and fades in gradually.</li></ul>",
+    "<strong>Compatibility</strong>",
+    "This update requires no data migration."
+  ],
+  "17.15.2": [
+    "<strong>Noureon 17.15.2 Release Notes</strong>",
+    "This version fixes again the seam where the list of the side bar was cut under the search row.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Side bar fade:</strong> the fade was a strip laid over the list from outside, and on an iPhone the scrolling list was drawn above it, so the list was cut at a hard edge under the search row. The fade is now a strip inside the list that stays at its top and bottom edges (the way the chat does it), and it covers the text on an iPhone too.</li><li><strong>Side bar background:</strong> the side bar is opaque, in the colour it used to show when it was see-through; on a phone the chat and the message box no longer show through it, and the fades at its edges match its colour exactly.</li></ul>",
+    "<strong>Compatibility</strong>",
+    "This update requires no data migration."
+  ],
+  "17.15.1": [
+    "<strong>Noureon 17.15.1 Release Notes</strong>",
+    "This version fixes how the field for the P2P share code looks on a phone, the fade at the top and the bottom of the side bar, and raises the contrast of hint text in the dark theme.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>P2P share code field:</strong> on an iPhone the field where the 5-character code is typed, when receiving folders and when receiving Nouras, was drawn with the system's own inner shadow and focus frame and looked broken; it now has the same style as the other fields.</li><li><strong>Side bar fade:</strong> the fade of the list under the search row and above the account row is a longer gradient that eases out, so the first line of text is no longer cut in half; the right panel is adjusted the same way.</li><li><strong>Dark theme hint text:</strong> secondary text and hint text in the dark theme (the hint of the input, times and so on) is brighter, raising its contrast on the colour of a dialog from 2.9 to 4.3.</li></ul>",
+    "<strong>Compatibility</strong>",
+    "This update requires no data migration."
+  ],
+  "17.15.0": [
+    "<strong>Noureon 17.15.0 Release Notes</strong>",
+    "This version renames \"Primary Button Color\" in the settings to \"Accent Color\", replaces its choices with ten new colours, and makes the background of a user message bubble follow the accent.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Accent color:</strong> \"Primary Button Color\" in Settings → Personalization → Appearance is renamed \"Accent Color\", with Blue (the default), Cyan, Green, Lime, Yellow, Orange, Pink, Magenta, Purple, Black and a custom colour code. The whole interface has this one accent: the send button, switches, selected frames and the bubble background all follow it.</li><li><strong>Message bubble:</strong> the \"User Message Bubble Color\" setting is removed; the bubble background is a pale tint of the accent, with a strength that suits the light and the dark theme.</li><li><strong>Dark theme:</strong> an accent that is hard to see on the dark theme is lightened automatically; black shows as a light grey on the dark theme, like the black-and-white main button.</li></ul>",
+    "<strong>Notes</strong>",
+    "<ul><li>The colour that was chosen for the bubble background no longer applies; an accent that was chosen earlier from green, yellow, pink, orange or purple is shown as \"Custom\" with the same colour code.</li></ul>",
+    "<strong>Compatibility</strong>",
+    "This update requires no data migration; the userBubbleColor field of the settings is dropped when they are read."
+  ],
+  "17.14.1": [
+    "<strong>Noureon 17.14.1 Release Notes</strong>",
+    "This version fixes three display problems reported after the dark mode of 17.14.0 and renames the setting to \"Appearance\".",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Settings on a phone:</strong> in dark mode the whole settings page was translucent and showed the side bar behind it; it now has an opaque background.</li><li><strong>Side bar fade:</strong> the fade at the top and the bottom of the side bar did not match the colour of the side bar, so a lighter band appeared in dark mode and the text of the list showed through the gap; the fade now uses the same colour as the side bar.</li><li><strong>File preview:</strong> the board under the pages of a preview, such as slides, is darker in dark mode, the page numbers follow the text colour and are readable again, and the edge of a slide has a thin line in dark mode.</li><li><strong>Name of the setting:</strong> \"Colour mode\" in Settings → Personalization → Appearance is renamed \"Appearance\".</li></ul>",
+    "<strong>Compatibility</strong>",
+    "This update requires no data migration."
+  ],
+  "17.14.0": [
+    "<strong>Noureon 17.14.0 Release Notes</strong>",
+    "This version adds a dark mode and brings the colours of the interface under one fixed set of names.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Appearance:</strong> Settings → Personalization → Appearance has a new \"Appearance\" option with Light, Dark and Follow system. The default is Light; the choice applies at once and is synced with the cloud settings. The dark theme is a dark grey.</li><li><strong>Every screen:</strong> the main screen, the side bar, conversations, all settings tabs, dialogs, the command tool store, the Nouras store, search, deep research, the personal data panel and its charts, and the citation and source panels have a dark version; file previews (Word, PDF, slides, spreadsheets) and generated images keep a white, paper-like background.</li><li><strong>One set of colours:</strong> text has three levels and backgrounds three layers, with shared lines, accent, state colours and shadows; the pale text of the light theme (hints, message times) is darker, raising its contrast on white from 2.5 to about 3.5.</li><li><strong>Start-up screen:</strong> a person who uses the dark theme no longer sees a white flash when the page opens; the browser bar, the status bar of an installed app and its splash screen are dark too. The home-screen app on iPhone and iPad has a light and a dark start-up picture that follow the appearance of the device.</li></ul>",
+    "<strong>Notes</strong>",
+    "<ul><li>The start-up picture on iPhone and iPad follows the appearance of the device, not the Appearance set in the app; the screen of a new model that is not listed yet starts white.</li><li>After the Appearance setting is changed, an installed app changes its splash screen only when the browser next checks for an update.</li></ul>",
+    "<strong>Compatibility</strong>",
+    "This update requires no data migration; the settings gain a colorScheme field that older versions ignore."
   ],
   "17.13.0": [
     "<strong>Noureon 17.13.0 Release Notes</strong>",

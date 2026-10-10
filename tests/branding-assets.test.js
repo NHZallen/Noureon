@@ -16,7 +16,8 @@ async function readPngDimensions(path) {
 test('login header uses the project logo instead of the robot mark', async () => {
   const shell = await readFile(projectFile('src/templates/fragments/00-shell.fragment.js'), 'utf8');
 
-  assert.match(shell, /\/logo\.png/);
+  // The mark of the home page is the project logo cropped to its ring (public/home/logo-mark.png).
+  assert.match(shell, /\/home\/logo-mark\.png/);
   assert.doesNotMatch(shell, /M12 8V4H8/);
 });
 
@@ -43,4 +44,16 @@ test('service worker refreshes and precaches the new logo asset', async () => {
   assert.match(serviceWorker, /'\/logo\.png'/);
   const manifest = JSON.parse(await readFile(projectFile('public/manifest.json'), 'utf8'));
   assert.equal('orientation' in manifest, false);
+});
+
+test('the dark manifest is the manifest with the dark colours, and the dark theme links it before the first paint', async () => {
+  const light = JSON.parse(await readFile(projectFile('public/manifest.json'), 'utf8'));
+  const dark = JSON.parse(await readFile(projectFile('public/manifest-dark.json'), 'utf8'));
+  assert.deepEqual({ ...dark, background_color: light.background_color, theme_color: light.theme_color }, light, 'only the two colours differ');
+  assert.equal(dark.background_color, '#212121');
+  assert.equal(dark.theme_color, '#212121');
+  const init = await readFile(projectFile('public/theme-init.js'), 'utf8');
+  assert.match(init, /manifest\.href\s*=\s*'\/manifest-dark\.json'/);
+  const index = await readFile(projectFile('index.html'), 'utf8');
+  assert.match(index, /html\[data-theme="dark"\]\s*\[data-startup-skeleton\]\s*\{[^}]*background:\s*#212121/, 'the start-up screen is dark too');
 });

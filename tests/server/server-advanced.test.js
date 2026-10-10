@@ -836,3 +836,121 @@ test('a Python tool the host cannot give (no wheel, the host unreachable) is ins
     assert.equal(host.record.commands.filter((command) => command.line.startsWith('pip install')).length, 1, `${pip}: the old way`);
   }
 });
+
+// ----- skills with scripts in the sandbox (docs/superpowers/specs/2026-10-09-skills-design.md, §14.3)
+const SKILL_FILES = [
+  { path: 'references/format.md', size: 8, kind: 'text', bytes: new TextEncoder().encode('# Format') },
+  { path: 'scripts/summary.py', size: 14, kind: 'script', bytes: new TextEncoder().encode('print("summary")') }
+];
+const skillRow = { name: 'sales-report', body: 'Run scripts/summary.py.', files: SKILL_FILES.map(({ path, size, kind }) => ({ path, size, kind })) };
+function skillHost(record) {
+  return {
+    configured: true,
+    getSandbox: () => ({
+      prepare: async () => { record.order.push('prepare'); return {}; },
+      clear: async () => ({}),
+      mount: async () => { record.order.push('mount'); return {}; },
+      mountSkills: async (skills) => { record.order.push('skills'); record.mounts.push(skills); if (record.failMount) throw new Error('host said no'); return { mounted: skills.map((skill) => ({ name: skill.name })) }; },
+      run: async () => ({ stdout: { text: 'ok\n', dropped: 0 }, stderr: { text: '', dropped: 0 }, error: '', elapsedMs: 10, files: [], skippedFiles: [] }),
+      dispose: async () => {}
+    })
+  };
+}
+const skillReply = async ({ rounds, record, skillsSpec = [{ name: 'sales-report', description: 'Builds the sales report.', files: true }], skills, problems = [] }) => {
+  let round = 0;
+  const bodies = [];
+  const result = await executeReply({
+    spec: specFor({ skills: skillsSpec }),
+    secrets,
+    userId: USER,
+    sandboxHost: skillHost(record),
+    files: fakeFiles(),
+    skills: skills || { body: async (userId, name) => (name === 'sales-report' ? skillRow : null), files: async (userId, name) => (name === 'sales-report' ? SKILL_FILES : null), readFile: async () => ({ ok: false, reason: 'failed' }) },
+    onProblem: (name, error) => problems.push([name, String(error?.message || '')]),
+    fetchImpl: async (url, options) => {
+      bodies.push(JSON.parse(options.body));
+      const next = rounds[round];
+      round += 1;
+      return streamResponse(next || sse(content('Done.')));
+    }
+  });
+  return { result, bodies };
+};
+
+test('a skill with scripts loaded before any Python: its folder goes into the sandbox when the sandbox is made, and the model is told it can run the scripts there', async () => {
+  const record = { order: [], mounts: [] };
+  const { result, bodies } = await skillReply({
+    record,
+    rounds: [
+      sse(toolCall('c1', 'load_skill', { name: 'sales-report' })),
+      sse(toolCall('c2', 'run_python', { title: 'Run it', code: 'print("ok")' }))
+    ]
+  });
+  assert.equal(result.status, 'done');
+  assert.deepEqual(record.order, ['prepare', 'mount', 'skills'], 'put in after the input files, when the sandbox is made');
+  assert.equal(record.mounts.length, 1);
+  assert.equal(record.mounts[0][0].name, 'sales-report');
+  assert.deepEqual(record.mounts[0][0].files.map((file) => [file.path, Buffer.from(file.data, 'base64').toString()]), [['references/format.md', '# Format'], ['scripts/summary.py', 'print("summary")']], 'every file of the skill, as base64');
+  assert.match(JSON.stringify(bodies[1].messages), /in \/skills\/sales-report\/: run one with run_command or from Python/);
+});
+
+test('a skill loaded after the sandbox exists is put in at once, with every skill loaded so far', async () => {
+  const record = { order: [], mounts: [] };
+  const { bodies } = await skillReply({
+    record,
+    rounds: [
+      sse(toolCall('c1', 'run_python', { title: 'First', code: 'print(1)' })),
+      sse(toolCall('c2', 'load_skill', { name: 'sales-report' }))
+    ]
+  });
+  assert.deepEqual(record.order, ['prepare', 'mount', 'skills'], 'the sandbox first, then the skill when it was loaded');
+  assert.deepEqual(record.mounts[0].map((skill) => skill.name), ['sales-report']);
+  assert.match(JSON.stringify(bodies.at(-1).messages), /\/skills\/sales-report\//);
+});
+
+test('a skill asked for with "/" that has scripts is in the sandbox from the start, though the model never loads it', async () => {
+  const record = { order: [], mounts: [] };
+  const { result } = await skillReply({
+    record,
+    skillsSpec: [{ name: 'sales-report', description: 'Builds the sales report.', files: true, given: true }],
+    rounds: [sse(toolCall('c1', 'run_python', { title: 'Run it', code: 'print("ok")' }))]
+  });
+  assert.equal(result.status, 'done');
+  assert.deepEqual(record.order, ['prepare', 'mount', 'skills']);
+  assert.equal(record.mounts[0][0].name, 'sales-report');
+});
+
+test('a skill without a script, or whose folder cannot be had or put in, is loaded with the words that its scripts cannot be run', async () => {
+  const noScript = { name: 'notes-only', body: 'Read the notes.', files: [{ path: 'references/a.md', size: 1, kind: 'text' }] };
+  const record1 = { order: [], mounts: [] };
+  const first = await skillReply({
+    record: record1,
+    skillsSpec: [{ name: 'notes-only', description: 'Notes.', files: true }],
+    skills: { body: async () => noScript, files: async () => [{ path: 'references/a.md', size: 1, kind: 'text', bytes: new Uint8Array([97]) }], readFile: async () => ({ ok: true, text: 'a' }) },
+    rounds: [sse(toolCall('c1', 'load_skill', { name: 'notes-only' })), sse(toolCall('c2', 'run_python', { title: 'x', code: 'print(1)' }))]
+  });
+  assert.deepEqual(record1.mounts, [], 'nothing to put in for a skill without a script');
+  assert.doesNotMatch(JSON.stringify(first.bodies[1].messages), /\/skills\/notes-only/);
+
+  // The folder cannot be had (the zip is gone).
+  const record2 = { order: [], mounts: [] };
+  const second = await skillReply({
+    record: record2,
+    skills: { body: async () => skillRow, files: async () => null, readFile: async () => ({ ok: false, reason: 'failed' }) },
+    rounds: [sse(toolCall('c1', 'load_skill', { name: 'sales-report' })), sse(toolCall('c2', 'run_python', { title: 'x', code: 'print(1)' }))]
+  });
+  assert.deepEqual(record2.mounts, []);
+  assert.match(JSON.stringify(second.bodies[1].messages), /The scripts cannot be run in this reply/);
+
+  // The host refuses it: the reply goes on, the model is told, the log is.
+  const record3 = { order: [], mounts: [], failMount: true };
+  const problems = [];
+  const third = await skillReply({
+    record: record3,
+    problems,
+    rounds: [sse(toolCall('c0', 'run_python', { title: 'x', code: 'print(1)' })), sse(toolCall('c1', 'load_skill', { name: 'sales-report' }))]
+  });
+  assert.equal(third.result.status, 'done');
+  assert.match(JSON.stringify(third.bodies.at(-1).messages), /The scripts cannot be run in this reply/);
+  assert.deepEqual(problems.map(([name]) => name), ['skill_folder_failed']);
+});

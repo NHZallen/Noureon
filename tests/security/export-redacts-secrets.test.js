@@ -43,7 +43,6 @@ function createHarness({
     defaultModel: 'model-a',
     theme: 'dark',
     modelSettings: [],
-    userBubbleColor: 'default',
     autoNaming: true,
     enableAutoWebSearch: true,
     memoryEnabled1: true,
@@ -140,7 +139,6 @@ function createHarness({
     compressImage: async (data, mimeType) => ({ data, mimeType, ext: 'png' }),
     applyUiTheme: () => {},
     applyLanguage: () => {},
-    setUserBubbleColor: () => {},
     loadChat: () => {},
     startNewChat: () => {},
     showCustomConfirm: async (...args) => {

@@ -35,6 +35,9 @@ export function dockerRunArgs({ config, sessionId, dirs, language }) {
     '-v', `${dirs.output}:/output:rw`,
     // The programs of the CLI tools: put there by the runner, only read (and run) in the container.
     '-v', `${dirs.cli}:/opt/cli:ro`,
+    // The folders of the skills a reply loaded (mountSkills): written by the runner, only read in the container; /tmp and /work stay as they are, so a script is run by
+    // an interpreter (python /skills/..) and nothing in the container becomes a program by being written.
+    '-v', `${dirs.skills}:/skills:ro`,
     // The Python tools installed once on this machine (pip-cache.js): the whole cache, read only; a session is given a script for each tool it uses.
     '-v', `${config.pipCacheDir}:/opt/pip-cache:ro`,
     // The proxy's socket: the container may connect to it and nothing else.

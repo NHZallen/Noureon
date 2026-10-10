@@ -1,3 +1,4 @@
+import { applyChartThemeDefaults, readThemeColor } from '../../../utils/theme-colors.js';
 export function createModelUsageChartLifecycle({
     Chart,
     document,
@@ -27,6 +28,7 @@ export function createModelUsageChartLifecycle({
         }
         const i18n = getI18n() || {};
         const uiLanguage = getUiLanguage();
+        applyChartThemeDefaults(Chart);
         const chart = new Chart(ctx, {
             type: 'pie',
             data: {
@@ -42,7 +44,8 @@ export function createModelUsageChartLifecycle({
                         'rgba(153, 102, 255, 0.7)',
                         'rgba(255, 159, 64, 0.7)'
                     ],
-                    borderColor: 'rgba(255, 255, 255, 0.8)',
+                    // The slices are separated by the colour of the page.
+                    borderColor: readThemeColor('--chat-bg', 'rgba(255, 255, 255, 0.8)'),
                     borderWidth: 1
                 }]
             },

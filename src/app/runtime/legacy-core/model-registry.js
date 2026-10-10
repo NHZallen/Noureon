@@ -18,6 +18,11 @@ const MODEL_RELEASE_METADATA = Object.freeze({
     'anthropic/claude-opus-5.5': { releasedAt: 20260922, outputPricePerMillion: 20 },
     'anthropic/claude-fable-5.1': { releasedAt: 20260901, outputPricePerMillion: 50 },
     'deepseek/deepseek-v4.1-flash': { releasedAt: 20260910, outputPricePerMillion: 1.2 },
+    // The same Gemini models as the native ones above, reached through OpenRouter (one key instead of Google's): same list prices; the release day is the one OpenRouter
+    // gives (3.8 Flash: 2 September, the native entry says 3 September).
+    'google/gemini-3.8-flash': { releasedAt: 20260902, outputPricePerMillion: 3.75 },
+    'google/gemini-3.5-flash-lite': { releasedAt: 20260721, outputPricePerMillion: 2.5 },
+    'google/gemini-3.1-pro-preview': { releasedAt: 20260219, outputPricePerMillion: 12 },
     'google/gemini-nano-banana-2.1': { releasedAt: 20261006, outputPricePerMillion: 7.5 },
     // Priced per image, not per token: no outputPricePerMillion.
     'black-forest-labs/flux-3-image': { releasedAt: 20261001 },
@@ -36,6 +41,7 @@ const MODEL_RELEASE_METADATA = Object.freeze({
     'qwen/qwen3.7-flash': { releasedAt: 20260727, outputPricePerMillion: 0.13 },
     'qwen/qwen3.7-plus': { releasedAt: 20260603, outputPricePerMillion: 1.28 },
     'qwen/qwen3.8-max-0902': { releasedAt: 20260903, outputPricePerMillion: 6 },
+    'stepfun/step-5-preview': { releasedAt: 20261008, outputPricePerMillion: 2.7 },
     'xiaomi/mimo-v2.6-pro': { releasedAt: 20260921, outputPricePerMillion: 0.87 },
     'xiaomi/mimo-v2.6-flash': { releasedAt: 20260921, outputPricePerMillion: 0.28 },
     'x-ai/grok-4.6': { releasedAt: 20260810, outputPricePerMillion: 6 },
@@ -76,6 +82,12 @@ export const MODEL_CATALOG = [
     // OpenRouter Paid Models (DeepSeek)
     { id: 'deepseek/deepseek-v4.1-flash', legacyIds: ['deepseek/deepseek-v4-flash-0731', 'deepseek/deepseek-v4-flash-vision-exp', 'deepseek/deepseek-v4-pro-0813'], name: 'DeepSeek V4.1 Flash', provider: 'openrouter', descriptionKey: 'model_deepseek_v4_1_flash_desc', category: 'general' },
 
+    // OpenRouter Paid Models (Google): the same models as the native ones at the top, for those who have an OpenRouter key and no Google key.
+    // They share the price line of the native ones (descriptionKey); their search is the one OpenRouter models have (Tavily), not Google's own.
+    { id: 'google/gemini-3.8-flash', name: 'Gemini 3.8 Flash', provider: 'openrouter', descriptionKey: 'model_gemini_3_8_flash_desc', category: 'general' },
+    { id: 'google/gemini-3.5-flash-lite', name: 'Gemini 3.5 Flash Lite', provider: 'openrouter', descriptionKey: 'model_gemini_3_5_flash_lite_desc', category: 'general' },
+    { id: 'google/gemini-3.1-pro-preview', name: 'Gemini 3.1 Pro Preview', provider: 'openrouter', descriptionKey: 'model_gemini_3_1_pro_preview_desc', category: 'general' },
+
     // OpenRouter Image Models (Google)
     { id: 'google/gemini-nano-banana-2.1', legacyIds: ['google/gemini-3.1-flash-image', 'google/gemini-3.1-flash-lite-image', 'google/gemini-3-pro-image'], name: 'Gemini Nano Banana 2.1', provider: 'openrouter', descriptionKey: 'model_gemini_nano_banana_2_1_desc', category: 'image_generation', outputModality: 'image', supportedImageAspectRatios: GEMINI_IMAGE_RATIOS, supportedImageResolutions: GEMINI_IMAGE_RESOLUTIONS },
     // OpenRouter Image Models (Black Forest Labs)
@@ -109,6 +121,9 @@ export const MODEL_CATALOG = [
     { id: 'qwen/qwen3.7-plus', name: 'Qwen3.7 Plus', provider: 'openrouter', descriptionKey: 'model_qwen3_7_plus_desc', category: 'general' },
     { id: 'qwen/qwen3.8-max-0902', legacyIds: ['qwen/qwen3.8-max'], name: 'Qwen3.8 Max 0902', provider: 'openrouter', descriptionKey: 'model_qwen3_8_max_desc', category: 'general' },
 
+    // OpenRouter Paid Models (StepFun): sees pictures, calls tools, thinks at three levels that cannot be turned off, $1 / $2.70 per million tokens in / out.
+    { id: 'stepfun/step-5-preview', name: 'StepFun Step 5 Preview', provider: 'openrouter', descriptionKey: 'model_step_5_preview_desc', category: 'general' },
+
     // OpenRouter Paid Models (Xiaomi)
     { id: 'xiaomi/mimo-v2.6-pro', name: 'Xiaomi MiMo V2.6 Pro', provider: 'openrouter', descriptionKey: 'model_mimo_v2_6_pro_desc', category: 'general' },
     { id: 'xiaomi/mimo-v2.6-flash', name: 'Xiaomi MiMo V2.6 Flash', provider: 'openrouter', descriptionKey: 'model_mimo_v2_6_flash_desc', category: 'general' },
@@ -136,6 +151,9 @@ export const IMAGE_GENERATION_MODEL_IDS = Object.freeze([
 ]);
 export const CHEAP_MODEL_ID = 'gemini-3.5-flash-lite';
 export const OPENROUTER_VISION_MODELS = [
+    'google/gemini-3.8-flash',
+    'google/gemini-3.5-flash-lite',
+    'google/gemini-3.1-pro-preview',
     'anthropic/claude-haiku-5.5',
     'anthropic/claude-sonnet-5.5',
     'anthropic/claude-opus-5.5',
@@ -150,6 +168,7 @@ export const OPENROUTER_VISION_MODELS = [
     'qwen/qwen3.7-flash',
     'qwen/qwen3.7-plus',
     'qwen/qwen3.8-max-0902',
+    'stepfun/step-5-preview',
     'xiaomi/mimo-v2.6-pro',
     'xiaomi/mimo-v2.6-flash',
     'z-ai/glm-5.3-flash',
@@ -169,6 +188,9 @@ export const TOOL_CALLING_MODEL_IDS = Object.freeze([
     'gemini-3.8-flash',
     'gemini-3.5-flash-lite',
     'gemini-3.1-pro-preview',
+    'google/gemini-3.8-flash',
+    'google/gemini-3.5-flash-lite',
+    'google/gemini-3.1-pro-preview',
     'anthropic/claude-haiku-5.5',
     'anthropic/claude-sonnet-5.5',
     'anthropic/claude-opus-5.5',
@@ -187,6 +209,7 @@ export const TOOL_CALLING_MODEL_IDS = Object.freeze([
     'qwen/qwen3.7-flash',
     'qwen/qwen3.7-plus',
     'qwen/qwen3.8-max-0902',
+    'stepfun/step-5-preview',
     'xiaomi/mimo-v2.6-pro',
     'xiaomi/mimo-v2.6-flash',
     'x-ai/grok-4.6',
@@ -235,6 +258,10 @@ export const MODEL_REASONING_CONFIGS = createReasoningConfigs([
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'high', ['anthropic/claude-fable-5.1']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'medium', ['anthropic/claude-opus-5.5']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'high', 'max'], 'high', ['deepseek/deepseek-v4.1-flash']],
+    // The Gemini models through OpenRouter take the same levels as their native twins (OpenRouter maps the effort to Gemini's thinking level).
+    [OPENROUTER_REASONING_EFFORT, LOW_MEDIUM_HIGH, 'medium', ['google/gemini-3.8-flash']],
+    [OPENROUTER_REASONING_EFFORT, ['minimal', 'low', 'medium', 'high'], 'minimal', ['google/gemini-3.5-flash-lite']],
+    [OPENROUTER_REASONING_EFFORT, LOW_MEDIUM_HIGH, 'high', ['google/gemini-3.1-pro-preview']],
     [OPENROUTER_REASONING_EFFORT, ['minimal', 'high'], 'minimal', ['google/gemini-nano-banana-2.1']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium'], 'medium', ['nvidia/nemotron-3-super-120b-a12b:free'], { supportsMaxTokens: true }],
     [OPENROUTER_REASONING_EFFORT, ['medium', 'high'], 'high', ['nvidia/nemotron-3-ultra-550b-a55b:free'], { supportsMaxTokens: true }],
@@ -243,6 +270,8 @@ export const MODEL_REASONING_CONFIGS = createReasoningConfigs([
     [OPENROUTER_REASONING_EFFORT, ['none', 'low', 'medium', 'high', 'xhigh', 'max'], 'medium', ['openai/gpt-6-luna', 'openai/gpt-5.6-terra']],
     // GPT-6.1 Sol has no "none" (OpenAI docs, OpenRouter model page: low, medium, high, xhigh, max; default medium).
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'medium', ['openai/gpt-6.1-sol']],
+    // Step 5 Preview thinks at three levels and cannot be turned off (the owner, from OpenRouter's model page; default level: medium).
+    [OPENROUTER_REASONING_EFFORT, LOW_MEDIUM_HIGH, 'medium', ['stepfun/step-5-preview']],
     [OPENROUTER_REASONING_EFFORT, ['none', 'high'], 'high', ['xiaomi/mimo-v2.6-pro', 'xiaomi/mimo-v2.6-flash']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'high', 'max'], 'high', ['moonshotai/kimi-k3']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh'], 'high', ['x-ai/grok-4.6']],

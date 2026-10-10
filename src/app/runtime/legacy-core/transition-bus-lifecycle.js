@@ -55,7 +55,6 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         saveSensitiveConfig,
         setTheme,
         updateThemeButtons,
-        setUserBubbleColor,
         saveConfig,
         saveAppData,
         deleteConversationsFromCloud,
@@ -254,10 +253,8 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         hashString,
         constantTimeEqual,
         requestAnimationFrame,
-        applyBubbleColors,
         applyUiTheme,
         applyLanguage,
-        setUserBubbleColor,
         loadChat,
         getOutputMode,
         resolveUploadUpdateInputState,
@@ -735,7 +732,6 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         UI_THEME_COLORS: uiThemeColors,
         setTheme,
         updateThemeButtons,
-        setUserBubbleColor,
         saveConfig,
         saveAppData,
         deleteConversationsFromCloud,
@@ -845,7 +841,6 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
     function updateTimeDistributionChart(...args) { return resolveCoreTailFunction('updateTimeDistributionChart')(...args); }
     function applyUiTheme(...args) { return resolveCoreTailFunction('applyUiTheme')(...args); }
     function renderUiColorOptions(...args) { return resolveCoreTailFunction('renderUiColorOptions')(...args); }
-    function applyBubbleColors(...args) { return resolveCoreTailFunction('applyBubbleColors')(...args); }
     function openStore(...args) { return resolveCoreTailFunction('openStore')(...args); }
     function closeStore(...args) { return resolveCoreTailFunction('closeStore')(...args); }
     function renderStore(...args) { return resolveCoreTailFunction('renderStore')(...args); }
@@ -904,7 +899,6 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         updateTimeDistributionChart,
         applyUiTheme,
         renderUiColorOptions,
-        applyBubbleColors,
         openStore,
         closeStore,
         renderStore,

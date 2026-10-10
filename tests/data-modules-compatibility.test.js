@@ -6,17 +6,15 @@ import { PRODUCT_VERSION } from '../src/data/version.js';
 
 const EXPECTED_DATA_IMPORT_ORDER = [
   './data/i18n.js',
-  './data/demo-conversations.js',
   './data/astras-data.js',
   './data/update-logs.js'
 ];
-const EXPECTED_DEMO_CONVERSATION_KEYS = ['proMax', 'proPV', 'pro', 'plusPV', 'mini', 'mill', 'nano'];
 const EXPECTED_ASTRA_COUNT = 11;
 const EXPECTED_FIRST_ASTRA_ID = 'official-writer-01';
-const EXPECTED_UPDATE_LOG_COUNT = 120;
+const EXPECTED_UPDATE_LOG_COUNT = 132;
 // Derived, not copied: the newest update-log entry is by definition the product version.
 const EXPECTED_LATEST_UPDATE_VERSION = PRODUCT_VERSION;
-const GLOBAL_KEYS_TO_RESTORE = ['window', 'i18n', 'demoConversations', 'OFFICIAL_ASTRAS', 'updateLogs'];
+const GLOBAL_KEYS_TO_RESTORE = ['window', 'i18n', 'OFFICIAL_ASTRAS', 'updateLogs'];
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 
@@ -100,27 +98,6 @@ test('astras data module keeps official astras export and global compatibility',
       assert.equal(typeof astra.category, 'string', `astra ${index} should keep a category`);
       assert.equal(typeof astra.description, 'string', `astra ${index} should keep a description`);
       assert.equal(typeof astra.instructions, 'string', `astra ${index} should keep instructions`);
-    }
-  });
-});
-
-test('demo conversations data module keeps window bridge and export compatibility', async () => {
-  await withGlobalSnapshot(async () => {
-    delete globalThis.demoConversations;
-    globalThis.window = {};
-
-    const module = await importFresh('src/data/demo-conversations.js');
-    const demoConversations = module.default;
-
-    assert.ok(demoConversations);
-    assert.equal(module.demoConversations, demoConversations);
-    assert.equal(globalThis.demoConversations, demoConversations);
-    assert.equal(globalThis.window.demoConversations, demoConversations);
-    assert.deepEqual(Object.keys(demoConversations), EXPECTED_DEMO_CONVERSATION_KEYS);
-
-    for (const key of EXPECTED_DEMO_CONVERSATION_KEYS) {
-      assert.equal(typeof demoConversations[key], 'string', `${key} demo conversation should remain a string`);
-      assert.ok(demoConversations[key].length > 0, `${key} demo conversation should not be empty`);
     }
   });
 });

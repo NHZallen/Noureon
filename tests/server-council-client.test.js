@@ -314,3 +314,20 @@ test('what the page sends is what the server accepts (the request of every kind 
     assert.equal(checked.spec.kind, 'council');
   }
 });
+
+test('the skills asked for with "/" in the message are in what every kind of council call is told, and nothing is added when none was asked for', async () => {
+  const { registerSkillMode } = await import('../src/app/runtime/skill/skill-bridge.js');
+  const { skillIndicatorId } = await import('../src/data/skill-prompt.js');
+  registerSkillMode({ resolve: async (names) => names.filter((name) => name === 'meeting-notes').map((name) => ({ name, body: 'List the decisions first.' })) });
+  try {
+    const asked = harness();
+    await asked.reply.startCouncil(startArgs({ userParts: [{ text: 'compare plans', displaySegments: [{ type: 'mode', indicatorId: skillIndicatorId('meeting-notes'), label: 'meeting-notes' }, { type: 'text', text: 'compare plans' }] }] }));
+    assert.equal(asked.described.length, 2);
+    for (const options of asked.described) assert.match(options.additionalSystemInstruction, /<skill name="meeting-notes">\nList the decisions first\.\n<\/skill>/);
+    const plain = harness();
+    await plain.reply.startCouncil(startArgs());
+    for (const options of plain.described) assert.equal('additionalSystemInstruction' in options, false);
+  } finally {
+    registerSkillMode(null);
+  }
+});

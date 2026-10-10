@@ -497,7 +497,7 @@ export async function initializeSupabaseAuthBridge({ window, document, startupId
     event.stopImmediatePropagation();
     if (!window.confirm(getAuthText(elements, 'confirmLogout', '您確定要登出嗎？'))) return;
     try {
-      await supabase.auth.signOut();
+      await supabase.auth.signOut({ scope: 'local' });
     } catch (error) {
       console.warn('Supabase sign out failed; clearing local session marker anyway.', error);
     }

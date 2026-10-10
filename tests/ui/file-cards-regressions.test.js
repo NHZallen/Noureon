@@ -11,7 +11,8 @@ test('file card colours follow the text colour so they stay legible', () => {
   assert.doesNotMatch(cardRule, /input-field-bg/);
   assert.match(cardRule, /background: color-mix\(in srgb, var\(--text-primary/);
   assert.match(css, /\.ac-file-action \.ac-file-action-icon \{[\s\S]*?color: inherit;/, 'overrides the global body svg colour');
-  assert.match(css, /\.ac-file-preview \{[\s\S]*?--text-primary: #111827;/, 'the always-light dialog pins dark text');
+  assert.doesNotMatch(css, /\.ac-file-preview \{[\s\S]*?--text-primary: #111827;/, 'the dialog follows the theme');
+  assert.match(css, /\.ac-file-preview-pages > :not\(\.ac-file-preview-note\)[^{]*\{[^}]*color: var\(--paper-text\);/, 'the pages inside are paper: dark text on white');
 });
 
 test('file card styles ship with the lazily loaded chat runtime, not the startup stylesheet', () => {

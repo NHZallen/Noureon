@@ -632,3 +632,56 @@ test('a reply that searched the web but ran no Python has the one line with how 
     cleanup();
   }
 });
+
+test('the model may load a skill next to Python: the tool is offered with the list, the call is answered with the skill\'s text, and a row says so', async () => {
+  const { createSkillLoader } = await import('../../src/data/skill-tool.js');
+  const model = scriptedModel([
+    { calls: [{ id: 's1', name: 'load_skill', arguments: '{"name":"write-up"}', args: { name: 'write-up' } }] },
+    { text: 'Written with the skill.' }
+  ]);
+  const { sandbox, runs } = fakeSandbox([]);
+  const events = [];
+  const loader = createSkillLoader({ available: [{ name: 'write-up', description: 'Use for polishing writing.' }], lookup: async (name) => ({ name, body: 'Keep the meaning.' }) });
+  const result = await runSandboxReply({ streamApiCall: model.streamApiCall, requestParts: [{ text: 'polish this' }], getSandbox: () => sandbox, language: 'en', skills: loader, onEvent: (event) => events.push(event) });
+  assert.equal(result.text, 'Written with the skill.');
+  assert.deepEqual(runs, [], 'no Python was needed');
+  assert.ok(model.requests[0].tools.some((tool) => tool.name === 'load_skill'), 'the tool is offered next to Python');
+  assert.match(model.requests[0].additionalSystemInstruction, /- write-up: Use for polishing writing\./);
+  assert.ok(events.some((event) => event.type === 'skill' && event.label === 'Loading skill: write-up'));
+  const turn = model.requests[1].toolTurns[0];
+  assert.equal(turn.results[0].name, 'load_skill');
+  assert.match(turn.results[0].content, /<skill name="write-up">\nKeep the meaning\.\n<\/skill>/);
+  assert.equal(result.run, null, 'a skill alone makes no run record');
+
+  // with no skills the tool is not there
+  const plain = scriptedModel([{ text: 'Plain.' }]);
+  await runSandboxReply({ streamApiCall: plain.streamApiCall, requestParts: [{ text: 'x' }], getSandbox: () => fakeSandbox([]).sandbox });
+  assert.equal(plain.requests[0].tools.some((tool) => tool.name === 'load_skill'), false);
+});
+
+test('the model may read a file of a skill next to Python: the tool comes once the skill is loaded, the file is answered, and the rows say so', async () => {
+  const { createSkillLoader } = await import('../../src/data/skill-tool.js');
+  const model = scriptedModel([
+    { calls: [{ id: 's1', name: 'load_skill', arguments: '{"name":"sales-report"}', args: { name: 'sales-report' } }] },
+    { calls: [{ id: 's2', name: 'read_skill_file', arguments: '{"skill":"sales-report","path":"references/format.md"}', args: { skill: 'sales-report', path: 'references/format.md' } }] },
+    { text: 'Done in bullets.' }
+  ]);
+  const { sandbox, runs } = fakeSandbox([]);
+  const events = [];
+  const files = [{ path: 'references/format.md', size: 22, kind: 'text' }, { path: 'scripts/summary.py', size: 9, kind: 'script' }];
+  const loader = createSkillLoader({
+    available: [{ name: 'sales-report', description: 'Builds the sales report.', files: true }],
+    lookup: async (name) => ({ name, body: 'Read the format.', files }),
+    readFile: async () => ({ ok: true, text: 'Use bullets.', cut: false }),
+    canRun: true
+  });
+  const result = await runSandboxReply({ streamApiCall: model.streamApiCall, requestParts: [{ text: 'report' }], getSandbox: () => sandbox, language: 'en', skills: loader, onEvent: (event) => events.push(event) });
+  assert.equal(result.text, 'Done in bullets.');
+  assert.deepEqual(runs, []);
+  const names = (request) => request.tools.map((tool) => tool.name).filter((name) => name.endsWith('skill') || name.endsWith('skill_file'));
+  assert.deepEqual(names(model.requests[0]), ['load_skill']);
+  assert.deepEqual(names(model.requests[1]), ['load_skill', 'read_skill_file']);
+  assert.deepEqual(events.filter((event) => event.type === 'skill').map((event) => event.label), ['Loading skill: sales-report', 'Reading skill file: references/format.md']);
+  assert.match(model.requests[1].toolTurns[0].results[0].content, /The scripts are in the sandbox, read only, in \/skills\/sales-report\//);
+  assert.match(model.requests[2].toolTurns[1].results[0].content, /<skill-file skill="sales-report" path="references\/format.md">\nUse bullets\.\n<\/skill-file>/);
+});

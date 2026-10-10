@@ -84,6 +84,7 @@ const createHarness = (overrides = {}) => {
       calls.push(['requestFrame']);
       callback();
     },
+    ...(overrides.requestDecisions ? { requestDecisions: overrides.requestDecisions } : {}),
     ...(overrides.onConversationStarted ? { onConversationStarted: overrides.onConversationStarted } : {})
   });
 
@@ -153,11 +154,11 @@ test('prepares user text, uploaded files, temporary conversation, request-scoped
     'renderHistorySidebar',
     'generateTitleAndSummary',
     'saveAppData',
-    'showNotification',
     'addMessageToUI',
     'querySelector',
     'requestFrame',
-    'scrollIntoView'
+    'scrollIntoView',
+    'showNotification'
   ]);
 });
 
@@ -319,6 +320,46 @@ test('a message with a web address enables the search whatever the auto search s
 
   const noAccess = createHarness({ autoWebSearch: true, messageValue: 'Summarise https://example.org/article', conversation: conversation(), canAutoEnableWebSearch: () => false });
   assert.equal((await noAccess.lifecycle.prepareSubmitResponse()).webSearchEnabled, false, 'and not where search cannot work');
+});
+
+test('a judgement of the Decisions model about the message beats the word list for the auto search, and none (null or a failure) leaves the word list in charge', async () => {
+  const conversation = () => ({ archived: false, isTemporary: false, isWebSearchEnabled: false, messages: [], provider: 'openrouter', unsentMessage: '' });
+  const asked = [];
+  const no = createHarness({
+    autoWebSearch: true,
+    messageValue: 'What are the latest news headlines?',
+    conversation: conversation(),
+    requestDecisions: async (input) => { asked.push(input); return { search: 0.1, file: 0, chart: 0, tool: null }; }
+  });
+  assert.equal((await no.lifecycle.prepareSubmitResponse()).webSearchEnabled, false, 'judged not to need the web: no search although the words say news');
+  assert.equal(asked.length, 1);
+  assert.equal(asked[0].userMessage, 'What are the latest news headlines?');
+
+  const yes = createHarness({
+    autoWebSearch: true,
+    messageValue: 'Tell me a story',
+    conversation: conversation(),
+    requestDecisions: async () => ({ search: 0.9, file: 0, chart: 0, tool: null })
+  });
+  assert.equal((await yes.lifecycle.prepareSubmitResponse()).webSearchEnabled, true, 'judged to need the web: search although no word says so');
+
+  for (const answer of [async () => null, async () => { throw new Error('offline'); }]) {
+    const fallback = createHarness({
+      autoWebSearch: true,
+      messageValue: 'What are the latest news headlines?',
+      conversation: conversation(),
+      requestDecisions: answer
+    });
+    assert.equal((await fallback.lifecycle.prepareSubmitResponse()).webSearchEnabled, true, 'no judgement: the word list decides as before');
+  }
+
+  const off = createHarness({
+    autoWebSearch: false,
+    messageValue: 'Tell me a story',
+    conversation: conversation(),
+    requestDecisions: async () => ({ search: 0.95, file: 0, chart: 0, tool: null })
+  });
+  assert.equal((await off.lifecycle.prepareSubmitResponse()).webSearchEnabled, false, 'auto search off stays off whatever the judgement says');
 });
 
 test('local auto web search detection does not wait for a model classifier', async () => {

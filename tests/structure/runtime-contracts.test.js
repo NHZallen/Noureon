@@ -9,7 +9,6 @@ const CORE_TAIL_BINDING_NAMES = [
   'updateTimeDistributionChart',
   'applyUiTheme',
   'renderUiColorOptions',
-  'applyBubbleColors',
   'openStore',
   'closeStore',
   'renderStore',

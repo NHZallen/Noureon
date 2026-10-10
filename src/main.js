@@ -37,6 +37,10 @@ import { easeSavedDetails } from './app/ui/motion/collapse-motion.js';
 import { watchSourceIcons } from './app/ui/sandbox/run-sources.js';
 import { keepScrollBoxesOffTheirEdges, settleScrollBoxesOffTheirEdges } from './app/ui/motion/reader-scroll-guard.js';
 import { installPressFeedback } from './app/ui/motion/press-feedback.js';
+import { installViewportLock } from './app/runtime/features/viewport-lock.js';
+
+// The app follows what is seen on a phone (the keyboard, the browser's bars): see viewport-lock.js.
+installViewportLock(window, document);
 
 const recordBootstrapMilestone = (markName, measureName) => {
   markStartup(markName);
@@ -82,7 +86,6 @@ async function bootstrap() {
   );
   const startupDataReady = Promise.all([
     import('./data/i18n.js'),
-    import('./data/demo-conversations.js'),
     import('./data/astras-data.js'),
     import('./data/update-logs.js'),
     import('./data/version.js'),

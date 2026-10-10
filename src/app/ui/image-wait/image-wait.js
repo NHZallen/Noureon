@@ -5,7 +5,7 @@
 // How long it has been, in seconds, when each stage begins. The last one is the honest one: it is taking long, and a picture of high quality does.
 export const IMAGE_WAIT_STAGE_STARTS = Object.freeze([0, 6, 16, 40]);
 const STAGE_KEYS = Object.freeze(['imageWaitStage1', 'imageWaitStage2', 'imageWaitStage3', 'imageWaitStage4']);
-const FALLBACK_COLOR = '#3b82f6';
+const FALLBACK_COLOR = 'currentColor';
 const CELL = 14; // px between two dots
 const FRAME_MS = 1000 / 30;
 

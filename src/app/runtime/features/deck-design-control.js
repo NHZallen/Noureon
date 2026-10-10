@@ -75,30 +75,40 @@ export function createDeckDesignControl({
 
   // Opens above the composer when there is room (the composer is usually at
   // the bottom), otherwise below it (a new chat centres the composer), and
-  // never taller than the space on that side.
+  // never taller than the space on that side. On a phone the panel hangs from
+  // the top edge of the whole composer box (its offset parent: the style gives
+  // the control no position of its own there), so it ends above the box and
+  // does not cover the editor, like the model panel and the "+" menu; it rises
+  // to just under the row of buttons at the top of the screen.
   const EDGE = 12;
-  const GAP = 8;
   const PREFERRED_HEIGHT = 544;
   const MIN_ABOVE = 320;
   const PREFERRED_WIDTH = 400;
+  const PHONE_WIDTH = 768;
+  const PHONE_GAP = 12;
+  const PHONE_TOP_ROOM = 56;
   const place = (button, popover) => {
     const rect = button.getBoundingClientRect();
     const viewportHeight = window?.innerHeight || document.documentElement.clientHeight || 800;
     const viewportWidth = window?.innerWidth || document.documentElement.clientWidth || 1024;
+    const phone = viewportWidth <= PHONE_WIDTH;
+    const gap = phone ? PHONE_GAP : 8;
     // Horizontally: as wide as fits, starting at the control and shifted left
     // when it would run off the right edge (phones).
     const anchor = (popover.offsetParent || button.parentElement || button).getBoundingClientRect();
     const width = Math.max(200, Math.min(PREFERRED_WIDTH, viewportWidth - EDGE * 2));
     const left = Math.min(Math.max(anchor.left, EDGE), viewportWidth - EDGE - width);
     Object.assign(popover.style, { width: `${width}px`, left: `${Math.round(left - anchor.left)}px` });
-    const above = rect.top - EDGE - GAP;
-    const below = viewportHeight - rect.bottom - EDGE - GAP;
+    // The edge it hangs from: the top of the composer box on a phone (its offset parent), the button elsewhere.
+    const edge = phone ? anchor : rect;
+    const above = edge.top - gap - (phone ? PHONE_TOP_ROOM : EDGE);
+    const below = viewportHeight - edge.bottom - EDGE - gap;
     const down = above < Math.min(MIN_ABOVE, PREFERRED_HEIGHT) && below > above;
     Object.assign(popover.style, {
       top: down ? '100%' : 'auto',
       bottom: down ? 'auto' : '100%',
-      marginTop: down ? `${GAP}px` : '0',
-      marginBottom: down ? '0' : `${GAP}px`,
+      marginTop: down ? `${gap}px` : '0',
+      marginBottom: down ? '0' : `${gap}px`,
       maxHeight: `${Math.max(160, Math.min(PREFERRED_HEIGHT, down ? below : above))}px`,
       transformOrigin: down ? 'top left' : 'bottom left'
     });

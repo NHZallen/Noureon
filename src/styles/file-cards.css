@@ -1,7 +1,7 @@
 /* Downloadable file cards rendered from ```file blocks in model replies. */
 
 .ac-file-card {
-    --ac-file-accent: #64748b;
+    --ac-file-accent: var(--file-default);
     display: flex;
     align-items: center;
     gap: 0.75rem;
@@ -12,26 +12,26 @@
     /* Tints derive from the current text colour, so the card stays legible. */
     border: 1px solid color-mix(in srgb, var(--text-primary, #111827) 12%, transparent);
     border-radius: 0.9rem;
-    background: color-mix(in srgb, var(--text-primary, #111827) 4%, transparent);
-    color: var(--text-primary, #111827);
+    background: color-mix(in srgb, var(--text-primary, var(--gpt-primary-action-bg)) 4%, transparent);
+    color: var(--text-primary);
     box-sizing: border-box;
     font-family: inherit;
     line-height: 1.35;
 }
 
-.ac-file-card[data-file-family="word"] { --ac-file-accent: #2b579a; }
-.ac-file-card[data-file-family="excel"] { --ac-file-accent: #217346; }
-.ac-file-card[data-file-family="powerpoint"] { --ac-file-accent: #c43e1c; }
-.ac-file-card[data-file-family="pdf"] { --ac-file-accent: #d93025; }
-.ac-file-card[data-file-family="csv"] { --ac-file-accent: #1e8e3e; }
-.ac-file-card[data-file-family="markdown"] { --ac-file-accent: #475569; }
-.ac-file-card[data-file-family="code"] { --ac-file-accent: #6d5ce7; }
-.ac-file-card[data-file-family="data"] { --ac-file-accent: #0284c7; }
-.ac-file-card[data-file-family="web"] { --ac-file-accent: #e44d26; }
-.ac-file-card[data-file-family="calendar"] { --ac-file-accent: #d97706; }
-.ac-file-card[data-file-family="contact"] { --ac-file-accent: #7c3aed; }
-.ac-file-card[data-file-family="subtitle"] { --ac-file-accent: #0d9488; }
-.ac-file-card[data-file-family="blocked"] { --ac-file-accent: #9ca3af; }
+.ac-file-card[data-file-family="word"] { --ac-file-accent: var(--file-word); }
+.ac-file-card[data-file-family="excel"] { --ac-file-accent: var(--file-excel); }
+.ac-file-card[data-file-family="powerpoint"] { --ac-file-accent: var(--file-powerpoint); }
+.ac-file-card[data-file-family="pdf"] { --ac-file-accent: var(--file-pdf); }
+.ac-file-card[data-file-family="csv"] { --ac-file-accent: var(--file-csv); }
+.ac-file-card[data-file-family="markdown"] { --ac-file-accent: var(--file-markdown); }
+.ac-file-card[data-file-family="code"] { --ac-file-accent: var(--file-code); }
+.ac-file-card[data-file-family="data"] { --ac-file-accent: var(--file-data); }
+.ac-file-card[data-file-family="web"] { --ac-file-accent: var(--file-web); }
+.ac-file-card[data-file-family="calendar"] { --ac-file-accent: var(--file-calendar); }
+.ac-file-card[data-file-family="contact"] { --ac-file-accent: var(--file-contact); }
+.ac-file-card[data-file-family="subtitle"] { --ac-file-accent: var(--file-subtitle); }
+.ac-file-card[data-file-family="blocked"] { --ac-file-accent: var(--file-blocked); }
 
 .ac-file-icon {
     position: relative;
@@ -69,7 +69,7 @@
     padding: 0.08rem 0.2rem;
     border-radius: 0.25rem;
     background: var(--ac-file-accent);
-    color: #ffffff;
+    color: var(--on-color);
     font-size: 0.52rem;
     font-weight: 700;
     letter-spacing: 0.02em;
@@ -93,7 +93,7 @@
 .ac-file-meta {
     margin-top: 0.12rem;
     overflow: hidden;
-    color: var(--text-secondary, #6b7280);
+    color: var(--text-secondary);
     font-size: 0.78rem;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -101,20 +101,20 @@
 
 .ac-file-notice {
     margin-top: 0.3rem;
-    color: var(--text-secondary, #6b7280);
+    color: var(--text-secondary);
     font-size: 0.76rem;
     line-height: 1.4;
 }
 
 .ac-file-notice-warning,
 .ac-file-notice-incomplete {
-    color: color-mix(in srgb, #b45309 78%, var(--text-primary, #111827));
+    color: color-mix(in srgb, var(--state-warning) 78%, var(--text-primary));
 }
 
 .ac-file-notice-blocked,
 .ac-file-notice-too-large,
 .ac-file-notice-unavailable {
-    color: color-mix(in srgb, #c81e1e 78%, var(--text-primary, #111827));
+    color: color-mix(in srgb, var(--state-danger) 78%, var(--text-primary));
 }
 
 .ac-file-actions {
@@ -135,7 +135,7 @@
     border: 1px solid transparent;
     border-radius: 0.6rem;
     background: transparent;
-    color: var(--text-secondary, #6b7280);
+    color: var(--text-secondary);
     cursor: pointer;
     font: inherit;
     font-size: 0.82rem;
@@ -144,8 +144,8 @@
 }
 
 .ac-file-action:hover {
-    background: var(--hover-bg, rgba(0, 0, 0, 0.05));
-    color: var(--text-primary, #111827);
+    background: var(--hover-bg);
+    color: var(--text-primary);
 }
 
 .ac-file-action:focus-visible {
@@ -249,18 +249,14 @@
 /* Preview dialog */
 
 .ac-file-preview {
-    /* The dialog surface is always light (--modal-bg), so its text must not
-       follow the text colour. */
-    --text-primary: #111827;
-    --text-secondary: #6b7280;
     width: min(56rem, calc(100vw - 2rem));
     max-height: min(85vh, 60rem);
     padding: 0;
-    border: 1px solid var(--border-color, rgba(0, 0, 0, 0.1));
+    border: 1px solid var(--border-color);
     border-radius: 1rem;
-    background: var(--modal-bg, #ffffff);
-    color: var(--text-primary, #111827);
-    box-shadow: 0 24px 64px rgba(15, 23, 42, 0.28);
+    background: var(--modal-bg);
+    color: var(--text-primary);
+    box-shadow: var(--shadow-xl);
     overflow: hidden;
 }
 
@@ -270,7 +266,7 @@
 }
 
 .ac-file-preview::backdrop {
-    background: rgba(15, 23, 42, 0.45);
+    background: var(--scrim);
 }
 
 .ac-file-preview-header {
@@ -297,14 +293,14 @@
     border: none;
     border-radius: 0.5rem;
     background: transparent;
-    color: var(--text-secondary, #6b7280);
+    color: var(--text-secondary);
     cursor: pointer;
     font-size: 1.4rem;
     line-height: 1;
 }
 
 .ac-file-preview-close:hover {
-    background: var(--hover-bg, rgba(0, 0, 0, 0.05));
+    background: var(--hover-bg);
 }
 
 /* The dialog puts the focus on the close button as it opens, and a ring round it on every opening is not wanted. */
@@ -331,7 +327,7 @@
     margin: 0;
     padding: 0.85rem 1rem;
     border-radius: 0.6rem;
-    background: color-mix(in srgb, var(--text-primary, #111827) 5%, transparent);
+    background: color-mix(in srgb, var(--text-primary, var(--gpt-primary-action-bg)) 5%, transparent);
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
     font-size: 0.8rem;
     line-height: 1.55;
@@ -345,7 +341,7 @@
 
 .ac-file-preview-table {
     overflow: auto;
-    border: 1px solid var(--border-color, rgba(0, 0, 0, 0.1));
+    border: 1px solid var(--border-color);
     border-radius: 0.6rem;
 }
 
@@ -359,7 +355,7 @@
 .ac-file-preview-table th,
 .ac-file-preview-table td {
     padding: 0.4rem 0.7rem;
-    border-bottom: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
+    border-bottom: 1px solid var(--border-color);
     text-align: left;
     white-space: nowrap;
 }
@@ -367,7 +363,7 @@
 .ac-file-preview-table th {
     position: sticky;
     top: 0;
-    background: var(--modal-bg, #ffffff);
+    background: var(--modal-bg);
     font-weight: 600;
 }
 
@@ -380,7 +376,7 @@
     justify-content: center;
     padding: 1rem;
     border-radius: 0.6rem;
-    background: repeating-conic-gradient(rgba(148, 163, 184, 0.18) 0% 25%, transparent 0% 50%) 50% / 1rem 1rem;
+    background: repeating-conic-gradient(color-mix(in srgb, var(--text-tertiary) 18%, transparent) 0% 25%, transparent 0% 50%) 50% / 1rem 1rem;
 }
 
 .ac-file-preview-image img {
@@ -390,7 +386,7 @@
 
 .ac-file-preview-note {
     margin: 0.6rem 0 0;
-    color: var(--text-secondary, #6b7280);
+    color: var(--text-secondary);
     font-size: 0.8rem;
 }
 
@@ -406,7 +402,7 @@
     display: inline-flex;
     padding: 0.2rem;
     border-radius: 0.6rem;
-    background: color-mix(in srgb, var(--text-primary, #111827) 6%, transparent);
+    background: color-mix(in srgb, var(--text-primary, var(--gpt-primary-action-bg)) 6%, transparent);
 }
 
 .ac-file-preview-view {
@@ -414,16 +410,16 @@
     border: none;
     border-radius: 0.45rem;
     background: transparent;
-    color: var(--text-secondary, #6b7280);
+    color: var(--text-secondary);
     font-size: 0.82rem;
     font-weight: 500;
     cursor: pointer;
 }
 
 .ac-file-preview-view[aria-pressed="true"] {
-    background: var(--modal-bg, #ffffff);
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
-    color: var(--text-primary, #111827);
+    background: var(--modal-bg, var(--chat-bg));
+    box-shadow: var(--shadow-xs);
+    color: var(--text-primary);
 }
 
 .ac-file-preview-view:focus-visible {
@@ -439,7 +435,7 @@
 .ac-file-preview-pages {
     padding: 1rem;
     border-radius: 0.6rem;
-    background: #e5e7eb;
+    background: var(--page-well);
 }
 
 .ac-file-preview-pages[hidden] {
@@ -448,15 +444,20 @@
 
 .ac-file-preview-status {
     margin: 2rem 0;
-    color: #4b5563;
+    color: var(--text-secondary);
     font-size: 0.85rem;
     text-align: center;
 }
 
 .ac-file-preview-pages > .ac-file-preview-note {
     margin-top: 0.85rem;
-    color: #4b5563;
+    color: var(--text-secondary);
     text-align: center;
+}
+
+/* The pages inside (Word, PDF, slides, sheets, web pages) are paper: white, with dark text whatever the theme is. */
+.ac-file-preview-pages > :not(.ac-file-preview-note):not(.ac-file-preview-status) {
+    color: var(--paper-text);
 }
 
 /* Slides: 16:9 frames drawn from the same layout as the .pptx. */
@@ -480,13 +481,13 @@
     /* The app strokes icon SVGs by default; slide elements set their own. */
     stroke: none;
     border-radius: 0.3rem;
-    background: #ffffff;
-    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.18), 0 6px 18px rgba(15, 23, 42, 0.08);
+    background: var(--paper-bg);
+    box-shadow: 0 0 0 1px var(--paper-ring), var(--paper-shadow);
 }
 
 .ac-slide-caption {
     margin-top: 0.35rem;
-    color: #4b5563;
+    color: color-mix(in srgb, var(--text-primary) 70%, transparent);
     font-size: 0.75rem;
     text-align: center;
     font-variant-numeric: tabular-nums;

@@ -64,6 +64,8 @@ const TEXTS = Object.freeze({
     processOpenHint: '回覆進行時，處理過程預設收成一行「執行中」，點一下才展開；開啟後會直接展開每一步。',
     webSearchingFor: '正在搜尋：{query}',
     webOpeningPage: '正在讀取網頁：{host}',
+    skillLoading: '載入技能：{name}',
+    skillFileReading: '讀取技能檔案：{path}',
     sourcesSearched: '已搜尋 {n} 個網站',
     sourcesRead: '已讀取 {n} 個網頁',
     citeSources: '{n} 個資料來源',
@@ -158,6 +160,8 @@ const TEXTS = Object.freeze({
     processOpenHint: 'While a reply is made, its steps are folded into one line, "Working", that opens when tapped. Turn this on to have them open.',
     webSearchingFor: 'Searching: {query}',
     webOpeningPage: 'Reading page: {host}',
+    skillLoading: 'Loading skill: {name}',
+    skillFileReading: 'Reading skill file: {path}',
     sourcesSearched: 'Searched {n} sites',
     sourcesRead: 'Read {n} pages',
     citeSources: '{n} sources',
@@ -252,6 +256,8 @@ const TEXTS = Object.freeze({
     processOpenHint: 'Pendant une réponse, ses étapes sont réduites à une ligne, « En cours », qui s’ouvre au toucher. Activez pour les voir ouvertes.',
     webSearchingFor: 'Recherche : {query}',
     webOpeningPage: 'Lecture de la page : {host}',
+    skillLoading: 'Chargement de la compétence : {name}',
+    skillFileReading: 'Lecture du fichier de la compétence : {path}',
     sourcesSearched: '{n} sites consultés',
     sourcesRead: '{n} pages lues',
     citeSources: '{n} sources',
@@ -346,6 +352,8 @@ const TEXTS = Object.freeze({
     processOpenHint: 'Пока готовится ответ, его шаги свёрнуты в одну строку «В работе», которая раскрывается по нажатию. Включите, чтобы шаги были раскрыты.',
     webSearchingFor: 'Поиск: {query}',
     webOpeningPage: 'Чтение страницы: {host}',
+    skillLoading: 'Загрузка навыка: {name}',
+    skillFileReading: 'Чтение файла навыка: {path}',
     sourcesSearched: 'Просмотрено сайтов: {n}',
     sourcesRead: 'Прочитано страниц: {n}',
     citeSources: 'Источников: {n}',
@@ -440,6 +448,8 @@ const TEXTS = Object.freeze({
     processOpenHint: 'Mientras se prepara una respuesta, sus pasos se pliegan en una línea, «En curso», que se abre al tocarla. Actívelo para verlos abiertos.',
     webSearchingFor: 'Buscando: {query}',
     webOpeningPage: 'Leyendo la página: {host}',
+    skillLoading: 'Cargando la habilidad: {name}',
+    skillFileReading: 'Leyendo el archivo de la habilidad: {path}',
     sourcesSearched: '{n} sitios consultados',
     sourcesRead: '{n} páginas leídas',
     citeSources: '{n} fuentes',
@@ -484,6 +494,9 @@ export function sandboxText(language, key, values = {}) {
 }
 
 export const sandboxTextsFor = (language) => TEXTS[language] || TEXTS['zh-TW'];
+
+/** The row of the step list for a call about a skill (loader.noteFor in data/skill-tool.js): the skill being loaded, or one of its files being read. */
+export const skillStepEvent = (language, note) => (note ? { type: 'skill', name: note.name, ...(note.path ? { path: note.path } : {}), label: sandboxText(language, note.path ? 'skillFileReading' : 'skillLoading', note) } : null);
 
 const SKIPPED_KEYS = Object.freeze({ 'file-too-large': 'sandboxSkippedLarge', 'total-too-large': 'sandboxSkippedTotal', 'too-many-files': 'sandboxSkippedCount', 'blocked-type': 'sandboxSkippedBlocked', 'not-saved': 'sandboxSkippedNotSaved', quota: 'sandboxSkippedQuota' });
 const megabytes = (bytes) => `${Math.max(1, Math.round(Number(bytes) / (1024 * 1024)))} MB`;

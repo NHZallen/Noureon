@@ -15,8 +15,8 @@
     border-radius: 1rem;
     background-image: radial-gradient(
         circle 150px at var(--spotlight-x) var(--spotlight-y),
-        rgba(255, 255, 255, 0.15) 0%,
-        rgba(255, 255, 255, 0) 100%
+        color-mix(in srgb, var(--on-color) 15%, transparent) 0%,
+        transparent 100%
     );
     opacity: 0;
     transition: opacity 0.3s ease-out;
@@ -128,23 +128,23 @@
 #voice-input-btn-message {
     border-radius: 999px !important;
     background: transparent !important;
-    color: #111827 !important;
+    color: var(--text-primary) !important;
     box-shadow: none !important;
 }
 #add-file-btn:hover,
 #voice-input-btn-message:hover {
     background: transparent !important;
-    color: #111827 !important;
+    color: var(--text-primary) !important;
 }
 #submit-btn {
     border: 0 !important;
     border-radius: 999px !important;
-    background: #3b82f6 !important;
-    color: #ffffff !important;
+    background: var(--button-primary-bg) !important;
+    color: var(--button-primary-text) !important;
     box-shadow: none !important;
 }
 #submit-btn:hover {
-    background: #2563eb !important;
+    background: var(--button-primary-hover-bg) !important;
 }
 #submit-btn:disabled {
     background: var(--button-primary-bg) !important;
@@ -206,7 +206,7 @@
     border: 1px solid color-mix(in srgb, var(--border-color) 84%, transparent);
     border-radius: 0.75rem;
     background: var(--modal-bg);
-    box-shadow: 0 14px 34px rgba(15, 23, 42, 0.16);
+    box-shadow: var(--shadow-lg);
     overflow: hidden;
     transform-origin: bottom right;
 }
@@ -247,7 +247,7 @@
 #message-input:focus {
     outline: none !important;
     box-shadow: none !important;
-    --tw-ring-shadow: 0 0 #0000 !important;
+    --tw-ring-shadow: 0 0 transparent !important;
 }
 /* --- ✨ 這是切換的關鍵！ END --- */
 
@@ -423,4 +423,9 @@
 #file-options-popover #model-council-menu-btn.is-active svg * {
     color: inherit;
     stroke: currentColor;
+}
+
+/* The pictures of the tools are dark drawings: on the dark theme tokens.css inverts them. */
+img[src^="/assets/composer-tools/"] {
+    filter: var(--tool-icon-filter);
 }

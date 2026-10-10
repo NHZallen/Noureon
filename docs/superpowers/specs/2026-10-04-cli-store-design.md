@@ -260,3 +260,16 @@
 **實測（2026-10-05，owner 在 VPS）**：重建映像檔後 `smoke-test.sh` 31 項全過（含 pandoc 從壓縮檔解壓、做出 Word、做出含中文的 PDF、sox 做出 wav 與 mp3），上面「沒能實測」的 PDF 一項已經驗證，LaTeX 套件清單夠用。映像檔多了約 630 MB。
 
 **VPS 要做的事**：`cd ~/Noureon && git checkout main && git pull && sh sandbox-host/install.sh && sh sandbox-host/smoke-test.sh`（映像檔多了 sox，要重建；`smoke-test.sh` 新增三項：pandoc 能執行、pandoc 做出 Word 檔、sox 做出 wav 與 mp3）。第一次用 Pandoc 的回覆要先下載 35 MB 並解壓，約幾秒到十幾秒。
+
+## 16. 商城改名「擴充」，分成「技能」與「命令工具」兩層（2026-10-09，owner 決定）
+
+左側欄入口與頁面改名為「擴充」（Extensions／Extensions／Расширения／Extensiones），圖示是四個方格；頁面裡分兩個子層：**技能**（預設，目前還沒有內容）與**命令工具**（其他語言叫 CLI，原本的商城）。這解決了 §8 的待決事項（技能放進同一個商城、做成另一層）。版面的決定經過渲染比較（A 分段開關、B 左側清單、C 標題下拉，owner 否決 C）：
+
+- **電腦（寬度大於 640px）**：標題「擴充」下面左邊一排子層清單（技能、命令工具，選中的灰底），右邊是搜尋欄、「全部／我的」與列表。
+- **手機（640px 以下）**：子層清單隱藏，改成標題列右邊的一個小開關（黑白，選中的實心黑；兩顆按鈕等寬，以較寬的「命令工具」為準）。小於 360px 時標題前的圖示隱藏，把位置讓給標題與開關。
+- 標題永遠是「擴充」，不隨子層改變；搜尋欄在上方；每一層各有自己的「全部／我的」、自己的搜尋字（切換時各記各的，頁面關閉後重來）。
+- 技能層目前是空頁（「技能即將推出」加一句說明；「我的」分頁是「還沒有加入任何技能」）；命令工具專屬的帳號提示與「第三方軟體與授權」連結只在命令工具層出現。
+- 網址（owner 2026-10-09 決定簡化）：技能是 `/skill`，命令工具是 `/cli`（本來就有的網址，所以不需要任何轉址；沒有 `/store`，也不另外接受 `/skills`）。開啟時加進瀏覽器歷史；切換子層用 `replaceState` 原地改，不增加歷史，所以上一頁仍是關閉頁面；結尾多一個斜線會被改正。`vercel.json` 新增 `/skill` 一條 rewrite（`/cli` 本來就有）。位址的判讀在 `src/app/ui/cli/store-path.js`（不載入頁面本身也能讀）。
+- 入口：左側欄「擴充」開技能層；`@` 清單裡「前往命令工具商城」、設定「權限」裡的連結開命令工具層（`openStore(kind)`）。
+- 程式：`src/app/ui/cli/cli-store.js`（`openCliStore({ kind })`，`state.views` 每層一份 tab／query；`current.setKind`）、`cli-store.css`（`.cs-split`、`.cs-nav`、`.cs-switch`）、`cli-texts.js`（新增 `kindSkills`、`kindCli`、`switchLabel`、`skills*` 五種語言；`entry`、`storeTitle` 改成「擴充」）。
+- 沒有改版本號、沒有寫更新日誌（owner 沒要求）。

@@ -169,7 +169,7 @@
 #open-search-btn {
     min-height: 2.75rem;
     align-items: center;
-    background: #ffffff !important;
+    background: var(--modal-bg) !important;
 }
 #selection-mode-btn,
 #new-chat-btn {

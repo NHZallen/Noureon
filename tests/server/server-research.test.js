@@ -275,6 +275,10 @@ test('a stop that asks for the report writes it from the items that are done; a 
   assert.equal(ended.status, 'stopped');
   assert.equal(ended.parts.some((part) => part.researchReport), false);
   assert.equal(ended.parts.find((part) => part.researchPlan).researchPlan.phase, 'stopped');
+  // The item the research was in the middle of is not left "active" (the card would show it turning on a research that has stopped).
+  const states = ended.parts.find((part) => part.researchPlan).researchPlan.items.map((item) => item.state);
+  assert.equal(states.includes('active'), false, `no item is left active, got ${states.join(', ')}`);
+  assert.ok(states.includes('pending'), 'the one that was cut short waits like the others');
 });
 
 test('a stop that asks for a report before any item is done ends without one', async () => {

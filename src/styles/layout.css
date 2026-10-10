@@ -1,21 +1,4 @@
-    :root {
-        --chat-bg: #ffffff;
-        --sidebar-bg: #f7f7f8;
-        --input-bar-bg: #ffffff;
-        --input-field-bg: #f9fafb;
-        --text-primary: #111827;
-        --text-secondary: #6b7280;
-        --border-color: #e5e7eb;
-        --hover-bg: #f3f4f6;
-        --active-bg: #e5e7eb;
-        --modal-bg: #ffffff;
-        --shadow-color: rgba(0, 0, 0, 0.1);
-        --ai-bubble-bg: transparent;
-        --user-bubble-bg: #e8f3ff;
-        --button-primary-bg: #4f8df7;
-        --button-primary-hover-bg: #3f7ee6;
-        --button-primary-text: #ffffff;
-    }
+
     @keyframes subtleFadeInUp {
         from { opacity: 0; transform: translateY(10px); }
         to { opacity: 1; transform: translateY(0); }
@@ -51,8 +34,8 @@ button:not(.btn-primary):active:not(:disabled) {
     }
     .scroll-area::-webkit-scrollbar { width: 8px; }
     .scroll-area::-webkit-scrollbar-track { background: transparent; }
-    .scroll-area::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
-    .scroll-area::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+    .scroll-area::-webkit-scrollbar-thumb { background: var(--gpt-scrollbar); border-radius: 4px; }
+    .scroll-area::-webkit-scrollbar-thumb:hover { background: var(--text-tertiary); }
     .modal {
         opacity: 0;
         visibility: hidden;
@@ -64,3 +47,16 @@ button:not(.btn-primary):active:not(:disabled) {
         transition: transform 0.2s ease-in-out;
     }
     .modal.visible > div { transform: scale(1); }
+
+/* The page is not dragged or bounced: the app is fixed to what is seen, and there is nothing to scroll behind it. */
+html, body { overscroll-behavior: none; }
+/* On a phone the app (and the screen shown while it starts) ends where what is seen ends: the keyboard and the browser's bars cover the rest
+   (runtime/features/viewport-lock.js). It starts at the top of the page as before, and is not moved with the seen area. Without the script the
+   value is the whole page. */
+@media (pointer: coarse) {
+    #app-container, html [data-startup-skeleton] {
+        bottom: auto;
+        height: var(--vv-bottom, 100%);
+    }
+}
+[data-startup-skeleton] { touch-action: none; overscroll-behavior: none; }

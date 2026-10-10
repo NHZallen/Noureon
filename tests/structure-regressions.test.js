@@ -1290,7 +1290,6 @@ test('legacy core tail ownership stays in runtime entry with transition bus brid
   assert.match(runtimeEntrySource, /coreTailLifecycle\.registerRuntimeEntryDependencies\(\)/);
   for (const name of [
     'applyUiTheme',
-    'applyBubbleColors',
     'renderStore',
     'applyLanguage',
     'showMobileContextMenu',
@@ -1449,7 +1448,7 @@ test('color contrast helper is shared without later-fragment lexical ownership',
   );
   assert.match(
     themeAppearanceSource,
-    /import\s*\{\s*getTextColorForBackground\s+as\s+getThemeTextColorForBackground,\s*\}\s*from\s*['"]\.\.\/\.\.\/\.\.\/utils\/color-contrast\.js['"]/
+    /import\s*\{\s*accentForDarkTheme,\s*getTextColorForBackground\s+as\s+getThemeTextColorForBackground,\s*\}\s*from\s*['"]\.\.\/\.\.\/\.\.\/utils\/color-contrast\.js['"]/
   );
   assert.doesNotMatch(coreTailSource, /getThemeTextColorForBackground/);
   assert.doesNotMatch(coreTailSource, /const\s+hexToRgb\s*=/);
@@ -1872,7 +1871,6 @@ test('auth and homepage import bindings remain before startup in legacy order', 
   assertMarkersInOrder(initializeAppBody, [
     'await loadConfig()',
     'await loadAppData()',
-    'applyBubbleColors()',
     'applyUiTheme()',
     "elements.authContainer.style.display = 'none'",
     "elements.appContainer.classList.remove('hidden')",
@@ -2049,7 +2047,6 @@ test('runtime lazy registrations and composition handoffs preserve legacy order'
   assertMarkersInOrder(initializeAppBody, [
     'await loadConfig()',
     'await loadAppData()',
-    'applyBubbleColors()',
     'applyUiTheme()',
     "elements.appContainer.classList.remove('hidden')",
     "elements.appContainer.classList.add('visible')",
@@ -2110,7 +2107,6 @@ test('initChatApp callers use the required runtime handoff without changing lega
     "await setItem('chat_lastUser', username)",
     'await loadConfig()',
     'await loadAppData()',
-    'applyBubbleColors()',
     'applyUiTheme()',
     "elements.authContainer.classList.add('fade-out')",
     "elements.appContainer.classList.remove('hidden')",
@@ -2133,7 +2129,6 @@ test('initChatApp callers use the required runtime handoff without changing lega
   assertMarkersInOrder(initializeAppBody, [
     'await loadConfig()',
     'await loadAppData()',
-    'applyBubbleColors()',
     'applyUiTheme()',
     "elements.authContainer.style.display = 'none'",
     "elements.appContainer.classList.remove('hidden')",
@@ -2672,7 +2667,6 @@ test('main bootstrap delegates vendor bridge, shell mount, and vendor script loa
     'installVendorBridge({',
     'mountAppShell(appShell)',
     "import('./data/i18n.js')",
-    "import('./data/demo-conversations.js')",
     "import('./data/astras-data.js')",
     "import('./data/update-logs.js')",
     "loadVendorScript('/vendor/mhchem.min.js')",
@@ -2724,6 +2718,7 @@ test('bootstrap helpers keep narrow responsibilities', () => {
 test('main css is an ordered split manifest with every imported file under the source size limit', () => {
   const mainCss = readSource('src/styles/main.css');
   const expectedImports = [
+    'tokens.css',
     'base.css',
     'sidebar.css',
     'input.css',
@@ -2754,12 +2749,13 @@ test('main css is an ordered split manifest with every imported file under the s
     'mobile-composer-layout.css',
     'chat-edge-fade.css',
     'busy-feedback.css',
-    'typography.css'
+    'typography.css',
+    'dark-bridge.css'
   ];
 
   const imports = [...mainCss.matchAll(/@import\s+['"]\.\/(.+?)['"];/g)].map((match) => match[1]);
   assert.deepEqual(imports, expectedImports);
-  assert.equal(mainCss.trimStart().startsWith("@import './base.css';"), true);
+  assert.equal(mainCss.trimStart().startsWith("@import './tokens.css';"), true);
 
   const baseCss = readSource('src/styles/base.css');
   assert.match(baseCss, /@tailwind base;\s*@tailwind components;\s*@tailwind utilities;/);

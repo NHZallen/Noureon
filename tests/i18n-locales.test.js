@@ -48,7 +48,7 @@ test('new locales use native product language for representative UI copy', async
   assert.equal(es.settings, 'Configuración');
   assert.equal(es.save, 'Guardar');
   for (const locale of [ru, es]) {
-    for (const key of ['uiLanguage', 'aiReplyLanguage', 'cancel', 'errorPrefix', 'welcome']) {
+    for (const key of ['uiLanguage', 'aiReplyLanguage', 'cancel', 'errorPrefix', 'startJourney']) {
       assert.notEqual(locale[key], en[key], `${key} must be localized`);
     }
   }

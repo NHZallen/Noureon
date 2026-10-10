@@ -9,6 +9,9 @@ import { resolveReplyMode } from '../../runtime/sandbox/file-mode.js';
 import { browserSupportsSandbox } from '../../runtime/sandbox/sandbox-protocol.js';
 import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
 import { cliIdsForReply } from '../../runtime/cli/cli-state.js';
+import { getAvailableSkills, lookupSkill, readSkillFile, resolveInvokedSkills } from '../../runtime/skill/skill-bridge.js';
+import { invokedSkillsInstruction, skillNamesOfParts } from '../../../data/skill-prompt.js';
+import { decisionsFor, verdictOf } from '../../runtime/decisions/decision-store.js';
 import { createCredentialAnswerHandler } from '../../runtime/cli/credential-answer.js';
 import { createNetAnswerHandler } from '../../runtime/cli/net-answer.js';
 import { mayNeedFileGuidance } from '../../ui/files/file-intent.js';
@@ -25,8 +28,10 @@ const loadSandboxReply = () => Promise.all([
 
 // A switch to Standard mode is worth saying only when the request looks like
 // a task Advanced mode is for: files, data or attachments.
+// The Decisions model's judgement of the message decides when there is one (decision-client.js), the word lists otherwise.
+const textOfParts = (parts = []) => parts.map((part) => part?.text || '').join('\n');
 const looksLikeFileTask = (parts = []) => parts.some((part) => part?.inlineData)
-  || mayNeedFileGuidance(parts.map((part) => part?.text || '').join('\n'));
+  || (verdictOf(decisionsFor(textOfParts(parts)), 'file') ?? mayNeedFileGuidance(textOfParts(parts)));
 
 // Files in the conversation (attached by the person, or made by Python): a follow-up may well be about them.
 const conversationHasFiles = (conversation) => (conversation?.messages || []).some((message) => (
@@ -138,7 +143,22 @@ export function createSingleModelResponseLifecycle({
     // Whether the server makes this reply, and so (for a model that cannot search) the search too: the page then only prepares the files and
     // pages of the message. When the server does not take the reply, the search is made here, below.
     const canCallTools = Boolean(supportsToolCalling?.(modelInfo));
-    const cli = canCallTools ? cliIdsForReply(getConfig(), userParts) : { chosen: [], ids: [] };
+    // The tools the model may use by itself are only given when the message is judged to need one; the ones chosen with "@" always are.
+    const ownToolsAllowed = verdictOf(decisionsFor(textOfParts(userParts)), 'tool') !== false;
+    const cli = canCallTools ? cliIdsForReply(getConfig(), userParts, { ownAllowed: ownToolsAllowed }) : { chosen: [], ids: [] };
+    // The skills asked for with "/" in this message are given to the model in full, with this reply only (whatever the kind of reply: they go in the
+    // system instructions, which the server is sent as they are).
+    // A search the provider makes itself (some refuse our tools next to it) or a search packet put in front of the request: no skill tool then.
+    const ownSearchReply = Boolean(webSearchEnabled && !researchByModel);
+    // The files of a skill asked for are told about only when the model has a tool to read them.
+    const invokedSkills = await resolveInvokedSkills(skillNamesOfParts(userParts));
+    const filesNote = canCallTools && !ownSearchReply && invokedSkills.some((skill) => skill.files?.length) ? (await import('../../../data/skill-files-note.js')).skillFilesNote : null;
+    const skillInstruction = invokedSkillsInstruction(invokedSkills, { filesNote });
+    const skillOptions = skillInstruction ? { additionalSystemInstruction: skillInstruction } : {};
+    // The skills the model may load by itself (the ones it is told about, and not those it was just given whole): only for a model that calls tools.
+    const availableSkills = canCallTools ? await getAvailableSkills(skillNamesOfParts(userParts)) : [];
+    const { createSkillLoader } = availableSkills.length && !ownSearchReply ? await import('../../../data/skill-tool.js') : {};
+    const makeSkillLoader = () => (createSkillLoader ? createSkillLoader({ available: availableSkills, lookup: lookupSkill, readFile: readSkillFile }) : null);
     // Advanced mode is the default, so most replies are "advanced" by the setting alone. Python is only needed when the request is
     // about files or data, or the conversation already has some; any other reply is the same without it, and the server makes it.
     // The CLI tools chosen with "@" (and those the person lets the model use by itself) run in the same sandbox, so they need it whatever the
@@ -211,6 +231,7 @@ export function createSingleModelResponseLifecycle({
           designs: { deck: conversation?.deckDesign || 'auto', document: conversation?.documentDesign || 'auto' },
           cli: cli.ids,
           cliChosen: cli.chosen,
+          skills: ownSearchReply ? [] : availableSkills,
           inputs: userParts.filter((part) => part?.inlineData?.data).map((part) => ({
             name: part.inlineData.name || `attachment.${String(part.inlineData.mimeType || '').split('/')[1] || 'bin'}`,
             mimeType: part.inlineData.mimeType || '',
@@ -220,7 +241,7 @@ export function createSingleModelResponseLifecycle({
           sequence,
           uiLanguage,
           config: getConfig(),
-          requestOptions: { onMemoryContextResolved, requestPurpose: NOURAS_REQUEST_PURPOSE.USER_VISIBLE_ANSWER },
+          requestOptions: { onMemoryContextResolved, requestPurpose: NOURAS_REQUEST_PURPOSE.USER_VISIBLE_ANSWER, ...skillOptions },
           getHistorySourceIds
         });
         if (started.ok) serverRun = started.run;
@@ -262,7 +283,7 @@ export function createSingleModelResponseLifecycle({
       }
     };
 
-    const streamOptions = { modelInfo, conversation, webSearchEnabled, onMemoryContextResolved, onSources: addSearchSources, onSupports: (supports) => { groundingSupports = supports; }, requestPurpose: NOURAS_REQUEST_PURPOSE.USER_VISIBLE_ANSWER };
+    const streamOptions = { modelInfo, conversation, webSearchEnabled, onMemoryContextResolved, onSources: addSearchSources, onSupports: (supports) => { groundingSupports = supports; }, requestPurpose: NOURAS_REQUEST_PURPOSE.USER_VISIBLE_ANSWER, ...skillOptions };
     // The run record (or the reason for Standard mode) kept above the answer.
     let sandboxRun = !replyMode.advanced && replyMode.reason && looksLikeFileTask(userParts)
       ? { status: 'done', steps: [], fallback: replyMode.reason }
@@ -409,6 +430,7 @@ export function createSingleModelResponseLifecycle({
           inputFiles: collectSandboxInputs(conversation, userParts),
           designs: { deck: conversation?.deckDesign || 'auto', document: conversation?.documentDesign || 'auto' },
           research: researchByModel ? { searchWeb: webResearch.searchWeb, openPage: webResearch.openPage, onSources: addSearchSources } : null,
+          skills: makeSkillLoader(),
           onStatus: showRunStatus,
           onEvent: (event) => stepList()?.event(event)
         });
@@ -451,8 +473,9 @@ export function createSingleModelResponseLifecycle({
               openPage: webResearch.openPage,
               language: uiLanguage,
               onSources: addSearchSources,
+              skills: makeSkillLoader(),
               onEvent: (event) => {
-                if (event.type === 'searching') {
+                if (event.type === 'searching' || event.type === 'skill') {
                   started = true;
                   workResumed();
                 }
@@ -467,6 +490,31 @@ export function createSingleModelResponseLifecycle({
           requestParts = await buildSingleModelTranslatedRequestParts(userParts, modelInfo, signal, () => {}, {
             webSearchEnabled, conversation, onSources: addSearchSources
           });
+        }
+        // No search and no Python, but skills the model may load: a small loop that gives it the tool (a provider that refuses the tools answers without it).
+        const skillLoader = makeSkillLoader();
+        if (skillLoader) {
+          let begun = false;
+          try {
+            const { runSkillsReply } = await import('./skills-reply.js');
+            const result = await runSkillsReply({
+              streamApiCall,
+              requestParts,
+              onChunk: (chunk) => { begun = true; onAnswer(chunk); },
+              signal,
+              requestOptions: { ...streamOptions, onReasoning: showThinking },
+              loader: skillLoader,
+              language: uiLanguage,
+              onEvent: (event) => {
+                begun = true;
+                workResumed();
+                stepList()?.event(event);
+              }
+            });
+            return result.text;
+          } catch (error) {
+            if (signal?.aborted || begun) throw error;
+          }
         }
         return streamApiCall(requestParts, onAnswer, signal, false, { ...streamOptions, onReasoning: showThinking });
     };

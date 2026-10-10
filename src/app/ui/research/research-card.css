@@ -10,6 +10,7 @@
 .rc .rc-bullet { flex: 0 0 auto; width: 16px; height: 16px; margin-top: 3px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; }
 .rc .rc-bullet-pending { border: 1.5px dashed var(--text-secondary); }
 .rc .rc-bullet-active { border: 2px solid var(--border-color); border-top-color: var(--text-primary); animation: rc-spin 0.9s linear infinite; }
+.rc .rc-bullet-still { border: 2px solid var(--border-color); border-top-color: var(--text-primary); }
 .rc .rc-bullet-done { color: var(--text-primary); }
 .rc .rc-bullet-done svg { display: block; }
 
@@ -40,26 +41,22 @@
 .rc .rc-btn:disabled { opacity: 0.45; cursor: default; }
 .rc .rc-btn-primary { background: var(--text-primary); color: var(--chat-bg); border-color: var(--text-primary); }
 .rc .rc-btn-primary:hover:not(:disabled) { background: var(--text-primary); opacity: 0.88; }
-.rc .rc-ring { position: relative; width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; }
-.rc .rc-ring svg { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); fill: none; stroke-width: 2; }
-.rc .rc-ring-bg { stroke: color-mix(in srgb, var(--chat-bg) 35%, transparent); }
-.rc .rc-ring-fg { stroke: var(--chat-bg); stroke-linecap: round; transition: stroke-dashoffset 0.25s linear; }
 
-.rc .rc-secs { color: inherit; font-size: 0.65rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.rc .rc-secs { margin-left: 0.4rem; opacity: 0.7; font-size: 0.9em; font-variant-numeric: tabular-nums; }
 
 .rc .rc-note { margin: 10px 2px 0; color: var(--text-secondary); font-size: 0.8rem; }
 
 .rc .rc-stats-line { color: var(--text-secondary); font-size: 0.8rem; margin: 0 2px 8px; }
 .rc .rc-report { border: 1px solid var(--border-color); border-radius: 16px; background: var(--chat-bg); overflow: visible; }
 .rc .rc-report-head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--border-color); }
-.rc .rc-doc { color: #2563eb; display: inline-flex; }
-.rc .rc-doc svg { stroke: #2563eb; }
+.rc .rc-doc { color: var(--link-color); display: inline-flex; }
+.rc .rc-doc svg { stroke: var(--link-color); }
 .rc .rc-report-title { flex: 1; min-width: 0; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rc .rc-report-actions { display: inline-flex; gap: 6px; flex: 0 0 auto; }
 .rc .rc-chip { border: 1px solid var(--border-color); background: transparent; color: var(--text-primary); border-radius: 999px; padding: 4px 12px; font-size: 0.8rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
 .rc .rc-chip:hover { background: var(--hover-bg); }
 .rc .rc-menu-anchor { position: relative; display: inline-flex; }
-.rc .rc-menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; min-width: 190px; background: var(--modal-bg, var(--chat-bg)); border: 1px solid var(--border-color); border-radius: 12px; padding: 6px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16); }
+.rc .rc-menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; min-width: 190px; background: var(--modal-bg, var(--chat-bg)); border: 1px solid var(--border-color); border-radius: 12px; padding: 6px; box-shadow: var(--shadow-md); }
 .rc .rc-menu button { display: block; width: 100%; text-align: left; border: 0; background: transparent; color: var(--text-primary); padding: 8px 10px; border-radius: 8px; font-size: 0.85rem; cursor: pointer; }
 .rc .rc-menu button:hover { background: var(--hover-bg); }
 .rc .rc-report-body { position: relative; max-height: 400px; overflow: hidden; padding: 14px 18px; cursor: pointer; border-radius: 0 0 15px 15px; }

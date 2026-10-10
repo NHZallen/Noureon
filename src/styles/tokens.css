@@ -1,0 +1,228 @@
+/*
+ * The colours of the app, in one place.
+ *
+ * Every colour of the interface comes from these names (docs/superpowers/specs/2026-10-08-dark-mode-design.md): text has three
+ * levels, surfaces have three layers, there is one border colour, one accent and three state colours. A new style uses them and
+ * never writes a colour of its own, so that the light and the dark theme stay in step.
+ *
+ * `data-theme` on <html> is "light" or "dark" (public/theme-init.js sets it before the first paint, color-scheme.js keeps it up to date).
+ * The dark theme is a dark grey after ChatGPT's (page #212121, side bar #171717, input #2f2f2f).
+ */
+:root {
+    color-scheme: light;
+
+    /* surfaces: page, side bar, the box of the message input and its field, popups and dialogs */
+    --chat-bg: #ffffff;
+    --sidebar-bg: #f7f7f8;
+    --input-bar-bg: #ffffff;
+    --input-field-bg: #f9fafb;
+    --modal-bg: #ffffff;
+
+    /* text: primary, secondary (labels, descriptions), tertiary (placeholders, disabled) */
+    --text-primary: #111827;
+    --text-secondary: #6b7280;
+    --text-tertiary: #838a96;
+
+    /* lines and the states of a row */
+    --border-color: #e5e7eb;
+    --hover-bg: #f3f4f6;
+    --active-bg: #e5e7eb;
+    --shadow-color: rgba(0, 0, 0, 0.1);
+
+    --sidebar-edge: rgba(255, 255, 255, 0.6);
+
+    /* the base of a full page of cards (the settings on a phone): opaque, unlike --hover-bg which is a veil */
+    --surface-muted: #f3f4f6;
+    /* what the pages of a file preview lie on */
+    --page-well: #e5e7eb;
+    /* the left menu is a veil of --sidebar-bg over the page; the strips that fade a list into it must be that same colour */
+    --sidebar-veil: color-mix(in srgb, var(--sidebar-bg) 55%, var(--chat-bg));
+
+    /* messages */
+    --ai-bubble-bg: transparent;
+    --user-bubble-bg: color-mix(in srgb, var(--button-primary-bg) 12%, var(--chat-bg));
+    --user-bubble-text: var(--text-primary);
+
+    /* the accent (the person may choose another colour in Settings) */
+    --button-primary-bg: #3b82f6;
+    --button-primary-hover-bg: color-mix(in srgb, var(--button-primary-bg) 88%, black);
+    --button-primary-text: #ffffff;
+
+    /* the black-and-white main button (dark pill on light, light pill on dark) and the surfaces of the settings and menus */
+    --gpt-surface: #ffffff;
+    --gpt-subtle: #f4f4f4;
+    --gpt-subtle-hover: #ececec;
+    --gpt-border: #dedede;
+    --gpt-menu-border: #d7d7d7;
+    --gpt-shadow: 0 10px 28px rgba(0, 0, 0, 0.13);
+    --gpt-primary-action-bg: #000000;
+    --gpt-primary-action-text: #ffffff;
+    --gpt-icon: #000000;
+    --gpt-control-bg: #ffffff;
+    --gpt-control-text: #000000;
+    --gpt-control-border: #000000;
+    --gpt-scrollbar: #d8d8d8;
+
+    /* states and links */
+    --state-success: #16a34a;
+    --state-danger: #dc2626;
+    --state-warning: #b45309;
+    --link-color: #2563eb;
+    /* the indigo of the logo: the glow of the home page */
+    --brand-logo: #5b4fcf;
+
+    /* code blocks and the track of a switch that is off */
+    --code-bg: #f6f7f9;
+    --code-block-bg: #111827;
+    --code-block-text: #f3f4f6;
+    --code-block-border: transparent;
+    --switch-off-bg: #d9d9d9;
+
+    /* sizes of shadow: one for each height a surface can float at */
+    --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.06);
+    --shadow-sm: 0 3px 12px rgba(15, 23, 42, 0.08);
+    --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.14);
+    --shadow-lg: 0 14px 40px rgba(15, 23, 42, 0.16);
+    --shadow-xl: 0 24px 64px rgba(15, 23, 42, 0.28);
+    --shadow-up: 0 -8px 40px rgba(0, 0, 0, 0.18);
+    --shadow-side: 4px 0 15px rgba(0, 0, 0, 0.05);
+    --shadow-composer: 0 1px 2px rgba(15, 23, 42, 0.06), 0 10px 30px rgba(15, 23, 42, 0.08);
+
+    /* what is behind a dialog or a sheet */
+    --scrim-soft: rgba(0, 0, 0, 0.32);
+    --scrim: rgba(0, 0, 0, 0.5);
+    --scrim-strong: rgba(0, 0, 0, 0.88);
+
+
+    /* the colour that flashes a line that was just jumped to */
+    --flash-bg: rgba(250, 204, 21, 0.7);
+
+    /* the pin of a pinned conversation */
+    --pin-color: #fbbf24;
+
+    /* charts: a rise, a fall, and the softer pair of a waterfall */
+    --chart-up: #27835e;
+    --chart-down: #b45353;
+    --chart-up-soft: #5aa987;
+    --chart-down-soft: #d48787;
+
+    /* the pictures of the tools (a dark drawing on a clear background) are inverted on the dark theme */
+    --tool-icon-filter: none;
+
+    /* the same in both themes: text and icons on a photo, a video or a dark scrim; what is behind a video; the paper of a document */
+    --on-color: #ffffff;
+    --media-bg: #111827;
+    --media-black: #000000;
+    --media-control-bg: rgba(64, 64, 64, 0.68);
+    --media-control-bg-active: rgba(64, 64, 64, 0.78);
+    --media-chip-bg: rgba(15, 23, 42, 0.42);
+    --media-chip-bg-hover: rgba(15, 23, 42, 0.58);
+    --media-drop-shadow: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.45));
+    --paper-bg: #ffffff;
+    --paper-text: #111827;
+    --paper-text-soft: #4b5563;
+    --paper-shadow: 0 1px 3px rgba(15, 23, 42, 0.18), 0 6px 18px rgba(15, 23, 42, 0.08);
+    --paper-ring: transparent;
+
+    /* the raised button (the large main button of a dialog) */
+    --btn-raised-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.45), 0 4px 8px rgba(0, 0, 0, 0.2);
+    --btn-raised-shadow-hover: inset 0 1px 1px rgba(255, 255, 255, 0.5), 0 6px 12px rgba(0, 0, 0, 0.25);
+    --btn-pressed-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+    --btn-text-shadow: 0 -1px 1px rgba(0, 0, 0, 0.2);
+    --thumb-shadow: 0 1px 5px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(0, 0, 0, 0.1);
+
+    /* the file cards: the colour of the logo of each kind of file */
+    --file-default: #64748b;
+    --file-word: #2b579a;
+    --file-excel: #217346;
+    --file-powerpoint: #c43e1c;
+    --file-pdf: #d93025;
+    --file-csv: #1e8e3e;
+    --file-markdown: #475569;
+    --file-code: #6d5ce7;
+    --file-data: #0284c7;
+    --file-web: #e44d26;
+    --file-calendar: #d97706;
+    --file-contact: #7c3aed;
+    --file-subtitle: #0d9488;
+    --file-blocked: #9ca3af;
+}
+
+:root[data-theme="dark"] {
+    color-scheme: dark;
+
+    --chat-bg: #212121;
+    --sidebar-bg: #171717;
+    --input-bar-bg: #2a2a2a;
+    --input-field-bg: #2f2f2f;
+    --modal-bg: #2a2a2a;
+
+    --text-primary: #ececec;
+    --text-secondary: #b0b0b0;
+    --text-tertiary: #8c8c8c;
+
+    --border-color: rgba(255, 255, 255, 0.12);
+    --hover-bg: rgba(255, 255, 255, 0.07);
+    --active-bg: rgba(255, 255, 255, 0.12);
+    --shadow-color: rgba(0, 0, 0, 0.5);
+
+    --sidebar-edge: var(--border-color);
+
+    --surface-muted: #212121;
+    --page-well: #1c1c1c;
+    --paper-ring: rgba(255, 255, 255, 0.14);
+
+    --ai-bubble-bg: transparent;
+    --user-bubble-bg: color-mix(in srgb, var(--button-primary-bg) 22%, var(--chat-bg));
+    --user-bubble-text: var(--text-primary);
+
+    --button-primary-bg: #5b9bff;
+    --button-primary-hover-bg: color-mix(in srgb, var(--button-primary-bg) 85%, white);
+    --button-primary-text: #0b0b0b;
+
+    --gpt-surface: #2a2a2a;
+    --gpt-subtle: #303030;
+    --gpt-subtle-hover: #383838;
+    --gpt-border: rgba(255, 255, 255, 0.12);
+    --gpt-menu-border: rgba(255, 255, 255, 0.14);
+    --gpt-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
+    --gpt-primary-action-bg: #ececec;
+    --gpt-primary-action-text: #171717;
+    --gpt-icon: #ececec;
+    --gpt-control-bg: #2f2f2f;
+    --gpt-control-text: #ececec;
+    --gpt-control-border: rgba(255, 255, 255, 0.2);
+    --gpt-scrollbar: #4a4a4a;
+
+    --state-success: #4ade80;
+    --state-danger: #f87171;
+    --state-warning: #fbbf24;
+    --link-color: #8ab8ff;
+    --brand-logo: #9a90f5;
+
+    --code-bg: #181818;
+    --code-block-bg: #181818;
+    --code-block-text: #ececec;
+    --code-block-border: var(--border-color);
+    --switch-off-bg: #4a4a4a;
+
+    --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-sm: 0 3px 12px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.45);
+    --shadow-lg: 0 14px 40px rgba(0, 0, 0, 0.5);
+    --shadow-xl: 0 24px 64px rgba(0, 0, 0, 0.6);
+    --shadow-up: 0 -8px 40px rgba(0, 0, 0, 0.5);
+    --shadow-side: 4px 0 15px rgba(0, 0, 0, 0.3);
+    --shadow-composer: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 30px rgba(0, 0, 0, 0.35);
+
+    --scrim-soft: rgba(0, 0, 0, 0.5);
+    --scrim: rgba(0, 0, 0, 0.65);
+
+
+    --flash-bg: rgba(250, 204, 21, 0.35);
+
+    --chart-up: #4fb98b;
+    --chart-down: #e07a7a;
+
+    --tool-icon-filter: invert(1) hue-rotate(180deg);
+}

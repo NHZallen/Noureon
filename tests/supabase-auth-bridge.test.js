@@ -158,6 +158,10 @@ test('auth bridge keeps secrets out of browser source and wires required flows',
   assert.match(source, /nextUsername:\s*record\.username/);
   assert.match(source, /nextUsername:\s*targetUser\.username/);
   assert.match(source, /captchaToken/);
+  // Signing out on one device must not sign out the others: supabase-js signs out everywhere unless the scope is local.
+  const signOuts = source.match(/auth\.signOut\([^)]*\)/g) || [];
+  assert.ok(signOuts.length >= 2, 'the bridge signs out in two places');
+  for (const call of signOuts) assert.match(call, /scope:\s*'local'/, `${call} signs out this device only`);
   assert.doesNotMatch(source, /service_role|sb_secret_/);
   assert.doesNotMatch(clientSource, /service_role|sb_secret_/);
   assert.match(clientSource, /VITE_SUPABASE_PUBLISHABLE_KEY/);

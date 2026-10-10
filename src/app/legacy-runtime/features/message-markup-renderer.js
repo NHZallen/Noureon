@@ -1,4 +1,4 @@
-import { toolIconMarkup } from '../../ui/cli/cli-icons.js';
+import { skillMark, toolIconMarkup } from '../../ui/cli/cli-icons.js';
 import { getCliTool } from '../../../data/cli-catalog.js';
 import { renderComposerToolIcon } from '../../composer-tool-icons.js';
 import { renderLinkChipHTML, splitAtAddresses } from '../../ui/links/link-chip.js';
@@ -42,7 +42,7 @@ const renderUserComposerPart = (part, renderUserText) => {
     return part.displaySegments.map((segment) => {
         if (segment?.type === 'link') return segment.url ? renderLinkChipHTML(segment.url) : '';
         if (segment?.type !== 'mode') return renderUserTextWithLinks(segment?.text || '', renderUserText);
-        const icon = COMPOSER_MODE_ICONS[segment.indicatorId] || (String(segment.indicatorId || '').startsWith('cli-indicator-') ? toolIconMarkup(getCliTool(String(segment.indicatorId).slice('cli-indicator-'.length)), 16, 'sent-composer-mode-icon') : '');
+        const icon = COMPOSER_MODE_ICONS[segment.indicatorId] || (String(segment.indicatorId || '').startsWith('cli-indicator-') ? toolIconMarkup(getCliTool(String(segment.indicatorId).slice('cli-indicator-'.length)), 16, 'sent-composer-mode-icon') : (String(segment.indicatorId || '').startsWith('skill-indicator-') ? skillMark(String(segment.indicatorId).slice('skill-indicator-'.length), segment.label, 16, 'sent-composer-mode-icon') : ''));
         if (!icon) return '';
         return `<span class="sent-composer-mode" data-composer-mode="${escapeHTML(segment.indicatorId)}">${icon}<span>${escapeHTML(segment.label)}</span></span>`;
     }).join('');
@@ -173,10 +173,10 @@ export function buildMessageRenderView({
             userActionButtons = `
                 <div class="user-message-actions" aria-label="訊息操作">
                     <button type="button" class="user-message-action" data-message-action="copy" title="複製訊息" aria-label="複製訊息">
-                        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><defs><mask id="user-message-copy-mask-${message.id}" maskUnits="userSpaceOnUse" x="0" y="0" width="24" height="24"><rect width="24" height="24" fill="white"></rect><rect x="3" y="8" width="13" height="13" rx="2" fill="black"></rect></mask></defs><rect x="8" y="3" width="13" height="13" rx="2" mask="url(#user-message-copy-mask-${message.id})"></rect><rect x="3" y="8" width="13" height="13" rx="2"></rect></svg>
+                        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><defs><mask id="user-message-copy-mask-${message.id}" maskUnits="userSpaceOnUse" x="0" y="0" width="24" height="24"><rect width="24" height="24" fill="white"></rect><rect x="3" y="8" width="13" height="13" rx="2" fill="black"></rect></mask></defs><rect x="8" y="3" width="13" height="13" rx="2" mask="url(#user-message-copy-mask-${message.id})"></rect><rect x="3" y="8" width="13" height="13" rx="2"></rect></svg>
                     </button>
                     <button type="button" class="user-message-action" data-message-action="edit" title="編輯訊息" aria-label="編輯訊息">
-                        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
+                        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
                     </button>
                 </div>`;
         }

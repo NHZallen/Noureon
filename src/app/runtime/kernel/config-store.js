@@ -5,6 +5,8 @@ export function createLegacyRuntimeConfigStore({ defaultModelId } = {}) {
     modelSettings: [],
     enableAutoWebSearch: false,
     visionCheckEnabled: true,
+    // "light", "dark" or "system" (follow the device): src/app/runtime/features/color-scheme.js
+    colorScheme: 'light',
     // Whether the steps of a reply being made start open (otherwise they are folded into one line).
     processOpen: false,
     fileModeDefault: 'advanced',
@@ -14,7 +16,6 @@ export function createLegacyRuntimeConfigStore({ defaultModelId } = {}) {
     tavilySearchDepth: 'basic',
     // Replies are always shown as they are written (there is no other mode).
     outputMode: 'realtime',
-    userBubbleColor: 'default',
     autoNaming: true,
     lastUsedModel: null,
     acknowledgedStealthModelTerms: [],
@@ -58,6 +59,11 @@ export function createLegacyRuntimeConfigStore({ defaultModelId } = {}) {
     cliStamps: {},
     cliUseStamps: {},
     netStamps: {},
+    // The skills (技能) the person added, those the model may use by itself, and when each item changed.
+    skillEnabledIds: [],
+    skillModelUseIds: [],
+    skillStamps: {},
+    skillUseStamps: {},
     // When each of the other settings last changed on a device (what lets devices merge them key by key: see data/settings-merge.js).
     settingsStamps: {},
     councilTranslatorModelId: null,

@@ -236,7 +236,7 @@ export function createSandboxLedger({ document, host, before = null, language = 
   // line said the work was over. When more work follows, the line goes back to running.
   let answered = false;
   const handle = (event) => {
-      if (answered && ['round', 'searching', 'step'].includes(event.type)) {
+      if (answered && ['round', 'searching', 'step', 'skill'].includes(event.type)) {
         answered = false;
         if (line && line.state !== 'running') {
           line.resume();
@@ -245,6 +245,9 @@ export function createSandboxLedger({ document, host, before = null, language = 
       }
       if (event.type === 'narration') {
         addNarration(event);
+      } else if (event.type === 'skill') {
+        // The model loads a skill: a row of its own, over when the next thing begins.
+        begin(event.label, { kind: 'skill' });
       } else if (event.type === 'searching') {
         startSearch(event);
       } else if (event.type === 'sources') {

@@ -1,34 +1,45 @@
 /* Where a list that scrolls meets a bar that does not, the list fades out instead of being cut off at a line: the chat
    under the header (chat-edge-fade.css), the left menu under its search row and above the account
-   row, the right panel under its tabs and at its foot. Each fade is a strip laid over the edge by the bar that does not
-   scroll (a pseudo-element with no pointer), never a mask on the scroller, which made scrolling sluggish on phones. */
+   row, the right panel under its tabs and at its foot. Never a mask on the scroller, which made scrolling sluggish on phones. */
 
 :root { --edge-fade: 1rem; }
 
-/* The left menu: the search row above the list, the account row below it. The menu is a pale veil over the page, so it fades
-   into the page's colour. */
-#sidebar > :first-child { position: relative; z-index: 2; }
-#sidebar > :first-child::after {
-    content: "";
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 100%;
-    height: var(--edge-fade);
-    pointer-events: none;
-    background: linear-gradient(to bottom, var(--chat-bg), transparent);
+/* The left menu and the right panel fade their lists over a longer strip, in steps that ease out (a straight line from solid to clear leaves the first
+   row of text cut in half right under the search row). */
+:root { --menu-fade: 2.5rem; }
+
+/* The left menu: only the end of the list, above the account row, fades out. The owner chose to have no fade under the search row
+   (2026-10-08): the list simply scrolls under it.
+   The strip is a sticky block inside the scroller, the way the chat does it (chat-edge-fade.css), and not a strip laid over the
+   scroller by the account row: on iPhone a scroller is drawn above such strips. It sits in a band of the scroller's own padding and
+   reaches half a rem further, over the empty padding of the last row, so at rest it covers no text; it stays at the edge while the
+   list scrolls under it. Its first quarter is solid, so text right at the edge is hidden, not shown faint as a cut line. */
+#sidebar > .scroll-area {
+    --menu-list-pad: 1rem;
+    --menu-list-fade: 1.5rem;
+    padding-bottom: var(--menu-list-pad);
 }
 
-#sidebar > :last-child { position: relative; z-index: 2; border-top-color: transparent; }
-#sidebar > :last-child::before {
+#sidebar > :last-child { border-top-color: transparent; }
+
+#sidebar > .scroll-area::after {
     content: "";
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 100%;
-    height: var(--edge-fade);
+    display: block;
+    position: sticky;
+    z-index: 3;
+    height: var(--menu-list-fade);
     pointer-events: none;
-    background: linear-gradient(to top, var(--chat-bg), transparent);
+    /* A sticky offset is measured from inside the scroller's padding, so -padding puts the strip at the very edge of what is seen. */
+    bottom: calc(var(--menu-list-pad) * -1);
+    margin-top: calc((var(--menu-list-fade) - var(--menu-list-pad)) * -1);
+    margin-bottom: calc(var(--menu-list-pad) * -1);
+    background: linear-gradient(to top,
+        var(--sidebar-veil) 0%,
+        var(--sidebar-veil) 25%,
+        color-mix(in srgb, var(--sidebar-veil) 75%, transparent) 45%,
+        color-mix(in srgb, var(--sidebar-veil) 40%, transparent) 65%,
+        color-mix(in srgb, var(--sidebar-veil) 12%, transparent) 85%,
+        transparent 100%);
 }
 
 /* The right panel: under its tabs and at its foot. */
@@ -39,9 +50,15 @@
     left: 0;
     right: 0;
     top: 100%;
-    height: var(--edge-fade);
+    height: var(--menu-fade);
     pointer-events: none;
-    background: linear-gradient(to bottom, var(--sidebar-bg), transparent);
+    background: linear-gradient(to bottom,
+        var(--sidebar-bg) 0%,
+        color-mix(in srgb, var(--sidebar-bg) 88%, transparent) 20%,
+        color-mix(in srgb, var(--sidebar-bg) 60%, transparent) 45%,
+        color-mix(in srgb, var(--sidebar-bg) 28%, transparent) 70%,
+        color-mix(in srgb, var(--sidebar-bg) 8%, transparent) 90%,
+        transparent 100%);
 }
 
 #history-sidebar::after {
@@ -51,7 +68,13 @@
     right: 0;
     bottom: 0;
     z-index: 2;
-    height: var(--edge-fade);
+    height: var(--menu-fade);
     pointer-events: none;
-    background: linear-gradient(to top, var(--sidebar-bg), transparent);
+    background: linear-gradient(to top,
+        var(--sidebar-bg) 0%,
+        color-mix(in srgb, var(--sidebar-bg) 88%, transparent) 20%,
+        color-mix(in srgb, var(--sidebar-bg) 60%, transparent) 45%,
+        color-mix(in srgb, var(--sidebar-bg) 28%, transparent) 70%,
+        color-mix(in srgb, var(--sidebar-bg) 8%, transparent) 90%,
+        transparent 100%);
 }

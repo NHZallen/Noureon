@@ -1,4 +1,5 @@
 import { normalizeSearchProvider } from '../kernel/search-provider.js';
+import { normalizeColorScheme } from '../../../data/color-scheme-choices.js';
 
 export function collectSettingsSaveFormValues({
     document,
@@ -18,11 +19,12 @@ export function collectSettingsSaveFormValues({
         enableAutoWebSearch: elements.autoWebSearchToggleSwitch.checked,
         visionCheckEnabled: elements.visionCheckToggleSwitch?.checked !== false,
         // Kept as it was where the setting is not shown.
+        colorScheme: normalizeColorScheme(elements.colorSchemeSelect ? elements.colorSchemeSelect.value : config.colorScheme),
+        // Kept as it was where the setting is not shown.
         processOpen: elements.processToggle ? elements.processToggle.checked : config.processOpen === true,
         // Kept as it was where the setting is not shown.
         fileModeDefault: elements.fileModeDefaultSelect?.value === 'standard' ? 'standard'
             : elements.fileModeDefaultSelect ? 'advanced' : (config.fileModeDefault === 'standard' ? 'standard' : 'advanced'),
-        userBubbleColor: elements.userBubbleColorDropdown.querySelector('.color-dropdown-btn')?.dataset.color || 'default',
         autoNaming: elements.autoNamingToggleSwitch.checked,
         memoryEnabled1: elements.memoryToggle1?.isConnected !== false
             ? elements.memoryToggle1.checked

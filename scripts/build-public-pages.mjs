@@ -1,6 +1,7 @@
-// The public pages (docs/superpowers/specs/2026-10-08-public-pages-design.md): noureon.com/terms, /privacy and /updates, made at build time
-// as plain HTML files in dist/. They need no login and do not load the app. The words of the terms and the privacy policy are the
-// ones of the settings (src/data/i18n), the update notes are src/data/update-logs/entries.js, so nothing is kept twice.
+// The public pages (docs/superpowers/specs/2026-10-08-public-pages-design.md): noureon.com/help, /terms, /privacy and /updates, made at build time
+// as plain HTML files in dist/. They need no login and do not load the app. The words of the help center, the terms and the privacy policy are
+// src/data/legal (sections with headings, in the five languages; the settings only link to these pages), the update notes are
+// src/data/update-logs/entries.js, so nothing is kept twice.
 // The look and the small scripts are two files outside the page (public/pages.css, public/pages.js): the content security policy
 // allows no script written in the page.
 
@@ -8,6 +9,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 
 import i18n from '../src/data/i18n/index.js';
+import { LEGAL } from '../src/data/legal/index.js';
 import updateLogEntries from '../src/data/update-logs/entries.js';
 import { loadUpdateTranslations } from '../src/data/update-logs/translations.js';
 import { PRODUCT_VERSION } from '../src/data/version.js';
@@ -38,19 +40,19 @@ const trimColon = (text) => text.replace(/[：:]\s*$/, '').trim();
 // Every language is written, the first is shown, the others are hidden: `render` gets the language and the attributes that say so.
 const perLanguage = (render) => LANGUAGES.map((lang, index) => render(lang, `${index ? ' hidden' : ''} data-lang="${lang}" lang="${lang}"`)).join('');
 
+// The pages that are a document of sections (src/data/legal), and the update notes.
+const documentPage = (key, path) => ({
+  path,
+  kind: 'doc',
+  doc: key,
+  title: (lang) => LEGAL[lang][key].title,
+  body: (lang) => LEGAL[lang][key].intro[0]
+});
+
 export const PUBLIC_PAGES = Object.freeze({
-  terms: {
-    path: '/terms',
-    kind: 'text',
-    title: (lang) => capitalize(i18n[lang].termsOfUse),
-    body: (lang) => i18n[lang].termsOfUseDesc
-  },
-  privacy: {
-    path: '/privacy',
-    kind: 'text',
-    title: (lang) => capitalize(i18n[lang].privacyPolicy),
-    body: (lang) => i18n[lang].privacyPolicyDesc
-  },
+  help: documentPage('help', '/help'),
+  terms: documentPage('terms', '/terms'),
+  privacy: documentPage('privacy', '/privacy'),
   updates: {
     path: '/updates',
     kind: 'updates',
@@ -105,12 +107,26 @@ export const groupByMonth = (logs) => {
 };
 
 const description = (page, lang) => {
-  if (page.kind !== 'text') return `${page.title(lang)} · Noureon`;
-  const first = sentences(page.body(lang))[0] || page.title(lang);
+  if (page.kind !== 'doc') return `${page.title(lang)} · Noureon`;
+  const first = page.body(lang) || page.title(lang);
   return first.length > 160 ? `${first.slice(0, 157)}...` : first;
 };
 
-const renderTextBody = (page) => `<div class="pg-col">${perLanguage((lang, attrs) => `<div class="pg-text"${attrs}>${sentences(page.body(lang)).map((part) => `<p>${escapeHtml(part)}</p>`).join('')}</div>`)}</div>`;
+// A document: the date, the introduction, a list of its sections, then each section with its heading, its paragraphs and its lists. The ids of the
+// sections carry the language, because every language is in the page.
+const renderDocumentBody = (page) => `<div class="pg-col">${perLanguage((lang, attrs) => {
+  const doc = LEGAL[lang][page.doc];
+  const anchor = (section) => `${lang}-${page.doc}-${section.id}`;
+  const blocks = (list) => list.map((block) => (Array.isArray(block)
+    ? `<ul>${block.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`
+    : `<p>${escapeHtml(block)}</p>`)).join('');
+  return `<div class="pg-text pg-doc"${attrs}>`
+    + `<p class="pg-updated">${escapeHtml(doc.updated)}</p>`
+    + doc.intro.map((part) => `<p>${escapeHtml(part)}</p>`).join('')
+    + `<nav class="pg-doc-toc" aria-label="${escapeHtml(WORDS[lang].index)}"><p class="pg-doc-toc-title">${escapeHtml(WORDS[lang].index)}</p><ol>${doc.sections.map((section) => `<li><a href="#${anchor(section)}">${escapeHtml(section.h)}</a></li>`).join('')}</ol></nav>`
+    + doc.sections.map((section) => `<section class="pg-doc-sec" id="${anchor(section)}"><h2>${escapeHtml(section.h)}</h2>${blocks(section.blocks)}</section>`).join('')
+    + '</div>';
+})}</div>`;
 
 // The index of the update notes: years, the months of a year, and the versions of a month, each level folding open and shut (pages.js does the folding and keeps
 // the month in view open). It is meant to stay usable as the notes grow: only one year and one month are open at a time. At the side of the page on a wide window;
@@ -175,10 +191,11 @@ export function renderPublicPage(name) {
 <link rel="canonical" href="${SITE}${page.path}">
 <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
 <link rel="stylesheet" href="/pages.css">
+<script src="/theme-init.js"></script>
 </head>
 <body class="pg-${page.kind}">
 ${header}
-<main class="pg-main">${hero}${page.kind === 'updates' ? renderUpdatesBody() : renderTextBody(page)}</main>
+<main class="pg-main">${hero}${page.kind === 'updates' ? renderUpdatesBody() : renderDocumentBody(page)}</main>
 ${footer}
 <button type="button" class="pg-up">${perLanguage((lang, attrs) => `<span class="pg-sr"${attrs}>${escapeHtml(WORDS[lang].toTop)}</span>`)}<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="m6 14.5 6-6 6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
 <script src="/pages.js" defer></script>

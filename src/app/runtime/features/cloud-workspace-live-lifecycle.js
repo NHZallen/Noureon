@@ -132,7 +132,6 @@ export function createCloudWorkspaceLiveLifecycle({
   maxCouncilModels,
   getCouncilTranslatorCandidates,
   getSingleTranslatorCandidates,
-  applyBubbleColors,
   applyUiTheme,
   renderAll,
   renderSidebar,
@@ -368,9 +367,10 @@ export function createCloudWorkspaceLiveLifecycle({
     const changedSyncedKeys = Object.keys(syncedVisibleConfig).filter(key => (
       !cloudValuesEqual(currentConfig[key], normalizedConfig[key])
     ));
+    // The accent and the colour theme (light, dark, system): a change that came from another device is shown, not only kept.
     const appearanceKeys = new Set([
       'uiTheme',
-      'userBubbleColor'
+      'colorScheme',
     ]);
     const appearanceChanged = changedSyncedKeys.some(key => appearanceKeys.has(key));
     const languageChanged = changedSyncedKeys.includes('uiLanguage');
@@ -389,7 +389,6 @@ export function createCloudWorkspaceLiveLifecycle({
       }
     }
     if (appearanceChanged) {
-      applyBubbleColors();
       applyUiTheme();
     }
     if (languageChanged) applyLanguage(normalizedConfig.uiLanguage);

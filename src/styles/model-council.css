@@ -152,17 +152,17 @@
 }
 
 .council-progress-dot.done {
-    background: #22c55e;
+    background: var(--state-success);
     opacity: 1;
 }
 
 .council-progress-dot.failed {
-    background: #ef4444;
+    background: var(--state-danger);
     opacity: 1;
 }
 
 .council-progress-dot.skipped {
-    background: #f59e0b;
+    background: var(--state-warning);
     opacity: 1;
 }
 
@@ -242,17 +242,17 @@
 }
 
 .single-progress-panel-error {
-    border-color: color-mix(in srgb, #ef4444 42%, var(--border-color));
-    background: color-mix(in srgb, #ef4444 9%, var(--input-field-bg));
+    border-color: color-mix(in srgb, var(--state-danger) 42%, var(--border-color));
+    background: color-mix(in srgb, var(--state-danger) 9%, var(--input-field-bg));
 }
 
 .single-progress-panel-error .council-progress-stage {
-    background: color-mix(in srgb, #ef4444 16%, transparent);
-    color: #dc2626;
+    background: color-mix(in srgb, var(--state-danger) 16%, transparent);
+    color: var(--state-danger);
 }
 
 .single-progress-panel-error .council-progress-message {
-    color: #dc2626;
+    color: var(--state-danger);
     overflow-wrap: anywhere;
 }
 
@@ -318,7 +318,7 @@
     border: 1px solid var(--border-color);
     border-radius: 0.6rem;
     background: var(--background-color);
-    box-shadow: 0 18px 44px rgba(15, 23, 42, 0.18);
+    box-shadow: var(--shadow-lg);
 }
 
 .translator-picker-menu[hidden] {
@@ -462,7 +462,7 @@
     background: var(--modal-bg);
     border-bottom: 1px solid var(--border-color);
     border-radius: 0.5rem 0.5rem 0 0;
-    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+    box-shadow: var(--shadow-md);
 }
 
 .prose details.council-collapse .table-scroll-container {
@@ -474,8 +474,8 @@
 }
 
 .popover,#file-options-popover,.color-dropdown-menu,.translator-picker-menu,#mobile-context-menu,#attachment-menu {
-    background-color: rgba(255, 255, 255, 0.96) !important;
-    border-color: rgba(209, 213, 219, 0.95) !important;
+    background-color: color-mix(in srgb, var(--chat-bg) 96%, transparent) !important;
+    border-color: var(--border-color) !important;
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
 }

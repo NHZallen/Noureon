@@ -153,7 +153,7 @@
     #settings-modal button.settings-desktop-logout-btn span,
     #settings-modal button.settings-desktop-logout-btn svg,
     #settings-modal button.settings-desktop-logout-btn svg * {
-        color: #dc2626 !important;
+        color: var(--state-danger) !important;
         stroke: currentColor !important;
     }
 }

@@ -15,7 +15,7 @@
         align-items: stretch !important;
         justify-content: center !important;
         padding: 0 !important;
-        background: #f4f3f8 !important;
+        background: var(--surface-muted) !important;
     }
 
     #settings-modal > div {
@@ -27,7 +27,7 @@
         margin: 0 !important;
         border: 0 !important;
         border-radius: 0 !important;
-        background: #f4f3f8 !important;
+        background: var(--surface-muted) !important;
         overflow: hidden !important;
         box-shadow: none !important;
     }
@@ -60,13 +60,13 @@
         width: 2.75rem !important;
         height: 2.75rem !important;
         min-height: 2.75rem !important;
-        background: #ffffff !important;
-        border: 1px solid #d9d9dd !important;
-        box-shadow: 0 1px 8px rgba(0, 0, 0, 0.08) !important;
+        background: var(--modal-bg) !important;
+        border: 1px solid var(--gpt-border) !important;
+        box-shadow: var(--shadow-sm) !important;
     }
 
     #close-settings-btn::before {
-        color: #000000 !important;
+        color: var(--text-primary) !important;
         font-size: 1.875rem !important;
     }
 
@@ -74,7 +74,7 @@
         display: flex !important;
         flex-direction: column !important;
         height: 100% !important;
-        background: #f4f3f8 !important;
+        background: var(--surface-muted) !important;
         overflow: hidden !important;
     }
 
@@ -91,7 +91,7 @@
         justify-content: center !important;
         min-height: 4.75rem !important;
         padding: 0 4.25rem !important;
-        background: rgba(255, 255, 255, 0.72) !important;
+        background: color-mix(in srgb, var(--chat-bg) 72%, transparent) !important;
         backdrop-filter: blur(20px) saturate(1.15);
         -webkit-backdrop-filter: blur(20px) saturate(1.15);
         pointer-events: none;
@@ -107,7 +107,7 @@
 
     #settings-mobile-title {
         margin: 0 !important;
-        color: #000000 !important;
+        color: var(--text-primary) !important;
         font-size: 1.25rem !important;
         font-weight: 700 !important;
         line-height: 1.2 !important;
@@ -124,10 +124,10 @@
         width: 2.75rem !important;
         height: 2.75rem !important;
         padding: 0 !important;
-        border: 1px solid #d9d9dd !important;
+        border: 1px solid var(--gpt-border) !important;
         border-radius: 999px !important;
-        background: #ffffff !important;
-        color: #000000 !important;
+        background: var(--modal-bg) !important;
+        color: var(--text-primary) !important;
         opacity: 0;
         pointer-events: none !important;
         /* Buttons get transform: none !important globally, so this motion uses translate/scale. */
@@ -137,14 +137,14 @@
             opacity 0.34s ease-in-out,
             translate 0.34s ease-in-out,
             scale 0.34s ease-in-out !important;
-        box-shadow: 0 1px 8px rgba(0, 0, 0, 0.08) !important;
+        box-shadow: var(--shadow-sm) !important;
     }
 
     #settings-mobile-back-btn svg,
     #settings-mobile-back-btn svg * {
         width: 1.5rem !important;
         height: 1.5rem !important;
-        color: #000000 !important;
+        color: var(--text-primary) !important;
         stroke: currentColor !important;
     }
 
@@ -194,7 +194,7 @@
         overflow-y: auto !important;
         -webkit-overflow-scrolling: touch !important;
         scrollbar-width: none !important;
-        background: #f4f3f8 !important;
+        background: var(--surface-muted) !important;
     }
 
     #settings-modal #settings-mobile-list::-webkit-scrollbar {
@@ -213,7 +213,7 @@
 
     #settings-modal .settings-mobile-group-title {
         margin: 0 0 0.55rem 1.35rem;
-        color: #8d8d93;
+        color: var(--text-secondary);
         font-size: 1.05rem;
         font-weight: 700;
         line-height: 1.2;
@@ -223,7 +223,7 @@
         overflow: hidden;
         border: 0;
         border-radius: 1.45rem;
-        background: #ffffff;
+        background: var(--modal-bg);
     }
 
     #settings-modal .settings-mobile-list-item,
@@ -237,8 +237,8 @@
         padding: 0 1rem 0 1.05rem !important;
         border: 0 !important;
         border-radius: 0 !important;
-        background: #ffffff !important;
-        color: #000000 !important;
+        background: var(--modal-bg) !important;
+        color: var(--text-primary) !important;
         text-align: left !important;
         font-size: 1.18rem !important;
         font-weight: 500 !important;
@@ -246,7 +246,7 @@
     }
 
     #settings-modal .settings-mobile-list-item + .settings-mobile-list-item {
-        border-top: 1px solid #eeeeef !important;
+        border-top: 1px solid var(--border-color) !important;
     }
 
     #settings-modal .settings-mobile-row-icon {
@@ -255,7 +255,7 @@
         justify-content: center;
         width: 2.3rem;
         height: 2.3rem;
-        color: #000000;
+        color: var(--text-primary);
     }
 
     #settings-modal .settings-mobile-row-icon svg,
@@ -269,13 +269,13 @@
     #settings-modal .settings-mobile-row-label {
         min-width: 0;
         overflow: hidden;
-        color: #000000;
+        color: var(--text-primary);
         text-overflow: ellipsis;
         white-space: nowrap;
     }
 
     #settings-modal .settings-mobile-chevron {
-        color: #c6c6ca;
+        color: var(--text-tertiary);
         font-size: 2rem;
         font-weight: 300;
         line-height: 1;
@@ -284,7 +284,7 @@
     #settings-modal .settings-mobile-list-item-danger,
     #settings-modal .settings-mobile-list-item-danger .settings-mobile-row-icon,
     #settings-modal .settings-mobile-list-item-danger .settings-mobile-row-label {
-        color: #e11919 !important;
+        color: var(--state-danger) !important;
     }
 
     #settings-modal .flex-1.p-6.overflow-y-auto {
@@ -294,7 +294,7 @@
         width: 100% !important;
         padding: 5rem 1.15rem 1.4rem !important;
         overflow-y: auto !important;
-        background: #ffffff !important;
+        background: var(--modal-bg) !important;
         scrollbar-width: none !important;
     }
 
@@ -333,7 +333,7 @@
 
     #settings-modal.settings-mobile-detail-open .settings-section > h3 {
         margin: 1.2rem 0 0.55rem 1.35rem !important;
-        color: #8d8d93 !important;
+        color: var(--text-secondary) !important;
         font-size: 1.05rem !important;
         font-weight: 700 !important;
     }

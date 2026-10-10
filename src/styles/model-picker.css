@@ -41,7 +41,7 @@
 
 #model-council-control .mp-trigger:disabled { cursor: default; opacity: 0.55; }
 .mp-trigger-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.mp-trigger-dot { flex: none; width: 0.4rem; height: 0.4rem; border-radius: 50%; background: #d97706; }
+.mp-trigger-dot { flex: none; width: 0.4rem; height: 0.4rem; border-radius: 50%; background: var(--state-warning); }
 .mp-chevron { flex: none; transition: transform 0.22s cubic-bezier(0.25, 0.8, 0.25, 1); }
 .mp-trigger[aria-expanded='true'] .mp-chevron { transform: rotate(180deg); }
 
@@ -390,7 +390,7 @@
 .mp-switch:disabled { cursor: default; opacity: 0.5; }
 
 .mp-status { margin: 0.4rem 0.5rem 0.25rem; color: var(--text-secondary); font-size: 0.8125rem; }
-.mp-status.is-warning { color: #b45309; }
+.mp-status.is-warning { color: var(--state-warning); }
 
 .mp-pick-head { display: flex; flex: none; align-items: center; justify-content: space-between; gap: 0.5rem; margin: 0 0 0.4rem; }
 .mp-pick-title { flex: 1; overflow: hidden; font-size: 0.9375rem; font-weight: 500; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
@@ -424,22 +424,31 @@
 /* A number the browser can ease, so the thumb hops to each dot in a quick move. */
 @property --mp-p { syntax: '<number>'; inherits: true; initial-value: 0; }
 
+.mp-depth-trigger-label { display: inline-grid; justify-items: center; }
+.mp-depth-trigger-label > *, .mp-depth-trigger-label::after { grid-area: 1 / 1; }
+.mp-depth-trigger-label::after { content: attr(data-sizer); height: 0; overflow: hidden; visibility: hidden; white-space: pre; }
+
+/* The slider is a frame with the track inside it: the fill is the accent colour, and the thumb is a dark (light in the dark theme) disc ringed
+   with the accent, so the accent shows all round it and nothing sticks out of the frame. */
 .mp-slider-wrap {
-    --mp-thumb: 2rem;
+    --mp-inset: 0.3rem;
+    --mp-thumb: 2.15rem;
     position: relative;
-    height: 2rem;
+    box-sizing: border-box;
+    height: calc(var(--mp-thumb) + var(--mp-inset) * 2 + 2px);
     margin: 0.4rem 0 0.3rem;
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--text-primary) 4%, transparent);
     /* A touch of overshoot: the thumb lands on the dot with a little spring. */
     transition: --mp-p 0.2s cubic-bezier(0.3, 1.3, 0.5, 1);
 }
 
-/* The track is slimmer than the thumb, so the fill never shows above or below it. */
 .mp-slider-track {
     position: absolute;
-    inset: 0.25rem 0;
+    inset: var(--mp-inset);
     overflow: hidden;
     border-radius: 999px;
-    background: color-mix(in srgb, var(--text-primary) 12%, transparent);
 }
 
 .mp-slider-fill {
@@ -448,7 +457,7 @@
     bottom: 0;
     left: 0;
     width: calc(var(--mp-thumb) / 2 + (100% - var(--mp-thumb)) * var(--mp-p));
-    background: var(--text-primary);
+    background: var(--button-primary-bg);
     /* Nothing to fill at the first dot: the fill's corners would show either side of the thumb. */
     opacity: clamp(0, calc(var(--mp-p) * 40), 1);
 }
@@ -467,25 +476,26 @@
 .mp-thumb {
     position: absolute;
     top: 50%;
-    left: calc(var(--mp-thumb) / 2 + (100% - var(--mp-thumb)) * var(--mp-p));
+    left: calc(var(--mp-inset) + var(--mp-thumb) / 2 + (100% - var(--mp-inset) * 2 - var(--mp-thumb)) * var(--mp-p));
+    box-sizing: border-box;
     width: var(--mp-thumb);
     height: var(--mp-thumb);
+    border: 0.2rem solid var(--button-primary-bg);
     border-radius: 50%;
-    background: #ffffff;
-    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(0, 0, 0, 0.1);
-    transform: translate(-50%, -50%) scale(var(--mp-press, 1));
+    background: var(--text-primary);
+    transform: translate(-50%, -50%);
     pointer-events: none;
-    transition: box-shadow 0.15s ease, transform 0.14s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+    transition: box-shadow 0.15s ease;
 }
 
-.mp-slider-wrap:has(.mp-slider:focus-visible) .mp-thumb { box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35), 0 0 0 3px color-mix(in srgb, var(--text-primary) 35%, transparent); }
+.mp-slider-wrap:has(.mp-slider:focus-visible) .mp-thumb { box-shadow: 0 0 0 3px color-mix(in srgb, var(--text-primary) 35%, transparent); }
 .mp-slider-wrap:has(.mp-slider:disabled) { opacity: 0.5; }
-.mp-slider-wrap:has(.mp-slider:active) .mp-thumb { --mp-press: 1.1; }
 
 #model-council-control .mp-slider {
     position: absolute;
-    inset: 0;
-    width: 100%;
+    /* The same span as the thumb's travel (inside the frame), so the pointer and the thumb agree. */
+    inset: 0 var(--mp-inset);
+    width: calc(100% - var(--mp-inset) * 2);
     height: 100%;
     margin: 0;
     padding: 0;
@@ -497,8 +507,8 @@
 }
 
 .mp-slider:disabled { cursor: default; }
-.mp-slider::-webkit-slider-thumb { width: var(--mp-thumb, 2rem); height: 2rem; appearance: none; }
-.mp-slider::-moz-range-thumb { width: var(--mp-thumb, 2rem); height: 2rem; border: 0; }
+.mp-slider::-webkit-slider-thumb { width: var(--mp-thumb, 2rem); height: var(--mp-thumb, 2rem); appearance: none; }
+.mp-slider::-moz-range-thumb { width: var(--mp-thumb, 2rem); height: var(--mp-thumb, 2rem); border: 0; }
 .mp-depth-ends { display: flex; justify-content: space-between; padding: 0 0.4rem; color: var(--text-secondary); font-size: 0.75rem; }
 
 /* Council groups: saved sets of members, chosen as tags and edited on their own page. */
@@ -594,10 +604,9 @@
 }
 
 /* On a phone the panel opens the way the design picker does (deck-design-control.js): above the
-   tools row, starting at the first button and shifted in from the right edge, with the same width,
-   height limit and distance from that row. It is positioned against the composer, so the control
-   itself stays unpositioned. The tools row is 2.5rem tall inside 0.45rem of padding, and the
-   design button sits 4px below the row's top. */
+   composer box, starting at the first button and shifted in from the right edge, with the same
+   width and distance from the box (the "+" menu does the same, mobile-composer-layout.css). It is
+   positioned against the composer box, so the control itself stays unpositioned. */
 @media (max-width: 768px) {
     #model-council-control,
     #model-council-control .mp-anchor:first-child { position: static; }
@@ -606,13 +615,15 @@
         --mp-phone-width: max(200px, min(400px, calc(100vw - 24px)));
         position: absolute;
         right: auto;
-        bottom: calc(0.45rem + 2.75rem);
+        bottom: calc(100% + 0.75rem);
         left: min(0.55rem, calc(100vw - 21px - var(--mp-phone-width)));
         width: var(--mp-phone-width);
         /* A fixed size: searching does not shrink the panel, and the on-screen keyboard does not
-           resize it (following the keyboard made it shake as the keyboard slid in and out). */
-        height: min(70vh, 34rem);
-        max-height: min(70vh, 34rem);
+           resize it (following the keyboard made it shake as the keyboard slid in and out). The height
+           is set when it opens (council-controls-lifecycle.js): from just above the composer box up to
+           just under the row of buttons at the top; without it, a share of the screen. */
+        height: var(--mp-phone-height, min(70vh, 34rem));
+        max-height: var(--mp-phone-height, min(70vh, 34rem));
         transform-origin: bottom left;
     }
 }

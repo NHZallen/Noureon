@@ -10,7 +10,7 @@
 
 .sandbox-fallback-note {
     margin: 0 0 0.5rem;
-    color: var(--text-secondary, #6b7280);
+    color: var(--text-secondary);
     font-size: 0.8125rem;
 }
 
@@ -18,7 +18,7 @@
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
-    color: var(--text-secondary, #6b7280);
+    color: var(--text-secondary);
     cursor: pointer;
     padding: 0.1rem 0;
     list-style: none;
@@ -36,7 +36,7 @@
 .sandbox-run-details[open]:not([data-closing]) > .sandbox-run-summary::after { transform: rotate(90deg); }
 
 .sandbox-run-summary:hover,
-.sandbox-run-summary:focus-visible { color: var(--text-primary, #111827); }
+.sandbox-run-summary:focus-visible { color: var(--text-primary); }
 
 .sandbox-run-steps { margin: 0.3rem 0 0; }
 
@@ -46,13 +46,13 @@
 .sandbox-run .ledger-row.sandbox-run-row[data-kind] .ledger-output {
     background: none;
     border-radius: 0;
-    color: var(--text-primary, #111827);
+    color: var(--text-primary);
 }
 
 /* What the model said before a run: ordinary text between the grey step lines, as in ChatGPT. */
 .sandbox-run-narration {
     margin: 0.4rem 0 0.5rem;
-    color: var(--text-primary, #111827);
+    color: var(--text-primary);
     white-space: pre-wrap;
     overflow-wrap: anywhere;
 }
@@ -71,7 +71,7 @@
 .sandbox-run-label {
     display: block;
     margin: 0.35rem 0 0.1rem;
-    color: var(--text-primary, #111827);
+    color: var(--text-primary);
     font-size: 0.8125rem;
 }
 
@@ -80,7 +80,7 @@
 .sandbox-run-files,
 .sandbox-run-note {
     margin: 0.35rem 0 0;
-    color: var(--text-secondary, #6b7280);
+    color: var(--text-secondary);
     font-size: 0.78rem;
 }
 

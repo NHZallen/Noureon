@@ -57,7 +57,7 @@ import { CHEAP_MODEL_ID, COUNCIL_MAX_MODELS, COUNCIL_MIN_MODELS, COUNCIL_RESPONS
 import { searchSourceModel } from '/src/app/runtime/kernel/search-provider.js';
 import { createCouncilAttachmentNeed, getCouncilDocumentFiles as getCouncilDocumentFilesOf, getCouncilVisualFiles as getCouncilVisualFilesOf, isVisualUploadedFile } from '/src/app/legacy-runtime/features/council-attachments.js';
 import { getCouncilRuntimeTexts as getCouncilRuntimeTextsForLanguage } from '/src/app/runtime/legacy-core/council-runtime-texts.js';
-import { FOLDER_COLORS, UI_THEME_COLORS, USER_BUBBLE_COLORS } from '/src/app/runtime/legacy-core/runtime-ui-colors.js';
+import { FOLDER_COLORS, UI_THEME_COLORS } from '/src/app/runtime/legacy-core/runtime-ui-colors.js';
 
 const legacyRuntimeContext = createLegacyRuntimeContext();
 const resolveFoundationUpdateInputState = (...args) => legacyRuntimeContext.resolveBinding('input.updateInputState')(...args);
@@ -78,7 +78,6 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
 
     document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('auth-container').classList.add('visible');
-        document.querySelector('.demo-model-selector')?.closest('section')?.remove();
     });
         const ALL_ELEMENTS = createLegacyRuntimeDomRegistry();
         const runtimeDomAccess = createRuntimeDomAccess({
@@ -845,7 +844,6 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             getRequiredElement: (...args) => runtimeDomAccess.getRequiredElement(...args),
             getActiveConversation,
             getMessageTypeIcon,
-            userBubbleColors: USER_BUBBLE_COLORS,
             getConfig: () => runtimeConfigAccess.getConfig(),
             hexToRgba,
             getTextColorForBackground,
@@ -900,6 +898,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
 
         import { createLegacySidebarChatAstraRenderLifecycle } from '/src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js';
         import { createLegacySubmitInputCouncilLifecycle } from '/src/app/runtime/legacy-core/submit-input-council-lifecycle.js';
+        import { createRequestDecisions } from '/src/app/runtime/decisions/decision-request.js';
         import { createLegacySettingsAuthProviderLifecycle } from '/src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js';
 
         let renderFolders;
@@ -971,6 +970,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             getModelTiers,
             getModelsByIds,
             getApiKeyForProvider,
+            requestDecisions: createRequestDecisions({ getApiKeyForProvider, getConfig: () => runtimeConfigAccess.getConfig(), logger: console }),
             getOutputMode,
             getProviderLabel,
             getSingleDocumentTranslatorModel,
@@ -1116,7 +1116,6 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             councilResponseCharLimit: COUNCIL_RESPONSE_CHAR_LIMIT,
             councilRetryDelayMs: COUNCIL_RETRY_DELAY_MS,
             councilMaxModels: COUNCIL_MAX_MODELS,
-            userBubbleColors: USER_BUBBLE_COLORS,
             getActiveConversation,
             normalizeConversationModel,
             getModelApiId,
@@ -1178,7 +1177,6 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             mergeSensitiveApiKeys,
             saveSensitiveConfig,
             saveAppData,
-            applyBubbleColors: (...args) => applyBubbleColors(...args),
             getUserKey,
             getItem,
             setItem,
@@ -1211,8 +1209,6 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             openSettingsMobileSection,
             setupSettingsModal,
             saveSettings,
-            setUserBubbleColor,
-            renderUserBubbleColorDropdown,
             createHistoryMenu,
             setTheme,
             updateThemeButtons,
@@ -1470,7 +1466,6 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             saveSensitiveConfig,
             setTheme,
             updateThemeButtons,
-            setUserBubbleColor,
             saveConfig,
             saveAppData,
             deleteConversationsFromCloud,
@@ -1591,7 +1586,6 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             updateTimeDistributionChart,
             applyUiTheme,
             renderUiColorOptions,
-            applyBubbleColors,
             openStore,
             closeStore,
             renderStore,
@@ -1631,7 +1625,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             getDefaultFolder,getDefaultGenConfig,normalizeCouncilConfig,normalizeConversationModel,
             models:MODELS,maxCouncilModels:COUNCIL_MAX_MODELS,
             getCouncilTranslatorCandidates,getSingleTranslatorCandidates,
-            applyBubbleColors,applyUiTheme,applyLanguage,
+            applyUiTheme,applyLanguage,
             renderSidebar,renderChat,getActiveConversation,isActiveConversationViewCurrent,
             onActiveConversationUnavailable:({conversationId})=>{
                 if (conversationStateAccess.getCurrentConversationId() !== conversationId) return;

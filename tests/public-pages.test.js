@@ -6,6 +6,7 @@ import { Window } from 'happy-dom';
 import i18n from '../src/data/i18n/index.js';
 import updateLogEntries from '../src/data/update-logs/entries.js';
 import { PRODUCT_VERSION } from '../src/data/version.js';
+import { LEGAL } from '../src/data/legal/index.js';
 import { LANGUAGES, PUBLIC_PAGES, buildPublicPages, groupByMonth, renderPublicPage, sentences } from '../scripts/build-public-pages.mjs';
 
 const readJson = async (path) => JSON.parse(await readFile(new URL(`../${path}`, import.meta.url), 'utf8'));
@@ -17,7 +18,8 @@ test('each public page holds every language, shows only the first, and writes no
     assert.match(html, new RegExp(`<link rel="canonical" href="https://noureon.com/${name}">`));
     assert.match(html, /<link rel="stylesheet" href="\/pages\.css">/);
     assert.match(html, /<script src="\/pages\.js" defer><\/script>/);
-    assert.equal((html.match(/<script/g) || []).length, 1, 'the only script is the outside file (the policy allows none in the page)');
+    assert.match(html, /<script src="\/theme-init\.js"><\/script>/, 'the colour theme the person chose in the application is set before the first paint');
+    assert.equal((html.match(/<script/g) || []).length, 2, 'the only scripts are the two outside files (the policy allows none in the page)');
     assert.doesNotMatch(html, /<style|\sstyle=|\sonclick=/, 'no style or event written in the page');
     for (const lang of LANGUAGES) assert.match(html, new RegExp(`<h1[^>]* data-lang="${lang}" lang="${lang}"`), `${name} has ${lang}`);
     assert.equal((html.match(/<h1 hidden /g) || []).length, LANGUAGES.length - 1, 'every language but the first is hidden');
@@ -31,13 +33,19 @@ test('each public page holds every language, shows only the first, and writes no
   }
 });
 
-test('the terms and the privacy policy are the words of the settings, in every language', () => {
-  for (const [name, key] of [['terms', 'termsOfUseDesc'], ['privacy', 'privacyPolicyDesc']]) {
+test('the help center, the terms and the privacy policy are the documents of src/data/legal, in every language, with every section and its heading', () => {
+  const escape = (text) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  for (const name of ['help', 'terms', 'privacy']) {
     const html = renderPublicPage(name);
     for (const lang of LANGUAGES) {
-      const text = sentences(i18n[lang][key]).map((part) => `<p>${part.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')}</p>`).join('');
-      assert.ok(html.includes(text), `${name} ${lang} carries the settings text, a sentence to a paragraph`);
-      assert.equal(sentences(i18n[lang][key]).join(' ').replace(/\s+/g, ''), i18n[lang][key].replace(/\s+/g, ''), 'no word is lost in the split');
+      const doc = LEGAL[lang][name];
+      assert.ok(html.includes(`<h1${lang === 'zh-TW' ? '' : ' hidden'} data-lang="${lang}" lang="${lang}">${escape(doc.title)}</h1>`), `${name} ${lang} title`);
+      assert.ok(html.includes(escape(doc.updated)), `${name} ${lang} date`);
+      for (const section of doc.sections) {
+        assert.ok(html.includes(`<section class="pg-doc-sec" id="${lang}-${name}-${section.id}"><h2>${escape(section.h)}</h2>`), `${name} ${lang} section ${section.id}`);
+        assert.ok(html.includes(`<a href="#${lang}-${name}-${section.id}">`), `${name} ${lang} index entry ${section.id}`);
+        for (const block of section.blocks) for (const text of [].concat(block)) assert.ok(html.includes(escape(text)), `${name} ${lang} ${section.id}: a paragraph is missing`);
+      }
     }
   }
   assert.match(renderPublicPage('privacy'), />Политика конфиденциальности</, 'a title starts with a capital');
@@ -72,14 +80,10 @@ test('the update notes are grouped by month, newest first, and the index has a y
   assert.doesNotMatch(html, /style=/, 'no style written in an old note stays');
 });
 
-test('a text is split into sentences without losing a word, and the terms and the privacy policy have as many in every language', () => {
+test('a text is split into sentences without losing a word', () => {
   assert.deepEqual(sentences('第一句。第二句。'), ['第一句。', '第二句。']);
   assert.deepEqual(sentences('One. Two! Three? four stays.'), ['One.', 'Two!', 'Three? four stays.']);
   assert.deepEqual(sentences('Contact support@noureon.com for help.'), ['Contact support@noureon.com for help.']);
-  for (const key of ['termsOfUseDesc', 'privacyPolicyDesc']) {
-    const counts = new Set(LANGUAGES.map((lang) => sentences(i18n[lang][key]).length));
-    assert.equal(counts.size, 1, `${key} splits the same way in every language`);
-  }
 });
 
 test('the pages are written into the folder they are given', async () => {
@@ -89,7 +93,7 @@ test('the pages are written into the folder they are given', async () => {
   const dir = await mkdtemp(`${tmpdir()}/noureon-pages-`);
   try {
     const names = await buildPublicPages(pathToFileURL(`${dir}/`));
-    assert.deepEqual(names, ['terms', 'privacy', 'updates']);
+    assert.deepEqual(names, ['help', 'terms', 'privacy', 'updates']);
     for (const name of names) assert.equal(await read(`${dir}/${name}.html`, 'utf8'), renderPublicPage(name));
   } finally {
     await rm(dir, { recursive: true, force: true });
@@ -98,12 +102,13 @@ test('the pages are written into the folder they are given', async () => {
 
 test('the three addresses are rewritten to their files and are in the site map', async () => {
   const { rewrites } = await readJson('vercel.json');
-  for (const name of ['terms', 'privacy', 'updates']) {
+  for (const name of ['help', 'terms', 'privacy', 'updates']) {
     assert.ok(rewrites.some((rule) => rule.source === `/${name}` && rule.destination === `/${name}.html`), `/${name}`);
   }
   assert.ok(rewrites.some((rule) => rule.source === '/cli' && rule.destination === '/index.html'), 'the application routes stay');
+  for (const route of ['/skill', '/cli']) assert.ok(rewrites.some((rule) => rule.source === route && rule.destination === '/index.html'), `${route}: the Extensions page's addresses are the application`);
   const sitemap = await readFile(new URL('../public/sitemap.xml', import.meta.url), 'utf8');
-  for (const name of ['terms', 'privacy', 'updates']) assert.match(sitemap, new RegExp(`<loc>https://noureon\\.com/${name}</loc>`));
+  for (const name of ['help', 'terms', 'privacy', 'updates']) assert.match(sitemap, new RegExp(`<loc>https://noureon\\.com/${name}</loc>`));
 });
 
 test('the build writes the pages after the application', async () => {
@@ -144,7 +149,7 @@ test('the script chooses the remembered language, then the browser one, and reme
   const world = openPage('terms', { languages: ['en'] });
   assert.equal(world.document.documentElement.lang, 'en');
   assert.match(world.document.title, /^Terms of Use/);
-  assert.match(world.document.querySelector('meta[name="description"]').getAttribute('content'), /^By using Noureon/);
+  assert.match(world.document.querySelector('meta[name="description"]').getAttribute('content'), /^Welcome to Noureon/);
   const select = world.document.getElementById('pg-lang');
   select.value = 'fr';
   select.dispatchEvent(new world.window.Event('change', { bubbles: true }));
@@ -241,8 +246,8 @@ test('the bar gets a shadow once it sticks to the top, and shows the first month
   assert.equal(world.document.getElementById('pg-cur').textContent, '2026-10', 'back in place it tells the first month again');
 });
 
-test('the terms and the privacy pages have the button to the top and no index', () => {
-  for (const name of ['terms', 'privacy']) {
+test('the help, terms and privacy pages have the button to the top and no index of versions', () => {
+  for (const name of ['help', 'terms', 'privacy']) {
     const world = openPage(name);
     assert.ok(world.document.querySelector('.pg-up'));
     assert.equal(world.document.querySelector('.pg-stick'), null);

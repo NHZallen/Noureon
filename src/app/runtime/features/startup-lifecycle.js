@@ -14,7 +14,6 @@ export function createLegacyStartupLifecycle({
     loadAppData,
     restoreMemorySync,
     applyLanguage,
-    applyBubbleColors,
     applyUiTheme,
     initChatApp,
     handleLogin,
@@ -98,7 +97,6 @@ export function createLegacyStartupLifecycle({
                 await loadConfig();
                 await loadAppData();
                 await restoreMemorySync();
-                applyBubbleColors();
                 applyUiTheme();
                 elements.authContainer.style.display = 'none';
                 elements.appContainer.classList.remove('hidden');
@@ -112,6 +110,10 @@ export function createLegacyStartupLifecycle({
             elements.usernameInput.value = lastUsername;
         }
         document.getElementById('auth-container').classList.add('visible');
+        // The home page between the first screen and the form is built once the sign-in page shows (ui/home/home-page.js).
+        import('../../ui/home/home-page.js')
+            .then(({ mountHomePage }) => mountHomePage({ document, window }))
+            .catch((error) => console.warn('The home page could not be built', error));
     }
 
     function adjustTextareaHeight() {
