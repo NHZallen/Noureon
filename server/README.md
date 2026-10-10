@@ -37,6 +37,7 @@
 | （不用設定） | 看圖檢查在伺服器上做，需要映像裡有畫圖用的原生套件；啟動日誌 `slides_ok` 表示可用，`slides_unavailable` 表示不可用（檢查由瀏覽器照舊做） |
 | `ASSET_SWEEP` | 選填：設成 `delete` 才會真的刪除「沒有任何資料列提到、且超過一天」的孤兒檔案（每天一次，啟動後 2 分鐘先跑一次）；不設就只在日誌寫 `asset_orphans_found`（數量、位元組、前 20 個檔名），什麼都不刪。第一次刪除請先看過清單再設 |
 | `NOTION_CLIENT_ID`、`NOTION_CLIENT_SECRET` | 選填，要一起設：Notion 開發者後台 Public Connection 的 client id 與 secret（Notion 自己的 OAuth 登入，`docs/superpowers/specs/2026-10-11-notion-public-oauth-design.md`）。**Secret 只放在這裡**。沒設時 `/v1/notion/*` 與 `/oauth/notion/callback` 回 503 |
+| `NOTION_REST_IN_CONNECTORS` | 選填，任意值即開啟：把 Notion 自己的登入與十個工具接進擴充頁的連接器（預設關閉：owner 決定 Notion 只用完整存取） |
 | `NOTION_REDIRECT_URI` | 選填，預設 `https://api.noureon.com/oauth/notion/callback`，要和 Notion 後台登記的完全一致 |
 | `PORT` | 選填，預設 8080 |
 

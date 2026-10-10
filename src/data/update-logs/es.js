@@ -3,11 +3,9 @@
 export default {
   "18.5.0": [
     "<strong>Notas de la versión de Noureon 18.5.0</strong>",
-    "Esta versión añade el acceso propio de Noureon para Notion, que ahora es la forma predeterminada de conectar Notion; el conector alojado de Notion queda como alternativa.",
+    "Esta versión prepara el acceso propio de Noureon para Notion y diez herramientas, pero por ahora no los ofrece: Notion sigue teniendo una sola conexión, el conector alojado de Notion (acceso completo).",
     "<strong>Cambios principales</strong>",
-    "<ul><li><strong>Acceso propio de Notion:</strong> la pantalla de autorización de Notion muestra el nombre y el logotipo de Noureon. Eliges en Notion qué páginas compartir con Noureon, que solo puede leer y editar esas.</li><li><strong>Diez herramientas de Notion:</strong> búsqueda, lectura de una página y su contenido, lectura y consulta de una base de datos, lectura de comentarios (lectura); crear una página, cambiar una página, añadir contenido al final de una página, comentar (escritura). Los permisos empiezan como en los demás conectores: la lectura se permite, la escritura pregunta cada vez.</li><li><strong>Acceso completo (MCP) como alternativa:</strong> en la ventana de conexión puedes usar en su lugar el conector alojado de Notion (todo el espacio de trabajo, más herramientas). Las dos conexiones pueden existir a la vez, cada una con su tarjeta y sus permisos, marcadas «Páginas elegidas» y «Acceso completo (MCP)».</li><li><strong>Vuelta a Extensiones:</strong> tras el acceso vuelves a la página de extensiones y ves la conexión.</li></ul>",
-    "<strong>Notas</strong>",
-    "<ul><li>El nuevo acceso requiere definir NOTION_CLIENT_ID y NOTION_CLIENT_SECRET en el servidor; sin ellos solo se ofrece el conector alojado.</li><li>La nueva conexión solo ve las páginas compartidas en Notion; para que vea más, añade Noureon en «•••» → «Conexiones» de una página de Notion.</li></ul>",
+    "<ul><li><strong>Un solo tipo de conexión de Notion:</strong> en la página de extensiones, Notion solo tiene «Acceso completo (MCP)», sin la opción «Páginas elegidas».</li><li><strong>Dejado listo:</strong> el acceso propio de Notion (su pantalla de autorización muestra el nombre y el logotipo de Noureon) y las diez herramientas están escritos y probados, pero desactivados por defecto y se pueden volver a activar.</li></ul>",
     "<strong>Compatibilidad</strong>",
     "Esta actualización no requiere migración de datos."
   ],

@@ -6,11 +6,9 @@ export const updateLogEntries = [
     date: "2026-10-11",
     content: [
       "<strong>Noureon 18.5.0 發布說明</strong>",
-      "本版本為 Notion 加入 Noureon 自己的登入方式，並成為連接 Notion 時的預設；原本的 Notion 官方託管連接器保留作為備用。",
+      "本版本為 Notion 準備了 Noureon 自己的登入與十個工具，但目前不開放：Notion 仍然只有一種連線，使用 Notion 官方託管連接器（完整存取）。",
       "<strong>主要變更</strong>",
-      "<ul><li><strong>Notion 自己的登入：</strong>Notion 的授權畫面會顯示 Noureon 的名稱與標誌。你在 Notion 選擇要分享給 Noureon 的頁面，Noureon 只能讀取與編輯那些頁面。</li><li><strong>十個 Notion 工具：</strong>搜尋、讀取頁面與內容、讀取與查詢資料庫、讀取留言（讀取類）；新增頁面、修改頁面、在頁面後面加入內容、留言（寫入類）。權限的預設與其他連接器相同：讀取允許，寫入每次詢問。</li><li><strong>完整存取（MCP）作為備用：</strong>在連線視窗可以改用 Notion 官方託管的連接器（整個工作區、更多工具），兩種連線可以同時存在，各有自己的卡片與權限；卡片上有「所選頁面」與「完整存取（MCP）」標籤。</li><li><strong>回到擴充頁：</strong>登入後會回到「擴充」頁並顯示已連線。</li></ul>",
-      "<strong>注意事項</strong>",
-      "<ul><li>新的登入方式需要伺服器設定 NOTION_CLIENT_ID 與 NOTION_CLIENT_SECRET；沒有設定時，只會提供原本的官方託管連接器。</li><li>新的連線只看得到你在 Notion 分享的頁面；要讓它看到更多，請在 Notion 頁面的「•••」→「連線」加入 Noureon。</li></ul>",
+      "<ul><li><strong>Notion 連線不分種類：</strong>擴充頁的 Notion 只有「完整存取（MCP）」一種，沒有「所選頁面」的選項。</li><li><strong>保留的準備：</strong>Notion 自己的登入（授權畫面顯示 Noureon 的名稱與標誌）與十個工具已寫好並測試，但預設關閉，需要時可以再打開。</li></ul>",
       "<strong>相容性</strong>",
       "本次更新不需要資料遷移。"
     ]

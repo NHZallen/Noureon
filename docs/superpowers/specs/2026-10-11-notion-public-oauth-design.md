@@ -72,3 +72,7 @@ Hosted MCP（`https://mcp.notion.com/mcp`）的授權畫面對只用網址認識
 **部署：** 不需要新的環境變數或 SQL（`NOTION_CLIENT_ID`、`NOTION_CLIENT_SECRET` 已設）。Notion 後台的 Redirect URI 要是 `https://api.noureon.com/oauth/notion/callback`。
 
 **仍未驗證（要真實登入才知道）：** `/v1/oauth/revoke` 是否存在；Notion 回應欄位名稱；十個工具在真實工作空間的品質（特別是屬性的格式、資料庫查詢的篩選）；使用者在授權時選頁面的體驗。
+
+## 8. 後來的決定（2026-10-11，仍是 18.5.0）：Notion 不分種類，全部用完整存取
+
+owner 看過兩種連線並存的畫面後決定：**Notion 不分，全部用完整存取（Hosted MCP）**。所以 `server/main.js` 不再把 Notion 登入與十個工具接進連接器服務（環境變數 `NOTION_REST_IN_CONNECTORS` 有設才接回）；擴充頁因為伺服器不再列出 `notion-public`，只提供 Hosted（連線視窗沒有「改用…」的切換）。程式、測試與畫面碼（§7）保留，需要時設定該環境變數即可重新打開；測試頁 `/notion-test` 與 `/v1/notion/*` 不變。隱私政策、協助中心、使用條款回到只講 Hosted 連線。

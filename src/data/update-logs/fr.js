@@ -3,11 +3,9 @@
 export default {
   "18.5.0": [
     "<strong>Notes de version de Noureon 18.5.0</strong>",
-    "Cette version ajoute la connexion propre à Noureon pour Notion, désormais la façon par défaut de connecter Notion ; le connecteur hébergé par Notion reste disponible comme autre option.",
+    "Cette version prépare la connexion propre à Noureon pour Notion et dix outils, mais ne les propose pas pour l’instant : Notion n’a toujours qu’une seule connexion, le connecteur hébergé par Notion (accès complet).",
     "<strong>Principaux changements</strong>",
-    "<ul><li><strong>Connexion propre à Notion :</strong> l’écran d’autorisation de Notion affiche le nom et le logo de Noureon. Vous choisissez dans Notion les pages à partager avec Noureon, qui ne peut lire et modifier que celles-là.</li><li><strong>Dix outils Notion :</strong> recherche, lecture d’une page et de son contenu, lecture et interrogation d’une base de données, lecture des commentaires (lecture) ; création d’une page, modification d’une page, ajout de contenu à la fin d’une page, commentaire (écriture). Les autorisations commencent comme pour les autres connecteurs : la lecture est autorisée, l’écriture demande à chaque fois.</li><li><strong>Accès complet (MCP) comme autre option :</strong> dans la fenêtre de connexion, vous pouvez utiliser à la place le connecteur hébergé par Notion (tout l’espace de travail, plus d’outils). Les deux connexions peuvent coexister, chacune avec sa carte et ses autorisations, marquées « Pages choisies » et « Accès complet (MCP) ».</li><li><strong>Retour aux extensions :</strong> après la connexion, vous revenez à la page des extensions et voyez la connexion.</li></ul>",
-    "<strong>Remarques</strong>",
-    "<ul><li>La nouvelle connexion exige que NOTION_CLIENT_ID et NOTION_CLIENT_SECRET soient définis sur le serveur ; sans eux, seul le connecteur hébergé est proposé.</li><li>La nouvelle connexion ne voit que les pages partagées dans Notion ; pour qu’elle en voie plus, ajoutez Noureon via « ••• » → « Connexions » sur une page de Notion.</li></ul>",
+    "<ul><li><strong>Une seule sorte de connexion Notion :</strong> dans la page des extensions, Notion n’a que « Accès complet (MCP) », sans option « Pages choisies ».</li><li><strong>Gardé en réserve :</strong> la connexion propre à Notion (son écran d’autorisation affiche le nom et le logo de Noureon) et les dix outils sont écrits et testés, mais désactivés par défaut et peuvent être réactivés.</li></ul>",
     "<strong>Compatibilité</strong>",
     "Cette mise à jour ne nécessite aucune migration de données."
   ],

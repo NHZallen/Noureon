@@ -59,7 +59,10 @@ if (config.runsConfigured) {
     credentials = createCredentialStore({ db, vault });
     // Notion through Noureon's own login (when its client id and secret are set): the login, and the tools made of Notion's REST API for a reply.
     if (config.notion.configured) notion = createNotionOAuth({ db, vault, log, config: config.notion });
-    connectors = createConnectorService({ db, vault, log, notion: notion ? { oauth: notion, tools: createNotionTools({ oauth: notion }) } : null, config: { redirectUri: config.connectorRedirectUri, cimdUrl: config.connectorClientId, identity: { clientUri: config.appUrl, logoUri: `${config.appUrl}/logo.png`, tosUri: `${config.appUrl}/terms`, policyUri: `${config.appUrl}/privacy` }, clientStore: createDbClientStore(db) } });
+    // The owner decided (2026-10-11) that Notion is one connector with full access (the hosted MCP one). Noureon's own Notion login and its ten tools are built and tested
+    // but not offered: set NOTION_REST_IN_CONNECTORS (any value) to bring them back into the Extensions page. The test page and /v1/notion/* stay as they were.
+    const notionInConnectors = Boolean(notion && process.env.NOTION_REST_IN_CONNECTORS);
+    connectors = createConnectorService({ db, vault, log, notion: notionInConnectors ? { oauth: notion, tools: createNotionTools({ oauth: notion }) } : null, config: { redirectUri: config.connectorRedirectUri, cimdUrl: config.connectorClientId, identity: { clientUri: config.appUrl, logoUri: `${config.appUrl}/logo.png`, tosUri: `${config.appUrl}/terms`, policyUri: `${config.appUrl}/privacy` }, clientStore: createDbClientStore(db) } });
     runs = createRunManager({ store: createRunStore({ db, limits: LIMITS }), db, vault, sandbox, files, credentials, connectors, skills: createServerSkills({ db, bundles: skillBundles }), vision: { available: canDrawSlides, execute: executeVisionCheck, getKit: getFontKit }, limits: LIMITS, log });
   } catch (error) {
     log('config_error', { message: error.message });
