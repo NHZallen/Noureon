@@ -303,7 +303,7 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
       if (route === 'GET /mcp/callback') {
         if (!connectors) throw new RequestError(ERROR_CODES.runsUnavailable, 'Connectors are not set up yet.');
         const back = (params) => {
-          const target = new URL(config.appUrl || 'https://noureon.com');
+          const target = new URL('/connectors', config.appUrl || 'https://noureon.com');
           for (const [name, value] of Object.entries(params)) target.searchParams.set(name, value);
           response.writeHead(302, { ...SECURITY_HEADERS, Location: target.toString() });
           response.end();

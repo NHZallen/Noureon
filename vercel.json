@@ -113,6 +113,10 @@
       "destination": "/index.html"
     },
     {
+      "source": "/connectors",
+      "destination": "/index.html"
+    },
+    {
       "source": "/skill",
       "destination": "/index.html"
     },

@@ -417,6 +417,7 @@ test('the service sends the person back to the callback, which needs no sign-in 
     assert.equal(good.status, 302);
     const target = new URL(good.headers.get('location'));
     assert.equal(target.origin, 'https://noureon.com');
+    assert.equal(target.pathname, '/connectors', 'to the connectors part of the Extensions page');
     assert.equal(target.searchParams.get('connector'), 'linear');
     assert.equal(target.searchParams.get('connected'), '1');
     assert.ok(!good.headers.get('location').includes('SECRET-CODE') && !good.headers.get('location').includes('good-state'), 'nothing of the login is in the address the person is sent to');
@@ -447,4 +448,17 @@ test('the answer to the card goes to the reply of the person who signed in, and 
     }
     assert.equal((await fetch(`${base}/v1/runs/${run}/connector`, { method: 'POST', headers: json, body: '{}' })).status, 401);
   }, { runs });
+});
+
+test('our client metadata document is what the server says it is: its address is the client id, and its redirect address is the callback', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const document = JSON.parse(await readFile(new URL('../../public/.well-known/oauth-client.json', import.meta.url), 'utf8'));
+  const config = loadConfig({ SUPABASE_URL: 'https://project.supabase.example', SUPABASE_ANON_KEY: 'anon' });
+  assert.equal(document.client_id, config.connectorClientId, 'the document is at the address that is its own client id');
+  assert.deepEqual(document.redirect_uris, [config.connectorRedirectUri]);
+  assert.equal(document.token_endpoint_auth_method, 'none', 'a public client: it has no secret to keep, PKCE protects the code');
+  assert.deepEqual(document.grant_types.sort(), ['authorization_code', 'refresh_token']);
+  assert.ok(document.client_name && document.client_uri);
+  // The settings are checked: an address that is not https is refused.
+  assert.throws(() => loadConfig({ SUPABASE_URL: 'https://project.supabase.example', SUPABASE_ANON_KEY: 'anon', CONNECTOR_REDIRECT_URI: 'http://api.noureon.com/mcp/callback' }), /CONNECTOR_REDIRECT_URI/);
 });

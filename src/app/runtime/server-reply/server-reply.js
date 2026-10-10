@@ -207,7 +207,7 @@ export function createServerReply({
    * Hands a reply to the server. Resolves { ok: true, run } when it was accepted (the server has it now) or { ok: false, reason,
    * notify } when it was not and the reply is to be made here ('notify' is true when the person should be told).
    */
-  const begin = async (path, { conversation, modelInfo, requestParts, webSearch = 'off', advanced = false, designs = null, inputs = [], cli = [], cliChosen = [], skills = [], visionCheck = null, research = null, assistantMessageId, sequence, uiLanguage, config = {}, requestOptions = {}, getHistorySourceIds = () => [] }) => {
+  const begin = async (path, { conversation, modelInfo, requestParts, webSearch = 'off', advanced = false, designs = null, inputs = [], cli = [], cliChosen = [], skills = [], connectors = false, visionCheck = null, research = null, assistantMessageId, sequence, uiLanguage, config = {}, requestOptions = {}, getHistorySourceIds = () => [] }) => {
     const providerKey = getApiKeyForProvider(modelInfo?.provider);
     if (!providerKey) return { ok: false, reason: 'no-key', notify: false };
     let search = null;
@@ -255,6 +255,8 @@ export function createServerReply({
         ...(advanced && cli.length ? { cli: cli.map((id) => ({ id, chosen: cliChosen.includes(id) })), net: netPolicyForRun(config) } : {}),
         // The skills the model may load by itself (a name and when it applies): the server reads the text of the one it calls for.
         ...(skills.length ? { skills } : {}),
+        // The connectors the person logged in to may be used (the server reads which ones from the person's own connections).
+        ...(connectors ? { connectors: true } : {}),
         // The check of a presentation the reply writes (the page's setting is on and the model can see images): the server makes it too.
         ...(visionCheck ? { visionCheck } : {})
       },
@@ -314,6 +316,8 @@ export function createServerReply({
     answerNet: (askId, decision) => request('POST', `/v1/runs/${runId}/net`, { body: JSON.stringify({ askId, decision }) }),
     // The person's answer ('saved' or 'cancel') to the window that asked for the login a tool needs (the values were saved apart, through /v1/credentials).
     answerCredential: (askId, decision) => request('POST', `/v1/runs/${runId}/credential`, { body: JSON.stringify({ askId, decision }) }),
+    // The person's answer ('once', 'always' or 'deny') to the question whether a tool of a connector may run.
+    answerConnector: (askId, decision) => request('POST', `/v1/runs/${runId}/connector`, { body: JSON.stringify({ askId, decision }) }),
     /** Follows an image the server is making until it is over: resolves { parts } or throws a ServerReplyError (server-image.js). */
     async followImage(options) {
       return (await import('./server-image.js')).followImageRun({ stop: () => this.stop(), watchRun, readMessage, hydrateParts, wait, setTimer, clearTimer, warn, ServerReplyError, graceMs: STOP_GRACE_MS, runId, assistantMessageId }, options);

@@ -9,6 +9,7 @@ import { createLedger, formatElapsed } from '../ledger/ledger.js';
 import { createCodeCard } from './run-code-card.js';
 import { createCredentialAskCards } from './credential-ask-card.js';
 import { createNetAskCards } from './net-ask-card.js';
+import { createConnectorAskCards } from './connector-ask-card.js';
 import { createSourceChips, mergeSources, putFirstSiteIcon, sourcesRowLabel } from './run-sources.js';
 import { keepEndInView } from '../motion/collapse-motion.js';
 import { fillThinkingText } from '../thinking/thinking-text.js';
@@ -26,7 +27,7 @@ const sizeText = (bytes) => (bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toF
  * opens to the steps (`open`: it starts open). The steps are folded either way, newest too. Without it the steps are the list
  * itself (where this is inside a row of another list, such as the visual check's).
  */
-export function createSandboxLedger({ document, host, before = null, language = 'zh-TW', summary = false, open = false, startedAt: workStartedAt = null, onNetAnswer = null, onCredentialAnswer = null }) {
+export function createSandboxLedger({ document, host, before = null, language = 'zh-TW', summary = false, open = false, startedAt: workStartedAt = null, onNetAnswer = null, onCredentialAnswer = null, onConnectorAnswer = null }) {
   const text = (key, values) => sandboxText(language, key, values);
   const outer = summary ? createLedger({ document, host, before }) : null;
   const line = outer ? outer.addRow(text('processWorking')) : null;
@@ -61,6 +62,12 @@ export function createSandboxLedger({ document, host, before = null, language = 
   const askForCredentials = (event) => {
     credentialCards ||= createCredentialAskCards({ document, host: list.list, language, onAnswer: onCredentialAnswer || (async () => ({ ok: false })) });
     credentialCards.handle(event);
+  };
+  // The question whether a tool of a connector may run: a card in the list too.
+  let connectorCards = null;
+  const askAboutConnector = (event) => {
+    connectorCards ||= createConnectorAskCards({ document, host: list.list, language, onAnswer: onConnectorAnswer || (async () => ({ ok: false })) });
+    connectorCards.handle(event);
   };
   const create = (name, className, content) => {
     const node = document.createElement(name);
@@ -236,7 +243,7 @@ export function createSandboxLedger({ document, host, before = null, language = 
   // line said the work was over. When more work follows, the line goes back to running.
   let answered = false;
   const handle = (event) => {
-      if (answered && ['round', 'searching', 'step', 'skill'].includes(event.type)) {
+      if (answered && ['round', 'searching', 'step', 'skill', 'connector'].includes(event.type)) {
         answered = false;
         if (line && line.state !== 'running') {
           line.resume();
@@ -248,6 +255,13 @@ export function createSandboxLedger({ document, host, before = null, language = 
       } else if (event.type === 'skill') {
         // The model loads a skill: a row of its own, over when the next thing begins.
         begin(event.label, { kind: 'skill' });
+      } else if (event.type === 'connector') {
+        // The model uses a connector: a row of its own (the call), and the card that asks when the person set the tool to ask.
+        if (event.event === 'call') begin(event.label, { kind: 'connector' });
+        else {
+          waitingLabel = event.event === 'ask' ? text('connectorWaiting', { connector: event.connector?.name || '', tool: event.tool || '' }) : '';
+          askAboutConnector(event);
+        }
       } else if (event.type === 'searching') {
         startSearch(event);
       } else if (event.type === 'sources') {

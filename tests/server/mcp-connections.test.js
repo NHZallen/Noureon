@@ -251,3 +251,21 @@ test('the tools are kept with their kind from the catalog, not from what the ser
   assert.deepEqual(long.inputSchema, { type: 'object' }, 'a schema that is too large is not kept');
   assert.notEqual(lying.hash, long.hash);
 });
+
+test('what a reply is given: only the connected connectors, with the person\'s states; nothing at all costs one query', async () => {
+  const { db, service } = setup();
+  let asked = 0;
+  const countingDb = { ...db, select: async (...args) => { asked += 1; return db.select(...args); } };
+  const counting = createConnectorService({ db: countingDb, vault: createKeyVault([{ version: 1, key: randomBytes(32).toString('base64') }]), config: { redirectUri: REDIRECT, cimdUrl: CIMD } });
+  assert.deepEqual(await counting.forRun(USER), []);
+  assert.equal(asked, 1);
+  await login(service);
+  await service.setPermissions(USER, 'linear', { create_issue: 'allow', list_issues: 'deny' });
+  const given = await service.forRun(USER);
+  assert.equal(given.length, 1);
+  assert.equal(given[0].id, 'linear');
+  assert.equal(given[0].name, 'Linear');
+  assert.deepEqual(given[0].tools.map((tool) => [tool.name, tool.kind, tool.state]), [['list_issues', 'read', 'deny'], ['create_issue', 'write', 'allow']]);
+  assert.ok(given[0].tools.every((tool) => typeof tool.inputSchema === 'object' && typeof tool.description === 'string'));
+  assert.deepEqual(await service.forRun(OTHER), [], 'another person has none');
+});

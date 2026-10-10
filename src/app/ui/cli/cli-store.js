@@ -1,5 +1,5 @@
 // The Extensions page (擴充; it began as the CLI tools' store, 命令工具, docs/superpowers/specs/2026-10-04-cli-store-design.md): a page over the chat
-// with a back button and two parts, skills and CLI tools. On a wide screen the parts are a list at the left; on a phone they are a switch in the
+// with a back button and three parts, skills, CLI tools and connectors (connectors-part.js). On a wide screen the parts are a list at the left; on a phone they are a switch in the
 // header, to the right of the title (docs/superpowers/specs/2026-10-04-cli-store-design.md, §15). Each part has a search box, the tabs All | Mine
 // and its rows. The CLI part shows the tools as rows (the tool's mark, its name and words, a "+" to add it, a "…" to manage it once added). The look
 // follows the directories of ChatGPT (Apps) and Claude (Connectors): one row for each, the action on the right, black and white.
@@ -10,10 +10,12 @@ import { OFFICIAL_SKILL_CATALOG, skillDescription, skillTitle } from '../../../d
 import { addCli, canModelUseCli, isCliEnabled, removeCli, setCliModelUse } from '../../runtime/cli/cli-state.js';
 import { cliText } from '../../runtime/cli/cli-texts.js';
 import { skillText } from '../../runtime/skill/skill-texts.js';
+import { connectorText } from '../../runtime/connector/connector-texts.js';
+import { createConnectorsPart } from './connectors-part.js';
 import { formatFileSize } from '../skill/skill-file-size.js';
 import { activeSkills, addSkill, canModelUseSkill, isSkillEnabled, removeSkill, setSkillModelUse } from '../../runtime/skill/skill-state.js';
 import { permissionText } from '../../runtime/cli/permission-texts.js';
-import { extensionsIcon, skillIcon, skillMark, terminalIcon, toolIconMarkup, watchToolIcons } from './cli-icons.js';
+import { extensionsIcon, plugIcon, skillIcon, skillMark, terminalIcon, toolIconMarkup, watchToolIcons } from './cli-icons.js';
 import { canAnimate, enterMenu, enterPage, leaveMenu, leavePage, measureRows, playRows } from './cli-motion.js';
 import { DEFAULT_STORE_KIND, STORE_KINDS, storeKindFromPath, storePath } from './store-path.js';
 
@@ -56,13 +58,13 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
   }
   const win = document.defaultView;
   // The words of the skills are in their own table (they are only needed here); every other word is the CLI part's.
-  const t = (key, values) => (/^skill/.test(key) ? skillText(getLanguage(), key, values) : cliText(getLanguage(), key, values));
+  const t = (key, values) => (/^skill/.test(key) ? skillText(getLanguage(), key, values) : /^connector/.test(key) ? connectorText(getLanguage(), key, values) : cliText(getLanguage(), key, values));
   const opener = document.activeElement;
   const addressKind = storeKindFromPath(win.location?.pathname);
   // Each part keeps its own tab and its own search while the page is open.
   const state = {
     kind: addressKind || (STORE_KINDS.includes(kind) ? kind : DEFAULT_STORE_KIND),
-    views: { skills: { tab: 'all', query: '' }, cli: { tab: 'all', query: '' } },
+    views: { skills: { tab: 'all', query: '' }, cli: { tab: 'all', query: '' }, connectors: { tab: 'all', query: '' } },
     expanded: new Set(),
     // The files of skills with files that are open for reading: 'skill-name/path' -> { status: 'loading' | 'ready' | 'failed', text?, cut? }.
     openFiles: new Map(),
@@ -86,7 +88,7 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
   title.innerHTML = `${extensionsIcon(22, 'cs-title-icon')}<span></span>`;
   title.querySelector('span').textContent = t('storeTitle');
   // The two parts: a switch in the header on a phone, a list at the left on a wide screen (the style shows one of them).
-  const kindLabel = (id) => t(id === 'skills' ? 'kindSkills' : 'kindCli');
+  const kindLabel = (id) => t(id === 'skills' ? 'kindSkills' : id === 'cli' ? 'kindCli' : 'connectorKind');
   const switcher = make(document, 'div', 'cs-switch');
   switcher.setAttribute('role', 'tablist');
   switcher.setAttribute('aria-label', t('switchLabel'));
@@ -104,7 +106,7 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
     side.type = 'button';
     side.dataset.kind = id;
     side.setAttribute('role', 'tab');
-    side.innerHTML = id === 'skills' ? skillIcon(18) : terminalIcon(18);
+    side.innerHTML = id === 'skills' ? skillIcon(18) : id === 'cli' ? terminalIcon(18) : plugIcon(18);
     side.append(make(document, 'span', '', kindLabel(id)));
     nav.append(side);
   }
@@ -383,13 +385,13 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
   // Whether the account is ready is known a little after the page starts (when the page is opened by its address, or right after signing in): it is looked at again while the page is open.
   const marks = new Map();
   // The note about the account is for the CLI tools (they run on the server); the skills have nothing to say about it yet.
-  const syncNote = () => { note.hidden = state.kind !== 'cli' || Boolean(getAccountReady()); };
+  const syncNote = () => { note.hidden = state.kind === 'skills' || Boolean(getAccountReady()); };
   const noteTimer = win.setInterval(syncNote, 400);
 
   // The parts: which one is chosen shows on the switch (a phone) and on the list (a wide screen), and the search box follows it.
   const drawKinds = () => {
     for (const choose of root.querySelectorAll('[data-kind]')) choose.setAttribute('aria-selected', String(choose.dataset.kind === state.kind));
-    const placeholder = t(state.kind === 'skills' ? 'skillsSearchPlaceholder' : 'searchPlaceholder');
+    const placeholder = t(state.kind === 'skills' ? 'skillsSearchPlaceholder' : state.kind === 'connectors' ? 'connectorSearchPlaceholder' : 'searchPlaceholder');
     searchInput.placeholder = placeholder;
     searchInput.setAttribute('aria-label', placeholder);
     if (searchInput.value !== view().query) searchInput.value = view().query;
@@ -421,6 +423,9 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
       tab.setAttribute('aria-selected', String(view().tab === id));
     }
   };
+
+  // ----- the connectors: the services the person logs in to (the part is its own file)
+  const connectorsPart = createConnectorsPart({ document, win, t, getLanguage, getAccountReady, redraw: () => draw(), showNotification });
 
   // ----- the skills: the official ones the person may add, and the ones they have (their own pasted ones come from the cloud, skill-store.js)
   const skillMatches = (skill) => {
@@ -698,10 +703,14 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
   const drawNow = () => {
     drawKinds();
     syncNote();
-    note.textContent = t('needAccount');
+    note.textContent = t(state.kind === 'connectors' ? 'connectorNeedAccount' : 'needAccount');
     drawTabs();
     if (state.kind === 'skills') {
       drawSkills();
+      return;
+    }
+    if (state.kind === 'connectors') {
+      list.replaceChildren(...connectorsPart.draw(view(), { showMine: () => { view().tab = 'mine'; draw(); } }));
       return;
     }
     const config = getConfig();
@@ -724,6 +733,7 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
     if (closed) return;
     closed = true;
     closeMenu();
+    connectorsPart.closeSheet();
     win.removeEventListener('keydown', onKey, true);
     win.removeEventListener('click', onClick, true);
     win.removeEventListener('popstate', onPopState);
@@ -744,7 +754,8 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
     lastKey = event;
     event.preventDefault();
     event.stopPropagation();
-    if (menu) closeMenu();
+    if (connectorsPart.state.sheet) connectorsPart.closeSheet();
+    else if (menu) closeMenu();
     else close();
   }
   function onClick(event) {
@@ -795,6 +806,10 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
     draw();
   });
 
+  // Back from a connector's login (the address carries the result): it is told, and a new connection is shown under Mine.
+  if (state.kind === 'connectors' && win.location?.search) {
+    if (connectorsPart.handleReturn(win.location.search).goMine) state.views.connectors.tab = 'mine';
+  }
   document.body.append(root);
   document.documentElement.classList.add('cs-open');
   draw();

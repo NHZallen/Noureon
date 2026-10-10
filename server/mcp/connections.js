@@ -317,7 +317,15 @@ export function createConnectorService({ db, vault, fetchImpl = fetch, now = Dat
      * state }] }]. A connector with no tool is left out. Never throws (a connector that cannot be read now is left out and the reply goes on without it).
      */
     async forRun(userId) {
-      const found = await Promise.all(CONNECTORS.map(async (connector) => {
+      // One read for the person: the many replies of people who have connected nothing cost one query each, and no more.
+      let connected;
+      try {
+        connected = new Set(asArray(await db.select(TABLE, { filters: { user_id: `eq.${userId}`, status: 'eq.connected' }, select: 'connector_id', limit: CONNECTORS.length + 5 })).map((row) => row.connector_id));
+      } catch (error) {
+        log('connector_for_run_failed', { code: error?.code || error?.name || 'error' });
+        return [];
+      }
+      const found = await Promise.all(CONNECTORS.filter((connector) => connected.has(connector.id)).map(async (connector) => {
         try {
           const connection = await service.freshConnection(userId, connector.id);
           if (!connection) return null;

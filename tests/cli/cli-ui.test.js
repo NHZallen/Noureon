@@ -303,8 +303,8 @@ test('the two parts: a list at the left and a switch in the header, the same cho
   openCliStore({ document: t.document, getConfig: () => config, getLanguage: () => 'zh-TW', getAccountReady: () => false });
   const root = t.document.querySelector('.cs');
   const labels = (selector) => [...root.querySelectorAll(selector)].map((node) => node.textContent);
-  assert.deepEqual(labels('.cs-nav-item'), ['技能', '命令工具']);
-  assert.deepEqual(labels('.cs-switch-item'), ['技能', '命令工具'], 'the switch in the header says the same');
+  assert.deepEqual(labels('.cs-nav-item'), ['技能', '命令工具', '連接器']);
+  assert.deepEqual(labels('.cs-switch-item'), ['技能', '命令工具', '連接器'], 'the switch in the header says the same');
   assert.equal(root.querySelector('.cs-head').lastElementChild, root.querySelector('.cs-switch'), 'the switch is in the header, after the title');
   assert.equal(root.querySelector('.cs-title span').textContent, '擴充', 'the title is the page, not the part');
   const chosen = () => root.querySelectorAll('[aria-selected="true"][data-kind]');
@@ -341,14 +341,14 @@ test('the two parts: a list at the left and a switch in the header, the same cho
 });
 
 test('the page speaks all five languages', () => {
-  const expected = { 'zh-TW': ['擴充', '技能', '命令工具'], en: ['Extensions', 'Skills', 'CLI'], fr: ['Extensions', 'Compétences', 'CLI'], ru: ['Расширения', 'Навыки', 'CLI'], es: ['Extensiones', 'Habilidades', 'CLI'] };
-  for (const [language, [title, skills, cli]] of Object.entries(expected)) {
+  const expected = { 'zh-TW': ['擴充', '技能', '命令工具', '連接器'], en: ['Extensions', 'Skills', 'CLI', 'Connectors'], fr: ['Extensions', 'Compétences', 'CLI', 'Connecteurs'], ru: ['Расширения', 'Навыки', 'CLI', 'Коннекторы'], es: ['Extensiones', 'Habilidades', 'CLI', 'Conectores'] };
+  for (const [language, [title, skills, cli, connectors]] of Object.entries(expected)) {
     const config = { cliEnabledIds: [], cliModelUseIds: [], cliVersions: {} };
     const t = setup({ config, language });
     openCliStore({ document: t.document, getConfig: () => config, getLanguage: () => language });
     const root = t.document.querySelector('.cs');
     assert.equal(root.querySelector('.cs-title span').textContent, title, language);
-    assert.deepEqual([...root.querySelectorAll('.cs-nav-item')].map((node) => node.textContent), [skills, cli], language);
+    assert.deepEqual([...root.querySelectorAll('.cs-nav-item')].map((node) => node.textContent), [skills, cli, connectors], language);
     assert.ok(root.querySelector('.cs-empty-note').textContent.length > 20, language);
     closeCliStore();
   }
