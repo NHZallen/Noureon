@@ -72,10 +72,10 @@ export function createNotionOAuth({ db, vault, fetchImpl = fetch, now = Date.now
   }
 
   return {
-    /** Begins a login: the address of Notion's page that asks for the access. */
-    async startLogin(userId) {
+    /** Begins a login: the address of Notion's page that asks for the access. `returnTo`: where the person is sent when it is over ('connectors', the Extensions page, or 'test', the test page). */
+    async startLogin(userId, { returnTo = 'test' } = {}) {
       const state = randomState();
-      const pending = vault.seal({ purpose: 'notion-oauth' }, { userId, ...aad });
+      const pending = vault.seal({ purpose: 'notion-oauth', returnTo: returnTo === 'connectors' ? 'connectors' : 'test' }, { userId, ...aad });
       await saveRow(userId, { state_hash: hashState(state), pending_envelope: pending.envelope, pending_key_version: pending.keyVersion, pending_at: new Date(now()).toISOString() });
       const url = new URL(AUTHORIZE_URL);
       url.searchParams.set('client_id', clientId);
@@ -87,7 +87,7 @@ export function createNotionOAuth({ db, vault, fetchImpl = fetch, now = Date.now
     },
 
     /**
-     * Notion sent the person back: `state` and `code` (or `error`) as they came. Returns { ok, error? } ('bad_state', 'expired', 'denied', 'failed'). The person the login
+     * Notion sent the person back: `state` and `code` (or `error`) as they came. Returns { ok, error?, returnTo? } ('bad_state', 'expired', 'denied', 'failed'; `returnTo` once the state is known to be ours). The person the login
      * belongs to is the one whose row holds the state (found by its hash), whatever else the request says.
      */
     async completeLogin({ state, code, error: serviceError }) {
@@ -110,20 +110,21 @@ export function createNotionOAuth({ db, vault, fetchImpl = fetch, now = Date.now
         await clearPending();
         return { ok: false, error: 'bad_state' };
       }
+      const returnTo = pending.returnTo === 'connectors' ? 'connectors' : 'test';
       if (now() - Date.parse(row.pending_at || 0) > PENDING_MS) {
         await clearPending();
-        return { ok: false, error: 'expired' };
+        return { ok: false, error: 'expired', returnTo };
       }
       if (serviceError || typeof code !== 'string' || !code || code.length > 4096) {
         await clearPending();
-        return { ok: false, error: serviceError === 'access_denied' ? 'denied' : 'failed' };
+        return { ok: false, error: serviceError === 'access_denied' ? 'denied' : 'failed', returnTo };
       }
       const exchanged = await post(TOKEN_URL, { grant_type: 'authorization_code', code, redirect_uri: redirectUri }).catch(() => null);
       const data = exchanged?.data;
       if (!exchanged?.ok || typeof data?.access_token !== 'string' || !data.access_token) {
         await clearPending();
         log('notion_login_failed', { status: exchanged?.status || 0, error: asText(data?.error, 40) });
-        return { ok: false, error: 'failed' };
+        return { ok: false, error: 'failed', returnTo };
       }
       const sealed = vault.seal({
         accessToken: data.access_token,
@@ -133,7 +134,12 @@ export function createNotionOAuth({ db, vault, fetchImpl = fetch, now = Date.now
         workspaceIcon: asText(data.workspace_icon, 500)
       }, { userId, ...aad });
       await saveRow(userId, { envelope: sealed.envelope, key_version: sealed.keyVersion, status: 'connected', mode: 'readwrite', scope: null, state_hash: null, pending_envelope: null, pending_key_version: null, pending_at: null, last_error: null, tools: [], changed: [], permissions: {} });
-      return { ok: true };
+      return { ok: true, returnTo };
+    },
+
+    /** Notion no longer accepts the person's token: the connection needs a new login. */
+    async markExpired(userId) {
+      await saveRow(userId, { status: 'needs_login', last_error: 'expired' });
     },
 
     /** What the person may see of their connection: never the token. */

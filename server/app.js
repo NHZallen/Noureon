@@ -326,15 +326,16 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
       // address says who began it), and what the signed-in person does about their own connection. Nothing of the login is in the address the person is sent on to.
       if (route === 'GET /oauth/notion/callback') {
         if (!notion) throw new RequestError(ERROR_CODES.runsUnavailable, 'Notion is not set up yet.');
-        const back = (params) => {
-          const target = new URL('/notion-test', config.appUrl || 'https://noureon.com');
+        // The person is sent back to the page that began the login: the Extensions page (with the result in the words that page already reads for the other connectors), or the test page.
+        const back = (path, params) => {
+          const target = new URL(path, config.appUrl || 'https://noureon.com');
           for (const [name, value] of Object.entries(params)) target.searchParams.set(name, value);
           response.writeHead(302, { ...SECURITY_HEADERS, Location: target.toString() });
           response.end();
           status = 302;
         };
         if (!callbackLimiter.take('callback')) {
-          back({ notion_error: 'busy' });
+          back('/notion-test', { notion_error: 'busy' });
           return;
         }
         const pick = (name) => {
@@ -342,7 +343,8 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
           return typeof value === 'string' ? value : undefined;
         };
         const outcome = await notion.completeLogin({ state: pick('state'), code: pick('code'), error: pick('error') });
-        back(outcome.ok ? { notion: 'connected' } : { notion_error: outcome.error });
+        if (outcome.returnTo === 'connectors') back('/connectors', outcome.ok ? { connector: 'notion', connected: '1' } : { connector: 'notion', connector_error: outcome.error });
+        else back('/notion-test', outcome.ok ? { notion: 'connected' } : { notion_error: outcome.error });
         return;
       }
       const notionPath = /^\/v1\/notion\/(status|connect|disconnect|whoami)$/.exec(url.pathname);
@@ -354,7 +356,8 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
           if (request.method === 'GET' && action === 'status') send(response, 200, await notion.status(user.id), origin);
           else if (request.method === 'POST' && action === 'connect') {
             if (!connectorLimiter.take(user.id)) throw new RequestError(ERROR_CODES.rateLimited, 'Too many requests; wait a minute.');
-            send(response, 200, await notion.startLogin(user.id), origin);
+            const body = await readJson(request, 2048, { optional: true });
+            send(response, 200, await notion.startLogin(user.id, { returnTo: body?.returnTo === 'connectors' ? 'connectors' : 'test' }), origin);
           } else if (request.method === 'POST' && action === 'disconnect') send(response, 200, { ok: true, ...(await notion.disconnect(user.id)) }, origin);
           else if (request.method === 'GET' && action === 'whoami') {
             if (!connectorLimiter.take(user.id)) throw new RequestError(ERROR_CODES.rateLimited, 'Too many requests; wait a minute.');

@@ -155,6 +155,8 @@ html.cs-open { overflow: hidden; }
 .cs-conn-status { display: inline-flex; align-items: center; gap: 0.4rem; color: var(--state-success); font-size: 0.85rem; white-space: nowrap; }
 .cs-conn-status::before { content: ""; width: 0.45rem; height: 0.45rem; border-radius: 9999px; background: currentColor; }
 .cs-conn-status.is-warning { color: var(--state-warning); }
+.cs-conn-badge { color: var(--text-secondary); font-size: 0.78rem; border: 1px solid var(--border-color); border-radius: 9999px; padding: 0.05rem 0.5rem; white-space: nowrap; }
+.cs-dialog-switch { margin-top: 0.7rem; padding: 0; border: 0; background: none; font: inherit; font-size: 0.82rem; cursor: pointer; text-align: left; }
 .cs-connect { display: inline-flex; align-items: center; gap: 0.15rem; padding: 0.3rem 0.2rem 0.3rem 0.6rem; font-weight: 600; white-space: nowrap; cursor: pointer; }
 .cs-connect-arrow { display: inline-flex; color: var(--text-secondary); }
 .cs-connector .cs-action { cursor: pointer; }

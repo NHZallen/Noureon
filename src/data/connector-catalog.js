@@ -84,7 +84,27 @@ export const CONNECTORS = Object.freeze([
   })
 ]);
 
-export const getConnector = (id) => CONNECTORS.find((connector) => connector.id === id) || null;
+// The same service reached another way: Notion through Noureon's own connection (a public connection made in Notion's developer portal; server/notion/), where the person
+// chooses in Notion which pages to share and Notion's page asks in the name and with the logo of Noureon. It is the first way offered for Notion; the hosted connector above is the
+// other (the whole workspace, many more tools, but Notion's page shows only an address). The page shows both as Notion. `parent`: the connector of the list it belongs to. The tools
+// are made on the server (server/notion/tools.js); the names are here so that the page and the server say the same read from write (a test keeps them together).
+export const REST_CONNECTORS = Object.freeze([
+  Object.freeze({
+    id: 'notion-public',
+    parent: 'notion',
+    rest: true,
+    name: 'Notion',
+    category: 'notes',
+    icon: 'https://github.com/makenotion.png?size=96',
+    reads: Object.freeze(['notion_search', 'notion_get_page', 'notion_get_page_content', 'notion_get_database', 'notion_query_database', 'notion_get_comments']),
+    writes: Object.freeze(['notion_create_page', 'notion_update_page', 'notion_append_content', 'notion_create_comment'])
+  })
+]);
+
+/** A connector of the list, or one of the connections made another way (the Notion of Noureon's own login). */
+export const getConnector = (id) => CONNECTORS.find((connector) => connector.id === id) || REST_CONNECTORS.find((connector) => connector.id === id) || null;
+/** The connection made another way for a connector of the list, or null. */
+export const restConnectorOf = (parentId) => REST_CONNECTORS.find((connector) => connector.parent === parentId) || null;
 export const connectorDescription = (connector, language) => String(connector?.description?.[language] || connector?.description?.en || '');
 /** The longer words about what a connector does, and a few requests to try: shown when its row is opened. */
 export const connectorDetails = (connector, language) => String(connector?.details?.[language] || connector?.details?.en || '');

@@ -5,7 +5,7 @@
 // groups, reading and writing, each with one setting for the group (allow, ask, refuse) and a list that sets each tool apart. Whatever the person sets stands.
 // Everything a service says (a tool's description) is put in as text, never as markup.
 
-import { CONNECTORS, CONNECTOR_CATEGORIES, connectorDescription, connectorDetails, connectorExamples, hasReadonlyLogin } from '../../../data/connector-catalog.js';
+import { CONNECTORS, CONNECTOR_CATEGORIES, connectorDescription, connectorDetails, connectorExamples, hasReadonlyLogin, restConnectorOf } from '../../../data/connector-catalog.js';
 import { connectorMark } from './connector-mark.js';
 import { disconnectConnector, listConnectors, refreshConnector, saveToolStates, startConnector } from '../../runtime/connector/connectors-client.js';
 
@@ -29,6 +29,13 @@ export function createConnectorsPart({ document, win, t, getLanguage, getAccount
   // `closedPerms`: the permissions of a connection the person folded under Mine; `openPerms`: the ones opened in the settings (folded at first); `expanded`: the rows of the list opened in place.
   const state = { status: 'idle', byId: new Map(), openGroups: new Set(), closedPerms: new Set(), openPerms: new Set(), expanded: new Set(), confirming: null, sheet: null };
   const connectionOf = (id) => state.byId.get(id) || { id, status: 'none', mode: 'readwrite', tools: [], error: '' };
+  // A connector of the list may be reached two ways (Notion: its own login for the pages the person chooses, which is offered first, and Notion's hosted connector, the whole
+  // workspace). The first needs the server to have it set up (it then lists it). `units` are the ones that are connected: each has its own card and settings.
+  const restOf = (connector) => restConnectorOf(connector.id);
+  const restOffered = (connector) => Boolean(restOf(connector) && state.byId.has(restOf(connector).id));
+  const unitsOf = (connector) => [restOf(connector), connector].filter((unit) => unit && connectionOf(unit.id).status !== 'none');
+  const parentOf = (unit) => CONNECTORS.find((connector) => connector.id === (unit.parent || unit.id));
+  const badge = (unit) => (unit.rest ? 'connectorBackendRest' : restOffered(unit) ? 'connectorBackendMcp' : '');
 
   const load = async () => {
     if (state.status === 'loading' || !getAccountReady()) return;
@@ -81,9 +88,13 @@ export function createConnectorsPart({ document, win, t, getLanguage, getAccount
     }
     return box;
   };
-  const openSheet = (connector, { mode = 'readwrite', switching = false } = {}) => {
+  // `backend`: 'rest' (Notion's own login) or 'mcp'; where both are offered and the person is not logging in again to a connection they have, they may choose (the first is first).
+  const openSheet = (connector, { mode = 'readwrite', switching = false, backend = null } = {}) => {
     closeSheet();
     let chosen = mode;
+    const offered = restOffered(connector);
+    const locked = backend !== null || !offered;
+    let way = backend || (offered ? 'rest' : 'mcp');
     const backdrop = make('div', 'cs-dialog-backdrop');
     const dialog = make('div', 'cs-dialog');
     dialog.setAttribute('role', 'dialog');
@@ -98,6 +109,18 @@ export function createConnectorsPart({ document, win, t, getLanguage, getAccount
     cancel.type = 'button';
     const drawBody = () => {
       const nodes = [make('h2', 'cs-dialog-title', t('connectorSheetTitle', { name: connector.name })), make('p', 'cs-dialog-text', connectorDescription(connector, getLanguage()))];
+      if (way === 'rest') {
+        nodes.push(make('p', 'cs-dialog-note', t('connectorSheetRest', { name: connector.name })));
+        nodes.push(make('p', 'cs-dialog-note', t('connectorSheetPrivacy')));
+        if (!locked) {
+          const other = make('button', 'cs-link cs-dialog-switch', t('connectorSheetMcp'));
+          other.type = 'button';
+          other.addEventListener('click', () => { way = 'mcp'; drawBody(); });
+          nodes.push(other);
+        }
+        body.replaceChildren(...nodes);
+        return;
+      }
       if (hasReadonlyLogin(connector)) {
         nodes.push(make('strong', 'cs-dialog-label', t('connectorScopeTitle')));
         nodes.push(segmented([['readonly', t('connectorScopeReadonly')], ['readwrite', t('connectorScopeReadwrite')]], chosen, (value) => { chosen = value; drawBody(); }));
@@ -105,6 +128,13 @@ export function createConnectorsPart({ document, win, t, getLanguage, getAccount
       } else nodes.push(make('p', 'cs-dialog-note', t('connectorScopeFixed')));
       nodes.push(make('p', 'cs-dialog-note', switching ? t('connectorScopeSwitch', { name: connector.name }) : t('connectorSheetNote', { name: connector.name })));
       nodes.push(make('p', 'cs-dialog-note', t('connectorSheetPrivacy')));
+      if (!locked) {
+        nodes.push(make('p', 'cs-dialog-note', t('connectorSheetMcpNote')));
+        const other = make('button', 'cs-link cs-dialog-switch', t('connectorSheetBackRest'));
+        other.type = 'button';
+        other.addEventListener('click', () => { way = 'rest'; drawBody(); });
+        nodes.push(other);
+      }
       body.replaceChildren(...nodes);
     };
     drawBody();
@@ -126,7 +156,7 @@ export function createConnectorsPart({ document, win, t, getLanguage, getAccount
       go.disabled = true;
       go.textContent = t('connectorSheetBusy');
       failure.hidden = true;
-      const result = await startConnector(connector.id, chosen);
+      const result = await startConnector(way === 'rest' ? restOf(connector).id : connector.id, chosen);
       if (result.ok) {
         // The whole page goes to the service (a pop-up would be blocked on a phone) and comes back to /connectors.
         win.location.assign(result.url);
@@ -171,7 +201,10 @@ export function createConnectorsPart({ document, win, t, getLanguage, getAccount
     const item = make('div', 'cs-tool');
     const text = make('div', 'cs-tool-text');
     text.append(make('code', 'cs-tool-name', tool.name));
-    if (tool.description) text.append(make('span', 'cs-tool-desc', tool.description));
+    // The tools of Noureon's own Notion login are ours: their words are in the five languages. A hosted service's description is its own, put in as text.
+    const own = connector.rest ? t(`connectorTool_${tool.name}`) : '';
+    const description = own && own !== `connectorTool_${tool.name}` ? own : tool.description;
+    if (description) text.append(make('span', 'cs-tool-desc', description));
     if (tool.changed) text.append(make('span', 'cs-tool-changed', t('connectorChanged')));
     item.append(text, stateButtons(tool.state, (value) => setStates(connector.id, [tool.name], value)));
     return item;
@@ -226,12 +259,13 @@ export function createConnectorsPart({ document, win, t, getLanguage, getAccount
     const head = make('div', 'cs-conn-head');
     const who = make('div', 'cs-conn-who');
     who.append(make('strong', 'cs-conn-name', connector.name));
+    if (badge(connector)) who.append(make('span', 'cs-conn-badge', t(badge(connector))));
     who.append(make('span', `cs-conn-status${needsLogin ? ' is-warning' : ''}`, t(needsLogin ? 'connectorNeedsLogin' : 'connectorConnected')));
     const side = make('div', 'cs-conn-side');
     if (needsLogin) {
       const again = make('button', 'cs-button cs-button-primary', t('connectorReconnect'));
       again.type = 'button';
-      again.addEventListener('click', () => openSheet(connector, { mode: connection.mode }));
+      again.addEventListener('click', () => openSheet(parentOf(connector), { mode: connection.mode, backend: connector.rest ? 'rest' : 'mcp' }));
       side.append(again);
     }
     if (state.confirming === connector.id) {
@@ -274,8 +308,9 @@ export function createConnectorsPart({ document, win, t, getLanguage, getAccount
     // The access: where the service lets the login itself be read-only, the person may choose; changing it is a new login.
     const scope = make('section', 'cs-conn-card');
     scope.append(make('h3', 'cs-group-title', t('connectorScopeTitle')));
-    if (hasReadonlyLogin(connector)) {
-      scope.append(segmented([['readonly', t('connectorScopeReadonly')], ['readwrite', t('connectorScopeReadwrite')]], connection.mode, (value) => openSheet(connector, { mode: value, switching: true })));
+    if (connector.rest) scope.append(make('p', 'cs-conn-note', t('connectorRestScope')));
+    else if (hasReadonlyLogin(connector)) {
+      scope.append(segmented([['readonly', t('connectorScopeReadonly')], ['readwrite', t('connectorScopeReadwrite')]], connection.mode, (value) => openSheet(connector, { mode: value, switching: true, backend: 'mcp' })));
       scope.append(make('p', 'cs-conn-note', t(connection.mode === 'readonly' ? 'connectorScopeNoteReadonly' : 'connectorScopeNoteReadwrite', { name: connector.name })));
     } else scope.append(make('p', 'cs-conn-note', t('connectorScopeFixed')));
     nodes.push(scope);
@@ -283,6 +318,8 @@ export function createConnectorsPart({ document, win, t, getLanguage, getAccount
     const groups = [group(connector, connection, 'read'), group(connector, connection, 'write')].filter(Boolean);
     if (groups.length) nodes.push(...groups);
     else nodes.push(make('p', 'cs-conn-note', t('connectorNoTools')));
+    // The tools of Noureon's own login are fixed by Noureon: there is nothing to ask the service for.
+    if (connector.rest) return nodes;
     const refresh = make('button', 'cs-link cs-conn-refresh', t('connectorRefresh'));
     refresh.type = 'button';
     refresh.addEventListener('click', async () => {
@@ -317,8 +354,10 @@ export function createConnectorsPart({ document, win, t, getLanguage, getAccount
 
   // A row of the list of all the connectors.
   const row = (connector, { onShowMine }) => {
-    const connection = connectionOf(connector.id);
-    const connected = connection.status !== 'none';
+    // The state of the row: the best of its connections (a good one over one that needs a login).
+    const units = unitsOf(connector);
+    const connection = units.map((unit) => connectionOf(unit.id)).find((entry) => entry.status === 'connected') || units.map((unit) => connectionOf(unit.id))[0] || connectionOf(connector.id);
+    const connected = units.length > 0;
     const element = make('div', `cs-row cs-connector${connected ? ' is-added' : ''}`);
     element.dataset.connectorId = connector.id;
     const text = make('button', 'cs-text');
@@ -384,7 +423,10 @@ export function createConnectorsPart({ document, win, t, getLanguage, getAccount
     // The right side: a connection that needs a login logs in again, one that is not connected begins (the status of a good one only opens the words).
     action.addEventListener('click', () => {
       if (connected && connection.status === 'connected') toggle();
-      else if (connected) openSheet(connector, { mode: connection.mode });
+      else if (connected) {
+        const unit = units.find((entry) => connectionOf(entry.id).status === 'needs_login') || units[0];
+        openSheet(connector, { mode: connection.mode, backend: unit.rest ? 'rest' : 'mcp' });
+      }
       else if (!getAccountReady()) showNotification(t('connectorNeedAccount'), 'error');
       else openSheet(connector);
     });
@@ -414,8 +456,8 @@ export function createConnectorsPart({ document, win, t, getLanguage, getAccount
     }
     const found = CONNECTORS.filter((connector) => matches(connector, view.query));
     if (view.tab === 'mine') {
-      const mine = found.filter((connector) => connectionOf(connector.id).status !== 'none');
-      return mine.length ? mine.map((connector) => card(connector)) : [make('div', 'cs-empty', view.query ? t('connectorNoResults') : t('connectorNoneMine'))];
+      const mine = found.flatMap((connector) => unitsOf(connector));
+      return mine.length ? mine.map((unit) => card(unit)) : [make('div', 'cs-empty', view.query ? t('connectorNoResults') : t('connectorNoneMine'))];
     }
     const nodes = [];
     for (const category of CONNECTOR_CATEGORIES) {
@@ -445,13 +487,14 @@ export function createConnectorsPart({ document, win, t, getLanguage, getAccount
       box.append(retry);
       return [box];
     }
-    const mine = CONNECTORS.filter((connector) => connectionOf(connector.id).status !== 'none');
+    const mine = CONNECTORS.flatMap((connector) => unitsOf(connector));
     if (!mine.length) return [make('p', 'pm-empty', t('connectorNoneMine'))];
     return mine.map((connector) => {
       const connection = connectionOf(connector.id);
       const needs = connection.status === 'needs_login';
       const open = state.openPerms.has(connector.id);
       const status = make('span', `cs-conn-status${needs ? ' is-warning' : ''}`, t(needs ? 'connectorNeedsLogin' : 'connectorConnected'));
+      if (badge(connector)) status.textContent = `${t(badge(connector))} · ${status.textContent}`;
       const box = foldable({ title: connector.name, open, status, icon: connectorMark(document, connector, { size: 22, className: 'cs-fold-mark' }), onToggle: () => { if (state.openPerms.has(connector.id)) state.openPerms.delete(connector.id); else state.openPerms.add(connector.id); redraw(); }, body: () => permissionBody(connector, connection) });
       box.classList.add('cs-conn-card', 'cs-perm');
       box.dataset.connectorId = connector.id;

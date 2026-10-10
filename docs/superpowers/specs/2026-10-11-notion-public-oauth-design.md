@@ -54,3 +54,21 @@ Hosted MCP（`https://mcp.notion.com/mcp`）的授權畫面對只用網址認識
 **測試（假 Notion）：** 授權網址的參數、state 只存雜湊且只能用一次、過期、被拒絕、授權碼換 Token 時 Secret 只在 `Authorization` 標頭、Token 密封存放（資料列裡沒有明文、沒有擁有者 email）、不同使用者的 Token 互不相通（搬到別人的列就打不開、換別的主金鑰也打不開、A 解除連接不影響 B）、Hosted MCP 的 state 與這個流程互不接受、撤銷、Token 失效改成需要重新授權、環境變數成對、各端點只看登入者自己的連接、答案與導回網址裡沒有 Secret 或 Token。
 
 **沒有驗證的（要真實登入才知道）：** Notion 授權畫面是否顯示 Noureon 的名稱與 Logo；`/v1/oauth/revoke` 是否真的存在並接受這個格式（失敗時只是沒撤銷，資料照刪）；Notion 的回應欄位名稱（`workspace_name`、`workspace_icon`、`bot_id`）是否如文件。
+
+## 7. 第 2 步完成（18.5.0）：預設的 Notion 連線，Hosted MCP 保留作備用
+
+**owner 的決定（2026-10-11）：** 品牌測試成功（Notion 授權畫面顯示 Noureon 的名稱與標誌）→ 擴充頁的 Notion 預設走新的登入與 REST 工具（選項 A），原本的 Hosted MCP 保留為備用（連線視窗裡改選「完整存取（MCP）」）。
+
+**做了什麼：**
+- `server/notion/tools.js`：十個工具（讀取：`notion_search`、`notion_get_page`、`notion_get_page_content`、`notion_get_database`、`notion_query_database`、`notion_get_comments`；寫入：`notion_create_page`、`notion_update_page`、`notion_append_content`、`notion_create_comment`）。區塊轉成精簡文字、簡單 Markdown 轉成區塊；API 版本 `2022-06-28`；429 重試一次；401 把連接改成「需要重新登入」；404／403 提示「這個頁面沒有分享給 Noureon」；結果最多 24,000 字元。
+- `src/data/connector-catalog.js`：`REST_CONNECTORS`（`notion-public`，`parent: 'notion'`），工具名稱同時是伺服器與畫面的讀／寫分類（測試核對）。
+- `server/mcp/connections.js`：`list()` 在 Notion 已設定時多回一筆 `notion-public`；`forRun()` 多給一組工具（兩種都連線時，Hosted 的名稱是「Notion (full access)」）；`clientFor`、`disconnect`、`setPermissions` 依代號分流。權限、確認卡、30 次上限、結果當資料處理都沿用。
+- 同一張資料表 `user_mcp_connections`，列的 `connector_id = 'notion-public'`；沒有新的 SQL、沒有新的環境變數。
+- 登入從擴充頁開始時（`POST /v1/notion/connect` 帶 `{returnTo:'connectors'}`），回呼導回 `/connectors?connector=notion&connected=1`（失敗是 `&connector_error=<代碼>`）；從測試頁開始則照舊回 `/notion-test`。`returnTo` 密封在待處理的登入資料裡，不收任意網址。
+- 畫面：清單裡只有一個 Notion；連線視窗預設新登入（說明可分享頁面的模型、Notion 畫面顯示 Noureon），底下有「改用完整存取（MCP）」並可改回；「我的」與設定的權限頁每種連線各一張卡，標籤「所選頁面」／「完整存取（MCP）」；新登入的權限頁不顯示範圍選擇，改顯示「只能看到你分享的頁面」的說明，也沒有「重新整理工具」；工具說明是自己的五語言文字（`connectorTool_<名稱>`）。伺服器沒有設定 Notion 時，連線視窗只提供 Hosted。
+
+**決定的事（原 §5 的待決項）：** 資料庫沿用 `2022-06-28`；清單合併成一個 Notion；Token 失效時改成需要重新登入。
+
+**部署：** 不需要新的環境變數或 SQL（`NOTION_CLIENT_ID`、`NOTION_CLIENT_SECRET` 已設）。Notion 後台的 Redirect URI 要是 `https://api.noureon.com/oauth/notion/callback`。
+
+**仍未驗證（要真實登入才知道）：** `/v1/oauth/revoke` 是否存在；Notion 回應欄位名稱；十個工具在真實工作空間的品質（特別是屬性的格式、資料庫查詢的篩選）；使用者在授權時選頁面的體驗。

@@ -11,7 +11,7 @@ const EXPECTED_DATA_IMPORT_ORDER = [
 ];
 const EXPECTED_ASTRA_COUNT = 11;
 const EXPECTED_FIRST_ASTRA_ID = 'official-writer-01';
-const EXPECTED_UPDATE_LOG_COUNT = 141;
+const EXPECTED_UPDATE_LOG_COUNT = 142;
 // Derived, not copied: the newest update-log entry is by definition the product version.
 const EXPECTED_LATEST_UPDATE_VERSION = PRODUCT_VERSION;
 const GLOBAL_KEYS_TO_RESTORE = ['window', 'i18n', 'OFFICIAL_ASTRAS', 'updateLogs'];

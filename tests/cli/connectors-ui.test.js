@@ -23,7 +23,7 @@ const LINEAR = {
 };
 
 /** A page and a server that answers the calls of the connectors part; `calls` records them. */
-function setup({ account = true, connections = [LINEAR], language = 'zh-TW', failPut = false, startUrl = 'https://auth.linear.app/authorize?x=1' } = {}) {
+function setup({ account = true, connections = [LINEAR], language = 'zh-TW', failPut = false, rest = false, startUrl = 'https://auth.linear.app/authorize?x=1' } = {}) {
   const window = new Window({ url: 'https://example.test/connectors' });
   const { document } = window;
   document.body.innerHTML = '<div class="cs"></div>';
@@ -31,7 +31,8 @@ function setup({ account = true, connections = [LINEAR], language = 'zh-TW', fai
   const data = new Map(connections.map((entry) => [entry.id, JSON.parse(JSON.stringify(entry))]));
   registerServerRequest(async (method, path, options = {}) => {
     calls.push([method, path, options.body ? JSON.parse(options.body) : null]);
-    if (method === 'GET' && path === '/v1/connectors') return { ok: true, status: 200, data: { connectors: CONNECTORS.map((connector) => data.get(connector.id) || { id: connector.id, status: 'none', mode: 'readwrite', tools: [], error: '' }) } };
+    if (method === 'POST' && path === '/v1/notion/connect') return { ok: true, status: 200, data: { url: 'https://api.notion.com/v1/oauth/authorize?x=1' } };
+    if (method === 'GET' && path === '/v1/connectors') return { ok: true, status: 200, data: { connectors: [...(rest || data.has('notion-public') ? [data.get('notion-public') || { id: 'notion-public', parent: 'notion', backend: 'rest', status: 'none', mode: 'readwrite', tools: [], error: '' }] : []), ...CONNECTORS.map((connector) => data.get(connector.id) || { id: connector.id, status: 'none', mode: 'readwrite', tools: [], error: '' })] } };
     if (method === 'POST' && /\/connect$/.test(path)) return { ok: true, status: 200, data: { url: startUrl } };
     if (method === 'POST' && /\/disconnect$/.test(path)) { data.delete(path.split('/')[3]); return { ok: true, status: 200, data: { ok: true, revoked: true } }; }
     if (method === 'PUT' && /\/permissions$/.test(path)) return failPut ? { ok: false, status: 500, code: 'internal_error', data: {} } : { ok: true, status: 200, data: { ok: true } };
@@ -564,4 +565,113 @@ test('the style files of the connectors are well formed: every comment is closed
   assert.match(bare, /\.cs-fold-mark \{[^}]*border-radius/);
   const logo = ledger.replace(/\/\*[\s\S]*?\*\//g, '');
   assert.match(logo, /\.connector-mark-img \{[^}]*border-radius: inherit/);
+});
+
+// ----- Notion's own login (the chosen pages) and the hosted connector as the other way
+
+const REST = {
+  id: 'notion-public',
+  parent: 'notion',
+  backend: 'rest',
+  status: 'connected',
+  mode: 'readwrite',
+  error: '',
+  workspaceName: 'Team',
+  tools: [tool('notion_search', 'read', 'allow'), tool('notion_get_page', 'read', 'allow'), tool('notion_create_page', 'write', 'ask'), tool('notion_append_content', 'write', 'ask')]
+};
+
+test('Notion offers its own login first, with the hosted connector as the other way the person may choose in the sheet', async () => {
+  const t = setup({ connections: [], rest: true });
+  await settle(t);
+  assert.deepEqual(names(t, '.cs-name-text'), ['Notion', 'Linear'], 'one Notion in the list, not two');
+  t.host.querySelector('[data-connector-id="notion"] .cs-action').click();
+  const sheet = () => t.host.querySelector('.cs-dialog');
+  assert.match(sheet().textContent, /選擇要分享給 Noureon 的頁面/, 'the first way is the chosen pages');
+  assert.equal(sheet().querySelector('.cs-seg'), null);
+  // Go: Notion's own start, which comes back to the Extensions page.
+  sheet().querySelector('.cs-button-primary').click();
+  await flush();
+  assert.deepEqual(t.calls.at(-1), ['POST', '/v1/notion/connect', { returnTo: 'connectors' }]);
+  assert.deepEqual(t.assigned, ['https://api.notion.com/v1/oauth/authorize?x=1']);
+  // The other way: the hosted connector, with what it is and a way back.
+  t.part.closeSheet();
+  t.host.querySelector('[data-connector-id="notion"] .cs-action').click();
+  sheet().querySelector('.cs-dialog-switch').click();
+  assert.match(sheet().textContent, /只會顯示網址/);
+  assert.match(sheet().textContent, /授權包含寫入權限/);
+  sheet().querySelector('.cs-button-primary').click();
+  await flush();
+  assert.deepEqual(t.calls.at(-1), ['POST', '/v1/connectors/notion/connect', { mode: 'readwrite' }]);
+  t.part.closeSheet();
+  t.host.querySelector('[data-connector-id="notion"] .cs-action').click();
+  sheet().querySelector('.cs-dialog-switch').click();
+  sheet().querySelector('.cs-dialog-switch').click();
+  assert.match(sheet().textContent, /選擇要分享給 Noureon 的頁面/, 'and back');
+});
+
+test('where the server has no Notion login set up, only the hosted connector is offered', async () => {
+  const t = setup({ connections: [] });
+  await settle(t);
+  t.host.querySelector('[data-connector-id="notion"] .cs-action').click();
+  assert.equal(t.host.querySelector('.cs-dialog-switch'), null);
+  assert.match(t.host.querySelector('.cs-dialog').textContent, /授權包含寫入權限/);
+  t.host.querySelector('.cs-dialog .cs-button-primary').click();
+  await flush();
+  assert.deepEqual(t.calls.at(-1), ['POST', '/v1/connectors/notion/connect', { mode: 'readwrite' }]);
+});
+
+test('a Notion connected through its own login: the row is connected, Mine has a card with a badge, the pages note, our own words for the tools, and no refresh', async () => {
+  const t = setup({ connections: [REST], rest: true });
+  await settle(t);
+  assert.equal(t.host.querySelector('[data-connector-id="notion"] .cs-conn-status').textContent, '已連線');
+  t.view.tab = 'mine';
+  t.draw();
+  const card = t.host.querySelector('[data-connector-id="notion-public"]');
+  assert.ok(card);
+  assert.equal(card.querySelector('.cs-conn-name').textContent, 'Notion');
+  assert.equal(card.querySelector('.cs-conn-badge').textContent, '所選頁面');
+  assert.match(card.textContent, /只能看到你在 Notion 授權時分享給 Noureon 的頁面/);
+  assert.equal(card.querySelector('.cs-seg-item[aria-pressed]') !== null, true, 'the groups have their settings');
+  assert.equal(card.querySelector('.cs-conn-refresh'), null, 'nothing to ask the service for');
+  card.querySelector('.cs-group-toggle').click();
+  assert.match(t.host.querySelector('[data-connector-id="notion-public"]').textContent, /依關鍵字搜尋你分享給 Noureon 的頁面與資料庫/);
+  assert.doesNotMatch(t.host.querySelector('[data-connector-id="notion-public"]').textContent, /notion_search description/);
+});
+
+test('both Notion connections can be held at once, each with its own card, its own badge and its own disconnect', async () => {
+  const hosted = { id: 'notion', status: 'connected', mode: 'readwrite', error: '', tools: [tool('notion-search', 'read', 'allow')] };
+  const t = setup({ connections: [REST, hosted], rest: true });
+  t.view.tab = 'mine';
+  await settle(t);
+  assert.deepEqual(names(t, '.cs-conn-badge'), ['所選頁面', '完整存取（MCP）']);
+  t.host.querySelector('[data-connector-id="notion-public"] .cs-button').click();
+  t.host.querySelector('[data-connector-id="notion-public"] .cs-button-danger').click();
+  await flush();
+  assert.deepEqual(t.calls.find(([, path]) => /disconnect$/.test(path)), ['POST', '/v1/connectors/notion-public/disconnect', null]);
+  assert.equal(t.host.querySelector('[data-connector-id="notion-public"]'), null);
+  assert.ok(t.host.querySelector('[data-connector-id="notion"]'), 'the hosted one stays');
+});
+
+test('a Notion login that needs doing again goes to the same way it was made, with no choice', async () => {
+  const t = setup({ connections: [{ ...REST, status: 'needs_login' }], rest: true });
+  t.view.tab = 'mine';
+  await settle(t);
+  t.host.querySelector('[data-connector-id="notion-public"] .cs-button-primary').click();
+  assert.equal(t.host.querySelector('.cs-dialog-switch'), null);
+  t.host.querySelector('.cs-dialog .cs-button-primary').click();
+  await flush();
+  assert.deepEqual(t.calls.at(-1), ['POST', '/v1/notion/connect', { returnTo: 'connectors' }]);
+});
+
+test('the permissions page of the settings lists both, and every tool of our own Notion has its words in the five languages', async () => {
+  const t = setup({ connections: [REST], rest: true });
+  await settle(t);
+  const nodes = t.part.permissionNodes();
+  assert.equal(nodes.length, 1);
+  assert.match(nodes[0].textContent, /所選頁面/);
+  for (const language of ['zh-TW', 'en', 'fr', 'ru', 'es']) {
+    for (const name of ['notion_search', 'notion_get_page', 'notion_get_page_content', 'notion_get_database', 'notion_query_database', 'notion_get_comments', 'notion_create_page', 'notion_update_page', 'notion_append_content', 'notion_create_comment']) {
+      assert.ok(CONNECTOR_TEXTS[language][`connectorTool_${name}`], `${language} ${name}`);
+    }
+  }
 });

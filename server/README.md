@@ -18,7 +18,7 @@
 | `POST /v1/runs/:id/net` | 是 | 回答命令工具想連到某網站的詢問：`{askId, decision: 'once' \| 'always' \| 'deny'}`，交給正在執行的沙盒；不是這個人進行中的回覆回 404，答案不合法回 400 |
 | `POST /v1/runs/:id/credential` | 是 | 回答「命令工具需要登入資料」的視窗：`{askId, decision: 'saved' \| 'cancel'}`（內容本身先由頁面存到 `/v1/credentials`，不會經過這裡），交給正在等的那一次回覆；不是這個人進行中的回覆回 404 |
 | `GET /oauth/notion/callback` | 否 | Notion 登入後把人導回的位址（用 `state` 找到開始登入的人，導回測試頁，網址裡沒有登入資料） |
-| `GET /v1/notion/status`、`POST /v1/notion/connect`、`POST /v1/notion/disconnect`、`GET /v1/notion/whoami` | 是 | 自己的 Notion 連接：狀態（只有工作空間資訊）、開始授權（回 Notion 授權頁位址）、解除（撤銷並刪除）、驗證 Token 可用。一律是登入者本人的連接 |
+| `GET /v1/notion/status`、`POST /v1/notion/connect`、`POST /v1/notion/disconnect`、`GET /v1/notion/whoami` | 是 | 自己的 Notion 連接：狀態（只有工作空間資訊）、開始授權（回 Notion 授權頁位址；body 可帶 `{returnTo:'connectors'}`，登入後導回擴充頁）、解除（撤銷並刪除）、驗證 Token 可用。一律是登入者本人的連接 |
 | `GET /v1/storage` | 是 | 這個人的雲端空間用量：`{usedBytes, quotaBytes}`（每人 500 MB，附件與 AI 做出的檔案都算；`usedBytes` 為 `null` 表示暫時查不到） |
 | `GET /v1/credentials`、`PUT /v1/credentials/:NAME`（`{value}`）、`DELETE /v1/credentials/:NAME` | 是 | 命令工具的安全憑證：列出（含內容，使用者可以再看）、新增或替換、刪除。加密保存在資料表 `user_credentials`（只有服務角色能讀寫）；名稱是大寫英文、數字、底線，內容最多 4000 字，每人最多 40 個 |
 | `POST /v1/runs/:id/stop` | 是 | 停止；深度研究可帶 `{mode: 'report'}`，表示「用目前的資料寫報告」，不帶則結束 |

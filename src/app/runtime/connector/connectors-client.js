@@ -13,6 +13,11 @@ export async function listConnectors() {
 
 /** Begins a login: { ok, url } (the page goes to `url`, the service's login). `mode`: 'readonly' or 'readwrite'. */
 export async function startConnector(id, mode) {
+  // Notion's own login (the chosen pages) has its own start; it comes back to the Extensions page.
+  if (id === 'notion-public') {
+    const begun = await serverRequest('POST', '/v1/notion/connect', { body: JSON.stringify({ returnTo: 'connectors' }) });
+    return begun.ok && typeof begun.data?.url === 'string' ? { ok: true, url: begun.data.url } : failure(begun);
+  }
   const result = await serverRequest('POST', `/v1/connectors/${encodeURIComponent(id)}/connect`, { body: JSON.stringify({ mode: mode === 'readonly' ? 'readonly' : 'readwrite' }) });
   return result.ok && typeof result.data?.url === 'string' ? { ok: true, url: result.data.url } : failure(result);
 }

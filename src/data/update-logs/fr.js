@@ -1,6 +1,16 @@
 // The update notes in French (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.5.0": [
+    "<strong>Notes de version de Noureon 18.5.0</strong>",
+    "Cette version ajoute la connexion propre à Noureon pour Notion, désormais la façon par défaut de connecter Notion ; le connecteur hébergé par Notion reste disponible comme autre option.",
+    "<strong>Principaux changements</strong>",
+    "<ul><li><strong>Connexion propre à Notion :</strong> l’écran d’autorisation de Notion affiche le nom et le logo de Noureon. Vous choisissez dans Notion les pages à partager avec Noureon, qui ne peut lire et modifier que celles-là.</li><li><strong>Dix outils Notion :</strong> recherche, lecture d’une page et de son contenu, lecture et interrogation d’une base de données, lecture des commentaires (lecture) ; création d’une page, modification d’une page, ajout de contenu à la fin d’une page, commentaire (écriture). Les autorisations commencent comme pour les autres connecteurs : la lecture est autorisée, l’écriture demande à chaque fois.</li><li><strong>Accès complet (MCP) comme autre option :</strong> dans la fenêtre de connexion, vous pouvez utiliser à la place le connecteur hébergé par Notion (tout l’espace de travail, plus d’outils). Les deux connexions peuvent coexister, chacune avec sa carte et ses autorisations, marquées « Pages choisies » et « Accès complet (MCP) ».</li><li><strong>Retour aux extensions :</strong> après la connexion, vous revenez à la page des extensions et voyez la connexion.</li></ul>",
+    "<strong>Remarques</strong>",
+    "<ul><li>La nouvelle connexion exige que NOTION_CLIENT_ID et NOTION_CLIENT_SECRET soient définis sur le serveur ; sans eux, seul le connecteur hébergé est proposé.</li><li>La nouvelle connexion ne voit que les pages partagées dans Notion ; pour qu’elle en voie plus, ajoutez Noureon via « ••• » → « Connexions » sur une page de Notion.</li></ul>",
+    "<strong>Compatibilité</strong>",
+    "Cette mise à jour ne nécessite aucune migration de données."
+  ],
   "18.4.2": [
     "<strong>Notes de version de Noureon 18.4.2</strong>",
     "Cette version corrige la liste des connecteurs qui n’apparaissait pas tout de suite après une connexion.",

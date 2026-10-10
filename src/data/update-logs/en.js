@@ -1,6 +1,16 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.5.0": [
+    "<strong>Noureon 18.5.0 Release Notes</strong>",
+    "This version adds Noureon's own login for Notion, which is now the default way to connect Notion; Notion's hosted connector stays as the other way.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Notion's own login:</strong> Notion's authorisation screen shows the name and logo of Noureon. You choose in Notion which pages to share with Noureon, and Noureon can read and edit only those.</li><li><strong>Ten Notion tools:</strong> search, reading a page and its content, reading and querying a database, reading comments (reading); creating a page, changing a page, adding content to the end of a page, commenting (writing). The permissions start as for the other connectors: reading is allowed, writing asks each time.</li><li><strong>Full access (MCP) as the other way:</strong> in the connect sheet you can use Notion's hosted connector instead (the whole workspace, more tools). Both connections can exist together, each with its own card and permissions, marked “Chosen pages” and “Full access (MCP)”.</li><li><strong>Back to Extensions:</strong> after the login you come back to the Extensions page and see the connection.</li></ul>",
+    "<strong>Notes</strong>",
+    "<ul><li>The new login needs NOTION_CLIENT_ID and NOTION_CLIENT_SECRET to be set on the server; without them only the hosted connector is offered.</li><li>The new connection sees only the pages you shared in Notion; to let it see more, add Noureon under “•••” → “Connections” on a page in Notion.</li></ul>",
+    "<strong>Compatibility</strong>",
+    "This update requires no data migration."
+  ],
   "18.4.2": [
     "<strong>Noureon 18.4.2 Release Notes</strong>",
     "This version fixes the list of connectors not appearing right away after a login.",

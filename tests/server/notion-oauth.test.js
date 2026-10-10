@@ -93,7 +93,7 @@ test('a login begins at Notion\'s own page with our client id, the callback addr
 test('the code is traded for a token with the secret in the Authorization header (and nowhere else); the token is kept sealed, and the person sees only the workspace', async () => {
   const { service, db, network } = setup();
   const state = (await begin(service, A)).searchParams.get('state');
-  assert.deepEqual(await service.completeLogin({ state, code: 'the-code' }), { ok: true });
+  assert.deepEqual(await service.completeLogin({ state, code: 'the-code' }), { ok: true, returnTo: 'test' });
   const exchange = network.calls.find((call) => call.url.endsWith('/oauth/token'));
   assert.equal(exchange.method, 'POST');
   assert.equal(exchange.headers.authorization, `Basic ${Buffer.from(`${CLIENT_ID}:${SECRET}`).toString('base64')}`);
@@ -122,22 +122,22 @@ test('a state that is wrong, used, old or of another kind connects nothing; a de
   assert.equal(network.calls.length, 0, 'Notion is not asked for a state that is not ours');
 
   const first = (await begin(service, A)).searchParams.get('state');
-  assert.deepEqual(await service.completeLogin({ state: first, error: 'access_denied' }), { ok: false, error: 'denied' });
+  assert.deepEqual(await service.completeLogin({ state: first, error: 'access_denied' }), { ok: false, error: 'denied', returnTo: 'test' });
   assert.deepEqual(await service.completeLogin({ state: first, code: 'c' }), { ok: false, error: 'bad_state' }, 'used once, even for a denial');
 
   const second = (await begin(service, A)).searchParams.get('state');
   time += 11 * 60 * 1000;
-  assert.deepEqual(await service.completeLogin({ state: second, code: 'c' }), { ok: false, error: 'expired' });
+  assert.deepEqual(await service.completeLogin({ state: second, code: 'c' }), { ok: false, error: 'expired', returnTo: 'test' });
 
   const third = (await begin(service, A)).searchParams.get('state');
-  assert.deepEqual(await service.completeLogin({ state: third }), { ok: false, error: 'failed' }, 'no code');
+  assert.deepEqual(await service.completeLogin({ state: third }), { ok: false, error: 'failed', returnTo: 'test' }, 'no code');
   assert.deepEqual((await service.status(A)).connected, false);
 
   const failing = fakeNotion({ failExchange: true });
   const logs = [];
   const broken = createNotionOAuth({ db, vault, fetchImpl: failing.fetchImpl, log: (name, fields) => logs.push(JSON.stringify([name, fields])), config: { clientId: CLIENT_ID, clientSecret: SECRET, redirectUri: REDIRECT } });
   const fourth = (await begin(broken, A)).searchParams.get('state');
-  assert.deepEqual(await broken.completeLogin({ state: fourth, code: 'the-secret-code' }), { ok: false, error: 'failed' });
+  assert.deepEqual(await broken.completeLogin({ state: fourth, code: 'the-secret-code' }), { ok: false, error: 'failed', returnTo: 'test' });
   assert.equal((await broken.status(A)).connected, false);
   assert.ok(!logs.join('').includes(SECRET) && !logs.join('').includes('the-secret-code'), 'the log has neither the secret nor the code');
 });
@@ -164,8 +164,8 @@ test('two people have two tokens that never meet: each call is for the person it
   const a = (await begin(service, A)).searchParams.get('state');
   const b = (await begin(service, B)).searchParams.get('state');
   // The callbacks come in the other order: each state belongs to the person who began it.
-  assert.deepEqual(await service.completeLogin({ state: b, code: 'code-b' }), { ok: true });
-  assert.deepEqual(await service.completeLogin({ state: a, code: 'code-a' }), { ok: true });
+  assert.deepEqual(await service.completeLogin({ state: b, code: 'code-b' }), { ok: true, returnTo: 'test' });
+  assert.deepEqual(await service.completeLogin({ state: a, code: 'code-a' }), { ok: true, returnTo: 'test' });
   assert.equal(await service.accessToken(A), 'secret_token_2_code-a');
   assert.equal(await service.accessToken(B), 'secret_token_1_code-b');
   assert.equal((await service.status(A)).workspaceName, 'Workspace 2');
@@ -300,6 +300,32 @@ test('the endpoints: each person connects, looks at, tests and cuts only their o
     assert.equal((await fetch(`${base}/v1/notion/connect`, { headers: asA })).status, 404, 'connect is a POST');
   }, { notion: service });
   void network;
+});
+
+test('when the login started from the Extensions page, the callback sends the person back there, with only the result', async () => {
+  const { service } = setup();
+  await withServer(async ({ base }) => {
+    const json = { ...asA, 'Content-Type': 'application/json' };
+    const begun = await (await fetch(`${base}/v1/notion/connect`, { method: 'POST', headers: json, body: JSON.stringify({ returnTo: 'connectors' }) })).json();
+    const state = new URL(begun.url).searchParams.get('state');
+    const back = await fetch(`${base}/oauth/notion/callback?code=SECRET-CODE&state=${state}`, { redirect: 'manual' });
+    const target = new URL(back.headers.get('location'));
+    assert.equal(target.origin + target.pathname, 'https://noureon.com/connectors');
+    assert.equal(target.searchParams.get('connector'), 'notion');
+    assert.equal(target.searchParams.get('connected'), '1');
+    assert.ok(!back.headers.get('location').includes('SECRET-CODE') && !back.headers.get('location').includes(state));
+    // A denial of a login that started there goes back there too.
+    const second = await (await fetch(`${base}/v1/notion/connect`, { method: 'POST', headers: json, body: JSON.stringify({ returnTo: 'connectors' }) })).json();
+    const state2 = new URL(second.url).searchParams.get('state');
+    const denied = await fetch(`${base}/oauth/notion/callback?error=access_denied&state=${state2}`, { redirect: 'manual' });
+    const deniedTarget = new URL(denied.headers.get('location'));
+    assert.equal(deniedTarget.pathname, '/connectors');
+    assert.ok(deniedTarget.searchParams.get('connector_error'));
+    // An unknown place is the test page.
+    const odd = await (await fetch(`${base}/v1/notion/connect`, { method: 'POST', headers: json, body: JSON.stringify({ returnTo: 'https://evil.example' }) })).json();
+    const oddBack = await fetch(`${base}/oauth/notion/callback?code=c&state=${new URL(odd.url).searchParams.get('state')}`, { redirect: 'manual' });
+    assert.equal(new URL(oddBack.headers.get('location')).pathname, '/notion-test');
+  }, { notion: service });
 });
 
 test('without Notion set up the endpoints say so, and the hosted connector is not touched by any of this', async () => {

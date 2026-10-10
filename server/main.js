@@ -7,6 +7,7 @@ import { createAssetSweeper } from './asset-sweeper.js';
 import { createCredentialStore } from './cli-credentials.js';
 import { createConnectorService, createDbClientStore } from './mcp/connections.js';
 import { createNotionOAuth } from './notion/oauth.js';
+import { createNotionTools } from './notion/tools.js';
 import { createKeyVault } from './key-vault.js';
 import { createLogger } from './log.js';
 import { LIMITS } from './protocol.js';
@@ -56,8 +57,9 @@ if (config.runsConfigured) {
     if (host) checkSandbox = () => host.check().then((state) => log(state.ok ? 'sandbox_ok' : 'sandbox_failed', { reason: state.reason }));
     const vault = createKeyVault(config.encryptionKeys);
     credentials = createCredentialStore({ db, vault });
-    connectors = createConnectorService({ db, vault, log, config: { redirectUri: config.connectorRedirectUri, cimdUrl: config.connectorClientId, identity: { clientUri: config.appUrl, logoUri: `${config.appUrl}/logo.png`, tosUri: `${config.appUrl}/terms`, policyUri: `${config.appUrl}/privacy` }, clientStore: createDbClientStore(db) } });
+    // Notion through Noureon's own login (when its client id and secret are set): the login, and the tools made of Notion's REST API for a reply.
     if (config.notion.configured) notion = createNotionOAuth({ db, vault, log, config: config.notion });
+    connectors = createConnectorService({ db, vault, log, notion: notion ? { oauth: notion, tools: createNotionTools({ oauth: notion }) } : null, config: { redirectUri: config.connectorRedirectUri, cimdUrl: config.connectorClientId, identity: { clientUri: config.appUrl, logoUri: `${config.appUrl}/logo.png`, tosUri: `${config.appUrl}/terms`, policyUri: `${config.appUrl}/privacy` }, clientStore: createDbClientStore(db) } });
     runs = createRunManager({ store: createRunStore({ db, limits: LIMITS }), db, vault, sandbox, files, credentials, connectors, skills: createServerSkills({ db, bundles: skillBundles }), vision: { available: canDrawSlides, execute: executeVisionCheck, getKit: getFontKit }, limits: LIMITS, log });
   } catch (error) {
     log('config_error', { message: error.message });

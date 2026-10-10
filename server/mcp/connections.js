@@ -5,7 +5,8 @@
 // person and connector; only this server (the service key) can read it.
 
 import { createHash } from 'node:crypto';
-import { CONNECTORS, TOOL_STATES, defaultToolState, getConnector, loginScopes, toolKind } from '../../src/data/connector-catalog.js';
+import { CONNECTORS, TOOL_STATES, defaultToolState, getConnector, loginScopes, restConnectorOf, toolKind } from '../../src/data/connector-catalog.js';
+import { NotionError } from '../notion/oauth.js';
 import { OAuthError, buildAuthorizationUrl, discover, exchangeCode, hashState, pkcePair, randomState, refreshTokens, resolveClient, revokeToken } from './oauth.js';
 import { McpError, createMcpClient } from './client.js';
 
@@ -52,7 +53,12 @@ export function effectiveState(connector, row, toolName) {
   return TOOL_STATES.includes(set) ? set : defaultToolState(connector, toolName);
 }
 
-export function createConnectorService({ db, vault, fetchImpl = fetch, now = Date.now, config, log = () => {} }) {
+/**
+ * `notion`: Notion reached through Noureon's own login ({ oauth, tools }: server/notion/oauth.js and tools.js), or null. Its connection is a connector of its own (`notion-public`) that the
+ * page shows as Notion next to the hosted one: it is listed, its tools have the person's settings, and a reply is given them like the tools of any connector; only the login and the
+ * token are Notion's own (the person logs in through /v1/notion/connect).
+ */
+export function createConnectorService({ db, vault, fetchImpl = fetch, now = Date.now, config, log = () => {}, notion = null }) {
   const locks = new Map();
   const metadataKept = new Map();
 
@@ -72,9 +78,16 @@ export function createConnectorService({ db, vault, fetchImpl = fetch, now = Dat
     }
   }
 
+  // A connector of the hosted kind (a login and tokens of ours, a tool list asked of the service).
   const connectorOf = (id) => {
     const connector = getConnector(id);
-    if (!connector) throw new ConnectorError('unknown_connector', 'There is no such connector.');
+    if (!connector || connector.rest) throw new ConnectorError('unknown_connector', 'There is no such connector.');
+    return connector;
+  };
+  // Any connection: those, or Notion through Noureon's own login when that is set up.
+  const anyConnectorOf = (id) => {
+    const connector = getConnector(id);
+    if (!connector || (connector.rest && !notion)) throw new ConnectorError('unknown_connector', 'There is no such connector.');
     return connector;
   };
   const getRow = async (userId, connectorId) => {
@@ -144,7 +157,7 @@ export function createConnectorService({ db, vault, fetchImpl = fetch, now = Dat
     const connector = getConnector(connectorId);
     // The state is used once, whatever comes next.
     const clearPending = () => saveRow(userId, connectorId, { state_hash: null, pending_envelope: null, pending_key_version: null, pending_at: null });
-    if (!connector || now() - Date.parse(row.pending_at || 0) > PENDING_MS) {
+    if (!connector || connector.rest || now() - Date.parse(row.pending_at || 0) > PENDING_MS) {
       await clearPending();
       return { ok: false, connectorId, error: 'expired' };
     }
@@ -239,6 +252,21 @@ export function createConnectorService({ db, vault, fetchImpl = fetch, now = Dat
 
   /** A client of the service for one person (the token is fetched and renewed as it is needed). */
   function clientFor(userId, connectorId) {
+    const known = anyConnectorOf(connectorId);
+    if (known.rest) {
+      // Notion through Noureon's own login: a client with the same two calls as the one of a hosted service; a login that Notion no longer accepts is told the way the others are.
+      return {
+        async callTool(name, args, options) {
+          try {
+            return await notion.tools.call(userId, name, args, options);
+          } catch (error) {
+            if (error instanceof NotionError && (error.code === 'unauthorized' || error.code === 'not_connected')) throw new ConnectorError('login_needed', 'The login has ended: log in again.');
+            throw error;
+          }
+        },
+        async close() {}
+      };
+    }
     const connector = connectorOf(connectorId);
     return createMcpClient({
       endpoint: connector.endpoint,
@@ -285,6 +313,14 @@ export function createConnectorService({ db, vault, fetchImpl = fetch, now = Dat
     return { tools: fresh, changed: [...changed] };
   }
 
+  /** What a person sees of their Notion through Noureon's own login: the tools are ours (their words are on the page, in the person's language), the states are the person's. */
+  async function summarizeRest(userId, connector, row) {
+    const held = await notion.oauth.status(userId);
+    const connected = Boolean(row) && (row.status === 'connected' || row.status === 'needs_login') && Boolean(row.envelope);
+    const tools = connected ? notion.tools.definitions.map((tool) => ({ name: tool.name, description: '', kind: tool.kind, state: effectiveState(connector, row, tool.name), changed: false })) : [];
+    return { id: connector.id, parent: connector.parent, backend: 'rest', status: connected ? row.status : 'none', mode: 'readwrite', tools, error: row?.last_error || '', connectedAt: row?.created_at || '', workspaceName: held.workspaceName || '' };
+  }
+
   /** What a person sees of a connection (never a token). */
   function summarize(connector, row) {
     const tools = asArray(row?.tools).map((tool) => ({
@@ -306,11 +342,15 @@ export function createConnectorService({ db, vault, fetchImpl = fetch, now = Dat
     /** The person's connections: one entry for every connector of the catalog (status 'none' when not connected). */
     async list(userId) {
       const rows = asArray(await db.select(TABLE, { filters: { user_id: `eq.${userId}` }, limit: CONNECTORS.length + 5 }));
-      return CONNECTORS.map((connector) => summarize(connector, rows.find((row) => row.connector_id === connector.id) || null));
+      const listed = CONNECTORS.map((connector) => summarize(connector, rows.find((row) => row.connector_id === connector.id) || null));
+      if (!notion) return listed;
+      // Notion through Noureon's own login is first among the entries of its kind (the page puts it first: it is the way offered first).
+      const extra = await Promise.all(CONNECTORS.map((connector) => restConnectorOf(connector.id)).filter(Boolean).map((rest) => summarizeRest(userId, rest, rows.find((row) => row.connector_id === rest.id) || null)));
+      return [...extra, ...listed];
     },
     /** One connection of the person's, as it is kept (for a reply: the tools with their states), or null when it is not connected. */
     async connection(userId, connectorId) {
-      const connector = connectorOf(connectorId);
+      const connector = anyConnectorOf(connectorId);
       const row = await getRow(userId, connectorId);
       return row?.status === 'connected' ? { connector, row } : null;
     },
@@ -327,18 +367,32 @@ export function createConnectorService({ db, vault, fetchImpl = fetch, now = Dat
         log('connector_for_run_failed', { code: error?.code || error?.name || 'error' });
         return [];
       }
+      // Notion through Noureon's own login: its tools are made here, and a person who disconnected it in Notion gets "needs a login" at the first call.
+      const restFound = notion ? CONNECTORS.map((connector) => restConnectorOf(connector.id)).filter((rest) => rest && connected.has(rest.id)) : [];
+      const restWith = new Set(restFound.map((rest) => rest.parent));
+      const restSets = await Promise.all(restFound.map(async (rest) => {
+        try {
+          const row = await getRow(userId, rest.id);
+          if (!row || row.status !== 'connected') return null;
+          return { id: rest.id, name: rest.name, tools: notion.tools.definitions.map((tool) => ({ name: tool.name, description: tool.description, inputSchema: tool.inputSchema, kind: tool.kind, state: effectiveState(rest, row, tool.name) })) };
+        } catch (error) {
+          log('connector_for_run_failed', { connector: rest.id, code: error?.code || error?.name || 'error' });
+          return null;
+        }
+      }));
       const found = await Promise.all(CONNECTORS.filter((connector) => connected.has(connector.id)).map(async (connector) => {
         try {
           const connection = await service.freshConnection(userId, connector.id);
           if (!connection) return null;
           const tools = asArray(connection.row.tools).map((tool) => ({ name: tool.name, description: tool.description, inputSchema: tool.inputSchema, kind: tool.kind === 'read' ? 'read' : 'write', state: effectiveState(connector, connection.row, tool.name) }));
-          return tools.length ? { id: connector.id, name: connector.name, tools } : null;
+          // Both ways of reaching one service are told apart for the model (and the person, on the card that asks).
+          return tools.length ? { id: connector.id, name: restWith.has(connector.id) ? `${connector.name} (full access)` : connector.name, tools } : null;
         } catch (error) {
           log('connector_for_run_failed', { connector: connector.id, code: error?.code || error?.name || 'error' });
           return null;
         }
       }));
-      return found.filter(Boolean);
+      return [...restSets.filter(Boolean), ...found.filter(Boolean)];
     },
     /** The tools list is asked for again when it is an hour old (or never asked). */
     async freshConnection(userId, connectorId) {
@@ -355,7 +409,9 @@ export function createConnectorService({ db, vault, fetchImpl = fetch, now = Dat
     },
     /** Cuts the connection: the token is revoked at the service when it can be, and everything kept is deleted. */
     async disconnect(userId, connectorId) {
-      const connector = connectorOf(connectorId);
+      const connector = anyConnectorOf(connectorId);
+      // Notion through Noureon's own login: the token is revoked at Notion by its own code.
+      if (connector.rest) return notion.oauth.disconnect(userId);
       const row = await getRow(userId, connectorId);
       let revoked = false;
       if (row?.envelope) {
@@ -375,10 +431,10 @@ export function createConnectorService({ db, vault, fetchImpl = fetch, now = Dat
     },
     /** `states`: { toolName: 'allow' | 'ask' | 'deny' }. A tool the person sets is one they have seen, so it is no longer "changed". */
     async setPermissions(userId, connectorId, states) {
-      const connector = connectorOf(connectorId);
+      const connector = anyConnectorOf(connectorId);
       const row = await getRow(userId, connectorId);
       if (!row || row.status !== 'connected') throw new ConnectorError('not_connected', 'This connector is not connected.');
-      const names = new Set(asArray(row.tools).map((tool) => tool.name));
+      const names = new Set(connector.rest ? [...connector.reads, ...connector.writes] : asArray(row.tools).map((tool) => tool.name));
       const permissions = { ...asObject(row.permissions) };
       const changed = new Set(asArray(row.changed));
       for (const [name, state] of Object.entries(asObject(states))) {
