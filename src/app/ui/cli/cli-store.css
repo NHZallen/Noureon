@@ -164,7 +164,8 @@ html.cs-open { overflow: hidden; }
 .cs-connect-arrow { display: inline-flex; color: var(--text-secondary); }
 .cs-connector .cs-action { cursor: pointer; }
 
-.cs-conn { margin: 0.4rem 0 2rem; }
+.cs-conn { margin: 0.2rem 0 0.9rem; }
+.cs-conn > .cs-fold { margin-top: 0.2rem; }
 .cs-conn-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 0.9rem; padding: 0.5rem 0.2rem; }
 .cs-conn-who { display: grid; gap: 0.15rem; min-width: 0; }
 .cs-conn-name { font-size: 1.1rem; overflow-wrap: anywhere; }

@@ -56,6 +56,8 @@ function setup({ account = true, connections = [LINEAR], language = 'zh-TW', fai
   return { window, document, host, part, view, draw, calls, notices, assigned, replaced, data, listeners };
 }
 const settle = async (t) => { t.draw(); await flush(); await flush(); };
+/** Under Mine the permissions are folded at first: the person unfolds them. */
+const unfold = (t) => { for (const head of t.host.querySelectorAll('.cs-conn > .cs-fold:not(.is-open) > .cs-fold-head')) head.click(); };
 const names = (t, selector) => [...t.host.querySelectorAll(selector)].map((node) => node.textContent);
 
 test('the list: the connectors are in their groups, each with its words, "Connected" or "Connect", and a search finds one', async () => {
@@ -166,6 +168,7 @@ test('Mine: a connection shows its access and its tools in two groups; the group
   const t = setup();
   t.view.tab = 'mine';
   await settle(t);
+  unfold(t);
   const card = t.host.querySelector('[data-connector-id="linear"]');
   assert.ok(card);
   assert.equal(card.querySelector('.cs-conn-status').textContent, '已連線');
@@ -196,6 +199,7 @@ test('a dangerous tool may be set to "allow" like any other: nothing is added to
   const t = setup({ connections: [{ ...LINEAR, tools: [tool('delete_everything', 'write', 'ask')] }] });
   t.view.tab = 'mine';
   await settle(t);
+  unfold(t);
   t.host.querySelector('.cs-group-toggle').click();
   const text = t.host.textContent;
   assert.ok(!/高風險|警告|危險/.test(text));
@@ -208,6 +212,7 @@ test('a setting the server did not keep is put back, and the person is told', as
   const t = setup({ failPut: true });
   t.view.tab = 'mine';
   await settle(t);
+  unfold(t);
   t.host.querySelectorAll('.cs-group')[0].querySelectorAll('.cs-group-head .cs-seg-item')[2].click();
   await flush();
   await flush();
@@ -220,6 +225,7 @@ test('a tool that changed is shown as such, and the group does not set it: the p
   const t = setup({ connections: [changed] });
   t.view.tab = 'mine';
   await settle(t);
+  unfold(t);
   const group = t.host.querySelector('.cs-group');
   assert.equal(group.querySelector('.cs-group-head .cs-seg-item[aria-pressed="true"]').textContent, '允許', 'the group is judged by the tools that were seen');
   group.querySelectorAll('.cs-group-head .cs-seg-item')[1].click();
@@ -237,6 +243,7 @@ test('a description from a service is text, never markup', async () => {
   const t = setup({ connections: [hostile] });
   t.view.tab = 'mine';
   await settle(t);
+  unfold(t);
   t.host.querySelector('.cs-group-toggle').click();
   assert.equal(t.host.querySelector('.cs-tool-desc').textContent, '<img src=x onerror="window.pwned=1"><b>bold</b>');
   assert.equal(t.host.querySelectorAll('.cs-tool img, .cs-tool b').length, 0);
@@ -246,6 +253,7 @@ test('disconnecting asks to be sure, then removes the connection from the list; 
   const t = setup();
   t.view.tab = 'mine';
   await settle(t);
+  unfold(t);
   const card = () => t.host.querySelector('[data-connector-id="linear"]');
   card().querySelector('.cs-conn-side .cs-button').click();
   assert.equal(card().querySelector('.cs-button-danger').textContent, '確定中斷連線');
@@ -470,20 +478,20 @@ test('a connection that needs a login: the right side opens the sheet to log in 
   assert.match(t.host.querySelector('.cs-dialog').textContent, /連線 Linear/);
 });
 
-test('under Mine the permissions fold and unfold; they are open at first', async () => {
+test('under Mine the permissions fold and unfold; they are folded at first, as in the settings', async () => {
   const t = setup();
   t.view.tab = 'mine';
   await settle(t);
   const fold = () => t.host.querySelector('[data-connector-id="linear"] .cs-fold');
-  assert.equal(fold().classList.contains('is-open'), true);
-  assert.equal(fold().querySelector('.cs-fold-title').textContent, '權限');
-  assert.ok(fold().querySelector('.cs-group'));
-  fold().querySelector('.cs-fold-head').click();
   assert.equal(fold().classList.contains('is-open'), false);
+  assert.equal(fold().querySelector('.cs-fold-title').textContent, '權限');
   assert.equal(fold().querySelector('.cs-group'), null, 'folded: nothing of them is drawn');
   assert.equal(fold().querySelector('.cs-fold-head').getAttribute('aria-expanded'), 'false');
   fold().querySelector('.cs-fold-head').click();
+  assert.equal(fold().classList.contains('is-open'), true);
   assert.ok(fold().querySelector('.cs-group'));
+  fold().querySelector('.cs-fold-head').click();
+  assert.equal(fold().classList.contains('is-open'), false);
 });
 
 test('the permissions for the settings: one folded section for each connection, opened one at a time by the person', async () => {
@@ -598,4 +606,9 @@ test('in the settings, where one colour is forced on everything, the status of a
   assert.match(css, /#settings-modal \.cs-conn-status\.is-warning \{ color: var\(--state-warning\) !important; \}/);
   const forced = readFileSync(new URL('../../src/styles/settings.css', import.meta.url), 'utf8');
   assert.match(forced, /#settings-modal \*:not\(\.toggle-label\) \{\s*color: var\(--gpt-control-text\) !important;/, 'the rule that makes it necessary is still there');
+});
+
+test('the cards under Mine sit closer: the space under a connection is a little, not two lines', () => {
+  const css = readFileSync(new URL('../../src/app/ui/cli/cli-store.css', import.meta.url), 'utf8');
+  assert.match(css, /\.cs-conn \{ margin: 0\.2rem 0 0\.9rem; \}/);
 });

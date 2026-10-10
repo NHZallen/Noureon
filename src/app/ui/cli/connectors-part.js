@@ -26,8 +26,8 @@ export function createConnectorsPart({ document, win, t, getLanguage, getAccount
     return node;
   };
   // What the server says: { status: 'idle' | 'loading' | 'ready' | 'failed', byId: Map(id -> { id, status, mode, tools, error }) }.
-  // `closedPerms`: the permissions of a connection the person folded under Mine; `openPerms`: the ones opened in the settings (folded at first); `expanded`: the rows of the list opened in place.
-  const state = { status: 'idle', byId: new Map(), openGroups: new Set(), closedPerms: new Set(), openPerms: new Set(), expanded: new Set(), confirming: null, sheet: null };
+  // `openMine`: the permissions of a connection the person opened under Mine (folded at first); `openPerms`: the ones opened in the settings (folded at first); `expanded`: the rows of the list opened in place.
+  const state = { status: 'idle', byId: new Map(), openGroups: new Set(), openMine: new Set(), openPerms: new Set(), expanded: new Set(), confirming: null, sheet: null };
   const connectionOf = (id) => state.byId.get(id) || { id, status: 'none', mode: 'readwrite', tools: [], error: '' };
 
   const load = async () => {
@@ -261,10 +261,10 @@ export function createConnectorsPart({ document, win, t, getLanguage, getAccount
     head.append(mark(connector), who, side);
     box.append(head);
 
-    // The permissions fold and unfold (open at first under Mine).
+    // The permissions fold and unfold (folded at first under Mine, as in the settings).
     const key = `${connector.id}`;
-    const open = !state.closedPerms.has(key);
-    box.append(foldable({ title: t('connectorPermissions'), open, onToggle: () => { if (state.closedPerms.has(key)) state.closedPerms.delete(key); else state.closedPerms.add(key); redraw(); }, body: () => permissionBody(connector, connection) }));
+    const open = state.openMine.has(key);
+    box.append(foldable({ title: t('connectorPermissions'), open, onToggle: () => { if (state.openMine.has(key)) state.openMine.delete(key); else state.openMine.add(key); redraw(); }, body: () => permissionBody(connector, connection) }));
     return box;
   };
 
