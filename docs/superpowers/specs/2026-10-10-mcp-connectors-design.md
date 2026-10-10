@@ -1,6 +1,6 @@
 # 連接器（MCP）設計：擴充的第三層
 
-**狀態：** 第 1 期（登入引擎、Notion 與 Linear、工具權限、確認卡、擴充頁第三部分）已在 18.4.0 寫完，本機測試全過，**還沒有用真實帳號登入過**（見 §12）。第 2 期（Context7、Upstash、Vercel）與第 3 期（GitHub）還沒做。「§2 owner 的決定」是 2026-10-10 討論的結果；畫面選 C 組（§9）；第 0 期的探測結果在 §4。
+**狀態：** 第 1 期（登入引擎、Notion 與 Linear、工具權限、確認卡、擴充頁第三部分）已在 18.4.0 寫完，本機測試全過，**還沒有用真實帳號登入過**（見 §12）。第 2 期（Context7、Upstash、Vercel）已在 18.6.0 寫完（§13），還沒用真實帳號登入過；第 3 期（GitHub）還沒做。「§2 owner 的決定」是 2026-10-10 討論的結果；畫面選 C 組（§9）；第 0 期的探測結果在 §4。
 **起因：** owner 想做第三種擴充（技能、命令工具之後）：連到使用者自己帳號上的服務（Notion、GitHub 等），讓模型能查資料、做事。
 **研究來源：** 我查的官方文件，加上 owner 請 ChatGPT 逐項查證的結果（兩者互相核對過，下面標「已查證」「未確認」）。端到端的實際登入**沒有人測過**，所以第 0 期先做實驗（§7）。
 
@@ -217,3 +217,23 @@ owner 用真實的 Notion 帳號試過：登入、工具呼叫（`notion-fetch`�
 
 owner 回報：從服務登入回到 Noureon，「我的」要切換頁面才出現連線。原因：頁面由網址（`/connectors?...`）直接開啟時，帳號狀態稍晚才確定；清單在那之前因為「帳號還沒好」畫成空的，之後帳號好了卻沒有再畫（只有上方的提示文字有定時更新）。修法：擴充頁的定時器偵測帳號狀態改變，在連接器那一部分時重畫。Notion 授權頁的名稱與圖示：註冊的做法沒有讓 Notion 顯示（owner 說「就算了」），目前維持現狀；Notion 的說明頁寫管理員可在 Notion 裡手動改名稱與圖示。
 
+
+## 13. 第 2 期的實作記錄（18.6.0，2026-10-11）
+
+加了 Context7、Upstash、Vercel 三個連接器，只改目錄（`src/data/connector-catalog.js`）、文字與測試；登入引擎、權限、確認卡、清單畫面都沿用，沒有新的環境變數或 SQL。
+
+**owner 的決定：** 「可以不唯讀的就不要強制唯讀」。所以三個都只有一種登入（可讀寫）：Linear 那種「選唯讀連線」不開放；Upstash 的唯讀開關在 Upstash 自己的登入頁，由使用者決定要不要開，Noureon 不替他選。
+
+| | 端點 | 身分 | 範圍（要 refresh token） | 預設權限 |
+|---|---|---|---|---|
+| Context7 | `https://mcp.context7.com/mcp/oauth` | CIMD（公布支援，引擎預設順序） | `openid profile email offline_access` | 三個已知工具（`resolve-library-id`、`get-library-docs`、`query-docs`）全部允許 |
+| Upstash | `https://mcp.upstash.com/mcp` | DCR | 同上 | 已知的列出、查看、統計類允許；執行指令、建立、刪除、備份、重設密碼與沒見過的工具都先問 |
+| Vercel | `https://mcp.vercel.com` | DCR | `openid email profile offline_access` | `list_`／`get_`／搜尋文件等允許；部署、買網域、`get_access_to_vercel_url`（會開出受保護部署的連結）、建立、更新都先問 |
+
+圖示：Context7、Upstash、Vercel 各自在 GitHub 上的頭像（`context7`、`upstash`、`vercel`，已確認三個都存在）。三個都放在「開發」分類。
+
+**沒驗證的（要真實登入才知道）：**
+- 對方是否接受我們的 CIMD 檔案（Context7）與 DCR 註冊（Upstash、Vercel；**Vercel 是 Beta，最可能拒絕**）。拒絕時登入會顯示「連線失敗」，要看伺服器日誌才知道原因。
+- 要求的範圍是照對方公布的 `scopes_supported` 選的，沒被實測過；若對方回 `invalid_scope`，就把目錄裡該連接器的 `scopes` 改成空陣列（像 Notion 那樣不指定）再試。
+- Upstash、Vercel 的工具名稱是憑記憶列的：名稱寫錯不會出事（沒列到的工具一律當寫入、先問），只是少數讀取工具會多問一次；登入後可從擴充頁的實際工具清單校正。
+- Vercel 與 Upstash 的授權畫面大概只顯示網址、不顯示 Noureon 的名稱和標誌（和 Notion 官方 MCP 相同的原因）。

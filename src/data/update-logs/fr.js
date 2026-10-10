@@ -1,6 +1,16 @@
 // The update notes in French (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.6.0": [
+    "<strong>Notes de version de Noureon 18.6.0</strong>",
+    "Cette version ajoute trois services aux connecteurs : Context7, Upstash et Vercel.",
+    "<strong>Principaux changements</strong>",
+    "<ul><li><strong>Context7 :</strong> consulte la documentation officielle à jour et des exemples de bibliothèques et de frameworks. Il n’a que des outils de consultation de documentation et ne touche pas à vos données ; ils sont donc tous autorisés par défaut.</li><li><strong>Upstash :</strong> gère vos bases Redis (lister, voir l’utilisation, exécuter des commandes, créer, supprimer, sauvegarder). La page de connexion d’Upstash a son propre interrupteur de lecture seule, que vous décidez d’activer ou non ; désactivé, la connexion peut lire et écrire, et Noureon n’impose pas la lecture seule.</li><li><strong>Vercel :</strong> consulte équipes, projets, déploiements et journaux, cherche dans la documentation, et peut déployer et gérer des domaines. L’autorisation de Vercel ne sépare pas lecture et écriture : chaque outil est réglé par vous sur autoriser, demander ou refuser ; une action qui modifie ou coûte de l’argent, comme un déploiement ou l’achat d’un domaine, vous demande d’abord, par défaut.</li><li><strong>Réglages :</strong> comme Notion et Linear, chaque outil des trois se règle dans la page des extensions et dans l’onglet Autorisations des réglages, et la carte de confirmation montre de la même façon tous les paramètres.</li></ul>",
+    "<strong>Remarques</strong>",
+    "<ul><li>Vous vous connectez à chacun des trois sur sa propre page ; Noureon ne voit jamais votre mot de passe. Le MCP de Vercel est en bêta.</li><li>Les écrans d’autorisation de Vercel et d’Upstash peuvent n’afficher qu’une adresse, pas le nom ni le logo de Noureon ; c’est leur façon de faire.</li></ul>",
+    "<strong>Compatibilité</strong>",
+    "Cette mise à jour ne nécessite aucune migration de données."
+  ],
   "18.5.0": [
     "<strong>Notes de version de Noureon 18.5.0</strong>",
     "Cette version confirme que Notion n’a qu’une seule sorte de connexion : le connecteur hébergé par Notion (accès complet).",

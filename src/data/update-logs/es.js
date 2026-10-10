@@ -1,6 +1,16 @@
 // The update notes in Spanish (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.6.0": [
+    "<strong>Notas de la versión de Noureon 18.6.0</strong>",
+    "Esta versión añade tres servicios a los conectores: Context7, Upstash y Vercel.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Context7:</strong> consulta la documentación oficial actual y ejemplos de bibliotecas y frameworks. Solo tiene herramientas de consulta de documentación y no toca tus datos, así que todas están permitidas por defecto.</li><li><strong>Upstash:</strong> gestiona tus bases Redis (listar, ver el uso, ejecutar comandos, crear, borrar, hacer copias). La página de acceso de Upstash tiene su propio interruptor de solo lectura, que decides si activar; desactivado, la conexión puede leer y escribir, y Noureon no fuerza el solo lectura.</li><li><strong>Vercel:</strong> consulta equipos, proyectos, despliegues y registros, busca en la documentación y puede desplegar y gestionar dominios. La autorización de Vercel no separa lectura y escritura, así que cada herramienta la configuras tú en permitir, preguntar o rechazar; una acción que cambia cosas o cuesta dinero, como un despliegue o comprar un dominio, te pregunta antes, por defecto.</li><li><strong>Ajustes:</strong> como Notion y Linear, cada herramienta de los tres se configura en la página de extensiones y en la pestaña Permisos de los ajustes, y la tarjeta de confirmación muestra del mismo modo todos los parámetros.</li></ul>",
+    "<strong>Notas</strong>",
+    "<ul><li>Inicias sesión en cada uno de los tres en su propia página; Noureon nunca ve tu contraseña. El MCP de Vercel está en beta.</li><li>Las pantallas de autorización de Vercel y Upstash pueden mostrar solo una dirección, no el nombre ni el logotipo de Noureon; así lo hacen ellos.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "Esta actualización no requiere migración de datos."
+  ],
   "18.5.0": [
     "<strong>Notas de la versión de Noureon 18.5.0</strong>",
     "Esta versión confirma que Notion tiene un solo tipo de conexión: el conector alojado de Notion (acceso completo).",

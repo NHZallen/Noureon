@@ -81,6 +81,102 @@ export const CONNECTORS = Object.freeze([
     // The names of the reading tools of Linear (list_issues, get_issue, ...) are told apart by `toolKind`.
     reads: Object.freeze([]),
     writes: Object.freeze(['create_issue', 'update_issue', 'save_issue', 'create_comment', 'delete_comment', 'create_project', 'update_project', 'save_project', 'create_issue_label', 'create_document', 'update_document'])
+  }),
+  Object.freeze({
+    id: 'context7',
+    name: 'Context7',
+    category: 'dev',
+    endpoint: 'https://mcp.context7.com/mcp/oauth',
+    icon: 'https://github.com/context7.png?size=96',
+    // Context7 only looks up documentation: it has nothing that changes anything and does not touch the person's data. Its login (like Upstash's) announces these standard scopes; the refresh token is the reason to ask.
+    scopes: Object.freeze({ readwrite: Object.freeze(['openid', 'profile', 'email', 'offline_access']) }),
+    description: Object.freeze({
+      'zh-TW': '查詢程式套件與框架的最新官方文件和範例程式碼。',
+      en: 'Look up the current official documentation and code examples of libraries and frameworks.',
+      fr: 'Consulter la documentation officielle à jour et des exemples de code de bibliothèques et de frameworks.',
+      ru: 'Поиск актуальной официальной документации и примеров кода библиотек и фреймворков.',
+      es: 'Consulta la documentación oficial actual y ejemplos de código de bibliotecas y frameworks.'
+    }),
+    details: Object.freeze({
+      'zh-TW': '連接 Context7 後，模型寫程式時可以查你用到的套件或框架「現在的版本」的官方文件與範例，不必只靠訓練時學到的舊資料。它只有查文件的工具，不會讀取或修改你的任何資料。',
+      en: 'Once Context7 is connected, the model can look up the official documentation and examples for the version of a library or framework you use now, instead of relying on what it learned in training. It has only tools that look documentation up; it never reads or changes any of your data.',
+      fr: 'Une fois Context7 connecté, le modèle peut consulter la documentation officielle et les exemples de la version actuelle d’une bibliothèque ou d’un framework que vous utilisez, au lieu de se fier à ce qu’il a appris à l’entraînement. Il n’a que des outils de consultation de documentation ; il ne lit ni ne modifie aucune de vos données.',
+      ru: 'После подключения Context7 модель может смотреть официальную документацию и примеры для актуальной версии используемой вами библиотеки или фреймворка, а не полагаться на то, чему научилась при обучении. У него только инструменты поиска документации; ваши данные он не читает и не меняет.',
+      es: 'Una vez conectado Context7, el modelo puede consultar la documentación oficial y los ejemplos de la versión actual de una biblioteca o framework que uses, en lugar de fiarse de lo aprendido en el entrenamiento. Solo tiene herramientas de consulta de documentación; no lee ni cambia ningún dato tuyo.'
+    }),
+    examples: Object.freeze({
+      'zh-TW': Object.freeze(['用最新版 Next.js 的寫法，幫我做一個有登入保護的頁面', 'React 19 的 use 這個 hook 怎麼用？給我官方範例', 'Tailwind 4 的設定方式跟 3 差在哪？']),
+      en: Object.freeze(['Write a page with login protection in the current Next.js way', 'How does the use hook of React 19 work? Show the official example', 'How does configuring Tailwind 4 differ from 3?']),
+      fr: Object.freeze(['Écris une page protégée par connexion à la façon actuelle de Next.js', 'Comment fonctionne le hook use de React 19 ? Montre l’exemple officiel', 'En quoi la configuration de Tailwind 4 diffère-t-elle de la 3 ?']),
+      ru: Object.freeze(['Напиши страницу с защитой входом так, как это делается в текущем Next.js', 'Как работает хук use в React 19? Покажи официальный пример', 'Чем настройка Tailwind 4 отличается от 3?']),
+      es: Object.freeze(['Escribe una página con protección de acceso a la manera actual de Next.js', '¿Cómo funciona el hook use de React 19? Muestra el ejemplo oficial', '¿En qué se diferencia configurar Tailwind 4 de la 3?'])
+    }),
+    reads: Object.freeze(['resolve-library-id', 'get-library-docs', 'query-docs']),
+    writes: Object.freeze([])
+  }),
+  Object.freeze({
+    id: 'upstash',
+    name: 'Upstash',
+    category: 'dev',
+    endpoint: 'https://mcp.upstash.com/mcp',
+    icon: 'https://github.com/upstash.png?size=96',
+    // Upstash has its own read-only switch on its login page (the person turns it on there if they want the connection to be unable to write); we do not ask for it, so the choice is not made for them.
+    scopes: Object.freeze({ readwrite: Object.freeze(['openid', 'profile', 'email', 'offline_access']) }),
+    description: Object.freeze({
+      'zh-TW': '管理你的 Upstash Redis 資料庫：查看、查詢、備份與操作。',
+      en: 'Manage your Upstash Redis databases: look, query, back up and operate.',
+      fr: 'Gérer vos bases Redis Upstash : consulter, interroger, sauvegarder et exploiter.',
+      ru: 'Управление вашими базами Redis в Upstash: просмотр, запросы, резервные копии и операции.',
+      es: 'Gestiona tus bases de datos Redis de Upstash: consultar, ejecutar comandos, hacer copias y operar.'
+    }),
+    details: Object.freeze({
+      'zh-TW': '連接 Upstash 後，模型可以列出你的 Redis 資料庫、查看詳細資料與用量、執行 Redis 指令，也能建立或刪除資料庫、做備份。會修改或刪除資料的動作預設每次都先問你。Upstash 的登入頁有一個「唯讀」開關，想讓這個連線完全無法寫入的話，在那裡開啟即可；不開就是可讀寫。',
+      en: 'Once Upstash is connected, the model can list your Redis databases, look at their details and usage, run Redis commands, and, where you allow it, create or delete databases and make backups. An action that changes or deletes data asks you first by default. Upstash\'s login page has a read-only switch: turn it on there if you want this connection to be unable to write; left off, the connection can read and write.',
+      fr: 'Une fois Upstash connecté, le modèle peut lister vos bases Redis, consulter leurs détails et leur utilisation, exécuter des commandes Redis et, si vous l’autorisez, créer ou supprimer des bases et faire des sauvegardes. Une action qui modifie ou supprime des données vous demande d’abord, par défaut. La page de connexion d’Upstash a un interrupteur « lecture seule » : activez-le là si vous voulez que cette connexion ne puisse pas écrire ; laissé désactivé, la connexion peut lire et écrire.',
+      ru: 'После подключения Upstash модель может перечислять ваши базы Redis, смотреть их сведения и использование, выполнять команды Redis и, если вы разрешите, создавать и удалять базы и делать резервные копии. Действие, меняющее или удаляющее данные, по умолчанию сначала спрашивает вас. На странице входа Upstash есть переключатель «только чтение»: включите его там, если хотите, чтобы подключение не могло записывать; если выключен, подключение может и читать, и писать.',
+      es: 'Una vez conectado Upstash, el modelo puede listar tus bases Redis, ver sus detalles y uso, ejecutar comandos Redis y, si lo permites, crear o borrar bases y hacer copias de seguridad. Una acción que cambia o borra datos te pregunta antes, por defecto. La página de acceso de Upstash tiene un interruptor de solo lectura: actívalo allí si quieres que esta conexión no pueda escribir; desactivado, la conexión puede leer y escribir.'
+    }),
+    examples: Object.freeze({
+      'zh-TW': Object.freeze(['列出我所有的 Redis 資料庫，並告訴我各自的用量', '幫我在東京區域建一個新的 Redis 資料庫', '查一下 user:42 這個 key 的內容']),
+      en: Object.freeze(['List all my Redis databases and tell me how much each one is used', 'Create a new Redis database in the Tokyo region', 'Look up the value of the key user:42']),
+      fr: Object.freeze(['Liste toutes mes bases Redis et indique l’utilisation de chacune', 'Crée une nouvelle base Redis dans la région de Tokyo', 'Cherche la valeur de la clé user:42']),
+      ru: Object.freeze(['Покажи все мои базы Redis и использование каждой', 'Создай новую базу Redis в регионе Токио', 'Найди значение ключа user:42']),
+      es: Object.freeze(['Lista todas mis bases Redis e indica cuánto se usa cada una', 'Crea una base Redis nueva en la región de Tokio', 'Busca el valor de la clave user:42'])
+    }),
+    reads: Object.freeze(['redis_database_list_databases', 'redis_database_get_details', 'redis_database_get_usage_last_5_days', 'redis_database_get_stats', 'redis_database_list_backups']),
+    writes: Object.freeze(['redis_database_create_new', 'redis_database_delete', 'redis_database_reset_password', 'redis_database_create_backup', 'redis_database_delete_backup', 'redis_database_restore_backup', 'redis_database_update_regions', 'redis_database_run_redis_commands', 'redis_database_run_single_redis_command', 'redis_database_run_multiple_redis_commands'])
+  }),
+  Object.freeze({
+    id: 'vercel',
+    name: 'Vercel',
+    category: 'dev',
+    endpoint: 'https://mcp.vercel.com',
+    icon: 'https://github.com/vercel.png?size=96',
+    // Vercel announces scopes with no difference between reading and writing, so the login is one: what a reply may do is the person's setting for each tool (some of its tools deploy or buy domains; the person decides, as for every tool).
+    scopes: Object.freeze({ readwrite: Object.freeze(['openid', 'email', 'profile', 'offline_access']) }),
+    description: Object.freeze({
+      'zh-TW': '查看你的專案、部署與日誌，並部署專案、管理網域。',
+      en: 'Look at your projects, deployments and logs, and deploy projects and manage domains.',
+      fr: 'Consulter vos projets, déploiements et journaux, déployer des projets et gérer des domaines.',
+      ru: 'Просмотр ваших проектов, развёртываний и журналов, развёртывание проектов и управление доменами.',
+      es: 'Consulta tus proyectos, despliegues y registros, y despliega proyectos y gestiona dominios.'
+    }),
+    details: Object.freeze({
+      'zh-TW': '連接 Vercel 後，模型可以列出你的團隊與專案、查看部署狀態、建置與執行日誌，也能搜尋 Vercel 文件，並在你允許時部署專案、管理網域與環境變數。Vercel 的授權沒有讀寫之分，所以每個工具能不能用由你決定；會修改或花錢的動作（部署、買網域等）預設每次都先問你。Vercel 的 MCP 目前是 Beta。',
+      en: 'Once Vercel is connected, the model can list your teams and projects, look at the status of deployments and the build and runtime logs, search Vercel\'s documentation and, where you allow it, deploy projects and manage domains and environment variables. Vercel\'s authorisation does not separate reading from writing, so what each tool may do is up to you; an action that changes things or costs money (a deployment, buying a domain and the like) asks you first by default. Vercel\'s MCP is in beta.',
+      fr: 'Une fois Vercel connecté, le modèle peut lister vos équipes et projets, consulter l’état des déploiements et les journaux de build et d’exécution, chercher dans la documentation de Vercel et, si vous l’autorisez, déployer des projets et gérer domaines et variables d’environnement. L’autorisation de Vercel ne sépare pas lecture et écriture : c’est vous qui décidez de ce que chaque outil peut faire ; une action qui modifie ou coûte de l’argent (déploiement, achat de domaine, etc.) vous demande d’abord, par défaut. Le MCP de Vercel est en bêta.',
+      ru: 'После подключения Vercel модель может перечислять ваши команды и проекты, смотреть состояние развёртываний и журналы сборки и выполнения, искать в документации Vercel и, если вы разрешите, развёртывать проекты и управлять доменами и переменными окружения. Авторизация Vercel не разделяет чтение и запись, поэтому что может каждый инструмент, решаете вы; действие, которое что-то меняет или стоит денег (развёртывание, покупка домена и т. п.), по умолчанию сначала спрашивает вас. MCP Vercel сейчас в бета-версии.',
+      es: 'Una vez conectado Vercel, el modelo puede listar tus equipos y proyectos, ver el estado de los despliegues y los registros de compilación y ejecución, buscar en la documentación de Vercel y, si lo permites, desplegar proyectos y gestionar dominios y variables de entorno. La autorización de Vercel no separa lectura y escritura, así que lo que puede hacer cada herramienta lo decides tú; una acción que cambia cosas o cuesta dinero (un despliegue, comprar un dominio y similares) te pregunta antes, por defecto. El MCP de Vercel está en beta.'
+    }),
+    examples: Object.freeze({
+      'zh-TW': Object.freeze(['列出我的專案，並告訴我最近一次部署的狀態', '最近的生產環境部署為什麼失敗？看建置日誌', '這個網域可以買嗎？價格多少？']),
+      en: Object.freeze(['List my projects and tell me the status of the latest deployment', 'Why did the latest production deployment fail? Look at the build logs', 'Can this domain be bought, and at what price?']),
+      fr: Object.freeze(['Liste mes projets et indique l’état du dernier déploiement', 'Pourquoi le dernier déploiement en production a-t-il échoué ? Regarde les journaux de build', 'Ce domaine peut-il être acheté, et à quel prix ?']),
+      ru: Object.freeze(['Покажи мои проекты и состояние последнего развёртывания', 'Почему не удалось последнее развёртывание в продакшене? Посмотри журналы сборки', 'Можно ли купить этот домен и за сколько?']),
+      es: Object.freeze(['Lista mis proyectos e indica el estado del último despliegue', '¿Por qué falló el último despliegue en producción? Mira los registros de compilación', '¿Se puede comprar este dominio y a qué precio?'])
+    }),
+    reads: Object.freeze(['search_vercel_documentation', 'web_fetch_vercel_url', 'check_domain_availability_and_price', 'count_events', 'count_pageviews', 'aggregate_events', 'aggregate_pageviews', 'artifact_query', 'search_domains', 'search_repo', 'filter_project_envs', 'git_namespaces']),
+    writes: Object.freeze(['get_access_to_vercel_url', 'buy_domain', 'buy_domains', 'buy_single_domain', 'deploy_to_vercel', 'create_deployment'])
   })
 ]);
 

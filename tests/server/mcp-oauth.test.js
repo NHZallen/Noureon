@@ -63,6 +63,28 @@ test('the catalog is right: every entry has its five languages, and the tools ar
   assert.deepEqual(loginScopes(notion, 'readonly'), [], 'a service with no read-only login gets the one login it has');
 });
 
+test('Context7, Upstash and Vercel: their own endpoints, one login each (no read-only is forced), and the tools told read from write', () => {
+  const context7 = getConnector('context7');
+  const upstash = getConnector('upstash');
+  const vercel = getConnector('vercel');
+  assert.deepEqual([context7.endpoint, upstash.endpoint, vercel.endpoint], ['https://mcp.context7.com/mcp/oauth', 'https://mcp.upstash.com/mcp', 'https://mcp.vercel.com']);
+  for (const connector of [context7, upstash, vercel]) {
+    assert.equal(hasReadonlyLogin(connector), false, `${connector.id}: the person is not forced to a read-only login`);
+    assert.ok(loginScopes(connector, 'readwrite').includes('offline_access'), `${connector.id}: asks for a refresh token`);
+    assert.equal(connector.registration, undefined);
+    assert.equal(connector.category, 'dev');
+  }
+  // Context7 only looks documentation up.
+  for (const name of ['resolve-library-id', 'get-library-docs', 'query-docs']) assert.equal(defaultToolState(context7, name), 'allow', name);
+  // Upstash: what only reads is allowed; what runs commands, creates, deletes or restores asks, and so does a tool that is not known.
+  assert.equal(defaultToolState(upstash, 'redis_database_list_databases'), 'allow');
+  assert.equal(defaultToolState(upstash, 'redis_database_get_details'), 'allow');
+  for (const name of ['redis_database_run_redis_commands', 'redis_database_delete', 'redis_database_create_new', 'something_new']) assert.equal(defaultToolState(upstash, name), 'ask', name);
+  // Vercel: listing and getting are reads; deploying and buying a domain ask, and so does the link that opens a protected deployment.
+  for (const name of ['list_projects', 'get_deployment', 'get_runtime_logs', 'search_vercel_documentation', 'check_domain_availability_and_price']) assert.equal(defaultToolState(vercel, name), 'allow', name);
+  for (const name of ['deploy_to_vercel', 'buy_domain', 'get_access_to_vercel_url', 'create_project', 'update_project']) assert.equal(defaultToolState(vercel, name), 'ask', name);
+});
+
 test('a PKCE pair has a verifier of 43 or more characters and its S256 challenge; the states hash the same way and are never equal', () => {
   const { verifier, challenge } = pkcePair();
   assert.match(verifier, /^[A-Za-z0-9_-]{43,128}$/);

@@ -1,6 +1,16 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.6.0": [
+    "<strong>Noureon 18.6.0 Release Notes</strong>",
+    "This version adds three services to the connectors: Context7, Upstash and Vercel.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Context7:</strong> looks up the current official documentation and examples of libraries and frameworks. It has only tools that look documentation up and does not touch your data, so all of them are allowed by default.</li><li><strong>Upstash:</strong> manages your Redis databases (list, look at usage, run commands, create, delete, back up). Upstash’s login page has its own read-only switch, which you decide whether to turn on; left off, the connection can read and write, and Noureon does not force read-only.</li><li><strong>Vercel:</strong> looks at teams, projects, deployments and logs, searches the documentation, and can deploy and manage domains. Vercel’s authorisation does not separate reading from writing, so each tool is set by you to allow, ask or refuse; an action that changes things or costs money, such as a deployment or buying a domain, asks you first by default.</li><li><strong>Settings:</strong> like Notion and Linear, every tool of the three can be set in the Extensions page and in the Permissions tab of the settings, and the confirmation card shows the full parameters in the same way.</li></ul>",
+    "<strong>Notes</strong>",
+    "<ul><li>You log in to each of the three on its own page; Noureon never sees your password. Vercel’s MCP is in beta.</li><li>The authorisation screens of Vercel and Upstash may show only an address, not the name and logo of Noureon; that is how they do it.</li></ul>",
+    "<strong>Compatibility</strong>",
+    "This update requires no data migration."
+  ],
   "18.5.0": [
     "<strong>Noureon 18.5.0 Release Notes</strong>",
     "This version settles that Notion has one kind of connection: Notion's hosted connector (full access).",

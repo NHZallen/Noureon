@@ -61,8 +61,8 @@ const names = (t, selector) => [...t.host.querySelectorAll(selector)].map((node)
 test('the list: the connectors are in their groups, each with its words, "Connected" or "Connect", and a search finds one', async () => {
   const t = setup();
   await settle(t);
-  assert.deepEqual(names(t, '.cs-section-title'), ['筆記與專案']);
-  assert.deepEqual(names(t, '.cs-name-text'), ['Notion', 'Linear']);
+  assert.deepEqual(names(t, '.cs-section-title'), ['筆記與專案', '開發']);
+  assert.deepEqual(names(t, '.cs-name-text'), ['Notion', 'Linear', 'Context7', 'Upstash', 'Vercel']);
   assert.equal(t.host.querySelector('[data-connector-id="linear"] .cs-conn-status').textContent, '已連線');
   assert.match(t.host.querySelector('[data-connector-id="notion"] .cs-connect').textContent, /連線/);
   assert.equal(t.calls.filter(([method, path]) => path === '/v1/connectors' && method === 'GET').length, 1, 'read once, not at every drawing');
@@ -285,7 +285,7 @@ test('the card says which connector wants which tool, shows the first values and
   cards.handle(ASK);
   assert.equal(document.querySelectorAll('.connector-ask').length, 1, 'a question that comes again (a page that joined late) is one card');
   assert.equal(document.querySelector('.net-ask-title').textContent, 'Vercel wants to run: deploy_to_vercel');
-  assert.equal(document.querySelector('.connector-ask-mark').textContent, 'V');
+  assert.equal(document.querySelector('.connector-ask-mark img').getAttribute('src'), 'https://github.com/vercel.png?size=96', 'a connector of the catalog has its own picture');
   assert.equal(document.querySelector('.connector-ask-values').textContent, 'noureon-web · main · production');
   const detail = document.querySelector('.connector-ask-detail');
   assert.equal(detail.hidden, true);
