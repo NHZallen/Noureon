@@ -1,6 +1,16 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.3.6": [
+    "<strong>Noureon 18.3.6 Release Notes</strong>",
+    "This version reduces how far a step can go past the limit on what it writes in the sandbox.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>How often it is checked:</strong> how much the output folder of the sandbox had grown was checked once a second, so a step that wrote very fast could finish between two checks and go far past the limit. It is now checked every 250 milliseconds by default (it can be changed with the environment variable SANDBOX_DISK_CHECK_MS), which cuts the excess to about a quarter. The limit is still a measure taken at the time of a check, so a very fast writer can still go slightly past it.</li></ul>",
+    "<strong>Notes</strong>",
+    "<ul><li>This change takes effect once the runner on the sandbox host is updated.</li></ul>",
+    "<strong>Compatibility</strong>",
+    "This update requires no data migration."
+  ],
   "18.3.5": [
     "<strong>Noureon 18.3.5 Release Notes</strong>",
     "This version fixes a start that could fail right after a sandbox container was ended.",

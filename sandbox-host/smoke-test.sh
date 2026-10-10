@@ -180,7 +180,7 @@ R=$(step 'x = bytearray(3 * 1024 * 1024 * 1024)' "$ID"); printf '%s' "$R" | json
 R=$(step 'import os
 chunk = b"x" * (1024 * 1024)
 with open("/output/fill.bin", "wb") as handle:
-    for _ in range(1500):
+    for _ in range(4000):
         handle.write(chunk); handle.flush()
 print("WROTE ALL")' "$ID"); { printf '%s' "$R" | json "d['error']" | grep -qi "wrote more files" && ! printf '%s' "$R" | grep -q "WROTE ALL"; } && check "a step that fills the disk is stopped, and what it wrote is removed" ok || check "a step that fills the disk is stopped" "$R"
 R=$(step 'while True: pass' "$ID" ); echo "$R" | grep -q "time limit" && check "an endless loop is stopped" ok || check "an endless loop is stopped" "(waited 60 s) $R"

@@ -71,7 +71,7 @@ To use it on the machine: `cd ~/Noureon && git pull && sh sandbox-host/install.s
 
 ## Limits on what a step writes, and what an error says (18.3.4)
 
-- The output folder is on this machine's disk. While a step runs the runner measures how much the folder has grown (what is allocated, every `SANDBOX_DISK_CHECK_MS`, 1 s); past `SANDBOX_OUTPUT_GROWTH_BYTES` (1 GiB) the container is ended, the step answers "The code wrote more files than a step may." with `restarted`, and what the step wrote is removed (the files of earlier steps stay). The limits of what is *sent back* (`SANDBOX_OUTPUT_FILE_BYTES`, `SANDBOX_OUTPUT_TOTAL_BYTES`) are unchanged.
+- The output folder is on this machine's disk. While a step runs the runner measures how much the folder has grown (what is allocated, every `SANDBOX_DISK_CHECK_MS`, 250 ms); past `SANDBOX_OUTPUT_GROWTH_BYTES` (1 GiB) the container is ended (a limit that is checked on a clock: a fast writer goes past it by what it writes between two checks and the time `docker kill` takes, so the folder may reach a little more than the limit), the step answers "The code wrote more files than a step may." with `restarted`, and what the step wrote is removed (the files of earlier steps stay). The limits of what is *sent back* (`SANDBOX_OUTPUT_FILE_BYTES`, `SANDBOX_OUTPUT_TOTAL_BYTES`) are unchanged.
 - When a container cannot start the answer says only "The sandbox stopped while starting (N)." What Docker printed (paths of the machine, names of images) goes to the runner's log, `docker logs noureon-sandbox-runner`, as `sandbox_start_failed`.
 
 ## Starting again after a container was ended (18.3.5)

@@ -2,6 +2,20 @@
 // content 為 zh-TW 的 HTML 字串（JSON 轉義、雙引號），目前不隨介面語言切換。
 export const updateLogEntries = [
   {
+    version: "18.3.6",
+    date: "2026-10-10",
+    content: [
+      "<strong>Noureon 18.3.6 發布說明</strong>",
+      "本版本縮小沙盒寫入量限制的超出幅度。",
+      "<strong>主要變更</strong>",
+      "<ul><li><strong>檢查頻率：</strong>沙盒輸出資料夾的寫入量原本每 1 秒檢查一次，寫入速度很快的步驟可能在兩次檢查之間就寫完並超出限制很多。現在預設每 250 毫秒檢查一次（可用環境變數 SANDBOX_DISK_CHECK_MS 調整），超出的量縮小到約四分之一。上限仍是檢查當下的測量值，寫得極快時仍可能略微超出。</li></ul>",
+      "<strong>注意事項</strong>",
+      "<ul><li>此變更需要在沙盒主機上更新 runner 才會生效。</li></ul>",
+      "<strong>相容性</strong>",
+      "本次更新不需要資料遷移。"
+    ]
+  },
+  {
     version: "18.3.5",
     date: "2026-10-10",
     content: [

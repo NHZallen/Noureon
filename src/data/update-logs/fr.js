@@ -1,6 +1,16 @@
 // The update notes in French (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.3.6": [
+    "<strong>Notes de version de Noureon 18.3.6</strong>",
+    "Cette version réduit de combien une étape peut dépasser la limite d’écriture dans le bac à sable.",
+    "<strong>Principaux changements</strong>",
+    "<ul><li><strong>Fréquence de vérification :</strong> la croissance du dossier de sortie du bac à sable n’était vérifiée qu’une fois par seconde, si bien qu’une étape qui écrivait très vite pouvait finir entre deux vérifications et dépasser largement la limite. Elle est désormais vérifiée toutes les 250 millisecondes par défaut (modifiable avec la variable d’environnement SANDBOX_DISK_CHECK_MS), ce qui réduit le dépassement à environ un quart. La limite reste une mesure prise au moment d’une vérification ; un écrivain très rapide peut donc encore la dépasser légèrement.</li></ul>",
+    "<strong>Remarques</strong>",
+    "<ul><li>Ce changement ne prend effet qu’une fois le runner de l’hôte du bac à sable mis à jour.</li></ul>",
+    "<strong>Compatibilité</strong>",
+    "Cette mise à jour ne nécessite aucune migration de données."
+  ],
   "18.3.5": [
     "<strong>Notes de version de Noureon 18.3.5</strong>",
     "Cette version corrige un démarrage qui pouvait échouer juste après la fin d’un conteneur du bac à sable.",
