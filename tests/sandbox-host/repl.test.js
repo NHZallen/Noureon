@@ -65,10 +65,15 @@ withRepl('a step that ends the process, or runs too long, gets an answer, and th
   await repl.run('kept = 1');
   const ended = await repl.run('import os\nos._exit(3)');
   assert.match(ended.error, /Python process ended/);
+  assert.equal(ended.restarted, true, 'the model is told that the variables are gone');
+  const killed = await repl.run('import os, signal\nos.kill(os.getpid(), signal.SIGKILL)');
+  assert.match(killed.error, /more memory than a step may/, 'a process the system ended (what the memory limit does) is told as the memory limit');
+  assert.equal(killed.restarted, true);
   assert.match((await repl.run('print(kept)')).error, /NameError/, 'a new worker, so no variables');
   assert.equal((await repl.run('print(2)')).stdout.text, '2\n');
   const slow = await repl.run('while True:\n    pass', 1000);
   assert.match(slow.error, /time limit/);
+  assert.equal(slow.restarted, undefined, 'it stopped itself, the worker stayed');
   assert.equal((await repl.run('print(3)')).stdout.text, '3\n', 'and the worker goes on');
 });
 

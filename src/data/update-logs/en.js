@@ -1,6 +1,14 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.3.3": [
+    "<strong>Noureon 18.3.3 Release Notes</strong>",
+    "This version fixes how the sandbox reports that the memory limit was exceeded.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Memory limit exceeded:</strong> after 18.3.2 split the Python steps and the commands into two processes, a step that used too much memory only ended the worker process, which was reported as a general “the Python process ended” without saying that the environment had restarted. It is now reported as “the code used more memory than a step may”, and it is marked that the earlier variables are gone, as before. This change takes effect once the runner on the sandbox host is updated.</li></ul>",
+    "<strong>Compatibility</strong>",
+    "This update requires no data migration."
+  ],
   "18.3.2": [
     "<strong>Noureon 18.3.2 Release Notes</strong>",
     "This version fixes several security issues: how search results are displayed, how formulas that cannot be rendered are displayed, the password check when old local data is imported, an event of the cloud settings sync, the pairing code of peer-to-peer sharing, and the separation of processes inside the sandbox of the advanced mode.",

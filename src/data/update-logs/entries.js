@@ -2,6 +2,18 @@
 // content 為 zh-TW 的 HTML 字串（JSON 轉義、雙引號），目前不隨介面語言切換。
 export const updateLogEntries = [
   {
+    version: "18.3.3",
+    date: "2026-10-10",
+    content: [
+      "<strong>Noureon 18.3.3 發布說明</strong>",
+      "本版本修正沙盒在記憶體超過限制時的回報。",
+      "<strong>主要變更</strong>",
+      "<ul><li><strong>記憶體超過限制：</strong>18.3.2 將 Python 步驟與指令分成兩個行程後，步驟用掉過多記憶體時只會結束工作行程，回報成一般的「Python 行程已結束」，且沒有標示環境已重啟。現在會回報「程式碼使用的記憶體超過步驟的上限」，並標示先前的變數已不存在，與先前的行為一致。此項變更需要在沙盒主機上更新 runner 才會生效。</li></ul>",
+      "<strong>相容性</strong>",
+      "本次更新不需要資料遷移。"
+    ]
+  },
+  {
     version: "18.3.2",
     date: "2026-10-10",
     content: [

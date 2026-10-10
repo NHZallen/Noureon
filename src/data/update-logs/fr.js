@@ -1,6 +1,14 @@
 // The update notes in French (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.3.3": [
+    "<strong>Notes de version de Noureon 18.3.3</strong>",
+    "Cette version corrige la manière dont le bac à sable signale un dépassement de la limite de mémoire.",
+    "<strong>Principaux changements</strong>",
+    "<ul><li><strong>Limite de mémoire dépassée :</strong> depuis que la version 18.3.2 sépare les étapes Python et les commandes en deux processus, une étape qui utilisait trop de mémoire ne terminait que le processus de travail, signalé comme un simple « le processus Python s’est terminé » sans indiquer que l’environnement avait redémarré. Il est désormais signalé comme « le code a utilisé plus de mémoire qu’une étape n’y est autorisée », et il est indiqué que les variables précédentes ont disparu, comme auparavant. Ce changement ne prend effet qu’une fois le runner de l’hôte du bac à sable mis à jour.</li></ul>",
+    "<strong>Compatibilité</strong>",
+    "Cette mise à jour ne nécessite aucune migration de données."
+  ],
   "18.3.2": [
     "<strong>Notes de version de Noureon 18.3.2</strong>",
     "Cette version corrige plusieurs problèmes de sécurité : l’affichage des résultats de recherche, l’affichage des formules qui ne peuvent pas être rendues, la vérification du mot de passe lors de l’import d’anciennes données locales, un événement de la synchronisation des paramètres cloud, le code d’appairage du partage de poste à poste et la séparation des processus dans le bac à sable du mode avancé.",

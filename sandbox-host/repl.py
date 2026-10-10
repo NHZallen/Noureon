@@ -578,16 +578,27 @@ def run_python_step(request):
     started = time.monotonic()
     worker = _worker if _worker is not None and _worker.poll() is None else start_worker()
 
-    def ended(message):
+    def ended(message, gone=False):
+        # `restarted` tells the model that the variables of the earlier steps are gone (what the runner says when it is the container that ended).
+        if gone:
+            # Its pipe is closed because it is ending: it is waited for, so that how it ended is known (it may not be collected yet).
+            try:
+                worker.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                pass
+        killed_by_signal = worker.poll() == -signal.SIGKILL
         stop_worker()
+        if killed_by_signal and message.startswith("The Python process ended"):
+            # What the memory limit of the container does: the system ends the biggest process, which is the worker.
+            message = "The code used more memory than a step may."
         send({"id": request_id, "type": "result", "stdout": {"text": "", "dropped": 0}, "stderr": {"text": "", "dropped": 0}, "error": message,
-              "elapsedMs": int((time.monotonic() - started) * 1000)})
+              "elapsedMs": int((time.monotonic() - started) * 1000), "restarted": True})
 
     try:
         worker.stdin.write((json.dumps({"id": request_id, "type": "run", "code": code, "timeoutMs": int(timeout * 1000)}) + "\n").encode("utf-8"))
         worker.stdin.flush()
     except OSError:
-        ended("The Python process had ended; the variables of the earlier steps are gone. Run the step again.")
+        ended("The Python process had ended; the variables of the earlier steps are gone. Run the step again.", gone=True)
         return
     deadline = started + timeout + WORKER_GRACE
     forwarded = 0
@@ -598,7 +609,7 @@ def run_python_step(request):
             ended("The code ran longer than its time limit.")
             return
         if line is None:
-            ended("The Python process ended while the code was running (the variables of the earlier steps are gone).")
+            ended("The Python process ended while the code was running (the variables of the earlier steps are gone).", gone=True)
             return
         try:
             message = json.loads(line)

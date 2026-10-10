@@ -1,6 +1,14 @@
 // The update notes in Spanish (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.3.3": [
+    "<strong>Notas de la versión de Noureon 18.3.3</strong>",
+    "Esta versión corrige cómo informa el sandbox de que se superó el límite de memoria.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Límite de memoria superado:</strong> desde que la versión 18.3.2 separó los pasos de Python y los comandos en dos procesos, un paso que usaba demasiada memoria solo terminaba el proceso de trabajo, que se notificaba como un simple «el proceso de Python terminó» sin indicar que el entorno se había reiniciado. Ahora se notifica como «el código usó más memoria de la que puede usar un paso» y se indica que las variables anteriores ya no existen, como antes. Este cambio surte efecto cuando se actualiza el runner del host del sandbox.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "Esta actualización no requiere migración de datos."
+  ],
   "18.3.2": [
     "<strong>Notas de la versión de Noureon 18.3.2</strong>",
     "Esta versión corrige varios problemas de seguridad: la visualización de los resultados de búsqueda, la visualización de las fórmulas que no se pueden mostrar, la comprobación de la contraseña al importar datos locales antiguos, un evento de la sincronización de ajustes en la nube, el código de emparejamiento al compartir entre dispositivos y la separación de procesos dentro del sandbox del modo avanzado.",
