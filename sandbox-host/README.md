@@ -52,3 +52,19 @@ The proxy (`runner/net-proxy.js`) opens only ports 80 and 443; looks the site up
 A step may also be given `files` (a login file a tool needs, written under `/work` with mode 600 for the time of the command only) and values of up to 4096 characters in `env`. Python packages a tool installs go to `/opt/pip` (a tmpfs that may run programs, `SANDBOX_PIP_SIZE`, default 512m); it is on the `PATH` and `PYTHONPATH` of commands.
 
 After updating this folder on the machine the image has to be rebuilt (it gained node, npm, git, curl, and later `file` and SoX): `git pull && sh sandbox-host/install.sh && sh sandbox-host/smoke-test.sh`.
+
+## Steps and commands are kept apart (18.3.2)
+
+Inside the container `repl.py` is two programs. The **supervisor** (what the container starts) holds the private channel to the runner, runs the commands of the CLI tools with the credentials that come with them, and keeps the network relay. The **worker** (`repl.py --worker`, its child) runs the Python of the steps and keeps the variables between them.
+
+- The worker talks to the supervisor through its own pipes; the supervisor passes on only the output of a step (as it comes) and its result, for the request that is running, with the sizes limited. A step that writes frames of its own to the runner is not passed on.
+- A step cannot reach the supervisor's memory (`prctl(PR_SET_DUMPABLE, 0)`), nor its environment or functions: patching `subprocess`, `os.environ` or the functions of `repl.py` changes the worker only.
+- The files that come with a command (a tool's login) are written one folder at a time without following links, as ordinary files of their own (not links, pipes, or files with another name), and removed again before anything goes on.
+- While a command with credentials runs, every other process of the container is stopped (`SIGSTOP`, container setting `NOUREON_FREEZE=all`, set in `docker-args.js`) and goes on after the files of the credentials are removed. The Python variables are kept.
+- If the worker ends (a step calls `os._exit`, is killed for memory) the step gets an error and the next one starts a new worker: the variables of the earlier steps are gone, the files in `/output` stay.
+
+What this does not do: a command the model writes itself still has the credentials of its tool in its environment, so the server hides them from the output it shows; `/work` (HOME) and `/output` are shared by the steps and the commands, so a step can put a file there that a command will read; the processes of the steps and of the commands are the same user.
+
+`tests/sandbox-host/repl.test.js` runs `repl.py` for real (with `NOUREON_FREEZE` left at its test value, which stops only the worker's session) and checks each of the points above; `smoke-test.sh` checks them again in the real container ("a step cannot reach the commands").
+
+To use it on the machine: `cd ~/Noureon && git pull && sh sandbox-host/install.sh && sh sandbox-host/smoke-test.sh`.

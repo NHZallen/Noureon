@@ -42,7 +42,7 @@ test('runs late bootstrap callbacks and binds P2P controls in legacy order', () 
     showP2PSelection: () => calls.push('show-selection'),
     startP2PReceiverUI: () => calls.push('receiver-ui'),
     startP2PSender: () => calls.push('sender'),
-    getP2PCodeInputValue: () => 'ABCDE',
+    getP2PCodeInputValue: () => 'ABCDEFGH',
     showNotification: (...args) => calls.push(`notify:${args.join(':')}`),
     connectToSender: (code) => calls.push(`connect:${code}`),
     startQRScanner: () => calls.push('scan')
@@ -91,7 +91,7 @@ test('P2P click handlers preserve injected handoffs without scanner implementati
     showP2PSelection: () => calls.push('selection'),
     startP2PReceiverUI: () => calls.push('receiver'),
     startP2PSender: () => calls.push('sender'),
-    getP2PCodeInputValue: () => 'abcde',
+    getP2PCodeInputValue: () => 'abcdefgh',
     showNotification: (...args) => calls.push(`notify:${args.join(':')}`),
     connectToSender: (code) => calls.push(`connect:${code}`),
     startQRScanner: () => calls.push('scan')
@@ -115,7 +115,7 @@ test('P2P click handlers preserve injected handoffs without scanner implementati
     'mode:receiver',
     'receiver',
     'sender',
-    'connect:abcde',
+    'connect:abcdefgh',
     'scan'
   ]);
 });
@@ -147,7 +147,7 @@ test('P2P scan handoff resolves the scanner callback only when the button is cli
     showP2PSelection: () => {},
     startP2PReceiverUI: () => {},
     startP2PSender: () => {},
-    getP2PCodeInputValue: () => 'abcde',
+    getP2PCodeInputValue: () => 'abcdefgh',
     showNotification: () => {},
     connectToSender: () => {},
     startQRScanner: () => scannerCallback()
@@ -188,7 +188,7 @@ test('P2P scan button dispatches a real click event to the injected scanner hand
     showP2PSelection: () => {},
     startP2PReceiverUI: () => {},
     startP2PSender: () => {},
-    getP2PCodeInputValue: () => 'abcde',
+    getP2PCodeInputValue: () => 'abcdefgh',
     showNotification: () => {},
     connectToSender: () => {},
     startQRScanner: () => {

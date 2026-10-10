@@ -136,6 +136,46 @@ printf '%s' "$SKILLMOUNT" | grep -q '"demo-skill"' && check "the folder of a ski
 R=$(cli_step 'python3 /skills/demo-skill/scripts/hello.py; cat /skills/demo-skill/references/a.md' "$ID"); printf '%s' "$R" | json "d['stdout']['text']" | grep -q "hello from a skill" && check "a script of a skill is run by Python, and its files can be read" ok || check "a script of a skill is run by Python, and its files can be read" "$R"
 R=$(cli_step 'touch /skills/demo-skill/new.txt 2>&1 | head -1; rm /skills/demo-skill/references/a.md 2>&1 | head -1' "$ID"); [ "$(printf '%s' "$R" | json "d['stdout']['text'].lower().count('read-only')")" = "2" ] && check "/skills is read only: nothing can be written or removed" ok || check "/skills is read only: nothing can be written or removed" "$R"
 R=$(cli_step '/skills/demo-skill/scripts/hello.py 2>&1 | head -1' "$ID"); printf '%s' "$R" | json "d['stdout']['text']" | grep -qi "permission denied" && check "a file of a skill is never run as a program by itself" ok || check "a file of a skill is never run as a program by itself" "$R"
+# The code of a Python step and the commands of the tools are two programs inside the container (repl.py: the supervisor and the worker): what a step does cannot
+# reach the channel to the runner, nor the credentials a command comes with.
+echo "== a step cannot reach the commands =="
+files_step() { # files_step "<command>" <session> '<json list of {path, content}>' -> the last line (the result) of the answer, the command is sent with credentials
+  python3 - "$1" "$2" "$BASE" "$SECRET" "$3" <<'PY'
+import json, sys, urllib.request
+command, session, base, secret, files = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], json.loads(sys.argv[5])
+request = urllib.request.Request(f"{base}/v1/sessions/{session}/run", data=json.dumps({"command": command, "env": {"TOKEN": "s3cret"}, "files": files, "timeoutMs": 60000}).encode(), headers={"Authorization": f"Bearer {secret}", "Content-Type": "application/json"}, method="POST")
+last = ""
+with urllib.request.urlopen(request, timeout=150) as response:
+    for line in response:
+        last = line.decode()
+print(last.strip())
+PY
+}
+R=$(step 'import __main__
+__main__.send({"id": "someone-else", "type": "result", "stdout": {"text": "FORGED"}})
+print("real")' "$ID"); { [ "$(printf '%s' "$R" | json "d['stdout']['text'].strip()")" = "real" ] && ! printf '%s' "$R" | grep -q FORGED; } && check "a step cannot send frames of its own to the runner" ok || check "a step cannot send frames of its own to the runner" "$R"
+R=$(step 'import os, subprocess
+real = subprocess.Popen
+def spy(*a, **k):
+    open("/tmp/leak.txt", "a").write(repr(k.get("env")))
+    return real(*a, **k)
+subprocess.Popen = spy
+os.environ["PATH"] = "/work/bin:" + os.environ.get("PATH", "")' "$ID")
+R=$(files_step 'echo "$TOKEN"; echo "$PATH"; cat /tmp/leak.txt 2>/dev/null | wc -c' "$ID" '[{"path": ".cfg/login", "content": "x"}]')
+OUT=$(printf '%s' "$R" | json "d['stdout']['text']")
+{ printf '%s' "$OUT" | grep -q "^s3cret" && ! printf '%s' "$OUT" | grep -q "/work/bin" && [ "$(printf '%s' "$OUT" | tail -1 | tr -d ' \n')" = "0" ]; } && check "a step cannot change the environment or the functions the commands run with, nor see what they were given" ok || check "a step cannot change the environment or the functions the commands run with" "$R"
+R=$(step 'import os
+os.symlink("/output", "/work/cfg")
+os.symlink("/output/leaked", "/work/leaf")' "$ID")
+R=$(files_step 'ls /output' "$ID" '[{"path": "cfg/token", "content": "secret1"}, {"path": "leaf", "content": "secret2"}]')
+OUT=$(printf '%s' "$R" | json "d['stdout']['text']")
+{ ! printf '%s' "$OUT" | grep -Eq "token|leaked"; } && check "the files of a command are not written through a link a step planted" ok || check "the files of a command are not written through a link a step planted" "$R"
+R=$(step 'import subprocess
+subprocess.Popen(["sh", "-c", "while :; do echo x >> /tmp/bg.log; sleep 0.05; done"], start_new_session=True)' "$ID")
+sleep 1
+R=$(files_step 'a=$(wc -c < /tmp/bg.log); sleep 1; b=$(wc -c < /tmp/bg.log); echo "$a $b"' "$ID" '[]')
+OUT=$(printf '%s' "$R" | json "d['stdout']['text'].split()")
+[ "$OUT" != "" ] && [ "$(printf '%s' "$R" | json "d['stdout']['text'].split()[0] == d['stdout']['text'].split()[1]")" = "True" ] && check "what a step left running (even in a session of its own) is stopped while a command with credentials runs" ok || check "what a step left running is stopped while a command with credentials runs" "$R"
 R=$(step 'x = bytearray(3 * 1024 * 1024 * 1024)' "$ID"); printf '%s' "$R" | json "d['error']" | grep -qi "memory" && check "too much memory is stopped" ok || check "too much memory is stopped" "$R"
 R=$(step 'while True: pass' "$ID" ); echo "$R" | grep -q "time limit" && check "an endless loop is stopped" ok || check "an endless loop is stopped" "(waited 60 s) $R"
 call -X DELETE "$BASE/v1/sessions/$ID" >/dev/null

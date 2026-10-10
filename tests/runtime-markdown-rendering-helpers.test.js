@@ -345,3 +345,21 @@ test('markdown helper remains a rendering-only boundary after extraction', () =>
     /^import\s+[\s\S]*?from\s+['"][^'"]*(?:runtime-entry|app-bootstrap|settings|input|submit|provider|sidebar)[^'"]*['"]/m
   );
 });
+
+test('a formula that KaTeX cannot render is shown as text: what the model wrote is never read as markup after the sanitizing', () => {
+  const harness = createHarness({
+    katex: { renderToString: () => { throw new RangeError('Maximum call stack size exceeded'); } },
+    logger: { error: () => {} }
+  });
+  try {
+    for (const source of ['$<img src=x onerror=alert(1)>$', '$$<img src=x onerror=alert(1)>$$', '\\(<svg onload=alert(1)>\\)']) {
+      const html = harness.helpers.renderMarkdownWithFormulas(source);
+      const body = new harness.window.DOMParser().parseFromString(`<body>${html}</body>`, 'text/html').body;
+      assert.equal(body.querySelector('img, svg, script'), null, `${source}: no element came from the formula`);
+      assert.equal(/\son\w+=/i.test(html.replace(/&lt;[^]*?&gt;/g, '')), false, `${source}: no event attribute outside the escaped text`);
+      assert.match(html, /&lt;(img|svg) /);
+    }
+  } finally {
+    harness.window.close();
+  }
+});

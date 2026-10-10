@@ -85,16 +85,16 @@ test('starts the scanner, normalizes decoded codes, and preserves the connect ha
 
   lifecycle.startQRScanner();
   assert.equal(elements.get('p2p-reader').classList.values.has('hidden'), false);
-  successHandler('prefix-ABCDE');
+  successHandler('prefix-ABCDEFGH');
   await new Promise(resolve => setTimeout(resolve, 0));
 
-  assert.equal(elements.get('p2p-code-input').value, 'ABCDE');
+  assert.equal(elements.get('p2p-code-input').value, 'ABCDEFGH');
   assert.equal(elements.get('p2p-reader').classList.values.has('hidden'), true);
   assert.deepEqual(calls, [
     ['create', 'p2p-reader'],
     ['start', { facingMode: 'environment' }, { fps: 10, qrbox: { width: 250, height: 250 } }],
     ['stop'],
-    ['connect', 'ABCDE']
+    ['connect', 'ABCDEFGH']
   ]);
 });
 
@@ -121,7 +121,7 @@ test('closing the scanner while decoded stop is pending cancels the connect hand
   });
 
   lifecycle.startQRScanner();
-  successHandler('ABCDE');
+  successHandler('ABCDEFGH');
   successHandler('FGHIJ');
   await Promise.resolve();
   assert.equal(stopCalls, 1, 'only the first decoded frame may start scanner cleanup');

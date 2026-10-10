@@ -74,3 +74,16 @@ test('search text formatting helper remains side-effect free', () => {
   }
   assert.doesNotMatch(helperSource, /yellow|bg-yellow/);
 });
+
+test('search highlight never lets the text of a conversation become markup', () => {
+  assert.equal(highlightText('<img src=x onerror=alert(1)>', ''), '&lt;img src=x onerror=alert(1)&gt;');
+  assert.equal(
+    highlightText('<img src=x onerror=alert(1)> cat', 'cat'),
+    `&lt;img src=x onerror=alert(1)&gt; ${mark('cat')}`
+  );
+  assert.equal(highlightText('a <b> c', 'b'), `a &lt;${mark('b')}&gt; c`, 'the match is inside text, not a tag');
+  assert.equal(highlightText('fish & chips', 'amp'), 'fish &amp; chips', 'a query cannot cut an entity in two');
+  assert.equal(highlightText('x "quoted" \'y\'', 'quoted'), `x &quot;${mark('quoted')}&quot; &#39;y&#39;`);
+  assert.equal(highlightText('<b>', 'zzz'), '&lt;b&gt;', 'no match: still escaped');
+  assert.equal(highlightText('<b>', '<b>'), mark('&lt;b&gt;'), 'a query with markup in it is matched as text');
+});

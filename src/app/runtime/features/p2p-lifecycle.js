@@ -2,6 +2,12 @@ import { createP2PScannerLifecycle } from '../../legacy-runtime/features/p2p-sca
 import { createReceivedDataLifecycle } from '../../legacy-runtime/features/received-data-lifecycle.js';
 
 const DEFAULT_CHUNK_SIZE = 16 * 1024;
+// Letters and digits in the code of a share: 32 to the 8th is about 1.1 million million, too many to try by guessing.
+const P2P_CODE_LENGTH = 8;
+
+// The code of a share is what lets another device connect to the one that waits, so it is drawn from the random numbers of the browser that cannot be
+// guessed (the plain random function of the language can). A number from 0 up to, not including, 1.
+const secureRandom = () => globalThis.crypto.getRandomValues(new Uint32Array(1))[0] / 4294967296;
 
 export function createLegacyP2PLifecycle({
   document,
@@ -45,7 +51,7 @@ export function createLegacyP2PLifecycle({
   const getElement = (id) => getElementById(id);
   const log = logger ?? console;
   const schedule = scheduleTimeout ?? setTimeout;
-  const randomValue = random ?? Math.random;
+  const randomValue = random ?? secureRandom;
   const generateUuid = randomUUID;
 
   const createCancellationGate = () => {
@@ -242,7 +248,7 @@ export function createLegacyP2PLifecycle({
   function generateP2PCode() {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     let result = '';
-    for (let i = 0; i < 5; i += 1) {
+    for (let i = 0; i < P2P_CODE_LENGTH; i += 1) {
       result += chars.charAt(Math.floor(randomValue() * chars.length));
     }
     return result;

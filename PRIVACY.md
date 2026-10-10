@@ -98,7 +98,7 @@ Feature by feature, this is which data passes where.
 
 ## 11. Peer-to-peer transfer
 
-Peer-to-peer transfer between devices uses PeerJS: its public pairing server (0.peerjs.com) only lets two devices find each other, with a 5-character code, or a QR code. Once connected, the items you chose (for example conversations, Nouras, settings) go straight between the two devices and neither pass through nor are stored on Noureon's servers. Pair only with devices you trust, and check which items you are about to send.
+Peer-to-peer transfer between devices uses PeerJS: its public pairing server (0.peerjs.com) only lets two devices find each other, with an 8-character code, or a QR code. Once connected, the items you chose (for example conversations, Nouras, settings) go straight between the two devices and neither pass through nor are stored on Noureon's servers. Pair only with devices you trust, and check which items you are about to send.
 
 ## 12. Logs, security and rate limits
 

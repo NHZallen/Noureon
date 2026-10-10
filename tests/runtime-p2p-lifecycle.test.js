@@ -328,9 +328,9 @@ test('sender creates code, QR, Peer, payload metadata, chunks, and end marker in
   lifecycle.initP2P('astras');
   await lifecycle.startP2PSender();
 
-  assert.equal(elements.get('p2p-share-code').textContent, 'AAAAA');
-  assert.deepEqual(calls.find((call) => call[0] === 'qr'), ['qr', 'p2p-qrcode-container', 'AAAAA', 180, 180]);
-  assert.equal(FakePeer.instances[0].id, 'astra-p2p-AAAAA');
+  assert.equal(elements.get('p2p-share-code').textContent, 'AAAAAAAA');
+  assert.deepEqual(calls.find((call) => call[0] === 'qr'), ['qr', 'p2p-qrcode-container', 'AAAAAAAA', 180, 180]);
+  assert.equal(FakePeer.instances[0].id, 'astra-p2p-AAAAAAAA');
 
   const connection = createConnection(calls);
   FakePeer.instances[0].emit('connection', connection);

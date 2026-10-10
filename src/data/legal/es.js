@@ -193,7 +193,7 @@ export default {
             'Sincronización en la nube: se activa en Ajustes → Personalización tras vincular un correo o una cuenta de Google. Incluye conversaciones y mensajes, carpetas, Nouras, recuerdos y registros de resumen, metadatos de sincronización, marcas de eliminación y los archivos que subes o creas. Para sincronizar claves de API debes crear antes una contraseña de sincronización (de al menos 10 caracteres); las claves y otros datos sensibles se cifran con ella antes de subirse.',
             'Guarda tú mismo la contraseña de sincronización: tras borrarla, los datos cifrados existentes no se pueden descifrar. La propia contraseña de sincronización se guarda cifrada con una clave del servidor, para la recuperación entre dispositivos y por correo.',
             'Exportar e importar (Ajustes → Gestión de datos): exporta .json o .zip (historial de conversaciones con archivo y carpetas, Nouras, ajustes de la aplicación, preferencias personales confirmadas; las claves de API necesitan una contraseña de sincronización para exportarse de forma segura). Importar sustituye tus datos actuales, así que comprueba antes. Revisa un archivo exportado antes de compartirlo, sobre todo si decidiste incluir datos sensibles.',
-            'Transferencia directa entre dispositivos: en Ajustes, «Sincronización entre dispositivos (P2P)», elige «Quiero enviar» o «Quiero recibir», conéctate con un código de 5 caracteres o escaneando un código QR, y los elementos elegidos van directamente entre los dos dispositivos; así también se pueden compartir Nouras.',
+            'Transferencia directa entre dispositivos: en Ajustes, «Sincronización entre dispositivos (P2P)», elige «Quiero enviar» o «Quiero recibir», conéctate con un código de 8 caracteres o escaneando un código QR, y los elementos elegidos van directamente entre los dos dispositivos; así también se pueden compartir Nouras.',
             'Almacenamiento: los adjuntos en la nube y los archivos creados juntos están limitados a 500 MB por usuario; las imágenes generadas no se detienen por ese límite.',
             'Zona de peligro: «Borrar todos los registros y datos» elimina para siempre todo lo que hay en este navegador y no se puede deshacer. Cuando has iniciado sesión y sincronizas, las eliminaciones y restauraciones también se sincronizan con la nube.'
           ]
@@ -581,7 +581,7 @@ export default {
         id: 'p2p',
         h: '11. Transferencia directa entre dispositivos',
         blocks: [
-          'La transferencia directa entre dispositivos usa PeerJS: su servidor público de emparejamiento (0.peerjs.com) solo sirve para que dos dispositivos se encuentren, con un código de 5 caracteres o un código QR. Una vez conectados, los elementos que elegiste (por ejemplo, conversaciones, Nouras, ajustes) van directamente entre los dos dispositivos y ni pasan por los servidores de Noureon ni se guardan en ellos. Empareja solo dispositivos de confianza y comprueba qué elementos vas a enviar.'
+          'La transferencia directa entre dispositivos usa PeerJS: su servidor público de emparejamiento (0.peerjs.com) solo sirve para que dos dispositivos se encuentren, con un código de 8 caracteres o un código QR. Una vez conectados, los elementos que elegiste (por ejemplo, conversaciones, Nouras, ajustes) van directamente entre los dos dispositivos y ni pasan por los servidores de Noureon ni se guardan en ellos. Empareja solo dispositivos de confianza y comprueba qué elementos vas a enviar.'
         ]
       },
       {

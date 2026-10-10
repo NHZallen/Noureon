@@ -55,8 +55,8 @@ export function createAppBootstrapComposition({
 
       getElementById('p2p-connect-btn').addEventListener('click', () => {
         const code = getP2PCodeInputValue().trim();
-        if (code.length !== 5) {
-          showNotification(getText('p2pInvalidCode', 'Enter a valid 5-character code.'), 'warning');
+        if (code.length !== 8) {
+          showNotification(getText('p2pInvalidCode', 'Enter a valid 8-character code.'), 'warning');
           return;
         }
         connectToSender(code);

@@ -7,6 +7,8 @@ import { createSandboxRunElement } from '../../ui/sandbox/sandbox-run-view.js';
 import { describeSandboxFile, latestRunFiles, referencedAssetNames } from '../../ui/sandbox/sandbox-files.js';
 import { getRuntimeTexts } from '../i18n/runtime-texts.js';
 
+const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
+
 export function createMarkdownRenderingHelpers({
   marked,
   sanitizer,
@@ -189,7 +191,8 @@ export function createMarkdownRenderingHelpers({
       logger.error(displayMode ? 'KaTeX block rendering error:' : 'KaTeX inline rendering error:', error);
       const label = displayMode ? '數學公式渲染錯誤' : '公式錯誤';
       const element = displayMode ? 'p' : 'span';
-      return `<${element} style="color: red;">[${label}: ${formula}]</${element}>`;
+      // The formula is the text the model wrote and it is put in after the sanitizing of the rest, so it is shown as text and never read as markup.
+      return `<${element} style="color: red;">[${label}: ${escapeHtml(formula)}]</${element}>`;
     }
   }
 

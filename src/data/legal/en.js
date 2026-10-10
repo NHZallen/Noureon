@@ -193,7 +193,7 @@ export default {
             'Cloud sync: turn it on in Settings → Personalization after binding an Email or Google account. It includes conversations and messages, folders, Nouras, memories and summary records, sync metadata, deletion markers, and the files you upload or make. To sync API keys you must first create a sync password (at least 10 characters); keys and other sensitive data are encrypted with it before they are uploaded.',
             'Keep the sync password yourself: after it is cleared, existing encrypted data cannot be decrypted. The sync password itself is kept encrypted with a server-side key, for cross-device and Email recovery.',
             'Export and import (Settings → Data management): export .json or .zip (conversation history with the archive and folders, Nouras, app settings, confirmed personal preferences; API keys need a sync password to be exported safely). Importing replaces your current data, so check first. Review an exported file before sharing it, especially if you chose to include sensitive data.',
-            'Peer-to-peer transfer: in Settings, "Cross-device sync (P2P)", choose "I want to send" or "I want to receive", connect with a 5-character code or by scanning a QR code, and the items you chose go straight between the two devices; Nouras can be shared this way too.',
+            'Peer-to-peer transfer: in Settings, "Cross-device sync (P2P)", choose "I want to send" or "I want to receive", connect with an 8-character code or by scanning a QR code, and the items you chose go straight between the two devices; Nouras can be shared this way too.',
             'Storage: cloud attachments and made files together are limited to 500 MB per user; generated images are not stopped by that limit.',
             'Danger zone: "Clear all records and data" permanently deletes everything in this browser and cannot be undone. When you are signed in and syncing, deletion and restoration are also synced to the cloud.'
           ]
@@ -581,7 +581,7 @@ export default {
         id: 'p2p',
         h: '11. Peer-to-peer transfer',
         blocks: [
-          'Peer-to-peer transfer between devices uses PeerJS: its public pairing server (0.peerjs.com) only lets two devices find each other, with a 5-character code, or a QR code. Once connected, the items you chose (for example conversations, Nouras, settings) go straight between the two devices and neither pass through nor are stored on Noureon\'s servers. Pair only with devices you trust, and check which items you are about to send.'
+          'Peer-to-peer transfer between devices uses PeerJS: its public pairing server (0.peerjs.com) only lets two devices find each other, with an 8-character code, or a QR code. Once connected, the items you chose (for example conversations, Nouras, settings) go straight between the two devices and neither pass through nor are stored on Noureon\'s servers. Pair only with devices you trust, and check which items you are about to send.'
         ]
       },
       {
