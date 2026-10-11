@@ -114,3 +114,21 @@ test('the parts of an answer are read as text', () => {
   assert.equal(toolResultText({ content: [{ type: 'resource', resource: { text: 'inside' } }, { type: 'resource_link', uri: 'https://x.example/a', name: 'doc' }] }).text, 'inside\n[doc] https://x.example/a');
   assert.deepEqual(toolResultText(undefined), { text: '', isError: false, images: 0 });
 });
+
+test('a long session id (a signed value of some services) is kept and sent back, and one that cannot be kept is an error and not forgotten silently', async () => {
+  const long = `eyJ${'a'.repeat(600)}.sig`;
+  const seen = [];
+  const fetchImpl = async (url, options) => {
+    const { method, id } = JSON.parse(options.body);
+    seen.push({ method, session: options.headers['mcp-session-id'] });
+    if (method === 'initialize') return jsonResponse(rpc(id, { protocolVersion: PROTOCOL_VERSION }), { headers: { 'mcp-session-id': long } });
+    if (id === undefined) return new Response('', { status: 202 });
+    if (!options.headers['mcp-session-id']) return new Response('Mcp-Session-Id header is required for non-initialization requests', { status: 400 });
+    return jsonResponse(rpc(id, { tools: [] }));
+  };
+  const client = createMcpClient({ endpoint: 'https://mcp.example/mcp', getToken: async () => 'AT', fetchImpl });
+  assert.deepEqual(await client.listTools(), []);
+  assert.equal(seen.find((call) => call.method === 'tools/list').session, long);
+  const odd = async (url, options) => jsonResponse(rpc(JSON.parse(options.body).id, {}), { headers: { 'mcp-session-id': 'has space' } });
+  await assert.rejects(createMcpClient({ endpoint: 'https://mcp.example/mcp', getToken: async () => 'AT', fetchImpl: odd }).listTools(), (error) => error.code === 'protocol' && /session id/.test(error.message));
+});

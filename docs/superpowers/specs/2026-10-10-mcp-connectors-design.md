@@ -317,3 +317,9 @@ owner 決定四個都加；Supabase 連整個組織（不加 `project_ref`），
 - 沒有密鑰時不寫新欄位，所以資料庫還沒套用遷移時，公開的用戶端仍然可用；**有密鑰的服務（Supabase）要先套用遷移**。
 - 已經存的 Supabase 註冊沒有密鑰，所以要清掉才會重新註冊：測試庫已經把那一列改名放到一邊（`…|old`）。
 - **上線順序：** 遷移要先套用到正式專案 `clctveoosifoapbafhrl`，才合併 `main`。測試專案已套用。
+
+### 16.4 Supabase：連上了但列不出工具（2026-10-11）
+
+登入成功後，`tools/list` 被 Supabase 回 400：`Mcp-Session-Id header is required for non-initialization requests`。`initialize` 成功了，所以它給了會話代號，但我們的用戶端只收 256 個可印字元以內的代號，太長的被默默忽略，後面的請求就沒帶。現在上限放到 4096（標頭的長度），而且不能收的代號會明確報錯，不再默默忽略。
+
+為了找到這個原因，連接器的失敗現在會說得更清楚（都只有服務的回答，不含我們送的東西）：MCP 服務拒絕時寫出是哪個請求與對方的幾個字（`server/mcp/client.js` 的 `refusalWords`），列不出工具時 `ConnectorError.detail` 帶 `類型 狀態: 原話`、日誌有 `connector_tools_unavailable`，令牌被拒時 `info` 帶服務的話。

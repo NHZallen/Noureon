@@ -111,7 +111,11 @@ export function createMcpClient({ endpoint, getToken, onUnauthorized = async () 
       throw new McpError('unauthorized', 'The service did not accept the login.', { status: response.status });
     }
     const newSession = response.headers.get('mcp-session-id');
-    if (newSession && /^[\x21-\x7e]{1,256}$/.test(newSession)) sessionId = newSession;
+    // The session id is any visible characters; some services give a long one (a signed value), so the limit is that of a header.
+    if (newSession) {
+      if (!/^[\x21-\x7e]{1,4096}$/.test(newSession)) throw new McpError('protocol', 'The service gave a session id that cannot be kept.');
+      sessionId = newSession;
+    }
     if (!expect) {
       await response.body?.cancel?.().catch(() => {});
       if (!response.ok) throw new McpError('protocol', `The service answered ${response.status}.`, { status: response.status });
