@@ -19,7 +19,7 @@ export const TARGETS = Object.freeze([
   { id: 'supabase', name: 'Supabase', url: 'https://mcp.supabase.com/mcp' },
   { id: 'huggingface', name: 'Hugging Face', url: 'https://huggingface.co/mcp' },
   { id: 'miro', name: 'Miro', url: 'https://mcp.miro.com/' },
-  { id: 'canva', name: 'Canva', url: 'https://mcp.canva.com/mcp' }
+  { id: 'canva', name: 'Canva', url: 'https://api.canva.com/connect/v1/mcp' }
 ]);
 
 const INITIALIZE = JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'noureon-probe', version: '0' } } });

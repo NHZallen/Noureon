@@ -328,3 +328,7 @@ owner 決定四個都加；Supabase 連整個組織（不加 `project_ref`），
 
 用 owner 自己建的 Canva App（預先註冊的用戶端）連線，Canva 的登入頁（`https://mcp.canva.com/authorize?...`）回 Internal Server Error。owner 手動試過拿掉 `resource`、PKCE 改小寫，都一樣；我們送的網址完全沒有 `scope`。Canva 公布的資料（`/.well-known/oauth-protected-resource`）列了它的範圍：`profile:read`、`design:meta:read`、`design:content:read`／`write`、`folder:read`／`write`、`brandtemplate:meta:read`、`brandtemplate:content:read`／`write`、`comment:read`／`write`、`asset:read`／`write`、`brandkit:read`、`help:answers:read`／`write`；授權伺服器公布 PKCE `plain` 與 `S256`、令牌端點驗證 `client_secret_basic`／`client_secret_post`／`none`。
 做法：目錄裡 Canva 指定範圍：讀寫登入是上面除了 `help:answers:*` 以外的全部，**唯讀登入**只有 `…:read`（Canva 的範圍分得出讀寫，所以像 Linear 一樣提供「唯讀連線」的選擇）。若 Canva 回 `invalid_scope`，原因是 Canva App 沒開那個範圍，登入失敗的畫面會顯示 Canva 的原話。
+
+### 16.6 Canva：App 從開發者入口建的，要用另一個 MCP 網址（2026-10-11）
+
+加了範圍之後 `mcp.canva.com/authorize` 還是 Internal Server Error。owner 貼了 Canva 的文件（Access and permissions、Verify your Canva MCP app）：「**開發者入口建的用戶端，MCP 網址是 `https://api.canva.com/connect/v1/mcp`；經候補表單核准的用戶端才用 `https://mcp.canva.com/mcp`**」。入口建的 App 的 Client ID（`OC-…`）只在前者的登入（Canva Connect 的登入）認得，所以我們把它送去後者，就出錯。目錄的 Canva 端點改成 `https://api.canva.com/connect/v1/mcp`（探測工具也是）。範圍照 Canva 公布的名稱，要在入口的 REST APIs 範圍表勾好（App 設定的範圍要涵蓋我們要求的）。

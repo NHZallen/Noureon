@@ -317,7 +317,8 @@ export const CONNECTORS = Object.freeze([
     id: 'canva',
     name: 'Canva',
     category: 'design',
-    endpoint: 'https://mcp.canva.com/mcp',
+    // The address for a client made in Canva's developer portal (a client approved by the waitlist uses https://mcp.canva.com/mcp instead): the login of this one is Canva Connect's, with the scopes set in the portal.
+    endpoint: 'https://api.canva.com/connect/v1/mcp',
     icon: 'https://github.com/canva.png?size=96',
     registration: 'dcr',
     // Canva only lets the redirect addresses it has approved log in (a registration of ours was accepted, and then its login answered "Invalid redirect URI"). Noureon is an app that the owner made in Canva's developer portal with Canva MCP on:

@@ -65,7 +65,7 @@ test('the catalog is right: every entry has its five languages, and the tools ar
 
 test('Supabase, Hugging Face, Miro and Canva: their own endpoints, a registration first, and the tools told read from write', () => {
   const [supabase, huggingface, miro, canva] = ['supabase', 'huggingface', 'miro', 'canva'].map(getConnector);
-  assert.deepEqual([supabase.endpoint, huggingface.endpoint, miro.endpoint, canva.endpoint], ['https://mcp.supabase.com/mcp', 'https://huggingface.co/mcp', 'https://mcp.miro.com/', 'https://mcp.canva.com/mcp']);
+  assert.deepEqual([supabase.endpoint, huggingface.endpoint, miro.endpoint, canva.endpoint], ['https://mcp.supabase.com/mcp', 'https://huggingface.co/mcp', 'https://mcp.miro.com/', 'https://api.canva.com/connect/v1/mcp']);
   for (const connector of [supabase, huggingface, miro, canva]) {
     assert.deepEqual(connectorProblems(connector), [], connector.id);
     assert.equal(connector.registration, 'dcr', connector.id);
