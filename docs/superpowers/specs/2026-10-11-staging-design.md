@@ -1,6 +1,6 @@
 # 測試環境（staging）：測試網域，不再直接推到正式網域
 
-**狀態：** 第 1 階段完成並驗證（2026-10-11）：`staging.noureon.com` 與 `api-staging.noureon.com` 都在運作，Google 登入、聊天、回覆關掉頁面後繼續、資料與正式分開，全部通過（owner 實測）。測試專案 `Noureon-staging` 的代號是 `nnousccvghbkucloewrs`。之後的推送規則（§4）已生效：日常推到 `staging`，owner 說「上線」才合併 `main`。Python 沙盒與連接器是第 2 階段（§5），還沒做。實作時學到的事見 §7。
+**狀態：** 第 1 階段完成並驗證（2026-10-11）：`staging.noureon.com` 與 `api-staging.noureon.com` 都在運作，Google 登入、聊天、回覆關掉頁面後繼續、資料與正式分開，全部通過（owner 實測）。測試專案 `Noureon-staging` 的代號是 `nnousccvghbkucloewrs`。之後的推送規則（§4）已生效：日常推到 `staging`，owner 說「上線」才合併 `main`。第 2 階段（§5）的程式與 Zeabur 設定都做好了（測試用的 GitHub OAuth App 也建了，2026-10-11），等 owner 在測試站試連接器與伺服器端 Python；瀏覽器內的 Python 要等下次上線才會生效。實作時學到的事見 §7。
 
 ## 1. 為什麼
 
