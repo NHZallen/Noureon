@@ -1,6 +1,6 @@
 # 測試環境（staging）：測試網域，不再直接推到正式網域
 
-**狀態：** 第 1 階段規劃好了，owner 同意（2026-10-11）：資料庫分開、網域用 `staging.noureon.com` 與 `api-staging.noureon.com`、之後的推送規則改成「先推 `staging`，owner 說上線才合併 `main`」。程式裡讓伺服器網址可以用環境變數設定的部分已做；其餘是 owner 在各家後台的設定（見 §3），一步一步做。Python 沙盒與連接器放第 2 階段（§5）。
+**狀態：** 第 1 階段完成並驗證（2026-10-11）：`staging.noureon.com` 與 `api-staging.noureon.com` 都在運作，Google 登入、聊天、回覆關掉頁面後繼續、資料與正式分開，全部通過（owner 實測）。測試專案 `Noureon-staging` 的代號是 `nnousccvghbkucloewrs`。之後的推送規則（§4）已生效：日常推到 `staging`，owner 說「上線」才合併 `main`。Python 沙盒與連接器是第 2 階段（§5），還沒做。實作時學到的事見 §7。
 
 ## 1. 為什麼
 
@@ -66,3 +66,10 @@
 - 第 2 階段之前：Python 沙盒（伺服器端）與連接器不可用。
 - Vercel 的連接器永遠不能用（§5）。
 - 網站的 `/api/*`（Vercel 函式：搜尋、網站資訊…）和正式用同一套程式，環境變數另外設。
+
+## 7. 第 1 階段實作筆記（2026-10-11）
+
+- **套用 migrations 的方法：** Supabase 的工具遇到含 `drop` 的陳述式會當成破壞性操作而逾時，所以資料表一律由 owner 在測試專案的 SQL Editor 貼上執行（分成三個檔，依序貼）。貼之前用記事本開檔，確認最後幾行完整（應用程式內的檔案預覽會截斷）。
+- **遷移順序修正：** `20260709090000_grant_workspace_sync_sequence.sql` 在空資料庫上會比序列的建立還早執行（`relation "public.workspace_sync_seq" does not exist`）。現在改成條件式：序列存在才授權（commit `1b7ea477`）。正式資料庫不受影響。
+- **Vercel 環境變數：** 改完之後要重新部署才會套用。測試站是預覽部署，開啟時要先登入 Vercel（Deployment Protection）。
+- **伺服器：** Zeabur 的第二個服務 `noureon-staging`，分支 `staging`，`KEY_ENCRYPTION_KEY` 為新產生的，和正式不同。`/healthz` 回傳 `"build":"dev"` 是正常的。
