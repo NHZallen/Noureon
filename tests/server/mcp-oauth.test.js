@@ -70,7 +70,7 @@ test('Supabase, Hugging Face, Miro and Canva: their own endpoints, a registratio
     assert.deepEqual(connectorProblems(connector), [], connector.id);
     assert.equal(connector.registration, 'dcr', connector.id);
     assert.equal(hasReadonlyLogin(connector), false, `${connector.id}: one login, what a reply may do is the person's setting for each tool`);
-    assert.equal(Boolean(connector.pending), connector.id === 'canva', `${connector.id}: only Canva waits for its redirect address to be approved`);
+    assert.ok(!connector.pending, connector.id);
   }
   assert.equal(supabase.category, 'dev');
   assert.equal(miro.category, 'design');

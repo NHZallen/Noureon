@@ -320,9 +320,8 @@ export const CONNECTORS = Object.freeze([
     endpoint: 'https://mcp.canva.com/mcp',
     icon: 'https://github.com/canva.png?size=96',
     registration: 'dcr',
-    // Canva only lets the redirect addresses it has approved log in (its login answers "Invalid redirect URI" for ours, also after a registration that was accepted); a custom client applies for its address to be added (Canva's waitlist form).
-    // The page says "Under review" and does not begin a login until this line is taken out.
-    pending: true,
+    // Canva only lets the redirect addresses it has approved log in (a registration of ours was accepted, and then its login answered "Invalid redirect URI"). Noureon is an app that the owner made in Canva's developer portal with Canva MCP on:
+    // its Client ID and Secret are in the server's environment (CONNECTOR_CANVA_CLIENT_ID and _SECRET), and the redirect addresses are those the owner entered in the portal. While the app is a draft, only the members of its team can log in.
     scopes: Object.freeze({ readwrite: Object.freeze([]) }),
     description: Object.freeze({
       'zh-TW': '搜尋、讀取與生成你的 Canva 設計，並匯出成檔案。',

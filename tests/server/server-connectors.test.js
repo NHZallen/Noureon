@@ -474,4 +474,6 @@ test('the client made by hand at GitHub is set with both its id and its secret o
   assert.deepEqual(loadConfig({ ...base, CONNECTOR_GITHUB_CLIENT_ID: 'Ov23liabc', CONNECTOR_GITHUB_CLIENT_SECRET: 'shh' }).connectorPreregistered, { github: { clientId: 'Ov23liabc', clientSecret: 'shh' } });
   assert.throws(() => loadConfig({ ...base, CONNECTOR_GITHUB_CLIENT_ID: 'Ov23liabc' }), /CONNECTOR_GITHUB_CLIENT_ID and CONNECTOR_GITHUB_CLIENT_SECRET go together/);
   assert.throws(() => loadConfig({ ...base, CONNECTOR_GITHUB_CLIENT_SECRET: 'shh' }), /go together/);
+  assert.deepEqual(loadConfig({ ...base, CONNECTOR_CANVA_CLIENT_ID: 'OC-abc', CONNECTOR_CANVA_CLIENT_SECRET: 'shh' }).connectorPreregistered, { canva: { clientId: 'OC-abc', clientSecret: 'shh' } });
+  assert.throws(() => loadConfig({ ...base, CONNECTOR_CANVA_CLIENT_ID: 'OC-abc' }), /CONNECTOR_CANVA_CLIENT_ID and CONNECTOR_CANVA_CLIENT_SECRET go together/);
 });

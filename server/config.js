@@ -39,9 +39,9 @@ export function loadConfig(env = process.env) {
   const appUrl = String(env.APP_URL || 'https://noureon.com').replace(/\/+$/, '');
   const connectorRedirectUri = String(env.CONNECTOR_REDIRECT_URI || 'https://api.noureon.com/mcp/callback');
   const connectorClientId = String(env.CONNECTOR_CLIENT_ID || `${appUrl}/.well-known/oauth-client.json`);
-  // Services that have no registration of their own (GitHub): the client made by hand in the service's portal, one id and one secret for every person; both or neither. The secret only ever lives here.
+  // Services that have no registration of their own (GitHub), or that only take clients it has approved (Canva): the client made by hand in the service's portal, one id and one secret for every person; both or neither. The secret only ever lives here.
   const preregistered = {};
-  for (const id of ['github']) {
+  for (const id of ['github', 'canva']) {
     const key = `CONNECTOR_${id.toUpperCase()}_CLIENT`;
     const clientId = String(env[`${key}_ID`] || '');
     const clientSecret = String(env[`${key}_SECRET`] || '');
