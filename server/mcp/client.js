@@ -62,6 +62,22 @@ export function parseEventStream(text) {
   return messages;
 }
 
+// A few plain words of what a service said with a refusal (printable characters only, short): for the person to read when something does not work. Never what we sent.
+async function refusalWords(response, signal) {
+  try {
+    const text = await readBody(response, signal);
+    let said = text;
+    try {
+      const parsed = JSON.parse(text);
+      said = [parsed?.error?.message, parsed?.error_description, typeof parsed?.error === 'string' ? parsed.error : '', parsed?.message, parsed?.detail].find((value) => typeof value === 'string' && value) || text;
+    } catch { /* plain text */ }
+    return String(said).replace(/[^\x20-\x7e]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 140);
+  } catch {
+    await response.body?.cancel?.().catch(() => {});
+    return '';
+  }
+}
+
 /**
  * `endpoint`: the service's address; `getToken()` gives the access token (async); `onUnauthorized()` is called once when the service says 401, and may give
  * a new token (async) or null; `fetchImpl` is the network. The session of the service (if it gives one) is kept for the next calls and begun again once if
@@ -106,8 +122,8 @@ export function createMcpClient({ endpoint, getToken, onUnauthorized = async () 
       throw new McpError('session_lost', 'The service dropped the session.', { status: 404 });
     }
     if (!response.ok) {
-      await response.body?.cancel?.().catch(() => {});
-      throw new McpError('protocol', `The service answered ${response.status}.`, { status: response.status });
+      const words = await refusalWords(response, combined);
+      throw new McpError('protocol', `The service answered ${response.status} to ${message.method || 'a request'}${words ? `: ${words}` : '.'}`, { status: response.status });
     }
     const text = await readBody(response, combined);
     const type = String(response.headers.get('content-type') || '').toLowerCase();

@@ -302,7 +302,7 @@ test('when the tools cannot be listed, what the service answered is told to the 
   const { world, service } = setup();
   await login(service);
   world.state.listFails = true;
-  await assert.rejects(service.refreshTools(USER, 'linear'), (error) => error.code === 'failed' && error.detail === 'protocol 400: The service answered 400.');
+  await assert.rejects(service.refreshTools(USER, 'linear'), (error) => error.code === 'failed' && error.detail === 'protocol 400: The service answered 400 to tools/list: nope');
 });
 
 test('disconnecting revokes the token at the service and deletes everything kept', async () => {
