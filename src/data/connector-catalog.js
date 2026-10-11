@@ -324,8 +324,8 @@ export const CONNECTORS = Object.freeze([
     // its Client ID and Secret are in the server's environment (CONNECTOR_CANVA_CLIENT_ID and _SECRET), and the redirect addresses are those the owner entered in the portal. While the app is a draft, only the members of its team can log in.
     // Canva's login needs the scopes named (without any it answers "Internal Server Error"); the ones it announces (/.well-known/oauth-protected-resource) are split into reading and writing, so a read-only login is offered.
     scopes: Object.freeze({
-      readonly: Object.freeze(['profile:read', 'design:meta:read', 'design:content:read', 'folder:read', 'brandtemplate:meta:read', 'brandtemplate:content:read', 'comment:read', 'asset:read', 'brandkit:read']),
-      readwrite: Object.freeze(['profile:read', 'design:meta:read', 'design:content:read', 'design:content:write', 'folder:read', 'folder:write', 'brandtemplate:meta:read', 'brandtemplate:content:read', 'brandtemplate:content:write', 'comment:read', 'comment:write', 'asset:read', 'asset:write', 'brandkit:read'])
+      readonly: Object.freeze(['profile:read', 'design:meta:read', 'design:content:read', 'folder:read', 'brandtemplate:meta:read', 'brandtemplate:content:read', 'comment:read', 'asset:read']),
+      readwrite: Object.freeze(['profile:read', 'design:meta:read', 'design:content:read', 'design:content:write', 'folder:read', 'folder:write', 'brandtemplate:meta:read', 'brandtemplate:content:read', 'brandtemplate:content:write', 'comment:read', 'comment:write', 'asset:read', 'asset:write'])
     }),
     description: Object.freeze({
       'zh-TW': '搜尋、讀取與生成你的 Canva 設計，並匯出成檔案。',
