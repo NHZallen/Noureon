@@ -229,7 +229,7 @@ export function createLegacySearchUploadSidebarLifecycle(dependencies = {}) {
                 }
                 results = calculateRelevanceScores(weightedKeywords);
             } catch (error) {
-                container.innerHTML = `<p class="text-center text-red-500">${error.message}</p>`;
+                container.innerHTML = `<p class="text-center text-red-500">${escapeHTML(error.message)}</p>`;
                 return;
             }
         } else {
@@ -237,7 +237,7 @@ export function createLegacySearchUploadSidebarLifecycle(dependencies = {}) {
             const searchIn = scope === 'keyword-title' ? ['title'] : ['title', 'content'];
             conversations.forEach(conv => {
                     let matchFound = false;
-                    let titleHTML = conv.title;
+                    let titleHTML = escapeHTML(conv.title);
                     let snippetHTML = '';
                     if (searchIn.includes('title') && conv.title.toLowerCase().includes(lowerCaseQuery)) {
                         matchFound = true;

@@ -26,7 +26,7 @@ const sizeText = (bytes) => (bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toF
  * opens to the steps (`open`: it starts open). The steps are folded either way, newest too. Without it the steps are the list
  * itself (where this is inside a row of another list, such as the visual check's).
  */
-export function createSandboxLedger({ document, host, before = null, language = 'zh-TW', summary = false, open = false, startedAt: workStartedAt = null, onNetAnswer = null, onCredentialAnswer = null }) {
+export function createSandboxLedger({ document, host, before = null, language = 'zh-TW', summary = false, open = false, startedAt: workStartedAt = null, onNetAnswer = null, onCredentialAnswer = null, onConnectorAnswer = null }) {
   const text = (key, values) => sandboxText(language, key, values);
   const outer = summary ? createLedger({ document, host, before }) : null;
   const line = outer ? outer.addRow(text('processWorking')) : null;
@@ -47,20 +47,45 @@ export function createSandboxLedger({ document, host, before = null, language = 
     const doing = waitingLabel || list.current?.label || activityLabel;
     line.setLabel(doing ? `${text('processWorking')} · ${doing}` : text('processWorking'));
   };
+  // The questions to the person (a site a tool reaches for, a login a tool needs, a tool of a connector): cards in the conversation, right under the line of the steps and
+  // outside them (the steps are folded, and a question that waits for the person must be seen without opening anything). Without a line the steps are open, and the cards go in the list.
+  let askHost = null;
+  const askCardHost = () => {
+    if (!outer) return list.list;
+    if (!askHost) {
+      askHost = document.createElement('div');
+      askHost.className = 'ask-host';
+      outer.element.after(askHost);
+    }
+    return askHost;
+  };
   const urls = [];
   const steps = new Map();
   // The question about a site a CLI tool reaches for (only a reply with tools has one): the card is in the list, answered from the page.
   let currentStep = 0;
   let netCards = null;
   const askAboutSite = (event) => {
-    netCards ||= createNetAskCards({ document, host: list.list, language, onAnswer: onNetAnswer || (async () => ({ ok: false })), commandOf: () => steps.get(currentStep)?.command || '' });
+    netCards ||= createNetAskCards({ document, host: askCardHost(), language, onAnswer: onNetAnswer || (async () => ({ ok: false })), commandOf: () => steps.get(currentStep)?.command || '' });
     netCards.handle(event);
   };
   // The window that asks for the login a CLI tool needs (a reply with tools only): the card is in the list too.
   let credentialCards = null;
   const askForCredentials = (event) => {
-    credentialCards ||= createCredentialAskCards({ document, host: list.list, language, onAnswer: onCredentialAnswer || (async () => ({ ok: false })) });
+    credentialCards ||= createCredentialAskCards({ document, host: askCardHost(), language, onAnswer: onCredentialAnswer || (async () => ({ ok: false })) });
     credentialCards.handle(event);
+  };
+  // The card is a file of its own (loaded when the first question comes); the events wait for it in the order they came.
+  let connectorCards = null;
+  const askAboutConnector = (event) => {
+    connectorCards = (connectorCards || import('./connector-ask-card.js').then(({ createConnectorAskCards }) => createConnectorAskCards({ document, host: askCardHost(), language, onAnswer: onConnectorAnswer || (async () => ({ ok: false })) })))
+      .then((cards) => {
+        cards.handle(event);
+        // While the question waits, the line of the list says so (above everything else).
+        waitingLabel = event.event === 'ask' ? cards.waitingText(event) : '';
+        syncLine();
+        return cards;
+      });
+    connectorCards.catch(() => {});
   };
   const create = (name, className, content) => {
     const node = document.createElement(name);
@@ -232,11 +257,26 @@ export function createSandboxLedger({ document, host, before = null, language = 
     webSources = all;
   };
 
+  // A connector is one row however many calls the reply makes to it ("Using connector: GitHub"): the first call makes the row, the next ones make it run again.
+  const connectorRows = new Map();
+  const connectorCall = ({ connector, label }) => {
+    const key = String(connector || label);
+    const row = connectorRows.get(key);
+    if (row && list.rows.includes(row)) {
+      if (list.current !== row) {
+        endCurrent();
+        row.resume();
+      }
+      return;
+    }
+    connectorRows.set(key, begin(label, { kind: 'connector' }));
+  };
+
   // Words the model wrote before a call (it was asked to put that in the call's note) were taken for the answer, and the
   // line said the work was over. When more work follows, the line goes back to running.
   let answered = false;
   const handle = (event) => {
-      if (answered && ['round', 'searching', 'step', 'skill'].includes(event.type)) {
+      if (answered && ['round', 'searching', 'step', 'skill', 'connector'].includes(event.type)) {
         answered = false;
         if (line && line.state !== 'running') {
           line.resume();
@@ -248,6 +288,10 @@ export function createSandboxLedger({ document, host, before = null, language = 
       } else if (event.type === 'skill') {
         // The model loads a skill: a row of its own, over when the next thing begins.
         begin(event.label, { kind: 'skill' });
+      } else if (event.type === 'connector') {
+        // The model uses a connector: a row of its own (the call), and the card that asks when the person set the tool to ask.
+        if (event.event === 'call') connectorCall(event);
+        else askAboutConnector(event);
       } else if (event.type === 'searching') {
         startSearch(event);
       } else if (event.type === 'sources') {
@@ -332,6 +376,7 @@ export function createSandboxLedger({ document, host, before = null, language = 
       // Each list has its own clock: both are stopped.
       list.remove();
       outer?.remove();
+      askHost?.remove();
       urls.forEach((url) => document.defaultView.URL.revokeObjectURL(url));
     }
   };

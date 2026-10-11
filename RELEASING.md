@@ -16,6 +16,8 @@
 
 `main` 每次推送都會由 Vercel 自動部署到 `noureon.com`。**自動部署不構成正式版本發布。**
 
+**測試環境（設定好之後）：** 日常改動先推 `staging` 分支，部署到 `staging.noureon.com`（伺服器 `api-staging.noureon.com`、資料庫另一個 Supabase 專案）；試過、owner 說「上線」，才把 `staging` 合併到 `main`。設定步驟與規則見 `docs/superpowers/specs/2026-10-11-staging-design.md`。
+
 因此正式網站可能包含尚未形成新版本的小型修改，這是預期行為。
 
 ## 版本來源

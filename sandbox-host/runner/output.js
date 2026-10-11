@@ -1,7 +1,7 @@
 // The files a step left in the output folder (on the host: the folder is mounted into the container), as the browser sandbox
 // reports them: only what the step created or changed, within the limits, and no file of a blocked type.
 
-import { lstatSync, readdirSync, readFileSync } from 'node:fs';
+import { lstatSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { LIMITS, isBlockedOutputName } from '../../public/sandbox/protocol.js';
 
@@ -55,4 +55,45 @@ export function collectOutput(directory, before = new Map(), limits = LIMITS) {
     }
   }
   return { files, skipped };
+}
+
+/** The disk a folder takes (what is allocated, so that a file with holes in it is not counted for its length), links not followed; it stops counting once `cap` is passed. */
+export function allocatedBytes(directory, cap = Infinity) {
+  let total = 0;
+  const pending = [directory];
+  let seen = 0;
+  while (pending.length > 0 && total <= cap && seen < 200_000) {
+    const current = pending.pop();
+    let names = [];
+    try {
+      names = readdirSync(current);
+    } catch {
+      continue;
+    }
+    for (const name of names) {
+      seen += 1;
+      const path = join(current, name);
+      let stat;
+      try {
+        stat = lstatSync(path);
+      } catch {
+        continue;
+      }
+      if (stat.isDirectory()) pending.push(path);
+      else if (stat.isFile()) total += typeof stat.blocks === 'number' ? stat.blocks * 512 : stat.size;
+    }
+  }
+  return total;
+}
+
+/** Removes the files a step made or changed since `before` (a snapshotOutput), the ones it filled the disk with. */
+export function removeChangedFiles(directory, before) {
+  for (const name of listFiles(directory)) {
+    try {
+      const stat = lstatSync(join(directory, name));
+      if (before.get(name) !== `${stat.size}:${Math.round(stat.mtimeMs)}`) rmSync(join(directory, name), { force: true });
+    } catch {
+      // Gone already.
+    }
+  }
 }

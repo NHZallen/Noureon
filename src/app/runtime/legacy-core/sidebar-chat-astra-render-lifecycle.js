@@ -581,7 +581,6 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
       labels: (() => {
         const texts = i18n[getConfig().uiLanguage];
         return {
-          imageCreating: texts.imageCreating,
           imagePreview: texts.imagePreview,
           imageAlt: texts.imageAlt,
           edit: texts.edit,

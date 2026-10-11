@@ -68,7 +68,7 @@ export function createP2PScannerLifecycle({
             startState.cleanupStarted = true;
             scanner = null;
             let code = decodedText.trim();
-            if (code.length > 5) code = code.slice(-5);
+            if (code.length > 8) code = code.slice(-8);
 
             getElementById('p2p-code-input').value = code;
             Promise.resolve()

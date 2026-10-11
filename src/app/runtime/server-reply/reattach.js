@@ -63,7 +63,7 @@ export function createServerReplyReattach({
       setAbortController(abortController);
       setSubmitBusy(true);
       // A picture the server is making is waited for under the same place-holder the page draws when it makes one itself.
-      const loadingParts = run.kind === 'image' ? [{ imageGenerationLoading: true, imageAspectRatio: conv.imageConfig?.aspectRatio || '1:1' }] : [{ text: '...' }];
+      const loadingParts = run.kind === 'image' ? [{ imageGenerationLoading: true, imageAspectRatio: conv.imageConfig?.aspectRatio || '1:1', imageStartedAt: run.startedAt || now() }] : [{ text: '...' }];
       const loadingMessageDiv = addMessageToUI({ role: 'model', parts: loadingParts, createdAt: new Date().toISOString() }, conv.messages.length, false, true, { conversation: conv });
       Object.defineProperty(conv, '__astraPendingResponse', { configurable: true, value: { loadingMessageDiv } });
       loadingMessageDiv.scrollIntoView?.({ behavior: 'smooth', block: 'end' });

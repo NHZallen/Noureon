@@ -9,6 +9,7 @@ import { enabledCliTools, canModelUseCli, setCliModelUse } from '../../runtime/c
 import { getNetMode, netRuleFor, removeNetSite, setNetMode, setNetRule } from '../../runtime/cli/net-state.js';
 import { CREDENTIAL_NAME } from '../../runtime/cli/credentials-client.js';
 import { permissionText } from '../../runtime/cli/permission-texts.js';
+import { connectorText } from '../../runtime/connector/connector-texts.js';
 import { toolIconMarkup, watchToolIcons } from './cli-icons.js';
 
 const ICONS = {
@@ -24,7 +25,7 @@ const MASK = '••••••••••••';
 const views = new WeakMap();
 
 /** The tab opens at its first page again (the settings were closed and opened). */
-export const resetPermissionsView = (root) => { const state = views.get(root); if (state) { state.view = 'home'; state.editing = state.adding = state.confirming = null; state.siteError = false; state.creds.status = 'idle'; } };
+export const resetPermissionsView = (root) => { const state = views.get(root); if (state) { state.view = 'home'; state.editing = state.adding = state.confirming = null; state.siteError = false; state.creds.status = 'idle'; state.connectors = null; } };
 
 /** Goes back one page of the tab (to its first page) and says whether it did: false when it is already on the first page. */
 export const goBackInPermissionsView = (root) => { const state = views.get(root); return state?.goBack ? state.goBack() : false; };
@@ -131,7 +132,7 @@ export function renderPermissionsView({ document, root, getLanguage, getConfig, 
     manage.append(manageHead);
     const list = make(document, 'div', 'pm-list');
     const credentialCount = state.creds.status === 'ready' ? String(state.creds.items.length) : '';
-    for (const [view, label, count] of [['tools', t('rowTools'), String(enabledCliTools(config).length)], ['sites', t('rowSites'), String(listNetSites(config.netRules).length)], ['credentials', t('rowCredentials'), credentialCount]]) {
+    for (const [view, label, count] of [['tools', t('rowTools'), String(enabledCliTools(config).length)], ['sites', t('rowSites'), String(listNetSites(config.netRules).length)], ['credentials', t('rowCredentials'), credentialCount], ['connectors', connectorText(getLanguage(), 'connectorRowTitle'), '']]) {
       const row = make(document, 'button', 'pm-row');
       row.type = 'button';
       row.dataset.view = view;
@@ -204,6 +205,31 @@ export function renderPermissionsView({ document, root, getLanguage, getConfig, 
     }
     watchToolIcons(list, 24);
     root.append(list);
+  };
+
+  // ----- the connectors: what each tool of a connection may do (the part and its style are loaded when this page is first opened)
+  const drawConnectors = () => {
+    root.append(backButton(), make(document, 'h4', 'pm-sub', connectorText(getLanguage(), 'connectorRowTitle')), make(document, 'p', 'pm-desc', connectorText(getLanguage(), 'connectorSettingsDesc')));
+    const box = make(document, 'div', 'pm-connectors');
+    root.append(box);
+    state.connectorsBox = box;
+    const show = () => { if (state.connectorsBox === box && state.connectors) box.replaceChildren(...state.connectors.permissionNodes()); };
+    if (state.connectors) {
+      show();
+      return;
+    }
+    Promise.all([import('./connectors-part.js'), import('./cli-store.css').catch(() => {})]).then(([{ createConnectorsPart }]) => {
+      state.connectors = createConnectorsPart({
+        document,
+        win,
+        t: (key, values) => connectorText(getLanguage(), key, values),
+        getLanguage,
+        getAccountReady: hasAccount,
+        redraw: () => { if (state.connectorsBox?.isConnected && state.view === 'connectors') state.connectorsBox.replaceChildren(...state.connectors.permissionNodes()); },
+        showNotification
+      });
+      show();
+    }).catch((error) => console.warn('Loading the connectors failed.', error));
   };
 
   // ----- the sites
@@ -442,6 +468,7 @@ export function renderPermissionsView({ document, root, getLanguage, getConfig, 
   if (state.view === 'tools') drawTools();
   else if (state.view === 'sites') drawSites();
   else if (state.view === 'credentials') drawCredentials();
+  else if (state.view === 'connectors') drawConnectors();
   else drawHome();
   return {};
 }

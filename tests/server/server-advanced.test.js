@@ -954,3 +954,39 @@ test('a skill without a script, or whose folder cannot be had or put in, is load
   assert.match(JSON.stringify(third.bodies.at(-1).messages), /The scripts cannot be run in this reply/);
   assert.deepEqual(problems.map(([name]) => name), ['skill_folder_failed']);
 });
+
+test('a reply with Python may also use a connector: the same tools, and the question about a tool is a card in the steps', async () => {
+  const live = [];
+  const called = [];
+  const control = { answer: null };
+  const connectors = {
+    forRun: async () => [{ id: 'linear', name: 'Linear', tools: [{ name: 'create_issue', description: 'Creates an issue.', inputSchema: { type: 'object' }, kind: 'write', state: 'ask' }] }],
+    clientFor: () => ({ callTool: async (name, args) => { called.push([name, args]); return { text: 'created ENG-2', isError: false, images: 0 }; }, close: async () => {} }),
+    setPermissions: async () => {}
+  };
+  let round = 0;
+  const bodies = [];
+  const result = await executeReply({
+    spec: specFor({ connectors: true }),
+    secrets,
+    userId: USER,
+    sandboxHost: skillHost({ order: [], mounts: [] }),
+    files: fakeFiles(),
+    connectors,
+    connectorControl: control,
+    onLive: (event) => {
+      live.push(event);
+      if (event.ev?.event === 'ask') setImmediate(() => control.answer(event.ev.id, 'once'));
+    },
+    fetchImpl: async (url, options) => {
+      bodies.push(JSON.parse(options.body));
+      round += 1;
+      return streamResponse(round === 1 ? sse(toolCall('c1', 'connector_call', { connector: 'linear', tool: 'create_issue', arguments_json: '{"title":"A"}' })) : sse(content('Filed.')));
+    }
+  });
+  assert.equal(result.status, 'done');
+  assert.deepEqual(called, [['create_issue', { title: 'A' }]]);
+  assert.match(JSON.stringify(bodies[1].messages), /created ENG-2/);
+  const events = live.map((event) => event.ev).filter((event) => event?.type === 'connector').map((event) => event.event);
+  assert.deepEqual(events, ['call', 'ask', 'answer']);
+});

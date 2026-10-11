@@ -73,6 +73,9 @@ export function availableSkillsInstruction(skills) {
   ].join('\n');
 }
 
+/** The instructions a loader adds to a reply: its own text when it has one (the loader of connectors, or both kinds together), else the list of skills. */
+export const loaderInstruction = (loader) => (typeof loader?.instruction === 'string' ? loader.instruction : availableSkillsInstruction(loader?.list));
+
 // A skill's text cannot close the block it is given in (see skill-prompt.js, which does the same for a skill asked for with "/").
 const sealed = (text) => String(text ?? '').replace(/<\/skill/gi, '<\\/skill');
 

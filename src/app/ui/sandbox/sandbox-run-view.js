@@ -30,7 +30,7 @@ const formatSize = (bytes) => {
 function renderRow(document, { kind, label, time = '', failed = false, body, sources }) {
   const row = element(document, 'details', `ledger-row sandbox-run-row is-${failed ? 'failed' : 'done'}`);
   row.dataset.kind = kind;
-  const head = element(document, 'summary', 'ledger-row-head is-expandable');
+  const head = element(document, 'summary', `ledger-row-head${body.length ? ' is-expandable' : ''}`);
   head.append(element(document, 'span', 'ledger-mark run-icon'), element(document, 'span', 'ledger-label', label));
   if (time) head.append(element(document, 'span', 'ledger-time', time));
   const content = element(document, 'div', 'ledger-body');
@@ -55,6 +55,11 @@ function thoughtRow(document, thought, language, { interrupted = false, label } 
 function sourcesRows(document, sources, language) {
   const all = mergeSources(sources);
   return all.length ? [renderRow(document, { kind: 'search', label: sourcesRowLabel(language, all), body: [createSourceChips(document, all)], sources: all })] : [];
+}
+
+// "Using connector: GitHub": a row for each connector the reply used (the same row the live step list had; which tools it called is not kept).
+function connectorRows(document, run, language) {
+  return (run.connectors || []).map((name) => renderRow(document, { kind: 'connector', label: sandboxText(language, 'connectorUsing', { connector: name }), body: [] }));
 }
 
 // What the model said before a run, between the steps in ordinary text.
@@ -144,13 +149,13 @@ export function createSandboxRunElement(document, run, { language = 'zh-TW' } = 
   if (run.fallback) {
     container.append(element(document, 'p', 'sandbox-fallback-note', sandboxText(language, 'fallbackNotice', { reason: sandboxText(language, `reason.${run.fallback}`) })));
   }
-  if (!run.steps.length && run.sources?.length && run.elapsedMs > 0) {
+  if (!run.steps.length && (run.sources?.length || run.connectors?.length) && run.elapsedMs > 0) {
     // A reply that searched the web but ran no Python is a process like any other: the one line with how long it took,
     // as the live view had, opening to the pages and the thinking. (Replies saved before the time was kept have no line.)
     const details = element(document, 'details', 'sandbox-run-details');
     const summary = element(document, 'summary', 'sandbox-run-summary', summaryText(run, language));
     const list = element(document, 'div', 'sandbox-run-steps');
-    list.append(...sourcesRows(document, run.sources, language));
+    list.append(...sourcesRows(document, run.sources, language), ...connectorRows(document, run, language));
     if (run.thought) list.append(thoughtRow(document, run.thought, language, { interrupted: run.thoughtInterrupted, label: thinkingLabel(run, language) }));
     details.append(summary, list);
     animateDetails(details);
@@ -160,6 +165,7 @@ export function createSandboxRunElement(document, run, { language = 'zh-TW' } = 
   if (!run.steps.length) {
     // A reply without Python: the pages it searched, and how the model thought before it answered.
     if (run.sources?.length) container.append(...sourcesRows(document, run.sources, language));
+    container.append(...connectorRows(document, run, language));
     if (run.thought) container.append(renderReplyThinking(document, run, language));
     return container;
   }
@@ -167,6 +173,7 @@ export function createSandboxRunElement(document, run, { language = 'zh-TW' } = 
   const summary = element(document, 'summary', 'sandbox-run-summary', summaryText(run, language));
   const list = element(document, 'div', 'sandbox-run-steps');
   if (run.sources?.length) list.append(...sourcesRows(document, run.sources, language));
+  list.append(...connectorRows(document, run, language));
   run.steps.forEach((step, index) => {
     if (step.thought) list.append(thoughtRow(document, step.thought, language));
     if (step.narration) list.append(narrationBlock(document, step.narration));

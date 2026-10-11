@@ -11,8 +11,15 @@ import {
   applyAstraTombstones,
   applyWorkspaceTombstones
 } from '../../sync/cloud-sync-v2-deletions.js';
+import { CLI_MERGED_FIELDS } from '../../../data/cli-settings-merge.js';
+import { SETTINGS_STAMPS_FIELD } from '../../../data/settings-merge.js';
+import { SKILL_MERGED_FIELDS } from '../../../data/skill-settings-merge.js';
 import { mergeSyncedMemoryState } from '../memory/memory-sync-projection.js';
 import { mergeMemoryStateWithSummaryRecords } from '../memory/memory-summary-records.js';
+
+// The only settings the merge of the CLI tools and the skills hands to the page (see sync/cloud-workspace-sync.js): any other field of the event is dropped,
+// so that what a script puts in an event (the keys of the models, say) cannot get into the settings this way.
+const CLOUD_CLI_MERGE_FIELDS = new Set([...CLI_MERGED_FIELDS, ...SKILL_MERGED_FIELDS, SETTINGS_STAMPS_FIELD]);
 
 function preserveItemIdentity(currentItems = [], nextItems = []) {
   const currentById = new Map(currentItems.map(item => [item?.id, item]));
@@ -445,8 +452,9 @@ export function createCloudWorkspaceLiveLifecycle({
   window.addEventListener('astra:cloud-config', event => applyConfig(event.detail));
   // The lists of the CLI tools, merged with the cloud's while the settings were being sent: this page takes them up at once.
   window.addEventListener('astra:cloud-cli-merge', event => {
-    const fields = event.detail;
-    if (!fields || typeof fields !== 'object') return;
+    if (!event.detail || typeof event.detail !== 'object') return;
+    const fields = Object.fromEntries(Object.entries(event.detail).filter(([field]) => CLOUD_CLI_MERGE_FIELDS.has(field)));
+    if (!Object.keys(fields).length) return;
     configAccess.replaceConfig({ ...configAccess.getConfig(), ...fields });
   });
   window.addEventListener('astra:cloud-memory-summary', event => applyMemorySummaryRecords(event.detail?.records));

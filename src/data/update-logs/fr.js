@@ -1,11 +1,139 @@
 // The update notes in French (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
-  "18.2.1": [
-    "<strong>Notes de version de Noureon 18.2.1</strong>",
+  "18.8.1": [
+    "<strong>Notes de version de Noureon 18.8.1</strong>",
     "Deux problèmes liés à la connexion et à la langue sont corrigés : se déconnecter sur un appareil ne déconnecte plus les autres, et la langue choisie sur la page d’accueil est conservée après la connexion, sans plus de chinois qui reste dans les réglages ou ailleurs.",
     "<strong>Principaux changements</strong>",
     "<ul><li><strong>Seul cet appareil se déconnecte :</strong>le bouton de déconnexion mettait fin à la connexion du compte sur tous les appareils ; il ne met désormais fin qu’à celle de l’appareil utilisé. L’option voulue des réglages, « se déconnecter de tous les appareils après avoir changé le mot de passe de synchronisation », ne change pas.</li><li><strong>La langue choisie sur la page d’accueil est conservée :</strong>une langue autre que le chinois choisie avant la connexion n’est plus remplacée par le chinois enregistré avec le compte quand la page se recharge après la connexion ; après une déconnexion, la page d’accueil reste dans la dernière langue utilisée, et l’écran de chargement et la vérification de sécurité (Cloudflare) la suivent.</li><li><strong>Le changement de langue est immédiat :</strong>quand on change la langue dans les réglages, les états et descriptions de la synchronisation cloud, les boutons de la page du compte, les listes de gauche, le titre, la fenêtre de recherche, les noms des couleurs, les menus des modèles de traduction et les réglages d’image du menu « + », qui restaient dans l’ancienne langue, changent aussi.</li><li><strong>Traductions manquantes ajoutées :</strong>suggestions de mémoire, progression de l’importation, infobulles des messages et des images, modification d’un message et de nombreux messages d’erreur (dont ceux de la connexion) écrits seulement en chinois existent maintenant dans les cinq langues ; un nouveau test échoue si un texte manque dans une langue.</li></ul>"
+  ],
+  "18.8.0": [
+    "<strong>Notes de version de Noureon 18.8.0</strong>",
+    "Cette version ajoute quatre services aux connecteurs : Supabase, Hugging Face, Miro et Canva.",
+    "<strong>Changements principaux</strong>",
+    "<ul><li><strong>Supabase :</strong> liste les projets de votre organisation, consulte tables et journaux, cherche dans la documentation et, si vous l’autorisez, exécute du SQL, applique des migrations et déploie des Edge Functions. La connexion couvre toute votre organisation (y compris les projets en production) : c’est vous qui réglez chaque outil ; une action qui modifie des données vous demande d’abord, par défaut.</li><li><strong>Hugging Face :</strong> cherche modèles, jeux de données, Spaces et articles, lit la documentation de Hugging Face et peut appeler des applications sur des Spaces ; appeler un Space lui envoie l’entrée, donc cela vous demande d’abord, par défaut.</li><li><strong>Miro :</strong> lit le contenu des tableaux et, si vous l’autorisez, crée des diagrammes, des documents et des tableaux. Vous choisissez à la connexion l’équipe qui contient le tableau.</li><li><strong>Canva :</strong> cherche et lit vos designs et, si vous l’autorisez, génère, redimensionne, modifie et exporte des designs. Canva n’accepte que les adresses de retour qu’il a approuvées : Noureon se connecte donc avec une application à lui, créée dans le portail développeur de Canva ; tant que Canva ne l’a pas examinée (elle est à l’état de brouillon), seuls les membres de l’équipe de l’application peuvent se connecter.</li><li><strong>Nouveau groupe :</strong> les connecteurs de la page Extensions ont un nouveau groupe, « Design et tableaux blancs », pour Miro et Canva.</li></ul>",
+    "<strong>Remarques</strong>",
+    "<ul><li>Vous vous connectez à chacun sur sa propre page ; Noureon ne voit jamais votre mot de passe. Le MCP de Hugging Face est expérimental ; avec une offre Miro Enterprise, un administrateur doit d’abord activer le MCP de Miro ; certaines fonctions de Canva demandent une offre précise.</li></ul>",
+    "<strong>Compatibilité</strong>",
+    "Cette mise à jour ne nécessite aucune migration de données."
+  ],
+  "18.7.0": [
+    "<strong>Notes de version de Noureon 18.7.0</strong>",
+    "Cette version ajoute GitHub aux connecteurs et corrige la couleur de « Connecté » dans les réglages.",
+    "<strong>Principaux changements</strong>",
+    "<ul><li><strong>GitHub :</strong> cherche et lit les dépôts, le code, les tickets et les pull requests que vous pouvez voir et, si vous l’autorisez, crée des tickets, commente, crée des branches, valide des fichiers, ouvre et fusionne des pull requests. L’autorisation de GitHub inclut l’écriture sur les dépôts : c’est donc à vous de régler chaque outil ; une action qui modifie ou supprime des données vous demande d’abord, par défaut, comme pour les autres connecteurs.</li><li><strong>La couleur de « Connecté » :</strong> dans la page Autorisations des réglages, « Connecté » d’un connecteur était blanc ; il est maintenant vert comme dans la page des extensions (une connexion à refaire est en jaune).</li><li><strong>Pourquoi une connexion a échoué :</strong> quand un connecteur ne peut pas commencer la connexion, la page affiche aussi le code d’erreur donné par le service ; quand un service refuse l’enregistrement, on le lui redemande avec seulement le nécessaire.</li><li><strong>Vercel en cours de validation :</strong> Vercel ne laisse se connecter que les clients qu’il a approuvés ; la demande de Noureon a été envoyée et, tant qu’elle n’est pas approuvée, la liste indique « En cours de validation » et Vercel ne peut pas être connecté.</li></ul>",
+    "<strong>Remarques</strong>",
+    "<ul><li>GitHub ne permet pas de révoquer un jeton : à la déconnexion, nous supprimons le jeton que nous gardons ; pour annuler l’autorisation chez GitHub, retirez Noureon dans Settings → Applications.</li><li>GitHub exige que CONNECTOR_GITHUB_CLIENT_ID et CONNECTOR_GITHUB_CLIENT_SECRET soient définis sur le serveur ; sans eux, la connexion est impossible.</li></ul>",
+    "<strong>Compatibilité</strong>",
+    "Cette mise à jour ne nécessite aucune migration de données."
+  ],
+  "18.6.0": [
+    "<strong>Notes de version de Noureon 18.6.0</strong>",
+    "Cette version ajoute trois services aux connecteurs : Context7, Upstash et Vercel.",
+    "<strong>Principaux changements</strong>",
+    "<ul><li><strong>Context7 :</strong> consulte la documentation officielle à jour et des exemples de bibliothèques et de frameworks. Il n’a que des outils de consultation de documentation et ne touche pas à vos données ; ils sont donc tous autorisés par défaut.</li><li><strong>Upstash :</strong> gère vos bases Redis (lister, voir l’utilisation, exécuter des commandes, créer, supprimer, sauvegarder). La page de connexion d’Upstash a son propre interrupteur de lecture seule, que vous décidez d’activer ou non ; désactivé, la connexion peut lire et écrire, et Noureon n’impose pas la lecture seule.</li><li><strong>Vercel (en cours de validation) :</strong> Vercel ne laisse se connecter que les clients qu’il a approuvés ; la demande de Noureon a été envoyée et, tant qu’elle n’est pas approuvée, Vercel ne peut pas être connecté. Une fois connecté, il consulte équipes, projets, déploiements et journaux, cherche dans la documentation, et peut déployer et gérer des domaines. L’autorisation de Vercel ne sépare pas lecture et écriture : chaque outil est réglé par vous sur autoriser, demander ou refuser ; une action qui modifie ou coûte de l’argent, comme un déploiement ou l’achat d’un domaine, vous demande d’abord, par défaut.</li><li><strong>Réglages :</strong> comme Notion et Linear, chaque outil des trois se règle dans la page des extensions et dans l’onglet Autorisations des réglages, et la carte de confirmation montre de la même façon tous les paramètres.</li></ul>",
+    "<strong>Remarques</strong>",
+    "<ul><li>Vous vous connectez à chacun des trois sur sa propre page ; Noureon ne voit jamais votre mot de passe. Le MCP de Vercel est en bêta.</li><li>Les écrans d’autorisation de Vercel et d’Upstash peuvent n’afficher qu’une adresse, pas le nom ni le logo de Noureon ; c’est leur façon de faire.</li></ul>",
+    "<strong>Compatibilité</strong>",
+    "Cette mise à jour ne nécessite aucune migration de données."
+  ],
+  "18.5.0": [
+    "<strong>Notes de version de Noureon 18.5.0</strong>",
+    "Cette version confirme que Notion n’a qu’une seule sorte de connexion : le connecteur hébergé par Notion (accès complet).",
+    "<strong>Principaux changements</strong>",
+    "<ul><li><strong>Une seule sorte de connexion Notion :</strong> une connexion propre à Noureon pour Notion (qui ne partageait que les pages choisies) a été essayée puis retirée ; dans la page des extensions, Notion reste « Accès complet (MCP) » comme avant.</li></ul>",
+    "<strong>Compatibilité</strong>",
+    "Cette mise à jour ne nécessite aucune migration de données."
+  ],
+  "18.4.2": [
+    "<strong>Notes de version de Noureon 18.4.2</strong>",
+    "Cette version corrige la liste des connecteurs qui n’apparaissait pas tout de suite après une connexion.",
+    "<strong>Principaux changements</strong>",
+    "<ul><li><strong>Retour d’une connexion :</strong> après s’être connecté sur un service et être revenu dans Noureon, « Mes connecteurs » était vide et la connexion n’apparaissait qu’après avoir changé de page. Quand la page est ouverte par son adresse, l’état du compte n’est connu que un peu plus tard, et la liste avait été dessinée vide avant et n’était plus redessinée. Elle est maintenant redessinée dès que le compte est connu.</li></ul>",
+    "<strong>Compatibilité</strong>",
+    "Cette mise à jour ne nécessite aucune migration de données."
+  ],
+  "18.4.1": [
+    "<strong>Notes de version de Noureon 18.4.1</strong>",
+    "Cette version corrige des problèmes découverts à la première utilisation réelle des connecteurs, et modifie la liste et les autorisations des connecteurs.",
+    "<strong>Principaux changements</strong>",
+    "<ul><li><strong>Où sont les questions :</strong> la carte de confirmation d’un connecteur, et les questions d’un outil en ligne de commande sur un site et sur une connexion, étaient dans les étapes repliées, et on ne savait pas qu’il fallait les ouvrir. Elles apparaissent maintenant dans la discussion, juste sous la ligne des étapes.</li><li><strong>La fenêtre de connexion :</strong> après être allé se connecter sur un service puis avoir appuyé sur le bouton Retour du navigateur, la fenêtre restait sur « Redirection… » avec des boutons inutilisables et sans moyen d’annuler. Au retour, le bouton est maintenant rétabli et « Annuler » n’est jamais désactivé.</li><li><strong>Le nom et l’icône dans Notion :</strong> pour un client qu’il ne connaît que par un fichier de connexion, la page d’autorisation de Notion n’affiche que l’adresse de redirection (api.noureon.com). Notion fait maintenant connaissance avec Noureon d’abord par enregistrement (avec le nom, l’icône et l’adresse des conditions), et le fichier de connexion n’est utilisé que si l’enregistrement est refusé.</li><li><strong>Ouverture dans la liste :</strong> choisir un connecteur dans la liste l’ouvre sur place, avec quelques mots sur ce qu’il sait faire et des demandes à essayer, au lieu de passer à « Mes connecteurs » ; un connecteur pas encore connecté s’ouvre de la même façon, et le bouton Connecter à droite lance la connexion.</li><li><strong>Autorisations :</strong> les autorisations de chaque connexion dans « Mes connecteurs » se replient et se déplient, et l’onglet Autorisations des réglages a une nouvelle page Connecteurs où l’on règle aussi chaque outil.</li><li><strong>Icônes :</strong> la liste, la carte de confirmation et les réglages des connecteurs utilisent le logo de chaque projet (pris sur GitHub ; la première lettre du nom s’affiche si l’image ne peut pas être chargée).</li></ul>",
+    "<strong>Remarques</strong>",
+    "<ul><li>Une connexion Notion existante doit être déconnectée puis reconnectée pour utiliser le nouvel enregistrement.</li></ul>",
+    "<strong>Compatibilité</strong>",
+    "Cette mise à jour ne nécessite aucune migration de données."
+  ],
+  "18.4.0": [
+    "<strong>Notes de version de Noureon 18.4.0</strong>",
+    "Cette version ajoute les connecteurs : la troisième partie des extensions, qui permet au modèle d’accéder à vos propres comptes sur d’autres services.",
+    "<strong>Principaux changements</strong>",
+    "<ul><li><strong>Connecteurs :</strong> connectez Notion et Linear dans Extensions → Connecteurs. Vous vous connectez sur la page du service lui-même avec OAuth (avec PKCE), et Noureon ne voit jamais votre mot de passe ; le jeton d’accès et le jeton de renouvellement sont conservés chiffrés en AES-256-GCM sur le serveur et ne sont donnés ni au navigateur ni au modèle. Toute la page va vers le service pour la connexion et revient à l’application ensuite, sans fenêtre contextuelle, ce qui fonctionne aussi sur téléphone.</li><li><strong>Réglage des outils :</strong> chaque outil peut être réglé sur autoriser, demander à chaque fois ou refuser : les outils de lecture sont autorisés au départ et les outils d’écriture demandent à chaque fois, puis c’est à vous de décider, sans autre limite. Linear propose une connexion en lecture seule, dont le jeton ne peut pas écrire du tout ; la connexion à Notion ne distingue pas lecture et écriture, seuls les réglages des outils s’appliquent. Quand les outils d’un service changent, les outils nouveaux ou modifiés sont désactivés jusqu’à votre confirmation.</li><li><strong>La carte de confirmation :</strong> quand le modèle appelle un outil réglé sur demander, une carte apparaît dans les étapes avec le connecteur, l’outil et tous les paramètres, et vous pouvez autoriser une fois, toujours autoriser ou refuser ; sans réponse en 10 minutes, c’est un refus.</li><li><strong>Sécurité :</strong> ce qu’un service renvoie est toujours traité comme une donnée et ne peut pas changer ce que vous avez autorisé ; une réponse fait au plus 30 appels à des services, et un résultat de plus de 30 000 caractères est coupé. Les connecteurs ne servent que dans les réponses faites par le serveur, pas dans les discussions temporaires. À la déconnexion, le jeton est révoqué auprès du service quand il le permet et ce qui est conservé est supprimé.</li></ul>",
+    "<strong>Remarques</strong>",
+    "<ul><li>Les nouvelles tables (user_mcp_connections et mcp_oauth_clients) doivent d’abord être appliquées à la base de données côté serveur.</li></ul>",
+    "<strong>Compatibilité</strong>",
+    "Cette mise à jour ajoute des tables et ne modifie pas les données existantes."
+  ],
+  "18.3.6": [
+    "<strong>Notes de version de Noureon 18.3.6</strong>",
+    "Cette version réduit de combien une étape peut dépasser la limite d’écriture dans le bac à sable.",
+    "<strong>Principaux changements</strong>",
+    "<ul><li><strong>Fréquence de vérification :</strong> la croissance du dossier de sortie du bac à sable n’était vérifiée qu’une fois par seconde, si bien qu’une étape qui écrivait très vite pouvait finir entre deux vérifications et dépasser largement la limite. Elle est désormais vérifiée toutes les 250 millisecondes par défaut (modifiable avec la variable d’environnement SANDBOX_DISK_CHECK_MS), ce qui réduit le dépassement à environ un quart. La limite reste une mesure prise au moment d’une vérification ; un écrivain très rapide peut donc encore la dépasser légèrement.</li></ul>",
+    "<strong>Remarques</strong>",
+    "<ul><li>Ce changement ne prend effet qu’une fois le runner de l’hôte du bac à sable mis à jour.</li></ul>",
+    "<strong>Compatibilité</strong>",
+    "Cette mise à jour ne nécessite aucune migration de données."
+  ],
+  "18.3.5": [
+    "<strong>Notes de version de Noureon 18.3.5</strong>",
+    "Cette version corrige un démarrage qui pouvait échouer juste après la fin d’un conteneur du bac à sable.",
+    "<strong>Principaux changements</strong>",
+    "<ul><li><strong>Nouveau démarrage :</strong> lorsqu’une étape terminait son conteneur à cause de la limite d’écriture, de mémoire ou de temps, l’étape suivante démarrait un nouveau conteneur du même nom ; tant que l’ancien n’était pas entièrement supprimé, Docker refusait le démarrage car le nom était pris (code de sortie 125). Désormais, ce qui reste d’un conteneur de ce nom est supprimé avant un démarrage, et lorsque Docker refuse un démarrage avec le code 125, il est retenté un peu plus tard, trois fois au plus.</li></ul>",
+    "<strong>Remarques</strong>",
+    "<ul><li>Ce changement ne prend effet qu’une fois le runner de l’hôte du bac à sable mis à jour.</li></ul>",
+    "<strong>Compatibilité</strong>",
+    "Cette mise à jour ne nécessite aucune migration de données."
+  ],
+  "18.3.4": [
+    "<strong>Notes de version de Noureon 18.3.4</strong>",
+    "Cette version limite la quantité qu’une étape du bac à sable peut écrire, et empêche le message d’un échec de démarrage de révéler des informations sur l’hôte.",
+    "<strong>Principaux changements</strong>",
+    "<ul><li><strong>Limite d’écriture :</strong> le dossier de sortie du bac à sable se trouve sur le disque de l’hôte, et ses limites de taille ne décidaient que du nombre de fichiers renvoyés, pas de la quantité qu’une étape pouvait écrire ; une étape hors de contrôle pouvait donc remplir le disque de l’hôte. Désormais, si le dossier de sortie grandit de plus de 1 Gio pendant l’exécution d’une étape, celle-ci est arrêtée aussitôt et les fichiers qu’elle a écrits sont supprimés ; les fichiers des étapes précédentes de la même réponse ne sont pas touchés. Le message « Le code a écrit plus de fichiers qu’une étape n’y est autorisée. » est signalé, avec l’indication que l’environnement a redémarré. Un fichier creux est compté pour l’espace disque qu’il occupe réellement.</li><li><strong>Message d’un échec de démarrage :</strong> lorsqu’un conteneur du bac à sable ne peut pas démarrer, la réponse indique seulement que le démarrage a échoué et le code de sortie ; la sortie d’origine de Docker (qui peut contenir des chemins de l’hôte et des noms d’images) n’est écrite que dans le journal du runner.</li></ul>",
+    "<strong>Remarques</strong>",
+    "<ul><li>Ces changements ne prennent effet qu’une fois le runner de l’hôte du bac à sable mis à jour.</li></ul>",
+    "<strong>Compatibilité</strong>",
+    "Cette mise à jour ne nécessite aucune migration de données."
+  ],
+  "18.3.3": [
+    "<strong>Notes de version de Noureon 18.3.3</strong>",
+    "Cette version corrige la manière dont le bac à sable signale un dépassement de la limite de mémoire.",
+    "<strong>Principaux changements</strong>",
+    "<ul><li><strong>Limite de mémoire dépassée :</strong> depuis que la version 18.3.2 sépare les étapes Python et les commandes en deux processus, une étape qui utilisait trop de mémoire ne terminait que le processus de travail, signalé comme un simple « le processus Python s’est terminé » sans indiquer que l’environnement avait redémarré. Il est désormais signalé comme « le code a utilisé plus de mémoire qu’une étape n’y est autorisée », et il est indiqué que les variables précédentes ont disparu, comme auparavant. Ce changement ne prend effet qu’une fois le runner de l’hôte du bac à sable mis à jour.</li></ul>",
+    "<strong>Compatibilité</strong>",
+    "Cette mise à jour ne nécessite aucune migration de données."
+  ],
+  "18.3.2": [
+    "<strong>Notes de version de Noureon 18.3.2</strong>",
+    "Cette version corrige plusieurs problèmes de sécurité : l’affichage des résultats de recherche, l’affichage des formules qui ne peuvent pas être rendues, la vérification du mot de passe lors de l’import d’anciennes données locales, un événement de la synchronisation des paramètres cloud, le code d’appairage du partage de poste à poste et la séparation des processus dans le bac à sable du mode avancé.",
+    "<strong>Principaux changements</strong>",
+    "<ul><li><strong>Résultats de recherche :</strong> lors d’une recherche dans les conversations, le titre et le texte des messages affichés dans les résultats étaient présentés comme du contenu web sans être échappés ; un balisage web présent dans ces textes (par exemple dans une conversation importée ou dans un texte produit par un modèle) pouvait donc être exécuté comme du code. Les titres, les extraits de texte et les messages d’erreur sont désormais toujours affichés en texte brut, et la mise en évidence des mots recherchés reste inchangée.</li><li><strong>Affichage des formules mathématiques :</strong> lorsqu’une formule ne pouvait pas être rendue, le message d’erreur reprenait telle quelle la formule écrite par le modèle, ajoutée à la page après le nettoyage ; un balisage web qu’elle contenait pouvait donc être exécuté. Le texte d’une formule est désormais toujours affiché en texte brut.</li><li><strong>Import des anciennes données locales :</strong> après la connexion à un compte cloud et le choix d’importer les anciennes données locales, l’espace de travail de l’ancien compte local de cet appareil est remplacé lorsque l’étape est confirmée. Le nom de l’ancien compte et le mot de passe saisis n’étaient pas vérifiés ; désormais, le nom de cet ancien compte et son mot de passe correct sont requis avant de continuer, sinon « Le nom du compte ancien ou le mot de passe n’est pas correct. » s’affiche et les anciennes données ne sont pas modifiées.</li><li><strong>Synchronisation des paramètres cloud :</strong> après la fusion des listes d’outils en ligne de commande et de compétences, la page reçoit un événement de notification, et tous ses champs étaient écrits dans les paramètres. Seuls les listes d’outils et de compétences et leurs champs d’horodatage sont désormais acceptés ; tout autre champ (par exemple les clés des modèles) est ignoré.</li><li><strong>Partage de poste à poste :</strong> le code d’appairage d’un partage était tiré avec la fonction aléatoire ordinaire ; il l’est désormais avec les nombres aléatoires cryptographiques du navigateur, qui ne peuvent pas être devinés, et le code passe de 5 à 8 caractères (le champ de saisie, le QR code et les textes sont mis à jour en conséquence). L’appareil qui envoie et celui qui reçoit doivent tous deux être mis à jour vers cette version pour se connecter.</li><li><strong>Bac à sable du mode avancé et des outils en ligne de commande :</strong> dans le bac à sable, un même processus Python exécutait à la fois le code écrit par un modèle et les commandes des outils, de sorte que ce code pouvait modifier l’environnement et les fonctions avec lesquels les commandes étaient lancées, faire écrire ailleurs le fichier d’identifiants d’une commande par un lien placé à l’avance, ou lire une commande pendant son exécution. Le bac à sable comporte désormais deux processus : un superviseur détient le canal vers le runner, les commandes des outils et leurs identifiants, et un processus de travail n’exécute que les étapes Python, dont la sortie et le résultat sont vérifiés avant d’être transmis ; le fichier d’identifiants n’est plus écrit à travers des liens, et seulement comme fichier ordinaire ; pendant qu’une commande avec identifiants s’exécute, les autres processus sont suspendus et reprennent une fois la commande terminée et le fichier d’identifiants supprimé. Si une étape met fin au processus Python, elle signale une erreur et les étapes suivantes utilisent un nouveau processus (les variables précédentes sont perdues). Ce changement De plus, une commande avec identifiants n’a plus /opt/pip (où les étapes peuvent écrire et exécuter des programmes) dans son PATH ni son PYTHONPATH, et Python ne lit plus le dossier site de l’utilisateur, de sorte qu’un programme placé à l’avance n’est pas exécuté par une commande de confiance. Ce changement ne prend effet qu’une fois le runner de l’hôte du bac à sable mis à jour.</li></ul>",
+    "<strong>Compatibilité</strong>",
+    "Cette mise à jour ne nécessite aucune migration de données."
+  ],
+  "18.3.1": [
+    "<strong>Notes de version de Noureon 18.3.1</strong>",
+    "Cette version refond l’écran d’attente de la génération d’image, avec une animation de points plus fine.",
+    "<strong>Principaux changements</strong>",
+    "<ul><li><strong>Animation de points :</strong> les points sont désormais dessinés directement sur la page, sans fond de carte ni bordure. Ils sont plus petits et plus espacés, et leur taille et leur intensité suivent de doux nuages qui dérivent lentement sur la grille, laissant certaines zones presque vides. La grille couvre la zone que l’image terminée occupera, et la couleur reste la couleur d’accentuation sélectionnée.</li><li><strong>Légendes d’étape :</strong> le texte passe au-dessus des points et disparaît avec eux lorsque l’image est prête.</li></ul>",
+    "<strong>Compatibilité</strong>",
+    "Cette mise à jour ne nécessite aucune migration de données."
+  ],
+  "18.3.0": [
+    "<strong>Notes de version de Noureon 18.3.0</strong>",
+    "Cette version améliore l’écran d’attente pendant la génération d’une image : une animation de points avec des légendes d’étape.",
+    "<strong>Principaux changements</strong>",
+    "<ul><li><strong>Animation de points :</strong> le bloc d’attente affiche un motif de nuage en mouvement formé de points. Les points reprennent la couleur d’accentuation sélectionnée et restent lisibles en mode clair comme en mode sombre. Lorsque le système est réglé pour réduire les animations, un seul motif fixe est affiché.</li><li><strong>Légendes d’étape :</strong> le texte en haut à gauche du bloc change selon le temps d’attente : « Création de l’image », « Composition de l’image », « Affinage des détails », puis, après environ 40 secondes, « Toujours en cours. Les images en haute qualité demandent plus de temps ». Les légendes suivent le temps et n’indiquent pas l’avancement réel ; aucun pourcentage n’est donc affiché.</li><li><strong>Réouverture de la page :</strong> lorsque la page est fermée puis rouverte alors qu’une image est encore en cours de génération sur le serveur, l’attente est comptée depuis l’heure de début réelle ; les légendes ne repartent donc pas du début.</li><li><strong>Transition à la fin :</strong> lorsque l’image est prête, les points disparaissent progressivement pour laisser place à l’image.</li></ul>",
+    "<strong>Compatibilité</strong>",
+    "Cette mise à jour ne nécessite aucune migration de données."
   ],
   "18.2.0": [
     "<strong>Notes de version de Noureon 18.2.0</strong>",

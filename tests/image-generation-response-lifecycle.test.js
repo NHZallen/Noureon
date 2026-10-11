@@ -92,7 +92,7 @@ test('falls back to the latest generated image when there is no new attachment',
 test('tells the user when the latest generated image can no longer be reused', async () => {
   let request;
   const notices = [];
-  const label = { textContent: '正在建立圖像' };
+  const label = { textContent: '正在建立圖像', dataset: {} };
   const lifecycle = createImageGenerationResponseLifecycle({
     buildSingleModelTranslatedRequestParts: async parts => parts,
     generateImage: async value => {

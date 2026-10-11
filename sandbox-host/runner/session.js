@@ -11,7 +11,7 @@ import { containerName, dockerRunArgs } from './docker-args.js';
 import { createCliCache } from './cli-cache.js';
 import { createDockerPipInstaller, createPipCache, pipCommandsOf } from './pip-cache.js';
 import { createNetProxy } from './net-proxy.js';
-import { collectOutput, snapshotOutput } from './output.js';
+import { allocatedBytes, collectOutput, removeChangedFiles, snapshotOutput } from './output.js';
 
 export class RunnerError extends Error {
   constructor(code, message, status = 400) {
@@ -161,7 +161,11 @@ export function createSessionManager({ config, spawn = nodeSpawn, now = Date.now
       const reason = state.killedBy || (code === 137 ? 'memory' : 'exit');
       for (const entry of state.pending.values()) entry.reject(new RunnerError('sandbox_gone', reason, 200));
       state.pending.clear();
-      if (!ready) reject(new RunnerError('start_failed', `The sandbox stopped while starting (${code}). ${state.stderr.trim().split('\n').pop() || ''}`.trim(), 503));
+      if (!ready) {
+        // What Docker said (it can hold paths of this machine and names of images) stays in the runner's log; the answer says only that it failed.
+        log('sandbox_start_failed', { code, detail: state.stderr.trim().slice(-300) });
+        reject(new RunnerError('start_failed', `The sandbox stopped while starting (${code}).`, 503));
+      }
     });
   });
 
@@ -214,12 +218,26 @@ export function createSessionManager({ config, spawn = nodeSpawn, now = Date.now
     const entry = { onProgress, timeoutMs: timeoutMs || 0, spent: 0, armedAt: 0, timer: null };
     const done = (fn) => (value) => {
       clearTimer(entry.timer);
+      clearTimer(entry.diskTimer);
       fn(value);
     };
     entry.resolve = done(resolve);
     entry.reject = done(reject);
     state.pending.set(id, entry);
     armClock(session, entry);
+    // The output folder is on this machine's disk: a step that writes more than it may while it runs is ended (the limits of what is sent back come later).
+    const outputBaseline = allocatedBytes(session.dirs.output);
+    const watchDisk = () => {
+      entry.diskTimer = setTimer(() => {
+        if (!state.alive || !state.pending.has(id)) return;
+        if (allocatedBytes(session.dirs.output, outputBaseline + config.outputGrowthBytes) - outputBaseline > config.outputGrowthBytes) {
+          killContainer(session, 'disk');
+          return;
+        }
+        watchDisk();
+      }, config.diskCheckMs);
+    };
+    watchDisk();
     state.child.stdin.write(`${JSON.stringify({ ...message, id })}\n`);
   });
 
@@ -278,11 +296,40 @@ export function createSessionManager({ config, spawn = nodeSpawn, now = Date.now
     await request(session, { type: 'net', on: true }, { timeoutMs: 20_000 });
   };
 
+  /** Removes what is left of a container of this name (one that was just killed may still be being removed, and its name is not free until it is gone). */
+  const removeStale = (session) => new Promise((resolve) => {
+    try {
+      const child = spawn(config.dockerBin, ['rm', '-f', containerName(session.id)], { stdio: 'ignore' });
+      const timer = setTimer(resolve, 10_000);
+      const finish = () => { clearTimer(timer); resolve(); };
+      child.on('error', finish);
+      child.on('exit', finish);
+    } catch {
+      resolve();
+    }
+  });
+  /**
+   * Starts the container of a session. The name is made free first, and a start that Docker itself refuses (exit 125: the name still taken, the daemon busy)
+   * is tried again a little later, twice at most, because that is what a container started right after another was killed meets.
+   */
+  const startContainerReliably = async (session) => {
+    for (let attempt = 1; ; attempt += 1) {
+      await removeStale(session);
+      try {
+        await startContainer(session);
+        return;
+      } catch (error) {
+        if (!(error instanceof RunnerError) || error.code !== 'start_failed' || !/\(125\)/.test(error.message) || attempt >= 3) throw error;
+        await new Promise((resolve) => setTimer(resolve, 300 * attempt));
+      }
+    }
+  };
+
   /** A container that is not running (killed by a stop or a limit) is started again, empty, before the next step. */
   const ensureRunning = async (session) => {
     if (session.state?.alive) return;
     emptyFolder(session.dirs.output);
-    await startContainer(session);
+    await startContainerReliably(session);
     await request(session, { type: 'init', language: session.language }, { timeoutMs: 20_000 });
     if (session.proxy) await enableNet(session);
     session.fresh = true;
@@ -311,7 +358,7 @@ export function createSessionManager({ config, spawn = nodeSpawn, now = Date.now
       const session = { id, language, dirs: makeDirs(id), createdAt: now(), lastUsed: now(), state: null, queue: null, proxy: null, asks: new Map(), emit: null };
       sessions.set(id, session);
       try {
-        await startContainer(session);
+        await startContainerReliably(session);
         await request(session, { type: 'init', language }, { timeoutMs: 20_000 });
       } catch (error) {
         await manager.destroy(id);
@@ -517,8 +564,11 @@ export function createSessionManager({ config, spawn = nodeSpawn, now = Date.now
           const reasons = {
             'time-limit': 'The code ran longer than its time limit.',
             memory: 'The code used more memory than a step may.',
+            disk: 'The code wrote more files than a step may.',
             stopped: null
           };
+          // What it filled the disk with is not kept.
+          if (error.message === 'disk') removeChangedFiles(session.dirs.output, before);
           const stopped = error.message === 'stopped';
           return {
             type: 'result',

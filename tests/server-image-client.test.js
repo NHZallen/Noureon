@@ -307,7 +307,7 @@ test('a picture the server is still making is waited for under the picture place
     getActiveConversation: () => conv,
     getAbortController: () => null,
     setAbortController() {},
-    serverReply: { find: async () => ({ runId: 'r1', assistantMessageId: 'a1', kind: 'image', followImage: async () => ({ parts: [] }) }) },
+    serverReply: { find: async () => ({ runId: 'r1', assistantMessageId: 'a1', kind: 'image', startedAt: 1760000000000, followImage: async () => ({ parts: [] }) }) },
     messageList: () => ({ children: [] }),
     setSubmitBusy() {},
     addMessageToUI: (message) => { added.push(message.parts); return { querySelector: () => ({}), scrollIntoView() {} }; },
@@ -317,7 +317,7 @@ test('a picture the server is still making is waited for under the picture place
     scheduleTimeout: () => null
   });
   assert.equal(await lifecycle.reattachServerReply(), true);
-  assert.deepEqual(added, [[{ imageGenerationLoading: true, imageAspectRatio: '7:5' }]], 'the place-holder of a picture, in the ratio asked for');
+  assert.deepEqual(added, [[{ imageGenerationLoading: true, imageAspectRatio: '7:5', imageStartedAt: 1760000000000 }]], 'the place-holder of a picture, in the ratio asked for, with the time it was begun');
   assert.deepEqual(completed, ['image']);
 });
 

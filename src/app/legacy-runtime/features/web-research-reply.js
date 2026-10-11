@@ -4,8 +4,8 @@
 // call's `note`, shown between the rows; every word it writes as text is the answer and streams as it comes. For the models that have
 // no search of their own but do call tools (OpenRouter's); the others get a search packet in front of the request.
 
-import { availableSkillsInstruction } from '../../../data/skill-tool.js';
-import { sandboxText, skillStepEvent } from '../../runtime/sandbox/sandbox-texts.js';
+import { loaderInstruction } from '../../../data/skill-tool.js';
+import { loaderStepEvent, sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
 import { hostOf } from '../../ui/sandbox/run-sources.js';
 import { resultDate } from './model-request-formatting.js';
 import { NOTE_PARAMETER, partialJsonString } from './tool-call-formats.js';
@@ -360,7 +360,7 @@ export async function runWebResearchReply({
   const research = createResearchCalls({ searchWeb, openPage, language, maxCalls, signal, onEvent, onSources, resume: resume?.research });
   const notes = createNotes(onEvent);
   let text = typeof resume?.text === 'string' ? resume.text : '';
-  const guidance = [researchGuidance(today), skills ? availableSkillsInstruction(skills.list) : ''].filter(Boolean).join('\n\n');
+  const guidance = [researchGuidance(today), skills ? loaderInstruction(skills) : ''].filter(Boolean).join('\n\n');
   const takesSkills = (name) => Boolean(skills?.handles(name));
 
   for (;;) {
@@ -409,7 +409,7 @@ export async function runWebResearchReply({
     for (const call of calls) {
       let content;
       if (takesSkills(call.name)) {
-        const step = skillStepEvent(language, skills.noteFor(call));
+        const step = loaderStepEvent(skills, call, language);
         if (step) onEvent(step);
         content = await skills.run(call);
       } else {

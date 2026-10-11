@@ -44,6 +44,8 @@ export function dockerRunArgs({ config, sessionId, dirs, language }) {
     '-v', `${dirs.net}:/run/noureon-net:ro`,
     '-e', `LANGUAGE=${String(language || 'zh-TW').replace(/[^A-Za-z-]/g, '').slice(0, 12) || 'zh-TW'}`,
     '-e', 'HOME=/work', '-e', 'MPLCONFIGDIR=/tmp/mpl',
+    // While a command with credentials runs, every other process of the container is stopped (repl.py): what the code of a step left running cannot read it.
+    '-e', 'NOUREON_FREEZE=all',
     '--stop-timeout', '1',
     config.image
   ];

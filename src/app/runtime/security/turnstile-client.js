@@ -75,6 +75,7 @@ export function createTurnstileClient({
       language: turnstileLanguage(document.documentElement?.lang),
       callback: (token) => {
         state.token = token;
+        for (const waiter of state.waiters.splice(0)) waiter(token);
       },
       'expired-callback': () => {
         state.token = '';
@@ -110,7 +111,7 @@ export function createTurnstileClient({
     container.dataset.turnstileName = name;
     anchorElement.before(container);
 
-    const state = { container, token: '', widgetId: null };
+    const state = { container, token: '', widgetId: null, waiters: [] };
     widgets.set(name, state);
 
     try {
@@ -134,6 +135,27 @@ export function createTurnstileClient({
     return widgets.get(name)?.token || '';
   }
 
+  // The token of a widget is good for one request only (Cloudflare refuses a second use: "timeout-or-duplicate"). After a request has used it and the widget is reset,
+  // this waits until the widget has made a new one ('' when it has not within `timeoutMs`: the person has to do the check again).
+  function waitForToken(name, timeoutMs = 8000) {
+    const state = widgets.get(name);
+    if (!state) return Promise.resolve('');
+    if (state.token) return Promise.resolve(state.token);
+    return new Promise((resolve) => {
+      let timer;
+      const done = (token) => {
+        clearScheduledTimeout(timer);
+        resolve(token);
+      };
+      state.waiters.push(done);
+      timer = scheduleTimeout(() => {
+        const at = state.waiters.indexOf(done);
+        if (at >= 0) state.waiters.splice(at, 1);
+        resolve('');
+      }, timeoutMs);
+    });
+  }
+
   function reset(name) {
     const state = widgets.get(name);
     if (!state) return;
@@ -147,6 +169,7 @@ export function createTurnstileClient({
     enabled: Boolean(siteKey),
     mount,
     getToken,
+    waitForToken,
     reset
   };
 }

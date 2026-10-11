@@ -30,6 +30,7 @@ test('the app finds its sandbox on another origin, and the sandbox only answers 
   const at = (href) => new URL(href);
   assert.equal(app.resolveSandboxOrigin(at('https://noureon.com/chat')), 'https://run.noureon.com');
   assert.equal(app.resolveSandboxOrigin(at('https://www.noureon.com/')), 'https://run.noureon.com');
+  assert.equal(app.resolveSandboxOrigin(at('https://staging.noureon.com/')), 'https://run.noureon.com', 'the test site uses the real sandbox page');
   assert.equal(app.resolveSandboxOrigin(at('http://localhost:5173/')), 'http://127.0.0.1:5173');
   assert.equal(app.resolveSandboxOrigin(at('http://127.0.0.1:4173/')), 'http://localhost:4173');
   assert.equal(app.resolveSandboxOrigin(at('https://noureon.vercel.app/')), null);
@@ -43,6 +44,7 @@ test('the app finds its sandbox on another origin, and the sandbox only answers 
 
   assert.equal(sandbox.isAllowedAppOrigin('https://noureon.com', 'https://run.noureon.com'), true);
   assert.equal(sandbox.isAllowedAppOrigin('https://www.noureon.com', 'https://run.noureon.com'), true);
+  assert.equal(sandbox.isAllowedAppOrigin('https://staging.noureon.com', 'https://run.noureon.com'), true);
   assert.equal(sandbox.isAllowedAppOrigin('https://evil.example', 'https://run.noureon.com'), false);
   assert.equal(sandbox.isAllowedAppOrigin('https://run.noureon.com', 'https://run.noureon.com'), false);
   assert.equal(sandbox.isAllowedAppOrigin('http://localhost:5173', 'https://run.noureon.com'), false);
@@ -83,7 +85,7 @@ test('the sandbox host gets its own enforced CSP, and the app host cannot serve 
   assert.ok(sandboxRule && appRule);
   const enforced = sandboxRule.headers.find((header) => header.key === 'Content-Security-Policy')?.value;
   assert.ok(enforced, 'enforced, not report-only');
-  assert.match(enforced, /frame-ancestors https:\/\/noureon\.com https:\/\/www\.noureon\.com;/);
+  assert.match(enforced, /frame-ancestors https:\/\/noureon\.com https:\/\/www\.noureon\.com https:\/\/staging\.noureon\.com;/);
   assert.doesNotMatch(enforced, /[\s;]'unsafe-(?:eval|inline)'/);
   assert.equal(withoutFrameAncestors(enforced), withoutFrameAncestors(SANDBOX_DEV_CSP), 'development uses the same policy');
   assert.ok(enforced.includes(`connect-src 'self' ${sandbox.PYODIDE_CDN};`));

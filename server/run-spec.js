@@ -354,6 +354,8 @@ export function validateRunSpec(input) {
         else if ((entry.files !== undefined && typeof entry.files !== 'boolean') || (entry.given !== undefined && typeof entry.given !== 'boolean')) fail(`tools.skills[${index}]`, '`files` and `given` must be true or false');
       });
     }
+    // The connectors the person has logged in to may be used (not in a temporary chat): the server reads which ones from the person's own connections.
+    if (tools.connectors !== undefined && typeof tools.connectors !== 'boolean') fail('tools.connectors', 'must be true or false');
     if (tools.inputs !== undefined) {
       if (!Array.isArray(tools.inputs) || tools.inputs.length > 40) fail('tools.inputs', 'must be a list of at most 40 files');
       else tools.inputs.forEach((file, index) => {
@@ -416,6 +418,7 @@ export function validateRunSpec(input) {
         ...(Array.isArray(tools.cli) && tools.cli.length ? { cli: [...new Set(tools.cli.map((entry) => entry.id))].map((id) => ({ id, chosen: tools.cli.some((entry) => entry.id === id && entry.chosen === true) })) } : {}),
         ...(Array.isArray(tools.cli) && tools.cli.length && isObject(tools.net) ? { net: { mode: normalizeNetMode(tools.net.mode), rules: normalizeNetRules(tools.net.rules) } } : {}),
         ...(Array.isArray(tools.skills) && listedSkills(tools.skills).length ? { skills: listedSkills(tools.skills) } : {}),
+        ...(tools.connectors === true ? { connectors: true } : {}),
         ...(tools.inputs?.length ? { inputs: tools.inputs.map((file) => ({ name: file.name, mimeType: file.mimeType || '', data: file.data })) } : {})
       },
       secrets: { providerKey: secrets.providerKey, ...(secrets.searchKey ? { searchKey: secrets.searchKey } : {}), ...(secrets.searchKeyAlt ? { searchKeyAlt: secrets.searchKeyAlt } : {}) }

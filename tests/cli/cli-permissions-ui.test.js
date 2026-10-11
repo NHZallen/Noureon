@@ -122,13 +122,13 @@ function permissions({ config = { cliEnabledIds: [], cliModelUseIds: [], cliVers
   return { window, document, host, config, log, draw, row, items };
 }
 
-test('the tab opens with the default for the network and the three things to manage, each with its count', async () => {
+test('the tab opens with the default for the network and the things to manage, each with its count (the connectors have none: they are read when their page is opened)', async () => {
   const t = permissions({ config: { cliEnabledIds: ['officecli', 'ffmpeg'], cliModelUseIds: [], cliVersions: {}, netMode: 'new', netRules: { 'x.com': 'deny' } }, credentialItems: [{ name: 'A_B', value: 'v' }] });
   await flush();
   assert.equal(t.host.querySelector('.pm-sub').textContent, 'Network access defaults');
   const radios = [...t.host.querySelectorAll('input[name="cli-net-mode"]')];
   assert.deepEqual(radios.map((radio) => [radio.value, radio.checked]), [['new', true], ['always', false]]);
-  assert.deepEqual([...t.host.querySelectorAll('.pm-row')].map((row) => [row.querySelector('.pm-row-label').textContent, row.querySelector('.pm-count').textContent]), [['CLI tools', '2'], ['Sites', '7'], ['Secure credentials', '1']]);
+  assert.deepEqual([...t.host.querySelectorAll('.pm-row')].map((row) => [row.querySelector('.pm-row-label').textContent, row.querySelector('.pm-count').textContent]), [['CLI tools', '2'], ['Sites', '7'], ['Secure credentials', '1'], ['Connectors', '']]);
   radios[1].checked = true;
   radios[1].dispatchEvent(new t.window.Event('change', { bubbles: true }));
   assert.equal(t.config.netMode, 'always');

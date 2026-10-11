@@ -68,7 +68,7 @@ export function createBrowserServerReply({
     // Nobody signed in to the cloud: there is nothing of the server to look for.
     const { data: auth } = await client.auth.getSession();
     if (!auth?.session) return null;
-    const { data, error } = await client.from('server_runs').select('id,message_id,kind:model->>kind,vision:model->>vision').eq('conversation_id', conversationId).in('status', ['queued', 'running']).order('created_at', { ascending: false }).limit(1);
+    const { data, error } = await client.from('server_runs').select('id,message_id,kind:model->>kind,vision:model->>vision,created_at').eq('conversation_id', conversationId).in('status', ['queued', 'running']).order('created_at', { ascending: false }).limit(1);
     if (error) throw error;
     return data?.[0] || null;
   };

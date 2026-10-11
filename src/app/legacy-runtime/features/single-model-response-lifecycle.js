@@ -13,6 +13,7 @@ import { getAvailableSkills, lookupSkill, readSkillFile, resolveInvokedSkills } 
 import { invokedSkillsInstruction, skillNamesOfParts } from '../../../data/skill-prompt.js';
 import { decisionsFor, verdictOf } from '../../runtime/decisions/decision-store.js';
 import { createCredentialAnswerHandler } from '../../runtime/cli/credential-answer.js';
+import { createConnectorAnswerHandler } from '../../runtime/connector/connector-answer.js';
 import { createNetAnswerHandler } from '../../runtime/cli/net-answer.js';
 import { mayNeedFileGuidance } from '../../ui/files/file-intent.js';
 import { formatSandboxRunBlock } from '../../ui/sandbox/sandbox-run-block.js';
@@ -232,6 +233,8 @@ export function createSingleModelResponseLifecycle({
           cli: cli.ids,
           cliChosen: cli.chosen,
           skills: ownSearchReply ? [] : availableSkills,
+          // The connectors of the person (a model that calls tools, not with the provider's own search): the server reads which ones are connected.
+          connectors: canCallTools && !ownSearchReply,
           inputs: userParts.filter((part) => part?.inlineData?.data).map((part) => ({
             name: part.inlineData.name || `attachment.${String(part.inlineData.mimeType || '').split('/')[1] || 'bin'}`,
             mimeType: part.inlineData.mimeType || '',
@@ -296,7 +299,7 @@ export function createSingleModelResponseLifecycle({
     let liveRun = null;
     const stepList = () => {
       if (!liveRun && targetElement.parentElement) {
-        liveRun = createSandboxLedger({ document: getDocument(), host: targetElement.parentElement, before: targetElement, language: uiLanguage, summary: true, open: getConfig().processOpen === true, ...(serverRun ? { startedAt: runStartedAt, onNetAnswer: createNetAnswerHandler({ getRun: () => serverRun }), onCredentialAnswer: createCredentialAnswerHandler({ getRun: () => serverRun }) } : {}) });
+        liveRun = createSandboxLedger({ document: getDocument(), host: targetElement.parentElement, before: targetElement, language: uiLanguage, summary: true, open: getConfig().processOpen === true, ...(serverRun ? { startedAt: runStartedAt, onNetAnswer: createNetAnswerHandler({ getRun: () => serverRun }), onCredentialAnswer: createCredentialAnswerHandler({ getRun: () => serverRun }), onConnectorAnswer: createConnectorAnswerHandler({ getRun: () => serverRun }) } : {}) });
       }
       return liveRun;
     };
@@ -475,7 +478,7 @@ export function createSingleModelResponseLifecycle({
               onSources: addSearchSources,
               skills: makeSkillLoader(),
               onEvent: (event) => {
-                if (event.type === 'searching' || event.type === 'skill') {
+                if (event.type === 'searching' || event.type === 'skill' || event.type === 'connector') {
                   started = true;
                   workResumed();
                 }

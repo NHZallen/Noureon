@@ -7,6 +7,9 @@ export const terminalIcon = (size = 20, className = '') => `<svg class="${classN
 /** The four squares of the Extensions page (the entry of the left menu, the page's title). */
 export const extensionsIcon = (size = 20, className = '') => `<svg class="${className}" viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.8"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.8"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.8"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.8"/></svg>`;
 
+/** The plug of the connectors. */
+export const plugIcon = (size = 20, className = '') => `<svg class="${className}" viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21.5V17M9 8V2.5M15 8V2.5M18.5 8v4.5a4.5 4.5 0 0 1-4.5 4.5h-4a4.5 4.5 0 0 1-4.5-4.5V8z"/></svg>`;
+
 /** The star of the skills. */
 export const skillIcon = (size = 20, className = '') => `<svg class="${className}" viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3.2 2.5 5.3 5.8.8-4.2 4 1 5.7L12 16.2 6.9 19l1-5.7-4.2-4 5.8-.8z"/></svg>`;
 

@@ -4,6 +4,7 @@ import { reconcileStoredWorkspaceOwner, STORAGE_OWNER_KEY } from '../runtime/ker
 import { createTurnstileClient } from '../runtime/security/turnstile-client.js';
 import { migrateSyncVaultRecord } from '../sync/sync-vault.js';
 import { completePendingCloudAccountLink } from './account-linking.js';
+import { verifyLegacyPassword } from './legacy-password.js';
 import { openPasswordRecovery } from './password-recovery-route.js';
 import { getSupabaseClient, isSupabaseConfigured } from './supabase-client.js';
 
@@ -404,6 +405,22 @@ export async function initializeSupabaseAuthBridge({ window, document, startupId
       event.stopImmediatePropagation();
       const targetUser = JSON.parse(importTarget);
       const previousUsername = await storage.getItem(STORAGE_OWNER_KEY);
+      // The workspace of an old local account is replaced below (its records are removed), so the person must prove it is theirs: the name of that account and its password.
+      if (previousUsername && previousUsername !== targetUser.username && !previousUsername.startsWith(CLOUD_USER_PREFIX)) {
+        const typedName = elements.emailInput.value.trim();
+        let verified = false;
+        if (typedName === previousUsername) {
+          try {
+            verified = await verifyLegacyPassword(elements.passwordInput.value, JSON.parse(await storage.getItem(`chatUser_${previousUsername}`)), window.crypto);
+          } catch {
+            verified = false;
+          }
+        }
+        if (!verified) {
+          setStatus(elements, getAuthText(elements, 'localImportPasswordMismatch', 'The old account name or password is not correct.'), 'error');
+          return;
+        }
+      }
       await migrateSyncVaultRecord({
         storage,
         fromUsername: previousUsername,
@@ -440,12 +457,25 @@ export async function initializeSupabaseAuthBridge({ window, document, startupId
       options: { captchaToken }
     });
     if (result.error) {
+      // The check of the person is good for one request only (Cloudflare answers "timeout-or-duplicate" to a second use), and the sign-in has used it:
+      // creating the account needs a new one, which the widget makes after a reset.
+      let signUpToken = captchaToken;
+      if (turnstile.enabled) {
+        turnstile.reset('supabase-auth');
+        signUpToken = await turnstile.waitForToken('supabase-auth');
+        if (!signUpToken) {
+          turnstile.reset('supabase-auth');
+          setBusy(elements, false);
+          setStatus(elements, getAuthText(elements, 'turnstileAgain', '請再完成一次驗證，然後再按一次登入 / 建立帳號。'), 'error');
+          return;
+        }
+      }
       result = await supabase.auth.signUp({
         email,
         password,
         options: {
           emailRedirectTo: window.location.origin,
-          captchaToken
+          captchaToken: signUpToken
         }
       });
     }

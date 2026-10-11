@@ -3,8 +3,8 @@
 // plain reply (no web research and no Python), which has no loop of its own; the other two kinds of reply carry the same tool in their own loops.
 // Every word the model writes as text is the answer and streams as it comes.
 
-import { availableSkillsInstruction } from '../../../data/skill-tool.js';
-import { skillStepEvent } from '../../runtime/sandbox/sandbox-texts.js';
+import { loaderInstruction } from '../../../data/skill-tool.js';
+import { loaderStepEvent } from '../../runtime/sandbox/sandbox-texts.js';
 
 /**
  * `loader` is createSkillLoader(...) (skill-tool.js). `onEvent({ type: 'skill', name, label })` is told when a skill is being loaded (the label says so in
@@ -13,7 +13,7 @@ import { skillStepEvent } from '../../runtime/sandbox/sandbox-texts.js';
 export async function runSkillsReply({ streamApiCall, requestParts, onChunk = () => {}, signal, requestOptions = {}, loader, language = 'zh-TW', onEvent = () => {} }) {
   const toolTurns = [];
   let text = '';
-  const guidance = availableSkillsInstruction(loader.list);
+  const guidance = loaderInstruction(loader);
 
   for (;;) {
     const tools = loader.tools;
@@ -45,7 +45,7 @@ export async function runSkillsReply({ streamApiCall, requestParts, onChunk = ()
 
     const results = [];
     for (const call of calls) {
-      const step = skillStepEvent(language, loader.noteFor(call));
+      const step = loaderStepEvent(loader, call, language);
       if (step) onEvent(step);
       const content = await loader.run(call);
       results.push({ id: call.id, geminiId: call.geminiId, name: call.name, content });

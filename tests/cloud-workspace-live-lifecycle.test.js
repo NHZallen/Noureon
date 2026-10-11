@@ -998,3 +998,40 @@ test('a colour theme (light, dark, system) that comes from another device is sho
   window.emit('astra:cloud-config', { colorScheme: 'dark', uiTheme: { mode: 'custom', customColor: '#9961f6' } });
   assert.equal(themeApplied, 2, 'the accent still does the same');
 });
+
+test('the event of the merge of the CLI tools puts only the fields of that merge in the settings, whatever else it carries', () => {
+  const window = createWindowFixture();
+  let config = { apiKeys: { openrouter: 'sk-own' }, cliEnabledIds: ['a'], theme: 'light' };
+  const replaced = [];
+  createCloudWorkspaceLiveLifecycle({
+    window,
+    configAccess: { getConfig: () => config, replaceConfig: (next) => { config = next; replaced.push(next); } },
+    appDataStore: createLegacyRuntimeAppDataStore(),
+    getDefaultFolder: () => ({ id: 'root' }),
+    getDefaultGenConfig: () => ({}),
+    normalizeCouncilConfig: value => value,
+    normalizeConversationModel: value => value,
+    models: [],
+    maxCouncilModels: 4,
+    getCouncilTranslatorCandidates: () => [],
+    getSingleTranslatorCandidates: () => [],
+    applyUiTheme: () => {},
+    renderAll: () => {},
+    renderSidebar: () => {},
+    renderChat: () => {}
+  });
+
+  window.emit('astra:cloud-cli-merge', { apiKeys: { openrouter: 'sk-attacker' }, theme: 'dark', cliEnabledIds: ['a', 'b'], skillEnabledIds: ['s'], notAField: 1 });
+  assert.equal(replaced.length, 1);
+  assert.deepEqual(config.apiKeys, { openrouter: 'sk-own' }, 'the keys of the models are not taken from an event');
+  assert.equal(config.theme, 'light', 'nor are the other settings');
+  assert.equal('notAField' in config, false);
+  assert.deepEqual(config.cliEnabledIds, ['a', 'b'], 'the fields of the merge are');
+  assert.deepEqual(config.skillEnabledIds, ['s']);
+
+  window.emit('astra:cloud-cli-merge', { apiKeys: { openrouter: 'sk-attacker' } });
+  window.emit('astra:cloud-cli-merge', null);
+  window.emit('astra:cloud-cli-merge', 'text');
+  assert.equal(replaced.length, 1, 'an event with no field of the merge changes nothing');
+  assert.deepEqual(config.apiKeys, { openrouter: 'sk-own' });
+});

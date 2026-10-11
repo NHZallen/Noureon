@@ -8,6 +8,9 @@ const list = (value, fallback = []) => {
 export const DEFAULT_ALLOWED_ORIGINS = Object.freeze(['https://noureon.com', 'https://www.noureon.com']);
 
 /** Reads and checks the settings; throws a message naming what is missing, so a bad deployment fails at once and says why. */
+// The real site: its logo and its terms and privacy pages are public, so a service can read them for the consent screen even when the web host of a test site is behind a login.
+export const SITE_URL = 'https://noureon.com';
+
 export function loadConfig(env = process.env) {
   const problems = [];
   const supabaseUrl = String(env.SUPABASE_URL || '').replace(/\/+$/, '');
@@ -32,6 +35,20 @@ export function loadConfig(env = process.env) {
   if (Boolean(sandboxUrl) !== Boolean(sandboxToken)) problems.push('SANDBOX_RUNNER_URL and SANDBOX_RUNNER_TOKEN go together: set both or neither');
   if (sandboxUrl && !/^https?:\/\/[^\s/]+(?::\d+)?$/i.test(sandboxUrl)) problems.push('SANDBOX_RUNNER_URL must be an address like http://10.42.0.1:7788');
   if (sandboxToken && sandboxToken.length < 32) problems.push('SANDBOX_RUNNER_TOKEN is too short');
+  // The connectors (連接器): where the services send the person back after a login, and the address of our client metadata document (docs/superpowers/specs/2026-10-10-mcp-connectors-design.md).
+  const appUrl = String(env.APP_URL || 'https://noureon.com').replace(/\/+$/, '');
+  const connectorRedirectUri = String(env.CONNECTOR_REDIRECT_URI || 'https://api.noureon.com/mcp/callback');
+  const connectorClientId = String(env.CONNECTOR_CLIENT_ID || `${appUrl}/.well-known/oauth-client.json`);
+  // Services that have no registration of their own (GitHub), or that only take clients it has approved (Canva): the client made by hand in the service's portal, one id and one secret for every person; both or neither. The secret only ever lives here.
+  const preregistered = {};
+  for (const id of ['github', 'canva']) {
+    const key = `CONNECTOR_${id.toUpperCase()}_CLIENT`;
+    const clientId = String(env[`${key}_ID`] || '');
+    const clientSecret = String(env[`${key}_SECRET`] || '');
+    if (Boolean(clientId) !== Boolean(clientSecret)) problems.push(`${key}_ID and ${key}_SECRET go together: set both or neither`);
+    if (clientId && clientSecret) preregistered[id] = Object.freeze({ clientId, clientSecret });
+  }
+  for (const [name, value] of [['APP_URL', appUrl], ['CONNECTOR_REDIRECT_URI', connectorRedirectUri], ['CONNECTOR_CLIENT_ID', connectorClientId]]) if (!/^https:\/\/[^\s]+$/i.test(value)) problems.push(`${name} must be an https address`);
   if (problems.length) throw new Error(`Server settings are not right: ${problems.join('; ')}`);
   return Object.freeze({
     port,
@@ -42,6 +59,11 @@ export function loadConfig(env = process.env) {
     runsConfigured: Boolean(serviceKey && encryptionKeys.length),
     sandboxUrl,
     sandboxToken,
+    appUrl,
+    siteUrl: SITE_URL,
+    connectorRedirectUri,
+    connectorClientId,
+    connectorPreregistered: Object.freeze(preregistered),
     allowedOrigins: Object.freeze(list(env.ALLOWED_ORIGINS, DEFAULT_ALLOWED_ORIGINS)),
     // The version of the server (shown by /healthz): the Git commit when the deployment gives it.
     build: String(env.SOURCE_COMMIT || env.GIT_COMMIT || 'dev').slice(0, 12)

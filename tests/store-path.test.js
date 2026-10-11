@@ -3,7 +3,7 @@ import test from 'node:test';
 
 import { DEFAULT_STORE_KIND, storeKindFromPath, storePath } from '../src/app/ui/cli/store-path.js';
 
-test('the addresses of the Extensions page: /skill for the skills and /cli for the CLI tools', () => {
+test('the addresses of the Extensions page: /skill for the skills, /cli for the CLI tools and /connectors for the connectors', () => {
   assert.equal(DEFAULT_STORE_KIND, 'skills');
   assert.equal(storePath('skills'), '/skill');
   assert.equal(storePath('cli'), '/cli');
@@ -12,5 +12,8 @@ test('the addresses of the Extensions page: /skill for the skills and /cli for t
   assert.equal(storeKindFromPath('/skill/'), 'skills');
   assert.equal(storeKindFromPath('/cli'), 'cli');
   assert.equal(storeKindFromPath('/cli/'), 'cli');
-  for (const other of ['/', '', undefined, '/skills', '/store', '/store/cli', '/skill/x', '/clip', '/cli/x', '/terms', '/nouras']) assert.equal(storeKindFromPath(other), null, String(other));
+  assert.equal(storePath('connectors'), '/connectors');
+  assert.equal(storeKindFromPath('/connectors'), 'connectors');
+  assert.equal(storeKindFromPath('/connectors/'), 'connectors');
+  for (const other of ['/', '', undefined, '/skills', '/store', '/store/cli', '/skill/x', '/clip', '/cli/x', '/connector', '/connectors/x', '/terms', '/nouras']) assert.equal(storeKindFromPath(other), null, String(other));
 });

@@ -65,6 +65,7 @@ const TEXTS = Object.freeze({
     webSearchingFor: '正在搜尋：{query}',
     webOpeningPage: '正在讀取網頁：{host}',
     skillLoading: '載入技能：{name}',
+    connectorUsing: '使用連接器：{connector}',
     skillFileReading: '讀取技能檔案：{path}',
     sourcesSearched: '已搜尋 {n} 個網站',
     sourcesRead: '已讀取 {n} 個網頁',
@@ -161,6 +162,7 @@ const TEXTS = Object.freeze({
     webSearchingFor: 'Searching: {query}',
     webOpeningPage: 'Reading page: {host}',
     skillLoading: 'Loading skill: {name}',
+    connectorUsing: 'Using connector: {connector}',
     skillFileReading: 'Reading skill file: {path}',
     sourcesSearched: 'Searched {n} sites',
     sourcesRead: 'Read {n} pages',
@@ -257,6 +259,7 @@ const TEXTS = Object.freeze({
     webSearchingFor: 'Recherche : {query}',
     webOpeningPage: 'Lecture de la page : {host}',
     skillLoading: 'Chargement de la compétence : {name}',
+    connectorUsing: 'Connecteur utilisé : {connector}',
     skillFileReading: 'Lecture du fichier de la compétence : {path}',
     sourcesSearched: '{n} sites consultés',
     sourcesRead: '{n} pages lues',
@@ -353,6 +356,7 @@ const TEXTS = Object.freeze({
     webSearchingFor: 'Поиск: {query}',
     webOpeningPage: 'Чтение страницы: {host}',
     skillLoading: 'Загрузка навыка: {name}',
+    connectorUsing: 'Используется коннектор: {connector}',
     skillFileReading: 'Чтение файла навыка: {path}',
     sourcesSearched: 'Просмотрено сайтов: {n}',
     sourcesRead: 'Прочитано страниц: {n}',
@@ -449,6 +453,7 @@ const TEXTS = Object.freeze({
     webSearchingFor: 'Buscando: {query}',
     webOpeningPage: 'Leyendo la página: {host}',
     skillLoading: 'Cargando la habilidad: {name}',
+    connectorUsing: 'Usando conector: {connector}',
     skillFileReading: 'Leyendo el archivo de la habilidad: {path}',
     sourcesSearched: '{n} sitios consultados',
     sourcesRead: '{n} páginas leídas',
@@ -497,6 +502,9 @@ export const sandboxTextsFor = (language) => TEXTS[language] || TEXTS['zh-TW'];
 
 /** The row of the step list for a call about a skill (loader.noteFor in data/skill-tool.js): the skill being loaded, or one of its files being read. */
 export const skillStepEvent = (language, note) => (note ? { type: 'skill', name: note.name, ...(note.path ? { path: note.path } : {}), label: sandboxText(language, note.path ? 'skillFileReading' : 'skillLoading', note) } : null);
+
+/** The row of the step list for a call of any loader: the loader's own (the connectors') or the one of a skill. */
+export const loaderStepEvent = (loader, call, language) => loader.stepEvent?.(call, language) ?? skillStepEvent(language, loader.noteFor(call));
 
 const SKIPPED_KEYS = Object.freeze({ 'file-too-large': 'sandboxSkippedLarge', 'total-too-large': 'sandboxSkippedTotal', 'too-many-files': 'sandboxSkippedCount', 'blocked-type': 'sandboxSkippedBlocked', 'not-saved': 'sandboxSkippedNotSaved', quota: 'sandboxSkippedQuota' });
 const megabytes = (bytes) => `${Math.max(1, Math.round(Number(bytes) / (1024 * 1024)))} MB`;

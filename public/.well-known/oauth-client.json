@@ -1,0 +1,12 @@
+{
+  "client_id": "https://noureon.com/.well-known/oauth-client.json",
+  "client_name": "Noureon",
+  "client_uri": "https://noureon.com",
+  "logo_uri": "https://noureon.com/logo.png",
+  "tos_uri": "https://noureon.com/terms",
+  "policy_uri": "https://noureon.com/privacy",
+  "redirect_uris": ["https://api.noureon.com/mcp/callback"],
+  "grant_types": ["authorization_code", "refresh_token"],
+  "response_types": ["code"],
+  "token_endpoint_auth_method": "none"
+}

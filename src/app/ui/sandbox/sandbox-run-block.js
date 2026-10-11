@@ -24,6 +24,8 @@ const STORED_THOUGHT_CHARS = 6000;
 // What the model said before a run ("I'll check the environment first"), shown between the steps.
 const STORED_NARRATION_CHARS = 2000;
 const MAX_SOURCES = 40;
+// The connectors a reply used: their names, one row each.
+const MAX_CONNECTORS = 12;
 
 export const RUN_STATUS = Object.freeze({ running: 'running', done: 'done', failed: 'failed', stopped: 'stopped' });
 
@@ -84,6 +86,11 @@ export function normalizeSources(sources) {
   return kept;
 }
 
+// The names of the connectors a reply used, each once.
+export function normalizeConnectors(connectors) {
+  return [...new Set((Array.isArray(connectors) ? connectors : []).map((name) => String(name ?? '').replace(/\s+/g, ' ').trim().slice(0, 60)).filter(Boolean))].slice(0, MAX_CONNECTORS);
+}
+
 export function normalizeSandboxRun(run = {}) {
   const steps = (Array.isArray(run.steps) ? run.steps : []).slice(0, MAX_STEPS).map(cleanStep);
   const status = Object.values(RUN_STATUS).includes(run.status) ? run.status : RUN_STATUS.done;
@@ -94,6 +101,7 @@ export function normalizeSandboxRun(run = {}) {
     // How long the reply took in all (thinking, runs and files), for the "Processed for 1m 5s" line.
     ...(Number(run.elapsedMs) > 0 ? { elapsedMs: Math.round(Number(run.elapsedMs)) } : {}),
     ...(normalizeSources(run.sources).length ? { sources: normalizeSources(run.sources) } : {}),
+    ...(normalizeConnectors(run.connectors).length ? { connectors: normalizeConnectors(run.connectors) } : {}),
     ...(run.thought ? { thought: clip(run.thought, STORED_THOUGHT_CHARS).text } : {}),
     ...(run.thought && run.thoughtKind === 'summary' ? { thoughtKind: 'summary' } : {}),
     ...(run.thought && run.thoughtInterrupted ? { thoughtInterrupted: true } : {}),

@@ -8,7 +8,12 @@ import { readRunStream } from './server-stream.js';
 import { netPolicyForRun } from '../cli/net-state.js';
 
 export const SERVER_PROTOCOL_VERSION = 1;
-export const DEFAULT_SERVER_API_URL = 'https://api.noureon.com';
+// Where the server is: api.noureon.com, or the one of the test site (staging) when its build sets VITE_SERVER_API_URL (docs/superpowers/specs/2026-10-11-staging-design.md).
+export const resolveServerApiUrl = (value) => {
+  const text = String(value ?? '').trim().replace(/\/+$/, '');
+  return /^https:\/\/[^\s/]+$/.test(text) ? text : 'https://api.noureon.com';
+};
+export const DEFAULT_SERVER_API_URL = resolveServerApiUrl(import.meta.env?.VITE_SERVER_API_URL);
 // The server's limit on a request is 25 MB; a request is kept well under it, and a larger one is made in the browser instead.
 const MAX_REQUEST_CHARS = 20 * 1024 * 1024;
 const START_TIMEOUT_MS = 20_000;
@@ -207,7 +212,7 @@ export function createServerReply({
    * Hands a reply to the server. Resolves { ok: true, run } when it was accepted (the server has it now) or { ok: false, reason,
    * notify } when it was not and the reply is to be made here ('notify' is true when the person should be told).
    */
-  const begin = async (path, { conversation, modelInfo, requestParts, webSearch = 'off', advanced = false, designs = null, inputs = [], cli = [], cliChosen = [], skills = [], visionCheck = null, research = null, assistantMessageId, sequence, uiLanguage, config = {}, requestOptions = {}, getHistorySourceIds = () => [] }) => {
+  const begin = async (path, { conversation, modelInfo, requestParts, webSearch = 'off', advanced = false, designs = null, inputs = [], cli = [], cliChosen = [], skills = [], connectors = false, visionCheck = null, research = null, assistantMessageId, sequence, uiLanguage, config = {}, requestOptions = {}, getHistorySourceIds = () => [] }) => {
     const providerKey = getApiKeyForProvider(modelInfo?.provider);
     if (!providerKey) return { ok: false, reason: 'no-key', notify: false };
     let search = null;
@@ -255,6 +260,8 @@ export function createServerReply({
         ...(advanced && cli.length ? { cli: cli.map((id) => ({ id, chosen: cliChosen.includes(id) })), net: netPolicyForRun(config) } : {}),
         // The skills the model may load by itself (a name and when it applies): the server reads the text of the one it calls for.
         ...(skills.length ? { skills } : {}),
+        // The connectors the person logged in to may be used (the server reads which ones from the person's own connections).
+        ...(connectors ? { connectors: true } : {}),
         // The check of a presentation the reply writes (the page's setting is on and the model can see images): the server makes it too.
         ...(visionCheck ? { visionCheck } : {})
       },
@@ -299,9 +306,11 @@ export function createServerReply({
   // A deep research: the server makes the plan, waits for the person, researches and writes the report (server/research.js).
   const startResearch = (args) => begin('/v1/research', { ...args, webSearch: 'research', advanced: false, visionCheck: null });
 
-  const createRun = ({ runId, assistantMessageId, kind = 'reply', vision = false }) => ({
+  const createRun = ({ runId, assistantMessageId, kind = 'reply', vision = false, startedAt = 0 }) => ({
     runId,
     assistantMessageId,
+    // When the server began it (ms), for a run found again after the page was closed: the wait for a picture goes on from there.
+    startedAt,
     // 'vision': the check of a presentation (not a reply); `vision`: the server makes the check of this reply's presentations.
     kind,
     vision,
@@ -312,6 +321,8 @@ export function createServerReply({
     answerNet: (askId, decision) => request('POST', `/v1/runs/${runId}/net`, { body: JSON.stringify({ askId, decision }) }),
     // The person's answer ('saved' or 'cancel') to the window that asked for the login a tool needs (the values were saved apart, through /v1/credentials).
     answerCredential: (askId, decision) => request('POST', `/v1/runs/${runId}/credential`, { body: JSON.stringify({ askId, decision }) }),
+    // The person's answer ('once', 'always' or 'deny') to the question whether a tool of a connector may run.
+    answerConnector: (askId, decision) => request('POST', `/v1/runs/${runId}/connector`, { body: JSON.stringify({ askId, decision }) }),
     /** Follows an image the server is making until it is over: resolves { parts } or throws a ServerReplyError (server-image.js). */
     async followImage(options) {
       return (await import('./server-image.js')).followImageRun({ stop: () => this.stop(), watchRun, readMessage, hydrateParts, wait, setTimer, clearTimer, warn, ServerReplyError, graceMs: STOP_GRACE_MS, runId, assistantMessageId }, options);
@@ -544,7 +555,7 @@ export function createServerReply({
   /** A reply of this conversation the server is still making (the page was closed or left meanwhile), to follow from here, or null. */
   const find = async (conversationId) => {
     const row = await findLiveRun(conversationId);
-    return row?.id && row?.message_id ? createRun({ runId: row.id, assistantMessageId: row.message_id, kind: row.kind === 'vision' || row.kind === 'research' || row.kind === 'image' || row.kind === 'council' ? row.kind : 'reply', vision: row.vision === true || row.vision === 'true' }) : null;
+    return row?.id && row?.message_id ? createRun({ runId: row.id, assistantMessageId: row.message_id, kind: row.kind === 'vision' || row.kind === 'research' || row.kind === 'image' || row.kind === 'council' ? row.kind : 'reply', vision: row.vision === true || row.vision === 'true', startedAt: Date.parse(row.created_at) || 0 }) : null;
   };
 
   /**

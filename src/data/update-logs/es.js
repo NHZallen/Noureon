@@ -1,11 +1,139 @@
 // The update notes in Spanish (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
-  "18.2.1": [
-    "<strong>Notas de la versión de Noureon 18.2.1</strong>",
+  "18.8.1": [
+    "<strong>Notas de la versión de Noureon 18.8.1</strong>",
     "Se corrigen dos problemas de inicio de sesión e idioma: cerrar sesión en un dispositivo ya no la cierra en los demás, y el idioma elegido en la página de inicio se mantiene tras iniciar sesión, sin que quede chino en los ajustes ni en otras pantallas.",
     "<strong>Cambios principales</strong>",
     "<ul><li><strong>Solo se cierra este dispositivo:</strong>el botón de cerrar sesión terminaba el inicio de sesión de la cuenta en todos los dispositivos; ahora termina solo el del dispositivo en uso. La opción deliberada de los ajustes, «cerrar sesión en todos los dispositivos tras cambiar la contraseña de sincronización», no cambia.</li><li><strong>Se mantiene el idioma elegido en la página de inicio:</strong>un idioma distinto del chino elegido antes de iniciar sesión ya no se sustituye por el chino guardado en la cuenta cuando la página se recarga tras iniciar sesión; tras cerrar sesión, la página de inicio sigue en el último idioma usado, y la pantalla de carga y la verificación de seguridad (Cloudflare) lo siguen.</li><li><strong>El cambio de idioma se aplica al instante:</strong>al cambiar el idioma en los ajustes, los estados y descripciones de la sincronización en la nube, los botones de la página de la cuenta, las listas de la izquierda, el título, la ventana de búsqueda, los nombres de los colores, los menús de los modelos de traducción y los ajustes de imagen del menú «+», que se quedaban en el idioma anterior, cambian con él.</li><li><strong>Traducciones que faltaban:</strong>sugerencias de memoria, progreso de la importación, ayudas de mensajes e imágenes, edición de un mensaje y muchos mensajes de error (incluidos los del inicio de sesión) que estaban solo en chino ahora existen en los cinco idiomas; una nueva prueba falla si a algún texto le falta un idioma.</li></ul>"
+  ],
+  "18.8.0": [
+    "<strong>Notas de la versión de Noureon 18.8.0</strong>",
+    "Esta versión añade cuatro servicios a los conectores: Supabase, Hugging Face, Miro y Canva.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Supabase:</strong> lista los proyectos de tu organización, mira tablas y registros, busca en la documentación y, si lo permites, ejecuta SQL, aplica migraciones y despliega Edge Functions. La conexión abarca toda tu organización (incluidos los proyectos en producción), así que cada herramienta la decides tú; una acción que cambia datos te pregunta antes, por defecto.</li><li><strong>Hugging Face:</strong> busca modelos, conjuntos de datos, Spaces y artículos, lee la documentación de Hugging Face y puede llamar a aplicaciones de Spaces; llamar a un Space le envía la entrada, así que te pregunta antes, por defecto.</li><li><strong>Miro:</strong> lee el contenido de los tableros y, si lo permites, crea diagramas, documentos y tablas. Al iniciar sesión eliges el equipo que contiene el tablero.</li><li><strong>Canva:</strong> busca y lee tus diseños y, si lo permites, genera, redimensiona, edita y exporta diseños. Canva solo deja iniciar sesión desde las direcciones de retorno que ha aprobado, así que Noureon inicia sesión con una aplicación propia creada en el portal de desarrolladores de Canva; hasta que Canva la revise (está en borrador), solo pueden conectar los miembros del equipo de la aplicación.</li><li><strong>Grupo nuevo:</strong> los conectores de la página Extensiones tienen un grupo nuevo, «Diseño y pizarras», para Miro y Canva.</li></ul>",
+    "<strong>Notas</strong>",
+    "<ul><li>Inicias sesión en cada uno en su propia página; Noureon nunca ve tu contraseña. El MCP de Hugging Face es experimental; con un plan Miro Enterprise, un administrador debe activar antes el MCP de Miro; algunas funciones de Canva requieren un plan concreto.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "Esta actualización no requiere migración de datos."
+  ],
+  "18.7.0": [
+    "<strong>Notas de la versión de Noureon 18.7.0</strong>",
+    "Esta versión añade GitHub a los conectores y corrige el color de «Conectado» en los ajustes.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>GitHub:</strong> busca y lee los repositorios, el código, las incidencias y los pull requests que puedes ver y, si lo permites, crea incidencias, comenta, crea ramas, confirma archivos, abre y fusiona pull requests. La autorización de GitHub incluye escritura en los repositorios, así que cada herramienta la decides tú; una acción que cambia o borra datos te pregunta antes, por defecto, como en los demás conectores.</li><li><strong>El color de Conectado:</strong> en la página Permisos de los ajustes, «Conectado» de un conector era blanco; ahora es verde, como en la página de extensiones (un acceso por rehacer es amarillo).</li><li><strong>Por qué falló un acceso:</strong> cuando un conector no puede empezar el acceso, la página muestra también el código de error que dio el servicio; cuando un servicio rechaza el registro, se le pide de nuevo solo con lo necesario.</li><li><strong>Vercel en revisión:</strong> Vercel solo deja entrar a los clientes que ha aprobado; la solicitud de Noureon ya se envió y, hasta que se apruebe, la lista dice «En revisión» y Vercel no se puede conectar.</li></ul>",
+    "<strong>Notas</strong>",
+    "<ul><li>GitHub no ofrece revocar un token: al desconectar borramos el token que guardamos, y para cancelar la autorización en GitHub quita Noureon en Settings → Applications.</li><li>GitHub necesita que CONNECTOR_GITHUB_CLIENT_ID y CONNECTOR_GITHUB_CLIENT_SECRET estén definidos en el servidor; sin ellos no se puede iniciar sesión.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "Esta actualización no requiere migración de datos."
+  ],
+  "18.6.0": [
+    "<strong>Notas de la versión de Noureon 18.6.0</strong>",
+    "Esta versión añade tres servicios a los conectores: Context7, Upstash y Vercel.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Context7:</strong> consulta la documentación oficial actual y ejemplos de bibliotecas y frameworks. Solo tiene herramientas de consulta de documentación y no toca tus datos, así que todas están permitidas por defecto.</li><li><strong>Upstash:</strong> gestiona tus bases Redis (listar, ver el uso, ejecutar comandos, crear, borrar, hacer copias). La página de acceso de Upstash tiene su propio interruptor de solo lectura, que decides si activar; desactivado, la conexión puede leer y escribir, y Noureon no fuerza el solo lectura.</li><li><strong>Vercel (en revisión):</strong> Vercel solo deja entrar a los clientes que ha aprobado; la solicitud de Noureon ya se envió y, hasta que se apruebe, Vercel no se puede conectar. Una vez conectado, consulta equipos, proyectos, despliegues y registros, busca en la documentación y puede desplegar y gestionar dominios. La autorización de Vercel no separa lectura y escritura, así que cada herramienta la configuras tú en permitir, preguntar o rechazar; una acción que cambia cosas o cuesta dinero, como un despliegue o comprar un dominio, te pregunta antes, por defecto.</li><li><strong>Ajustes:</strong> como Notion y Linear, cada herramienta de los tres se configura en la página de extensiones y en la pestaña Permisos de los ajustes, y la tarjeta de confirmación muestra del mismo modo todos los parámetros.</li></ul>",
+    "<strong>Notas</strong>",
+    "<ul><li>Inicias sesión en cada uno de los tres en su propia página; Noureon nunca ve tu contraseña. El MCP de Vercel está en beta.</li><li>Las pantallas de autorización de Vercel y Upstash pueden mostrar solo una dirección, no el nombre ni el logotipo de Noureon; así lo hacen ellos.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "Esta actualización no requiere migración de datos."
+  ],
+  "18.5.0": [
+    "<strong>Notas de la versión de Noureon 18.5.0</strong>",
+    "Esta versión confirma que Notion tiene un solo tipo de conexión: el conector alojado de Notion (acceso completo).",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Un solo tipo de conexión de Notion:</strong> se probó un acceso propio de Noureon para Notion (que solo compartía las páginas elegidas) y luego se retiró; en la página de extensiones Notion sigue siendo «Acceso completo (MCP)» como antes.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "Esta actualización no requiere migración de datos."
+  ],
+  "18.4.2": [
+    "<strong>Notas de la versión de Noureon 18.4.2</strong>",
+    "Esta versión corrige que la lista de conectores no apareciera enseguida tras un inicio de sesión.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Al volver de un inicio de sesión:</strong> tras iniciar sesión en un servicio y volver a Noureon, «Mis conectores» estaba vacío y la conexión solo aparecía al cambiar de página. Cuando la página se abre por su dirección, el estado de la cuenta se conoce un poco más tarde, y la lista se había dibujado vacía antes y no se volvía a dibujar. Ahora se vuelve a dibujar en cuanto se conoce la cuenta.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "Esta actualización no requiere migración de datos."
+  ],
+  "18.4.1": [
+    "<strong>Notas de la versión de Noureon 18.4.1</strong>",
+    "Esta versión corrige problemas encontrados la primera vez que se usaron los conectores de verdad, y cambia la lista y los permisos de los conectores.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Dónde están las preguntas:</strong> la tarjeta de confirmación de un conector, y las preguntas de una herramienta de línea de comandos sobre un sitio y sobre un acceso, estaban dentro de los pasos plegados y la gente no sabía que había que abrirlos. Ahora aparecen en la conversación, justo debajo de la línea de los pasos.</li><li><strong>La ventana de conexión:</strong> tras ir a un servicio a iniciar sesión y pulsar el botón Atrás del navegador, la ventana se quedaba en «Redirigiendo…» con botones que no se podían pulsar y sin forma de cancelar. Ahora, al volver, el botón se restablece y «Cancelar» nunca queda desactivado.</li><li><strong>El nombre y el icono en Notion:</strong> para un cliente que solo conoce por un archivo de acceso, la página de autorización de Notion muestra solo la dirección de redirección (api.noureon.com). Ahora Notion conoce primero a Noureon por registro (con el nombre, el icono y la dirección de las condiciones), y el archivo de acceso solo se usa si se rechaza el registro.</li><li><strong>Apertura en la lista:</strong> al elegir un conector en la lista, se abre en el sitio con unas palabras sobre lo que puede hacer y peticiones para probar, en vez de saltar a «Mis conectores»; uno que aún no está conectado se abre igual, y el botón Conectar de la derecha inicia la conexión.</li><li><strong>Permisos:</strong> los permisos de cada conexión en «Mis conectores» se pueden plegar y desplegar, y la pestaña Permisos de los ajustes tiene una nueva página Conectores donde también se ajusta cada herramienta.</li><li><strong>Iconos:</strong> la lista, la tarjeta de confirmación y los ajustes de los conectores usan el logotipo de cada proyecto (tomado de GitHub; se muestra la primera letra del nombre cuando no se puede cargar la imagen).</li></ul>",
+    "<strong>Notas</strong>",
+    "<ul><li>Una conexión de Notion que ya existe debe desconectarse y volver a conectarse para usar el nuevo registro.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "Esta actualización no requiere migración de datos."
+  ],
+  "18.4.0": [
+    "<strong>Notas de la versión de Noureon 18.4.0</strong>",
+    "Esta versión añade los conectores: la tercera parte de las extensiones, que permite al modelo acceder a tus propias cuentas en otros servicios.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Conectores:</strong> conecta Notion y Linear en Extensiones → Conectores. Inicias sesión en la página del propio servicio con OAuth (con PKCE) y Noureon nunca ve tu contraseña; el token de acceso y el de renovación se guardan cifrados con AES-256-GCM en el servidor y no se entregan al navegador ni al modelo. Toda la página va al servicio para iniciar sesión y vuelve a la aplicación al terminar, sin ventana emergente, por lo que también funciona en un teléfono.</li><li><strong>Ajustes de las herramientas:</strong> cada herramienta puede ponerse en permitir, preguntar cada vez o rechazar: las de lectura empiezan en permitir y las de escritura en preguntar cada vez, y después decides tú, sin otro límite. Linear ofrece una conexión de solo lectura, cuyo token no puede escribir en absoluto; el acceso a Notion no distingue lectura de escritura, así que solo valen los ajustes de las herramientas. Cuando cambian las herramientas de un servicio, las nuevas o modificadas quedan desactivadas hasta que las confirmes.</li><li><strong>La tarjeta de confirmación:</strong> cuando el modelo llama a una herramienta puesta en preguntar, aparece en los pasos una tarjeta con el conector, la herramienta y todos los parámetros, y puedes permitir una vez, permitir siempre o rechazar; sin respuesta en 10 minutos se considera rechazada.</li><li><strong>Seguridad:</strong> lo que devuelve un servicio se trata siempre como datos y no puede cambiar lo que permitiste; una respuesta hace como máximo 30 llamadas a servicios, y un resultado de más de 30 000 caracteres se corta. Los conectores solo se usan en respuestas hechas por el servidor, no en conversaciones temporales. Al desconectar, el token se revoca en el servicio cuando este lo permite y se borra lo guardado.</li></ul>",
+    "<strong>Notas</strong>",
+    "<ul><li>Las nuevas tablas (user_mcp_connections y mcp_oauth_clients) deben aplicarse primero a la base de datos del lado del servidor.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "Esta actualización añade tablas y no cambia los datos existentes."
+  ],
+  "18.3.6": [
+    "<strong>Notas de la versión de Noureon 18.3.6</strong>",
+    "Esta versión reduce cuánto puede pasarse un paso del límite de escritura en el sandbox.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Frecuencia de la comprobación:</strong> el crecimiento de la carpeta de salida del sandbox se comprobaba una vez por segundo, por lo que un paso que escribía muy rápido podía terminar entre dos comprobaciones y pasarse mucho del límite. Ahora se comprueba cada 250 milisegundos por defecto (se puede cambiar con la variable de entorno SANDBOX_DISK_CHECK_MS), lo que reduce el exceso a aproximadamente una cuarta parte. El límite sigue siendo una medida tomada en el momento de una comprobación, así que un escritor muy rápido aún puede pasarse ligeramente.</li></ul>",
+    "<strong>Notas</strong>",
+    "<ul><li>Este cambio surte efecto cuando se actualiza el runner del host del sandbox.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "Esta actualización no requiere migración de datos."
+  ],
+  "18.3.5": [
+    "<strong>Notas de la versión de Noureon 18.3.5</strong>",
+    "Esta versión corrige un arranque que podía fallar justo después de terminar un contenedor del sandbox.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Volver a arrancar:</strong> cuando un paso terminaba su contenedor por el límite de escritura, de memoria o de tiempo, el paso siguiente arrancaba un contenedor nuevo con el mismo nombre; mientras el anterior no se había eliminado del todo, Docker rechazaba el arranque porque el nombre estaba en uso (código de salida 125). Ahora se elimina lo que quede de un contenedor con ese nombre antes de arrancar, y cuando Docker rechaza un arranque con el código 125 se vuelve a intentar un poco después, tres veces como máximo.</li></ul>",
+    "<strong>Notas</strong>",
+    "<ul><li>Este cambio surte efecto cuando se actualiza el runner del host del sandbox.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "Esta actualización no requiere migración de datos."
+  ],
+  "18.3.4": [
+    "<strong>Notas de la versión de Noureon 18.3.4</strong>",
+    "Esta versión limita cuánto puede escribir un paso del sandbox y evita que el mensaje de un arranque fallido revele información del host.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Límite de escritura:</strong> la carpeta de salida del sandbox está en el disco del host, y sus límites de tamaño solo decidían cuántos archivos se devolvían, no cuánto podía escribir un paso, por lo que un paso descontrolado podía llenar el disco del host. Ahora, si la carpeta de salida crece más de 1 GiB mientras se ejecuta un paso, el paso se termina de inmediato y se eliminan los archivos que escribió; los archivos de los pasos anteriores de la misma respuesta no se tocan. Se informa «El código escribió más archivos de los que puede escribir un paso.» con la indicación de que el entorno se reinició. Un archivo con huecos cuenta por el espacio de disco que realmente ocupa.</li><li><strong>Mensaje de un arranque fallido:</strong> cuando un contenedor del sandbox no puede arrancar, la respuesta solo indica que el arranque falló y el código de salida; la salida original de Docker (que puede contener rutas del host y nombres de imágenes) se escribe únicamente en el registro del runner.</li></ul>",
+    "<strong>Notas</strong>",
+    "<ul><li>Estos cambios surten efecto cuando se actualiza el runner del host del sandbox.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "Esta actualización no requiere migración de datos."
+  ],
+  "18.3.3": [
+    "<strong>Notas de la versión de Noureon 18.3.3</strong>",
+    "Esta versión corrige cómo informa el sandbox de que se superó el límite de memoria.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Límite de memoria superado:</strong> desde que la versión 18.3.2 separó los pasos de Python y los comandos en dos procesos, un paso que usaba demasiada memoria solo terminaba el proceso de trabajo, que se notificaba como un simple «el proceso de Python terminó» sin indicar que el entorno se había reiniciado. Ahora se notifica como «el código usó más memoria de la que puede usar un paso» y se indica que las variables anteriores ya no existen, como antes. Este cambio surte efecto cuando se actualiza el runner del host del sandbox.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "Esta actualización no requiere migración de datos."
+  ],
+  "18.3.2": [
+    "<strong>Notas de la versión de Noureon 18.3.2</strong>",
+    "Esta versión corrige varios problemas de seguridad: la visualización de los resultados de búsqueda, la visualización de las fórmulas que no se pueden mostrar, la comprobación de la contraseña al importar datos locales antiguos, un evento de la sincronización de ajustes en la nube, el código de emparejamiento al compartir entre dispositivos y la separación de procesos dentro del sandbox del modo avanzado.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Resultados de búsqueda:</strong> al buscar en las conversaciones, el título y el texto de los mensajes que aparecían en los resultados se mostraban como contenido web sin escapar, de modo que el marcado web que contuvieran (por ejemplo, en una conversación importada o en un texto generado por un modelo) podía ejecutarse como código. Ahora los títulos, los fragmentos de texto y los mensajes de error se muestran siempre como texto sin formato, y el resaltado de las palabras buscadas no cambia.</li><li><strong>Visualización de fórmulas matemáticas:</strong> cuando una fórmula no se podía mostrar, el mensaje de error incluía tal cual el texto de la fórmula escrito por el modelo, que se añadía a la página después de la limpieza; el marcado web que contuviera podía ejecutarse. Ahora el texto de una fórmula se muestra siempre como texto sin formato.</li><li><strong>Importación de datos locales antiguos:</strong> tras iniciar sesión en una cuenta en la nube y elegir importar los datos locales antiguos, el espacio de trabajo de la cuenta local antigua de este dispositivo se reemplaza al confirmar el paso. El nombre de la cuenta antigua y la contraseña escritos no se comprobaban; ahora se exigen el nombre de esa cuenta antigua y su contraseña correcta antes de continuar; de lo contrario se muestra «El nombre de la cuenta antigua o la contraseña no es correcta.» y los datos antiguos no se modifican.</li><li><strong>Sincronización de ajustes en la nube:</strong> tras fusionar las listas de herramientas de línea de comandos y de habilidades, la página recibe un evento de notificación, y todos sus campos se escribían en los ajustes. Ahora solo se aceptan las listas de herramientas y de habilidades y sus campos de marca de tiempo; cualquier otro campo (por ejemplo, las claves de los modelos) se ignora.</li><li><strong>Compartir entre dispositivos:</strong> el código de emparejamiento de un uso compartido se generaba con la función aleatoria ordinaria; ahora se genera con los números aleatorios criptográficos del navegador, que no se pueden predecir, y el código se alarga de 5 a 8 caracteres (el campo de entrada, el código QR y los textos se actualizan con él). Tanto el dispositivo que envía como el que recibe deben actualizarse a esta versión para conectarse.</li><li><strong>Sandbox del modo avanzado y de las herramientas de línea de comandos:</strong> dentro del sandbox, un mismo proceso de Python ejecutaba tanto el código escrito por un modelo como los comandos de las herramientas, de modo que ese código podía cambiar el entorno y las funciones con que se ejecutaban los comandos, hacer que el archivo de credenciales de un comando se escribiera en otro lugar mediante un enlace colocado de antemano, o leer un comando mientras se ejecutaba. Ahora el sandbox tiene dos procesos: un supervisor guarda el canal hacia el runner, los comandos de las herramientas y sus credenciales, y un proceso de trabajo solo ejecuta los pasos de Python, cuya salida y resultado se comprueban antes de transmitirse; el archivo de credenciales ya no se escribe a través de enlaces y solo como archivo ordinario; mientras se ejecuta un comando con credenciales, los demás procesos se detienen y continúan cuando el comando termina y se elimina el archivo de credenciales. Si un paso termina el proceso de Python, informa de un error y los pasos siguientes usan un proceso nuevo (las variables anteriores se pierden). Este cambio Además, un comando con credenciales ya no tiene /opt/pip (donde los pasos pueden escribir y ejecutar programas) en su PATH ni en su PYTHONPATH, y Python no lee la carpeta site del usuario, de modo que un programa colocado de antemano no lo ejecuta un comando de confianza. Este cambio surte efecto cuando se actualiza el runner del host del sandbox.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "Esta actualización no requiere migración de datos."
+  ],
+  "18.3.1": [
+    "<strong>Notas de la versión de Noureon 18.3.1</strong>",
+    "Esta versión rediseña la pantalla de espera de la generación de imágenes, con una animación de puntos más fina.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Animación de puntos:</strong> los puntos se dibujan ahora directamente sobre la página, sin fondo de tarjeta ni borde. Son más pequeños y espaciados, y su tamaño e intensidad siguen nubes suaves que se desplazan lentamente sobre la cuadrícula, dejando algunas zonas casi vacías. La cuadrícula cubre el área que ocupará la imagen terminada, y el color sigue siendo el color de énfasis seleccionado.</li><li><strong>Textos de etapa:</strong> el texto pasa a la parte superior de los puntos y se desvanece con ellos cuando la imagen está lista.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "Esta actualización no requiere migración de datos."
+  ],
+  "18.3.0": [
+    "<strong>Notas de la versión de Noureon 18.3.0</strong>",
+    "Esta versión mejora la pantalla de espera mientras se genera una imagen: una animación de puntos con textos de etapa.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Animación de puntos:</strong> el bloque de espera muestra un patrón de nube en movimiento formado por puntos. Los puntos usan el color de énfasis seleccionado y se ven con claridad tanto en modo claro como en modo oscuro. Si el sistema está configurado para reducir el movimiento, se muestra un único patrón estático.</li><li><strong>Textos de etapa:</strong> el texto de la esquina superior izquierda del bloque cambia según el tiempo de espera: «Creando la imagen», «Componiendo la imagen», «Afinando los detalles» y, pasados unos 40 segundos, «Sigue en proceso. Las imágenes de alta calidad tardan más». Los textos siguen el tiempo y no indican el progreso real, por lo que no se muestra ningún porcentaje.</li><li><strong>Al reabrir la página:</strong> si la página se cierra y se vuelve a abrir mientras una imagen aún se genera en el servidor, la espera se cuenta desde la hora real de inicio, de modo que los textos no empiezan de nuevo.</li><li><strong>Transición al terminar:</strong> cuando la imagen está lista, los puntos se desvanecen y dan paso a la imagen.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "Esta actualización no requiere migración de datos."
   ],
   "18.2.0": [
     "<strong>Notas de la versión de Noureon 18.2.0</strong>",

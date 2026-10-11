@@ -146,6 +146,9 @@ test('auth bridge keeps secrets out of browser source and wires required flows',
 
   assert.match(source, /signInWithPassword/);
   assert.match(source, /signUp/);
+  // The token of the human check is good for one request: the sign-in uses it, so the sign-up that follows waits for a new one (Cloudflare: "timeout-or-duplicate").
+  assert.match(source, /turnstile\.reset\('supabase-auth'\);\s*signUpToken = await turnstile\.waitForToken\('supabase-auth'\)/);
+  assert.match(source, /captchaToken: signUpToken/);
   assert.match(source, /signInWithOAuth/);
   assert.match(passwordRecoverySource, /resetPasswordForEmail/);
   assert.match(passwordRecoverySource, /verifyOtp/);
