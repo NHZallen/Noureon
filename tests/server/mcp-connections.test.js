@@ -127,6 +127,10 @@ test('a login that is answered with a wrong, used or old state, a denial or a fa
   assert.deepEqual(await service.completeLogin({ state, error: 'access_denied' }), { ok: false, connectorId: 'linear', error: 'denied' });
   assert.deepEqual(await service.completeLogin({ state, code: 'c' }), { ok: false, error: 'bad_state' }, 'a state is used once, even for a denial');
 
+  // A refusal that is not a denial comes back with what the service said, to show to the person (plain characters only).
+  const refused = new URL((await service.startLogin(USER, 'linear', 'readwrite')).url).searchParams.get('state');
+  assert.deepEqual(await service.completeLogin({ state: refused, error: 'invalid_scope', errorDescription: 'The scope <b>is</b> not allowed' }), { ok: false, connectorId: 'linear', error: 'failed', detail: 'invalid_scope: The scope bis/b not allowed' });
+
   const second = new URL((await service.startLogin(USER, 'linear', 'readwrite')).url).searchParams.get('state');
   time += 11 * 60 * 1000;
   assert.deepEqual(await service.completeLogin({ state: second, code: 'c' }), { ok: false, connectorId: 'linear', error: 'expired' });

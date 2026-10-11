@@ -320,6 +320,9 @@ export const CONNECTORS = Object.freeze([
     endpoint: 'https://mcp.canva.com/mcp',
     icon: 'https://github.com/canva.png?size=96',
     registration: 'dcr',
+    // Canva only lets the redirect addresses it has approved log in (its login answers "Invalid redirect URI" for ours, also after a registration that was accepted); a custom client applies for its address to be added (Canva's waitlist form).
+    // The page says "Under review" and does not begin a login until this line is taken out.
+    pending: true,
     scopes: Object.freeze({ readwrite: Object.freeze([]) }),
     description: Object.freeze({
       'zh-TW': '搜尋、讀取與生成你的 Canva 設計，並匯出成檔案。',

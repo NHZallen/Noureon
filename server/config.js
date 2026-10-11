@@ -8,6 +8,9 @@ const list = (value, fallback = []) => {
 export const DEFAULT_ALLOWED_ORIGINS = Object.freeze(['https://noureon.com', 'https://www.noureon.com']);
 
 /** Reads and checks the settings; throws a message naming what is missing, so a bad deployment fails at once and says why. */
+// The real site: its logo and its terms and privacy pages are public, so a service can read them for the consent screen even when the web host of a test site is behind a login.
+export const SITE_URL = 'https://noureon.com';
+
 export function loadConfig(env = process.env) {
   const problems = [];
   const supabaseUrl = String(env.SUPABASE_URL || '').replace(/\/+$/, '');
@@ -57,6 +60,7 @@ export function loadConfig(env = process.env) {
     sandboxUrl,
     sandboxToken,
     appUrl,
+    siteUrl: SITE_URL,
     connectorRedirectUri,
     connectorClientId,
     connectorPreregistered: Object.freeze(preregistered),

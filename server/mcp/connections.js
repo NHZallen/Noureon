@@ -143,7 +143,7 @@ export function createConnectorService({ db, vault, fetchImpl = fetch, now = Dat
    * The service sent the person back: `state` and `code` (or `error`) as they came. Returns { ok, connectorId, error? }; it says only what kind of failure it was.
    * Nothing is trusted but the state, which is found in what we kept when the login began.
    */
-  async function completeLogin({ state, code, error: serviceError, iss }) {
+  async function completeLogin({ state, code, error: serviceError, errorDescription, iss }) {
     const stateText = typeof state === 'string' ? state : '';
     if (!/^[A-Za-z0-9_-]{20,200}$/.test(stateText)) return { ok: false, error: 'bad_state' };
     const rows = await db.select(TABLE, { filters: { state_hash: `eq.${hashState(stateText)}` }, limit: 1 });
@@ -159,7 +159,9 @@ export function createConnectorService({ db, vault, fetchImpl = fetch, now = Dat
     }
     if (serviceError || typeof code !== 'string' || !code || code.length > 4096) {
       await clearPending();
-      return { ok: false, connectorId, error: serviceError === 'access_denied' ? 'denied' : 'failed' };
+      // The service's own words about why (plain characters only), to show to the person.
+      const said = [serviceError, errorDescription].filter((word) => typeof word === 'string' && word).join(': ').replace(/[^A-Za-z0-9 _:.,'()/-]/g, '').slice(0, 200);
+      return { ok: false, connectorId, error: serviceError === 'access_denied' ? 'denied' : 'failed', ...(said && serviceError !== 'access_denied' ? { detail: said } : {}) };
     }
     let pending;
     try {
@@ -193,8 +195,10 @@ export function createConnectorService({ db, vault, fetchImpl = fetch, now = Dat
       });
     } catch (error) {
       await clearPending();
-      log('connector_login_failed', { connector: connectorId, code: error?.code || error?.name || 'error' });
-      return { ok: false, connectorId, error: 'failed' };
+      log('connector_login_failed', { connector: connectorId, code: error?.code || error?.name || 'error', status: error?.status || 0 });
+      // What the service said, for the person to read (the same as when a login cannot begin): its code, the status and its few words.
+      const detail = [error?.code || error?.name || 'error', error?.status ? String(error.status) : '', error?.info ? `: ${error.info}` : ''].filter(Boolean).join(' ').replace(' :', ':').slice(0, 200);
+      return { ok: false, connectorId, error: 'failed', detail };
     }
     try {
       await refreshTools(userId, connectorId, { first: true });

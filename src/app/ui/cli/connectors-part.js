@@ -51,7 +51,13 @@ export function createConnectorsPart({ document, win, t, getLanguage, getAccount
     if (!id && !error) return { goMine: false };
     const connector = CONNECTORS.find((entry) => entry.id === id);
     if (connected && connector) showNotification(t('connectorConnected_notice', { name: connector.name }), 'success');
-    else if (error) showNotification(t(['denied', 'expired', 'bad_state', 'busy'].includes(error) ? `connectorErr_${error}` : 'connectorErr_failed'), 'error');
+    else if (error) {
+      const known = ['denied', 'expired', 'bad_state', 'busy'].includes(error);
+      // What the service answered (its code and few words), when the login could not be finished: for the person to read, as when a login cannot begin.
+      const detail = known ? '' : String(params.get('connector_detail') || '').replace(/[^\x20-\x7E]/g, '').slice(0, 200);
+      const text = t(known ? `connectorErr_${error}` : 'connectorErr_failed');
+      showNotification(detail ? `${text} (${detail})` : text, 'error');
+    }
     try {
       win.history?.replaceState(win.history.state, '', '/connectors');
     } catch { /* the address stays */ }

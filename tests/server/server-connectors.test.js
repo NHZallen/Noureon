@@ -426,7 +426,7 @@ test('the service sends the person back to the callback, which needs no sign-in 
     assert.equal(target.searchParams.get('connector'), 'linear');
     assert.equal(target.searchParams.get('connected'), '1');
     assert.ok(!good.headers.get('location').includes('SECRET-CODE') && !good.headers.get('location').includes('good-state'), 'nothing of the login is in the address the person is sent to');
-    assert.deepEqual(service.calls.at(-1), ['complete', { state: 'good-state-good-state-good', code: 'SECRET-CODE', error: undefined, iss: 'https://auth.linear.app' }]);
+    assert.deepEqual(service.calls.at(-1), ['complete', { state: 'good-state-good-state-good', code: 'SECRET-CODE', error: undefined, errorDescription: undefined, iss: 'https://auth.linear.app' }]);
     assert.equal(good.headers.get('referrer-policy'), 'no-referrer');
     const denied = await fetch(`${base}/mcp/callback?state=whatever&error=access_denied`, { redirect: 'manual' });
     const deniedTarget = new URL(denied.headers.get('location'));

@@ -293,3 +293,9 @@ owner 決定四個都加；Supabase 連整個組織（不加 `project_ref`），
 - 五語言：說明、細節、範例、更新日誌 18.8.0、隱私政策／協助中心／使用條款的服務名單（`PRIVACY.md` 重新產生）。
 
 **沒驗證的（要真實登入才知道）：** 四個服務是否接受 Noureon 登入、需不需要指定範圍、Miro／Canva／Hugging Face 的真實工具名稱（讀寫分類是依資料與名稱猜的，沒列到的詢問，是安全的一邊）、Canva 的回呼網址是否要核准。登入被拒時，畫面會顯示服務回的原因（診斷訊息）；若是核准制，照 Vercel 的做法加 `pending: true`。
+
+### 16.1 第一次在測試站試的結果（2026-10-11）
+
+- **Miro、Hugging Face：** 登入成功（用動態註冊）。授權畫面沒顯示 Noureon 的標誌：原因是註冊時給的 `logo_uri` 是 `APP_URL` 下的圖，而測試站的網頁在 Vercel 登入保護後面，對方讀不到。現在標誌、使用條款、隱私權政策、`client_uri` 一律用正式站 `https://noureon.com`（`server/config.js` 的 `SITE_URL`；CIMD 文件也一樣）。已存的註冊會被快取（`mcp_oauth_clients`），所以測試資料庫裡的註冊清掉，下次連線才會用新的標誌重新註冊。
+- **Supabase：** 授權頁正常，回到 Noureon 卻沒連上（令牌換取失敗，不是拒絕）。原因要看服務的回答，所以回到 Noureon 失敗時，畫面現在會多顯示服務的錯誤代碼、狀態與簡短說明（`connector_detail`，和「無法開始登入」的診斷同一種做法）；服務回到回呼網址時帶 `error` 與 `error_description` 的也一併顯示。
+- **Canva：** 註冊成功，但授權畫面回「Invalid redirect URI」。Canva 的文件說自訂用戶端要用候補表單（waitlist）申請，把回呼網址加進它的允許清單；也可能走開發者入口建 App（有 Client ID 與 Secret）。照 Vercel 的做法加 `pending: true`（「審核中」），18.8.0 的更新說明也寫了。要送的回呼網址：`https://api.noureon.com/mcp/callback`（測試站另加 `https://api-staging.noureon.com/mcp/callback`）。

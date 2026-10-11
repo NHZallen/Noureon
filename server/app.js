@@ -117,10 +117,10 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
         send(response, 200, {
           client_id: config.connectorClientId,
           client_name: appUrl === 'https://noureon.com' ? 'Noureon' : 'Noureon (test)',
-          client_uri: appUrl,
-          logo_uri: `${appUrl}/logo.png`,
-          tos_uri: `${appUrl}/terms`,
-          policy_uri: `${appUrl}/privacy`,
+          client_uri: config.siteUrl,
+          logo_uri: `${config.siteUrl}/logo.png`,
+          tos_uri: `${config.siteUrl}/terms`,
+          policy_uri: `${config.siteUrl}/privacy`,
           redirect_uris: [config.connectorRedirectUri],
           grant_types: ['authorization_code', 'refresh_token'],
           response_types: ['code'],
@@ -335,8 +335,8 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
           const value = url.searchParams.get(name);
           return typeof value === 'string' ? value : undefined;
         };
-        const outcome = await connectors.completeLogin({ state: pick('state'), code: pick('code'), error: pick('error'), iss: pick('iss') });
-        back(outcome.ok ? { connector: outcome.connectorId, connected: '1' } : { ...(outcome.connectorId ? { connector: outcome.connectorId } : {}), connector_error: outcome.error });
+        const outcome = await connectors.completeLogin({ state: pick('state'), code: pick('code'), error: pick('error'), errorDescription: pick('error_description'), iss: pick('iss') });
+        back(outcome.ok ? { connector: outcome.connectorId, connected: '1' } : { ...(outcome.connectorId ? { connector: outcome.connectorId } : {}), connector_error: outcome.error, ...(outcome.detail ? { connector_detail: String(outcome.detail).slice(0, 200) } : {}) });
         return;
       }
       // The person's connectors: the state of each, and what they do about it.
