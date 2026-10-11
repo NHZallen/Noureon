@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import test from 'node:test';
 
-import { createConnectorService, effectiveState, keptTools } from '../../server/mcp/connections.js';
+import { createConnectorService, createDbClientStore, effectiveState, keptTools } from '../../server/mcp/connections.js';
 import { createKeyVault } from '../../server/key-vault.js';
 import { getConnector } from '../../src/data/connector-catalog.js';
 
@@ -337,4 +337,20 @@ test('what a reply is given: only the connected connectors, with the person\'s s
   assert.deepEqual(given[0].tools.map((tool) => [tool.name, tool.kind, tool.state]), [['list_issues', 'read', 'deny'], ['create_issue', 'write', 'allow']]);
   assert.ok(given[0].tools.every((tool) => typeof tool.inputSchema === 'object' && typeof tool.description === 'string'));
   assert.deepEqual(await service.forRun(OTHER), [], 'another person has none');
+});
+
+test('the store of registered clients seals the secret, gives it back, and treats what it cannot open as not there', async () => {
+  const db = fakeDb();
+  const vault = createKeyVault([{ version: 1, key: randomBytes(32).toString('base64') }]);
+  const store = createDbClientStore(db, vault);
+  await store.set('supabase|https://api.supabase.example|https://api.noureon.com/mcp/callback', { clientId: 'uuid-1', clientSecret: 'sbs_secret', auth: 'post' });
+  await store.set('notion|https://mcp.notion.com|https://api.noureon.com/mcp/callback', { clientId: 'public-1' });
+  const sealedRow = db.rows.find((row) => row.client_id === 'uuid-1');
+  assert.ok(sealedRow.secret_envelope && !JSON.stringify(sealedRow).includes('sbs_secret'), 'the secret is not in the row in the clear');
+  assert.deepEqual(await store.get('supabase|https://api.supabase.example|https://api.noureon.com/mcp/callback'), { clientId: 'uuid-1', clientSecret: 'sbs_secret', auth: 'post' });
+  assert.deepEqual(await store.get('notion|https://mcp.notion.com|https://api.noureon.com/mcp/callback'), { clientId: 'public-1' });
+  assert.equal(await store.get('none'), null);
+  // Another master key cannot open the secret: the client is registered again.
+  const other = createDbClientStore(db, createKeyVault([{ version: 1, key: randomBytes(32).toString('base64') }]));
+  assert.equal(await other.get('supabase|https://api.supabase.example|https://api.noureon.com/mcp/callback'), null);
 });

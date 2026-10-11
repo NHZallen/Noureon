@@ -129,6 +129,29 @@ test('a registration that is refused as not right is asked again with only what 
   await assert.rejects(resolveClient({ connectorId: 'v', metadata: dcr, redirectUri, cimdUrl, identity: { logoUri: 'https://noureon.com/logo.png' }, fetchImpl: never }), (error) => error.code === 'registration_refused' && error.status === 400 && /^invalid_redirect_uri: This redirect is not allowed x+$/.test(error.info) && error.info.length <= 60 + 2 + 120);
 });
 
+test('a registration that gives a client secret (Supabase makes the client a confidential one) is kept with the client, and the way the service wants it sent too', async () => {
+  const metadata = { issuer: 'https://api.supabase.example', registrationEndpoint: 'https://api.supabase.example/register', cimd: false };
+  const kept = new Map();
+  const clientStore = { get: async (key) => kept.get(key) || null, set: async (key, value) => { kept.set(key, value); } };
+  let registrations = 0;
+  const fetchImpl = async () => { registrations += 1; return json({ client_id: 'uuid-1', client_secret: 'sbs_secret', token_endpoint_auth_method: 'client_secret_post' }, 201); };
+  const args = { connectorId: 'supabase', metadata, redirectUri: 'https://api.noureon.com/mcp/callback', cimdUrl: '', clientStore, prefer: 'dcr', fetchImpl };
+  const first = await resolveClient(args);
+  assert.deepEqual([first.clientId, first.clientSecret, first.auth, first.how], ['uuid-1', 'sbs_secret', 'post', 'dcr']);
+  // The second login does not register again and has the same secret.
+  const second = await resolveClient(args);
+  assert.deepEqual([second.clientId, second.clientSecret, second.auth], ['uuid-1', 'sbs_secret', 'post']);
+  assert.equal(registrations, 1);
+  // A registration that does not say how, and a service that only takes the secret in the body, is sent it in the body; one that takes both, in the header.
+  const bodyOnly = await resolveClient({ ...args, connectorId: 'body-only', metadata: { ...metadata, authMethods: ['client_secret_post'] }, fetchImpl: async () => json({ client_id: 'uuid-3', client_secret: 's3' }, 201) });
+  assert.equal(bodyOnly.auth, 'post');
+  const both = await resolveClient({ ...args, connectorId: 'both', metadata: { ...metadata, authMethods: ['client_secret_basic', 'client_secret_post'] }, fetchImpl: async () => json({ client_id: 'uuid-4', client_secret: 's4' }, 201) });
+  assert.equal(both.auth, undefined);
+  // A public client has no secret to keep.
+  const plain = await resolveClient({ ...args, connectorId: 'other', fetchImpl: async () => json({ client_id: 'uuid-2' }, 201) });
+  assert.deepEqual([plain.clientId, plain.clientSecret, plain.auth], ['uuid-2', undefined, undefined]);
+});
+
 test('a service that refuses the field `resource` of a token request (422) is asked again without it, and a refusal says what the service said', async () => {
   const metadata = { tokenEndpoint: 'https://api.supabase.example/oauth/token', resource: 'https://mcp.supabase.example/mcp' };
   const forms = [];

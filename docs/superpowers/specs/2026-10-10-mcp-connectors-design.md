@@ -305,3 +305,15 @@ owner 決定四個都加；Supabase 連整個組織（不加 `project_ref`），
 測試站連 Supabase：授權頁正常，伺服器日誌 `connector_login_failed … code: token_refused, status: 422`（換令牌的要求被拒，服務的回答沒有標準的 `error` 欄位）。可能原因：Supabase 的令牌端點檢查要求很嚴，不認得 RFC 8707 的 `resource` 欄位。做法（`server/mcp/oauth.js`）：
 - 令牌要求（換碼與更新）被拒（400 或 422，且不是標準的 `invalid_grant` 之類）時，**不帶 `resource` 再試一次**（拒絕發生在用掉授權碼之前，所以碼還能用）。
 - 令牌被拒時，也把服務的話（`error`、`error_description`、`message`、`msg`、`detail`，只留可印字元、很短）放進 `info`，回到 Noureon 失敗的提示括號裡會顯示。
+
+### 16.3 Supabase：它把註冊的用戶端做成要密鑰的（2026-10-11）
+
+日誌 `info` 說：`Required parameter: client_secret`。Supabase 的動態註冊雖然我們要求「不用密鑰」（`token_endpoint_auth_method: none`），回應卻給了 `client_secret`，換令牌時就一定要帶。我們以前只存 `client_id`，所以一直被拒。（去掉 `resource` 再試的那個改動仍保留，對嚴格的服務有用。）
+
+做法：
+- `resolveClient`（`server/mcp/oauth.js`）把註冊回應的 `client_secret` 一起存；密鑰怎麼送：註冊回應寫 `client_secret_post` 就放內文；沒寫時，服務公布的令牌端點驗證方式（`authMethods`，新讀的 `token_endpoint_auth_methods_supported`）只有 post 就放內文；其他放標頭（預設）。
+- 密鑰存進 `mcp_oauth_clients` 新欄位 `secret_envelope`／`secret_key_version`（遷移 `20261011010000_add_mcp_oauth_client_secret.sql`），用金鑰庫加密（綁這一列的 key）；主金鑰換掉而打不開時，當作沒有，重新註冊。`createDbClientStore(db, vault)`。
+- 登入中與保存的令牌（`pending`、`tokens`）帶 `auth`，`oauthClientOf` 用它。公開用戶端（沒有密鑰）完全不變。
+- 沒有密鑰時不寫新欄位，所以資料庫還沒套用遷移時，公開的用戶端仍然可用；**有密鑰的服務（Supabase）要先套用遷移**。
+- 已經存的 Supabase 註冊沒有密鑰，所以要清掉才會重新註冊：測試庫已經把那一列改名放到一邊（`…|old`）。
+- **上線順序：** 遷移要先套用到正式專案 `clctveoosifoapbafhrl`，才合併 `main`。測試專案已套用。

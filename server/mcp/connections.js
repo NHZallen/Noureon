@@ -102,7 +102,7 @@ export function createConnectorService({ db, vault, fetchImpl = fetch, now = Dat
   const oauthClientOf = (connector, kept) => {
     const hand = (config.preregistered || {})[connector.id];
     const clientSecret = hand?.clientId && hand.clientId === kept.clientId && hand.clientSecret ? hand.clientSecret : kept.clientSecret;
-    return { clientId: kept.clientId, ...(clientSecret ? { clientSecret } : {}), ...(connector.clientAuth === 'post' ? { auth: 'post' } : {}) };
+    return { clientId: kept.clientId, ...(clientSecret ? { clientSecret } : {}), ...(connector.clientAuth === 'post' || kept.auth === 'post' ? { auth: 'post' } : {}) };
   };
   const clientOf = (connector, metadata) => resolveClient({
     connectorId: connector.id,
@@ -134,7 +134,7 @@ export function createConnectorService({ db, vault, fetchImpl = fetch, now = Dat
     }
     const { verifier, challenge } = pkcePair();
     const state = randomState();
-    const pending = vault.seal({ verifier, clientId: client.clientId, clientSecret: client.clientSecret || '', mode: kind, how: client.how }, { userId, ...aadOf(connectorId) });
+    const pending = vault.seal({ verifier, clientId: client.clientId, clientSecret: client.clientSecret || '', auth: client.auth || '', mode: kind, how: client.how }, { userId, ...aadOf(connectorId) });
     await saveRow(userId, connectorId, { state_hash: hashState(state), pending_envelope: pending.envelope, pending_key_version: pending.keyVersion, pending_at: new Date(now()).toISOString() });
     return { url: buildAuthorizationUrl({ metadata, clientId: client.clientId, redirectUri: config.redirectUri, scopes: loginScopes(connector, kind), state, challenge }) };
   }
@@ -174,9 +174,9 @@ export function createConnectorService({ db, vault, fetchImpl = fetch, now = Dat
       const metadata = await metadataOf(connector);
       // RFC 9207: a service that says it sends its issuer back must send ours (a login sent by another server is not accepted).
       if (metadata.issuerInResponse && String(iss || '').replace(/\/+$/, '') !== metadata.issuer) throw new OAuthError('bad_metadata', 'The login came from another server.');
-      const client = oauthClientOf(connector, { clientId: pending.clientId, clientSecret: pending.clientSecret });
+      const client = oauthClientOf(connector, { clientId: pending.clientId, clientSecret: pending.clientSecret, auth: pending.auth });
       const tokens = await exchangeCode({ metadata, client, redirectUri: config.redirectUri, code, verifier: pending.verifier, fetchImpl });
-      const sealed = sealTokens({ accessToken: tokens.accessToken, refreshToken: tokens.refreshToken, expiresAt: tokens.expiresInSeconds ? now() + tokens.expiresInSeconds * 1000 : 0, clientId: client.clientId, clientSecret: client.clientSecret || '' }, userId, connectorId);
+      const sealed = sealTokens({ accessToken: tokens.accessToken, refreshToken: tokens.refreshToken, expiresAt: tokens.expiresInSeconds ? now() + tokens.expiresInSeconds * 1000 : 0, clientId: client.clientId, clientSecret: client.clientSecret || '', auth: client.auth || '' }, userId, connectorId);
       await saveRow(userId, connectorId, {
         ...sealed,
         status: 'connected',
@@ -407,16 +407,35 @@ export function createConnectorService({ db, vault, fetchImpl = fetch, now = Dat
   return service;
 }
 
-/** Keeps the clients that dynamic registration gave (the table mcp_oauth_clients), for server/mcp/oauth.js `resolveClient`. */
-export function createDbClientStore(db) {
+/**
+ * Keeps the clients that dynamic registration gave (the table mcp_oauth_clients), for server/mcp/oauth.js `resolveClient`. The secret that a registration may give is kept sealed
+ * (the vault, bound to the key of the row); a row whose secret cannot be opened (the master key was replaced without the old one) is as if there were none, and the client is registered again.
+ */
+export function createDbClientStore(db, vault = null) {
+  const aad = (key) => ({ userId: 'mcp-oauth-clients', messageId: `client:${key}` });
   return {
     async get(key) {
       const rows = await db.select('mcp_oauth_clients', { filters: { key: `eq.${key}` }, limit: 1 });
       const row = Array.isArray(rows) ? rows[0] : null;
-      return row ? { clientId: row.client_id } : null;
+      if (!row) return null;
+      if (!row.secret_envelope) return { clientId: row.client_id };
+      if (!vault) return null;
+      try {
+        const kept = vault.open(row.secret_envelope, row.secret_key_version, aad(key));
+        return { clientId: row.client_id, clientSecret: String(kept.clientSecret || ''), ...(kept.auth === 'post' ? { auth: 'post' } : {}) };
+      } catch {
+        return null;
+      }
     },
     async set(key, value) {
-      await db.upsert('mcp_oauth_clients', { key, client_id: value.clientId }, { onConflict: 'key' });
+      const row = { key, client_id: value.clientId };
+      // The columns of the secret are written only for a client that has one (a database that is not yet migrated still keeps the public ones).
+      if (value.clientSecret && vault) {
+        const sealed = vault.seal({ clientSecret: value.clientSecret, auth: value.auth || '' }, aad(key));
+        row.secret_envelope = sealed.envelope;
+        row.secret_key_version = sealed.keyVersion;
+      }
+      await db.upsert('mcp_oauth_clients', row, { onConflict: 'key' });
     }
   };
 }

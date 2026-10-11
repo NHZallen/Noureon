@@ -155,6 +155,8 @@ export async function discover(endpoint, { fetchImpl = fetch, timeoutMs = DEFAUL
     revocationEndpoint: metadata.revocation_endpoint ? assertPublicHttps(metadata.revocation_endpoint, 'revocation address') : '',
     cimd: metadata.client_id_metadata_document_supported === true,
     issuerInResponse: metadata.authorization_response_iss_parameter_supported === true,
+    // How a client may prove itself at the token address (RFC 8414); empty when the service does not say.
+    authMethods: Array.isArray(metadata.token_endpoint_auth_methods_supported) ? metadata.token_endpoint_auth_methods_supported.filter((method) => typeof method === 'string') : [],
     scopes: Array.isArray(metadata.scopes_supported) ? metadata.scopes_supported.filter((scope) => typeof scope === 'string') : []
   };
 }
@@ -174,7 +176,7 @@ export async function resolveClient({ connectorId, metadata, redirectUri, cimdUr
   const register = async () => {
     const key = `${connectorId}|${metadata.issuer}|${redirectUri}`;
     const kept = clientStore ? await clientStore.get(key) : null;
-    if (kept?.clientId) return { clientId: kept.clientId, how: 'dcr' };
+    if (kept?.clientId) return { clientId: kept.clientId, ...(kept.clientSecret ? { clientSecret: kept.clientSecret } : {}), ...(kept.auth === 'post' ? { auth: 'post' } : {}), how: 'dcr' };
     const minimal = {
       client_name: clientName,
       redirect_uris: [redirectUri],
@@ -208,8 +210,14 @@ export async function resolveClient({ connectorId, metadata, redirectUri, cimdUr
       const info = [plain(body?.error, 60), plain(body?.error_description, 120)].filter(Boolean).join(': ');
       throw new OAuthError('registration_refused', 'The service did not accept the registration.', { status: response.status, info });
     }
-    if (clientStore) await clientStore.set(key, { clientId: body.client_id });
-    return { clientId: body.client_id, how: 'dcr' };
+    // A service may make the client a confidential one whatever we asked for (Supabase does: its token endpoint then wants the secret): the secret that the registration gave is kept with it,
+    // and so is the way the service wants it sent (the header unless it says it wants it in the body).
+    const clientSecret = typeof body.client_secret === 'string' && body.client_secret ? body.client_secret : '';
+    const said = typeof body.token_endpoint_auth_method === 'string' ? body.token_endpoint_auth_method : '';
+    const methods = Array.isArray(metadata.authMethods) ? metadata.authMethods : [];
+    const auth = clientSecret && (said === 'client_secret_post' || (!said && methods.includes('client_secret_post') && !methods.includes('client_secret_basic'))) ? 'post' : '';
+    if (clientStore) await clientStore.set(key, { clientId: body.client_id, ...(clientSecret ? { clientSecret } : {}), ...(auth ? { auth } : {}) });
+    return { clientId: body.client_id, ...(clientSecret ? { clientSecret } : {}), ...(auth ? { auth } : {}), how: 'dcr' };
   };
   if (prefer === 'dcr' && metadata.registrationEndpoint) {
     try {
