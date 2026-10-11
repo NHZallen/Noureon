@@ -32,6 +32,7 @@ const es = {
   "cloudLoginImportConfirm": "¿Importar datos locales heredados a esta cuenta en la nube?",
   "recoveryReady": "Establezca su nueva contraseña de inicio de sesión.",
   "turnstileRequired": "Complete la verificación primero.",
+  "turnstileAgain": "Complete la verificación una vez más y pulse de nuevo Iniciar sesión / Crear cuenta.",
   "turnstileInitFailed": "No se pudo cargar la verificación. Actualiza y vuelve a intentarlo.",
   "passwordResetSent": "Correo electrónico de restablecimiento de contraseña enviado. Revisa tu bandeja de entrada.",
   "passwordResetUpdated": "Contraseña actualizada. Inicia sesión con la nueva contraseña.",

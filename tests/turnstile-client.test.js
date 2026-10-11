@@ -49,3 +49,30 @@ test('Turnstile script loading has a bounded timeout and removes the pending wid
   assert.equal(widgetRemoved, true);
   assert.equal(listeners.size, 0);
 });
+
+test('after a reset the next token is waited for, because a token is good for one request only', async () => {
+  let render;
+  const resets = [];
+  const window = { turnstile: { render: (container, options) => { render = options; return 'w1'; }, reset: (id) => resets.push(id) } };
+  const document = { createElement: () => ({ dataset: {}, remove() {} }), getElementById: () => null, head: { appendChild() {} } };
+  const timers = [];
+  const client = createTurnstileClient({ window, document, siteKey: 'site-key', scheduleTimeout: (callback) => { timers.push(callback); return timers.length; }, clearScheduledTimeout() {} });
+  await client.mount('supabase-auth', { before() {} });
+  assert.equal(client.getToken('supabase-auth'), '');
+  assert.equal(await client.waitForToken('nothing-mounted'), '');
+
+  render.callback('first');
+  assert.equal(await client.waitForToken('supabase-auth'), 'first', 'a token that is there is given at once');
+
+  client.reset('supabase-auth');
+  assert.deepEqual(resets, ['w1']);
+  assert.equal(client.getToken('supabase-auth'), '');
+  const waiting = client.waitForToken('supabase-auth');
+  render.callback('second');
+  assert.equal(await waiting, 'second', 'the new token ends the wait');
+
+  client.reset('supabase-auth');
+  const late = client.waitForToken('supabase-auth', 50);
+  timers.at(-1)();
+  assert.equal(await late, '', 'no new token in time: the person is asked to do the check again');
+});

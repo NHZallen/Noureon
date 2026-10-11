@@ -33,6 +33,7 @@
         cloudLoginImportConfirm: '要匯入舊版本機資料到這個雲端帳號嗎？',
         recoveryReady: '請設定新的登入密碼。',
         turnstileRequired: '請先完成驗證。',
+        turnstileAgain: '請再完成一次驗證，然後再按一次登入 / 建立帳號。',
         turnstileInitFailed: '驗證模組載入失敗，請重新整理後再試。',
         passwordResetSent: '重設密碼信已寄出，請檢查信箱。',
         passwordResetUpdated: '密碼已更新，請使用新密碼登入。',

@@ -33,6 +33,7 @@
         cloudLoginImportConfirm: 'Import legacy local data into this cloud account?',
         recoveryReady: 'Set your new login password.',
         turnstileRequired: 'Complete verification first.',
+        turnstileAgain: 'Complete the verification once more, then press Sign in / Create account again.',
         turnstileInitFailed: 'Verification failed to load. Refresh and try again.',
         passwordResetSent: 'Password reset email sent. Check your inbox.',
         passwordResetUpdated: 'Password updated. Sign in with the new password.',

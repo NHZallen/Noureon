@@ -443,12 +443,25 @@ export async function initializeSupabaseAuthBridge({ window, document, startupId
       options: { captchaToken }
     });
     if (result.error) {
+      // The check of the person is good for one request only (Cloudflare answers "timeout-or-duplicate" to a second use), and the sign-in has used it:
+      // creating the account needs a new one, which the widget makes after a reset.
+      let signUpToken = captchaToken;
+      if (turnstile.enabled) {
+        turnstile.reset('supabase-auth');
+        signUpToken = await turnstile.waitForToken('supabase-auth');
+        if (!signUpToken) {
+          turnstile.reset('supabase-auth');
+          setBusy(elements, false);
+          setStatus(elements, getAuthText(elements, 'turnstileAgain', '請再完成一次驗證，然後再按一次登入 / 建立帳號。'), 'error');
+          return;
+        }
+      }
       result = await supabase.auth.signUp({
         email,
         password,
         options: {
           emailRedirectTo: window.location.origin,
-          captchaToken
+          captchaToken: signUpToken
         }
       });
     }

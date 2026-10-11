@@ -33,6 +33,7 @@
         cloudLoginImportConfirm: 'Importer les donnees locales historiques dans ce compte cloud ?',
         recoveryReady: 'Definissez votre nouveau mot de passe de connexion.',
         turnstileRequired: 'Terminez d abord la verification.',
+        turnstileAgain: 'Terminez la verification une fois de plus, puis appuyez de nouveau sur Connexion / Creer un compte.',
         turnstileInitFailed: 'La verification n a pas pu charger. Actualisez puis reessayez.',
         passwordResetSent: 'Email de reinitialisation envoye. Verifiez votre boite.',
         passwordResetUpdated: 'Mot de passe mis a jour. Connectez-vous avec le nouveau mot de passe.',
