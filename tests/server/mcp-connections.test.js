@@ -64,6 +64,7 @@ function fakeWorld() {
       if (body.method === 'initialize') return json({ jsonrpc: '2.0', id: body.id, result: { protocolVersion: '2025-06-18' } });
       if (body.method === 'tools/list') {
         state.listCalls += 1;
+        if (state.listFails) return new Response('nope', { status: 400 });
         return json({ jsonrpc: '2.0', id: body.id, result: { tools: state.tools } });
       }
       return json({ jsonrpc: '2.0', id: body.id, result: { content: [{ type: 'text', text: 'ok' }] } });
@@ -295,6 +296,13 @@ test('the list of tools is asked for again when it is an hour old, not on every 
   time += 61 * 60 * 1000;
   await service.freshConnection(USER, 'linear');
   assert.equal(world.state.listCalls, asked + 1);
+});
+
+test('when the tools cannot be listed, what the service answered is told to the person (its kind and status)', async () => {
+  const { world, service } = setup();
+  await login(service);
+  world.state.listFails = true;
+  await assert.rejects(service.refreshTools(USER, 'linear'), (error) => error.code === 'failed' && error.detail === 'protocol 400: The service answered 400.');
 });
 
 test('disconnecting revokes the token at the service and deletes everything kept', async () => {

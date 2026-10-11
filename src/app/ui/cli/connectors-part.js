@@ -298,7 +298,7 @@ export function createConnectorsPart({ document, win, t, getLanguage, getAccount
       if (result.ok && result.connector) {
         state.byId.set(connector.id, result.connector);
         showNotification(t('connectorRefreshed', { name: connector.name }), 'success');
-      } else showNotification(t('connectorSaveFailed'), 'error');
+      } else showNotification(result.detail ? `${t('connectorSaveFailed')} (${result.detail})` : t('connectorSaveFailed'), 'error');
       redraw();
     });
     nodes.push(refresh);

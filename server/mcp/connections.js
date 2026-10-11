@@ -204,7 +204,7 @@ export function createConnectorService({ db, vault, fetchImpl = fetch, now = Dat
       await refreshTools(userId, connectorId, { first: true });
     } catch (error) {
       // Connected, but the list of tools could not be had now: the page can ask again.
-      log('connector_tools_failed', { connector: connectorId, code: error?.code || error?.name || 'error' });
+      log('connector_tools_failed', { connector: connectorId, code: error?.code || error?.name || 'error', ...(error?.detail ? { detail: error.detail } : {}) });
     }
     return { ok: true, connectorId };
   }
@@ -279,7 +279,9 @@ export function createConnectorService({ db, vault, fetchImpl = fetch, now = Dat
         await saveRow(userId, connectorId, { status: 'needs_login', last_error: 'expired' });
         throw new ConnectorError('login_needed', 'The login has ended: log in again.');
       }
-      throw new ConnectorError('failed', 'The tools could not be listed now.');
+      // What went wrong, for the person to read and for the log: the kind, the status and the service's few words (printable characters only).
+      const said = error instanceof McpError ? [error.code, error.status ? String(error.status) : '', error.message ? `: ${error.message}` : ''].filter(Boolean).join(' ').replace(' :', ':').replace(/[^\x20-\x7e]/g, ' ').slice(0, 200) : '';
+      throw new ConnectorError('failed', 'The tools could not be listed now.', said);
     } finally {
       void client.close();
     }
