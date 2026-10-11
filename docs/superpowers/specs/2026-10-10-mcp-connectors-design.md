@@ -323,3 +323,8 @@ owner 決定四個都加；Supabase 連整個組織（不加 `project_ref`），
 登入成功後，`tools/list` 被 Supabase 回 400：`Mcp-Session-Id header is required for non-initialization requests`。`initialize` 成功了，所以它給了會話代號，但我們的用戶端只收 256 個可印字元以內的代號，太長的被默默忽略，後面的請求就沒帶。現在上限放到 4096（標頭的長度），而且不能收的代號會明確報錯，不再默默忽略。
 
 為了找到這個原因，連接器的失敗現在會說得更清楚（都只有服務的回答，不含我們送的東西）：MCP 服務拒絕時寫出是哪個請求與對方的幾個字（`server/mcp/client.js` 的 `refusalWords`），列不出工具時 `ConnectorError.detail` 帶 `類型 狀態: 原話`、日誌有 `connector_tools_unavailable`，令牌被拒時 `info` 帶服務的話。
+
+### 16.5 Canva：登入網址要帶範圍（2026-10-11）
+
+用 owner 自己建的 Canva App（預先註冊的用戶端）連線，Canva 的登入頁（`https://mcp.canva.com/authorize?...`）回 Internal Server Error。owner 手動試過拿掉 `resource`、PKCE 改小寫，都一樣；我們送的網址完全沒有 `scope`。Canva 公布的資料（`/.well-known/oauth-protected-resource`）列了它的範圍：`profile:read`、`design:meta:read`、`design:content:read`／`write`、`folder:read`／`write`、`brandtemplate:meta:read`、`brandtemplate:content:read`／`write`、`comment:read`／`write`、`asset:read`／`write`、`brandkit:read`、`help:answers:read`／`write`；授權伺服器公布 PKCE `plain` 與 `S256`、令牌端點驗證 `client_secret_basic`／`client_secret_post`／`none`。
+做法：目錄裡 Canva 指定範圍：讀寫登入是上面除了 `help:answers:*` 以外的全部，**唯讀登入**只有 `…:read`（Canva 的範圍分得出讀寫，所以像 Linear 一樣提供「唯讀連線」的選擇）。若 Canva 回 `invalid_scope`，原因是 Canva App 沒開那個範圍，登入失敗的畫面會顯示 Canva 的原話。

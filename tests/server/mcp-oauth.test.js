@@ -69,9 +69,12 @@ test('Supabase, Hugging Face, Miro and Canva: their own endpoints, a registratio
   for (const connector of [supabase, huggingface, miro, canva]) {
     assert.deepEqual(connectorProblems(connector), [], connector.id);
     assert.equal(connector.registration, 'dcr', connector.id);
-    assert.equal(hasReadonlyLogin(connector), false, `${connector.id}: one login, what a reply may do is the person's setting for each tool`);
+    assert.equal(hasReadonlyLogin(connector), connector.id === 'canva', `${connector.id}: one login (what a reply may do is the person's setting for each tool), except where the service names scopes for reading`);
     assert.ok(!connector.pending, connector.id);
   }
+  // Canva answers "Internal Server Error" to a login that names no scope: the scopes it announces are asked for, and the read-only login has none that writes.
+  assert.ok(loginScopes(canva, 'readwrite').includes('design:content:write'));
+  assert.ok(loginScopes(canva, 'readonly').length > 0 && loginScopes(canva, 'readonly').every((scope) => !/:write$/.test(scope)));
   assert.equal(supabase.category, 'dev');
   assert.equal(miro.category, 'design');
   assert.equal(canva.category, 'design');
