@@ -281,6 +281,7 @@ export function createConnectorService({ db, vault, fetchImpl = fetch, now = Dat
       }
       // What went wrong, for the person to read and for the log: the kind, the status and the service's few words (printable characters only).
       const said = error instanceof McpError ? [error.code, error.status ? String(error.status) : '', error.message ? `: ${error.message}` : ''].filter(Boolean).join(' ').replace(' :', ':').replace(/[^\x20-\x7e]/g, ' ').slice(0, 200) : '';
+      log('connector_tools_unavailable', { connector: connectorId, ...(said ? { detail: said } : {}) });
       throw new ConnectorError('failed', 'The tools could not be listed now.', said);
     } finally {
       void client.close();
