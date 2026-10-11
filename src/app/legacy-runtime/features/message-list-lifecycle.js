@@ -201,6 +201,7 @@ export function createMessageListLifecycle({
             formatTimestamp,
             copyTitle: getText('copyContent'),
             uiLanguage: getText('uiLanguage'),
+            labels: getText('labels'),
             historySources: historySourceViews,
             historySourceTexts: getHistorySourceTexts()
         });
@@ -240,6 +241,7 @@ export function createMessageListLifecycle({
             formatTimestamp,
             copyTitle: getText('copyContent'),
             uiLanguage: getText('uiLanguage'),
+            labels: getText('labels'),
             historySources: historySourceViews,
             historySourceTexts: getHistorySourceTexts()
         });
@@ -301,9 +303,11 @@ export function createMessageListLifecycle({
             return;
         }
 
+        // A chat that has no messages and no name of its own is called "New chat" in the language in use now (its stored title is the one of the day it was made).
+        const isUnnamedDraft = !conversation.archived && !conversation.isRenamed && conversation.messages.length === 0;
         elements.headerTitle.textContent = conversation.archived
             ? `(${getText('archived')}) ${conversation.title}`
-            : conversation.title;
+            : (isUnnamedDraft ? getText('newChat') : conversation.title);
         renderModelSwitcher();
         renderInputIndicators();
         renderCouncilControls();

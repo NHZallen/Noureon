@@ -66,6 +66,7 @@ test('settings mobile labels use injected text resolution without DOM access', (
   assert.equal(groups[1].title, 'Application settings');
   assert.equal(labelsBySection.memory, '記憶管理');
   assert.deepEqual(calls.map(([key]) => key), [
+    'customizeNoureon',
     'userSettings',
     'personalization',
     'memoryManagement',
@@ -76,6 +77,7 @@ test('settings mobile labels use injected text resolution without DOM access', (
     'permissions',
     'accessibility',
     'trash',
+    'getHelp',
     'about'
   ]);
 

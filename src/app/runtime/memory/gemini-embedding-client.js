@@ -10,7 +10,7 @@ const EMBEDDING_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/mod
 
 const asEmbeddingValues = (payload) => {
   const values = payload?.embedding?.values;
-  if (!Array.isArray(values)) throw new Error('Gemini Embedding 2 未回傳有效向量。');
+  if (!Array.isArray(values)) throw new Error('Gemini Embedding 2 did not return a valid vector.');
   return values;
 };
 
@@ -21,7 +21,7 @@ export function createGeminiEmbeddingClient({
 } = {}) {
   async function embedText(text) {
     const apiKey = String(getApiKey() || '').trim();
-    if (!apiKey) throw new Error('請先設定 Gemini API 金鑰以啟用歷史記憶搜尋。');
+    if (!apiKey) throw new Error('Set a Gemini API key first to turn on history memory search.');
 
     const response = await fetchImpl(EMBEDDING_ENDPOINT, {
       method: 'POST',

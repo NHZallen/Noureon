@@ -1,6 +1,10 @@
 const TURNSTILE_SCRIPT_ID = 'cloudflare-turnstile-script';
 const TURNSTILE_SCRIPT_URL = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
 
+// The language of the check follows the language of the page (without it Cloudflare uses the browser's, which showed Chinese on an English page).
+const TURNSTILE_LANGUAGES = Object.freeze({ 'zh-TW': 'zh-tw', en: 'en', fr: 'fr', ru: 'ru', es: 'es' });
+export const turnstileLanguage = (pageLanguage) => TURNSTILE_LANGUAGES[pageLanguage] || 'auto';
+
 function loadTurnstileScript({
   window,
   document,
@@ -64,6 +68,39 @@ export function createTurnstileClient({
 } = {}) {
   const widgets = new Map();
 
+  function renderWidget(turnstile, state) {
+    return turnstile.render(state.container, {
+      sitekey: siteKey,
+      theme: 'auto',
+      language: turnstileLanguage(document.documentElement?.lang),
+      callback: (token) => {
+        state.token = token;
+      },
+      'expired-callback': () => {
+        state.token = '';
+      },
+      'error-callback': () => {
+        state.token = '';
+      }
+    });
+  }
+
+  // A check already on the page is drawn again in the new language (a person who changes the language meets it in the old one otherwise).
+  window?.addEventListener?.('astra:language-changed', () => {
+    const turnstile = window.turnstile;
+    if (!turnstile) return;
+    for (const state of widgets.values()) {
+      if (state.widgetId === null) continue;
+      try {
+        turnstile.remove(state.widgetId);
+        state.token = '';
+        state.widgetId = renderWidget(turnstile, state);
+      } catch (error) {
+        globalThis.console?.warn?.('The security check could not follow the language.', error);
+      }
+    }
+  });
+
   async function mount(name, anchorElement) {
     if (!siteKey || !anchorElement) return false;
     if (widgets.has(name)) return true;
@@ -84,19 +121,7 @@ export function createTurnstileClient({
         scheduleTimeout,
         clearScheduledTimeout
       });
-      state.widgetId = turnstile.render(container, {
-        sitekey: siteKey,
-        theme: 'auto',
-        callback: (token) => {
-          state.token = token;
-        },
-        'expired-callback': () => {
-          state.token = '';
-        },
-        'error-callback': () => {
-          state.token = '';
-        }
-      });
+      state.widgetId = renderWidget(turnstile, state);
       return true;
     } catch (error) {
       widgets.delete(name);

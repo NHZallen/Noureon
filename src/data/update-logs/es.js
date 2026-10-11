@@ -1,6 +1,12 @@
 // The update notes in Spanish (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.2.1": [
+    "<strong>Notas de la versión de Noureon 18.2.1</strong>",
+    "Se corrigen dos problemas de inicio de sesión e idioma: cerrar sesión en un dispositivo ya no la cierra en los demás, y el idioma elegido en la página de inicio se mantiene tras iniciar sesión, sin que quede chino en los ajustes ni en otras pantallas.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Solo se cierra este dispositivo:</strong>el botón de cerrar sesión terminaba el inicio de sesión de la cuenta en todos los dispositivos; ahora termina solo el del dispositivo en uso. La opción deliberada de los ajustes, «cerrar sesión en todos los dispositivos tras cambiar la contraseña de sincronización», no cambia.</li><li><strong>Se mantiene el idioma elegido en la página de inicio:</strong>un idioma distinto del chino elegido antes de iniciar sesión ya no se sustituye por el chino guardado en la cuenta cuando la página se recarga tras iniciar sesión; tras cerrar sesión, la página de inicio sigue en el último idioma usado, y la pantalla de carga y la verificación de seguridad (Cloudflare) lo siguen.</li><li><strong>El cambio de idioma se aplica al instante:</strong>al cambiar el idioma en los ajustes, los estados y descripciones de la sincronización en la nube, los botones de la página de la cuenta, las listas de la izquierda, el título, la ventana de búsqueda, los nombres de los colores, los menús de los modelos de traducción y los ajustes de imagen del menú «+», que se quedaban en el idioma anterior, cambian con él.</li><li><strong>Traducciones que faltaban:</strong>sugerencias de memoria, progreso de la importación, ayudas de mensajes e imágenes, edición de un mensaje y muchos mensajes de error (incluidos los del inicio de sesión) que estaban solo en chino ahora existen en los cinco idiomas; una nueva prueba falla si a algún texto le falta un idioma.</li></ul>"
+  ],
   "18.2.0": [
     "<strong>Notas de la versión de Noureon 18.2.0</strong>",
     "El Centro de ayuda, los Términos de uso y la Política de privacidad se han reescrito por completo, con secciones e índice, y cubren todas las funciones y flujos de datos actuales.",

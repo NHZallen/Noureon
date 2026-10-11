@@ -20,7 +20,7 @@ export const getSettingsMobileGroups = (getText) => {
 
   return [
     {
-      title: '自訂 Noureon',
+      title: text('customizeNoureon', 'Customize Noureon'),
       items: [
         { section: 'user', label: text('userSettings', '使用者') },
         { section: 'personalization', label: text('personalization', '個人化') },
@@ -39,7 +39,7 @@ export const getSettingsMobileGroups = (getText) => {
       ]
     },
     {
-      title: '取得協助',
+      title: text('getHelp', 'Get help'),
       items: [
         { section: 'about', label: text('about', '關於') }
       ]

@@ -9,6 +9,8 @@ export function createConversationViewRenderer({
     bindGeneratedImageAssets = async () => {},
     mediaMode = 'wrapped',
     wrapTextParts = false,
+    // The words of the buttons under a generated picture (from the interface texts of the language in use).
+    getLabels = () => ({}),
     scheduleFrame = callback => requestAnimationFrame(callback),
     logError = (...args) => console.error(...args)
 }) {
@@ -46,14 +48,16 @@ export function createConversationViewRenderer({
     }[requestedRatio] || '');
 
     const renderGeneratedImages = (assets) => assets.map(asset => {
+        const labels = getLabels() || {};
+        const label = (value) => String(value || '').replace(/[&<>"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[char]));
         const imageAspectRatio = resolveImageAspectRatio(asset.aspectRatio);
         return `
             <figure class="generated-image-card${imageAspectRatio ? ' has-known-aspect' : ''}" data-generated-image-card="${asset.id}"${imageAspectRatio ? ` style="aspect-ratio: ${imageAspectRatio}"` : ''}>
-                <button type="button" class="generated-image-preview-btn" data-generated-image-preview="${asset.id}" aria-label="預覽 AI 生成圖片">
-                    <img data-generated-image-id="${asset.id}" alt="AI 生成圖片" loading="lazy">
+                <button type="button" class="generated-image-preview-btn" data-generated-image-preview="${asset.id}" aria-label="${label(labels.imagePreview)}">
+                    <img data-generated-image-id="${asset.id}" alt="${label(labels.imageAlt)}" loading="lazy">
                 </button>
                 <div class="generated-image-actions">
-                    <a data-generated-image-download="${asset.id}" class="generated-image-action-btn generated-image-download-btn" title="下載 AI 生成圖片" aria-label="下載 AI 生成圖片">
+                    <a data-generated-image-download="${asset.id}" class="generated-image-action-btn generated-image-download-btn" title="${label(labels.imageDownload)}" aria-label="${label(labels.imageDownload)}">
                         <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg>
                     </a>
                 </div>

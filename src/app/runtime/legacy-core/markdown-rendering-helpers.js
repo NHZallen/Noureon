@@ -187,7 +187,7 @@ export function createMarkdownRenderingHelpers({
       });
     } catch (error) {
       logger.error(displayMode ? 'KaTeX block rendering error:' : 'KaTeX inline rendering error:', error);
-      const label = displayMode ? '數學公式渲染錯誤' : '公式錯誤';
+      const label = displayMode ? getText('formulaBlockError', 'Math formula rendering error') : getText('formulaInlineError', 'Formula error');
       const element = displayMode ? 'p' : 'span';
       return `<${element} style="color: red;">[${label}: ${formula}]</${element}>`;
     }

@@ -79,7 +79,7 @@ test('getErrorMessage preserves nested, top-level, custom, and default fallbacks
   assert.equal(getErrorMessage({ error: { message: 'nested' }, message: 'top' }), 'nested');
   assert.equal(getErrorMessage({ message: 'top' }), 'top');
   assert.equal(getErrorMessage({}, 'HTTP 500'), 'HTTP 500');
-  assert.equal(getErrorMessage(null), 'API 請求失敗');
+  assert.equal(getErrorMessage(null), 'The API request failed');
   assert.equal(getErrorMessage({ error: { message: '' }, message: '' }, 'fallback'), 'fallback');
 });
 

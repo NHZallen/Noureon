@@ -577,7 +577,20 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
       archived: i18n[getConfig().uiLanguage].archived || '已封存',
       howCanIHelp: i18n[getConfig().uiLanguage].howCanIHelp || '有什麼可以為您服務的嗎？',
       copyContent: i18n[getConfig().uiLanguage].copyContent || '複製內容',
-      uiLanguage: getConfig().uiLanguage
+      uiLanguage: getConfig().uiLanguage,
+      labels: (() => {
+        const texts = i18n[getConfig().uiLanguage];
+        return {
+          imageCreating: texts.imageCreating,
+          imagePreview: texts.imagePreview,
+          imageAlt: texts.imageAlt,
+          edit: texts.edit,
+          imageDownloadOriginal: texts.imageDownloadOriginal,
+          messageActions: texts.messageActions,
+          copyMessage: texts.copyMessage,
+          editMessage: texts.editMessage
+        };
+      })()
     }[key]),
     getHistorySourceViews: (message) => normalizeHistorySourceConversationIds(
       message?.metadata?.historySourceConversationIds

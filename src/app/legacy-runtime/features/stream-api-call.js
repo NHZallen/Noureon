@@ -513,7 +513,7 @@ const readProviderErrorBody = async (response) => {
   }
 };
 
-const getProviderErrorMessage = (errorBody, fallback = 'API 請求失敗') => (
+const getProviderErrorMessage = (errorBody, fallback = 'The API request failed') => (
   errorBody?.error?.message ||
   errorBody?.message ||
   fallback
@@ -625,6 +625,8 @@ export function createStreamApiCall({
   modelSupportsVision,
   getModelReasoningConfig = () => null,
   normalizeReasoningEffort = () => null,
+  // The interface text of the language in use (for the errors shown to the person); '' when there is none.
+  getText = () => '',
   fetchImpl = fetch,
   TextDecoderImpl = TextDecoder,
   warn = (...args) => console.warn(...args)
@@ -700,13 +702,13 @@ export function createStreamApiCall({
       genConfig: null
     };
     const modelInfo = requestOptions.modelInfo || normalizeConversationModel(conversation);
-    if (!modelInfo) throw new Error(`找不到模型設定: ${conversation.model}`);
+    if (!modelInfo) throw new Error((getText('modelNotFound') || 'No settings found for the model: {model}').replace('{model}', conversation.model));
 
     const { provider } = modelInfo;
     const modelId = getModelApiId(modelInfo);
     const apiKey = getApiKeyForProvider(provider);
     if (!apiKey) {
-      throw new Error(`請先在設定中提供 ${modelInfo.name} 所需的 API 金鑰。`);
+      throw new Error((getText('apiKeyNeededFor') || 'Add the API key that {name} needs in Settings first.').replace('{name}', modelInfo.name));
     }
 
     const historyForApi = mergeAdjacentModelMessages(researchReportsForApi(compactSandboxRunsForApi(compactFileHistoryForApi(

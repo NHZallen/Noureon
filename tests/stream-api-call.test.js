@@ -943,7 +943,7 @@ test('missing provider keys fail before issuing a request', async () => {
 
   await assert.rejects(
     () => streamWithoutKey([{ text: 'Hello' }], () => {}, undefined),
-    /Missing Key.*API/
+    /API key.*Missing Key/
   );
   assert.equal(fetchCalls, 0);
 });

@@ -236,6 +236,20 @@ function getAuthText(elements, key, fallback) {
   return i18n[lang]?.[key] || i18n['zh-TW']?.[key] || fallback;
 }
 
+// What the sign-in service says in English, in the language of the page; what it says that is not known here is shown as it is.
+function authErrorText(elements, error) {
+  const code = String(error?.code || '');
+  const message = String(error?.message || '');
+  const known = (key, fallback) => getAuthText(elements, key, fallback);
+  if (code === 'user_already_exists' || /already registered/i.test(message)) return known('loginUserExists', message);
+  if (code === 'email_not_confirmed' || /not confirmed/i.test(message)) return known('loginEmailNotConfirmed', message);
+  if (code === 'weak_password' || /password should be/i.test(message)) return known('loginWeakPassword', message);
+  if (/captcha/i.test(message)) return known('loginCaptchaFailed', message);
+  if (/rate.?limit/i.test(code) || error?.status === 429 || /rate limit/i.test(message)) return known('authRateLimited', message);
+  if (/failed to fetch|network/i.test(message)) return known('loginNetworkError', message);
+  return message;
+}
+
 // `source` is the button the person pressed: it shows the working ring, the others are only switched off.
 function setBusy(elements, busy, source = elements.loginButton) {
   for (const button of [elements.loginButton, elements.googleButton, elements.forgotButton, elements.localButton]) {
@@ -439,7 +453,7 @@ export async function initializeSupabaseAuthBridge({ window, document, startupId
     turnstile.reset('supabase-auth');
     setBusy(elements, false);
     if (result.error) {
-      setStatus(elements, result.error.message, 'error');
+      setStatus(elements, authErrorText(elements, result.error), 'error');
       return;
     }
     if (result.data.session && result.data.user) {
@@ -457,7 +471,7 @@ export async function initializeSupabaseAuthBridge({ window, document, startupId
     });
     if (error) {
       setBusy(elements, false);
-      setStatus(elements, error.message, 'error');
+      setStatus(elements, authErrorText(elements, error), 'error');
     }
   });
 

@@ -12,7 +12,7 @@ export const userUidMarkup = (copyLabel) => `
           <span id="user-uid-row" class="us-uid hidden">
             <span class="us-uid-label">UID</span>
             <span id="user-uid-value" class="us-uid-value"></span>
-            <button id="user-uid-copy" type="button" class="us-copy" data-no-press title="${copyLabel}" aria-label="${copyLabel}">${COPY_ICON}</button>
+            <button id="user-uid-copy" type="button" class="us-copy" data-no-press title="${copyLabel}" aria-label="${copyLabel}" data-lang-key-title="userUidCopy" data-lang-key-aria="userUidCopy">${COPY_ICON}</button>
           </span>`;
 
 const copyText = async (document, value) => {

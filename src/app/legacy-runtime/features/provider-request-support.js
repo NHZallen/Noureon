@@ -11,6 +11,8 @@ import { resultDate } from './model-request-formatting.js';
 // How long the pages of the addresses in a message are waited for before the message goes on without them.
 const LINKED_PAGES_WAIT_MS = 8000;
 
+const documentTranslationLabel = (language, name) => `${getRuntimeText(language, 'documentTranslation')}${language === 'zh-TW' ? '：' : ': '}${name}`;
+
 export function createProviderRequestSupport({
   buildTavilySearchQuery,
   formatTavilySearchPacket,
@@ -221,13 +223,13 @@ Output requirements:
       if (!translatorModel) {
         throw new Error(getRuntimeText(config.uiLanguage, 'documentTranslatorRequired'));
       }
-      onProgress?.('documentTranslation', `文件轉譯：${translatorModel.name}`);
+      onProgress?.('documentTranslation', documentTranslationLabel(config.uiLanguage, translatorModel.name));
       const documentPacket = await streamCouncilApiCallWithRetry(
         [
           { text: buildSingleDocumentTranslationPrompt(parts, modelInfo) },
           ...documentParts
         ],
-        () => onProgress?.('documentTranslation', `文件轉譯：${translatorModel.name}`),
+        () => onProgress?.('documentTranslation', documentTranslationLabel(config.uiLanguage, translatorModel.name)),
         signal,
         false,
         {
