@@ -8,7 +8,7 @@ export const updateLogEntries = [
       "<strong>Noureon 18.8.0 發布說明</strong>",
       "本版本為連接器新增四個服務：Supabase、Hugging Face、Miro 與 Canva。",
       "<strong>主要變更</strong>",
-      "<ul><li><strong>Supabase：</strong>列出組織裡的專案、查看資料表與日誌、搜尋文件，也能在你允許時執行 SQL、套用遷移、部署 Edge Function。連線涵蓋你整個組織（包含正式環境的專案），所以每個工具由你決定；會修改資料的動作預設每次都先問你。</li><li><strong>Hugging Face：</strong>搜尋模型、資料集、Spaces 與論文，閱讀 Hugging Face 文件，也能呼叫 Spaces 上的應用；呼叫 Space 會把輸入送給該 Space，所以預設每次都先問你。</li><li><strong>Miro：</strong>讀取白板內容，並在你允許時建立圖表、文件與表格。登入時要選擇白板所在的團隊。</li><li><strong>Canva：</strong>搜尋與讀取你的設計，並在你允許時生成、調整、編輯與匯出設計。Canva 只讓它核准過的回呼網址登入，所以 Noureon 用自己在 Canva 開發者入口建的 App 登入；這個 App 通過 Canva 審核之前（草稿狀態），只有 App 團隊的成員能連線。</li><li><strong>新分類：</strong>擴充頁的連接器多了「設計與白板」分類，放 Miro 與 Canva。</li></ul>",
+      "<ul><li><strong>Supabase：</strong>列出組織裡的專案、查看資料表與日誌、搜尋文件，也能在你允許時執行 SQL、套用遷移、部署 Edge Function。連線涵蓋你整個組織（包含正式環境的專案），所以每個工具由你決定；會修改資料的動作預設每次都先問你。</li><li><strong>Hugging Face：</strong>搜尋模型、資料集、Spaces 與論文，閱讀 Hugging Face 文件，也能呼叫 Spaces 上的應用；呼叫 Space 會把輸入送給該 Space，所以預設每次都先問你。</li><li><strong>Miro：</strong>讀取白板內容，並在你允許時建立圖表、文件與表格。登入時要選擇白板所在的團隊。</li><li><strong>Canva：</strong>搜尋與讀取你的設計，並在你允許時生成、調整、編輯與匯出設計。Canva 只讓它核准過的回呼網址登入，所以 Noureon 用自己在 Canva 開發者入口建的 App 登入。</li><li><strong>新分類：</strong>擴充頁的連接器多了「設計與白板」分類，放 Miro 與 Canva。</li></ul>",
       "<strong>注意事項</strong>",
       "<ul><li>你都在各服務自己的頁面登入，Noureon 看不到你的密碼。Hugging Face 的 MCP 是實驗性質；Miro 若是企業方案，需要管理員先啟用 Miro 的 MCP；Canva 部分功能需要特定方案。</li></ul>",
       "<strong>相容性</strong>",
