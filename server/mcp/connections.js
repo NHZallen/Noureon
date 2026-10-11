@@ -195,7 +195,7 @@ export function createConnectorService({ db, vault, fetchImpl = fetch, now = Dat
       });
     } catch (error) {
       await clearPending();
-      log('connector_login_failed', { connector: connectorId, code: error?.code || error?.name || 'error', status: error?.status || 0 });
+      log('connector_login_failed', { connector: connectorId, code: error?.code || error?.name || 'error', status: error?.status || 0, ...(error?.info ? { info: String(error.info).slice(0, 160) } : {}) });
       // What the service said, for the person to read (the same as when a login cannot begin): its code, the status and its few words.
       const detail = [error?.code || error?.name || 'error', error?.status ? String(error.status) : '', error?.info ? `: ${error.info}` : ''].filter(Boolean).join(' ').replace(' :', ':').slice(0, 200);
       return { ok: false, connectorId, error: 'failed', detail };
