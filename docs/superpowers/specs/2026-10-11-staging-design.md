@@ -53,17 +53,21 @@
 
 ## 5. 第 2 階段：Python 沙盒與連接器
 
-- **Python 沙盒（Advanced）：** 沙盒頁 `run.noureon.com` 只接受 `noureon.com` 與 `www.noureon.com` 來嵌入（`vercel.json` 的 `frame-ancestors`、`src/app/runtime/sandbox/sandbox-protocol.js`、`public/sandbox/protocol.js`）；要加上測試網域，並用 `VITE_SANDBOX_ORIGIN` 指向沙盒頁；伺服器端的 Python 用同一台 VPS 的 runner（`SANDBOX_RUNNER_*`），可共用。
+owner 在 2026-10-11 要做第 2 階段（Zeabur 的舊 `NOTION_*` 變數與標籤都已處理，標籤不需要打）。決定與做法：
+
+- **Python 沙盒（瀏覽器內，Pyodide）：** 測試站直接用正式的沙盒頁 `run.noureon.com`，不另開 `run-staging`（Vercel 的 Deployment Protection 會擋住另一個網域的 iframe）。程式改了三處：`src/app/runtime/sandbox/sandbox-protocol.js` 與 `public/sandbox/protocol.js` 的 `PRODUCTION_APP_ORIGINS` 加 `https://staging.noureon.com`，`vercel.json` 沙盒頁的 `frame-ancestors` 加同一個網域。**因為 `run.noureon.com` 的標頭來自 `main` 的部署，這一項要等下一次「上線」之後，測試站的瀏覽器 Python 才會生效。** 代價：沙盒頁本身的改動沒辦法先在測試站試（它很少改，本機開發環境仍然可以）。
+- **Python 沙盒（伺服器端 runner，Advanced）：** 和正式共用同一台 VPS。★ owner 在 Zeabur 的測試服務加 `SANDBOX_RUNNER_URL`、`SANDBOX_RUNNER_TOKEN`，值和正式服務一樣（密鑰只貼在 Zeabur）。啟動日誌看 `sandbox_ok`。runner 不碰資料庫，所以兩邊共用沒有資料混在一起的問題。
 - **連接器：**
-  - 回呼 `https://api-staging.noureon.com/mcp/callback`；GitHub OAuth App 可以加第二個重定向 URI（上限 10 個）。
-  - 用「用戶端描述文件」（CIMD：Notion、Linear、Context7 等）的服務，文件是 `public/.well-known/oauth-client.json`，裡面的回呼網址是正式的；測試要有自己的一份（建置時依環境產生），而且那個網址要能被對方伺服器直接讀到（Vercel 的 Deployment Protection 不能擋它）。
+  - 回呼 `https://api-staging.noureon.com/mcp/callback`。
+  - 用「用戶端描述文件」（CIMD：Notion、Linear、Context7 等）的服務，文件要被對方伺服器直接讀到。測試站的網頁主機有登入保護，會擋住 `staging.noureon.com/.well-known/oauth-client.json`，所以伺服器自己提供：`GET https://api-staging.noureon.com/.well-known/oauth-client.json`（`server/app.js`，內容由伺服器的設定組成：`client_id` 是 `CONNECTOR_CLIENT_ID`，回呼是 `CONNECTOR_REDIRECT_URI`，名稱是「Noureon (test)」）。★ Zeabur 測試服務設 `CONNECTOR_REDIRECT_URI=https://api-staging.noureon.com/mcp/callback`、`CONNECTOR_CLIENT_ID=https://api-staging.noureon.com/.well-known/oauth-client.json`。
+  - GitHub：OAuth App 的「Authorization callback URL」只能一個時，另建一個測試用的 OAuth App（`CONNECTOR_GITHUB_CLIENT_ID/SECRET` 設在測試服務），或在同一個 App 加第二個回呼（新版介面允許多個）。
   - Vercel 的連接器：Vercel 只准它核准的回呼網址，測試環境不能用。
 - Cloudflare Turnstile（驗證碼）：測試環境不設 `VITE_TURNSTILE_SITE_KEY` 就不啟用；要的話在 Cloudflare 的網域清單加 `staging.noureon.com`，並在測試的 Supabase 設定對應的 Secret。
 
 ## 6. 和正式不一樣的地方（不是 bug）
 
 - 使用者與資料分開（§2）。
-- 第 2 階段之前：Python 沙盒（伺服器端）與連接器不可用。
+- 第 2 階段設定做完之前：Python 沙盒（伺服器端）與連接器不可用；瀏覽器內的 Python 要等這次改動上線後才可用。
 - Vercel 的連接器永遠不能用（§5）。
 - 網站的 `/api/*`（Vercel 函式：搜尋、網站資訊…）和正式用同一套程式，環境變數另外設。
 

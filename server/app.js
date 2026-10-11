@@ -111,6 +111,24 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
         status = 200;
         return;
       }
+      if (route === 'GET /.well-known/oauth-client.json') {
+        // The client description document for a test site: the web host of a test site is behind a login, so the services that read this document (CIMD) read it from the server instead. On the real site the document is the static file of the web host.
+        const appUrl = config.appUrl || 'https://noureon.com';
+        send(response, 200, {
+          client_id: config.connectorClientId,
+          client_name: appUrl === 'https://noureon.com' ? 'Noureon' : 'Noureon (test)',
+          client_uri: appUrl,
+          logo_uri: `${appUrl}/logo.png`,
+          tos_uri: `${appUrl}/terms`,
+          policy_uri: `${appUrl}/privacy`,
+          redirect_uris: [config.connectorRedirectUri],
+          grant_types: ['authorization_code', 'refresh_token'],
+          response_types: ['code'],
+          token_endpoint_auth_method: 'none'
+        }, origin);
+        status = 200;
+        return;
+      }
       if (route === 'GET /v1/whoami') {
         const user = await authenticate(request);
         send(response, 200, { userId: user.id, protocol: PROTOCOL_VERSION }, origin);

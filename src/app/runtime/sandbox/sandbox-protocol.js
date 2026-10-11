@@ -3,7 +3,7 @@
 
 export const PROTOCOL_VERSION = 1;
 export const PRODUCTION_SANDBOX_ORIGIN = 'https://run.noureon.com';
-export const PRODUCTION_APP_ORIGINS = Object.freeze(['https://noureon.com', 'https://www.noureon.com']);
+export const PRODUCTION_APP_ORIGINS = Object.freeze(['https://noureon.com', 'https://www.noureon.com', 'https://staging.noureon.com']);
 
 export const MESSAGE_TYPES = Object.freeze({
   init: 'init',

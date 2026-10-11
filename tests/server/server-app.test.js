@@ -55,6 +55,18 @@ test('/healthz answers without signing in, with the headers a plain API should s
   });
 });
 
+test('the client description document of a test site is served by the server, from its own settings', async () => {
+  await withServer(async ({ base }) => {
+    const response = await fetch(`${base}/.well-known/oauth-client.json`);
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.equal(body.client_id, 'https://noureon.com/.well-known/oauth-client.json');
+    assert.deepEqual(body.redirect_uris, ['https://api.noureon.com/mcp/callback']);
+    assert.equal(body.token_endpoint_auth_method, 'none');
+    assert.equal(body.client_name, 'Noureon');
+  });
+});
+
 test('/v1/whoami names the signed-in person and no one else', async () => {
   await withServer(async ({ base }) => {
     const ok = await fetch(`${base}/v1/whoami`, { headers: { Authorization: `Bearer ${TOKEN}` } });
