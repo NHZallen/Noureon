@@ -561,3 +561,14 @@ test('a deep research without a search key does not go, and a run found for the 
   const found = await reply.find('conv-1');
   assert.deepEqual([found.runId, found.kind, found.assistantMessageId], ['run-7', 'research', 'm-7']);
 });
+
+test('the address of the server is the real one unless the build says another https address (the test site)', async () => {
+  const { resolveServerApiUrl, DEFAULT_SERVER_API_URL } = await import('../src/app/runtime/server-reply/server-reply.js');
+  assert.equal(DEFAULT_SERVER_API_URL, 'https://api.noureon.com', 'no setting: the real server');
+  assert.equal(resolveServerApiUrl(''), 'https://api.noureon.com');
+  assert.equal(resolveServerApiUrl(undefined), 'https://api.noureon.com');
+  assert.equal(resolveServerApiUrl('https://api-staging.noureon.com'), 'https://api-staging.noureon.com');
+  assert.equal(resolveServerApiUrl(' https://api-staging.noureon.com/ '), 'https://api-staging.noureon.com');
+  // Anything that is not a plain https origin is refused (a path, http, a script address): the real server.
+  for (const bad of ['http://api-staging.noureon.com', 'https://api-staging.noureon.com/v1', 'javascript:alert(1)', 'api-staging.noureon.com', 'https://a b.com']) assert.equal(resolveServerApiUrl(bad), 'https://api.noureon.com', bad);
+});

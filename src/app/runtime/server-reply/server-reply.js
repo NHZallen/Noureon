@@ -8,7 +8,12 @@ import { readRunStream } from './server-stream.js';
 import { netPolicyForRun } from '../cli/net-state.js';
 
 export const SERVER_PROTOCOL_VERSION = 1;
-export const DEFAULT_SERVER_API_URL = 'https://api.noureon.com';
+// Where the server is: api.noureon.com, or the one of the test site (staging) when its build sets VITE_SERVER_API_URL (docs/superpowers/specs/2026-10-11-staging-design.md).
+export const resolveServerApiUrl = (value) => {
+  const text = String(value ?? '').trim().replace(/\/+$/, '');
+  return /^https:\/\/[^\s/]+$/.test(text) ? text : 'https://api.noureon.com';
+};
+export const DEFAULT_SERVER_API_URL = resolveServerApiUrl(import.meta.env?.VITE_SERVER_API_URL);
 // The server's limit on a request is 25 MB; a request is kept well under it, and a larger one is made in the browser instead.
 const MAX_REQUEST_CHARS = 20 * 1024 * 1024;
 const START_TIMEOUT_MS = 20_000;
