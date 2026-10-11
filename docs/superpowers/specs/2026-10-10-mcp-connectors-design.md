@@ -332,3 +332,12 @@ owner 決定四個都加；Supabase 連整個組織（不加 `project_ref`），
 ### 16.6 Canva：App 從開發者入口建的，要用另一個 MCP 網址（2026-10-11）
 
 加了範圍之後 `mcp.canva.com/authorize` 還是 Internal Server Error。owner 貼了 Canva 的文件（Access and permissions、Verify your Canva MCP app）：「**開發者入口建的用戶端，MCP 網址是 `https://api.canva.com/connect/v1/mcp`；經候補表單核准的用戶端才用 `https://mcp.canva.com/mcp`**」。入口建的 App 的 Client ID（`OC-…`）只在前者的登入（Canva Connect 的登入）認得，所以我們把它送去後者，就出錯。目錄的 Canva 端點改成 `https://api.canva.com/connect/v1/mcp`（探測工具也是）。範圍照 Canva 公布的名稱，要在入口的 REST APIs 範圍表勾好（App 設定的範圍要涵蓋我們要求的）。
+
+### 16.7 結果與上線前清單（2026-10-11）
+
+owner 在測試站實測：Supabase、Hugging Face、Miro、Canva 四個都連得上、工具也列得出來（18.8.0 還在 `staging`，owner 要累積更多更新才一次上線）。**上線（合併 `main`）前要做：**
+1. 把遷移 `20261011010000_add_mcp_oauth_client_secret.sql` 套用到正式專案 `clctveoosifoapbafhrl`（先套用，再合併；Supabase 的註冊會用到那兩個欄位）。
+2. 正式 Zeabur 服務（`api.noureon.com`）加 `CONNECTOR_CANVA_CLIENT_ID`、`CONNECTOR_CANVA_CLIENT_SECRET`（和測試服務同一組；Secret 只貼在 Zeabur）。Canva 入口的 Redirect URLs 要有 `https://api.noureon.com/mcp/callback`。
+3. 版本號已是 18.8.0（次版本，要在發布提交上打標籤 `v18.8.0`；owner 先前說標籤不用打）。
+4. 打包大小：第一個載入的主檔案（`legacy-submit-input`）壓縮後剛好貼著上限（155.0 KB），因為更新說明打包在裡面，每個版本會再加；下次發版前要決定把更新說明改成延後載入或調整上限。
+5. 正式站上舊的註冊（`mcp_oauth_clients`）不用清：新增的四個服務在正式站第一次連線時才會註冊。
