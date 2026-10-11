@@ -1,6 +1,16 @@
 // The update notes in French (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.8.0": [
+    "<strong>Notes de version de Noureon 18.8.0</strong>",
+    "Cette version ajoute quatre services aux connecteurs : Supabase, Hugging Face, Miro et Canva.",
+    "<strong>Changements principaux</strong>",
+    "<ul><li><strong>Supabase :</strong> liste les projets de votre organisation, consulte tables et journaux, cherche dans la documentation et, si vous l’autorisez, exécute du SQL, applique des migrations et déploie des Edge Functions. La connexion couvre toute votre organisation (y compris les projets en production) : c’est vous qui réglez chaque outil ; une action qui modifie des données vous demande d’abord, par défaut.</li><li><strong>Hugging Face :</strong> cherche modèles, jeux de données, Spaces et articles, lit la documentation de Hugging Face et peut appeler des applications sur des Spaces ; appeler un Space lui envoie l’entrée, donc cela vous demande d’abord, par défaut.</li><li><strong>Miro :</strong> lit le contenu des tableaux et, si vous l’autorisez, crée des diagrammes, des documents et des tableaux. Vous choisissez à la connexion l’équipe qui contient le tableau.</li><li><strong>Canva :</strong> cherche et lit vos designs et, si vous l’autorisez, génère, redimensionne, modifie et exporte des designs.</li><li><strong>Nouveau groupe :</strong> les connecteurs de la page Extensions ont un nouveau groupe, « Design et tableaux blancs », pour Miro et Canva.</li></ul>",
+    "<strong>Remarques</strong>",
+    "<ul><li>Vous vous connectez à chacun sur sa propre page ; Noureon ne voit jamais votre mot de passe. Le MCP de Hugging Face est expérimental ; avec une offre Miro Enterprise, un administrateur doit d’abord activer le MCP de Miro ; certaines fonctions de Canva demandent une offre précise.</li><li>C’est le service qui décide, à la connexion, s’il accepte une connexion de Noureon ; s’il refuse, la page affiche la raison.</li></ul>",
+    "<strong>Compatibilité</strong>",
+    "Cette mise à jour ne nécessite aucune migration de données."
+  ],
   "18.7.0": [
     "<strong>Notes de version de Noureon 18.7.0</strong>",
     "Cette version ajoute GitHub aux connecteurs et corrige la couleur de « Connecté » dans les réglages.",

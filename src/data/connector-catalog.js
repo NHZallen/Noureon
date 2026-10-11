@@ -7,7 +7,7 @@ const LANGUAGES = Object.freeze(['zh-TW', 'en', 'fr', 'ru', 'es']);
 const ID = /^[a-z][a-z0-9-]{1,31}$/;
 
 /** The groups the list is shown in, in this order (the words are in the page's texts, `connectors.category.<id>`). */
-export const CONNECTOR_CATEGORIES = Object.freeze(['notes', 'dev']);
+export const CONNECTOR_CATEGORIES = Object.freeze(['notes', 'design', 'dev']);
 
 // `scopes`: what the login asks for. `readonly` and `readwrite` are the two kinds of login a person may choose when the service lets the login itself say
 // it (Linear: the scope `read` alone gives a token that cannot write); a service with only `readwrite` gives one token for everything, and what a reply
@@ -214,6 +214,136 @@ export const CONNECTORS = Object.freeze([
     }),
     reads: Object.freeze(['issue_read', 'pull_request_read', 'actions_get', 'actions_list']),
     writes: Object.freeze(['issue_write', 'sub_issue_write', 'pull_request_review_write', 'create_or_update_file', 'delete_file', 'push_files', 'create_pull_request', 'merge_pull_request', 'update_pull_request', 'update_pull_request_branch', 'create_branch', 'create_repository', 'fork_repository', 'add_issue_comment', 'add_comment_to_pending_review', 'add_reply_to_pull_request_comment', 'assign_copilot_to_issue', 'request_copilot_review', 'actions_run_trigger', 'enable_pr_auto_merge', 'disable_pr_auto_merge'])
+  }),
+  Object.freeze({
+    id: 'supabase',
+    name: 'Supabase',
+    category: 'dev',
+    endpoint: 'https://mcp.supabase.com/mcp',
+    icon: 'https://github.com/supabase.png?size=96',
+    // Supabase takes a registration (it shows the name and the picture of the client on its consent screen) and has no scope that tells reading from writing; the whole organisation is connected (no project_ref in the address), and what a reply may do is the person's setting for each tool.
+    registration: 'dcr',
+    scopes: Object.freeze({ readwrite: Object.freeze([]) }),
+    description: Object.freeze({
+      'zh-TW': '查看與管理你的 Supabase 組織與專案：資料表、SQL、日誌、Edge Functions。',
+      en: 'Look at and manage your Supabase organisations and projects: tables, SQL, logs, Edge Functions.',
+      fr: 'Consulter et gérer vos organisations et projets Supabase : tables, SQL, journaux, Edge Functions.',
+      ru: 'Просмотр и управление вашими организациями и проектами Supabase: таблицы, SQL, журналы, Edge Functions.',
+      es: 'Consulta y gestiona tus organizaciones y proyectos de Supabase: tablas, SQL, registros, Edge Functions.'
+    }),
+    details: Object.freeze({
+      'zh-TW': '連接 Supabase 後，模型可以列出你組織裡的專案、查看資料表與擴充功能、讀取日誌與安全建議、搜尋 Supabase 文件，也能在你允許時執行 SQL、套用遷移、部署 Edge Function、建立分支，甚至建立或暫停專案。連線涵蓋你整個組織，所以包含正式環境的專案；每個工具能不能用由你決定，會修改資料的動作（執行 SQL、套用遷移等）預設每次都先問你，建議把你不想讓模型碰的工具設成停用。',
+      en: 'Once Supabase is connected, the model can list the projects of your organisation, look at tables and extensions, read logs and security advice, search Supabase\'s documentation and, where you allow it, run SQL, apply migrations, deploy Edge Functions, create branches and even create or pause projects. The connection covers your whole organisation, so it includes projects that are in production; what each tool may do is up to you, an action that changes data (running SQL, applying a migration and the like) asks you first by default, and you may switch off any tool you do not want the model to touch.',
+      fr: 'Une fois Supabase connecté, le modèle peut lister les projets de votre organisation, consulter tables et extensions, lire journaux et conseils de sécurité, chercher dans la documentation de Supabase et, si vous l’autorisez, exécuter du SQL, appliquer des migrations, déployer des Edge Functions, créer des branches et même créer ou mettre en pause des projets. La connexion couvre toute votre organisation, donc aussi les projets en production ; c’est vous qui décidez de ce que chaque outil peut faire, une action qui modifie des données (exécuter du SQL, appliquer une migration, etc.) vous demande d’abord, par défaut, et vous pouvez désactiver tout outil que le modèle ne doit pas toucher.',
+      ru: 'После подключения Supabase модель может перечислять проекты вашей организации, смотреть таблицы и расширения, читать журналы и рекомендации по безопасности, искать в документации Supabase и, если вы разрешите, выполнять SQL, применять миграции, развёртывать Edge Functions, создавать ветки и даже создавать или приостанавливать проекты. Подключение охватывает всю вашу организацию, включая проекты в продакшене; что может каждый инструмент, решаете вы, действие, меняющее данные (выполнение SQL, применение миграции и т. п.), по умолчанию сначала спрашивает вас, а ненужные инструменты можно отключить.',
+      es: 'Una vez conectado Supabase, el modelo puede listar los proyectos de tu organización, ver tablas y extensiones, leer registros y avisos de seguridad, buscar en la documentación de Supabase y, si lo permites, ejecutar SQL, aplicar migraciones, desplegar Edge Functions, crear ramas e incluso crear o pausar proyectos. La conexión abarca toda tu organización, así que incluye proyectos en producción; lo que puede hacer cada herramienta lo decides tú, una acción que cambia datos (ejecutar SQL, aplicar una migración y similares) te pregunta antes, por defecto, y puedes desactivar cualquier herramienta que no quieras que el modelo toque.'
+    }),
+    examples: Object.freeze({
+      'zh-TW': Object.freeze(['列出我組織裡的專案，並告訴我各自的狀態', '看一下 my-app 專案有哪些資料表，哪些還沒開 RLS？', '查最近一小時 API 的錯誤日誌']),
+      en: Object.freeze(['List the projects in my organisation and tell me the status of each', 'Look at the tables of the my-app project: which ones have no RLS yet?', 'Look at the API error logs of the last hour']),
+      fr: Object.freeze(['Liste les projets de mon organisation et indique l’état de chacun', 'Regarde les tables du projet my-app : lesquelles n’ont pas encore de RLS ?', 'Regarde les journaux d’erreurs de l’API de la dernière heure']),
+      ru: Object.freeze(['Покажи проекты моей организации и состояние каждого', 'Посмотри таблицы проекта my-app: у каких ещё нет RLS?', 'Посмотри журналы ошибок API за последний час']),
+      es: Object.freeze(['Lista los proyectos de mi organización e indica el estado de cada uno', 'Mira las tablas del proyecto my-app: ¿cuáles aún no tienen RLS?', 'Mira los registros de errores de la API de la última hora'])
+    }),
+    reads: Object.freeze(['generate_typescript_types', 'query_logs', 'get_logs', 'get_advisors', 'get_cost']),
+    writes: Object.freeze(['execute_sql', 'apply_migration', 'create_project', 'pause_project', 'restore_project', 'confirm_cost', 'create_branch', 'delete_branch', 'merge_branch', 'reset_branch', 'rebase_branch', 'deploy_edge_function', 'create_edge_function_secret'])
+  }),
+  Object.freeze({
+    id: 'huggingface',
+    name: 'Hugging Face',
+    category: 'dev',
+    endpoint: 'https://huggingface.co/mcp',
+    icon: 'https://github.com/huggingface.png?size=96',
+    registration: 'dcr',
+    scopes: Object.freeze({ readwrite: Object.freeze([]) }),
+    description: Object.freeze({
+      'zh-TW': '搜尋 Hugging Face 的模型、資料集、Spaces 與論文，並使用社群的 AI 應用。',
+      en: 'Search Hugging Face models, datasets, Spaces and papers, and use the community\'s AI apps.',
+      fr: 'Rechercher modèles, jeux de données, Spaces et articles sur Hugging Face, et utiliser les applications d’IA de la communauté.',
+      ru: 'Поиск моделей, датасетов, Spaces и статей на Hugging Face и использование ИИ-приложений сообщества.',
+      es: 'Busca modelos, conjuntos de datos, Spaces y artículos en Hugging Face, y usa las aplicaciones de IA de la comunidad.'
+    }),
+    details: Object.freeze({
+      'zh-TW': '連接 Hugging Face 後，模型可以搜尋 Hub 上的模型、資料集、Spaces 與論文，查看倉庫的詳細資料，搜尋並閱讀 Hugging Face 文件，也能呼叫 Spaces 上的 Gradio 應用（例如生成圖片、語音辨識）。呼叫 Space 會把輸入送到該 Space，由它的作者決定怎麼處理，所以這類工具預設每次都先問你。Hugging Face 的 MCP 目前是實驗性質，工具可能會變動。',
+      en: 'Once Hugging Face is connected, the model can search the Hub for models, datasets, Spaces and papers, look at the details of a repository, search and read Hugging Face\'s documentation and call Gradio apps on Spaces (generating an image or recognising speech, for example). Calling a Space sends the input to that Space, and its author decides what happens to it, so such tools ask you first by default. Hugging Face\'s MCP is experimental and its tools may change.',
+      fr: 'Une fois Hugging Face connecté, le modèle peut chercher sur le Hub des modèles, des jeux de données, des Spaces et des articles, consulter les détails d’un dépôt, chercher et lire la documentation de Hugging Face et appeler des applications Gradio sur des Spaces (générer une image ou reconnaître la parole, par exemple). Appeler un Space lui envoie l’entrée, et son auteur décide de ce qu’il en fait : de tels outils vous demandent donc d’abord, par défaut. Le MCP de Hugging Face est expérimental et ses outils peuvent changer.',
+      ru: 'После подключения Hugging Face модель может искать на Hub модели, датасеты, Spaces и статьи, смотреть сведения о репозитории, искать и читать документацию Hugging Face и вызывать приложения Gradio в Spaces (например, генерировать изображение или распознавать речь). Вызов Space отправляет ему входные данные, а что с ними будет, решает его автор, поэтому такие инструменты по умолчанию сначала спрашивают вас. MCP Hugging Face экспериментальный, его инструменты могут меняться.',
+      es: 'Una vez conectado Hugging Face, el modelo puede buscar en el Hub modelos, conjuntos de datos, Spaces y artículos, ver los detalles de un repositorio, buscar y leer la documentación de Hugging Face y llamar a aplicaciones Gradio de Spaces (generar una imagen o reconocer voz, por ejemplo). Llamar a un Space le envía la entrada, y su autor decide qué se hace con ella, así que esas herramientas te preguntan antes, por defecto. El MCP de Hugging Face es experimental y sus herramientas pueden cambiar.'
+    }),
+    examples: Object.freeze({
+      'zh-TW': Object.freeze(['找幾個適合做中文語音辨識的模型，比較它們的大小與下載量', '搜尋最近一個月關於 RAG 的熱門論文', 'Hugging Face 的 Transformers 怎麼載入量化模型？查官方文件']),
+      en: Object.freeze(['Find a few models suited to Chinese speech recognition and compare their size and downloads', 'Search for the popular papers on RAG of the last month', 'How does Transformers load a quantised model? Check the official documentation']),
+      fr: Object.freeze(['Trouve quelques modèles adaptés à la reconnaissance vocale du chinois et compare leur taille et leurs téléchargements', 'Cherche les articles populaires sur le RAG du dernier mois', 'Comment Transformers charge-t-il un modèle quantifié ? Consulte la documentation officielle']),
+      ru: Object.freeze(['Найди несколько моделей для распознавания китайской речи и сравни размер и число загрузок', 'Найди популярные статьи о RAG за последний месяц', 'Как Transformers загружает квантованную модель? Посмотри официальную документацию']),
+      es: Object.freeze(['Encuentra algunos modelos para reconocimiento de voz en chino y compara su tamaño y descargas', 'Busca los artículos populares sobre RAG del último mes', '¿Cómo carga Transformers un modelo cuantizado? Mira la documentación oficial'])
+    }),
+    reads: Object.freeze(['hf_whoami', 'space_search', 'model_search', 'paper_search', 'dataset_search', 'hub_repo_details', 'hub_repo_search', 'hf_doc_search', 'hf_doc_fetch']),
+    writes: Object.freeze(['dynamic_space', 'use_space'])
+  }),
+  Object.freeze({
+    id: 'miro',
+    name: 'Miro',
+    category: 'design',
+    endpoint: 'https://mcp.miro.com/',
+    icon: 'https://github.com/miroapp.png?size=96',
+    registration: 'dcr',
+    scopes: Object.freeze({ readwrite: Object.freeze([]) }),
+    description: Object.freeze({
+      'zh-TW': '讀取你的 Miro 白板內容，並建立圖表、文件與表格。',
+      en: 'Read the content of your Miro boards, and create diagrams, documents and tables.',
+      fr: 'Lire le contenu de vos tableaux Miro, et créer des diagrammes, des documents et des tableaux.',
+      ru: 'Чтение содержимого ваших досок Miro и создание диаграмм, документов и таблиц.',
+      es: 'Lee el contenido de tus tableros de Miro y crea diagramas, documentos y tablas.'
+    }),
+    details: Object.freeze({
+      'zh-TW': '連接 Miro 後，模型可以讀取你白板上的內容（便利貼、文字、圖表、框架），根據白板內容整理摘要或需求，也能在你允許時在白板上建立圖表、文件與表格。Miro 的連線是以團隊為單位，登入時要選擇白板所在的團隊；會修改白板的動作預設每次都先問你。如果你的 Miro 是企業方案，需要管理員先在組織裡啟用 Miro 的 MCP。',
+      en: 'Once Miro is connected, the model can read what is on your boards (sticky notes, text, diagrams, frames), make a summary or a list of requirements from it and, where you allow it, create diagrams, documents and tables on a board. Miro\'s connection is made per team: you choose the team that holds the board when you log in. An action that changes a board asks you first by default. On a Miro Enterprise plan, an administrator has to enable Miro\'s MCP for the organisation first.',
+      fr: 'Une fois Miro connecté, le modèle peut lire ce qui se trouve sur vos tableaux (notes, texte, diagrammes, cadres), en tirer un résumé ou une liste d’exigences et, si vous l’autorisez, créer des diagrammes, des documents et des tableaux sur un tableau. La connexion de Miro se fait par équipe : vous choisissez à la connexion l’équipe qui contient le tableau. Une action qui modifie un tableau vous demande d’abord, par défaut. Avec une offre Miro Enterprise, un administrateur doit d’abord activer le MCP de Miro pour l’organisation.',
+      ru: 'После подключения Miro модель может читать содержимое ваших досок (стикеры, текст, диаграммы, фреймы), составлять по нему резюме или список требований и, если вы разрешите, создавать на доске диаграммы, документы и таблицы. Подключение Miro выполняется для команды: при входе вы выбираете команду, в которой находится доска. Действие, меняющее доску, по умолчанию сначала спрашивает вас. На тарифе Miro Enterprise администратор должен сначала включить MCP Miro для организации.',
+      es: 'Una vez conectado Miro, el modelo puede leer lo que hay en tus tableros (notas, texto, diagramas, marcos), hacer con ello un resumen o una lista de requisitos y, si lo permites, crear diagramas, documentos y tablas en un tablero. La conexión de Miro se hace por equipo: al iniciar sesión eliges el equipo que contiene el tablero. Una acción que modifica un tablero te pregunta antes, por defecto. Con un plan Miro Enterprise, un administrador debe activar antes el MCP de Miro para la organización.'
+    }),
+    examples: Object.freeze({
+      'zh-TW': Object.freeze(['讀一下「產品路線圖」這塊白板，幫我整理成一頁摘要', '根據這份需求，在白板上畫一張登入流程圖', '把白板上的便利貼依主題分類，列成表格']),
+      en: Object.freeze(['Read the "Product roadmap" board and make a one-page summary of it', 'Draw a login flow diagram on the board from this requirement', 'Sort the sticky notes on the board by theme and list them in a table']),
+      fr: Object.freeze(['Lis le tableau « Feuille de route produit » et fais-en un résumé d’une page', 'Dessine sur le tableau un diagramme du parcours de connexion d’après cette exigence', 'Classe par thème les notes du tableau et présente-les dans un tableau']),
+      ru: Object.freeze(['Прочитай доску «Дорожная карта продукта» и сделай по ней резюме на одну страницу', 'Нарисуй на доске схему процесса входа по этому требованию', 'Разбери стикеры на доске по темам и сведи их в таблицу']),
+      es: Object.freeze(['Lee el tablero «Hoja de ruta del producto» y haz un resumen de una página', 'Dibuja en el tablero un diagrama del flujo de inicio de sesión según este requisito', 'Clasifica las notas del tablero por tema y ponlas en una tabla'])
+    }),
+    // What reads is told by the name (the service's tools start with the thing they act on: board_list_items, doc_get, ...), so what we know is listed; any other tool asks.
+    reads: Object.freeze(['board_list_items', 'context_explore', 'context_get', 'diagram_get_dsl', 'doc_get', 'table_list_rows']),
+    writes: Object.freeze(['diagram_create', 'doc_create', 'doc_update', 'table_create', 'table_sync_rows'])
+  }),
+  Object.freeze({
+    id: 'canva',
+    name: 'Canva',
+    category: 'design',
+    endpoint: 'https://mcp.canva.com/mcp',
+    icon: 'https://github.com/canva.png?size=96',
+    registration: 'dcr',
+    scopes: Object.freeze({ readwrite: Object.freeze([]) }),
+    description: Object.freeze({
+      'zh-TW': '搜尋、讀取與生成你的 Canva 設計，並匯出成檔案。',
+      en: 'Search, read and generate your Canva designs, and export them as files.',
+      fr: 'Rechercher, lire et générer vos designs Canva, et les exporter en fichiers.',
+      ru: 'Поиск, чтение и создание ваших дизайнов Canva и экспорт их в файлы.',
+      es: 'Busca, lee y genera tus diseños de Canva, y expórtalos como archivos.'
+    }),
+    details: Object.freeze({
+      'zh-TW': '連接 Canva 後，模型可以搜尋你的設計、讀取設計的內容與頁面、查看品牌套件與留言，也能在你允許時用文字描述生成新的設計、調整尺寸、編輯內容、加入留言，並匯出成 PDF 或圖片。部分功能需要特定的 Canva 方案（例如調整尺寸需要 Pro，品牌套件自動填入需要 Enterprise）。會建立或修改設計的動作預設每次都先問你。',
+      en: 'Once Canva is connected, the model can search your designs, read the content and pages of a design, look at brand kits and comments and, where you allow it, generate new designs from a description, resize them, edit their content, add comments and export them as PDF or images. Some functions need a particular Canva plan (resizing needs Pro, filling in from a brand kit needs Enterprise). An action that creates or changes a design asks you first by default.',
+      fr: 'Une fois Canva connecté, le modèle peut chercher vos designs, lire le contenu et les pages d’un design, consulter kits de marque et commentaires et, si vous l’autorisez, générer de nouveaux designs à partir d’une description, les redimensionner, modifier leur contenu, ajouter des commentaires et les exporter en PDF ou en images. Certaines fonctions demandent une offre Canva précise (le redimensionnement demande Pro, le remplissage depuis un kit de marque demande Enterprise). Une action qui crée ou modifie un design vous demande d’abord, par défaut.',
+      ru: 'После подключения Canva модель может искать ваши дизайны, читать содержимое и страницы дизайна, смотреть фирменные наборы и комментарии и, если вы разрешите, создавать новые дизайны по описанию, менять их размер, редактировать содержимое, добавлять комментарии и экспортировать в PDF или изображения. Некоторым функциям нужен определённый тариф Canva (для смены размера нужен Pro, для подстановки из фирменного набора — Enterprise). Действие, создающее или меняющее дизайн, по умолчанию сначала спрашивает вас.',
+      es: 'Una vez conectado Canva, el modelo puede buscar tus diseños, leer el contenido y las páginas de un diseño, ver kits de marca y comentarios y, si lo permites, generar diseños nuevos a partir de una descripción, cambiarles el tamaño, editar su contenido, añadir comentarios y exportarlos como PDF o imágenes. Algunas funciones requieren un plan concreto de Canva (cambiar el tamaño requiere Pro, rellenar desde un kit de marca requiere Enterprise). Una acción que crea o cambia un diseño te pregunta antes, por defecto.'
+    }),
+    examples: Object.freeze({
+      'zh-TW': Object.freeze(['找出我上個月做的簡報設計，列出每一頁的標題', '幫我做一張活動海報：10 月 25 日，社區市集，風格溫暖簡約', '把這份設計匯出成 PDF']),
+      en: Object.freeze(['Find the presentation I made last month and list the title of each page', 'Make an event poster: 25 October, neighbourhood market, warm and minimal', 'Export this design as a PDF']),
+      fr: Object.freeze(['Trouve la présentation que j’ai faite le mois dernier et liste le titre de chaque page', 'Fais une affiche d’événement : 25 octobre, marché de quartier, style chaleureux et minimaliste', 'Exporte ce design en PDF']),
+      ru: Object.freeze(['Найди презентацию, которую я делал в прошлом месяце, и перечисли заголовок каждой страницы', 'Сделай афишу мероприятия: 25 октября, районный рынок, тёплый минималистичный стиль', 'Экспортируй этот дизайн в PDF']),
+      es: Object.freeze(['Encuentra la presentación que hice el mes pasado y lista el título de cada página', 'Haz un cartel de evento: 25 de octubre, mercadillo del barrio, estilo cálido y minimalista', 'Exporta este diseño como PDF'])
+    }),
+    reads: Object.freeze(['search-designs', 'get-design', 'get-design-content', 'get-design-pages', 'get-assets', 'list-brand-kits', 'list-comments', 'list-replies', 'get-export-formats', 'search-folders', 'list-folder-items']),
+    writes: Object.freeze(['generate-design', 'create-design-from-candidate', 'resize-design', 'export-design', 'upload-asset-from-url', 'comment-on-design', 'reply-to-comment', 'start-editing-transaction', 'perform-editing-operations', 'commit-editing-transaction', 'create-folder', 'move-item-to-folder'])
   })
 ]);
 

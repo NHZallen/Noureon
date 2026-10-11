@@ -19,7 +19,7 @@ const network = (routes, calls = []) => async (url, options = {}) => {
 };
 
 test('the six connectors of the first design are the ones that are probed, each at its official address', () => {
-  assert.deepEqual(TARGETS.map((target) => target.id), ['notion', 'linear', 'context7', 'upstash', 'vercel', 'github']);
+  assert.deepEqual(TARGETS.map((target) => target.id), ['notion', 'linear', 'context7', 'upstash', 'vercel', 'github', 'supabase', 'huggingface', 'miro', 'canva']);
   for (const target of TARGETS) assert.match(target.url, /^https:\/\//);
 });
 

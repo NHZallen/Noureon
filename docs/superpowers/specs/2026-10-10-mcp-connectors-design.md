@@ -277,3 +277,19 @@ owner 的要求：像搜尋、CLI、技能那樣保存；**只顯示連接器的
 - 詢問卡（要不要讓 GitHub 執行某工具）照舊顯示工具名稱：那是在問使用者要不要允許，需要看到是哪個工具。
 
 沒做：保存每次呼叫的工具名稱、結果與是否被拒絕（owner 說不需要）。
+
+## 16. 第 4 期：Supabase、Hugging Face、Miro、Canva（18.8.0，2026-10-11）
+
+owner 決定四個都加；Supabase 連整個組織（不加 `project_ref`），權限由使用者逐工具決定（不強制唯讀）。
+
+- 目錄（`src/data/connector-catalog.js`）：
+  - **Supabase** `https://mcp.supabase.com/mcp`（開發類）。官方寫預設是動態註冊（DCR）。寫入類：`execute_sql`、`apply_migration`、`create_project`、`pause_project`、`restore_project`、分支與 Edge Function 的建立／刪除／合併／部署、`confirm_cost`；`generate_typescript_types`、`query_logs`、`get_logs`、`get_advisors`、`get_cost` 與名稱以 get／list／search 開頭的是讀取。
+  - **Hugging Face** `https://huggingface.co/mcp`（開發類）。登入方式的資料互相矛盾（OAuth，也有個人 Token）。`*_search`、`hf_whoami`、`hub_repo_details`、`hf_doc_*` 是讀取；`dynamic_space`、`use_space` 與所有 Gradio 工具（`gr…`）會把輸入送給別人的 Space，所以詢問。
+  - **Miro** `https://mcp.miro.com/`（新分類「設計與白板」`design`）。官方寫 OAuth 2.1 + DCR，登入時要選團隊；企業方案要管理員先啟用。工具名稱是我們依資料猜的（`board_list_items`、`context_explore`、`doc_get`…），沒列到的一律詢問。
+  - **Canva** `https://mcp.canva.com/mcp`（設計與白板）。資料互相矛盾：DCR 或 CIMD，還有一篇說自己做的正式產品要排隊讓 Canva 核准回呼網址（可能和 Vercel 一樣被擋）。
+- 四個都 `registration: 'dcr'`：有註冊端點就先註冊（授權畫面才有名稱與標誌），註冊被拒而且服務收 CIMD 描述文件時，退回 CIMD。範圍都不指定（登入畫面用服務自己的預設）。
+- 新分類 `design`：`CONNECTOR_CATEGORIES` 為 `notes`、`design`、`dev`，五語言文字 `connectorCategory_design`。
+- 探測工具 `scripts/mcp-probe.mjs` 的 `TARGETS` 加了這四個：owner 在自己的電腦跑 `node scripts/mcp-probe.mjs`，可以不登入就看到各家收哪種用戶端（這個沙盒連不到外網）。
+- 五語言：說明、細節、範例、更新日誌 18.8.0、隱私政策／協助中心／使用條款的服務名單（`PRIVACY.md` 重新產生）。
+
+**沒驗證的（要真實登入才知道）：** 四個服務是否接受 Noureon 登入、需不需要指定範圍、Miro／Canva／Hugging Face 的真實工具名稱（讀寫分類是依資料與名稱猜的，沒列到的詢問，是安全的一邊）、Canva 的回呼網址是否要核准。登入被拒時，畫面會顯示服務回的原因（診斷訊息）；若是核准制，照 Vercel 的做法加 `pending: true`。

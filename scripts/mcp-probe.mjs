@@ -15,7 +15,11 @@ export const TARGETS = Object.freeze([
   { id: 'context7', name: 'Context7', url: 'https://mcp.context7.com/mcp/oauth' },
   { id: 'upstash', name: 'Upstash', url: 'https://mcp.upstash.com/mcp' },
   { id: 'vercel', name: 'Vercel', url: 'https://mcp.vercel.com' },
-  { id: 'github', name: 'GitHub', url: 'https://api.githubcopilot.com/mcp/' }
+  { id: 'github', name: 'GitHub', url: 'https://api.githubcopilot.com/mcp/' },
+  { id: 'supabase', name: 'Supabase', url: 'https://mcp.supabase.com/mcp' },
+  { id: 'huggingface', name: 'Hugging Face', url: 'https://huggingface.co/mcp' },
+  { id: 'miro', name: 'Miro', url: 'https://mcp.miro.com/' },
+  { id: 'canva', name: 'Canva', url: 'https://mcp.canva.com/mcp' }
 ]);
 
 const INITIALIZE = JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'noureon-probe', version: '0' } } });

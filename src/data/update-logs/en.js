@@ -1,6 +1,16 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.8.0": [
+    "<strong>Noureon 18.8.0 Release Notes</strong>",
+    "This version adds four services to the connectors: Supabase, Hugging Face, Miro and Canva.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Supabase:</strong> lists the projects of your organisation, looks at tables and logs, searches the documentation and, where you allow it, runs SQL, applies migrations and deploys Edge Functions. The connection covers your whole organisation (including projects in production), so each tool is up to you; an action that changes data asks you first by default.</li><li><strong>Hugging Face:</strong> searches models, datasets, Spaces and papers, reads Hugging Face’s documentation and can call apps on Spaces; calling a Space sends the input to that Space, so it asks you first by default.</li><li><strong>Miro:</strong> reads the content of boards and, where you allow it, creates diagrams, documents and tables. You choose the team that holds the board when you log in.</li><li><strong>Canva:</strong> searches and reads your designs and, where you allow it, generates, resizes, edits and exports designs.</li><li><strong>New group:</strong> the connectors in the Extensions page have a new group, “Design and whiteboards”, for Miro and Canva.</li></ul>",
+    "<strong>Notes</strong>",
+    "<ul><li>You log in to each on its own page; Noureon never sees your password. Hugging Face’s MCP is experimental; on a Miro Enterprise plan an administrator has to enable Miro’s MCP first; some Canva functions need a particular plan.</li><li>Whether each of the four accepts a login from Noureon is up to the service when you connect; if one refuses, the page shows the reason.</li></ul>",
+    "<strong>Compatibility</strong>",
+    "This update requires no data migration."
+  ],
   "18.7.0": [
     "<strong>Noureon 18.7.0 Release Notes</strong>",
     "This version adds GitHub to the connectors and fixes the colour of “Connected” in the settings.",

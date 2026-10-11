@@ -63,6 +63,30 @@ test('the catalog is right: every entry has its five languages, and the tools ar
   assert.deepEqual(loginScopes(notion, 'readonly'), [], 'a service with no read-only login gets the one login it has');
 });
 
+test('Supabase, Hugging Face, Miro and Canva: their own endpoints, a registration first, and the tools told read from write', () => {
+  const [supabase, huggingface, miro, canva] = ['supabase', 'huggingface', 'miro', 'canva'].map(getConnector);
+  assert.deepEqual([supabase.endpoint, huggingface.endpoint, miro.endpoint, canva.endpoint], ['https://mcp.supabase.com/mcp', 'https://huggingface.co/mcp', 'https://mcp.miro.com/', 'https://mcp.canva.com/mcp']);
+  for (const connector of [supabase, huggingface, miro, canva]) {
+    assert.deepEqual(connectorProblems(connector), [], connector.id);
+    assert.equal(connector.registration, 'dcr', connector.id);
+    assert.equal(hasReadonlyLogin(connector), false, `${connector.id}: one login, what a reply may do is the person's setting for each tool`);
+    assert.ok(!connector.pending, connector.id);
+  }
+  assert.equal(supabase.category, 'dev');
+  assert.equal(miro.category, 'design');
+  assert.equal(canva.category, 'design');
+  // Supabase: looking is allowed; what runs SQL, changes a migration, deploys or creates asks, and so does a tool that is not known.
+  for (const name of ['list_projects', 'list_tables', 'get_project', 'search_docs', 'get_logs', 'query_logs', 'generate_typescript_types']) assert.equal(defaultToolState(supabase, name), 'allow', name);
+  for (const name of ['execute_sql', 'apply_migration', 'create_project', 'deploy_edge_function', 'delete_branch', 'something_new']) assert.equal(defaultToolState(supabase, name), 'ask', name);
+  // Hugging Face: searching the hub is allowed; calling a Space sends the input to someone else's app, so it asks.
+  for (const name of ['model_search', 'paper_search', 'hf_doc_fetch', 'hf_whoami']) assert.equal(defaultToolState(huggingface, name), 'allow', name);
+  for (const name of ['dynamic_space', 'gr1_flux1_schnell_infer']) assert.equal(defaultToolState(huggingface, name), 'ask', name);
+  assert.equal(defaultToolState(miro, 'board_list_items'), 'allow');
+  assert.equal(defaultToolState(miro, 'diagram_create'), 'ask');
+  assert.equal(defaultToolState(canva, 'search-designs'), 'allow');
+  for (const name of ['generate-design', 'export-design', 'commit-editing-transaction']) assert.equal(defaultToolState(canva, name), 'ask', name);
+});
+
 test('Context7, Upstash and Vercel: their own endpoints, one login each (no read-only is forced), and the tools told read from write', () => {
   const context7 = getConnector('context7');
   const upstash = getConnector('upstash');
