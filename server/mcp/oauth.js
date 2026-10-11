@@ -17,6 +17,9 @@ export class OAuthError extends Error {
   }
 }
 
+// A few plain words of what a service answered (for the person to read; nothing but printable characters, short).
+const plain = (value, limit) => (typeof value === 'string' ? value.replace(/[^\x20-\x7e]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, limit) : '');
+
 const MAX_BODY_BYTES = 256 * 1024;
 const DEFAULT_TIMEOUT_MS = 15_000;
 
@@ -202,7 +205,6 @@ export async function resolveClient({ connectorId, metadata, redirectUri, cimdUr
       body = null;
     }
     if (!response.ok || typeof body?.client_id !== 'string' || !body.client_id) {
-      const plain = (value, limit) => (typeof value === 'string' ? value.replace(/[^\x20-\x7e]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, limit) : '');
       const info = [plain(body?.error, 60), plain(body?.error_description, 120)].filter(Boolean).join(': ');
       throw new OAuthError('registration_refused', 'The service did not accept the registration.', { status: response.status, info });
     }
@@ -253,7 +255,9 @@ async function tokenRequest(url, form, { clientSecret = '', auth = 'basic', fetc
   if (!response.ok || (typeof data?.error === 'string' && !data.access_token)) {
     // `invalid_grant`: the code or the refresh token is no longer good (the person must log in again).
     const code = typeof data?.error === 'string' && /^[a-z_]{1,40}$/.test(data.error) ? data.error : 'token_refused';
-    throw new OAuthError(code, 'The service refused the token request.', { status: response.status });
+    // Its words about why: the standard error and its description, or the message that a service gives in its own shape.
+    const info = [plain(data?.error, 60), plain(data?.error_description || data?.message || data?.msg || data?.detail, 120)].filter(Boolean).join(': ');
+    throw new OAuthError(code, 'The service refused the token request.', { status: response.status, info });
   }
   if (typeof data?.access_token !== 'string' || !data.access_token || (data.token_type && String(data.token_type).toLowerCase() !== 'bearer')) throw new OAuthError('bad_response', 'The service did not give a usable token.', { status: response.status });
   const seconds = Number(data.expires_in);
@@ -265,14 +269,25 @@ async function tokenRequest(url, form, { clientSecret = '', auth = 'basic', fetc
   };
 }
 
+// RFC 8707 asks for `resource` in a token request, but a service that checks its requests strictly may refuse a field it does not know (400 or 422):
+// the request is then made again, once, without it. (A refusal comes before the code is used, so the code is still good.)
+async function withResourceFallback(make, resource) {
+  try {
+    return await make(resource);
+  } catch (error) {
+    if (!resource || !(error instanceof OAuthError) || ![400, 422].includes(error.status) || !['token_refused', 'invalid_request'].includes(error.code)) throw error;
+    return make('');
+  }
+}
+
 /** Trades the code the service sent back for tokens. Returns { accessToken, refreshToken, expiresInSeconds, scope }. */
 export function exchangeCode({ metadata, client, redirectUri, code, verifier, fetchImpl = fetch, timeoutMs = DEFAULT_TIMEOUT_MS }) {
-  return tokenRequest(metadata.tokenEndpoint, { grant_type: 'authorization_code', code, redirect_uri: redirectUri, client_id: client.clientId, code_verifier: verifier, resource: metadata.resource }, { clientSecret: client.clientSecret, auth: client.auth, fetchImpl, timeoutMs });
+  return withResourceFallback((resource) => tokenRequest(metadata.tokenEndpoint, { grant_type: 'authorization_code', code, redirect_uri: redirectUri, client_id: client.clientId, code_verifier: verifier, ...(resource ? { resource } : {}) }, { clientSecret: client.clientSecret, auth: client.auth, fetchImpl, timeoutMs }), metadata.resource);
 }
 
 /** Trades a refresh token for new tokens (a service that rotates gives a new refresh token: it must be kept, the old one is dead). */
 export function refreshTokens({ metadata, client, refreshToken, fetchImpl = fetch, timeoutMs = DEFAULT_TIMEOUT_MS }) {
-  return tokenRequest(metadata.tokenEndpoint, { grant_type: 'refresh_token', refresh_token: refreshToken, client_id: client.clientId, resource: metadata.resource }, { clientSecret: client.clientSecret, auth: client.auth, fetchImpl, timeoutMs });
+  return withResourceFallback((resource) => tokenRequest(metadata.tokenEndpoint, { grant_type: 'refresh_token', refresh_token: refreshToken, client_id: client.clientId, ...(resource ? { resource } : {}) }, { clientSecret: client.clientSecret, auth: client.auth, fetchImpl, timeoutMs }), metadata.resource);
 }
 
 /** Tells the service the token is no longer wanted (RFC 7009), when it has an address for that. Returns whether the service accepted; it never throws. */

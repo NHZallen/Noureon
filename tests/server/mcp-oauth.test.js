@@ -129,6 +129,27 @@ test('a registration that is refused as not right is asked again with only what 
   await assert.rejects(resolveClient({ connectorId: 'v', metadata: dcr, redirectUri, cimdUrl, identity: { logoUri: 'https://noureon.com/logo.png' }, fetchImpl: never }), (error) => error.code === 'registration_refused' && error.status === 400 && /^invalid_redirect_uri: This redirect is not allowed x+$/.test(error.info) && error.info.length <= 60 + 2 + 120);
 });
 
+test('a service that refuses the field `resource` of a token request (422) is asked again without it, and a refusal says what the service said', async () => {
+  const metadata = { tokenEndpoint: 'https://api.supabase.example/oauth/token', resource: 'https://mcp.supabase.example/mcp' };
+  const forms = [];
+  const strict = async (url, options) => {
+    const form = Object.fromEntries(new URLSearchParams(String(options.body)));
+    forms.push(form);
+    return form.resource ? json({ message: 'property resource should not exist' }, 422) : json({ access_token: 'AT', refresh_token: 'RT', expires_in: 3600, token_type: 'bearer' });
+  };
+  const args = { metadata, client: { clientId: 'c1' }, redirectUri: 'https://api.noureon.com/mcp/callback', code: 'c', verifier: 'v'.repeat(43) };
+  const tokens = await exchangeCode({ ...args, fetchImpl: strict });
+  assert.equal(tokens.accessToken, 'AT');
+  assert.deepEqual(forms.map((form) => Boolean(form.resource)), [true, false], 'once with it, once without');
+  // A refusal that has another reason stays a refusal, with the service's words.
+  const refusing = async () => json({ message: 'code_verifier is not valid' }, 422);
+  await assert.rejects(exchangeCode({ ...args, fetchImpl: refusing }), (error) => error.code === 'token_refused' && error.status === 422 && error.info === 'code_verifier is not valid');
+  // No second try for a refusal that is not about the shape of the request.
+  let calls = 0;
+  await assert.rejects(exchangeCode({ ...args, fetchImpl: async () => { calls += 1; return json({ error: 'invalid_grant' }, 400); } }), (error) => error.code === 'invalid_grant');
+  assert.equal(calls, 1);
+});
+
 test('a service that wants the secret in the body (GitHub) gets it there and not in the header, and its refusal that comes with a 200 is a refusal', async () => {
   const metadata = { tokenEndpoint: 'https://github.com/login/oauth/access_token', resource: 'https://api.githubcopilot.com/mcp/' };
   const seen = [];
