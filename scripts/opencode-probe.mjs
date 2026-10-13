@@ -290,11 +290,19 @@ export async function main(args = process.argv.slice(2), env = process.env, out 
   const session = `probe-${Math.random().toString(36).slice(2, 10)}`;
   let stopped = false;
   let tooMany = 0;
+  const unavailable = new Set();
   const run = async (family, body, options = {}) => {
     if (stopped) return { status: 0, ok: false, message: 'stopped after a 429' };
+    if (unavailable.has(body?.model)) return { status: 429, ok: false, message: 'skipped: the endpoint of this model said it is unavailable' };
     await new Promise((resolve) => setTimeout(resolve, 250));
     const result = await send({ fetchImpl, base, key: options.key !== undefined ? options.key : key, family, body, stream: Boolean(options.stream), headers: options.headers || {}, session });
-    // A 429 is told apart from the limit of the account only when it comes again and again: a free model whose endpoint is "unavailable" says 429 too.
+    // A model whose endpoint is "unavailable" (a free one, now and then) says 429 too: it is left alone for the rest of the run, and it is not the limit of the account.
+    if (result.status === 429 && /unavailable/i.test(result.message || '')) {
+      unavailable.add(body?.model);
+      out.error(`${body?.model}: endpoint unavailable (429); its other tests are skipped.`);
+      return result;
+    }
+    // The limit of the account is told apart only when a 429 comes again and again.
     tooMany = result.status === 429 ? tooMany + 1 : 0;
     if (tooMany === 1) out.error(`429 (${plain(result.message, 120)}): going on; stops if it comes 4 times in a row.`);
     if (tooMany >= 4) {

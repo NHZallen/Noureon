@@ -147,3 +147,23 @@ test('one 429 does not stop the run (a free model whose endpoint is unavailable 
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('a model whose endpoint is unavailable is left alone for the rest of the run and does not stop the others', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'probe-'));
+  const quiet = { log: () => {}, error: () => {} };
+  try {
+    const seen = [];
+    const fetchImpl = async (url, options) => {
+      const { model } = JSON.parse(options.body);
+      seen.push(model);
+      return model === 'glm-5.3' ? reply(429, { error: { message: 'Upstream request failed: Endpoint is unavailable.' } }) : reply(200, { choices: [{ message: { content: 'ok' } }] });
+    };
+    const file = join(dir, 'r.json');
+    assert.equal(await main(['--only', 'glm-5.3,kimi-k3', '--tests', 'basic,stream,tools', '--out', file], { OPENCODE_GO_KEY: KEY }, quiet, fetchImpl), 0);
+    assert.equal(seen.filter((model) => model === 'glm-5.3').length, 1);
+    const written = JSON.parse(readFileSync(file, 'utf8'));
+    assert.equal(written.models[1].basic.ok, true);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
