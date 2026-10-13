@@ -167,3 +167,20 @@ test('a model whose endpoint is unavailable is left alone for the rest of the ru
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('--max-tokens raises the limit of every request, in the field of its form of API', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'probe-'));
+  const quiet = { log: () => {}, error: () => {} };
+  try {
+    const bodies = [];
+    const fetchImpl = async (url, options) => {
+      bodies.push({ url, body: JSON.parse(options.body) });
+      return reply(200, { choices: [{ message: { content: 'ok' } }], output: [] });
+    };
+    await main(['--only', 'muse-spark-1.3-contributor,kimi-k3', '--tests', 'basic', '--max-tokens', '1500', '--out', join(dir, 'a.json')], { OPENCODE_GO_KEY: KEY }, quiet, fetchImpl);
+    assert.equal(bodies.find((entry) => entry.url.endsWith('/responses')).body.max_output_tokens, 1500);
+    assert.equal(bodies.find((entry) => entry.url.endsWith('/chat/completions')).body.max_tokens, 1500);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

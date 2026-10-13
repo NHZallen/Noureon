@@ -10,6 +10,7 @@
 //   OPENCODE_GO_KEY=... node scripts/opencode-probe.mjs --only kimi-k3    one or more models (comma between)
 //   OPENCODE_GO_KEY=... node scripts/opencode-probe.mjs --tests basic,stream
 //   node scripts/opencode-probe.mjs --list                                the list of models of the service (public, no key, costs nothing)
+//   --max-tokens 1500   a bigger limit for every request (for the models that think long before they answer)
 //   --out file.json   where the result is written (default opencode-probe-result.json)        --base <address>   another base address
 //
 // It sends one request at a time and stops after four 429 in a row. A full run is about 250 small requests (a few cents at most, the reasoning models are the dearest).
@@ -291,7 +292,10 @@ export async function main(args = process.argv.slice(2), env = process.env, out 
   let stopped = false;
   let tooMany = 0;
   const unavailable = new Set();
-  const run = async (family, body, options = {}) => {
+  // `--max-tokens N`: a bigger limit for the models that think a long time before they answer (the answer of a small limit is cut: "incomplete").
+  const more = Number(argOf(args, '--max-tokens')) || 0;
+  const run = async (family, rawBody, options = {}) => {
+    const body = more ? { ...rawBody, [family === 'responses' ? 'max_output_tokens' : 'max_tokens']: Math.max(more, Number(rawBody.max_tokens || rawBody.max_output_tokens || 0)) } : rawBody;
     if (stopped) return { status: 0, ok: false, message: 'stopped after a 429' };
     if (unavailable.has(body?.model)) return { status: 429, ok: false, message: 'skipped: the endpoint of this model said it is unavailable' };
     await new Promise((resolve) => setTimeout(resolve, 250));

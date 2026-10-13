@@ -143,28 +143,29 @@ OpenCode 自己的 `variant.ts` 是一份對照（OpenCode 用戶端的設定，
 | glm-5.3、glm-5.2 | chat | ✗（「does not support image inputs」） | 只能思考（thinking-only）；`thinking:{type:enabled}` 與 `reasoning_effort` 可用；關掉會被拒 |
 | kimi-k3 | chat | ✓ | 關不掉；所有參數都被接受但一直思考 |
 | kimi-k2.7-code | chat | ✓ | 只接受 `thinking:{type:enabled}`，關閉被拒 |
-| longcat-2.0 | chat | ？ | `thinking:{type:disabled}` 可關 |
+| longcat-2.0 | chat | ✗（Allen 確認不支援圖片） | `thinking:{type:disabled}` 可關 |
 | deepseek-v4-flash-vision-exp | chat | ✓ | `thinking:{type:disabled}` 可關 |
 | mimo-v2.6-flash、mimo-v2.6-pro | chat | ✓ | `thinking:{type:disabled}` 可關 |
 | mimo-v2.5 | chat | ✓ | 關不掉；串流可能很慢（62 秒） |
-| mimo-v2.5-pro | chat | ？（圖片請求回 404 Endpoint unavailable，待重測） | `thinking:{type:disabled}` 可關 |
-| hy4-preview、hy3 | chat | ？ | `thinking:{type:disabled}` 可關，但關掉後 hy4 的回答會亂接下去（品質問題，預設不關） |
+| mimo-v2.5-pro | chat | ✗（Allen 確認不支援圖片） | `thinking:{type:disabled}` 可關 |
+| hy4-preview、hy3 | chat | ✗（Allen 確認不支援圖片） | `thinking:{type:disabled}` 可關，但關掉後 hy4 的回答會亂接下去（品質問題，預設不關） |
 | space-bunny | chat | ✓ | 預設不思考；`enable_thinking: true` 才會開；`thinking:{disabled}` 被拒 |
 | step-5-preview-free（免費） | chat | ✓ | `reasoning_effort: low` 會關掉；`thinking:{disabled}` 沒作用 |
-| longcat-2.5-preview-free（免費） | chat | ？（目錄標有圖片，探測答成 Black） | `thinking:{type:disabled}` 可關 |
+| longcat-2.5-preview-free（免費） | chat | ？（目錄標有圖片，探測答成 Black；Allen 還沒確認，先不標支援） | `thinking:{type:disabled}` 可關 |
 | cat-jam-free（Go 清單裡有、文件沒寫） | chat | ✗（只收文字） | 只有 `reasoning_effort` 被接受 |
-| deepseek-v4-pro、v4-flash、v4.1-flash | chat | 待測 | 待測（要 Global 區域） |
+| deepseek-v4.1-flash | chat | ✓（Red） | `thinking:{type:disabled}` 可關，`enabled`／`reasoning_effort`／`enable_thinking` 都接受 |
+| deepseek-v4-pro、deepseek-v4-flash | chat | 目錄標純文字，登記為✗（v4-flash 探測答出 Red、v4-pro 逾時，都不採信） | 同上：`thinking:{type:disabled}` 可關 |
 | grok-4.7、grok-4.6 | responses | ✓ | `reasoning.effort` low 可用；`none` 被拒；摘要有 |
 | gpt-6-luna、gpt-5.6-luna | responses | ✓ | `reasoning.effort` none／low 都接受；預設沒有推理摘要 |
-| muse-spark-1.3、1.2 Contributor | responses | 待測 | 待測（要允許訓練資料） |
+| muse-spark-1.3、1.2 Contributor | responses | 待定（用 96 個 token 全被推理用完，回應 `response.incomplete`，要用 `--max-tokens` 重測） | `reasoning.effort` 值為 minimal／low／medium／high／xhigh／max，**不支援 none**；關不掉思考 |
 | claude-haiku-5-5 | messages | ✓ | 只接受 `thinking:{type:adaptive}`（加 `output_config.effort`）；`enabled`＋預算被拒；`disabled` 也可 |
-| minimax-m3 | messages | ？（答成 Brown，目錄標有圖片） | `adaptive`／`enabled`＋預算會思考；`disabled` 可關 |
+| minimax-m3 | messages | ✓（Allen 確認支援；探測答成 Brown 只是答錯） | `adaptive`／`enabled`＋預算會思考；`disabled` 可關 |
 | minimax-m2.7 | messages | ✗（目錄：純文字） | 關不掉（`disabled` 無效） |
 | qwen3.8-max、qwen3.8-flash、qwen3.7-plus | messages | ✓ | 預設思考；`thinking:{type:disabled}` 可關；`enabled`＋預算可用 |
 
 清單裡有、文件沒寫的模型（`deepseek-flash`、`glm-5.1`、`omen-alpha`、`minimax-m2.5`、`qwen3.6-plus`、`qwen3.7-max`）：Allen 決定先只做 Go 文件列的模型，這些之後再說（`cat-jam-free` 已測，可選）。
 
 ### 待測／待決定
-1. Allen 到 OpenCode 工作區 Privacy 設定打開「Global 區域」與「允許訓練資料的付費端點」之後，重測 deepseek-v4-pro／v4-flash／v4.1-flash 與 muse-spark 1.2／1.3（`node opencode-probe.mjs --only deepseek-v4-pro,deepseek-v4-flash,deepseek-v4.1-flash,muse-spark-1.3-contributor,muse-spark-1.2-contributor --out privacy.json`）。使用者各自的工作區設定不同，所以這兩類錯誤一定要有明確提示。
-2. 「？」的圖片：實際用真實圖片在測試站試，再決定標記。
+1. ~~Allen 打開 Privacy 設定後重測~~ → 已測（09:24）：DeepSeek 三個全部正常；Muse Spark 兩個都連得上，但推理用完 96 token，工具與圖片沒測成，要 `--max-tokens 1500` 重測。使用者各自的工作區設定不同，所以這兩類錯誤一定要有明確提示。
+2. 「？」的圖片：只剩 longcat-2.5-preview-free 與 muse-spark，用真實圖片在測試站試，再決定標記。
 3. 思考強度選項（§10 第 2 點）：第一版不做；上表是之後逐模型加選項的依據。
