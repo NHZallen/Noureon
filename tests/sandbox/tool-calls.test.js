@@ -84,6 +84,16 @@ test('OpenAI-compatible stream: argument pieces are joined per call index', () =
   assert.equal(result.reasoningDetails.length, 1);
 });
 
+test('OpenAI-compatible stream: an error chunk (OpenRouter answers 200 and reports the provider\'s refusal inside the stream) is a failure', () => {
+  const collector = createOpenAiCollector();
+  collector.add({ choices: [{ delta: { content: 'Sure. ' } }] });
+  assert.equal(collector.failure, '');
+  collector.add({ error: { code: 400, message: 'Function call is missing a thought_signature' } });
+  assert.equal(collector.failure, 'Function call is missing a thought_signature (400)');
+  collector.add({ error: { message: 'second' } });
+  assert.match(collector.failure, /thought_signature/, 'the first error is kept');
+});
+
 test('the code a model is writing can be read while its arguments still stream in', () => {
   assert.equal(partialJsonString('{"title":"t","code":"print(1)\\nx = \\"a\\"', 'code'), 'print(1)\nx = "a"');
   assert.equal(partialJsonString('{"code":"', 'code'), '');
