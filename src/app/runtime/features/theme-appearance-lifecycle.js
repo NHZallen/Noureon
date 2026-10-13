@@ -205,6 +205,11 @@ export function createThemeAppearanceLifecycle(dependencies = {}) {
         }
     };
 
+    // The names of the colours are written when the menu is drawn: it is drawn again when the language changes.
+    window?.addEventListener?.('astra:language-changed', () => {
+        if (ALL_ELEMENTS.uiColorOptions?.querySelector('.color-dropdown-menu')) renderUiColorOptions();
+    });
+
     return {
         applyUiTheme,
         renderUiColorOptions

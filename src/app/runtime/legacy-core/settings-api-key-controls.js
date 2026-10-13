@@ -37,6 +37,19 @@ export function createSettingsApiKeyControls(dependencies = {}) {
   } = dependencies;
   const text = () => getRuntimeTexts(getUiLanguage());
 
+  // The words of the buttons beside the keys are written when they are made: they are written again when the language changes.
+  const relabelApiKeyButtons = () => {
+    document.querySelectorAll?.('[data-api-key-clear-provider]').forEach((button) => { button.textContent = text().clear; });
+    document.querySelectorAll?.('[data-api-key-visibility-provider]').forEach((button) => {
+      const label = button.dataset.apiKeyVisible === 'true' ? text().hideApiKey : text().showApiKey;
+      button.setAttribute('aria-label', label);
+      button.title = label;
+    });
+    const clearAll = document.getElementById?.('clear-all-api-keys-btn');
+    if (clearAll) clearAll.textContent = text().clearAllApiKeys;
+  };
+  document.defaultView?.addEventListener?.('astra:language-changed', relabelApiKeyButtons);
+
   const getApiKeyInputDescriptors = () => [
     { provider: 'gemini', input: elements.geminiApiKeyInput },
     { provider: 'openrouter', input: elements.openrouterApiKeyInputAll },

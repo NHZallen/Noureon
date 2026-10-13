@@ -291,8 +291,8 @@ test('preserves formula decoding, options, logging, and block or inline error fa
 
     const blockError = harness.helpers.renderMarkdownWithFormulas('<p>$$block-error$$</p>');
     const inlineError = harness.helpers.renderMarkdownWithFormulas('$inline-error$');
-    assert.equal(blockError, '<p style="color: red;">[數學公式渲染錯誤: block-error]</p>');
-    assert.equal(inlineError, '<span style="color: red;">[公式錯誤: inline-error]</span>');
+    assert.equal(blockError, '<p style="color: red;">[Math formula rendering error: block-error]</p>');
+    assert.equal(inlineError, '<span style="color: red;">[Formula error: inline-error]</span>');
     assert.equal(errors.length, 2);
     assert.equal(errors[0][0], 'KaTeX block rendering error:');
     assert.equal(errors[1][0], 'KaTeX inline rendering error:');

@@ -379,7 +379,7 @@ export function createLegacyImportExportLifecycle({
 
   async function performImport(data) {
     if (!getCurrentUser()) {
-      throw new Error('無法在沒有登入使用者的情況下匯入資料。');
+      throw new Error(text('importNoUser', 'Data cannot be imported without a signed-in user.'));
     }
     replaceAllAppData({
       conversations: data.conversations || [],
@@ -396,7 +396,7 @@ export function createLegacyImportExportLifecycle({
   async function handleImport() {
     const file = elements.importFileInput.files[0];
     if (!file) {
-      showNotification(text('selectFileError', '請選擇檔案。'), 'error');
+      showNotification(text('selectFileError', 'Select a file.'), 'error');
       return;
     }
 
@@ -422,14 +422,14 @@ export function createLegacyImportExportLifecycle({
     };
 
     try {
-      updateProgress(5, '正在讀取檔案...');
+      updateProgress(5, text('importReadingFile', 'Reading the file...'));
       await delay(1000);
 
       let rawData = null;
       let zip = null;
 
       if (file.name.endsWith('.zip') || file.type.includes('zip')) {
-        updateProgress(10, '正在解壓縮 ZIP...');
+        updateProgress(10, text('importUnzipping', 'Unzipping...'));
         const JSZipCtor = await requireArchiveVendor();
         zip = await JSZipCtor.loadAsync(file);
 
@@ -440,13 +440,13 @@ export function createLegacyImportExportLifecycle({
           if (jsonFileName) jsonFile = zip.file(jsonFileName);
         }
 
-        if (!jsonFile) throw new Error('ZIP 檔案中找不到 JSON 資料。');
+        if (!jsonFile) throw new Error(text('importZipNoJson', 'No JSON data was found in the ZIP file.'));
 
-        updateProgress(20, '正在解析 JSON 結構...');
+        updateProgress(20, text('importParsingStructure', 'Reading the JSON structure...'));
         const jsonContent = await jsonFile.async('string');
         rawData = JSON.parse(jsonContent);
       } else {
-        updateProgress(10, '正在解析 JSON...');
+        updateProgress(10, text('importParsingJson', 'Reading the JSON...'));
         const textContent = await file.text();
         rawData = JSON.parse(textContent);
       }
@@ -466,7 +466,7 @@ export function createLegacyImportExportLifecycle({
 
       const importedApiKeys = await resolveImportedApiKeys(rawData);
 
-      updateProgress(30, '準備匯入資料...');
+      updateProgress(30, text('importPreparing', 'Getting ready to import...'));
 
       const activeAppData = replaceAllAppData({
         conversations: [],
@@ -499,7 +499,7 @@ export function createLegacyImportExportLifecycle({
           activeAppData.astras.push(astra);
         }, 10, (current, total) => {
           const percent = 30 + (current / total) * 10;
-          updateProgress(percent, `正在匯入 Nouras (${current}/${total})...`);
+          updateProgress(percent, text('importingNouras', 'Importing Nouras ({current}/{total})...').replace('{current}', current).replace('{total}', total));
         });
       }
 
@@ -548,14 +548,14 @@ export function createLegacyImportExportLifecycle({
           activeAppData.conversations.push(conversation);
         }, 5, (current, total) => {
           const percent = 40 + (current / total) * 50;
-          updateProgress(percent, `正在還原對話 (${current}/${total})...`);
+          updateProgress(percent, text('importingChats', 'Restoring chats ({current}/{total})...').replace('{current}', current).replace('{total}', total));
         });
       }
 
-      updateProgress(90, '正在寫入資料庫...');
+      updateProgress(90, text('importWriting', 'Saving to the database...'));
       await saveAppData();
 
-      updateProgress(100, '匯入完成！');
+      updateProgress(100, text('importDone', 'Import complete!'));
       await delay(500);
 
       toggleModal(elements.importDataModal, false);
@@ -574,7 +574,7 @@ export function createLegacyImportExportLifecycle({
       } else {
         logger.error(error);
         showNotification(`${text('importFailed', '匯入失敗')}: ${error.message}`, 'error');
-        updateProgress(0, '匯入失敗');
+        updateProgress(0, text('importFailed', 'Import failed'));
         importProgressBar.classList.add('bg-red-500');
       }
     } finally {

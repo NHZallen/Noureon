@@ -60,6 +60,7 @@ export function createLegacyTrashLifecycle({
     renderMediaAttachmentGrid,
     bindMediaPreviewButtons,
     bindGeneratedImageAssets,
+    getLabels: () => ({ imagePreview: getTexts()?.imagePreview, imageAlt: getTexts()?.imageAlt, imageDownload: getTexts()?.imageDownload }),
     logError: (...args) => logger.error(...args)
   });
   const confirmCloudDeletion = async (conversationIds, conversationSnapshots = []) => {

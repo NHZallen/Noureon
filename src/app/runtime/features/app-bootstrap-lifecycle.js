@@ -187,8 +187,10 @@ export function createLegacyAppBootstrapLifecycle({
         if (!button || button.querySelector('.settings-logout-label')) return;
         button.classList.add('flex', 'items-center', 'gap-2', 'px-3');
         button.title = i18n[getConfig().uiLanguage]?.logout || '登出';
+        button.dataset.langKeyTitle = 'logout';
         const label = document.createElement('span');
         label.className = 'settings-logout-label text-sm font-medium';
+        label.dataset.langKey = 'logout';
         label.textContent = i18n[getConfig().uiLanguage]?.logout || '登出';
         button.appendChild(label);
     };
@@ -222,6 +224,8 @@ export function createLegacyAppBootstrapLifecycle({
                 const closeSearchLabel = i18n[config.uiLanguage]?.close || '關閉';
                 ALL_ELEMENTS.closeSearchModalBtn.setAttribute('aria-label', closeSearchLabel);
                 ALL_ELEMENTS.closeSearchModalBtn.title = closeSearchLabel;
+                ALL_ELEMENTS.closeSearchModalBtn.dataset.langKeyAria = 'close';
+                ALL_ELEMENTS.closeSearchModalBtn.dataset.langKeyTitle = 'close';
                 ALL_ELEMENTS.closeSearchModalBtn.innerHTML = `
                     <svg aria-hidden="true" viewBox="0 0 24 24" fill="none">
                         <path d="m6 6 12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
@@ -229,16 +233,18 @@ export function createLegacyAppBootstrapLifecycle({
                 `;
                 ALL_ELEMENTS.modalSearchScopeSelect.classList.add('conversation-search-native-select');
                 const searchModes = [
-                    ['keyword-title', i18n[config.uiLanguage]?.searchScopeTitle || '標題'],
-                    ['keyword-content', i18n[config.uiLanguage]?.searchScopeContent || '內容'],
-                    ['natural', i18n[config.uiLanguage]?.searchScopeNatural || '自然語意']
+                    ['keyword-title', i18n[config.uiLanguage]?.searchScopeTitle || '標題', 'searchScopeTitle'],
+                    ['keyword-content', i18n[config.uiLanguage]?.searchScopeContent || '內容', 'searchScopeContent'],
+                    ['natural', i18n[config.uiLanguage]?.searchScopeNatural || '自然語意', 'searchScopeNatural']
                 ];
                 const searchModeControl = document.createElement('div');
                 searchModeControl.className = 'conversation-search-mode-control';
                 searchModeControl.setAttribute('aria-label', i18n[config.uiLanguage]?.searchConversations || '搜尋模式');
+                searchModeControl.dataset.langKeyAria = 'searchConversations';
                 const naturalSearchHint = document.createElement('p');
                 naturalSearchHint.className = 'conversation-search-enter-hint';
                 naturalSearchHint.textContent = i18n[config.uiLanguage]?.naturalSearchEnterHint || '按下 Enter 開始搜尋';
+                naturalSearchHint.dataset.langKey = 'naturalSearchEnterHint';
                 const syncSearchModeControl = () => {
                     const isNaturalSearch = ALL_ELEMENTS.modalSearchScopeSelect.value === 'natural';
                     searchModeControl.querySelectorAll('button').forEach((button) => {
@@ -249,10 +255,11 @@ export function createLegacyAppBootstrapLifecycle({
                     naturalSearchHint.classList.toggle('is-visible', isNaturalSearch);
                     naturalSearchHint.setAttribute('aria-hidden', String(!isNaturalSearch));
                 };
-                searchModes.forEach(([value, label]) => {
+                searchModes.forEach(([value, label, labelKey]) => {
                     const button = document.createElement('button');
                     button.type = 'button';
                     button.dataset.scope = value;
+                    button.dataset.langKey = labelKey;
                     button.textContent = label;
                     button.addEventListener('click', () => {
                         if (ALL_ELEMENTS.modalSearchScopeSelect.value === value) return;
@@ -826,8 +833,8 @@ export function createLegacyAppBootstrapLifecycle({
             const message = String(error?.message || '');
             showNotification(
                 message.includes('Google form endpoint is not configured')
-                    ? '意見反饋端點尚未設定，請在伺服器設定 GOOGLE_FORM_ENDPOINT。'
-                    : '發送失敗，請檢查您的網路連線。',
+                    ? i18n[getConfig().uiLanguage].feedbackEndpointMissing
+                    : i18n[getConfig().uiLanguage].feedbackSendFailed,
                 'error'
             );
         } finally {
@@ -903,8 +910,8 @@ export function createLegacyAppBootstrapLifecycle({
             const message = String(error?.message || '');
             showNotification(
                 message.includes('Google form endpoint is not configured')
-                    ? 'Noura 提案端點尚未設定，請在伺服器設定 GOOGLE_FORM_ENDPOINT。'
-                    : '提交失敗，請檢查您的網路連線。',
+                    ? i18n[getConfig().uiLanguage].proposalEndpointMissing
+                    : i18n[getConfig().uiLanguage].proposalSendFailed,
                 'error'
             );
         } finally {

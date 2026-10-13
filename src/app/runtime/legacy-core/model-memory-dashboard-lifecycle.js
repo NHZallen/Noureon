@@ -88,6 +88,7 @@ export function createLegacyModelMemoryDashboardLifecycle(dependencies = {}) {
     };
     syncState();
     const getText = (key, fallback) => i18n[config.uiLanguage]?.[key] || fallback;
+    const fillText = (key, values) => Object.entries(values).reduce((text, [name, value]) => text.replaceAll(`{${name}}`, value), getText(key, ''));
 
         const renderPersonalMemoryList = () => {
             syncState();
@@ -126,7 +127,7 @@ export function createLegacyModelMemoryDashboardLifecycle(dependencies = {}) {
                 `;
                 const contentElement = item.querySelector('span');
                 if (contentElement) contentElement.textContent = memory.status === 'superseded'
-                    ? `已被新記憶取代：${memory.content}`
+                    ? fillText('memorySupersededPrefix', { content: memory.content })
                     : memory.content;
                 container.appendChild(item);
             });
@@ -135,14 +136,14 @@ export function createLegacyModelMemoryDashboardLifecycle(dependencies = {}) {
                 item.className = 'flex flex-col gap-3 p-3 rounded-lg bg-[var(--hover-bg)] border border-[var(--border-color)]';
                 item.innerHTML = `
     <div class="flex flex-col gap-1 min-w-0 w-full">
-        <span class="text-xs text-[var(--text-secondary)]">候選記憶 · 請確認</span>
+        <span class="text-xs text-[var(--text-secondary)]">${getText('memoryCandidateLabel', '')}</span>
         <span class="text-sm word-break: break-word;"></span>
     </div>
     <div class="candidate-replacement-list flex flex-wrap gap-2 w-full"></div>
     <div class="flex flex-wrap items-center justify-end gap-2 w-full">
-        <button class="dismiss-memory-candidate-btn memory-action-button px-3 py-1.5 rounded-md text-sm" data-id="${candidate.id}">忽略</button>
-        ${candidate.suggestedSupersedes?.length ? `<button class="approve-superseding-candidate-btn memory-action-button px-3 py-1.5 rounded-md text-sm" data-id="${candidate.id}">取代舊記憶並保留</button>` : ''}
-        <button class="approve-memory-candidate-btn memory-action-button px-3 py-1.5 rounded-md text-sm" data-id="${candidate.id}">保留</button>
+        <button class="dismiss-memory-candidate-btn memory-action-button px-3 py-1.5 rounded-md text-sm" data-id="${candidate.id}">${getText('memoryCandidateDismiss', '')}</button>
+        ${candidate.suggestedSupersedes?.length ? `<button class="approve-superseding-candidate-btn memory-action-button px-3 py-1.5 rounded-md text-sm" data-id="${candidate.id}">${getText('memoryCandidateReplaceKeep', '')}</button>` : ''}
+        <button class="approve-memory-candidate-btn memory-action-button px-3 py-1.5 rounded-md text-sm" data-id="${candidate.id}">${getText('memoryCandidateKeep', '')}</button>
     </div>`;
                 item.querySelectorAll('span')[1].textContent = candidate.content;
                 const replacementList = item.querySelector('.candidate-replacement-list');
@@ -150,7 +151,7 @@ export function createLegacyModelMemoryDashboardLifecycle(dependencies = {}) {
                 if (replacementList && suggestedEntries.length > 0) {
                     const suggestion = document.createElement('span');
                     suggestion.className = 'text-xs text-[var(--text-secondary)] basis-full';
-                    suggestion.textContent = getRuntimeText(config.uiLanguage, 'memoryReplacementSuggestion', { items: suggestedEntries.map(memory => `「${memory.content}」`).join('、') });
+                    suggestion.textContent = getRuntimeText(config.uiLanguage, 'memoryReplacementSuggestion', { items: suggestedEntries.map(memory => (config.uiLanguage === 'zh-TW' ? `「${memory.content}」` : `“${memory.content}”`)).join(config.uiLanguage === 'zh-TW' ? '、' : ', ') });
                     replacementList.appendChild(suggestion);
                 }
                 container.appendChild(item);
@@ -160,11 +161,11 @@ export function createLegacyModelMemoryDashboardLifecycle(dependencies = {}) {
                 item.className = 'flex items-center justify-between p-2 rounded-lg bg-[var(--hover-bg)] border border-[var(--border-color)]';
                 item.innerHTML = `
     <div class="flex flex-col gap-1 flex-1 min-w-0">
-        <span class="text-xs text-[var(--text-secondary)]">待審核的舊記憶</span>
+        <span class="text-xs text-[var(--text-secondary)]">${getText('memoryLegacyLabel', '')}</span>
         <span class="text-sm word-break: break-word;"></span>
     </div>
-    <button class="review-memory-btn text-[var(--button-primary-bg)] text-sm" data-id="${memory.id}">保留</button>
-    <button class="delete-legacy-memory-btn text-red-600 hover:text-red-800" data-id="${memory.id}">刪除</button>`;
+    <button class="review-memory-btn text-[var(--button-primary-bg)] text-sm" data-id="${memory.id}">${getText('memoryCandidateKeep', '')}</button>
+    <button class="delete-legacy-memory-btn text-red-600 hover:text-red-800" data-id="${memory.id}">${getText('delete', '')}</button>`;
                 item.querySelectorAll('span')[1].textContent = memory.content;
                 container.appendChild(item);
             });
@@ -179,7 +180,7 @@ export function createLegacyModelMemoryDashboardLifecycle(dependencies = {}) {
                     topicSummaries.forEach(topic => {
                         const item = document.createElement('div');
                         item.className = 'flex items-start justify-between gap-2 p-2 rounded-lg bg-[var(--hover-bg)] border border-[var(--border-color)]';
-                        item.innerHTML = `<div class="flex flex-col gap-1 min-w-0"><span class="text-sm font-medium"></span><span class="text-xs text-[var(--text-secondary)] word-break: break-word;"></span></div><button class="delete-topic-summary-btn text-red-600 hover:text-red-800 text-sm" data-id="${topic.id}">刪除</button>`;
+                        item.innerHTML = `<div class="flex flex-col gap-1 min-w-0"><span class="text-sm font-medium"></span><span class="text-xs text-[var(--text-secondary)] word-break: break-word;"></span></div><button class="delete-topic-summary-btn text-red-600 hover:text-red-800 text-sm" data-id="${topic.id}">${getText('delete', '')}</button>`;
                         const spans = item.querySelectorAll('span');
                         spans[0].textContent = topic.topic || getRuntimeText(config.uiLanguage, 'unnamedTopic');
                         spans[1].textContent = topic.summary || '';
@@ -196,7 +197,7 @@ export function createLegacyModelMemoryDashboardLifecycle(dependencies = {}) {
                         item.className = 'flex items-center justify-between gap-2 p-2 rounded-lg bg-[var(--hover-bg)] border border-[var(--border-color)]';
                         item.innerHTML = `<span class="text-sm flex-1 min-w-0"></span><div class="flex items-center justify-end gap-2 ml-auto shrink-0">${rule.id ? `<button class="edit-suppression-rule-btn memory-action-button inline-flex items-center justify-center w-8 h-8 rounded-md" data-id="${rule.id}" title="${getText('edit', '編輯')}" aria-label="${getText('edit', '編輯')}"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></button>` : ''}<button class="delete-suppression-rule-btn memory-action-button inline-flex items-center justify-center w-8 h-8 rounded-md" data-id="${rule.id || ''}" data-index="${index}" title="${getText('delete', '刪除')}" aria-label="${getText('delete', '刪除')}"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg></button></div>`;
                         item.querySelector('span').textContent = rule.instruction || (rule.type === 'do-not-mention' && rule.target === 'profile-name'
-                            ? '不主動使用已儲存的姓名稱呼'
+                            ? getText('memoryNoMentionName', '')
                             : `${rule.type || 'suppression'}: ${rule.target || ''}`);
                         derivedSection.appendChild(item);
                     });
@@ -248,7 +249,7 @@ export function createLegacyModelMemoryDashboardLifecycle(dependencies = {}) {
                     const id = e.currentTarget.dataset.id;
                     const memory = profileEntries.find(entry => entry.id === id);
                     if (!memory) return;
-                    const content = await showCustomPrompt(`目前記憶：${memory.content}\n輸入新的內容後，舊記憶會保留為「已被取代」，不會再影響回覆。`, '取代記憶');
+                    const content = await showCustomPrompt(fillText('memoryReplacePrompt', { content: memory.content }), getText('memoryReplaceTitle', ''));
                     if (!content) return;
                     replaceMemoryState(addConfirmedProfileEntry(memoryState, {
                         id: crypto.randomUUID(),
@@ -386,8 +387,8 @@ export function createLegacyModelMemoryDashboardLifecycle(dependencies = {}) {
                     const ruleId = e.currentTarget.dataset.id;
                     const rule = suppressionRules.find(item => item.id === ruleId);
                     if (!rule) return;
-                    const currentText = rule.instruction || '不主動使用已儲存的姓名稱呼';
-                    const instruction = await showCustomPrompt(`目前規則：${currentText}\n輸入新的規則內容。`, '編輯不主動使用規則');
+                    const currentText = rule.instruction || getText('memoryNoMentionName', '');
+                    const instruction = await showCustomPrompt(fillText('memoryRuleEditPrompt', { rule: currentText }), getText('memoryRuleEditTitle', ''));
                     if (!instruction) return;
                     replaceMemoryState(updateSuppressionRule(memoryState, { ruleId, instruction }));
                     await saveAppData();

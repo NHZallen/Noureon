@@ -246,7 +246,7 @@ test('00 transient conversation replacements preserve legacy ordering', () => {
     'if (cleanedConversations.length < oldTempChatCount)',
     'await saveAppData()',
     'uploadedFiles = []',
-    "const newConv = createBaseConversation('新對話')",
+    "const newConv = createBaseConversation(getText('newChat'))",
     'liveConversationsBridge.getConversations().unshift(newConv)',
     'conversationStateAccess.setCurrentConversationId(newConv.id)',
     'renderAll()'

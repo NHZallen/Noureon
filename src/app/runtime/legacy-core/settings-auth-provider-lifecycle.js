@@ -221,7 +221,8 @@ const streamApiCall = createStreamApiCall({
     modelSupportsUploadedFile,
     modelSupportsVision,
     getModelReasoningConfig,
-    normalizeReasoningEffort
+    normalizeReasoningEffort,
+    getText: (key) => i18n[config.uiLanguage]?.[key] || ''
 });
 const runMemoryModel = createMemoryModelRunner({ streamApiCall, models: MODELS });
 const providerRequestSupport = createProviderRequestSupport({

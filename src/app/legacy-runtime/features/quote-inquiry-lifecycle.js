@@ -321,6 +321,8 @@ export function createQuoteInquiryLifecycle({
     removeButton.className = 'quote-inquiry-remove';
     removeButton.setAttribute('aria-label', getText('quoteInquiryRemove', 'Remove quote'));
     removeButton.title = getText('quoteInquiryRemove', 'Remove quote');
+    removeButton.dataset.langKeyTitle = 'quoteInquiryRemove';
+    removeButton.dataset.langKeyAria = 'quoteInquiryRemove';
     removeButton.innerHTML = '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>';
     removeButton.addEventListener('click', () => clearQuote({ focusComposer: true }));
 
@@ -340,6 +342,7 @@ export function createQuoteInquiryLifecycle({
     button.type = 'button';
     button.className = 'quote-inquiry-menu-button';
     button.textContent = getText('quoteInquiry', 'Quote inquiry');
+    button.dataset.langKey = 'quoteInquiry';
     button.addEventListener('mousedown', event => event.preventDefault());
     button.addEventListener('click', () => setComposerQuote(menu._quoteReference));
     menu.appendChild(button);

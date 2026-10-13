@@ -9,7 +9,8 @@ const render = (message) => buildMessageRenderView({
   renderMarkdownWithFormulas: value => value,
   buildMediaAttachmentView: () => ({ html: '', previewMediaParts: [] }),
   formatTimestamp: () => '15:52',
-  copyTitle: '複製'
+  copyTitle: '複製',
+  labels: { edit: '編輯', imageCreating: '正在建立圖像', imagePreview: '預覽生成圖片', imageAlt: 'AI 生成圖片', imageDownloadOriginal: '下載原始圖片' }
 });
 
 test('renders durable generated images with download and edit actions', () => {

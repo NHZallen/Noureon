@@ -630,7 +630,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
       await streamApiCallFn((chunk) => typewriterFrameQueue.enqueue(chunk));
     } catch (error) {
       logger.error?.('Stream API call failed:', error);
-      targetElement.innerHTML = renderMarkdown(`錯誤：串流 API 呼叫失敗：${error.message}`);
+      targetElement.innerHTML = renderMarkdown(getLocalizedText('streamCallFailed').replace('{message}', error.message));
       throw error;
     } finally {
       await typewriterFrameQueue.flushUntilIdle();
@@ -684,7 +684,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     scheduleFrame: (callback) => requestAnimationFrame(callback),
     waitForFrame: () => new Promise((resolve) => scheduleTimeout(resolve, 16)),
     getStreamingText: (key, fallback) => getRuntimeText(getUiLanguage(), key) || fallback,
-    getStreamErrorText: (error) => `串流回應失敗：${error.message}`,
+    getStreamErrorText: (error) => getLocalizedText('streamResponseFailed').replace('{message}', error.message),
     getUiLanguage,
     logError: (...args) => logger.error?.(...args)
   });
@@ -819,8 +819,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     const isEdit = Boolean(effectiveSubmitOptions.preserveComposer);
     const activeId = getActiveConversation()?.id;
     if (isEdit) {
-      // An edit cuts the conversation at the edited message: a reply being written, or a visual check looking at one,
-      // would add itself back after the cut. Both are stopped first, then the conversation is cut.
+      // An edit cuts the conversation at the edited message: a reply being written or a visual check would add itself back, so both stop first.
       vc.cancel(activeId);
       await stopReplyAndWait({ getAbortController, wait: (ms) => new Promise((resolve) => scheduleTimeout(resolve, ms)) });
       await effectiveSubmitOptions.prepare?.();
@@ -894,7 +893,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
       } else {
         const modelInfo = normalizeConversationModel(conv);
         if (modelGeneratesImages(modelInfo)) {
-          if (!imageGenerationResponseLifecycle) throw new Error('圖片生成功能尚未初始化');
+          if (!imageGenerationResponseLifecycle) throw new Error(getLocalizedText('imageFeatureNotReady'));
           const imageResult = await imageGenerationResponseLifecycle.run({
             targetElement: contentDiv, userParts, modelInfo, conversation: conv, webSearchEnabled, signal: submitAbortController.signal,
             uiLanguage: getLiveConfig().uiLanguage, serverReply, assistantMessageId, resumeRun

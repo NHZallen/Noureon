@@ -26,7 +26,7 @@ export const readErrorBody = async (response) => {
   }
 };
 
-export const getErrorMessage = (errorBody, fallback = 'API 請求失敗') => (
+export const getErrorMessage = (errorBody, fallback = 'The API request failed') => (
   errorBody?.error?.message ||
   errorBody?.message ||
   fallback

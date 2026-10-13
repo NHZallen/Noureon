@@ -112,7 +112,7 @@ export function createSettingsSyncVaultControls({
 
   const eyeButton = () => {
     const label = text('userShowPassword', '顯示密碼');
-    return `<button type="button" class="us-eye" data-us-eye aria-pressed="false" title="${label}" aria-label="${label}">${ICONS.eyeOff}${ICONS.eye}</button>`;
+    return `<button type="button" class="us-eye" data-us-eye aria-pressed="false" title="${label}" aria-label="${label}" data-lang-key-title="userShowPassword" data-lang-key-aria="userShowPassword">${ICONS.eyeOff}${ICONS.eye}</button>`;
   };
 
   /** A labelled password box with the show/hide button; `hint` is the small line under it. */
@@ -566,7 +566,27 @@ export function createSettingsSyncVaultControls({
     }
   };
 
+  // The states and descriptions this page fills in from its data (Locked, Not set up...) are written again when the language changes.
+  let languageListenerBound = false;
+  const bindLanguageChange = () => {
+    if (languageListenerBound) return;
+    languageListenerBound = true;
+    window.addEventListener('astra:language-changed', () => {
+      if (!document.getElementById('user-section')?.dataset.syncVaultSettingsInitialized) return;
+      // The show/hide button names what it does now (the shown ones offer to hide).
+      document.querySelectorAll('#user-section [data-us-eye]').forEach((eye) => {
+        const label = eye.getAttribute('aria-pressed') === 'true' ? text('userHidePassword', '') : text('userShowPassword', '');
+        if (label) {
+          eye.setAttribute('aria-label', label);
+          eye.title = label;
+        }
+      });
+      refreshSyncVaultControls().catch((error) => globalThis.console?.warn?.('The account page could not follow the language.', error));
+    });
+  };
+
   const bindEvents = () => {
+    bindLanguageChange();
     const elements = getElements();
     syncNow.bind();
     userUid.bind();

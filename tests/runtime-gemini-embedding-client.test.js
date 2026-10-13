@@ -37,7 +37,7 @@ test('rejects embedding requests when no Gemini key is configured', async () => 
 
   await assert.rejects(
     () => client.embedHistoryDocument({ title: 'none', text: '記憶功能討論' }),
-    /Gemini API 金鑰/
+    /Gemini API key/
   );
 });
 

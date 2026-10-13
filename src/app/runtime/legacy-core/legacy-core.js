@@ -19,6 +19,7 @@ import { applyModelMessagePostResponseActions } from '/src/app/legacy-runtime/fe
 import { buildMessageRenderView } from '/src/app/legacy-runtime/features/message-markup-renderer.js';
 import { createMessageEditingLifecycle } from '/src/app/legacy-runtime/features/message-editing-lifecycle.js';
 import { getRuntimeTexts } from '/src/app/runtime/i18n/runtime-texts.js';
+import { applyLoginLanguage } from '/src/app/runtime/features/login-language.js';
 import { buildQuotedUserParts, createQuoteInquiryLifecycle } from '/src/app/legacy-runtime/features/quote-inquiry-lifecycle.js';
 import { createMediaAttachmentRenderer as createArchivedMediaAttachmentRenderer } from '/src/app/legacy-runtime/features/media-attachment-renderer.js';
 import { createMediaPreviewLifecycle as createArchivedMediaPreviewLifecycle } from '/src/app/legacy-runtime/features/media-preview-lifecycle.js';
@@ -549,6 +550,8 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
                 });
                 runtimeConfigAccess.mutateConfig(normalizedConfig);
             }
+            // The language picked on the sign-in page wins over the saved one.
+            if (applyLoginLanguage(runtimeConfigAccess.getConfig())) await saveConfig();
         };
         const saveAppData = async (options) => { await runtimeAppDataPersistence.saveAppData(options); };
         const cloudDeletionLifecycle = import('/src/app/runtime/legacy-core/cloud-delete-lifecycle.js')
@@ -643,7 +646,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             }
             uploadedFiles = [];
             quoteInquiryLifecycle?.clearQuote();
-            const newConv = createBaseConversation('新對話');
+            const newConv = createBaseConversation(getText('newChat'));
             liveConversationsBridge.getConversations().unshift(newConv);
             conversationStateAccess.setCurrentConversationId(newConv.id);
             renderAll();
@@ -761,6 +764,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             renderMediaAttachmentGrid: renderArchivedMediaAttachmentGrid,
             bindMediaPreviewButtons: bindArchivedMediaPreviewButtons,
             bindGeneratedImageAssets,
+            getLabels: () => ({ imagePreview: getText('imagePreview'), imageAlt: getText('imageAlt'), imageDownload: getText('imageDownload') }),
             mediaMode: 'inlineData',
             wrapTextParts: true
         });
@@ -878,6 +882,12 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             logger:console,diagnostics:import.meta.env.DEV
         });
         const renderAll=(...args)=>runtimeRenderCoordinator.renderAll(...args);
+        // Lists, header, greeting and the attachment menu write their words when drawn: drawn again when the language changes.
+        window?.addEventListener?.('astra:language-changed', () => {
+            if (!currentUser) return;
+            renderAll({ animate: false, scrollMode: 'preserve', reason: 'language' });
+            legacyRuntimeContext.resolveBinding('input.updateFunctionButtonsState')();
+        });
         const renderSidebar=(...args)=>runtimeRenderCoordinator.renderSidebar(...args);
         const sidebarAstrasLifecycle = createSidebarAstrasLifecycle({
             elements: ALL_ELEMENTS,
@@ -1315,6 +1325,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             saveAppData,
             invalidateConversationMemory: (...args) => invalidateConversationMemory(...args),
             submitEditedMessage: (...args) => submitEditedMessage(...args),
+            getText,
             isMobile: () => window.matchMedia('(max-width: 768px)').matches
         });
         const { startMessageEditing } = messageEditingLifecycle;

@@ -481,6 +481,8 @@ export function createLegacyCoreTailLifecycle(dependencies = {}) {
             const resolvedLanguage = i18n[lang] ? lang : 'zh-TW';
             const languageChanged = resolvedLanguage !== lastAppliedLanguage;
             lastAppliedLanguage = resolvedLanguage;
+            // Kept for the next start: the page that shows while the app loads (and the one for a failed start) is written in it.
+            try { localStorage.setItem('noureon_ui_language', resolvedLanguage); } catch { /* storage refused */ }
             const translations = i18n[resolvedLanguage];
             document.documentElement.lang = resolvedLanguage;
             document.documentElement.dir = 'ltr';
@@ -500,6 +502,12 @@ export function createLegacyCoreTailLifecycle(dependencies = {}) {
                 const key = el.dataset.langKeyTitle;
                 if (translations[key]) {
                     el.title = translations[key];
+                }
+            });
+            document.querySelectorAll('[data-lang-key-aria]').forEach(el => {
+                const key = el.dataset.langKeyAria;
+                if (translations[key]) {
+                    el.setAttribute('aria-label', translations[key]);
                 }
             });
             const replyLanguageLabels = {
@@ -536,6 +544,8 @@ export function createLegacyCoreTailLifecycle(dependencies = {}) {
             // Noura names are localized when the list is built, not through data-lang-key, so the
             // sidebar and the active-Noura chip keep the old language until they are rebuilt.
             // Guarded so repeated applyLanguage calls with the same language stay free.
+            // Pieces that fill their own words (the account part of the settings, the security check) listen and fill them again.
+            if (languageChanged) window.dispatchEvent?.(new CustomEvent('astra:language-changed', { detail: { language: resolvedLanguage } }));
             if (languageChanged) {
                 renderAstras();
                 renderInputIndicators();
@@ -1131,6 +1141,7 @@ function setupMessageIntersectionObserver() {
                 getUserKey,
                 loadConfig,
                 loadAppData,
+                getText: (key) => i18n[state.config.uiLanguage]?.[key] || '',
                 restoreMemorySync: async () => {
                     const projection = state.config.memorySync;
                     if (!projection) return;

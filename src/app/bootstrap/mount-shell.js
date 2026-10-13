@@ -16,6 +16,24 @@ export function dismissStartupSkeleton(documentTarget = globalThis.document) {
   return true;
 }
 
+// The app's words are not loaded when the app fails to start, so the two lines of the failure are kept here, in the language the person last used.
+const STARTUP_FAILURE_TEXTS = Object.freeze({
+  'zh-TW': { withMessage: '載入失敗：{message}', retry: '載入失敗，請重新整理後再試。' },
+  en: { withMessage: 'Failed to load: {message}', retry: 'Failed to load. Refresh the page and try again.' },
+  fr: { withMessage: 'Échec du chargement : {message}', retry: 'Échec du chargement. Actualisez la page et réessayez.' },
+  ru: { withMessage: 'Не удалось загрузить: {message}', retry: 'Не удалось загрузить. Обновите страницу и повторите попытку.' },
+  es: { withMessage: 'No se pudo cargar: {message}', retry: 'No se pudo cargar. Actualiza la página e inténtalo de nuevo.' }
+});
+
+const startupLanguage = () => {
+  try {
+    const stored = globalThis.localStorage?.getItem('noureon_login_language') || globalThis.localStorage?.getItem('noureon_ui_language');
+    return STARTUP_FAILURE_TEXTS[stored] ? stored : 'zh-TW';
+  } catch {
+    return 'zh-TW';
+  }
+};
+
 export function showStartupFailure(error, documentTarget = globalThis.document) {
   const skeleton = documentTarget?.querySelector?.('[data-startup-skeleton]');
   if (!skeleton) return false;
@@ -25,9 +43,10 @@ export function showStartupFailure(error, documentTarget = globalThis.document) 
   status?.setAttribute('role', 'alert');
   status?.setAttribute('aria-busy', 'false');
   if (message) {
+    const text = STARTUP_FAILURE_TEXTS[startupLanguage()];
     message.textContent = error?.message
-      ? `載入失敗：${error.message}`
-      : '載入失敗，請重新整理後再試。';
+      ? text.withMessage.replace('{message}', error.message)
+      : text.retry;
   }
   return true;
 }

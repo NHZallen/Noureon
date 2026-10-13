@@ -1,5 +1,6 @@
 import { getRuntimeText } from '../i18n/runtime-texts.js';
 import { installStaleChunkRecovery } from '../../../pwa/stale-chunk-recovery.js';
+import { readLastUiLanguage, readLoginLanguage, rememberLoginLanguage } from './login-language.js';
 
 export function createLegacyStartupLifecycle({
     window,
@@ -14,6 +15,7 @@ export function createLegacyStartupLifecycle({
     loadAppData,
     restoreMemorySync,
     applyLanguage,
+    getText = () => '',
     applyUiTheme,
     initChatApp,
     handleLogin,
@@ -85,7 +87,15 @@ export function createLegacyStartupLifecycle({
     }
 
     async function initializeApp() {
-        applyLanguage('zh-TW');
+        // The language picked on the sign-in page before the page was reloaded (signing in reloads it) is kept; so is the one the app was last in
+        // (a person who signed out sees the home page in it, not in Chinese again).
+        const pickedLanguage = readLoginLanguage() || readLastUiLanguage();
+        if (pickedLanguage) {
+            const config = getConfig();
+            config.uiLanguage = pickedLanguage;
+            config.aiDefaultLanguage = pickedLanguage;
+        }
+        applyLanguage(pickedLanguage || 'zh-TW');
 
         const lastUsername = await getItem('chat_lastUser');
         if (lastUsername) {
@@ -183,8 +193,11 @@ export function createLegacyStartupLifecycle({
         if (expandButton) {
             expandButton.classList.toggle('hidden', !canExpand);
             expandButton.setAttribute('aria-expanded', String(Boolean(isExpanded)));
-            expandButton.setAttribute('aria-label', isExpanded ? '收合輸入欄' : '展開輸入欄');
-            expandButton.setAttribute('title', isExpanded ? '收合輸入欄' : '展開輸入欄');
+            const expandLabel = getText(isExpanded ? 'collapseInput' : 'expandInput');
+            if (expandLabel) {
+                expandButton.setAttribute('aria-label', expandLabel);
+                expandButton.setAttribute('title', expandLabel);
+            }
         }
 
         textarea.style.maxHeight = `${heightLimit}px`;
@@ -209,6 +222,7 @@ export function createLegacyStartupLifecycle({
                 const config = getConfig();
                 config.uiLanguage = lang;
                 config.aiDefaultLanguage = lang;
+                rememberLoginLanguage(lang);
                 applyLanguage(lang);
                 elements.loginLangMenu.classList.remove('visible');
             }

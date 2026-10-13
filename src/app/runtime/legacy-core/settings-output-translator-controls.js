@@ -192,8 +192,8 @@ export function createSettingsOutputTranslatorControls(dependencies = {}) {
     input.value = config[configKey] || '';
     const selectedModel = candidates.find(model => model.id === config[configKey]) || candidates[0];
     const featureLabels = (model) => [
-      modelSupportsVision(model) ? (translations.vision || '視覺') : '',
-      modelSupportsDocumentUpload(model) ? (translations.document || '文件') : ''
+      modelSupportsVision(model) ? translations.vision : '',
+      modelSupportsDocumentUpload(model) ? translations.document : ''
     ].filter(Boolean);
     const optionHTML = candidates.map(model => {
       const selected = model.id === selectedModel.id;
@@ -267,6 +267,11 @@ export function createSettingsOutputTranslatorControls(dependencies = {}) {
       });
     }
   };
+
+  // The menus of the translator models write their words (what a model can read, the empty line) when drawn: drawn again when the language changes.
+  globalThis.window?.addEventListener?.('astra:language-changed', () => {
+    if (document.querySelector('[data-translator-picker]')) renderTranslatorModelPickers();
+  });
 
   return {
     ensureCouncilTranslatorSettingsControls,

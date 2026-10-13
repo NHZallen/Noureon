@@ -82,13 +82,16 @@ export function createSettingsMobileShellHelper(dependencies = {}) {
     settingsMobileList.querySelector('#settings-mobile-logout-btn')?.addEventListener('click', handleLogout);
   };
 
+  // The list is words made when it is drawn: it is drawn again when the language changes.
+  window?.addEventListener?.('astra:language-changed', () => renderSettingsMobileList());
+
   const ensureSettingsMobileShell = () => {
     const settingsBody = ALL_ELEMENTS.settingsModal?.querySelector('.flex.flex-1.overflow-hidden');
     if (!settingsBody || document.getElementById('settings-mobile-header')) return;
     const mobileHeader = document.createElement('div');
     mobileHeader.id = 'settings-mobile-header';
     mobileHeader.innerHTML = `
-        <button type="button" id="settings-mobile-back-btn" aria-label="${escapeHTML(getSettingsText('back', 'Back'))}">
+        <button type="button" id="settings-mobile-back-btn" data-lang-key-aria="back" aria-label="${escapeHTML(getSettingsText('back', 'Back'))}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"></path></svg>
         </button>
         <h2 id="settings-mobile-title"></h2>

@@ -56,6 +56,8 @@ export function buildMessageRenderView({
     formatTimestamp,
     copyTitle,
     uiLanguage = 'zh-TW',
+    // The words of the buttons and notes the message carries (from the interface texts of the language in use).
+    labels = {},
     historySources = [],
     historySourceTexts = {}
 }) {
@@ -131,14 +133,14 @@ export function buildMessageRenderView({
                 const imageAspectRatio = resolveImageAspectRatio(asset.aspectRatio);
                 return `
                 <figure class="generated-image-card${imageAspectRatio ? ' has-known-aspect' : ''}" data-generated-image-card="${asset.id}"${imageAspectRatio ? ` style="aspect-ratio: ${imageAspectRatio}"` : ''}>
-                    <button type="button" class="generated-image-preview-btn" data-generated-image-preview="${asset.id}" aria-label="預覽生成圖片">
-                        <img data-generated-image-id="${asset.id}" alt="AI 生成圖片" loading="lazy">
+                    <button type="button" class="generated-image-preview-btn" data-generated-image-preview="${asset.id}" aria-label="${escapeHTML(labels.imagePreview || '')}">
+                        <img data-generated-image-id="${asset.id}" alt="${escapeHTML(labels.imageAlt || '')}" loading="lazy">
                     </button>
                     <div class="generated-image-actions">
                         <button type="button" data-generated-image-edit="${asset.id}" class="generated-image-action-btn generated-image-edit-btn">
-                            <span>編輯</span>
+                            <span>${escapeHTML(labels.edit || '')}</span>
                         </button>
-                        <a data-generated-image-download="${asset.id}" class="generated-image-action-btn generated-image-download-btn" title="下載原始圖片" aria-label="下載原始圖片">
+                        <a data-generated-image-download="${asset.id}" class="generated-image-action-btn generated-image-download-btn" title="${escapeHTML(labels.imageDownloadOriginal || '')}" aria-label="${escapeHTML(labels.imageDownloadOriginal || '')}">
                             <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg>
                         </a>
                     </div>
@@ -171,11 +173,11 @@ export function buildMessageRenderView({
         }
         if (isUser) {
             userActionButtons = `
-                <div class="user-message-actions" aria-label="訊息操作">
-                    <button type="button" class="user-message-action" data-message-action="copy" title="複製訊息" aria-label="複製訊息">
+                <div class="user-message-actions" aria-label="${escapeHTML(labels.messageActions || '')}">
+                    <button type="button" class="user-message-action" data-message-action="copy" title="${escapeHTML(labels.copyMessage || '')}" aria-label="${escapeHTML(labels.copyMessage || '')}">
                         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><defs><mask id="user-message-copy-mask-${message.id}" maskUnits="userSpaceOnUse" x="0" y="0" width="24" height="24"><rect width="24" height="24" fill="white"></rect><rect x="3" y="8" width="13" height="13" rx="2" fill="black"></rect></mask></defs><rect x="8" y="3" width="13" height="13" rx="2" mask="url(#user-message-copy-mask-${message.id})"></rect><rect x="3" y="8" width="13" height="13" rx="2"></rect></svg>
                     </button>
-                    <button type="button" class="user-message-action" data-message-action="edit" title="編輯訊息" aria-label="編輯訊息">
+                    <button type="button" class="user-message-action" data-message-action="edit" title="${escapeHTML(labels.editMessage || '')}" aria-label="${escapeHTML(labels.editMessage || '')}">
                         <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
                     </button>
                 </div>`;

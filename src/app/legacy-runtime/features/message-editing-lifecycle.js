@@ -36,6 +36,7 @@ export function createMessageEditingLifecycle({
   saveAppData,
   invalidateConversationMemory = async () => {},
   submitEditedMessage,
+  getText = () => '',
   isMobile = () => globalThis.matchMedia?.('(max-width: 768px)')?.matches
 } = {}) {
   let activeEditor = null;
@@ -197,14 +198,14 @@ export function createMessageEditingLifecycle({
     const { root, text } = editor;
     root.innerHTML = `
       <div class="message-edit-panel">
-        <textarea class="message-edit-textarea" aria-label="編輯訊息" placeholder="輸入訊息">${escapeHTML(text)}</textarea>
+        <textarea class="message-edit-textarea" aria-label="${escapeHTML(getText('editMessage'))}" placeholder="${escapeHTML(getText('messageEditPlaceholder'))}">${escapeHTML(text)}</textarea>
         <div class="message-edit-preview-slot"></div>
         <div class="message-edit-footer">
-          <button type="button" class="message-edit-plus" data-edit-tools aria-label="附加檔案與功能">+</button>
+          <button type="button" class="message-edit-plus" data-edit-tools aria-label="${escapeHTML(getText('messageEditAttach'))}">+</button>
           <span class="message-edit-footer-spacer" aria-hidden="true"></span>
           <div class="message-edit-buttons">
-            <button type="button" class="message-edit-cancel" data-edit-cancel>取消</button>
-            <button type="button" class="message-edit-send" data-edit-send>傳送</button>
+            <button type="button" class="message-edit-cancel" data-edit-cancel>${escapeHTML(getText('cancel'))}</button>
+            <button type="button" class="message-edit-send" data-edit-send>${escapeHTML(getText('messageEditSend'))}</button>
           </div>
         </div>
       </div>`;
@@ -311,8 +312,8 @@ export function createMessageEditingLifecycle({
       root.className = 'message-edit-mobile-page';
       root.innerHTML = `
         <header class="message-edit-mobile-header">
-          <button type="button" data-edit-cancel aria-label="取消編輯">×</button>
-          <h2>編輯訊息</h2>
+          <button type="button" data-edit-cancel aria-label="${escapeHTML(getText('messageEditCancelAria'))}">×</button>
+          <h2>${escapeHTML(getText('editMessage'))}</h2>
           <span aria-hidden="true"></span>
         </header>
         <div class="message-edit-mobile-composer"></div>`;

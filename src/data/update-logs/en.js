@@ -1,6 +1,12 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.8.1": [
+    "<strong>Noureon 18.8.1 Release Notes</strong>",
+    "Two problems with signing in and language are fixed: signing out on one device no longer signs out the others, and the language picked on the home page is kept after signing in, with no Chinese left behind in Settings or elsewhere.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Only this device signs out:</strong>the sign-out button used to end the sign-in of the account on every device; it now ends only the one in use. The deliberate option in Settings, “sign out all devices after changing the sync password”, is unchanged.</li><li><strong>The language picked on the home page is kept:</strong>a language other than Chinese picked on the home page before signing in is no longer put back to Chinese by the language saved with the account when the page reloads after sign-in; after signing out, the home page stays in the language last used, and the loading screen and the security check (Cloudflare) follow it.</li><li><strong>Changing the language takes effect at once:</strong>when the language is changed in Settings, the cloud sync states and descriptions, the buttons of the account page, the lists on the left, the header, the search window, the colour names, the translator model menus and the picture settings in the plus menu, which used to stay in the old language, change with it.</li><li><strong>Missing translations filled in:</strong>memory suggestions, import progress, the tooltips of messages and pictures, editing a message and many error messages (including the ones shown when signing in) that were written in Chinese only now exist in all five languages; a new test fails if any text lacks a language from now on.</li></ul>"
+  ],
   "18.8.0": [
     "<strong>Noureon 18.8.0 Release Notes</strong>",
     "This version adds four services to the connectors: Supabase, Hugging Face, Miro and Canva.",

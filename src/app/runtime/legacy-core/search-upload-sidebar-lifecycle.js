@@ -190,7 +190,7 @@ export function createLegacySearchUploadSidebarLifecycle(dependencies = {}) {
             return;
         }
 
-        container.innerHTML = '<h3 class="conversation-search-recent-title">最近的對話</h3>';
+        container.innerHTML = `<h3 class="conversation-search-recent-title">${getText('recentChats', 'Recent chats')}</h3>`;
         if (activeConversations.length === 0) {
             container.insertAdjacentHTML('beforeend', `<p class="conversation-search-empty">${getText('searchPrompt', 'Please enter a keyword to search.')}</p>`);
             return;

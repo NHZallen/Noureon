@@ -896,7 +896,7 @@ test('runtime app data store ownership covers 00 and selected linked replacement
     'if (cleanedConversations.length < oldTempChatCount)',
     'await saveAppData()',
     'uploadedFiles = []',
-    "const newConv = createBaseConversation('新對話')",
+    "const newConv = createBaseConversation(getText('newChat'))",
     'liveConversationsBridge.getConversations().unshift(newConv)',
     'conversationStateAccess.setCurrentConversationId(newConv.id)',
     'renderAll()'
@@ -3750,7 +3750,7 @@ test('typewriter stream uses the shared streaming text frame queue boundary', as
   assert.match(typewriterStreamSource, /scheduleTimeout\(resolve,\s*16\)/);
   assert.match(typewriterStreamSource, /targetElement\.appendChild\(fragment\)/);
   assert.match(typewriterStreamSource, /targetElement\.innerHTML\s*=\s*renderMarkdownWithFormulas\(fullText\)/);
-  assert.match(typewriterStreamSource, /renderMarkdown\(`[^`]*\$\{error\.message\}`\)/);
+  assert.match(typewriterStreamSource, /renderMarkdown\(getLocalizedText\('streamCallFailed'\)\.replace\('\{message\}', error\.message\)\)/);
   assert.ok(statSync(projectFile('src/app/runtime/legacy-core/legacy-core.js')).size < 150 * 1024);
 });
 

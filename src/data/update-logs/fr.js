@@ -1,6 +1,12 @@
 // The update notes in French (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.8.1": [
+    "<strong>Notes de version de Noureon 18.8.1</strong>",
+    "Deux problèmes liés à la connexion et à la langue sont corrigés : se déconnecter sur un appareil ne déconnecte plus les autres, et la langue choisie sur la page d’accueil est conservée après la connexion, sans plus de chinois qui reste dans les réglages ou ailleurs.",
+    "<strong>Principaux changements</strong>",
+    "<ul><li><strong>Seul cet appareil se déconnecte :</strong>le bouton de déconnexion mettait fin à la connexion du compte sur tous les appareils ; il ne met désormais fin qu’à celle de l’appareil utilisé. L’option voulue des réglages, « se déconnecter de tous les appareils après avoir changé le mot de passe de synchronisation », ne change pas.</li><li><strong>La langue choisie sur la page d’accueil est conservée :</strong>une langue autre que le chinois choisie avant la connexion n’est plus remplacée par le chinois enregistré avec le compte quand la page se recharge après la connexion ; après une déconnexion, la page d’accueil reste dans la dernière langue utilisée, et l’écran de chargement et la vérification de sécurité (Cloudflare) la suivent.</li><li><strong>Le changement de langue est immédiat :</strong>quand on change la langue dans les réglages, les états et descriptions de la synchronisation cloud, les boutons de la page du compte, les listes de gauche, le titre, la fenêtre de recherche, les noms des couleurs, les menus des modèles de traduction et les réglages d’image du menu « + », qui restaient dans l’ancienne langue, changent aussi.</li><li><strong>Traductions manquantes ajoutées :</strong>suggestions de mémoire, progression de l’importation, infobulles des messages et des images, modification d’un message et de nombreux messages d’erreur (dont ceux de la connexion) écrits seulement en chinois existent maintenant dans les cinq langues ; un nouveau test échoue si un texte manque dans une langue.</li></ul>"
+  ],
   "18.8.0": [
     "<strong>Notes de version de Noureon 18.8.0</strong>",
     "Cette version ajoute quatre services aux connecteurs : Supabase, Hugging Face, Miro et Canva.",
