@@ -89,9 +89,11 @@ OpenCode 自己的 `variant.ts` 是一份對照（OpenCode 用戶端的設定，
 
 由 Allen 在自己的電腦跑（金鑰只放環境變數 `OPENCODE_GO_KEY`，不印出、不寫檔）。對每個模型送最小請求（`max_tokens` 很小，先跑免費模型，付費模型每個約幾分錢內），記錄：一般請求、串流、工具呼叫（是否回 `tool_calls`／`tool_use`）、圖片輸入（一張很小的圖）、各種思考參數是否被接受、串流裡思考內容的欄位名稱、用量資料是否出現、`/messages` 缺少 `anthropic-version` 會怎樣、錯誤（壞金鑰、不存在的模型）的狀態碼與內容。輸出是不含金鑰的 JSON，貼回來填模型登錄。可用 `--only <模型>`、`--free` 限制範圍與花費。
 
-## 10. 需要 Allen 確認
+## 10. 需要 Allen 確認（A 已決定：2026-10-13）
 
-1. 瀏覽器裡跑的回覆，經過 **`api/opencode-chat`（Vercel 函式）**，還是經過我們的伺服器（`api.noureon.com`，IP 固定、沒有函式時間限制，但要登入）？建議 Vercel 函式（跟 NVIDIA 一致、最簡單），並設定 `maxDuration`。
+**決定：瀏覽器裡跑的回覆走 Vercel 函式 `api/opencode-chat`（A）**，並在 `vercel.json` 設這個函式的 `maxDuration`。
+
+1. ~~瀏覽器裡跑的回覆走哪條通道~~ → **已決定 A：Vercel 函式**（跟 NVIDIA 一致、最簡單；出口 IP 會變，Allen 不在意；`maxDuration` 要設）。
 2. 思考強度選項的外觀（第一版沒有，探測之後再加）。
 3. 條款的疑慮：照 §1 的決定不擋上線；選單裡仍寫一行「使用 OpenCode Go 須遵守 OpenCode 的條款」。
 
@@ -105,3 +107,7 @@ OpenCode 自己的 `variant.ts` 是一份對照（OpenCode 用戶端的設定，
 - 單元測試：三種格式的請求組裝、串流收取（含思考、工具呼叫、取消、錯誤）、標頭（`User-Agent`、`x-opencode-session`）、逾時不切斷長串流、金鑰不進日誌與訊息、模型登錄的欄位檢查（五語言說明、價格、保留天數、Muse 標示）。
 - 探測工具的結果進入 `docs/` 的一份記錄。
 - `staging` 實測：每種格式至少一個模型，各測文字、串流、工具（研究搜尋、Python、連接器）、圖片、思考顯示、中途取消、用量用完的錯誤。通過才一起上線。
+
+## 13. 進度
+
+- 2026-10-13：設計完成；探測工具 `scripts/opencode-probe.mjs` 與測試 `tests/opencode-probe.test.js` 完成（用假網路測過，還沒用真的金鑰跑）。下一步：Allen 用 Go 金鑰跑探測（`OPENCODE_GO_KEY=… node scripts/opencode-probe.mjs --free` 先跑免費模型），把輸出貼回來，用它填模型登錄。
