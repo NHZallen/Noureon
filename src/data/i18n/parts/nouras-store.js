@@ -1,0 +1,53 @@
+// Nouras store
+export default {
+    'zh-TW': {
+        subscribe: '訂閱',
+        unsubscribe: '取消訂閱',
+        manage: '管理',
+        astrasCategoryProductivity: '生產力',
+        astrasCategoryPlanning: '規劃',
+        astrasCategoryLanguageLearning: '語言學習',
+        astrasCategoryMentalHealth: '心理健康',
+        astrasCategoryGames: '遊戲',
+    },
+    en: {
+        subscribe: 'Subscribe',
+        unsubscribe: 'Unsubscribe',
+        manage: 'Manage',
+        astrasCategoryProductivity: 'Productivity',
+        astrasCategoryPlanning: 'Planning',
+        astrasCategoryLanguageLearning: 'Language Learning',
+        astrasCategoryMentalHealth: 'Mental Health',
+        astrasCategoryGames: 'Games',
+    },
+    fr: {
+        subscribe: 'S\'abonner',
+        unsubscribe: 'Se désabonner',
+        manage: 'Gérer',
+        astrasCategoryProductivity: 'Productivité',
+        astrasCategoryPlanning: 'Planification',
+        astrasCategoryLanguageLearning: 'Apprentissage des langues',
+        astrasCategoryMentalHealth: 'Santé mentale',
+        astrasCategoryGames: 'Jeux',
+    },
+    ru: {
+        subscribe: 'Подписаться',
+        unsubscribe: 'Отписаться',
+        manage: 'Управлять',
+        astrasCategoryProductivity: 'Производительность',
+        astrasCategoryPlanning: 'Планирование',
+        astrasCategoryLanguageLearning: 'Изучение языка',
+        astrasCategoryMentalHealth: 'Психическое здоровье',
+        astrasCategoryGames: 'Игры',
+    },
+    es: {
+        subscribe: 'Suscribir',
+        unsubscribe: 'Darse de baja',
+        manage: 'Administrar',
+        astrasCategoryProductivity: 'Productividad',
+        astrasCategoryPlanning: 'Planificación',
+        astrasCategoryLanguageLearning: 'Aprendizaje de idiomas',
+        astrasCategoryMentalHealth: 'Salud mental',
+        astrasCategoryGames: 'Juegos',
+    }
+};
