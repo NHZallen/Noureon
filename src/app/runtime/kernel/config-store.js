@@ -1,6 +1,6 @@
 export function createLegacyRuntimeConfigStore({ defaultModelId } = {}) {
   let config = {
-    apiKeys: { gemini: '', openrouter: '', nvidia: '', tavily: '', tinyfish: '' },
+    apiKeys: { gemini: '', openrouter: '', nvidia: '', 'opencode-go': '', tavily: '', tinyfish: '' },
     defaultModel: defaultModelId,
     modelSettings: [],
     enableAutoWebSearch: false,

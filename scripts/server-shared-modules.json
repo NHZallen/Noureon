@@ -85,6 +85,10 @@
       "path": "src/app/runtime/legacy-core/model-registry.js"
     },
     {
+      "path": "src/app/runtime/legacy-core/opencode-models.js",
+      "note": "Reviewed 2026-10-13: no browser globals (the list of OpenCode Go models: the form of API of each, pictures)."
+    },
+    {
       "path": "src/app/runtime/memory/memory-context-builder.js"
     },
     {

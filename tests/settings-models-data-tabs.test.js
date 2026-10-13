@@ -30,7 +30,7 @@ test('the Models tab has every field in its final place, in cards', () => {
   assert.deepEqual(cards.map((card) => card.querySelector('.pz-head h3').dataset.langKey),
     ['apiKeyManagement', 'settingsCardWebSearch', 'settingsCardDocTranslation', 'settingsCardMemory']);
   const idsIn = (card) => [...card.querySelectorAll('[id]')].map((element) => element.id);
-  assert.deepEqual(idsIn(cards[0]), ['gemini-api-key-input', 'openrouter-api-key-input-all', 'nvidia-api-key-input', 'clear-all-api-keys-btn']);
+  assert.deepEqual(idsIn(cards[0]), ['gemini-api-key-input', 'openrouter-api-key-input-all', 'nvidia-api-key-input', 'opencode-go-api-key-input', 'clear-all-api-keys-btn']);
   assert.deepEqual(idsIn(cards[1]), ['search-provider-select', 'tavily-api-key-input', 'tavily-search-depth-select', 'tinyfish-api-key-link', 'tinyfish-api-key-input']);
   assert.deepEqual(idsIn(cards[2]), ['council-translator-model-select', 'single-document-translator-model-select']);
   assert.deepEqual(idsIn(cards[3]), ['memory-model-setting', 'memory-model-title', 'memory-model-description', 'memory-model-select']);
@@ -39,7 +39,7 @@ test('the Models tab has every field in its final place, in cards', () => {
 
 test('each key sits in its own block, so the key controls can wrap it with the show and clear buttons', () => {
   const { document } = createPage();
-  for (const id of ['gemini-api-key-input', 'openrouter-api-key-input-all', 'nvidia-api-key-input', 'tavily-api-key-input', 'tinyfish-api-key-input']) {
+  for (const id of ['gemini-api-key-input', 'openrouter-api-key-input-all', 'nvidia-api-key-input', 'opencode-go-api-key-input', 'tavily-api-key-input', 'tinyfish-api-key-input']) {
     const block = document.getElementById(id).closest('div');
     assert.equal(block.classList.contains('pz-key'), true, `${id} has a block of its own`);
     assert.equal(block.querySelectorAll('input').length, 1, `${id} shares its block with no other field`);

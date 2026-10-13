@@ -13,6 +13,7 @@ test('exports sensitive config store helpers and normalizes provider aliases', (
   assert.equal(normalizeProviderKey('gemini'), 'gemini');
   assert.equal(normalizeProviderKey('openrouter'), 'openrouter');
   assert.equal(normalizeProviderKey('nvidia'), 'nvidia');
+  assert.equal(normalizeProviderKey('opencode-go'), 'opencode-go');
   assert.equal(normalizeProviderKey('tavily'), 'tavily');
 });
 
@@ -47,6 +48,7 @@ test('store reads, writes, merges, replaces, clears, and protects external mutat
     gemini: '',
     openrouter: '',
     nvidia: '',
+    'opencode-go': '',
     tavily: '',
     tinyfish: ''
   });

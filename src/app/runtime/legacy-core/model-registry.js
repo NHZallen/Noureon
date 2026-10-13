@@ -4,6 +4,7 @@ import {
     createModelIdCanonicalizer,
     normalizeCouncilConfig as normalizeLegacyCouncilConfig
 } from '../kernel/config-normalization.js';
+import { OPENCODE_GO_MODELS, OPENCODE_GO_MODEL_IDS, OPENCODE_GO_PROVIDER, isOpencodeModel, opencodeModelSupportsVision } from './opencode-models.js';
 
 const MODEL_RELEASE_METADATA = Object.freeze({
     'gemini-3.8-flash': { releasedAt: 20260903, outputPricePerMillion: 3.75 },
@@ -72,6 +73,9 @@ export const MODEL_CATALOG = [
     { id: 'nvidia/z-ai/glm-5.3-flash', apiId: 'z-ai/glm-5.3-flash', name: 'NVIDIA GLM-5.3 Flash', provider: 'nvidia', descriptionKey: 'model_nvidia_glm_5_3_flash_desc', tier: ['free'], category: 'general' },
     { id: 'nvidia/z-ai/glm-5.3', apiId: 'z-ai/glm-5.3', legacyIds: ['nvidia/z-ai/glm-5.2'], name: 'NVIDIA GLM-5.3', provider: 'nvidia', descriptionKey: 'model_nvidia_glm_5_3_desc', tier: ['free'], category: 'general' },
     { id: 'nvidia/moonshotai/kimi-k3', apiId: 'moonshotai/kimi-k3', legacyIds: ['nvidia/moonshotai/kimi-k2.6', 'moonshotai/kimi-k2.6'], name: 'NVIDIA Kimi K3', provider: 'nvidia', descriptionKey: 'model_nvidia_kimi_k3_desc', tier: ['free'], category: 'general' },
+
+    // OpenCode Go: the list is in opencode-models.js (the form of API of each model, pictures, tools).
+    ...OPENCODE_GO_MODELS,
 
     // OpenRouter Paid Models (Anthropic)
     { id: 'anthropic/claude-haiku-5.5', legacyIds: ['anthropic/claude-haiku-4.5'], name: 'Claude Haiku 5.5', provider: 'openrouter', descriptionKey: 'model_claude_haiku_5_5_desc' },
@@ -214,7 +218,9 @@ export const TOOL_CALLING_MODEL_IDS = Object.freeze([
     'xiaomi/mimo-v2.6-flash',
     'x-ai/grok-4.6',
     'z-ai/glm-5.3',
-    'z-ai/glm-5.3-flash'
+    'z-ai/glm-5.3-flash',
+    // OpenCode Go: every model calls tools (the probe of 2026-10-13: a call and the answer of the tool sent back, in each form of API).
+    ...OPENCODE_GO_MODEL_IDS
 ]);
 // Text models without tool calling (or not yet shown to have it).
 export const NON_TOOL_CALLING_MODEL_IDS = Object.freeze([
@@ -452,6 +458,7 @@ export const getProviderLabel = (provider) => {
     if (provider === 'gemini') return 'Gemini';
     if (provider === 'openrouter') return 'OpenRouter';
     if (provider === 'nvidia') return 'NVIDIA';
+    if (provider === OPENCODE_GO_PROVIDER) return 'OpenCode Go';
     if (provider === 'tavily') return 'Tavily';
     if (provider === 'tinyfish') return 'TinyFish';
     return provider || '';
@@ -467,7 +474,7 @@ export const getModelFamilyKey = (model) => {
 };
 
 export const getModelFamilyName = (model) => (model?.name || '')
-    .replace(/^NVIDIA\s+/i, '')
+    .replace(/^(NVIDIA|OpenCode)\s+/i, '')
     .replace(/\s+\(.*?\)$/g, '')
     .trim();
 
@@ -483,7 +490,8 @@ export const modelSupportsVision = (model) => Boolean(model && (
     model.outputModality === 'image' ||
     model.provider === 'gemini' ||
     (model.provider === 'openrouter' && OPENROUTER_VISION_MODELS.includes(model.id)) ||
-    (model.provider === 'nvidia' && NVIDIA_VISION_MODELS.includes(getModelApiId(model)))
+    (model.provider === 'nvidia' && NVIDIA_VISION_MODELS.includes(getModelApiId(model))) ||
+    opencodeModelSupportsVision(model)
 ));
 
 export const modelGeneratesImages = (model) => Boolean(
@@ -517,7 +525,8 @@ export const getSingleTranslatorCandidates = () => MODELS.filter(modelSupportsSi
 export const modelUsesNativeWebSearch = (model) => Boolean(model && model.provider === 'gemini');
 export const modelUsesTavilySearch = (model) => Boolean(model && (
     model.provider === 'openrouter' ||
-    model.provider === 'nvidia'
+    model.provider === 'nvidia' ||
+    isOpencodeModel(model)
 ));
 export const modelSupportsWebSearch = (model) => Boolean(modelUsesNativeWebSearch(model) || modelUsesTavilySearch(model));
 export const modelSupportsToolCalling = (model) => Boolean(model && model.outputModality !== 'image' && TOOL_CALLING_MODEL_IDS.includes(model.id));
