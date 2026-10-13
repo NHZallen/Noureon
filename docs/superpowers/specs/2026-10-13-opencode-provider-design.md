@@ -151,13 +151,13 @@ OpenCode 自己的 `variant.ts` 是一份對照（OpenCode 用戶端的設定，
 | hy4-preview、hy3 | chat | ✗（Allen 確認不支援圖片） | `thinking:{type:disabled}` 可關，但關掉後 hy4 的回答會亂接下去（品質問題，預設不關） |
 | space-bunny | chat | ✓ | 預設不思考；`enable_thinking: true` 才會開；`thinking:{disabled}` 被拒 |
 | step-5-preview-free（免費） | chat | ✓ | `reasoning_effort: low` 會關掉；`thinking:{disabled}` 沒作用 |
-| longcat-2.5-preview-free（免費） | chat | ？（目錄標有圖片，探測答成 Black；Allen 還沒確認，先不標支援） | `thinking:{type:disabled}` 可關 |
+| longcat-2.5-preview-free（免費） | chat | ✓（Allen 確認支援；探測答成 Black 只是答錯） | `thinking:{type:disabled}` 可關 |
 | cat-jam-free（Go 清單裡有、文件沒寫） | chat | ✗（只收文字） | 只有 `reasoning_effort` 被接受 |
 | deepseek-v4.1-flash | chat | ✓（Red） | `thinking:{type:disabled}` 可關，`enabled`／`reasoning_effort`／`enable_thinking` 都接受 |
 | deepseek-v4-pro、deepseek-v4-flash | chat | 目錄標純文字，登記為✗（v4-flash 探測答出 Red、v4-pro 逾時，都不採信） | 同上：`thinking:{type:disabled}` 可關 |
 | grok-4.7、grok-4.6 | responses | ✓ | `reasoning.effort` low 可用；`none` 被拒；摘要有 |
 | gpt-6-luna、gpt-5.6-luna | responses | ✓ | `reasoning.effort` none／low 都接受；預設沒有推理摘要 |
-| muse-spark-1.3、1.2 Contributor | responses | 待定（用 96 個 token 全被推理用完，回應 `response.incomplete`，要用 `--max-tokens` 重測） | `reasoning.effort` 值為 minimal／low／medium／high／xhigh／max，**不支援 none**；關不掉思考 |
+| muse-spark-1.3、1.2 Contributor | responses | ✓，工具 ✓（Allen 確認；探測因 96 個 token 被推理用完回 `response.incomplete`，不再重測） | `reasoning.effort` 值為 minimal／low／medium／high／xhigh／max，**不支援 none**；關不掉思考 |
 | claude-haiku-5-5 | messages | ✓ | 只接受 `thinking:{type:adaptive}`（加 `output_config.effort`）；`enabled`＋預算被拒；`disabled` 也可 |
 | minimax-m3 | messages | ✓（Allen 確認支援；探測答成 Brown 只是答錯） | `adaptive`／`enabled`＋預算會思考；`disabled` 可關 |
 | minimax-m2.7 | messages | ✗（目錄：純文字） | 關不掉（`disabled` 無效） |
@@ -167,5 +167,5 @@ OpenCode 自己的 `variant.ts` 是一份對照（OpenCode 用戶端的設定，
 
 ### 待測／待決定
 1. ~~Allen 打開 Privacy 設定後重測~~ → 已測（09:24）：DeepSeek 三個全部正常；Muse Spark 兩個都連得上，但推理用完 96 token，工具與圖片沒測成，要 `--max-tokens 1500` 重測。使用者各自的工作區設定不同，所以這兩類錯誤一定要有明確提示。
-2. 「？」的圖片：只剩 longcat-2.5-preview-free 與 muse-spark，用真實圖片在測試站試，再決定標記。
+2. 圖片與工具的標記已全部確定（Allen 確認）；仍在測試站用真實請求各試一次。Muse Spark 的探測結果因 token 上限不採信，不需重測。
 3. 思考強度選項（§10 第 2 點）：第一版不做；上表是之後逐模型加選項的依據。
