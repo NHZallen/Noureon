@@ -1,0 +1,53 @@
+// Popover menus
+export default {
+    'zh-TW': {
+        pin: '釘選',
+        unpin: '取消釘選',
+        moveToFolder: '移至資料夾',
+        moveOutOfFolder: '移出資料夾',
+        createNewFolder: '建立新資料夾',
+        deleteFolder: '刪除資料夾',
+        edit: '編輯',
+        editAvatar: '編輯頭像',
+    },
+    en: {
+        pin: 'Pin',
+        unpin: 'Unpin',
+        moveToFolder: 'Move to Folder',
+        moveOutOfFolder: 'Move out of Folder',
+        createNewFolder: 'Create New Folder',
+        deleteFolder: 'Delete Folder',
+        edit: 'Edit',
+        editAvatar: 'Edit Avatar',
+    },
+    fr: {
+        pin: 'Épingler',
+        unpin: 'Désépingler',
+        moveToFolder: 'Déplacer vers un dossier',
+        moveOutOfFolder: 'Retirer du dossier',
+        createNewFolder: 'Créer un nouveau dossier',
+        deleteFolder: 'Supprimer le dossier',
+        edit: 'Modifier',
+        editAvatar: 'Modifier l\'avatar',
+    },
+    ru: {
+        pin: 'Приколоть',
+        unpin: 'Открепить',
+        moveToFolder: 'Переместить в папку',
+        moveOutOfFolder: 'Выйти из папки',
+        createNewFolder: 'Создать новую папку',
+        deleteFolder: 'Удалить папку',
+        edit: 'Редактировать',
+        editAvatar: 'Изменить аватар',
+    },
+    es: {
+        pin: 'Alfiler',
+        unpin: 'Desprender',
+        moveToFolder: 'Mover a la carpeta',
+        moveOutOfFolder: 'Salir de la carpeta',
+        createNewFolder: 'Crear nueva carpeta',
+        deleteFolder: 'Eliminar carpeta',
+        edit: 'Editar',
+        editAvatar: 'Editar avatar',
+    }
+};

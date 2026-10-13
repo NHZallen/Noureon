@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readdirSync } from 'node:fs';
 import test from 'node:test';
 
 import {
@@ -147,16 +148,17 @@ test('desktop quote UI uses curved SVG arrows and turns the action blue only on 
 });
 
 test('localized quote instructions require direct answers without citation prefaces', () => {
-  const zhTW = readUiSource('src/data/i18n/zh-TW.js');
-  const english = readUiSource('src/data/i18n/en.js');
-  const french = readUiSource('src/data/i18n/fr.js');
+  const texts = readdirSync(new URL('../src/data/i18n/parts/', import.meta.url))
+    .filter((name) => name.endsWith('.js') && name !== 'index.js')
+    .map((name) => readUiSource(`src/data/i18n/parts/${name}`))
+    .join('\n');
 
-  assert.doesNotMatch(zhTW, /請根據這段引用內容回答/);
-  assert.match(zhTW, /針對你先前回覆中的選取段落追問/);
-  assert.match(zhTW, /不要提及引用機制、選取文字或回答依據/);
-  assert.match(english, /selected passage from your earlier reply/);
-  assert.match(french, /passage sélectionné de votre réponse précédente/);
-  assert.match(zhTW, /quoteInquiryQuestionLabel: '使用者的追問'/);
-  assert.match(english, /quoteInquiryQuestionLabel: 'User follow-up'/);
-  assert.match(french, /quoteInquiryQuestionLabel: 'Question de suivi de l’utilisateur'/);
+  assert.doesNotMatch(texts, /請根據這段引用內容回答/);
+  assert.match(texts, /針對你先前回覆中的選取段落追問/);
+  assert.match(texts, /不要提及引用機制、選取文字或回答依據/);
+  assert.match(texts, /selected passage from your earlier reply/);
+  assert.match(texts, /passage sélectionné de votre réponse précédente/);
+  assert.match(texts, /quoteInquiryQuestionLabel: '使用者的追問'/);
+  assert.match(texts, /quoteInquiryQuestionLabel: 'User follow-up'/);
+  assert.match(texts, /quoteInquiryQuestionLabel: 'Question de suivi de l’utilisateur'/);
 });
