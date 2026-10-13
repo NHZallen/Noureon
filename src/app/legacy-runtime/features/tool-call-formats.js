@@ -316,8 +316,14 @@ export function createOpenAiCollector({ onReasoning = null, onToolArguments = nu
   const reasoningDetails = [];
   let text = '';
   let finishReason = '';
+  let failure = '';
   return {
     add(chunk) {
+      // OpenRouter answers 200 and reports a refusal of the model's provider as a chunk of its own: `{ error: { code, message } }`.
+      if (chunk?.error && !failure) {
+        const { message, code } = chunk.error;
+        failure = `${typeof message === 'string' && message ? message : 'The response stream reported an error.'}${code ? ` (${code})` : ''}`;
+      }
       const choice = chunk?.choices?.[0];
       const delta = choice?.delta || {};
       if (choice?.finish_reason) finishReason = choice.finish_reason;
@@ -341,6 +347,7 @@ export function createOpenAiCollector({ onReasoning = null, onToolArguments = nu
       text += visible;
       return visible;
     },
+    get failure() { return failure; },
     result: () => ({
       text,
       parts: [],
