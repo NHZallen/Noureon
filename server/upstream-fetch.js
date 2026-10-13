@@ -8,6 +8,11 @@ const TAVILY_EXTRACT_URL = 'https://api.tavily.com/extract';
 const TINYFISH_SEARCH_URL = 'https://api.search.tinyfish.ai';
 const TINYFISH_FETCH_URL = 'https://api.fetch.tinyfish.ai';
 const NVIDIA_CHAT_URL = 'https://integrate.api.nvidia.com/v1/chat/completions';
+// OpenCode Go (the same three forms of API and the same headers as api/opencode-chat.js, which the browser uses).
+const OPENCODE_BASE_URL = 'https://opencode.ai/inference/go/v1';
+const OPENCODE_PATHS = { chat: '/chat/completions', responses: '/responses', messages: '/messages' };
+const OPENCODE_USER_AGENT = 'Noureon/1 (+https://noureon.com)';
+const OPENCODE_SESSION_ID = /^[A-Za-z0-9._-]{1,100}$/;
 
 const TINYFISH_SEARCH_PARAMETERS = ['query', 'domain_type', 'location', 'language', 'page', 'recency_minutes', 'after_date', 'before_date'];
 const TINYFISH_DOMAIN_TYPES = new Set(['web', 'news', 'research_paper']);
@@ -37,6 +42,18 @@ export function createUpstreamFetch({ fetchImpl = fetch, timeoutMs = 45_000 } = 
     if (!path.startsWith('/api/')) return fetchImpl(input, init);
     if (!key) return reply(401, { error: 'Missing key' });
 
+    if (path.split('?')[0] === '/api/opencode-chat') {
+      const target = OPENCODE_PATHS[new URL(path, 'https://app.invalid').searchParams.get('format') || 'chat'];
+      if (!target) return reply(400, { error: 'Unknown format' });
+      const session = String(new Headers(init?.headers).get('x-opencode-session') || '');
+      // The chat itself, streamed: no time limit but the reply's own (the signal).
+      return fetchImpl(`${OPENCODE_BASE_URL}${target}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Accept: 'text/event-stream', 'User-Agent': OPENCODE_USER_AGENT, ...(OPENCODE_SESSION_ID.test(session) ? { 'x-opencode-session': session } : {}) },
+        body: typeof init.body === 'string' ? init.body : JSON.stringify(body),
+        signal
+      });
+    }
     if (path === '/api/nvidia-chat') {
       // The chat itself, streamed: no time limit but the reply's own (the signal).
       return fetchImpl(NVIDIA_CHAT_URL, { method: 'POST', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Accept: 'text/event-stream' }, body: typeof init.body === 'string' ? init.body : JSON.stringify(body), signal });

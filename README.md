@@ -54,6 +54,7 @@ Noureon currently supports:
 - Google Gemini
 - OpenRouter
 - NVIDIA API Catalog
+- OpenCode Go
 - Tavily or TinyFish web search
 
 You only need to configure the providers you intend to use.
@@ -180,6 +181,7 @@ Provider API keys do not need to be added to `.env`.
 | Google Gemini | Native Gemini models and supported search | Noureon Settings |
 | OpenRouter | Models from multiple AI labs and image generation | Noureon Settings |
 | NVIDIA | Supported NVIDIA-hosted models | Noureon Settings |
+| OpenCode Go | Models from several vendors on an OpenCode Go subscription (usage follows the OpenCode Go console limits) | Noureon Settings |
 | Tavily | Web search for supported non-native providers; also reads web addresses you paste | Noureon Settings |
 | TinyFish | Free web search for supported non-native providers (alternative to Tavily); also reads web addresses you paste | Noureon Settings |
 

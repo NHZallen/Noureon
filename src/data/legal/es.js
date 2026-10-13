@@ -16,7 +16,7 @@ export default {
           'Noureon no ofrece crédito de modelos ni revende su uso: tú aportas una clave de API de cada proveedor que quieras usar y liquidas el coste directamente con el proveedor. El camino más corto:',
           [
             'En la página de inicio de sesión, escribe un nombre y una contraseña para crear una «cuenta local»: sus datos se quedan en este navegador. También puedes vincular un correo o una cuenta de Google en Ajustes → Personalización para usar una cuenta en la nube y la sincronización.',
-            'Ve a Ajustes → Gestión de modelos, busca la gestión de claves de API e introduce la clave de al menos un proveedor: Google Gemini, OpenRouter (una clave abre todos los modelos que enruta) o NVIDIA (modelos gratuitos). Configura solo los que vayas a usar.',
+            'Ve a Ajustes → Gestión de modelos, busca la gestión de claves de API e introduce la clave de al menos un proveedor: Google Gemini, OpenRouter (una clave abre todos los modelos que enruta), NVIDIA (modelos gratuitos) u OpenCode Go (una suscripción cuya clave abre sus modelos). Configura solo los que vayas a usar.',
             'De vuelta en el chat, elige un modelo junto al cuadro de mensaje, escribe un mensaje y envíalo. Sin clave, el cuadro de mensaje te recuerda que primero la añadas en Ajustes.'
           ],
           'Por defecto las claves se quedan en tu navegador y no se suben. Solo si eliges que las respuestas las haga el servidor se envían, cifradas y de forma temporal, al servidor de Noureon (consulta «Ejecución en el servidor» y la Política de privacidad). No envíes nunca una clave, una contraseña de sincronización ni datos de recuperación a nadie, tampoco al soporte.'
@@ -40,7 +40,7 @@ export default {
         h: '3. Chat y organización',
         blocks: [
           [
-            'Elegir un modelo: el selector junto al cuadro de mensaje lista todos los modelos disponibles (ahora 38 opciones de 14 proveedores), con búsqueda y agrupación por proveedor; los modelos que admiten niveles de razonamiento muestran un control deslizante.',
+            'Elegir un modelo: el selector junto al cuadro de mensaje lista todos los modelos disponibles (ahora 69 opciones de 18 proveedores), con búsqueda y agrupación por proveedor; los modelos que admiten niveles de razonamiento muestran un control deslizante.',
             'El cuadro de mensaje: pega texto, adjunta archivos, haz una foto, dicta por voz, elige una habilidad con / y una herramienta de línea de comandos con @. El cuadro se puede ampliar a una ventana grande.',
             'Nouras: asistentes de IA reutilizables con su propio nombre, descripción, instrucciones y avatar. Elige Nouras oficiales en la tienda, crea los tuyos, propón un Noura nuevo o comparte uno con otra persona mediante transferencia directa entre dispositivos.',
             'Carpetas, archivo y papelera: las conversaciones pueden ir a carpetas (con color e icono propios), archivarse o moverse a la papelera; puedes seleccionar y mover varias a la vez; la papelera permite restaurar o eliminar para siempre.',
@@ -86,7 +86,7 @@ export default {
         h: '6. Búsqueda web',
         blocks: [
           [
-            'Los modelos Gemini pueden usar su búsqueda integrada. Los modelos de OpenRouter y NVIDIA usan el servicio Tavily o TinyFish que elijas: en Ajustes → Gestión de modelos → Búsqueda web elige la fuente e introduce la clave; Tavily ofrece profundidad básica o avanzada, y TinyFish sirve también para leer las direcciones que pegues.',
+            'Los modelos Gemini pueden usar su búsqueda integrada. Los modelos de OpenRouter, NVIDIA y OpenCode Go usan el servicio Tavily o TinyFish que elijas: en Ajustes → Gestión de modelos → Búsqueda web elige la fuente e introduce la clave; Tavily ofrece profundidad básica o avanzada, y TinyFish sirve también para leer las direcciones que pegues.',
             'Con la «búsqueda inteligente» activada, Noureon decide si un mensaje debe buscar antes en la web; con una clave de OpenRouter, un pequeño modelo de criterio ayuda a decidir (lo que recibe está en la Política de privacidad), y si falla o tarda, la aplicación usa sus propias listas de palabras.',
             'Cuando un modelo no tiene capacidad de herramientas, el servidor hace antes la búsqueda y entrega las páginas encontradas al modelo como «paquete de búsqueda»; en Ajustes también puedes hacer que las búsquedas se hagan solo en tu dispositivo.',
             'Las fuentes citadas en una respuesta van numeradas, con el nombre del sitio y su pequeño icono al lado.'
@@ -218,7 +218,7 @@ export default {
         h: '16. Solución de problemas',
         blocks: [
           [
-            'No hay respuesta tras enviar: comprueba que la clave del proveedor de ese modelo es correcta y tiene saldo, y prueba con otro modelo. Gemini, OpenRouter y NVIDIA tienen cada uno sus mensajes de error y sus reglas de cuota.',
+            'No hay respuesta tras enviar: comprueba que la clave del proveedor de ese modelo es correcta y tiene saldo, y prueba con otro modelo. Gemini, OpenRouter, NVIDIA y OpenCode Go tienen cada uno sus mensajes de error y sus reglas de cuota. En OpenCode Go, un error que menciona los ajustes de privacidad (la región Global, o los endpoints de pago que entrenan con datos de solicitudes) se corrige en los ajustes de privacidad de tu espacio de trabajo de OpenCode; el uso depende de los límites que muestra la consola de OpenCode Go.',
             'Una respuesta es lenta o se corta: las respuestas largas, la investigación profunda y el consejo llevan tiempo; cuando los ejecuta el servidor, puedes irte y volver. El servidor permite 5 respuestas a la vez y 10 nuevas por minuto por persona.',
             'La sincronización no se actualiza: comprueba que has iniciado sesión, que la contraseña de sincronización está desbloqueada (introdúcela si hace falta en la zona de sincronización en la nube de Ajustes) y que la red funciona, y pulsa «Sincronizar ahora». Los cambios sin conexión se sincronizan cuando vuelve la conexión.',
             'Contraseña de sincronización olvidada: recupérala por correo (consulta «Cuentas, inicio de sesión y recuperación»). Si la contraseña de sincronización se borró, los datos cifrados antiguos no se pueden descifrar.',
@@ -312,7 +312,7 @@ export default {
         h: '5. Proveedores, claves y costes',
         blocks: [
           [
-            'Usar el servicio exige que obtengas claves de API de proveedores externos (por ejemplo, Google Gemini, OpenRouter, NVIDIA, Tavily, TinyFish) y cumplas los términos de servicio, políticas de uso y política de privacidad de cada uno. Lo que envías se trata según las reglas de esos proveedores, que no controlamos; no somos responsables de la calidad, disponibilidad, políticas de contenido ni cambios de precio de sus servicios.',
+            'Usar el servicio exige que obtengas claves de API de proveedores externos (por ejemplo, Google Gemini, OpenRouter, NVIDIA, OpenCode Go, Tavily, TinyFish) y cumplas los términos de servicio, políticas de uso y política de privacidad de cada uno. Lo que envías se trata según las reglas de esos proveedores, que no controlamos; no somos responsables de la calidad, disponibilidad, políticas de contenido ni cambios de precio de sus servicios.',
             'Todos los costes de modelos y de búsqueda te los cobran los proveedores. Vigila tú mismo tu saldo y tu facturación, y te sugerimos fijar un límite de uso en el proveedor.',
             'Cuando el servidor hace una respuesta, tu clave se guarda cifrada un breve tiempo y se usa para llamar al proveedor en tu nombre y completar esa respuesta (el tiempo está en la Política de privacidad). Si el servidor se reinicia durante una imagen o la síntesis de un consejo, una petición puede enviarse de nuevo y el proveedor puede cobrar dos veces; no reembolsamos esos costes.',
             'El servicio también puede usar otra infraestructura de terceros, por ejemplo Supabase (cuentas y almacenamiento de base de datos), Cloudflare (comprobaciones anti-bots), GitHub (programas e iconos de las herramientas de línea de comandos) y Vercel (alojamiento web).'
@@ -502,9 +502,10 @@ export default {
         h: '5. Los proveedores externos que configuras',
         blocks: [
           [
-            'Los proveedores que puedes usar incluyen Google Gemini, OpenRouter (que traslada las peticiones a los fabricantes de modelos), NVIDIA API Catalog y los servicios de búsqueda Tavily y TinyFish. Configura solo los que uses.',
+            'Los proveedores que puedes usar incluyen Google Gemini, OpenRouter (que traslada las peticiones a los fabricantes de modelos), NVIDIA API Catalog, OpenCode Go (un servicio por suscripción que ejecuta modelos de varios fabricantes) y los servicios de búsqueda Tavily y TinyFish. Configura solo los que uses.',
             'Estos proveedores tratan tus datos según sus propios términos y políticas de privacidad, incluido si los registran, los conservan o los usan para entrenar; no lo controlamos y te sugerimos revisar los ajustes de cada uno.',
-            'Por defecto tus claves se guardan en el navegador y el navegador llama directamente al proveedor, de modo que las peticiones no pasan por el servidor de Noureon; las excepciones son cuando eliges la ejecución en el servidor y los puntos de proxy de este sitio (más abajo).'
+            'Por defecto tus claves se guardan en el navegador y el navegador llama directamente al proveedor, de modo que las peticiones no pasan por el servidor de Noureon; las excepciones son cuando eliges la ejecución en el servidor y los puntos de proxy de este sitio (más abajo).',
+            'OpenCode Go no acepta peticiones enviadas directamente por un navegador. Por eso, cuando la respuesta no la ejecuta nuestro servidor, la petición pasa por la función de este sitio (/api/opencode-chat), que añade las cabeceras que OpenCode pide a un cliente (un User-Agent y el identificador de la conversación, para que OpenCode pueda enrutar y reutilizar su caché) y la reenvía; tu clave y lo que envías solo pasan por ella y no lo almacenamos. Se aplican las reglas propias de OpenCode Go sobre conservación de datos, que varían según el modelo: por ejemplo, Grok, GPT Luna y Claude Haiku 5.5 conservan los datos 30 días, y los modelos Muse Spark Contributor usan tus mensajes y respuestas para entrenar los modelos de Meta (cada modelo lo indica en el selector).'
           ]
         ]
       },
@@ -655,7 +656,7 @@ export default {
           [
             'Supabase: verificación de cuentas, base de datos y almacenamiento de archivos (para la sincronización en la nube y la ejecución en el servidor).',
             'Cloudflare: la comprobación anti-bots Turnstile.',
-            'Google Gemini, OpenRouter, NVIDIA, Tavily, TinyFish: los proveedores de modelos y de búsqueda que configuras.',
+            'Google Gemini, OpenRouter, NVIDIA, OpenCode Go, Tavily, TinyFish: los proveedores de modelos y de búsqueda que configuras.',
             'GitHub: descargas e iconos de las herramientas de línea de comandos, y el código fuente.',
             'Notion, Linear, Miro, Canva, Context7, Upstash, Vercel, GitHub, Supabase, Hugging Face: los servicios que conectas como conectores, cuando los conectas (cada uno tiene sus propias condiciones y política de privacidad).',
             'Vercel: alojamiento y entrega del sitio web.',

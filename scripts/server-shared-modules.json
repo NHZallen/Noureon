@@ -2,6 +2,10 @@
   "comment": "Modules of src/ the server may use, with everything they import. Read a module for browser use (window, document, storage, import.meta.env) before adding it; the check fails when the server starts using a module that is not here, or when one here is no longer used.",
   "modules": [
     {
+      "path": "src/app/legacy-runtime/features/anthropic-messages-format.js",
+      "note": "Reviewed 2026-10-13: no browser globals (the Messages form of API: conversation, tools, stream collector)."
+    },
+    {
       "path": "src/app/legacy-runtime/features/council-attachments.js",
       "note": "Reviewed 2026-10-08: no browser globals (which attachments need a packet)."
     },
@@ -22,6 +26,14 @@
     },
     {
       "path": "src/app/legacy-runtime/features/model-request-formatting.js"
+    },
+    {
+      "path": "src/app/legacy-runtime/features/opencode-errors.js",
+      "note": "Reviewed 2026-10-13: no browser globals (the hints for a refusal of OpenCode Go)."
+    },
+    {
+      "path": "src/app/legacy-runtime/features/opencode-request.js",
+      "note": "Reviewed 2026-10-13: no browser globals (the request to OpenCode Go in its three forms)."
     },
     {
       "path": "src/app/legacy-runtime/features/openrouter-image-generation.js",

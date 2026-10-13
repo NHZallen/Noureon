@@ -4,6 +4,10 @@ import { compactFileHistoryForApi } from '../../ui/files/file-history-compaction
 import { compactSandboxRunsForApi } from '../../ui/sandbox/sandbox-run-block.js';
 import { researchReportsForApi } from '../../ui/research/research-history.js';
 import { applyGeminiTools, applyOpenAiTools, applyResponsesTools, createGeminiCollector, createOpenAiCollector, createResponsesCollector, modelThinkingKind } from './tool-call-formats.js';
+import { applyAnthropicTools, createAnthropicCollector } from './anthropic-messages-format.js';
+import { opencodeErrorMessage } from './opencode-errors.js';
+import { buildOpencodeRequest } from './opencode-request.js';
+import { opencodeFormatOf } from '../../runtime/legacy-core/opencode-models.js';
 
 export function mergeAdjacentModelMessages(history) {
   return history.reduce((merged, message) => {
@@ -274,14 +278,16 @@ const buildOpenAiCompatibleMessages = ({
       const mimeType = part.inlineData.mimeType || '';
       const base64Data = part.inlineData.data;
       const fullDataUrl = `data:${mimeType};base64,${base64Data}`;
+      // OpenCode Go's models take pictures but not video, and the service refuses a field it does not know (no `detail`).
+      const takesVideo = provider !== 'opencode-go';
       if (
-        (mimeType.startsWith('image/') || mimeType.startsWith('video/')) &&
+        (mimeType.startsWith('image/') || (takesVideo && mimeType.startsWith('video/'))) &&
         modelSupportsVision(modelInfo)
       ) {
         content.push(
           mimeType.startsWith('video/')
             ? { type: 'video_url', video_url: { url: fullDataUrl } }
-            : { type: 'image_url', image_url: { url: fullDataUrl, detail: 'high' } }
+            : { type: 'image_url', image_url: { url: fullDataUrl, ...(takesVideo ? { detail: 'high' } : {}) } }
         );
       } else {
         content.push({
@@ -515,6 +521,7 @@ const readProviderErrorBody = async (response) => {
 
 const getProviderErrorMessage = (errorBody, fallback = 'The API request failed') => (
   errorBody?.error?.message ||
+  (typeof errorBody?.error === 'string' ? errorBody.error : '') ||
   errorBody?.message ||
   fallback
 );
@@ -730,6 +737,8 @@ export function createStreamApiCall({
     // A model that takes tools only through the Responses API uses it for the rounds of an Advanced mode reply;
     // everything else it does goes the usual way.
     const useResponsesApi = provider === 'openrouter' && modelInfo.responsesApiForTools === true && hasTools;
+    // A model of OpenCode Go speaks one of three forms of API, whatever it is asked (the form is in the list of its models, not in what the page says).
+    const opencodeFormat = provider === 'opencode-go' ? (opencodeFormatOf(modelInfo) || 'chat') : '';
 
     const request = useResponsesApi
       ? buildOpenRouterResponsesRequest({
@@ -759,6 +768,21 @@ export function createStreamApiCall({
         requestOptions,
         modelSupportsUploadedFile
       })
+      : provider === 'opencode-go'
+        ? buildOpencodeRequest({
+          format: opencodeFormat || 'chat',
+          modelId,
+          apiKey,
+          sessionId: conversation?.id,
+          modelInfo,
+          historyForApi,
+          currentMessageForApi,
+          generationConfig,
+          systemInstruction,
+          modelSupportsVision,
+          buildResponsesInput: buildOpenRouterResponsesInput,
+          buildChatMessages: () => buildOpenAiCompatibleMessages({ provider, modelInfo, historyForApi, currentMessageForApi, systemInstruction, modelSupportsVision })
+        })
       : provider === 'nvidia'
         ? buildOpenAiCompatibleRequest({
           provider,
@@ -785,9 +809,11 @@ export function createStreamApiCall({
         });
 
     if (hasTools) {
-      if (useResponsesApi) applyResponsesTools(request.payload, toolOptions);
+      if (useResponsesApi || opencodeFormat === 'responses') applyResponsesTools(request.payload, toolOptions);
+      else if (opencodeFormat === 'messages') applyAnthropicTools(request.payload, toolOptions);
       else if (provider === 'gemini') applyGeminiTools(request.payload, toolOptions);
-      else applyOpenAiTools(request.payload, toolOptions);
+      // The service refuses fields it does not know: the thinking details of OpenRouter are not sent back to it.
+      else applyOpenAiTools(request.payload, { ...toolOptions, reasoningDetails: provider !== 'opencode-go' });
     }
 
     const response = await fetchImpl(request.url, {
@@ -799,7 +825,8 @@ export function createStreamApiCall({
 
     if (!response.ok) {
       const errorBody = await readProviderErrorBody(response);
-      const error = new Error(getProviderErrorMessage(errorBody));
+      const message = getProviderErrorMessage(errorBody);
+      const error = new Error(provider === 'opencode-go' ? opencodeErrorMessage({ status: response.status, message, language: getConfig()?.uiLanguage }) : message);
       error.status = response.status;
       throw error;
     }
@@ -813,7 +840,10 @@ export function createStreamApiCall({
       onReasoning: requestOptions.onReasoning ? (chunk) => requestOptions.onReasoning(chunk, thinkingKind) : null,
       onToolArguments: requestOptions.onToolArguments
     };
-    const collector = provider === 'gemini' ? createGeminiCollector(hooks) : useResponsesApi ? createResponsesCollector(hooks) : createOpenAiCollector(hooks);
+    const collector = provider === 'gemini' ? createGeminiCollector(hooks)
+      : (useResponsesApi || opencodeFormat === 'responses') ? createResponsesCollector(hooks)
+        : opencodeFormat === 'messages' ? createAnthropicCollector(hooks)
+          : createOpenAiCollector(hooks);
     const fullText = provider === 'gemini'
       ? await consumeGeminiStream({ reader, decoder, onChunk, warn, collector })
       : await consumeOpenAiCompatibleStream({ reader, decoder, onChunk, collector });

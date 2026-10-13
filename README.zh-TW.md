@@ -54,6 +54,7 @@ Noureon 目前支援：
 - Google Gemini
 - OpenRouter
 - NVIDIA API Catalog
+- OpenCode Go
 - Tavily 或 TinyFish 網路搜尋
 
 你只需要設定實際打算使用的服務。
@@ -180,6 +181,7 @@ http://localhost:5173
 | Google Gemini | 原生 Gemini 模型與受支援的搜尋 | Noureon 設定 |
 | OpenRouter | 多家 AI 實驗室的模型與圖片生成 | Noureon 設定 |
 | NVIDIA | 受支援的 NVIDIA 託管模型 | Noureon 設定 |
+| OpenCode Go | OpenCode Go 訂閱提供的多家廠商模型（用量以 OpenCode Go 後台限額為準） | Noureon 設定 |
 | Tavily | 為受支援的非原生供應商提供網路搜尋，也用來讀取你貼的網址 | Noureon 設定 |
 | TinyFish | 為受支援的非原生供應商提供免費網路搜尋（Tavily 的替代選擇），也用來讀取你貼的網址 | Noureon 設定 |
 

@@ -50,7 +50,7 @@ export function applyGeminiTools(payload, { tools = [], toolTurns = [] } = {}) {
   return payload;
 }
 
-export function applyOpenAiTools(payload, { tools = [], toolTurns = [] } = {}) {
+export function applyOpenAiTools(payload, { tools = [], toolTurns = [], reasoningDetails = true } = {}) {
   if (tools.length) {
     payload.tools = tools.map(({ name, description, parameters }) => ({ type: 'function', function: { name, description, parameters } }));
     payload.tool_choice = 'auto';
@@ -65,7 +65,7 @@ export function applyOpenAiTools(payload, { tools = [], toolTurns = [] } = {}) {
         function: { name: call.name, arguments: call.arguments || '{}' }
       }))
     };
-    if (turn.assistant?.reasoningDetails?.length) assistant.reasoning_details = turn.assistant.reasoningDetails;
+    if (reasoningDetails && turn.assistant?.reasoningDetails?.length) assistant.reasoning_details = turn.assistant.reasoningDetails;
     payload.messages.push(assistant);
     for (const result of turn.results || []) {
       payload.messages.push({ role: 'tool', tool_call_id: result.id, content: result.content });
@@ -105,6 +105,8 @@ const SUMMARY_ONLY_PREFIXES = ['anthropic/', 'openai/', 'google/'];
 export function modelThinkingKind(provider, modelId = '') {
   if (provider === 'gemini') return 'summary';
   const id = String(modelId).toLowerCase();
+  // OpenCode Go: Claude, GPT, Grok and Muse Spark give a summary of their thinking (or none); the others stream their own.
+  if (provider === 'opencode-go') return /^(claude|gpt|grok|muse)/.test(id) ? 'summary' : 'raw';
   return SUMMARY_ONLY_PREFIXES.some((prefix) => id.startsWith(prefix)) ? 'summary' : 'raw';
 }
 

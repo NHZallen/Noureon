@@ -14,7 +14,7 @@ export function createModelAccess({ spec, secrets, fetchImpl = fetch, grounding 
   const language = spec.request.language;
   const modelInfo = spec.model.info;
   const upstreamFetch = createUpstreamFetch({ fetchImpl });
-  const conversation = { messages: [], astrasId: null, isWebSearchEnabled: grounding, genConfig: null, reasoningEffort: spec.request.reasoningEffort ?? null };
+  const conversation = { id: spec.conversationId, messages: [], astrasId: null, isWebSearchEnabled: grounding, genConfig: null, reasoningEffort: spec.request.reasoningEffort ?? null };
   const keyFor = (name) => {
     if (name === modelInfo.provider) return secrets.providerKey || '';
     if (name === spec.tools.searchProvider) return secrets.searchKey || '';

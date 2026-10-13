@@ -1,0 +1,299 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+
+import handler from '../api/opencode-chat.js';
+import { applyAnthropicTools, buildAnthropicMessages, createAnthropicCollector } from '../src/app/legacy-runtime/features/anthropic-messages-format.js';
+import { opencodeErrorHint, opencodeErrorMessage } from '../src/app/legacy-runtime/features/opencode-errors.js';
+import { OPENCODE_CHAT_PATH, buildOpencodeRequest } from '../src/app/legacy-runtime/features/opencode-request.js';
+import { createStreamApiCall } from '../src/app/legacy-runtime/features/stream-api-call.js';
+import { applyOpenAiTools, modelThinkingKind } from '../src/app/legacy-runtime/features/tool-call-formats.js';
+import { MODELS, getModelApiId, getModelTiers, getProviderLabel, modelSupportsToolCalling, modelSupportsVision, modelSupportsWebSearch } from '../src/app/runtime/legacy-core/model-registry.js';
+import { OPENCODE_GO_MODELS, OPENCODE_FORMATS, opencodeFormatOf } from '../src/app/runtime/legacy-core/opencode-models.js';
+import { createUpstreamFetch } from '../server/upstream-fetch.js';
+
+const model = (apiId) => MODELS.find((entry) => entry.id === `opencode-go/${apiId}`);
+const byteStream = (chunks) => {
+  const encoder = new TextEncoder();
+  return new ReadableStream({ start(controller) { chunks.forEach((chunk) => controller.enqueue(encoder.encode(chunk))); controller.close(); } });
+};
+const reply = ({ ok = true, status = 200, chunks = [], body } = {}) => ({ ok, status, statusText: '', body: byteStream(chunks), text: async () => body ?? '', json: async () => JSON.parse(body ?? '{}') });
+
+test('the list of OpenCode Go models: the ones of the owner\'s table, each in one of the three forms of API, with the pictures the owner confirmed', () => {
+  assert.equal(OPENCODE_GO_MODELS.length, 31);
+  assert.equal(new Set(OPENCODE_GO_MODELS.map((entry) => entry.id)).size, 31);
+  for (const entry of OPENCODE_GO_MODELS) {
+    assert.ok(OPENCODE_FORMATS.includes(opencodeFormatOf(entry)), entry.id);
+    assert.equal(entry.provider, 'opencode-go');
+    assert.ok(MODELS.some((listed) => listed.id === entry.id), `${entry.id} is in the list of the app`);
+    assert.ok(entry.name.startsWith('OpenCode '));
+    assert.ok(modelSupportsToolCalling(entry), `${entry.id} calls tools`);
+    assert.ok(modelSupportsWebSearch(entry), `${entry.id} searches the web (through the search tool)`);
+  }
+  const forms = (format) => OPENCODE_GO_MODELS.filter((entry) => entry.opencodeFormat === format).map((entry) => entry.apiId);
+  assert.deepEqual(forms('responses').sort(), ['gpt-5.6-luna', 'gpt-6-luna', 'grok-4.6', 'grok-4.7', 'muse-spark-1.2-contributor', 'muse-spark-1.3-contributor']);
+  assert.deepEqual(forms('messages').sort(), ['claude-haiku-5-5', 'minimax-m2.7', 'minimax-m3', 'qwen3.7-plus', 'qwen3.8-flash', 'qwen3.8-max']);
+  const noPictures = OPENCODE_GO_MODELS.filter((entry) => !modelSupportsVision(entry)).map((entry) => entry.apiId).sort();
+  assert.deepEqual(noPictures, ['deepseek-v4-flash', 'deepseek-v4-pro', 'glm-5.2', 'glm-5.3', 'hy3', 'hy4-preview', 'longcat-2.0', 'mimo-v2.5-pro', 'minimax-m2.7']);
+  assert.ok(modelSupportsVision(model('minimax-m3')) && modelSupportsVision(model('longcat-2.5-preview-free')) && modelSupportsVision(model('muse-spark-1.3-contributor')));
+  assert.deepEqual(getModelTiers(model('step-5-preview-free')), ['free']);
+  assert.deepEqual(getModelTiers(model('kimi-k3')), ['paid']);
+  assert.equal(getProviderLabel('opencode-go'), 'OpenCode Go');
+  assert.equal(getModelApiId(model('kimi-k3')), 'kimi-k3');
+  // The form is the one of this list, not what the page says.
+  assert.equal(opencodeFormatOf({ provider: 'opencode-go', id: 'opencode-go/kimi-k3', opencodeFormat: 'messages' }), 'chat');
+  assert.equal(opencodeFormatOf({ provider: 'openrouter', id: 'opencode-go/kimi-k3' }), '');
+});
+
+test('thinking is shown as a summary for Claude, GPT, Grok and Muse, and as the model\'s own for the others', () => {
+  for (const id of ['claude-haiku-5-5', 'gpt-6-luna', 'grok-4.7', 'muse-spark-1.3-contributor']) assert.equal(modelThinkingKind('opencode-go', id), 'summary');
+  for (const id of ['kimi-k3', 'glm-5.3', 'minimax-m3', 'qwen3.8-max']) assert.equal(modelThinkingKind('opencode-go', id), 'raw');
+});
+
+test('a request to OpenCode: the form of the model, our path, the key and the session as headers, no thinking settings, no temperature', () => {
+  const common = {
+    modelId: 'x', apiKey: 'oc_sk_secret', sessionId: 'conv-1', modelInfo: { name: 'OpenCode X' }, historyForApi: [{ role: 'user', parts: [{ text: 'Hi' }] }, { role: 'model', parts: [{ text: 'Hello' }] }],
+    currentMessageForApi: { role: 'user', parts: [{ text: 'Next' }] }, generationConfig: { temperature: 0.7, topP: 0.9, maxTokens: null }, systemInstruction: { parts: [{ text: 'Be kind.' }] },
+    modelSupportsVision: () => true, buildChatMessages: () => [{ role: 'user', content: 'chat messages' }], buildResponsesInput: (messages) => messages.map((message) => ({ role: message.role, content: [] }))
+  };
+  const chat = buildOpencodeRequest({ ...common, format: 'chat' });
+  assert.equal(chat.url, `${OPENCODE_CHAT_PATH}?format=chat`);
+  assert.deepEqual(chat.headers, { Authorization: 'Bearer oc_sk_secret', 'Content-Type': 'application/json', 'x-opencode-session': 'conv-1' });
+  assert.deepEqual(chat.payload, { model: 'x', messages: [{ role: 'user', content: 'chat messages' }], stream: true, stream_options: { include_usage: true } });
+
+  const responses = buildOpencodeRequest({ ...common, format: 'responses', generationConfig: { maxTokens: 500 } });
+  assert.equal(responses.url, `${OPENCODE_CHAT_PATH}?format=responses`);
+  assert.deepEqual(Object.keys(responses.payload).sort(), ['input', 'instructions', 'max_output_tokens', 'model', 'stream']);
+  assert.equal(responses.payload.instructions, 'Be kind.');
+
+  const messages = buildOpencodeRequest({ ...common, format: 'messages' });
+  assert.equal(messages.url, `${OPENCODE_CHAT_PATH}?format=messages`);
+  assert.equal(messages.payload.system, 'Be kind.');
+  assert.equal(messages.payload.max_tokens, 16384);
+  assert.deepEqual(messages.payload.messages.map((entry) => entry.role), ['user', 'assistant', 'user']);
+  assert.equal(JSON.stringify(messages.payload).includes('temperature'), false);
+
+  const noSession = buildOpencodeRequest({ ...common, sessionId: '', format: 'chat' });
+  assert.equal('x-opencode-session' in noSession.headers, false);
+});
+
+test('the conversation in the Messages form: pictures as base64 blocks, other files named, roles that alternate, the first one the user\'s', () => {
+  const info = { name: 'OpenCode Haiku' };
+  const built = buildAnthropicMessages([
+    { role: 'model', parts: [{ text: 'Leading answer' }] },
+    { role: 'user', parts: [{ text: 'Look' }, { inlineData: { mimeType: 'image/png', data: 'AAAA' } }, { inlineData: { mimeType: 'application/pdf', data: 'BBBB', name: 'a.pdf' } }] },
+    { role: 'user', parts: [{ text: 'and also' }] },
+    { role: 'model', parts: [{ text: '' }] },
+    { role: 'model', parts: [{ text: 'Done' }] }
+  ], { modelInfo: info, modelSupportsVision: () => true });
+  assert.deepEqual(built.map((entry) => entry.role), ['user', 'assistant']);
+  assert.deepEqual(built[0].content.map((block) => block.type), ['text', 'image', 'text', 'text']);
+  assert.deepEqual(built[0].content[1].source, { type: 'base64', media_type: 'image/png', data: 'AAAA' });
+  assert.match(built[0].content[2].text, /Attachment omitted for OpenCode Haiku: a\.pdf/);
+  const blind = buildAnthropicMessages([{ role: 'user', parts: [{ inlineData: { mimeType: 'image/png', data: 'AAAA' } }] }], { modelInfo: info, modelSupportsVision: () => false });
+  assert.match(blind[0].content[0].text, /Attachment omitted/);
+});
+
+const SSE = (events) => events.map((event) => `event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`);
+
+test('the collector of the Messages stream: text, thinking with its signature, a tool call in pieces, and what it sends back with the answer of the tool', () => {
+  const seenThinking = [];
+  const seenArguments = [];
+  const collector = createAnthropicCollector({ onReasoning: (chunk) => seenThinking.push(chunk), onToolArguments: (call) => seenArguments.push(call.arguments) });
+  const visible = [];
+  for (const event of [
+    { type: 'message_start', message: { id: 'm1' } },
+    { type: 'content_block_start', index: 0, content_block: { type: 'thinking', thinking: '' } },
+    { type: 'content_block_delta', index: 0, delta: { type: 'thinking_delta', thinking: 'Let me ' } },
+    { type: 'content_block_delta', index: 0, delta: { type: 'thinking_delta', thinking: 'see.' } },
+    { type: 'content_block_delta', index: 0, delta: { type: 'signature_delta', signature: 'sig' } },
+    { type: 'content_block_stop', index: 0 },
+    { type: 'content_block_start', index: 1, content_block: { type: 'text', text: '' } },
+    { type: 'content_block_delta', index: 1, delta: { type: 'text_delta', text: 'I will search.' } },
+    { type: 'content_block_start', index: 2, content_block: { type: 'tool_use', id: 'toolu_1', name: 'web_search', input: {} } },
+    { type: 'content_block_delta', index: 2, delta: { type: 'input_json_delta', partial_json: '{"query":' } },
+    { type: 'content_block_delta', index: 2, delta: { type: 'input_json_delta', partial_json: '"noureon"}' } },
+    { type: 'message_delta', delta: { stop_reason: 'tool_use' } },
+    { type: 'ping' }
+  ]) visible.push(collector.add(event));
+  assert.equal(visible.join(''), 'I will search.');
+  assert.equal(seenThinking.join(''), 'Let me see.');
+  assert.equal(seenArguments.at(-1), '{"query":"noureon"}');
+  const result = collector.result();
+  assert.equal(result.text, 'I will search.');
+  assert.equal(result.finishReason, 'tool_use');
+  assert.deepEqual(result.toolCalls, [{ id: 'toolu_1', name: 'web_search', arguments: '{"query":"noureon"}', args: { query: 'noureon' } }]);
+  assert.deepEqual(result.contentBlocks.map((block) => block.type), ['thinking', 'text', 'tool_use']);
+  assert.equal(result.contentBlocks[0].signature, 'sig');
+
+  const payload = { messages: [{ role: 'user', content: [{ type: 'text', text: 'Search' }] }] };
+  applyAnthropicTools(payload, { tools: [{ name: 'web_search', description: 'Search', parameters: { type: 'object' } }], toolTurns: [{ assistant: result, results: [{ id: 'toolu_1', name: 'web_search', content: 'found' }] }] });
+  assert.deepEqual(payload.tools, [{ name: 'web_search', description: 'Search', input_schema: { type: 'object' } }]);
+  assert.deepEqual(payload.tool_choice, { type: 'auto' });
+  assert.deepEqual(payload.messages.slice(1).map((entry) => entry.role), ['assistant', 'user']);
+  assert.deepEqual(payload.messages[1].content.map((block) => block.type), ['thinking', 'text', 'tool_use']);
+  assert.deepEqual(payload.messages[2].content, [{ type: 'tool_result', tool_use_id: 'toolu_1', content: 'found' }]);
+
+  const failing = createAnthropicCollector();
+  failing.add({ type: 'error', error: { message: 'overloaded' } });
+  assert.equal(failing.failure, 'overloaded');
+  // Rounds that did not keep the blocks (a reply taken up again) are rebuilt from the text and the calls.
+  const rebuilt = { messages: [] };
+  applyAnthropicTools(rebuilt, { toolTurns: [{ assistant: { text: 'T', toolCalls: [{ id: 'c', name: 'n', args: { a: 1 } }] }, results: [{ id: 'c', content: 'r' }] }] });
+  assert.deepEqual(rebuilt.messages[0].content, [{ type: 'text', text: 'T' }, { type: 'tool_use', id: 'c', name: 'n', input: { a: 1 } }]);
+});
+
+test('the answer of a tool goes back to a model of the chat form without the details of the thinking OpenRouter sends (the service refuses a field it does not know)', () => {
+  const turn = { assistant: { text: '', toolCalls: [{ id: 'c1', name: 'get_time', arguments: '{}' }], reasoningDetails: [{ type: 'x' }] }, results: [{ id: 'c1', content: '14:05' }] };
+  const kept = applyOpenAiTools({ messages: [] }, { toolTurns: [turn] });
+  const dropped = applyOpenAiTools({ messages: [] }, { toolTurns: [turn], reasoningDetails: false });
+  assert.ok(kept.messages[0].reasoning_details);
+  assert.equal('reasoning_details' in dropped.messages[0], false);
+});
+
+const harness = ({ apiId, fetchImpl, conversation = {}, language = 'en' }) => {
+  const info = model(apiId);
+  const requests = [];
+  const streamApiCall = createStreamApiCall({
+    getActiveConversation: () => ({ id: 'conv-42', model: info.id, messages: [{ role: 'user', parts: [{ text: 'Hello' }] }], genConfig: { temperature: 0.4, topP: 0.8, maxTokens: null }, ...conversation }),
+    normalizeConversationModel: () => info,
+    getModelApiId,
+    getApiKeyForProvider: () => 'oc_sk_secret',
+    getDefaultGenConfig: () => ({ temperature: 0.7, topP: 0.95, maxTokens: null }),
+    getConfig: () => ({ aiDefaultLanguage: 'en', uiLanguage: language, isLearningMode: false, memoryEnabled1: false }),
+    getAstras: () => [],
+    getPersonalMemories: () => [],
+    modelSupportsUploadedFile: () => true,
+    modelSupportsVision,
+    fetchImpl: async (url, options) => { requests.push({ url, options, body: JSON.parse(options.body) }); return fetchImpl(url, options); }
+  });
+  return { streamApiCall, requests };
+};
+
+test('a reply in each of the three forms: the request, and the text and the thinking read from the stream', async () => {
+  const streams = {
+    'kimi-k3': ['data: {"choices":[{"delta":{"reasoning":"hm"}}]}\n\n', 'data: {"choices":[{"delta":{"content":"Hel"}}]}\n\n', 'data: {"choices":[{"delta":{"content":"lo"}}]}\n\n', 'data: [DONE]\n\n'],
+    'gpt-6-luna': SSE([{ type: 'response.reasoning_summary_text.delta', delta: 'hm' }, { type: 'response.output_text.delta', delta: 'Hel' }, { type: 'response.output_text.delta', delta: 'lo' }, { type: 'response.completed', response: { output: [] } }]),
+    'qwen3.8-max': SSE([{ type: 'message_start' }, { type: 'content_block_start', index: 0, content_block: { type: 'thinking', thinking: '' } }, { type: 'content_block_delta', index: 0, delta: { type: 'thinking_delta', thinking: 'hm' } }, { type: 'content_block_start', index: 1, content_block: { type: 'text', text: '' } }, { type: 'content_block_delta', index: 1, delta: { type: 'text_delta', text: 'Hel' } }, { type: 'content_block_delta', index: 1, delta: { type: 'text_delta', text: 'lo' } }, { type: 'message_stop' }])
+  };
+  for (const [apiId, chunks] of Object.entries(streams)) {
+    const { streamApiCall, requests } = harness({ apiId, fetchImpl: async () => reply({ chunks }) });
+    const thoughts = [];
+    const chunksSeen = [];
+    const text = await streamApiCall([{ text: 'Hello' }], (chunk) => chunksSeen.push(chunk), undefined, false, { onReasoning: (chunk) => thoughts.push(chunk) });
+    assert.equal(text, 'Hello', apiId);
+    assert.equal(thoughts.join(''), 'hm', apiId);
+    const [{ url, options, body }] = requests;
+    assert.equal(url, `/api/opencode-chat?format=${opencodeFormatOf(model(apiId))}`);
+    assert.equal(options.headers.Authorization, 'Bearer oc_sk_secret');
+    assert.equal(options.headers['x-opencode-session'], 'conv-42');
+    assert.equal(body.model, apiId);
+    assert.equal('temperature' in body || 'top_p' in body || 'thinking' in body || 'reasoning_effort' in body, false);
+  }
+});
+
+test('a refusal of OpenCode says what to do, in the language of the page, before the words of the service', async () => {
+  const refuse = (status, message) => async () => reply({ ok: false, status, body: JSON.stringify({ error: { message } }) });
+  const ask = async (status, message, language) => {
+    const { streamApiCall } = harness({ apiId: 'deepseek-v4-pro', fetchImpl: refuse(status, message), language });
+    try {
+      await streamApiCall([{ text: 'Hello' }], () => {});
+    } catch (error) {
+      return error;
+    }
+    return null;
+  };
+  const region = await ask(400, 'Upstream request failed: This Go model requires Global regions. Select Global in your workspace\'s Privacy settings to use it.', 'en');
+  assert.match(region.message, /^This model needs the region set to Global/);
+  assert.match(region.message, /requires Global regions/);
+  assert.doesNotMatch(region.message, /^Upstream request failed/);
+  const training = await ask(400, 'Upstream request failed: This Go model trains on request data. Allow paid endpoints that train on request data in your workspace\'s Privacy settings to use it.', 'zh-TW');
+  assert.match(training.message, /^這個模型會用你的請求資料訓練/);
+  const key = await ask(401, 'Upstream request failed: Invalid credential', 'fr');
+  assert.match(key.message, /n’accepte pas cette clé/);
+  const limit = await ask(429, 'Upstream request failed: Account budget exceeded', 'es');
+  assert.match(limit.message, /límites de la consola/);
+  assert.equal(key.status, 401);
+  // An error that is only a text, not an object.
+  const plainText = await (async () => {
+    const { streamApiCall } = harness({ apiId: 'kimi-k3', fetchImpl: async () => reply({ ok: false, status: 500, body: JSON.stringify({ error: 'boom' }) }) });
+    return streamApiCall([{ text: 'Hello' }], () => {}).catch((error) => error);
+  })();
+  assert.equal(plainText.message, 'boom');
+});
+
+test('the hints: each known reason has a line in the five languages, and an unknown reason has none', () => {
+  for (const language of ['zh-TW', 'en', 'fr', 'ru', 'es']) {
+    for (const [status, message] of [[400, 'requires Global regions'], [400, 'trains on request data'], [401, 'Invalid credential'], [429, 'Account budget exceeded'], [404, 'Endpoint is unavailable.']]) {
+      assert.ok(opencodeErrorHint({ status, message, language }).length > 10, `${language} ${message}`);
+    }
+  }
+  assert.equal(opencodeErrorHint({ status: 500, message: 'something else', language: 'en' }), '');
+  assert.equal(opencodeErrorMessage({ status: 500, message: 'Upstream request failed: something else', language: 'en' }), 'something else');
+});
+
+test('the server\'s fetch sends the path of OpenCode straight to the service, with the headers it wants, and nothing else the page sent', async () => {
+  const calls = [];
+  const fetchImpl = async (url, options) => { calls.push({ url, options }); return reply({}); };
+  const upstream = createUpstreamFetch({ fetchImpl });
+  const body = JSON.stringify({ model: 'x', messages: [] });
+  for (const [format, path] of [['chat', '/chat/completions'], ['responses', '/responses'], ['messages', '/messages']]) {
+    await upstream(`/api/opencode-chat?format=${format}`, { method: 'POST', headers: { Authorization: 'Bearer oc_sk_secret', 'x-opencode-session': 'conv-42', 'x-evil': 'no' }, body });
+    const call = calls.at(-1);
+    assert.equal(call.url, `https://opencode.ai/inference/go/v1${path}`);
+    assert.equal(call.options.headers.Authorization, 'Bearer oc_sk_secret');
+    assert.equal(call.options.headers['x-opencode-session'], 'conv-42');
+    assert.match(call.options.headers['User-Agent'], /^Noureon\//);
+    assert.equal('x-evil' in call.options.headers, false);
+    assert.equal(call.options.body, body);
+  }
+  const unknown = await upstream('/api/opencode-chat?format=other', { method: 'POST', headers: { Authorization: 'Bearer k' }, body });
+  assert.equal(unknown.status, 400);
+  const noKey = await upstream('/api/opencode-chat', { method: 'POST', body });
+  assert.equal(noKey.status, 401);
+  await upstream('/api/opencode-chat', { method: 'POST', headers: { Authorization: 'Bearer k', 'x-opencode-session': 'bad session!' }, body });
+  assert.equal('x-opencode-session' in calls.at(-1).options.headers, false);
+});
+
+const fakeResponse = () => {
+  const out = { status: 0, headers: {}, chunks: [], ended: false, json: null, listeners: {}, writableEnded: false };
+  const res = {
+    status(code) { out.status = code; return res; },
+    setHeader(name, value) { out.headers[name.toLowerCase()] = value; },
+    json(value) { out.json = value; out.ended = true; return res; },
+    end(value) { if (value) out.chunks.push(value); out.ended = true; res.writableEnded = true; return res; },
+    write(chunk) { out.chunks.push(chunk); return true; },
+    flushHeaders() {},
+    on(name, listener) { out.listeners[name] = listener; }
+  };
+  return { res, out };
+};
+
+test('the function for the browser: a path for each form, the key and the session passed on, the User-Agent of Noureon, the stream passed through', async () => {
+  const realFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url, options) => { calls.push({ url, options }); return { status: 200, headers: new Headers({ 'content-type': 'text/event-stream' }), body: byteStream(['data: {"a":1}\n\n']), text: async () => '' }; };
+  try {
+    const { res, out } = fakeResponse();
+    await handler({ method: 'POST', query: { format: 'messages' }, headers: { authorization: 'Bearer oc_sk_secret', 'x-opencode-session': 'conv-42' }, body: { model: 'x' } }, res);
+    assert.equal(calls[0].url, 'https://opencode.ai/inference/go/v1/messages');
+    assert.equal(calls[0].options.headers.Authorization, 'Bearer oc_sk_secret');
+    assert.equal(calls[0].options.headers['x-opencode-session'], 'conv-42');
+    assert.match(calls[0].options.headers['User-Agent'], /^Noureon\//);
+    assert.equal(calls[0].options.body, JSON.stringify({ model: 'x' }));
+    assert.equal(out.status, 200);
+    assert.equal(Buffer.concat(out.chunks).toString(), 'data: {"a":1}\n\n');
+
+    const bad = fakeResponse();
+    await handler({ method: 'POST', query: { format: 'nope' }, headers: { authorization: 'Bearer k' }, body: {} }, bad.res);
+    assert.equal(bad.out.status, 400);
+    const noKey = fakeResponse();
+    await handler({ method: 'POST', query: {}, headers: {}, body: {} }, noKey.res);
+    assert.equal(noKey.out.status, 401);
+    const get = fakeResponse();
+    await handler({ method: 'GET', query: {}, headers: {} }, get.res);
+    assert.equal(get.out.status, 405);
+    assert.equal(calls.length, 1);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});

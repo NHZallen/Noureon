@@ -140,5 +140,10 @@
       "source": "/updates",
       "destination": "/updates.html"
     }
-  ]
+  ],
+  "functions": {
+    "api/opencode-chat.js": {
+      "maxDuration": 300
+    }
+  }
 }
