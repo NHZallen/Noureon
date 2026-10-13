@@ -255,7 +255,7 @@ test('model registry keeps council and translator helpers live-config backed', (
         { id: 'deepseek/deepseek-v4.1-flash', hidden: true, order: 0 }
       ],
       councilTranslatorModelId: 'openai/gpt-6-astra',
-      singleDocumentTranslatorModelId: 'gemini-3.1-pro-preview'
+      singleDocumentTranslatorModelId: 'gemini-4-argon'
     }
   };
   const registry = createLegacyModelRegistry({
@@ -270,7 +270,7 @@ test('model registry keeps council and translator helpers live-config backed', (
     'openai/gpt-6-astra'
   ]);
   assert.equal(registry.getCouncilTranslatorModel()?.id, 'openai/gpt-6-astra');
-  assert.equal(registry.getSingleDocumentTranslatorModel()?.id, 'gemini-3.1-pro-preview');
+  assert.equal(registry.getSingleDocumentTranslatorModel()?.id, 'gemini-4-argon');
 
   state.config.councilTranslatorModelId = 'missing-model';
   assert.equal(registry.getCouncilTranslatorModel()?.id, 'gemini-3.8-flash');
@@ -303,7 +303,7 @@ test('a temporary chat has no council, whatever its saved settings say', () => {
 });
 
 test('the Gemini models are also on OpenRouter, with the settings of their native twins; StepFun Step 5 Preview sees pictures, calls tools and thinks at three levels', () => {
-  const twins = [['gemini-3.8-flash', 'google/gemini-3.8-flash'], ['gemini-3.5-flash-lite', 'google/gemini-3.5-flash-lite'], ['gemini-3.1-pro-preview', 'google/gemini-3.1-pro-preview']];
+  const twins = [['gemini-3.8-flash', 'google/gemini-3.8-flash'], ['gemini-3.5-flash-lite', 'google/gemini-3.5-flash-lite'], ['gemini-4-argon', 'google/gemini-4-argon']];
   for (const [nativeId, openRouterId] of twins) {
     const native = MODELS.find((model) => model.id === nativeId);
     const viaOpenRouter = MODELS.find((model) => model.id === openRouterId);

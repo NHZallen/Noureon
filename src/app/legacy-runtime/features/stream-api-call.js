@@ -207,7 +207,9 @@ const buildGeminiRequest = ({
 }) => {
   const supportsSamplingParameters = ![
     'gemini-3.8-flash',
-    'gemini-3.5-flash-lite'
+    'gemini-3.5-flash-lite',
+    // Gemini 4 Argon ignores temperature, topP and topK (Google's page of the latest models): they are not sent.
+    'gemini-4-argon'
   ].includes(modelId);
   const payload = {
     contents: cleanGeminiHistory(
