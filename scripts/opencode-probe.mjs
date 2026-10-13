@@ -14,6 +14,9 @@
 //
 // It sends one request at a time and stops at the first 429. A full run is about 250 small requests (a few cents at most, the reasoning models are the dearest).
 
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 export const BASE = 'https://opencode.ai/inference/go/v1';
 export const TESTS = Object.freeze(['basic', 'stream', 'tools', 'vision', 'thinking', 'errors']);
 
@@ -291,5 +294,5 @@ export async function main(args = process.argv.slice(2), env = process.env, out 
   return stopped ? 1 : 0;
 }
 
-const isMain = process.argv[1] && import.meta.url.endsWith(process.argv[1].split('/').pop());
+const isMain = Boolean(process.argv[1]) && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain) process.exit(await main());

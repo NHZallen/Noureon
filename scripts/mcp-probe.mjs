@@ -9,6 +9,9 @@
 //
 // On a machine with no Node:  docker run --rm --network host -v ~/Noureon:/app -w /app --entrypoint node noureon-sandbox-runner:1 scripts/mcp-probe.mjs
 
+import { resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 export const TARGETS = Object.freeze([
   { id: 'notion', name: 'Notion', url: 'https://mcp.notion.com/mcp' },
   { id: 'linear', name: 'Linear', url: 'https://mcp.linear.app/mcp' },
@@ -168,7 +171,7 @@ export function formatTable(results) {
   return [...lines, '', ...(notes.length ? ['Notes:', ...notes.map((line) => `  ${line}`)] : [])].join('\n');
 }
 
-const isMain = process.argv[1] && import.meta.url.endsWith(process.argv[1].split('/').pop());
+const isMain = Boolean(process.argv[1]) && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain) {
   const results = [];
   for (const target of TARGETS) results.push(await probeServer(target));

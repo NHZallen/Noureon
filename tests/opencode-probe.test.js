@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 
 import { MODELS, THINKING, buildBody, main, parseEvents, probeModel, readAnswer, send, summarizeStream } from '../scripts/opencode-probe.mjs';
@@ -104,5 +105,13 @@ test('the command: without a key it says so and does nothing; with one it writes
     assert.ok(!messagesOut.join('\n').includes(KEY), 'no key on the screen');
   } finally {
     rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('run from the command line, the script really runs, with a relative path as well as an absolute one (it once printed nothing on Windows)', () => {
+  const script = join(process.cwd(), 'scripts', 'opencode-probe.mjs');
+  const run = (cwd, path) => spawnSync(process.execPath, [path, '--help-that-does-not-exist'], { cwd, encoding: 'utf8', env: { ...process.env, OPENCODE_GO_KEY: '' } });
+  for (const result of [run(process.cwd(), script), run(join(process.cwd(), 'scripts'), 'opencode-probe.mjs'), run(join(process.cwd(), 'scripts'), './opencode-probe.mjs')]) {
+    assert.ok(`${result.stdout}${result.stderr}`.trim().length > 0, 'the script should say something');
   }
 });
