@@ -269,8 +269,7 @@ export const MODEL_REASONING_CONFIGS = Object.freeze({ ...createReasoningConfigs
     // The Gemini models through OpenRouter take the same levels as their native twins (OpenRouter maps the effort to Gemini's thinking level).
     [OPENROUTER_REASONING_EFFORT, LOW_MEDIUM_HIGH, 'medium', ['google/gemini-3.8-flash']],
     [OPENROUTER_REASONING_EFFORT, ['minimal', 'low', 'medium', 'high'], 'minimal', ['google/gemini-3.5-flash-lite']],
-    // Gemini 4 Argon through OpenRouter has no low: every try with it ended in a 504 "The operation was aborted" on the second round (2026-10-13).
-    [OPENROUTER_REASONING_EFFORT, ['medium', 'high'], 'medium', ['google/gemini-4-argon']],
+    [OPENROUTER_REASONING_EFFORT, LOW_MEDIUM_HIGH, 'medium', ['google/gemini-4-argon']],
     [OPENROUTER_REASONING_EFFORT, ['minimal', 'high'], 'minimal', ['google/gemini-nano-banana-2.1']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium'], 'medium', ['nvidia/nemotron-3-super-120b-a12b:free'], { supportsMaxTokens: true }],
     [OPENROUTER_REASONING_EFFORT, ['medium', 'high'], 'high', ['nvidia/nemotron-3-ultra-550b-a55b:free'], { supportsMaxTokens: true }],

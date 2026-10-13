@@ -318,8 +318,7 @@ test('the Gemini models are also on OpenRouter, with the settings of their nativ
     assert.equal(modelSupportsDocumentUpload(viaOpenRouter), true);
     assert.equal(modelSupportsToolCalling(viaOpenRouter), true);
     assert.equal(modelSupportsWebSearch(viaOpenRouter), true);
-    // The same thinking levels, except Argon through OpenRouter, which has no low (every try ended in a 504).
-    assert.deepEqual(getModelReasoningConfig(viaOpenRouter).options, nativeId === 'gemini-4-argon' ? ['medium', 'high'] : getModelReasoningConfig(native).options, 'the thinking levels');
+    assert.deepEqual(getModelReasoningConfig(viaOpenRouter).options, getModelReasoningConfig(native).options, 'the same thinking levels');
     assert.equal(getModelReasoningConfig(viaOpenRouter).defaultEffort, getModelReasoningConfig(native).defaultEffort);
     assert.equal(getModelReasoningConfig(viaOpenRouter).providerParameter, 'openrouterReasoningEffort');
   }
