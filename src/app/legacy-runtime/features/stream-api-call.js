@@ -826,7 +826,7 @@ export function createStreamApiCall({
     if (!response.ok) {
       const errorBody = await readProviderErrorBody(response);
       const message = getProviderErrorMessage(errorBody);
-      const error = new Error(provider === 'opencode-go' ? opencodeErrorMessage({ status: response.status, message, language: getConfig()?.uiLanguage }) : message);
+      const error = new Error(provider === 'opencode-go' ? await opencodeErrorMessage({ status: response.status, message, language: getConfig()?.uiLanguage }) : message);
       error.status = response.status;
       throw error;
     }

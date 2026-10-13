@@ -112,6 +112,7 @@ OpenCode 自己的 `variant.ts` 是一份對照（OpenCode 用戶端的設定，
 
 - 2026-10-13：設計完成；探測工具 `scripts/opencode-probe.mjs` 與測試 `tests/opencode-probe.test.js` 完成（用假網路測過，還沒用真的金鑰跑）。下一步：Allen 用 Go 金鑰跑探測（`OPENCODE_GO_KEY=… node scripts/opencode-probe.mjs --free` 先跑免費模型），把輸出貼回來，用它填模型登錄。
 - 2026-10-13：探測跑完（免費、全部 Go 付費模型、錯誤），結果與模型登錄用的實測表在 §14。還缺：DeepSeek 與 Muse Spark（被帳號隱私設定擋住）。下一步：寫程式（轉接器、`api/opencode-chat`、模型登錄、設定頁金鑰、五語言文字、隱私文件）。
+- 2026-10-13：程式與文件完成（§15），推 `staging`，等 Allen 實測；實測表在 §12。
 
 ## 14. 探測結果（2026-10-13，Allen 用 Go 金鑰跑；原始結果檔 `all.json` 在 Allen 的電腦）
 
@@ -169,3 +170,19 @@ OpenCode 自己的 `variant.ts` 是一份對照（OpenCode 用戶端的設定，
 1. ~~Allen 打開 Privacy 設定後重測~~ → 已測（09:24）：DeepSeek 三個全部正常；Muse Spark 兩個都連得上，但推理用完 96 token，工具與圖片沒測成，要 `--max-tokens 1500` 重測。使用者各自的工作區設定不同，所以這兩類錯誤一定要有明確提示。
 2. 圖片與工具的標記已全部確定（Allen 確認）；仍在測試站用真實請求各試一次。Muse Spark 的探測結果因 token 上限不採信，不需重測。
 3. 思考強度選項（§10 第 2 點）：第一版不做；上表是之後逐模型加選項的依據。
+
+## 15. 實作（2026-10-13，已推 `staging`，等 Allen 在測試站實測）
+
+**做了什麼**
+- 模型登記：新檔 `src/app/runtime/legacy-core/opencode-models.js`（31 個模型：id、顯示名稱 `OpenCode …`、廠商、格式、圖片）。供應商 id `opencode-go`，模型 id `opencode-go/<OpenCode 的 id>`；格式與圖片由這份表決定，不信任瀏覽器送來的欄位（伺服器也用同一份）。工具一律標支援（探測：呼叫與工具答案送回都通過）。價格欄用「Go 訂閱，依後台限額」，資料保留 30 天（Grok、GPT Luna、Claude Haiku）與 Muse 訓練的警示放在每個模型的說明行；免費兩個標「限時免費」並註明資料政策以 OpenCode 公告為準（官方文件的隱私表沒有列這兩個，**請 Allen 查證**）。
+- 金鑰：`opencode-go`（設定頁新欄位、`config-store`、`sensitive-config-store`／`-redaction`、`dom-registry`、`settings-api-key-controls`、`03-shell` 片段）。五語言文字在 `i18n/parts/settings.js`、`model-descriptions.js`、`dialogs.js`（匯出金鑰說明）；搜尋說明也加上 OpenCode Go。
+- 轉接器（新檔，`stream-api-call.js` 只加註冊與分支）：`opencode-request.js`（三種格式的請求、標頭 `Authorization`、`x-opencode-session`＝對話編號）、`anthropic-messages-format.js`（Messages 的訊息、工具、串流收集器）、`opencode-errors.js` 與 `src/data/opencode-error-texts.js`（錯誤提示五語言，**動態載入**，不佔主檔案）。chat 格式重用 NVIDIA 的訊息組裝（影片不送、不帶 `detail`）、responses 重用 OpenRouter 的輸入組裝與收集器。
+- **不帶**思考參數、`temperature`、`top_p`（上游對未知欄位直接 400；用各模型自己的預設）。Messages 的 `max_tokens` 預設 16384（探測用 16384 回 200 前請見 §14 待確認）。chat 的工具回合不送回 `reasoning_details`（OpenRouter 專屬，上游可能拒絕）；探測確認「有／無思考內容送回」兩種都被接受。
+- 通道：瀏覽器走 `api/opencode-chat.js`（`?format=chat|responses|messages`，加 `User-Agent: Noureon/1` 與 `x-opencode-session`，串流轉送，頁面關閉就中止上游）；`vercel.json` 為它設 `maxDuration` 300；伺服器 `server/upstream-fetch.js` 同一路徑直接送到 OpenCode（沒有總時間上限，只有該次回覆的訊號）；`COUNCIL_PROVIDERS` 加 `opencode-go`；`model-access.js` 把對話編號交給請求。
+- 錯誤：OpenCode 的訊息去掉 `Upstream request failed:` 前綴，已知原因前面加一行處理方法（五語言）：Global 區域、允許訓練資料、金鑰無效、端點暫時離線、用量以後台限額為準。
+- 文件：協助中心、使用條款、隱私政策（含 `PRIVACY.md` 重新產生）、README 兩份；首頁的數字（69 個模型、18 家廠商）依測試跟著改。
+- 測試：`tests/opencode-provider.test.js`（登記表、請求、Messages 組裝與收集器、三格式串流、錯誤提示、伺服器路徑、Vercel 函式）；`tests/opencode-probe.test.js`（探測工具）。
+
+**注意事項**
+- 首頁主 JS 壓縮後剛好 155.0 KB（上限 155.0）：錯誤提示改成動態載入才壓回來。下一次加文字就會超過，**要決定**：把更新日誌改成延遲載入，或放寬上限（待 Allen）。
+- 建議上線前確認：免費兩個模型的資料政策、Space Bunny 的廠商（目前標為 OpenCode）、`max_tokens` 預設 16384 對每個 Messages 模型是否合適（探測的 `params` 測試，Allen 尚未跑）。

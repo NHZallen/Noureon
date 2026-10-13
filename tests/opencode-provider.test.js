@@ -221,14 +221,14 @@ test('a refusal of OpenCode says what to do, in the language of the page, before
   assert.equal(plainText.message, 'boom');
 });
 
-test('the hints: each known reason has a line in the five languages, and an unknown reason has none', () => {
+test('the hints: each known reason has a line in the five languages, and an unknown reason has none', async () => {
   for (const language of ['zh-TW', 'en', 'fr', 'ru', 'es']) {
     for (const [status, message] of [[400, 'requires Global regions'], [400, 'trains on request data'], [401, 'Invalid credential'], [429, 'Account budget exceeded'], [404, 'Endpoint is unavailable.']]) {
-      assert.ok(opencodeErrorHint({ status, message, language }).length > 10, `${language} ${message}`);
+      assert.ok((await opencodeErrorHint({ status, message, language })).length > 10, `${language} ${message}`);
     }
   }
-  assert.equal(opencodeErrorHint({ status: 500, message: 'something else', language: 'en' }), '');
-  assert.equal(opencodeErrorMessage({ status: 500, message: 'Upstream request failed: something else', language: 'en' }), 'something else');
+  assert.equal(await opencodeErrorHint({ status: 500, message: 'something else', language: 'en' }), '');
+  assert.equal(await opencodeErrorMessage({ status: 500, message: 'Upstream request failed: something else', language: 'en' }), 'something else');
 });
 
 test('the server\'s fetch sends the path of OpenCode straight to the service, with the headers it wants, and nothing else the page sent', async () => {
