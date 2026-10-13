@@ -48,6 +48,8 @@ export function showStartupFailure(error, documentTarget = globalThis.document) 
   if (!skeleton) return false;
   const status = skeleton.querySelector('[role="status"]');
   const message = skeleton.querySelector('.startup-skeleton__message');
+  // A failure is always said, also on the page that is otherwise quiet for a visitor with no workspace.
+  skeleton.classList.remove('startup-skeleton--quiet');
   skeleton.querySelector('.startup-skeleton__spinner')?.remove();
   status?.setAttribute('role', 'alert');
   status?.setAttribute('aria-busy', 'false');

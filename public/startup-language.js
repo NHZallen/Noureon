@@ -3,6 +3,19 @@
 // rule as detectSystemLanguage in login-language.js: any Chinese stays as the page has it). Nothing changes when none of the five fits: the lines stay as the page has them.
 // The app's own words are not loaded yet, so the lines are kept here. Keep the five languages in step with the ones of src/data/i18n.
 (function () {
+  // Nobody signed in before (a first visit, or someone who signed out) has no workspace to get ready: the lines are not shown. They are for the ones who come back
+  // to a workspace: the app writes `noureon_workspace_hint` once it knows who is there (src/app/bootstrap/startup-hint.js); a session of the cloud account that
+  // is still kept in the browser (Supabase's `sb-…-auth-token`) counts too, for the first visit after this was added.
+  try {
+    var returning = localStorage.getItem('noureon_workspace_hint') === '1';
+    for (var at = 0; !returning && at < localStorage.length; at += 1) returning = /^sb-.+-auth-token$/.test(localStorage.key(at) || '');
+    var cover = document.querySelector('[data-startup-skeleton]');
+    if (!returning && cover) cover.className += ' startup-skeleton--quiet';
+  } catch (error) {
+    // The lines are shown.
+  }
+})();
+(function () {
   try {
     var texts = {
       en: ['Getting your workspace ready', 'One moment'],

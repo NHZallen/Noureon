@@ -102,6 +102,11 @@
         color: #ececec;
       }
 
+      /* A first visit, or someone signed out: there is no workspace to get ready, so the page stays plain (the cover is kept, for the app is not built yet) and says nothing. */
+      .startup-skeleton--quiet .startup-skeleton__panel {
+        visibility: hidden;
+      }
+
       .startup-skeleton__panel {
         display: flex;
         flex-direction: column;

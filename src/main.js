@@ -14,6 +14,7 @@ import {
   mountAppShell,
   showStartupFailure
 } from './app/bootstrap/mount-shell.js';
+import { rememberWorkspaceHint } from './app/bootstrap/startup-hint.js';
 import { retryAsync } from './app/bootstrap/retry-async.js';
 import {
   STARTUP_MARKS,
@@ -102,6 +103,8 @@ async function bootstrap() {
       STARTUP_MARKS.IDENTITY_RESOLVED,
       STARTUP_MEASURES.TO_IDENTITY
     );
+    // The page that shows while the app loads is for the ones who come back to a workspace (public/startup-language.js).
+    rememberWorkspaceHint(startupIdentity.mode);
     const auth = startupIdentity.mode === 'local'
       ? null
       : await initializeStartupAuthBridge({ window, document, startupIdentity });

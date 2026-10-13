@@ -118,3 +118,40 @@ test('a failed start, before anything is stored, is told in the language of the 
   assert.match(await fail(['en-GB']), /Failed to load/);
   assert.match(await fail(['de']), /載入失敗/);
 });
+
+test('the page that shows while the app loads says nothing to a first visit or someone signed out, and keeps saying it to someone who comes back to a workspace', async () => {
+  const { rememberWorkspaceHint, WORKSPACE_HINT_KEY } = await import('../src/app/bootstrap/startup-hint.js');
+  const script = readFileSync(new URL('../public/startup-language.js', import.meta.url), 'utf8');
+  const quiet = (stored = {}) => {
+    const window = new Window({ url: 'https://noureon.com/' });
+    window.document.write(indexSource);
+    for (const [key, value] of Object.entries(stored)) window.localStorage.setItem(key, value);
+    window.eval(script);
+    return window.document.querySelector('[data-startup-skeleton]').classList.contains('startup-skeleton--quiet');
+  };
+  assert.equal(quiet(), true, 'a first visit');
+  assert.equal(quiet({ noureon_ui_language: 'en' }), true, 'a language alone is not a workspace');
+  assert.equal(quiet({ [WORKSPACE_HINT_KEY]: '1' }), false, 'someone who comes back');
+  assert.equal(quiet({ 'sb-abcdef-auth-token': '{}' }), false, 'a session of the cloud account kept in the browser');
+  assert.equal(quiet({ 'sb-abcdef-auth-token-code-verifier': 'x' }), true, 'the verifier of a sign-in that is not finished is not a session');
+  assert.match(indexSource, /startup-skeleton--quiet \.startup-skeleton__panel\s*\{\s*visibility: hidden/);
+
+  // The app writes the hint once it knows who is there.
+  const store = new Map();
+  const storage = { getItem: (key) => store.get(key) ?? null, setItem: (key, value) => store.set(key, value), removeItem: (key) => store.delete(key) };
+  for (const mode of ['local', 'cloud', 'cloud-pending']) {
+    rememberWorkspaceHint(mode, storage);
+    assert.equal(store.get(WORKSPACE_HINT_KEY), '1', mode);
+  }
+  for (const mode of ['anonymous', 'auth-required']) {
+    rememberWorkspaceHint(mode, storage);
+    assert.equal(store.has(WORKSPACE_HINT_KEY), false, mode);
+  }
+  rememberWorkspaceHint('cloud', { setItem: () => { throw new Error('refused'); } });
+
+  // A start that fails is said even on the quiet page.
+  const window = new Window({ url: 'https://noureon.com/' });
+  window.document.body.innerHTML = '<main data-startup-skeleton class="startup-skeleton--quiet"><div role="status"><p class="startup-skeleton__message">x</p></div></main>';
+  showStartupFailure(new Error('boom'), window.document);
+  assert.equal(window.document.querySelector('[data-startup-skeleton]').classList.contains('startup-skeleton--quiet'), false);
+});
