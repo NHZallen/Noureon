@@ -312,14 +312,17 @@ export async function main(args = process.argv.slice(2), env = process.env, out 
     return result;
   };
   const report = { when: new Date().toISOString(), base, models: [] };
-  for (const model of models) {
-    out.log(`probing ${model.id} (${model.family}) ...`);
-    report.models.push(await probeModel({ model, tests, run }));
-  }
-  if (tests.includes('errors')) report.errors = await probeErrors({ run, key });
   const file = argOf(args, '--out') || 'opencode-probe-result.json';
   const { writeFileSync } = await import('node:fs');
-  writeFileSync(file, `${JSON.stringify(report, null, 2)}\n`);
+  // On one line (a long run is easier to paste), and kept after each model: a long run that is stopped or crashes keeps what it found.
+  const keep = () => writeFileSync(file, `${JSON.stringify(report)}\n`);
+  for (const [at, model] of models.entries()) {
+    out.log(`probing ${model.id} (${model.family}) ... ${at + 1}/${models.length}`);
+    report.models.push(await probeModel({ model, tests, run }));
+    keep();
+  }
+  if (tests.includes('errors')) report.errors = await probeErrors({ run, key });
+  keep();
   out.log(`written: ${file} (no key in it; paste it to be read)`);
   return stopped ? 1 : 0;
 }
