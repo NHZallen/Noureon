@@ -19,7 +19,7 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const BASE = 'https://opencode.ai/inference/go/v1';
-export const TESTS = Object.freeze(['basic', 'stream', 'tools', 'toolloop', 'vision', 'thinking', 'errors']);
+export const TESTS = Object.freeze(['basic', 'stream', 'tools', 'toolloop', 'params', 'vision', 'thinking', 'errors']);
 
 // From https://opencode.ai/docs/go/ (Endpoints), 2026-10-13: the model, the form of its API, and whether it is free.
 const chat = ['glm-5.3-flash', 'glm-5.3', 'glm-5.2', 'kimi-k3', 'kimi-k2.7-code', 'kimi-k2.6', 'longcat-2.0', 'deepseek-v4.1-flash', 'deepseek-v4-pro', 'deepseek-v4-flash', 'deepseek-v4-flash-vision-exp', 'mimo-v2.6-flash', 'mimo-v2.6-pro', 'mimo-v2.5', 'mimo-v2.5-pro', 'hy4-preview', 'hy3', 'space-bunny', 'longcat-2.5-preview-free', 'step-5-preview-free'];
@@ -281,6 +281,11 @@ export async function probeModel({ model, tests = TESTS, run }) {
   }
   if (tests.includes('tools')) result.tools = await one('tool');
   if (tests.includes('toolloop')) result.toolloop = await probeToolLoop({ model, family, run });
+  if (tests.includes('params')) {
+    // The settings the app sets on a reply (temperature, top_p, a long output): are they taken, or refused as the unknown thinking settings were?
+    result.params = {};
+    for (const [name, extra] of [['temperature', { temperature: 0.7 }], ['top_p', { top_p: 0.95 }], ['max_tokens:16384', { max_tokens: 16384 }]]) result.params[name] = await one('basic', { extra });
+  }
   if (tests.includes('vision')) result.vision = await one('vision');
   if (tests.includes('thinking')) {
     result.thinking = {};

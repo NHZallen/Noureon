@@ -214,3 +214,16 @@ test('the tool loop: the first step gives the call, the second step sends the an
   const refused = await probeToolLoop({ model: { id: 'x' }, family: 'chat', run: async () => ({ status: 400, ok: false, message: 'no' }) });
   assert.equal(refused.skipped, 'the first step failed');
 });
+
+test('the params test tries temperature, top_p and a long output, each alone, in the form of the model', async () => {
+  const seen = [];
+  const run = async (family, body) => {
+    seen.push({ family, body });
+    return { status: 200, ok: true, ms: 1, raw: JSON.stringify({ choices: [{ message: { content: 'ok' } }] }) };
+  };
+  const result = await probeModel({ model: { id: 'gpt-6-luna', family: 'responses' }, tests: ['params'], run });
+  assert.deepEqual(Object.keys(result.params), ['temperature', 'top_p', 'max_tokens:16384']);
+  assert.equal(seen[0].body.temperature, 0.7);
+  assert.equal(seen[1].body.top_p, 0.95);
+  assert.equal(seen[2].body.max_output_tokens, 16384);
+});
