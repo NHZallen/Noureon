@@ -19,7 +19,7 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const BASE = 'https://opencode.ai/inference/go/v1';
-export const TESTS = Object.freeze(['basic', 'stream', 'tools', 'toolloop', 'params', 'vision', 'thinking', 'errors']);
+export const TESTS = Object.freeze(['basic', 'stream', 'tools', 'toolloop', 'params', 'effort', 'vision', 'thinking', 'errors']);
 
 // From https://opencode.ai/docs/go/ (Endpoints), 2026-10-13: the model, the form of its API, and whether it is free.
 const chat = ['glm-5.3-flash', 'glm-5.3', 'glm-5.2', 'kimi-k3', 'kimi-k2.7-code', 'kimi-k2.6', 'longcat-2.0', 'deepseek-v4.1-flash', 'deepseek-v4-pro', 'deepseek-v4-flash', 'deepseek-v4-flash-vision-exp', 'mimo-v2.6-flash', 'mimo-v2.6-pro', 'mimo-v2.5', 'mimo-v2.5-pro', 'hy4-preview', 'hy3', 'space-bunny', 'longcat-2.5-preview-free', 'step-5-preview-free'];
@@ -40,6 +40,8 @@ const PROMPT = 'Reply with the single word: ok';
 // A solid red picture, 32 x 32 pixels (a service refused one pixel: "Image too small").
 const PNG = 'iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR4nO3NsQ0AAAzCMP5/un0CNkuZ41wybXsHAAAAAAAAAAAAxR4yw/wuPL6QkAAAAABJRU5ErkJggg==';
 const TOOL = { name: 'get_time', description: 'Gets the local time of a city.', schema: { type: 'object', properties: { city: { type: 'string' } }, required: ['city'] } };
+// A small sum: the thinking a model puts into it shows how much a setting of depth changes (the numbers of tokens of the thinking).
+const THINK_PROMPT = 'What is 17 times 24, minus 38? Answer with just the number.';
 const TOOL_PROMPT = 'What time is it in Paris? Use the tool.';
 
 /** The settings that make a model think, by form of API: what is tried (each alone). */
@@ -71,21 +73,21 @@ export function buildBody(family, model, kind = 'basic', { stream = false, extra
   if (family === 'chat') {
     const user = kind === 'vision'
       ? [{ type: 'text', text: 'What colour is this picture? One word.' }, { type: 'image_url', image_url: { url: `data:image/png;base64,${PNG}` } }]
-      : kind === 'tool' ? TOOL_PROMPT : PROMPT;
+      : kind === 'tool' ? TOOL_PROMPT : kind === 'think' ? THINK_PROMPT : PROMPT;
     body = { model, messages: [{ role: 'user', content: user }], max_tokens: maxTokens };
     if (kind === 'tool') Object.assign(body, { tools: [{ type: 'function', function: { name: TOOL.name, description: TOOL.description, parameters: TOOL.schema } }], tool_choice: 'auto' });
     if (stream) Object.assign(body, { stream: true, stream_options: { include_usage: true } });
   } else if (family === 'responses') {
     const input = kind === 'vision'
       ? [{ role: 'user', content: [{ type: 'input_text', text: 'What colour is this picture? One word.' }, { type: 'input_image', image_url: `data:image/png;base64,${PNG}` }] }]
-      : kind === 'tool' ? TOOL_PROMPT : PROMPT;
+      : kind === 'tool' ? TOOL_PROMPT : kind === 'think' ? THINK_PROMPT : PROMPT;
     body = { model, input, max_output_tokens: Math.max(maxTokens, 32) };
     if (kind === 'tool') Object.assign(body, { tools: [{ type: 'function', name: TOOL.name, description: TOOL.description, parameters: TOOL.schema }], tool_choice: 'auto' });
     if (stream) body.stream = true;
   } else {
     const user = kind === 'vision'
       ? [{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: PNG } }, { type: 'text', text: 'What colour is this picture? One word.' }]
-      : kind === 'tool' ? TOOL_PROMPT : PROMPT;
+      : kind === 'tool' ? TOOL_PROMPT : kind === 'think' ? THINK_PROMPT : PROMPT;
     body = { model, max_tokens: maxTokens, messages: [{ role: 'user', content: user }] };
     if (kind === 'tool') Object.assign(body, { tools: [{ name: TOOL.name, description: TOOL.description, input_schema: TOOL.schema }], tool_choice: { type: 'auto' } });
     if (stream) body.stream = true;
@@ -98,7 +100,7 @@ export function buildBody(family, model, kind = 'basic', { stream = false, extra
 
 /** What an answer (not streamed) holds: the text, the thinking, the calls of tools, the numbers of tokens. */
 export function readAnswer(family, data) {
-  const out = { text: '', thinking: false, thinkingField: '', toolCalls: [], usage: null };
+  const out = { text: '', thinking: false, thinkingField: '', toolCalls: [], usage: null, tokens: null };
   if (!data || typeof data !== 'object') return out;
   if (family === 'chat') {
     const message = data.choices?.[0]?.message || {};
@@ -119,6 +121,10 @@ export function readAnswer(family, data) {
     }
   }
   out.usage = data.usage && typeof data.usage === 'object' ? Object.keys(data.usage).sort() : null;
+  // How many tokens the answer took, and how many of them the thinking (where the service says it).
+  const usage = data.usage || {};
+  const details = usage.completion_tokens_details || usage.output_tokens_details || {};
+  out.tokens = { output: usage.completion_tokens ?? usage.output_tokens ?? null, thinking: details.reasoning_tokens ?? null };
   return out;
 }
 
@@ -191,7 +197,7 @@ const settle = (result, family) => {
     data = JSON.parse(result.raw);
   } catch { /* not JSON */ }
   const answer = readAnswer(family, data);
-  return { status: result.status, ok: true, ms: result.ms, text: plain(answer.text, 60), thinking: answer.thinking, thinkingField: answer.thinkingField, toolCalls: answer.toolCalls, usage: answer.usage };
+  return { status: result.status, ok: true, ms: result.ms, text: plain(answer.text, 60), thinking: answer.thinking, thinkingField: answer.thinkingField, toolCalls: answer.toolCalls, usage: answer.usage, tokens: answer.tokens };
 };
 
 /**
@@ -281,6 +287,17 @@ export async function probeModel({ model, tests = TESTS, run }) {
   }
   if (tests.includes('tools')) result.tools = await one('tool');
   if (tests.includes('toolloop')) result.toolloop = await probeToolLoop({ model, family, run });
+  if (tests.includes('effort')) {
+    // Each depth of thinking, alone, in the setting of the form of the model: is it accepted, and how much does the thinking take (the words and the numbers).
+    result.effort = {};
+    const values = family === 'messages' ? ['low', 'medium', 'high', 'xhigh', 'max'] : ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'];
+    for (const value of values) {
+      const extra = family === 'chat' ? { reasoning_effort: value, max_tokens: 1500 }
+        : family === 'responses' ? { reasoning: { effort: value }, max_tokens: 1500 }
+          : { thinking: { type: 'adaptive' }, output_config: { effort: value }, max_tokens: 1500 };
+      result.effort[value] = await one('think', { extra });
+    }
+  }
   if (tests.includes('params')) {
     // The settings the app sets on a reply (temperature, top_p, a long output): are they taken, or refused as the unknown thinking settings were?
     result.params = {};

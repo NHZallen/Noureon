@@ -41,7 +41,7 @@ test('a request is made in the form of the API of the model: the fields each for
 });
 
 test('an answer is read for its text, its thinking and the calls of tools, in each form', () => {
-  assert.deepEqual(readAnswer('chat', { choices: [{ message: { content: 'ok', reasoning_content: 'hmm', tool_calls: [{ function: { name: 'get_time' } }] } }], usage: { prompt_tokens: 1, completion_tokens: 1 } }), { text: 'ok', thinking: true, thinkingField: 'reasoning_content', toolCalls: ['get_time'], usage: ['completion_tokens', 'prompt_tokens'] });
+  assert.deepEqual(readAnswer('chat', { choices: [{ message: { content: 'ok', reasoning_content: 'hmm', tool_calls: [{ function: { name: 'get_time' } }] } }], usage: { prompt_tokens: 1, completion_tokens: 1 } }), { text: 'ok', thinking: true, thinkingField: 'reasoning_content', toolCalls: ['get_time'], usage: ['completion_tokens', 'prompt_tokens'], tokens: { output: 1, thinking: null } });
   const responses = readAnswer('responses', { output: [{ type: 'reasoning' }, { type: 'message', content: [{ text: 'ok' }] }, { type: 'function_call', name: 'get_time' }] });
   assert.deepEqual([responses.text, responses.thinking, responses.toolCalls], ['ok', true, ['get_time']]);
   const messages = readAnswer('messages', { content: [{ type: 'thinking' }, { type: 'text', text: 'ok' }, { type: 'tool_use', name: 'get_time' }], usage: { input_tokens: 1 } });
@@ -226,4 +226,25 @@ test('the params test tries temperature, top_p and a long output, each alone, in
   assert.equal(seen[0].body.temperature, 0.7);
   assert.equal(seen[1].body.top_p, 0.95);
   assert.equal(seen[2].body.max_output_tokens, 16384);
+});
+
+test('the effort test tries each depth of thinking alone, in the setting of the form of the model, and reports the numbers of tokens', async () => {
+  const seen = [];
+  const run = async (family, body) => {
+    seen.push({ family, body });
+    return { status: 200, ok: true, ms: 1, raw: JSON.stringify({ choices: [{ message: { content: '370', reasoning_content: 'x' } }], usage: { completion_tokens: 40, completion_tokens_details: { reasoning_tokens: 30 } } }) };
+  };
+  const chat = await probeModel({ model: { id: 'kimi-k3', family: 'chat' }, tests: ['effort'], run });
+  assert.deepEqual(Object.keys(chat.effort), ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max']);
+  assert.equal(seen[2].body.reasoning_effort, 'low');
+  assert.match(JSON.stringify(seen[0].body.messages), /17 times 24/);
+  assert.deepEqual(chat.effort.low.tokens, { output: 40, thinking: 30 });
+  seen.length = 0;
+  await probeModel({ model: { id: 'gpt-6-luna', family: 'responses' }, tests: ['effort'], run });
+  assert.deepEqual(seen[3].body.reasoning, { effort: 'medium' });
+  seen.length = 0;
+  const messages = await probeModel({ model: { id: 'claude-haiku-5-5', family: 'messages' }, tests: ['effort'], run });
+  assert.deepEqual(Object.keys(messages.effort), ['low', 'medium', 'high', 'xhigh', 'max']);
+  assert.deepEqual(seen[0].body.thinking, { type: 'adaptive' });
+  assert.deepEqual(seen[0].body.output_config, { effort: 'low' });
 });

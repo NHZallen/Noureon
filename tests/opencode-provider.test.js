@@ -297,3 +297,39 @@ test('the function for the browser: a path for each form, the key and the sessio
     globalThis.fetch = realFetch;
   }
 });
+
+test('a tool round in each form (what Python, connectors, skills, command tools and the search of a research reply all use): the call is read, and the answer of the tool goes back in the shape the form wants', async () => {
+  const tool = { name: 'run_python', description: 'Runs code', parameters: { type: 'object', properties: { code: { type: 'string' } } } };
+  const calls = {
+    'kimi-k3': ['data: {"choices":[{"delta":{"reasoning":"hm","tool_calls":[{"index":0,"id":"call_1","function":{"name":"run_python","arguments":"{\\"code\\":"}}]}}]}\n\n', 'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"\\"1+1\\"}"}}]},"finish_reason":"tool_calls"}]}\n\n', 'data: [DONE]\n\n'],
+    'grok-4.7': SSE([{ type: 'response.output_item.added', item: { type: 'function_call', id: 'fc_1', call_id: 'call_1', name: 'run_python' } }, { type: 'response.function_call_arguments.done', item_id: 'fc_1', arguments: '{"code":"1+1"}' }, { type: 'response.output_item.done', output_index: 0, item: { type: 'function_call', id: 'fc_1', call_id: 'call_1', name: 'run_python', arguments: '{"code":"1+1"}' } }, { type: 'response.completed', response: { output: [{ type: 'reasoning', id: 'rs_1' }, { type: 'function_call', id: 'fc_1', call_id: 'call_1', name: 'run_python', arguments: '{"code":"1+1"}' }] } }]),
+    'claude-haiku-5-5': SSE([{ type: 'content_block_start', index: 0, content_block: { type: 'tool_use', id: 'toolu_1', name: 'run_python', input: {} } }, { type: 'content_block_delta', index: 0, delta: { type: 'input_json_delta', partial_json: '{"code":"1+1"}' } }, { type: 'message_delta', delta: { stop_reason: 'tool_use' } }])
+  };
+  for (const [apiId, chunks] of Object.entries(calls)) {
+    const { streamApiCall, requests } = harness({ apiId, fetchImpl: async () => reply({ chunks }) });
+    let collected = null;
+    await streamApiCall([{ text: 'Run it' }], () => {}, undefined, false, { tools: [tool], toolTurns: [], onResponseComplete: (value) => { collected = value; } });
+    assert.equal(collected.toolCalls.length, 1, apiId);
+    assert.equal(collected.toolCalls[0].name, 'run_python');
+    assert.deepEqual(collected.toolCalls[0].args, { code: '1+1' });
+    const first = requests[0].body;
+    assert.ok(first.tools.length === 1, `${apiId} sends the tool`);
+    assert.equal(first.tool_choice === 'auto' || first.tool_choice?.type === 'auto', true);
+
+    const second = harness({ apiId, fetchImpl: async () => reply({ chunks: [] }) });
+    await second.streamApiCall([{ text: 'Run it' }], () => {}, undefined, false, { tools: [tool], toolTurns: [{ assistant: collected, results: [{ id: collected.toolCalls[0].id, name: 'run_python', content: '2' }] }] });
+    const body = second.requests[0].body;
+    const text = JSON.stringify(body);
+    assert.ok(text.includes('"2"'), `${apiId} sends the answer of the tool`);
+    if (apiId === 'kimi-k3') {
+      assert.deepEqual(body.messages.slice(-2).map((message) => message.role), ['assistant', 'tool']);
+      assert.equal('reasoning_details' in body.messages.at(-2), false);
+    } else if (apiId === 'grok-4.7') {
+      assert.deepEqual(body.input.slice(-2).map((item) => item.type), ['function_call', 'function_call_output']);
+    } else {
+      assert.deepEqual(body.messages.slice(-2).map((message) => message.role), ['assistant', 'user']);
+      assert.equal(body.messages.at(-1).content[0].type, 'tool_result');
+      assert.equal(body.messages.at(-2).content[0].type, 'tool_use');
+    }
+  }
+});
