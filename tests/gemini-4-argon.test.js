@@ -53,15 +53,14 @@ test('what was chosen under the name of Gemini 3.1 Pro Preview is Gemini 4 Argon
   assert.deepEqual(normalized.modelSettings.find((setting) => setting.id === 'gemini-4-argon'), { id: 'gemini-4-argon', hidden: true, order: 0 });
 });
 
-test('the thinking of Gemini 4 Argon: medium by default (what Google says), nothing to turn it off, and no low through OpenRouter', () => {
-  for (const [model, options] of [[native, ['low', 'medium', 'high']], [viaOpenRouter, ['medium', 'high']]]) {
+test('the thinking of Gemini 4 Argon: low, medium and high, medium by default (what Google says), nothing to turn it off', () => {
+  for (const model of [native, viaOpenRouter]) {
     const config = getModelReasoningConfig(model);
-    assert.deepEqual([config.options, config.defaultEffort], [options, 'medium'], model.id);
+    assert.deepEqual([config.options, config.defaultEffort], [['low', 'medium', 'high'], 'medium'], model.id);
     assert.equal(normalizeReasoningEffort(model, 'minimal'), 'medium', 'minimal is not a level of this model');
     assert.equal(normalizeReasoningEffort(model, 'high'), 'high');
   }
-  assert.equal(normalizeReasoningEffort(native, 'low'), 'low');
-  assert.equal(normalizeReasoningEffort(viaOpenRouter, 'low'), 'medium', 'a low chosen before falls back to the default');
+  assert.equal(normalizeReasoningEffort(viaOpenRouter, 'low'), 'low');
   assert.equal(getModelReasoningConfig(native).providerParameter, 'geminiThinkingLevel');
   assert.equal(getModelReasoningConfig(viaOpenRouter).providerParameter, 'openrouterReasoningEffort');
 });
@@ -109,8 +108,8 @@ test('the request to Gemini 4 Argon: its model, a level of thinking from the lis
   assert.equal((await sent(native, { effort: 'high' })).body.generationConfig.thinkingConfig.thinkingLevel, 'high');
   assert.deepEqual((await sent(native, { search: true })).body.tools, [{ googleSearch: {} }]);
 
-  const openRouter = await sent(viaOpenRouter, { effort: 'high' });
+  const openRouter = await sent(viaOpenRouter, { effort: 'low' });
   assert.equal(openRouter.body.model, 'google/gemini-4-argon');
-  assert.equal(openRouter.body.reasoning.effort, 'high');
+  assert.equal(openRouter.body.reasoning.effort, 'low');
   assert.equal((await sent(viaOpenRouter)).body.reasoning.effort, 'medium');
 });

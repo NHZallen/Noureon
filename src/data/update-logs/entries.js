@@ -8,7 +8,7 @@ export const updateLogEntries = [
       "<strong>Noureon 18.8.2 發布說明</strong>",
       "本版本以 Gemini 4 Argon 取代 Gemini 3.1 Pro Preview，Gemini 與 OpenRouter 兩個提供商都換了。",
       "<strong>主要變更</strong>",
-      "<ul><li><strong>模型替換：</strong>Gemini 提供商的 Gemini 3.1 Pro Preview 換成 Gemini 4 Argon，OpenRouter 的 google/gemini-3.1-pro-preview 換成 google/gemini-4-argon。原本選用舊模型的設定、對話與翻譯模型會自動改用新的。</li><li><strong>能力：</strong>支援圖片、文件上傳、工具呼叫（Python 與進階模式）與網頁搜尋。思考無法關閉，預設為「中」。</li><li><strong>思考程度：</strong>Gemini 提供商為低、中、高；OpenRouter 為中、高。OpenRouter 的「低」在第二輪會被上游中斷（504），所以拿掉；原本選「低」的會改回預設「中」。</li><li><strong>價格：</strong>2026/11/30 前，每百萬輸入 2 美元、輸出 10 美元；12/1 起為 4 美元、20 美元。模型說明裡同時寫出兩組價格。</li><li><strong>錯誤會顯示：</strong>串流途中服務回報的錯誤，原本被略過而讓回覆無聲結束，現在會顯示出來。</li></ul>",
+      "<ul><li><strong>模型替換：</strong>Gemini 提供商的 Gemini 3.1 Pro Preview 換成 Gemini 4 Argon，OpenRouter 的 google/gemini-3.1-pro-preview 換成 google/gemini-4-argon。原本選用舊模型的設定、對話與翻譯模型會自動改用新的。</li><li><strong>能力：</strong>支援圖片、文件上傳、工具呼叫（Python 與進階模式）與網頁搜尋。思考無法關閉，預設為「中」。</li><li><strong>思考程度：</strong>Gemini 提供商與 OpenRouter 都是低、中、高。OpenRouter 選「低」時，上游服務目前可能在第二輪中斷並回報 504（畫面會顯示錯誤），遇到時請改用中或高。</li><li><strong>價格：</strong>2026/11/30 前，每百萬輸入 2 美元、輸出 10 美元；12/1 起為 4 美元、20 美元。模型說明裡同時寫出兩組價格。</li><li><strong>錯誤會顯示：</strong>串流途中服務回報的錯誤，原本被略過而讓回覆無聲結束，現在會顯示出來。</li></ul>",
       "<strong>相容性</strong>",
       "本次更新不需要資料遷移。"
     ]
