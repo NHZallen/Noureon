@@ -12,7 +12,7 @@
 //   node scripts/opencode-probe.mjs --list                                the list of models of the service (public, no key, costs nothing)
 //   --out file.json   where the result is written (default opencode-probe-result.json)        --base <address>   another base address
 //
-// It sends one request at a time and stops at the first 429. A full run is about 250 small requests (a few cents at most, the reasoning models are the dearest).
+// It sends one request at a time and stops after four 429 in a row. A full run is about 250 small requests (a few cents at most, the reasoning models are the dearest).
 
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -36,7 +36,8 @@ export const MODELS = Object.freeze([
 const PATH = { chat: '/chat/completions', responses: '/responses', messages: '/messages' };
 const PROMPT = 'Reply with the single word: ok';
 // A picture of one pixel (red): enough to see whether the model takes a picture at all.
-const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+// A solid red picture, 32 x 32 pixels (a service refused one pixel: "Image too small").
+const PNG = 'iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR4nO3NsQ0AAAzCMP5/un0CNkuZ41wybXsHAAAAAAAAAAAAxR4yw/wuPL6QkAAAAABJRU5ErkJggg==';
 const TOOL = { name: 'get_time', description: 'Gets the local time of a city.', schema: { type: 'object', properties: { city: { type: 'string' } }, required: ['city'] } };
 const TOOL_PROMPT = 'What time is it in Paris? Use the tool.';
 
@@ -288,13 +289,17 @@ export async function main(args = process.argv.slice(2), env = process.env, out 
   }
   const session = `probe-${Math.random().toString(36).slice(2, 10)}`;
   let stopped = false;
+  let tooMany = 0;
   const run = async (family, body, options = {}) => {
     if (stopped) return { status: 0, ok: false, message: 'stopped after a 429' };
     await new Promise((resolve) => setTimeout(resolve, 250));
     const result = await send({ fetchImpl, base, key: options.key !== undefined ? options.key : key, family, body, stream: Boolean(options.stream), headers: options.headers || {}, session });
-    if (result.status === 429) {
+    // A 429 is told apart from the limit of the account only when it comes again and again: a free model whose endpoint is "unavailable" says 429 too.
+    tooMany = result.status === 429 ? tooMany + 1 : 0;
+    if (tooMany === 1) out.error(`429 (${plain(result.message, 120)}): going on; stops if it comes 4 times in a row.`);
+    if (tooMany >= 4) {
       stopped = true;
-      out.error('429: stopped (a limit was reached). What was found so far is kept.');
+      out.error('429 four times in a row: stopped (a limit was reached). What was found so far is kept.');
     }
     return result;
   };

@@ -127,3 +127,23 @@ test('a model whose form of API is only a guess is tried in the other forms when
   assert.equal(result.family, 'responses');
   assert.equal(result.formsTried.chat.status, 404);
 });
+
+test('one 429 does not stop the run (a free model whose endpoint is unavailable says it), four in a row do', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'probe-'));
+  const quiet = { log: () => {}, error: () => {} };
+  try {
+    let calls = 0;
+    const once = async () => {
+      calls += 1;
+      return calls === 2 ? reply(429, { error: { message: 'Endpoint is unavailable.' } }) : reply(200, { choices: [{ message: { content: 'ok' } }] });
+    };
+    assert.equal(await main(['--only', 'kimi-k3,glm-5.3', '--tests', 'basic', '--out', join(dir, 'a.json')], { OPENCODE_GO_KEY: KEY }, quiet, once), 0);
+    assert.equal(calls, 2);
+    const always = async () => reply(429, { error: { message: 'limit' } });
+    assert.equal(await main(['--only', 'kimi-k3,glm-5.3,glm-5.2,kimi-k2.6,hy3', '--tests', 'basic', '--out', join(dir, 'b.json')], { OPENCODE_GO_KEY: KEY }, quiet, always), 1);
+    const stopped = JSON.parse(readFileSync(join(dir, 'b.json'), 'utf8')).models.filter((model) => model.basic.status === 0);
+    assert.ok(stopped.length >= 1);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
