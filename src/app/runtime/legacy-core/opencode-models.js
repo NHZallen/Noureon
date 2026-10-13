@@ -76,3 +76,66 @@ export const isOpencodeModel = (model) => Boolean(model && model.provider === OP
 /** The form of API of a model of OpenCode (`chat`, `responses` or `messages`), from this list and not from what the page says; '' for any other model. */
 export const opencodeFormatOf = (model) => (isOpencodeModel(model) ? BY_ID.get(model.id)?.opencodeFormat || '' : '');
 export const opencodeModelSupportsVision = (model) => isOpencodeModel(model) && VISION_IDS.has(model.id);
+
+// The depth of thinking each model takes (the probe of 2026-10-13, §14 of the design: each depth tried alone). A model gives its thinking only in the
+// way that is its own, and the service refuses a field it does not know, so each style names the fields it sends:
+//   effort    chat: `reasoning_effort: <depth>`                                (none turns the thinking off where the model allows it)
+//   toggle    chat or messages: nothing, or `thinking: { type: 'disabled' }`   (the models that have no depths but can be told not to think)
+//   responses `reasoning: { effort: <depth> }`
+//   adaptive  messages: `thinking: { type: 'adaptive' }` and `output_config: { effort: <depth> }` (Claude Haiku)
+//   adaptiveOrOff  the same, and `thinking: { type: 'disabled' }` for none (Qwen)
+// A model that is not here (GLM-5.3 Flash and Space Bunny act at random, LongCat's depths change nothing, MiniMax M2.7 cannot stop) is asked with no setting.
+const THINKING = {
+  'kimi-k3': ['effort', ['none', 'low', 'medium', 'high', 'max'], 'high'],
+  'kimi-k2.7-code': ['effort', ['low', 'medium', 'high', 'max'], 'high'],
+  'glm-5.3': ['effort', ['low', 'high', 'max'], 'high'],
+  'glm-5.2': ['effort', ['low', 'high', 'max'], 'high'],
+  'deepseek-v4-pro': ['effort', ['none', 'low', 'high', 'max'], 'high'],
+  'deepseek-v4-flash': ['effort', ['none', 'low', 'high', 'max'], 'high'],
+  'deepseek-v4.1-flash': ['effort', ['none', 'low', 'high', 'max'], 'high'],
+  'deepseek-v4-flash-vision-exp': ['effort', ['none', 'low', 'high', 'max'], 'high'],
+  'mimo-v2.6-pro': ['effort', ['none', 'high'], 'high'],
+  'mimo-v2.6-flash': ['effort', ['none', 'high'], 'high'],
+  'mimo-v2.5-pro': ['effort', ['none', 'high'], 'high'],
+  'mimo-v2.5': ['effort', ['none', 'high'], 'high'],
+  'hy4-preview': ['effort', ['low', 'medium', 'high', 'max'], 'high'],
+  'hy3': ['effort', ['none', 'high'], 'high'],
+  'step-5-preview-free': ['effort', ['low', 'medium', 'high', 'max'], 'high'],
+  'longcat-2.0': ['toggle', ['none', 'high'], 'high'],
+  'longcat-2.5-preview-free': ['toggle', ['none', 'high'], 'high'],
+  'grok-4.7': ['responses', ['low', 'medium', 'high', 'xhigh'], 'high'],
+  'grok-4.6': ['responses', ['low', 'medium', 'high', 'xhigh'], 'high'],
+  'gpt-6-luna': ['responses', ['none', 'low', 'medium', 'high', 'xhigh', 'max'], 'medium'],
+  'gpt-5.6-luna': ['responses', ['none', 'low', 'medium', 'high', 'xhigh', 'max'], 'medium'],
+  'muse-spark-1.3-contributor': ['responses', ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'], 'medium'],
+  'muse-spark-1.2-contributor': ['responses', ['minimal', 'low', 'medium', 'high', 'xhigh'], 'medium'],
+  'claude-haiku-5-5': ['adaptive', ['low', 'medium', 'high', 'xhigh', 'max'], 'medium'],
+  'minimax-m3': ['toggle', ['none', 'high'], 'high'],
+  'qwen3.8-max': ['adaptiveOrOff', ['none', 'low', 'medium', 'high', 'xhigh'], 'high'],
+  'qwen3.8-flash': ['adaptiveOrOff', ['none', 'low', 'medium', 'high', 'xhigh'], 'high'],
+  'qwen3.7-plus': ['toggle', ['none', 'high'], 'high']
+};
+const THINKING_BY_ID = new Map(Object.entries(THINKING).flatMap(([apiId, [style, options, defaultEffort]]) => {
+  const row = { style, options: Object.freeze([...options]), defaultEffort };
+  return [[`${OPENCODE_GO_PROVIDER}/${apiId}`, row], [apiId, row]];
+}));
+
+/** The rows of the table of the depths of thinking of the app (`MODEL_REASONING_CONFIGS`): the models that have a choice, by id in the app. */
+export const OPENCODE_REASONING_CONFIGS = Object.freeze(Object.fromEntries(Object.keys(THINKING).map((apiId) => {
+  const row = THINKING_BY_ID.get(apiId);
+  return [`${OPENCODE_GO_PROVIDER}/${apiId}`, { providerParameter: 'opencodeThinking', options: [...row.options], defaultEffort: row.defaultEffort }];
+})));
+
+/** The fields to put in the request to say how deep the model is to think (an empty object: nothing, the model's own way). */
+export function opencodeThinkingFields(model, effort) {
+  const row = isOpencodeModel(model) ? THINKING_BY_ID.get(model.id) : null;
+  if (!row || !row.options.includes(effort)) return {};
+  switch (row.style) {
+    case 'effort': return { reasoning_effort: effort };
+    case 'toggle': return effort === 'none' ? { thinking: { type: 'disabled' } } : {};
+    case 'responses': return { reasoning: { effort } };
+    case 'adaptive': return { thinking: { type: 'adaptive' }, output_config: { effort } };
+    case 'adaptiveOrOff': return effort === 'none' ? { thinking: { type: 'disabled' } } : { thinking: { type: 'adaptive' }, output_config: { effort } };
+    default: return {};
+  }
+}

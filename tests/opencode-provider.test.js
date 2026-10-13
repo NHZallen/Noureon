@@ -7,8 +7,8 @@ import { opencodeErrorHint, opencodeErrorMessage } from '../src/app/legacy-runti
 import { OPENCODE_CHAT_PATH, buildOpencodeRequest } from '../src/app/legacy-runtime/features/opencode-request.js';
 import { createStreamApiCall } from '../src/app/legacy-runtime/features/stream-api-call.js';
 import { applyOpenAiTools, modelThinkingKind } from '../src/app/legacy-runtime/features/tool-call-formats.js';
-import { MODELS, getModelApiId, getModelTiers, getProviderLabel, modelSupportsToolCalling, modelSupportsVision, modelSupportsWebSearch } from '../src/app/runtime/legacy-core/model-registry.js';
-import { OPENCODE_GO_MODELS, OPENCODE_FORMATS, opencodeFormatOf } from '../src/app/runtime/legacy-core/opencode-models.js';
+import { MODELS, getModelApiId, getModelReasoningConfig, normalizeReasoningEffort, getModelTiers, getProviderLabel, modelSupportsToolCalling, modelSupportsVision, modelSupportsWebSearch } from '../src/app/runtime/legacy-core/model-registry.js';
+import { OPENCODE_GO_MODELS, OPENCODE_FORMATS, OPENCODE_REASONING_CONFIGS, opencodeFormatOf, opencodeThinkingFields } from '../src/app/runtime/legacy-core/opencode-models.js';
 import { createUpstreamFetch } from '../server/upstream-fetch.js';
 
 const model = (apiId) => MODELS.find((entry) => entry.id === `opencode-go/${apiId}`);
@@ -337,4 +337,63 @@ test('a tool round in each form (what Python, connectors, skills, command tools 
       assert.equal(body.messages.at(-2).content[0].type, 'tool_use');
     }
   }
+});
+
+test('the depth of thinking of each model: the options of the slider, and the fields that say it in the way of the model (the ones the probe found accepted)', () => {
+  // The slider is the one of the app: the models that have a choice get a row in its table.
+  assert.equal(Object.keys(OPENCODE_REASONING_CONFIGS).length, 28);
+  const config = getModelReasoningConfig(model('kimi-k3'));
+  assert.deepEqual([config.options, config.defaultEffort], [['none', 'low', 'medium', 'high', 'max'], 'high']);
+  assert.equal(normalizeReasoningEffort(model('kimi-k3'), 'xhigh'), 'high');
+  // The models with no choice (their depths do nothing, or they cannot stop) have none.
+  for (const apiId of ['glm-5.3-flash', 'space-bunny', 'minimax-m2.7']) assert.equal(getModelReasoningConfig(model(apiId)), null, apiId);
+
+  const fields = (apiId, effort) => opencodeThinkingFields(model(apiId), effort);
+  assert.deepEqual(fields('kimi-k3', 'none'), { reasoning_effort: 'none' });
+  assert.deepEqual(fields('deepseek-v4-pro', 'max'), { reasoning_effort: 'max' });
+  assert.deepEqual(fields('longcat-2.0', 'none'), { thinking: { type: 'disabled' } });
+  assert.deepEqual(fields('longcat-2.0', 'high'), {});
+  assert.deepEqual(fields('minimax-m3', 'none'), { thinking: { type: 'disabled' } });
+  assert.deepEqual(fields('grok-4.7', 'xhigh'), { reasoning: { effort: 'xhigh' } });
+  assert.deepEqual(fields('muse-spark-1.3-contributor', 'minimal'), { reasoning: { effort: 'minimal' } });
+  assert.deepEqual(fields('claude-haiku-5-5', 'max'), { thinking: { type: 'adaptive' }, output_config: { effort: 'max' } });
+  assert.deepEqual(fields('qwen3.8-max', 'low'), { thinking: { type: 'adaptive' }, output_config: { effort: 'low' } });
+  assert.deepEqual(fields('qwen3.8-max', 'none'), { thinking: { type: 'disabled' } });
+  // Never a value the probe saw refused: no `none` for Muse, Grok, GLM, Step, Hy4, Kimi K2.7; no `max` for Grok and Muse 1.2; no `minimal` for the MiMo and GPT Luna.
+  const refused = { 'muse-spark-1.3-contributor': ['none'], 'muse-spark-1.2-contributor': ['none', 'max'], 'grok-4.7': ['none', 'max'], 'grok-4.6': ['none', 'max'], 'glm-5.3': ['none'], 'glm-5.2': ['none'], 'step-5-preview-free': ['none'], 'kimi-k2.7-code': ['none'], 'mimo-v2.6-pro': ['minimal', 'xhigh', 'max'], 'gpt-6-luna': ['minimal'], 'gpt-5.6-luna': ['minimal'], 'deepseek-v4.1-flash': ['minimal'] };
+  for (const [apiId, values] of Object.entries(refused)) for (const value of values) assert.equal(getModelReasoningConfig(model(apiId)).options.includes(value), false, `${apiId} ${value}`);
+  // Another provider's model, an unknown depth: nothing.
+  assert.deepEqual(opencodeThinkingFields({ provider: 'openrouter', id: 'opencode-go/kimi-k3' }, 'high'), {});
+  assert.deepEqual(fields('kimi-k3', 'xhigh'), {});
+});
+
+test('a reply says the depth in the request, in the form of the model, and says nothing when no depth is asked for', async () => {
+  const sent = async (apiId, effort) => {
+    const info = model(apiId);
+    const requests = [];
+    const streamApiCall = createStreamApiCall({
+      getActiveConversation: () => ({ id: 'c', model: info.id, messages: [{ role: 'user', parts: [{ text: 'Hi' }] }], genConfig: { temperature: 0.4, topP: 0.8, maxTokens: null }, reasoningEffort: effort }),
+      normalizeConversationModel: () => info,
+      getModelApiId,
+      getApiKeyForProvider: () => 'oc_sk_secret',
+      getDefaultGenConfig: () => ({ temperature: 0.7, topP: 0.95, maxTokens: null }),
+      getConfig: () => ({ aiDefaultLanguage: 'en', uiLanguage: 'en', isLearningMode: false, memoryEnabled1: false }),
+      getAstras: () => [],
+      getPersonalMemories: () => [],
+      modelSupportsUploadedFile: () => true,
+      modelSupportsVision,
+      getModelReasoningConfig,
+      normalizeReasoningEffort,
+      fetchImpl: async (url, options) => { requests.push(JSON.parse(options.body)); return reply({ chunks: [] }); }
+    });
+    await streamApiCall([{ text: 'Hi' }], () => {});
+    return requests[0];
+  };
+  assert.equal((await sent('kimi-k3', 'low')).reasoning_effort, 'low');
+  assert.equal((await sent('kimi-k3', null)).reasoning_effort, 'high', 'the default of the model');
+  assert.deepEqual((await sent('claude-haiku-5-5', 'xhigh')).output_config, { effort: 'xhigh' });
+  assert.deepEqual((await sent('gpt-6-luna', 'none')).reasoning, { effort: 'none' });
+  assert.deepEqual((await sent('qwen3.8-flash', 'none')).thinking, { type: 'disabled' });
+  const plain = await sent('space-bunny', 'high');
+  assert.equal('reasoning_effort' in plain || 'thinking' in plain, false);
 });

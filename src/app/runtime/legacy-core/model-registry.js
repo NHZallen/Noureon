@@ -4,7 +4,7 @@ import {
     createModelIdCanonicalizer,
     normalizeCouncilConfig as normalizeLegacyCouncilConfig
 } from '../kernel/config-normalization.js';
-import { OPENCODE_GO_MODELS, OPENCODE_GO_MODEL_IDS, OPENCODE_GO_PROVIDER, isOpencodeModel, opencodeModelSupportsVision } from './opencode-models.js';
+import { OPENCODE_GO_MODELS, OPENCODE_GO_MODEL_IDS, OPENCODE_GO_PROVIDER, OPENCODE_REASONING_CONFIGS, isOpencodeModel, opencodeModelSupportsVision } from './opencode-models.js';
 
 const MODEL_RELEASE_METADATA = Object.freeze({
     'gemini-3.8-flash': { releasedAt: 20260903, outputPricePerMillion: 3.75 },
@@ -252,7 +252,7 @@ const GEMINI_THINKING_LEVEL = 'geminiThinkingLevel';
 const NVIDIA_REASONING_EFFORT = 'nvidiaReasoningEffort';
 const OPENROUTER_REASONING_EFFORT = 'openrouterReasoningEffort';
 const LOW_MEDIUM_HIGH = ['low', 'medium', 'high'];
-export const MODEL_REASONING_CONFIGS = createReasoningConfigs([
+export const MODEL_REASONING_CONFIGS = Object.freeze({ ...createReasoningConfigs([
     [GEMINI_THINKING_LEVEL, LOW_MEDIUM_HIGH, 'medium', ['gemini-3.8-flash']],
     [GEMINI_THINKING_LEVEL, ['minimal', 'low', 'medium', 'high'], 'minimal', ['gemini-3.5-flash-lite']],
     [GEMINI_THINKING_LEVEL, LOW_MEDIUM_HIGH, 'high', ['gemini-3.1-pro-preview']],
@@ -282,7 +282,7 @@ export const MODEL_REASONING_CONFIGS = createReasoningConfigs([
     [OPENROUTER_REASONING_EFFORT, ['low', 'high', 'max'], 'high', ['moonshotai/kimi-k3']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh'], 'high', ['x-ai/grok-4.6']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'high', 'max'], 'max', ['z-ai/glm-5.3', 'z-ai/glm-5.3-flash']]
-]);
+]), ...OPENCODE_REASONING_CONFIGS });
 export const COUNCIL_MIN_MODELS = 2;
 export const COUNCIL_MAX_MODELS = 5;
 export const COUNCIL_RESPONSE_CHAR_LIMIT = 8000;

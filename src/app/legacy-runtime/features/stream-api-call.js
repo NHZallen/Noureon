@@ -778,6 +778,7 @@ export function createStreamApiCall({
           historyForApi,
           currentMessageForApi,
           generationConfig,
+          reasoningEffort,
           systemInstruction,
           modelSupportsVision,
           buildResponsesInput: buildOpenRouterResponsesInput,

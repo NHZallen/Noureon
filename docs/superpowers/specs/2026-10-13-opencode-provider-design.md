@@ -186,3 +186,19 @@ OpenCode 自己的 `variant.ts` 是一份對照（OpenCode 用戶端的設定，
 **注意事項**
 - 首頁主 JS 壓縮後剛好 155.0 KB（上限 155.0）：錯誤提示改成動態載入才壓回來。下一次加文字就會超過，**要決定**：把更新日誌改成延遲載入，或放寬上限（待 Allen）。
 - 建議上線前確認：免費兩個模型的資料政策、Space Bunny 的廠商（目前標為 OpenCode）、`max_tokens` 預設 16384 對每個 Messages 模型是否合適（探測的 `params` 測試，Allen 尚未跑）。
+
+### 15.1 各模型思考程度（NOU-8，2026-10-13；探測 `--tests effort`，每個強度值單獨試一次，題目是一道小算術）
+
+現有的思考滑桿直接用（`MODEL_REASONING_CONFIGS`，`providerParameter: 'opencodeThinking'`）。表在 `opencode-models.js` 的 `THINKING`，送出的欄位由 `opencodeThinkingFields` 決定；**探測看到被拒的值一律不放進選項**，沒有選擇的模型不給滑桿（照舊不送任何欄位）。
+
+| 做法 | 模型（選項；預設） |
+|---|---|
+| chat `reasoning_effort` | Kimi K3（none、low、medium、high、max；high）、Kimi K2.7 Code（low、medium、high、max；high；none 被拒）、GLM-5.3／5.2（low、high、max；high；none 被拒，只能思考）、DeepSeek V4 Pro／V4 Flash／V4.1 Flash／V4 Flash Vision Exp（none、low、high、max；high；`minimal` 會讓 V4.1 Flash 停不下來，不放）、MiMo V2.6 Pro／Flash、V2.5 Pro、V2.5（none、high；low／medium／high 效果相同，只做開關；`minimal`／`xhigh`／`max` 被拒）、Hy4 Preview（low、medium、high、max；high）、Hy3（none、high）、Step 5 Preview（low、medium、high、max；high；none 被拒，強制思考） |
+| chat 只有開關：`thinking:{type:'disabled'}` | LongCat 2.0、LongCat 2.5 Preview（none、high；強度值不起作用） |
+| responses `reasoning.effort` | Grok 4.7／4.6（low、medium、high、xhigh；high；none、max 被拒）、GPT-6 Luna／GPT-5.6 Luna（none、low、medium、high、xhigh、max；medium；minimal 被拒）、Muse Spark 1.3（minimal…max；medium；none 被拒）、Muse Spark 1.2（minimal…xhigh；medium；none、max 被拒） |
+| messages `thinking:{type:'adaptive'}`＋`output_config.effort` | Claude Haiku 5.5（low、medium、high、xhigh、max；medium；low 幾乎不思考） |
+| messages，none 用 `thinking:{type:'disabled'}`，其他用 adaptive＋effort | Qwen3.8 Max／Flash（none、low、medium、high、xhigh；high） |
+| messages 只有開關 | MiniMax M3、Qwen3.7 Plus（none、high） |
+| 沒有滑桿 | GLM-5.3 Flash（none 也照樣思考，值的效果是隨機的）、Space Bunny（強度值的效果隨機，none 被拒）、MiniMax M2.7（關不掉） |
+
+預設值會跟著請求送出（開關型的預設不送任何欄位）；請求只在人選了模型之後才帶強度，`disableReasoning` 的請求（視覺檢查等）一律不帶。

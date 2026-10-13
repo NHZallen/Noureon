@@ -3,11 +3,13 @@
 // cross-site request; on the server the same path goes straight to the service, see server/upstream-fetch.js), which puts the headers the
 // service wants on it.
 //
-// What is left out on purpose: the settings of thinking, temperature and top_p. The service refuses a field it does not know (a 400), each model
-// wants its own thinking field, and a reply with the settings of the model itself always works (probe 2026-10-13, §14).
+// What is left out on purpose: temperature and top_p. The service refuses a field it does not know (a 400), so what is sent is only what the probe
+// of 2026-10-13 found each model takes (§14): the depth of thinking in the way that is the model's own (opencode-models.js, `opencodeThinkingFields`),
+// and nothing at all for a model with no choice or when no depth is asked for.
 //
 // Shared by the page and the server: no window, no document, no browser storage.
 
+import { opencodeThinkingFields } from '../../runtime/legacy-core/opencode-models.js';
 import { buildAnthropicMessages } from './anthropic-messages-format.js';
 
 export const OPENCODE_CHAT_PATH = '/api/opencode-chat';
@@ -29,6 +31,7 @@ export function buildOpencodeRequest({
   historyForApi,
   currentMessageForApi,
   generationConfig,
+  reasoningEffort = null,
   systemInstruction,
   modelSupportsVision,
   buildChatMessages,
@@ -71,5 +74,7 @@ export function buildOpencodeRequest({
       ...(maxTokens !== null ? { max_tokens: maxTokens } : {})
     };
   }
+  // The depth of thinking, if the person (or the default of the model) asks for one.
+  if (reasoningEffort) Object.assign(payload, opencodeThinkingFields(modelInfo, reasoningEffort));
   return { url: `${OPENCODE_CHAT_PATH}?format=${format === 'responses' || format === 'messages' ? format : 'chat'}`, payload, headers };
 }
