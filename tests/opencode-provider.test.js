@@ -42,6 +42,11 @@ test('the list of OpenCode Go models: the ones of the owner\'s table, each in on
   // The form is the one of this list, not what the page says.
   assert.equal(opencodeFormatOf({ provider: 'opencode-go', id: 'opencode-go/kimi-k3', opencodeFormat: 'messages' }), 'chat');
   assert.equal(opencodeFormatOf({ provider: 'openrouter', id: 'opencode-go/kimi-k3' }), '');
+  // A member of a council on the server is named by the id at OpenCode.
+  assert.equal(opencodeFormatOf({ provider: 'opencode-go', id: 'qwen3.8-max' }), 'messages');
+  assert.equal(opencodeFormatOf({ provider: 'opencode-go', id: 'grok-4.7' }), 'responses');
+  assert.equal(modelSupportsVision({ provider: 'opencode-go', id: 'kimi-k3' }), true);
+  assert.equal(modelSupportsVision({ provider: 'opencode-go', id: 'glm-5.3' }), false);
 });
 
 test('thinking is shown as a summary for Claude, GPT, Grok and Muse, and as the model\'s own for the others', () => {

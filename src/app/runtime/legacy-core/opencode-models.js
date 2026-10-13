@@ -67,8 +67,10 @@ export const OPENCODE_GO_MODELS = Object.freeze(ROWS.map(([apiId, name, company,
 })));
 
 export const OPENCODE_GO_MODEL_IDS = Object.freeze(OPENCODE_GO_MODELS.map((model) => model.id));
-const BY_ID = new Map(OPENCODE_GO_MODELS.map((model) => [model.id, model]));
-const VISION_IDS = new Set(OPENCODE_GO_MODELS.filter((model) => model.opencodeVision).map((model) => model.id));
+// A model is known by its id in the app (`opencode-go/kimi-k3`) and by its id at OpenCode (`kimi-k3`): a council on the server names its members by
+// the second one.
+const BY_ID = new Map(OPENCODE_GO_MODELS.flatMap((model) => [[model.id, model], [model.apiId, model]]));
+const VISION_IDS = new Set(OPENCODE_GO_MODELS.filter((model) => model.opencodeVision).flatMap((model) => [model.id, model.apiId]));
 
 export const isOpencodeModel = (model) => Boolean(model && model.provider === OPENCODE_GO_PROVIDER);
 /** The form of API of a model of OpenCode (`chat`, `responses` or `messages`), from this list and not from what the page says; '' for any other model. */
