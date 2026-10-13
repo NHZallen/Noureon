@@ -191,6 +191,9 @@ export function normalizeLoadedLegacyConfig({
   normalizedConfig.skillStamps = normalizeSkillStamps(normalizedConfig.skillStamps);
   normalizedConfig.skillUseStamps = normalizeSkillStamps(normalizedConfig.skillUseStamps);
   normalizedConfig.settingsStamps = normalizeSettingsStamps(normalizedConfig.settingsStamps);
+  // A translator saved under a name the model had before (Gemini 3.1 Pro Preview, now Gemini 4 Argon) is the same model: it is not replaced by the first of the list.
+  normalizedConfig.councilTranslatorModelId = canonicalizeModelId(normalizedConfig.councilTranslatorModelId);
+  normalizedConfig.singleDocumentTranslatorModelId = canonicalizeModelId(normalizedConfig.singleDocumentTranslatorModelId);
   if (!councilTranslatorCandidates.some(model => model.id === normalizedConfig.councilTranslatorModelId)) {
     normalizedConfig.councilTranslatorModelId = councilTranslatorCandidates[0]?.id || null;
   }
