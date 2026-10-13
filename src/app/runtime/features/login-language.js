@@ -42,6 +42,25 @@ export function readLastUiLanguage(storage) {
   }
 }
 
+/**
+ * The language of the browser or the system, when it is one of the five the app has (any Chinese is Traditional Chinese, the only Chinese there is);
+ * '' when it is none of them. It is what a first visit sees, before anyone has picked a language.
+ */
+export function detectSystemLanguage(navigatorLike = globalThis.navigator) {
+  try {
+    const wanted = navigatorLike?.languages?.length ? navigatorLike.languages : [navigatorLike?.language || ''];
+    for (const entry of wanted) {
+      const tag = String(entry || '').toLowerCase();
+      if (tag.startsWith('zh')) return 'zh-TW';
+      const match = LANGUAGES.find((language) => language !== 'zh-TW' && (tag === language || tag.startsWith(`${language}-`)));
+      if (match) return match;
+    }
+  } catch {
+    // A browser that does not say keeps the default.
+  }
+  return '';
+}
+
 export function forgetLoginLanguage(storage) {
   try {
     store(storage)?.removeItem(KEY);

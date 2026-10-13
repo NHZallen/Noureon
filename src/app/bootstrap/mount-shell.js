@@ -28,7 +28,16 @@ const STARTUP_FAILURE_TEXTS = Object.freeze({
 const startupLanguage = () => {
   try {
     const stored = globalThis.localStorage?.getItem('noureon_login_language') || globalThis.localStorage?.getItem('noureon_ui_language');
-    return STARTUP_FAILURE_TEXTS[stored] ? stored : 'zh-TW';
+    if (STARTUP_FAILURE_TEXTS[stored]) return stored;
+    // A first visit that failed: the language of the browser, when it is one of the five.
+    const wanted = globalThis.navigator?.languages?.length ? globalThis.navigator.languages : [globalThis.navigator?.language || ''];
+    for (const entry of wanted) {
+      const tag = String(entry || '').toLowerCase();
+      if (tag.startsWith('zh')) return 'zh-TW';
+      const match = Object.keys(STARTUP_FAILURE_TEXTS).find((name) => name !== 'zh-TW' && (tag === name || tag.startsWith(`${name}-`)));
+      if (match) return match;
+    }
+    return 'zh-TW';
   } catch {
     return 'zh-TW';
   }

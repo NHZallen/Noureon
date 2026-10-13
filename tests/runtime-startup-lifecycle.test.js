@@ -206,7 +206,32 @@ test('auth startup listeners preserve binding order and import enablement behavi
   assert.match(harness.calls.at(-1), /^toggleModal:importDataModalAuth:false$/);
 });
 
+// The browser's language, for the length of a test (a first visit follows it).
+const withBrowserLanguages = async (languages, run) => {
+  const before = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+  Object.defineProperty(globalThis, 'navigator', { value: { languages, language: languages[0] }, configurable: true, writable: true });
+  try {
+    return await run();
+  } finally {
+    if (before) Object.defineProperty(globalThis, 'navigator', before);
+    else delete globalThis.navigator;
+  }
+};
+
+test('a first visit follows the language of the browser: one of the five, any Chinese as Traditional Chinese, otherwise Traditional Chinese as before', async () => {
+  for (const [languages, expected] of [[['fr-FR', 'en'], 'fr'], [['ru'], 'ru'], [['es-MX'], 'es'], [['en-GB'], 'en'], [['zh-CN'], 'zh-TW'], [['ja-JP', 'en'], 'en'], [['ja-JP'], 'zh-TW'], [['de'], 'zh-TW']]) {
+    await withBrowserLanguages(languages, async () => {
+      const harness = createHarness();
+      harness.stored.delete('chatUser_alice');
+      await createLegacyStartupLifecycle(harness.dependencies).initializeApp();
+      assert.equal(harness.calls[0], `applyLanguage:${expected}`, languages.join());
+      assert.equal(harness.config.uiLanguage, expected, languages.join());
+    });
+  }
+});
+
 test('initializeApp restores the user and preserves load and visual handoff order', async () => {
+  await withBrowserLanguages(['zh-TW'], async () => {
   const harness = createHarness();
   const lifecycle = createLegacyStartupLifecycle(harness.dependencies);
 
@@ -227,6 +252,7 @@ test('initializeApp restores the user and preserves load and visual handoff orde
     'initChatApp'
   ]);
   assert.equal(harness.elements.authContainer.style.display, 'none');
+  });
 });
 
 test('initializeApp restores synced memory before the first app render', async () => {

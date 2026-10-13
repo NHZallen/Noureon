@@ -117,3 +117,18 @@ test('the security check is drawn in the language of the page', async () => {
   assert.deepEqual(['zh-TW', 'en', 'fr', 'ru', 'es'].map(turnstileLanguage), ['zh-tw', 'en', 'fr', 'ru', 'es']);
   assert.equal(turnstileLanguage('de'), 'auto');
 });
+
+test('the language of the system: one of the five, any Chinese as Traditional Chinese, nothing for another', async () => {
+  const { detectSystemLanguage } = await import('../src/app/runtime/features/login-language.js');
+  const of = (...languages) => detectSystemLanguage({ languages, language: languages[0] });
+  assert.equal(of('fr-CA', 'en'), 'fr');
+  assert.equal(of('en'), 'en');
+  assert.equal(of('ru-RU'), 'ru');
+  assert.equal(of('es-419'), 'es');
+  assert.equal(of('zh-Hans-CN'), 'zh-TW');
+  assert.equal(of('ja', 'fr'), 'fr', 'the first language of the list that the app has');
+  assert.equal(of('ja', 'de'), '');
+  assert.equal(of('english-ish'), '', 'a tag that only starts like one of them is not one');
+  assert.equal(detectSystemLanguage({}), '');
+  assert.equal(detectSystemLanguage(null), '');
+});

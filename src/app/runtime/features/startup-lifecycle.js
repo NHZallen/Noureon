@@ -1,6 +1,6 @@
 import { getRuntimeText } from '../i18n/runtime-texts.js';
 import { installStaleChunkRecovery } from '../../../pwa/stale-chunk-recovery.js';
-import { readLastUiLanguage, readLoginLanguage, rememberLoginLanguage } from './login-language.js';
+import { detectSystemLanguage, readLastUiLanguage, readLoginLanguage, rememberLoginLanguage } from './login-language.js';
 
 export function createLegacyStartupLifecycle({
     window,
@@ -88,8 +88,8 @@ export function createLegacyStartupLifecycle({
 
     async function initializeApp() {
         // The language picked on the sign-in page before the page was reloaded (signing in reloads it) is kept; so is the one the app was last in
-        // (a person who signed out sees the home page in it, not in Chinese again).
-        const pickedLanguage = readLoginLanguage() || readLastUiLanguage();
+        // (a person who signed out sees the home page in it, not in Chinese again). A first visit, with neither, follows the language of the system.
+        const pickedLanguage = readLoginLanguage() || readLastUiLanguage() || detectSystemLanguage();
         if (pickedLanguage) {
             const config = getConfig();
             config.uiLanguage = pickedLanguage;

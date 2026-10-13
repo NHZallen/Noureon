@@ -11,10 +11,14 @@ import {
   startRuntimeEntry
 } from '../src/app/runtime-entry.js';
 import {
+
   LEGACY_RUNTIME_ENTRY_REQUIRED_FIELDS,
   createLegacyRuntimeEntryDependencies,
   validateLegacyRuntimeEntryDependencies
 } from '../src/app/runtime/runtime-entry-dependencies.js';
+
+// A first visit follows the language of the browser; these tests are about the start in Traditional Chinese.
+Object.defineProperty(globalThis, 'navigator', { value: { languages: ['zh-TW'], language: 'zh-TW' }, configurable: true, writable: true });
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
