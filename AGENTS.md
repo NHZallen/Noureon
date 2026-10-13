@@ -26,6 +26,17 @@ Read these before changing anything:
 - Test site (測試環境: `staging.noureon.com` + `api-staging.noureon.com` + its own Supabase project; the owner decided on 2026-10-11 that work is tried there before it goes to `main`; the steps the owner does in the dashboards and the later phase for Python and connectors are in the design): [`docs/superpowers/specs/2026-10-11-staging-design.md`](docs/superpowers/specs/2026-10-11-staging-design.md)
 - Releases and deployment: [`RELEASING.md`](RELEASING.md), tests: [`TESTING.md`](TESTING.md)
 
+Working together (two people since 2026-10-13: Allen, the owner, and Sun; the plan is `Noureon_兩人分工建議_v3.2`, work is tracked in Linear, team `Noureon`):
+
+- Each of the 43 areas has one lead, shown by the Linear label group `Allen 主責` or `Sun 主責`; the Linear label and assignee are the truth. Allen leads the server, data, sync, security, deployment and quality; Sun leads screens and content (including 06, 09, 15 to 20, 27, 36 to 38, 40, 41). Areas 08, 12, 13, 14 and 18 are split: Sun does the screen and content, Allen does the server side. The other person only reviews high-impact changes in an area.
+- Allen may take over any area (for example when there is no progress for a whole cycle), after a look at the open branches and pull requests and a note in Linear. Sun asks in Linear before taking or giving up an area.
+- Only Allen pushes to `main`, edits `src/data/version.js`, `package.json`, `package-lock.json` and the update logs, edits the handoff files in `docs/superpowers/plans/`, and touches the real Supabase project and production settings. Sun's work goes by a short-lived branch (one per Linear issue) and a pull request into `staging`; Sun proposes `supabase/migrations/` files and Allen applies them to the test project and then to the real one. Feature pull requests do not change the version or the update logs (this avoids a conflict at every merge); Allen collects the notes when releasing.
+- Reviews by both are needed only for: keys and permissions, asset clean-up, data migration and sync, container and network isolation. Everything else may be merged into `staging` by its author once the checks below pass.
+- Modules shared by the browser and the server (`src/app/ui/files/`, `src/app/ui/charts/`, the list in `scripts/server-shared-modules.json`) must not use `window`, `document`, browser storage or `import.meta.env` (`npm run check:server` fails otherwise). A new module the server needs, or a change under `server/`, is confirmed by Allen, who updates the list. Changes of message formats, task events, permissions or deletion rules are first written as a short compatibility note in Linear (label `contract`) and confirmed by Allen.
+- Write a new feature as its own module and add only one line of registration in a core file (`legacy-core.js` and others); the size budgets of `npm run check:sizes` are close to the limit, and two people adding code to the same core file make it fail.
+- Progress, handoff and the state of work go in Linear; do not have two people edit the same markdown file.
+- Reply in Traditional Chinese to the people you work with (Allen and Sun). Avoid pronouns for them; use their names.
+
 Rules that always apply:
 
 - Reply to the owner in Traditional Chinese.
