@@ -19,7 +19,7 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const BASE = 'https://opencode.ai/inference/go/v1';
-export const TESTS = Object.freeze(['basic', 'stream', 'tools', 'vision', 'thinking', 'errors']);
+export const TESTS = Object.freeze(['basic', 'stream', 'tools', 'toolloop', 'vision', 'thinking', 'errors']);
 
 // From https://opencode.ai/docs/go/ (Endpoints), 2026-10-13: the model, the form of its API, and whether it is free.
 const chat = ['glm-5.3-flash', 'glm-5.3', 'glm-5.2', 'kimi-k3', 'kimi-k2.7-code', 'kimi-k2.6', 'longcat-2.0', 'deepseek-v4.1-flash', 'deepseek-v4-pro', 'deepseek-v4-flash', 'deepseek-v4-flash-vision-exp', 'mimo-v2.6-flash', 'mimo-v2.6-pro', 'mimo-v2.5', 'mimo-v2.5-pro', 'hy4-preview', 'hy3', 'space-bunny', 'longcat-2.5-preview-free', 'step-5-preview-free'];
@@ -194,6 +194,63 @@ const settle = (result, family) => {
   return { status: result.status, ok: true, ms: result.ms, text: plain(answer.text, 60), thinking: answer.thinking, thinkingField: answer.thinkingField, toolCalls: answer.toolCalls, usage: answer.usage };
 };
 
+/**
+ * The second step of a tool call, which a research reply and Advanced mode do again and again: the model called a tool, the answer of the tool is sent back.
+ * Two ways are tried, because a model that thinks may want its thinking sent back with the tool's answer (A: what the model said is sent back as it
+ * came, thinking included; B: without the thinking). The result of each: whether it was accepted, and what the model answered.
+ */
+export async function probeToolLoop({ model, family, run }) {
+  const id = model.id;
+  const first = await run(family, buildBody(family, id, 'tool', { extra: { max_tokens: 800 } }), {});
+  if (!first.ok) return { skipped: 'the first step failed', status: first.status, message: first.message };
+  let data = null;
+  try {
+    data = JSON.parse(first.raw);
+  } catch { /* not JSON */ }
+  const ask = TOOL_PROMPT;
+  let variants = null;
+  if (family === 'chat') {
+    const message = data?.choices?.[0]?.message || {};
+    if (!message.tool_calls?.length) return { skipped: 'no tool call in the first step' };
+    const call = message.tool_calls[0];
+    const thinking = {};
+    for (const field of ['reasoning_content', 'reasoning']) if (typeof message[field] === 'string' && message[field]) thinking[field] = message[field];
+    const base = (assistantExtra) => ({
+      model: id,
+      max_tokens: 800,
+      tools: [{ type: 'function', function: { name: TOOL.name, description: TOOL.description, parameters: TOOL.schema } }],
+      messages: [{ role: 'user', content: ask }, { role: 'assistant', content: message.content || '', tool_calls: message.tool_calls, ...assistantExtra }, { role: 'tool', tool_call_id: call.id, content: '14:05' }]
+    });
+    variants = [['A:with-thinking', base(thinking)], ['B:without-thinking', base({})]];
+    if (!Object.keys(thinking).length) variants = variants.slice(1);
+  } else if (family === 'responses') {
+    const items = (data?.output || []).filter(Boolean);
+    const call = items.find((item) => item.type === 'function_call');
+    if (!call) return { skipped: 'no tool call in the first step' };
+    const base = (carried) => ({
+      model: id,
+      max_output_tokens: 800,
+      tools: [{ type: 'function', name: TOOL.name, description: TOOL.description, parameters: TOOL.schema }],
+      input: [{ role: 'user', content: ask }, ...carried, { type: 'function_call_output', call_id: call.call_id, output: '14:05' }]
+    });
+    variants = [['A:all-items', base(items)], ['B:calls-only', base(items.filter((item) => item.type === 'function_call'))]];
+  } else {
+    const blocks = (data?.content || []).filter(Boolean);
+    const call = blocks.find((block) => block.type === 'tool_use');
+    if (!call) return { skipped: 'no tool call in the first step' };
+    const base = (carried) => ({
+      model: id,
+      max_tokens: 800,
+      tools: [{ name: TOOL.name, description: TOOL.description, input_schema: TOOL.schema }],
+      messages: [{ role: 'user', content: ask }, { role: 'assistant', content: carried }, { role: 'user', content: [{ type: 'tool_result', tool_use_id: call.id, content: '14:05' }] }]
+    });
+    variants = [['A:all-blocks', base(blocks)], ['B:without-thinking', base(blocks.filter((block) => block.type !== 'thinking' && block.type !== 'redacted_thinking'))]];
+  }
+  const out = { firstStep: { thinkingSent: variants.length > 1 || family !== 'chat' } };
+  for (const [name, body] of variants) out[name] = settle(await run(family, body, {}), family);
+  return out;
+}
+
 /** The tests of one model. `run(body, options)` sends and gives the result of `send`. */
 export async function probeModel({ model, tests = TESTS, run }) {
   const { id } = model;
@@ -223,6 +280,7 @@ export async function probeModel({ model, tests = TESTS, run }) {
     }
   }
   if (tests.includes('tools')) result.tools = await one('tool');
+  if (tests.includes('toolloop')) result.toolloop = await probeToolLoop({ model, family, run });
   if (tests.includes('vision')) result.vision = await one('vision');
   if (tests.includes('thinking')) {
     result.thinking = {};

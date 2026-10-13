@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 
-import { MODELS, THINKING, buildBody, main, parseEvents, probeModel, readAnswer, send, summarizeStream } from '../scripts/opencode-probe.mjs';
+import { MODELS, THINKING, buildBody, main, parseEvents, probeModel, probeToolLoop, readAnswer, send, summarizeStream } from '../scripts/opencode-probe.mjs';
 
 const KEY = 'oc_sk_very-secret-key-for-the-test';
 const reply = (status, body) => ({ status, text: async () => (typeof body === 'string' ? body : JSON.stringify(body)) });
@@ -183,4 +183,34 @@ test('--max-tokens raises the limit of every request, in the field of its form o
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('the tool loop: the first step gives the call, the second step sends the answer of the tool back with and without the thinking, in each form of API', async () => {
+  const seen = [];
+  const run = async (family, body) => {
+    seen.push({ family, body });
+    if (seen.filter((entry) => entry.family === family).length === 1) {
+      const answers = {
+        chat: { choices: [{ message: { content: '', reasoning_content: 'hm', tool_calls: [{ id: 'c1', type: 'function', function: { name: 'get_time', arguments: '{"city":"Paris"}' } }] } }] },
+        responses: { output: [{ type: 'reasoning', id: 'r1', summary: [] }, { type: 'function_call', id: 'f1', call_id: 'c1', name: 'get_time', arguments: '{}' }] },
+        messages: { content: [{ type: 'thinking', thinking: 'hm', signature: 's' }, { type: 'tool_use', id: 'c1', name: 'get_time', input: { city: 'Paris' } }] }
+      };
+      return { status: 200, ok: true, ms: 1, raw: JSON.stringify(answers[family]) };
+    }
+    return { status: 200, ok: true, ms: 1, raw: JSON.stringify({ choices: [{ message: { content: '14:05' } }], output: [], content: [{ type: 'text', text: '14:05' }] }) };
+  };
+  for (const family of ['chat', 'responses', 'messages']) {
+    const result = await probeToolLoop({ model: { id: 'x' }, family, run });
+    assert.equal(Object.keys(result).filter((name) => /^[AB]:/.test(name)).length, 2, family);
+  }
+  const chatB = seen.filter((entry) => entry.family === 'chat')[2].body;
+  assert.equal(chatB.messages[1].reasoning_content, undefined);
+  assert.equal(chatB.messages[2].role, 'tool');
+  const messagesA = seen.filter((entry) => entry.family === 'messages')[1].body;
+  assert.equal(messagesA.messages[1].content[0].type, 'thinking');
+  assert.equal(messagesA.messages[2].content[0].type, 'tool_result');
+  const responsesB = seen.filter((entry) => entry.family === 'responses')[2].body;
+  assert.deepEqual(responsesB.input.map((item) => item.type || item.role), ['user', 'function_call', 'function_call_output']);
+  const refused = await probeToolLoop({ model: { id: 'x' }, family: 'chat', run: async () => ({ status: 400, ok: false, message: 'no' }) });
+  assert.equal(refused.skipped, 'the first step failed');
 });
