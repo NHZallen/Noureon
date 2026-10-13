@@ -11,9 +11,9 @@ const KEY = 'oc_sk_very-secret-key-for-the-test';
 const reply = (status, body) => ({ status, text: async () => (typeof body === 'string' ? body : JSON.stringify(body)) });
 
 test('the models of the probe are those of the documents: three forms of API, and only the two named free ones are free', () => {
-  assert.equal(MODELS.length, 32);
+  assert.equal(MODELS.length, 39);
   assert.deepEqual([...new Set(MODELS.map((model) => model.family))].sort(), ['chat', 'messages', 'responses']);
-  assert.deepEqual(MODELS.filter((model) => model.free).map((model) => model.id), ['longcat-2.5-preview-free', 'step-5-preview-free']);
+  assert.deepEqual(MODELS.filter((model) => model.free).map((model) => model.id), ['longcat-2.5-preview-free', 'step-5-preview-free', 'cat-jam-free']);
   assert.equal(MODELS.find((model) => model.id === 'claude-haiku-5-5').family, 'messages');
   assert.equal(MODELS.find((model) => model.id === 'gpt-6-luna').family, 'responses');
   for (const family of ['chat', 'responses', 'messages']) assert.ok(THINKING[family].length >= 2);
@@ -114,4 +114,16 @@ test('run from the command line, the script really runs, with a relative path as
   for (const result of [run(process.cwd(), script), run(join(process.cwd(), 'scripts'), 'opencode-probe.mjs'), run(join(process.cwd(), 'scripts'), './opencode-probe.mjs')]) {
     assert.ok(`${result.stdout}${result.stderr}`.trim().length > 0, 'the script should say something');
   }
+});
+
+test('a model whose form of API is only a guess is tried in the other forms when the guess is refused, and the form that answers is kept', async () => {
+  const seen = [];
+  const run = async (family) => {
+    seen.push(family);
+    return family === 'responses' ? { status: 200, ok: true, ms: 1, raw: JSON.stringify({ output: [] }) } : { status: 404, ok: false, message: 'no' };
+  };
+  const result = await probeModel({ model: { id: 'omen-alpha', family: 'chat', guess: true }, tests: ['basic'], run });
+  assert.deepEqual(seen.slice(0, 2), ['chat', 'responses']);
+  assert.equal(result.family, 'responses');
+  assert.equal(result.formsTried.chat.status, 404);
 });

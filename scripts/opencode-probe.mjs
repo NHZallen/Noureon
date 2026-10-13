@@ -27,7 +27,10 @@ const messages = ['claude-haiku-5-5', 'minimax-m3', 'minimax-m2.7', 'qwen3.8-max
 export const MODELS = Object.freeze([
   ...chat.map((id) => ({ id, family: 'chat', free: id.endsWith('-free') })),
   ...responses.map((id) => ({ id, family: 'responses', free: false })),
-  ...messages.map((id) => ({ id, family: 'messages', free: false }))
+  ...messages.map((id) => ({ id, family: 'messages', free: false })),
+  // In the list of the service (2026-10-13) but not in the documents: the form of the API is a guess, and the probe tries the others when the guess is refused.
+  ...['deepseek-flash', 'glm-5.1', 'omen-alpha', 'cat-jam-free'].map((id) => ({ id, family: 'chat', free: id.endsWith('-free'), guess: true })),
+  ...['minimax-m2.5', 'qwen3.6-plus', 'qwen3.7-max'].map((id) => ({ id, family: 'messages', free: false, guess: true }))
 ]);
 
 const PATH = { chat: '/chat/completions', responses: '/responses', messages: '/messages' };
@@ -191,8 +194,22 @@ const settle = (result, family) => {
 
 /** The tests of one model. `run(body, options)` sends and gives the result of `send`. */
 export async function probeModel({ model, tests = TESTS, run }) {
-  const { id, family } = model;
+  const { id } = model;
+  let { family } = model;
   const result = { id, family, free: Boolean(model.free) };
+  if (model.guess) {
+    result.guess = true;
+    result.formsTried = {};
+    for (const candidate of [family, ...['chat', 'responses', 'messages'].filter((name) => name !== family)]) {
+      const attempt = settle(await run(candidate, buildBody(candidate, id, 'basic'), {}), candidate);
+      result.formsTried[candidate] = { status: attempt.status, ok: attempt.ok, message: attempt.message };
+      if (attempt.ok) {
+        family = candidate;
+        result.family = candidate;
+        break;
+      }
+    }
+  }
   const one = async (kind, options = {}) => settle(await run(family, buildBody(family, id, kind, options), options), family);
   if (tests.includes('basic')) result.basic = await one('basic');
   if (tests.includes('stream')) {
@@ -295,4 +312,5 @@ export async function main(args = process.argv.slice(2), env = process.env, out 
 }
 
 const isMain = Boolean(process.argv[1]) && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
-if (isMain) process.exit(await main());
+// Not process.exit(): on Windows it can crash Node ("Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)") while the connections are still closing.
+if (isMain) process.exitCode = await main();
