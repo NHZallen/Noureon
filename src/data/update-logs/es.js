@@ -1,6 +1,14 @@
 // The update notes in Spanish (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.8.2": [
+    "<strong>Notas de la versión de Noureon 18.8.2</strong>",
+    "Esta versión sustituye Gemini 3.1 Pro Preview por Gemini 4 Argon, tanto con el proveedor Gemini como con OpenRouter.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Modelo sustituido:</strong> Gemini 3.1 Pro Preview del proveedor Gemini pasa a ser Gemini 4 Argon, y google/gemini-3.1-pro-preview de OpenRouter pasa a ser google/gemini-4-argon. Los ajustes, las conversaciones y los modelos de traducción que usaban el antiguo cambian solos al nuevo.</li><li><strong>Capacidades:</strong> imágenes, subida de documentos, llamadas a herramientas (Python y modo avanzado) y búsqueda web. El razonamiento no se puede desactivar; el valor por defecto es «Medio».</li><li><strong>Niveles de razonamiento:</strong> bajo, medio y alto con el proveedor Gemini; medio y alto con OpenRouter. Se quita el bajo de OpenRouter porque su segunda ronda la corta el servicio de origen (504); una conversación que había elegido bajo vuelve al valor por defecto, medio.</li><li><strong>Precio:</strong> hasta el 30/11/2026, 2 $ por millón de tokens de entrada y 10 $ de salida; desde el 1/12, 4 $ y 20 $. La descripción del modelo da ambos.</li><li><strong>Los errores se muestran:</strong> un error que el servicio comunicaba en mitad de una transmisión se omitía y la respuesta terminaba sin decir nada; ahora se muestra.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "Esta actualización no requiere migración de datos."
+  ],
   "18.8.1": [
     "<strong>Notas de la versión de Noureon 18.8.1</strong>",
     "Se corrigen dos problemas de inicio de sesión e idioma: cerrar sesión en un dispositivo ya no la cierra en los demás, y el idioma elegido en la página de inicio se mantiene tras iniciar sesión, sin que quede chino en los ajustes ni en otras pantallas.",
