@@ -111,3 +111,60 @@ OpenCode 自己的 `variant.ts` 是一份對照（OpenCode 用戶端的設定，
 ## 13. 進度
 
 - 2026-10-13：設計完成；探測工具 `scripts/opencode-probe.mjs` 與測試 `tests/opencode-probe.test.js` 完成（用假網路測過，還沒用真的金鑰跑）。下一步：Allen 用 Go 金鑰跑探測（`OPENCODE_GO_KEY=… node scripts/opencode-probe.mjs --free` 先跑免費模型），把輸出貼回來，用它填模型登錄。
+- 2026-10-13：探測跑完（免費、全部 Go 付費模型、錯誤），結果與模型登錄用的實測表在 §14。還缺：DeepSeek 與 Muse Spark（被帳號隱私設定擋住）。下一步：寫程式（轉接器、`api/opencode-chat`、模型登錄、設定頁金鑰、五語言文字、隱私文件）。
+
+## 14. 探測結果（2026-10-13，Allen 用 Go 金鑰跑；原始結果檔 `all.json` 在 Allen 的電腦）
+
+請求都用 `max_tokens` 96 左右，所以「文字是空的」多半是思考把額度用完，**不等於不支援**（標「待定」）。
+
+### 共通事實
+- **上游對不認識的參數嚴格拒絕（400 `unknown field` / `unsupported_parameter`）。** 所以思考參數必須逐模型登記，不能一律多送；第一版仍照 §7 不帶，之後只送該模型登記過的那一種。
+- 錯誤格式：金鑰錯 401 `Invalid credential`；沒金鑰 401 `Go requires a credential`；模型不存在 400 `Model is unavailable.`；上游錯誤都有前綴 `Upstream request failed:`。免費或暫時掛掉的模型回 404 或 429 `Endpoint is unavailable.`（過一陣子會好，不是帳號額度）。
+- **帳號隱私設定會擋模型（每位使用者自己的 OpenCode 工作區設定）：**
+  - DeepSeek V4 Pro、V4 Flash、V4.1 Flash：400「This Go model requires Global regions. Select Global in your workspace's Privacy settings to use it.」
+  - Muse Spark 1.2／1.3 Contributor：400「This Go model trains on request data. Allow paid endpoints that train on request data in your workspace's Privacy settings to use it.」
+  - 做法：錯誤文字原樣顯示，再加一行說明（「到 OpenCode 工作區的 Privacy 設定開啟後再試」，五語言）。這兩種模型 Allen 的工作區目前都沒開，**所以還沒測到**（見下方待測）。
+- Messages 格式只要 `Authorization: Bearer`，不需要 `anthropic-version`（三種標頭組合都 200）。
+- 回應很快（多數 1 到 5 秒），但 mimo-v2.5 的一次串流花了 62 秒：伺服器與 Vercel 函式的逾時不能用 45 秒。
+- 串流結尾：chat 有 `[DONE]`；responses 與 messages 沒有 `[DONE]`，以 `response.completed`／`message_stop` 為結尾。
+- 用量欄位：chat 是 `prompt_tokens`／`completion_tokens`（部分有 `completion_tokens_details.reasoning_tokens`）；responses 是 `input_tokens`／`output_tokens`；messages 是 `input_tokens`／`output_tokens`（含 `cache_*`）。
+
+### 思考內容在哪裡
+- chat：`reasoning_content`（GLM、Kimi K2.7、LongCat、DeepSeek、MiMo 2.6、Hy、Cat Jam、Space Bunny）或 `reasoning`（Kimi K3、MiMo 2.5、Step 5、Hy 部分回應），串流另有 `reasoning_details`。同一個模型兩種都可能出現（Hy、Kimi K3 的工具回應），**兩個欄位都要讀**（收集器已經會）。
+- responses：`output[]` 的 reasoning 項目，串流是 `response.reasoning_summary_text.delta`（Grok 有；GPT Luna 預設沒有摘要）。
+- messages：`content[]` 的 `thinking` 區塊，串流 `thinking_delta`（MiniMax、Qwen 有；Claude Haiku 5.5 預設沒有）。
+
+### 模型登錄用的實測表
+工具：全部通過，除了 kimi-k3 的工具測試只回了一句文字沒有呼叫（待定，請在測試站用真實請求確認）。圖片：✓ 回答正確、✗ 被拒、？ 被接受但答不出（待定）。
+
+| 模型 | 格式 | 圖片 | 思考怎麼控制（實測） |
+|---|---|---|---|
+| glm-5.3-flash | chat | ✓ | 預設開；`reasoning_effort: low` 會關掉；`thinking` 被拒 |
+| glm-5.3、glm-5.2 | chat | ✗（「does not support image inputs」） | 只能思考（thinking-only）；`thinking:{type:enabled}` 與 `reasoning_effort` 可用；關掉會被拒 |
+| kimi-k3 | chat | ✓ | 關不掉；所有參數都被接受但一直思考 |
+| kimi-k2.7-code | chat | ✓ | 只接受 `thinking:{type:enabled}`，關閉被拒 |
+| longcat-2.0 | chat | ？ | `thinking:{type:disabled}` 可關 |
+| deepseek-v4-flash-vision-exp | chat | ✓ | `thinking:{type:disabled}` 可關 |
+| mimo-v2.6-flash、mimo-v2.6-pro | chat | ✓ | `thinking:{type:disabled}` 可關 |
+| mimo-v2.5 | chat | ✓ | 關不掉；串流可能很慢（62 秒） |
+| mimo-v2.5-pro | chat | ？（圖片請求回 404 Endpoint unavailable，待重測） | `thinking:{type:disabled}` 可關 |
+| hy4-preview、hy3 | chat | ？ | `thinking:{type:disabled}` 可關，但關掉後 hy4 的回答會亂接下去（品質問題，預設不關） |
+| space-bunny | chat | ✓ | 預設不思考；`enable_thinking: true` 才會開；`thinking:{disabled}` 被拒 |
+| step-5-preview-free（免費） | chat | ✓ | `reasoning_effort: low` 會關掉；`thinking:{disabled}` 沒作用 |
+| longcat-2.5-preview-free（免費） | chat | ？（目錄標有圖片，探測答成 Black） | `thinking:{type:disabled}` 可關 |
+| cat-jam-free（Go 清單裡有、文件沒寫） | chat | ✗（只收文字） | 只有 `reasoning_effort` 被接受 |
+| deepseek-v4-pro、v4-flash、v4.1-flash | chat | 待測 | 待測（要 Global 區域） |
+| grok-4.7、grok-4.6 | responses | ✓ | `reasoning.effort` low 可用；`none` 被拒；摘要有 |
+| gpt-6-luna、gpt-5.6-luna | responses | ✓ | `reasoning.effort` none／low 都接受；預設沒有推理摘要 |
+| muse-spark-1.3、1.2 Contributor | responses | 待測 | 待測（要允許訓練資料） |
+| claude-haiku-5-5 | messages | ✓ | 只接受 `thinking:{type:adaptive}`（加 `output_config.effort`）；`enabled`＋預算被拒；`disabled` 也可 |
+| minimax-m3 | messages | ？（答成 Brown，目錄標有圖片） | `adaptive`／`enabled`＋預算會思考；`disabled` 可關 |
+| minimax-m2.7 | messages | ✗（目錄：純文字） | 關不掉（`disabled` 無效） |
+| qwen3.8-max、qwen3.8-flash、qwen3.7-plus | messages | ✓ | 預設思考；`thinking:{type:disabled}` 可關；`enabled`＋預算可用 |
+
+清單裡有、文件沒寫的模型（`deepseek-flash`、`glm-5.1`、`omen-alpha`、`minimax-m2.5`、`qwen3.6-plus`、`qwen3.7-max`）：Allen 決定先只做 Go 文件列的模型，這些之後再說（`cat-jam-free` 已測，可選）。
+
+### 待測／待決定
+1. Allen 到 OpenCode 工作區 Privacy 設定打開「Global 區域」與「允許訓練資料的付費端點」之後，重測 deepseek-v4-pro／v4-flash／v4.1-flash 與 muse-spark 1.2／1.3（`node opencode-probe.mjs --only deepseek-v4-pro,deepseek-v4-flash,deepseek-v4.1-flash,muse-spark-1.3-contributor,muse-spark-1.2-contributor --out privacy.json`）。使用者各自的工作區設定不同，所以這兩類錯誤一定要有明確提示。
+2. 「？」的圖片：實際用真實圖片在測試站試，再決定標記。
+3. 思考強度選項（§10 第 2 點）：第一版不做；上表是之後逐模型加選項的依據。
