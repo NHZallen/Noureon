@@ -1,6 +1,14 @@
 // The update notes in French (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.8.2": [
+    "<strong>Notes de version de Noureon 18.8.2</strong>",
+    "Cette version remplace Gemini 3.1 Pro Preview par Gemini 4 Argon, chez le fournisseur Gemini comme chez OpenRouter.",
+    "<strong>Changements principaux</strong>",
+    "<ul><li><strong>Modèle remplacé :</strong> Gemini 3.1 Pro Preview du fournisseur Gemini devient Gemini 4 Argon, et google/gemini-3.1-pro-preview d’OpenRouter devient google/gemini-4-argon. Les réglages, les conversations et les modèles de traduction qui utilisaient l’ancien passent d’eux-mêmes au nouveau.</li><li><strong>Capacités :</strong> images, envoi de documents, appels d’outils (Python et mode avancé) et recherche sur le web. La réflexion ne peut pas être désactivée ; la valeur par défaut est « Moyen ».</li><li><strong>Niveaux de réflexion :</strong> Faible, Moyen et Élevé chez le fournisseur Gemini ; Moyen et Élevé chez OpenRouter. Faible est retiré d’OpenRouter parce que son second tour est coupé par le service en amont (504) ; une conversation qui avait choisi Faible revient à la valeur par défaut, Moyen.</li><li><strong>Prix :</strong> jusqu’au 30/11/2026, 2 $ le million de jetons en entrée et 10 $ en sortie ; dès le 1er/12, 4 $ et 20 $. La description du modèle donne les deux.</li><li><strong>Les erreurs s’affichent :</strong> une erreur signalée par le service au milieu d’un flux était ignorée et la réponse se terminait sans un mot ; elle est désormais affichée.</li></ul>",
+    "<strong>Compatibilité</strong>",
+    "Cette mise à jour ne nécessite aucune migration de données."
+  ],
   "18.8.1": [
     "<strong>Notes de version de Noureon 18.8.1</strong>",
     "Deux problèmes liés à la connexion et à la langue sont corrigés : se déconnecter sur un appareil ne déconnecte plus les autres, et la langue choisie sur la page d’accueil est conservée après la connexion, sans plus de chinois qui reste dans les réglages ou ailleurs.",

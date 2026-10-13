@@ -1,6 +1,14 @@
 // The update notes in Russian (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.8.2": [
+    "<strong>Заметки о выпуске Noureon 18.8.2</strong>",
+    "В этой версии Gemini 3.1 Pro Preview заменена на Gemini 4 Argon — и у провайдера Gemini, и в OpenRouter.",
+    "<strong>Основные изменения</strong>",
+    "<ul><li><strong>Модель заменена:</strong> Gemini 3.1 Pro Preview у провайдера Gemini теперь Gemini 4 Argon, а google/gemini-3.1-pro-preview в OpenRouter теперь google/gemini-4-argon. Настройки, беседы и модели перевода, где была старая, сами переходят на новую.</li><li><strong>Возможности:</strong> изображения, загрузка документов, вызов инструментов (Python и расширенный режим) и поиск в интернете. Размышление нельзя отключить; по умолчанию — «Средний».</li><li><strong>Уровни размышления:</strong> низкий, средний и высокий у провайдера Gemini; средний и высокий у OpenRouter. Низкий убран из OpenRouter, потому что его второй раунд обрывается вышестоящим сервисом (504); беседа, где был выбран низкий, возвращается к значению по умолчанию — среднему.</li><li><strong>Цена:</strong> до 30.11.2026 — $2 за миллион входных и $10 за миллион выходных токенов; с 1.12 — $4 и $20. В описании модели указаны обе.</li><li><strong>Ошибки показываются:</strong> ошибка, о которой сервис сообщал посреди потока, раньше пропускалась, и ответ молча обрывался; теперь она показывается.</li></ul>",
+    "<strong>Совместимость</strong>",
+    "Это обновление не требует миграции данных."
+  ],
   "18.8.1": [
     "<strong>Примечания к выпуску Noureon 18.8.1</strong>",
     "Исправлены две проблемы со входом и языком: выход на одном устройстве больше не выводит из аккаунта на остальных, а язык, выбранный на главной странице, сохраняется после входа, и китайский текст больше не остаётся в настройках и других местах.",

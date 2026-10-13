@@ -1,6 +1,14 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.8.2": [
+    "<strong>Noureon 18.8.2 Release Notes</strong>",
+    "This version replaces Gemini 3.1 Pro Preview with Gemini 4 Argon, both with the Gemini provider and with OpenRouter.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Model replaced:</strong> Gemini 3.1 Pro Preview of the Gemini provider is now Gemini 4 Argon, and google/gemini-3.1-pro-preview of OpenRouter is now google/gemini-4-argon. Settings, conversations and translator models that used the old one switch to the new one on their own.</li><li><strong>Abilities:</strong> pictures, document upload, tool calls (Python and advanced mode) and web search. The thinking cannot be turned off; the default is “Medium”.</li><li><strong>Thinking levels:</strong> Low, Medium and High with the Gemini provider; Medium and High with OpenRouter. Low is removed from OpenRouter because its second round is cut off by the upstream service (504); a conversation that had chosen Low goes back to the default, Medium.</li><li><strong>Price:</strong> until 30 November 2026, $2 per million tokens in and $10 out; from 1 December, $4 and $20. The description of the model gives both.</li><li><strong>Errors are shown:</strong> an error reported by the service in the middle of a stream used to be skipped, so the reply ended without a word; it is now shown.</li></ul>",
+    "<strong>Compatibility</strong>",
+    "This update requires no data migration."
+  ],
   "18.8.1": [
     "<strong>Noureon 18.8.1 Release Notes</strong>",
     "Two problems with signing in and language are fixed: signing out on one device no longer signs out the others, and the language picked on the home page is kept after signing in, with no Chinese left behind in Settings or elsewhere.",
