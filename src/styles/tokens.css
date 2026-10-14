@@ -151,7 +151,7 @@
 :root[data-theme="dark"] {
     color-scheme: dark;
 
-    /* the file cards in the dark: lighter, so the logo of each kind of file reads on a dark ground */
+    /* the file cards in the dark theme are lighter, so the logo of each kind of file reads on a dark ground */
     --file-default: #94a3b8;
     --file-word: #7da2ff;
     --file-excel: #4cc38a;

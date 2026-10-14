@@ -74,12 +74,12 @@ export function createAttachmentCard(document, file, { window = globalThis.windo
       // The host must be in the page while it is drawn (the previews measure it).
       thumb.appendChild(host);
       entry.thumb = thumb;
-      drawAttachmentThumbnail({ document, window, file, family, host }).then((result) => {
+      Promise.resolve().then(() => drawAttachmentThumbnail({ document, window, file, family, host })).catch(() => null).then((result) => {
         entry.dispose = result?.dispose || null;
         entry.state = result ? 'ready' : 'icon';
         if (entry.thumb) entry.thumb.dataset.state = entry.state;
         // The scale of a page (the previews fit it to the width of the host) is made again now that the host has its size.
-        if (result) window.dispatchEvent?.(new window.Event('resize'));
+        if (result) window?.dispatchEvent?.(new window.Event('resize'));
       });
     } else {
       thumb.appendChild(entry.host);

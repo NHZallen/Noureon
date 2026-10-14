@@ -232,3 +232,54 @@ button.message-file-row:focus-visible { outline: 2px solid var(--link-color); ou
     }
     .message-file-row .ac-kind-icon { width: 1.6rem; height: 1.6rem; }
 }
+
+/* On a phone the pictures, the videos and the files of a message are one strip each that slides sideways, and the pictures are bigger;
+   in the message box the pictures are bigger too; the viewer of a picture or a video fills the width of the screen. */
+@media (max-width: 640px) {
+    .message-stack-user .message-media-grid:not(.message-media-grid-single),
+    .message-stack-model .message-media-grid:not(.message-media-grid-single),
+    .message-stack-user .message-file-list,
+    .message-stack-model .message-file-list {
+        display: flex;
+        flex-wrap: nowrap;
+        justify-content: flex-start;
+        direction: ltr;
+        width: 100%;
+        max-width: 100%;
+        gap: 0.45rem;
+        overflow-x: auto;
+        overflow-y: hidden;
+        overscroll-behavior-x: contain;
+        scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
+    }
+    .message-media-grid:not(.message-media-grid-single)::-webkit-scrollbar,
+    .message-file-list::-webkit-scrollbar { display: none; }
+    /* Few of them sit at the right (the side of the person); many slide from the first one. */
+    .message-stack-user .message-media-grid:not(.message-media-grid-single) > :first-child,
+    .message-stack-user .message-file-list > :first-child { margin-left: auto; }
+    .message-media-grid:not(.message-media-grid-single) .message-media-thumb {
+        flex: 0 0 auto;
+        width: 8.25rem;
+        height: 8.25rem;
+    }
+    .message-file-row { flex: 0 0 auto; }
+
+    .input-media-preview .file-preview-item:not(.ac-attach-card) {
+        width: 6.5rem;
+        height: 6.5rem;
+        border-radius: 1rem;
+    }
+
+    .media-lightbox.media-lightbox { padding: 4rem 0 1.5rem; }
+    .media-lightbox .media-lightbox-stage { max-width: 100vw; max-height: 86vh; }
+    .media-lightbox .media-lightbox-stage img,
+    .media-lightbox .media-lightbox-stage video {
+        max-width: 100vw;
+        max-height: 86vh;
+        width: 100vw;
+        height: auto;
+        object-fit: contain;
+        border-radius: 0;
+    }
+}

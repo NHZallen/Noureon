@@ -63,7 +63,7 @@ test('multiline composer grows to ten lines and exposes a bounded expand control
 test('composer upload previews occupy a full-width row above desktop input controls', () => {
   const css = readUiSource('src/styles/main.css');
   const inputMediaPlacement = readUiSource('src/app/runtime/features/input-media-placement.js');
-  const previewLifecycle = readUiSource('src/app/legacy-runtime/features/uploaded-file-preview-lifecycle.js');
+  const previewLifecycle = readUiSource('src/app/ui/files/attachment-card.js');
 
   assert.match(inputMediaPlacement, /inputMediaPreview\.className\s*=\s*'input-media-preview empty:hidden';[\s\S]*wrapper\.insertBefore\(inputMediaPreview,\s*wrapper\.firstChild\)/);
   assert.match(css, /#input-bar-container\s+\.input-wrapper\.has-file-previews[^{]*\{[^}]*grid-template-areas:\s*"preview preview preview preview preview preview"\s*"file input input reasoning voice submit"/s);
@@ -71,16 +71,16 @@ test('composer upload previews occupy a full-width row above desktop input contr
   assert.match(css, /#input-bar-container\s+\.input-wrapper\.has-file-previews\.has-multiline-input[^{]*\{[^}]*grid-template-areas:\s*"preview preview preview preview preview preview"\s*"input input input input input input"\s*"file \. \. reasoning voice submit"/s);
   assert.match(css, /#input-bar-container\s+\.input-wrapper\s*>\s*\.input-media-preview[^{]*\{[^}]*grid-area:\s*preview;[^}]*align-self:\s*stretch;[^}]*width:\s*100%;/s);
   assert.doesNotMatch(css, /#input-bar-container\s+\.input-wrapper\s*>\s*\.input-media-preview[^{]*\{[^}]*position:\s*absolute/s);
-  assert.match(previewLifecycle, /removeButton\.className\s*=\s*'file-preview-remove';[\s\S]*removeButton\.innerHTML\s*=\s*'<svg[^']*aria-hidden="true"[^']*<\/svg>';[\s\S]*event\.stopPropagation\(\);[\s\S]*removeFile\(file\.id\)/);
+  assert.match(previewLifecycle, /button\.className\s*=\s*'file-preview-remove';[\s\S]*button\.innerHTML\s*=\s*'<svg[^']*aria-hidden="true"[^']*<\/svg>';[\s\S]*event\.stopPropagation\(\);[\s\S]*onRemove\(file\)/);
   assert.doesNotMatch(previewLifecycle, /removeButton\.innerHTML\s*=\s*'&times;'/);
   assert.match(css, /\.file-preview-remove\s*\{[^}]*display:\s*grid;[^}]*place-items:\s*center;[^}]*padding:\s*0;[^}]*line-height:\s*0;/s);
   assert.match(css, /\.file-preview-remove\s+svg\s*\{[^}]*display:\s*block;[^}]*width:\s*0\.8rem;[^}]*height:\s*0\.8rem;/s);
   assert.match(css, /\.file-preview-remove\s*\{[^}]*color:\s*var\(--on-color\);/s);
   assert.match(css, /\.file-preview-remove\s+svg\s*\{[^}]*stroke:\s*var\(--on-color\);/s);
-  assert.match(previewLifecycle, /removeButton\.innerHTML\s*=\s*'<svg[^']*stroke="currentColor"/);
+  assert.match(previewLifecycle, /button\.innerHTML\s*=\s*'<svg[^']*stroke="currentColor"/);
   assert.match(css, /video\[data-video-thumbnail\][^{]*\{[^}]*background:\s*var\(--media-bg\);/s);
   assert.doesNotMatch(css, /video\[data-video-thumbnail\][^{]*\{[^}]*opacity:\s*0;/s);
-  assert.match(css, /\.input-media-preview\s+\.file-preview-item\.file-preview-video\s*\{[^}]*background:\s*var\(--media-bg\);/s);
+  assert.match(css, /\.input-media-preview\s+\.file-preview-item\.file-preview-video(?::not\(\.ac-attach-card\))?\s*\{[^}]*background:\s*var\(--media-bg\);/s);
 });
 
 test('desktop active modes have no hover close control and remain selectable text', () => {

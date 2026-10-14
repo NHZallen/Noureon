@@ -38,6 +38,11 @@ function createNode() {
       this.children.push(child);
       return child;
     },
+    append(...children) {
+      this.children.push(...children);
+    },
+    setAttribute: noop,
+    removeAttribute: noop,
     replaceChildren(...children) {
       this.children = [...children];
       this.innerHTML = '';
@@ -80,6 +85,7 @@ function createHarness(overrides = {}) {
       createdNodes.push(node);
       return node;
     },
+    createElementNS: () => createNode(),
     querySelector(selector) {
       if (selector === '.input-wrapper') return inputWrapper;
       return null;
