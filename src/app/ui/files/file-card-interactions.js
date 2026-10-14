@@ -111,6 +111,7 @@ function updateRenderedSizes(document, descriptor, bytes, language) {
     if (card.dataset.fileId !== descriptor.id) return;
     const meta = card.querySelector('.ac-file-meta');
     if (meta) meta.textContent = buildFileMetaText(language, descriptor, { sizeText });
+    card.querySelector('.ac-file-link')?.setAttribute('title', `${descriptor.name} · ${buildFileMetaText(language, descriptor, { sizeText })}`);
   });
 }
 

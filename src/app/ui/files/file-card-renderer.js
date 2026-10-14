@@ -1,6 +1,6 @@
 import { getGeneratedFileSize } from './file-block-model.js';
 import { formatFileCount, formatFileSize, getFileText } from './file-texts.js';
-import { FAMILY_LABEL_KEYS } from './file-visual.js';
+import { FAMILY_LABEL_KEYS, createFileKindIcon } from './file-visual.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -37,16 +37,9 @@ function createSvg(document, attributes, children) {
 
 function createIcon(document, descriptor) {
   const icon = document.createElement('span');
-  icon.className = `ac-file-icon ac-file-icon-${descriptor.family}`;
+  icon.className = 'ac-file-icon';
   icon.setAttribute('aria-hidden', 'true');
-  icon.appendChild(createSvg(document, { viewBox: '0 0 32 40', class: 'ac-file-icon-sheet' }, [
-    ['path', { d: 'M4 1.5h16.2L29.5 10.8V36A2.5 2.5 0 0 1 27 38.5H4A2.5 2.5 0 0 1 1.5 36V4A2.5 2.5 0 0 1 4 1.5Z', class: 'ac-file-icon-body' }],
-    ['path', { d: 'M20 1.8V9a2 2 0 0 0 2 2h7.2', class: 'ac-file-icon-fold' }]
-  ]));
-  const badge = document.createElement('span');
-  badge.className = 'ac-file-icon-badge';
-  badge.textContent = (descriptor.extension || 'txt').slice(0, 4).toUpperCase();
-  icon.appendChild(badge);
+  icon.appendChild(createFileKindIcon(document, descriptor.family));
   return icon;
 }
 
@@ -108,6 +101,16 @@ export function buildFileMetaText(language, descriptor, { sizeText = '' } = {}) 
   return parts.join(' · ');
 }
 
+// The arrow after the link of a download.
+function createLinkArrow(document) {
+  return createSvg(document, { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true', class: 'ac-file-link-arrow' }, [
+    ['path', { d: 'M7 17 17 7M8.5 7H17v8.5' }]
+  ]);
+}
+
+/** The name of the file for the link ("下載星河公司年度說明"): without its extension, the kind says which it is. */
+const titleOf = (name) => String(name || '').replace(/\.[^./\\]{1,8}$/, '') || String(name || '');
+
 export function createFileCardElement(document, descriptor, { language = 'zh-TW' } = {}) {
   const card = document.createElement('div');
   card.className = 'ac-file-card';
@@ -119,17 +122,47 @@ export function createFileCardElement(document, descriptor, { language = 'zh-TW'
 
   const info = document.createElement('div');
   info.className = 'ac-file-info';
-  const name = document.createElement('div');
-  name.className = 'ac-file-name';
-  name.textContent = descriptor.name;
-  name.title = descriptor.name;
+  // The kind, bold: "Word 文件（DOCX）".
+  const kind = document.createElement('div');
+  kind.className = 'ac-file-kind';
+  const kindName = getFileFamilyLabel(language, descriptor);
+  const shownExtension = String(descriptor.extension || '').slice(0, 5).toUpperCase();
+  kind.textContent = shownExtension ? (language === 'zh-TW' ? `${kindName}（${shownExtension}）` : `${kindName} (${shownExtension})`) : kindName;
+  info.appendChild(kind);
+
+  // What the file holds (pages, sheets) and its size are not shown: they are in the tooltip of the link, and the link is the only line.
   const meta = document.createElement('div');
   meta.className = 'ac-file-meta';
+  meta.hidden = true;
   const knownSize = getGeneratedFileSize(descriptor.id);
   meta.textContent = buildFileMetaText(language, descriptor, {
     sizeText: knownSize === null ? '' : formatFileSize(language, knownSize)
   });
-  info.append(name, meta);
+  const tooltip = `${descriptor.name} · ${meta.textContent}`;
+
+  if (canDownload(descriptor)) {
+    // The link of the download: "下載星河公司年度說明 ↗".
+    const download = getFileText(language, 'download');
+    const link = document.createElement('button');
+    link.type = 'button';
+    link.className = 'ac-file-action ac-file-link';
+    link.dataset.fileAction = 'download';
+    link.dataset.fileId = descriptor.id;
+    link.title = tooltip;
+    link.setAttribute('aria-label', `${download} ${descriptor.name}`);
+    const text = document.createElement('span');
+    text.className = 'ac-file-action-label ac-file-link-text';
+    text.textContent = `${download}${language === 'zh-TW' ? '' : ' '}${titleOf(descriptor.name)}`;
+    link.append(text, createLinkArrow(document));
+    info.appendChild(link);
+  } else {
+    const name = document.createElement('div');
+    name.className = 'ac-file-link-static';
+    name.textContent = titleOf(descriptor.name);
+    name.title = tooltip;
+    info.appendChild(name);
+  }
+  info.appendChild(meta);
 
   const notices = [];
   if (STATE_MESSAGE_KEYS[descriptor.state]) {
@@ -148,6 +181,7 @@ export function createFileCardElement(document, descriptor, { language = 'zh-TW'
     info.appendChild(element);
   });
 
+  // The preview (the eye) and the other small actions stay at the side, quiet until the pointer is near.
   const actions = document.createElement('div');
   actions.className = 'ac-file-actions';
   if (canPreview(descriptor)) {
@@ -171,14 +205,6 @@ export function createFileCardElement(document, descriptor, { language = 'zh-TW'
       action: 'copy',
       id: descriptor.id,
       label: getFileText(language, 'copySource')
-    }));
-  }
-  if (canDownload(descriptor)) {
-    actions.appendChild(createActionButton(document, {
-      action: 'download',
-      id: descriptor.id,
-      label: getFileText(language, 'download'),
-      primary: true
     }));
   }
 

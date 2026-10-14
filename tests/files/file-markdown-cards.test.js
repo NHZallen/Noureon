@@ -52,7 +52,8 @@ test('a file block renders as a card and its content never reaches the message b
 
     const card = root.querySelector('.ac-file-card');
     assert.ok(card, 'card should render');
-    assert.equal(card.querySelector('.ac-file-name').textContent, '安裝指南.md');
+    assert.equal(card.querySelector('.ac-file-link').title.split(' · ')[0], '安裝指南.md');
+    assert.match(card.querySelector('.ac-file-link-text').textContent, /安裝指南$/);
     assert.equal(card.dataset.fileState, 'ready');
     assert.equal(card.dataset.fileFamily, 'markdown');
     assert.match(card.querySelector('.ac-file-meta').textContent, /Markdown 文件 · 4 行/);
@@ -125,7 +126,7 @@ test('file card markup escapes a hostile file name', () => {
   try {
     const root = harness.render('````file <img src=x onerror=alert(1)>.txt\nx\n````');
     assert.equal(root.querySelector('img'), null);
-    assert.match(root.querySelector('.ac-file-name').textContent, /_img src=x onerror=alert\(1\)_\.txt/);
+    assert.match(root.querySelector('.ac-file-link').title, /_img src=x onerror=alert\(1\)_\.txt/);
   } finally {
     harness.window.close();
   }

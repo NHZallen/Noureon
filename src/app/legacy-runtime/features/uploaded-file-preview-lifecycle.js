@@ -41,7 +41,9 @@ export function createUploadedFilePreviewLifecycle({
             }
         }
 
-        files.forEach(file => {
+        // Pictures and videos first, the other files after them (the same order as in a sent message).
+        const isVisual = (file) => ['image', 'video'].includes(describeAttachment({ name: file.name, mimeType: file.type }).family);
+        [...files.filter(isVisual), ...files.filter(file => !isVisual(file))].forEach(file => {
             const { element, video } = createAttachmentCard(document, file, {
                 window,
                 language: getLanguage(),

@@ -6,10 +6,10 @@ import { readSource } from '../helpers/source-guards.js';
 test('file card colours follow the text colour so they stay legible', () => {
   const css = readSource('src/styles/file-cards.css');
   const cardRule = /\.ac-file-card \{[\s\S]*?\n\}/.exec(css)?.[0] || '';
-  // A background built from --input-field-bg would put light text on a light card
-  // when only the text variables change.
+  // The rows have no box of their own: no background built from --input-field-bg
+  // (light text on a light card when only the text variables change).
   assert.doesNotMatch(cardRule, /input-field-bg/);
-  assert.match(cardRule, /background: color-mix\(in srgb, var\(--text-primary/);
+  assert.match(cardRule, /background: none/);
   assert.match(css, /\.ac-file-action \.ac-file-action-icon \{[\s\S]*?color: inherit;/, 'overrides the global body svg colour');
   assert.doesNotMatch(css, /\.ac-file-preview \{[\s\S]*?--text-primary: #111827;/, 'the dialog follows the theme');
   assert.match(css, /\.ac-file-preview-pages > :not\(\.ac-file-preview-note\)[^{]*\{[^}]*color: var\(--paper-text\);/, 'the pages inside are paper: dark text on white');
