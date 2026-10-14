@@ -240,6 +240,22 @@ test('a model that needs its terms accepted is chosen once they are, and remembe
   }
 });
 
+test('a model of OpenCode Go that reads a PDF as it is is listed as reading files, not as getting them translated', () => {
+  const original = { ...MODELS[1] };
+  Object.assign(MODELS[1], { id: 'opencode-go/gemini-4-argon-contributor', provider: 'opencode-go' });
+  const { cleanup, document, lifecycle } = createHarness({ conversation: singleConversation() });
+  try {
+    lifecycle.renderCouncilControls();
+    document.querySelector('#model-picker-btn').click();
+    const row = document.querySelector('[data-mp-model="opencode-go/gemini-4-argon-contributor"]');
+    assert.match(row.textContent, /Files/);
+    assert.doesNotMatch(row.textContent, /Translated files/);
+  } finally {
+    Object.assign(MODELS[1], original);
+    cleanup();
+  }
+});
+
 test('a hidden test model (OpenCode Go) says what it is the first time, in its own words and with no terms page, and carries a tag in the list', async () => {
   const { cleanup, conversation, config, document, lifecycle } = createHarness({ conversation: singleConversation() });
   MODELS[1].hiddenModel = true;

@@ -16,6 +16,7 @@ import {
 } from '../../ui/model-picker/model-groups.js';
 import { modelPickerText } from '../../ui/model-picker/model-picker-texts.js';
 import { prepareModelSwitcherModels } from './model-switcher-lifecycle.js';
+import { opencodeModelReadsPdf } from '../../runtime/legacy-core/opencode-models.js';
 
 export function createCouncilControlsLifecycle(deps) {
   const {
@@ -130,7 +131,8 @@ export function createCouncilControlsLifecycle(deps) {
       providerLabel: getProviderLabel(model.provider),
       abilities: [
         modelSupportsVision(model) ? t('vision') : '',
-        modelSupportsDocumentUpload(model) ? t('documents') : (getSingleDocumentTranslatorModel() ? t('translatedDocuments') : ''),
+        // A model of OpenCode Go that reads a PDF as it is counts as reading documents (the others of its files are translated for it).
+        (modelSupportsDocumentUpload(model) || opencodeModelReadsPdf(model)) ? t('documents') : (getSingleDocumentTranslatorModel() ? t('translatedDocuments') : ''),
         modelSupportsWebSearch(model) ? t('search') : ''
       ].filter(Boolean),
       free: tiers.includes('free'),
