@@ -71,6 +71,9 @@
     visibility: hidden;
 }
 .ac-attach-thumb[data-state="ready"] .ac-attach-host { visibility: visible; }
+/* The picture of a page has no scroll bars (a sheet draws its own). */
+.ac-attach-host, .ac-attach-host * { scrollbar-width: none; }
+.ac-attach-host *::-webkit-scrollbar, .ac-attach-host::-webkit-scrollbar { display: none; width: 0; height: 0; }
 .ac-attach-scaled {
     width: 200%;
     height: 200%;
@@ -125,15 +128,17 @@
     .ac-attach-thumb { height: 5.6rem; }
     /* On a phone a file is a tile with only its icon and its name (no picture of its first page); pictures and videos stay pictures. */
     .ac-attach-card:not([data-file-family="image"]):not([data-file-family="video"]) {
+        display: flex;
+        flex-direction: column;
         width: 8.75rem;
-        height: 7.75rem;
+        min-height: 7.75rem;
         border-color: transparent;
         background: var(--hover-bg);
     }
     .ac-attach-card:not([data-file-family="image"]):not([data-file-family="video"]) .ac-attach-thumb { display: none; }
     .ac-attach-card:not([data-file-family="image"]):not([data-file-family="video"]) .ac-attach-meta {
         box-sizing: border-box;
-        height: 100%;
+        flex: 1 1 auto;
         flex-direction: column;
         align-items: flex-start;
         justify-content: space-between;
@@ -158,15 +163,20 @@
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
-    width: min(100%, 23rem);
+    width: max-content;
+    max-width: min(100%, 23rem);
     margin-top: 0.1rem;
 }
-.message-stack-user .message-file-list { align-self: flex-end; }
+.message-stack-user .message-file-list { align-self: flex-end; align-items: flex-end; }
+.message-stack-model .message-file-list { align-items: flex-start; }
+/* A row is as wide as its icon and its name (up to the width of the list), so it follows the size of the text. */
 .message-file-row {
     display: flex;
     align-items: center;
     gap: 0.85rem;
-    width: 100%;
+    width: auto;
+    min-width: 0;
+    max-width: 100%;
     padding: 0.75rem 1rem;
     border: 1px solid color-mix(in srgb, var(--border-color) 92%, transparent);
     border-radius: 1.05rem;
@@ -214,7 +224,7 @@ button.message-file-row:focus-visible { outline: 2px solid var(--link-color); ou
         justify-content: space-between;
         gap: 0.4rem;
         width: 8.75rem;
-        height: 7.75rem;
+        min-height: 7.75rem;
         padding: 0.8rem 0.85rem 0.7rem;
         border-color: transparent;
         background: var(--hover-bg);
@@ -282,4 +292,20 @@ button.message-file-row:focus-visible { outline: 2px solid var(--link-color); ou
         object-fit: contain;
         border-radius: 0;
     }
+}
+
+/* A picture or a video in the message box is only the picture: no name under it (the name is in the tooltip). */
+.ac-attach-card[data-file-family="image"],
+.ac-attach-card[data-file-family="video"] {
+    width: 7.5rem;
+    height: 7.5rem;
+    border-radius: 1rem;
+}
+.ac-attach-card[data-file-family="image"] .ac-attach-thumb,
+.ac-attach-card[data-file-family="video"] .ac-attach-thumb { height: 100%; }
+.ac-attach-card[data-file-family="image"] .ac-attach-meta,
+.ac-attach-card[data-file-family="video"] .ac-attach-meta { display: none; }
+@media (max-width: 640px) {
+    .ac-attach-card[data-file-family="image"],
+    .ac-attach-card[data-file-family="video"] { width: 6.5rem; height: 6.5rem; }
 }
