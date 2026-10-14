@@ -123,6 +123,34 @@
 @media (max-width: 640px) {
     .ac-attach-card { width: 9.75rem; }
     .ac-attach-thumb { height: 5.6rem; }
+    /* On a phone a file is a tile with only its icon and its name (no picture of its first page); pictures and videos stay pictures. */
+    .ac-attach-card:not([data-file-family="image"]):not([data-file-family="video"]) {
+        width: 8.75rem;
+        height: 7.75rem;
+        border-color: transparent;
+        background: var(--hover-bg);
+    }
+    .ac-attach-card:not([data-file-family="image"]):not([data-file-family="video"]) .ac-attach-thumb { display: none; }
+    .ac-attach-card:not([data-file-family="image"]):not([data-file-family="video"]) .ac-attach-meta {
+        box-sizing: border-box;
+        height: 100%;
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.4rem;
+        padding: 0.8rem 0.85rem 0.7rem;
+        border-top: 0;
+        font-size: 0.9rem;
+    }
+    .ac-attach-card:not([data-file-family="image"]):not([data-file-family="video"]) .ac-attach-meta .ac-kind-icon { width: 1.6rem; height: 1.6rem; }
+    .ac-attach-card:not([data-file-family="image"]):not([data-file-family="video"]) .ac-attach-name {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        line-height: 1.3;
+    }
 }
 
 /* ---------- the rows of the files in a message ---------- */
@@ -170,4 +198,37 @@ button.message-file-row:focus-visible { outline: 2px solid var(--link-color); ou
     color: var(--text-secondary);
     font-size: 0.85rem;
     line-height: 1.3;
+}
+
+/* On a phone the rows of a message are tiles with the icon and the name only, side by side. */
+@media (max-width: 640px) {
+    .message-file-list {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        width: 100%;
+    }
+    .message-file-row {
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.4rem;
+        width: 8.75rem;
+        height: 7.75rem;
+        padding: 0.8rem 0.85rem 0.7rem;
+        border-color: transparent;
+        background: var(--hover-bg);
+    }
+    .message-file-copy { width: 100%; }
+    .message-file-kind { display: none; }
+    .message-file-name {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        font-weight: 500;
+        font-size: 0.9rem;
+    }
+    .message-file-row .ac-kind-icon { width: 1.6rem; height: 1.6rem; }
 }
