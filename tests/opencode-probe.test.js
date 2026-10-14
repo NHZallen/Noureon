@@ -248,3 +248,13 @@ test('the effort test tries each depth of thinking alone, in the setting of the 
   assert.deepEqual(seen[0].body.thinking, { type: 'adaptive' });
   assert.deepEqual(seen[0].body.output_config, { effort: 'low' });
 });
+
+test('the document test sends a one-page PDF in the way of each form of API', () => {
+  const file = buildBody('chat', 'kimi-k3', 'document').messages[0].content[1];
+  assert.deepEqual([file.type, file.file.filename, file.file.file_data.startsWith('data:application/pdf;base64,JVBER')], ['file', 'probe.pdf', true]);
+  const input = buildBody('responses', 'gpt-6-luna', 'document').input[0].content[1];
+  assert.deepEqual([input.type, input.file_data.startsWith('data:application/pdf;base64,JVBER')], ['input_file', true]);
+  const block = buildBody('messages', 'claude-haiku-5-5', 'document').messages[0].content[0];
+  assert.deepEqual([block.type, block.source.type, block.source.media_type], ['document', 'base64', 'application/pdf']);
+  assert.ok(Buffer.from(block.source.data, 'base64').toString('latin1').includes('MANGO'));
+});

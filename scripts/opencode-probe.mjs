@@ -19,7 +19,7 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const BASE = 'https://opencode.ai/inference/go/v1';
-export const TESTS = Object.freeze(['basic', 'stream', 'tools', 'toolloop', 'params', 'effort', 'vision', 'thinking', 'errors']);
+export const TESTS = Object.freeze(['basic', 'stream', 'tools', 'toolloop', 'params', 'effort', 'vision', 'document', 'thinking', 'errors']);
 
 // From https://opencode.ai/docs/go/ (Endpoints), 2026-10-13: the model, the form of its API, and whether it is free.
 const chat = ['glm-5.3-flash', 'glm-5.3', 'glm-5.2', 'kimi-k3', 'kimi-k2.7-code', 'kimi-k2.6', 'longcat-2.0', 'deepseek-v4.1-flash', 'deepseek-v4-pro', 'deepseek-v4-flash', 'deepseek-v4-flash-vision-exp', 'mimo-v2.6-flash', 'mimo-v2.6-pro', 'mimo-v2.5', 'mimo-v2.5-pro', 'hy4-preview', 'hy3', 'space-bunny', 'longcat-2.5-preview-free', 'step-5-preview-free'];
@@ -38,6 +38,9 @@ const PATH = { chat: '/chat/completions', responses: '/responses', messages: '/m
 const PROMPT = 'Reply with the single word: ok';
 // A picture of one pixel (red): enough to see whether the model takes a picture at all.
 // A solid red picture, 32 x 32 pixels (a service refused one pixel: "Image too small").
+// A one-page PDF with a line of text in it ("The secret word is MANGO."): does the model read a document sent to it as it is?
+const PDF = 'JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUl0gL0NvdW50IDEgPj4KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCAzMDAgMTAwXSAvQ29udGVudHMgNCAwIFIgL1Jlc291cmNlcyA8PCAvRm9udCA8PCAvRjEgNSAwIFIgPj4gPj4gPj4KZW5kb2JqCjQgMCBvYmoKPDwgL0xlbmd0aCA1NSA+PgpzdHJlYW0KQlQgL0YxIDE4IFRmIDIwIDUwIFRkIChUaGUgc2VjcmV0IHdvcmQgaXMgTUFOR08uKSBUaiBFVAplbmRzdHJlYW0KZW5kb2JqCjUgMCBvYmoKPDwgL1R5cGUgL0ZvbnQgL1N1YnR5cGUgL1R5cGUxIC9CYXNlRm9udCAvSGVsdmV0aWNhID4+CmVuZG9iagp4cmVmCjAgNgowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMDkgMDAwMDAgbiAKMDAwMDAwMDA1OCAwMDAwMCBuIAowMDAwMDAwMTE1IDAwMDAwIG4gCjAwMDAwMDAyNDEgMDAwMDAgbiAKMDAwMDAwMDM0NiAwMDAwMCBuIAp0cmFpbGVyCjw8IC9TaXplIDYgL1Jvb3QgMSAwIFIgPj4Kc3RhcnR4cmVmCjQxNgolJUVPRgo=';
+const DOC_PROMPT = 'What is the secret word in this document? One word.';
 const PNG = 'iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR4nO3NsQ0AAAzCMP5/un0CNkuZ41wybXsHAAAAAAAAAAAAxR4yw/wuPL6QkAAAAABJRU5ErkJggg==';
 const TOOL = { name: 'get_time', description: 'Gets the local time of a city.', schema: { type: 'object', properties: { city: { type: 'string' } }, required: ['city'] } };
 // A small sum: the thinking a model puts into it shows how much a setting of depth changes (the numbers of tokens of the thinking).
@@ -66,28 +69,31 @@ export const THINKING = Object.freeze({
 const stripKey = (text, key) => (key ? String(text).split(key).join('***') : String(text));
 const plain = (text, limit = 240) => String(text ?? '').replace(/[^\x20-\x7e]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, limit);
 
-/** The body of a request (`kind`: basic, tool, vision) for a model of a form of API, with the settings added. */
+/** The body of a request (`kind`: basic, tool, vision, document) for a model of a form of API, with the settings added. */
 export function buildBody(family, model, kind = 'basic', { stream = false, extra = {} } = {}) {
   const maxTokens = extra.max_tokens || 96;
   let body;
   if (family === 'chat') {
     const user = kind === 'vision'
       ? [{ type: 'text', text: 'What colour is this picture? One word.' }, { type: 'image_url', image_url: { url: `data:image/png;base64,${PNG}` } }]
-      : kind === 'tool' ? TOOL_PROMPT : kind === 'think' ? THINK_PROMPT : PROMPT;
+      : kind === 'document' ? [{ type: 'text', text: DOC_PROMPT }, { type: 'file', file: { filename: 'probe.pdf', file_data: `data:application/pdf;base64,${PDF}` } }]
+        : kind === 'tool' ? TOOL_PROMPT : kind === 'think' ? THINK_PROMPT : PROMPT;
     body = { model, messages: [{ role: 'user', content: user }], max_tokens: maxTokens };
     if (kind === 'tool') Object.assign(body, { tools: [{ type: 'function', function: { name: TOOL.name, description: TOOL.description, parameters: TOOL.schema } }], tool_choice: 'auto' });
     if (stream) Object.assign(body, { stream: true, stream_options: { include_usage: true } });
   } else if (family === 'responses') {
     const input = kind === 'vision'
       ? [{ role: 'user', content: [{ type: 'input_text', text: 'What colour is this picture? One word.' }, { type: 'input_image', image_url: `data:image/png;base64,${PNG}` }] }]
-      : kind === 'tool' ? TOOL_PROMPT : kind === 'think' ? THINK_PROMPT : PROMPT;
+      : kind === 'document' ? [{ role: 'user', content: [{ type: 'input_text', text: DOC_PROMPT }, { type: 'input_file', filename: 'probe.pdf', file_data: `data:application/pdf;base64,${PDF}` }] }]
+        : kind === 'tool' ? TOOL_PROMPT : kind === 'think' ? THINK_PROMPT : PROMPT;
     body = { model, input, max_output_tokens: Math.max(maxTokens, 32) };
     if (kind === 'tool') Object.assign(body, { tools: [{ type: 'function', name: TOOL.name, description: TOOL.description, parameters: TOOL.schema }], tool_choice: 'auto' });
     if (stream) body.stream = true;
   } else {
     const user = kind === 'vision'
       ? [{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: PNG } }, { type: 'text', text: 'What colour is this picture? One word.' }]
-      : kind === 'tool' ? TOOL_PROMPT : kind === 'think' ? THINK_PROMPT : PROMPT;
+      : kind === 'document' ? [{ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: PDF } }, { type: 'text', text: DOC_PROMPT }]
+        : kind === 'tool' ? TOOL_PROMPT : kind === 'think' ? THINK_PROMPT : PROMPT;
     body = { model, max_tokens: maxTokens, messages: [{ role: 'user', content: user }] };
     if (kind === 'tool') Object.assign(body, { tools: [{ name: TOOL.name, description: TOOL.description, input_schema: TOOL.schema }], tool_choice: { type: 'auto' } });
     if (stream) body.stream = true;
@@ -304,6 +310,7 @@ export async function probeModel({ model, tests = TESTS, run }) {
     for (const [name, extra] of [['temperature', { temperature: 0.7 }], ['top_p', { top_p: 0.95 }], ['max_tokens:16384', { max_tokens: 16384 }]]) result.params[name] = await one('basic', { extra });
   }
   if (tests.includes('vision')) result.vision = await one('vision');
+  if (tests.includes('document')) result.document = await one('document', { extra: { max_tokens: 200 } });
   if (tests.includes('thinking')) {
     result.thinking = {};
     for (const [name, extra] of THINKING[family]) result.thinking[name] = await one('basic', { extra });
