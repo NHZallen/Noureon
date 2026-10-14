@@ -2,6 +2,7 @@
 // browser's own). One reader for each reply, so a file in the history is read once for that reply and nothing is kept after it.
 
 import { createOfficeReader } from '../src/app/ui/files/office-text/office-reader.js';
+import { getOfficePdfConverter } from './office-pdf.js';
 
 let loaded = null;
 const loadDeps = () => {
@@ -9,4 +10,8 @@ const loadDeps = () => {
   return loaded;
 };
 
-export const createServerOfficeReader = () => createOfficeReader({ loadDeps });
+/** `userId`: the person the reply is for (the PDFs made of their files are kept for them only). */
+export function createServerOfficeReader({ userId = '', signal } = {}) {
+  const converter = getOfficePdfConverter();
+  return createOfficeReader({ loadDeps, convertToPdf: converter?.available && userId ? (inline) => converter.convert({ userId, inline, signal }) : null });
+}

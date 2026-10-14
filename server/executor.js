@@ -86,7 +86,7 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
   const mode = spec.tools.webSearch;
   const language = spec.request.language;
   let startedAt = now() - (Number(resume?.elapsedMs) || 0);
-  const access = createModelAccess({ spec, secrets, fetchImpl, grounding: mode === 'grounding' });
+  const access = createModelAccess({ spec, secrets, fetchImpl, grounding: mode === 'grounding', userId, signal });
 
   let answer = typeof resume?.text === 'string' ? resume.text : '';
   let sources = Array.isArray(resume?.sources) ? resume.sources : [];

@@ -99,6 +99,7 @@ export default {
         blocks: [
           [
             'Attachments: images, documents, audio and video. Whether a model can read one directly depends on the model and provider; a document the model cannot read can be turned into detailed text first by the "single-model document translation model" in Settings, for that one request only.',
+            'Word, PowerPoint and Excel files: for a model that cannot read them, the app reads the file in your browser (its text, tables, charts and pictures) and sends that to the model you chose, up to 10 pictures of a file; the translation model is only used for what it cannot do. In a reply made by the server, a Word or PowerPoint file may instead be turned into a PDF in the server\'s sandbox (no network) for the models that read a PDF better. That PDF is kept as a cache for your follow-up questions, is not part of your conversation and does not count toward your 500 MB; it is deleted automatically with the original once the conversation is deleted for good (within about two days), and in any case after 30 days. A temporary chat is never sent to the server, so nothing of it is kept.',
             'Camera: take a photo and attach it directly.',
             'Voice input: press the microphone, a waveform shows your voice, press the tick to finish or the cross to throw it away. Your browser turns the voice into text and may pass the audio to your operating system or an online speech service; Noureon does not keep a separate recording. This is explained the first time you use it.'
           ],

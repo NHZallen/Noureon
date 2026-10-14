@@ -7,7 +7,7 @@ import { applyGeminiTools, applyOpenAiTools, applyResponsesTools, createGeminiCo
 import { applyAnthropicTools, createAnthropicCollector } from './anthropic-messages-format.js';
 import { opencodeErrorMessage } from './opencode-errors.js';
 import { buildOpencodeRequest } from './opencode-request.js';
-import { opencodeFormatOf, opencodeModelReadsPdf } from '../../runtime/legacy-core/opencode-models.js';
+import { opencodeFormatOf, opencodeModelReadsOfficeViaPdf, opencodeModelReadsPdf } from '../../runtime/legacy-core/opencode-models.js';
 import { createOfficeReader } from '../../ui/files/office-text/office-reader.js';
 
 export function mergeAdjacentModelMessages(history) {
@@ -733,7 +733,7 @@ export function createStreamApiCall({
       throw new Error((getText('apiKeyNeededFor') || 'Add the API key that {name} needs in Settings first.').replace('{name}', modelInfo.name));
     }
 
-    const readableOptions = { canRead: (inlineData) => modelSupportsUploadedFile(modelInfo, { inlineData }), supportsVision: Boolean(modelSupportsVision?.(modelInfo)) };
+    const readableOptions = { canRead: (inlineData) => modelSupportsUploadedFile(modelInfo, { inlineData }), viaPdf: (inlineData) => opencodeModelReadsOfficeViaPdf(modelInfo, inlineData.mimeType), supportsVision: Boolean(modelSupportsVision?.(modelInfo)) };
     const historyForApi = await officeReader.expandMessages(mergeAdjacentModelMessages(researchReportsForApi(compactSandboxRunsForApi(compactFileHistoryForApi(
       requestOptions.historyForApi || (conversation.messages || []).slice(0, -1)
     )))), readableOptions);

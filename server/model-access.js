@@ -11,7 +11,7 @@ const SEARCH_SOURCES = ['tavily', 'tinyfish'];
 export const DEFAULT_GENERATION = Object.freeze({ temperature: 0.7, topP: 0.95, maxTokens: null });
 
 /** Resolves { streamApiCall, upstreamFetch, modelInfo, conversation, keyFor, config, language }. */
-export function createModelAccess({ spec, secrets, fetchImpl = fetch, grounding = false }) {
+export function createModelAccess({ spec, secrets, fetchImpl = fetch, grounding = false, userId = '', signal }) {
   const language = spec.request.language;
   const modelInfo = spec.model.info;
   const upstreamFetch = createUpstreamFetch({ fetchImpl });
@@ -36,7 +36,7 @@ export function createModelAccess({ spec, secrets, fetchImpl = fetch, grounding 
     getMemoryContext: () => null,
     modelSupportsUploadedFile,
     modelSupportsVision,
-    officeReader: createServerOfficeReader(),
+    officeReader: createServerOfficeReader({ userId, signal }),
     getModelReasoningConfig,
     normalizeReasoningEffort,
     fetchImpl: upstreamFetch,

@@ -70,3 +70,20 @@
 - **看不到**：qwen3.7-plus（答非所問）。
 
 對階段 4 的意思：B 類裡看不到 PDF 圖片的模型，轉 PDF 之後圖片等於丟了。這種模型改走階段 2 的文字＋圖片抽取（有視覺）或轉譯備援（沒視覺），不走轉 PDF。名單等重跑結果再定。
+
+## 11. 結果與最後的名單（探測 `pdfimage` 兩輪）與階段 4 的做法
+
+**轉 PDF 的模型（7 個，看得到 PDF 裡的圖片）：** hy3、muse-spark-1.3、muse-spark-1.2、claude-haiku-5-5、minimax-m3、qwen3.8-max、qwen3.8-flash。
+**不轉 PDF 的三個：** hy4-preview（2000 個 token 仍沒答案）、minimax-m2.7、qwen3.7-plus（看不到 PDF 裡的圖）——它們的 Word／PowerPoint 走階段 2（App 讀出文字與圖片）。名單在 `opencode-models.js` 的 `OFFICE_VIA_PDF_API_IDS`；只有 docx、pptx 轉 PDF，xlsx 一律轉文字。
+
+**做法：**
+- `server/office-pdf.js`：`createOfficePdfConverter({ host, derived })`。把檔案掛進沙盒（`input.docx`／`input.pptx`），跑 `soffice --headless --convert-to pdf`（100 秒、單檔 50 MB、PDF 50 MB 上限），取回 PDF；任何失敗（逾時、沒產生 PDF、沙盒壞了）回 null，請求改走階段 2 的文字抽取；使用者按停止則照常中止。同一檔案（內容雜湊）轉過的 PDF 放 `user-derived` 儲存桶（`server/derived-pdf-store.js`，`<使用者>/<原檔雜湊>.pdf`），追問時直接取用。
+- 接線：`office-reader.js` 的 `expandParts` 多一個 `viaPdf` 判斷與 `convertToPdf`（只有伺服器給）；`stream-api-call.js` 在每一輪處理歷史與當前訊息時用；`server/office-deps.js`、`model-access.js`、`executor.js`（單一模型回覆）傳入使用者；`main.js` 啟動時登記轉換器（有沙盒主機才有）。議會與研究回覆這一版不轉 PDF（走文字抽取或原有流程）。
+- 刪除：`supabase/migrations/20261014010000_user_derived_pdfs.sql` 建立儲存桶 `user-derived` 與函式 `orphan_user_derived`；`asset-sweeper.js` 每日第三道清理：原檔已沒有任何資料列提到（對話永久刪除）超過一天的、以及超過 30 天的，連同刪除。**和其他孤兒檔一樣，環境變數 `ASSET_SWEEP=delete` 才會真的刪（預設只記錄）。** 暫時對話不經伺服器，沒有檔案。
+- 沙盒映像檔 `sandbox-host/Dockerfile` 加 `libreoffice-writer libreoffice-impress`（約 500 MB）。
+- 隱私政策／協助中心五語言補一段（附件章節）。
+
+**Allen 要做的（測試站→正式站，兩者共用同一台沙盒主機）：**
+1. 套用 migration `20261014010000_user_derived_pdfs.sql`（先測試專案，再正式專案）。
+2. 在沙盒主機上重建映像檔（`docker build -f sandbox-host/Dockerfile -t noureon-sandbox:1 .`，步驟見 `sandbox-host/README.md`），並讓新容器使用它。
+3. 確認 Zeabur 環境變數 `ASSET_SWEEP=delete`（正式與測試服務）。

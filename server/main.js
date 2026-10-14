@@ -15,6 +15,8 @@ import { createFileStore } from './file-store.js';
 import { createSandboxHost } from './sandbox-client.js';
 import { createServerSkills } from './skills.js';
 import { createSkillBundleStore } from './skill-bundles.js';
+import { createDerivedPdfStore } from './derived-pdf-store.js';
+import { createOfficePdfConverter, setOfficePdfConverter } from './office-pdf.js';
 import { createServiceClient } from './supabase-rest.js';
 import { canDrawSlides } from './slides/available.js';
 import { getFontKit } from './slides/font-kit.js';
@@ -49,7 +51,10 @@ if (config.runsConfigured) {
     files = createFileStore({ url: config.supabaseUrl, serviceKey: config.serviceKey, db });
     const skillBundles = createSkillBundleStore({ url: config.supabaseUrl, serviceKey: config.serviceKey });
     const sandbox = host ? { host, files } : null;
-    sweeper = createAssetSweeper({ db, files, bundles: skillBundles, log, mode: process.env.ASSET_SWEEP === 'delete' ? 'delete' : 'report' });
+    // Word and PowerPoint files are turned into PDFs for the models that read those better (in the sandbox, kept as a cache that is cleared with the original).
+    const derived = createDerivedPdfStore({ url: config.supabaseUrl, serviceKey: config.serviceKey });
+    if (host) setOfficePdfConverter(createOfficePdfConverter({ host, derived, log }));
+    sweeper = createAssetSweeper({ db, files, bundles: skillBundles, derived, log, mode: process.env.ASSET_SWEEP === 'delete' ? 'delete' : 'report' });
     checkSlides = () => canDrawSlides().then((ok) => log(ok ? 'slides_ok' : 'slides_unavailable'));
     if (host) checkSandbox = () => host.check().then((state) => log(state.ok ? 'sandbox_ok' : 'sandbox_failed', { reason: state.reason }));
     const vault = createKeyVault(config.encryptionKeys);

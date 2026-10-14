@@ -39,7 +39,8 @@ const digest = async (data) => {
   return [...new Uint8Array(await globalThis.crypto.subtle.digest('SHA-256', bytes))].map((byte) => byte.toString(16).padStart(2, '0')).join('');
 };
 
-export function createOfficeReader({ loadDeps = browserDeps, maxImages } = {}) {
+/** `convertToPdf(inlineData)` (the server's, with LibreOffice) gives { mimeType, name, data } for a file, or null: it is only used for the files `viaPdf(inlineData)` says. */
+export function createOfficeReader({ loadDeps = browserDeps, maxImages, convertToPdf = null } = {}) {
   const memo = new Map();
   const content = async (inlineData) => {
     const key = `${inlineData.mimeType}:${await digest(inlineData.data)}`;
@@ -63,7 +64,7 @@ export function createOfficeReader({ loadDeps = browserDeps, maxImages } = {}) {
      * (`canRead(inlineData)`), when it is not one of those files, when it could not be read, when it is mostly pictures, and, for a model that cannot see
      * pictures, when it has some and a translator model is there to describe them (`hasTranslator`).
      */
-    async expandParts(parts, { canRead = () => false, supportsVision = false, hasTranslator = false } = {}) {
+    async expandParts(parts, { canRead = () => false, viaPdf = () => false, supportsVision = false, hasTranslator = false } = {}) {
       const out = [];
       let changed = false;
       let imagesSent = 0;
@@ -72,6 +73,15 @@ export function createOfficeReader({ loadDeps = browserDeps, maxImages } = {}) {
         if (!inline?.data || !officeKindOf({ mimeType: inline.mimeType, name: inline.name }) || canRead(inline)) {
           out.push(part);
           continue;
+        }
+        // A file the model reads better as a PDF (the server makes it): sent as that PDF, the text and the pictures of its pages together.
+        if (convertToPdf && viaPdf(inline)) {
+          const pdf = await convertToPdf(inline).catch(() => null);
+          if (pdf?.data) {
+            out.push({ ...part, inlineData: pdf });
+            changed = true;
+            continue;
+          }
         }
         const read = await content(inline);
         if (!read?.usable || (!supportsVision && read.imageTotal > 0 && hasTranslator)) {

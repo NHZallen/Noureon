@@ -102,6 +102,12 @@ export const isOpencodeModel = (model) => Boolean(model && model.provider === OP
 /** The form of API of a model of OpenCode (`chat`, `responses` or `messages`), from this list and not from what the page says; '' for any other model. */
 export const opencodeFormatOf = (model) => (isOpencodeModel(model) ? BY_ID.get(model.id)?.opencodeFormat || '' : '');
 export const opencodeModelReadsPdf = (model) => isOpencodeModel(model) && PDF_API_IDS.has(BY_ID.get(model.id)?.apiId);
+// The models whose Word and PowerPoint files are turned into a PDF first (the server does it, docs/superpowers/specs/2026-10-14-office-to-pdf-design.md): they read a PDF, and
+// they also look at the pictures in it (the probe of 2026-10-14, test `pdfimage`: a word written in a picture of the PDF was read). Hy4 Preview, MiniMax M2.7 and Qwen3.7 Plus
+// did not (or not reliably), so their files are read by the app (the text and the pictures) instead.
+const OFFICE_VIA_PDF_API_IDS = new Set(['hy3', 'muse-spark-1.3-contributor', 'muse-spark-1.2-contributor', 'claude-haiku-5-5', 'minimax-m3', 'qwen3.8-max', 'qwen3.8-flash']);
+export const opencodeModelReadsOfficeViaPdf = (model, mimeType) => isOpencodeModel(model) && OFFICE_MIME_TYPES.has(mimeType) && OFFICE_VIA_PDF_API_IDS.has(BY_ID.get(model.id)?.apiId);
+
 /** True when the model reads a file of this type as it is: a PDF (the list above), or a Word or PowerPoint file (the shorter list). */
 export const opencodeModelReadsFile = (model, mimeType) => {
   if (!isOpencodeModel(model)) return false;

@@ -2,6 +2,9 @@
 // storage, where they take the person's space. Once a day it asks the database which files no row of any table refers to (and that are
 // older than a day: a file is uploaded a little before the message that holds it is synced), and removes them through the storage API.
 //
+// The PDFs made of Word and PowerPoint files (the bucket `user-derived`, server/derived-pdf-store.js) are looked after in a third pass: the ones whose original no row mentions any more
+// (the conversation was deleted for good) and the ones older than 30 days.
+//
 // The zips of the skills with files (the bucket `user-skill-bundles`, server/skill-bundles.js) are looked after the same way, in a second pass: the files that no row of
 // `user_skills` points to any more (an account that was deleted takes its rows, not its files; a save that did not finish; a file put under any other name).
 //
@@ -13,7 +16,7 @@ const FIRST_RUN_MS = 2 * 60 * 1000;
 const BATCH = 500;
 const MAX_BATCHES = 20;
 
-export function createAssetSweeper({ db, files, bundles = null, log = () => {}, mode = 'report', setTimer = setTimeout, setRepeat = setInterval, clearRepeat = clearInterval, clearTimer = clearTimeout }) {
+export function createAssetSweeper({ db, files, bundles = null, derived = null, log = () => {}, mode = 'report', setTimer = setTimeout, setRepeat = setInterval, clearRepeat = clearInterval, clearTimer = clearTimeout }) {
   let first = null;
   let repeat = null;
   let running = false;
@@ -57,6 +60,8 @@ export function createAssetSweeper({ db, files, bundles = null, log = () => {}, 
     try {
       const summary = await sweepKind({ rpc: 'orphan_user_assets', store: files, events: { found: 'asset_orphans_found', removed: 'asset_orphans_removed', failed: 'asset_sweep_failed' } });
       if (bundles) summary.bundles = await sweepKind({ rpc: 'orphan_skill_bundles', store: bundles, events: { found: 'skill_bundle_orphans_found', removed: 'skill_bundle_orphans_removed', failed: 'skill_bundle_sweep_failed' } });
+      // The PDFs made of Word and PowerPoint files: those whose original no row mentions any more, and those older than 30 days (the function tells which).
+      if (derived) summary.derived = await sweepKind({ rpc: 'orphan_user_derived', store: derived, events: { found: 'derived_pdf_orphans_found', removed: 'derived_pdf_orphans_removed', failed: 'derived_pdf_sweep_failed' } });
       return summary;
     } finally {
       running = false;

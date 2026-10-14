@@ -28,6 +28,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
 RUN apt-get update && apt-get install -y --no-install-recommends fontconfig lmodern texlive-xetex texlive-latex-recommended texlive-latex-extra \
     texlive-fonts-recommended texlive-plain-generic texlive-lang-chinese \
  && rm -rf /var/lib/apt/lists/*
+# LibreOffice, to turn a Word or PowerPoint file into a PDF (server/office-pdf.js: the models that read a PDF better than the file). Writer and Impress only, no recommended packages
+# (about 500 MB); before the fonts, so that a change of the fonts does not install it again. The profile of the user goes to /tmp (the rest of the container is read-only).
+RUN apt-get update && apt-get install -y --no-install-recommends libreoffice-writer libreoffice-impress \
+ && rm -rf /var/lib/apt/lists/*
 RUN pip install --no-cache-dir \
     numpy pandas matplotlib scipy scikit-learn sympy pillow lxml beautifulsoup4 \
     python-docx python-pptx openpyxl XlsxWriter reportlab fpdf2 pypdf
