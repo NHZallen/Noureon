@@ -327,3 +327,15 @@ test('the probe of converted files: the PDF made of the Word or PowerPoint file 
   await main(['--only', 'kimi-k3', '--tests', 'basic', '--out', join(tmpdir(), `opencode-probe-test-${process.pid}.json`)], { OPENCODE_GO_KEY: 'k' }, { log() {}, error() {} }, async (url) => { seen.push(url); return reply(200, {}); });
   assert.ok(seen.length >= 1);
 });
+
+test('the probe of the picture inside a PDF: the PDF whose only picture holds the word goes in each form, with the question about the picture', async () => {
+  const chat = buildBody('chat', 'm', 'pdfimage').messages[0].content;
+  assert.match(chat.find((part) => part.type === 'text').text, /picture in this document/);
+  assert.match(chat.find((part) => part.type === 'file').file.file_data, /^data:application\/pdf;base64,JVBER/);
+  assert.ok(buildBody('responses', 'm', 'pdfimage').input[0].content.some((part) => part.type === 'input_file'));
+  assert.ok(buildBody('messages', 'm', 'pdfimage').messages[0].content.some((part) => part.type === 'document' && part.source.media_type === 'application/pdf'));
+  assert.ok(buildBody('gemini', 'm', 'pdfimage').contents[0].parts.some((part) => part.inlineData?.mimeType === 'application/pdf'));
+  const run = async () => ({ status: 200, ok: true, ms: 1, raw: JSON.stringify({ choices: [{ message: { content: 'BANANA' } }] }) });
+  const result = await probeModel({ model: { id: 'hy3', family: 'chat' }, tests: ['pdfimage'], run });
+  assert.equal(result.pdfimage.text, 'BANANA');
+});

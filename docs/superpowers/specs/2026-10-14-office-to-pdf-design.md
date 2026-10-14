@@ -1,60 +1,63 @@
-# Word／PowerPoint 先轉成 PDF 再送給模型（設計，待 Allen 確認）
+# 檔案轉成模型讀得懂的樣子：Word／PowerPoint 轉 PDF、Excel 轉文字、文字與圖片抽取（設計）
 
-**狀態：** 設計完成，**尚未動工**（Linear NOU-25）。Allen 已同意：方向（伺服器端用 LibreOffice）、隱私範圍、沙盒映像檔變大。
+**狀態：** 設計已和 Allen 定案（2026-10-14），按階段實作中（Linear NOU-25）。這份取代先前只講 LibreOffice 的版本。
 
 ## 1. 目標
 
-能讀 PDF、但不能直接讀 Word／PowerPoint 的模型，目前先交給「轉譯模型」寫成文字包（約 7000 字上限，會丟內容、要多花一次轉譯費）。改成：先把檔案轉成 PDF，再當 PDF 送。模型看到原文、表格、版面。
+模型不能直接讀的檔案，現在先交給「轉譯模型」寫成文字包（約 7000 字上限，會丟內容、多花一次費用，而且**只用在當下那一輪**，追問時模型看不到文件）。改成按模型的能力，用更好的方式處理，轉譯模型只留作備援。
 
-**對象（探測 2026-10-14，兩種轉出來的 PDF 都穩定答對）：** hy4-preview、hy3、muse-spark-1.3／1.2-contributor、claude-haiku-5-5、minimax-m3、minimax-m2.7、qwen3.8-max、qwen3.8-flash、qwen3.7-plus。deepseek-v4-flash、deepseek-v4.1-flash、mimo-v2.5、step-5-preview-free 不穩定，不在內，維持轉譯。
+## 2. 依模型分類，各自怎麼處理
 
-**不做：** 本機（瀏覽器）轉換（沒有像樣的工具）；Excel 轉 PDF（表格被切頁，很難看）；OpenRouter 與 Gemini 官方（不動）。
+| 類別 | 模型 | Word／PowerPoint | Excel | 圖片 |
+|---|---|---|---|---|
+| A 直接讀 Office | Grok 4.7／4.6、GPT-6／5.6 Luna、Gemini 4 Argon Contributor（OpenCode） | 原檔直接送（不變） | 抽成文字表格（Excel 沒測過它們收不收） | 模型自己處理 |
+| B 讀 PDF（探測穩定的 10 個） | hy4-preview、hy3、muse-spark-1.3／1.2、claude-haiku-5-5、minimax-m3／m2.7、qwen3.8-max／flash、qwen3.7-plus | 伺服器用 LibreOffice 轉 PDF 再送；圖片留在 PDF 裡 | 抽成文字表格 | 隨 PDF（PDF 內圖片能不能被看到，用 `--tests pdfimage` 探測；看不到時沿用 D 的備援） |
+| C 有視覺、不讀檔 | Kimi K3、GLM-5.3 Flash、MiMo V2.6 Pro／Flash、LongCat 2.5 Preview、DeepSeek V4.1 Flash、MiMo V2.5、Step 5 Preview、NVIDIA 的有視覺模型等 | 抽成文字，檔案裡的圖片取出當圖片一起送，文字裡標「[圖 N：第 M 頁]」；原生圖表抽成數據表格 | 抽成文字表格 | 同左，**最多 10 張**，超過的在文字裡寫「還有 N 張圖片未送出」；縮到長邊約 1568 像素 |
+| D 沒視覺、不讀檔 | GLM-5.3、GLM-5.2、DeepSeek V4 Pro、DeepSeek V4 Flash、MiMo V2.5 Pro、LongCat 2.0、Cat Jam（OpenCode）、NVIDIA GLM-5.3 | 抽成文字；有圖片的檔案**用轉譯模型描述圖片**（沒設轉譯模型就在文字裡寫「這個檔案有 N 張圖片未讀取」） | 抽成文字表格 | 沒有視覺的模型本來就不能傳圖片和拍照（按鈕隱藏，不變） |
+| E 其他 | Gemini 官方、OpenRouter | 不動 | 不動 | 不動 |
 
-## 2. 在哪裡轉
+- **按鈕不隱藏、不新增限制。** D 類仍可傳檔案（Allen 的決定：用轉譯備援）。
+- **圖片 10 張上限**只管「從文件裡抽出來的圖片」。生圖模型的輸入圖片（有些超過 10 張）不受限、不擋。
+- **失敗一律退回轉譯**：轉換逾時、加密檔、損壞、整頁是圖的掃描檔（抽不到幾個字）、超過限制。回覆不會因此失敗。
+- **追問也能讀**：每一輪請求，歷史裡的附件也照同樣方式處理（不只最新一則）。
 
-只在**伺服器端的回覆**（登入、走伺服器；含「關掉頁面也會繼續」的回覆）轉。暫時對話、本機模式、沒有伺服器的情況維持現在的轉譯，**檔案不會離開使用者的瀏覽器**。
+## 3. 兩種處理放在哪
 
-轉換用**現有的 Python 沙盒**（`server/sandbox-client.js` 的 mount／run／輸出，沒有網路），**不新增 runner 端點**：把檔案掛進沙盒，跑一步 `soffice --headless --convert-to pdf`，取回 PDF。
+- **文字／圖片／圖表抽取、Excel 轉文字：** 純文字處理，在**頁面（使用者的瀏覽器）與伺服器共用**的模組做（`src/app/ui/files/office-text/`，不用 `window`、`document`；JSZip 與 DOMParser 由呼叫端注入），在送出請求前處理，所以暫時對話、本機模式、沒有帳號都能用，**檔案不離開瀏覽器**。
+- **LibreOffice 轉 PDF：** 只在**登入且走伺服器的回覆**（含「關頁也繼續」）做，用現有 Python 沙盒（`server/sandbox-client.js` 的 mount／run，沒有網路，不新增 runner 端點）：
+  `soffice -env:UserInstallation=file:///tmp/lo --headless --norestore --convert-to pdf --outdir /output /input/<檔名>`。
+  暫時對話永遠不會送到伺服器，不會留下任何檔案。
 
-```
-python: subprocess.run(['soffice', '-env:UserInstallation=file:///tmp/lo', '--headless', '--norestore',
-                        '--convert-to', 'pdf', '--outdir', '/output', '/input/<檔名>'], timeout=100)
-```
+## 4. 轉出的 PDF 的保存與刪除
 
-## 3. 流程（`provider-request-support.js` 的 `getUnsupportedSingleDocumentParts` 之後）
+- 轉出的 PDF **不寫進對話紀錄**（對話裡仍是使用者的原檔；格式不變，不占使用者 500 MB 額度）。
+- 存在伺服器檔案儲存區，名稱 = 原檔內容雜湊（`derived-pdf/<使用者>/<雜湊>`），追問時取用、不重轉。
+- **一定會刪：**（a）對話被永久刪除、原檔不再被任何資料列引用時，每日清理（`asset-sweeper`）連同衍生 PDF 一起清；（b）超過 30 天沒用到就刪；（c）使用者刪帳號時整個資料夾清掉。
+- 暫時對話：不經伺服器，沒有任何檔案可刪（測試保證：暫時對話與 `not-synced` 的回覆不會呼叫轉換）。
 
-1. 目標模型在「Office 轉 PDF」名單（`opencodeModelReadsPdf` 且不在 `OFFICE_API_IDS`），檔案是 docx／pptx（以及 doc、ppt、odt、odp、rtf 之類，先只做 docx、pptx，其餘之後再加）。
-2. 注入的 `convertToPdf(part)` 有提供（伺服器端才有）→ 轉；成功則把這個 part 換成 `application/pdf`（檔名改 `.pdf`），不再送轉譯。
-3. 失敗（逾時、加密、損壞、沙盒忙到逾時、超過限制）→ **退回轉譯**，並在進度列說「轉成 PDF 失敗，改用轉譯」。不讓回覆失敗。
-4. 同一檔案（內容雜湊）轉過的 PDF 快取在該回覆／對話的檔案暫存（`server/file-store.js`），後面幾輪不重轉。
+## 5. 限制
 
-## 4. 限制
-
-單檔 50 MB（沿用附件限制）、轉換 100 秒、一次最多 3 個檔案、轉出的 PDF 超過 50 MB 就退回轉譯；每個使用者同時最多 1 個轉換（沿用沙盒的忙碌排隊）。LibreOffice 在 `USER 65534` 下執行，設定目錄放 `/tmp`。
-
-## 5. 映像檔（Allen 在沙盒主機上重建）
-
-`sandbox-host/Dockerfile` 加：`libreoffice-writer libreoffice-impress --no-install-recommends`（約 400 到 600 MB，放在字型之前，避免字型改動重裝）。字型：沙盒已把 app 的字型（含 `noto-sans-tc`、`noto-sans-sc`、`noto-sans-jp`、`noto-sans-kr`、`lxgw-wenkai-tc`）放進系統字型並 `fc-cache`，LibreOffice 會用到；中文不會變方塊（以測試站實測為準）。重建步驟給 Allen 逐步照做（先測試站再正式，兩者共用同一台主機）。
+單檔 50 MB、轉換 100 秒、一次最多 3 個檔案、轉出的 PDF 超過 50 MB 就退回轉譯；Excel 每個工作表最多 1000 列、60 欄（沿用預覽讀取器），超過的註明截斷；請求總大小 25 MB 的硬上限內，圖片依出現順序送到快滿為止。
 
 ## 6. 隱私與文件
 
-隱私政策／協助中心五語言各補一段：「用伺服器回覆時，Word／PowerPoint 檔案可能在伺服器的沙盒（沒有網路）轉成 PDF 再送給你選的模型；轉好的 PDF 與原檔一樣按對話保存期限保存或刪除。」`PRIVACY.md` 由英文版產生。
+隱私政策／協助中心五語言補：（1）Word／PowerPoint 在伺服器回覆時可能在沒有網路的沙盒轉成 PDF，轉出的 PDF 存放並刪除的規則（第 4 節）；（2）檔案裡的文字與圖片可能在你的瀏覽器裡抽出，再送給你選的模型。`PRIVACY.md` 由英文版產生。
 
-## 7. contract 相容性說明（給 Allen 確認）
+## 7. contract 相容性說明
 
-- 訊息格式：不變（附件仍是 `inlineData`；轉出的 PDF 只在送出請求時暫時使用，**不寫進對話紀錄**，對話裡仍是使用者原本的檔案）。
-- 任務事件：進度列多一種訊息（轉換中／失敗退回）；舊頁面看不懂時顯示原樣文字。
-- 權限：不新增；沿用沙盒權限（沒有網路）。
-- 刪除：快取的 PDF 隨對話的檔案一起清（`asset-sweeper`）。
-- `scripts/server-shared-modules.json`：轉換模組在 `server/`，不需共用；`provider-request-support.js` 只多一個可注入的 `convertToPdf`。
+- 訊息格式不變（附件仍是 `inlineData`；衍生內容只在送出請求時暫時使用）。
+- 任務事件：進度列多幾種訊息（轉換中、失敗退回）；舊頁面看不懂時顯示原樣文字。
+- 權限：不新增（沿用沙盒權限）。
+- 刪除：衍生 PDF 的清理併入 `asset-sweeper` 每日清理，另加 30 天保險。
+- `scripts/server-shared-modules.json`：加入 `src/app/ui/files/office-text/`（頁面與伺服器共用，需 Allen 確認）。
 
-## 8. 測試
+## 8. 階段
 
-- 單元：假沙盒（成功、逾時、加密、太大、沙盒忙）、名單判斷、快取命中、退回轉譯、請求裡送的是 PDF、對話紀錄裡仍是原檔。
-- 實測（測試站，Allen 重建映像檔之後）：中文 docx、多頁 pptx、含圖表的檔案，各模型答得出內容；時間（目標 15 秒內）；記憶體。這個環境的 LibreOffice 無法載入檔案，所以實測只能在測試站。
+1. 探測 `--tests pdfimage`（B 類模型看不看得到 PDF 裡的圖片）——**Allen 執行**。
+2. 抽取模組（docx、pptx、xlsx、圖表、圖片）＋套用到 C、D 類與 Excel＋歷史附件處理＋測試。
+3. 圖片用量提醒（第一次送出前一句話）。
+4. 伺服器 LibreOffice 轉 PDF＋儲存區快取＋刪除＋隱私文件五語言——**Allen 重建沙盒映像檔**（先測試站再正式站）。
 
-## 9. 待確認
+## 9. 實測（測試站）
 
-1. 映像檔放在現有沙盒映像檔（建議）還是另做一個只轉檔的小映像檔（要改 runner，不建議）。
-2. 第一版只做 docx、pptx，OK？（doc、ppt、odt、odp、rtf 之後再加。）
-3. 轉換失敗退回轉譯時是否要跳通知（建議只在進度列顯示，不跳通知）。
+中文 docx、多頁 pptx、含圖表與圖片的檔案、多工作表 xlsx：各類模型答得出內容；LibreOffice 轉換時間（目標 15 秒內）與記憶體。這個環境的 LibreOffice 無法載入檔案，轉換品質只能在測試站驗證。
