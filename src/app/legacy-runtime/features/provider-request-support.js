@@ -8,6 +8,7 @@ import { createWebResearchTools } from './web-research-tools.js';
 import { absoluteLinks } from './web-page-text.js';
 import { resultDate } from './model-request-formatting.js';
 import { createOfficeReader } from '../../ui/files/office-text/office-reader.js';
+import { officeKindOf } from '../../ui/files/office-text/office-text.js';
 
 // How long the pages of the addresses in a message are waited for before the message goes on without them.
 const LINKED_PAGES_WAIT_MS = 8000;
@@ -223,6 +224,8 @@ Output requirements:
     const translatedSections = [];
     // A Word, PowerPoint or Excel file the model cannot read becomes its text (and pictures) here; the translator is only for what this could not do.
     if (!baseParts) {
+      const toRead = parts.filter((part) => part?.inlineData?.data && officeKindOf(part.inlineData) && !modelSupportsUploadedFile(modelInfo, { inlineData: part.inlineData }));
+      if (toRead.length) onProgress?.('fileReading', `${getRuntimeText(getConfig().uiLanguage, 'readingFiles')}${getConfig().uiLanguage === 'zh-TW' ? '：' : ': '}${toRead.map((part) => part.inlineData.name || 'file').join(', ')}`);
       ({ parts } = await officeReader.expandParts(parts, {
         canRead: (inlineData) => modelSupportsUploadedFile(modelInfo, { inlineData }),
         supportsVision: Boolean(modelSupportsVision(modelInfo)),

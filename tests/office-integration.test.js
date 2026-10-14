@@ -73,7 +73,9 @@ test('the request support: a Word file for a model that cannot read it becomes t
   });
   const parts = [{ text: 'Read this' }, attachment('docx')];
 
-  const seeing = await build({ id: 'translator', name: 'Translator' }).buildSingleModelTranslatedRequestParts(parts, model('kimi-k3'), undefined, () => {}, {});
+  const stages = [];
+  const seeing = await build({ id: 'translator', name: 'Translator' }).buildSingleModelTranslatedRequestParts(parts, model('kimi-k3'), undefined, (stage, message) => stages.push([stage, message]), {});
+  assert.deepEqual(stages, [['fileReading', 'Reading the files: sample.docx']], 'the person sees that the file is being read');
   assert.equal(calls.length, 0, 'no translator was asked');
   assert.match(JSON.stringify(seeing), /第一章 概述/);
   assert.ok(seeing.some((part) => part.inlineData?.mimeType === 'image/png'));
