@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import test from 'node:test';
 
-import { LANGUAGE_SLICE_QUERY, languageSplitPlugin, splitTable } from '../scripts/language-split.mjs';
+import { LANGUAGE_SLICE_QUERY, languageSplitPlugin, splitTable, tableSource } from '../scripts/language-split.mjs';
 import { LANGUAGE_PACK_LANGUAGES, ensureLanguage, isLanguageLoaded, resolvePackLanguage } from '../src/app/i18n/language-packs.js';
-import { fillLanguageSlot, languageSlot } from '../src/app/i18n/language-slots.js';
+import { fillLanguageSlot, languageSlot, setEarlyReadHandler } from '../src/app/i18n/language-slots.js';
 
 const registry = JSON.parse(readFileSync(new URL('../scripts/language-split-modules.json', import.meta.url), 'utf8'));
 const LANGUAGES = registry.languages;
@@ -59,6 +59,14 @@ test('the cut module reads like the whole one: empty until a language is put in,
     assert.equal(module.hello('en'), 'en: 你好 😀 {name}');
     assert.equal(module.hello('fr'), '?hello', 'another language stays empty until it is loaded');
     assert.equal(languageSlot('sample.js', 'en'), languageSlot('sample.js', 'en'), 'the same slot every time');
+    // A slot read before its words are in asks for the language (once the language is in, nothing more is asked).
+    const asked = [];
+    setEarlyReadHandler((language, id) => asked.push(`${language}@${id}`));
+    assert.equal(module.hello('fr'), '?hello');
+    assert.deepEqual(asked, ['fr@sample.js']);
+    assert.equal(module.hello('en'), 'en: 你好 😀 {name}');
+    assert.deepEqual(asked, ['fr@sample.js'], 'a slot that is filled asks for nothing');
+    setEarlyReadHandler(null);
   } finally {
     rmSync(folder, { recursive: true, force: true });
   }
@@ -92,6 +100,31 @@ test('every module in the registry exists, has its table, and can be cut: the bu
   }
 });
 
+test('every registered module still loads with its languages empty: nothing reads the words while the module is being loaded', async () => {
+  // Cut the way the build cuts it, with the imports made absolute (the file is run from another folder), and the slot module as a file URL.
+  const absolutize = (code, file) => code
+    .replace(/(from\s+|import\s*\()\s*(['"])(\.{1,2}\/[^'"]+)\2/g, (match, lead, quote, specifier) => `${lead}${quote}${pathToFileURL(resolve(dirname(file), specifier)).href}${quote}`)
+    .replace(JSON.stringify(slotsPath), JSON.stringify(pathToFileURL(slotsPath).href));
+  for (const entry of registry.modules) {
+    const file = resolve(entry.path);
+    const { main } = splitTable({ code: readFileSync(file, 'utf8'), moduleId: entry.path, table: entry.table, languages: LANGUAGES, slotsPath });
+    const folder = mkdtempSync(join(tmpdir(), 'language-split-'));
+    try {
+      writeFileSync(join(folder, 'cut.mjs'), absolutize(main, file));
+      const cutModule = await import(pathToFileURL(join(folder, 'cut.mjs')).href);
+      const wholeModule = await import(pathToFileURL(file).href);
+      assert.deepEqual(Object.keys(cutModule).sort(), Object.keys(wholeModule).sort(), `${entry.path}: the same exports`);
+      // What the module worked out from its words while it was loaded is the same too (a list of keys made from a language would be empty in the cut one).
+      for (const [name, value] of Object.entries(wholeModule)) {
+        if (typeof value === 'function' || name === entry.table || (entry.testOnlyExports || []).includes(name)) continue;
+        assert.deepEqual(cutModule[name], value, `${entry.path}: ${name} is not worked out from the words while the module loads (or list it as testOnlyExports)`);
+      }
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  }
+});
+
 test('the words of every slice are the words of the whole module, key by key, in the five languages', async () => {
   for (const entry of registry.modules) {
     const whole = await import(pathToFileURL(resolve(entry.path)).href);
@@ -100,14 +133,17 @@ test('the words of every slice are the words of the whole module, key by key, in
     const wholeTable = reader[entry.path]
       ? Object.fromEntries(LANGUAGES.map((language) => [language, reader[entry.path](language)]))
       : (entry.table === 'default' ? whole.default : whole[entry.table]);
-    assert.ok(wholeTable, `${entry.path}: a way to read the whole table (add it to the list of readers in this test)`);
+    // A table that is not exported and has no reader is evaluated from its own source (it is plain text, checked by the cut).
+    const source = readFileSync(resolve(entry.path), 'utf8');
+    const evaluated = wholeTable || new Function(`"use strict"; return (${tableSource({ code: source, table: entry.table })});`)();
+    assert.deepEqual(Object.keys(evaluated).sort(), [...LANGUAGES].sort(), `${entry.path}: the table has the five languages`);
     const { slices } = splitTable({ code: readFileSync(resolve(entry.path), 'utf8'), moduleId: entry.path, table: entry.table, languages: LANGUAGES, slotsPath });
     for (const language of LANGUAGES) {
       const folder = mkdtempSync(join(tmpdir(), 'language-split-'));
       try {
         writeFileSync(join(folder, `${language}.mjs`), slices[language]);
         const slice = await import(pathToFileURL(join(folder, `${language}.mjs`)).href);
-        assert.deepEqual(slice.default, wholeTable[language], `${entry.path}: ${language}`);
+        assert.deepEqual(slice.default, evaluated[language], `${entry.path}: ${language}`);
       } finally {
         rmSync(folder, { recursive: true, force: true });
       }

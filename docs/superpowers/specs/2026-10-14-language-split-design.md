@@ -82,3 +82,11 @@
   * 用 Chromium 開建置後的頁面：中文、英文、法文系統語言各只下載自己的 `texts-*.js`，沒有錯誤；在登入頁切換 ru、es、zh-TW、ru，第一次切換才下載該語言，之後不再下載，標題文字都正確換了；主控台沒有錯誤或警告。
   * 測試（`tests/language-split.test.js`，8 項）：三種形狀切對（含中文、emoji 的位置）、切完的模組在載入前顯示鍵名、載入後顯示文字、不能安全切的表會讓建置失敗並指出模組名、登記表裡每個模組都能切、每個語言的切片與原檔逐鍵相同、外掛只在建置時動作。
 * 登記表有一個非預期的限制：`language-split-modules.json` 裡的表只能是純文字／數字／陣列／物件（不能有展開、計算鍵、函式呼叫、含運算式的樣板字串）；不符合時建置會失敗並指出模組名。
+
+## 9. 階段 2 的結果（2026-10-14）
+
+* 登記了 11 張 runtime 文字表：`sandbox-texts`、`permission-texts`、`runtime-texts`、`file-texts`、`server-reply-texts`、`research-texts`、`vision-texts`、`model-picker-texts`、`cli-texts`、`skill-texts`、`connector-texts`（`scripts/language-split-modules.json`）。
+* `legacy-submit-input`：未壓縮 448.2 → **284.1 KB**，壓縮 156.4 → **98.3 KB**（低於長期目標 110 KB）。每個語言的文字檔 `texts-<語言>-*.js` 壓縮後 12.7 至 16.1 KB。啟動時最大的 JS 檔案現在是 `vendor-sharing`（壓縮 123.8 KB），`check:sizes` 的上限降成 450 KB／壓縮 130 KB。
+* 用 Chromium 開建置後的頁面，中文、英文、法文、俄文系統語言各只下載自己的 `texts-*.js`；用本機帳號登入後進到主畫面、點遍設定的每個分頁與「擴充」頁，畫面上沒有看起來像文字鍵名的字，主控台沒有錯誤或警告。
+* **這一階段找到的啟動順序問題**：`createCliMode` 在建構時就呼叫 `cliText(getUiLanguage(), …)`，那時設定的 `uiLanguage` 還是預設的 `zh-TW`，而頁面載入的是系統語言，所以會讀到沒載入的語言。處理：(1) `language-packs.js` 記住啟動語言（`setStartupLanguage`，`src/main.js` 在做任何事之前設定），設定預設值的 `uiLanguage` 用它（`kernel/config-store.js`，測試沒設定時仍是 `zh-TW`）；(2) 保險：槽被讀到卻還沒載入時，會在背景載入該語言並在主控台警告一次（`language-slots.js` 的代理），這樣漏掉的地方只會在下一次渲染時補好，不會永遠顯示鍵名。
+* 新增的測試：每個登記的模組在語言都是空的時候仍能載入，並且載入時算出來的非函式匯出（如鍵名清單）與完整模組相同（不同的要列在 `testOnlyExports`：`SANDBOX_TEXT_KEYS`、`MODEL_PICKER_TEXT_KEYS` 只有測試在用）。

@@ -81,6 +81,12 @@ function assertPlain(moduleId, node, where) {
   }
 }
 
+/** The source text of the table of a module (the object that has the languages), for tests that compare it with what the cut makes of it. */
+export function tableSource({ code, table, parse = parseAst }) {
+  const node = findTable(parse(code), table);
+  return node ? code.slice(node.start, node.end) : '';
+}
+
 const slotsImport = (slotsPath) => `import { languageSlot as __languageSlot } from ${JSON.stringify(slotsPath)};\n`;
 
 /**

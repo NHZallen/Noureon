@@ -1,7 +1,59 @@
 {
-  "languages": ["zh-TW", "en", "fr", "ru", "es"],
+  "languages": [
+    "zh-TW",
+    "en",
+    "fr",
+    "ru",
+    "es"
+  ],
   "modules": [
-    { "path": "src/app/runtime/sandbox/sandbox-texts.js", "table": "TEXTS" },
-    { "path": "src/app/runtime/cli/permission-texts.js", "table": "PERMISSION_TEXTS" }
+    {
+      "path": "src/app/runtime/sandbox/sandbox-texts.js",
+      "table": "TEXTS",
+      "testOnlyExports": [
+        "SANDBOX_TEXT_KEYS"
+      ]
+    },
+    {
+      "path": "src/app/runtime/cli/permission-texts.js",
+      "table": "PERMISSION_TEXTS"
+    },
+    {
+      "path": "src/app/runtime/i18n/runtime-texts.js",
+      "table": "TEXTS"
+    },
+    {
+      "path": "src/app/ui/files/file-texts.js",
+      "table": "FILE_TEXTS"
+    },
+    {
+      "path": "src/app/runtime/server-reply/server-reply-texts.js",
+      "table": "SERVER_REPLY_TEXTS"
+    },
+    {
+      "path": "src/app/runtime/research/research-texts.js",
+      "table": "RESEARCH_TEXTS"
+    },
+    {
+      "path": "src/app/ui/files/vision/vision-texts.js",
+      "table": "VISION_TEXTS"
+    },
+    {
+      "path": "src/app/ui/model-picker/model-picker-texts.js",
+      "table": "TEXTS",
+      "testOnlyExports": ["MODEL_PICKER_TEXT_KEYS"]
+    },
+    {
+      "path": "src/app/runtime/cli/cli-texts.js",
+      "table": "CLI_TEXTS"
+    },
+    {
+      "path": "src/app/runtime/skill/skill-texts.js",
+      "table": "SKILL_TEXTS"
+    },
+    {
+      "path": "src/app/runtime/connector/connector-texts.js",
+      "table": "CONNECTOR_TEXTS"
+    }
   ]
 }

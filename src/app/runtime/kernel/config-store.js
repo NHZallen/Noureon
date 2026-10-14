@@ -1,3 +1,5 @@
+import { getStartupLanguage } from '../../i18n/language-packs.js';
+
 export function createLegacyRuntimeConfigStore({ defaultModelId } = {}) {
   let config = {
     apiKeys: { gemini: '', openrouter: '', nvidia: '', 'opencode-go': '', tavily: '', tinyfish: '' },
@@ -31,7 +33,7 @@ export function createLegacyRuntimeConfigStore({ defaultModelId } = {}) {
       mode: 'default',
       customColor: '#3b82f6'
     },
-    uiLanguage: 'zh-TW',
+    uiLanguage: getStartupLanguage() || 'zh-TW',
     aiDefaultLanguage: 'zh-TW',
     enableUpdateNotifications: true,
     lastSeenVersion: '',
