@@ -29,19 +29,6 @@ export function createUploadedFilePreviewLifecycle({
 
     // The cards already drawn, by file: taking one away or adding one leaves the others as they are (no flash).
     const cards = new Map();
-    let fadeListening = false;
-
-    // The edges of the row fade out where more cards are hidden, as much as there is hidden (so the fade grows and goes little by little;
-    // the sizes are read by src/styles/file-visual.css).
-    const updateEdgeFade = () => {
-        const container = getContainer();
-        if (!container?.style?.setProperty) return;
-        const hidden = Math.max(0, (container.scrollWidth || 0) - (container.clientWidth || 0));
-        const scrolled = Math.min(hidden, Math.max(0, container.scrollLeft || 0));
-        const ease = (distance) => Math.min(1, Math.max(0, distance / 48));
-        container.style.setProperty('--ac-fade-start', `${(ease(scrolled) * 2.25).toFixed(3)}rem`);
-        container.style.setProperty('--ac-fade-end', `${(ease(hidden - scrolled) * 2.25).toFixed(3)}rem`);
-    };
 
     const motionAllowed = () => !window?.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
 
@@ -57,10 +44,7 @@ export function createUploadedFilePreviewLifecycle({
         const from = { flexBasis: `${box.width}px`, width: `${box.width}px`, height: `${box.height}px`, opacity: 1, marginRight: '0rem' };
         const to = { flexBasis: '0px', width: '0px', height: `${box.height}px`, opacity: 0, marginRight: '-0.5rem' };
         const animation = element.animate([from, to], { duration: 240, easing: 'cubic-bezier(0.3, 0.7, 0.2, 1)', fill: 'forwards' });
-        animation.onfinish = () => {
-            element.remove();
-            updateEdgeFade();
-        };
+        animation.onfinish = () => element.remove();
     };
 
     const renderFilePreviews = () => {
@@ -123,12 +107,6 @@ export function createUploadedFilePreviewLifecycle({
                 }
             }
         });
-        if (!fadeListening && container.addEventListener) {
-            fadeListening = true;
-            container.addEventListener('scroll', updateEdgeFade, { passive: true });
-            window?.addEventListener?.('resize', updateEdgeFade);
-        }
-        updateEdgeFade();
         updateInputState();
     };
 

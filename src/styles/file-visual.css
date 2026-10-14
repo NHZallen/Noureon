@@ -295,24 +295,17 @@ button.message-file-row:focus-visible { outline: 2px solid var(--link-color); ou
     .ac-attach-card[data-file-family="video"] { width: 8rem; height: 8rem; }
 }
 
-/* The row of the files in the message box fades out at an edge where more of them are hidden (the sizes are set while it slides, little by little). */
-.input-media-preview {
-    --ac-fade-start: 0rem;
-    --ac-fade-end: 0rem;
-    -webkit-mask-image: linear-gradient(to right, transparent 0, rgb(0 0 0 / 0.25) calc(var(--ac-fade-start) * 0.35), rgb(0 0 0 / 0.7) calc(var(--ac-fade-start) * 0.7), #000 var(--ac-fade-start), #000 calc(100% - var(--ac-fade-end)), rgb(0 0 0 / 0.7) calc(100% - var(--ac-fade-end) * 0.7), rgb(0 0 0 / 0.25) calc(100% - var(--ac-fade-end) * 0.35), transparent 100%);
-    mask-image: linear-gradient(to right, transparent 0, rgb(0 0 0 / 0.25) calc(var(--ac-fade-start) * 0.35), rgb(0 0 0 / 0.7) calc(var(--ac-fade-start) * 0.7), #000 var(--ac-fade-start), #000 calc(100% - var(--ac-fade-end)), rgb(0 0 0 / 0.7) calc(100% - var(--ac-fade-end) * 0.7), rgb(0 0 0 / 0.25) calc(100% - var(--ac-fade-end) * 0.35), transparent 100%);
-}
-
-/* On a computer four cards make one row: a picture, a video and a file are the same square, a fourth of the row wide. */
+/* On a computer a picture, a video and a file in the message box are the same height; a file is a little wider than a picture. */
 @media (min-width: 641px) {
     .input-media-preview .ac-attach-card {
-        flex: 0 0 calc((100% - 1.5rem) / 4);
-        width: calc((100% - 1.5rem) / 4);
-        height: auto;
-        aspect-ratio: 1 / 1;
+        flex: 0 0 auto;
+        width: 13.5rem;
+        height: 9.5rem;
         display: flex;
         flex-direction: column;
     }
+    .input-media-preview .ac-attach-card[data-file-family="image"],
+    .input-media-preview .ac-attach-card[data-file-family="video"] { width: 9.5rem; }
     .input-media-preview .ac-attach-card .ac-attach-thumb { flex: 1 1 0; height: auto; min-height: 0; }
     .input-media-preview .ac-attach-card .ac-attach-meta { flex: none; }
 }
