@@ -61,3 +61,12 @@
 ## 9. 實測（測試站）
 
 中文 docx、多頁 pptx、含圖表與圖片的檔案、多工作表 xlsx：各類模型答得出內容；LibreOffice 轉換時間（目標 15 秒內）與記憶體。這個環境的 LibreOffice 無法載入檔案，轉換品質只能在測試站驗證。
+
+## 10. 探測結果：PDF 裡的圖片（`--tests pdfimage`，Allen 2026-10-14）
+
+一份只有一句文字、「BANANA」寫在圖片裡的 PDF：
+- **看得到 PDF 裡的圖片**（答 BANANA）：hy3、muse-spark-1.3、claude-haiku-5-5、minimax-m3、qwen3.8-max、qwen3.8-flash。
+- **不確定**（500 個 token 全被思考用完，沒有答案）：hy4-preview、muse-spark-1.2、minimax-m2.7；要用 `--max-tokens 2000` 重跑。
+- **看不到**：qwen3.7-plus（答非所問）。
+
+對階段 4 的意思：B 類裡看不到 PDF 圖片的模型，轉 PDF 之後圖片等於丟了。這種模型改走階段 2 的文字＋圖片抽取（有視覺）或轉譯備援（沒視覺），不走轉 PDF。名單等重跑結果再定。
