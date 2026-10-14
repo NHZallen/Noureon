@@ -10,6 +10,7 @@
 //   OPENCODE_GO_KEY=... node scripts/opencode-probe.mjs --only kimi-k3    one or more models (comma between)
 //   OPENCODE_GO_KEY=... node scripts/opencode-probe.mjs --tests basic,stream
 //   node scripts/opencode-probe.mjs --list                                the list of models of the service (public, no key, costs nothing)
+//   (Gemini 4 Argon Contributor, Google's own form: `--only gemini-4-argon-contributor --tests basic,stream,effort,thinking,tools,toolloop,vision,document,auth --max-tokens 1500`)
 //   --max-tokens 1500   a bigger limit for every request (for the models that think long before they answer)
 //   --out file.json   where the result is written (default opencode-probe-result.json)        --base <address>   another base address
 //
@@ -19,7 +20,7 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const BASE = 'https://opencode.ai/inference/go/v1';
-export const TESTS = Object.freeze(['basic', 'stream', 'tools', 'toolloop', 'params', 'effort', 'vision', 'document', 'thinking', 'errors']);
+export const TESTS = Object.freeze(['basic', 'stream', 'tools', 'toolloop', 'params', 'effort', 'vision', 'document', 'thinking', 'auth', 'errors']);
 
 // From https://opencode.ai/docs/go/ (Endpoints), 2026-10-13: the model, the form of its API, and whether it is free.
 const chat = ['glm-5.3-flash', 'glm-5.3', 'glm-5.2', 'kimi-k3', 'kimi-k2.7-code', 'kimi-k2.6', 'longcat-2.0', 'deepseek-v4.1-flash', 'deepseek-v4-pro', 'deepseek-v4-flash', 'deepseek-v4-flash-vision-exp', 'mimo-v2.6-flash', 'mimo-v2.6-pro', 'mimo-v2.5', 'mimo-v2.5-pro', 'hy4-preview', 'hy3', 'space-bunny', 'longcat-2.5-preview-free', 'step-5-preview-free'];
@@ -29,12 +30,18 @@ export const MODELS = Object.freeze([
   ...chat.map((id) => ({ id, family: 'chat', free: id.endsWith('-free') })),
   ...responses.map((id) => ({ id, family: 'responses', free: false })),
   ...messages.map((id) => ({ id, family: 'messages', free: false })),
+  // Google's own form (2026-10-14, told by the owner): only `models/<id>:generateContent` answers; the stream, the depths of thinking, documents and the key are what the probe finds out.
+  { id: 'gemini-4-argon-contributor', family: 'gemini', free: false },
   // In the list of the service (2026-10-13) but not in the documents: the form of the API is a guess, and the probe tries the others when the guess is refused.
   ...['deepseek-flash', 'glm-5.1', 'omen-alpha', 'cat-jam-free'].map((id) => ({ id, family: 'chat', free: id.endsWith('-free'), guess: true })),
   ...['minimax-m2.5', 'qwen3.6-plus', 'qwen3.7-max'].map((id) => ({ id, family: 'messages', free: false, guess: true }))
 ]);
 
 const PATH = { chat: '/chat/completions', responses: '/responses', messages: '/messages' };
+// Google's form names the model in the path (the body carries it as `__model`, which `send` takes out); `variant` 1 is the stream as lines of text (`alt=sse`), 2 the stream as one JSON list.
+const pathOf = (family, model, stream, variant = 1) => (family === 'gemini'
+  ? `/models/${model}:${stream ? `streamGenerateContent${variant === 1 ? '?alt=sse' : ''}` : 'generateContent'}`
+  : PATH[family]);
 const PROMPT = 'Reply with the single word: ok';
 // A picture of one pixel (red): enough to see whether the model takes a picture at all.
 // A solid red picture, 32 x 32 pixels (a service refused one pixel: "Image too small").
@@ -59,6 +66,15 @@ export const THINKING = Object.freeze({
     ['reasoning:low+summary', { reasoning: { effort: 'low', summary: 'auto' } }],
     ['reasoning:none', { reasoning: { effort: 'none' } }]
   ],
+  // Google's own settings, each alone: the depth (`thinkingLevel`), the budget of tokens, and the summaries of the thinking (`includeThoughts`).
+  gemini: [
+    ['thinkingLevel:minimal', { generationConfig: { thinkingConfig: { thinkingLevel: 'minimal' } } }],
+    ['thinkingLevel:low', { generationConfig: { thinkingConfig: { thinkingLevel: 'low' } } }],
+    ['thinkingLevel:high', { generationConfig: { thinkingConfig: { thinkingLevel: 'high' } } }],
+    ['thinkingBudget:0', { generationConfig: { thinkingConfig: { thinkingBudget: 0 } } }],
+    ['thinkingBudget:1024', { generationConfig: { thinkingConfig: { thinkingBudget: 1024 } } }],
+    ['includeThoughts:true', { generationConfig: { thinkingConfig: { includeThoughts: true } } }]
+  ],
   messages: [
     ['thinking:adaptive', { thinking: { type: 'adaptive' } }],
     ['thinking:enabled+budget', { thinking: { type: 'enabled', budget_tokens: 1024 }, max_tokens: 2048 }],
@@ -73,6 +89,17 @@ const plain = (text, limit = 240) => String(text ?? '').replace(/[^\x20-\x7e]/g,
 export function buildBody(family, model, kind = 'basic', { stream = false, extra = {} } = {}) {
   const maxTokens = extra.max_tokens || 96;
   let body;
+  if (family === 'gemini') {
+    const text = kind === 'vision' ? 'What colour is this picture? One word.' : kind === 'document' ? DOC_PROMPT : kind === 'tool' ? TOOL_PROMPT : kind === 'think' ? THINK_PROMPT : PROMPT;
+    const parts = kind === 'vision' ? [{ text }, { inlineData: { mimeType: 'image/png', data: PNG } }]
+      : kind === 'document' ? [{ text }, { inlineData: { mimeType: 'application/pdf', data: PDF } }] : [{ text }];
+    const { max_tokens: limit, temperature, top_p: topP, generationConfig: wanted = {}, ...rest } = extra;
+    const config = { maxOutputTokens: limit || maxTokens, ...(temperature !== undefined ? { temperature } : {}), ...(topP !== undefined ? { topP } : {}), ...wanted };
+    if (wanted.thinkingConfig) config.thinkingConfig = { ...wanted.thinkingConfig };
+    body = { __model: model, contents: [{ role: 'user', parts }], generationConfig: config, ...rest };
+    if (kind === 'tool') body.tools = [{ functionDeclarations: [{ name: TOOL.name, description: TOOL.description, parameters: TOOL.schema }] }];
+    return body;
+  }
   if (family === 'chat') {
     const user = kind === 'vision'
       ? [{ type: 'text', text: 'What colour is this picture? One word.' }, { type: 'image_url', image_url: { url: `data:image/png;base64,${PNG}` } }]
@@ -108,6 +135,17 @@ export function buildBody(family, model, kind = 'basic', { stream = false, extra
 export function readAnswer(family, data) {
   const out = { text: '', thinking: false, thinkingField: '', toolCalls: [], usage: null, tokens: null };
   if (!data || typeof data !== 'object') return out;
+  if (family === 'gemini') {
+    for (const part of data.candidates?.[0]?.content?.parts || []) {
+      if (part.thought && typeof part.text === 'string') { out.thinking = true; out.thinkingField = 'parts[].thought'; } else if (typeof part.text === 'string') out.text += part.text;
+      if (part.functionCall?.name) out.toolCalls.push(part.functionCall.name);
+    }
+    const meta = data.usageMetadata || {};
+    out.usage = Object.keys(meta).sort();
+    if (meta.thoughtsTokenCount && !out.thinking) { out.thinking = true; out.thinkingField = 'usageMetadata.thoughtsTokenCount (no text)'; }
+    out.tokens = { output: meta.candidatesTokenCount ?? null, thinking: meta.thoughtsTokenCount ?? null };
+    return out;
+  }
   if (family === 'chat') {
     const message = data.choices?.[0]?.message || {};
     out.text = typeof message.content === 'string' ? message.content : '';
@@ -137,6 +175,13 @@ export function readAnswer(family, data) {
 /** The events of a stream (the lines `data: {...}` of the text), in the order they came. */
 export function parseEvents(text) {
   const events = [];
+  // Google's stream without `alt=sse` is one JSON list.
+  if (/^\s*\[/.test(String(text))) {
+    try {
+      const list = JSON.parse(text);
+      if (Array.isArray(list)) return list.filter((item) => item && typeof item === 'object');
+    } catch { /* not a list */ }
+  }
   for (const line of String(text).split(/\r?\n/)) {
     if (!line.startsWith('data:')) continue;
     const payload = line.slice(5).trim();
@@ -156,6 +201,14 @@ export function summarizeStream(family, text) {
   let usage = false;
   let tools = false;
   for (const event of events) {
+    if (family === 'gemini') {
+      for (const part of event.candidates?.[0]?.content?.parts || []) {
+        for (const key of Object.keys(part)) fields.add(key);
+        if (part.functionCall) tools = true;
+      }
+      if (event.usageMetadata) usage = true;
+      continue;
+    }
     if (event.type) types.add(event.type);
     if (event.usage || event.response?.usage || event.message?.usage) usage = true;
     if (family === 'chat') {
@@ -178,12 +231,13 @@ const messageOf = (body) => {
 };
 
 /** One request, one result: { status, ok, ms, message?, text? }. Never keeps the key. */
-export async function send({ fetchImpl = fetch, base = BASE, key = '', family, body, stream = false, headers = {}, session = 'probe', timeoutMs = 90_000 }) {
+export async function send({ fetchImpl = fetch, base = BASE, key = '', family, body, stream = false, headers = {}, session = 'probe', timeoutMs = 90_000, variant = 1 }) {
   const started = Date.now();
-  const response = await fetchImpl(`${base}${PATH[family]}`, {
+  const { __model: modelName, ...payload } = body || {};
+  const response = await fetchImpl(`${base}${pathOf(family, modelName, stream, variant)}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', ...(key ? { authorization: `Bearer ${key}` } : {}), 'user-agent': 'Noureon-probe/1', 'x-opencode-session': session, ...headers },
-    body: JSON.stringify(body),
+    body: JSON.stringify(payload),
     signal: AbortSignal.timeout(timeoutMs)
   }).catch((error) => ({ failed: plain(error?.message || error) }));
   if (response.failed) return { status: 0, ok: false, ms: Date.now() - started, message: stripKey(response.failed, key) };
@@ -235,6 +289,17 @@ export async function probeToolLoop({ model, family, run }) {
     });
     variants = [['A:with-thinking', base(thinking)], ['B:without-thinking', base({})]];
     if (!Object.keys(thinking).length) variants = variants.slice(1);
+  } else if (family === 'gemini') {
+    const parts = (data?.candidates?.[0]?.content?.parts || []).filter(Boolean);
+    const call = parts.find((part) => part.functionCall);
+    if (!call) return { skipped: 'no tool call in the first step' };
+    const base = (carried) => ({
+      __model: id,
+      generationConfig: { maxOutputTokens: 800 },
+      tools: [{ functionDeclarations: [{ name: TOOL.name, description: TOOL.description, parameters: TOOL.schema }] }],
+      contents: [{ role: 'user', parts: [{ text: ask }] }, { role: 'model', parts: carried }, { role: 'user', parts: [{ functionResponse: { name: call.functionCall.name, response: { result: '14:05' } } }] }]
+    });
+    variants = [['A:all-parts', base(parts)], ['B:without-thoughts', base(parts.filter((part) => !part.thought))], ['C:calls-only', base(parts.filter((part) => part.functionCall))]];
   } else if (family === 'responses') {
     const items = (data?.output || []).filter(Boolean);
     const call = items.find((item) => item.type === 'function_call');
@@ -264,7 +329,7 @@ export async function probeToolLoop({ model, family, run }) {
 }
 
 /** The tests of one model. `run(body, options)` sends and gives the result of `send`. */
-export async function probeModel({ model, tests = TESTS, run }) {
+export async function probeModel({ model, tests = TESTS, run, key = '' }) {
   const { id } = model;
   let { family } = model;
   const result = { id, family, free: Boolean(model.free) };
@@ -291,14 +356,18 @@ export async function probeModel({ model, tests = TESTS, run }) {
       result.stream = { ...result.stream, includeUsageRefused: true, withoutIncludeUsage: retry };
     }
   }
+  if (family === 'gemini' && tests.includes('stream')) {
+    // Google's stream in its other form (a JSON list, no `alt=sse`): which of the two answers?
+    result.streamAsList = settle(await run(family, buildBody(family, id, 'basic'), { stream: true, variant: 2 }), family);
+  }
   if (tests.includes('tools')) result.tools = await one('tool');
   if (tests.includes('toolloop')) result.toolloop = await probeToolLoop({ model, family, run });
   if (tests.includes('effort')) {
     // Each depth of thinking, alone, in the setting of the form of the model: is it accepted, and how much does the thinking take (the words and the numbers).
     result.effort = {};
-    const values = family === 'messages' ? ['low', 'medium', 'high', 'xhigh', 'max'] : ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'];
+    const values = family === 'messages' ? ['low', 'medium', 'high', 'xhigh', 'max'] : family === 'gemini' ? ['minimal', 'low', 'medium', 'high'] : ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'];
     for (const value of values) {
-      const extra = family === 'chat' ? { reasoning_effort: value, max_tokens: 1500 }
+      const extra = family === 'gemini' ? { generationConfig: { thinkingConfig: { thinkingLevel: value, includeThoughts: true } }, max_tokens: 1500 } : family === 'chat' ? { reasoning_effort: value, max_tokens: 1500 }
         : family === 'responses' ? { reasoning: { effort: value }, max_tokens: 1500 }
           : { thinking: { type: 'adaptive' }, output_config: { effort: value }, max_tokens: 1500 };
       result.effort[value] = await one('think', { extra });
@@ -308,6 +377,14 @@ export async function probeModel({ model, tests = TESTS, run }) {
     // The settings the app sets on a reply (temperature, top_p, a long output): are they taken, or refused as the unknown thinking settings were?
     result.params = {};
     for (const [name, extra] of [['temperature', { temperature: 0.7 }], ['top_p', { top_p: 0.95 }], ['max_tokens:16384', { max_tokens: 16384 }]]) result.params[name] = await one('basic', { extra });
+  }
+  if (tests.includes('auth') && family === 'gemini' && key) {
+    // Where does the key go? As the Bearer of the other forms, as Google's own header, or both (the app sends both).
+    result.auth = {};
+    for (const [name, options] of [['bearerOnly', {}], ['xGoogApiKeyOnly', { key: '', headers: { 'x-goog-api-key': key } }], ['both', { headers: { 'x-goog-api-key': key } }]]) {
+      const attempt = await run(family, buildBody(family, id, 'basic'), options);
+      result.auth[name] = { status: attempt.status, ok: attempt.ok, message: attempt.message };
+    }
   }
   if (tests.includes('vision')) result.vision = await one('vision');
   if (tests.includes('document')) result.document = await one('document', { extra: { max_tokens: 200 } });
@@ -382,15 +459,15 @@ export async function main(args = process.argv.slice(2), env = process.env, out 
   // `--max-tokens N`: a bigger limit for the models that think a long time before they answer (the answer of a small limit is cut: "incomplete").
   const more = Number(argOf(args, '--max-tokens')) || 0;
   const run = async (family, rawBody, options = {}) => {
-    const body = more ? { ...rawBody, [family === 'responses' ? 'max_output_tokens' : 'max_tokens']: Math.max(more, Number(rawBody.max_tokens || rawBody.max_output_tokens || 0)) } : rawBody;
+    const body = more && family === 'gemini' ? { ...rawBody, generationConfig: { ...rawBody.generationConfig, maxOutputTokens: Math.max(more, Number(rawBody.generationConfig?.maxOutputTokens || 0)) } } : more ? { ...rawBody, [family === 'responses' ? 'max_output_tokens' : 'max_tokens']: Math.max(more, Number(rawBody.max_tokens || rawBody.max_output_tokens || 0)) } : rawBody;
     if (stopped) return { status: 0, ok: false, message: 'stopped after a 429' };
-    if (unavailable.has(body?.model)) return { status: 429, ok: false, message: 'skipped: the endpoint of this model said it is unavailable' };
+    if (unavailable.has(body?.model ?? body?.__model)) return { status: 429, ok: false, message: 'skipped: the endpoint of this model said it is unavailable' };
     await new Promise((resolve) => setTimeout(resolve, 250));
-    const result = await send({ fetchImpl, base, key: options.key !== undefined ? options.key : key, family, body, stream: Boolean(options.stream), headers: options.headers || {}, session });
+    const result = await send({ fetchImpl, base, key: options.key !== undefined ? options.key : key, family, body, stream: Boolean(options.stream), headers: options.headers || {}, session, variant: options.variant || 1 });
     // A model whose endpoint is "unavailable" (a free one, now and then) says 429 too: it is left alone for the rest of the run, and it is not the limit of the account.
     if (result.status === 429 && /unavailable/i.test(result.message || '')) {
-      unavailable.add(body?.model);
-      out.error(`${body?.model}: endpoint unavailable (429); its other tests are skipped.`);
+      unavailable.add(body?.model ?? body?.__model);
+      out.error(`${body?.model ?? body?.__model}: endpoint unavailable (429); its other tests are skipped.`);
       return result;
     }
     // The limit of the account is told apart only when a 429 comes again and again.
@@ -409,7 +486,7 @@ export async function main(args = process.argv.slice(2), env = process.env, out 
   const keep = () => writeFileSync(file, `${JSON.stringify(report)}\n`);
   for (const [at, model] of models.entries()) {
     out.log(`probing ${model.id} (${model.family}) ... ${at + 1}/${models.length}`);
-    report.models.push(await probeModel({ model, tests, run }));
+    report.models.push(await probeModel({ model, tests, run, key }));
     keep();
   }
   if (tests.includes('errors')) report.errors = await probeErrors({ run, key });

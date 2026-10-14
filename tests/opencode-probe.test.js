@@ -11,12 +11,12 @@ const KEY = 'oc_sk_very-secret-key-for-the-test';
 const reply = (status, body) => ({ status, text: async () => (typeof body === 'string' ? body : JSON.stringify(body)) });
 
 test('the models of the probe are those of the documents: three forms of API, and only the two named free ones are free', () => {
-  assert.equal(MODELS.length, 39);
-  assert.deepEqual([...new Set(MODELS.map((model) => model.family))].sort(), ['chat', 'messages', 'responses']);
+  assert.equal(MODELS.length, 40);
+  assert.deepEqual([...new Set(MODELS.map((model) => model.family))].sort(), ['chat', 'gemini', 'messages', 'responses']);
   assert.deepEqual(MODELS.filter((model) => model.free).map((model) => model.id), ['longcat-2.5-preview-free', 'step-5-preview-free', 'cat-jam-free']);
   assert.equal(MODELS.find((model) => model.id === 'claude-haiku-5-5').family, 'messages');
   assert.equal(MODELS.find((model) => model.id === 'gpt-6-luna').family, 'responses');
-  for (const family of ['chat', 'responses', 'messages']) assert.ok(THINKING[family].length >= 2);
+  for (const family of ['chat', 'responses', 'messages', 'gemini']) assert.ok(THINKING[family].length >= 2);
 });
 
 test('a request is made in the form of the API of the model: the fields each form wants, and the small number of tokens', () => {
@@ -257,4 +257,37 @@ test('the document test sends a one-page PDF in the way of each form of API', ()
   const block = buildBody('messages', 'claude-haiku-5-5', 'document').messages[0].content[0];
   assert.deepEqual([block.type, block.source.type, block.source.media_type], ['document', 'base64', 'application/pdf']);
   assert.ok(Buffer.from(block.source.data, 'base64').toString('latin1').includes('MANGO'));
+});
+
+test('the probe of Google\'s form: the model in the path, the body in Google\'s shape, the answer read (text, thoughts, calls, tokens), the key sent as asked', async () => {
+  const seen = [];
+  const run = async (family, body, options = {}) => {
+    seen.push({ family, body, options });
+    const answer = { candidates: [{ content: { parts: [{ text: 'hm', thought: true }, { text: 'ok' }, { functionCall: { name: 'get_time', args: { city: 'Paris' } } }] } }], usageMetadata: { candidatesTokenCount: 4, thoughtsTokenCount: 9, totalTokenCount: 20 } };
+    return { status: 200, ok: true, ms: 1, raw: options.stream ? `data: ${JSON.stringify(answer)}\n\n` : JSON.stringify(answer), stream: Boolean(options.stream) };
+  };
+  const result = await probeModel({ model: { id: 'gemini-4-argon-contributor', family: 'gemini' }, tests: ['basic', 'stream', 'effort', 'vision', 'document', 'auth'], run, key: 'oc_sk_secret' });
+  assert.equal(result.basic.text, 'ok');
+  assert.equal(result.basic.thinking, true);
+  assert.deepEqual(result.basic.tokens, { output: 4, thinking: 9 });
+  assert.deepEqual(result.basic.toolCalls, ['get_time']);
+  assert.deepEqual(result.stream.fields, ['functionCall', 'text', 'thought']);
+  assert.equal(result.stream.usage, true);
+  assert.deepEqual(Object.keys(result.effort), ['minimal', 'low', 'medium', 'high']);
+  const effortBody = seen.find((entry) => entry.body.generationConfig?.thinkingConfig?.thinkingLevel === 'low').body;
+  assert.equal(effortBody.generationConfig.maxOutputTokens, 1500);
+  assert.equal(effortBody.__model, 'gemini-4-argon-contributor');
+  assert.ok(seen.find((entry) => entry.body.contents?.[0].parts.some((part) => part.inlineData?.mimeType === 'image/png')));
+  assert.ok(seen.find((entry) => entry.body.contents?.[0].parts.some((part) => part.inlineData?.mimeType === 'application/pdf')));
+  assert.deepEqual(Object.keys(result.auth), ['bearerOnly', 'xGoogApiKeyOnly', 'both']);
+  assert.equal(seen.find((entry) => entry.options.key === '').options.headers['x-goog-api-key'], 'oc_sk_secret');
+
+  // The request itself: the model is in the path, not in the body, and the stream asks for lines.
+  let sent = null;
+  await send({ fetchImpl: async (url, options) => { sent = { url, body: JSON.parse(options.body) }; return reply(200, {}); }, key: KEY, family: 'gemini', body: buildBody('gemini', 'gemini-4-argon-contributor'), stream: true });
+  assert.match(sent.url, /\/models\/gemini-4-argon-contributor:streamGenerateContent\?alt=sse$/);
+  assert.equal('__model' in sent.body || 'model' in sent.body, false);
+  await send({ fetchImpl: async (url) => { sent = { url }; return reply(200, {}); }, key: KEY, family: 'gemini', body: buildBody('gemini', 'gemini-4-argon-contributor') });
+  assert.match(sent.url, /:generateContent$/);
+  assert.equal(parseEvents('[{"a":1},{"b":2}]').length, 2);
 });
