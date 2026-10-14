@@ -1,5 +1,6 @@
 import { buildTimeDistributionChartData } from '../../legacy-runtime/features/time-distribution-chart-data.js';
 import { buildConversationMobileContextMenuMarkup, buildFolderMobileContextMenuMarkup, buildAstraMobileContextMenuMarkup } from '../../legacy-runtime/features/mobile-context-menu-markup.js';
+import { ensureLanguage, isLanguageLoaded } from '../../i18n/language-packs.js';
 import { compareVersions } from '../../legacy-runtime/features/version-compare.js';
 import { localizeUpdateLogs } from '../../../data/update-logs/translations.js';
 import { renderLatestUpdates } from '../../ui/updates/update-log-view.js';
@@ -479,6 +480,11 @@ export function createLegacyCoreTailLifecycle(dependencies = {}) {
         let lastAppliedLanguage = null;
         const applyLanguage = (lang) => {
             const resolvedLanguage = i18n[lang] ? lang : 'zh-TW';
+            // The words of a language the page has not loaded yet (the text tables are cut by language, NOU-17) come first; the page stays in the language it shows meanwhile.
+            if (!isLanguageLoaded(resolvedLanguage)) {
+                ensureLanguage(resolvedLanguage).then(() => applyLanguage(resolvedLanguage), (error) => console.warn('The words of the language could not be loaded:', error));
+                return;
+            }
             const languageChanged = resolvedLanguage !== lastAppliedLanguage;
             lastAppliedLanguage = resolvedLanguage;
             // Kept for the next start: the page that shows while the app loads (and the one for a failed start) is written in it.

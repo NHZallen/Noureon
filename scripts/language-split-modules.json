@@ -1,0 +1,7 @@
+{
+  "languages": ["zh-TW", "en", "fr", "ru", "es"],
+  "modules": [
+    { "path": "src/app/runtime/sandbox/sandbox-texts.js", "table": "TEXTS" },
+    { "path": "src/app/runtime/cli/permission-texts.js", "table": "PERMISSION_TEXTS" }
+  ]
+}

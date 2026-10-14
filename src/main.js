@@ -28,6 +28,8 @@ import {
   initializeStartupAuthBridge
 } from './app/auth/startup-auth-bridge.js';
 import { resolveStartupIdentity } from './app/auth/startup-identity.js';
+import { ensureLanguage } from './app/i18n/language-packs.js';
+import { detectSystemLanguage, readLastUiLanguage, readLoginLanguage } from './app/runtime/features/login-language.js';
 import { isPasswordRecoveryRoute } from './app/auth/password-recovery-route.js';
 import { loadArchiveVendor } from './app/vendors/archive-vendor.js';
 import { scheduleArchiveVendorPrewarm } from './app/vendors/archive-vendor-prewarm.js';
@@ -87,6 +89,8 @@ async function bootstrap() {
   );
   const startupDataReady = Promise.all([
     import('./data/i18n.js'),
+    // The words of the language the page starts in (the one startup-lifecycle picks): only that language is loaded (NOU-17).
+    ensureLanguage(readLoginLanguage() || readLastUiLanguage() || detectSystemLanguage() || 'zh-TW'),
     import('./data/astras-data.js'),
     import('./data/update-logs.js'),
     import('./data/version.js'),

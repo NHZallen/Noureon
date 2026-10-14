@@ -1,6 +1,6 @@
 # 啟動時只載入使用者的語言（NOU-17，NOU-7 的 C 方案）設計草案
 
-**狀態：** 草案，等 Allen 與 Sun 確認後才動程式（2026-10-14）。區塊 39「PWA、啟動、離線與載入效能」，Allen 負責；Sun 同意方向（NOU-7 討論），寫法細節需要 Sun 確認（§7）。
+**狀態：** Allen 已確認（2026-10-14：切片方案可以、順序都可以、Sun 的登記規則好）；階段 0、1 已做完（§8）。區塊 39「PWA、啟動、離線與載入效能」，Allen 負責；Sun 同意方向（NOU-7 討論）。
 
 ## 1. 事實（2026-10-14 用建置的 source map 與 gzip 量的）
 
@@ -45,7 +45,7 @@
 ## 4. 分階段（每階段一次提交，記錄 `check:sizes` 與下載大小）
 
 0. **量測腳本**（`scripts/measure-startup.mjs`）：建置後列出啟動時載入的所有檔案（含 `i18n`）的原始與壓縮大小，並把它們加進 `check:sizes` 的報告，之後不會再漏看。
-1. **外掛與試點**：先只登記兩個檔案：`sandbox-texts.js`（具名常數形狀，也被伺服器共用）與 `parts/menus.js`（`default` 形狀、很小）。驗證：兩個形狀都切對、啟動順序、切換語言、離線、測試通過。
+1. **外掛與試點**：先只登記兩個檔案：`sandbox-texts.js`（沒匯出的常數，也被伺服器共用）與 `permission-texts.js`（匯出的常數）。`default` 形狀（`parts/*.js`）由單元測試用合成模組驗證；真正登記 `parts` 要等階段 3，因為 `mergeLocale` 現在在模組載入時就把文字複製一份（那時語言還沒載入），要先改成載入後才合併。驗證：切對、啟動順序、切換語言、離線、測試通過。
 2. **runtime 文字表**：逐張登記其餘各表（每張一個小提交，每次記錄大小），完成後把 `legacy-submit-input` 的壓縮上限降到實際值附近。
 3. **介面文字 `parts/*.js`**：全部登記，`mergeLocale` 改成在載入後合併；`i18n-*.js` 預計從 85.6 KB 降到約 18 KB。
 4. **守門測試**：任何新增、含五種語言鍵、且超過 8 KB 的文字模組，如果沒登記就讓測試失敗（避免之後又長回去）。
@@ -71,3 +71,14 @@
 1. **建置時切片、編寫格式不變**（本草案）可不可以？（替代方案：改編寫格式成每語言一檔，不建議，見上。）
 2. **順序**：本草案先試點（階段 1），再做 runtime 文字表（階段 2，解決 155 KB 上限），最後做介面文字（階段 3，下載省最多）。也可以調換階段 2、3。
 3. **Sun**：編寫方式不變；只有「新增一個超過 8 KB 的文字模組要登記到 `scripts/language-split-modules.json`」這一個新規則（沒登記測試會提醒）。這樣可以嗎？
+
+## 8. 階段 0、1 的結果（2026-10-14）
+
+* **階段 0**：`check:sizes` 新增一行「startup interface texts (i18n chunk)」：現況 289.6 KB／壓縮 84.5 KB，上限 300／90 KB，目標 80／25 KB。
+* **階段 1**（`scripts/language-split.mjs`、`scripts/language-split-modules.json`、`src/app/i18n/language-slots.js`、`language-packs.js`；`vite.config.js` 加外掛與一行 `manualChunks`；`src/main.js` 啟動時載入語言；`core-tail-lifecycle.js` 的 `applyLanguage` 在語言還沒載入時先載入再套用）：
+  * 登記 `sandbox-texts.js`（`TEXTS`）與 `permission-texts.js`（`PERMISSION_TEXTS`）。
+  * 建置多出 5 個小檔案 `texts-<語言>-*.js`，各約 10 至 17 KB（壓縮約 4 至 5 KB）。
+  * `legacy-submit-input` 未壓縮 448.2 → 389.1 KB，壓縮 156.4 → 136.8 KB（只登記兩張表就省 19.6 KB）。
+  * 用 Chromium 開建置後的頁面：中文、英文、法文系統語言各只下載自己的 `texts-*.js`，沒有錯誤；在登入頁切換 ru、es、zh-TW、ru，第一次切換才下載該語言，之後不再下載，標題文字都正確換了；主控台沒有錯誤或警告。
+  * 測試（`tests/language-split.test.js`，8 項）：三種形狀切對（含中文、emoji 的位置）、切完的模組在載入前顯示鍵名、載入後顯示文字、不能安全切的表會讓建置失敗並指出模組名、登記表裡每個模組都能切、每個語言的切片與原檔逐鍵相同、外掛只在建置時動作。
+* 登記表有一個非預期的限制：`language-split-modules.json` 裡的表只能是純文字／數字／陣列／物件（不能有展開、計算鍵、函式呼叫、含運算式的樣板字串）；不符合時建置會失敗並指出模組名。

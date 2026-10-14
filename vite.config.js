@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite';
+import { languageSplitPlugin } from './scripts/language-split.mjs';
 
 // The Python sandbox (public/sandbox/) gets the same enforced CSP as on
 // run.noureon.com (vercel.json), except that in development it is framed by
@@ -16,7 +17,7 @@ const sandboxHeaders = (request, response, next) => {
 };
 
 export default defineConfig({
-  plugins: [{
+  plugins: [languageSplitPlugin(), {
     name: 'noureon-sandbox-headers',
     configureServer: (server) => { server.middlewares.use(sandboxHeaders); },
     configurePreviewServer: (server) => { server.middlewares.use(sandboxHeaders); }
@@ -58,6 +59,9 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
+          // One small file per language with the words of every split text table (scripts/language-split.mjs).
+          const slice = /\?language-slice=([\w-]+)/.exec(id);
+          if (slice) return `texts-${slice[1]}`;
           if (id.includes('/src/app/runtime/legacy-core/council-runtime-texts.js')) return 'legacy-council-texts';
           if (id.includes('/src/app/runtime/legacy-core/submit-input-council-lifecycle.js')) return 'legacy-submit-input';
           if (id.includes('/src/app/runtime/legacy-core/model-registry.js')) return 'legacy-model-registry';
