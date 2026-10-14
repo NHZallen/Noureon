@@ -163,3 +163,23 @@ test('a card names the file and its kind, a program\'s source and a big file get
     fixture.cleanup();
   }
 });
+
+test('taking one file away leaves the other cards as they are, and a new file is added at its place', () => {
+  const fixture = createFixture([
+    { id: 'a', name: 'a.png', type: 'image/png', base64: 'data:image/png;base64,abc' },
+    { id: 'b', name: 'b.png', type: 'image/png', base64: 'data:image/png;base64,abc' },
+    { id: 'c', name: 'c.pdf', type: 'application/pdf', base64: 'data:application/pdf;base64,ghi' }
+  ]);
+  try {
+    fixture.lifecycle.renderFilePreviews();
+    const [first, second, third] = [...fixture.document.querySelectorAll('.file-preview-item')];
+    fixture.lifecycle.removeFile('b');
+    const after = [...fixture.document.querySelectorAll('.file-preview-item')];
+    assert.equal(after.length, 2);
+    assert.equal(after[0], first, 'the first card is the same element, not drawn again');
+    assert.equal(after[1], third);
+    assert.equal(second.isConnected, false);
+  } finally {
+    fixture.cleanup();
+  }
+});
