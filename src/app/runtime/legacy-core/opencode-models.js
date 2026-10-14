@@ -8,7 +8,7 @@
 
 export const OPENCODE_GO_PROVIDER = 'opencode-go';
 export const OPENCODE_GO_BASE_URL = 'https://opencode.ai/inference/go/v1';
-// `gemini` is Google's own form (`models/<id>:generateContent`, one answer in one piece, no stream): Gemini 4 Argon Contributor speaks only that.
+// `gemini` is Google's own form (`models/<id>:streamGenerateContent?alt=sse`; the probe of 2026-10-14 found the stream, the key as a Bearer, thinking summaries, PDFs and tools all work).
 export const OPENCODE_FORMATS = Object.freeze(['chat', 'responses', 'messages', 'gemini']);
 
 // The text of the price/privacy line of a model (`<key>_tier_paid` or `_tier_free` in the texts of the models).
@@ -83,7 +83,7 @@ const VISION_IDS = new Set(OPENCODE_GO_MODELS.filter((model) => model.opencodeVi
 const PDF_API_IDS = new Set([
   'deepseek-v4.1-flash', 'deepseek-v4-flash', 'mimo-v2.5', 'hy4-preview', 'hy3', 'step-5-preview-free',
   'grok-4.7', 'grok-4.6', 'gpt-6-luna', 'gpt-5.6-luna',
-  'muse-spark-1.3-contributor', 'muse-spark-1.2-contributor',
+  'muse-spark-1.3-contributor', 'muse-spark-1.2-contributor', 'gemini-4-argon-contributor',
   'claude-haiku-5-5', 'minimax-m3', 'minimax-m2.7', 'qwen3.8-max', 'qwen3.8-flash', 'qwen3.7-plus'
 ]);
 
@@ -126,6 +126,8 @@ const THINKING = {
   'gpt-5.6-luna': ['responses', ['none', 'low', 'medium', 'high', 'xhigh', 'max'], 'medium'],
   'muse-spark-1.3-contributor': ['responses', ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'], 'medium'],
   'muse-spark-1.2-contributor': ['responses', ['minimal', 'low', 'medium', 'high', 'xhigh'], 'medium'],
+  // Google's form (the probe of 2026-10-14): low, medium and high are taken, minimal is refused (400), the thinking cannot be turned off (a budget of 0 or 1024 changes nothing).
+  'gemini-4-argon-contributor': ['gemini', ['low', 'medium', 'high'], 'medium'],
   'claude-haiku-5-5': ['adaptive', ['low', 'medium', 'high', 'xhigh', 'max'], 'medium'],
   'minimax-m3': ['toggle', ['none', 'high'], 'high'],
   'qwen3.8-max': ['adaptiveOrOff', ['none', 'low', 'medium', 'high', 'xhigh'], 'high'],
@@ -151,6 +153,7 @@ export function opencodeThinkingFields(model, effort) {
     case 'effort': return { reasoning_effort: effort };
     case 'toggle': return effort === 'none' ? { thinking: { type: 'disabled' } } : {};
     case 'responses': return { reasoning: { effort } };
+    case 'gemini': return { generationConfig: { thinkingConfig: { thinkingLevel: effort } } };
     case 'adaptive': return { thinking: { type: 'adaptive' }, output_config: { effort } };
     case 'adaptiveOrOff': return effort === 'none' ? { thinking: { type: 'disabled' } } : { thinking: { type: 'adaptive' }, output_config: { effort } };
     default: return {};

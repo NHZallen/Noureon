@@ -106,7 +106,7 @@ export function modelThinkingKind(provider, modelId = '') {
   if (provider === 'gemini') return 'summary';
   const id = String(modelId).toLowerCase();
   // OpenCode Go: Claude, GPT, Grok and Muse Spark give a summary of their thinking (or none); the others stream their own.
-  if (provider === 'opencode-go') return /^(claude|gpt|grok|muse)/.test(id) ? 'summary' : 'raw';
+  if (provider === 'opencode-go') return /^(claude|gpt|grok|muse|gemini)/.test(id) ? 'summary' : 'raw';
   return SUMMARY_ONLY_PREFIXES.some((prefix) => id.startsWith(prefix)) ? 'summary' : 'raw';
 }
 

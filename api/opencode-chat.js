@@ -15,7 +15,7 @@ export const config = {
 
 const BASE_URL = 'https://opencode.ai/inference/go/v1';
 const PATHS = { chat: '/chat/completions', responses: '/responses', messages: '/messages' };
-// Google's form: `models/<id>:generateContent` (the answer comes whole). The model is named in the path.
+// Google's form: `models/<id>:streamGenerateContent?alt=sse` (lines of text, like the others). The model is named in the path.
 const MODEL_ID = /^[A-Za-z0-9._-]{1,100}$/;
 const USER_AGENT = 'Noureon/1 (+https://noureon.com)';
 const SESSION_ID = /^[A-Za-z0-9._-]{1,100}$/;
@@ -36,7 +36,7 @@ export default async function handler(req, res) {
 
   const format = String(req.query?.format || 'chat');
   const model = String(req.query?.model || '');
-  const path = format === 'gemini' && MODEL_ID.test(model) ? `/models/${model}:generateContent` : PATHS[format];
+  const path = format === 'gemini' && MODEL_ID.test(model) ? `/models/${model}:streamGenerateContent?alt=sse` : PATHS[format];
   if (!path) {
     res.status(400).json({ error: 'Unknown format' });
     return;
@@ -62,10 +62,9 @@ export default async function handler(req, res) {
       headers: {
         Authorization: authorization,
         'Content-Type': 'application/json',
-        Accept: format === 'gemini' ? 'application/json' : 'text/event-stream',
+        Accept: 'text/event-stream',
         'User-Agent': USER_AGENT,
-        'x-opencode-session': session,
-        ...(format === 'gemini' ? { 'x-goog-api-key': String(authorization).replace(/^Bearer\s+/i, '') } : {})
+        'x-opencode-session': session
       },
       body,
       signal: controller.signal

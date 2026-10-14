@@ -56,8 +56,11 @@ export function buildOpencodeRequest({
   const conversation = [...historyForApi, currentMessageForApi];
   let payload;
   if (format === 'gemini') {
-    // Google's form: the model is named in the path, not in the body, and the answer comes whole (no `stream`). The thinking depth is not sent (not tried).
-    return { url: `${OPENCODE_CHAT_PATH}?format=gemini&model=${encodeURIComponent(modelId)}`, payload: buildGeminiPayload(), headers };
+    // Google's form: the model is named in the path, not in the body, and the stream is asked for by the path (no `stream` field).
+    const geminiPayload = buildGeminiPayload();
+    const thinking = reasoningEffort ? opencodeThinkingFields(modelInfo, reasoningEffort).generationConfig?.thinkingConfig : null;
+    if (thinking) geminiPayload.generationConfig = { ...geminiPayload.generationConfig, thinkingConfig: { ...geminiPayload.generationConfig?.thinkingConfig, ...thinking } };
+    return { url: `${OPENCODE_CHAT_PATH}?format=gemini&model=${encodeURIComponent(modelId)}`, payload: geminiPayload, headers };
   }
   if (format === 'responses') {
     const instructions = systemText(systemInstruction);

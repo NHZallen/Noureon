@@ -219,3 +219,13 @@ OpenCode 自己的 `variant.ts` 是一份對照（OpenCode 用戶端的設定，
 - 標示：Contributor＝會用提示與回應訓練 Google 的模型（沿用 Muse 的寫法，隱私政策／協助中心五語言補上）；沒有寫「限特定地區」（未確認）。圖片輸入：有（Allen 確認）。PDF、思考程度、工具：**未測**，PDF 先不送、思考不送設定、工具照 Gemini 格式送但沒實測。
 - `x-opencode-session`：頁面與兩條代理都**一律送**——對話編號合法就用它，沒有就用「整個頁面同一個」的備用編號（代理端沒收到就自己產生）。原本沒有對話編號的請求（例如背景工作）會被擋，這次一併修掉。
 - 模型數 32 → 33，首頁與協助中心的「70 個模型」改成 71。
+
+### 2026-10-14 探測結果（Allen 執行 `argon-probe.json`），已套用
+
+- **串流可用**（`streamGenerateContent?alt=sse` 與不帶 `alt=sse` 的 JSON 清單兩種都 200），所以改成串流：代理與伺服器轉到 `:streamGenerateContent?alt=sse`，沿用原本的 Gemini 串流讀取（先前「只有 generateContent 通」不準確，以此為準）。
+- **金鑰**：只放 `Authorization: Bearer` 就通（只放 `x-goog-api-key`、兩個都放也通）；拿掉 `x-goog-api-key`，只送 Bearer。
+- **思考等級**：`low`／`medium`／`high` 可用，`minimal` 被拒（400「Thinking level MINIMAL is not supported」）；預設 `medium`；關不掉（`thinkingBudget` 0 或 1024 都沒有改變）。`low` 幾乎不思考（沒有思考 token）、`medium` 約 25、`high` 約 200（一道小算術）。選單的思考程度滑桿：低／中／高，預設中。請求放 `generationConfig.thinkingConfig.thinkingLevel`。
+- **思考摘要**：`includeThoughts: true` 配 `medium`／`high` 會回傳 `thought: true` 的文字部分，所以要摘要時送 `includeThoughts`（顯示為「摘要」）。
+- **文件**：PDF 以 `inlineData`（`application/pdf`）直接讀，答對 MANGO，加進直接讀 PDF 的名單。
+- **工具**：函式呼叫可用；工具回合三種送回方式（全部 parts、去掉思考、只留呼叫）都成功，沿用原本 Gemini 的送回方式（保留 `thoughtSignature`）。
+- 圖片：可用（回答 Red）。

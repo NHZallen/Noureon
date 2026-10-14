@@ -46,8 +46,8 @@ export function createUpstreamFetch({ fetchImpl = fetch, timeoutMs = 45_000 } = 
     if (path.split('?')[0] === '/api/opencode-chat') {
       const query = new URL(path, 'https://app.invalid').searchParams;
       const format = query.get('format') || 'chat';
-      // Google's form names the model in the path and answers whole.
-      const target = format === 'gemini' && OPENCODE_MODEL_ID.test(query.get('model') || '') ? `/models/${query.get('model')}:generateContent` : OPENCODE_PATHS[format];
+      // Google's form names the model in the path (the stream as lines of text, `alt=sse`).
+      const target = format === 'gemini' && OPENCODE_MODEL_ID.test(query.get('model') || '') ? `/models/${query.get('model')}:streamGenerateContent?alt=sse` : OPENCODE_PATHS[format];
       if (!target) return reply(400, { error: 'Unknown format' });
       // OpenCode refuses a request with no session id: a request without one gets one here.
       const sent = String(new Headers(init?.headers).get('x-opencode-session') || '');
@@ -55,7 +55,7 @@ export function createUpstreamFetch({ fetchImpl = fetch, timeoutMs = 45_000 } = 
       // The chat itself, streamed: no time limit but the reply's own (the signal).
       return fetchImpl(`${OPENCODE_BASE_URL}${target}`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Accept: format === 'gemini' ? 'application/json' : 'text/event-stream', 'User-Agent': OPENCODE_USER_AGENT, 'x-opencode-session': session, ...(format === 'gemini' ? { 'x-goog-api-key': key } : {}) },
+        headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Accept: 'text/event-stream', 'User-Agent': OPENCODE_USER_AGENT, 'x-opencode-session': session },
         body: typeof init.body === 'string' ? init.body : JSON.stringify(body),
         signal
       });

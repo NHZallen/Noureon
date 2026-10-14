@@ -277,34 +277,44 @@ test('the server\'s fetch sends the path of OpenCode straight to the service, wi
   assert.match(calls.at(-1).options.headers['x-opencode-session'], /^noureon-/);
   await upstream('/api/opencode-chat', { method: 'POST', headers: { Authorization: 'Bearer k' }, body });
   assert.match(calls.at(-1).options.headers['x-opencode-session'], /^noureon-/);
-  // Google's form: the model in the path, the answer whole, the key also as Google names it.
+  // Google's form: the model in the path, the stream as lines of text, the key as a Bearer like the others (the probe of 2026-10-14).
   await upstream('/api/opencode-chat?format=gemini&model=gemini-4-argon-contributor', { method: 'POST', headers: { Authorization: 'Bearer oc_sk_secret', 'x-opencode-session': 'conv-42' }, body });
-  assert.equal(calls.at(-1).url, 'https://opencode.ai/inference/go/v1/models/gemini-4-argon-contributor:generateContent');
-  assert.equal(calls.at(-1).options.headers.Accept, 'application/json');
-  assert.equal(calls.at(-1).options.headers['x-goog-api-key'], 'oc_sk_secret');
+  assert.equal(calls.at(-1).url, 'https://opencode.ai/inference/go/v1/models/gemini-4-argon-contributor:streamGenerateContent?alt=sse');
+  assert.equal(calls.at(-1).options.headers.Accept, 'text/event-stream');
+  assert.equal('x-goog-api-key' in calls.at(-1).options.headers, false);
   const badModel = await upstream('/api/opencode-chat?format=gemini&model=../x', { method: 'POST', headers: { Authorization: 'Bearer k' }, body });
   assert.equal(badModel.status, 400);
   const noModel = await upstream('/api/opencode-chat?format=gemini', { method: 'POST', headers: { Authorization: 'Bearer k' }, body });
   assert.equal(noModel.status, 400);
 });
 
-test('Gemini 4 Argon Contributor: Google\'s form, answered whole; a picture goes as inline data; no sampling numbers, thinking settings or Google search; a tool call is read', async () => {
-  const answer = JSON.stringify({ candidates: [{ content: { role: 'model', parts: [{ text: 'Hel' }, { text: 'lo' }] } }] });
-  const { streamApiCall, requests } = harness({ apiId: 'gemini-4-argon-contributor', fetchImpl: async () => reply({ body: answer }) });
+test('Gemini 4 Argon Contributor: Google\'s form, streamed as lines of text with thought summaries; a picture goes as inline data; no sampling numbers or Google search; a tool call is read', async () => {
+  const lines = (...events) => events.map((event) => `data: ${JSON.stringify(event)}\n\n`);
+  const chunks = lines(
+    { candidates: [{ content: { role: 'model', parts: [{ text: 'hm', thought: true }] } }] },
+    { candidates: [{ content: { role: 'model', parts: [{ text: 'Hel' }] } }] },
+    { candidates: [{ content: { role: 'model', parts: [{ text: 'lo', thoughtSignature: 'sig' }] } }], usageMetadata: { totalTokenCount: 9 } }
+  );
+  const { streamApiCall, requests } = harness({ apiId: 'gemini-4-argon-contributor', fetchImpl: async () => reply({ chunks }) });
   const seen = [];
-  const text = await streamApiCall([{ text: 'Hello' }, { inlineData: { mimeType: 'image/png', data: 'AAAA' } }], (chunk) => seen.push(chunk), undefined, false, { onReasoning: () => {}, forceWebSearch: true });
+  const thoughts = [];
+  const text = await streamApiCall([{ text: 'Hello' }, { inlineData: { mimeType: 'image/png', data: 'AAAA' } }], (chunk) => seen.push(chunk), undefined, false, { onReasoning: (chunk) => thoughts.push(chunk), forceWebSearch: true });
   assert.equal(text, 'Hello');
   assert.equal(seen.join(''), 'Hello');
+  assert.equal(thoughts.join(''), 'hm');
+  assert.equal(modelThinkingKind('opencode-go', 'gemini-4-argon-contributor'), 'summary');
   const [{ url, options, body }] = requests;
   assert.equal(url, '/api/opencode-chat?format=gemini&model=gemini-4-argon-contributor');
   assert.equal(options.headers['x-opencode-session'], 'conv-42');
   assert.ok(body.contents.length > 0 && body.contents.at(-1).parts.some((part) => part.inlineData));
   assert.equal('model' in body || 'stream' in body || 'tools' in body, false);
-  assert.equal(JSON.stringify(body).includes('temperature') || JSON.stringify(body).includes('topP') || JSON.stringify(body).includes('thinkingConfig'), false);
+  assert.equal(JSON.stringify(body).includes('temperature') || JSON.stringify(body).includes('topP'), false);
+  // The summaries of the thinking are asked for (the probe: they come at medium and high), and the depth is the one of the app.
+  assert.equal(body.generationConfig.thinkingConfig.includeThoughts, true);
 
-  const call = JSON.stringify({ candidates: [{ content: { role: 'model', parts: [{ functionCall: { name: 'run_python', args: { code: '1+1' } } }] } }] });
+  const call = lines({ candidates: [{ content: { role: 'model', parts: [{ functionCall: { name: 'run_python', args: { code: '1+1' } } }] } }] });
   const tool = { name: 'run_python', description: 'Runs code', parameters: { type: 'object', properties: { code: { type: 'string' } } } };
-  const second = harness({ apiId: 'gemini-4-argon-contributor', fetchImpl: async () => reply({ body: call }) });
+  const second = harness({ apiId: 'gemini-4-argon-contributor', fetchImpl: async () => reply({ chunks: call }) });
   let collected = null;
   await second.streamApiCall([{ text: 'Run it' }], () => {}, undefined, false, { tools: [tool], toolTurns: [], onResponseComplete: (value) => { collected = value; } });
   assert.deepEqual(collected.toolCalls[0].args, { code: '1+1' });
@@ -393,7 +403,7 @@ test('a tool round in each form (what Python, connectors, skills, command tools 
 
 test('the depth of thinking of each model: the options of the slider, and the fields that say it in the way of the model (the ones the probe found accepted)', () => {
   // The slider is the one of the app: the models that have a choice get a row in its table.
-  assert.equal(Object.keys(OPENCODE_REASONING_CONFIGS).length, 29);
+  assert.equal(Object.keys(OPENCODE_REASONING_CONFIGS).length, 30);
   const config = getModelReasoningConfig(model('kimi-k3'));
   assert.deepEqual([config.options, config.defaultEffort], [['none', 'low', 'medium', 'high', 'max'], 'high']);
   assert.equal(normalizeReasoningEffort(model('kimi-k3'), 'xhigh'), 'high');
@@ -410,6 +420,8 @@ test('the depth of thinking of each model: the options of the slider, and the fi
   assert.deepEqual(fields('minimax-m3', 'none'), { thinking: { type: 'disabled' } });
   assert.deepEqual(fields('grok-4.7', 'xhigh'), { reasoning: { effort: 'xhigh' } });
   assert.deepEqual(fields('muse-spark-1.3-contributor', 'minimal'), { reasoning: { effort: 'minimal' } });
+  assert.deepEqual(fields('gemini-4-argon-contributor', 'high'), { generationConfig: { thinkingConfig: { thinkingLevel: 'high' } } });
+  assert.deepEqual(fields('gemini-4-argon-contributor', 'minimal'), {}, 'minimal is refused by the service');
   assert.deepEqual(fields('claude-haiku-5-5', 'max'), { thinking: { type: 'adaptive' }, output_config: { effort: 'max' } });
   assert.deepEqual(fields('qwen3.8-max', 'low'), { thinking: { type: 'adaptive' }, output_config: { effort: 'low' } });
   assert.deepEqual(fields('qwen3.8-max', 'none'), { thinking: { type: 'disabled' } });
@@ -455,7 +467,7 @@ test('a reply says the depth in the request, in the form of the model, and says 
 test('a PDF goes to the models that read it (the probe of 2026-10-14), in the form of each API; any other file, and the other models, still go through the translator', async () => {
   const pdf = { inlineData: { mimeType: 'application/pdf', data: 'JVBERi0x', name: 'a.pdf' } };
   const docx = { inlineData: { mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', data: 'UEsDBA==', name: 'a.docx' } };
-  const reads = ['deepseek-v4-flash', 'hy3', 'grok-4.7', 'gpt-6-luna', 'claude-haiku-5-5', 'minimax-m3', 'minimax-m2.7', 'qwen3.8-max', 'muse-spark-1.3-contributor'];
+  const reads = ['deepseek-v4-flash', 'hy3', 'grok-4.7', 'gpt-6-luna', 'claude-haiku-5-5', 'minimax-m3', 'minimax-m2.7', 'qwen3.8-max', 'muse-spark-1.3-contributor', 'gemini-4-argon-contributor'];
   const refuses = ['glm-5.3', 'kimi-k3', 'kimi-k2.7-code', 'mimo-v2.6-pro', 'longcat-2.5-preview-free', 'cat-jam-free', 'deepseek-v4-flash-vision-exp', 'deepseek-v4-pro', 'space-bunny', 'longcat-2.0'];
   for (const apiId of reads) {
     assert.equal(modelSupportsUploadedFile(model(apiId), pdf), true, `${apiId} reads a PDF`);

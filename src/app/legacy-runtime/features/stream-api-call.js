@@ -210,7 +210,7 @@ const buildGeminiRequest = ({
   modelSupportsUploadedFile,
   viaOpencode = false
 }) => {
-  // Through OpenCode only what was tried is sent: no sampling numbers, no thinking settings, no Google search (the search tool of the app does that).
+  // Through OpenCode only what was tried is sent: no sampling numbers, no Google search (the search tool of the app does that); the depth of thinking is put in by opencode-request.js, the summaries of the thinking are asked for here.
   const supportsSamplingParameters = !viaOpencode && ![
     'gemini-3.8-flash',
     'gemini-3.5-flash-lite',
@@ -239,7 +239,7 @@ const buildGeminiRequest = ({
     };
   }
   // Thought summaries only come when asked for.
-  if (!viaOpencode && requestOptions.onReasoning) {
+  if (requestOptions.onReasoning) {
     payload.generationConfig.thinkingConfig = { ...(payload.generationConfig.thinkingConfig || {}), includeThoughts: true };
   }
   const shouldUseWebSearch = !requestOptions.ignoreConversationWebSearch
@@ -597,14 +597,6 @@ const consumeGeminiStream = async ({ reader, decoder, onChunk, warn, collector =
   return fullText;
 };
 
-// OpenCode's Gemini form gives the whole answer at once (one JSON object, the same shape as one chunk of Google's stream).
-const consumeGeminiAnswer = async ({ response, onChunk, collector }) => {
-  const parsed = JSON.parse(await response.text());
-  const text = collector.add(parsed);
-  if (text) onChunk(text);
-  return text;
-};
-
 const consumeOpenAiCompatibleStream = async ({ reader, decoder, onChunk, collector = createOpenAiCollector() }) => {
   let buffer = '';
   let fullText = '';
@@ -851,7 +843,7 @@ export function createStreamApiCall({
       throw error;
     }
 
-    const reader = opencodeFormat === 'gemini' ? null : response.body.getReader();
+    const reader = response.body.getReader();
     const decoder = new TextDecoderImpl();
     // The thinking and the code being written reach the caller as they stream; the
     // thinking comes with its kind (the model's own, or a summary of it).
@@ -864,9 +856,7 @@ export function createStreamApiCall({
       : (useResponsesApi || opencodeFormat === 'responses') ? createResponsesCollector(hooks)
         : opencodeFormat === 'messages' ? createAnthropicCollector(hooks)
           : createOpenAiCollector(hooks);
-    const fullText = opencodeFormat === 'gemini'
-      ? await consumeGeminiAnswer({ response, onChunk, collector })
-      : provider === 'gemini'
+    const fullText = (provider === 'gemini' || opencodeFormat === 'gemini')
       ? await consumeGeminiStream({ reader, decoder, onChunk, warn, collector })
       : await consumeOpenAiCompatibleStream({ reader, decoder, onChunk, collector });
     // The Responses stream reports a failed response as an event; it is an error like any other.
