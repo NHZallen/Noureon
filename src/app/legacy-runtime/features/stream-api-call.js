@@ -7,7 +7,7 @@ import { applyGeminiTools, applyOpenAiTools, applyResponsesTools, createGeminiCo
 import { applyAnthropicTools, createAnthropicCollector } from './anthropic-messages-format.js';
 import { opencodeErrorMessage } from './opencode-errors.js';
 import { buildOpencodeRequest } from './opencode-request.js';
-import { opencodeFormatOf } from '../../runtime/legacy-core/opencode-models.js';
+import { opencodeFormatOf, opencodeModelReadsPdf } from '../../runtime/legacy-core/opencode-models.js';
 
 export function mergeAdjacentModelMessages(history) {
   return history.reduce((merged, message) => {
@@ -291,6 +291,9 @@ const buildOpenAiCompatibleMessages = ({
             ? { type: 'video_url', video_url: { url: fullDataUrl } }
             : { type: 'image_url', image_url: { url: fullDataUrl, ...(takesVideo ? { detail: 'high' } : {}) } }
         );
+      } else if (provider === 'opencode-go' && role === 'user' && mimeType === 'application/pdf' && opencodeModelReadsPdf(modelInfo)) {
+        // A PDF, to the OpenCode models the probe found to read one (opencode-models.js): as a file, the way OpenAI's chat takes it.
+        content.push({ type: 'file', file: { filename: part.inlineData.name || 'document.pdf', file_data: fullDataUrl } });
       } else {
         content.push({
           type: 'text',

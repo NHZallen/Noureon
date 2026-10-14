@@ -4,6 +4,8 @@
 //
 // Shared by the page and the server: no window, no document, no browser storage.
 
+import { opencodeModelReadsPdf } from '../../runtime/legacy-core/opencode-models.js';
+
 const parseArguments = (text) => {
   if (!text) return {};
   try {
@@ -31,6 +33,8 @@ export function buildAnthropicMessages(messages, { modelInfo, modelSupportsVisio
         const mimeType = part.inlineData.mimeType || '';
         if (mimeType.startsWith('image/') && role === 'user' && modelSupportsVision(modelInfo)) {
           content.push({ type: 'image', source: { type: 'base64', media_type: mimeType, data: part.inlineData.data } });
+        } else if (mimeType === 'application/pdf' && role === 'user' && opencodeModelReadsPdf(modelInfo)) {
+          content.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: part.inlineData.data } });
         } else {
           content.push({ type: 'text', text: `[Attachment omitted for ${modelInfo?.name || 'this model'}: ${part.inlineData.name || mimeType || 'file'}]` });
         }

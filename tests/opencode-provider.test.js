@@ -7,7 +7,7 @@ import { opencodeErrorHint, opencodeErrorMessage } from '../src/app/legacy-runti
 import { OPENCODE_CHAT_PATH, buildOpencodeRequest } from '../src/app/legacy-runtime/features/opencode-request.js';
 import { createStreamApiCall } from '../src/app/legacy-runtime/features/stream-api-call.js';
 import { applyOpenAiTools, modelThinkingKind } from '../src/app/legacy-runtime/features/tool-call-formats.js';
-import { MODELS, getModelApiId, getModelReasoningConfig, normalizeReasoningEffort, getModelTiers, getProviderLabel, modelSupportsToolCalling, modelSupportsVision, modelSupportsWebSearch } from '../src/app/runtime/legacy-core/model-registry.js';
+import { MODELS, getModelApiId, getModelReasoningConfig, normalizeReasoningEffort, getModelTiers, getProviderLabel, modelSupportsDocumentUpload, modelSupportsToolCalling, modelSupportsUploadedFile, modelSupportsVision, modelSupportsWebSearch } from '../src/app/runtime/legacy-core/model-registry.js';
 import { OPENCODE_GO_MODELS, OPENCODE_FORMATS, OPENCODE_REASONING_CONFIGS, opencodeFormatOf, opencodeThinkingFields } from '../src/app/runtime/legacy-core/opencode-models.js';
 import { createUpstreamFetch } from '../server/upstream-fetch.js';
 
@@ -398,4 +398,47 @@ test('a reply says the depth in the request, in the form of the model, and says 
   assert.deepEqual((await sent('qwen3.8-flash', 'none')).thinking, { type: 'disabled' });
   const plain = await sent('space-bunny', 'high');
   assert.equal('reasoning_effort' in plain || 'thinking' in plain, false);
+});
+
+test('a PDF goes to the models that read it (the probe of 2026-10-14), in the form of each API; any other file, and the other models, still go through the translator', async () => {
+  const pdf = { inlineData: { mimeType: 'application/pdf', data: 'JVBERi0x', name: 'a.pdf' } };
+  const docx = { inlineData: { mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', data: 'UEsDBA==', name: 'a.docx' } };
+  const reads = ['deepseek-v4-flash', 'hy3', 'grok-4.7', 'gpt-6-luna', 'claude-haiku-5-5', 'minimax-m3', 'qwen3.8-max'];
+  const refuses = ['glm-5.3', 'kimi-k3', 'kimi-k2.7-code', 'mimo-v2.6-pro', 'longcat-2.5-preview-free', 'cat-jam-free', 'deepseek-v4-flash-vision-exp'];
+  for (const apiId of reads) {
+    assert.equal(modelSupportsUploadedFile(model(apiId), pdf), true, `${apiId} reads a PDF`);
+    assert.equal(modelSupportsUploadedFile(model(apiId), docx), false, `${apiId}: another kind of file is translated`);
+    assert.equal(modelSupportsDocumentUpload(model(apiId)), false, `${apiId} is not a translator of any file`);
+  }
+  for (const apiId of refuses) assert.equal(modelSupportsUploadedFile(model(apiId), pdf), false, `${apiId} does not take a file`);
+
+  const sent = async (apiId) => {
+    const info = model(apiId);
+    const requests = [];
+    const streamApiCall = createStreamApiCall({
+      getActiveConversation: () => ({ id: 'c', model: info.id, messages: [], genConfig: { temperature: 0.4, topP: 0.8, maxTokens: null } }),
+      normalizeConversationModel: () => info,
+      getModelApiId,
+      getApiKeyForProvider: () => 'oc_sk_secret',
+      getDefaultGenConfig: () => ({ temperature: 0.7, topP: 0.95, maxTokens: null }),
+      getConfig: () => ({ aiDefaultLanguage: 'en', uiLanguage: 'en', isLearningMode: false, memoryEnabled1: false }),
+      getAstras: () => [],
+      getPersonalMemories: () => [],
+      modelSupportsUploadedFile,
+      modelSupportsVision,
+      getModelReasoningConfig,
+      normalizeReasoningEffort,
+      fetchImpl: async (url, options) => { requests.push(JSON.parse(options.body)); return reply({ chunks: [] }); }
+    });
+    await streamApiCall([{ text: 'What is in it?' }, pdf], () => {});
+    return requests[0];
+  };
+  const chat = (await sent('hy3')).messages[1].content[1];
+  assert.deepEqual([chat.type, chat.file.filename, chat.file.file_data], ['file', 'a.pdf', 'data:application/pdf;base64,JVBERi0x']);
+  const responses = (await sent('gpt-6-luna')).input[0].content[1];
+  assert.deepEqual([responses.type, responses.filename, responses.file_data], ['input_file', 'a.pdf', 'data:application/pdf;base64,JVBERi0x']);
+  const messages = (await sent('claude-haiku-5-5')).messages[0].content[1];
+  assert.deepEqual(messages, { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: 'JVBERi0x' } });
+  // A model that does not read a file is not sent one.
+  assert.equal(JSON.stringify(await sent('glm-5.3')).includes('JVBERi0x'), false);
 });

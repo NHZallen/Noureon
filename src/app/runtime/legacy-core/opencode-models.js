@@ -73,9 +73,19 @@ export const OPENCODE_GO_MODEL_IDS = Object.freeze(OPENCODE_GO_MODELS.map((model
 const BY_ID = new Map(OPENCODE_GO_MODELS.flatMap((model) => [[model.id, model], [model.apiId, model]]));
 const VISION_IDS = new Set(OPENCODE_GO_MODELS.filter((model) => model.opencodeVision).flatMap((model) => [model.id, model.apiId]));
 
+// The models that read a PDF sent to them as it is, with no other model to translate it first (the probe of 2026-10-14, test `document`: a one-page PDF
+// with "The secret word is MANGO." was sent in the form of each model's API and the answer was MANGO). The others refused the file (400) or gave no
+// answer in the tokens asked (Muse Spark, DeepSeek V4 Pro, Space Bunny, MiniMax M2.7, LongCat 2.0: to be tried again with more tokens). Only PDFs were tried.
+const PDF_API_IDS = new Set([
+  'deepseek-v4.1-flash', 'deepseek-v4-flash', 'mimo-v2.5', 'hy4-preview', 'hy3', 'step-5-preview-free',
+  'grok-4.7', 'grok-4.6', 'gpt-6-luna', 'gpt-5.6-luna',
+  'claude-haiku-5-5', 'minimax-m3', 'qwen3.8-max', 'qwen3.8-flash', 'qwen3.7-plus'
+]);
+
 export const isOpencodeModel = (model) => Boolean(model && model.provider === OPENCODE_GO_PROVIDER);
 /** The form of API of a model of OpenCode (`chat`, `responses` or `messages`), from this list and not from what the page says; '' for any other model. */
 export const opencodeFormatOf = (model) => (isOpencodeModel(model) ? BY_ID.get(model.id)?.opencodeFormat || '' : '');
+export const opencodeModelReadsPdf = (model) => isOpencodeModel(model) && PDF_API_IDS.has(BY_ID.get(model.id)?.apiId);
 export const opencodeModelSupportsVision = (model) => isOpencodeModel(model) && VISION_IDS.has(model.id);
 
 // The depth of thinking each model takes (the probe of 2026-10-13, §14 of the design: each depth tried alone). A model gives its thinking only in the
