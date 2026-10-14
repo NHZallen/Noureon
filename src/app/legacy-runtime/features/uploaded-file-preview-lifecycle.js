@@ -31,15 +31,36 @@ export function createUploadedFilePreviewLifecycle({
     const cards = new Map();
     let fadeListening = false;
 
-    // The edges of the row fade out where more cards are hidden (the sizes are read by src/styles/file-visual.css).
+    // The edges of the row fade out where more cards are hidden, as much as there is hidden (so the fade grows and goes little by little;
+    // the sizes are read by src/styles/file-visual.css).
     const updateEdgeFade = () => {
         const container = getContainer();
         if (!container?.style?.setProperty) return;
         const hidden = Math.max(0, (container.scrollWidth || 0) - (container.clientWidth || 0));
-        const left = hidden > 1 && (container.scrollLeft || 0) > 1;
-        const right = hidden > 1 && (container.scrollLeft || 0) < hidden - 1;
-        container.style.setProperty('--ac-fade-start', left ? '1.75rem' : '0px');
-        container.style.setProperty('--ac-fade-end', right ? '1.75rem' : '0px');
+        const scrolled = Math.min(hidden, Math.max(0, container.scrollLeft || 0));
+        const ease = (distance) => Math.min(1, Math.max(0, distance / 48));
+        container.style.setProperty('--ac-fade-start', `${(ease(scrolled) * 2.25).toFixed(3)}rem`);
+        container.style.setProperty('--ac-fade-end', `${(ease(hidden - scrolled) * 2.25).toFixed(3)}rem`);
+    };
+
+    const motionAllowed = () => !window?.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+
+    // A card that goes shrinks to nothing while it fades; the layout does the sliding of the cards beside it.
+    const leave = (element) => {
+        if (typeof element.animate !== 'function' || !motionAllowed()) {
+            element.remove?.();
+            return;
+        }
+        const box = element.getBoundingClientRect();
+        element.dataset.leaving = 'true';
+        element.style.pointerEvents = 'none';
+        const from = { flexBasis: `${box.width}px`, width: `${box.width}px`, height: `${box.height}px`, opacity: 1, marginRight: '0rem' };
+        const to = { flexBasis: '0px', width: '0px', height: `${box.height}px`, opacity: 0, marginRight: '-0.5rem' };
+        const animation = element.animate([from, to], { duration: 240, easing: 'cubic-bezier(0.3, 0.7, 0.2, 1)', fill: 'forwards' });
+        animation.onfinish = () => {
+            element.remove();
+            updateEdgeFade();
+        };
     };
 
     const renderFilePreviews = () => {
@@ -54,9 +75,12 @@ export function createUploadedFilePreviewLifecycle({
                 thumbnails.delete(id);
             }
         }
+        const hadCards = cards.size > 0;
         for (const [id, card] of cards) {
             if (!files.some((file) => file.id === id)) {
-                card.element.remove?.();
+                // The last one goes at once; the others close up slowly, so the cards beside it slide into its place.
+                if (files.length > 0) leave(card.element);
+                else card.element.remove?.();
                 cards.delete(id);
             }
         }
@@ -81,15 +105,22 @@ export function createUploadedFilePreviewLifecycle({
             return card;
         });
         const keep = new Set(wanted.map((card) => card.element));
-        [...(container.children || [])].forEach((child) => { if (!keep.has(child)) child.remove?.(); });
+        const isLeaving = (child) => child.dataset?.leaving === 'true';
+        [...(container.children || [])].forEach((child) => { if (!keep.has(child) && !isLeaving(child)) child.remove?.(); });
         wanted.forEach((card, index) => {
-            if (container.children[index] !== card.element) {
-                if (container.insertBefore) container.insertBefore(card.element, container.children[index] || null);
+            const present = [...(container.children || [])].filter((child) => !isLeaving(child));
+            if (present[index] !== card.element) {
+                const before = present[index] || null;
+                if (container.insertBefore) container.insertBefore(card.element, before);
                 else container.appendChild(card.element);
             }
             if (card.fresh) {
                 card.fresh = false;
                 if (card.video) prepareVideoThumbnail(card.video, { document });
+                // A card added to the others comes in softly.
+                if (hadCards && typeof card.element.animate === 'function' && motionAllowed()) {
+                    card.element.animate([{ opacity: 0, transform: 'scale(0.9)' }, { opacity: 1, transform: 'none' }], { duration: 200, easing: 'ease-out' });
+                }
             }
         });
         if (!fadeListening && container.addEventListener) {
