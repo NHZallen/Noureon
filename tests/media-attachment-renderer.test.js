@@ -50,17 +50,21 @@ test('renders image and video preview buttons in source order with stable indexe
   assert.match(html, /class="message-media-play"/);
 });
 
-test('renders document, audio, and malformed metadata through the legacy file-chip branch', () => {
+test('renders document, audio, and malformed metadata as rows of the file list: the kind icon, the name and the name of the kind', () => {
   const html = renderer.renderMediaAttachmentGrid([
     { name: 'report.pdf', mimeType: 'application/pdf', data: 'pdf' },
     { name: 'audio.mp3', mimeType: 'audio/mpeg', data: 'audio' },
     {}
   ]);
 
-  assert.equal((html.match(/class="message-file-chip"/g) || []).length, 3);
-  assert.match(html, />report\.pdf<\/span>/);
-  assert.match(html, />audio\.mp3<\/span>/);
-  assert.match(html, />application\/octet-stream<\/span>/);
+  assert.equal((html.match(/class="message-file-row"/g) || []).length, 3);
+  assert.match(html, /class="message-file-list"/);
+  assert.match(html, /class="message-file-name">report\.pdf<\/span><span class="message-file-kind">PDF 文件<\/span>/);
+  assert.match(html, /class="message-file-name">audio\.mp3<\/span><span class="message-file-kind">音訊<\/span>/);
+  assert.match(html, /class="message-file-name">application\/octet-stream<\/span>/);
+  // A kind that has a preview is a button that opens it; the others are plain rows.
+  assert.match(html, /<button type="button" class="message-file-row" data-media-index="0" data-file-family="pdf"/);
+  assert.doesNotMatch(html, /<button[^>]*data-file-family="audio"/);
 });
 
 test('preserves search and trash wrapper-part compatibility without implicit normalization', () => {
@@ -70,8 +74,8 @@ test('preserves search and trash wrapper-part compatibility without implicit nor
   const view = renderer.buildMediaAttachmentView([wrappedPart]);
 
   assert.deepEqual(view.previewMediaParts, [wrappedPart]);
-  assert.match(view.html, /class="message-file-chip"/);
-  assert.match(view.html, />application\/octet-stream<\/span>/);
+  assert.match(view.html, /class="message-file-row"/);
+  assert.match(view.html, /class="message-file-name">application\/octet-stream<\/span>/);
   assert.doesNotMatch(view.html, /message-media-thumb/);
 });
 

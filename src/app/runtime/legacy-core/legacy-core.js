@@ -745,7 +745,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
         const {
             getInlineMediaSrc: getArchivedInlineMediaSrc,
             renderMediaAttachmentGrid: renderArchivedMediaAttachmentGrid
-        } = createArchivedMediaAttachmentRenderer({ escapeHTML });
+        } = createArchivedMediaAttachmentRenderer({ escapeHTML, getUiLanguage: () => runtimeConfigAccess.getUiLanguage() });
         const {
             bindMediaPreviewButtons: bindArchivedMediaPreviewButtons
         } = createArchivedMediaPreviewLifecycle({

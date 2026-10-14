@@ -511,7 +511,7 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
   const {
     buildMediaAttachmentView: buildMessageMediaAttachmentView,
     getInlineMediaSrc: getMessageInlineMediaSrc
-  } = createMessageMediaAttachmentRenderer({ escapeHTML });
+  } = createMessageMediaAttachmentRenderer({ escapeHTML, getUiLanguage: () => getConfig().uiLanguage });
 
   const {
     bindMediaPreviewButtons: bindMessageMediaPreviewButtons

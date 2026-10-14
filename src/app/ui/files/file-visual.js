@@ -91,3 +91,14 @@ export function createFileKindIcon(document, family) {
 export const THUMBNAIL_FAMILIES = Object.freeze(['image', 'video', 'pdf', 'word', 'powerpoint', 'excel', 'text', 'markdown', 'csv']);
 /** A file bigger than this has no picture made of it (it would take too long to read). */
 export const THUMBNAIL_MAX_BYTES = 15 * 1024 * 1024;
+
+const escapeAttribute = (value) => String(value).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+
+/** The same icon as markup, for the places that build a message as text. */
+export function fileKindIconHTML(family) {
+  const shapes = ICONS[ICON_OF_FAMILY[family] || 'document'].map(([tag, attributes]) => `<${tag} ${Object.entries(attributes).map(([name, value]) => `${name}="${escapeAttribute(value)}"`).join(' ')}/>`).join('');
+  return `<svg class="ac-kind-icon ac-kind-${family}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${shapes}</svg>`;
+}
+
+/** Only the name of the kind: "Word 文件", without the extension (the name of the file has it). */
+export const fileFamilyLabel = (language, family) => getFileText(language, FAMILY_LABEL_KEYS[family] || 'familyText');

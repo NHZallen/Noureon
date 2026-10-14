@@ -104,6 +104,25 @@ export function createMediaPreviewLifecycle({
                 openMediaPreview(mediaParts[mediaIndex], button);
             });
         });
+        // A file of the message opens in the same preview as a file the model made.
+        root.querySelectorAll('button.message-file-row').forEach(button => {
+            button.addEventListener('click', async () => {
+                const media = mediaParts[Number(button.dataset.mediaIndex)];
+                if (!media) return;
+                try {
+                    const { openUploadedFilePreview } = await import('../../ui/files/uploaded-file-preview.js');
+                    await openUploadedFilePreview({
+                        document,
+                        window: document.defaultView,
+                        file: { id: `message-file-${button.dataset.mediaIndex}`, name: media.name || 'file', type: media.mimeType, base64: getInlineMediaSrc(media) },
+                        language: getUiLanguage(),
+                        returnFocusTo: button
+                    });
+                } catch (error) {
+                    logWarn('File preview failed:', error);
+                }
+            });
+        });
     };
 
     return {
