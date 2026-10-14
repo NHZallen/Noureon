@@ -185,9 +185,7 @@ test('request-scoped search reaches both translation and provider request option
   });
 
   const { onSources, ...translateOptions } = calls.find((call) => call[0] === 'translate')[2];
-  assert.equal(typeof translateOptions.onOfficeImages, 'function', 'the page tells the person when the pictures of a file go to the model');
-  const { onOfficeImages: _told, ...translateRest } = translateOptions;
-  assert.deepEqual(translateRest, { webSearchEnabled: true, readLinkedPages: true, conversation });
+  assert.deepEqual(translateOptions, { webSearchEnabled: true, readLinkedPages: true, conversation });
   assert.equal(typeof onSources, 'function', 'the pages the search finds are reported back for the reply');
   assert.equal(calls.find((call) => call[0] === 'api')[4].webSearchEnabled, true);
   assert.equal(calls.find((call) => call[0] === 'api')[4].conversation, conversation);

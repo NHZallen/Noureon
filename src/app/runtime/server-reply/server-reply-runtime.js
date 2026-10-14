@@ -143,7 +143,6 @@ export function createBrowserServerReply({
     // A CLI tool (命令工具) that was chosen but could not be used: it needs a model that calls tools and the server.
     if (kind === 'cli-local' || kind === 'cli-tool-model') showNotification(cliText(language, kind === 'cli-local' ? 'notOnServer' : 'needToolModel'), 'warning');
     else if (kind === 'model-searches') showNotification(sandboxText(language, 'sandboxModelSearchNotice'), 'info');
-    else if (kind === 'office-images') showNotification(sandboxText(language, 'officeImagesNotice'), 'info');
     else showNotification(serverReplyText(language, kind === 'busy' ? 'fallbackBusy' : 'fallbackUnreachable'), 'info');
   };
 

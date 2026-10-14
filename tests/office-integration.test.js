@@ -73,9 +73,7 @@ test('the request support: a Word file for a model that cannot read it becomes t
   });
   const parts = [{ text: 'Read this' }, attachment('docx')];
 
-  const told = [];
-  const seeing = await build({ id: 'translator', name: 'Translator' }).buildSingleModelTranslatedRequestParts(parts, model('kimi-k3'), undefined, () => {}, { onOfficeImages: (count) => told.push(count) });
-  assert.deepEqual(told, [1], 'the person is told once that the pictures go too');
+  const seeing = await build({ id: 'translator', name: 'Translator' }).buildSingleModelTranslatedRequestParts(parts, model('kimi-k3'), undefined, () => {}, {});
   assert.equal(calls.length, 0, 'no translator was asked');
   assert.match(JSON.stringify(seeing), /第一章 概述/);
   assert.ok(seeing.some((part) => part.inlineData?.mimeType === 'image/png'));
@@ -88,7 +86,6 @@ test('the request support: a Word file for a model that cannot read it becomes t
   assert.equal(calls.length, 1);
   assert.match(JSON.stringify(blindNoTranslator), /第一章 概述/);
   assert.match(JSON.stringify(blindNoTranslator), /cannot look at/);
-  assert.deepEqual(told, [1], 'no picture goes to a model that cannot see, so nothing is said');
 
   const book = await build({ id: 'translator', name: 'Translator' }).buildSingleModelTranslatedRequestParts([{ text: 'Sum it' }, attachment('xlsx')], model('glm-5.3'), undefined, () => {}, {});
   assert.equal(calls.length, 1, 'a workbook with no pictures needs no translator');
