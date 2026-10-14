@@ -19,8 +19,8 @@ const byteStream = (chunks) => {
 const reply = ({ ok = true, status = 200, chunks = [], body } = {}) => ({ ok, status, statusText: '', body: byteStream(chunks), text: async () => body ?? '', json: async () => JSON.parse(body ?? '{}') });
 
 test('the list of OpenCode Go models: the ones of the owner\'s table, each in one of the three forms of API, with the pictures the owner confirmed', () => {
-  assert.equal(OPENCODE_GO_MODELS.length, 31);
-  assert.equal(new Set(OPENCODE_GO_MODELS.map((entry) => entry.id)).size, 31);
+  assert.equal(OPENCODE_GO_MODELS.length, 32);
+  assert.equal(new Set(OPENCODE_GO_MODELS.map((entry) => entry.id)).size, 32);
   for (const entry of OPENCODE_GO_MODELS) {
     assert.ok(OPENCODE_FORMATS.includes(opencodeFormatOf(entry)), entry.id);
     assert.equal(entry.provider, 'opencode-go');
@@ -33,7 +33,7 @@ test('the list of OpenCode Go models: the ones of the owner\'s table, each in on
   assert.deepEqual(forms('responses').sort(), ['gpt-5.6-luna', 'gpt-6-luna', 'grok-4.6', 'grok-4.7', 'muse-spark-1.2-contributor', 'muse-spark-1.3-contributor']);
   assert.deepEqual(forms('messages').sort(), ['claude-haiku-5-5', 'minimax-m2.7', 'minimax-m3', 'qwen3.7-plus', 'qwen3.8-flash', 'qwen3.8-max']);
   const noPictures = OPENCODE_GO_MODELS.filter((entry) => !modelSupportsVision(entry)).map((entry) => entry.apiId).sort();
-  assert.deepEqual(noPictures, ['deepseek-v4-flash', 'deepseek-v4-pro', 'glm-5.2', 'glm-5.3', 'hy3', 'hy4-preview', 'longcat-2.0', 'mimo-v2.5-pro', 'minimax-m2.7']);
+  assert.deepEqual(noPictures, ['cat-jam-free', 'deepseek-v4-flash', 'deepseek-v4-pro', 'glm-5.2', 'glm-5.3', 'hy3', 'hy4-preview', 'longcat-2.0', 'mimo-v2.5-pro', 'minimax-m2.7']);
   assert.ok(modelSupportsVision(model('minimax-m3')) && modelSupportsVision(model('longcat-2.5-preview-free')) && modelSupportsVision(model('muse-spark-1.3-contributor')));
   assert.deepEqual(getModelTiers(model('step-5-preview-free')), ['free']);
   assert.deepEqual(getModelTiers(model('kimi-k3')), ['paid']);
@@ -341,7 +341,7 @@ test('a tool round in each form (what Python, connectors, skills, command tools 
 
 test('the depth of thinking of each model: the options of the slider, and the fields that say it in the way of the model (the ones the probe found accepted)', () => {
   // The slider is the one of the app: the models that have a choice get a row in its table.
-  assert.equal(Object.keys(OPENCODE_REASONING_CONFIGS).length, 28);
+  assert.equal(Object.keys(OPENCODE_REASONING_CONFIGS).length, 29);
   const config = getModelReasoningConfig(model('kimi-k3'));
   assert.deepEqual([config.options, config.defaultEffort], [['none', 'low', 'medium', 'high', 'max'], 'high']);
   assert.equal(normalizeReasoningEffort(model('kimi-k3'), 'xhigh'), 'high');
@@ -353,6 +353,8 @@ test('the depth of thinking of each model: the options of the slider, and the fi
   assert.deepEqual(fields('deepseek-v4-pro', 'max'), { reasoning_effort: 'max' });
   assert.deepEqual(fields('longcat-2.0', 'none'), { thinking: { type: 'disabled' } });
   assert.deepEqual(fields('longcat-2.0', 'high'), {});
+  assert.deepEqual(fields('cat-jam-free', 'xhigh'), { reasoning_effort: 'xhigh' });
+  assert.deepEqual(fields('cat-jam-free', 'none'), {}, 'no none for Cat Jam: only the depths Pi maps to the API');
   assert.deepEqual(fields('minimax-m3', 'none'), { thinking: { type: 'disabled' } });
   assert.deepEqual(fields('grok-4.7', 'xhigh'), { reasoning: { effort: 'xhigh' } });
   assert.deepEqual(fields('muse-spark-1.3-contributor', 'minimal'), { reasoning: { effort: 'minimal' } });

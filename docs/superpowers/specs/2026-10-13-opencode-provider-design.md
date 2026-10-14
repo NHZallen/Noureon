@@ -164,7 +164,7 @@ OpenCode 自己的 `variant.ts` 是一份對照（OpenCode 用戶端的設定，
 | minimax-m2.7 | messages | ✗（目錄：純文字） | 關不掉（`disabled` 無效） |
 | qwen3.8-max、qwen3.8-flash、qwen3.7-plus | messages | ✓ | 預設思考；`thinking:{type:disabled}` 可關；`enabled`＋預算可用 |
 
-清單裡有、文件沒寫的模型（`deepseek-flash`、`glm-5.1`、`omen-alpha`、`minimax-m2.5`、`qwen3.6-plus`、`qwen3.7-max`）：Allen 決定先只做 Go 文件列的模型，這些之後再說（`cat-jam-free` 已測，可選）。
+清單裡有、文件沒寫的模型（`deepseek-flash`、`glm-5.1`、`omen-alpha`、`minimax-m2.5`、`qwen3.6-plus`、`qwen3.7-max`）：Allen 決定先只做 Go 文件列的模型，這些之後再說（`cat-jam-free` 已測，2026-10-14 Allen 要求加入：chat、不收圖片、可用工具；思考用 `reasoning_effort`，取 Pi 的對照 low／medium／high／xhigh／max，預設 high；off／minimal 在 API 沒有對應值所以不給；xhigh／max 尚未實測，登記的模型共 32 個）。
 
 ### 待測／待決定
 1. ~~Allen 打開 Privacy 設定後重測~~ → 已測（09:24）：DeepSeek 三個全部正常；Muse Spark 兩個都連得上，但推理用完 96 token，工具與圖片沒測成，要 `--max-tokens 1500` 重測。使用者各自的工作區設定不同，所以這兩類錯誤一定要有明確提示。
