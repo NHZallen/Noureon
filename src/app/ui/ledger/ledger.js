@@ -65,7 +65,7 @@ export function createLedger({ document, host, before = null }) {
     node.append(head, detail, content);
     list.append(node);
 
-    const startedAt = clock();
+    let startedAt = clock();
     let state = 'running';
     let finishedAt = null;
     let expandable = body;
@@ -151,6 +151,13 @@ export function createLedger({ document, host, before = null }) {
         node.remove();
         const index = rows.indexOf(row);
         if (index >= 0) rows.splice(index, 1);
+      },
+      // The row began earlier than it was drawn (a page that joined a reply already under way, or a start moved by the time spent waiting for the person):
+      // its clock counts from then.
+      setStartedAt(ms) {
+        if (!Number.isFinite(ms)) return;
+        startedAt = ms;
+        draw();
       },
       // The work went on after the row was called done: it runs again, its clock with it.
       resume() {

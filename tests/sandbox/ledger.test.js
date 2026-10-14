@@ -496,3 +496,28 @@ test('the row of a skill has an icon in the style', async () => {
   const css = readFileSync(new URL('../../src/styles/ledger.css', import.meta.url), 'utf8');
   assert.match(css, /\.ledger-row\[data-kind='skill'\] \{ --run-icon: url\(/);
 });
+
+test('the line shows the time since the work began, not since the list was drawn (a reply that thought a long time before its first step, a page that joined late)', () => {
+  const { window, document, message, answer } = setup();
+  const ledger = createSandboxLedger({ document, host: message, before: answer, language: 'en', summary: true, startedAt: Date.now() - 110_000 });
+  const lineTime = () => message.querySelector('.ledger-row .ledger-time').textContent;
+  assert.match(lineTime(), /^1:5[0-1]$/, 'drawn a minute and a half after the work began, it still says how long the work has been going');
+  // The server moved the start (the time spent waiting for the person is not counted): the line follows at once, as the time at the end does.
+  ledger.setStartedAt(Date.now() - 20_000);
+  assert.match(lineTime(), /^(19|20|21)s$/);
+  ledger.event({ type: 'answering', more: false });
+  assert.match(message.querySelector('.ledger-row .ledger-label').textContent, /20s|19s|21s/, 'the time at the end says the same');
+  ledger.remove();
+});
+
+test('a row of a list can be told when it began', () => {
+  const { document, message, answer } = setup();
+  const ledger = createLedger({ document, host: message, before: answer });
+  const row = ledger.addRow('Working');
+  assert.equal(row.node.querySelector('.ledger-time').textContent, '', 'quiet for the first seconds');
+  row.setStartedAt(Date.now() - 65_000);
+  assert.match(row.node.querySelector('.ledger-time').textContent, /^1:0[5-6]$/);
+  row.setStartedAt(Number.NaN);
+  assert.match(row.node.querySelector('.ledger-time').textContent, /^1:0[5-7]$/, 'a value that is not a time changes nothing');
+  ledger.remove();
+});

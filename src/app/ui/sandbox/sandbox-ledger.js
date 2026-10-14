@@ -31,6 +31,8 @@ export function createSandboxLedger({ document, host, before = null, language = 
   const outer = summary ? createLedger({ document, host, before }) : null;
   const line = outer ? outer.addRow(text('processWorking')) : null;
   line?.enableBody(open);
+  // The line counts the time since the work began, not since it was drawn (a page that joined a reply under way draws it late).
+  if (Number.isFinite(workStartedAt)) line?.setStartedAt(workStartedAt);
   const list = line ? createLedger({ document, host: line.body }) : createLedger({ document, host, before });
   // When the work began (a reply the server makes: when the server began it, the same on every page).
   let startedAt = Number.isFinite(workStartedAt) ? workStartedAt : Date.now();
@@ -346,7 +348,10 @@ export function createSandboxLedger({ document, host, before = null, language = 
   return {
     /** The reply's clock was set back (time spent waiting for the person is not counted): the time shown at the end follows. */
     setStartedAt(ms) {
-      if (Number.isFinite(ms)) startedAt = ms;
+      if (!Number.isFinite(ms)) return;
+      startedAt = ms;
+      // The line that is running says the same time as the one at the end.
+      line?.setStartedAt(ms);
     },
     event(event) {
       eventAt = Number.isFinite(event?.at) ? event.at : null;
