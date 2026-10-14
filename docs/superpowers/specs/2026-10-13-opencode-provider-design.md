@@ -237,3 +237,9 @@ OpenCode 自己的 `variant.ts` 是一份對照（OpenCode 用戶端的設定，
   - **拒絕（400）**：muse-spark-1.3／1.2-contributor（unsupported file type）、claude-haiku-5-5（只收 PDF）、deepseek-v4.1-flash、deepseek-v4-flash、mimo-v2.5、hy4-preview、step-5-preview-free。
   - **收下但沒讀到**：hy3、minimax-m3、minimax-m2.7、qwen3.8-max、qwen3.8-flash、qwen3.7-plus（答「看不到文件」或亂答）。
 - 套用：`opencode-models.js` 的 `OFFICE_API_IDS`（上面五個）與 `opencodeModelReadsFile(model, mimeType)`；`modelSupportsUploadedFile` 對這五個放行 docx、pptx，其餘 OpenCode 模型仍先轉譯。只試了 docx、pptx，xlsx 與其他格式未試，仍轉譯。Responses 沒有檔名時依類型補 `.docx`／`.pptx`。
+
+### 2026-10-14 轉成 PDF 的探測（`--tests converted`，Allen 跑了三輪）與 PDF 名單修正
+
+- Word／PowerPoint 轉成的 PDF，**兩種都穩定答 MANGO**：hy4-preview、hy3、muse-spark-1.3／1.2-contributor、claude-haiku-5-5、minimax-m3、minimax-m2.7、qwen3.8-max、qwen3.8-flash、qwen3.7-plus（共 10 個）。這 10 個就是「先轉 PDF 再送」（NOU-25）的對象。
+- **不穩定的四個**：deepseek-v4-flash（兩份 PDF 都 400「file must have a file_id or file_data」）、deepseek-v4.1-flash（有時 400、有時答對）、mimo-v2.5（有時說打不開）、step-5-preview-free（端點常暫停 429）。三輪下來結果不一致，**從「直接讀 PDF」名單拿掉**（`opencode-models.js` 的 `PDF_API_IDS`），這四個的檔案一律先轉譯。
+- 直接讀 PDF 的 OpenCode 模型因此從 19 個變 15 個；Word／PowerPoint 直接讀的仍是 5 個。

@@ -80,8 +80,10 @@ const VISION_IDS = new Set(OPENCODE_GO_MODELS.filter((model) => model.opencodeVi
 // The models that read a PDF sent to them as it is, with no other model to translate it first (the probe of 2026-10-14, test `document`: a one-page PDF
 // with "The secret word is MANGO." was sent in the form of each model's API and the answer was MANGO). The others refused the file (400) or took it and
 // did not read it (DeepSeek V4 Pro answered "Unknown", Space Bunny asked for the document); LongCat 2.0 was unavailable. Only PDFs were tried.
+// DeepSeek V4 Flash, DeepSeek V4.1 Flash, MiMo V2.5 and Step 5 Preview answered MANGO in the first probe but not in the three that followed (the same PDF, now a 400
+// "file must have a file_id or file_data", now "I can't open the file", Step 5's endpoint now and then unavailable): they are not trusted with a PDF, and a file is translated for them.
 const PDF_API_IDS = new Set([
-  'deepseek-v4.1-flash', 'deepseek-v4-flash', 'mimo-v2.5', 'hy4-preview', 'hy3', 'step-5-preview-free',
+  'hy4-preview', 'hy3',
   'grok-4.7', 'grok-4.6', 'gpt-6-luna', 'gpt-5.6-luna',
   'muse-spark-1.3-contributor', 'muse-spark-1.2-contributor', 'gemini-4-argon-contributor',
   'claude-haiku-5-5', 'minimax-m3', 'minimax-m2.7', 'qwen3.8-max', 'qwen3.8-flash', 'qwen3.7-plus'
