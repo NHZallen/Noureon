@@ -207,9 +207,11 @@ const buildGeminiRequest = ({
   conversation,
   isWebSearchForced,
   requestOptions,
-  modelSupportsUploadedFile
+  modelSupportsUploadedFile,
+  viaOpencode = false
 }) => {
-  const supportsSamplingParameters = ![
+  // Through OpenCode only what was tried is sent: no sampling numbers, no thinking settings, no Google search (the search tool of the app does that).
+  const supportsSamplingParameters = !viaOpencode && ![
     'gemini-3.8-flash',
     'gemini-3.5-flash-lite',
     // Gemini 4 Argon ignores temperature, topP and topK (Google's page of the latest models): they are not sent.
@@ -230,19 +232,19 @@ const buildGeminiRequest = ({
   if (systemInstruction) {
     payload.systemInstruction = systemInstruction;
   }
-  if (reasoningConfig?.providerParameter === 'geminiThinkingLevel' && reasoningEffort) {
+  if (!viaOpencode && reasoningConfig?.providerParameter === 'geminiThinkingLevel' && reasoningEffort) {
     payload.generationConfig.thinkingConfig = {
       ...(payload.generationConfig.thinkingConfig || {}),
       thinkingLevel: reasoningEffort
     };
   }
   // Thought summaries only come when asked for.
-  if (requestOptions.onReasoning) {
+  if (!viaOpencode && requestOptions.onReasoning) {
     payload.generationConfig.thinkingConfig = { ...(payload.generationConfig.thinkingConfig || {}), includeThoughts: true };
   }
   const shouldUseWebSearch = !requestOptions.ignoreConversationWebSearch
     && (requestOptions.webSearchEnabled === true || conversation.isWebSearchEnabled);
-  if (shouldUseWebSearch || isWebSearchForced || requestOptions.forceWebSearch) {
+  if (!viaOpencode && (shouldUseWebSearch || isWebSearchForced || requestOptions.forceWebSearch)) {
     payload.tools = [{ googleSearch: {} }];
   }
   return {
@@ -595,6 +597,14 @@ const consumeGeminiStream = async ({ reader, decoder, onChunk, warn, collector =
   return fullText;
 };
 
+// OpenCode's Gemini form gives the whole answer at once (one JSON object, the same shape as one chunk of Google's stream).
+const consumeGeminiAnswer = async ({ response, onChunk, collector }) => {
+  const parsed = JSON.parse(await response.text());
+  const text = collector.add(parsed);
+  if (text) onChunk(text);
+  return text;
+};
+
 const consumeOpenAiCompatibleStream = async ({ reader, decoder, onChunk, collector = createOpenAiCollector() }) => {
   let buffer = '';
   let fullText = '';
@@ -787,7 +797,11 @@ export function createStreamApiCall({
           systemInstruction,
           modelSupportsVision,
           buildResponsesInput: buildOpenRouterResponsesInput,
-          buildChatMessages: () => buildOpenAiCompatibleMessages({ provider, modelInfo, historyForApi, currentMessageForApi, systemInstruction, modelSupportsVision })
+          buildChatMessages: () => buildOpenAiCompatibleMessages({ provider, modelInfo, historyForApi, currentMessageForApi, systemInstruction, modelSupportsVision }),
+          buildGeminiPayload: () => buildGeminiRequest({
+            modelId, apiKey, modelInfo, historyForApi, currentMessageForApi, generationConfig, reasoningEffort, reasoningConfig, systemInstruction, conversation,
+            isWebSearchForced, requestOptions, modelSupportsUploadedFile, viaOpencode: true
+          }).payload
         })
       : provider === 'nvidia'
         ? buildOpenAiCompatibleRequest({
@@ -817,7 +831,7 @@ export function createStreamApiCall({
     if (hasTools) {
       if (useResponsesApi || opencodeFormat === 'responses') applyResponsesTools(request.payload, toolOptions);
       else if (opencodeFormat === 'messages') applyAnthropicTools(request.payload, toolOptions);
-      else if (provider === 'gemini') applyGeminiTools(request.payload, toolOptions);
+      else if (provider === 'gemini' || opencodeFormat === 'gemini') applyGeminiTools(request.payload, toolOptions);
       // The service refuses fields it does not know: the thinking details of OpenRouter are not sent back to it.
       else applyOpenAiTools(request.payload, { ...toolOptions, reasoningDetails: provider !== 'opencode-go' });
     }
@@ -837,7 +851,7 @@ export function createStreamApiCall({
       throw error;
     }
 
-    const reader = response.body.getReader();
+    const reader = opencodeFormat === 'gemini' ? null : response.body.getReader();
     const decoder = new TextDecoderImpl();
     // The thinking and the code being written reach the caller as they stream; the
     // thinking comes with its kind (the model's own, or a summary of it).
@@ -846,11 +860,13 @@ export function createStreamApiCall({
       onReasoning: requestOptions.onReasoning ? (chunk) => requestOptions.onReasoning(chunk, thinkingKind) : null,
       onToolArguments: requestOptions.onToolArguments
     };
-    const collector = provider === 'gemini' ? createGeminiCollector(hooks)
+    const collector = (provider === 'gemini' || opencodeFormat === 'gemini') ? createGeminiCollector(hooks)
       : (useResponsesApi || opencodeFormat === 'responses') ? createResponsesCollector(hooks)
         : opencodeFormat === 'messages' ? createAnthropicCollector(hooks)
           : createOpenAiCollector(hooks);
-    const fullText = provider === 'gemini'
+    const fullText = opencodeFormat === 'gemini'
+      ? await consumeGeminiAnswer({ response, onChunk, collector })
+      : provider === 'gemini'
       ? await consumeGeminiStream({ reader, decoder, onChunk, warn, collector })
       : await consumeOpenAiCompatibleStream({ reader, decoder, onChunk, collector });
     // The Responses stream reports a failed response as an event; it is an error like any other.

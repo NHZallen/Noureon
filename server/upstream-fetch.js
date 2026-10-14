@@ -13,6 +13,7 @@ const OPENCODE_BASE_URL = 'https://opencode.ai/inference/go/v1';
 const OPENCODE_PATHS = { chat: '/chat/completions', responses: '/responses', messages: '/messages' };
 const OPENCODE_USER_AGENT = 'Noureon/1 (+https://noureon.com)';
 const OPENCODE_SESSION_ID = /^[A-Za-z0-9._-]{1,100}$/;
+const OPENCODE_MODEL_ID = /^[A-Za-z0-9._-]{1,100}$/;
 
 const TINYFISH_SEARCH_PARAMETERS = ['query', 'domain_type', 'location', 'language', 'page', 'recency_minutes', 'after_date', 'before_date'];
 const TINYFISH_DOMAIN_TYPES = new Set(['web', 'news', 'research_paper']);
@@ -43,13 +44,18 @@ export function createUpstreamFetch({ fetchImpl = fetch, timeoutMs = 45_000 } = 
     if (!key) return reply(401, { error: 'Missing key' });
 
     if (path.split('?')[0] === '/api/opencode-chat') {
-      const target = OPENCODE_PATHS[new URL(path, 'https://app.invalid').searchParams.get('format') || 'chat'];
+      const query = new URL(path, 'https://app.invalid').searchParams;
+      const format = query.get('format') || 'chat';
+      // Google's form names the model in the path and answers whole.
+      const target = format === 'gemini' && OPENCODE_MODEL_ID.test(query.get('model') || '') ? `/models/${query.get('model')}:generateContent` : OPENCODE_PATHS[format];
       if (!target) return reply(400, { error: 'Unknown format' });
-      const session = String(new Headers(init?.headers).get('x-opencode-session') || '');
+      // OpenCode refuses a request with no session id: a request without one gets one here.
+      const sent = String(new Headers(init?.headers).get('x-opencode-session') || '');
+      const session = OPENCODE_SESSION_ID.test(sent) ? sent : `noureon-${Math.random().toString(36).slice(2, 12)}`;
       // The chat itself, streamed: no time limit but the reply's own (the signal).
       return fetchImpl(`${OPENCODE_BASE_URL}${target}`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Accept: 'text/event-stream', 'User-Agent': OPENCODE_USER_AGENT, ...(OPENCODE_SESSION_ID.test(session) ? { 'x-opencode-session': session } : {}) },
+        headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json', Accept: format === 'gemini' ? 'application/json' : 'text/event-stream', 'User-Agent': OPENCODE_USER_AGENT, 'x-opencode-session': session, ...(format === 'gemini' ? { 'x-goog-api-key': key } : {}) },
         body: typeof init.body === 'string' ? init.body : JSON.stringify(body),
         signal
       });

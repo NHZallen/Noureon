@@ -19,8 +19,8 @@ const byteStream = (chunks) => {
 const reply = ({ ok = true, status = 200, chunks = [], body } = {}) => ({ ok, status, statusText: '', body: byteStream(chunks), text: async () => body ?? '', json: async () => JSON.parse(body ?? '{}') });
 
 test('the list of OpenCode Go models: the ones of the owner\'s table, each in one of the three forms of API, with the pictures the owner confirmed', () => {
-  assert.equal(OPENCODE_GO_MODELS.length, 32);
-  assert.equal(new Set(OPENCODE_GO_MODELS.map((entry) => entry.id)).size, 32);
+  assert.equal(OPENCODE_GO_MODELS.length, 33);
+  assert.equal(new Set(OPENCODE_GO_MODELS.map((entry) => entry.id)).size, 33);
   for (const entry of OPENCODE_GO_MODELS) {
     assert.ok(OPENCODE_FORMATS.includes(opencodeFormatOf(entry)), entry.id);
     assert.equal(entry.provider, 'opencode-go');
@@ -31,6 +31,7 @@ test('the list of OpenCode Go models: the ones of the owner\'s table, each in on
   }
   const forms = (format) => OPENCODE_GO_MODELS.filter((entry) => entry.opencodeFormat === format).map((entry) => entry.apiId);
   assert.deepEqual(forms('responses').sort(), ['gpt-5.6-luna', 'gpt-6-luna', 'grok-4.6', 'grok-4.7', 'muse-spark-1.2-contributor', 'muse-spark-1.3-contributor']);
+  assert.deepEqual(forms('gemini'), ['gemini-4-argon-contributor']);
   assert.deepEqual(forms('messages').sort(), ['claude-haiku-5-5', 'minimax-m2.7', 'minimax-m3', 'qwen3.7-plus', 'qwen3.8-flash', 'qwen3.8-max']);
   const noPictures = OPENCODE_GO_MODELS.filter((entry) => !modelSupportsVision(entry)).map((entry) => entry.apiId).sort();
   assert.deepEqual(noPictures, ['cat-jam-free', 'deepseek-v4-flash', 'deepseek-v4-pro', 'glm-5.2', 'glm-5.3', 'hy3', 'hy4-preview', 'longcat-2.0', 'mimo-v2.5-pro', 'minimax-m2.7']);
@@ -85,8 +86,16 @@ test('a request to OpenCode: the form of the model, our path, the key and the se
   assert.deepEqual(messages.payload.messages.map((entry) => entry.role), ['user', 'assistant', 'user']);
   assert.equal(JSON.stringify(messages.payload).includes('temperature'), false);
 
+  // OpenCode refuses a request with no session id: one without a conversation gets an id of the page, the same every time.
   const noSession = buildOpencodeRequest({ ...common, sessionId: '', format: 'chat' });
-  assert.equal('x-opencode-session' in noSession.headers, false);
+  assert.match(noSession.headers['x-opencode-session'], /^[A-Za-z0-9._-]{1,100}$/);
+  assert.equal(buildOpencodeRequest({ ...common, sessionId: undefined, format: 'chat' }).headers['x-opencode-session'], noSession.headers['x-opencode-session']);
+
+  // Google's form: the model in the path, the body made by the page's Gemini builder, no `stream`.
+  const gemini = buildOpencodeRequest({ ...common, modelId: 'gemini-4-argon-contributor', format: 'gemini', buildGeminiPayload: () => ({ contents: [] }) });
+  assert.equal(gemini.url, `${OPENCODE_CHAT_PATH}?format=gemini&model=gemini-4-argon-contributor`);
+  assert.deepEqual(gemini.payload, { contents: [] });
+  assert.equal(gemini.headers['x-opencode-session'], 'conv-1');
 });
 
 test('the conversation in the Messages form: pictures as base64 blocks, other files named, roles that alternate, the first one the user\'s', () => {
@@ -264,7 +273,42 @@ test('the server\'s fetch sends the path of OpenCode straight to the service, wi
   const noKey = await upstream('/api/opencode-chat', { method: 'POST', body });
   assert.equal(noKey.status, 401);
   await upstream('/api/opencode-chat', { method: 'POST', headers: { Authorization: 'Bearer k', 'x-opencode-session': 'bad session!' }, body });
-  assert.equal('x-opencode-session' in calls.at(-1).options.headers, false);
+  // No session id is not sent on as nothing: OpenCode refuses it, so one is made.
+  assert.match(calls.at(-1).options.headers['x-opencode-session'], /^noureon-/);
+  await upstream('/api/opencode-chat', { method: 'POST', headers: { Authorization: 'Bearer k' }, body });
+  assert.match(calls.at(-1).options.headers['x-opencode-session'], /^noureon-/);
+  // Google's form: the model in the path, the answer whole, the key also as Google names it.
+  await upstream('/api/opencode-chat?format=gemini&model=gemini-4-argon-contributor', { method: 'POST', headers: { Authorization: 'Bearer oc_sk_secret', 'x-opencode-session': 'conv-42' }, body });
+  assert.equal(calls.at(-1).url, 'https://opencode.ai/inference/go/v1/models/gemini-4-argon-contributor:generateContent');
+  assert.equal(calls.at(-1).options.headers.Accept, 'application/json');
+  assert.equal(calls.at(-1).options.headers['x-goog-api-key'], 'oc_sk_secret');
+  const badModel = await upstream('/api/opencode-chat?format=gemini&model=../x', { method: 'POST', headers: { Authorization: 'Bearer k' }, body });
+  assert.equal(badModel.status, 400);
+  const noModel = await upstream('/api/opencode-chat?format=gemini', { method: 'POST', headers: { Authorization: 'Bearer k' }, body });
+  assert.equal(noModel.status, 400);
+});
+
+test('Gemini 4 Argon Contributor: Google\'s form, answered whole; a picture goes as inline data; no sampling numbers, thinking settings or Google search; a tool call is read', async () => {
+  const answer = JSON.stringify({ candidates: [{ content: { role: 'model', parts: [{ text: 'Hel' }, { text: 'lo' }] } }] });
+  const { streamApiCall, requests } = harness({ apiId: 'gemini-4-argon-contributor', fetchImpl: async () => reply({ body: answer }) });
+  const seen = [];
+  const text = await streamApiCall([{ text: 'Hello' }, { inlineData: { mimeType: 'image/png', data: 'AAAA' } }], (chunk) => seen.push(chunk), undefined, false, { onReasoning: () => {}, forceWebSearch: true });
+  assert.equal(text, 'Hello');
+  assert.equal(seen.join(''), 'Hello');
+  const [{ url, options, body }] = requests;
+  assert.equal(url, '/api/opencode-chat?format=gemini&model=gemini-4-argon-contributor');
+  assert.equal(options.headers['x-opencode-session'], 'conv-42');
+  assert.ok(body.contents.length > 0 && body.contents.at(-1).parts.some((part) => part.inlineData));
+  assert.equal('model' in body || 'stream' in body || 'tools' in body, false);
+  assert.equal(JSON.stringify(body).includes('temperature') || JSON.stringify(body).includes('topP') || JSON.stringify(body).includes('thinkingConfig'), false);
+
+  const call = JSON.stringify({ candidates: [{ content: { role: 'model', parts: [{ functionCall: { name: 'run_python', args: { code: '1+1' } } }] } }] });
+  const tool = { name: 'run_python', description: 'Runs code', parameters: { type: 'object', properties: { code: { type: 'string' } } } };
+  const second = harness({ apiId: 'gemini-4-argon-contributor', fetchImpl: async () => reply({ body: call }) });
+  let collected = null;
+  await second.streamApiCall([{ text: 'Run it' }], () => {}, undefined, false, { tools: [tool], toolTurns: [], onResponseComplete: (value) => { collected = value; } });
+  assert.deepEqual(collected.toolCalls[0].args, { code: '1+1' });
+  assert.ok(second.requests[0].body.tools, 'the tool is sent');
 });
 
 const fakeResponse = () => {

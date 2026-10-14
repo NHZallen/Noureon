@@ -16,6 +16,14 @@ export const OPENCODE_CHAT_PATH = '/api/opencode-chat';
 // Messages has no default for the length of the answer: it must be given. Long enough for a report; the probe took 16384 on a small question.
 export const OPENCODE_DEFAULT_MAX_TOKENS = 16384;
 
+// OpenCode now refuses a request with no `x-opencode-session`. A conversation gives its own id; a request with none (a background task, a test) gets one
+// id for the whole page, so the cache and the routing still work for it.
+let pageSessionId = '';
+const fallbackSessionId = () => {
+  if (!pageSessionId) pageSessionId = `noureon-${Math.random().toString(36).slice(2, 12)}${Date.now().toString(36)}`;
+  return pageSessionId;
+};
+
 const systemText = (systemInstruction) => (systemInstruction?.parts || []).map((part) => part.text).filter(Boolean).join('\n');
 
 /**
@@ -35,17 +43,22 @@ export function buildOpencodeRequest({
   systemInstruction,
   modelSupportsVision,
   buildChatMessages,
-  buildResponsesInput
+  buildResponsesInput,
+  buildGeminiPayload
 }) {
   const headers = {
     Authorization: `Bearer ${apiKey}`,
     'Content-Type': 'application/json',
     // One id for a whole conversation: OpenCode uses it to route and to reuse the cache of the prompt.
-    ...(sessionId ? { 'x-opencode-session': String(sessionId) } : {})
+    'x-opencode-session': /^[A-Za-z0-9._-]{1,100}$/.test(String(sessionId || '')) ? String(sessionId) : fallbackSessionId()
   };
   const maxTokens = generationConfig?.maxTokens ?? null;
   const conversation = [...historyForApi, currentMessageForApi];
   let payload;
+  if (format === 'gemini') {
+    // Google's form: the model is named in the path, not in the body, and the answer comes whole (no `stream`). The thinking depth is not sent (not tried).
+    return { url: `${OPENCODE_CHAT_PATH}?format=gemini&model=${encodeURIComponent(modelId)}`, payload: buildGeminiPayload(), headers };
+  }
   if (format === 'responses') {
     const instructions = systemText(systemInstruction);
     payload = {

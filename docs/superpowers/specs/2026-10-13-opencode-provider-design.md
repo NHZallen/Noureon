@@ -211,3 +211,11 @@ OpenCode 自己的 `variant.ts` 是一份對照（OpenCode 用戶端的設定，
 * **用 `--max-tokens 1500` 重測**：muse-spark-1.3／1.2、minimax-m2.7 答對，加進名單（共 18 個）；deepseek-v4-pro 答「Unknown」、space-bunny 答「Please attach the document.」，收了檔案但沒讀，不登記；longcat-2.0 仍回「Endpoint is unavailable」，之後再測。
 
 程式：`opencode-models.js` 的 `PDF_API_IDS`／`opencodeModelReadsPdf`；`modelSupportsUploadedFile` 對這些模型只放行 `application/pdf`（只測過 PDF），其他檔案類型仍轉譯；`modelSupportsDocumentUpload` 不變（它同時決定誰能當「文件轉譯模型」，這些模型只收 PDF，所以不能）。chat 的 `file`、responses 的 `input_file` 沿用既有 builder 的形狀，messages 加 `document` 區塊（`anthropic-messages-format.js`）。
+
+## 2026-10-14：Gemini 4 Argon Contributor 與 `x-opencode-session`
+
+- Allen 回報：OpenCode Go 加了 `gemini-4-argon-contributor`，**只有 `/v1/models/gemini-4-argon-contributor:generateContent` 通**（Google 原生格式，整段回答一次回來，沒有串流）；另外**所有請求現在都必須帶 `x-opencode-session`**，沒帶會被擋。
+- 新增第四種格式 `gemini`：`OPENCODE_FORMATS` 加 `gemini`；`opencode-request.js` 回傳 `/api/opencode-chat?format=gemini&model=<id>`，body 用頁面原本的 Gemini 組裝（`buildGeminiRequest(..., viaOpencode: true)`：不送取樣數字、不送思考設定、不送 Google 搜尋，圖片用 `inlineData`，工具用 `functionDeclarations`）；`api/opencode-chat.js` 與 `server/upstream-fetch.js` 轉成 `/models/<id>:generateContent`（模型編號只允許 `[A-Za-z0-9._-]`），`Accept: application/json`，金鑰同時放在 `Authorization` 與 `x-goog-api-key`（還沒確認 OpenCode 要哪個）。回答用 `response.text()` 一次讀完，餵給原本的 Gemini 收集器。
+- 標示：Contributor＝會用提示與回應訓練 Google 的模型（沿用 Muse 的寫法，隱私政策／協助中心五語言補上）；沒有寫「限特定地區」（未確認）。圖片輸入：有（Allen 確認）。PDF、思考程度、工具：**未測**，PDF 先不送、思考不送設定、工具照 Gemini 格式送但沒實測。
+- `x-opencode-session`：頁面與兩條代理都**一律送**——對話編號合法就用它，沒有就用「整個頁面同一個」的備用編號（代理端沒收到就自己產生）。原本沒有對話編號的請求（例如背景工作）會被擋，這次一併修掉。
+- 模型數 32 → 33，首頁與協助中心的「70 個模型」改成 71。

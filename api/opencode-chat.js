@@ -1,7 +1,7 @@
 // OpenCode Go's chat, for the browser: the service does not answer a browser's cross-site request (no CORS headers), so the page sends it here
 // (same site) and this function sends it on. Three forms of API (`?format=chat|responses|messages`), one path each at OpenCode. The key
 // comes in the Authorization header, as for the NVIDIA function, and is only passed on. What the service wants of a client is added here: its own
-// User-Agent, and the id of the conversation as `x-opencode-session` (when the page gives one).
+// User-Agent, and the id of the conversation as `x-opencode-session` (always: OpenCode refuses a request without it).
 // docs/superpowers/specs/2026-10-13-opencode-provider-design.md, §3.
 
 export const config = {
@@ -15,6 +15,8 @@ export const config = {
 
 const BASE_URL = 'https://opencode.ai/inference/go/v1';
 const PATHS = { chat: '/chat/completions', responses: '/responses', messages: '/messages' };
+// Google's form: `models/<id>:generateContent` (the answer comes whole). The model is named in the path.
+const MODEL_ID = /^[A-Za-z0-9._-]{1,100}$/;
 const USER_AGENT = 'Noureon/1 (+https://noureon.com)';
 const SESSION_ID = /^[A-Za-z0-9._-]{1,100}$/;
 
@@ -32,7 +34,9 @@ export default async function handler(req, res) {
     return;
   }
 
-  const path = PATHS[String(req.query?.format || 'chat')];
+  const format = String(req.query?.format || 'chat');
+  const model = String(req.query?.model || '');
+  const path = format === 'gemini' && MODEL_ID.test(model) ? `/models/${model}:generateContent` : PATHS[format];
   if (!path) {
     res.status(400).json({ error: 'Unknown format' });
     return;
@@ -43,7 +47,9 @@ export default async function handler(req, res) {
     res.status(401).json({ error: 'Missing OpenCode Authorization header' });
     return;
   }
-  const session = String(req.headers['x-opencode-session'] || '');
+  // OpenCode refuses a request with no session id: the page always sends one, and a request without one gets one here.
+  const sent = String(req.headers['x-opencode-session'] || '');
+  const session = SESSION_ID.test(sent) ? sent : `noureon-${Math.random().toString(36).slice(2, 12)}`;
 
   // The page closing the connection stops what is asked of the service too.
   const controller = new AbortController();
@@ -56,9 +62,10 @@ export default async function handler(req, res) {
       headers: {
         Authorization: authorization,
         'Content-Type': 'application/json',
-        Accept: 'text/event-stream',
+        Accept: format === 'gemini' ? 'application/json' : 'text/event-stream',
         'User-Agent': USER_AGENT,
-        ...(SESSION_ID.test(session) ? { 'x-opencode-session': session } : {})
+        'x-opencode-session': session,
+        ...(format === 'gemini' ? { 'x-goog-api-key': String(authorization).replace(/^Bearer\s+/i, '') } : {})
       },
       body,
       signal: controller.signal

@@ -8,10 +8,11 @@
 
 export const OPENCODE_GO_PROVIDER = 'opencode-go';
 export const OPENCODE_GO_BASE_URL = 'https://opencode.ai/inference/go/v1';
-export const OPENCODE_FORMATS = Object.freeze(['chat', 'responses', 'messages']);
+// `gemini` is Google's own form (`models/<id>:generateContent`, one answer in one piece, no stream): Gemini 4 Argon Contributor speaks only that.
+export const OPENCODE_FORMATS = Object.freeze(['chat', 'responses', 'messages', 'gemini']);
 
 // The text of the price/privacy line of a model (`<key>_tier_paid` or `_tier_free` in the texts of the models).
-const DESC = Object.freeze({ go: 'model_opencode_go_desc', go30: 'model_opencode_go30_desc', muse: 'model_opencode_muse_desc', free: 'model_opencode_free_desc', hidden: 'model_opencode_hidden_desc', hiddenGo: 'model_opencode_hiddengo_desc' });
+const DESC = Object.freeze({ go: 'model_opencode_go_desc', go30: 'model_opencode_go30_desc', muse: 'model_opencode_muse_desc', free: 'model_opencode_free_desc', hidden: 'model_opencode_hidden_desc', hiddenGo: 'model_opencode_hiddengo_desc', argon: 'model_opencode_argon_desc' });
 
 // [id at OpenCode, name, company, form of API, takes pictures, line of text, tier, hidden (a test model that is not in the list of the documents)]. Every one calls tools (the probe: a call, and the answer of the tool sent back).
 const ROWS = [
@@ -41,6 +42,7 @@ const ROWS = [
   ['gpt-5.6-luna', 'GPT-5.6 Luna', 'openai', 'responses', true, DESC.go30],
   ['muse-spark-1.3-contributor', 'Muse Spark 1.3 Contributor', 'meta', 'responses', true, DESC.muse],
   ['muse-spark-1.2-contributor', 'Muse Spark 1.2 Contributor', 'meta', 'responses', true, DESC.muse],
+  ['gemini-4-argon-contributor', 'Gemini 4 Argon Contributor', 'google', 'gemini', true, DESC.argon],
   ['claude-haiku-5-5', 'Claude Haiku 5.5', 'anthropic', 'messages', true, DESC.go30],
   ['minimax-m3', 'MiniMax M3', 'minimax', 'messages', true, DESC.go],
   ['minimax-m2.7', 'MiniMax M2.7', 'minimax', 'messages', false, DESC.go],

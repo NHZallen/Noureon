@@ -40,7 +40,7 @@ export default {
         h: '3. Chat and organizing',
         blocks: [
           [
-            'Choosing a model: the model picker next to the message box lists every available model (currently 70 options from 18 vendors), with search and grouping by vendor; models that support thinking levels show a thinking-level slider.',
+            'Choosing a model: the model picker next to the message box lists every available model (currently 71 options from 18 vendors), with search and grouping by vendor; models that support thinking levels show a thinking-level slider.',
             'The message box: paste text, attach files, take a photo, dictate by voice, choose a skill with / and a command tool with @. The box can be expanded into a large window.',
             'Nouras: reusable AI assistants with their own name, description, instructions and avatar. Pick official Nouras in the Nouras store, create your own, propose a new Noura, or share one with someone by peer-to-peer transfer.',
             'Folders, archive and trash: conversations can go into folders (with your own color and icon), be archived, or be moved to the trash; select and move several at once; the trash can restore or delete for good.',
@@ -505,7 +505,7 @@ export default {
             'Providers you can use include Google Gemini, OpenRouter (which passes requests on to the model vendors), NVIDIA API Catalog, OpenCode Go (a subscription service that runs models from several vendors), and the search services Tavily and TinyFish. Set up only the ones you use.',
             'These providers handle your data under their own terms and privacy policies, including whether they log it, keep it or use it for training; we do not control this, and we suggest you check each one\'s settings.',
             'By default your keys are kept in the browser and the browser calls the provider directly, so the requests do not pass through Noureon\'s server; the exceptions are when you choose server-side running, and the proxy endpoints of this site (see below).',
-            'OpenCode Go does not accept requests made directly by a browser. So when the reply is not run by our server, the request passes through this site\'s function (/api/opencode-chat), which adds the headers OpenCode asks of a client (a User-Agent and the id of the conversation, so that OpenCode can route and reuse its cache) and sends it on; your key and what you send pass through it as they are sent and we do not store them. OpenCode Go\'s own rules on keeping data apply and differ by model: for example Grok, GPT Luna and Claude Haiku 5.5 keep data for 30 days, and the Muse Spark Contributor models use your prompts and replies to train Meta\'s models (each model says so in the picker).'
+            'OpenCode Go does not accept requests made directly by a browser. So when the reply is not run by our server, the request passes through this site\'s function (/api/opencode-chat), which adds the headers OpenCode asks of a client (a User-Agent and the id of the conversation, so that OpenCode can route and reuse its cache) and sends it on; your key and what you send pass through it as they are sent and we do not store them. OpenCode Go\'s own rules on keeping data apply and differ by model: for example Grok, GPT Luna and Claude Haiku 5.5 keep data for 30 days, and the Muse Spark Contributor models and Gemini 4 Argon Contributor use your prompts and replies to train Meta\'s and Google\'s models (each model says so in the picker).'
           ]
         ]
       },
