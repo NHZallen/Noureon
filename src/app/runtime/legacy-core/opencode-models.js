@@ -11,7 +11,7 @@ export const OPENCODE_GO_BASE_URL = 'https://opencode.ai/inference/go/v1';
 export const OPENCODE_FORMATS = Object.freeze(['chat', 'responses', 'messages']);
 
 // The text of the price/privacy line of a model (`<key>_tier_paid` or `_tier_free` in the texts of the models).
-const DESC = Object.freeze({ go: 'model_opencode_go_desc', go30: 'model_opencode_go30_desc', muse: 'model_opencode_muse_desc', free: 'model_opencode_free_desc', hidden: 'model_opencode_hidden_desc' });
+const DESC = Object.freeze({ go: 'model_opencode_go_desc', go30: 'model_opencode_go30_desc', muse: 'model_opencode_muse_desc', free: 'model_opencode_free_desc', hidden: 'model_opencode_hidden_desc', hiddenGo: 'model_opencode_hiddengo_desc' });
 
 // [id at OpenCode, name, company, form of API, takes pictures, line of text, tier, hidden (a test model that is not in the list of the documents)]. Every one calls tools (the probe: a call, and the answer of the tool sent back).
 const ROWS = [
@@ -31,7 +31,7 @@ const ROWS = [
   ['longcat-2.0', 'LongCat 2.0', 'meituan', 'chat', false, DESC.go],
   ['hy4-preview', 'Hy4 Preview', 'tencent', 'chat', false, DESC.go],
   ['hy3', 'Hy3', 'tencent', 'chat', false, DESC.go],
-  ['space-bunny', 'Space Bunny', 'opencode', 'chat', true, DESC.hidden, 'free', true],
+  ['space-bunny', 'Space Bunny', 'opencode', 'chat', true, DESC.hiddenGo, null, true],
   ['longcat-2.5-preview-free', 'LongCat 2.5 Preview', 'meituan', 'chat', true, DESC.free, 'free'],
   ['step-5-preview-free', 'Step 5 Preview', 'stepfun', 'chat', true, DESC.free, 'free'],
   ['cat-jam-free', 'Cat Jam', 'opencode', 'chat', false, DESC.hidden, 'free', true],
