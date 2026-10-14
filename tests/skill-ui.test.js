@@ -20,6 +20,20 @@ afterEach(() => closeCliStore());
 
 const tick = (ms = 20) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// Waits until something is true, not for a number of milliseconds: opening a pack unzips it, and on a busy machine (the whole suite running at once) that takes
+// longer than any fixed wait. `soft`: when it does not come true in time, go on and let the assertions say what is missing.
+const until = async (condition, { timeout = 5000, soft = false } = {}) => {
+  const end = Date.now() + timeout;
+  while (!condition()) {
+    if (Date.now() > end) {
+      if (soft) return false;
+      throw new Error('waited for something that did not come');
+    }
+    await tick(5);
+  }
+  return true;
+};
+
 // The cloud table behind the store, in memory.
 function memoryClient(rows = []) {
   const stored = new Map();
@@ -347,8 +361,11 @@ const chooseFile = async (t, bytes, name = 'pack.zip') => {
   const input = t.root.querySelector('.cs-upload-input');
   const file = new t.window.File([bytes], name, { type: 'application/zip' });
   Object.defineProperty(input, 'files', { value: [file], configurable: true });
+  const noticesBefore = t.log.notices.length;
   input.dispatchEvent(new t.window.Event('change'));
-  await tick(120);
+  // The window of the pack opens, or a notice says why it does not.
+  await until(() => t.document.querySelector('.skill-bundle') || t.log.notices.length > noticesBefore, { soft: true });
+  await tick(20);
 };
 
 test('the upload button is on the skills part only, and without a cloud account it says so and takes no file', async () => {
@@ -400,7 +417,8 @@ test('a skill pack: its files are listed (scripts marked), one can be read, the 
   assert.equal(t.cloud.stored.size, 0, 'nothing is kept before "Add"');
 
   modal.querySelector('button[type="submit"]').click();
-  await tick(120);
+  await until(() => t.document.querySelector('.skill-bundle') === null && t.cloud.rows.length > 0, { soft: true });
+  await tick(20);
   assert.equal(t.document.querySelector('.skill-bundle') === null, true, 'the window closes');
   assert.equal(t.cloud.stored.size, 1);
   assert.deepEqual(t.settings.skillEnabledIds, ['sales-report']);
@@ -414,10 +432,10 @@ test('a skill pack: its files are listed (scripts marked), one can be read, the 
   const files = [...t.root.querySelectorAll('.cs-skill-file-path')].map((node) => node.textContent);
   assert.deepEqual(files, ['assets/logo.png', 'references/format.md', 'scripts/summary.py']);
   t.root.querySelectorAll('.cs-skill-file-button')[1].click();
-  await tick(120);
+  await until(() => t.root.querySelector('.cs-skill-file-text')?.textContent === '# Format\nUse bullets.\n', { soft: true });
   assert.equal(t.root.querySelector('.cs-skill-file-text').textContent, '# Format\nUse bullets.\n');
   t.root.querySelectorAll('.cs-skill-file-button')[0].click();
-  await tick(120);
+  await until(() => /not text/.test(t.root.querySelector('.cs-skill-file-note')?.textContent || ''), { soft: true });
   assert.match(t.root.querySelector('.cs-skill-file-note').textContent, /not text/);
   t.root.querySelectorAll('.cs-skill-file-button')[1].click();
   assert.equal(t.root.querySelector('.cs-skill-file-text') === null, true, 'a second click closes it');
