@@ -299,13 +299,13 @@ button.message-file-row:focus-visible { outline: 2px solid var(--link-color); ou
 @media (min-width: 641px) {
     .input-media-preview .ac-attach-card {
         flex: 0 0 auto;
-        width: 13.5rem;
-        height: 9.5rem;
+        width: 10.25rem;
+        height: 7.25rem;
         display: flex;
         flex-direction: column;
     }
     .input-media-preview .ac-attach-card[data-file-family="image"],
-    .input-media-preview .ac-attach-card[data-file-family="video"] { width: 9.5rem; }
+    .input-media-preview .ac-attach-card[data-file-family="video"] { width: 7.25rem; }
     .input-media-preview .ac-attach-card .ac-attach-thumb { flex: 1 1 0; height: auto; min-height: 0; }
     .input-media-preview .ac-attach-card .ac-attach-meta { flex: none; }
 }

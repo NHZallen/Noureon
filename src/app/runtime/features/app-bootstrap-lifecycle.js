@@ -7,6 +7,7 @@ import { getRuntimeText } from '../i18n/runtime-texts.js';
 import { removeLastComposerIndicatorOnDelete } from './composer-indicator-keyboard.js';
 import { openWhenBuilt, prepareWhenIdle } from './open-settings-when-built.js';
 import { installFileCardInteractions } from '../../ui/files/file-card-interactions.js';
+import { fitPopoverToViewport } from '../../ui/dom/fit-popover-to-viewport.js';
 import { collectSandboxInputs, setSandboxFileHooks } from '../../ui/sandbox/sandbox-files.js';
 import { installCodeHighlighting } from '../../ui/code/code-highlighting.js';
 import { codeOfCard } from '../../ui/sandbox/run-code-card.js';
@@ -946,6 +947,7 @@ export function createLegacyAppBootstrapLifecycle({
                     } else {
                         closeAllPopovers();
                         popover.classList.add('visible');
+                        fitPopoverToViewport(popover, window);
                         ALL_ELEMENTS.addFileBtn.setAttribute('aria-expanded', 'true');
                     }
                 });
