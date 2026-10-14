@@ -403,8 +403,8 @@ test('a reply says the depth in the request, in the form of the model, and says 
 test('a PDF goes to the models that read it (the probe of 2026-10-14), in the form of each API; any other file, and the other models, still go through the translator', async () => {
   const pdf = { inlineData: { mimeType: 'application/pdf', data: 'JVBERi0x', name: 'a.pdf' } };
   const docx = { inlineData: { mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', data: 'UEsDBA==', name: 'a.docx' } };
-  const reads = ['deepseek-v4-flash', 'hy3', 'grok-4.7', 'gpt-6-luna', 'claude-haiku-5-5', 'minimax-m3', 'qwen3.8-max'];
-  const refuses = ['glm-5.3', 'kimi-k3', 'kimi-k2.7-code', 'mimo-v2.6-pro', 'longcat-2.5-preview-free', 'cat-jam-free', 'deepseek-v4-flash-vision-exp'];
+  const reads = ['deepseek-v4-flash', 'hy3', 'grok-4.7', 'gpt-6-luna', 'claude-haiku-5-5', 'minimax-m3', 'minimax-m2.7', 'qwen3.8-max', 'muse-spark-1.3-contributor'];
+  const refuses = ['glm-5.3', 'kimi-k3', 'kimi-k2.7-code', 'mimo-v2.6-pro', 'longcat-2.5-preview-free', 'cat-jam-free', 'deepseek-v4-flash-vision-exp', 'deepseek-v4-pro', 'space-bunny', 'longcat-2.0'];
   for (const apiId of reads) {
     assert.equal(modelSupportsUploadedFile(model(apiId), pdf), true, `${apiId} reads a PDF`);
     assert.equal(modelSupportsUploadedFile(model(apiId), docx), false, `${apiId}: another kind of file is translated`);

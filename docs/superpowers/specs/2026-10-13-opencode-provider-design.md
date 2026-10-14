@@ -208,6 +208,6 @@ OpenCode 自己的 `variant.ts` 是一份對照（OpenCode 用戶端的設定，
 
 * **答 MANGO（已登記為直接讀 PDF）**：chat：deepseek-v4.1-flash、deepseek-v4-flash、mimo-v2.5、hy4-preview、hy3、step-5-preview-free；responses：grok-4.7、grok-4.6、gpt-6-luna、gpt-5.6-luna；messages：claude-haiku-5-5、minimax-m3、qwen3.8-max、qwen3.8-flash、qwen3.7-plus。
 * **拒絕檔案（400）**：glm-5.3-flash、glm-5.3、glm-5.2、kimi-k3、kimi-k2.7-code、deepseek-v4-flash-vision-exp、mimo-v2.6-flash、mimo-v2.6-pro、mimo-v2.5-pro、longcat-2.5-preview-free、cat-jam-free。這些繼續走「文件轉譯」。
-* **要用更大的 `--max-tokens` 重測**（推理用完 200 token，沒答出字，但請求被接受）：deepseek-v4-pro、space-bunny、muse-spark-1.3／1.2、minimax-m2.7；longcat-2.0 回「Endpoint is unavailable」。
+* **用 `--max-tokens 1500` 重測**：muse-spark-1.3／1.2、minimax-m2.7 答對，加進名單（共 18 個）；deepseek-v4-pro 答「Unknown」、space-bunny 答「Please attach the document.」，收了檔案但沒讀，不登記；longcat-2.0 仍回「Endpoint is unavailable」，之後再測。
 
 程式：`opencode-models.js` 的 `PDF_API_IDS`／`opencodeModelReadsPdf`；`modelSupportsUploadedFile` 對這些模型只放行 `application/pdf`（只測過 PDF），其他檔案類型仍轉譯；`modelSupportsDocumentUpload` 不變（它同時決定誰能當「文件轉譯模型」，這些模型只收 PDF，所以不能）。chat 的 `file`、responses 的 `input_file` 沿用既有 builder 的形狀，messages 加 `document` 區塊（`anthropic-messages-format.js`）。

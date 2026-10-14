@@ -74,12 +74,13 @@ const BY_ID = new Map(OPENCODE_GO_MODELS.flatMap((model) => [[model.id, model], 
 const VISION_IDS = new Set(OPENCODE_GO_MODELS.filter((model) => model.opencodeVision).flatMap((model) => [model.id, model.apiId]));
 
 // The models that read a PDF sent to them as it is, with no other model to translate it first (the probe of 2026-10-14, test `document`: a one-page PDF
-// with "The secret word is MANGO." was sent in the form of each model's API and the answer was MANGO). The others refused the file (400) or gave no
-// answer in the tokens asked (Muse Spark, DeepSeek V4 Pro, Space Bunny, MiniMax M2.7, LongCat 2.0: to be tried again with more tokens). Only PDFs were tried.
+// with "The secret word is MANGO." was sent in the form of each model's API and the answer was MANGO). The others refused the file (400) or took it and
+// did not read it (DeepSeek V4 Pro answered "Unknown", Space Bunny asked for the document); LongCat 2.0 was unavailable. Only PDFs were tried.
 const PDF_API_IDS = new Set([
   'deepseek-v4.1-flash', 'deepseek-v4-flash', 'mimo-v2.5', 'hy4-preview', 'hy3', 'step-5-preview-free',
   'grok-4.7', 'grok-4.6', 'gpt-6-luna', 'gpt-5.6-luna',
-  'claude-haiku-5-5', 'minimax-m3', 'qwen3.8-max', 'qwen3.8-flash', 'qwen3.7-plus'
+  'muse-spark-1.3-contributor', 'muse-spark-1.2-contributor',
+  'claude-haiku-5-5', 'minimax-m3', 'minimax-m2.7', 'qwen3.8-max', 'qwen3.8-flash', 'qwen3.7-plus'
 ]);
 
 export const isOpencodeModel = (model) => Boolean(model && model.provider === OPENCODE_GO_PROVIDER);
