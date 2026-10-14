@@ -469,9 +469,14 @@ test('a PDF goes to the models that read it (the probe of 2026-10-14), in the fo
   const docx = { inlineData: { mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', data: 'UEsDBA==', name: 'a.docx' } };
   const reads = ['deepseek-v4-flash', 'hy3', 'grok-4.7', 'gpt-6-luna', 'claude-haiku-5-5', 'minimax-m3', 'minimax-m2.7', 'qwen3.8-max', 'muse-spark-1.3-contributor', 'gemini-4-argon-contributor'];
   const refuses = ['glm-5.3', 'kimi-k3', 'kimi-k2.7-code', 'mimo-v2.6-pro', 'longcat-2.5-preview-free', 'cat-jam-free', 'deepseek-v4-flash-vision-exp', 'deepseek-v4-pro', 'space-bunny', 'longcat-2.0'];
+  // Word and PowerPoint files as they are: only the five that answered MANGO to both in the probe; for every other model they are translated.
+  const pptx = { inlineData: { mimeType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', data: 'UEsDBA==', name: 'a.pptx' } };
+  const officeReaders = ['grok-4.7', 'grok-4.6', 'gpt-6-luna', 'gpt-5.6-luna', 'gemini-4-argon-contributor'];
   for (const apiId of reads) {
     assert.equal(modelSupportsUploadedFile(model(apiId), pdf), true, `${apiId} reads a PDF`);
-    assert.equal(modelSupportsUploadedFile(model(apiId), docx), false, `${apiId}: another kind of file is translated`);
+    assert.equal(modelSupportsUploadedFile(model(apiId), docx), officeReaders.includes(apiId), `${apiId}: a Word file ${officeReaders.includes(apiId) ? 'goes as it is' : 'is translated'}`);
+    assert.equal(modelSupportsUploadedFile(model(apiId), pptx), officeReaders.includes(apiId), `${apiId}: a PowerPoint file`);
+    assert.equal(modelSupportsUploadedFile(model(apiId), { inlineData: { mimeType: 'application/vnd.ms-excel', data: 'AA==' } }), false, `${apiId}: any other file is translated`);
     assert.equal(modelSupportsDocumentUpload(model(apiId)), false, `${apiId} is not a translator of any file`);
   }
   for (const apiId of refuses) assert.equal(modelSupportsUploadedFile(model(apiId), pdf), false, `${apiId} does not take a file`);

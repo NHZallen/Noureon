@@ -87,10 +87,25 @@ const PDF_API_IDS = new Set([
   'claude-haiku-5-5', 'minimax-m3', 'minimax-m2.7', 'qwen3.8-max', 'qwen3.8-flash', 'qwen3.7-plus'
 ]);
 
+// The models that also read a Word (.docx) and a PowerPoint (.pptx) file as they are (the probe of 2026-10-14, test `office`: both files, each with "The secret word
+// is MANGO.", were sent in the form of each model's API; these answered MANGO to both). Every other model of the PDF list refused the file (400) or took it and
+// did not read it, so a Word or PowerPoint file is translated for them as before. Only these two kinds were tried.
+const OFFICE_API_IDS = new Set(['grok-4.7', 'grok-4.6', 'gpt-6-luna', 'gpt-5.6-luna', 'gemini-4-argon-contributor']);
+const OFFICE_MIME_TYPES = new Set([
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+]);
+
 export const isOpencodeModel = (model) => Boolean(model && model.provider === OPENCODE_GO_PROVIDER);
 /** The form of API of a model of OpenCode (`chat`, `responses` or `messages`), from this list and not from what the page says; '' for any other model. */
 export const opencodeFormatOf = (model) => (isOpencodeModel(model) ? BY_ID.get(model.id)?.opencodeFormat || '' : '');
 export const opencodeModelReadsPdf = (model) => isOpencodeModel(model) && PDF_API_IDS.has(BY_ID.get(model.id)?.apiId);
+/** True when the model reads a file of this type as it is: a PDF (the list above), or a Word or PowerPoint file (the shorter list). */
+export const opencodeModelReadsFile = (model, mimeType) => {
+  if (!isOpencodeModel(model)) return false;
+  if (mimeType === 'application/pdf') return PDF_API_IDS.has(BY_ID.get(model.id)?.apiId);
+  return OFFICE_MIME_TYPES.has(mimeType) && OFFICE_API_IDS.has(BY_ID.get(model.id)?.apiId);
+};
 export const opencodeModelSupportsVision = (model) => isOpencodeModel(model) && VISION_IDS.has(model.id);
 
 // The depth of thinking each model takes (the probe of 2026-10-13, §14 of the design: each depth tried alone). A model gives its thinking only in the

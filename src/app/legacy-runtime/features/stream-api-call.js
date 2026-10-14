@@ -454,6 +454,11 @@ const buildOpenRouterRequest = ({
 
 // The same conversation as Responses API input items. Models flagged for it (GPT-6.1 Sol) take tools only there;
 // OpenRouter's Responses endpoint is OpenAI's, so the shapes follow OpenAI's (input_text, input_image, input_file).
+// The name given to a file that came with none (the service reads the extension).
+const FILE_EXTENSIONS = {
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'pptx'
+};
 const buildOpenRouterResponsesInput = (messages) => messages.map((message) => {
   const role = message.role === 'model' ? 'assistant' : message.role;
   const content = [];
@@ -468,7 +473,7 @@ const buildOpenRouterResponsesInput = (messages) => messages.map((message) => {
       } else if (mimeType.startsWith('video/')) {
         content.push({ type: 'input_text', text: `[Attachment omitted: ${part.inlineData.name || mimeType}]` });
       } else {
-        content.push({ type: 'input_file', filename: part.inlineData.name || 'document.pdf', file_data: dataUrl });
+        content.push({ type: 'input_file', filename: part.inlineData.name || `document.${FILE_EXTENSIONS[mimeType] || 'pdf'}`, file_data: dataUrl });
       }
     }
   }

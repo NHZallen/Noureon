@@ -229,3 +229,11 @@ OpenCode 自己的 `variant.ts` 是一份對照（OpenCode 用戶端的設定，
 - **文件**：PDF 以 `inlineData`（`application/pdf`）直接讀，答對 MANGO，加進直接讀 PDF 的名單。
 - **工具**：函式呼叫可用；工具回合三種送回方式（全部 parts、去掉思考、只留呼叫）都成功，沿用原本 Gemini 的送回方式（保留 `thoughtSignature`）。
 - 圖片：可用（回答 Red）。
+
+### 2026-10-14 Word 與 PowerPoint 探測（`--tests office`，Allen 執行），已套用
+
+- 把同一句「The secret word is MANGO.」的 `.docx` 與 `.pptx`（`scripts/probe-files/`）照各模型的格式直接送：
+  - **兩種都答 MANGO（直接讀）**：grok-4.7、grok-4.6、gpt-6-luna、gpt-5.6-luna、gemini-4-argon-contributor。
+  - **拒絕（400）**：muse-spark-1.3／1.2-contributor（unsupported file type）、claude-haiku-5-5（只收 PDF）、deepseek-v4.1-flash、deepseek-v4-flash、mimo-v2.5、hy4-preview、step-5-preview-free。
+  - **收下但沒讀到**：hy3、minimax-m3、minimax-m2.7、qwen3.8-max、qwen3.8-flash、qwen3.7-plus（答「看不到文件」或亂答）。
+- 套用：`opencode-models.js` 的 `OFFICE_API_IDS`（上面五個）與 `opencodeModelReadsFile(model, mimeType)`；`modelSupportsUploadedFile` 對這五個放行 docx、pptx，其餘 OpenCode 模型仍先轉譯。只試了 docx、pptx，xlsx 與其他格式未試，仍轉譯。Responses 沒有檔名時依類型補 `.docx`／`.pptx`。

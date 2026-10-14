@@ -4,7 +4,7 @@ import {
     createModelIdCanonicalizer,
     normalizeCouncilConfig as normalizeLegacyCouncilConfig
 } from '../kernel/config-normalization.js';
-import { OPENCODE_GO_MODELS, OPENCODE_GO_MODEL_IDS, OPENCODE_GO_PROVIDER, OPENCODE_REASONING_CONFIGS, isOpencodeModel, opencodeModelReadsPdf, opencodeModelSupportsVision } from './opencode-models.js';
+import { OPENCODE_GO_MODELS, OPENCODE_GO_MODEL_IDS, OPENCODE_GO_PROVIDER, OPENCODE_REASONING_CONFIGS, isOpencodeModel, opencodeModelReadsFile, opencodeModelReadsPdf, opencodeModelSupportsVision } from './opencode-models.js';
 
 const MODEL_RELEASE_METADATA = Object.freeze({
     'gemini-3.8-flash': { releasedAt: 20260903, outputPricePerMillion: 3.75 },
@@ -512,8 +512,8 @@ export const modelSupportsUploadedFile = (model, file) => {
     if (mimeType.startsWith('image/') || mimeType.startsWith('video/')) {
         return modelSupportsVision(model);
     }
-    // OpenCode Go: only a PDF goes as it is (the one kind of file tried); any other document is translated first.
-    if (mimeType === 'application/pdf' && opencodeModelReadsPdf(model)) return true;
+    // OpenCode Go: a PDF goes as it is to the models that read one, a Word or PowerPoint file to the few that read those; any other document is translated first.
+    if (opencodeModelReadsFile(model, mimeType)) return true;
     return modelSupportsDocumentUpload(model);
 };
 
