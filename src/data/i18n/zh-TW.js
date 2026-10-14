@@ -1,5 +1,5 @@
-import { mergeLocale } from './parts/index.js';
+import { localeTexts } from './parts/index.js';
 
-const zhTW = mergeLocale('zh-TW');
+const zhTW = localeTexts('zh-TW');
 
 export default zhTW;

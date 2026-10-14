@@ -41,7 +41,9 @@
     {
       "path": "src/app/ui/model-picker/model-picker-texts.js",
       "table": "TEXTS",
-      "testOnlyExports": ["MODEL_PICKER_TEXT_KEYS"]
+      "testOnlyExports": [
+        "MODEL_PICKER_TEXT_KEYS"
+      ]
     },
     {
       "path": "src/app/runtime/cli/cli-texts.js",
@@ -54,6 +56,70 @@
     {
       "path": "src/app/runtime/connector/connector-texts.js",
       "table": "CONNECTOR_TEXTS"
+    },
+    {
+      "path": "src/data/i18n/parts/login.js",
+      "table": "default"
+    },
+    {
+      "path": "src/data/i18n/parts/app-ui.js",
+      "table": "default"
+    },
+    {
+      "path": "src/data/i18n/parts/model-switcher.js",
+      "table": "default"
+    },
+    {
+      "path": "src/data/i18n/parts/settings.js",
+      "table": "default"
+    },
+    {
+      "path": "src/data/i18n/parts/dialogs.js",
+      "table": "default"
+    },
+    {
+      "path": "src/data/i18n/parts/plan-editor.js",
+      "table": "default"
+    },
+    {
+      "path": "src/data/i18n/parts/menus.js",
+      "table": "default"
+    },
+    {
+      "path": "src/data/i18n/parts/nouras-store.js",
+      "table": "default"
+    },
+    {
+      "path": "src/data/i18n/parts/dashboard.js",
+      "table": "default"
+    },
+    {
+      "path": "src/data/i18n/parts/p2p-sync.js",
+      "table": "default"
+    },
+    {
+      "path": "src/data/i18n/parts/notifications.js",
+      "table": "default"
+    },
+    {
+      "path": "src/data/i18n/parts/model-descriptions.js",
+      "table": "default"
+    },
+    {
+      "path": "src/data/i18n/parts/official-nouras.js",
+      "table": "default"
+    },
+    {
+      "path": "src/data/i18n/parts/account-and-sync-password.js",
+      "table": "default"
+    },
+    {
+      "path": "src/data/i18n/parts/memory-and-import.js",
+      "table": "default"
+    },
+    {
+      "path": "src/data/i18n/parts/chat-actions-and-errors.js",
+      "table": "default"
     }
   ]
 }

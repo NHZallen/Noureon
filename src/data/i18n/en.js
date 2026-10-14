@@ -1,5 +1,5 @@
-import { mergeLocale } from './parts/index.js';
+import { localeTexts } from './parts/index.js';
 
-const en = mergeLocale('en');
+const en = localeTexts('en');
 
 export default en;

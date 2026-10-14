@@ -1,5 +1,5 @@
-import { mergeLocale } from './parts/index.js';
+import { localeTexts } from './parts/index.js';
 
-const ru = mergeLocale('ru');
+const ru = localeTexts('ru');
 
 export default ru;

@@ -177,3 +177,62 @@ test('the plugin cuts only in the build: the dev server and the tests use the wh
   assert.equal(plugin.resolveId('virtual:language-packs'), '\0virtual:language-packs');
   assert.equal(plugin.resolveId('./other.js'), null);
 });
+
+test('the texts of a language for the app: full at once outside the cut build, and `onLanguageLoaded` answers at once there', async () => {
+  const { localeTexts, mergeLocale } = await import('../src/data/i18n/parts/index.js');
+  const { onLanguageLoaded } = await import('../src/app/i18n/language-packs.js');
+  const english = localeTexts('en');
+  assert.deepEqual({ ...english }, mergeLocale('en'));
+  assert.ok(Object.keys(english).length > 500);
+  let called = 0;
+  onLanguageLoaded('fr', () => { called += 1; });
+  assert.equal(called, 1);
+  const { default: i18n } = await import('../src/data/i18n/index.js');
+  assert.deepEqual(Object.keys(i18n).sort(), [...LANGUAGES].sort());
+  for (const language of LANGUAGES) assert.equal(i18n[language].login !== undefined, true, language);
+});
+
+test('every part of the interface texts is in the registry, so none is left in the startup file', async () => {
+  const { parts } = await import('../src/data/i18n/parts/index.js');
+  const { readdirSync } = await import('node:fs');
+  const files = readdirSync(resolve('src/data/i18n/parts')).filter((name) => name.endsWith('.js') && name !== 'index.js');
+  assert.equal(files.length, parts.length, 'every file of parts/ is in the list of parts/index.js');
+  for (const name of files) {
+    assert.ok(registry.modules.some((entry) => entry.path === `src/data/i18n/parts/${name}` && entry.table === 'default'), `${name} is in scripts/language-split-modules.json`);
+  }
+});
+
+// A text module with the five languages side by side that is over this many bytes must be cut by language (scripts/language-split-modules.json), or
+// be here with the reason it is not: a new one that is neither would grow the file the page loads at start for every language (NOU-17).
+const SPLIT_LIMIT_BYTES = 8 * 1024;
+const NOT_SPLIT = {
+  'src/data/home-texts.js': 'the home page before sign-in has its own five-language build and numbers worked out from the registry; to look at separately',
+  'src/data/skill-catalog.js': 'the catalogue of skills is data of a chunk of its own, loaded when the Extensions page opens',
+  'src/data/skill-catalog-guides.js': 'the guides of the skills, in the same lazy chunk as the catalogue',
+  'src/app/runtime/legacy-core/model-registry.js': 'the labels of the registry are lists in code (reasoning levels), not a table of words',
+  'src/app/runtime/legacy-core/settings-memory-summary-controls.js': 'texts written inside the code of a settings control, not a table of words'
+};
+
+test('a new text module with the five languages side by side must be cut by language, or say why it is not', async () => {
+  const { readdirSync, statSync } = await import('node:fs');
+  const files = [];
+  const walk = (folder) => {
+    for (const entry of readdirSync(folder, { withFileTypes: true })) {
+      const path = join(folder, entry.name);
+      if (entry.isDirectory()) walk(path);
+      else if (entry.name.endsWith('.js') && statSync(path).size > SPLIT_LIMIT_BYTES) files.push(path);
+    }
+  };
+  walk(resolve('src'));
+  const registered = new Set(registry.modules.map((entry) => resolve(entry.path)));
+  const sideBySide = /^\s*['"]?zh-TW['"]?\s*:\s*\{/m;
+  const found = [];
+  for (const file of files) {
+    const text = readFileSync(file, 'utf8');
+    if (!sideBySide.test(text) || !/^\s*['"]?ru['"]?\s*:\s*\{/m.test(text)) continue;
+    found.push(file.slice(resolve('.').length + 1).replace(/\\/g, '/'));
+  }
+  const missing = found.filter((path) => !registered.has(resolve(path)) && !NOT_SPLIT[path]);
+  assert.deepEqual(missing, [], `these text modules (over ${SPLIT_LIMIT_BYTES} bytes, five languages side by side) are not in scripts/language-split-modules.json: add them there (table: the name of the constant, or "default"), or list them in NOT_SPLIT of this test with the reason`);
+  for (const path of Object.keys(NOT_SPLIT)) assert.ok(found.includes(path), `${path} is listed in NOT_SPLIT but is no longer a text module of this kind: take it out of the list`);
+});

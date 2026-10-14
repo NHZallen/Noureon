@@ -1,3 +1,4 @@
+import { isLanguageLoaded, isLanguageSplit, onLanguageLoaded, readBeforeLoaded } from '../../../app/i18n/language-packs.js';
 import login from './login.js';
 import appUi from './app-ui.js';
 import modelSwitcher from './model-switcher.js';
@@ -36,4 +37,19 @@ const parts = [
 
 const mergeLocale = (locale) => Object.assign({}, ...parts.map((part) => part[locale]));
 
-export { parts, mergeLocale };
+// The texts of a language for the app (`i18n[language]`). In the browser build the parts are cut by language (NOU-17): the object is made empty and filled
+// once the words of the language are loaded (src/app/i18n/language-packs.js); read before that, it loads them and says so once. Everywhere else
+// (tests, the server, the scripts) the parts are whole and the object is full at once.
+const localeTexts = (locale) => {
+    const live = mergeLocale(locale);
+    onLanguageLoaded(locale, () => Object.assign(live, mergeLocale(locale)));
+    if (!isLanguageSplit) return live;
+    return new Proxy(live, {
+        get(target, property, receiver) {
+            if (typeof property === 'string' && !isLanguageLoaded(locale)) readBeforeLoaded(locale, 'src/data/i18n');
+            return Reflect.get(target, property, receiver);
+        }
+    });
+};
+
+export { parts, mergeLocale, localeTexts };

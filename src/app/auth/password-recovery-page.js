@@ -1,4 +1,5 @@
 import i18n from '../../data/i18n/index.js';
+import { ensureLanguage, isLanguageLoaded } from '../i18n/language-packs.js';
 import { setButtonBusy as markButtonBusy } from '../ui/motion/busy-button.js';
 import { createTurnstileClient } from '../runtime/security/turnstile-client.js';
 import { getSupabaseClient, isSupabaseConfigured } from './supabase-client.js';
@@ -169,18 +170,23 @@ function bindLanguageSwitcher({ window, document, route, getLanguage, setLanguag
     menu.classList.toggle('hidden', !opening);
     button.setAttribute('aria-expanded', String(opening));
   });
+  const choose = (language) => {
+    setLanguage(language);
+    window.sessionStorage.setItem(RECOVERY_LANGUAGE_KEY, language);
+    const url = new URL(window.location.href);
+    url.searchParams.set('lang', language);
+    window.history.replaceState({}, document.title, `${url.pathname}${url.search}`);
+    menu.classList.add('hidden');
+    button.setAttribute('aria-expanded', 'false');
+    applyLanguage(document, language, route);
+  };
   document.querySelectorAll('[data-recovery-language]').forEach((option) => {
     option.addEventListener('click', (event) => {
       event.preventDefault();
       const language = normalizeLanguage(option.dataset.recoveryLanguage);
-      setLanguage(language);
-      window.sessionStorage.setItem(RECOVERY_LANGUAGE_KEY, language);
-      const url = new URL(window.location.href);
-      url.searchParams.set('lang', language);
-      window.history.replaceState({}, document.title, `${url.pathname}${url.search}`);
-      menu.classList.add('hidden');
-      button.setAttribute('aria-expanded', 'false');
-      applyLanguage(document, language, route);
+      // The words of the language first (the text is cut by language, NOU-17); the page stays in the one it shows if they cannot be had.
+      if (isLanguageLoaded(language)) choose(language);
+      else ensureLanguage(language).then(() => choose(language), () => {});
     });
   });
   applyLanguage(document, getLanguage(), route);
@@ -408,6 +414,7 @@ export async function initializePasswordRecoveryPage({
     : forgotPasswordMarkup();
 
   let language = getStoredLanguage(window);
+  await ensureLanguage(language).catch(() => {});
   const text = (key, fallback) => (i18n[language] || i18n.en)[key] || fallback;
   bindLanguageSwitcher({
     window,

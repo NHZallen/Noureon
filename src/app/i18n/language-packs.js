@@ -11,6 +11,7 @@ export const DEFAULT_PACK_LANGUAGE = 'zh-TW';
 const split = typeof __LANGUAGE_SPLIT__ !== 'undefined' && __LANGUAGE_SPLIT__ === true;
 const loaded = new Set();
 const loading = new Map();
+const waiting = new Map();
 
 /** The language of a pack for any code: a language the app does not have is the default one. */
 export const resolvePackLanguage = (language) => (LANGUAGE_PACK_LANGUAGES.includes(language) ? language : DEFAULT_PACK_LANGUAGE);
@@ -21,7 +22,19 @@ let startupLanguage = null;
 export const setStartupLanguage = (language) => { startupLanguage = resolvePackLanguage(language); };
 export const getStartupLanguage = () => startupLanguage;
 
+export const isLanguageSplit = split;
 export const isLanguageLoaded = (language) => !split || loaded.has(resolvePackLanguage(language));
+
+/** Runs `callback` when the words of a language are in (at once when they are, and in the whole build, where they always are). */
+export function onLanguageLoaded(language, callback) {
+  const resolved = resolvePackLanguage(language);
+  if (!split || loaded.has(resolved)) {
+    callback();
+    return;
+  }
+  if (!waiting.has(resolved)) waiting.set(resolved, []);
+  waiting.get(resolved).push(callback);
+}
 
 /** Loads the words of a language (once; at the same time for every table). Resolves with the language that was loaded; rejects when a file cannot be had (offline and not cached). */
 export function ensureLanguage(language) {
@@ -35,6 +48,8 @@ export function ensureLanguage(language) {
         fillLanguageSlot(moduleId, resolved, module.default);
       }));
       loaded.add(resolved);
+      for (const callback of waiting.get(resolved) || []) callback();
+      waiting.delete(resolved);
       return resolved;
     })();
     // A failed load is forgotten, so the next call tries again.
@@ -45,11 +60,12 @@ export function ensureLanguage(language) {
 
 // A text read before its language is in: load the language now, and say so once (the page loads the language it shows, so this is a bug to look at).
 const warned = new Set();
-setEarlyReadHandler((language, moduleId) => {
+export function readBeforeLoaded(language, where) {
   if (!split || loaded.has(language)) return;
   if (!warned.has(language)) {
     warned.add(language);
-    console.warn(`Words of "${language}" were read before they were loaded (${moduleId}); loading them now.`);
+    console.warn(`Words of "${language}" were read before they were loaded (${where}); loading them now.`);
   }
   ensureLanguage(language).catch(() => {});
-});
+}
+setEarlyReadHandler(readBeforeLoaded);

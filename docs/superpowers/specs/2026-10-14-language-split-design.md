@@ -90,3 +90,10 @@
 * 用 Chromium 開建置後的頁面，中文、英文、法文、俄文系統語言各只下載自己的 `texts-*.js`；用本機帳號登入後進到主畫面、點遍設定的每個分頁與「擴充」頁，畫面上沒有看起來像文字鍵名的字，主控台沒有錯誤或警告。
 * **這一階段找到的啟動順序問題**：`createCliMode` 在建構時就呼叫 `cliText(getUiLanguage(), …)`，那時設定的 `uiLanguage` 還是預設的 `zh-TW`，而頁面載入的是系統語言，所以會讀到沒載入的語言。處理：(1) `language-packs.js` 記住啟動語言（`setStartupLanguage`，`src/main.js` 在做任何事之前設定），設定預設值的 `uiLanguage` 用它（`kernel/config-store.js`，測試沒設定時仍是 `zh-TW`）；(2) 保險：槽被讀到卻還沒載入時，會在背景載入該語言並在主控台警告一次（`language-slots.js` 的代理），這樣漏掉的地方只會在下一次渲染時補好，不會永遠顯示鍵名。
 * 新增的測試：每個登記的模組在語言都是空的時候仍能載入，並且載入時算出來的非函式匯出（如鍵名清單）與完整模組相同（不同的要列在 `testOnlyExports`：`SANDBOX_TEXT_KEYS`、`MODEL_PICKER_TEXT_KEYS` 只有測試在用）。
+
+## 10. 階段 3、4 的結果（2026-10-14）
+
+* **階段 3**：`parts/*.js` 十六個檔案全部登記（`default` 形狀）。`mergeLocale` 保留給測試與腳本（未切片時使用）；新增 `localeTexts(語言)`（`parts/index.js`）：建置時先給一個空物件，語言載入後才把內容併進同一個物件（`onLanguageLoaded`，語言已載入時立刻執行，所以不管兩個非同步載入誰先完成都對），建置版本外包一層代理，語言還沒載入就被讀到時會背景載入並警告一次；測試、伺服器、腳本拿到的仍是完整物件。`zh-TW.js`、`en.js`、`fr.js`、`ru.js`、`es.js` 改呼叫 `localeTexts`。密碼救援頁（直接 `import i18n`）在初始化與切換語言時先載入語言（已載入時維持原本的同步行為）。
+* **結果**：啟動時的 `i18n-*.js` 從 289.6 KB／壓縮 84.5 KB 降到 **4.4 KB／0.7 KB**；每個語言的文字檔 `texts-<語言>-*.js`（所有 runtime 表加介面文字）壓縮後 28.3（en）至 36.9 KB（ru）。以英文使用者為例，啟動時文字相關的下載從 約 141 KB（i18n 84.5 加 runtime 表約 56）降到 28.3 KB。`legacy-submit-input` 壓縮 98.3 KB。
+* **階段 4**：`tests/language-split.test.js` 新增兩項守門：`parts/` 的每個檔案都在登記表；任何 `src` 底下超過 8 KB、五種語言並排的文字模組，如果不在登記表也不在測試裡的 `NOT_SPLIT`（附理由）就失敗。`AGENTS.md` 多一條給兩個人的規則。
+* **還沒做、之後可以另外評估**（都在 `NOT_SPLIT`）：`home-texts`（登入前首頁，42 KB，壓縮約 15.5 KB，首頁自己有五語言與從登錄表算出的數字）、`skill-catalog*`（已經是延遲載入）。
