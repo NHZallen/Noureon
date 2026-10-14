@@ -163,6 +163,10 @@ export function createLegacyBatchImportVoiceLifecycle(dependencies = {}) {
                 }
             }
         });
+        // The open conversation is left at once, for a new chat; memory and saving come after.
+        if (selectedConversationIds.has(conversationStateAccess.getCurrentConversationId())) {
+            await startNewChat({ keepSidebarOpen: true });
+        }
         const invalidateConversationMemory = typeof legacyRuntimeContext.resolveOptionalBinding === 'function'
             ? legacyRuntimeContext.resolveOptionalBinding('memory.invalidateConversation')
             : null;
@@ -174,11 +178,6 @@ export function createLegacyBatchImportVoiceLifecycle(dependencies = {}) {
                     skipSummaryRebuild: index < ids.length - 1
                 });
             }
-        }
-        if (selectedConversationIds.has(conversationStateAccess.getCurrentConversationId())) {
-            const nextConv = conversations.find(c => !c.archived && !c.deletedAt);
-            conversationStateAccess.setCurrentConversationId(nextConv ? nextConv.id : null);
-            if (!conversationStateAccess.getCurrentConversationId()) startNewChat();
         }
         await saveAppData({ immediateCloudSync: true });
         toggleSelectionMode();

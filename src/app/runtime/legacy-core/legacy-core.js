@@ -707,14 +707,14 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             }
             conv.folderId = null;
         }
-        await invalidateConversationMemory({ conversationId: id });
-        await saveAppData({ immediateCloudSync: true });
-
+        // The open conversation is left at once; saving and the cloud sync come after.
         if (conversationStateAccess.getCurrentConversationId() === id) {
             await startNewChat({ keepSidebarOpen: true });
         } else {
             runtimeRenderCoordinator.renderSidebar();
         }
+        await invalidateConversationMemory({ conversationId: id });
+        await saveAppData({ immediateCloudSync: true });
         runtimeDialogCoordinator.showNotification(i18n[runtimeConfigAccess.getUiLanguage()].chatMovedToTrash || 'Chat moved to trash.', 'success');
     }
 };

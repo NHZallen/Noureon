@@ -147,15 +147,15 @@ test('deleteChat preserves deletion and folder unlink mutations', () => {
   ], 'deleteChat deletion and folder unlink');
 });
 
-test('deleteChat preserves persistence, active fallback, render, and notification ordering', () => {
+test('deleteChat leaves the open conversation first, then saves, and notifies last', () => {
   const body = getConstFunctionBody(legacyCoreSource, 'deleteChat');
 
   assertMarkersInOrder(body, [
-    'await saveAppData({ immediateCloudSync: true })',
     'if (conversationStateAccess.getCurrentConversationId() === id)',
     'await startNewChat({ keepSidebarOpen: true })',
     'else {',
     'runtimeRenderCoordinator.renderSidebar()',
+    'await saveAppData({ immediateCloudSync: true })',
     'runtimeDialogCoordinator.showNotification('
   ], 'deleteChat side effects');
   assert.match(body, /chatMovedToTrash\s*\|\|/);

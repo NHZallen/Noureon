@@ -1931,7 +1931,7 @@ test('runtime core dependencies preserve their backing-state creation order', ()
     'const runtimeConfigAccess = createRuntimeConfigAccess({',
     'createDialogNotificationLifecycle({',
     'const runtimeDialogCoordinator = createRuntimeDialogCoordinator({',
-    'createArchivedMediaAttachmentRenderer({ escapeHTML })',
+    'createArchivedMediaAttachmentRenderer({ escapeHTML, getUiLanguage: () => runtimeConfigAccess.getUiLanguage() })',
     'createArchivedMediaPreviewLifecycle({',
     'createArchivedConversationViewRenderer({',
     'const runtimeRenderCoordinator = createRuntimeRenderCoordinator({',
@@ -2316,7 +2316,7 @@ test('runtime render coordinator keeps sidebar-only updates out of the chat rend
     assert.match(body, /runtimeRenderCoordinator\.renderSidebar\(\)/);
     assert.doesNotMatch(body, /runtimeRenderCoordinator\.renderAll\(\)/);
   }
-  assert.match(deleteChatBody, /conv\.deletedAt\s*=\s*deletedAt;[\s\S]*?await\s+invalidateConversationMemory\(\{\s*conversationId:\s*id\s*\}\);[\s\S]*?await\s+saveAppData\(\{\s*immediateCloudSync:\s*true\s*\}\);/);
+  assert.match(deleteChatBody, /conv\.deletedAt\s*=\s*deletedAt;[\s\S]*?await\s+startNewChat\([\s\S]*?await\s+invalidateConversationMemory\(\{\s*conversationId:\s*id\s*\}\);[\s\S]*?await\s+saveAppData\(\{\s*immediateCloudSync:\s*true\s*\}\);/);
 
   assert.match(handleRenameBody, /await\s+saveAppData\(\);\s*runtimeRenderCoordinator\.renderSidebar\(\);\s*toggleModal\(ALL_ELEMENTS\.renameModal,\s*false\);\s*itemToRename\s*=\s*\{\s*id:\s*null,\s*type:\s*null\s*\};/);
 
@@ -2373,7 +2373,7 @@ test('runtime dialog coordinator forwards the extracted dialog notification life
     assert.doesNotMatch(body, /(^|[^\w.])showNotification\(/);
   }
 
-  assert.match(deleteChatBody, /else\s*\{\s*runtimeRenderCoordinator\.renderSidebar\(\);\s*\}\s*runtimeDialogCoordinator\.showNotification\(i18n\[runtimeConfigAccess\.getUiLanguage\(\)\]\.chatMovedToTrash\s*\|\|\s*'[^']*',\s*'success'\);/);
+  assert.match(deleteChatBody, /else\s*\{\s*runtimeRenderCoordinator\.renderSidebar\(\);\s*\}[\s\S]*?runtimeDialogCoordinator\.showNotification\(i18n\[runtimeConfigAccess\.getUiLanguage\(\)\]\.chatMovedToTrash\s*\|\|\s*'[^']*',\s*'success'\);/);
   assert.match(deactivateAstrasBody, /runtimeRenderCoordinator\.renderSidebar\(\);\s*renderInputIndicators\(\);\s*legacyRuntimeContext\.resolveBinding\('input\.updateInputState'\)\(\);\s*runtimeDialogCoordinator\.showNotification\(/);
   assert.match(deleteAstrasBody, /runtimeRenderCoordinator\.renderSidebar\(\);\s*renderInputIndicators\(\);\s*runtimeDialogCoordinator\.showNotification\(/);
   assert.match(handleBatchArchiveBody, /await\s+saveAppData\(\);\s*toggleSelectionMode\(\);\s*runtimeDialogCoordinator\.showNotification\(/);
@@ -2570,9 +2570,11 @@ test('conversation state access owns selected active conversation lookups withou
 
   for (const batchBody of [batchDeleteBody, batchArchiveBody]) {
     assert.match(batchBody, /selectedConversationIds\.has\(conversationStateAccess\.getCurrentConversationId\(\)\)/);
-    assert.match(batchBody, /conversationStateAccess\.setCurrentConversationId\(nextConv\s*\?\s*nextConv\.id\s*:\s*null\)/);
     assert.doesNotMatch(batchBody, /\bactiveConversationId\b/);
   }
+  // Trashing the open conversations leaves for a new chat at once; archiving picks the next live one.
+  assert.match(batchDeleteBody, /await startNewChat\(\{ keepSidebarOpen: true \}\)/);
+  assert.match(batchArchiveBody, /conversationStateAccess\.setCurrentConversationId\(nextConv\s*\?\s*nextConv\.id\s*:\s*null\)/);
 
   assert.doesNotMatch(fragment00Source, /const\s+getActiveConversation\s*=\s*\(\)\s*=>\s*\{\s*const\s+conv\s*=\s*conversations\.find\(c\s*=>\s*c\.id\s*===\s*activeConversationId\)/);
   assert.doesNotMatch(fragment02Source, /conv\.id\s*===\s*activeConversationId/);

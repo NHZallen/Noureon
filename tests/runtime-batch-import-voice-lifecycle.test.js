@@ -255,7 +255,6 @@ test('batch delete uses live selection getters and preserves persistence orderin
   ]);
   assert.deepEqual(harness.calls.map((call) => call[0]), [
     'showCustomConfirm',
-    'setCurrentConversationId',
     'startNewChat',
     'saveAppData',
     'toggleSelectionMode',
@@ -287,7 +286,7 @@ test('batch delete marks every selected conversation as trashed before invalidat
   assert.ok(harness.conversations.every(conversation => conversation.deletedAt));
 });
 
-test('batch delete falls back to the next live conversation without starting a new chat when possible', async () => {
+test('batch delete leaves the open conversation for a new chat at once, even when another one could be shown', async () => {
   const harness = createHarness({
     selectedConversationIds: new Set(['c1']),
     currentConversationId: 'c1',
@@ -303,11 +302,9 @@ test('batch delete falls back to the next live conversation without starting a n
   assert.equal(harness.conversations[0].stateUpdatedAt, harness.conversations[0].deletedAt);
   assert.equal(harness.conversations[0].trashStateUpdatedAt, harness.conversations[0].deletedAt);
   assert.equal(harness.conversations[0].lastUpdatedAt, undefined);
-  assert.equal(harness.currentConversationId, 'c2');
-  assert.equal(harness.calls.some((call) => call[0] === 'startNewChat'), false);
   assert.deepEqual(harness.calls.map((call) => call[0]), [
     'showCustomConfirm',
-    'setCurrentConversationId',
+    'startNewChat',
     'saveAppData',
     'toggleSelectionMode',
     'showNotification'
