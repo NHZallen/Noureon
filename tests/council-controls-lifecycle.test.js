@@ -24,6 +24,7 @@ const MODELS = [
 ];
 const REASONING = { options: ['low', 'medium', 'high'], defaultEffort: 'medium' };
 
+const dialogs = [];
 const createHarness = (overrides = {}) => {
   const { document, cleanup } = createDom(`
     <div id="input-controls">
@@ -110,7 +111,7 @@ const createHarness = (overrides = {}) => {
       calls.push(['seedCouncilParticipants']);
       if (!target.council.participantModelIds?.length) target.council.participantModelIds = ['model-a'];
     },
-    showCustomDialog: async () => true,
+    showCustomDialog: async (options) => { dialogs.push(options); return true; },
     showNotification: (message, type) => calls.push(['showNotification', message, type])
   });
   return { calls, cleanup, config, conversation, document, lifecycle };
@@ -234,6 +235,36 @@ test('a model that needs its terms accepted is chosen once they are, and remembe
     assert.equal(conversation.model, 'model-b', 'the harness dialog accepts');
     assert.deepEqual(config.acknowledgedStealthModelTerms, ['model-b'], 'remembered so it is asked once');
   } finally {
+    delete MODELS[1].requiresStealthTermsAcknowledgement;
+    cleanup();
+  }
+});
+
+test('a hidden test model (OpenCode Go) says what it is the first time, in its own words and with no terms page, and carries a tag in the list', async () => {
+  const { cleanup, conversation, config, document, lifecycle } = createHarness({ conversation: singleConversation() });
+  MODELS[1].hiddenModel = true;
+  MODELS[1].requiresStealthTermsAcknowledgement = true;
+  dialogs.length = 0;
+  try {
+    lifecycle.renderCouncilControls();
+    document.querySelector('#model-picker-btn').click();
+    assert.ok([...document.querySelectorAll('[data-mp-model="model-b"] .mp-tag')].some((tag) => tag.textContent === 'Test'), 'the list says it is a test model');
+    document.querySelector('[data-mp-model="model-b"]').click();
+    await settle();
+    assert.equal(dialogs.length, 1);
+    assert.equal(dialogs[0].title, 'Hidden test model');
+    assert.match(dialogs[0].message, /hidden test model of OpenCode Go/);
+    assert.equal('messageParts' in dialogs[0], false, 'no link to OpenRouter\'s terms');
+    assert.equal(conversation.model, 'model-b');
+    assert.deepEqual(config.acknowledgedStealthModelTerms, ['model-b']);
+    // The second time nothing is asked.
+    conversation.model = 'model-a';
+    document.querySelector('#model-picker-btn').click();
+    document.querySelector('[data-mp-model="model-b"]').click();
+    await settle();
+    assert.equal(dialogs.length, 1);
+  } finally {
+    delete MODELS[1].hiddenModel;
     delete MODELS[1].requiresStealthTermsAcknowledgement;
     cleanup();
   }

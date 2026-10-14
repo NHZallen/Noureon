@@ -20,7 +20,7 @@ const ICONS = Object.freeze({
 const metaLine = (model, escape) => [model.providerLabel, ...model.abilities].filter(Boolean).map(escape).join(' · ');
 
 function renderRowBody(model, { t, escape }) {
-  const tag = model.free ? `<span class="mp-tag">${escape(t('free'))}</span>` : '';
+  const tag = (model.free ? `<span class="mp-tag">${escape(t('free'))}</span>` : '') + (model.hidden ? `<span class="mp-tag">${escape(t('hiddenModel'))}</span>` : '');
   const retire = model.retirement ? `<span class="mp-retire">${escape(model.retirement)}</span>` : '';
   return `<span class="mp-row-main"><span class="mp-row-name">${escape(model.name)}${tag}${retire}</span><span class="mp-row-meta">${metaLine(model, escape)}</span></span>`;
 }

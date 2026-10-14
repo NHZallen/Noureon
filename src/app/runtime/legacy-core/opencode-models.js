@@ -11,9 +11,9 @@ export const OPENCODE_GO_BASE_URL = 'https://opencode.ai/inference/go/v1';
 export const OPENCODE_FORMATS = Object.freeze(['chat', 'responses', 'messages']);
 
 // The text of the price/privacy line of a model (`<key>_tier_paid` or `_tier_free` in the texts of the models).
-const DESC = Object.freeze({ go: 'model_opencode_go_desc', go30: 'model_opencode_go30_desc', muse: 'model_opencode_muse_desc', free: 'model_opencode_free_desc' });
+const DESC = Object.freeze({ go: 'model_opencode_go_desc', go30: 'model_opencode_go30_desc', muse: 'model_opencode_muse_desc', free: 'model_opencode_free_desc', hidden: 'model_opencode_hidden_desc' });
 
-// [id at OpenCode, name, company, form of API, takes pictures, line of text]. Every one calls tools (the probe: a call, and the answer of the tool sent back).
+// [id at OpenCode, name, company, form of API, takes pictures, line of text, tier, hidden (a test model that is not in the list of the documents)]. Every one calls tools (the probe: a call, and the answer of the tool sent back).
 const ROWS = [
   ['kimi-k3', 'Kimi K3', 'moonshotai', 'chat', true, DESC.go],
   ['kimi-k2.7-code', 'Kimi K2.7 Code', 'moonshotai', 'chat', true, DESC.go],
@@ -31,10 +31,10 @@ const ROWS = [
   ['longcat-2.0', 'LongCat 2.0', 'meituan', 'chat', false, DESC.go],
   ['hy4-preview', 'Hy4 Preview', 'tencent', 'chat', false, DESC.go],
   ['hy3', 'Hy3', 'tencent', 'chat', false, DESC.go],
-  ['space-bunny', 'Space Bunny', 'opencode', 'chat', true, DESC.go],
+  ['space-bunny', 'Space Bunny', 'opencode', 'chat', true, DESC.hidden, 'free', true],
   ['longcat-2.5-preview-free', 'LongCat 2.5 Preview', 'meituan', 'chat', true, DESC.free, 'free'],
   ['step-5-preview-free', 'Step 5 Preview', 'stepfun', 'chat', true, DESC.free, 'free'],
-  ['cat-jam-free', 'Cat Jam', 'opencode', 'chat', false, DESC.free, 'free'],
+  ['cat-jam-free', 'Cat Jam', 'opencode', 'chat', false, DESC.hidden, 'free', true],
   ['grok-4.7', 'Grok 4.7', 'x-ai', 'responses', true, DESC.go30],
   ['grok-4.6', 'Grok 4.6', 'x-ai', 'responses', true, DESC.go30],
   ['gpt-6-luna', 'GPT-6 Luna', 'openai', 'responses', true, DESC.go30],
@@ -52,7 +52,7 @@ const ROWS = [
 // The day the models were put in the list (the order of the menu is by day, then name: no price per token is known, the limit is the one of the plan).
 const ADDED_AT = 20261013;
 
-export const OPENCODE_GO_MODELS = Object.freeze(ROWS.map(([apiId, name, company, format, vision, descriptionKey, tier]) => Object.freeze({
+export const OPENCODE_GO_MODELS = Object.freeze(ROWS.map(([apiId, name, company, format, vision, descriptionKey, tier, hidden]) => Object.freeze({
   id: `${OPENCODE_GO_PROVIDER}/${apiId}`,
   apiId,
   name: `OpenCode ${name}`,
@@ -61,6 +61,8 @@ export const OPENCODE_GO_MODELS = Object.freeze(ROWS.map(([apiId, name, company,
   descriptionKey,
   category: 'general',
   ...(tier ? { tier: [tier] } : {}),
+  // A hidden (test) model: the first time it is chosen, a window says what that means (the same window the stealth models of OpenRouter have).
+  ...(hidden ? { hiddenModel: true, requiresStealthTermsAcknowledgement: true } : {}),
   opencodeFormat: format,
   opencodeVision: vision,
   releasedAt: ADDED_AT,

@@ -134,6 +134,7 @@ export function createCouncilControlsLifecycle(deps) {
         modelSupportsWebSearch(model) ? t('search') : ''
       ].filter(Boolean),
       free: tiers.includes('free'),
+      hidden: Boolean(model.hiddenModel),
       retirement: getModelRetirementLabel(model) || '',
       description,
       selected,
@@ -445,7 +446,19 @@ export function createCouncilControlsLifecycle(deps) {
     const translations = getI18n()[config.uiLanguage] || {};
     const acknowledged = Array.isArray(config.acknowledgedStealthModelTerms) ? config.acknowledgedStealthModelTerms : [];
     const acknowledgementId = info.stealthTermsAcknowledgementId || info.id;
-    if (info.requiresStealthTermsAcknowledgement && !acknowledged.includes(acknowledgementId)) {
+    if (info.hiddenModel && !acknowledged.includes(acknowledgementId)) {
+      // A hidden (test) model of OpenCode Go: what that means, with no terms page to link to (OpenCode's announcements are the word on it).
+      const accepted = await showCustomDialog({
+        title: translations.hiddenModelTermsTitle || 'Hidden test model',
+        message: translations.hiddenModelTermsMessage || 'This is a hidden test model of OpenCode Go. It may be renamed, changed or removed at any time. For its data retention and whether it is used for training, follow what OpenCode announces.',
+        buttons: [
+          { text: translations.cancel || 'Cancel', class: 'bg-[var(--hover-bg)] px-4 py-2 rounded-md hover:bg-[var(--active-bg)]', value: () => false },
+          { text: translations.confirm || 'Confirm', class: 'px-4 py-2 rounded-md btn-primary', value: () => true }
+        ]
+      });
+      if (!accepted) return false;
+      config.acknowledgedStealthModelTerms = [...acknowledged, acknowledgementId];
+    } else if (info.requiresStealthTermsAcknowledgement && !acknowledged.includes(acknowledgementId)) {
       const placeholder = '{termsLink}';
       const template = translations.stealthModelTermsMessage || 'This stealth model is developed and operated by a third-party model provider. Prompts and completions for this model are retained by the provider and are not used for training; all other use is governed by the {termsLink}.';
       const linkText = translations.stealthModelTermsLink || 'Stealth Model Terms(opens in new tab)';

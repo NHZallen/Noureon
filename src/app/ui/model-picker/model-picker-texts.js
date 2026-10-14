@@ -6,7 +6,7 @@ const TEXTS = Object.freeze({
   'zh-TW': {
     tabSingle: '單一模型', tabCouncil: '理事會', tabs: '選擇使用方式',
     searchModels: '搜尋模型', noResults: '找不到符合的模型',
-    current: '目前使用', beta: '測試版模型', free: '免費',
+    current: '目前使用', beta: '測試版模型', free: '免費', hiddenModel: '測試',
     membersTitle: '成員', addModel: '加入模型', removeModel: '移除 {name}',
     combinedBy: '整合者', combinerHint: '把各模型的回答整合成一份',
     howTheyWork: '運作方式',
@@ -28,7 +28,7 @@ const TEXTS = Object.freeze({
   en: {
     tabSingle: 'Single model', tabCouncil: 'Council', tabs: 'How to answer',
     searchModels: 'Search models', noResults: 'No models found',
-    current: 'In use', beta: 'Beta models', free: 'Free',
+    current: 'In use', beta: 'Beta models', free: 'Free', hiddenModel: 'Test',
     membersTitle: 'Members', addModel: 'Add model', removeModel: 'Remove {name}',
     combinedBy: 'Combined by', combinerHint: 'Merges the models\' answers into one',
     howTheyWork: 'How they work',
@@ -50,7 +50,7 @@ const TEXTS = Object.freeze({
   fr: {
     tabSingle: 'Un modèle', tabCouncil: 'Conseil', tabs: 'Mode de réponse',
     searchModels: 'Rechercher des modèles', noResults: 'Aucun modèle trouvé',
-    current: 'Utilisé', beta: 'Modèles bêta', free: 'Gratuit',
+    current: 'Utilisé', beta: 'Modèles bêta', free: 'Gratuit', hiddenModel: 'Test',
     membersTitle: 'Membres', addModel: 'Ajouter un modèle', removeModel: 'Retirer {name}',
     combinedBy: 'Synthèse par', combinerHint: 'Réunit les réponses des modèles en une seule',
     howTheyWork: 'Fonctionnement',
@@ -72,7 +72,7 @@ const TEXTS = Object.freeze({
   ru: {
     tabSingle: 'Одна модель', tabCouncil: 'Совет', tabs: 'Как отвечать',
     searchModels: 'Поиск моделей', noResults: 'Модели не найдены',
-    current: 'Используется', beta: 'Бета-модели', free: 'Бесплатно',
+    current: 'Используется', beta: 'Бета-модели', free: 'Бесплатно', hiddenModel: 'Тест',
     membersTitle: 'Участники', addModel: 'Добавить модель', removeModel: 'Убрать {name}',
     combinedBy: 'Сводит ответы', combinerHint: 'Объединяет ответы моделей в один',
     howTheyWork: 'Как работает',
@@ -94,7 +94,7 @@ const TEXTS = Object.freeze({
   es: {
     tabSingle: 'Un modelo', tabCouncil: 'Consejo', tabs: 'Cómo responder',
     searchModels: 'Buscar modelos', noResults: 'No se encontraron modelos',
-    current: 'En uso', beta: 'Modelos beta', free: 'Gratis',
+    current: 'En uso', beta: 'Modelos beta', free: 'Gratis', hiddenModel: 'Prueba',
     membersTitle: 'Miembros', addModel: 'Añadir modelo', removeModel: 'Quitar {name}',
     combinedBy: 'Síntesis por', combinerHint: 'Reúne las respuestas de los modelos en una',
     howTheyWork: 'Cómo funcionan',
