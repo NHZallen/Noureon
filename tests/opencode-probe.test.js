@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 
-import { MODELS, THINKING, buildBody, main, parseEvents, probeModel, probeToolLoop, readAnswer, send, summarizeStream } from '../scripts/opencode-probe.mjs';
+import { MODELS, OFFICE_FILES, THINKING, buildBody, main, parseEvents, probeModel, probeToolLoop, readAnswer, send, summarizeStream } from '../scripts/opencode-probe.mjs';
 
 const KEY = 'oc_sk_very-secret-key-for-the-test';
 const reply = (status, body) => ({ status, text: async () => (typeof body === 'string' ? body : JSON.stringify(body)) });
@@ -290,4 +290,19 @@ test('the probe of Google\'s form: the model in the path, the body in Google\'s 
   await send({ fetchImpl: async (url) => { sent = { url }; return reply(200, {}); }, key: KEY, family: 'gemini', body: buildBody('gemini', 'gemini-4-argon-contributor') });
   assert.match(sent.url, /:generateContent$/);
   assert.equal(parseEvents('[{"a":1},{"b":2}]').length, 2);
+});
+
+test('the probe of Word and PowerPoint files: each form sends the file as it is, with its own type, and the answer is kept under office', async () => {
+  const seen = [];
+  const run = async (family, body) => { seen.push({ family, body }); return { status: 200, ok: true, ms: 1, raw: JSON.stringify({ choices: [{ message: { content: 'MANGO' } }] }) }; };
+  const result = await probeModel({ model: { id: 'kimi-k3', family: 'chat' }, tests: ['office'], run });
+  assert.deepEqual(Object.keys(result.office), ['docx', 'pptx']);
+  assert.equal(result.office.docx.text, 'MANGO');
+  const file = (entry) => entry.body.messages[0].content.find((part) => part.type === 'file').file;
+  assert.match(file(seen[0]).file_data, new RegExp(`^data:${OFFICE_FILES.docx.mime};base64,UEsD`), 'a docx is a zip: it starts with PK');
+  assert.match(file(seen[1]).file_data, new RegExp(`^data:${OFFICE_FILES.pptx.mime};base64,UEsD`));
+  const body = (family, kind) => buildBody(family, 'm', kind);
+  assert.ok(body('responses', 'docx').input[0].content.some((part) => part.type === 'input_file' && part.filename === 'probe.docx'));
+  assert.ok(body('messages', 'pptx').messages[0].content.some((part) => part.type === 'document' && part.source.media_type === OFFICE_FILES.pptx.mime));
+  assert.ok(body('gemini', 'docx').contents[0].parts.some((part) => part.inlineData?.mimeType === OFFICE_FILES.docx.mime));
 });

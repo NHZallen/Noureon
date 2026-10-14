@@ -11,16 +11,18 @@
 //   OPENCODE_GO_KEY=... node scripts/opencode-probe.mjs --tests basic,stream
 //   node scripts/opencode-probe.mjs --list                                the list of models of the service (public, no key, costs nothing)
 //   (Gemini 4 Argon Contributor, Google's own form: `--only gemini-4-argon-contributor --tests basic,stream,effort,thinking,tools,toolloop,vision,document,auth --max-tokens 1500`)
+//   Word and PowerPoint sent as they are, to the models that read a PDF: `--tests office --only <models>` (the answer holds MANGO when the file was read; "text" shows it)
 //   --max-tokens 1500   a bigger limit for every request (for the models that think long before they answer)
 //   --out file.json   where the result is written (default opencode-probe-result.json)        --base <address>   another base address
 //
 // It sends one request at a time and stops after four 429 in a row. A full run is about 250 small requests (a few cents at most, the reasoning models are the dearest).
 
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const BASE = 'https://opencode.ai/inference/go/v1';
-export const TESTS = Object.freeze(['basic', 'stream', 'tools', 'toolloop', 'params', 'effort', 'vision', 'document', 'thinking', 'auth', 'errors']);
+export const TESTS = Object.freeze(['basic', 'stream', 'tools', 'toolloop', 'params', 'effort', 'vision', 'document', 'office', 'thinking', 'auth', 'errors']);
 
 // From https://opencode.ai/docs/go/ (Endpoints), 2026-10-13: the model, the form of its API, and whether it is free.
 const chat = ['glm-5.3-flash', 'glm-5.3', 'glm-5.2', 'kimi-k3', 'kimi-k2.7-code', 'kimi-k2.6', 'longcat-2.0', 'deepseek-v4.1-flash', 'deepseek-v4-pro', 'deepseek-v4-flash', 'deepseek-v4-flash-vision-exp', 'mimo-v2.6-flash', 'mimo-v2.6-pro', 'mimo-v2.5', 'mimo-v2.5-pro', 'hy4-preview', 'hy3', 'space-bunny', 'longcat-2.5-preview-free', 'step-5-preview-free'];
@@ -48,6 +50,13 @@ const PROMPT = 'Reply with the single word: ok';
 // A one-page PDF with a line of text in it ("The secret word is MANGO."): does the model read a document sent to it as it is?
 const PDF = 'JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUl0gL0NvdW50IDEgPj4KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCAzMDAgMTAwXSAvQ29udGVudHMgNCAwIFIgL1Jlc291cmNlcyA8PCAvRm9udCA8PCAvRjEgNSAwIFIgPj4gPj4gPj4KZW5kb2JqCjQgMCBvYmoKPDwgL0xlbmd0aCA1NSA+PgpzdHJlYW0KQlQgL0YxIDE4IFRmIDIwIDUwIFRkIChUaGUgc2VjcmV0IHdvcmQgaXMgTUFOR08uKSBUaiBFVAplbmRzdHJlYW0KZW5kb2JqCjUgMCBvYmoKPDwgL1R5cGUgL0ZvbnQgL1N1YnR5cGUgL1R5cGUxIC9CYXNlRm9udCAvSGVsdmV0aWNhID4+CmVuZG9iagp4cmVmCjAgNgowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMDkgMDAwMDAgbiAKMDAwMDAwMDA1OCAwMDAwMCBuIAowMDAwMDAwMTE1IDAwMDAwIG4gCjAwMDAwMDAyNDEgMDAwMDAgbiAKMDAwMDAwMDM0NiAwMDAwMCBuIAp0cmFpbGVyCjw8IC9TaXplIDYgL1Jvb3QgMSAwIFIgPj4Kc3RhcnR4cmVmCjQxNgolJUVPRgo=';
 const DOC_PROMPT = 'What is the secret word in this document? One word.';
+// A Word file and a PowerPoint file with the same line in them (scripts/probe-files): does the model read an Office file sent as it is? Read once, when first asked for.
+export const OFFICE_FILES = Object.freeze({
+  docx: { mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', name: 'probe.docx' },
+  pptx: { mime: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', name: 'probe.pptx' }
+});
+const officeCache = {};
+const officeBase64 = (kind) => (officeCache[kind] ||= readFileSync(new URL(`./probe-files/${OFFICE_FILES[kind].name}`, import.meta.url)).toString('base64'));
 const PNG = 'iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR4nO3NsQ0AAAzCMP5/un0CNkuZ41wybXsHAAAAAAAAAAAAxR4yw/wuPL6QkAAAAABJRU5ErkJggg==';
 const TOOL = { name: 'get_time', description: 'Gets the local time of a city.', schema: { type: 'object', properties: { city: { type: 'string' } }, required: ['city'] } };
 // A small sum: the thinking a model puts into it shows how much a setting of depth changes (the numbers of tokens of the thinking).
@@ -92,7 +101,8 @@ export function buildBody(family, model, kind = 'basic', { stream = false, extra
   if (family === 'gemini') {
     const text = kind === 'vision' ? 'What colour is this picture? One word.' : kind === 'document' ? DOC_PROMPT : kind === 'tool' ? TOOL_PROMPT : kind === 'think' ? THINK_PROMPT : PROMPT;
     const parts = kind === 'vision' ? [{ text }, { inlineData: { mimeType: 'image/png', data: PNG } }]
-      : kind === 'document' ? [{ text }, { inlineData: { mimeType: 'application/pdf', data: PDF } }] : [{ text }];
+      : kind === 'document' ? [{ text }, { inlineData: { mimeType: 'application/pdf', data: PDF } }]
+        : OFFICE_FILES[kind] ? [{ text: DOC_PROMPT }, { inlineData: { mimeType: OFFICE_FILES[kind].mime, data: officeBase64(kind) } }] : [{ text }];
     const { max_tokens: limit, temperature, top_p: topP, generationConfig: wanted = {}, ...rest } = extra;
     const config = { maxOutputTokens: limit || maxTokens, ...(temperature !== undefined ? { temperature } : {}), ...(topP !== undefined ? { topP } : {}), ...wanted };
     if (wanted.thinkingConfig) config.thinkingConfig = { ...wanted.thinkingConfig };
@@ -104,6 +114,7 @@ export function buildBody(family, model, kind = 'basic', { stream = false, extra
     const user = kind === 'vision'
       ? [{ type: 'text', text: 'What colour is this picture? One word.' }, { type: 'image_url', image_url: { url: `data:image/png;base64,${PNG}` } }]
       : kind === 'document' ? [{ type: 'text', text: DOC_PROMPT }, { type: 'file', file: { filename: 'probe.pdf', file_data: `data:application/pdf;base64,${PDF}` } }]
+        : OFFICE_FILES[kind] ? [{ type: 'text', text: DOC_PROMPT }, { type: 'file', file: { filename: OFFICE_FILES[kind].name, file_data: `data:${OFFICE_FILES[kind].mime};base64,${officeBase64(kind)}` } }]
         : kind === 'tool' ? TOOL_PROMPT : kind === 'think' ? THINK_PROMPT : PROMPT;
     body = { model, messages: [{ role: 'user', content: user }], max_tokens: maxTokens };
     if (kind === 'tool') Object.assign(body, { tools: [{ type: 'function', function: { name: TOOL.name, description: TOOL.description, parameters: TOOL.schema } }], tool_choice: 'auto' });
@@ -112,6 +123,7 @@ export function buildBody(family, model, kind = 'basic', { stream = false, extra
     const input = kind === 'vision'
       ? [{ role: 'user', content: [{ type: 'input_text', text: 'What colour is this picture? One word.' }, { type: 'input_image', image_url: `data:image/png;base64,${PNG}` }] }]
       : kind === 'document' ? [{ role: 'user', content: [{ type: 'input_text', text: DOC_PROMPT }, { type: 'input_file', filename: 'probe.pdf', file_data: `data:application/pdf;base64,${PDF}` }] }]
+        : OFFICE_FILES[kind] ? [{ role: 'user', content: [{ type: 'input_text', text: DOC_PROMPT }, { type: 'input_file', filename: OFFICE_FILES[kind].name, file_data: `data:${OFFICE_FILES[kind].mime};base64,${officeBase64(kind)}` }] }]
         : kind === 'tool' ? TOOL_PROMPT : kind === 'think' ? THINK_PROMPT : PROMPT;
     body = { model, input, max_output_tokens: Math.max(maxTokens, 32) };
     if (kind === 'tool') Object.assign(body, { tools: [{ type: 'function', name: TOOL.name, description: TOOL.description, parameters: TOOL.schema }], tool_choice: 'auto' });
@@ -120,6 +132,7 @@ export function buildBody(family, model, kind = 'basic', { stream = false, extra
     const user = kind === 'vision'
       ? [{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: PNG } }, { type: 'text', text: 'What colour is this picture? One word.' }]
       : kind === 'document' ? [{ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: PDF } }, { type: 'text', text: DOC_PROMPT }]
+        : OFFICE_FILES[kind] ? [{ type: 'document', source: { type: 'base64', media_type: OFFICE_FILES[kind].mime, data: officeBase64(kind) } }, { type: 'text', text: DOC_PROMPT }]
         : kind === 'tool' ? TOOL_PROMPT : kind === 'think' ? THINK_PROMPT : PROMPT;
     body = { model, max_tokens: maxTokens, messages: [{ role: 'user', content: user }] };
     if (kind === 'tool') Object.assign(body, { tools: [{ name: TOOL.name, description: TOOL.description, input_schema: TOOL.schema }], tool_choice: { type: 'auto' } });
@@ -388,6 +401,11 @@ export async function probeModel({ model, tests = TESTS, run, key = '' }) {
   }
   if (tests.includes('vision')) result.vision = await one('vision');
   if (tests.includes('document')) result.document = await one('document', { extra: { max_tokens: 200 } });
+  if (tests.includes('office')) {
+    // A Word file and a PowerPoint file, sent as they are (the answer should hold MANGO if the model read the file).
+    result.office = {};
+    for (const kind of Object.keys(OFFICE_FILES)) result.office[kind] = await one(kind, { extra: { max_tokens: 200 } });
+  }
   if (tests.includes('thinking')) {
     result.thinking = {};
     for (const [name, extra] of THINKING[family]) result.thinking[name] = await one('basic', { extra });
