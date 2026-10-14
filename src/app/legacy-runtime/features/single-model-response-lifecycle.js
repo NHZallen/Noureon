@@ -304,6 +304,15 @@ export function createSingleModelResponseLifecycle({
       return liveRun;
     };
     const showRunStatus = () => {};
+    // The model searches the web by itself (its own search or a page it opens): the person is told once per reply. A page that joined a reply the server
+    // is making is sent the earlier events again (with their times): only one that happened a moment ago is news.
+    let ownSearchNoticed = false;
+    const noteOwnSearch = (event, { at = null } = {}) => {
+      if (ownSearchNoticed || event?.type !== 'searching') return;
+      if (Number.isFinite(at) && now() - at > 15_000) return;
+      ownSearchNoticed = true;
+      serverReply?.notify?.('model-searches', uiLanguage);
+    };
     // The [n] an answer writes become small labels as it streams (and in the final view, from the saved sources).
     const stopCitations = watchCitations(targetElement, () => searchSources, { document: getDocument(), language: uiLanguage });
     // A reply without Python shows the model's thinking above the answer, as it streams,
@@ -366,6 +375,7 @@ export function createSingleModelResponseLifecycle({
               liveRun = null;
               return;
             }
+            noteOwnSearch(event, { at: Number.isFinite(event.t) ? runStartedAt + event.t : null });
             stepList()?.event(Number.isFinite(event.t) ? { ...event, at: runStartedAt + event.t } : event);
           },
           onText: (delta) => {
@@ -435,7 +445,7 @@ export function createSingleModelResponseLifecycle({
           research: researchByModel ? { searchWeb: webResearch.searchWeb, openPage: webResearch.openPage, onSources: addSearchSources } : null,
           skills: makeSkillLoader(),
           onStatus: showRunStatus,
-          onEvent: (event) => stepList()?.event(event)
+          onEvent: (event) => { noteOwnSearch(event); stepList()?.event(event); }
         });
         sandboxRun = result.run;
         // The search before the run is part of the time the reply took.
@@ -482,6 +492,7 @@ export function createSingleModelResponseLifecycle({
                   started = true;
                   workResumed();
                 }
+                noteOwnSearch(event);
                 stepList()?.event(event);
               }
             });

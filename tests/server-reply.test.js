@@ -535,6 +535,15 @@ test('the browser\'s wiring: a reply whose check the server makes has it followe
   assert.deepEqual(local, ['plain', 'plain-2'], 'the page made no check of its own');
 });
 
+test('the notice that the model searches the web by itself is said in the language of the page, as information', async () => {
+  const { createBrowserServerReply } = await import('../src/app/runtime/server-reply/server-reply-runtime.js');
+  const shown = [];
+  const wiring = createBrowserServerReply({ getApiKeyForProvider: () => '', getModelApiId: () => '', getDefaultGenConfig: () => ({}), describeRequest: async () => ({}), getSync: () => ({}), getClient: async () => null, document: null, showNotification: (message, kind) => shown.push([message, kind]) });
+  wiring.notify('model-searches', 'en');
+  wiring.notify('model-searches', 'zh-TW');
+  assert.deepEqual(shown, [['The model is searching the web by itself.', 'info'], ['模型正在自己搜尋網路。', 'info']]);
+});
+
 test('a deep research is handed over at its own address with its topic, always searching with tools and never with Python', async () => {
   const { reply, calls, flushed } = harness();
   const result = await reply.startResearch(startArgs({ research: { topic: 'solid-state batteries' }, advanced: true, webSearch: 'off', visionCheck: { deckDesign: 'auto' } }));

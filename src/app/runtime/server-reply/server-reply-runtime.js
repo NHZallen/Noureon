@@ -2,6 +2,7 @@
 // written to the cloud first, and a word to the person when a reply is made here instead (see server-reply.js).
 
 import { cliText } from '../cli/cli-texts.js';
+import { sandboxText } from '../sandbox/sandbox-texts.js';
 import { registerServerRequest } from '../cli/cli-server-bridge.js';
 import { PRODUCT_VERSION } from '../../../data/version.js';
 import { createServerReply, localizeServerError, planServerCouncil, planServerImage, planServerReply } from './server-reply.js';
@@ -141,6 +142,7 @@ export function createBrowserServerReply({
   const notify = (kind, language) => {
     // A CLI tool (命令工具) that was chosen but could not be used: it needs a model that calls tools and the server.
     if (kind === 'cli-local' || kind === 'cli-tool-model') showNotification(cliText(language, kind === 'cli-local' ? 'notOnServer' : 'needToolModel'), 'warning');
+    else if (kind === 'model-searches') showNotification(sandboxText(language, 'sandboxModelSearchNotice'), 'info');
     else showNotification(serverReplyText(language, kind === 'busy' ? 'fallbackBusy' : 'fallbackUnreachable'), 'info');
   };
 

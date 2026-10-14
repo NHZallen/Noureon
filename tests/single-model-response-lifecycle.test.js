@@ -246,7 +246,7 @@ test('a web address in the message has the request prepared even with no search 
   assert.equal(calls.filter((call) => call[0] === 'translate').length, 0, 'the request goes as it is');
 });
 
-const researchHarness = ({ rounds, canUse = true }) => {
+const researchHarness = ({ rounds, canUse = true, extra = {} }) => {
   let round = 0;
   const requests = [];
   const searches = [];
@@ -254,6 +254,7 @@ const researchHarness = ({ rounds, canUse = true }) => {
   const harness = createHarness({
     extraDependencies: {
       supportsToolCalling: () => true,
+      ...extra,
       webResearch: {
         canUse: () => canUse,
         searchWeb: async ({ query }) => {
@@ -307,6 +308,37 @@ test('a model that calls tools searches and opens pages by itself, and the pages
     ['https://github.com/a/b/releases', false],
     ['https://github.com/a/b/releases', true]
   ], 'the page that was searched and then opened shows as found and as read');
+});
+
+test('the person is told, once, when the model searches the web by itself (not for a search the page makes for the model)', async () => {
+  const notices = [];
+  const serverReply = { plan: () => ({ ok: false, reason: 'advanced' }), start: async () => ({ ok: false }), notify: (kind, language) => notices.push([kind, language]), localizeError: (error) => error };
+  const { lifecycle, signal, targetElement } = researchHarness({
+    extra: { serverReply },
+    rounds: [
+      { text: '', calls: [{ id: '1', name: 'web_search', args: { query: 'a/b releases' } }] },
+      { text: '', calls: [{ id: '2', name: 'web_search', args: { query: 'a/b notes' } }] },
+      { text: 'v2.0 is the latest.' }
+    ]
+  });
+  await lifecycle.run({
+    targetElement,
+    userParts: [{ text: 'what is the latest release of a/b' }],
+    modelInfo: { id: 'model', name: 'Model' },
+    conversation: { model: 'model', isWebSearchEnabled: true },
+    webSearchEnabled: true,
+    signal,
+    uiLanguage: 'en'
+  });
+  assert.deepEqual(notices, [['model-searches', 'en']], 'two searches, one notice');
+});
+
+test('a reply that searches nothing tells nothing about searching', async () => {
+  const notices = [];
+  const serverReply = { plan: () => ({ ok: false, reason: 'advanced' }), start: async () => ({ ok: false }), notify: (kind) => notices.push(kind), localizeError: (error) => error };
+  const { lifecycle, signal, targetElement } = researchHarness({ extra: { serverReply }, rounds: [{ text: 'Hello.' }] });
+  await lifecycle.run({ targetElement, userParts: [{ text: 'hi' }], modelInfo: { id: 'model', name: 'Model' }, conversation: { model: 'model', isWebSearchEnabled: true }, webSearchEnabled: true, signal, uiLanguage: 'en' });
+  assert.deepEqual(notices, []);
 });
 
 test('a model without tools, or with no search key, gets the search packet as before', async () => {
@@ -576,6 +608,18 @@ test('a reply the server makes is followed, not made here, and the answer is sho
   assert.equal(start.webSearch, 'off');
   assert.deepEqual(start.getHistorySourceIds(), ['h1']);
   assert.deepEqual(serverReply.record.plans[0].advanced, false);
+});
+
+test('a reply the server makes: a search that just happened is told, one that is being sent again to a page that joined late is not', async () => {
+  const run = (event) => async ({ onEvent, onTiming }) => { onTiming?.(60_000); onEvent(event); return { text: 'Done', run: null, rewritten: false }; };
+  const first = serverReplyDouble({ follow: run({ type: 'searching', label: 'Searching', t: 59_000 }) });
+  const live = createHarness({ extraDependencies: { serverReply: first } });
+  await live.lifecycle.run({ targetElement: live.targetElement, userParts: [{ text: 'Hi' }], modelInfo: { id: 'model', name: 'Model', provider: 'openrouter' }, conversation: { id: 'c1', model: 'model', messages: [] }, signal: live.signal, uiLanguage: 'en', assistantMessageId: 'm1', sequence: 1 });
+  assert.deepEqual(first.record.notices, [['model-searches', 'en']]);
+  const second = serverReplyDouble({ follow: run({ type: 'searching', label: 'Searching', t: 10_000 }) });
+  const late = createHarness({ extraDependencies: { serverReply: second } });
+  await late.lifecycle.run({ targetElement: late.targetElement, userParts: [{ text: 'Hi' }], modelInfo: { id: 'model', name: 'Model', provider: 'openrouter' }, conversation: { id: 'c1', model: 'model', messages: [] }, signal: late.signal, uiLanguage: 'en', assistantMessageId: 'm1', sequence: 1 });
+  assert.deepEqual(second.record.notices, [], 'it happened 50 seconds ago: not news');
 });
 
 test('the run record the server wrote (the pages it searched) is kept with the reply, and a text that was rewritten is drawn again', async () => {
