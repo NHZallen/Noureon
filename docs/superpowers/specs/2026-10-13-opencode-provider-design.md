@@ -1,10 +1,10 @@
-# OpenCode 供應商（Go 先做，Zen／主控台推論之後）
+# OpenCode 供應商（只做 Go；Zen／主控台推論不做）
 
 **狀態：** 設計，等 Allen 確認後再動程式（2026-10-13）。區塊 02「模型供應商與模型管理」，Allen 負責；五種語言的文字、價格與隱私說明與 Sun 在 Linear 討論。
 
 ## 1. Allen 的決定（2026-10-13）
 
-- 先做 **OpenCode Go**；Zen（主控台推論）之後再做，但設計預留位置。
+- 只做 **OpenCode Go**。**Zen（主控台推論）不做**（Allen 決定，2026-10-14；原本是「之後再做、設計預留位置」，現在不預留）。
 - Go 的**三種格式一次做完**（chat／responses／messages），在 `staging` 測完才一起上線，不分批。
 - 搜尋：**模型能用工具就一律由模型自己搜**（`research`），只有不能用工具的模型才退回「搜一包」（`packet`）。
 - Muse Spark Contributor（會用提示與回應訓練 Meta 的模型）**收錄**，清楚標示即可。
@@ -16,7 +16,7 @@
 
 ### 文件有寫的（Go：`https://opencode.ai/docs/go/`；主控台推論：Inference API 頁）
 - Go 端點：`https://opencode.ai/inference/go/v1/chat/completions`、`.../responses`、`.../messages`；模型清單 `.../inference/go/v1/models`（文件範例沒有帶金鑰）。每個模型只走一種格式（見 §5 表）。
-- 主控台推論（Zen 那一側，之後才做）：`/inference/openai/v1/chat/completions`、`/inference/openai/v1/responses`、`/inference/anthropic/v1/messages`、`/inference/google/v1beta/models/<模型>:generateContent`（串流 `:streamGenerateContent`），清單 `/inference/v1/models`；金鑰是主控台建的服務帳號金鑰（`oc_sk_`），一律 `Authorization: Bearer`；付費模型要帶、免費聊天模型可以不帶。Messages 格式**一定要帶 `max_tokens`**。
+- 主控台推論（Zen 那一側，**不做**，只留紀錄）：`/inference/openai/v1/chat/completions`、`/inference/openai/v1/responses`、`/inference/anthropic/v1/messages`、`/inference/google/v1beta/models/<模型>:generateContent`（串流 `:streamGenerateContent`），清單 `/inference/v1/models`；金鑰是主控台建的服務帳號金鑰（`oc_sk_`），一律 `Authorization: Bearer`；付費模型要帶、免費聊天模型可以不帶。Messages 格式**一定要帶 `max_tokens`**。
 - Go 對用戶端的要求：送典型的程式開發代理流量；用自己的 `User-Agent`（不用通用 SDK 名稱）；每個對話送固定的 `x-opencode-session`（優化路由與提示快取）。
 - 用量：每個模型各有每月美元限額，5 小時 20%、每週 50%、每月 100%；用完會擋，除非主控台開了「用餘額」。Go 與 Go Plus 的字數價格相同，限額不同。
 - 隱私（Go 文件的表）：Grok、GPT Luna 保留 30 天；Claude Haiku 5.5 保留 30 天；Muse Spark 1.3／1.2 Contributor **會用於訓練**且不是零保留（限 Meta 地理使用政策允許的區域）；其餘多數 0 天；DeepSeek 的零保留協議到 2026-10-31（每月續約）。
