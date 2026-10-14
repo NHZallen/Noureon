@@ -2,6 +2,7 @@
 // language from the RunSpec instead of what the page knows. A reply and the visual check that follows it use the same.
 
 import { createStreamApiCall } from '../src/app/legacy-runtime/features/stream-api-call.js';
+import { createServerOfficeReader } from './office-deps.js';
 import { getModelReasoningConfig, modelSupportsUploadedFile, modelSupportsVision, normalizeReasoningEffort } from '../src/app/runtime/legacy-core/model-registry.js';
 import { createUpstreamFetch } from './upstream-fetch.js';
 
@@ -35,6 +36,7 @@ export function createModelAccess({ spec, secrets, fetchImpl = fetch, grounding 
     getMemoryContext: () => null,
     modelSupportsUploadedFile,
     modelSupportsVision,
+    officeReader: createServerOfficeReader(),
     getModelReasoningConfig,
     normalizeReasoningEffort,
     fetchImpl: upstreamFetch,

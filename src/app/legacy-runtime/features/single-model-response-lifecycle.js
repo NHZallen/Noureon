@@ -202,6 +202,7 @@ export function createSingleModelResponseLifecycle({
           webSearchEnabled: webSearchEnabled && !researchByModel && !serverSearches,
           readLinkedPages: !addressIsForTool,
           conversation,
+          onOfficeImages: () => serverReply.notify('office-images', uiLanguage),
           // The pages a search found, and then the pages that were read (marked `read`).
           onSources: (sources) => {
             addSearchSources(sources);

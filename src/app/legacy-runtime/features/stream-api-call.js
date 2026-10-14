@@ -8,6 +8,7 @@ import { applyAnthropicTools, createAnthropicCollector } from './anthropic-messa
 import { opencodeErrorMessage } from './opencode-errors.js';
 import { buildOpencodeRequest } from './opencode-request.js';
 import { opencodeFormatOf, opencodeModelReadsPdf } from '../../runtime/legacy-core/opencode-models.js';
+import { createOfficeReader } from '../../ui/files/office-text/office-reader.js';
 
 export function mergeAdjacentModelMessages(history) {
   return history.reduce((merged, message) => {
@@ -642,6 +643,8 @@ export function createStreamApiCall({
   getMemoryContext = () => null,
   modelSupportsUploadedFile,
   modelSupportsVision,
+  // Reads the Word, PowerPoint and Excel files the model cannot read into text (and pictures): in the history too (src/app/ui/files/office-text/).
+  officeReader = createOfficeReader(),
   getModelReasoningConfig = () => null,
   normalizeReasoningEffort = () => null,
   // The interface text of the language in use (for the errors shown to the person); '' when there is none.
@@ -730,10 +733,11 @@ export function createStreamApiCall({
       throw new Error((getText('apiKeyNeededFor') || 'Add the API key that {name} needs in Settings first.').replace('{name}', modelInfo.name));
     }
 
-    const historyForApi = mergeAdjacentModelMessages(researchReportsForApi(compactSandboxRunsForApi(compactFileHistoryForApi(
+    const readableOptions = { canRead: (inlineData) => modelSupportsUploadedFile(modelInfo, { inlineData }), supportsVision: Boolean(modelSupportsVision?.(modelInfo)) };
+    const historyForApi = await officeReader.expandMessages(mergeAdjacentModelMessages(researchReportsForApi(compactSandboxRunsForApi(compactFileHistoryForApi(
       requestOptions.historyForApi || (conversation.messages || []).slice(0, -1)
-    ))));
-    const currentMessageForApi = requestOptions.currentMessageForApi || { role: 'user', parts };
+    )))), readableOptions);
+    const [currentMessageForApi] = await officeReader.expandMessages([requestOptions.currentMessageForApi || { role: 'user', parts }], readableOptions);
     const generationConfig = requestOptions.genConfig || conversation.genConfig || getDefaultGenConfig();
     const disableReasoning = requestOptions.disableReasoning === true;
     const reasoningConfig = disableReasoning ? null : getModelReasoningConfig(modelInfo);

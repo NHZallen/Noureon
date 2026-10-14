@@ -18,6 +18,7 @@ import { createCouncilResponseLifecycle } from '../src/app/legacy-runtime/featur
 import { buildTavilySearchQuery, formatTavilySearchPacket, getSearchCurrentDate, normalizePageReads, normalizeTinyfishSearch, withSearchContext } from '../src/app/legacy-runtime/features/model-request-formatting.js';
 import { createProviderRequestSupport } from '../src/app/legacy-runtime/features/provider-request-support.js';
 import { createStreamApiCall } from '../src/app/legacy-runtime/features/stream-api-call.js';
+import { createServerOfficeReader } from './office-deps.js';
 import { getCouncilRuntimeTexts } from '../src/app/runtime/legacy-core/council-runtime-texts.js';
 import {
   COUNCIL_MAX_MODELS,
@@ -141,6 +142,7 @@ export async function executeCouncil({
     getMemoryContext: () => null,
     modelSupportsUploadedFile,
     modelSupportsVision,
+    officeReader: createServerOfficeReader(),
     getModelReasoningConfig,
     normalizeReasoningEffort,
     fetchImpl: upstreamFetch,

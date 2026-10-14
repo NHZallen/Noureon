@@ -257,6 +257,38 @@
       "note": "Reviewed 2026-10-03: the page branch (isBrowser) uses a document and FontFace; the server passes `context.prepareFonts` and no document, so that branch is not taken."
     },
     {
+      "path": "src/app/ui/files/office-text/chart-table.js",
+      "note": "Reviewed 2026-10-14: no browser globals (reads Word, PowerPoint and Excel files into text and pictures for the models that cannot read them; the zip reader and XML parser are passed in, the page's own `DOMParser` is only the default of the page)."
+    },
+    {
+      "path": "src/app/ui/files/office-text/docx-text.js",
+      "note": "Reviewed 2026-10-14: no browser globals (reads Word, PowerPoint and Excel files into text and pictures for the models that cannot read them; the zip reader and XML parser are passed in, the page's own `DOMParser` is only the default of the page)."
+    },
+    {
+      "path": "src/app/ui/files/office-text/office-reader.js",
+      "note": "Reviewed 2026-10-14: no browser globals (reads Word, PowerPoint and Excel files into text and pictures for the models that cannot read them; the zip reader and XML parser are passed in, the page's own `DOMParser` is only the default of the page)."
+    },
+    {
+      "path": "src/app/ui/files/office-text/office-text.js",
+      "note": "Reviewed 2026-10-14: no browser globals (reads Word, PowerPoint and Excel files into text and pictures for the models that cannot read them; the zip reader and XML parser are passed in, the page's own `DOMParser` is only the default of the page)."
+    },
+    {
+      "path": "src/app/ui/files/office-text/pptx-text.js",
+      "note": "Reviewed 2026-10-14: no browser globals (reads Word, PowerPoint and Excel files into text and pictures for the models that cannot read them; the zip reader and XML parser are passed in, the page's own `DOMParser` is only the default of the page)."
+    },
+    {
+      "path": "src/app/ui/files/office-text/shrink-image-browser.js",
+      "note": "Reviewed 2026-10-14: no browser globals by name; it uses a canvas only when the runtime has one (`OffscreenCanvas`), so on the server it hands the picture back as it is."
+    },
+    {
+      "path": "src/app/ui/files/office-text/xlsx-text.js",
+      "note": "Reviewed 2026-10-14: no browser globals (reads Word, PowerPoint and Excel files into text and pictures for the models that cannot read them; the zip reader and XML parser are passed in, the page's own `DOMParser` is only the default of the page)."
+    },
+    {
+      "path": "src/app/ui/files/office-text/xml-tools.js",
+      "note": "Reviewed 2026-10-14: no browser globals (reads Word, PowerPoint and Excel files into text and pictures for the models that cannot read them; the zip reader and XML parser are passed in, the page's own `DOMParser` is only the default of the page)."
+    },
+    {
       "path": "src/app/ui/files/previews/slide-chart-preview.js",
       "note": "Reviewed 2026-10-03: no browser globals (a `document` there is a parameter: the server gives it an XML document, a parser or a canvas)."
     },
@@ -342,6 +374,10 @@
     },
     {
       "path": "src/app/ui/sandbox/sandbox-run-block.js"
+    },
+    {
+      "path": "src/app/ui/sandbox/xlsx-reader.js",
+      "note": "Reviewed 2026-10-14: no browser globals (reads a workbook into its sheets; the zip reader and XML parser are passed in)."
     },
     {
       "path": "src/data/cli-catalog.js",

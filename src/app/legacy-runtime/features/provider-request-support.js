@@ -7,6 +7,7 @@ import { createSearchQueryRewriter } from './search-query-rewriter.js';
 import { createWebResearchTools } from './web-research-tools.js';
 import { absoluteLinks } from './web-page-text.js';
 import { resultDate } from './model-request-formatting.js';
+import { createOfficeReader } from '../../ui/files/office-text/office-reader.js';
 
 // How long the pages of the addresses in a message are waited for before the message goes on without them.
 const LINKED_PAGES_WAIT_MS = 8000;
@@ -29,6 +30,9 @@ export function createProviderRequestSupport({
   getSingleDocumentTranslatorModel,
   modelUsesTavilySearch,
   modelSupportsUploadedFile,
+  modelSupportsVision = () => false,
+  // Reads Word, PowerPoint and Excel files into text (and pictures) for the models that cannot read them (src/app/ui/files/office-text/).
+  officeReader = createOfficeReader(),
   councilResponseCharLimit,
   councilRetryDelayMs,
   setTimeoutFn = setTimeout,
@@ -208,6 +212,8 @@ Output requirements:
 
   const buildSingleModelTranslatedRequestParts = async (parts, modelInfo, signal, onProgress, {
     webSearchEnabled = false,
+    // Told once when the pictures of a Word, PowerPoint or Excel file go to the model (they use more of the quota).
+    onOfficeImages = undefined,
     // False: the addresses of the message are not read first (they are a CLI tool's, and the model opens pages itself if it needs to).
     readLinkedPages: readAddresses = true,
     conversation = null,
@@ -217,6 +223,16 @@ Output requirements:
   } = {}) => {
     const config = getConfig();
     const translatedSections = [];
+    // A Word, PowerPoint or Excel file the model cannot read becomes its text (and pictures) here; the translator is only for what this could not do.
+    if (!baseParts) {
+      const expanded = await officeReader.expandParts(parts, {
+        canRead: (inlineData) => modelSupportsUploadedFile(modelInfo, { inlineData }),
+        supportsVision: Boolean(modelSupportsVision(modelInfo)),
+        hasTranslator: Boolean(getSingleDocumentTranslatorModel())
+      });
+      ({ parts } = expanded);
+      if (expanded.imagesSent > 0) onOfficeImages?.(expanded.imagesSent);
+    }
     const documentParts = baseParts ? [] : getUnsupportedSingleDocumentParts(parts, modelInfo);
     if (documentParts.length > 0) {
       const translatorModel = getSingleDocumentTranslatorModel();

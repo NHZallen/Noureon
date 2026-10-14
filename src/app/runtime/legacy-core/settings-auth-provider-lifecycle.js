@@ -239,6 +239,7 @@ const providerRequestSupport = createProviderRequestSupport({
     getSingleDocumentTranslatorModel,
     modelUsesTavilySearch,
     modelSupportsUploadedFile,
+    modelSupportsVision,
     councilResponseCharLimit: COUNCIL_RESPONSE_CHAR_LIMIT,
     councilRetryDelayMs: COUNCIL_RETRY_DELAY_MS
 });
