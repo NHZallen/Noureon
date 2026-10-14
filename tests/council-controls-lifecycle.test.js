@@ -91,7 +91,7 @@ const createHarness = (overrides = {}) => {
     getModelsByIds: (ids) => MODELS.filter((model) => ids.includes(model.id)),
     getProviderLabel: (provider) => provider.toUpperCase(),
     getReasoningEffortLabel: (value) => ({ low: 'Low', medium: 'Medium', high: 'High' }[value] || value),
-    getSingleDocumentTranslatorModel: () => null,
+    getSingleDocumentTranslatorModel: overrides.getSingleDocumentTranslatorModel || (() => null),
     hasCouncilWebSearchAccess: () => true,
     isImageConversation: () => Boolean(overrides.image),
     modelSupportsDocumentUpload: () => false,
@@ -250,6 +250,20 @@ test('a model of OpenCode Go that reads a PDF as it is is listed as reading file
     const row = document.querySelector('[data-mp-model="opencode-go/gemini-4-argon-contributor"]');
     assert.match(row.textContent, /Files/);
     assert.doesNotMatch(row.textContent, /Translated files/);
+  } finally {
+    Object.assign(MODELS[1], original);
+    cleanup();
+  }
+});
+
+test('a model of OpenCode Go that is not trusted with a PDF (the probe found it unstable) is still listed as getting files translated', () => {
+  const original = { ...MODELS[1] };
+  Object.assign(MODELS[1], { id: 'opencode-go/deepseek-v4-flash', provider: 'opencode-go' });
+  const { cleanup, document, lifecycle } = createHarness({ conversation: singleConversation(), getSingleDocumentTranslatorModel: () => ({ id: 'translator' }) });
+  try {
+    lifecycle.renderCouncilControls();
+    document.querySelector('#model-picker-btn').click();
+    assert.match(document.querySelector('[data-mp-model="opencode-go/deepseek-v4-flash"]').textContent, /Translated files/);
   } finally {
     Object.assign(MODELS[1], original);
     cleanup();
