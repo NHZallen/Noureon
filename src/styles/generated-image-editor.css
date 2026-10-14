@@ -404,7 +404,8 @@
     }
 
     .generated-image-lightbox .media-lightbox-toolbar {
-        top: 1.2rem;
+        top: 1.15rem;
+        height: 2.5rem;
         right: 1.2rem;
         bottom: auto;
         left: auto;
