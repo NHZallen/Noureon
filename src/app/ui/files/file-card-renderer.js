@@ -1,26 +1,9 @@
 import { getGeneratedFileSize } from './file-block-model.js';
 import { formatFileCount, formatFileSize, getFileText } from './file-texts.js';
+import { FAMILY_LABEL_KEYS } from './file-visual.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
-const FAMILY_LABEL_KEYS = Object.freeze({
-  word: 'familyWord',
-  excel: 'familyExcel',
-  powerpoint: 'familyPowerpoint',
-  pdf: 'familyPdf',
-  csv: 'familyCsv',
-  text: 'familyText',
-  markdown: 'familyMarkdown',
-  code: 'familyCode',
-  data: 'familyData',
-  web: 'familyWeb',
-  calendar: 'familyCalendar',
-  contact: 'familyContact',
-  subtitle: 'familySubtitle',
-  image: 'familyImage',
-  archive: 'familyArchive',
-  blocked: 'familyBlocked'
-});
 
 const STATE_MESSAGE_KEYS = Object.freeze({
   incomplete: 'incomplete',

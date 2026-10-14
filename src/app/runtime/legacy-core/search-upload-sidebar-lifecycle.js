@@ -334,7 +334,8 @@ export function createLegacySearchUploadSidebarLifecycle(dependencies = {}) {
         getContainer: () => ALL_ELEMENTS.filePreviewContainer,
         getInputWrapper: () => document.querySelector('.input-wrapper'),
         openMediaPreview: openSearchMediaPreview,
-        updateInputState: resolveUploadUpdateInputState
+        updateInputState: resolveUploadUpdateInputState,
+        getLanguage: () => getConfig().uiLanguage
     });
 
     const handleFileSelection = (event) => {

@@ -1,0 +1,126 @@
+/* How a file looks in the app: the card in the message box (a picture of its first page, the kind and the name), the row in a message, the row of a file the model made.
+   Only the colours of src/styles/tokens.css. */
+
+/* ---------- the icon of a kind ---------- */
+.ac-kind-icon {
+    width: 1.2rem;
+    height: 1.2rem;
+    flex: none;
+    color: var(--file-default);
+}
+.ac-kind-word { color: var(--file-word); }
+.ac-kind-excel, .ac-kind-csv { color: var(--file-excel); }
+.ac-kind-powerpoint { color: var(--file-powerpoint); }
+.ac-kind-pdf { color: var(--file-pdf); }
+.ac-kind-markdown { color: var(--file-markdown); }
+.ac-kind-code { color: var(--file-code); }
+.ac-kind-data { color: var(--file-data); }
+.ac-kind-web { color: var(--file-web); }
+.ac-kind-calendar { color: var(--file-calendar); }
+.ac-kind-contact { color: var(--file-contact); }
+.ac-kind-subtitle { color: var(--file-subtitle); }
+.ac-kind-blocked { color: var(--file-blocked); }
+
+/* ---------- the card in the message box ---------- */
+.ac-attach-card {
+    position: relative;
+    flex: 0 0 auto;
+    width: 11.5rem;
+    border: 1px solid color-mix(in srgb, var(--border-color) 86%, transparent);
+    border-radius: 0.95rem;
+    background: var(--input-field-bg);
+    color: var(--text-primary);
+    overflow: hidden;
+    cursor: pointer;
+    box-sizing: border-box;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.ac-attach-card[data-openable="false"] { cursor: default; }
+.ac-attach-card:hover { border-color: color-mix(in srgb, var(--text-primary) 28%, transparent); }
+.ac-attach-card:focus-visible { outline: 2px solid var(--link-color); outline-offset: 2px; }
+
+.ac-attach-thumb {
+    position: relative;
+    height: 6.75rem;
+    display: grid;
+    place-items: center;
+    background: var(--hover-bg);
+    overflow: hidden;
+}
+.ac-attach-thumb[data-state="ready"] { background: var(--paper-bg); }
+.ac-attach-thumb[data-state="ready"] > .ac-kind-icon,
+.ac-attach-thumb[data-state="media"] > .ac-kind-icon { display: none; }
+.ac-attach-thumb[data-state="media"] { background: var(--media-bg); }
+.ac-attach-thumb .ac-kind-icon { width: 2.1rem; height: 2.1rem; }
+.ac-attach-thumb img,
+.ac-attach-thumb video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+/* A Word page is drawn smaller than the card is wide (its margins): it is drawn a little bigger. */
+.ac-attach-card[data-file-family="word"] .ac-attach-host { transform: scale(1.32); transform-origin: top center; }
+/* The picture of the first page: drawn by the preview of the file, only looked at. */
+.ac-attach-host {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    visibility: hidden;
+}
+.ac-attach-thumb[data-state="ready"] .ac-attach-host { visibility: visible; }
+.ac-attach-scaled {
+    width: 200%;
+    height: 200%;
+    transform: scale(0.5);
+    transform-origin: top left;
+}
+.ac-attach-text {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    padding: 0.6rem 0.7rem;
+    overflow: hidden;
+    background: var(--paper-bg);
+    color: var(--paper-text-soft);
+    font: 0.6rem/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    white-space: pre-wrap;
+    word-break: break-all;
+    pointer-events: none;
+}
+.ac-attach-spinner {
+    position: absolute;
+    width: 1.5rem;
+    height: 1.5rem;
+    border: 2px solid color-mix(in srgb, var(--text-primary) 22%, transparent);
+    border-top-color: var(--text-primary);
+    border-radius: 50%;
+    animation: ac-attach-spin 0.9s linear infinite;
+}
+.ac-attach-thumb:not([data-state="loading"]) .ac-attach-spinner { display: none; }
+@keyframes ac-attach-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .ac-attach-spinner { animation-duration: 3s; } }
+
+.ac-attach-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.55rem 0.7rem;
+    border-top: 1px solid color-mix(in srgb, var(--border-color) 86%, transparent);
+    font-size: 0.82rem;
+    line-height: 1.25;
+    min-width: 0;
+}
+.ac-attach-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+    .ac-attach-card { width: 9.75rem; }
+    .ac-attach-thumb { height: 5.6rem; }
+}

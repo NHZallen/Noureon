@@ -140,7 +140,7 @@
     display: none;
 }
 
-.input-media-preview .file-preview-item {
+.input-media-preview .file-preview-item:not(.ac-attach-card) {
     flex: 0 0 auto;
     width: 4.75rem;
     height: 4.75rem;
@@ -149,7 +149,7 @@
     background: var(--hover-bg);
 }
 
-.input-media-preview .file-preview-item.file-preview-video {
+.input-media-preview .file-preview-item.file-preview-video:not(.ac-attach-card) {
     background: var(--media-bg);
 }
 

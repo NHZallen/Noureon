@@ -50,7 +50,11 @@ test('renders image, video, and file previews with stable controls', () => {
     assert.match(previews[1].innerHTML, /preload="auto"[^>]*data-video-thumbnail/);
     assert.equal(previews[1].classList.contains('file-preview-video'), true);
     assert.match(previews[1].innerHTML, /file-preview-play/);
-    assert.match(previews[2].innerHTML, /class="w-8 h-8 text-gray-500"/);
+    // A file is a card: the picture of its page (the icon of its kind until it is drawn), the kind icon and the name.
+    assert.match(previews[2].querySelector('.ac-attach-name').textContent, /^notes\.pdf$/);
+    assert.equal(previews[2].dataset.fileFamily, 'pdf');
+    assert.ok(previews[2].querySelector('.ac-attach-thumb .ac-kind-pdf'), 'the icon of its kind stands in while the page is drawn');
+    assert.match(previews[2].title, /notes\.pdf · PDF 文件（PDF）/);
     assert.equal(fixture.document.querySelectorAll('.file-preview-item > button').length, 3);
     assert.equal(fixture.document.querySelectorAll('.file-preview-remove > svg').length, 3);
     assert.equal(fixture.document.querySelector('.file-preview-remove').textContent, '');
@@ -132,5 +136,30 @@ test('uploaded file preview lifecycle source avoids provider, storage schema, pa
     'virtual:legacy-app-runtime'
   ]) {
     assert.equal(source.includes(token), false, token);
+  }
+});
+
+test('a card names the file and its kind, a program\'s source and a big file get no picture, and a card that has a preview opens it', () => {
+  const big = { id: 'big', name: 'deck.pptx', type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', size: 20 * 1024 * 1024, base64: 'data:application/octet-stream;base64,AAAA' };
+  const source = { id: 'src', name: 'main.py', type: 'text/x-python', size: 10, base64: 'data:text/plain;base64,cHJpbnQoMSk=' };
+  const doc = { id: 'doc', name: '1-test-doc.docx', type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', size: 100, base64: 'data:application/octet-stream;base64,AAAA' };
+  const fixture = createFixture([big, source, doc]);
+  try {
+    fixture.lifecycle.renderFilePreviews();
+    const [bigCard, sourceCard, docCard] = fixture.document.querySelectorAll('.ac-attach-card');
+    assert.equal(bigCard.querySelector('.ac-attach-thumb').dataset.state, 'icon', 'over 15 MB: no picture is made');
+    assert.equal(sourceCard.querySelector('.ac-attach-thumb').dataset.state, 'icon', 'a program\'s source has no picture');
+    assert.equal(sourceCard.dataset.openable, 'false');
+    assert.equal(sourceCard.getAttribute('role'), null);
+    assert.equal(docCard.dataset.openable, 'true');
+    assert.equal(docCard.getAttribute('role'), 'button');
+    assert.equal(docCard.querySelector('.ac-attach-thumb').dataset.state, 'loading');
+    assert.match(docCard.title, /1-test-doc\.docx · Word 文件（DOCX）/);
+    // The cross takes the file away and draws the row again.
+    sourceCard.querySelector('.file-preview-remove').click();
+    assert.deepEqual(fixture.getFiles().map((file) => file.id), ['big', 'doc']);
+    assert.equal(fixture.document.querySelectorAll('.ac-attach-card').length, 2);
+  } finally {
+    fixture.cleanup();
   }
 });

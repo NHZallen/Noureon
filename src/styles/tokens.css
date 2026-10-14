@@ -151,6 +151,22 @@
 :root[data-theme="dark"] {
     color-scheme: dark;
 
+    /* the file cards in the dark: lighter, so the logo of each kind of file reads on a dark ground */
+    --file-default: #94a3b8;
+    --file-word: #7da2ff;
+    --file-excel: #4cc38a;
+    --file-powerpoint: #ff8f66;
+    --file-pdf: #ff7a70;
+    --file-csv: #4cc38a;
+    --file-markdown: #a3b1c4;
+    --file-code: #aa9eff;
+    --file-data: #4cb8ee;
+    --file-web: #ff8f66;
+    --file-calendar: #f6b94a;
+    --file-contact: #bfa0ff;
+    --file-subtitle: #3fd3c3;
+    --file-blocked: #9ca3af;
+
     --chat-bg: #212121;
     --sidebar-bg: #171717;
     --input-bar-bg: #2a2a2a;

@@ -1,5 +1,8 @@
 import { prepareVideoThumbnail } from './video-thumbnail-lifecycle.js';
 
+import { createAttachmentCard } from '../../ui/files/attachment-card.js';
+import { describeAttachment } from '../../ui/files/file-visual.js';
+
 export function createUploadedFilePreviewLifecycle({
     document,
     getFiles,
@@ -7,56 +10,47 @@ export function createUploadedFilePreviewLifecycle({
     getContainer,
     getInputWrapper,
     openMediaPreview,
-    updateInputState
+    updateInputState,
+    getLanguage = () => 'zh-TW'
 }) {
+    // What was drawn for each file (a picture of its first page): kept while the row is drawn again.
+    const thumbnails = new Map();
+    const window = document.defaultView;
+
+    const openFile = async (file, trigger) => {
+        const { family } = describeAttachment({ name: file.name, mimeType: file.type });
+        if (family === 'image' || family === 'video') {
+            openMediaPreview({ mimeType: file.type, data: file.base64.split(',')[1], name: file.name }, trigger);
+            return;
+        }
+        const { openUploadedFilePreview } = await import('../../ui/files/uploaded-file-preview.js');
+        await openUploadedFilePreview({ document, window, file, language: getLanguage(), returnFocusTo: trigger });
+    };
+
     const renderFilePreviews = () => {
         const files = getFiles();
         const container = getContainer();
         container.innerHTML = '';
         getInputWrapper()?.classList.toggle('has-file-previews', files.length > 0);
         container.classList.toggle('has-files', files.length > 0);
+        // A file that is gone takes its picture with it.
+        for (const [id, entry] of thumbnails) {
+            if (!files.some((file) => file.id === id)) {
+                entry.dispose?.();
+                thumbnails.delete(id);
+            }
+        }
 
         files.forEach(file => {
-            const previewElement = document.createElement('div');
-            let videoElement = null;
-            previewElement.className = 'relative w-16 h-16 bg-gray-200 rounded-lg overflow-hidden file-preview-item';
-            if (file.type.startsWith('image/')) {
-                previewElement.innerHTML = `<img src="${file.base64}" class="w-full h-full object-cover">`;
-                previewElement.onclick = () => openMediaPreview({
-                    mimeType: file.type,
-                    data: file.base64.split(',')[1],
-                    name: file.name
-                }, previewElement);
-            } else if (file.type.startsWith('video/')) {
-                previewElement.classList.add('file-preview-video');
-                previewElement.innerHTML = `
-                    <video src="${file.base64}" class="w-full h-full object-cover" preload="auto" muted playsinline data-video-thumbnail></video>
-                    <span class="message-media-play file-preview-play" aria-hidden="true">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path fill="currentColor" d="M8 5v14l11-7z"></path></svg>
-                    </span>
-                `;
-                videoElement = previewElement.querySelector('video');
-                previewElement.onclick = () => openMediaPreview({
-                    mimeType: file.type,
-                    data: file.base64.split(',')[1],
-                    name: file.name
-                }, previewElement);
-            } else {
-                previewElement.innerHTML = `<div class="w-full h-full flex items-center justify-center">
-                   <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
-                </div>`;
-            }
-            const removeButton = document.createElement('button');
-            removeButton.type = 'button';
-            removeButton.className = 'file-preview-remove';
-            removeButton.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
-            removeButton.onclick = (event) => {
-                event.stopPropagation();
-                removeFile(file.id);
-            };
-            previewElement.appendChild(removeButton);
-            container.appendChild(previewElement);
-            if (videoElement) prepareVideoThumbnail(videoElement, { document });
+            const { element, video } = createAttachmentCard(document, file, {
+                window,
+                language: getLanguage(),
+                cache: thumbnails,
+                onOpen: openFile,
+                onRemove: (removed) => removeFile(removed.id)
+            });
+            container.appendChild(element);
+            if (video) prepareVideoThumbnail(video, { document });
         });
         updateInputState();
     };
