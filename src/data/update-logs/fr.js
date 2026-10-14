@@ -1,6 +1,16 @@
 // The update notes in French (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.9.0": [
+    "<strong>Notes de version de Noureon 18.9.0</strong>",
+    "Cette version ajoute un fournisseur de modèles, OpenCode Go, et fait que la page ne télécharge que les textes de l’interface de la langue qu’elle affiche.",
+    "<strong>Changements principaux</strong>",
+    "<ul><li><strong>OpenCode Go :</strong> collez votre propre clé OpenCode Go dans les Paramètres pour utiliser les 32 modèles de sa liste (Kimi, GLM, DeepSeek, MiMo, Grok, GPT Luna, Claude Haiku, MiniMax, Qwen, Muse Spark et d’autres), dont 3 gratuits pour une durée limitée. Les trois formes de son API (chat, responses, messages) sont prises en charge ; appels d’outils, recherche sur le web, mode avancé (Python), réponses qui continuent après la fermeture de la page, conseil et recherche approfondie fonctionnent ; les modèles qui acceptent les images peuvent en recevoir. L’usage suit les limites affichées dans la console d’OpenCode Go.</li><li><strong>Niveaux de réflexion :</strong> chaque modèle OpenCode a ses propres options de réflexion (seules les valeurs qu’il accepte sont envoyées) ; un modèle sans options garde son réglage par défaut.</li><li><strong>PDF lus directement :</strong> 18 modèles OpenCode lisent tels quels les PDF envoyés ; les autres types de fichiers, et les autres modèles, passent d’abord par le modèle de traduction de documents.</li><li><strong>Seulement votre langue au démarrage :</strong> les textes de l’interface étaient téléchargés dans les cinq langues ensemble ; désormais seule celle utilisée l’est, et une autre est chargée quand vous la choisissez. En anglais, les textes téléchargés au démarrage (compressés) passent d’environ 141 Ko à environ 28 Ko.</li><li><strong>Une première visite suit la langue du système :</strong> pour quelqu’un qui n’a jamais choisi de langue ni ouvert de session, la page de chargement et toute l’application suivent la langue du navigateur ou du système ; un nouvel utilisateur ou une personne déconnectée ne voit plus la page de chargement « Préparation de l’espace de travail ».</li><li><strong>Correction du chronomètre :</strong> en mode avancé, l’heure de la ligne du haut pendant le travail ne repart plus de 0 quand la page rejoint la réponse (rechargement, retour sur l’onglet, reconnexion) ; c’est toujours le temps écoulé depuis le début de la réponse.</li></ul>",
+    "<strong>Remarques</strong>",
+    "<ul><li>Muse Spark Contributor entraîne les modèles de Meta avec vos requêtes et réponses, et la description du modèle l’indique ; pour la conservation des données et l’entraînement de chaque modèle, voir les annonces d’OpenCode.</li><li>La liste des modèles d’OpenCode Go est décidée par OpenCode et peut changer.</li></ul>",
+    "<strong>Compatibilité</strong>",
+    "Cette mise à jour ne nécessite aucune migration de données."
+  ],
   "18.8.2": [
     "<strong>Notes de version de Noureon 18.8.2</strong>",
     "Cette version remplace Gemini 3.1 Pro Preview par Gemini 4 Argon, chez le fournisseur Gemini comme chez OpenRouter.",

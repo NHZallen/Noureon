@@ -2,6 +2,20 @@
 // content 為 zh-TW 的 HTML 字串（JSON 轉義、雙引號），目前不隨介面語言切換。
 export const updateLogEntries = [
   {
+    version: "18.9.0",
+    date: "2026-10-14",
+    content: [
+      "<strong>Noureon 18.9.0 發布說明</strong>",
+      "本版本新增模型供應商 OpenCode Go，並讓啟動時只下載你正在使用的語言的介面文字。",
+      "<strong>主要變更</strong>",
+      "<ul><li><strong>OpenCode Go：</strong>在設定裡貼上自己的 OpenCode Go 金鑰，就能用它清單裡的 32 個模型（Kimi、GLM、DeepSeek、MiMo、Grok、GPT Luna、Claude Haiku、MiniMax、Qwen、Muse Spark 等），其中 3 個限時免費。三種 API 格式（chat、responses、messages）都支援，工具呼叫、網頁搜尋、Python 進階模式、伺服器端繼續執行、理事會與深度研究都能用；支援圖片的模型可以傳圖片。用量以 OpenCode Go 後台的限額為準。</li><li><strong>思考程度：</strong>每個 OpenCode 模型各有自己的思考程度選項（依實測，只送該模型接受的值）；沒有選項的模型維持它自己的預設。</li><li><strong>直接讀 PDF：</strong>18 個 OpenCode 模型可以直接讀你上傳的 PDF，其他檔案類型與其他模型仍然先由「文件轉譯模型」轉成文字。</li><li><strong>啟動只載入你的語言：</strong>介面文字原本五種語言一起下載，現在只下載目前使用的那一種，切換語言時才載入新的。以英文為例，啟動時文字相關的下載（壓縮後）從約 141 KB 降到約 28 KB。</li><li><strong>第一次開啟跟隨系統語言：</strong>沒選過語言、沒登入過的人，載入畫面與整個 App 依瀏覽器或系統語言顯示；新使用者與已登出的人也不再看到「正在準備工作空間」的載入畫面。</li><li><strong>計時修正：</strong>進階模式執行中，最上面一行的時間在頁面重新加入（重新整理、切分頁後回來、重新連線）時不再從 0 重算，一直是從回覆開始算的時間。</li></ul>",
+      "<strong>注意事項</strong>",
+      "<ul><li>Muse Spark Contributor 會用你的提示與回應訓練 Meta 的模型，模型說明裡有標示；各模型的資料保留與是否用於訓練，請以 OpenCode 的公告為準。</li><li>OpenCode Go 的模型清單由 OpenCode 決定，之後可能增減。</li></ul>",
+      "<strong>相容性</strong>",
+      "本次更新不需要資料遷移。"
+    ]
+  },
+  {
     version: "18.8.2",
     date: "2026-10-14",
     content: [
