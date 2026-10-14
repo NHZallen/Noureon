@@ -306,3 +306,24 @@ test('the probe of Word and PowerPoint files: each form sends the file as it is,
   assert.ok(body('messages', 'pptx').messages[0].content.some((part) => part.type === 'document' && part.source.media_type === OFFICE_FILES.pptx.mime));
   assert.ok(body('gemini', 'docx').contents[0].parts.some((part) => part.inlineData?.mimeType === OFFICE_FILES.docx.mime));
 });
+
+test('the probe of converted files: the PDF made of the Word or PowerPoint file goes as a PDF in each form; a run that asks for it says what is missing first', async () => {
+  const { existsSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const there = ['docx', 'pptx'].every((kind) => existsSync(new URL(`../scripts/probe-files/converted-${kind}.pdf`, import.meta.url)));
+  if (there) {
+    assert.ok(buildBody('chat', 'm', 'convdocx').messages[0].content.some((part) => part.file?.file_data.startsWith('data:application/pdf;base64,')));
+    assert.ok(buildBody('gemini', 'm', 'convpptx').contents[0].parts.some((part) => part.inlineData?.mimeType === 'application/pdf'));
+  } else {
+    assert.throws(() => buildBody('chat', 'm', 'convdocx'), /converted-docx\.pdf is missing/);
+    const errors = [];
+    const code = await main(['--tests', 'converted', '--only', 'kimi-k3'], { OPENCODE_GO_KEY: 'k' }, { log() {}, error: (line) => errors.push(line) }, async () => { throw new Error('no network'); });
+    assert.equal(code, 2);
+    assert.match(errors.join(' '), /save it as PDF/);
+  }
+  // The default run does not include it.
+  const seen = [];
+  await main(['--only', 'kimi-k3', '--tests', 'basic', '--out', join(tmpdir(), `opencode-probe-test-${process.pid}.json`)], { OPENCODE_GO_KEY: 'k' }, { log() {}, error() {} }, async (url) => { seen.push(url); return reply(200, {}); });
+  assert.ok(seen.length >= 1);
+});

@@ -6,3 +6,6 @@ dist/
 .env
 .env.*
 !.env.example
+
+# PDFs made of scripts/probe-files/probe.docx and probe.pptx by whoever runs `opencode-probe.mjs --tests converted`
+scripts/probe-files/converted-*.pdf

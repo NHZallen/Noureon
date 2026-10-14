@@ -17,12 +17,13 @@
 //
 // It sends one request at a time and stops after four 429 in a row. A full run is about 250 small requests (a few cents at most, the reasoning models are the dearest).
 
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync, renameSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const BASE = 'https://opencode.ai/inference/go/v1';
-export const TESTS = Object.freeze(['basic', 'stream', 'tools', 'toolloop', 'params', 'effort', 'vision', 'document', 'office', 'thinking', 'auth', 'errors']);
+export const TESTS = Object.freeze(['basic', 'stream', 'tools', 'toolloop', 'params', 'effort', 'vision', 'document', 'office', 'converted', 'thinking', 'auth', 'errors']);
 
 // From https://opencode.ai/docs/go/ (Endpoints), 2026-10-13: the model, the form of its API, and whether it is free.
 const chat = ['glm-5.3-flash', 'glm-5.3', 'glm-5.2', 'kimi-k3', 'kimi-k2.7-code', 'kimi-k2.6', 'longcat-2.0', 'deepseek-v4.1-flash', 'deepseek-v4-pro', 'deepseek-v4-flash', 'deepseek-v4-flash-vision-exp', 'mimo-v2.6-flash', 'mimo-v2.6-pro', 'mimo-v2.5', 'mimo-v2.5-pro', 'hy4-preview', 'hy3', 'space-bunny', 'longcat-2.5-preview-free', 'step-5-preview-free'];
@@ -56,6 +57,22 @@ export const OFFICE_FILES = Object.freeze({
   pptx: { mime: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', name: 'probe.pptx' }
 });
 const officeCache = {};
+// The PDF that Word / PowerPoint (or LibreOffice) made of the same two files: `scripts/probe-files/converted-docx.pdf` and `converted-pptx.pdf`
+// (test `converted`: does a model read the PDF made of an Office file? If `soffice` is on the machine the probe makes them itself, once).
+const CONVERTED = Object.freeze({ convdocx: 'docx', convpptx: 'pptx' });
+const isPdfKind = (kind) => kind === 'document' || Boolean(CONVERTED[kind]);
+const pdfBase64 = (kind) => (kind === 'document' ? PDF : convertedBase64(CONVERTED[kind]));
+export function convertedBase64(kind) {
+  const file = new URL(`./probe-files/converted-${kind}.pdf`, import.meta.url);
+  if (!existsSync(file)) {
+    // Make it with LibreOffice when it is there; otherwise the person is told what to do.
+    const made = spawnSync('soffice', ['--headless', '--convert-to', 'pdf', '--outdir', fileURLToPath(new URL('./probe-files/', import.meta.url)), fileURLToPath(new URL(`./probe-files/${OFFICE_FILES[kind].name}`, import.meta.url))], { stdio: 'ignore' });
+    const produced = new URL(`./probe-files/probe.pdf`, import.meta.url);
+    if (made.status === 0 && existsSync(produced)) renameSync(produced, file);
+  }
+  if (!existsSync(file)) throw new Error(`scripts/probe-files/converted-${kind}.pdf is missing: open probe.${kind} in ${kind === 'docx' ? 'Word' : 'PowerPoint'} (or Pages, Keynote, LibreOffice), save it as PDF with that name, and run again`);
+  return readFileSync(file).toString('base64');
+}
 const officeBase64 = (kind) => (officeCache[kind] ||= readFileSync(new URL(`./probe-files/${OFFICE_FILES[kind].name}`, import.meta.url)).toString('base64'));
 const PNG = 'iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR4nO3NsQ0AAAzCMP5/un0CNkuZ41wybXsHAAAAAAAAAAAAxR4yw/wuPL6QkAAAAABJRU5ErkJggg==';
 const TOOL = { name: 'get_time', description: 'Gets the local time of a city.', schema: { type: 'object', properties: { city: { type: 'string' } }, required: ['city'] } };
@@ -99,9 +116,9 @@ export function buildBody(family, model, kind = 'basic', { stream = false, extra
   const maxTokens = extra.max_tokens || 96;
   let body;
   if (family === 'gemini') {
-    const text = kind === 'vision' ? 'What colour is this picture? One word.' : kind === 'document' ? DOC_PROMPT : kind === 'tool' ? TOOL_PROMPT : kind === 'think' ? THINK_PROMPT : PROMPT;
+    const text = kind === 'vision' ? 'What colour is this picture? One word.' : isPdfKind(kind) ? DOC_PROMPT : kind === 'tool' ? TOOL_PROMPT : kind === 'think' ? THINK_PROMPT : PROMPT;
     const parts = kind === 'vision' ? [{ text }, { inlineData: { mimeType: 'image/png', data: PNG } }]
-      : kind === 'document' ? [{ text }, { inlineData: { mimeType: 'application/pdf', data: PDF } }]
+      : isPdfKind(kind) ? [{ text }, { inlineData: { mimeType: 'application/pdf', data: pdfBase64(kind) } }]
         : OFFICE_FILES[kind] ? [{ text: DOC_PROMPT }, { inlineData: { mimeType: OFFICE_FILES[kind].mime, data: officeBase64(kind) } }] : [{ text }];
     const { max_tokens: limit, temperature, top_p: topP, generationConfig: wanted = {}, ...rest } = extra;
     const config = { maxOutputTokens: limit || maxTokens, ...(temperature !== undefined ? { temperature } : {}), ...(topP !== undefined ? { topP } : {}), ...wanted };
@@ -113,7 +130,7 @@ export function buildBody(family, model, kind = 'basic', { stream = false, extra
   if (family === 'chat') {
     const user = kind === 'vision'
       ? [{ type: 'text', text: 'What colour is this picture? One word.' }, { type: 'image_url', image_url: { url: `data:image/png;base64,${PNG}` } }]
-      : kind === 'document' ? [{ type: 'text', text: DOC_PROMPT }, { type: 'file', file: { filename: 'probe.pdf', file_data: `data:application/pdf;base64,${PDF}` } }]
+      : isPdfKind(kind) ? [{ type: 'text', text: DOC_PROMPT }, { type: 'file', file: { filename: 'probe.pdf', file_data: `data:application/pdf;base64,${pdfBase64(kind)}` } }]
         : OFFICE_FILES[kind] ? [{ type: 'text', text: DOC_PROMPT }, { type: 'file', file: { filename: OFFICE_FILES[kind].name, file_data: `data:${OFFICE_FILES[kind].mime};base64,${officeBase64(kind)}` } }]
         : kind === 'tool' ? TOOL_PROMPT : kind === 'think' ? THINK_PROMPT : PROMPT;
     body = { model, messages: [{ role: 'user', content: user }], max_tokens: maxTokens };
@@ -122,7 +139,7 @@ export function buildBody(family, model, kind = 'basic', { stream = false, extra
   } else if (family === 'responses') {
     const input = kind === 'vision'
       ? [{ role: 'user', content: [{ type: 'input_text', text: 'What colour is this picture? One word.' }, { type: 'input_image', image_url: `data:image/png;base64,${PNG}` }] }]
-      : kind === 'document' ? [{ role: 'user', content: [{ type: 'input_text', text: DOC_PROMPT }, { type: 'input_file', filename: 'probe.pdf', file_data: `data:application/pdf;base64,${PDF}` }] }]
+      : isPdfKind(kind) ? [{ role: 'user', content: [{ type: 'input_text', text: DOC_PROMPT }, { type: 'input_file', filename: 'probe.pdf', file_data: `data:application/pdf;base64,${pdfBase64(kind)}` }] }]
         : OFFICE_FILES[kind] ? [{ role: 'user', content: [{ type: 'input_text', text: DOC_PROMPT }, { type: 'input_file', filename: OFFICE_FILES[kind].name, file_data: `data:${OFFICE_FILES[kind].mime};base64,${officeBase64(kind)}` }] }]
         : kind === 'tool' ? TOOL_PROMPT : kind === 'think' ? THINK_PROMPT : PROMPT;
     body = { model, input, max_output_tokens: Math.max(maxTokens, 32) };
@@ -131,7 +148,7 @@ export function buildBody(family, model, kind = 'basic', { stream = false, extra
   } else {
     const user = kind === 'vision'
       ? [{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: PNG } }, { type: 'text', text: 'What colour is this picture? One word.' }]
-      : kind === 'document' ? [{ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: PDF } }, { type: 'text', text: DOC_PROMPT }]
+      : isPdfKind(kind) ? [{ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdfBase64(kind) } }, { type: 'text', text: DOC_PROMPT }]
         : OFFICE_FILES[kind] ? [{ type: 'document', source: { type: 'base64', media_type: OFFICE_FILES[kind].mime, data: officeBase64(kind) } }, { type: 'text', text: DOC_PROMPT }]
         : kind === 'tool' ? TOOL_PROMPT : kind === 'think' ? THINK_PROMPT : PROMPT;
     body = { model, max_tokens: maxTokens, messages: [{ role: 'user', content: user }] };
@@ -401,6 +418,11 @@ export async function probeModel({ model, tests = TESTS, run, key = '' }) {
   }
   if (tests.includes('vision')) result.vision = await one('vision');
   if (tests.includes('document')) result.document = await one('document', { extra: { max_tokens: 200 } });
+  if (tests.includes('converted')) {
+    // The PDF made of a Word file and of a PowerPoint file (the plan to convert them before sending): is it read as well as the PDF of the first test?
+    result.converted = {};
+    for (const kind of Object.keys(CONVERTED)) result.converted[CONVERTED[kind]] = await one(kind, { extra: { max_tokens: 200 } });
+  }
   if (tests.includes('office')) {
     // A Word file and a PowerPoint file, sent as they are (the answer should hold MANGO if the model read the file).
     result.office = {};
@@ -465,7 +487,17 @@ export async function main(args = process.argv.slice(2), env = process.env, out 
   const only = argOf(args, '--only');
   if (only) models = MODELS.filter((model) => only.split(',').map((name) => name.trim()).includes(model.id));
   else if (args.includes('--free')) models = MODELS.filter((model) => model.free);
-  const tests = (argOf(args, '--tests') || TESTS.join(',')).split(',').map((name) => name.trim()).filter((name) => TESTS.includes(name));
+  const asked = argOf(args, '--tests');
+  // `converted` needs two PDFs made of the Office files: only in a run that asks for it by name, and then it says first what is missing.
+  const tests = (asked || TESTS.filter((name) => name !== 'converted').join(',')).split(',').map((name) => name.trim()).filter((name) => TESTS.includes(name));
+  if (tests.includes('converted')) {
+    try {
+      for (const kind of ['docx', 'pptx']) convertedBase64(kind);
+    } catch (error) {
+      out.error(plain(error.message, 400));
+      return 2;
+    }
+  }
   if (!models.length || !tests.length) {
     out.error('No model or no test matches.');
     return 2;
