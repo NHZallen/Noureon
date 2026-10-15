@@ -700,13 +700,7 @@
     /* A column of numbers is lined up at the right (src/app/ui/markdown/table-columns.js). */
     .prose table .ac-table-number { min-width: 0; text-align: right; font-variant-numeric: tabular-nums; }
     @media (max-width: 640px) {
-        /* On a phone the table runs to the edges of the screen and slides under them; its first column still lines up with the text. */
-        .table-scroll-container {
-            margin-left: -1rem;
-            margin-right: -1rem;
-            padding-left: 1rem;
-            padding-right: 1rem;
-        }
+        /* On a phone the table is as wide as its columns need and slides sideways inside its own box (the message itself never moves). */
         .prose table { width: max-content; min-width: 100%; }
     }
     .prose ul, .prose ol { margin-bottom: 1em; padding-left: 1.5em; }
