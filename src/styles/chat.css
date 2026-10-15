@@ -659,7 +659,6 @@
 
 /* Tables are plain, like in a sheet: no box, no cell borders, a line under the head and a faint line between rows; the table slides sideways when it is wider than the message. */
 .prose th {
-    white-space: nowrap;
     background: none;
 }
 
@@ -681,8 +680,10 @@
     border-radius: 4px;
 }
     .prose table th, .prose table td {
-        min-width: 5.5em;
-        padding: 0.7rem 1.1rem;
+        min-width: 4em;
+        max-width: 16em; /* a long cell wraps instead of making the column wider */
+        padding: 0.55rem 0.85rem;
+        line-height: 1.4;
         border: 0;
         border-bottom: 1px solid color-mix(in srgb, var(--border-color) 70%, transparent);
         text-align: left;
@@ -700,19 +701,19 @@
     /* A column of numbers is lined up at the right (src/app/ui/markdown/table-columns.js). */
     .prose table .ac-table-number { min-width: 0; text-align: right; font-variant-numeric: tabular-nums; }
     @media (max-width: 640px) {
-        /* On a phone the table is as wide as its columns need and slides sideways. Its box runs out to 0.4rem from the screen edges
-           whatever padding the message and the chat have (the message is centred in the screen), and its first column still lines up
-           with the text. The message lets it out only when it holds a table, and the chat clips what is beyond the screen, so nothing
-           else moves. */
+        /* On a phone the table is as wide as its columns need and slides sideways. Its box is the width of the screen, edge to edge,
+           whatever padding the message and the chat have (the message is centred in the screen); the first column starts 0.75rem from
+           the edge, and the table slides out under both edges. The message lets it out only when it holds a table, and the chat clips
+           what is beyond the screen, so nothing else moves. */
         .prose table { width: max-content; min-width: 100%; }
         .model-message .prose:has(.table-scroll-container) { overflow: visible; }
         .table-scroll-container {
             box-sizing: border-box;
-            width: calc(100vw - 0.8rem);
-            margin-left: calc(50% - 50vw + 0.4rem);
+            width: 100vw;
+            margin-left: calc(50% - 50vw);
             margin-right: 0;
-            padding-left: calc((100vw - 100%) / 2 - 0.4rem);
-            padding-right: calc((100vw - 100%) / 2 - 0.4rem);
+            padding-left: 0.75rem;
+            padding-right: 0.75rem;
             scrollbar-width: none; /* no drag bar on a phone */
         }
         .table-scroll-container::-webkit-scrollbar { display: none; }
