@@ -34,3 +34,13 @@
   （`answers.<name>.noul` 為機率）。失敗時靜默退回舊行為，所以最壞情況是「沒有任何改變」。
 - owner 需用真實 OpenRouter 金鑰測：開瀏覽器網路面板，送一則訊息，看 `alpha/decisions` 是否 200、各題機率是否合理。
 - `noul` 的臨界值 0.6 是 owner 的選擇，之後可依實測調整。
+
+## 5. 實測結果（2026-10-15，`scripts/decisions-probe.mjs`，模型 `typesafe/jev-1.14`，owner 用真實金鑰跑）
+
+- 端點可用（HTTP 200，格式與解析相符）；每次約 165 到 220 ms，遠低於 1 秒的逾時。
+- CORS：從 `https://noureon.com` 與 `https://staging.noureon.com` 預檢都是 204，`allow-origin=*`，允許 `Authorization`、`Content-Type`。
+- 6 則訊息、24 個答案裡有 21 個與預期相符。三個不同：
+  - 「寫 3 頁簡報（pptx）」`search=0.77`（主題是 2026 年的市場，自動開搜尋說得通）。
+  - 「把三季營收畫成圖表」`file=0.83`（會多注入檔案撰寫指引）。
+  - 「把影片下載成 mp3」`file=0.86`（同上，工具的產物是檔案）。
+- 樣本很小（6 則）。若實際使用中常看到多餘的檔案指引，可調整 `file` 題的說明（排除「只在對話裡畫圖表」與「只是跑命令工具」），或讓 `file` 用較高的臨界值（例如 0.9）；目前沒有改。
