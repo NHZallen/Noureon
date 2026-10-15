@@ -1,6 +1,14 @@
 // The update notes in French (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.12.0": [
+    "<strong>Noureon 18.12.0 – Notes de version</strong>",
+    "Cette version ajoute trois modèles multimodaux gratuits : NVIDIA Nemotron 3.5 Super VL (via OpenRouter et via NVIDIA) et Step 5 Preview de NVIDIA.",
+    "<strong>Principaux changements</strong>",
+    "<ul><li><strong>Nouveaux modèles :</strong> NVIDIA Nemotron 3.5 Super VL sur OpenRouter (gratuit) accepte les images, les vidéos et les appels d’outils ; le fournisseur NVIDIA ajoute Nemotron 3.5 Super VL (120B A12B) et Step 5 Preview, tous deux gratuits, et tous deux acceptent les images et les vidéos. Les deux modèles du fournisseur NVIDIA n’acceptent pas encore les appels d’outils.</li><li><strong>Sélecteur de modèles :</strong> Step 5 Preview du fournisseur NVIDIA est classé sous le fournisseur StepFun ; le nombre de modèles dans la page d’accueil, le Centre d’aide et la politique de confidentialité passe à 74.</li></ul>",
+    "<strong>Compatibilité</strong>",
+    "Cette mise à jour ne nécessite aucune migration de données."
+  ],
   "18.11.0": [
     "<strong>Noureon 18.11.0 – Notes de version</strong>",
     "Cette version permet au modèle de voir le numéro et le nom de fichier de chaque pièce jointe, donne deux décisions de plus au modèle de jugement, et améliore les tableaux, la mise en page sur téléphone et les couleurs du code en thème sombre.",
