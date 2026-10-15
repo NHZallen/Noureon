@@ -351,7 +351,9 @@ test('OpenRouter sends local videos with the video_url content type instead of t
   const payload = JSON.parse(requests[0].options.body);
   assert.deepEqual(payload.messages.at(-1).content, [
     { type: 'text', text: 'Describe the clip' },
+    { type: 'text', text: '[Video 1 of 2 in this message: clip.mp4]' },
     { type: 'video_url', video_url: { url: 'data:video/mp4;base64,VklERU8=' } },
+    { type: 'text', text: '[Video 2 of 2 in this message: clip.mov]' },
     { type: 'video_url', video_url: { url: 'data:video/mov;base64,TU9W' } }
   ]);
   assert.equal('plugins' in payload, false);
@@ -438,6 +440,7 @@ test('NVIDIA requests preserve proxy payload, authorization, vision attachments,
     role: 'user',
     content: [
       { type: 'text', text: 'Describe this image' },
+      { type: 'text', text: '[Image 1 of 1 in this message: image.png]' },
       {
         type: 'image_url',
         image_url: {
@@ -628,7 +631,9 @@ test('a failed Responses stream is an error, and pictures and files go as input 
   assert.deepEqual(body.input[1].content, [{ type: 'output_text', text: 'Earlier answer' }], 'earlier answers are output text');
   assert.deepEqual(body.input.at(-1).content, [
     { type: 'input_text', text: 'Look' },
+    { type: 'input_text', text: '[Image 1 of 1 in this message: a.png]' },
     { type: 'input_image', image_url: 'data:image/png;base64,AAAA' },
+    { type: 'input_text', text: '[File 1 of 1 in this message: r.pdf]' },
     { type: 'input_file', filename: 'r.pdf', file_data: 'data:application/pdf;base64,BBBB' }
   ]);
   assert.deepEqual(body.plugins, [{ id: 'file-parser', pdf: { engine: 'mistral-ocr' } }]);

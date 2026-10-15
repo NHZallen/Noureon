@@ -6,6 +6,10 @@
       "note": "Reviewed 2026-10-13: no browser globals (the Messages form of API: conversation, tools, stream collector)."
     },
     {
+      "path": "src/app/legacy-runtime/features/attachment-labels.js",
+      "note": "Reviewed 2026-10-15: no browser globals (the line of text in front of each attachment: its number and its name)."
+    },
+    {
       "path": "src/app/legacy-runtime/features/council-attachments.js",
       "note": "Reviewed 2026-10-08: no browser globals (which attachments need a packet)."
     },

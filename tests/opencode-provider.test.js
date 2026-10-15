@@ -502,11 +502,12 @@ test('a PDF goes to the models that read it (the probe of 2026-10-14), in the fo
     await streamApiCall([{ text: 'What is in it?' }, pdf], () => {});
     return requests[0];
   };
-  const chat = (await sent('hy3')).messages[1].content[1];
+  // content[1] is the line that numbers and names the file (attachment-labels.js), content[2] the file.
+  const chat = (await sent('hy3')).messages[1].content[2];
   assert.deepEqual([chat.type, chat.file.filename, chat.file.file_data], ['file', 'a.pdf', 'data:application/pdf;base64,JVBERi0x']);
-  const responses = (await sent('gpt-6-luna')).input[0].content[1];
+  const responses = (await sent('gpt-6-luna')).input[0].content[2];
   assert.deepEqual([responses.type, responses.filename, responses.file_data], ['input_file', 'a.pdf', 'data:application/pdf;base64,JVBERi0x']);
-  const messages = (await sent('claude-haiku-5-5')).messages[0].content[1];
+  const messages = (await sent('claude-haiku-5-5')).messages[0].content[2];
   assert.deepEqual(messages, { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: 'JVBERi0x' } });
   // A model that does not read a file is not sent one.
   assert.equal(JSON.stringify(await sent('glm-5.3')).includes('JVBERi0x'), false);

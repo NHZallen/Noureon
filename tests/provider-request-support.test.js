@@ -210,8 +210,10 @@ test('single-model translation support builds document and Tavily packets before
   assert.match(requestParts[0].text, /Web search packet/);
   assert.deepEqual(requestParts.slice(1), [
     { text: 'Question' },
-    { inlineData: { mimeType: 'image/png', name: 'image.png', data: 'img' } }
+    // The label that numbers and names the picture for the model comes with it (attachment-labels.js; the line itself is put in front of it in the request).
+    { inlineData: { mimeType: 'image/png', name: 'image.png', data: 'img', attachmentLabel: 'Image 1 of 1 in this message: image.png' } }
   ]);
+  assert.equal(streamCalls[0].parts[1].inlineData.attachmentLabel, 'File 1 of 1 in this message: paper.pdf', 'the translator gets the label of the file too');
   assert.equal(streamCalls[0].options.modelInfo.id, 'translator');
   assert.match(streamCalls[0].parts[0].text, /Document Translation Packet/);
   assert.equal(fetchCalls.length, 1);

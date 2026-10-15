@@ -6,6 +6,7 @@ import { buildLinkedPagesText, extractLinkedUrls, pageCharsFor } from './linked-
 import { createSearchQueryRewriter } from './search-query-rewriter.js';
 import { createWebResearchTools } from './web-research-tools.js';
 import { absoluteLinks } from './web-page-text.js';
+import { stampAttachmentLabels } from './attachment-labels.js';
 import { decisionsFor, verdictOf } from '../../runtime/decisions/decision-store.js';
 import { resultDate } from './model-request-formatting.js';
 import { createOfficeReader } from '../../ui/files/office-text/office-reader.js';
@@ -116,7 +117,7 @@ ${extractTextFromParts(parts)}
 
 Output requirements:
 - Start with "# Document Translation Packet".
-- Identify each file by filename and MIME type when available.
+- Identify each file by filename and MIME type when available. A line like [File 2 of 3 in this message: name.pdf] comes before each file: use that line as the heading of the file's section, so the target model can tell which file is which.
 - Preserve headings, section order, paragraphs, tables, lists, numeric values, labels, citations, dates, code blocks, and page/section clues.
 - For tables, write the column names and rows clearly in Markdown.
 - Separate observed content from any necessary inference.
@@ -226,6 +227,8 @@ Output requirements:
   } = {}) => {
     const config = getConfig();
     const translatedSections = [];
+    // The attachments are numbered and named from the message as it was sent (attachment-labels.js), before any is read into text, translated or left out.
+    if (!baseParts) parts = stampAttachmentLabels(parts);
     // A Word, PowerPoint or Excel file the model cannot read becomes its text (and pictures) here; the translator is only for what this could not do.
     if (!baseParts) {
       const toRead = parts.filter((part) => part?.inlineData?.data && officeKindOf(part.inlineData) && !modelSupportsUploadedFile(modelInfo, { inlineData: part.inlineData }));

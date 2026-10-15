@@ -13,12 +13,13 @@ const toBase64 = (bytes) => {
 };
 
 /** The parts that stand for the file: its text (with what was left out told), then each picture, named by its number. */
-export function officeRequestParts(content, { sendImages }) {
+export function officeRequestParts(content, { sendImages, label = '' }) {
   const notes = [];
   if (content.imageTotal > 0 && !sendImages) notes.push(`The file has ${content.imageTotal} image(s) that this model cannot look at.`);
   else if (content.omitted > 0) notes.push(`${content.omitted} more image(s) of the file were not sent.`);
   if (content.kind === 'xlsx' && (content.charts > 0 || content.imageTotal > 0)) notes.push('Charts and pictures of the workbook are not included.');
-  const text = [`# File: ${content.name || 'document'} (${content.label})`, content.text, ...notes.map((note) => `(${note})`)].filter(Boolean).join('\n\n');
+  // The line that numbers and names the file for the model (src/app/legacy-runtime/features/attachment-labels.js) comes first.
+  const text = [label ? `[${label}]` : '', `# File: ${content.name || 'document'} (${content.label})`, content.text, ...notes.map((note) => `(${note})`)].filter(Boolean).join('\n\n');
   const parts = [{ text }];
   if (sendImages) {
     for (const image of content.images) {
@@ -78,7 +79,7 @@ export function createOfficeReader({ loadDeps = browserDeps, maxImages, convertT
         if (convertToPdf && viaPdf(inline)) {
           const pdf = await convertToPdf(inline).catch(() => null);
           if (pdf?.data) {
-            out.push({ ...part, inlineData: pdf });
+            out.push({ ...part, inlineData: inline.attachmentLabel ? { ...pdf, attachmentLabel: inline.attachmentLabel } : pdf });
             changed = true;
             continue;
           }
@@ -91,7 +92,7 @@ export function createOfficeReader({ loadDeps = browserDeps, maxImages, convertT
         // `shrinkImage` (the page's own, from the dependencies) makes big pictures smaller before they are sent.
         const shrink = supportsVision && read.images.length ? (await loadDeps().catch(() => ({}))).shrinkImage : null;
         const images = shrink ? await Promise.all(read.images.map(async (image) => ({ ...image, ...(await shrink(image)) }))) : read.images;
-        out.push(...officeRequestParts({ ...read, images }, { sendImages: supportsVision }));
+        out.push(...officeRequestParts({ ...read, images }, { sendImages: supportsVision, label: inline.attachmentLabel || '' }));
         if (supportsVision) imagesSent += images.length;
         changed = true;
       }

@@ -23,6 +23,7 @@ export function mergeAdjacentModelMessages(history) {
 }
 import { shouldInjectFileGuidance } from '../../ui/files/file-intent.js';
 import { decisionsFor, verdictOf } from '../../runtime/decisions/decision-store.js';
+import { expandMessageLabels, stampMessageLabels } from './attachment-labels.js';
 
 const LANGUAGE_INSTRUCTIONS = {
   'zh-TW': '請用繁體中文回覆，除非使用者有特別要求。',
@@ -734,10 +735,15 @@ export function createStreamApiCall({
     }
 
     const readableOptions = { canRead: (inlineData) => modelSupportsUploadedFile(modelInfo, { inlineData }), viaPdf: (inlineData) => opencodeModelReadsOfficeViaPdf(modelInfo, inlineData.mimeType), supportsVision: Boolean(modelSupportsVision?.(modelInfo)) };
-    const historyForApi = await officeReader.expandMessages(mergeAdjacentModelMessages(researchReportsForApi(compactSandboxRunsForApi(compactFileHistoryForApi(
+    // Each attachment of what the person sent is numbered and named for the model (attachment-labels.js): "[Image 2 of 3 in this message: beach.png]".
+    // The numbers are made from the message as it was sent, before a file is read into text or left out, and put in front of what is left of it
+    // only for the request: the guidance and the memory look at the text of the message without those lines (a line says "File").
+    const readHistory = await officeReader.expandMessages(stampMessageLabels(mergeAdjacentModelMessages(researchReportsForApi(compactSandboxRunsForApi(compactFileHistoryForApi(
       requestOptions.historyForApi || (conversation.messages || []).slice(0, -1)
-    )))), readableOptions);
-    const [currentMessageForApi] = await officeReader.expandMessages([requestOptions.currentMessageForApi || { role: 'user', parts }], readableOptions);
+    ))))), readableOptions);
+    const [readCurrentMessage] = await officeReader.expandMessages(stampMessageLabels([requestOptions.currentMessageForApi || { role: 'user', parts }]), readableOptions);
+    const historyForApi = expandMessageLabels(readHistory);
+    const [currentMessageForApi] = expandMessageLabels([readCurrentMessage]);
     const generationConfig = requestOptions.genConfig || conversation.genConfig || getDefaultGenConfig();
     const disableReasoning = requestOptions.disableReasoning === true;
     const reasoningConfig = disableReasoning ? null : getModelReasoningConfig(modelInfo);
@@ -745,7 +751,7 @@ export function createStreamApiCall({
       ? normalizeReasoningEffort(modelInfo, requestOptions.reasoningEffort ?? conversation.reasoningEffort)
       : null;
     const config = getConfig();
-    const systemInstruction = await resolveSystemInstruction({ config, conversation, currentMessageForApi, historyForApi, requestOptions });
+    const systemInstruction = await resolveSystemInstruction({ config, conversation, currentMessageForApi: readCurrentMessage, historyForApi: readHistory, requestOptions });
 
     // Advanced mode: the Python tool and the tool rounds of this reply so far.
     const toolOptions = { tools: requestOptions.tools || [], toolTurns: requestOptions.toolTurns || [] };

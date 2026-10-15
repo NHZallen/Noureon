@@ -54,6 +54,7 @@ Noureon uses no advertising or tracking cookies and has no third-party analytics
 - When you send a message, the needed prompt content, conversation context, attachments you choose and inputs of generated media, system instructions (including your memories, the Noura in use, and the full text of skills you chose with / or the model loaded) and model options go to the model provider you chose; when a search is needed, the search terms and the addresses you pasted go to the search provider.
 - The Model Council, deep research and the visual check send requests of the same kind to each of the models you chose.
 - Attachments some models cannot read are first turned into a text packet by the translation model you set, and then handed on to the models that need them.
+- The file name of each attachment, with its number in the message, is sent to the model together with the attachment (for example "File 1 of 2 in this message: contract.pdf"), so that it can tell which one you mean; a file name can hold personal information, so name files with that in mind.
 - You can review the message and attachments before sending; once sent, they are subject to the provider's rules.
 
 ## 7. Replies made by Noureon's server
