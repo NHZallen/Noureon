@@ -93,3 +93,10 @@ test('on a phone the first column of a table starts where the text starts', () =
   const css = readSource('src/styles/chat.css');
   assert.match(css, /\.table-scroll-container \{[^}]*padding-left: calc\(\(100vw - 100%\) \/ 2\);/);
 });
+
+test('the Extensions page, the permissions and the folds have no focus frame after a tap (iOS keeps one), and keep a ring for the keyboard', () => {
+  const css = readSource('src/app/ui/cli/cli-store.css');
+  assert.match(css, /\.cs-fold-head:focus \{ outline: none; \}/);
+  assert.match(css, /\.cs, \.pm \{ -webkit-tap-highlight-color: transparent; \}/);
+  assert.match(css, /@media \(hover: hover\) \{[^}]*:focus-visible[^}]*\{ outline: 2px solid/s);
+});

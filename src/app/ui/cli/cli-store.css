@@ -223,3 +223,16 @@ html.cs-open { overflow: hidden; }
 .cs-fold.cs-conn-card .cs-conn-card { margin-top: 0.6rem; }
 .pm-connectors { display: grid; gap: 0.2rem; }
 .cs-feature-manage { display: block; margin: 0.7rem 0 0.4rem; padding: 0; border: 0; background: transparent; font: inherit; font-size: 0.85rem; cursor: pointer; }
+
+/* No frame on what was tapped: iOS keeps the focus ring round the last button touched (the back arrow, a folded "Permissions" row, a tab), and the rows show their
+   state by their own colours. The Extensions page, the permissions of the settings and every fold have none; where there is a keyboard (a pointer that hovers), the
+   ring still shows for what is reached with it. */
+.cs, .pm { -webkit-tap-highlight-color: transparent; }
+.cs :is(button, a, [role="button"], [role="tab"], summary, label, input):focus,
+.pm :is(button, a, [role="button"], [role="tab"], summary, label, input):focus,
+.cs-fold-head:focus { outline: none; }
+@media (hover: hover) {
+    .cs :is(button, a, [role="button"], [role="tab"], summary, label, input):focus-visible,
+    .pm :is(button, a, [role="button"], [role="tab"], summary, label, input):focus-visible,
+    .cs-fold-head:focus-visible { outline: 2px solid color-mix(in srgb, var(--text-primary) 40%, transparent); outline-offset: 2px; }
+}
