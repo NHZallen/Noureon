@@ -2,10 +2,10 @@
 // content 為 zh-TW 的 HTML 字串（JSON 轉義、雙引號），目前不隨介面語言切換。
 export const updateLogEntries = [
   {
-    version: "18.12.0",
+    version: "18.11.1",
     date: "2026-10-15",
     content: [
-      "<strong>Noureon 18.12.0 發布說明</strong>",
+      "<strong>Noureon 18.11.1 發布說明</strong>",
       "本版本新增三個免費的多模態模型：NVIDIA Nemotron 3.5 Super VL（OpenRouter 與 NVIDIA 兩個來源）和 NVIDIA 的 Step 5 Preview。",
       "<strong>主要變更</strong>",
       "<ul><li><strong>新模型：</strong>OpenRouter 的 NVIDIA Nemotron 3.5 Super VL（免費）支援圖片、影片與工具呼叫；NVIDIA 提供商新增 Nemotron 3.5 Super VL（120B A12B）與 Step 5 Preview，皆為免費，都可以傳圖片與影片。NVIDIA 提供商的兩個模型尚未開放工具呼叫。</li><li><strong>模型選單：</strong>NVIDIA 提供商的 Step 5 Preview 歸在 StepFun 廠商下；首頁、協助中心與隱私政策裡的模型數更新為 74 個。</li></ul>",

@@ -1,8 +1,8 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
-  "18.12.0": [
-    "<strong>Noureon 18.12.0 Release Notes</strong>",
+  "18.11.1": [
+    "<strong>Noureon 18.11.1 Release Notes</strong>",
     "This version adds three free multimodal models: NVIDIA Nemotron 3.5 Super VL (from OpenRouter and from NVIDIA) and NVIDIA's Step 5 Preview.",
     "<strong>Main changes</strong>",
     "<ul><li><strong>New models:</strong> NVIDIA Nemotron 3.5 Super VL on OpenRouter (free) takes pictures, videos and tool calls; the NVIDIA provider gets Nemotron 3.5 Super VL (120B A12B) and Step 5 Preview, both free, and both take pictures and videos. The two models of the NVIDIA provider do not take tool calls yet.</li><li><strong>Model picker:</strong> Step 5 Preview of the NVIDIA provider is listed under the StepFun vendor; the number of models in the home page, the Help Center and the privacy policy is now 74.</li></ul>",
