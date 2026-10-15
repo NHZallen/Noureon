@@ -5,10 +5,12 @@
 //   NVIDIA_API_KEY=nvapi-... node scripts/nvidia-probe.mjs                  (the two NVIDIA models)
 //   OPENROUTER_API_KEY=sk-or-... node scripts/nvidia-probe.mjs --openrouter  (nvidia/nemotron-3.5-super-vl:free)
 //   node scripts/nvidia-probe.mjs --only video --video ./clip.mp4            (one check; a video of your own instead of the made one)
-//   node scripts/nvidia-probe.mjs --model stepfun-ai/step-5-preview          (one model id as the provider lists it)
+//   node scripts/nvidia-probe.mjs --model stepfun-ai/step-5-preview          (one model id as the provider lists it; several: --model a,b)
+//   NVIDIA_API_KEY=nvapi-... node scripts/nvidia-probe.mjs --others          (the four other NVIDIA models of the app: DeepSeek V4.1 Flash, GLM-5.3 Flash, GLM-5.3, Kimi K3)
 //
 // Checks: list (is the id in /v1/models), basic, stream, tool (a call and the answer of the tool sent back), vision (a red picture),
-// video (a short clip, made with ffmpeg when it is installed), reasoning (the fields that switch thinking on, off and its level, with how many tokens each used).
+// video (a short clip, made with ffmpeg when it is installed), pdf (a small PDF with a secret word, sent as a `file` part), reasoning
+// (the fields that switch thinking on, off and its level, with how many tokens each used).
 
 import { execFileSync } from 'node:child_process';
 import { readFileSync, mkdtempSync } from 'node:fs';
@@ -25,10 +27,12 @@ if (!key) {
   process.exit(1);
 }
 const BASE = viaOpenRouter ? 'https://openrouter.ai/api/v1' : 'https://integrate.api.nvidia.com/v1';
+const OTHER_NVIDIA_MODELS = ['deepseek-ai/deepseek-v4.1-flash', 'z-ai/glm-5.3-flash', 'z-ai/glm-5.3', 'moonshotai/kimi-k3'];
 const models = option('--model')
-  ? [option('--model')]
+  ? option('--model').split(',').map((id) => id.trim()).filter(Boolean)
+  : args.includes('--others') ? OTHER_NVIDIA_MODELS
   : viaOpenRouter ? ['nvidia/nemotron-3.5-super-vl:free'] : ['nvidia/nemotron-3.5-super-vl-120b-a12b', 'stepfun-ai/step-5-preview'];
-const ALL = ['list', 'basic', 'stream', 'tool', 'vision', 'video', 'reasoning'];
+const ALL = ['list', 'basic', 'stream', 'tool', 'vision', 'video', 'pdf', 'reasoning'];
 const only = option('--only');
 const checks = only ? only.split(',') : ALL;
 
@@ -46,6 +50,24 @@ const makePng = () => {
   return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', header), chunk('IDAT', deflateSync(Buffer.concat(Array.from({ length: size }, () => row)))), chunk('IEND', Buffer.alloc(0))]);
 };
 const PNG = makePng().toString('base64');
+
+// A one-page PDF with a line of text (a real text layer, no picture), made here: the offsets of the cross-reference table are counted as it is built.
+const makePdf = (line) => {
+  const stream = `BT /F1 20 Tf 72 700 Td (${line}) Tj ET`;
+  const objects = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>',
+    `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`,
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>'
+  ];
+  let out = '%PDF-1.4\n';
+  const offsets = objects.map((body, index) => { const at = out.length; out += `${index + 1} 0 obj\n${body}\nendobj\n`; return at; });
+  const xref = out.length;
+  out += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n${offsets.map((at) => `${String(at).padStart(10, '0')} 00000 n \n`).join('')}`;
+  out += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+  return Buffer.from(out, 'latin1');
+};
 
 const getVideo = () => {
   const given = option('--video');
@@ -126,6 +148,12 @@ const run = async (model, check) => {
     const clip = getVideo().toString('base64');
     const result = await post({ ...base, messages: [{ role: 'user', content: [{ type: 'text', text: 'What colour is this video? One word.' }, { type: 'video_url', video_url: { url: `data:video/mp4;base64,${clip}` } }] }] });
     return report(model, check, result.status === 200 && /blue/i.test(answerOf(result)), `${result.status} ${result.ms}ms ${answerOf(result)}`);
+  }
+  if (check === 'pdf') {
+    // The way the page sends a PDF to a model that reads one: a `file` part with the document as a data URL.
+    const document = makePdf('The secret word is PINEAPPLE.').toString('base64');
+    const result = await post({ ...base, messages: [{ role: 'user', content: [{ type: 'text', text: 'What is the secret word in the attached PDF? One word.' }, { type: 'file', file: { filename: 'secret.pdf', file_data: `data:application/pdf;base64,${document}` } }] }] });
+    return report(model, check, result.status === 200 && /pineapple/i.test(answerOf(result)), `${result.status} ${result.ms}ms ${answerOf(result)}`);
   }
   if (check === 'reasoning') {
     // The ways to switch thinking on or off: the OpenAI field, the OpenRouter object, and the NVIDIA chat template switch. A refused field shows as a FAIL with the reason.
