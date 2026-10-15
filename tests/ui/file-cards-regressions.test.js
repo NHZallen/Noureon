@@ -77,3 +77,8 @@ test('on a phone the words of the download link stay, and its arrow follows the 
   assert.doesNotMatch(css, /\n\s*\.ac-file-action-label\s*\{\s*display:\s*none;/);
   assert.match(css, /\.ac-file-link \.ac-file-link-arrow\s*\{[^}]*color:\s*inherit;/, 'overrides the global body svg colour');
 });
+
+test('the chat never pans sideways: a wide table slides inside its own box', () => {
+  assert.match(readSource('src/styles/chat-edge-fade.css'), /#chat-container \{[^}]*overflow-x: hidden;/);
+  assert.match(readSource('src/styles/chat.css'), /\.table-scroll-container \{[^}]*overscroll-behavior-x: contain;/);
+});

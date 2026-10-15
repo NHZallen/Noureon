@@ -665,6 +665,7 @@
 
 .table-scroll-container {
     overflow-x: auto; /* wider than the message: it slides sideways */
+    overscroll-behavior-x: contain; /* at its end the swipe does not go on to the chat */
     -webkit-overflow-scrolling: touch;
     margin-bottom: 1em;
     border: 0;
