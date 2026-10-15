@@ -542,23 +542,43 @@ test('a query that is already written (the council\'s) is searched as it is, and
 });
 
 
-test('a page that does not answer in time is left out and the message goes on; stopping the reply is still a stop', async () => {
-  const hang = (init) => new Promise((resolve, reject) => {
-    init?.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true });
-  });
-  const { support } = createHarness({ apiKeys: { tavily: 'tv' }, linkedPagesWaitMs: 30, fetchImpl: (url, init) => hang(init) });
+// A page that never answers: the request ends only when the signal it was given is aborted (as a real fetch does, also when it is aborted already).
+const hangUntilAborted = (init) => new Promise((resolve, reject) => {
+  const abort = () => reject(new DOMException('Aborted', 'AbortError'));
+  if (init?.signal?.aborted) abort();
+  else init?.signal?.addEventListener('abort', abort, { once: true });
+});
+
+test('a page that does not answer in time is left out and the message goes on', async () => {
+  // Only the time limit can end this request, so the test does not depend on how fast the machine is (a slow one only takes longer).
+  const { support } = createHarness({ apiKeys: { tavily: 'tv' }, linkedPagesWaitMs: 30, fetchImpl: (url, init) => hangUntilAborted(init) });
   const progress = [];
   // (A timeout signal does not keep Node's event loop alive by itself.)
   const keepAlive = setInterval(() => {}, 10);
-  const text = await support.readLinkedPages([{ text: `read ${LINK}` }], new AbortController().signal, { onProgress: (stage) => progress.push(stage) });
-  assert.deepEqual(progress, ['linkedPages']);
-  assert.match(text, /Linked pages that could not be read/);
-  assert.match(text, new RegExp(LINK.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
-  assert.match(text, /did not answer in time/);
+  try {
+    const text = await support.readLinkedPages([{ text: `read ${LINK}` }], new AbortController().signal, { onProgress: (stage) => progress.push(stage) });
+    assert.deepEqual(progress, ['linkedPages']);
+    assert.match(text, /Linked pages that could not be read/);
+    assert.match(text, new RegExp(LINK.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+    assert.match(text, /did not answer in time/);
+  } finally {
+    clearInterval(keepAlive);
+  }
+});
 
+test('stopping the reply while a page is being read is still a stop, not a page that did not answer', async () => {
+  // The time limit is far away, so only the stop can end this request; the stop comes once the request has started, not after a guessed number of milliseconds.
+  let requestStarted;
+  const started = new Promise((resolve) => { requestStarted = resolve; });
+  const { support } = createHarness({
+    apiKeys: { tavily: 'tv' },
+    linkedPagesWaitMs: 10 * 60 * 1000,
+    fetchImpl: (url, init) => { requestStarted(); return hangUntilAborted(init); }
+  });
   const controller = new AbortController();
   const stopping = support.readLinkedPages([{ text: `read ${LINK}` }], controller.signal, {});
-  setTimeout(() => controller.abort(), 5);
-  await assert.rejects(() => stopping, (error) => error.name === 'AbortError');
-  clearInterval(keepAlive);
+  const outcome = assert.rejects(() => stopping, (error) => error.name === 'AbortError');
+  await started;
+  controller.abort();
+  await outcome;
 });
