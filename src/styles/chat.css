@@ -702,8 +702,8 @@
     .prose table .ac-table-number { min-width: 0; text-align: right; font-variant-numeric: tabular-nums; }
     @media (max-width: 640px) {
         /* On a phone the table is as wide as its columns need and slides sideways. Its box is the width of the screen, edge to edge,
-           whatever padding the message and the chat have (the message is centred in the screen); the first column starts 0.75rem from
-           the edge, and the table slides out under both edges. The message lets it out only when it holds a table, and the chat clips
+           whatever padding the message and the chat have (the message is centred in the screen); the first column starts where the text
+           starts, and the table slides out under both edges. The message lets it out only when it holds a table, and the chat clips
            what is beyond the screen, so nothing else moves. */
         .prose table { width: max-content; min-width: 100%; }
         .model-message .prose:has(.table-scroll-container) { overflow: visible; }
@@ -712,8 +712,9 @@
             width: 100vw;
             margin-left: calc(50% - 50vw);
             margin-right: 0;
-            padding-left: 0.75rem;
-            padding-right: 0.75rem;
+            /* At rest the first column lines up with the text above and below (the space between the screen edge and the text). */
+            padding-left: calc((100vw - 100%) / 2);
+            padding-right: calc((100vw - 100%) / 2);
             scrollbar-width: none; /* no drag bar on a phone */
         }
         .table-scroll-container::-webkit-scrollbar { display: none; }
@@ -991,7 +992,9 @@ noureon-image-wait .generated-image-dots {
         padding-left: 0.75rem;
         padding-right: 0.75rem;
     }
+    .model-message .message-stack-model:not(.image-message-stack) { max-width: 100%; }
     .model-message .message-bubble:not(.research-bubble) {
+        max-width: 100%; /* the whole width of the chat, so a table can be centred on the screen */
         padding-left: 0.25rem;
         padding-right: 0.25rem;
     }
