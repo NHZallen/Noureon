@@ -8,7 +8,7 @@ export const updateLogEntries = [
       "<strong>Noureon 18.11.1 發布說明</strong>",
       "本版本新增三個免費的多模態模型：NVIDIA Nemotron 3.5 Super VL（OpenRouter 與 NVIDIA 兩個來源）和 NVIDIA 的 Step 5 Preview。",
       "<strong>主要變更</strong>",
-      "<ul><li><strong>新模型：</strong>OpenRouter 的 NVIDIA Nemotron 3.5 Super VL（免費）支援圖片、影片、工具呼叫與思考程度（快速、低、中、高）；NVIDIA 提供商新增 Nemotron 3.5 Super VL（120B A12B）與 Step 5 Preview，皆為免費、都支援圖片與工具呼叫、思考程度分低、中、高（Nemotron 另有快速模式，Step 5 Preview 無法關閉思考）；Nemotron 也可以傳影片，Step 5 Preview 不接受影片。</li><li><strong>模型選單：</strong>NVIDIA 提供商的 Step 5 Preview 歸在 StepFun 廠商下；首頁、協助中心與隱私政策裡的模型數更新為 74 個。</li></ul>",
+      "<ul><li><strong>新模型：</strong>OpenRouter 的 NVIDIA Nemotron 3.5 Super VL（免費）支援圖片、影片、工具呼叫與思考程度（快速、低、中、高）；NVIDIA 提供商新增 Nemotron 3.5 Super VL（120B A12B）與 Step 5 Preview，皆為免費、都支援圖片與工具呼叫、思考程度分低、中、高（Nemotron 另有快速模式，Step 5 Preview 無法關閉思考）；Nemotron 也可以傳影片，Step 5 Preview 不接受影片。</li><li><strong>模型選單：</strong>NVIDIA 提供商的 Step 5 Preview 歸在 StepFun 廠商下；首頁、協助中心與隱私政策裡的模型數更新為 73 個。</li><li><strong>NVIDIA 提供商的其他模型：</strong>NVIDIA 已在 10 月 15 日停用 Kimi K3，從選單移除（舊對話會改用預設模型）；DeepSeek V4.1 Flash、GLM-5.3 Flash、GLM-5.3 實測支援工具呼叫，現已開放；DeepSeek V4.1 Flash 與 GLM-5.3 Flash 不接受影片，選了就會提示不支援，不再送出後才失敗。</li></ul>",
       "<strong>相容性</strong>",
       "本次更新不需要資料遷移。"
     ]

@@ -7,7 +7,7 @@ import { PRODUCT_VERSION } from '../src/data/version.js';
 const UPDATE_LOG_COUNT = 151;
 // Derived, not copied: the newest update-log entry is by definition the product version.
 const LATEST_UPDATE_VERSION = PRODUCT_VERSION;
-const UPDATE_LOGS_CONTENT_HASH = '45f31808529d6043ce7fe66ff731ccecae13d86f424139e6cb6f7a5fddc22520';
+const UPDATE_LOGS_CONTENT_HASH = '1bcdfaca7df52047077d22cd5739f9e0ee0543184f4ed295adecc71a2072b8e4';
 
 const hashLogs = (logs) => createHash('sha256').update(JSON.stringify(logs)).digest('hex');
 

@@ -76,7 +76,7 @@ export const MODEL_CATALOG = [
     { id: 'nvidia/deepseek-ai/deepseek-v4.1-flash', apiId: 'deepseek-ai/deepseek-v4.1-flash', legacyIds: ['nvidia/deepseek-ai/deepseek-v4-flash-0731', 'nvidia/deepseek-ai/deepseek-v4-pro-0813', 'nvidia/deepseek-ai/deepseek-v4-flash', 'deepseek-ai/deepseek-v4-flash', 'nvidia/deepseek-ai/deepseek-v4-pro', 'deepseek-ai/deepseek-v4-pro'], name: 'NVIDIA DeepSeek V4.1 Flash', provider: 'nvidia', descriptionKey: 'model_nvidia_deepseek_v4_1_flash_desc', tier: ['free'], category: 'general' },
     { id: 'nvidia/z-ai/glm-5.3-flash', apiId: 'z-ai/glm-5.3-flash', name: 'NVIDIA GLM-5.3 Flash', provider: 'nvidia', descriptionKey: 'model_nvidia_glm_5_3_flash_desc', tier: ['free'], category: 'general' },
     { id: 'nvidia/z-ai/glm-5.3', apiId: 'z-ai/glm-5.3', legacyIds: ['nvidia/z-ai/glm-5.2'], name: 'NVIDIA GLM-5.3', provider: 'nvidia', descriptionKey: 'model_nvidia_glm_5_3_desc', tier: ['free'], category: 'general' },
-    { id: 'nvidia/moonshotai/kimi-k3', apiId: 'moonshotai/kimi-k3', legacyIds: ['nvidia/moonshotai/kimi-k2.6', 'moonshotai/kimi-k2.6'], name: 'NVIDIA Kimi K3', provider: 'nvidia', descriptionKey: 'model_nvidia_kimi_k3_desc', tier: ['free'], category: 'general' },
+    { id: 'nvidia/moonshotai/kimi-k3', apiId: 'moonshotai/kimi-k3', legacyIds: ['nvidia/moonshotai/kimi-k2.6', 'moonshotai/kimi-k2.6'], name: 'NVIDIA Kimi K3', provider: 'nvidia', descriptionKey: 'model_nvidia_kimi_k3_desc', tier: ['free'], category: 'general', retirementDate: '2026-10-15' },
     // Nemotron sees pictures and videos, Step 5 Preview pictures only; both call tools (the probe of 2026-10-16 with a real key, which also confirmed the api ids).
     { id: 'nvidia/nvidia/nemotron-3.5-super-vl-120b-a12b', apiId: 'nvidia/nemotron-3.5-super-vl-120b-a12b', name: 'NVIDIA Nemotron 3.5 Super VL', provider: 'nvidia', descriptionKey: 'model_nvidia_nemotron_3_5_super_vl_desc', tier: ['free'], category: 'general' },
     { id: 'nvidia/stepfun-ai/step-5-preview', apiId: 'stepfun-ai/step-5-preview', name: 'NVIDIA Step 5 Preview', provider: 'nvidia', descriptionKey: 'model_nvidia_step_5_preview_desc', tier: ['free'], category: 'general' },
@@ -187,8 +187,8 @@ export const OPENROUTER_VISION_MODELS = [
     'z-ai/glm-5.3-flash',
     'x-ai/grok-4.6'
 ];
-// Models that see pictures but refuse a video (400 Bad Request on a video_url; the probe of 2026-10-16).
-export const NO_VIDEO_MODEL_IDS = Object.freeze(['nvidia/stepfun-ai/step-5-preview']);
+// Models that see pictures but refuse a video (400 on a video_url: Step 5 Preview, DeepSeek V4.1 Flash and GLM-5.3 Flash on NVIDIA; the probe of 2026-10-16).
+export const NO_VIDEO_MODEL_IDS = Object.freeze(['nvidia/stepfun-ai/step-5-preview', 'nvidia/deepseek-ai/deepseek-v4.1-flash', 'nvidia/z-ai/glm-5.3-flash']);
 export const NVIDIA_VISION_MODELS = [
     'deepseek-ai/deepseek-v4.1-flash',
     'z-ai/glm-5.3-flash',
@@ -221,6 +221,9 @@ export const TOOL_CALLING_MODEL_IDS = Object.freeze([
     'nvidia/nemotron-3.5-lightning:free',
     'nvidia/nemotron-3.5-super-vl:free',
     // Tried with a real key on 2026-10-16 (scripts/nvidia-probe.mjs): a call, and the answer after the result of the tool.
+    'nvidia/deepseek-ai/deepseek-v4.1-flash',
+    'nvidia/z-ai/glm-5.3-flash',
+    'nvidia/z-ai/glm-5.3',
     'nvidia/nvidia/nemotron-3.5-super-vl-120b-a12b',
     'nvidia/stepfun-ai/step-5-preview',
     'openai/gpt-6-astra',
@@ -241,9 +244,6 @@ export const TOOL_CALLING_MODEL_IDS = Object.freeze([
 ]);
 // Text models without tool calling (or not yet shown to have it).
 export const NON_TOOL_CALLING_MODEL_IDS = Object.freeze([
-    'nvidia/deepseek-ai/deepseek-v4.1-flash',
-    'nvidia/z-ai/glm-5.3-flash',
-    'nvidia/z-ai/glm-5.3',
     'nvidia/moonshotai/kimi-k3'
 ]);
 export const GEMINI_DOCUMENT_MODELS = [

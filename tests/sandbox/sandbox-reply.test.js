@@ -60,7 +60,8 @@ test('text models are all marked with or without tool calling', () => {
   const catalogTextModels = MODEL_CATALOG.filter((model) => model.outputModality !== 'image').map((model) => model.id);
   assert.ok(TOOL_CALLING_MODEL_IDS.every((id) => catalogTextModels.includes(id)), 'no stale ids');
   assert.equal(modelSupportsToolCalling(MODELS.find((model) => model.id === 'gemini-3.8-flash')), true);
-  assert.equal(modelSupportsToolCalling(MODELS.find((model) => model.id === 'nvidia/z-ai/glm-5.3')), false);
+  assert.equal(modelSupportsToolCalling(MODELS.find((model) => model.id === 'nvidia/z-ai/glm-5.3')), true, 'tried with a real key on 2026-10-16');
+  assert.equal(modelSupportsToolCalling(MODELS.find((model) => model.id === 'poolside/laguna-s-2.1:free')), true);
   assert.equal(modelSupportsToolCalling(MODELS.find((model) => model.outputModality === 'image')), false);
 });
 

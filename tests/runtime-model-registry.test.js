@@ -50,9 +50,12 @@ test('model registry exports the canonical model inventory', () => {
   assert.ok(MODELS.some((model) => model.id === 'nvidia/z-ai/glm-5.3'
     && model.apiId === 'z-ai/glm-5.3' && model.provider === 'nvidia'));
   assert.equal(MODELS.some((model) => ['nvidia/deepseek-ai/deepseek-v4-flash-0731', 'nvidia/deepseek-ai/deepseek-v4-pro-0813', 'nvidia/z-ai/glm-5.2', 'nvidia/stepfun-ai/step-3.7-flash'].includes(model.id)), false);
-  assert.ok(MODELS.some((model) => model.id === 'nvidia/moonshotai/kimi-k3'
+  // NVIDIA ended Kimi K3 on 2026-10-15 (410 Gone): it is out of the list, the entry stays so that chats saved with it find their way.
+  assert.ok(MODEL_CATALOG.some((model) => model.id === 'nvidia/moonshotai/kimi-k3'
     && model.apiId === 'moonshotai/kimi-k3'
-    && model.provider === 'nvidia'));
+    && model.provider === 'nvidia'
+    && model.retirementDate === '2026-10-15'));
+  assert.equal(MODELS.some((model) => model.id === 'nvidia/moonshotai/kimi-k3'), false);
   assert.equal(MODELS.some((model) => model.id === 'nvidia/moonshotai/kimi-k2.6'), false);
   assert.ok(MODELS.some((model) => model.id === 'deepseek/deepseek-v4.1-flash'
     && model.provider === 'openrouter'
@@ -95,7 +98,7 @@ test('model registry exports the canonical model inventory', () => {
   assert.equal(getCanonicalModelId('anthropic/claude-sonnet-5'), 'anthropic/claude-sonnet-5.5', 'chats saved with Sonnet 5 move to 5.5');
   assert.equal(getCanonicalModelId('openai/gpt-5.6-luna'), 'openai/gpt-6-luna');
   assert.equal(getCanonicalModelId('anthropic/claude-opus-5'), 'anthropic/claude-opus-5.5');
-  assert.equal(getCanonicalModelId('nvidia/moonshotai/kimi-k2.6'), 'nvidia/moonshotai/kimi-k3');
+  // NVIDIA's Kimi K3 is retired (2026-10-15), so the old Kimi K2.6 ids no longer lead anywhere in the list.
   assert.equal(getCanonicalModelId('deepseek/deepseek-v4-flash-0731'), 'deepseek/deepseek-v4.1-flash');
   assert.equal(getCanonicalModelId('deepseek/deepseek-v4-flash-vision-exp'), 'deepseek/deepseek-v4.1-flash');
   assert.equal(getCanonicalModelId('deepseek/deepseek-v4-pro-0813'), 'deepseek/deepseek-v4.1-flash');
@@ -127,7 +130,7 @@ test('model registry preserves vision and document capability behavior', () => {
   const nvidiaDeepseekVisionModel = MODELS.find((model) => model.id === 'nvidia/deepseek-ai/deepseek-v4.1-flash');
   const nvidiaFlashVisionModel = MODELS.find((model) => model.id === 'nvidia/z-ai/glm-5.3-flash');
   const nvidiaTextModel = MODELS.find((model) => model.id === 'nvidia/z-ai/glm-5.3');
-  const nvidiaVisionModel = MODELS.find((model) => model.id === 'nvidia/moonshotai/kimi-k3');
+  const nvidiaVisionModel = MODEL_CATALOG.find((model) => model.id === 'nvidia/moonshotai/kimi-k3'); // retired on 2026-10-15, still in the catalog
 
   assert.equal(modelSupportsVision(geminiModel), true);
   assert.equal(modelSupportsVision(geminiLiteModel), true);
@@ -169,7 +172,7 @@ test('model registry exposes precise reasoning depth options for supported model
   const glmFlashModel = MODELS.find((model) => model.id === 'z-ai/glm-5.3-flash');
   const nvidiaDeepseekModel = MODELS.find((model) => model.id === 'nvidia/deepseek-ai/deepseek-v4.1-flash');
   const nvidiaGlmModel = MODELS.find((model) => model.id === 'nvidia/z-ai/glm-5.3');
-  const nvidiaKimiModel = MODELS.find((model) => model.id === 'nvidia/moonshotai/kimi-k3');
+  const nvidiaKimiModel = MODEL_CATALOG.find((model) => model.id === 'nvidia/moonshotai/kimi-k3'); // retired on 2026-10-15, still in the catalog
 
   assert.deepEqual(getModelReasoningConfig(deepseekModel)?.options, ['low', 'high', 'max']);
   assert.equal(normalizeReasoningEffort(deepseekModel, 'max'), 'max');
@@ -248,6 +251,13 @@ test('model registry lists the Nemotron 3.5 Super VL and NVIDIA Step 5 Preview m
     assert.equal(modelSupportsUploadedFile(model, { type: 'image/png' }), true);
     assert.equal(modelSupportsUploadedFile(model, { type: 'video/mp4' }), id !== 'nvidia/stepfun-ai/step-5-preview', `${id}: only Step 5 Preview refuses a video`);
   }
+  // The probe of 2026-10-16 on the other NVIDIA models: tools work on three, a video is refused (400) by DeepSeek V4.1 Flash and GLM-5.3 Flash, GLM-5.3 sees no pictures.
+  for (const id of ['nvidia/deepseek-ai/deepseek-v4.1-flash', 'nvidia/z-ai/glm-5.3-flash', 'nvidia/z-ai/glm-5.3']) assert.equal(modelSupportsToolCalling(find(id)), true, `${id} calls tools`);
+  for (const id of ['nvidia/deepseek-ai/deepseek-v4.1-flash', 'nvidia/z-ai/glm-5.3-flash']) {
+    assert.equal(modelSupportsUploadedFile(find(id), { type: 'image/png' }), true);
+    assert.equal(modelSupportsUploadedFile(find(id), { type: 'video/mp4' }), false, `${id} refuses a video`);
+  }
+  assert.equal(modelSupportsVision(find('nvidia/z-ai/glm-5.3')), false);
   assert.deepEqual(getModelReasoningConfig(find('nvidia/stepfun-ai/step-5-preview')).options, ['low', 'medium', 'high'], 'Step 5 Preview cannot be turned off');
   assert.deepEqual(getModelReasoningConfig(find('nvidia/nvidia/nemotron-3.5-super-vl-120b-a12b')).options, ['none', 'low', 'medium', 'high'], 'Nemotron has a fast mode');
   assert.equal(getModelReasoningConfig(find('nvidia/nvidia/nemotron-3.5-super-vl-120b-a12b')).providerParameter, 'nvidiaReasoningEffort');
