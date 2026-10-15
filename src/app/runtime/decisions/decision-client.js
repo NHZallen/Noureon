@@ -15,7 +15,7 @@ import { DECISION_THRESHOLD, verdictOf } from './decision-store.js';
 export { DECISION_THRESHOLD, verdictOf };
 
 export const DECISION_URL = 'https://openrouter.ai/api/alpha/decisions';
-export const DECISION_MODEL = 'openai/gpt-6-luna-decisions';
+export const DECISION_MODEL = 'typesafe/jev-1.14';
 /** A call that takes longer is given up (the message goes on with the word lists). */
 export const DECISION_TIMEOUT_MS = 1000;
 /** After this many failures in a row no call is made for DECISION_PAUSE_MS. */

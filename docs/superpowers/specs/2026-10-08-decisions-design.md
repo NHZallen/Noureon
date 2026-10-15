@@ -3,7 +3,7 @@
 ## 1. 做什麼
 
 送出訊息時，用 OpenRouter 的 Decisions API（alpha，`POST https://openrouter.ai/api/alpha/decisions`）問一個小判斷模型
-`openai/gpt-6-luna-decisions`，一次問四件事，取代原本只看關鍵字／正規表示式的猜法：
+`typesafe/jev-1.14`，一次問四件事，取代原本只看關鍵字／正規表示式的猜法：
 
 | 問題 | 取代什麼 | 判斷為「否」時 |
 | --- | --- | --- |

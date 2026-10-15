@@ -13,7 +13,7 @@ const answers = { search: { type: 'noul', noul: 0.9 }, file: { type: 'noul', nou
 test('the request puts four questions in one call, the tool question only when the model has tools of its own', () => {
   const tools = [{ name: 'OfficeCLI', description: 'Reads and edits Word, Excel and PowerPoint files.' }];
   const request = buildDecisionRequest({ message: '幫我把這份報告做成簡報', tools, hasAttachment: true });
-  assert.equal(request.model, 'openai/gpt-6-luna-decisions');
+  assert.equal(request.model, 'typesafe/jev-1.14');
   assert.deepEqual(Object.keys(request.questions), ['search', 'file', 'chart', 'tool']);
   for (const question of Object.values(request.questions)) {
     assert.equal(question.type, 'noul');
