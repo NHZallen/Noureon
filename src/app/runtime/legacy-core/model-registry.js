@@ -77,7 +77,7 @@ export const MODEL_CATALOG = [
     { id: 'nvidia/z-ai/glm-5.3-flash', apiId: 'z-ai/glm-5.3-flash', name: 'NVIDIA GLM-5.3 Flash', provider: 'nvidia', descriptionKey: 'model_nvidia_glm_5_3_flash_desc', tier: ['free'], category: 'general' },
     { id: 'nvidia/z-ai/glm-5.3', apiId: 'z-ai/glm-5.3', legacyIds: ['nvidia/z-ai/glm-5.2'], name: 'NVIDIA GLM-5.3', provider: 'nvidia', descriptionKey: 'model_nvidia_glm_5_3_desc', tier: ['free'], category: 'general' },
     { id: 'nvidia/moonshotai/kimi-k3', apiId: 'moonshotai/kimi-k3', legacyIds: ['nvidia/moonshotai/kimi-k2.6', 'moonshotai/kimi-k2.6'], name: 'NVIDIA Kimi K3', provider: 'nvidia', descriptionKey: 'model_nvidia_kimi_k3_desc', tier: ['free'], category: 'general' },
-    // Sees pictures and videos (Nemotron) / pictures (Step 5 Preview). The api ids are the ones of build.nvidia.com; check them against /v1/models when the key is at hand.
+    // Nemotron sees pictures and videos, Step 5 Preview pictures only; both call tools (the probe of 2026-10-16 with a real key, which also confirmed the api ids).
     { id: 'nvidia/nvidia/nemotron-3.5-super-vl-120b-a12b', apiId: 'nvidia/nemotron-3.5-super-vl-120b-a12b', name: 'NVIDIA Nemotron 3.5 Super VL', provider: 'nvidia', descriptionKey: 'model_nvidia_nemotron_3_5_super_vl_desc', tier: ['free'], category: 'general' },
     { id: 'nvidia/stepfun-ai/step-5-preview', apiId: 'stepfun-ai/step-5-preview', name: 'NVIDIA Step 5 Preview', provider: 'nvidia', descriptionKey: 'model_nvidia_step_5_preview_desc', tier: ['free'], category: 'general' },
 
@@ -187,6 +187,8 @@ export const OPENROUTER_VISION_MODELS = [
     'z-ai/glm-5.3-flash',
     'x-ai/grok-4.6'
 ];
+// Models that see pictures but refuse a video (400 Bad Request on a video_url; the probe of 2026-10-16).
+export const NO_VIDEO_MODEL_IDS = Object.freeze(['nvidia/stepfun-ai/step-5-preview']);
 export const NVIDIA_VISION_MODELS = [
     'deepseek-ai/deepseek-v4.1-flash',
     'z-ai/glm-5.3-flash',
@@ -218,6 +220,9 @@ export const TOOL_CALLING_MODEL_IDS = Object.freeze([
     'nvidia/nemotron-3-ultra-550b-a55b:free',
     'nvidia/nemotron-3.5-lightning:free',
     'nvidia/nemotron-3.5-super-vl:free',
+    // Tried with a real key on 2026-10-16 (scripts/nvidia-probe.mjs): a call, and the answer after the result of the tool.
+    'nvidia/nvidia/nemotron-3.5-super-vl-120b-a12b',
+    'nvidia/stepfun-ai/step-5-preview',
     'openai/gpt-6-astra',
     'openai/gpt-6-luna',
     'openai/gpt-5.6-terra',
@@ -239,9 +244,7 @@ export const NON_TOOL_CALLING_MODEL_IDS = Object.freeze([
     'nvidia/deepseek-ai/deepseek-v4.1-flash',
     'nvidia/z-ai/glm-5.3-flash',
     'nvidia/z-ai/glm-5.3',
-    'nvidia/moonshotai/kimi-k3',
-    'nvidia/nvidia/nemotron-3.5-super-vl-120b-a12b',
-    'nvidia/stepfun-ai/step-5-preview'
+    'nvidia/moonshotai/kimi-k3'
 ]);
 export const GEMINI_DOCUMENT_MODELS = [
     'gemini-3.8-flash',
@@ -274,6 +277,8 @@ export const MODEL_REASONING_CONFIGS = Object.freeze({ ...createReasoningConfigs
     [NVIDIA_REASONING_EFFORT, ['low', 'medium', 'high', 'max'], 'max', ['nvidia/deepseek-ai/deepseek-v4.1-flash'], { effortValues: { low: 25, medium: 50, high: 75, max: 100 } }],
     [NVIDIA_REASONING_EFFORT, ['low', 'high', 'max'], 'max', ['nvidia/z-ai/glm-5.3', 'nvidia/z-ai/glm-5.3-flash']],
     [NVIDIA_REASONING_EFFORT, ['low', 'high', 'max'], 'max', ['nvidia/moonshotai/kimi-k3']],
+    // Nemotron 3.5 Super VL and Step 5 Preview on NVIDIA take reasoning_effort low / medium / high (the probe of 2026-10-16: more thinking at each step). Step 5 Preview cannot be turned off.
+    [NVIDIA_REASONING_EFFORT, LOW_MEDIUM_HIGH, 'medium', ['nvidia/nvidia/nemotron-3.5-super-vl-120b-a12b', 'nvidia/stepfun-ai/step-5-preview']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'medium', ['anthropic/claude-haiku-5.5']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'high', ['anthropic/claude-sonnet-5.5']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'high', ['anthropic/claude-fable-5.1']],
@@ -286,6 +291,8 @@ export const MODEL_REASONING_CONFIGS = Object.freeze({ ...createReasoningConfigs
     [OPENROUTER_REASONING_EFFORT, ['minimal', 'high'], 'minimal', ['google/gemini-nano-banana-2.1']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium'], 'medium', ['nvidia/nemotron-3-super-120b-a12b:free'], { supportsMaxTokens: true }],
     [OPENROUTER_REASONING_EFFORT, ['medium', 'high'], 'high', ['nvidia/nemotron-3-ultra-550b-a55b:free'], { supportsMaxTokens: true }],
+    // Nemotron 3.5 Super VL through OpenRouter: none (fast, no thinking), low, medium, high (the probe of 2026-10-16).
+    [OPENROUTER_REASONING_EFFORT, ['none', 'low', 'medium', 'high'], 'medium', ['nvidia/nemotron-3.5-super-vl:free']],
     [OPENROUTER_REASONING_EFFORT, ['none', 'low', 'medium', 'xhigh'], 'xhigh', ['qwen/qwen3.8-max-0902']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'medium', ['openai/gpt-6-astra']],
     [OPENROUTER_REASONING_EFFORT, ['none', 'low', 'medium', 'high', 'xhigh', 'max'], 'medium', ['openai/gpt-6-luna', 'openai/gpt-5.6-terra']],
@@ -522,6 +529,7 @@ export const modelSupportsUploadedFile = (model, file) => {
     if (!model || !file) return true;
     const mimeType = file.type || file.mimeType || file.inlineData?.mimeType || '';
     if (!mimeType) return true;
+    if (mimeType.startsWith('video/') && NO_VIDEO_MODEL_IDS.includes(model.id)) return false;
     if (mimeType.startsWith('image/') || mimeType.startsWith('video/')) {
         return modelSupportsVision(model);
     }

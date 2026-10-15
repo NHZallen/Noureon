@@ -5,7 +5,7 @@ export default {
     "<strong>Noureon 18.11.1: notas de la versión</strong>",
     "Esta versión añade tres modelos multimodales gratuitos: NVIDIA Nemotron 3.5 Super VL (desde OpenRouter y desde NVIDIA) y Step 5 Preview de NVIDIA.",
     "<strong>Cambios principales</strong>",
-    "<ul><li><strong>Modelos nuevos:</strong> NVIDIA Nemotron 3.5 Super VL en OpenRouter (gratis) acepta imágenes, vídeos y llamadas a herramientas; el proveedor NVIDIA añade Nemotron 3.5 Super VL (120B A12B) y Step 5 Preview, ambos gratis, y ambos aceptan imágenes y vídeos. Los dos modelos del proveedor NVIDIA aún no aceptan llamadas a herramientas.</li><li><strong>Selector de modelos:</strong> Step 5 Preview del proveedor NVIDIA aparece bajo el fabricante StepFun; el número de modelos en la página de inicio, el Centro de ayuda y la política de privacidad pasa a 74.</li></ul>",
+    "<ul><li><strong>Modelos nuevos:</strong> NVIDIA Nemotron 3.5 Super VL en OpenRouter (gratis) acepta imágenes, vídeos, llamadas a herramientas y niveles de razonamiento (rápido, bajo, medio, alto); el proveedor NVIDIA añade Nemotron 3.5 Super VL (120B A12B) y Step 5 Preview, ambos gratis, ambos con imágenes y llamadas a herramientas, con niveles de razonamiento bajo, medio y alto (Step 5 Preview no puede desactivar su razonamiento); Nemotron también acepta vídeos, Step 5 Preview no.</li><li><strong>Selector de modelos:</strong> Step 5 Preview del proveedor NVIDIA aparece bajo el fabricante StepFun; el número de modelos en la página de inicio, el Centro de ayuda y la política de privacidad pasa a 74.</li></ul>",
     "<strong>Compatibilidad</strong>",
     "Esta actualización no requiere migrar datos."
   ],

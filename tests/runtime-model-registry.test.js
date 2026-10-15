@@ -244,8 +244,15 @@ test('model registry lists the Nemotron 3.5 Super VL and NVIDIA Step 5 Preview m
     assert.equal(model.apiId, apiId);
     assert.deepEqual(getModelTiers(model), ['free']);
     assert.equal(modelSupportsVision(model), true, `${id} sees pictures`);
-    assert.equal(modelSupportsUploadedFile(model, { type: 'video/mp4' }), true, `${id} takes videos`);
+    assert.equal(modelSupportsToolCalling(model), true, `${id} calls tools`);
+    assert.equal(modelSupportsUploadedFile(model, { type: 'image/png' }), true);
+    assert.equal(modelSupportsUploadedFile(model, { type: 'video/mp4' }), id !== 'nvidia/stepfun-ai/step-5-preview', `${id}: only Step 5 Preview refuses a video`);
   }
+  assert.deepEqual(getModelReasoningConfig(find('nvidia/stepfun-ai/step-5-preview')).options, ['low', 'medium', 'high'], 'Step 5 Preview cannot be turned off');
+  assert.deepEqual(getModelReasoningConfig(find('nvidia/nvidia/nemotron-3.5-super-vl-120b-a12b')).options, ['low', 'medium', 'high']);
+  assert.equal(getModelReasoningConfig(find('nvidia/nvidia/nemotron-3.5-super-vl-120b-a12b')).providerParameter, 'nvidiaReasoningEffort');
+  assert.deepEqual(getModelReasoningConfig(viaOpenRouter).options, ['none', 'low', 'medium', 'high']);
+  assert.equal(getModelReasoningConfig(viaOpenRouter).providerParameter, 'openrouterReasoningEffort');
 });
 
 test('model registry leaves excluded models on default reasoning', () => {

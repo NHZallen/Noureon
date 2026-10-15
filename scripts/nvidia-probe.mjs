@@ -117,7 +117,10 @@ const run = async (model, check) => {
   }
   if (check === 'vision') {
     const result = await post({ ...base, messages: [{ role: 'user', content: [{ type: 'text', text: 'What colour is this picture? One word.' }, { type: 'image_url', image_url: { url: `data:image/png;base64,${PNG}` } }] }] });
-    return report(model, check, result.status === 200 && /red/i.test(answerOf(result)), `${result.status} ${result.ms}ms ${answerOf(result)}`);
+    report(model, check, result.status === 200 && /red/i.test(answerOf(result)), `${result.status} ${result.ms}ms ${answerOf(result)}`);
+    // The page sends `detail: 'high'` with a picture; a service that does not know the field would refuse it.
+    const withDetail = await post({ ...base, messages: [{ role: 'user', content: [{ type: 'text', text: 'What colour is this picture? One word.' }, { type: 'image_url', image_url: { url: `data:image/png;base64,${PNG}`, detail: 'high' } }] }] });
+    return report(model, 'vision with detail=high (as the page sends it)', withDetail.status === 200 && /red/i.test(answerOf(withDetail)), `${withDetail.status} ${withDetail.ms}ms ${answerOf(withDetail)}`);
   }
   if (check === 'video') {
     const clip = getVideo().toString('base64');
