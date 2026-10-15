@@ -54,10 +54,13 @@ const ROWS = [
 // The day the models were put in the list (the order of the menu is by day, then name: no price per token is known, the limit is the one of the plan).
 const ADDED_AT = 20261013;
 
+// Models shown by their own name, without the "OpenCode " in front (the owner's choice, 2026-10-16).
+const PLAIN_NAME_MODELS = Object.freeze(['step-5-preview-free']);
+
 export const OPENCODE_GO_MODELS = Object.freeze(ROWS.map(([apiId, name, company, format, vision, descriptionKey, tier, hidden]) => Object.freeze({
   id: `${OPENCODE_GO_PROVIDER}/${apiId}`,
   apiId,
-  name: `OpenCode ${name}`,
+  name: PLAIN_NAME_MODELS.includes(apiId) ? name : `OpenCode ${name}`,
   provider: OPENCODE_GO_PROVIDER,
   company,
   descriptionKey,
