@@ -77,6 +77,8 @@
 }
 .ac-file-card .ac-file-link:hover { background: none; color: var(--link-color); }
 .ac-file-card .ac-file-link[aria-busy="true"] { opacity: 0.7; }
+/* A global `body svg` rule pins icons to one colour; the arrow follows the link (blue under the pointer). */
+.ac-file-card .ac-file-link .ac-file-link-arrow { color: inherit; stroke: currentColor; }
 .ac-file-link-arrow {
     display: inline-block;
     width: 0.8em;
@@ -256,7 +258,8 @@
         padding: 0.7rem 0;
     }
 
-    .ac-file-action-label {
+    /* Only the words on the small buttons are dropped; the words of the download link stay (they are the name of the file). */
+    .ac-file-action-label:not(.ac-file-link-text) {
         display: none;
     }
 

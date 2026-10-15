@@ -70,3 +70,10 @@ test('generators, previews, the design system, the preview dialog and the guidan
   const streamApi = readSource('src/app/legacy-runtime/features/stream-api-call.js');
   assert.match(streamApi, /await import\('\.\.\/\.\.\/ui\/files\/file-authoring-guidance\.js'\)/);
 });
+
+test('on a phone the words of the download link stay, and its arrow follows the link colour', () => {
+  const css = readSource('src/styles/file-cards.css');
+  assert.match(css, /\.ac-file-action-label:not\(\.ac-file-link-text\)\s*\{\s*display:\s*none;/, 'only the small buttons lose their words');
+  assert.doesNotMatch(css, /\n\s*\.ac-file-action-label\s*\{\s*display:\s*none;/);
+  assert.match(css, /\.ac-file-link \.ac-file-link-arrow\s*\{[^}]*color:\s*inherit;/, 'overrides the global body svg colour');
+});
