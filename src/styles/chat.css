@@ -700,8 +700,22 @@
     /* A column of numbers is lined up at the right (src/app/ui/markdown/table-columns.js). */
     .prose table .ac-table-number { min-width: 0; text-align: right; font-variant-numeric: tabular-nums; }
     @media (max-width: 640px) {
-        /* On a phone the table is as wide as its columns need and slides sideways inside its own box (the message itself never moves). */
+        /* On a phone the table is as wide as its columns need and slides sideways. Its box runs out to 0.4rem from the screen edges
+           whatever padding the message and the chat have (the message is centred in the screen), and its first column still lines up
+           with the text. The message lets it out only when it holds a table, and the chat clips what is beyond the screen, so nothing
+           else moves. */
         .prose table { width: max-content; min-width: 100%; }
+        .model-message .prose:has(.table-scroll-container) { overflow: visible; }
+        .table-scroll-container {
+            box-sizing: border-box;
+            width: calc(100vw - 0.8rem);
+            margin-left: calc(50% - 50vw + 0.4rem);
+            margin-right: 0;
+            padding-left: calc((100vw - 100%) / 2 - 0.4rem);
+            padding-right: calc((100vw - 100%) / 2 - 0.4rem);
+            scrollbar-width: none; /* no drag bar on a phone */
+        }
+        .table-scroll-container::-webkit-scrollbar { display: none; }
     }
     .prose ul, .prose ol { margin-bottom: 1em; padding-left: 1.5em; }
     .prose ol { list-style-type: decimal; }
