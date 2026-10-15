@@ -40,7 +40,7 @@ export default {
         h: '3. Chat and organizing',
         blocks: [
           [
-            'Choosing a model: the model picker next to the message box lists every available model (currently 71 options from 18 vendors), with search and grouping by vendor; models that support thinking levels show a thinking-level slider.',
+            'Choosing a model: the model picker next to the message box lists every available model (currently 74 options from 18 vendors), with search and grouping by vendor; models that support thinking levels show a thinking-level slider.',
             'The message box: paste text, attach files, take a photo, dictate by voice, choose a skill with / and a command tool with @. The box can be expanded into a large window.',
             'Nouras: reusable AI assistants with their own name, description, instructions and avatar. Pick official Nouras in the Nouras store, create your own, propose a new Noura, or share one with someone by peer-to-peer transfer.',
             'Folders, archive and trash: conversations can go into folders (with your own color and icon), be archived, or be moved to the trash; select and move several at once; the trash can restore or delete for good.',

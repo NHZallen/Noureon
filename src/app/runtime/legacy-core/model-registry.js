@@ -15,6 +15,8 @@ const MODEL_RELEASE_METADATA = Object.freeze({
     'nvidia/z-ai/glm-5.3-flash': { releasedAt: 20260825, outputPricePerMillion: 0 },
     'nvidia/z-ai/glm-5.3': { releasedAt: 20260827, outputPricePerMillion: 0 },
     'nvidia/moonshotai/kimi-k3': { releasedAt: 20260716, outputPricePerMillion: 0 },
+    'nvidia/nvidia/nemotron-3.5-super-vl-120b-a12b': { releasedAt: 20261014, outputPricePerMillion: 0 },
+    'nvidia/stepfun-ai/step-5-preview': { releasedAt: 20261008, outputPricePerMillion: 0 },
     'anthropic/claude-haiku-5.5': { releasedAt: 20261007, outputPricePerMillion: 0.5 },
     'anthropic/claude-sonnet-5.5': { releasedAt: 20260928, outputPricePerMillion: 10 },
     'anthropic/claude-opus-5.5': { releasedAt: 20260922, outputPricePerMillion: 20 },
@@ -34,6 +36,7 @@ const MODEL_RELEASE_METADATA = Object.freeze({
     'nvidia/nemotron-3-super-120b-a12b:free': { releasedAt: 20260311, outputPricePerMillion: 0 },
     'nvidia/nemotron-3-ultra-550b-a55b:free': { releasedAt: 20260604, outputPricePerMillion: 0 },
     'nvidia/nemotron-3.5-lightning:free': { releasedAt: 20260807, outputPricePerMillion: 0 },
+    'nvidia/nemotron-3.5-super-vl:free': { releasedAt: 20261014, outputPricePerMillion: 0 },
     'openai/gpt-6-astra': { releasedAt: 20260904, outputPricePerMillion: 50 },
     'openai/gpt-6-luna': { releasedAt: 20260922, outputPricePerMillion: 0.5 },
     'openai/gpt-5.6-terra': { releasedAt: 20260709, outputPricePerMillion: 15 },
@@ -74,6 +77,9 @@ export const MODEL_CATALOG = [
     { id: 'nvidia/z-ai/glm-5.3-flash', apiId: 'z-ai/glm-5.3-flash', name: 'NVIDIA GLM-5.3 Flash', provider: 'nvidia', descriptionKey: 'model_nvidia_glm_5_3_flash_desc', tier: ['free'], category: 'general' },
     { id: 'nvidia/z-ai/glm-5.3', apiId: 'z-ai/glm-5.3', legacyIds: ['nvidia/z-ai/glm-5.2'], name: 'NVIDIA GLM-5.3', provider: 'nvidia', descriptionKey: 'model_nvidia_glm_5_3_desc', tier: ['free'], category: 'general' },
     { id: 'nvidia/moonshotai/kimi-k3', apiId: 'moonshotai/kimi-k3', legacyIds: ['nvidia/moonshotai/kimi-k2.6', 'moonshotai/kimi-k2.6'], name: 'NVIDIA Kimi K3', provider: 'nvidia', descriptionKey: 'model_nvidia_kimi_k3_desc', tier: ['free'], category: 'general' },
+    // Sees pictures and videos (Nemotron) / pictures (Step 5 Preview). The api ids are the ones of build.nvidia.com; check them against /v1/models when the key is at hand.
+    { id: 'nvidia/nvidia/nemotron-3.5-super-vl-120b-a12b', apiId: 'nvidia/nemotron-3.5-super-vl-120b-a12b', name: 'NVIDIA Nemotron 3.5 Super VL', provider: 'nvidia', descriptionKey: 'model_nvidia_nemotron_3_5_super_vl_desc', tier: ['free'], category: 'general' },
+    { id: 'nvidia/stepfun-ai/step-5-preview', apiId: 'stepfun-ai/step-5-preview', name: 'NVIDIA Step 5 Preview', provider: 'nvidia', descriptionKey: 'model_nvidia_step_5_preview_desc', tier: ['free'], category: 'general' },
 
     // OpenCode Go: the list is in opencode-models.js (the form of API of each model, pictures, tools).
     ...OPENCODE_GO_MODELS,
@@ -111,6 +117,7 @@ export const MODEL_CATALOG = [
     { id: 'nvidia/nemotron-3-super-120b-a12b:free', name: 'NVIDIA Nemotron 3 Super', provider: 'openrouter', descriptionKey: 'model_nemotron_3_super_120b_a12b_desc', category: 'general' },
     { id: 'nvidia/nemotron-3-ultra-550b-a55b:free', name: 'NVIDIA Nemotron 3 Ultra', provider: 'openrouter', descriptionKey: 'model_nemotron_3_ultra_550b_a55b_desc', category: 'general' },
     { id: 'nvidia/nemotron-3.5-lightning:free', name: 'NVIDIA Nemotron 3.5 Lightning', provider: 'openrouter', descriptionKey: 'model_nemotron_3_5_lightning_desc', category: 'general' },
+    { id: 'nvidia/nemotron-3.5-super-vl:free', name: 'NVIDIA Nemotron 3.5 Super VL', provider: 'openrouter', descriptionKey: 'model_nemotron_3_5_super_vl_desc', category: 'general' },
 
     // OpenRouter Paid Models (OpenAI)
     { id: 'openai/gpt-6-astra', legacyIds: ['openai/gpt-5.5'], name: 'OpenAI GPT-6 Astra', provider: 'openrouter', descriptionKey: 'model_gpt_6_astra_desc', category: 'general' },
@@ -166,6 +173,7 @@ export const OPENROUTER_VISION_MODELS = [
     'deepseek/deepseek-v4.1-flash',
     'minimax/minimax-m3',
     'moonshotai/kimi-k3',
+    'nvidia/nemotron-3.5-super-vl:free',
     'openai/gpt-6-astra',
     'openai/gpt-6-luna',
     'openai/gpt-5.6-terra',
@@ -182,7 +190,9 @@ export const OPENROUTER_VISION_MODELS = [
 export const NVIDIA_VISION_MODELS = [
     'deepseek-ai/deepseek-v4.1-flash',
     'z-ai/glm-5.3-flash',
-    'moonshotai/kimi-k3'
+    'moonshotai/kimi-k3',
+    'nvidia/nemotron-3.5-super-vl-120b-a12b',
+    'stepfun-ai/step-5-preview'
 ];
 // Models that can call tools, which Advanced mode (Python in the browser)
 // needs. OpenRouter's list was checked against the `tools` entry of
@@ -207,6 +217,7 @@ export const TOOL_CALLING_MODEL_IDS = Object.freeze([
     'nvidia/nemotron-3-super-120b-a12b:free',
     'nvidia/nemotron-3-ultra-550b-a55b:free',
     'nvidia/nemotron-3.5-lightning:free',
+    'nvidia/nemotron-3.5-super-vl:free',
     'openai/gpt-6-astra',
     'openai/gpt-6-luna',
     'openai/gpt-5.6-terra',
@@ -228,7 +239,9 @@ export const NON_TOOL_CALLING_MODEL_IDS = Object.freeze([
     'nvidia/deepseek-ai/deepseek-v4.1-flash',
     'nvidia/z-ai/glm-5.3-flash',
     'nvidia/z-ai/glm-5.3',
-    'nvidia/moonshotai/kimi-k3'
+    'nvidia/moonshotai/kimi-k3',
+    'nvidia/nvidia/nemotron-3.5-super-vl-120b-a12b',
+    'nvidia/stepfun-ai/step-5-preview'
 ]);
 export const GEMINI_DOCUMENT_MODELS = [
     'gemini-3.8-flash',

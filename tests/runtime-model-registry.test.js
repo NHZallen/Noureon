@@ -20,6 +20,7 @@ import {
   isCouncilEnabled,
   isModelRetired,
   modelSupportsReasoningSelection,
+  modelSupportsUploadedFile,
   modelSupportsDocumentUpload,
   modelSupportsVision,
   modelSupportsToolCalling,
@@ -225,6 +226,26 @@ test('reasoning labels support Russian and Spanish', () => {
   assert.equal(getReasoningEffortLabel('high', 'es'), 'Alto');
   assert.equal(getDefaultReasoningLabel('ru'), 'По умолчанию');
   assert.equal(getDefaultReasoningLabel('es'), 'Predeterminado');
+});
+
+test('model registry lists the Nemotron 3.5 Super VL and NVIDIA Step 5 Preview models with pictures and videos', () => {
+  const find = (id) => MODELS.find((model) => model.id === id);
+  const viaOpenRouter = find('nvidia/nemotron-3.5-super-vl:free');
+  assert.ok(viaOpenRouter);
+  assert.equal(viaOpenRouter.provider, 'openrouter');
+  assert.equal(modelSupportsVision(viaOpenRouter), true);
+  assert.equal(modelSupportsUploadedFile(viaOpenRouter, { type: 'video/mp4' }), true);
+  assert.equal(modelSupportsToolCalling(viaOpenRouter), true);
+  assert.deepEqual(getModelTiers(viaOpenRouter), ['free']);
+  for (const [id, apiId] of [['nvidia/nvidia/nemotron-3.5-super-vl-120b-a12b', 'nvidia/nemotron-3.5-super-vl-120b-a12b'], ['nvidia/stepfun-ai/step-5-preview', 'stepfun-ai/step-5-preview']]) {
+    const model = find(id);
+    assert.ok(model, id);
+    assert.equal(model.provider, 'nvidia');
+    assert.equal(model.apiId, apiId);
+    assert.deepEqual(getModelTiers(model), ['free']);
+    assert.equal(modelSupportsVision(model), true, `${id} sees pictures`);
+    assert.equal(modelSupportsUploadedFile(model, { type: 'video/mp4' }), true, `${id} takes videos`);
+  }
 });
 
 test('model registry leaves excluded models on default reasoning', () => {

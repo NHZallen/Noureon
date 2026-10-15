@@ -40,7 +40,7 @@ export default {
         h: '3. Discussion et organisation',
         blocks: [
           [
-            'Choisir un modèle : le sélecteur à côté de la zone de message liste tous les modèles disponibles (actuellement 71 options de 18 fournisseurs), avec recherche et regroupement par fournisseur ; les modèles qui acceptent un niveau de réflexion affichent un curseur de réflexion.',
+            'Choisir un modèle : le sélecteur à côté de la zone de message liste tous les modèles disponibles (actuellement 74 options de 18 fournisseurs), avec recherche et regroupement par fournisseur ; les modèles qui acceptent un niveau de réflexion affichent un curseur de réflexion.',
             'La zone de message : collez du texte, joignez des fichiers, prenez une photo, dictez à la voix, choisissez une compétence avec / et un outil en ligne de commande avec @. La zone peut s’agrandir en grande fenêtre.',
             'Nouras : des assistants IA réutilisables, avec leur nom, leur description, leurs instructions et leur avatar. Choisissez des Nouras officiels dans la boutique, créez les vôtres, proposez un nouveau Noura ou partagez-en un par transfert d’appareil à appareil.',
             'Dossiers, archives et corbeille : les discussions peuvent aller dans des dossiers (couleur et icône personnalisables), être archivées ou déplacées dans la corbeille ; sélection et déplacement par lots ; la corbeille permet de restaurer ou de supprimer définitivement.',
