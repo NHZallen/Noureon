@@ -29,6 +29,7 @@ const MODEL_RELEASE_METADATA = Object.freeze({
     'google/gemini-nano-banana-2.1': { releasedAt: 20261006, outputPricePerMillion: 7.5 },
     // Priced per image, not per token: no outputPricePerMillion.
     'black-forest-labs/flux-3-image': { releasedAt: 20261001 },
+    'black-forest-labs/flux-3-image-klein': { releasedAt: 20261015 },
     'minimax/minimax-m3': { releasedAt: 20260531, outputPricePerMillion: 1.2 },
     'moonshotai/kimi-k3': { releasedAt: 20260716, outputPricePerMillion: 15 },
     'poolside/laguna-s-2.1:free': { releasedAt: 20260721, outputPricePerMillion: 0 },
@@ -101,6 +102,8 @@ export const MODEL_CATALOG = [
     { id: 'google/gemini-nano-banana-2.1', legacyIds: ['google/gemini-3.1-flash-image', 'google/gemini-3.1-flash-lite-image', 'google/gemini-3-pro-image'], name: 'Gemini Nano Banana 2.1', provider: 'openrouter', descriptionKey: 'model_gemini_nano_banana_2_1_desc', category: 'image_generation', outputModality: 'image', supportedImageAspectRatios: GEMINI_IMAGE_RATIOS, supportedImageResolutions: GEMINI_IMAGE_RESOLUTIONS },
     // OpenRouter Image Models (Black Forest Labs)
     { id: 'black-forest-labs/flux-3-image', name: 'FLUX.3 Image', provider: 'openrouter', descriptionKey: 'model_flux_3_image_desc', category: 'image_generation', outputModality: 'image', supportedImageAspectRatios: FLUX_IMAGE_RATIOS, supportedImageResolutions: FLUX_IMAGE_RESOLUTIONS },
+    // FLUX.3 Image Klein: the same ratios, sizes and up to 10 reference pictures (OpenRouter's parameters), but one picture per request (n is 1 to 1).
+    { id: 'black-forest-labs/flux-3-image-klein', name: 'FLUX.3 Image Klein', provider: 'openrouter', descriptionKey: 'model_flux_3_image_klein_desc', category: 'image_generation', outputModality: 'image', supportedImageAspectRatios: FLUX_IMAGE_RATIOS, supportedImageResolutions: FLUX_IMAGE_RESOLUTIONS, maxImageCount: 1 },
 
     // OpenRouter Paid Models (Minimax)
     { id: 'minimax/minimax-m3', name: 'Minimax M3', provider: 'openrouter', descriptionKey: 'model_minimax_m3_desc', category: 'general' },
@@ -157,7 +160,8 @@ export const IMAGE_GENERATION_MODEL_IDS = Object.freeze([
     'openai/gpt-image-2.5-flare',
     'openai/gpt-image-2.5-sunburst',
     'google/gemini-nano-banana-2.1',
-    'black-forest-labs/flux-3-image'
+    'black-forest-labs/flux-3-image',
+    'black-forest-labs/flux-3-image-klein'
 ]);
 export const CHEAP_MODEL_ID = 'gemini-3.5-flash-lite';
 export const OPENROUTER_VISION_MODELS = [

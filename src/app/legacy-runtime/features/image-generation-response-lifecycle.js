@@ -164,6 +164,8 @@ export function createImageGenerationResponseLifecycle({
       inputReferences,
       signal
     };
+    // A count saved with another model must not ask a one-picture model for more.
+    if (modelInfo.maxImageCount && Number(generationRequest.config.n) > modelInfo.maxImageCount) generationRequest.config.n = modelInfo.maxImageCount;
     const reasoningConfig = getModelReasoningConfig(modelInfo);
     const reasoningEffort = reasoningConfig
       ? normalizeReasoningEffort(modelInfo, conversation.reasoningEffort)

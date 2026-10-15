@@ -19,7 +19,8 @@ const EXPECTED_MODELS = [
   'openai/gpt-image-2.5-flare',
   'openai/gpt-image-2.5-sunburst',
   'google/gemini-nano-banana-2.1',
-  'black-forest-labs/flux-3-image'
+  'black-forest-labs/flux-3-image',
+  'black-forest-labs/flux-3-image-klein'
 ];
 
 test('registers the curated image generation models', () => {
@@ -60,6 +61,7 @@ test('every image model lists the ratios it accepts, 1:1 first, each one a ratio
   }
   assert.deepEqual(byId('google/gemini-nano-banana-2.1'), ['1:1', '1:4', '4:1', '1:8', '8:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9']);
   assert.deepEqual([...byId('black-forest-labs/flux-3-image')].sort(), ['1:1', '1:2', '16:9', '2:1', '2:3', '21:9', '3:2', '3:4', '4:3', '4:5', '5:4', '5:7', '7:5', '9:16', '9:21'].sort(), 'FLUX.3 takes fifteen ratios');
+  assert.deepEqual(byId('black-forest-labs/flux-3-image-klein'), byId('black-forest-labs/flux-3-image'), 'Klein takes the same fifteen ratios');
   assert.ok(!byId('openai/gpt-image-2.5-flare').includes('4:5'), 'GPT Image has no 4:5');
   assert.ok(!byId('openai/gpt-image-2.5-sunburst').includes('1:4'));
 });
@@ -79,6 +81,7 @@ test('every image model lists its resolutions', () => {
   const byId = (id) => MODELS.find(model => model.id === id).supportedImageResolutions;
   assert.deepEqual(byId('google/gemini-nano-banana-2.1'), ['1K', '2K', '4K'], 'no 512 size');
   assert.deepEqual(byId('black-forest-labs/flux-3-image'), ['768', '1K', '1.5K', '2K', '4K']);
+  assert.deepEqual(byId('black-forest-labs/flux-3-image-klein'), ['768', '1K', '1.5K', '2K', '4K']);
   assert.deepEqual(byId('openai/gpt-image-2.5-flare'), ['1K', '2K', '4K']);
   assert.deepEqual(byId('openai/gpt-image-2.5-sunburst'), ['1K', '2K', '4K']);
 });
@@ -112,4 +115,11 @@ test('the 768 and 1.5K tiers and the 7:5 and 5:7 ratios are known to the app and
   assert.equal(resolveSupportedResolution('512', ['768', '1K', '1.5K', '2K', '4K']), '768', 'nearest tier');
   assert.equal(resolveSupportedResolution('1.5K', ['1K', '2K', '4K']), '1K', 'a tie goes to the smaller tier');
   assert.equal(resolveSupportedResolution('4K', ['768', '2K']), '2K', 'the nearest in size, not in the list order');
+});
+
+test('FLUX.3 Image Klein makes one picture per request, the other image models are not limited', () => {
+  assert.equal(MODELS.find(model => model.id === 'black-forest-labs/flux-3-image-klein').maxImageCount, 1);
+  for (const id of EXPECTED_MODELS.filter(id => id !== 'black-forest-labs/flux-3-image-klein')) {
+    assert.equal(MODELS.find(model => model.id === id).maxImageCount, undefined, id);
+  }
 });

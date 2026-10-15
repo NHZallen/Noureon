@@ -141,3 +141,24 @@ test('the council item stays hidden in a temporary chat when the controls refres
   assert.equal(document.getElementById('model-council-menu-btn').style.display, 'flex');
   cleanup();
 });
+
+test('the count offers one picture only for a model that makes one per request', () => {
+  const { document, cleanup } = createDom('<div id="file-options-popover"><button id="learning-mode-btn"></button></div>');
+  const conversation = { imageConfig: { aspectRatio: '1:1', resolution: '1K' }, imageAdvancedConfig: { n: 4 } };
+  let model = { outputModality: 'image', maxImageCount: 1 };
+  const controls = createImageModeControls({
+    document,
+    getActiveConversation: () => conversation,
+    getActiveModel: () => model,
+    modelGeneratesImages: () => true,
+    saveAppData: async () => {}
+  });
+  controls.sync();
+  const count = document.getElementById('image-n-select');
+  assert.deepEqual(Array.from(count.options).filter(option => !option.hidden).map(option => option.value), ['1']);
+  assert.equal(count.value, '1');
+  model = { outputModality: 'image' };
+  controls.sync();
+  assert.equal(Array.from(count.options).filter(option => !option.hidden).length, 10, 'the other models keep ten');
+  cleanup();
+});

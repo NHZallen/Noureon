@@ -229,6 +229,14 @@ export function createImageModeControls({
         ? (advancedConfig.provider ? JSON.stringify(advancedConfig.provider) : '')
         : (advancedConfig[key] ?? '');
     });
+    // A model that makes one picture per request (maxImageCount) offers no more in the count.
+    const maxCount = Number(activeModel?.maxImageCount) || 10;
+    Array.from(advanced.fields.n.options).forEach((option) => {
+      const supported = Number(option.value) <= maxCount;
+      option.disabled = !supported;
+      option.hidden = !supported;
+    });
+    advanced.fields.n.value = String(Math.min(Number(advancedConfig.n) || 1, maxCount));
     advanced.details.style.display = active ? 'block' : 'none';
     const council = document.getElementById('model-council-menu-btn');
     const learning = document.getElementById('learning-mode-btn');

@@ -264,6 +264,7 @@ test('model registry lists the Nemotron 3.5 Super VL and NVIDIA Step 5 Preview m
 test('model registry leaves excluded models on default reasoning', () => {
   const excludedIds = [
     'black-forest-labs/flux-3-image',
+    'black-forest-labs/flux-3-image-klein',
     'minimax/minimax-m3',
     'poolside/laguna-s-2.1:free',
     'nvidia/nemotron-3.5-lightning:free',

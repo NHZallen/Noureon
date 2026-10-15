@@ -3,7 +3,7 @@
 // A line break inside a string is written \n and shown as a break. Numbers that come from the application (models, vendors, presets) are in
 // HOME_FACTS and are checked against the registries by tests/home-page.test.js.
 
-export const HOME_FACTS = Object.freeze({ models: 73, vendors: 18, councilMin: 2, councilMax: 5, deckDesigns: 20, documentStyles: 9, skills: 11, cliTools: 8 });
+export const HOME_FACTS = Object.freeze({ models: 74, vendors: 18, councilMin: 2, councilMax: 5, deckDesigns: 20, documentStyles: 9, skills: 11, cliTools: 8 });
 
 export const HOME_BRANDS = Object.freeze(['Anthropic', 'OpenAI', 'Google', 'xAI', 'DeepSeek', 'Qwen', 'Moonshot AI', 'Z.ai', 'MiniMax', 'Xiaomi', 'StepFun', 'Poolside', 'NVIDIA', 'Black Forest Labs']);
 
@@ -19,7 +19,7 @@ export const HOME_TEXTS = {
     nav: { council: '理事會', research: '深度研究', files: '檔案', extensions: '擴充', privacy: '隱私', theme: '切換深淺色' },
     hero: {
       title: '思考，\n不止一個模型。',
-      lead: 'Noureon 把 18 家廠商、73 個模型選項放進同一個工作空間。讓它們同席議事、替你深度研究，最後交出可以直接使用的檔案。',
+      lead: 'Noureon 把 18 家廠商、74 個模型選項放進同一個工作空間。讓它們同席議事、替你深度研究，最後交出可以直接使用的檔案。',
       start: '開始使用', how: '看看怎麼運作', hint: '往下滑，看它怎麼工作'
     },
     brands: '同一個對話框，十八家的模型。',
@@ -28,7 +28,7 @@ export const HOME_TEXTS = {
       council: {
         eyebrow: '模型理事會',
         caps: [
-          { h: '讓頂尖模型，\n同席議事。', p: '挑出 2 到 5 位成員，再指定一位整合者。Claude、GPT、Gemini，在同一個問題上各抒己見。', facts: ['73 個模型選項', '18 家廠商', '成員可存成分組'] },
+          { h: '讓頂尖模型，\n同席議事。', p: '挑出 2 到 5 位成員，再指定一位整合者。Claude、GPT、Gemini，在同一個問題上各抒己見。', facts: ['74 個模型選項', '18 家廠商', '成員可存成分組'] },
           { h: '先獨立作答，\n再交叉辯證。', p: '共識模式各自作答；討論模式多一輪互評與修正。需要時，理事會先共同搜尋一次，每位成員依據同一份資料發言。', facts: ['共識模式', '討論模式', '共用搜尋資料包'] },
           { h: '一份結論，\n分歧一目了然。', p: '整合者把意見收斂成一份答案，並附上共識與差異整理：哪些成員贊成、哪些保留，最後如何取捨。', facts: ['共識與差異整理', '各成員立場並列'] }
         ]
@@ -57,7 +57,7 @@ export const HOME_TEXTS = {
     },
     stats: {
       eyebrow: '規格', title: '每個數字，現在就能用。',
-      items: [['73', '可選模型'], ['18', '家廠商'], ['2–5', '位理事會成員'], ['20', '套簡報設計'], ['11', '項官方技能'], ['8', '個命令工具']]
+      items: [['74', '可選模型'], ['18', '家廠商'], ['2–5', '位理事會成員'], ['20', '套簡報設計'], ['11', '項官方技能'], ['8', '個命令工具']]
     },
     server: {
       eyebrow: '伺服器執行', title: '關上分頁，\n工作不停。',
@@ -100,7 +100,7 @@ export const HOME_TEXTS = {
     nav: { council: 'Council', research: 'Deep research', files: 'Files', extensions: 'Extensions', privacy: 'Privacy', theme: 'Switch light or dark' },
     hero: {
       title: 'Think with more\nthan one model.',
-      lead: 'Noureon puts 18 vendors and 73 models in one workspace. Have them debate a question, research it for you, and hand back files you can use right away.',
+      lead: 'Noureon puts 18 vendors and 74 models in one workspace. Have them debate a question, research it for you, and hand back files you can use right away.',
       start: 'Get started', how: 'See how it works', hint: 'Scroll to see it work'
     },
     brands: 'One chat box, models from eighteen vendors.',
@@ -109,7 +109,7 @@ export const HOME_TEXTS = {
       council: {
         eyebrow: 'Model Council',
         caps: [
-          { h: 'Let the best models\nsit at one table.', p: 'Pick 2 to 5 members and name one to bring it together. Claude, GPT and Gemini each give their view on the same question.', facts: ['73 models', '18 vendors', 'Save members as groups'] },
+          { h: 'Let the best models\nsit at one table.', p: 'Pick 2 to 5 members and name one to bring it together. Claude, GPT and Gemini each give their view on the same question.', facts: ['74 models', '18 vendors', 'Save members as groups'] },
           { h: 'First on their own,\nthen against each other.', p: 'In consensus mode each member answers alone; discussion mode adds a round of review and revision. When it helps, the council searches once together, so every member works from the same material.', facts: ['Consensus mode', 'Discussion mode', 'One shared search'] },
           { h: 'One conclusion.\nEvery disagreement in view.', p: 'The synthesizer boils the views down to one answer, with a table of what the members agree on and where they differ: who backed it, who held back, and how it was settled.', facts: ['Consensus and differences', 'Each member’s stance side by side'] }
         ]
@@ -138,7 +138,7 @@ export const HOME_TEXTS = {
     },
     stats: {
       eyebrow: 'By the numbers', title: 'Every number is ready to use.',
-      items: [['73', 'models to choose from'], ['18', 'vendors'], ['2–5', 'council members'], ['20', 'deck designs'], ['11', 'official skills'], ['8', 'command tools']]
+      items: [['74', 'models to choose from'], ['18', 'vendors'], ['2–5', 'council members'], ['20', 'deck designs'], ['11', 'official skills'], ['8', 'command tools']]
     },
     server: {
       eyebrow: 'Runs on the server', title: 'Close the tab.\nThe work goes on.',
@@ -181,7 +181,7 @@ export const HOME_TEXTS = {
     nav: { council: 'Conseil', research: 'Recherche approfondie', files: 'Fichiers', extensions: 'Extensions', privacy: 'Confidentialité', theme: 'Changer de thème clair ou sombre' },
     hero: {
       title: 'Réfléchir avec\nplus d’un modèle.',
-      lead: 'Noureon réunit 18 fournisseurs et 73 modèles dans un seul espace de travail. Faites-les débattre, laissez-les enquêter à votre place, et recevez des fichiers prêts à l’emploi.',
+      lead: 'Noureon réunit 18 fournisseurs et 74 modèles dans un seul espace de travail. Faites-les débattre, laissez-les enquêter à votre place, et recevez des fichiers prêts à l’emploi.',
       start: 'Commencer', how: 'Voir comment ça marche', hint: 'Faites défiler pour le voir à l’œuvre'
     },
     brands: 'Une seule fenêtre, les modèles de dix-huit fournisseurs.',
@@ -190,7 +190,7 @@ export const HOME_TEXTS = {
       council: {
         eyebrow: 'Conseil des modèles',
         caps: [
-          { h: 'Les meilleurs modèles,\nautour d’une même table.', p: 'Choisissez de 2 à 5 membres et désignez celui qui fera la synthèse. Claude, GPT et Gemini donnent chacun leur avis sur la même question.', facts: ['73 modèles', '18 fournisseurs', 'Membres enregistrables en groupes'] },
+          { h: 'Les meilleurs modèles,\nautour d’une même table.', p: 'Choisissez de 2 à 5 membres et désignez celui qui fera la synthèse. Claude, GPT et Gemini donnent chacun leur avis sur la même question.', facts: ['74 modèles', '18 fournisseurs', 'Membres enregistrables en groupes'] },
           { h: 'D’abord seuls,\nensuite face à face.', p: 'En mode consensus, chaque membre répond seul ; le mode discussion ajoute un tour de critique et de révision. Au besoin, le conseil fait une seule recherche commune, pour que tous s’appuient sur les mêmes sources.', facts: ['Mode consensus', 'Mode discussion', 'Une recherche commune'] },
           { h: 'Une conclusion.\nTous les désaccords visibles.', p: 'Le synthétiseur ramène les avis à une seule réponse, avec un tableau des points d’accord et de divergence : qui approuve, qui hésite, et comment la question est tranchée.', facts: ['Consensus et différences', 'Positions côte à côte'] }
         ]
@@ -219,7 +219,7 @@ export const HOME_TEXTS = {
     },
     stats: {
       eyebrow: 'En chiffres', title: 'Chaque chiffre est utilisable dès maintenant.',
-      items: [['73', 'modèles au choix'], ['18', 'fournisseurs'], ['2–5', 'membres du conseil'], ['20', 'designs de présentation'], ['11', 'compétences officielles'], ['8', 'outils en ligne de commande']]
+      items: [['74', 'modèles au choix'], ['18', 'fournisseurs'], ['2–5', 'membres du conseil'], ['20', 'designs de présentation'], ['11', 'compétences officielles'], ['8', 'outils en ligne de commande']]
     },
     server: {
       eyebrow: 'Exécution sur le serveur', title: 'Fermez l’onglet.\nLe travail continue.',
@@ -262,7 +262,7 @@ export const HOME_TEXTS = {
     nav: { council: 'Совет', research: 'Глубокое исследование', files: 'Файлы', extensions: 'Расширения', privacy: 'Конфиденциальность', theme: 'Переключить светлую или тёмную тему' },
     hero: {
       title: 'Думайте не с одной\nмоделью.',
-      lead: 'Noureon собирает 18 поставщиков и 73 моделей в одном рабочем пространстве. Пусть они спорят над вопросом, исследуют его за вас и возвращают готовые файлы.',
+      lead: 'Noureon собирает 18 поставщиков и 74 моделей в одном рабочем пространстве. Пусть они спорят над вопросом, исследуют его за вас и возвращают готовые файлы.',
       start: 'Начать', how: 'Как это работает', hint: 'Прокрутите, чтобы увидеть, как это работает'
     },
     brands: 'Одно окно чата, модели восемнадцати поставщиков.',
@@ -271,7 +271,7 @@ export const HOME_TEXTS = {
       council: {
         eyebrow: 'Совет моделей',
         caps: [
-          { h: 'Лучшие модели\nза одним столом.', p: 'Выберите от 2 до 5 участников и назначьте того, кто подведёт итог. Claude, GPT и Gemini высказываются по одному и тому же вопросу.', facts: ['73 моделей', '18 поставщиков', 'Участников можно сохранять группами'] },
+          { h: 'Лучшие модели\nза одним столом.', p: 'Выберите от 2 до 5 участников и назначьте того, кто подведёт итог. Claude, GPT и Gemini высказываются по одному и тому же вопросу.', facts: ['74 моделей', '18 поставщиков', 'Участников можно сохранять группами'] },
           { h: 'Сначала поодиночке,\nпотом друг с другом.', p: 'В режиме консенсуса каждый отвечает сам; режим обсуждения добавляет круг взаимной оценки и правок. При необходимости совет один раз ищет в сети сообща, и все опираются на одни и те же материалы.', facts: ['Режим консенсуса', 'Режим обсуждения', 'Общий поиск'] },
           { h: 'Один вывод.\nВсе разногласия видны.', p: 'Ведущий сводит мнения к одному ответу и прикладывает таблицу согласия и расхождений: кто за, кто с оговорками и как решили.', facts: ['Согласие и расхождения', 'Позиции рядом'] }
         ]
@@ -300,7 +300,7 @@ export const HOME_TEXTS = {
     },
     stats: {
       eyebrow: 'В цифрах', title: 'Каждая цифра — уже в работе.',
-      items: [['73', 'моделей на выбор'], ['18', 'поставщиков'], ['2–5', 'участников совета'], ['20', 'дизайнов презентаций'], ['11', 'официальных навыков'], ['8', 'командных инструментов']]
+      items: [['74', 'моделей на выбор'], ['18', 'поставщиков'], ['2–5', 'участников совета'], ['20', 'дизайнов презентаций'], ['11', 'официальных навыков'], ['8', 'командных инструментов']]
     },
     server: {
       eyebrow: 'Работа на сервере', title: 'Закройте вкладку.\nРабота продолжится.',
@@ -343,7 +343,7 @@ export const HOME_TEXTS = {
     nav: { council: 'Consejo', research: 'Investigación profunda', files: 'Archivos', extensions: 'Extensiones', privacy: 'Privacidad', theme: 'Cambiar entre tema claro y oscuro' },
     hero: {
       title: 'Piensa con más\nde un modelo.',
-      lead: 'Noureon reúne 18 proveedores y 73 modelos en un solo espacio de trabajo. Haz que debatan una pregunta, que investiguen por ti y que te entreguen archivos listos para usar.',
+      lead: 'Noureon reúne 18 proveedores y 74 modelos en un solo espacio de trabajo. Haz que debatan una pregunta, que investiguen por ti y que te entreguen archivos listos para usar.',
       start: 'Empezar', how: 'Ver cómo funciona', hint: 'Desplázate para verlo en acción'
     },
     brands: 'Una sola ventana, modelos de dieciocho proveedores.',
@@ -352,7 +352,7 @@ export const HOME_TEXTS = {
       council: {
         eyebrow: 'Consejo de modelos',
         caps: [
-          { h: 'Los mejores modelos,\nen la misma mesa.', p: 'Elige de 2 a 5 miembros y designa a quien hará la síntesis. Claude, GPT y Gemini opinan cada uno sobre la misma pregunta.', facts: ['73 modelos', '18 proveedores', 'Miembros guardables en grupos'] },
+          { h: 'Los mejores modelos,\nen la misma mesa.', p: 'Elige de 2 a 5 miembros y designa a quien hará la síntesis. Claude, GPT y Gemini opinan cada uno sobre la misma pregunta.', facts: ['74 modelos', '18 proveedores', 'Miembros guardables en grupos'] },
           { h: 'Primero cada uno,\nluego frente a frente.', p: 'En el modo consenso cada miembro responde por su cuenta; el modo debate añade una ronda de crítica y revisión. Cuando conviene, el consejo busca una sola vez en común, y todos se basan en el mismo material.', facts: ['Modo consenso', 'Modo debate', 'Una búsqueda compartida'] },
           { h: 'Una conclusión.\nCada desacuerdo a la vista.', p: 'El sintetizador reduce las opiniones a una respuesta, con una tabla de lo que acuerdan y de en qué difieren: quién la apoya, quién se reserva y cómo se resolvió.', facts: ['Consenso y diferencias', 'Posturas lado a lado'] }
         ]
@@ -381,7 +381,7 @@ export const HOME_TEXTS = {
     },
     stats: {
       eyebrow: 'En cifras', title: 'Cada cifra, lista para usar.',
-      items: [['73', 'modelos a elegir'], ['18', 'proveedores'], ['2–5', 'miembros del consejo'], ['20', 'diseños de presentación'], ['11', 'habilidades oficiales'], ['8', 'herramientas de comandos']]
+      items: [['74', 'modelos a elegir'], ['18', 'proveedores'], ['2–5', 'miembros del consejo'], ['20', 'diseños de presentación'], ['11', 'habilidades oficiales'], ['8', 'herramientas de comandos']]
     },
     server: {
       eyebrow: 'Ejecución en el servidor', title: 'Cierra la pestaña.\nEl trabajo sigue.',

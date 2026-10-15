@@ -271,3 +271,27 @@ test('sends the nearest ratio and resolution the model supports, and no resoluti
   assert.equal('resolution' in buildOpenRouterImagePayload({ model: 'm', prompt: 'p', config: requests[2].config }), false, 'nothing is sent for it');
   assert.equal(conversation.imageConfig.resolution, '4K', 'the saved choice itself is left alone');
 });
+
+test('a count saved with another model is cut to one picture for a model that makes one per request', async () => {
+  const requests = [];
+  const lifecycle = createImageGenerationResponseLifecycle({
+    buildSingleModelTranslatedRequestParts: async parts => parts,
+    generateImage: async value => {
+      requests.push(value);
+      return { images: [{ b64Json: 'aGVsbG8=', mediaType: 'image/png' }] };
+    },
+    saveImageAsset: async () => ({ id: 'image', storageKey: 'image-key', mediaType: 'image/png', size: 5 }),
+    getStoredImageDataUrl: async () => '',
+    getApiKey: () => 'key'
+  });
+  const run = (modelInfo) => lifecycle.run({
+    targetElement: { innerHTML: '' },
+    userParts: [{ text: 'a cat' }],
+    modelInfo,
+    conversation: { imageConfig: { aspectRatio: '1:1', resolution: '1K' }, imageAdvancedConfig: { n: 4 }, messages: [] }
+  });
+  await run({ id: 'black-forest-labs/flux-3-image-klein', provider: 'openrouter', maxImageCount: 1 });
+  await run({ id: 'black-forest-labs/flux-3-image', provider: 'openrouter' });
+  assert.equal(requests[0].config.n, 1, 'Klein takes one');
+  assert.equal(requests[1].config.n, 4, 'the other models keep the count');
+});
