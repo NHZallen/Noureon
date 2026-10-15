@@ -998,6 +998,9 @@ test('the thinking is reported to whoever listens, with its kind, and never beco
   assert.deepEqual(nvidia.heard, [['先想一下', 'raw']]);
   assert.deepEqual(nvidia.request.chat_template_kwargs, { enable_thinking: true, thinking: true }, 'NVIDIA only streams the thinking when told to');
   assert.equal(nvidia.request.reasoning_effort, 75);
+  const fast = await run('nvidia', { apiId: 'nvidia/nemotron-3.5-super-vl-120b-a12b', reasoning: { providerParameter: 'nvidiaReasoningEffort' }, effort: 'none' }, stream);
+  assert.equal(fast.request.reasoning_effort, 'none');
+  assert.equal(fast.request.chat_template_kwargs, undefined, 'the fast mode does not ask for the thinking');
   const plain = await run('nvidia', { apiId: 'other/model' }, stream);
   assert.equal(plain.request.chat_template_kwargs, undefined, 'models without a reasoning setting are left as they were');
 

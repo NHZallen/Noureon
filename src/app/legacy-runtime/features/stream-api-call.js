@@ -349,8 +349,8 @@ const buildOpenAiCompatibleRequest = ({
   };
   if (reasoningConfig?.providerParameter === 'nvidiaReasoningEffort' && reasoningEffort) {
     payload.reasoning_effort = reasoningConfig.effortValues?.[reasoningEffort] ?? reasoningEffort;
-    // NVIDIA streams the thinking (reasoning_content) only when told to.
-    payload.chat_template_kwargs = { enable_thinking: true, thinking: true };
+    // NVIDIA streams the thinking (reasoning_content) only when told to; "none" (fast mode) turns it off, with nothing to stream.
+    if (reasoningEffort !== 'none') payload.chat_template_kwargs = { enable_thinking: true, thinking: true };
   }
   return {
     url: '/api/nvidia-chat',

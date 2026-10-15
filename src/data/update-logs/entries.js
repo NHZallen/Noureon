@@ -8,7 +8,7 @@ export const updateLogEntries = [
       "<strong>Noureon 18.11.1 發布說明</strong>",
       "本版本新增三個免費的多模態模型：NVIDIA Nemotron 3.5 Super VL（OpenRouter 與 NVIDIA 兩個來源）和 NVIDIA 的 Step 5 Preview。",
       "<strong>主要變更</strong>",
-      "<ul><li><strong>新模型：</strong>OpenRouter 的 NVIDIA Nemotron 3.5 Super VL（免費）支援圖片、影片、工具呼叫與思考程度（快速、低、中、高）；NVIDIA 提供商新增 Nemotron 3.5 Super VL（120B A12B）與 Step 5 Preview，皆為免費、都支援圖片與工具呼叫、思考程度分低、中、高（Step 5 Preview 無法關閉思考）；Nemotron 也可以傳影片，Step 5 Preview 不接受影片。</li><li><strong>模型選單：</strong>NVIDIA 提供商的 Step 5 Preview 歸在 StepFun 廠商下；首頁、協助中心與隱私政策裡的模型數更新為 74 個。</li></ul>",
+      "<ul><li><strong>新模型：</strong>OpenRouter 的 NVIDIA Nemotron 3.5 Super VL（免費）支援圖片、影片、工具呼叫與思考程度（快速、低、中、高）；NVIDIA 提供商新增 Nemotron 3.5 Super VL（120B A12B）與 Step 5 Preview，皆為免費、都支援圖片與工具呼叫、思考程度分低、中、高（Nemotron 另有快速模式，Step 5 Preview 無法關閉思考）；Nemotron 也可以傳影片，Step 5 Preview 不接受影片。</li><li><strong>模型選單：</strong>NVIDIA 提供商的 Step 5 Preview 歸在 StepFun 廠商下；首頁、協助中心與隱私政策裡的模型數更新為 74 個。</li></ul>",
       "<strong>相容性</strong>",
       "本次更新不需要資料遷移。"
     ]

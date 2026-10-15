@@ -277,8 +277,10 @@ export const MODEL_REASONING_CONFIGS = Object.freeze({ ...createReasoningConfigs
     [NVIDIA_REASONING_EFFORT, ['low', 'medium', 'high', 'max'], 'max', ['nvidia/deepseek-ai/deepseek-v4.1-flash'], { effortValues: { low: 25, medium: 50, high: 75, max: 100 } }],
     [NVIDIA_REASONING_EFFORT, ['low', 'high', 'max'], 'max', ['nvidia/z-ai/glm-5.3', 'nvidia/z-ai/glm-5.3-flash']],
     [NVIDIA_REASONING_EFFORT, ['low', 'high', 'max'], 'max', ['nvidia/moonshotai/kimi-k3']],
-    // Nemotron 3.5 Super VL and Step 5 Preview on NVIDIA take reasoning_effort low / medium / high (the probe of 2026-10-16: more thinking at each step). Step 5 Preview cannot be turned off.
-    [NVIDIA_REASONING_EFFORT, LOW_MEDIUM_HIGH, 'medium', ['nvidia/nvidia/nemotron-3.5-super-vl-120b-a12b', 'nvidia/stepfun-ai/step-5-preview']],
+    // Nemotron 3.5 Super VL and Step 5 Preview on NVIDIA take reasoning_effort low / medium / high (the probe of 2026-10-16: more thinking at each step).
+    // Nemotron also takes "none" (fast, no thinking: 3 tokens for the answer); Step 5 Preview still thinks with "none", so it cannot be turned off.
+    [NVIDIA_REASONING_EFFORT, ['none', 'low', 'medium', 'high'], 'medium', ['nvidia/nvidia/nemotron-3.5-super-vl-120b-a12b']],
+    [NVIDIA_REASONING_EFFORT, LOW_MEDIUM_HIGH, 'medium', ['nvidia/stepfun-ai/step-5-preview']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'medium', ['anthropic/claude-haiku-5.5']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'high', ['anthropic/claude-sonnet-5.5']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'high', ['anthropic/claude-fable-5.1']],
