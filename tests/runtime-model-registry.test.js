@@ -50,12 +50,8 @@ test('model registry exports the canonical model inventory', () => {
   assert.ok(MODELS.some((model) => model.id === 'nvidia/z-ai/glm-5.3'
     && model.apiId === 'z-ai/glm-5.3' && model.provider === 'nvidia'));
   assert.equal(MODELS.some((model) => ['nvidia/deepseek-ai/deepseek-v4-flash-0731', 'nvidia/deepseek-ai/deepseek-v4-pro-0813', 'nvidia/z-ai/glm-5.2', 'nvidia/stepfun-ai/step-3.7-flash'].includes(model.id)), false);
-  // NVIDIA ended Kimi K3 on 2026-10-15 (410 Gone): it is out of the list, the entry stays so that chats saved with it find their way.
-  assert.ok(MODEL_CATALOG.some((model) => model.id === 'nvidia/moonshotai/kimi-k3'
-    && model.apiId === 'moonshotai/kimi-k3'
-    && model.provider === 'nvidia'
-    && model.retirementDate === '2026-10-15'));
-  assert.equal(MODELS.some((model) => model.id === 'nvidia/moonshotai/kimi-k3'), false);
+  // NVIDIA ended its Kimi K3 on 2026-10-15 (410 Gone): the model is gone from the catalog.
+  assert.equal(MODEL_CATALOG.some((model) => model.id === 'nvidia/moonshotai/kimi-k3'), false);
   assert.equal(MODELS.some((model) => model.id === 'nvidia/moonshotai/kimi-k2.6'), false);
   assert.ok(MODELS.some((model) => model.id === 'deepseek/deepseek-v4.1-flash'
     && model.provider === 'openrouter'
@@ -130,7 +126,7 @@ test('model registry preserves vision and document capability behavior', () => {
   const nvidiaDeepseekVisionModel = MODELS.find((model) => model.id === 'nvidia/deepseek-ai/deepseek-v4.1-flash');
   const nvidiaFlashVisionModel = MODELS.find((model) => model.id === 'nvidia/z-ai/glm-5.3-flash');
   const nvidiaTextModel = MODELS.find((model) => model.id === 'nvidia/z-ai/glm-5.3');
-  const nvidiaVisionModel = MODEL_CATALOG.find((model) => model.id === 'nvidia/moonshotai/kimi-k3'); // retired on 2026-10-15, still in the catalog
+  const nvidiaVisionModel = MODELS.find((model) => model.id === 'nvidia/nvidia/nemotron-3.5-super-vl-120b-a12b');
 
   assert.equal(modelSupportsVision(geminiModel), true);
   assert.equal(modelSupportsVision(geminiLiteModel), true);
@@ -172,7 +168,7 @@ test('model registry exposes precise reasoning depth options for supported model
   const glmFlashModel = MODELS.find((model) => model.id === 'z-ai/glm-5.3-flash');
   const nvidiaDeepseekModel = MODELS.find((model) => model.id === 'nvidia/deepseek-ai/deepseek-v4.1-flash');
   const nvidiaGlmModel = MODELS.find((model) => model.id === 'nvidia/z-ai/glm-5.3');
-  const nvidiaKimiModel = MODEL_CATALOG.find((model) => model.id === 'nvidia/moonshotai/kimi-k3'); // retired on 2026-10-15, still in the catalog
+  const nvidiaNemotronModel = MODELS.find((model) => model.id === 'nvidia/nvidia/nemotron-3.5-super-vl-120b-a12b');
 
   assert.deepEqual(getModelReasoningConfig(deepseekModel)?.options, ['low', 'high', 'max']);
   assert.equal(normalizeReasoningEffort(deepseekModel, 'max'), 'max');
@@ -219,8 +215,8 @@ test('model registry exposes precise reasoning depth options for supported model
   assert.equal(getModelReasoningConfig(nvidiaGlmModel)?.defaultEffort, 'max');
   assert.deepEqual(getModelReasoningConfig(MODELS.find((model) => model.id === 'qwen/qwen3.8-max-0902'))?.options, ['none', 'low', 'medium', 'xhigh']);
   assert.deepEqual(getModelReasoningConfig(MODELS.find((model) => model.id === 'xiaomi/mimo-v2.6-pro'))?.options, ['none', 'high']);
-  assert.deepEqual(getModelReasoningConfig(nvidiaKimiModel)?.options, ['low', 'high', 'max']);
-  assert.equal(getModelReasoningConfig(nvidiaKimiModel)?.defaultEffort, 'max');
+  assert.deepEqual(getModelReasoningConfig(nvidiaNemotronModel)?.options, ['none', 'low', 'medium', 'high']);
+  assert.equal(getModelReasoningConfig(nvidiaNemotronModel)?.defaultEffort, 'medium');
   assert.equal(getReasoningEffortLabel('minimal', 'zh-TW'), '極低');
 });
 

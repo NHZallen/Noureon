@@ -14,7 +14,6 @@ const MODEL_RELEASE_METADATA = Object.freeze({
     'nvidia/deepseek-ai/deepseek-v4.1-flash': { releasedAt: 20260918, outputPricePerMillion: 0 },
     'nvidia/z-ai/glm-5.3-flash': { releasedAt: 20260825, outputPricePerMillion: 0 },
     'nvidia/z-ai/glm-5.3': { releasedAt: 20260827, outputPricePerMillion: 0 },
-    'nvidia/moonshotai/kimi-k3': { releasedAt: 20260716, outputPricePerMillion: 0 },
     'nvidia/nvidia/nemotron-3.5-super-vl-120b-a12b': { releasedAt: 20261014, outputPricePerMillion: 0 },
     'nvidia/stepfun-ai/step-5-preview': { releasedAt: 20261008, outputPricePerMillion: 0 },
     'anthropic/claude-haiku-5.5': { releasedAt: 20261007, outputPricePerMillion: 0.5 },
@@ -76,7 +75,6 @@ export const MODEL_CATALOG = [
     { id: 'nvidia/deepseek-ai/deepseek-v4.1-flash', apiId: 'deepseek-ai/deepseek-v4.1-flash', legacyIds: ['nvidia/deepseek-ai/deepseek-v4-flash-0731', 'nvidia/deepseek-ai/deepseek-v4-pro-0813', 'nvidia/deepseek-ai/deepseek-v4-flash', 'deepseek-ai/deepseek-v4-flash', 'nvidia/deepseek-ai/deepseek-v4-pro', 'deepseek-ai/deepseek-v4-pro'], name: 'NVIDIA DeepSeek V4.1 Flash', provider: 'nvidia', descriptionKey: 'model_nvidia_deepseek_v4_1_flash_desc', tier: ['free'], category: 'general' },
     { id: 'nvidia/z-ai/glm-5.3-flash', apiId: 'z-ai/glm-5.3-flash', name: 'NVIDIA GLM-5.3 Flash', provider: 'nvidia', descriptionKey: 'model_nvidia_glm_5_3_flash_desc', tier: ['free'], category: 'general' },
     { id: 'nvidia/z-ai/glm-5.3', apiId: 'z-ai/glm-5.3', legacyIds: ['nvidia/z-ai/glm-5.2'], name: 'NVIDIA GLM-5.3', provider: 'nvidia', descriptionKey: 'model_nvidia_glm_5_3_desc', tier: ['free'], category: 'general' },
-    { id: 'nvidia/moonshotai/kimi-k3', apiId: 'moonshotai/kimi-k3', legacyIds: ['nvidia/moonshotai/kimi-k2.6', 'moonshotai/kimi-k2.6'], name: 'NVIDIA Kimi K3', provider: 'nvidia', descriptionKey: 'model_nvidia_kimi_k3_desc', tier: ['free'], category: 'general', retirementDate: '2026-10-15' },
     // Nemotron sees pictures and videos, Step 5 Preview pictures only; both call tools (the probe of 2026-10-16 with a real key, which also confirmed the api ids).
     { id: 'nvidia/nvidia/nemotron-3.5-super-vl-120b-a12b', apiId: 'nvidia/nemotron-3.5-super-vl-120b-a12b', name: 'NVIDIA Nemotron 3.5 Super VL', provider: 'nvidia', descriptionKey: 'model_nvidia_nemotron_3_5_super_vl_desc', tier: ['free'], category: 'general' },
     { id: 'nvidia/stepfun-ai/step-5-preview', apiId: 'stepfun-ai/step-5-preview', name: 'NVIDIA Step 5 Preview', provider: 'nvidia', descriptionKey: 'model_nvidia_step_5_preview_desc', tier: ['free'], category: 'general' },
@@ -192,7 +190,6 @@ export const NO_VIDEO_MODEL_IDS = Object.freeze(['nvidia/stepfun-ai/step-5-previ
 export const NVIDIA_VISION_MODELS = [
     'deepseek-ai/deepseek-v4.1-flash',
     'z-ai/glm-5.3-flash',
-    'moonshotai/kimi-k3',
     'nvidia/nemotron-3.5-super-vl-120b-a12b',
     'stepfun-ai/step-5-preview'
 ];
@@ -243,9 +240,7 @@ export const TOOL_CALLING_MODEL_IDS = Object.freeze([
     ...OPENCODE_GO_MODEL_IDS
 ]);
 // Text models without tool calling (or not yet shown to have it).
-export const NON_TOOL_CALLING_MODEL_IDS = Object.freeze([
-    'nvidia/moonshotai/kimi-k3'
-]);
+export const NON_TOOL_CALLING_MODEL_IDS = Object.freeze([]);
 export const GEMINI_DOCUMENT_MODELS = [
     'gemini-3.8-flash',
     'gemini-3.5-flash-lite',
@@ -276,7 +271,6 @@ export const MODEL_REASONING_CONFIGS = Object.freeze({ ...createReasoningConfigs
     [GEMINI_THINKING_LEVEL, LOW_MEDIUM_HIGH, 'medium', ['gemini-4-argon']],
     [NVIDIA_REASONING_EFFORT, ['low', 'medium', 'high', 'max'], 'max', ['nvidia/deepseek-ai/deepseek-v4.1-flash'], { effortValues: { low: 25, medium: 50, high: 75, max: 100 } }],
     [NVIDIA_REASONING_EFFORT, ['low', 'high', 'max'], 'max', ['nvidia/z-ai/glm-5.3', 'nvidia/z-ai/glm-5.3-flash']],
-    [NVIDIA_REASONING_EFFORT, ['low', 'high', 'max'], 'max', ['nvidia/moonshotai/kimi-k3']],
     // Nemotron 3.5 Super VL and Step 5 Preview on NVIDIA take reasoning_effort low / medium / high (the probe of 2026-10-16: more thinking at each step).
     // Nemotron also takes "none" (fast, no thinking: 3 tokens for the answer); Step 5 Preview still thinks with "none", so it cannot be turned off.
     [NVIDIA_REASONING_EFFORT, ['none', 'low', 'medium', 'high'], 'medium', ['nvidia/nvidia/nemotron-3.5-super-vl-120b-a12b']],
