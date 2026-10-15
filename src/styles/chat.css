@@ -657,23 +657,21 @@
     table-layout: auto; /* 讓內容決定寬度，這是防止擠壓的關鍵 */
 }
 
-/* 讓表頭文字不換行，保持整齊 */
+/* Tables are plain, like in a sheet: no box, no cell borders, a line under the head and a faint line between rows; the table slides sideways when it is wider than the message. */
 .prose th {
-    white-space: nowrap; 
-    background-color: var(--hover-bg);
+    white-space: nowrap;
+    background: none;
 }
 
-/* 新增：表格專用的滾動容器樣式 */
 .table-scroll-container {
-    overflow-x: auto; /* 關鍵：內容超出時顯示水平卷軸 */
-    -webkit-overflow-scrolling: touch; /* 讓手機滑動更順暢 */
+    overflow-x: auto; /* wider than the message: it slides sideways */
+    -webkit-overflow-scrolling: touch;
     margin-bottom: 1em;
-    border: 1px solid var(--border-color);
-    border-radius: 0.5rem;
-    background-color: var(--modal-bg); /* 確保背景色正確 */
+    border: 0;
+    background: none;
+    scrollbar-width: thin;
 }
 
-/* 自訂滾動條樣式，讓它在電腦上比較美觀 */
 .table-scroll-container::-webkit-scrollbar {
     height: 8px;
 }
@@ -681,9 +679,35 @@
     background-color: var(--border-color);
     border-radius: 4px;
 }
-    .prose table th, .prose table td { border: 1px solid var(--border-color); padding: 0.75rem; text-align: left; }
-    .prose table thead { background-color: var(--hover-bg); }
-    .prose table tr:nth-child(even) { background-color: var(--hover-bg); }
+    .prose table th, .prose table td {
+        min-width: 5.5em;
+        padding: 0.7rem 1.1rem;
+        border: 0;
+        border-bottom: 1px solid color-mix(in srgb, var(--border-color) 70%, transparent);
+        text-align: left;
+        vertical-align: top;
+    }
+    .prose table th:first-child, .prose table td:first-child { padding-left: 0; }
+    .prose table th:last-child, .prose table td:last-child { padding-right: 0; }
+    .prose table thead th {
+        border-bottom-color: var(--border-color);
+        color: var(--text-secondary);
+        font-size: 0.9em;
+        font-weight: 600;
+    }
+    .prose table tbody tr:last-child td { border-bottom: 0; }
+    /* A column of numbers is lined up at the right (src/app/ui/markdown/table-columns.js). */
+    .prose table .ac-table-number { min-width: 0; text-align: right; font-variant-numeric: tabular-nums; }
+    @media (max-width: 640px) {
+        /* On a phone the table runs to the edges of the screen and slides under them; its first column still lines up with the text. */
+        .table-scroll-container {
+            margin-left: -1rem;
+            margin-right: -1rem;
+            padding-left: 1rem;
+            padding-right: 1rem;
+        }
+        .prose table { width: max-content; min-width: 100%; }
+    }
     .prose ul, .prose ol { margin-bottom: 1em; padding-left: 1.5em; }
     .prose ol { list-style-type: decimal; }
     .prose ul { list-style-type: disc; }

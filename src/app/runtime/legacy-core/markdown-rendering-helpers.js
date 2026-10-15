@@ -6,6 +6,7 @@ import { liftSandboxRunBlock } from '../../ui/sandbox/sandbox-run-block.js';
 import { createSandboxRunElement } from '../../ui/sandbox/sandbox-run-view.js';
 import { describeSandboxFile, latestRunFiles, referencedAssetNames } from '../../ui/sandbox/sandbox-files.js';
 import { getRuntimeTexts } from '../i18n/runtime-texts.js';
+import { markNumericColumns } from '../../ui/markdown/table-columns.js';
 
 const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
 
@@ -216,6 +217,7 @@ export function createMarkdownRenderingHelpers({
       wrapper.className = 'table-scroll-container';
       table.replaceWith(wrapper);
       wrapper.appendChild(table);
+      markNumericColumns(table);
     });
 
     applyChartMarkdownPlaceholders({
