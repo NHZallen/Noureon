@@ -28,6 +28,8 @@ test('code is coloured by its declared language, escaped, and plain text stays p
     assert.equal(styles.length, 1);
     assert.match(styles[0].textContent, /\.prose pre code \.hljs-keyword, [^{]*\{ color: #569CD6; \}/, 'Dark+ in chat');
     assert.match(styles[0].textContent, /\.ac-file-preview-source code \.hljs-keyword, [^{]*\{ color: #0000FF; \}/, 'Light+ in the source view');
+    assert.match(styles[0].textContent, /:root\[data-theme="dark"\] \.ac-file-preview-source code \.hljs-keyword, [^{]*\{ color: #569CD6; \}/, 'Dark+ in the source view of the dark theme');
+    assert.match(styles[0].textContent, /:root\[data-theme="dark"\] \.ledger-code code \{ color: #D4D4D4; \}/, 'Dark+ in the process list of the dark theme');
   } finally {
     cleanup();
   }

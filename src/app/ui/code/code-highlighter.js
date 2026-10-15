@@ -85,17 +85,19 @@ function themeRules(scope, t) {
 
 const STYLE_ID = 'noureon-code-highlight';
 
-// Chat code blocks are dark; the file preview's source view is light.
+// Chat code blocks are always dark. The file preview's source view and the process list's code sit on the page itself, so they follow the
+// theme: Light+ colours on the light page, Dark+ colours under data-theme="dark" (dark colours on a dark page cannot be read).
+const DARK_PAGE = ':root[data-theme="dark"]';
 const STYLE = [
   themeRules('.prose pre code', THEMES.dark),
-  // The process list's code (ledger.css) sits on the page itself, unboxed: light colours.
+  // The process list's code (ledger.css) sits on the page itself, unboxed.
   // Saved in a reply it is also inside .prose, whose dark rules are more specific, hence the second scope.
-  ...['.ledger-code code', '.sandbox-run .ledger-code code'].flatMap((scope) => [
+  ...['.ledger-code code', '.sandbox-run .ledger-code code', '.ac-file-preview-source code'].flatMap((scope) => [
     themeRules(scope, THEMES.light),
-    `${scope} { color: ${THEMES.light.base}; }`
-  ]),
-  themeRules('.ac-file-preview-source code', THEMES.light),
-  `.ac-file-preview-source code { color: ${THEMES.light.base}; }`
+    `${scope} { color: ${THEMES.light.base}; }`,
+    themeRules(`${DARK_PAGE} ${scope}`, THEMES.dark),
+    `${DARK_PAGE} ${scope} { color: ${THEMES.dark.base}; }`
+  ])
 ].join('\n');
 
 export function installHighlightStyles(document) {
