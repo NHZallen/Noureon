@@ -82,3 +82,9 @@ test('the chat never pans sideways: a wide table slides inside its own box', () 
   assert.match(readSource('src/styles/chat-edge-fade.css'), /#chat-container \{[^}]*overflow-x: hidden;/);
   assert.match(readSource('src/styles/chat.css'), /\.table-scroll-container \{[^}]*overscroll-behavior-x: contain;/);
 });
+
+test('on a phone the side margins of the chat are narrow, and a table still runs edge to edge whatever they are', () => {
+  const css = readSource('src/styles/chat.css');
+  assert.match(css, /@media \(max-width: 640px\) \{\s*#chat-container \{\s*padding-left: 0\.75rem;\s*padding-right: 0\.75rem;/);
+  assert.match(css, /\.table-scroll-container \{[^}]*width: 100vw;[^}]*margin-left: calc\(50% - 50vw\);/);
+});
