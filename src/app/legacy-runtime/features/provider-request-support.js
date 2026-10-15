@@ -6,6 +6,7 @@ import { buildLinkedPagesText, extractLinkedUrls, pageCharsFor } from './linked-
 import { createSearchQueryRewriter } from './search-query-rewriter.js';
 import { createWebResearchTools } from './web-research-tools.js';
 import { absoluteLinks } from './web-page-text.js';
+import { decisionsFor, verdictOf } from '../../runtime/decisions/decision-store.js';
 import { resultDate } from './model-request-formatting.js';
 import { createOfficeReader } from '../../ui/files/office-text/office-reader.js';
 import { officeKindOf } from '../../ui/files/office-text/office-text.js';
@@ -153,8 +154,11 @@ Output requirements:
   // The addresses in the user's message, read for the models that cannot open a link (OpenRouter and NVIDIA ones, not
   // image ones): the text for the model, with the pages read as sources of the reply (marked `read`).
   const readLinkedPages = async (parts, signal, { onSources, onProgress } = {}) => {
-    const { urls, skipped } = extractLinkedUrls(extractTextFromParts(parts.filter((part) => part.text)));
+    const text = extractTextFromParts(parts.filter((part) => part.text));
+    const { urls, skipped } = extractLinkedUrls(text);
     if (urls.length === 0) return '';
+    // An address the Decisions model judged not to need reading (an example, code being discussed) is left unread; without a judgement it is read, as before.
+    if (verdictOf(decisionsFor(text), 'url') === false) return '';
     onProgress?.('linkedPages', getRuntimeText(getConfig().uiLanguage, 'readingLinkedPages'));
     // A page that does not answer in time is left out (the message goes on without it): a site that never answers (or blocks the reader, as
     // X does) must not hold the reply back for as long as the reader would wait.

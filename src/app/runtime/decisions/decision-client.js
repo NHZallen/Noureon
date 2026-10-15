@@ -4,6 +4,9 @@
 //   file    does the person want a file (or a change to the file just made)?
 //   chart   would the answer be best shown with a chart?
 //   tool    does the request need one of the command tools the model may use by itself?
+//   url     (only when the message holds a web address) does what is asked need the page at that address to be opened and read?
+//   exact   (only when the recall of past conversations is on) does the person want something from an earlier conversation back as it was?
+//   verbatim (same) ... and copied back word for word?
 // What each answer is used for is in decision-use.js. Nothing here may stop a message: a missing key, a slow or failed call, an unexpected
 // reply all give `null`, and the page then does what it did before this existed (the word lists of auto-web-search.js and file-intent.js).
 //
@@ -30,8 +33,13 @@ export const DECISION_QUESTIONS = Object.freeze({
   search: 'The latest message needs up-to-date facts from the web: news, today\'s weather, prices, scores, recent events, anything that may have changed after a language model was trained. It does not if the model\'s own knowledge or the conversation is enough.',
   file: 'The person wants a file made for them to download or keep (a document, spreadsheet, presentation, PDF, CSV, JSON, calendar or subtitle file, an image saved as a file...), or asks to change a file that was just made in the conversation.',
   chart: 'The answer would be best shown with a chart: the message asks for a chart or a graph, or it gives or asks for numbers that are compared, followed over time or split into shares.',
-  tool: 'The request needs one of the command-line tools listed under "Tools available" to be run, for example to convert, process, download or inspect files. Ordinary questions, writing and explaining do not.'
+  tool: 'The request needs one of the command-line tools listed under "Tools available" to be run, for example to convert, process, download or inspect files. Ordinary questions, writing and explaining do not.',
+  url: 'What the person asks needs the page at a web address in the message to be opened and read: to summarise it, answer from it, check it, translate it or compare it. It does not if the address is only an example, part of code or of a text being discussed, or something to copy, format or fix.',
+  exact: 'The person asks to get something back from an earlier conversation as it was: the same recipe, document, answer, code or list again, in full or unchanged (not a new answer about the same topic).',
+  verbatim: 'The person wants a text from an earlier conversation copied back word for word, in its original wording, with nothing rewritten.'
 });
+
+const HAS_ADDRESS = /https?:\/\/\S+/i;
 
 const clip = (text, length) => {
   const value = String(text ?? '').replace(/\s+/g, ' ').trim();
@@ -45,9 +53,10 @@ const textOf = (message) => (message?.parts || [])
 
 /**
  * The request for one message. `history` is the conversation so far (messages with parts); `tools` is the command tools the model may use by itself
- * ([{ name, description }]); the tool question is only asked when there are some.
+ * ([{ name, description }]); the tool question is only asked when there are some, the address question only when the message holds an address, and the
+ * two about earlier conversations only when `historyRecall` is on.
  */
-export function buildDecisionRequest({ message, history = [], tools = [], hasAttachment = false, conversationHasFile = false, model = DECISION_MODEL } = {}) {
+export function buildDecisionRequest({ message, history = [], tools = [], hasAttachment = false, conversationHasFile = false, historyRecall = false, model = DECISION_MODEL } = {}) {
   const latest = clip(message, MESSAGE_CHARS);
   if (!latest) return null;
   const state = [`Latest message: ${latest}`];
@@ -61,6 +70,11 @@ export function buildDecisionRequest({ message, history = [], tools = [], hasAtt
     file: { type: 'noul', instructions: DECISION_QUESTIONS.file },
     chart: { type: 'noul', instructions: DECISION_QUESTIONS.chart }
   };
+  if (HAS_ADDRESS.test(latest)) questions.url = { type: 'noul', instructions: DECISION_QUESTIONS.url };
+  if (historyRecall) {
+    questions.exact = { type: 'noul', instructions: DECISION_QUESTIONS.exact };
+    questions.verbatim = { type: 'noul', instructions: DECISION_QUESTIONS.verbatim };
+  }
   const toolList = (Array.isArray(tools) ? tools : []).filter((tool) => tool?.name);
   if (toolList.length) {
     state.push(`Tools available:\n${toolList.map((tool) => `- ${clip(tool.name, 60)}${tool.description ? `: ${clip(tool.description, 160)}` : ''}`).join('\n')}`);
@@ -74,11 +88,14 @@ const probability = (answer) => {
   return Number.isFinite(value) && value >= 0 && value <= 1 ? value : null;
 };
 
-/** The answers of a reply as { search, file, chart, tool } (a number from 0 to 1, or null for a question not asked or not answered), or null when there are none. */
+/** The answers of a reply as { search, file, chart, tool, url, exact, verbatim } (a number from 0 to 1, or null for a question not asked or not answered), or null when there are none. */
 export function parseDecisionResponse(body) {
   const answers = body?.answers;
   if (!answers || typeof answers !== 'object') return null;
-  const result = { search: probability(answers.search), file: probability(answers.file), chart: probability(answers.chart), tool: probability(answers.tool) };
+  const result = {
+    search: probability(answers.search), file: probability(answers.file), chart: probability(answers.chart), tool: probability(answers.tool),
+    url: probability(answers.url), exact: probability(answers.exact), verbatim: probability(answers.verbatim)
+  };
   return Object.values(result).some((value) => value !== null) ? result : null;
 }
 

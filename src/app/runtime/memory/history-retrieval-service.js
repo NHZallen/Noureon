@@ -1,4 +1,5 @@
 import { resolveHistoryQuery } from './history-query-resolver.js';
+import { decisionsFor, verdictOf } from '../decisions/decision-store.js';
 
 const TOKEN_PATTERN = /[\p{L}\p{N}_-]{2,}/gu;
 const STOP_WORDS = new Set([
@@ -30,10 +31,18 @@ const normalizeExactSubject = value => String(value || '')
   .replace(/[，,。.!！?？]+$/u, '')
   .trim();
 
-export function getExactHistoryRecallRequest(queryText = '') {
+/**
+ * Whether the person wants something from an earlier conversation back as it was, and whether word for word. `decisions` is the judgement of the
+ * Decisions model about the message ({ exact, verbatim } probabilities); with both answers it decides, otherwise the word lists above do, as before.
+ */
+export function getExactHistoryRecallRequest(queryText = '', decisions = null) {
   const originalQuery = String(queryText || '').trim();
-  const verbatim = VERBATIM_RECALL_PATTERNS.some(pattern => pattern.test(originalQuery));
-  if (!verbatim && !EXACT_RECALL_PATTERNS.some(pattern => pattern.test(originalQuery))) {
+  const decidedExact = verdictOf(decisions, 'exact');
+  const decidedVerbatim = verdictOf(decisions, 'verbatim');
+  const decided = decidedExact !== null && decidedVerbatim !== null;
+  const verbatim = decided ? decidedVerbatim : VERBATIM_RECALL_PATTERNS.some(pattern => pattern.test(originalQuery));
+  const exact = decided ? (decidedVerbatim || decidedExact) : (verbatim || EXACT_RECALL_PATTERNS.some(pattern => pattern.test(originalQuery)));
+  if (!exact) {
     return { exact: false, subject: '' };
   }
   const subjectMatch = originalQuery.match(
@@ -231,7 +240,7 @@ export function createHistoryRetrievalService({
       }
       if (!query.shouldRetrieve || !query.resolvedQuery) return [];
 
-      const exactRequest = getExactHistoryRecallRequest(query.originalQuery);
+      const exactRequest = getExactHistoryRecallRequest(query.originalQuery, decisionsFor(query.originalQuery));
       if (exactRequest.exact) {
         const exactConversationTurns = retrieveExactConversationTurns({
           conversations: getConversations(),

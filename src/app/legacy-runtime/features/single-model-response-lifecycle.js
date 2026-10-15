@@ -171,7 +171,7 @@ export function createSingleModelResponseLifecycle({
     const serverSearches = plan?.ok && plan.webSearch === 'packet';
     const hasTranslationInputs = !resumeRun && (userParts.some((part) => part.inlineData) ||
       Boolean(webSearchEnabled && !researchByModel && !serverSearches) ||
-      (!addressIsForTool && extractLinkedUrls(userParts.map((part) => part.text || '').join('\n')).urls.length > 0));
+      (!addressIsForTool && verdictOf(decisionsFor(textOfParts(userParts)), 'url') !== false && extractLinkedUrls(textOfParts(userParts)).urls.length > 0));
     let requestParts = userParts;
     // The pages a web search found (kept with the reply, shown as "Searched N sites").
     let searchSources = [];
@@ -200,7 +200,7 @@ export function createSingleModelResponseLifecycle({
         (stage, message) => renderProgress(targetElement, startedAt, stage, message),
         {
           webSearchEnabled: webSearchEnabled && !researchByModel && !serverSearches,
-          readLinkedPages: !addressIsForTool,
+          readLinkedPages: !addressIsForTool && verdictOf(decisionsFor(textOfParts(userParts)), 'url') !== false,
           conversation,
           // The pages a search found, and then the pages that were read (marked `read`).
           onSources: (sources) => {

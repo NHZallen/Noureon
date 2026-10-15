@@ -39,7 +39,7 @@ test('what is sent is short: the message, the last two earlier messages and no i
 });
 
 test('the answers are probabilities, anything else is no answer', () => {
-  assert.deepEqual(parseDecisionResponse({ answers }), { search: 0.9, file: 0.1, chart: 0.65, tool: null });
+  assert.deepEqual(parseDecisionResponse({ answers }), { search: 0.9, file: 0.1, chart: 0.65, tool: null, url: null, exact: null, verbatim: null });
   assert.equal(parseDecisionResponse({ answers: { search: { type: 'noul', noul: 7 }, file: { noul: 'x' } } }), null);
   assert.equal(parseDecisionResponse({}), null);
   assert.equal(parseDecisionResponse(null), null);
@@ -62,7 +62,7 @@ test('the service calls OpenRouter with the key and returns the decisions', asyn
     fetchImpl: async (url, init) => { calls.push({ url, init }); return ok(answers); }
   });
   const decisions = await service.decide({ message: '今天台北天氣' });
-  assert.deepEqual(decisions, { search: 0.9, file: 0.1, chart: 0.65, tool: null });
+  assert.deepEqual(decisions, { search: 0.9, file: 0.1, chart: 0.65, tool: null, url: null, exact: null, verbatim: null });
   assert.equal(calls.length, 1);
   assert.equal(calls[0].url, DECISION_URL);
   assert.equal(calls[0].url, 'https://openrouter.ai/api/alpha/decisions');
@@ -163,4 +163,13 @@ test('the request made when a message is sent offers only the command tools the 
   } finally {
     globalThis.fetch = realFetch;
   }
+});
+
+test('the address question is asked only when the message has an address, the two about earlier conversations only when the recall is on', () => {
+  const names = (input) => Object.keys(buildDecisionRequest(input).questions);
+  assert.deepEqual(names({ message: 'explain recursion' }), ['search', 'file', 'chart']);
+  assert.deepEqual(names({ message: 'summarise https://example.com/post for me' }), ['search', 'file', 'chart', 'url']);
+  assert.deepEqual(names({ message: 'give me the recipe again', historyRecall: true }), ['search', 'file', 'chart', 'exact', 'verbatim']);
+  const all = parseDecisionResponse({ answers: { url: { noul: 0.9 }, exact: { noul: 0.2 }, verbatim: { noul: 0.1 } } });
+  assert.deepEqual(all, { search: null, file: null, chart: null, tool: null, url: 0.9, exact: 0.2, verbatim: 0.1 });
 });

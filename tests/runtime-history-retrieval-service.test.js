@@ -257,3 +257,16 @@ test('uses the model resolver only for unresolved fragments and requires high co
   assert.match(calls[1][1], /compare memory capture/);
   assert.equal(results.length, 1);
 });
+
+test('the judgement of the Decisions model decides whether it is an exact recall, the word lists only when there is none', () => {
+  const text = '給我之前巧克力派的完整食譜，一定要跟上次的一樣。';
+  // Both answered, no: it is a new question about the same topic, whatever the words are.
+  assert.deepEqual(getExactHistoryRecallRequest(text, { exact: 0.1, verbatim: 0.05 }), { exact: false, subject: '' });
+  // Both answered, a plain recall.
+  assert.equal(getExactHistoryRecallRequest('把上次那個再給我一次', { exact: 0.9, verbatim: 0.1 }).recallMode, 'faithful-rewrite');
+  // Word for word.
+  assert.equal(getExactHistoryRecallRequest('把上次那個再給我一次', { exact: 0.2, verbatim: 0.8 }).recallMode, 'verbatim');
+  // Not both answered: the word lists decide.
+  assert.equal(getExactHistoryRecallRequest(text, { exact: 0.1, verbatim: null }).exact, true);
+  assert.equal(getExactHistoryRecallRequest(text, null).exact, true);
+});

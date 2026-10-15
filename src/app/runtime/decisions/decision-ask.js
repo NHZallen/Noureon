@@ -17,7 +17,8 @@ export function createAsk({ getApiKeyForProvider, getConfig, logger } = {}) {
       history: messages,
       tools: enabledCliTools(config).filter((tool) => canModelUseCli(config, tool.id)).map((tool) => ({ name: tool.name, description: tool.description?.en || '' })),
       hasAttachment: uploadedFiles.length > 0,
-      conversationHasFile: messages.some(hasFilePart)
+      conversationHasFile: messages.some(hasFilePart),
+      historyRecall: config.historyRecallEnabled === true
     }, { signal });
   };
 }

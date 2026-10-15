@@ -44,3 +44,17 @@
   - 「把三季營收畫成圖表」`file=0.83`（會多注入檔案撰寫指引）。
   - 「把影片下載成 mp3」`file=0.86`（同上，工具的產物是檔案）。
 - 樣本很小（6 則）。若實際使用中常看到多餘的檔案指引，可調整 `file` 題的說明（排除「只在對話裡畫圖表」與「只是跑命令工具」），或讓 `file` 用較高的臨界值（例如 0.9）；目前沒有改。
+
+## 6. 新增三題（2026-10-15，owner 選的「網址要不要讀」與「舊對話回憶」）
+
+同一次呼叫多問三題（題目不多一次呼叫；探測腳本 `scripts/decisions-probe.mjs` 已加上這些案例，**待 owner 用真實金鑰實測**）：
+
+| 問題 | 何時問 | 取代什麼 | 判斷為「否」時 |
+| --- | --- | --- | --- |
+| `url` 要打開網址讀內容嗎 | 訊息裡有 http(s) 網址 | 「有網址就一律讀網頁、一律自動開搜尋」（`provider-request-support.js` 的 `readLinkedPages`、`single-model-response-lifecycle.js`、`submit-input-preparation-lifecycle.js`） | 不讀那個網址、不因網址自動開搜尋（例如只是範例、程式碼裡的網址）；沒有判斷時照舊一律讀 |
+| `exact` 要把舊對話的東西照原樣拿回來嗎 | 開了「歷史回憶」 | `history-retrieval-service.js` 的 `EXACT_RECALL_PATTERNS` | 不走「原樣回憶」路徑（走一般語意回憶） |
+| `verbatim` 要逐字原文嗎 | 開了「歷史回憶」 | `VERBATIM_RECALL_PATTERNS` | 回憶模式為 `faithful-rewrite`（可改寫），否則 `verbatim` |
+
+`exact`、`verbatim` 兩題都有答案才採用判斷（`verbatim` 為是時一定算原樣回憶）；只有一題有答案或沒有答案就用原本的關鍵字。「原樣回憶」的主題（subject）仍由原本的正規式抽取，抽不到時走既有的空主題路徑。
+
+限制：判斷存在瀏覽器（`decision-store.js`），伺服器端繼續執行（關掉頁面）的回覆讀不到，會照舊（網址一律讀）。

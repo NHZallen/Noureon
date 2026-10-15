@@ -197,9 +197,12 @@ export function createSubmitInputPreparationLifecycle({
     const needsCurrentFacts = verdictOf(decisions, 'search') ?? shouldAutoEnableWebSearch(userMessage);
     const hasAddress = extractLinkedUrls(userMessage).urls.length > 0;
     const addressIsForTool = hasAddress && cliIdsOfParts(userParts).length > 0 && canModelDecideWebSearch(conversation);
+    // An address the page does not have to be read from (an example, code being discussed) does not turn the search on: the Decisions model's judgement,
+    // when there is one; without one, an address always does, as before.
+    const addressNeedsReading = hasAddress && !addressIsForTool && (verdictOf(decisions, 'url') ?? true);
     const autoWebSearchEnabled = !conversation.isWebSearchEnabled
       && canAutoEnableWebSearch(conversation)
-      && ((hasAddress && !addressIsForTool)
+      && (addressNeedsReading
         || (getAutoWebSearchEnabled() && needsCurrentFacts));
     if (autoWebSearchEnabled) {
       showNotification(getAutoSearchNotice(), 'warning');

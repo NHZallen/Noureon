@@ -25,14 +25,21 @@ const CASES = [
   { message: '這是我們三季的營收：Q1 120、Q2 150、Q3 210，幫我畫成圖表', expect: { search: false, file: false, chart: true, tool: false } },
   { message: '把這個網址的影片下載成 mp3：https://example.com/watch?v=abc', expect: { search: false, file: false, chart: false, tool: true } },
   { message: '請用三句話解釋什麼是遞迴', expect: { search: false, file: false, chart: false, tool: false } },
-  { message: 'Who won the Nobel Prize in Physics this year?', expect: { search: true, file: false, chart: false, tool: false } }
+  { message: 'Who won the Nobel Prize in Physics this year?', expect: { search: true, file: false, chart: false, tool: false } },
+  // The address question (only asked when the message has an address) and the two about earlier conversations (asked when the recall is on).
+  { message: '幫我摘要這篇文章：https://example.com/blog/2026-ev-market', expect: { url: true, exact: false, verbatim: false } },
+  { message: '為什麼這行 curl https://api.example.com/v1/users -H "X: 1" 會回 401？', expect: { url: false, exact: false, verbatim: false } },
+  { message: '把上次那份巧克力派的食譜再給我一次，一樣的就好', expect: { exact: true, verbatim: false } },
+  { message: '請把我們之前聊的那份合約條款，一字不改地貼回來', expect: { exact: true, verbatim: true } },
+  { message: '再給我一份新的巧克力派食譜，這次想要健康一點', expect: { exact: false, verbatim: false } }
 ];
+const QUESTIONS = ['search', 'file', 'chart', 'tool', 'url', 'exact', 'verbatim'];
 
 const redact = (text) => String(text).split(key).join('***');
 const show = (value) => (value === null || value === undefined ? '-' : value.toFixed(2));
 
 async function ask(model, testCase) {
-  const request = buildDecisionRequest({ message: testCase.message, tools, model });
+  const request = buildDecisionRequest({ message: testCase.message, tools, model, historyRecall: true });
   const started = Date.now();
   let response;
   try {
@@ -64,11 +71,11 @@ for (const model of models) {
       continue;
     }
     if (result.ms > DECISION_TIMEOUT_MS) slow += 1;
-    const verdicts = Object.fromEntries(['search', 'file', 'chart', 'tool'].map((name) => [name, verdictOf(result.decisions, name)]));
+    const verdicts = Object.fromEntries(QUESTIONS.map((name) => [name, verdictOf(result.decisions, name)]));
     const wrong = Object.entries(testCase.expect).filter(([name, want]) => verdicts[name] !== null && verdicts[name] !== want).map(([name]) => name);
     Object.entries(testCase.expect).forEach(([name, want]) => { if (verdicts[name] !== null) { total += 1; if (verdicts[name] === want) right += 1; } });
-    const numbers = ['search', 'file', 'chart', 'tool'].map((name) => `${name}=${show(result.decisions[name])}`).join(' ');
-    console.log(`${wrong.length ? '≠' : '✓'} ${testCase.message.slice(0, 34).padEnd(34)}  ${String(result.ms).padStart(4)} ms${result.ms > DECISION_TIMEOUT_MS ? ' (TOO SLOW for the page)' : ''}  ${numbers}${wrong.length ? `   unexpected: ${wrong.join(',')}` : ''}`);
+    const numbers = QUESTIONS.filter((name) => result.decisions[name] !== null && result.decisions[name] !== undefined).map((name) => `${name}=${show(result.decisions[name])}`).join(' ');
+    console.log(`${wrong.length ? '≠' : '✓'} ${testCase.message.slice(0, 30).padEnd(30)}  ${String(result.ms).padStart(4)} ms${result.ms > DECISION_TIMEOUT_MS ? ' (TOO SLOW for the page)' : ''}  ${numbers}${wrong.length ? `   unexpected: ${wrong.join(',')}` : ''}`);
   }
   console.log(`agreed with my guess on ${right}/${total} answers; ${slow} of ${CASES.length} calls slower than the page's limit`);
 }
