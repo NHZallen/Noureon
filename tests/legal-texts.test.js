@@ -80,7 +80,7 @@ test('the limits and the numbers written in the documents are the ones of the se
       assert.ok(hasNumber(help, number), `${lang} help should mention ${number} for deep research`);
     }
     for (const number of [HOME_FACTS.models, HOME_FACTS.vendors, HOME_FACTS.deckDesigns, HOME_FACTS.documentStyles, HOME_FACTS.skills, HOME_FACTS.cliTools, HOME_FACTS.councilMin, HOME_FACTS.councilMax]) {
-      assert.ok(hasNumber(help, number), `${lang} help should mention ${number}`);
+      assert.ok(hasNumber(help, number), `${lang} help should mention ${number} (after a model is added or removed: npm run sync:counts)`);
     }
   }
 });

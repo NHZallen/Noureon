@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import test from 'node:test';
+
+import { computeAppCounts } from '../scripts/app-counts.mjs';
 import { Window } from 'happy-dom';
 
 import { HOME_FACTS, HOME_TEXTS } from '../src/data/home-texts.js';
@@ -29,25 +31,9 @@ test('the home page words exist in the five languages with the same shape and no
 });
 
 test('the numbers written in the home page words are the ones of the application', async () => {
-  const registry = await import('../src/app/runtime/legacy-core/model-registry.js');
-  const groups = await import('../src/app/ui/model-picker/model-picker-groups.js');
-  const modelRegistry = registry.createLegacyModelRegistry({ getConfig: () => ({}) });
-  const vendors = new Set(registry.MODELS.map((model) => groups.getCompanyLabel(groups.getModelCompany(model, modelRegistry.getModelApiId(model)))));
-  const { DESIGN_PRESET_IDS } = await import('../src/app/ui/files/design/design-presets.js');
-  const { DOCUMENT_PRESET_IDS } = await import('../src/app/ui/files/design/document-presets.js');
-  const { OFFICIAL_CLI_CATALOG } = await import('../src/data/cli-catalog.js');
-  const { OFFICIAL_SKILL_CATALOG } = await import('../src/data/skill-catalog.js');
-
-  assert.deepEqual(HOME_FACTS, {
-    models: registry.MODELS.length,
-    vendors: vendors.size,
-    councilMin: registry.COUNCIL_MIN_MODELS,
-    councilMax: registry.COUNCIL_MAX_MODELS,
-    deckDesigns: DESIGN_PRESET_IDS.length,
-    documentStyles: DOCUMENT_PRESET_IDS.length,
-    skills: OFFICIAL_SKILL_CATALOG.length,
-    cliTools: OFFICIAL_CLI_CATALOG.length
-  });
+  const counts = await computeAppCounts();
+  // After a model is added or removed: `npm run sync:counts` writes the numbers of the models and the vendors into the words of the page and the documents.
+  assert.deepEqual(HOME_FACTS, counts, 'the numbers in home-texts.js differ from the application: run `npm run sync:counts` (models, vendors) or edit the others by hand');
   for (const language of LANGUAGES) {
     const text = JSON.stringify(HOME_TEXTS[language]);
     for (const number of [HOME_FACTS.models, HOME_FACTS.vendors, HOME_FACTS.deckDesigns, HOME_FACTS.documentStyles, HOME_FACTS.skills, HOME_FACTS.cliTools]) {
