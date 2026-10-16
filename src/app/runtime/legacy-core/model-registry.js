@@ -30,6 +30,7 @@ const MODEL_RELEASE_METADATA = Object.freeze({
     // Priced per image, not per token: no outputPricePerMillion.
     'black-forest-labs/flux-3-image': { releasedAt: 20261001 },
     'black-forest-labs/flux-3-image-klein': { releasedAt: 20261015 },
+    'krea/k3-edit': { releasedAt: 20261016 },
     'minimax/minimax-m3': { releasedAt: 20260531, outputPricePerMillion: 1.2 },
     'moonshotai/kimi-k3': { releasedAt: 20260716, outputPricePerMillion: 15 },
     'poolside/laguna-s-2.1:free': { releasedAt: 20260721, outputPricePerMillion: 0 },
@@ -59,6 +60,9 @@ const MODEL_RELEASE_METADATA = Object.freeze({
 // extremes 1:4, 4:1, 1:8 and 8:1; the GPT Image models take the eight common ratios; FLUX.3 Image takes fifteen, among them 7:5, 5:7 and 9:21.
 const GEMINI_IMAGE_RATIOS = Object.freeze(['1:1', '1:4', '4:1', '1:8', '8:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9']);
 const FLUX_IMAGE_RATIOS = Object.freeze(['1:1', '21:9', '2:1', '16:9', '3:2', '7:5', '4:3', '5:4', '4:5', '3:4', '5:7', '2:3', '9:16', '1:2', '9:21']);
+// Krea K3 Edit (OpenRouter's parameters): seven ratios, 1K and 2K, one to four reference pictures (it edits a picture, so it needs at least one).
+const KREA_IMAGE_RATIOS = Object.freeze(['1:1', '4:3', '3:2', '16:9', '4:5', '2:3', '9:16']);
+const KREA_IMAGE_RESOLUTIONS = Object.freeze(['1K', '2K']);
 const GPT_IMAGE_RATIOS = Object.freeze(['1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16', '21:9']);
 // The sizes (resolution tiers) each model accepts. Gemini Nano Banana 2.1 makes 1K, 2K and 4K (it has no 512 size, a saved 512 moves to
 // 1K), and so do the GPT Image 2.5 models; FLUX.3 Image adds 768 and 1.5K. (A model whose list is empty would get no resolution control and none is sent.)
@@ -104,6 +108,8 @@ export const MODEL_CATALOG = [
     { id: 'black-forest-labs/flux-3-image', name: 'FLUX.3 Image', provider: 'openrouter', descriptionKey: 'model_flux_3_image_desc', category: 'image_generation', outputModality: 'image', supportedImageAspectRatios: FLUX_IMAGE_RATIOS, supportedImageResolutions: FLUX_IMAGE_RESOLUTIONS },
     // FLUX.3 Image Klein: the same ratios, sizes and up to 10 reference pictures (OpenRouter's parameters), but one picture per request (n is 1 to 1).
     { id: 'black-forest-labs/flux-3-image-klein', name: 'FLUX.3 Image Klein', provider: 'openrouter', descriptionKey: 'model_flux_3_image_klein_desc', category: 'image_generation', outputModality: 'image', supportedImageAspectRatios: FLUX_IMAGE_RATIOS, supportedImageResolutions: FLUX_IMAGE_RESOLUTIONS, maxImageCount: 1 },
+    // OpenRouter Image Models (Krea): an editing model, so a request without a reference picture is not sent (minImageReferences), and more than four are cut (maxImageReferences).
+    { id: 'krea/k3-edit', name: 'Krea K3 Edit', provider: 'openrouter', descriptionKey: 'model_krea_k3_edit_desc', category: 'image_generation', outputModality: 'image', supportedImageAspectRatios: KREA_IMAGE_RATIOS, supportedImageResolutions: KREA_IMAGE_RESOLUTIONS, maxImageCount: 1, minImageReferences: 1, maxImageReferences: 4 },
 
     // OpenRouter Paid Models (Minimax)
     { id: 'minimax/minimax-m3', name: 'Minimax M3', provider: 'openrouter', descriptionKey: 'model_minimax_m3_desc', category: 'general' },
@@ -161,7 +167,8 @@ export const IMAGE_GENERATION_MODEL_IDS = Object.freeze([
     'openai/gpt-image-2.5-sunburst',
     'google/gemini-nano-banana-2.1',
     'black-forest-labs/flux-3-image',
-    'black-forest-labs/flux-3-image-klein'
+    'black-forest-labs/flux-3-image-klein',
+    'krea/k3-edit'
 ]);
 export const CHEAP_MODEL_ID = 'gemini-3.5-flash-lite';
 export const OPENROUTER_VISION_MODELS = [

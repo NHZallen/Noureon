@@ -152,6 +152,15 @@ export function createImageGenerationResponseLifecycle({
       }
     }
 
+    // An editing model needs a picture to edit, and takes only so many.
+    if (modelInfo.minImageReferences && inputReferences.length < modelInfo.minImageReferences) {
+      throw new Error(getText('imageReferenceRequired', 'This model edits pictures: attach the picture to edit, or make one first.'));
+    }
+    if (modelInfo.maxImageReferences && inputReferences.length > modelInfo.maxImageReferences) {
+      showNotification(getText('imageReferenceLimit', 'This model takes {n} reference pictures at most; the first {n} are used.').replaceAll('{n}', String(modelInfo.maxImageReferences)), 'warning');
+      inputReferences = inputReferences.slice(0, modelInfo.maxImageReferences);
+    }
+
     const generationRequest = {
       apiKey: getApiKey(modelInfo.provider),
       model: modelInfo.apiId || modelInfo.id,

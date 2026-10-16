@@ -40,7 +40,7 @@ export default {
         h: '3. Chat y organización',
         blocks: [
           [
-            'Elegir un modelo: el selector junto al cuadro de mensaje lista todos los modelos disponibles (ahora 74 opciones de 18 proveedores), con búsqueda y agrupación por proveedor; los modelos que admiten niveles de razonamiento muestran un control deslizante.',
+            'Elegir un modelo: el selector junto al cuadro de mensaje lista todos los modelos disponibles (ahora 75 opciones de 19 proveedores), con búsqueda y agrupación por proveedor; los modelos que admiten niveles de razonamiento muestran un control deslizante.',
             'El cuadro de mensaje: pega texto, adjunta archivos, haz una foto, dicta por voz, elige una habilidad con / y una herramienta de línea de comandos con @. El cuadro se puede ampliar a una ventana grande.',
             'Nouras: asistentes de IA reutilizables con su propio nombre, descripción, instrucciones y avatar. Elige Nouras oficiales en la tienda, crea los tuyos, propón un Noura nuevo o comparte uno con otra persona mediante transferencia directa entre dispositivos.',
             'Carpetas, archivo y papelera: las conversaciones pueden ir a carpetas (con color e icono propios), archivarse o moverse a la papelera; puedes seleccionar y mover varias a la vez; la papelera permite restaurar o eliminar para siempre.',

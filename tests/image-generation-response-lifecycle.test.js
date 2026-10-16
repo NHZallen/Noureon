@@ -295,3 +295,30 @@ test('a count saved with another model is cut to one picture for a model that ma
   assert.equal(requests[0].config.n, 1, 'Klein takes one');
   assert.equal(requests[1].config.n, 4, 'the other models keep the count');
 });
+
+test('an editing model is not asked without a picture to edit, and gets at most the references it takes', async () => {
+  const requests = [];
+  const notices = [];
+  const lifecycle = createImageGenerationResponseLifecycle({
+    buildSingleModelTranslatedRequestParts: async parts => parts,
+    generateImage: async value => {
+      requests.push(value);
+      return { images: [{ b64Json: 'aGVsbG8=', mediaType: 'image/png' }] };
+    },
+    saveImageAsset: async () => ({ id: 'edited', storageKey: 'edited-key', mediaType: 'image/png', size: 5 }),
+    getStoredImageDataUrl: async () => '',
+    getApiKey: () => 'secret',
+    getText: (_key, fallback) => fallback,
+    showNotification: (text, kind) => notices.push([text, kind])
+  });
+  const krea = { id: 'krea/k3-edit', provider: 'openrouter', minImageReferences: 1, maxImageReferences: 4 };
+  const run = (userParts) => lifecycle.run({ targetElement: { innerHTML: '' }, userParts, modelInfo: krea, conversation: { messages: [] } });
+
+  await assert.rejects(run([{ text: 'make it night' }]), /attach the picture to edit/);
+  assert.equal(requests.length, 0, 'nothing is sent without a picture');
+
+  const picture = (name) => ({ inlineData: { mimeType: 'image/png', data: name } });
+  await run([{ text: 'make it night' }, ...['a', 'b', 'c', 'd', 'e', 'f'].map(picture)]);
+  assert.equal(requests[0].inputReferences.length, 4, 'the first four are used');
+  assert.deepEqual(notices.at(-1), ['This model takes 4 reference pictures at most; the first 4 are used.', 'warning']);
+});

@@ -20,7 +20,8 @@ const EXPECTED_MODELS = [
   'openai/gpt-image-2.5-sunburst',
   'google/gemini-nano-banana-2.1',
   'black-forest-labs/flux-3-image',
-  'black-forest-labs/flux-3-image-klein'
+  'black-forest-labs/flux-3-image-klein',
+  'krea/k3-edit'
 ];
 
 test('registers the curated image generation models', () => {
@@ -119,7 +120,18 @@ test('the 768 and 1.5K tiers and the 7:5 and 5:7 ratios are known to the app and
 
 test('FLUX.3 Image Klein makes one picture per request, the other image models are not limited', () => {
   assert.equal(MODELS.find(model => model.id === 'black-forest-labs/flux-3-image-klein').maxImageCount, 1);
-  for (const id of EXPECTED_MODELS.filter(id => id !== 'black-forest-labs/flux-3-image-klein')) {
+  for (const id of EXPECTED_MODELS.filter(id => !['black-forest-labs/flux-3-image-klein', 'krea/k3-edit'].includes(id))) {
     assert.equal(MODELS.find(model => model.id === id).maxImageCount, undefined, id);
   }
+});
+
+test('Krea K3 Edit: seven ratios, 1K and 2K, one picture per request, one to four reference pictures', () => {
+  const model = MODELS.find(candidate => candidate.id === 'krea/k3-edit');
+  assert.deepEqual(model.supportedImageAspectRatios, ['1:1', '4:3', '3:2', '16:9', '4:5', '2:3', '9:16']);
+  assert.deepEqual(model.supportedImageResolutions, ['1K', '2K']);
+  assert.equal(model.maxImageCount, 1);
+  assert.equal(model.minImageReferences, 1);
+  assert.equal(model.maxImageReferences, 4);
+  assert.equal(model.provider, 'openrouter');
+  assert.equal(MODELS.find(candidate => candidate.id === 'black-forest-labs/flux-3-image').minImageReferences, undefined, 'the other models need no reference');
 });
