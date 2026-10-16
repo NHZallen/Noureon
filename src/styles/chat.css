@@ -878,7 +878,9 @@
     max-height: 72vh;
     aspect-ratio: 1 / 1;
     transition: width .46s cubic-bezier(.2, .8, .2, 1), height .46s cubic-bezier(.2, .8, .2, 1), aspect-ratio .46s cubic-bezier(.2, .8, .2, 1), min-height .46s cubic-bezier(.2, .8, .2, 1);
-    overflow: hidden;
+    /* Not clipped: nothing in it goes outside (the field of dots has its own bounds), and a clip at the left edge shaved the left stroke of the first
+       letter of the stage words where a font's glyph reaches a little past its box (「正」 of 「正在構圖」 on a phone). */
+    overflow: visible;
     color: color-mix(in srgb, var(--text-secondary) 78%, transparent);
     isolation: isolate;
 }
@@ -957,10 +959,15 @@ noureon-image-wait .generated-image-dots {
         border-radius: 0;
     }
 
+    /* The rounded corners belong to the field of dots, not to the whole box: the words of the stage stand in the top left corner. */
     .generated-image-skeleton {
         width: 100%;
-        border-radius: 1.1rem;
         min-height: min(22rem, calc(100vw - 3.5rem));
+    }
+
+    .generated-image-skeleton noureon-image-wait {
+        border-radius: 1.1rem;
+        overflow: hidden;
     }
 }
 

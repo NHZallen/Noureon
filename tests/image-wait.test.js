@@ -210,3 +210,15 @@ test('the element draws on a canvas of its own and stops when it leaves the page
     }
   }
 });
+
+test('on a phone the rounded corners clip the field of dots only, never the words of the stage in the top left corner', async () => {
+  const { readFileSync } = await import('node:fs');
+  const css = readFileSync(new URL('../src/styles/chat.css', import.meta.url), 'utf8');
+  const phone = css.slice(css.indexOf('@media (max-width: 640px)', css.indexOf('.generated-image-wait-label.is-swap')));
+  const skeletonRule = phone.match(/\.generated-image-skeleton \{[^}]*\}/)[0];
+  assert.doesNotMatch(skeletonRule, /border-radius/, 'a corner cut through the box shaves the first letter of the label');
+  const baseRule = css.match(/\.generated-image-skeleton \{[^}]*\}/)[0];
+  assert.match(baseRule, /overflow: visible;/, 'a clip at the left edge shaves the first letter where a glyph reaches past its box');
+  assert.doesNotMatch(baseRule, /overflow: hidden/);
+  assert.match(phone, /\.generated-image-skeleton noureon-image-wait \{[^}]*border-radius: 1\.1rem;[^}]*overflow: hidden;/);
+});
