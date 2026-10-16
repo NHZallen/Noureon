@@ -863,9 +863,9 @@
 .generated-image-download-btn,
 .generated-image-icon-btn {
     justify-content: center;
-    width: 2.4rem;
-    min-width: 2.4rem;
-    padding: .4rem;
+    width: 2.5rem;
+    min-width: 2.5rem;
+    padding: .45rem;
 }
 
 .generated-image-icon-btn[hidden] {
@@ -876,7 +876,7 @@
 .generated-image-actions-group {
     display: flex;
     align-items: center;
-    gap: .4rem;
+    gap: .5rem;
     pointer-events: none;
 }
 
