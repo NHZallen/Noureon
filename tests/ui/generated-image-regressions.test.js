@@ -48,15 +48,17 @@ test('targeted editor exposes history controls, thickness preview, and complete 
   assert.doesNotMatch(source, /<strong>\$\{texts\.title\}<\/strong><span>\$\{texts\.hint\}<\/span>/);
   assert.match(source, /generated-image-editor-close[\s\S]*<svg[^>]*viewBox="0 0 24 24"[\s\S]*M18 6 6 18/s);
   assert.match(source, /<path d="M22 21H7"\/>/);
-  assert.match(css, /\.generated-image-editor\s*\{[\s\S]*grid-template-rows:\s*minmax\(0,\s*1fr\)\s+auto;[\s\S]*background:\s*rgba\(0,\s*0,\s*0,\s*\.84\);[\s\S]*backdrop-filter:\s*none;/s);
+  assert.match(css, /\.generated-image-editor\s*\{[\s\S]*grid-template-rows:\s*auto\s+minmax\(0,\s*1fr\)\s+auto;[\s\S]*background:\s*rgba\(0,\s*0,\s*0,\s*\.84\);[\s\S]*backdrop-filter:\s*none;/s);
   assert.match(css, /\.generated-image-editor\s*\{[\s\S]*user-select:\s*none;[\s\S]*-webkit-touch-callout:\s*none;/s);
   assert.match(css, /\.generated-image-editor-close\s*\{[\s\S]*align-items:\s*center;[\s\S]*justify-content:\s*center;/s);
   assert.match(css, /\.generated-image-editor-close\s+svg[\s\S]*stroke:\s*currentColor;/s);
   assert.match(css, /\.generated-image-editor-stage\s*\{[\s\S]*overflow:\s*hidden;/s);
   assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.generated-image-editor-stage\s*\{[\s\S]*place-items:\s*center;[\s\S]*overflow:\s*hidden;/s);
-  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.generated-image-editor-canvas-wrap,\s*[\r\n\s]*\.generated-image-editor-photo\s*\{[\s\S]*max-height:\s*min\(68vh,\s*calc\(100dvh\s*-\s*11\.4rem\)\);/s);
-  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.generated-image-editor-toolbar\s*\{[\s\S]*grid-template-areas:\s*[\s\S]*"tools history confirm"[\s\S]*"size size size"/s);
-  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.generated-image-editor-tools\s*\{[\s\S]*padding:\s*\.24rem;[\s\S]*overflow:\s*visible;/s);
+  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.generated-image-editor-canvas-wrap,\s*[\r\n\s]*\.generated-image-editor-photo\s*\{[\s\S]*max-height:\s*min\(76vh,\s*calc\(100dvh\s*-\s*9\.4rem\)\);/s);
+  // The edge-slider layout: the size is a vertical slider on the left edge of the picture, the history sits in the top bar between the way out and the confirm button.
+  assert.match(css, /\.generated-image-editor-size\s*\{[\s\S]*position:\s*absolute;[\s\S]*left:\s*max\(\.7rem,\s*env\(safe-area-inset-left\)\);/s);
+  assert.match(css, /\.generated-image-editor-size input\s*\{[\s\S]*transform:\s*translate\(-50%,\s*-50%\)\s*rotate\(-90deg\);/s);
+  assert.match(css, /\.generated-image-editor-header\s*\{[\s\S]*justify-content:\s*space-between;/s);
   assert.match(css, /\.generated-image-editor-photo\s*\{[\s\S]*border-radius:\s*0;/s);
   assert.match(css, /\.generated-image-lightbox\s+\.media-lightbox-stage\s+img[\s\S]*border-radius:\s*0;/s);
   assert.match(css, /\.generated-image-editor-eraser\s+svg[\s\S]*stroke:\s*#fff;/s);
@@ -65,5 +67,5 @@ test('targeted editor exposes history controls, thickness preview, and complete 
   assert.match(css, /\.generated-image-editor-brush-cursor[^{]*\{[^}]*--brush-size/s);
   assert.match(css, /\.generated-image-editor-size-preview::before[^{]*\{[\s\S]*width:\s*var\(--brush-size/s);
   assert.match(css, /\.generated-image-editor-confirm\s*\{[\s\S]*width:\s*2\.8rem;[\s\S]*height:\s*2\.8rem;/s);
-  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.generated-image-editor-confirm\s*\{[\s\S]*width:\s*2\.32rem;[\s\S]*height:\s*2\.32rem;/s);
+  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.generated-image-editor-close,\s*[\r\n\s]*\.generated-image-editor-confirm\s*\{[\s\S]*width:\s*2\.7rem;[\s\S]*height:\s*2\.7rem;/s);
 });

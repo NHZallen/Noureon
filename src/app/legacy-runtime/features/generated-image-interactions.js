@@ -104,28 +104,13 @@ export function createGeneratedImageInteractions({
     overlay.setAttribute('role', 'dialog');
     overlay.setAttribute('aria-modal', 'true');
     overlay.setAttribute('aria-label', texts.title);
+    // The layout (the "edge slider" design): the top bar holds the way out, the history and the confirm button; the size is a vertical slider on the
+    // left edge of the picture (its round preview on top shows the brush as it will draw); the colours and the eraser are one row under the picture.
     overlay.innerHTML = `
       <header class="generated-image-editor-header">
         <button type="button" class="generated-image-editor-close" aria-label="${texts.close}">
           <svg aria-hidden="true" viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
         </button>
-      </header>
-      <div class="generated-image-editor-stage">
-        <div class="generated-image-editor-canvas-wrap">
-          <img class="generated-image-editor-photo" alt="${texts.title}" draggable="false">
-          <canvas class="generated-image-editor-canvas"></canvas>
-          <div class="generated-image-editor-brush-cursor" aria-hidden="true"></div>
-        </div>
-      </div>
-      <footer class="generated-image-editor-toolbar">
-        <div class="generated-image-editor-tools" aria-label="${texts.brush}">
-          ${EDITOR_COLORS.map(({ value, key }, index) => `
-            <button type="button" class="generated-image-editor-color${index === 0 ? ' active' : ''}" data-editor-color="${value}" aria-label="${texts.brush}: ${texts.colors[key]}" style="--editor-color:${value}"></button>
-          `).join('')}
-          <button type="button" class="generated-image-editor-eraser" data-editor-tool="eraser" aria-label="${texts.eraser}">
-            <svg aria-hidden="true" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4.3-4.3a1 1 0 0 1 0-1.4L14.6 3.4a2 2 0 0 1 2.8 0l3.2 3.2a2 2 0 0 1 0 2.8L9 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg>
-          </button>
-        </div>
         <div class="generated-image-editor-history">
           <button type="button" class="generated-image-editor-history-btn" data-editor-history="undo" aria-label="${actionLabels.undo}" disabled>
             <svg aria-hidden="true" viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2.15" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg>
@@ -137,14 +122,33 @@ export function createGeneratedImageInteractions({
             <svg aria-hidden="true" viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2.15" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="m19 6-.8 14H5.8L5 6"/><path d="M10 11v5"/><path d="M14 11v5"/></svg>
           </button>
         </div>
-        <label class="generated-image-editor-size">
-          <span>${texts.size}</span>
-          <span class="generated-image-editor-size-preview" aria-hidden="true"></span>
-          <input type="range" min="4" max="48" value="14" step="1" aria-label="${texts.size}">
-        </label>
         <button type="button" class="generated-image-editor-confirm" aria-label="${texts.confirm}" title="${texts.confirm}" disabled>
           <svg aria-hidden="true" viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4L19 6"/></svg>
         </button>
+      </header>
+      <div class="generated-image-editor-stage">
+        <div class="generated-image-editor-canvas-wrap">
+          <img class="generated-image-editor-photo" alt="${texts.title}" draggable="false">
+          <canvas class="generated-image-editor-canvas"></canvas>
+          <div class="generated-image-editor-brush-cursor" aria-hidden="true"></div>
+        </div>
+        <label class="generated-image-editor-size">
+          <span class="generated-image-editor-size-preview" aria-hidden="true"></span>
+          <span class="generated-image-editor-size-track">
+            <input type="range" min="4" max="48" value="14" step="1" aria-label="${texts.size}" aria-orientation="vertical">
+          </span>
+        </label>
+      </div>
+      <footer class="generated-image-editor-toolbar">
+        <div class="generated-image-editor-tools" aria-label="${texts.brush}">
+          ${EDITOR_COLORS.map(({ value, key }, index) => `
+            <button type="button" class="generated-image-editor-color${index === 0 ? ' active' : ''}" data-editor-color="${value}" aria-label="${texts.brush}: ${texts.colors[key]}" style="--editor-color:${value}"></button>
+          `).join('')}
+          <span class="generated-image-editor-divider" aria-hidden="true"></span>
+          <button type="button" class="generated-image-editor-eraser" data-editor-tool="eraser" aria-label="${texts.eraser}">
+            <svg aria-hidden="true" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4.3-4.3a1 1 0 0 1 0-1.4L14.6 3.4a2 2 0 0 1 2.8 0l3.2 3.2a2 2 0 0 1 0 2.8L9 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg>
+          </button>
+        </div>
       </footer>`;
 
     const image = overlay.querySelector('.generated-image-editor-photo');

@@ -3,7 +3,7 @@
     inset: 0;
     z-index: 10020;
     display: grid;
-    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-rows: auto minmax(0, 1fr) auto;
     color: #fff;
     background: rgba(0, 0, 0, .84);
     backdrop-filter: none;
@@ -23,19 +23,20 @@
 }
 
 .generated-image-editor-enter .generated-image-editor-toolbar,
-.generated-image-editor-enter .generated-image-editor-close {
+.generated-image-editor-enter .generated-image-editor-header,
+.generated-image-editor-enter .generated-image-editor-size {
     animation: generated-image-editor-controls-in .28s ease-out .12s both;
 }
 
+/* The "edge slider" layout: a top bar (the way out, the history, the confirm button), the picture with the size slider on its left edge, and one row of
+   colours and the eraser under it. The editor is always on a dark scrim, so its own colours are not those of the light or the dark theme. */
 .generated-image-editor-header {
-    position: absolute;
-    top: max(1rem, env(safe-area-inset-top));
-    right: 1rem;
     z-index: 8;
     display: flex;
-    justify-content: flex-end;
-    padding: 0;
-    pointer-events: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: .6rem;
+    padding: max(.7rem, env(safe-area-inset-top)) max(.8rem, env(safe-area-inset-right)) .25rem max(.8rem, env(safe-area-inset-left));
 }
 
 .generated-image-editor-close {
@@ -50,11 +51,8 @@
     border-radius: 999px;
     color: #fff;
     background: rgba(255, 255, 255, .14);
-    box-shadow: 0 12px 32px rgba(0, 0, 0, .2);
-    backdrop-filter: blur(16px);
     font-size: 0;
     line-height: 1;
-    pointer-events: auto;
 }
 
 .generated-image-editor-close svg,
@@ -64,10 +62,11 @@
 }
 
 .generated-image-editor-stage {
+    position: relative;
     display: grid;
     place-items: center;
     min-height: 0;
-    padding: clamp(4.2rem, 8vh, 5.2rem) 1rem .85rem;
+    padding: .4rem 4.4rem .5rem;
     overflow: hidden;
     -webkit-overflow-scrolling: touch;
 }
@@ -75,8 +74,8 @@
 .generated-image-editor-canvas-wrap {
     position: relative;
     display: inline-grid;
-    max-width: min(74rem, calc(100vw - 2rem));
-    max-height: min(72vh, calc(100dvh - 10.5rem));
+    max-width: min(74rem, calc(100vw - 8.8rem));
+    max-height: min(78vh, calc(100dvh - 9.6rem));
     border-radius: 0;
     box-shadow: 0 24px 90px rgba(0, 0, 0, .34);
 }
@@ -84,7 +83,7 @@
 .generated-image-editor-photo {
     display: block;
     max-width: 100%;
-    max-height: min(72vh, calc(100dvh - 10.5rem));
+    max-height: min(78vh, calc(100dvh - 9.6rem));
     object-fit: contain;
     border-radius: 0;
     z-index: 1;
@@ -126,34 +125,26 @@
     background: rgba(255, 255, 255, .12);
 }
 
+/* The row under the picture: the colours, a line, the eraser. */
 .generated-image-editor-toolbar {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: .65rem;
-    width: min(calc(100% - 2rem), 46rem);
-    margin: 0 auto max(1rem, env(safe-area-inset-bottom));
-    padding: .58rem;
-    border: 1px solid rgba(255, 255, 255, .12);
-    border-radius: 1.45rem;
-    background: rgba(18, 18, 18, .72);
-    box-shadow: 0 18px 60px rgba(0, 0, 0, .26);
-    backdrop-filter: blur(18px);
+    padding: .25rem .8rem max(.9rem, env(safe-area-inset-bottom));
 }
 
 .generated-image-editor-tools {
     display: flex;
     align-items: center;
-    gap: .55rem;
+    gap: .85rem;
     padding: .2rem;
-    border-radius: 999px;
-    background: transparent;
 }
 
 .generated-image-editor-color,
 .generated-image-editor-eraser {
     width: 2.15rem;
     height: 2.15rem;
+    flex: none;
     border: 2px solid rgba(255, 255, 255, .28);
     border-radius: 999px;
 }
@@ -166,6 +157,13 @@
 .generated-image-editor-eraser.active {
     outline: 2px solid #fff;
     outline-offset: 2px;
+}
+
+.generated-image-editor-divider {
+    width: 1px;
+    height: 1.5rem;
+    flex: none;
+    background: rgba(255, 255, 255, .22);
 }
 
 .generated-image-editor-eraser {
@@ -181,21 +179,19 @@
     stroke: #fff;
 }
 
+/* The undo, redo and clear buttons sit in the middle of the top bar. */
 .generated-image-editor-history {
     display: flex;
     align-items: center;
-    gap: .35rem;
-    padding: .2rem;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, .08);
+    gap: .15rem;
 }
 
 .generated-image-editor-history-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 2.15rem;
-    height: 2.15rem;
+    width: 2.6rem;
+    height: 2.6rem;
     padding: 0;
     border: 0;
     border-radius: 999px;
@@ -216,30 +212,44 @@
     stroke: #fff;
 }
 
+/* The size: a round preview of the brush on top, and a vertical slider under it (a horizontal range turned a quarter, so the keys and the
+   screen readers keep working), on the left edge of the picture. */
 .generated-image-editor-size {
+    position: absolute;
+    left: max(.7rem, env(safe-area-inset-left));
+    top: 50%;
+    z-index: 6;
+    transform: translateY(-50%);
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: .55rem;
-    min-width: 11rem;
-    color: rgba(255, 255, 255, .78);
-    font-size: .82rem;
+    gap: .35rem;
+    width: 2.9rem;
+    padding: .45rem 0 .7rem;
+    border: 1px solid rgba(255, 255, 255, .12);
+    border-radius: 1.5rem;
+    background: rgba(18, 18, 18, .72);
+    backdrop-filter: blur(18px);
 }
 
 .generated-image-editor-size-preview {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 3.35rem;
-    height: 3.35rem;
+    width: 2.6rem;
+    height: 2.6rem;
     flex: none;
     border-radius: 999px;
     background: rgba(255, 255, 255, .08);
+    overflow: hidden;
 }
 
 .generated-image-editor-size-preview::before {
     content: '';
     width: var(--brush-size, 14px);
     height: var(--brush-size, 14px);
+    max-width: 2.2rem;
+    max-height: 2.2rem;
     border: 2px solid var(--brush-color, #ef4444);
     border-radius: 999px;
     background: color-mix(in srgb, var(--brush-color, #ef4444) 18%, transparent);
@@ -251,9 +261,22 @@
     background: rgba(255, 255, 255, .12);
 }
 
+.generated-image-editor-size-track {
+    position: relative;
+    width: 2rem;
+    height: clamp(7rem, 30vh, 16rem);
+}
+
 .generated-image-editor-size input {
-    width: 8rem;
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: clamp(7rem, 30vh, 16rem);
+    height: 2rem;
+    margin: 0;
+    transform: translate(-50%, -50%) rotate(-90deg);
     accent-color: #fff;
+    touch-action: none;
 }
 
 .generated-image-editor-confirm {
@@ -308,99 +331,57 @@
     .generated-image-editor-enter,
     .generated-image-editor-enter .generated-image-editor-canvas-wrap,
     .generated-image-editor-enter .generated-image-editor-toolbar,
-    .generated-image-editor-enter .generated-image-editor-close {
+    .generated-image-editor-enter .generated-image-editor-header,
+    .generated-image-editor-enter .generated-image-editor-size {
         animation: none;
     }
 }
 
 @media (max-width: 640px) {
     .generated-image-editor-header {
-        top: max(.8rem, env(safe-area-inset-top));
-        right: .8rem;
+        padding: max(.55rem, env(safe-area-inset-top)) .6rem .15rem;
     }
 
-    .generated-image-editor-close {
+    .generated-image-editor-close,
+    .generated-image-editor-confirm {
         width: 2.7rem;
         height: 2.7rem;
+        min-height: 2.7rem;
     }
 
+    /* On a phone the picture sits to the right of the slider (more room for it than a centred one with the same space on both sides). */
     .generated-image-editor-stage {
         place-items: center;
-        padding: 3.7rem .85rem .55rem;
+        padding: .3rem .8rem .4rem 3.6rem;
         overflow: hidden;
     }
 
     .generated-image-editor-canvas-wrap,
     .generated-image-editor-photo {
-        max-width: calc(100vw - 1.8rem);
-        max-height: min(68vh, calc(100dvh - 11.4rem));
+        max-width: calc(100vw - 4.4rem);
+        max-height: min(76vh, calc(100dvh - 9.4rem));
         border-radius: 0;
     }
 
-    .generated-image-editor-toolbar {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto auto;
-        grid-template-areas:
-            "tools history confirm"
-            "size size size";
-        align-items: center;
-        gap: .42rem .5rem;
-        width: calc(100% - 1.5rem);
-        margin: 0 .75rem max(.75rem, env(safe-area-inset-bottom));
-        padding: .46rem;
-        border-radius: 1.25rem;
+    .generated-image-editor-size {
+        left: .5rem;
+        width: 2.6rem;
+        padding-bottom: .6rem;
+    }
+
+    .generated-image-editor-size-preview {
+        width: 2.3rem;
+        height: 2.3rem;
     }
 
     .generated-image-editor-tools {
-        grid-area: tools;
-        min-width: 0;
-        justify-content: flex-start;
-        gap: .3rem;
-        padding: .24rem;
-        overflow: visible;
-    }
-
-    .generated-image-editor-history {
-        grid-area: history;
-        justify-content: center;
-        gap: .24rem;
-        padding: .12rem;
-    }
-
-    .generated-image-editor-size {
-        grid-area: size;
-        width: 100%;
-        min-width: 0;
-        justify-content: center;
-        gap: .45rem;
-    }
-
-    .generated-image-editor-size input {
-        flex: 1;
-        width: auto;
+        gap: .7rem;
     }
 
     .generated-image-editor-color,
     .generated-image-editor-eraser {
-        width: 1.88rem;
-        height: 1.88rem;
-    }
-
-    .generated-image-editor-history-btn {
-        width: 1.9rem;
-        height: 1.9rem;
-    }
-
-    .generated-image-editor-size-preview {
-        width: 3.15rem;
-        height: 3.15rem;
-    }
-
-    .generated-image-editor-confirm {
-        grid-area: confirm;
-        width: 2.32rem;
-        height: 2.32rem;
-        min-height: 2.32rem;
+        width: 2.05rem;
+        height: 2.05rem;
     }
 
     .generated-image-lightbox .media-lightbox-toolbar {
