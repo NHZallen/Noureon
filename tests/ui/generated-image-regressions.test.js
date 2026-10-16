@@ -48,7 +48,7 @@ test('targeted editor exposes history controls, thickness preview, and complete 
   assert.doesNotMatch(source, /<strong>\$\{texts\.title\}<\/strong><span>\$\{texts\.hint\}<\/span>/);
   assert.match(source, /generated-image-editor-close[\s\S]*<svg[^>]*viewBox="0 0 24 24"[\s\S]*M18 6 6 18/s);
   assert.match(source, /<path d="M22 21H7"\/>/);
-  assert.match(css, /\.generated-image-editor\s*\{[\s\S]*grid-template-rows:\s*auto\s+minmax\(0,\s*1fr\)\s+auto;[\s\S]*background:\s*rgba\(0,\s*0,\s*0,\s*\.84\);[\s\S]*backdrop-filter:\s*none;/s);
+  assert.match(css, /\.generated-image-editor\s*\{[\s\S]*grid-template-rows:\s*auto\s+minmax\(0,\s*1fr\)\s+auto;[\s\S]*background:\s*#000;[\s\S]*backdrop-filter:\s*none;/s);
   assert.match(css, /\.generated-image-editor\s*\{[\s\S]*user-select:\s*none;[\s\S]*-webkit-touch-callout:\s*none;/s);
   assert.match(css, /\.generated-image-editor-close\s*\{[\s\S]*align-items:\s*center;[\s\S]*justify-content:\s*center;/s);
   assert.match(css, /\.generated-image-editor-close\s+svg[\s\S]*stroke:\s*currentColor;/s);
