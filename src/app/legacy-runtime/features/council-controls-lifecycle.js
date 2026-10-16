@@ -118,6 +118,8 @@ export function createCouncilControlsLifecycle(deps) {
     afterPaint(saveConfig);
   };
 
+  const imageAbilities = (model, t) => (model.minImageReferences > 0 ? [t('imageEdit'), t('imageNeedsPicture')] : [t('imageGeneration')]);
+
   const describe = (model, { translations, t, selected = false, disabled = false }) => {
     const tiers = getModelTiers(model) || [];
     const base = model.descriptionKey;
@@ -129,7 +131,9 @@ export function createCouncilControlsLifecycle(deps) {
       company: model.company || getModelCompany(model, getModelApiId(model)),
       provider: model.provider,
       providerLabel: getProviderLabel(model.provider),
-      abilities: [
+      // A picture-making model is told by what it does (a model that needs a picture to start from edits, the others generate), not by the words
+      // of the text models: it reads no documents and searches nothing.
+      abilities: model.outputModality === 'image' ? imageAbilities(model, t) : [
         modelSupportsVision(model) ? t('vision') : '',
         // A model of OpenCode Go that reads a PDF as it is counts as reading documents (the others of its files are translated for it).
         (modelSupportsDocumentUpload(model) || opencodeModelReadsPdf(model)) ? t('documents') : (getSingleDocumentTranslatorModel() ? t('translatedDocuments') : ''),

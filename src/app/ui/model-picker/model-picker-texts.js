@@ -22,6 +22,7 @@ const TEXTS = Object.freeze({
     groupCombinerIs: '整合者：{name}', groupsEmpty: '把常用的成員存成分組，之後一鍵套用。', groupPickMembers: '{name}：選擇成員', groupPickCombiner: '{name}：選擇整合者',
     modelPicker: '選擇模型', councilCount: '理事會 · {n}',
     vision: '視覺', documents: '文件', search: '搜尋', translatedDocuments: '文件轉譯',
+    imageGeneration: '圖片生成', imageEdit: '圖片編輯', imageNeedsPicture: '需附圖',
     locked: '理事會執行中，暫時不能更改。',
     learningNote: '學習模式開啟時不能使用理事會。'
   },
@@ -44,6 +45,7 @@ const TEXTS = Object.freeze({
     groupCombinerIs: 'Combined by {name}', groupsEmpty: 'Save the members you use often as a group, then apply it in one tap.', groupPickMembers: '{name}: choose members', groupPickCombiner: '{name}: choose the combiner',
     modelPicker: 'Choose a model', councilCount: 'Council · {n}',
     vision: 'Vision', documents: 'Files', search: 'Search', translatedDocuments: 'Translated files',
+    imageGeneration: 'Image generation', imageEdit: 'Image editing', imageNeedsPicture: 'Needs a picture',
     locked: 'The council is running. Changes wait until it finishes.',
     learningNote: 'The council is not available while Learning mode is on.'
   },
@@ -66,6 +68,7 @@ const TEXTS = Object.freeze({
     groupCombinerIs: 'Synthèse par {name}', groupsEmpty: 'Enregistrez vos membres habituels en groupe, puis appliquez-le en un geste.', groupPickMembers: '{name} : choisir les membres', groupPickCombiner: '{name} : choisir le modèle de synthèse',
     modelPicker: 'Choisir un modèle', councilCount: 'Conseil · {n}',
     vision: 'Vision', documents: 'Fichiers', search: 'Recherche', translatedDocuments: 'Fichiers traduits',
+    imageGeneration: 'Génération d’images', imageEdit: 'Retouche d’images', imageNeedsPicture: 'Image requise',
     locked: 'Le conseil est en cours. Les changements attendent la fin.',
     learningNote: 'Le conseil n’est pas disponible avec le mode Apprentissage.'
   },
@@ -88,6 +91,7 @@ const TEXTS = Object.freeze({
     groupCombinerIs: 'Сводит: {name}', groupsEmpty: 'Сохраните привычных участников как группу и применяйте одним касанием.', groupPickMembers: '{name}: выбор участников', groupPickCombiner: '{name}: выбор модели для сведения',
     modelPicker: 'Выбрать модель', councilCount: 'Совет · {n}',
     vision: 'Зрение', documents: 'Файлы', search: 'Поиск', translatedDocuments: 'Переведённые файлы',
+    imageGeneration: 'Создание изображений', imageEdit: 'Редактирование изображений', imageNeedsPicture: 'Нужно изображение',
     locked: 'Совет работает. Изменения — после завершения.',
     learningNote: 'Совет недоступен при включённом режиме обучения.'
   },
@@ -110,6 +114,7 @@ const TEXTS = Object.freeze({
     groupCombinerIs: 'Síntesis por {name}', groupsEmpty: 'Guarda los miembros que usas a menudo como grupo y aplícalo con un toque.', groupPickMembers: '{name}: elegir miembros', groupPickCombiner: '{name}: elegir el modelo de síntesis',
     modelPicker: 'Elegir un modelo', councilCount: 'Consejo · {n}',
     vision: 'Visión', documents: 'Archivos', search: 'Búsqueda', translatedDocuments: 'Archivos traducidos',
+    imageGeneration: 'Generación de imágenes', imageEdit: 'Edición de imágenes', imageNeedsPicture: 'Requiere una imagen',
     locked: 'El consejo está en marcha. Los cambios esperan a que termine.',
     learningNote: 'El consejo no está disponible con el modo Aprendizaje.'
   }

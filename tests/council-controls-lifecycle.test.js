@@ -256,6 +256,30 @@ test('a model of OpenCode Go that reads a PDF as it is is listed as reading file
   }
 });
 
+test('a picture-making model is listed as generating or as editing, not with the words of the text models', () => {
+  const originals = [{ ...MODELS[1] }, { ...MODELS[2] }];
+  Object.assign(MODELS[1], { id: 'image/make', name: 'Maker', outputModality: 'image' });
+  Object.assign(MODELS[2], { id: 'image/edit', name: 'Editor', outputModality: 'image', minImageReferences: 1 });
+  const { cleanup, document, lifecycle } = createHarness({ conversation: singleConversation() });
+  try {
+    lifecycle.renderCouncilControls();
+    document.querySelector('#model-picker-btn').click();
+    const make = document.querySelector('[data-mp-model="image/make"]');
+    const edit = document.querySelector('[data-mp-model="image/edit"]');
+    assert.match(make.textContent, /Image generation/);
+    assert.doesNotMatch(make.textContent, /Image editing|Needs a picture|Files|Search/);
+    assert.match(edit.textContent, /Image editing · Needs a picture/);
+    assert.doesNotMatch(edit.textContent, /Image generation|Files|Search/);
+  } finally {
+    Object.assign(MODELS[1], originals[0]);
+    Object.assign(MODELS[2], originals[1]);
+    delete MODELS[1].outputModality;
+    delete MODELS[2].outputModality;
+    delete MODELS[2].minImageReferences;
+    cleanup();
+  }
+});
+
 test('a model of OpenCode Go that is not trusted with a PDF (the probe found it unstable) is still listed as getting files translated', () => {
   const original = { ...MODELS[1] };
   Object.assign(MODELS[1], { id: 'opencode-go/deepseek-v4-flash', provider: 'opencode-go' });
