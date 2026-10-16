@@ -68,12 +68,6 @@ export function createGeneratedImageInteractions({
   getImageDataUrl,
   openPreview = null,
   attachAnnotatedImage,
-  // The actions of a picture that send a message by themselves (remove from the picture, change the ratio): `onImageAction({ kind, dataUrl, descriptor, ratio })`
-  // sends it; `canUseImageActions()` says whether a picture-making model is chosen (and tells the person when it is not); `getImageRatios()` lists the ratios it makes.
-  onImageAction = null,
-  canUseImageActions = () => true,
-  getImageRatios = () => [],
-  getCurrentImageRatio = () => '',
   getUiLanguage = () => 'zh-TW',
   navigator = globalThis.navigator,
   fetchImpl = globalThis.fetch,
@@ -99,13 +93,11 @@ export function createGeneratedImageInteractions({
   });
   const closeExistingEditor = () => document.querySelector('.generated-image-editor')?.remove();
 
-  const openEditor = async (descriptor, sourceElement = null, { mode = 'edit' } = {}) => {
+  const openEditor = async (descriptor, sourceElement = null) => {
     const dataUrl = await getImageDataUrl(descriptor);
     if (!dataUrl) return;
     closeExistingEditor();
     const texts = getEditorTexts(getUiLanguage());
-    // In the remove mode the same marking page is used: the person marks what to take out and the confirm button sends it at once.
-    if (mode === 'remove') texts.confirm = getText('imageRemove', 'Remove from the picture');
     const actionLabels = { undo: texts.undo, redo: texts.redo, clear: texts.clear };
     const overlay = document.createElement('div');
     overlay.className = 'generated-image-editor';
@@ -369,9 +361,10 @@ export function createGeneratedImageInteractions({
         const outputContext = output.getContext('2d');
         outputContext.drawImage(image, 0, 0, output.width, output.height);
         outputContext.drawImage(canvas, 0, 0);
-        const markedDataUrl = output.toDataURL('image/png');
-        if (mode === 'remove') await onImageAction?.({ kind: 'remove', dataUrl: markedDataUrl, descriptor });
-        else await attachAnnotatedImage({ dataUrl: markedDataUrl, descriptor });
+        await attachAnnotatedImage({
+          dataUrl: output.toDataURL('image/png'),
+          descriptor
+        });
         close();
       } catch (error) {
         confirmButton.disabled = false;
@@ -386,96 +379,8 @@ export function createGeneratedImageInteractions({
     image.src = dataUrl;
   };
 
-  const closeRatioMenu = () => document.querySelector('.generated-image-ratio-menu')?.remove();
-
-  // The menu of ratios the chosen model makes, over the button; one is chosen and the picture is sent again in it.
-  const openRatioMenu = async (descriptor, button) => {
-    closeRatioMenu();
-    const ratios = getImageRatios();
-    if (!ratios.length) return;
-    const current = getCurrentImageRatio(descriptor);
-    const menu = document.createElement('div');
-    menu.className = 'generated-image-ratio-menu';
-    menu.setAttribute('role', 'menu');
-    menu.innerHTML = `<div class="generated-image-ratio-menu-title">${escapeHTML(getText('imageRatioMenu', 'Choose a new ratio'))}</div>${ratios.map((ratio) => {
-      const [w, h] = ratio.split(':').map(Number);
-      const long = Math.max(w, h) || 1;
-      return `<button type="button" role="menuitem" class="generated-image-ratio-option${ratio === current ? ' is-current' : ''}" data-ratio="${escapeHTML(ratio)}"><span class="generated-image-ratio-shape" style="--shape-w:${((w / long) * 1.1).toFixed(2)}rem;--shape-h:${((h / long) * 1.1).toFixed(2)}rem"></span><span>${escapeHTML(ratio)}</span></button>`;
-    }).join('')}`;
-    document.body.appendChild(menu);
-    const rect = button.getBoundingClientRect();
-    const view = document.defaultView;
-    const width = menu.offsetWidth || 192;
-    const height = menu.offsetHeight || 240;
-    const left = Math.max(8, Math.min(rect.left, (view?.innerWidth || 360) - width - 8));
-    const above = rect.top - height - 8;
-    menu.style.left = `${left}px`;
-    menu.style.top = `${above >= 8 ? above : Math.min(rect.bottom + 8, (view?.innerHeight || 640) - height - 8)}px`;
-    const away = (event) => {
-      if (menu.contains(event.target) || event.target === button) return;
-      stop();
-    };
-    const onKey = (event) => { if (event.key === 'Escape') stop(); };
-    const stop = () => {
-      document.removeEventListener('pointerdown', away, true);
-      document.removeEventListener('keydown', onKey, true);
-      menu.remove();
-    };
-    document.addEventListener('pointerdown', away, true);
-    document.addEventListener('keydown', onKey, true);
-    menu.addEventListener('click', async (event) => {
-      const option = event.target.closest?.('[data-ratio]');
-      if (!option) return;
-      const dataUrl = await getImageDataUrl(descriptor);
-      stop();
-      if (dataUrl) await onImageAction?.({ kind: 'resize', dataUrl, descriptor, ratio: option.dataset.ratio });
-    });
-  };
-
-  const sharePicture = async (descriptor) => {
-    const dataUrl = await getImageDataUrl(descriptor);
-    if (!dataUrl) return;
-    const blob = await (await fetchImpl(dataUrl)).blob();
-    const file = new FileCtor([blob], `noureon-generated-${descriptor.id}.png`, { type: blob.type || descriptor.mediaType || 'image/png' });
-    try {
-      await navigator.share({ files: [file] });
-    } catch (error) {
-      if (error?.name !== 'AbortError') logWarn('Sharing the picture failed:', error);
-    }
-  };
-  // Only a device that can share a picture as a file shows the share button.
-  const canShareFiles = () => {
-    try {
-      return Boolean(navigator?.share && navigator?.canShare?.({ files: [new FileCtor([''], 'x.png', { type: 'image/png' })] }));
-    } catch {
-      return false;
-    }
-  };
-
   const bind = (root, descriptors = []) => {
     descriptors.forEach(descriptor => {
-      root.querySelectorAll(`[data-generated-image-remove="${descriptor.id}"]`).forEach(button => {
-        button.addEventListener('click', event => {
-          event.stopPropagation();
-          if (!canUseImageActions()) return;
-          void openEditor(descriptor, event.currentTarget, { mode: 'remove' }).catch(error => logWarn('Remove from the picture failed:', error));
-        });
-      });
-      root.querySelectorAll(`[data-generated-image-resize="${descriptor.id}"]`).forEach(button => {
-        button.addEventListener('click', event => {
-          event.stopPropagation();
-          if (!canUseImageActions()) return;
-          void openRatioMenu(descriptor, event.currentTarget).catch(error => logWarn('Ratio menu failed:', error));
-        });
-      });
-      root.querySelectorAll(`[data-generated-image-share="${descriptor.id}"]`).forEach(button => {
-        if (!canShareFiles()) return;
-        button.hidden = false;
-        button.addEventListener('click', event => {
-          event.stopPropagation();
-          void sharePicture(descriptor).catch(error => logWarn('Sharing the picture failed:', error));
-        });
-      });
       root.querySelectorAll(`[data-generated-image-preview="${descriptor.id}"]`).forEach(button => {
         button.addEventListener('click', async event => {
           event.stopPropagation();

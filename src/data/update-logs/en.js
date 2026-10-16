@@ -1,6 +1,14 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.11.2": [
+    "<strong>Noureon 18.11.2 Release Notes</strong>",
+    "This version adds two picture models, gives the picture editor a new layout, lists picture models as \"Image generation\" or \"Image editing\" in the picker, and fixes a few display problems.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>New picture models:</strong> FLUX.3 Image Klein on OpenRouter (one picture per request, up to 10 reference pictures, 1K to 4K, 15 aspect ratios) and Krea K3 Edit (a picture-editing model: it needs 1 to 4 reference pictures, 1K and 2K, 7 aspect ratios, takes a seed). For a model that makes one picture per request, the \"Count\" in the advanced settings offers only 1.</li><li><strong>Picture models in the picker:</strong> picture models are now marked \"Image generation\" (they can start from text) or \"Image editing · Needs a picture\", instead of \"Files\" and \"Search\", which they do not use.</li><li><strong>New layout of the picture editor:</strong> a fully black background; the way out, undo, redo, clear and confirm at the top; the brush size is a slider lying under the picture on a phone (the picture takes the whole width and sits in the middle) and a vertical slider on the left on a computer, with a live preview of the brush; the colours and the eraser are one row under the picture.</li><li><strong>Display fix:</strong> on a phone, the first character of the stage label (\"Composing\") at the top left of the picture wait screen is no longer shaved at the edge.</li><li><strong>Names of OpenCode models:</strong> the models of OpenCode no longer have \"OpenCode\" in front in the picker (for example \"Kimi K3\", \"Step 5 Preview\"); the second line of each row still says the provider.</li></ul>",
+    "<strong>Compatibility</strong>",
+    "This update requires no data migration."
+  ],
   "18.11.1": [
     "<strong>Noureon 18.11.1 Release Notes</strong>",
     "This version adds three free multimodal models: NVIDIA Nemotron 3.5 Super VL (from OpenRouter and from NVIDIA) and NVIDIA's Step 5 Preview.",

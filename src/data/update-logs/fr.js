@@ -1,6 +1,14 @@
 // The update notes in French (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.11.2": [
+    "<strong>Noureon 18.11.2 – Notes de version</strong>",
+    "Cette version ajoute deux modèles d’images, donne un nouvel agencement à l’éditeur d’images, classe les modèles d’images en « Génération d’images » ou « Retouche d’images » dans le sélecteur, et corrige quelques problèmes d’affichage.",
+    "<strong>Principaux changements</strong>",
+    "<ul><li><strong>Nouveaux modèles d’images :</strong> FLUX.3 Image Klein sur OpenRouter (une image par requête, jusqu’à 10 images de référence, de 1K à 4K, 15 formats) et Krea K3 Edit (un modèle de retouche : il faut 1 à 4 images de référence, 1K et 2K, 7 formats, accepte un seed). Pour un modèle qui ne fait qu’une image par requête, le « Nombre » des réglages avancés ne propose que 1.</li><li><strong>Modèles d’images dans le sélecteur :</strong> les modèles d’images sont désormais marqués « Génération d’images » (ils peuvent partir d’un texte) ou « Retouche d’images · Image requise », au lieu de « Fichiers » et « Recherche », qu’ils n’utilisent pas.</li><li><strong>Nouvel agencement de l’éditeur d’images :</strong> fond entièrement noir ; en haut, fermer, annuler, rétablir, effacer et confirmer ; la taille du pinceau est un curseur couché sous l’image sur téléphone (l’image occupe toute la largeur, au centre) et un curseur vertical à gauche sur ordinateur, avec un aperçu du pinceau en direct ; les couleurs et la gomme forment une ligne sous l’image.</li><li><strong>Correction d’affichage :</strong> sur téléphone, le premier caractère de l’étiquette d’étape (« Composition ») en haut à gauche de l’écran d’attente d’une image n’est plus rogné au bord.</li><li><strong>Noms des modèles OpenCode :</strong> les modèles d’OpenCode n’ont plus « OpenCode » devant leur nom dans le sélecteur (par exemple « Kimi K3 », « Step 5 Preview ») ; la deuxième ligne de chaque ligne indique toujours le fournisseur.</li></ul>",
+    "<strong>Compatibilité</strong>",
+    "Cette mise à jour ne nécessite aucune migration de données."
+  ],
   "18.11.1": [
     "<strong>Noureon 18.11.1 – Notes de version</strong>",
     "Cette version ajoute trois modèles multimodaux gratuits : NVIDIA Nemotron 3.5 Super VL (via OpenRouter et via NVIDIA) et Step 5 Preview de NVIDIA.",

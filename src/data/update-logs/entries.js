@@ -2,6 +2,18 @@
 // content 為 zh-TW 的 HTML 字串（JSON 轉義、雙引號），目前不隨介面語言切換。
 export const updateLogEntries = [
   {
+    version: "18.11.2",
+    date: "2026-10-16",
+    content: [
+      "<strong>Noureon 18.11.2 發布說明</strong>",
+      "本版本新增兩個圖片模型，把圖片編輯頁改成新版面，圖片模型在選單裡分成「圖片生成」與「圖片編輯」，並修正幾處顯示問題。",
+      "<strong>主要變更</strong>",
+      "<ul><li><strong>新圖片模型：</strong>OpenRouter 新增 FLUX.3 Image Klein（每次 1 張，最多 10 張參考圖，1K 到 4K，15 種比例）與 Krea K3 Edit（圖片編輯模型，需附 1 到 4 張參考圖，1K／2K，7 種比例，可指定 seed）。每次只能做 1 張的模型，進階設定的「張數」只剩 1。</li><li><strong>選單裡的圖片分類：</strong>圖片模型改標「圖片生成」（可以從文字開始畫）或「圖片編輯・需附圖」，不再顯示用不到的「文件」「搜尋」。</li><li><strong>圖片編輯頁新版面：</strong>背景改成全黑；上方是關閉、復原、重做、清除與確認；筆刷大小在手機上是圖下面獨立一排的橫滑桿（圖用滿寬並置中），在電腦上是左邊的直立滑桿，上面有即時的筆刷預覽；顏色與橡皮擦排在圖下面一排。</li><li><strong>顯示修正：</strong>手機上圖片生成等待畫面左上角「正在構圖」的第一個字不再被切掉一截。</li><li><strong>OpenCode 模型名稱：</strong>選單裡 OpenCode 的模型不再加「OpenCode」前綴（例如「Kimi K3」「Step 5 Preview」），每列第二行仍標示供應商。</li></ul>",
+      "<strong>相容性</strong>",
+      "本次更新不需要資料遷移。"
+    ]
+  },
+  {
     version: "18.11.1",
     date: "2026-10-15",
     content: [

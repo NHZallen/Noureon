@@ -1,8 +1,6 @@
 // The parts of the picture-making that are loaded the first time a picture is made or shown (the asset store of the pictures, the request to OpenRouter,
 // the reply lifecycle, the buttons on a picture): one promise, made on the first call. Moved out of legacy-core.js, which is at the limit of its size;
 // everything it needs from the shell is given to it here.
-import { createGeneratedImageActions } from './generated-image-actions.js';
-
 export function createGeneratedImageRuntimeLoader({
     document,
     fetch,
@@ -23,12 +21,7 @@ export function createGeneratedImageRuntimeLoader({
     escapeHTML,
     setUploadedFiles,
     renderFilePreviews,
-    focusMessageInput,
-    modelOf,
-    modelGeneratesImages,
-    saveAppData,
-    setComposer,
-    submit
+    focusMessageInput
 }) {
     let generatedImageRuntimePromise;
     return () => {
@@ -57,15 +50,8 @@ export function createGeneratedImageRuntimeLoader({
                     getText,
                     showNotification
                 });
-                const imageActions = createGeneratedImageActions({
-                    getConversation: getActiveConversation, modelOf, modelGeneratesImages, getText, showNotification, saveAppData, setComposer, submit
-                });
                 const interactions = interactionsModule.createGeneratedImageInteractions({
                     document,
-                    onImageAction: imageActions.run,
-                    canUseImageActions: imageActions.canUse,
-                    getImageRatios: imageActions.ratios,
-                    getCurrentImageRatio: (descriptor) => descriptor?.aspectRatio || '',
                     getImageDataUrl: descriptor => assetStore.getDataUrl(descriptor),
                     attachAnnotatedImage: async ({ dataUrl, descriptor }) => {
                         const blob = await (await fetch(dataUrl)).blob();

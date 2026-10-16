@@ -585,9 +585,6 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
           imageAlt: texts.imageAlt,
           edit: texts.edit,
           imageDownloadOriginal: texts.imageDownloadOriginal,
-          imageRemove: texts.imageRemove,
-          imageResize: texts.imageResize,
-          imageShare: texts.imageShare,
           messageActions: texts.messageActions,
           copyMessage: texts.copyMessage,
           editMessage: texts.editMessage
