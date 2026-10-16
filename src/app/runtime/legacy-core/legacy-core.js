@@ -1,4 +1,5 @@
 import { installTouchGuards } from '/src/pwa/touch-guards.js';
+import { createGeneratedImageRuntimeLoader } from '/src/app/runtime/legacy-core/generated-image-runtime.js';
 import { registerServiceWorker } from '/src/pwa/register-service-worker.js';
 import { normalizeFolderColorSelection, resolveFolderColor } from '/src/utils/folder-colors.js';
 import { getTextColorForBackground } from '/src/utils/color-contrast.js';
@@ -271,62 +272,28 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
         let folderUiStatePersistencePromise;
         const getFolderUiStatePersistence = () => folderUiStatePersistencePromise ||= import('/src/app/runtime/kernel/folder-ui-state.js').then(({ createFolderUiStatePersistence }) => createFolderUiStatePersistence({ getUsername: () => currentUser?.username || null, getItem, setItem }));
         const saveFolderUiState = async (folders) => (await getFolderUiStatePersistence()).save(folders);
-        let generatedImageRuntimePromise;
-        const getGeneratedImageRuntime = () => {
-            if (!generatedImageRuntimePromise) {
-                generatedImageRuntimePromise = Promise.all([
-                    import('/src/app/legacy-runtime/features/generated-image-assets.js'),
-                    import('/src/app/legacy-runtime/features/openrouter-image-generation.js'),
-                    import('/src/app/legacy-runtime/features/image-generation-response-lifecycle.js'),
-                    import('/src/app/legacy-runtime/features/generated-image-interactions.js')
-                ]).then(([assetsModule, openRouterModule, lifecycleModule, interactionsModule]) => {
-                    const assetStore = assetsModule.createGeneratedImageAssetStore({
-                        getItem,
-                        setItem,
-                        getUserName: () => currentUser?.username || 'anonymous',
-                        shouldPersist: () => getActiveConversation()?.retentionMode !== 'ephemeral'
-                    });
-                    const generateOpenRouterImage = openRouterModule.createOpenRouterImageGenerator({ fetchImpl: fetch });
-                    const responseLifecycle = lifecycleModule.createImageGenerationResponseLifecycle({
-                        buildSingleModelTranslatedRequestParts: (...args) => buildSingleModelTranslatedRequestParts(...args),
-                        generateImage: generateOpenRouterImage,
-                        saveImageAsset: image => assetStore.save(image),
-                        getStoredImageDataUrl: descriptor => assetStore.getDataUrl(descriptor),
-                        getApiKey: provider => getApiKeyForProvider(provider),
-                        getModelReasoningConfig,
-                        normalizeReasoningEffort,
-                        getText,
-                        showNotification
-                    });
-                    const interactions = interactionsModule.createGeneratedImageInteractions({
-                        document,
-                        getImageDataUrl: descriptor => assetStore.getDataUrl(descriptor),
-                        attachAnnotatedImage: async ({ dataUrl, descriptor }) => {
-                            const blob = await (await fetch(dataUrl)).blob();
-                            uploadedFiles = [{
-                                name: `astra-targeted-edit-${descriptor.id}.png`,
-                                type: 'image/png',
-                                size: blob.size,
-                                base64: dataUrl,
-                                targetedEdit: true
-                            }];
-                            legacyRuntimeContext.resolveBinding('submit.renderFilePreviews')();
-                            ALL_ELEMENTS.messageInput?.focus();
-                            showNotification(i18n[runtimeConfigAccess.getUiLanguage()]?.imageReadyToEdit || 'Image is ready for targeted editing.', 'success');
-                        },
-                        getUiLanguage: () => runtimeConfigAccess.getUiLanguage(),
-                        navigator,
-                        fetchImpl: fetch,
-                        FileCtor: File,
-                        escapeHTML,
-                        getText,
-                        logWarn: (...args) => console.warn(...args)
-                    });
-                    return { assetStore, interactions, responseLifecycle };
-                });
-            }
-            return generatedImageRuntimePromise;
-        };
+        const getGeneratedImageRuntime = createGeneratedImageRuntimeLoader({
+            document,
+            fetch,
+            navigator,
+            File,
+            getItem,
+            setItem,
+            getUserName: () => currentUser?.username || 'anonymous',
+            getActiveConversation: () => getActiveConversation(),
+            buildSingleModelTranslatedRequestParts: (...args) => buildSingleModelTranslatedRequestParts(...args),
+            getApiKeyForProvider: provider => getApiKeyForProvider(provider),
+            getModelReasoningConfig,
+            normalizeReasoningEffort,
+            getText,
+            showNotification: (...args) => showNotification(...args),
+            getUiLanguage: () => runtimeConfigAccess.getUiLanguage(),
+            getImageReadyText: () => i18n[runtimeConfigAccess.getUiLanguage()]?.imageReadyToEdit || 'Image is ready for targeted editing.',
+            escapeHTML,
+            setUploadedFiles: files => { uploadedFiles = files; },
+            renderFilePreviews: () => legacyRuntimeContext.resolveBinding('submit.renderFilePreviews')(),
+            focusMessageInput: () => ALL_ELEMENTS.messageInput?.focus()
+        });
         const bindGeneratedImageAssets = async (root, assets) => {
             const { assetStore, interactions } = await getGeneratedImageRuntime();
             await assetStore.bind(root, assets);

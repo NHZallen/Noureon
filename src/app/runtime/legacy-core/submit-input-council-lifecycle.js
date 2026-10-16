@@ -28,6 +28,7 @@ import { createBrowserServerReply } from '../server-reply/server-reply-runtime.j
 import { createServerReplyReattach } from '../server-reply/reattach.js';
 import { createResearchMode } from '../research/research-mode.js';
 import { chipCloseButton } from '../features/composer-chip.js';
+import { syncInputIndicatorItems } from './input-indicator-sync.js';
 import { createWebResearchTools } from '../../legacy-runtime/features/web-research-tools.js';
 import { normalizePageReads, normalizeTinyfishSearch } from '../../legacy-runtime/features/model-request-formatting.js';
 import { getErrorMessage, readErrorBody } from './legacy-core-utilities.js';
@@ -431,43 +432,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
 
     researchMode?.indicators(activeIndicators, chipCloseButton);
 
-    Array.from(container.children).forEach((child) => {
-      if (!activeIndicators.has(child.id)) {
-        child.classList.remove('enter');
-        child.classList.add('exit');
-        child.addEventListener('animationend', () => {
-          child.remove();
-          if (container.children.length === 0) {
-            wrapper.classList.remove('has-indicators');
-          }
-        }, { once: true });
-      }
-    });
-    activeIndicators.forEach((indicatorData) => {
-      let existingIndicator = document.getElementById(indicatorData.id);
-      if (existingIndicator?.classList.contains('exit')) {
-        existingIndicator.remove();
-        existingIndicator = null;
-      }
-      if (!existingIndicator) {
-        const indicator = document.createElement('div');
-        indicator.id = indicatorData.id;
-        indicator.className = 'input-indicator-item flex items-center justify-between text-sm font-medium px-2 py-1 rounded-full enter';
-        indicator.innerHTML = indicatorData.html;
-        indicator.dataset.indicatorHtml = indicatorData.html;
-        container.appendChild(indicator);
-        indicatorData.eventListener(indicator);
-      } else if (existingIndicator.dataset.indicatorHtml !== indicatorData.html) {
-        existingIndicator.innerHTML = indicatorData.html;
-        existingIndicator.dataset.indicatorHtml = indicatorData.html;
-        indicatorData.eventListener(existingIndicator);
-      }
-    });
-    if (activeIndicators.size > 0) {
-      wrapper.classList.add('has-indicators');
-    } else if (container.children.length === 0) {
-      wrapper.classList.remove('has-indicators');
-    }
+    syncInputIndicatorItems({ document, container, wrapper, activeIndicators });
     ALL_ELEMENTS.messageInput?.syncInlineModeTokens?.();
   };
 
