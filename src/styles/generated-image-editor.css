@@ -51,8 +51,6 @@
     border-radius: 999px;
     color: #fff;
     background: rgba(255, 255, 255, .14);
-    box-shadow: 0 12px 32px rgba(0, 0, 0, .2);
-    backdrop-filter: blur(16px);
     font-size: 0;
     line-height: 1;
 }
@@ -228,8 +226,10 @@
     gap: .35rem;
     width: 2.9rem;
     padding: .45rem 0 .7rem;
+    border: 1px solid rgba(255, 255, 255, .12);
     border-radius: 1.5rem;
-    background: rgba(255, 255, 255, .08);
+    background: rgba(18, 18, 18, .72);
+    backdrop-filter: blur(18px);
 }
 
 .generated-image-editor-size-preview {
