@@ -25,7 +25,7 @@ test('the list of OpenCode Go models: the ones of the owner\'s table, each in on
     assert.ok(OPENCODE_FORMATS.includes(opencodeFormatOf(entry)), entry.id);
     assert.equal(entry.provider, 'opencode-go');
     assert.ok(MODELS.some((listed) => listed.id === entry.id), `${entry.id} is in the list of the app`);
-    assert.ok(entry.name.startsWith('OpenCode ') || entry.apiId === 'step-5-preview-free', 'named OpenCode …, except the free Step 5 Preview, which is shown as Step 5 Preview');
+    assert.ok(!entry.name.startsWith('OpenCode'), `${entry.id} is shown by its own name, without OpenCode in front`);
     assert.ok(modelSupportsToolCalling(entry), `${entry.id} calls tools`);
     assert.ok(modelSupportsWebSearch(entry), `${entry.id} searches the web (through the search tool)`);
   }
@@ -513,7 +513,8 @@ test('a PDF goes to the models that read it (the probe of 2026-10-14), in the fo
   assert.equal(JSON.stringify(await sent('glm-5.3')).includes('JVBERi0x'), false);
 });
 
-test('the free Step 5 Preview of OpenCode is shown as Step 5 Preview', () => {
+test('the OpenCode models are shown by their own names, without OpenCode in front', () => {
   assert.equal(OPENCODE_GO_MODELS.find((entry) => entry.apiId === 'step-5-preview-free').name, 'Step 5 Preview');
-  assert.equal(OPENCODE_GO_MODELS.find((entry) => entry.apiId === 'longcat-2.5-preview-free').name, 'OpenCode LongCat 2.5 Preview', 'the others keep OpenCode in front');
+  assert.equal(OPENCODE_GO_MODELS.find((entry) => entry.apiId === 'longcat-2.5-preview-free').name, 'LongCat 2.5 Preview');
+  assert.equal(OPENCODE_GO_MODELS.find((entry) => entry.apiId === 'kimi-k3').name, 'Kimi K3');
 });
