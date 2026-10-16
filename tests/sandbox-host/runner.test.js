@@ -395,10 +395,11 @@ sandboxTest('a program that reaches for a site with no rule makes the step ask t
     const { id } = await n.manager.create({ language: 'en' });
     assert.equal((await n.manager.mountCli(id, [], toolNet)).network, true);
     const heard = [];
-    // The step may take 2 seconds; the person takes 3 to answer, and the step still ends well.
-    const stepping = n.manager.run(id, { command: n.fetchCommand('news.test'), timeoutMs: 2000 }, (progress) => {
+    // The step may take 4 seconds; the person takes 5 to answer, and the step still ends well. (The margin is for a busy machine: starting Python and
+    // making the request must fit in the step's own time, which only runs while the person is not being waited for.)
+    const stepping = n.manager.run(id, { command: n.fetchCommand('news.test'), timeoutMs: 4000 }, (progress) => {
       heard.push(progress);
-      if (progress.stage === 'net' && progress.event === 'ask') setTimeout(() => { void n.manager.answerNet(id, progress.id, 'once'); }, 3000);
+      if (progress.stage === 'net' && progress.event === 'ask') setTimeout(() => { void n.manager.answerNet(id, progress.id, 'once'); }, 5000);
     });
     const result = await stepping;
     assert.equal(result.error, null, result.stderr?.text);
