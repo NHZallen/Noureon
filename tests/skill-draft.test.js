@@ -19,6 +19,14 @@ OFFICIAL_SKILL_CATALOG.length = 0;
 afterEach(() => clearSkillSelection());
 
 const tick = (ms = 20) => new Promise((resolve) => setTimeout(resolve, ms));
+// Waits for what the test needs to see, not for a number of milliseconds: how long the page takes (building a zip, reading its files) depends on how busy the machine is.
+const until = async (condition, timeout = 15000) => {
+  const end = Date.now() + timeout;
+  while (!condition()) {
+    if (Date.now() > end) throw new Error('waited for something that did not come');
+    await tick(5);
+  }
+};
 const DRAFT = '---\nname: meeting-notes\ndescription: Turns messy notes into minutes.\n---\n\nList the decisions first.\n';
 
 function renderer() {
@@ -134,17 +142,17 @@ function page({ accountReady = true, rows = [] } = {}) {
 test('a placeholder that appears in the chat becomes a card by itself, and the button opens the window of a pasted skill with the draft in it', async () => {
   const t = page();
   t.show(DRAFT);
-  await tick(150);
+  await until(() => t.chat.querySelector('.skill-draft-add'));
   assert.ok(t.chat.querySelector('.skill-draft-add'), 'the card was made');
   t.chat.querySelector('.skill-draft-add').click();
-  await tick(150);
+  await until(() => t.document.querySelector('.skill-paste'));
   const modal = t.document.querySelector('.skill-paste');
   assert.ok(modal, 'the window is open');
   assert.equal(modal.querySelector('.skill-paste-text').value, DRAFT, 'the draft is in it, to be read');
   assert.match(modal.querySelector('.skill-paste-found').textContent, /meeting-notes/, 'and checked');
   assert.equal(t.cloud.rows.length, 0, 'nothing is saved before the person presses "Add"');
   modal.querySelector('button[type="submit"]').click();
-  await tick(150);
+  await until(() => t.document.querySelector('.skill-paste') === null && t.log.notices.length > 0);
   assert.equal(t.document.querySelector('.skill-paste') === null, true);
   assert.deepEqual(t.cloud.rows.map((row) => row.name), ['meeting-notes']);
   assert.deepEqual(t.settings.skillEnabledIds, ['meeting-notes'], 'it is among the person\'s skills, and the model may use it');
@@ -157,17 +165,17 @@ test('a placeholder that appears in the chat becomes a card by itself, and the b
 test('without a cloud account the button says so and opens nothing; a name the person has offers "Replace"', async () => {
   const none = page({ accountReady: false });
   none.show(DRAFT);
-  await tick(150);
+  await until(() => none.chat.querySelector('.skill-draft-add'));
   none.chat.querySelector('.skill-draft-add').click();
-  await tick(60);
+  await until(() => none.log.notices.length > 0);
   assert.equal(none.document.querySelector('.skill-paste') === null, true);
   assert.match(none.log.notices[0][0], /needs a cloud account/);
 
   const have = page({ rows: [{ user_id: 'u1', name: 'meeting-notes', description: 'Old.', body: 'Old text.' }] });
   have.show(DRAFT);
-  await tick(150);
+  await until(() => have.chat.querySelector('.skill-draft-add'));
   have.chat.querySelector('.skill-draft-add').click();
-  await tick(150);
+  await until(() => have.document.querySelector('.skill-paste button[type="submit"]'));
   assert.equal(have.document.querySelector('.skill-paste button[type="submit"]').textContent, 'Replace');
 });
 
@@ -249,7 +257,7 @@ test('the card of a draft with files lists them, marks the scripts, and gives th
   document.body.innerHTML = `<div class="skill-draft-card" data-draft="${encodeURIComponent(SCRIPT_DRAFT)}"></div><div class="skill-draft-card" data-draft="${encodeURIComponent(`${SCRIPT_DRAFT}=== tool.exe ===\nx\n`)}"></div>`;
   const added = [];
   assert.equal(hydrateSkillDrafts({ root: document, language: 'en', onAdd: (text) => added.push(text) }), 2);
-  await tick(150);
+  await until(() => { const [first, second] = [...document.querySelectorAll('.skill-draft-card')]; return first?.querySelector('.skill-draft-name') && second?.querySelector('.skill-draft-note'); });
   const [good, bad] = [...document.querySelectorAll('.skill-draft-card')];
   assert.equal(good.querySelector('.skill-draft-name').textContent, 'sales-report');
   assert.deepEqual([...good.querySelectorAll('.skill-draft-file-path')].map((node) => node.textContent), ['references/format.md', 'scripts/summary.py']);
@@ -265,9 +273,9 @@ test('the card of a draft with files lists them, marks the scripts, and gives th
 test('the button of a draft with files opens the window of a skill pack with every file to read, and "Add" keeps the zip and the row', async () => {
   const t = page();
   t.show(SCRIPT_DRAFT);
-  await tick(250);
+  await until(() => t.chat.querySelector('.skill-draft-add'));
   t.chat.querySelector('.skill-draft-add').click();
-  await tick(300);
+  await until(() => t.document.querySelector('.skill-bundle'));
   const modal = t.document.querySelector('.skill-bundle');
   assert.ok(modal, 'the window of a pack');
   assert.deepEqual([...modal.querySelectorAll('.skill-bundle-file-path')].map((node) => node.textContent), ['SKILL.md', 'references/format.md', 'scripts/summary.py']);
@@ -275,7 +283,7 @@ test('the button of a draft with files opens the window of a skill pack with eve
   assert.match(modal.querySelector('.skill-bundle-scripts-warning').textContent, /may run them in the sandbox/);
   assert.equal(t.cloud.stored.size, 0, 'nothing is kept before "Add"');
   modal.querySelector('button[type="submit"]').click();
-  await tick(250);
+  await until(() => t.document.querySelector('.skill-bundle') === null && t.log.notices.length > 0);
   assert.equal(t.document.querySelector('.skill-bundle') === null, true);
   assert.equal(t.cloud.stored.size, 1);
   assert.deepEqual(t.cloud.rows[0].files.map((file) => file.path), ['references/format.md', 'scripts/summary.py']);

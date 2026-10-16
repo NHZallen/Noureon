@@ -13,6 +13,7 @@ import { addressAllowed, createHandler } from '../../sandbox-host/runner/http.js
 import { createCliCache } from '../../sandbox-host/runner/cli-cache.js';
 import { PipCacheError } from '../../sandbox-host/runner/pip-cache.js';
 import { RunnerError, createSessionManager, safeFileName, safeSkillPath } from '../../sandbox-host/runner/session.js';
+import { killTree } from './kill-tree.mjs';
 
 // These start the container program (repl.py) as an ordinary process, so they need Python 3.
 const sandboxTest = spawnSync('python3', ['--version']).status === 0 ? test : test.skip;
@@ -35,7 +36,7 @@ function harness(overrides = {}) {
       // it would keep the pipes of the test run open for ever.
       for (const name of existsSync(state) ? readdirSync(state).filter((entry) => entry.endsWith('.pid')) : []) {
         try {
-          process.kill(Number(readFileSync(join(state, name), 'utf8')), 'SIGKILL');
+          killTree(Number(readFileSync(join(state, name), 'utf8')));
         } catch {
           // Gone already.
         }

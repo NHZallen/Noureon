@@ -4,6 +4,7 @@
 import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { killTree } from './kill-tree.mjs';
 
 const args = process.argv.slice(2);
 const state = process.env.FAKE_DOCKER_STATE;
@@ -45,7 +46,8 @@ if (args[0] === 'run' && process.env.FAKE_DOCKER_FAIL_ONCE && !existsSync(join(s
   const startedAt = (pid) => Number(readFileSync(`/proc/${pid}/stat`, 'utf8').replace(/^.*\) /, '').split(' ')[19]);
   try {
     const pid = Number(readFileSync(join(state, `${args[1]}.pid`), 'utf8'));
-    if (startedAt(pid) < startedAt(process.pid)) process.kill(pid, 'SIGKILL');
+    // The whole container, as in Docker: the worker of the steps too, not only the supervisor.
+    if (startedAt(pid) < startedAt(process.pid)) killTree(pid);
   } catch {
     // Gone already.
   }

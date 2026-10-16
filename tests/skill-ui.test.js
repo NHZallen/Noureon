@@ -365,6 +365,8 @@ const chooseFile = async (t, bytes, name = 'pack.zip') => {
   input.dispatchEvent(new t.window.Event('change'));
   // The window of the pack opens, or a notice says why it does not.
   await until(() => t.document.querySelector('.skill-bundle') || t.log.notices.length > noticesBefore, { soft: true });
+  // A window that opens lists the files of the pack a moment later (the zip is read first): wait for the list, not for a number of milliseconds.
+  await until(() => !t.document.querySelector('.skill-bundle') || t.document.querySelector('.skill-bundle .skill-bundle-file-path'), { soft: true });
   await tick(20);
 };
 

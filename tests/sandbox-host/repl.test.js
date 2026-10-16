@@ -8,6 +8,8 @@ import { createInterface } from 'node:readline';
 
 // The program that runs in the sandbox container (sandbox-host/repl.py), run here for real as a plain process with its folders in a temporary place
 // (the walls of the container are not tested here, but how the supervisor and the worker keep the steps away from the commands is).
+import { killTree } from './kill-tree.mjs';
+
 const python = spawnSync('python3', ['--version']).status === 0 ? 'python3' : null;
 const REPL = process.env.REPL_UNDER_TEST || new URL('../../sandbox-host/repl.py', import.meta.url).pathname;
 const skip = python ? false : 'python3 is not installed';
@@ -39,7 +41,7 @@ function startRepl() {
     waiting.set(id, (result) => { clearTimeout(timer); resolve(result); });
     child.stdin.write(`${JSON.stringify({ id, ...message })}\n`);
   });
-  const stop = () => { child.kill('SIGKILL'); rmSync(root, { recursive: true, force: true }); };
+  const stop = () => { killTree(child.pid); rmSync(root, { recursive: true, force: true }); };
   return { child, dirs, frames, request, ready: readyPromise, stop, run: (code, timeoutMs = 10000) => request({ type: 'run', code, timeoutMs }), command: (command, extra = {}) => request({ type: 'command', command, timeoutMs: 20000, ...extra }) };
 }
 
