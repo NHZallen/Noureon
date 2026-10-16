@@ -112,8 +112,9 @@ export function createGeneratedImageInteractions({
     overlay.setAttribute('role', 'dialog');
     overlay.setAttribute('aria-modal', 'true');
     overlay.setAttribute('aria-label', texts.title);
-    // The layout (the "edge slider" design): the top bar holds the way out, the history and the confirm button; the size is a vertical slider on the
-    // left edge of the picture (its round preview on top shows the brush as it will draw); the colours and the eraser are one row under the picture.
+    // The layout: the top bar holds the way out, the history and the confirm button; the colours and the eraser are one row under the picture. The size
+    // (a round preview of the brush and a slider) is in the same footer: on a phone a row of its own over the colours, so the picture is the whole width and
+    // in the middle; on a wide screen a vertical slider on the left edge.
     overlay.innerHTML = `
       <header class="generated-image-editor-header">
         <button type="button" class="generated-image-editor-close" aria-label="${texts.close}">
@@ -140,14 +141,14 @@ export function createGeneratedImageInteractions({
           <canvas class="generated-image-editor-canvas"></canvas>
           <div class="generated-image-editor-brush-cursor" aria-hidden="true"></div>
         </div>
+      </div>
+      <footer class="generated-image-editor-toolbar">
         <label class="generated-image-editor-size">
           <span class="generated-image-editor-size-preview" aria-hidden="true"></span>
           <span class="generated-image-editor-size-track">
-            <input type="range" min="4" max="48" value="14" step="1" aria-label="${texts.size}" aria-orientation="vertical">
+            <input type="range" min="4" max="48" value="14" step="1" aria-label="${texts.size}">
           </span>
         </label>
-      </div>
-      <footer class="generated-image-editor-toolbar">
         <div class="generated-image-editor-tools" aria-label="${texts.brush}">
           ${EDITOR_COLORS.map(({ value, key }, index) => `
             <button type="button" class="generated-image-editor-color${index === 0 ? ' active' : ''}" data-editor-color="${value}" aria-label="${texts.brush}: ${texts.colors[key]}" style="--editor-color:${value}"></button>

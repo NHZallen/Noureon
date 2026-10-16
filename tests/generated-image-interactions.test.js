@@ -55,13 +55,13 @@ test('binds generated image preview and opens targeted editor controls', async (
   assert.ok(editor.querySelector('.generated-image-editor-confirm'));
   assert.ok(editor.querySelector('.generated-image-editor-confirm path[d="m5 12 4 4L19 6"]'));
   assert.equal(editor.querySelector('.media-lightbox-toolbar'), null);
-  // The edge-slider layout: the way out, the history and the confirm button in the top bar; the size slider (with its round preview) beside the picture;
-  // the colours, a line and the eraser in the row under it.
+  // The layout: the way out, the history and the confirm button in the top bar; in the footer the size (its round preview and the slider; a row on a phone,
+  // the left edge on a wide screen) and the colours, a line and the eraser.
   assert.ok(editor.querySelector('.generated-image-editor-header .generated-image-editor-close'));
   assert.equal(editor.querySelectorAll('.generated-image-editor-header .generated-image-editor-history-btn').length, 3);
   assert.ok(editor.querySelector('.generated-image-editor-header .generated-image-editor-confirm'));
-  assert.ok(editor.querySelector('.generated-image-editor-stage .generated-image-editor-size .generated-image-editor-size-preview'));
-  assert.ok(editor.querySelector('.generated-image-editor-stage .generated-image-editor-size input[type="range"]'));
+  assert.ok(editor.querySelector('.generated-image-editor-toolbar .generated-image-editor-size .generated-image-editor-size-preview'));
+  assert.ok(editor.querySelector('.generated-image-editor-toolbar .generated-image-editor-size input[type="range"]'));
   assert.equal(editor.querySelectorAll('.generated-image-editor-toolbar .generated-image-editor-color').length, 4);
   assert.ok(editor.querySelector('.generated-image-editor-toolbar .generated-image-editor-divider'));
   assert.ok(editor.querySelector('.generated-image-editor-toolbar .generated-image-editor-eraser'));

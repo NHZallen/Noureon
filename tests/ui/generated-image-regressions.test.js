@@ -54,7 +54,7 @@ test('targeted editor exposes history controls, thickness preview, and complete 
   assert.match(css, /\.generated-image-editor-close\s+svg[\s\S]*stroke:\s*currentColor;/s);
   assert.match(css, /\.generated-image-editor-stage\s*\{[\s\S]*overflow:\s*hidden;/s);
   assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.generated-image-editor-stage\s*\{[\s\S]*place-items:\s*center;[\s\S]*overflow:\s*hidden;/s);
-  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.generated-image-editor-canvas-wrap,\s*[\r\n\s]*\.generated-image-editor-photo\s*\{[\s\S]*max-height:\s*min\(76vh,\s*calc\(100dvh\s*-\s*9\.4rem\)\);/s);
+  assert.match(css, /@media\s*\(max-width:\s*640px\)[\s\S]*\.generated-image-editor-canvas-wrap,\s*[\r\n\s]*\.generated-image-editor-photo\s*\{[\s\S]*max-height:\s*min\(76vh,\s*calc\(100dvh\s*-\s*12\.6rem\)\);/s);
   // The edge-slider layout: the size is a vertical slider on the left edge of the picture, the history sits in the top bar between the way out and the confirm button.
   assert.match(css, /\.generated-image-editor-size\s*\{[\s\S]*position:\s*absolute;[\s\S]*left:\s*max\(\.7rem,\s*env\(safe-area-inset-left\)\);/s);
   assert.match(css, /\.generated-image-editor-size input\s*\{[\s\S]*transform:\s*translate\(-50%,\s*-50%\)\s*rotate\(-90deg\);/s);

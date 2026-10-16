@@ -23,8 +23,7 @@
 }
 
 .generated-image-editor-enter .generated-image-editor-toolbar,
-.generated-image-editor-enter .generated-image-editor-header,
-.generated-image-editor-enter .generated-image-editor-size {
+.generated-image-editor-enter .generated-image-editor-header {
     animation: generated-image-editor-controls-in .28s ease-out .12s both;
 }
 
@@ -212,8 +211,8 @@
     stroke: #fff;
 }
 
-/* The size: a round preview of the brush on top, and a vertical slider under it (a horizontal range turned a quarter, so the keys and the
-   screen readers keep working), on the left edge of the picture. */
+/* The size on a wide screen: a round preview of the brush on top, and a vertical slider under it (a horizontal range turned a quarter, so the keys and the
+   screen readers keep working), on the left edge of the screen. The element is in the footer; the overlay is its frame, so it can stand there. */
 .generated-image-editor-size {
     position: absolute;
     left: max(.7rem, env(safe-area-inset-left));
@@ -331,8 +330,7 @@
     .generated-image-editor-enter,
     .generated-image-editor-enter .generated-image-editor-canvas-wrap,
     .generated-image-editor-enter .generated-image-editor-toolbar,
-    .generated-image-editor-enter .generated-image-editor-header,
-    .generated-image-editor-enter .generated-image-editor-size {
+    .generated-image-editor-enter .generated-image-editor-header {
         animation: none;
     }
 }
@@ -349,29 +347,51 @@
         min-height: 2.7rem;
     }
 
-    /* On a phone the picture sits to the right of the slider (more room for it than a centred one with the same space on both sides). */
+    /* On a phone the picture is the whole width and in the middle; the size is a row of its own over the colours (the slider lies down). */
     .generated-image-editor-stage {
         place-items: center;
-        padding: .3rem .8rem .4rem 3.6rem;
+        padding: .3rem .8rem .4rem;
         overflow: hidden;
     }
 
     .generated-image-editor-canvas-wrap,
     .generated-image-editor-photo {
-        max-width: calc(100vw - 4.4rem);
-        max-height: min(76vh, calc(100dvh - 9.4rem));
+        max-width: calc(100vw - 1.6rem);
+        max-height: min(76vh, calc(100dvh - 12.6rem));
         border-radius: 0;
     }
 
+    .generated-image-editor-toolbar {
+        flex-direction: column;
+        gap: .35rem;
+        padding-top: 0;
+    }
+
     .generated-image-editor-size {
-        left: .5rem;
-        width: 2.6rem;
-        padding-bottom: .6rem;
+        position: static;
+        transform: none;
+        flex-direction: row;
+        gap: .7rem;
+        width: min(100%, 22rem);
+        padding: 0 .4rem;
+        background: none;
     }
 
     .generated-image-editor-size-preview {
         width: 2.3rem;
         height: 2.3rem;
+    }
+
+    .generated-image-editor-size-track {
+        flex: 1;
+        width: auto;
+        height: 2rem;
+    }
+
+    .generated-image-editor-size input {
+        width: 100%;
+        height: 2rem;
+        transform: translate(-50%, -50%);
     }
 
     .generated-image-editor-tools {
