@@ -835,9 +835,10 @@
     right: .75rem;
     bottom: .75rem;
     display: flex;
+    flex-wrap: wrap;
     justify-content: space-between;
     align-items: center;
-    gap: .5rem;
+    gap: .4rem .5rem;
     pointer-events: none;
 }
 
@@ -847,6 +848,7 @@
     min-height: 2.25rem;
     padding: .45rem .8rem;
     border-radius: 999px;
+    white-space: nowrap;
     color: var(--on-color);
     background: var(--media-chip-bg);
     backdrop-filter: blur(10px);
@@ -858,12 +860,31 @@
     background: var(--media-chip-bg-hover);
 }
 
-.generated-image-download-btn {
+.generated-image-download-btn,
+.generated-image-icon-btn {
     justify-content: center;
-    width: 2.5rem;
-    min-width: 2.5rem;
-    padding: .45rem;
+    width: 2.4rem;
+    min-width: 2.4rem;
+    padding: .4rem;
 }
+
+.generated-image-icon-btn[hidden] {
+    display: none;
+}
+
+/* The buttons of the left and of the right side of the row on a picture. */
+.generated-image-actions-group {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    pointer-events: none;
+}
+
+/* On a narrow picture the two sides do not fit in one row: the right side goes under the left one, at the right. */
+.generated-image-actions-group:last-child {
+    margin-left: auto;
+}
+
 
 .generated-image-action-btn svg {
     flex: none;

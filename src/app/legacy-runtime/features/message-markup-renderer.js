@@ -4,6 +4,7 @@ import { renderComposerToolIcon } from '../../composer-tool-icons.js';
 import { renderLinkChipHTML, splitAtAddresses } from '../../ui/links/link-chip.js';
 import { registerSandboxFileParts } from '../../ui/sandbox/sandbox-files.js';
 import { replySourcesButtonHTML } from '../../ui/citations/citation-pills.js';
+import { generatedImageIconButton } from './generated-image-action-markup.js';
 
 const resolveImageAspectRatio = (requestedRatio) => ({
     '1:1': '1 / 1', '16:9': '16 / 9', '9:16': '9 / 16', '4:3': '4 / 3', '3:4': '3 / 4',
@@ -137,12 +138,19 @@ export function buildMessageRenderView({
                         <img data-generated-image-id="${asset.id}" alt="${escapeHTML(labels.imageAlt || '')}" loading="lazy">
                     </button>
                     <div class="generated-image-actions">
-                        <button type="button" data-generated-image-edit="${asset.id}" class="generated-image-action-btn generated-image-edit-btn">
-                            <span>${escapeHTML(labels.edit || '')}</span>
-                        </button>
-                        <a data-generated-image-download="${asset.id}" class="generated-image-action-btn generated-image-download-btn" title="${escapeHTML(labels.imageDownloadOriginal || '')}" aria-label="${escapeHTML(labels.imageDownloadOriginal || '')}">
-                            <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg>
-                        </a>
+                        <div class="generated-image-actions-group">
+                            <button type="button" data-generated-image-edit="${asset.id}" class="generated-image-action-btn generated-image-edit-btn">
+                                <span>${escapeHTML(labels.edit || '')}</span>
+                            </button>
+                            ${generatedImageIconButton('remove', asset.id, labels.imageRemove)}
+                            ${generatedImageIconButton('resize', asset.id, labels.imageResize)}
+                        </div>
+                        <div class="generated-image-actions-group">
+                            ${generatedImageIconButton('share', asset.id, labels.imageShare, ' hidden')}
+                            <a data-generated-image-download="${asset.id}" class="generated-image-action-btn generated-image-icon-btn generated-image-download-btn" title="${escapeHTML(labels.imageDownloadOriginal || '')}" aria-label="${escapeHTML(labels.imageDownloadOriginal || '')}">
+                                <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg>
+                            </a>
+                        </div>
                     </div>
                 </figure>`;
             }).join('');

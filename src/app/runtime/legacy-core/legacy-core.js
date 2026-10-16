@@ -292,7 +292,17 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             escapeHTML,
             setUploadedFiles: files => { uploadedFiles = files; },
             renderFilePreviews: () => legacyRuntimeContext.resolveBinding('submit.renderFilePreviews')(),
-            focusMessageInput: () => ALL_ELEMENTS.messageInput?.focus()
+            focusMessageInput: () => ALL_ELEMENTS.messageInput?.focus(),
+            modelOf: conversation => normalizeConversationModel(conversation),
+            modelGeneratesImages,
+            saveAppData: () => saveAppData(),
+            setComposer: ({ text, files }) => {
+                uploadedFiles = files;
+                ALL_ELEMENTS.messageInput.value = text;
+                ALL_ELEMENTS.messageInput.dispatchEvent(new Event('input', { bubbles: true }));
+                legacyRuntimeContext.resolveBinding('submit.renderFilePreviews')();
+            },
+            submit: () => handleFormSubmit()
         });
         const bindGeneratedImageAssets = async (root, assets) => {
             const { assetStore, interactions } = await getGeneratedImageRuntime();
