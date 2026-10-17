@@ -4,6 +4,7 @@
 //
 //   NVIDIA_API_KEY=nvapi-... node scripts/nvidia-probe.mjs                  (the two NVIDIA models)
 //   OPENROUTER_API_KEY=sk-or-... node scripts/nvidia-probe.mjs --openrouter  (nvidia/nemotron-3.5-super-vl:free)
+//   OPENROUTER_API_KEY=sk-or-... node scripts/nvidia-probe.mjs --openrouter --model deepseek/deepseek-v4.1-flash-1017   (any OpenRouter id)
 //   node scripts/nvidia-probe.mjs --only video --video ./clip.mp4            (one check; a video of your own instead of the made one)
 //   node scripts/nvidia-probe.mjs --model stepfun-ai/step-5-preview          (one model id as the provider lists it; several: --model a,b)
 //   NVIDIA_API_KEY=nvapi-... node scripts/nvidia-probe.mjs --others          (the three other NVIDIA models of the app: DeepSeek V4.1 Flash, GLM-5.3 Flash, GLM-5.3)
@@ -117,7 +118,7 @@ const run = async (model, check) => {
     const response = await fetch(`${BASE}/models`, { headers });
     const json = await response.json().catch(() => null);
     const ids = (json?.data || []).map((entry) => entry.id);
-    const near = ids.filter((id) => /nemotron-3\.5|step-5/i.test(id));
+    const near = ids.filter((id) => /nemotron-3\.5|step-5|deepseek-v4/i.test(id));
     return report(model, check, ids.includes(model), ids.includes(model) ? 'listed' : `not listed; close ids: ${near.join(', ') || '(none)'}`);
   }
   if (check === 'basic') {
@@ -158,13 +159,13 @@ const run = async (model, check) => {
   if (check === 'reasoning') {
     // The ways to switch thinking on or off: the OpenAI field, the OpenRouter object, and the NVIDIA chat template switch. A refused field shows as a FAIL with the reason.
     const variants = viaOpenRouter
-      ? [['reasoning none', { reasoning: { effort: 'none' } }], ['reasoning low', { reasoning: { effort: 'low' } }], ['reasoning medium', { reasoning: { effort: 'medium' } }], ['reasoning high', { reasoning: { effort: 'high' } }], ['reasoning enabled', { reasoning: { enabled: true } }]]
+      ? [['reasoning none', { reasoning: { effort: 'none' } }], ['reasoning low', { reasoning: { effort: 'low' } }], ['reasoning medium', { reasoning: { effort: 'medium' } }], ['reasoning high', { reasoning: { effort: 'high' } }], ['reasoning xhigh', { reasoning: { effort: 'xhigh' } }], ['reasoning max', { reasoning: { effort: 'max' } }], ['reasoning enabled', { reasoning: { enabled: true } }]]
       : [['reasoning_effort none', { reasoning_effort: 'none' }], ['reasoning_effort low', { reasoning_effort: 'low' }], ['reasoning_effort medium', { reasoning_effort: 'medium' }], ['reasoning_effort high', { reasoning_effort: 'high' }],
         ['enable_thinking false', { chat_template_kwargs: { enable_thinking: false } }], ['enable_thinking true', { chat_template_kwargs: { enable_thinking: true } }]];
     for (const [label, extra] of variants) {
       const result = await post({ ...base, max_tokens: 2000, ...extra, messages: [{ role: 'user', content: 'How many primes are below 200? Answer with the number only.' }] });
       const tokens = result.json?.usage?.completion_tokens;
-      report(model, label, result.status === 200, `${result.status} ${result.ms}ms ${result.status === 200 ? `${answerOf(result)}  (${tokens ?? '?'} tokens; the answer is 46)` : redact(result.text).slice(0, 200)}`);
+      report(model, label, result.status === 200, `${result.status} ${result.ms}ms ${result.status === 200 ? `${answerOf(result)}  (${tokens ?? '?'} tokens, ${result.json?.usage?.completion_tokens_details?.reasoning_tokens ?? '?'} of them thinking; the answer is 46)` : redact(result.text).slice(0, 200)}`);
     }
     return null;
   }
