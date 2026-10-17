@@ -990,7 +990,7 @@ test('the thinking is reported to whoever listens, with its kind, and never beco
     await harness.streamApiCall([{ text: 'Hi' }], (piece) => text.push(piece), undefined, false, { onReasoning: (piece, kind) => heard.push([piece, kind]) });
     return { heard, text, request: JSON.parse(harness.requests[0].options.body) };
   };
-  const deepseek = await run('openrouter', { apiId: 'deepseek/deepseek-v4.1-flash' }, stream);
+  const deepseek = await run('openrouter', { apiId: 'deepseek/deepseek-v4.1-flash-1017' }, stream);
   assert.deepEqual(deepseek.heard, [['先想一下', 'raw']]);
   assert.deepEqual(deepseek.text, ['答案']);
   assert.deepEqual((await run('openrouter', { apiId: 'anthropic/claude-sonnet-5.5' }, stream)).heard, [['先想一下', 'summary']], 'a summary is shown as one');

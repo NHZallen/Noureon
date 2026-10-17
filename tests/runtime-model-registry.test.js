@@ -53,7 +53,7 @@ test('model registry exports the canonical model inventory', () => {
   // NVIDIA ended its Kimi K3 on 2026-10-15 (410 Gone): the model is gone from the catalog.
   assert.equal(MODEL_CATALOG.some((model) => model.id === 'nvidia/moonshotai/kimi-k3'), false);
   assert.equal(MODELS.some((model) => model.id === 'nvidia/moonshotai/kimi-k2.6'), false);
-  assert.ok(MODELS.some((model) => model.id === 'deepseek/deepseek-v4.1-flash'
+  assert.ok(MODELS.some((model) => model.id === 'deepseek/deepseek-v4.1-flash-1017'
     && model.provider === 'openrouter'
     && model.outputPricePerMillion === 1.2));
   assert.equal(MODELS.some((model) => model.id === 'deepseek/deepseek-v4-flash-0731'), false);
@@ -95,9 +95,10 @@ test('model registry exports the canonical model inventory', () => {
   assert.equal(getCanonicalModelId('openai/gpt-5.6-luna'), 'openai/gpt-6-luna');
   assert.equal(getCanonicalModelId('anthropic/claude-opus-5'), 'anthropic/claude-opus-5.5');
   // NVIDIA's Kimi K3 is retired (2026-10-15), so the old Kimi K2.6 ids no longer lead anywhere in the list.
-  assert.equal(getCanonicalModelId('deepseek/deepseek-v4-flash-0731'), 'deepseek/deepseek-v4.1-flash');
-  assert.equal(getCanonicalModelId('deepseek/deepseek-v4-flash-vision-exp'), 'deepseek/deepseek-v4.1-flash');
-  assert.equal(getCanonicalModelId('deepseek/deepseek-v4-pro-0813'), 'deepseek/deepseek-v4.1-flash');
+  assert.equal(getCanonicalModelId('deepseek/deepseek-v4.1-flash'), 'deepseek/deepseek-v4.1-flash-1017');
+  assert.equal(getCanonicalModelId('deepseek/deepseek-v4-flash-0731'), 'deepseek/deepseek-v4.1-flash-1017');
+  assert.equal(getCanonicalModelId('deepseek/deepseek-v4-flash-vision-exp'), 'deepseek/deepseek-v4.1-flash-1017');
+  assert.equal(getCanonicalModelId('deepseek/deepseek-v4-pro-0813'), 'deepseek/deepseek-v4.1-flash-1017');
   assert.equal(getCanonicalModelId('openai/gpt-image-2'), 'openai/gpt-image-2.5-flare');
 });
 
@@ -121,7 +122,7 @@ test('model registry preserves vision and document capability behavior', () => {
   const openRouterGpt56Models = ['openai/gpt-6-luna', 'openai/gpt-5.6-terra', 'openai/gpt-6.1-sol']
     .map((id) => MODELS.find((model) => model.id === id));
   const openRouterGrokVisionModel = MODELS.find((model) => model.id === 'x-ai/grok-4.6');
-  const deepseekVisionModel = MODELS.find((model) => model.id === 'deepseek/deepseek-v4.1-flash');
+  const deepseekVisionModel = MODELS.find((model) => model.id === 'deepseek/deepseek-v4.1-flash-1017');
   const glmFlashVisionModel = MODELS.find((model) => model.id === 'z-ai/glm-5.3-flash');
   const nvidiaDeepseekVisionModel = MODELS.find((model) => model.id === 'nvidia/deepseek-ai/deepseek-v4.1-flash');
   const nvidiaFlashVisionModel = MODELS.find((model) => model.id === 'nvidia/z-ai/glm-5.3-flash');
@@ -149,11 +150,14 @@ test('model registry preserves vision and document capability behavior', () => {
   assert.equal(modelSupportsDocumentUpload(geminiLiteModel), true);
   assert.equal(modelSupportsDocumentUpload(openRouterGrokVisionModel), true);
   assert.equal(modelSupportsDocumentUpload(deepseekVisionModel), true);
+  // The probe of 2026-10-17 on the -1017 build: pictures and PDF work, a video is refused (404, no endpoint takes video input).
+  assert.equal(modelSupportsUploadedFile(deepseekVisionModel, { type: 'image/png' }), true);
+  assert.equal(modelSupportsUploadedFile(deepseekVisionModel, { type: 'video/mp4' }), false);
   assert.equal(modelSupportsDocumentUpload(nvidiaVisionModel), false);
 });
 
 test('model registry exposes precise reasoning depth options for supported models only', () => {
-  const deepseekModel = MODELS.find((model) => model.id === 'deepseek/deepseek-v4.1-flash');
+  const deepseekModel = MODELS.find((model) => model.id === 'deepseek/deepseek-v4.1-flash-1017');
   const grokModel = MODELS.find((model) => model.id === 'x-ai/grok-4.6');
   const openAiModel = MODELS.find((model) => model.id === 'openai/gpt-6-astra');
   const gpt56Model = MODELS.find((model) => model.id === 'openai/gpt-5.6-terra');
@@ -288,7 +292,7 @@ test('model registry keeps council and translator helpers live-config backed', (
       modelSettings: [
         { id: 'openai/gpt-6-astra', hidden: false, order: 2 },
         { id: 'gemini-3.8-flash', hidden: false, order: 1 },
-        { id: 'deepseek/deepseek-v4.1-flash', hidden: true, order: 0 }
+        { id: 'deepseek/deepseek-v4.1-flash-1017', hidden: true, order: 0 }
       ],
       councilTranslatorModelId: 'openai/gpt-6-astra',
       singleDocumentTranslatorModelId: 'gemini-4-argon'
