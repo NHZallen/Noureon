@@ -70,8 +70,24 @@ export function createOpenRouterImageGenerator({ fetchImpl = fetch, makeSeed = r
     prompt,
     config = {},
     inputReferences = [],
+    // One picture for each group, each from its own reference pictures and in its own shape: [{ inputReferences, aspectRatio }] (the pictures of an earlier
+    // reply, each one built on by the picture at its place). One request each, made together; the pictures come back in the order of the groups.
+    groups = null,
     signal
   }) {
+    if (Array.isArray(groups) && groups.length > 0) {
+      const settledGroups = await Promise.allSettled(groups.map((group) => callOnce({
+        apiKey, model, prompt, signal,
+        inputReferences: group.inputReferences || [],
+        config: { ...config, n: 1, ...(group.aspectRatio ? { aspectRatio: group.aspectRatio } : {}), ...(SEPARATE_REQUEST_MODELS.has(model) && !Number.isFinite(Number(config.seed)) ? { seed: makeSeed() } : {}) }
+      }).then(images => images.map(image => ({ ...image, ...(group.aspectRatio || config.aspectRatio ? { aspectRatio: group.aspectRatio || config.aspectRatio } : {}) })))));
+      const groupImages = settledGroups.flatMap(outcome => (outcome.status === 'fulfilled' ? outcome.value : []));
+      if (!groupImages.length) {
+        const failed = settledGroups.find(outcome => outcome.status === 'rejected');
+        if (failed) throw failed.reason;
+      }
+      return { images: groupImages };
+    }
     const count = Math.floor(Number(config.n)) || 1;
     if (count < 2 || !SEPARATE_REQUEST_MODELS.has(model)) {
       return { images: await callOnce({ apiKey, model, prompt, config, inputReferences, signal }) };

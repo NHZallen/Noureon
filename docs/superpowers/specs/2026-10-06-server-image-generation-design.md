@@ -190,3 +190,7 @@ owner 確認第二次實測成功（伺服器畫圖、關頁面、回來有圖�
 
 **尚未解決（owner 回報）：** 對話裡只有一張圖時手機上滑不動、像當機。在桌面 Chromium 的手機模擬裡重現不了（聊天區有 1 像素的可捲動範圍，`#message-list { min-height: calc(100% + 1px) }` 就是為這個做的），需要在 iPhone 上確認：短的純文字對話也滑不動嗎？截圖左上角那個灰色方塊是什麼？
 
+
+## 12. image.groups：多張圖各用各的參考圖與比例（2026-10-17，NOU-49，contract）
+
+`image` 新增選填 `groups: [{ references, aspectRatio? }]`（2 到 10 組）。有 `groups` 時，伺服器每組送一個請求（n=1），用該組的參考圖與比例，一起送出、依組的順序回傳，每張圖記自己的 `aspectRatio`；沒有 `groups` 時與原本相同。頁面在「沒附圖、要的張數＝上一則回覆的張數（≥2）、不是拼貼」時用它：新圖 N 改自舊圖 N，比例各自沿用（`lifecycle` 的 `findLatestGeneratedSet`）。產圖函式（頁面與伺服器共用）：`openrouter-image-generation.js` 的 `groups`；Qwen 另外各組會帶不同的隨機 seed。舊伺服器不認識 `groups` 時回 `invalid_run_spec`，頁面靜默改在本機畫。部署順序：伺服器先，再頁面。

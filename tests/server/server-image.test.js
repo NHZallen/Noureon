@@ -371,3 +371,36 @@ test('/v1/runs takes an image request when the server can make images, and answe
     assert.equal((await refused.json()).error.code, 'unsupported_mode');
   });
 });
+
+// ----- pictures that each build on their own earlier picture (image.groups)
+
+test('image.groups is accepted with its own pictures and shapes, and refused when it is not a list of 2 to 10 well formed groups', () => {
+  const marker = { __astraCloudAsset: { path: `${USER}/${'c'.repeat(64)}`, mimeType: 'image/png', encoding: 'blob' } };
+  const ok = validateRunSpec(imageSpec({ image: { prompt: 'add animals', config: { aspectRatio: '1:1', n: 2 }, references: [], groups: [{ references: ['data:image/png;base64,QUJD'], aspectRatio: '9:16' }, { references: [marker] }] } }));
+  assert.equal(ok.ok, true, JSON.stringify(ok.errors));
+  assert.deepEqual(ok.spec.image.groups, [{ references: ['data:image/png;base64,QUJD'], aspectRatio: '9:16' }, { references: [marker] }]);
+  assert.equal(validateRunSpec(imageSpec()).spec.image.groups, undefined, 'without groups the request is as it was');
+
+  const bad = (groups) => validateRunSpec(imageSpec({ image: { prompt: 'x', config: { aspectRatio: '1:1' }, references: [], groups } }));
+  assert.equal(bad([{ references: [] }]).ok, false, 'one group is no set');
+  assert.equal(bad(Array.from({ length: 11 }, () => ({ references: [] }))).ok, false);
+  assert.equal(bad('x').ok, false);
+  assert.match(JSON.stringify(bad([{ references: ['nope'] }, { references: [] }]).errors), /image\.groups\[0\]\.references\[0\]/);
+  assert.match(JSON.stringify(bad([{ aspectRatio: '5:3' }, {}]).errors), /image\.groups\[0\]\.aspectRatio/);
+  assert.match(JSON.stringify(bad([{ weird: 1 }, {}]).errors), /image\.groups\[0\]\.weird/);
+});
+
+test('with groups the server asks once for each, each with its own pictures and shape, and keeps each picture with its own shape', async () => {
+  const router = openRouter();
+  const marker = { __astraCloudAsset: { path: `${USER}/${'d'.repeat(64)}`, mimeType: 'image/png', encoding: 'blob' } };
+  const files = memoryFiles({ loadable: { [marker.__astraCloudAsset.path]: new Uint8Array([65, 66, 67]) } });
+  const spec = validateRunSpec(imageSpec({ image: { prompt: 'add some animals', config: { aspectRatio: '1:1', n: 2 }, references: [], groups: [{ references: ['data:image/png;base64,REVG'], aspectRatio: '9:16' }, { references: [marker], aspectRatio: '16:9' }] } })).spec;
+  const result = await run(spec, { fetchImpl: router.fetchImpl, files });
+  assert.equal(router.calls.length, 2, 'one request for each group');
+  const bodies = router.calls.map((call) => call.body).sort((a, b) => a.aspect_ratio.localeCompare(b.aspect_ratio));
+  assert.deepEqual(bodies.map((body) => [body.n, body.aspect_ratio]), [[1, '16:9'], [1, '9:16']]);
+  assert.ok(bodies.every((body) => body.prompt === 'add some animals' && body.input_references.length === 1));
+  assert.ok(bodies.some((body) => body.input_references[0].image_url.url === 'data:image/png;base64,QUJD'), 'the picture of the cloud space is read');
+  assert.equal(result.parts.length, 2);
+  assert.deepEqual(result.parts.map((part) => part.generatedImage.aspectRatio), ['9:16', '16:9'], 'in the order of the groups, each in its own shape');
+});

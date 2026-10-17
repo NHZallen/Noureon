@@ -40,19 +40,35 @@ export async function executeImage({
   // What the other pages of the account see until the picture is there: the same place-holder the page itself draws.
   onUpdate([{ imageGenerationLoading: true, imageAspectRatio: aspectRatio }]);
 
-  const inputReferences = [];
-  for (const reference of image.references) {
-    if (typeof reference === 'string') {
-      inputReferences.push(reference);
-      continue;
+  // The pictures to start from, as data addresses (those of the cloud space are read from it).
+  const loadReferences = async (list) => {
+    const loaded = [];
+    for (const reference of list) {
+      if (typeof reference === 'string') {
+        loaded.push(reference);
+        continue;
+      }
+      try {
+        const bytes = await files.load({ userId, marker: reference });
+        loaded.push(toDataUrl(bytes, reference.__astraCloudAsset.mimeType));
+      } catch (error) {
+        if (signal?.aborted) return null;
+        onProblem('image_reference_unreadable', error);
+        throw new ReplyError('A reference picture could not be read from your cloud space.', ERROR_CODES.providerError);
+      }
     }
-    try {
-      const bytes = await files.load({ userId, marker: reference });
-      inputReferences.push(toDataUrl(bytes, reference.__astraCloudAsset.mimeType));
-    } catch (error) {
-      if (signal?.aborted) return stopped();
-      onProblem('image_reference_unreadable', error);
-      throw new ReplyError('A reference picture could not be read from your cloud space.', ERROR_CODES.providerError);
+    return loaded;
+  };
+  const inputReferences = await loadReferences(image.references);
+  if (!inputReferences) return stopped();
+  // Pictures that each build on their own earlier picture: one group of pictures to start from, and one shape, for each.
+  let groups = null;
+  if (image.groups?.length) {
+    groups = [];
+    for (const group of image.groups) {
+      const loaded = await loadReferences(group.references);
+      if (!loaded) return stopped();
+      groups.push({ inputReferences: loaded, ...(group.aspectRatio ? { aspectRatio: group.aspectRatio } : {}) });
     }
   }
   if (signal?.aborted) return stopped();
@@ -65,6 +81,7 @@ export async function executeImage({
       prompt: image.prompt,
       config: image.config,
       inputReferences,
+      groups,
       signal
     });
   } catch (error) {
@@ -97,7 +114,7 @@ export async function executeImage({
         storageKey: `generatedImage:supabase:${userId}:${id}`,
         mediaType,
         size: bytes.byteLength,
-        ...(aspectRatio ? { aspectRatio } : {}),
+        ...(picture.aspectRatio || aspectRatio ? { aspectRatio: picture.aspectRatio || aspectRatio } : {}),
         cloudAsset: marker
       }
     });

@@ -482,3 +482,62 @@ test('a picture built on the earlier one keeps its shape; a shape that was said,
   await run([{ text: 'a wide meadow, 16:9' }], '9:16', async () => ({ collage: 0.05, countSaid: 0.05, count: null, more: 0.02, ratioStated: 0.95, portrait: 0.05, landscape: 0.9, square: 0.05 }));
   assert.equal(requests[3].config.aspectRatio, '16:9', 'a shape that was said wins');
 });
+
+test('two pictures wanted after two pictures: the picture at each place is built on by the picture at the same place, each in its own shape', async () => {
+  const requests = [];
+  const lifecycle = createImageGenerationResponseLifecycle({
+    buildSingleModelTranslatedRequestParts: async parts => parts,
+    generateImage: async value => {
+      requests.push(value);
+      return { images: [{ b64Json: 'one', aspectRatio: '9:16' }, { b64Json: 'two', aspectRatio: '16:9' }] };
+    },
+    saveImageAsset: async image => ({ id: image.b64Json, storageKey: image.b64Json, mediaType: 'image/png', size: 5, aspectRatio: image.aspectRatio }),
+    getStoredImageDataUrl: async (picture) => `data:image/png;base64,${picture.id}`,
+    getApiKey: () => 'key',
+    getText: (_key, fallback) => fallback
+  });
+  const model = { id: 'openai/gpt-image-2.5-sunburst', provider: 'openrouter', maxImageCount: 10, supportedImageAspectRatios: ['1:1', '9:16', '16:9'] };
+  const earlier = { role: 'model', parts: [{ generatedImage: { id: 'old-1', storageKey: 'k1', aspectRatio: '9:16' } }, { generatedImage: { id: 'old-2', storageKey: 'k2', aspectRatio: '16:9' } }] };
+  const run = (userParts, { advanced = { n: 2 }, decision = null, messages = [earlier], serverReply = null } = {}) => lifecycle.run({
+    targetElement: { innerHTML: '' }, userParts, modelInfo: model, serverReply, assistantMessageId: serverReply ? 'a1' : null,
+    conversation: { imageConfig: { aspectRatio: '1:1', resolution: '1K' }, imageAdvancedConfig: advanced, messages },
+    requestImageDecisions: decision ? async () => decision : null
+  });
+
+  const result = await run([{ text: 'add some animals' }]);
+  assert.deepEqual(requests[0].groups, [
+    { inputReferences: ['data:image/png;base64,old-1'], aspectRatio: '9:16' },
+    { inputReferences: ['data:image/png;base64,old-2'], aspectRatio: '16:9' }
+  ]);
+  assert.equal(requests[0].config.n, 2);
+  assert.equal(result.descriptors.length, 2);
+  assert.deepEqual(result.descriptors.map(picture => picture.aspectRatio), ['9:16', '16:9'], 'each picture is kept in its own shape');
+
+  // Said in words: two pictures
+  await run([{ text: 'these two, with animals' }], { advanced: { n: 1 }, decision: { collage: 0.05, countSaid: 0.95, count: 2, more: 0.02, ratioStated: 0.05, portrait: 0.05, landscape: 0.05, square: 0.05 } });
+  assert.equal(requests[1].groups?.length, 2);
+
+  // Not the same number as the last reply held, a picture the person attached, or one earlier picture only: the last picture alone, as before.
+  await run([{ text: 'add some animals' }], { advanced: { n: 1 } });
+  assert.equal(requests[2].groups, undefined);
+  assert.equal(requests[2].inputReferences.length, 1);
+  await run([{ text: 'add some animals' }, { inlineData: { mimeType: 'image/png', data: 'mine' } }]);
+  assert.equal(requests[3].groups, undefined);
+  await run([{ text: 'add some animals' }], { messages: [{ role: 'model', parts: [earlier.parts[0]] }] });
+  assert.equal(requests[4].groups, undefined);
+  await run([{ text: 'a collage of these' }], { decision: { collage: 0.95, countSaid: 0.9, count: null, more: 0.02, ratioStated: 0.05, portrait: 0.05, landscape: 0.05, square: 0.05 } });
+  assert.equal(requests[5].groups, undefined, 'a collage is one picture');
+
+  // To the server the groups go as pictures to start from and a shape each.
+  const started = [];
+  const serverReply = {
+    planImage: () => ({ ok: true }),
+    startImage: async (args) => { started.push(args); return { ok: false, reason: 'busy', notify: false }; },
+    notify: () => {}
+  };
+  await run([{ text: 'add some animals' }], { serverReply });
+  assert.deepEqual(started[0].groups, [
+    { references: ['data:image/png;base64,old-1'], aspectRatio: '9:16' },
+    { references: ['data:image/png;base64,old-2'], aspectRatio: '16:9' }
+  ]);
+});

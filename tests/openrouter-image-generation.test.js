@@ -117,3 +117,26 @@ test('some pictures are better than none, and with none the first problem is the
   const failing = createOpenRouterImageGenerator({ fetchImpl: async () => new Response(JSON.stringify({ error: { message: 'no credit' } }), { status: 402 }) });
   await assert.rejects(failing({ apiKey: 'k', model: 'qwen/qwen-image-2.1-pro', prompt: 'x', config: { n: 2 } }), /no credit/);
 });
+
+test('groups: one picture for each, each from its own pictures and shape, in the order of the groups', async () => {
+  const calls = [];
+  const generate = createOpenRouterImageGenerator({
+    makeSeed: () => 9,
+    fetchImpl: async (_url, options) => {
+      const body = JSON.parse(options.body);
+      calls.push(body);
+      return new Response(JSON.stringify({ data: [{ b64_json: `from-${body.input_references[0].image_url.url}` }] }), { status: 200 });
+    }
+  });
+  const result = await generate({
+    apiKey: 'k', model: 'openai/gpt-image-2.5-sunburst', prompt: 'add some animals', config: { aspectRatio: '1:1', n: 2 },
+    groups: [{ inputReferences: ['one'], aspectRatio: '9:16' }, { inputReferences: ['two'] }]
+  });
+  assert.deepEqual(calls.map(call => [call.n, call.aspect_ratio]), [[1, '9:16'], [1, '1:1']]);
+  assert.equal('seed' in calls[0], false, 'a model that varies by itself gets no seed');
+  assert.deepEqual(result.images.map(image => [image.b64Json, image.aspectRatio]), [['from-one', '9:16'], ['from-two', '1:1']]);
+
+  calls.length = 0;
+  await generate({ apiKey: 'k', model: 'qwen/qwen-image-2.1-pro', prompt: 'x', config: { aspectRatio: '1:1' }, groups: [{ inputReferences: ['a'] }, { inputReferences: ['b'] }] });
+  assert.deepEqual(calls.map(call => call.seed), [9, 9], 'a model that gives the same picture again gets a seed for each');
+});

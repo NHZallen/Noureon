@@ -28,6 +28,16 @@ const findLatestGeneratedImage = (conversation) => {
   return null;
 };
 
+// The pictures of the last reply that has any, in their order (the set the person has just been shown).
+const findLatestGeneratedSet = (conversation) => {
+  const messages = conversation?.messages || [];
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const pictures = (messages[index]?.parts || []).map(part => part.generatedImage).filter(Boolean);
+    if (pictures.length > 0) return pictures;
+  }
+  return [];
+};
+
 const getTextPrompt = (parts) => parts
   .map(part => part.text || '')
   .filter(Boolean)
@@ -153,6 +163,7 @@ export function createImageGenerationResponseLifecycle({
     const prompt = spokenInstruction ? `${editedPrompt}\n\n${spokenInstruction}` : editedPrompt;
 
     let inputReferences = getInlineReferences(requestParts);
+    const attachedByPerson = inputReferences.length > 0;
     // The earlier picture that goes along as the one to build on, when none is attached.
     let carriedImage = null;
     if (inputReferences.length === 0) {
@@ -189,6 +200,21 @@ export function createImageGenerationResponseLifecycle({
       if (waiting) waiting.style.aspectRatio = resolveImageAspectRatio(carriedImage.aspectRatio);
     }
 
+    // Pictures built on a set of earlier pictures (nothing attached, as many pictures wanted as the last reply held): the picture at each place is built on
+    // by the picture at the same place, in its own shape, one request for each. Anything else builds on the last picture alone, as before.
+    let groups = null;
+    const previousSet = carriedImage && !attachedByPerson ? findLatestGeneratedSet(conversation) : [];
+    const wantedCount = Math.min(spoken.count || Number(conversation.imageAdvancedConfig?.n) || 1, Number(modelInfo.maxImageCount) || 10);
+    if (!spoken.collage && previousSet.length >= 2 && wantedCount === previousSet.length) {
+      const addresses = await Promise.all(previousSet.map(picture => getStoredImageDataUrl(picture)));
+      if (addresses.every(Boolean)) {
+        groups = previousSet.map((picture, index) => ({
+          inputReferences: [addresses[index]],
+          aspectRatio: spoken.aspectRatio || (picture.aspectRatio && (supportedRatios.length === 0 || supportedRatios.includes(picture.aspectRatio)) ? picture.aspectRatio : normalizedConfig.aspectRatio)
+        }));
+      }
+    }
+
     // An editing model needs a picture to edit, and takes only so many.
     if (modelInfo.minImageReferences && inputReferences.length < modelInfo.minImageReferences) {
       throw new Error(getText('imageReferenceRequired', 'This model edits pictures: attach the picture to edit, or make one first.'));
@@ -208,6 +234,7 @@ export function createImageGenerationResponseLifecycle({
         ...(conversation.imageAdvancedConfig || {})
       },
       inputReferences,
+      ...(groups ? { groups } : {}),
       signal
     };
     // Quality, background and compression are sent only to a model that lists them (GPT Image); the others would be asked for what they do not take.
@@ -216,6 +243,7 @@ export function createImageGenerationResponseLifecycle({
     }
     // What was said about the count wins for this message; a count saved with another model must not ask a one-picture model for more.
     if (spoken.count) generationRequest.config.n = spoken.count;
+    if (groups) generationRequest.config.n = groups.length;
     if (modelInfo.maxImageCount && Number(generationRequest.config.n) > modelInfo.maxImageCount) generationRequest.config.n = modelInfo.maxImageCount;
     const reasoningConfig = getModelReasoningConfig(modelInfo);
     const reasoningEffort = reasoningConfig
@@ -234,6 +262,7 @@ export function createImageGenerationResponseLifecycle({
         prompt,
         config: generationRequest.config,
         references: inputReferences,
+        groups: groups ? groups.map(group => ({ references: group.inputReferences, aspectRatio: group.aspectRatio })) : null,
         assistantMessageId,
         sequence,
         uiLanguage
@@ -245,7 +274,7 @@ export function createImageGenerationResponseLifecycle({
     if (!result.images?.length) throw new Error(getText('imageNoResult', 'The image was made, but no picture came back to show.'));
     const descriptors = await Promise.all(result.images.map(image => saveImageAsset({
       ...image,
-      aspectRatio: normalizedConfig.aspectRatio
+      aspectRatio: image.aspectRatio || normalizedConfig.aspectRatio
     })));
     return {
       parts: descriptors.map(generatedImage => ({ generatedImage })),

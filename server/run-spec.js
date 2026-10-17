@@ -64,9 +64,10 @@ function validateImageSpec(input) {
   const image = input.image;
   let config = {};
   let references = [];
+  let groups = null;
   if (!isObject(image)) fail('image', 'must be an object');
   else {
-    for (const name of Object.keys(image)) if (!['prompt', 'config', 'references'].includes(name)) fail(`image.${name}`, 'is not a known field');
+    for (const name of Object.keys(image)) if (!['prompt', 'config', 'references', 'groups'].includes(name)) fail(`image.${name}`, 'is not a known field');
     if (!text(image.prompt, LIMITS.maxImagePromptChars)) fail('image.prompt', `must be a text of at most ${LIMITS.maxImagePromptChars} characters`);
     if (!isObject(image.config)) fail('image.config', 'must be an object');
     else {
@@ -94,6 +95,23 @@ function validateImageSpec(input) {
         references = image.references;
       }
     }
+    // The pictures of an earlier reply, each built on by the picture at its place: one request for each group (server/image-run.js).
+    if (image.groups !== undefined) {
+      if (!Array.isArray(image.groups) || image.groups.length < 2 || image.groups.length > 10) fail('image.groups', 'must be a list of 2 to 10 groups');
+      else {
+        groups = image.groups.map((group, groupIndex) => {
+          if (!isObject(group)) { fail(`image.groups[${groupIndex}]`, 'must be an object'); return null; }
+          for (const name of Object.keys(group)) if (!['references', 'aspectRatio'].includes(name)) fail(`image.groups[${groupIndex}].${name}`, 'is not a known field');
+          const list = group.references === undefined ? [] : group.references;
+          if (!Array.isArray(list) || list.length > LIMITS.maxImageReferences) fail(`image.groups[${groupIndex}].references`, `must be a list of at most ${LIMITS.maxImageReferences} pictures`);
+          else list.forEach((reference, index) => {
+            if (!isDataImage(reference) && !isImageMarker(reference)) fail(`image.groups[${groupIndex}].references[${index}]`, 'must be a picture (a data address or a file of the cloud space)');
+          });
+          if (group.aspectRatio !== undefined && !IMAGE_ASPECT_RATIOS.includes(group.aspectRatio)) fail(`image.groups[${groupIndex}].aspectRatio`, 'is not a ratio the app offers');
+          return { references: Array.isArray(list) ? list : [], ...(group.aspectRatio ? { aspectRatio: group.aspectRatio } : {}) };
+        });
+      }
+    }
   }
 
   const secrets = input.secrets;
@@ -117,7 +135,7 @@ function validateImageSpec(input) {
       // What the rest of the server reads of any reply (the language of its error, the metadata of its message); an image has no history.
       request: { history: [], currentMessage: { parts: [] }, systemInstruction: '', language: request.language, ...(request.messageMetadata ? { messageMetadata: request.messageMetadata } : {}) },
       tools: { webSearch: 'off', searchProvider: 'tavily', advanced: false },
-      image: { prompt: image.prompt, config, references },
+      image: { prompt: image.prompt, config, references, ...(groups ? { groups } : {}) },
       secrets: { providerKey: secrets.providerKey }
     }
   };
