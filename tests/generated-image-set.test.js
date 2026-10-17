@@ -12,7 +12,8 @@ test('one picture stays as it was, several become a set with a small picture for
   assert.equal(renderGeneratedImageSet({ cards: [card('a')], assets: [assets[0]] }), card('a'));
   assert.equal(renderGeneratedImageSet({ cards: [], assets: [] }), '');
   const html = renderGeneratedImageSet({ cards: assets.map(a => card(a.id)), assets, label: 'Picture {n} of {total}' });
-  assert.equal((html.match(/class="generated-image-slide"/g) || []).length, 3);
+  assert.equal((html.match(/class="generated-image-slide/g) || []).length, 3);
+  assert.equal((html.match(/ inert aria-hidden="true"/g) || []).length, 2, 'the first picture is shown, the others wait');
   assert.equal((html.match(/data-generated-image-thumb="/g) || []).length, 3);
   assert.match(html, /aria-label="Picture 2 of 3"/);
   assert.match(html, /generated-image-thumb is-active" data-generated-image-thumb="0"/, 'the first is the chosen one');
@@ -20,33 +21,45 @@ test('one picture stays as it was, several become a set with a small picture for
   assert.match(renderGeneratedImageSet({ cards: assets.map(a => card(a.id)), assets }), /aria-label="3 \/ 3"/, 'without words the number alone');
 });
 
-test('swiping the big picture moves the mark, tapping a small one brings its picture', async () => {
+test('tapping a small picture shows its picture at once, with no sliding and no swiping of the big one', async () => {
   const { document, window, cleanup } = createDom(`<div id="root">${renderGeneratedImageSet({ cards: assets.map(a => card(a.id)), assets })}</div>`);
   const root = document.getElementById('root');
   const track = root.querySelector('[data-generated-image-track]');
   const strip = root.querySelector('[data-generated-image-thumbs]');
-  const scrolls = [];
-  Object.defineProperty(track, 'clientWidth', { value: 300, configurable: true });
-  track.scrollTo = (options) => { scrolls.push(options); };
-  strip.scrollTo = () => {};
-  bindGeneratedImageSets(root, { prefersReducedMotion: () => false });
-  bindGeneratedImageSets(root, { prefersReducedMotion: () => false });
+  const slides = Array.from(root.querySelectorAll('.generated-image-slide'));
+  let trackScrolls = 0;
+  track.scrollTo = () => { trackScrolls += 1; };
+  const stripScrolls = [];
+  strip.scrollTo = (options) => { stripScrolls.push(options); };
+  bindGeneratedImageSets(root);
+  bindGeneratedImageSets(root);
   const buttons = Array.from(root.querySelectorAll('[data-generated-image-thumb]'));
   const marked = () => buttons.findIndex(button => button.classList.contains('is-active'));
+  const shown = () => slides.findIndex(slide => slide.classList.contains('is-active'));
+
+  assert.equal(shown(), 0);
+  assert.equal(slides[1].hasAttribute('inert'), true, 'the hidden pictures cannot be reached');
+  assert.equal(slides[0].hasAttribute('inert'), false);
 
   buttons[2].click();
-  assert.equal(marked(), 2);
+  assert.equal(marked(), 2, 'the mark moves in the same moment as the tap');
+  assert.equal(shown(), 2);
   assert.equal(buttons[2].getAttribute('aria-current'), 'true');
   assert.equal(buttons[0].getAttribute('aria-current'), 'false');
-  assert.deepEqual(scrolls, [{ left: 600, behavior: 'smooth' }], 'bound once, one scroll to the third picture');
+  assert.equal(slides[2].hasAttribute('inert'), false);
+  assert.equal(slides[0].hasAttribute('inert'), true);
+  assert.equal(trackScrolls, 0, 'the big picture is not scrolled');
+  assert.deepEqual(stripScrolls.map(options => options.behavior), ['auto'], 'the row of small pictures does not glide either');
 
   track.scrollLeft = 300;
   track.dispatchEvent(new window.Event('scroll'));
-  await new Promise(resolve => setTimeout(resolve, 60));
-  assert.equal(marked(), 1, 'a swipe to the second picture moves the mark');
+  await new Promise(resolve => setTimeout(resolve, 40));
+  assert.equal(marked(), 2, 'a swipe on the big picture changes nothing');
 
+  strip.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+  assert.equal(marked(), 1);
+  assert.equal(shown(), 1);
   strip.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
-  assert.equal(marked(), 2);
   strip.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
   assert.equal(marked(), 2, 'no further than the last');
   cleanup();

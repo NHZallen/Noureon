@@ -64,7 +64,7 @@ test('several pictures of one reply are one set with a small picture for each; t
   const picture = (id) => ({ generatedImage: { id, storageKey: `key-${id}`, mediaType: 'image/png', size: 5, aspectRatio: '1:1' } });
   const view = render({ role: 'model', createdAt: '2026-07-01T15:52:00.000Z', parts: [picture('p1'), picture('p2'), picture('p3')] });
   assert.equal((view.messageHTML.match(/data-generated-image-set/g) || []).length, 1);
-  assert.equal((view.messageHTML.match(/class="generated-image-slide"/g) || []).length, 3);
+  assert.equal((view.messageHTML.match(/class="generated-image-slide/g) || []).length, 3);
   assert.equal((view.messageHTML.match(/data-generated-image-thumb="/g) || []).length, 3);
   assert.equal((view.messageHTML.match(/data-generated-image-edit="/g) || []).length, 3, 'each picture keeps its own buttons');
   assert.equal(view.generatedImageAssets.length, 3);

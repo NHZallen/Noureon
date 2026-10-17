@@ -1,4 +1,4 @@
-/* Several pictures from one request: a big picture swiped sideways and a row of small ones under it (generated-image-set.js). */
+/* Several pictures from one request: one big picture and a row of small ones under it (generated-image-set.js). */
 .generated-image-set {
     display: flex;
     flex-direction: column;
@@ -7,27 +7,32 @@
     min-width: 0;
 }
 
+/* The pictures lie on top of each other in one place; the shown one fades in over the one before. The big picture is not swiped. */
 .generated-image-track {
-    display: flex;
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
-    overscroll-behavior-x: contain;
-    scrollbar-width: none;
+    display: grid;
     border-radius: 1.2rem;
 }
 
-.generated-image-track::-webkit-scrollbar,
-.generated-image-thumbs::-webkit-scrollbar {
-    display: none;
-}
-
 .generated-image-slide {
-    flex: 0 0 100%;
+    grid-area: 1 / 1;
     min-width: 0;
     display: flex;
     justify-content: flex-start;
-    scroll-snap-align: start;
-    scroll-snap-stop: always;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity .24s ease, visibility 0s linear .24s;
+}
+
+.generated-image-slide.is-active {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transition: opacity .24s ease, visibility 0s;
+}
+
+.generated-image-thumbs::-webkit-scrollbar {
+    display: none;
 }
 
 .generated-image-thumbs {
@@ -54,7 +59,6 @@
     opacity: .72;
     outline: 2px solid transparent;
     outline-offset: 2px;
-    transition: opacity .18s ease, outline-color .18s ease;
 }
 
 .generated-image-thumb img {
@@ -79,5 +83,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .generated-image-thumb { transition: none; }
+    .generated-image-slide,
+    .generated-image-slide.is-active { transition: none; }
 }
