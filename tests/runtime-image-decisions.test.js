@@ -77,3 +77,22 @@ test('what is read from the answers for the model in use', () => {
   assert.deepEqual(readSpokenRequest({ decision: { ...base, more: 0.9 }, message: 'x', modelInfo: model }).problem, { code: 'count-any', max: 6 });
   assert.equal(readSpokenRequest({ decision: { ...base, more: 0.9 }, message: 'x', modelInfo: model, attached: 5 }).problem, null, 'too many reference pictures are checked on their own, by number');
 });
+
+test('the readings the probe of 2026-10-17 corrected: a collage needs a sure yes, a said count beats "one picture", a word for the shape stands alone', () => {
+  const model = { maxImageCount: 6, maxImageReferences: 4, supportedImageAspectRatios: ['1:1', '3:4', '9:16', '16:9'] };
+  const base = { collage: 0.05, single: 0.05, count: null, more: 0.02, ratioStated: 0.05, portrait: 0.05, landscape: 0.05, square: 0.05 };
+  // "four pictures in different styles, landscape": collage 0.74, one picture 0.77, four 0.93
+  const four = readSpokenRequest({ decision: { ...base, collage: 0.74, single: 0.77, count: 4, ratioStated: 0.91, landscape: 0.92 }, message: '畫四張不同風格的貓，橫式', modelInfo: model });
+  assert.deepEqual([four.count, four.collage, four.aspectRatio], [4, false, '16:9']);
+  // "two vertical drawings" in Russian: one picture 0.63, two 0.9
+  assert.equal(readSpokenRequest({ decision: { ...base, single: 0.63, count: 2 }, message: 'x', modelInfo: model }).count, 2);
+  // a real collage (0.89) is one picture even when a count was read
+  const comic = readSpokenRequest({ decision: { ...base, collage: 0.89, single: 0.68, count: 4 }, message: 'x', modelInfo: model });
+  assert.deepEqual([comic.count, comic.collage], [1, true]);
+  // "six phone wallpapers": the shape was not stated as such (0.33) but a tall picture was asked for (0.86)
+  assert.equal(readSpokenRequest({ decision: { ...base, count: 6, ratioStated: 0.33, portrait: 0.86 }, message: '來六張手機桌布', modelInfo: model }).aspectRatio, '9:16');
+  // a guess about the shape (0.4) is not taken
+  assert.equal(readSpokenRequest({ decision: { ...base, landscape: 0.4 }, message: 'trois paysages de montagne', modelInfo: model }).aspectRatio, '');
+  // only "one picture" said outright: one
+  assert.equal(readSpokenRequest({ decision: { ...base, single: 0.9 }, message: 'x', modelInfo: model }).count, 1);
+});

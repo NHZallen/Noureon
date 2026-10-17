@@ -76,7 +76,7 @@ const CASES = [
   ['畫四張不同風格的貓，橫式', { count: 4, collage: false, aspectRatio: '16:9', problem: '' }],
   ['給我一張四格漫畫，主角是一隻柴犬', { count: 1, collage: true, aspectRatio: '', problem: '' }],
   ['來六張手機桌布，山和海', { count: 6, collage: false, aspectRatio: '9:16', problem: '' }],
-  ['給我八張正方形的logo草稿', { count: 8, collage: false, aspectRatio: '', problem: 'count' }],
+  ['給我八張正方形的logo草稿', { count: null, collage: false, aspectRatio: '', problem: 'count' }],
   ['給我三十張貓的圖片', { count: null, collage: false, aspectRatio: '', problem: 'count-any' }],
   ['畫一個 21:9 的橫幅', { count: null, collage: false, aspectRatio: '', problem: 'ratio' }],
   ['畫一個比分 2:1 的記分板', { count: null, collage: false, aspectRatio: '', problem: '' }],

@@ -20,7 +20,7 @@ export function describeLimits({ maxCount, minReferences = 0, maxReferences } = 
 
 const questionsFor = (limits) => ({
   collage: 'The person wants ONE single picture made of several parts put together (a collage, a grid, panels, a storyboard, a triptych), not several separate pictures.',
-  single: 'The person says outright that they want one single picture (one picture, a single image), or two or more parts in one picture.',
+  single: 'The person asks for exactly one picture and says so with a number or the word one (one picture, a single image, 1 image).',
   ...Object.fromEntries(COUNTS.map((count) => [`exactly_${count}`, `The person asks for exactly ${WORDS[count]} separate pictures.`])),
   more_than_limit: `The person asks for more pictures, or more reference pictures, than the picture model can do (${limits}).`,
   ratio_stated: 'The person names the shape of the picture: an aspect ratio such as 9:16, 16:9, 4:3 or 1:1, or a word for it (portrait, vertical, wide, square).',

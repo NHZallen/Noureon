@@ -20,13 +20,18 @@ export const limitsOf = (modelInfo = {}) => ({
 });
 
 const yes = (value) => typeof value === 'number' && value >= DECISION_THRESHOLD;
+// A collage makes one picture whatever the count says, so it needs a surer yes than the rest: "four pictures in different styles" answered 0.74 for a collage,
+// the real ones 0.89 and more (the probe of 2026-10-17). A word for the shape alone ("portrait", "a phone wallpaper") needs 0.75: it is a guess about what is meant.
+const COLLAGE_THRESHOLD = 0.85;
+const SHAPE_WORD_THRESHOLD = 0.75;
 
 /** { count, aspectRatio, collage, problem }: each is empty ('' or null or false) when nothing was said about it; `problem` is { code, ... } for a request the model cannot do. */
 export function readSpokenRequest({ decision, message, modelInfo = {}, attached = 0 } = {}) {
   const nothing = { count: null, aspectRatio: '', collage: false, problem: null };
   if (!decision) return nothing;
-  const collage = yes(decision.collage);
-  const count = collage ? 1 : yes(decision.single) ? 1 : decision.count;
+  const collage = typeof decision.collage === 'number' && decision.collage >= COLLAGE_THRESHOLD;
+  // A count that was said ("exactly N") is surer than "one picture", which is asked in a looser way.
+  const count = collage ? 1 : decision.count ?? (yes(decision.single) ? 1 : null);
   const maxCount = modelInfo.maxImageCount > 0 ? modelInfo.maxImageCount : MAX_SPOKEN_COUNT;
   const supported = Array.isArray(modelInfo.supportedImageAspectRatios) ? modelInfo.supportedImageAspectRatios : [];
 
@@ -36,20 +41,19 @@ export function readSpokenRequest({ decision, message, modelInfo = {}, attached 
   if (!collage && count === null && yes(decision.more) && !referencesOver) return { ...nothing, problem: { code: 'count-any', max: maxCount } };
 
   let aspectRatio = '';
-  if (yes(decision.ratioStated)) {
-    const written = readWrittenRatio(message);
-    if (written) {
-      if (!IMAGE_ASPECT_RATIOS.includes(written) || written === 'auto' || (supported.length > 0 && !supported.includes(written))) {
-        return { ...nothing, problem: { code: 'ratio', ratio: written } };
-      }
-      aspectRatio = written;
-    } else {
-      const best = [['portrait', decision.portrait], ['landscape', decision.landscape], ['square', decision.square]]
-        .filter(([, value]) => yes(value))
-        .sort((a, b) => b[1] - a[1])[0]?.[0];
-      const choices = best === 'portrait' ? TALL : best === 'landscape' ? WIDE : best === 'square' ? ['1:1'] : [];
-      aspectRatio = choices.find((ratio) => supported.length === 0 || supported.includes(ratio)) || '';
+  const written = yes(decision.ratioStated) ? readWrittenRatio(message) : '';
+  if (written) {
+    if (!IMAGE_ASPECT_RATIOS.includes(written) || written === 'auto' || (supported.length > 0 && !supported.includes(written))) {
+      return { ...nothing, problem: { code: 'ratio', ratio: written } };
     }
+    aspectRatio = written;
+  } else {
+    // A word for the shape (portrait, wide, square, a phone wallpaper): the surest of the three, if it is sure enough.
+    const best = [['portrait', decision.portrait], ['landscape', decision.landscape], ['square', decision.square]]
+      .filter(([, value]) => typeof value === 'number' && value >= SHAPE_WORD_THRESHOLD)
+      .sort((a, b) => b[1] - a[1])[0]?.[0];
+    const choices = best === 'portrait' ? TALL : best === 'landscape' ? WIDE : best === 'square' ? ['1:1'] : [];
+    aspectRatio = choices.find((ratio) => supported.length === 0 || supported.includes(ratio)) || '';
   }
   return { count: Number.isInteger(count) ? count : null, aspectRatio, collage, problem: null };
 }
