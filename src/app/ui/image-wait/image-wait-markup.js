@@ -14,3 +14,10 @@ export function imageWaitMarkup({ label = '', startedAt = 0 } = {}) {
 export function loadImageWait() {
   return import('./image-wait.js').catch(() => null);
 }
+
+/** The row of small place-holders under the waiting picture when a request makes several (one square each), where the small pictures of the set will be. */
+export function imageThumbsPlaceholder(count) {
+  const total = Math.floor(Number(count));
+  if (!(total > 1)) return '';
+  return `<div class="generated-image-thumbs generated-image-thumbs-wait" aria-hidden="true">${'<span class="generated-image-thumb generated-image-thumb-wait"></span>'.repeat(total)}</div>`;
+}

@@ -1,5 +1,6 @@
 import { setButtonBusy } from '../../ui/motion/busy-button.js';
 import { createMediaPreviewLifecycle } from './media-preview-lifecycle.js';
+import { bindGeneratedImageSets } from './generated-image-set.js';
 import { getRuntimeTexts } from '../../runtime/i18n/runtime-texts.js';
 
 const EDITOR_COLORS = Object.freeze([
@@ -380,6 +381,7 @@ export function createGeneratedImageInteractions({
   };
 
   const bind = (root, descriptors = []) => {
+    bindGeneratedImageSets(root);
     descriptors.forEach(descriptor => {
       root.querySelectorAll(`[data-generated-image-preview="${descriptor.id}"]`).forEach(button => {
         button.addEventListener('click', async event => {

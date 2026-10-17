@@ -1,5 +1,5 @@
 import { normalizeImageGenerationConfig, resolveSupportedAspectRatio, resolveSupportedResolution } from './image-generation-config.js';
-import { imageWaitMarkup, loadImageWait } from '../../ui/image-wait/image-wait-markup.js';
+import { imageThumbsPlaceholder, imageWaitMarkup, loadImageWait } from '../../ui/image-wait/image-wait-markup.js';
 
 const resolveImageAspectRatio = (requestedRatio) => ({
   '1:1': '1 / 1', '16:9': '16 / 9', '9:16': '9 / 16', '4:3': '4 / 3', '3:4': '3 / 4',
@@ -91,7 +91,8 @@ export function createImageGenerationResponseLifecycle({
     targetElement.innerHTML = `
       <div class="generated-image-skeleton generated-image-skeleton-preparing" role="status" aria-live="polite" data-target-aspect-ratio="${normalizedConfig.aspectRatio}">
         ${imageWaitMarkup({ label: getText('imageWaitStage1', '正在建立圖像'), startedAt: Date.now() })}
-      </div>`;
+      </div>
+      ${imageThumbsPlaceholder(Math.min(Number(conversation.imageAdvancedConfig?.n) || 1, Number(modelInfo.maxImageCount) || 10))}`;
     const skeleton = targetElement.querySelector?.('.generated-image-skeleton');
     if (skeleton) {
       scheduleFrame(() => {

@@ -1,4 +1,5 @@
 import { registerSandboxFileParts } from '../../ui/sandbox/sandbox-files.js';
+import { renderGeneratedImageSet } from './generated-image-set.js';
 
 export function createConversationViewRenderer({
     document,
@@ -47,7 +48,7 @@ export function createConversationViewRenderer({
         '1:8': '1 / 8', '8:1': '8 / 1', '9:21': '9 / 21', '21:9': '21 / 9'
     }[requestedRatio] || '');
 
-    const renderGeneratedImages = (assets) => assets.map(asset => {
+    const renderGeneratedImages = (assets) => renderGeneratedImageSet({ cards: assets.map(asset => {
         const labels = getLabels() || {};
         const label = (value) => String(value || '').replace(/[&<>"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[char]));
         const imageAspectRatio = resolveImageAspectRatio(asset.aspectRatio);
@@ -62,7 +63,7 @@ export function createConversationViewRenderer({
                     </a>
                 </div>
             </figure>`;
-    }).join('');
+    }), assets, label: (getLabels() || {}).imageSetItem });
 
     const renderConversationMessages = ({ conversation, contentContainer, emptyHTML }) => {
         if (!conversation) return false;

@@ -1,0 +1,83 @@
+/* Several pictures from one request: a big picture swiped sideways and a row of small ones under it (generated-image-set.js). */
+.generated-image-set {
+    display: flex;
+    flex-direction: column;
+    gap: .6rem;
+    width: 100%;
+    min-width: 0;
+}
+
+.generated-image-track {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    border-radius: 1.2rem;
+}
+
+.generated-image-track::-webkit-scrollbar,
+.generated-image-thumbs::-webkit-scrollbar {
+    display: none;
+}
+
+.generated-image-slide {
+    flex: 0 0 100%;
+    min-width: 0;
+    display: flex;
+    justify-content: flex-start;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+}
+
+.generated-image-thumbs {
+    position: relative;
+    display: flex;
+    gap: .4rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+    /* Room for the ring of the chosen one, taken back with the margin. */
+    padding: .25rem;
+    margin: -.25rem;
+}
+
+.generated-image-thumb {
+    flex: none;
+    width: 3.4rem;
+    height: 3.4rem;
+    padding: 0;
+    border: 0;
+    border-radius: .8rem;
+    overflow: hidden;
+    background: var(--surface-muted);
+    cursor: pointer;
+    opacity: .72;
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+    transition: opacity .18s ease, outline-color .18s ease;
+}
+
+.generated-image-thumb img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.generated-image-thumb.is-active {
+    opacity: 1;
+    outline-color: var(--text-primary);
+}
+
+.generated-image-thumb:focus-visible {
+    outline-color: var(--button-primary-bg);
+}
+
+.generated-image-thumb-wait {
+    cursor: default;
+    opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .generated-image-thumb { transition: none; }
+}

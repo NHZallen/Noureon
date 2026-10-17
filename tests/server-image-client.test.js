@@ -318,7 +318,7 @@ test('a picture the server is still making is waited for under the picture place
     scheduleTimeout: () => null
   });
   assert.equal(await lifecycle.reattachServerReply(), true);
-  assert.deepEqual(added, [[{ imageGenerationLoading: true, imageAspectRatio: '7:5', imageStartedAt: 1760000000000 }]], 'the place-holder of a picture, in the ratio asked for, with the time it was begun');
+  assert.deepEqual(added, [[{ imageGenerationLoading: true, imageAspectRatio: '7:5', imageCount: 1, imageStartedAt: 1760000000000 }]], 'the place-holder of a picture, in the ratio asked for, with the time it was begun');
   assert.deepEqual(completed, ['image']);
 });
 

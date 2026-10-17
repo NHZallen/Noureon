@@ -59,3 +59,20 @@ test('the place-holder keeps the time the picture was begun, for a picture found
   });
   assert.match(view.messageHTML, /<noureon-image-wait data-started="1760000000000"/);
 });
+
+test('several pictures of one reply are one set with a small picture for each; the waiting message shows a place-holder for each', () => {
+  const picture = (id) => ({ generatedImage: { id, storageKey: `key-${id}`, mediaType: 'image/png', size: 5, aspectRatio: '1:1' } });
+  const view = render({ role: 'model', createdAt: '2026-07-01T15:52:00.000Z', parts: [picture('p1'), picture('p2'), picture('p3')] });
+  assert.equal((view.messageHTML.match(/data-generated-image-set/g) || []).length, 1);
+  assert.equal((view.messageHTML.match(/class="generated-image-slide"/g) || []).length, 3);
+  assert.equal((view.messageHTML.match(/data-generated-image-thumb="/g) || []).length, 3);
+  assert.equal((view.messageHTML.match(/data-generated-image-edit="/g) || []).length, 3, 'each picture keeps its own buttons');
+  assert.equal(view.generatedImageAssets.length, 3);
+
+  const one = render({ role: 'model', createdAt: '2026-07-01T15:52:00.000Z', parts: [picture('p1')] });
+  assert.equal(one.messageHTML.includes('data-generated-image-set'), false, 'one picture is shown as before');
+
+  const waiting = render({ role: 'model', parts: [{ imageGenerationLoading: true, imageAspectRatio: '1:1', imageCount: 4 }] });
+  assert.equal((waiting.messageHTML.match(/generated-image-thumb-wait/g) || []).length, 4);
+  assert.equal(render({ role: 'model', parts: [{ imageGenerationLoading: true, imageAspectRatio: '1:1' }] }).messageHTML.includes('generated-image-thumb-wait'), false);
+});

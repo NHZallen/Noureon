@@ -4,6 +4,8 @@ import { renderComposerToolIcon } from '../../composer-tool-icons.js';
 import { renderLinkChipHTML, splitAtAddresses } from '../../ui/links/link-chip.js';
 import { registerSandboxFileParts } from '../../ui/sandbox/sandbox-files.js';
 import { replySourcesButtonHTML } from '../../ui/citations/citation-pills.js';
+import { imageThumbsPlaceholder } from '../../ui/image-wait/image-wait-markup.js';
+import { renderGeneratedImageSet } from './generated-image-set.js';
 
 const resolveImageAspectRatio = (requestedRatio) => ({
     '1:1': '1 / 1', '16:9': '16 / 9', '9:16': '9 / 16', '4:3': '4 / 3', '3:4': '3 / 4',
@@ -89,6 +91,7 @@ export function buildMessageRenderView({
                 <div class="generated-image-skeleton generated-image-skeleton-sized" role="status" aria-live="polite" data-target-aspect-ratio="${requestedRatio || '1:1'}" style="aspect-ratio: ${imageAspectRatio}">
                     <span class="generated-image-wait-label"></span><noureon-image-wait${Number(loadingPart?.imageStartedAt) > 0 ? ` data-started="${Math.round(Number(loadingPart.imageStartedAt))}"` : ''} aria-hidden="true"></noureon-image-wait>
                 </div>
+                ${imageThumbsPlaceholder(loadingPart?.imageCount)}
             </div>`;
     } else if (isLoadingMessage) {
         contentHTML = '<div class="typing-cursor">&nbsp;</div>';
@@ -129,7 +132,7 @@ export function buildMessageRenderView({
             mediaGridHTML = mediaView.html;
         }
         if (generatedImageAssets.length > 0) {
-            generatedImageHTML = generatedImageAssets.map(asset => {
+            const generatedImageCards = generatedImageAssets.map(asset => {
                 const imageAspectRatio = resolveImageAspectRatio(asset.aspectRatio);
                 return `
                 <figure class="generated-image-card${imageAspectRatio ? ' has-known-aspect' : ''}" data-generated-image-card="${asset.id}"${imageAspectRatio ? ` style="aspect-ratio: ${imageAspectRatio}"` : ''}>
@@ -145,7 +148,8 @@ export function buildMessageRenderView({
                         </a>
                     </div>
                 </figure>`;
-            }).join('');
+            });
+            generatedImageHTML = renderGeneratedImageSet({ cards: generatedImageCards, assets: generatedImageAssets, label: labels.imageSetItem });
         }
         if (!isUser && generatedImageAssets.length === 0) {
             const timeString = formatTimestamp(message.createdAt);
