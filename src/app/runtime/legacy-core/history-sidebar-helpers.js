@@ -272,7 +272,8 @@ export function createHistorySidebarHelpers({
     });
 
     chatContainer.addEventListener('touchstart', (event) => {
-      if (event.target.closest('.table-scroll-container')) {
+      // A swipe that starts on something that slides sideways itself (a wide table, the row of small pictures of a set) is that thing's, not the panel's.
+      if (event.target.closest('.table-scroll-container, [data-generated-image-thumbs]')) {
         touchStartX = null;
         return;
       }

@@ -344,6 +344,35 @@ test('history sidebar opens by its button and by a swipe, stays open when the po
   }
 });
 
+test('a swipe to the left that starts on the row of small pictures of a set does not open the panel', () => {
+  const harness = createHarness({ activeConversation: { messages: [{ role: 'user', parts: [{ text: 'Preview' }] }] } });
+  const dispatchTouch = (target, type, pointsKey, points) => {
+    const event = new harness.window.Event(type, { bubbles: true });
+    Object.defineProperty(event, pointsKey, { value: points });
+    target.dispatchEvent(event);
+  };
+  try {
+    harness.helpers.setupHistorySidebarTriggers();
+    const row = harness.document.createElement('div');
+    row.setAttribute('data-generated-image-thumbs', '');
+    const thumb = harness.document.createElement('button');
+    row.appendChild(thumb);
+    harness.elements.chatContainer.appendChild(row);
+
+    dispatchTouch(thumb, 'touchstart', 'touches', [{ clientX: 300, clientY: 50 }]);
+    dispatchTouch(thumb, 'touchend', 'changedTouches', [{ clientX: 100, clientY: 52 }]);
+    for (const frame of harness.frames.splice(0)) frame();
+    assert.equal(harness.elements.historySidebar.classList.contains('visible'), false, 'the swipe was the row\'s');
+
+    dispatchTouch(harness.elements.chatContainer, 'touchstart', 'touches', [{ clientX: 300, clientY: 50 }]);
+    dispatchTouch(harness.elements.chatContainer, 'touchend', 'changedTouches', [{ clientX: 100, clientY: 52 }]);
+    for (const frame of harness.frames.splice(0)) frame();
+    assert.equal(harness.elements.historySidebar.classList.contains('visible'), true, 'elsewhere in the chat it still opens it');
+  } finally {
+    harness.window.close();
+  }
+});
+
 test('legacy core delegates the read-only family without moving mutation behavior or runtime contracts', () => {
   assert.equal(existsSync(projectFile(helperPath)), true);
   assert.match(helperSource, /export\s+function\s+createHistorySidebarHelpers\s*\(/);
