@@ -1,6 +1,6 @@
 import { normalizeImageGenerationConfig, resolveSupportedAspectRatio, resolveSupportedResolution } from './image-generation-config.js';
 import { imageThumbsPlaceholder, imageWaitMarkup, loadImageWait } from '../../ui/image-wait/image-wait-markup.js';
-import { COLLAGE_INSTRUCTION, limitsOf, readSpokenRequest, spokenProblemText } from './image-spoken-request.js';
+import { COLLAGE_INSTRUCTION, SEVERAL_INSTRUCTION, SHAPE_INSTRUCTION, limitsOf, readSpokenRequest, spokenProblemText } from './image-spoken-request.js';
 
 const resolveImageAspectRatio = (requestedRatio) => ({
   '1:1': '1 / 1', '16:9': '16 / 9', '9:16': '9 / 16', '4:3': '4 / 3', '3:4': '3 / 4',
@@ -148,7 +148,9 @@ export function createImageGenerationResponseLifecycle({
     const editedPrompt = hasTargetedEditReference
       ? `${basePrompt}\n\nThe colored hand-drawn marks indicate the exact target area to edit. Apply the requested change only where indicated, preserve the rest of the image, and remove all annotation marks from the final image.`
       : basePrompt;
-    const prompt = spoken.collage ? `${editedPrompt}\n\n${COLLAGE_INSTRUCTION}` : editedPrompt;
+    // The count and the shape are sent as parameters; the picture model must not take the words that ask for them for something to draw (two pictures as two panels of one).
+    const spokenInstruction = spoken.collage ? COLLAGE_INSTRUCTION : spoken.count > 1 ? SEVERAL_INSTRUCTION : spoken.aspectRatio ? SHAPE_INSTRUCTION : '';
+    const prompt = spokenInstruction ? `${editedPrompt}\n\n${spokenInstruction}` : editedPrompt;
 
     let inputReferences = getInlineReferences(requestParts);
     if (inputReferences.length === 0) {

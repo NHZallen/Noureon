@@ -69,5 +69,10 @@ export function spokenProblemText(problem, getText) {
   return fill(getText('imageRatioOverLimit', 'This model does not take the shape {ratio}, so nothing was sent.'), problem);
 }
 
+/** The line added to the prompt when a count of two or more was said: the picture model reads "two pictures" in the words as panels of one image (seen on staging, 2026-10-17: both pictures were a collage of two scenes), so it is told that the count is made elsewhere. */
+export const SEVERAL_INSTRUCTION = 'Make exactly ONE picture of a single scene (no collage, no panels, no frames). How many pictures are made and their shape are set separately, so the words of the request about the number of pictures or the shape are not part of this picture.';
+/** The line added when a shape was said and no count: the shape is set separately, and must not be drawn as frames or written in the picture. */
+export const SHAPE_INSTRUCTION = 'The shape of the picture is set separately: do not draw frames or panels for it and do not write it in the picture.';
+
 /** The line added to the prompt of a collage, so that the model makes one picture of parts and not several pictures. */
 export const COLLAGE_INSTRUCTION = 'Make this ONE single image, composed as a collage of its parts (not separate images).';

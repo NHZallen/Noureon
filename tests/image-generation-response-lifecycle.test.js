@@ -385,7 +385,8 @@ test('what is said about the count and the shape is used for this message: two p
   await run('給我兩張9:16草原的圖片', { advanced: { n: 1 } });
   assert.equal(requests[0].config.n, 2);
   assert.equal(requests[0].config.aspectRatio, '9:16');
-  assert.equal(requests[0].prompt, '給我兩張9:16草原的圖片', 'the words are the prompt as they were');
+  assert.ok(requests[0].prompt.startsWith('給我兩張9:16草原的圖片'), 'the words stay');
+  assert.match(requests[0].prompt, /Make exactly ONE picture of a single scene \(no collage, no panels, no frames\)/, 'and the model is told the count is made elsewhere, so it does not draw two panels');
   assert.equal(asked[0].message, '給我兩張9:16草原的圖片');
   assert.deepEqual(asked[0].limits, { maxCount: 6, minReferences: undefined, maxReferences: 4 });
   assert.equal(asked[0].attached, 0);
@@ -437,4 +438,13 @@ test('without answers of the Decisions model (no key, slow, paused) the request 
   const without = spokenHarness(null);
   await without.run('two pictures', { requestImageDecisions: null });
   assert.equal(without.requests.length, 1);
+});
+
+test('a shape said without a count tells the model the shape is set elsewhere; nothing said adds nothing', async () => {
+  const shaped = spokenHarness(answers({ ratioStated: 0.95, portrait: 0.9 }));
+  await shaped.run('一張草原的直式圖');
+  assert.match(shaped.requests[0].prompt, /The shape of the picture is set separately/);
+  const plain = spokenHarness(answers());
+  await plain.run('a meadow');
+  assert.equal(plain.requests[0].prompt, 'a meadow');
 });
