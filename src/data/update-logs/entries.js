@@ -2,6 +2,18 @@
 // content 為 zh-TW 的 HTML 字串（JSON 轉義、雙引號），目前不隨介面語言切換。
 export const updateLogEntries = [
   {
+    version: "18.12.0",
+    date: "2026-10-17",
+    content: [
+      "<strong>Noureon 18.12.0 發布說明</strong>",
+      "本版本讓一次生成多張的圖片有了專用的瀏覽方式，新增兩個 Qwen 圖片模型，把 DeepSeek V4.1 Flash 換成新版，並修正 iPhone 打不開簡報與滑動時誤開右側面板的問題。",
+      "<strong>主要變更</strong>",
+      "<ul><li><strong>一次生成多張：</strong>一次做多張時，改成一張大圖加下方一排小方格：點小方格切換圖片（也可在小方格上按左右鍵），大圖以漸出漸入換圖，不會左右滑動；目前這張的小方格有白色外框，點下去立刻亮；生成中依張數先顯示小方格佔位。手機上小方格列延伸到螢幕左右邊緣，可以滑出螢幕邊界，排得下時拖動也有阻力、放手會彈回。</li><li><strong>新圖片模型：</strong>OpenRouter 新增 Qwen Image 2.1 Turbo（每張 $0.0184 起）與 Qwen Image 2.1 Pro（每張 $0.046 起）：1K／2K、13 種比例、每次最多 6 張、最多 4 張參考圖、可指定 seed。首頁、協助中心與隱私政策裡的模型數更新為 77 個。</li><li><strong>DeepSeek V4.1 Flash 1017：</strong>OpenRouter 的 DeepSeek V4.1 Flash 換成 deepseek/deepseek-v4.1-flash-1017，名稱為「DeepSeek V4.1 Flash 1017」，每百萬輸入 $0.10、輸出 $0.50；支援圖片、檔案、工具呼叫與思考程度（低、高、最高），不接受影片；舊對話會自動改用新版。</li><li><strong>圖片模型參數校正：</strong>依 OpenRouter 的參數整理：GPT Image 2.5 兩個模型新增 auto 比例、品質多了 xhigh 與 max、參考圖最多 16 張，並不再送出解析度；FLUX.3 Image 每次只做 1 張、參考圖最多 10 張；Krea K3 Edit 的參考圖上限改為 8 張；品質、背景與壓縮率只對 GPT Image 顯示與送出；各圖片模型的價格寫進模型說明。</li><li><strong>iPhone 預覽簡報：</strong>進階模式（Python）做的 PowerPoint 簡報，有講者備註時 iPhone 的檔案預覽打不開；現在做完後會補上缺的登記，預覽可以開（已做好的舊簡報要重新執行才會修好）。</li><li><strong>滑動不再誤開右側面板：</strong>從表格、小方格列，或訊息裡橫向捲動的圖片與檔案列開始往左滑，不再打開右側面板；聊天區其他地方往左滑仍會打開。</li></ul>",
+      "<strong>相容性</strong>",
+      "本次更新不需要資料遷移。"
+    ]
+  },
+  {
     version: "18.11.2",
     date: "2026-10-16",
     content: [
