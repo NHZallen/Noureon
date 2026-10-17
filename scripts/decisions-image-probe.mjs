@@ -8,9 +8,12 @@
 //
 // Part "types": which kinds of question the API takes besides the yes/no one the page uses today ("noul"): a bad type is sent first (the error may list
 // the kinds that exist), then number, integer, enum and choice questions in the shapes they might have; each line says the status and what came back.
-// Part "battery": the yes/no questions the page could ask for a picture request, on sentences in five languages, with the probability of each.
+// Part "battery": the questions the page really asks for a picture request (the same code), on sentences in five languages, with what the page reads from the answers.
+// (The kinds of question of the API, found on 2026-10-17: noul (a probability), choice (needs `criteria`), score and box. The page uses noul only.)
 
 import { DECISION_MODEL, DECISION_URL } from '../src/app/runtime/decisions/decision-client.js';
+import { buildImageDecisionRequest, parseImageDecisionResponse } from '../src/app/runtime/decisions/image-decisions.js';
+import { limitsOf, readSpokenRequest } from '../src/app/legacy-runtime/features/image-spoken-request.js';
 
 const args = process.argv.slice(2);
 const option = (name) => { const at = args.indexOf(name); return at >= 0 ? args[at + 1] : ''; };
@@ -36,10 +39,9 @@ async function post(body) {
   }
 }
 
-const LIMITS = 'The picture model in use makes 1 to 6 pictures per request and takes 0 to 4 reference pictures.';
-const state = (message, attached = 0) => [`Latest message: ${message}`, LIMITS, `Reference pictures attached to the latest message: ${attached}.`];
 
 // ---- Part 1: the kinds of question
+const state = (message) => [`Latest message: ${message}`, 'The picture model in use makes 1 to 6 pictures per request and takes 0 to 4 reference pictures.'];
 async function types() {
   console.log('== Which kinds of question does the API take? ==');
   const message = '給我兩張9:16草原的圖片';
@@ -63,56 +65,46 @@ async function types() {
   }
 }
 
-// ---- Part 2: a battery of yes/no questions
-const QUESTIONS = {
-  collage: 'The person wants ONE single picture made of several parts put together (a collage, a grid, panels, a storyboard, a triptych), not several separate pictures.',
-  separate: 'The person asks for more than one separate picture (a number of pictures, images or photos, each its own file).',
-  exactly_1: 'The person asks for exactly one picture, or does not say how many.',
-  exactly_2: 'The person asks for exactly two separate pictures.',
-  exactly_3: 'The person asks for exactly three separate pictures.',
-  exactly_4: 'The person asks for exactly four separate pictures.',
-  exactly_6: 'The person asks for exactly six separate pictures.',
-  more_than_limit: `The person asks for more pictures, or more reference pictures, than the picture model can do (${LIMITS}).`,
-  portrait: 'The person asks for a tall picture (portrait, vertical, 9:16, 3:4, a phone wallpaper).',
-  landscape: 'The person asks for a wide picture (landscape, horizontal, 16:9, 4:3, a banner).',
-  square: 'The person asks for a square picture (1:1).'
-};
+// ---- Part 2: the questions the page really asks (src/app/runtime/decisions/image-decisions.js), and what it reads from the answers
+const MODEL = { maxImageCount: 6, minImageReferences: 0, maxImageReferences: 4, supportedImageAspectRatios: ['1:1', '1:2', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9'] };
+// message, and what the page should read: count (null = nothing said), collage, aspectRatio ('' = nothing said), problem ('' = none, else the code)
 const CASES = [
-  ['給我兩張9:16草原的圖片', { separate: 1, exactly_2: 1, collage: 0, portrait: 1 }],
-  ['請給我一張9:16的拼貼圖片', { collage: 1, exactly_1: 1, portrait: 1 }],
-  ['畫三隻貓在曬太陽', { separate: 0, exactly_1: 1, collage: 0 }],
-  ['把這兩張圖拼在一起，做成一張', { collage: 1, exactly_1: 1 }],
-  ['畫四張不同風格的貓，橫式', { separate: 1, exactly_4: 1, landscape: 1 }],
-  ['給我一張四格漫畫，主角是一隻柴犬', { collage: 1, exactly_1: 1 }],
-  ['來六張手機桌布，山和海', { separate: 1, exactly_6: 1, portrait: 1 }],
-  ['給我八張正方形的logo草稿', { separate: 1, more_than_limit: 1, square: 1 }],
-  ['Make me two vertical pictures of a meadow', { separate: 1, exactly_2: 1, portrait: 1 }],
-  ['One 16:9 collage of a trip to Japan', { collage: 1, exactly_1: 1, landscape: 1 }],
-  ['Dessine-moi trois paysages de montagne', { separate: 1, exactly_3: 1 }],
-  ['Нарисуй два вертикальных рисунка леса', { separate: 1, exactly_2: 1, portrait: 1 }],
-  ['Hazme dos imágenes cuadradas de un gato', { separate: 1, exactly_2: 1, square: 1 }],
-  ['一張貓的照片', { exactly_1: 1, separate: 0, collage: 0 }]
+  ['給我兩張9:16草原的圖片', { count: 2, collage: false, aspectRatio: '9:16', problem: '' }],
+  ['請給我一張9:16的拼貼圖片', { count: 1, collage: true, aspectRatio: '9:16', problem: '' }],
+  ['畫三隻貓在曬太陽', { count: null, collage: false, aspectRatio: '', problem: '' }],
+  ['把這兩張圖拼在一起，做成一張', { count: 1, collage: true, aspectRatio: '', problem: '' }],
+  ['畫四張不同風格的貓，橫式', { count: 4, collage: false, aspectRatio: '16:9', problem: '' }],
+  ['給我一張四格漫畫，主角是一隻柴犬', { count: 1, collage: true, aspectRatio: '', problem: '' }],
+  ['來六張手機桌布，山和海', { count: 6, collage: false, aspectRatio: '9:16', problem: '' }],
+  ['給我八張正方形的logo草稿', { count: 8, collage: false, aspectRatio: '', problem: 'count' }],
+  ['給我三十張貓的圖片', { count: null, collage: false, aspectRatio: '', problem: 'count-any' }],
+  ['畫一個 21:9 的橫幅', { count: null, collage: false, aspectRatio: '', problem: 'ratio' }],
+  ['畫一個比分 2:1 的記分板', { count: null, collage: false, aspectRatio: '', problem: '' }],
+  ['Make me two vertical pictures of a meadow', { count: 2, collage: false, aspectRatio: '9:16', problem: '' }],
+  ['One 16:9 collage of a trip to Japan', { count: 1, collage: true, aspectRatio: '16:9', problem: '' }],
+  ['Dessine-moi trois paysages de montagne', { count: 3, collage: false, aspectRatio: '', problem: '' }],
+  ['Нарисуй два вертикальных рисунка леса', { count: 2, collage: false, aspectRatio: '9:16', problem: '' }],
+  ['Hazme dos imágenes cuadradas de un gato', { count: 2, collage: false, aspectRatio: '1:1', problem: '' }],
+  ['一張貓的照片', { count: 1, collage: false, aspectRatio: '', problem: '' }]
 ];
 async function battery() {
-  console.log('\n== The yes/no battery (probability per question; the page would say yes from 0.60) ==');
-  const names = Object.keys(QUESTIONS);
+  console.log('\n== What the page asks about a picture request, and what it reads (limits: 1 to 6 pictures, 0 to 4 references) ==');
   let right = 0;
   let total = 0;
   for (const [message, expect] of CASES) {
-    const questions = Object.fromEntries(names.map(name => [name, { type: 'noul', instructions: QUESTIONS[name] }]));
-    const result = await post({ model, state: state(message), questions });
-    const answers = result.json?.answers;
-    if (!answers) { console.log(`FAIL  ${message}  ${result.status} ${result.text.slice(0, 200)}`); continue; }
-    const cells = names.map((name) => {
-      const value = Number(answers[name]?.noul);
-      const expected = expect[name];
-      let mark = ' ';
-      if (expected !== undefined && Number.isFinite(value)) { total += 1; if ((value >= 0.6) === Boolean(expected)) right += 1; else mark = '!'; }
-      return `${name}=${Number.isFinite(value) ? value.toFixed(2) : '-'}${mark}`;
-    });
-    console.log(`${result.ms}ms  ${message}\n      ${cells.join('  ')}`);
+    const request = buildImageDecisionRequest({ message, limits: limitsOf(MODEL), attached: 0, model });
+    const result = await post(request);
+    const decision = result.json ? parseImageDecisionResponse(result.json) : null;
+    if (!decision) { console.log(`FAIL  ${message}  ${result.status} ${result.text.slice(0, 200)}`); continue; }
+    const spoken = readSpokenRequest({ decision, message, modelInfo: MODEL, attached: 0 });
+    const got = { count: spoken.count, collage: spoken.collage, aspectRatio: spoken.aspectRatio, problem: spoken.problem?.code || '' };
+    const misses = Object.keys(expect).filter(name => got[name] !== expect[name]);
+    total += 1;
+    if (!misses.length) right += 1;
+    const shown = (value) => (value === null || value === undefined ? '-' : Number(value).toFixed(2));
+    console.log(`${misses.length ? 'MISS' : 'ok  '}  ${result.ms}ms  ${message}\n      read: ${JSON.stringify(got)}${misses.length ? `   expected: ${JSON.stringify(expect)}` : ''}\n      answers: collage=${shown(decision.collage)} single=${shown(decision.single)} count=${decision.count ?? '-'} more=${shown(decision.more)} ratioStated=${shown(decision.ratioStated)} portrait=${shown(decision.portrait)} landscape=${shown(decision.landscape)} square=${shown(decision.square)}`);
   }
-  console.log(`\nMatches with what was expected (the ! marks are the misses): ${right} of ${total}`);
+  console.log(`\nSentences read as expected: ${right} of ${total}`);
 }
 
 if (!only || only === 'types') await types();

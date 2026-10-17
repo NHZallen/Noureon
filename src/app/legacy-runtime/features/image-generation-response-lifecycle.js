@@ -1,5 +1,6 @@
 import { normalizeImageGenerationConfig, resolveSupportedAspectRatio, resolveSupportedResolution } from './image-generation-config.js';
 import { imageThumbsPlaceholder, imageWaitMarkup, loadImageWait } from '../../ui/image-wait/image-wait-markup.js';
+import { COLLAGE_INSTRUCTION, limitsOf, readSpokenRequest, spokenProblemText } from './image-spoken-request.js';
 
 const resolveImageAspectRatio = (requestedRatio) => ({
   '1:1': '1 / 1', '16:9': '16 / 9', '9:16': '9 / 16', '4:3': '4 / 3', '3:4': '3 / 4',
@@ -75,7 +76,9 @@ export function createImageGenerationResponseLifecycle({
     serverReply = null,
     assistantMessageId = null,
     sequence = conversation?.messages?.length ?? 0,
-    resumeRun = null
+    resumeRun = null,
+    // The Decisions model's reading of what was said about the pictures ({ message, limits, attached } -> answers or null); without it the settings alone decide.
+    requestImageDecisions = null
   }) => {
     if (resumeRun) return followServerImage(resumeRun, { signal, serverReply, uiLanguage });
     const savedConfig = normalizeImageGenerationConfig(conversation.imageConfig);
@@ -102,6 +105,11 @@ export function createImageGenerationResponseLifecycle({
       });
     }
 
+    // Asked while the request is being prepared (it adds no waiting of its own): how many pictures, which shape, a collage, more than the model does.
+    const spokenAttached = userParts.filter(part => part.inlineData).length;
+    const spokenMessage = getTextPrompt(userParts);
+    const decisionPromise = Promise.resolve(requestImageDecisions?.({ message: spokenMessage, limits: limitsOf(modelInfo), attached: spokenAttached }, { signal })).catch(() => null);
+
     const requestParts = await buildSingleModelTranslatedRequestParts(
         userParts,
         modelInfo,
@@ -123,10 +131,24 @@ export function createImageGenerationResponseLifecycle({
     }
     const basePrompt = getTextPrompt(requestParts);
     if (!basePrompt) throw new Error(getText('imagePromptRequired', 'Describe the image you want to make.'));
+    const spoken = readSpokenRequest({ decision: await decisionPromise, message: spokenMessage, modelInfo, attached: spokenAttached });
+    // More than the model can do: nothing is sent (and nothing is paid for).
+    if (spoken.problem) throw new Error(spokenProblemText(spoken.problem, getText));
+    if (spoken.aspectRatio) {
+      normalizedConfig.aspectRatio = spoken.aspectRatio;
+      const waiting = targetElement.querySelector?.('.generated-image-skeleton');
+      if (waiting) waiting.style.aspectRatio = resolveImageAspectRatio(spoken.aspectRatio);
+    }
+    if (spoken.count) {
+      // The place-holders under the waiting picture follow the count that was said.
+      targetElement.querySelector?.('.generated-image-thumbs-wait')?.remove();
+      targetElement.querySelector?.('.generated-image-skeleton')?.insertAdjacentHTML?.('afterend', imageThumbsPlaceholder(spoken.count));
+    }
     const hasTargetedEditReference = requestParts.some(part => part.inlineData?.targetedEdit);
-    const prompt = hasTargetedEditReference
+    const editedPrompt = hasTargetedEditReference
       ? `${basePrompt}\n\nThe colored hand-drawn marks indicate the exact target area to edit. Apply the requested change only where indicated, preserve the rest of the image, and remove all annotation marks from the final image.`
       : basePrompt;
+    const prompt = spoken.collage ? `${editedPrompt}\n\n${COLLAGE_INSTRUCTION}` : editedPrompt;
 
     let inputReferences = getInlineReferences(requestParts);
     if (inputReferences.length === 0) {
@@ -158,8 +180,8 @@ export function createImageGenerationResponseLifecycle({
       throw new Error(getText('imageReferenceRequired', 'This model edits pictures: attach the picture to edit, or make one first.'));
     }
     if (modelInfo.maxImageReferences && inputReferences.length > modelInfo.maxImageReferences) {
-      showNotification(getText('imageReferenceLimit', 'This model takes {n} reference pictures at most; the first {n} are used.').replaceAll('{n}', String(modelInfo.maxImageReferences)), 'warning');
-      inputReferences = inputReferences.slice(0, modelInfo.maxImageReferences);
+      throw new Error(getText('imageReferenceOverLimit', 'This model takes {max} reference pictures at most and you attached {n}, so nothing was sent.')
+        .replaceAll('{max}', String(modelInfo.maxImageReferences)).replaceAll('{n}', String(inputReferences.length)));
     }
 
     const generationRequest = {
@@ -178,7 +200,8 @@ export function createImageGenerationResponseLifecycle({
     for (const key of ['quality', 'background', 'outputCompression']) {
       if (!modelInfo.supportedImageOptions?.includes(key)) delete generationRequest.config[key];
     }
-    // A count saved with another model must not ask a one-picture model for more.
+    // What was said about the count wins for this message; a count saved with another model must not ask a one-picture model for more.
+    if (spoken.count) generationRequest.config.n = spoken.count;
     if (modelInfo.maxImageCount && Number(generationRequest.config.n) > modelInfo.maxImageCount) generationRequest.config.n = modelInfo.maxImageCount;
     const reasoningConfig = getModelReasoningConfig(modelInfo);
     const reasoningEffort = reasoningConfig

@@ -14,6 +14,7 @@
 // in a row switches the judgements off for a while instead of making every message wait for a timeout.
 
 import { DECISION_THRESHOLD, verdictOf } from './decision-store.js';
+import { buildImageDecisionRequest, parseImageDecisionResponse } from './image-decisions.js';
 
 export { DECISION_THRESHOLD, verdictOf };
 
@@ -121,12 +122,12 @@ export function createDecisionService({
     return null;
   };
 
-  /** The decisions for one message, or null. Never rejects. */
-  const decide = async (input = {}, { signal } = {}) => {
+  /** The answers for one request (built by `build`, read by `parse`), or null. Never rejects. */
+  const ask = async (build, parse, input = {}, { signal } = {}) => {
     try {
       const apiKey = String(getApiKey() || '').trim();
       if (!apiKey || now() < pausedUntil) return null;
-      const request = buildDecisionRequest(input);
+      const request = build(input);
       if (!request) return null;
       const controller = new AbortController();
       const abort = () => controller.abort();
@@ -141,7 +142,7 @@ export function createDecisionService({
           signal: controller.signal
         });
         if (!response?.ok) return fail(`HTTP ${response?.status ?? '?'}`);
-        const decisions = parseDecisionResponse(await response.json());
+        const decisions = parse(await response.json());
         if (!decisions) return fail('no answers');
         failures = 0;
         return decisions;
@@ -154,5 +155,10 @@ export function createDecisionService({
     }
   };
 
-  return { decide, isPaused: () => now() < pausedUntil };
+  /** The decisions for one message, or null. Never rejects. */
+  const decide = (input, options) => ask(buildDecisionRequest, parseDecisionResponse, input, options);
+  /** The answers about a picture request (image-decisions.js), or null. The same pause after failures as for the messages. */
+  const decideImage = (input, options) => ask(buildImageDecisionRequest, parseImageDecisionResponse, input, options);
+
+  return { decide, decideImage, isPaused: () => now() < pausedUntil };
 }

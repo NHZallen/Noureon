@@ -14,13 +14,17 @@ export function createRequestDecisions(dependencies = {}) {
     });
     return loading;
   };
-  return async (input) => {
+  // Waits for the code that asks (a second at most the first time), then is ready, or is not (null: no judgement this time).
+  const ready = async () => {
     if (!ask) {
       let timer;
       await Promise.race([load(), new Promise((resolve) => { timer = setTimeout(resolve, 1000); })]);
       clearTimeout(timer);
-      if (!ask) return null;
     }
-    return ask(input);
+    return ask;
   };
+  const requestDecisions = async (input) => (await ready())?.(input) ?? null;
+  /** The answers about a picture request (image-decisions.js), or null. */
+  requestDecisions.image = async (input, options) => (await ready())?.image(input, options) ?? null;
+  return requestDecisions;
 }

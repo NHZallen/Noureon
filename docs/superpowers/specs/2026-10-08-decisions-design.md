@@ -58,3 +58,14 @@
 `exact`、`verbatim` 兩題都有答案才採用判斷（`verbatim` 為是時一定算原樣回憶）；只有一題有答案或沒有答案就用原本的關鍵字。「原樣回憶」的主題（subject）仍由原本的正規式抽取，抽不到時走既有的空主題路徑。
 
 限制：判斷存在瀏覽器（`decision-store.js`），伺服器端繼續執行（關掉頁面）的回覆讀不到，會照舊（網址一律讀）。
+
+## 7. 圖片對話的口語判斷（2026-10-17，NOU-48）
+
+圖片對話原本不送判斷；現在另送一組只給圖片請求的題目（`src/app/runtime/decisions/image-decisions.js`），用來聽懂「給我兩張 9:16 草原」「一張 9:16 的拼貼圖」。
+
+- 探測（`scripts/decisions-image-probe.mjs`，owner 用真金鑰跑）：API 的題型有 `noul`（機率）、`choice`（要 `criteria`）、`score`、`box`；沒有數字題，所以張數用「剛好 N 張嗎」（N=2 到 10）加「明說一張」「拼貼」；是非題 14 句、五種語言 39／40 符合預期，每次 140 到 240 毫秒。
+- 題目：`collage`、`single`、`exactly_2`…`exactly_10`、`more_than_limit`（限制寫在題目與 state 裡）、`ratio_stated`、`portrait`、`landscape`、`square`。比例若寫成數字（9:16、9：16、9比16）由程式讀，但只有 `ratio_stated` 為是才採用（避免「比分 2:1」「3:30 開會」）。
+- 規則（`legacy-runtime/features/image-spoken-request.js`）：口語只管這一則，不改存的設定；拼貼＝張數 1，提示詞加一句要求單張拼貼；沒說張數就用設定的數字；超出模型上限（張數、不支援的比例、參考圖張數）**不送出請求**並提示（五語言，`imageCountOverLimit` 等），不再自動改成最接近的比例或截斷參考圖；判斷沒回應（沒金鑰、逾時、暫停中）就照設定送出。
+- 判斷與翻譯同時進行，不增加等待；生成中的佔位框與縮圖佔位格會依說出的比例與張數更新。
+- 隱私：圖片提示詞、模型的張數與參考圖上限、附了幾張參考圖（不含圖片本身）送到 Decisions API；五語言隱私政策與 PRIVACY.md 已改。
+- 待 owner 驗證：重跑 `decisions-image-probe.mjs`（現在跑的是頁面真正用的題目與讀法），看「Sentences read as expected」。

@@ -9,7 +9,7 @@ const hasFilePart = (message) => (message?.parts || []).some((part) => part?.inl
  */
 export function createAsk({ getApiKeyForProvider, getConfig, logger } = {}) {
   const decisionService = createDecisionService({ fetchImpl: (...args) => globalThis.fetch(...args), getApiKey: () => getApiKeyForProvider('openrouter'), logger });
-  return ({ conversation, userMessage, uploadedFiles = [], signal } = {}) => {
+  const ask = ({ conversation, userMessage, uploadedFiles = [], signal } = {}) => {
     const config = getConfig();
     const messages = conversation?.messages || [];
     return decisionService.decide({
@@ -21,4 +21,7 @@ export function createAsk({ getApiKeyForProvider, getConfig, logger } = {}) {
       historyRecall: config.historyRecallEnabled === true
     }, { signal });
   };
+  // The questions about a picture request (image-decisions.js): { message, limits, attached } in, the answers or null out.
+  ask.image = (input, options) => decisionService.decideImage(input, options);
+  return ask;
 }

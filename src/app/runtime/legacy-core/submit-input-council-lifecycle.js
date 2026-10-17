@@ -861,7 +861,8 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
           if (!imageGenerationResponseLifecycle) throw new Error(getLocalizedText('imageFeatureNotReady'));
           const imageResult = await imageGenerationResponseLifecycle.run({
             targetElement: contentDiv, userParts, modelInfo, conversation: conv, webSearchEnabled, signal: submitAbortController.signal,
-            uiLanguage: getLiveConfig().uiLanguage, serverReply, assistantMessageId, resumeRun
+            uiLanguage: getLiveConfig().uiLanguage, serverReply, assistantMessageId, resumeRun,
+            requestImageDecisions: requestDecisions?.image
           });
           generatedImageParts = imageResult.parts;
         } else {
