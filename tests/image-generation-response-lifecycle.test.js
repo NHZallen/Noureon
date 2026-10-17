@@ -378,7 +378,7 @@ const spokenHarness = (decision, overrides = {}) => {
   });
   return { run, requests, asked, model };
 };
-const answers = (over = {}) => ({ collage: 0.05, single: 0.05, count: null, more: 0.02, ratioStated: 0.05, portrait: 0.05, landscape: 0.05, square: 0.05, ...over });
+const answers = (over = {}) => ({ collage: 0.05, countSaid: 0.05, count: null, more: 0.02, ratioStated: 0.05, portrait: 0.05, landscape: 0.05, square: 0.05, ...over });
 
 test('what is said about the count and the shape is used for this message: two pictures of 9:16', async () => {
   const { run, requests, asked } = spokenHarness(answers({ count: 2, ratioStated: 0.95, portrait: 0.92 }));

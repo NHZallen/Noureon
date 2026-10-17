@@ -20,7 +20,7 @@ export function describeLimits({ maxCount, minReferences = 0, maxReferences } = 
 
 const questionsFor = (limits) => ({
   collage: 'The person wants ONE single picture made of several parts put together (a collage, a grid, panels, a storyboard, a triptych), not several separate pictures.',
-  single: 'The person asks for exactly one picture and says so with a number or the word one (one picture, a single image, 1 image).',
+  count_said: 'The person says how many pictures (images, photos) they want, with a number or a number word, such as one picture, two images, 一張, 兩張, trois images. Counting things inside the picture (three cats) does not count.',
   ...Object.fromEntries(COUNTS.map((count) => [`exactly_${count}`, `The person asks for exactly ${WORDS[count]} separate pictures.`])),
   more_than_limit: `The person asks for more pictures, or more reference pictures, than the picture model can do (${limits}).`,
   ratio_stated: 'The person names the shape of the picture: an aspect ratio such as 9:16, 16:9, 4:3 or 1:1, or a word for it (portrait, vertical, wide, square).',
@@ -48,7 +48,7 @@ const probability = (answer) => {
   return Number.isFinite(value) && value >= 0 && value <= 1 ? value : null;
 };
 
-/** The answers as { collage, single, count, more, ratioStated, portrait, landscape, square }: count is the N of the "exactly N" question that answered yes (the surest one), or null. null when there are no answers. */
+/** The answers as { collage, countSaid, count, more, ratioStated, portrait, landscape, square }: count is the N of the "exactly N" question that answered yes (the surest one), or null. null when there are no answers. */
 export function parseImageDecisionResponse(body, threshold = DECISION_THRESHOLD) {
   const answers = body?.answers;
   if (!answers || typeof answers !== 'object') return null;
@@ -62,7 +62,7 @@ export function parseImageDecisionResponse(body, threshold = DECISION_THRESHOLD)
   }
   return {
     collage: named.collage,
-    single: named.single,
+    countSaid: named.count_said,
     count,
     more: named.more_than_limit,
     ratioStated: named.ratio_stated,

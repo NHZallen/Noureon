@@ -30,8 +30,8 @@ export function readSpokenRequest({ decision, message, modelInfo = {}, attached 
   const nothing = { count: null, aspectRatio: '', collage: false, problem: null };
   if (!decision) return nothing;
   const collage = typeof decision.collage === 'number' && decision.collage >= COLLAGE_THRESHOLD;
-  // A count that was said ("exactly N") is surer than "one picture", which is asked in a looser way.
-  const count = collage ? 1 : decision.count ?? (yes(decision.single) ? 1 : null);
+  // A count of two or more that was read ("exactly N") wins; when a count was said but it is not two or more, it is one.
+  const count = collage ? 1 : decision.count ?? (yes(decision.countSaid) ? 1 : null);
   const maxCount = modelInfo.maxImageCount > 0 ? modelInfo.maxImageCount : MAX_SPOKEN_COUNT;
   const supported = Array.isArray(modelInfo.supportedImageAspectRatios) ? modelInfo.supportedImageAspectRatios : [];
 

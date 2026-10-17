@@ -12,8 +12,8 @@ test('the request about a picture message holds its limits and the yes-or-no que
   assert.match(request.state[1], /1 to 6 pictures per request and takes 0 to 4 reference pictures/);
   assert.match(request.state[2], /attached to the latest message: 1/);
   const names = Object.keys(request.questions);
-  for (const name of ['collage', 'single', 'exactly_2', 'exactly_10', 'more_than_limit', 'ratio_stated', 'portrait', 'landscape', 'square']) assert.ok(names.includes(name), name);
-  assert.equal(names.includes('exactly_1'), false, 'one picture is "single": not saying a count is not a count');
+  for (const name of ['collage', 'count_said', 'exactly_2', 'exactly_10', 'more_than_limit', 'ratio_stated', 'portrait', 'landscape', 'square']) assert.ok(names.includes(name), name);
+  assert.equal(names.includes('exactly_1'), false, 'one picture is "count_said": not saying a count is not a count');
   assert.ok(Object.values(request.questions).every(question => question.type === 'noul'));
   assert.match(request.questions.more_than_limit.instructions, /1 to 6 pictures/);
   assert.equal(buildImageDecisionRequest({ message: '   ' }), null);
@@ -21,7 +21,7 @@ test('the request about a picture message holds its limits and the yes-or-no que
 });
 
 test('the answers are read as one count, the yes-or-no of the rest, or nothing', () => {
-  const body = { answers: { collage: { noul: 0.1 }, single: { noul: 0.02 }, exactly_2: { noul: 0.97 }, exactly_3: { noul: 0.59 }, exactly_4: { noul: 0.7 }, more_than_limit: { noul: 0.02 }, ratio_stated: { noul: 0.9 }, portrait: { noul: 0.92 } } };
+  const body = { answers: { collage: { noul: 0.1 }, count_said: { noul: 0.02 }, exactly_2: { noul: 0.97 }, exactly_3: { noul: 0.59 }, exactly_4: { noul: 0.7 }, more_than_limit: { noul: 0.02 }, ratio_stated: { noul: 0.9 }, portrait: { noul: 0.92 } } };
   const read = parseImageDecisionResponse(body);
   assert.equal(read.count, 2, 'the surest "exactly N" that said yes');
   assert.equal(read.collage, 0.1);
@@ -59,10 +59,10 @@ test('the question about a picture request has the same pause and failures as th
 
 test('what is read from the answers for the model in use', () => {
   const model = { maxImageCount: 6, maxImageReferences: 4, supportedImageAspectRatios: ['1:1', '3:4', '16:9'] };
-  const base = { collage: 0.05, single: 0.05, count: null, more: 0.02, ratioStated: 0.05, portrait: 0.05, landscape: 0.05, square: 0.05 };
+  const base = { collage: 0.05, countSaid: 0.05, count: null, more: 0.02, ratioStated: 0.05, portrait: 0.05, landscape: 0.05, square: 0.05 };
   assert.deepEqual(readSpokenRequest({ decision: null, message: 'x', modelInfo: model }), { count: null, aspectRatio: '', collage: false, problem: null });
   assert.equal(readSpokenRequest({ decision: { ...base, count: 3 }, message: 'x', modelInfo: model }).count, 3);
-  assert.equal(readSpokenRequest({ decision: { ...base, single: 0.9 }, message: 'x', modelInfo: model }).count, 1);
+  assert.equal(readSpokenRequest({ decision: { ...base, countSaid: 0.9 }, message: 'x', modelInfo: model }).count, 1);
   const collage = readSpokenRequest({ decision: { ...base, collage: 0.9, count: 5 }, message: 'x', modelInfo: model });
   assert.equal(collage.count, 1);
   assert.equal(collage.collage, true);
@@ -80,19 +80,19 @@ test('what is read from the answers for the model in use', () => {
 
 test('the readings the probe of 2026-10-17 corrected: a collage needs a sure yes, a said count beats "one picture", a word for the shape stands alone', () => {
   const model = { maxImageCount: 6, maxImageReferences: 4, supportedImageAspectRatios: ['1:1', '3:4', '9:16', '16:9'] };
-  const base = { collage: 0.05, single: 0.05, count: null, more: 0.02, ratioStated: 0.05, portrait: 0.05, landscape: 0.05, square: 0.05 };
+  const base = { collage: 0.05, countSaid: 0.05, count: null, more: 0.02, ratioStated: 0.05, portrait: 0.05, landscape: 0.05, square: 0.05 };
   // "four pictures in different styles, landscape": collage 0.74, one picture 0.77, four 0.93
-  const four = readSpokenRequest({ decision: { ...base, collage: 0.74, single: 0.77, count: 4, ratioStated: 0.91, landscape: 0.92 }, message: '畫四張不同風格的貓，橫式', modelInfo: model });
+  const four = readSpokenRequest({ decision: { ...base, collage: 0.74, countSaid: 0.77, count: 4, ratioStated: 0.91, landscape: 0.92 }, message: '畫四張不同風格的貓，橫式', modelInfo: model });
   assert.deepEqual([four.count, four.collage, four.aspectRatio], [4, false, '16:9']);
   // "two vertical drawings" in Russian: one picture 0.63, two 0.9
-  assert.equal(readSpokenRequest({ decision: { ...base, single: 0.63, count: 2 }, message: 'x', modelInfo: model }).count, 2);
+  assert.equal(readSpokenRequest({ decision: { ...base, countSaid: 0.63, count: 2 }, message: 'x', modelInfo: model }).count, 2);
   // a real collage (0.89) is one picture even when a count was read
-  const comic = readSpokenRequest({ decision: { ...base, collage: 0.89, single: 0.68, count: 4 }, message: 'x', modelInfo: model });
+  const comic = readSpokenRequest({ decision: { ...base, collage: 0.89, countSaid: 0.68, count: 4 }, message: 'x', modelInfo: model });
   assert.deepEqual([comic.count, comic.collage], [1, true]);
   // "six phone wallpapers": the shape was not stated as such (0.33) but a tall picture was asked for (0.86)
   assert.equal(readSpokenRequest({ decision: { ...base, count: 6, ratioStated: 0.33, portrait: 0.86 }, message: '來六張手機桌布', modelInfo: model }).aspectRatio, '9:16');
   // a guess about the shape (0.4) is not taken
   assert.equal(readSpokenRequest({ decision: { ...base, landscape: 0.4 }, message: 'trois paysages de montagne', modelInfo: model }).aspectRatio, '');
   // only "one picture" said outright: one
-  assert.equal(readSpokenRequest({ decision: { ...base, single: 0.9 }, message: 'x', modelInfo: model }).count, 1);
+  assert.equal(readSpokenRequest({ decision: { ...base, countSaid: 0.9 }, message: 'x', modelInfo: model }).count, 1);
 });

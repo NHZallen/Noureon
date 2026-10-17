@@ -85,7 +85,10 @@ const CASES = [
   ['Dessine-moi trois paysages de montagne', { count: 3, collage: false, aspectRatio: '', problem: '' }],
   ['Нарисуй два вертикальных рисунка леса', { count: 2, collage: false, aspectRatio: '9:16', problem: '' }],
   ['Hazme dos imágenes cuadradas de un gato', { count: 2, collage: false, aspectRatio: '1:1', problem: '' }],
-  ['一張貓的照片', { count: 1, collage: false, aspectRatio: '', problem: '' }]
+  ['一張貓的照片', { count: 1, collage: false, aspectRatio: '', problem: '' }],
+  ['Give me one picture of a meadow', { count: 1, collage: false, aspectRatio: '', problem: '' }],
+  ['畫一隻貓', { count: null, collage: false, aspectRatio: '', problem: '' }],
+  ['幫我畫一隻戴帽子的狗', { count: null, collage: false, aspectRatio: '', problem: '' }]
 ];
 async function battery() {
   console.log('\n== What the page asks about a picture request, and what it reads (limits: 1 to 6 pictures, 0 to 4 references) ==');
@@ -102,7 +105,7 @@ async function battery() {
     total += 1;
     if (!misses.length) right += 1;
     const shown = (value) => (value === null || value === undefined ? '-' : Number(value).toFixed(2));
-    console.log(`${misses.length ? 'MISS' : 'ok  '}  ${result.ms}ms  ${message}\n      read: ${JSON.stringify(got)}${misses.length ? `   expected: ${JSON.stringify(expect)}` : ''}\n      answers: collage=${shown(decision.collage)} single=${shown(decision.single)} count=${decision.count ?? '-'} more=${shown(decision.more)} ratioStated=${shown(decision.ratioStated)} portrait=${shown(decision.portrait)} landscape=${shown(decision.landscape)} square=${shown(decision.square)}`);
+    console.log(`${misses.length ? 'MISS' : 'ok  '}  ${result.ms}ms  ${message}\n      read: ${JSON.stringify(got)}${misses.length ? `   expected: ${JSON.stringify(expect)}` : ''}\n      answers: collage=${shown(decision.collage)} countSaid=${shown(decision.countSaid)} count=${decision.count ?? '-'} more=${shown(decision.more)} ratioStated=${shown(decision.ratioStated)} portrait=${shown(decision.portrait)} landscape=${shown(decision.landscape)} square=${shown(decision.square)}`);
   }
   console.log(`\nSentences read as expected: ${right} of ${total}`);
 }
