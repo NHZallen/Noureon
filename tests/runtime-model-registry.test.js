@@ -174,7 +174,7 @@ test('model registry exposes precise reasoning depth options for supported model
   const nvidiaGlmModel = MODELS.find((model) => model.id === 'nvidia/z-ai/glm-5.3');
   const nvidiaNemotronModel = MODELS.find((model) => model.id === 'nvidia/nvidia/nemotron-3.5-super-vl-120b-a12b');
 
-  assert.deepEqual(getModelReasoningConfig(deepseekModel)?.options, ['none', 'low', 'medium', 'high', 'xhigh', 'max']);
+  assert.deepEqual(getModelReasoningConfig(deepseekModel)?.options, ['low', 'high', 'max']);
   assert.equal(normalizeReasoningEffort(deepseekModel, 'max'), 'max');
   assert.equal(getReasoningEffortLabel('xhigh', 'zh-TW'), '超高');
 

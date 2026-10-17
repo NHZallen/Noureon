@@ -290,8 +290,8 @@ export const MODEL_REASONING_CONFIGS = Object.freeze({ ...createReasoningConfigs
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'high', ['anthropic/claude-sonnet-5.5']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'high', ['anthropic/claude-fable-5.1']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'medium', ['anthropic/claude-opus-5.5']],
-    // DeepSeek V4.1 Flash 1017 accepts every level, none included (the probe of 2026-10-17).
-    [OPENROUTER_REASONING_EFFORT, ['none', 'low', 'medium', 'high', 'xhigh', 'max'], 'high', ['deepseek/deepseek-v4.1-flash-1017']],
+    // DeepSeek V4.1 Flash 1017: the official levels are low, high and max (the other levels are accepted by OpenRouter, but not offered).
+    [OPENROUTER_REASONING_EFFORT, ['low', 'high', 'max'], 'high', ['deepseek/deepseek-v4.1-flash-1017']],
     // The Gemini models through OpenRouter take the same levels as their native twins (OpenRouter maps the effort to Gemini's thinking level).
     [OPENROUTER_REASONING_EFFORT, LOW_MEDIUM_HIGH, 'medium', ['google/gemini-3.8-flash']],
     [OPENROUTER_REASONING_EFFORT, ['minimal', 'low', 'medium', 'high'], 'minimal', ['google/gemini-3.5-flash-lite']],
