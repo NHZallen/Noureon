@@ -26,11 +26,13 @@ const MODEL_RELEASE_METADATA = Object.freeze({
     'google/gemini-3.8-flash': { releasedAt: 20260902, outputPricePerMillion: 3.75 },
     'google/gemini-3.5-flash-lite': { releasedAt: 20260721, outputPricePerMillion: 2.5 },
     'google/gemini-4-argon': { releasedAt: 20261013, outputPricePerMillion: 10 },
-    'google/gemini-nano-banana-2.1': { releasedAt: 20261006, outputPricePerMillion: 7.5 },
+    'google/gemini-nano-banana-2.1': { releasedAt: 20261006, outputPricePerMillion: 30 },
     // Priced per image, not per token: no outputPricePerMillion.
     'black-forest-labs/flux-3-image': { releasedAt: 20261001 },
     'black-forest-labs/flux-3-image-klein': { releasedAt: 20261015 },
     'krea/k3-edit': { releasedAt: 20261016 },
+    'qwen/qwen-image-2.1-turbo': { releasedAt: 20261017 },
+    'qwen/qwen-image-2.1-pro': { releasedAt: 20261017 },
     'minimax/minimax-m3': { releasedAt: 20260531, outputPricePerMillion: 1.2 },
     'moonshotai/kimi-k3': { releasedAt: 20260716, outputPricePerMillion: 15 },
     'poolside/laguna-s-2.1:free': { releasedAt: 20260721, outputPricePerMillion: 0 },
@@ -63,6 +65,9 @@ const FLUX_IMAGE_RATIOS = Object.freeze(['1:1', '21:9', '2:1', '16:9', '3:2', '7
 // Krea K3 Edit (OpenRouter's parameters): seven ratios, 1K and 2K, one to eight reference pictures (it edits a picture, so it needs at least one).
 const KREA_IMAGE_RATIOS = Object.freeze(['1:1', '4:3', '3:2', '16:9', '4:5', '2:3', '9:16']);
 const KREA_IMAGE_RESOLUTIONS = Object.freeze(['1K', '2K']);
+// Qwen Image 2.1 Turbo and Pro (OpenRouter's parameters, 2026-10-17): thirteen ratios (no auto, no 21:9), 1K and 2K, one to six pictures, up to four reference pictures, a seed.
+const QWEN_IMAGE_RATIOS = Object.freeze(['1:1', '1:2', '1:4', '2:1', '2:3', '3:2', '3:4', '4:1', '4:3', '4:5', '5:4', '9:16', '16:9']);
+const QWEN_IMAGE_RESOLUTIONS = Object.freeze(['1K', '2K']);
 const GPT_IMAGE_RATIOS = Object.freeze(['1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16', '21:9', 'auto']);
 // GPT Image 2.5 (OpenRouter's parameters, 2026-10-17): aspect_ratio with auto, quality up to xhigh and max, background, n 1-10, 0-16 reference pictures, output_compression 0-100; no resolution.
 const GPT_IMAGE_QUALITIES = Object.freeze(['auto', 'low', 'medium', 'high', 'xhigh', 'max']);
@@ -114,6 +119,9 @@ export const MODEL_CATALOG = [
     { id: 'black-forest-labs/flux-3-image-klein', name: 'FLUX.3 Image Klein', provider: 'openrouter', descriptionKey: 'model_flux_3_image_klein_desc', category: 'image_generation', outputModality: 'image', supportedImageAspectRatios: FLUX_IMAGE_RATIOS, supportedImageResolutions: FLUX_IMAGE_RESOLUTIONS, maxImageCount: 1, maxImageReferences: 10 },
     // OpenRouter Image Models (Krea): an editing model, so a request without a reference picture is not sent (minImageReferences), and more than four are cut (maxImageReferences).
     { id: 'krea/k3-edit', name: 'Krea K3 Edit', provider: 'openrouter', descriptionKey: 'model_krea_k3_edit_desc', category: 'image_generation', outputModality: 'image', supportedImageAspectRatios: KREA_IMAGE_RATIOS, supportedImageResolutions: KREA_IMAGE_RESOLUTIONS, maxImageCount: 1, minImageReferences: 1, maxImageReferences: 8 },
+    // Qwen Image 2.1: the fast, low-cost tier (Turbo) and the higher-quality tier (Pro); both edit with up to four reference pictures.
+    { id: 'qwen/qwen-image-2.1-turbo', name: 'Qwen Image 2.1 Turbo', provider: 'openrouter', descriptionKey: 'model_qwen_image_2_1_turbo_desc', category: 'image_generation', outputModality: 'image', supportedImageAspectRatios: QWEN_IMAGE_RATIOS, supportedImageResolutions: QWEN_IMAGE_RESOLUTIONS, maxImageCount: 6, maxImageReferences: 4 },
+    { id: 'qwen/qwen-image-2.1-pro', name: 'Qwen Image 2.1 Pro', provider: 'openrouter', descriptionKey: 'model_qwen_image_2_1_pro_desc', category: 'image_generation', outputModality: 'image', supportedImageAspectRatios: QWEN_IMAGE_RATIOS, supportedImageResolutions: QWEN_IMAGE_RESOLUTIONS, maxImageCount: 6, maxImageReferences: 4 },
 
     // OpenRouter Paid Models (Minimax)
     { id: 'minimax/minimax-m3', name: 'Minimax M3', provider: 'openrouter', descriptionKey: 'model_minimax_m3_desc', category: 'general' },
@@ -172,7 +180,9 @@ export const IMAGE_GENERATION_MODEL_IDS = Object.freeze([
     'google/gemini-nano-banana-2.1',
     'black-forest-labs/flux-3-image',
     'black-forest-labs/flux-3-image-klein',
-    'krea/k3-edit'
+    'krea/k3-edit',
+    'qwen/qwen-image-2.1-turbo',
+    'qwen/qwen-image-2.1-pro'
 ]);
 export const CHEAP_MODEL_ID = 'gemini-3.5-flash-lite';
 export const OPENROUTER_VISION_MODELS = [

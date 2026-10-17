@@ -21,7 +21,9 @@ const EXPECTED_MODELS = [
   'google/gemini-nano-banana-2.1',
   'black-forest-labs/flux-3-image',
   'black-forest-labs/flux-3-image-klein',
-  'krea/k3-edit'
+  'krea/k3-edit',
+  'qwen/qwen-image-2.1-turbo',
+  'qwen/qwen-image-2.1-pro'
 ];
 
 test('registers the curated image generation models', () => {
@@ -123,7 +125,7 @@ test('the 768 and 1.5K tiers and the 7:5 and 5:7 ratios are known to the app and
 test('FLUX.3 Image, Klein and Krea make one picture per request, the other image models are not limited', () => {
   const single = ['black-forest-labs/flux-3-image', 'black-forest-labs/flux-3-image-klein', 'krea/k3-edit'];
   for (const id of single) assert.equal(MODELS.find(model => model.id === id).maxImageCount, 1, id);
-  for (const id of EXPECTED_MODELS.filter(id => !single.includes(id))) {
+  for (const id of EXPECTED_MODELS.filter(id => !single.includes(id) && !id.startsWith('qwen/'))) {
     assert.equal(MODELS.find(model => model.id === id).maxImageCount, undefined, id);
   }
 });
@@ -147,4 +149,17 @@ test('reference picture limits and the GPT Image qualities follow OpenRouter\'s 
   assert.equal(find('black-forest-labs/flux-3-image-klein').maxImageReferences, 10);
   assert.deepEqual(find('openai/gpt-image-2.5-flare').supportedImageQualities, ['auto', 'low', 'medium', 'high', 'xhigh', 'max']);
   assert.equal(find('krea/k3-edit').supportedImageQualities, undefined);
+});
+
+test('Qwen Image 2.1 Turbo and Pro follow OpenRouter\'s parameters (2026-10-17)', () => {
+  for (const id of ['qwen/qwen-image-2.1-turbo', 'qwen/qwen-image-2.1-pro']) {
+    const model = MODELS.find(candidate => candidate.id === id);
+    assert.equal(model.provider, 'openrouter', id);
+    assert.deepEqual(model.supportedImageAspectRatios, ['1:1', '1:2', '1:4', '2:1', '2:3', '3:2', '3:4', '4:1', '4:3', '4:5', '5:4', '9:16', '16:9'], `${id} takes thirteen ratios, no auto and no 21:9`);
+    assert.deepEqual(model.supportedImageResolutions, ['1K', '2K'], id);
+    assert.equal(model.maxImageCount, 6, `${id} makes one to six pictures`);
+    assert.equal(model.maxImageReferences, 4, id);
+    assert.equal(model.minImageReferences, undefined, `${id} needs no reference`);
+    assert.equal(model.supportedImageOptions, undefined, `${id} shows no quality, background or compression`);
+  }
 });
