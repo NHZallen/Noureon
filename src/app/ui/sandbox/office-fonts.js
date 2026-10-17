@@ -2,7 +2,9 @@
 // open-source families the app ships (Noto Sans TC, Inter, …) are embedded
 // after the run, subset to the characters the file uses, so the file looks
 // the same on every computer. Fonts the app does not have (Calibri,
-// Microsoft JhengHei …) are left to the reader's computer. Loaded on demand.
+// Microsoft JhengHei …) are left to the reader's computer. A PowerPoint file
+// also gets its notes master listed (what the iPhone's preview needs).
+// Loaded on demand.
 
 import { FONT_FAMILIES, fontSource } from '../files/design/fonts.js';
 
@@ -54,29 +56,61 @@ export async function scanOfficeFonts(zip, extension) {
 }
 
 /**
- * Returns the file with its fonts embedded, or null when there is nothing to
- * embed. `assets` gives { loadFontFile, loadSubsetter }, `embedding` the
- * functions of font-embedding.js.
+ * python-pptx writes speaker notes and relates the notes master to the
+ * presentation, but never lists it in presentation.xml (notesMasterIdLst).
+ * PowerPoint accepts that; the iPhone's preview (Quick Look) refuses the whole
+ * file (checked on a real deck, 2026-10-17: it opens once the list is there).
+ * Adds the entry when a notes master is related and not listed. Returns true
+ * when the package changed.
+ */
+export async function listNotesMaster(zip) {
+  const presentation = zip.file('ppt/presentation.xml');
+  const relationships = zip.file('ppt/_rels/presentation.xml.rels');
+  if (!presentation || !relationships) return false;
+  const xml = await presentation.async('string');
+  if (/<p:notesMasterIdLst[\s>]/.test(xml) || !/xmlns:r="/.test(xml) || !xml.includes('</p:sldMasterIdLst>')) return false;
+  const related = [...(await relationships.async('string')).matchAll(/<Relationship\b[^>]*>/g)]
+    .map((match) => match[0])
+    .find((tag) => /\/relationships\/notesMaster"/.test(tag));
+  const id = related?.match(/\bId="([^"]+)"/)?.[1];
+  if (!id) return false;
+  // Schema order: sldMasterIdLst, notesMasterIdLst, handoutMasterIdLst, sldIdLst …
+  zip.file('ppt/presentation.xml', xml.replace('</p:sldMasterIdLst>', `</p:sldMasterIdLst><p:notesMasterIdLst><p:notesMasterId r:id="${id}"/></p:notesMasterIdLst>`));
+  return true;
+}
+
+/**
+ * Returns the file with its fonts embedded (and a PowerPoint file's notes
+ * master listed), or null when there is nothing to change. `assets` gives
+ * { loadFontFile, loadSubsetter }, `embedding` the functions of
+ * font-embedding.js; without them (not loaded) only the repair is done.
  */
 export async function embedOfficeFonts(bytes, extension, { JSZip, assets, embedding }) {
   const zip = await JSZip.loadAsync(bytes);
-  const used = await scanOfficeFonts(zip, extension);
-  if (!used?.families.length) return null;
-  const faces = used.families.flatMap((family) => [
-    { family, typeface: family, slot: 'regular', weight: 400, script: FONT_FAMILIES[family].scripts[0] },
-    ...(used.bold ? [{ family, typeface: family, slot: 'bold', weight: 700, script: FONT_FAMILIES[family].scripts[0] }] : [])
-  ]);
-  const families = await embedding.prepareEmbeddedFamilies(faces, {
-    textByTypeface: new Map(used.families.map((family) => [family, used.text])),
-    loadFontFile: assets.loadFontFile,
-    subsetter: await assets.loadSubsetter(),
-    fontSource,
-    familyInfo: (family) => FONT_FAMILIES[family]
-  });
-  const embedded = extension === 'docx'
-    ? await embedding.embedFontsInDocument(zip, families)
-    : await embedding.embedFontsInPresentation(zip, families);
-  if (!embedded.length) return null;
+  let changed = extension === 'pptx' ? await listNotesMaster(zip) : false;
+  const used = assets && embedding ? await scanOfficeFonts(zip, extension) : null;
+  if (used?.families.length) {
+    try {
+      const faces = used.families.flatMap((family) => [
+        { family, typeface: family, slot: 'regular', weight: 400, script: FONT_FAMILIES[family].scripts[0] },
+        ...(used.bold ? [{ family, typeface: family, slot: 'bold', weight: 700, script: FONT_FAMILIES[family].scripts[0] }] : [])
+      ]);
+      const families = await embedding.prepareEmbeddedFamilies(faces, {
+        textByTypeface: new Map(used.families.map((family) => [family, used.text])),
+        loadFontFile: assets.loadFontFile,
+        subsetter: await assets.loadSubsetter(),
+        fontSource,
+        familyInfo: (family) => FONT_FAMILIES[family]
+      });
+      const embedded = extension === 'docx'
+        ? await embedding.embedFontsInDocument(zip, families)
+        : await embedding.embedFontsInPresentation(zip, families);
+      changed ||= embedded.length > 0;
+    } catch {
+      // The file keeps its font names; readers' computers substitute.
+    }
+  }
+  if (!changed) return null;
   return zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE' });
 }
 
@@ -88,7 +122,8 @@ export async function embedFontsInRunOutputs(run, { loadArchive, loadAssets, loa
   const outputs = (run?.steps || []).flatMap((step) => (step.outputs || []).map((output) => ({ step, output })))
     .filter(({ output }) => !output.name.startsWith('.noureon/') && /\.(?:docx|pptx)$/i.test(output.name));
   if (!outputs.length) return;
-  const [JSZip, assets, embedding] = await Promise.all([loadArchive(), loadAssets(), loadEmbedding()]);
+  // The fonts and their tools are an enhancement: when they cannot be loaded the files still get their repairs.
+  const [JSZip, assets, embedding] = await Promise.all([loadArchive(), loadAssets().catch(() => null), loadEmbedding().catch(() => null)]);
   for (const { step, output } of outputs) {
     try {
       const extension = output.name.split('.').pop().toLowerCase();

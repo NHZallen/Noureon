@@ -78,3 +78,37 @@ test('only freely made Word and PowerPoint files are embedded, and a failure kee
   assert.deepEqual(seen, [1, 2], 'handed documents and pictures are skipped');
   assert.deepEqual([...run.steps[0].outputs[1].bytes], [2], 'the file is kept when embedding fails');
 });
+
+const NOTES_RELATIONSHIP = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesMaster';
+const makeDeck = async ({ listed = false, notes = true } = {}) => {
+  const zip = new JSZip();
+  const list = listed ? '<p:notesMasterIdLst><p:notesMasterId r:id="rId8"/></p:notesMasterIdLst>' : '';
+  zip.file('ppt/presentation.xml', `<?xml version='1.0'?><p:presentation xmlns:a="a" xmlns:r="r" xmlns:p="p"><p:sldMasterIdLst><p:sldMasterId id="2147483648" r:id="rId1"/></p:sldMasterIdLst>${list}<p:sldIdLst><p:sldId id="256" r:id="rId7"/></p:sldIdLst></p:presentation>`);
+  zip.file('ppt/_rels/presentation.xml.rels', `<Relationships><Relationship Id="rId1" Type="x/slideMaster" Target="slideMasters/slideMaster1.xml"/>${notes ? `<Relationship Id="rId8" Type="${NOTES_RELATIONSHIP}" Target="notesMasters/notesMaster1.xml"/>` : ''}</Relationships>`);
+  return zip.generateAsync({ type: 'uint8array' });
+};
+
+test('a PowerPoint file from Python gets its notes master listed, which the iPhone preview needs', async () => {
+  const { listNotesMaster, embedOfficeFonts } = await import('../../src/app/ui/sandbox/office-fonts.js');
+  const zip = await JSZip.loadAsync(await makeDeck());
+  assert.equal(await listNotesMaster(zip), true);
+  const xml = await zip.file('ppt/presentation.xml').async('string');
+  assert.match(xml, /<\/p:sldMasterIdLst><p:notesMasterIdLst><p:notesMasterId r:id="rId8"\/><\/p:notesMasterIdLst><p:sldIdLst>/, 'in the schema order, after the slide master list');
+  assert.equal(await listNotesMaster(zip), false, 'done once');
+
+  assert.equal(await embedOfficeFonts(await makeDeck({ listed: true }), 'pptx', { JSZip }), null, 'already listed: nothing to change');
+  assert.equal(await embedOfficeFonts(await makeDeck({ notes: false }), 'pptx', { JSZip }), null, 'no notes master: nothing to change');
+  assert.equal(await embedOfficeFonts(await makeDeck(), 'docx', { JSZip }), null, 'only PowerPoint files');
+
+  // Without the font tools (not loaded) the repair is still made.
+  const repaired = await embedOfficeFonts(await makeDeck(), 'pptx', { JSZip });
+  assert.match(await (await JSZip.loadAsync(repaired)).file('ppt/presentation.xml').async('string'), /<p:notesMasterId r:id="rId8"\/>/);
+});
+
+test('a run keeps repairing its PowerPoint files when the font tools cannot be loaded', async () => {
+  const run = { steps: [{ files: [{ name: 'deck.pptx', size: 1 }], outputs: [{ name: 'deck.pptx', bytes: await makeDeck() }] }] };
+  await embedFontsInRunOutputs(run, { loadArchive: async () => JSZip, loadAssets: async () => { throw new Error('no fonts here'); }, loadEmbedding: async () => { throw new Error('no fonts here'); } });
+  const xml = await (await JSZip.loadAsync(run.steps[0].outputs[0].bytes)).file('ppt/presentation.xml').async('string');
+  assert.match(xml, /<p:notesMasterIdLst>/);
+  assert.ok(run.steps[0].files[0].size > 1, 'the listed size follows');
+});
