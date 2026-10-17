@@ -125,9 +125,9 @@ test('the 768 and 1.5K tiers and the 7:5 and 5:7 ratios are known to the app and
 test('FLUX.3 Image, Klein and Krea make one picture per request, the other image models are not limited', () => {
   const single = ['black-forest-labs/flux-3-image', 'black-forest-labs/flux-3-image-klein', 'krea/k3-edit'];
   for (const id of single) assert.equal(MODELS.find(model => model.id === id).maxImageCount, 1, id);
-  for (const id of EXPECTED_MODELS.filter(id => !single.includes(id) && !id.startsWith('qwen/'))) {
-    assert.equal(MODELS.find(model => model.id === id).maxImageCount, undefined, id);
-  }
+  // GPT Image takes 1 to 10 (OpenRouter's parameters); Nano Banana lists no count, so none is claimed for it.
+  for (const id of ['openai/gpt-image-2.5-flare', 'openai/gpt-image-2.5-sunburst']) assert.equal(MODELS.find(model => model.id === id).maxImageCount, 10, id);
+  assert.equal(MODELS.find(model => model.id === 'google/gemini-nano-banana-2.1').maxImageCount, undefined);
 });
 
 test('Krea K3 Edit: seven ratios, 1K and 2K, one picture per request, one to eight reference pictures', () => {

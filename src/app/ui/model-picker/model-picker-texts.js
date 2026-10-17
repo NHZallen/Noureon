@@ -23,6 +23,7 @@ const TEXTS = Object.freeze({
     modelPicker: '選擇模型', councilCount: '理事會 · {n}',
     vision: '視覺', documents: '文件', search: '搜尋', translatedDocuments: '文件轉譯',
     imageGeneration: '圖片生成', imageEdit: '圖片編輯', imageNeedsPicture: '需附圖',
+    imageCountRange: '每次 {n} 張', imageReferenceRange: '參考圖 {n}',
     locked: '理事會執行中，暫時不能更改。',
     learningNote: '學習模式開啟時不能使用理事會。'
   },
@@ -46,6 +47,7 @@ const TEXTS = Object.freeze({
     modelPicker: 'Choose a model', councilCount: 'Council · {n}',
     vision: 'Vision', documents: 'Files', search: 'Search', translatedDocuments: 'Translated files',
     imageGeneration: 'Image generation', imageEdit: 'Image editing', imageNeedsPicture: 'Needs a picture',
+    imageCountRange: '{n} per request', imageReferenceRange: 'References: {n}',
     locked: 'The council is running. Changes wait until it finishes.',
     learningNote: 'The council is not available while Learning mode is on.'
   },
@@ -69,6 +71,7 @@ const TEXTS = Object.freeze({
     modelPicker: 'Choisir un modèle', councilCount: 'Conseil · {n}',
     vision: 'Vision', documents: 'Fichiers', search: 'Recherche', translatedDocuments: 'Fichiers traduits',
     imageGeneration: 'Génération d’images', imageEdit: 'Retouche d’images', imageNeedsPicture: 'Image requise',
+    imageCountRange: '{n} par requête', imageReferenceRange: 'Références : {n}',
     locked: 'Le conseil est en cours. Les changements attendent la fin.',
     learningNote: 'Le conseil n’est pas disponible avec le mode Apprentissage.'
   },
@@ -92,6 +95,7 @@ const TEXTS = Object.freeze({
     modelPicker: 'Выбрать модель', councilCount: 'Совет · {n}',
     vision: 'Зрение', documents: 'Файлы', search: 'Поиск', translatedDocuments: 'Переведённые файлы',
     imageGeneration: 'Создание изображений', imageEdit: 'Редактирование изображений', imageNeedsPicture: 'Нужно изображение',
+    imageCountRange: '{n} за запрос', imageReferenceRange: 'Образцы: {n}',
     locked: 'Совет работает. Изменения — после завершения.',
     learningNote: 'Совет недоступен при включённом режиме обучения.'
   },
@@ -115,6 +119,7 @@ const TEXTS = Object.freeze({
     modelPicker: 'Elegir un modelo', councilCount: 'Consejo · {n}',
     vision: 'Visión', documents: 'Archivos', search: 'Búsqueda', translatedDocuments: 'Archivos traducidos',
     imageGeneration: 'Generación de imágenes', imageEdit: 'Edición de imágenes', imageNeedsPicture: 'Requiere una imagen',
+    imageCountRange: '{n} por solicitud', imageReferenceRange: 'Referencias: {n}',
     locked: 'El consejo está en marcha. Los cambios esperan a que termine.',
     learningNote: 'El consejo no está disponible con el modo Aprendizaje.'
   }

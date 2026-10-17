@@ -118,7 +118,13 @@ export function createCouncilControlsLifecycle(deps) {
     afterPaint(saveConfig);
   };
 
-  const imageAbilities = (model, t) => (model.minImageReferences > 0 ? [t('imageEdit'), t('imageNeedsPicture')] : [t('imageGeneration')]);
+  // What a picture model does and how much of it, as its registry says (a number that is not known is not shown): "Image generation · 1–6 per
+  // request · References 0–4".
+  const imageAbilities = (model, t) => [
+    ...(model.minImageReferences > 0 ? [t('imageEdit'), t('imageNeedsPicture')] : [t('imageGeneration')]),
+    ...(model.maxImageCount > 0 ? [t('imageCountRange').replace('{n}', model.maxImageCount === 1 ? '1' : `1–${model.maxImageCount}`)] : []),
+    ...(model.maxImageReferences > 0 ? [t('imageReferenceRange').replace('{n}', `${model.minImageReferences || 0}–${model.maxImageReferences}`)] : [])
+  ];
 
   const describe = (model, { translations, t, selected = false, disabled = false }) => {
     const tiers = getModelTiers(model) || [];

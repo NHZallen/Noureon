@@ -280,6 +280,31 @@ test('a picture-making model is listed as generating or as editing, not with the
   }
 });
 
+test('a picture-making model shows how many pictures it makes at a time and how many reference pictures it takes, only what its registry knows', () => {
+  const originals = [{ ...MODELS[1] }, { ...MODELS[2] }];
+  Object.assign(MODELS[1], { id: 'image/many', name: 'Many', outputModality: 'image', maxImageCount: 6, maxImageReferences: 4 });
+  Object.assign(MODELS[2], { id: 'image/one', name: 'One', outputModality: 'image', minImageReferences: 1, maxImageCount: 1, maxImageReferences: 8 });
+  const { cleanup, document, lifecycle } = createHarness({ conversation: singleConversation() });
+  try {
+    lifecycle.renderCouncilControls();
+    document.querySelector('#model-picker-btn').click();
+    const many = document.querySelector('[data-mp-model="image/many"]').textContent;
+    const one = document.querySelector('[data-mp-model="image/one"]').textContent;
+    assert.match(many, /Image generation/);
+    assert.match(many, /1–6 per request/);
+    assert.match(many, /References: 0–4/);
+    assert.match(one, /Image editing · Needs a picture/);
+    assert.match(one, /1 per request/);
+    assert.doesNotMatch(one, /1–1/);
+    assert.match(one, /References: 1–8/);
+  } finally {
+    Object.assign(MODELS[1], originals[0]);
+    Object.assign(MODELS[2], originals[1]);
+    for (const model of [MODELS[1], MODELS[2]]) for (const key of ['outputModality', 'minImageReferences', 'maxImageCount', 'maxImageReferences']) if (!(key in originals[model === MODELS[1] ? 0 : 1])) delete model[key];
+    cleanup();
+  }
+});
+
 test('a model of OpenCode Go that is not trusted with a PDF (the probe found it unstable) is still listed as getting files translated', () => {
   const original = { ...MODELS[1] };
   Object.assign(MODELS[1], { id: 'opencode-go/deepseek-v4-flash', provider: 'opencode-go' });
