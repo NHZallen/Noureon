@@ -373,6 +373,38 @@ test('a swipe to the left that starts on the row of small pictures of a set does
   }
 });
 
+test('a swipe to the left that starts on a box that slides sideways itself (the pictures of a message on a phone) does not open the panel', () => {
+  const harness = createHarness({ activeConversation: { messages: [{ role: 'user', parts: [{ text: 'Preview' }] }] } });
+  const dispatchTouch = (target, type, pointsKey, points) => {
+    const event = new harness.window.Event(type, { bubbles: true });
+    Object.defineProperty(event, pointsKey, { value: points });
+    target.dispatchEvent(event);
+  };
+  try {
+    harness.helpers.setupHistorySidebarTriggers();
+    const strip = harness.document.createElement('div');
+    strip.style.overflowX = 'auto';
+    Object.defineProperty(strip, 'scrollWidth', { value: 500, configurable: true });
+    Object.defineProperty(strip, 'clientWidth', { value: 300, configurable: true });
+    const picture = harness.document.createElement('img');
+    strip.appendChild(picture);
+    harness.elements.chatContainer.appendChild(strip);
+    const swipe = (target) => {
+      dispatchTouch(target, 'touchstart', 'touches', [{ clientX: 300, clientY: 50 }]);
+      dispatchTouch(target, 'touchend', 'changedTouches', [{ clientX: 100, clientY: 52 }]);
+      for (const frame of harness.frames.splice(0)) frame();
+    };
+    swipe(picture);
+    assert.equal(harness.elements.historySidebar.classList.contains('visible'), false, 'the box slides sideways: the swipe is its');
+
+    Object.defineProperty(strip, 'scrollWidth', { value: 300, configurable: true });
+    swipe(picture);
+    assert.equal(harness.elements.historySidebar.classList.contains('visible'), true, 'a box with nothing to slide does not take the swipe');
+  } finally {
+    harness.window.close();
+  }
+});
+
 test('legacy core delegates the read-only family without moving mutation behavior or runtime contracts', () => {
   assert.equal(existsSync(projectFile(helperPath)), true);
   assert.match(helperSource, /export\s+function\s+createHistorySidebarHelpers\s*\(/);

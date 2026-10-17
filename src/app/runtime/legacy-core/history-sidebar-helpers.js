@@ -238,6 +238,18 @@ export function createHistorySidebarHelpers({
     });
   }
 
+  // A swipe that starts on something that slides sideways itself is that thing's, not the panel's: a wide table, the row of small pictures of a set
+  // (it is dragged even when it fits), and any box with more content than room that scrolls across (the pictures and files of a message on a phone).
+  function startsOnSidewaysScroller(target, boundary) {
+    if (target?.closest?.('.table-scroll-container, [data-generated-image-thumbs]')) return true;
+    for (let element = target; element && element !== boundary && element.nodeType === 1; element = element.parentElement) {
+      if (element.scrollWidth - element.clientWidth <= 1) continue;
+      const overflow = element.ownerDocument?.defaultView?.getComputedStyle?.(element)?.overflowX;
+      if (overflow === 'auto' || overflow === 'scroll') return true;
+    }
+    return false;
+  }
+
   function setupHistorySidebarTriggers() {
     const { chatContainer, historySidebar, historySidebarOverlay, menuToggleBtn, historyPanelToggleBtn } = elements;
     let touchStartX = 0;
@@ -272,8 +284,7 @@ export function createHistorySidebarHelpers({
     });
 
     chatContainer.addEventListener('touchstart', (event) => {
-      // A swipe that starts on something that slides sideways itself (a wide table, the row of small pictures of a set) is that thing's, not the panel's.
-      if (event.target.closest('.table-scroll-container, [data-generated-image-thumbs]')) {
+      if (startsOnSidewaysScroller(event.target, chatContainer)) {
         touchStartX = null;
         return;
       }
