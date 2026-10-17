@@ -162,3 +162,26 @@ test('the count offers one picture only for a model that makes one per request',
   assert.equal(Array.from(count.options).filter(option => !option.hidden).length, 10, 'the other models keep ten');
   cleanup();
 });
+
+test('the quality control offers xhigh and max only to a model that lists them', () => {
+  const { document, cleanup } = createDom('<div id="file-options-popover"><button id="learning-mode-btn"></button></div>');
+  const conversation = { imageConfig: { aspectRatio: '1:1', resolution: '1K' }, imageAdvancedConfig: { quality: 'max' } };
+  let model = { outputModality: 'image', supportedImageQualities: ['auto', 'low', 'medium', 'high', 'xhigh', 'max'] };
+  const controls = createImageModeControls({
+    document,
+    getActiveConversation: () => conversation,
+    getActiveModel: () => model,
+    modelGeneratesImages: () => true,
+    saveAppData: async () => {}
+  });
+  controls.sync();
+  const select = document.getElementById('image-quality-select');
+  const shown = () => Array.from(select.options).filter(option => !option.hidden).map(option => option.value);
+  assert.deepEqual(shown(), ['auto', 'low', 'medium', 'high', 'xhigh', 'max']);
+  assert.equal(select.value, 'max');
+  model = { outputModality: 'image' };
+  controls.sync();
+  assert.deepEqual(shown(), ['auto', 'low', 'medium', 'high']);
+  assert.equal(select.value, 'auto', 'a saved quality the model lacks falls back to the first');
+  cleanup();
+});

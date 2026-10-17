@@ -59,16 +59,18 @@ const MODEL_RELEASE_METADATA = Object.freeze({
 // a saved ratio the model lacks is moved to the nearest one it has. Gemini Nano Banana 2.1 takes the common ratios and the tall/wide
 // extremes 1:4, 4:1, 1:8 and 8:1; the GPT Image models take the eight common ratios; FLUX.3 Image takes fifteen, among them 7:5, 5:7 and 9:21.
 const GEMINI_IMAGE_RATIOS = Object.freeze(['1:1', '1:4', '4:1', '1:8', '8:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9']);
-const FLUX_IMAGE_RATIOS = Object.freeze(['1:1', '21:9', '2:1', '16:9', '3:2', '7:5', '4:3', '5:4', '4:5', '3:4', '5:7', '2:3', '9:16', '1:2', '9:21']);
-// Krea K3 Edit (OpenRouter's parameters): seven ratios, 1K and 2K, one to four reference pictures (it edits a picture, so it needs at least one).
+const FLUX_IMAGE_RATIOS = Object.freeze(['1:1', '21:9', '2:1', '16:9', '3:2', '7:5', '4:3', '5:4', '4:5', '3:4', '5:7', '2:3', '9:16', '1:2', '9:21', 'auto']);
+// Krea K3 Edit (OpenRouter's parameters): seven ratios, 1K and 2K, one to eight reference pictures (it edits a picture, so it needs at least one).
 const KREA_IMAGE_RATIOS = Object.freeze(['1:1', '4:3', '3:2', '16:9', '4:5', '2:3', '9:16']);
 const KREA_IMAGE_RESOLUTIONS = Object.freeze(['1K', '2K']);
-const GPT_IMAGE_RATIOS = Object.freeze(['1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16', '21:9']);
+const GPT_IMAGE_RATIOS = Object.freeze(['1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16', '21:9', 'auto']);
+// GPT Image 2.5 (OpenRouter's parameters, 2026-10-17): aspect_ratio with auto, quality up to xhigh and max, background, n 1-10, 0-16 reference pictures, output_compression 0-100; no resolution.
+const GPT_IMAGE_QUALITIES = Object.freeze(['auto', 'low', 'medium', 'high', 'xhigh', 'max']);
 // The sizes (resolution tiers) each model accepts. Gemini Nano Banana 2.1 makes 1K, 2K and 4K (it has no 512 size, a saved 512 moves to
-// 1K), and so do the GPT Image 2.5 models; FLUX.3 Image adds 768 and 1.5K. (A model whose list is empty would get no resolution control and none is sent.)
+// 1K); the GPT Image 2.5 models take no resolution (the size follows the ratio and the quality); FLUX.3 Image takes 768, 1K, 1.5K, 2K and 4K. (A model whose list is empty would get no resolution control and none is sent.)
 const GEMINI_IMAGE_RESOLUTIONS = Object.freeze(['1K', '2K', '4K']);
 const FLUX_IMAGE_RESOLUTIONS = Object.freeze(['768', '1K', '1.5K', '2K', '4K']);
-const GPT_IMAGE_RESOLUTIONS = Object.freeze(['1K', '2K', '4K']);
+const GPT_IMAGE_RESOLUTIONS = Object.freeze([]);
 
 export const MODEL_CATALOG = [
     // Gemini Models (Native)
@@ -105,11 +107,11 @@ export const MODEL_CATALOG = [
     // OpenRouter Image Models (Google)
     { id: 'google/gemini-nano-banana-2.1', legacyIds: ['google/gemini-3.1-flash-image', 'google/gemini-3.1-flash-lite-image', 'google/gemini-3-pro-image'], name: 'Gemini Nano Banana 2.1', provider: 'openrouter', descriptionKey: 'model_gemini_nano_banana_2_1_desc', category: 'image_generation', outputModality: 'image', supportedImageAspectRatios: GEMINI_IMAGE_RATIOS, supportedImageResolutions: GEMINI_IMAGE_RESOLUTIONS },
     // OpenRouter Image Models (Black Forest Labs)
-    { id: 'black-forest-labs/flux-3-image', name: 'FLUX.3 Image', provider: 'openrouter', descriptionKey: 'model_flux_3_image_desc', category: 'image_generation', outputModality: 'image', supportedImageAspectRatios: FLUX_IMAGE_RATIOS, supportedImageResolutions: FLUX_IMAGE_RESOLUTIONS },
+    { id: 'black-forest-labs/flux-3-image', name: 'FLUX.3 Image', provider: 'openrouter', descriptionKey: 'model_flux_3_image_desc', category: 'image_generation', outputModality: 'image', supportedImageAspectRatios: FLUX_IMAGE_RATIOS, supportedImageResolutions: FLUX_IMAGE_RESOLUTIONS, maxImageCount: 1, maxImageReferences: 10 },
     // FLUX.3 Image Klein: the same ratios, sizes and up to 10 reference pictures (OpenRouter's parameters), but one picture per request (n is 1 to 1).
-    { id: 'black-forest-labs/flux-3-image-klein', name: 'FLUX.3 Image Klein', provider: 'openrouter', descriptionKey: 'model_flux_3_image_klein_desc', category: 'image_generation', outputModality: 'image', supportedImageAspectRatios: FLUX_IMAGE_RATIOS, supportedImageResolutions: FLUX_IMAGE_RESOLUTIONS, maxImageCount: 1 },
+    { id: 'black-forest-labs/flux-3-image-klein', name: 'FLUX.3 Image Klein', provider: 'openrouter', descriptionKey: 'model_flux_3_image_klein_desc', category: 'image_generation', outputModality: 'image', supportedImageAspectRatios: FLUX_IMAGE_RATIOS, supportedImageResolutions: FLUX_IMAGE_RESOLUTIONS, maxImageCount: 1, maxImageReferences: 10 },
     // OpenRouter Image Models (Krea): an editing model, so a request without a reference picture is not sent (minImageReferences), and more than four are cut (maxImageReferences).
-    { id: 'krea/k3-edit', name: 'Krea K3 Edit', provider: 'openrouter', descriptionKey: 'model_krea_k3_edit_desc', category: 'image_generation', outputModality: 'image', supportedImageAspectRatios: KREA_IMAGE_RATIOS, supportedImageResolutions: KREA_IMAGE_RESOLUTIONS, maxImageCount: 1, minImageReferences: 1, maxImageReferences: 4 },
+    { id: 'krea/k3-edit', name: 'Krea K3 Edit', provider: 'openrouter', descriptionKey: 'model_krea_k3_edit_desc', category: 'image_generation', outputModality: 'image', supportedImageAspectRatios: KREA_IMAGE_RATIOS, supportedImageResolutions: KREA_IMAGE_RESOLUTIONS, maxImageCount: 1, minImageReferences: 1, maxImageReferences: 8 },
 
     // OpenRouter Paid Models (Minimax)
     { id: 'minimax/minimax-m3', name: 'Minimax M3', provider: 'openrouter', descriptionKey: 'model_minimax_m3_desc', category: 'general' },
@@ -132,8 +134,8 @@ export const MODEL_CATALOG = [
     { id: 'openai/gpt-5.6-terra', name: 'OpenAI GPT-5.6 Terra', provider: 'openrouter', descriptionKey: 'model_gpt_5_6_terra_desc', category: 'general' },
     // Takes tools (Advanced mode's Python) only through the Responses API, so the rounds of an Advanced reply use it.
     { id: 'openai/gpt-6.1-sol', legacyIds: ['openai/gpt-6-sol', 'openai/gpt-5.6-sol'], name: 'OpenAI GPT-6.1 Sol', provider: 'openrouter', descriptionKey: 'model_gpt_6_1_sol_desc', category: 'general', responsesApiForTools: true },
-    { id: 'openai/gpt-image-2.5-flare', legacyIds: ['openai/gpt-image-2'], name: 'OpenAI GPT Image 2.5 Flare', provider: 'openrouter', descriptionKey: 'model_gpt_image_2_5_flare_desc', category: 'image_generation', outputModality: 'image', supportedImageAspectRatios: GPT_IMAGE_RATIOS, supportedImageResolutions: GPT_IMAGE_RESOLUTIONS },
-    { id: 'openai/gpt-image-2.5-sunburst', name: 'OpenAI GPT Image 2.5 Sunburst', provider: 'openrouter', descriptionKey: 'model_gpt_image_2_5_sunburst_desc', category: 'image_generation', outputModality: 'image', supportedImageAspectRatios: GPT_IMAGE_RATIOS, supportedImageResolutions: GPT_IMAGE_RESOLUTIONS },
+    { id: 'openai/gpt-image-2.5-flare', legacyIds: ['openai/gpt-image-2'], name: 'OpenAI GPT Image 2.5 Flare', provider: 'openrouter', descriptionKey: 'model_gpt_image_2_5_flare_desc', category: 'image_generation', outputModality: 'image', supportedImageAspectRatios: GPT_IMAGE_RATIOS, supportedImageResolutions: GPT_IMAGE_RESOLUTIONS, supportedImageQualities: GPT_IMAGE_QUALITIES, maxImageReferences: 16 },
+    { id: 'openai/gpt-image-2.5-sunburst', name: 'OpenAI GPT Image 2.5 Sunburst', provider: 'openrouter', descriptionKey: 'model_gpt_image_2_5_sunburst_desc', category: 'image_generation', outputModality: 'image', supportedImageAspectRatios: GPT_IMAGE_RATIOS, supportedImageResolutions: GPT_IMAGE_RESOLUTIONS, supportedImageQualities: GPT_IMAGE_QUALITIES, maxImageReferences: 16 },
 
     // OpenRouter Paid Models (Qwen)
     { id: 'qwen/qwen3.7-flash', name: 'Qwen3.7 Flash', provider: 'openrouter', descriptionKey: 'model_qwen3_7_flash_desc', category: 'general' },

@@ -101,7 +101,7 @@ export function createImageModeControls({
     body.className = 'image-mode-advanced-grid mt-3 grid grid-cols-2 gap-2';
     const specs = [
       ['n', 'imageCount', 'Count', Array.from({ length: 10 }, (_, index) => String(index + 1))],
-      ['quality', 'imageQuality', 'Quality', ['auto', 'low', 'medium', 'high']],
+      ['quality', 'imageQuality', 'Quality', ['auto', 'low', 'medium', 'high', 'xhigh', 'max']],
       ['outputFormat', 'imageFormat', 'Format', ['png', 'jpeg', 'webp']],
       ['background', 'imageBackground', 'Background', ['auto', 'transparent', 'opaque']],
       ['outputCompression', 'imageCompression', 'Compression', Array.from({ length: 11 }, (_, index) => String(index * 10))]
@@ -237,6 +237,14 @@ export function createImageModeControls({
       option.hidden = !supported;
     });
     advanced.fields.n.value = String(Math.min(Number(advancedConfig.n) || 1, maxCount));
+    // The qualities a model takes (GPT Image adds xhigh and max); a model that lists none keeps the four common ones.
+    const qualities = activeModel?.supportedImageQualities || ['auto', 'low', 'medium', 'high'];
+    Array.from(advanced.fields.quality.options).forEach((option) => {
+      const supported = qualities.includes(option.value);
+      option.disabled = !supported;
+      option.hidden = !supported;
+    });
+    if (!qualities.includes(advanced.fields.quality.value)) advanced.fields.quality.value = qualities[0];
     advanced.details.style.display = active ? 'block' : 'none';
     const council = document.getElementById('model-council-menu-btn');
     const learning = document.getElementById('learning-mode-btn');
