@@ -95,3 +95,53 @@ test('on a phone the row of small pictures runs out to both edges of the screen,
   assert.equal(otherStrip.style.paddingRight, '');
   second.cleanup();
 });
+
+test('a row that fits the screen is dragged with resistance and springs back; a tap after a drag is not a choice', async () => {
+  const { document, window, cleanup } = createDom(`<div id="root">${renderGeneratedImageSet({ cards: assets.map(a => card(a.id)), assets })}</div>`);
+  const root = document.getElementById('root');
+  const strip = root.querySelector('[data-generated-image-thumbs]');
+  Object.defineProperty(strip, 'clientWidth', { value: 300, configurable: true });
+  Object.defineProperty(strip, 'scrollWidth', { value: 300, configurable: true });
+  bindGeneratedImageSets(root, { isPhone: () => false });
+  assert.equal(strip.style.touchAction, 'pan-y', 'the horizontal drag is for the row');
+  const touch = (type, x, y = 10) => {
+    const event = new window.Event(type, { bubbles: true, cancelable: true });
+    Object.assign(event, { pointerId: 1, pointerType: 'touch', clientX: x, clientY: y });
+    strip.dispatchEvent(event);
+  };
+  const buttons = Array.from(root.querySelectorAll('[data-generated-image-thumb]'));
+  const shown = () => buttons.findIndex(button => button.classList.contains('is-active'));
+
+  touch('pointerdown', 100);
+  touch('pointermove', 103);
+  assert.equal(strip.style.transform, '', 'a small movement is not yet a drag');
+  touch('pointermove', 200);
+  const pulled = Number(/translateX\((-?[\d.]+)px\)/.exec(strip.style.transform)?.[1]);
+  assert.ok(pulled > 0 && pulled < 100, `the pull (${pulled}px) is less than the 100px dragged`);
+  touch('pointermove', 400);
+  const pulledMore = Number(/translateX\((-?[\d.]+)px\)/.exec(strip.style.transform)?.[1]);
+  assert.ok(pulledMore > pulled && pulledMore < 300 * 0.9, 'the farther, the harder it pulls back, and never past the row');
+  touch('pointerup', 400);
+  assert.equal(strip.style.transform, '', 'it goes back when the finger lets go');
+  assert.match(strip.style.transition, /transform/, 'with a short ease-out');
+  buttons[2].click();
+  assert.equal(shown(), 0, 'the tap that ends a drag chooses nothing');
+  await new Promise(resolve => setTimeout(resolve, 20));
+  buttons[2].click();
+  assert.equal(shown(), 2, 'a later tap does');
+
+  // A drag that goes up or down is the page's.
+  touch('pointerdown', 100, 10);
+  touch('pointermove', 102, 80);
+  touch('pointermove', 180, 120);
+  assert.equal(strip.style.transform, '');
+  touch('pointerup', 180, 120);
+
+  // A mouse is not dragged: it scrolls the usual way.
+  const mouse = new window.Event('pointerdown', { bubbles: true });
+  Object.assign(mouse, { pointerId: 2, pointerType: 'mouse', clientX: 100, clientY: 10 });
+  strip.dispatchEvent(mouse);
+  touch('pointermove', 300);
+  assert.equal(strip.style.transform, '');
+  cleanup();
+});

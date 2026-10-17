@@ -21,6 +21,7 @@ export function renderGeneratedImageSet({ cards = [], assets = [], label = '' } 
 }
 
 const RING = 4; // px: room around the small pictures for the ring of the shown one (the same as the padding in the style sheet)
+const prefersReducedMotion = () => globalThis.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches === true;
 const onPhone = () => globalThis.matchMedia?.('(max-width: 640px)')?.matches === true;
 // The edges the row may reach on a phone: the chat area (the screen, there).
 const chatBounds = (set) => {
@@ -39,6 +40,7 @@ function fitStrip(set, strip, { isPhone, bounds }) {
     strip.style.marginRight = '';
     strip.style.paddingLeft = '';
     strip.style.paddingRight = '';
+    strip.style.touchAction = strip.scrollWidth - strip.clientWidth <= 1 ? 'pan-y' : '';
     return;
   }
   const left = Math.max(0, Math.round(box.left - edges.left)) + RING;
@@ -47,6 +49,65 @@ function fitStrip(set, strip, { isPhone, bounds }) {
   strip.style.marginRight = `-${right}px`;
   strip.style.paddingLeft = `${left}px`;
   strip.style.paddingRight = `${right}px`;
+  // A row that fits is dragged by makeElastic, which needs the horizontal drag for itself (the page still scrolls up and down).
+  strip.style.touchAction = strip.scrollWidth - strip.clientWidth <= 1 ? 'pan-y' : '';
+}
+
+// A row that fits the screen has nothing to scroll, yet it should be draggable and give way with resistance, then spring back (as the iPhone's own lists
+// do). The browser does that only for a row that overflows, so for one that fits the drag is followed here: the pull is the distance dragged
+// squeezed by the same curve the system uses, and the row goes back with a short ease-out when the finger lets go.
+const rubber = (distance, size) => Math.sign(distance) * (1 - 1 / ((Math.abs(distance) * 0.55) / Math.max(size, 1) + 1)) * Math.max(size, 1);
+
+function makeElastic(strip, { reducedMotion }) {
+  let pointerId = null;
+  let startX = 0;
+  let startY = 0;
+  let axis = '';
+  let dragged = false;
+  const fits = () => strip.scrollWidth - strip.clientWidth <= 1;
+  const release = (event) => {
+    if (pointerId === null || event.pointerId !== pointerId) return;
+    pointerId = null;
+    if (axis === 'x') {
+      strip.style.transition = reducedMotion() ? 'none' : 'transform .5s cubic-bezier(.2, .9, .25, 1)';
+      strip.style.transform = '';
+    }
+    axis = '';
+    setTimeout(() => { dragged = false; }, 0);
+  };
+  strip.addEventListener('pointerdown', (event) => {
+    if (event.pointerType === 'mouse' || !fits()) return;
+    pointerId = event.pointerId;
+    startX = event.clientX;
+    startY = event.clientY;
+    axis = '';
+    dragged = false;
+  });
+  strip.addEventListener('pointermove', (event) => {
+    if (pointerId === null || event.pointerId !== pointerId) return;
+    const dx = event.clientX - startX;
+    const dy = event.clientY - startY;
+    if (!axis) {
+      if (Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
+      axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+      if (axis === 'x') {
+        strip.setPointerCapture?.(pointerId);
+        strip.style.transition = 'none';
+      }
+    }
+    if (axis !== 'x') return;
+    dragged = true;
+    strip.style.transform = `translateX(${rubber(dx, strip.clientWidth).toFixed(1)}px)`;
+  });
+  strip.addEventListener('pointerup', release);
+  strip.addEventListener('pointercancel', release);
+  // The tap that ends a drag is not a choice of a small picture.
+  strip.addEventListener('click', (event) => {
+    if (!dragged) return;
+    event.stopPropagation();
+    event.preventDefault();
+  }, true);
+  return { fits };
 }
 
 let resizeBound = false;
@@ -68,6 +129,7 @@ export function bindGeneratedImageSets(root, { isPhone = onPhone, bounds = chatB
     const slides = Array.from(set.querySelectorAll('.generated-image-slide'));
     const buttons = Array.from(set.querySelectorAll('[data-generated-image-thumb]'));
     if (!strip || buttons.length < 2 || slides.length !== buttons.length) return;
+    makeElastic(strip, { reducedMotion: prefersReducedMotion });
     fitStrip(set, strip, { isPhone, bounds });
     // The message is bound before it is in the page and its width changes with the window: the row is fitted again when the set takes its place or its size.
     if (typeof globalThis.ResizeObserver === 'function') new globalThis.ResizeObserver(() => fitStrip(set, strip, { isPhone, bounds })).observe(set);
