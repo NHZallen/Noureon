@@ -448,3 +448,37 @@ test('a shape said without a count tells the model the shape is set elsewhere; n
   await plain.run('a meadow');
   assert.equal(plain.requests[0].prompt, 'a meadow');
 });
+
+test('a picture built on the earlier one keeps its shape; a shape that was said, or an attached picture, decides otherwise', async () => {
+  const requests = [];
+  const lifecycle = createImageGenerationResponseLifecycle({
+    buildSingleModelTranslatedRequestParts: async parts => parts,
+    generateImage: async value => {
+      requests.push(value);
+      return { images: [{ b64Json: 'aGVsbG8=', mediaType: 'image/png' }] };
+    },
+    saveImageAsset: async () => ({ id: 'new', storageKey: 'new-key', mediaType: 'image/png', size: 5 }),
+    getStoredImageDataUrl: async () => 'data:image/png;base64,old',
+    getApiKey: () => 'key',
+    getText: (_key, fallback) => fallback
+  });
+  const model = { id: 'openai/gpt-image-2.5-sunburst', provider: 'openrouter', supportedImageAspectRatios: ['1:1', '3:2', '9:16', '16:9'] };
+  const earlier = (aspectRatio) => ({ role: 'model', parts: [{ generatedImage: { id: 'old', storageKey: 'old-key', aspectRatio } }] });
+  const run = (userParts, aspectRatio = '9:16', requestImageDecisions = null) => lifecycle.run({
+    targetElement: { innerHTML: '' }, userParts, modelInfo: model, requestImageDecisions,
+    conversation: { imageConfig: { aspectRatio: '1:1', resolution: '1K' }, messages: [earlier(aspectRatio)] }
+  });
+
+  await run([{ text: 'add some animals' }]);
+  assert.equal(requests[0].config.aspectRatio, '9:16', 'the shape of the picture it builds on, not the one of the settings');
+  assert.equal(requests[0].inputReferences.length, 1);
+
+  await run([{ text: 'add some animals' }], '4:5');
+  assert.equal(requests[1].config.aspectRatio, '1:1', 'a shape the model does not take is not used');
+
+  await run([{ text: 'add some animals' }, { inlineData: { mimeType: 'image/png', data: 'mine' } }]);
+  assert.equal(requests[2].config.aspectRatio, '1:1', 'a picture the person attached is not the earlier one');
+
+  await run([{ text: 'a wide meadow, 16:9' }], '9:16', async () => ({ collage: 0.05, countSaid: 0.05, count: null, more: 0.02, ratioStated: 0.95, portrait: 0.05, landscape: 0.9, square: 0.05 }));
+  assert.equal(requests[3].config.aspectRatio, '16:9', 'a shape that was said wins');
+});

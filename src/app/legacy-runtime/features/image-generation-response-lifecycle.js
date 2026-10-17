@@ -153,12 +153,15 @@ export function createImageGenerationResponseLifecycle({
     const prompt = spokenInstruction ? `${editedPrompt}\n\n${spokenInstruction}` : editedPrompt;
 
     let inputReferences = getInlineReferences(requestParts);
+    // The earlier picture that goes along as the one to build on, when none is attached.
+    let carriedImage = null;
     if (inputReferences.length === 0) {
       const latest = findLatestGeneratedImage(conversation);
       if (latest) {
         const dataUrl = await getStoredImageDataUrl(latest);
         if (dataUrl) {
           inputReferences = [dataUrl];
+          carriedImage = latest;
         } else {
           // The conversation has a generated image to carry over but its local asset is gone.
           // Say so instead of silently falling back to a fresh text-only generation.
@@ -175,6 +178,15 @@ export function createImageGenerationResponseLifecycle({
           }
         }
       }
+    }
+
+    // A picture built on an earlier one keeps its shape, unless a shape was said (the earlier picture may have been made with a shape that was said, not saved in the settings).
+    const supportedRatios = Array.isArray(modelInfo.supportedImageAspectRatios) ? modelInfo.supportedImageAspectRatios : [];
+    if (carriedImage?.aspectRatio && !spoken.aspectRatio && carriedImage.aspectRatio !== normalizedConfig.aspectRatio
+      && (supportedRatios.length === 0 || supportedRatios.includes(carriedImage.aspectRatio))) {
+      normalizedConfig.aspectRatio = carriedImage.aspectRatio;
+      const waiting = targetElement.querySelector?.('.generated-image-skeleton');
+      if (waiting) waiting.style.aspectRatio = resolveImageAspectRatio(carriedImage.aspectRatio);
     }
 
     // An editing model needs a picture to edit, and takes only so many.
