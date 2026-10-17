@@ -84,6 +84,15 @@
     opacity: 1;
 }
 
+/* On a phone the row can always be slid, even with few small pictures (it then moves under the edge of the screen, and the last one can come
+   in to the left): an empty end the width of the row, less the room of one small picture, is what gives it somewhere to go. */
+@media (max-width: 640px) {
+    .generated-image-thumbs:not(.generated-image-thumbs-wait)::after {
+        content: "";
+        flex: 0 0 calc(100% - 4.5rem);
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
     .generated-image-slide,
     .generated-image-slide.is-active { transition: none; }
