@@ -31,14 +31,17 @@ export function readSpokenRequest({ decision, message, modelInfo = {}, attached 
   if (!decision) return nothing;
   const collage = typeof decision.collage === 'number' && decision.collage >= COLLAGE_THRESHOLD;
   // A count of two or more that was read ("exactly N") wins; when a count was said but it is not two or more, it is one.
-  const count = collage ? 1 : decision.count ?? (yes(decision.countSaid) ? 1 : null);
+  // "Exactly three pictures" also answers yes for "three cats" (0.59 and above on the probe), so a count counts only when a count of pictures was said (0.98 on the real ones, 0.08 on three cats).
+  const countSaid = typeof decision.countSaid === 'number' ? yes(decision.countSaid) : true;
+  const read = countSaid ? decision.count : null;
+  const count = collage ? 1 : read ?? (typeof decision.countSaid === 'number' && countSaid ? 1 : null);
   const maxCount = modelInfo.maxImageCount > 0 ? modelInfo.maxImageCount : MAX_SPOKEN_COUNT;
   const supported = Array.isArray(modelInfo.supportedImageAspectRatios) ? modelInfo.supportedImageAspectRatios : [];
 
   if (!collage && count > maxCount) return { ...nothing, problem: { code: 'count', n: count, max: maxCount } };
   // More than the ten that can be asked for in words (the answers have no number for it): said to be beyond what the model does.
   const referencesOver = modelInfo.maxImageReferences > 0 && attached > modelInfo.maxImageReferences;
-  if (!collage && count === null && yes(decision.more) && !referencesOver) return { ...nothing, problem: { code: 'count-any', max: maxCount } };
+  if (!collage && read === null && yes(decision.more) && !referencesOver) return { ...nothing, problem: { code: 'count-any', max: maxCount } };
 
   let aspectRatio = '';
   const written = yes(decision.ratioStated) ? readWrittenRatio(message) : '';

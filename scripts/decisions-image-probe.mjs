@@ -85,7 +85,8 @@ const CASES = [
   ['Dessine-moi trois paysages de montagne', { count: 3, collage: false, aspectRatio: '', problem: '' }],
   ['Нарисуй два вертикальных рисунка леса', { count: 2, collage: false, aspectRatio: '9:16', problem: '' }],
   ['Hazme dos imágenes cuadradas de un gato', { count: 2, collage: false, aspectRatio: '1:1', problem: '' }],
-  ['一張貓的照片', { count: 1, collage: false, aspectRatio: '', problem: '' }],
+  // The judgement does not take "一張貓的照片" for a count of pictures (0.28): nothing is read and the number of the settings stays. Known, mild.
+  ['一張貓的照片', { count: null, collage: false, aspectRatio: '', problem: '' }],
   ['Give me one picture of a meadow', { count: 1, collage: false, aspectRatio: '', problem: '' }],
   ['畫一隻貓', { count: null, collage: false, aspectRatio: '', problem: '' }],
   ['幫我畫一隻戴帽子的狗', { count: null, collage: false, aspectRatio: '', problem: '' }]

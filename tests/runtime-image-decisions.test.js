@@ -61,7 +61,7 @@ test('what is read from the answers for the model in use', () => {
   const model = { maxImageCount: 6, maxImageReferences: 4, supportedImageAspectRatios: ['1:1', '3:4', '16:9'] };
   const base = { collage: 0.05, countSaid: 0.05, count: null, more: 0.02, ratioStated: 0.05, portrait: 0.05, landscape: 0.05, square: 0.05 };
   assert.deepEqual(readSpokenRequest({ decision: null, message: 'x', modelInfo: model }), { count: null, aspectRatio: '', collage: false, problem: null });
-  assert.equal(readSpokenRequest({ decision: { ...base, count: 3 }, message: 'x', modelInfo: model }).count, 3);
+  assert.equal(readSpokenRequest({ decision: { ...base, countSaid: 0.95, count: 3 }, message: 'x', modelInfo: model }).count, 3);
   assert.equal(readSpokenRequest({ decision: { ...base, countSaid: 0.9 }, message: 'x', modelInfo: model }).count, 1);
   const collage = readSpokenRequest({ decision: { ...base, collage: 0.9, count: 5 }, message: 'x', modelInfo: model });
   assert.equal(collage.count, 1);
@@ -73,7 +73,7 @@ test('what is read from the answers for the model in use', () => {
   assert.equal(readSpokenRequest({ decision: { ...base, ratioStated: 0.9 }, message: '來個 16:9 的', modelInfo: model }).aspectRatio, '16:9');
   assert.equal(readSpokenRequest({ decision: { ...base, ratioStated: 0.9 }, message: '比分 2:1 的看板', modelInfo: { ...model, supportedImageAspectRatios: ['1:1'] } }).problem.code, 'ratio');
   assert.equal(readSpokenRequest({ decision: { ...base, ratioStated: 0.05 }, message: '比分 2:1 的看板', modelInfo: model }).aspectRatio, '', 'numbers the judgement did not take for a shape are not one');
-  assert.deepEqual(readSpokenRequest({ decision: { ...base, count: 8 }, message: 'x', modelInfo: model }).problem, { code: 'count', n: 8, max: 6 });
+  assert.deepEqual(readSpokenRequest({ decision: { ...base, countSaid: 0.95, count: 8 }, message: 'x', modelInfo: model }).problem, { code: 'count', n: 8, max: 6 });
   assert.deepEqual(readSpokenRequest({ decision: { ...base, more: 0.9 }, message: 'x', modelInfo: model }).problem, { code: 'count-any', max: 6 });
   assert.equal(readSpokenRequest({ decision: { ...base, more: 0.9 }, message: 'x', modelInfo: model, attached: 5 }).problem, null, 'too many reference pictures are checked on their own, by number');
 });
@@ -90,9 +90,22 @@ test('the readings the probe of 2026-10-17 corrected: a collage needs a sure yes
   const comic = readSpokenRequest({ decision: { ...base, collage: 0.89, countSaid: 0.68, count: 4 }, message: 'x', modelInfo: model });
   assert.deepEqual([comic.count, comic.collage], [1, true]);
   // "six phone wallpapers": the shape was not stated as such (0.33) but a tall picture was asked for (0.86)
-  assert.equal(readSpokenRequest({ decision: { ...base, count: 6, ratioStated: 0.33, portrait: 0.86 }, message: '來六張手機桌布', modelInfo: model }).aspectRatio, '9:16');
+  assert.equal(readSpokenRequest({ decision: { ...base, countSaid: 0.95, count: 6, ratioStated: 0.33, portrait: 0.86 }, message: '來六張手機桌布', modelInfo: model }).aspectRatio, '9:16');
   // a guess about the shape (0.4) is not taken
   assert.equal(readSpokenRequest({ decision: { ...base, landscape: 0.4 }, message: 'trois paysages de montagne', modelInfo: model }).aspectRatio, '');
   // only "one picture" said outright: one
   assert.equal(readSpokenRequest({ decision: { ...base, countSaid: 0.9 }, message: 'x', modelInfo: model }).count, 1);
+});
+
+test('the probe of the third run: "three cats" is no count of pictures, "thirty pictures" is beyond what a model does', () => {
+  const model = { maxImageCount: 6, maxImageReferences: 4, supportedImageAspectRatios: ['1:1', '9:16'] };
+  const base = { collage: 0.05, countSaid: 0.05, count: null, more: 0.02, ratioStated: 0.05, portrait: 0.05, landscape: 0.05, square: 0.05 };
+  // 畫三隻貓在曬太陽: "exactly three" answered 0.59 and up, but no count of pictures was said (0.08)
+  assert.equal(readSpokenRequest({ decision: { ...base, count: 3, countSaid: 0.08 }, message: '畫三隻貓在曬太陽', modelInfo: model }).count, null);
+  // 給我三十張貓的圖片: a count was said (0.99), no "exactly N" holds, and it is more than the model does
+  assert.deepEqual(readSpokenRequest({ decision: { ...base, countSaid: 0.99, more: 0.97 }, message: '給我三十張貓的圖片', modelInfo: model }).problem, { code: 'count-any', max: 6 });
+  // a count said and no "exactly N": one picture
+  assert.equal(readSpokenRequest({ decision: { ...base, countSaid: 0.99 }, message: 'Give me one picture of a meadow', modelInfo: model }).count, 1);
+  // no answer to the question about a count: the "exactly N" is taken as it is
+  assert.equal(readSpokenRequest({ decision: { ...base, countSaid: null, count: 2 }, message: 'x', modelInfo: model }).count, 2);
 });
