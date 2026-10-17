@@ -76,7 +76,7 @@ export default {
         model_minimax_m3_desc_tier_paid: '百萬輸入/0.3$、百萬輸出/1.2$',
         model_glm_5_3_desc_tier_paid: '百萬輸入/1.15$、百萬輸出/3.50$',
         model_glm_5_3_flash_desc_tier_paid: '百萬輸入/0.075$、百萬輸出/0.25$',
-        model_deepseek_v4_1_flash_desc_tier_paid: '百萬輸入/0.30$、百萬輸出/1.20$',
+        model_deepseek_v4_1_flash_desc_tier_paid: '百萬輸入/0.10$、百萬輸出/0.50$',
         model_kimi_k3_desc_tier_paid: '百萬輸入/3$、百萬輸出/15$',
     },
     en: {
@@ -155,7 +155,7 @@ export default {
         model_minimax_m3_desc_tier_paid: '$0.3/M input, $1.2/M output',
         model_glm_5_3_desc_tier_paid: '$1.15/M input, $3.50/M output',
         model_glm_5_3_flash_desc_tier_paid: '$0.075/M input, $0.25/M output',
-        model_deepseek_v4_1_flash_desc_tier_paid: '$0.30/M input, $1.20/M output',
+        model_deepseek_v4_1_flash_desc_tier_paid: '$0.10/M input, $0.50/M output',
         model_kimi_k3_desc_tier_paid: '$3/M input, $15/M output',
     },
     fr: {
@@ -234,7 +234,7 @@ export default {
         model_minimax_m3_desc_tier_paid: '0,30 $/M entrée, 1,20 $/M sortie',
         model_glm_5_3_desc_tier_paid: '1,15 $/M entrée, 3,50 $/M sortie',
         model_glm_5_3_flash_desc_tier_paid: '0,075 $/M entrée, 0,25 $/M sortie',
-        model_deepseek_v4_1_flash_desc_tier_paid: '0,30 $/M entrée, 1,20 $/M sortie',
+        model_deepseek_v4_1_flash_desc_tier_paid: '0,10 $/M entrée, 0,50 $/M sortie',
         model_kimi_k3_desc_tier_paid: '3 $/M entrée, 15 $/M sortie',
     },
     ru: {
@@ -313,7 +313,7 @@ export default {
         model_minimax_m3_desc_tier_paid: '0,3 доллара США на вход, 1,2 доллара США на выход.',
         model_glm_5_3_desc_tier_paid: 'Вход $1,15/млн, выход $3,50/млн',
         model_glm_5_3_flash_desc_tier_paid: 'Вход $0,075/млн, выход $0,25/млн',
-        model_deepseek_v4_1_flash_desc_tier_paid: 'Вход $0,30/млн, выход $1,20/млн',
+        model_deepseek_v4_1_flash_desc_tier_paid: 'Вход $0,10/млн, выход $0,50/млн',
         model_kimi_k3_desc_tier_paid: 'Вход $3/млн, выход $15/млн',
     },
     es: {
@@ -392,7 +392,7 @@ export default {
         model_minimax_m3_desc_tier_paid: '$0,3/M de entrada, $1,2/M de salida',
         model_glm_5_3_desc_tier_paid: '$1.15/M de entrada, $3.50/M de salida',
         model_glm_5_3_flash_desc_tier_paid: '$0.075/M de entrada, $0.25/M de salida',
-        model_deepseek_v4_1_flash_desc_tier_paid: '$0.30/M de entrada, $1.20/M de salida',
+        model_deepseek_v4_1_flash_desc_tier_paid: '$0.10/M de entrada, $0.50/M de salida',
         model_kimi_k3_desc_tier_paid: '$3/M de entrada, $15/M de salida',
     }
 };

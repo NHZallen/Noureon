@@ -20,7 +20,7 @@ const MODEL_RELEASE_METADATA = Object.freeze({
     'anthropic/claude-sonnet-5.5': { releasedAt: 20260928, outputPricePerMillion: 10 },
     'anthropic/claude-opus-5.5': { releasedAt: 20260922, outputPricePerMillion: 20 },
     'anthropic/claude-fable-5.1': { releasedAt: 20260901, outputPricePerMillion: 50 },
-    'deepseek/deepseek-v4.1-flash-1017': { releasedAt: 20261017, outputPricePerMillion: 1.2 },
+    'deepseek/deepseek-v4.1-flash-1017': { releasedAt: 20261017, outputPricePerMillion: 0.5 },
     // The same Gemini models as the native ones above, reached through OpenRouter (one key instead of Google's): same list prices; the release day is the one OpenRouter
     // gives (3.8 Flash: 2 September, the native entry says 3 September).
     'google/gemini-3.8-flash': { releasedAt: 20260902, outputPricePerMillion: 3.75 },
@@ -94,7 +94,7 @@ export const MODEL_CATALOG = [
     { id: 'anthropic/claude-fable-5.1', legacyIds: ['anthropic/claude-fable-5'], name: 'Claude Fable 5.1', provider: 'openrouter', descriptionKey: 'model_claude_fable_5_1_desc' },
 
     // OpenRouter Paid Models (DeepSeek)
-    { id: 'deepseek/deepseek-v4.1-flash-1017', legacyIds: ['deepseek/deepseek-v4.1-flash', 'deepseek/deepseek-v4-flash-0731', 'deepseek/deepseek-v4-flash-vision-exp', 'deepseek/deepseek-v4-pro-0813'], name: 'DeepSeek V4.1 Flash', provider: 'openrouter', descriptionKey: 'model_deepseek_v4_1_flash_desc', category: 'general' },
+    { id: 'deepseek/deepseek-v4.1-flash-1017', legacyIds: ['deepseek/deepseek-v4.1-flash', 'deepseek/deepseek-v4-flash-0731', 'deepseek/deepseek-v4-flash-vision-exp', 'deepseek/deepseek-v4-pro-0813'], name: 'DeepSeek V4.1 Flash 1017', provider: 'openrouter', descriptionKey: 'model_deepseek_v4_1_flash_desc', category: 'general' },
 
     // OpenRouter Paid Models (Google): the same models as the native ones at the top, for those who have an OpenRouter key and no Google key.
     // They share the price line of the native ones (descriptionKey); their search is the one OpenRouter models have (Tavily), not Google's own.
@@ -290,7 +290,8 @@ export const MODEL_REASONING_CONFIGS = Object.freeze({ ...createReasoningConfigs
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'high', ['anthropic/claude-sonnet-5.5']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'high', ['anthropic/claude-fable-5.1']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'medium', ['anthropic/claude-opus-5.5']],
-    [OPENROUTER_REASONING_EFFORT, ['low', 'high', 'max'], 'high', ['deepseek/deepseek-v4.1-flash-1017']],
+    // DeepSeek V4.1 Flash 1017 accepts every level, none included (the probe of 2026-10-17).
+    [OPENROUTER_REASONING_EFFORT, ['none', 'low', 'medium', 'high', 'xhigh', 'max'], 'high', ['deepseek/deepseek-v4.1-flash-1017']],
     // The Gemini models through OpenRouter take the same levels as their native twins (OpenRouter maps the effort to Gemini's thinking level).
     [OPENROUTER_REASONING_EFFORT, LOW_MEDIUM_HIGH, 'medium', ['google/gemini-3.8-flash']],
     [OPENROUTER_REASONING_EFFORT, ['minimal', 'low', 'medium', 'high'], 'minimal', ['google/gemini-3.5-flash-lite']],

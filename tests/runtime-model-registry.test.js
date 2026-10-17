@@ -55,7 +55,7 @@ test('model registry exports the canonical model inventory', () => {
   assert.equal(MODELS.some((model) => model.id === 'nvidia/moonshotai/kimi-k2.6'), false);
   assert.ok(MODELS.some((model) => model.id === 'deepseek/deepseek-v4.1-flash-1017'
     && model.provider === 'openrouter'
-    && model.outputPricePerMillion === 1.2));
+    && model.outputPricePerMillion === 0.5));
   assert.equal(MODELS.some((model) => model.id === 'deepseek/deepseek-v4-flash-0731'), false);
   assert.equal(MODELS.some((model) => model.id === 'deepseek/deepseek-v4-flash-vision-exp'), false);
   assert.equal(MODELS.some((model) => model.id === 'deepseek/deepseek-v4-pro-0813'), false);
@@ -174,7 +174,7 @@ test('model registry exposes precise reasoning depth options for supported model
   const nvidiaGlmModel = MODELS.find((model) => model.id === 'nvidia/z-ai/glm-5.3');
   const nvidiaNemotronModel = MODELS.find((model) => model.id === 'nvidia/nvidia/nemotron-3.5-super-vl-120b-a12b');
 
-  assert.deepEqual(getModelReasoningConfig(deepseekModel)?.options, ['low', 'high', 'max']);
+  assert.deepEqual(getModelReasoningConfig(deepseekModel)?.options, ['none', 'low', 'medium', 'high', 'xhigh', 'max']);
   assert.equal(normalizeReasoningEffort(deepseekModel, 'max'), 'max');
   assert.equal(getReasoningEffortLabel('xhigh', 'zh-TW'), '超高');
 
