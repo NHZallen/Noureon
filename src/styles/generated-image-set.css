@@ -41,6 +41,8 @@
     gap: .4rem;
     overflow-x: auto;
     scrollbar-width: none;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
     /* Room for the ring of the chosen one, taken back with the margin. */
     padding: .25rem;
     margin: -.25rem;

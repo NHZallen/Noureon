@@ -72,3 +72,26 @@ test('a waiting request that makes several pictures shows a place-holder for eac
   assert.equal((html.match(/generated-image-thumb-wait/g) || []).length, 4);
   assert.match(html, /aria-hidden="true"/);
 });
+
+test('on a phone the row of small pictures runs out to both edges of the screen, in line with the big picture at the start', () => {
+  const { document, cleanup } = createDom(`<div id="root">${renderGeneratedImageSet({ cards: assets.map(a => card(a.id)), assets })}</div>`);
+  const root = document.getElementById('root');
+  const set = root.querySelector('[data-generated-image-set]');
+  const strip = root.querySelector('[data-generated-image-thumbs]');
+  set.getBoundingClientRect = () => ({ left: 16, right: 336, width: 320 });
+  bindGeneratedImageSets(root, { isPhone: () => true, bounds: () => ({ left: 0, right: 390 }) });
+  assert.equal(strip.style.marginLeft, '-20px', 'the 16px to the screen edge and the room for the ring');
+  assert.equal(strip.style.paddingLeft, '20px');
+  assert.equal(strip.style.marginRight, '-58px', '54px to the right edge and the ring');
+  assert.equal(strip.style.paddingRight, '58px');
+  cleanup();
+
+  const second = createDom(`<div id="root">${renderGeneratedImageSet({ cards: assets.map(a => card(a.id)), assets })}</div>`);
+  const other = second.document.getElementById('root');
+  other.querySelector('[data-generated-image-set]').getBoundingClientRect = () => ({ left: 16, right: 336, width: 320 });
+  bindGeneratedImageSets(other, { isPhone: () => false, bounds: () => ({ left: 0, right: 390 }) });
+  const otherStrip = other.querySelector('[data-generated-image-thumbs]');
+  assert.equal(otherStrip.style.marginLeft, '', 'off the phone the row keeps to the column');
+  assert.equal(otherStrip.style.paddingRight, '');
+  second.cleanup();
+});

@@ -20,8 +20,47 @@ export function renderGeneratedImageSet({ cards = [], assets = [], label = '' } 
   return `<div class="generated-image-set" data-generated-image-set><div class="generated-image-track" data-generated-image-track>${slides}</div><div class="generated-image-thumbs" data-generated-image-thumbs>${thumbs}</div></div>`;
 }
 
+const RING = 4; // px: room around the small pictures for the ring of the shown one (the same as the padding in the style sheet)
+const onPhone = () => globalThis.matchMedia?.('(max-width: 640px)')?.matches === true;
+// The edges the row may reach on a phone: the chat area (the screen, there).
+const chatBounds = (set) => {
+  const area = set.closest?.('#chat-container') || globalThis.document?.documentElement;
+  const rect = area?.getBoundingClientRect?.();
+  return rect && rect.width > 0 ? { left: rect.left, right: rect.right } : null;
+};
+
+/** On a phone the row of small pictures runs out to both edges of the screen (it starts in line with the big picture and slides out under the edge);
+ *  elsewhere it keeps to the column. */
+function fitStrip(set, strip, { isPhone, bounds }) {
+  const edges = isPhone() ? bounds(set) : null;
+  const box = set.getBoundingClientRect?.();
+  if (!edges || !box || box.width === 0) {
+    strip.style.marginLeft = '';
+    strip.style.marginRight = '';
+    strip.style.paddingLeft = '';
+    strip.style.paddingRight = '';
+    return;
+  }
+  const left = Math.max(0, Math.round(box.left - edges.left)) + RING;
+  const right = Math.max(0, Math.round(edges.right - box.right)) + RING;
+  strip.style.marginLeft = `-${left}px`;
+  strip.style.marginRight = `-${right}px`;
+  strip.style.paddingLeft = `${left}px`;
+  strip.style.paddingRight = `${right}px`;
+}
+
+let resizeBound = false;
+const refitAll = (options) => globalThis.document?.querySelectorAll?.('[data-generated-image-set]').forEach(set => {
+  const strip = set.querySelector('[data-generated-image-thumbs]');
+  if (strip) fitStrip(set, strip, options);
+});
+
 /** Makes the sets under `root` work: tapping a small picture (or the arrow keys on it) shows that picture, and the mark follows at once. */
-export function bindGeneratedImageSets(root) {
+export function bindGeneratedImageSets(root, { isPhone = onPhone, bounds = chatBounds } = {}) {
+  if (!resizeBound && typeof globalThis.addEventListener === 'function') {
+    resizeBound = true;
+    globalThis.addEventListener('resize', () => refitAll({ isPhone, bounds }));
+  }
   root?.querySelectorAll?.('[data-generated-image-set]').forEach((set) => {
     if (set.dataset.bound) return;
     set.dataset.bound = '1';
@@ -29,6 +68,9 @@ export function bindGeneratedImageSets(root) {
     const slides = Array.from(set.querySelectorAll('.generated-image-slide'));
     const buttons = Array.from(set.querySelectorAll('[data-generated-image-thumb]'));
     if (!strip || buttons.length < 2 || slides.length !== buttons.length) return;
+    fitStrip(set, strip, { isPhone, bounds });
+    // The message is bound before it is in the page and its width changes with the window: the row is fitted again when the set takes its place or its size.
+    if (typeof globalThis.ResizeObserver === 'function') new globalThis.ResizeObserver(() => fitStrip(set, strip, { isPhone, bounds })).observe(set);
     let active = 0;
 
     const show = (index) => {
