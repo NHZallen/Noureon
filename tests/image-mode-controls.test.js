@@ -185,3 +185,24 @@ test('the quality control offers xhigh and max only to a model that lists them',
   assert.equal(select.value, 'auto', 'a saved quality the model lacks falls back to the first');
   cleanup();
 });
+
+test('quality, background and compression are shown only for a model that lists them', () => {
+  const { document, cleanup } = createDom('<div id="file-options-popover"><button id="learning-mode-btn"></button></div>');
+  const conversation = { imageConfig: { aspectRatio: '1:1', resolution: '1K' } };
+  let model = { outputModality: 'image', supportedImageOptions: ['quality', 'background', 'outputCompression'] };
+  const controls = createImageModeControls({
+    document,
+    getActiveConversation: () => conversation,
+    getActiveModel: () => model,
+    modelGeneratesImages: () => true,
+    saveAppData: async () => {}
+  });
+  controls.sync();
+  const shown = (id) => document.getElementById(id).closest('label').style.display !== 'none';
+  for (const id of ['image-quality-select', 'image-background-select', 'image-output-compression-select']) assert.equal(shown(id), true, id);
+  model = { outputModality: 'image' };
+  controls.sync();
+  for (const id of ['image-quality-select', 'image-background-select', 'image-output-compression-select']) assert.equal(shown(id), false, id);
+  assert.equal(shown('image-output-format-select'), true, 'the format stays');
+  cleanup();
+});

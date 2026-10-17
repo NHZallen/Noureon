@@ -237,6 +237,11 @@ export function createImageModeControls({
       option.hidden = !supported;
     });
     advanced.fields.n.value = String(Math.min(Number(advancedConfig.n) || 1, maxCount));
+    // Quality, background and compression belong to GPT Image alone; the other models do not show them.
+    ['quality', 'background', 'outputCompression'].forEach((key) => {
+      const row = advanced.fields[key]?.closest?.('label');
+      if (row) row.style.display = activeModel?.supportedImageOptions?.includes(key) ? '' : 'none';
+    });
     // The qualities a model takes (GPT Image adds xhigh and max); a model that lists none keeps the four common ones.
     const qualities = activeModel?.supportedImageQualities || ['auto', 'low', 'medium', 'high'];
     Array.from(advanced.fields.quality.options).forEach((option) => {

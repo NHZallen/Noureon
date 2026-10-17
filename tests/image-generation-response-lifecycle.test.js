@@ -322,3 +322,32 @@ test('an editing model is not asked without a picture to edit, and gets at most 
   assert.equal(requests[0].inputReferences.length, 4, 'the first four are used');
   assert.deepEqual(notices.at(-1), ['This model takes 4 reference pictures at most; the first 4 are used.', 'warning']);
 });
+
+test('quality, background and compression are sent only to a model that lists them', async () => {
+  const requests = [];
+  const lifecycle = createImageGenerationResponseLifecycle({
+    buildSingleModelTranslatedRequestParts: async parts => parts,
+    generateImage: async value => {
+      requests.push(value);
+      return { images: [{ b64Json: 'aGVsbG8=', mediaType: 'image/png' }] };
+    },
+    saveImageAsset: async () => ({ id: 'image', storageKey: 'image-key', mediaType: 'image/png', size: 5 }),
+    getStoredImageDataUrl: async () => '',
+    getApiKey: () => 'key'
+  });
+  const advanced = { n: 2, quality: 'high', background: 'opaque', outputCompression: '80', outputFormat: 'png' };
+  const run = (modelInfo) => lifecycle.run({
+    targetElement: { innerHTML: '' },
+    userParts: [{ text: 'a cat' }],
+    modelInfo,
+    conversation: { imageConfig: { aspectRatio: '1:1', resolution: '1K' }, imageAdvancedConfig: { ...advanced }, messages: [] }
+  });
+  await run({ id: 'openai/gpt-image-2.5-flare', provider: 'openrouter', supportedImageOptions: ['quality', 'background', 'outputCompression'] });
+  await run({ id: 'black-forest-labs/flux-3-image', provider: 'openrouter' });
+  assert.equal(requests[0].config.quality, 'high');
+  assert.equal(requests[0].config.background, 'opaque');
+  assert.equal(requests[0].config.outputCompression, '80');
+  for (const key of ['quality', 'background', 'outputCompression']) assert.equal(key in requests[1].config, false, `${key} is not sent to FLUX`);
+  assert.equal(requests[1].config.outputFormat, 'png', 'the rest is left as it is');
+  assert.equal(requests[1].config.n, 2);
+});

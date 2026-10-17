@@ -173,6 +173,10 @@ export function createImageGenerationResponseLifecycle({
       inputReferences,
       signal
     };
+    // Quality, background and compression are sent only to a model that lists them (GPT Image); the others would be asked for what they do not take.
+    for (const key of ['quality', 'background', 'outputCompression']) {
+      if (!modelInfo.supportedImageOptions?.includes(key)) delete generationRequest.config[key];
+    }
     // A count saved with another model must not ask a one-picture model for more.
     if (modelInfo.maxImageCount && Number(generationRequest.config.n) > modelInfo.maxImageCount) generationRequest.config.n = modelInfo.maxImageCount;
     const reasoningConfig = getModelReasoningConfig(modelInfo);

@@ -66,6 +66,8 @@ const KREA_IMAGE_RESOLUTIONS = Object.freeze(['1K', '2K']);
 const GPT_IMAGE_RATIOS = Object.freeze(['1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16', '21:9', 'auto']);
 // GPT Image 2.5 (OpenRouter's parameters, 2026-10-17): aspect_ratio with auto, quality up to xhigh and max, background, n 1-10, 0-16 reference pictures, output_compression 0-100; no resolution.
 const GPT_IMAGE_QUALITIES = Object.freeze(['auto', 'low', 'medium', 'high', 'xhigh', 'max']);
+// Only GPT Image lists quality, background and output_compression: the other image models get none of them (no controls, nothing sent).
+const GPT_IMAGE_OPTIONS = Object.freeze(['quality', 'background', 'outputCompression']);
 // The sizes (resolution tiers) each model accepts. Gemini Nano Banana 2.1 makes 1K, 2K and 4K (it has no 512 size, a saved 512 moves to
 // 1K); the GPT Image 2.5 models take no resolution (the size follows the ratio and the quality); FLUX.3 Image takes 768, 1K, 1.5K, 2K and 4K. (A model whose list is empty would get no resolution control and none is sent.)
 const GEMINI_IMAGE_RESOLUTIONS = Object.freeze(['1K', '2K', '4K']);
@@ -134,8 +136,8 @@ export const MODEL_CATALOG = [
     { id: 'openai/gpt-5.6-terra', name: 'OpenAI GPT-5.6 Terra', provider: 'openrouter', descriptionKey: 'model_gpt_5_6_terra_desc', category: 'general' },
     // Takes tools (Advanced mode's Python) only through the Responses API, so the rounds of an Advanced reply use it.
     { id: 'openai/gpt-6.1-sol', legacyIds: ['openai/gpt-6-sol', 'openai/gpt-5.6-sol'], name: 'OpenAI GPT-6.1 Sol', provider: 'openrouter', descriptionKey: 'model_gpt_6_1_sol_desc', category: 'general', responsesApiForTools: true },
-    { id: 'openai/gpt-image-2.5-flare', legacyIds: ['openai/gpt-image-2'], name: 'OpenAI GPT Image 2.5 Flare', provider: 'openrouter', descriptionKey: 'model_gpt_image_2_5_flare_desc', category: 'image_generation', outputModality: 'image', supportedImageAspectRatios: GPT_IMAGE_RATIOS, supportedImageResolutions: GPT_IMAGE_RESOLUTIONS, supportedImageQualities: GPT_IMAGE_QUALITIES, maxImageReferences: 16 },
-    { id: 'openai/gpt-image-2.5-sunburst', name: 'OpenAI GPT Image 2.5 Sunburst', provider: 'openrouter', descriptionKey: 'model_gpt_image_2_5_sunburst_desc', category: 'image_generation', outputModality: 'image', supportedImageAspectRatios: GPT_IMAGE_RATIOS, supportedImageResolutions: GPT_IMAGE_RESOLUTIONS, supportedImageQualities: GPT_IMAGE_QUALITIES, maxImageReferences: 16 },
+    { id: 'openai/gpt-image-2.5-flare', legacyIds: ['openai/gpt-image-2'], name: 'OpenAI GPT Image 2.5 Flare', provider: 'openrouter', descriptionKey: 'model_gpt_image_2_5_flare_desc', category: 'image_generation', outputModality: 'image', supportedImageAspectRatios: GPT_IMAGE_RATIOS, supportedImageResolutions: GPT_IMAGE_RESOLUTIONS, supportedImageQualities: GPT_IMAGE_QUALITIES, supportedImageOptions: GPT_IMAGE_OPTIONS, maxImageReferences: 16 },
+    { id: 'openai/gpt-image-2.5-sunburst', name: 'OpenAI GPT Image 2.5 Sunburst', provider: 'openrouter', descriptionKey: 'model_gpt_image_2_5_sunburst_desc', category: 'image_generation', outputModality: 'image', supportedImageAspectRatios: GPT_IMAGE_RATIOS, supportedImageResolutions: GPT_IMAGE_RESOLUTIONS, supportedImageQualities: GPT_IMAGE_QUALITIES, supportedImageOptions: GPT_IMAGE_OPTIONS, maxImageReferences: 16 },
 
     // OpenRouter Paid Models (Qwen)
     { id: 'qwen/qwen3.7-flash', name: 'Qwen3.7 Flash', provider: 'openrouter', descriptionKey: 'model_qwen3_7_flash_desc', category: 'general' },

@@ -218,7 +218,8 @@ test('when the server can make the picture, the page hands it over and only foll
   assert.equal(serverReply.started.length, 1);
   const args = serverReply.started[0];
   assert.equal(args.prompt, 'a cat in the rain');
-  assert.deepEqual(args.config, { aspectRatio: '16:9', resolution: '2K', n: 2, quality: 'high' }, 'the shape, the size and the advanced settings');
+  // The harness model is FLUX, which takes no quality: the saved quality is not handed over.
+  assert.deepEqual(args.config, { aspectRatio: '16:9', resolution: '2K', n: 2 }, 'the shape, the size and the advanced settings');
   assert.deepEqual(args.references, ['data:image/png;base64,QUJD']);
   assert.equal(args.assistantMessageId, MESSAGE_ID);
   assert.equal(args.sequence, 5);
