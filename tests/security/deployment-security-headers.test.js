@@ -53,3 +53,15 @@ test('deployment sends basic browser security headers without disabling local ca
   assert.equal(headers['Referrer-Policy'], 'strict-origin-when-cross-origin');
   assert.equal(headers['Permissions-Policy'], 'camera=(self), microphone=(self), geolocation=()');
 });
+
+test('the report-only CSP says where to report, and the reports keep only the kind of each one (audit 2026-10-18, L-3)', async () => {
+  const headers = getGlobalHeaders();
+  assert.match(headers['Content-Security-Policy-Report-Only'], /report-uri \/api\/csp-report; report-to csp$/);
+  assert.equal(headers['Reporting-Endpoints'], 'csp="/api/csp-report"');
+  const { readReports } = await import('../../api/csp-report.js');
+  const old = readReports(JSON.stringify({ 'csp-report': { 'document-uri': 'https://noureon.com/chat/abc?q=secret', 'violated-directive': 'script-src-elem', 'blocked-uri': 'https://evil.example/x.js?token=1' } }));
+  assert.deepEqual(old, [{ directive: 'script-src-elem', blocked: 'https://evil.example', page: '/chat/abc', disposition: '' }]);
+  const fresh = readReports(JSON.stringify([{ type: 'csp-violation', body: { documentURL: 'https://noureon.com/', effectiveDirective: 'script-src', blockedURL: 'wasm-eval', disposition: 'report' } }]));
+  assert.deepEqual(fresh, [{ directive: 'script-src', blocked: 'wasm-eval', page: '/', disposition: 'report' }]);
+  assert.deepEqual(readReports('not json'), []);
+});

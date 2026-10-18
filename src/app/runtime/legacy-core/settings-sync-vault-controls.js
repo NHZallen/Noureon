@@ -393,12 +393,14 @@ export function createSettingsSyncVaultControls({
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) {
+      if (result.code === 'current_password_required') throw new Error(text('cloudSyncCurrentPasswordRequired', '請在「目前同步密碼」輸入現在的同步密碼。忘記的話，請用「忘記同步密碼」。'));
       throw new Error(result.error || text('cloudSyncRecoveryFailed', '同步密碼復原服務失敗。'));
     }
     return result;
   };
 
-  const storeVaultRecovery = (password, record) => requestVaultRecovery('store', { password, record });
+  // Replacing what is kept takes the sync password kept now (or the Email sign-in of the recovery): a session alone is not enough.
+  const storeVaultRecovery = (password, record, currentPassword = '') => requestVaultRecovery('store', { password, record, currentPassword });
 
   const isVerifiedRecoveryMode = async (username) => {
     const recoveryState = new URL(window.location.href).searchParams.get('vault_recovery');
@@ -845,7 +847,7 @@ export function createSettingsSyncVaultControls({
           nextPassword: elements.recoveryPassword.value
         });
         try {
-          await storeVaultRecovery(elements.recoveryPassword.value, nextRecord);
+          await storeVaultRecovery(elements.recoveryPassword.value, nextRecord, recovered.password);
         } catch (error) {
           await queueCloudSyncKind('vault');
           await storage.setItem(getSyncVaultStorageKey(user.username), JSON.stringify(recovered.record));
@@ -889,7 +891,7 @@ export function createSettingsSyncVaultControls({
           nextPassword: elements.nextPassword.value
         });
         try {
-          await storeVaultRecovery(elements.nextPassword.value, nextRecord);
+          await storeVaultRecovery(elements.nextPassword.value, nextRecord, elements.currentPassword.value);
         } catch (error) {
           await queueCloudSyncKind('vault');
           await storage.setItem(getSyncVaultStorageKey(user.username), JSON.stringify(previousRecord));
@@ -913,14 +915,21 @@ export function createSettingsSyncVaultControls({
       }
     });
     elements.resetButton.addEventListener('click', async () => {
+      const currentPassword = elements.currentPassword.value;
+      if (!currentPassword) {
+        notifyError(new Error(text('cloudSyncCurrentPasswordRequired', '請在「目前同步密碼」輸入現在的同步密碼。忘記的話，請用「忘記同步密碼」。')));
+        elements.currentPassword.focus?.();
+        return;
+      }
       if (!window.confirm(text('cloudSyncPasswordResetConfirm', '清除同步密碼後，既有加密資料將無法解密。確定要繼續嗎？'))) return;
       const user = getCurrentUser();
       try {
-        await requestVaultRecovery('delete');
+        await requestVaultRecovery('delete', { currentPassword });
       } catch (error) {
         notifyError(error);
         return;
       }
+      elements.currentPassword.value = '';
       await removeSyncVault({ storage, username: user.username });
       await queueCloudSyncKind('vault');
       await queueCloudSyncKind('sensitive');

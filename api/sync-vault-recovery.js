@@ -1,4 +1,4 @@
-import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
+import { createCipheriv, createDecipheriv, createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 
 export const config = {
   api: { bodyParser: { sizeLimit: '64kb' } }
@@ -86,6 +86,21 @@ async function readStoredRecovery({ userId, token, supabaseUrl, publishableKey, 
   return (await response.json())?.[0]?.recovery_payload || null;
 }
 
+const sameText = (a, b) => timingSafeEqual(createHash('sha256').update(String(a)).digest(), createHash('sha256').update(String(b)).digest());
+
+/**
+ * Whether this request may replace or remove what is kept: a sign-in by Email a moment ago (the recovery itself), nothing kept yet (a
+ * first sync password), or the sync password that is kept now. A session alone is not enough, so a session that was stolen cannot put
+ * a password of its own in place of the person's or take the recovery away.
+ */
+async function mayReplaceRecovery({ token, userId, currentPassword, serverConfig }) {
+  if (hasFreshEmailVerification(token)) return true;
+  const stored = await readStoredRecovery({ userId, token, ...serverConfig });
+  if (!stored) return true;
+  if (typeof currentPassword !== 'string' || !currentPassword) return false;
+  return sameText(decryptRecoveryPayload(stored, serverConfig.recoveryKey).password, currentPassword);
+}
+
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   if (req.method !== 'POST') {
@@ -118,6 +133,10 @@ export default async function handler(req, res) {
         res.status(400).json({ error: 'A valid password and vault record are required' });
         return;
       }
+      if (!await mayReplaceRecovery({ token, userId: user.id, currentPassword: body.currentPassword, serverConfig })) {
+        res.status(403).json({ error: 'The current sync password is required', code: 'current_password_required' });
+        return;
+      }
       const recoveryPayload = encryptRecoveryPayload({ password: body.password, record: body.record }, serverConfig.recoveryKey);
       const response = await fetch(`${serverConfig.supabaseUrl}/rest/v1/user_vault_recovery?on_conflict=user_id`, {
         method: 'POST',
@@ -147,6 +166,10 @@ export default async function handler(req, res) {
       return;
     }
     if (body.action === 'delete') {
+      if (!await mayReplaceRecovery({ token, userId: user.id, currentPassword: body.currentPassword, serverConfig })) {
+        res.status(403).json({ error: 'The current sync password is required', code: 'current_password_required' });
+        return;
+      }
       const response = await fetch(`${serverConfig.supabaseUrl}/rest/v1/user_vault_recovery?user_id=eq.${user.id}`, {
         method: 'DELETE',
         headers: { apikey: serverConfig.publishableKey, Authorization: `Bearer ${token}` }
