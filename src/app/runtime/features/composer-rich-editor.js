@@ -1,4 +1,5 @@
-import { createLinkChipElement, findLinks, splitAtAddresses } from '../../ui/links/link-chip.js';
+import { createLinkChipElement, splitAtAddresses } from '../../ui/links/link-chip.js';
+import { findAddresses } from '../../legacy-runtime/features/linked-pages.js';
 
 const LINK_SELECTOR = '.composer-link-token';
 const TOKEN_SELECTOR = '.composer-inline-mode-token';
@@ -23,7 +24,7 @@ const dispatchComposerInput = (editor) => editor.dispatchEvent(
 
 function serializeComposerNode(node) {
     if (node?.nodeType === 3) return node.data || '';
-    if (isLink(node)) return node.dataset.text || node.dataset.url || '';
+    if (isLink(node)) return node.dataset.url || '';
     if (!isElement(node) || isToken(node)) return '';
     if (isSeparator(node)) return ' ';
     if (node.tagName === 'BR') return '\n';
@@ -39,7 +40,7 @@ function serializeComposerNode(node) {
 }
 
 function serializeComposerDisplayNode(node) {
-    if (isLink(node)) return node.dataset.text || node.dataset.url || '';
+    if (isLink(node)) return node.dataset.url || '';
     if (isToken(node)) {
         if (node.dataset.indicatorId === 'model-council-indicator') return '';
         const icons = {
@@ -178,7 +179,7 @@ function nodesWithLinkChips(document, text, { closeWithSpace = false } = {}) {
     const nodes = [];
     pieces.forEach((piece, index) => {
         if (piece.url) {
-            nodes.push(createLinkChipElement(document, piece.url, piece.written));
+            nodes.push(createLinkChipElement(document, piece.url));
             const next = pieces[index + 1];
             if (closeWithSpace && !(next?.text && /^\s/.test(next.text))) nodes.push(document.createTextNode(' '));
         } else {
@@ -197,13 +198,13 @@ function chipTypedAddress(editor, document) {
     const before = node.data.slice(0, offset);
     const word = /(\S+)\s$/.exec(before)?.[1];
     if (!word) return false;
-    const [found] = findLinks(word);
+    const [found] = findAddresses(word);
     if (!found || found.start !== 0 || found.end !== word.length) return false;
     const range = document.createRange();
     range.setStart(node, offset - 1 - word.length);
     range.setEnd(node, offset - 1);
     range.deleteContents();
-    const chip = createLinkChipElement(document, found.url, found.text);
+    const chip = createLinkChipElement(document, found.url);
     range.insertNode(chip);
     const rest = chip.nextSibling;
     if (rest?.nodeType === 3) setCaret(editor, document, rest, Math.min(1, rest.data.length));
