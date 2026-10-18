@@ -9,3 +9,6 @@ dist/
 
 # PDFs made of scripts/probe-files/probe.docx and probe.pptx by whoever runs `opencode-probe.mjs --tests converted`
 scripts/probe-files/converted-*.pdf
+
+# Python caches (the official skills have Python scripts)
+__pycache__/

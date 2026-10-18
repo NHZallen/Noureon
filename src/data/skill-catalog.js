@@ -152,6 +152,22 @@ export const OFFICIAL_SKILL_CATALOG = [
       ru: { title: 'Краткое изложение', description: 'Сжимает длинную статью, документ, переписку или беседу до главных пунктов, верно источнику и нужной вам длины.' },
       es: { title: 'Resumen', description: 'Condensa un artículo, documento, hilo de correos o conversación largos en sus puntos clave, fiel a la fuente y con la extensión que quieras.' }
     }
+  },
+  {
+    name: 'deck-style-replica',
+    description: 'Makes PowerPoint decks in the style of a deck or template the user uploads (.pptx, .potx), and changes decks on request. It learns the style, never the old content. Use whenever the user uploads a deck or template and asks for a new deck like it, or asks to change a deck.',
+    version: '1',
+    author: 'Noureon',
+    // Files that come with the skill, from src/data/official-skills/deck-style-replica/ (official-skill-files.js): the server puts them in the sandbox as
+    // /skills/deck-style-replica/, the page in the browser's Python. The sizes are checked against the files by the tests.
+    files: [{ path: 'scripts/deckstyle.py', size: 60102, kind: 'script' }],
+    i18n: {
+      'zh-TW': { title: '簡報風格復刻', description: '上傳你的簡報或公司範本，照它的配色、字型、版型與 logo 做新簡報，或照你的指示修改；只學風格，不抄舊內容。' },
+      en: { title: 'Deck style replica', description: 'Upload your deck or company template to get new slides in its colours, fonts, layouts and logo, or to have a deck changed as you ask. It learns the style, never the old content.' },
+      fr: { title: 'Reproduire le style d’une présentation', description: 'Importez votre présentation ou le modèle de votre entreprise : de nouvelles diapositives avec ses couleurs, polices, mises en page et logo, ou une présentation modifiée selon vos demandes. Le style est repris, jamais l’ancien contenu.' },
+      ru: { title: 'Повтор стиля презентации', description: 'Загрузите свою презентацию или шаблон компании: новые слайды в его цветах, шрифтах, макетах и с логотипом или правки по вашим указаниям. Перенимается стиль, а не старое содержимое.' },
+      es: { title: 'Réplica del estilo de una presentación', description: 'Sube tu presentación o la plantilla de tu empresa para obtener diapositivas nuevas con sus colores, fuentes, diseños y logotipo, o para cambiar una presentación como pidas. Copia el estilo, nunca el contenido antiguo.' }
+    }
   }
 ];
 

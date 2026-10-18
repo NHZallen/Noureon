@@ -532,7 +532,8 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
     }).catch(() => { askedBodies.delete(name); });
   };
 
-  // The files of a skill that came as a zip: their names, and the text of one when it is clicked (the zip is opened from the cloud the first time).
+  // The files of a skill that came as a zip, or of an official skill that has some: their names, and the text of one when it is clicked (a zip is opened from
+  // the cloud the first time).
   const fileKey = (skill, path) => `${skill.name}/${path}`;
   const toggleFile = async (skill, path) => {
     const key = fileKey(skill, path);
@@ -545,7 +546,10 @@ export function openCliStore({ document = globalThis.document, kind = DEFAULT_ST
     draw();
     let entry = { status: 'failed' };
     try {
-      const opened = await skillStore?.openBundle(skill.name);
+      // An official skill's files are part of the app; a person's come from their zip in the cloud.
+      const opened = skill.source === 'official'
+        ? await import('../../runtime/skill/official-skill-files.js').then(({ loadOfficialSkillFiles }) => loadOfficialSkillFiles(skill.name)).then((files) => (files ? { ok: true, files } : { ok: false }))
+        : await skillStore?.openBundle(skill.name);
       if (opened?.ok) {
         const { bundleFileText } = await import('../../../data/skill-bundle.js');
         const text = bundleFileText(opened.files, path);

@@ -245,5 +245,27 @@ export const OFFICIAL_SKILL_GUIDES = Object.freeze({
       about: 'Dale un artículo, informe, estudio, hilo de correos o conversación y te da los puntos clave con la extensión y la forma que pidas, con lo principal primero. Conserva las cifras, condiciones, límites y puntos abiertos, no añade nada que la fuente no diga y no rellena huecos de memoria; un documento largo se lee sección por sección y se junta, y dice qué partes cubrió realmente.',
       examples: ['Resume este artículo en tres puntos', 'Este informe de 40 páginas: dame una conclusión de 100 palabras y los puntos clave de cada capítulo', 'Resume este hilo de correos: quién pidió qué y dónde está atascado']
     }
+  },
+  'deck-style-replica': {
+    'zh-TW': {
+      about: '上傳一份你的簡報或公司範本（.pptx、.potx）時用。它先讀出配色、字型、母片與版型、logo 這類每頁都有的元素，告訴你是「照範本」還是「參考風格」，再用你檔案自己的版型做新簡報；舊的文字、數字、照片不會出現在新簡報裡。做完會先檢查文字是否放得下，再告訴你學了什麼。之後可以接著說要怎麼改，例如換版型、改顏色、刪頁、把某張圖往右移一點。需要 Python（進階模式）。',
+      examples: ['照這份公司範本，做一份 Q3 業績報告', '用這份舊簡報的風格，做 8 頁的新產品介紹', '第 4 頁改成兩欄，標題全部改深藍色']
+    },
+    en: {
+      about: 'Use it when you upload a deck or company template of yours (.pptx, .potx). It first reads the colours, fonts, masters and layouts, and what is on every slide such as a logo, tells you whether it follows the file strictly as a template or uses it as a reference, then builds the new deck on your file’s own layouts; old text, numbers and photos never appear in it. It checks that text fits and tells you what it took from your file. Then you can ask for changes, such as another layout, other colours, removing a slide or moving a picture a little. Needs Python (Advanced mode).',
+      examples: ['Use this company template to make a Q3 results report', 'Make an 8-slide product introduction in the style of this old deck', 'Make slide 4 two columns and all titles dark blue']
+    },
+    fr: {
+      about: 'À utiliser quand vous importez une présentation ou un modèle d’entreprise (.pptx, .potx). Elle lit d’abord les couleurs, les polices, les masques et les mises en page, et ce qui figure sur chaque diapositive comme un logo, vous dit si elle suit le fichier strictement comme un modèle ou s’en inspire, puis construit la nouvelle présentation sur les mises en page de votre fichier ; l’ancien texte, les chiffres et les photos n’y apparaissent jamais. Elle vérifie que le texte tient et vous dit ce qu’elle a repris. Vous pouvez ensuite demander des changements : autre mise en page, autres couleurs, supprimer une diapositive, déplacer un peu une image. Nécessite Python (mode avancé).',
+      examples: ['Avec ce modèle d’entreprise, fais un rapport des résultats du T3', 'Fais une présentation produit de 8 diapositives dans le style de cette ancienne présentation', 'Mets la diapositive 4 sur deux colonnes et tous les titres en bleu foncé']
+    },
+    ru: {
+      about: 'Используйте, когда загружаете свою презентацию или шаблон компании (.pptx, .potx). Сначала навык считывает цвета, шрифты, образцы и макеты слайдов и то, что есть на каждом слайде, например логотип, сообщает, следует ли он файлу строго как шаблону или берёт его за образец, а затем строит новую презентацию на макетах вашего файла; старые тексты, числа и фотографии в ней не появляются. Он проверяет, помещается ли текст, и говорит, что взял из файла. Потом можно просить правки: другой макет, другие цвета, удалить слайд, чуть сдвинуть картинку. Нужен Python (расширенный режим).',
+      examples: ['По этому шаблону компании сделай отчёт о результатах за III квартал', 'Сделай презентацию продукта на 8 слайдов в стиле этой старой презентации', 'Сделай слайд 4 в две колонки, а все заголовки тёмно-синими']
+    },
+    es: {
+      about: 'Úsala cuando subas una presentación o una plantilla de tu empresa (.pptx, .potx). Primero lee los colores, las fuentes, los patrones y los diseños, y lo que aparece en cada diapositiva como un logotipo, te dice si sigue el archivo de forma estricta como plantilla o lo toma como referencia, y luego construye la presentación nueva con los diseños de tu archivo; el texto, las cifras y las fotos antiguos nunca aparecen. Comprueba que el texto quepa y te dice qué tomó de tu archivo. Después puedes pedir cambios: otro diseño, otros colores, quitar una diapositiva o mover un poco una imagen. Necesita Python (modo avanzado).',
+      examples: ['Con esta plantilla de la empresa, haz un informe de resultados del tercer trimestre', 'Haz una presentación de producto de 8 diapositivas con el estilo de esta presentación antigua', 'Pon la diapositiva 4 en dos columnas y todos los títulos en azul oscuro']
+    }
   }
 });

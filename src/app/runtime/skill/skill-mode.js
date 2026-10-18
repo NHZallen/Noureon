@@ -273,13 +273,15 @@ export function createSkillMode({ document, messageInput, getConfig, getUiLangua
   };
   /** The text of one skill the person has: { name, body, files? } or null. */
   const lookup = async (name) => (await resolve([name]))[0] || null;
-  /** The text of one text file of a skill that came as a zip: { ok: true, text, cut } or { ok: false, reason } ('not_found', 'binary', 'failed'). Never rejects. */
+  /** The text of one text file of a skill that came as a zip or of an official skill: { ok: true, text, cut } or { ok: false, reason } ('not_found', 'binary', 'failed'). Never rejects. */
   const readFile = async (name, path) => {
     try {
       await readOwn();
       const skill = byName(name);
       if (!skill?.files?.some((file) => file.path === path)) return { ok: false, reason: 'not_found' };
-      const opened = skillStore ? await skillStore.openBundle(name) : { ok: false };
+      const opened = skill.source === 'official'
+        ? await import('./official-skill-files.js').then(({ loadOfficialSkillFiles }) => loadOfficialSkillFiles(name)).then((files) => (files ? { ok: true, files } : { ok: false }))
+        : skillStore ? await skillStore.openBundle(name) : { ok: false };
       if (!opened.ok) return { ok: false, reason: 'failed' };
       const { bundleFileText, SKILL_BUNDLE_LIMITS } = await import('../../../data/skill-bundle.js');
       const text = bundleFileText(opened.files, path, SKILL_BUNDLE_LIMITS.readChars);
