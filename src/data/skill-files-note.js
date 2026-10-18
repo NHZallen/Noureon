@@ -19,8 +19,8 @@ export function skillFilesNote(name, files, canRun) {
     hasScript ? (canRun === true
       ? `The scripts are in the sandbox, read only, in /skills/${name}/: run one with run_command or from Python (for example python /skills/${name}/scripts/x.py), and never change them.`
       : canRun === null
-        ? `The scripts can only be run in the Python sandbox on the server, where the skill's folder is /skills/${name}/ (read only) when that sandbox is in use: run one with run_command or from Python. In a reply without that sandbox you may read them as text, and if the task needs one to be run, tell the user briefly.`
-        : 'The scripts cannot be run in this reply (they run in the Python sandbox on the server). You may read them as text; if the task needs one to be run, tell the user briefly.') : ''
+        ? `The scripts can only be run in a reply with Python (Advanced mode), where the skill's folder is /skills/${name}/ (read only): run one from Python (or with run_command on the server). In a reply without Python you may read them as text, and if the task needs one to be run, tell the user briefly.`
+        : 'The scripts cannot be run in this reply (they need Python, in Advanced mode). You may read them as text; if the task needs one to be run, tell the user briefly.') : ''
   ].filter(Boolean);
   return `\nThis skill has ${list.length} file${list.length === 1 ? '' : 's'}:\n${lines.join('\n')}${list.length > MAX_LISTED_FILES ? `\n(and ${list.length - MAX_LISTED_FILES} more)` : ''}\n${how.join('\n')}`;
 }

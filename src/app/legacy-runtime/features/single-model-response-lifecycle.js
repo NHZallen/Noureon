@@ -9,7 +9,7 @@ import { resolveReplyMode } from '../../runtime/sandbox/file-mode.js';
 import { browserSupportsSandbox } from '../../runtime/sandbox/sandbox-protocol.js';
 import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
 import { cliIdsForReply } from '../../runtime/cli/cli-state.js';
-import { getAvailableSkills, lookupSkill, readSkillFile, resolveInvokedSkills } from '../../runtime/skill/skill-bridge.js';
+import { getAvailableSkills, lookupSkill, openSkillFiles, readSkillFile, resolveInvokedSkills } from '../../runtime/skill/skill-bridge.js';
 import { invokedSkillsInstruction, skillNamesOfParts } from '../../../data/skill-prompt.js';
 import { decisionsFor, verdictOf } from '../../runtime/decisions/decision-store.js';
 import { createCredentialAnswerHandler } from '../../runtime/cli/credential-answer.js';
@@ -159,7 +159,7 @@ export function createSingleModelResponseLifecycle({
     // The skills the model may load by itself (the ones it is told about, and not those it was just given whole): only for a model that calls tools.
     const availableSkills = canCallTools ? await getAvailableSkills(skillNamesOfParts(userParts)) : [];
     const { createSkillLoader } = availableSkills.length && !ownSearchReply ? await import('../../../data/skill-tool.js') : {};
-    const makeSkillLoader = () => (createSkillLoader ? createSkillLoader({ available: availableSkills, lookup: lookupSkill, readFile: readSkillFile }) : null);
+    const makeSkillLoader = (lookup = lookupSkill) => (createSkillLoader ? createSkillLoader({ available: availableSkills, lookup, readFile: readSkillFile }) : null);
     // Advanced mode is the default, so most replies are "advanced" by the setting alone. Python is only needed when the request is
     // about files or data, or the conversation already has some; any other reply is the same without it, and the server makes it.
     // The CLI tools chosen with "@" (and those the person lets the model use by itself) run in the same sandbox, so they need it whatever the
@@ -431,19 +431,22 @@ export function createSingleModelResponseLifecycle({
         } else if (searchSources.length) {
           stepList()?.event({ type: 'sources', sources: searchSources });
         }
+        // Skills with scripts get their folder in the browser's Python too (/skills/<name>/, as on the server).
+        const skillFolders = (await import('../../runtime/skill/local-skill-folders.js')).createLocalSkillFolders({ lookup: lookupSkill, openFiles: openSkillFiles });
+        await skillFolders.include(invokedSkills);
         const result = await runSandboxReply({
           streamApiCall,
           requestParts: advancedParts,
           onChunk,
           signal,
           requestOptions: advancedOptions,
-          getSandbox: (options) => getPythonSandbox({ ...options, language: getConfig().aiDefaultLanguage || uiLanguage }),
+          getSandbox: (options) => skillFolders.attach(getPythonSandbox({ ...options, language: getConfig().aiDefaultLanguage || uiLanguage })),
           language: uiLanguage,
           provider: modelInfo?.provider,
           inputFiles: collectSandboxInputs(conversation, userParts),
           designs: { deck: conversation?.deckDesign || 'auto', document: conversation?.documentDesign || 'auto' },
           research: researchByModel ? { searchWeb: webResearch.searchWeb, openPage: webResearch.openPage, onSources: addSearchSources } : null,
-          skills: makeSkillLoader(),
+          skills: makeSkillLoader(skillFolders.lookup),
           onStatus: showRunStatus,
           onEvent: (event) => { noteOwnSearch(event); stepList()?.event(event); }
         });

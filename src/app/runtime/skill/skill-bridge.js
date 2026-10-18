@@ -36,6 +36,15 @@ export async function readSkillFile(name, path) {
     return { ok: false, reason: 'failed' };
   }
 }
+/** All the files of a skill, with their bytes: [{ path, size, kind, bytes }] or null. Never rejects. */
+export async function openSkillFiles(name) {
+  if (!mode?.openFiles) return null;
+  try {
+    return await mode.openFiles(name);
+  } catch {
+    return null;
+  }
+}
 /** The skills a message asks for, with their text: [{ name, body }] (those the person still has). Never rejects. */
 export async function resolveInvokedSkills(names) {
   if (!mode?.resolve || !Array.isArray(names) || !names.length) return [];

@@ -43,7 +43,7 @@ Linear：NOU-53。後續的「指哪改哪」是 NOU-54。
 - **伺服器**：`skills.files(userId, name)` 對官方技能從映像檔裡的這個資料夾讀（`Dockerfile` 已經複製 `src`），掛載到沙盒 `/skills/<name>/`，和使用者上傳的技能同一條路。
 - **頁面（本機）**：建置時把資料夾打包成靜態檔；本機 Python 回覆載入這個技能時，把檔案寫進瀏覽器 Python 的 `/skills/<name>/`（新的沙盒訊息，`run.noureon.com` 寫入唯讀資料夾）。`read_skill_file` 也能讀官方技能的檔案。
 - 擴充頁：技能卡片顯示「腳本」標記與「需要 Python」，詳細資料列出檔案（沿用使用者技能的畫面）。
-- 臨時對話：使用者上傳的含腳本技能不放行；官方的照常放行（程式是我們自己的）。
+- 臨時對話：使用者上傳的含腳本技能不放行（照原本的決定）；官方的放行（程式是我們自己的，臨時對話在瀏覽器的 Python 裡跑）。
 
 ## 4. 本機的檢查
 
@@ -63,3 +63,11 @@ Linear：NOU-53。後續的「指哪改哪」是 NOU-54。
 | B | 官方技能附檔案：目錄、伺服器掛載、`read_skill_file`、擴充頁顯示、五語言 |
 | C | 本機：檔案打包、寫進瀏覽器 Python 的 `/skills` |
 | D | 測試、隱私政策與協助中心（如有需要）、全套檢查、推 staging |
+
+## 7. 實作紀錄（2026-10-18）
+
+- **A**：`src/data/official-skills/deck-style-replica/scripts/deckstyle.py`。說明文字放在 `skill-catalog-bodies.js`（唯一來源，資料夾裡不放 SKILL.md），五語標題說明在 `skill-catalog.js`，五語指南在 `skill-catalog-guides.js`，圖示是 Lucide `palette`。首頁與協助中心的官方技能數改成 12。
+- **B**：目錄項的 `files`（路徑、大小、種類；測試核對資料夾與大小）。伺服器 `server/official-skill-files.js` 只讀目錄列出的檔案，`server/skills.js` 對官方技能回傳檔案清單、檔案內容（掛載 `/skills`）與 `read_skill_file`，不需要使用者的 zip。頁面 `src/app/runtime/skill/official-skill-files.js` 用建置時的 `import.meta.glob`（`?raw`，忽略 `__pycache__`），腳本是自己的檔案、需要時才載入；擴充頁看檔與 `read_skill_file` 都用它。
+- **C**：`src/app/runtime/skill/local-skill-folders.js`：本機 Python 回覆時，`/` 指定的與模型載入的含腳本技能，用 Python 本身把檔案寫進瀏覽器 Python 的 `/skills/<name>/`（唯讀），並先 import 腳本用到的套件（瀏覽器 Python 只依程式碼裡的 import 載入套件）。沙盒頁不用改（`run.noureon.com` 的改動要上線才生效，所以避開）。沙盒重新建立後要等下一次掛載。給模型的檔案說明改成「需要 Python（進階模式）」，不再說只有伺服器。
+- **D**：`tests/official-skill-files.test.js`、`tests/local-skill-folders.test.js`、`tests/deck-style-replica-script.test.js`（有 python3 與 python-pptx 才跑，`tests/python/deckstyle_check.py`）。
+- **沒驗證到的**：這個環境連不到 Pyodide 的 CDN，瀏覽器 Python 裡實際執行要在測試站確認（Pyodide 有同版的 python-pptx 1.0.2 與 lxml）。

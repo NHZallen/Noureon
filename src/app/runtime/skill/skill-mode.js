@@ -27,9 +27,10 @@ export function createSkillMode({ document, messageInput, getConfig, getUiLangua
   let menuState = null;
 
   const own = () => (skillStore ? skillStore.cached() : []);
-  // In a temporary chat a skill with a script is neither listed nor can be asked for (its scripts run on the server, and a temporary chat is never sent there).
+  // In a temporary chat a skill of the person's with a script is neither listed nor can be asked for (the owner's decision: a temporary chat runs no code
+  // a person added). An official one is the app's own code, and runs in the browser's Python there.
   const hasScript = (skill) => Boolean(skill.files?.some((file) => file.kind === 'script'));
-  const skills = () => activeSkills(getConfig(), own()).filter((skill) => !hasScript(skill) || !isTemporary());
+  const skills = () => activeSkills(getConfig(), own()).filter((skill) => !hasScript(skill) || skill.source === 'official' || !isTemporary());
   const byName = (name) => skills().find((skill) => skill.name === name) || null;
   const titleOf = (skill) => skillTitle(skill, language());
 
@@ -274,14 +275,22 @@ export function createSkillMode({ document, messageInput, getConfig, getUiLangua
   /** The text of one skill the person has: { name, body, files? } or null. */
   const lookup = async (name) => (await resolve([name]))[0] || null;
   /** The text of one text file of a skill that came as a zip or of an official skill: { ok: true, text, cut } or { ok: false, reason } ('not_found', 'binary', 'failed'). Never rejects. */
+  /** All the files of a skill the person has, with their bytes: [{ path, size, kind, bytes }] or null (an official skill's from the app, a person's from their zip). */
+  const openFiles = async (name) => {
+    await readOwn();
+    const skill = byName(name);
+    if (!skill?.files?.length) return null;
+    if (skill.source === 'official') return import('./official-skill-files.js').then(({ loadOfficialSkillFiles }) => loadOfficialSkillFiles(name));
+    const opened = skillStore ? await skillStore.openBundle(name) : { ok: false };
+    return opened.ok ? opened.files : null;
+  };
   const readFile = async (name, path) => {
     try {
       await readOwn();
       const skill = byName(name);
       if (!skill?.files?.some((file) => file.path === path)) return { ok: false, reason: 'not_found' };
-      const opened = skill.source === 'official'
-        ? await import('./official-skill-files.js').then(({ loadOfficialSkillFiles }) => loadOfficialSkillFiles(name)).then((files) => (files ? { ok: true, files } : { ok: false }))
-        : skillStore ? await skillStore.openBundle(name) : { ok: false };
+      const files = await openFiles(name);
+      const opened = files ? { ok: true, files } : { ok: false };
       if (!opened.ok) return { ok: false, reason: 'failed' };
       const { bundleFileText, SKILL_BUNDLE_LIMITS } = await import('../../../data/skill-bundle.js');
       const text = bundleFileText(opened.files, path, SKILL_BUNDLE_LIMITS.readChars);
@@ -292,7 +301,7 @@ export function createSkillMode({ document, messageInput, getConfig, getUiLangua
     }
   };
 
-  const mode = { sync, indicators, selection, clear, closeMenu, resolve, available, lookup, readFile, evaluate };
+  const mode = { sync, indicators, selection, clear, closeMenu, resolve, available, lookup, readFile, openFiles, evaluate };
   registerSkillMode(mode);
   return mode;
 }
