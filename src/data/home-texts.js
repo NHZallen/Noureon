@@ -3,7 +3,7 @@
 // A line break inside a string is written \n and shown as a break. Numbers that come from the application (models, vendors, presets) are in
 // HOME_FACTS and are checked against the registries by tests/home-page.test.js.
 
-export const HOME_FACTS = Object.freeze({ models: 77, vendors: 19, councilMin: 2, councilMax: 5, deckDesigns: 20, documentStyles: 9, skills: 11, cliTools: 8 });
+export const HOME_FACTS = Object.freeze({ models: 77, vendors: 19, councilMin: 2, councilMax: 5, deckDesigns: 20, documentStyles: 9, skills: 12, cliTools: 8 });
 
 export const HOME_BRANDS = Object.freeze(['Anthropic', 'OpenAI', 'Google', 'xAI', 'DeepSeek', 'Qwen', 'Moonshot AI', 'Z.ai', 'MiniMax', 'Xiaomi', 'StepFun', 'Poolside', 'NVIDIA', 'Black Forest Labs']);
 
@@ -52,12 +52,12 @@ export const HOME_TEXTS = {
     },
     ext: {
       eyebrow: '擴充', title: '能力，隨需擴充。',
-      lead: '技能是寫好的工作方法：會議記錄、事實查核、校對、摘要等 11 項官方技能，也能貼上或上傳你自己寫的。命令工具則在伺服器上與外界隔離的容器裡執行，Pandoc、FFmpeg、yt-dlp、csvkit 等 8 個工具；要連上網站，必須先經過你的同意。',
-      facts: ['11 項官方技能', '8 個命令工具', '可上傳自己的技能包']
+      lead: '技能是寫好的工作方法：會議記錄、事實查核、校對、摘要等 12 項官方技能，也能貼上或上傳你自己寫的。命令工具則在伺服器上與外界隔離的容器裡執行，Pandoc、FFmpeg、yt-dlp、csvkit 等 8 個工具；要連上網站，必須先經過你的同意。',
+      facts: ['12 項官方技能', '8 個命令工具', '可上傳自己的技能包']
     },
     stats: {
       eyebrow: '規格', title: '每個數字，現在就能用。',
-      items: [['77', '可選模型'], ['19', '家廠商'], ['2–5', '位理事會成員'], ['20', '套簡報設計'], ['11', '項官方技能'], ['8', '個命令工具']]
+      items: [['77', '可選模型'], ['19', '家廠商'], ['2–5', '位理事會成員'], ['20', '套簡報設計'], ['12', '項官方技能'], ['8', '個命令工具']]
     },
     server: {
       eyebrow: '伺服器執行', title: '關上分頁，\n工作不停。',
@@ -133,12 +133,12 @@ export const HOME_TEXTS = {
     },
     ext: {
       eyebrow: 'Extensions', title: 'Add abilities\nas you need them.',
-      lead: 'Skills are written-down ways of working: 11 official ones such as meeting notes, fact-checking, proofreading and summaries, plus any you paste or upload yourself. Command tools run on the server in an isolated container: 8 of them, including Pandoc, FFmpeg, yt-dlp and csvkit. Reaching a website needs your approval first.',
-      facts: ['11 official skills', '8 command tools', 'Upload your own skill packs']
+      lead: 'Skills are written-down ways of working: 12 official ones such as meeting notes, fact-checking, proofreading and summaries, plus any you paste or upload yourself. Command tools run on the server in an isolated container: 8 of them, including Pandoc, FFmpeg, yt-dlp and csvkit. Reaching a website needs your approval first.',
+      facts: ['12 official skills', '8 command tools', 'Upload your own skill packs']
     },
     stats: {
       eyebrow: 'By the numbers', title: 'Every number is ready to use.',
-      items: [['77', 'models to choose from'], ['19', 'vendors'], ['2–5', 'council members'], ['20', 'deck designs'], ['11', 'official skills'], ['8', 'command tools']]
+      items: [['77', 'models to choose from'], ['19', 'vendors'], ['2–5', 'council members'], ['20', 'deck designs'], ['12', 'official skills'], ['8', 'command tools']]
     },
     server: {
       eyebrow: 'Runs on the server', title: 'Close the tab.\nThe work goes on.',
@@ -214,12 +214,12 @@ export const HOME_TEXTS = {
     },
     ext: {
       eyebrow: 'Extensions', title: 'Ajoutez des capacités\nselon vos besoins.',
-      lead: 'Les compétences sont des méthodes de travail écrites : 11 compétences officielles (comptes rendus, vérification des faits, relecture, résumés…), plus les vôtres, collées ou importées. Les outils en ligne de commande s’exécutent sur le serveur dans un conteneur isolé : 8 outils, dont Pandoc, FFmpeg, yt-dlp et csvkit. Accéder à un site exige d’abord votre accord.',
-      facts: ['11 compétences officielles', '8 outils en ligne de commande', 'Importez vos propres compétences']
+      lead: 'Les compétences sont des méthodes de travail écrites : 12 compétences officielles (comptes rendus, vérification des faits, relecture, résumés…), plus les vôtres, collées ou importées. Les outils en ligne de commande s’exécutent sur le serveur dans un conteneur isolé : 8 outils, dont Pandoc, FFmpeg, yt-dlp et csvkit. Accéder à un site exige d’abord votre accord.',
+      facts: ['12 compétences officielles', '8 outils en ligne de commande', 'Importez vos propres compétences']
     },
     stats: {
       eyebrow: 'En chiffres', title: 'Chaque chiffre est utilisable dès maintenant.',
-      items: [['77', 'modèles au choix'], ['19', 'fournisseurs'], ['2–5', 'membres du conseil'], ['20', 'designs de présentation'], ['11', 'compétences officielles'], ['8', 'outils en ligne de commande']]
+      items: [['77', 'modèles au choix'], ['19', 'fournisseurs'], ['2–5', 'membres du conseil'], ['20', 'designs de présentation'], ['12', 'compétences officielles'], ['8', 'outils en ligne de commande']]
     },
     server: {
       eyebrow: 'Exécution sur le serveur', title: 'Fermez l’onglet.\nLe travail continue.',
@@ -295,12 +295,12 @@ export const HOME_TEXTS = {
     },
     ext: {
       eyebrow: 'Расширения', title: 'Возможности —\nпо мере надобности.',
-      lead: 'Навыки — это записанные приёмы работы: 11 официальных, среди них протоколы встреч, проверка фактов, вычитка и краткие изложения, а также ваши собственные, вставленные или загруженные. Командные инструменты работают на сервере в изолированном контейнере: их 8, среди них Pandoc, FFmpeg, yt-dlp и csvkit. Для выхода на сайт сначала нужно ваше согласие.',
-      facts: ['11 официальных навыков', '8 командных инструментов', 'Загрузка своих пакетов навыков']
+      lead: 'Навыки — это записанные приёмы работы: 12 официальных, среди них протоколы встреч, проверка фактов, вычитка и краткие изложения, а также ваши собственные, вставленные или загруженные. Командные инструменты работают на сервере в изолированном контейнере: их 8, среди них Pandoc, FFmpeg, yt-dlp и csvkit. Для выхода на сайт сначала нужно ваше согласие.',
+      facts: ['12 официальных навыков', '8 командных инструментов', 'Загрузка своих пакетов навыков']
     },
     stats: {
       eyebrow: 'В цифрах', title: 'Каждая цифра — уже в работе.',
-      items: [['77', 'моделей на выбор'], ['19', 'поставщиков'], ['2–5', 'участников совета'], ['20', 'дизайнов презентаций'], ['11', 'официальных навыков'], ['8', 'командных инструментов']]
+      items: [['77', 'моделей на выбор'], ['19', 'поставщиков'], ['2–5', 'участников совета'], ['20', 'дизайнов презентаций'], ['12', 'официальных навыков'], ['8', 'командных инструментов']]
     },
     server: {
       eyebrow: 'Работа на сервере', title: 'Закройте вкладку.\nРабота продолжится.',
@@ -376,12 +376,12 @@ export const HOME_TEXTS = {
     },
     ext: {
       eyebrow: 'Extensiones', title: 'Capacidades\nsegún las necesites.',
-      lead: 'Las habilidades son formas de trabajo ya escritas: 11 oficiales, como actas de reunión, comprobación de datos, corrección y resúmenes, además de las tuyas, pegadas o subidas. Las herramientas de línea de comandos se ejecutan en el servidor, en un contenedor aislado: son 8, entre ellas Pandoc, FFmpeg, yt-dlp y csvkit. Para conectarse a un sitio web hace falta antes tu aprobación.',
-      facts: ['11 habilidades oficiales', '8 herramientas de comandos', 'Sube tus propios paquetes de habilidades']
+      lead: 'Las habilidades son formas de trabajo ya escritas: 12 oficiales, como actas de reunión, comprobación de datos, corrección y resúmenes, además de las tuyas, pegadas o subidas. Las herramientas de línea de comandos se ejecutan en el servidor, en un contenedor aislado: son 8, entre ellas Pandoc, FFmpeg, yt-dlp y csvkit. Para conectarse a un sitio web hace falta antes tu aprobación.',
+      facts: ['12 habilidades oficiales', '8 herramientas de comandos', 'Sube tus propios paquetes de habilidades']
     },
     stats: {
       eyebrow: 'En cifras', title: 'Cada cifra, lista para usar.',
-      items: [['77', 'modelos a elegir'], ['19', 'proveedores'], ['2–5', 'miembros del consejo'], ['20', 'diseños de presentación'], ['11', 'habilidades oficiales'], ['8', 'herramientas de comandos']]
+      items: [['77', 'modelos a elegir'], ['19', 'proveedores'], ['2–5', 'miembros del consejo'], ['20', 'diseños de presentación'], ['12', 'habilidades oficiales'], ['8', 'herramientas de comandos']]
     },
     server: {
       eyebrow: 'Ejecución en el servidor', title: 'Cierra la pestaña.\nEl trabajo sigue.',
