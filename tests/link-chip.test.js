@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { Window } from 'happy-dom';
 import { findAddresses } from '../src/app/legacy-runtime/features/linked-pages.js';
-import { linkLabel, renderLinkChipHTML, splitAtAddresses } from '../src/app/ui/links/link-chip.js';
+import { findLinks, linkLabel, renderLinkChipHTML, splitAtAddresses } from '../src/app/ui/links/link-chip.js';
 import { buildMessageRenderView } from '../src/app/legacy-runtime/features/message-markup-renderer.js';
 import {
   initializeComposerRichEditor,
@@ -19,8 +19,16 @@ test('a link is named by its short form: GitHub owner/repo, otherwise the site a
 
 test('addresses are found with their place, and the text between them is kept', () => {
   assert.deepEqual(findAddresses('看 https://a.test/x, 和 https://b.test。').map((entry) => entry.url), ['https://a.test/x', 'https://b.test']);
-  assert.deepEqual(splitAtAddresses('see https://a.test/x now'), [{ text: 'see ' }, { url: 'https://a.test/x' }, { text: ' now' }]);
+  assert.deepEqual(splitAtAddresses('see https://a.test/x now'), [{ text: 'see ' }, { url: 'https://a.test/x', written: 'https://a.test/x' }, { text: ' now' }]);
   assert.deepEqual(splitAtAddresses('no link'), [{ text: 'no link' }]);
+});
+
+test('a site name written without https:// is a link too, and a file name or a word of code is not', () => {
+  assert.deepEqual(splitAtAddresses('apple.com 這啥'), [{ url: 'https://apple.com/', written: 'apple.com' }, { text: ' 這啥' }]);
+  const found = (text) => findLinks(text).map((entry) => entry.text);
+  assert.deepEqual(found('看apple.com。和 github.com/NHZallen/Noureon, www.gov.tw/a?x=1'), ['apple.com', 'github.com/NHZallen/Noureon', 'www.gov.tw/a?x=1']);
+  assert.deepEqual(found('https://apple.com/tw 和 apple.com.tw'), ['https://apple.com/tw', 'apple.com.tw']);
+  assert.deepEqual(found('file.py README.md index.js node.js user.id obj.to v1.2.3 e.g. a@gmail.com'), []);
 });
 
 test('the chip is a link with the site icon, and the address cannot break out of its markup', () => {
@@ -132,6 +140,28 @@ test('an address typed and followed by a space becomes a chip', () => {
   editor.dispatchEvent(event);
   assert.equal(editor.querySelectorAll('.composer-link-token').length, 1);
   assert.equal(editor.value, 'go https://example.com/x ');
+  window.close();
+});
+
+test('a site name typed without https:// becomes a chip, and the message is still what was typed', () => {
+  const { window, document, editor } = createEditor();
+  const text = document.createTextNode('apple.com ');
+  editor.append(text);
+  const range = document.createRange();
+  range.setStart(text, text.data.length);
+  range.collapse(true);
+  document.getSelection().removeAllRanges();
+  document.getSelection().addRange(range);
+  const event = new window.Event('input', { bubbles: true });
+  event.inputType = 'insertText';
+  event.data = ' ';
+  editor.dispatchEvent(event);
+  const chip = editor.querySelector('.composer-link-token');
+  assert.equal(chip?.dataset.url, 'https://apple.com/');
+  assert.equal(editor.value, 'apple.com ');
+  editor.value = '看 apple.com 這啥';
+  assert.equal(editor.querySelectorAll('.composer-link-token').length, 1);
+  assert.equal(editor.value, '看 apple.com 這啥');
   window.close();
 });
 

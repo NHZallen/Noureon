@@ -7,6 +7,31 @@ import { siteIconUrl } from './site-icon.js';
 
 const MAX_LABEL = 48;
 
+// A site name written without https:// (apple.com, github.com/owner/repo, www.gov.tw) is a link too, when it ends in a common
+// ending of a site name. Endings that are also the endings of files or words of code (.py, .md, .sh, .rs, .js, user.id, obj.to)
+// are left out, so a file name or a line of code stays text. What is sent is still the text as it was written.
+const SITE_ENDINGS = 'com|net|org|edu|gov|mil|int|io|ai|app|dev|co|tv|fm|ly|gg|info|biz|xyz|site|online|tech|store|blog|cloud|page|news|shop|wiki|tw|hk|mo|jp|cn|kr|sg|vn|th|uk|de|fr|ru|es|nl|ca|au|nz|us|eu|ch|se|fi|dk|br|mx|ar';
+const SITE_NAME = new RegExp(`(?<![\\w@./:-])(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+(?:${SITE_ENDINGS})(?![\\w-]|\\.[a-z0-9])(?:/[^\\s<>"'\`，。、；：！？（）「」『』【】]*)?`, 'gi');
+const TRAILING = /[.,;:!?…)\]]+$/u;
+
+/** The links in a text: the full addresses, and the site names written without https:// ({ url, text, start, end }, in order). */
+export function findLinks(text) {
+  const value = String(text || '');
+  const found = findAddresses(value).map((entry) => ({ ...entry, text: entry.url }));
+  for (const match of value.matchAll(SITE_NAME)) {
+    const written = match[0].replace(TRAILING, '');
+    const start = match.index;
+    const end = start + written.length;
+    if (found.some((entry) => start < entry.end && end > entry.start)) continue;
+    try {
+      found.push({ url: new URL(`https://${written}`).toString(), text: written, start, end });
+    } catch {
+      // Not an address after all.
+    }
+  }
+  return found.sort((a, b) => a.start - b.start);
+}
+
 const escapeHTML = (value = '') => String(value ?? '')
   .replaceAll('&', '&amp;')
   .replaceAll('<', '&lt;')
@@ -53,11 +78,12 @@ export function renderLinkChipHTML(url) {
   return `<a class="link-chip" href="${escapeHTML(url)}" target="_blank" rel="noopener noreferrer" title="${escapeHTML(url)}">${icon}<span class="link-chip-label">${escapeHTML(linkLabel(url))}</span></a>`;
 }
 
-/** The chip as a node, for the message box: one piece that is deleted whole, and whose text is the address. */
-export function createLinkChipElement(document, url) {
+/** The chip as a node, for the message box: one piece that is deleted whole, and whose text is the address as it was written. */
+export function createLinkChipElement(document, url, text = url) {
   const chip = document.createElement('span');
   chip.className = 'composer-link-token link-chip';
   chip.dataset.url = url;
+  if (text !== url) chip.dataset.text = text;
   chip.contentEditable = 'false';
   chip.title = url;
   const icon = document.createElement('span');
@@ -77,14 +103,14 @@ export function createLinkChipElement(document, url) {
   return chip;
 }
 
-/** The text cut into pieces: { text } and { url }, in order, with the text between the addresses kept as it was. */
+/** The text cut into pieces: { text } and { url, written }, in order, with the text between the addresses kept as it was. */
 export function splitAtAddresses(text) {
   const value = String(text || '');
   const pieces = [];
   let at = 0;
-  for (const { url, start, end } of findAddresses(value)) {
+  for (const { url, text: written, start, end } of findLinks(value)) {
     if (start > at) pieces.push({ text: value.slice(at, start) });
-    pieces.push({ url });
+    pieces.push({ url, written });
     at = end;
   }
   if (at < value.length) pieces.push({ text: value.slice(at) });
