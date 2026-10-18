@@ -1,6 +1,14 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.12.2": [
+    "<strong>Noureon 18.12.2 Release Notes</strong>",
+    "This version strengthens the protection of the sync password, of reading websites, of connector logins and of cloud files, following a security review.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Sync password:</strong> clearing the sync password now asks for the current one in “Current sync password” first; changing it and recovering it check it too. Someone who only has your signed-in session can no longer replace or remove your sync password recovery data.</li><li><strong>Site icons and names:</strong> reading a site’s icon and name connects only to the public address that was checked, and cannot be sent into an internal network.</li><li><strong>Connector logins:</strong> the limit on coming back to Noureon after a login now counts per source, so many requests from one source no longer block everyone else; every redirect is checked when a service’s login details are read.</li><li><strong>Cloud files:</strong> the rules for cloud file names are stricter and refuse names with parts such as “..”.</li><li><strong>Other:</strong> NVIDIA models stop the request to the service when the page is closed; the contact form only accepts a check passed on the Noureon site; the dependencies of the development tools were updated.</li></ul>",
+    "<strong>Compatibility</strong>",
+    "No data migration is needed; the rules for cloud files were updated in the database. An older page that changes the sync password is refused and the old password is kept: reload the page."
+  ],
   "18.12.1": [
     "<strong>Noureon 18.12.1 Release Notes</strong>",
     "This version lets you ask for the number of pictures, the shape and a collage in your own words, shows how many pictures each picture model makes in the model picker, and improves pictures made several at a time and follow-up edits.",

@@ -1,6 +1,14 @@
 // The update notes in French (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.12.2": [
+    "<strong>Noureon 18.12.2 – Notes de version</strong>",
+    "Cette version renforce la protection du mot de passe de synchronisation, de la lecture des sites, des connexions aux connecteurs et des fichiers dans le cloud, à la suite d’un examen de sécurité.",
+    "<strong>Principaux changements</strong>",
+    "<ul><li><strong>Mot de passe de synchronisation :</strong> pour l’effacer, il faut d’abord saisir le mot de passe actuel dans « Mot de passe actuel » ; le changer ou le récupérer le vérifie aussi. Une personne qui n’a que votre session connectée ne peut plus remplacer ni supprimer vos données de récupération.</li><li><strong>Icônes et noms de sites :</strong> la lecture de l’icône et du nom d’un site ne se connecte qu’à l’adresse publique vérifiée et ne peut pas être envoyée vers un réseau interne.</li><li><strong>Connexions aux connecteurs :</strong> la limite des retours vers Noureon après une connexion est désormais comptée par source, donc beaucoup de requêtes d’une seule source ne bloquent plus les autres ; chaque redirection est vérifiée quand les informations de connexion d’un service sont lues.</li><li><strong>Fichiers dans le cloud :</strong> les règles des noms de fichiers sont plus strictes et refusent les noms contenant des parties comme « .. ».</li><li><strong>Autres :</strong> les modèles NVIDIA arrêtent la requête au service quand la page est fermée ; le formulaire de contact n’accepte qu’une vérification passée sur le site Noureon ; les dépendances des outils de développement ont été mises à jour.</li></ul>",
+    "<strong>Compatibilité</strong>",
+    "Aucune migration de données n’est nécessaire ; les règles des fichiers dans le cloud ont été mises à jour dans la base de données. Une ancienne page qui change le mot de passe de synchronisation est refusée et l’ancien mot de passe est conservé : rechargez la page."
+  ],
   "18.12.1": [
     "<strong>Noureon 18.12.1 – Notes de version</strong>",
     "Cette version permet de demander le nombre d’images, le format et un collage avec vos propres mots, affiche dans le sélecteur de modèles combien d’images chaque modèle d’images fait, et améliore les images faites par plusieurs à la fois ainsi que les retouches à la suite.",

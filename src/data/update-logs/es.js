@@ -1,6 +1,14 @@
 // The update notes in Spanish (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.12.2": [
+    "<strong>Noureon 18.12.2 – Notas de la versión</strong>",
+    "Tras una revisión de seguridad, esta versión refuerza la protección de la contraseña de sincronización, de la lectura de sitios, del inicio de sesión de los conectores y de los archivos en la nube.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Contraseña de sincronización:</strong> para borrarla, primero hay que escribir la actual en «Contraseña de sincronización actual»; cambiarla y recuperarla también la comprueban. Quien solo tenga tu sesión iniciada ya no puede reemplazar ni eliminar tus datos de recuperación.</li><li><strong>Iconos y nombres de sitios:</strong> al leer el icono y el nombre de un sitio, la conexión va solo a la dirección pública comprobada y no puede desviarse a una red interna.</li><li><strong>Inicio de sesión de conectores:</strong> el límite de regresos a Noureon después de iniciar sesión ahora se cuenta por origen, así que muchas solicitudes de un solo origen ya no bloquean a los demás; cada redirección se comprueba al leer los datos de inicio de sesión de un servicio.</li><li><strong>Archivos en la nube:</strong> las reglas de los nombres de archivo son más estrictas y rechazan nombres con partes como «..».</li><li><strong>Otros:</strong> los modelos de NVIDIA detienen la solicitud al servicio cuando se cierra la página; el formulario de contacto solo acepta una verificación superada en el sitio de Noureon; se actualizaron las dependencias de las herramientas de desarrollo.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "No hace falta migrar datos; las reglas de los archivos en la nube se actualizaron en la base de datos. Una página antigua que cambie la contraseña de sincronización será rechazada y se conservará la contraseña anterior: recarga la página."
+  ],
   "18.12.1": [
     "<strong>Noureon 18.12.1 – Notas de la versión</strong>",
     "Esta versión permite pedir con tus propias palabras el número de imágenes, la proporción y un collage, muestra en el selector de modelos cuántas imágenes hace cada modelo de imágenes y mejora las imágenes hechas varias a la vez y las ediciones posteriores.",
