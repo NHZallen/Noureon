@@ -220,3 +220,31 @@ test('google form proxy rejects invalid Turnstile tokens before forwarding', asy
   assert.match(res.body, /Turnstile verification failed/);
   assert.equal(calls.length, 1);
 });
+
+test('a passed check counts only when it was passed on the site itself', async () => {
+  const { isOwnHostname } = await import('../api/google-form-submit.js');
+  for (const name of ['noureon.com', 'www.noureon.com', 'staging.noureon.com']) assert.equal(isOwnHostname(name), true, name);
+  for (const name of ['evil.com', 'noureon.com.evil.com', 'evilnoureon.com', '']) assert.equal(isOwnHostname(name), false, name);
+  const originalFetch = globalThis.fetch;
+  const saved = { endpoint: process.env.GOOGLE_FORM_ENDPOINT, secret: process.env.TURNSTILE_SECRET_KEY };
+  const forwarded = [];
+  globalThis.fetch = async (url) => {
+    if (String(url).includes('siteverify')) return { ok: true, json: async () => ({ success: true, hostname: 'other-site.example' }) };
+    forwarded.push(url);
+    return { status: 200, headers: { get: () => 'text/plain' }, text: async () => 'ok' };
+  };
+  const res = createResponse();
+  try {
+    process.env.GOOGLE_FORM_ENDPOINT = 'https://forms.example.test/submit';
+    process.env.TURNSTILE_SECRET_KEY = 'secret';
+    await handler({ method: 'POST', body: { message: 'hi', turnstileToken: 'token' }, headers: {} }, res);
+  } finally {
+    globalThis.fetch = originalFetch;
+    for (const [name, value] of [['GOOGLE_FORM_ENDPOINT', saved.endpoint], ['TURNSTILE_SECRET_KEY', saved.secret]]) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  }
+  assert.equal(res.statusCode, 403);
+  assert.equal(forwarded.length, 0);
+});

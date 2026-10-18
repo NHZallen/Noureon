@@ -2,7 +2,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { Window } from 'happy-dom';
 
+import http from 'node:http';
+
 import handler, { cleanHost, iconLinks, isPrivateAddress, siteIconDeps, sniffImage } from '../api/site-icon.js';
+import { fetchPinned, fetchPublic } from '../api/_site-fetch.js';
 import { putFirstSiteIcon, watchSourceIcons } from '../src/app/ui/sandbox/run-sources.js';
 import { siteIconUrl } from '../src/app/ui/links/site-icon.js';
 
@@ -47,6 +50,49 @@ test('only public site names are served: no addresses, local names, ports or pat
   }
   for (const address of ['10.1.2.3', '127.0.0.1', '169.254.169.254', '172.16.0.1', '192.168.1.1', '100.64.0.1', '::1', 'fd00::1', 'fe80::1', '::ffff:10.0.0.1']) assert.equal(isPrivateAddress(address), true, address);
   for (const address of ['93.184.216.34', '8.8.8.8', '2606:4700::1111']) assert.equal(isPrivateAddress(address), false, address);
+});
+
+test('an address with an inside one hidden in it is inside, whichever way it is written', () => {
+  for (const address of ['::ffff:7f00:1', '::ffff:a9fe:a9fe', '::ffff:0a00:0001', '::ffff:c0a8:0101', '::7f00:1', '::127.0.0.1', '64:ff9b::7f00:1',
+    '0:0:0:0:0:ffff:7f00:1', '2001::1', '2002:7f00:1::1', '2001:db8::1', 'ff02::1', '198.51.100.1', '203.0.113.5', 'not-an-address']) {
+    assert.equal(isPrivateAddress(address), true, address);
+  }
+  assert.equal(isPrivateAddress('2a00:1450:4001::1'), false);
+});
+
+test('the address that was checked is the one connected to: the name is looked up once a stop', async () => {
+  const saved = { ...siteIconDeps };
+  let lookups = 0;
+  const pinnedTo = [];
+  // A name that answers a public address the first time and an inside one after: the second answer must never be used.
+  siteIconDeps.lookup = async () => [{ address: lookups++ === 0 ? '93.184.216.34' : '10.0.0.5', family: 4 }];
+  siteIconDeps.fetch = async (url, init) => {
+    pinnedTo.push(init.pinned.address);
+    return new Response(PNG, { status: 200 });
+  };
+  try {
+    const { bytes } = await fetchPublic('https://rebinding.example/favicon.ico', { accept: 'image/*', maxBytes: 1000 });
+    assert.equal(bytes.length, PNG.length);
+    assert.equal(lookups, 1);
+    assert.deepEqual(pinnedTo, ['93.184.216.34']);
+  } finally {
+    Object.assign(siteIconDeps, saved);
+  }
+});
+
+test('the real request goes to the pinned address without asking the name again, and never speaks to an inside one', async () => {
+  let reached = 0;
+  const server = http.createServer((request, response) => { reached++; response.end('inside'); });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  try {
+    const url = `http://nowhere.invalid:${server.address().port}/`;
+    // The name does not exist: a lookup would fail with ENOTFOUND. It fails as inside, so the pinned address was what was dialled.
+    await assert.rejects(fetchPinned(url, { pinned: { address: '127.0.0.1', family: 4 } }), /private/);
+    await assert.rejects(fetchPinned(url, {}), /address/);
+    assert.equal(reached, 0, 'nothing inside answered');
+  } finally {
+    server.close();
+  }
 });
 
 test('a page\'s icons are ranked: near 32 pixels first, touch icons after, the data ones and the unsaid skipped', () => {

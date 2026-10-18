@@ -77,9 +77,20 @@ async function readText(response) {
   return Buffer.concat(chunks).toString('utf8');
 }
 
+const MAX_REDIRECTS = 3;
+
 async function getJson(fetchImpl, url, timeoutMs) {
   try {
-    const response = await withTimeout(fetchImpl, url, { headers: { accept: 'application/json' }, redirect: 'follow' }, timeoutMs);
+    // Redirects are followed here, one at a time, so a service cannot send the server to an address inside a network with one.
+    let current = url;
+    let response;
+    for (let hop = 0; ; hop++) {
+      response = await withTimeout(fetchImpl, current, { headers: { accept: 'application/json' }, redirect: 'manual' }, timeoutMs);
+      const location = response.status >= 300 && response.status < 400 ? response.headers.get('location') : null;
+      if (!location) break;
+      if (hop >= MAX_REDIRECTS) return null;
+      current = assertPublicHttps(new URL(location, current).toString(), 'metadata address');
+    }
     if (!response.ok) return null;
     return JSON.parse(await readText(response));
   } catch (error) {

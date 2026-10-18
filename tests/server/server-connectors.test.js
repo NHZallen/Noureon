@@ -438,6 +438,21 @@ test('the service sends the person back to the callback, which needs no sign-in 
   }, { connectors: service });
 });
 
+test('one place flooding the callback is stopped alone: everyone else still comes back from their logins', async () => {
+  const service = fakeService();
+  await withServer(async ({ base }) => {
+    const from = (address) => ({ redirect: 'manual', headers: { 'x-forwarded-for': `9.9.9.9, ${address}` } });
+    let busy = 0;
+    for (let index = 0; index < 35; index++) {
+      const flood = await fetch(`${base}/mcp/callback?state=bad`, from('203.0.113.7'));
+      if (new URL(flood.headers.get('location')).searchParams.get('connector_error') === 'busy') busy++;
+    }
+    assert.equal(busy, 5, 'thirty a minute from one place');
+    const other = await fetch(`${base}/mcp/callback?state=good-state-good-state-good&code=C`, from('198.51.100.20'));
+    assert.equal(new URL(other.headers.get('location')).searchParams.get('connected'), '1');
+  }, { connectors: service });
+});
+
 test('the answer to the card goes to the reply of the person who signed in, and only to that', async () => {
   const answered = [];
   const runs = { answerConnector: async (input) => { answered.push(input); return input.runId === '11111111-1111-1111-1111-111111111111' ? { ok: true, answered: true } : { ok: false, reason: 'not_running' }; } };

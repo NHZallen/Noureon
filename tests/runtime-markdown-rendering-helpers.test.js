@@ -363,3 +363,30 @@ test('a formula that KaTeX cannot render is shown as text: what the model wrote 
     harness.window.close();
   }
 });
+
+test('a formula cannot carry a link, an attribute or an image into the page: KaTeX runs untrusted (security audit 2026-10-18, N-07)', async () => {
+  const { default: katex } = await import('katex');
+  const payloads = [
+    '\\href{javascript:alert(1)}{x}',
+    '\\url{javascript:alert(1)}',
+    '\\htmlData{onclick=alert(1)}{x}',
+    '\\htmlId{x" onmouseover="alert(1)}{x}',
+    '\\htmlClass{x}{y}',
+    '\\htmlStyle{background:url(javascript:alert(1))}{x}',
+    '\\includegraphics{javascript:alert(1)}',
+    '\\text{<img src=x onerror=alert(1)>}'
+  ];
+  const warn = console.warn;
+  console.warn = () => {};
+  try {
+    for (const payload of payloads) {
+      for (const displayMode of [false, true]) {
+        // What is refused is shown as red text; what is text is escaped. No link, image, event or data attribute is ever made.
+        const html = katex.renderToString(payload, { displayMode, throwOnError: false });
+        assert.doesNotMatch(html, /href=|src=["']|<a[\s>]|<img[\s>]|\son[a-z]+=["']|data-[a-z]+=|id="x/i, payload);
+      }
+    }
+  } finally {
+    console.warn = warn;
+  }
+});

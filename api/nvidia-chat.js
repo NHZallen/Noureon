@@ -8,6 +8,7 @@ export const config = {
 };
 
 const NVIDIA_CHAT_COMPLETIONS_URL = 'https://integrate.api.nvidia.com/v1/chat/completions';
+const UPSTREAM_TIMEOUT_MS = 300_000;
 
 export default async function handler(req, res) {
   if (req.method === 'OPTIONS') {
@@ -29,6 +30,12 @@ export default async function handler(req, res) {
     return;
   }
 
+  // The page closing the connection stops what is asked of the service too, and a request that never ends is stopped at the function's
+  // own limit.
+  const controller = new AbortController();
+  res.on('close', () => { if (!res.writableEnded) controller.abort(); });
+  const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(UPSTREAM_TIMEOUT_MS)]);
+
   try {
     const body = typeof req.body === 'string' ? req.body : JSON.stringify(req.body || {});
     const upstream = await fetch(NVIDIA_CHAT_COMPLETIONS_URL, {
@@ -38,7 +45,8 @@ export default async function handler(req, res) {
         'Content-Type': 'application/json',
         Accept: 'text/event-stream'
       },
-      body
+      body,
+      signal
     });
 
     res.status(upstream.status);
@@ -60,6 +68,11 @@ export default async function handler(req, res) {
     }
     res.end();
   } catch (error) {
+    if (controller.signal.aborted) return;
+    if (res.headersSent) {
+      res.end();
+      return;
+    }
     res.status(502).json({
       error: 'NVIDIA proxy request failed',
       detail: error?.message || 'Unknown error'

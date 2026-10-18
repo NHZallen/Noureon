@@ -242,6 +242,26 @@ test('discovery falls back to the host itself, to OpenID Connect discovery, and 
   await assert.rejects(discover('http://mcp.linear.app/mcp', { fetchImpl: fakeNetwork({}).fetchImpl }), (error) => error.code === 'bad_metadata');
 });
 
+test('a redirect in discovery is followed only to public https addresses, one at a time', async () => {
+  const moved = (location) => new Response('', { status: 302, headers: { location } });
+  const followed = fakeNetwork({
+    'https://mcp.linear.app/.well-known/oauth-protected-resource/mcp': moved('https://mcp.linear.app/meta'),
+    'https://mcp.linear.app/meta': json({ resource: 'https://mcp.linear.app', authorization_servers: ['https://auth.linear.app'] }),
+    'https://auth.linear.app/.well-known/oauth-authorization-server': json(serverMetadata())
+  });
+  assert.equal((await discover(LINEAR, { fetchImpl: followed.fetchImpl })).issuer, 'https://auth.linear.app');
+  const inward = fakeNetwork({
+    ...linearRoutes(),
+    'https://mcp.linear.app/.well-known/oauth-protected-resource/mcp': moved('http://169.254.169.254/latest/meta-data'),
+    'https://auth.linear.app/.well-known/oauth-authorization-server': moved('https://localhost/metadata')
+  });
+  await discover(LINEAR, { fetchImpl: inward.fetchImpl }).catch(() => null);
+  assert.ok(inward.calls.every((call) => call.url.startsWith('https://') && !call.url.includes('169.254') && !call.url.includes('localhost')), 'nothing inside was asked');
+  const loop = fakeNetwork({ 'https://mcp.linear.app/.well-known/oauth-protected-resource/mcp': moved('https://mcp.linear.app/.well-known/oauth-protected-resource/mcp') });
+  await discover(LINEAR, { fetchImpl: loop.fetchImpl }).catch(() => null);
+  assert.ok(loop.calls.filter((call) => call.url.endsWith('oauth-protected-resource/mcp')).length <= 4, 'a loop of redirects ends');
+});
+
 test('the client is known the way the specification prefers: by hand, then by our metadata document, then by registering', async () => {
   const redirectUri = 'https://api.noureon.com/mcp/callback';
   const cimdUrl = 'https://noureon.com/.well-known/oauth-client.json';

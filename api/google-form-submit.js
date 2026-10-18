@@ -9,6 +9,9 @@ export const config = {
 export const getGoogleFormEndpoint = () => process.env.GOOGLE_FORM_ENDPOINT?.trim() || '';
 export const getTurnstileSecret = () => process.env.TURNSTILE_SECRET_KEY?.trim() || '';
 
+/** The site's own names: noureon.com and the names under it (the test site). */
+export const isOwnHostname = (hostname) => /^(?:[a-z0-9-]+\.)*noureon\.com$/.test(String(hostname || '').toLowerCase());
+
 const parseRequestBody = (body) => {
   if (typeof body === 'string') return JSON.parse(body || '{}');
   return body && typeof body === 'object' ? { ...body } : {};
@@ -76,7 +79,8 @@ export default async function handler(req, res) {
         secret: turnstileSecret,
         remoteIp
       });
-      if (!verification?.success) {
+      // A check passed on another site that uses the same key is not one passed here.
+      if (!verification?.success || (verification.hostname && !isOwnHostname(verification.hostname))) {
         res.status(403).json({
           error: 'Turnstile verification failed',
           codes: verification?.['error-codes'] || []

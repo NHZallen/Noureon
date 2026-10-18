@@ -62,13 +62,22 @@ async function readJson(request, maxBytes, { optional = false } = {}) {
   }
 }
 
+/**
+ * Where a request comes from, for counting what one place may do: the last address of X-Forwarded-For, which is the one the host's own
+ * proxy wrote (the ones before it are whatever the sender put there), else the connection's own address.
+ */
+export function clientAddress(request) {
+  const forwarded = String(request.headers?.['x-forwarded-for'] || '').split(',').map((part) => part.trim()).filter(Boolean);
+  return forwarded.at(-1) || request.socket?.remoteAddress || 'unknown';
+}
+
 /** Returns the function that answers one request: `(request, response) => Promise<void>`. */
 export function createApp({ config, fetchImpl = fetch, log = createLogger(), now = Date.now, runs = null, credentials = null, files = null, connectors = null } = {}) {
   const verify = createTokenVerifier({ supabaseUrl: config.supabaseUrl, anonKey: config.supabaseAnonKey, fetchImpl, now });
   const startLimiter = createRateLimiter({ limit: LIMITS.createPerMinute, windowMs: 60_000, now });
   const credentialLimiter = createRateLimiter({ limit: 30, windowMs: 60_000, now });
   const connectorLimiter = createRateLimiter({ limit: 30, windowMs: 60_000, now });
-  const callbackLimiter = createRateLimiter({ limit: 120, windowMs: 60_000, now });
+  const callbackLimiter = createRateLimiter({ limit: 30, windowMs: 60_000, now });
   const startedAt = now();
 
   const corsHeaders = (origin) => (origin && config.allowedOrigins.includes(origin)
@@ -327,7 +336,7 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
           response.end();
           status = 302;
         };
-        if (!callbackLimiter.take('callback')) {
+        if (!callbackLimiter.take(`callback:${clientAddress(request)}`)) {
           back({ connector_error: 'busy' });
           return;
         }
