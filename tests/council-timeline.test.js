@@ -54,7 +54,7 @@ test('live: the stage that runs has the accent dot and its members (what each is
   assert.doesNotMatch(html, /council-tl-steps/, 'closed until opened');
   const opened = councilTimelineHTML(council, { language: 'en', live: true, open: new Set(['a']) });
   assert.match(opened, /data-council-member="a" aria-expanded="true"/);
-  assert.match(opened, /<ul class="council-tl-steps"><li>Searching: plans<\/li><\/ul>/);
+  assert.match(opened, /<ul class="council-tl-steps"><li><span class="council-tl-step">Searching: plans<\/span><\/li><\/ul>/);
   assert.match(opened, /data-council-member="b" aria-expanded="false"/);
   assert.doesNotMatch(opened, /data-council-member="c"/, 'a member with nothing to show is not a button');
 });

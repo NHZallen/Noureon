@@ -48,18 +48,29 @@
 
 /* A council while it goes on, and in its saved message (council-timeline.js): a thin line through the stages, a dot on each (filled once done, the
    person's accent while it runs, hollow before), plain rows for the members, numbers on the right. */
-.council-tl-panel { min-width: min(28rem, 72vw); }
+.council-tl-panel { min-width: min(28rem, 100%); max-width: 100%; }
 
-.council-tl {
+/* The lists of the timeline are not the lists of an answer (chat.css gives `.prose` lists numbers, an indent and space under each item):
+   the class is doubled so these rules win wherever the timeline is drawn. */
+.council-tl.council-tl,
+.council-tl-members.council-tl-members,
+.council-tl-steps.council-tl-steps {
     list-style: none;
+}
+
+.council-tl.council-tl {
     margin: 0;
     padding: 0;
 }
 
-.council-tl-stage {
+.council-tl-stage.council-tl-stage {
     position: relative;
+    margin: 0;
     padding: 0 0 0.75rem 1.4rem;
 }
+
+.council-tl-member.council-tl-member,
+.council-tl-steps.council-tl-steps li { margin: 0; }
 
 .council-tl-stage::before {
     content: '';
@@ -112,8 +123,7 @@
     white-space: nowrap;
 }
 
-.council-tl-members {
-    list-style: none;
+.council-tl-members.council-tl-members {
     margin: 0.5rem 0 0.1rem;
     padding: 0;
     display: grid;
@@ -129,9 +139,11 @@
 .council-tl-member-head {
     display: flex;
     flex: 1;
+    flex-wrap: wrap;
     min-width: 0;
     align-items: baseline;
-    gap: 0.5rem;
+    column-gap: 0.5rem;
+    row-gap: 0.1rem;
     padding: 0;
     border: 0;
     background: none;
@@ -149,8 +161,9 @@ button.council-tl-member-head .council-tl-member-name {
 }
 
 .council-tl-member-name {
-    flex: none;
-    max-width: 50%;
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -195,8 +208,7 @@ button.council-tl-member-head .council-tl-member-name {
 }
 
 /* What an opened member searched and read. */
-.council-tl-steps {
-    list-style: none;
+.council-tl-steps.council-tl-steps {
     margin: 0.25rem 0 0.2rem;
     padding: 0.1rem 0 0.1rem 0.65rem;
     border-left: 2px solid var(--border-color);
@@ -204,6 +216,8 @@ button.council-tl-member-head .council-tl-member-name {
     font-size: 0.82rem;
     line-height: 1.6;
 }
+
+.council-tl-step { color: var(--text-secondary); }
 
 .council-tl-steps li {
     overflow: hidden;

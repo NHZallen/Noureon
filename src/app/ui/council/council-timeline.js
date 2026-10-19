@@ -66,7 +66,7 @@ function memberRow(language, member, { live, open, exitLabel }) {
     ? `<button type="button" class="council-tl-member-head" data-council-member="${escapeText(member.id)}" aria-expanded="${opened}">${inner}</button>`
     : `<div class="council-tl-member-head">${inner}</div>`;
   const exit = live && member.canExit && exitLabel ? `<button type="button" class="council-tl-exit" data-council-exit="${escapeText(member.id)}">${escapeText(exitLabel)}</button>` : '';
-  const list = opened ? `<ul class="council-tl-steps">${steps.map((step) => `<li>${escapeText(step.label)}</li>`).join('')}</ul>` : '';
+  const list = opened ? `<ul class="council-tl-steps">${steps.map((step) => `<li><span class="council-tl-step">${escapeText(step.label)}</span></li>`).join('')}</ul>` : '';
   return `<li class="council-tl-member is-${escapeText(member.status || 'done')}${opened ? ' is-open' : ''}"><div class="council-tl-member-row">${head}${exit}</div>${list}</li>`;
 }
 
