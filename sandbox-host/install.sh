@@ -46,13 +46,23 @@ else
 fi
 chmod 600 "$SECRET_FILE"
 
-say "5. Where the runner listens (the machine's address inside, which the services here reach and the internet does not)"
-HOST=$(ip -4 -o addr show cni0 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -n 1)
-if [ -z "$HOST" ]; then
-  HOST=127.0.0.1
-  echo "No cni0 address found: listening on 127.0.0.1 only (Zeabur's services cannot reach that; tell Claude)."
+say "5. Where the runner listens and who may ask (the machine's own addresses, which the services here reach and the internet does not)"
+# 127.0.0.1 always. The address of Docker's own bridge (docker0, usually 172.17.0.1) is where a server running in a container (Coolify) reaches the machine,
+# so the runner listens there too and accepts the ranges Docker hands out to containers. While Zeabur's pod network (cni0) still exists it is added as well,
+# so the old Zeabur server keeps working until Zeabur is removed; run this script again after that and it is left out.
+HOST=127.0.0.1
+ALLOW=127.0.0.1/32
+BRIDGE=$(ip -4 -o addr show docker0 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -n 1)
+if [ -n "$BRIDGE" ]; then
+  HOST="$BRIDGE,$HOST"
+  ALLOW="$ALLOW,172.16.0.0/12,192.168.0.0/16"
 fi
-echo "address: $HOST:$PORT"
+CNI=$(ip -4 -o addr show cni0 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -n 1)
+if [ -n "$CNI" ]; then
+  HOST="$CNI,$HOST"
+  ALLOW="$ALLOW,10.42.0.0/16"
+fi
+echo "addresses: $HOST (port $PORT), accepted: $ALLOW"
 
 say "6. Starting the runner"
 docker rm -f noureon-sandbox-runner >/dev/null 2>&1 || true
@@ -60,7 +70,7 @@ docker run -d --name noureon-sandbox-runner --restart unless-stopped --network h
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v "$DATA:$DATA" \
   -v "$SECRET_FILE:/run/secrets/runner-token:ro" \
-  -e RUNNER_HOST="$HOST" -e RUNNER_PORT="$PORT" -e RUNNER_TOKEN_FILE=/run/secrets/runner-token \
+  -e RUNNER_HOST="$HOST" -e RUNNER_ALLOW="$ALLOW" -e RUNNER_PORT="$PORT" -e RUNNER_TOKEN_FILE=/run/secrets/runner-token \
   -e SANDBOX_DATA_DIR="$DATA" -e SANDBOX_IMAGE=noureon-sandbox:1 \
   noureon-sandbox-runner:1 >/dev/null
 sleep 3

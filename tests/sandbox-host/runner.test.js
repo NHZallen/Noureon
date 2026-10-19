@@ -51,8 +51,15 @@ test('the settings need a real secret and have safe defaults: only the machine i
   assert.throws(() => loadConfig({ RUNNER_TOKEN: 'short' }), /at least 32 characters/);
   const config = loadConfig({ RUNNER_TOKEN: SECRET });
   assert.equal(config.host, '127.0.0.1');
+  assert.deepEqual([...config.hosts], ['127.0.0.1']);
   assert.deepEqual([...config.allow], ['10.42.0.0/16', '127.0.0.1/32']);
   assert.equal(config.maxSessions, 2);
+});
+
+test('the runner may listen on several addresses (the pod network of Zeabur and the machine itself during the move)', () => {
+  const config = loadConfig({ RUNNER_TOKEN: SECRET, RUNNER_HOST: '10.42.0.1, 127.0.0.1' });
+  assert.deepEqual([...config.hosts], ['10.42.0.1', '127.0.0.1']);
+  assert.equal(config.host, '10.42.0.1');
 });
 
 test('a container is started one way: no network, no rights, limited, with only its folders; nothing of a request can change that', () => {

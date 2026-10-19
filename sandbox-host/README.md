@@ -21,8 +21,8 @@ Noureon server (Zeabur) ──token──▶ runner (container, this machine, 10
 
 Each container may use 2 GB of memory and 2 CPU cores (`SANDBOX_MEMORY`, `SANDBOX_CPUS`), and at most 2 run at once (`SANDBOX_MAX_SESSIONS`): the machine has 8 GB and no swap, so more would risk the services next to it.
 
-The runner is only reachable from the machine's own pod network (`RUNNER_ALLOW`, default `10.42.0.0/16`) and needs the secret
-(`/etc/noureon-sandbox/token`). It is not on the internet. Containers never get a network (`--network none`); what a CLI tool may reach goes through the session's proxy (below).
+The runner is only reachable from the machine's own addresses and needs the secret (`/etc/noureon-sandbox/token`). `install.sh` sets where it listens (`RUNNER_HOST`, comma separated: `127.0.0.1`, the address of Docker's bridge `docker0` for a server in a container, and Zeabur's pod address `cni0` while Zeabur still exists) and who may ask (`RUNNER_ALLOW`: `127.0.0.1/32`, Docker's container ranges, and `10.42.0.0/16` while `cni0` exists). The move away from Zeabur: `docs/superpowers/specs/2026-10-20-zeabur-migration-design.md`.
+It is not on the internet. Containers never get a network (`--network none`); what a CLI tool may reach goes through the session's proxy (below).
 
 The Noureon server reaches the runner with two Zeabur variables: `SANDBOX_RUNNER_URL` (`http://10.42.0.1:7788`) and `SANDBOX_RUNNER_TOKEN` (the contents of `/etc/noureon-sandbox/token`; never paste it anywhere else). The server's side of this interface is `server/sandbox-client.js`; `tests/sandbox-host/server-adapter.test.js` runs both halves together.
 

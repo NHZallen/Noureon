@@ -15,7 +15,9 @@ export function loadConfig(env = process.env) {
   const dataDir = env.SANDBOX_DATA_DIR || '/var/lib/noureon-sandbox';
   return Object.freeze({
     // Where it listens: the host's address inside the machine, which the services of the machine reach and the internet does not.
-    host: env.RUNNER_HOST || '127.0.0.1',
+    host: String(env.RUNNER_HOST || '127.0.0.1').split(',')[0].trim(),
+    // RUNNER_HOST may list several addresses (comma separated): while two networks reach the runner (Zeabur's pods and the machine itself) it listens on both.
+    hosts: Object.freeze(String(env.RUNNER_HOST || '127.0.0.1').split(',').map((entry) => entry.trim()).filter(Boolean)),
     port: number(env.RUNNER_PORT, 7788, 1, 65535),
     token,
     // Who may ask (the machine's own pod network and itself), on top of the secret.
