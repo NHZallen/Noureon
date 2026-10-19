@@ -119,3 +119,15 @@
 - `server-reply-runtime.js`：多收 `getSingleDocumentTranslatorModel`（`submit-input-council-lifecycle.js` 一行接上），`plan` 用它填 `hasTranslator`，`start` 用它填 `documents.translator`。
 - 測試：`tests/server-reply.test.js`（計劃、請求內容、金鑰規則、`dp` 事件、runtime 接線）、`tests/single-model-response-lifecycle.test.js`（送原始訊息、不在瀏覽器準備、顯示階段、沒收時整則補做、與搜尋封包一起退回）。
 
+## 11. P3 結果與驗收清單（2026-10-20）
+
+**P3：** 五語言的隱私政策（§8 新增「附件與網址的準備」一條，`PRIVACY.md` 由它產生）與協助中心（附件那段：Word／PowerPoint／Excel 在瀏覽器或伺服器讀、轉譯與網址由伺服器代做、轉譯模型金鑰只為這次回覆送上去）。**更新紀錄和版本不在功能分支改**（`AGENTS.md`：Allen 發佈時彙整）；更新紀錄草稿見 NOU-67 留言。
+
+**owner 在 `staging.noureon.com` 驗收（雲端帳號登入、設好「單模型文件轉譯模型」、回覆在伺服器）：**
+1. 回覆模型選 NVIDIA 的 DeepSeek（讀不了 PDF／Word），傳一份 PDF 問內容：等待列依序「正在請轉譯模型讀取文件……」，答案有引用 PDF 的內容。
+2. 傳一份 Word（內容有幾個獨特的詞）：等待列「正在讀取檔案……」，答案用到那幾個詞。
+3. 訊息裡放一個網址（模型是 OpenRouter 或 NVIDIA 的）：答案有用到網頁內容，來源列出現該網頁。
+4. 上面任一個，**送出後立刻關閉頁面（或鎖屏）**，過一分鐘再打開：回覆已經完成；不是空白、也不是停在準備中。
+5. 在設定把「單模型文件轉譯模型」清空（若可以）再傳 PDF：和以前一樣，在瀏覽器準備，並出現原本的「需要轉譯模型」錯誤（沒有設的人本來就是這樣）。
+6. 設定 → 隱私把回覆改成「只在這個裝置」：和以前一樣，在瀏覽器讀取，行為沒變。
+
