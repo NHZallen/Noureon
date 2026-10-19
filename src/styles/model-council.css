@@ -464,6 +464,24 @@ button.council-tl-member-head .council-tl-member-name {
     margin-bottom: 0;
 }
 
+/* On a phone the block is as wide as the screen, as a table is (chat.css): its text lines up with the reply's, and a table in it slides out
+   to the screen's edges instead of past the block's border. */
+@media (max-width: 640px) {
+    .prose details.council-collapse {
+        box-sizing: border-box;
+        width: 100vw;
+        margin-left: calc(50% - 50vw);
+        padding-inline: calc((100vw - 100%) / 2);
+        border-inline: 0;
+        border-radius: 0;
+    }
+    .prose details.council-collapse[open] > summary {
+        margin-inline: calc((100% - 100vw) / 2);
+        padding-inline: calc((100vw - 100%) / 2);
+        border-radius: 0;
+    }
+}
+
 .popover,#file-options-popover,.color-dropdown-menu,.translator-picker-menu,#mobile-context-menu,#attachment-menu {
     background-color: color-mix(in srgb, var(--chat-bg) 96%, transparent) !important;
     border-color: var(--border-color) !important;
