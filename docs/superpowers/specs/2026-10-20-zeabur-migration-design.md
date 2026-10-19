@@ -130,3 +130,10 @@
 - Coolify 的安裝指令與設定項目：以官方文件為準，我整理的是搜尋得到的摘要，沒有實測。
 - Docker 配給容器的位址範圍：預設是 `172.16.0.0/12` 與 `192.168.0.0/16`；Coolify 安裝時會把 `daemon.json` 的 `default-address-pools` 設成 `10.0.0.0/8`，所以 `install.sh` 會讀 `daemon.json` 裡的每個 `base`，一併放進 `RUNNER_ALLOW`。**Coolify 裝好後要再跑一次 `sh sandbox-host/install.sh`。**
 - 這台的 Docker 是 Ubuntu 套件（`docker.io`），沒有 `docker compose` 外掛，Coolify 安裝腳本會失敗（`Failed to parse docker-compose configuration`）。先裝 `docker-compose-v2` 再裝 Coolify。
+
+## 11. GitHub 自動部署（2026-10-19 設定）
+
+- Coolify 有了公開網址 `https://coolify.noureon.com`（DNS 的 A 記錄指向 VPS；Settings → General 的 URL 欄位；開了二步驟驗證）。
+- GitHub 的 `NHZallen/Noureon` 加了一個 webhook（Settings → Webhooks）：Payload URL 是 Coolify 測試 API 的 Manual Git Webhook 網址，Content type 是 `application/json`，事件只有 push，Secret 與 Coolify 的 Webhooks 頁一致。GitHub 這邊的 ping 回應成功。
+- Coolify 依被推送的分支決定部署哪個應用：推到 `staging` 部署測試 API，推到 `main` 部署正式 API。正式 API 的 Webhooks 要填同一組 Secret（沒有實測；推到 `main` 沒有自動部署時，改在 GitHub 再加一個用正式 API 自己網址與 Secret 的 webhook）。
+- 部署會重啟容器，伺服器上正在跑的回覆可能被打斷：合併到 `main` 之前先確認沒有長任務在跑。前端的改動也會觸發後端部署；要減少時用 Coolify 的 Watch Paths，但伺服器用到的共用模組（`scripts/server-shared-modules.json`）要一起列進去。
