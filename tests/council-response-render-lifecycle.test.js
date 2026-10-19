@@ -183,3 +183,22 @@ test('council response render lifecycle source avoids provider parser, storage, 
     assert.equal(source.includes(forbidden), false, `source should not include ${forbidden}`);
   }
 });
+
+test('the pages the members met go at the head of the message as its sources, and the view is drawn again with them', async () => {
+  const sources = [{ n: 1, url: 'https://a.example/', title: 'A' }];
+  const harness = createHarness({
+    runModelCouncil: async (parts, signal, onProgress, onFinalChunk) => {
+      onProgress({ stage: 'firstRound', message: 'Working', startedAt: Date.now(), elapsedMs: 0 });
+      onFinalChunk('Answer [1]');
+      return { text: 'Answer [1]', sources, metadata: {} };
+    }
+  });
+  const result = await harness.run();
+  assert.match(result.fullResponse, /^```noureon-run\n\{[^\n]*"sources":\[\{"title":"A","url":"https:\/\/a\.example\/","n":1\}\][^\n]*\}\n```\n\nAnswer \[1\]$/);
+  assert.equal(harness.contentDiv.dataset.streamRendered, 'false', 'drawn again, so the [1] links to its page');
+
+  const without = createHarness();
+  const plain = await without.run();
+  assert.equal(plain.fullResponse, 'Hello');
+  assert.equal(without.contentDiv.dataset.streamRendered, 'true');
+});

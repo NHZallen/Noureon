@@ -29,6 +29,7 @@ const createHarness = ({
   modelSupportsDocumentUpload = () => true,
   modelUsesNativeWebSearch = () => false,
   streamImpl,
+  createMembers = null,
   modelSupportsVision = () => true
 } = {}) => {
   const calls = [];
@@ -117,7 +118,7 @@ const createHarness = ({
     ...(readLinkedPages ? { readLinkedPages } : {}),
     ...(readsLinkedPages ? { readsLinkedPages } : {}),
     streamCouncilApiCallWithRetry: streamImpl || defaultStream,
-    modelUsesNativeWebSearch,
+    ...(createMembers ? { createMembers } : {}),
     modelSupportsVision,
     modelSupportsDocumentUpload
   });
@@ -199,81 +200,79 @@ test('deliberation mode runs a second round before synthesis', async () => {
   assert.ok(progressEvents.some((event) => event.stage === 'deliberation'));
 });
 
-test('web search branch uses native model search for the shared packet', async () => {
-  const { calls, progressEvents, run } = createHarness({
-    webSearchEnabled: true,
-    modelUsesNativeWebSearch: (model) => model?.id === 'synth'
-  });
-
+test('without members of its own a council does not search: one call for each member, and no search stage', async () => {
+  const { calls, progressEvents, run, tavilyCalls } = createHarness({ webSearchEnabled: true, mode: 'deliberation' });
   const result = await run([{ text: 'Need current facts' }]);
-
-  assert.equal(result.metadata.sharedSearchPacket, 'Synth final');
-  assert.equal(result.metadata.secondSearchPacket, null);
-  assert.deepEqual(calls.map((call) => call.id), ['synth', 'alpha', 'beta', 'synth']);
-  assert.equal(calls[0].options.forceWebSearch, true);
-  assert.equal(calls[0].options.ignoreConversationWebSearch, true);
-  assert.equal(calls[0].options.disableReasoning, true);
-  assert.deepEqual(calls[0].options.historyForApi, []);
-  assert.match(calls[0].parts[0].text, /shared web research packet/i);
-  assert.ok(progressEvents.some((event) => event.stage === 'search' && event.search?.status === 'done'));
+  assert.deepEqual(calls.map((call) => call.id), ['alpha', 'beta', 'alpha', 'beta', 'synth']);
+  assert.equal(tavilyCalls.length, 0, 'no shared search packet any more');
+  assert.ok(progressEvents.every((event) => event.stage !== 'search' && event.search === null));
+  assert.ok(progressEvents.every((event) => event.searchEnabled === true), 'the panel still knows the search is on');
+  assert.deepEqual(result.sources, []);
+  assert.equal(result.metadata.sharedSearchPacket, null);
 });
 
-test('request-scoped web search enables council research without changing conversation state', async () => {
-  const { calls, run } = createHarness({
+test('each member answers through the council\'s members (its own search), in both rounds; their steps reach the panel and their pages the synthesis', async () => {
+  const asked = [];
+  const sourcesSeen = [];
+  let made = null;
+  const { calls, progressEvents, run } = createHarness({
+    mode: 'deliberation',
     webSearchEnabled: false,
-    modelUsesNativeWebSearch: (model) => model?.id === 'synth'
-  });
-
-  await run([{ text: 'What is the weather today?' }], new AbortController().signal, {
-    webSearchEnabled: true
-  });
-
-  assert.equal(calls[0].id, 'synth');
-  assert.equal(calls[0].options.forceWebSearch, true);
-});
-
-test('the council\'s search is for the conversation, so a message that only says to search has a subject', async () => {
-  const { queryConversations, run } = createHarness({ webSearchEnabled: true });
-  await run([{ text: 'Question' }]);
-  assert.equal(queryConversations.length, 1);
-  assert.equal(queryConversations[0].messages.at(-1).parts[0].text, 'Current question', 'the conversation, with its earlier messages');
-});
-
-test('the council\'s search query is built for its conversation and synthesizer, and a stop while it is built stops the council', async () => {
-  const built = [];
-  const { run, tavilyCalls } = createHarness({
-    webSearchEnabled: true,
-    buildSearchQuery: async (parts, options) => {
-      built.push(options);
-      return 'written query';
+    createMembers: (conversation, parts) => {
+      made = { conversation, parts };
+      return {
+        async answer(options) {
+          asked.push(options);
+          options.onStep({ kind: 'search', label: `Searching: ${options.modelInfo.id}` });
+          options.onStep({ kind: 'page', label: 'Reading page: a.example' });
+          options.onChunk('words');
+          return `${options.modelInfo.name} says [1] (${options.requestOptions.requestPurpose})`;
+        },
+        sources: () => {
+          const list = [{ n: 1, url: 'https://a.example/', title: 'A page' }, { n: 1, url: 'https://a.example/', title: 'A page', read: true }];
+          sourcesSeen.push(list);
+          return list;
+        }
+      };
     }
   });
-  await run([{ text: '你去查阿' }]);
-  assert.equal(tavilyCalls[0][0], 'written query');
-  assert.equal(built[0].conversation.messages.at(-1).parts[0].text, 'Current question');
-  assert.equal(built[0].modelInfo.id, 'synth', 'the model whose search it is');
-  assert.ok(built[0].signal, 'and the signal, so a stop reaches it');
+  const result = await run([{ text: 'Need current facts' }], new AbortController().signal, { webSearchEnabled: true });
+  assert.equal(made.parts[0].text, 'Need current facts');
+  assert.equal(made.conversation.messages.at(-1).parts[0].text, 'Current question');
+  assert.deepEqual(asked.map((options) => [options.modelInfo.id, options.requestOptions.requestPurpose, options.searchOn]), [
+    ['alpha', 'council-participant', true], ['beta', 'council-participant', true],
+    ['alpha', 'council-deliberation', true], ['beta', 'council-deliberation', true]
+  ], 'the search of the request reaches every member, in both rounds');
+  assert.match(asked[0].requestOptions.additionalSystemInstruction, /只能讀，不能改任何東西/);
+  assert.match(asked[2].parts[0].text, /\[1\] A page — https:\/\/a\.example\/（成員讀過全文）/, 'the deliberation lists the pages met, with their numbers');
+  assert.deepEqual(calls.map((call) => call.id), ['synth'], 'only the synthesis is a plain call');
+  assert.match(calls[0].parts[0].text, /# 成員查到的來源/);
+  assert.match(calls[0].parts[0].text, /\[1\] A page — https:\/\/a\.example\//);
+  assert.match(calls[0].parts[0].text, /只用清單裡有的編號/);
+  assert.equal(result.sources.length, 2, 'the pages go with the answer');
+  const last = progressEvents.filter((event) => event.stage === 'firstRound').at(-1);
+  const alpha = last.modelStates.find((state) => state.modelId === 'alpha');
+  assert.deepEqual(alpha.counts, { search: 1, page: 1, skill: 0, connector: 0 });
+  assert.deepEqual(alpha.steps.map((step) => step.kind), ['search', 'page']);
 });
 
-test('web search branch uses Tavily fallback for shared and deliberation second search packets', async () => {
-  const { calls, run, tavilyCalls } = createHarness({
-    mode: 'deliberation',
-    webSearchEnabled: true
+test('a member whose answer fails is a failure of the council as before, and a stop of the council reaches the member\'s signal', async () => {
+  const controller = new AbortController();
+  const signals = [];
+  const { run } = createHarness({
+    createMembers: () => ({
+      async answer(options) {
+        signals.push(options.signal);
+        if (options.modelInfo.id === 'beta') throw new Error('beta broke');
+        return 'alpha answer';
+      },
+      sources: () => []
+    })
   });
-
-  const result = await run([{ text: 'Need current facts' }]);
-
-  assert.equal(result.metadata.sharedSearchPacket, 'search packet 1');
-  assert.equal(result.metadata.secondSearchPacket, 'search packet 2');
-  assert.deepEqual(tavilyCalls.map((call) => call[2].label), [
-    'Shared council web search packet',
-    'Second council discussion web search packet'
-  ]);
-  assert.match(tavilyCalls[0][0], /Need current facts/);
-  assert.match(tavilyCalls[1][0], /verify latest facts dates evidence disagreements/);
-  assert.deepEqual(calls.map((call) => call.id), ['alpha', 'beta', 'alpha', 'beta', 'synth']);
-  assert.match(calls[0].parts[0].text, /Shared council search packet/);
-  assert.match(calls[2].parts[0].text, /Council search packet 2/);
+  const result = await run([{ text: 'Q' }], controller.signal);
+  assert.deepEqual(result.metadata.failures.map((failure) => [failure.modelId, failure.error]), [['beta', 'beta broke']]);
+  controller.abort();
+  assert.ok(signals.every((signal) => signal.aborted));
 });
 
 test('web addresses in the message are read once for the whole council, and go to the first round and the synthesis', async () => {

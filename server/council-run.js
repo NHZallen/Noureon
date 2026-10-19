@@ -14,10 +14,13 @@
 import { createHash } from 'node:crypto';
 
 import { createCouncilAttachmentNeed } from '../src/app/legacy-runtime/features/council-attachments.js';
+import { createCouncilMembers } from '../src/app/legacy-runtime/features/council-member-reply.js';
 import { createCouncilResponseLifecycle } from '../src/app/legacy-runtime/features/council-response-lifecycle.js';
 import { buildTavilySearchQuery, formatTavilySearchPacket, getSearchCurrentDate, normalizePageReads, normalizeTinyfishSearch, withSearchContext } from '../src/app/legacy-runtime/features/model-request-formatting.js';
 import { createProviderRequestSupport } from '../src/app/legacy-runtime/features/provider-request-support.js';
 import { createStreamApiCall } from '../src/app/legacy-runtime/features/stream-api-call.js';
+import { formatSandboxRunBlock } from '../src/app/ui/sandbox/sandbox-run-block.js';
+import { createSkillLoader } from '../src/data/skill-tool.js';
 import { createServerOfficeReader } from './office-deps.js';
 import { getCouncilRuntimeTexts } from '../src/app/runtime/legacy-core/council-runtime-texts.js';
 import {
@@ -27,9 +30,9 @@ import {
   COUNCIL_TEXT,
   getModelReasoningConfig,
   modelSupportsDocumentUpload,
+  modelSupportsToolCalling,
   modelSupportsUploadedFile,
   modelSupportsVision,
-  modelSupportsWebSearch,
   modelUsesNativeWebSearch,
   modelUsesTavilySearch,
   normalizeReasoningEffort
@@ -37,9 +40,10 @@ import {
 import { NOURAS_REQUEST_PURPOSE } from '../src/app/runtime/nouras/nouras-policy.js';
 import { getErrorMessage, readErrorBody, ReplyError, scrubMessage, scrubText } from './executor.js';
 import { ERROR_CODES, LIMITS } from './protocol.js';
+import { combineLoaders, createConnectorLoader } from './mcp/tool-loader.js';
 import { createUpstreamFetch } from './upstream-fetch.js';
 
-export const COUNCIL_CHECKPOINT_VERSION = 1;
+export const COUNCIL_CHECKPOINT_VERSION = 2;
 // What the memory of finished calls may hold in the checkpoint (the checkpoint is limited to 6 MB): a call after that is not remembered.
 const MEMO_MAX_CHARS = 3_000_000;
 const SEARCH_SOURCES = ['tavily', 'tinyfish'];
@@ -83,7 +87,11 @@ export async function executeCouncil({
   callTimeoutMs = LIMITS.councilCallMs,
   retryDelayMs = COUNCIL_RETRY_DELAY_MS,
   // Where the council hands out what a person's request to let a model leave goes to (`control.exit(modelId)`).
-  control = {}
+  control = {},
+  // The person, their skills (server/skills.js) and connectors (server/mcp/connections.js): what the members may read by themselves.
+  userId = '',
+  skills = null,
+  connectors = null
 }) {
   const language = spec.request.language;
   const startedAt = now() - (Number(resume?.elapsedMs) || 0);
@@ -162,15 +170,17 @@ export async function executeCouncil({
   });
 
   // ----- the memory of the calls that finished (kept with the checkpoint)
-  const memo = new Map(Object.entries(resume?.memo && typeof resume.memo === 'object' ? resume.memo : {}));
+  // A checkpoint of another version (the members answered another way then) is not taken up.
+  const resumed = resume?.version === COUNCIL_CHECKPOINT_VERSION ? resume : null;
+  const memo = new Map(Object.entries(resumed?.memo && typeof resumed.memo === 'object' ? resumed.memo : {}));
   let memoChars = [...memo.values()].reduce((sum, value) => sum + String(value).length, 0);
   let saving = Promise.resolve();
   // The models that left the council (kept with the checkpoint, so a council taken up again does not ask them).
-  const exited = new Set(Array.isArray(resume?.exited) ? resume.exited : []);
+  const exited = new Set(Array.isArray(resumed?.exited) ? resumed.exited : []);
   const save = () => {
     // One save after another, so an older one never lands after a newer one.
     saving = saving
-      .then(() => onCheckpoint({ version: COUNCIL_CHECKPOINT_VERSION, kind: 'council', elapsedMs: elapsed(), memo: Object.fromEntries(memo), exited: [...exited] }))
+      .then(() => onCheckpoint({ version: COUNCIL_CHECKPOINT_VERSION, kind: 'council', elapsedMs: elapsed(), memo: Object.fromEntries(memo), exited: [...exited], sources: members?.sources() || [] }))
       .catch((error) => onProblem('council_checkpoint_failed', error));
   };
   const remember = (key, value) => {
@@ -265,6 +275,71 @@ export async function executeCouncil({
     return value;
   };
 
+  // ----- the members: each searches, opens pages, loads skills and reads the connectors by itself (only what may be read without asking)
+  let connectorList = null;
+  const connectorClients = new Map();
+  const readableConnectors = async () => {
+    if (connectorList) return connectorList;
+    connectorList = [];
+    if (!connectors || spec.tools.connectors !== true || !userId) return connectorList;
+    try {
+      connectorList = (await connectors.forRun(userId))
+        .map((connector) => ({ ...connector, tools: connector.tools.filter((tool) => tool.kind === 'read' && tool.state === 'allow') }))
+        .filter((connector) => connector.tools.length);
+    } catch (error) {
+      onProblem('connectors_failed', error);
+    }
+    return connectorList;
+  };
+  const loadersFor = async () => {
+    const listed = skills ? spec.tools.skills || [] : [];
+    const skillLoader = listed.length ? createSkillLoader({ available: listed, lookup: (name) => skills.body(userId, name), readFile: skills.readFile ? (name, path) => skills.readFile(userId, name, path) : null }) : null;
+    const readable = await readableConnectors();
+    const connectorLoader = readable.length ? createConnectorLoader({
+      connectors: readable,
+      language,
+      signal,
+      callTool: (id, name, args, options) => {
+        if (!connectorClients.has(id)) connectorClients.set(id, connectors.clientFor(userId, id));
+        return connectorClients.get(id).callTool(name, args, options);
+      }
+    }) : null;
+    return combineLoaders(skillLoader, connectorLoader);
+  };
+  const members = createCouncilMembers({
+    streamApiCall: timedCall,
+    research: support.hasSearchKey() ? { searchWeb: support.searchWeb, openPage: support.fetchPageContents } : null,
+    canCallTools: modelSupportsToolCalling,
+    usesNativeSearch: modelUsesNativeWebSearch,
+    loadersFor,
+    fetchPacket: remembered('search', (query, packetSignal) => support.fetchTavilySearchPacket(query, packetSignal, { label: 'Council member web search packet', maxResults: 6 })),
+    buildQuery: (parts, modelInfo, querySignal) => support.buildSearchQuery(spec.request.currentMessage.parts, { conversation, modelInfo, signal: querySignal }),
+    language,
+    retryDelayMs,
+    sources: Array.isArray(resumed?.sources) ? resumed.sources : []
+  });
+  // A member's whole answer (its searches and rounds) is kept once it is done: a council taken up again does not ask it again.
+  const rememberedMembers = {
+    ...members,
+    async answer(options) {
+      const key = `member:${hash([options.requestOptions?.requestPurpose, options.modelInfo?.id, Boolean(options.searchOn), options.parts])}`;
+      if (memo.has(key)) {
+        try {
+          const cached = JSON.parse(memo.get(key));
+          for (const step of cached.steps || []) options.onStep?.(step);
+          options.onChunk?.(cached.text);
+          return cached.text;
+        } catch {
+          memo.delete(key);
+        }
+      }
+      const steps = [];
+      const text = await members.answer({ ...options, onStep: (step) => { steps.push(step); options.onStep?.(step); } });
+      remember(key, JSON.stringify({ text, steps: steps.slice(-30) }));
+      return text;
+    }
+  };
+
   // ----- what the page sees: the progress of the council, and the words of the synthesis as they are written
   let answer = '';
   // What makes a model leave is handed out by the council with every report of how it stands; a request before the first one has nobody to go to.
@@ -295,7 +370,6 @@ export async function executeCouncil({
   onLive({ r: { answer: '', thought: { text: '', kind: 'model', ended: false, ms: 0 }, sources: [], elapsedMs: elapsed() } });
 
   const lifecycle = createCouncilResponseLifecycle({
-    buildTavilySearchQuery,
     getSearchCurrentDate,
     getConfig: () => config,
     getActiveConversation: () => conversation,
@@ -305,22 +379,25 @@ export async function executeCouncil({
     getCouncilRuntimeTexts: () => getCouncilRuntimeTexts(language),
     getCouncilAttachmentTranslationNeed: createCouncilAttachmentNeed({ modelSupportsVision, modelSupportsDocumentUpload }),
     getCouncilTranslatorModel: () => translator,
-    getCouncilSharedSearchModel: (model) => (modelSupportsWebSearch(model) ? model : null),
     models: allModels,
     councilMaxModels: COUNCIL_MAX_MODELS,
     extractTextFromParts: support.extractTextFromParts,
     truncateCouncilText: support.truncateCouncilText,
     filterPartsForModelCapability: support.filterPartsForModelCapability,
-    getSearchQueryFromParts: support.getSearchQueryFromParts,
-    buildSearchQuery: support.buildSearchQuery,
-    fetchTavilySearchPacket: remembered('search', support.fetchTavilySearchPacket),
     readLinkedPages: remembered('pages', support.readLinkedPages),
     readsLinkedPages: support.readsLinkedPages,
     streamCouncilApiCallWithRetry,
-    modelUsesNativeWebSearch,
+    createMembers: () => rememberedMembers,
     modelSupportsVision,
     modelSupportsDocumentUpload
   });
+
+  // The message: the pages the members met (as a reply keeps its sources, so the answer's [n] are links), then the text.
+  const withSources = (text) => {
+    const sources = members.sources();
+    return sources.length ? `${formatSandboxRunBlock({ status: 'done', steps: [], elapsedMs: elapsed(), sources })}${text}` : text;
+  };
+  const closeConnectors = () => Promise.all([...connectorClients.values()].map((client) => client.close().catch(() => {})));
 
   let outcome;
   try {
@@ -335,16 +412,18 @@ export async function executeCouncil({
     });
   } catch (error) {
     await saving;
+    await closeConnectors();
     // A stop keeps what the synthesis had written.
-    if (signal?.aborted) return { parts: [{ text: answer }], status: 'stopped', run: { elapsedMs: elapsed() }, toolCalls: 0 };
+    if (signal?.aborted) return { parts: [{ text: withSources(answer) }], status: 'stopped', run: { elapsedMs: elapsed() }, toolCalls: 0 };
     throw new ReplyError(scrubMessage(error?.message, secrets), ERROR_CODES.providerError);
   }
   await saving;
+  await closeConnectors();
   const text = String(outcome?.text ?? '');
   // A stop that came while the synthesis was being written: the council gives its members' answers instead of it, but the person stopped it.
-  if (signal?.aborted) return { parts: [{ text: answer }], status: 'stopped', run: { elapsedMs: elapsed() }, toolCalls: 0 };
+  if (signal?.aborted) return { parts: [{ text: withSources(answer) }], status: 'stopped', run: { elapsedMs: elapsed() }, toolCalls: 0 };
   const written = scrubText(text, secrets);
   // What the council adds after the synthesis (the blocks of the first answers) reaches the pages that are watching.
   if (written.startsWith(answer) && written.length > answer.length) onLive({ a: written.slice(answer.length) });
-  return { parts: [{ text: written }], status: 'done', run: { elapsedMs: elapsed() }, toolCalls: 0 };
+  return { parts: [{ text: withSources(written) }], status: 'done', run: { elapsedMs: elapsed() }, toolCalls: 0 };
 }

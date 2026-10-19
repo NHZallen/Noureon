@@ -1,4 +1,5 @@
 import { patchHTML } from '../../ui/dom/patch-html.js';
+import { formatSandboxRunBlock } from '../../ui/sandbox/sandbox-run-block.js';
 
 export async function runCouncilResponseRenderLifecycle({
   contentDiv,
@@ -119,8 +120,11 @@ export async function runCouncilResponseRenderLifecycle({
       if (signal?.aborted) return finishInterruptedResponse();
       realtimeCouncilRenderer.finish({ renderFormulas: true });
     }
+    // The pages the members met are the reply's sources (its [n] link to them): kept at the head of the message, and the view is drawn again with them.
+    const sources = Array.isArray(councilResult.sources) ? councilResult.sources : [];
+    if (sources.length && contentDiv?.dataset) contentDiv.dataset.streamRendered = 'false';
     return {
-      fullResponse,
+      fullResponse: sources.length ? `${formatSandboxRunBlock({ status: 'done', steps: [], elapsedMs: now() - (latestCouncilProgress?.startedAt || now()), sources })}${fullResponse}` : fullResponse,
       metadata: councilResult.metadata,
       responseRenderedInRealtime
     };

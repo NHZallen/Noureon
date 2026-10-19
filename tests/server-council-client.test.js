@@ -87,31 +87,32 @@ test('a council is handed over with its models, the history, what each kind of c
   assert.equal(spec.request.systemInstructions.synthesis, `SYS for ${NOURAS_REQUEST_PURPOSE.COUNCIL_SYNTHESIS}`);
   assert.deepEqual(spec.request.messageMetadata, { historySourceConversationIds: ['h1'] });
   assert.deepEqual(spec.secrets, { keys: { openrouter: KEYS.openrouter, nvidia: KEYS.nvidia } }, 'only the providers the models use');
-  assert.deepEqual(spec.tools, { webSearch: 'off' });
+  assert.deepEqual(spec.tools, { webSearch: 'off', connectors: true }, 'the members may read the person\'s connectors (the server keeps which)');
   assert.deepEqual(seen, [{ marker: 'memory' }], 'the memory the answer drew on is reported once, by the synthesis');
   assert.ok(described.every((options) => options.modelInfo === SYNTH));
   assert.deepEqual(described.find((options) => options.requestPurpose === NOURAS_REQUEST_PURPOSE.COUNCIL_SYNTHESIS).historyForApi, []);
 });
 
-test('a council that searches sends both search keys and the depth; one with a Gemini synthesizer searches by itself', async () => {
+test('a council that searches sends both search keys and the depth, whatever its synthesizer: each member searches by itself', async () => {
   const one = harness();
   await one.reply.startCouncil(startArgs({ webSearch: 'on', config: { searchProvider: 'tinyfish', tavilySearchDepth: 'advanced' } }));
   const spec = JSON.parse(one.calls[0].options.body);
-  assert.deepEqual(spec.tools, { webSearch: 'on', searchProvider: 'tinyfish', searchDepth: 'advanced' });
+  assert.deepEqual(spec.tools, { webSearch: 'on', searchProvider: 'tinyfish', searchDepth: 'advanced', connectors: true });
   assert.equal(spec.secrets.searchKey, KEYS.tinyfish);
   assert.equal(spec.secrets.searchKeyAlt, KEYS.tavily);
 
   const gemini = harness();
   await gemini.reply.startCouncil(startArgs({ participants: [MEMBER_A, GEMINI], synthesizer: GEMINI, webSearch: 'on' }));
   const geminiSpec = JSON.parse(gemini.calls[0].options.body);
-  assert.deepEqual(geminiSpec.tools, { webSearch: 'on' });
-  assert.equal('searchKey' in geminiSpec.secrets, false);
+  assert.equal(geminiSpec.secrets.searchKey, KEYS.tavily, 'the member that is not Gemini searches with Tavily');
   assert.deepEqual(Object.keys(geminiSpec.secrets.keys).sort(), ['gemini', 'openrouter']);
 
   const noKey = harness({ keys: { tavily: '', tinyfish: '' } });
-  const refused = await noKey.reply.startCouncil(startArgs({ webSearch: 'on' }));
-  assert.deepEqual(refused, { ok: false, reason: LOCAL_REASONS.packetSearch, notify: false });
-  assert.equal(noKey.calls.length, 0, 'no search key: the council is held here, where the missing key is told');
+  const sent = await noKey.reply.startCouncil(startArgs({ webSearch: 'on' }));
+  assert.equal(sent.ok, true, 'no search key: the council is held all the same, the members answer without searching');
+  const noKeySpec = JSON.parse(noKey.calls[0].options.body);
+  assert.deepEqual(noKeySpec.tools, { webSearch: 'on', connectors: true });
+  assert.equal('searchKey' in noKeySpec.secrets, false);
 });
 
 test('attachments go as they are, with the model that writes them down; a missing key, a request too large, or an older server hold the council here', async () => {

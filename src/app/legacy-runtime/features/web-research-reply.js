@@ -170,13 +170,15 @@ export function createResearchCalls({
   onEvent = () => {},
   onSources = () => {},
   // Where a reply that was interrupted had got to (what `snapshot()` gave): the calls made so far and the pages numbered.
-  resume = null
+  resume = null,
+  // The numbers of the pages, when they are shared with others (the members of a council: a page has the same number in every answer).
+  numbering = null
 }) {
   let used = Math.max(0, Number(resume?.used) || 0);
 
   // Every page the model has been shown, numbered in the order it first appeared: the number the model cites it by, and the
   // one the saved sources carry, so an answer's [3] is the third page the reply met.
-  const numbered = new Map((Array.isArray(resume?.numbered) ? resume.numbered : []).filter((entry) => entry?.url && Number(entry.n) > 0).map((entry) => [entry.url, { ...entry }]));
+  const numbered = numbering instanceof Map ? numbering : new Map((Array.isArray(resume?.numbered) ? resume.numbered : []).filter((entry) => entry?.url && Number(entry.n) > 0).map((entry) => [entry.url, { ...entry }]));
   const numberFor = (url, fields = {}) => {
     if (!numbered.has(url)) numbered.set(url, { n: numbered.size + 1, url });
     const entry = numbered.get(url);
@@ -240,7 +242,7 @@ export function createResearchCalls({
     const query = typeof call.args?.query === 'string' ? call.args.query.trim() : '';
     if (!query) return 'The call had no "query" argument.';
     const topic = call.args?.topic === 'news' ? 'news' : 'general';
-    onEvent({ type: 'searching', label: sandboxText(language, 'webSearchingFor', { query: cut(query, 80) }) });
+    onEvent({ type: 'searching', kind: 'search', label: sandboxText(language, 'webSearchingFor', { query: cut(query, 80) }) });
     const { key, promise } = searchOnce(query, topic);
     try {
       const data = await promise;
@@ -261,7 +263,7 @@ export function createResearchCalls({
 
   const load = async (url) => {
     if (shown.has(url) && settled.has(url)) return settled.get(url);
-    onEvent({ type: 'searching', label: sandboxText(language, 'webOpeningPage', { host: hostOf(url) }) });
+    onEvent({ type: 'searching', kind: 'page', label: sandboxText(language, 'webOpeningPage', { host: hostOf(url) }) });
     try {
       const outcome = await pageOnce(url);
       shown.add(url);
@@ -354,10 +356,12 @@ export async function runWebResearchReply({
   // Called after every round of calls with what is needed to take the reply up again from there.
   onRound = () => {},
   // The skills the model may load next to searching: createSkillLoader(...) (data/skill-tool.js), or null. `onEvent` is told { type: 'skill', name, label }.
-  skills = null
+  skills = null,
+  // Shared numbers of the pages (see createResearchCalls), or null.
+  numbering = null
 }) {
   const toolTurns = Array.isArray(resume?.toolTurns) ? [...resume.toolTurns] : [];
-  const research = createResearchCalls({ searchWeb, openPage, language, maxCalls, signal, onEvent, onSources, resume: resume?.research });
+  const research = createResearchCalls({ searchWeb, openPage, language, maxCalls, signal, onEvent, onSources, resume: resume?.research, numbering });
   const notes = createNotes(onEvent);
   let text = typeof resume?.text === 'string' ? resume.text : '';
   const guidance = [researchGuidance(today), skills ? loaderInstruction(skills) : ''].filter(Boolean).join('\n\n');

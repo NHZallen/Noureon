@@ -141,6 +141,20 @@ function validateImageSpec(input) {
   };
 }
 
+function checkSkillsAndConnectors(tools, fail) {
+  // The skills the model may load by itself (the person's skills, each a name and when it applies): their text is read by the server when one is called for.
+  if (tools.skills !== undefined) {
+    if (!Array.isArray(tools.skills) || tools.skills.length > MAX_LISTED_SKILLS) fail('tools.skills', `must be a list of at most ${MAX_LISTED_SKILLS} skills`);
+    else tools.skills.forEach((entry, index) => {
+      if (!isObject(entry) || !isSkillName(entry.name) || !text(entry.description, SKILL_DESCRIPTION_MAX)) fail(`tools.skills[${index}]`, 'must have a skill name and a description');
+      // `files`: the skill has files the model may read; `given`: the person asked for it with "/", so its text was given whole.
+      else if ((entry.files !== undefined && typeof entry.files !== 'boolean') || (entry.given !== undefined && typeof entry.given !== 'boolean')) fail(`tools.skills[${index}]`, '`files` and `given` must be true or false');
+    });
+  }
+  // The connectors the person has logged in to may be used (not in a temporary chat): the server reads which ones from the person's own connections.
+  if (tools.connectors !== undefined && typeof tools.connectors !== 'boolean') fail('tools.connectors', 'must be true or false');
+}
+
 /**
  * A request for a council (`kind: 'council'`, docs/superpowers/specs/2026-10-08-server-council-design.md): 2 to 5 models answer the same
  * message (twice, in a deliberation), and a synthesizer writes the answer. Each model comes with the information the page has about it, as for
@@ -212,7 +226,9 @@ function validateCouncilSpec(input) {
     if (!['off', 'on'].includes(tools.webSearch)) fail('tools.webSearch', 'must be off or on');
     if (tools.searchProvider !== undefined && !SEARCH_PROVIDERS.includes(tools.searchProvider)) fail('tools.searchProvider', `must be one of ${SEARCH_PROVIDERS.join(', ')}`);
     if (tools.searchDepth !== undefined && !SEARCH_DEPTHS.includes(tools.searchDepth)) fail('tools.searchDepth', `must be one of ${SEARCH_DEPTHS.join(', ')}`);
-    for (const name of Object.keys(tools)) if (!['webSearch', 'searchProvider', 'searchDepth'].includes(name)) fail(`tools.${name}`, 'is not a known field');
+    // What the members may read by themselves (docs/superpowers/specs/2026-10-19-council-tools-design.md): the person's skills and connectors, as for a reply.
+    checkSkillsAndConnectors(tools, fail);
+    for (const name of Object.keys(tools)) if (!['webSearch', 'searchProvider', 'searchDepth', 'skills', 'connectors'].includes(name)) fail(`tools.${name}`, 'is not a known field');
   }
 
   const secrets = input.secrets;
@@ -234,8 +250,7 @@ function validateCouncilSpec(input) {
     }
     if (secrets.searchKey !== undefined && !text(secrets.searchKey, 600)) fail('secrets.searchKey', 'must be a key or left out');
     if (secrets.searchKeyAlt !== undefined && (!text(secrets.searchKeyAlt, 600) || !text(secrets.searchKey, 600))) fail('secrets.searchKeyAlt', 'must be a key, and only with a searchKey');
-    // The search of a council is a packet (Tavily or TinyFish) unless its synthesizer is Gemini, which searches by itself.
-    if (isObject(tools) && tools.webSearch === 'on' && synthesizer && synthesizer.provider !== 'gemini' && !text(secrets.searchKey, 600)) fail('secrets.searchKey', 'is needed to search for a council');
+    // Each member searches by itself (Gemini with Google, the others with Tavily or TinyFish when a key is given; without one they answer without searching).
   }
 
   if (errors.length) return { ok: false, errors: errors.slice(0, 20) };
@@ -266,7 +281,14 @@ function validateCouncilSpec(input) {
         language: request.language,
         ...(request.messageMetadata ? { messageMetadata: request.messageMetadata } : {})
       },
-      tools: { webSearch: tools.webSearch, searchProvider: tools.searchProvider || 'tavily', searchDepth: tools.searchDepth === 'advanced' ? 'advanced' : 'basic', advanced: false },
+      tools: {
+        webSearch: tools.webSearch,
+        searchProvider: tools.searchProvider || 'tavily',
+        searchDepth: tools.searchDepth === 'advanced' ? 'advanced' : 'basic',
+        advanced: false,
+        ...(Array.isArray(tools.skills) && listedSkills(tools.skills).length ? { skills: listedSkills(tools.skills) } : {}),
+        ...(tools.connectors === true ? { connectors: true } : {})
+      },
       secrets: { keys, ...(secrets.searchKey ? { searchKey: secrets.searchKey } : {}), ...(secrets.searchKeyAlt ? { searchKeyAlt: secrets.searchKeyAlt } : {}) }
     }
   };
@@ -363,17 +385,7 @@ export function validateRunSpec(input) {
         for (const name of Object.keys(tools.net)) if (!['mode', 'rules'].includes(name)) fail(`tools.net.${name}`, 'is not a known field');
       }
     }
-    // The skills the model may load by itself (the person's skills, each a name and when it applies): their text is read by the server when one is called for.
-    if (tools.skills !== undefined) {
-      if (!Array.isArray(tools.skills) || tools.skills.length > MAX_LISTED_SKILLS) fail('tools.skills', `must be a list of at most ${MAX_LISTED_SKILLS} skills`);
-      else tools.skills.forEach((entry, index) => {
-        if (!isObject(entry) || !isSkillName(entry.name) || !text(entry.description, SKILL_DESCRIPTION_MAX)) fail(`tools.skills[${index}]`, 'must have a skill name and a description');
-        // `files`: the skill has files the model may read; `given`: the person asked for it with "/", so its text was given whole.
-        else if ((entry.files !== undefined && typeof entry.files !== 'boolean') || (entry.given !== undefined && typeof entry.given !== 'boolean')) fail(`tools.skills[${index}]`, '`files` and `given` must be true or false');
-      });
-    }
-    // The connectors the person has logged in to may be used (not in a temporary chat): the server reads which ones from the person's own connections.
-    if (tools.connectors !== undefined && typeof tools.connectors !== 'boolean') fail('tools.connectors', 'must be true or false');
+    checkSkillsAndConnectors(tools, fail);
     if (tools.inputs !== undefined) {
       if (!Array.isArray(tools.inputs) || tools.inputs.length > 40) fail('tools.inputs', 'must be a list of at most 40 files');
       else tools.inputs.forEach((file, index) => {

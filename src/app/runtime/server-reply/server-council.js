@@ -6,7 +6,7 @@
 // This module is loaded when a council is first held: most pages never hold one.
 
 import { NOURAS_REQUEST_PURPOSE } from '../nouras/nouras-policy.js';
-import { resolveInvokedSkills } from '../skill/skill-bridge.js';
+import { getAvailableSkills, resolveInvokedSkills } from '../skill/skill-bridge.js';
 import { invokedSkillsInstruction, skillNamesOfParts } from '../../../data/skill-prompt.js';
 
 /**
@@ -22,9 +22,9 @@ export async function startCouncilRun({ getApiKeyForProvider, describeRequest, s
     keys[model.provider] ||= getApiKeyForProvider(model.provider);
     if (!keys[model.provider]) return { ok: false, reason: 'no-key', notify: false };
   }
-  // The search is a packet (Tavily or TinyFish) unless the synthesizer is Gemini, which searches by itself.
-  const search = webSearch === 'on' && synthesizer.provider !== 'gemini' ? searchKeyFor(config) : null;
-  if (webSearch === 'on' && synthesizer.provider !== 'gemini' && !search) return { ok: false, reason: reasons.packetSearch, notify: false };
+  // Each member searches by itself (docs/superpowers/specs/2026-10-19-council-tools-design.md): Gemini with Google, the others with Tavily or TinyFish
+  // (without a key of them, they answer without searching, as they would here).
+  const search = webSearch === 'on' ? searchKeyFor(config) : null;
   let instructions;
   try {
     // What the app adds to every call (language, Noura, learning mode, memory, guidance), as the council's calls would get it here. The members
@@ -38,6 +38,8 @@ export async function startCouncilRun({ getApiKeyForProvider, describeRequest, s
     warn('Putting the request for the server together failed; the council is held here.', error);
     return { ok: false, reason: 'prepare-failed', notify: false };
   }
+  // The skills the members may load by themselves (those asked for with "/" are given whole), and the person's connectors (only what may be read without asking).
+  const skills = await getAvailableSkills(skillNamesOfParts(userParts)).catch(() => []);
   const historySourceIds = getHistorySourceIds();
   const history = await withCloudFiles((conversation.messages || []).slice(0, -1).map((message) => ({ role: message.role, parts: message.parts })));
   const spec = {
@@ -62,7 +64,7 @@ export async function startCouncilRun({ getApiKeyForProvider, describeRequest, s
       language: uiLanguage,
       ...(historySourceIds.length ? { messageMetadata: { historySourceConversationIds: historySourceIds } } : {})
     },
-    tools: { webSearch, ...(search ? { searchProvider: search.searchProvider, searchDepth: search.searchDepth } : {}) },
+    tools: { webSearch, ...(search ? { searchProvider: search.searchProvider, searchDepth: search.searchDepth } : {}), ...(skills.length ? { skills } : {}), connectors: true },
     secrets: { keys, ...(search ? { searchKey: search.searchKey, ...(search.searchKeyAlt ? { searchKeyAlt: search.searchKeyAlt } : {}) } : {}) }
   };
   const body = JSON.stringify(spec);
@@ -137,6 +139,8 @@ export function createServerCouncil({
     const council = conversation?.council || {};
     return {
       text: outcome.text,
+      // The pages the members met (the head of the server's message, as a reply's sources are): the council gives them apart from its text.
+      sources: outcome.run?.sources || [],
       // What the page keeps of a council it did not hold itself: the page only needs to know that this was one (the answer holds the rest).
       metadata: {
         mode: council.mode,

@@ -1,11 +1,10 @@
-import { getSearchProvider, searchProviderLabel } from '../../runtime/kernel/search-provider.js';
 import { getRuntimeText } from '../../runtime/i18n/runtime-texts.js';
 import { NOURAS_REQUEST_PURPOSE } from '../../runtime/nouras/nouras-policy.js';
 import { resolveInvokedSkills } from '../../runtime/skill/skill-bridge.js';
 import { invokedSkillsInstruction, skillNamesOfParts } from '../../../data/skill-prompt.js';
+import { createMemberSteps } from './council-member-reply.js';
 
 export function createCouncilResponseLifecycle({
-  buildTavilySearchQuery,
   getSearchCurrentDate,
   getConfig,
   getActiveConversation,
@@ -14,19 +13,17 @@ export function createCouncilResponseLifecycle({
   getCouncilRuntimeTexts,
   getCouncilAttachmentTranslationNeed,
   getCouncilTranslatorModel,
-  getCouncilSharedSearchModel,
   models,
   councilMaxModels,
   extractTextFromParts,
   truncateCouncilText,
   filterPartsForModelCapability,
-  getSearchQueryFromParts,
-  buildSearchQuery = async (parts, options = {}) => getSearchQueryFromParts(parts, options.conversation),
-  fetchTavilySearchPacket,
   readLinkedPages = async () => '',
   readsLinkedPages = () => false,
   streamCouncilApiCallWithRetry,
-  modelUsesNativeWebSearch,
+  // The members' own answers with their tools (council-member-reply.js: `createCouncilMembers`), made for each council: `(conversation, parts) => members`.
+  // Without it a member answers in one call, with no tools.
+  createMembers = null,
   modelSupportsVision,
   modelSupportsDocumentUpload
 }) {
@@ -49,79 +46,6 @@ export function createCouncilResponseLifecycle({
   
   ${truncateCouncilText(result.finalText || result.roundTwo || result.roundOne)}
   `).join('\n');
-  const buildCouncilSharedSearchPrompt = (parts) => `
-  You are preparing a shared web research packet for a multi-model council.
-  
-  Current date:
-  ${getSearchCurrentDate()}
-  
-  User request:
-  ${extractTextFromParts(parts)}
-  
-  Search the web once, then produce a concise evidence packet for the council.
-  This packet is system-generated council context, not user-provided material.
-  - Label it as shared council research context.
-  - Treat search evidence as newer than model pretraining.
-  - Key current facts and dates
-  - Important source names or URLs when available
-  - Disagreements, uncertainty, and freshness risks
-  - What the council should pay attention to
-  
-  Do not answer the user directly. Prepare shared context only.
-  `;
-  const buildCouncilSecondSearchPrompt = (parts, firstRoundResults = []) => `
-  You are preparing a second web research packet before the Model Council discussion round.
-  
-  Current date:
-  ${getSearchCurrentDate()}
-  
-  User request:
-  ${extractTextFromParts(parts)}
-  
-  First-round council claims to verify:
-  ${formatCouncilResponses(firstRoundResults).slice(0, 5000)}
-  
-  Search the web again with attention to claims, disagreements, dated facts, and missing evidence.
-  For time-sensitive facts, dated search evidence overrides stale model pretraining.
-  Do not answer the user directly. Prepare only an updated evidence packet for the discussion round.
-  `;
-  const buildCouncilSecondSearchQuery = (parts, firstRoundResults = []) => {
-      const firstRoundFocus = formatCouncilResponses(firstRoundResults)
-          .replace(/https?:\/\/\S+/g, ' ')
-          .replace(/[#>*_`~\[\](){}|]/g, ' ')
-          .replace(/\s+/g, ' ')
-          .trim()
-          .slice(0, 120);
-      return buildTavilySearchQuery(`${extractTextFromParts(parts)} verify latest facts dates evidence disagreements ${firstRoundFocus}`);
-  };
-  const getSearchPacketFromModel = async (searchModel, promptOrQuery, signal, options = {}) => {
-      if (!searchModel) {
-          throw new Error(getRuntimeText(getConfig().uiLanguage, 'noSearchCouncilSynth'));
-      }
-      if (modelUsesNativeWebSearch(searchModel)) {
-          return await streamCouncilApiCallWithRetry(
-              [{ text: promptOrQuery }],
-              options.onChunk || (() => {}),
-              signal,
-              false,
-              {
-                  modelInfo: searchModel,
-                  conversation: options.conversation,
-                  historyForApi: [],
-                  forceWebSearch: true,
-                  ignoreConversationWebSearch: true,
-                  disableReasoning: true,
-                  additionalSystemInstruction: options.systemInstruction || 'Prepare shared web research context. Do not answer the user directly.',
-                  requestPurpose: NOURAS_REQUEST_PURPOSE.BACKGROUND_SEARCH,
-                  onRetry: options.onRetry
-              }
-          );
-      }
-      return await fetchTavilySearchPacket(promptOrQuery, signal, {
-          label: options.label || 'Council web search packet',
-          maxResults: options.maxResults || 6
-      });
-  };
   const buildCouncilAttachmentTranslationPrompt = (kind, parts) => {
       const requestText = extractTextFromParts(parts);
       const title = kind === 'visual' ? '圖片/影像轉譯包' : '文件轉譯包';
@@ -212,14 +136,9 @@ export function createCouncilResponseLifecycle({
       if (sections.length === 0) return '';
       return `# Attachment translation packet\nThis packet is system-generated by the configured council translator model. It replaces only the attachment types this model cannot read directly. Do not say the user wrote this packet.\n\n${sections.join('\n\n')}\n\n# User request follows`;
   };
-  const buildCouncilRequestPartsForModel = (parts, sharedSearchPacket, attachmentPackets, model, linkedPagesText = '') => {
+  const buildCouncilRequestPartsForModel = (parts, attachmentPackets, model, linkedPagesText = '') => {
       const result = [];
       if (linkedPagesText) result.push({ text: linkedPagesText });
-      if (sharedSearchPacket?.trim()) {
-          result.push({
-              text: `# Shared council search packet (system-generated, not user-provided)\nCurrent date: ${getSearchCurrentDate()}\nUse this as common research context. Do not say or imply that the user provided this packet. For time-sensitive facts, dated search evidence overrides stale model pretraining.\n\n${truncateCouncilText(sharedSearchPacket, 5000)}\n\n# User request follows`
-          });
-      }
       const attachmentPacket = buildAttachmentPacketTextForModel(model, attachmentPackets);
       if (attachmentPacket) {
           result.push({ text: attachmentPacket });
@@ -255,18 +174,30 @@ export function createCouncilResponseLifecycle({
   const buildCouncilMemberInstruction = (mode) => `
   你是「模型理事會」中的獨立成員。請先獨立思考，不要假設其他模型會補足你的答案。
   請提供清楚、可驗證、可執行的回答；若資訊不足，請明確標出不確定處。
-  如果你看到「Shared council search packet」，那是系統為理事會產生的共同搜尋資料，不是使用者提供的資料；引用時請稱為「共同搜尋資料」或「搜尋資料包」。
+  你有工具時，需要查的事自己查（搜尋、開網頁、載入技能、讀使用者連接的服務）；你只能讀，不能改任何東西，要做的事留給統整模型。
+  目前日期：${getSearchCurrentDate()}。
   目前模式：${mode === 'deliberation' ? '討論模式，第一輪先提出自己的最佳答案。' : '共識模式，提出自己的最佳答案供統整模型比較。'}
   `;
-  const buildSharedSearchSection = (sharedSearchPacket = '') => sharedSearchPacket?.trim()
-      ? `\n# 理事會共同搜尋資料（系統產生，不是使用者提供）\n${truncateCouncilText(sharedSearchPacket, 5000)}\n`
-      : '';
-  const buildCouncilDeliberationPrompt = (originalParts, sharedSearchPacket, firstRoundResults, currentModelName) => `
+  // The pages the members met, with the numbers their answers cite them by.
+  const SOURCES_LISTED = 60;
+  const buildSourcesSection = (sources = []) => {
+      const read = new Set(sources.filter(source => source.read).map(source => source.url));
+      const listed = [];
+      const seen = new Set();
+      for (const source of [...sources].sort((a, b) => a.n - b.n)) {
+          if (seen.has(source.n)) continue;
+          seen.add(source.n);
+          listed.push(`[${source.n}] ${String(source.title || source.url).replace(/\s+/g, ' ').slice(0, 140)} — ${source.url}${read.has(source.url) ? '（成員讀過全文）' : ''}`);
+      }
+      if (!listed.length) return '';
+      return `\n# 成員查到的來源（系統整理，不是使用者提供）\n${listed.slice(0, SOURCES_LISTED).join('\n')}${listed.length > SOURCES_LISTED ? `\n…（另有 ${listed.length - SOURCES_LISTED} 個）` : ''}\n`;
+  };
+  const buildCouncilDeliberationPrompt = (originalParts, sources, firstRoundResults, currentModelName) => `
   你正在參與模型理事會第二輪討論。以下是使用者問題與其他模型第一輪答案。
   
   # 使用者問題
   ${extractTextFromParts(originalParts)}
-  ${buildSharedSearchSection(sharedSearchPacket)}
+  ${buildSourcesSection(sources)}
   
   # 第一輪答案
   ${formatCouncilResponses(firstRoundResults)}
@@ -276,14 +207,15 @@ export function createCouncilResponseLifecycle({
   - 指出你同意的共識。
   - 指出你認為有問題、缺漏或需要修正的地方。
   - 給出你第二輪後的最佳答案。
-  - 不要把「理事會共同搜尋資料」稱為使用者提供的資料。
+  - 對其他模型的說法有疑問、而你有工具時，可以自己查證；不要重複大家已經查過的。
+  - 答案中的 [數字] 是來源編號（上面的清單），引用時沿用同一個編號。
   `;
-  const buildCouncilSynthesisPrompt = (conv, originalParts, sharedSearchPacket, firstRoundResults, finalRoundResults, failures, mode) => `
+  const buildCouncilSynthesisPrompt = (conv, originalParts, sources, firstRoundResults, finalRoundResults, failures, mode) => `
   你是使用者指定的「模型理事會統整模型」。請閱讀多個模型的回答，產生給使用者的最終答案。
   
   # 使用者問題
   ${extractTextFromParts(originalParts)}
-  ${buildSharedSearchSection(sharedSearchPacket)}
+  ${buildSourcesSection(sources)}
   
   ${formatRecentConversationContext(conv) ? `# 近期對話脈絡\n${formatRecentConversationContext(conv)}\n` : ''}
   # 理事會模式
@@ -299,7 +231,7 @@ export function createCouncilResponseLifecycle({
   - 優先採納有明確理由、相互印證、符合使用者需求的內容。
   - 若模型之間有重要分歧，請簡短說明分歧與你的取捨。
   - 若答案存在風險或不確定性，請明確標出。
-  - 若使用共同搜尋資料，請稱為「共同搜尋資料」或「搜尋資料包」，不要寫成「你提供的資料」。
+  - 成員答案中的 [數字] 是上面來源清單的編號。用到某個來源支持的說法時，把它的編號放在句尾，例如 [2] 或 [1][3]；只用清單裡有的編號，不要自己編，結尾不要另列來源清單（介面會顯示）。不要把成員查到的資料說成使用者提供的。
   - 使用自然、清楚、可執行的語氣。
   - 不要用「如果你要，我可以...」作為結尾。
   `;
@@ -358,9 +290,15 @@ export function createCouncilResponseLifecycle({
       });
       const memberControllers = new Map();
       let currentStage = 'firstRound';
-      const searchState = (webSearchEnabled === true || conv.isWebSearchEnabled)
-          ? { status: 'pending', label: runtimeTexts.sharedSearch, detail: runtimeTexts.pending }
-          : null;
+      // Each member searches by itself when the search is on (there is no shared search any more).
+      const searchOn = webSearchEnabled === true || Boolean(conv.isWebSearchEnabled);
+      const members = typeof createMembers === 'function' ? await createMembers(conv, parts) : null;
+      // What each member did (the counts and the newest steps), for the panel.
+      const memberSteps = new Map();
+      const stepsOf = (modelId) => {
+          if (!memberSteps.has(modelId)) memberSteps.set(modelId, createMemberSteps());
+          return memberSteps.get(modelId);
+      };
       const startedAt = Date.now();
       let progressTick = 0;
       const progress = (stage, message = stage, extra = {}) => {
@@ -373,11 +311,11 @@ export function createCouncilResponseLifecycle({
               tick: ++progressTick,
               startedAt,
               elapsedMs: Date.now() - startedAt,
-              searchEnabled: Boolean(searchState),
+              searchEnabled: searchOn,
               totalParticipants: participants.length,
               activeParticipants: activeParticipants.length,
-              modelStates: Array.from(modelStates.values()).map(state => ({ ...state, canExit: canExitModel(state.modelId) })),
-              search: searchState ? { ...searchState } : null,
+              modelStates: Array.from(modelStates.values()).map(state => ({ ...state, canExit: canExitModel(state.modelId), ...(memberSteps.has(state.modelId) ? stepsOf(state.modelId).view() : {}) })),
+              search: null,
               exit: exitModel,
               ...extra
           });
@@ -432,6 +370,31 @@ export function createCouncilResponseLifecycle({
           };
       };
   
+      // One answer of a member: with its own tools when the council has them, else one call. Its steps go to the panel as they come.
+      const answerAsMember = ({ modelInfo, parts: memberParts, stage, state, requestOptions }) => {
+          const onChunk = createCouncilStreamTracker(state, stage, modelInfo.name);
+          const onRetry = () => {
+              if (state) {
+                  state.detail = runtimeTexts.retrying;
+                  progress(stage, `${runtimeTexts.retrying}: ${modelInfo.name}`);
+              }
+          };
+          if (!members) return streamCouncilApiCallWithRetry(memberParts, onChunk, memberSignal(modelInfo.id), false, { ...requestOptions, onRetry });
+          return members.answer({
+              modelInfo,
+              parts: memberParts,
+              requestOptions,
+              signal: memberSignal(modelInfo.id),
+              searchOn,
+              onChunk,
+              onRetry,
+              onStep: (step) => {
+                  stepsOf(modelInfo.id).add(step);
+                  progress(stage, `${modelInfo.name}: ${step.label || step.kind}`);
+              }
+          });
+      };
+
       if (activeParticipants.length === 0) {
           throw new Error(runtimeTexts.noVisionParticipants);
       }
@@ -459,42 +422,6 @@ export function createCouncilResponseLifecycle({
               if (signal?.aborted) throw error;
           }
       }
-      let sharedSearchPacket = '';
-      if (searchState) {
-          const sharedSearchModel = getCouncilSharedSearchModel(synthesizer);
-          searchState.status = 'running';
-          searchState.detail = `${runtimeTexts.searchRunning}: ${sharedSearchModel?.name || searchProviderLabel(getSearchProvider(getConfig()))}`;
-          progress('search', searchState.detail);
-          try {
-              const searchStreamTracker = createCouncilStageTracker('search', () => runtimeTexts.searchRunning);
-              sharedSearchPacket = await getSearchPacketFromModel(
-                  sharedSearchModel,
-                  modelUsesNativeWebSearch(sharedSearchModel) ? buildCouncilSharedSearchPrompt(parts) : await buildSearchQuery(parts, { conversation: conv, modelInfo: synthesizer, signal }),
-                  signal,
-                  {
-                      conversation: conv,
-                      label: 'Shared council web search packet',
-                      systemInstruction: 'Prepare shared web research context for the council. Do not answer the user directly.',
-                      onChunk: () => {
-                          searchState.detail = runtimeTexts.running;
-                          searchStreamTracker();
-                      },
-                      onRetry: () => {
-                          searchState.detail = runtimeTexts.retrying;
-                          progress('search', `${runtimeTexts.searchRunning} 繚 ${runtimeTexts.retrying}`);
-                      }
-                  }
-              );
-  
-              searchState.status = 'done';
-              searchState.detail = runtimeTexts.searchDone;
-              progress('search', runtimeTexts.searchDone);
-          } catch (error) {
-              searchState.status = 'failed';
-              searchState.detail = `${runtimeTexts.searchFailed}: ${error.message}`;
-              progress('search', searchState.detail);
-          }
-      }
       progress('firstRound', `${runtimeTexts.firstRound}: ${activeParticipants.length}/${participants.length}`);
       const roundOneMembers = activeParticipants.filter(model => !exitedIds.has(model.id));
       const firstRoundSettled = await Promise.allSettled(roundOneMembers.map(async (modelInfo) => {
@@ -504,27 +431,21 @@ export function createCouncilResponseLifecycle({
               state.detail = runtimeTexts.running;
               progress('firstRound', `${runtimeTexts.firstRound}: ${modelInfo.name}`);
           }
-          const councilParts = buildCouncilRequestPartsForModel(parts, sharedSearchPacket, attachmentTranslation, modelInfo, linkedPagesText);
-          const text = await streamCouncilApiCallWithRetry(
-              councilParts,
-              createCouncilStreamTracker(state, 'firstRound', modelInfo.name),
-              memberSignal(modelInfo.id),
-              false,
-              {
+          const councilParts = buildCouncilRequestPartsForModel(parts, attachmentTranslation, modelInfo, linkedPagesText);
+          const text = await answerAsMember({
+              modelInfo,
+              parts: councilParts,
+              stage: 'firstRound',
+              state,
+              requestOptions: {
                   modelInfo,
                   conversation: conv,
                   ignoreConversationWebSearch: true,
                   disableReasoning: true,
                   additionalSystemInstruction: withSkills(buildCouncilMemberInstruction(mode)),
-                  requestPurpose: NOURAS_REQUEST_PURPOSE.COUNCIL_PARTICIPANT,
-                  onRetry: () => {
-                      if (state) {
-                          state.detail = runtimeTexts.retrying;
-                          progress('firstRound', `${runtimeTexts.retrying}: ${modelInfo.name}`);
-                      }
-                  }
+                  requestPurpose: NOURAS_REQUEST_PURPOSE.COUNCIL_PARTICIPANT
               }
-          );
+          });
           if (exitedIds.has(modelInfo.id)) return null;
           if (state) {
               state.status = 'done';
@@ -567,50 +488,9 @@ export function createCouncilResponseLifecycle({
           throw new Error(`${texts.title}: all participant models failed after one retry.${failureSummary ? ` ${failureSummary}` : ''}`);
       }
   
-      let secondSearchPacket = '';
-      let combinedSearchPacket = sharedSearchPacket;
       let finalRoundResults = firstRoundResults;
+      const memberSources = () => (members ? members.sources() : []);
       if (mode === 'deliberation' && firstRoundResults.length > 1) {
-          if (searchState) {
-              const sharedSearchModel = getCouncilSharedSearchModel(synthesizer);
-              searchState.status = 'running';
-              searchState.detail = `${runtimeTexts.searchRunning}: ${sharedSearchModel?.name || searchProviderLabel(getSearchProvider(getConfig()))} (discussion)`;
-              progress('search', searchState.detail);
-              try {
-                  const searchStreamTracker = createCouncilStageTracker('search', () => searchState.detail);
-                  secondSearchPacket = await getSearchPacketFromModel(
-                      sharedSearchModel,
-                      modelUsesNativeWebSearch(sharedSearchModel)
-                          ? buildCouncilSecondSearchPrompt(parts, firstRoundResults)
-                          : buildCouncilSecondSearchQuery(parts, firstRoundResults),
-                      signal,
-                      {
-                          conversation: conv,
-                          label: 'Second council discussion web search packet',
-                          systemInstruction: 'Prepare updated web research context before the council discussion round. Do not answer the user directly.',
-                          onChunk: () => {
-                              searchState.detail = runtimeTexts.running;
-                              searchStreamTracker();
-                          },
-                          onRetry: () => {
-                              searchState.detail = runtimeTexts.retrying;
-                              progress('search', `${runtimeTexts.searchRunning} 繚 ${runtimeTexts.retrying}`);
-                          }
-                      }
-                  );
-                  combinedSearchPacket = [sharedSearchPacket, secondSearchPacket]
-                      .filter(text => text?.trim())
-                      .map((text, index) => `# Council search packet ${index + 1}\n${text}`)
-                      .join('\n\n---\n\n');
-                  searchState.status = 'done';
-                  searchState.detail = runtimeTexts.searchDone;
-                  progress('search', runtimeTexts.searchDone);
-              } catch (error) {
-                  searchState.status = 'failed';
-                  searchState.detail = `${runtimeTexts.searchFailed}: ${error.message}`;
-                  progress('search', searchState.detail);
-              }
-          }
           progress('deliberation', runtimeTexts.deliberation);
           const secondRoundSettled = await Promise.allSettled(firstRoundResults.map(async (result) => {
               const modelInfo = MODELS.find(model => model.id === result.modelId);
@@ -620,32 +500,26 @@ export function createCouncilResponseLifecycle({
                   state.detail = runtimeTexts.deliberation;
                   progress('deliberation', `${runtimeTexts.deliberation}: ${result.modelName}`);
               }
-              const text = await streamCouncilApiCallWithRetry(
-                  [{
-                      text: `${buildCouncilDeliberationPrompt(parts, combinedSearchPacket, firstRoundResults, result.modelName)}
+              const text = await answerAsMember({
+                  modelInfo,
+                  parts: [{
+                      text: `${buildCouncilDeliberationPrompt(parts, memberSources(), firstRoundResults, result.modelName)}
   
   Important anti-conformity rule:
   Do not change your judgment merely because most other models disagree. Only revise your position when another model provides clear evidence or stronger reasoning. If you keep a minority view, state the reason clearly.`
                   }],
-                  createCouncilStreamTracker(state, 'deliberation', result.modelName),
-                  memberSignal(result.modelId),
-                  false,
-                  {
+                  stage: 'deliberation',
+                  state,
+                  requestOptions: {
                       modelInfo,
                       conversation: conv,
                       historyForApi: [],
                       ignoreConversationWebSearch: true,
                       disableReasoning: true,
-                      additionalSystemInstruction: withSkills('你正在進行模型理事會第二輪修正，請聚焦於修正、反駁與補強，不要重複寒暄。不要把共同搜尋資料稱為使用者提供的資料。'),
-                      requestPurpose: NOURAS_REQUEST_PURPOSE.COUNCIL_DELIBERATION,
-                      onRetry: () => {
-                          if (state) {
-                              state.detail = runtimeTexts.retrying;
-                              progress('deliberation', `${runtimeTexts.retrying}: ${result.modelName}`);
-                          }
-                      }
+                      additionalSystemInstruction: withSkills('你正在進行模型理事會第二輪修正，請聚焦於修正、反駁與補強，不要重複寒暄。不要把成員查到的資料說成使用者提供的。'),
+                      requestPurpose: NOURAS_REQUEST_PURPOSE.COUNCIL_DELIBERATION
                   }
-              );
+              });
               if (exitedIds.has(result.modelId)) return null;
               if (state) {
                   state.status = 'done';
@@ -676,14 +550,15 @@ export function createCouncilResponseLifecycle({
       }
   
       progress('synthesis', `${runtimeTexts.synthesis}: ${synthesizer.name}`);
-      const synthesisPrompt = buildCouncilSynthesisPrompt(conv, parts, combinedSearchPacket, firstRoundResults, finalRoundResults, failures, mode);
+      const sources = memberSources();
+      const synthesisPrompt = buildCouncilSynthesisPrompt(conv, parts, sources, firstRoundResults, finalRoundResults, failures, mode);
       const synthesisParts = buildCouncilSynthesisPartsForModel(synthesisPrompt, parts, attachmentTranslation, synthesizer, linkedPagesText);
       const synthesisInstruction = `You are the council synthesizer.
   Before output, internally compare the core claims from each model using these criteria: correctness, completeness, actionability, fit to the user's question, risk disclosure, and whether a claim is unverified.
   For each important claim, judge whether it is supported by multiple models, has clear reasoning, needs external verification, or could mislead the user.
   Only keep content that passes this check in the final answer.
-  Do not refer to the shared council search packet as material provided by the user.
-  For current facts, use dated source evidence from the search packet over stale pretrained knowledge. If sources conflict or freshness is unclear, say so instead of falling back to old assumptions.
+  Do not refer to what the members found as material provided by the user.
+  For current facts, use dated source evidence the members found over stale pretrained knowledge. If sources conflict or freshness is unclear, say so instead of falling back to old assumptions.
   Avoid overly brief answers: the final response should be complete enough for the user's decision unless the question is trivial.${buildCouncilComparisonInstruction(council.showComparisonTable)}`;
       let finalText = '';
       let synthesisError = null;
@@ -719,14 +594,16 @@ export function createCouncilResponseLifecycle({
       progress('completed', runtimeTexts.completed);
       return {
           text: finalText,
+          // The pages the members met, numbered as the answers cite them (the saved message shows them as its sources).
+          sources,
           metadata: {
               mode,
               participantModelIds: participants.map(model => model.id),
               activeParticipantModelIds: activeParticipants.map(model => model.id),
               skippedParticipantModelIds: skippedParticipants.map(model => model.id),
               synthesizerModelId: synthesizer.id,
-              sharedSearchPacket: sharedSearchPacket || null,
-              secondSearchPacket: secondSearchPacket || null,
+              sharedSearchPacket: null,
+              secondSearchPacket: null,
               attachmentTranslation,
               showComparisonTable: council.showComparisonTable,
               firstRoundResults,

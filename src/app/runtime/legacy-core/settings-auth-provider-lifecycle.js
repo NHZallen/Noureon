@@ -24,7 +24,8 @@ import { collectSettingsSaveFormValues } from './settings-save-settings-helper.j
 import { createSettingsHistoryRecallControls } from './settings-history-recall-controls.js';
 import { createSettingsMemorySummaryControls } from './settings-memory-summary-controls.js';
 import { createMemoryModelRunner } from './memory-model-runner.js';
-import { getModelReasoningConfig, normalizeReasoningEffort } from './model-registry.js';
+import { getModelReasoningConfig, modelSupportsToolCalling, normalizeReasoningEffort } from './model-registry.js';
+import { createPageCouncilMembers } from '../../legacy-runtime/features/council-members-page.js';
 import { getSearchProvider } from '../kernel/search-provider.js';
 import { ensureVisionCheckSettingsControl as ensureVisionControl, ensureAutoWebSearchSettingsControl as ensureAutoWebSearchControl, ensureFileModeSettingsControl as ensureFileModeControl } from './settings-vision-check-control.js';
 
@@ -249,14 +250,12 @@ const {
     fetchTavilySearchPacket,
     filterPartsForModelCapability,
     getSearchQueryFromParts,
-    buildSearchQuery,
     readLinkedPages,
     readsLinkedPages,
     streamCouncilApiCallWithRetry,
     truncateCouncilText
 } = providerRequestSupport;
 const councilResponseLifecycle = createCouncilResponseLifecycle({
-    buildTavilySearchQuery,
     getSearchCurrentDate,
     getConfig: () => config,
     getActiveConversation,
@@ -265,19 +264,15 @@ const councilResponseLifecycle = createCouncilResponseLifecycle({
     getCouncilRuntimeTexts,
     getCouncilAttachmentTranslationNeed,
     getCouncilTranslatorModel,
-    getCouncilSharedSearchModel,
     models: MODELS,
     councilMaxModels: COUNCIL_MAX_MODELS,
     extractTextFromParts,
     truncateCouncilText,
     filterPartsForModelCapability,
-    getSearchQueryFromParts,
-    buildSearchQuery,
-    fetchTavilySearchPacket,
     readLinkedPages,
     readsLinkedPages,
     streamCouncilApiCallWithRetry,
-    modelUsesNativeWebSearch,
+    createMembers: createPageCouncilMembers({ streamApiCall, support: providerRequestSupport, getConfig: () => config, modelSupportsToolCalling, modelUsesNativeWebSearch, retryDelayMs: COUNCIL_RETRY_DELAY_MS }),
     modelSupportsVision,
     modelSupportsDocumentUpload
 });

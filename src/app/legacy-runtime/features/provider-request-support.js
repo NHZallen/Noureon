@@ -142,7 +142,7 @@ Output requirements:
     return buildTavilySearchQuery(written || withSearchContext(text, conversation?.messages));
   };
 
-  const { fetchPageContents, searchWeb } = createWebResearchTools({
+  const { fetchPageContents, hasKey: hasSearchKey, searchWeb } = createWebResearchTools({
     getConfig,
     getApiKeyForProvider,
     fetchImpl,
@@ -295,6 +295,8 @@ Output requirements:
     buildSearchQuery,
     fetchPageContents,
     fetchTavilySearchPacket,
+    hasSearchKey,
+    searchWeb,
     readLinkedPages,
     readsLinkedPages,
     filterPartsForModelCapability,

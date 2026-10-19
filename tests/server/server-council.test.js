@@ -94,13 +94,87 @@ test('a council: the members answer with the key of their own provider, the synt
   assert.equal(JSON.stringify(live).includes(KEYS.openrouter), false, 'no key reaches the pages');
 });
 
-test('a deliberation asks every member again, and the search is made once for the council', async () => {
-  const w = world();
-  await executeCouncil({ ...specFor({ mode: 'deliberation', search: true }), secrets: secretsOf({ mode: 'deliberation', search: true }), fetchImpl: w.fetchImpl });
-  assert.equal(onlyModel(w.requests, 'haiku').length, 2, 'a first and a second round');
-  assert.equal(onlyModel(w.requests, 'deepseek').length, 2);
-  assert.ok(w.requests.filter((request) => request.url.includes('tavily')).length >= 1);
-  assert.equal(w.requests.find((request) => request.url.includes('tavily')).headers.Authorization, `Bearer ${TAVILY}`);
+const sse = (...objects) => `${objects.map((object) => `data: ${JSON.stringify(object)}\n\n`).join('')}data: [DONE]\n\n`;
+const toolCall = (id, name, args) => ({ choices: [{ delta: { tool_calls: [{ index: 0, id, type: 'function', function: { name, arguments: JSON.stringify(args) } }] }, finish_reason: 'tool_calls' }] });
+const offered = (body) => (body.tools || []).map((tool) => tool.function?.name || tool.name);
+// A member that searches once by itself (when it has the tool), then answers citing the first page it was given.
+const searchingMembers = ({ model, body }) => {
+  if (model.includes('sonnet')) return streaming('SYNTH-ANSWER [1]');
+  const sent = JSON.stringify(body.messages);
+  if (offered(body).includes('web_search') && !sent.includes('Results for')) return new Response(sse(toolCall('c1', 'web_search', { query: `price ${model}` })), { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
+  return streaming(`ANSWER of ${model} [1]`);
+};
+
+test('in a deliberation every member is asked again; each searches by itself with the council\'s key, and the pages keep one numbering and come with the message', async () => {
+  const w = world({ answer: searchingMembers });
+  const checkpoints = [];
+  const live = [];
+  const result = await executeCouncil({ ...specFor({ mode: 'deliberation', search: true }), secrets: secretsOf({ mode: 'deliberation', search: true }), fetchImpl: w.fetchImpl, onLive: (event) => live.push(event), onCheckpoint: async (checkpoint) => { checkpoints.push(checkpoint); } });
+  assert.equal(result.status, 'done');
+  assert.ok(onlyModel(w.requests, 'haiku').length >= 2, 'a first and a second round');
+  const searches = w.requests.filter((request) => request.url.includes('tavily'));
+  assert.ok(searches.length >= 2, 'each member searched by itself');
+  assert.ok(searches.every((request) => request.headers.Authorization === `Bearer ${TAVILY}`));
+  assert.match(result.parts[0].text, /^```noureon-run\n\{[^\n]*"sources":\[\{[^\n]*https:\/\/vercel\.com\/pricing[^\n]*\}\n```\n\nSYNTH-ANSWER \[1\]/, 'the pages are the message\'s sources, so [1] is a link');
+  const synthesis = onlyModel(w.requests, 'sonnet')[0];
+  assert.match(JSON.stringify(synthesis.body.messages), /\[1\] Vercel Pro — https:\/\/vercel\.com\/pricing/, 'the synthesizer is told the numbers');
+  assert.equal(checkpoints.at(-1).version, COUNCIL_CHECKPOINT_VERSION);
+  assert.equal(checkpoints.at(-1).sources[0].url, 'https://vercel.com/pricing');
+  const member = live.filter((event) => event.cs).at(-1).cs.modelStates[0];
+  assert.ok(member.counts.search >= 1, 'the page is told what each member did');
+  assert.equal(JSON.stringify(live).includes(TAVILY), false);
+});
+
+test('a council taken up again does not ask the members that had answered, and keeps the numbers of their pages', async () => {
+  const first = world({ answer: searchingMembers });
+  const checkpoints = [];
+  await executeCouncil({ ...specFor({ search: true }), secrets: secretsOf({ search: true }), fetchImpl: first.fetchImpl, onCheckpoint: async (checkpoint) => { checkpoints.push(checkpoint); } });
+  const again = world({ answer: searchingMembers });
+  const result = await executeCouncil({ ...specFor({ search: true }), secrets: secretsOf({ search: true }), resume: checkpoints.at(-1), fetchImpl: again.fetchImpl });
+  assert.deepEqual(modelCalls(again.requests).map((request) => request.model), [SYNTH], 'only the synthesis is made again');
+  assert.equal(again.requests.filter((request) => request.url.includes('tavily')).length, 0);
+  assert.match(result.parts[0].text, /"url":"https:\/\/vercel\.com\/pricing","n":1/);
+  const older = world({ answer: searchingMembers });
+  await executeCouncil({ ...specFor({ search: true }), secrets: secretsOf({ search: true }), resume: { ...checkpoints.at(-1), version: 1 }, fetchImpl: older.fetchImpl });
+  assert.ok(onlyModel(older.requests, 'haiku').length >= 1, 'a checkpoint of the older kind is not taken up');
+});
+
+test('the members may load the person\'s skills and read the connectors, only the tools that read and need no asking; the write tools are not theirs', async () => {
+  const linear = { id: 'linear', name: 'Linear', tools: [
+    { name: 'list_issues', description: 'Lists issues.', inputSchema: { type: 'object' }, kind: 'read', state: 'allow' },
+    { name: 'get_issue', description: 'Gets an issue.', inputSchema: { type: 'object' }, kind: 'read', state: 'ask' },
+    { name: 'create_issue', description: 'Creates an issue.', inputSchema: { type: 'object' }, kind: 'write', state: 'allow' }
+  ] };
+  const calls = [];
+  const connectors = {
+    forRun: async () => [JSON.parse(JSON.stringify(linear))],
+    clientFor: () => ({ callTool: async (name) => { calls.push(name); return { text: 'ENG-1 open', isError: false, images: 0 }; }, close: async () => {} })
+  };
+  const skills = { body: async (userId, name) => ({ name, body: 'Answer in a table.' }) };
+  const raw = rawSpec();
+  raw.tools.skills = [{ name: 'tables', description: 'Answers as tables.' }];
+  raw.tools.connectors = true;
+  const checked = validateRunSpec(raw);
+  assert.equal(checked.ok, true, JSON.stringify(checked.errors));
+  assert.deepEqual(checked.spec.tools.skills.map((skill) => skill.name), ['tables']);
+  assert.equal(checked.spec.tools.connectors, true);
+  let haikuRound = 0;
+  const w = world({
+    answer: ({ model, body }) => {
+      if (!model.includes('haiku')) return null;
+      haikuRound += 1;
+      if (haikuRound === 1) {
+        assert.deepEqual(offered(body).sort(), ['connector_call', 'connector_tools', 'load_skill'], 'no search (it is off), the skill loader and the connector tools');
+        assert.match(JSON.stringify(body.messages), /linear: Linear; tools: list_issues\b(?!, get_issue)(?!.*create_issue)/);
+        return new Response(sse(toolCall('c1', 'connector_call', { connector: 'linear', tool: 'list_issues', arguments_json: '{}' })), { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
+      }
+      return streaming('ANSWER of haiku');
+    }
+  });
+  const result = await executeCouncil({ ...checked, secrets: checked.spec.secrets, userId: 'user-1', skills, connectors, fetchImpl: w.fetchImpl });
+  assert.equal(result.status, 'done');
+  assert.deepEqual(calls, ['list_issues']);
+  assert.match(JSON.stringify(onlyModel(w.requests, 'haiku').at(-1).body.messages), /ENG-1 open/);
 });
 
 test('a member that fails does not end the council; a member that never answers runs out of time and is told as a failure', async () => {
@@ -210,7 +284,10 @@ test('a request for a council is checked: models, keys of their providers, searc
   const twice = rawSpec(); twice.council.participants = [entry(MEMBER_A), entry(MEMBER_A)];
   assert.match(places(twice), /council\.participants/);
   const noSearchKey = rawSpec({ search: true }); delete noSearchKey.secrets.searchKey;
-  assert.match(places(noSearchKey), /secrets\.searchKey/);
+  assert.equal(validateRunSpec(noSearchKey).ok, true, 'without a search key the members answer without searching (Gemini searches with Google)');
+  const badSkills = rawSpec(); badSkills.tools.skills = [{ name: 'Not A Name', description: 'x' }]; badSkills.tools.connectors = 'yes';
+  assert.match(places(badSkills), /tools\.skills\[0\]/);
+  assert.match(places(badSkills), /tools\.connectors/);
   const badMode = rawSpec(); badMode.council.mode = 'vote';
   assert.match(places(badMode), /council\.mode/);
   const extra = rawSpec(); extra.secrets.other = 'x'; extra.tools.advanced = true; extra.council.extra = 1;
@@ -280,7 +357,7 @@ test('a request to let a model leave that cannot be done is told so, and one bef
 test('a council taken up after a restart does not ask the models that had left', async () => {
   const first = world();
   const checkpoints = [];
-  await executeCouncil({ ...specFor(threeModels), secrets: secretsOf(threeModels), resume: { version: 1, kind: 'council', memo: {}, exited: [MEMBER_A] }, fetchImpl: first.fetchImpl, onCheckpoint: async (checkpoint) => { checkpoints.push(checkpoint); } });
+  await executeCouncil({ ...specFor(threeModels), secrets: secretsOf(threeModels), resume: { version: COUNCIL_CHECKPOINT_VERSION, kind: 'council', memo: {}, exited: [MEMBER_A] }, fetchImpl: first.fetchImpl, onCheckpoint: async (checkpoint) => { checkpoints.push(checkpoint); } });
   assert.equal(onlyModel(first.requests, 'haiku').length, 0, 'the model that had left is not asked');
   assert.equal(onlyModel(first.requests, 'deepseek').length, 1);
   assert.deepEqual(checkpoints.at(-1).exited, [MEMBER_A], 'and it stays out of the next checkpoint');
