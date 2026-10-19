@@ -1,7 +1,7 @@
 # 讀檔與轉譯文件搬到伺服器（關掉頁面也會做完），以及每一步都有自己的文字
 
 **日期：** 2026-10-20
-**狀態：** owner 已決定「搬到伺服器」與「文字要改、轉成 PDF 那一步也要有文字」（2026-10-20）。**這份是設計，程式還沒動**（只有 §6 的第一步文字已改）。§4 的「預設決定」等 owner 看過確認。Linear：NOU-67（`contract`）。
+**狀態：** owner 已決定「搬到伺服器」與「文字要改、轉成 PDF 那一步也要有文字」，並確認了 §4 的預設決定、網址內容也一起搬（2026-10-20）。**P0 已完成（§9）**，P1 起還沒動程式（§6 的第一步文字已改）。Linear：NOU-67（`contract`）。
 **前置閱讀：** [`AGENTS.md`](../../../AGENTS.md)、[先搜一包搬到伺服器](2026-10-07-server-search-packet-design.md)（同一種做法：頁面的步驟搬到伺服器、伺服器沒收就退回瀏覽器）、[檔案轉成模型讀得懂的樣子](2026-10-14-office-to-pdf-design.md)（Word／PowerPoint 轉 PDF、Excel 轉文字）。
 
 ## 1. 現況（2026-10-20 讀程式確認）
@@ -34,13 +34,13 @@
 1. 讀檔與轉譯文件搬到伺服器。
 2. 「正在轉換文件」的文字改掉，轉成 PDF 那一步也要有自己的文字。
 
-## 4. 預設決定（owner 沒說的，先這樣做，不對再改）
+## 4. 其他決定（owner 2026-10-20 確認）
 
 1. **沿用「先搜一包」的做法**：伺服器收下就做，**沒收**（沒有雲端帳號、暫時對話、「回覆在這個裝置上」、請求太大、伺服器連不上、協定不符）就照現在的樣子在瀏覽器做，使用者看不到提示。
-2. **網址內容（`readLinkedPages`）這次不搬**：它也是離開頁面會中斷的步驟，但你這次只說了文件；另開一張單。搬的方式相同，之後可以接上。
-3. **轉譯模型的金鑰上伺服器**：轉譯模型常常和回覆模型不同供應商，要像「先搜一包」的 `searchKeyAlt` 一樣，多送 `secrets.translatorKey`（同樣放進加密的金鑰信封，只在這次回覆用）。
-4. **失敗行為沿用現狀**：沒設轉譯模型卻需要轉譯，照現在丟出 `documentTranslatorRequired` 的錯誤結束回覆；轉 PDF 失敗退回讀成文字（`office-pdf.js` 本來就是），再不行才轉譯。
-5. **重啟接續**：準備這幾步沒有檢查點，伺服器重啟後從頭做一次（轉 PDF 有快取，轉譯會多花一次模型費用，只在隱私說明提一句，和搜尋一樣）。
+2. **網址內容（`readLinkedPages`）一起搬**（owner：「一起啊」）：它也是離開頁面會中斷的步驟，做法相同。頁面現在對「這個網址要不要讀」的判斷（`!addressIsForTool` 與判斷模型的 `url` 裁決，伺服器上沒有判斷模型的快取）**由頁面決定後放進 RunSpec**（`tools.linkedPages: true | false`），伺服器照做；讀網頁需要搜尋金鑰（`secrets.searchKey`／`searchKeyAlt`），所以 `prepare` 且要讀網址時也要送。
+3. **轉譯模型的金鑰上伺服器**（owner 確認）：轉譯模型常常和回覆模型不同供應商，要像「先搜一包」的 `searchKeyAlt` 一樣，多送 `secrets.translatorKey`（同樣放進加密的金鑰信封，只在這次回覆用）。
+4. **失敗行為沿用現狀**（owner 確認）：沒設轉譯模型卻需要轉譯，照現在丟出 `documentTranslatorRequired` 的錯誤結束回覆；轉 PDF 失敗退回讀成文字（`office-pdf.js` 本來就是），再不行才轉譯。
+5. **重啟接續**（owner 確認）：準備這幾步沒有檢查點，伺服器重啟後從頭做一次（轉 PDF 有快取，轉譯會多花一次模型費用，只在隱私說明提一句，和搜尋一樣）。
 
 ## 5. 設計
 
@@ -51,7 +51,7 @@
 3. 轉譯文件：模型讀不了的文件（頁面現在的 `getUnsupportedSingleDocumentParts`，把它和 `buildSingleDocumentTranslationPrompt` 搬進共用模組），用轉譯模型與 `secrets.translatorKey` 串流呼叫，產出 `# Document translation packet`（同樣 `truncate` 7000 字，結尾 `\n\n[truncated]`），放進開頭的 `# System-generated supporting context …` 段（和 `withContextSection` 現在的做法一樣）。轉譯期間 `onPhase('translating')`。
 4. 完成 `onPhase('')`。
 
-**RunSpec。** `tools.documents`：`'off'`（預設，舊做法）或 `'prepare'`；`tools.translator`：轉譯模型（`provider`、`id`、`info`，格式和理事會 `council.translator` 相同）；`secrets.translatorKey`。`request.currentMessage` 在 `prepare` 時是**原始**訊息（附件還沒讀過）。
+**RunSpec。** `tools.documents`：`'off'`（預設，舊做法）或 `'prepare'`；`tools.linkedPages`：布林（見 §4.2）；`tools.translator`：轉譯模型（`provider`、`id`、`info`，格式和理事會 `council.translator` 相同）；`secrets.translatorKey`。`request.currentMessage` 在 `prepare` 時是**原始**訊息（附件還沒讀過）。
 
 **即時事件。** 仿 `ss`（正在搜尋）：`server/runs.js` 加 `live.documentPhase`，事件 `dp`（`'reading' | 'pdf' | 'translating' | ''`），迷你快照 `r.dp`；頁面晚加入時也拿得到現在在哪一步。
 
@@ -59,6 +59,7 @@
 - `planServerReply`：附件需要準備、且伺服器會收時回傳 `documents: 'prepare'`（轉譯模型有設才行，沒設則照現在退回瀏覽器並維持原有的錯誤行為）。
 - `single-model-response-lifecycle.js`：和「先搜一包」一樣，**先決定計畫，計畫是伺服器時，瀏覽器不讀檔也不轉譯**（`hasTranslationInputs` 的附件部分略過），送原始 `userParts`；伺服器沒收就在瀏覽器補做（`baseParts` 的做法）。
 - `server-reply.js` 的 `follow` 加 `onDocumentPhase(phase)`，頁面把它畫成同一個等待列（`reply-wait-step`）：`reading` → 讀取檔案、`pdf` → 轉成 PDF、`translating` → 請轉譯模型讀取文件。
+- 網址內容：頁面不再在瀏覽器讀（計劃是伺服器時），送 `tools.linkedPages`；伺服器沒收就在瀏覽器補讀。
 - 理事會：成員的附件轉譯與整合已在伺服器（`council-run.js`），不在這次範圍。
 
 **相容性。** 新增 `tools.documents`、`tools.translator`、`secrets.translatorKey`、事件 `dp`，**不升協定版本**：舊伺服器收到未知欄位回 `invalid_run_spec`，客戶端本來就靜默退回本機（圖片、搜尋都驗證過這條路）；舊頁面看到 `dp` 直接忽略。兩邊同時部署的空窗期，最壞是退回瀏覽器做。
@@ -85,7 +86,19 @@
 
 ## 8. 階段（一次一個階段，做完回報；owner 說「上線」才上 `main`）
 
-- **P0：** 小實驗：在伺服器程式碼上用假的模型，跑讀檔（含轉 PDF 的假轉換器）與轉譯，確認共用模組在 Node 能原樣跑（先確認 `attachment-labels.js` 與轉譯 prompt 的函式能進共用清單）；確認 `secrets.translatorKey` 進信封。
-- **P1：** 伺服器端：`run-spec.js`、`document-prep.js`、`executor.js`、`runs.js`（`dp`）、共用模組清單與邊界檢查、`tests/server/`。
+- **P0（✅ 已完成，§9）：** 小實驗：在伺服器的模組上用假的模型，跑讀檔（含轉 PDF 的假轉換器）與轉譯，確認準備函式在 Node 原樣可跑；確認 `secrets.translatorKey` 進信封。
+- **P1：** 伺服器端：`run-spec.js`（`tools.documents`、`tools.linkedPages`、`tools.translator`、`secrets.translatorKey`）、`document-prep.js`（用 `createProviderRequestSupport` 的 `buildSingleModelTranslatedRequestParts`；`expandParts` 加上 `viaPdf`；轉 PDF 開始前回報 `pdf` 階段）、`model-access.js`（`keyFor` 認得轉譯模型的供應商）、`executor.js`（開頭呼叫）、`runs.js`（`dp`）、`tests/server/`。
 - **P2：** 客戶端：`planServerReply`、生命週期順序與退回、`follow` 的 `onDocumentPhase`、等待列文字（含 `waitMakingPdf` 五語言）、測試。
 - **P3：** 隱私說明、協助中心、更新紀錄（五語言）、全套檢查；owner 驗收清單：傳 PDF 給不能讀 PDF 的模型、傳 Word 給 B 類模型，送出後立刻關頁面、再打開，看回覆是否完成，等待列的三種文字是否正確。
+
+## 9. P0 結果（2026-10-20）
+
+在 scratchpad 寫了一支腳本（`p0.mjs`），用**伺服器自己的模組**（`createServerOfficeReader`、`setOfficePdfConverter` 放一個假的轉換器）加假的轉譯模型，把頁面現在的準備函式跑了一遍：
+
+- **不需要新的共用模組。** `provider-request-support.js`、`linked-pages.js`、`web-page-text.js`、`attachment-labels.js`、`decision-store.js`、`office-reader.js` 都**已經在** `scripts/server-shared-modules.json`（理事會在用）。`createProviderRequestSupport` 是依賴由外面注入的工廠，伺服器直接用它，不重寫一份。
+- **A（轉譯）：** 一份 PDF 給不能讀 PDF 的模型（NVIDIA 版 DeepSeek V4.1 Flash），轉譯模型被呼叫、收到那份 PDF（用途 `background-attachment-translation`），請求最後多了 `# System-generated supporting context …` 段；階段是 `documentTranslation`。和瀏覽器一樣。
+- **B（轉 PDF 的落差，已證實）：** 一個 Word 檔給「讀 PDF 比較好」的 OpenCode 模型（`claude-haiku-5-5`），照現在的呼叫：階段只有 `fileReading`，**LibreOffice 轉換 0 次**，請求裡是讀出來的文字。也就是目前這一則的 Word／PowerPoint 確實不轉 PDF。
+- **B2：** 同一個檔，給 `expandParts` 帶上 `viaPdf`（`opencodeModelReadsOfficeViaPdf`）：轉換 1 次，請求裡是 `report.pdf`（`application/pdf`）。**P1 要做的是在 `buildSingleModelTranslatedRequestParts` 的 `expandParts` 呼叫加上 `viaPdf`**（瀏覽器的讀取器沒有轉換器，`viaPdf` 在瀏覽器不會有任何作用，所以瀏覽器行為不變）。
+- **階段文字：** 轉 PDF 發生在 `expandParts` 裡面，現在沒有任何進度回報；P1 要在伺服器的轉換器外面包一層，轉換開始前回報 `pdf`。
+- **金鑰：** `key-vault.js` 的 `seal(secrets)` 把整個 `secrets` 物件序列化加密，`secrets.translatorKey` 自動在信封裡；`scrubText` 會走訪 `secrets` 的每個字串，所以這把金鑰在錯誤訊息與日誌裡也會被遮掉。不需要改。
+- **待 P1 注意：** `keyFor`（`model-access.js`）只認回覆模型的供應商與搜尋供應商，要加上轉譯模型的供應商（`translatorKey`；同供應商就用 `providerKey`）。`inputs`（給 Python 的附件）與 `currentMessage` 的附件可能重複計入請求大小，P1 要看一下（現在已經有這個重複，不會比現在更糟）。
