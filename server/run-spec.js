@@ -17,7 +17,7 @@ const ROLES = ['user', 'model', 'system'];
 const WEB_SEARCH = ['off', 'research', 'grounding', 'briefing', 'packet'];
 const SEARCH_PROVIDERS = ['tavily', 'tinyfish'];
 const SEARCH_DEPTHS = ['basic', 'advanced'];
-const TOP_LEVEL = ['protocol', 'clientVersion', 'conversationId', 'assistantMessageId', 'sequence', 'model', 'request', 'tools', 'secrets', 'kind', 'research'];
+const TOP_LEVEL = ['protocol', 'clientVersion', 'conversationId', 'assistantMessageId', 'sequence', 'model', 'request', 'tools', 'secrets', 'kind', 'research', 'source'];
 const COUNCIL_TOP_LEVEL = ['protocol', 'clientVersion', 'conversationId', 'assistantMessageId', 'sequence', 'request', 'council', 'tools', 'secrets', 'kind'];
 const COUNCIL_MODES = ['consensus', 'deliberation'];
 const COUNCIL_PROVIDERS = ['gemini', 'openrouter', 'nvidia', 'opencode-go'];
@@ -33,6 +33,25 @@ const isInteger = (value, min, max) => Number.isInteger(value) && value >= min &
 const isDataImage = (value) => typeof value === 'string' && value.startsWith('data:image/') && value.indexOf(';base64,') > 10;
 // A picture the person's cloud space already keeps (the marker the app's sync writes): the server reads it from there.
 const isImageMarker = (value) => isObject(value) && isObject(value[CLOUD_ASSET]) && text(value[CLOUD_ASSET].path, 300) && String(value[CLOUD_ASSET].mimeType || '').startsWith('image/');
+// A file the person's cloud space keeps (any kind): the server reads it from there.
+const isFileMarker = (value) => isObject(value) && isObject(value[CLOUD_ASSET]) && text(value[CLOUD_ASSET].path, 300);
+
+/**
+ * The reply a visual check asked for again is about (`kind: 'vision'`, the button of a check that did not finish): its id, its text, the
+ * presentations Python made in it, and the files to look at again.
+ */
+function checkVisionSource(source, fail) {
+  if (!isObject(source)) return fail('source', 'must be an object');
+  for (const name of Object.keys(source)) if (!['messageId', 'text', 'parts', 'fileIds'].includes(name)) fail(`source.${name}`, 'is not a known field');
+  if (!text(source.messageId, 100)) fail('source.messageId', 'must be an id');
+  if (typeof source.text !== 'string' || source.text.length > LIMITS.maxSystemInstructionChars) fail('source.text', `must be a text of at most ${LIMITS.maxSystemInstructionChars} characters`);
+  if (!Array.isArray(source.parts) || source.parts.length > 40) fail('source.parts', 'must be a list of at most 40 files');
+  else source.parts.forEach((part, index) => {
+    const file = part?.sandboxFile;
+    if (!isObject(file) || !text(file.id, 200) || !text(file.name, 300) || !(typeof file.data === 'string' || isFileMarker(file.data))) fail(`source.parts[${index}]`, 'must be a file Python made');
+  });
+  if (!Array.isArray(source.fileIds) || source.fileIds.length === 0 || source.fileIds.length > 20 || !source.fileIds.every((id) => text(id, 200))) fail('source.fileIds', 'must be a list of 1 to 20 file ids');
+}
 
 /** A request for an image (`kind: 'image'`): the prompt, the size and shape, the pictures to start from, and the key. */
 function validateImageSpec(input) {
@@ -424,7 +443,16 @@ export function validateRunSpec(input) {
 
   // A deep research (server/research.js): the topic is what the person typed; the model searches for itself (not Gemini's own search, and
   // no Python yet), so the way it searches must be the tool one.
-  if (input.kind !== undefined && input.kind !== 'research') fail('kind', 'must be "research" or left out');
+  if (input.kind !== undefined && input.kind !== 'research' && input.kind !== 'vision') fail('kind', 'must be "research", "vision" or left out');
+  // A visual check asked for again (server/vision-check.js): no reply is made, only the check of the files named.
+  if (input.kind === 'vision') {
+    checkVisionSource(input.source, fail);
+    if (isObject(tools)) {
+      if (!isObject(tools.visionCheck)) fail('tools.visionCheck', 'is needed for a visual check');
+      if (tools.webSearch !== 'off') fail('tools.webSearch', 'a visual check does not search');
+      if (tools.advanced !== false) fail('tools.advanced', 'a visual check is not a reply with Python');
+    }
+  } else if (input.source !== undefined) fail('source', 'is only for a visual check');
   if (input.kind === 'research') {
     if (!isObject(input.research) || !text(input.research.topic, 4000)) fail('research.topic', 'must be a text of at most 4000 characters');
     if (isObject(tools)) {
@@ -452,6 +480,7 @@ export function validateRunSpec(input) {
     spec: {
       protocol: input.protocol,
       ...(input.kind === 'research' ? { kind: 'research', research: { topic: input.research.topic.trim() } } : {}),
+      ...(input.kind === 'vision' ? { kind: 'vision', source: { messageId: input.source.messageId, text: input.source.text, parts: input.source.parts.map((part) => ({ sandboxFile: { id: part.sandboxFile.id, name: part.sandboxFile.name, data: part.sandboxFile.data } })), fileIds: [...new Set(input.source.fileIds)] } } : {}),
       clientVersion: input.clientVersion,
       conversationId: input.conversationId,
       assistantMessageId: input.assistantMessageId,

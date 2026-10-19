@@ -1,6 +1,5 @@
 import { ensurePrivacySettingsSection } from './settings-privacy-section.js';
 import { ensurePermissionsSettingsSection } from './settings-permissions-section.js';
-import { ensureStorageUsageBlock } from './settings-storage-usage.js';
 import { ensureWorkspaceStorageStatus } from './settings-workspace-storage-status.js';
 import { visionText } from '../../ui/files/vision/vision-texts.js';
 import { FILE_MODES, chosenFileMode } from '../sandbox/file-mode.js';
@@ -31,7 +30,8 @@ export function ensureVisionCheckSettingsControl({ document, elements, config, s
   // The Privacy and Permissions tabs are set up with the other tabs that are added here.
   ensurePrivacySettingsSection({ document, elements, config, saveConfig });
   ensurePermissionsSettingsSection({ document, elements, config, saveConfig, showNotification });
-  ensureStorageUsageBlock({ document, elements, config });
+  // The cloud space line is loaded with the settings, not with the page.
+  void import('./settings-storage-usage.js').then(({ ensureStorageUsageBlock }) => ensureStorageUsageBlock({ document, elements, config })).catch(() => {});
   ensureWorkspaceStorageStatus({ document, elements, config });
   const section = document.getElementById('accessibility-section');
   if (!section) return;

@@ -1,5 +1,6 @@
 export const VISION_TEXTS = Object.freeze({
   'zh-TW': {
+    stopped: '看圖檢查已停止，簡報維持原樣。', retryBusy: '這個對話正在回覆或檢查，完成後再試一次。', retryNoModel: '目前選的模型不能看圖，換一個能看圖的模型再試。', retryGone: '找不到原本的簡報，可能已經刪除。',
     ledgerTitle: '自動看圖檢查', renderedSlides: '已畫出 {total} 頁投影片', sheetsDone: '已拼成 {total} 張聯絡表', reviewedBy: '看完了',
     slideProgress: '正在畫第 {n} / {total} 頁', sheetsProgress: '已拼好 {n} / {total} 張圖', reviewingSheets: '正在看 {count} 張圖', issuesFound: '發現 {count} 個問題',
     fixing: '正在重新製作簡報', freeHeading: '看圖檢查完成：發現 {found} 個問題，已請 AI 重新製作簡報。', freeNoFile: 'AI 沒有產生修正後的簡報檔案。',
@@ -12,6 +13,7 @@ export const VISION_TEXTS = Object.freeze({
     timedOut: '等太久了，簡報維持原樣', invalidResponse: 'AI 回覆的格式不對，簡報維持原樣', leftAlone: '看圖檢查發現 {found} 個問題，但無法在這裡自動修正，簡報維持原樣。', unreadable: '讀不出這份簡報的內容，簡報維持原樣'
   },
   en: {
+    stopped: 'The visual check was stopped; the presentation is left as it was.', retryBusy: 'This chat is busy with a reply or a check; try again when it is done.', retryNoModel: 'The chosen model cannot see images; choose one that can and try again.', retryGone: 'The presentation could not be found; it may have been deleted.',
     ledgerTitle: 'Automatic visual check', renderedSlides: 'Drew {total} slides', sheetsDone: 'Made {total} contact sheets', reviewedBy: 'Finished looking',
     slideProgress: 'Drawing slide {n} of {total}', sheetsProgress: 'Sheet {n} of {total} ready', reviewingSheets: 'Looking at {count} pictures', issuesFound: '{count} issues found',
     fixing: 'Redoing the presentation', freeHeading: 'Visual check done: {found} issues found, and the presentation was redone.', freeNoFile: 'The AI did not produce a corrected presentation file.',
@@ -24,6 +26,7 @@ export const VISION_TEXTS = Object.freeze({
     timedOut: 'it took too long; the presentation is left as it was', invalidResponse: 'the AI’s reply could not be read; the presentation is left as it was', leftAlone: 'Visual check done: {found} issues found, but they cannot be fixed automatically here; the presentation is left as it was.', unreadable: 'the presentation could not be read; it is left as it was'
   },
   fr: {
+    stopped: 'La vérification visuelle a été arrêtée ; la présentation reste telle quelle.', retryBusy: 'Cette conversation est occupée par une réponse ou une vérification ; réessayez quand elle sera terminée.', retryNoModel: 'Le modèle choisi ne voit pas les images ; choisissez-en un qui le peut et réessayez.', retryGone: 'La présentation est introuvable ; elle a peut-être été supprimée.',
     ledgerTitle: 'Vérification visuelle automatique', renderedSlides: '{total} diapositives dessinées', sheetsDone: '{total} planches créées', reviewedBy: 'Examen terminé',
     slideProgress: 'Diapositive {n} sur {total}', sheetsProgress: 'Planche {n} sur {total} prête', reviewingSheets: 'Examen de {count} images', issuesFound: '{count} problèmes trouvés',
     fixing: 'Refonte de la présentation', freeHeading: 'Vérification visuelle terminée : {found} problèmes trouvés, la présentation a été refaite.', freeNoFile: 'L’IA n’a pas produit de présentation corrigée.',
@@ -36,6 +39,7 @@ export const VISION_TEXTS = Object.freeze({
     timedOut: 'trop long ; la présentation reste telle quelle', invalidResponse: 'la réponse de l’IA est illisible ; la présentation reste telle quelle', leftAlone: 'Vérification visuelle terminée : {found} problèmes trouvés, mais ils ne peuvent pas être corrigés automatiquement ici ; la présentation reste telle quelle.', unreadable: 'la présentation est illisible ; elle reste telle quelle'
   },
   ru: {
+    stopped: 'Визуальная проверка остановлена; презентация осталась без изменений.', retryBusy: 'В этом чате идёт ответ или проверка; повторите, когда они закончатся.', retryNoModel: 'Выбранная модель не видит изображения; выберите ту, что видит, и повторите.', retryGone: 'Презентация не найдена; возможно, её удалили.',
     ledgerTitle: 'Автоматическая визуальная проверка', renderedSlides: 'Нарисовано слайдов: {total}', sheetsDone: 'Создано листов: {total}', reviewedBy: 'Просмотр завершён',
     slideProgress: 'Слайд {n} из {total}', sheetsProgress: 'Лист {n} из {total} готов', reviewingSheets: 'Просмотр изображений: {count}', issuesFound: 'Найдено проблем: {count}',
     fixing: 'Переделка презентации', freeHeading: 'Визуальная проверка завершена: найдено проблем — {found}, презентация переделана.', freeNoFile: 'ИИ не создал исправленный файл презентации.',
@@ -48,6 +52,7 @@ export const VISION_TEXTS = Object.freeze({
     timedOut: 'слишком долго; презентация осталась без изменений', invalidResponse: 'ответ ИИ не удалось прочитать; презентация осталась без изменений', leftAlone: 'Визуальная проверка завершена: найдено проблем — {found}, но автоматически исправить их здесь нельзя; презентация осталась без изменений.', unreadable: 'презентацию не удалось прочитать; она осталась без изменений'
   },
   es: {
+    stopped: 'La revisión visual se detuvo; la presentación queda como estaba.', retryBusy: 'Este chat está ocupado con una respuesta o una revisión; inténtalo de nuevo cuando termine.', retryNoModel: 'El modelo elegido no puede ver imágenes; elige uno que pueda y vuelve a intentarlo.', retryGone: 'No se encontró la presentación; puede que se haya eliminado.',
     ledgerTitle: 'Revisión visual automática', renderedSlides: '{total} diapositivas dibujadas', sheetsDone: '{total} hojas creadas', reviewedBy: 'Revisión terminada',
     slideProgress: 'Diapositiva {n} de {total}', sheetsProgress: 'Hoja {n} de {total} lista', reviewingSheets: 'Revisando {count} imágenes', issuesFound: '{count} problemas encontrados',
     fixing: 'Rehaciendo la presentación', freeHeading: 'Revisión visual terminada: {found} problemas encontrados y la presentación se rehizo.', freeNoFile: 'La IA no produjo una presentación corregida.',

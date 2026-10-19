@@ -698,6 +698,12 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     onVisionLock: () => updateSubmitButtonState(false)
   });
 
+  // The 重試 button of the note of a visual check that failed or was stopped (vision-retry.js, loaded on the first press).
+  document.addEventListener?.('click', (event) => {
+    const button = event.target?.closest?.('[data-vision-retry]');
+    if (button && !button.disabled) void import('../features/vision-retry.js').then(({ retryVisionCheck }) => retryVisionCheck({ button, conversation: getActiveConversation(), getConfig: getLiveConfig, scheduler: vc, serverReply, supportsToolCalling: modelSupportsToolCalling, modelSupportsVision, isReplying: () => Boolean(getAbortController()), showNotification, language: getUiLanguage() })).catch((error) => logger.error?.(error));
+  });
+
   const singleModelResponseLifecycle = createSingleModelResponseLifecycle({
     now: () => Date.now(),
     getOutputMode,

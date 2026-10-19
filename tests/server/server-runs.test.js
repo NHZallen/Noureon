@@ -785,6 +785,35 @@ test('a stop of the check ends it without a reply, and nothing is started when t
   assert.equal(without.checks.length, 0, 'not asked');
 });
 
+test('a check asked for again (the button of a note) is a run of its own kind, made at once, with the files it names', async () => {
+  const { manager, db, checks } = visionHarness();
+  const spec = { ...VISION_SPEC(), kind: 'vision', source: { messageId: 'reply-1', text: DECK_TEXT, parts: [], fileIds: ['f-1'] } };
+  await manager.start({ userId: USER, spec });
+  await settle();
+  assert.equal(checks.length, 1, 'only the check: no reply is made first');
+  assert.deepEqual(checks[0].spec.source.fileIds, ['f-1']);
+  const starts = db.log.rpcs.filter((call) => call.name === 'server_start_run');
+  assert.equal(starts.length, 1);
+  assert.deepEqual(starts[0].args.p_model, { provider: 'gemini', id: 'g', kind: 'vision' });
+});
+
+test('a check that cannot be made at all leaves a note of it in the conversation, with the files to check again', async () => {
+  const { manager: failing, db } = managerHarness({
+    vision: { available: async () => true, getKit: async () => null, execute: async () => { throw new Error('model access broke'); } }
+  });
+  const seen = [];
+  const spec = { ...VISION_SPEC(), kind: 'vision', source: { messageId: 'reply-1', text: DECK_TEXT, parts: [] } };
+  await failing.start({ userId: USER, spec });
+  failing.watch({ userId: USER, runId: 'run-1', send: (event) => seen.push(event), close() {} });
+  await settle();
+  const note = messageWrites(db).at(-1);
+  assert.match(note.parts[0].text, /did not finish/);
+  assert.equal(note.metadata.visionCheck.note, 'failed');
+  assert.equal(note.metadata.visionCheck.sourceMessageId, 'reply-1');
+  assert.equal(note.metadata.visionCheck.fileIds.length, 1);
+  assert.equal(JSON.stringify(note).includes(KEY), false);
+});
+
 test('the whole way: a reply writes a presentation, the server draws it, the model looks at the pictures, and the corrected reply is written and told to those watching', async () => {
   const { executeVisionCheck } = await import('../../server/vision-check.js');
   const { canDrawSlides } = await import('../../server/slides/available.js');

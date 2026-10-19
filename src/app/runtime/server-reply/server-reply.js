@@ -213,7 +213,7 @@ export function createServerReply({
    * Hands a reply to the server. Resolves { ok: true, run } when it was accepted (the server has it now) or { ok: false, reason,
    * notify } when it was not and the reply is to be made here ('notify' is true when the person should be told).
    */
-  const begin = async (path, { conversation, modelInfo, requestParts, webSearch = 'off', advanced = false, designs = null, inputs = [], cli = [], cliChosen = [], skills = [], connectors = false, visionCheck = null, research = null, assistantMessageId, sequence, uiLanguage, config = {}, requestOptions = {}, getHistorySourceIds = () => [] }) => {
+  const begin = async (path, { conversation, modelInfo, requestParts, webSearch = 'off', advanced = false, designs = null, inputs = [], cli = [], cliChosen = [], skills = [], connectors = false, visionCheck = null, research = null, vision = null, assistantMessageId, sequence, uiLanguage, config = {}, requestOptions = {}, getHistorySourceIds = () => [] }) => {
     const providerKey = getApiKeyForProvider(modelInfo?.provider);
     if (!providerKey) return { ok: false, reason: 'no-key', notify: false };
     let search = null;
@@ -236,6 +236,8 @@ export function createServerReply({
       protocol: SERVER_PROTOCOL_VERSION,
       // A deep research: its topic is what the person typed (the server plans, searches and writes from it).
       ...(research ? { kind: 'research', research: { topic: research.topic } } : {}),
+      // A visual check asked for again: the reply it is about and the files to look at (no reply is made).
+      ...(vision ? { kind: 'vision', source: vision.source } : {}),
       clientVersion: String(clientVersion || '0'),
       conversationId: conversation.id,
       assistantMessageId,
@@ -286,9 +288,12 @@ export function createServerReply({
     }
     const runId = result.data?.runId;
     if (!runId) return { ok: false, reason: 'bad-answer', notify: 'unreachable' };
-    return { ok: true, run: createRun({ runId, assistantMessageId, kind: research ? 'research' : 'reply', vision: result.data?.vision === true }) };
+    return { ok: true, run: createRun({ runId, assistantMessageId, kind: research ? 'research' : vision ? 'vision' : 'reply', vision: result.data?.vision === true }) };
   };
   const start = (args) => begin('/v1/runs', args);
+
+  // A visual check asked for again (the button of the note of one that failed or was stopped): its code is loaded on the first press.
+  const startVision = async (args) => (await import('./server-vision-start.js')).startVisionRun({ begin, withCloudFiles }, args);
 
   /**
    * Hands the making of an image to the server (docs/superpowers/specs/2026-10-06-server-image-generation-design.md). The code of it is loaded
@@ -595,5 +600,5 @@ export function createServerReply({
   /** The latest run of this conversation that failed on the server (a recent one), or null: for the chat that was left with no word of it. */
   const findFailure = (conversationId) => findFailedRun(conversationId);
 
-  return { start, startResearch, startImage, startCouncil, find, findFailure, request, watchRun, readMessage };
+  return { start, startResearch, startImage, startCouncil, startVision, find, findFailure, request, watchRun, readMessage };
 }

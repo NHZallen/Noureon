@@ -9,7 +9,8 @@ import { createMessageWriter } from './message-writer.js';
 import { ERROR_CODES, LIMITS } from './protocol.js';
 import { createResearchControls, executeResearch } from './research.js';
 import { runStartErrorCode } from './run-store.js';
-import { executeVisionCheck, visionFiles } from './vision-check.js';
+import { executeVisionCheck, visionFiles, visionNoteMetadata } from './vision-check.js';
+import { visionText } from '../src/app/ui/files/vision/vision-texts.js';
 
 const HEARTBEAT_MS = 15_000;
 // A run whose heartbeat is older than this has no process: the next sweep takes it up.
@@ -372,9 +373,20 @@ export function createRunManager({
       const failure = failureOf(error, secrets);
       log('run_failed', { runId, code: failure.code, ...diagnosis(error, secrets) });
       if (isVision) {
-        // The check could not be made at all: the page is told, and no reply is written.
-        applyLive(live, { vc: { m: 'file-end', a: [{ outcome: 'failed', code: 'failed', reason: scrubMessage(failure.message, secrets) }] } });
-        fan(live, { vc: { m: 'file-end', a: [{ outcome: 'failed', code: 'failed', reason: scrubMessage(failure.message, secrets) }] } });
+        // The check could not be made at all: a note says so in the conversation (it can be checked again from there), and the page is told.
+        const reason = scrubMessage(failure.message, secrets);
+        const fileIds = spec.source ? visionFiles({ spec, text: spec.source.text, parts: spec.source.parts }).map((file) => file.id).filter((id) => !spec.source.fileIds || spec.source.fileIds.includes(id)) : [];
+        let messageId = '';
+        try {
+          messageId = crypto.randomUUID();
+          await writeVisionMessage({ userId, spec, id: messageId, parts: [{ text: visionText(spec.request.language, 'failed', { reason }) }], metadata: visionNoteMetadata({ spec, outcome: 'failed', fileIds }) });
+        } catch (writeError) {
+          messageId = '';
+          log('vision_note_failed', { runId, message: String(writeError?.message || '').slice(0, 160) });
+        }
+        const end = { vc: { m: 'file-end', a: [{ outcome: 'failed', code: 'failed', reason, ...(messageId ? { messageId } : {}) }] } };
+        applyLive(live, end);
+        fan(live, end);
       } else try {
         // A research that failed keeps its plan and what it had found on the card (the error carries the message as it stood).
         await writer.finish(isResearch && Array.isArray(error?.parts) ? error.parts : [{ text: errorText(spec.request.language, failure) }], 'error', { serverError: failure });
@@ -453,16 +465,18 @@ export function createRunManager({
         applyLive(live, stamped);
         fan(live, stamped);
       },
-      // A reply that goes after everything in the conversation comes with no sequence: the database takes the next place under its lock (the
-      // server may call that function but cannot read the message table).
-      writeMessage: async ({ id, parts, metadata }) => {
-        await db.rpc('server_upsert_workspace_message', {
-          p_user_id: userId,
-          p_row: { id, conversation_id: spec.conversationId, role: 'model', parts, status: 'complete', ...(metadata ? { metadata } : {}) }
-        });
-      }
+      writeMessage: ({ id, parts, metadata }) => writeVisionMessage({ userId, spec, id, parts, metadata })
     });
     return result;
+  }
+
+  // A reply that goes after everything in the conversation comes with no sequence: the database takes the next place under its lock (the
+  // server may call that function but cannot read the message table).
+  async function writeVisionMessage({ userId, spec, id, parts, metadata }) {
+    await db.rpc('server_upsert_workspace_message', {
+      p_user_id: userId,
+      p_row: { id, conversation_id: spec.conversationId, role: 'model', parts, status: 'complete', ...(metadata ? { metadata } : {}) }
+    });
   }
 
   return {
@@ -507,7 +521,7 @@ export function createRunManager({
           keyVersion,
           // A deep research may wait a day (paused), so its keys are kept longer.
           ...(research ? { keyTtlMs: limits.researchKeyTtlMs } : image ? { keyTtlMs: limits.imageKeyTtlMs } : {}),
-          flags: research ? { kind: 'research' } : image ? { kind: 'image' } : spec.kind === 'council' ? { kind: 'council' } : spec.tools.visionCheck ? { vision: true } : null
+          flags: research ? { kind: 'research' } : image ? { kind: 'image' } : spec.kind === 'council' ? { kind: 'council' } : spec.kind === 'vision' ? { kind: 'vision' } : spec.tools.visionCheck ? { vision: true } : null
         });
       } catch (error) {
         const code = runStartErrorCode(error);

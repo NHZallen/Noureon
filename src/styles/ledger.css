@@ -521,6 +521,13 @@
     font-size: 0.75rem;
 }
 
+/* The 重試 of the note of a visual check that failed or was stopped (vision-retry.js). */
+.vision-retry-row { display: flex; justify-content: flex-end; margin-top: 0.5rem; }
+.vision-retry { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.25rem 0.75rem; border: 1px solid var(--border-color); border-radius: 999px; color: var(--text-primary); font-size: 0.8rem; }
+.vision-retry:hover { background: var(--hover-bg); }
+.vision-retry:disabled { opacity: 0.5; }
+.vision-retry svg { width: 0.9rem; height: 0.9rem; }
+
 /* The question to the person about a site a CLI tool wants to reach (net-ask-card.js). */
 .net-ask {
     margin: 0.5rem 0;

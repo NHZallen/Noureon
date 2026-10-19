@@ -22,8 +22,8 @@ import { collectInputFiles, createStepEvents, finishAdvancedReply } from './adva
 import { createModelAccess } from './model-access.js';
 import { scrubMessage } from './executor.js';
 
-const REVIEW_TIMEOUT_MS = 240_000;
-const FIX_TIMEOUT_MS = 600_000;
+const REVIEW_TIMEOUT_MS = 480_000;
+const FIX_TIMEOUT_MS = 1_200_000;
 
 export class VisionRefused extends Error {}
 
@@ -65,6 +65,17 @@ export function remoteProgress(emit, { language }) {
   };
 }
 
+/**
+ * What a note of how a check ended carries (server/runs.js writes one too, when the check could not be made at all): the reply it is about and
+ * the files, so the page can offer to check them again (the button of a note of a check that failed or was stopped).
+ */
+export function visionNoteMetadata({ spec, outcome, fileIds = [] }) {
+  return {
+    ...(spec.request.messageMetadata || {}),
+    visionCheck: { note: outcome, ...(spec.source?.messageId ? { sourceMessageId: spec.source.messageId } : {}), ...(fileIds.length ? { fileIds } : {}) }
+  };
+}
+
 const failureReason = ({ error, timedOut, language }) => {
   if (timedOut) return { code: 'timed_out', text: visionText(language, 'timedOut') };
   if (error?.code === INVALID_VISION_RESPONSE) return { code: 'invalid_response', text: visionText(language, 'invalidResponse') };
@@ -86,7 +97,9 @@ export async function executeVisionCheck({
   const config = { visionCheckEnabled: true, uiLanguage: language, aiDefaultLanguage: language };
   const access = createModelAccess({ spec, secrets, fetchImpl });
   const source = spec.source;
-  const targets = visionFiles({ spec, text: source.text, parts: source.parts });
+  // A check asked for again names its files (the others of the reply were checked already).
+  const wanted = Array.isArray(source.fileIds) ? new Set(source.fileIds) : null;
+  const targets = visionFiles({ spec, text: source.text, parts: source.parts }).filter((file) => !wanted || wanted.has(file.id));
   const emit = (event) => onLive({ vc: event });
   const written = [];
   const outcomes = [];
@@ -95,12 +108,12 @@ export async function executeVisionCheck({
   let checked = 0;
   // How a check ended, written into the conversation as a reply of its own (the same way a corrected reply is), so it is there on every
   // page and after a reload, not only as a notice that goes. Resolves its id, or '' when it could not be written (the notice remains).
-  const note = async (text, outcome, detail = {}) => {
+  const note = async (text, outcome, detail = {}, fileIds = []) => {
     outcomes.push(outcome);
     details.push({ outcome, ...detail });
     try {
       const id = createId();
-      await writeMessage({ id, parts: [{ text }], metadata: { ...(spec.request.messageMetadata || {}), visionCheck: { note: outcome } } });
+      await writeMessage({ id, parts: [{ text }], metadata: visionNoteMetadata({ spec, outcome, fileIds }) });
       return id;
     } catch (error) {
       onProblem('vision_note_failed', error);
@@ -108,7 +121,9 @@ export async function executeVisionCheck({
     }
   };
 
-  for (const file of targets) {
+  // The first file not looked at to the end (a stop leaves it and those after it to be checked again).
+  let next = 0;
+  for (const [index, file] of targets.entries()) {
     if (signal?.aborted) break;
     emit({ m: 'begin', a: [{ name: file.name, free: Boolean(file.free) }] });
     const controller = new AbortController();
@@ -128,39 +143,45 @@ export async function executeVisionCheck({
         : await checkDesignedDeck({ file, spec, access, model, language, controller, progress, arm, getKit, source });
       if (outcome.revised) {
         const id = written.length ? createId() : spec.assistantMessageId;
-        await writeMessage({ id, parts: outcome.revised.parts, metadata: outcome.revised.metadata });
+        const { metadata } = outcome.revised;
+        await writeMessage({ id, parts: outcome.revised.parts, metadata: source.messageId ? { ...metadata, visionCheck: { ...metadata.visionCheck, sourceMessageId: source.messageId } } : metadata });
         written.push(id);
         outcomes.push('fixed');
         details.push({ outcome: 'fixed', name: file.name });
         emit({ m: 'file-end', a: [{ outcome: 'fixed', messageId: id }] });
         checked += 1;
       } else if (outcome.clean) {
-        const messageId = await note(visionText(language, 'clean'), 'clean', { name: file.name });
+        const messageId = await note(visionText(language, 'clean'), 'clean', { name: file.name }, [file.id]);
         emit({ m: 'file-end', a: [{ outcome: 'clean', ...(messageId ? { messageId } : {}) }] });
         checked += 1;
       } else {
         // Left alone (the deck cannot be redone here): the person is told in the chat, not only by a notice that goes.
         progress.remove();
-        const messageId = await note(outcome.found ? visionText(language, 'leftAlone', { found: outcome.found }) : visionText(language, 'failed', { reason: visionText(language, 'unreadable') }), 'left', { name: file.name, ...(outcome.found ? { found: outcome.found } : {}), ...(outcome.unreadable ? { reason: 'unreadable' } : { reason: 'no_python' }) });
+        const messageId = await note(outcome.found ? visionText(language, 'leftAlone', { found: outcome.found }) : visionText(language, 'failed', { reason: visionText(language, 'unreadable') }), 'left', { name: file.name, ...(outcome.found ? { found: outcome.found } : {}), ...(outcome.unreadable ? { reason: 'unreadable' } : { reason: 'no_python' }) }, [file.id]);
         emit({ m: 'file-end', a: [{ outcome: 'left', ...(outcome.found ? { found: outcome.found } : {}), ...(messageId ? { messageId } : {}) }] });
       }
     } catch (error) {
       progress.remove();
-      if (controller.signal.aborted && !timedOut) {
-        // A stop: nothing is said.
-        outcomes.push('stopped');
-        details.push({ outcome: 'stopped', name: file.name });
-        emit({ m: 'file-end', a: [{ outcome: 'stopped' }] });
-        break;
-      }
+      // A stop: told below, for this file and those after it.
+      if (controller.signal.aborted && !timedOut) break;
       const reason = failureReason({ error, timedOut, language });
       const reasonText = scrubMessage(reason.text, secrets);
-      const messageId = await note(visionText(language, 'failed', { reason: reasonText }), 'failed', { name: file.name, code: reason.code, reason: reasonText.slice(0, 200) });
+      const messageId = await note(visionText(language, 'failed', { reason: reasonText }), 'failed', { name: file.name, code: reason.code, reason: reasonText.slice(0, 200) }, [file.id]);
       emit({ m: 'file-end', a: [{ outcome: 'failed', code: reason.code, reason: reasonText, ...(messageId ? { messageId } : {}) }] });
     } finally {
       clearTimeout(timer);
       signal?.removeEventListener?.('abort', abort);
     }
+    if (controller.signal.aborted && !timedOut) break;
+    next = index + 1;
+  }
+  // Stopped by the person (or the run's own time ran out) before every file was looked at: a note says so, and the files left can be checked
+  // again from it. A run that is only moved to another server (a restart) says nothing: it is taken up again there.
+  const left = targets.slice(next);
+  if (left.length && (signal?.reason === 'stopped' || signal?.reason === 'time_limit')) {
+    const stopped = signal.reason === 'stopped';
+    const messageId = await note(stopped ? visionText(language, 'stopped') : visionText(language, 'failed', { reason: visionText(language, 'timedOut') }), stopped ? 'stopped' : 'failed', { names: left.map((file) => file.name).join(', ').slice(0, 200) }, left.map((file) => file.id));
+    emit({ m: 'file-end', a: [{ outcome: 'stopped', ...(messageId ? { messageId } : {}) }] });
   }
   return { checked, written, outcomes, details };
 }

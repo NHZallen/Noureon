@@ -177,6 +177,9 @@ export function createBrowserServerReply({
       return vision().then((follow) => follow.scheduleServer({ ...args, note })).catch((error) => warn('Following the visual check of the server failed.', error));
     },
     followVision: (args) => vision().then((follow) => follow.attach(args)),
+    // A visual check asked for again (vision-retry.js): made by the server when it can (the same rules as for an image), else here.
+    planVision: (context) => planServerImage({ config: getConfig(), ...context, hasAccount: hasAccount() }),
+    startVision: (args) => serverReply.startVision(args),
     find: (conversationId) => serverReply.find(conversationId),
     // The error message of a reply the server failed while the chat was left (or that it could not write), as a message to put in the chat, or null:
     // only for a chat that ends with the person's own message, for a run that came after it, and once for each run.

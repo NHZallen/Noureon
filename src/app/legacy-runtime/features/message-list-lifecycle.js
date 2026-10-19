@@ -17,6 +17,8 @@ export function createMessageListLifecycle({
     bindMediaPreviewButtons,
     getHistorySourceViews = () => [],
     getHistorySourceTexts = () => ({}),
+    // Whether a message (a note of a visual check) offers to check its files again, in its conversation.
+    getVisionRetry = () => false,
     openHistorySourceConversation = () => {},
     bindGeneratedImageAssets = async () => {},
     saveAppData,
@@ -205,7 +207,8 @@ export function createMessageListLifecycle({
             uiLanguage: getText('uiLanguage'),
             labels: getText('labels'),
             historySources: historySourceViews,
-            historySourceTexts: getHistorySourceTexts()
+            historySourceTexts: getHistorySourceTexts(),
+            visionRetry: getVisionRetry(conversation, message)
         });
         messageElement.className = messageView.messageClassName;
         messageElement.innerHTML = messageView.messageHTML;

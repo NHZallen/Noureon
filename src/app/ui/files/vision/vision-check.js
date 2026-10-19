@@ -14,15 +14,28 @@ import { createVisionProgress } from './vision-progress.js';
 
 const checkAbort = signal => { if (signal.aborted) throw new DOMException('Aborted', 'AbortError'); };
 
-/** Background V1 pass. The caller owns cancellation and keeps this promise observed. */
-export async function runVisionCheck({ conversation, message, model, config, controller, responseUsesCouncil = false,
+/**
+ * Background V1 pass. The caller owns cancellation and keeps this promise observed. `fileIds`: only those files (a check asked for again from
+ * the note of one that failed or was stopped). A check that fails or is stopped (not cancelled by the caller: `abort('cancelled')`) leaves a
+ * note in the conversation, as the server's check does (server/vision-check.js), with the button to check those files again.
+ */
+export async function runVisionCheck({ conversation, message, model, config, controller, responseUsesCouncil = false, fileIds = null,
   modelSupportsVision, streamApiCall, document, window, notificationContainer, host = null, getActiveConversation,
   addMessageToUI, saveAppData, showNotification, imageSources = null, crypto = globalThis.crypto }) {
   const language = config?.uiLanguage || 'zh-TW';
-  const files = eligibleVisionFiles({ conversation, message, model, config, signal: controller.signal, responseUsesCouncil, modelSupportsVision });
+  const files = eligibleVisionFiles({ conversation, message, model, config, signal: controller.signal, responseUsesCouncil, modelSupportsVision })
+    .filter(file => !fileIds || fileIds.includes(file.id));
   if (!files.length) return { checked: 0 };
   let checked = 0;
-  for (const file of files) {
+  const leaveNote = async (text, outcome, ids) => {
+    const note = { id: crypto.randomUUID(), role: 'model', parts: [{ text }], createdAt: new Date().toISOString(),
+      metadata: { visionCheck: { note: outcome, sourceMessageId: message.id, fileIds: ids } } };
+    conversation.messages.push(note);
+    conversation.lastUpdatedAt = note.createdAt;
+    addMessageToUI(note, conversation.messages.length - 1, false, true, { conversation });
+    await saveAppData();
+  };
+  for (const [index, file] of files.entries()) {
     checkAbort(controller.signal);
     const progress = createVisionProgress({ document, language, controller, host });
     let timedOut = false;
@@ -31,7 +44,7 @@ export async function runVisionCheck({ conversation, message, model, config, con
       clearTimeout(timer);
       timer = setTimeout(() => { timedOut = true; controller.abort(); }, ms);
     };
-    arm(240_000);
+    arm(480_000);
     try {
       if (file.free) {
         // A deck Python drew: reviewed as images, redone by the model when needed.
@@ -75,8 +88,8 @@ export async function runVisionCheck({ conversation, message, model, config, con
       const content = buildVisionResult({ result, edits, renderedSlides: presentation.layout.slides, file, language,
         checkedSlides: sheets.checkedSlides, totalSlides: sheets.totalSlides });
       const revised = { id: crypto.randomUUID(), role: 'model', parts: [{ text: content }], createdAt: new Date().toISOString(),
-        metadata: { visionCheck: buildVisionMetadata({ file, model, result, edits,
-          checkedSlides: sheets.checkedSlides, totalSlides: sheets.totalSlides }) } };
+        metadata: { visionCheck: { ...buildVisionMetadata({ file, model, result, edits,
+          checkedSlides: sheets.checkedSlides, totalSlides: sheets.totalSlides }), sourceMessageId: message.id } } };
       message.metadata = { ...(message.metadata || {}), visionChecked: [...(message.metadata?.visionChecked || []), file.id] };
       conversation.messages.push(revised);
       conversation.lastUpdatedAt = new Date().toISOString();
@@ -86,11 +99,15 @@ export async function runVisionCheck({ conversation, message, model, config, con
       checked++;
     } catch (error) {
       progress.remove();
-      if (!controller.signal.aborted || timedOut) {
+      const stopped = controller.signal.aborted && !timedOut;
+      if (!stopped) {
         const reason = timedOut ? visionText(language, 'timedOut')
           : error?.code === INVALID_VISION_RESPONSE ? visionText(language, 'invalidResponse')
           : String(error?.message || error?.name || 'unknown error');
-        if (getActiveConversation()?.id === conversation.id) showNotification(visionText(language, 'failed', { reason }), 'warning');
+        await leaveNote(visionText(language, 'failed', { reason }), 'failed', [file.id]);
+      } else if (controller.signal.reason !== 'cancelled') {
+        // Stopped by the person: this file and those after it can be checked again from the note.
+        await leaveNote(visionText(language, 'stopped'), 'stopped', files.slice(index).map(entry => entry.id));
       }
       if (controller.signal.aborted) break;
     } finally {

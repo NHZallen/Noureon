@@ -11,15 +11,17 @@ export function createVisionCheckScheduler({ getConfig, getActiveConversation, n
   // the message above it, and a new message would start another answer over it.
   const isRunning = conversationId => jobs.has(conversationId);
   const changed = () => { try { onChange([...jobs.keys()]); } catch (error) { logger.error?.(error); } };
+  // Called off by the page (an edit cuts the conversation): no note is left of it.
   const cancel = conversationId => {
-    jobs.get(conversationId)?.abort();
+    jobs.get(conversationId)?.abort('cancelled');
   };
-  const schedule = ({ conversation, message, targetElement = null }) => {
-    // A council's reply is the synthesizer's (docs/superpowers/specs/2026-10-19-council-tools-design.md, §2.2): the check is made with it.
-    const model = isCouncilEnabled(conversation) ? getCouncilSelectedModels(conversation)?.synthesizer : normalizeConversationModel(conversation);
+  // A council's reply is the synthesizer's (docs/superpowers/specs/2026-10-19-council-tools-design.md, §2.2): the check is made with it.
+  const modelFor = conversation => (isCouncilEnabled(conversation) ? getCouncilSelectedModels(conversation)?.synthesizer : normalizeConversationModel(conversation));
+  const schedule = ({ conversation, message, targetElement = null, fileIds = null }) => {
+    const model = modelFor(conversation);
     if (getConfig().visionCheckEnabled === false || !model
       || !modelSupportsVision(model) || model?.outputModality === 'image'
-      || !(/(?:`{3,}|~{3,})\s*file\s+[^\n]*\.pptx/i.test(message.parts?.[0]?.text || '') || freeDecks(message).length)) return;
+      || !(/(?:`{3,}|~{3,})\s*file\s+[^\n]*\.pptx/i.test(message.parts?.[0]?.text || '') || freeDecks(message).length)) return false;
     const controller = new AbortController();
     const release = () => {
       if (jobs.get(conversation.id) !== controller) return;
@@ -32,7 +34,7 @@ export function createVisionCheckScheduler({ getConfig, getActiveConversation, n
     // Stopping frees the chat at once, without waiting for the check to wind down.
     controller.signal.addEventListener('abort', () => release(), { once: true });
     void import('../../ui/files/vision/vision-check.js').then(({ runVisionCheck }) => runVisionCheck({
-      conversation, message, model, config: getConfig(), controller,
+      conversation, message, model, config: getConfig(), controller, fileIds,
       modelSupportsVision, streamApiCall, document, window, notificationContainer,
       getActiveConversation, addMessageToUI, saveAppData, showNotification, crypto, imageSources,
       // The check's step list goes under the message it checks.
@@ -40,6 +42,10 @@ export function createVisionCheckScheduler({ getConfig, getActiveConversation, n
     })).catch(error => logger.error?.('Visual check failed:', error)).finally(() => {
       release();
     });
+    return true;
   };
-  return { schedule, cancel, isRunning };
+  // A check asked for again from the note of one that failed or was stopped (vision-retry.js): those files of `message`, made here, with the
+  // step list under the note (`targetElement`). Returns whether it began.
+  const retry = ({ conversation, message, fileIds, targetElement = null }) => !isRunning(conversation.id) && schedule({ conversation, message, fileIds, targetElement });
+  return { schedule, retry, cancel, isRunning, modelFor };
 }

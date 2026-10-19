@@ -170,11 +170,13 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
         if (result.spec.tools.advanced && (result.spec.tools.webSearch === 'grounding' || !(await runs.advancedAvailable?.()))) throw new RequestError(ERROR_CODES.unsupportedMode, 'Advanced mode is not run on the server.');
         // An image needs the store that keeps the pictures; without it the browser makes the image itself.
         if (result.spec.kind === 'image' && !runs.imageAvailable?.()) throw new RequestError(ERROR_CODES.unsupportedMode, 'Images are not made on the server.');
+        // A visual check asked for again needs the server to draw slides; without it the browser makes the check itself.
+        if (result.spec.kind === 'vision' && !(await runs.visionAvailable?.())) throw new RequestError(ERROR_CODES.unsupportedMode, 'Visual checks are not made on the server.');
         try {
           const runId = await runs.start({ userId: user.id, spec: result.spec });
           // Whether the check of a presentation it writes is made here too (otherwise the page makes it, as it always did).
           // (A council's: its synthesizer's, made as a reply.)
-          const vision = Boolean(result.spec.tools.visionCheck || result.spec.tools.synthesis?.visionCheck) && Boolean(await runs.visionAvailable?.());
+          const vision = result.spec.kind !== 'vision' && Boolean(result.spec.tools.visionCheck || result.spec.tools.synthesis?.visionCheck) && Boolean(await runs.visionAvailable?.());
           send(response, 202, { runId, vision }, origin);
           status = 202;
         } catch (error) {

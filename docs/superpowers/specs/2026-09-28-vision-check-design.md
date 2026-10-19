@@ -109,7 +109,7 @@
   - 新增 `NOURAS_REQUEST_PURPOSE.VISION_CHECK = 'vision-check'`（`src/app/runtime/nouras/nouras-policy.js`），**不要**加進會套用 Nouras 人格的 `VISIBLE_PURPOSES`，也不要讓它觸發檔案提示詞（`FILE_OUTPUT_PURPOSES`）。
   - `genConfig: { temperature: 0.2, topP: null, maxTokens: 4000 }`
 - 經由 `legacyRuntimeContext` 新增 binding（例如 `files.runVisionCheck`）時，**必須登記到 V5 contract map**，否則 `tests/structure/runtime-contracts.test.js` 會失敗；登記方式照該測試與 `src/app/runtime-entry.js` 的現有 binding。
-- 逾時：看圖 240 秒、重做簡報 600 秒（原本 120／300 秒，實測太容易逾時）；可由進度通知的「停止」取消（`AbortController`）。
+- 逾時：看圖 480 秒；重做簡報在頁面上 600 秒、在伺服器 1200 秒（原本 120／300 秒，後來 240／300、600 秒，2026-10-19 Allen 要求再翻倍）；可由進度通知的「停止」取消（`AbortController`）。
 
 ### 6.2 提示詞（英文，程式組成）
 
@@ -308,3 +308,29 @@ Write "problem", "fix" and "summary" in <UI language name>. Return {"issues":[],
 6. 進度通知、結果訊息、取消與切換對話。
 7. 設定開關與 5 種語言文字。
 8. 瀏覽器與 PowerPoint 實測、文件更新（總計畫的 V1 列標成 ✅，交接說明更新進度），本機 commit，回報使用者，等使用者同意再推上 `main`。
+
+## 14. 重試按鈕與時間加倍（2026-10-19）
+
+Allen 的要求：時間都翻倍；檢查失敗或沒做完的，要有重試按鈕。Allen 決定：按鈕放在「檢查沒完成」那則說明裡；按下後先交給伺服器做（關掉頁面也會做完），伺服器不能做時才在頁面做；設定關掉自動看圖檢查時不顯示按鈕。
+
+- 時間：看圖 480 秒；重做簡報在頁面上 600 秒、在伺服器 1200 秒；看不懂的回覆再問一次，也是 480 秒。
+- 說明訊息（`metadata.visionCheck.note`）：
+  - 伺服器原本就為 `clean`、`failed`、`left` 寫說明。現在多了兩種情況：
+    - `stopped`：人按了停止。說明涵蓋這一份與後面還沒檢查的檔案。伺服器重啟、交給別台接手時不寫。
+    - `failed`：整個檢查根本沒能開始（`server/runs.js`）。
+  - 頁面自己的檢查原本只跳通知。現在也為 `failed` 與 `stopped` 寫同樣的說明，但編輯訊息時頁面取消檢查（`abort('cancelled')`）不寫。
+  - 說明多帶 `sourceMessageId`（被檢查的回覆）與 `fileIds`（這則說明涉及的檔案）。修正後的回覆也帶 `sourceMessageId`。
+- 按鈕：
+  - 什麼時候出現：`failed`、`stopped` 的說明出現「重試」，由 `src/app/runtime/features/vision-retry-state.js` 判斷。這些檔案之後被重新檢查過（同一則回覆的修正結果、說明，或頁面的 `visionChecked`）就不再出現。舊的說明沒有記檔案，之後只要有任何一次檢查就不再出現。
+  - 畫面：按鈕畫在說明的文字下方、靠右（`message-markup-renderer.js`、`ledger.css`）。說明本身不再顯示「自動看圖檢查後重新製作」的標記。
+- 按下後（`src/app/runtime/features/vision-retry.js`，第一次按才載入）：
+  - 先找原本的回覆，確認模型能看圖、對話沒有正在回覆或檢查。
+  - 可以交給伺服器時（規則同圖片：設定、雲端帳號、不是臨時對話），送 `kind: 'vision'` 到 `POST /v1/runs`（`server-vision-start.js` 組請求）。請求裡的 `source` 包含回覆的 id、文字、Python 做的檔案（存在雲端的標記），以及 `fileIds`。對話只帶到該回覆所回答的那則訊息，重做簡報時 Python 會拿到這些內容。
+  - 伺服器不能畫投影片時回 `unsupported_mode`，改由頁面檢查（`vision-check-scheduler.js` 的 `retry`，只檢查這些檔案）。
+  - 進度列畫在說明下方。
+- 伺服器：
+  - `server/run-spec.js` 接受 `kind: 'vision'` 與 `source`。這種請求不搜尋、不跑回覆的 Python，`tools.visionCheck` 必填。
+  - `server/app.js` 在伺服器不能畫投影片時拒絕這種請求。
+  - `server/runs.js` 把它記成 `{ kind: 'vision' }` 並直接檢查，不會先產生一則回覆。
+  - `executeVisionCheck` 只檢查 `source.fileIds` 列出的檔案。
+- 還沒處理：頁面上的檢查進行中直接關掉頁面時，不會留下說明，也就沒有按鈕。（登入雲端時通常由伺服器檢查，不會發生這種情況。）

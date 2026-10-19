@@ -9,6 +9,7 @@ import { escapeHTML as escapeMarkup } from './legacy-core-utilities.js';
 import { normalizeHistorySourceConversationIds } from '../memory/history-source-references.js';
 import { isHighRiskCustomNouras } from '../nouras/nouras-policy.js';
 import { createTemporaryChatLifecycle } from '../features/temporary-chat-lifecycle.js';
+import { visionRetryOffered } from '../features/vision-retry-state.js';
 
 const REQUIRED_DEPENDENCIES = [
   'window',
@@ -608,8 +609,10 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
       referenceLabel: i18n[getConfig().uiLanguage].historySourcesUsed,
       updatedLabel: i18n[getConfig().uiLanguage].historySourceUpdated,
       unavailableLabel: i18n[getConfig().uiLanguage].historySourceUnavailable,
-      autoCheckLabel: i18n[getConfig().uiLanguage].visionAutoNote
+      autoCheckLabel: i18n[getConfig().uiLanguage].visionAutoNote,
+      retryLabel: i18n[getConfig().uiLanguage].visionRetry
     }),
+    getVisionRetry: (conversation, message) => getConfig().visionCheckEnabled !== false && visionRetryOffered(conversation, message),
     openHistorySourceConversation: (id) => {
       const sourceConversation = getConversations().find(conversation => conversation.id === id);
       if (!sourceConversation || sourceConversation.deletedAt) return;

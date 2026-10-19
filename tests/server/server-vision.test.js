@@ -35,8 +35,8 @@ const specFor = ({ visionCheck = { deckDesign: 'auto', advanced: false }, histor
   secrets: { providerKey: KEY }
 });
 
-const designedSource = { text: `Here it is.\n\n\`\`\`\`file deck.pptx\n${DESIGNED}\n\`\`\`\``, parts: [] };
-const freeSource = { text: 'Made it.', parts: [{ sandboxFile: { id: 'deck-1', name: 'deck.pptx', mimeType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', size: deckBytes.length, data: { __astraCloudAsset: { path: `${USER}/abc`, mimeType: 'x', encoding: 'base64' } } } }] };
+const designedSource = { messageId: 'reply-1', text: `Here it is.\n\n\`\`\`\`file deck.pptx\n${DESIGNED}\n\`\`\`\``, parts: [] };
+const freeSource = { messageId: 'reply-1', text: 'Made it.', parts: [{ sandboxFile: { id: 'deck-1', name: 'deck.pptx', mimeType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', size: deckBytes.length, data: { __astraCloudAsset: { path: `${USER}/abc`, mimeType: 'x', encoding: 'base64' } } } }] };
 
 function harness({ answers, spec = specFor(), source, decks = new Map(), sandboxHost = null, files = null, signal }) {
   const live = [];
@@ -80,7 +80,7 @@ test('a deck Python drew that looks fine: it is drawn, shown to the model, and t
   assert.deepEqual(result, { checked: 1, written: [], outcomes: ['clean'], details: [{ outcome: 'clean', name: 'deck.pptx' }] });
   assert.equal(written.length, 1, 'the result is a message of its own, so it is there on every page and after a reload');
   assert.match(written[0].parts[0].text, /nothing needs fixing/);
-  assert.deepEqual(written[0].metadata.visionCheck, { note: 'clean' });
+  assert.deepEqual(written[0].metadata.visionCheck, { note: 'clean', sourceMessageId: 'reply-1', fileIds: ['deck-1'] }, 'the reply and the file it is about');
   const order = methods(live);
   assert.equal(order[0], 'begin');
   assert.ok(order.indexOf('slide') > order.indexOf('set') && order.indexOf('sheet') > order.indexOf('slide'));
@@ -168,17 +168,39 @@ test('a note that cannot be written is told to the log, and the notice remains (
   assert.deepEqual(live.at(-1), { m: 'file-end', a: [{ outcome: 'clean' }] });
 });
 
-test('a stop ends the check without a word about failure', async () => {
+test('a stop ends the check without a word about failure, and a note says it was stopped (it can be checked again from there)', async () => {
   const controller = new AbortController();
-  const { run, live } = harness({
-    answers: [() => { controller.abort(); return chunk('{"issues":[],"summary":""}'); }],
+  const { run, live, written } = harness({
+    answers: [() => { controller.abort('stopped'); return chunk('{"issues":[],"summary":""}'); }],
     source: designedSource,
     signal: controller.signal
   });
   const result = await run();
   assert.equal(result.checked, 0);
-  assert.ok(live.some((event) => event.m === 'file-end' && event.a[0].outcome === 'stopped'));
+  assert.equal(written.length, 1);
+  assert.match(written[0].parts[0].text, /was stopped/);
+  assert.equal(written[0].metadata.visionCheck.note, 'stopped');
+  assert.equal(written[0].metadata.visionCheck.sourceMessageId, 'reply-1');
+  assert.equal(written[0].metadata.visionCheck.fileIds.length, 1);
+  assert.deepEqual(live.at(-1), { m: 'file-end', a: [{ outcome: 'stopped', messageId: written[0].id }] });
   assert.equal(live.some((event) => event.a?.[0]?.outcome === 'failed'), false);
+});
+
+test('a run moved to another server (not a stop) leaves no note: it is taken up again there', async () => {
+  const controller = new AbortController();
+  const { run, written } = harness({ answers: [() => { controller.abort(Symbol('restart')); return chunk('{"issues":[],"summary":""}'); }], source: designedSource, signal: controller.signal });
+  await run();
+  assert.equal(written.length, 0);
+});
+
+test('a check asked for again looks only at the files it names', async () => {
+  const both = { ...freeSource, text: designedSource.text };
+  const all = visionFiles({ spec: specFor(), text: both.text, parts: both.parts });
+  assert.equal(all.length, 2);
+  const { run, written } = harness({ answers: [chunk('{"issues":[],"summary":""}')], source: { ...both, fileIds: ['deck-1'] }, decks: new Map([['deck-1', deckBytes]]) });
+  const result = await run();
+  assert.equal(result.checked, 1);
+  assert.deepEqual(written.map((message) => message.metadata.visionCheck.fileIds), [['deck-1']]);
 });
 
 test('the progress is told as the page\'s own calls, so every page draws the same line', () => {

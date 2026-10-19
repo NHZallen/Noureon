@@ -61,7 +61,9 @@ export function buildMessageRenderView({
     // The words of the buttons and notes the message carries (from the interface texts of the language in use).
     labels = {},
     historySources = [],
-    historySourceTexts = {}
+    historySourceTexts = {},
+    // The note of a visual check that failed or was stopped offers to check its files again (vision-retry-state.js decides).
+    visionRetry = false
 }) {
     const isUser = message.role === 'user';
     const messageClassName = `message-item flex items-start gap-2 md:gap-4 ${isUser ? 'justify-end user-message' : 'model-message'}`;
@@ -186,7 +188,7 @@ export function buildMessageRenderView({
                     </button>
                 </div>`;
         }
-        if (!isUser && message.metadata?.visionCheck && historySourceTexts.autoCheckLabel) {
+        if (!isUser && message.metadata?.visionCheck && !message.metadata.visionCheck.note && historySourceTexts.autoCheckLabel) {
             autoNoteHTML = `<div class="auto-check-note">${escapeHTML(historySourceTexts.autoCheckLabel)}</div>`;
         }
         if (!isUser && historySources.length > 0) {
@@ -230,7 +232,7 @@ export function buildMessageRenderView({
                     ${quoteReferenceHTML}
                     ${hasBubbleContent ? `
                         <div class="p-3 md:p-4 rounded-lg shadow-sm max-w-full md:max-w-xl message-bubble relative${researchCard ? ' research-bubble' : ''}" >
-                            <div class="prose prose-sm max-w-none text-[var(--text-primary)] ${contentPaddingClass} message-content">${contentHTML}</div>
+                            <div class="prose prose-sm max-w-none text-[var(--text-primary)] ${contentPaddingClass} message-content">${contentHTML}${visionRetry && historySourceTexts.retryLabel ? `<div class="vision-retry-row"><button type="button" class="vision-retry" data-vision-retry="${escapeHTML(message.id)}"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/></svg>${escapeHTML(historySourceTexts.retryLabel)}</button></div>` : ''}</div>
                             ${actionButtons}
                         </div>
                     ` : ''}

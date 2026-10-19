@@ -254,6 +254,22 @@ test('a reply that asks for the visual check is told whether the server makes it
   }, { runs: down });
 });
 
+test('a visual check asked for again is taken when the server can draw slides, and refused (so the page makes it) when it cannot', async () => {
+  const again = () => ({ ...spec(), kind: 'vision', tools: { webSearch: 'off', advanced: false, visionCheck: { deckDesign: 'auto', advanced: false } }, source: { messageId: 'reply-1', text: 'Here.', parts: [], fileIds: ['f-1'] } });
+  const started = [];
+  const runs = (available) => ({ visionAvailable: async () => available, start: async ({ spec: given }) => { started.push(given); return RUN_ID; }, stop: async () => true, get: async () => null });
+  await withServer(async ({ base }) => {
+    assert.deepEqual(await (await call(base, 'POST', '/v1/runs', again())).json(), { runId: RUN_ID, vision: false }, 'it is the check: no other check follows it');
+    assert.equal(started[0].kind, 'vision');
+    assert.deepEqual(started[0].source.fileIds, ['f-1']);
+  }, { runs: runs(true) });
+  await withServer(async ({ base }) => {
+    const refused = await call(base, 'POST', '/v1/runs', again());
+    assert.equal(refused.status, 422);
+    assert.equal((await refused.json()).error.code, 'unsupported_mode');
+  }, { runs: runs(false) });
+});
+
 test('/v1/runs/:id/stream pushes the reply as it comes to any page that asks, and only for the signed-in person\'s own live reply', async () => {
   const watchers = [];
   const runs = {

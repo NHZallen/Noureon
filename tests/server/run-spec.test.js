@@ -134,7 +134,32 @@ test('a deep research carries its topic, searches with tools, and is not made wi
   assert.deepEqual(paths({ ...research(), tools: { ...research().tools, advanced: true } }), ['tools.advanced']);
   assert.deepEqual(paths({ ...research(), model: { ...research().model, provider: 'gemini' } }), ['model.provider']);
   assert.deepEqual(paths({ ...good(), research: { topic: 'x' } }), ['research'], 'a topic is only for a research');
-  assert.deepEqual(paths({ ...good(), kind: 'vision' }), ['kind'], 'the visual check is not asked for from outside');
+  assert.deepEqual(paths({ ...good(), kind: 'other' }), ['kind']);
+});
+
+test('a visual check asked for again names the reply and its files, and makes no reply of its own', () => {
+  const marker = { __astraCloudAsset: { path: 'user/deck', mimeType: 'application/octet-stream' } };
+  const vision = () => ({
+    ...good(),
+    kind: 'vision',
+    tools: { webSearch: 'off', advanced: false, visionCheck: { deckDesign: 'Slate', advanced: true } },
+    source: { messageId: 'message-1', text: 'Here it is.', parts: [{ sandboxFile: { id: 'deck-1', name: 'deck.pptx', data: marker, size: 9 } }], fileIds: ['deck-1', 'deck-1', 'block-2'] }
+  });
+  const ok = validateRunSpec(vision());
+  assert.equal(ok.ok, true);
+  assert.equal(ok.spec.kind, 'vision');
+  assert.deepEqual(ok.spec.source, { messageId: 'message-1', text: 'Here it is.', parts: [{ sandboxFile: { id: 'deck-1', name: 'deck.pptx', data: marker } }], fileIds: ['deck-1', 'block-2'] });
+  assert.deepEqual(ok.spec.tools.visionCheck, { deckDesign: 'Slate', advanced: true });
+  const paths = (input) => validateRunSpec(input).errors.map((error) => error.path);
+  assert.deepEqual(paths({ ...vision(), source: undefined }), ['source']);
+  assert.deepEqual(paths({ ...vision(), source: { ...vision().source, fileIds: [] } }), ['source.fileIds']);
+  assert.deepEqual(paths({ ...vision(), source: { ...vision().source, extra: 1 } }), ['source.extra']);
+  assert.deepEqual(paths({ ...vision(), source: { ...vision().source, parts: [{ text: 'x' }] } }), ['source.parts[0]']);
+  assert.deepEqual(paths({ ...vision(), source: { ...vision().source, parts: [{ sandboxFile: { id: 'a', name: 'a.pptx', data: { path: 'x' } } }] } }), ['source.parts[0]']);
+  assert.deepEqual(paths({ ...vision(), tools: { webSearch: 'off', advanced: false } }), ['tools.visionCheck']);
+  assert.deepEqual(paths({ ...vision(), tools: { ...vision().tools, webSearch: 'research' } }), ['tools.webSearch']);
+  assert.deepEqual(paths({ ...vision(), tools: { ...vision().tools, advanced: true } }), ['tools.advanced']);
+  assert.deepEqual(paths({ ...good(), source: vision().source }), ['source'], 'the files are only for a visual check');
 });
 
 test('the rules for the sites of CLI tools are checked, and kept only with a tool', () => {

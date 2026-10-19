@@ -9,7 +9,7 @@ import { askVision } from './vision-ask.js';
 import { buildFixRequest, buildFreeVisionMetadata, buildFreeVisionPrompt, buildFreeVisionResult } from './vision-free.js';
 import { visionText } from './vision-texts.js';
 
-const FIX_TIMEOUT_MS = 300_000;
+const FIX_TIMEOUT_MS = 600_000;
 const checkAbort = (signal) => { if (signal.aborted) throw new DOMException('Aborted', 'AbortError'); };
 
 /**
@@ -73,7 +73,7 @@ export async function checkFreeDeck({
   })}${fix.documents ? `\n\n${fix.documents}` : ''}`;
   const revised = {
     id: crypto.randomUUID(), role: 'model', parts: [{ text }, ...fix.parts], createdAt: new Date().toISOString(),
-    metadata: { visionCheck: buildFreeVisionMetadata({ file, model, result, checkedSlides: sheets.checkedSlides, totalSlides: sheets.totalSlides }) }
+    metadata: { visionCheck: { ...buildFreeVisionMetadata({ file, model, result, checkedSlides: sheets.checkedSlides, totalSlides: sheets.totalSlides }), sourceMessageId: message.id } }
   };
   markChecked();
   conversation.messages.push(revised);
