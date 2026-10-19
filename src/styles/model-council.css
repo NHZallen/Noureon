@@ -53,7 +53,8 @@
 /* The lists of the timeline are not the lists of an answer (chat.css gives `.prose` lists numbers, an indent and space under each item):
    the class is doubled so these rules win wherever the timeline is drawn. */
 .council-tl.council-tl, .council-tl-members.council-tl-members, .council-tl-steps.council-tl-steps { list-style: none; }
-.council-tl.council-tl { margin: 0; padding: 0; }
+/* The room on the left is for the ring round the dot of the stage going on: the panel it is drawn in cuts what goes past its edge. */
+.council-tl.council-tl { margin: 0; padding: 0 0 0 0.3rem; }
 .council-tl-member.council-tl-member, .council-tl-steps.council-tl-steps li { margin: 0; }
 /* A member's row is never wider than the list (a long search it made is cut, not let to push the row past the screen). */
 .council-tl-member { min-width: 0; }

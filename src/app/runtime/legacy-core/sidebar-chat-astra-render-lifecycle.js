@@ -10,6 +10,7 @@ import { normalizeHistorySourceConversationIds } from '../memory/history-source-
 import { isHighRiskCustomNouras } from '../nouras/nouras-policy.js';
 import { createTemporaryChatLifecycle } from '../features/temporary-chat-lifecycle.js';
 import { visionRetryOffered } from '../features/vision-retry-state.js';
+import { messageIsCouncilTurn } from '../../ui/council/council-record.js';
 
 const REQUIRED_DEPENDENCIES = [
   'window',
@@ -126,7 +127,7 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
   const isCouncilConversation = (conversation) => (
     isCouncilEnabled(conversation) ||
     (conversation?.messages || []).some((message) => (
-      message?.role === 'model' && Boolean(message?.council)
+      (message?.role === 'model' && Boolean(message?.council)) || messageIsCouncilTurn(message)
     ))
   );
 

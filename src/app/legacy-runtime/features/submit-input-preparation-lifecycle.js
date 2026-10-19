@@ -123,7 +123,7 @@ export function createSubmitInputPreparationLifecycle({
     // The judgements are asked for while the message is put on the screen, and waited for where they are first needed (the search below).
     const decisionsPromise = Promise.resolve(isImageConversation(conversation) ? null : requestDecisions({ conversation, userMessage, uploadedFiles, signal: abortController.signal })).catch(() => null);
     beginFirstSubmit();
-    const userMessageObject = { role: 'user', parts: userParts, createdAt: new Date().toISOString() };
+    const userMessageObject = { role: 'user', parts: userParts, createdAt: new Date().toISOString(), ...(responseUsesCouncil ? { metadata: { councilTurn: { mode: conversation.council?.mode === 'deliberation' ? 'deliberation' : 'consensus' } } } : {}) };
     const userMessageDiv = addMessageToUI(userMessageObject, conversation.messages.length, true);
     requestFrame(() => {
       userMessageDiv?.scrollIntoView?.({ behavior: 'smooth', block: 'end' });
