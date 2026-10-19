@@ -419,16 +419,6 @@ button.council-tl-member-head .council-tl-member-name {
     margin-bottom: 1.1rem;
 }
 
-#chat-container {
-    --chat-scroll-padding-top: 1rem;
-}
-
-@media (min-width: 768px) {
-    #chat-container {
-        --chat-scroll-padding-top: 1.5rem;
-    }
-}
-
 .prose details.council-collapse {
     margin: 1.3rem 0;
     padding: 0.9rem 1rem 1rem;
@@ -452,9 +442,13 @@ button.council-tl-member-head .council-tl-member-name {
     display: none !important;
 }
 
-/* The title of an opened block heads it and scrolls with it (it stuck to the top of the chat before, and the text scrolling under it showed above
-   and below it, cut, as if out of place). */
+/* The title of an opened block stays at the top of the chat while its text scrolls under it. It sticks at the very top of the scroller, over the
+   fade there (chat-edge-fade.css), not under the fade: text in the fade above it looked cut and out of place. */
 .prose details.council-collapse[open] > summary {
+    position: sticky;
+    top: calc(var(--chat-pad, 1rem) * -1);
+    z-index: 30;
+    box-shadow: var(--shadow-md);
     margin: -0.9rem -1rem 0.85rem;
     padding: 0.85rem 1rem;
     background: var(--modal-bg);
