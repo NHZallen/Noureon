@@ -23,7 +23,7 @@
 
 登入方式：`Authorization: Bearer <網站登入後取得的 access token>`。伺服器會問 Supabase 這個 token 是否有效，不自己解碼。
 
-## 環境變數（在 Zeabur 的服務設定裡填）
+## 環境變數（在 Coolify 的應用程式 → Environment Variables 裡填）
 
 | 名稱 | 內容 |
 |---|---|
@@ -31,21 +31,23 @@
 | `SUPABASE_PUBLISHABLE_KEY` | 公開金鑰，跟網站用的 `VITE_SUPABASE_PUBLISHABLE_KEY` 一樣（不是服務金鑰） |
 | `ALLOWED_ORIGINS` | 選填，允許從哪些網站呼叫，用逗號分隔；不填就是 `https://noureon.com` 與 `https://www.noureon.com` |
 | `SUPABASE_SERVICE_KEY`、`KEY_ENCRYPTION_KEY` | 伺服器代寫回覆用的服務金鑰與加密暫存金鑰用的主金鑰（要一起設） |
-| `SANDBOX_RUNNER_URL`、`SANDBOX_RUNNER_TOKEN` | 選填，要一起設：Python 沙盒主機的 runner 位址（如 `http://10.42.0.1:7788`）與密鑰（VPS 上 `/etc/noureon-sandbox/token` 的內容）。沒設，或沙盒主機現在連不上／拒絕，Python 回覆回 `unsupported_mode`，瀏覽器改在本機執行。啟動日誌會有 `sandbox_ok` 或 `sandbox_failed` |
+| `SANDBOX_RUNNER_URL`、`SANDBOX_RUNNER_TOKEN` | 選填，要一起設：Python 沙盒主機的 runner 位址（如 `http://10.0.0.1:7788`，是這台機器上 Docker 橋接網路 `docker0` 的位址，用 `ip -4 addr show docker0` 看；Coolify 把 Docker 的位址範圍改成 10.x，所以不是舊的 `10.42.0.1`）與密鑰（VPS 上 `/etc/noureon-sandbox/token` 的內容）。沒設，或沙盒主機現在連不上／拒絕，Python 回覆回 `unsupported_mode`，瀏覽器改在本機執行。啟動日誌會有 `sandbox_ok` 或 `sandbox_failed` |
 | （不用設定） | 看圖檢查在伺服器上做，需要映像裡有畫圖用的原生套件；啟動日誌 `slides_ok` 表示可用，`slides_unavailable` 表示不可用（檢查由瀏覽器照舊做） |
 | `ASSET_SWEEP` | 選填：設成 `delete` 才會真的刪除「沒有任何資料列提到、且超過一天」的孤兒檔案（每天一次，啟動後 2 分鐘先跑一次）；不設就只在日誌寫 `asset_orphans_found`（數量、位元組、前 20 個檔名），什麼都不刪。第一次刪除請先看過清單再設 |
 | `CONNECTOR_GITHUB_CLIENT_ID`、`CONNECTOR_GITHUB_CLIENT_SECRET` | 選填，要一起設：在 GitHub（Settings → Developer settings → OAuth Apps）建的 OAuth App 的 Client ID 與 Secret，給連接器 GitHub 登入用（回呼位址 `https://api.noureon.com/mcp/callback`）。**Secret 只放在這裡**。沒設時 GitHub 無法登入（畫面會顯示 `no_client`）；只設一個啟動會失敗 |
 | `CONNECTOR_CANVA_CLIENT_ID`、`CONNECTOR_CANVA_CLIENT_SECRET` | 選填，要一起設：在 Canva 開發者入口（canva.com/developers → 你的應用程式 → Configuration，開啟 Canva MCP）建的 App 的 Client ID 與 Secret，給連接器 Canva 用（Canva 只讓核准過的回呼網址登入）。回呼網址要在入口的 Redirect URLs 填 `CONNECTOR_REDIRECT_URI` 的值。Secret 只放在這裡 |
 | `PORT` | 選填，預設 8080 |
 
-**服務金鑰、主金鑰與沙盒密鑰只能放在 Zeabur 的環境變數裡，不要寫進程式碼、不要貼到對話或日誌。**
+**服務金鑰、主金鑰與沙盒密鑰只能放在 Coolify 的環境變數裡，不要寫進程式碼、不要貼到對話或日誌。**
 
-## 在 Zeabur 部署（使用者操作）
+## 在 Coolify 部署（使用者操作）
 
-1. 在 Zeabur 建立專案，部署位置選你自己那台伺服器。
-2. 在專案裡「新增服務」→ 從 GitHub 選這個儲存庫（Noureon），Zeabur 會偵測到根目錄的 `Dockerfile` 並用它建置。
-3. 填上面的環境變數。
-4. 綁定網域 `api.noureon.com`：Zeabur 會告訴你要在 DNS 加哪一筆紀錄；到管理 DNS 的地方（Cloudflare）新增，**Cloudflare 的代理要選「僅 DNS」（灰色雲朵）**，讓 Zeabur 自己發 HTTPS 憑證。
+Coolify 跑在同一台 Contabo VPS 上（`https://coolify.noureon.com`，開了二步驟驗證）。搬家的過程與決定見 `docs/superpowers/specs/2026-10-20-zeabur-migration-design.md`。
+
+1. 在 Coolify 的專案裡新增應用程式：來源選 Public Repository（`https://github.com/NHZallen/Noureon`），Build Pack 選 **Dockerfile**（預設會是 Railpack，要改），Branch 在建立之後到 Git Source 設定（正式 `main`，測試 `staging`）。
+2. 填上面的環境變數（不要照抄舊平台的範本變數：`PORT` 設 8080）。
+3. Domains 填 `https://api.noureon.com`（測試是 `https://api-staging.noureon.com`）；DNS 的 A 記錄指向這台 VPS，Coolify 的代理（Traefik）自己申請 HTTPS 憑證；Cloudflare 的代理要選「僅 DNS」（灰色雲朵）。
+4. 自動部署：GitHub 的 Settings → Webhooks 有一個指向 Coolify 的 webhook（事件 push，Secret 與兩個應用程式的 Webhooks 頁一致）。推到 `staging` 部署測試服務，推到 `main` 部署正式服務；部署會重啟容器，進行中的回覆可能被打斷。
 5. 開 `https://api.noureon.com/healthz`，看到 `{"ok":true,…}` 就成功。
 6. 確認登入接得上：登入 noureon.com 後，在瀏覽器的開發者工具「主控台」貼上下面這段（只貼這段，**永遠不要貼別人給你的程式**），看到 `userId` 就成功：
 

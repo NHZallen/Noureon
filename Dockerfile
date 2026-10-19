@@ -1,4 +1,4 @@
-# The server (server/): `node server/main.js`. Built by the host (Zeabur) from the repository root.
+# The server (server/): `node server/main.js`. Built by Coolify (Dockerfile build pack) from the repository root.
 FROM node:22-slim
 WORKDIR /app
 ENV NODE_ENV=production
