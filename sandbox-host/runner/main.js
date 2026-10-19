@@ -27,16 +27,21 @@ try {
 }
 
 const manager = createSessionManager({ config, log });
-const server = createServer(createHandler({ manager, config, log }));
-server.requestTimeout = 0;
-server.headersTimeout = 30_000;
-server.listen(config.port, config.host, () => log('listening', { host: config.host, port: config.port, image: config.image, maxSessions: config.maxSessions }));
+const handler = createHandler({ manager, config, log });
+// One server for each address in RUNNER_HOST (usually one).
+const servers = config.hosts.map((host) => {
+  const server = createServer(handler);
+  server.requestTimeout = 0;
+  server.headersTimeout = 30_000;
+  server.listen(config.port, host, () => log('listening', { host, port: config.port, image: config.image, maxSessions: config.maxSessions }));
+  return server;
+});
 const sweeper = setInterval(() => { manager.sweep().catch(() => {}); }, 30_000);
 sweeper.unref();
 
 const stop = async (signal) => {
   log('stopping', { signal });
-  server.close();
+  for (const server of servers) server.close();
   await manager.shutdown();
   process.exit(0);
 };

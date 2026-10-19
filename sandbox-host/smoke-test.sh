@@ -2,8 +2,10 @@
 # Tries the sandbox for real, on this machine: starts a container, runs Python in it, and checks the walls hold. Run as root after install.sh.
 set -u
 SECRET=$(cat /etc/noureon-sandbox/token 2>/dev/null) || { echo "STOP: no secret (run install.sh first)"; exit 1; }
-HOST=$(docker inspect noureon-sandbox-runner --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null | sed -n 's/^RUNNER_HOST=//p')
-[ -n "$HOST" ] || { echo "STOP: the runner is not running"; exit 1; }
+RUNNING=$(docker inspect noureon-sandbox-runner --format '{{.State.Running}}' 2>/dev/null)
+[ "$RUNNING" = "true" ] || { echo "STOP: the runner is not running"; exit 1; }
+# The runner always listens on 127.0.0.1 too (RUNNER_HOST may list more addresses).
+HOST=127.0.0.1
 BASE="http://$HOST:7788"
 PASS=0; FAILS=0
 check() { if [ "$2" = "ok" ]; then PASS=$((PASS+1)); echo "PASS  $1"; else FAILS=$((FAILS+1)); echo "FAIL  $1  ($2)"; fi; }
