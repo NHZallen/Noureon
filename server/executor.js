@@ -81,7 +81,7 @@ export class ReplyError extends Error {
  * With CLI tools, `credentials` (server/cli-credentials.js) gives the person's secure credentials for them, and `netControl` is what the run manager
  * answers the person's questions about sites with (it is given the function that does so once the sandbox is there).
  */
-export async function executeReply({ spec, secrets, signal, resume: resumeFrom = null, userId = '', sandboxHost = null, files = null, credentials = null, skills = null, connectors = null, netControl = null, credentialControl = null, connectorControl = null, credentialWaitMs = 10 * 60 * 1000, onPaused = () => {}, watching = () => false, onUpdate = () => {}, onLive = () => {}, onCheckpoint = async () => {}, onProblem = () => {}, fetchImpl = fetch, now = Date.now }) {
+export async function executeReply({ spec, secrets, signal, resume: resumeFrom = null, userId = '', sandboxHost = null, files = null, credentials = null, skills = null, connectors = null, netControl = null, credentialControl = null, connectorControl = null, credentialWaitMs = 10 * 60 * 1000, knownSources = [], onPaused = () => {}, watching = () => false, onUpdate = () => {}, onLive = () => {}, onCheckpoint = async () => {}, onProblem = () => {}, fetchImpl = fetch, now = Date.now }) {
   const resume = spec.tools.advanced ? null : resumeFrom;
   const mode = spec.tools.webSearch;
   const language = spec.request.language;
@@ -89,7 +89,8 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
   const access = createModelAccess({ spec, secrets, fetchImpl, grounding: mode === 'grounding', userId, signal });
 
   let answer = typeof resume?.text === 'string' ? resume.text : '';
-  let sources = Array.isArray(resume?.sources) ? resume.sources : [];
+  // The pages known before the reply (a council's synthesis: what its members met, numbered as their answers cite them).
+  let sources = Array.isArray(resume?.sources) ? resume.sources : Array.isArray(knownSources) ? knownSources : [];
   const thought = { text: typeof resume?.thought?.text === 'string' ? resume.thought.text : '', kind: resume?.thought?.kind === 'summary' ? 'summary' : 'model', first: null, last: null };
   let supports = [];
 

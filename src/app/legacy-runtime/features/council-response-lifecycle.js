@@ -2,7 +2,7 @@ import { getRuntimeText } from '../../runtime/i18n/runtime-texts.js';
 import { NOURAS_REQUEST_PURPOSE } from '../../runtime/nouras/nouras-policy.js';
 import { resolveInvokedSkills } from '../../runtime/skill/skill-bridge.js';
 import { invokedSkillsInstruction, skillNamesOfParts } from '../../../data/skill-prompt.js';
-import { createMemberSteps } from './council-member-reply.js';
+import { createMemberSteps } from './council-member-steps.js';
 
 export function createCouncilResponseLifecycle({
   getSearchCurrentDate,
@@ -257,7 +257,11 @@ export function createCouncilResponseLifecycle({
       onMemoryContextResolved = () => {},
       // Models that already left this council (a council taken up again after a restart), and what is told when another leaves.
       exitedModelIds = [],
-      onMemberExit = () => {}
+      onMemberExit = () => {},
+      // The synthesis made as a whole reply (docs/superpowers/specs/2026-10-19-council-tools-design.md, §2.2): it may search nothing but may use
+      // everything else a reply has (files, Python, CLI tools, connectors that change things). `synthesize({ parts, instruction, sources, synthesizer,
+      // conversation, onMemoryContextResolved })` resolves { text, ... } (what else it gives is handed back as `synthesis`). Without it, one call.
+      synthesize = null
   } = {}) {
       const conv = conversation || getActiveConversation();
       const { council, participants, synthesizer } = getCouncilSelectedModels(conv);
@@ -301,7 +305,25 @@ export function createCouncilResponseLifecycle({
       };
       const startedAt = Date.now();
       let progressTick = 0;
+      // When each stage began and ended (ms from the start), and how the members stood when the answering stage ended: the timeline shows them,
+      // and they are kept with the message.
+      const stageTimes = [];
+      const enterStage = (stage) => {
+          const last = stageTimes.at(-1);
+          if (last?.key === stage) return;
+          const at = Date.now() - startedAt;
+          if (last && last.endMs === undefined) {
+              last.endMs = at;
+              if (last.key === 'firstRound' || last.key === 'deliberation') {
+                  const states = Array.from(modelStates.values());
+                  last.done = states.filter(state => state.status === 'done').length;
+                  last.failed = states.filter(state => state.status === 'failed').length;
+              }
+          }
+          if (stage !== 'completed') stageTimes.push({ key: stage, startMs: at });
+      };
       const progress = (stage, message = stage, extra = {}) => {
+          enterStage(stage);
           if (typeof onProgress !== 'function') return;
           currentStage = stage;
           onProgress({
@@ -316,6 +338,7 @@ export function createCouncilResponseLifecycle({
               activeParticipants: activeParticipants.length,
               modelStates: Array.from(modelStates.values()).map(state => ({ ...state, canExit: canExitModel(state.modelId), ...(memberSteps.has(state.modelId) ? stepsOf(state.modelId).view() : {}) })),
               search: null,
+              stages: stageTimes.map(entry => ({ ...entry })),
               exit: exitModel,
               ...extra
           });
@@ -352,6 +375,7 @@ export function createCouncilResponseLifecycle({
           let lastUpdateAt = 0;
           return (chunk = '') => {
               receivedChars += String(chunk || '').length;
+              if (state) state.chars = receivedChars;
               const now = Date.now();
               if (!state || now - lastUpdateAt < 850) return;
               lastUpdateAt = now;
@@ -562,9 +586,13 @@ export function createCouncilResponseLifecycle({
   Avoid overly brief answers: the final response should be complete enough for the user's decision unless the question is trivial.${buildCouncilComparisonInstruction(council.showComparisonTable)}`;
       let finalText = '';
       let synthesisError = null;
+      let synthesisMade = null;
       try {
           const synthesisStageTracker = createCouncilStageTracker('synthesis', () => `${runtimeTexts.synthesis}: ${synthesizer.name}`);
-          finalText = await streamCouncilApiCallWithRetry(
+          if (typeof synthesize === 'function') {
+              synthesisMade = await synthesize({ parts: synthesisParts, instruction: withSkills(synthesisInstruction), sources, synthesizer, conversation: conv, onMemoryContextResolved });
+              finalText = String(synthesisMade?.text ?? '');
+          } else finalText = await streamCouncilApiCallWithRetry(
               synthesisParts,
               (chunk) => {
                   synthesisStageTracker(chunk);
@@ -592,10 +620,22 @@ export function createCouncilResponseLifecycle({
           finalText += buildCouncilAppendix(firstRoundResults, finalRoundResults, failures, mode);
       }
       progress('completed', runtimeTexts.completed);
+      // What the message keeps of the council (the line "3 members discussed", opening to the timeline).
+      const record = {
+          mode,
+          members: participants.map(model => {
+              const state = modelStates.get(model.id) || {};
+              const steps = memberSteps.has(model.id) ? stepsOf(model.id).view() : null;
+              return { name: model.name, status: state.status || 'done', ...(state.chars ? { chars: state.chars } : {}), ...(steps ? { counts: steps.counts } : {}) };
+          }),
+          stages: stageTimes.map(entry => ({ key: entry.key, ms: Math.max(0, (entry.endMs ?? Date.now() - startedAt) - entry.startMs), ...(entry.done !== undefined ? { done: entry.done, failed: entry.failed } : {}) }))
+      };
       return {
           text: finalText,
+          record,
           // The pages the members met, numbered as the answers cite them (the saved message shows them as its sources).
           sources,
+          ...(synthesisMade ? { synthesis: synthesisMade } : {}),
           metadata: {
               mode,
               participantModelIds: participants.map(model => model.id),

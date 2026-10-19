@@ -11,6 +11,7 @@ const createHarness = ({
   outputMode = 'realtime',
   runModelCouncil,
   gradualAppend,
+  continueWithReply,
   signal = new AbortController().signal
 } = {}) => {
   const calls = [];
@@ -78,6 +79,7 @@ const createHarness = ({
         renderCouncilControls: () => calls.push(['renderCouncilControls']),
         renderInputIndicators: () => calls.push(['renderInputIndicators']),
         requestFrame: (callback) => callback(),
+        ...(continueWithReply ? { continueWithReply } : {}),
         now: () => 350
       });
     },
@@ -201,4 +203,47 @@ test('the pages the members met go at the head of the message as its sources, an
   const plain = await without.run();
   assert.equal(plain.fullResponse, 'Hello');
   assert.equal(without.contentDiv.dataset.streamRendered, 'true');
+});
+
+test('the synthesis is handed to a reply drawn in the message: the council\'s panel stops, and what the reply made (its record, its files) is the message', async () => {
+  const replies = [];
+  const harness = createHarness({
+    continueWithReply: async (options) => {
+      replies.push(options);
+      return { fullResponse: '```noureon-run\n{"v":1}\n```\n\nMade', extraParts: [{ sandboxFile: { name: 'deck.pptx' } }], responseRenderedInRealtime: true };
+    },
+    runModelCouncil: async (parts, signal, onProgress, onFinalChunk, handOver) => {
+      onProgress({ stage: 'firstRound', message: 'Working', startedAt: 100, elapsedMs: 0 });
+      const made = await handOver.synthesize({ parts: [{ text: 'synthesis request' }], instruction: 'Synthesize.', sources: [{ n: 1, url: 'https://a.example/' }], synthesizer: { id: 'synth' }, conversation: { id: 'c' }, onMemoryContextResolved: () => {} });
+      onProgress({ stage: 'completed', message: 'Done', startedAt: 100, elapsedMs: 9 });
+      return { text: `${made.text}\n\n<details>record</details>`, synthesis: made, sources: [{ n: 1, url: 'https://a.example/' }], metadata: { mode: 'consensus' } };
+    }
+  });
+  const result = await harness.run([{ text: 'Question' }]);
+  assert.equal(replies.length, 1);
+  assert.deepEqual(replies[0].userParts, [{ text: 'synthesis request' }]);
+  assert.deepEqual(replies[0].synthesis, { instruction: 'Synthesize.', sources: [{ n: 1, url: 'https://a.example/' }] });
+  assert.equal(replies[0].modelInfo.id, 'synth');
+  assert.equal(replies[0].targetElement, harness.contentDiv);
+  assert.equal(harness.contentDiv.innerHTML, '', 'the panel was not drawn again over the reply');
+  assert.deepEqual(result, {
+    fullResponse: '```noureon-run\n{"v":1}\n```\n\nMade\n\n<details>record</details>',
+    metadata: { mode: 'consensus' },
+    extraParts: [{ sandboxFile: { name: 'deck.pptx' } }],
+    responseRenderedInRealtime: true
+  });
+  assert.equal(harness.contentDiv.dataset.streamRendered, 'false');
+
+  const followed = [];
+  const server = createHarness({
+    continueWithReply: async (options) => { followed.push(options); return { fullResponse: 'From the server', extraParts: [] }; },
+    runModelCouncil: async (parts, signal, onProgress, onFinalChunk, handOver) => {
+      const made = await handOver.followSynthesis({ runId: 'run-1' });
+      return { text: made.text, synthesis: made, sources: [], metadata: {} };
+    }
+  });
+  const fromServer = await server.run([{ text: 'Question' }]);
+  assert.deepEqual(followed[0].resumeRun, { runId: 'run-1' });
+  assert.deepEqual(followed[0].userParts, [{ text: 'Question' }]);
+  assert.equal(fromServer.fullResponse, 'From the server');
 });

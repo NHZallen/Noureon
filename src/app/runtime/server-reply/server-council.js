@@ -8,6 +8,39 @@
 import { NOURAS_REQUEST_PURPOSE } from '../nouras/nouras-policy.js';
 import { getAvailableSkills, resolveInvokedSkills } from '../skill/skill-bridge.js';
 import { invokedSkillsInstruction, skillNamesOfParts } from '../../../data/skill-prompt.js';
+import { cliIdsForReply } from '../cli/cli-state.js';
+import { netPolicyForRun } from '../cli/net-state.js';
+import { decisionsFor, verdictOf } from '../decisions/decision-store.js';
+import { modelSupportsToolCalling } from '../legacy-core/model-registry.js';
+import { resolveReplyMode } from '../sandbox/file-mode.js';
+import { mayNeedFileGuidance } from '../../ui/files/file-intent.js';
+
+/**
+ * What the synthesizer of a council may use besides its words (docs/superpowers/specs/2026-10-19-council-tools-design.md, §2.2), by the rules of a
+ * reply: Python when the person's mode is Advanced and the request is about files (or the conversation has some), the CLI tools chosen with "@"
+ * (and those the model may use by itself) with the sites they may reach; then the Design menu's choices and the files of the message. Null for a
+ * model that calls no tools.
+ */
+export function councilSynthesisTools({ conversation, config = {}, synthesizer, userParts = [] }) {
+  if (!modelSupportsToolCalling(synthesizer)) return null;
+  const text = userParts.map((part) => part?.text || '').join('\n');
+  const cli = cliIdsForReply(config, userParts, { ownAllowed: verdictOf(decisionsFor(text), 'tool') !== false });
+  const mode = resolveReplyMode({ conversation, config, modelInfo: synthesizer, supportsToolCalling: modelSupportsToolCalling });
+  const hasFiles = (conversation?.messages || []).some((message) => (message?.parts || []).some((part) => part?.inlineData || part?.sandboxFile));
+  const fileTask = userParts.some((part) => part?.inlineData) || (verdictOf(decisionsFor(text), 'file') ?? mayNeedFileGuidance(text)) || hasFiles;
+  if (!cli.ids.length && !(mode.advanced && fileTask)) return { advanced: false };
+  const inputs = userParts.filter((part) => part?.inlineData?.data).map((part) => ({
+    name: part.inlineData.name || `attachment.${String(part.inlineData.mimeType || '').split('/')[1] || 'bin'}`,
+    mimeType: part.inlineData.mimeType || '',
+    data: part.inlineData.data
+  }));
+  return {
+    advanced: true,
+    designs: { deck: conversation?.deckDesign || 'auto', document: conversation?.documentDesign || 'auto' },
+    ...(inputs.length ? { inputs } : {}),
+    ...(cli.ids.length ? { cli: cli.ids.map((id) => ({ id, chosen: cli.chosen.includes(id) })), net: netPolicyForRun(config) } : {})
+  };
+}
 
 /**
  * Hands a council to the server: the models (as the page knows them), the message as the person sent it (attachments included: the server
@@ -40,6 +73,7 @@ export async function startCouncilRun({ getApiKeyForProvider, describeRequest, s
   }
   // The skills the members may load by themselves (those asked for with "/" are given whole), and the person's connectors (only what may be read without asking).
   const skills = await getAvailableSkills(skillNamesOfParts(userParts)).catch(() => []);
+  const synthesis = councilSynthesisTools({ conversation, config, synthesizer, userParts });
   const historySourceIds = getHistorySourceIds();
   const history = await withCloudFiles((conversation.messages || []).slice(0, -1).map((message) => ({ role: message.role, parts: message.parts })));
   const spec = {
@@ -64,7 +98,7 @@ export async function startCouncilRun({ getApiKeyForProvider, describeRequest, s
       language: uiLanguage,
       ...(historySourceIds.length ? { messageMetadata: { historySourceConversationIds: historySourceIds } } : {})
     },
-    tools: { webSearch, ...(search ? { searchProvider: search.searchProvider, searchDepth: search.searchDepth } : {}), ...(skills.length ? { skills } : {}), connectors: true },
+    tools: { webSearch, ...(search ? { searchProvider: search.searchProvider, searchDepth: search.searchDepth } : {}), ...(skills.length ? { skills } : {}), connectors: true, ...(synthesis ? { synthesis } : {}) },
     secrets: { keys, ...(search ? { searchKey: search.searchKey, ...(search.searchKeyAlt ? { searchKeyAlt: search.searchKeyAlt } : {}) } : {}) }
   };
   const body = JSON.stringify(spec);
@@ -102,8 +136,11 @@ export function createServerCouncil({
    * council the server is still holding (found again after the page was closed): it is only followed.
    */
   return async function holdCouncil({ args, local, webSearchEnabled = false, conversation, onMemoryContextResolved = () => {}, getHistorySourceIds = () => [], assistantMessageId = null, sequence = 0, resumeRun = null }) {
-    const [parts, signal, onProgress, onFinalChunk] = args;
+    // What the page adds (docs/superpowers/specs/2026-10-19-council-tools-design.md, §2.2): `synthesize` makes the synthesis of a council held here as a
+    // reply; `followSynthesis(run)` follows the synthesis of one the server holds as a reply (from the moment it begins), and resolves { text, ... }.
+    const [parts, signal, onProgress, onFinalChunk, { synthesize = null, followSynthesis = null } = {}] = args;
     let run = resumeRun;
+    let madeHere = false;
     if (!run && assistantMessageId && plan({ conversation }).ok) {
       const { council, participants, synthesizer } = getCouncilSelectedModels(conversation);
       const attachments = (parts || []).some((part) => part?.inlineData);
@@ -124,9 +161,14 @@ export function createServerCouncil({
         getHistorySourceIds
       });
       if (started.ok) run = started.run;
+      // Not taken because it could not be reached or was busy: the council is held here, and its line says so (no notice over the page).
+      else if (started.notify === 'unreachable' || started.notify === 'busy') madeHere = true;
       else if (started.notify) notify(started.notify, getUiLanguage());
     }
-    if (!run) return local(...args, { webSearchEnabled, conversation, onMemoryContextResolved });
+    if (!run) {
+      const held = await local(parts, signal, onProgress, onFinalChunk, { webSearchEnabled, conversation, onMemoryContextResolved, synthesize });
+      return madeHere && held && typeof held === 'object' ? { ...held, madeHere: true } : held;
+    }
 
     let tick = 0;
     const outcome = await run.follow({
@@ -134,11 +176,16 @@ export function createServerCouncil({
       onText: (delta) => onFinalChunk?.(delta),
       // The panel as the server has it; the seconds are the server's (the time here is only counted on from them).
       // A model leaves when the server is asked to let it (it tells every page how the council stands then).
-      onCouncil: (state) => onProgress?.({ ...state, tick: (tick += 1), startedAt: now() - (Number(state.elapsedMs) || 0), exit: (modelId) => run.exitMember(modelId) })
+      onCouncil: (state) => onProgress?.({ ...state, tick: (tick += 1), startedAt: now() - (Number(state.elapsedMs) || 0), exit: (modelId) => run.exitMember(modelId) }),
+      handOver: typeof followSynthesis === 'function' ? (state) => state?.stage === 'synthesis' : null
     });
     const council = conversation?.council || {};
+    // The synthesis is followed as a reply (its steps, its questions, its files): what it gives is the council's answer, as the server wrote it.
+    const handed = outcome.handedOver ? await followSynthesis(run) : null;
     return {
-      text: outcome.text,
+      ...(handed ? { synthesis: handed } : {}),
+      text: handed ? handed.text : outcome.text,
+      ...(outcome.extraParts?.length ? { extraParts: outcome.extraParts } : {}),
       // The pages the members met (the head of the server's message, as a reply's sources are): the council gives them apart from its text.
       sources: outcome.run?.sources || [],
       // What the page keeps of a council it did not hold itself: the page only needs to know that this was one (the answer holds the rest).

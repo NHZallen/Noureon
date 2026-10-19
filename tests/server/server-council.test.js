@@ -6,6 +6,10 @@ import { ReplyError, scrubMessage } from '../../server/executor.js';
 import { PROTOCOL_VERSION } from '../../server/protocol.js';
 import { validateRunSpec } from '../../server/run-spec.js';
 import { MODELS } from '../../src/app/runtime/legacy-core/model-registry.js';
+import { liftSandboxRunBlock } from '../../src/app/ui/sandbox/sandbox-run-block.js';
+
+// The text of a message after the record at its head (the council's line and timeline, its sources).
+const bodyOf = (text) => liftSandboxRunBlock(text).text;
 
 const KEYS = { openrouter: 'sk-or-secret-value', nvidia: 'nv-secret-value' };
 const TAVILY = 'tvly-secret-value';
@@ -72,8 +76,11 @@ test('a council: the members answer with the key of their own provider, the synt
   const updates = [];
   const result = await executeCouncil({ ...specFor(), secrets: secretsOf(), fetchImpl: w.fetchImpl, onLive: (event) => live.push(event), onUpdate: (parts) => updates.push(parts[0].text) });
   assert.equal(result.status, 'done');
-  assert.match(result.parts[0].text, /^SYNTH-ANSWER/);
+  assert.match(bodyOf(result.parts[0].text), /^SYNTH-ANSWER/);
   assert.match(result.parts[0].text, /ANSWER of anthropic\/claude-haiku-5\.5/, 'the answers of the first round are in the block the council adds');
+  const record = liftSandboxRunBlock(result.parts[0].text).run.council;
+  assert.deepEqual(record.members.map((member) => [member.name, member.status]), [['Claude Haiku 5.5', 'done'], ['NVIDIA DeepSeek V4.1 Flash', 'done']], 'the message keeps the council\'s line and timeline');
+  assert.deepEqual(record.stages.map((stage) => stage.key), ['firstRound', 'synthesis']);
 
   const [a] = onlyModel(w.requests, 'haiku');
   const [b] = onlyModel(w.requests, 'deepseek');
@@ -89,7 +96,7 @@ test('a council: the members answer with the key of their own provider, the synt
   assert.deepEqual([...new Set(stages)], ['firstRound', 'synthesis', 'completed']);
   const last = live.filter((event) => event.cs).at(-1).cs;
   assert.deepEqual(last.modelStates.map((state) => state.status), ['done', 'done']);
-  assert.equal(live.filter((event) => typeof event.a === 'string').map((event) => event.a).join(''), result.parts[0].text, 'the pages that watch are given the whole text, the council\'s blocks included');
+  assert.equal(live.filter((event) => typeof event.a === 'string').map((event) => event.a).join(''), bodyOf(result.parts[0].text), 'the pages that watch are given the whole text, the council\'s blocks included');
   assert.ok(updates.length > 0 && updates.at(-1).startsWith('SYNTH-ANSWER'), 'the message is written as the synthesis comes');
   assert.equal(JSON.stringify(live).includes(KEYS.openrouter), false, 'no key reaches the pages');
 });
@@ -238,7 +245,7 @@ test('a council taken up after a restart does not ask the models (or the search)
   assert.equal(onlyModel(again.requests, 'deepseek').length, 0);
   assert.equal(again.requests.filter((request) => request.url.includes('tavily')).length, 0, 'nor the search');
   assert.equal(onlyModel(again.requests, 'sonnet').length, 1, 'the synthesis is made again');
-  assert.match(result.parts[0].text, /^SYNTH-ANSWER/);
+  assert.match(bodyOf(result.parts[0].text), /^SYNTH-ANSWER/);
   assert.ok(memoed >= 5);
 });
 
@@ -259,7 +266,7 @@ test('a stop keeps what the synthesis had written, and a stop before it leaves n
   });
   const result = await executeCouncil({ ...specFor(), secrets: secretsOf(), signal: controller.signal, fetchImpl: w.fetchImpl, onUpdate: () => controller.abort() });
   assert.equal(result.status, 'stopped');
-  assert.equal(result.parts[0].text, 'Hello ');
+  assert.equal(bodyOf(result.parts[0].text), 'Hello ');
 
   const early = new AbortController();
   early.abort();
@@ -361,4 +368,98 @@ test('a council taken up after a restart does not ask the models that had left',
   assert.equal(onlyModel(first.requests, 'haiku').length, 0, 'the model that had left is not asked');
   assert.equal(onlyModel(first.requests, 'deepseek').length, 1);
   assert.deepEqual(checkpoints.at(-1).exited, [MEMBER_A], 'and it stays out of the next checkpoint');
+});
+
+// ----- the synthesis, made as a reply
+
+test('the synthesizer acts as a reply does: it may change things through a connector (the person is asked first), and the message keeps its steps and the members\' pages', async () => {
+  const linear = { id: 'linear', name: 'Linear', tools: [
+    { name: 'list_issues', description: 'Lists issues.', inputSchema: { type: 'object' }, kind: 'read', state: 'allow' },
+    { name: 'create_issue', description: 'Creates an issue.', inputSchema: { type: 'object', properties: { title: { type: 'string' } } }, kind: 'write', state: 'ask' }
+  ] };
+  const calls = [];
+  const connectors = {
+    forRun: async () => [JSON.parse(JSON.stringify(linear))],
+    clientFor: () => ({ callTool: async (name, args) => { calls.push([name, args]); return { text: 'created ENG-7', isError: false, images: 0 }; }, close: async () => {} }),
+    setPermissions: async () => {}
+  };
+  const raw = rawSpec({ search: true });
+  raw.tools.connectors = true;
+  raw.tools.synthesis = { advanced: false };
+  const checked = validateRunSpec(raw);
+  assert.equal(checked.ok, true, JSON.stringify(checked.errors));
+  let synthRound = 0;
+  const memberOffers = [];
+  const w = world({
+    answer: async ({ model, body }) => {
+      if (!model.includes('sonnet')) {
+        memberOffers.push(offered(body));
+        return searchingMembers({ model, body });
+      }
+      synthRound += 1;
+      if (synthRound === 1) {
+        assert.ok(offered(body).includes('connector_call'), 'the synthesizer has the connectors');
+        assert.equal(offered(body).includes('web_search'), false, 'and searches nothing: the members did');
+        return new Response(sse(toolCall('s1', 'connector_call', { connector: 'linear', tool: 'create_issue', arguments_json: '{"title":"Pricing"}' })), { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
+      }
+      return streaming('Filed ENG-7 [1].');
+    }
+  });
+  const connectorControl = { answer: null };
+  const live = [];
+  const result = await executeCouncil({
+    ...checked,
+    secrets: checked.spec.secrets,
+    userId: 'user-1',
+    connectors,
+    connectorControl,
+    fetchImpl: w.fetchImpl,
+    onLive: (event) => {
+      live.push(event);
+      if (event.ev?.event === 'ask') setImmediate(() => connectorControl.answer(event.ev.id, 'once'));
+    }
+  });
+  assert.equal(result.status, 'done');
+  assert.deepEqual(calls, [['create_issue', { title: 'Pricing' }]], 'the write tool ran, once the person said yes');
+  assert.ok(memberOffers.length >= 2, 'the members answered (they read only)');
+  const head = result.parts[0].text.split('\n')[1];
+  const record = JSON.parse(head);
+  assert.deepEqual(record.connectors, ['Linear']);
+  assert.equal(record.sources[0].url, 'https://vercel.com/pricing', 'the members\' pages are the sources of the synthesis');
+  assert.match(result.parts[0].text, /Filed ENG-7 \[1\]\./);
+  assert.match(result.parts[0].text, /<details class="council-collapse">/, 'the council\'s record of the answers follows');
+  assert.ok(live.some((event) => event.ev?.type === 'connector'), 'the pages see the synthesizer\'s steps');
+  const synthesisRequest = onlyModel(w.requests, 'sonnet')[0];
+  assert.match(JSON.stringify(synthesisRequest.body.messages), /SYS-SYNTH/, 'what the page put together for the synthesis');
+  assert.match(JSON.stringify(synthesisRequest.body.messages), /council synthesizer/);
+  assert.equal(synthesisRequest.headers.Authorization, `Bearer ${KEYS.openrouter}`);
+  assert.equal(result.toolCalls, 1);
+});
+
+test('a synthesis asked to use Python where the server has none is made without it, and a stop while it writes keeps what it wrote', async () => {
+  const raw = rawSpec();
+  raw.tools.synthesis = { advanced: true, designs: { deck: 'auto', document: 'auto' } };
+  const checked = validateRunSpec(raw);
+  assert.equal(checked.ok, true, JSON.stringify(checked.errors));
+  const plain = await executeCouncil({ ...checked, secrets: checked.spec.secrets, fetchImpl: world().fetchImpl });
+  assert.equal(plain.status, 'done');
+  assert.match(bodyOf(plain.parts[0].text), /^SYNTH-ANSWER/);
+
+  const controller = new AbortController();
+  const stopping = world({
+    answer: ({ model, options }) => {
+      if (!model.includes('sonnet')) return null;
+      const encoder = new TextEncoder();
+      return new Response(new ReadableStream({
+        start(stream) {
+          stream.enqueue(encoder.encode(`data: ${JSON.stringify({ choices: [{ delta: { content: 'Half of it' } }] })}\n\n`));
+          setTimeout(() => controller.abort(), 20);
+          options.signal?.addEventListener('abort', () => stream.error(new DOMException('Aborted', 'AbortError')));
+        }
+      }), { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
+    }
+  });
+  const stopped = await executeCouncil({ ...checked, secrets: checked.spec.secrets, signal: controller.signal, fetchImpl: stopping.fetchImpl });
+  assert.equal(stopped.status, 'stopped');
+  assert.match(stopped.parts[0].text, /Half of it/);
 });

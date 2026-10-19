@@ -1,4 +1,5 @@
 import { getRuntimeTexts } from '../../runtime/i18n/runtime-texts.js';
+import { councilTimelineHTML } from '../../ui/council/council-timeline.js';
 
 // After this long without a word, the dot says the reply is still being got ready.
 const WAIT_STILL_MS = 15_000;
@@ -6,19 +7,19 @@ const WAIT_STILL_MS = 15_000;
 export function createResponseProgressRenderers({ escapeHTML, getUiLanguage, getCouncilRuntimeTexts }) {
   const getLanguage = () => getUiLanguage?.() || 'zh-TW';
 
+  // A council while it goes on: the timeline of its stages, with the members of the stage that runs (council-timeline.js). `openMembers`: the
+  // members the person opened to what they searched and read.
   const renderCouncilProgress = (progress) => {
     if (typeof progress === 'string') return `<div class="council-progress-panel"><div class="council-progress-heading">${escapeHTML(progress)}</div></div>`;
-    const localized = getRuntimeTexts(getLanguage());
     const runtimeTexts = getCouncilRuntimeTexts();
-    const elapsedSeconds = Math.max(1, Math.round((progress.elapsedMs || 0) / 1000));
-    const stageLabels = { search: runtimeTexts.sharedSearch, translation: localized.attachmentTranslation, firstRound: localized.independentRound, deliberation: localized.secondRoundDiscussion, synthesis: localized.synthesis, completed: runtimeTexts.completed };
-    const stageNotes = { translation: localized.councilTranslationNote, search: localized.councilSearchNote, firstRound: localized.councilIndependentNote, deliberation: localized.councilDiscussionNote, synthesis: localized.councilSynthesisNote, completed: localized.councilFinished };
-    const statusText = { pending: runtimeTexts.pending, running: runtimeTexts.running, done: runtimeTexts.done, failed: runtimeTexts.failed, skipped: runtimeTexts.skippedStatus, exited: runtimeTexts.exited };
-    const searchHTML = progress.search ? `<div class="council-progress-search ${escapeHTML(progress.search.status)}"><span class="council-progress-dot ${escapeHTML(progress.search.status)}"></span><span><strong>${escapeHTML(progress.search.label)}</strong> · ${escapeHTML(progress.search.detail)}</span></div>` : '';
-    const modelRows = (progress.modelStates || []).map(model => `<div class="council-progress-model ${escapeHTML(model.status)}"><span class="council-progress-dot ${escapeHTML(model.status)}"></span><span class="council-progress-model-copy"><span class="council-progress-model-name">${escapeHTML(model.modelName)}</span><span class="council-progress-model-detail">${escapeHTML(model.detail || statusText[model.status] || model.status)}</span></span><span class="council-progress-model-status">${escapeHTML(statusText[model.status] || model.status)}</span>${model.canExit && progress.exit ? `<button type="button" class="council-progress-exit" data-council-exit="${escapeHTML(model.modelId)}">${escapeHTML(runtimeTexts.exitModel)}</button>` : ''}</div>`).join('');
-    const doneCount = (progress.modelStates || []).filter(model => model.status === 'done').length;
-    const runningCount = (progress.modelStates || []).filter(model => model.status === 'running').length;
-    return `<div class="council-progress-panel"><div class="council-progress-orbit" aria-hidden="true"><span></span><span></span><span></span></div><div class="council-progress-heading"><span class="council-progress-stage">${escapeHTML(stageLabels[progress.stage] || runtimeTexts.running)}</span><span class="council-progress-time">${elapsedSeconds}s</span></div><div class="council-progress-message">${escapeHTML(progress.message || runtimeTexts.running)}</div><div class="council-progress-note">${escapeHTML(stageNotes[progress.stage] || stageNotes.firstRound)}</div><div class="council-progress-stats"><span>${escapeHTML(String(progress.activeParticipants || 0))}/${escapeHTML(String(progress.totalParticipants || 0))} ${localized.models}</span><span>${escapeHTML(String(doneCount))} ${localized.done}</span><span>${escapeHTML(String(runningCount))} ${localized.running}</span></div>${searchHTML}<div class="council-progress-models">${modelRows}</div></div>`;
+    const members = (progress.modelStates || []).map((model) => ({ id: model.modelId, name: model.modelName, status: model.status, chars: model.chars, counts: model.counts, steps: model.steps, canExit: model.canExit }));
+    const timeline = councilTimelineHTML({ mode: progress.mode, stage: progress.stage, elapsedMs: progress.elapsedMs, stages: progress.stages, members }, {
+      language: getLanguage(),
+      live: true,
+      open: progress.openMembers instanceof Set ? progress.openMembers : new Set(),
+      exitLabel: progress.exit ? runtimeTexts.exitModel : ''
+    });
+    return `<div class="council-tl-panel" role="status">${timeline}</div>`;
   };
 
   // Before a reply's first word: a dot breathing in the person's accent (reply-wait.css), with a quiet "still getting ready" once it has been a while.

@@ -228,7 +228,34 @@ function validateCouncilSpec(input) {
     if (tools.searchDepth !== undefined && !SEARCH_DEPTHS.includes(tools.searchDepth)) fail('tools.searchDepth', `must be one of ${SEARCH_DEPTHS.join(', ')}`);
     // What the members may read by themselves (docs/superpowers/specs/2026-10-19-council-tools-design.md): the person's skills and connectors, as for a reply.
     checkSkillsAndConnectors(tools, fail);
-    for (const name of Object.keys(tools)) if (!['webSearch', 'searchProvider', 'searchDepth', 'skills', 'connectors'].includes(name)) fail(`tools.${name}`, 'is not a known field');
+    for (const name of Object.keys(tools)) if (!['webSearch', 'searchProvider', 'searchDepth', 'skills', 'connectors', 'synthesis'].includes(name)) fail(`tools.${name}`, 'is not a known field');
+  }
+  // What the synthesizer may use besides (§2.2): Python with the Design menu's choices and the files of the message, and the CLI tools with their
+  // sites. Checked as the tools of a reply are, since the synthesis is made as one.
+  let synthesisTools = null;
+  if (isObject(tools) && tools.synthesis !== undefined) {
+    const given = tools.synthesis;
+    if (!isObject(given)) fail('tools.synthesis', 'must be an object');
+    else {
+      for (const name of Object.keys(given)) if (!['advanced', 'designs', 'inputs', 'cli', 'net'].includes(name)) fail(`tools.synthesis.${name}`, 'is not a known field');
+      const own = Object.fromEntries(['designs', 'inputs', 'cli', 'net'].filter((name) => given[name] !== undefined).map((name) => [name, given[name]]));
+      const asReply = validateRunSpec({
+        protocol: input.protocol,
+        clientVersion: '0',
+        conversationId: input.conversationId,
+        assistantMessageId: input.assistantMessageId,
+        sequence: 0,
+        model: { provider: 'synthesis', id: 'synthesis', info: {} },
+        request: { history: [], currentMessage: { parts: [{ text: 'synthesis' }] }, systemInstruction: '', language: 'en' },
+        tools: { webSearch: 'off', advanced: given.advanced, ...own },
+        secrets: { providerKey: 'synthesis' }
+      });
+      if (!asReply.ok) for (const error of asReply.errors) fail(String(error.path).replace(/^tools\./, 'tools.synthesis.'), error.message);
+      else {
+        const { webSearch: _off, searchProvider: _provider, searchDepth: _depth, ...checked } = asReply.spec.tools;
+        synthesisTools = checked;
+      }
+    }
   }
 
   const secrets = input.secrets;
@@ -287,7 +314,8 @@ function validateCouncilSpec(input) {
         searchDepth: tools.searchDepth === 'advanced' ? 'advanced' : 'basic',
         advanced: false,
         ...(Array.isArray(tools.skills) && listedSkills(tools.skills).length ? { skills: listedSkills(tools.skills) } : {}),
-        ...(tools.connectors === true ? { connectors: true } : {})
+        ...(tools.connectors === true ? { connectors: true } : {}),
+        ...(synthesisTools ? { synthesis: synthesisTools } : {})
       },
       secrets: { keys, ...(secrets.searchKey ? { searchKey: secrets.searchKey } : {}), ...(secrets.searchKeyAlt ? { searchKeyAlt: secrets.searchKeyAlt } : {}) }
     }

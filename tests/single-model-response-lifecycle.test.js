@@ -998,3 +998,30 @@ test('skills the model may load by itself: a plain reply gets the small loop wit
     registerSkillMode(null);
   }
 });
+
+test('the synthesis of a council is a reply made here: no server, no search, no reading of the addresses in its request, no history; it is told what the council says and keeps the members\' pages', async () => {
+  const serverReply = serverReplyDouble({});
+  const { calls, lifecycle, signal, targetElement } = createHarness({ extraDependencies: { serverReply } });
+  const conversation = { id: 'c1', model: 'model', isWebSearchEnabled: true, messages: [] };
+  const result = await lifecycle.run({
+    targetElement,
+    userParts: [{ text: '# 成員查到的來源\n[1] A — https://a.example/\nWhat the members said' }],
+    modelInfo: { id: 'model', name: 'Model', provider: 'openrouter' },
+    conversation,
+    webSearchEnabled: true,
+    signal,
+    uiLanguage: 'en',
+    assistantMessageId: 'm1',
+    synthesis: { instruction: 'You are the council synthesizer.', sources: [{ n: 1, url: 'https://a.example/', title: 'A' }] }
+  });
+  assert.equal(serverReply.record.plans.length, 0, 'the synthesis of a council held here is made here');
+  assert.equal(calls.some((call) => call[0] === 'translate'), false, 'the addresses in its request are not read');
+  const [, , , forced, options] = calls.find((call) => call[0] === 'api');
+  assert.equal(forced, false);
+  assert.equal(options.webSearchEnabled, false);
+  assert.equal(options.ignoreConversationWebSearch, true);
+  assert.deepEqual(options.historyForApi, []);
+  assert.equal(options.requestPurpose, 'council-synthesis');
+  assert.match(options.additionalSystemInstruction, /You are the council synthesizer\./);
+  assert.match(result.fullResponse, /^```noureon-run\n\{[^\n]*"sources":\[\{"title":"A","url":"https:\/\/a\.example\/","n":1\}\][^\n]*\}\n```\n\nHello Astra$/);
+});

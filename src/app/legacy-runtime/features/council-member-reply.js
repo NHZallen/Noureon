@@ -5,8 +5,7 @@
 
 import { addNumberedSources } from '../../ui/citations/source-numbering.js';
 
-// The steps of a member kept for the progress panel (the newest; the counts go on).
-const MAX_STEPS_KEPT = 30;
+export { createMemberSteps } from './council-member-steps.js';
 
 const throwIfStopped = (signal) => {
   if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
@@ -27,20 +26,6 @@ const wait = (ms, signal) => new Promise((resolve, reject) => {
   }
   signal?.addEventListener?.('abort', onAbort, { once: true });
 });
-
-/** What a member did, for the progress panel: the counts of each kind and the newest steps. */
-export function createMemberSteps() {
-  const counts = { search: 0, page: 0, skill: 0, connector: 0 };
-  let steps = [];
-  return {
-    add(step) {
-      if (!step || !(step.kind in counts)) return;
-      counts[step.kind] += 1;
-      steps = [...steps, { kind: step.kind, label: String(step.label || '').slice(0, 160) }].slice(-MAX_STEPS_KEPT);
-    },
-    view: () => ({ counts: { ...counts }, steps: steps.map((step) => ({ ...step })) })
-  };
-}
 
 /**
  * `streamApiCall(parts, onChunk, signal, forceWebSearch, options)` is one call of a model, without a second try (a member's rounds are tried again as a

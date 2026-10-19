@@ -447,3 +447,30 @@ test('the skills asked for with "/" in the message are in every call of the coun
     registerSkillMode(null);
   }
 });
+
+test('the synthesis may be made as a reply: it is given the request, what the synthesizer is told and the members\' pages, and what it gives comes back', async () => {
+  const given = [];
+  const { calls, finalChunks, run } = createHarness({
+    showRawResponses: true,
+    createMembers: () => ({ answer: async (options) => `${options.modelInfo.name} [1]`, sources: () => [{ n: 1, url: 'https://a.example/', title: 'A' }] })
+  });
+  const result = await run([{ text: 'Q' }], new AbortController().signal, {
+    synthesize: async (request) => {
+      given.push(request);
+      return { text: '```noureon-run\n{}\n```\n\nMade [1]', extraParts: [{ sandboxFile: { name: 'a.pptx' } }] };
+    }
+  });
+  assert.equal(calls.length, 0, 'no plain call: the reply made it');
+  assert.deepEqual(finalChunks, []);
+  assert.equal(given[0].synthesizer.id, 'synth');
+  assert.match(given[0].parts[0].text, /# 成員查到的來源/);
+  assert.match(given[0].instruction, /You are the council synthesizer/);
+  assert.deepEqual(given[0].sources.map((source) => source.n), [1]);
+  assert.match(result.text, /^```noureon-run\n\{\}\n```\n\nMade \[1\]\n\n<details class="council-collapse">/, 'the record of the answers follows the reply');
+  assert.equal(result.synthesis.extraParts[0].sandboxFile.name, 'a.pptx');
+
+  const failing = createHarness({ createMembers: () => ({ answer: async () => 'member', sources: () => [] }) });
+  const fallback = await failing.run([{ text: 'Q' }], new AbortController().signal, { synthesize: async () => { throw new Error('synth down'); } });
+  assert.match(fallback.text, /未能完成統整：synth down/);
+  assert.equal(fallback.synthesis, undefined);
+});

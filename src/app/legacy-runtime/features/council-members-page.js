@@ -4,7 +4,6 @@
 
 import { getAvailableSkills, lookupSkill, readSkillFile } from '../../runtime/skill/skill-bridge.js';
 import { skillNamesOfParts } from '../../../data/skill-prompt.js';
-import { createCouncilMembers } from './council-member-reply.js';
 
 /** `support` is createProviderRequestSupport(...); the result is what the council takes as `createMembers(conversation, parts)`. */
 export function createPageCouncilMembers({ streamApiCall, support, getConfig, modelSupportsToolCalling, modelUsesNativeWebSearch, retryDelayMs = 0 }) {
@@ -12,6 +11,8 @@ export function createPageCouncilMembers({ streamApiCall, support, getConfig, mo
     // The skills the members may load by themselves (not those asked for with "/": they are given whole).
     const available = await getAvailableSkills(skillNamesOfParts(parts)).catch(() => []);
     const { createSkillLoader } = available.length ? await import('../../../data/skill-tool.js') : {};
+    // The members' loop is loaded when a council is first held.
+    const { createCouncilMembers } = await import('./council-member-reply.js');
     return createCouncilMembers({
       streamApiCall,
       research: support.hasSearchKey() ? { searchWeb: support.searchWeb, openPage: support.fetchPageContents } : null,

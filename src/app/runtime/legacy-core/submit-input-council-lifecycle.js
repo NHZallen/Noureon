@@ -850,9 +850,12 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
           renderCouncilControls,
           renderInputIndicators,
           requestFrame: (callback) => requestAnimationFrame(callback),
-          confirmExit: ({ modelName }) => import('../../legacy-runtime/features/council-exit-dialog.js').then((module) => module.confirmCouncilExit({ showCustomDialog, language: getLiveConfig().uiLanguage, modelName }))
+          confirmExit: ({ modelName }) => import('../../legacy-runtime/features/council-exit-dialog.js').then((module) => module.confirmCouncilExit({ showCustomDialog, language: getLiveConfig().uiLanguage, modelName })),
+          // The synthesis is a reply of the synthesizer (its steps, files and questions), in this message.
+          continueWithReply: (options) => singleModelResponseLifecycle.run({ conversation: conv, modelInfo: getCouncilSelectedModels(conv).synthesizer, uiLanguage: getLiveConfig().uiLanguage, assistantMessageId, ...options })
         });
         fullResponse = councilResult.fullResponse;
+        extraParts = councilResult.extraParts || [];
         responseRenderedInRealtime = councilResult.responseRenderedInRealtime;
         councilMetadata = councilResult.metadata;
       } else {

@@ -30,31 +30,25 @@ const createHarness = ({ uiLanguage = 'en' } = {}) => createResponseProgressRend
   getCouncilRuntimeTexts: () => runtimeTexts
 });
 
-test('council progress renders escaped stage, search, stats, and model rows', () => {
+test('council progress is the timeline: the stage that runs and its members, names escaped', () => {
   const { renderCouncilProgress } = createHarness();
 
   const html = renderCouncilProgress({
-    activeParticipants: 2,
     elapsedMs: 2400,
-    message: 'Working <now>',
-    modelStates: [
-      { detail: 'Thinking', modelName: 'Astra <One>', status: 'running' },
-      { modelName: 'Astra Two', status: 'done' }
-    ],
-    search: { detail: 'query <x>', label: 'Shared', status: 'running' },
+    mode: 'consensus',
     stage: 'firstRound',
-    totalParticipants: 3
+    stages: [{ key: 'firstRound', startMs: 0 }],
+    modelStates: [
+      { modelId: 'one', modelName: 'Astra <One>', status: 'running', chars: 300 },
+      { modelId: 'two', modelName: 'Astra Two', status: 'done' }
+    ]
   });
 
-  assert.match(html, /council-progress-panel/);
-  assert.match(html, /Independent round/);
-  assert.match(html, /2s/);
-  assert.match(html, /Working &lt;now&gt;/);
-  assert.match(html, /2\/3 models/);
-  assert.match(html, /1 done/);
-  assert.match(html, /1 running/);
-  assert.match(html, /query &lt;x&gt;/);
+  assert.match(html, /council-tl-panel/);
+  assert.match(html, /<li class="council-tl-stage is-now">[^]*?Answering separately<\/span><span class="council-tl-meta">2s<\/span>/);
   assert.match(html, /Astra &lt;One&gt;/);
+  assert.match(html, /Writing<\/span><span class="council-tl-member-meta">300 chars/);
+  assert.match(html, /<li class="council-tl-stage is-todo">[^]*?Final answer/);
 });
 
 test('council progress preserves string progress fallback', () => {

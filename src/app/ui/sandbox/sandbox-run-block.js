@@ -23,7 +23,8 @@ const MAX_STEPS = 20;
 const STORED_THOUGHT_CHARS = 6000;
 // What the model said before a run ("I'll check the environment first"), shown between the steps.
 const STORED_NARRATION_CHARS = 2000;
-const MAX_SOURCES = 40;
+// (A council's members may meet many pages, all cited by number.)
+const MAX_SOURCES = 100;
 // The connectors a reply used: their names, one row each.
 const MAX_CONNECTORS = 12;
 
@@ -91,6 +92,33 @@ export function normalizeConnectors(connectors) {
   return [...new Set((Array.isArray(connectors) ? connectors : []).map((name) => String(name ?? '').replace(/\s+/g, ' ').trim().slice(0, 60)).filter(Boolean))].slice(0, MAX_CONNECTORS);
 }
 
+const COUNCIL_STAGES = ['translation', 'firstRound', 'deliberation', 'synthesis'];
+const MEMBER_STATUSES = ['done', 'failed', 'exited', 'skipped', 'running', 'pending'];
+const count = (value) => Math.max(0, Math.min(100_000_000, Math.round(Number(value) || 0)));
+
+// A council's record (council-record.js): its members (how each ended, what it searched and wrote) and its stages (how long each took).
+export function normalizeCouncilRecord(council) {
+  if (!council || typeof council !== 'object') return null;
+  const members = (Array.isArray(council.members) ? council.members : []).slice(0, 8).map((member) => {
+    const counts = member?.counts && typeof member.counts === 'object'
+      ? Object.fromEntries(['search', 'page', 'skill', 'connector'].filter((key) => count(member.counts[key]) > 0).map((key) => [key, count(member.counts[key])]))
+      : {};
+    return {
+      name: String(member?.name || '').replace(/\s+/g, ' ').trim().slice(0, 80),
+      status: MEMBER_STATUSES.includes(member?.status) ? member.status : 'done',
+      ...(count(member?.chars) > 0 ? { chars: count(member.chars) } : {}),
+      ...(Object.keys(counts).length ? { counts } : {})
+    };
+  }).filter((member) => member.name);
+  if (!members.length) return null;
+  const stages = (Array.isArray(council.stages) ? council.stages : []).filter((entry) => COUNCIL_STAGES.includes(entry?.key)).slice(0, 8).map((entry) => ({
+    key: entry.key,
+    ...(count(entry.ms) > 0 ? { ms: count(entry.ms) } : {}),
+    ...(Number.isFinite(Number(entry.done)) && entry.done !== undefined ? { done: count(entry.done), failed: count(entry.failed) } : {})
+  }));
+  return { mode: council.mode === 'deliberation' ? 'deliberation' : 'consensus', members, stages };
+}
+
 export function normalizeSandboxRun(run = {}) {
   const steps = (Array.isArray(run.steps) ? run.steps : []).slice(0, MAX_STEPS).map(cleanStep);
   const status = Object.values(RUN_STATUS).includes(run.status) ? run.status : RUN_STATUS.done;
@@ -107,6 +135,8 @@ export function normalizeSandboxRun(run = {}) {
     ...(run.thought && run.thoughtInterrupted ? { thoughtInterrupted: true } : {}),
     ...(run.thought && Number(run.thoughtMs) > 0 ? { thoughtMs: Math.round(Number(run.thoughtMs)) } : {}),
     ...(run.fallback ? { fallback: String(run.fallback) } : {}),
+    // The council that made the reply: its line and timeline (sandbox-run-view.js).
+    ...(normalizeCouncilRecord(run.council) ? { council: normalizeCouncilRecord(run.council) } : {}),
     // The server did not take the reply, and it was made on the person's device: said on the reply's line.
     ...(run.madeHere ? { madeHere: true } : {})
   };

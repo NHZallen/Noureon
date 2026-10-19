@@ -87,7 +87,7 @@ test('a council is handed over with its models, the history, what each kind of c
   assert.equal(spec.request.systemInstructions.synthesis, `SYS for ${NOURAS_REQUEST_PURPOSE.COUNCIL_SYNTHESIS}`);
   assert.deepEqual(spec.request.messageMetadata, { historySourceConversationIds: ['h1'] });
   assert.deepEqual(spec.secrets, { keys: { openrouter: KEYS.openrouter, nvidia: KEYS.nvidia } }, 'only the providers the models use');
-  assert.deepEqual(spec.tools, { webSearch: 'off', connectors: true }, 'the members may read the person\'s connectors (the server keeps which)');
+  assert.deepEqual(spec.tools, { webSearch: 'off', connectors: true, synthesis: { advanced: false } }, 'the members may read the person\'s connectors (the server keeps which); the synthesizer writes no file here');
   assert.deepEqual(seen, [{ marker: 'memory' }], 'the memory the answer drew on is reported once, by the synthesis');
   assert.ok(described.every((options) => options.modelInfo === SYNTH));
   assert.deepEqual(described.find((options) => options.requestPurpose === NOURAS_REQUEST_PURPOSE.COUNCIL_SYNTHESIS).historyForApi, []);
@@ -97,7 +97,7 @@ test('a council that searches sends both search keys and the depth, whatever its
   const one = harness();
   await one.reply.startCouncil(startArgs({ webSearch: 'on', config: { searchProvider: 'tinyfish', tavilySearchDepth: 'advanced' } }));
   const spec = JSON.parse(one.calls[0].options.body);
-  assert.deepEqual(spec.tools, { webSearch: 'on', searchProvider: 'tinyfish', searchDepth: 'advanced', connectors: true });
+  assert.deepEqual(spec.tools, { webSearch: 'on', searchProvider: 'tinyfish', searchDepth: 'advanced', connectors: true, synthesis: { advanced: false } });
   assert.equal(spec.secrets.searchKey, KEYS.tinyfish);
   assert.equal(spec.secrets.searchKeyAlt, KEYS.tavily);
 
@@ -111,7 +111,7 @@ test('a council that searches sends both search keys and the depth, whatever its
   const sent = await noKey.reply.startCouncil(startArgs({ webSearch: 'on' }));
   assert.equal(sent.ok, true, 'no search key: the council is held all the same, the members answer without searching');
   const noKeySpec = JSON.parse(noKey.calls[0].options.body);
-  assert.deepEqual(noKeySpec.tools, { webSearch: 'on', connectors: true });
+  assert.deepEqual(noKeySpec.tools, { webSearch: 'on', connectors: true, synthesis: { advanced: false } });
   assert.equal('searchKey' in noKeySpec.secrets, false);
 });
 
@@ -204,7 +204,8 @@ test('a council the server does not take is held here as usual, and the person i
   const declined = holdHarness({ started: { ok: false, reason: 'unreachable', notify: 'unreachable' } });
   const result = await call(declined).promise;
   assert.equal(result.text, 'LOCAL');
-  assert.deepEqual(declined.record.notices, [['unreachable', 'fr']]);
+  assert.deepEqual(declined.record.notices, [], 'not reached: no notice over the page');
+  assert.equal(result.madeHere, true, 'the line of the message says it was made on this device');
   const [args] = declined.record.local;
   assert.equal(args.length, 5, 'the page\'s four arguments, then what its own council needs');
   assert.equal(args[4].webSearchEnabled, true);
@@ -286,6 +287,38 @@ test('the live channel tells the page how the council stands, also a page that j
   assert.equal(result.text, 'Done');
 });
 
+test('following a council can stop where its synthesis begins (another follower takes it from there), without stopping the council', async () => {
+  const encoder = new TextEncoder();
+  const events = [{ r: { answer: '', thought: { text: '', kind: 'model' }, sources: [], cs: { stage: 'firstRound', elapsedMs: 5000 } } }, { cs: { stage: 'synthesis', elapsedMs: 9000 } }, { a: 'Done' }, { done: 'complete' }];
+  const body = new ReadableStream({ start(controller) { for (const event of events) controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`)); controller.close(); } });
+  const asked = [];
+  const reply = createServerReply({
+    getAccessToken: async () => 'token-123',
+    getApiKeyForProvider: () => KEYS.openrouter,
+    getModelApiId: (model) => model.id,
+    getDefaultGenConfig: () => ({}),
+    describeRequest: async () => ({ systemInstructionText: '' }),
+    flushSync: async () => {},
+    readMessage: async () => ({ parts: [{ text: 'Done' }], status: 'complete', metadata: null }),
+    findLiveRun: async () => ({ id: 'run-1', message_id: MESSAGE_ID, kind: 'council' }),
+    fetchImpl: async (url, options = {}) => {
+      asked.push([String(url), options.method || 'GET']);
+      return String(url).endsWith('/stream') ? new Response(body, { status: 200, headers: { 'Content-Type': 'text/event-stream' } }) : new Response('{}', { status: 200 });
+    },
+    clientVersion: '17.11.0',
+    wait: async () => {},
+    paceMs: 0
+  });
+  const run = await reply.find(CONVERSATION.id);
+  const stages = [];
+  const texts = [];
+  const result = await run.follow({ onCouncil: (state) => stages.push(state.stage), onText: (text) => texts.push(text), handOver: (state) => state.stage === 'synthesis', signal: new AbortController().signal });
+  assert.deepEqual(result, { handedOver: true });
+  assert.deepEqual(stages, ['firstRound']);
+  assert.deepEqual(texts, []);
+  assert.equal(asked.some(([url, method]) => /stop/.test(url) || method === 'DELETE'), false, 'the council is not stopped');
+});
+
 test('the page asks the server for its council through the same call, and gives the server what it needs (source of the wiring)', async () => {
   const { readFileSync } = await import('node:fs');
   const lifecycle = readFileSync(new URL('../src/app/runtime/legacy-core/submit-input-council-lifecycle.js', import.meta.url), 'utf8');
@@ -331,4 +364,68 @@ test('the skills asked for with "/" in the message are in what every kind of cou
   } finally {
     registerSkillMode(null);
   }
+});
+
+test('the synthesizer may write files the way a reply may: Python for a request about files in Advanced mode, with the Design menu and the attachments; the server takes it', async () => {
+  const { councilSynthesisTools } = await import('../src/app/runtime/server-reply/server-council.js');
+  const { validateRunSpec } = await import('../server/run-spec.js');
+  const parts = [{ text: 'make a deck of this' }, { inlineData: { mimeType: 'application/pdf', data: 'AAAA', name: 'report.pdf' } }];
+  const conversation = { ...CONVERSATION, deckDesign: 'swiss' };
+  assert.deepEqual(councilSynthesisTools({ conversation, config: {}, synthesizer: SYNTH, userParts: parts }), {
+    advanced: true,
+    designs: { deck: 'swiss', document: 'auto' },
+    inputs: [{ name: 'report.pdf', mimeType: 'application/pdf', data: 'AAAA' }]
+  });
+  assert.deepEqual(councilSynthesisTools({ conversation, config: { isLearningMode: true }, synthesizer: SYNTH, userParts: parts }), { advanced: false }, 'not in the learning mode');
+  assert.deepEqual(councilSynthesisTools({ conversation: CONVERSATION, config: {}, synthesizer: SYNTH, userParts: [{ text: 'what is the capital of France' }] }), { advanced: false });
+  assert.equal(councilSynthesisTools({ conversation, config: {}, synthesizer: { provider: 'acme', id: 'no-tools', name: 'X' }, userParts: parts }), null, 'a model that calls no tools');
+
+  const { reply, calls } = harness();
+  await reply.startCouncil(startArgs({ userParts: parts, conversation }));
+  const sent = JSON.parse(calls[0].options.body);
+  assert.equal(sent.tools.synthesis.advanced, true);
+  const checked = validateRunSpec(sent);
+  assert.equal(checked.ok, true, JSON.stringify(checked.errors));
+  assert.deepEqual(checked.spec.tools.synthesis, { advanced: true, designs: { deck: 'swiss', document: 'auto' }, inputs: [{ name: 'report.pdf', mimeType: 'application/pdf', data: 'AAAA' }] });
+  const bad = JSON.parse(calls[0].options.body);
+  bad.tools.synthesis = { advanced: 'yes', other: 1 };
+  assert.deepEqual(validateRunSpec(bad).errors.map((error) => error.path).sort(), ['tools.synthesis.advanced', 'tools.synthesis.other']);
+});
+
+test('a council the server holds is followed until its synthesis begins, and then as a reply (its steps, files and questions); without that the text is read as before', async () => {
+  const council = createServerCouncil({ plan: () => ({ ok: true }), start: async () => ({ ok: true, run: fakeRun }), notify: () => {}, getCouncilSelectedModels: () => ({ council: COUNCIL, participants: [MEMBER_A, MEMBER_B], synthesizer: SYNTH }) });
+  const asked = [];
+  const fakeRun = {
+    async follow(options) {
+      asked.push(Boolean(options.handOver));
+      options.onCouncil({ stage: 'firstRound', elapsedMs: 0 });
+      if (options.handOver?.({ stage: 'synthesis' })) return { handedOver: true };
+      options.onText('words');
+      return { text: 'words', run: { sources: [{ n: 1, url: 'https://a.example/' }] }, extraParts: [] };
+    }
+  };
+  const progress = [];
+  const followed = [];
+  const handed = await council({
+    args: [[{ text: 'Q' }], new AbortController().signal, (state) => progress.push(state.stage), () => {}, { followSynthesis: async (run) => { followed.push(run); return { text: 'block and answer', extraParts: [{ sandboxFile: { name: 'deck.pptx' } }] }; } }],
+    local: async () => { throw new Error('not here'); },
+    conversation: CONVERSATION,
+    assistantMessageId: MESSAGE_ID
+  });
+  assert.deepEqual(followed, [fakeRun]);
+  assert.equal(handed.text, 'block and answer');
+  assert.equal(handed.synthesis.extraParts[0].sandboxFile.name, 'deck.pptx');
+  assert.deepEqual(progress, ['firstRound']);
+  const plain = await council({ args: [[{ text: 'Q' }], new AbortController().signal, () => {}, () => {}], local: async () => { throw new Error('not here'); }, conversation: CONVERSATION, assistantMessageId: MESSAGE_ID });
+  assert.equal(plain.text, 'words');
+  assert.equal(plain.synthesis, undefined);
+  assert.equal(plain.sources[0].url, 'https://a.example/');
+  assert.deepEqual(asked, [true, false]);
+
+  // Held here: the page's council is given the synthesis to make as a reply.
+  let given = null;
+  const here = createServerCouncil({ plan: () => ({ ok: false }), start: async () => ({ ok: false }), notify: () => {}, getCouncilSelectedModels: () => ({ council: COUNCIL, participants: [], synthesizer: SYNTH }) });
+  const synthesize = async () => ({ text: 'x' });
+  await here({ args: [[{ text: 'Q' }], null, null, null, { synthesize }], local: async (...args) => { given = args[4]; return { text: 'local' }; }, conversation: CONVERSATION, assistantMessageId: MESSAGE_ID });
+  assert.equal(given.synthesize, synthesize);
 });

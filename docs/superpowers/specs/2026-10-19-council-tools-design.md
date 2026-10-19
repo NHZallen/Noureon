@@ -87,3 +87,22 @@
 - **伺服器**：`council-run.js` 用同一個成員迴圈（`timedCall`、Tavily／TinyFish、技能、連接器只給 `kind: 'read'` 且 `state: 'allow'` 的工具），成員整個回答記在檢查點（版本改 2，舊版本不接），檢查點多 `sources`，訊息開頭帶來源方塊。`run-spec.js` 理事會的 `tools` 接受 `skills`、`connectors`，不再要求搜尋金鑰。`server-council.js` 送技能清單、`connectors: true`、有就送搜尋金鑰，跟隨結果多 `sources`。
 - **測試**：`tests/council-member-reply.test.js`（8 項）、`council-response-lifecycle`（改寫搜尋的 3 項）、`server/server-council`（成員自己搜與共用編號、接續不重問、技能與只讀連接器）、`server-council-client`、`council-response-render-lifecycle`（來源方塊）。
 - **還沒做**：整合者動手（P2）、時間軸畫面（P3；目前的進度面板照舊，只是不再有「搜尋」那一段）、隱私政策與協助中心（P4，目前的文字還寫著共用搜尋包）。
+
+### P2（2026-10-19）
+
+- **伺服器**：`council-run.js` 的整合改呼叫 `executeReply`（一般回覆的執行）：模型＝整合者，訊息＝整合提示，系統指令＝頁面組好的整合指令＋理事會的整合要求；`webSearch: 'off'`（成員已經搜過），技能、連接器（含寫入，照權限詢問）、`tools.synthesis` 的 Python、設計範本、附件與命令工具（伺服器沒有沙盒時不用 Python）。`executeReply` 多 `knownSources`（成員的來源，編號接著用）。即時事件（字、思考、步驟、詢問卡）與訊息寫入都和一般回覆一樣；理事會的「原始回答」區塊接在後面。`runs.js` 把沙盒、憑證、三種詢問控制與 `onPaused` 交給理事會。整合中的 Python 遺失時不交回頁面（`watching: () => false`），沒有 Python 繼續。
+- **規格**：理事會的 `tools.synthesis`（`advanced`、`designs`、`inputs`、`cli`、`net`），用一般回覆的驗證檢查。頁面 `councilSynthesisTools`（`server-council.js`）照一般回覆的規則決定：進階模式且和檔案有關（或對話裡有檔案）、或有命令工具，才給 Python。
+- **頁面**：`council-response-lifecycle.js` 多 `synthesize` 選項；本機開會時由 `council-response-render-lifecycle.js` 交給一般回覆（`single-model-response-lifecycle.js` 的新選項 `synthesis`：不搜尋、不讀請求裡的網址、沒有歷史、不交給伺服器、帶成員來源）。伺服器開會時，跟隨在 `cs.stage === 'synthesis'` 時停下（`follow` 的 `handOver`，不停止執行），再由一般回覆以 `resumeRun` 跟隨同一個執行（步驟、詢問卡、檔案都照一般回覆）。整合做出的檔案成為訊息的檔案。
+- **沒做**：理事會整合後的「AI 看圖檢查」（`visionCheck`）還沒接；整合者本身不再搜尋（決定：成員搜）。
+
+### P3（2026-10-19）
+
+- `src/app/ui/council/council-timeline.js`：時間軸（等待中與存下的訊息共用）；`council-record.js`：把理事會紀錄（成員、各階段時間）放進訊息開頭的步驟紀錄（`normalizeCouncilRecord`，來源上限改 100）。
+- 理事會主程式記各階段起訖與成員字數，結果多 `record`；伺服器 `cs` 多 `stages`。
+- 等待中：時間軸取代舊面板（點成員看它搜了什麼；按鈕形式，重畫時保持打開）；整合時時間軸留在上面，下面是一般回覆的步驟列；答完收成「N 位成員討論 · 時間 ›」，點開是時間軸與整合者的步驟；伺服器沒接手（連不上、忙）時不跳提示，摘要列加「在這個裝置上產生」。
+- 文字在 `sandbox-texts.js`（五語言）；樣式在 `model-council.css`（拿掉舊面板的樣式）。渲染檢查：淺色、深色七個狀態。
+- 主程式包（legacy-core）壓縮後的預算很緊：成員迴圈改成開會時才載入（`council-member-steps.js` 分出來）。
+
+### P4（2026-10-19）
+
+- 協助中心「模型理事會」一節與隱私政策的理事會一段，五語言更新；`PRIVACY.md` 重新產生。全套檢查通過。

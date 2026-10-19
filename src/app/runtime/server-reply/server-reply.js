@@ -334,7 +334,9 @@ export function createServerReply({
      * had, the message is read instead, a few times a second). `onText(delta)` gets the answer as it grows, `onThought(text, kind, msSoFar)` the thinking, `onThoughtEnd(ms)` how long it thought, `onTiming(ms)` how long the reply has gone on. `onRun(run)` gets the run record when it has more pages. Resolves { text, run, rewritten }
      * ('rewritten': the finished text is not just the streamed one with more at the end; `extraParts`: the files the reply made), or throws a ServerReplyError. `onEvent(event)` gets what the steps of a reply with Python do, for the step list.
      */
-    async follow({ onText = () => {}, onRun = () => {}, onThought = () => {}, onThoughtEnd = () => {}, onTiming = () => {}, onEvent = () => {}, onSearching = () => {}, onCouncil = () => {}, signal } = {}) {
+    // `handOver(councilState)`: true when another follower takes the run from here (a council's synthesis, followed as a reply): the following ends
+    // with { handedOver: true }, and the run goes on.
+    async follow({ onText = () => {}, onRun = () => {}, onThought = () => {}, onThoughtEnd = () => {}, onTiming = () => {}, onEvent = () => {}, onSearching = () => {}, onCouncil = () => {}, handOver = null, signal } = {}) {
       const startedAt = now();
       let answerSoFar = '';
       let stopSent = false;
@@ -390,7 +392,10 @@ export function createServerReply({
           // The times are the server's: how long the reply has gone on, and how long it thought, so every page shows the same.
           if (Number.isFinite(event.r.elapsedMs)) onTiming(event.r.elapsedMs);
           if (event.r.ss) onSearching(event.r.ss);
-          if (event.r.cs) onCouncil(event.r.cs);
+          if (event.r.cs) {
+            if (handOver?.(event.r.cs)) return 'handover';
+            onCouncil(event.r.cs);
+          }
           if (event.r.thought?.text) onThought(event.r.thought.text, event.r.thought.kind, event.r.thought.ms);
           if (event.r.thought?.ended) onThoughtEnd(event.r.thought.ms);
           if (event.r.sources?.length > sourceCount) {
@@ -399,8 +404,10 @@ export function createServerReply({
           }
           // A page that joins late is given the steps so far, to draw the same list.
           if (Array.isArray(event.r.events)) for (const step of event.r.events) onEvent(withFileBytes(step));
-        } else if (event.cs) onCouncil(event.cs);
-        else if (typeof event.ss === 'string') onSearching(event.ss);
+        } else if (event.cs) {
+          if (handOver?.(event.cs)) return 'handover';
+          onCouncil(event.cs);
+        } else if (typeof event.ss === 'string') onSearching(event.ss);
         else if (Number.isFinite(event.tm)) onTiming(event.tm);
         else if (event.ev) onEvent(withFileBytes(event.ev));
         else if (typeof event.a === 'string') {
@@ -444,7 +451,8 @@ export function createServerReply({
               } catch {
                 continue;
               }
-              if (handleLive(event) === 'done') return 'done';
+              const outcome = handleLive(event);
+              if (outcome) return outcome;
             }
           }
         } catch {
@@ -470,7 +478,12 @@ export function createServerReply({
       // then followed live again, not only read from the message when it is over.
       for (let attempt = 0; attempt < MAX_LIVE_JOINS; attempt += 1) {
         connections += 1;
-        if (await readLive() === 'done' || signal?.aborted || stopSent) break;
+        const live = await readLive();
+        if (live === 'handover' && !signal?.aborted) {
+          signal?.removeEventListener?.('abort', onStopAsked);
+          return { handedOver: true };
+        }
+        if (live === 'done' || signal?.aborted || stopSent) break;
         // A server that has no live channel is read from the message, as before: only a channel that worked and broke is joined again.
         if (!everJoined) break;
         let over = false;

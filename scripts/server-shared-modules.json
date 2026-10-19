@@ -14,6 +14,14 @@
       "note": "Reviewed 2026-10-08: no browser globals (which attachments need a packet)."
     },
     {
+      "path": "src/app/ui/council/council-record.js",
+      "note": "Reviewed 2026-10-19: pure functions (a council's members and stages put into the record at the head of a message)."
+    },
+    {
+      "path": "src/app/legacy-runtime/features/council-member-steps.js",
+      "note": "Reviewed 2026-10-19: a plain function (the counts and newest steps of a council member)."
+    },
+    {
       "path": "src/app/legacy-runtime/features/council-member-reply.js",
       "note": "Reviewed 2026-10-19: no browser globals (a member of a council answering with its own search, skills and connector reads; a test fails if it mentions document., window. or storage)."
     },

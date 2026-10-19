@@ -24,8 +24,8 @@ test('the panel puts a button to leave only on a model that may leave, and says 
   const html = panel()({ stage: 'firstRound', message: 'm', modelStates: states, exit: () => true, elapsedMs: 1000, activeParticipants: 3, totalParticipants: 3 });
   assert.equal((html.match(/data-council-exit=/g) || []).length, 1);
   assert.match(html, /data-council-exit="alpha"[^>]*>Leave</);
-  assert.match(html, /council-progress-model exited/);
-  assert.match(html, /<span class="council-progress-model-status">Left<\/span>/);
+  assert.match(html, /council-tl-member is-exited/);
+  assert.match(html, /<span class="council-tl-member-status">Left<\/span>/);
   const without = panel()({ stage: 'firstRound', message: 'm', modelStates: states, elapsedMs: 1000, activeParticipants: 3, totalParticipants: 3 });
   assert.doesNotMatch(without, /data-council-exit/, 'a council that cannot let a model leave has no button');
 });
@@ -158,6 +158,6 @@ test('the page asks the question when the person presses the button (source of t
   const lifecycle = read('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
   assert.match(lifecycle, /confirmExit:\s*\(\{ modelName \}\)\s*=>\s*import\('\.\.\/\.\.\/legacy-runtime\/features\/council-exit-dialog\.js'\)/);
   const css = read('src/styles/model-council.css');
-  assert.match(css, /\.council-progress-exit\s*\{/);
-  assert.match(css, /\.council-progress-dot\.exited/);
+  assert.match(css, /\.council-tl-exit\s*\{/);
+  assert.match(css, /\.council-tl-member\.is-exited \.council-tl-member-name/);
 });

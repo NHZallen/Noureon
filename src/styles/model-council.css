@@ -8,39 +8,10 @@
     overflow: hidden;
 }
 
-.council-progress-orbit {
-    display: flex;
-    gap: 0.22rem;
-    width: fit-content;
-}
-
-.council-progress-orbit span {
-    display: block;
-    width: 1.15rem;
-    height: 0.22rem;
-    border-radius: 999px;
-    background: var(--accent-color, #3b82f6);
-    opacity: 0.35;
-    animation: council-activity-bar 1.2s ease-in-out infinite;
-}
-
-.council-progress-orbit span:nth-child(2) {
-    animation-delay: 0.16s;
-}
-
-.council-progress-orbit span:nth-child(3) {
-    animation-delay: 0.32s;
-}
-
-.council-progress-heading,
-.council-progress-search,
-.council-progress-model {
+.council-progress-heading {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-}
-
-.council-progress-heading {
     justify-content: space-between;
     color: var(--text-primary);
     font-weight: 800;
@@ -75,132 +46,174 @@
     line-height: 1.5;
 }
 
-.council-progress-stats {
+/* A council while it goes on, and in its saved message (council-timeline.js): a thin line through the stages, a dot on each (filled once done, the
+   person's accent while it runs, hollow before), plain rows for the members, numbers on the right. */
+.council-tl-panel { min-width: min(28rem, 72vw); }
+
+.council-tl {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.council-tl-stage {
+    position: relative;
+    padding: 0 0 0.75rem 1.4rem;
+}
+
+.council-tl-stage::before {
+    content: '';
+    position: absolute;
+    left: 0.25rem;
+    top: 0.9rem;
+    bottom: -0.1rem;
+    width: 1px;
+    background: var(--border-color);
+}
+
+.council-tl-stage:last-child { padding-bottom: 0; }
+.council-tl-stage:last-child::before { display: none; }
+
+.council-tl-head {
     display: flex;
-    flex-wrap: wrap;
-    gap: 0.35rem;
+    align-items: baseline;
+    gap: 0.5rem;
+    font-size: 0.95rem;
+    line-height: 1.4rem;
 }
 
-.council-progress-stats span {
-    padding: 0.16rem 0.44rem;
-    border: 1px solid var(--border-color);
-    border-radius: 999px;
-    color: var(--text-secondary);
-    font-size: 0.7rem;
-    font-weight: 800;
+.council-tl-node {
+    position: absolute;
+    left: 0;
+    top: 0.44rem;
+    width: 0.56rem;
+    height: 0.56rem;
+    border-radius: 50%;
+    box-sizing: border-box;
 }
 
-.council-progress-search {
-    padding: 0.45rem 0.55rem;
-    border: 1px solid var(--border-color);
-    border-radius: 0.5rem;
-    color: var(--text-secondary);
+.council-tl-stage.is-done .council-tl-node { background: var(--text-secondary); }
+.council-tl-stage.is-todo .council-tl-node { border: 1px solid var(--text-tertiary); background: var(--chat-bg); }
+.council-tl-stage.is-now .council-tl-node {
+    background: var(--button-primary-bg);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--button-primary-bg) 20%, transparent);
+}
+
+.council-tl-name { color: var(--text-primary); }
+.council-tl-stage.is-done .council-tl-name { color: var(--text-secondary); }
+.council-tl-stage.is-todo .council-tl-name { color: var(--text-tertiary); }
+
+.council-tl-meta,
+.council-tl-member-meta {
+    margin-left: auto;
+    color: var(--text-tertiary);
     font-size: 0.78rem;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
 }
 
-.council-progress-models {
+.council-tl-members {
+    list-style: none;
+    margin: 0.5rem 0 0.1rem;
+    padding: 0;
     display: grid;
-    gap: 0.35rem;
+    gap: 0.45rem;
 }
 
-.council-progress-model {
-    justify-content: space-between;
-    align-items: flex-start;
-    padding: 0.42rem 0.55rem;
-    border-radius: 0.5rem;
-    background: color-mix(in srgb, var(--input-field-bg) 88%, transparent);
-    font-size: 0.78rem;
+.council-tl-member-row {
+    display: flex;
+    align-items: baseline;
+    gap: 0.4rem;
 }
 
-.council-progress-model-copy {
-    display: grid;
-    min-width: 0;
+.council-tl-member-head {
+    display: flex;
     flex: 1;
+    min-width: 0;
+    align-items: baseline;
+    gap: 0.5rem;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    font-size: 0.875rem;
+    text-align: left;
 }
 
-.council-progress-model-name {
+button.council-tl-member-head { cursor: pointer; }
+button.council-tl-member-head .council-tl-member-name {
+    text-decoration: underline;
+    text-decoration-color: var(--border-color);
+    text-underline-offset: 3px;
+}
+
+.council-tl-member-name {
+    flex: none;
+    max-width: 50%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-primary);
+}
+
+.council-tl-member-status {
     min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-tertiary);
+    font-size: 0.8rem;
+}
+
+.council-tl-member.is-done .council-tl-member-name { color: var(--text-secondary); }
+.council-tl-member.is-running .council-tl-member-status { color: var(--text-primary); }
+.council-tl-member.is-failed .council-tl-member-name,
+.council-tl-member.is-exited .council-tl-member-name,
+.council-tl-member.is-skipped .council-tl-member-name { color: var(--text-tertiary); }
+.council-tl-member.is-failed .council-tl-member-status { color: var(--state-danger); }
+
+/* The way to let a model leave: a text link at the end of its row, only while it answers. */
+.council-tl-exit {
+    flex: none;
+    padding: 0 0 0 0.35rem;
+    border: 0;
+    background: none;
+    color: var(--text-tertiary);
+    font: inherit;
+    font-size: 0.78rem;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
+}
+
+.council-tl-exit:hover,
+.council-tl-exit:focus-visible { color: var(--text-primary); }
+
+@media (pointer: coarse) {
+    .council-tl-exit { min-height: 2.25rem; padding-left: 0.75rem; }
+}
+
+/* What an opened member searched and read. */
+.council-tl-steps {
+    list-style: none;
+    margin: 0.25rem 0 0.2rem;
+    padding: 0.1rem 0 0.1rem 0.65rem;
+    border-left: 2px solid var(--border-color);
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+    line-height: 1.6;
+}
+
+.council-tl-steps li {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-.council-progress-model-detail {
-    color: var(--text-secondary);
-    font-size: 0.7rem;
-    line-height: 1.35;
-}
-
-.council-progress-model-status {
-    color: var(--text-secondary);
-    font-weight: 800;
-}
-
-.council-progress-dot {
-    width: 0.52rem;
-    height: 0.52rem;
-    flex: 0 0 auto;
-    border-radius: 999px;
-    background: var(--text-secondary);
-    opacity: 0.6;
-}
-
-.council-progress-dot.running {
-    background: var(--accent-color, #3b82f6);
-    opacity: 1;
-    animation: council-pulse 1s ease-in-out infinite;
-}
-
-.council-progress-dot.done {
-    background: var(--state-success);
-    opacity: 1;
-}
-
-.council-progress-dot.failed {
-    background: var(--state-danger);
-    opacity: 1;
-}
-
-.council-progress-dot.skipped {
-    background: var(--state-warning);
-    opacity: 1;
-}
-
-.council-progress-dot.exited {
-    background: var(--text-secondary);
-    opacity: 0.35;
-}
-
-.council-progress-model.exited {
-    opacity: 0.6;
-}
-
-/* The way to let a model leave the council: a small plain button at the end of its row, only while it is answering. */
-.council-progress-exit {
-    flex: 0 0 auto;
-    padding: 0.18rem 0.55rem;
-    border: 1px solid var(--border-color);
-    border-radius: 999px;
-    background: transparent;
-    color: var(--text-primary);
-    font-size: 0.72rem;
-    font-weight: 700;
-    line-height: 1.2;
-    cursor: pointer;
-    align-self: center;
-}
-
-@media (pointer: coarse) {
-    .council-progress-exit {
-        min-height: 2.25rem;
-        padding-inline: 0.9rem;
-    }
-}
-
-.council-progress-exit:hover,
-.council-progress-exit:focus-visible {
-    background: var(--hover-bg);
-}
+/* The timeline above the reply that writes the synthesis, and in the saved message. */
+.council-tl-hold { margin-bottom: 0.75rem; }
+.council-tl-saved { padding: 0.25rem 0 0.5rem; }
 
 .council-collapse {
     margin: 1rem 0;
@@ -476,13 +489,4 @@
     -webkit-backdrop-filter: blur(10px);
 }
 
-@keyframes council-pulse {
-    0%, 100% { transform: scale(0.9); opacity: 0.65; }
-    50% { transform: scale(1.18); opacity: 1; }
-}
-
-@keyframes council-activity-bar {
-    0%, 100% { opacity: 0.25; transform: translateY(0); }
-    50% { opacity: 1; transform: translateY(-1px); }
-}
 

@@ -114,8 +114,14 @@ export function createSingleModelResponseLifecycle({
     sequence = 0,
     getHistorySourceIds = () => [],
     // A reply the server is still making, picked up again after the page was closed or left: it is only followed.
-    resumeRun = null
+    resumeRun = null,
+    // The synthesis of a council (docs/superpowers/specs/2026-10-19-council-tools-design.md, §2.2): a reply like any other, made here, to a request
+    // put together by the council: { instruction, sources } (what the synthesizer is told, and the pages the members met). It searches nothing and
+    // reads no address of its request (the members did); it has no history (the request says what it needs). With `resumeRun`, the council the
+    // server holds, followed from its synthesis on.
+    synthesis = null
   }) => {
+    if (synthesis) webSearchEnabled = false;
     stop();
     const startedAt = now();
     runStartedAt = startedAt;
@@ -140,7 +146,7 @@ export function createSingleModelResponseLifecycle({
     const researchByModel = Boolean(webSearchEnabled && webResearch?.canUse(modelInfo));
     // A web address in the message is read for the models that cannot open one (provider-request-support.js decides which). Not when the person
     // chose a CLI tool with "@" and the model searches and opens pages by itself: the address is the tool's, and the model reads it if it needs to.
-    const addressIsForTool = researchByModel && Boolean(supportsToolCalling?.(modelInfo)) && cliIdsForReply(getConfig(), userParts).chosen.length > 0;
+    const addressIsForTool = Boolean(synthesis) || (researchByModel && Boolean(supportsToolCalling?.(modelInfo)) && cliIdsForReply(getConfig(), userParts).chosen.length > 0);
     // Whether the server makes this reply, and so (for a model that cannot search) the search too: the page then only prepares the files and
     // pages of the message. When the server does not take the reply, the search is made here, below.
     const canCallTools = Boolean(supportsToolCalling?.(modelInfo));
@@ -165,7 +171,8 @@ export function createSingleModelResponseLifecycle({
     // The CLI tools chosen with "@" (and those the person lets the model use by itself) run in the same sandbox, so they need it whatever the
     // setting says; a model that cannot call tools cannot use them.
     const needsPython = cli.ids.length > 0 || (replyMode.advanced && (looksLikeFileTask(userParts) || conversationHasFiles(conversation)));
-    const plan = !resumeRun && serverReply && assistantMessageId
+    // (The synthesis of a council held here is made here too.)
+    const plan = !resumeRun && !synthesis && serverReply && assistantMessageId
       ? serverReply.plan({ conversation, advanced: needsPython, webSearchEnabled, researchByModel, provider: modelInfo?.provider })
       : null;
     const serverSearches = plan?.ok && plan.webSearch === 'packet';
@@ -174,7 +181,7 @@ export function createSingleModelResponseLifecycle({
       (!addressIsForTool && verdictOf(decisionsFor(textOfParts(userParts)), 'url') !== false && extractLinkedUrls(textOfParts(userParts)).urls.length > 0));
     let requestParts = userParts;
     // The pages a web search found (kept with the reply, shown as "Searched N sites").
-    let searchSources = [];
+    let searchSources = Array.isArray(synthesis?.sources) ? [...synthesis.sources] : [];
     // The provider's own web search (Gemini) reports the pages it used as the answer streams; rounds add to them. A page
     // that was found and then read is both, so each is kept once.
     const addSearchSources = (found) => {
@@ -290,7 +297,8 @@ export function createSingleModelResponseLifecycle({
       }
     };
 
-    const streamOptions = { modelInfo, conversation, webSearchEnabled, onMemoryContextResolved, onSources: addSearchSources, onSupports: (supports) => { groundingSupports = supports; }, requestPurpose: NOURAS_REQUEST_PURPOSE.USER_VISIBLE_ANSWER, ...skillOptions };
+    const streamOptions = { modelInfo, conversation, webSearchEnabled, onMemoryContextResolved, onSources: addSearchSources, onSupports: (supports) => { groundingSupports = supports; }, requestPurpose: NOURAS_REQUEST_PURPOSE.USER_VISIBLE_ANSWER, ...skillOptions,
+      ...(synthesis ? { historyForApi: [], ignoreConversationWebSearch: true, requestPurpose: NOURAS_REQUEST_PURPOSE.COUNCIL_SYNTHESIS, additionalSystemInstruction: [skillOptions.additionalSystemInstruction, synthesis.instruction].filter(Boolean).join('\n\n') } : {}) };
     // The run record (or the reason for Standard mode) kept above the answer.
     let sandboxRun = !replyMode.advanced && replyMode.reason && looksLikeFileTask(userParts)
       ? { status: 'done', steps: [], fallback: replyMode.reason }

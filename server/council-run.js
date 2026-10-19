@@ -19,7 +19,8 @@ import { createCouncilResponseLifecycle } from '../src/app/legacy-runtime/featur
 import { buildTavilySearchQuery, formatTavilySearchPacket, getSearchCurrentDate, normalizePageReads, normalizeTinyfishSearch, withSearchContext } from '../src/app/legacy-runtime/features/model-request-formatting.js';
 import { createProviderRequestSupport } from '../src/app/legacy-runtime/features/provider-request-support.js';
 import { createStreamApiCall } from '../src/app/legacy-runtime/features/stream-api-call.js';
-import { formatSandboxRunBlock } from '../src/app/ui/sandbox/sandbox-run-block.js';
+import { formatSandboxRunBlock, hasSandboxRunBlock, liftSandboxRunBlock } from '../src/app/ui/sandbox/sandbox-run-block.js';
+import { withCouncilRecord } from '../src/app/ui/council/council-record.js';
 import { createSkillLoader } from '../src/data/skill-tool.js';
 import { createServerOfficeReader } from './office-deps.js';
 import { getCouncilRuntimeTexts } from '../src/app/runtime/legacy-core/council-runtime-texts.js';
@@ -38,7 +39,7 @@ import {
   normalizeReasoningEffort
 } from '../src/app/runtime/legacy-core/model-registry.js';
 import { NOURAS_REQUEST_PURPOSE } from '../src/app/runtime/nouras/nouras-policy.js';
-import { getErrorMessage, readErrorBody, ReplyError, scrubMessage, scrubText } from './executor.js';
+import { executeReply, getErrorMessage, readErrorBody, ReplyError, scrubMessage, scrubText } from './executor.js';
 import { ERROR_CODES, LIMITS } from './protocol.js';
 import { combineLoaders, createConnectorLoader } from './mcp/tool-loader.js';
 import { createUpstreamFetch } from './upstream-fetch.js';
@@ -91,7 +92,16 @@ export async function executeCouncil({
   // The person, their skills (server/skills.js) and connectors (server/mcp/connections.js): what the members may read by themselves.
   userId = '',
   skills = null,
-  connectors = null
+  connectors = null,
+  // What the synthesis, made as a reply (executor.js), may use besides: Python and its files, the CLI tools with their credentials, and the answers
+  // of the person to the questions of a reply (the run manager's controls). `onPaused` gives back the time it waited for the person.
+  sandboxHost = null,
+  files = null,
+  credentials = null,
+  netControl = null,
+  credentialControl = null,
+  connectorControl = null,
+  onPaused = () => {}
 }) {
   const language = spec.request.language;
   const startedAt = now() - (Number(resume?.elapsedMs) || 0);
@@ -357,7 +367,8 @@ export async function executeCouncil({
         totalParticipants: progress.totalParticipants,
         activeParticipants: progress.activeParticipants,
         modelStates: progress.modelStates,
-        search: progress.search
+        search: progress.search,
+        stages: progress.stages
       }
     });
   };
@@ -392,10 +403,66 @@ export async function executeCouncil({
     modelSupportsDocumentUpload
   });
 
-  // The message: the pages the members met (as a reply keeps its sources, so the answer's [n] are links), then the text.
+  // The message: the pages the members met (as a reply keeps its sources, so the answer's [n] are links), then the text. A synthesis made as a
+  // reply has its own record at the head already (its steps, with the members' pages).
   const withSources = (text) => {
     const sources = members.sources();
-    return sources.length ? `${formatSandboxRunBlock({ status: 'done', steps: [], elapsedMs: elapsed(), sources })}${text}` : text;
+    return sources.length && !hasSandboxRunBlock(text) ? `${formatSandboxRunBlock({ status: 'done', steps: [], elapsedMs: elapsed(), sources })}${text}` : text;
+  };
+
+  // ----- the synthesis, made as a reply (docs/superpowers/specs/2026-10-19-council-tools-design.md, §2.2): it searches nothing (the members did), and
+  // may use everything else a reply has: files and Python, CLI tools, connectors that change things (each asked as the person set it), skills.
+  // Its words, steps and questions reach the pages as a reply's do; the message is written as it goes.
+  const synthesisEntry = spec.council.synthesizer;
+  let synthesisParts = null;
+  let synthesisMade = null;
+  const synthesize = async ({ parts: requestParts, instruction, sources }) => {
+    const result = await executeReply({
+      spec: {
+        protocol: spec.protocol,
+        clientVersion: spec.clientVersion,
+        conversationId: spec.conversationId,
+        assistantMessageId: spec.assistantMessageId,
+        sequence: spec.sequence,
+        model: { provider: synthesisEntry.provider, id: synthesizer.apiId || synthesizer.id, info: synthesizer },
+        request: { history: [], currentMessage: { parts: requestParts }, systemInstruction: [instructions.synthesis, instruction].filter(Boolean).join('\n\n'), language },
+        tools: {
+          webSearch: 'off',
+          searchProvider: spec.tools.searchProvider,
+          searchDepth: spec.tools.searchDepth,
+          advanced: false,
+          // Python (and the CLI tools, which run in its sandbox) only where the server has a sandbox.
+          ...(spec.tools.synthesis?.advanced && sandboxHost?.configured && files ? spec.tools.synthesis : {}),
+          ...(spec.tools.skills ? { skills: spec.tools.skills } : {}),
+          ...(spec.tools.connectors ? { connectors: true } : {})
+        }
+      },
+      secrets: { providerKey: keyFor(synthesisEntry.provider), ...(secrets.searchKey ? { searchKey: secrets.searchKey } : {}), ...(secrets.searchKeyAlt ? { searchKeyAlt: secrets.searchKeyAlt } : {}) },
+      signal,
+      userId,
+      sandboxHost,
+      files,
+      credentials,
+      skills,
+      connectors,
+      netControl,
+      credentialControl,
+      connectorControl,
+      knownSources: sources,
+      onPaused,
+      // No page takes a council's synthesis over when the server's Python is lost: it goes on without Python.
+      watching: () => false,
+      onUpdate: (parts) => {
+        synthesisParts = parts;
+        onUpdate(parts);
+      },
+      onLive,
+      onProblem,
+      fetchImpl,
+      now
+    });
+    synthesisMade = result;
+    return { text: String(result.parts[0]?.text ?? ''), extraParts: result.parts.slice(1) };
   };
   const closeConnectors = () => Promise.all([...connectorClients.values()].map((client) => client.close().catch(() => {})));
 
@@ -408,22 +475,30 @@ export async function executeCouncil({
       onMemberExit: (modelId) => {
         exited.add(modelId);
         save();
-      }
+      },
+      synthesize
     });
   } catch (error) {
     await saving;
     await closeConnectors();
     // A stop keeps what the synthesis had written.
-    if (signal?.aborted) return { parts: [{ text: withSources(answer) }], status: 'stopped', run: { elapsedMs: elapsed() }, toolCalls: 0 };
+    if (signal?.aborted) return { parts: synthesisParts || [{ text: withSources(answer) }], status: 'stopped', run: { elapsedMs: elapsed() }, toolCalls: 0 };
     throw new ReplyError(scrubMessage(error?.message, secrets), ERROR_CODES.providerError);
   }
   await saving;
   await closeConnectors();
   const text = String(outcome?.text ?? '');
   // A stop that came while the synthesis was being written: the council gives its members' answers instead of it, but the person stopped it.
-  if (signal?.aborted) return { parts: [{ text: withSources(answer) }], status: 'stopped', run: { elapsedMs: elapsed() }, toolCalls: 0 };
+  const extraParts = outcome?.synthesis?.extraParts || [];
+  const toolCalls = synthesisMade?.toolCalls || 0;
+  // The message keeps the council's line and timeline (its members, its stages) at its head.
+  const recorded = (value) => withCouncilRecord(value, outcome?.record, { elapsedMs: elapsed() });
+  if (signal?.aborted) return { parts: synthesisParts ? [{ text: recorded(withSources(String(synthesisParts[0]?.text ?? ''))) }, ...extraParts] : [{ text: recorded(withSources(answer)) }], status: 'stopped', run: { elapsedMs: elapsed() }, toolCalls };
   const written = scrubText(text, secrets);
-  // What the council adds after the synthesis (the blocks of the first answers) reaches the pages that are watching.
-  if (written.startsWith(answer) && written.length > answer.length) onLive({ a: written.slice(answer.length) });
-  return { parts: [{ text: withSources(written) }], status: 'done', run: { elapsedMs: elapsed() }, toolCalls: 0 };
+  // What the council adds after the synthesis (the blocks of the first answers) reaches the pages that are watching (the words of a synthesis
+  // made as a reply went to them without its record).
+  const shown = synthesisMade ? liftSandboxRunBlock(String(synthesisMade.parts[0]?.text ?? '')).text : answer;
+  const writtenText = liftSandboxRunBlock(written).text;
+  if (writtenText.startsWith(shown) && writtenText.length > shown.length) onLive({ a: writtenText.slice(shown.length) });
+  return { parts: [{ text: recorded(withSources(written)) }, ...extraParts], status: 'done', run: { ...(synthesisMade?.run || {}), elapsedMs: elapsed() }, toolCalls, ...(synthesisMade?.artifacts ? { artifacts: synthesisMade.artifacts } : {}) };
 }

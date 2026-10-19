@@ -10,6 +10,7 @@ import { formatElapsed } from '../ledger/ledger.js';
 import { createCodeCard } from './run-code-card.js';
 import { createSourceChips, mergeSources, putFirstSiteIcon, sourcesRowLabel } from './run-sources.js';
 import { RUN_STATUS } from './sandbox-run-block.js';
+import { councilTimelineHTML } from '../council/council-timeline.js';
 
 const element = (document, tag, className, text) => {
   const node = document.createElement(tag);
@@ -131,6 +132,40 @@ function summaryText(run, language) {
   return head;
 }
 
+// "3 members discussed · 1m 20s ›": the line of a council's reply, opening to its timeline, then what the synthesizer did.
+function councilSummaryText(run, language) {
+  const total = totalMs(run);
+  const head = [
+    sandboxText(language, 'councilDiscussed', { n: run.council.members.length }),
+    total > 0 ? formatTotal(total) : '',
+    run.madeHere ? sandboxText(language, 'madeHere') : ''
+  ].filter(Boolean).join(' · ');
+  if (run.status === RUN_STATUS.stopped) return `${head} · ${sandboxText(language, 'sandboxStopped')}`;
+  if (run.status === RUN_STATUS.failed) return `${head} · ${sandboxText(language, 'sandboxFailed')}`;
+  return head;
+}
+
+function councilRunElement(document, container, run, language) {
+  const details = element(document, 'details', 'sandbox-run-details is-council');
+  const summary = element(document, 'summary', 'sandbox-run-summary', councilSummaryText(run, language));
+  const list = element(document, 'div', 'sandbox-run-steps');
+  const timeline = element(document, 'div', 'council-tl-saved');
+  timeline.innerHTML = councilTimelineHTML({ ...run.council, stage: 'completed' }, { language });
+  list.append(timeline);
+  if (run.sources?.length) list.append(...sourcesRows(document, run.sources, language));
+  list.append(...connectorRows(document, run, language));
+  run.steps.forEach((step, index) => {
+    if (step.thought) list.append(thoughtRow(document, step.thought, language));
+    if (step.narration) list.append(narrationBlock(document, step.narration));
+    list.append(stepRow(document, step, index, language));
+  });
+  if (run.thought) list.append(thoughtRow(document, run.thought, language, { interrupted: run.thoughtInterrupted, label: thinkingLabel(run, language) }));
+  details.append(summary, list);
+  animateDetails(details);
+  container.append(details);
+  return container;
+}
+
 // "Thinking · 12s ›" above an answer, opening to the thinking (the model's own,
 // or the summary its provider gives).
 const thinkingLabel = (run, language) => (run.thoughtInterrupted
@@ -155,6 +190,7 @@ export function createSandboxRunElement(document, run, { language = 'zh-TW' } = 
   if (run.fallback) {
     container.append(element(document, 'p', 'sandbox-fallback-note', sandboxText(language, 'fallbackNotice', { reason: sandboxText(language, `reason.${run.fallback}`) })));
   }
+  if (run.council) return councilRunElement(document, container, run, language);
   if (!run.steps.length && (run.sources?.length || run.connectors?.length) && run.elapsedMs > 0) {
     // A reply that searched the web but ran no Python is a process like any other: the one line with how long it took,
     // as the live view had, opening to the pages and the thinking. (Replies saved before the time was kept have no line.)
