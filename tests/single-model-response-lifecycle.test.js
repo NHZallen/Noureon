@@ -1025,3 +1025,54 @@ test('the synthesis of a council is a reply made here: no server, no search, no 
   assert.match(options.additionalSystemInstruction, /You are the council synthesizer\./);
   assert.match(result.fullResponse, /^```noureon-run\n\{[^\n]*"sources":\[\{"title":"A","url":"https:\/\/a\.example\/","n":1\}\][^\n]*\}\n```\n\nHello Astra$/);
 });
+
+test('a council\'s synthesis keeps its folded blocks whole as it streams (one not closed yet is drawn closed, one opened stays open)', async () => {
+  const seen = [];
+  const { lifecycle, signal, targetElement } = createHarness({
+    extraDependencies: {
+      streamMarkdownResponse: async (target, streamCall, receivedSignal, options) => {
+        seen.push(options.preserveCouncilDetails);
+        return streamCall(() => {});
+      }
+    }
+  });
+  const run = (synthesis) => lifecycle.run({ targetElement, userParts: [{ text: 'Hi' }], modelInfo: { id: 'model', name: 'Model', provider: 'openrouter' }, conversation: { id: 'c1', messages: [] }, signal, uiLanguage: 'en', ...(synthesis ? { synthesis } : {}) });
+  await run({ instruction: 'x', sources: [] });
+  await run(null);
+  assert.deepEqual(seen, [true, false]);
+});
+
+test('once the step list says the reply is working, the waiting dot under it goes and is not drawn again', async () => {
+  const { Window } = await import('happy-dom');
+  const { document } = new Window({ url: 'https://example.test/' });
+  const message = document.createElement('div');
+  const target = document.createElement('div');
+  message.append(target);
+  document.body.append(message);
+  let tick = null;
+  let dotsWhileWorking = null;
+  const serverReply = serverReplyDouble({
+    follow: async ({ onEvent, onText }) => {
+      assert.ok(target.querySelector('.reply-wait'), 'the dot, before any step');
+      onEvent({ type: 'searching', label: 'Searching: x' });
+      tick?.();
+      dotsWhileWorking = target.querySelectorAll('.reply-wait').length;
+      onText('Done');
+      return { text: 'Done', run: null, rewritten: false };
+    }
+  });
+  const { lifecycle, signal } = createHarness({
+    extraDependencies: {
+      serverReply,
+      getDocument: () => document,
+      renderSingleModelProgress: () => '<div class="reply-wait"><span class="reply-wait-dot"></span></div>',
+      startProgressTicker: (callback) => { tick = callback; return { id: 1 }; },
+      streamMarkdownResponse: async (element, streamCall, receivedSignal, options) => {
+        element.innerHTML = options.placeholderHTML;
+        return streamCall(() => {});
+      }
+    }
+  });
+  await lifecycle.run({ targetElement: target, userParts: [{ text: 'Hi' }], modelInfo: { id: 'model', name: 'Model', provider: 'openrouter' }, conversation: { id: 'c1', messages: [] }, signal, uiLanguage: 'en', assistantMessageId: 'm1' });
+  assert.equal(dotsWhileWorking, 0);
+});

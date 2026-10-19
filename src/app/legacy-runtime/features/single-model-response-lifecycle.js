@@ -67,6 +67,8 @@ export function createSingleModelResponseLifecycle({
 }) {
   let progressTimer = null;
   let latestProgress = null;
+  // The step list is there ("Working · thinking"): it says the reply is under way, so the waiting dot is no longer drawn.
+  let stepsShown = false;
   // When the reply began, for the seconds shown. For a reply the server makes it is moved to the server's own clock, so every page
   // that shows the reply shows the same seconds.
   let runStartedAt = 0;
@@ -85,12 +87,13 @@ export function createSingleModelResponseLifecycle({
       elapsedMs: now() - runStartedAt,
       ...extra
     };
-    patchHTML(targetElement, renderSingleModelProgress(latestProgress));
+    if (!stepsShown) patchHTML(targetElement, renderSingleModelProgress(latestProgress));
     return latestProgress;
   };
 
   const startTicker = (targetElement) => {
     progressTimer = startProgressTicker(() => {
+      if (stepsShown) return;
       latestProgress = {
         ...latestProgress,
         elapsedMs: now() - runStartedAt
@@ -122,6 +125,7 @@ export function createSingleModelResponseLifecycle({
     synthesis = null
   }) => {
     if (synthesis) webSearchEnabled = false;
+    stepsShown = false;
     stop();
     const startedAt = now();
     runStartedAt = startedAt;
@@ -312,6 +316,9 @@ export function createSingleModelResponseLifecycle({
     const stepList = () => {
       if (!liveRun && targetElement.parentElement) {
         liveRun = createSandboxLedger({ document: getDocument(), host: targetElement.parentElement, before: targetElement, language: uiLanguage, summary: true, open: getConfig().processOpen === true, madeHere, ...(serverRun ? { startedAt: runStartedAt, onNetAnswer: createNetAnswerHandler({ getRun: () => serverRun }), onCredentialAnswer: createCredentialAnswerHandler({ getRun: () => serverRun }), onConnectorAnswer: createConnectorAnswerHandler({ getRun: () => serverRun }) } : {}) });
+        // Its line says the reply is working: the dot (and its "still getting ready") under it would say it twice.
+        stepsShown = true;
+        targetElement.querySelectorAll?.('.reply-wait, .reply-wait-step').forEach((node) => node.remove());
       }
       return liveRun;
     };
@@ -568,8 +575,11 @@ export function createSingleModelResponseLifecycle({
           runApiStream,
           signal,
           {
-            placeholderHTML: renderSingleModelProgress(realtimeProgress),
-            onFirstChunk: stop
+            placeholderHTML: stepsShown ? '' : renderSingleModelProgress(realtimeProgress),
+            onFirstChunk: stop,
+            // A council's synthesis writes folded blocks (its comparison, the members' answers): one not yet closed is drawn closed, and one the
+            // person opened stays open, instead of the text flickering in and out of it.
+            preserveCouncilDetails: Boolean(synthesis)
           }
         );
         responseRenderedInRealtime = true;
