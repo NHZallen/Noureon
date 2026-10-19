@@ -11,15 +11,15 @@ import { invokedSkillsInstruction, skillNamesOfParts } from '../../../data/skill
 import { cliIdsForReply } from '../cli/cli-state.js';
 import { netPolicyForRun } from '../cli/net-state.js';
 import { decisionsFor, verdictOf } from '../decisions/decision-store.js';
-import { modelSupportsToolCalling } from '../legacy-core/model-registry.js';
+import { modelSupportsToolCalling, modelSupportsVision } from '../legacy-core/model-registry.js';
 import { resolveReplyMode } from '../sandbox/file-mode.js';
 import { mayNeedFileGuidance } from '../../ui/files/file-intent.js';
 
 /**
  * What the synthesizer of a council may use besides its words (docs/superpowers/specs/2026-10-19-council-tools-design.md, §2.2), by the rules of a
  * reply: Python when the person's mode is Advanced and the request is about files (or the conversation has some), the CLI tools chosen with "@"
- * (and those the model may use by itself) with the sites they may reach; then the Design menu's choices and the files of the message. Null for a
- * model that calls no tools.
+ * (and those the model may use by itself) with the sites they may reach; then the Design menu's choices and the files of the message. And the visual
+ * check of a presentation it writes, as for a reply: when the setting is on and the synthesizer can see images. Null for a model that calls no tools.
  */
 export function councilSynthesisTools({ conversation, config = {}, synthesizer, userParts = [] }) {
   if (!modelSupportsToolCalling(synthesizer)) return null;
@@ -28,7 +28,10 @@ export function councilSynthesisTools({ conversation, config = {}, synthesizer, 
   const mode = resolveReplyMode({ conversation, config, modelInfo: synthesizer, supportsToolCalling: modelSupportsToolCalling });
   const hasFiles = (conversation?.messages || []).some((message) => (message?.parts || []).some((part) => part?.inlineData || part?.sandboxFile));
   const fileTask = userParts.some((part) => part?.inlineData) || (verdictOf(decisionsFor(text), 'file') ?? mayNeedFileGuidance(text)) || hasFiles;
-  if (!cli.ids.length && !(mode.advanced && fileTask)) return { advanced: false };
+  const visionCheck = config.visionCheckEnabled !== false && synthesizer?.outputModality !== 'image' && modelSupportsVision(synthesizer)
+    ? { visionCheck: { deckDesign: conversation?.deckDesign || 'auto', advanced: mode.advanced } }
+    : {};
+  if (!cli.ids.length && !(mode.advanced && fileTask)) return { advanced: false, ...visionCheck };
   const inputs = userParts.filter((part) => part?.inlineData?.data).map((part) => ({
     name: part.inlineData.name || `attachment.${String(part.inlineData.mimeType || '').split('/')[1] || 'bin'}`,
     mimeType: part.inlineData.mimeType || '',
@@ -36,6 +39,7 @@ export function councilSynthesisTools({ conversation, config = {}, synthesizer, 
   }));
   return {
     advanced: true,
+    ...visionCheck,
     designs: { deck: conversation?.deckDesign || 'auto', document: conversation?.documentDesign || 'auto' },
     ...(inputs.length ? { inputs } : {}),
     ...(cli.ids.length ? { cli: cli.ids.map((id) => ({ id, chosen: cli.chosen.includes(id) })), net: netPolicyForRun(config) } : {})
@@ -118,7 +122,7 @@ export async function startCouncilRun({ getApiKeyForProvider, describeRequest, s
   }
   const runId = result.data?.runId;
   if (!runId) return { ok: false, reason: 'bad-answer', notify: 'unreachable' };
-  return { ok: true, run: createRun({ runId, assistantMessageId, kind: 'council' }) };
+  return { ok: true, run: createRun({ runId, assistantMessageId, kind: 'council', vision: result.data?.vision === true }) };
 }
 
 export function createServerCouncil({

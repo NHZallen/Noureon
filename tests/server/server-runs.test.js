@@ -1035,3 +1035,50 @@ test('a person lets a model of their council leave: the request reaches their ru
   await settle();
   assert.deepEqual(await manager.exitCouncilMember({ userId: USER, runId, modelId: 'can-leave' }), { ok: false, reason: 'not_running' }, 'it is over');
 });
+
+test('a council whose synthesizer wrote a presentation is followed by its check, made with the synthesis as the reply it was (its request and its key)', async () => {
+  const checks = [];
+  // (A synthesizer that sees images, as the page asks the check only for one.)
+  const synthesisSpec = VISION_SPEC();
+  const { manager } = managerHarness({
+    executeCouncilRun: async ({ onLive }) => {
+      onLive({ r: { answer: '', thought: { text: '', kind: 'model' }, sources: [], elapsedMs: 0 } });
+      return { parts: [{ text: DECK_TEXT }], status: 'done', run: {}, toolCalls: 0, artifacts: { decks: new Map() }, visionSource: { spec: synthesisSpec, secrets: { providerKey: 'sk-synth-key' } } };
+    },
+    vision: {
+      available: async () => true,
+      getKit: async () => null,
+      execute: async (args) => {
+        checks.push(args);
+        return { checked: 1, written: [] };
+      }
+    }
+  });
+  const council = {
+    protocol: 1, kind: 'council', clientVersion: '17.11.0', conversationId: CONVERSATION, assistantMessageId: MESSAGE, sequence: 2,
+    model: { provider: 'openrouter', id: 'synth', info: { provider: 'openrouter' } },
+    council: { mode: 'consensus', participants: [], synthesizer: { provider: 'openrouter', id: 'synth', info: {} }, translator: null, showRawResponses: true, showComparisonTable: true },
+    request: { history: [], currentMessage: { parts: [{ text: 'hi' }] }, systemInstruction: '', systemInstructions: { participant: '', deliberation: '', synthesis: '' }, language: 'en' },
+    tools: { webSearch: 'off', searchProvider: 'tavily', searchDepth: 'basic', advanced: false },
+    secrets: { keys: { openrouter: KEY } }
+  };
+  const seen = [];
+  await manager.start({ userId: USER, spec: council });
+  manager.watch({ userId: USER, runId: 'run-1', send: (event) => seen.push(event), close() {} });
+  await settle();
+  await settle();
+  assert.equal(checks.length, 1);
+  assert.equal(checks[0].spec.kind, 'vision');
+  assert.equal(checks[0].spec.model.id, 'g', 'with the synthesizer');
+  assert.equal(checks[0].spec.source.messageId, MESSAGE, 'of the council\'s message');
+  assert.equal(checks[0].secrets.providerKey, 'sk-synth-key');
+  assert.ok(seen.find((event) => event?.done)?.vision, 'the page is told the id of the check');
+
+  const without = managerHarness({
+    executeCouncilRun: async () => ({ parts: [{ text: DECK_TEXT }], status: 'done', run: {}, toolCalls: 0 }),
+    vision: { available: async () => true, getKit: async () => null, execute: async () => { throw new Error('must not run'); } }
+  });
+  await without.manager.start({ userId: USER, spec: council });
+  await settle();
+  assert.equal(without.db.log.rpcs.filter((call) => call.name === 'server_start_run').length, 1, 'no synthesis made as a reply: no check');
+});

@@ -463,3 +463,20 @@ test('a synthesis asked to use Python where the server has none is made without 
   assert.equal(stopped.status, 'stopped');
   assert.match(stopped.parts[0].text, /Half of it/);
 });
+
+test('a synthesis with the visual check gives the run manager what the check needs (the synthesis\'s request and its key), with Python or without', async () => {
+  for (const advanced of [false, true]) {
+    const raw = rawSpec();
+    raw.tools.synthesis = { advanced, visionCheck: { deckDesign: 'swiss', advanced } };
+    const checked = validateRunSpec(raw);
+    assert.equal(checked.ok, true, JSON.stringify(checked.errors));
+    assert.deepEqual(checked.spec.tools.synthesis.visionCheck, { deckDesign: 'swiss', advanced });
+    const result = await executeCouncil({ ...checked, secrets: checked.spec.secrets, fetchImpl: world().fetchImpl });
+    assert.equal(result.visionSource.spec.model.id, SYNTH);
+    assert.deepEqual(result.visionSource.spec.tools.visionCheck, { deckDesign: 'swiss', advanced: false }, 'no sandbox here: the check without Python');
+    assert.equal(result.visionSource.secrets.providerKey, KEYS.openrouter);
+    assert.equal(result.visionSource.spec.assistantMessageId, checked.spec.assistantMessageId);
+  }
+  const plain = await executeCouncil({ ...specFor(), secrets: secretsOf(), fetchImpl: world().fetchImpl });
+  assert.equal(plain.visionSource, undefined);
+});

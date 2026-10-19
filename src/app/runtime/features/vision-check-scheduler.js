@@ -3,7 +3,7 @@ import { conversationImageSources } from '../../ui/files/conversation-images.js'
 import { freeDecks } from '../../ui/files/vision/free-decks.js';
 
 export function createVisionCheckScheduler({ getConfig, getActiveConversation, normalizeConversationModel,
-  isCouncilEnabled, modelSupportsVision, streamApiCall, document, window, notificationContainer,
+  isCouncilEnabled, getCouncilSelectedModels = () => ({}), modelSupportsVision, streamApiCall, document, window, notificationContainer,
   addMessageToUI, saveAppData, showNotification, crypto, logger = console, onChange = () => {},
   AbortController = globalThis.AbortController }) {
   const jobs = new Map();
@@ -15,8 +15,9 @@ export function createVisionCheckScheduler({ getConfig, getActiveConversation, n
     jobs.get(conversationId)?.abort();
   };
   const schedule = ({ conversation, message, targetElement = null }) => {
-    const model = normalizeConversationModel(conversation);
-    if (getConfig().visionCheckEnabled === false || isCouncilEnabled(conversation)
+    // A council's reply is the synthesizer's (docs/superpowers/specs/2026-10-19-council-tools-design.md, §2.2): the check is made with it.
+    const model = isCouncilEnabled(conversation) ? getCouncilSelectedModels(conversation)?.synthesizer : normalizeConversationModel(conversation);
+    if (getConfig().visionCheckEnabled === false || !model
       || !modelSupportsVision(model) || model?.outputModality === 'image'
       || !(/(?:`{3,}|~{3,})\s*file\s+[^\n]*\.pptx/i.test(message.parts?.[0]?.text || '') || freeDecks(message).length)) return;
     const controller = new AbortController();

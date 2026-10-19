@@ -87,7 +87,7 @@ test('a council is handed over with its models, the history, what each kind of c
   assert.equal(spec.request.systemInstructions.synthesis, `SYS for ${NOURAS_REQUEST_PURPOSE.COUNCIL_SYNTHESIS}`);
   assert.deepEqual(spec.request.messageMetadata, { historySourceConversationIds: ['h1'] });
   assert.deepEqual(spec.secrets, { keys: { openrouter: KEYS.openrouter, nvidia: KEYS.nvidia } }, 'only the providers the models use');
-  assert.deepEqual(spec.tools, { webSearch: 'off', connectors: true, synthesis: { advanced: false } }, 'the members may read the person\'s connectors (the server keeps which); the synthesizer writes no file here');
+  assert.deepEqual(spec.tools, { webSearch: 'off', connectors: true, synthesis: { advanced: false, visionCheck: { deckDesign: 'auto', advanced: true } } }, 'the members may read the person\'s connectors (the server keeps which); the synthesizer writes no file here');
   assert.deepEqual(seen, [{ marker: 'memory' }], 'the memory the answer drew on is reported once, by the synthesis');
   assert.ok(described.every((options) => options.modelInfo === SYNTH));
   assert.deepEqual(described.find((options) => options.requestPurpose === NOURAS_REQUEST_PURPOSE.COUNCIL_SYNTHESIS).historyForApi, []);
@@ -97,7 +97,7 @@ test('a council that searches sends both search keys and the depth, whatever its
   const one = harness();
   await one.reply.startCouncil(startArgs({ webSearch: 'on', config: { searchProvider: 'tinyfish', tavilySearchDepth: 'advanced' } }));
   const spec = JSON.parse(one.calls[0].options.body);
-  assert.deepEqual(spec.tools, { webSearch: 'on', searchProvider: 'tinyfish', searchDepth: 'advanced', connectors: true, synthesis: { advanced: false } });
+  assert.deepEqual(spec.tools, { webSearch: 'on', searchProvider: 'tinyfish', searchDepth: 'advanced', connectors: true, synthesis: { advanced: false, visionCheck: { deckDesign: 'auto', advanced: true } } });
   assert.equal(spec.secrets.searchKey, KEYS.tinyfish);
   assert.equal(spec.secrets.searchKeyAlt, KEYS.tavily);
 
@@ -111,7 +111,7 @@ test('a council that searches sends both search keys and the depth, whatever its
   const sent = await noKey.reply.startCouncil(startArgs({ webSearch: 'on' }));
   assert.equal(sent.ok, true, 'no search key: the council is held all the same, the members answer without searching');
   const noKeySpec = JSON.parse(noKey.calls[0].options.body);
-  assert.deepEqual(noKeySpec.tools, { webSearch: 'on', connectors: true, synthesis: { advanced: false } });
+  assert.deepEqual(noKeySpec.tools, { webSearch: 'on', connectors: true, synthesis: { advanced: false, visionCheck: { deckDesign: 'auto', advanced: true } } });
   assert.equal('searchKey' in noKeySpec.secrets, false);
 });
 
@@ -373,11 +373,12 @@ test('the synthesizer may write files the way a reply may: Python for a request 
   const conversation = { ...CONVERSATION, deckDesign: 'swiss' };
   assert.deepEqual(councilSynthesisTools({ conversation, config: {}, synthesizer: SYNTH, userParts: parts }), {
     advanced: true,
+    visionCheck: { deckDesign: 'swiss', advanced: true },
     designs: { deck: 'swiss', document: 'auto' },
     inputs: [{ name: 'report.pdf', mimeType: 'application/pdf', data: 'AAAA' }]
   });
-  assert.deepEqual(councilSynthesisTools({ conversation, config: { isLearningMode: true }, synthesizer: SYNTH, userParts: parts }), { advanced: false }, 'not in the learning mode');
-  assert.deepEqual(councilSynthesisTools({ conversation: CONVERSATION, config: {}, synthesizer: SYNTH, userParts: [{ text: 'what is the capital of France' }] }), { advanced: false });
+  assert.deepEqual(councilSynthesisTools({ conversation, config: { isLearningMode: true }, synthesizer: SYNTH, userParts: parts }), { advanced: false, visionCheck: { deckDesign: 'swiss', advanced: false } }, 'no Python in the learning mode');
+  assert.deepEqual(councilSynthesisTools({ conversation: CONVERSATION, config: {}, synthesizer: SYNTH, userParts: [{ text: 'what is the capital of France' }] }), { advanced: false, visionCheck: { deckDesign: 'auto', advanced: true } });
   assert.equal(councilSynthesisTools({ conversation, config: {}, synthesizer: { provider: 'acme', id: 'no-tools', name: 'X' }, userParts: parts }), null, 'a model that calls no tools');
 
   const { reply, calls } = harness();
@@ -386,7 +387,7 @@ test('the synthesizer may write files the way a reply may: Python for a request 
   assert.equal(sent.tools.synthesis.advanced, true);
   const checked = validateRunSpec(sent);
   assert.equal(checked.ok, true, JSON.stringify(checked.errors));
-  assert.deepEqual(checked.spec.tools.synthesis, { advanced: true, designs: { deck: 'swiss', document: 'auto' }, inputs: [{ name: 'report.pdf', mimeType: 'application/pdf', data: 'AAAA' }] });
+  assert.deepEqual(checked.spec.tools.synthesis, { advanced: true, visionCheck: { deckDesign: 'swiss', advanced: true }, designs: { deck: 'swiss', document: 'auto' }, inputs: [{ name: 'report.pdf', mimeType: 'application/pdf', data: 'AAAA' }] });
   const bad = JSON.parse(calls[0].options.body);
   bad.tools.synthesis = { advanced: 'yes', other: 1 };
   assert.deepEqual(validateRunSpec(bad).errors.map((error) => error.path).sort(), ['tools.synthesis.advanced', 'tools.synthesis.other']);
@@ -428,4 +429,13 @@ test('a council the server holds is followed until its synthesis begins, and the
   const synthesize = async () => ({ text: 'x' });
   await here({ args: [[{ text: 'Q' }], null, null, null, { synthesize }], local: async (...args) => { given = args[4]; return { text: 'local' }; }, conversation: CONVERSATION, assistantMessageId: MESSAGE_ID });
   assert.equal(given.synthesize, synthesize);
+});
+
+test('the visual check of a presentation the synthesizer writes is asked for, as for a reply: the setting on, a synthesizer that sees images', async () => {
+  const { councilSynthesisTools } = await import('../src/app/runtime/server-reply/server-council.js');
+  const { MODELS, modelSupportsVision } = await import('../src/app/runtime/legacy-core/model-registry.js');
+  const seeing = MODELS.find((model) => model.id === 'anthropic/claude-sonnet-5.5');
+  assert.ok(modelSupportsVision(seeing));
+  assert.deepEqual(councilSynthesisTools({ conversation: { ...CONVERSATION, deckDesign: 'swiss' }, config: {}, synthesizer: seeing, userParts: [{ text: 'hi' }] }), { advanced: false, visionCheck: { deckDesign: 'swiss', advanced: true } });
+  assert.deepEqual(councilSynthesisTools({ conversation: CONVERSATION, config: { visionCheckEnabled: false }, synthesizer: seeing, userParts: [{ text: 'hi' }] }), { advanced: false });
 });

@@ -121,7 +121,8 @@ export async function finalizeAssistantResponse({
   }
   rememberRenderedMessage(targetElement, finalAiMessage);
 
-  if (!hasFinalParts && !signal.aborted && !responseUsesCouncil) {
+  // A council's reply too: its synthesizer may have written a presentation (the check is made with the synthesizer).
+  if (!hasFinalParts && !signal.aborted) {
     scheduleVisionCheck({ conversation, message: finalAiMessage, targetElement });
   }
 

@@ -166,7 +166,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
   const setAbortController = (value) => { state.abortController = value; };
   const getIsCouncilRunning = () => Boolean(state.isCouncilRunning);
   const setIsCouncilRunning = (value) => { state.isCouncilRunning = value; };
-  const vc = createVisionCheckScheduler({ getConfig: getLiveConfig, getActiveConversation, normalizeConversationModel, isCouncilEnabled, modelSupportsVision, streamApiCall, document, window, notificationContainer: ALL_ELEMENTS.notificationContainer, addMessageToUI, saveAppData, showNotification, crypto, logger, AbortController,
+  const vc = createVisionCheckScheduler({ getConfig: getLiveConfig, getActiveConversation, normalizeConversationModel, isCouncilEnabled, getCouncilSelectedModels, modelSupportsVision, streamApiCall, document, window, notificationContainer: ALL_ELEMENTS.notificationContainer, addMessageToUI, saveAppData, showNotification, crypto, logger, AbortController,
     // The composer follows the checks: a chat with one running cannot send.
     onChange: (conversationIds) => {
       setVisionLocked('page', conversationIds);

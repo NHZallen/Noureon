@@ -231,14 +231,14 @@ function validateCouncilSpec(input) {
     for (const name of Object.keys(tools)) if (!['webSearch', 'searchProvider', 'searchDepth', 'skills', 'connectors', 'synthesis'].includes(name)) fail(`tools.${name}`, 'is not a known field');
   }
   // What the synthesizer may use besides (§2.2): Python with the Design menu's choices and the files of the message, and the CLI tools with their
-  // sites. Checked as the tools of a reply are, since the synthesis is made as one.
+  // sites; and the visual check of a presentation it writes. Checked as the tools of a reply are, since the synthesis is made as one.
   let synthesisTools = null;
   if (isObject(tools) && tools.synthesis !== undefined) {
     const given = tools.synthesis;
     if (!isObject(given)) fail('tools.synthesis', 'must be an object');
     else {
-      for (const name of Object.keys(given)) if (!['advanced', 'designs', 'inputs', 'cli', 'net'].includes(name)) fail(`tools.synthesis.${name}`, 'is not a known field');
-      const own = Object.fromEntries(['designs', 'inputs', 'cli', 'net'].filter((name) => given[name] !== undefined).map((name) => [name, given[name]]));
+      for (const name of Object.keys(given)) if (!['advanced', 'designs', 'inputs', 'cli', 'net', 'visionCheck'].includes(name)) fail(`tools.synthesis.${name}`, 'is not a known field');
+      const own = Object.fromEntries(['designs', 'inputs', 'cli', 'net', 'visionCheck'].filter((name) => given[name] !== undefined).map((name) => [name, given[name]]));
       const asReply = validateRunSpec({
         protocol: input.protocol,
         clientVersion: '0',

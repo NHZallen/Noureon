@@ -93,7 +93,7 @@
 - **伺服器**：`council-run.js` 的整合改呼叫 `executeReply`（一般回覆的執行）：模型＝整合者，訊息＝整合提示，系統指令＝頁面組好的整合指令＋理事會的整合要求；`webSearch: 'off'`（成員已經搜過），技能、連接器（含寫入，照權限詢問）、`tools.synthesis` 的 Python、設計範本、附件與命令工具（伺服器沒有沙盒時不用 Python）。`executeReply` 多 `knownSources`（成員的來源，編號接著用）。即時事件（字、思考、步驟、詢問卡）與訊息寫入都和一般回覆一樣；理事會的「原始回答」區塊接在後面。`runs.js` 把沙盒、憑證、三種詢問控制與 `onPaused` 交給理事會。整合中的 Python 遺失時不交回頁面（`watching: () => false`），沒有 Python 繼續。
 - **規格**：理事會的 `tools.synthesis`（`advanced`、`designs`、`inputs`、`cli`、`net`），用一般回覆的驗證檢查。頁面 `councilSynthesisTools`（`server-council.js`）照一般回覆的規則決定：進階模式且和檔案有關（或對話裡有檔案）、或有命令工具，才給 Python。
 - **頁面**：`council-response-lifecycle.js` 多 `synthesize` 選項；本機開會時由 `council-response-render-lifecycle.js` 交給一般回覆（`single-model-response-lifecycle.js` 的新選項 `synthesis`：不搜尋、不讀請求裡的網址、沒有歷史、不交給伺服器、帶成員來源）。伺服器開會時，跟隨在 `cs.stage === 'synthesis'` 時停下（`follow` 的 `handOver`，不停止執行），再由一般回覆以 `resumeRun` 跟隨同一個執行（步驟、詢問卡、檔案都照一般回覆）。整合做出的檔案成為訊息的檔案。
-- **沒做**：理事會整合後的「AI 看圖檢查」（`visionCheck`）還沒接；整合者本身不再搜尋（決定：成員搜）。
+- 整合者本身不再搜尋（決定：成員搜）。
 
 ### P3（2026-10-19）
 
@@ -106,3 +106,9 @@
 ### P4（2026-10-19）
 
 - 協助中心「模型理事會」一節與隱私政策的理事會一段，五語言更新；`PRIVACY.md` 重新產生。全套檢查通過。
+
+### 看圖檢查（2026-10-19，owner 要求）
+
+- 頁面在理事會規格的 `tools.synthesis.visionCheck` 帶上看圖檢查（設定開著、整合者看得懂圖片；`deckDesign` 與是否可用 Python 照一般回覆）。伺服器的整合回覆帶著它（沒有沙盒時 `advanced: false`）；理事會結束後 `executeCouncil` 交出 `visionSource`（整合回覆的規格與金鑰），`runs.js` 的 `planVision` 對理事會用它開看圖檢查的執行，頁面照一般回覆的方式跟隨（`done` 事件的 `vision`、開始時的 `vision` 旗標）。
+- 本機開會：完成時照常排程頁面自己的看圖檢查，模型用整合者（`vision-check-scheduler.js` 的 `getCouncilSelectedModels`）。
+- 協助中心五語言加一句。

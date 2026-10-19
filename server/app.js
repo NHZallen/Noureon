@@ -173,7 +173,8 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
         try {
           const runId = await runs.start({ userId: user.id, spec: result.spec });
           // Whether the check of a presentation it writes is made here too (otherwise the page makes it, as it always did).
-          const vision = Boolean(result.spec.tools.visionCheck) && Boolean(await runs.visionAvailable?.());
+          // (A council's: its synthesizer's, made as a reply.)
+          const vision = Boolean(result.spec.tools.visionCheck || result.spec.tools.synthesis?.visionCheck) && Boolean(await runs.visionAvailable?.());
           send(response, 202, { runId, vision }, origin);
           status = 202;
         } catch (error) {

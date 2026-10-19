@@ -51,3 +51,28 @@ test('sending is refused while the chat is under its visual check, before anythi
   assert.match(beforeGate, /if \(isEdit\) \{[\s\S]*vc\.cancel\(activeId\)/);
   assert.doesNotMatch(submit.slice(gate, submit.indexOf('prepareSubmitResponse')), /vc\.cancel/, 'a new message no longer cancels the check');
 });
+
+test('a council\'s reply is checked with its synthesizer (it wrote the presentation), and not at all when the synthesizer cannot see images', () => {
+  const seen = [];
+  const make = (synthesizer) => createVisionCheckScheduler({
+    getConfig: () => ({ visionCheckEnabled: true }),
+    getActiveConversation: () => null,
+    normalizeConversationModel: () => ({ id: 'conversation-model' }),
+    isCouncilEnabled: () => true,
+    getCouncilSelectedModels: () => ({ synthesizer }),
+    modelSupportsVision: (model) => { seen.push(model.id); return model.id !== 'blind'; },
+    document: { querySelectorAll: () => [] },
+    logger: { error: () => {} }
+  });
+  const seeing = make({ id: 'synth' });
+  seeing.schedule({ conversation: { id: 'c3' }, message: deckMessage });
+  assert.equal(seeing.isRunning('c3'), true);
+  assert.deepEqual(seen, ['synth'], 'the synthesizer, not the chat\'s model');
+  seeing.cancel('c3');
+  const blind = make({ id: 'blind' });
+  blind.schedule({ conversation: { id: 'c4' }, message: deckMessage });
+  assert.equal(blind.isRunning('c4'), false);
+  const none = make(null);
+  none.schedule({ conversation: { id: 'c5' }, message: deckMessage });
+  assert.equal(none.isRunning('c5'), false);
+});

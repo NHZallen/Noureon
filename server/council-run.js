@@ -416,8 +416,12 @@ export async function executeCouncil({
   const synthesisEntry = spec.council.synthesizer;
   let synthesisParts = null;
   let synthesisMade = null;
+  // What the synthesis was made from (the reply's own request and keys): the visual check that may follow is made with it.
+  let synthesisReply = null;
+  const synthesisTools = spec.tools.synthesis || {};
+  const withPython = Boolean(synthesisTools.advanced && sandboxHost?.configured && files);
   const synthesize = async ({ parts: requestParts, instruction, sources }) => {
-    const result = await executeReply({
+    synthesisReply = {
       spec: {
         protocol: spec.protocol,
         clientVersion: spec.clientVersion,
@@ -431,13 +435,16 @@ export async function executeCouncil({
           searchProvider: spec.tools.searchProvider,
           searchDepth: spec.tools.searchDepth,
           advanced: false,
-          // Python (and the CLI tools, which run in its sandbox) only where the server has a sandbox.
-          ...(spec.tools.synthesis?.advanced && sandboxHost?.configured && files ? spec.tools.synthesis : {}),
+          // Python (and the CLI tools, which run in its sandbox) only where the server has a sandbox; the visual check in any case.
+          ...(withPython ? synthesisTools : synthesisTools.visionCheck ? { visionCheck: { ...synthesisTools.visionCheck, advanced: false } } : {}),
           ...(spec.tools.skills ? { skills: spec.tools.skills } : {}),
           ...(spec.tools.connectors ? { connectors: true } : {})
         }
       },
-      secrets: { providerKey: keyFor(synthesisEntry.provider), ...(secrets.searchKey ? { searchKey: secrets.searchKey } : {}), ...(secrets.searchKeyAlt ? { searchKeyAlt: secrets.searchKeyAlt } : {}) },
+      secrets: { providerKey: keyFor(synthesisEntry.provider), ...(secrets.searchKey ? { searchKey: secrets.searchKey } : {}), ...(secrets.searchKeyAlt ? { searchKeyAlt: secrets.searchKeyAlt } : {}) }
+    };
+    const result = await executeReply({
+      ...synthesisReply,
       signal,
       userId,
       sandboxHost,
@@ -500,5 +507,13 @@ export async function executeCouncil({
   const shown = synthesisMade ? liftSandboxRunBlock(String(synthesisMade.parts[0]?.text ?? '')).text : answer;
   const writtenText = liftSandboxRunBlock(written).text;
   if (writtenText.startsWith(shown) && writtenText.length > shown.length) onLive({ a: writtenText.slice(shown.length) });
-  return { parts: [{ text: recorded(withSources(written)) }, ...extraParts], status: 'done', run: { ...(synthesisMade?.run || {}), elapsedMs: elapsed() }, toolCalls, ...(synthesisMade?.artifacts ? { artifacts: synthesisMade.artifacts } : {}) };
+  return {
+    parts: [{ text: recorded(withSources(written)) }, ...extraParts],
+    status: 'done',
+    run: { ...(synthesisMade?.run || {}), elapsedMs: elapsed() },
+    toolCalls,
+    ...(synthesisMade?.artifacts ? { artifacts: synthesisMade.artifacts } : {}),
+    // The synthesis as a reply (its request and keys), for the visual check of the presentations it wrote (server/runs.js).
+    ...(synthesisMade && synthesisReply?.spec.tools.visionCheck ? { visionSource: synthesisReply } : {})
+  };
 }

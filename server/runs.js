@@ -402,7 +402,9 @@ export function createRunManager({
   }
 
   // The check of the presentations a reply wrote: a run of its own (its own record, its own key), started with what the reply made.
-  async function planVision({ userId, spec, secrets, result }) {
+  async function planVision({ userId, spec: runSpec, secrets: runSecrets, result }) {
+    // A council's presentations are its synthesizer's: the check is made with the synthesis, as the reply it was (server/council-run.js).
+    const { spec, secrets } = runSpec.kind === 'council' ? (result.visionSource || { spec: { tools: {} }, secrets: null }) : { spec: runSpec, secrets: runSecrets };
     if (!spec.tools.visionCheck || spec.kind === 'vision' || draining || !(await vision.available())) return null;
     const text = result.parts[0]?.text || '';
     const fileParts = result.parts.filter((part) => part.sandboxFile);
