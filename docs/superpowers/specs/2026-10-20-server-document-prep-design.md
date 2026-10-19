@@ -106,3 +106,16 @@
 - **階段文字：** 轉 PDF 發生在 `expandParts` 裡面，現在沒有任何進度回報；NOU-68 做的時候要在伺服器的轉換器外面包一層，轉換開始前回報 `pdf`。
 - **金鑰：** `key-vault.js` 的 `seal(secrets)` 把整個 `secrets` 物件序列化加密，`secrets.translatorKey` 自動在信封裡；`scrubText` 會走訪 `secrets` 的每個字串，所以這把金鑰在錯誤訊息與日誌裡也會被遮掉。不需要改。
 - **待 P1 注意：** `keyFor`（`model-access.js`）只認回覆模型的供應商與搜尋供應商，要加上轉譯模型的供應商（`translatorKey`；同供應商就用 `providerKey`）。`inputs`（給 Python 的附件）與 `currentMessage` 的附件可能重複計入請求大小，P1 要看一下（現在已經有這個重複，不會比現在更糟）。
+
+## 10. P1、P2 結果（2026-10-20）
+
+**P1（伺服器，`2dd19014`）：** `server/document-prep.js`（用頁面同一份 `buildSingleModelTranslatedRequestParts`，不帶 `viaPdf`）、`run-spec.js`（最上層 `documents`、`secrets.translatorKey`）、`model-access.js`（`keyFor` 認得轉譯模型的供應商、`getModelApiId` 認得轉譯模型）、`executor.js`、`runs.js`（`dp`，晚加入的頁面在快照拿得到）；`tests/server/server-document-prep.test.js`。**注意：**伺服器本來就會把 Word 讀成文字（`stream-api-call` 的 `officeReader`），所以沒有 `documents` 時行為不變；`documents` 帶來的是轉譯、讀網址和步驟回報。
+
+**P2（客戶端）：**
+- `planServerReply` 多兩個參數 `documentsToPrepare`、`hasTranslator`，兩者皆真且計劃可行時回傳 `documents: true`（沒設轉譯模型就維持原本在瀏覽器準備，錯誤訊息也是原本的）。
+- `single-model-response-lifecycle.js`：`documentsToPrepare` ＝訊息有附件，或有要讀的網址（`readsAddresses`）。計劃是伺服器準備時，瀏覽器**不呼叫** `buildSingleModelTranslatedRequestParts`，送原始 `userParts` 與 `documents: { linkedPages }`；`follow` 的 `onDocumentPhase` 把 `reading`／`translating`／`links` 畫成頁面原本的 `fileReading`／`documentTranslation`／`linkedPages` 三個階段（前兩個有自己一行字，網址那個是原本的圓點），步驟結束（`''`）回到一般等待。
+- 伺服器沒收（連不上、忙碌、缺轉譯模型供應商的金鑰、要讀網址卻沒有搜尋金鑰、請求太大）：瀏覽器把**整則**訊息準備一次（不是 `baseParts`），搜尋封包若本來就要在伺服器做，也在這一次一起補上。
+- `begin`（`server-reply.js`）：有 `documents` 時組 `documents.translator`（`{ provider, id, info }`），轉譯模型和回覆模型不同供應商時送 `secrets.translatorKey`；`linkedPages` 為真時送搜尋金鑰；缺金鑰就不送、安靜退回瀏覽器。
+- `server-reply-runtime.js`：多收 `getSingleDocumentTranslatorModel`（`submit-input-council-lifecycle.js` 一行接上），`plan` 用它填 `hasTranslator`，`start` 用它填 `documents.translator`。
+- 測試：`tests/server-reply.test.js`（計劃、請求內容、金鑰規則、`dp` 事件、runtime 接線）、`tests/single-model-response-lifecycle.test.js`（送原始訊息、不在瀏覽器準備、顯示階段、沒收時整則補做、與搜尋封包一起退回）。
+
