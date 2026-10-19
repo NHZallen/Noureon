@@ -26,6 +26,19 @@
 2. **runner 只聽 Zeabur 的內部網路位址（`cni0`，10.42.0.1）、只接受 `10.42.0.0/16` 與本機。** Coolify 上的伺服器在 Docker 容器裡，連到主機要走 Docker 橋接位址（`docker0`，通常 172.17.0.1）。所以 runner 要改成同時聽 `docker0` 位址與 `127.0.0.1`，並接受 Docker 配給容器的位址範圍（`172.16.0.0/12`、`192.168.0.0/16`）。這次已改好（見 §6）。
 3. Coolify 的「自訂 Docker 選項」只接受固定幾個旗標，**`--add-host host.docker.internal:host-gateway` 很可能不能用**（我只查到官方文件列的清單，沒有實測）。所以伺服器連 runner 時，直接用 `docker0` 的位址：`SANDBOX_RUNNER_URL=http://172.17.0.1:7788`（以 VPS 上 `ip -4 addr show docker0` 實際顯示的位址為準）。
 
+### 已在機器上確認（2026-10-19，擁有者貼回的輸出）
+
+- 系統 Ubuntu 24.04.5，記憶體 7.8 GB（用了約 25%），沒有 swap，磁碟 96 GB（用了 18%）。有「需要重新啟動」的核心更新與 8 個套件更新。
+- `/etc/docker/daemon.json` 是 `{ "iptables": false }`。
+- Docker 只有一個容器 `noureon-sandbox-runner`；Zeabur 的是 `k3s.service`（server 模式），解除安裝指令是 `/usr/local/bin/k3s-uninstall.sh`（另有 `k3s-killall.sh`）。
+- 80、443 被 k3s 裡的 `main` 程序佔用；runner 聽在 `10.42.0.1:7788`。
+- 網路介面：`eth0`（84.247.153.81）、`cni0`（10.42.0.1）、`flannel.1`、`docker0`（172.17.0.1）。
+- ufw 沒有啟用。這台是 Contabo 自己的 VPS（Cloud VPS 4，日本區，月費 $9.75，無終止日期），不是 Zeabur 賣的伺服器，所以 Zeabur 關閉不會讓這台機器消失，只是不能再用 Zeabur 管理。
+- DNS（Cloudflare）：`api.noureon.com`、`api-staging.noureon.com` 都是 A 紀錄指向 84.247.153.81、僅 DNS（灰雲）。**切換時 DNS 不用改。**
+- Zeabur 專案只有兩個服務（`noureon`、`noureon-staging`），都在這台伺服器上。
+
+因此計劃的調整：步驟 3 改成「移除 `daemon.json` 後重啟」並加上更新套件與**重新開機**（重開機也會清掉 `flannel.1`、`cni0`）；防火牆用 **Contabo 控制台的防火牆**，不用 ufw（Docker 發布的埠會繞過 ufw，真正擋得住的是機器外面的防火牆）；建議加 4 GB swap。
+
 ## 4. 開始前要準備（不影響線上，現在就可以做）
 
 | 項目 | 做法 |
@@ -34,18 +47,24 @@
 | Zeabur 上有什麼 | 登入 Zeabur 儀表板，列出這台伺服器上**所有**服務（正式、測試，還有沒有別的，例如資料庫）。Zeabur 一移除，這些全部消失。 |
 | 環境變數值 | 把新換的值準備好（見 `server/README.md` 的表：`SUPABASE_URL`、`SUPABASE_PUBLISHABLE_KEY`、`SUPABASE_SERVICE_KEY`、`KEY_ENCRYPTION_KEY`（正式與測試不同）、`SANDBOX_RUNNER_URL`、`SANDBOX_RUNNER_TOKEN`、`ASSET_SWEEP`、`CONNECTOR_GITHUB_*`、`CONNECTOR_CANVA_*`；測試站另有 `ALLOWED_ORIGINS`、`APP_URL`、`CONNECTOR_REDIRECT_URI`，見 `2026-10-11-staging-design.md`）。放在密碼管理員，不要貼到對話。 |
 | DNS | 查 `api.noureon.com`、`api-staging.noureon.com` 現在指向哪裡。若已經是 VPS 的位址（84.247.153.81），切換時不用改 DNS；否則要在 Cloudflare 改成 VPS 位址，並選「僅 DNS」（灰色雲朵），讓憑證可以申請。 |
-| Contabo 防火牆 | 若有啟用，放行 22、80、443。 |
+| Contabo 防火牆 | 切換時才設（§5 步驟 5），現在不要動。 |
 | 選時間 | 選使用者最少的時段，先在站內或社群預告。預計 30 到 60 分鐘。 |
 
 ## 5. 切換步驟（停機窗口，在 VPS 上以 root 操作）
 
 1. **移除 Zeabur 在這台機器上的東西。**
    - 先看有什麼：`systemctl list-units | grep -i -E 'k3s|zeabur'`、`ls /usr/local/bin | grep -i k3s`。
-   - 依 Zeabur 的「移除伺服器」說明處理；若是 k3s，解除安裝的指令是 `/usr/local/bin/k3s-agent-uninstall.sh`（agent）或 `/usr/local/bin/k3s-uninstall.sh`（server），以機器上實際存在的為準。
+   - 這台是 k3s server：執行 `/usr/local/bin/k3s-uninstall.sh`（已確認存在）。這一步開始網站就停了。
    - 解除後確認 80/443 沒人聽：`ss -ltnp | grep -E ':80 |:443 '` 應該沒有輸出。
    - 順便檢查 `~/.ssh/authorized_keys` 有沒有 Zeabur 放進去的金鑰，不認得的刪掉。
 2. **確認 Docker 還在跑**：`docker ps`（runner 容器 `noureon-sandbox-runner` 應該在）。
-3. **還原 Docker 的網路設定**：`cat /etc/docker/daemon.json`。若有 `"iptables": false`（或 `ip-masq`、`bridge: none` 這類），拿掉後 `systemctl restart docker`。runner 設定了 `--restart unless-stopped`，會自己回來；回來後 `docker ps` 確認。
+3. **還原 Docker 的網路設定、更新套件、重新開機**：
+   ```
+   mv /etc/docker/daemon.json /etc/docker/daemon.json.bak
+   apt update && apt -y upgrade
+   reboot
+   ```
+   重新連線後確認：`docker ps`（runner 會自己回來）、`ss -ltnp | grep -E ':80 |:443 '` 沒有輸出、`ip -4 -o addr show | awk '{print $2, $4}'` 沒有 `cni0`、`flannel.1`。
 4. **更新 runner**：
    ```
    cd ~/Noureon && git fetch && git checkout staging && git pull
@@ -53,7 +72,7 @@
    sh sandbox-host/smoke-test.sh     # 全部 PASS
    ```
    之後的更新照原本的流程。`/etc/noureon-sandbox/token` 若已換新，確認 `SANDBOX_RUNNER_TOKEN` 用的是同一個值。
-5. **防火牆**：若用 ufw：`ufw allow 22/tcp && ufw allow 80/tcp && ufw allow 443/tcp`；Coolify 的網頁介面暫時用 8000：`ufw allow from <你的固定IP> to any port 8000 proto tcp`（沒有固定 IP 就先用 SSH 通道：`ssh -L 8000:127.0.0.1:8000 root@<VPS>`）。**容器要連 runner**：`ufw allow from 172.16.0.0/12 to any port 7788 proto tcp`（ufw 預設擋掉容器連主機的埠）。先確認 SSH 規則在，再 `ufw enable`，不然會被鎖在外面。
+5. **防火牆**：用 Contabo 控制台的防火牆（機器外面的），規則只放行 22、80、443（22 的來源限制為你常用的位址更好）。Coolify 的網頁介面（8000、6001、6002）不放行，先用 SSH 通道連：`ssh -L 8000:127.0.0.1:8000 root@84.247.153.81`，再開 `http://localhost:8000`；設好 Coolify 自己的網域與 HTTPS 後就不需要通道。ufw 保持關閉（沒有啟用過，不要在這時候開，以免和 Docker 的規則互相干擾）。**先確認 SSH 規則在，再套用防火牆**，不然會被鎖在外面（Contabo 控制台有 VNC 可以救）。
 6. **安裝 Coolify**：用官方文件的一行指令安裝（`https://coolify.io/docs/start-with-self-hosted`，需要 root；以文件上的指令為準）。裝完用瀏覽器開 `http://<VPS>:8000` 建管理員帳號（**立刻建，並用強密碼**，先建先贏）。
 7. **替 Coolify 自己設網域**（建議，例如 `coolify.noureon.com`，DNS 指到 VPS、灰雲），設好 HTTPS 後把 8000、6001、6002 對外關掉（官方建議）。
 8. **連 GitHub**：在 Coolify 加入儲存庫 `NHZallen/Noureon`（公開儲存庫可直接用，否則建 GitHub App 或用 deploy key）。
@@ -79,7 +98,7 @@
 - 進階模式（Python）做一個簡報或文件（沙盒）；設定頁的命令工具跑一次（runner 的 CLI 快取）。
 - 看圖檢查（日誌 `slides_ok`）。
 - 連接器：GitHub、Canva 各登入一次（OAuth 回呼 `https://api.noureon.com/mcp/callback` 沒變，但密鑰是新的）。
-- 沙盒的連線出問題時：`docker logs noureon-sandbox-runner --tail 30`；從伺服器容器連不到 runner，先看 §5 步驟 5 的 ufw 規則，再看 `SANDBOX_RUNNER_URL` 的位址。
+- 沙盒的連線出問題時：`docker logs noureon-sandbox-runner --tail 30`；從伺服器容器連不到 runner：ufw 沒有啟用，不是它；看 `SANDBOX_RUNNER_URL` 的位址是不是 `docker0` 的位址、`docker logs noureon-sandbox-runner` 裡有沒有被拒絕（`RUNNER_ALLOW` 沒有包含容器的位址範圍）。
 
 ## 7. 回頭路
 
