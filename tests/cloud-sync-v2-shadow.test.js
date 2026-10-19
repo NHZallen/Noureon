@@ -518,6 +518,70 @@ test('ambiguous baseline message sequences stop conservatively without upload, v
   assert.deepEqual(calls, []);
 });
 
+function movedMessageRepository(remoteRows, messageUploads) {
+  return {
+    paginatedSnapshotsAreComplete: true,
+    probe: async () => ({ schema_version: 2, migration_state: 'ready' }),
+    fetchTombstones: async () => [],
+    fetchWorkspace: async () => structuredClone(remoteRows),
+    setMigrationState: async () => {},
+    upsertFolders: async () => {},
+    upsertConversations: async () => {},
+    upsertMessages: async rows => messageUploads.push(rows),
+    upsertAstras: async () => {},
+    verify: async () => true
+  };
+}
+
+test('a local message the cloud moved out of its place and deleted does not stop the sync', async () => {
+  const remoteRows = await remoteRowsFor();
+  const localMessage = remoteRows.messages[0];
+  // The server's reply took the place of this message: the old one was moved to a negative sequence and deleted.
+  remoteRows.messages = [
+    { ...localMessage, sequence: -1792381112775283, deleted_at: '2026-10-19T03:37:21.261Z' },
+    { ...localMessage, id: '99999999-9999-4999-8999-999999999999', role: 'model' }
+  ];
+  const messageUploads = [];
+  const sync = createConversationShadowSync({
+    repository: movedMessageRepository(remoteRows, messageUploads),
+    readWorkspace: async () => structuredClone(workspace),
+    commitWorkspace: async () => structuredClone(workspace),
+    userId,
+    cryptoProvider: webcrypto,
+    logger: { warn: () => {} }
+  });
+
+  const status = await sync.initialize();
+
+  assert.equal(status.state, 'ready');
+  assert.equal(status.enabled, true);
+  assert.equal(messageUploads.flat().some(row => row.id === localMessage.id), false);
+});
+
+test('a local message id owned by a live message of another place still stops the sync', async () => {
+  const remoteRows = await remoteRowsFor();
+  const localMessage = remoteRows.messages[0];
+  remoteRows.messages = [
+    { ...localMessage, sequence: 5 },
+    { ...localMessage, id: '99999999-9999-4999-8999-999999999999', role: 'model' }
+  ];
+  const messageUploads = [];
+  const sync = createConversationShadowSync({
+    repository: movedMessageRepository(remoteRows, messageUploads),
+    readWorkspace: async () => structuredClone(workspace),
+    commitWorkspace: async () => structuredClone(workspace),
+    userId,
+    cryptoProvider: webcrypto,
+    logger: { warn: () => {} }
+  });
+
+  const status = await sync.initialize();
+
+  assert.equal(status.state, 'retry');
+  assert.equal(status.code, 'ASTRA_MESSAGE_ID_RECONCILIATION_AMBIGUOUS');
+  assert.deepEqual(messageUploads, []);
+});
+
 test('a newer revision saved during upload is retried as a second delta before acknowledgement', async () => {
   const remoteRows = await remoteRowsFor();
   const firstWorkspace = structuredClone(workspace);

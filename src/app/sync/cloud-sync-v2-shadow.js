@@ -253,6 +253,7 @@ function messageSequenceKey(row) {
 function reconcileEncodedMessageIds(encoded, baseline) {
   const remoteIdByKey = new Map();
   const remoteKeyById = new Map();
+  const remoteDeletedIds = new Set();
   for (const row of baseline?.messages || []) {
     const key = messageSequenceKey(row);
     if (!key || !row?.id || remoteIdByKey.has(key)) {
@@ -264,6 +265,7 @@ function reconcileEncodedMessageIds(encoded, baseline) {
     }
     remoteIdByKey.set(key, row.id);
     remoteKeyById.set(row.id, key);
+    if (row.deleted_at) remoteDeletedIds.add(row.id);
   }
 
   const localKeys = new Set();
@@ -271,10 +273,13 @@ function reconcileEncodedMessageIds(encoded, baseline) {
   const messages = [];
   for (const row of encoded?.messages || []) {
     const key = messageSequenceKey(row);
+    const remoteOwnerKey = row?.id ? remoteKeyById.get(row.id) : null;
+    // The cloud moved this message out of its place and deleted it (the server's reply took the place, or another device cut it away): the
+    // cloud's deletion stands, so the stale local copy is left out of the upload instead of stopping the whole sync.
+    if (remoteOwnerKey && key && remoteOwnerKey !== key && remoteDeletedIds.has(row.id)) continue;
     if (!key || !row?.id || localKeys.has(key)) {
       return { encoded, safe: false, reason: 'ambiguous-local-message-sequence' };
     }
-    const remoteOwnerKey = remoteKeyById.get(row.id);
     if (remoteOwnerKey && remoteOwnerKey !== key) {
       return { encoded, safe: false, reason: 'local-message-id-owned-by-another-sequence' };
     }
