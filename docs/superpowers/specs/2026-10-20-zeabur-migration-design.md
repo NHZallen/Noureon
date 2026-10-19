@@ -128,4 +128,5 @@
 - `/etc/docker/daemon.json` 實際內容。
 - `api.noureon.com` 的 DNS 現在指向哪裡。
 - Coolify 的安裝指令與設定項目：以官方文件為準，我整理的是搜尋得到的摘要，沒有實測。
-- Docker 配給容器的位址範圍：預設是 `172.16.0.0/12` 與 `192.168.0.0/16`；若 `daemon.json` 有自訂 `default-address-pools`，`RUNNER_ALLOW` 要對應調整（`install.sh` 的 `ALLOW` 變數）。
+- Docker 配給容器的位址範圍：預設是 `172.16.0.0/12` 與 `192.168.0.0/16`；Coolify 安裝時會把 `daemon.json` 的 `default-address-pools` 設成 `10.0.0.0/8`，所以 `install.sh` 會讀 `daemon.json` 裡的每個 `base`，一併放進 `RUNNER_ALLOW`。**Coolify 裝好後要再跑一次 `sh sandbox-host/install.sh`。**
+- 這台的 Docker 是 Ubuntu 套件（`docker.io`），沒有 `docker compose` 外掛，Coolify 安裝腳本會失敗（`Failed to parse docker-compose configuration`）。先裝 `docker-compose-v2` 再裝 Coolify。

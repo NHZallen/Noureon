@@ -57,6 +57,13 @@ if [ -n "$BRIDGE" ]; then
   HOST="$BRIDGE,$HOST"
   ALLOW="$ALLOW,172.16.0.0/12,192.168.0.0/16"
 fi
+# Coolify sets the address pools Docker hands out to the networks of its apps (daemon.json "default-address-pools", 10.0.0.0/8 by default): a server in
+# one of those networks asks the runner from an address there, so every pool in the file is accepted too.
+if [ -f /etc/docker/daemon.json ]; then
+  for POOL in $(grep -o '"base": *"[0-9./]*"' /etc/docker/daemon.json | grep -o '[0-9][0-9./]*'); do
+    ALLOW="$ALLOW,$POOL"
+  done
+fi
 CNI=$(ip -4 -o addr show cni0 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -n 1)
 if [ -n "$CNI" ]; then
   HOST="$CNI,$HOST"
