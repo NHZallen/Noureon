@@ -112,6 +112,7 @@ export function createRunManager({
       live.councilAt = now();
     }
     else if (typeof event.ss === 'string') live.searching = event.ss;
+    else if (typeof event.dp === 'string') live.documents = event.dp;
     else if (event.rs) live.research.state = event.rs;
     else if (event.ra) {
       live.research.activity.push(event.ra);
@@ -181,6 +182,8 @@ export function createRunManager({
       sources: live.sources,
       // A search the reply is making first (a packet): the source it uses, so a page that joins late shows "Searching with ..." too.
       ...(live.searching ? { ss: live.searching } : {}),
+      // The step the message's files, documents and addresses are at (reading, translating, links), so a page that joins late shows it too.
+      ...(live.documents ? { dp: live.documents } : {}),
       // A council: how it stands (the stage, each model's state, the search), so a page that joins late draws the same panel.
       ...(live.council ? { cs: { ...live.council, elapsedMs: (Number(live.council.elapsedMs) || 0) + (now() - live.councilAt) } } : {}),
       elapsedMs: live.elapsedFrom + (now() - live.elapsedAt),
@@ -226,7 +229,7 @@ export function createRunManager({
     const connectorControl = { answer: null };
     // How a person's request to let one model of a council leave reaches the council (it sets `exit`).
     const councilControl = { exit: null };
-    const live = { answer: '', thought: { text: '', kind: 'model', ended: false, ms: 0, first: null }, sources: [], elapsedFrom: 0, elapsedAt: now(), steps: { events: [], chars: 0 }, vision: { events: [], chars: 0 }, research: { state: null, activity: [] }, searching: '', council: null, councilAt: 0, subscribers: new Set() };
+    const live = { answer: '', thought: { text: '', kind: 'model', ended: false, ms: 0, first: null }, sources: [], elapsedFrom: 0, elapsedAt: now(), steps: { events: [], chars: 0 }, vision: { events: [], chars: 0 }, research: { state: null, activity: [] }, searching: '', documents: '', council: null, councilAt: 0, subscribers: new Set() };
     active.set(runId, { controller, userId, live, controls, netControl, credentialControl, connectorControl, councilControl });
     let finalStatus = 'error';
     const writer = createMessageWriter({

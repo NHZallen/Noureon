@@ -529,6 +529,22 @@ test('a page that joins while the reply is searching first is told which source 
   assert.equal('ss' in late[0].r, false, 'a search that is over is not told to a page that joins later');
 });
 
+test('a page that joins while the message\'s files are being read is told the step, and not after it is over', async () => {
+  const live = (onLive) => onLive({ r: { answer: '', thought: { text: '', kind: 'model' }, sources: [], elapsedMs: 0 } });
+  const during = managerHarness({ execute: async ({ onLive }) => { live(onLive); onLive({ dp: 'translating' }); await new Promise(() => {}); } });
+  await during.manager.start({ userId: USER, spec: specOf() });
+  await settle();
+  const joined = [];
+  during.manager.watch({ userId: USER, runId: 'run-1', send: (event) => joined.push(event), close() {} });
+  assert.equal(joined[0].r.dp, 'translating', 'the page that joins now shows the step the reply is at');
+  const after = managerHarness({ execute: async ({ onLive }) => { live(onLive); onLive({ dp: 'reading' }); onLive({ dp: '' }); await new Promise(() => {}); } });
+  await after.manager.start({ userId: USER, spec: specOf() });
+  await settle();
+  const late = [];
+  after.manager.watch({ userId: USER, runId: 'run-1', send: (event) => late.push(event), close() {} });
+  assert.equal('dp' in late[0].r, false, 'a step that is over is not told to a page that joins later');
+});
+
 test('a reply can be watched live: the page gets what there is now, then every piece, then that it is over (after the message is written)', async () => {
   let release;
   const gate = new Promise((resolve) => { release = resolve; });

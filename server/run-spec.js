@@ -17,7 +17,9 @@ const ROLES = ['user', 'model', 'system'];
 const WEB_SEARCH = ['off', 'research', 'grounding', 'briefing', 'packet'];
 const SEARCH_PROVIDERS = ['tavily', 'tinyfish'];
 const SEARCH_DEPTHS = ['basic', 'advanced'];
-const TOP_LEVEL = ['protocol', 'clientVersion', 'conversationId', 'assistantMessageId', 'sequence', 'model', 'request', 'tools', 'secrets', 'kind', 'research', 'source'];
+// `documents`: the reading of files, the translating of documents and the reading of addresses are made here, not by the page (server/document-prep.js). It is a
+// field of its own, at the top, so that a server that does not know it refuses the request (and the page makes those steps itself) instead of dropping it.
+const TOP_LEVEL = ['protocol', 'clientVersion', 'conversationId', 'assistantMessageId', 'sequence', 'model', 'request', 'tools', 'secrets', 'kind', 'research', 'source', 'documents'];
 const COUNCIL_TOP_LEVEL = ['protocol', 'clientVersion', 'conversationId', 'assistantMessageId', 'sequence', 'request', 'council', 'tools', 'secrets', 'kind'];
 const COUNCIL_MODES = ['consensus', 'deliberation'];
 const COUNCIL_PROVIDERS = ['gemini', 'openrouter', 'nvidia', 'opencode-go'];
@@ -27,6 +29,18 @@ const IMAGE_CONFIG_FIELDS = ['aspectRatio', 'resolution', 'n', 'size', 'quality'
 const CLOUD_ASSET = '__astraCloudAsset';
 
 const isObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
+// A model as the page gives it (the council's members, the translator of documents): the provider, the id and what the page knows about it.
+function checkModelOf(model, path, fail) {
+  if (!isObject(model)) {
+    fail(path, 'must be an object');
+    return null;
+  }
+  if (!COUNCIL_PROVIDERS.includes(model.provider)) fail(`${path}.provider`, `must be one of ${COUNCIL_PROVIDERS.join(', ')}`);
+  if (!text(model.id, 200)) fail(`${path}.id`, 'must be a short text');
+  if (!isObject(model.info) || JSON.stringify(model.info).length > 16_384) fail(`${path}.info`, 'must be an object of at most 16 KB');
+  for (const name of Object.keys(model)) if (!['provider', 'id', 'info'].includes(name)) fail(`${path}.${name}`, 'is not a known field');
+  return { provider: model.provider, id: model.id, info: model.info };
+}
 const text = (value, max) => typeof value === 'string' && value.length > 0 && value.length <= max;
 
 const isInteger = (value, min, max) => Number.isInteger(value) && value >= min && value <= max;
@@ -188,17 +202,7 @@ function validateCouncilSpec(input) {
   if (!UUID.test(String(input.assistantMessageId || ''))) fail('assistantMessageId', 'must be an id');
   if (!Number.isInteger(input.sequence) || input.sequence < 0) fail('sequence', 'must be a whole number from 0');
 
-  const checkModel = (model, path) => {
-    if (!isObject(model)) {
-      fail(path, 'must be an object');
-      return null;
-    }
-    if (!COUNCIL_PROVIDERS.includes(model.provider)) fail(`${path}.provider`, `must be one of ${COUNCIL_PROVIDERS.join(', ')}`);
-    if (!text(model.id, 200)) fail(`${path}.id`, 'must be a short text');
-    if (!isObject(model.info) || JSON.stringify(model.info).length > 16_384) fail(`${path}.info`, 'must be an object of at most 16 KB');
-    for (const name of Object.keys(model)) if (!['provider', 'id', 'info'].includes(name)) fail(`${path}.${name}`, 'is not a known field');
-    return { provider: model.provider, id: model.id, info: model.info };
-  };
+  const checkModel = (model, path) => checkModelOf(model, path, fail);
 
   const council = input.council;
   let participants = [];
@@ -463,15 +467,31 @@ export function validateRunSpec(input) {
     if (isObject(input.research)) for (const name of Object.keys(input.research)) if (name !== 'topic') fail(`research.${name}`, 'is not a known field');
   } else if (input.research !== undefined) fail('research', 'is only for a deep research');
 
+  // The files, documents and addresses of the person's message, made ready here (server/document-prep.js): `translator` is the model that writes a
+  // document the reply's model cannot read as text (what Settings chose), `linkedPages` whether the addresses of the message are read first (the page decides).
+  let translator = null;
+  if (input.documents !== undefined) {
+    if (!isObject(input.documents)) fail('documents', 'must be an object');
+    else {
+      for (const name of Object.keys(input.documents)) if (!['linkedPages', 'translator'].includes(name)) fail(`documents.${name}`, 'is not a known field');
+      if (input.documents.linkedPages !== undefined && typeof input.documents.linkedPages !== 'boolean') fail('documents.linkedPages', 'must be true or false');
+      if (input.documents.translator !== undefined && input.documents.translator !== null) translator = checkModelOf(input.documents.translator, 'documents.translator', fail);
+    }
+    if (input.kind === 'research' || input.kind === 'vision') fail('documents', 'is for a reply to a message of the person');
+  }
+
   const secrets = input.secrets;
   if (!isObject(secrets)) fail('secrets', 'must be an object');
   else {
     if (!text(secrets.providerKey, 600)) fail('secrets.providerKey', 'is needed');
+    // The key of the translator model's provider, when that is not the reply's (then the reply's key serves).
+    if (secrets.translatorKey !== undefined && (!text(secrets.translatorKey, 600) || !translator)) fail('secrets.translatorKey', 'must be a key, and only with a translator');
+    if (translator && isObject(model) && translator.provider !== model.provider && !text(secrets.translatorKey, 600)) fail('secrets.translatorKey', 'is needed for a translator of another provider');
     if (secrets.searchKey !== undefined && !text(secrets.searchKey, 600)) fail('secrets.searchKey', 'must be a key or left out');
     // The other search source's key: when the chosen one finds nothing or fails, the search goes on with it (as the page does).
     if (secrets.searchKeyAlt !== undefined && (!text(secrets.searchKeyAlt, 600) || !text(secrets.searchKey, 600))) fail('secrets.searchKeyAlt', 'must be a key, and only with a searchKey');
     if (isObject(tools) && tools.webSearch === 'packet' && !text(secrets.searchKey, 600)) fail('secrets.searchKey', 'is needed for a search packet');
-    for (const name of Object.keys(secrets)) if (!['providerKey', 'searchKey', 'searchKeyAlt'].includes(name)) fail(`secrets.${name}`, 'is not a known field');
+    for (const name of Object.keys(secrets)) if (!['providerKey', 'searchKey', 'searchKeyAlt', 'translatorKey'].includes(name)) fail(`secrets.${name}`, 'is not a known field');
   }
 
   if (errors.length) return { ok: false, errors: errors.slice(0, 20) };
@@ -508,7 +528,8 @@ export function validateRunSpec(input) {
         ...(tools.connectors === true ? { connectors: true } : {}),
         ...(tools.inputs?.length ? { inputs: tools.inputs.map((file) => ({ name: file.name, mimeType: file.mimeType || '', data: file.data })) } : {})
       },
-      secrets: { providerKey: secrets.providerKey, ...(secrets.searchKey ? { searchKey: secrets.searchKey } : {}), ...(secrets.searchKeyAlt ? { searchKeyAlt: secrets.searchKeyAlt } : {}) }
+      ...(input.documents ? { documents: { linkedPages: input.documents.linkedPages === true, ...(translator ? { translator } : {}) } } : {}),
+      secrets: { providerKey: secrets.providerKey, ...(secrets.searchKey ? { searchKey: secrets.searchKey } : {}), ...(secrets.searchKeyAlt ? { searchKeyAlt: secrets.searchKeyAlt } : {}), ...(secrets.translatorKey ? { translatorKey: secrets.translatorKey } : {}) }
     }
   };
 }

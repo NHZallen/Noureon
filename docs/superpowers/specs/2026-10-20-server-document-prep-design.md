@@ -38,7 +38,7 @@
 ## 4. 其他決定（owner 2026-10-20 確認）
 
 1. **沿用「先搜一包」的做法**：伺服器收下就做，**沒收**（沒有雲端帳號、暫時對話、「回覆在這個裝置上」、請求太大、伺服器連不上、協定不符）就照現在的樣子在瀏覽器做，使用者看不到提示。
-2. **網址內容（`readLinkedPages`）一起搬**（owner：「一起啊」）：它也是離開頁面會中斷的步驟，做法相同。頁面現在對「這個網址要不要讀」的判斷（`!addressIsForTool` 與判斷模型的 `url` 裁決，伺服器上沒有判斷模型的快取）**由頁面決定後放進 RunSpec**（`tools.linkedPages: true | false`），伺服器照做；讀網頁需要搜尋金鑰（`secrets.searchKey`／`searchKeyAlt`），所以 `prepare` 且要讀網址時也要送。
+2. **網址內容（`readLinkedPages`）一起搬**（owner：「一起啊」）：它也是離開頁面會中斷的步驟，做法相同。頁面現在對「這個網址要不要讀」的判斷（`!addressIsForTool` 與判斷模型的 `url` 裁決，伺服器上沒有判斷模型的快取）**由頁面決定後放進 RunSpec**（`documents.linkedPages: true | false`），伺服器照做；讀網頁需要搜尋金鑰（`secrets.searchKey`／`searchKeyAlt`），所以有 `documents` 且 `linkedPages` 為真時也要送。
 3. **轉譯模型的金鑰上伺服器**（owner 確認）：轉譯模型常常和回覆模型不同供應商，要像「先搜一包」的 `searchKeyAlt` 一樣，多送 `secrets.translatorKey`（同樣放進加密的金鑰信封，只在這次回覆用）。
 4. **失敗行為沿用現狀**（owner 確認）：沒設轉譯模型卻需要轉譯，照現在丟出 `documentTranslatorRequired` 的錯誤結束回覆；轉 PDF 失敗退回讀成文字（`office-pdf.js` 本來就是），再不行才轉譯。
 5. **重啟接續**（owner 確認）：準備這幾步沒有檢查點，伺服器重啟後從頭做一次（轉 PDF 有快取，轉譯會多花一次模型費用，只在隱私說明提一句，和搜尋一樣）。
@@ -53,18 +53,18 @@
 3b. 讀訊息裡的網址（`readLinkedPages`，頁面決定要不要讀）：`onPhase('links')`，頁面現有的文字「正在讀取網址」（`readingLinkedPages`）。
 4. 完成 `onPhase('')`。
 
-**RunSpec。** `tools.documents`：`'off'`（預設，舊做法）或 `'prepare'`；`tools.linkedPages`：布林（見 §4.2）；`tools.translator`：轉譯模型（`provider`、`id`、`info`，格式和理事會 `council.translator` 相同）；`secrets.translatorKey`。`request.currentMessage` 在 `prepare` 時是**原始**訊息（附件還沒讀過）。
+**RunSpec。** 最上層欄位 `documents`（有這個欄位＝伺服器準備；沒有＝舊做法）：`{ linkedPages: 布林（見 §4.2）, translator?: 轉譯模型（provider、id、info，格式和理事會 council.translator 相同） }`；`secrets.translatorKey`（轉譯模型的供應商和回覆模型不同時才要；`keyFor` 認得該供應商，`getModelApiId` 讓轉譯模型用自己的模型編號）。有 `documents` 時 `request.currentMessage` 是**原始**訊息（附件還沒讀過）。**為何放最上層而不是 `tools.*`：**舊伺服器對最上層未知欄位回 `invalid_run_spec`（客戶端靜默退回瀏覽器），但 `tools.*` 底下的未知欄位會被靜默丟掉——舊伺服器就會在沒準備附件的情況下直接回覆。
 
 **即時事件。** 仿 `ss`（正在搜尋）：`server/runs.js` 加 `live.documentPhase`，事件 `dp`（`'reading' | 'translating' | 'links' | ''`；之後 NOU-68 會加 `'pdf'`），迷你快照 `r.dp`；頁面晚加入時也拿得到現在在哪一步。
 
 **客戶端。**
-- `planServerReply`：附件需要準備、且伺服器會收時回傳 `documents: 'prepare'`（轉譯模型有設才行，沒設則照現在退回瀏覽器並維持原有的錯誤行為）。
+- `planServerReply`：附件需要準備、且伺服器會收時回傳 `documents`（轉譯模型有設才行，沒設則照現在退回瀏覽器並維持原有的錯誤行為）。
 - `single-model-response-lifecycle.js`：和「先搜一包」一樣，**先決定計畫，計畫是伺服器時，瀏覽器不讀檔也不轉譯**（`hasTranslationInputs` 的附件部分略過），送原始 `userParts`；伺服器沒收就在瀏覽器補做（`baseParts` 的做法）。
 - `server-reply.js` 的 `follow` 加 `onDocumentPhase(phase)`，頁面把它畫成同一個等待列（`reply-wait-step`）：`reading` → 讀取檔案、`translating` → 請轉譯模型讀取文件、`links` → 讀取網址（現有文字）。
-- 網址內容：頁面不再在瀏覽器讀（計劃是伺服器時），送 `tools.linkedPages`；伺服器沒收就在瀏覽器補讀。
+- 網址內容：頁面不再在瀏覽器讀（計劃是伺服器時），送 `documents.linkedPages`；伺服器沒收就在瀏覽器補讀。
 - 理事會：成員的附件轉譯與整合已在伺服器（`council-run.js`），不在這次範圍。
 
-**相容性。** 新增 `tools.documents`、`tools.translator`、`secrets.translatorKey`、事件 `dp`，**不升協定版本**：舊伺服器收到未知欄位回 `invalid_run_spec`，客戶端本來就靜默退回本機（圖片、搜尋都驗證過這條路）；舊頁面看到 `dp` 直接忽略。兩邊同時部署的空窗期，最壞是退回瀏覽器做。
+**相容性。** 新增最上層 `documents`、`secrets.translatorKey`、事件 `dp`，**不升協定版本**：舊伺服器收到未知欄位回 `invalid_run_spec`，客戶端本來就靜默退回本機（圖片、搜尋都驗證過這條路）；舊頁面看到 `dp` 直接忽略。兩邊同時部署的空窗期，最壞是退回瀏覽器做。
 
 **隱私。** 附件在伺服器回覆時本來就上伺服器；新增的是：伺服器會用轉譯模型（使用者自己的金鑰）處理這些文件，並可能在沒有網路的沙盒把 Word／PowerPoint 轉成 PDF（暫存規則見 office-to-pdf §4，不變）。`PRIVACY.md`、協助中心、隱私政策五語言補一句；更新紀錄五語言補一句。
 
@@ -89,7 +89,7 @@
 ## 8. 階段（一次一個階段，做完回報；owner 說「上線」才上 `main`）
 
 - **P0（✅ 已完成，§9）：** 小實驗：在伺服器的模組上用假的模型，跑讀檔（含轉 PDF 的假轉換器）與轉譯，確認準備函式在 Node 原樣可跑；確認 `secrets.translatorKey` 進信封。
-- **P1：** 伺服器端：`run-spec.js`（`tools.documents`、`tools.linkedPages`、`tools.translator`、`secrets.translatorKey`）、`document-prep.js`（用 `createProviderRequestSupport` 的 `buildSingleModelTranslatedRequestParts`；階段回報 `reading`／`translating`／`links`；**不帶 `viaPdf`**）、`model-access.js`（`keyFor` 認得轉譯模型的供應商）、`executor.js`（開頭呼叫）、`runs.js`（`dp`）、`tests/server/`。
+- **P1：** 伺服器端：`run-spec.js`（最上層 `documents`、`secrets.translatorKey`）、`document-prep.js`（用 `createProviderRequestSupport` 的 `buildSingleModelTranslatedRequestParts`；階段回報 `reading`／`translating`／`links`；**不帶 `viaPdf`**）、`model-access.js`（`keyFor` 認得轉譯模型的供應商）、`executor.js`（開頭呼叫）、`runs.js`（`dp`）、`tests/server/`。
 - **P2：** 客戶端：`planServerReply`、生命週期順序與退回、`follow` 的 `onDocumentPhase`、等待列文字（沿用現有的三個，轉譯那個已經改好）、測試。
 - **P3：** 隱私說明、協助中心、更新紀錄（五語言）、全套檢查；owner 驗收清單：傳 PDF 給不能讀 PDF 的模型、傳 Word 給讀不了 Word 的模型、訊息裡放網址，送出後立刻關頁面、再打開，看回覆是否完成，等待列的文字是否正確。
 

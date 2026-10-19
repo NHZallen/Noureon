@@ -18,6 +18,8 @@ export function createModelAccess({ spec, secrets, fetchImpl = fetch, grounding 
   const conversation = { id: spec.conversationId, messages: [], astrasId: null, isWebSearchEnabled: grounding, genConfig: null, reasoningEffort: spec.request.reasoningEffort ?? null };
   const keyFor = (name) => {
     if (name === modelInfo.provider) return secrets.providerKey || '';
+    // The translator of documents, when it is of another provider than the reply's (spec.documents.translator).
+    if (secrets.translatorKey && name === spec.documents?.translator?.provider) return secrets.translatorKey;
     if (name === spec.tools.searchProvider) return secrets.searchKey || '';
     // The other search source (the page falls back to it when the chosen one finds nothing).
     if (SEARCH_SOURCES.includes(name)) return secrets.searchKeyAlt || '';
@@ -27,7 +29,8 @@ export function createModelAccess({ spec, secrets, fetchImpl = fetch, grounding 
   const streamApiCall = createStreamApiCall({
     getActiveConversation: () => conversation,
     normalizeConversationModel: () => modelInfo,
-    getModelApiId: () => spec.model.id,
+    // The reply's model is the one of the spec; a call made for another model (the translator of documents) names its own.
+    getModelApiId: (model) => (model && model !== modelInfo ? model.apiId || model.id : spec.model.id),
     getApiKeyForProvider: keyFor,
     getDefaultGenConfig: () => ({ ...DEFAULT_GENERATION }),
     getConfig: () => config,

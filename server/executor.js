@@ -21,6 +21,7 @@ import { collectInputFiles, createStepEvents, finishAdvancedReply } from './adva
 import { ERROR_CODES } from './protocol.js';
 import { createModelAccess, DEFAULT_GENERATION } from './model-access.js';
 import { withSearchPacket } from './search-packet.js';
+import { withDocumentPrep } from './document-prep.js';
 import { createConnectorAsk } from './mcp/ask.js';
 import { combineLoaders, createConnectorLoader } from './mcp/tool-loader.js';
 
@@ -151,7 +152,8 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
     onSources: addSources,
     onSupports: (found) => { supports = found; }
   };
-  const parts = spec.request.currentMessage.parts;
+  // The message's parts; with `spec.documents` they are made ready (files read, documents written down, addresses read) at the start of the reply.
+  let parts = spec.request.currentMessage.parts;
   // The skills the model may load by itself: not with Gemini's own search (the provider refuses its tools next to that search).
   const skillList = skills && mode !== 'grounding' ? spec.tools.skills || [] : [];
   const makeSkillsOnly = ({ lookup = (name) => skills.body(userId, name) } = {}) => (skillList.length ? createSkillLoader({ available: skillList, lookup, readFile: skills.readFile ? (name, path) => skills.readFile(userId, name, path) : null }) : null);
@@ -202,6 +204,21 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
   // A reply with Python: the run and what it made, set when the loop is over.
   let advanced = null;
   try {
+    // The page's own steps for the files, documents and addresses of the message, made here (document-prep.js): the pages watching are told which step it is.
+    if (spec.documents) {
+      parts = await withDocumentPrep({
+        parts,
+        spec,
+        access,
+        userId,
+        signal,
+        onPhase: (phase) => onLive({ dp: phase }),
+        onSources: addSources,
+        errorFor: (message) => new ReplyError(scrubMessage(message, secrets), 'provider_error'),
+        getErrorMessage,
+        readErrorBody
+      });
+    }
     if (spec.tools.advanced) {
       if (!sandboxHost?.configured || !files) throw new ReplyError('Python is not available on the server.', 'provider_error');
       const tools = mode === 'research' ? createWebResearchTools({ getConfig: () => config, getApiKeyForProvider: keyFor, fetchImpl: upstreamFetch, getErrorMessage, readErrorBody, normalizePageReads, normalizeTinyfishSearch }) : null;
