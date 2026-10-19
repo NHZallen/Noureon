@@ -55,6 +55,8 @@
 .council-tl.council-tl, .council-tl-members.council-tl-members, .council-tl-steps.council-tl-steps { list-style: none; }
 .council-tl.council-tl { margin: 0; padding: 0; }
 .council-tl-member.council-tl-member, .council-tl-steps.council-tl-steps li { margin: 0; }
+/* A member's row is never wider than the list (a long search it made is cut, not let to push the row past the screen). */
+.council-tl-member { min-width: 0; }
 
 .council-tl-stage.council-tl-stage {
     position: relative;
@@ -132,8 +134,7 @@
     flex-wrap: wrap;
     min-width: 0;
     align-items: baseline;
-    column-gap: 0.5rem;
-    row-gap: 0.1rem;
+    gap: 0.1rem 0.5rem;
     padding: 0;
     border: 0;
     background: none;

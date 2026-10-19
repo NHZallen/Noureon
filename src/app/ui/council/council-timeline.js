@@ -50,9 +50,9 @@ export function councilMemberNumbers(language, { counts = {}, chars = 0 } = {}) 
 function memberStatus(language, member, live) {
   if (live && member.status === 'running') {
     if (member.chars) return sandboxText(language, 'councilMemberWriting');
-    // Not writing yet: what it is doing (its newest search or page), else that it is waited for.
+    // Not writing yet: what it is doing, in a word (what it searched and read is under its name, opened), else that it is waited for.
     const last = Array.isArray(member.steps) ? member.steps.at(-1) : null;
-    return last?.label || sandboxText(language, 'councilMemberWaiting');
+    return sandboxText(language, { search: 'councilMemberSearching', page: 'councilMemberReading', skill: 'councilMemberUsing', connector: 'councilMemberUsing' }[last?.kind] || 'councilMemberWaiting');
   }
   return sandboxText(language, STATUS_LABELS[member.status] || STATUS_LABELS.done);
 }

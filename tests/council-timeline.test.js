@@ -7,7 +7,7 @@ import { liftSandboxRunBlock, normalizeCouncilRecord } from '../src/app/ui/sandb
 import { sandboxText } from '../src/app/runtime/sandbox/sandbox-texts.js';
 
 const LANGUAGES = ['zh-TW', 'en', 'fr', 'ru', 'es'];
-const KEYS = ['councilDiscussed', 'councilStageTranslation', 'councilStageAnswers', 'councilStageDiscussion', 'councilStageSynthesis', 'councilMemberDone', 'councilMemberWriting', 'councilMemberWaiting', 'councilMemberFailed', 'councilMemberLeft', 'councilMemberSkipped', 'councilSearches', 'councilPages', 'councilTools', 'councilChars', 'councilDoneCount', 'councilFailedCount'];
+const KEYS = ['councilMemberSearching', 'councilMemberReading', 'councilMemberUsing', 'councilDiscussed', 'councilStageTranslation', 'councilStageAnswers', 'councilStageDiscussion', 'councilStageSynthesis', 'councilMemberDone', 'councilMemberWriting', 'councilMemberWaiting', 'councilMemberFailed', 'councilMemberLeft', 'councilMemberSkipped', 'councilSearches', 'councilPages', 'councilTools', 'councilChars', 'councilDoneCount', 'councilFailedCount'];
 
 test('every word of the timeline is there in the five languages', () => {
   for (const language of LANGUAGES) {
@@ -47,7 +47,7 @@ test('live: the stage that runs has the accent dot and its members (what each is
   assert.match(html, /<li class="council-tl-stage is-todo">[^]*?Final answer<\/span><span class="council-tl-meta"><\/span>/);
   assert.match(html, /Opus &lt;5&gt;/, 'names are escaped');
   assert.match(html, /<span class="council-tl-member-status">Writing<\/span><span class="council-tl-member-meta">Searches 2 · 412 chars<\/span>/);
-  assert.match(html, /<span class="council-tl-member-status">Reading page: vercel\.com<\/span>/, 'a member that is not writing yet says what it does');
+  assert.match(html, /<span class="council-tl-member-status">Reading pages<\/span>/, 'a member that is not writing yet says in a word what it does (the pages are under its name, opened)');
   assert.match(html, /<span class="council-tl-member-status">Waiting<\/span>/);
   assert.match(html, /council-tl-member is-failed[^]*?No answer/);
   assert.equal((html.match(/data-council-exit=/g) || []).length, 1);
