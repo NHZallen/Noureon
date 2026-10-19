@@ -307,7 +307,7 @@ test('the run row opens to each step, and a switch to Standard is one grey line'
     })}x`).run;
     const element = createSandboxRunElement(document, run, { language: 'zh-TW' });
     // Saved before the total was kept: the steps add up to it.
-    assert.equal(element.querySelector('summary').textContent, '處理時間為 2s · 執行失敗');
+    assert.equal(element.querySelector('summary').textContent, '已思考 2s · 執行失敗');
     const rows = [...element.querySelectorAll('.sandbox-run-row')];
     assert.equal(rows.length, 2, 'one line per step');
     assert.deepEqual(rows.map((row) => row.dataset.kind), ['code', 'code']);
@@ -337,7 +337,7 @@ test('the run line says how long the whole reply took, and the rows follow the o
     })}x`).run;
     assert.equal(run.elapsedMs, 628_000, 'the total is kept with the reply');
     const view = createSandboxRunElement(document, run, { language: 'en' });
-    assert.equal(view.querySelector(':scope > details > summary').textContent, 'Processed for 10m 28s');
+    assert.equal(view.querySelector(':scope > details > summary').textContent, 'Thought for 10m 28s');
     const rows = [...view.querySelectorAll('.sandbox-run-row')];
     assert.deepEqual(rows.map((row) => row.dataset.kind), ['thought', 'code', 'thought'], 'thinking, the run, thinking before the answer');
     assert.equal(rows[0].querySelector('.sandbox-run-thought-text').textContent, 'First look');
@@ -617,7 +617,11 @@ test('a reply that searched the web but ran no Python has the one line with how 
   try {
     const base = { v: 1, status: 'done', steps: [], sources: [{ title: 'A', url: 'https://a.example/' }], thought: 'Let me think.', thoughtKind: 'raw', thoughtMs: 4000 };
     const timed = createSandboxRunElement(document, { ...base, elapsedMs: 83_000 }, { language: 'en' });
-    assert.equal(timed.querySelector('summary.sandbox-run-summary').textContent, sandboxText('en', 'processedIn', { t: '1m 23s' }));
+    assert.equal(timed.querySelector('summary.sandbox-run-summary').textContent, `${sandboxText('en', 'workedFor', { t: '1m 23s' })} · ${sandboxText('en', 'sourcesSearched', { n: 1 })}`);
+    const here = createSandboxRunElement(document, { ...base, elapsedMs: 83_000, madeHere: true }, { language: 'zh-TW' });
+    assert.match(here.querySelector('summary.sandbox-run-summary').textContent, / · 在這個裝置上產生$/, 'made on this device, said on the same line');
+    const onlyHere = createSandboxRunElement(document, { v: 1, status: 'done', steps: [], madeHere: true }, { language: 'en' });
+    assert.equal(onlyHere.querySelector('.sandbox-made-here').textContent, 'Made on this device', 'a reply with nothing else to show says it alone');
     assert.equal(timed.querySelectorAll('.sandbox-run-steps .ledger-row').length, 2, 'the pages and the thinking are inside it');
     assert.match(timed.querySelector('.sandbox-run-steps').textContent, /Let me think\./);
 

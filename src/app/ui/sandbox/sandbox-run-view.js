@@ -114,9 +114,15 @@ function totalMs(run) {
   return run.steps.reduce((sum, step) => sum + (step.elapsedMs || 0), 0) + (run.thoughtMs || 0);
 }
 
+// "Thought for 12s · Searched 5 sites · Made on this device": the reply's line, once it is written (the live line ends the same way, sandbox-ledger.js).
 function summaryText(run, language) {
   const total = totalMs(run);
-  const head = total > 0 ? sandboxText(language, 'processedIn', { t: formatTotal(total) }) : sandboxText(language, 'sandboxDone', { n: run.steps.length });
+  const sources = mergeSources(run.sources || []);
+  const head = [
+    total > 0 ? sandboxText(language, 'workedFor', { t: formatTotal(total) }) : sandboxText(language, 'sandboxDone', { n: run.steps.length }),
+    sources.length ? sourcesRowLabel(language, sources) : '',
+    run.madeHere ? sandboxText(language, 'madeHere') : ''
+  ].filter(Boolean).join(' · ');
   if (run.status === RUN_STATUS.stopped) return `${head} · ${sandboxText(language, 'sandboxStopped')}`;
   const last = run.steps.at(-1);
   if (run.status === RUN_STATUS.failed || (last && last.error && run.status !== RUN_STATUS.running)) {
@@ -135,7 +141,7 @@ const thinkingLabel = (run, language) => (run.thoughtInterrupted
 
 function renderReplyThinking(document, run, language) {
   const details = element(document, 'details', 'sandbox-run-details');
-  const label = thinkingLabel(run, language);
+  const label = run.madeHere ? `${thinkingLabel(run, language)} · ${sandboxText(language, 'madeHere')}` : thinkingLabel(run, language);
   const pre = element(document, 'div', 'ledger-thought is-saved sandbox-run-thought-text');
   fillThinkingText(document, pre, run.thought);
   details.append(element(document, 'summary', 'sandbox-run-summary', label), pre);
@@ -167,6 +173,8 @@ export function createSandboxRunElement(document, run, { language = 'zh-TW' } = 
     if (run.sources?.length) container.append(...sourcesRows(document, run.sources, language));
     container.append(...connectorRows(document, run, language));
     if (run.thought) container.append(renderReplyThinking(document, run, language));
+    // Nothing else to say above the answer: only where it was made.
+    else if (run.madeHere) container.append(element(document, 'p', 'sandbox-made-here', sandboxText(language, 'madeHere')));
     return container;
   }
   const details = element(document, 'details', 'sandbox-run-details');

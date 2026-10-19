@@ -106,7 +106,9 @@ export function normalizeSandboxRun(run = {}) {
     ...(run.thought && run.thoughtKind === 'summary' ? { thoughtKind: 'summary' } : {}),
     ...(run.thought && run.thoughtInterrupted ? { thoughtInterrupted: true } : {}),
     ...(run.thought && Number(run.thoughtMs) > 0 ? { thoughtMs: Math.round(Number(run.thoughtMs)) } : {}),
-    ...(run.fallback ? { fallback: String(run.fallback) } : {})
+    ...(run.fallback ? { fallback: String(run.fallback) } : {}),
+    // The server did not take the reply, and it was made on the person's device: said on the reply's line.
+    ...(run.madeHere ? { madeHere: true } : {})
   };
 }
 

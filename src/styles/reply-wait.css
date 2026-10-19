@@ -1,0 +1,58 @@
+/* A reply before its first word (response-progress-renderers.js): a dot breathing in the person's accent, and after a while a quiet "still getting
+   ready". A slow step the person can follow (reading files, searching) is one running row of the step list (ledger.css).
+   The view is drawn again every second: `--wait-phase` (a negative delay, the time already waited) keeps the motion going instead of restarting. */
+
+.reply-wait {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-height: 1.6rem;
+    padding-left: 0.25rem;
+}
+
+.reply-wait-dot {
+    position: relative;
+    flex: none;
+    width: 0.7rem;
+    height: 0.7rem;
+    border-radius: 50%;
+    background: var(--button-primary-bg);
+    animation: reply-wait-breathe 2.6s ease-in-out infinite;
+    animation-delay: var(--wait-phase, 0ms);
+}
+
+.reply-wait-dot::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: var(--button-primary-bg);
+    animation: reply-wait-halo 2.6s ease-out infinite;
+    animation-delay: var(--wait-phase, 0ms);
+}
+
+@keyframes reply-wait-breathe {
+    0%, 100% { transform: scale(0.78); opacity: 0.55; }
+    50% { transform: scale(1.08); opacity: 1; }
+}
+
+@keyframes reply-wait-halo {
+    0% { transform: scale(1); opacity: 0.35; }
+    70%, 100% { transform: scale(2.6); opacity: 0; }
+}
+
+.reply-wait-still {
+    font-size: 0.95rem;
+    color: var(--text-tertiary);
+    animation: reply-wait-in 0.4s ease;
+}
+
+@keyframes reply-wait-in { from { opacity: 0; } }
+
+/* A slow step is a running row of the step list (ledger.css), its ring and shimmer going on from where they were. */
+.reply-wait-step .is-running > .ledger-row-head .ledger-mark::before,
+.reply-wait-step .is-running > .ledger-row-head .ledger-label { animation-delay: var(--wait-phase, 0ms); }
+
+@media (prefers-reduced-motion: reduce) {
+    .reply-wait-dot, .reply-wait-dot::after { animation: none; }
+}

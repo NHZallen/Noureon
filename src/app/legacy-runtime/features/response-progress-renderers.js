@@ -1,5 +1,8 @@
 import { getRuntimeTexts } from '../../runtime/i18n/runtime-texts.js';
 
+// After this long without a word, the dot says the reply is still being got ready.
+const WAIT_STILL_MS = 15_000;
+
 export function createResponseProgressRenderers({ escapeHTML, getUiLanguage, getCouncilRuntimeTexts }) {
   const getLanguage = () => getUiLanguage?.() || 'zh-TW';
 
@@ -18,12 +21,17 @@ export function createResponseProgressRenderers({ escapeHTML, getUiLanguage, get
     return `<div class="council-progress-panel"><div class="council-progress-orbit" aria-hidden="true"><span></span><span></span><span></span></div><div class="council-progress-heading"><span class="council-progress-stage">${escapeHTML(stageLabels[progress.stage] || runtimeTexts.running)}</span><span class="council-progress-time">${elapsedSeconds}s</span></div><div class="council-progress-message">${escapeHTML(progress.message || runtimeTexts.running)}</div><div class="council-progress-note">${escapeHTML(stageNotes[progress.stage] || stageNotes.firstRound)}</div><div class="council-progress-stats"><span>${escapeHTML(String(progress.activeParticipants || 0))}/${escapeHTML(String(progress.totalParticipants || 0))} ${localized.models}</span><span>${escapeHTML(String(doneCount))} ${localized.done}</span><span>${escapeHTML(String(runningCount))} ${localized.running}</span></div>${searchHTML}<div class="council-progress-models">${modelRows}</div></div>`;
   };
 
+  // Before a reply's first word: a dot breathing in the person's accent (reply-wait.css), with a quiet "still getting ready" once it has been a while.
+  // Only a slow step the person can follow (reading files, converting documents, searching) gets a line of its own. The view is drawn again every
+  // second: `--wait-phase` is the time already waited, so the motion goes on instead of starting over.
   const renderSingleModelProgress = (progress) => {
     const localized = getRuntimeTexts(getLanguage());
-    const elapsedSeconds = Math.max(1, Math.round((progress.elapsedMs || 0) / 1000));
-    const stageLabels = { preparing: localized.preparingRequest, fileReading: localized.readingFiles, documentTranslation: localized.documentTranslation, searchTranslation: localized.search, streaming: localized.modelAnswering, completed: localized.completed };
-    const stageNotes = { preparing: localized.progressPreparingNote, fileReading: localized.progressFileNote, documentTranslation: localized.progressDocumentNote, searchTranslation: localized.progressSearchNote, streaming: localized.progressStreamingNote, completed: localized.responseReady };
-    return `<details class="single-progress-panel" open><summary><span>${escapeHTML(progress.modelName || '')}</span><span>${elapsedSeconds}s</span></summary><div class="council-progress-orbit" aria-hidden="true"><span></span><span></span><span></span></div><div class="council-progress-heading"><span class="council-progress-stage">${escapeHTML(stageLabels[progress.stage] || stageLabels.preparing)}</span><span class="council-progress-time">${elapsedSeconds}s</span></div><div class="council-progress-message">${escapeHTML(progress.message || stageLabels[progress.stage] || stageLabels.preparing)}</div><div class="council-progress-note">${escapeHTML(stageNotes[progress.stage] || stageNotes.preparing)}</div><div class="council-progress-stats"><span>${escapeHTML(localized.receivedCharacters)}: ${escapeHTML(String(progress.receivedChars || 0))}</span>${progress.translatorName ? `<span>${escapeHTML(progress.translatorName)}</span>` : ''}</div></details>`;
+    const elapsed = Math.max(0, Math.round(progress.elapsedMs || 0));
+    const phase = `style="--wait-phase:-${elapsed}ms"`;
+    const step = { fileReading: localized.waitReadingFiles, documentTranslation: localized.waitConvertingDocs, searchTranslation: localized.waitSearching }[progress.stage];
+    if (step) return `<div class="ledger reply-wait-step" role="status" ${phase}><div class="ledger-row is-running"><div class="ledger-row-head"><span class="ledger-mark" aria-hidden="true"></span><span class="ledger-label">${escapeHTML(step)}</span></div></div></div>`;
+    const still = elapsed >= WAIT_STILL_MS ? `<span class="reply-wait-still">${escapeHTML(localized.waitStill)}</span>` : '';
+    return `<div class="reply-wait" role="status" aria-label="${escapeHTML(localized.preparingRequest)}"><span class="reply-wait-dot" ${phase} aria-hidden="true"></span>${still}</div>`;
   };
 
   const renderSingleModelError = (progress = {}, errorMessage = '') => {

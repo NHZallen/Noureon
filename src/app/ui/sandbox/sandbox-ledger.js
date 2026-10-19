@@ -26,7 +26,7 @@ const sizeText = (bytes) => (bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toF
  * opens to the steps (`open`: it starts open). The steps are folded either way, newest too. Without it the steps are the list
  * itself (where this is inside a row of another list, such as the visual check's).
  */
-export function createSandboxLedger({ document, host, before = null, language = 'zh-TW', summary = false, open = false, startedAt: workStartedAt = null, onNetAnswer = null, onCredentialAnswer = null, onConnectorAnswer = null }) {
+export function createSandboxLedger({ document, host, before = null, language = 'zh-TW', summary = false, open = false, startedAt: workStartedAt = null, madeHere = false, onNetAnswer = null, onCredentialAnswer = null, onConnectorAnswer = null }) {
   const text = (key, values) => sandboxText(language, key, values);
   const outer = summary ? createLedger({ document, host, before }) : null;
   const line = outer ? outer.addRow(text('processWorking')) : null;
@@ -314,8 +314,12 @@ export function createSandboxLedger({ document, host, before = null, language = 
         // the last (`answered`), not while the model may yet write the code of its next step.
         if (!event.more) answered = true;
         if (line && !event.more) {
-          // The line becomes what the saved reply shows once the answer is written.
-          line.setLabel(text('processedIn', { t: formatElapsed(now() - startedAt, { always: true }) }));
+          // The line becomes what the saved reply shows once the answer is written: "Thought for 12s · Searched 5 sites".
+          line.setLabel([
+            text('workedFor', { t: formatElapsed(now() - startedAt, { always: true }) }),
+            webSources.length ? sourcesRowLabel(language, webSources) : '',
+            madeHere ? text('madeHere') : ''
+          ].filter(Boolean).join(' · '));
           line.finish('done');
           line.node.classList.add('is-quiet');
         }

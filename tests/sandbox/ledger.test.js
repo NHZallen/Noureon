@@ -323,7 +323,7 @@ test('with a summary all the steps are one line that says what the work is at an
   assert.ok(line().querySelector('.ledger-list'));
 
   list.event({ type: 'answering' });
-  assert.match(line().querySelector('.ledger-label').textContent, /^Processed for \d/);
+  assert.match(line().querySelector('.ledger-label').textContent, /^Thought for \d/);
   assert.equal(line().classList.contains('is-quiet'), true);
   list.remove();
   assert.equal(message.querySelectorAll('.ledger-row').length, 0, 'all of it goes');
@@ -343,7 +343,7 @@ test('words before a possible next step do not end the line: it says the work is
   list.event({ type: 'round', label: 'Thinking…', doneLabel: 'Thought' });
   list.event({ type: 'answering', more: true });
   list.event({ type: 'answered' });
-  assert.match(line().querySelector('.ledger-label').textContent, /^Processed for \d/, 'the answer is the last: now it is over');
+  assert.match(line().querySelector('.ledger-label').textContent, /^Thought for \d/, 'the answer is the last: now it is over');
   assert.equal(line().classList.contains('is-quiet'), true);
   list.event({ type: 'step', n: 2, title: 'Again', code: 'print(2)' });
   assert.match(line().querySelector('.ledger-label').textContent, /^Working/, 'and more work after all runs the line again');
@@ -375,7 +375,7 @@ test('words before a call end the thinking row, but the line still shows the mod
   list.event({ type: 'writing', label: 'Writing the code…' });
   list.event({ type: 'answered' });
   assert.equal(rows().filter((row) => row.textContent.includes('Writing the code')).length, 0);
-  assert.match(label(), /^Processed for \d/);
+  assert.match(label(), /^Thought for \d/);
   list.remove();
   window.happyDOM.abort();
 });
@@ -408,7 +408,7 @@ test('the line says what the work is at while no step runs, hands out its body f
   assert.equal(label(), 'Working');
   list.event({ type: 'answering' });
   list.activity('Thinking…');
-  assert.match(label(), /^Processed for/, 'nothing changes the line once the answer has started');
+  assert.match(label(), /^Thought for/, 'nothing changes the line once the answer has started');
   list.remove();
   assert.equal(createSandboxLedger({ document, host: message, language: 'en' }).body, null, 'without a line there is no body');
   window.happyDOM.abort();
@@ -469,7 +469,7 @@ test('steps told later keep the time they happened at: a page that joins late sh
   assert.ok(times.includes('30s'), times.join(','));
   assert.ok(times.some((time) => /^(39|40|41)s$/.test(time)), times.join(','));
   ledger.event({ type: 'answering', at: began + 70_000 });
-  assert.match(message.textContent, /Processed for 1:10/, 'the line counts from when the server began');
+  assert.match(message.textContent, /Thought for 1:10/, 'the line counts from when the server began');
   ledger.remove();
   window.happyDOM.abort();
 });
@@ -520,4 +520,18 @@ test('a row of a list can be told when it began', () => {
   row.setStartedAt(Number.NaN);
   assert.match(row.node.querySelector('.ledger-time').textContent, /^1:0[5-7]$/, 'a value that is not a time changes nothing');
   ledger.remove();
+});
+
+test('once the answer is written the line says how long it thought, the sites it searched, and that the reply was made on this device when it was', () => {
+  const { window, document, message, answer } = setup();
+  try {
+    const list = createSandboxLedger({ document, host: message, before: answer, language: 'zh-TW', summary: true, madeHere: true });
+    list.event({ type: 'searching', label: '正在搜尋：a' });
+    list.event({ type: 'sources', sources: [{ title: 'A', url: 'https://a.example/1' }, { title: 'B', url: 'https://b.example/2' }] });
+    list.event({ type: 'answering' });
+    assert.match(message.querySelector('.ledger-label').textContent, /^已思考 .+ · 已搜尋 2 個網站 · 在這個裝置上產生$/);
+    list.remove();
+  } finally {
+    window.happyDOM.abort();
+  }
 });

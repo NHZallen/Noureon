@@ -213,6 +213,8 @@ export function createSingleModelResponseLifecycle({
     // The server makes the reply when it can (settings, the kind of reply and the account allow it, and it takes it); the page then
     // only follows what the server writes. Otherwise it is made here, as always.
     let serverRun = resumeRun;
+    // The server was asked and did not take the reply: it is made on this device, and the reply says so.
+    let madeHere = false;
     if (!serverRun && plan) {
       // A tool was chosen but cannot be used for this reply: the person is told (the reply is made without it).
       if (!canCallTools && cliIdsForReply(getConfig(), userParts).chosen.length) serverReply.notify('cli-tool-model', uiLanguage);
@@ -248,6 +250,8 @@ export function createSingleModelResponseLifecycle({
           getHistorySourceIds
         });
         if (started.ok) serverRun = started.run;
+        // Not taken because it could not be reached or was busy: the reply is made here, and its line says so (no notice over the page).
+        else if (started.notify === 'unreachable' || started.notify === 'busy') madeHere = true;
         else if (started.notify) serverReply.notify(started.notify, uiLanguage);
       }
     }
@@ -299,7 +303,7 @@ export function createSingleModelResponseLifecycle({
     let liveRun = null;
     const stepList = () => {
       if (!liveRun && targetElement.parentElement) {
-        liveRun = createSandboxLedger({ document: getDocument(), host: targetElement.parentElement, before: targetElement, language: uiLanguage, summary: true, open: getConfig().processOpen === true, ...(serverRun ? { startedAt: runStartedAt, onNetAnswer: createNetAnswerHandler({ getRun: () => serverRun }), onCredentialAnswer: createCredentialAnswerHandler({ getRun: () => serverRun }), onConnectorAnswer: createConnectorAnswerHandler({ getRun: () => serverRun }) } : {}) });
+        liveRun = createSandboxLedger({ document: getDocument(), host: targetElement.parentElement, before: targetElement, language: uiLanguage, summary: true, open: getConfig().processOpen === true, madeHere, ...(serverRun ? { startedAt: runStartedAt, onNetAnswer: createNetAnswerHandler({ getRun: () => serverRun }), onCredentialAnswer: createCredentialAnswerHandler({ getRun: () => serverRun }), onConnectorAnswer: createConnectorAnswerHandler({ getRun: () => serverRun }) } : {}) });
       }
       return liveRun;
     };
@@ -591,6 +595,7 @@ export function createSingleModelResponseLifecycle({
       if (thought.text && !replyMode.advanced && !serverRun) {
         sandboxRun = { status: 'done', steps: [], ...(sandboxRun || {}), thought: thought.text, thoughtKind: thought.kind, thoughtMs: thought.endedAt - thought.startedAt, ...(signal?.aborted && !answered ? { thoughtInterrupted: true } : {}) };
       }
+      if (madeHere) sandboxRun = { status: 'done', steps: [], ...(sandboxRun || {}), madeHere: true };
     }
 
     // Gemini says where its answer cites its pages only once it is whole: the markers go into the text now, and the final

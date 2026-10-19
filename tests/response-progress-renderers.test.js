@@ -66,23 +66,21 @@ test('council progress preserves string progress fallback', () => {
   );
 });
 
-test('single-model progress and error render localized escaped output', () => {
+test('before the first word a reply shows only a breathing dot, a quiet line after 15 seconds, and one line for a slow step; errors are escaped', () => {
   const { renderSingleModelError, renderSingleModelProgress } = createHarness({ uiLanguage: 'zh-TW' });
 
-  const progressHTML = renderSingleModelProgress({
-    elapsedMs: 1100,
-    message: '串流 <中>',
-    modelName: '模型 A',
-    receivedChars: 42,
-    stage: 'streaming',
-    translatorName: 'Translator <T>'
-  });
-  const errorHTML = renderSingleModelError({ elapsedMs: 999, modelName: '模型 B' }, '爆炸 <err>');
+  const early = renderSingleModelProgress({ elapsedMs: 1100, message: '串流 <中>', modelName: '模型 A', receivedChars: 42, stage: 'preparing', translatorName: 'Translator <T>' });
+  assert.match(early, /class="reply-wait-dot" style="--wait-phase:-1100ms"/, 'the motion goes on from where it was when drawn again');
+  for (const hidden of ['模型 A', '串流', '42', 'Translator', '正在確認目標模型能力', 's<']) assert.ok(!early.includes(hidden), `${hidden} is not shown`);
+  assert.doesNotMatch(early, /還在準備/);
+  assert.match(renderSingleModelProgress({ elapsedMs: 15_000, stage: 'streaming' }), /reply-wait-still">還在準備…</);
 
-  assert.match(progressHTML, /模型作答/);
-  assert.match(progressHTML, /串流 &lt;中&gt;/);
-  assert.match(progressHTML, /已接收字元: 42/);
-  assert.match(progressHTML, /Translator &lt;T&gt;/);
+  assert.match(renderSingleModelProgress({ elapsedMs: 3000, stage: 'fileReading' }), /ledger-row is-running.*ledger-label">正在讀取檔案……</);
+  assert.match(renderSingleModelProgress({ elapsedMs: 3000, stage: 'documentTranslation' }), /正在轉換文件……/);
+  assert.match(renderSingleModelProgress({ elapsedMs: 3000, stage: 'searchTranslation' }), /正在搜尋網路……/);
+  assert.match(createHarness({ uiLanguage: 'en' }).renderSingleModelProgress({ elapsedMs: 20_000, stage: 'preparing' }), /Still getting ready…/);
+
+  const errorHTML = renderSingleModelError({ elapsedMs: 999, modelName: '模型 B' }, '爆炸 <err>');
   assert.match(errorHTML, /single-progress-panel-error/);
   assert.match(errorHTML, /請求失敗/);
   assert.match(errorHTML, /爆炸 &lt;err&gt;/);

@@ -8,6 +8,12 @@
     line-height: 1.45;
 }
 
+.sandbox-made-here {
+    margin: 0 0 0.5rem;
+    color: var(--text-tertiary);
+    font-size: 0.875rem;
+}
+
 .sandbox-fallback-note {
     margin: 0 0 0.5rem;
     color: var(--text-secondary);

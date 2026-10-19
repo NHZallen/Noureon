@@ -16,7 +16,8 @@ export const resolveServerApiUrl = (value) => {
 export const DEFAULT_SERVER_API_URL = resolveServerApiUrl(import.meta.env?.VITE_SERVER_API_URL);
 // The server's limit on a request is 25 MB; a request is kept well under it, and a larger one is made in the browser instead.
 const MAX_REQUEST_CHARS = 20 * 1024 * 1024;
-const START_TIMEOUT_MS = 20_000;
+// How long the server is given to take a reply (the request and its files have to arrive within it), before the reply is made here.
+const START_TIMEOUT_MS = 40_000;
 const POLL_MS = 350;
 const RUN_CHECK_EVERY = 5;
 // Longer than the server's own limit of 2 hours, so the server's reason arrives first.

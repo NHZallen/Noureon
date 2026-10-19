@@ -529,7 +529,7 @@ test('the model\'s thinking is a step under the "Working" line, which says it is
   assert.equal(seen.parent, 'Working · Thinking…', 'the line says what the work is at');
   assert.equal(seen.topLevelRows, 1, 'one list in the message: the thinking is not a second one beside it');
   assert.equal(seen.thoughtInsideParent, 'Let me think. ', 'the thinking is a step inside the line');
-  assert.match(seen.afterAnswer, /^Processed for \d/, 'once the answer starts, the line is the time the work took');
+  assert.match(seen.afterAnswer, /^Thought for \d/, 'once the answer starts, the line is the time the work took');
   assert.equal(host.querySelectorAll('.ledger').length, 0, 'it goes when the reply is finished: the saved reply shows it');
   assert.match(result.fullResponse, /The answer\./);
   window.happyDOM.abort();
@@ -635,13 +635,22 @@ test('the run record the server wrote (the pages it searched) is kept with the r
   assert.equal(targetElement.dataset.streamRendered, 'false');
 });
 
-test('a reply the server does not take is made here as usual, and the person is told only when it matters', async () => {
-  const declined = serverReplyDouble({ started: { ok: false, reason: 'unreachable', notify: 'unreachable' } });
-  const { calls, lifecycle, signal, targetElement } = createHarness({ extraDependencies: { serverReply: declined } });
-  const result = await lifecycle.run({ targetElement, userParts: [{ text: 'Hi' }], modelInfo: { id: 'model', name: 'Model' }, conversation: { id: 'c1', model: 'model', messages: [] }, signal, uiLanguage: 'fr', assistantMessageId: 'm1', sequence: 2 });
-  assert.equal(result.fullResponse, 'Hello Astra');
-  assert.ok(calls.some((call) => call[0] === 'api'));
-  assert.deepEqual(declined.record.notices, [['unreachable', 'fr']]);
+test('a reply the server does not take is made here as usual: no notice over the page, the reply says it was made on this device', async () => {
+  for (const notify of ['unreachable', 'busy']) {
+    const declined = serverReplyDouble({ started: { ok: false, reason: notify, notify } });
+    const { calls, lifecycle, signal, targetElement } = createHarness({ extraDependencies: { serverReply: declined } });
+    const result = await lifecycle.run({ targetElement, userParts: [{ text: 'Hi' }], modelInfo: { id: 'model', name: 'Model' }, conversation: { id: 'c1', model: 'model', messages: [] }, signal, uiLanguage: 'fr', assistantMessageId: 'm1', sequence: 2 });
+    assert.match(result.fullResponse, /"madeHere":true/, notify);
+    assert.match(result.fullResponse, /Hello Astra$/);
+    assert.ok(calls.some((call) => call[0] === 'api'));
+    assert.deepEqual(declined.record.notices, [], `${notify}: nothing pops up`);
+  }
+  // Other reasons still tell the person (a CLI tool that needs the server).
+  const told = serverReplyDouble({ started: { ok: false, reason: 'x', notify: 'cli-local' } });
+  const fourth = createHarness({ extraDependencies: { serverReply: told } });
+  const plain = await fourth.lifecycle.run({ targetElement: fourth.targetElement, userParts: [{ text: 'Hi' }], modelInfo: { id: 'model', name: 'Model' }, conversation: { id: 'c1', model: 'model', messages: [] }, signal: fourth.signal, uiLanguage: 'en', assistantMessageId: 'm1', sequence: 2 });
+  assert.deepEqual(told.record.notices, [['cli-local', 'en']]);
+  assert.doesNotMatch(plain.fullResponse, /madeHere/);
 
   const quiet = serverReplyDouble({ plan: { ok: false, reason: 'advanced' } });
   const second = createHarness({ extraDependencies: { serverReply: quiet } });
