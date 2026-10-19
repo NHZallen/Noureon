@@ -52,25 +52,15 @@
 
 /* The lists of the timeline are not the lists of an answer (chat.css gives `.prose` lists numbers, an indent and space under each item):
    the class is doubled so these rules win wherever the timeline is drawn. */
-.council-tl.council-tl,
-.council-tl-members.council-tl-members,
-.council-tl-steps.council-tl-steps {
-    list-style: none;
-}
-
-.council-tl.council-tl {
-    margin: 0;
-    padding: 0;
-}
+.council-tl.council-tl, .council-tl-members.council-tl-members, .council-tl-steps.council-tl-steps { list-style: none; }
+.council-tl.council-tl { margin: 0; padding: 0; }
+.council-tl-member.council-tl-member, .council-tl-steps.council-tl-steps li { margin: 0; }
 
 .council-tl-stage.council-tl-stage {
     position: relative;
     margin: 0;
     padding: 0 0 0.75rem 1.4rem;
 }
-
-.council-tl-member.council-tl-member,
-.council-tl-steps.council-tl-steps li { margin: 0; }
 
 .council-tl-stage::before {
     content: '';
@@ -160,30 +150,22 @@ button.council-tl-member-head .council-tl-member-name {
     text-underline-offset: 3px;
 }
 
-.council-tl-member-name {
-    flex: 0 1 auto;
+/* What does not fit is cut with an ellipsis. */
+.council-tl-member-name,
+.council-tl-member-status,
+.council-tl-steps li {
     min-width: 0;
-    max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    color: var(--text-primary);
 }
 
-.council-tl-member-status {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    color: var(--text-tertiary);
-    font-size: 0.8rem;
-}
+.council-tl-member-name { color: var(--text-primary); }
+.council-tl-member-status { color: var(--text-tertiary); font-size: 0.8rem; }
 
 .council-tl-member.is-done .council-tl-member-name { color: var(--text-secondary); }
 .council-tl-member.is-running .council-tl-member-status { color: var(--text-primary); }
-.council-tl-member.is-failed .council-tl-member-name,
-.council-tl-member.is-exited .council-tl-member-name,
-.council-tl-member.is-skipped .council-tl-member-name { color: var(--text-tertiary); }
+.council-tl-member:is(.is-failed, .is-exited, .is-skipped) .council-tl-member-name { color: var(--text-tertiary); }
 .council-tl-member.is-failed .council-tl-member-status { color: var(--state-danger); }
 
 /* The way to let a model leave: a text link at the end of its row, only while it answers. */
@@ -207,23 +189,16 @@ button.council-tl-member-head .council-tl-member-name {
     .council-tl-exit { min-height: 2.25rem; padding-left: 0.75rem; }
 }
 
-/* What an opened member searched and read. */
+/* What an opened member searched and read (the text in a span: `.prose li` forces its own colour on the item). */
 .council-tl-steps.council-tl-steps {
     margin: 0.25rem 0 0.2rem;
     padding: 0.1rem 0 0.1rem 0.65rem;
     border-left: 2px solid var(--border-color);
-    color: var(--text-secondary);
     font-size: 0.82rem;
     line-height: 1.6;
 }
 
 .council-tl-step { color: var(--text-secondary); }
-
-.council-tl-steps li {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
 
 /* The timeline above the reply that writes the synthesis, and in the saved message. */
 .council-tl-hold { margin-bottom: 0.75rem; }

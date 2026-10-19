@@ -159,5 +159,5 @@ test('the page asks the question when the person presses the button (source of t
   assert.match(lifecycle, /confirmExit:\s*\(\{ modelName \}\)\s*=>\s*import\('\.\.\/\.\.\/legacy-runtime\/features\/council-exit-dialog\.js'\)/);
   const css = read('src/styles/model-council.css');
   assert.match(css, /\.council-tl-exit\s*\{/);
-  assert.match(css, /\.council-tl-member\.is-exited \.council-tl-member-name/);
+  assert.match(css, /\.council-tl-member:is\([^)]*\.is-exited[^)]*\) \.council-tl-member-name/);
 });
