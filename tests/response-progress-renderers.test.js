@@ -71,6 +71,8 @@ test('before the first word a reply shows only a breathing dot, a quiet line aft
 
   assert.match(renderSingleModelProgress({ elapsedMs: 3000, stage: 'fileReading' }), /ledger-row is-running.*ledger-label">正在讀取檔案……</);
   assert.match(renderSingleModelProgress({ elapsedMs: 3000, stage: 'documentTranslation' }), /正在請轉譯模型讀取文件……/);
+  assert.match(renderSingleModelProgress({ elapsedMs: 3000, stage: 'makingPdf' }), /ledger-label">正在把文件轉成 PDF……</);
+  assert.match(createHarness({ uiLanguage: 'en' }).renderSingleModelProgress({ elapsedMs: 3000, stage: 'makingPdf' }), /Converting the documents to PDF…/);
   assert.match(renderSingleModelProgress({ elapsedMs: 3000, stage: 'searchTranslation' }), /正在搜尋網路……/);
   assert.match(createHarness({ uiLanguage: 'en' }).renderSingleModelProgress({ elapsedMs: 20_000, stage: 'preparing' }), /Still getting ready…/);
 

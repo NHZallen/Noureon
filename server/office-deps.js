@@ -10,8 +10,14 @@ const loadDeps = () => {
   return loaded;
 };
 
-/** `userId`: the person the reply is for (the PDFs made of their files are kept for them only). */
-export function createServerOfficeReader({ userId = '', signal } = {}) {
+/** `userId`: the person the reply is for (the PDFs made of their files are kept for them only). `onConvert()`: called before a file is turned into a PDF. */
+export function createServerOfficeReader({ userId = '', signal, onConvert = () => {} } = {}) {
   const converter = getOfficePdfConverter();
-  return createOfficeReader({ loadDeps, convertToPdf: converter?.available && userId ? (inline) => converter.convert({ userId, inline, signal }) : null });
+  return createOfficeReader({
+    loadDeps,
+    convertToPdf: converter?.available && userId ? (inline) => {
+      onConvert();
+      return converter.convert({ userId, inline, signal });
+    } : null
+  });
 }

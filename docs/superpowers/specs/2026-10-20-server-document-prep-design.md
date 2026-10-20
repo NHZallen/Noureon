@@ -131,3 +131,26 @@
 5. 在設定把「單模型文件轉譯模型」清空（若可以）再傳 PDF：和以前一樣，在瀏覽器準備，並出現原本的「需要轉譯模型」錯誤（沒有設的人本來就是這樣）。
 6. 設定 → 隱私把回覆改成「只在這個裝置」：和以前一樣，在瀏覽器讀取，行為沒變。
 
+
+## 12. NOU-68：目前這一則的 Word／PowerPoint 也轉成 PDF（2026-10-20）
+
+§9 發現的問題修好了：給「讀 PDF 比讀 Office 好」的模型（`opencodeModelReadsOfficeViaPdf`）時，目前這一則和歷史訊息一樣轉成 PDF。
+
+- 讀取：`provider-request-support.js` 多一個依賴 `modelReadsOfficeViaPdf`，`expandParts` 帶上 `viaPdf`。
+  - 伺服器（`server/document-prep.js`）和頁面（`settings-auth-provider-lifecycle.js`）都注入 `opencodeModelReadsOfficeViaPdf`。
+  - 頁面的讀取器沒有轉換器，所以照舊讀成文字。理事會（`server/council-run.js`）的讀取器也沒有轉換器，沒有改。
+- 進度：`createServerOfficeReader` 收一個 `onConvert`，轉換前呼叫。`withDocumentPrep` 用它回報新階段 `pdf`。
+  - 頁面：`DOCUMENT_STAGES.pdf → makingPdf`，等待列顯示 `waitMakingPdf`（五語言：正在把文件轉成 PDF……／Converting the documents to PDF…／Conversion des documents en PDF…／Преобразование документов в PDF…／Convirtiendo los documentos a PDF…）。
+- 範圍（Allen 決定一起處理）：
+  - 沒設轉譯模型時，只要這則訊息有 Word／PowerPoint，而且模型讀 PDF 比較好，`planServerReply` 的 `officeViaPdf` 也讓伺服器準備檔案，由伺服器轉 PDF。
+  - 伺服器沒接手時，頁面照舊讀成文字。
+- 測試：
+  - `server-document-prep`：假轉換器，Word 給 `opencode-go/claude-haiku-5-5`，轉換 1 次，請求裡是 PDF，階段依序是 `reading`、`pdf`。
+  - `server-reply`：`officeViaPdf`。
+  - `single-model-response-lifecycle`：`pdf` 階段，以及 B 類模型才帶 `officeViaPdf`。
+  - `response-progress-renderers`：新文字。
+- 協助中心（五語言）：補上「送出的那一則就會轉，追問時看到的是同一份」。
+- 驗收（staging，B 類模型傳 Word、PowerPoint）：
+  - 等待列出現「正在把文件轉成 PDF……」。
+  - 模型看得到 PDF 裡的圖片。
+  - 追問時看到的樣子與第一次一致。

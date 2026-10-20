@@ -1086,7 +1086,7 @@ const translations = (calls) => calls.filter((call) => call[0] === 'translate');
 test('when the server prepares the message\'s files the page sends it as the person wrote it, reads nothing itself, and shows the step the server is at', async () => {
   const serverReply = serverReplyDouble({
     plan: { ok: true, webSearch: 'off', documents: true },
-    follow: async ({ onDocumentPhase, onText }) => { onDocumentPhase('reading'); onDocumentPhase('translating'); onDocumentPhase('links'); onDocumentPhase(''); onText('Done'); return { text: 'Done', run: null, rewritten: false }; }
+    follow: async ({ onDocumentPhase, onText }) => { onDocumentPhase('reading'); onDocumentPhase('pdf'); onDocumentPhase('translating'); onDocumentPhase('links'); onDocumentPhase(''); onText('Done'); return { text: 'Done', run: null, rewritten: false }; }
   });
   const { calls, lifecycle, signal, targetElement } = createHarness({ extraDependencies: { serverReply } });
   const run = documentRun();
@@ -1097,8 +1097,18 @@ test('when the server prepares the message\'s files the page sends it as the per
   assert.deepEqual(start.documents, { linkedPages: false });
   assert.equal(serverReply.record.plans[0].documentsToPrepare, true);
   const stages = calls.filter((call) => call[0] === 'render-progress').map((call) => call[1]);
-  assert.deepEqual(stages.filter((stage) => ['fileReading', 'documentTranslation', 'linkedPages'].includes(stage)), ['fileReading', 'documentTranslation', 'linkedPages']);
+  assert.deepEqual(stages.filter((stage) => ['fileReading', 'makingPdf', 'documentTranslation', 'linkedPages'].includes(stage)), ['fileReading', 'makingPdf', 'documentTranslation', 'linkedPages']);
   assert.equal(stages.at(stages.lastIndexOf('linkedPages') + 1), 'preparing', 'when the step is over the row goes back to the plain wait');
+});
+
+test('a Word file for a model that reads it better as a PDF asks the server to prepare the files (it makes the PDF), and other models do not (NOU-68)', async () => {
+  const word = { inlineData: { mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', name: 'r.docx', data: 'TWFu' } };
+  for (const [modelInfo, expected] of [[{ id: 'opencode-go/claude-haiku-5-5', name: 'Haiku', provider: 'opencode-go' }, true], [{ id: 'model', name: 'Model', provider: 'nvidia' }, false]]) {
+    const serverReply = serverReplyDouble({ plan: { ok: true, webSearch: 'off' }, follow: async () => ({ text: 'x', run: null, rewritten: false }) });
+    const harness = createHarness({ extraDependencies: { serverReply } });
+    await harness.lifecycle.run({ targetElement: harness.targetElement, signal: harness.signal, ...documentRun({ userParts: [{ text: 'Read' }, word], modelInfo }) });
+    assert.equal(serverReply.record.plans[0].officeViaPdf, expected, modelInfo.id);
+  }
 });
 
 test('an address in the message is read by the server when the page decided it is to be read, and a plain message has nothing to prepare', async () => {

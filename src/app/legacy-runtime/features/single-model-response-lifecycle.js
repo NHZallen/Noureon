@@ -6,6 +6,7 @@ import { patchHTML } from '../../ui/dom/patch-html.js';
 import { getRuntimeText } from '../../runtime/i18n/runtime-texts.js';
 import { NOURAS_REQUEST_PURPOSE } from '../../runtime/nouras/nouras-policy.js';
 import { resolveReplyMode } from '../../runtime/sandbox/file-mode.js';
+import { opencodeModelReadsOfficeViaPdf } from '../../runtime/legacy-core/opencode-models.js';
 import { browserSupportsSandbox } from '../../runtime/sandbox/sandbox-protocol.js';
 import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
 import { cliIdsForReply } from '../../runtime/cli/cli-state.js';
@@ -31,7 +32,7 @@ const loadSandboxReply = () => Promise.all([
 // a task Advanced mode is for: files, data or attachments.
 // The Decisions model's judgement of the message decides when there is one (decision-client.js), the word lists otherwise.
 // What the server says it is doing with the message's files and addresses, as the stage the wait row draws (the page's own names for them).
-const DOCUMENT_STAGES = { reading: 'fileReading', translating: 'documentTranslation', links: 'linkedPages' };
+const DOCUMENT_STAGES = { reading: 'fileReading', pdf: 'makingPdf', translating: 'documentTranslation', links: 'linkedPages' };
 const textOfParts = (parts = []) => parts.map((part) => part?.text || '').join('\n');
 const looksLikeFileTask = (parts = []) => parts.some((part) => part?.inlineData)
   || (verdictOf(decisionsFor(textOfParts(parts)), 'file') ?? mayNeedFileGuidance(textOfParts(parts)));
@@ -184,7 +185,9 @@ export function createSingleModelResponseLifecycle({
     const hasAddresses = readsAddresses && extractLinkedUrls(textOfParts(userParts)).urls.length > 0;
     const hasAttachments = userParts.some((part) => part.inlineData);
     const plan = !resumeRun && !synthesis && serverReply && assistantMessageId
-      ? serverReply.plan({ conversation, advanced: needsPython, webSearchEnabled, researchByModel, provider: modelInfo?.provider, documentsToPrepare: hasAttachments || hasAddresses })
+      ? serverReply.plan({ conversation, advanced: needsPython, webSearchEnabled, researchByModel, provider: modelInfo?.provider, documentsToPrepare: hasAttachments || hasAddresses,
+        // A Word or PowerPoint file for a model that reads it better as a PDF: only the server makes the PDF, so it prepares the files then.
+        officeViaPdf: userParts.some((part) => part?.inlineData && opencodeModelReadsOfficeViaPdf(modelInfo, part.inlineData.mimeType)) })
       : null;
     const serverSearches = plan?.ok && plan.webSearch === 'packet';
     const serverPrepares = Boolean(plan?.ok && plan.documents);

@@ -590,6 +590,9 @@ test('the plan says the server prepares the message\'s files when the message ha
   assert.deepEqual(planServerReply({ config: {}, documentsToPrepare: false, hasTranslator: true }), { ok: true, webSearch: 'off' });
   assert.equal(planServerReply({ config: { replyRunLocation: 'local' }, documentsToPrepare: true, hasTranslator: true }).documents, undefined, 'a reply made here prepares nothing on the server');
   assert.deepEqual(planServerReply({ config: {}, documentsToPrepare: true, hasTranslator: true, webSearchEnabled: true, provider: 'openrouter' }), { ok: true, webSearch: 'packet', documents: true });
+  // NOU-68: a Word or PowerPoint file for a model that reads it better as a PDF is prepared by the server (only it makes the PDF), translator or not.
+  assert.deepEqual(planServerReply({ config: {}, documentsToPrepare: true, hasTranslator: false, officeViaPdf: true }), { ok: true, webSearch: 'off', documents: true });
+  assert.equal(planServerReply({ config: { replyRunLocation: 'local' }, documentsToPrepare: true, officeViaPdf: true }).documents, undefined);
 });
 
 const TRANSLATOR = { provider: 'gemini', id: 'gemini-x', apiId: 'gemini-x-api', name: 'T' };

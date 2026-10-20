@@ -3,15 +3,17 @@
 // pictures), a document it cannot read (a PDF for a model that reads none) is written down by the translator model, and the addresses of the message are read.
 // It is the page's code as it is (`buildSingleModelTranslatedRequestParts` of provider-request-support.js, with the server's reader and keys), so what the model is
 // given is what it would be given from the page. The web search is not made here: the search packet (search-packet.js) and the model's own tools do that.
-// `onPhase(phase)` says which step is going on ('reading', 'translating', 'links'), for the pages that watch.
+// `onPhase(phase)` says which step is going on ('reading', 'pdf', 'translating', 'links'), for the pages that watch.
 
 import { createProviderRequestSupport } from '../src/app/legacy-runtime/features/provider-request-support.js';
 import { buildTavilySearchQuery, formatTavilySearchPacket, normalizePageReads, normalizeTinyfishSearch, withSearchContext } from '../src/app/legacy-runtime/features/model-request-formatting.js';
 import { COUNCIL_RESPONSE_CHAR_LIMIT, COUNCIL_RETRY_DELAY_MS, modelSupportsUploadedFile, modelSupportsVision, modelUsesTavilySearch } from '../src/app/runtime/legacy-core/model-registry.js';
+import { opencodeModelReadsOfficeViaPdf } from '../src/app/runtime/legacy-core/opencode-models.js';
 import { createServerOfficeReader } from './office-deps.js';
 
 // The stages the page's code names, and what the pages that watch are told.
 const PHASES = Object.freeze({ fileReading: 'reading', documentTranslation: 'translating', linkedPages: 'links' });
+// A Word or PowerPoint file being turned into a PDF (for a model that reads it better so: opencode-models.js) is told as its own step, 'pdf'.
 
 /**
  * The parts of the message made ready for the model (the same list when nothing needed it). `access` is what server/model-access.js resolves;
@@ -29,10 +31,17 @@ export async function withDocumentPrep({
   getErrorMessage,
   readErrorBody,
   createSupport = createProviderRequestSupport,
-  officeReader = createServerOfficeReader({ userId, signal })
+  // (onConvert) => the reader of Word, PowerPoint and Excel files; `onConvert()` is called before a file is turned into a PDF.
+  createOfficeReader = (onConvert) => createServerOfficeReader({ userId, signal, onConvert })
 }) {
   const { config, keyFor, modelInfo, streamApiCall, upstreamFetch } = access;
   const translator = spec.documents?.translator?.info || null;
+  let phase = '';
+  const tell = (next) => {
+    if (next === phase) return;
+    phase = next;
+    onPhase(next);
+  };
   const support = createSupport({
     buildTavilySearchQuery,
     formatTavilySearchPacket,
@@ -50,17 +59,12 @@ export async function withDocumentPrep({
     modelUsesTavilySearch,
     modelSupportsUploadedFile,
     modelSupportsVision,
-    officeReader,
+    modelReadsOfficeViaPdf: opencodeModelReadsOfficeViaPdf,
+    officeReader: createOfficeReader(() => tell('pdf')),
     councilResponseCharLimit: COUNCIL_RESPONSE_CHAR_LIMIT,
     councilRetryDelayMs: COUNCIL_RETRY_DELAY_MS
   });
 
-  let phase = '';
-  const tell = (next) => {
-    if (next === phase) return;
-    phase = next;
-    onPhase(next);
-  };
   try {
     return await support.buildSingleModelTranslatedRequestParts(
       parts,

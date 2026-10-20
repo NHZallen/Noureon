@@ -41,11 +41,12 @@ export const LOCAL_REASONS = Object.freeze({
 
 /**
  * Whether a reply can be made by the server, and with which kind of web search. `documents` in the answer: the server also prepares the files and
- * addresses of the message (the message has some, and a translator model is set for what a model cannot read: docs/superpowers/specs/2026-10-20-server-document-prep-design.md).
+ * addresses of the message (the message has some, and a translator model is set for what a model cannot read: docs/superpowers/specs/2026-10-20-server-document-prep-design.md;
+ * or a Word or PowerPoint file goes to a model that reads it better as a PDF, `officeViaPdf`, which only the server can make: NOU-68).
  */
-export function planServerReply({ documentsToPrepare = false, hasTranslator = false, ...context } = {}) {
+export function planServerReply({ documentsToPrepare = false, hasTranslator = false, officeViaPdf = false, ...context } = {}) {
   const plan = planServerReplyKind(context);
-  return plan.ok && documentsToPrepare && hasTranslator ? { ...plan, documents: true } : plan;
+  return plan.ok && documentsToPrepare && (hasTranslator || officeViaPdf) ? { ...plan, documents: true } : plan;
 }
 
 function planServerReplyKind({ config = {}, conversation = null, advanced = false, webSearchEnabled = false, researchByModel = false, provider = '', hasAccount = true } = {}) {

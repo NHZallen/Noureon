@@ -23,13 +23,13 @@ export function createResponseProgressRenderers({ escapeHTML, getUiLanguage, get
   };
 
   // Before a reply's first word: a dot breathing in the person's accent (reply-wait.css), with a quiet "still getting ready" once it has been a while.
-  // Only a slow step the person can follow (reading files, converting documents, searching) gets a line of its own. The view is drawn again every
+  // Only a slow step the person can follow (reading files, turning them into PDFs, converting documents, searching) gets a line of its own. The view is drawn again every
   // second: `--wait-phase` is the time already waited, so the motion goes on instead of starting over.
   const renderSingleModelProgress = (progress) => {
     const localized = getRuntimeTexts(getLanguage());
     const elapsed = Math.max(0, Math.round(progress.elapsedMs || 0));
     const phase = `style="--wait-phase:-${elapsed}ms"`;
-    const step = { fileReading: localized.waitReadingFiles, documentTranslation: localized.waitConvertingDocs, searchTranslation: localized.waitSearching }[progress.stage];
+    const step = { fileReading: localized.waitReadingFiles, makingPdf: localized.waitMakingPdf, documentTranslation: localized.waitConvertingDocs, searchTranslation: localized.waitSearching }[progress.stage];
     if (step) return `<div class="ledger reply-wait-step" role="status" ${phase}><div class="ledger-row is-running"><div class="ledger-row-head"><span class="ledger-mark" aria-hidden="true"></span><span class="ledger-label">${escapeHTML(step)}</span></div></div></div>`;
     const still = elapsed >= WAIT_STILL_MS ? `<span class="reply-wait-still">${escapeHTML(localized.waitStill)}</span>` : '';
     return `<div class="reply-wait" role="status" aria-label="${escapeHTML(localized.preparingRequest)}"><span class="reply-wait-dot" ${phase} aria-hidden="true"></span>${still}</div>`;

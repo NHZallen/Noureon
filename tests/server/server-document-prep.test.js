@@ -170,3 +170,28 @@ test('the request is refused when the documents, the translator or its key are n
   // Not for a deep research or a visual check.
   refused(bodyWith({ linkedPages: false }, { providerKey: KEY }, { kind: 'research', research: { topic: 'x' }, tools: { webSearch: 'research', searchProvider: 'tavily', advanced: false } }), 'documents');
 });
+
+test('a Word file for a model that reads it better as a PDF is turned into one on the server, with its own step, even without a translator (NOU-68)', async () => {
+  const { setOfficePdfConverter } = await import('../../server/office-pdf.js');
+  const opencode = MODELS.find((model) => model.id === 'opencode-go/claude-haiku-5-5');
+  const converted = [];
+  setOfficePdfConverter({ available: true, convert: async ({ userId, inline }) => { converted.push([userId, inline.name]); return { mimeType: 'application/pdf', name: 'report.pdf', data: Buffer.from('%PDF-1.4 made').toString('base64') }; } });
+  try {
+    const requests = [];
+    const anthropic = (text) => ['message_start', 'content_block_start', 'content_block_delta', 'content_block_stop', 'message_delta', 'message_stop'].map((type) => `event: ${type}\ndata: ${JSON.stringify(type === 'content_block_delta' ? { type, index: 0, delta: { type: 'text_delta', text } } : type === 'content_block_start' ? { type, index: 0, content_block: { type: 'text', text: '' } } : type === 'message_start' ? { type, message: { id: 'm', role: 'assistant', content: [] } } : type === 'message_delta' ? { type, delta: { stop_reason: 'end_turn' } } : { type })}\n\n`).join('');
+    const fetchImpl = async (url, options) => {
+      requests.push({ url: String(url), body: String(options?.body || '') });
+      return streamResponse(anthropic('Done.'));
+    };
+    const spec = { ...specFor({ parts: [{ text: 'Summarize the report' }, { inlineData: await docx('Quarterly revenue grew 12 percent.') }], documents: { linkedPages: false } }), model: { provider: 'opencode-go', id: opencode.apiId, info: opencode } };
+    const live = [];
+    await executeReply({ spec, secrets: { providerKey: KEY }, userId: 'user-1', fetchImpl, onLive: (event) => live.push(event) }).catch(() => null);
+    assert.deepEqual(converted, [['user-1', 'report.docx']], 'converted once, for the person');
+    const sent = requests.find((request) => request.url.includes('opencode.ai'))?.body || '';
+    assert.match(sent, /application\/pdf/, 'the model is given the PDF');
+    assert.doesNotMatch(sent, /Quarterly revenue grew/, 'not the text read out of the file');
+    assert.deepEqual(phases(live).filter(Boolean), ['reading', 'pdf'], 'the step of making the PDF is told');
+  } finally {
+    setOfficePdfConverter(null);
+  }
+});
