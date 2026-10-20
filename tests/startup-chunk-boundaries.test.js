@@ -94,7 +94,7 @@ test('local or anonymous startup resolves cloud readiness without fetching cloud
   const cloudBranchAt = mainSource.indexOf("const cloudSyncReady = startupIdentity.mode !== 'local' && auth?.session?.user");
   const cloudImportAt = mainSource.indexOf("import('./app/sync/cloud-workspace-sync.js')");
   const localFallbackAt = mainSource.indexOf("startupIdentity.mode === 'local' ? 'local-identity' : 'no-session'");
-  const exposedAt = mainSource.indexOf('window.__astraCloudWorkspaceSyncReady = cloudSyncReady');
+  const exposedAt = mainSource.indexOf('provideService(SERVICES.workspaceSyncReady, cloudSyncReady)');
 
   assert.ok(backgroundAuthAt > runtimeAt, 'local auth bridge must start only after runtime is interactive');
   assert.ok(cloudBranchAt > backgroundAuthAt);

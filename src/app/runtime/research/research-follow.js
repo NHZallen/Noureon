@@ -3,13 +3,14 @@
 // a day: any page of the account may follow it, from the start or from the middle (the channel gives the state so far first).
 
 import { adoptMessage, updateResearch } from './research-store.js';
+import { SERVICES, getService } from '../services.js';
 
 const FINAL_READS = 8;
 const FINAL_READ_WAIT_MS = 1200;
 
 export function createResearchFollow({
   serverReply,
-  getSync = () => globalThis.__astraCloudSyncV2,
+  getSync = () => getService(SERVICES.cloudSync),
   saveAppData = async () => {},
   onSettled = () => {},
   wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),

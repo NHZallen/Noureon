@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { SERVICES, getService, provideService } from '../src/app/runtime/services.js';
 
 import { persistAssistantResponseError } from '../src/app/legacy-runtime/features/assistant-response-finalization.js';
 import { installStaleChunkRecovery, isStaleChunkError, offerReloadForNewVersion, staleChunkMessage } from '../src/pwa/stale-chunk-recovery.js';
@@ -10,16 +11,16 @@ const storage = () => {
 };
 
 const withDialog = async (answer, run) => {
-  const previous = globalThis.__astraShowUpdateDialog;
+  const previous = getService(SERVICES.showUpdateDialog);
   const shown = [];
-  globalThis.__astraShowUpdateDialog = async (options) => {
+  provideService(SERVICES.showUpdateDialog, async (options) => {
     shown.push(options);
     return answer ? options.buttons.at(-1).value() : options.buttons[0].value();
-  };
+  });
   try {
     return await run(shown);
   } finally {
-    globalThis.__astraShowUpdateDialog = previous;
+    provideService(SERVICES.showUpdateDialog, previous);
   }
 };
 

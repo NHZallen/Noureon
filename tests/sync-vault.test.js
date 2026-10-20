@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { webcrypto } from 'node:crypto';
 import test from 'node:test';
+import { SERVICES, getService, provideService, withdrawService } from '../src/app/runtime/services.js';
 
 import {
   cancelSyncVaultRotation,
@@ -151,7 +152,7 @@ test('changing the sync password exposes the previous key exactly once for cloud
 });
 
 test('sync vault creation and removal mark cloud sync before and after storage mutation', async () => {
-  const previousDescriptor = Object.getOwnPropertyDescriptor(globalThis, '__astraCloudWorkspaceSync');
+  const previousSync = getService(SERVICES.workspaceSync);
   const order = [];
   const storage = {
     getItem: async () => null,
@@ -162,11 +163,11 @@ test('sync vault creation and removal mark cloud sync before and after storage m
       order.push('remove');
     }
   };
-  globalThis.__astraCloudWorkspaceSync = {
+  const sync = provideService(SERVICES.workspaceSync, {
     queueLocalChange: async kind => {
       order.push(`mark:${kind}`);
     }
-  };
+  });
 
   try {
     await createAndUnlockSyncVault({
@@ -181,10 +182,7 @@ test('sync vault creation and removal mark cloud sync before and after storage m
     await removeSyncVault({ storage, username: 'supabase:ordered-vault' });
     assert.deepEqual(order, ['mark:vault', 'remove', 'remove', 'mark:vault']);
   } finally {
-    if (previousDescriptor) {
-      Object.defineProperty(globalThis, '__astraCloudWorkspaceSync', previousDescriptor);
-    } else {
-      delete globalThis.__astraCloudWorkspaceSync;
-    }
+    if (previousSync) provideService(SERVICES.workspaceSync, previousSync);
+    else withdrawService(SERVICES.workspaceSync, sync);
   }
 });

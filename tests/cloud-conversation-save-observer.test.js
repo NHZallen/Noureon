@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { SERVICES, getService, provideService, withdrawService } from '../src/app/runtime/services.js';
 
 import { notifyCloudConversationSave } from '../src/app/runtime/kernel/cloud-conversation-save-observer.js';
 
@@ -21,32 +22,32 @@ test('save observer queues one debounced capture without forcing an immediate fl
 });
 
 test('save observer forwards journal metadata to the active global sync', () => {
-  const previousSync = globalThis.__astraCloudSyncV2;
+  const previousSync = getService(SERVICES.cloudSync);
   const metadata = { revision: 'revision-1' };
   const calls = [];
-  globalThis.__astraCloudSyncV2 = {
+  provideService(SERVICES.cloudSync, {
     captureWorkspace: (...args) => {
       calls.push(args);
       return true;
     }
-  };
+  });
 
   try {
     const snapshot = { folders: [] };
     assert.equal(notifyCloudConversationSave(snapshot, metadata), true);
     assert.deepEqual(calls, [[snapshot, metadata]]);
   } finally {
-    if (previousSync === undefined) delete globalThis.__astraCloudSyncV2;
-    else globalThis.__astraCloudSyncV2 = previousSync;
+    if (previousSync) provideService(SERVICES.cloudSync, previousSync);
+    else withdrawService(SERVICES.cloudSync, getService(SERVICES.cloudSync));
   }
 });
 
 test('immediate save starts a flush without blocking the local save observer', () => {
-  const previousSync = globalThis.__astraCloudSyncV2;
+  const previousSync = getService(SERVICES.cloudSync);
   const calls = [];
   let releaseFlush;
   const flushGate = new Promise(resolve => { releaseFlush = resolve; });
-  globalThis.__astraCloudSyncV2 = {
+  provideService(SERVICES.cloudSync, {
     captureWorkspace(snapshot, metadata) {
       calls.push(['capture', snapshot, metadata]);
       return true;
@@ -55,7 +56,7 @@ test('immediate save starts a flush without blocking the local save observer', (
       calls.push(['flush']);
       return flushGate;
     }
-  };
+  });
 
   try {
     const snapshot = { conversations: [{ id: 'conversation-1' }] };
@@ -68,28 +69,28 @@ test('immediate save starts a flush without blocking the local save observer', (
     ]);
   } finally {
     releaseFlush();
-    if (previousSync === undefined) delete globalThis.__astraCloudSyncV2;
-    else globalThis.__astraCloudSyncV2 = previousSync;
+    if (previousSync) provideService(SERVICES.cloudSync, previousSync);
+    else withdrawService(SERVICES.cloudSync, getService(SERVICES.cloudSync));
   }
 });
 
 test('immediate save does not flush a rejected capture and contains flush failures', async () => {
-  const previousSync = globalThis.__astraCloudSyncV2;
+  const previousSync = getService(SERVICES.cloudSync);
   const warnings = [];
   let flushes = 0;
-  globalThis.__astraCloudSyncV2 = {
+  provideService(SERVICES.cloudSync, {
     captureWorkspace: () => false,
     flush: () => { flushes += 1; }
-  };
+  });
 
   try {
     assert.equal(notifyCloudConversationSave({}, { immediate: true }), false);
     assert.equal(flushes, 0);
 
-    globalThis.__astraCloudSyncV2 = {
+    provideService(SERVICES.cloudSync, {
       captureWorkspace: () => true,
       flush: () => Promise.reject(new Error('network down'))
-    };
+    });
     assert.equal(notifyCloudConversationSave({}, { immediate: true }, {
       warn: (...args) => warnings.push(args)
     }), true);
@@ -97,7 +98,7 @@ test('immediate save does not flush a rejected capture and contains flush failur
     assert.equal(warnings.length, 1);
     assert.match(warnings[0][0], /queued for retry/);
   } finally {
-    if (previousSync === undefined) delete globalThis.__astraCloudSyncV2;
-    else globalThis.__astraCloudSyncV2 = previousSync;
+    if (previousSync) provideService(SERVICES.cloudSync, previousSync);
+    else withdrawService(SERVICES.cloudSync, getService(SERVICES.cloudSync));
   }
 });

@@ -1,3 +1,4 @@
+import { SERVICES, getService } from '../services.js';
 // "Sync now" in the cloud sync settings, shown once the vault is unlocked: a button that sends what is waiting and fetches what
 // the cloud has (cloud-workspace-sync.js syncNow), and a list that says, for the settings, the API keys and the sync password,
 // whether each is up to date, waiting or failed. Conversations are not part of it. Sync itself is automatic; this is the way
@@ -31,7 +32,7 @@ const clock = (stamp) => {
   return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 };
 
-export function createSyncNowControls({ document, getSync = () => globalThis.__astraCloudWorkspaceSync, getText = (_key, fallback) => fallback }) {
+export function createSyncNowControls({ document, getSync = () => getService(SERVICES.workspaceSync), getText = (_key, fallback) => fallback }) {
   const text = (key, fallback) => getText(key, fallback) || fallback;
   let running = false;
 

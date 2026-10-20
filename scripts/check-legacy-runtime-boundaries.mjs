@@ -131,6 +131,10 @@ for (const file of productionFiles) {
   if (source.includes('src/app/legacy-runtime/fragments') || source.includes('legacy-runtime/fragments/')) {
     fail(`${projectPath} must not import or read retired legacy runtime fragments.`);
   }
+  // The parts of the page find each other through src/app/runtime/services.js, not properties of window (NOU-73).
+  if (/\b(?:window|globalThis|globalObject|self)\??\.__astra/.test(source)) {
+    fail(`${projectPath} must not keep or read a window.__astra… global: provide or get a service (src/app/runtime/services.js).`);
+  }
 }
 
 if (failures.length > 0) {

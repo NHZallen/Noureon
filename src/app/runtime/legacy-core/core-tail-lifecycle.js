@@ -14,6 +14,7 @@ import {
 } from '../memory/memory-sync-projection.js';
 import { consolidateOverlappingTopicSummaries } from '../memory/topic-summaries.js';
 import { applyChartThemeDefaults } from '../../../utils/theme-colors.js';
+import { SERVICES, getService } from '../services.js';
 
 const REQUIRED_DEPENDENCIES = [
     'window',
@@ -1027,7 +1028,7 @@ function setupMessageIntersectionObserver() {
                         state.config.memorySync = nextProjection;
                         void saveConfig().catch(error => console.warn('Memory sync projection could not save.', error));
                     }
-                    void globalObject.__astraMemorySummarySync?.captureMemoryState(savedMemoryState);
+                    void getService(SERVICES.memorySummarySync)?.captureMemoryState(savedMemoryState);
                     return savedMemoryState;
                 },
                 getCurrentConversationId,
@@ -1163,7 +1164,7 @@ function setupMessageIntersectionObserver() {
                         await saveConfig();
                     }
                     await saveAppData();
-                    void globalObject.__astraMemorySummarySync?.captureMemoryState(restoredMemoryState);
+                    void getService(SERVICES.memorySummarySync)?.captureMemoryState(restoredMemoryState);
                 },
                 applyLanguage,
                 applyUiTheme,

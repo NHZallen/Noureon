@@ -28,6 +28,7 @@ import {
   settleCloudUpload,
   shouldApplyCloudRemote
 } from './cloud-sync-versioning.js';
+import { SERVICES, getService, provideService, withdrawService } from '../runtime/services.js';
 
 const TABLE = 'user_workspaces';
 const SYNC_DEBOUNCE_MS = 750;
@@ -52,7 +53,7 @@ const REMOTE_SYNC_COLUMNS = [
 ].join(',');
 
 function installConversationShadowStatus(window, status) {
-  if (window?.__astraCloudSyncV2 || globalThis.__astraCloudSyncV2) return;
+  if (getService(SERVICES.cloudSync)) return;
   const frozenStatus = Object.freeze({
     state: 'disabled',
     enabled: false,
@@ -69,8 +70,7 @@ function installConversationShadowStatus(window, status) {
       online: globalThis.navigator?.onLine !== false
     })
   });
-  if (window) window.__astraCloudSyncV2 = api;
-  globalThis.__astraCloudSyncV2 = api;
+  provideService(SERVICES.cloudSync, api);
 }
 
 function parseJson(value) {
@@ -122,7 +122,7 @@ export async function initializeCloudWorkspaceSync({ window, session, bootstrapQ
     // Keeps a value's files in the cloud storage (what is already there is not sent again) and gives their markers in place of the bytes.
     externalize: value => assets.externalize(value)
   });
-  window.__astraCloudAssets = cloudAssetRuntime;
+  provideService(SERVICES.cloudAssets, cloudAssetRuntime);
   let meta = parseJson(await storage.getItem(metaKey)) || {};
   const upgradingMeta = meta.version !== SYNC_META_VERSION;
   let remote = null;
@@ -588,7 +588,7 @@ export async function initializeCloudWorkspaceSync({ window, session, bootstrapQ
     for (const kind of Object.keys(CLOUD_SYNC_KINDS)) await reconcileKind(kind);
   } };
   if (bootstrapQueue?.handoff) await bootstrapQueue.handoff(api);
-  else window.__astraCloudWorkspaceSync = api;
+  else provideService(SERVICES.workspaceSync, api);
   window.addEventListener('online', handleOnline);
   window.addEventListener('astra:sync-vault-unlocked', handleSyncVaultUnlocked);
   if (bootstrapQueue?.takePendingVaultUnlock?.()) {
@@ -696,7 +696,7 @@ export async function initializeCloudWorkspaceSync({ window, session, bootstrapQ
   api.stop = () => {
     window.removeEventListener?.('online', handleOnline);
     conversationRefreshScheduler.stop();
-    if (window.__astraCloudAssets === cloudAssetRuntime) delete window.__astraCloudAssets;
+    withdrawService(SERVICES.cloudAssets, cloudAssetRuntime);
     conversationShadowSync.stop();
     return Promise.all([
       supabase.removeChannel(realtimeChannel),

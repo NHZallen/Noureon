@@ -41,6 +41,7 @@ import { watchSourceIcons } from './app/ui/sandbox/run-sources.js';
 import { keepScrollBoxesOffTheirEdges, settleScrollBoxesOffTheirEdges } from './app/ui/motion/reader-scroll-guard.js';
 import { installPressFeedback } from './app/ui/motion/press-feedback.js';
 import { installViewportLock } from './app/runtime/features/viewport-lock.js';
+import { SERVICES, getService, provideService } from './app/runtime/services.js';
 
 // The app follows what is seen on a phone (the keyboard, the browser's bars): see viewport-lock.js.
 installViewportLock(window, document);
@@ -173,7 +174,7 @@ async function bootstrap() {
       }, {
         maxAttempts: 4,
         delays: [300, 1200, 4000],
-        shouldRetry: () => window.__astraCloudWorkspaceSync === cloudSyncBootstrapQueue?.stub,
+        shouldRetry: () => getService(SERVICES.workspaceSync) === cloudSyncBootstrapQueue?.stub,
         onRetry: (error, attempt) => {
           console.warn(`Noureon cloud sync initialization attempt ${attempt} failed; retrying:`, error);
         }
@@ -182,7 +183,7 @@ async function bootstrap() {
         enabled: false,
         reason: startupIdentity.mode === 'local' ? 'local-identity' : 'no-session'
       });
-  window.__astraCloudWorkspaceSyncReady = cloudSyncReady;
+  provideService(SERVICES.workspaceSyncReady, cloudSyncReady);
   void cloudSyncReady.then(() => {
     markStartup(STARTUP_MARKS.CLOUD_SYNC_READY);
     measureStartup(

@@ -4,6 +4,7 @@ import {
   diffMemorySummaryRecords,
   projectMemorySummaryRecords
 } from '../runtime/memory/memory-summary-records.js';
+import { SERVICES, provideService, withdrawService } from '../runtime/services.js';
 
 const SYNC_DEBOUNCE_MS = 750;
 const MANIFEST_VERSION = 1;
@@ -203,11 +204,11 @@ export function initializeMemorySummaryCloudSync({
       stopped = true;
       if (timer !== null) window.clearTimeout(timer);
       window.removeEventListener?.('online', handleOnline);
-      if (window.__astraMemorySummarySync === api) delete window.__astraMemorySummarySync;
+      withdrawService(SERVICES.memorySummarySync, api);
       return channel ? supabase.removeChannel(channel) : Promise.resolve();
     }
   };
-  window.__astraMemorySummarySync = api;
+  provideService(SERVICES.memorySummarySync, api);
 
   channel = supabase
     .channel(`user-memory-summary:${user.id}`)

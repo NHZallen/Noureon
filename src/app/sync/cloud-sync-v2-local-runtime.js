@@ -1,6 +1,6 @@
 // The conversation sync as this browser runs it (Sync V2): the workspace and its journal read and written in the browser's storage (the
 // split store when the account has one, else the single item), always together and one writer at a time, and the sync object made from
-// them (cloud-sync-v2-controller.js) and started. It is also kept as globalThis.__astraCloudSyncV2 for the rest of the page.
+// them (cloud-sync-v2-controller.js) and started. The rest of the page finds it as the service SERVICES.cloudSync (runtime/services.js).
 
 import { repairWorkspaceEntityIds } from './cloud-sync-v2-id-repair.js';
 import { createConversationShadowSync } from './cloud-sync-v2-controller.js';
@@ -20,10 +20,10 @@ import {
   requireCloudSyncFullResync
 } from './cloud-sync-journal.js';
 import { createPersistentWorkspaceRemoteReader } from './cloud-sync-v2-remote-state.js';
+import { SERVICES, provideService } from '../runtime/services.js';
 
 function exposeConversationShadowSync(window, sync) {
-  if (window) window.__astraCloudSyncV2 = sync;
-  if (typeof globalThis !== 'undefined') globalThis.__astraCloudSyncV2 = sync;
+  provideService(SERVICES.cloudSync, sync);
 }
 
 export function initializeConversationShadowSync({

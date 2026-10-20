@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
+import { SERVICES, getService } from '../src/app/runtime/services.js';
 
 import { createLegacyStartupLifecycle } from '../src/app/runtime/features/startup-lifecycle.js';
 import { mergeSyncedMemoryState } from '../src/app/runtime/memory/memory-sync-projection.js';
@@ -376,7 +377,7 @@ test('startup postlude preserves update dialog, touch guard, and service worker 
 
   lifecycle.runStartupPostlude();
 
-  assert.equal(harness.globalObject.__astraShowUpdateDialog, harness.dependencies.showCustomDialog);
+  assert.equal(getService(SERVICES.showUpdateDialog), harness.dependencies.showCustomDialog);
   assert.deepEqual(harness.calls, ['installTouchGuards', 'registerServiceWorker']);
 });
 

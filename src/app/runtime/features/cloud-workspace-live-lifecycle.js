@@ -16,6 +16,7 @@ import { SETTINGS_STAMPS_FIELD } from '../../../data/settings-merge.js';
 import { SKILL_MERGED_FIELDS } from '../../../data/skill-settings-merge.js';
 import { mergeSyncedMemoryState } from '../memory/memory-sync-projection.js';
 import { mergeMemoryStateWithSummaryRecords } from '../memory/memory-summary-records.js';
+import { SERVICES, getService, provideService } from '../services.js';
 
 // The only settings the merge of the CLI tools and the skills hands to the page (see sync/cloud-workspace-sync.js): any other field of the event is dropped,
 // so that what a script puts in an event (the keys of the models, say) cannot get into the settings this way.
@@ -146,7 +147,7 @@ export function createCloudWorkspaceLiveLifecycle({
   isActiveConversationViewCurrent = () => false,
   applyLanguage = () => {},
   getActiveConversation = () => null,
-  hydrateConversation = conversation => window?.__astraCloudAssets?.hydrateConversation?.(conversation),
+  hydrateConversation = conversation => getService(SERVICES.cloudAssets)?.hydrateConversation?.(conversation),
   onActiveConversationUnavailable = () => {},
   onRemoteConversationsApplied = () => {},
   onRemoteConversationsMovedToTrash = () => {},
@@ -459,7 +460,7 @@ export function createCloudWorkspaceLiveLifecycle({
   });
   window.addEventListener('astra:cloud-memory-summary', event => applyMemorySummaryRecords(event.detail?.records));
   window.addEventListener('astra:active-conversation-changed', requestActiveConversationHydration);
-  window.__astraCloudRuntimeReady = markReady;
+  provideService(SERVICES.cloudRuntimeReady, markReady);
 
   return { markReady, hydrateActiveConversation };
 }

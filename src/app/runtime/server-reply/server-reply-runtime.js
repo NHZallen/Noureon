@@ -7,6 +7,7 @@ import { registerServerRequest } from '../cli/cli-server-bridge.js';
 import { PRODUCT_VERSION } from '../../../data/version.js';
 import { createServerReply, localizeServerError, planServerCouncil, planServerImage, planServerReply } from './server-reply.js';
 import { serverReplyText } from './server-reply-texts.js';
+import { SERVICES, getService } from '../services.js';
 
 export function createBrowserServerReply({
   getApiKeyForProvider,
@@ -28,7 +29,7 @@ export function createBrowserServerReply({
   getSingleDocumentTranslatorModel = () => null,
   document = globalThis.document,
   // The conversation sync (src/app/sync/cloud-sync-v2.js): enabled only for a signed-in cloud account.
-  getSync = () => globalThis.__astraCloudSyncV2,
+  getSync = () => getService(SERVICES.cloudSync),
   // Loaded when first needed: the page's main code does not carry the account library for a reply made here.
   getClient = async () => (await import('../../auth/supabase-client.js')).getSupabaseClient(),
   fetchImpl = (...args) => globalThis.fetch(...args),
@@ -53,7 +54,7 @@ export function createBrowserServerReply({
 
   // The files a reply made are in the person's cloud storage (the message holds markers); the sync's asset transport brings them here.
   const hydrateParts = async (parts) => {
-    const assets = globalThis.window?.__astraCloudAssets || globalThis.__astraCloudAssets;
+    const assets = getService(SERVICES.cloudAssets);
     if (!assets?.hydrateConversation) return parts;
     const { conversation } = await assets.hydrateConversation({ parts });
     return conversation.parts;
@@ -61,7 +62,7 @@ export function createBrowserServerReply({
 
   // The files a request would carry are kept in the cloud first, and the request names where they are.
   const externalizeParts = async (parts) => {
-    const assets = globalThis.window?.__astraCloudAssets || globalThis.__astraCloudAssets;
+    const assets = getService(SERVICES.cloudAssets);
     return assets?.externalize ? assets.externalize(parts) : parts;
   };
 

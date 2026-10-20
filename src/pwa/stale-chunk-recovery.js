@@ -1,3 +1,4 @@
+import { SERVICES, getService } from '../app/runtime/services.js';
 // After a new version is deployed, a page that was opened before it still asks
 // for the old build's files by their old names, and they are gone: loading a
 // piece of the app fails ("Failed to fetch dynamically imported module").
@@ -55,7 +56,7 @@ export async function offerReloadForNewVersion({
   if (last && now() - last < RELOAD_COOLDOWN_MS) return false;
   const language = languageOf(documentTarget);
   const words = TEXTS[language];
-  const dialog = globalThis.__astraShowUpdateDialog;
+  const dialog = getService(SERVICES.showUpdateDialog);
   if (typeof dialog !== 'function') return false;
   const shouldReload = await dialog({
     title: words.title,

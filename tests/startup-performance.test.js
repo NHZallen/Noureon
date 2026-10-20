@@ -111,7 +111,7 @@ test('main records local interactivity before starting non-blocking cloud sync',
     'retryAsync(async () =>',
     "import('./app/sync/cloud-workspace-sync.js')",
     'initializeCloudWorkspaceSync({',
-    'window.__astraCloudWorkspaceSyncReady = cloudSyncReady',
+    'provideService(SERVICES.workspaceSyncReady, cloudSyncReady)',
     'markStartup(STARTUP_MARKS.CLOUD_SYNC_READY)'
   ];
 

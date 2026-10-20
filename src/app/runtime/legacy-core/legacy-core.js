@@ -60,6 +60,7 @@ import { searchSourceModel } from '/src/app/runtime/kernel/search-provider.js';
 import { createCouncilAttachmentNeed, getCouncilDocumentFiles as getCouncilDocumentFilesOf, getCouncilVisualFiles as getCouncilVisualFilesOf, isVisualUploadedFile } from '/src/app/legacy-runtime/features/council-attachments.js';
 import { getCouncilRuntimeTexts as getCouncilRuntimeTextsForLanguage } from '/src/app/runtime/legacy-core/council-runtime-texts.js';
 import { FOLDER_COLORS, UI_THEME_COLORS } from '/src/app/runtime/legacy-core/runtime-ui-colors.js';
+import { SERVICES, getService } from '/src/app/runtime/services.js';
 
 const legacyRuntimeContext = createLegacyRuntimeContext();
 const resolveFoundationUpdateInputState = (...args) => legacyRuntimeContext.resolveBinding('input.updateInputState')(...args);
@@ -310,7 +311,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             removeItem,
             getApiKeys: () => sensitiveConfigStore.getApiKeys(),
             replaceApiKeys: (apiKeys) => sensitiveConfigStore.replaceApiKeys(apiKeys),
-            onSaved: () => globalThis.__astraCloudWorkspaceSync?.queueLocalChange('sensitive')
+            onSaved: () => getService(SERVICES.workspaceSync)?.queueLocalChange('sensitive')
         });
         const getSensitiveApiKeys = () => sensitiveConfigStore.getApiKeys();
         const setApiKeyForProvider = (provider, value) => sensitiveConfigStore.setApiKey(provider, value);
@@ -429,7 +430,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             getConfig: () => runtimeConfigStore.getConfig(),
             getConfigKey,
             setItem,
-            onSaved: () => globalThis.__astraCloudWorkspaceSync?.queueLocalChange('config')
+            onSaved: () => getService(SERVICES.workspaceSync)?.queueLocalChange('config')
         });
         const {
             showNotification,
@@ -526,7 +527,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
                 getCurrentUser: () => currentUser,
                 getConversations: runtimeAppDataStore.getConversations,
                 getAstras: runtimeAppDataStore.getAstras,
-                getSync: () => globalThis.__astraCloudSyncV2
+                getSync: () => getService(SERVICES.cloudSync)
             }));
         const deleteConversationsFromCloud = async (...args) =>
             (await cloudDeletionLifecycle).deleteConversations(...args);
@@ -1319,7 +1320,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             replaceFolders: (nextFolders) => runtimeAppDataStore.replaceFolders(nextFolders),
             getDefaultFolder,
             saveAppData,
-            deferConversationFolderSync: id => globalThis.__astraCloudSyncV2?.deferConversationFolderSync?.([id]),
+            deferConversationFolderSync: id => getService(SERVICES.cloudSync)?.deferConversationFolderSync?.([id]),
             deleteFolderFromCloud,
             renderFolders,
             renderAll,

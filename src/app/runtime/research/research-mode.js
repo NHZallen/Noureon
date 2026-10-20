@@ -9,6 +9,7 @@ import { createCliMode } from '../cli/cli-mode.js';
 import { createLazySkillMode } from '../skill/lazy-skill-mode.js';
 import { createLazySkillStore } from '../skill/lazy-skill-store.js';
 import { researchText } from './research-texts.js';
+import { SERVICES, getService } from '../services.js';
 
 export const RESEARCH_INDICATOR_ID = 'deep-research-indicator';
 export const PLAN_INDICATOR_ID = 'research-plan-indicator';
@@ -61,7 +62,7 @@ export function createResearchMode({
   const skills = typeof messageInput?.addEventListener === 'function' && typeof document?.addEventListener === 'function'
     ? createLazySkillMode({ document, messageInput, getConfig, getUiLanguage, refresh: () => refresh(), skillStore, openStore: (kind) => cli?.openStore?.(kind), isTemporary: () => { const conversation = getActiveConversation(); return Boolean(conversation?.isTemporary || conversation?.retentionMode === 'ephemeral'); }, saveConfig, showNotification, getAccountReady: () => serverReply.hasAccount(), logger })
     : null;
-  const getSync = () => globalThis.__astraCloudSyncV2;
+  const getSync = () => getService(SERVICES.cloudSync);
   const warn = (...args) => logger?.warn?.(...args);
   const releaseBusy = () => {
     setAbortController(null);

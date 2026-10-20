@@ -5,6 +5,7 @@
 import { permissionText } from '../cli/permission-texts.js';
 import { onSettingsSectionBack } from './settings-section-back.js';
 import { CREDENTIALS_CHANGED, deleteCredential, listCredentials, saveCredential } from '../cli/credentials-client.js';
+import { SERVICES, getService } from '../services.js';
 
 const SECTION_ID = 'permissions-section';
 const NAV_ID = 'permissions-section-nav';
@@ -12,7 +13,7 @@ const languageBound = new WeakSet();
 const changeBound = new WeakSet();
 
 /** Adds the tab (and its section) once, and draws it in the language of the page. */
-export function ensurePermissionsSettingsSection({ document, elements, config, saveConfig = async () => {}, getSync = () => globalThis.__astraCloudSyncV2, showNotification = () => {} }) {
+export function ensurePermissionsSettingsSection({ document, elements, config, saveConfig = async () => {}, getSync = () => getService(SERVICES.cloudSync), showNotification = () => {} }) {
   const nav = elements.settingsNav || document.getElementById('settings-nav');
   const anchorNav = document.getElementById('privacy-section-nav') || nav?.querySelector?.('[data-section="data-management"]');
   const anchorSection = document.getElementById('privacy-section') || document.getElementById('data-management-section');

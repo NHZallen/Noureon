@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { SERVICES, getService } from '../src/app/runtime/services.js';
 
 import {
   getCloudSyncBootstrapPendingKey,
@@ -40,7 +41,7 @@ test('bootstrap queue durably captures an early change and drains it during hand
   const bootstrap = installCloudSyncBootstrapQueue({ window, username, storage });
   const markerKey = getCloudSyncBootstrapPendingKey(username, 'config');
 
-  assert.equal(await window.__astraCloudWorkspaceSync.queueLocalChange('config'), true);
+  assert.equal(await getService(SERVICES.workspaceSync).queueLocalChange('config'), true);
   assert.equal(storage.values.get(markerKey), '1');
 
   const queued = [];
@@ -54,7 +55,7 @@ test('bootstrap queue durably captures an early change and drains it during hand
 
   assert.deepEqual(queued, ['config']);
   assert.equal(storage.values.has(markerKey), false);
-  assert.equal(window.__astraCloudWorkspaceSync, realApi);
+  assert.equal(getService(SERVICES.workspaceSync), realApi);
 });
 
 test('bootstrap queue retains the durable marker when the real queue rejects a change', async () => {

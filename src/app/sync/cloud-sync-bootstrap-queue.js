@@ -1,4 +1,5 @@
 import { createLegacyRuntimeStorageAdapter } from '../runtime/kernel/storage-adapter.js';
+import { SERVICES, getService, provideService } from '../runtime/services.js';
 
 export const CLOUD_SYNC_BOOTSTRAP_KINDS = Object.freeze(['config', 'sensitive', 'vault']);
 const CLOUD_SYNC_BOOTSTRAP_KEY_PREFIX = 'chatCloudSyncBootstrapPending_v1_';
@@ -62,7 +63,7 @@ export function installCloudSyncBootstrapQueue({
     queueLocalChange,
     flush: async () => ({ state: 'initializing' })
   });
-  window.__astraCloudWorkspaceSync = stub;
+  provideService(SERVICES.workspaceSync, stub);
 
   async function handoff(nextApi) {
     if (!nextApi?.queueLocalChange) throw new TypeError('Cloud sync handoff requires a queue API.');
@@ -96,7 +97,7 @@ export function installCloudSyncBootstrapQueue({
       pendingKinds.delete(kind);
     }
     window.removeEventListener?.('astra:sync-vault-unlocked', unlockedHandler);
-    if (window.__astraCloudWorkspaceSync === stub) window.__astraCloudWorkspaceSync = nextApi;
+    if (getService(SERVICES.workspaceSync) === stub) provideService(SERVICES.workspaceSync, nextApi);
     return nextApi;
   }
 

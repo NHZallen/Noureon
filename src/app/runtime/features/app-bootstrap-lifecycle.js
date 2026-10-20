@@ -17,6 +17,7 @@ import { listableSources } from '../../ui/citations/citation-model.js';
 import { copyableAnswerText, sourcesOfPill } from '../../ui/citations/citation-pills.js';
 import { openSourceSheet } from '../../ui/citations/source-sheet.js';
 import { installScrollbarArrows } from '../../ui/scroll/scrollbar-arrows.js';
+import { SERVICES, getService } from '../services.js';
 
 export function createLegacyAppBootstrapLifecycle({
     window,
@@ -1011,7 +1012,7 @@ export function createLegacyAppBootstrapLifecycle({
             startQRScanner: () => startQRScanner()
         });
         appBootstrapComposition.runLateBootstrapBindings();
-        window.__astraCloudRuntimeReady?.();
+        getService(SERVICES.cloudRuntimeReady)?.();
             }
 
     return {

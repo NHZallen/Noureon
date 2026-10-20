@@ -3,11 +3,12 @@
 
 import { formatBytes, getStorageUsage } from '../cli/storage-client.js';
 import { permissionText } from '../cli/permission-texts.js';
+import { SERVICES, getService } from '../services.js';
 
 const BLOCK_ID = 'storage-usage-block';
 const languageBound = new WeakSet();
 
-export function ensureStorageUsageBlock({ document, elements, config, getSync = () => globalThis.__astraCloudSyncV2, read = getStorageUsage }) {
+export function ensureStorageUsageBlock({ document, elements, config, getSync = () => getService(SERVICES.cloudSync), read = getStorageUsage }) {
   const section = document.getElementById('data-management-section');
   if (!section || typeof section.appendChild !== 'function') return;
   let block = document.getElementById(BLOCK_ID);

@@ -1,7 +1,8 @@
+import { SERVICES, getService } from '../services.js';
 export function notifyCloudConversationSave(snapshot, syncOrMetadata, logger = console) {
   const sync = syncOrMetadata?.captureWorkspace
     ? syncOrMetadata
-    : globalThis.__astraCloudSyncV2;
+    : getService(SERVICES.cloudSync);
   const metadata = syncOrMetadata?.captureWorkspace ? null : syncOrMetadata;
   const captured = sync?.captureWorkspace?.(snapshot, metadata || undefined);
   if (!captured || metadata?.immediate !== true || typeof sync?.flush !== 'function') {

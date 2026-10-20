@@ -6,6 +6,7 @@
 import { visionText } from '../../ui/files/vision/vision-texts.js';
 import { setVisionLocked } from '../features/vision-check-lock.js';
 import { withFileBytes } from './server-reply.js';
+import { SERVICES, getService } from '../services.js';
 
 const LOOKS = 4;
 const LOOK_EVERY_MS = 1500;
@@ -25,7 +26,7 @@ export function createServerVisionFollow({
   getLanguage = () => 'zh-TW',
   showNotification = () => {},
   getActiveConversation = () => null,
-  getSync = () => globalThis.__astraCloudSyncV2,
+  getSync = () => getService(SERVICES.cloudSync),
   onLockChange = () => {},
   findHost = lastMessageStack,
   wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),

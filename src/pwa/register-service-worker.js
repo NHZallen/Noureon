@@ -1,3 +1,4 @@
+import { SERVICES, getService } from '../app/runtime/services.js';
 let isUpdateNotificationShown = false;
 
 export function registerServiceWorker({
@@ -31,7 +32,7 @@ export function registerServiceWorker({
     }
 
     isUpdateNotificationShown = true;
-    const dialog = globalThis.__astraShowUpdateDialog;
+    const dialog = getService(SERVICES.showUpdateDialog);
 
     if (typeof dialog === 'function') {
       const shouldReload = await dialog({

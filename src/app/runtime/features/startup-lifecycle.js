@@ -1,6 +1,7 @@
 import { getRuntimeText } from '../i18n/runtime-texts.js';
 import { installStaleChunkRecovery } from '../../../pwa/stale-chunk-recovery.js';
 import { detectSystemLanguage, readLastUiLanguage, readLoginLanguage, rememberLoginLanguage } from './login-language.js';
+import { SERVICES, provideService } from '../services.js';
 
 export function createLegacyStartupLifecycle({
     window,
@@ -230,9 +231,7 @@ export function createLegacyStartupLifecycle({
     }
 
     function runStartupPostlude() {
-        globalObject.__astraShowUpdateDialog = typeof showCustomDialog === 'function'
-            ? showCustomDialog
-            : null;
+        provideService(SERVICES.showUpdateDialog, typeof showCustomDialog === 'function' ? showCustomDialog : null);
         installTouchGuards();
         registerServiceWorker();
         // A page left open across a deployment offers a reload when it cannot load a new piece of the app.

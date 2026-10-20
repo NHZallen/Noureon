@@ -21,6 +21,7 @@ import {
 import { createCloudUserRecord } from '../../auth/supabase-auth-bridge.js';
 import { openPasswordRecovery } from '../../auth/password-recovery-route.js';
 import { createTurnstileClient } from '../security/turnstile-client.js';
+import { SERVICES, getService } from '../services.js';
 
 export function createSettingsSyncVaultControls({
   window,
@@ -562,7 +563,7 @@ export function createSettingsSyncVaultControls({
 
   const queueCloudSyncKind = async (kind) => {
     try {
-      return await globalThis.__astraCloudWorkspaceSync?.queueLocalChange(kind);
+      return await getService(SERVICES.workspaceSync)?.queueLocalChange(kind);
     } catch {
       return false;
     }

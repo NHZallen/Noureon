@@ -33,7 +33,7 @@ test('main starts cloud workspace sync only after the local runtime becomes inte
   assert.ok(syncAt > runtimeAt);
   assert.equal(awaitedSyncAt, -1);
   assert.match(source, /bootstrapQueue:\s*cloudSyncBootstrapQueue/);
-  assert.match(source, /window\.__astraCloudWorkspaceSyncReady\s*=\s*cloudSyncReady/);
+  assert.match(source, /provideService\(SERVICES\.workspaceSyncReady,\s*cloudSyncReady\)/);
 });
 
 test('cloud workspace passes asset transport into record-level conversation sync', async () => {
@@ -56,7 +56,7 @@ test('active conversation selection is wired to the private cloud asset transpor
     syncSource,
     /const\s+cloudAssetRuntime\s*=\s*Object\.freeze\(\{[\s\S]*?hydrateConversation:/
   );
-  assert.match(syncSource, /window\.__astraCloudAssets\s*=\s*cloudAssetRuntime/);
+  assert.match(syncSource, /provideService\(SERVICES\.cloudAssets,\s*cloudAssetRuntime\)/);
   assert.match(runtimeSource, /new\s+window\.CustomEvent\('astra:active-conversation-changed'/);
 });
 

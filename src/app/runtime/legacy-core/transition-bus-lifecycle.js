@@ -26,6 +26,7 @@ import {
 import { createHistoryIndexSourceRepair } from '../memory/history-index-source-repair.js';
 import { createDeviceDerivedMemoryRuntime } from '../memory/device-derived-memory-persistence.js';
 import { assertLegacyTransitionBusDependencies } from './transition-bus-dependencies.js';
+import { SERVICES, getService } from '../services.js';
 
 export function createLegacyTransitionBusLifecycle(dependencies = {}) {
     assertLegacyTransitionBusDependencies(dependencies);
@@ -398,7 +399,7 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
             state.config.memorySync = nextProjection;
             void saveConfig().catch(error => console.warn('Memory sync projection could not save.', error));
         }
-        void globalObject.__astraMemorySummarySync?.captureMemoryState(nextState);
+        void getService(SERVICES.memorySummarySync)?.captureMemoryState(nextState);
         return savedMemoryState;
     };
     const mediaMemoryService = createMediaMemoryService({

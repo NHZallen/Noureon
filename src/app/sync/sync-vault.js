@@ -1,3 +1,4 @@
+import { SERVICES, getService } from '../runtime/services.js';
 const VAULT_VERSION = 1;
 const VAULT_ITERATIONS = 310000;
 const VAULT_MIN_PASSWORD_LENGTH = 10;
@@ -10,7 +11,7 @@ const decoder = new TextDecoder();
 
 async function markVaultCloudSyncPending() {
   try {
-    return await globalThis.__astraCloudWorkspaceSync?.queueLocalChange?.('vault');
+    return await getService(SERVICES.workspaceSync)?.queueLocalChange?.('vault');
   } catch {
     return false;
   }
@@ -18,7 +19,7 @@ async function markVaultCloudSyncPending() {
 
 async function markSensitiveCloudSyncPending() {
   try {
-    return await globalThis.__astraCloudWorkspaceSync?.queueLocalChange?.('sensitive');
+    return await getService(SERVICES.workspaceSync)?.queueLocalChange?.('sensitive');
   } catch {
     return false;
   }

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { SERVICES, getService } from '../src/app/runtime/services.js';
 
 import { createCloudWorkspaceLiveLifecycle } from '../src/app/runtime/features/cloud-workspace-live-lifecycle.js';
 import { createLegacyRuntimeAppDataStore } from '../src/app/runtime/kernel/app-data-store.js';
@@ -54,7 +55,7 @@ function createPreciseRenderFixture({
       .find(conversation => conversation.id === activeConversationId),
     schedule: callback => { scheduled = callback; scheduleCalls += 1; return 1; }
   });
-  window.__astraCloudRuntimeReady();
+  getService(SERVICES.cloudRuntimeReady)();
   if (initialWorkspace) window.emit('astra:cloud-app-data', initialWorkspace);
 
   const resetRenderCalls = () => {
@@ -109,7 +110,7 @@ test('cloud workspace updates wait for runtime readiness and then render hydrate
     conversations: [], folders: [], astras: [], personalMemories: []
   });
   assert.equal(applied.appData, null);
-  window.__astraCloudRuntimeReady();
+  getService(SERVICES.cloudRuntimeReady)();
   assert.deepEqual(applied.appData.conversations, []);
   assert.equal(renders, 1);
 });
@@ -144,7 +145,7 @@ test('cloud workspace update preserves an active conversation reference and defe
     busy: () => responseActive && activeConversation,
     schedule: callback => { scheduled = callback; return 1; }
   });
-  window.__astraCloudRuntimeReady();
+  getService(SERVICES.cloudRuntimeReady)();
 
   window.emit('astra:cloud-app-data', {
     conversations: [],
@@ -184,7 +185,7 @@ test('cloud workspace update preserves local folder expansion state', () => {
     applyUiTheme: () => {},
     renderAll: () => {}
   });
-  window.__astraCloudRuntimeReady();
+  getService(SERVICES.cloudRuntimeReady)();
 
   window.emit('astra:cloud-app-data', {
     conversations: [],
@@ -223,7 +224,7 @@ test('cloud workspace update keeps the fresh local draft selected after reload',
     applyUiTheme: () => {},
     renderAll: () => {}
   });
-  window.__astraCloudRuntimeReady();
+  getService(SERVICES.cloudRuntimeReady)();
 
   window.emit('astra:cloud-app-data', {
     conversations: [{ id: 'history', isTemporary: false, messages: [{ role: 'user' }] }],
@@ -263,7 +264,7 @@ test('record-level cloud commit preserves unsynced local rows and applies remote
     applyUiTheme: () => {},
     renderAll: () => { renders += 1; }
   });
-  window.__astraCloudRuntimeReady();
+  getService(SERVICES.cloudRuntimeReady)();
 
   window.emit('astra:cloud-workspace-committed', {
     workspace: {
@@ -303,7 +304,7 @@ test('record-level cloud commit removes tombstoned local entities before merging
     applyUiTheme: () => {},
     renderAll: () => {}
   });
-  window.__astraCloudRuntimeReady();
+  getService(SERVICES.cloudRuntimeReady)();
 
   window.emit('astra:cloud-workspace-committed', {
     workspace: { conversations: [], folders: [], astras: [], personalMemories: [] },
@@ -342,7 +343,7 @@ test('record-level cloud tombstones request removal from the fresh memory summar
     renderAll: () => {},
     onRemoteConversationsPermanentlyDeleted: async ({ conversationIds }) => removed.push(...conversationIds)
   });
-  window.__astraCloudRuntimeReady();
+  getService(SERVICES.cloudRuntimeReady)();
 
   window.emit('astra:cloud-workspace-committed', {
     workspace: { conversations: [], folders: [], astras: [], personalMemories: [] },
@@ -376,7 +377,7 @@ test('a cloud move to trash requests immediate removal from the fresh memory sum
     renderAll: () => {},
     onRemoteConversationsMovedToTrash: async ({ conversationIds }) => removed.push(...conversationIds)
   });
-  window.__astraCloudRuntimeReady();
+  getService(SERVICES.cloudRuntimeReady)();
 
   window.emit('astra:cloud-workspace-committed', {
     workspace: {
@@ -424,7 +425,7 @@ test('record-level cloud commit waits for runtime readiness and keeps its tombst
   });
   assert.equal(appDataStore.getConversations().length, 1);
 
-  window.__astraCloudRuntimeReady();
+  getService(SERVICES.cloudRuntimeReady)();
   assert.deepEqual(appDataStore.getConversations(), []);
 });
 
@@ -493,7 +494,7 @@ test('the active conversation is hydrated after a cloud workspace commit', async
     },
     saveAppData: async () => { saved += 1; }
   });
-  window.__astraCloudRuntimeReady();
+  getService(SERVICES.cloudRuntimeReady)();
 
   window.emit('astra:cloud-workspace-committed', {
     workspace: {
@@ -545,7 +546,7 @@ test('a stale hydration result cannot update a conversation after selection chan
       resolve
     }))
   });
-  window.__astraCloudRuntimeReady();
+  getService(SERVICES.cloudRuntimeReady)();
   window.emit('astra:cloud-workspace-committed', {
     workspace: { conversations, folders: [], astras: [], personalMemories: [] },
     tombstones: { conversationIds: [], folderIds: [], astraIds: [] }
@@ -779,7 +780,7 @@ test('cloud config applies only the small synced memory projection and persists 
     renderChat: () => { renderCalls.chat += 1; },
     saveAppData: async () => { saved += 1; }
   });
-  window.__astraCloudRuntimeReady();
+  getService(SERVICES.cloudRuntimeReady)();
 
   window.emit('astra:cloud-config', {
     memorySync: {
@@ -830,7 +831,7 @@ test('record-level memory updates apply without a config sync and preserve a loc
     getSingleTranslatorCandidates: () => [],
     saveAppData: async () => { saved += 1; }
   });
-  window.__astraCloudRuntimeReady();
+  getService(SERVICES.cloudRuntimeReady)();
 
   window.emit('astra:cloud-memory-summary', {
     records: [
@@ -989,7 +990,7 @@ test('a colour theme (light, dark, system) that comes from another device is sho
     renderChat: () => {},
     saveAppData: async () => {}
   });
-  window.__astraCloudRuntimeReady();
+  getService(SERVICES.cloudRuntimeReady)();
 
   window.emit('astra:cloud-config', { colorScheme: 'dark' });
   assert.equal(config.colorScheme, 'dark');

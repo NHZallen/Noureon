@@ -3,6 +3,7 @@
 // The choice is saved as soon as it is made (it is not part of the Save button), like the account controls.
 
 import { serverReplyText } from '../server-reply/server-reply-texts.js';
+import { SERVICES, getService } from '../services.js';
 
 const SECTION_ID = 'privacy-section';
 const NAV_ID = 'privacy-section-nav';
@@ -64,7 +65,7 @@ export function renderPrivacySection({ document, section, config, language, hasA
 }
 
 /** Adds the tab (and its section) once, and fills it in the language of the page. */
-export function ensurePrivacySettingsSection({ document, elements, config, saveConfig = async () => {}, getSync = () => globalThis.__astraCloudSyncV2 }) {
+export function ensurePrivacySettingsSection({ document, elements, config, saveConfig = async () => {}, getSync = () => getService(SERVICES.cloudSync) }) {
   const nav = elements.settingsNav || document.getElementById('settings-nav');
   const dataNav = nav?.querySelector?.('[data-section="data-management"]');
   const dataSection = document.getElementById('data-management-section');
