@@ -121,6 +121,7 @@ const runtimeBudgetDefinitions = [
   { label: 'settings auth provider lifecycle', path: 'src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js', transitionalLimit: bytes(14), v5Target: bytes(16) },
   { label: 'submit input council lifecycle', path: 'src/app/runtime/legacy-core/submit-input-council-lifecycle.js', transitionalLimit: bytes(29), v5Target: bytes(30) },
   { label: 'app bootstrap lifecycle', path: 'src/app/runtime/features/app-bootstrap-lifecycle.js', transitionalLimit: bytes(25), v5Target: bytes(35) },
+  { label: 'settings sync vault controls', path: 'src/app/runtime/legacy-core/settings-sync-vault-controls.js', transitionalLimit: bytes(20), v5Target: bytes(20) },
   { label: 'transition bus lifecycle', path: 'src/app/runtime/legacy-core/transition-bus-lifecycle.js', transitionalLimit: bytes(21), v5Target: bytes(24) }
 ];
 

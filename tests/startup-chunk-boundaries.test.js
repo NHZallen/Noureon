@@ -110,7 +110,8 @@ test('local or anonymous startup resolves cloud readiness without fetching cloud
 
 test('normal auth and settings code depend only on the tiny recovery route helper', () => {
   const authBridgeSource = readSource('src/app/auth/supabase-auth-bridge.js');
-  const settingsSource = readSource('src/app/runtime/legacy-core/settings-sync-vault-controls.js');
+  // The link to reset the login password is in the sign-in part of the user page (settings-account-linking-actions.js).
+  const settingsSource = readSource('src/app/runtime/legacy-core/settings-account-linking-actions.js');
   const recoveryPageSource = readSource('src/app/auth/password-recovery-page.js');
   const routeSource = readSource('src/app/auth/password-recovery-route.js');
 
