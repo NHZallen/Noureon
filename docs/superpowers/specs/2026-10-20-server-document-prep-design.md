@@ -145,6 +145,7 @@
 | Muse Spark 1.2 Contributor | `opencode-go/muse-spark-1.2-contributor` |
 | Claude Haiku 5.5 | `opencode-go/claude-haiku-5-5` |
 | MiniMax M3 | `opencode-go/minimax-m3` |
+| MiniMax M3.1 Flash（免費，2026-10-20 加入） | `opencode-go/minimax-m3.1-flash-free` |
 | Qwen3.8 Max | `opencode-go/qwen3.8-max` |
 | Qwen3.8 Flash | `opencode-go/qwen3.8-flash` |
 
