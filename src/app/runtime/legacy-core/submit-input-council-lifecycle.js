@@ -695,6 +695,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     getActiveConversation,
     getCouncilSelectedModels,
     getCouncilTranslatorModel,
+    getSingleDocumentTranslatorModel,
     onVisionLock: () => updateSubmitButtonState(false)
   });
 

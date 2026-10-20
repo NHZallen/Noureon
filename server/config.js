@@ -1,4 +1,4 @@
-// The server's settings, all from the environment (Zeabur's variables). Nothing here is read from a file, so a secret is never in the code.
+// The server's settings, all from the environment (the variables of the Coolify application). Nothing here is read from a file, so a secret is never in the code.
 
 const list = (value, fallback = []) => {
   const items = String(value ?? '').split(',').map((item) => item.trim()).filter(Boolean);

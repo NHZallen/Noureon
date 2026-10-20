@@ -24,6 +24,8 @@ export function createBrowserServerReply({
   // For a council: the models the conversation chose, and the one that writes its attachments down.
   getCouncilSelectedModels = () => ({ participants: [], synthesizer: null, council: {} }),
   getCouncilTranslatorModel = () => null,
+  // The model that writes down the documents a reply's model cannot read (the single-model one in Settings): the server prepares the files with it.
+  getSingleDocumentTranslatorModel = () => null,
   document = globalThis.document,
   // The conversation sync (src/app/sync/cloud-sync-v2-shadow.js): enabled only for a signed-in cloud account.
   getSync = () => globalThis.__astraCloudSyncV2,
@@ -196,9 +198,9 @@ export function createBrowserServerReply({
       const language = getUiLanguage();
       return { id: row.message_id, role: 'model', parts: [{ text: `${serverReplyText(language, 'errorPrefix')}${serverReplyText(language, FAILURE_TEXT[row.error_code] || 'unknownError')}` }], createdAt: row.finished_at };
     },
-    plan: (context) => planServerReply({ config: getConfig(), ...context, hasAccount: hasAccount() }),
+    plan: (context) => planServerReply({ config: getConfig(), ...context, hasAccount: hasAccount(), hasTranslator: Boolean(getSingleDocumentTranslatorModel()) }),
     planImage: (context) => planServerImage({ config: getConfig(), ...context, hasAccount: hasAccount() }),
-    start: (args) => serverReply.start({ ...args, config: args.config }),
+    start: (args) => serverReply.start({ ...args, config: args.config, ...(args.documents ? { documents: { ...args.documents, translator: getSingleDocumentTranslatorModel() } } : {}) }),
     startResearch: (args) => serverReply.startResearch(args),
     startImage: (args) => serverReply.startImage(args),
     readMessage: (messageId) => readMessage(messageId),

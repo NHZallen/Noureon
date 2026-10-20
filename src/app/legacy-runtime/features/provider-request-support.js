@@ -34,6 +34,9 @@ export function createProviderRequestSupport({
   modelUsesTavilySearch,
   modelSupportsUploadedFile,
   modelSupportsVision = () => false,
+  // (model, mimeType) => whether the model reads a Word or PowerPoint file better as a PDF (opencode-models.js): the reader then sends it as one when it can make
+  // it (the server's, with LibreOffice; the browser's cannot, and reads it into text).
+  modelReadsOfficeViaPdf = () => false,
   // Reads Word, PowerPoint and Excel files into text (and pictures) for the models that cannot read them (src/app/ui/files/office-text/).
   officeReader = createOfficeReader(),
   councilResponseCharLimit,
@@ -235,6 +238,7 @@ Output requirements:
       if (toRead.length) onProgress?.('fileReading', `${getRuntimeText(getConfig().uiLanguage, 'readingFiles')}${getConfig().uiLanguage === 'zh-TW' ? '：' : ': '}${toRead.map((part) => part.inlineData.name || 'file').join(', ')}`);
       ({ parts } = await officeReader.expandParts(parts, {
         canRead: (inlineData) => modelSupportsUploadedFile(modelInfo, { inlineData }),
+        viaPdf: (inlineData) => modelReadsOfficeViaPdf(modelInfo, inlineData.mimeType),
         supportsVision: Boolean(modelSupportsVision(modelInfo)),
         hasTranslator: Boolean(getSingleDocumentTranslatorModel())
       }));

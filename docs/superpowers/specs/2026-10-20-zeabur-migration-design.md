@@ -137,3 +137,10 @@
 - GitHub 的 `NHZallen/Noureon` 加了一個 webhook（Settings → Webhooks）：Payload URL 是 Coolify 測試 API 的 Manual Git Webhook 網址，Content type 是 `application/json`，事件只有 push，Secret 與 Coolify 的 Webhooks 頁一致。GitHub 這邊的 ping 回應成功。
 - Coolify 依被推送的分支決定部署哪個應用：推到 `staging` 部署測試 API，推到 `main` 部署正式 API。正式 API 的 Webhooks 要填同一組 Secret（沒有實測；推到 `main` 沒有自動部署時，改在 GitHub 再加一個用正式 API 自己網址與 Secret 的 webhook）。
 - 部署會重啟容器，伺服器上正在跑的回覆可能被打斷：合併到 `main` 之前先確認沒有長任務在跑。前端的改動也會觸發後端部署；要減少時用 Coolify 的 Watch Paths，但伺服器用到的共用模組（`scripts/server-shared-modules.json`）要一起列進去。
+
+## 12. 收尾（2026-10-19）
+
+- **SSH 只允許金鑰登入：** 在 `/etc/ssh/sshd_config.d/00-hardening.conf` 設 `PasswordAuthentication no`（`00-` 讓它排在 cloud-init 的檔案前面；用 `sshd -T | grep -i passwordauthentication` 看實際生效值）。先確認新金鑰能登入（`journalctl -u ssh` 看到 `Accepted publickey`）才重啟 `ssh`。私鑰只在 owner 的電腦，要備份；換電腦就在新電腦產生新金鑰再加進 `/root/.ssh/authorized_keys`；最後的退路是 Contabo 的 VNC。Coolify 用自己的金鑰，不受影響。
+- **外部存活監測：** UptimeRobot 打 `https://api.noureon.com/healthz`（5 分鐘一次，掛了與恢復都寄信給 owner）。
+- **還沒做：** Contabo 定期快照、清理 Zeabur（刪專案、撤銷 GitHub 授權、申請退款；`sandbox-host/install.sh` 裡 `cni0` 的處理在 Zeabur 不在之後再跑一次就會拿掉）。
+- 現行文件已改成 Coolify 的說法：`server/README.md`（環境變數與部署步驟）、`sandbox-host/README.md`、`Dockerfile`、`.env.example`、`server/config.js` 的註解。其他設計文件與交接文件提到 Zeabur 的地方是當時的紀錄，不改。

@@ -25,6 +25,7 @@ import { createSettingsHistoryRecallControls } from './settings-history-recall-c
 import { createSettingsMemorySummaryControls } from './settings-memory-summary-controls.js';
 import { createMemoryModelRunner } from './memory-model-runner.js';
 import { getModelReasoningConfig, modelSupportsToolCalling, normalizeReasoningEffort } from './model-registry.js';
+import { opencodeModelReadsOfficeViaPdf } from './opencode-models.js';
 import { createPageCouncilMembers } from '../../legacy-runtime/features/council-members-page.js';
 import { getSearchProvider } from '../kernel/search-provider.js';
 import { ensureVisionCheckSettingsControl as ensureVisionControl, ensureAutoWebSearchSettingsControl as ensureAutoWebSearchControl, ensureFileModeSettingsControl as ensureFileModeControl } from './settings-vision-check-control.js';
@@ -238,6 +239,7 @@ const providerRequestSupport = createProviderRequestSupport({
     getConfig: () => config,
     streamApiCall,
     getSingleDocumentTranslatorModel,
+    modelReadsOfficeViaPdf: opencodeModelReadsOfficeViaPdf,
     modelUsesTavilySearch,
     modelSupportsUploadedFile,
     modelSupportsVision,

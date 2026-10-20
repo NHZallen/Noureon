@@ -6,6 +6,7 @@ import { patchHTML } from '../../ui/dom/patch-html.js';
 import { getRuntimeText } from '../../runtime/i18n/runtime-texts.js';
 import { NOURAS_REQUEST_PURPOSE } from '../../runtime/nouras/nouras-policy.js';
 import { resolveReplyMode } from '../../runtime/sandbox/file-mode.js';
+import { opencodeModelReadsOfficeViaPdf } from '../../runtime/legacy-core/opencode-models.js';
 import { browserSupportsSandbox } from '../../runtime/sandbox/sandbox-protocol.js';
 import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
 import { cliIdsForReply } from '../../runtime/cli/cli-state.js';
@@ -30,6 +31,8 @@ const loadSandboxReply = () => Promise.all([
 // A switch to Standard mode is worth saying only when the request looks like
 // a task Advanced mode is for: files, data or attachments.
 // The Decisions model's judgement of the message decides when there is one (decision-client.js), the word lists otherwise.
+// What the server says it is doing with the message's files and addresses, as the stage the wait row draws (the page's own names for them).
+const DOCUMENT_STAGES = { reading: 'fileReading', pdf: 'makingPdf', translating: 'documentTranslation', links: 'linkedPages' };
 const textOfParts = (parts = []) => parts.map((part) => part?.text || '').join('\n');
 const looksLikeFileTask = (parts = []) => parts.some((part) => part?.inlineData)
   || (verdictOf(decisionsFor(textOfParts(parts)), 'file') ?? mayNeedFileGuidance(textOfParts(parts)));
@@ -176,13 +179,21 @@ export function createSingleModelResponseLifecycle({
     // setting says; a model that cannot call tools cannot use them.
     const needsPython = cli.ids.length > 0 || (replyMode.advanced && (looksLikeFileTask(userParts) || conversationHasFiles(conversation)));
     // (The synthesis of a council held here is made here too.)
+    // The files and the addresses of the message are prepared (read, written down by the translator model, fetched) by the server when it makes the reply,
+    // so the reply goes on when the page is closed; when it does not take the reply, they are prepared here, below (docs/superpowers/specs/2026-10-20-server-document-prep-design.md).
+    const readsAddresses = !addressIsForTool && verdictOf(decisionsFor(textOfParts(userParts)), 'url') !== false;
+    const hasAddresses = readsAddresses && extractLinkedUrls(textOfParts(userParts)).urls.length > 0;
+    const hasAttachments = userParts.some((part) => part.inlineData);
     const plan = !resumeRun && !synthesis && serverReply && assistantMessageId
-      ? serverReply.plan({ conversation, advanced: needsPython, webSearchEnabled, researchByModel, provider: modelInfo?.provider })
+      ? serverReply.plan({ conversation, advanced: needsPython, webSearchEnabled, researchByModel, provider: modelInfo?.provider, documentsToPrepare: hasAttachments || hasAddresses,
+        // A Word or PowerPoint file for a model that reads it better as a PDF: only the server makes the PDF, so it prepares the files then.
+        officeViaPdf: userParts.some((part) => part?.inlineData && opencodeModelReadsOfficeViaPdf(modelInfo, part.inlineData.mimeType)) })
       : null;
     const serverSearches = plan?.ok && plan.webSearch === 'packet';
-    const hasTranslationInputs = !resumeRun && (userParts.some((part) => part.inlineData) ||
+    const serverPrepares = Boolean(plan?.ok && plan.documents);
+    const hasTranslationInputs = !resumeRun && !serverPrepares && (hasAttachments ||
       Boolean(webSearchEnabled && !researchByModel && !serverSearches) ||
-      (!addressIsForTool && verdictOf(decisionsFor(textOfParts(userParts)), 'url') !== false && extractLinkedUrls(textOfParts(userParts)).urls.length > 0));
+      hasAddresses);
     let requestParts = userParts;
     // The pages a web search found (kept with the reply, shown as "Searched N sites").
     let searchSources = Array.isArray(synthesis?.sources) ? [...synthesis.sources] : [];
@@ -248,6 +259,8 @@ export function createSingleModelResponseLifecycle({
           skills: ownSearchReply ? [] : availableSkills,
           // The connectors of the person (a model that calls tools, not with the provider's own search): the server reads which ones are connected.
           connectors: canCallTools && !ownSearchReply,
+          // The message goes as the person sent it; the server prepares its files and addresses (the translator is the one set in Settings).
+          documents: serverPrepares ? { linkedPages: hasAddresses } : null,
           inputs: userParts.filter((part) => part?.inlineData?.data).map((part) => ({
             name: part.inlineData.name || `attachment.${String(part.inlineData.mimeType || '').split('/')[1] || 'bin'}`,
             mimeType: part.inlineData.mimeType || '',
@@ -266,14 +279,17 @@ export function createSingleModelResponseLifecycle({
         else if (started.notify) serverReply.notify(started.notify, uiLanguage);
       }
     }
-    // The server did not take the reply (or there is no account to make it with): the search it was to make is made here, as before.
-    if (serverSearches && !serverRun) {
+    // The server did not take the reply (or there is no account to make it with): the search it was to make, and the files and addresses it was to
+    // prepare, are done here, as before (the files not yet prepared: the message is prepared whole, not added to).
+    const preparesHere = serverPrepares && !serverRun;
+    if ((serverSearches || preparesHere) && !serverRun) {
       stop();
       renderProgress(targetElement, startedAt, 'preparing', 'Checking model capabilities');
       startTicker(targetElement, startedAt);
       requestParts = await buildSingleModelTranslatedRequestParts(userParts, modelInfo, signal, (stage, message) => renderProgress(targetElement, startedAt, stage, message), {
-        webSearchEnabled: true,
-        baseParts: requestParts,
+        webSearchEnabled: Boolean(webSearchEnabled && !researchByModel),
+        readLinkedPages: readsAddresses,
+        ...(preparesHere ? {} : { baseParts: requestParts }),
         conversation,
         onSources: (sources) => {
           addSearchSources(sources);
@@ -342,6 +358,7 @@ export function createSingleModelResponseLifecycle({
     let thought = { text: '', kind: 'raw', startedAt: null, endedAt: null };
     // Whether any of the answer has arrived (stopping before it leaves the thinking interrupted).
     let answered = false;
+    let documentStageShown = false;
     let answerStarted = false;
     // `soFarMs`: it has been thinking for this long already (a page that came in late); the server tells it.
     const showThinking = (chunk, kind, soFarMs = 0) => {
@@ -385,6 +402,14 @@ export function createSingleModelResponseLifecycle({
           onThoughtEnd: (ms) => endThinking(ms),
           // The server is searching first (for a model that cannot search): the line the page shows when it does that itself.
           onSearching: (source) => { if (source && !answered) renderProgress(targetElement, startedAt, 'searchTranslation', getRuntimeText(uiLanguage, source === 'tinyfish' ? 'searchingTinyfish' : 'searchingTavily')); },
+          // The server is preparing the message's files and addresses: the same lines the page shows when it does that itself.
+          onDocumentPhase: (phase) => {
+            if (answered) return;
+            const stage = DOCUMENT_STAGES[phase];
+            if (stage) renderProgress(targetElement, startedAt, stage);
+            else if (documentStageShown) renderProgress(targetElement, startedAt, 'preparing', 'Checking model capabilities');
+            documentStageShown = Boolean(stage);
+          },
           // The steps of Python (and the pages it searched) as they happen, in the same step list as a reply made here.
           // Each event says when it happened on the server, so every page draws the same times.
           onEvent: (event) => {

@@ -39,8 +39,17 @@ export const LOCAL_REASONS = Object.freeze({
   tooLarge: 'too-large'
 });
 
-/** Whether a reply can be made by the server, and with which kind of web search. */
-export function planServerReply({ config = {}, conversation = null, advanced = false, webSearchEnabled = false, researchByModel = false, provider = '', hasAccount = true } = {}) {
+/**
+ * Whether a reply can be made by the server, and with which kind of web search. `documents` in the answer: the server also prepares the files and
+ * addresses of the message (the message has some, and a translator model is set for what a model cannot read: docs/superpowers/specs/2026-10-20-server-document-prep-design.md;
+ * or a Word or PowerPoint file goes to a model that reads it better as a PDF, `officeViaPdf`, which only the server can make: NOU-68).
+ */
+export function planServerReply({ documentsToPrepare = false, hasTranslator = false, officeViaPdf = false, ...context } = {}) {
+  const plan = planServerReplyKind(context);
+  return plan.ok && documentsToPrepare && (hasTranslator || officeViaPdf) ? { ...plan, documents: true } : plan;
+}
+
+function planServerReplyKind({ config = {}, conversation = null, advanced = false, webSearchEnabled = false, researchByModel = false, provider = '', hasAccount = true } = {}) {
   if (config.replyRunLocation === 'local') return { ok: false, reason: LOCAL_REASONS.setting };
   if (!hasAccount) return { ok: false, reason: LOCAL_REASONS.noAccount };
   // A temporary chat is never in the cloud, so the server has nowhere to write the reply.
@@ -213,14 +222,19 @@ export function createServerReply({
    * Hands a reply to the server. Resolves { ok: true, run } when it was accepted (the server has it now) or { ok: false, reason,
    * notify } when it was not and the reply is to be made here ('notify' is true when the person should be told).
    */
-  const begin = async (path, { conversation, modelInfo, requestParts, webSearch = 'off', advanced = false, designs = null, inputs = [], cli = [], cliChosen = [], skills = [], connectors = false, visionCheck = null, research = null, vision = null, assistantMessageId, sequence, uiLanguage, config = {}, requestOptions = {}, getHistorySourceIds = () => [] }) => {
+  const begin = async (path, { conversation, modelInfo, requestParts, webSearch = 'off', advanced = false, designs = null, inputs = [], cli = [], cliChosen = [], skills = [], connectors = false, visionCheck = null, documents = null, research = null, vision = null, assistantMessageId, sequence, uiLanguage, config = {}, requestOptions = {}, getHistorySourceIds = () => [] }) => {
     const providerKey = getApiKeyForProvider(modelInfo?.provider);
     if (!providerKey) return { ok: false, reason: 'no-key', notify: false };
     let search = null;
-    if (webSearch === 'research' || webSearch === 'packet') {
+    // The addresses of the message are read with the search source's key too.
+    if (webSearch === 'research' || webSearch === 'packet' || documents?.linkedPages) {
       search = searchKeyFor(config);
       if (!search) return { ok: false, reason: LOCAL_REASONS.packetSearch, notify: false };
     }
+    // The model that writes down the documents the reply's model cannot read: with the key of its own provider when that is not the reply's.
+    const translator = documents?.translator || null;
+    const translatorKey = translator && translator.provider !== modelInfo?.provider ? getApiKeyForProvider(translator.provider) : '';
+    if (translator && translator.provider !== modelInfo?.provider && !translatorKey) return { ok: false, reason: 'no-key', notify: false };
     let described;
     try {
       described = await describeRequest(requestParts, { ...requestOptions, conversation, modelInfo });
@@ -252,6 +266,8 @@ export function createServerReply({
         ...(metadata ? { messageMetadata: metadata } : {}),
         language: uiLanguage
       },
+      // The files, documents and addresses of the message are prepared by the server (the request carries the message as the person sent it).
+      ...(documents ? { documents: { linkedPages: documents.linkedPages === true, ...(translator ? { translator: { provider: translator.provider, id: getModelApiId(translator), info: translator } } : {}) } } : {}),
       tools: {
         webSearch,
         ...(search ? { searchProvider: search.searchProvider, searchDepth: search.searchDepth } : {}),
@@ -268,7 +284,7 @@ export function createServerReply({
         // The check of a presentation the reply writes (the page's setting is on and the model can see images): the server makes it too.
         ...(visionCheck ? { visionCheck } : {})
       },
-      secrets: { providerKey, ...(search ? { searchKey: search.searchKey, ...(search.searchKeyAlt ? { searchKeyAlt: search.searchKeyAlt } : {}) } : {}) }
+      secrets: { providerKey, ...(search ? { searchKey: search.searchKey, ...(search.searchKeyAlt ? { searchKeyAlt: search.searchKeyAlt } : {}) } : {}), ...(translatorKey ? { translatorKey } : {}) }
     };
     const body = JSON.stringify(spec);
     if (body.length > MAX_REQUEST_CHARS) return { ok: false, reason: LOCAL_REASONS.tooLarge, notify: false };
@@ -341,7 +357,7 @@ export function createServerReply({
      */
     // `handOver(councilState)`: true when another follower takes the run from here (a council's synthesis, followed as a reply): the following ends
     // with { handedOver: true }, and the run goes on.
-    async follow({ onText = () => {}, onRun = () => {}, onThought = () => {}, onThoughtEnd = () => {}, onTiming = () => {}, onEvent = () => {}, onSearching = () => {}, onCouncil = () => {}, handOver = null, signal } = {}) {
+    async follow({ onText = () => {}, onRun = () => {}, onThought = () => {}, onThoughtEnd = () => {}, onTiming = () => {}, onEvent = () => {}, onSearching = () => {}, onDocumentPhase = () => {}, onCouncil = () => {}, handOver = null, signal } = {}) {
       const startedAt = now();
       let answerSoFar = '';
       let stopSent = false;
@@ -397,6 +413,7 @@ export function createServerReply({
           // The times are the server's: how long the reply has gone on, and how long it thought, so every page shows the same.
           if (Number.isFinite(event.r.elapsedMs)) onTiming(event.r.elapsedMs);
           if (event.r.ss) onSearching(event.r.ss);
+          if (event.r.dp) onDocumentPhase(event.r.dp);
           if (event.r.cs) {
             if (handOver?.(event.r.cs)) return 'handover';
             onCouncil(event.r.cs);
@@ -413,6 +430,7 @@ export function createServerReply({
           if (handOver?.(event.cs)) return 'handover';
           onCouncil(event.cs);
         } else if (typeof event.ss === 'string') onSearching(event.ss);
+        else if (typeof event.dp === 'string') onDocumentPhase(event.dp);
         else if (Number.isFinite(event.tm)) onTiming(event.tm);
         else if (event.ev) onEvent(withFileBytes(event.ev));
         else if (typeof event.a === 'string') {

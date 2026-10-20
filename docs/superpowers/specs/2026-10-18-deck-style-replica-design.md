@@ -1,5 +1,7 @@
 # 簡報風格復刻（deck-style-replica）設計
 
+> **2026-10-20：這個官方技能已由 owner 決定移除**（技能條目、本文的腳本 `deckstyle.py`、說明文字與測試都已刪除）。官方技能「附檔案」的機制（`server/official-skill-files.js`、`src/app/runtime/skill/official-skill-files.js`、`local-skill-folders.js`）保留，測試改用假的樣本技能。以下是當時的設計紀錄。
+
 Linear：NOU-53。後續的「指哪改哪」是 NOU-54。
 
 ## 0. owner 的決定（2026-10-18）

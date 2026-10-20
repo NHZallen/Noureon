@@ -1076,3 +1076,84 @@ test('once the step list says the reply is working, the waiting dot under it goe
   await lifecycle.run({ targetElement: target, userParts: [{ text: 'Hi' }], modelInfo: { id: 'model', name: 'Model', provider: 'openrouter' }, conversation: { id: 'c1', messages: [] }, signal, uiLanguage: 'en', assistantMessageId: 'm1' });
   assert.equal(dotsWhileWorking, 0);
 });
+
+// ----- the message's files and addresses, prepared by the server (docs/superpowers/specs/2026-10-20-server-document-prep-design.md)
+
+const PDF = { inlineData: { mimeType: 'application/pdf', name: 'a.pdf', data: 'TWFu' } };
+const documentRun = (extra = {}) => ({ userParts: [{ text: 'Read this' }, PDF], modelInfo: { id: 'model', name: 'Model', provider: 'nvidia' }, conversation: { id: 'c1', model: 'model', messages: [] }, uiLanguage: 'en', assistantMessageId: 'm1', sequence: 2, ...extra });
+const translations = (calls) => calls.filter((call) => call[0] === 'translate');
+
+test('when the server prepares the message\'s files the page sends it as the person wrote it, reads nothing itself, and shows the step the server is at', async () => {
+  const serverReply = serverReplyDouble({
+    plan: { ok: true, webSearch: 'off', documents: true },
+    follow: async ({ onDocumentPhase, onText }) => { onDocumentPhase('reading'); onDocumentPhase('pdf'); onDocumentPhase('translating'); onDocumentPhase('links'); onDocumentPhase(''); onText('Done'); return { text: 'Done', run: null, rewritten: false }; }
+  });
+  const { calls, lifecycle, signal, targetElement } = createHarness({ extraDependencies: { serverReply } });
+  const run = documentRun();
+  await lifecycle.run({ targetElement, signal, ...run });
+  assert.equal(translations(calls).length, 0, 'the page reads, translates and fetches nothing');
+  const [start] = serverReply.record.starts;
+  assert.deepEqual(start.requestParts, run.userParts, 'the message as the person sent it');
+  assert.deepEqual(start.documents, { linkedPages: false });
+  assert.equal(serverReply.record.plans[0].documentsToPrepare, true);
+  const stages = calls.filter((call) => call[0] === 'render-progress').map((call) => call[1]);
+  assert.deepEqual(stages.filter((stage) => ['fileReading', 'makingPdf', 'documentTranslation', 'linkedPages'].includes(stage)), ['fileReading', 'makingPdf', 'documentTranslation', 'linkedPages']);
+  assert.equal(stages.at(stages.lastIndexOf('linkedPages') + 1), 'preparing', 'when the step is over the row goes back to the plain wait');
+});
+
+test('a Word file for a model that reads it better as a PDF asks the server to prepare the files (it makes the PDF), and other models do not (NOU-68)', async () => {
+  const word = { inlineData: { mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', name: 'r.docx', data: 'TWFu' } };
+  for (const [modelInfo, expected] of [[{ id: 'opencode-go/claude-haiku-5-5', name: 'Haiku', provider: 'opencode-go' }, true], [{ id: 'model', name: 'Model', provider: 'nvidia' }, false]]) {
+    const serverReply = serverReplyDouble({ plan: { ok: true, webSearch: 'off' }, follow: async () => ({ text: 'x', run: null, rewritten: false }) });
+    const harness = createHarness({ extraDependencies: { serverReply } });
+    await harness.lifecycle.run({ targetElement: harness.targetElement, signal: harness.signal, ...documentRun({ userParts: [{ text: 'Read' }, word], modelInfo }) });
+    assert.equal(serverReply.record.plans[0].officeViaPdf, expected, modelInfo.id);
+  }
+});
+
+test('an address in the message is read by the server when the page decided it is to be read, and a plain message has nothing to prepare', async () => {
+  const withAddress = serverReplyDouble({ plan: { ok: true, webSearch: 'off', documents: true }, follow: async () => ({ text: 'x', run: null, rewritten: false }) });
+  const first = createHarness({ extraDependencies: { serverReply: withAddress } });
+  await first.lifecycle.run({ targetElement: first.targetElement, signal: first.signal, ...documentRun({ userParts: [{ text: 'What is on https://example.com/page ?' }] }) });
+  assert.deepEqual(withAddress.record.starts[0].documents, { linkedPages: true });
+  assert.equal(withAddress.record.plans[0].documentsToPrepare, true);
+
+  const plain = serverReplyDouble({ plan: { ok: true, webSearch: 'off' }, follow: async () => ({ text: 'x', run: null, rewritten: false }) });
+  const second = createHarness({ extraDependencies: { serverReply: plain } });
+  await second.lifecycle.run({ targetElement: second.targetElement, signal: second.signal, ...documentRun({ userParts: [{ text: 'Hi' }] }) });
+  assert.equal(plain.record.plans[0].documentsToPrepare, false);
+  assert.equal(plain.record.starts[0].documents, null);
+});
+
+test('a plan that does not include the files (no translator is set) leaves them to the page, as before', async () => {
+  const serverReply = serverReplyDouble({ plan: { ok: true, webSearch: 'off' }, follow: async () => ({ text: 'x', run: null, rewritten: false }) });
+  const { calls, lifecycle, signal, targetElement } = createHarness({ translatedParts: [{ text: 'prepared' }], extraDependencies: { serverReply } });
+  await lifecycle.run({ targetElement, signal, ...documentRun() });
+  assert.equal(translations(calls).length, 1, 'prepared here before the request goes out');
+  assert.deepEqual(serverReply.record.starts[0].requestParts, [{ text: 'prepared' }]);
+  assert.equal(serverReply.record.starts[0].documents, null);
+});
+
+test('when the server does not take a reply whose files it was to prepare, the page prepares the whole message here and makes the reply', async () => {
+  const declined = serverReplyDouble({ plan: { ok: true, webSearch: 'off', documents: true }, started: { ok: false, reason: 'unreachable', notify: 'unreachable' } });
+  const { calls, lifecycle, signal, targetElement } = createHarness({ translatedParts: [{ text: 'prepared' }], extraDependencies: { serverReply: declined } });
+  const run = documentRun();
+  const result = await lifecycle.run({ targetElement, signal, ...run });
+  const [translation] = translations(calls);
+  assert.deepEqual(translation[1], run.userParts, 'the message itself, not a half-made one');
+  assert.equal(translation[2].baseParts, undefined);
+  assert.equal(translations(calls).length, 1);
+  const api = calls.find((call) => call[0] === 'api');
+  assert.deepEqual(api[1], [{ text: 'prepared' }]);
+  assert.match(result.fullResponse, /"madeHere":true/);
+});
+
+test('a search packet and the files both fall back to the page together when the server does not take the reply', async () => {
+  const declined = serverReplyDouble({ plan: { ok: true, webSearch: 'packet', documents: true }, started: { ok: false, reason: 'x', notify: false } });
+  const { calls, lifecycle, signal, targetElement } = createHarness({ translatedParts: [{ text: 'prepared' }], extraDependencies: { serverReply: declined } });
+  await lifecycle.run({ targetElement, signal, ...documentRun({ webSearchEnabled: true, conversation: { id: 'c1', model: 'model', isWebSearchEnabled: true, messages: [] } }) });
+  const made = translations(calls);
+  assert.equal(made.length, 1, 'one preparation, after the server declined');
+  assert.equal(made[0][2].webSearchEnabled, true);
+  assert.equal(made[0][2].baseParts, undefined);
+});

@@ -581,3 +581,96 @@ test('the address of the server is the real one unless the build says another ht
   // Anything that is not a plain https origin is refused (a path, http, a script address): the real server.
   for (const bad of ['http://api-staging.noureon.com', 'https://api-staging.noureon.com/v1', 'javascript:alert(1)', 'api-staging.noureon.com', 'https://a b.com']) assert.equal(resolveServerApiUrl(bad), 'https://api.noureon.com', bad);
 });
+
+// ----- the message's files and addresses, prepared by the server (docs/superpowers/specs/2026-10-20-server-document-prep-design.md)
+
+test('the plan says the server prepares the message\'s files when the message has some and a translator is set, and only then', () => {
+  assert.deepEqual(planServerReply({ config: {}, documentsToPrepare: true, hasTranslator: true }), { ok: true, webSearch: 'off', documents: true });
+  assert.deepEqual(planServerReply({ config: {}, documentsToPrepare: true, hasTranslator: false }), { ok: true, webSearch: 'off' }, 'no translator: the page prepares them, as it always did');
+  assert.deepEqual(planServerReply({ config: {}, documentsToPrepare: false, hasTranslator: true }), { ok: true, webSearch: 'off' });
+  assert.equal(planServerReply({ config: { replyRunLocation: 'local' }, documentsToPrepare: true, hasTranslator: true }).documents, undefined, 'a reply made here prepares nothing on the server');
+  assert.deepEqual(planServerReply({ config: {}, documentsToPrepare: true, hasTranslator: true, webSearchEnabled: true, provider: 'openrouter' }), { ok: true, webSearch: 'packet', documents: true });
+  // NOU-68: a Word or PowerPoint file for a model that reads it better as a PDF is prepared by the server (only it makes the PDF), translator or not.
+  assert.deepEqual(planServerReply({ config: {}, documentsToPrepare: true, hasTranslator: false, officeViaPdf: true }), { ok: true, webSearch: 'off', documents: true });
+  assert.equal(planServerReply({ config: { replyRunLocation: 'local' }, documentsToPrepare: true, officeViaPdf: true }).documents, undefined);
+});
+
+const TRANSLATOR = { provider: 'gemini', id: 'gemini-x', apiId: 'gemini-x-api', name: 'T' };
+
+test('a reply whose files the server prepares carries the message as sent, the translator and its own key, and the key to read addresses with', async () => {
+  const { reply, calls } = harness({ getApiKeyForProvider: (name) => ({ openrouter: KEY, gemini: 'gem-key', tavily: 'tvly-key' }[name] || ''), getModelApiId: (model) => model.apiId || model.id });
+  const result = await reply.start(startArgs({ documents: { linkedPages: true, translator: TRANSLATOR } }));
+  assert.equal(result.ok, true);
+  const spec = JSON.parse(calls[0].options.body);
+  assert.deepEqual(spec.documents, { linkedPages: true, translator: { provider: 'gemini', id: 'gemini-x-api', info: TRANSLATOR } });
+  assert.equal(spec.secrets.translatorKey, 'gem-key');
+  assert.equal(spec.secrets.providerKey, KEY);
+  assert.equal(spec.secrets.searchKey, 'tvly-key');
+  assert.equal(spec.tools.webSearch, 'off');
+  assert.equal('documents' in spec.tools, false, 'a field the server would drop silently is not put in tools');
+});
+
+test('a translator of the reply\'s own provider needs no key of its own, and a message without addresses needs no search key', async () => {
+  const { reply, calls } = harness({ getApiKeyForProvider: (name) => ({ openrouter: KEY }[name] || '') });
+  const result = await reply.start(startArgs({ documents: { linkedPages: false, translator: { provider: 'openrouter', id: 'tr', name: 'T' } } }));
+  assert.equal(result.ok, true);
+  const spec = JSON.parse(calls[0].options.body);
+  assert.equal(spec.documents.linkedPages, false);
+  assert.deepEqual(Object.keys(spec.secrets), ['providerKey']);
+});
+
+test('the server does not prepare the files when a key it would need is missing: the page does it, with no notice', async () => {
+  const noTranslatorKey = harness({ getApiKeyForProvider: (name) => ({ openrouter: KEY }[name] || '') });
+  const first = await noTranslatorKey.reply.start(startArgs({ documents: { linkedPages: false, translator: TRANSLATOR } }));
+  assert.equal(first.ok, false);
+  assert.equal(first.notify, false);
+  assert.equal(noTranslatorKey.calls.length, 0, 'nothing was sent');
+  const noSearchKey = harness({ getApiKeyForProvider: (name) => ({ openrouter: KEY, gemini: 'g' }[name] || '') });
+  const second = await noSearchKey.reply.start(startArgs({ documents: { linkedPages: true, translator: TRANSLATOR } }));
+  assert.equal(second.ok, false);
+  assert.equal(second.notify, false);
+  assert.equal(noSearchKey.calls.length, 0);
+});
+
+test('a reply without `documents` is handed over as before', async () => {
+  const { reply, calls } = harness();
+  await reply.start(startArgs());
+  const spec = JSON.parse(calls[0].options.body);
+  assert.equal('documents' in spec, false);
+  assert.equal('translatorKey' in spec.secrets, false);
+});
+
+test('the step the server prepares the message at is told to the page as it changes, and to a page that joins while it goes on', async () => {
+  const { reply } = liveHarness({
+    events: [{ r: { answer: '', thought: { text: '', kind: 'model' }, sources: [], dp: 'translating' } }, { dp: 'links' }, { dp: '' }, { a: 'Done' }, { done: 'complete' }],
+    rows: [row('Done', 'complete')],
+    extra: { wait: async () => {} }
+  });
+  const { run } = await reply.start(startArgs());
+  const phases = [];
+  await run.follow({ onDocumentPhase: (phase) => phases.push(phase), onText: () => {} });
+  assert.deepEqual(phases, ['translating', 'links', '']);
+});
+
+test('the browser\'s wiring: the translator set in Settings decides whether the server prepares the files, and goes with the request', async () => {
+  const { createBrowserServerReply } = await import('../src/app/runtime/server-reply/server-reply-runtime.js');
+  const sent = [];
+  const make = (translator) => createBrowserServerReply({
+    getApiKeyForProvider: (name) => ({ openrouter: KEY, gemini: 'gem-key' }[name] || ''),
+    getModelApiId: (model) => model.id,
+    getDefaultGenConfig: () => ({}),
+    describeRequest: async () => ({}),
+    getSingleDocumentTranslatorModel: () => translator,
+    getSync: () => ({ getStatus: () => ({ enabled: true }), flush: async () => {} }),
+    getClient: async () => ({ auth: { getSession: async () => ({ data: { session: { access_token: 't' } } }) } }),
+    fetchImpl: async (url, options) => { sent.push(JSON.parse(options.body)); return new Response(JSON.stringify({ runId: 'r' }), { status: 202 }); },
+    document: null
+  });
+  assert.equal(make(null).plan({ conversation: { id: 'c' }, documentsToPrepare: true }).documents, undefined, 'no translator: the page prepares the files');
+  const wiring = make({ provider: 'gemini', id: 'tr', name: 'T' });
+  assert.equal(wiring.plan({ conversation: { id: 'c' }, documentsToPrepare: true }).documents, true);
+  const started = await wiring.start(startArgs({ documents: { linkedPages: false } }));
+  assert.equal(started.ok, true);
+  assert.equal(sent[0].documents.translator.id, 'tr');
+  assert.equal(sent[0].secrets.translatorKey, 'gem-key');
+});

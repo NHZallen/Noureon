@@ -52,6 +52,9 @@
 /* A slow step is a running row of the step list (ledger.css), its ring and shimmer going on from where they were. */
 .reply-wait-step .is-running > .ledger-row-head .ledger-mark::before,
 .reply-wait-step .is-running > .ledger-row-head .ledger-label { animation-delay: var(--wait-phase, 0ms); }
+/* The row itself is not faded in again at each of the redraws (ledger.css gives every row a short fade and a 3px rise): that made the whole line flicker
+   and jump once a second while a document was being converted. */
+.reply-wait-step .ledger-row { animation: none; }
 
 @media (prefers-reduced-motion: reduce) {
     .reply-wait-dot, .reply-wait-dot::after { animation: none; }
