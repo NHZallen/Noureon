@@ -99,3 +99,15 @@ test('the settings open the help center page, like the terms and the privacy pol
   assert.match(settingsFragment, /<a class="pz-nav" href="\/help" target="_blank" rel="noopener"><span data-lang-key="helpCenter">/);
   assert.doesNotMatch(settingsFragment, /helpCenterDesc/, 'the help center is a page, not a line of the settings');
 });
+
+test('the Help Center names every model whose Word and PowerPoint files are turned into a PDF, in each language (NOU-68)', async () => {
+  const { MODELS } = await import('../src/app/runtime/legacy-core/model-registry.js');
+  const { opencodeModelReadsOfficeViaPdf } = await import('../src/app/runtime/legacy-core/opencode-models.js');
+  const docx = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+  const names = MODELS.filter((model) => opencodeModelReadsOfficeViaPdf(model, docx)).map((model) => model.name);
+  assert.ok(names.length > 0);
+  for (const language of ['zh-TW', 'en', 'fr', 'ru', 'es']) {
+    const help = JSON.stringify((await import(`../src/data/legal/${language}.js`)).default.help);
+    for (const name of names) assert.ok(help.includes(name), `${language}: ${name}`);
+  }
+});

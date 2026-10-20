@@ -136,6 +136,25 @@
 
 §9 發現的問題修好了：給「讀 PDF 比讀 Office 好」的模型（`opencodeModelReadsOfficeViaPdf`）時，目前這一則和歷史訊息一樣轉成 PDF。
 
+**哪些模型會轉（2026-10-20，都是 OpenCode Go）**
+
+| 模型 | id |
+|---|---|
+| Hy3 | `opencode-go/hy3` |
+| Muse Spark 1.3 Contributor | `opencode-go/muse-spark-1.3-contributor` |
+| Muse Spark 1.2 Contributor | `opencode-go/muse-spark-1.2-contributor` |
+| Claude Haiku 5.5 | `opencode-go/claude-haiku-5-5` |
+| MiniMax M3 | `opencode-go/minimax-m3` |
+| Qwen3.8 Max | `opencode-go/qwen3.8-max` |
+| Qwen3.8 Flash | `opencode-go/qwen3.8-flash` |
+
+- 只有 Word（`.docx`）和 PowerPoint（`.pptx`）會轉。Excel 和其他供應商的模型照舊。
+- 名單在 `src/app/runtime/legacy-core/opencode-models.js` 的 `OFFICE_VIA_PDF_API_IDS`，來源是 2026-10-14 的 `pdfimage` 探測。
+- 其他 OpenCode Go 模型：
+  - 直接讀 Word／PowerPoint，不轉：Grok 4.7、Grok 4.6、GPT-6 Luna、GPT-5.6 Luna、Gemini 4 Argon Contributor（`OFFICE_API_IDS`）。
+  - 讀 PDF，但看不到 PDF 裡的圖片，所以由 App 讀成文字與圖片：Hy4 Preview、MiniMax M2.7、Qwen3.7 Plus。
+- 改名單時，協助中心（五語言）也要改。`tests/legal-texts.test.js` 會檢查每個名字都在五種語言的協助中心裡。
+
 - 讀取：`provider-request-support.js` 多一個依賴 `modelReadsOfficeViaPdf`，`expandParts` 帶上 `viaPdf`。
   - 伺服器（`server/document-prep.js`）和頁面（`settings-auth-provider-lifecycle.js`）都注入 `opencodeModelReadsOfficeViaPdf`。
   - 頁面的讀取器沒有轉換器，所以照舊讀成文字。理事會（`server/council-run.js`）的讀取器也沒有轉換器，沒有改。
