@@ -314,7 +314,7 @@ test('04 store and trash destructive flows keep replacement, save, render, and n
   const fragment03Source = readSource('src/app/runtime/legacy-core/transition-bus-lifecycle.js');
   const coreTailSource = readSource('src/app/runtime/legacy-core/core-tail-lifecycle.js');
   const trashLifecycleSource = readSource('src/app/runtime/features/trash-lifecycle.js');
-  const handleSubscriptionBody = getConstFunctionBody(coreTailSource, 'handleSubscription');
+  const handleSubscriptionBody = getConstFunctionBody(readSource('src/app/runtime/features/astra-store-lifecycle.js'), 'handleSubscription');
   const permanentDeleteBody = getConstFunctionBody(trashLifecycleSource, 'handleDeleteTrashItemPermanently');
   const batchDeleteBody = getConstFunctionBody(trashLifecycleSource, 'handleBatchDeleteFromTrash');
   const emptyTrashBody = getConstFunctionBody(trashLifecycleSource, 'handleEmptyTrash');
@@ -456,7 +456,7 @@ test('app data store remains wired while production boot moves through runtime e
     /replacePersonalMemories:\s*\(nextPersonalMemories\)\s*=>\s*\{\s*state\.personalMemories\s*=\s*runtimeAppDataStore\.replacePersonalMemories\(nextPersonalMemories\);\s*return\s+state\.personalMemories;\s*\}/
   );
   assert.match(modelMemoryDashboardSource, /personalMemories\s*=\s*replacePersonalMemories\(\s*personalMemories\.filter\(m\s*=>\s*m\.id\s*!==\s*id\)\s*\)/);
-  assert.match(coreTailSource, /state\.astras\s*=\s*runtimeAppDataStore\.replaceAstras\(\s*state\.astras\.filter\(a\s*=>\s*a\.officialId\s*!==\s*officialId\)\s*\)/);
+  assert.match(readSource('src/app/runtime/features/astra-store-lifecycle.js'), /state\.astras\s*=\s*runtimeAppDataStore\.replaceAstras\(\s*state\.astras\.filter\(a\s*=>\s*a\.officialId\s*!==\s*officialId\)\s*\)/);
   assert.match(fragment03Source, /set\s+astras\(next\)\s*\{\s*state\.astras\s*=\s*next;\s*\}/);
   assert.doesNotMatch(fragment01Source, /from\s+['"][^'"]*app-data-store\.js['"]/);
   assert.doesNotMatch(fragment02Source, /from\s+['"][^'"]*app-data-store\.js['"]/);

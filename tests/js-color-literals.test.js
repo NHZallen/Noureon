@@ -29,7 +29,7 @@ const EXEMPT_FILES = new Map([
   ['src/app/runtime/features/color-scheme.js', 'the colour of the browser bar in the light and the dark theme'],
   ['src/app/ui/charts/chart-utils.js', 'the series of the charts in a reply'],
   ['src/app/legacy-runtime/features/model-usage-chart-lifecycle.js', 'the series of the usage chart'],
-  ['src/app/runtime/legacy-core/core-tail-lifecycle.js', 'the series of the usage chart'],
+  ['src/app/runtime/features/time-analysis-chart.js', 'the series of the time analysis chart'],
   ['src/templates/fragments/02-shell.fragment.js', 'the default value of the colour picker of the accent'],
   ['src/app/ui/code/code-highlighter.js', 'the palettes of the code themes (the colours of a language in an editor, not of the interface)'],
   ['src/app/legacy-runtime/features/generated-image-interactions.js', 'the pen colours of the image editor'],

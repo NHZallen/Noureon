@@ -239,7 +239,7 @@ test('changing the interface language re-renders the language-dependent Noura li
 // The store grid and trash list are rebuilt inside the same block; they are module-internal,
 // so pin the calls at the source level instead of through injected spies.
 test('the language change block also rebuilds the store grid and trash list', () => {
-  const source = readSource('src/app/runtime/legacy-core/core-tail-lifecycle.js');
+  const source = readSource('src/app/runtime/features/language-apply.js');
   const block = /if \(languageChanged\) \{[\s\S]*?\}/.exec(source);
   assert.ok(block, 'the languageChanged block should exist');
   for (const call of ['renderStore()', 'renderTrash()', 'renderPersonalMemoryList()']) {

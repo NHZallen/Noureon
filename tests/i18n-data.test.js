@@ -165,10 +165,10 @@ test('recent runtime UI strings stay covered by locale keys', async () => {
     ['src/app/legacy-runtime/features/received-data-lifecycle.js', /getText\('p2pReceivedAstrasSuccess'/],
     ['src/app/runtime/features/p2p-lifecycle.js', /getText\('p2pChooseRole'/],
     ['src/app/runtime/features/folder-lifecycle.js', /getTexts\(\)\.folderIconLineColor/],
-    ['src/app/runtime/legacy-core/core-tail-lifecycle.js', /astrasCategoryProductivity/],
-    ['src/app/runtime/legacy-core/core-tail-lifecycle.js', /translations\.languageNameZhTW/],
-    ['src/app/runtime/legacy-core/core-tail-lifecycle.js', /settings-mobile-title/],
-    ['src/app/runtime/legacy-core/core-tail-lifecycle.js', /section\.dataset\.sectionTitle\s*=\s*translations\[sectionTitleKey\]/],
+    ['src/app/runtime/features/astra-store-lifecycle.js', /astrasCategoryProductivity/],
+    ['src/app/runtime/features/language-apply.js', /translations\.languageNameZhTW/],
+    ['src/app/runtime/features/language-apply.js', /settings-mobile-title/],
+    ['src/app/runtime/features/language-apply.js', /section\.dataset\.sectionTitle\s*=\s*translations\[sectionTitleKey\]/],
     ['src/styles/settings-desktop.css', /content:\s*attr\(data-section-title\)/]
   ];
 
