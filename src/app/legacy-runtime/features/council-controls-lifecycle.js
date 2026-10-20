@@ -3,20 +3,22 @@
 // building a council (and saving up to five named groups of members), and setting
 // how deeply the model thinks. The models used lately are offered first.
 
-import { buildModelGroups, getModelCompany } from '../../ui/model-picker/model-picker-groups.js';
-import { renderDepthPanel, renderDepthTrigger, renderPickerPanel, renderPickerTrigger } from '../../ui/model-picker/model-picker-markup.js';
+import {
+  renderDepthPanel,
+  renderDepthTrigger,
+  renderPickerPanel,
+  renderPickerTrigger
+} from '../../ui/model-picker/model-picker-markup.js';
 import {
   GROUP_LIMIT,
-  GROUP_NAME_LIMIT,
-  councilMatchesGroup,
   newGroupId,
   nextGroupNumber,
-  noteModelsUsed as noteRecent,
-  pickRecentModels
+  noteModelsUsed as noteRecent
 } from '../../ui/model-picker/model-groups.js';
 import { modelPickerText } from '../../ui/model-picker/model-picker-texts.js';
-import { prepareModelSwitcherModels } from './model-switcher-lifecycle.js';
-import { opencodeModelReadsPdf } from '../../runtime/legacy-core/opencode-models.js';
+import { bindCouncilControlEvents } from './council-controls-events.js';
+import { createPickerViewState } from './council-controls-view-state.js';
+import { createPickerChoices } from './council-controls-choices.js';
 
 export function createCouncilControlsLifecycle(deps) {
   const {
@@ -65,11 +67,13 @@ export function createCouncilControlsLifecycle(deps) {
   // What the panel is showing besides the conversation: which page of the
   // panel (the main one, or a list to pick members / the combining model from),
   // the search text, whether the extra options are open.
-  let view = 'main';
-  let query = '';
-  let moreOpen = false;
-  // Which saved group the member or combiner list is editing (none: the council itself).
-  let pickGroupId = null;
+  const ui = {
+    view: 'main',
+    query: '',
+    moreOpen: false,
+    // Which saved group the member or combiner list is editing (none: the council itself).
+    pickGroupId: null
+  };
 
   // Every submit runs this, and the answer is nearly always what is already on
   // screen, so the last markup is remembered and written again only when it changes.
@@ -118,41 +122,13 @@ export function createCouncilControlsLifecycle(deps) {
     afterPaint(saveConfig);
   };
 
-  // What a picture model does and how much of it, as its registry says (a number that is not known is not shown): "Image generation · 1–6 per
-  // request · References 0–4".
-  const imageAbilities = (model, t) => [
-    ...(model.minImageReferences > 0 ? [t('imageEdit'), t('imageNeedsPicture')] : [t('imageGeneration')]),
-    ...(model.maxImageCount > 0 ? [t('imageCountRange').replace('{n}', model.maxImageCount === 1 ? '1' : `1–${model.maxImageCount}`)] : []),
-    ...(model.maxImageReferences > 0 ? [t('imageReferenceRange').replace('{n}', `${model.minImageReferences || 0}–${model.maxImageReferences}`)] : [])
-  ];
-
-  const describe = (model, { translations, t, selected = false, disabled = false }) => {
-    const tiers = getModelTiers(model) || [];
-    const base = model.descriptionKey;
-    const description = translations[base] || (tiers[0] ? translations[`${base}_tier_${tiers[0]}`] : '') || '';
-    return {
-      id: model.id,
-      name: model.name,
-      apiId: getModelApiId(model),
-      company: model.company || getModelCompany(model, getModelApiId(model)),
-      provider: model.provider,
-      providerLabel: getProviderLabel(model.provider),
-      // A picture-making model is told by what it does (a model that needs a picture to start from edits, the others generate), not by the words
-      // of the text models: it reads no documents and searches nothing.
-      abilities: model.outputModality === 'image' ? imageAbilities(model, t) : [
-        modelSupportsVision(model) ? t('vision') : '',
-        // A model of OpenCode Go that reads a PDF as it is counts as reading documents (the others of its files are translated for it).
-        (modelSupportsDocumentUpload(model) || opencodeModelReadsPdf(model)) ? t('documents') : (getSingleDocumentTranslatorModel() ? t('translatedDocuments') : ''),
-        modelSupportsWebSearch(model) ? t('search') : ''
-      ].filter(Boolean),
-      free: tiers.includes('free'),
-      hidden: Boolean(model.hiddenModel),
-      retirement: getModelRetirementLabel(model) || '',
-      description,
-      selected,
-      disabled
-    };
-  };
+  const { buildPickerState } = createPickerViewState({
+    ui, models, councilMaxModels, getI18n, getCouncilTexts, getCouncilRuntimeTexts, getIsCouncilRunning, isImageConversation,
+    getModelApiId, getModelTiers, groupsOf, modelName, getCouncilValidation, getModelsByIds, hasCouncilWebSearchAccess,
+    normalizeConversationModel, getCouncilModelList, getModelReasoningConfig, normalizeReasoningEffort, getReasoningEffortLabel,
+    getProviderLabel, modelSupportsVision, modelSupportsDocumentUpload, getSingleDocumentTranslatorModel, modelSupportsWebSearch,
+    getModelRetirementLabel
+  });
 
   const renderCouncilControls = ({ open: forceOpen = null } = {}) => {
     const fileInputContainer = getFileInputContainer();
@@ -185,8 +161,8 @@ export function createCouncilControlsLifecycle(deps) {
     const conversation = getActiveConversation();
     if (!conversation) {
       container.innerHTML = '';
-      view = 'main';
-      query = '';
+      ui.view = 'main';
+      ui.query = '';
       dropMarkupCache();
       lastLayout = null;
       return;
@@ -194,140 +170,7 @@ export function createCouncilControlsLifecycle(deps) {
     conversation.council = normalizeCouncilConfig(conversation.council);
     const config = getConfig();
     const language = config.uiLanguage;
-    const i18n = getI18n();
-    const translations = i18n[language] || i18n['zh-TW'] || {};
-    const t = (key, values) => modelPickerText(language, key, values);
-    const texts = getCouncilTexts();
-    const runtimeTexts = getCouncilRuntimeTexts();
-    const locked = getIsCouncilRunning() && conversation.council.enabled;
-    const image = isImageConversation(conversation);
-    const temporary = conversation.retentionMode === 'ephemeral';
-    const councilActive = conversation.council.enabled && !image && !temporary;
-    if (!wasOpen && target !== 'model') view = 'main';
-    if (!councilActive && view !== 'main') view = 'main';
-    const showTabs = !image && !temporary && !(config.isLearningMode && !conversation.council.enabled);
-    const archived = Boolean(conversation.archived);
-
-    const { betaModels, currentModel, visibleModels } = prepareModelSwitcherModels({
-      currentModelId: conversation.model,
-      getModelApiId,
-      getModelTiers,
-      modelSettings: config.modelSettings,
-      models
-    });
-    const context = { translations, t };
-    const groupList = groupsOf(config);
-    if (pickGroupId && !groupList.some((group) => group.id === pickGroupId)) pickGroupId = null;
-    const pickTarget = pickGroupId ? groupList.find((group) => group.id === pickGroupId) : null;
-    const groupLabel = (group, index) => group.name || t('groupDefaultName', { n: index + 1 });
-    const groupSummary = (group) => [
-      group.participantModelIds.length ? group.participantModelIds.map(modelName).filter(Boolean).join(', ') : t('groupNoMembers'),
-      group.synthesizerModelId ? t('groupCombinerIs', { name: modelName(group.synthesizerModelId) }) : t('groupNoCombiner')
-    ].join(' · ');
-    const state = {
-      open: wasOpen,
-      depthOpen: false,
-      view,
-      query,
-      locked,
-      showTabs,
-      disabled: archived,
-      council: null,
-      councilBlocked: false,
-      groups: [],
-      pickGroups: [],
-      pickTitle: '',
-      groupsPage: null,
-      depth: null,
-      modelName: currentModel?.name || '',
-      title: currentModel?.name || t('modelPicker')
-    };
-
-    if (councilActive) {
-      const validation = getCouncilValidation(conversation);
-      const participants = getModelsByIds(conversation.council.participantModelIds);
-      const synthesizer = models.find((model) => model.id === conversation.council.synthesizerModelId);
-      const atMax = participants.length >= councilMaxModels;
-      state.council = {
-        count: participants.length,
-        members: participants.map((model) => ({ id: model.id, name: model.name })),
-        max: councilMaxModels,
-        canAdd: !atMax,
-        groupLimit: GROUP_LIMIT,
-        canSaveGroup: groupList.length < GROUP_LIMIT && participants.length > 0,
-        groups: groupList.map((group, index) => ({
-          id: group.id,
-          label: groupLabel(group, index),
-          summary: groupSummary(group),
-          active: councilMatchesGroup(group, conversation.council)
-        })),
-        combinerName: synthesizer?.name || '',
-        combinerPlaceholder: texts.selectSynthesizer,
-        mode: conversation.council.mode,
-        moreOpen,
-        showRaw: Boolean(conversation.council.showRawResponses),
-        showComparison: Boolean(conversation.council.showComparisonTable),
-        searchAvailable: hasCouncilWebSearchAccess(synthesizer || normalizeConversationModel(conversation)) && !archived,
-        searchOn: Boolean(conversation.isWebSearchEnabled),
-        ok: validation.ok,
-        message: validation.ok ? `${texts.ready} · ${participants.length} · ${synthesizer?.name || ''}` : validation.message,
-        labels: {
-          consensus: texts.consensus,
-          deliberation: texts.deliberation,
-          rawNotes: texts.rawNotes,
-          comparison: runtimeTexts.comparisonToggle
-        }
-      };
-      state.title = `${texts.title} · ${participants.length}`;
-      if (view === 'groups') {
-        state.groupsPage = {
-          limit: GROUP_LIMIT,
-          nameLimit: GROUP_NAME_LIMIT,
-          canAdd: groupList.length < GROUP_LIMIT,
-          groups: groupList.map((group, index) => ({
-            id: group.id,
-            name: group.name,
-            label: groupLabel(group, index),
-            summary: groupSummary(group),
-            canApply: group.participantModelIds.length > 0
-          }))
-        };
-      } else if (view !== 'main') {
-        const list = getCouncilModelList(conversation);
-        const pickMembers = view === 'members';
-        const memberIds = pickTarget ? pickTarget.participantModelIds : conversation.council.participantModelIds;
-        const combinerId = pickTarget ? pickTarget.synthesizerModelId : conversation.council.synthesizerModelId;
-        const full = memberIds.length >= councilMaxModels;
-        const targetLabel = pickTarget ? groupLabel(pickTarget, groupList.indexOf(pickTarget)) : '';
-        state.pickTitle = pickMembers
-          ? (pickTarget ? t('groupPickMembers', { name: targetLabel }) : `${t('pickMembers')} (${memberIds.length}/${councilMaxModels})`)
-          : (pickTarget ? t('groupPickCombiner', { name: targetLabel }) : t('pickCombiner'));
-        state.pickGroups = buildModelGroups(list, {
-          decorate: (model) => describe(model, {
-            ...context,
-            selected: pickMembers ? memberIds.includes(model.id) : combinerId === model.id,
-            disabled: (!pickTarget && locked) || (pickMembers && full && !memberIds.includes(model.id))
-          }),
-          recentIds: pickRecentModels(config.recentModelIds, list.map((model) => model.id)),
-          recentLabel: t('recent')
-        });
-      }
-    } else {
-      const listed = [...visibleModels.filter((model) => !model.isBeta), ...betaModels];
-      state.groups = buildModelGroups(listed, {
-        decorate: (model) => describe(model, { ...context, selected: model.id === currentModel?.id, disabled: archived }),
-        recentIds: pickRecentModels(config.recentModelIds, listed.map((model) => model.id), { current: currentModel?.id }),
-        recentLabel: t('recent'),
-        betaLabel: t('beta')
-      });
-      const reasoning = currentModel ? getModelReasoningConfig(currentModel) : null;
-      if (reasoning?.options?.length > 1) {
-        const effort = normalizeReasoningEffort(currentModel, conversation.reasoningEffort);
-        const levels = reasoning.options.map((option) => ({ value: option, label: getReasoningEffortLabel(option, language) }));
-        const index = Math.max(0, levels.findIndex((level) => level.value === effort));
-        state.depth = { levels, index, defaultIndex: levels.findIndex((level) => level.value === reasoning.defaultEffort), disabled: archived };
-      }
-    }
+    const { state, t, councilActive } = buildPickerState({ conversation, config, language, wasOpen, target });
 
     depthOpen = depthOpen && Boolean(state.depth);
     state.depthOpen = depthOpen;
@@ -359,12 +202,12 @@ export function createCouncilControlsLifecycle(deps) {
     fitPanel(container);
     // Moving to another page of the panel eases in: forward slides from the right, back from the left,
     // and single/council fades.
-    const layout = `${councilActive ? 'council' : 'single'}:${view}`;
+    const layout = `${councilActive ? 'council' : 'single'}:${ui.view}`;
     const page = container.querySelector('.mp-view');
     if (page && wasOpen && lastLayout && lastLayout !== layout) {
       const [beforeKind, beforeView] = lastLayout.split(':');
       const kind = councilActive ? 'council' : 'single';
-      page.classList.add(beforeKind !== kind && beforeView === view ? 'is-fade' : view === 'main' ? 'is-back' : 'is-enter');
+      page.classList.add(beforeKind !== kind && beforeView === ui.view ? 'is-fade' : ui.view === 'main' ? 'is-back' : 'is-enter');
     }
     lastLayout = layout;
     const scroller = container.querySelector('[data-mp-scroll]');
@@ -373,7 +216,7 @@ export function createCouncilControlsLifecycle(deps) {
   };
 
   const applySearch = (container) => {
-    const needle = query.trim().toLowerCase();
+    const needle = ui.query.trim().toLowerCase();
     const panel = container.querySelector('#model-picker-popover');
     if (!panel) return;
     let shown = 0;
@@ -431,8 +274,8 @@ export function createCouncilControlsLifecycle(deps) {
     closeAllPopovers();
     if (open) {
       if (which === 'model') {
-        view = 'main';
-        query = '';
+        ui.view = 'main';
+        ui.query = '';
       }
       if (which === 'model') fitPhonePanel(container);
       renderCouncilControls({ open: which });
@@ -449,345 +292,18 @@ export function createCouncilControlsLifecycle(deps) {
     container.querySelectorAll('.mp-trigger').forEach((button) => button.setAttribute('aria-expanded', 'false'));
   };
 
-  const chooseModel = async (modelId) => {
-    const conv = getActiveConversation();
-    const config = getConfig();
-    if (!conv || conv.archived) return false;
-    const info = models.find((model) => model.id === modelId);
-    if (!info) return false;
-    const translations = getI18n()[config.uiLanguage] || {};
-    const acknowledged = Array.isArray(config.acknowledgedStealthModelTerms) ? config.acknowledgedStealthModelTerms : [];
-    const acknowledgementId = info.stealthTermsAcknowledgementId || info.id;
-    if (info.hiddenModel && !acknowledged.includes(acknowledgementId)) {
-      // A hidden (test) model of OpenCode Go: what that means, with no terms page to link to (OpenCode's announcements are the word on it).
-      const accepted = await showCustomDialog({
-        title: translations.hiddenModelTermsTitle || 'Hidden test model',
-        message: translations.hiddenModelTermsMessage || 'This is a hidden test model of OpenCode Go. It may be renamed, changed or removed at any time. For its data retention and whether it is used for training, follow what OpenCode announces.',
-        buttons: [
-          { text: translations.cancel || 'Cancel', class: 'bg-[var(--hover-bg)] px-4 py-2 rounded-md hover:bg-[var(--active-bg)]', value: () => false },
-          { text: translations.confirm || 'Confirm', class: 'px-4 py-2 rounded-md btn-primary', value: () => true }
-        ]
-      });
-      if (!accepted) return false;
-      config.acknowledgedStealthModelTerms = [...acknowledged, acknowledgementId];
-    } else if (info.requiresStealthTermsAcknowledgement && !acknowledged.includes(acknowledgementId)) {
-      const placeholder = '{termsLink}';
-      const template = translations.stealthModelTermsMessage || 'This stealth model is developed and operated by a third-party model provider. Prompts and completions for this model are retained by the provider and are not used for training; all other use is governed by the {termsLink}.';
-      const linkText = translations.stealthModelTermsLink || 'Stealth Model Terms(opens in new tab)';
-      const at = template.indexOf(placeholder);
-      const messageParts = at === -1
-        ? [template]
-        : [template.slice(0, at), { text: linkText, href: 'https://openrouter.ai/terms/stealth' }, template.slice(at + placeholder.length)];
-      const accepted = await showCustomDialog({
-        title: translations.stealthModelTermsTitle || 'Stealth model terms',
-        messageParts,
-        buttons: [
-          { text: translations.cancel || 'Cancel', class: 'bg-[var(--hover-bg)] px-4 py-2 rounded-md hover:bg-[var(--active-bg)]', value: () => false },
-          { text: translations.confirm || 'Confirm', class: 'px-4 py-2 rounded-md btn-primary', value: () => true }
-        ]
-      });
-      if (!accepted) return false;
-      config.acknowledgedStealthModelTerms = [...acknowledged, acknowledgementId];
-    }
-    conv.model = info.id;
-    conv.provider = info.provider;
-    const defaultEffort = getModelReasoningConfig(info) ? normalizeReasoningEffort(info, null) : null;
-    if (defaultEffort) conv.reasoningEffort = defaultEffort;
-    else delete conv.reasoningEffort;
-    if (info.outputModality === 'image' && conv.council) conv.council.enabled = false;
-    config.lastUsedModel = modelId;
-    config.recentModelIds = noteRecent(config.recentModelIds, [modelId]);
-    renderSidebar();
-    renderInputIndicators();
-    afterPaint(async () => {
-      await saveAppData();
-      await saveConfig();
-    });
-    return true;
-  };
+  const { chooseModel, DEPTH_KEYS, paintDepth, commitDepth } = createPickerChoices({
+    document, models, getActiveConversation, getConfig, getI18n, showCustomDialog, getModelReasoningConfig, normalizeReasoningEffort,
+    normalizeConversationModel, renderSidebar, renderInputIndicators, saveAppData, saveConfig, afterPaint
+  });
 
-  const DEPTH_KEYS = Object.freeze({ ArrowRight: 1, ArrowUp: 1, ArrowLeft: -1, ArrowDown: -1, Home: 'first', End: 'last' });
-
-  // Draws the thumb, the fill and the name at a position between 0 and the last level.
-  const paintDepth = (input, position, { tick = false } = {}) => {
-    const wrap = input.closest('[data-mp-slider]');
-    if (tick && wrap && wrap.dataset.mpLevel !== undefined && Number(wrap.dataset.mpLevel) !== position) {
-      try { document.defaultView?.navigator?.vibrate?.(6); } catch { /* no haptics here */ }
-    }
-    if (wrap) wrap.dataset.mpLevel = String(position);
-    const last = Math.max(1, Number(input.max));
-    wrap?.style.setProperty('--mp-p', String(Math.min(1, Math.max(0, position / last))));
-    const labels = JSON.parse(input.closest('[data-mp-depth]')?.dataset.mpLabels || '[]');
-    const label = labels[Math.min(labels.length - 1, Math.max(0, Math.round(position)))];
-    if (label === undefined) return null;
-    const value = input.closest('[data-mp-depth]')?.querySelector('[data-mp-depth-value]');
-    if (value && value.textContent !== label) {
-      value.textContent = label;
-      const reduce = document.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
-      if (typeof value.animate === 'function' && !reduce) {
-        value.animate([{ opacity: 0.3, transform: 'translateY(5px) scale(0.92)' }, { opacity: 1, transform: 'none' }], { duration: 170, easing: 'cubic-bezier(0.2, 0.9, 0.3, 1.2)' });
-      }
-    }
-    input.setAttribute('aria-valuetext', label);
-    // The button in the composer follows the thumb while it is dragged, not only when it lands (its width does not change: it keeps the longest name).
-    const shown = input.closest('#model-council-control')?.querySelector('.mp-depth-trigger-value');
-    if (shown && shown.textContent !== label) shown.textContent = label;
-    return label;
-  };
-
-  // Lands on a level: the choice is saved without redrawing the panel, which would cut the
-  // thumb's short move to that dot.
-  const commitDepth = async (container, input, index) => {
-    input.value = String(index);
-    const label = paintDepth(input, index);
-    const conv = getActiveConversation();
-    const info = conv ? normalizeConversationModel(conv) : null;
-    const options = getModelReasoningConfig(info)?.options || [];
-    const chosen = normalizeReasoningEffort(info, options[index]);
-    if (!conv || !chosen || chosen === normalizeReasoningEffort(info, conv.reasoningEffort)) return;
-    conv.reasoningEffort = chosen;
-    const shown = container.querySelector('.mp-depth-trigger-value');
-    if (shown && label) shown.textContent = label;
-    await saveAppData();
-  };
-
+  // Bound when the control is first drawn; by then every helper below exists.
   function bindEvents(container) {
-    document.defaultView?.addEventListener?.('resize', () => { if (isPanelOpen(container)) fitPanel(container); });
-    container.addEventListener('click', async (event) => {
-      const target = event.target.closest?.('button, [data-mp-tab]');
-      if (!target || !container.contains(target)) return;
-      // Clicks here redraw the panel, which removes the clicked button before the page's
-      // "click outside closes popovers" handler looks for it inside the picker.
-      event.stopPropagation();
-      const conv = getActiveConversation();
-      if (!conv) return;
-
-      if (target.id === 'model-picker-btn') {
-        event.preventDefault();
-        if (target.disabled) return;
-        setPanelOpen(container, 'model', !isPanelOpen(container));
-        return;
-      }
-      if (target.id === 'model-depth-btn') {
-        event.preventDefault();
-        if (target.disabled) return;
-        setPanelOpen(container, 'depth', !isDepthOpen(container));
-        return;
-      }
-      if (target.dataset.mpTab) {
-        const wantCouncil = target.dataset.mpTab === 'council';
-        conv.council = normalizeCouncilConfig(conv.council);
-        if (conv.council.enabled === wantCouncil) return;
-        if (getIsCouncilRunning()) { notifyLocked(container); return; }
-        conv.council.enabled = wantCouncil;
-        if (wantCouncil) seedCouncilParticipants(conv);
-        view = 'main';
-        query = '';
-        commitCouncil(conv);
-        renderCouncilControls();
-        if (wantCouncil && !conv.isWebSearchEnabled) offerSearch(conv);
-        return;
-      }
-      if (target.dataset.mpModel) {
-        if (await chooseModel(target.dataset.mpModel)) {
-          container.querySelector('#model-picker-popover')?.classList.remove('visible');
-          container.querySelector('#model-picker-btn')?.setAttribute('aria-expanded', 'false');
-          renderCouncilControls({ open: false });
-        }
-        return;
-      }
-      if (target.dataset.mpGroupApply !== undefined) {
-        const config = getConfig();
-        const group = groupsOf(config).find((item) => item.id === target.dataset.mpGroupApply);
-        if (!group || !group.participantModelIds.length) return;
-        if (getIsCouncilRunning()) { notifyLocked(container); return; }
-        conv.council = normalizeCouncilConfig(conv.council);
-        conv.council.participantModelIds = group.participantModelIds.slice(0, councilMaxModels);
-        if (group.synthesizerModelId) conv.council.synthesizerModelId = group.synthesizerModelId;
-        if (view === 'groups') view = 'main';
-        commitCouncil(conv);
-        renderCouncilControls({ open: 'model' });
-        return;
-      }
-      if (target.dataset.mpGroupSave !== undefined) {
-        const council = normalizeCouncilConfig(conv.council);
-        await addGroup(getConfig(), { participantModelIds: council.participantModelIds.slice(), synthesizerModelId: council.synthesizerModelId });
-        renderCouncilControls({ open: 'model' });
-        return;
-      }
-      if (target.dataset.mpGroupNew !== undefined) {
-        const group = await addGroup(getConfig(), {});
-        if (group) {
-          pickGroupId = group.id;
-          view = 'members';
-          query = '';
-        }
-        renderCouncilControls({ open: 'model' });
-        return;
-      }
-      if (target.dataset.mpGroupEdit || target.dataset.mpGroupEditCombiner) {
-        pickGroupId = target.dataset.mpGroupEdit || target.dataset.mpGroupEditCombiner;
-        view = target.dataset.mpGroupEdit ? 'members' : 'combiner';
-        query = '';
-        renderCouncilControls({ open: 'model' });
-        return;
-      }
-      if (target.dataset.mpGroupDelete) {
-        const config = getConfig();
-        await saveGroups(config, groupsOf(config).filter((group) => group.id !== target.dataset.mpGroupDelete));
-        renderCouncilControls({ open: 'model' });
-        return;
-      }
-      if (target.dataset.mpOpen) {
-        pickGroupId = null;
-        view = target.dataset.mpOpen;
-        query = '';
-        renderCouncilControls({ open: 'model' });
-        return;
-      }
-      if ('mpBack' in target.dataset) {
-        // Back from a group's own list goes to the groups page, otherwise to the council page.
-        view = pickGroupId ? 'groups' : 'main';
-        pickGroupId = null;
-        query = '';
-        renderCouncilControls({ open: 'model' });
-        return;
-      }
-      if (target.dataset.mpRemove) {
-        if (getIsCouncilRunning()) { notifyLocked(container); return; }
-        conv.council.participantModelIds = conv.council.participantModelIds.filter((id) => id !== target.dataset.mpRemove);
-        commitCouncil(conv);
-        return;
-      }
-      if (target.dataset.mpMode) {
-        if (getIsCouncilRunning()) { notifyLocked(container); return; }
-        conv.council.mode = target.dataset.mpMode;
-        commitCouncil(conv);
-      }
-    });
-
-    container.addEventListener('change', async (event) => {
-      const input = event.target;
-      const conv = getActiveConversation();
-      if (!conv || !input?.matches) return;
-      conv.council = normalizeCouncilConfig(conv.council);
-      const guarded = () => {
-        if (!getIsCouncilRunning()) return false;
-        notifyLocked(container);
-        return true;
-      };
-      if (input.matches('[data-mp-group-name]')) {
-        const config = getConfig();
-        const groups = groupsOf(config);
-        const index = groups.findIndex((group) => group.id === input.dataset.mpGroupName);
-        if (index < 0) return;
-        const name = input.value.trim().slice(0, GROUP_NAME_LIMIT)
-          || modelPickerText(config.uiLanguage, 'groupDefaultName', { n: index + 1 });
-        await updateGroup(config, input.dataset.mpGroupName, { name });
-        renderCouncilControls({ open: 'model' });
-      } else if (pickGroupId && input.matches('[data-mp-member], [data-mp-combiner]')) {
-        const config = getConfig();
-        const group = groupsOf(config).find((item) => item.id === pickGroupId);
-        if (!group) return;
-        if (input.matches('[data-mp-member]')) {
-          const ids = new Set(group.participantModelIds);
-          if (input.checked) {
-            if (ids.size >= councilMaxModels) {
-              showNotification(getCouncilTexts().tooMany, 'warning');
-              renderCouncilControls({ open: 'model' });
-              return;
-            }
-            ids.add(input.dataset.mpMember);
-          } else {
-            ids.delete(input.dataset.mpMember);
-          }
-          await updateGroup(config, group.id, { participantModelIds: [...ids] });
-        } else if (input.checked) {
-          await updateGroup(config, group.id, { synthesizerModelId: input.dataset.mpCombiner });
-          view = 'groups';
-          pickGroupId = null;
-          query = '';
-        }
-        renderCouncilControls({ open: 'model' });
-      } else if (input.matches('[data-mp-member]')) {
-        if (guarded()) return;
-        const ids = new Set(conv.council.participantModelIds);
-        if (input.checked) {
-          if (ids.size >= councilMaxModels) {
-            showNotification(getCouncilTexts().tooMany, 'warning');
-            renderCouncilControls();
-            return;
-          }
-          ids.add(input.dataset.mpMember);
-        } else {
-          ids.delete(input.dataset.mpMember);
-        }
-        conv.council.participantModelIds = [...ids];
-        commitCouncil(conv);
-      } else if (input.matches('[data-mp-combiner]')) {
-        if (guarded() || !input.checked) return;
-        conv.council.synthesizerModelId = input.dataset.mpCombiner;
-        view = 'main';
-        query = '';
-        commitCouncil(conv);
-        renderCouncilControls();
-      } else if (input.matches('[data-mp-raw]')) {
-        if (guarded()) return;
-        conv.council.showRawResponses = input.checked;
-        commitCouncil(conv);
-      } else if (input.matches('[data-mp-comparison]')) {
-        if (guarded()) return;
-        conv.council.showComparisonTable = input.checked;
-        commitCouncil(conv);
-      } else if (input.matches('[data-mp-search-toggle]')) {
-        if (guarded()) return;
-        conv.isWebSearchEnabled = input.checked;
-        await saveAppData();
-        renderCouncilControls();
-        renderInputIndicators();
-      } else if (input.matches('[data-mp-depth-input]')) {
-        // Let go: the thumb settles on the nearest dot and that level is kept.
-        await commitDepth(container, input, Math.round(Number(input.value)));
-      }
-    });
-
-    container.addEventListener('input', (event) => {
-      const input = event.target;
-      if (input?.matches?.('[data-mp-search]')) {
-        query = input.value;
-        applySearch(container);
-      } else if (input?.matches?.('[data-mp-depth-input]')) {
-        // It goes to the nearest dot at once, with a tick where the hardware has one.
-        paintDepth(input, Math.round(Number(input.value)), { tick: true });
-      }
-    });
-
-    container.addEventListener('toggle', (event) => {
-      if (event.target?.matches?.('.mp-more')) moreOpen = Boolean(event.target.open);
-    }, true);
-
-    container.addEventListener('keydown', (event) => {
-      if (event.target?.matches?.('[data-mp-depth-input]') && DEPTH_KEYS[event.key]) {
-        event.preventDefault();
-        const input = event.target;
-        const last = Math.max(1, Number(input.max));
-        const current = Math.round(Number(input.value));
-        const step = DEPTH_KEYS[event.key];
-        commitDepth(container, input, step === 'first' ? 0 : step === 'last' ? last : Math.min(last, Math.max(0, current + step)));
-        return;
-      }
-      if (event.key === 'Escape' && (isPanelOpen(container) || isDepthOpen(container))) {
-        if (event.target?.matches?.('[data-mp-search]') && event.target.value) {
-          event.target.value = '';
-          query = '';
-          applySearch(container);
-        } else {
-          const depth = isDepthOpen(container);
-          setPanelOpen(container, depth ? 'depth' : 'model', false);
-          container.querySelector(depth ? '#model-depth-btn' : '#model-picker-btn')?.focus();
-        }
-        event.stopPropagation();
-      }
+    bindCouncilControlEvents(container, {
+    DEPTH_KEYS, addGroup, applySearch, chooseModel, commitCouncil, commitDepth, councilMaxModels, document, fitPanel,
+    getActiveConversation, getConfig, getCouncilTexts, getIsCouncilRunning, groupsOf, isDepthOpen, isPanelOpen, normalizeCouncilConfig,
+    notifyLocked, offerSearch, paintDepth, renderCouncilControls, renderInputIndicators, saveAppData, saveGroups, seedCouncilParticipants,
+    setPanelOpen, showNotification, ui, updateGroup
     });
   }
 
@@ -864,8 +380,8 @@ export function createCouncilControlsLifecycle(deps) {
       commitCouncil(conv);
     }
     closeAllPopovers();
-    view = 'main';
-    query = '';
+    ui.view = 'main';
+    ui.query = '';
     fitPhonePanel(container);
     renderCouncilControls({ open: 'model' });
     return true;

@@ -866,6 +866,11 @@ const RETIRED = {
 
 // The parts a file was later split into (NOU-75) hold what it held, so what may not come back to it may not come back to them either.
 const PARTS = {
+  'src/app/legacy-runtime/features/council-controls-lifecycle.js': [
+    'src/app/legacy-runtime/features/council-controls-events.js',
+    'src/app/legacy-runtime/features/council-controls-view-state.js',
+    'src/app/legacy-runtime/features/council-controls-choices.js'
+  ],
   'src/app/runtime/legacy-core/legacy-core.js': [
     'src/app/runtime/legacy-core/shell-state.js',
     'src/app/runtime/legacy-core/conversation-actions.js',
