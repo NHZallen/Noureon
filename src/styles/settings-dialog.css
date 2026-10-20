@@ -1,7 +1,8 @@
-/* The stylesheets that only the settings dialog uses. They load with the dialog (settings-modal-lifecycle.js), not with the page,
-   keeping the startup CSS small. personalization.css, settings.css and permissions.css also style the rest of the page and stay in
-   main.css. This sheet is added after the page's, so it repeats, in the order of main.css, every page sheet that came after one of
-   these: they keep winning over them as they did (the same rules twice change nothing else). */
+/* The stylesheets the settings dialog uses that the page does not load (settings-modal-lifecycle.js loads this with the dialog).
+   personalization.css and settings.css also style the rest of the page and stay in main.css. This sheet is added after the page's,
+   so it repeats, in the order of main.css, every page sheet that came after one of these: they keep winning over them as they did
+   (the same rules twice change nothing else). update-log.css, permissions.css and conversation-search.css also load by themselves
+   with the parts that use them. */
 @import './settings-cards.css';
 @import './update-log.css';
 @import './input-polish.css';

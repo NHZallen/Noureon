@@ -1,3 +1,6 @@
+/* The permission rows and the licenses (src/styles/permissions.css) that this page shows too load with it, not with the page. */
+@import '../../../styles/permissions.css';
+
 /* The Extensions page (擴充: skills and CLI tools; it began as the CLI tools' store). Black and white; rows with the action on the right, as the directories of
    ChatGPT (Apps) and Claude (Connectors) have them. The fades at the edges are strips laid over the edge, as the chat's. */
 

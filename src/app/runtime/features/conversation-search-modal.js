@@ -3,8 +3,16 @@
 
 export function setupConversationSearchModal({
     window, document, elements: ALL_ELEMENTS, i18n, config, toggleModal, performSearchAndRenderResults,
-    scheduleAnimationFrame, scheduleTimeout, clearScheduledTimeout
+    scheduleAnimationFrame, scheduleTimeout, clearScheduledTimeout,
+    // The dialog's stylesheet loads the first time it opens, not with the page; it opens plain if the sheet cannot be loaded.
+    loadStyles = () => import('../../../styles/conversation-search.css'),
+    logger = console
 }) {
+    let stylesLoaded = null;
+    const ensureStyles = () => stylesLoaded ||= Promise.resolve().then(loadStyles).catch((error) => {
+        stylesLoaded = null;
+        logger?.warn?.('Loading the styles of the search failed.', error);
+    });
     const searchToolbar = ALL_ELEMENTS.modalSearchInput.parentElement;
     const searchHeader = ALL_ELEMENTS.closeSearchModalBtn.parentElement;
     searchToolbar?.classList.add('conversation-search-toolbar');
@@ -119,7 +127,7 @@ export function setupConversationSearchModal({
     syncSearchViewport();
     window.visualViewport?.addEventListener('resize', queueSearchViewportSync);
     window.visualViewport?.addEventListener('scroll', queueSearchViewportSync);
-    ALL_ELEMENTS.openSearchBtn.addEventListener('click', () => {
+    ALL_ELEMENTS.openSearchBtn.addEventListener('click', () => ensureStyles().then(() => {
         syncSearchViewport();
         toggleModal(ALL_ELEMENTS.searchModal, true);
         ALL_ELEMENTS.openSearchBtn.classList.add('active'); // <-- ✨ 加上這一行
@@ -133,7 +141,7 @@ export function setupConversationSearchModal({
             }
             queueSearchViewportSync();
         });
-    });
+    }));
     ALL_ELEMENTS.closeSearchModalBtn.addEventListener('click', () => {
         toggleModal(ALL_ELEMENTS.searchModal, false);
         ALL_ELEMENTS.openSearchBtn.classList.remove('active'); // <-- ✨ 加上這一行

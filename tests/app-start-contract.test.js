@@ -191,14 +191,11 @@ test('main css is an ordered split manifest with every imported file under the s
     'generated-image-set.css',
     'modals.css',
     'personalization.css',
-    'update-log.css',
     'input-polish.css',
     'quote-inquiry.css',
     'model-council.css',
     'charts.css',
     'settings.css',
-    'permissions.css',
-    'conversation-search.css',
     'regression-overrides.css',
     'desktop-composer-layout.css',
     'mobile.css',
@@ -227,13 +224,17 @@ test('main css is an ordered split manifest with every imported file under the s
 
   // The sheets only the settings dialog uses load with it (settings-dialog.css); it is added last, so it repeats, in the same order, the
   // page sheets that came after the first of them, which keep winning over them.
-  const dialogOnly = ['settings-cards.css', 'settings-mobile.css', 'settings-api-keys.css', 'settings-output-translator.css',
-    'settings-theme-bubble.css', 'settings-desktop.css', 'settings-danger.css'];
+  const dialogOnly = ['settings-cards.css', 'update-log.css', 'settings-mobile.css', 'settings-api-keys.css', 'settings-output-translator.css',
+    'settings-theme-bubble.css', 'settings-desktop.css', 'settings-danger.css', 'permissions.css', 'conversation-search.css'];
   const dialogImports = [...readSource('src/styles/settings-dialog.css').matchAll(/@import\s+['"]\.\/(.+?)['"];/g)].map((match) => match[1]);
   assert.deepEqual(dialogImports.filter((name) => !imports.includes(name)), dialogOnly);
-  assert.deepEqual(dialogImports.filter((name) => imports.includes(name)), imports.slice(imports.indexOf('update-log.css')));
+  assert.deepEqual(dialogImports.filter((name) => imports.includes(name)), imports.slice(imports.indexOf('input-polish.css')));
   for (const name of dialogOnly) assert.ok(statSync(projectFile(`src/styles/${name}`)).size > 0, `${name} should not be empty`);
   assert.match(readSource('src/app/runtime/legacy-core/settings-modal-lifecycle.js'), /import\('\.\.\/\.\.\/\.\.\/styles\/settings-dialog\.css'\)/);
+  // The other sheets of parts that open on an action load with them.
+  assert.match(readSource('src/app/runtime/features/conversation-search-modal.js'), /import\('\.\.\/\.\.\/\.\.\/styles\/conversation-search\.css'\)/);
+  assert.match(readSource('src/app/runtime/features/latest-update-notice.js'), /import\('\.\.\/\.\.\/\.\.\/styles\/update-log\.css'\)/);
+  assert.match(readSource('src/app/ui/cli/cli-store.css'), /@import '\.\.\/\.\.\/\.\.\/styles\/permissions\.css';/);
 });
 
 test('the vendor bridge puts the libraries where the older code looks for them, and loads the archive and sharing ones on demand', async () => {

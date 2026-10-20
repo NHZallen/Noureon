@@ -14,14 +14,11 @@
 @import './generated-image-set.css';
 @import './modals.css';
 @import './personalization.css';
-@import './update-log.css';
 @import './input-polish.css';
 @import './quote-inquiry.css';
 @import './model-council.css';
 @import './charts.css';
 @import './settings.css';
-@import './permissions.css';
-@import './conversation-search.css';
 @import './regression-overrides.css';
 @import './desktop-composer-layout.css';
 @import './mobile.css';
@@ -30,6 +27,7 @@
 @import './busy-feedback.css';
 @import './typography.css';
 
-/* Ordered CSS split manifest. Keep imports in the original cascade order. The settings dialog's stylesheets load with the dialog
-   (settings-dialog.css). */
+/* Ordered CSS split manifest. Keep imports in the original cascade order. Some sheets load with the part that uses them, not with
+   the page: the settings dialog's (settings-dialog.css), the search dialog's when it opens (conversation-search.css), the new-version
+   window's when it shows (update-log.css), and the permission rows with the settings and the Extensions page (permissions.css). */
 @import './dark-bridge.css';

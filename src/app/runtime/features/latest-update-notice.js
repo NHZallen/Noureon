@@ -4,7 +4,11 @@ import { compareVersions } from '../../legacy-runtime/features/version-compare.j
 import { localizeUpdateLogs } from '../../../data/update-logs/translations.js';
 import { renderLatestUpdates } from '../../ui/updates/update-log-view.js';
 
-export function createLatestUpdateNotice({ document, elements: ALL_ELEMENTS, state, i18n, updateLogs, productVersion, sanitizeTrustedHTML, toggleModal, saveConfig }) {
+export function createLatestUpdateNotice({
+    document, elements: ALL_ELEMENTS, state, i18n, updateLogs, productVersion, sanitizeTrustedHTML, toggleModal, saveConfig,
+    // The window's stylesheet loads when it is shown, not with the page; it shows plain if the sheet cannot be loaded.
+    loadStyles = () => import('../../../styles/update-log.css').catch((error) => console.warn('Loading the styles of the update notes failed.', error))
+}) {
     const checkAndShowLatestUpdate = async () => {
         if (!state.config.enableUpdateNotifications || typeof updateLogs === 'undefined' || updateLogs.length === 0) {
             return;
@@ -19,7 +23,7 @@ export function createLatestUpdateNotice({ document, elements: ALL_ELEMENTS, sta
                 modalTitle.textContent = i18n[state.config.uiLanguage].newVersionsFound.replace('{count}', newUpdates.length);
             }
             // The notes are written in Traditional Chinese; the other languages are loaded as they are asked for (data/update-logs/translations.js).
-            const shown = await localizeUpdateLogs(newUpdates, state.config.uiLanguage);
+            const [shown] = await Promise.all([localizeUpdateLogs(newUpdates, state.config.uiLanguage), loadStyles()]);
             renderLatestUpdates({ document, container: contentContainer, logs: shown, sanitize: sanitizeTrustedHTML });
             toggleModal(ALL_ELEMENTS.latestUpdateModal, true);
             const latestVersionInLog = newUpdates[0].version; // 因為我們已經排序了，所以 newUpdates[0] 現在是最新版

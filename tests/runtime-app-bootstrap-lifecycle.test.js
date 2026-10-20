@@ -405,7 +405,8 @@ test('search opens and focuses within one animation frame without scrolling the 
 
   await initChatApp();
   harness.calls.length = 0;
-  findListener(harness.listeners, 'openSearchBtn', 'click')();
+  // The dialog's stylesheet is loaded first (the first time it opens).
+  await findListener(harness.listeners, 'openSearchBtn', 'click')();
 
   const openIndex = harness.calls.indexOf('toggleModal:searchModal:true');
   const frameIndex = harness.calls.indexOf('scheduleAnimationFrame');
