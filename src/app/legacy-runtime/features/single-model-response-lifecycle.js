@@ -1,46 +1,44 @@
+// A reply of one model, from the message sent to the text saved. The stages, each a module of its own:
+//   single-model-reply-prepare.js     what kind of reply it is (Advanced mode, who searches, tools, skills, whether the server makes it)
+//   single-model-reply-server.js      handed over to the server and followed
+//   single-model-reply-local.js       made on this device (Python in the browser, or a stream of words)
+//   single-model-reply-live-view.js   the step list and the thinking while it is made
+//   single-model-reply-finish.js      the run record and the text saved
+// This file joins them, and draws the wait row before the first words.
+
 import { addNumberedSources } from '../../ui/citations/source-numbering.js';
-import { insertGroundingMarkers } from '../../ui/citations/citation-model.js';
 import { watchCitations } from '../../ui/citations/citation-pills.js';
-import { extractLinkedUrls } from './linked-pages.js';
 import { patchHTML } from '../../ui/dom/patch-html.js';
 import { getRuntimeText } from '../../runtime/i18n/runtime-texts.js';
 import { NOURAS_REQUEST_PURPOSE } from '../../runtime/nouras/nouras-policy.js';
-import { resolveReplyMode } from '../../runtime/sandbox/file-mode.js';
-import { opencodeModelReadsOfficeViaPdf } from '../../runtime/legacy-core/opencode-models.js';
-import { browserSupportsSandbox } from '../../runtime/sandbox/sandbox-protocol.js';
-import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
-import { cliIdsForReply } from '../../runtime/cli/cli-state.js';
-import { getAvailableSkills, lookupSkill, openSkillFiles, readSkillFile, resolveInvokedSkills } from '../../runtime/skill/skill-bridge.js';
-import { invokedSkillsInstruction, skillNamesOfParts } from '../../../data/skill-prompt.js';
-import { decisionsFor, verdictOf } from '../../runtime/decisions/decision-store.js';
-import { createCredentialAnswerHandler } from '../../runtime/cli/credential-answer.js';
-import { createConnectorAnswerHandler } from '../../runtime/connector/connector-answer.js';
-import { createNetAnswerHandler } from '../../runtime/cli/net-answer.js';
-import { mayNeedFileGuidance } from '../../ui/files/file-intent.js';
-import { formatSandboxRunBlock } from '../../ui/sandbox/sandbox-run-block.js';
-import { collectSandboxInputs, createSandboxFileParts, registerSandboxFileParts, sandboxDocumentBlocks, sandboxDocumentNames, withoutDuplicatedFileBlocks, withoutEmptyDocumentBlocks } from '../../ui/sandbox/sandbox-files.js';
-import { createSandboxLedger } from '../../ui/sandbox/sandbox-ledger.js';
-import { createThinkingBlock } from '../../ui/thinking/thinking-block.js';
+import { looksLikeFileTask, prepareReply } from './single-model-reply-prepare.js';
+import { followServerReply, handOverToServer } from './single-model-reply-server.js';
+import { createLocalReply } from './single-model-reply-local.js';
+import { createReplyLiveView } from './single-model-reply-live-view.js';
+import { composeReplyText, recordReplyRun } from './single-model-reply-finish.js';
 
-// Advanced mode (Python in the browser) is loaded only for replies that use it.
-const loadSandboxReply = () => Promise.all([
-  import('../../runtime/sandbox/sandbox-reply.js'),
-  import('../../runtime/sandbox/python-sandbox.js')
-]);
-
-// A switch to Standard mode is worth saying only when the request looks like
-// a task Advanced mode is for: files, data or attachments.
-// The Decisions model's judgement of the message decides when there is one (decision-client.js), the word lists otherwise.
-// What the server says it is doing with the message's files and addresses, as the stage the wait row draws (the page's own names for them).
-const DOCUMENT_STAGES = { reading: 'fileReading', pdf: 'makingPdf', translating: 'documentTranslation', links: 'linkedPages' };
-const textOfParts = (parts = []) => parts.map((part) => part?.text || '').join('\n');
-const looksLikeFileTask = (parts = []) => parts.some((part) => part?.inlineData)
-  || (verdictOf(decisionsFor(textOfParts(parts)), 'file') ?? mayNeedFileGuidance(textOfParts(parts)));
-
-// Files in the conversation (attached by the person, or made by Python): a follow-up may well be about them.
-const conversationHasFiles = (conversation) => (conversation?.messages || []).some((message) => (
-  (message?.parts || []).some((part) => part?.inlineData || part?.sandboxFile)
-));
+// What a reply makes as it goes: the request as it stands, the pages searched (kept with the reply, shown as "Searched N sites"), its run record,
+// its files and documents, and where the provider's own search cites its pages.
+const createReplyRecord = ({ userParts, synthesis, replyMode }) => {
+  const reply = {
+    requestParts: userParts,
+    searchSources: Array.isArray(synthesis?.sources) ? [...synthesis.sources] : [],
+    // The provider's own web search (Gemini) reports the pages it used as the answer streams; rounds add to them. A page that was found
+    // and then read is both, so each is kept once.
+    addSearchSources: (found) => {
+      reply.searchSources = addNumberedSources(reply.searchSources, found);
+    },
+    groundingSupports: [],
+    // The run record (or the reason for Standard mode) kept above the answer.
+    sandboxRun: !replyMode.advanced && replyMode.reason && looksLikeFileTask(userParts)
+      ? { status: 'done', steps: [], fallback: replyMode.reason }
+      : null,
+    // Files the run made, kept as parts of the reply message, and documents the code handed to the design system, as file blocks.
+    sandboxParts: [],
+    sandboxDocuments: ''
+  };
+  return reply;
+};
 
 export function createSingleModelResponseLifecycle({
   now = () => Date.now(),
@@ -140,450 +138,71 @@ export function createSingleModelResponseLifecycle({
       elapsedMs: 0,
       receivedChars: 0
     };
-
-    const replyMode = supportsToolCalling ? resolveReplyMode({
-      conversation,
-      config: getConfig(),
-      modelInfo,
-      supportsToolCalling,
-      browserSupported: browserSupportsSandbox(getWindow())
-    }) : { advanced: false, reason: null };
-    // A model that calls tools searches the web by itself, in a Standard reply and next to Python in Advanced mode (the search
-    // packet is for the others).
-    const researchByModel = Boolean(webSearchEnabled && webResearch?.canUse(modelInfo));
-    // A web address in the message is read for the models that cannot open one (provider-request-support.js decides which). Not when the person
-    // chose a CLI tool with "@" and the model searches and opens pages by itself: the address is the tool's, and the model reads it if it needs to.
-    const addressIsForTool = Boolean(synthesis) || (researchByModel && Boolean(supportsToolCalling?.(modelInfo)) && cliIdsForReply(getConfig(), userParts).chosen.length > 0);
-    // Whether the server makes this reply, and so (for a model that cannot search) the search too: the page then only prepares the files and
-    // pages of the message. When the server does not take the reply, the search is made here, below.
-    const canCallTools = Boolean(supportsToolCalling?.(modelInfo));
-    // The tools the model may use by itself are only given when the message is judged to need one; the ones chosen with "@" always are.
-    const ownToolsAllowed = verdictOf(decisionsFor(textOfParts(userParts)), 'tool') !== false;
-    const cli = canCallTools ? cliIdsForReply(getConfig(), userParts, { ownAllowed: ownToolsAllowed }) : { chosen: [], ids: [] };
-    // The skills asked for with "/" in this message are given to the model in full, with this reply only (whatever the kind of reply: they go in the
-    // system instructions, which the server is sent as they are).
-    // A search the provider makes itself (some refuse our tools next to it) or a search packet put in front of the request: no skill tool then.
-    const ownSearchReply = Boolean(webSearchEnabled && !researchByModel);
-    // The files of a skill asked for are told about only when the model has a tool to read them.
-    const invokedSkills = await resolveInvokedSkills(skillNamesOfParts(userParts));
-    const filesNote = canCallTools && !ownSearchReply && invokedSkills.some((skill) => skill.files?.length) ? (await import('../../../data/skill-files-note.js')).skillFilesNote : null;
-    const skillInstruction = invokedSkillsInstruction(invokedSkills, { filesNote });
-    const skillOptions = skillInstruction ? { additionalSystemInstruction: skillInstruction } : {};
-    // The skills the model may load by itself (the ones it is told about, and not those it was just given whole): only for a model that calls tools.
-    const availableSkills = canCallTools ? await getAvailableSkills(skillNamesOfParts(userParts)) : [];
-    const { createSkillLoader } = availableSkills.length && !ownSearchReply ? await import('../../../data/skill-tool.js') : {};
-    const makeSkillLoader = (lookup = lookupSkill) => (createSkillLoader ? createSkillLoader({ available: availableSkills, lookup, readFile: readSkillFile }) : null);
-    // Advanced mode is the default, so most replies are "advanced" by the setting alone. Python is only needed when the request is
-    // about files or data, or the conversation already has some; any other reply is the same without it, and the server makes it.
-    // The CLI tools chosen with "@" (and those the person lets the model use by itself) run in the same sandbox, so they need it whatever the
-    // setting says; a model that cannot call tools cannot use them.
-    const needsPython = cli.ids.length > 0 || (replyMode.advanced && (looksLikeFileTask(userParts) || conversationHasFiles(conversation)));
-    // (The synthesis of a council held here is made here too.)
-    // The files and the addresses of the message are prepared (read, written down by the translator model, fetched) by the server when it makes the reply,
-    // so the reply goes on when the page is closed; when it does not take the reply, they are prepared here, below (docs/superpowers/specs/2026-10-20-server-document-prep-design.md).
-    const readsAddresses = !addressIsForTool && verdictOf(decisionsFor(textOfParts(userParts)), 'url') !== false;
-    const hasAddresses = readsAddresses && extractLinkedUrls(textOfParts(userParts)).urls.length > 0;
-    const hasAttachments = userParts.some((part) => part.inlineData);
-    const plan = !resumeRun && !synthesis && serverReply && assistantMessageId
-      ? serverReply.plan({ conversation, advanced: needsPython, webSearchEnabled, researchByModel, provider: modelInfo?.provider, documentsToPrepare: hasAttachments || hasAddresses,
-        // A Word or PowerPoint file for a model that reads it better as a PDF: only the server makes the PDF, so it prepares the files then.
-        officeViaPdf: userParts.some((part) => part?.inlineData && opencodeModelReadsOfficeViaPdf(modelInfo, part.inlineData.mimeType)) })
-      : null;
-    const serverSearches = plan?.ok && plan.webSearch === 'packet';
-    const serverPrepares = Boolean(plan?.ok && plan.documents);
-    const hasTranslationInputs = !resumeRun && !serverPrepares && (hasAttachments ||
-      Boolean(webSearchEnabled && !researchByModel && !serverSearches) ||
-      hasAddresses);
-    let requestParts = userParts;
-    // The pages a web search found (kept with the reply, shown as "Searched N sites").
-    let searchSources = Array.isArray(synthesis?.sources) ? [...synthesis.sources] : [];
-    // The provider's own web search (Gemini) reports the pages it used as the answer streams; rounds add to them. A page
-    // that was found and then read is both, so each is kept once.
-    const addSearchSources = (found) => {
-      searchSources = addNumberedSources(searchSources, found);
-    };
-    // Where Gemini's answer cites its pages, kept until the answer is whole (the markers go into the text then).
-    let groundingSupports = [];
-    const withGroundingMarkers = (answer) => (groundingSupports.length
-      ? insertGroundingMarkers(answer, groundingSupports, (url) => Number(searchSources.find((source) => source.url === url)?.n) || 0)
-      : answer);
-    if (hasTranslationInputs) {
-      renderProgress(
-        targetElement,
-        startedAt,
-        'preparing',
-        'Checking model capabilities'
-      );
-      startTicker(targetElement, startedAt);
-      requestParts = await buildSingleModelTranslatedRequestParts(
-        userParts,
-        modelInfo,
-        signal,
-        (stage, message) => renderProgress(targetElement, startedAt, stage, message),
-        {
-          webSearchEnabled: webSearchEnabled && !researchByModel && !serverSearches,
-          readLinkedPages: !addressIsForTool && verdictOf(decisionsFor(textOfParts(userParts)), 'url') !== false,
-          conversation,
-          // The pages a search found, and then the pages that were read (marked `read`).
-          onSources: (sources) => {
-            addSearchSources(sources);
-          }
-        }
-      );
-    }
-
-    // The server makes the reply when it can (settings, the kind of reply and the account allow it, and it takes it); the page then
-    // only follows what the server writes. Otherwise it is made here, as always.
-    let serverRun = resumeRun;
-    // The server was asked and did not take the reply: it is made on this device, and the reply says so.
-    let madeHere = false;
-    if (!serverRun && plan) {
-      // A tool was chosen but cannot be used for this reply: the person is told (the reply is made without it).
-      if (!canCallTools && cliIdsForReply(getConfig(), userParts).chosen.length) serverReply.notify('cli-tool-model', uiLanguage);
-      else if (!plan.ok && cli.chosen.length) serverReply.notify('cli-local', uiLanguage);
-      if (plan.ok) {
-        const started = await serverReply.start({
-          conversation,
-          modelInfo,
-          requestParts,
-          webSearch: plan.webSearch,
-          // Python runs on the server too: with the Design menu's choices and the files attached to this message.
-          advanced: Boolean(plan.advanced),
-          // The check of a presentation the reply writes: asked of the server when the page's setting is on and the model can see images.
-          visionCheck: getConfig().visionCheckEnabled !== false && modelInfo?.outputModality !== 'image' && supportsVision?.(modelInfo)
-            ? { deckDesign: conversation?.deckDesign || 'auto', advanced: replyMode.advanced }
-            : null,
-          designs: { deck: conversation?.deckDesign || 'auto', document: conversation?.documentDesign || 'auto' },
-          cli: cli.ids,
-          cliChosen: cli.chosen,
-          skills: ownSearchReply ? [] : availableSkills,
-          // The connectors of the person (a model that calls tools, not with the provider's own search): the server reads which ones are connected.
-          connectors: canCallTools && !ownSearchReply,
-          // The message goes as the person sent it; the server prepares its files and addresses (the translator is the one set in Settings).
-          documents: serverPrepares ? { linkedPages: hasAddresses } : null,
-          inputs: userParts.filter((part) => part?.inlineData?.data).map((part) => ({
-            name: part.inlineData.name || `attachment.${String(part.inlineData.mimeType || '').split('/')[1] || 'bin'}`,
-            mimeType: part.inlineData.mimeType || '',
-            data: part.inlineData.data
-          })),
-          assistantMessageId,
-          sequence,
-          uiLanguage,
-          config: getConfig(),
-          requestOptions: { onMemoryContextResolved, requestPurpose: NOURAS_REQUEST_PURPOSE.USER_VISIBLE_ANSWER, ...skillOptions },
-          getHistorySourceIds
-        });
-        if (started.ok) serverRun = started.run;
-        // Not taken because it could not be reached or was busy: the reply is made here, and its line says so (no notice over the page). Its sandbox
-        // down: said over the page too (nothing else would tell why closing the page ends a reply with Python).
-        else if (started.notify === 'unreachable' || started.notify === 'busy' || started.notify === 'sandbox') {
-          madeHere = true;
-          if (started.notify === 'sandbox') serverReply.notify('sandbox', uiLanguage);
-        }
-        else if (started.notify) serverReply.notify(started.notify, uiLanguage);
-      }
-    }
-    // The server did not take the reply (or there is no account to make it with): the search it was to make, and the files and addresses it was to
-    // prepare, are done here, as before (the files not yet prepared: the message is prepared whole, not added to).
-    const preparesHere = serverPrepares && !serverRun;
-    if ((serverSearches || preparesHere) && !serverRun) {
+    const request = { userParts, modelInfo, conversation, webSearchEnabled, onMemoryContextResolved, signal, uiLanguage, assistantMessageId, sequence, getHistorySourceIds, resumeRun, synthesis };
+    const progress = (stage, message, extra) => renderProgress(targetElement, startedAt, stage, message, extra);
+    // The wait row while the files, the search packet and the addresses of the message are prepared on this page.
+    const prepareHere = (options) => {
       stop();
-      renderProgress(targetElement, startedAt, 'preparing', 'Checking model capabilities');
+      progress('preparing', 'Checking model capabilities');
       startTicker(targetElement, startedAt);
-      requestParts = await buildSingleModelTranslatedRequestParts(userParts, modelInfo, signal, (stage, message) => renderProgress(targetElement, startedAt, stage, message), {
-        webSearchEnabled: Boolean(webSearchEnabled && !researchByModel),
-        readLinkedPages: readsAddresses,
-        ...(preparesHere ? {} : { baseParts: requestParts }),
-        conversation,
-        onSources: (sources) => {
-          addSearchSources(sources);
-        }
+      return buildSingleModelTranslatedRequestParts(userParts, modelInfo, signal, (stage, message) => progress(stage, message), { conversation, onSources: reply.addSearchSources, ...options });
+    };
+
+    // 1. What kind of reply this is.
+    const prep = await prepareReply({ getConfig, supportsToolCalling, webResearch, serverReply, getWindow }, request);
+    const { replyMode, researchByModel, serverSearches, serverPrepares } = prep;
+    const reply = createReplyRecord({ userParts, synthesis, replyMode });
+    if (prep.hasTranslationInputs) {
+      reply.requestParts = await prepareHere({
+        webSearchEnabled: webSearchEnabled && !researchByModel && !serverSearches,
+        readLinkedPages: prep.readsAddresses
       });
     }
 
-    let receivedChars = 0;
-    let bufferedResponse = '';
-    let lastProgressAt = 0;
-    const updateStreamingProgress = (chunk) => {
-      const text = String(chunk || '');
-      bufferedResponse += text;
-      receivedChars += text.length;
-      const currentTime = now();
-      if (currentTime - lastProgressAt > 700) {
-        lastProgressAt = currentTime;
-        renderProgress(
-          targetElement,
-          startedAt,
-          'streaming',
-          undefined,
-          { receivedChars }
-        );
-      }
-    };
+    // 2. The server makes the reply when it can (settings, the kind of reply and the account allow it, and it takes it); the page then only
+    // follows what the server writes. Otherwise it is made here, as always.
+    let serverRun = resumeRun;
+    // The server was asked and did not take the reply: it is made on this device, and the reply says so.
+    let madeHere = false;
+    if (!serverRun && prep.plan) {
+      ({ serverRun, madeHere } = await handOverToServer({ serverReply, getConfig, supportsVision }, { ...request, requestParts: reply.requestParts }, prep));
+    }
+    // The server did not take the reply (or there is no account to make it with): the search it was to make, and the files and addresses it
+    // was to prepare, are done here, as before (the files not yet prepared: the message is prepared whole, not added to).
+    const preparesHere = serverPrepares && !serverRun;
+    if ((serverSearches || preparesHere) && !serverRun) {
+      reply.requestParts = await prepareHere({
+        webSearchEnabled: Boolean(webSearchEnabled && !researchByModel),
+        readLinkedPages: prep.readsAddresses,
+        ...(preparesHere ? {} : { baseParts: reply.requestParts })
+      });
+    }
 
-    const streamOptions = { modelInfo, conversation, webSearchEnabled, onMemoryContextResolved, onSources: addSearchSources, onSupports: (supports) => { groundingSupports = supports; }, requestPurpose: NOURAS_REQUEST_PURPOSE.USER_VISIBLE_ANSWER, ...skillOptions,
-      ...(synthesis ? { historyForApi: [], ignoreConversationWebSearch: true, requestPurpose: NOURAS_REQUEST_PURPOSE.COUNCIL_SYNTHESIS, additionalSystemInstruction: [skillOptions.additionalSystemInstruction, synthesis.instruction].filter(Boolean).join('\n\n') } : {}) };
-    // The run record (or the reason for Standard mode) kept above the answer.
-    let sandboxRun = !replyMode.advanced && replyMode.reason && looksLikeFileTask(userParts)
-      ? { status: 'done', steps: [], fallback: replyMode.reason }
-      : null;
-    // Files the run made, kept as parts of the reply message.
-    let sandboxParts = [];
-    // Documents the code handed to the design system, as file blocks.
-    let sandboxDocuments = '';
-    // The step list in the message, above the answer: what the model and Python are doing now.
-    let liveRun = null;
-    const stepList = () => {
-      if (!liveRun && targetElement.parentElement) {
-        liveRun = createSandboxLedger({ document: getDocument(), host: targetElement.parentElement, before: targetElement, language: uiLanguage, summary: true, open: getConfig().processOpen === true, madeHere, ...(serverRun ? { startedAt: runStartedAt, onNetAnswer: createNetAnswerHandler({ getRun: () => serverRun }), onCredentialAnswer: createCredentialAnswerHandler({ getRun: () => serverRun }), onConnectorAnswer: createConnectorAnswerHandler({ getRun: () => serverRun }) } : {}) });
-        // Its line says the reply is working: the dot (and its "still getting ready") under it would say it twice.
-        stepsShown = true;
-        targetElement.querySelectorAll?.('.reply-wait, .reply-wait-step').forEach((node) => node.remove());
-      }
-      return liveRun;
-    };
-    const showRunStatus = () => {};
-    // The model searches the web by itself (its own search or a page it opens): the person is told once per reply. A page that joined a reply the server
-    // is making is sent the earlier events again (with their times): only one that happened a moment ago is news.
-    let ownSearchNoticed = false;
-    const noteOwnSearch = (event, { at = null } = {}) => {
-      if (ownSearchNoticed || event?.type !== 'searching') return;
-      if (Number.isFinite(at) && now() - at > 15_000) return;
-      ownSearchNoticed = true;
-      serverReply?.notify?.('model-searches', uiLanguage);
-    };
+    const view = createReplyLiveView({
+      targetElement,
+      getDocument,
+      getConfig,
+      language: uiLanguage,
+      now,
+      serverReply,
+      serverRun,
+      madeHere,
+      getRunStartedAt: () => runStartedAt,
+      onStepsShown: () => { stepsShown = true; }
+    });
+    const streamOptions = { modelInfo, conversation, webSearchEnabled, onMemoryContextResolved, onSources: reply.addSearchSources, onSupports: (supports) => { reply.groundingSupports = supports; }, requestPurpose: NOURAS_REQUEST_PURPOSE.USER_VISIBLE_ANSWER, ...prep.skillOptions,
+      ...(synthesis ? { historyForApi: [], ignoreConversationWebSearch: true, requestPurpose: NOURAS_REQUEST_PURPOSE.COUNCIL_SYNTHESIS, additionalSystemInstruction: [prep.skillOptions.additionalSystemInstruction, synthesis.instruction].filter(Boolean).join('\n\n') } : {}) };
+    // 3. Made here, or followed from the server.
+    const local = createLocalReply({ streamApiCall, buildSingleModelTranslatedRequestParts, getConfig, webResearch, now }, { request, prep, reply, view, streamOptions });
+    const runApiStream = serverRun
+      ? (onChunk) => followServerReply(
+        { serverReply, now, setRunStartedAt: (value) => { runStartedAt = value; }, getRunStartedAt: () => runStartedAt },
+        { serverRun, reply, view, progress, signal, uiLanguage, assistantMessageId, targetElement, advanced: replyMode.advanced, runHere: local.runAdvanced },
+        onChunk
+      )
+      : replyMode.advanced ? local.runAdvanced : local.runStandard;
     // The [n] an answer writes become small labels as it streams (and in the final view, from the saved sources).
-    const stopCitations = watchCitations(targetElement, () => searchSources, { document: getDocument(), language: uiLanguage });
-    // A reply without Python shows the model's thinking above the answer, as it streams,
-    // and folds it when the answer starts.
-    let thinkingBlock = null;
-    // Every block made (more than one when words written before a search were taken for the answer, and work went on).
-    const thinkingBlocks = [];
-    let thought = { text: '', kind: 'raw', startedAt: null, endedAt: null };
-    // Whether any of the answer has arrived (stopping before it leaves the thinking interrupted).
-    let answered = false;
-    let documentStageShown = false;
-    let answerStarted = false;
-    // `soFarMs`: it has been thinking for this long already (a page that came in late); the server tells it.
-    const showThinking = (chunk, kind, soFarMs = 0) => {
-      if (!chunk) return;
-      thought.startedAt ??= now() - Math.max(0, Number(soFarMs) || 0);
-      thought = { ...thought, text: (thought.text + chunk).slice(0, 12_000), kind: kind || thought.kind };
-      if (!thinkingBlock && targetElement.parentElement) {
-        // The thinking is a step of the work: its row is under the "Working" line, above the other steps.
-        const steps = stepList();
-        thinkingBlock = steps?.body
-          ? createThinkingBlock({ document: getDocument(), host: steps.body, before: steps.stepsElement, language: uiLanguage, now, startOffsetMs: soFarMs })
-          : createThinkingBlock({ document: getDocument(), host: targetElement.parentElement, before: targetElement, language: uiLanguage, now, startOffsetMs: soFarMs });
-        if (thinkingBlock) thinkingBlocks.push(thinkingBlock);
-      }
-      thinkingBlock?.add(chunk, kind);
-      liveRun?.activity(sandboxText(uiLanguage, 'thinkingLive'));
-    };
-    // The answer has started: the thinking is over.
-    // `ms`: how long it thought, told by the server for a reply it makes (the same on every page).
-    const endThinking = (ms = null) => {
-      if (thought.startedAt !== null) thought.endedAt ??= Number.isFinite(ms) ? thought.startedAt + ms : now();
-      thinkingBlock?.collapse(ms);
-      liveRun?.activity('');
-    };
-    // More work after words that were taken for the answer: the line runs again, and what the model thinks next is a block of its own.
-    const workResumed = () => {
-      if (!answerStarted) return;
-      answerStarted = false;
-      thinkingBlock = null;
-    };
-    // A reply the server is making: its words are shown as they are written, and its run record (the pages it searched) is kept.
-    const runServerStream = async (onChunk) => {
-      try {
-        const outcome = await serverRun.follow({
-          signal,
-          onRun: (run) => { searchSources = run.sources; },
-          // The seconds are the server's.
-          onTiming: (elapsedMs) => { runStartedAt = now() - elapsedMs; liveRun?.setStartedAt?.(runStartedAt); },
-          // What the model thinks is shown as it thinks, as in a reply made here.
-          onThought: (chunk, kind, soFarMs) => showThinking(chunk, kind === 'summary' ? 'summary' : undefined, soFarMs),
-          onThoughtEnd: (ms) => endThinking(ms),
-          // The server is searching first (for a model that cannot search): the line the page shows when it does that itself.
-          onSearching: (source) => { if (source && !answered) renderProgress(targetElement, startedAt, 'searchTranslation', getRuntimeText(uiLanguage, source === 'tinyfish' ? 'searchingTinyfish' : 'searchingTavily')); },
-          // The server is preparing the message's files and addresses: the same lines the page shows when it does that itself.
-          onDocumentPhase: (phase) => {
-            if (answered) return;
-            const stage = DOCUMENT_STAGES[phase];
-            if (stage) renderProgress(targetElement, startedAt, stage);
-            else if (documentStageShown) renderProgress(targetElement, startedAt, 'preparing', 'Checking model capabilities');
-            documentStageShown = Boolean(stage);
-          },
-          // The steps of Python (and the pages it searched) as they happen, in the same step list as a reply made here.
-          // Each event says when it happened on the server, so every page draws the same times.
-          onEvent: (event) => {
-            // The channel was joined again (the server was replaced): the steps come again from their start, so the list is drawn afresh.
-            if (event.type === 'reset') {
-              liveRun?.remove();
-              liveRun = null;
-              return;
-            }
-            noteOwnSearch(event, { at: Number.isFinite(event.t) ? runStartedAt + event.t : null });
-            stepList()?.event(Number.isFinite(event.t) ? { ...event, at: runStartedAt + event.t } : event);
-          },
-          onText: (delta) => {
-            if (!answered) endThinking();
-            answered = true;
-            onChunk(delta);
-          }
-        });
-        if (outcome.run) {
-          sandboxRun = outcome.run;
-          if (outcome.run.sources?.length) searchSources = outcome.run.sources;
-        }
-        if (outcome.rewritten && targetElement?.dataset) targetElement.dataset.streamRendered = 'false';
-        // The server may check the presentations of the reply too: the page then follows that check and makes none of its own.
-        serverReply.noteVision?.(assistantMessageId, { vision: Boolean(serverRun.vision), visionRunId: outcome.visionRunId });
-        // The files the reply made are parts of its message (their bytes are in the person's cloud storage; they are brought here).
-        if (outcome.extraParts?.length) {
-          sandboxParts = outcome.extraParts;
-          registerSandboxFileParts(sandboxParts);
-        }
-        return outcome.text;
-      } catch (error) {
-        // The server lost its Python before it had an answer, and this page was there: the reply is made here, with the page's own Python.
-        if (error?.code === 'sandbox_unavailable' && replyMode.advanced) {
-          sandboxRun = null;
-          return runLocalAdvanced(onChunk);
-        }
-        throw serverReply.localizeError(error, uiLanguage);
-      }
-    };
-    const runLocalAdvanced = async (onChunk) => {
-        const [{ runSandboxReply }, { getPythonSandbox }] = await loadSandboxReply();
-        let advancedParts = requestParts;
-        let advancedOptions = streamOptions;
-        let searchMs = 0;
-        const { needsSearchBriefing, runSearchBriefing, briefingPart } = await import('../../runtime/sandbox/search-briefing.js');
-        if (needsSearchBriefing({ modelInfo, webSearchEnabled, conversation })) {
-          // A provider that cannot search and run Python in one request searches first; the Python round gets the briefing.
-          const searchStartedAt = now();
-          stepList()?.event({ type: 'searching', label: sandboxText(uiLanguage, 'sandboxSearching') });
-          try {
-            const briefing = await runSearchBriefing({ streamApiCall, requestParts, requestOptions: streamOptions, signal });
-            addSearchSources(briefing.sources);
-            const part = briefingPart(briefing, modelInfo?.name);
-            if (part) advancedParts = [part, ...requestParts];
-          } catch (error) {
-            // Stopping stops the reply; a search that failed leaves the reply to go on without it.
-            if (signal?.aborted) throw error;
-          }
-          searchMs = now() - searchStartedAt;
-          stepList()?.event({ type: 'sources', sources: searchSources });
-          advancedOptions = { ...streamOptions, webSearchEnabled: false, ignoreConversationWebSearch: true };
-        } else if (searchSources.length) {
-          stepList()?.event({ type: 'sources', sources: searchSources });
-        }
-        // Skills with scripts get their folder in the browser's Python too (/skills/<name>/, as on the server).
-        const skillFolders = (await import('../../runtime/skill/local-skill-folders.js')).createLocalSkillFolders({ lookup: lookupSkill, openFiles: openSkillFiles });
-        await skillFolders.include(invokedSkills);
-        const result = await runSandboxReply({
-          streamApiCall,
-          requestParts: advancedParts,
-          onChunk,
-          signal,
-          requestOptions: advancedOptions,
-          getSandbox: (options) => skillFolders.attach(getPythonSandbox({ ...options, language: getConfig().aiDefaultLanguage || uiLanguage })),
-          language: uiLanguage,
-          provider: modelInfo?.provider,
-          inputFiles: collectSandboxInputs(conversation, userParts),
-          designs: { deck: conversation?.deckDesign || 'auto', document: conversation?.documentDesign || 'auto' },
-          research: researchByModel ? { searchWeb: webResearch.searchWeb, openPage: webResearch.openPage, onSources: addSearchSources } : null,
-          skills: makeSkillLoader(skillFolders.lookup),
-          onStatus: showRunStatus,
-          onEvent: (event) => { noteOwnSearch(event); stepList()?.event(event); }
-        });
-        sandboxRun = result.run;
-        // The search before the run is part of the time the reply took.
-        if (sandboxRun && searchMs) sandboxRun.elapsedMs = (sandboxRun.elapsedMs || 0) + searchMs;
-        // Word and PowerPoint files made freely get the app's fonts embedded.
-        if (result.run?.steps?.length) {
-          await import('../../ui/sandbox/office-fonts-browser.js')
-            .then((module) => module.embedFontsInBrowser(result.run))
-            .catch(() => {});
-        }
-        sandboxParts = createSandboxFileParts(result.run);
-        sandboxDocuments = sandboxDocumentBlocks(result.run);
-        // A block the model also wrote under the name of a file it made (with Python, or through the design system) is a second, empty card.
-        return withoutEmptyDocumentBlocks(withoutDuplicatedFileBlocks(result.text, [...sandboxParts.map((part) => part.sandboxFile.name), ...sandboxDocumentNames(result.run)]));
-    };
-    const runStandard = async (onChunk) => {
-        const onAnswer = (chunk) => {
-          answered = true;
-          endThinking();
-          // The answer has begun: the "Working" line is over and says how long it took.
-          if (!answerStarted) {
-            answerStarted = true;
-            liveRun?.event({ type: 'answering' });
-          }
-          onChunk(chunk);
-        };
-        if (researchByModel) {
-          let started = false;
-          try {
-            const { runWebResearchReply } = await import('./web-research-reply.js');
-            const result = await runWebResearchReply({
-              streamApiCall,
-              requestParts,
-              onChunk: (chunk) => { started = true; onAnswer(chunk); },
-              signal,
-              requestOptions: { ...streamOptions, onReasoning: showThinking },
-              searchWeb: webResearch.searchWeb,
-              openPage: webResearch.openPage,
-              language: uiLanguage,
-              onSources: addSearchSources,
-              skills: makeSkillLoader(),
-              onEvent: (event) => {
-                if (event.type === 'searching' || event.type === 'skill' || event.type === 'connector') {
-                  started = true;
-                  workResumed();
-                }
-                noteOwnSearch(event);
-                stepList()?.event(event);
-              }
-            });
-            return result.text;
-          } catch (error) {
-            // A provider that refuses the tools answers with the search done first, as the others do.
-            if (signal?.aborted || started) throw error;
-          }
-          requestParts = await buildSingleModelTranslatedRequestParts(userParts, modelInfo, signal, () => {}, {
-            webSearchEnabled, conversation, onSources: addSearchSources
-          });
-        }
-        // No search and no Python, but skills the model may load: a small loop that gives it the tool (a provider that refuses the tools answers without it).
-        const skillLoader = makeSkillLoader();
-        if (skillLoader) {
-          let begun = false;
-          try {
-            const { runSkillsReply } = await import('./skills-reply.js');
-            const result = await runSkillsReply({
-              streamApiCall,
-              requestParts,
-              onChunk: (chunk) => { begun = true; onAnswer(chunk); },
-              signal,
-              requestOptions: { ...streamOptions, onReasoning: showThinking },
-              loader: skillLoader,
-              language: uiLanguage,
-              onEvent: (event) => {
-                begun = true;
-                workResumed();
-                stepList()?.event(event);
-              }
-            });
-            return result.text;
-          } catch (error) {
-            if (signal?.aborted || begun) throw error;
-          }
-        }
-        return streamApiCall(requestParts, onAnswer, signal, false, { ...streamOptions, onReasoning: showThinking });
-    };
-    const runApiStream = serverRun ? runServerStream : replyMode.advanced ? runLocalAdvanced : runStandard;
+    const stopCitations = watchCitations(targetElement, () => reply.searchSources, { document: getDocument(), language: uiLanguage });
 
     let fullResponse;
     let responseRenderedInRealtime = false;
@@ -613,66 +232,57 @@ export function createSingleModelResponseLifecycle({
         );
         responseRenderedInRealtime = true;
       } else {
-        if (!progressTimer) {
-          renderProgress(
-            targetElement,
-            startedAt,
-            'streaming',
-            undefined
-          );
-          startTicker(targetElement, startedAt);
-        }
-        try {
-          fullResponse = await runApiStream(updateStreamingProgress);
-        } catch (error) {
-          if (!signal?.aborted) throw error;
-          fullResponse = bufferedResponse;
-        }
+        fullResponse = await streamWithWaitRow(targetElement, startedAt, runApiStream, signal);
       }
     } finally {
       stop();
       stopCitations();
-      liveRun?.remove();
-      // What was thought is kept with the reply (the run record), so it is still there after a reload.
-      endThinking();
-      thinkingBlocks.forEach((block) => block.remove());
-      thinkingBlock?.remove();
-      if (searchSources.length) sandboxRun = { status: 'done', steps: [], elapsedMs: now() - runStartedAt, ...(sandboxRun || {}), sources: searchSources };
-      // (For a reply the server made, the time it thought is the server's, kept in its run record.)
-      if (thought.text && !replyMode.advanced && !serverRun) {
-        sandboxRun = { status: 'done', steps: [], ...(sandboxRun || {}), thought: thought.text, thoughtKind: thought.kind, thoughtMs: thought.endedAt - thought.startedAt, ...(signal?.aborted && !answered ? { thoughtInterrupted: true } : {}) };
-      }
-      if (madeHere) sandboxRun = { status: 'done', steps: [], ...(sandboxRun || {}), madeHere: true };
-    }
-
-    // Gemini says where its answer cites its pages only once it is whole: the markers go into the text now, and the final
-    // view is drawn again so they show as labels.
-    if (groundingSupports.length && fullResponse) {
-      const marked = withGroundingMarkers(fullResponse);
-      if (marked !== fullResponse) {
-        fullResponse = marked;
-        if (targetElement?.dataset) targetElement.dataset.streamRendered = 'false';
-      }
-    }
-
-    // Stopped while thinking, with nothing else to show: the reply is the interrupted thinking.
-    if (!String(fullResponse || '').trim() && !sandboxRun?.steps?.length && !sandboxRun?.thought) {
-      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-      throw new Error(getRuntimeText(uiLanguage, 'emptyResponse'));
-    }
-    if (sandboxRun) {
-      fullResponse = `${formatSandboxRunBlock(sandboxRun)}${fullResponse || ''}${sandboxDocuments ? `
-
-${sandboxDocuments}` : ''}`;
-      // The final view is drawn again so the run row appears above the answer.
-      if (targetElement?.dataset) targetElement.dataset.streamRendered = 'false';
+      view.close();
+      // 4. What was thought, searched and run is kept with the reply (the run record), so it is still there after a reload.
+      recordReplyRun({
+        reply,
+        thought: view.thought,
+        answered: view.answered,
+        advanced: replyMode.advanced,
+        serverRun,
+        madeHere,
+        aborted: Boolean(signal?.aborted),
+        elapsedMs: now() - runStartedAt
+      });
     }
 
     return {
-      fullResponse,
+      fullResponse: composeReplyText({ reply, fullResponse, targetElement, aborted: Boolean(signal?.aborted), uiLanguage }),
       responseRenderedInRealtime,
-      extraParts: sandboxParts
+      extraParts: reply.sandboxParts
     };
+  };
+
+  // A reply shown only when it is whole (not as it streams): the wait row counts what arrived. Stopped by the person, what arrived is the reply.
+  const streamWithWaitRow = async (targetElement, startedAt, runApiStream, signal) => {
+    if (!progressTimer) {
+      renderProgress(targetElement, startedAt, 'streaming', undefined);
+      startTicker(targetElement, startedAt);
+    }
+    let receivedChars = 0;
+    let bufferedResponse = '';
+    let lastProgressAt = 0;
+    const updateStreamingProgress = (chunk) => {
+      const text = String(chunk || '');
+      bufferedResponse += text;
+      receivedChars += text.length;
+      const currentTime = now();
+      if (currentTime - lastProgressAt > 700) {
+        lastProgressAt = currentTime;
+        renderProgress(targetElement, startedAt, 'streaming', undefined, { receivedChars });
+      }
+    };
+    try {
+      return await runApiStream(updateStreamingProgress);
+    } catch (error) {
+      if (!signal?.aborted) throw error;
+      return bufferedResponse;
+    }
   };
 
   const completeView = async ({
