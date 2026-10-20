@@ -259,3 +259,14 @@ OpenCode 自己的 `variant.ts` 是一份對照（OpenCode 用戶端的設定，
   - 預設會跑全部測試：基本回答、串流、工具呼叫、工具迴圈、參數、思考深度、看圖、PDF（含 PDF 裡的圖片）、Word／PowerPoint 原檔、思考設定、金鑰與錯誤。
   - `--new` 顯示的 id 如果不同，改用 `--model <實際的 id>`。
 - 結果出來之後，才依結果填模型登記表（`opencode-models.js`：格式、工具、看圖、PDF、思考深度）。
+- OpenRouter 的 `minimax/minimax-m3.1-flash:free`（Allen 要一起加）用 `scripts/nvidia-probe.mjs --openrouter`（預設就是這個 id）：
+  ```
+  OPENROUTER_API_KEY=... node scripts/nvidia-probe.mjs --openrouter --only list,info,endpoints
+  OPENROUTER_API_KEY=... node scripts/nvidia-probe.mjs --openrouter
+  ```
+  - 第一行指令是不花錢的：
+    - `list` 看 id 對不對，不對時列出同一家的 id。
+    - `info` 看服務說這個模型收什麼（文字、圖、影片、檔案）、吃哪些設定、context 與價格。
+    - `endpoints` 看背後有哪些供應商、各自支援什麼。
+  - 第二行跑全部：基本、串流、工具、參數、看圖、影片、PDF、PDF 裡的圖、思考深度。
+  - `:free` 的模型被供應商限速，偶爾回 429 不代表 App 有問題。
