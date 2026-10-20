@@ -63,7 +63,8 @@ export default defineConfig({
           const slice = /\?language-slice=([\w-]+)/.exec(id);
           if (slice) return `texts-${slice[1]}`;
           if (id.includes('/src/app/runtime/legacy-core/council-runtime-texts.js')) return 'legacy-council-texts';
-          if (id.includes('/src/app/runtime/legacy-core/submit-input-council-lifecycle.js')) return 'legacy-submit-input';
+          // The submit lifecycle and its parts (submit-input-*.js) ship together.
+          if (id.includes('/src/app/runtime/legacy-core/submit-input-')) return 'legacy-submit-input';
           if (id.includes('/src/app/runtime/legacy-core/model-registry.js')) return 'legacy-model-registry';
           // Memory is loaded after the application shell and has its own lifecycle.
           // Keep it out of the legacy shell chunk so adding memory capabilities does

@@ -321,7 +321,8 @@ test('following a council can stop where its synthesis begins (another follower 
 
 test('the page asks the server for its council through the same call, and gives the server what it needs (source of the wiring)', async () => {
   const { readFileSync } = await import('node:fs');
-  const lifecycle = readFileSync(new URL('../src/app/runtime/legacy-core/submit-input-council-lifecycle.js', import.meta.url), 'utf8');
+  const { readUiSource } = await import('./helpers/source-guards.js');
+  const lifecycle = readUiSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
   assert.match(lifecycle, /runModelCouncil:\s*\(\.\.\.args\)\s*=>\s*serverReply\.council\(\{[^}]*args,\s*local:\s*runModelCouncil,\s*webSearchEnabled,\s*conversation:\s*conv,[^}]*assistantMessageId,\s*sequence:\s*conv\.messages\.length,\s*resumeRun/s);
   assert.match(lifecycle, /createBrowserServerReply\(\{[^]*?getCouncilSelectedModels,\s*getCouncilTranslatorModel,/);
   const core = readFileSync(new URL('../src/app/runtime/legacy-core/legacy-core.js', import.meta.url), 'utf8');

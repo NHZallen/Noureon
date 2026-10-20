@@ -864,11 +864,45 @@ const RETIRED = {
   },
 };
 
+// The parts a file was later split into (NOU-75) hold what it held, so what may not come back to it may not come back to them either.
+const PARTS = {
+  'src/app/runtime/legacy-core/legacy-core.js': [
+    'src/app/runtime/legacy-core/shell-state.js',
+    'src/app/runtime/legacy-core/conversation-actions.js',
+    'src/app/runtime/legacy-core/workspace-load.js',
+    'src/app/runtime/legacy-core/council-validation.js',
+    'src/app/runtime/security/password-records.js'
+  ],
+  'src/app/runtime/legacy-core/core-tail-lifecycle.js': [
+    'src/app/runtime/features/time-analysis-chart.js',
+    'src/app/runtime/features/astra-store-lifecycle.js',
+    'src/app/runtime/features/language-apply.js',
+    'src/app/runtime/features/chat-scroll-lifecycle.js',
+    'src/app/runtime/features/latest-update-notice.js',
+    'src/app/runtime/features/mobile-context-menus.js'
+  ],
+  'src/app/runtime/features/app-bootstrap-lifecycle.js': [
+    'src/app/runtime/features/app-shell-enhancements.js',
+    'src/app/runtime/features/conversation-search-modal.js',
+    'src/app/runtime/features/message-list-actions.js',
+    'src/app/runtime/features/composer-input-bindings.js',
+    'src/app/runtime/features/feedback-forms.js'
+  ],
+  'src/app/runtime/legacy-core/submit-input-council-lifecycle.js': [
+    'src/app/runtime/legacy-core/submit-input-composer.js',
+    'src/app/runtime/legacy-core/submit-input-playback.js',
+    'src/app/runtime/legacy-core/submit-input-image-reveal.js',
+    'src/app/runtime/legacy-core/submit-input-reply-services.js'
+  ]
+};
+
 for (const [file, groups] of Object.entries(RETIRED)) {
-  test(`retired code stays out of ${file}`, () => {
-    const source = readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
-    for (const [reason, patterns] of Object.entries(groups)) {
-      for (const pattern of patterns) assert.doesNotMatch(source, pattern, `${file}: ${reason}`);
-    }
-  });
+  for (const target of [file, ...(PARTS[file] || [])]) {
+    test(`retired code stays out of ${target}${target === file ? '' : ` (a part of ${file})`}`, () => {
+      const source = readFileSync(new URL(`../${target}`, import.meta.url), 'utf8');
+      for (const [reason, patterns] of Object.entries(groups)) {
+        for (const pattern of patterns) assert.doesNotMatch(source, pattern, `${target}: ${reason}`);
+      }
+    });
+  }
 }

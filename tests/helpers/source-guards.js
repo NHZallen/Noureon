@@ -28,8 +28,20 @@ export function readCssSource(path, seen = new Set()) {
   });
 }
 
+// A module split into parts that ship together (one chunk): read as one text, the main file first, so a check of the whole still finds
+// what moved into a part.
+const MODULE_PARTS = {
+  'src/app/runtime/legacy-core/submit-input-council-lifecycle.js': { dir: 'src/app/runtime/legacy-core', prefix: 'submit-input-' }
+};
+
 export function readUiSource(path) {
-  return path === 'src/styles/main.css' ? readCssSource(path) : readSource(path);
+  if (path === 'src/styles/main.css') return readCssSource(path);
+  const parts = MODULE_PARTS[path];
+  if (!parts) return readSource(path);
+  const others = readdirSync(projectFile(parts.dir))
+    .filter((name) => name.startsWith(parts.prefix) && name.endsWith('.js') && `${parts.dir}/${name}` !== path)
+    .sort();
+  return [readSource(path), ...others.map((name) => readSource(parts.dir, name))].join('\n');
 }
 
 export function countLines(source) {
