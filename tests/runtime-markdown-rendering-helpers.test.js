@@ -5,7 +5,7 @@ import { formatSandboxRunBlock } from '../src/app/ui/sandbox/sandbox-run-block.j
 import { Window } from 'happy-dom';
 import katex from 'katex';
 import { marked } from 'marked';
-import { projectFile, readSource } from './helpers/source-guards.js';
+import { projectFile, readSource, readUiSource } from './helpers/source-guards.js';
 
 const helperPath = 'src/app/runtime/legacy-core/markdown-rendering-helpers.js';
 const helperUrl = new URL(`../${helperPath}`, import.meta.url);
@@ -87,7 +87,7 @@ test('renders numeric ranges without turning adjacent ranges into strikethrough'
 });
 
 test('chat prose restores ordered and unordered list markers after the CSS reset', () => {
-  const chatStyles = readSource('src/styles/chat.css');
+  const chatStyles = readUiSource('src/styles/chat.css');
 
   assert.match(chatStyles, /\.prose ol\s*\{\s*list-style-type:\s*decimal;/);
   assert.match(chatStyles, /\.prose ul\s*\{\s*list-style-type:\s*disc;/);

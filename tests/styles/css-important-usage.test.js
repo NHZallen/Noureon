@@ -19,7 +19,19 @@ const documentedImportantUsage = {
     category: 'required: regression override / legacy compatibility'
   },
   'src/styles/chat.css': {
-    max: 22,
+    max: 16,
+    category: 'required: regression override / legacy compatibility'
+  },
+  'src/styles/chat-streaming.css': {
+    max: 2,
+    category: 'required: regression override / legacy compatibility'
+  },
+  'src/styles/chat-prose.css': {
+    max: 2,
+    category: 'required: regression override / legacy compatibility'
+  },
+  'src/styles/chat-generated-image.css': {
+    max: 2,
     category: 'required: regression override / legacy compatibility'
   },
   'src/styles/conversation-search.css': {

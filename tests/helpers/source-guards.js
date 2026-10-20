@@ -31,6 +31,12 @@ export function readCssSource(path, seen = new Set()) {
 // A module split into parts that ship together: read as one text, the main file first, so a check of the whole still finds what moved
 // into a part.
 const MODULE_PARTS = {
+  'src/styles/chat.css': [
+    'src/styles/chat-streaming.css',
+    'src/styles/chat-prose.css',
+    'src/styles/chat-generated-image.css',
+    'src/styles/chat-reply-layout.css'
+  ],
   'src/app/runtime/legacy-core/submit-input-council-lifecycle.js': [
     'src/app/runtime/legacy-core/submit-input-composer.js',
     'src/app/runtime/legacy-core/submit-input-playback.js',

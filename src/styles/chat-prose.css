@@ -1,0 +1,109 @@
+/* The text of a reply: tables (plain, sliding sideways when wider than the message), emphasis and the rest of the prose. Split from chat.css (imported right after it, in this order). */
+/* important-audit: required: regression override / legacy compatibility - chat, input, and media bubbles still compete with legacy utility classes and final UI overrides. */
+
+/* Tables are plain, like in a sheet: no box, no cell borders, a line under the head and a faint line between rows; the table slides sideways when it is wider than the message. */
+.prose th {
+    background: none;
+}
+
+.table-scroll-container {
+    overflow-x: auto; /* wider than the message: it slides sideways */
+    overscroll-behavior-x: contain; /* at its end the swipe does not go on to the chat */
+    -webkit-overflow-scrolling: touch;
+    margin-bottom: 1em;
+    border: 0;
+    background: none;
+    scrollbar-width: thin;
+}
+
+.table-scroll-container::-webkit-scrollbar {
+    height: 8px;
+}
+.table-scroll-container::-webkit-scrollbar-thumb {
+    background-color: var(--border-color);
+    border-radius: 4px;
+}
+    .prose table th, .prose table td {
+        min-width: 4em;
+        max-width: 16em; /* a long cell wraps instead of making the column wider */
+        padding: 0.55rem 0.85rem;
+        line-height: 1.4;
+        border: 0;
+        border-bottom: 1px solid color-mix(in srgb, var(--border-color) 70%, transparent);
+        text-align: left;
+        vertical-align: top;
+    }
+    .prose table th:first-child, .prose table td:first-child { padding-left: 0; }
+    .prose table th:last-child, .prose table td:last-child { padding-right: 0; }
+    .prose table thead th {
+        border-bottom-color: var(--border-color);
+        color: var(--text-secondary);
+        font-size: 0.9em;
+        font-weight: 600;
+    }
+    .prose table tbody tr:last-child td { border-bottom: 0; }
+    /* A column of numbers is lined up at the right (src/app/ui/markdown/table-columns.js). */
+    .prose table .ac-table-number { min-width: 0; text-align: right; font-variant-numeric: tabular-nums; }
+    @media (max-width: 640px) {
+        /* On a phone the table is as wide as its columns need and slides sideways. Its box is the width of the screen, edge to edge,
+           whatever padding the message and the chat have (the message is centred in the screen); the first column starts where the text
+           starts, and the table slides out under both edges. The message lets it out only when it holds a table, and the chat clips
+           what is beyond the screen, so nothing else moves. */
+        .prose table { width: max-content; min-width: 100%; }
+        .model-message .prose:has(.table-scroll-container) { overflow: visible; }
+        .table-scroll-container {
+            box-sizing: border-box;
+            width: 100vw;
+            margin-left: calc(50% - 50vw);
+            margin-right: 0;
+            /* At rest the first column lines up with the text above and below (the space between the screen edge and the text). */
+            padding-left: calc((100vw - 100%) / 2);
+            padding-right: calc((100vw - 100%) / 2);
+            scrollbar-width: none; /* no drag bar on a phone */
+        }
+        .table-scroll-container::-webkit-scrollbar { display: none; }
+    }
+    .prose ul, .prose ol { margin-bottom: 1em; padding-left: 1.5em; }
+    .prose ol { list-style-type: decimal; }
+    .prose ul { list-style-type: disc; }
+    .prose ol ol { list-style-type: lower-alpha; }
+    .prose ul ul { list-style-type: circle; }
+    .prose ul, .prose ol, .prose li {
+    color: var(--text-primary);
+}
+.prose strong, .prose b {
+    color: var(--text-primary); /* 確保粗體字也是深色 */
+}
+    .prose ul li, .prose ol li { margin-bottom: 0.5em; }
+    /* --- 1. 淺色模式 (Light Mode) --- */
+    
+    /* 針對所有標題 (h1-h6)、段落 (p)、列表 (ul, ol, li)、粗體 (strong, b) */
+    /* 全部強制設定為純黑色 #000000 */
+    .prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6,
+    .prose p, 
+    .prose ul, .prose ol, .prose li, 
+    .prose strong, .prose b {
+        color: var(--text-primary) !important;
+    }
+
+    /* 特別針對：列表前面的「圓點」或「數字」 */
+    .prose li::marker {
+        color: var(--text-primary) !important; 
+    }
+
+    /* --- 2. 深色模式 (Dark Mode) --- */
+
+    /* 針對所有標題、段落、列表、粗體 */
+    /* 全部強制設定為純白色 #ffffff */
+
+    /* 特別針對：列表前面的「圓點」或「數字」 */
+    .folder-summary {
+        cursor: pointer;
+    }
+    .color-swatch, .icon-option { transition: transform 0.2s; border: 2px solid transparent; }
+    .color-swatch:hover, .icon-option:hover { transform: scale(1.1); }
+    .color-swatch.selected { border-color: var(--button-primary-bg); }
+    .icon-option.selected { background-color: var(--active-bg); border-color: var(--button-primary-bg); }
+    #sidebar.open {
+        transform: translateX(0);
+    }

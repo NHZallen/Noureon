@@ -213,7 +213,7 @@ test('the element draws on a canvas of its own and stops when it leaves the page
 
 test('on a phone the rounded corners clip the field of dots only, never the words of the stage in the top left corner', async () => {
   const { readFileSync } = await import('node:fs');
-  const css = readFileSync(new URL('../src/styles/chat.css', import.meta.url), 'utf8');
+  const css = readFileSync(new URL('../src/styles/chat-generated-image.css', import.meta.url), 'utf8');
   const phone = css.slice(css.indexOf('@media (max-width: 640px)', css.indexOf('.generated-image-wait-label.is-swap')));
   const skeletonRule = phone.match(/\.generated-image-skeleton \{[^}]*\}/)[0];
   assert.doesNotMatch(skeletonRule, /border-radius/, 'a corner cut through the box shaves the first letter of the label');

@@ -1,0 +1,37 @@
+/* The width and margins of a reply, and the card of a deep research. Split from chat.css (imported right after it, in this order). */
+
+/* Every reply takes the full width of the chat column, so its copy button and time sit in the same place under
+   a one-word reply (or only the "thinking interrupted" line) as under a long one: the time always at the far right. */
+.model-message > .message-stack-model {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.model-message .message-bubble {
+    width: 100%;
+}
+
+.model-message .message-bubble > .absolute.bottom-2 > .text-xs {
+    white-space: nowrap;
+}
+
+/* A deep research's card (ui/research/): no bubble around it, and no copy button or time under it. */
+.model-message .message-bubble.research-bubble { padding: 0; max-width: min(100%, 680px); background: transparent; box-shadow: none; }
+.model-message .message-bubble.research-bubble::before { display: none; }
+.model-message .message-bubble.research-bubble .message-content { padding-bottom: 0; }
+.model-message .message-bubble.research-bubble > .absolute { display: none; }
+
+/* On a phone the side margins of the chat are narrower: the text of a reply starts 1rem from the screen edge (it was 1.75rem: 1rem of the chat and
+   0.75rem of the reply's own padding, which has no box to pad), and what the person sent ends 0.75rem from it. */
+@media (max-width: 640px) {
+    #chat-container {
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+    }
+    .model-message .message-stack-model:not(.image-message-stack) { max-width: 100%; }
+    .model-message .message-bubble:not(.research-bubble) {
+        max-width: 100%; /* the whole width of the chat, so a table can be centred on the screen */
+        padding-left: 0.25rem;
+        padding-right: 0.25rem;
+    }
+}

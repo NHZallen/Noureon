@@ -127,7 +127,8 @@ const runtimeBudgetDefinitions = [
 ];
 
 const cssBudgetDefinitions = [
-  { label: 'largest CSS file', file: topFiles(cssFiles, 1)[0], transitionalLimit: bytes(40), v5Target: bytes(24) },
+  { label: 'largest CSS file', file: topFiles(cssFiles, 1)[0], transitionalLimit: bytes(24), v5Target: bytes(24) },
+  { label: 'chat CSS', path: 'src/styles/chat.css', transitionalLimit: bytes(19), v5Target: bytes(24) },
   { label: 'personalization CSS', path: 'src/styles/personalization.css', transitionalLimit: bytes(40), v5Target: bytes(24) },
   { label: 'settings base CSS', path: 'src/styles/settings.css', transitionalLimit: bytes(32), v5Target: bytes(24) },
   { label: 'settings mobile CSS', path: 'src/styles/settings-mobile.css', transitionalLimit: bytes(18), v5Target: bytes(12) },

@@ -1,0 +1,210 @@
+/* Generated pictures in a reply: the card, its buttons, the wait for a picture and the picture taking its place. Split from chat.css (imported right after it, in this order). */
+/* important-audit: required: regression override / legacy compatibility - chat, input, and media bubbles still compete with legacy utility classes and final UI overrides. */
+
+.generated-image-card {
+    position: relative;
+    display: inline-block;
+    width: fit-content;
+    max-width: min(100%, 48rem);
+    overflow: visible;
+    border-radius: 0;
+    background: transparent;
+    border: 0;
+}
+
+.model-message .image-message-stack,
+.model-message .generated-image-card {
+    align-self: flex-start;
+    margin-left: 0;
+    margin-right: auto;
+}
+
+.image-message-stack {
+    width: min(52rem, calc(100vw - 3rem));
+    max-width: 100%;
+}
+
+.generated-image-stage {
+    width: 100%;
+    max-width: 48rem;
+}
+
+.generated-image-stage-morphing {
+    pointer-events: none;
+}
+
+.generated-image-card img {
+    display: block;
+    width: auto;
+    max-width: 100%;
+    height: auto;
+    max-height: 70vh;
+    object-fit: contain;
+    border-radius: 1.2rem;
+    background: transparent;
+}
+
+.generated-image-card.has-known-aspect .generated-image-preview-btn,
+.generated-image-card.has-known-aspect img {
+    height: auto;
+}
+
+.generated-image-card.has-natural-aspect {
+    aspect-ratio: auto !important;
+}
+
+.generated-image-preview-btn {
+    display: inline-block;
+    width: auto;
+    max-width: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: zoom-in;
+}
+
+.generated-image-card + .generated-image-card {
+    margin-top: .75rem;
+}
+
+.generated-image-actions {
+    position: absolute;
+    left: .75rem;
+    right: .75rem;
+    bottom: .75rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: .5rem;
+    pointer-events: none;
+}
+
+.generated-image-action-btn {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.25rem;
+    padding: .45rem .8rem;
+    border-radius: 999px;
+    color: var(--on-color);
+    background: var(--media-chip-bg);
+    backdrop-filter: blur(10px);
+    cursor: pointer;
+    pointer-events: auto;
+}
+
+.generated-image-action-btn:hover {
+    background: var(--media-chip-bg-hover);
+}
+
+.generated-image-download-btn {
+    justify-content: center;
+    width: 2.5rem;
+    min-width: 2.5rem;
+    padding: .45rem;
+}
+
+.generated-image-action-btn svg {
+    flex: none;
+    color: var(--on-color);
+    stroke: var(--on-color);
+}
+
+.generated-image-skeleton {
+    position: relative;
+    width: 100%;
+    min-height: 24rem;
+    max-height: 72vh;
+    aspect-ratio: 1 / 1;
+    transition: width .46s cubic-bezier(.2, .8, .2, 1), height .46s cubic-bezier(.2, .8, .2, 1), aspect-ratio .46s cubic-bezier(.2, .8, .2, 1), min-height .46s cubic-bezier(.2, .8, .2, 1);
+    /* Not clipped: nothing in it goes outside (the field of dots has its own bounds), and a clip at the left edge shaved the left stroke of the first
+       letter of the stage words where a font's glyph reaches a little past its box (「正」 of 「正在構圖」 on a phone). */
+    overflow: visible;
+    color: color-mix(in srgb, var(--text-secondary) 78%, transparent);
+    isolation: isolate;
+}
+
+/* The wait for a picture (ui/image-wait/): a field of dots in the colour of the buttons, drawn straight on the page (no card, no frame) the way the picture will
+   fill it, and the words of the stage above it. */
+.generated-image-skeleton > .generated-image-wait-label {
+    position: relative;
+    z-index: 2;
+    display: block;
+    max-width: 100%;
+    transition: opacity .3s ease;
+    font-size: .8125rem;
+    line-height: 1.4;
+    color: var(--text-secondary);
+}
+
+.generated-image-wait-label.is-swap {
+    animation: generated-image-wait-swap .32s ease;
+}
+
+noureon-image-wait {
+    position: absolute;
+    inset: 2rem 0 0;
+    z-index: 1;
+    display: block;
+    pointer-events: none;
+    transition: opacity .3s ease;
+}
+
+noureon-image-wait .generated-image-dots {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.generated-image-skeleton-finalizing noureon-image-wait,
+.generated-image-skeleton-finalizing > .generated-image-wait-label {
+    opacity: 0;
+}
+
+@keyframes generated-image-wait-swap {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .generated-image-wait-label.is-swap { animation: none; }
+}
+
+.generated-image-result-enter .generated-image-card {
+    opacity: 0;
+    transform: scale(.965);
+    filter: blur(5px);
+    clip-path: inset(2% round 1.5rem);
+}
+
+.generated-image-result-enter.generated-image-result-visible .generated-image-card {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
+    clip-path: inset(0 round 1.5rem);
+    transition: opacity .46s ease, transform .52s cubic-bezier(.2, .8, .2, 1), filter .42s ease, clip-path .52s cubic-bezier(.2, .8, .2, 1);
+}
+
+@media (max-width: 640px) {
+    .image-message-stack {
+        width: calc(100vw - 3.5rem);
+        max-width: calc(100% - 1.1rem);
+        margin-right: 1.1rem !important;
+    }
+
+    .generated-image-card {
+        width: fit-content;
+        max-width: 100%;
+        border-radius: 0;
+    }
+
+    /* The rounded corners belong to the field of dots, not to the whole box: the words of the stage stand in the top left corner. */
+    .generated-image-skeleton {
+        width: 100%;
+        min-height: min(22rem, calc(100vw - 3.5rem));
+    }
+
+    .generated-image-skeleton noureon-image-wait {
+        border-radius: 1.1rem;
+        overflow: hidden;
+    }
+}
