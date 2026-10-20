@@ -1,7 +1,7 @@
 // What the parts of the conversation sync (Sync V2) share: the version of the cloud schema, the errors, and the small helpers that
 // describe a workspace or a set of cloud rows. The parts: cloud-sync-v2-repository.js (the database), -merge.js (local and cloud
 // versions put together), -remote-apply.js (the cloud brought in), -capture.js (an upload), -permanent-delete.js, -local-runtime.js
-// (the browser's storage), and cloud-sync-v2-shadow.js, which joins them.
+// (the browser's storage), and cloud-sync-v2-controller.js, which joins them (cloud-sync-v2.js is the public face).
 
 export const SCHEMA_VERSION = 2;
 export const TRASH_SYNC_CAPABILITY = 1;

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { webcrypto } from 'node:crypto';
 import test from 'node:test';
 
-import { createConversationShadowSync } from '../src/app/sync/cloud-sync-v2-shadow.js';
+import { createConversationShadowSync } from '../src/app/sync/cloud-sync-v2.js';
 import { encodeWorkspaceConversationShadow } from '../src/app/sync/cloud-sync-v2-codecs.js';
 import { conversationDeleteFingerprint, conversationDeleteMatchKeys, uniqueConversationsById } from '../src/app/sync/cloud-sync-v2-delete-match.js';
 import { mergeRemoteIntoEntityDirtyLocal, reconcileEncodedMessageIds } from '../src/app/sync/cloud-sync-v2-merge.js';

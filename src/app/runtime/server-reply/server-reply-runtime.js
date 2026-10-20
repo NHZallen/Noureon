@@ -27,7 +27,7 @@ export function createBrowserServerReply({
   // The model that writes down the documents a reply's model cannot read (the single-model one in Settings): the server prepares the files with it.
   getSingleDocumentTranslatorModel = () => null,
   document = globalThis.document,
-  // The conversation sync (src/app/sync/cloud-sync-v2-shadow.js): enabled only for a signed-in cloud account.
+  // The conversation sync (src/app/sync/cloud-sync-v2.js): enabled only for a signed-in cloud account.
   getSync = () => globalThis.__astraCloudSyncV2,
   // Loaded when first needed: the page's main code does not carry the account library for a reply made here.
   getClient = async () => (await import('../../auth/supabase-client.js')).getSupabaseClient(),

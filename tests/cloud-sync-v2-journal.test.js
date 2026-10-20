@@ -3,7 +3,7 @@ import { webcrypto } from 'node:crypto';
 import test from 'node:test';
 
 import { createLegacyRuntimeAppDataPersistence } from '../src/app/runtime/kernel/app-data-persistence.js';
-import { initializeConversationShadowSync } from '../src/app/sync/cloud-sync-v2-shadow.js';
+import { initializeConversationShadowSync } from '../src/app/sync/cloud-sync-v2.js';
 import { createWorkspaceStoreV2, fingerprintText, getWorkspaceV2Keys } from '../src/app/runtime/kernel/workspace-store-v2.js';
 import {
   acknowledgeCloudSyncJournal,

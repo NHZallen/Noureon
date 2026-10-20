@@ -6,7 +6,7 @@ import {
   createConversationShadowRepository,
   createConversationShadowSync,
   initializeConversationShadowSync
-} from '../src/app/sync/cloud-sync-v2-shadow.js';
+} from '../src/app/sync/cloud-sync-v2.js';
 import {
   deterministicUuid,
   encodeWorkspaceConversationShadow
