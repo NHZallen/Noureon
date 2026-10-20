@@ -19,9 +19,9 @@ const BLOCK_PATTERN = /^```noureon-run\n([^\n]*)\n```[ \t]*(?:\n+|$)/;
 // Display limits for what is stored per step.
 export const STORED_TEXT_CHARS = 50_000;
 const STORED_CODE_CHARS = 100_000;
-// At least the most runs a reply may make (MAX_RUNS_WITH_CLI, 25, in runtime/sandbox/sandbox-guidance.js): a step left out takes the card of
+// At least the most runs a reply may make (MAX_RUNS_WITH_CLI, 50, in runtime/sandbox/sandbox-guidance.js): a step left out takes the card of
 // the file it made with it (2026-10-20: a reply of 22 steps saved its presentation in the 21st, and the card was gone).
-export const MAX_STEPS = 30;
+export const MAX_STEPS = 60;
 const STORED_THOUGHT_CHARS = 6000;
 // What the model said before a run ("I'll check the environment first"), shown between the steps.
 const STORED_NARRATION_CHARS = 2000;

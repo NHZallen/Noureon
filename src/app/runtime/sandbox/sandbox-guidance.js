@@ -54,9 +54,9 @@ export const REQUEST_CREDENTIALS_TOOL = Object.freeze({
   })
 });
 
-export const MAX_RUNS_PER_REPLY = 10;
+export const MAX_RUNS_PER_REPLY = 20;
 // A document made with a CLI tool is many small commands; a reply that has one may run more steps.
-export const MAX_RUNS_WITH_CLI = 25;
+export const MAX_RUNS_WITH_CLI = 50;
 
 /**
  * What the model is told about the CLI tools the person chose: each tool and how to use it. `tools`: [{ name, version, id, usage, problem?, missing? }]
