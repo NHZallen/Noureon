@@ -3,15 +3,19 @@
 // Keys are read from the environment and never printed.
 //
 //   NVIDIA_API_KEY=nvapi-... node scripts/nvidia-probe.mjs                  (the two NVIDIA models)
-//   OPENROUTER_API_KEY=sk-or-... node scripts/nvidia-probe.mjs --openrouter  (nvidia/nemotron-3.5-super-vl:free)
+//   OPENROUTER_API_KEY=sk-or-... node scripts/nvidia-probe.mjs --openrouter  (minimax/minimax-m3.1-flash:free, the one asked for on 2026-10-20)
 //   OPENROUTER_API_KEY=sk-or-... node scripts/nvidia-probe.mjs --openrouter --model deepseek/deepseek-v4.1-flash-1017   (any OpenRouter id)
 //   node scripts/nvidia-probe.mjs --only video --video ./clip.mp4            (one check; a video of your own instead of the made one)
 //   node scripts/nvidia-probe.mjs --model stepfun-ai/step-5-preview          (one model id as the provider lists it; several: --model a,b)
 //   NVIDIA_API_KEY=nvapi-... node scripts/nvidia-probe.mjs --others          (the three other NVIDIA models of the app: DeepSeek V4.1 Flash, GLM-5.3 Flash, GLM-5.3)
 //
-// Checks: list (is the id in /v1/models), basic, stream, tool (a call and the answer of the tool sent back), vision (a red picture),
-// video (a short clip, made with ffmpeg when it is installed), pdf (a small PDF with a secret word, sent as a `file` part), reasoning
-// (the fields that switch thinking on, off and its level, with how many tokens each used).
+// Checks: list (is the id in /v1/models), info (what the service says of the model: pictures, video, audio and files in, the settings it takes,
+// the context, the price; OpenRouter only, costs nothing), endpoints (the providers behind the id and what each takes; OpenRouter only, costs nothing),
+// basic, stream, tool (a call and the answer of the tool sent back), params (temperature, top_p and a long output), vision (a red picture),
+// video (a short clip, made with ffmpeg when it is installed), pdf (a small PDF with a secret word, sent as a `file` part), pdfimage (a PDF whose
+// only picture holds the word), reasoning (the fields that switch thinking on, off and its level, with how many tokens each used).
+// `--only info,endpoints` asks only what costs nothing. A model that ends in `:free` is limited by its providers (a 429 now and then is not the app).
+// On OpenRouter the first thing to know is whether the id is spelt right: `list` says, and shows the ids of the same vendor when it is not.
 
 import { execFileSync } from 'node:child_process';
 import { readFileSync, mkdtempSync } from 'node:fs';
@@ -32,8 +36,9 @@ const OTHER_NVIDIA_MODELS = ['deepseek-ai/deepseek-v4.1-flash', 'z-ai/glm-5.3-fl
 const models = option('--model')
   ? option('--model').split(',').map((id) => id.trim()).filter(Boolean)
   : args.includes('--others') ? OTHER_NVIDIA_MODELS
-  : viaOpenRouter ? ['nvidia/nemotron-3.5-super-vl:free'] : ['nvidia/nemotron-3.5-super-vl-120b-a12b', 'stepfun-ai/step-5-preview'];
-const ALL = ['list', 'basic', 'stream', 'tool', 'vision', 'video', 'pdf', 'reasoning'];
+  : viaOpenRouter ? ['minimax/minimax-m3.1-flash:free'] : ['nvidia/nemotron-3.5-super-vl-120b-a12b', 'stepfun-ai/step-5-preview'];
+const ALL = viaOpenRouter ? ['list', 'info', 'endpoints', 'basic', 'stream', 'tool', 'params', 'vision', 'video', 'pdf', 'pdfimage', 'reasoning']
+  : ['list', 'basic', 'stream', 'tool', 'params', 'vision', 'video', 'pdf', 'pdfimage', 'reasoning'];
 const only = option('--only');
 const checks = only ? only.split(',') : ALL;
 
@@ -118,8 +123,33 @@ const run = async (model, check) => {
     const response = await fetch(`${BASE}/models`, { headers });
     const json = await response.json().catch(() => null);
     const ids = (json?.data || []).map((entry) => entry.id);
-    const near = ids.filter((id) => /nemotron-3\.5|step-5|deepseek-v4/i.test(id));
+    // Not listed: the ids of the same vendor (and the same words) are shown, so a spelling that is a little off is found.
+    const vendor = `${model.split('/')[0]}/`;
+    const words = model.replace(/^[^/]*\//, '').split(/[:\-.]/).filter((word) => word.length > 1).map((word) => word.toLowerCase());
+    const near = ids.filter((id) => id.startsWith(vendor) || words.some((word) => id.toLowerCase().includes(word))).slice(0, 25);
     return report(model, check, ids.includes(model), ids.includes(model) ? 'listed' : `not listed; close ids: ${near.join(', ') || '(none)'}`);
+  }
+  if (check === 'info') {
+    // What the service says of the model (OpenRouter's /models: free to ask).
+    const response = await fetch(`${BASE}/models`, { headers });
+    const json = await response.json().catch(() => null);
+    const entry = (json?.data || []).find((item) => item.id === model);
+    if (!entry) return report(model, check, false, `${response.status} not in the list`);
+    const price = entry.pricing || {};
+    return report(model, check, true, `in: ${(entry.architecture?.input_modalities || []).join('+') || '?'}  out: ${(entry.architecture?.output_modalities || []).join('+') || '?'}  context ${entry.context_length ?? '?'}  max output ${entry.top_provider?.max_completion_tokens ?? '?'}  prompt $${price.prompt ?? '?'}/token  completion $${price.completion ?? '?'}/token  takes: ${(entry.supported_parameters || []).join(', ') || '?'}${entry.expiration_date ? `  expires ${entry.expiration_date}` : ''}`);
+  }
+  if (check === 'endpoints') {
+    // The providers behind the id and what each takes (tools, thinking, pictures): the id of a free model is tried as it is, then without `:free`.
+    for (const path of [model, model.replace(/:.*$/, '')].filter((value, index, all) => all.indexOf(value) === index)) {
+      const response = await fetch(`${BASE}/models/${path}/endpoints`, { headers });
+      const json = await response.json().catch(() => null);
+      const list = json?.data?.endpoints;
+      if (response.status !== 200 || !Array.isArray(list)) continue;
+      if (!list.length) return report(model, check, false, `${path}: no provider answers it now`);
+      for (const endpoint of list) report(model, `${check} ${endpoint.provider_name || endpoint.name}`, true, `${endpoint.status ?? ''} context ${endpoint.context_length ?? '?'} max output ${endpoint.max_completion_tokens ?? '?'} ${endpoint.quantization || ''} takes: ${(endpoint.supported_parameters || []).join(', ') || '?'}`);
+      return null;
+    }
+    return report(model, check, false, 'the service gave no providers for this id');
   }
   if (check === 'basic') {
     const result = await post({ ...base, messages: [{ role: 'user', content: 'Reply with the single word: pong' }] });
@@ -137,6 +167,20 @@ const run = async (model, check) => {
     if (!call) return report(model, check, false, `${first.status} no tool call: ${answerOf(first)}`);
     const second = await post({ ...base, tools: [TOOL], messages: [...messages, first.json.choices[0].message, { role: 'tool', tool_call_id: call.id, content: '{"time":"14:05"}' }] });
     return report(model, check, second.status === 200 && /14[:.]?05|2:05/.test(answerOf(second)), `call ${call.function.name}(${call.function.arguments}) -> ${second.status} ${answerOf(second)}`);
+  }
+  if (check === 'params') {
+    // The settings the app sets on a reply, each alone: are they taken, or refused?
+    for (const [label, extra] of [['temperature 0.7', { temperature: 0.7 }], ['top_p 0.95', { top_p: 0.95 }], ['max_tokens 16384', { max_tokens: 16384 }]]) {
+      const result = await post({ ...base, ...extra, messages: [{ role: 'user', content: 'Reply with the single word: pong' }] });
+      report(model, `params ${label}`, result.status === 200, `${result.status} ${result.ms}ms ${result.status === 200 ? answerOf(result) : redact(result.text).slice(0, 200)}`);
+    }
+    return null;
+  }
+  if (check === 'pdfimage') {
+    // A PDF whose only line of text does not hold the word: the word is written inside a picture of the page. BANANA means the model looked at the picture.
+    const document = readFileSync(new URL('./probe-files/image-pdf.pdf', import.meta.url)).toString('base64');
+    const result = await post({ ...base, messages: [{ role: 'user', content: [{ type: 'text', text: 'There is a picture in this document with one word written in it. What is the word? One word.' }, { type: 'file', file: { filename: 'picture.pdf', file_data: `data:application/pdf;base64,${document}` } }] }] });
+    return report(model, check, result.status === 200 && /banana/i.test(answerOf(result)), `${result.status} ${result.ms}ms ${answerOf(result)}`);
   }
   if (check === 'vision') {
     const result = await post({ ...base, messages: [{ role: 'user', content: [{ type: 'text', text: 'What colour is this picture? One word.' }, { type: 'image_url', image_url: { url: `data:image/png;base64,${PNG}` } }] }] });

@@ -19,8 +19,8 @@ const byteStream = (chunks) => {
 const reply = ({ ok = true, status = 200, chunks = [], body } = {}) => ({ ok, status, statusText: '', body: byteStream(chunks), text: async () => body ?? '', json: async () => JSON.parse(body ?? '{}') });
 
 test('the list of OpenCode Go models: the ones of the owner\'s table, each in one of the three forms of API, with the pictures the owner confirmed', () => {
-  assert.equal(OPENCODE_GO_MODELS.length, 33);
-  assert.equal(new Set(OPENCODE_GO_MODELS.map((entry) => entry.id)).size, 33);
+  assert.equal(OPENCODE_GO_MODELS.length, 35);
+  assert.equal(new Set(OPENCODE_GO_MODELS.map((entry) => entry.id)).size, 35);
   for (const entry of OPENCODE_GO_MODELS) {
     assert.ok(OPENCODE_FORMATS.includes(opencodeFormatOf(entry)), entry.id);
     assert.equal(entry.provider, 'opencode-go');
@@ -32,11 +32,17 @@ test('the list of OpenCode Go models: the ones of the owner\'s table, each in on
   const forms = (format) => OPENCODE_GO_MODELS.filter((entry) => entry.opencodeFormat === format).map((entry) => entry.apiId);
   assert.deepEqual(forms('responses').sort(), ['gpt-5.6-luna', 'gpt-6-luna', 'grok-4.6', 'grok-4.7', 'muse-spark-1.2-contributor', 'muse-spark-1.3-contributor']);
   assert.deepEqual(forms('gemini'), ['gemini-4-argon-contributor']);
-  assert.deepEqual(forms('messages').sort(), ['claude-haiku-5-5', 'minimax-m2.7', 'minimax-m3', 'qwen3.7-plus', 'qwen3.8-flash', 'qwen3.8-max']);
+  assert.deepEqual(forms('messages').sort(), ['claude-haiku-5-5', 'minimax-m2.7', 'minimax-m3', 'minimax-m3.1-flash-free', 'qwen3.7-plus', 'qwen3.8-flash', 'qwen3.8-max']);
   const noPictures = OPENCODE_GO_MODELS.filter((entry) => !modelSupportsVision(entry)).map((entry) => entry.apiId).sort();
-  assert.deepEqual(noPictures, ['cat-jam-free', 'deepseek-v4-flash', 'deepseek-v4-pro', 'glm-5.2', 'glm-5.3', 'hy3', 'hy4-preview', 'longcat-2.0', 'mimo-v2.5-pro', 'minimax-m2.7']);
+  assert.deepEqual(noPictures, ['beam-free', 'cat-jam-free', 'deepseek-v4-flash', 'deepseek-v4-pro', 'glm-5.2', 'glm-5.3', 'hy3', 'hy4-preview', 'longcat-2.0', 'mimo-v2.5-pro', 'minimax-m2.7']);
   assert.ok(modelSupportsVision(model('minimax-m3')) && modelSupportsVision(model('longcat-2.5-preview-free')) && modelSupportsVision(model('muse-spark-1.3-contributor')));
   assert.deepEqual(getModelTiers(model('step-5-preview-free')), ['free']);
+  // The two of 2026-10-20 (the owner's probe): free; Beam is a hidden test model; MiniMax M3.1 Flash sees pictures, Beam is text only.
+  for (const apiId of ['minimax-m3.1-flash-free', 'beam-free']) assert.deepEqual(getModelTiers(model(apiId)), ['free'], apiId);
+  assert.equal(model('minimax-m3.1-flash-free').hiddenModel, undefined, 'MiniMax M3.1 Flash is in the list of the documents');
+  assert.deepEqual([model('beam-free').hiddenModel, model('beam-free').requiresStealthTermsAcknowledgement], [true, true], 'Beam is a test model (the owner)');
+  assert.ok(modelSupportsVision(model('minimax-m3.1-flash-free')));
+  assert.equal(modelSupportsVision(model('beam-free')), false);
   // The two hidden test models: marked as hidden and asked about the first time they are chosen; Cat Jam is free, Space Bunny is not (a Go plan model).
   for (const apiId of ['cat-jam-free', 'space-bunny']) {
     assert.equal(model(apiId).hiddenModel, true, apiId);
@@ -44,7 +50,7 @@ test('the list of OpenCode Go models: the ones of the owner\'s table, each in on
   }
   assert.deepEqual(getModelTiers(model('cat-jam-free')), ['free']);
   assert.deepEqual(getModelTiers(model('space-bunny')), ['paid'], 'Space Bunny is not free');
-  assert.equal(OPENCODE_GO_MODELS.filter((entry) => entry.hiddenModel).length, 2, 'only those two');
+  assert.equal(OPENCODE_GO_MODELS.filter((entry) => entry.hiddenModel).length, 3, 'those two and Beam');
   assert.deepEqual(getModelTiers(model('kimi-k3')), ['paid']);
   assert.equal(getProviderLabel('opencode-go'), 'OpenCode Go');
   assert.equal(getModelApiId(model('kimi-k3')), 'kimi-k3');
@@ -403,7 +409,7 @@ test('a tool round in each form (what Python, connectors, skills, command tools 
 
 test('the depth of thinking of each model: the options of the slider, and the fields that say it in the way of the model (the ones the probe found accepted)', () => {
   // The slider is the one of the app: the models that have a choice get a row in its table.
-  assert.equal(Object.keys(OPENCODE_REASONING_CONFIGS).length, 30);
+  assert.equal(Object.keys(OPENCODE_REASONING_CONFIGS).length, 32);
   const config = getModelReasoningConfig(model('kimi-k3'));
   assert.deepEqual([config.options, config.defaultEffort], [['none', 'low', 'medium', 'high', 'max'], 'high']);
   assert.equal(normalizeReasoningEffort(model('kimi-k3'), 'xhigh'), 'high');
@@ -422,6 +428,11 @@ test('the depth of thinking of each model: the options of the slider, and the fi
   assert.deepEqual(fields('muse-spark-1.3-contributor', 'minimal'), { reasoning: { effort: 'minimal' } });
   assert.deepEqual(fields('gemini-4-argon-contributor', 'high'), { generationConfig: { thinkingConfig: { thinkingLevel: 'high' } } });
   assert.deepEqual(fields('gemini-4-argon-contributor', 'minimal'), {}, 'minimal is refused by the service');
+  // The two of 2026-10-20: MiniMax M3.1 Flash is asked as Claude Haiku is (it cannot stop thinking); Beam takes the depths as `reasoning_effort`, never none or minimal.
+  assert.deepEqual(fields('minimax-m3.1-flash-free', 'high'), { thinking: { type: 'adaptive' }, output_config: { effort: 'high' } });
+  assert.deepEqual(fields('minimax-m3.1-flash-free', 'none'), {}, 'its thinking cannot be turned off');
+  assert.deepEqual(fields('beam-free', 'xhigh'), { reasoning_effort: 'xhigh' });
+  assert.deepEqual(fields('beam-free', 'none'), {});
   assert.deepEqual(fields('claude-haiku-5-5', 'max'), { thinking: { type: 'adaptive' }, output_config: { effort: 'max' } });
   assert.deepEqual(fields('qwen3.8-max', 'low'), { thinking: { type: 'adaptive' }, output_config: { effort: 'low' } });
   assert.deepEqual(fields('qwen3.8-max', 'none'), { thinking: { type: 'disabled' } });
@@ -467,8 +478,8 @@ test('a reply says the depth in the request, in the form of the model, and says 
 test('a PDF goes to the models that read it (the probe of 2026-10-14), in the form of each API; any other file, and the other models, still go through the translator', async () => {
   const pdf = { inlineData: { mimeType: 'application/pdf', data: 'JVBERi0x', name: 'a.pdf' } };
   const docx = { inlineData: { mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', data: 'UEsDBA==', name: 'a.docx' } };
-  const reads = ['hy3', 'grok-4.7', 'gpt-6-luna', 'claude-haiku-5-5', 'minimax-m3', 'minimax-m2.7', 'qwen3.8-max', 'muse-spark-1.3-contributor', 'gemini-4-argon-contributor'];
-  const refuses = ['deepseek-v4-flash', 'deepseek-v4.1-flash', 'mimo-v2.5', 'step-5-preview-free', 'glm-5.3', 'kimi-k3', 'kimi-k2.7-code', 'mimo-v2.6-pro', 'longcat-2.5-preview-free', 'cat-jam-free', 'deepseek-v4-flash-vision-exp', 'deepseek-v4-pro', 'space-bunny', 'longcat-2.0'];
+  const reads = ['hy3', 'grok-4.7', 'gpt-6-luna', 'claude-haiku-5-5', 'minimax-m3', 'minimax-m2.7', 'minimax-m3.1-flash-free', 'qwen3.8-max', 'muse-spark-1.3-contributor', 'gemini-4-argon-contributor'];
+  const refuses = ['beam-free', 'deepseek-v4-flash', 'deepseek-v4.1-flash', 'mimo-v2.5', 'step-5-preview-free', 'glm-5.3', 'kimi-k3', 'kimi-k2.7-code', 'mimo-v2.6-pro', 'longcat-2.5-preview-free', 'cat-jam-free', 'deepseek-v4-flash-vision-exp', 'deepseek-v4-pro', 'space-bunny', 'longcat-2.0'];
   // Word and PowerPoint files as they are: only the five that answered MANGO to both in the probe; for every other model they are translated.
   const pptx = { inlineData: { mimeType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', data: 'UEsDBA==', name: 'a.pptx' } };
   const officeReaders = ['grok-4.7', 'grok-4.6', 'gpt-6-luna', 'gpt-5.6-luna', 'gemini-4-argon-contributor'];

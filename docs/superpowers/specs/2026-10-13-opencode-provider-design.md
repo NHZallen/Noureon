@@ -243,3 +243,55 @@ OpenCode 自己的 `variant.ts` 是一份對照（OpenCode 用戶端的設定，
 - Word／PowerPoint 轉成的 PDF，**兩種都穩定答 MANGO**：hy4-preview、hy3、muse-spark-1.3／1.2-contributor、claude-haiku-5-5、minimax-m3、minimax-m2.7、qwen3.8-max、qwen3.8-flash、qwen3.7-plus（共 10 個）。這 10 個就是「先轉 PDF 再送」（NOU-25）的對象。
 - **不穩定的四個**：deepseek-v4-flash（兩份 PDF 都 400「file must have a file_id or file_data」）、deepseek-v4.1-flash（有時 400、有時答對）、mimo-v2.5（有時說打不開）、step-5-preview-free（端點常暫停 429）。三輪下來結果不一致，**從「直接讀 PDF」名單拿掉**（`opencode-models.js` 的 `PDF_API_IDS`），這四個的檔案一律先轉譯。
 - 直接讀 PDF 的 OpenCode 模型因此從 19 個變 15 個；Word／PowerPoint 直接讀的仍是 5 個。
+
+### 2026-10-20 新增兩個免費模型前的探測：MiniMax M3.1 Flash Free、Beam Free
+
+- Allen 要加這兩個（OpenCode Go，免費）。這個環境連不到 opencode.ai，查不到模型 id 與 API 格式，所以先給探測程式，結果要由 Allen 在自己的電腦跑。
+- 探測程式（`scripts/opencode-probe.mjs`）做了三件事：
+  - `MODELS` 多了兩筆猜測的項目：`minimax-m3.1-flash-free`（猜 Messages 格式，MiniMax 其他模型都是）與 `beam-free`（猜 chat）。猜的格式被拒絕時，探測會自動改試其他格式。
+  - `--new`：讀服務的模型清單（公開、不用金鑰），印出探測程式還沒有的 id。id 的拼法對不對，用這個看。
+  - `--model id[:格式]`：直接試任意 id；有寫格式（`:chat`、`:responses`、`:messages`）就不猜。
+- 執行（要全部能力一次測完）：
+  ```
+  node scripts/opencode-probe.mjs --new
+  OPENCODE_GO_KEY=... node scripts/opencode-probe.mjs --only minimax-m3.1-flash-free,beam-free --max-tokens 1500 --out probe-new.json
+  ```
+  - 預設會跑全部測試：基本回答、串流、工具呼叫、工具迴圈、參數、思考深度、看圖、PDF（含 PDF 裡的圖片）、Word／PowerPoint 原檔、思考設定、金鑰與錯誤。
+  - `--new` 顯示的 id 如果不同，改用 `--model <實際的 id>`。
+- 結果出來之後，才依結果填模型登記表（`opencode-models.js`：格式、工具、看圖、PDF、思考深度）。
+- OpenRouter 的 `minimax/minimax-m3.1-flash:free`（Allen 要一起加）用 `scripts/nvidia-probe.mjs --openrouter`（預設就是這個 id）：
+  ```
+  OPENROUTER_API_KEY=... node scripts/nvidia-probe.mjs --openrouter --only list,info,endpoints
+  OPENROUTER_API_KEY=... node scripts/nvidia-probe.mjs --openrouter
+  ```
+  - 第一行指令是不花錢的：
+    - `list` 看 id 對不對，不對時列出同一家的 id。
+    - `info` 看服務說這個模型收什麼（文字、圖、影片、檔案）、吃哪些設定、context 與價格。
+    - `endpoints` 看背後有哪些供應商、各自支援什麼。
+  - 第二行跑全部：基本、串流、工具、參數、看圖、影片、PDF、PDF 裡的圖、思考深度。
+  - `:free` 的模型被供應商限速，偶爾回 429 不代表 App 有問題。
+
+### 2026-10-20 探測結果與套用（Allen 跑的 `probe-new.json` 與 OpenRouter 的輸出），已加入模型登記表
+
+OpenCode Go 兩個免費模型（id 猜對了）：
+
+| | `minimax-m3.1-flash-free` | `beam-free` |
+|---|---|---|
+| 格式 | messages | chat |
+| 工具 | 可用（呼叫、工具迴圈兩種都過） | 可用（工具迴圈有思考、沒思考都過） |
+| 參數 | temperature、top_p、16384 都收 | 都收 |
+| 看圖 | 可用（回答 Red） | 不能：400「Beam supports text input only」 |
+| PDF | 讀（MANGO），而且看得到 PDF 裡的圖片（BANANA） | 不收：檔案區塊被拒（400） |
+| Word、PowerPoint 原檔 | 沒讀到（答 Unreadable、Unknown） | 不收 |
+| 思考 | 一定會思考：`thinking: disabled` 被拒（400）；`adaptive` 加 `output_config.effort` 的 low 到 max 都收 | 一定會思考（`reasoning_content`）：`none`、`minimal` 被拒；`reasoning_effort` 的 low 到 max 都收；`thinking`、`enable_thinking` 不認得 |
+
+- 套用（`opencode-models.js`）：
+  - 兩個都是 `free`，名稱不寫 Free（標籤另外標）。Beam 是隱藏的測試模型（Allen 說明），第一次選用會跳確認視窗，和 Cat Jam 一樣；MiniMax M3.1 Flash 不是。
+  - MiniMax M3.1 Flash 加進 PDF 名單，而且加進「Word／PowerPoint 先轉 PDF」名單，等於 Claude Haiku 的做法（思考方式也同它）。`converted` 這項沒有跑，請在測試站用 Word、PowerPoint 驗收。
+  - Beam 是純文字模型，公司歸在 `opencode`（和 Space Bunny、Cat Jam 同一個），思考方式是 `reasoning_effort`，預設 high。
+- OpenRouter 的 `minimax/minimax-m3.1-flash:free`：全部項目都過。
+  - `info`：輸入文字、圖片、影片，context 1,000,000，最大輸出 524,288，價格 0。
+  - 工具、看圖、影片、PDF、PDF 裡的圖都過。
+  - 思考：`none` 被拒（400「Reasoning is mandatory」），low 到 max 和 enabled 都收。
+  - 套用（`model-registry.js`）：加進模型清單、看圖名單、工具名單，思考深度 low 到 max、預設 medium。
+- 模型數 77 個變成 80 個（`npm run sync:counts`）；協助中心（五語言）的「轉 PDF 模型」名單加上 MiniMax M3.1 Flash。

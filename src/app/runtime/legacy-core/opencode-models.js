@@ -35,6 +35,11 @@ const ROWS = [
   ['space-bunny', 'Space Bunny', 'opencode', 'chat', true, DESC.hiddenGo, null, true],
   ['longcat-2.5-preview-free', 'LongCat 2.5 Preview', 'meituan', 'chat', true, DESC.free, 'free'],
   ['step-5-preview-free', 'Step 5 Preview', 'stepfun', 'chat', true, DESC.free, 'free'],
+  // The probe of 2026-10-20 (scripts/opencode-probe.mjs, the owner ran it): the ids were guessed right. MiniMax M3.1 Flash speaks the Messages form, sees pictures, reads a PDF (and the pictures in it).
+  // Beam is text only (a picture is refused: "Beam supports text input only"; a file part is refused too) and a test model (the owner, 2026-10-20): hidden, with the window the first time it is chosen,
+  // like Cat Jam. Neither has a price: they are free for a time.
+  ['minimax-m3.1-flash-free', 'MiniMax M3.1 Flash', 'minimax', 'messages', true, DESC.free, 'free'],
+  ['beam-free', 'Beam', 'opencode', 'chat', false, DESC.hidden, 'free', true],
   ['cat-jam-free', 'Cat Jam', 'opencode', 'chat', false, DESC.hidden, 'free', true],
   ['grok-4.7', 'Grok 4.7', 'x-ai', 'responses', true, DESC.go30],
   ['grok-4.6', 'Grok 4.6', 'x-ai', 'responses', true, DESC.go30],
@@ -87,7 +92,9 @@ const PDF_API_IDS = new Set([
   'hy4-preview', 'hy3',
   'grok-4.7', 'grok-4.6', 'gpt-6-luna', 'gpt-5.6-luna',
   'muse-spark-1.3-contributor', 'muse-spark-1.2-contributor', 'gemini-4-argon-contributor',
-  'claude-haiku-5-5', 'minimax-m3', 'minimax-m2.7', 'qwen3.8-max', 'qwen3.8-flash', 'qwen3.7-plus'
+  'claude-haiku-5-5', 'minimax-m3', 'minimax-m2.7', 'qwen3.8-max', 'qwen3.8-flash', 'qwen3.7-plus',
+  // The probe of 2026-10-20: a one-page PDF answered MANGO, and the word written in a picture of a PDF answered BANANA.
+  'minimax-m3.1-flash-free'
 ]);
 
 // The models that also read a Word (.docx) and a PowerPoint (.pptx) file as they are (the probe of 2026-10-14, test `office`: both files, each with "The secret word
@@ -106,7 +113,8 @@ export const opencodeModelReadsPdf = (model) => isOpencodeModel(model) && PDF_AP
 // The models whose Word and PowerPoint files are turned into a PDF first (the server does it, docs/superpowers/specs/2026-10-14-office-to-pdf-design.md): they read a PDF, and
 // they also look at the pictures in it (the probe of 2026-10-14, test `pdfimage`: a word written in a picture of the PDF was read). Hy4 Preview, MiniMax M2.7 and Qwen3.7 Plus
 // did not (or not reliably), so their files are read by the app (the text and the pictures) instead.
-const OFFICE_VIA_PDF_API_IDS = new Set(['hy3', 'muse-spark-1.3-contributor', 'muse-spark-1.2-contributor', 'claude-haiku-5-5', 'minimax-m3', 'qwen3.8-max', 'qwen3.8-flash']);
+// MiniMax M3.1 Flash (2026-10-20) reads the PDF and the picture in it, and did not read a Word or PowerPoint file as it is ("Unreadable"); the test `converted` was not run for it.
+const OFFICE_VIA_PDF_API_IDS = new Set(['hy3', 'muse-spark-1.3-contributor', 'muse-spark-1.2-contributor', 'claude-haiku-5-5', 'minimax-m3', 'minimax-m3.1-flash-free', 'qwen3.8-max', 'qwen3.8-flash']);
 export const opencodeModelReadsOfficeViaPdf = (model, mimeType) => isOpencodeModel(model) && OFFICE_MIME_TYPES.has(mimeType) && OFFICE_VIA_PDF_API_IDS.has(BY_ID.get(model.id)?.apiId);
 
 /** True when the model reads a file of this type as it is: a PDF (the list above), or a Word or PowerPoint file (the shorter list). */
@@ -154,6 +162,10 @@ const THINKING = {
   'gemini-4-argon-contributor': ['gemini', ['low', 'medium', 'high'], 'medium'],
   'claude-haiku-5-5': ['adaptive', ['low', 'medium', 'high', 'xhigh', 'max'], 'medium'],
   'minimax-m3': ['toggle', ['none', 'high'], 'high'],
+  // The probe of 2026-10-20: the thinking cannot be turned off ("requires adaptive thinking; disabled is not allowed"); low to max are taken, as for Claude Haiku.
+  'minimax-m3.1-flash-free': ['adaptive', ['low', 'medium', 'high', 'xhigh', 'max'], 'medium'],
+  // The probe of 2026-10-20: it always thinks (`reasoning_content`); `none` and `minimal` are refused (400), low to max are taken; `thinking` and `enable_thinking` are unknown to it.
+  'beam-free': ['effort', ['low', 'medium', 'high', 'xhigh', 'max'], 'high'],
   'qwen3.8-max': ['adaptiveOrOff', ['none', 'low', 'medium', 'high', 'xhigh'], 'high'],
   'qwen3.8-flash': ['adaptiveOrOff', ['none', 'low', 'medium', 'high', 'xhigh'], 'high'],
   'qwen3.7-plus': ['toggle', ['none', 'high'], 'high']

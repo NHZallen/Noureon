@@ -34,6 +34,7 @@ const MODEL_RELEASE_METADATA = Object.freeze({
     'qwen/qwen-image-2.1-turbo': { releasedAt: 20261017 },
     'qwen/qwen-image-2.1-pro': { releasedAt: 20261017 },
     'minimax/minimax-m3': { releasedAt: 20260531, outputPricePerMillion: 1.2 },
+    'minimax/minimax-m3.1-flash:free': { releasedAt: 20261020, outputPricePerMillion: 0 },
     'moonshotai/kimi-k3': { releasedAt: 20260716, outputPricePerMillion: 15 },
     'poolside/laguna-s-2.1:free': { releasedAt: 20260721, outputPricePerMillion: 0 },
     'nvidia/nemotron-3-super-120b-a12b:free': { releasedAt: 20260311, outputPricePerMillion: 0 },
@@ -129,6 +130,9 @@ export const MODEL_CATALOG = [
     // OpenRouter Paid Models (MoonshotAI)
     { id: 'moonshotai/kimi-k3', name: 'Kimi K3', provider: 'openrouter', descriptionKey: 'model_kimi_k3_desc', category: 'coding' },
 
+    // OpenRouter Free Models (Minimax)
+    { id: 'minimax/minimax-m3.1-flash:free', name: 'Minimax M3.1 Flash', provider: 'openrouter', descriptionKey: 'model_minimax_m3_1_flash_desc', category: 'general' },
+
     // OpenRouter Free Models (Poolside)
     { id: 'poolside/laguna-s-2.1:free', name: 'Laguna S 2.1', provider: 'openrouter', descriptionKey: 'model_laguna_s_2_1_desc', category: 'coding' },
 
@@ -195,6 +199,8 @@ export const OPENROUTER_VISION_MODELS = [
     'anthropic/claude-fable-5.1',
     'deepseek/deepseek-v4.1-flash-1017',
     'minimax/minimax-m3',
+    // Tried with a real key on 2026-10-20 (scripts/nvidia-probe.mjs --openrouter): a picture and a video are read.
+    'minimax/minimax-m3.1-flash:free',
     'moonshotai/kimi-k3',
     'nvidia/nemotron-3.5-super-vl:free',
     'openai/gpt-6-astra',
@@ -236,6 +242,8 @@ export const TOOL_CALLING_MODEL_IDS = Object.freeze([
     'anthropic/claude-fable-5.1',
     'deepseek/deepseek-v4.1-flash-1017',
     'minimax/minimax-m3',
+    // Tried with a real key on 2026-10-20: a call, and the answer after the result of the tool.
+    'minimax/minimax-m3.1-flash:free',
     'moonshotai/kimi-k3',
     'poolside/laguna-s-2.1:free',
     'nvidia/nemotron-3-super-120b-a12b:free',
@@ -324,6 +332,8 @@ export const MODEL_REASONING_CONFIGS = Object.freeze({ ...createReasoningConfigs
     [OPENROUTER_REASONING_EFFORT, LOW_MEDIUM_HIGH, 'medium', ['stepfun/step-5-preview']],
     [OPENROUTER_REASONING_EFFORT, ['none', 'high'], 'high', ['xiaomi/mimo-v2.6-pro', 'xiaomi/mimo-v2.6-flash']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'high', 'max'], 'high', ['moonshotai/kimi-k3']],
+    // MiniMax M3.1 Flash: the thinking is mandatory (`none` is refused: "Reasoning is mandatory for this endpoint"); low, medium, high, xhigh and max are taken (the probe of 2026-10-20).
+    [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'medium', ['minimax/minimax-m3.1-flash:free']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh'], 'high', ['x-ai/grok-4.6']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'high', 'max'], 'max', ['z-ai/glm-5.3', 'z-ai/glm-5.3-flash']]
 ]), ...OPENCODE_REASONING_CONFIGS });

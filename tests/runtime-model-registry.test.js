@@ -377,3 +377,16 @@ test('the Gemini models are also on OpenRouter, with the settings of their nativ
   assert.equal(config.defaultEffort, 'medium');
 });
 
+
+test('MiniMax M3.1 Flash (free, OpenRouter) is in the list with what the probe of 2026-10-20 found: pictures and video, tools, a PDF, and a thinking that cannot be turned off', async () => {
+  const { MODELS, modelSupportsVision, modelSupportsToolCalling, modelSupportsUploadedFile, getModelTiers, getModelReasoningConfig, normalizeReasoningEffort } = await import('../src/app/runtime/legacy-core/model-registry.js');
+  const model = MODELS.find((entry) => entry.id === 'minimax/minimax-m3.1-flash:free');
+  assert.ok(model);
+  assert.deepEqual([model.provider, model.category, getModelTiers(model)], ['openrouter', 'general', ['free']]);
+  assert.ok(modelSupportsVision(model) && modelSupportsToolCalling(model));
+  for (const mimeType of ['image/png', 'video/mp4', 'application/pdf']) assert.equal(modelSupportsUploadedFile(model, { mimeType }), true, mimeType);
+  const reasoning = getModelReasoningConfig(model);
+  assert.deepEqual([reasoning.options, reasoning.defaultEffort], [['low', 'medium', 'high', 'xhigh', 'max'], 'medium']);
+  assert.equal(reasoning.options.includes('none'), false, 'OpenRouter refuses none: the reasoning is mandatory');
+  assert.equal(normalizeReasoningEffort(model, 'none'), 'medium');
+});
