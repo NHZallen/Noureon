@@ -5,7 +5,8 @@ import { Window } from 'happy-dom';
 import fragment03 from '../src/templates/fragments/03-shell.fragment.js';
 import fragment04 from '../src/templates/fragments/04-shell.fragment.js';
 import { ensureStorageUsageBlock } from '../src/app/runtime/legacy-core/settings-storage-usage.js';
-import { ensureAutoWebSearchSettingsControl, ensureFileModeSettingsControl, ensureProcessOpenSettingsControl, ensureVisionCheckSettingsControl } from '../src/app/runtime/legacy-core/settings-vision-check-control.js';
+import { ensureAutoWebSearchSettingsControl, ensureFileModeSettingsControl, ensureProcessOpenSettingsControl } from '../src/app/runtime/legacy-core/settings-vision-check-control.js';
+import { ensureVisionCheckSettingsControl } from '../src/app/runtime/legacy-core/settings-vision-check-section.js';
 import { createSettingsMemorySummaryControls } from '../src/app/runtime/legacy-core/settings-memory-summary-controls.js';
 
 // The Models and Data tabs are written out in full in the page (03-shell fragment): the controls that used to build them find

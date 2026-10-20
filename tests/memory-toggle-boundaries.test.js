@@ -31,6 +31,7 @@ test('the automatic memory flag is never wired into a confirmed-memory removal p
     'src/app/legacy-runtime/features/assistant-response-finalization.js',
     'src/app/runtime/features/import-export-lifecycle.js',
     'src/app/runtime/kernel/config-store.js',
+    'src/app/runtime/legacy-core/settings-dialog-parts.js',
     'src/app/runtime/legacy-core/settings-modal-lifecycle.js',
     'src/app/runtime/legacy-core/settings-save-settings-helper.js',
     'src/app/runtime/legacy-core/submit-input-council-lifecycle.js'

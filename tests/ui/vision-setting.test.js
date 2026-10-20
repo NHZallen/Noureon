@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Window } from 'happy-dom';
-import { ensureVisionCheckSettingsControl } from '../../src/app/runtime/legacy-core/settings-vision-check-control.js';
+import { ensureVisionCheckSettingsControl } from '../../src/app/runtime/legacy-core/settings-vision-check-section.js';
 import { visionText } from '../../src/app/ui/files/vision/vision-texts.js';
 
 test('visual check setting sits beside web search and translates in all five languages', () => {

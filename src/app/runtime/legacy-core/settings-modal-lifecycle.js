@@ -2,10 +2,8 @@
 // account part loaded the first time), and every setting saved as it changes.
 
 import { collectSettingsSaveFormValues } from './settings-save-settings-helper.js';
-import { createSettingsHistoryRecallControls } from './settings-history-recall-controls.js';
-import { createSettingsMemorySummaryControls } from './settings-memory-summary-controls.js';
 import { getSearchProvider } from '../kernel/search-provider.js';
-import { ensureVisionCheckSettingsControl as ensureVisionControl, ensureAutoWebSearchSettingsControl as ensureAutoWebSearchControl, ensureFileModeSettingsControl as ensureFileModeControl } from './settings-vision-check-control.js';
+import { ensureAutoWebSearchSettingsControl as ensureAutoWebSearchControl, ensureFileModeSettingsControl as ensureFileModeControl, ensureProcessOpenSettingsControl } from './settings-vision-check-control.js';
 
 export function createSettingsModalLifecycle({
     window, document, console, elements: ALL_ELEMENTS, state, legacyRuntimeContext, runtimeStorageAdapter, models: MODELS, i18n, config,
@@ -57,51 +55,24 @@ export function createSettingsModalLifecycle({
         return syncVaultControlsPromise;
     };
     const ensureAutoWebSearchSettingsControl = () => ensureAutoWebSearchControl({ document, elements: ALL_ELEMENTS });
-    const ensureVisionCheckSettingsControl = () => {
-        ensureVisionControl({ document, elements: ALL_ELEMENTS, config, saveConfig, showNotification });
+    // The rows of the replies card that load with the page; the visual check row loads with the dialog's parts.
+    const ensureFileModeSettingsControl = () => {
+        ensureProcessOpenSettingsControl({ document, elements: ALL_ELEMENTS, config });
         ensureFileModeControl({ document, elements: ALL_ELEMENTS, config });
     };
-    const historyRecallControls = createSettingsHistoryRecallControls({
-        document,
-        elements: ALL_ELEMENTS,
-        legacyRuntimeContext,
-        getConfig: () => config,
-        getText: (key, fallback) => i18n[config.uiLanguage]?.[key] || fallback
-    });
-    const {
-        ensureHistoryRecallSettingsControl,
-        refreshHistoryRecallStatus,
-        resolveHistoryRecallEnabled,
-        bindHistoryIndexRebuild,
-        bindHistoryIndexAudit,
-        bindHistoryIndexStatusUpdates
-    } = historyRecallControls;
-    const memorySummaryControls = createSettingsMemorySummaryControls({
-        document,
-        models: MODELS,
-        getConfig: () => config,
-        getMemoryState: () => state.memoryState,
-        legacyRuntimeContext,
-        saveConfig,
-        isModelReady: model => Boolean(getApiKeyForProvider?.(model?.provider)),
-        showNotification,
-        showCustomPrompt,
-        showCustomDialog
-    });
-    const {
-        ensureControls: ensureMemorySummarySettingsControls,
-        render: renderMemorySummary
-    } = memorySummaryControls;
+    // The heavier parts of the dialog load when it is first built (settings-dialog-parts.js): the visual check row with the Privacy and
+    // Permissions tabs, the memory summary and the recall of past conversations. Saving waits for them.
+    let dialogParts;
+    const loadDialogParts = () => dialogParts ||= import('./settings-dialog-parts.js').then(({ createSettingsDialogParts }) => createSettingsDialogParts({
+        document, elements: ALL_ELEMENTS, state, legacyRuntimeContext, models: MODELS, i18n, config, getApiKeyForProvider, saveConfig,
+        showNotification, showCustomPrompt, showCustomDialog
+    }));
+    let partsFilled = Promise.resolve();
     const setupSettingsModal = () => {
         ensureSettingsMobileShell();
         ensureUserSettingsNavigationShell();
         ensureAutoWebSearchSettingsControl();
-        ensureVisionCheckSettingsControl();
-        ensureMemorySummarySettingsControls();
-        ensureHistoryRecallSettingsControl();
-        bindHistoryIndexRebuild();
-        bindHistoryIndexAudit({ showCustomDialog });
-        bindHistoryIndexStatusUpdates();
+        ensureFileModeSettingsControl();
         ensureCouncilTranslatorSettingsControls();
         prepareApiKeyInputsForSettings();
         if (ALL_ELEMENTS.tavilySearchDepthSelect) ALL_ELEMENTS.tavilySearchDepthSelect.value = getTavilySearchDepth();
@@ -111,19 +82,11 @@ export function createSettingsModalLifecycle({
         applyLanguage(config.uiLanguage);
         ALL_ELEMENTS.autoNamingToggleSwitch.checked = config.autoNaming;
         ALL_ELEMENTS.autoWebSearchToggleSwitch.checked = config.enableAutoWebSearch;
-        if (ALL_ELEMENTS.visionCheckToggleSwitch) ALL_ELEMENTS.visionCheckToggleSwitch.checked = config.visionCheckEnabled !== false;
         if (ALL_ELEMENTS.processToggle) ALL_ELEMENTS.processToggle.checked = config.processOpen === true;
-        if (ALL_ELEMENTS.memoryToggle1?.isConnected) ALL_ELEMENTS.memoryToggle1.checked = config.memoryProfileEnabled !== false;
-        if (ALL_ELEMENTS.autoMemoryToggleSwitch?.isConnected) ALL_ELEMENTS.autoMemoryToggleSwitch.checked = config.enableAutoMemory;
-        if (ALL_ELEMENTS.historyRecallToggleSwitch) {
-            ALL_ELEMENTS.historyRecallToggleSwitch.checked = config.historyRecallEnabled === true;
-        }
-        void refreshHistoryRecallStatus();
         ALL_ELEMENTS.uiLanguageSelect.value = config.uiLanguage;
         if (ALL_ELEMENTS.colorSchemeSelect) ALL_ELEMENTS.colorSchemeSelect.value = config.colorScheme || 'light';
         ALL_ELEMENTS.aiLanguageSelect.value = config.aiDefaultLanguage;
         ALL_ELEMENTS.enableUpdateNotificationsToggle.checked = config.enableUpdateNotifications;
-        renderMemorySummary();
         updateThemeButtons();
         renderUiColorOptions();
         renderTrash();
@@ -131,26 +94,34 @@ export function createSettingsModalLifecycle({
         const navItems = bindDesktopSettingsSections();
         activateDefaultDesktopSettingsSection(navItems);
         syncSettingsSectionForViewport(navItems);
+        const rebuildNavigation = () => {
+            applyLanguage(config.uiLanguage);
+            renderSettingsMobileList();
+            const nextNavItems = bindDesktopSettingsSections();
+            activateDefaultDesktopSettingsSection(nextNavItems);
+            syncSettingsSectionForViewport(nextNavItems);
+        };
+        partsFilled = loadDialogParts().then((parts) => {
+            if (parts.build()) rebuildNavigation();
+        });
+        partsFilled.catch(error => console.error('Failed to load the settings parts:', error));
         // The account part of the page is built once, when its module has loaded (the first open); the page is then built again from the start.
         // Every later open only refreshes its values: rebuilding the page again while it slides in made it flicker.
         const built = loadSyncVaultControls().then((controls) => {
             const alreadyBuilt = document.getElementById('user-section')?.dataset.syncVaultSettingsInitialized === 'true';
             controls.ensureSyncVaultSettings();
-            if (!alreadyBuilt) {
-                applyLanguage(config.uiLanguage);
-                renderSettingsMobileList();
-                const nextNavItems = bindDesktopSettingsSections();
-                activateDefaultDesktopSettingsSection(nextNavItems);
-                syncSettingsSectionForViewport(nextNavItems);
-            }
+            if (!alreadyBuilt) rebuildNavigation();
             return controls;
         });
         built.then((controls) => controls.refreshSyncVaultControls()).catch(error => console.error('Failed to load sync vault settings:', error));
         // Resolves when the page is built (what the opener may wait for a moment, so it is not built while it moves).
-        return built.catch(() => null);
+        return Promise.all([built, partsFilled]).then(([controls]) => controls).catch(() => null);
     };
     const saveSettings = async ({ close = true, notify = true } = {}) => {
         await persistApiKeyInputIntents();
+        // The toggles of the loaded parts are read from the dialog: they are filled first.
+        await partsFilled.catch(() => {});
+        const { resolveHistoryRecallEnabled, refreshHistoryRecallStatus } = await loadDialogParts();
         const collectedSettings = collectSettingsSaveFormValues({
             document,
             elements: ALL_ELEMENTS,

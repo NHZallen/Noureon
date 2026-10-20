@@ -1,7 +1,6 @@
 import { createLegacyImportExportLifecycle } from '../features/import-export-lifecycle.js';
 import { createLegacyAuthImportLifecycle } from '../features/auth-import-lifecycle.js';
 import { compressImage } from '../utils/image-compression.js';
-import { openDictation } from '../../ui/voice/dictation.js';
 import { dictationTip } from '../../ui/voice/dictation-texts.js';
 
 // Speech recognition follows the interface language. Noureon stores bare subtags for four of
@@ -348,6 +347,7 @@ export function createLegacyBatchImportVoiceLifecycle(dependencies = {}) {
             // The microphone's own tip (what it does and the key for it), in the language in use when it is reached.
             const mic = ALL_ELEMENTS.voiceInputBtnMessage;
             const showTip = () => {
+                void loadDictationBar().catch(() => {});
                 const tip = dictationTip(getConfig().uiLanguage);
                 mic.dataset.tip = tip;
                 mic.removeAttribute?.('title');
@@ -402,6 +402,9 @@ export function createLegacyBatchImportVoiceLifecycle(dependencies = {}) {
     // Dictating into the message: the composer shows the dictation bar and the words are put into the
     // message only when it is finished (a cross throws them away). Search keeps the plain behaviour.
     let dictationSession = null;
+    // The dictation bar (ui/voice/dictation.js) loads when the microphone is first reached or pressed, not with the page.
+    let dictationBarModule = null;
+    const loadDictationBar = () => (dictationBarModule ||= import('../../ui/voice/dictation.js'));
 
     const joinDictation = (base, spoken) => {
         const words = String(spoken).trim();
@@ -409,7 +412,8 @@ export function createLegacyBatchImportVoiceLifecycle(dependencies = {}) {
         return `${base}${base && !/\s$/.test(base) ? ' ' : ''}${words}`;
     };
 
-    const beginDictation = (recognition) => {
+    const beginDictation = (recognition, openDictation) => {
+        if (typeof openDictation !== 'function') return null;
         try {
             const host = ALL_ELEMENTS.messageInput?.closest?.('.input-wrapper');
             if (!host) return null;
@@ -493,6 +497,7 @@ export function createLegacyBatchImportVoiceLifecycle(dependencies = {}) {
             logger.warn('Voice privacy notice failed; not starting recognition.', error);
         }
         if (!acknowledged) return;
+        const openDictation = target === 'message' ? (await loadDictationBar().catch(() => null))?.openDictation : null;
         setCurrentVoiceTarget?.(target);
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         const currentSpeechRecognition = new SpeechRecognition();
@@ -503,7 +508,7 @@ export function createLegacyBatchImportVoiceLifecycle(dependencies = {}) {
         currentSpeechRecognition.continuous = true;
         currentSpeechRecognition.interimResults = true;
         // Dictating into the message shows the dictation bar; the words wait until it is finished.
-        const session = target === 'message' ? beginDictation(currentSpeechRecognition) : null;
+        const session = target === 'message' ? beginDictation(currentSpeechRecognition, openDictation) : null;
         currentSpeechRecognition.onresult = (event) => {
             if (session) {
                 if (!session.discarded) session.transcript = Array.from(event.results).map((result) => result[0]?.transcript ?? '').join('');
