@@ -3,6 +3,7 @@ import { getCliTool } from '../../../data/cli-catalog.js';
 import { renderComposerToolIcon } from '../../composer-tool-icons.js';
 import { renderLinkChipHTML, splitAtAddresses } from '../../ui/links/link-chip.js';
 import { registerSandboxFileParts } from '../../ui/sandbox/sandbox-files.js';
+import { withRunFilesListed } from '../../ui/sandbox/sandbox-run-block.js';
 import { replySourcesButtonHTML } from '../../ui/citations/citation-pills.js';
 import { imageThumbsPlaceholder } from '../../ui/image-wait/image-wait-markup.js';
 import { renderGeneratedImageSet } from './generated-image-set.js';
@@ -120,7 +121,7 @@ export function buildMessageRenderView({
             } else {
                 // Files made in Advanced mode are parts; their cards come from the text.
                 registerSandboxFileParts(message.parts);
-                contentHTML = `<div>${renderMarkdownWithFormulas(textParts.join('\n'))}</div>`;
+                contentHTML = `<div>${renderMarkdownWithFormulas(withRunFilesListed(textParts.join('\n'), message.parts))}</div>`;
             }
         }
         // A deep research is a card (ui/research/), drawn into this place once the message is on the page.

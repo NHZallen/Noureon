@@ -1,4 +1,5 @@
 import { registerSandboxFileParts } from '../../ui/sandbox/sandbox-files.js';
+import { withRunFilesListed } from '../../ui/sandbox/sandbox-run-block.js';
 import { renderGeneratedImageSet } from './generated-image-set.js';
 
 export function createConversationViewRenderer({
@@ -35,7 +36,7 @@ export function createConversationViewRenderer({
             .filter(part => part.text && !part.quoteContext)
             .map(part => {
                 const text = isUser ? (part.displayText ?? part.text) : part.text;
-                const rendered = isUser ? renderUserText(text) : renderModelText(text);
+                const rendered = isUser ? renderUserText(text) : renderModelText(withRunFilesListed(text, message.parts));
                 return wrapTextParts ? `<div>${rendered}</div>` : rendered;
             })
             .join('');

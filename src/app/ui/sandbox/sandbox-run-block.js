@@ -19,7 +19,9 @@ const BLOCK_PATTERN = /^```noureon-run\n([^\n]*)\n```[ \t]*(?:\n+|$)/;
 // Display limits for what is stored per step.
 export const STORED_TEXT_CHARS = 50_000;
 const STORED_CODE_CHARS = 100_000;
-const MAX_STEPS = 20;
+// At least the most runs a reply may make (MAX_RUNS_WITH_CLI, 25, in runtime/sandbox/sandbox-guidance.js): a step left out takes the card of
+// the file it made with it (2026-10-20: a reply of 22 steps saved its presentation in the 21st, and the card was gone).
+export const MAX_STEPS = 30;
 const STORED_THOUGHT_CHARS = 6000;
 // What the model said before a run ("I'll check the environment first"), shown between the steps.
 const STORED_NARRATION_CHARS = 2000;
@@ -195,4 +197,27 @@ export function compactSandboxRunsForApi(history = []) {
     });
     return changed ? { ...message, parts: next } : message;
   });
+}
+
+/**
+ * The text of a reply whose run lists every file the reply keeps as a part (`{ sandboxFile }`): a file's card comes from the step that
+ * lists it with the part's id. A reply saved while the run kept fewer steps lost the ids of the files its last steps made; they are listed
+ * again here, for the view only (the stored message is not changed). The text is given back as it is when nothing is missing.
+ */
+export function withRunFilesListed(text, parts) {
+  const source = String(text ?? '');
+  const files = (Array.isArray(parts) ? parts : []).map((part) => part?.sandboxFile).filter((file) => typeof file?.id === 'string' && file.name);
+  if (!files.length || !source.startsWith(FENCE) || files.every((file) => source.includes(`"id":"${file.id}"`))) return source;
+  const { run, text: rest } = liftSandboxRunBlock(source);
+  if (!run?.steps.length) return source;
+  const listed = new Set(run.steps.flatMap((step) => step.files.map((file) => file.id).filter(Boolean)));
+  for (const file of files) {
+    if (listed.has(file.id)) continue;
+    // The newest step that lists the file without an id is where it was made; otherwise it is listed under the last step.
+    const step = [...run.steps].reverse().find((entry) => entry.files.some((item) => item.name === file.name && !item.id)) || run.steps.at(-1);
+    const entry = [...step.files].reverse().find((item) => item.name === file.name && !item.id);
+    if (entry) Object.assign(entry, { id: file.id, size: Number(file.size) || entry.size });
+    else step.files.push({ name: file.name, size: Number(file.size) || 0, id: file.id });
+  }
+  return `${formatSandboxRunBlock(run)}${rest}`;
 }

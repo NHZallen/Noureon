@@ -224,3 +224,32 @@ test('video and audio files the command tools make are delivered like any file: 
     assert.notEqual(type.family, 'text', name);
   }
 });
+
+test('a run keeps every step a reply may make, so the card of a file a late step made is not left out', async () => {
+  const { MAX_STEPS, formatSandboxRunBlock: format, liftSandboxRunBlock: lift } = await import('../../src/app/ui/sandbox/sandbox-run-block.js');
+  const { MAX_RUNS_WITH_CLI } = await import('../../src/app/runtime/sandbox/sandbox-guidance.js');
+  assert.ok(MAX_STEPS >= MAX_RUNS_WITH_CLI);
+  const steps = Array.from({ length: MAX_RUNS_WITH_CLI }, (_, index) => ({ title: `s${index}`, code: 'x', files: index === MAX_RUNS_WITH_CLI - 1 ? [{ name: 'deck.pptx', size: 5, id: 'f1' }] : [] }));
+  const { run } = lift(format({ status: 'done', steps }));
+  assert.equal(run.steps.length, MAX_RUNS_WITH_CLI);
+  assert.equal(run.steps.at(-1).files[0].id, 'f1');
+});
+
+test('a reply saved while its run lost the steps that made a file still shows that file (the view lists it again)', async () => {
+  const { formatSandboxRunBlock: format, liftSandboxRunBlock: lift, withRunFilesListed } = await import('../../src/app/ui/sandbox/sandbox-run-block.js');
+  const part = { sandboxFile: { id: 'f9', name: 'deck.pptx', size: 30, mimeType: 'x', data: 'AA==' } };
+  // The file is listed without an id (an older version); the step that saved the last version was left out.
+  const text = `${format({ status: 'done', steps: [{ title: 'a', code: 'x', files: [{ name: 'deck.pptx', size: 10 }] }, { title: 'b', code: 'y', files: [] }] })}Done.`;
+  const shown = withRunFilesListed(text, [{ text }, part]);
+  const { run, text: rest } = lift(shown);
+  assert.deepEqual(run.steps[0].files, [{ name: 'deck.pptx', size: 30, id: 'f9' }]);
+  assert.equal(rest, 'Done.');
+  // Not listed at all: it goes under the last step.
+  const bare = `${format({ status: 'done', steps: [{ title: 'a', code: 'x', files: [] }] })}Done.`;
+  assert.deepEqual(lift(withRunFilesListed(bare, [part])).run.steps[0].files, [{ name: 'deck.pptx', size: 30, id: 'f9' }]);
+  // Nothing missing, no run, or no files: the text as it is.
+  const whole = withRunFilesListed(text, [part]);
+  assert.equal(withRunFilesListed(whole, [part]), whole);
+  assert.equal(withRunFilesListed('Plain answer', [part]), 'Plain answer');
+  assert.equal(withRunFilesListed(text, [{ text }]), text);
+});
