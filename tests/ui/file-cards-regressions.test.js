@@ -49,7 +49,7 @@ test('document generator and preview vendors are split out and never precached',
   assert.ok(onDemand.test('assets/vendor-pptx-Ab12.js'));
   assert.ok(!onDemand.test('assets/vendor-markdown-Ab12.js'));
   // The update notes of each language are loaded only when shown (src/data/update-logs/translations.js).
-  assert.match(vite, /return `update-notes-\$\{updateNotes\[1\]\}`;/);
+  assert.match(vite, /`update-notes-\$\{notes\[1\]\}`/);
   assert.ok(onDemand.test('assets/update-notes-ru-Ab12.js'));
   assert.ok(!onDemand.test('assets/legacy-core-Ab12.js'));
   assert.match(worker, /ON_DEMAND_ASSET_PATTERN\.test\(path\)\) continue;/);
@@ -57,7 +57,7 @@ test('document generator and preview vendors are split out and never precached',
 
 test('generators, previews, the design system, the preview dialog and the guidance stay out of the eager file chunk', () => {
   const vite = readSource('vite.config.js');
-  assert.match(vite, /return 'runtime-files';/);
+  assert.match(vite, /isFileCardCore\(id\) \? 'runtime-files' : null/);
   for (const lazy of ['/src/app/ui/files/generators/', '/src/app/ui/files/previews/', '/src/app/ui/files/design/', 'file-preview-dialog.js', 'file-authoring-guidance.js']) {
     assert.ok(vite.includes(lazy), `${lazy} must be excluded from runtime-files`);
   }

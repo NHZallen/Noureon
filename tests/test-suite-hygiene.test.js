@@ -98,7 +98,8 @@ test('check:sizes reports grouped budgets without using targets as hard failures
     assert.doesNotMatch(output, /Build output budgets:/);
   }
   assert.match(output, /dist\/ is ignored as review source and reported only as generated build output when present\./);
-  assert.match(output, /above target/);
+  // Every budget shows its long-term target; one above it is reported as debt, not as a failure.
+  assert.match(output, /\/ target [\d.]+ KB/);
   assert.match(output, /OK: all grouped size budgets are within transitional limits/);
   assert.match(source, /Hard failures use transitional limits/);
   const shellBudget = /label:\s*'legacy-core shell'[^}]*transitionalLimit:\s*bytes\((\d+)\)[^}]*v5Target:\s*bytes\(55\)/.exec(source);

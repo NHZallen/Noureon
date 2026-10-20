@@ -163,7 +163,7 @@ const i18nChunk = topFiles(buildJsFiles.filter((file) => /^i18n-/.test(basename(
 const pdfWorker = distFiles.find((file) => /^pdf\.worker\.min-[^/]+\.mjs$/.test(basename(file.filePath)));
 const buildBudgetDefinitions = existsSync(join(root, 'dist'))
   ? [
-      { label: 'largest JS chunk', file: topFiles(startupJsFiles, 1)[0], transitionalLimit: bytes(310), v5Target: bytes(300), gzipTransitionalLimit: bytes(110), gzipV5Target: bytes(110) },
+      { label: 'largest JS chunk', file: topFiles(startupJsFiles, 1)[0], transitionalLimit: bytes(300), v5Target: bytes(300), gzipTransitionalLimit: bytes(110), gzipV5Target: bytes(110) },
       { label: 'startup interface texts (i18n chunk)', file: i18nChunk, transitionalLimit: bytes(300), v5Target: bytes(80), gzipTransitionalLimit: bytes(90), gzipV5Target: bytes(25) },
       { label: 'largest update notes translation', file: topFiles(updateNotesFiles, 1)[0], transitionalLimit: bytes(380), v5Target: bytes(380), gzipTransitionalLimit: bytes(80), gzipV5Target: bytes(80) },
       { label: 'largest on-demand file library chunk', file: topFiles(onDemandJsFiles, 1)[0], transitionalLimit: bytes(1100), v5Target: bytes(1000), gzipTransitionalLimit: bytes(380), gzipV5Target: bytes(360) },
