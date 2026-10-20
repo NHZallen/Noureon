@@ -116,7 +116,7 @@ test('P2P and archive packages are dynamic-only and absent from main static impo
   const importExportSource = readSource('src/app/runtime/features/import-export-lifecycle.js');
   const authImportSource = readSource('src/app/runtime/features/auth-import-lifecycle.js');
 
-  for (const packageName of ['peerjs', 'qrcode', 'html5-qrcode', 'jszip']) {
+  for (const packageName of ['peerjs', 'qrcode', 'jsqr', 'jszip']) {
     assert.doesNotMatch(
       mainSource,
       new RegExp(`(?:from\\s+|import\\s*)['"]${packageName}['"]`),
@@ -128,7 +128,8 @@ test('P2P and archive packages are dynamic-only and absent from main static impo
   assert.match(mainSource, /from '\.\/app\/vendors\/archive-vendor\.js'/);
   assert.match(sharingLoaderSource, /import\('peerjs'\)/);
   assert.match(sharingLoaderSource, /import\('qrcode'\)/);
-  assert.match(sharingLoaderSource, /import\('html5-qrcode'\)/);
+  assert.match(sharingLoaderSource, /import\('\.\/qr-scanner\.js'\)/);
+  assert.match(readSource('src/app/vendors/qr-scanner.js'), /import\('jsqr'\)/);
   assert.match(archiveLoaderSource, /import\('jszip'\)/);
 
   assert.match(p2pSource, /function initP2P[\s\S]*requireSharingVendors\(\)/);

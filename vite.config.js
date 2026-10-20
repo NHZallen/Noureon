@@ -94,9 +94,11 @@ export default defineConfig({
           if (id.includes('chart.js')) return 'vendor-chart';
           if (id.includes('katex')) return 'vendor-katex';
           if (id.includes('cropperjs')) return 'vendor-cropper';
-          if (id.includes('peerjs') || id.includes('html5-qrcode') || id.includes('qrcode')) {
-            return 'vendor-sharing';
-          }
+          // P2P sharing (src/app/vendors/sharing-vendor.js) loads its libraries together, each in its own file; the QR decoder only
+          // where the browser cannot read a QR code itself (src/app/vendors/qr-scanner.js).
+          if (id.includes('peerjs')) return 'vendor-sharing-peer';
+          if (id.includes('/node_modules/jsqr/')) return 'vendor-sharing-qr-decoder';
+          if (id.includes('qrcode')) return 'vendor-sharing-qrcode';
           if (id.includes('jszip')) return 'vendor-archive';
           // The Word page preview is loaded only when a preview is opened.
           if (id.includes('/node_modules/docx-preview/')) return 'vendor-docx-preview';

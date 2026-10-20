@@ -37,7 +37,7 @@ export const APP_LIBRARIES = Object.freeze([
   { name: 'DOMPurify', license: 'MPL-2.0 OR Apache-2.0', url: 'https://github.com/cure53/DOMPurify' },
   { name: 'HarfBuzz.js', license: 'MIT', url: 'https://github.com/harfbuzz/harfbuzzjs' },
   { name: 'highlight.js', license: 'BSD-3-Clause', url: 'https://highlightjs.org/' },
-  { name: 'html5-qrcode', license: 'Apache-2.0', url: 'https://github.com/mebjas/html5-qrcode' },
+  { name: 'jsQR', license: 'Apache-2.0', url: 'https://github.com/cozmo/jsQR' },
   { name: 'JSZip', license: 'MIT OR GPL-3.0-or-later', url: 'https://stuk.github.io/jszip/' },
   { name: 'KaTeX', license: 'MIT', url: 'https://katex.org/' },
   { name: 'Lucide', license: 'ISC', url: 'https://lucide.dev/', note: 'Copyright (c) 2026 Lucide Icons and Contributors' },

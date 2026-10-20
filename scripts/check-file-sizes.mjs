@@ -138,9 +138,9 @@ const cssBudgetDefinitions = [
 
 const testBudgetDefinitions = [
   { label: 'largest test file', file: topFiles(testFiles, 1)[0], transitionalLimit: bytes(140), v5Target: bytes(120) },
-  { label: 'settings lifecycle tests', path: 'tests/runtime-settings-auth-provider-lifecycle.test.js', transitionalLimit: bytes(70), v5Target: bytes(35) },
-  { label: 'settings UI regressions', path: 'tests/ui/settings-regressions.test.js', transitionalLimit: bytes(50), v5Target: bytes(30) },
-  { label: 'app data replacement tests', path: 'tests/runtime-app-data-replacements.test.js', transitionalLimit: bytes(40), v5Target: bytes(25) }
+  { label: 'settings lifecycle tests', path: 'tests/runtime-settings-auth-provider-lifecycle.test.js', transitionalLimit: bytes(35), v5Target: bytes(35) },
+  { label: 'settings UI regressions', path: 'tests/ui/settings-regressions.test.js', transitionalLimit: bytes(30), v5Target: bytes(30) },
+  { label: 'app data replacement tests', path: 'tests/runtime-app-data-replacements.test.js', transitionalLimit: bytes(25), v5Target: bytes(25) }
 ];
 
 const buildJsFiles = distFiles.filter((file) => extname(file.filePath) === '.js');
@@ -160,7 +160,7 @@ const i18nChunk = topFiles(buildJsFiles.filter((file) => /^i18n-/.test(basename(
 const pdfWorker = distFiles.find((file) => /^pdf\.worker\.min-[^/]+\.mjs$/.test(basename(file.filePath)));
 const buildBudgetDefinitions = existsSync(join(root, 'dist'))
   ? [
-      { label: 'largest JS chunk', file: topFiles(startupJsFiles, 1)[0], transitionalLimit: bytes(450), v5Target: bytes(300), gzipTransitionalLimit: bytes(130), gzipV5Target: bytes(110) },
+      { label: 'largest JS chunk', file: topFiles(startupJsFiles, 1)[0], transitionalLimit: bytes(360), v5Target: bytes(300), gzipTransitionalLimit: bytes(115), gzipV5Target: bytes(110) },
       { label: 'startup interface texts (i18n chunk)', file: i18nChunk, transitionalLimit: bytes(300), v5Target: bytes(80), gzipTransitionalLimit: bytes(90), gzipV5Target: bytes(25) },
       { label: 'largest on-demand file library chunk', file: topFiles(onDemandJsFiles, 1)[0], transitionalLimit: bytes(1100), v5Target: bytes(1000), gzipTransitionalLimit: bytes(380), gzipV5Target: bytes(360) },
       { label: 'PDF formula typesetter', file: mathChunk, transitionalLimit: bytes(1700), v5Target: bytes(1650), gzipTransitionalLimit: bytes(580), gzipV5Target: bytes(560) },

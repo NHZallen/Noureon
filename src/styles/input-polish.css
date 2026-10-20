@@ -302,6 +302,27 @@
     .p2p-select-item:hover {
         background-color: var(--hover-bg);
     }
+    /* The camera of the P2P code scanner (src/app/vendors/qr-scanner.js): the picture, dimmed around the square the code goes in. */
+    .qr-scan {
+        position: relative;
+    }
+    .qr-scan-video {
+        display: block;
+        width: 100%;
+        height: auto;
+    }
+    .qr-scan-box {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        max-width: 80%;
+        max-height: 80%;
+        transform: translate(-50%, -50%);
+        border: 2px solid var(--on-color);
+        border-radius: 0.5rem;
+        box-shadow: 0 0 0 100vmax var(--scrim);
+        pointer-events: none;
+    }
 
 #input-indicator-container .input-indicator-item {
     display: inline-flex;
