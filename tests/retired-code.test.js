@@ -888,6 +888,9 @@ const PARTS = {
     'src/app/runtime/features/composer-input-bindings.js',
     'src/app/runtime/features/feedback-forms.js'
   ],
+  'src/app/runtime/legacy-core/transition-bus-lifecycle.js': [
+    'src/app/runtime/memory/memory-runtime.js'
+  ],
   'src/app/runtime/legacy-core/submit-input-council-lifecycle.js': [
     'src/app/runtime/legacy-core/submit-input-composer.js',
     'src/app/runtime/legacy-core/submit-input-playback.js',

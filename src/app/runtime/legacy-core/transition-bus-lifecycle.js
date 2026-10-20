@@ -1,32 +1,8 @@
 import { createLegacyBatchImportVoiceLifecycle } from './batch-import-voice-lifecycle.js';
 import { createLegacySearchUploadSidebarLifecycle } from './search-upload-sidebar-lifecycle.js';
 import { createLegacyModelMemoryDashboardLifecycle } from './model-memory-dashboard-lifecycle.js';
-import { createMemoryCaptureService } from '../memory/memory-capture-service.js';
-import { createMemoryWorkScheduler } from '../memory/memory-work-scheduler.js';
-import { createGeminiEmbeddingClient } from '../memory/gemini-embedding-client.js';
-import { createHistoryIndexStore } from '../memory/history-index-store.js';
-import { createHistoryIndexPersistenceRuntime } from '../memory/history-index-persistence-runtime.js';
-import { createHistoryIndexingService } from '../memory/history-indexing-service.js';
-import { createHistoryRetrievalService } from '../memory/history-retrieval-service.js';
-import { createHistoryRecallRuntime } from '../memory/history-recall-runtime.js';
-import { createDeviceHistoryRecallConsentRuntime } from '../memory/device-history-recall-consent.js';
-import { memorySyncProjectionEquals, projectMemoryStateForSync } from '../memory/memory-sync-projection.js';
-import { createHistoryIndexRebuildService } from '../memory/history-index-rebuild-service.js';
-import { createTopicSummaryService } from '../memory/topic-summaries.js';
-import { createMemoryInvalidationService } from '../memory/memory-invalidation-service.js';
-import { createMediaMemoryService } from '../memory/media-memory-service.js';
-import { createMemoryTaskClients } from '../memory/memory-task-clients.js';
-import { createConfiguredMemoryModelClient } from '../memory/memory-model-runtime-client.js';
-import { createLegacyMemorySummaryLifecycle } from './memory-summary-lifecycle.js';
-import { createHistoryIndexAuditService } from '../memory/history-index-audit-service.js';
-import {
-    hasCurrentHistoryIndexRecords,
-    migrateHistoryIndexSourceFingerprint
-} from '../memory/history-index-records.js';
-import { createHistoryIndexSourceRepair } from '../memory/history-index-source-repair.js';
-import { createDeviceDerivedMemoryRuntime } from '../memory/device-derived-memory-persistence.js';
+import { createMemoryRuntime } from '../memory/memory-runtime.js';
 import { assertLegacyTransitionBusDependencies } from './transition-bus-dependencies.js';
-import { SERVICES, getService } from '../services.js';
 
 export function createLegacyTransitionBusLifecycle(dependencies = {}) {
     assertLegacyTransitionBusDependencies(dependencies);
@@ -140,6 +116,33 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         setItem,
         logger = console
     } = dependencies;
+
+    // The functions of the core tail (core-tail-lifecycle.js), which is made after this bus: each calls the one registered as
+    // coreTail.<name> when it is called.
+    const resolveCoreTailFunction = (name) => {
+        const binding = legacyRuntimeContext.resolveBinding(`coreTail.${name}`);
+        if (typeof binding !== 'function') {
+            throw new TypeError(`Legacy core tail binding "coreTail.${name}" must be a function.`);
+        }
+        return binding;
+    };
+    const coreTail = Object.fromEntries([
+        'setupTimeAnalysis', 'updateTimeDistributionChart', 'applyUiTheme', 'renderUiColorOptions', 'openStore',
+        'closeStore', 'renderStore', 'handleSubscription', 'openAvatarEditor', 'handleAvatarUpload', 'handleConfirmAvatarCrop',
+        'applyLanguage', 'showMobileContextMenu', 'showMobileContextMenuForFolder', 'showMobileContextMenuForAstras',
+        'setupScrollToBottomButton', 'checkAndShowLatestUpdate', 'setupMessageIntersectionObserver', 'renderTrash',
+        'handleRestoreTrashItem', 'handleDeleteTrashItemPermanently', 'showTrashItemInViewModal', 'toggleTrashSelectionMode',
+        'renderTrashBatchActionBar', 'handleBatchRestoreFromTrash', 'handleBatchDeleteFromTrash', 'handleEmptyTrash',
+        'updateDisplayedVersion'
+    ].map((name) => [name, (...args) => resolveCoreTailFunction(name)(...args)]));
+    const {
+        setupTimeAnalysis, updateTimeDistributionChart, applyUiTheme, renderUiColorOptions, openStore, closeStore,
+        renderStore, handleSubscription, openAvatarEditor, handleAvatarUpload, handleConfirmAvatarCrop, applyLanguage,
+        showMobileContextMenu, showMobileContextMenuForFolder, showMobileContextMenuForAstras, setupScrollToBottomButton,
+        checkAndShowLatestUpdate, setupMessageIntersectionObserver, renderTrash, handleRestoreTrashItem, handleDeleteTrashItemPermanently,
+        showTrashItemInViewModal, toggleTrashSelectionMode, renderTrashBatchActionBar, handleBatchRestoreFromTrash,
+        handleBatchDeleteFromTrash, handleEmptyTrash, updateDisplayedVersion
+    } = coreTail;
 
     const resolveUploadUpdateInputState = (...args) =>
         legacyRuntimeContext.resolveBinding('input.updateInputState')(...args);
@@ -293,280 +296,15 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         toggleVoiceInput
     } = batchImportVoiceLifecycle;
 
-    const historyIndex = createHistoryIndexStore();
-    const getMemoryOwner = () => state.currentUser?.username || 'anonymous';
-    const notifyHistoryIndexChanged = () => {
-        if (typeof document?.dispatchEvent === 'function' && typeof Event === 'function') {
-            document.dispatchEvent(new Event('noureon:history-index-changed'));
-        }
-    };
-    const historyIndexPersistenceRuntime = createHistoryIndexPersistenceRuntime({
-        index: historyIndex,
-        storage: runtimeStorageAdapter,
-        getOwner: getMemoryOwner,
-        onLoaded: notifyHistoryIndexChanged,
-        logger: console
-    });
-    const historyIndexPersistence = historyIndexPersistenceRuntime.persistence;
-    const ensureHistoryIndexReady = historyIndexPersistenceRuntime.ensureReady;
-    const historyIndexingService = createHistoryIndexingService({
-        index: historyIndex,
-        embeddingClient: createGeminiEmbeddingClient({
-            getApiKey: () => getApiKeyForProvider('gemini'),
-            fetchImpl: fetch
-        }),
-        persistence: null
-    });
-    const memoryModelClient = createConfiguredMemoryModelClient({
-        getConfig: () => state.config,
-        models: MODELS,
-        runMemoryModel,
-        modelSupportsVision
-    });
-    const memoryTaskClients = createMemoryTaskClients({
-        memoryModelClient,
-        getGeminiApiKey: () => getApiKeyForProvider('gemini'),
-        fetchImpl: fetch
-    });
-    const localMemoryStorage = runtimeStorageAdapter?.getItem
-        ? runtimeStorageAdapter
-        : {
-            getItem: async () => null,
-            setItem: async () => {},
-            removeItem: async () => {}
-        };
-    const deviceDerivedMemoryRuntime = createDeviceDerivedMemoryRuntime({
-        storage: localMemoryStorage,
-        storageKey: () => `noureon:derived-memory:v1:${getMemoryOwner()}`,
-        fallbackStorageKeys: () => getMemoryOwner() === 'anonymous'
-            ? []
-            : ['noureon:derived-memory:v1:anonymous'],
-        getMemoryState: () => runtimeAppDataStore.getMemoryState?.() || {},
-        replaceMemoryState: nextState => runtimeAppDataStore.replaceMemoryState?.(nextState),
-        saveAppData,
-        logger: console
-    });
-    const ensureDeviceDerivedMemoryReady = deviceDerivedMemoryRuntime.ensureReady;
-    const persistMemoryState = deviceDerivedMemoryRuntime.persist;
-    const deviceHistoryRecallConsent = createDeviceHistoryRecallConsentRuntime({
-        storage: localMemoryStorage,
-        storageKey: () => `noureon:history-recall-device-consent:v1:${getMemoryOwner()}`,
-        // The setting is synced with the account, and so is the consent that was given when it was turned on.
-        isImplied: () => state.config?.historyRecallEnabled === true,
-        logger: console,
-        onLoaded: notifyHistoryIndexChanged
-    });
-    const ensureHistoryRecallConsentReady = deviceHistoryRecallConsent.ensureReady;
-    const historyRetrievalService = createHistoryRetrievalService({
-        index: historyIndex,
-        embeddingClient: createGeminiEmbeddingClient({
-            getApiKey: () => getApiKeyForProvider('gemini'),
-            fetchImpl: fetch
-        }),
-        getMemoryState: () => runtimeAppDataStore.getMemoryState?.() || {},
-        getConversations: () => state.conversations,
-        modelQueryResolver: memoryTaskClients.queryResolver
-    });
-    let historyIndexRebuildStatus = { state: 'idle', completed: 0, total: 0, indexed: 0, skipped: 0, failed: 0 };
-    let historyIndexOptimizeStatus = { state: 'idle', completed: 0, total: 0, repaired: 0, removed: 0, failed: 0 };
-    const historyRecallRuntime = createHistoryRecallRuntime({
-        consent: deviceHistoryRecallConsent,
-        retrieval: historyRetrievalService,
-        ensureIndexReady: ensureHistoryIndexReady,
-        ensureConsentReady: ensureHistoryRecallConsentReady,
-        ensureDerivedReady: ensureDeviceDerivedMemoryReady,
-        getIndexStatus: () => ({
-            indexLoaded: historyIndexPersistenceRuntime.isLoaded(),
-            indexRecordCount: historyIndex.getAll().length,
-            activeOwnerKind: getMemoryOwner() === 'anonymous' ? 'anonymous' : 'authenticated',
-            persistence: historyIndexPersistence?.getDiagnostics?.() || null,
-            rebuild: historyIndexRebuildStatus,
-            optimize: historyIndexOptimizeStatus
-        })
-    });
-    legacyRuntimeContext.registerLazyBinding('memory.retrieveHistory', () => historyRecallRuntime.retrieve);
-    legacyRuntimeContext.registerLazyBinding('memory.grantHistoryRecallConsent', () => historyRecallRuntime.grant);
-    legacyRuntimeContext.registerLazyBinding('memory.revokeHistoryRecallConsent', () => historyRecallRuntime.revoke);
-    legacyRuntimeContext.registerLazyBinding('memory.getHistoryRecallStatus', () => historyRecallRuntime.getStatus);
-    const replaceMemoryState = nextMemoryState => {
-        const savedMemoryState = runtimeAppDataStore.replaceMemoryState?.(nextMemoryState);
-        const nextState = savedMemoryState || nextMemoryState;
-        const nextProjection = projectMemoryStateForSync(nextState);
-        const hasLegacySummaryProjection = Boolean(
-            state.config.memorySync?.memorySummary || state.config.memorySync?.memoryOverview
-        );
-        if (hasLegacySummaryProjection || !memorySyncProjectionEquals(state.config.memorySync, nextProjection)) {
-            state.config.memorySync = nextProjection;
-            void saveConfig().catch(error => console.warn('Memory sync projection could not save.', error));
-        }
-        void getService(SERVICES.memorySummarySync)?.captureMemoryState(nextState);
-        return savedMemoryState;
-    };
-    const mediaMemoryService = createMediaMemoryService({
-        mediaClient: memoryTaskClients.mediaClient,
-        hashString,
-        createId: prefix => `${prefix}:${crypto.randomUUID()}`
-    });
-    const topicSummaryService = createTopicSummaryService({
-        index: historyIndex,
-        topicClient: memoryTaskClients.topicClient,
-        getMemoryState: () => runtimeAppDataStore.getMemoryState?.() || {},
+    const {
         replaceMemoryState,
-        createId: prefix => `${prefix}:${crypto.randomUUID()}`
-    });
-    const memoryCaptureService = createMemoryCaptureService({
-        captureClient: memoryTaskClients.captureClient,
-        getMemoryState: () => runtimeAppDataStore.getMemoryState?.() || {},
-        replaceMemoryState,
-        indexCapsule: options => historyIndexingService.indexCapsule(options),
-        indexConversationFragments: options => historyIndexingService.indexConversationFragments(options),
-        indexMediaMemory: options => historyIndexingService.indexMediaMemory(options),
-        updateTopicSummary: options => topicSummaryService.updateForCapsule(options),
-        enrichTurns: options => mediaMemoryService.enrichTurns(options),
-        createId: prefix => `${prefix}:${crypto.randomUUID()}`
-    });
-    const captureCompletedTurnAndPersist = async options => {
-        const previousMemoryState = runtimeAppDataStore.getMemoryState?.();
-        try {
-            return await memoryCaptureService.captureCompletedTurn(options);
-        } finally {
-            if (runtimeAppDataStore.getMemoryState?.() !== previousMemoryState) {
-                await persistMemoryState();
-                if (historyIndexPersistence?.save) await historyIndexPersistence.save();
-                notifyHistoryIndexChanged();
-            }
-        }
-    };
-    const memoryInvalidationService = createMemoryInvalidationService({
-        index: historyIndex,
-        persistence: historyIndexPersistence,
-        getMemoryState: () => runtimeAppDataStore.getMemoryState?.() || {},
-        replaceMemoryState
-    });
-    const invalidateMemoryConversation = async ({ skipSummaryRebuild = false, ...options } = {}) => {
-        memoryWorkScheduler.cancelConversation(options?.conversationId);
-        const result = await memoryInvalidationService.invalidateConversation(options);
-        await persistMemoryState({
-            allowEmpty: true,
-            emptyReason: 'permanent-deletion'
-        });
-        notifyHistoryIndexChanged();
-        if (!skipSummaryRebuild && result.memorySummaryRefreshRequired) {
-            void requestMemorySummaryRebuild().catch(error => console.warn('Memory summary could not refresh after deletion.', error));
-        }
-        return result;
-    };
-    legacyRuntimeContext.registerLazyBinding('memory.invalidateConversation', () => invalidateMemoryConversation);
-    const repairHistoryIndexedSource = createHistoryIndexSourceRepair({
-        getMemoryState: () => runtimeAppDataStore.getMemoryState?.() || {},
-        indexCapsule: options => historyIndexingService.indexCapsule(options),
-        indexConversationFragments: options => historyIndexingService.indexConversationFragments(options),
-        indexMediaMemory: options => historyIndexingService.indexMediaMemory(options)
-    });
-    const historyIndexRebuildService = createHistoryIndexRebuildService({
-        getConversations: () => state.conversations,
-        getMemoryState: () => runtimeAppDataStore.getMemoryState?.() || {},
-        captureCompletedTurn: options => memoryCaptureService.captureCompletedTurn(options),
-        hashString,
-        hasIndexedSource: options => hasCurrentHistoryIndexRecords({
-            ...options,
-            records: historyIndex.getAll(),
-            mediaMemories: runtimeAppDataStore.getMemoryState?.()?.mediaMemories || []
-        }),
-        migrateSourceFingerprint: options => migrateHistoryIndexSourceFingerprint({
-            ...options,
-            memoryState: runtimeAppDataStore.getMemoryState?.() || {},
-            replaceMemoryState,
-            index: historyIndex
-        }),
-        repairIndexedSource: repairHistoryIndexedSource
-    });
-    let historyIndexWorkPromise = null;
-    const rebuildHistoryIndex = options => {
-        if (historyIndexWorkPromise) return historyIndexWorkPromise;
-        historyIndexWorkPromise = (async () => {
-            await Promise.all([ensureHistoryIndexReady(), ensureDeviceDerivedMemoryReady()]);
-            try {
-                return await historyIndexRebuildService.rebuild({
-                    ...options,
-                    onProgress: status => {
-                        historyIndexRebuildStatus = status;
-                        notifyHistoryIndexChanged();
-                    }
-                });
-            } finally {
-                await persistMemoryState();
-                if (historyIndexPersistence?.save) {
-                    await historyIndexPersistence.save();
-                }
-                notifyHistoryIndexChanged();
-            }
-        })().finally(() => { historyIndexWorkPromise = null; });
-        return historyIndexWorkPromise;
-    };
-    legacyRuntimeContext.registerLazyBinding('memory.rebuildHistoryIndex', () => rebuildHistoryIndex);
-    const historyIndexAuditService = createHistoryIndexAuditService({
-        getConversations: () => state.conversations,
-        getMemoryState: () => runtimeAppDataStore.getMemoryState?.() || {},
-        index: historyIndex,
-        hashString,
-        captureCompletedTurn: options => memoryCaptureService.captureCompletedTurn(options),
-        indexCapsule: options => historyIndexingService.indexCapsule(options),
-        indexMediaMemory: options => historyIndexingService.indexMediaMemory(options),
-        repairIndexedSource: repairHistoryIndexedSource,
-        persistence: historyIndexPersistence,
-        persistMemoryState
-    });
-    let latestHistoryIndexAudit = null;
-    const auditHistoryIndex = async () => {
-        if (historyIndexWorkPromise) await historyIndexWorkPromise;
-        await Promise.all([ensureHistoryIndexReady(), ensureDeviceDerivedMemoryReady()]);
-        latestHistoryIndexAudit = await historyIndexAuditService.audit();
-        return latestHistoryIndexAudit;
-    };
-    const optimizeHistoryIndex = () => {
-        if (historyIndexWorkPromise) return historyIndexWorkPromise;
-        historyIndexWorkPromise = (async () => {
-            await Promise.all([ensureHistoryIndexReady(), ensureDeviceDerivedMemoryReady()]);
-            const report = latestHistoryIndexAudit || await historyIndexAuditService.audit();
-            try {
-                return await historyIndexAuditService.optimize(report, {
-                    onProgress: status => {
-                        historyIndexOptimizeStatus = { state: 'running', ...status };
-                        notifyHistoryIndexChanged();
-                    }
-                });
-            } finally {
-                historyIndexOptimizeStatus = {
-                    ...historyIndexOptimizeStatus,
-                    state: 'complete'
-                };
-                latestHistoryIndexAudit = null;
-                notifyHistoryIndexChanged();
-            }
-        })().finally(() => { historyIndexWorkPromise = null; });
-        return historyIndexWorkPromise;
-    };
-    legacyRuntimeContext.registerLazyBinding('memory.auditHistoryIndex', () => auditHistoryIndex);
-    legacyRuntimeContext.registerLazyBinding('memory.optimizeHistoryIndex', () => optimizeHistoryIndex);
-    const memoryWorkScheduler = createMemoryWorkScheduler({
-        runJob: async job => {
-            await Promise.all([ensureHistoryIndexReady(), ensureDeviceDerivedMemoryReady()]);
-            return captureCompletedTurnAndPersist(job);
-        },
-        schedule: (callback, delay) => setTimeout(callback, delay),
-        cancel: timer => clearTimeout(timer)
-    });
-    const { requestMemorySummaryRebuild, ensureMemorySummaryFresh } = createLegacyMemorySummaryLifecycle({
-        state,
-        runtimeAppDataStore,
-        replaceMemoryState,
-        persistMemoryState,
-        rebuildHistoryIndex,
-        memoryModelClient,
-        crypto,
-        legacyRuntimeContext,
-        memoryWorkScheduler
+        captureCompletedTurnAndPersist,
+        invalidateMemoryConversation,
+        memoryWorkScheduler,
+        ensureMemorySummaryFresh
+    } = createMemoryRuntime({
+        document, Event, fetch, crypto, setTimeout, clearTimeout, console, state, runtimeAppDataStore, runtimeStorageAdapter,
+        legacyRuntimeContext, models: MODELS, runMemoryModel, modelSupportsVision, getApiKeyForProvider, hashString, saveAppData, saveConfig
     });
 
     const modelMemoryDashboardLifecycle = createLegacyModelMemoryDashboardLifecycle({
@@ -659,41 +397,6 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         document.body.removeChild(textArea);
     }
 
-    const coreTailState = {
-        get conversations() { return state.conversations; },
-        set conversations(next) { state.conversations = next; },
-        get folders() { return state.folders; },
-        set folders(next) { state.folders = next; },
-        get astras() { return state.astras; },
-        set astras(next) { state.astras = next; },
-        get personalMemories() { return state.personalMemories; },
-        set personalMemories(next) { state.personalMemories = next; },
-        get config() { return state.config; },
-        set config(next) { state.config = next; },
-        get currentUser() { return state.currentUser; },
-        set currentUser(next) { state.currentUser = next; },
-        get sidebarOpen() { return state.sidebarOpen; },
-        set sidebarOpen(next) { state.sidebarOpen = next; },
-        get sendConfirmed() { return state.sendConfirmed; },
-        set sendConfirmed(next) { state.sendConfirmed = next; },
-        get abortController() { return state.abortController; },
-        set abortController(next) { state.abortController = next; },
-        get cropperInstance() { return state.cropperInstance; },
-        set cropperInstance(next) { state.cropperInstance = next; },
-        get editingAstraForAvatarId() { return state.editingAstraForAvatarId; },
-        set editingAstraForAvatarId(next) { state.editingAstraForAvatarId = next; },
-        get editingAstrasId() { return state.editingAstrasId; },
-        set editingAstrasId(next) { state.editingAstrasId = next; },
-        get currentStoreCategory() { return state.currentStoreCategory; },
-        set currentStoreCategory(next) { state.currentStoreCategory = next; },
-        get messageObserver() { return state.messageObserver; },
-        set messageObserver(next) { state.messageObserver = next; },
-        get timeDistChart() { return state.timeDistChart; },
-        set timeDistChart(next) { state.timeDistChart = next; },
-        get isAutoScrolling() { return state.isAutoScrolling; },
-        set isAutoScrolling(next) { state.isAutoScrolling = next; }
-    };
-
     const coreTailDependencies = {
         window,
         document,
@@ -719,7 +422,7 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         getComputedStyle,
         random: () => Math.random(),
         elements: ALL_ELEMENTS,
-        state: coreTailState,
+        state,
         runtimeConfigAccess,
         runtimeAppDataStore,
         runtimeDialogCoordinator,
@@ -829,43 +532,6 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
             () => coreTailDependencies
         );
     };
-
-    const resolveCoreTailFunction = (name) => {
-        const binding = legacyRuntimeContext.resolveBinding(`coreTail.${name}`);
-        if (typeof binding !== 'function') {
-            throw new TypeError(`Legacy core tail binding "coreTail.${name}" must be a function.`);
-        }
-        return binding;
-    };
-
-    function setupTimeAnalysis(...args) { return resolveCoreTailFunction('setupTimeAnalysis')(...args); }
-    function updateTimeDistributionChart(...args) { return resolveCoreTailFunction('updateTimeDistributionChart')(...args); }
-    function applyUiTheme(...args) { return resolveCoreTailFunction('applyUiTheme')(...args); }
-    function renderUiColorOptions(...args) { return resolveCoreTailFunction('renderUiColorOptions')(...args); }
-    function openStore(...args) { return resolveCoreTailFunction('openStore')(...args); }
-    function closeStore(...args) { return resolveCoreTailFunction('closeStore')(...args); }
-    function renderStore(...args) { return resolveCoreTailFunction('renderStore')(...args); }
-    function handleSubscription(...args) { return resolveCoreTailFunction('handleSubscription')(...args); }
-    function openAvatarEditor(...args) { return resolveCoreTailFunction('openAvatarEditor')(...args); }
-    function handleAvatarUpload(...args) { return resolveCoreTailFunction('handleAvatarUpload')(...args); }
-    function handleConfirmAvatarCrop(...args) { return resolveCoreTailFunction('handleConfirmAvatarCrop')(...args); }
-    function applyLanguage(...args) { return resolveCoreTailFunction('applyLanguage')(...args); }
-    function showMobileContextMenu(...args) { return resolveCoreTailFunction('showMobileContextMenu')(...args); }
-    function showMobileContextMenuForFolder(...args) { return resolveCoreTailFunction('showMobileContextMenuForFolder')(...args); }
-    function showMobileContextMenuForAstras(...args) { return resolveCoreTailFunction('showMobileContextMenuForAstras')(...args); }
-    function setupScrollToBottomButton(...args) { return resolveCoreTailFunction('setupScrollToBottomButton')(...args); }
-    function checkAndShowLatestUpdate(...args) { return resolveCoreTailFunction('checkAndShowLatestUpdate')(...args); }
-    function setupMessageIntersectionObserver(...args) { return resolveCoreTailFunction('setupMessageIntersectionObserver')(...args); }
-    function renderTrash(...args) { return resolveCoreTailFunction('renderTrash')(...args); }
-    function handleRestoreTrashItem(...args) { return resolveCoreTailFunction('handleRestoreTrashItem')(...args); }
-    function handleDeleteTrashItemPermanently(...args) { return resolveCoreTailFunction('handleDeleteTrashItemPermanently')(...args); }
-    function showTrashItemInViewModal(...args) { return resolveCoreTailFunction('showTrashItemInViewModal')(...args); }
-    function toggleTrashSelectionMode(...args) { return resolveCoreTailFunction('toggleTrashSelectionMode')(...args); }
-    function renderTrashBatchActionBar(...args) { return resolveCoreTailFunction('renderTrashBatchActionBar')(...args); }
-    function handleBatchRestoreFromTrash(...args) { return resolveCoreTailFunction('handleBatchRestoreFromTrash')(...args); }
-    function handleBatchDeleteFromTrash(...args) { return resolveCoreTailFunction('handleBatchDeleteFromTrash')(...args); }
-    function handleEmptyTrash(...args) { return resolveCoreTailFunction('handleEmptyTrash')(...args); }
-    function updateDisplayedVersion(...args) { return resolveCoreTailFunction('updateDisplayedVersion')(...args); }
 
     return {
         renderPersonalMemoryList,

@@ -375,7 +375,8 @@ test('04 store and trash destructive flows keep replacement, save, render, and n
     /replaceConversations:\s*\(nextConversations\)\s*=>\s*\{\s*state\.conversations\s*=\s*nextConversations;\s*return\s+state\.conversations;\s*\}/
   );
   assert.doesNotMatch(coreTailSource, /runtimeAppDataStore\.replaceConversations\(/);
-  assert.match(fragment03Source, /set\s+conversations\(next\)\s*\{\s*state\.conversations\s*=\s*next;\s*\}/);
+  // The core tail is given the shared shell state itself (legacy-core/shell-state.js), not a copy of its getters.
+  assert.match(fragment03Source, /const coreTailDependencies = \{[\s\S]*?\n\s*state,\n/);
 });
 
 test('cloud permanent delete uses the active shadow sync instead of username prefixes', () => {
@@ -457,7 +458,8 @@ test('app data store remains wired while production boot moves through runtime e
   );
   assert.match(modelMemoryDashboardSource, /personalMemories\s*=\s*replacePersonalMemories\(\s*personalMemories\.filter\(m\s*=>\s*m\.id\s*!==\s*id\)\s*\)/);
   assert.match(readSource('src/app/runtime/features/astra-store-lifecycle.js'), /state\.astras\s*=\s*runtimeAppDataStore\.replaceAstras\(\s*state\.astras\.filter\(a\s*=>\s*a\.officialId\s*!==\s*officialId\)\s*\)/);
-  assert.match(fragment03Source, /set\s+astras\(next\)\s*\{\s*state\.astras\s*=\s*next;\s*\}/);
+  // The core tail is given the shared shell state itself (legacy-core/shell-state.js), not a copy of its getters.
+  assert.match(fragment03Source, /const coreTailDependencies = \{[\s\S]*?\n\s*state,\n/);
   assert.doesNotMatch(fragment01Source, /from\s+['"][^'"]*app-data-store\.js['"]/);
   assert.doesNotMatch(fragment02Source, /from\s+['"][^'"]*app-data-store\.js['"]/);
   assert.doesNotMatch(fragment03Source, /from\s+['"][^'"]*app-data-store\.js['"]/);
