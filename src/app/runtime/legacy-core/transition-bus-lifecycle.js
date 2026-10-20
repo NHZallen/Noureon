@@ -1,6 +1,7 @@
 import { createLegacyBatchImportVoiceLifecycle } from './batch-import-voice-lifecycle.js';
 import { createLegacySearchUploadSidebarLifecycle } from './search-upload-sidebar-lifecycle.js';
-import { createLegacyModelMemoryDashboardLifecycle } from './model-memory-dashboard-lifecycle.js';
+import { createApiKeyWarningBadgeUpdater } from './api-key-warning-badge.js';
+import { createLazyFunctions } from '../kernel/lazy-functions.js';
 import { createMemoryRuntime } from '../memory/memory-runtime.js';
 import { assertLegacyTransitionBusDependencies } from './transition-bus-dependencies.js';
 
@@ -307,7 +308,19 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         legacyRuntimeContext, models: MODELS, runMemoryModel, modelSupportsVision, getApiKeyForProvider, hashString, saveAppData, saveConfig
     });
 
-    const modelMemoryDashboardLifecycle = createLegacyModelMemoryDashboardLifecycle({
+    const updateApiKeyWarningBadge = createApiKeyWarningBadgeUpdater({
+        elements: ALL_ELEMENTS, getActiveConversation, normalizeConversationModel, isCouncilEnabled, getCouncilValidation, getApiKeyForProvider
+    });
+    // The memory list, the memories taken from replies and the dashboard (model-memory-dashboard-lifecycle.js) load the first time one
+    // of them is used.
+    const {
+        renderPersonalMemoryList,
+        refineAndStoreMemories,
+        extractPersonalMemory,
+        openDashboard,
+        renderDashboardStats,
+        renderModelUsageChart
+    } = createLazyFunctions(() => import('./model-memory-dashboard-lifecycle.js').then(({ createLegacyModelMemoryDashboardLifecycle }) => createLegacyModelMemoryDashboardLifecycle({
         Chart,
         document,
         requestAnimationFrame,
@@ -340,23 +353,10 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         toggleModal,
         callApiWithSchema,
         getActiveConversation,
-        normalizeConversationModel,
-        isCouncilEnabled,
-        getCouncilValidation,
-        getApiKeyForProvider,
         setupTimeAnalysis,
         console
-    });
-
-    const {
-        renderPersonalMemoryList,
-        refineAndStoreMemories,
-        extractPersonalMemory,
-        updateApiKeyWarningBadge,
-        openDashboard,
-        renderDashboardStats,
-        renderModelUsageChart
-    } = modelMemoryDashboardLifecycle;
+    })), ['renderPersonalMemoryList', 'refineAndStoreMemories', 'extractPersonalMemory', 'openDashboard', 'renderDashboardStats',
+        'renderModelUsageChart']);
 
     function closeAllPopovers() {
         document.querySelectorAll('.popover.visible').forEach(popover => {

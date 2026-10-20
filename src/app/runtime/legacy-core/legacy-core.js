@@ -6,7 +6,6 @@ import { getTextColorForBackground } from '/src/utils/color-contrast.js';
 import { getMessageTypeIcon } from '/src/app/legacy-runtime/features/message-type-icon.js';
 import { formatFullTimestamp } from '/src/app/legacy-runtime/features/date-formatting.js';
 import { buildMessageRenderView } from '/src/app/legacy-runtime/features/message-markup-renderer.js';
-import { createMessageEditingLifecycle } from '/src/app/legacy-runtime/features/message-editing-lifecycle.js';
 import { buildQuotedUserParts, createQuoteInquiryLifecycle } from '/src/app/legacy-runtime/features/quote-inquiry-lifecycle.js';
 import { createSidebarAstrasLifecycle } from '/src/app/legacy-runtime/features/sidebar-astras-lifecycle.js';
 import { createLegacyRuntimeContext } from '/src/app/legacy-runtime/runtime/legacy-runtime-context.js';
@@ -692,15 +691,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
         const {
             streamApiCall,
             runMemoryModel,
-            providerRequestSupport,
-            councilResponseLifecycle,
             buildSingleModelTranslatedRequestParts,
-            extractTextFromParts,
-            fetchTavilySearchPacket,
-            filterPartsForModelCapability,
-            getSearchQueryFromParts,
-            streamCouncilApiCallWithRetry,
-            truncateCouncilText,
             runModelCouncil,
             callApiWithSchema,
             generateTitleAndSummary,
@@ -791,7 +782,10 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             deleteAstras,
             createAstrasMenu
         } = sidebarChatAstraRenderLifecycle);
-        const messageEditingLifecycle = createMessageEditingLifecycle({
+        // Editing a sent message (message-editing-lifecycle.js) loads the first time one is edited; until then no editor is open.
+        let messageEditingLifecycle = null;
+        let messageEditingLoad = null;
+        const loadMessageEditing = () => messageEditingLoad ||= import('/src/app/legacy-runtime/features/message-editing-lifecycle.js').then(({ createMessageEditingLifecycle }) => createMessageEditingLifecycle({
             document,
             elements: ALL_ELEMENTS,
             getActiveConversation,
@@ -806,10 +800,15 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             submitEditedMessage: (...args) => submitEditedMessage(...args),
             getText,
             isMobile: () => window.matchMedia('(max-width: 768px)').matches
+        })).then((lifecycle) => (messageEditingLifecycle = lifecycle), (error) => {
+            messageEditingLoad = null;
+            throw error;
         });
-        const { startMessageEditing } = messageEditingLifecycle;
-        cancelMessageEditing = (...args) => messageEditingLifecycle.cancelMessageEditing(...args);
-        getComposerEditSubmission = (...args) => messageEditingLifecycle.getComposerEditSubmission(...args);
+        const startMessageEditing = (...args) => loadMessageEditing()
+            .then((lifecycle) => lifecycle.startMessageEditing(...args))
+            .catch((error) => console.error('Failed to open the message editor:', error));
+        cancelMessageEditing = (...args) => messageEditingLifecycle?.cancelMessageEditing(...args);
+        getComposerEditSubmission = (...args) => messageEditingLifecycle?.getComposerEditSubmission(...args) ?? null;
         import { createBatchActionBarLifecycle } from '/src/app/legacy-runtime/features/batch-action-bar-lifecycle.js';
         import { createLegacyFolderLifecycle } from '/src/app/runtime/features/folder-lifecycle.js';
         import { createLegacyTransitionBusLifecycle } from '/src/app/runtime/legacy-core/transition-bus-lifecycle.js';

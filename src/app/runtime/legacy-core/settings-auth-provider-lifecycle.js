@@ -1,11 +1,11 @@
 import { createSettingsApiKeyControls } from './settings-api-key-controls.js';
 import { createSettingsOutputTranslatorControls } from './settings-output-translator-controls.js';
-import { createSettingsHistoryMenuHelper } from './settings-history-menu-helper.js';
 import { createSettingsThemeBubbleControls } from './settings-theme-bubble-controls.js';
 import { createSettingsMobileShellHelper } from './settings-mobile-shell-helper.js';
 import { createSettingsDesktopSectionHelper } from './settings-desktop-section-helper.js';
 import { createSettingsAuthActionsHelper } from './settings-auth-actions-helper.js';
 import { createSettingsUpdateInputStateHelper } from './settings-update-input-state-helper.js';
+import { createLazyFunctions } from '../kernel/lazy-functions.js';
 import { createModelRequestRuntime } from './model-request-runtime.js';
 import { createSettingsModalLifecycle } from './settings-modal-lifecycle.js';
 
@@ -166,19 +166,16 @@ export function createLegacySettingsAuthProviderLifecycle(dependencies = {}) {
     const {
         streamApiCall,
         runMemoryModel,
-        providerRequestSupport,
-        councilResponseLifecycle,
         buildSingleModelTranslatedRequestParts,
-        extractTextFromParts,
         fetchTavilySearchPacket,
-        filterPartsForModelCapability,
-        getSearchQueryFromParts,
         streamCouncilApiCallWithRetry,
-        truncateCouncilText,
         runModelCouncil,
         callApiWithSchema,
-        generateTitleAndSummary
+        generateTitleAndSummary,
+        prepareModelRequests
     } = createModelRequestRuntime({
+        // Loaded ahead a few seconds after the start, when the page is idle, so the first message does not wait for it.
+        whenIdle: (run) => window?.setTimeout?.(() => (window.requestIdleCallback ? window.requestIdleCallback(run, { timeout: 8000 }) : run()), 4000),
         fetch, console, elements: ALL_ELEMENTS, state, legacyRuntimeContext, models: MODELS, i18n, config, astras, personalMemories,
         cheapModelId: CHEAP_MODEL_ID, councilResponseCharLimit: COUNCIL_RESPONSE_CHAR_LIMIT, councilRetryDelayMs: COUNCIL_RETRY_DELAY_MS,
         councilMaxModels: COUNCIL_MAX_MODELS, getActiveConversation, normalizeConversationModel, getModelApiId, getApiKeyForProvider,
@@ -324,7 +321,8 @@ export function createLegacySettingsAuthProviderLifecycle(dependencies = {}) {
         setTheme,
         updateThemeButtons
     } = themeBubbleControls;
-    const historyMenuHelper = createSettingsHistoryMenuHelper({
+    // The menu of a conversation in the history (settings-history-menu-helper.js) loads the first time one is opened.
+    const historyMenuHelper = createLazyFunctions(() => import('./settings-history-menu-helper.js').then(({ createSettingsHistoryMenuHelper }) => createSettingsHistoryMenuHelper({
         window,
         document,
         requestAnimationFrame,
@@ -339,7 +337,7 @@ export function createLegacySettingsAuthProviderLifecycle(dependencies = {}) {
         moveConversationToFolder,
         createNewFolder,
         showCustomPrompt
-    });
+    })), ['createHistoryMenu']);
     const {
         createHistoryMenu
     } = historyMenuHelper;
@@ -347,18 +345,13 @@ export function createLegacySettingsAuthProviderLifecycle(dependencies = {}) {
     return {
         streamApiCall,
         runMemoryModel,
-        providerRequestSupport,
-        councilResponseLifecycle,
         buildSingleModelTranslatedRequestParts,
-        extractTextFromParts,
         fetchTavilySearchPacket,
-        filterPartsForModelCapability,
-        getSearchQueryFromParts,
         streamCouncilApiCallWithRetry,
-        truncateCouncilText,
         runModelCouncil,
         callApiWithSchema,
         generateTitleAndSummary,
+        prepareModelRequests,
         updateSubmitButtonState,
         updateInputState,
         getTavilySearchDepth,

@@ -66,10 +66,6 @@ export function createLegacyModelMemoryDashboardLifecycle(dependencies = {}) {
         toggleModal = () => {},
         callApiWithSchema = async () => [],
         getActiveConversation = () => null,
-        normalizeConversationModel = () => null,
-        isCouncilEnabled = () => false,
-        getCouncilValidation = () => ({ reason: '' }),
-        getApiKeyForProvider = () => '',
         setupTimeAnalysis = () => {},
         console: injectedConsole = globalThis.console
     } = dependencies;
@@ -623,22 +619,6 @@ ${JSON.stringify(potentialMemories, null, 2)}
                 await refineAndStoreMemories(extracted);
             }
         };
-        const updateApiKeyWarningBadge = () => {
-            syncState();
-            const conv = getActiveConversation();
-            if (!conv) {
-                ALL_ELEMENTS.apiKeyWarningBadge.classList.add('hidden');
-                return;
-            }
-            const modelInfo = normalizeConversationModel(conv);
-            let needsKey = false;
-            if (isCouncilEnabled(conv)) {
-                needsKey = getCouncilValidation(conv).reason === 'missingApiKey';
-            } else if (modelInfo) {
-                needsKey = !getApiKeyForProvider(modelInfo.provider);
-            }
-            ALL_ELEMENTS.apiKeyWarningBadge.classList.toggle('hidden', !needsKey);
-        };
         const openDashboard = () => {
             syncState();
             renderDashboardStats();
@@ -679,7 +659,6 @@ ${JSON.stringify(potentialMemories, null, 2)}
             renderPersonalMemoryList,
             refineAndStoreMemories,
             extractPersonalMemory,
-            updateApiKeyWarningBadge,
             openDashboard,
             renderDashboardStats,
             renderModelUsageChart

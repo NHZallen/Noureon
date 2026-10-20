@@ -17,6 +17,8 @@ const settingsHelperModules = [
   {
     path: 'src/app/runtime/legacy-core/settings-history-menu-helper.js',
     factory: 'createSettingsHistoryMenuHelper',
+    // Loaded the first time a menu is opened.
+    lazy: true,
     blockedRuntimeGlobals: /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-entry|legacy-core\.js/
   },
   {
@@ -105,9 +107,17 @@ test('settings auth provider lifecycle composes every extracted settings helper'
       .replace(/^AuthActionsHelper$/, 'authActionsHelper')
       .replace(/^UpdateInputStateHelper$/, 'updateInputStateHelper');
 
+    const modulePattern = moduleName.replace('.', '\\.');
+    if (helper.lazy) {
+      assert.match(
+        lifecycleSource,
+        new RegExp(`const\\s+${localName}\\s*=\\s*createLazyFunctions\\(\\(\\)\\s*=>\\s*import\\('${modulePattern}'\\)\\.then\\(\\(\\{\\s*${helper.factory}\\s*\\}\\)\\s*=>\\s*${helper.factory}\\(\\{`)
+      );
+      continue;
+    }
     assert.match(
       lifecycleSource,
-      new RegExp(`import\\s+\\{\\s*${helper.factory}\\s*\\}\\s+from\\s+['"]${moduleName.replace('.', '\\.')}['"]`)
+      new RegExp(`import\\s+\\{\\s*${helper.factory}\\s*\\}\\s+from\\s+['"]${modulePattern}['"]`)
     );
     assert.match(
       lifecycleSource,
@@ -137,7 +147,7 @@ test('settings history and API key controls remain delegated without weakening s
   const lifecycleSource = readUiSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
   const apiKeyControlsSource = readSource('src/app/runtime/legacy-core/settings-api-key-controls.js');
 
-  assert.match(lifecycleSource, /const\s+historyMenuHelper\s*=\s*createSettingsHistoryMenuHelper\(\{/);
+  assert.match(lifecycleSource, /const\s+historyMenuHelper\s*=\s*createLazyFunctions\(\(\)\s*=>\s*import\('\.\/settings-history-menu-helper\.js'\)\.then\(\(\{\s*createSettingsHistoryMenuHelper\s*\}\)\s*=>\s*createSettingsHistoryMenuHelper\(\{/);
   assert.match(lifecycleSource, /getConversations:\s*\(\)\s*=>\s*conversations/);
   assert.match(lifecycleSource, /getFolders:\s*\(\)\s*=>\s*folders/);
   assert.match(lifecycleSource, /const\s+apiKeyControls\s*=\s*createSettingsApiKeyControls\(\{/);

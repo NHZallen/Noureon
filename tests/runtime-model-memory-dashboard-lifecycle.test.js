@@ -170,12 +170,12 @@ test('factory exposes memory and dashboard lifecycle functions', () => {
   for (const name of [
     'renderPersonalMemoryList',
     'extractPersonalMemory',
-    'updateApiKeyWarningBadge',
     'openDashboard',
     'renderModelUsageChart'
   ]) {
     assert.equal(typeof lifecycle[name], 'function', `${name} should be exposed`);
   }
+  assert.equal('updateApiKeyWarningBadge' in lifecycle, false, 'the badge is api-key-warning-badge.js, loaded with the page');
   assert.equal('renderModelManagementUI' in lifecycle, false);
   assert.equal('moveModelOrder' in lifecycle, false);
 });

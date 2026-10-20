@@ -1,5 +1,4 @@
-import { createLegacyImportExportLifecycle } from '../features/import-export-lifecycle.js';
-import { createLegacyAuthImportLifecycle } from '../features/auth-import-lifecycle.js';
+import { createLazyFunctions } from '../kernel/lazy-functions.js';
 import { compressImage } from '../utils/image-compression.js';
 import { dictationTip } from '../../ui/voice/dictation-texts.js';
 
@@ -262,7 +261,8 @@ export function createLegacyBatchImportVoiceLifecycle(dependencies = {}) {
 
     const resolveSearchSetupSettingsModal = (...args) => legacyRuntimeContext.resolveBinding('settings.setupSettingsModal')(...args);
 
-    const importExportLifecycle = createLegacyImportExportLifecycle({
+    // Import and export (features/import-export-lifecycle.js) load the first time one is used.
+    const importExportLifecycle = createLazyFunctions(() => import('../features/import-export-lifecycle.js').then(({ createLegacyImportExportLifecycle }) => createLegacyImportExportLifecycle({
         document,
         window,
         navigator,
@@ -306,9 +306,10 @@ export function createLegacyBatchImportVoiceLifecycle(dependencies = {}) {
         storage: dependencies.runtimeStorageAdapter,
         delay,
         logger,
-    });
+    })), ['handleExport', 'performImport', 'handleImport', 'resolveImportedApiKeys']);
 
-    const authImportLifecycle = createLegacyAuthImportLifecycle({
+    // Importing a backup from the sign-in page (features/auth-import-lifecycle.js) loads the first time it is used.
+    const authImportLifecycle = createLazyFunctions(() => import('../features/auth-import-lifecycle.js').then(({ createLegacyAuthImportLifecycle }) => createLegacyAuthImportLifecycle({
         elements: ALL_ELEMENTS,
         loadArchiveVendor,
         JSZip,
@@ -338,7 +339,7 @@ export function createLegacyBatchImportVoiceLifecycle(dependencies = {}) {
         i18n,
         logger,
         resolveImportedApiKeys: importExportLifecycle.resolveImportedApiKeys,
-    });
+    })), ['handleImportOnAuth', 'processAuthImport']);
 
     const setupVoiceInput = () => {
         if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {

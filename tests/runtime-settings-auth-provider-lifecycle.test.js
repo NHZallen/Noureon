@@ -30,8 +30,9 @@ test('structured provider helpers are composed through injected key access', () 
 test('history menu helper is composed while preserving lifecycle alias', () => {
   const source = readUiSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
 
-  assert.match(source, /import\s+\{\s*createSettingsHistoryMenuHelper\s*\}\s+from\s+['"]\.\/settings-history-menu-helper\.js['"]/);
-  assert.match(source, /const\s+historyMenuHelper\s*=\s*createSettingsHistoryMenuHelper\(\{/);
+  // It loads the first time a menu is opened.
+  assert.doesNotMatch(source, /import\s+\{\s*createSettingsHistoryMenuHelper\s*\}\s+from/);
+  assert.match(source, /const\s+historyMenuHelper\s*=\s*createLazyFunctions\(\(\)\s*=>\s*import\('\.\/settings-history-menu-helper\.js'\)\.then\(\(\{\s*createSettingsHistoryMenuHelper\s*\}\)\s*=>\s*createSettingsHistoryMenuHelper\(\{/);
   assert.match(source, /getConversations:\s*\(\)\s*=>\s*conversations/);
   assert.match(source, /getFolders:\s*\(\)\s*=>\s*folders/);
   assert.match(source, /showRenameModal,/);
@@ -176,8 +177,13 @@ test('factory exposes settings auth provider lifecycle API', () => {
   ]) {
     assert.equal(typeof lifecycle[name], 'function', `${name} should be exposed`);
   }
-  assert.equal(typeof lifecycle.providerRequestSupport, 'object');
-  assert.equal(typeof lifecycle.councilResponseLifecycle, 'object');
+  // How a model is asked is loaded on demand (model-request-engine.js): the lifecycle hands on async functions only.
+  for (const name of ['streamApiCall', 'runMemoryModel', 'buildSingleModelTranslatedRequestParts', 'fetchTavilySearchPacket',
+    'streamCouncilApiCallWithRetry', 'runModelCouncil', 'callApiWithSchema', 'generateTitleAndSummary', 'prepareModelRequests']) {
+    assert.equal(typeof lifecycle[name], 'function', `${name} should be exposed`);
+  }
+  assert.equal(lifecycle.providerRequestSupport, undefined);
+  assert.equal(lifecycle.councilResponseLifecycle, undefined);
 });
 
 test('callApiWithSchema sends Gemini key through header instead of URL query', async () => {

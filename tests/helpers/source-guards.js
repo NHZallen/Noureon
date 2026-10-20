@@ -45,6 +45,7 @@ const MODULE_PARTS = {
   ],
   'src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js': [
     'src/app/runtime/legacy-core/model-request-runtime.js',
+    'src/app/runtime/legacy-core/model-request-engine.js',
     'src/app/runtime/legacy-core/settings-modal-lifecycle.js',
     'src/app/runtime/legacy-core/settings-dialog-parts.js'
   ]
