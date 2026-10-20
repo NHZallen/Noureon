@@ -1,6 +1,14 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.15.0": [
+    "<strong>Noureon 18.15.0 Release Notes</strong>",
+    "This version adds three free models: MiniMax M3.1 Flash from OpenRouter, and MiniMax M3.1 Flash and Beam from OpenCode Go.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>MiniMax M3.1 Flash on OpenRouter (free):</strong> it can see pictures and video, read a PDF (including the pictures in it) and call tools. Its thinking cannot be turned off; the depth can be set from low to max, medium by default.</li><li><strong>MiniMax M3.1 Flash on OpenCode Go (free):</strong> it can see pictures, read a PDF (including the pictures in it) and call tools; Word and PowerPoint files are first turned into a PDF by the server. Its thinking cannot be turned off; the depth can be set from low to max, medium by default.</li><li><strong>Beam on OpenCode Go (free, a test model):</strong> a text-only model that can call tools and takes no pictures or files. The first time you choose it, a window says it is a test model that may be renamed, changed or removed at any time. Its thinking cannot be turned off; the depth can be set from low to max, high by default.</li><li><strong>Number of models and explanations:</strong> the models to choose from go from 77 to 80; the Help Center’s list of models that get Word and PowerPoint files as a PDF now includes MiniMax M3.1 Flash.</li></ul>",
+    "<strong>Compatibility</strong>",
+    "No data migration is needed and there are no new server fields. A free model may be rate-limited or unavailable at times: try again later or choose another model."
+  ],
   "18.14.0": [
     "<strong>Noureon 18.14.0 Release Notes</strong>",
     "This version moves reading attachments, translating documents and reading web addresses to the server, so they finish even if you leave the page, and turns Word and PowerPoint files into a PDF first when they go to some OpenCode Go models.",

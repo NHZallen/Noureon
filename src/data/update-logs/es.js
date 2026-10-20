@@ -1,6 +1,14 @@
 // The update notes in Spanish (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.15.0": [
+    "<strong>Noureon 18.15.0 – Notas de la versión</strong>",
+    "Esta versión añade tres modelos gratuitos: MiniMax M3.1 Flash de OpenRouter, y MiniMax M3.1 Flash y Beam de OpenCode Go.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>MiniMax M3.1 Flash en OpenRouter (gratis):</strong> ve imágenes y vídeo, lee un PDF (incluidas las imágenes que contiene) y llama a herramientas. Su razonamiento no se puede desactivar; la profundidad se ajusta de baja a máxima, media por defecto.</li><li><strong>MiniMax M3.1 Flash en OpenCode Go (gratis):</strong> ve imágenes, lee un PDF (incluidas las imágenes que contiene) y llama a herramientas; los archivos de Word y PowerPoint los convierte primero en PDF el servidor. Su razonamiento no se puede desactivar; la profundidad se ajusta de baja a máxima, media por defecto.</li><li><strong>Beam en OpenCode Go (gratis, modelo de prueba):</strong> un modelo solo de texto que llama a herramientas y no admite imágenes ni archivos. La primera vez que lo eliges, una ventana explica que es un modelo de prueba que puede cambiar de nombre, modificarse o retirarse en cualquier momento. Su razonamiento no se puede desactivar; la profundidad se ajusta de baja a máxima, alta por defecto.</li><li><strong>Número de modelos y explicaciones:</strong> los modelos disponibles pasan de 77 a 80; la lista del Centro de ayuda de los modelos que reciben los archivos de Word y PowerPoint como PDF incluye ahora MiniMax M3.1 Flash.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "No hace falta migrar datos y no hay campos nuevos en el servidor. Un modelo gratuito puede tener límites de velocidad o no estar disponible a ratos: inténtalo más tarde o elige otro modelo."
+  ],
   "18.14.0": [
     "<strong>Noureon 18.14.0 – Notas de la versión</strong>",
     "Esta versión traslada al servidor la lectura de los adjuntos, la traducción de documentos y la lectura de direcciones web, que así terminan aunque salgas de la página, y convierte primero en PDF los archivos de Word y PowerPoint que se envían a algunos modelos de OpenCode Go.",

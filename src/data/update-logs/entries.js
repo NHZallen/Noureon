@@ -2,6 +2,18 @@
 // content 為 zh-TW 的 HTML 字串（JSON 轉義、雙引號），目前不隨介面語言切換。
 export const updateLogEntries = [
   {
+    version: "18.15.0",
+    date: "2026-10-20",
+    content: [
+      "<strong>Noureon 18.15.0 發布說明</strong>",
+      "本版本新增三個免費模型：OpenRouter 的 MiniMax M3.1 Flash，以及 OpenCode Go 的 MiniMax M3.1 Flash 與 Beam。",
+      "<strong>主要變更</strong>",
+      "<ul><li><strong>OpenRouter 的 MiniMax M3.1 Flash（免費）：</strong>可以看圖片與影片、讀 PDF（包含 PDF 裡的圖片）、呼叫工具。思考無法關閉，深度可選低到極致，預設中。</li><li><strong>OpenCode Go 的 MiniMax M3.1 Flash（免費）：</strong>可以看圖片、讀 PDF（包含 PDF 裡的圖片）、呼叫工具；傳 Word 與 PowerPoint 時，由伺服器先轉成 PDF 再送出。思考無法關閉，深度可選低到極致，預設中。</li><li><strong>OpenCode Go 的 Beam（免費，測試模型）：</strong>純文字模型，可以呼叫工具，不接受圖片與檔案。第一次選用時會說明它是測試模型，可能隨時改名、改變或下架。思考無法關閉，深度可選低到極致，預設高。</li><li><strong>模型數量與說明：</strong>可選的模型由 77 個增加為 80 個；協助中心中「Word、PowerPoint 先轉成 PDF」的模型名單加入 MiniMax M3.1 Flash。</li></ul>",
+      "<strong>相容性</strong>",
+      "本次更新不需要資料遷移，也沒有新的伺服器欄位。免費模型可能被供應商限速或暫時停用，遇到時稍後再試或換別的模型。"
+    ]
+  },
+  {
     version: "18.14.0",
     date: "2026-10-20",
     content: [
