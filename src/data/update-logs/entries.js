@@ -2,6 +2,18 @@
 // content 為 zh-TW 的 HTML 字串（JSON 轉義、雙引號），目前不隨介面語言切換。
 export const updateLogEntries = [
   {
+    version: "18.14.0",
+    date: "2026-10-20",
+    content: [
+      "<strong>Noureon 18.14.0 發布說明</strong>",
+      "本版本把讀取附件、文件轉譯與讀取網址搬到伺服器，離開頁面也會做完；Word 與 PowerPoint 傳給部分 OpenCode Go 模型時，改成先轉成 PDF。",
+      "<strong>主要變更</strong>",
+      "<ul><li><strong>讀檔與讀網址在伺服器做：</strong>登入雲端帳號、回覆由伺服器進行，而且設定了單模型文件轉譯模型（或符合下一項）時，這一則訊息的檔案、需要轉譯的文件與網址都由伺服器讀取，關掉頁面也會讀完；等待列依實際進行的步驟顯示（讀取檔案、轉成 PDF、請轉譯模型讀取文件、讀取網址）。伺服器沒有接手時，照舊在頁面上做。</li><li><strong>Word、PowerPoint 先轉成 PDF：</strong>傳給 OpenCode Go 的 Hy3、Muse Spark 1.3 Contributor、Muse Spark 1.2 Contributor、Claude Haiku 5.5、MiniMax M3、Qwen3.8 Max、Qwen3.8 Flash 時，這一則訊息的 Word 與 PowerPoint 檔案先由伺服器轉成 PDF 再送出，模型看得到版面與圖片，追問時看到的和第一次相同。以前這一則是讀成文字，只有歷史訊息才會轉成 PDF。不需要設定轉譯模型。</li><li><strong>等待文字：</strong>請轉譯模型讀取文件的那一步，等待列改成「正在請轉譯模型讀取文件……」，不再寫成「轉換」；這一行也不再每秒閃一次。</li><li><strong>說明文字：</strong>設定裡「理事會文件轉譯」的說明改成只說它現在做什麼（把理事會成員讀不了的附件轉成文字）；協助中心與隱私權政策補上伺服器讀檔、轉成 PDF 的說明與模型名單。</li></ul>",
+      "<strong>相容性</strong>",
+      "本次更新不需要資料遷移。伺服器的回覆請求新增選填欄位 documents；部署時請先更新伺服器，再更新頁面。Word 與 PowerPoint 傳給上述模型時，模型收到的內容由文字改成 PDF。"
+    ]
+  },
+  {
     version: "18.13.0",
     date: "2026-10-20",
     content: [
