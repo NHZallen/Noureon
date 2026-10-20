@@ -387,7 +387,7 @@ test('search controls expose the natural-language Enter hint and follow the visu
   assert.ok(harness.calls.includes('style:searchModal:--search-viewport-left:3px'));
   assert.equal(findListener(harness.listeners, 'visualViewport', 'scroll') instanceof Function, true);
 
-  const source = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
+  const source = readSource('src/app/runtime/features/conversation-search-modal.js');
   assert.match(source, /naturalSearchEnterHint/);
   assert.match(source, /naturalSearchHint\.classList\.toggle\('is-visible',\s*isNaturalSearch\)/);
   assert.match(source, /naturalSearchHint\.setAttribute\('aria-hidden',\s*String\(!isNaturalSearch\)\)/);
@@ -415,7 +415,7 @@ test('search opens and focuses within one animation frame without scrolling the 
   assert.ok(focusIndex > frameIndex);
   assert.equal(harness.calls.includes('scheduleTimeout'), false);
 
-  const source = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
+  const source = readSource('src/app/runtime/features/conversation-search-modal.js');
   assert.match(source, /modalSearchInput\.focus\(\{\s*preventScroll:\s*true\s*\}\)/);
   assert.doesNotMatch(source, /scheduleTimeout\(\(\)\s*=>\s*\{\s*ALL_ELEMENTS\.modalSearchInput\.focus/);
 });
@@ -493,11 +493,12 @@ test('app bootstrap lifecycle module avoids startup, storage, auth ownership, fr
   assert.match(source, /export\s+function\s+createLegacyAppBootstrapLifecycle/);
   assert.match(source, /createAppBootstrapComposition\(\{/);
   assert.match(source, /createLegacyP2PLifecycle\(\{/);
-  assert.match(source, /settings-desktop-logout-btn/);
-  assert.match(source, /settings-desktop-logout-icon/);
-  assert.match(source, /<span data-lang-key="logout">/);
-  assert.match(source, /nav\.closest\('nav'\)\?\.appendChild\(button\)/);
-  assert.doesNotMatch(source, /nav\.appendChild\(item\)/);
+  const enhancements = readSource('src/app/runtime/features/app-shell-enhancements.js');
+  assert.match(enhancements, /settings-desktop-logout-btn/);
+  assert.match(enhancements, /settings-desktop-logout-icon/);
+  assert.match(enhancements, /<span data-lang-key="logout">/);
+  assert.match(enhancements, /nav\.closest\('nav'\)\?\.appendChild\(button\)/);
+  assert.doesNotMatch(enhancements, /nav\.appendChild\(item\)/);
 });
 
 test('mobile attachment trigger reuses the desktop file options popover', async () => {

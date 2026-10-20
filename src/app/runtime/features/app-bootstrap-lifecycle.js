@@ -1,23 +1,19 @@
 import { createAppBootstrapComposition } from '../../legacy-runtime/features/app-bootstrap-composition.js';
 import { createStoreNavigationLifecycle } from '../../legacy-runtime/features/store-navigation-lifecycle.js';
 import { createLegacyP2PLifecycle } from './p2p-lifecycle.js';
-import { createTurnstileClient } from '../security/turnstile-client.js';
 import { addConfirmedProfileEntry } from '../memory/memory-profile-management.js';
-import { getRuntimeText } from '../i18n/runtime-texts.js';
-import { removeLastComposerIndicatorOnDelete } from './composer-indicator-keyboard.js';
 import { openWhenBuilt, prepareWhenIdle } from './open-settings-when-built.js';
 import { installFileCardInteractions } from '../../ui/files/file-card-interactions.js';
 import { fitPopoverToViewport } from '../../ui/dom/fit-popover-to-viewport.js';
 import { collectSandboxInputs, setSandboxFileHooks } from '../../ui/sandbox/sandbox-files.js';
 import { installCodeHighlighting } from '../../ui/code/code-highlighting.js';
-import { codeOfCard } from '../../ui/sandbox/run-code-card.js';
-import { openSourceUrl } from '../../ui/sandbox/run-sources.js';
-import { liftSandboxRunBlock } from '../../ui/sandbox/sandbox-run-block.js';
-import { listableSources } from '../../ui/citations/citation-model.js';
-import { copyableAnswerText, sourcesOfPill } from '../../ui/citations/citation-pills.js';
-import { openSourceSheet } from '../../ui/citations/source-sheet.js';
 import { installScrollbarArrows } from '../../ui/scroll/scrollbar-arrows.js';
 import { SERVICES, getService } from '../services.js';
+import { createAppShellEnhancements } from './app-shell-enhancements.js';
+import { setupConversationSearchModal } from './conversation-search-modal.js';
+import { bindMessageListActions } from './message-list-actions.js';
+import { bindComposerInput } from './composer-input-bindings.js';
+import { bindFeedbackForms } from './feedback-forms.js';
 
 export function createLegacyAppBootstrapLifecycle({
     window,
@@ -122,840 +118,316 @@ export function createLegacyAppBootstrapLifecycle({
     const ALL_ELEMENTS = elements;
     const resolveEventsUpdateInputState = updateInputState;
     const resolveEventsSetupSettingsModal = setupSettingsModal;
-    const enhanceLocalizedFileInput = (input) => {
-        if (!input || input.dataset?.localizedFileInput === 'true') return;
-        if (
-            typeof document?.createElement !== 'function' ||
-            typeof input.insertAdjacentElement !== 'function' ||
-            !input.classList
-        ) return;
-        input.dataset.localizedFileInput = 'true';
-        input.classList.add('sr-only');
-
-        const wrapper = document.createElement('div');
-        wrapper.className = 'localized-file-input flex flex-wrap items-center gap-3';
-
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'px-4 py-2 rounded-full border-0 text-sm font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100';
-        button.dataset.langKey = 'selectFile';
-        button.textContent = getRuntimeText(getConfig().uiLanguage, 'chooseFile');
-        button.addEventListener('click', () => input.click());
-
-        const fileName = document.createElement('span');
-        fileName.className = 'localized-file-input-name text-sm text-[var(--text-secondary)] truncate';
-        fileName.dataset.langKey = 'noFileSelected';
-        fileName.textContent = getRuntimeText(getConfig().uiLanguage, 'noFileSelected');
-
-        const syncFileName = () => {
-            const selectedFile = input.files?.[0];
-            if (selectedFile) {
-                delete fileName.dataset.langKey;
-                fileName.textContent = selectedFile.name;
-            } else {
-                fileName.dataset.langKey = 'noFileSelected';
-                fileName.textContent = i18n?.[getConfig?.().uiLanguage || 'zh-TW']?.noFileSelected || getRuntimeText(getConfig().uiLanguage, 'noFileSelected');
-            }
-        };
-
-        input.addEventListener('change', syncFileName);
-        wrapper.appendChild(button);
-        wrapper.appendChild(fileName);
-        input.insertAdjacentElement('afterend', wrapper);
-    };
-    const ensureSettingsDesktopLogoutButton = () => {
-        const nav = ALL_ELEMENTS.settingsNav;
-        if (!nav) return null;
-        const existing = document.getElementById('settings-desktop-logout-btn');
-        if (existing) return existing;
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.id = 'settings-desktop-logout-btn';
-        button.className = 'settings-nav-item settings-desktop-logout-btn w-full p-3 rounded-md text-left text-red-600 flex items-center gap-2';
-        const logoutLabel = i18n[getConfig().uiLanguage]?.logout || '登出';
-        button.innerHTML = `
-            <svg aria-hidden="true" class="settings-desktop-logout-icon flex-shrink-0" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                <polyline points="16 17 21 12 16 7"></polyline>
-                <line x1="21" y1="12" x2="9" y2="12"></line>
-            </svg>
-            <span data-lang-key="logout">${logoutLabel}</span>
-        `;
-        nav.closest('nav')?.appendChild(button);
-        return button;
-    };
-    const enhanceSettingsLogoutButton = () => {
-        const button = ALL_ELEMENTS.logoutBtn;
-        if (!button || button.querySelector('.settings-logout-label')) return;
-        button.classList.add('flex', 'items-center', 'gap-2', 'px-3');
-        button.title = i18n[getConfig().uiLanguage]?.logout || '登出';
-        button.dataset.langKeyTitle = 'logout';
-        const label = document.createElement('span');
-        label.className = 'settings-logout-label text-sm font-medium';
-        label.dataset.langKey = 'logout';
-        label.textContent = i18n[getConfig().uiLanguage]?.logout || '登出';
-        button.appendChild(label);
-    };
+    const { enhanceLocalizedFileInput, ensureSettingsDesktopLogoutButton, enhanceSettingsLogoutButton } = createAppShellEnhancements({ document, elements: ALL_ELEMENTS, i18n, getConfig });
 
     async function initChatApp() {
-                const turnstile = createTurnstileClient({ window, document });
-                const getTurnstileRequiredMessage = () => i18n[getConfig().uiLanguage]?.turnstileRequired || '請完成安全驗證後再送出。';
-                const mountTurnstile = (name, anchorElement) => {
-                    if (!turnstile.enabled) return;
-                    turnstile.mount(name, anchorElement).catch((error) => {
-                        logger.error('Cloudflare Turnstile failed to initialize:', error);
-                        showNotification(i18n[getConfig().uiLanguage]?.turnstileLoadError || '安全驗證載入失敗，請重新整理後再試。', 'error');
-                    });
-                };
-                const config = getConfig();
-                const currentUser = getCurrentUser();
-                if (window.innerWidth >= 1024) {
+        const config = getConfig();
+        const currentUser = getCurrentUser();
+        if (window.innerWidth >= 1024) {
             setSidebarOpen(false);
             ALL_ELEMENTS.sidebar.classList.remove('open');
             ALL_ELEMENTS.appContainer.classList.remove('sidebar-open');
         }
-                const currentUserLabel = currentUser.displayName || currentUser.email || currentUser.username;
-                ALL_ELEMENTS.usernameDisplay.textContent = currentUserLabel;
-                document.querySelector('.user-avatar').textContent = currentUserLabel.charAt(0).toUpperCase();
-                enhanceSettingsLogoutButton();
-                const settingsDesktopLogoutBtn = ensureSettingsDesktopLogoutButton();
-                const searchToolbar = ALL_ELEMENTS.modalSearchInput.parentElement;
-                const searchHeader = ALL_ELEMENTS.closeSearchModalBtn.parentElement;
-                searchToolbar?.classList.add('conversation-search-toolbar');
-                searchHeader?.classList.add('conversation-search-header');
-                const closeSearchLabel = i18n[config.uiLanguage]?.close || '關閉';
-                ALL_ELEMENTS.closeSearchModalBtn.setAttribute('aria-label', closeSearchLabel);
-                ALL_ELEMENTS.closeSearchModalBtn.title = closeSearchLabel;
-                ALL_ELEMENTS.closeSearchModalBtn.dataset.langKeyAria = 'close';
-                ALL_ELEMENTS.closeSearchModalBtn.dataset.langKeyTitle = 'close';
-                ALL_ELEMENTS.closeSearchModalBtn.innerHTML = `
-                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none">
-                        <path d="m6 6 12 12M18 6 6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
-                    </svg>
-                `;
-                ALL_ELEMENTS.modalSearchScopeSelect.classList.add('conversation-search-native-select');
-                const searchModes = [
-                    ['keyword-title', i18n[config.uiLanguage]?.searchScopeTitle || '標題', 'searchScopeTitle'],
-                    ['keyword-content', i18n[config.uiLanguage]?.searchScopeContent || '內容', 'searchScopeContent'],
-                    ['natural', i18n[config.uiLanguage]?.searchScopeNatural || '自然語意', 'searchScopeNatural']
-                ];
-                const searchModeControl = document.createElement('div');
-                searchModeControl.className = 'conversation-search-mode-control';
-                searchModeControl.setAttribute('aria-label', i18n[config.uiLanguage]?.searchConversations || '搜尋模式');
-                searchModeControl.dataset.langKeyAria = 'searchConversations';
-                const naturalSearchHint = document.createElement('p');
-                naturalSearchHint.className = 'conversation-search-enter-hint';
-                naturalSearchHint.textContent = i18n[config.uiLanguage]?.naturalSearchEnterHint || '按下 Enter 開始搜尋';
-                naturalSearchHint.dataset.langKey = 'naturalSearchEnterHint';
-                const syncSearchModeControl = () => {
-                    const isNaturalSearch = ALL_ELEMENTS.modalSearchScopeSelect.value === 'natural';
-                    searchModeControl.querySelectorAll('button').forEach((button) => {
-                        const isActive = button.dataset.scope === ALL_ELEMENTS.modalSearchScopeSelect.value;
-                        button.classList.toggle('is-active', isActive);
-                        button.setAttribute('aria-pressed', String(isActive));
-                    });
-                    naturalSearchHint.classList.toggle('is-visible', isNaturalSearch);
-                    naturalSearchHint.setAttribute('aria-hidden', String(!isNaturalSearch));
-                };
-                searchModes.forEach(([value, label, labelKey]) => {
-                    const button = document.createElement('button');
-                    button.type = 'button';
-                    button.dataset.scope = value;
-                    button.dataset.langKey = labelKey;
-                    button.textContent = label;
-                    button.addEventListener('click', () => {
-                        if (ALL_ELEMENTS.modalSearchScopeSelect.value === value) return;
-                        ALL_ELEMENTS.modalSearchScopeSelect.value = value;
-                        syncSearchModeControl();
-                        if (value !== 'natural' || !ALL_ELEMENTS.modalSearchInput.value.trim()) {
-                            performSearchAndRenderResults();
-                        }
-                    });
-                    searchModeControl.appendChild(button);
-                });
-                searchToolbar?.insertBefore(searchModeControl, ALL_ELEMENTS.modalSearchInput);
-                searchToolbar?.insertBefore(naturalSearchHint, ALL_ELEMENTS.modalSearchInput);
-                const searchInputWrap = document.createElement('div');
-                searchInputWrap.className = 'conversation-search-input-wrap';
-                searchInputWrap.innerHTML = `
-                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none">
-                        <circle cx="11" cy="11" r="6.5" stroke="currentColor" stroke-width="1.8"></circle>
-                        <path d="m16 16 4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path>
-                    </svg>
-                `;
-                searchToolbar?.insertBefore(searchInputWrap, ALL_ELEMENTS.modalSearchInput);
-                searchInputWrap.appendChild(ALL_ELEMENTS.modalSearchInput);
-                syncSearchModeControl();
-                const previousSearchViewportGeometry = {
-                    top: '',
-                    left: '',
-                    width: '',
-                    height: ''
-                };
-                const syncSearchViewport = () => {
-                    const visualViewport = window.visualViewport;
-                    const fallbackViewportWidth =
-                        Number(document.documentElement?.clientWidth)
-                        || Number(window.innerWidth)
-                        || 0;
-                    const fallbackViewportHeight =
-                        Number(document.documentElement?.clientHeight)
-                        || Number(window.innerHeight)
-                        || 0;
-                    const visibleViewportWidth = Number(visualViewport?.width) || fallbackViewportWidth;
-                    const visibleViewportHeight = Number(visualViewport?.height) || fallbackViewportHeight;
-                    const visibleViewportOffsetTop = Math.max(0, Number(visualViewport?.offsetTop) || 0);
-                    const visibleViewportOffsetLeft = Math.max(0, Number(visualViewport?.offsetLeft) || 0);
-                    const nextGeometry = {
-                        top: `${Math.round(visibleViewportOffsetTop)}px`,
-                        left: `${Math.round(visibleViewportOffsetLeft)}px`,
-                        width: `${Math.round(visibleViewportWidth)}px`,
-                        height: `${Math.round(visibleViewportHeight)}px`
-                    };
-                    Object.entries(nextGeometry).forEach(([property, value]) => {
-                        if (previousSearchViewportGeometry[property] === value) return;
-                        ALL_ELEMENTS.searchModal.style.setProperty(`--search-viewport-${property}`, value);
-                        previousSearchViewportGeometry[property] = value;
-                    });
-                };
-                let searchViewportSyncFrame = null;
-                const queueSearchViewportSync = () => {
-                    if (typeof window.requestAnimationFrame !== 'function') {
-                        syncSearchViewport();
-                        return;
-                    }
-                    if (searchViewportSyncFrame !== null) return;
-                    searchViewportSyncFrame = window.requestAnimationFrame(() => {
-                        searchViewportSyncFrame = null;
-                        syncSearchViewport();
-                    });
-                };
-                syncSearchViewport();
-                window.visualViewport?.addEventListener('resize', queueSearchViewportSync);
-                window.visualViewport?.addEventListener('scroll', queueSearchViewportSync);
-                await startNewChat();
-                void requestMemorySummaryBootstrap().catch((error) => {
-                    logger.warn('Memory summary bootstrap could not start.', error);
-                });
-                updateFunctionButtonsState();
-                resolveEventsUpdateInputState();
-                setupVoiceInput();
-                setupScrollToBottomButton();
-                updateDisplayedVersion();
-                checkAndShowLatestUpdate();
-                ALL_ELEMENTS.menuToggleBtn.addEventListener('click', () => toggleSidebar());
-                ALL_ELEMENTS.sidebarOverlay.addEventListener('click', () => toggleSidebar(false));
-                ALL_ELEMENTS.sidebarOverlay.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
-                ALL_ELEMENTS.newChatBtn.addEventListener('click', () => startNewChat());
-                ALL_ELEMENTS.newChatBtnHeader.addEventListener('click', () => startNewChat()); // ✨ 新增這一行
-                ALL_ELEMENTS.openSearchBtn.addEventListener('click', () => {
-                    syncSearchViewport();
-                    toggleModal(ALL_ELEMENTS.searchModal, true);
-                    ALL_ELEMENTS.openSearchBtn.classList.add('active'); // <-- ✨ 加上這一行
-                    ALL_ELEMENTS.modalSearchInput.value = '';
-                    performSearchAndRenderResults();
-                    scheduleAnimationFrame(() => {
-                        try {
-                            ALL_ELEMENTS.modalSearchInput.focus({ preventScroll: true });
-                        } catch {
-                            ALL_ELEMENTS.modalSearchInput.focus();
-                        }
-                        queueSearchViewportSync();
-                    });
-                });
-                ALL_ELEMENTS.apiKeyWarningBadge.addEventListener('click', () => {
-                    resolveEventsSetupSettingsModal();
-                    toggleModal(ALL_ELEMENTS.settingsModal, true);
-                    if (isMobileSettingsViewport()) {
-                        openSettingsMobileSection('model-management');
-                        return;
-                    }
-                    const navItems = ALL_ELEMENTS.settingsNav.querySelectorAll('.settings-nav-item');
-                    navItems.forEach(i => i.classList.remove('active'));
-                    document.querySelector('.settings-nav-item[data-section="model-management"]').classList.add('active');
-                    document.querySelectorAll('.settings-section').forEach(s => s.classList.remove('active'));
-                    document.getElementById('model-management-section').classList.add('active');
-                });
-                ALL_ELEMENTS.closeSearchModalBtn.addEventListener('click', () => {
-                    toggleModal(ALL_ELEMENTS.searchModal, false);
-                    ALL_ELEMENTS.openSearchBtn.classList.remove('active'); // <-- ✨ 加上這一行
-                });
-                ALL_ELEMENTS.performSearchBtn.addEventListener('click', performSearchAndRenderResults);
-                ALL_ELEMENTS.modalSearchInput.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter') {
-                        performSearchAndRenderResults();
-                    }
-                });
-                ALL_ELEMENTS.modalSearchInput.addEventListener('focus', queueSearchViewportSync);
-                let searchTypingTimer = null;
-                ALL_ELEMENTS.modalSearchInput.addEventListener('input', () => {
-                    if (ALL_ELEMENTS.modalSearchScopeSelect.value === 'natural') return;
-                    clearScheduledTimeout(searchTypingTimer);
-                    searchTypingTimer = scheduleTimeout(performSearchAndRenderResults, 180);
-                });
-                ALL_ELEMENTS.modalSearchScopeSelect.addEventListener('change', () => {
-                    syncSearchModeControl();
-                    if (ALL_ELEMENTS.modalSearchScopeSelect.value !== 'natural') performSearchAndRenderResults();
-                });
-                const closeTrashView = () => toggleModal(ALL_ELEMENTS.trashViewModal, false);
-                ALL_ELEMENTS.closeTrashViewModalBtn.addEventListener('click', closeTrashView);
-                ALL_ELEMENTS.trashViewCloseBtn.addEventListener('click', closeTrashView);
-                ALL_ELEMENTS.settingsBtn.addEventListener('click', () => openWhenBuilt({ setup: resolveEventsSetupSettingsModal, show: () => toggleModal(ALL_ELEMENTS.settingsModal, true) }));
-                prepareWhenIdle({ setup: resolveEventsSetupSettingsModal });
-                ALL_ELEMENTS.saveSettingsBtn?.remove();
-                const scheduleInstantSettingsSave = (() => {
-                    let saveTimer = null;
-                    return () => {
-                        clearScheduledTimeout(saveTimer);
-                        saveTimer = scheduleTimeout(() => saveSettings({ close: false, notify: false }), 350);
-                    };
-                })();
-                ALL_ELEMENTS.settingsModal.addEventListener('change', (event) => {
-                    if (event.target.closest('#settings-modal')) {
-                        saveSettings({ close: false, notify: false });
-                    }
-                });
-                ALL_ELEMENTS.settingsModal.addEventListener('input', (event) => {
-                    if (event.target.matches('input, textarea')) {
-                        scheduleInstantSettingsSave();
-                    }
-                });
-                ALL_ELEMENTS.settingsModal.addEventListener('click', (event) => {
-                    if (event.target.closest('.color-swatch, .color-option, .translator-picker-option')) {
-                        scheduleTimeout(() => saveSettings({ close: false, notify: false }), 0);
-                    }
-                });
-                ALL_ELEMENTS.closeSettingsBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.settingsModal, false));
-                ALL_ELEMENTS.settingsModal.addEventListener('click', (event) => {
-                    if (event.target === ALL_ELEMENTS.settingsModal) {
-                        toggleModal(ALL_ELEMENTS.settingsModal, false);
-                    }
-                });
-                ALL_ELEMENTS.openArchivedModalBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.archivedChatsModal, true));
-                ALL_ELEMENTS.closeArchivedModalBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.archivedChatsModal, false));
-                const closeViewArchivedModal = () => toggleModal(ALL_ELEMENTS.viewArchivedChatModal, false);
-                ALL_ELEMENTS.closeViewArchivedModalBtn.addEventListener('click', closeViewArchivedModal);
-                ALL_ELEMENTS.closeViewArchivedModalBtnFooter.addEventListener('click', closeViewArchivedModal);
-                ALL_ELEMENTS.saveRenameBtn.addEventListener('click', handleRename);
-                ALL_ELEMENTS.cancelRenameBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.renameModal, false));
-                ALL_ELEMENTS.saveFolderSettingsBtn.addEventListener('click', handleSaveFolderSettings);
-                ALL_ELEMENTS.cancelFolderSettingsBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.folderSettingsModal, false));
-                ALL_ELEMENTS.exportDataBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.exportDataModal, true));
-                ALL_ELEMENTS.cancelExportBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.exportDataModal, false));
-                ALL_ELEMENTS.confirmExportBtn.addEventListener('click', handleExport);
-                enhanceLocalizedFileInput(ALL_ELEMENTS.importFileInput);
-                enhanceLocalizedFileInput(ALL_ELEMENTS.importFileInputAuth);
-                ALL_ELEMENTS.importDataBtn.addEventListener('click', () => {
-                    ALL_ELEMENTS.importFileInput.value='';
-                    ALL_ELEMENTS.importFileInput.dispatchEvent(new window.Event('change'));
-                    toggleModal(ALL_ELEMENTS.importDataModal, true);
-                });
-                ALL_ELEMENTS.cancelImportBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.importDataModal, false));
-                ALL_ELEMENTS.confirmImportBtn.addEventListener('click', handleImport);
-                ALL_ELEMENTS.logoutBtn.addEventListener('click', handleLogout);
-                settingsDesktopLogoutBtn?.addEventListener('click', handleLogout);
-                ALL_ELEMENTS.userProfileBtn.addEventListener('click', openDashboard);
-                ALL_ELEMENTS.closeDashboardBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.dataDashboardModal, false));
-                // Delegated on the document so file cards inside council details
-                // and the file preview dialog behave like cards in the message list.
-                installFileCardInteractions({
-                    root: document,
-                    window,
-                    getUiLanguage: () => getConfig().uiLanguage,
-                    notify: (message, type) => showNotification(message, type),
-                    copyText: (text) => copyTextToClipboard(text),
-                    logError: (...args) => logger.error?.(...args)
-                });
-                // "Run again" on a file made in Advanced mode reads the open
-                // conversation's files and saves what it makes.
-                setSandboxFileHooks({
-                    inputs: () => collectSandboxInputs(getActiveConversation()),
-                    save: saveAppData
-                });
-                // Code blocks in messages and file previews get VS Code colours.
-                installCodeHighlighting({ document, window });
-                ALL_ELEMENTS.messageList.addEventListener('click', (e) => {
-                    const userAction = e.target.closest('[data-message-action]');
-                    if (userAction) {
-                        const messageItem = userAction.closest('.message-item');
-                        const messageIndex = Number(messageItem?.dataset.messageIndex);
-                        const conv = getActiveConversation();
-                        const message = conv?.messages?.[messageIndex];
-                        if (!message || message.role !== 'user') return;
-                        if (userAction.dataset.messageAction === 'copy') {
-                            const textToCopy = message.parts
-                                .filter(part => part.text && !part.quoteContext)
-                                .map(part => part.displayText ?? part.text)
-                                .join('\n');
-                            copyTextToClipboard(textToCopy)
-                                .then(() => showNotification(i18n[config.uiLanguage].copySuccess || '已複製訊息。', 'success'))
-                                .catch(() => showNotification(i18n[config.uiLanguage].copyFailed || '無法複製訊息。', 'error'));
-                        } else if (userAction.dataset.messageAction === 'edit') {
-                            startMessageEditing(messageIndex);
-                        }
-                        return;
-                    }
-                    // The copy button on the code card of a process step (live or saved).
-                    const codeCopy = e.target.closest('.run-code-copy');
-                    if (codeCopy) {
-                        copyTextToClipboard(codeOfCard(codeCopy))
-                            .then(() => showNotification(i18n[config.uiLanguage].copySuccess || '已複製。', 'success'))
-                            .catch(() => showNotification(i18n[config.uiLanguage].copyFailed || '複製失敗。', 'error'));
-                        return;
-                    }
-                    // A page the reply's web search found: opened in a new tab, as it is.
-                    const sourceChip = e.target.closest('.run-source-chip');
-                    if (sourceChip) {
-                        openSourceUrl(sourceChip.dataset.url, (...args) => window.open(...args));
-                        return;
-                    }
-                    // A label that cites sources inside an answer: one source opens its page, several rise as a sheet.
-                    const citePill = e.target.closest('.cite-pill');
-                    if (citePill) {
-                        const cited = sourcesOfPill(citePill);
-                        if (cited.length === 1) openSourceUrl(cited[0].url, (...args) => window.open(...args));
-                        else if (cited.length) openSourceSheet({ document, sources: cited, language: getConfig().uiLanguage });
-                        return;
-                    }
-                    // The "Sources" button under a reply: its sources in the right-hand panel on a wide screen, as a sheet on a phone.
-                    const sourcesButton = e.target.closest('[data-sources-button]');
-                    if (sourcesButton) {
-                        const item = sourcesButton.closest('.message-item');
-                        const reply = getActiveConversation()?.messages?.[parseInt(item?.dataset.messageIndex, 10)];
-                        const { run } = liftSandboxRunBlock((reply?.parts || []).map((part) => part.text || '').join('\n'));
-                        const sources = listableSources(run?.sources);
-                        if (!sources.length) return;
-                        if (window.innerWidth >= 768) document.dispatchEvent(new window.CustomEvent('noureon:open-sources', { detail: { sources } }));
-                        else openSourceSheet({ document, sources, all: true, language: getConfig().uiLanguage });
-                        return;
-                    }
-                    const copyBtn = e.target.closest('.copy-content-btn');
-                    if (copyBtn) {
-                        const messageItem = copyBtn.closest('.message-item');
-                        if (messageItem) {
-                            const messageIndex = parseInt(messageItem.dataset.messageIndex);
-                            const conv = getActiveConversation();
-                            const msg = conv?.messages[messageIndex];
-                            if (msg && msg.role === 'model') {
-                                // What was said, without the record of what the model did and without the citation markers.
-                                const textToCopy = copyableAnswerText(msg);
-                                copyTextToClipboard(textToCopy)
-                                    .then(() => showNotification(i18n[config.uiLanguage].copySuccess || '內容已複製！', 'success'))
-                                    .catch(err => {
-                                        showNotification(i18n[config.uiLanguage].copyFailed || '複製失敗！瀏覽器可能限制了此功能。', 'error');
-                                        logger.error('Could not copy text with any method: ', err);
-                                    });
-                            }
-                        }
-                    }
-                });
-    
-    
-                ALL_ELEMENTS.cameraBtn.addEventListener('click', () => {
-                    ALL_ELEMENTS.fileOptionsPopover.classList.remove('visible');
-                    ALL_ELEMENTS.imageVideoInput.value = '';
-                    ALL_ELEMENTS.imageVideoInput.setAttribute('capture','environment');
-                    ALL_ELEMENTS.imageVideoInput.click();
-                });
-                ALL_ELEMENTS.webSearchPopoverBtn.addEventListener('click', async () => {
-                    ALL_ELEMENTS.fileOptionsPopover.classList.remove('visible');
-                    const conv = getActiveConversation();
-                    const modelInfo = normalizeConversationModel(conv);
-                    const imageMode = modelInfo?.outputModality === 'image';
-                    const { synthesizer } = getCouncilSelectedModels(conv);
-                    const supportsWebSearch = isCouncilEnabled(conv)
-                        ? hasCouncilWebSearchAccess(synthesizer || modelInfo)
-                        : hasSingleWebSearchAccess(modelInfo);
-                    if (!conv || !supportsWebSearch || conv.archived) {
-                        showNotification(i18n[config.uiLanguage].webSearchNotAvailable || '當前模型不支援或無法使用聯網搜尋。', 'warning');
-                        return;
-                    }
-                    conv.isWebSearchEnabled = !conv.isWebSearchEnabled;
-                    renderInputIndicators();
-                    await saveAppData();
-                });
-                ALL_ELEMENTS.learningModeBtn.addEventListener('click', toggleLearningMode);
-                ALL_ELEMENTS.uploadImageBtn.addEventListener('click', () => {
-                    ALL_ELEMENTS.fileOptionsPopover.classList.remove('visible');
-                    ALL_ELEMENTS.imageVideoInput.value = '';
-                    ALL_ELEMENTS.imageVideoInput.removeAttribute('capture');
-                    ALL_ELEMENTS.imageVideoInput.click();
-                });
-                ALL_ELEMENTS.uploadFileBtn.addEventListener('click', () => {
-                    ALL_ELEMENTS.fileOptionsPopover.classList.remove('visible');
-                    ALL_ELEMENTS.fileUploadInput.value = '';
-                    ALL_ELEMENTS.fileUploadInput.click();
-                });
-                ALL_ELEMENTS.imageVideoInput.addEventListener('change', handleFileSelection);
-                ALL_ELEMENTS.fileUploadInput.addEventListener('change', handleFileSelection);
-                ALL_ELEMENTS.selectionModeBtn.addEventListener('click', toggleSelectionMode);
-                ALL_ELEMENTS.cancelSelectionBtn.addEventListener('click', toggleSelectionMode);
-                ALL_ELEMENTS.batchDeleteBtn.addEventListener('click', handleBatchDelete);
-                ALL_ELEMENTS.batchArchiveBtn.addEventListener('click', handleBatchArchive);
-                ALL_ELEMENTS.batchMoveBtn.addEventListener('click', handleBatchMove);
-                ALL_ELEMENTS.batchMoveCancelBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.batchMoveModal, false));
-                ALL_ELEMENTS.batchMoveConfirmBtn.addEventListener('click', () => { /* Logic moved to option clicks */ });
-                ALL_ELEMENTS.messageInput.addEventListener('input', (e) => {
-                    setSendConfirmed(false);
-                    resolveEventsUpdateInputState();
-                    const wrapper = e.target.closest('.input-wrapper');
-                    if (wrapper) {
-                        wrapper.classList.remove('pulse-glow');
-                        void wrapper.offsetWidth;
-                        wrapper.classList.add('pulse-glow');
-                    }
-                });
-                ALL_ELEMENTS.messageInput.addEventListener('input', adjustTextareaHeight);
-                ALL_ELEMENTS.messageInput.addEventListener('composerplaceholderchange', adjustTextareaHeight);
-                ALL_ELEMENTS.expandInputButton?.addEventListener('click', () => {
-                    const wrapper = ALL_ELEMENTS.messageInput.closest('.input-wrapper');
-                    if (!wrapper) return;
-                    wrapper.classList.toggle('is-composer-expanded');
-                    adjustTextareaHeight();
-                    ALL_ELEMENTS.messageInput.focus();
-                });
-                ALL_ELEMENTS.messageInput.addEventListener('keydown', (e) => {
-                    const removedIndicator = removeLastComposerIndicatorOnDelete({
-                        event: e,
-                        messageInput: ALL_ELEMENTS.messageInput,
-                        inputIndicatorContainer: ALL_ELEMENTS.inputIndicatorContainer
-                    });
-                    if (removedIndicator) return;
-                    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
-                        e.preventDefault();
-                        if (!ALL_ELEMENTS.submitButton.disabled) {
-                            submitChatForm();
-                        }
-                    }
-                });
-                const handleInputFocus = () => {
-                    if (window.visualViewport) {
-                        const smoothScrollToTarget = () => {
-                            const inputBarContainer = document.getElementById('input-bar-container');
-                            if (!inputBarContainer) return;
-    
-    
-                            scheduleAnimationFrame(() => {
-                                const PADDING_BOTTOM = 10;
-                                const inputBarRect = inputBarContainer.getBoundingClientRect();
-                                // The bottom of what is seen is the top of the visual viewport plus its height (not 0 when the phone has scrolled the page for the
-                                // keyboard), and the move is at once: a smooth one fights the phone's own and the box jumps.
-                                const seenBottom = (Number(window.visualViewport.offsetTop) || 0) + window.visualViewport.height;
-                                const offset = inputBarRect.bottom - seenBottom + PADDING_BOTTOM;
-    
-    
-                                // Only when the box really is hidden (the app ends where the seen area ends, so it normally is not).
-                                if (inputBarRect.bottom - seenBottom > 1) {
-                                    const newScrollPosition = window.scrollY + offset;
-                                    window.scrollTo({
-                                        top: newScrollPosition,
-                                        behavior: 'auto'
-                                    });
-                                }
-                            });
-                        };
-    
-    
-                        window.visualViewport.addEventListener('resize', smoothScrollToTarget, { once: true });
-                    } else {
-                        scheduleTimeout(() => {
-                            const inputBarContainer = document.getElementById('input-bar-container');
-                            if (inputBarContainer) {
-                                inputBarContainer.scrollIntoView({ behavior: 'smooth', block: 'end' });
-                            }
-                        }, 300);
-                    }
-                };
-    
-    
-                ALL_ELEMENTS.messageInput.addEventListener('focus', handleInputFocus);
-    
-    
-                ALL_ELEMENTS.messageInput.addEventListener('input', () => {
-                    const conv = getActiveConversation();
-                    if (conv) {
-                        conv.unsentMessage = ALL_ELEMENTS.messageInput.value;
-                    }
-                });
-                ALL_ELEMENTS.submitButton.addEventListener('click', (e) => {
-        e.preventDefault();
-        if (getAbortController()) {
-            try { getAbortController().abort(); } catch {}
-        } else if (!ALL_ELEMENTS.submitButton.disabled) {
-            submitChatForm();
-        }
-    });
-                ALL_ELEMENTS.chatForm.addEventListener('submit', handleFormSubmit);
-                installScrollbarArrows(document);
-                document.addEventListener('click', (e) => {
-                    const targets = [
-                        ALL_ELEMENTS.modelSwitcherContainer,
-                        ALL_ELEMENTS.fileInputContainer,
-                        document.getElementById('model-council-control')
-                    ];
-                    let clickedInsidePopover = false;
-                    document.querySelectorAll('.popover.visible').forEach(popover => {
-                        if (popover.contains(e.target)) clickedInsidePopover = true;
-                    });
-                    const clickedOnPopoverTrigger =
-                        ALL_ELEMENTS.modelSwitcherContainer.contains(e.target) ||
-                        ALL_ELEMENTS.fileInputContainer.contains(e.target) ||
-                        document.getElementById('model-council-control')?.contains(e.target) ||
-                        e.target.closest('.chat-options-btn') ||
-                        e.target.closest('.astras-options-btn') ||
-                        e.target.closest('.folder-options-btn');
-                    if (!clickedInsidePopover && !clickedOnPopoverTrigger) {
-                        closeAllPopovers();
-                    }
-                    const colorMenus = document.querySelectorAll('.color-dropdown-menu.show');
-                    colorMenus.forEach(menu => {
-                        if (!menu.parentElement.contains(e.target)) {
-                            menu.classList.remove('show');
-                        }
-                    });
-                });
-                ALL_ELEMENTS.newFolderBtn.addEventListener('click', async () => {
-                    const name = await showCustomPrompt(i18n[config.uiLanguage].enterFolderName, i18n[config.uiLanguage].createFolder);
-                    if (name) {
-                        createNewFolder(name);
-                        showNotification(i18n[config.uiLanguage].folderCreated);
-                    }
-                });
-                ALL_ELEMENTS.newAstrasBtn.addEventListener('click', createAstras);
-                ALL_ELEMENTS.saveAstrasBtn.addEventListener('click', handleSaveAstras);
-                ALL_ELEMENTS.cancelAstrasBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.astrasCreateModal, false));
-                ALL_ELEMENTS.addPersonalMemoryBtn.addEventListener('click', async () => {
-                    const content = await showCustomPrompt(i18n[config.uiLanguage].enterNewMemory, i18n[config.uiLanguage].addMemory);
-                    if (content) {
-                        replaceMemoryState(addConfirmedProfileEntry(getMemoryState(), {
-                            id: randomUUID(),
-                            content
-                        }));
-                        await saveAppData();
-                        renderPersonalMemoryList();
-                        showNotification(i18n[config.uiLanguage].memoryAdded);
-                    }
-                });
-                ALL_ELEMENTS.deleteAllDataBtn.addEventListener('click', handleDeleteAllData);
-                ALL_ELEMENTS.uiLanguageSelect.addEventListener('change', (e) => {
-                    config.uiLanguage = e.target.value;
-                    applyLanguage(config.uiLanguage);
-                    renderInputIndicators();
-                });
-                ALL_ELEMENTS.colorSchemeSelect?.addEventListener('change', (e) => {
-                    config.colorScheme = e.target.value;
-                    applyUiTheme();
-                });
-                const storeNavigationLifecycle = createStoreNavigationLifecycle({
-                    getOpenStoreButton: () => ALL_ELEMENTS.openStoreBtn,
-                    getBackToChatButton: () => ALL_ELEMENTS.backToChatBtn,
-                    openStore,
-                    closeStore
-                });
-                storeNavigationLifecycle.bind();
-                ALL_ELEMENTS.astrasAvatarInput.addEventListener('change', handleAvatarUpload);
-                ALL_ELEMENTS.confirmAvatarCropBtn.addEventListener('click', handleConfirmAvatarCrop);
-                ALL_ELEMENTS.cancelAvatarCropBtn.addEventListener('click', () => {
-                     toggleModal(ALL_ELEMENTS.astrasAvatarModal, false);
-                    const cropper = getCropperInstance();
-                    if (cropper) {
-                        cropper.destroy();
-                        setCropperInstance(null);
-                    }
-                    setEditingAstraForAvatarId(null);
-                });
-                ALL_ELEMENTS.closeLatestUpdateModalBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.latestUpdateModal, false));
-                ALL_ELEMENTS.closeLatestUpdateXBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.latestUpdateModal, false));
-                // The link opens the update notes page (/updates) in a new tab; the window of the new version closes as it is followed.
-                ALL_ELEMENTS.latestUpdateHistoryBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.latestUpdateModal, false));
-                ALL_ELEMENTS.trashBatchSelectBtn.addEventListener('click', toggleTrashSelectionMode);
-                ALL_ELEMENTS.trashCancelSelectionBtn.addEventListener('click', toggleTrashSelectionMode);
-                ALL_ELEMENTS.trashBatchRestoreBtn.addEventListener('click', handleBatchRestoreFromTrash);
-                ALL_ELEMENTS.trashBatchDeleteBtn.addEventListener('click', handleBatchDeleteFromTrash);
-                ALL_ELEMENTS.emptyTrashBtn.addEventListener('click', handleEmptyTrash);
-                updateFileInputUI();
-                mountTurnstile('feedback', ALL_ELEMENTS.sendFeedbackBtn);
-                const initializeSpotlightEffect = () => {
-                    const spotlightElements = document.querySelectorAll('.spotlight-effect');
-                    spotlightElements.forEach(el => {
-                        const handleMove = (e) => {
-                            const rect = el.getBoundingClientRect();
-                            const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
-                            const y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
-                            el.style.setProperty('--spotlight-x', `${x}px`);
-                            el.style.setProperty('--spotlight-y', `${y}px`);
-                        };
-                        el.addEventListener('mousemove', handleMove);
-                        el.addEventListener('touchmove', handleMove, { passive: true });
-                    });
-                };
-                ALL_ELEMENTS.sendFeedbackBtn.addEventListener('click', async () => {
-        const feedbackContent = ALL_ELEMENTS.feedbackTextarea.value.trim();
-        const sendButton = ALL_ELEMENTS.sendFeedbackBtn;
-        const turnstileToken = turnstile.getToken('feedback');
-        
-        if (!feedbackContent) {
-            showNotification(getRuntimeText(getConfig().uiLanguage, 'feedbackRequired'), 'warning');
-            return;
-        }
-        if (turnstile.enabled && !turnstileToken) {
-            showNotification(getTurnstileRequiredMessage(), 'warning');
-            return;
-        }
-        
-        // Send through the optional same-origin form proxy.
-        const FORM_ENDPOINT = '/api/google-form-submit';
-    
-    
-        const originalButtonText = sendButton.textContent;
-        sendButton.disabled = true;
-        sendButton.textContent = getRuntimeText(getConfig().uiLanguage, 'sending');
-    
-    
-        try {
-            // ✨ 準備要發送的資料，並加入 formType 讓後台知道這是意見反饋
-            const dataToSend = {
-                formType: 'feedback', // <-- 關鍵識別碼！
-                subject: '來自 Noureon 的新意見反饋',
-                timestamp: new Date().toISOString(),
-                message: feedbackContent,
-                ...(turnstileToken ? { turnstileToken } : {})
+        const currentUserLabel = currentUser.displayName || currentUser.email || currentUser.username;
+        ALL_ELEMENTS.usernameDisplay.textContent = currentUserLabel;
+        document.querySelector('.user-avatar').textContent = currentUserLabel.charAt(0).toUpperCase();
+        enhanceSettingsLogoutButton();
+        const settingsDesktopLogoutBtn = ensureSettingsDesktopLogoutButton();
+        setupConversationSearchModal({
+            window, document, elements: ALL_ELEMENTS, i18n, config, toggleModal, performSearchAndRenderResults,
+            scheduleAnimationFrame, scheduleTimeout, clearScheduledTimeout
+        });
+        await startNewChat();
+        void requestMemorySummaryBootstrap().catch((error) => {
+            logger.warn('Memory summary bootstrap could not start.', error);
+        });
+        updateFunctionButtonsState();
+        resolveEventsUpdateInputState();
+        setupVoiceInput();
+        setupScrollToBottomButton();
+        updateDisplayedVersion();
+        checkAndShowLatestUpdate();
+        ALL_ELEMENTS.menuToggleBtn.addEventListener('click', () => toggleSidebar());
+        ALL_ELEMENTS.sidebarOverlay.addEventListener('click', () => toggleSidebar(false));
+        ALL_ELEMENTS.sidebarOverlay.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+        ALL_ELEMENTS.newChatBtn.addEventListener('click', () => startNewChat());
+        ALL_ELEMENTS.newChatBtnHeader.addEventListener('click', () => startNewChat()); // ✨ 新增這一行
+        ALL_ELEMENTS.apiKeyWarningBadge.addEventListener('click', () => {
+            resolveEventsSetupSettingsModal();
+            toggleModal(ALL_ELEMENTS.settingsModal, true);
+            if (isMobileSettingsViewport()) {
+                openSettingsMobileSection('model-management');
+                return;
+            }
+            const navItems = ALL_ELEMENTS.settingsNav.querySelectorAll('.settings-nav-item');
+            navItems.forEach(i => i.classList.remove('active'));
+            document.querySelector('.settings-nav-item[data-section="model-management"]').classList.add('active');
+            document.querySelectorAll('.settings-section').forEach(s => s.classList.remove('active'));
+            document.getElementById('model-management-section').classList.add('active');
+        });
+        const closeTrashView = () => toggleModal(ALL_ELEMENTS.trashViewModal, false);
+        ALL_ELEMENTS.closeTrashViewModalBtn.addEventListener('click', closeTrashView);
+        ALL_ELEMENTS.trashViewCloseBtn.addEventListener('click', closeTrashView);
+        ALL_ELEMENTS.settingsBtn.addEventListener('click', () => openWhenBuilt({ setup: resolveEventsSetupSettingsModal, show: () => toggleModal(ALL_ELEMENTS.settingsModal, true) }));
+        prepareWhenIdle({ setup: resolveEventsSetupSettingsModal });
+        ALL_ELEMENTS.saveSettingsBtn?.remove();
+        const scheduleInstantSettingsSave = (() => {
+            let saveTimer = null;
+            return () => {
+                clearScheduledTimeout(saveTimer);
+                saveTimer = scheduleTimeout(() => saveSettings({ close: false, notify: false }), 350);
             };
-    
-    
-            await postJsonWithReadableError(FORM_ENDPOINT, dataToSend, { allowOpaqueFallback: false });
-    
-    
-            showNotification(getRuntimeText(getConfig().uiLanguage, 'feedbackSent'), 'success');
-            ALL_ELEMENTS.feedbackTextarea.value = '';
-    
-    
-        } catch (error) {
-            logger.error('發送反饋時出錯:', error);
-            const message = String(error?.message || '');
-            showNotification(
-                message.includes('Google form endpoint is not configured')
-                    ? i18n[getConfig().uiLanguage].feedbackEndpointMissing
-                    : i18n[getConfig().uiLanguage].feedbackSendFailed,
-                'error'
-            );
-        } finally {
-            turnstile.reset('feedback');
-            sendButton.disabled = false;
-            sendButton.textContent = originalButtonText;
-        }
-    });
-                ALL_ELEMENTS.proposeAstrasBtn.addEventListener('click', () => {
-                    ALL_ELEMENTS.proposalNameInput.value = '';
-                    ALL_ELEMENTS.proposalDescInput.value = '';
-                    ALL_ELEMENTS.proposalInstructionsInput.value = '';
-                    toggleModal(ALL_ELEMENTS.astrasProposalModal, true);
-                    mountTurnstile('astra-proposal', ALL_ELEMENTS.submitProposalBtn);
-                });
-    
-    
-    
-    
-                ALL_ELEMENTS.cancelProposalBtn.addEventListener('click', () => {
-                    toggleModal(ALL_ELEMENTS.astrasProposalModal, false);
-                });
-    
-    
-    
-    
-                ALL_ELEMENTS.submitProposalBtn.addEventListener('click', async () => {
-        const name = ALL_ELEMENTS.proposalNameInput.value.trim();
-        const description = ALL_ELEMENTS.proposalDescInput.value.trim();
-        const instructions = ALL_ELEMENTS.proposalInstructionsInput.value.trim();
-        const submitButton = ALL_ELEMENTS.submitProposalBtn;
-        const turnstileToken = turnstile.getToken('astra-proposal');
-    
-    
-        if (!name || !instructions) {
-            showNotification(getRuntimeText(getConfig().uiLanguage, 'proposalRequired'), 'warning');
-            return;
-        }
-        if (turnstile.enabled && !turnstileToken) {
-            showNotification(getTurnstileRequiredMessage(), 'warning');
-            return;
-        }
-        
-        // Send through the optional same-origin form proxy.
-        const FORM_ENDPOINT = '/api/google-form-submit';
-    
-    
-        const originalButtonText = submitButton.textContent;
-        submitButton.disabled = true;
-        submitButton.textContent = getRuntimeText(getConfig().uiLanguage, 'submitting');
-    
-    
-        try {
-            // 準備要發送的資料，並加入 formType 讓後台知道這是 Noura 提案
-            const dataToSend = {
-                formType: 'astra_proposal', // <-- 關鍵識別碼！
-                subject: `新的 Noura 提案: ${name}`,
-                timestamp: new Date().toISOString(),
-                proposal_name: name,
-                proposal_desc: description,
-                proposal_instructions: instructions,
-                ...(turnstileToken ? { turnstileToken } : {})
-            };
-        
-            await postJsonWithReadableError(FORM_ENDPOINT, dataToSend, { allowOpaqueFallback: false });
-    
-    
-            toggleModal(ALL_ELEMENTS.astrasProposalModal, false);
-            showNotification(getRuntimeText(getConfig().uiLanguage, 'proposalSent'), 'success');
-            
-        } catch (error) {
-            logger.error('提交提案時出錯:', error);
-            const message = String(error?.message || '');
-            showNotification(
-                message.includes('Google form endpoint is not configured')
-                    ? i18n[getConfig().uiLanguage].proposalEndpointMissing
-                    : i18n[getConfig().uiLanguage].proposalSendFailed,
-                'error'
-            );
-        } finally {
-            turnstile.reset('astra-proposal');
-            submitButton.disabled = false;
-            submitButton.textContent = originalButtonText;
-        }
-    });
-                initializeSpotlightEffect();
-                document.querySelectorAll('.sidebar-section-header').forEach(header => {
-                    header.addEventListener('click', (e) => {
-                        // 如果點擊的是按鈕，則不觸發折疊
-                        if (e.target.closest('button')) {
-                            return;
-                        }
-                        const section = header.closest('.sidebar-section');
-                        if (section) {
-                            const isOpen = section.dataset.open === 'true';
-                            section.dataset.open = !isOpen;
-                        }
-                    });
-                });
-    
-    
-                ALL_ELEMENTS.addFileBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    updateFunctionButtonsState();
-                    const popover = ALL_ELEMENTS.fileOptionsPopover;
-                    if (popover.classList.contains('visible')) {
-                        popover.classList.remove('visible');
-                        ALL_ELEMENTS.addFileBtn.setAttribute('aria-expanded', 'false');
-                    } else {
-                        closeAllPopovers();
-                        popover.classList.add('visible');
-                        fitPopoverToViewport(popover, window);
-                        ALL_ELEMENTS.addFileBtn.setAttribute('aria-expanded', 'true');
-                    }
-                });
-                // ==========================================
+        })();
+        ALL_ELEMENTS.settingsModal.addEventListener('change', (event) => {
+            if (event.target.closest('#settings-modal')) {
+                saveSettings({ close: false, notify: false });
+            }
+        });
+        ALL_ELEMENTS.settingsModal.addEventListener('input', (event) => {
+            if (event.target.matches('input, textarea')) {
+                scheduleInstantSettingsSave();
+            }
+        });
+        ALL_ELEMENTS.settingsModal.addEventListener('click', (event) => {
+            if (event.target.closest('.color-swatch, .color-option, .translator-picker-option')) {
+                scheduleTimeout(() => saveSettings({ close: false, notify: false }), 0);
+            }
+        });
+        ALL_ELEMENTS.closeSettingsBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.settingsModal, false));
+        ALL_ELEMENTS.settingsModal.addEventListener('click', (event) => {
+            if (event.target === ALL_ELEMENTS.settingsModal) {
+                toggleModal(ALL_ELEMENTS.settingsModal, false);
+            }
+        });
+        ALL_ELEMENTS.openArchivedModalBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.archivedChatsModal, true));
+        ALL_ELEMENTS.closeArchivedModalBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.archivedChatsModal, false));
+        const closeViewArchivedModal = () => toggleModal(ALL_ELEMENTS.viewArchivedChatModal, false);
+        ALL_ELEMENTS.closeViewArchivedModalBtn.addEventListener('click', closeViewArchivedModal);
+        ALL_ELEMENTS.closeViewArchivedModalBtnFooter.addEventListener('click', closeViewArchivedModal);
+        ALL_ELEMENTS.saveRenameBtn.addEventListener('click', handleRename);
+        ALL_ELEMENTS.cancelRenameBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.renameModal, false));
+        ALL_ELEMENTS.saveFolderSettingsBtn.addEventListener('click', handleSaveFolderSettings);
+        ALL_ELEMENTS.cancelFolderSettingsBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.folderSettingsModal, false));
+        ALL_ELEMENTS.exportDataBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.exportDataModal, true));
+        ALL_ELEMENTS.cancelExportBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.exportDataModal, false));
+        ALL_ELEMENTS.confirmExportBtn.addEventListener('click', handleExport);
+        enhanceLocalizedFileInput(ALL_ELEMENTS.importFileInput);
+        enhanceLocalizedFileInput(ALL_ELEMENTS.importFileInputAuth);
+        ALL_ELEMENTS.importDataBtn.addEventListener('click', () => {
+            ALL_ELEMENTS.importFileInput.value='';
+            ALL_ELEMENTS.importFileInput.dispatchEvent(new window.Event('change'));
+            toggleModal(ALL_ELEMENTS.importDataModal, true);
+        });
+        ALL_ELEMENTS.cancelImportBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.importDataModal, false));
+        ALL_ELEMENTS.confirmImportBtn.addEventListener('click', handleImport);
+        ALL_ELEMENTS.logoutBtn.addEventListener('click', handleLogout);
+        settingsDesktopLogoutBtn?.addEventListener('click', handleLogout);
+        ALL_ELEMENTS.userProfileBtn.addEventListener('click', openDashboard);
+        ALL_ELEMENTS.closeDashboardBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.dataDashboardModal, false));
+        // Delegated on the document so file cards inside council details
+        // and the file preview dialog behave like cards in the message list.
+        installFileCardInteractions({
+            root: document,
+            window,
+            getUiLanguage: () => getConfig().uiLanguage,
+            notify: (message, type) => showNotification(message, type),
+            copyText: (text) => copyTextToClipboard(text),
+            logError: (...args) => logger.error?.(...args)
+        });
+        // "Run again" on a file made in Advanced mode reads the open
+        // conversation's files and saves what it makes.
+        setSandboxFileHooks({
+            inputs: () => collectSandboxInputs(getActiveConversation()),
+            save: saveAppData
+        });
+        // Code blocks in messages and file previews get VS Code colours.
+        installCodeHighlighting({ document, window });
+        bindMessageListActions({ window, document, elements: ALL_ELEMENTS, i18n, config, getConfig, getActiveConversation, copyTextToClipboard, showNotification, startMessageEditing, logger });
+        ALL_ELEMENTS.cameraBtn.addEventListener('click', () => {
+            ALL_ELEMENTS.fileOptionsPopover.classList.remove('visible');
+            ALL_ELEMENTS.imageVideoInput.value = '';
+            ALL_ELEMENTS.imageVideoInput.setAttribute('capture','environment');
+            ALL_ELEMENTS.imageVideoInput.click();
+        });
+        ALL_ELEMENTS.webSearchPopoverBtn.addEventListener('click', async () => {
+            ALL_ELEMENTS.fileOptionsPopover.classList.remove('visible');
+            const conv = getActiveConversation();
+            const modelInfo = normalizeConversationModel(conv);
+            const imageMode = modelInfo?.outputModality === 'image';
+            const { synthesizer } = getCouncilSelectedModels(conv);
+            const supportsWebSearch = isCouncilEnabled(conv)
+            ? hasCouncilWebSearchAccess(synthesizer || modelInfo)
+            : hasSingleWebSearchAccess(modelInfo);
+            if (!conv || !supportsWebSearch || conv.archived) {
+                showNotification(i18n[config.uiLanguage].webSearchNotAvailable || '當前模型不支援或無法使用聯網搜尋。', 'warning');
+                return;
+            }
+            conv.isWebSearchEnabled = !conv.isWebSearchEnabled;
+            renderInputIndicators();
+            await saveAppData();
+        });
+        ALL_ELEMENTS.learningModeBtn.addEventListener('click', toggleLearningMode);
+        ALL_ELEMENTS.uploadImageBtn.addEventListener('click', () => {
+            ALL_ELEMENTS.fileOptionsPopover.classList.remove('visible');
+            ALL_ELEMENTS.imageVideoInput.value = '';
+            ALL_ELEMENTS.imageVideoInput.removeAttribute('capture');
+            ALL_ELEMENTS.imageVideoInput.click();
+        });
+        ALL_ELEMENTS.uploadFileBtn.addEventListener('click', () => {
+            ALL_ELEMENTS.fileOptionsPopover.classList.remove('visible');
+            ALL_ELEMENTS.fileUploadInput.value = '';
+            ALL_ELEMENTS.fileUploadInput.click();
+        });
+        ALL_ELEMENTS.imageVideoInput.addEventListener('change', handleFileSelection);
+        ALL_ELEMENTS.fileUploadInput.addEventListener('change', handleFileSelection);
+        ALL_ELEMENTS.selectionModeBtn.addEventListener('click', toggleSelectionMode);
+        ALL_ELEMENTS.cancelSelectionBtn.addEventListener('click', toggleSelectionMode);
+        ALL_ELEMENTS.batchDeleteBtn.addEventListener('click', handleBatchDelete);
+        ALL_ELEMENTS.batchArchiveBtn.addEventListener('click', handleBatchArchive);
+        ALL_ELEMENTS.batchMoveBtn.addEventListener('click', handleBatchMove);
+        ALL_ELEMENTS.batchMoveCancelBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.batchMoveModal, false));
+        ALL_ELEMENTS.batchMoveConfirmBtn.addEventListener('click', () => { /* Logic moved to option clicks */ });
+        bindComposerInput({
+            window, document, elements: ALL_ELEMENTS, setSendConfirmed, updateInputState: resolveEventsUpdateInputState, adjustTextareaHeight,
+            submitChatForm, getActiveConversation, getAbortController, scheduleAnimationFrame, scheduleTimeout
+        });
+        ALL_ELEMENTS.chatForm.addEventListener('submit', handleFormSubmit);
+        installScrollbarArrows(document);
+        document.addEventListener('click', (e) => {
+            const targets = [
+                ALL_ELEMENTS.modelSwitcherContainer,
+                ALL_ELEMENTS.fileInputContainer,
+                document.getElementById('model-council-control')
+            ];
+            let clickedInsidePopover = false;
+            document.querySelectorAll('.popover.visible').forEach(popover => {
+                if (popover.contains(e.target)) clickedInsidePopover = true;
+            });
+            const clickedOnPopoverTrigger =
+            ALL_ELEMENTS.modelSwitcherContainer.contains(e.target) ||
+            ALL_ELEMENTS.fileInputContainer.contains(e.target) ||
+            document.getElementById('model-council-control')?.contains(e.target) ||
+            e.target.closest('.chat-options-btn') ||
+            e.target.closest('.astras-options-btn') ||
+            e.target.closest('.folder-options-btn');
+            if (!clickedInsidePopover && !clickedOnPopoverTrigger) {
+                closeAllPopovers();
+            }
+            const colorMenus = document.querySelectorAll('.color-dropdown-menu.show');
+            colorMenus.forEach(menu => {
+                if (!menu.parentElement.contains(e.target)) {
+                    menu.classList.remove('show');
+                }
+            });
+        });
+        ALL_ELEMENTS.newFolderBtn.addEventListener('click', async () => {
+            const name = await showCustomPrompt(i18n[config.uiLanguage].enterFolderName, i18n[config.uiLanguage].createFolder);
+            if (name) {
+                createNewFolder(name);
+                showNotification(i18n[config.uiLanguage].folderCreated);
+            }
+        });
+        ALL_ELEMENTS.newAstrasBtn.addEventListener('click', createAstras);
+        ALL_ELEMENTS.saveAstrasBtn.addEventListener('click', handleSaveAstras);
+        ALL_ELEMENTS.cancelAstrasBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.astrasCreateModal, false));
+        ALL_ELEMENTS.addPersonalMemoryBtn.addEventListener('click', async () => {
+            const content = await showCustomPrompt(i18n[config.uiLanguage].enterNewMemory, i18n[config.uiLanguage].addMemory);
+            if (content) {
+                replaceMemoryState(addConfirmedProfileEntry(getMemoryState(), {
+                    id: randomUUID(),
+                    content
+                }));
+                await saveAppData();
+                renderPersonalMemoryList();
+                showNotification(i18n[config.uiLanguage].memoryAdded);
+            }
+        });
+        ALL_ELEMENTS.deleteAllDataBtn.addEventListener('click', handleDeleteAllData);
+        ALL_ELEMENTS.uiLanguageSelect.addEventListener('change', (e) => {
+            config.uiLanguage = e.target.value;
+            applyLanguage(config.uiLanguage);
+            renderInputIndicators();
+        });
+        ALL_ELEMENTS.colorSchemeSelect?.addEventListener('change', (e) => {
+            config.colorScheme = e.target.value;
+            applyUiTheme();
+        });
+        const storeNavigationLifecycle = createStoreNavigationLifecycle({
+            getOpenStoreButton: () => ALL_ELEMENTS.openStoreBtn,
+            getBackToChatButton: () => ALL_ELEMENTS.backToChatBtn,
+            openStore,
+            closeStore
+        });
+        storeNavigationLifecycle.bind();
+        ALL_ELEMENTS.astrasAvatarInput.addEventListener('change', handleAvatarUpload);
+        ALL_ELEMENTS.confirmAvatarCropBtn.addEventListener('click', handleConfirmAvatarCrop);
+        ALL_ELEMENTS.cancelAvatarCropBtn.addEventListener('click', () => {
+            toggleModal(ALL_ELEMENTS.astrasAvatarModal, false);
+            const cropper = getCropperInstance();
+            if (cropper) {
+                cropper.destroy();
+                setCropperInstance(null);
+            }
+            setEditingAstraForAvatarId(null);
+        });
+        ALL_ELEMENTS.closeLatestUpdateModalBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.latestUpdateModal, false));
+        ALL_ELEMENTS.closeLatestUpdateXBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.latestUpdateModal, false));
+        // The link opens the update notes page (/updates) in a new tab; the window of the new version closes as it is followed.
+        ALL_ELEMENTS.latestUpdateHistoryBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.latestUpdateModal, false));
+        ALL_ELEMENTS.trashBatchSelectBtn.addEventListener('click', toggleTrashSelectionMode);
+        ALL_ELEMENTS.trashCancelSelectionBtn.addEventListener('click', toggleTrashSelectionMode);
+        ALL_ELEMENTS.trashBatchRestoreBtn.addEventListener('click', handleBatchRestoreFromTrash);
+        ALL_ELEMENTS.trashBatchDeleteBtn.addEventListener('click', handleBatchDeleteFromTrash);
+        ALL_ELEMENTS.emptyTrashBtn.addEventListener('click', handleEmptyTrash);
+        updateFileInputUI();
+        bindFeedbackForms({ window, document, elements: ALL_ELEMENTS, i18n, getConfig, toggleModal, showNotification, postJsonWithReadableError, logger });
+        const initializeSpotlightEffect = () => {
+            const spotlightElements = document.querySelectorAll('.spotlight-effect');
+            spotlightElements.forEach(el => {
+                const handleMove = (e) => {
+                    const rect = el.getBoundingClientRect();
+                    const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+                    const y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+                    el.style.setProperty('--spotlight-x', `${x}px`);
+                    el.style.setProperty('--spotlight-y', `${y}px`);
+                };
+                el.addEventListener('mousemove', handleMove);
+                el.addEventListener('touchmove', handleMove, { passive: true });
+            });
+        };
+        initializeSpotlightEffect();
+        document.querySelectorAll('.sidebar-section-header').forEach(header => {
+            header.addEventListener('click', (e) => {
+                // 如果點擊的是按鈕，則不觸發折疊
+                if (e.target.closest('button')) {
+                    return;
+                }
+                const section = header.closest('.sidebar-section');
+                if (section) {
+                    const isOpen = section.dataset.open === 'true';
+                    section.dataset.open = !isOpen;
+                }
+            });
+        });
+
+        ALL_ELEMENTS.addFileBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            updateFunctionButtonsState();
+            const popover = ALL_ELEMENTS.fileOptionsPopover;
+            if (popover.classList.contains('visible')) {
+                popover.classList.remove('visible');
+                ALL_ELEMENTS.addFileBtn.setAttribute('aria-expanded', 'false');
+            } else {
+                closeAllPopovers();
+                popover.classList.add('visible');
+                fitPopoverToViewport(popover, window);
+                ALL_ELEMENTS.addFileBtn.setAttribute('aria-expanded', 'true');
+            }
+        });
+        // ==========================================
         // ✨ P2P 分享功能 (PeerJS Implementation)
         // ==========================================
-    
+
         const p2pLifecycle = createLegacyP2PLifecycle({
             document,
             getElementById: (id) => document.getElementById(id),
@@ -1013,7 +485,7 @@ export function createLegacyAppBootstrapLifecycle({
         });
         appBootstrapComposition.runLateBootstrapBindings();
         getService(SERVICES.cloudRuntimeReady)?.();
-            }
+    }
 
     return {
         initChatApp

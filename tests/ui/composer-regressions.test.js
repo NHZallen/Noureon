@@ -50,7 +50,7 @@ test('desktop chat input keeps active modes inside the rich editor at any caret 
 test('multiline composer grows to ten lines and exposes a bounded expand control', () => {
   const css = readUiSource('src/styles/main.css');
   const startupLifecycle = readUiSource('src/app/runtime/features/startup-lifecycle.js');
-  const appBootstrapLifecycle = readUiSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
+  const appBootstrapLifecycle = readUiSource('src/app/runtime/features/composer-input-bindings.js');
 
   assert.match(appShell, /id="expand-input-btn"[^>]*class="composer-expand-btn hidden"[^>]*aria-expanded="false"/);
   assert.match(css, /#message-input[^{]*\{[^}]*max-height:\s*calc\(1\.5rem \* 10 \+ 1rem\)/s);

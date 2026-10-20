@@ -83,7 +83,7 @@ test('Delete also removes a function, while typing and modified shortcuts remain
 });
 
 test('the composer keydown binding removes an indicator before handling Enter submission', () => {
-  const source = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
+  const source = readSource('src/app/runtime/features/composer-input-bindings.js');
   const keydownStart = source.indexOf("ALL_ELEMENTS.messageInput.addEventListener('keydown'");
   const keydownBody = source.slice(keydownStart, source.indexOf("ALL_ELEMENTS.messageInput.addEventListener('focus'", keydownStart));
 
