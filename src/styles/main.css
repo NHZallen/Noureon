@@ -14,19 +14,12 @@
 @import './generated-image-set.css';
 @import './modals.css';
 @import './personalization.css';
-@import './settings-cards.css';
 @import './update-log.css';
 @import './input-polish.css';
 @import './quote-inquiry.css';
 @import './model-council.css';
 @import './charts.css';
 @import './settings.css';
-@import './settings-mobile.css';
-@import './settings-api-keys.css';
-@import './settings-output-translator.css';
-@import './settings-theme-bubble.css';
-@import './settings-desktop.css';
-@import './settings-danger.css';
 @import './permissions.css';
 @import './conversation-search.css';
 @import './regression-overrides.css';
@@ -37,5 +30,6 @@
 @import './busy-feedback.css';
 @import './typography.css';
 
-/* Ordered CSS split manifest. Keep imports in the original cascade order. */
+/* Ordered CSS split manifest. Keep imports in the original cascade order. The settings dialog's stylesheets load with the dialog
+   (settings-dialog.css). */
 @import './dark-bridge.css';

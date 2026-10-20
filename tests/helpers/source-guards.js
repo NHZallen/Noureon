@@ -51,7 +51,11 @@ const MODULE_PARTS = {
 };
 
 export function readUiSource(path) {
-  if (path === 'src/styles/main.css') return readCssSource(path);
+  // The page's styles: main.css, then the sheets that load with the settings dialog (each file once).
+  if (path === 'src/styles/main.css') {
+    const seen = new Set();
+    return `${readCssSource(path, seen)}\n${readCssSource('src/styles/settings-dialog.css', seen)}`;
+  }
   return [path, ...(MODULE_PARTS[path] || [])].map((part) => readSource(part)).join('\n');
 }
 

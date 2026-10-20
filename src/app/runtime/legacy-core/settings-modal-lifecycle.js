@@ -68,7 +68,14 @@ export function createSettingsModalLifecycle({
         showNotification, showCustomPrompt, showCustomDialog
     }));
     let partsFilled = Promise.resolve();
+    // The dialog's stylesheets load with it (styles/settings-dialog.css), not with the page.
+    let settingsStyles;
+    const loadSettingsStyles = () => settingsStyles ||= import('../../../styles/settings-dialog.css').catch((error) => {
+        settingsStyles = null;
+        console.warn('Loading the styles of the settings failed.', error);
+    });
     const setupSettingsModal = () => {
+        const stylesReady = loadSettingsStyles();
         ensureSettingsMobileShell();
         ensureUserSettingsNavigationShell();
         ensureAutoWebSearchSettingsControl();
@@ -115,7 +122,7 @@ export function createSettingsModalLifecycle({
         });
         built.then((controls) => controls.refreshSyncVaultControls()).catch(error => console.error('Failed to load sync vault settings:', error));
         // Resolves when the page is built (what the opener may wait for a moment, so it is not built while it moves).
-        return Promise.all([built, partsFilled]).then(([controls]) => controls).catch(() => null);
+        return Promise.all([built, partsFilled, stylesReady]).then(([controls]) => controls).catch(() => null);
     };
     const saveSettings = async ({ close = true, notify = true } = {}) => {
         await persistApiKeyInputIntents();

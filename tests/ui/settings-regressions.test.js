@@ -473,8 +473,8 @@ test('settings CSS surface stays within its post-mobile-extraction budget', () =
   assert.equal(typographySurfaceHits.length, 1);
 });
 
-test('main css imports settings surface styles before broad overrides', () => {
-  const mainCss = readSource('src/styles/main.css');
+test('the settings dialog sheet imports settings surface styles before broad overrides', () => {
+  const mainCss = readSource('src/styles/settings-dialog.css');
   const settingsIndex = mainCss.indexOf("@import './settings.css';");
   const settingsMobileIndex = mainCss.indexOf("@import './settings-mobile.css';");
   const settingsApiKeysIndex = mainCss.indexOf("@import './settings-api-keys.css';");
@@ -484,7 +484,7 @@ test('main css imports settings surface styles before broad overrides', () => {
   const settingsDangerIndex = mainCss.indexOf("@import './settings-danger.css';");
   const regressionIndex = mainCss.indexOf("@import './regression-overrides.css';");
 
-  assert.ok(settingsIndex >= 0, 'main.css should import settings.css');
+  assert.ok(settingsIndex >= 0, 'settings-dialog.css should import settings.css');
   assert.ok(settingsMobileIndex > settingsIndex, 'settings-mobile.css should refine settings.css');
   assert.ok(settingsApiKeysIndex > settingsMobileIndex, 'settings-api-keys.css should refine settings controls after settings-mobile.css');
   assert.ok(settingsOutputTranslatorIndex > settingsApiKeysIndex, 'settings-output-translator.css should refine output and translator controls after API key styles');

@@ -191,19 +191,12 @@ test('main css is an ordered split manifest with every imported file under the s
     'generated-image-set.css',
     'modals.css',
     'personalization.css',
-    'settings-cards.css',
     'update-log.css',
     'input-polish.css',
     'quote-inquiry.css',
     'model-council.css',
     'charts.css',
     'settings.css',
-    'settings-mobile.css',
-    'settings-api-keys.css',
-    'settings-output-translator.css',
-    'settings-theme-bubble.css',
-    'settings-desktop.css',
-    'settings-danger.css',
     'permissions.css',
     'conversation-search.css',
     'regression-overrides.css',
@@ -231,6 +224,16 @@ test('main css is an ordered split manifest with every imported file under the s
   }
 
   assert.ok(statSync(projectFile('src/styles/main.css')).size < 150 * 1024);
+
+  // The sheets only the settings dialog uses load with it (settings-dialog.css); it is added last, so it repeats, in the same order, the
+  // page sheets that came after the first of them, which keep winning over them.
+  const dialogOnly = ['settings-cards.css', 'settings-mobile.css', 'settings-api-keys.css', 'settings-output-translator.css',
+    'settings-theme-bubble.css', 'settings-desktop.css', 'settings-danger.css'];
+  const dialogImports = [...readSource('src/styles/settings-dialog.css').matchAll(/@import\s+['"]\.\/(.+?)['"];/g)].map((match) => match[1]);
+  assert.deepEqual(dialogImports.filter((name) => !imports.includes(name)), dialogOnly);
+  assert.deepEqual(dialogImports.filter((name) => imports.includes(name)), imports.slice(imports.indexOf('update-log.css')));
+  for (const name of dialogOnly) assert.ok(statSync(projectFile(`src/styles/${name}`)).size > 0, `${name} should not be empty`);
+  assert.match(readSource('src/app/runtime/legacy-core/settings-modal-lifecycle.js'), /import\('\.\.\/\.\.\/\.\.\/styles\/settings-dialog\.css'\)/);
 });
 
 test('the vendor bridge puts the libraries where the older code looks for them, and loads the archive and sharing ones on demand', async () => {

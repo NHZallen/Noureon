@@ -152,8 +152,7 @@ export function createLegacyAppBootstrapLifecycle({
         ALL_ELEMENTS.sidebarOverlay.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
         ALL_ELEMENTS.newChatBtn.addEventListener('click', () => startNewChat());
         ALL_ELEMENTS.newChatBtnHeader.addEventListener('click', () => startNewChat()); // ✨ 新增這一行
-        ALL_ELEMENTS.apiKeyWarningBadge.addEventListener('click', () => {
-            resolveEventsSetupSettingsModal();
+        ALL_ELEMENTS.apiKeyWarningBadge.addEventListener('click', () => openWhenBuilt({ setup: resolveEventsSetupSettingsModal, show: () => {
             toggleModal(ALL_ELEMENTS.settingsModal, true);
             if (isMobileSettingsViewport()) {
                 openSettingsMobileSection('model-management');
@@ -164,7 +163,7 @@ export function createLegacyAppBootstrapLifecycle({
             document.querySelector('.settings-nav-item[data-section="model-management"]').classList.add('active');
             document.querySelectorAll('.settings-section').forEach(s => s.classList.remove('active'));
             document.getElementById('model-management-section').classList.add('active');
-        });
+        } }));
         const closeTrashView = () => toggleModal(ALL_ELEMENTS.trashViewModal, false);
         ALL_ELEMENTS.closeTrashViewModalBtn.addEventListener('click', closeTrashView);
         ALL_ELEMENTS.trashViewCloseBtn.addEventListener('click', closeTrashView);
