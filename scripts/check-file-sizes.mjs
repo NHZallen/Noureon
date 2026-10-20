@@ -134,8 +134,7 @@ const cssBudgetDefinitions = [
 ];
 
 const testBudgetDefinitions = [
-  { label: 'largest test file', file: topFiles(testFiles, 1)[0], transitionalLimit: bytes(260), v5Target: bytes(120) },
-  { label: 'structure regressions', path: 'tests/structure-regressions.test.js', transitionalLimit: bytes(260), v5Target: bytes(120) },
+  { label: 'largest test file', file: topFiles(testFiles, 1)[0], transitionalLimit: bytes(140), v5Target: bytes(120) },
   { label: 'settings lifecycle tests', path: 'tests/runtime-settings-auth-provider-lifecycle.test.js', transitionalLimit: bytes(70), v5Target: bytes(35) },
   { label: 'settings UI regressions', path: 'tests/ui/settings-regressions.test.js', transitionalLimit: bytes(50), v5Target: bytes(30) },
   { label: 'app data replacement tests', path: 'tests/runtime-app-data-replacements.test.js', transitionalLimit: bytes(40), v5Target: bytes(25) }

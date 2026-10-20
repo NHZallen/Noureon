@@ -401,3 +401,56 @@ test('trash lifecycle has no storage, auth, import, P2P, startup, or runtime ent
     /legacy-runtime\/fragments|virtual:legacy-app-runtime|storage-adapter|runtime-app|indexedDB|localStorage|sessionStorage|currentUser|loadConfig|loadAppData|initChatApp|initializeApp|Peer|P2P|JSZip/
   );
 });
+
+test('in selection mode a row click toggles its checkbox, and a click on the checkbox itself is not counted twice', async () => {
+  const { Window } = await import('happy-dom');
+  const window = new Window();
+  const { document } = window;
+  const make = (tag = 'div') => document.createElement(tag);
+  const elements = Object.fromEntries(['trashListContainer', 'emptyTrashBtn', 'trashBatchSelectBtn', 'trashViewTitle', 'trashViewContent', 'trashViewModal', 'trashBatchActionBar', 'trashSelectionCount', 'trashBatchRestoreBtn', 'trashBatchDeleteBtn'].map((name) => [name, make(name.endsWith('Btn') ? 'button' : 'div')]));
+  document.body.appendChild(elements.trashListContainer);
+  const conversations = [{ id: 'gone', title: 'Gone', deletedAt: '2026-06-25T00:00:00.000Z', messages: [] }];
+  const lifecycle = createLegacyTrashLifecycle({
+    document,
+    navigator: {},
+    fetch: async () => {},
+    File: class {},
+    elements,
+    getConversations: () => conversations,
+    replaceConversations: (next) => next,
+    saveAppData: async () => {},
+    renderAll: () => {},
+    renderSidebar: () => {},
+    getI18n: () => ({ 'zh-TW': { items: 'items' } }),
+    getUiLanguage: () => 'zh-TW',
+    showCustomConfirm: async () => true,
+    showNotification: () => {},
+    showCoordinatedNotification: () => {},
+    deleteConversationsFromCloud: async () => {},
+    invalidateConversationMemory: async () => {},
+    rebuildHistoryIndex: async () => {},
+    toggleModal: () => {},
+    formatFullTimestamp: (value) => String(value),
+    renderUserText: (value) => String(value),
+    renderModelText: (value) => String(value),
+    escapeHTML: (value) => String(value),
+    scheduleTimeout: () => 0,
+    clearScheduledTimeout: () => {},
+    createChangeEvent: () => new window.Event('change')
+  });
+  lifecycle.toggleTrashSelectionMode();
+  const row = elements.trashListContainer.querySelector('.trash-item');
+  const checkbox = row.querySelector('.trash-select-checkbox');
+  const selected = () => elements.trashSelectionCount.textContent;
+
+  // A click on the row (not on a button) toggles the row's checkbox.
+  row.querySelector('.pz-text').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  assert.equal(row.querySelector('.trash-select-checkbox').checked, true);
+  assert.match(selected(), /1/);
+  // A click on the checkbox toggles it once (it does not reach the row, which would toggle it back).
+  const current = row.querySelector('.trash-select-checkbox');
+  current.click();
+  assert.equal(current.checked, false);
+  assert.ok(checkbox);
+  window.close();
+});

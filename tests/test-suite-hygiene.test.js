@@ -41,19 +41,9 @@ test('focused UI regression suites exist', () => {
   });
 });
 
-test('giant structure and UI summary suites stay within generous budgets', () => {
-  const structureStats = assertFileWithinBudget(
-    assert,
-    ['tests', 'structure-regressions.test.js'],
-    { maxBytes: 260000, maxLines: 4000 }
-  );
-  const uiStats = assertFileWithinBudget(
-    assert,
-    ['tests', 'ui-regressions.test.js'],
-    { maxBytes: 5000, maxLines: 120 }
-  );
-
-  assert.ok(structureStats.lines > uiStats.lines);
+test('no test file grows back into a giant suite (the structure regressions of 245 KB became small files in NOU-74)', () => {
+  assertFileWithinBudget(assert, ['tests', 'retired-code.test.js'], { maxBytes: 60000, maxLines: 1000 });
+  assertFileWithinBudget(assert, ['tests', 'ui-regressions.test.js'], { maxBytes: 5000, maxLines: 120 });
 });
 
 test('shared source guard helper exposes file lookup, source reading, and budget utilities', () => {
