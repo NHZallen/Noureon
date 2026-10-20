@@ -36,9 +36,10 @@ const ROWS = [
   ['longcat-2.5-preview-free', 'LongCat 2.5 Preview', 'meituan', 'chat', true, DESC.free, 'free'],
   ['step-5-preview-free', 'Step 5 Preview', 'stepfun', 'chat', true, DESC.free, 'free'],
   // The probe of 2026-10-20 (scripts/opencode-probe.mjs, the owner ran it): the ids were guessed right. MiniMax M3.1 Flash speaks the Messages form, sees pictures, reads a PDF (and the pictures in it).
-  // Beam is text only (a picture is refused: "Beam supports text input only"; a file part is refused too). Neither has a price: they are free for a time.
+  // Beam is text only (a picture is refused: "Beam supports text input only"; a file part is refused too) and a test model (the owner, 2026-10-20): hidden, with the window the first time it is chosen,
+  // like Cat Jam. Neither has a price: they are free for a time.
   ['minimax-m3.1-flash-free', 'MiniMax M3.1 Flash', 'minimax', 'messages', true, DESC.free, 'free'],
-  ['beam-free', 'Beam', 'opencode', 'chat', false, DESC.free, 'free'],
+  ['beam-free', 'Beam', 'opencode', 'chat', false, DESC.hidden, 'free', true],
   ['cat-jam-free', 'Cat Jam', 'opencode', 'chat', false, DESC.hidden, 'free', true],
   ['grok-4.7', 'Grok 4.7', 'x-ai', 'responses', true, DESC.go30],
   ['grok-4.6', 'Grok 4.6', 'x-ai', 'responses', true, DESC.go30],

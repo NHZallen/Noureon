@@ -37,11 +37,10 @@ test('the list of OpenCode Go models: the ones of the owner\'s table, each in on
   assert.deepEqual(noPictures, ['beam-free', 'cat-jam-free', 'deepseek-v4-flash', 'deepseek-v4-pro', 'glm-5.2', 'glm-5.3', 'hy3', 'hy4-preview', 'longcat-2.0', 'mimo-v2.5-pro', 'minimax-m2.7']);
   assert.ok(modelSupportsVision(model('minimax-m3')) && modelSupportsVision(model('longcat-2.5-preview-free')) && modelSupportsVision(model('muse-spark-1.3-contributor')));
   assert.deepEqual(getModelTiers(model('step-5-preview-free')), ['free']);
-  // The two of 2026-10-20 (the owner's probe): free, not hidden; MiniMax M3.1 Flash sees pictures, Beam is text only.
-  for (const apiId of ['minimax-m3.1-flash-free', 'beam-free']) {
-    assert.deepEqual(getModelTiers(model(apiId)), ['free'], apiId);
-    assert.equal(model(apiId).hiddenModel, undefined, apiId);
-  }
+  // The two of 2026-10-20 (the owner's probe): free; Beam is a hidden test model; MiniMax M3.1 Flash sees pictures, Beam is text only.
+  for (const apiId of ['minimax-m3.1-flash-free', 'beam-free']) assert.deepEqual(getModelTiers(model(apiId)), ['free'], apiId);
+  assert.equal(model('minimax-m3.1-flash-free').hiddenModel, undefined, 'MiniMax M3.1 Flash is in the list of the documents');
+  assert.deepEqual([model('beam-free').hiddenModel, model('beam-free').requiresStealthTermsAcknowledgement], [true, true], 'Beam is a test model (the owner)');
   assert.ok(modelSupportsVision(model('minimax-m3.1-flash-free')));
   assert.equal(modelSupportsVision(model('beam-free')), false);
   // The two hidden test models: marked as hidden and asked about the first time they are chosen; Cat Jam is free, Space Bunny is not (a Go plan model).
@@ -51,7 +50,7 @@ test('the list of OpenCode Go models: the ones of the owner\'s table, each in on
   }
   assert.deepEqual(getModelTiers(model('cat-jam-free')), ['free']);
   assert.deepEqual(getModelTiers(model('space-bunny')), ['paid'], 'Space Bunny is not free');
-  assert.equal(OPENCODE_GO_MODELS.filter((entry) => entry.hiddenModel).length, 2, 'only those two');
+  assert.equal(OPENCODE_GO_MODELS.filter((entry) => entry.hiddenModel).length, 3, 'those two and Beam');
   assert.deepEqual(getModelTiers(model('kimi-k3')), ['paid']);
   assert.equal(getProviderLabel('opencode-go'), 'OpenCode Go');
   assert.equal(getModelApiId(model('kimi-k3')), 'kimi-k3');

@@ -286,7 +286,7 @@ OpenCode Go 兩個免費模型（id 猜對了）：
 | 思考 | 一定會思考：`thinking: disabled` 被拒（400）；`adaptive` 加 `output_config.effort` 的 low 到 max 都收 | 一定會思考（`reasoning_content`）：`none`、`minimal` 被拒；`reasoning_effort` 的 low 到 max 都收；`thinking`、`enable_thinking` 不認得 |
 
 - 套用（`opencode-models.js`）：
-  - 兩個都是 `free`，名稱不寫 Free（標籤另外標），不是隱藏模型。
+  - 兩個都是 `free`，名稱不寫 Free（標籤另外標）。Beam 是隱藏的測試模型（Allen 說明），第一次選用會跳確認視窗，和 Cat Jam 一樣；MiniMax M3.1 Flash 不是。
   - MiniMax M3.1 Flash 加進 PDF 名單，而且加進「Word／PowerPoint 先轉 PDF」名單，等於 Claude Haiku 的做法（思考方式也同它）。`converted` 這項沒有跑，請在測試站用 Word、PowerPoint 驗收。
   - Beam 是純文字模型，公司歸在 `opencode`（和 Space Bunny、Cat Jam 同一個），思考方式是 `reasoning_effort`，預設 high。
 - OpenRouter 的 `minimax/minimax-m3.1-flash:free`：全部項目都過。
