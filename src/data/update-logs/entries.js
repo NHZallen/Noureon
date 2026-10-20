@@ -2,6 +2,18 @@
 // content 為 zh-TW 的 HTML 字串（JSON 轉義、雙引號），目前不隨介面語言切換。
 export const updateLogEntries = [
   {
+    version: "18.15.2",
+    date: "2026-10-20",
+    content: [
+      "<strong>Noureon 18.15.2 發布說明</strong>",
+      "本版本減少雲端同步時重複上傳檔案所浪費的流量。",
+      "<strong>主要變更</strong>",
+      "<ul><li><strong>不再重傳已有的檔案：</strong>雲端儲存一時回應太慢時，頁面會把對話裡的每個檔案整份重新上傳一次（實際上都已經存過）。現在會在 30 秒後重新確認哪些檔案已經存過；確認不到時，先逐一詢問檔案是否已存在，只上傳真的沒有的檔案。</li></ul>",
+      "<strong>相容性</strong>",
+      "本次更新不需要資料遷移，也沒有新的伺服器欄位。"
+    ]
+  },
+  {
     version: "18.15.1",
     date: "2026-10-20",
     content: [

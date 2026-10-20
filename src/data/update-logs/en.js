@@ -1,6 +1,14 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.15.2": [
+    "<strong>Noureon 18.15.2 Release Notes</strong>",
+    "This version cuts the data wasted on uploading the same files again during cloud sync.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Files already kept are not sent again:</strong> when cloud storage was briefly too slow to answer, the page uploaded every file of your conversations again in full (all of them already saved). It now checks again after 30 seconds which files are already kept; until it can, it asks about each file first and only uploads the ones that are really missing.</li></ul>",
+    "<strong>Compatibility</strong>",
+    "No data migration is needed and there are no new server fields."
+  ],
   "18.15.1": [
     "<strong>Noureon 18.15.1 Release Notes</strong>",
     "This version doubles the number of steps a reply may run, and fixes replies that needed Python not being run on the server and files a reply made not being shown.",

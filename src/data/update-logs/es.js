@@ -1,6 +1,14 @@
 // The update notes in Spanish (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.15.2": [
+    "<strong>Noureon 18.15.2 – Notas de la versión</strong>",
+    "Esta versión reduce los datos que se desperdiciaban al volver a subir los mismos archivos durante la sincronización en la nube.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Los archivos ya guardados no se vuelven a enviar:</strong> cuando el almacenamiento en la nube tardaba demasiado en responder un momento, la página volvía a subir completo cada archivo de tus conversaciones (todos ya guardados). Ahora vuelve a comprobar a los 30 segundos qué archivos ya están guardados; mientras no puede, pregunta primero por cada archivo y solo sube los que de verdad faltan.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "No hace falta migrar datos y no hay campos nuevos en el servidor."
+  ],
   "18.15.1": [
     "<strong>Noureon 18.15.1 – Notas de la versión</strong>",
     "Esta versión duplica el número de pasos que puede ejecutar una respuesta y corrige respuestas que necesitaban Python y no se ejecutaban en el servidor, así como archivos de una respuesta que no se mostraban.",
