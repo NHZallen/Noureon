@@ -8,6 +8,10 @@
 //
 //   OPENCODE_GO_KEY=... node scripts/opencode-probe.mjs --free            only the models that cost nothing
 //   OPENCODE_GO_KEY=... node scripts/opencode-probe.mjs --only kimi-k3    one or more models (comma between)
+//   OPENCODE_GO_KEY=... node scripts/opencode-probe.mjs --model beam-free,minimax-m3.1-flash-free:messages
+//                                                                          any id, in the list of the register or not (`id` alone: the form of its API is guessed and the others are tried
+//                                                                          when it is refused; `id:chat`, `id:responses` or `id:messages` says it)
+//   node scripts/opencode-probe.mjs --new                                  the ids the service lists that this probe does not know yet (public, no key, costs nothing)
 //   OPENCODE_GO_KEY=... node scripts/opencode-probe.mjs --tests basic,stream
 //   node scripts/opencode-probe.mjs --list                                the list of models of the service (public, no key, costs nothing)
 //   (Gemini 4 Argon Contributor, Google's own form: `--only gemini-4-argon-contributor --tests basic,stream,effort,thinking,tools,toolloop,vision,document,auth --max-tokens 1500`)
@@ -37,7 +41,11 @@ export const MODELS = Object.freeze([
   { id: 'gemini-4-argon-contributor', family: 'gemini', free: false },
   // In the list of the service (2026-10-13) but not in the documents: the form of the API is a guess, and the probe tries the others when the guess is refused.
   ...['deepseek-flash', 'glm-5.1', 'omen-alpha', 'cat-jam-free'].map((id) => ({ id, family: 'chat', free: id.endsWith('-free'), guess: true })),
-  ...['minimax-m2.5', 'qwen3.6-plus', 'qwen3.7-max'].map((id) => ({ id, family: 'messages', free: false, guess: true }))
+  ...['minimax-m2.5', 'qwen3.6-plus', 'qwen3.7-max'].map((id) => ({ id, family: 'messages', free: false, guess: true })),
+  // Told by the owner on 2026-10-20 ("MiniMax M3.1 Flash Free", "Beam Free"): the ids are guessed from the names of the others (a free model ends in `-free`, MiniMax's are of the
+  // Messages form) and may be spelt otherwise: `--new` shows what the service really lists, `--model <id>` tries any id.
+  { id: 'minimax-m3.1-flash-free', family: 'messages', free: true, guess: true },
+  { id: 'beam-free', family: 'chat', free: true, guess: true }
 ]);
 
 const PATH = { chat: '/chat/completions', responses: '/responses', messages: '/messages' };
@@ -472,12 +480,38 @@ const argOf = (args, name) => {
   return at >= 0 ? args[at + 1] : '';
 };
 
+/** `--model a,b:messages`: models by id, each with the form of its API when it is given (`id:form`), else a guess that the probe checks. */
+export const modelsNamed = (text) => String(text || '').split(',').map((entry) => entry.trim()).filter(Boolean).map((entry) => {
+  const [id, form] = entry.split(':');
+  const known = MODELS.find((model) => model.id === id);
+  if (PATH[form]) return { id, family: form, free: /free/.test(id), ...(known?.free ? { free: true } : {}) };
+  return known || { id, family: 'chat', free: /free/.test(id), guess: true };
+});
+
+/** The ids the service lists that the probe does not have yet. */
+export async function newModels({ fetchImpl = fetch, base = BASE } = {}) {
+  const listed = await listModels({ fetchImpl, base });
+  const ids = (Array.isArray(listed.body?.data) ? listed.body.data : Array.isArray(listed.body) ? listed.body : []).map((entry) => String(entry?.id ?? entry)).filter(Boolean);
+  const known = new Set(MODELS.map((model) => model.id));
+  return { status: listed.status, listed: ids.length, new: ids.filter((id) => !known.has(id)) };
+}
+
 export async function main(args = process.argv.slice(2), env = process.env, out = console, fetchImpl = fetch) {
   const base = (argOf(args, '--base') || BASE).replace(/\/+$/, '');
   if (args.includes('--list')) {
     try {
       out.log(JSON.stringify(await listModels({ fetchImpl, base }), null, 2));
       return 0;
+    } catch (error) {
+      out.error(`The list could not be read: ${plain(error?.message || error)}`);
+      return 1;
+    }
+  }
+  if (args.includes('--new')) {
+    try {
+      const found = await newModels({ fetchImpl, base });
+      out.log(found.listed ? `${found.listed} models listed by the service; not in the probe yet: ${found.new.length ? found.new.join(', ') : '(none)'}` : `The service gave no list (status ${found.status}).`);
+      return found.listed ? 0 : 1;
     } catch (error) {
       out.error(`The list could not be read: ${plain(error?.message || error)}`);
       return 1;
@@ -490,7 +524,9 @@ export async function main(args = process.argv.slice(2), env = process.env, out 
   }
   let models = MODELS;
   const only = argOf(args, '--only');
-  if (only) models = MODELS.filter((model) => only.split(',').map((name) => name.trim()).includes(model.id));
+  const named = argOf(args, '--model');
+  if (named) models = modelsNamed(named);
+  else if (only) models = MODELS.filter((model) => only.split(',').map((name) => name.trim()).includes(model.id));
   else if (args.includes('--free')) models = MODELS.filter((model) => model.free);
   const asked = argOf(args, '--tests');
   // `converted` needs two PDFs made of the Office files: only in a run that asks for it by name, and then it says first what is missing.

@@ -5,15 +5,15 @@ import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 
-import { MODELS, OFFICE_FILES, THINKING, buildBody, main, parseEvents, probeModel, probeToolLoop, readAnswer, send, summarizeStream } from '../scripts/opencode-probe.mjs';
+import { MODELS, OFFICE_FILES, THINKING, buildBody, main, modelsNamed, newModels, parseEvents, probeModel, probeToolLoop, readAnswer, send, summarizeStream } from '../scripts/opencode-probe.mjs';
 
 const KEY = 'oc_sk_very-secret-key-for-the-test';
 const reply = (status, body) => ({ status, text: async () => (typeof body === 'string' ? body : JSON.stringify(body)) });
 
 test('the models of the probe are those of the documents: three forms of API, and only the two named free ones are free', () => {
-  assert.equal(MODELS.length, 40);
+  assert.equal(MODELS.length, 42);
   assert.deepEqual([...new Set(MODELS.map((model) => model.family))].sort(), ['chat', 'gemini', 'messages', 'responses']);
-  assert.deepEqual(MODELS.filter((model) => model.free).map((model) => model.id), ['longcat-2.5-preview-free', 'step-5-preview-free', 'cat-jam-free']);
+  assert.deepEqual(MODELS.filter((model) => model.free).map((model) => model.id), ['longcat-2.5-preview-free', 'step-5-preview-free', 'cat-jam-free', 'minimax-m3.1-flash-free', 'beam-free']);
   assert.equal(MODELS.find((model) => model.id === 'claude-haiku-5-5').family, 'messages');
   assert.equal(MODELS.find((model) => model.id === 'gpt-6-luna').family, 'responses');
   for (const family of ['chat', 'responses', 'messages', 'gemini']) assert.ok(THINKING[family].length >= 2);
@@ -338,4 +338,36 @@ test('the probe of the picture inside a PDF: the PDF whose only picture holds th
   const run = async () => ({ status: 200, ok: true, ms: 1, raw: JSON.stringify({ choices: [{ message: { content: 'BANANA' } }] }) });
   const result = await probeModel({ model: { id: 'hy3', family: 'chat' }, tests: ['pdfimage'], run });
   assert.equal(result.pdfimage.text, 'BANANA');
+});
+
+test('MiniMax M3.1 Flash Free and Beam Free are in the probe as free models whose form of API is a guess; --model tries any id, with or without its form', async () => {
+  for (const [id, family] of [['minimax-m3.1-flash-free', 'messages'], ['beam-free', 'chat']]) {
+    const model = MODELS.find((entry) => entry.id === id);
+    assert.deepEqual([model.family, model.free, model.guess], [family, true, true], id);
+  }
+  assert.deepEqual(modelsNamed('some-new-free, other:responses , kimi-k3'), [
+    { id: 'some-new-free', family: 'chat', free: true, guess: true },
+    { id: 'other', family: 'responses', free: false },
+    MODELS.find((entry) => entry.id === 'kimi-k3')
+  ]);
+  assert.equal(modelsNamed('beam-free:chat')[0].guess, undefined, 'the form is told: no guess');
+  const dir = mkdtempSync(join(tmpdir(), 'opencode-model-'));
+  try {
+    const bodies = [];
+    const fetchImpl = async (url, options) => { bodies.push([String(url), JSON.parse(options.body).model]); return reply(200, { choices: [{ message: { content: 'ok' } }] }); };
+    assert.equal(await main(['--model', 'brand-new-free:chat', '--tests', 'basic', '--out', join(dir, 'r.json')], { OPENCODE_GO_KEY: KEY }, { log() {}, error() {} }, fetchImpl), 0);
+    assert.deepEqual(bodies, [['https://opencode.ai/inference/go/v1/chat/completions', 'brand-new-free']]);
+    assert.equal(JSON.parse(readFileSync(join(dir, 'r.json'), 'utf8')).models[0].id, 'brand-new-free');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('--new lists the ids the service has that the probe does not, without a key', async () => {
+  const fetchImpl = async () => reply(200, { data: [{ id: 'kimi-k3' }, { id: 'minimax-m3.1-flash-free' }, { id: 'a-brand-new-one' }, { id: 'another-one-free' }] });
+  assert.deepEqual(await newModels({ fetchImpl }), { status: 200, listed: 4, new: ['a-brand-new-one', 'another-one-free'] });
+  const lines = [];
+  assert.equal(await main(['--new'], {}, { log: (line) => lines.push(line), error() {} }, fetchImpl), 0);
+  assert.match(lines[0], /4 models listed.*a-brand-new-one, another-one-free/);
+  assert.equal(await main(['--new'], {}, { log() {}, error() {} }, async () => reply(404, 'nope')), 1);
 });

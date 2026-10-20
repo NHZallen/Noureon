@@ -243,3 +243,19 @@ OpenCode 自己的 `variant.ts` 是一份對照（OpenCode 用戶端的設定，
 - Word／PowerPoint 轉成的 PDF，**兩種都穩定答 MANGO**：hy4-preview、hy3、muse-spark-1.3／1.2-contributor、claude-haiku-5-5、minimax-m3、minimax-m2.7、qwen3.8-max、qwen3.8-flash、qwen3.7-plus（共 10 個）。這 10 個就是「先轉 PDF 再送」（NOU-25）的對象。
 - **不穩定的四個**：deepseek-v4-flash（兩份 PDF 都 400「file must have a file_id or file_data」）、deepseek-v4.1-flash（有時 400、有時答對）、mimo-v2.5（有時說打不開）、step-5-preview-free（端點常暫停 429）。三輪下來結果不一致，**從「直接讀 PDF」名單拿掉**（`opencode-models.js` 的 `PDF_API_IDS`），這四個的檔案一律先轉譯。
 - 直接讀 PDF 的 OpenCode 模型因此從 19 個變 15 個；Word／PowerPoint 直接讀的仍是 5 個。
+
+### 2026-10-20 新增兩個免費模型前的探測：MiniMax M3.1 Flash Free、Beam Free
+
+- Allen 要加這兩個（OpenCode Go，免費）。這個環境連不到 opencode.ai，查不到模型 id 與 API 格式，所以先給探測程式，結果要由 Allen 在自己的電腦跑。
+- 探測程式（`scripts/opencode-probe.mjs`）做了三件事：
+  - `MODELS` 多了兩筆猜測的項目：`minimax-m3.1-flash-free`（猜 Messages 格式，MiniMax 其他模型都是）與 `beam-free`（猜 chat）。猜的格式被拒絕時，探測會自動改試其他格式。
+  - `--new`：讀服務的模型清單（公開、不用金鑰），印出探測程式還沒有的 id。id 的拼法對不對，用這個看。
+  - `--model id[:格式]`：直接試任意 id；有寫格式（`:chat`、`:responses`、`:messages`）就不猜。
+- 執行（要全部能力一次測完）：
+  ```
+  node scripts/opencode-probe.mjs --new
+  OPENCODE_GO_KEY=... node scripts/opencode-probe.mjs --only minimax-m3.1-flash-free,beam-free --max-tokens 1500 --out probe-new.json
+  ```
+  - 預設會跑全部測試：基本回答、串流、工具呼叫、工具迴圈、參數、思考深度、看圖、PDF（含 PDF 裡的圖片）、Word／PowerPoint 原檔、思考設定、金鑰與錯誤。
+  - `--new` 顯示的 id 如果不同，改用 `--model <實際的 id>`。
+- 結果出來之後，才依結果填模型登記表（`opencode-models.js`：格式、工具、看圖、PDF、思考深度）。
