@@ -27,6 +27,8 @@ PY
 echo "== the runner =="
 [ "$(curl -sS -m 5 "$BASE/healthz" | json "d['ok']")" = "True" ] && check "the runner answers" ok || check "the runner answers" "no answer from $BASE"
 [ "$(curl -sS -m 5 -o /dev/null -w '%{http_code}' -X POST "$BASE/v1/sessions")" = "401" ] && check "no secret, no entry" ok || check "no secret, no entry" "not refused"
+IMAGE_ID=$(docker image inspect noureon-sandbox:1 --format '{{.Id}}' 2>/dev/null)
+[ -n "$IMAGE_ID" ] && [ "$(docker inspect noureon-sandbox-keep --format '{{.Image}}' 2>/dev/null)" = "$IMAGE_ID" ] && check "the image is kept from clean-ups" ok || check "the image is kept from clean-ups" "run install.sh again: noureon-sandbox-keep does not hold noureon-sandbox:1"
 
 echo "== a container =="
 CREATED=$(call -X POST "$BASE/v1/sessions" -d '{"language":"zh-TW"}')

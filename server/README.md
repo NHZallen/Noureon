@@ -8,7 +8,7 @@
 
 | 端點 | 需要登入 | 說明 |
 |---|---|---|
-| `GET /healthz` | 否 | 伺服器是否活著，回傳版本與執行時間 |
+| `GET /healthz` | 否 | 伺服器是否活著，回傳版本、執行時間與 Python 沙盒上次檢查的結果（`sandbox`：`ok`、`down`、`unknown`、`off`；每 10 分鐘檢查一次） |
 | `GET /v1/whoami` | 是 | 回傳目前登入者的 id，用來確認「瀏覽器的登入」和「伺服器」接得上 |
 | `POST /v1/runs/validate` | 是 | 檢查一份回覆請求的格式，不會真的執行（S1 的 `POST /v1/runs` 會用同一份檢查） |
 | `POST /v1/research` | 是 | 開始一次深度研究（請求內 `kind: 'research'`、`research.topic`）；一般回覆走 `POST /v1/runs`，兩個位址互不接對方的請求 |

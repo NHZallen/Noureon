@@ -164,6 +164,8 @@ export function createSessionManager({ config, spawn = nodeSpawn, now = Date.now
       if (!ready) {
         // What Docker said (it can hold paths of this machine and names of images) stays in the runner's log; the answer says only that it failed.
         log('sandbox_start_failed', { code, detail: state.stderr.trim().slice(-300) });
+        // The image is gone (a clean-up of unused images deleted it): every sandbox fails until it is built again.
+        if (/Unable to find image|pull access denied/i.test(state.stderr)) log('sandbox_image_missing', { image: config.image, fix: 'cd ~/Noureon && sh sandbox-host/install.sh' });
         reject(new RunnerError('start_failed', `The sandbox stopped while starting (${code}).`, 503));
       }
     });

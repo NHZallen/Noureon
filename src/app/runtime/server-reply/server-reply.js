@@ -299,8 +299,12 @@ export function createServerReply({
     if (!result.ok) {
       const busy = result.code === 'too_many_runs' || result.code === 'rate_limited';
       const quiet = ['unsupported_mode', 'runs_unavailable', 'protocol_unsupported', 'conversation_not_found'].includes(result.code);
-      if (!busy && !quiet && result.code !== 'unreachable' && result.status !== 401) warn(`The server did not take the reply (${result.code || result.status}).`);
-      return { ok: false, reason: result.code || `http-${result.status}`, notify: busy ? 'busy' : quiet ? false : 'unreachable' };
+      // A reply with Python refused as "not run on the server" (the page never asks for the provider's own search next to Python): the server's sandbox
+      // is down. The reply is made here, and the person is told, since closing the page now ends it (2026-10-20: a clean-up had deleted its image).
+      const sandboxDown = result.code === 'unsupported_mode' && advanced && !vision;
+      if (sandboxDown) warn('The server could not run Python (its sandbox is not available); the reply is made here.');
+      else if (!busy && !quiet && result.code !== 'unreachable' && result.status !== 401) warn(`The server did not take the reply (${result.code || result.status}).`);
+      return { ok: false, reason: result.code || `http-${result.status}`, notify: busy ? 'busy' : sandboxDown ? 'sandbox' : quiet ? false : 'unreachable' };
     }
     const runId = result.data?.runId;
     if (!runId) return { ok: false, reason: 'bad-answer', notify: 'unreachable' };

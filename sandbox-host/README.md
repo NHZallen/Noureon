@@ -77,3 +77,7 @@ To use it on the machine: `cd ~/Noureon && git pull && sh sandbox-host/install.s
 ## Starting again after a container was ended (18.3.5)
 
 A container that a step ended (a limit of what it wrote, of memory, of time) is started anew for the next step under the same name. Docker removes the old one (`--rm`) a moment after it stops, and refuses a start in that moment (exit code 125, "the container name is already in use"). So before every start the runner runs `docker rm -f <name>`, and a start refused with code 125 is tried again after 0.3 s and 0.6 s (three tries at most). What Docker said is in the log of the runner (`docker logs noureon-sandbox-runner`, `sandbox_start_failed`).
+
+## Keeping the image from clean-ups (2026-10-20)
+
+The image of the sandbox (`noureon-sandbox:1`) is used only while a reply runs Python, so between replies no container uses it. A clean-up of unused images (Coolify runs `docker image prune -af` every 10 minutes) then deletes it, and every reply with Python is made in the browser until it is built again (the runner logs `sandbox_image_missing`). `install.sh` therefore makes a container `noureon-sandbox-keep` from the image after each build: it is never started, has no network and no Coolify label, and keeps the image in use. `smoke-test.sh` checks that it holds the current image. Remove it only together with the image.

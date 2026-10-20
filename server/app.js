@@ -116,7 +116,7 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
         return;
       }
       if (route === 'GET /healthz') {
-        send(response, 200, { ok: true, protocol: PROTOCOL_VERSION, build: config.build, runs: Boolean(runs), uptimeSeconds: Math.round((now() - startedAt) / 1000) }, origin);
+        send(response, 200, { ok: true, protocol: PROTOCOL_VERSION, build: config.build, runs: Boolean(runs), sandbox: runs?.sandboxState?.() || 'off', uptimeSeconds: Math.round((now() - startedAt) / 1000) }, origin);
         status = 200;
         return;
       }

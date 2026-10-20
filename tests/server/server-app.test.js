@@ -163,12 +163,14 @@ test('/v1/runs says plainly that replies on the server are not set up when there
     assert.equal((await response.json()).error.code, 'runs_unavailable');
     assert.equal((await call(base, 'POST', `/v1/runs/${RUN_ID}/stop`)).status, 503);
     assert.equal((await (await fetch(`${base}/healthz`)).json()).runs, false);
+    assert.equal((await (await fetch(`${base}/healthz`)).json()).sandbox, 'off');
   });
 });
 
 test('/v1/runs accepts a reply, hands it over without its keys in the log, and stop and status are for the signed-in person only', async () => {
   const started = [];
   const runs = {
+    sandboxState: () => 'down',
     start: async ({ userId, spec: given }) => { started.push({ userId, spec: given }); return RUN_ID; },
     stop: async ({ userId, runId }) => userId === USER && runId === RUN_ID,
     get: async ({ userId, runId }) => (userId === USER && runId === RUN_ID ? { id: RUN_ID, status: 'running' } : null)
@@ -186,6 +188,8 @@ test('/v1/runs accepts a reply, hands it over without its keys in the log, and s
     assert.equal((await fetch(`${base}/v1/runs/${RUN_ID}`)).status, 401);
     assert.equal(lines.join('').includes(KEY), false, 'no key in the log');
     assert.equal((await (await fetch(`${base}/healthz`)).json()).runs, true);
+    // What the sandbox host was last found to be (a host that is down shows here before anyone wonders why Python runs in the browser).
+    assert.equal((await (await fetch(`${base}/healthz`)).json()).sandbox, 'down');
   }, { runs });
 });
 

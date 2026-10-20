@@ -83,5 +83,13 @@ docker run -d --name noureon-sandbox-runner --restart unless-stopped --network h
 sleep 3
 docker logs --tail 5 noureon-sandbox-runner
 
+say "7. Keeping the sandbox image from clean-ups"
+# The image of the sandbox is used only while a reply runs Python, so between replies no container uses it, and a clean-up of unused images
+# (Coolify runs `docker image prune -af` every few minutes) deletes it: every reply with Python is then made in the browser instead. A container
+# that is made and never started keeps it in use; it is made again here, after each build, so it holds the image just built.
+docker rm -f noureon-sandbox-keep >/dev/null 2>&1 || true
+docker create --name noureon-sandbox-keep --network none --label noureon.purpose=keeps-the-sandbox-image noureon-sandbox:1 true >/dev/null
+echo "noureon-sandbox-keep holds noureon-sandbox:1 (it is never started)."
+
 say "Done"
 echo "Next: sh sandbox-host/smoke-test.sh"

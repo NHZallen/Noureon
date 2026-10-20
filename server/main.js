@@ -38,6 +38,7 @@ let files = null;
 let sweeper = null;
 let checkRunsStore = async () => {};
 let checkSandbox = async () => {};
+const SANDBOX_CHECK_MS = 10 * 60 * 1000;
 let checkSlides = async () => {};
 if (config.runsConfigured) {
   try {
@@ -56,7 +57,15 @@ if (config.runsConfigured) {
     if (host) setOfficePdfConverter(createOfficePdfConverter({ host, derived, log }));
     sweeper = createAssetSweeper({ db, files, bundles: skillBundles, derived, log, mode: process.env.ASSET_SWEEP === 'delete' ? 'delete' : 'report' });
     checkSlides = () => canDrawSlides().then((ok) => log(ok ? 'slides_ok' : 'slides_unavailable'));
-    if (host) checkSandbox = () => host.check().then((state) => log(state.ok ? 'sandbox_ok' : 'sandbox_failed', { reason: state.reason }));
+    // Asked at the start and every 10 minutes after (through `ready`, so /healthz shows what was found): a host that stops working, or whose image a
+    // clean-up deleted, shows in the log without waiting for a reply with Python to find it.
+    // (Said once at the start, then only when it changes.)
+    let said = null;
+    if (host) checkSandbox = () => host.ready().then((state) => {
+      const event = state.ok ? 'sandbox_ok' : 'sandbox_failed';
+      if (event !== said) log(event, { reason: state.reason });
+      said = event;
+    });
     const vault = createKeyVault(config.encryptionKeys);
     credentials = createCredentialStore({ db, vault });
     connectors = createConnectorService({ db, vault, log, config: { preregistered: config.connectorPreregistered, redirectUri: config.connectorRedirectUri, cimdUrl: config.connectorClientId, identity: { clientUri: config.siteUrl, logoUri: `${config.siteUrl}/logo.png`, tosUri: `${config.siteUrl}/terms`, policyUri: `${config.siteUrl}/privacy` }, clientStore: createDbClientStore(db, vault) } });
@@ -75,6 +84,7 @@ server.listen(config.port, () => {
   log('listening', { port: config.port, build: config.build, runs: Boolean(runs), sandbox: Boolean(config.sandboxUrl) });
   void checkRunsStore();
   void checkSandbox();
+  setInterval(() => { void checkSandbox(); }, SANDBOX_CHECK_MS).unref();
   void checkSlides();
   runs?.startSweeping();
   sweeper?.start();

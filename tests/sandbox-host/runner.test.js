@@ -606,6 +606,11 @@ sandboxTest('a sandbox that cannot start says only that: what Docker said (paths
     const entry = logged.find(([event]) => event === 'sandbox_start_failed');
     assert.ok(entry, 'it is in the log of the runner');
     assert.match(entry[1].detail, /secret-image-name/);
+    // An image Docker cannot find (a clean-up deleted it) is named in the log, with how to build it again.
+    const missing = logged.find(([event]) => event === 'sandbox_image_missing');
+    assert.ok(missing, 'a missing image is said in the log');
+    assert.equal(missing[1].image, config.image);
+    assert.match(missing[1].fix, /install\.sh/);
   } finally {
     delete process.env.FAKE_DOCKER_FAIL;
     await manager.shutdown();

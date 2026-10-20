@@ -148,9 +148,11 @@ test('ready: a host that works is remembered for a while, one that does not is a
   let clock = 0;
   const host = createSandboxHost({ url: runner.url, token: TOKEN, now: () => clock });
   const asked = () => runner.calls.filter((call) => call.method === 'POST' && call.path === '/v1/sessions').length;
+  assert.equal(host.lastState(), null, 'nothing found before the first check');
   const [first, second] = await Promise.all([host.ready(), host.ready()]);
   assert.deepEqual([first.ok, second.ok], [true, true]);
   assert.equal(asked(), 1, 'asked at the same time, asked once');
+  assert.deepEqual(host.lastState(), { ok: true, reason: '', at: 0 });
   clock = 20_000;
   await host.ready();
   assert.equal(asked(), 1, 'remembered for 30 seconds');
@@ -165,6 +167,7 @@ test('ready: a host that works is remembered for a while, one that does not is a
   assert.equal(again.ok, false, 'still down');
   clock += 6000;
   assert.equal((await down.ready()).ok, false, 'asked again after 10 seconds');
+  assert.equal(down.lastState().ok, false, 'what was found last, for /healthz');
 
   const busy = await fakeRunner({ busyTimes: 1 });
   t.after(busy.close);

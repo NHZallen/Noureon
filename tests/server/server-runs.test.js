@@ -1127,3 +1127,14 @@ test('a council whose synthesizer wrote a presentation is followed by its check,
   await settle();
   assert.equal(without.db.log.rpcs.filter((call) => call.name === 'server_start_run').length, 1, 'no synthesis made as a reply: no check');
 });
+
+test('what the sandbox host was last found to be, for /healthz: off, unknown before the first check, then ok or down (without asking it again)', () => {
+  assert.equal(managerHarness({ execute: async () => ({}) }).manager.sandboxState(), 'off');
+  let last = null;
+  const { manager } = managerHarness({ execute: async () => ({}), sandbox: { host: { configured: true, ready: async () => { throw new Error('not asked'); }, lastState: () => last }, files: {} } });
+  assert.equal(manager.sandboxState(), 'unknown');
+  last = { ok: false, reason: 'failed', at: 1 };
+  assert.equal(manager.sandboxState(), 'down');
+  last = { ok: true, reason: '', at: 2 };
+  assert.equal(manager.sandboxState(), 'ok');
+});

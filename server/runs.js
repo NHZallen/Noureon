@@ -503,6 +503,13 @@ export function createRunManager({
       }
     },
 
+    /** What the sandbox host was found to be the last time it was asked, for /healthz (it is not asked now): 'ok', 'down', 'unknown' or 'off' (not set). */
+    sandboxState() {
+      if (!sandbox?.host?.configured) return 'off';
+      const last = sandbox.host.lastState?.();
+      return !last ? 'unknown' : last.ok ? 'ok' : 'down';
+    },
+
     /** Whether images can be made here: the store that keeps the pictures is there. */
     imageAvailable: () => Boolean(files),
 

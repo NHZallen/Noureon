@@ -93,10 +93,13 @@ export function createSandboxHost({ url, token, fetchImpl = fetch, inputLimitByt
   // check(), remembered for a short while (and shared by the replies asking at the same time): a reply with Python asks before it is
   // taken, so that when the host is down the browser makes it instead.
   let remembered = null;
+  // What the last check found ({ ok, reason, at }), for /healthz: read without asking the host again.
+  let last = null;
   function ready() {
     if (remembered && now() - remembered.at < (remembered.state.ok ? READY_OK_MS : READY_FAILED_MS)) return remembered.promise;
     const promise = check().then((state) => {
       if (remembered?.promise === promise) remembered.state = state;
+      last = { ...state, at: now() };
       return state;
     });
     remembered = { at: now(), state: { ok: true }, promise };
@@ -344,5 +347,5 @@ export function createSandboxHost({ url, token, fetchImpl = fetch, inputLimitByt
     return sandbox;
   }
 
-  return { configured, check, ready, getSandbox };
+  return { configured, check, ready, lastState: () => last, getSandbox };
 }

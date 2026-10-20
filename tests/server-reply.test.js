@@ -106,6 +106,8 @@ test('when the server does not take the reply it says why, and what the person i
   assert.deepEqual(await answer(429, 'too_many_runs').reply.start(startArgs()), { ok: false, reason: 'too_many_runs', notify: 'busy' });
   assert.deepEqual(await answer(503, 'runs_unavailable').reply.start(startArgs()), { ok: false, reason: 'runs_unavailable', notify: false });
   assert.deepEqual(await answer(422, 'unsupported_mode').reply.start(startArgs()), { ok: false, reason: 'unsupported_mode', notify: false });
+  // A reply with Python refused that way: the server's sandbox is down, and the person is told (closing the page ends the reply made here).
+  assert.deepEqual(await answer(422, 'unsupported_mode').reply.start(startArgs({ advanced: true })), { ok: false, reason: 'unsupported_mode', notify: 'sandbox' });
   assert.equal((await answer(404, 'conversation_not_found').reply.start(startArgs())).notify, false);
   assert.equal((await answer(401, 'unauthorized').reply.start(startArgs())).notify, 'unreachable');
   const offline = harness({ fetchImpl: async () => { throw new TypeError('Failed to fetch'); } });

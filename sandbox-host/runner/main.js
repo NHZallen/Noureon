@@ -26,6 +26,13 @@ try {
   process.exit(1);
 }
 
+// Said once at the start, so a missing image shows in the log before a reply needs it (a sandbox cannot start without it).
+try {
+  execFileSync(config.dockerBin, ['image', 'inspect', config.image], { stdio: 'ignore' });
+} catch {
+  log('sandbox_image_missing', { image: config.image, fix: 'cd ~/Noureon && sh sandbox-host/install.sh' });
+}
+
 const manager = createSessionManager({ config, log });
 const handler = createHandler({ manager, config, log });
 // One server for each address in RUNNER_HOST (usually one).

@@ -274,8 +274,12 @@ export function createSingleModelResponseLifecycle({
           getHistorySourceIds
         });
         if (started.ok) serverRun = started.run;
-        // Not taken because it could not be reached or was busy: the reply is made here, and its line says so (no notice over the page).
-        else if (started.notify === 'unreachable' || started.notify === 'busy') madeHere = true;
+        // Not taken because it could not be reached or was busy: the reply is made here, and its line says so (no notice over the page). Its sandbox
+        // down: said over the page too (nothing else would tell why closing the page ends a reply with Python).
+        else if (started.notify === 'unreachable' || started.notify === 'busy' || started.notify === 'sandbox') {
+          madeHere = true;
+          if (started.notify === 'sandbox') serverReply.notify('sandbox', uiLanguage);
+        }
         else if (started.notify) serverReply.notify(started.notify, uiLanguage);
       }
     }

@@ -144,3 +144,15 @@
 - **外部存活監測：** UptimeRobot 打 `https://api.noureon.com/healthz`（5 分鐘一次，掛了與恢復都寄信給 owner）。
 - **還沒做：** Contabo 定期快照、清理 Zeabur（刪專案、撤銷 GitHub 授權、申請退款；`sandbox-host/install.sh` 裡 `cni0` 的處理在 Zeabur 不在之後再跑一次就會拿掉）。
 - 現行文件已改成 Coolify 的說法：`server/README.md`（環境變數與部署步驟）、`sandbox-host/README.md`、`Dockerfile`、`.env.example`、`server/config.js` 的註解。其他設計文件與交接文件提到 Zeabur 的地方是當時的紀錄，不改。
+
+## 13. 沙盒的映像檔被 Coolify 的清理刪掉（2026-10-20）
+
+- **發生了什麼：** 10/20 01:14（UTC）起，正式站每一則要跑 Python 的回覆都改在使用者的瀏覽器裡做（關掉頁面就中斷；手機上的 Python 沒有 python-pptx，也不能連網安裝）。runner 本身一直在跑，但每次開沙盒都失敗：`Unable to find image 'noureon-sandbox:1' locally`。伺服器問沙盒能不能用得到「不能」，回 `unsupported_mode`，頁面把它當成不必說的原因，所以完全沒有提示。
+- **原因：** Coolify 每 10 分鐘的自動清理會跑 `docker image prune -af`，刪掉所有沒有容器在用的映像檔，不只 Coolify 自己的。`noureon-sandbox:1` 只在回覆跑 Python 時才有容器用它，平常沒有，所以被刪了。runner 的映像檔因為 runner 容器一直在跑而沒事。
+- **當場修好：** 在 VPS 重跑 `sh sandbox-host/install.sh`，再建一個不會執行的容器 `noureon-sandbox-keep` 掛住映像檔，`smoke-test.sh` 全部通過。
+- **防止再發生（程式）：**
+  - `sandbox-host/install.sh` 第 7 步：每次建好映像檔都重建 `noureon-sandbox-keep`（只建不跑、沒有網路、沒有 Coolify 的標籤，所以清理不會刪它，也就不會刪它掛住的映像檔）。`smoke-test.sh` 多一項「the image is kept from clean-ups」。
+  - runner：啟動時與開沙盒失敗時，找不到映像檔就在紀錄寫 `sandbox_image_missing`（附上修法）。
+  - 伺服器：啟動時與之後每 10 分鐘檢查一次沙盒（狀態改變才寫 `sandbox_ok`／`sandbox_failed`）；`/healthz` 多一個 `sandbox` 欄位（`ok`、`down`、`unknown`、`off`），讀的是上次檢查的結果，不會因為有人打 `/healthz` 就去開沙盒。
+  - 頁面：伺服器因為沙盒不能用而沒接回覆時，回覆一樣標「在這個裝置上產生」，並跳出提示（五種語言，`fallbackSandbox`）。
+- **建議：** UptimeRobot 對 `https://api.noureon.com/healthz` 的監測改成關鍵字監測，關鍵字 `"sandbox":"ok"`，沙盒壞掉時也會寄信。
