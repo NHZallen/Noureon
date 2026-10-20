@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import test from 'node:test';
 import { createLegacyRuntimeConfigPersistence } from '../src/app/runtime/kernel/config-persistence.js';
+import { readUiSource } from './helpers/source-guards.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -293,7 +294,7 @@ test('config normalization keeps API, model, and council normalization in legacy
 });
 
 test('settings persistence keeps mutation, visual, save, render, and notification order', () => {
-  const settingsAuthProviderSource = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
+  const settingsAuthProviderSource = readUiSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
   const settingsSaveSettingsHelperSource = readSource('src/app/runtime/legacy-core/settings-save-settings-helper.js');
   const appBootstrapLifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
   const saveSettingsBody = getConstFunctionBody(settingsAuthProviderSource, 'saveSettings');

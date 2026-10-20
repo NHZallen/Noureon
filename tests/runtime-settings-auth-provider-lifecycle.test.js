@@ -8,6 +8,7 @@ import {
   markApiKeyInputDirty,
   prepareApiKeyInput
 } from '../src/app/runtime/security/api-key-input-intent.js';
+import { readUiSource } from './helpers/source-guards.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -307,14 +308,14 @@ test('factory exports createLegacySettingsAuthProviderLifecycle', () => {
 });
 
 test('import is inert and module avoids fragments and virtual runtime', () => {
-  const source = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
+  const source = readUiSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
 
   assert.match(source, /export\s+function\s+createLegacySettingsAuthProviderLifecycle/);
   assert.doesNotMatch(source, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app/);
 });
 
 test('structured provider helpers are composed through injected key access', () => {
-  const source = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
+  const source = readUiSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
 
   assert.match(source, /import\s+\{\s*createSettingsProviderStructuredHelpers\s*\}\s+from\s+['"]\.\/settings-provider-structured-helpers\.js['"]/);
   assert.match(source, /const\s+structuredHelpers\s*=\s*createSettingsProviderStructuredHelpers\(\{/);
@@ -325,7 +326,7 @@ test('structured provider helpers are composed through injected key access', () 
 });
 
 test('history menu helper is composed while preserving lifecycle alias', () => {
-  const source = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
+  const source = readUiSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
 
   assert.match(source, /import\s+\{\s*createSettingsHistoryMenuHelper\s*\}\s+from\s+['"]\.\/settings-history-menu-helper\.js['"]/);
   assert.match(source, /const\s+historyMenuHelper\s*=\s*createSettingsHistoryMenuHelper\(\{/);
@@ -338,7 +339,7 @@ test('history menu helper is composed while preserving lifecycle alias', () => {
 });
 
 test('API key controls are composed through the extracted helper', () => {
-  const source = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
+  const source = readUiSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
 
   assert.match(source, /import\s+\{\s*createSettingsApiKeyControls\s*\}\s+from\s+['"]\.\/settings-api-key-controls\.js['"]/);
   assert.match(source, /const\s+apiKeyControls\s*=\s*createSettingsApiKeyControls\(\{/);
@@ -352,7 +353,7 @@ test('API key controls are composed through the extracted helper', () => {
 });
 
 test('output and translator controls are composed through the extracted helper', () => {
-  const source = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
+  const source = readUiSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
   const controlsSource = readSource('src/app/runtime/legacy-core/settings-output-translator-controls.js');
 
   assert.match(
@@ -378,7 +379,7 @@ test('output and translator controls are composed through the extracted helper',
 });
 
 test('theme and bubble controls are composed through the extracted helper', () => {
-  const source = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
+  const source = readUiSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
   const controlsSource = readSource('src/app/runtime/legacy-core/settings-theme-bubble-controls.js');
 
   assert.match(
@@ -395,7 +396,7 @@ test('theme and bubble controls are composed through the extracted helper', () =
 });
 
 test('mobile settings shell is composed through the extracted helper', () => {
-  const source = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
+  const source = readUiSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
   const helperSource = readSource('src/app/runtime/legacy-core/settings-mobile-shell-helper.js');
 
   assert.match(
@@ -419,7 +420,7 @@ test('mobile settings shell is composed through the extracted helper', () => {
 });
 
 test('desktop settings section navigation is composed through the extracted helper', () => {
-  const source = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
+  const source = readUiSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
   const helperSource = readSource('src/app/runtime/legacy-core/settings-desktop-section-helper.js');
 
   assert.match(
@@ -1120,7 +1121,7 @@ test('clear all API keys button clears sensitive store and saves without raw dat
 });
 
 test('source keeps settings save ownership and composes auth actions helper', () => {
-  const source = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
+  const source = readUiSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
   const authActionsHelperSource = readSource('src/app/runtime/legacy-core/settings-auth-actions-helper.js');
   const apiKeyControlsSource = readSource('src/app/runtime/legacy-core/settings-api-key-controls.js');
   const saveSettingsHelperSource = readSource('src/app/runtime/legacy-core/settings-save-settings-helper.js');
@@ -1175,7 +1176,7 @@ test('source keeps settings save ownership and composes auth actions helper', ()
 });
 
 test('source composes updateInputState through the extracted helper', () => {
-  const source = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
+  const source = readUiSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
 
   assert.match(source, /import\s+\{\s*createSettingsUpdateInputStateHelper\s*\}\s+from\s+['"]\.\/settings-update-input-state-helper\.js['"]/);
   assert.match(source, /const\s+updateInputStateHelper\s*=\s*createSettingsUpdateInputStateHelper\(\{/);

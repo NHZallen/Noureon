@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { assertFileExists, readSource } from '../helpers/source-guards.js';
+import { readUiSource } from '../helpers/source-guards.js';
 
 const settingsHelperModules = [
   {
@@ -84,7 +85,7 @@ test('settings collector helper modules exist and avoid runtime side effects', (
 });
 
 test('settings auth provider lifecycle composes every extracted settings helper', () => {
-  const lifecycleSource = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
+  const lifecycleSource = readUiSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
 
   assert.match(lifecycleSource, /export\s+function\s+createLegacySettingsAuthProviderLifecycle/);
   assert.doesNotMatch(lifecycleSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app/);
@@ -122,7 +123,7 @@ test('settings auth provider lifecycle composes every extracted settings helper'
 });
 
 test('settings structured provider and title summary helpers remain delegated from the lifecycle', () => {
-  const lifecycleSource = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
+  const lifecycleSource = readUiSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
 
   assert.match(lifecycleSource, /getApiKeyForProvider,/);
   assert.match(lifecycleSource, /readErrorBody,/);
@@ -133,7 +134,7 @@ test('settings structured provider and title summary helpers remain delegated fr
 });
 
 test('settings history and API key controls remain delegated without weakening security boundaries', () => {
-  const lifecycleSource = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
+  const lifecycleSource = readUiSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
   const apiKeyControlsSource = readSource('src/app/runtime/legacy-core/settings-api-key-controls.js');
 
   assert.match(lifecycleSource, /const\s+historyMenuHelper\s*=\s*createSettingsHistoryMenuHelper\(\{/);
@@ -148,7 +149,7 @@ test('settings history and API key controls remain delegated without weakening s
 });
 
 test('settings output, translator, theme, mobile, and desktop controls remain delegated', () => {
-  const lifecycleSource = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
+  const lifecycleSource = readUiSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
   const themeBubbleControlsSource = readSource('src/app/runtime/legacy-core/settings-theme-bubble-controls.js');
   const mobileShellHelperSource = readSource('src/app/runtime/legacy-core/settings-mobile-shell-helper.js');
   const desktopSectionHelperSource = readSource('src/app/runtime/legacy-core/settings-desktop-section-helper.js');
@@ -179,7 +180,7 @@ test('settings output, translator, theme, mobile, and desktop controls remain de
 });
 
 test('settings auth provider lifecycle no longer owns extracted inline helper bodies', () => {
-  const lifecycleSource = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
+  const lifecycleSource = readUiSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
   const structuredHelperSource = readSource('src/app/runtime/legacy-core/settings-provider-structured-helpers.js');
   const titleSummaryHelperSource = readSource('src/app/runtime/legacy-core/settings-title-summary-helpers.js');
   const historyMenuHelperSource = readSource('src/app/runtime/legacy-core/settings-history-menu-helper.js');
@@ -259,7 +260,7 @@ test('settings auth provider lifecycle no longer owns extracted inline helper bo
 });
 
 test('settings modal orchestration and legacy core wiring remain in place', () => {
-  const lifecycleSource = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
+  const lifecycleSource = readUiSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
   const legacyCoreSource = readSource('src/app/runtime/legacy-core/legacy-core.js');
   const authActionsHelperSource = readSource('src/app/runtime/legacy-core/settings-auth-actions-helper.js');
   const updateInputStateHelperSource = readSource('src/app/runtime/legacy-core/settings-update-input-state-helper.js');

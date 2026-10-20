@@ -888,6 +888,10 @@ const PARTS = {
     'src/app/runtime/features/composer-input-bindings.js',
     'src/app/runtime/features/feedback-forms.js'
   ],
+  'src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js': [
+    'src/app/runtime/legacy-core/model-request-runtime.js',
+    'src/app/runtime/legacy-core/settings-modal-lifecycle.js'
+  ],
   'src/app/runtime/legacy-core/transition-bus-lifecycle.js': [
     'src/app/runtime/memory/memory-runtime.js'
   ],

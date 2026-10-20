@@ -1,34 +1,13 @@
-import {
-    buildTavilySearchQuery,
-    formatTavilySearchPacket,
-    getSearchCurrentDate,
-    normalizePageReads,
-    normalizeTinyfishSearch,
-    withSearchContext
-} from '../../legacy-runtime/features/model-request-formatting.js';
-import { createStreamApiCall } from '../../legacy-runtime/features/stream-api-call.js';
-import { createCurrentMemoryContextProvider } from '../memory/current-memory-context-provider.js';
-import { createCouncilResponseLifecycle } from '../../legacy-runtime/features/council-response-lifecycle.js';
-import { createProviderRequestSupport } from '../../legacy-runtime/features/provider-request-support.js';
 import { createSettingsApiKeyControls } from './settings-api-key-controls.js';
 import { createSettingsOutputTranslatorControls } from './settings-output-translator-controls.js';
-import { createSettingsProviderStructuredHelpers } from './settings-provider-structured-helpers.js';
-import { createSettingsTitleSummaryHelpers } from './settings-title-summary-helpers.js';
 import { createSettingsHistoryMenuHelper } from './settings-history-menu-helper.js';
 import { createSettingsThemeBubbleControls } from './settings-theme-bubble-controls.js';
 import { createSettingsMobileShellHelper } from './settings-mobile-shell-helper.js';
 import { createSettingsDesktopSectionHelper } from './settings-desktop-section-helper.js';
 import { createSettingsAuthActionsHelper } from './settings-auth-actions-helper.js';
 import { createSettingsUpdateInputStateHelper } from './settings-update-input-state-helper.js';
-import { collectSettingsSaveFormValues } from './settings-save-settings-helper.js';
-import { createSettingsHistoryRecallControls } from './settings-history-recall-controls.js';
-import { createSettingsMemorySummaryControls } from './settings-memory-summary-controls.js';
-import { createMemoryModelRunner } from './memory-model-runner.js';
-import { getModelReasoningConfig, modelSupportsToolCalling, normalizeReasoningEffort } from './model-registry.js';
-import { opencodeModelReadsOfficeViaPdf } from './opencode-models.js';
-import { createPageCouncilMembers } from '../../legacy-runtime/features/council-members-page.js';
-import { getSearchProvider } from '../kernel/search-provider.js';
-import { ensureVisionCheckSettingsControl as ensureVisionControl, ensureAutoWebSearchSettingsControl as ensureAutoWebSearchControl, ensureFileModeSettingsControl as ensureFileModeControl } from './settings-vision-check-control.js';
+import { createModelRequestRuntime } from './model-request-runtime.js';
+import { createSettingsModalLifecycle } from './settings-modal-lifecycle.js';
 
 const requiredDependencies = [
     'window',
@@ -89,7 +68,6 @@ export function createLegacySettingsAuthProviderLifecycle(dependencies = {}) {
         window,
         document,
         fetch,
-        AbortSignal: AbortSignalCtor = globalThis.AbortSignal,
         requestAnimationFrame,
         setTimeout = globalThis.setTimeout,
         clearTimeout = globalThis.clearTimeout,
@@ -185,465 +163,186 @@ export function createLegacySettingsAuthProviderLifecycle(dependencies = {}) {
     const astras = createLiveObject(() => state.astras);
     const personalMemories = createLiveObject(() => state.personalMemories);
     const uploadedFiles = createLiveObject(() => state.uploadedFiles);
-    const getMemoryContext = createCurrentMemoryContextProvider({
-        getMemoryState: () => state.memoryState,
-        retrieveHistory: async options => {
-            const retrieve = typeof legacyRuntimeContext.resolveOptionalBinding === 'function'
-                ? legacyRuntimeContext.resolveOptionalBinding('memory.retrieveHistory')
-                : null;
-            return typeof retrieve === 'function' ? retrieve(options) : [];
+    const {
+        streamApiCall,
+        runMemoryModel,
+        providerRequestSupport,
+        councilResponseLifecycle,
+        buildSingleModelTranslatedRequestParts,
+        extractTextFromParts,
+        fetchTavilySearchPacket,
+        filterPartsForModelCapability,
+        getSearchQueryFromParts,
+        streamCouncilApiCallWithRetry,
+        truncateCouncilText,
+        runModelCouncil,
+        callApiWithSchema,
+        generateTitleAndSummary
+    } = createModelRequestRuntime({
+        fetch, console, elements: ALL_ELEMENTS, state, legacyRuntimeContext, models: MODELS, i18n, config, astras, personalMemories,
+        cheapModelId: CHEAP_MODEL_ID, councilResponseCharLimit: COUNCIL_RESPONSE_CHAR_LIMIT, councilRetryDelayMs: COUNCIL_RETRY_DELAY_MS,
+        councilMaxModels: COUNCIL_MAX_MODELS, getActiveConversation, normalizeConversationModel, getModelApiId, getApiKeyForProvider,
+        getDefaultGenConfig, modelSupportsUploadedFile, modelSupportsVision, modelSupportsDocumentUpload, modelUsesTavilySearch,
+        modelUsesNativeWebSearch, getErrorMessage, readErrorBody, getSingleDocumentTranslatorModel, getCouncilSelectedModels, getCouncilTexts,
+        getCouncilRuntimeTexts, getCouncilAttachmentTranslationNeed, getCouncilTranslatorModel, renderHistorySidebar, conversationStateAccess,
+        saveAppData, showNotification
+    });
+    const updateInputStateHelper = createSettingsUpdateInputStateHelper({
+        elements: ALL_ELEMENTS,
+        state,
+        getConfig: () => config,
+        getUploadedFiles: () => uploadedFiles,
+        i18n,
+        getActiveConversation,
+        normalizeConversationModel,
+        getApiKeyForProvider,
+        conversationNeedsTavilySearch,
+        getCouncilValidation,
+        isCouncilEnabled
+    });
+    const {
+        updateInputState
+    } = updateInputStateHelper;
+    const updateSubmitButtonState = (isGenerating) => {
+        const { submitButton, submitButtonIcon } = ALL_ELEMENTS;
+        if (isGenerating) {
+            submitButton.disabled = false;
+            submitButtonIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect></svg>`;
+        } else {
+            updateInputState();
         }
-    });
-    const AbortSignal = AbortSignalCtor;
-
-function calculateRelevanceScore(summary, keywords) {
-    if (!summary || !keywords || keywords.length === 0) {
-        return 0;
-    }
-    const summaryLower = summary.toLowerCase();
-    let score = 0;
-    keywords.forEach(keyword => {
-        if (summaryLower.includes(keyword.toLowerCase())) {
-            score++;
-        }
-    });
-    const coverageRatio = score / keywords.length;
-    return score * (1 + coverageRatio);
-}
-const streamApiCall = createStreamApiCall({
-    getActiveConversation,
-    normalizeConversationModel,
-    getModelApiId,
-    getApiKeyForProvider,
-    getDefaultGenConfig,
-    getConfig: () => config,
-    getAstras: () => astras,
-    getPersonalMemories: () => personalMemories,
-    getMemoryContext,
-    modelSupportsUploadedFile,
-    modelSupportsVision,
-    getModelReasoningConfig,
-    normalizeReasoningEffort,
-    getText: (key) => i18n[config.uiLanguage]?.[key] || ''
-});
-const runMemoryModel = createMemoryModelRunner({ streamApiCall, models: MODELS });
-const providerRequestSupport = createProviderRequestSupport({
-    buildTavilySearchQuery,
-    formatTavilySearchPacket,
-    normalizeTinyfishSearch,
-    normalizePageReads,
-    withSearchContext,
-    getErrorMessage,
-    readErrorBody,
-    getApiKeyForProvider,
-    getConfig: () => config,
-    streamApiCall,
-    getSingleDocumentTranslatorModel,
-    modelReadsOfficeViaPdf: opencodeModelReadsOfficeViaPdf,
-    modelUsesTavilySearch,
-    modelSupportsUploadedFile,
-    modelSupportsVision,
-    councilResponseCharLimit: COUNCIL_RESPONSE_CHAR_LIMIT,
-    councilRetryDelayMs: COUNCIL_RETRY_DELAY_MS
-});
-const {
-    buildSingleModelTranslatedRequestParts,
-    extractTextFromParts,
-    fetchTavilySearchPacket,
-    filterPartsForModelCapability,
-    getSearchQueryFromParts,
-    readLinkedPages,
-    readsLinkedPages,
-    streamCouncilApiCallWithRetry,
-    truncateCouncilText
-} = providerRequestSupport;
-const councilResponseLifecycle = createCouncilResponseLifecycle({
-    getSearchCurrentDate,
-    getConfig: () => config,
-    getActiveConversation,
-    getCouncilSelectedModels,
-    getCouncilTexts,
-    getCouncilRuntimeTexts,
-    getCouncilAttachmentTranslationNeed,
-    getCouncilTranslatorModel,
-    models: MODELS,
-    councilMaxModels: COUNCIL_MAX_MODELS,
-    extractTextFromParts,
-    truncateCouncilText,
-    filterPartsForModelCapability,
-    readLinkedPages,
-    readsLinkedPages,
-    streamCouncilApiCallWithRetry,
-    createMembers: createPageCouncilMembers({ streamApiCall, support: providerRequestSupport, getConfig: () => config, modelSupportsToolCalling, modelUsesNativeWebSearch, retryDelayMs: COUNCIL_RETRY_DELAY_MS }),
-    modelSupportsVision,
-    modelSupportsDocumentUpload
-});
-const runModelCouncil = (...args) => councilResponseLifecycle.runModelCouncil(...args);
-const structuredHelpers = createSettingsProviderStructuredHelpers({
-    fetchImpl: fetch,
-    getApiKeyForProvider,
-    readErrorBody,
-    cheapModelId: CHEAP_MODEL_ID,
-    logger: console
-});
-const {
-    callApiWithSchema
-} = structuredHelpers;
-const titleSummaryHelpers = createSettingsTitleSummaryHelpers({
-    callApiWithSchema
-});
-const {
-    requestTitleSummary
-} = titleSummaryHelpers;
-const generateTitleAndSummary = async (conv) => {
-    const data = await requestTitleSummary(conv, undefined, {
-        language: config.aiDefaultLanguage || config.uiLanguage
-    });
-    if (data && data.title) {
-        conv.title = data.title;
-        delete conv.summary;
-        conv.isNaming = false;
-        await saveAppData();
-        renderHistorySidebar();
-        if (conv.id === conversationStateAccess.getCurrentConversationId()) { ALL_ELEMENTS.headerTitle.textContent = conv.title; }
-        showNotification(i18n[config.uiLanguage].autoNamed || '對話已自動命名', 'success');
-    } else {
-        conv.isNaming = false;
-        await saveAppData();
-        renderHistorySidebar();
-        console.error("Auto-naming failed: No valid JSON found in the response.");
-    }
-};
-const updateInputStateHelper = createSettingsUpdateInputStateHelper({
-    elements: ALL_ELEMENTS,
-    state,
-    getConfig: () => config,
-    getUploadedFiles: () => uploadedFiles,
-    i18n,
-    getActiveConversation,
-    normalizeConversationModel,
-    getApiKeyForProvider,
-    conversationNeedsTavilySearch,
-    getCouncilValidation,
-    isCouncilEnabled
-});
-const {
-    updateInputState
-} = updateInputStateHelper;
-const updateSubmitButtonState = (isGenerating) => {
-    const { submitButton, submitButtonIcon } = ALL_ELEMENTS;
-    if (isGenerating) {
-        submitButton.disabled = false;
-        submitButtonIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect></svg>`;
-    } else {
-        updateInputState();
-    }
-};
-const getTavilySearchDepth = () => config.tavilySearchDepth === 'advanced' ? 'advanced' : 'basic';
-const apiKeyControls = createSettingsApiKeyControls({
-    document,
-    elements: ALL_ELEMENTS,
-    getApiKeyForProvider,
-    setApiKeyForProvider,
-    mergeSensitiveApiKeys,
-    clearSensitiveApiKeys,
-    saveSensitiveConfig,
-    getUiLanguage: () => config.uiLanguage
-});
-const {
-    prepareApiKeyInputsForSettings,
-    persistApiKeyInputIntents
-} = apiKeyControls;
-
-const outputTranslatorControls = createSettingsOutputTranslatorControls({
-    document,
-    elements: ALL_ELEMENTS,
-    config,
-    i18n,
-    getCouncilTranslatorCandidates,
-    getSingleTranslatorCandidates,
-    getProviderLabel,
-    getModelPriceLabel,
-    modelSupportsVision,
-    modelSupportsDocumentUpload,
-    escapeHTML
-});
-const {
-    ensureCouncilTranslatorSettingsControls,
-    renderTranslatorModelPickers,
-    syncSearchProviderControls
-} = outputTranslatorControls;
-const getSettingsText = (key, fallback) => i18n[config.uiLanguage]?.[key] || fallback;
-const authActionsHelper = createSettingsAuthActionsHelper({
-    window,
-    requestAnimationFrame,
-    setTimeout,
-    console,
-    elements: ALL_ELEMENTS,
-    state,
-    getConfig: () => config,
-    legacyRuntimeContext,
-    runtimeStorageAdapter,
-    i18n,
-    showNotification,
-    showCustomConfirm,
-    showCustomDialog,
-    getUserKey,
-    getItem,
-    setItem,
-    removeItem,
-    verifyPasswordRecord,
-    upgradeLegacyPasswordRecord,
-    createPasswordRecord,
-    loadConfig,
-    loadAppData,
-    applyUiTheme
-});
-const {
-    handleLogin,
-    handleLogout,
-    handleDeleteAllData
-} = authActionsHelper;
-const mobileShellHelper = createSettingsMobileShellHelper({
-    window,
-    document,
-    elements: ALL_ELEMENTS,
-    escapeHTML,
-    getSettingsText,
-    handleLogout: (...args) => handleLogout(...args),
-    setTimeout,
-    clearTimeout
-});
-const {
-    ensureSettingsMobileShell,
-    renderSettingsMobileList,
-    clearSettingsMobileViewTransition,
-    showSettingsMobileList,
-    openSettingsMobileSection,
-    isMobileSettingsViewport
-} = mobileShellHelper;
-const desktopSectionHelper = createSettingsDesktopSectionHelper({
-    document,
-    elements: ALL_ELEMENTS,
-    isMobileSettingsViewport,
-    showSettingsMobileList,
-    clearSettingsMobileViewTransition
-});
-const {
-    activateDefaultDesktopSettingsSection,
-    bindDesktopSettingsSections,
-    syncSettingsSectionForViewport
-} = desktopSectionHelper;
-const ensureUserSettingsNavigationShell = () => {
-    const settingsNav = ALL_ELEMENTS.settingsNav;
-    const personalizationNav = settingsNav?.querySelector('[data-section="personalization"]');
-    if (!settingsNav || !personalizationNav) return;
-
-    if (!document.getElementById('user-section-nav')) {
-        const nav = document.createElement('li');
-        nav.id = 'user-section-nav';
-        nav.className = 'settings-nav-item p-3 rounded-md';
-        nav.dataset.section = 'user';
-        nav.dataset.langKey = 'userSettings';
-        nav.textContent = getSettingsText('userSettings', 'User settings');
-        personalizationNav.before(nav);
-    }
-
-    if (!document.getElementById('user-section')) {
-        const personalizationSection = document.getElementById('personalization-section');
-        if (!personalizationSection) return;
-        const section = document.createElement('div');
-        section.id = 'user-section';
-        section.className = 'settings-section';
-        personalizationSection.before(section);
-    }
-};
-let syncVaultControlsPromise;
-const loadSyncVaultControls = () => {
-    if (!syncVaultControlsPromise) {
-        syncVaultControlsPromise = import('./settings-sync-vault-controls.js').then(({ createSettingsSyncVaultControls }) => (
-            createSettingsSyncVaultControls({
-                window,
-                document,
-                storage: runtimeStorageAdapter,
-                getCurrentUser: () => state.currentUser,
-                getText: getSettingsText,
-                showNotification
-            })
-        ));
-    }
-    return syncVaultControlsPromise;
-};
-const ensureAutoWebSearchSettingsControl = () => ensureAutoWebSearchControl({ document, elements: ALL_ELEMENTS });
-const ensureVisionCheckSettingsControl = () => {
-    ensureVisionControl({ document, elements: ALL_ELEMENTS, config, saveConfig, showNotification });
-    ensureFileModeControl({ document, elements: ALL_ELEMENTS, config });
-};
-const historyRecallControls = createSettingsHistoryRecallControls({
-    document,
-    elements: ALL_ELEMENTS,
-    legacyRuntimeContext,
-    getConfig: () => config,
-    getText: (key, fallback) => i18n[config.uiLanguage]?.[key] || fallback
-});
-const {
-    ensureHistoryRecallSettingsControl,
-    refreshHistoryRecallStatus,
-    resolveHistoryRecallEnabled,
-    bindHistoryIndexRebuild,
-    bindHistoryIndexAudit,
-    bindHistoryIndexStatusUpdates
-} = historyRecallControls;
-const memorySummaryControls = createSettingsMemorySummaryControls({
-    document,
-    models: MODELS,
-    getConfig: () => config,
-    getMemoryState: () => state.memoryState,
-    legacyRuntimeContext,
-    saveConfig,
-    isModelReady: model => Boolean(getApiKeyForProvider?.(model?.provider)),
-    showNotification,
-    showCustomPrompt,
-    showCustomDialog
-});
-const {
-    ensureControls: ensureMemorySummarySettingsControls,
-    render: renderMemorySummary
-} = memorySummaryControls;
-const setupSettingsModal = () => {
-    ensureSettingsMobileShell();
-    ensureUserSettingsNavigationShell();
-    ensureAutoWebSearchSettingsControl();
-    ensureVisionCheckSettingsControl();
-    ensureMemorySummarySettingsControls();
-    ensureHistoryRecallSettingsControl();
-    bindHistoryIndexRebuild();
-    bindHistoryIndexAudit({ showCustomDialog });
-    bindHistoryIndexStatusUpdates();
-    ensureCouncilTranslatorSettingsControls();
-    prepareApiKeyInputsForSettings();
-    if (ALL_ELEMENTS.tavilySearchDepthSelect) ALL_ELEMENTS.tavilySearchDepthSelect.value = getTavilySearchDepth();
-    if (ALL_ELEMENTS.searchProviderSelect) ALL_ELEMENTS.searchProviderSelect.value = getSearchProvider(config);
-    syncSearchProviderControls();
-    renderTranslatorModelPickers();
-    applyLanguage(config.uiLanguage);
-    ALL_ELEMENTS.autoNamingToggleSwitch.checked = config.autoNaming;
-    ALL_ELEMENTS.autoWebSearchToggleSwitch.checked = config.enableAutoWebSearch;
-    if (ALL_ELEMENTS.visionCheckToggleSwitch) ALL_ELEMENTS.visionCheckToggleSwitch.checked = config.visionCheckEnabled !== false;
-    if (ALL_ELEMENTS.processToggle) ALL_ELEMENTS.processToggle.checked = config.processOpen === true;
-    if (ALL_ELEMENTS.memoryToggle1?.isConnected) ALL_ELEMENTS.memoryToggle1.checked = config.memoryProfileEnabled !== false;
-    if (ALL_ELEMENTS.autoMemoryToggleSwitch?.isConnected) ALL_ELEMENTS.autoMemoryToggleSwitch.checked = config.enableAutoMemory;
-    if (ALL_ELEMENTS.historyRecallToggleSwitch) {
-        ALL_ELEMENTS.historyRecallToggleSwitch.checked = config.historyRecallEnabled === true;
-    }
-    void refreshHistoryRecallStatus();
-    ALL_ELEMENTS.uiLanguageSelect.value = config.uiLanguage;
-    if (ALL_ELEMENTS.colorSchemeSelect) ALL_ELEMENTS.colorSchemeSelect.value = config.colorScheme || 'light';
-    ALL_ELEMENTS.aiLanguageSelect.value = config.aiDefaultLanguage;
-    ALL_ELEMENTS.enableUpdateNotificationsToggle.checked = config.enableUpdateNotifications;
-    renderMemorySummary();
-    updateThemeButtons();
-    renderUiColorOptions();
-    renderTrash();
-    renderSettingsMobileList();
-    const navItems = bindDesktopSettingsSections();
-    activateDefaultDesktopSettingsSection(navItems);
-    syncSettingsSectionForViewport(navItems);
-    // The account part of the page is built once, when its module has loaded (the first open); the page is then built again from the start.
-    // Every later open only refreshes its values: rebuilding the page again while it slides in made it flicker.
-    const built = loadSyncVaultControls().then((controls) => {
-        const alreadyBuilt = document.getElementById('user-section')?.dataset.syncVaultSettingsInitialized === 'true';
-        controls.ensureSyncVaultSettings();
-        if (!alreadyBuilt) {
-            applyLanguage(config.uiLanguage);
-            renderSettingsMobileList();
-            const nextNavItems = bindDesktopSettingsSections();
-            activateDefaultDesktopSettingsSection(nextNavItems);
-            syncSettingsSectionForViewport(nextNavItems);
-        }
-        return controls;
-    });
-    built.then((controls) => controls.refreshSyncVaultControls()).catch(error => console.error('Failed to load sync vault settings:', error));
-    // Resolves when the page is built (what the opener may wait for a moment, so it is not built while it moves).
-    return built.catch(() => null);
-};
-const saveSettings = async ({ close = true, notify = true } = {}) => {
-    await persistApiKeyInputIntents();
-    const collectedSettings = collectSettingsSaveFormValues({
+    };
+    const getTavilySearchDepth = () => config.tavilySearchDepth === 'advanced' ? 'advanced' : 'basic';
+    const apiKeyControls = createSettingsApiKeyControls({
         document,
         elements: ALL_ELEMENTS,
-        config
+        getApiKeyForProvider,
+        setApiKeyForProvider,
+        mergeSensitiveApiKeys,
+        clearSensitiveApiKeys,
+        saveSensitiveConfig,
+        getUiLanguage: () => config.uiLanguage
     });
-    const historyRecallEnabled = await resolveHistoryRecallEnabled({
-        requested: collectedSettings.historyRecallEnabled,
-        showCustomConfirm
-    });
-    if (!historyRecallEnabled && ALL_ELEMENTS.historyRecallToggleSwitch) {
-        ALL_ELEMENTS.historyRecallToggleSwitch.checked = false;
-    }
-    Object.assign(config, {
-        searchProvider: collectedSettings.searchProvider,
-        tavilySearchDepth: collectedSettings.tavilySearchDepth,
-        councilTranslatorModelId: collectedSettings.councilTranslatorModelId,
-        singleDocumentTranslatorModelId: collectedSettings.singleDocumentTranslatorModelId,
-        enableAutoWebSearch: collectedSettings.enableAutoWebSearch,
-        visionCheckEnabled: collectedSettings.visionCheckEnabled,
-        colorScheme: collectedSettings.colorScheme,
-        processOpen: collectedSettings.processOpen,
-        fileModeDefault: collectedSettings.fileModeDefault,
-        autoNaming: collectedSettings.autoNaming,
-        memoryEnabled1: collectedSettings.memoryEnabled1,
-        memoryProfileEnabled: collectedSettings.memoryEnabled1,
-        historyRecallEnabled,
-        enableAutoMemory: collectedSettings.enableAutoMemory,
-        uiLanguage: collectedSettings.uiLanguage,
-        aiDefaultLanguage: collectedSettings.aiDefaultLanguage,
-        enableUpdateNotifications: collectedSettings.enableUpdateNotifications
-    });
-    Object.assign(config.uiTheme, collectedSettings.uiTheme);
-    applyUiTheme();
-    await saveConfig();
-    await refreshHistoryRecallStatus();
-    applyLanguage(config.uiLanguage);
-    renderModelSwitcher();
-    renderStore();
-    if (close) {
-        toggleModal(ALL_ELEMENTS.settingsModal, false);
-    }
-    updateApiKeyWarningBadge();
-    updateInputState();
-    if (notify) {
-        showNotification(i18n[config.uiLanguage].settingsSaved || '設定已儲存！');
-    }
-};
-const themeBubbleControls = createSettingsThemeBubbleControls({
-    config,
-    saveConfig
-});
-const {
-    setTheme,
-    updateThemeButtons
-} = themeBubbleControls;
-const historyMenuHelper = createSettingsHistoryMenuHelper({
-    window,
-    document,
-    requestAnimationFrame,
-    getConfig: () => config,
-    getConversations: () => conversations,
-    getFolders: () => folders,
-    i18n,
-    showRenameModal,
-    togglePinChat,
-    archiveChat,
-    deleteChat,
-    moveConversationToFolder,
-    createNewFolder,
-    showCustomPrompt
-});
-const {
-    createHistoryMenu
-} = historyMenuHelper;
+    const {
+        prepareApiKeyInputsForSettings,
+        persistApiKeyInputIntents
+    } = apiKeyControls;
 
+    const outputTranslatorControls = createSettingsOutputTranslatorControls({
+        document,
+        elements: ALL_ELEMENTS,
+        config,
+        i18n,
+        getCouncilTranslatorCandidates,
+        getSingleTranslatorCandidates,
+        getProviderLabel,
+        getModelPriceLabel,
+        modelSupportsVision,
+        modelSupportsDocumentUpload,
+        escapeHTML
+    });
+    const {
+        ensureCouncilTranslatorSettingsControls,
+        renderTranslatorModelPickers,
+        syncSearchProviderControls
+    } = outputTranslatorControls;
+    const getSettingsText = (key, fallback) => i18n[config.uiLanguage]?.[key] || fallback;
+    const authActionsHelper = createSettingsAuthActionsHelper({
+        window,
+        requestAnimationFrame,
+        setTimeout,
+        console,
+        elements: ALL_ELEMENTS,
+        state,
+        getConfig: () => config,
+        legacyRuntimeContext,
+        runtimeStorageAdapter,
+        i18n,
+        showNotification,
+        showCustomConfirm,
+        showCustomDialog,
+        getUserKey,
+        getItem,
+        setItem,
+        removeItem,
+        verifyPasswordRecord,
+        upgradeLegacyPasswordRecord,
+        createPasswordRecord,
+        loadConfig,
+        loadAppData,
+        applyUiTheme
+    });
+    const {
+        handleLogin,
+        handleLogout,
+        handleDeleteAllData
+    } = authActionsHelper;
+    const mobileShellHelper = createSettingsMobileShellHelper({
+        window,
+        document,
+        elements: ALL_ELEMENTS,
+        escapeHTML,
+        getSettingsText,
+        handleLogout: (...args) => handleLogout(...args),
+        setTimeout,
+        clearTimeout
+    });
+    const {
+        ensureSettingsMobileShell,
+        renderSettingsMobileList,
+        clearSettingsMobileViewTransition,
+        showSettingsMobileList,
+        openSettingsMobileSection,
+        isMobileSettingsViewport
+    } = mobileShellHelper;
+    const desktopSectionHelper = createSettingsDesktopSectionHelper({
+        document,
+        elements: ALL_ELEMENTS,
+        isMobileSettingsViewport,
+        showSettingsMobileList,
+        clearSettingsMobileViewTransition
+    });
+    const {
+        activateDefaultDesktopSettingsSection,
+        bindDesktopSettingsSections,
+        syncSettingsSectionForViewport
+    } = desktopSectionHelper;
+    const { setupSettingsModal, saveSettings } = createSettingsModalLifecycle({
+        window, document, console, elements: ALL_ELEMENTS, state, legacyRuntimeContext, runtimeStorageAdapter, models: MODELS, i18n, config,
+        getSettingsText, getTavilySearchDepth, getApiKeyForProvider, saveConfig, showNotification, showCustomPrompt, showCustomDialog,
+        showCustomConfirm, toggleModal, applyUiTheme, applyLanguage, renderModelSwitcher, renderStore, renderTrash, renderUiColorOptions,
+        updateThemeButtons: (...args) => updateThemeButtons(...args), updateApiKeyWarningBadge, updateInputState, ensureSettingsMobileShell,
+        renderSettingsMobileList, bindDesktopSettingsSections, activateDefaultDesktopSettingsSection, syncSettingsSectionForViewport,
+        ensureCouncilTranslatorSettingsControls, prepareApiKeyInputsForSettings, persistApiKeyInputIntents, syncSearchProviderControls,
+        renderTranslatorModelPickers
+    });
+    const themeBubbleControls = createSettingsThemeBubbleControls({
+        config,
+        saveConfig
+    });
+    const {
+        setTheme,
+        updateThemeButtons
+    } = themeBubbleControls;
+    const historyMenuHelper = createSettingsHistoryMenuHelper({
+        window,
+        document,
+        requestAnimationFrame,
+        getConfig: () => config,
+        getConversations: () => conversations,
+        getFolders: () => folders,
+        i18n,
+        showRenameModal,
+        togglePinChat,
+        archiveChat,
+        deleteChat,
+        moveConversationToFolder,
+        createNewFolder,
+        showCustomPrompt
+    });
+    const {
+        createHistoryMenu
+    } = historyMenuHelper;
 
     return {
         streamApiCall,

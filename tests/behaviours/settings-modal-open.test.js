@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import { createDom } from './helpers/create-dom.js';
+import { readUiSource } from '../helpers/source-guards.js';
 
 const projectFile = (path) => new URL(`../../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -66,7 +67,7 @@ test('settings button initializes settings state before opening the modal', () =
 });
 
 test('settings modal source keeps Tavily depth fallback local to setupSettingsModal', () => {
-  const settingsAuthProviderSource = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
+  const settingsAuthProviderSource = readUiSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
   const appBootstrapLifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
 
   assert.match(

@@ -28,20 +28,24 @@ export function readCssSource(path, seen = new Set()) {
   });
 }
 
-// A module split into parts that ship together (one chunk): read as one text, the main file first, so a check of the whole still finds
-// what moved into a part.
+// A module split into parts that ship together: read as one text, the main file first, so a check of the whole still finds what moved
+// into a part.
 const MODULE_PARTS = {
-  'src/app/runtime/legacy-core/submit-input-council-lifecycle.js': { dir: 'src/app/runtime/legacy-core', prefix: 'submit-input-' }
+  'src/app/runtime/legacy-core/submit-input-council-lifecycle.js': [
+    'src/app/runtime/legacy-core/submit-input-composer.js',
+    'src/app/runtime/legacy-core/submit-input-playback.js',
+    'src/app/runtime/legacy-core/submit-input-image-reveal.js',
+    'src/app/runtime/legacy-core/submit-input-reply-services.js'
+  ],
+  'src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js': [
+    'src/app/runtime/legacy-core/model-request-runtime.js',
+    'src/app/runtime/legacy-core/settings-modal-lifecycle.js'
+  ]
 };
 
 export function readUiSource(path) {
   if (path === 'src/styles/main.css') return readCssSource(path);
-  const parts = MODULE_PARTS[path];
-  if (!parts) return readSource(path);
-  const others = readdirSync(projectFile(parts.dir))
-    .filter((name) => name.startsWith(parts.prefix) && name.endsWith('.js') && `${parts.dir}/${name}` !== path)
-    .sort();
-  return [readSource(path), ...others.map((name) => readSource(parts.dir, name))].join('\n');
+  return [path, ...(MODULE_PARTS[path] || [])].map((part) => readSource(part)).join('\n');
 }
 
 export function countLines(source) {

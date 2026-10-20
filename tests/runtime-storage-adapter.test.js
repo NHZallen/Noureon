@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import { createLegacyRuntimeStorageAdapter } from '../src/app/runtime/kernel/storage-adapter.js';
+import { readUiSource } from './helpers/source-guards.js';
 
 const readSource = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -438,7 +439,7 @@ test('storage adapter instances keep independent cached connections', async () =
 test('production wiring uses the adapter while persistence modules remain injected-storage only', () => {
   const fragment00Source = readSource('src/app/runtime/legacy-core/legacy-core.js');
   const fragment02Source = readSource('src/app/runtime/legacy-core/legacy-core.js');
-  const settingsAuthProviderSource = readSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
+  const settingsAuthProviderSource = readUiSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
   const settingsAuthActionsHelperSource = readSource('src/app/runtime/legacy-core/settings-auth-actions-helper.js');
   const configPersistenceSource = readSource('src/app/runtime/kernel/config-persistence.js');
   const appDataPersistenceSource = readSource('src/app/runtime/kernel/app-data-persistence.js');
