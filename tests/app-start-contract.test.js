@@ -187,14 +187,12 @@ test('main css is an ordered split manifest with every imported file under the s
     'chat-generated-image.css',
     'chat-reply-layout.css',
     'reply-wait.css',
-    'generated-image-editor.css',
     'generated-image-set.css',
     'modals.css',
     'personalization.css',
     'input-polish.css',
     'quote-inquiry.css',
     'model-council.css',
-    'charts.css',
     'settings.css',
     'regression-overrides.css',
     'desktop-composer-layout.css',
@@ -224,8 +222,9 @@ test('main css is an ordered split manifest with every imported file under the s
 
   // The sheets only the settings dialog uses load with it (settings-dialog.css); it is added last, so it repeats, in the same order, the
   // page sheets that came after the first of them, which keep winning over them.
-  const dialogOnly = ['settings-cards.css', 'update-log.css', 'settings-mobile.css', 'settings-api-keys.css', 'settings-output-translator.css',
-    'settings-theme-bubble.css', 'settings-desktop.css', 'settings-danger.css', 'permissions.css', 'conversation-search.css'];
+  const dialogOnly = ['settings-cards.css', 'update-log.css', 'charts.css', 'settings-mobile.css', 'settings-api-keys.css',
+    'settings-output-translator.css', 'settings-theme-bubble.css', 'settings-desktop.css', 'settings-danger.css', 'permissions.css',
+    'conversation-search.css'];
   const dialogImports = [...readSource('src/styles/settings-dialog.css').matchAll(/@import\s+['"]\.\/(.+?)['"];/g)].map((match) => match[1]);
   assert.deepEqual(dialogImports.filter((name) => !imports.includes(name)), dialogOnly);
   assert.deepEqual(dialogImports.filter((name) => imports.includes(name)), imports.slice(imports.indexOf('input-polish.css')));
@@ -235,6 +234,8 @@ test('main css is an ordered split manifest with every imported file under the s
   assert.match(readSource('src/app/runtime/features/conversation-search-modal.js'), /import\('\.\.\/\.\.\/\.\.\/styles\/conversation-search\.css'\)/);
   assert.match(readSource('src/app/runtime/features/latest-update-notice.js'), /import\('\.\.\/\.\.\/\.\.\/styles\/update-log\.css'\)/);
   assert.match(readSource('src/app/ui/cli/cli-store.css'), /@import '\.\.\/\.\.\/\.\.\/styles\/permissions\.css';/);
+  assert.match(readSource('src/app/ui/charts/chart-styles.js'), /import\('\.\.\/\.\.\/\.\.\/styles\/charts\.css'\)/);
+  assert.match(readSource('src/app/legacy-runtime/features/generated-image-interactions.js'), /import\('\.\.\/\.\.\/\.\.\/styles\/generated-image-editor\.css'\)/);
 });
 
 test('the vendor bridge puts the libraries where the older code looks for them, and loads the archive and sharing ones on demand', async () => {

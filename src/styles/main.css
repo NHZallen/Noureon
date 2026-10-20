@@ -10,14 +10,12 @@
 @import './chat-generated-image.css';
 @import './chat-reply-layout.css';
 @import './reply-wait.css';
-@import './generated-image-editor.css';
 @import './generated-image-set.css';
 @import './modals.css';
 @import './personalization.css';
 @import './input-polish.css';
 @import './quote-inquiry.css';
 @import './model-council.css';
-@import './charts.css';
 @import './settings.css';
 @import './regression-overrides.css';
 @import './desktop-composer-layout.css';
@@ -29,5 +27,7 @@
 
 /* Ordered CSS split manifest. Keep imports in the original cascade order. Some sheets load with the part that uses them, not with
    the page: the settings dialog's (settings-dialog.css), the search dialog's when it opens (conversation-search.css), the new-version
-   window's when it shows (update-log.css), and the permission rows with the settings and the Extensions page (permissions.css). */
+   window's when it shows (update-log.css), the charts' with the first chart (charts.css, ui/charts/chart-styles.js), the image
+   editor's and preview's when one opens (generated-image-editor.css), and the permission rows with the settings and the Extensions
+   page (permissions.css). */
 @import './dark-bridge.css';

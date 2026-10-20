@@ -4,6 +4,7 @@
 
 import { createChartPlaceholderElement } from '../../charts/chart-markdown-placeholders.js';
 import { mountChartPlaceholder } from '../../charts/chart-renderer.js';
+import { loadChartStyles } from '../../charts/chart-styles.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const RENDER_WIDTH_PX = 760;
@@ -149,6 +150,8 @@ async function svgToPng(svgText, width, height, { document, window }) {
 
 export async function renderChartImage(chart, { document = globalThis.document, window = globalThis.window } = {}) {
   if (!document?.body || !window?.getComputedStyle) return null;
+  // The picture takes the chart's computed styles: the chart stylesheet must be there.
+  await loadChartStyles(document);
   const host = document.createElement('div');
   // .model-message scopes the chart stylesheet; the host sits off-screen but
   // stays laid out so computed styles and fonts resolve normally.

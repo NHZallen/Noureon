@@ -16,6 +16,7 @@ import { renderWaterfallChart } from './waterfall-chart.js';
 import { attachChartInteractions } from './chart-interactions.js';
 import { getPrimaryColor } from './chart-utils.js';
 import { getRuntimeText } from '../../runtime/i18n/runtime-texts.js';
+import { loadChartStyles } from './chart-styles.js';
 
 const COMPLEX_RENDERER_LOADERS = Object.freeze({
   sankey: () => import('./sankey-chart.js').then((module) => module.renderSankeyChart),
@@ -98,6 +99,7 @@ function createChartArticle(document, chart, { chartLabel = 'Chart' } = {}) {
   const titleId = createSafeId();
   const renderer = RENDERERS[chart.type];
 
+  void loadChartStyles(document);
   article.className = `ac-chart ac-chart-${chart.type}`;
   article.dataset.chartType = chart.type;
   article.dataset.chartPayload = encodeChartPayload(chart);
@@ -130,6 +132,7 @@ export function hydrateChartArticle(article) {
   const chart = decodeChartPayload(article?.dataset?.chartPayload);
   const isUserMessage = Boolean(article?.closest?.('.user-message'));
   if (!chart?.type || isUserMessage) return false;
+  void loadChartStyles(article.ownerDocument);
   const placeholder = article.querySelector?.('.ac-chart-deferred');
   if (placeholder) {
     renderDeferredComplexChart(placeholder.ownerDocument, chart, {

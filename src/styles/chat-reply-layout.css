@@ -35,3 +35,8 @@
         padding-right: 0.25rem;
     }
 }
+
+/* A chart waits for its stylesheet (styles/charts.css, loaded with the first chart: ui/charts/chart-styles.js) before it is seen. */
+html:not(.ac-chart-styles-ready) .ac-chart {
+    visibility: hidden;
+}

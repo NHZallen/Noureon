@@ -70,3 +70,35 @@ test('binds generated image preview and opens targeted editor controls', async (
   assert.equal(document.querySelector('.generated-image-editor'), null);
   window.close();
 });
+
+test('the preview and the editor wait for their stylesheet, loaded once', async () => {
+  const window = new Window();
+  const { document } = window;
+  window.HTMLCanvasElement.prototype.getContext = () => ({ clearRect: () => {}, drawImage: () => {}, getImageData: () => ({ data: new Uint8ClampedArray(4) }) });
+  const root = document.createElement('div');
+  root.innerHTML = '<button data-generated-image-preview="asset-1"><img data-generated-image-id="asset-1"></button><button data-generated-image-edit="asset-1"></button>';
+  document.body.appendChild(root);
+  const previews = [];
+  let loads = 0;
+  let finish;
+  const lifecycle = createGeneratedImageInteractions({
+    document,
+    getImageDataUrl: async () => lightweightPng,
+    openPreview: (media) => previews.push(media),
+    attachAnnotatedImage: async () => {},
+    loadStyles: () => { loads += 1; return new Promise((resolve) => { finish = resolve; }); }
+  });
+  lifecycle.bind(root, [{ id: 'asset-1', mediaType: 'image/png' }]);
+
+  root.querySelector('[data-generated-image-preview]').click();
+  await flush();
+  assert.equal(previews.length, 0, 'the preview waits for the stylesheet');
+  finish();
+  await flush();
+  assert.equal(previews.length, 1);
+
+  root.querySelector('[data-generated-image-edit]').click();
+  await flush();
+  assert.ok(document.querySelector('.generated-image-editor'));
+  assert.equal(loads, 1, 'the stylesheet is loaded once');
+});

@@ -75,8 +75,15 @@ export function createGeneratedImageInteractions({
   FileCtor = globalThis.File,
   escapeHTML = value => String(value ?? ''),
   getText = (_key, fallback) => fallback,
-  logWarn = (...args) => console.warn(...args)
+  logWarn = (...args) => console.warn(...args),
+  // The editor's and the preview's stylesheet loads the first time one opens, not with the page; they open plain if it cannot load.
+  loadStyles = () => import('../../../styles/generated-image-editor.css')
 }) {
+  let stylesLoaded = null;
+  const ensureStyles = () => stylesLoaded ||= Promise.resolve().then(loadStyles).catch((error) => {
+    stylesLoaded = null;
+    logWarn('Loading the image editor styles failed:', error);
+  });
   const previewLifecycle = openPreview ? null : createMediaPreviewLifecycle({
       document,
       navigator,
@@ -95,7 +102,7 @@ export function createGeneratedImageInteractions({
   const closeExistingEditor = () => document.querySelector('.generated-image-editor')?.remove();
 
   const openEditor = async (descriptor, sourceElement = null) => {
-    const dataUrl = await getImageDataUrl(descriptor);
+    const [dataUrl] = await Promise.all([getImageDataUrl(descriptor), ensureStyles()]);
     if (!dataUrl) return;
     closeExistingEditor();
     const texts = getEditorTexts(getUiLanguage());
@@ -386,7 +393,7 @@ export function createGeneratedImageInteractions({
       root.querySelectorAll(`[data-generated-image-preview="${descriptor.id}"]`).forEach(button => {
         button.addEventListener('click', async event => {
           event.stopPropagation();
-          const src = await getImageDataUrl(descriptor);
+          const [src] = await Promise.all([getImageDataUrl(descriptor), ensureStyles()]);
           const sourceElement = root.querySelector(`[data-generated-image-id="${descriptor.id}"]`) || event.currentTarget;
           if (src) preview({
             src,
