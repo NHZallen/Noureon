@@ -2,6 +2,18 @@
 // content 為 zh-TW 的 HTML 字串（JSON 轉義、雙引號），目前不隨介面語言切換。
 export const updateLogEntries = [
   {
+    version: "18.15.1",
+    date: "2026-10-20",
+    content: [
+      "<strong>Noureon 18.15.1 發布說明</strong>",
+      "本版本把一則回覆可執行的步驟數加倍，並修正需要 Python 的回覆沒有在伺服器上執行，以及做好的檔案沒有顯示的問題。",
+      "<strong>主要變更</strong>",
+      "<ul><li><strong>步驟上限加倍：</strong>一則回覆執行 Python 的次數上限由 10 次增加為 20 次；使用命令工具時，Python 與命令合計由 25 次增加為 50 次。</li><li><strong>檔案卡片：</strong>修正回覆的步驟超過 20 個時，最後幾個步驟做出的檔案沒有顯示卡片、無法下載的問題；已經這樣儲存的回覆，現在打開也會顯示檔案。</li><li><strong>伺服器的 Python 沙盒：</strong>修正沙盒的映像檔被伺服器的自動清理刪除，使需要 Python 的回覆改在你的裝置上產生（關閉頁面就中斷）的問題。之後若沙盒暫時不能用，會跳出提示，並在回覆上註明「在這個裝置上產生」。</li></ul>",
+      "<strong>相容性</strong>",
+      "本次更新不需要資料遷移。伺服器的 /healthz 新增 sandbox 欄位，顯示沙盒上次檢查的結果；沙盒主機需要重新執行 install.sh。"
+    ]
+  },
+  {
     version: "18.15.0",
     date: "2026-10-20",
     content: [

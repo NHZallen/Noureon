@@ -1,6 +1,14 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.15.1": [
+    "<strong>Noureon 18.15.1 Release Notes</strong>",
+    "This version doubles the number of steps a reply may run, and fixes replies that needed Python not being run on the server and files a reply made not being shown.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Twice as many steps:</strong> a reply may run Python up to 20 times instead of 10; with CLI tools, Python and commands together up to 50 times instead of 25.</li><li><strong>File cards:</strong> when a reply had more than 20 steps, the files its last steps made had no card and could not be downloaded. This is fixed, and replies already saved that way now show their files too.</li><li><strong>The server’s Python sandbox:</strong> the image of the sandbox was deleted by the server’s automatic clean-up, so replies that needed Python were made on your device instead (and stopped when the page was closed). This is fixed. If the sandbox is ever unavailable again, a notice says so and the reply is marked “Made on this device”.</li></ul>",
+    "<strong>Compatibility</strong>",
+    "No data migration is needed. The server’s /healthz has a new sandbox field with the result of the last check of the sandbox; the sandbox host needs install.sh run again."
+  ],
   "18.15.0": [
     "<strong>Noureon 18.15.0 Release Notes</strong>",
     "This version adds three free models: MiniMax M3.1 Flash from OpenRouter, and MiniMax M3.1 Flash and Beam from OpenCode Go.",

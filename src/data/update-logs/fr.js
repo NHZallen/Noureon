@@ -1,6 +1,14 @@
 // The update notes in French (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.15.1": [
+    "<strong>Noureon 18.15.1 – Notes de version</strong>",
+    "Cette version double le nombre d’étapes qu’une réponse peut exécuter, et corrige des réponses qui avaient besoin de Python sans être exécutées sur le serveur ainsi que des fichiers créés par une réponse qui ne s’affichaient pas.",
+    "<strong>Principaux changements</strong>",
+    "<ul><li><strong>Deux fois plus d’étapes :</strong> une réponse peut exécuter Python jusqu’à 20 fois au lieu de 10 ; avec des outils en ligne de commande, Python et commandes ensemble jusqu’à 50 fois au lieu de 25.</li><li><strong>Cartes de fichiers :</strong> quand une réponse comptait plus de 20 étapes, les fichiers créés par ses dernières étapes n’avaient pas de carte et ne pouvaient pas être téléchargés. C’est corrigé, et les réponses déjà enregistrées ainsi affichent maintenant leurs fichiers.</li><li><strong>Le bac à sable Python du serveur :</strong> l’image du bac à sable était supprimée par le nettoyage automatique du serveur, si bien que les réponses qui avaient besoin de Python étaient générées sur votre appareil (et s’arrêtaient à la fermeture de la page). C’est corrigé. Si le bac à sable est de nouveau indisponible, un avis le signale et la réponse porte la mention « Généré sur cet appareil ».</li></ul>",
+    "<strong>Compatibilité</strong>",
+    "Aucune migration de données n’est nécessaire. Le /healthz du serveur a un nouveau champ sandbox, avec le résultat de la dernière vérification du bac à sable ; il faut relancer install.sh sur l’hôte du bac à sable."
+  ],
   "18.15.0": [
     "<strong>Noureon 18.15.0 – Notes de version</strong>",
     "Cette version ajoute trois modèles gratuits : MiniMax M3.1 Flash d’OpenRouter, ainsi que MiniMax M3.1 Flash et Beam d’OpenCode Go.",

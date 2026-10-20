@@ -1,6 +1,14 @@
 // The update notes in Spanish (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.15.1": [
+    "<strong>Noureon 18.15.1 – Notas de la versión</strong>",
+    "Esta versión duplica el número de pasos que puede ejecutar una respuesta y corrige respuestas que necesitaban Python y no se ejecutaban en el servidor, así como archivos de una respuesta que no se mostraban.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>El doble de pasos:</strong> una respuesta puede ejecutar Python hasta 20 veces en lugar de 10; con herramientas de línea de comandos, Python y comandos juntos hasta 50 veces en lugar de 25.</li><li><strong>Tarjetas de archivos:</strong> cuando una respuesta tenía más de 20 pasos, los archivos creados en sus últimos pasos no tenían tarjeta y no se podían descargar. Está corregido, y las respuestas ya guardadas así ahora también muestran sus archivos.</li><li><strong>El entorno aislado de Python del servidor:</strong> la limpieza automática del servidor borraba la imagen del entorno aislado, así que las respuestas que necesitaban Python se generaban en tu dispositivo (y se interrumpían al cerrar la página). Está corregido. Si el entorno aislado vuelve a no estar disponible, un aviso lo indica y la respuesta queda marcada como «Generado en este dispositivo».</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "No hace falta migrar datos. El /healthz del servidor tiene un nuevo campo sandbox con el resultado de la última comprobación del entorno aislado; en el host del entorno aislado hay que volver a ejecutar install.sh."
+  ],
   "18.15.0": [
     "<strong>Noureon 18.15.0 – Notas de la versión</strong>",
     "Esta versión añade tres modelos gratuitos: MiniMax M3.1 Flash de OpenRouter, y MiniMax M3.1 Flash y Beam de OpenCode Go.",
