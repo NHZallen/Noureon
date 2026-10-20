@@ -48,6 +48,10 @@ test('document generator and preview vendors are split out and never precached',
   assert.match(vite, /return 'vendor-pptx';/);
   assert.ok(onDemand.test('assets/vendor-pptx-Ab12.js'));
   assert.ok(!onDemand.test('assets/vendor-markdown-Ab12.js'));
+  // The update notes of each language are loaded only when shown (src/data/update-logs/translations.js).
+  assert.match(vite, /return `update-notes-\$\{updateNotes\[1\]\}`;/);
+  assert.ok(onDemand.test('assets/update-notes-ru-Ab12.js'));
+  assert.ok(!onDemand.test('assets/legacy-core-Ab12.js'));
   assert.match(worker, /ON_DEMAND_ASSET_PATTERN\.test\(path\)\) continue;/);
 });
 

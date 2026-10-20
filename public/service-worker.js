@@ -57,9 +57,10 @@ function isSuccessfulHtml(response) {
 }
 
 // Document generator libraries are large and only needed when someone actually
-// downloads that kind of file. They are cached on first use by the regular
+// downloads that kind of file, and the update notes of each language are read
+// once, in one language. They are cached on first use by the regular
 // cache-first asset path instead of being installed on every device.
-const ON_DEMAND_ASSET_PATTERN = /(?:^|\/)vendor-(?:docx|xlsx|pptx|pdf)-[^/]+\.js$/i;
+const ON_DEMAND_ASSET_PATTERN = /(?:^|\/)(?:vendor-(?:docx|xlsx|pptx|pdf)|update-notes)-[^/]+\.js$/i;
 
 function collectManifestAssets(manifest) {
   const assets = new Set();

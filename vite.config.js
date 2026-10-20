@@ -87,6 +87,10 @@ export default defineConfig({
             return 'runtime-files';
           }
           if (id.includes('/src/app/legacy-runtime/features/message-list-lifecycle.js')) return 'legacy-message-list';
+          // The update notes in one language (src/data/update-logs/translations.js) load only when they are shown; the service worker
+          // does not precache them.
+          const updateNotes = /\/src\/data\/update-logs\/(en|fr|ru|es)\.js$/.exec(id);
+          if (updateNotes) return `update-notes-${updateNotes[1]}`;
           if (!id.includes('node_modules')) {
             return undefined;
           }
