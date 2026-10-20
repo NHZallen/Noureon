@@ -49,7 +49,7 @@ test('cloud workspace passes asset transport into record-level conversation sync
 test('active conversation selection is wired to the private cloud asset transport', async () => {
   const [syncSource, runtimeSource] = await Promise.all([
     readFile(new URL('../src/app/sync/cloud-workspace-sync.js', import.meta.url), 'utf8'),
-    readFile(new URL('../src/app/runtime/legacy-core/legacy-core.js', import.meta.url), 'utf8')
+    readFile(new URL('../src/app/runtime/legacy-core/conversation-actions.js', import.meta.url), 'utf8')
   ]);
 
   assert.match(

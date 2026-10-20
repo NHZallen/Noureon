@@ -1,16 +1,10 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import {
   createDisabledCouncilConfig,
   disableConversationCouncil
 } from '../src/app/runtime/legacy-core/conversation-council-state.js';
-
-const readLegacyCore = () => readFileSync(
-  new URL('../src/app/runtime/legacy-core/legacy-core.js', import.meta.url),
-  'utf8'
-);
 
 test('createDisabledCouncilConfig preserves council selections while disabling it', () => {
   const original = {
@@ -49,26 +43,4 @@ test('disableConversationCouncil reports whether a persisted reset is needed', (
   assert.equal(disableConversationCouncil(null), false);
 });
 
-test('new and switched conversations are wired to start with council disabled', () => {
-  const source = readLegacyCore();
-  const createStart = source.indexOf('const createBaseConversation =');
-  const newChatStart = source.indexOf('const startNewChat =', createStart);
-  const loadStart = source.indexOf('const loadChat =', newChatStart);
-  const loadEnd = source.indexOf('let cancelPendingMemoryCapture', loadStart);
-  const createBody = source.slice(createStart, newChatStart);
-  const loadBody = source.slice(loadStart, loadEnd);
-
-  assert.match(
-    createBody,
-    /council:\s*createDisabledCouncilConfig\(currentConfig\.lastCouncilConfig,\s*cloneCouncilConfig\)/
-  );
-  assert.ok(
-    loadBody.indexOf('conversationStateAccess.setCurrentConversationId(id)')
-      < loadBody.indexOf('disableConversationCouncil(conv, cloneCouncilConfig)')
-  );
-  assert.ok(
-    loadBody.indexOf('disableConversationCouncil(conv, cloneCouncilConfig)')
-      < loadBody.indexOf("renderAll({reason:'chat-switch',scrollMode:'bottom'})")
-  );
-  assert.match(loadBody, /if \(councilWasEnabled\) \{\s*saveAppData\(\)\.catch/);
-});
+// That a new conversation starts with the council off and that opening one turns it off is tested in tests/conversation-actions.test.js.

@@ -116,7 +116,7 @@ const distFiles = collectFiles(join(root, 'dist')).map((file) => ({
 }));
 
 const runtimeBudgetDefinitions = [
-  { label: 'legacy-core shell', path: 'src/app/runtime/legacy-core/legacy-core.js', transitionalLimit: bytes(83), v5Target: bytes(55) },
+  { label: 'legacy-core shell', path: 'src/app/runtime/legacy-core/legacy-core.js', transitionalLimit: bytes(52), v5Target: bytes(55) },
   { label: 'core-tail lifecycle', path: 'src/app/runtime/legacy-core/core-tail-lifecycle.js', transitionalLimit: bytes(75), v5Target: bytes(35) },
   { label: 'settings auth provider lifecycle', path: 'src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js', transitionalLimit: bytes(25), v5Target: bytes(16) },
   { label: 'submit input council lifecycle', path: 'src/app/runtime/legacy-core/submit-input-council-lifecycle.js', transitionalLimit: bytes(50), v5Target: bytes(30) },

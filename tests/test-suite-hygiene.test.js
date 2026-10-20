@@ -101,11 +101,9 @@ test('check:sizes reports grouped budgets without using targets as hard failures
   assert.match(output, /above target/);
   assert.match(output, /OK: all grouped size budgets are within transitional limits/);
   assert.match(source, /Hard failures use transitional limits/);
-  assert.match(
-    source,
-    /label:\s*'legacy-core shell'[\s\S]*transitionalLimit:\s*bytes\(83\)[\s\S]*v5Target:\s*bytes\(55\)/,
-    'legacy-core shell budget should stay ratcheted while preserving the long-term target'
-  );
+  const shellBudget = /label:\s*'legacy-core shell'[^}]*transitionalLimit:\s*bytes\((\d+)\)[^}]*v5Target:\s*bytes\(55\)/.exec(source);
+  assert.ok(shellBudget, 'legacy-core shell keeps its long-term target');
+  assert.ok(Number(shellBudget[1]) <= 55, 'legacy-core shell budget stays ratcheted down to the long-term target');
   assert.match(source, /status\s*=\s*overTransitional[\s\S]*overTarget[\s\S]*'DEBT'/);
   assert.doesNotMatch(source, /process\.exit\(1\)[\s\S]{0,120}overTarget/);
 });

@@ -89,36 +89,13 @@ const assertMarkersInOrder = (source, markers, context) => {
 
 const countLiteral = (source, literal) => source.split(literal).length - 1;
 
-test('loadAppData keeps orchestration, lexical replacements, and corruption fallback in 00', () => {
-  const fragment00Source = readSource('src/app/runtime/legacy-core/legacy-core.js');
-  const loadAppDataBody = getConstFunctionBody(fragment00Source, 'loadAppData');
+// The workspace data the lifecycles share is the store's, reached by name on the one state object (shell-state.js).
+const shellStateSource = readSource('src/app/runtime/legacy-core/shell-state.js');
+const assertShellReaches = (name, getter, setter) => {
+  assert.match(shellStateSource, new RegExp(`${name}:\\s*\\{\\s*get:\\s*\\(\\)\\s*=>\\s*appDataStore\\.${getter}\\(\\)${setter ? `,\\s*set:\\s*\\(next\\)\\s*=>\\s*appDataStore\\.${setter}\\(next\\)` : ''}`));
+};
 
-  assertMarkersInOrder(loadAppDataBody, [
-    'const saved = await getItem(getAppDataKey())',
-    'const data = JSON.parse(saved)',
-    'const normalizedData = normalizeLoadedLegacyAppData({',
-    'runtimeAppDataStore.replaceAll(normalizedData)'
-  ], 'loadAppData successful app data replacement');
-  assert.doesNotMatch(loadAppDataBody, /folders\s*=\s*latestAppData\.folders/);
-  assert.doesNotMatch(loadAppDataBody, /astras\s*=\s*latestAppData\.astras/);
-  assert.doesNotMatch(loadAppDataBody, /personalMemories\s*=\s*latestAppData\.personalMemories/);
-
-  assertMarkersInOrder(loadAppDataBody, [
-    'catch (e)',
-    'console.error',
-    'showNotification',
-    'runtimeAppDataStore.replaceAll({',
-    'conversations: []',
-    'folders: []',
-    'astras: []',
-    'personalMemories: []',
-    'await removeItem(getAppDataKey())'
-  ], 'loadAppData corruption fallback');
-
-  assert.equal(countLiteral(loadAppDataBody, 'runtimeAppDataStore.replaceAll({'), 2);
-  assert.match(loadAppDataBody, /}\s*else\s*{\s*runtimeAppDataStore\.replaceAll\(\{\s*conversations:\s*\[\],\s*folders:\s*\[\],\s*astras:\s*\[\],\s*personalMemories:\s*\[\]\s*\}\);\s*}/);
-  assert.doesNotMatch(loadAppDataBody, /syncLegacyMirror/);
-});
+// loadAppData (the split workspace first, the old single item, the reset of an unreadable one) is tested in tests/workspace-load.test.js.
 
 test('saveAppData reads the store snapshot while active conversation id uses the kernel store', () => {
   const fragment00Source = readSource('src/app/runtime/legacy-core/legacy-core.js');
@@ -135,7 +112,7 @@ test('saveAppData reads the store snapshot while active conversation id uses the
 
   assertMarkersInOrder(fragment00Source, [
     'const runtimeAppDataPersistence = createLegacyRuntimeAppDataPersistence({',
-    'getCurrentUser: () => currentUser',
+    'getCurrentUser: () => shell.currentUser',
     'getAppData: () => runtimeAppDataStore.getSnapshot()',
     'getAppDataKey',
     'setItem'
@@ -168,19 +145,15 @@ test('app data state is store-backed without legacy local mirrors', () => {
   assert.doesNotMatch(legacyCoreSource, /let\s+conversations\s*=/);
   assert.doesNotMatch(legacyCoreSource, /\bconversations\s*=\s*runtimeAppDataStore\.getConversations\(\)/);
   assert.doesNotMatch(legacyCoreSource, /syncLegacyMirror/);
-  assert.ok((legacyCoreSource.match(/get conversations\(\)\s*{\s*return liveConversationsBridge\.getConversations\(\);\s*}/g) || []).length >= 4);
-  assert.ok((legacyCoreSource.match(/set conversations\(next\)\s*{\s*liveConversationsBridge\.replaceConversations\(next\);\s*}/g) || []).length >= 2);
+  assert.match(shellStateSource, /conversations:\s*\{\s*get:\s*\(\)\s*=>\s*conversations\.getConversations\(\),\s*set:\s*\(next\)\s*=>\s*conversations\.replaceConversations\(next\)/);
+  assert.match(legacyCoreSource, /createShellState\(\{[^}]*conversations:\s*liveConversationsBridge,\s*appDataStore:\s*runtimeAppDataStore/);
   assert.doesNotMatch(legacyCoreSource, /let\s+folders\s*=/);
   assert.doesNotMatch(legacyCoreSource, /folders\s*=\s*latestAppData\.folders/);
-  assert.ok((legacyCoreSource.match(/get folders\(\)\s*\{\s*return runtimeAppDataStore\.getFolders\(\);\s*\}/g) || []).length >= 3);
-  assert.ok((legacyCoreSource.match(/set folders\(next\)\s*\{\s*runtimeAppDataStore\.replaceFolders\(next\);\s*\}/g) || []).length >= 2);
+  assertShellReaches('folders', 'getFolders', 'replaceFolders');
   assert.doesNotMatch(legacyCoreSource, /let\s+astras\s*=/);
   assert.doesNotMatch(legacyCoreSource, /astras\s*=\s*latestAppData\.astras/);
-  assert.ok((legacyCoreSource.match(/get astras\(\)\s*\{\s*return runtimeAppDataStore\.getAstras\(\);\s*\}/g) || []).length >= 4);
-  assert.ok((legacyCoreSource.match(/set astras\(next\)\s*\{\s*runtimeAppDataStore\.replaceAstras\(next\);\s*\}/g) || []).length >= 3);
-  assert.match(legacyCoreSource, /get personalMemories\(\)\s*\{\s*return runtimeAppDataStore\.getPersonalMemories\(\);\s*\}/);
-  assert.match(legacyCoreSource, /set personalMemories\(next\)\s*\{\s*runtimeAppDataStore\.replacePersonalMemories\(next\);\s*\}/);
-  assert.match(legacyCoreSource, /get config\(\)\s*\{\s*return runtimeConfigAccess\.getConfig\(\);\s*\}/);
+  assertShellReaches('astras', 'getAstras', 'replaceAstras');
+  assertShellReaches('personalMemories', 'getPersonalMemories', 'replacePersonalMemories');
 
   assert.doesNotMatch(legacyCoreSource, /let\s+personalMemories\s*=/);
   assert.doesNotMatch(legacyCoreSource, /personalMemories\s*=\s*latestAppData\.personalMemories/);
@@ -188,8 +161,6 @@ test('app data state is store-backed without legacy local mirrors', () => {
     transitionBusSource,
     /replacePersonalMemories:\s*\(nextPersonalMemories\)\s*=>\s*\{\s*state\.personalMemories\s*=\s*runtimeAppDataStore\.replacePersonalMemories\(nextPersonalMemories\)/
   );
-  assert.match(legacyCoreSource, /runtimeConfigAccess\.replaceConfig\(normalizedConfig\)/);
-  assert.match(legacyCoreSource, /liveConversationsBridge\.replaceConversations\(/);
   assert.match(legacyCoreSource, /getFolders:\s*\(\)\s*=>\s*runtimeAppDataStore\.getFolders\(\)/);
   assert.match(legacyCoreSource, /replaceFolders:\s*\(nextFolders\)\s*=>\s*runtimeAppDataStore\.replaceFolders\(nextFolders\)/);
   assert.match(legacyCoreSource, /replaceAstras:\s*\(nextAstras\)\s*=>\s*runtimeAppDataStore\.replaceAstras\(nextAstras\)/);
@@ -204,73 +175,29 @@ test('all legacy-core app data mirrors remain retired', () => {
 
   assert.match(modelMemoryDashboardSource, /replacePersonalMemories/);
   assert.match(transitionBusSource, /replacePersonalMemories:\s*\(nextPersonalMemories\)/);
-  assert.match(legacyCoreSource, /get personalMemories\(\)\s*\{\s*return runtimeAppDataStore\.getPersonalMemories\(\);\s*\}/);
+  assertShellReaches('personalMemories', 'getPersonalMemories', 'replacePersonalMemories');
   assert.doesNotMatch(legacyCoreSource, /let\s+personalMemories\s*=/);
 
   assert.doesNotMatch(legacyCoreSource, /let\s+config\s*=/);
   assert.match(legacyCoreSource, /getConfig:\s*\(\)\s*=>\s*runtimeConfigStore\.getConfig\(\)/);
-  assert.match(legacyCoreSource, /runtimeConfigAccess\.replaceConfig\(normalizedConfig\)/);
 
   assert.match(sidebarChatAstraRenderSource, /replaceAstras/);
   assert.match(folderLifecycleSource, /replaceFolders/);
   assert.doesNotMatch(legacyCoreSource, /let\s+astras\s*=/);
-  assert.match(legacyCoreSource, /get astras\(\)\s*\{\s*return runtimeAppDataStore\.getAstras\(\);\s*\}/);
+  assertShellReaches('astras', 'getAstras', 'replaceAstras');
   assert.doesNotMatch(legacyCoreSource, /let\s+folders\s*=/);
-  assert.match(legacyCoreSource, /get folders\(\)\s*\{\s*return runtimeAppDataStore\.getFolders\(\);\s*\}/);
-  assert.match(legacyCoreSource, /set folders\(next\)\s*\{\s*runtimeAppDataStore\.replaceFolders\(next\);\s*\}/);
+  assertShellReaches('folders', 'getFolders', 'replaceFolders');
 
   assert.doesNotMatch(legacyCoreSource, /let\s+conversations\s*=/);
-  assert.match(legacyCoreSource, /liveConversationsBridge\.getConversations\(\)\.unshift\(newConv\)/);
-  assert.doesNotMatch(legacyCoreSource, /conversations\.unshift\(newConv\)/);
-  assert.match(legacyCoreSource, /const\s+deletedAt\s*=\s*new Date\(\)\.toISOString\(\)/);
-  assert.match(legacyCoreSource, /conv\.deletedAt\s*=\s*deletedAt/);
-  assert.match(legacyCoreSource, /conv\.stateUpdatedAt\s*=\s*deletedAt/);
-  assert.match(legacyCoreSource, /if\(conv\)\s*conv\.archived\s*=\s*true/);
-  assert.match(legacyCoreSource, /if\(conv\)\s*conv\.archived\s*=\s*false/);
+  // New, deleted and archived conversations: tests/conversation-actions.test.js.
 
   // All legacy-core app data mirrors are retired; runtimeAppDataStore and its
   // live access facades own the active pointers.
   assert.doesNotMatch(legacyCoreSource, /createConversationStore|createConversationsStore/);
 });
 
-test('00 transient conversation replacements preserve legacy ordering', () => {
-  const fragment00Source = readSource('src/app/runtime/legacy-core/legacy-core.js');
-  const startNewChatBody = getConstFunctionBody(fragment00Source, 'startNewChat');
-  const loadChatBody = getConstFunctionBody(fragment00Source, 'loadChat');
-
-  assertMarkersInOrder(startNewChatBody, [
-    'const currentConversations = liveConversationsBridge.getConversations()',
-    'const oldTempChatCount = currentConversations.length',
-    'const cleanedConversations = liveConversationsBridge.replaceConversations(',
-    'currentConversations.filter(c => !c.isTemporary || c.messages.length > 0)',
-    'if (cleanedConversations.length < oldTempChatCount)',
-    'await saveAppData()',
-    'uploadedFiles = []',
-    "const newConv = createBaseConversation(getText('newChat'))",
-    'liveConversationsBridge.getConversations().unshift(newConv)',
-    'conversationStateAccess.setCurrentConversationId(newConv.id)',
-    'renderAll()'
-  ], 'startNewChat temporary conversation replacement');
-
-  assertMarkersInOrder(loadChatBody, [
-    'const previousConv = getActiveConversation()',
-    'const currentConversations = liveConversationsBridge.getConversations()',
-    'liveConversationsBridge.replaceConversations(',
-    'currentConversations.filter(c => c.id !== previousConv.id)',
-    'conversationStateAccess.setCurrentConversationId(id)',
-    'uploadedFiles = []',
-    "renderAll({reason:'chat-switch',scrollMode:'bottom'})"
-  ], 'loadChat previous temporary conversation replacement');
-
-  assert.equal((startNewChatBody.match(/liveConversationsBridge\.getConversations\(\)/g) || []).length, 2);
-  assert.doesNotMatch(startNewChatBody, /\bconversations\.(?:length|filter|unshift)\b/);
-  assert.match(loadChatBody, /currentConversations\.filter\(c\s*=>\s*c\.id\s*!==\s*previousConv\.id\)/);
-  assert.doesNotMatch(loadChatBody, /\bconversations\.filter\(/);
-  assert.doesNotMatch(loadChatBody, /conversations\s*=\s*conversations\.filter\(c\s*=>\s*c\.id\s*!==\s*previousConv\.id\)/);
-  assert.doesNotMatch(startNewChatBody, /runtimeAppDataStore\.replaceConversations\(/);
-  assert.doesNotMatch(loadChatBody, /runtimeAppDataStore\.replaceConversations\(/);
-  assert.doesNotMatch(fragment00Source, /let\s+conversations\s*=/);
-});
+// startNewChat and loadChat (dropping empty and ephemeral conversations through the live bridge) are tested in
+// tests/conversation-actions.test.js.
 
 test('Astra and folder delete flows keep linked conversation cleanup and save/render order', () => {
   const fragment01Source = readSource('src/app/runtime/legacy-core/legacy-core.js');
@@ -457,7 +384,7 @@ test('cloud permanent delete uses the active shadow sync instead of username pre
 
   assert.match(legacyCoreSource, /import\(['"]\/src\/app\/runtime\/legacy-core\/cloud-delete-lifecycle\.js['"]\)/);
   assert.match(legacyCoreSource, /createCloudDeletionLifecycle\(/);
-  assert.match(legacyCoreSource, /getCurrentUser:\s*\(\)\s*=>\s*currentUser/);
+  assert.match(legacyCoreSource, /getCurrentUser:\s*\(\)\s*=>\s*shell\.currentUser/);
   assert.match(legacyCoreSource, /getConversations:\s*\(\)\s*=>\s*runtimeAppDataStore\.getConversations\(\)/);
   assert.match(legacyCoreSource, /getService\(SERVICES\.cloudSync\)/);
   assert.match(cloudDeleteSource, /getCurrentUser\?\.\(\)\?\.authProvider\s*===\s*['"]supabase['"]/);
@@ -509,11 +436,11 @@ test('app data store remains wired while production boot moves through runtime e
   assert.match(fragment00Source, /const\s+runtimeAppDataStore\s*=\s*runtimeAppKernel\.appDataStore/);
   assert.doesNotMatch(fragment00Source, /let\s+conversations\s*=/);
   assert.doesNotMatch(fragment00Source, /let\s+folders\s*=/);
-  assert.match(fragment00Source, /get folders\(\)\s*\{\s*return runtimeAppDataStore\.getFolders\(\);\s*\}/);
+  assertShellReaches('folders', 'getFolders', 'replaceFolders');
   assert.doesNotMatch(fragment00Source, /let\s+astras\s*=/);
-  assert.match(fragment00Source, /get astras\(\)\s*\{\s*return runtimeAppDataStore\.getAstras\(\);\s*\}/);
+  assertShellReaches('astras', 'getAstras', 'replaceAstras');
   assert.doesNotMatch(fragment00Source, /let\s+personalMemories\s*=/);
-  assert.match(fragment00Source, /get personalMemories\(\)\s*\{\s*return runtimeAppDataStore\.getPersonalMemories\(\);\s*\}/);
+  assertShellReaches('personalMemories', 'getPersonalMemories', 'replacePersonalMemories');
   assert.match(sidebarChatAstraRenderSource, /setAstras\(replaceAstras\(\s*getAstras\(\)\.filter\(a\s*=>\s*a\.id\s*!==\s*id\)\s*\)\)/);
   assert.match(
     fragment01Source,

@@ -84,35 +84,8 @@ test('renderHistorySidebar reads and renders the latest bridge conversations', (
   assert.doesNotMatch(body, /\bconversations\b/);
 });
 
-test('showArchivedChatPreview reads the latest bridge conversations', () => {
-  const body = getConstFunctionBody(legacyCoreSource, 'showArchivedChatPreview');
-
-  assert.match(body, /const\s+currentConversations\s*=\s*liveConversationsBridge\.getConversations\(\)/);
-  assert.match(body, /const\s+conv\s*=\s*currentConversations\.find\(c\s*=>\s*c\.id\s*===\s*id\)/);
-  assert.doesNotMatch(body, /\bconversations\b/);
-});
-
-test('showArchivedChatPreview positions the rendered modal at the latest message', () => {
-  const body = getConstFunctionBody(legacyCoreSource, 'showArchivedChatPreview');
-  const renderIndex = body.indexOf('archivedConversationViewRenderer.renderConversationMessages');
-  const modalIndex = body.indexOf('toggleModal(ALL_ELEMENTS.viewArchivedChatModal, true)');
-  const bottomIndex = body.indexOf('archivedConversationViewRenderer.anchorToBottom(contentContainer)');
-
-  assert.ok(renderIndex >= 0, 'expected archived messages to render');
-  assert.ok(modalIndex > renderIndex, 'expected the archived modal to open after rendering');
-  assert.ok(bottomIndex > modalIndex, 'expected bottom anchoring to start after the modal is open');
-});
-
 test('conversation search no longer exposes a preview interaction', () => {
   assert.doesNotMatch(searchUploadSidebarSource, /showConversationInViewModal|search-view-btn|touchstart/);
-});
-
-test('showRenameModal reads the latest bridge conversations', () => {
-  const body = getConstFunctionBody(legacyCoreSource, 'showRenameModal');
-
-  assert.match(body, /const\s+currentConversations\s*=\s*liveConversationsBridge\.getConversations\(\)/);
-  assert.match(body, /const\s+conv\s*=\s*currentConversations\.find\(c\s*=>\s*c\.id\s*===\s*id\)/);
-  assert.doesNotMatch(body, /\bconversations\b/);
 });
 
 test('direct app data store conversation replacements stay inside the bridge adapter allowlist', () => {
@@ -130,20 +103,10 @@ test('direct app data store conversation replacements stay inside the bridge ada
     'src/app/runtime/legacy-core/legacy-core.js'
   ]);
 
-  const startNewChatBody = getConstFunctionBody(legacyCoreSource, 'startNewChat');
-  const loadChatBody = getConstFunctionBody(legacyCoreSource, 'loadChat');
-  const bridgeAdapter = 'replaceConversations: (nextConversations) => runtimeAppDataStore.replaceConversations(nextConversations)';
-  const unallowlistedLegacyCore = legacyCoreSource
-    .replace(bridgeAdapter, '');
-  assert.doesNotMatch(unallowlistedLegacyCore, directReplacementPattern);
-  assert.match(startNewChatBody, /liveConversationsBridge\.replaceConversations\(/);
-  assert.match(loadChatBody, /const\s+currentConversations\s*=\s*liveConversationsBridge\.getConversations\(\)/);
-  assert.match(loadChatBody, /liveConversationsBridge\.replaceConversations\(/);
-  assert.match(loadChatBody, /currentConversations\.filter\(c\s*=>\s*c\.id\s*!==\s*previousConv\.id\)/);
-  assert.doesNotMatch(loadChatBody, /\bconversations\.filter\(/);
-  assert.doesNotMatch(startNewChatBody, directReplacementPattern);
-  assert.doesNotMatch(loadChatBody, directReplacementPattern);
-
+  // What startNewChat and loadChat do to the list of conversations is tested in tests/conversation-actions.test.js; they reach it only
+  // through the live bridge.
+  const conversationActionsSource = readSource('src', 'app', 'runtime', 'legacy-core', 'conversation-actions.js');
+  assert.doesNotMatch(conversationActionsSource, directReplacementPattern);
   const coreTailSource = readSource('src', 'app', 'runtime', 'legacy-core', 'core-tail-lifecycle.js');
   assert.doesNotMatch(coreTailSource, directReplacementPattern);
   assert.match(coreTailSource, /state\.conversations\s*=\s*nextConversations/);

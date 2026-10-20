@@ -75,21 +75,20 @@ test('legacy core routes lifecycle config state through the live store bridge', 
   assert.doesNotMatch(source, /syncConfig\s*:/);
   assert.match(source, /replaceConfig:\s*\(nextConfig\)\s*=>\s*runtimeConfigStore\.replaceConfig\(nextConfig\)/);
   assert.match(source, /initialApiKeys:\s*runtimeConfigAccess\.getConfig\(\)\.apiKeys/);
-  assert.ok(
-    (source.match(/get config\(\)\s*\{\s*return runtimeConfigAccess\.getConfig\(\);\s*\}/g) || []).length >= 4
-  );
-  assert.ok(
-    (source.match(/set config\(next\)\s*\{\s*runtimeConfigAccess\.replaceConfig\(next\);\s*\}/g) || []).length >= 2
-  );
+  // The lifecycles share one state object whose settings are the store's (src/app/runtime/legacy-core/shell-state.js).
+  const shellSource = readSource('src/app/runtime/legacy-core/shell-state.js');
+  assert.match(shellSource, /config:\s*\{\s*get:\s*\(\)\s*=>\s*configAccess\.getConfig\(\),\s*set:\s*\(next\)\s*=>\s*configAccess\.replaceConfig\(next\)\s*\}/);
+  assert.match(source, /createShellState\(\{\s*configAccess:\s*runtimeConfigAccess/);
+  assert.ok((source.match(/state:\s*shell,/g) || []).length >= 4);
   assert.doesNotMatch(source, /set config\(next\)\s*\{\s*config\s*=\s*next;\s*\}/);
 });
 
 test('loadConfig replacement and mutation use the current store pointer through the bridge', () => {
-  const source = readSource('src/app/runtime/legacy-core/legacy-core.js');
+  const source = readSource('src/app/runtime/legacy-core/workspace-load.js');
 
-  assert.ok((source.match(/currentConfig:\s*runtimeConfigAccess\.getConfig\(\)/g) || []).length >= 2);
-  assert.match(source, /runtimeConfigAccess\.replaceConfig\(normalizedConfig\)/);
-  assert.match(source, /runtimeConfigAccess\.mutateConfig\(normalizedConfig\)/);
+  assert.ok((source.match(/currentConfig:\s*configAccess\.getConfig\(\)/g) || []).length >= 2);
+  assert.match(source, /configAccess\.replaceConfig\(normalizedConfig\)/);
+  assert.match(source, /configAccess\.mutateConfig\(normalizedConfig\)/);
   assert.doesNotMatch(source, /currentConfig:\s*config\b/);
   assert.doesNotMatch(source, /Object\.assign\(config,\s*normalizedConfig\)/);
 });

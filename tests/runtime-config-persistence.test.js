@@ -232,7 +232,7 @@ test('config persistence receives the extracted IndexedDB adapter and keeps the 
   assert.match(storageSource, /idb\.transaction\(storeName,\s*'readwrite'\)/);
   assert.match(
     source,
-    /const\s+getConfigKey\s*=\s*\(\)\s*=>\s*`chatConfig_v_v8\.6_\$\{currentUser\.username\}`;/
+    /const\s+getConfigKey\s*=\s*\(\)\s*=>\s*`chatConfig_v_v8\.6_\$\{shell\.currentUser\.username\}`;/
   );
   assert.equal((source.match(/chatConfig_v_v8\.6_/g) || []).length, 1);
   assert.doesNotMatch(source, /localStorage|sessionStorage/);
@@ -259,48 +259,11 @@ test('saveConfig preserves missing-user, serialization, and rejection behavior',
   );
 });
 
-test('loadConfig preserves missing-user, null storage, and invalid JSON boundaries', () => {
-  const source = readSource('src/app/runtime/legacy-core/legacy-core.js');
-  const body = getConstFunctionBody(source, 'loadConfig');
-  const savedIfMarker = 'if (saved) {';
-  const savedIfStart = body.indexOf(savedIfMarker);
-  const savedIfOpen = body.indexOf('{', savedIfStart);
-  const savedIfClose = findMatchingBrace(body, savedIfOpen);
-  const savedIfBody = body.slice(savedIfStart, savedIfClose + 1);
+// What loadConfig reads and in which order is tested in tests/workspace-load.test.js.
 
-  assertMarkersInOrder(body, [
-    'if (!currentUser) return',
-    'await runtimeSensitiveConfigPersistence.loadSensitiveConfig()',
-    'const saved = await getItem(getConfigKey())',
-    savedIfMarker,
-    'const savedConfig = JSON.parse(saved)'
-  ], 'loadConfig storage boundary');
-  assert.doesNotMatch(body, /try\s*\{|catch\s*\(/);
-  assert.match(savedIfBody, /runtimeConfigAccess\.replaceConfig\(normalizedConfig\)/);
-  assert.equal((body.match(/runtimeConfigAccess\.replaceConfig\(/g) || []).length, 1);
-  assert.ok(
-    body.indexOf('runtimeConfigAccess.mutateConfig(normalizedConfig)') > savedIfClose,
-    'null storage should skip pointer replacement while retaining legacy normalization through the current pointer'
-  );
-});
-
-test('loadConfig preserves saved config and nested merge precedence', () => {
-  const source = readSource('src/app/runtime/legacy-core/legacy-core.js');
-  const body = getConstFunctionBody(source, 'loadConfig');
+test('config normalization keeps the saved settings over the current ones', () => {
   const normalizationSource = readSource('src/app/runtime/kernel/config-normalization.js');
 
-  assertMarkersInOrder(body, [
-    'const savedConfig = JSON.parse(saved)',
-    'if (savedConfig.apiKeys) {',
-    'mergeSensitiveApiKeys(savedConfig.apiKeys)',
-    'await saveSensitiveConfig()',
-    'const normalSavedConfig = removeSensitiveConfig(savedConfig)',
-    'const normalizedConfig = normalizeLoadedLegacyConfig({',
-    'currentConfig: runtimeConfigAccess.getConfig()',
-    'savedConfig: normalSavedConfig',
-    'models: MODELS',
-    'runtimeConfigAccess.replaceConfig(normalizedConfig)'
-  ], 'loadConfig merge precedence');
   assertMarkersInOrder(normalizationSource, [
     'const { apiKeys: _retiredApiKeys, theme: _retiredTheme, ...normalSavedConfig } = savedConfig',
     '...currentConfig',
@@ -310,17 +273,9 @@ test('loadConfig preserves saved config and nested merge precedence', () => {
   ], 'config normalization merge precedence');
 });
 
-test('loadConfig keeps API, model, and council normalization in legacy order', () => {
-  const source = readSource('src/app/runtime/legacy-core/legacy-core.js');
-  const body = getConstFunctionBody(source, 'loadConfig');
+test('config normalization keeps API, model, and council normalization in legacy order', () => {
   const normalizationSource = readSource('src/app/runtime/kernel/config-normalization.js');
 
-  assertMarkersInOrder(body, [
-    'const normalizedConfig = normalizeLoadedLegacyConfig({',
-    'councilTranslatorCandidates: getCouncilTranslatorCandidates()',
-    'singleTranslatorCandidates: getSingleTranslatorCandidates()',
-    'runtimeConfigAccess.replaceConfig(normalizedConfig)'
-  ], 'loadConfig normalization');
   assertMarkersInOrder(normalizationSource, [
     "normalizedConfig.outputMode = 'realtime'",
     "normalizedConfig.tavilySearchDepth = normalizedConfig.tavilySearchDepth === 'advanced' ? 'advanced' : 'basic'",
@@ -413,13 +368,13 @@ test('config persistence extracts only the serialized write adapter', () => {
   assert.match(persistenceSource, /import\s+\{\s*removeSensitiveConfig\s*\}/);
   assert.match(fragment00Source, /const\s+runtimeConfigPersistence\s*=\s*createLegacyRuntimeConfigPersistence\(\{/);
   assertMarkersInOrder(fragment00Source, [
-    'getCurrentUser: () => currentUser',
+    'getCurrentUser: () => shell.currentUser',
     'getConfig: () => runtimeConfigStore.getConfig()',
     'getConfigKey',
     'setItem'
   ], '00 config persistence adapter wiring');
   assert.match(fragment00Source, /const\s+saveConfig\s*=\s*async\s*\(\)\s*=>\s*\{\s*await\s+runtimeConfigPersistence\.saveConfig\(\);\s*\}/);
-  assert.match(fragment00Source, /const\s+loadConfig\s*=\s*async\s*\(\)\s*=>/);
+  assert.match(fragment00Source, /const\s+\{\s*loadConfig,\s*loadAppData\s*\}\s*=\s*createWorkspaceLoad\(\{/);
   assert.doesNotMatch(
     storeSource,
     /indexedDB|localStorage|sessionStorage|getItem|setItem|removeItem|JSON\.parse|JSON\.stringify/

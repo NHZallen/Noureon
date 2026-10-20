@@ -5,28 +5,10 @@ import { normalizeFolderColorSelection, resolveFolderColor } from '/src/utils/fo
 import { getTextColorForBackground } from '/src/utils/color-contrast.js';
 import { getMessageTypeIcon } from '/src/app/legacy-runtime/features/message-type-icon.js';
 import { formatFullTimestamp } from '/src/app/legacy-runtime/features/date-formatting.js';
-import { buildTimeDistributionChartData } from '/src/app/legacy-runtime/features/time-distribution-chart-data.js';
-import { buildConversationMobileContextMenuMarkup, buildFolderMobileContextMenuMarkup, buildAstraMobileContextMenuMarkup } from '/src/app/legacy-runtime/features/mobile-context-menu-markup.js';
-import { getOpenCouncilDetailKeys, restoreOpenCouncilDetails, isCouncilComparisonSummary, normalizeCouncilComparisonDetails, hasUnclosedCouncilDetails } from '/src/app/legacy-runtime/features/streaming-council-details.js';
-import { createStreamingTextFrameQueue } from '/src/app/legacy-runtime/features/streaming-text-frame-queue.js';
-import { createTypewriterPlaybackController } from '/src/app/legacy-runtime/features/typewriter-playback-controller.js';
-import { appendRendererTextGradually } from '/src/app/legacy-runtime/features/renderer-gradual-append-controller.js';
-import { createStreamingMarkdownFeature } from '/src/app/legacy-runtime/features/streaming-markdown-renderer.js';
-import { createSingleModelResponseLifecycle } from '/src/app/legacy-runtime/features/single-model-response-lifecycle.js';
-import { runCouncilResponseRenderLifecycle } from '/src/app/legacy-runtime/features/council-response-render-lifecycle.js';
-import { finalizeAssistantResponse, persistAssistantResponseError } from '/src/app/legacy-runtime/features/assistant-response-finalization.js';
-import { runSubmitFinalCleanupLifecycle } from '/src/app/legacy-runtime/features/submit-final-cleanup-lifecycle.js';
-import { applyModelMessagePostResponseActions } from '/src/app/legacy-runtime/features/model-message-post-response-actions.js';
 import { buildMessageRenderView } from '/src/app/legacy-runtime/features/message-markup-renderer.js';
 import { createMessageEditingLifecycle } from '/src/app/legacy-runtime/features/message-editing-lifecycle.js';
-import { getRuntimeTexts } from '/src/app/runtime/i18n/runtime-texts.js';
-import { applyLoginLanguage } from '/src/app/runtime/features/login-language.js';
 import { buildQuotedUserParts, createQuoteInquiryLifecycle } from '/src/app/legacy-runtime/features/quote-inquiry-lifecycle.js';
-import { createMediaAttachmentRenderer as createArchivedMediaAttachmentRenderer } from '/src/app/legacy-runtime/features/media-attachment-renderer.js';
-import { createMediaPreviewLifecycle as createArchivedMediaPreviewLifecycle } from '/src/app/legacy-runtime/features/media-preview-lifecycle.js';
-import { createConversationViewRenderer as createArchivedConversationViewRenderer } from '/src/app/legacy-runtime/features/conversation-view-renderer.js';
 import { createSidebarAstrasLifecycle } from '/src/app/legacy-runtime/features/sidebar-astras-lifecycle.js';
-import { createModelUsageChartLifecycle } from '/src/app/legacy-runtime/features/model-usage-chart-lifecycle.js';
 import { createLegacyRuntimeContext } from '/src/app/legacy-runtime/runtime/legacy-runtime-context.js';
 import { createConversationStateAccess } from '/src/app/legacy-runtime/runtime/conversation-state-access.js';
 import { createRuntimeRenderCoordinator } from '/src/app/legacy-runtime/runtime/runtime-render-coordinator.js';
@@ -36,7 +18,8 @@ import { createRuntimeDomAccess } from '/src/app/legacy-runtime/runtime/runtime-
 import { createTrustedHtmlSanitizer, escapeHTML, getBackupUsername, getErrorMessage, hexToRgba, postJsonWithReadableError, processInChunks, readErrorBody, renderUserText } from '/src/app/runtime/legacy-core/legacy-core-utilities.js';
 import { createHistorySidebarHelpers } from '/src/app/runtime/legacy-core/history-sidebar-helpers.js';
 import { createMarkdownRenderingHelpers } from '/src/app/runtime/legacy-core/markdown-rendering-helpers.js';
-import { createDisabledCouncilConfig, disableConversationCouncil } from '/src/app/runtime/legacy-core/conversation-council-state.js';
+import { createWorkspaceLoad } from '/src/app/runtime/legacy-core/workspace-load.js';
+import { createConversationActions, getDefaultFolder, getDefaultGenConfig } from '/src/app/runtime/legacy-core/conversation-actions.js';
 import { observeMessageCharts } from '/src/app/ui/charts/chart-renderer.js';
 import { createActiveConversationStore } from '/src/app/runtime/kernel/active-conversation-store.js';
 import { createLiveConversationsBridge } from '/src/app/runtime/kernel/live-conversations-bridge.js';
@@ -48,19 +31,16 @@ import { createCloudWorkspaceLiveLifecycle } from '/src/app/runtime/features/clo
 import { createDesktopComposerLayout } from '/src/app/runtime/features/desktop-composer-layout.js';
 import { createLegacyRuntimeStorageAdapter } from '/src/app/runtime/kernel/storage-adapter.js';
 import { createLegacyRuntimeConfigPersistence } from '/src/app/runtime/kernel/config-persistence.js';
-import { normalizeApiKeyValue, normalizeLoadedLegacyConfig } from '/src/app/runtime/kernel/config-normalization.js';
-import { normalizeLoadedLegacyAppData } from '/src/app/runtime/kernel/app-data-normalization.js';
+import { normalizeApiKeyValue } from '/src/app/runtime/kernel/config-normalization.js';
 import { createLegacyRuntimeAppDataPersistence } from '/src/app/runtime/kernel/app-data-persistence.js';
-import { loadSplitWorkspace } from '/src/app/runtime/kernel/workspace-loading.js';
 import { notifyCloudConversationSave } from '/src/app/runtime/kernel/cloud-conversation-save-observer.js';
 import { createSensitiveConfigPersistence, createSensitiveConfigStore } from '/src/app/runtime/security/sensitive-config-store.js';
-import { removeSensitiveConfig } from '/src/app/runtime/security/sensitive-config-redaction.js';
-import { CHEAP_MODEL_ID, COUNCIL_MAX_MODELS, COUNCIL_MIN_MODELS, COUNCIL_RESPONSE_CHAR_LIMIT, COUNCIL_RETRY_DELAY_MS, COUNCIL_TEXT, MODELS, OPENROUTER_VISION_MODELS, createLegacyModelRegistry, getModelReasoningConfig, modelGeneratesImages, normalizeReasoningEffort } from '/src/app/runtime/legacy-core/model-registry.js';
-import { searchSourceModel } from '/src/app/runtime/kernel/search-provider.js';
-import { createCouncilAttachmentNeed, getCouncilDocumentFiles as getCouncilDocumentFilesOf, getCouncilVisualFiles as getCouncilVisualFilesOf, isVisualUploadedFile } from '/src/app/legacy-runtime/features/council-attachments.js';
-import { getCouncilRuntimeTexts as getCouncilRuntimeTextsForLanguage } from '/src/app/runtime/legacy-core/council-runtime-texts.js';
+import { CHEAP_MODEL_ID, COUNCIL_MAX_MODELS, COUNCIL_MIN_MODELS, COUNCIL_RESPONSE_CHAR_LIMIT, COUNCIL_RETRY_DELAY_MS, MODELS, OPENROUTER_VISION_MODELS, createLegacyModelRegistry, getModelReasoningConfig, modelGeneratesImages, normalizeReasoningEffort } from '/src/app/runtime/legacy-core/model-registry.js';
+import { createCouncilValidation } from '/src/app/runtime/legacy-core/council-validation.js';
 import { FOLDER_COLORS, UI_THEME_COLORS } from '/src/app/runtime/legacy-core/runtime-ui-colors.js';
 import { SERVICES, getService } from '/src/app/runtime/services.js';
+import { createShellState } from '/src/app/runtime/legacy-core/shell-state.js';
+import * as passwordRecords from '/src/app/runtime/security/password-records.js';
 
 const legacyRuntimeContext = createLegacyRuntimeContext();
 const resolveFoundationUpdateInputState = (...args) => legacyRuntimeContext.resolveBinding('input.updateInputState')(...args);
@@ -92,7 +72,6 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             inputMediaPreview: runtimeDomAccess.getOptionalElement('filePreviewContainer'),
             settingsButton: runtimeDomAccess.getOptionalElement('settingsBtn')
         });
-        import { compareVersions } from '/src/app/legacy-runtime/features/version-compare.js';
         const runtimeAppKernel = createRuntimeAppKernel({
             elements: ALL_ELEMENTS,
             defaultModelId: MODELS[0].id
@@ -113,10 +92,6 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             getConfig: () => runtimeConfigStore.getConfig(),
             replaceConfig: (nextConfig) => runtimeConfigStore.replaceConfig(nextConfig)
         });
-        const getCouncilTexts = () => {
-            const uiLanguage = runtimeConfigAccess.getUiLanguage();
-            return COUNCIL_TEXT[uiLanguage] || COUNCIL_TEXT['zh-TW'];
-        };
         const getText = (key, fallback) => i18n[runtimeConfigAccess.getUiLanguage()]?.[key] || fallback;
         const legacyModelRegistry = createLegacyModelRegistry({
             getConfig: () => runtimeConfigAccess.getConfig(),
@@ -155,114 +130,17 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             getModelTiers
         } = legacyModelRegistry;
         const getOutputMode = () => 'realtime';
-        const getModelRetirementLabel = (model) => {
-            const retirementDate = model?.retirementDate || model?.deprecationDate || model?.sunsetDate;
-            if (!retirementDate) return '';
-            const uiLanguage = runtimeConfigAccess.getUiLanguage();
-            const label = getRuntimeTexts(uiLanguage).retirement;
-            return `${label} ${retirementDate}`;
-        };
-        const getModelPriceLabel = (model) => {
-            if (!model) return '';
-            const uiLanguage = runtimeConfigAccess.getUiLanguage();
-            if (getModelTiers(model).includes('free')) return 'Free';
-            const priceKey = model.descriptionKey ? `${model.descriptionKey}_tier_paid` : '';
-            const localizedPrice = priceKey ? i18n[uiLanguage]?.[priceKey] : '';
-            if (localizedPrice) return localizedPrice;
-            if (model.provider === 'gemini') return 'Google API pricing';
-            if (model.provider === 'openrouter') return 'OpenRouter pricing';
-            return 'Provider pricing';
-        };        const getCouncilRuntimeTexts = () => {
-            const uiLanguage = runtimeConfigAccess.getUiLanguage();
-            return getCouncilRuntimeTextsForLanguage(uiLanguage);
-        };
-        const getUploadedFileKind = (file) => isVisualUploadedFile(file) ? 'visual' : 'document';
-        const getCouncilVisualFiles = (files = uploadedFiles) => getCouncilVisualFilesOf(files);
-        const getCouncilDocumentFiles = (files = uploadedFiles) => getCouncilDocumentFilesOf(files);
-        const councilAttachmentNeed = createCouncilAttachmentNeed({ modelSupportsVision, modelSupportsDocumentUpload });
-        const getCouncilAttachmentTranslationNeed = (models = [], files = uploadedFiles) => councilAttachmentNeed(models, files);
-        const getCouncilRunnableParticipants = (participants = [], files = uploadedFiles) => {
-            const visualFiles = getCouncilVisualFiles(files);
-            if (visualFiles.length === 0) {
-                return { activeParticipants: participants, skippedParticipants: [] };
-            }
-            const activeParticipants = participants.filter(model => visualFiles.every(file => modelSupportsUploadedFile(model, file)));
-            const skippedParticipants = participants.filter(model => !activeParticipants.some(active => active.id === model.id));
-            return { activeParticipants, skippedParticipants };
-        };
-        const formatCouncilModelSummary = (models = [], limit = 3) => {
-            const names = models.map(model => model?.name).filter(Boolean);
-            if (names.length === 0) return '';
-            if (names.length <= limit) return names.join(' / ');
-            return `${names.slice(0, limit).join(' / ')} +${names.length - limit}`;
-        };
-        const getCouncilValidation = (conv, files = uploadedFiles) => {
-            const texts = getCouncilTexts();
-            if (!isCouncilEnabled(conv)) {
-                return { ok: true, message: '' };
-            }
-            conv.council = normalizeCouncilConfig(conv.council);
-            const { council, participants, synthesizer } = getCouncilSelectedModels(conv);
-            if (participants.length < COUNCIL_MIN_MODELS) {
-                return { ok: false, reason: 'tooFew', message: texts.tooFew };
-            }
-            if (participants.length > COUNCIL_MAX_MODELS) {
-                return { ok: false, reason: 'tooMany', message: texts.tooMany };
-            }
-            if (!council.synthesizerModelId || !synthesizer) {
-                return { ok: false, reason: 'missingSynthesizer', message: texts.missingSynthesizer };
-            }
-            const selectedCouncilModels = [...participants, synthesizer].filter(Boolean);
-            const translationNeed = getCouncilAttachmentTranslationNeed(selectedCouncilModels, files);
-            const translatorModel = translationNeed.needsAnyPacket ? getCouncilTranslatorModel() : null;
-            const searchModel = conv?.isWebSearchEnabled && modelUsesTavilySearch(synthesizer) ? searchSourceModel(runtimeConfigAccess.getConfig()) : null;
-            const missingKeyModels = [...selectedCouncilModels, ...(translatorModel ? [translatorModel] : []), ...(searchModel ? [searchModel] : [])]
-                .filter((model, index, arr) => arr.findIndex(item => item.id === model.id) === index)
-                .filter(model => !getApiKeyForProvider(model.provider));
-            if (missingKeyModels.length > 0) {
-                return {
-                    ok: false,
-                    reason: 'missingApiKey',
-                    message: `${texts.missingApiKey}: ${missingKeyModels.map(model => model.name).join(', ')}`
-                };
-            }
-            if (translationNeed.needsAnyPacket && !translatorModel) {
-                return {
-                    ok: false,
-                    reason: 'missingCouncilTranslator',
-                    message: 'Council attachments need a translator model that supports both vision and file upload. Choose one in Settings.'
-                };
-            }
-            if (translationNeed.needsAnyPacket) {
-                return {
-                    ok: true,
-                    reason: 'readyWithAttachmentTranslation',
-                    message: `${texts.ready} with attachment translator: ${translatorModel.name}`
-                };
-            }
-            return { ok: true, reason: 'ready', message: texts.ready };
-        };        let itemToRename = { id: null, type: null };
-        let currentUser = null;
-        let abortController = null;
-        let isCouncilRunning = false;
-        let isSelectionMode = false;
-        let selectedConversationIds = new Set();
-        let uploadedFiles = [];
-        let quoteReference = null;
         let quoteInquiryLifecycle = null;
-        let sendConfirmed = false;
-        let sidebarOpen = false;
-        let isFollowUpExpanded = true;
-        let editingAstrasId = null;
-        let currentSpeechRecognition = null;
-        let currentVoiceTarget = null;
-        let modelPieChart = null;
-        let timeDistChart = null;
-        let cropperInstance = null;
-        let messageObserver = null;
-        let currentStoreCategory = 'all';
-        let editingAstraForAvatarId = null;
-        let isAutoScrolling = false;
+        const shell = createShellState({ configAccess: runtimeConfigAccess, conversations: liveConversationsBridge, appDataStore: runtimeAppDataStore, conversationStateAccess });
+        const {
+            getCouncilTexts,
+            getCouncilRuntimeTexts,
+            getModelRetirementLabel,
+            getModelPriceLabel,
+            getCouncilAttachmentTranslationNeed,
+            formatCouncilModelSummary,
+            getCouncilValidation
+        } = createCouncilValidation({ configAccess: runtimeConfigAccess, registry: legacyModelRegistry, i18n, getUploadedFiles: () => shell.uploadedFiles, getApiKeyForProvider: (provider) => getApiKeyForProvider(provider) });
         const runtimeStorageAdapter = createLegacyRuntimeStorageAdapter({
             indexedDBFactory: indexedDB,
             dbName: 'ChatAppDB',
@@ -271,7 +149,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
         });
         const { getItem, setItem, removeItem, readItems, setItemsAtomic } = runtimeStorageAdapter;
         let folderUiStatePersistencePromise;
-        const getFolderUiStatePersistence = () => folderUiStatePersistencePromise ||= import('/src/app/runtime/kernel/folder-ui-state.js').then(({ createFolderUiStatePersistence }) => createFolderUiStatePersistence({ getUsername: () => currentUser?.username || null, getItem, setItem }));
+        const getFolderUiStatePersistence = () => folderUiStatePersistencePromise ||= import('/src/app/runtime/kernel/folder-ui-state.js').then(({ createFolderUiStatePersistence }) => createFolderUiStatePersistence({ getUsername: () => shell.currentUser?.username || null, getItem, setItem }));
         const saveFolderUiState = async (folders) => (await getFolderUiStatePersistence()).save(folders);
         const getGeneratedImageRuntime = createGeneratedImageRuntimeLoader({
             document,
@@ -280,7 +158,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             File,
             getItem,
             setItem,
-            getUserName: () => currentUser?.username || 'anonymous',
+            getUserName: () => shell.currentUser?.username || 'anonymous',
             getActiveConversation: () => getActiveConversation(),
             buildSingleModelTranslatedRequestParts: (...args) => buildSingleModelTranslatedRequestParts(...args),
             getApiKeyForProvider: provider => getApiKeyForProvider(provider),
@@ -291,7 +169,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             getUiLanguage: () => runtimeConfigAccess.getUiLanguage(),
             getImageReadyText: () => i18n[runtimeConfigAccess.getUiLanguage()]?.imageReadyToEdit || 'Image is ready for targeted editing.',
             escapeHTML,
-            setUploadedFiles: files => { uploadedFiles = files; },
+            setUploadedFiles: files => { shell.uploadedFiles = files; },
             renderFilePreviews: () => legacyRuntimeContext.resolveBinding('submit.renderFilePreviews')(),
             focusMessageInput: () => ALL_ELEMENTS.messageInput?.focus()
         });
@@ -305,7 +183,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             normalizeApiKeyValue
         });
         const runtimeSensitiveConfigPersistence = createSensitiveConfigPersistence({
-            getCurrentUser: () => currentUser,
+            getCurrentUser: () => shell.currentUser,
             getItem,
             setItem,
             removeItem,
@@ -350,83 +228,20 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
                 form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
             }
         }
-        const hashString = async (str) => {
-            const data = new TextEncoder().encode(str);
-            const hashBuffer = await window.crypto.subtle.digest('SHA-256', data);
-            const hashArray = Array.from(new Uint8Array(hashBuffer));
-            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-        };
-        const bytesToHex = (bytes) => Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
-        const hexToBytes = (hex) => new Uint8Array((hex.match(/.{1,2}/g) || []).map(byte => parseInt(byte, 16)));
-        const constantTimeEqual = (a, b) => {
-            if (a.length !== b.length) return false;
-            let diff = 0;
-            for (let i = 0; i < a.length; i += 1) {
-                diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-            }
-            return diff === 0;
-        };
-        const derivePasswordHash = async (password, saltHex, iterations = 210000) => {
-            const keyMaterial = await window.crypto.subtle.importKey(
-                'raw',
-                new TextEncoder().encode(password),
-                'PBKDF2',
-                false,
-                ['deriveBits']
-            );
-            const bits = await window.crypto.subtle.deriveBits(
-                {
-                    name: 'PBKDF2',
-                    hash: 'SHA-256',
-                    salt: hexToBytes(saltHex),
-                    iterations
-                },
-                keyMaterial,
-                256
-            );
-            return bytesToHex(new Uint8Array(bits));
-        };
-        const createPasswordRecord = async (username, password) => {
-            const saltBytes = new Uint8Array(16);
-            window.crypto.getRandomValues(saltBytes);
-            const passwordSalt = bytesToHex(saltBytes);
-            const passwordIterations = 210000;
-            const passwordHash = await derivePasswordHash(password, passwordSalt, passwordIterations);
-            return {
-                username,
-                passwordHash,
-                passwordSalt,
-                passwordIterations,
-                passwordKdf: 'PBKDF2-SHA-256'
-            };
-        };
-        const verifyPasswordRecord = async (password, userRecord) => {
-            if (userRecord?.passwordKdf === 'PBKDF2-SHA-256' && userRecord.passwordSalt) {
-                const derivedHash = await derivePasswordHash(password, userRecord.passwordSalt, userRecord.passwordIterations || 210000);
-                return constantTimeEqual(derivedHash, userRecord.passwordHash || '');
-            }
-
-            const legacyHash = await hashString(password);
-            return constantTimeEqual(legacyHash, userRecord?.passwordHash || '');
-        };
-        const upgradeLegacyPasswordRecord = async (password, userKey, userRecord) => {
-            if (userRecord?.passwordKdf === 'PBKDF2-SHA-256') return userRecord;
-            const upgradedRecord = await createPasswordRecord(userRecord.username, password);
-            await setItem(userKey, JSON.stringify(upgradedRecord));
-            return upgradedRecord;
-        };
-        const getConfigKey = () => `chatConfig_v_v8.6_${currentUser.username}`;
-        const getAppDataKey = () => `chatAppData_v8.6_${currentUser.username}`;
+        const { hashString, constantTimeEqual, createPasswordRecord, verifyPasswordRecord } = passwordRecords;
+        const upgradeLegacyPasswordRecord = (password, userKey, userRecord) => passwordRecords.upgradeLegacyPasswordRecord(password, userKey, userRecord, setItem);
+        const getConfigKey = () => `chatConfig_v_v8.6_${shell.currentUser.username}`;
+        const getAppDataKey = () => `chatAppData_v8.6_${shell.currentUser.username}`;
         const getUserKey = (username) => `chatUser_${username}`;
         const runtimeAppDataPersistence = createLegacyRuntimeAppDataPersistence({
             setItem,readItem:getItem,readItems,setItemsAtomic,
-            getCurrentUser: () => currentUser,
+            getCurrentUser: () => shell.currentUser,
             getAppData: () => runtimeAppDataStore.getSnapshot(),
             getAppDataKey,
             onSaved: notifyCloudConversationSave
         });
         const runtimeConfigPersistence = createLegacyRuntimeConfigPersistence({
-            getCurrentUser: () => currentUser,
+            getCurrentUser: () => shell.currentUser,
             getConfig: () => runtimeConfigStore.getConfig(),
             getConfigKey,
             setItem,
@@ -487,44 +302,16 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             chartLabel: i18n[runtimeConfigAccess.getConfig().uiLanguage]?.chart || 'Chart'
         });
         const saveConfig = async () => { await runtimeConfigPersistence.saveConfig(); };
-        const loadConfig = async () => {
-            if (!currentUser) return;
-            await runtimeSensitiveConfigPersistence.loadSensitiveConfig();
-            const saved = await getItem(getConfigKey());
-            if (saved) {
-                const savedConfig = JSON.parse(saved);
-                if (savedConfig.apiKeys) {
-                    mergeSensitiveApiKeys(savedConfig.apiKeys);
-                    await saveSensitiveConfig();
-                }
-                const normalSavedConfig = removeSensitiveConfig(savedConfig);
-                const normalizedConfig = normalizeLoadedLegacyConfig({
-                    currentConfig: runtimeConfigAccess.getConfig(),
-                    savedConfig: normalSavedConfig,
-                    models: MODELS,
-                    maxCouncilModels: COUNCIL_MAX_MODELS,
-                    councilTranslatorCandidates: getCouncilTranslatorCandidates(),
-                    singleTranslatorCandidates: getSingleTranslatorCandidates()
-                });
-                runtimeConfigAccess.replaceConfig(normalizedConfig);
-            } else {
-                const normalizedConfig = normalizeLoadedLegacyConfig({
-                    currentConfig: runtimeConfigAccess.getConfig(),
-                    savedConfig: null,
-                    models: MODELS,
-                    maxCouncilModels: COUNCIL_MAX_MODELS,
-                    councilTranslatorCandidates: getCouncilTranslatorCandidates(),
-                    singleTranslatorCandidates: getSingleTranslatorCandidates()
-                });
-                runtimeConfigAccess.mutateConfig(normalizedConfig);
-            }
-            // The language picked on the sign-in page wins over the saved one.
-            if (applyLoginLanguage(runtimeConfigAccess.getConfig())) await saveConfig();
-        };
+        const { loadConfig, loadAppData } = createWorkspaceLoad({
+            shell, storage: runtimeStorageAdapter, configAccess: runtimeConfigAccess, appDataStore: runtimeAppDataStore,
+            sensitiveConfigPersistence: runtimeSensitiveConfigPersistence, getConfigKey, getAppDataKey, mergeSensitiveApiKeys,
+            saveSensitiveConfig, saveConfig: () => saveConfig(), normalizeCouncilConfig, normalizeConversationModel,
+            getCouncilTranslatorCandidates, getSingleTranslatorCandidates, getFolderUiStatePersistence, showNotification
+        });
         const saveAppData = async (options) => { await runtimeAppDataPersistence.saveAppData(options); };
         const cloudDeletionLifecycle = import('/src/app/runtime/legacy-core/cloud-delete-lifecycle.js')
             .then(({ createCloudDeletionLifecycle }) => createCloudDeletionLifecycle({
-                getCurrentUser: () => currentUser,
+                getCurrentUser: () => shell.currentUser,
                 getConversations: runtimeAppDataStore.getConversations,
                 getAstras: runtimeAppDataStore.getAstras,
                 getSync: () => getService(SERVICES.cloudSync)
@@ -535,262 +322,32 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             (await cloudDeletionLifecycle).deleteAstras(...args);
         const deleteFolderFromCloud = async (...args) =>
             (await cloudDeletionLifecycle).deleteFolder(...args);
-        const loadAppData = async () => {
-            if (!currentUser) return;
-            const split = await loadSplitWorkspace({ storage: runtimeStorageAdapter, user: currentUser, context: { getDefaultFolder, getDefaultGenConfig, runtimeConfigAccess, normalizeCouncilConfig, normalizeConversationModel } });
-            if (split) { runtimeAppDataStore.replaceAll(split.data); await (await getFolderUiStatePersistence()).restore(runtimeAppDataStore.getFolders()); return; }
-            const saved = await getItem(getAppDataKey());
-            if (saved) {
-                try {
-                    const data = JSON.parse(saved);
-                    const normalizedData = normalizeLoadedLegacyAppData({
-                        rawData: data,
-                        defaultFolder: getDefaultFolder(),
-                        defaultGenConfig: getDefaultGenConfig(),
-                        lastCouncilConfig: runtimeConfigAccess.getConfig().lastCouncilConfig,
-                        normalizeCouncilConfig,
-                        normalizeConversationModel
-                    });
-                    runtimeAppDataStore.replaceAll(normalizedData);
-                } catch (e) {
-                    console.error("Failed to parse app data:", e);
-                    showNotification("Stored app data could not be read and was reset.", "error");
-                    runtimeAppDataStore.replaceAll({
-                        conversations: [],
-                        folders: [],
-                        astras: [],
-                        personalMemories: []
-                    });
-                    await removeItem(getAppDataKey());
-                }
-            } else {
-                runtimeAppDataStore.replaceAll({
-                    conversations: [],
-                    folders: [],
-                    astras: [],
-                    personalMemories: []
-                });
-            }
-            await (await getFolderUiStatePersistence()).restore(runtimeAppDataStore.getFolders());
-        };
-        const getDefaultGenConfig = () => ({ temperature: 0.7, topP: 0.95, maxTokens: null });
-        const getDefaultFolder = () => ({ color: 'gray', icon: 'default', textColor: 'gray', isOpen: false});
-        const createBaseConversation = (title) => {
-            const currentConfig = runtimeConfigAccess.getConfig();
-            const defaultModelInfo = MODELS.find(m => m.id === currentConfig.lastUsedModel) || MODELS.find(m => m.id === currentConfig.defaultModel) || MODELS[0];
-            const now = new Date().toISOString();
-            return {
-                id: crypto.randomUUID(),
-                title: title,
-                messages: [],
-                model: defaultModelInfo.id,
-                provider: defaultModelInfo.provider,
-                archived: false,
-                createdAt: now,
-                lastUpdatedAt: now,
-                genConfig: getDefaultGenConfig(),
-                imageConfig: { aspectRatio: '1:1', resolution: '1K' },
-                council: createDisabledCouncilConfig(currentConfig.lastCouncilConfig, cloneCouncilConfig),
-                isRenamed: false,
-                folderId: null,
-                astrasId: null,
-                isWebSearchEnabled: false,
-                pinned: false,
-                isTemporary: true,
-                isNaming: false,
-                deletedAt: null,
-                 unsentMessage: ''
-            };
-        };
-        const startNewChat = async ({ keepSidebarOpen = false } = {}) => {
-            const currentConversations = liveConversationsBridge.getConversations();
-            const oldTempChatCount = currentConversations.length;
-            const cleanedConversations = liveConversationsBridge.replaceConversations(
-                currentConversations.filter(c => !c.isTemporary || c.messages.length > 0)
-                    .filter(c => c.retentionMode !== 'ephemeral')
-            );
-            if (cleanedConversations.length < oldTempChatCount) {
-                 await saveAppData();
-            }
-            uploadedFiles = [];
-            quoteInquiryLifecycle?.clearQuote();
-            const newConv = createBaseConversation(getText('newChat'));
-            liveConversationsBridge.getConversations().unshift(newConv);
-            conversationStateAccess.setCurrentConversationId(newConv.id);
-            renderAll();
-            ALL_ELEMENTS.messageInput.value = '';
-            setTimeout(adjustTextareaHeightAlias, 0);
-            if (!keepSidebarOpen) {
-                legacyRuntimeContext.resolveBinding('sidebar.toggleSidebar')(false);
-            }
-            resolveFoundationUpdateInputState();
-            updateApiKeyWarningBadge();
-        };
-        const loadChat = (id) => {
-            if (messageObserver) {
-        messageObserver.disconnect();
-            }
-            if (id !== conversationStateAccess.getCurrentConversationId()) {
-                const previousConv = getActiveConversation();
-                if (previousConv && (previousConv.isTemporary && previousConv.messages.length === 0 || previousConv.retentionMode === 'ephemeral')) {
-                    const currentConversations = liveConversationsBridge.getConversations();
-                    liveConversationsBridge.replaceConversations(
-                        currentConversations.filter(c => c.id !== previousConv.id)
-                    );
-                }
-                conversationStateAccess.setCurrentConversationId(id);
-                uploadedFiles = [];
-                quoteInquiryLifecycle?.clearQuote();
-                const conv = getActiveConversation();
-                const councilWasEnabled = disableConversationCouncil(conv, cloneCouncilConfig);
-                renderAll({reason:'chat-switch',scrollMode:'bottom'});
-                window.dispatchEvent(new window.CustomEvent('astra:active-conversation-changed',{detail:{conversationId:id}}));
-                ALL_ELEMENTS.messageInput.value = conv ? conv.unsentMessage || '' : '';
-                setTimeout(adjustTextareaHeightAlias, 0);
-                if (councilWasEnabled) {
-                    saveAppData().catch(error => console.error('Failed to persist council reset after switching conversations:', error));
-                }
-            }
-            resolveFoundationUpdateInputState();
-            updateApiKeyWarningBadge();
-            legacyRuntimeContext.resolveBinding('input.updateFunctionButtonsState')();
-        };
         let cancelPendingMemoryCapture = () => {};
         let invalidateConversationMemory = async () => {};
-        const deleteChat = async (id, event) => {
-    event?.stopPropagation();
-    cancelPendingMemoryCapture(id);
-    const currentConversations = liveConversationsBridge.getConversations();
-    const conv = currentConversations.find(c => c.id === id);
-    if (conv) {
-        const deletedAt = new Date().toISOString();
-        conv.deletedAt = deletedAt;
-        conv.stateUpdatedAt = deletedAt;
-        conv.trashStateUpdatedAt = deletedAt;
-        conv.archived = false;
-        if (conv.folderId) {
-            const folder = runtimeAppDataStore.getFolders().find(f => f.id === conv.folderId);
-            if (folder) {
-                folder.conversationIds = folder.conversationIds.filter(cid => cid !== id);
-            }
-            conv.folderId = null;
-        }
-        // The open conversation is left at once; saving and the cloud sync come after.
-        if (conversationStateAccess.getCurrentConversationId() === id) {
-            await startNewChat({ keepSidebarOpen: true });
-        } else {
-            runtimeRenderCoordinator.renderSidebar();
-        }
-        await invalidateConversationMemory({ conversationId: id });
-        await saveAppData({ immediateCloudSync: true });
-        runtimeDialogCoordinator.showNotification(i18n[runtimeConfigAccess.getUiLanguage()].chatMovedToTrash || 'Chat moved to trash.', 'success');
-    }
-};
-        const archiveChat = async (id, event) => {
-            event?.stopPropagation();
-            const currentConversations = liveConversationsBridge.getConversations();
-            const conv = currentConversations.find(c => c.id === id);
-            if(conv) conv.archived = true;
-            await saveAppData();
-            if (conversationStateAccess.getCurrentConversationId() === id) {
-                const latestConversations = liveConversationsBridge.getConversations();
-                const nextConv = latestConversations.find(c => !c.archived && !c.deletedAt);
-                conversationStateAccess.setCurrentConversationId(nextConv ? nextConv.id : null);
-            if (!conversationStateAccess.getCurrentConversationId()) startNewChat();
-                else loadChat(conversationStateAccess.getCurrentConversationId());
-            } else {
-                runtimeRenderCoordinator.renderSidebar();
-            }
-        };
-        const unarchiveChat = async (id, event) => {
-            event?.stopPropagation();
-            const currentConversations = liveConversationsBridge.getConversations();
-            const conv = currentConversations.find(c => c.id === id);
-            if(conv) conv.archived = false;
-            await saveAppData();
-            runtimeRenderCoordinator.renderSidebar();
-        };
         const {
-            getInlineMediaSrc: getArchivedInlineMediaSrc,
-            renderMediaAttachmentGrid: renderArchivedMediaAttachmentGrid
-        } = createArchivedMediaAttachmentRenderer({ escapeHTML, getUiLanguage: () => runtimeConfigAccess.getUiLanguage() });
-        const {
-            bindMediaPreviewButtons: bindArchivedMediaPreviewButtons
-        } = createArchivedMediaPreviewLifecycle({
-            document,
-            navigator,
-            fetch,
-            File,
-            escapeHTML,
-            getInlineMediaSrc: getArchivedInlineMediaSrc,
-            getUiLanguage: () => runtimeConfigAccess.getUiLanguage()
+            startNewChat,
+            loadChat,
+            deleteChat,
+            archiveChat,
+            unarchiveChat,
+            showArchivedChatPreview,
+            togglePinChat,
+            showRenameModal,
+            handleRename
+        } = createConversationActions({
+            window, document, elements: ALL_ELEMENTS, i18n, shell, legacyRuntimeContext,
+            runtimeConfigAccess, liveConversationsBridge, conversationStateAccess, runtimeAppDataStore, runtimeDialogCoordinator,
+            cloneCouncilConfig, getText, toggleModal, saveAppData, renderMarkdown, bindGeneratedImageAssets,
+            getActiveConversation: () => getActiveConversation(),
+            renderAll: (...args) => renderAll(...args),
+            renderSidebar: () => runtimeRenderCoordinator.renderSidebar(),
+            adjustTextareaHeightAlias: (...args) => adjustTextareaHeightAlias(...args),
+            resolveFoundationUpdateInputState,
+            updateApiKeyWarningBadge: () => updateApiKeyWarningBadge(),
+            getQuoteInquiry: () => quoteInquiryLifecycle,
+            cancelPendingMemoryCapture: (id) => cancelPendingMemoryCapture(id),
+            invalidateConversationMemory: (...args) => invalidateConversationMemory(...args)
         });
-        const archivedConversationViewRenderer = createArchivedConversationViewRenderer({
-            document,
-            renderUserText,
-            renderModelText: renderMarkdown,
-            renderMediaAttachmentGrid: renderArchivedMediaAttachmentGrid,
-            bindMediaPreviewButtons: bindArchivedMediaPreviewButtons,
-            bindGeneratedImageAssets,
-            getLabels: () => ({ imagePreview: getText('imagePreview'), imageAlt: getText('imageAlt'), imageDownload: getText('imageDownload') }),
-            mediaMode: 'inlineData',
-            wrapTextParts: true
-        });
-        const showArchivedChatPreview = (id, event) => {
-            event?.stopPropagation();
-            const currentConversations = liveConversationsBridge.getConversations();
-            const conv = currentConversations.find(c => c.id === id);
-            if (!conv) return;
-            ALL_ELEMENTS.viewArchivedTitle.textContent = conv.title;
-            const contentContainer = ALL_ELEMENTS.viewArchivedContent;
-            archivedConversationViewRenderer.renderConversationMessages({conversation:conv,contentContainer,emptyHTML:'<p class="text-center text-[var(--text-secondary)]">No messages in this archived chat.</p>'});
-            toggleModal(ALL_ELEMENTS.viewArchivedChatModal, true);
-            archivedConversationViewRenderer.anchorToBottom(contentContainer);
-        };
-        const togglePinChat = async (id, event) => {
-            event?.stopPropagation();
-            const currentConversations = liveConversationsBridge.getConversations();
-            const conv = currentConversations.find(c => c.id === id);
-            if (conv) {
-                conv.pinned = !conv.pinned;
-                await saveAppData();
-                runtimeRenderCoordinator.renderSidebar();
-            }
-        };
-        const showRenameModal = (id, type, event) => {
-            event?.stopPropagation();
-            itemToRename = { id, type };
-            let currentTitle = '';
-            if (type === 'conversation') {
-                const currentConversations = liveConversationsBridge.getConversations();
-                const conv = currentConversations.find(c => c.id === id);
-                if (conv) currentTitle = conv.title;
-            } else if (type === 'folder') {
-                const folder = runtimeAppDataStore.getFolders().find(f => f.id === id);
-                if (folder) currentTitle = folder.name;
-            }
-            const runtimeTexts = getRuntimeTexts(runtimeConfigAccess.getUiLanguage());
-            ALL_ELEMENTS.renameModal.querySelector('h2').textContent = type === 'folder' ? runtimeTexts.renameFolder : runtimeTexts.renameChat;
-            ALL_ELEMENTS.renameInput.value = currentTitle;
-            toggleModal(ALL_ELEMENTS.renameModal, true);
-            ALL_ELEMENTS.renameInput.focus();
-        };
-        const handleRename = async () => {
-            const newTitle = ALL_ELEMENTS.renameInput.value.trim();
-            if (!newTitle || !itemToRename.id) return;
-            if (itemToRename.type === 'conversation') {
-                const currentConversations = liveConversationsBridge.getConversations();
-                const conv = currentConversations.find(c => c.id === itemToRename.id);
-                if (conv) { conv.title = newTitle; conv.isRenamed = true; }
-            } else if (itemToRename.type === 'folder') {
-                const folder = runtimeAppDataStore.getFolders().find(f => f.id === itemToRename.id);
-                if (folder) { folder.name = newTitle; }
-            }
-            await saveAppData();
-            runtimeRenderCoordinator.renderSidebar();
-            toggleModal(ALL_ELEMENTS.renameModal, false);
-            itemToRename = { id: null, type: null };
-        };
         const getActiveConversation = () => {
             const conv = conversationStateAccess.getCurrentConversation();
             if (conv) normalizeConversationModel(conv);
@@ -852,7 +409,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
         const renderAll=(...args)=>runtimeRenderCoordinator.renderAll(...args);
         // Lists, header, greeting and the attachment menu write their words when drawn: drawn again when the language changes.
         window?.addEventListener?.('astra:language-changed', () => {
-            if (!currentUser) return;
+            if (!shell.currentUser) return;
             renderAll({ animate: false, scrollMode: 'preserve', reason: 'language' });
             legacyRuntimeContext.resolveBinding('input.updateFunctionButtonsState')();
         });
@@ -861,7 +418,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             elements: ALL_ELEMENTS,
             getAstras: () => runtimeAppDataStore.getAstras(),
             getActiveAstrasId: () => getActiveAstrasId(),
-            getIsSelectionMode: () => isSelectionMode,
+            getIsSelectionMode: () => shell.isSelectionMode,
             getText,
             setAstrasForConversation: (...args) => setAstrasForConversation(...args),
             toggleSidebar: (...args) => legacyRuntimeContext.resolveBinding('sidebar.toggleSidebar')(...args),
@@ -895,19 +452,6 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
         let createAstrasMenu;
         let cancelMessageEditing = () => {};
         let getComposerEditSubmission = () => null;
-        const submitInputCouncilState = {
-            get config() { return runtimeConfigAccess.getConfig(); },
-            get conversations() { return liveConversationsBridge.getConversations(); },
-            get astras() { return runtimeAppDataStore.getAstras(); },
-            get uploadedFiles() { return uploadedFiles; },
-            set uploadedFiles(next) { uploadedFiles = next; },
-            get quoteReference() { return quoteReference; },
-            get abortController() { return abortController; },
-            set abortController(next) { abortController = next; },
-            get isCouncilRunning() { return isCouncilRunning; },
-            set isCouncilRunning(next) { isCouncilRunning = next; },
-            get isAutoScrolling() { return isAutoScrolling; }
-        };
         const imageGenerationResponseLifecycle = {
             run: async options => (await getGeneratedImageRuntime()).responseLifecycle.run(options)
         };
@@ -920,7 +464,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             clearTimeout,
             elements: ALL_ELEMENTS,
             legacyRuntimeContext,
-            state: submitInputCouncilState,
+            state: shell,
             models: MODELS,
             openRouterVisionModels: OPENROUTER_VISION_MODELS,
             i18n,
@@ -988,7 +532,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             deactivateAstras: (...args) => deactivateAstras(...args),
             onRegularSubmit: () => cancelMessageEditing(),
             getComposerEditSubmission: () => getComposerEditSubmission(),
-            getQuoteReference: () => quoteReference,
+            getQuoteReference: () => shell.quoteReference,
             buildQuotedUserParts: ({ question, quoteReference: reference }) => buildQuotedUserParts({
                 question,
                 quoteReference: reference,
@@ -1047,8 +591,8 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             elements: ALL_ELEMENTS,
             getActiveConversation,
             getText,
-            getQuoteReference: () => quoteReference,
-            setQuoteReference: (value) => { quoteReference = value; },
+            getQuoteReference: () => shell.quoteReference,
+            setQuoteReference: (value) => { shell.quoteReference = value; },
             onComposerChange: () => {
                 legacyRuntimeContext.resolveBinding('input.updateInputState')();
                 legacyRuntimeContext.resolveBinding('submit.adjustTextareaHeight')();
@@ -1056,26 +600,6 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
         });
         quoteInquiryLifecycle.init();
         legacyRuntimeContext.registerLazyBinding('submit.renderFilePreviews', () => renderFilePreviews);
-        const settingsAuthProviderState = {
-            get config() { return runtimeConfigAccess.getConfig(); },
-            set config(next) { runtimeConfigAccess.replaceConfig(next); },
-            get conversations() { return liveConversationsBridge.getConversations(); },
-            set conversations(next) { liveConversationsBridge.replaceConversations(next); },
-            get folders() { return runtimeAppDataStore.getFolders(); },
-            set folders(next) { runtimeAppDataStore.replaceFolders(next); },
-            get astras() { return runtimeAppDataStore.getAstras(); },
-            set astras(next) { runtimeAppDataStore.replaceAstras(next); },
-            get personalMemories() { return runtimeAppDataStore.getPersonalMemories(); },
-            set personalMemories(next) { runtimeAppDataStore.replacePersonalMemories(next); },
-            get memoryState() { return runtimeAppDataStore.getMemoryState(); },
-            get uploadedFiles() { return uploadedFiles; },
-            set uploadedFiles(next) { uploadedFiles = next; },
-            get quoteReference() { return quoteReference; },
-            get currentUser() { return currentUser; },
-            set currentUser(next) { currentUser = next; },
-            get abortController() { return abortController; },
-            set abortController(next) { abortController = next; }
-        };
         const settingsAuthProviderLifecycle = createLegacySettingsAuthProviderLifecycle({
             window,
             document,
@@ -1085,7 +609,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             setTimeout,
             console,
             elements: ALL_ELEMENTS,
-            state: settingsAuthProviderState,
+            state: shell,
             legacyRuntimeContext,
             runtimeStorageAdapter,
             models: MODELS,
@@ -1196,19 +720,6 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
         } = settingsAuthProviderLifecycle;
         legacyRuntimeContext.registerLazyBinding('settings.setupSettingsModal', () => setupSettingsModal);
         legacyRuntimeContext.registerLazyBinding('input.updateInputState', () => updateInputState);
-        const sidebarChatAstraRenderState = {
-            get config() { return runtimeConfigAccess.getConfig(); },
-            get conversations() { return liveConversationsBridge.getConversations(); },
-            get folders() { return runtimeAppDataStore.getFolders(); },
-            get astras() { return runtimeAppDataStore.getAstras(); },
-            set astras(next) { runtimeAppDataStore.replaceAstras(next); },
-            get currentUser() { return currentUser; },
-            get editingAstrasId() { return editingAstrasId; },
-            set editingAstrasId(next) { editingAstrasId = next; },
-            get selectedConversationIds() { return selectedConversationIds; },
-            get isSelectionMode() { return isSelectionMode; },
-            get isAutoScrolling() { return isAutoScrolling; }
-        };
         const sidebarChatAstraRenderLifecycle = createLegacySidebarChatAstraRenderLifecycle({
             window,
             document,
@@ -1219,7 +730,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             requestAnimationFrame,
             elements: ALL_ELEMENTS,
             legacyRuntimeContext,
-            state: sidebarChatAstraRenderState,
+            state: shell,
             runtimeDomAccess,
             runtimeConfigAccess,
             conversationStateAccess,
@@ -1284,8 +795,8 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             document,
             elements: ALL_ELEMENTS,
             getActiveConversation,
-            getUploadedFiles: () => uploadedFiles,
-            setUploadedFiles: (files) => { uploadedFiles = files; },
+            getUploadedFiles: () => shell.uploadedFiles,
+            setUploadedFiles: (files) => { shell.uploadedFiles = files; },
             renderFilePreviews: (...args) => legacyRuntimeContext.resolveBinding('submit.renderFilePreviews')(...args),
             renderInputIndicators: (...args) => renderInputIndicators(...args),
             updateInputState: (...args) => legacyRuntimeContext.resolveBinding('input.updateInputState')(...args),
@@ -1340,10 +851,10 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             logger: console
         });
         const toggleSelectionMode = () => {
-    isSelectionMode = !isSelectionMode;
-    selectedConversationIds.clear();
+    shell.isSelectionMode = !shell.isSelectionMode;
+    shell.selectedConversationIds.clear();
 
-    if (isSelectionMode) {
+    if (shell.isSelectionMode) {
         ALL_ELEMENTS.selectionModeBtn.title = i18n[runtimeConfigAccess.getUiLanguage()].cancelBatchSelect || 'Cancel batch select';
     } else {
         ALL_ELEMENTS.selectionModeBtn.title = i18n[runtimeConfigAccess.getUiLanguage()].batchSelect || 'Batch select';
@@ -1354,55 +865,11 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
         const batchActionBarLifecycle = createBatchActionBarLifecycle({
             elements: ALL_ELEMENTS,
             getI18n: () => i18n,
-            getIsSelectionMode: () => isSelectionMode,
-            getSelectedConversationIds: () => selectedConversationIds,
+            getIsSelectionMode: () => shell.isSelectionMode,
+            getSelectedConversationIds: () => shell.selectedConversationIds,
             getUiLanguage: () => runtimeConfigAccess.getUiLanguage()
         });
         const renderBatchActionBar = (...args) => batchActionBarLifecycle.renderBatchActionBar(...args);
-        const transitionBusState = {
-            get config() { return runtimeConfigAccess.getConfig(); },
-            set config(next) { runtimeConfigAccess.replaceConfig(next); },
-            get conversations() { return liveConversationsBridge.getConversations(); },
-            set conversations(next) { liveConversationsBridge.replaceConversations(next); },
-            get folders() { return runtimeAppDataStore.getFolders(); },
-            set folders(next) { runtimeAppDataStore.replaceFolders(next); },
-            get astras() { return runtimeAppDataStore.getAstras(); },
-            set astras(next) { runtimeAppDataStore.replaceAstras(next); },
-            get personalMemories() { return runtimeAppDataStore.getPersonalMemories(); },
-            set personalMemories(next) { runtimeAppDataStore.replacePersonalMemories(next); },
-            get uploadedFiles() { return uploadedFiles; },
-            set uploadedFiles(next) { uploadedFiles = next; },
-            get sidebarOpen() { return sidebarOpen; },
-            set sidebarOpen(next) { sidebarOpen = next; },
-            get currentUser() { return currentUser; },
-            set currentUser(next) { currentUser = next; },
-            get currentSpeechRecognition() { return currentSpeechRecognition; },
-            set currentSpeechRecognition(next) { currentSpeechRecognition = next; },
-            get currentVoiceTarget() { return currentVoiceTarget; },
-            set currentVoiceTarget(next) { currentVoiceTarget = next; },
-            get selectedConversationIds() { return selectedConversationIds; },
-            get conversationStateAccess() { return conversationStateAccess; },
-            get modelPieChart() { return modelPieChart; },
-            set modelPieChart(next) { modelPieChart = next; },
-            get sendConfirmed() { return sendConfirmed; },
-            set sendConfirmed(next) { sendConfirmed = next; },
-            get abortController() { return abortController; },
-            set abortController(next) { abortController = next; },
-            get cropperInstance() { return cropperInstance; },
-            set cropperInstance(next) { cropperInstance = next; },
-            get editingAstraForAvatarId() { return editingAstraForAvatarId; },
-            set editingAstraForAvatarId(next) { editingAstraForAvatarId = next; },
-            get editingAstrasId() { return editingAstrasId; },
-            set editingAstrasId(next) { editingAstrasId = next; },
-            get currentStoreCategory() { return currentStoreCategory; },
-            set currentStoreCategory(next) { currentStoreCategory = next; },
-            get messageObserver() { return messageObserver; },
-            set messageObserver(next) { messageObserver = next; },
-            get timeDistChart() { return timeDistChart; },
-            set timeDistChart(next) { timeDistChart = next; },
-            get isAutoScrolling() { return isAutoScrolling; },
-            set isAutoScrolling(next) { isAutoScrolling = next; }
-        };
         const transitionBusLifecycle = createLegacyTransitionBusLifecycle({
             window,
             document,
@@ -1429,7 +896,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             getComputedStyle,
             elements: ALL_ELEMENTS,
             legacyRuntimeContext,
-            state: transitionBusState,
+            state: shell,
             runtimeConfigAccess,
             runtimeAppDataStore,
             runtimeStorageAdapter,
@@ -1625,7 +1092,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             },
             onRemoteConversationsApplied:()=>ensureMemorySummaryFresh({force:true}),
             onMemorySyncApplied:()=>ensureMemorySummaryFresh({force:true}),
-            saveAppData,busy:()=>abortController&&liveConversationsBridge.getConversations().find(c=>c.__astraPendingResponse)
+            saveAppData,busy:()=>shell.abortController&&liveConversationsBridge.getConversations().find(c=>c.__astraPendingResponse)
         });
 
 export { legacyRuntimeContext };
