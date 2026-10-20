@@ -59,6 +59,9 @@ function encodeStoragePath(path) {
   return String(path || '').split('/').map(segment => encodeURIComponent(segment)).join('/');
 }
 
+// How long a list of the kept files that could not be had is not asked for again.
+const LIST_RETRY_MS = 30_000;
+
 function getAssetCacheKey(userId, path) {
   return `${ASSET_CACHE_PREFIX}${encodeURIComponent(userId)}:${encodeURIComponent(path)}`;
 }
@@ -113,11 +116,35 @@ export function createCloudAssetTransport({
     }
   }
 
+  // The list of the files already kept: asked once, and asked again (not before LIST_RETRY_MS) when it could not be had, so one slow answer
+  // of Storage (544) does not make the whole visit upload every file again (2026-10-20: 78 files sent whole, each refused as a duplicate).
+  let existingObjectPathsFailedAt = 0;
   function getExistingObjectPaths() {
+    if (existingObjectPathsPromise === null && existingObjectPathsFailedAt && Date.now() - existingObjectPathsFailedAt < LIST_RETRY_MS) {
+      return Promise.resolve(null);
+    }
     if (!existingObjectPathsPromise) {
-      existingObjectPathsPromise = loadExistingObjectPaths().catch(() => null);
+      const promise = loadExistingObjectPaths().catch(() => null).then((paths) => {
+        if (!paths && existingObjectPathsPromise === promise) {
+          existingObjectPathsPromise = null;
+          existingObjectPathsFailedAt = Date.now();
+        }
+        return paths;
+      });
+      existingObjectPathsPromise = promise;
     }
     return existingObjectPathsPromise;
+  }
+
+  // Without the list, whether one file is there is asked before it is sent (a request with no body, instead of the whole file).
+  async function objectIsKept(path) {
+    if (typeof storageBucket.exists !== 'function') return false;
+    try {
+      const { data } = await storageBucket.exists(path);
+      return data === true;
+    } catch {
+      return false;
+    }
   }
 
   function describeStorageError(error) {
@@ -197,7 +224,7 @@ export function createCloudAssetTransport({
     const path = `${userId}/${hash}`;
     if (!uploadedPaths.has(path)) {
       const existingObjectPaths = await getExistingObjectPaths();
-      if (!existingObjectPaths?.has(path)) {
+      if (!existingObjectPaths?.has(path) && !(existingObjectPaths === null && await objectIsKept(path))) {
         const { error } = await uploadObject(path, blob);
         const duplicate = error && (
           String(error.statusCode) === '409'

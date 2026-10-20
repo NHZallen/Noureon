@@ -521,3 +521,36 @@ test('missing generated image assets keep their cloud marker for a later retry',
   );
   assert.equal(fixture.downloadCounts.get('user-1/missing-generated-image'), 1);
 });
+
+test('cloud assets that cannot get the list of kept files ask for each file before sending it, and do not ask for the list again at once', async () => {
+  const kept = await sha256Hex([1, 2, 3]);
+  const calls = { lists: 0, exists: [], uploads: [] };
+  const transport = createCloudAssetTransport({
+    supabase: { storage: { from: () => ({
+      // Storage too slow to list (as on 2026-10-20: 544).
+      async list() {
+        calls.lists += 1;
+        return { data: null, error: { statusCode: '544', message: 'timeout' } };
+      },
+      async exists(path) {
+        calls.exists.push(path);
+        return { data: path === `user-1/${kept}`, error: null };
+      },
+      async upload(path) {
+        calls.uploads.push(path);
+        return { error: null };
+      },
+      async download() { return { data: null, error: new Error('not used') }; }
+    }) } },
+    storage: { getItem: async () => null, setItem: async () => {} },
+    userId: 'user-1',
+    cryptoProvider: webcrypto
+  });
+
+  await transport.externalize({ part: { mimeType: 'image/png', data: 'AQID' } });
+  await transport.externalize({ part: { mimeType: 'image/png', data: 'BAUG' } });
+
+  assert.equal(calls.lists, 1, 'the list is not asked for again right after it failed');
+  assert.equal(calls.exists.length, 2);
+  assert.deepEqual(calls.uploads, [`user-1/${await sha256Hex([4, 5, 6])}`], 'only the file that is not kept is sent');
+});
