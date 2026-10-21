@@ -70,6 +70,7 @@ export function createLedger({ document, host, before = null }) {
     let finishedAt = null;
     let expandable = body;
     let open = false;
+    let openedByReader = false;
     let bodyChosen = false;
     let bodyShown = false;
     let painted = false;
@@ -103,6 +104,7 @@ export function createLedger({ document, host, before = null }) {
     head.addEventListener('click', () => {
       if (!expandable) return;
       open = !open;
+      openedByReader = open;
       draw();
     });
 
@@ -112,6 +114,8 @@ export function createLedger({ document, host, before = null }) {
       draw,
       get state() { return state; },
       get label() { return text.textContent; },
+      // The reader opened this row and has not closed it again.
+      get openedByReader() { return openedByReader; },
       // A small button at the end of the row (stopping the work).
       addAction(labelText, handler) {
         const button = element(document, 'button', 'ledger-action', labelText);
@@ -188,8 +192,8 @@ export function createLedger({ document, host, before = null }) {
     happenedAt(time) { happenedAt = Number.isFinite(time) ? time : null; },
     // The row in progress, if any.
     get current() { return [...rows].reverse().find((row) => row.state === 'running') || null; },
-    // Folds the rows that are done, so the newest is the one open.
-    foldFinished() { rows.filter((row) => row.state !== 'running').forEach((row) => row.setOpen(false)); },
+    // Folds the rows that are done, so the newest is the one open. A row the reader opened stays open until the reader closes it.
+    foldFinished() { rows.filter((row) => row.state !== 'running' && !row.openedByReader).forEach((row) => row.setOpen(false)); },
     remove() {
       if (gone) return;
       gone = true;

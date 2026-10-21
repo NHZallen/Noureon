@@ -226,7 +226,7 @@ test('the model\'s thinking and the code it is writing stream into its row, and 
   assert.equal(row.querySelector('.ledger-label').textContent, 'Finished thinking');
   assert.equal(row.querySelectorAll('.ledger-code').length, 0, 'the run shows the code itself');
   assert.equal(row.querySelector('.ledger-thought').textContent, 'The user wants a chart.', 'the thinking stays to read');
-  assert.equal(row.querySelector('.ledger-body').hidden, true, 'and folds behind its line');
+  assert.equal(row.querySelector('.ledger-body').hidden, false, 'the new step does not fold what the reader opened to read');
   list.event({ type: 'thinking', text: 'ignored: no row is thinking' });
   list.remove();
   window.happyDOM.abort();
