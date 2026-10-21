@@ -118,11 +118,15 @@ function createHarness(overrides = {}) {
     getComputedStyle: () => ({}),
     random: () => 0.5,
     elements,
-    state,
-    runtimeConfigAccess: { getUiLanguage: () => state.config.uiLanguage },
+    runtimeConfigAccess: { getConfig: () => state.config, getUiLanguage: () => state.config.uiLanguage },
     runtimeAppDataStore: {
-      replaceAstras: (next) => next,
-      replaceConversations: (next) => next
+      getFolders: () => state.folders,
+      getAstras: () => state.astras,
+      replaceAstras: (next) => (state.astras = next)
+    },
+    liveConversationsBridge: {
+      getConversations: () => state.conversations,
+      replaceConversations: (next) => (state.conversations = next)
     },
     runtimeDialogCoordinator: { showNotification: noop },
     updateInputState: noop,

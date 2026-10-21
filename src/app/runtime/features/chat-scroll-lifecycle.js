@@ -1,7 +1,14 @@
 // The scrolling of a conversation: the button that goes down to the latest message, and the outline beside the messages that marks the
 // one being read.
 
-export function createChatScrollLifecycle({ elements: ALL_ELEMENTS, state, requestAnimationFrame, setTimeout, clearTimeout, ResizeObserver, IntersectionObserver }) {
+export function createChatScrollLifecycle({ elements: ALL_ELEMENTS, requestAnimationFrame, setTimeout, clearTimeout, ResizeObserver, IntersectionObserver }) {
+    // Whether the button is taking the conversation down to its latest message, and the watcher of the messages in view.
+    let autoScrolling = false;
+    let messageObserver = null;
+    const disconnectMessageObserver = () => {
+        messageObserver?.disconnect();
+        messageObserver = null;
+    };
     const setupScrollToBottomButton = () => {
         const { scrollToBottomBtn, chatContainer } = ALL_ELEMENTS;
         const updateScrollButtonVisibility = () => {
@@ -10,14 +17,14 @@ export function createChatScrollLifecycle({ elements: ALL_ELEMENTS, state, reque
         };
         let scrollButtonFrame = null;
         const scheduleScrollButtonUpdate = () => {
-            if (state.isAutoScrolling || scrollButtonFrame !== null) return;
+            if (autoScrolling || scrollButtonFrame !== null) return;
             scrollButtonFrame = requestAnimationFrame(() => {
                 scrollButtonFrame = null;
                 updateScrollButtonVisibility();
             });
         };
         scrollToBottomBtn.addEventListener('click', () => {
-            state.isAutoScrolling = true;
+            autoScrolling = true;
             scrollToBottomBtn.classList.remove('visible');
             scrollToBottomBtn.classList.add('jelly-animate');
             scrollToBottomBtn.addEventListener('animationend', () => {
@@ -28,12 +35,12 @@ export function createChatScrollLifecycle({ elements: ALL_ELEMENTS, state, reque
                 behavior: 'smooth'
             });
             const scrollEndTimer = setTimeout(() => {
-                state.isAutoScrolling = false;
+                autoScrolling = false;
                 updateScrollButtonVisibility();
             }, 1000);
             const interruptHandler = () => {
                 clearTimeout(scrollEndTimer);
-                state.isAutoScrolling = false;
+                autoScrolling = false;
                 scheduleScrollButtonUpdate();
                 chatContainer.removeEventListener('wheel', interruptHandler);
                 chatContainer.removeEventListener('touchstart', interruptHandler);
@@ -72,9 +79,7 @@ export function createChatScrollLifecycle({ elements: ALL_ELEMENTS, state, reque
     // Watches the messages of the conversation and marks the item of the outline beside them that belongs to the one most in view.
     function setupMessageIntersectionObserver() {
         // 如果之前有觀察者，先斷開連接，避免重複觀察
-        if (state.messageObserver) {
-            state.messageObserver.disconnect();
-        }
+        disconnectMessageObserver();
 
         const messageItems = ALL_ELEMENTS.messageList.querySelectorAll('.message-item');
         const historyItems = ALL_ELEMENTS.historySidebarList.querySelectorAll('.history-sidebar-item');
@@ -115,7 +120,7 @@ export function createChatScrollLifecycle({ elements: ALL_ELEMENTS, state, reque
         };
 
         // 建立觀察者實例
-        state.messageObserver = new IntersectionObserver(observerCallback, {
+        messageObserver = new IntersectionObserver(observerCallback, {
             root: ALL_ELEMENTS.chatContainer, // 觀察的根元素是聊天容器
             rootMargin: '0px',
             threshold: [0.0, 0.25, 0.5, 0.75, 1.0] // 在不同可見比例時都觸發回呼
@@ -123,8 +128,13 @@ export function createChatScrollLifecycle({ elements: ALL_ELEMENTS, state, reque
 
         // 開始觀察每一則訊息
         messageItems.forEach(item => {
-            state.messageObserver.observe(item);
+            messageObserver.observe(item);
         });
     }
-    return { setupScrollToBottomButton, setupMessageIntersectionObserver };
+    return {
+        setupScrollToBottomButton,
+        setupMessageIntersectionObserver,
+        disconnectMessageObserver,
+        isAutoScrolling: () => autoScrolling
+    };
 }

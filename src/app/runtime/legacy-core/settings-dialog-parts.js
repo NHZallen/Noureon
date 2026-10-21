@@ -7,7 +7,7 @@ import { createSettingsMemorySummaryControls } from './settings-memory-summary-c
 import { ensureVisionCheckSettingsControl } from './settings-vision-check-section.js';
 
 export function createSettingsDialogParts({
-    document, elements: ALL_ELEMENTS, state, getMemory, models: MODELS, i18n, config, getApiKeyForProvider, saveConfig,
+    document, elements: ALL_ELEMENTS, getMemoryState, getMemory, models: MODELS, i18n, config, getApiKeyForProvider, saveConfig,
     showNotification, showCustomPrompt, showCustomDialog
 }) {
     const historyRecallControls = createSettingsHistoryRecallControls({
@@ -21,7 +21,7 @@ export function createSettingsDialogParts({
         document,
         models: MODELS,
         getConfig: () => config,
-        getMemoryState: () => state.memoryState,
+        getMemoryState,
         getMemory,
         saveConfig,
         isModelReady: model => Boolean(getApiKeyForProvider?.(model?.provider)),

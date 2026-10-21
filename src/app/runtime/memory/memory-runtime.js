@@ -27,11 +27,14 @@ import { createDeviceDerivedMemoryRuntime } from './device-derived-memory-persis
 import { SERVICES, getService } from '../services.js';
 
 export function createMemoryRuntime({
-    document, Event, fetch, crypto, setTimeout, clearTimeout, console, state, runtimeAppDataStore, runtimeStorageAdapter,
-    models: MODELS, runMemoryModel, modelSupportsVision, getApiKeyForProvider, hashString, saveAppData, saveConfig
+    document, Event, fetch, crypto, setTimeout, clearTimeout, console, runtimeConfigAccess, runtimeAppDataStore, liveConversationsBridge,
+    getCurrentUser, runtimeStorageAdapter, models: MODELS, runMemoryModel, modelSupportsVision, getApiKeyForProvider, hashString,
+    saveAppData, saveConfig
 }) {
+    const getConfig = () => runtimeConfigAccess.getConfig();
+    const getConversations = () => liveConversationsBridge.getConversations();
     const historyIndex = createHistoryIndexStore();
-    const getMemoryOwner = () => state.currentUser?.username || 'anonymous';
+    const getMemoryOwner = () => getCurrentUser()?.username || 'anonymous';
     const notifyHistoryIndexChanged = () => {
         if (typeof document?.dispatchEvent === 'function' && typeof Event === 'function') {
             document.dispatchEvent(new Event('noureon:history-index-changed'));
@@ -55,7 +58,7 @@ export function createMemoryRuntime({
         persistence: null
     });
     const memoryModelClient = createConfiguredMemoryModelClient({
-        getConfig: () => state.config,
+        getConfig,
         models: MODELS,
         runMemoryModel,
         modelSupportsVision
@@ -89,7 +92,7 @@ export function createMemoryRuntime({
         storage: localMemoryStorage,
         storageKey: () => `noureon:history-recall-device-consent:v1:${getMemoryOwner()}`,
         // The setting is synced with the account, and so is the consent that was given when it was turned on.
-        isImplied: () => state.config?.historyRecallEnabled === true,
+        isImplied: () => getConfig()?.historyRecallEnabled === true,
         logger: console,
         onLoaded: notifyHistoryIndexChanged
     });
@@ -101,7 +104,7 @@ export function createMemoryRuntime({
             fetchImpl: fetch
         }),
         getMemoryState: () => runtimeAppDataStore.getMemoryState?.() || {},
-        getConversations: () => state.conversations,
+        getConversations,
         modelQueryResolver: memoryTaskClients.queryResolver
     });
     let historyIndexRebuildStatus = { state: 'idle', completed: 0, total: 0, indexed: 0, skipped: 0, failed: 0 };
@@ -126,10 +129,10 @@ export function createMemoryRuntime({
         const nextState = savedMemoryState || nextMemoryState;
         const nextProjection = projectMemoryStateForSync(nextState);
         const hasLegacySummaryProjection = Boolean(
-            state.config.memorySync?.memorySummary || state.config.memorySync?.memoryOverview
+            getConfig().memorySync?.memorySummary || getConfig().memorySync?.memoryOverview
         );
-        if (hasLegacySummaryProjection || !memorySyncProjectionEquals(state.config.memorySync, nextProjection)) {
-            state.config.memorySync = nextProjection;
+        if (hasLegacySummaryProjection || !memorySyncProjectionEquals(getConfig().memorySync, nextProjection)) {
+            getConfig().memorySync = nextProjection;
             void saveConfig().catch(error => console.warn('Memory sync projection could not save.', error));
         }
         void getService(SERVICES.memorySummarySync)?.captureMemoryState(nextState);
@@ -196,7 +199,7 @@ export function createMemoryRuntime({
         indexMediaMemory: options => historyIndexingService.indexMediaMemory(options)
     });
     const historyIndexRebuildService = createHistoryIndexRebuildService({
-        getConversations: () => state.conversations,
+        getConversations,
         getMemoryState: () => runtimeAppDataStore.getMemoryState?.() || {},
         captureCompletedTurn: options => memoryCaptureService.captureCompletedTurn(options),
         hashString,
@@ -237,7 +240,7 @@ export function createMemoryRuntime({
         return historyIndexWorkPromise;
     };
     const historyIndexAuditService = createHistoryIndexAuditService({
-        getConversations: () => state.conversations,
+        getConversations,
         getMemoryState: () => runtimeAppDataStore.getMemoryState?.() || {},
         index: historyIndex,
         hashString,
@@ -287,7 +290,7 @@ export function createMemoryRuntime({
         cancel: timer => clearTimeout(timer)
     });
     const memorySummary = createLegacyMemorySummaryLifecycle({
-        state,
+        getConversations,
         runtimeAppDataStore,
         replaceMemoryState,
         persistMemoryState,

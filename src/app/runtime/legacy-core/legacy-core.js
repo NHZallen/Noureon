@@ -98,8 +98,10 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             replaceConfig: (nextConfig) => runtimeConfigStore.replaceConfig(nextConfig)
         });
         const getText = (key, fallback) => i18n[runtimeConfigAccess.getUiLanguage()]?.[key] || fallback;
+        const getConfig = () => runtimeConfigAccess.getConfig();
+        const getUiLanguage = () => runtimeConfigAccess.getUiLanguage();
         const legacyModelRegistry = createLegacyModelRegistry({
-            getConfig: () => runtimeConfigAccess.getConfig(),
+            getConfig,
             normalizeConversationModel: (conv) => normalizeConversationModel(conv)
         });
         const {
@@ -136,7 +138,9 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
         } = legacyModelRegistry;
         const getOutputMode = () => 'realtime';
         let quoteInquiryLifecycle = null;
-        const shell = createShellState({ configAccess: runtimeConfigAccess, conversations: liveConversationsBridge, appDataStore: runtimeAppDataStore, conversationStateAccess });
+        // Who is signed in, the files waiting to be sent, the reply being made, the batch selection, the quoted text, the sidebar.
+        const { session, uploads, reply, selection, quote, sidebar } = createShellState();
+        const { getCurrentUser } = session;
         const {
             getCouncilTexts,
             getCouncilRuntimeTexts,
@@ -145,7 +149,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             getCouncilAttachmentTranslationNeed,
             formatCouncilModelSummary,
             getCouncilValidation
-        } = createCouncilValidation({ configAccess: runtimeConfigAccess, registry: legacyModelRegistry, i18n, getUploadedFiles: () => shell.uploadedFiles, getApiKeyForProvider: (provider) => getApiKeyForProvider(provider) });
+        } = createCouncilValidation({ configAccess: runtimeConfigAccess, registry: legacyModelRegistry, i18n, getUploadedFiles: uploads.getUploadedFiles, getApiKeyForProvider: (provider) => getApiKeyForProvider(provider) });
         const runtimeStorageAdapter = createLegacyRuntimeStorageAdapter({
             indexedDBFactory: indexedDB,
             dbName: 'ChatAppDB',
@@ -154,7 +158,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
         });
         const { getItem, setItem, removeItem, readItems, setItemsAtomic } = runtimeStorageAdapter;
         let folderUiStatePersistencePromise;
-        const getFolderUiStatePersistence = () => folderUiStatePersistencePromise ||= import('/src/app/runtime/kernel/folder-ui-state.js').then(({ createFolderUiStatePersistence }) => createFolderUiStatePersistence({ getUsername: () => shell.currentUser?.username || null, getItem, setItem }));
+        const getFolderUiStatePersistence = () => folderUiStatePersistencePromise ||= import('/src/app/runtime/kernel/folder-ui-state.js').then(({ createFolderUiStatePersistence }) => createFolderUiStatePersistence({ getUsername: () => getCurrentUser()?.username || null, getItem, setItem }));
         const saveFolderUiState = async (folders) => (await getFolderUiStatePersistence()).save(folders);
         const getGeneratedImageRuntime = createGeneratedImageRuntimeLoader({
             document,
@@ -163,7 +167,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             File,
             getItem,
             setItem,
-            getUserName: () => shell.currentUser?.username || 'anonymous',
+            getUserName: () => getCurrentUser()?.username || 'anonymous',
             getActiveConversation: () => getActiveConversation(),
             buildSingleModelTranslatedRequestParts: (...args) => buildSingleModelTranslatedRequestParts(...args),
             getApiKeyForProvider: provider => getApiKeyForProvider(provider),
@@ -171,10 +175,10 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             normalizeReasoningEffort,
             getText,
             showNotification: (...args) => showNotification(...args),
-            getUiLanguage: () => runtimeConfigAccess.getUiLanguage(),
-            getImageReadyText: () => i18n[runtimeConfigAccess.getUiLanguage()]?.imageReadyToEdit || 'Image is ready for targeted editing.',
+            getUiLanguage,
+            getImageReadyText: () => getText('imageReadyToEdit', 'Image is ready for targeted editing.'),
             escapeHTML,
-            setUploadedFiles: files => { shell.uploadedFiles = files; },
+            setUploadedFiles: uploads.setUploadedFiles,
             renderFilePreviews: () => renderFilePreviews(),
             focusMessageInput: () => ALL_ELEMENTS.messageInput?.focus()
         });
@@ -188,7 +192,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             normalizeApiKeyValue
         });
         const runtimeSensitiveConfigPersistence = createSensitiveConfigPersistence({
-            getCurrentUser: () => shell.currentUser,
+            getCurrentUser,
             getItem,
             setItem,
             removeItem,
@@ -235,18 +239,18 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
         }
         const { hashString, constantTimeEqual, createPasswordRecord, verifyPasswordRecord } = passwordRecords;
         const upgradeLegacyPasswordRecord = (password, userKey, userRecord) => passwordRecords.upgradeLegacyPasswordRecord(password, userKey, userRecord, setItem);
-        const getConfigKey = () => `chatConfig_v_v8.6_${shell.currentUser.username}`;
-        const getAppDataKey = () => `chatAppData_v8.6_${shell.currentUser.username}`;
+        const getConfigKey = () => `chatConfig_v_v8.6_${getCurrentUser().username}`;
+        const getAppDataKey = () => `chatAppData_v8.6_${getCurrentUser().username}`;
         const getUserKey = (username) => `chatUser_${username}`;
         const runtimeAppDataPersistence = createLegacyRuntimeAppDataPersistence({
             setItem,readItem:getItem,readItems,setItemsAtomic,
-            getCurrentUser: () => shell.currentUser,
+            getCurrentUser,
             getAppData: () => runtimeAppDataStore.getSnapshot(),
             getAppDataKey,
             onSaved: notifyCloudConversationSave
         });
         const runtimeConfigPersistence = createLegacyRuntimeConfigPersistence({
-            getCurrentUser: () => shell.currentUser,
+            getCurrentUser,
             getConfig: () => runtimeConfigStore.getConfig(),
             getConfigKey,
             setItem,
@@ -296,7 +300,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
         });
         const saveConfig = async () => { await runtimeConfigPersistence.saveConfig(); };
         const { loadConfig, loadAppData } = createWorkspaceLoad({
-            shell, storage: runtimeStorageAdapter, configAccess: runtimeConfigAccess, appDataStore: runtimeAppDataStore,
+            getCurrentUser, storage: runtimeStorageAdapter, configAccess: runtimeConfigAccess, appDataStore: runtimeAppDataStore,
             sensitiveConfigPersistence: runtimeSensitiveConfigPersistence, getConfigKey, getAppDataKey, mergeSensitiveApiKeys,
             saveSensitiveConfig, saveConfig: () => saveConfig(), normalizeCouncilConfig, normalizeConversationModel,
             getCouncilTranslatorCandidates, getSingleTranslatorCandidates, getFolderUiStatePersistence, showNotification
@@ -304,7 +308,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
         const saveAppData = async (options) => { await runtimeAppDataPersistence.saveAppData(options); };
         const cloudDeletionLifecycle = import('/src/app/runtime/legacy-core/cloud-delete-lifecycle.js')
             .then(({ createCloudDeletionLifecycle }) => createCloudDeletionLifecycle({
-                getCurrentUser: () => shell.currentUser,
+                getCurrentUser,
                 getConversations: runtimeAppDataStore.getConversations,
                 getAstras: runtimeAppDataStore.getAstras,
                 getSync: () => getService(SERVICES.cloudSync)
@@ -328,7 +332,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             showRenameModal,
             handleRename
         } = createConversationActions({
-            window, document, elements: ALL_ELEMENTS, i18n, shell,
+            window, document, elements: ALL_ELEMENTS, i18n, uploads, disconnectMessageObserver: () => disconnectMessageObserver(),
             toggleSidebar: (...args) => toggleSidebar(...args),
             updateFunctionButtonsState: () => updateFunctionButtonsState(),
             runtimeConfigAccess, liveConversationsBridge, conversationStateAccess, runtimeAppDataStore, runtimeDialogCoordinator,
@@ -368,12 +372,12 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             getRequiredElement: (...args) => runtimeDomAccess.getRequiredElement(...args),
             getActiveConversation,
             getMessageTypeIcon,
-            getConfig: () => runtimeConfigAccess.getConfig(),
+            getConfig,
             hexToRgba,
             getTextColorForBackground,
             getConversations: () => liveConversationsBridge.getConversations(),
             createConversationElement: (...args) => createConversationElement(...args),
-            getNamingText: () => i18n[runtimeConfigAccess.getUiLanguage()].naming || 'AI is naming...',
+            getNamingText: () => getText('naming', 'AI is naming...'),
             requestAnimationFrame,
             setTimeout,
             setupMessageIntersectionObserver: (...args) => setupMessageIntersectionObserver(...args)
@@ -404,7 +408,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
         const renderAll=(...args)=>runtimeRenderCoordinator.renderAll(...args);
         // Lists, header, greeting and the attachment menu write their words when drawn: drawn again when the language changes.
         window?.addEventListener?.('astra:language-changed', () => {
-            if (!shell.currentUser) return;
+            if (!getCurrentUser()) return;
             renderAll({ animate: false, scrollMode: 'preserve', reason: 'language' });
             updateFunctionButtonsState();
         });
@@ -413,7 +417,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             elements: ALL_ELEMENTS,
             getAstras: () => runtimeAppDataStore.getAstras(),
             getActiveAstrasId: () => getActiveAstrasId(),
-            getIsSelectionMode: () => shell.isSelectionMode,
+            getIsSelectionMode: selection.isSelectionMode,
             getText,
             setAstrasForConversation: (...args) => setAstrasForConversation(...args),
             toggleSidebar: (...args) => toggleSidebar(...args),
@@ -463,7 +467,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             generateTitleAndSummary: (...args) => generateTitleAndSummary(...args),
             adjustTextareaHeight,
             renderFilePreviews: (...args) => renderFilePreviews(...args),
-            state: shell,
+            uploads, reply, getAstras: () => runtimeAppDataStore.getAstras(),
             models: MODELS,
             openRouterVisionModels: OPENROUTER_VISION_MODELS,
             i18n,
@@ -476,7 +480,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             formatCouncilModelSummary,
             formatFullTimestamp,
             getActiveConversation,
-            getConfig: () => runtimeConfigAccess.getConfig(),
+            getConfig,
             runtimeConfigAccess,
             getCouncilRuntimeTexts,
             getCouncilSelectedModels,
@@ -491,7 +495,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             getModelTiers,
             getModelsByIds,
             getApiKeyForProvider,
-            requestDecisions: createRequestDecisions({ getApiKeyForProvider, getConfig: () => runtimeConfigAccess.getConfig(), logger: console }),
+            requestDecisions: createRequestDecisions({ getApiKeyForProvider, getConfig, logger: console }),
             getOutputMode,
             getProviderLabel,
             getSingleDocumentTranslatorModel,
@@ -531,7 +535,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             deactivateAstras: (...args) => deactivateAstras(...args),
             onRegularSubmit: () => cancelMessageEditing(),
             getComposerEditSubmission: () => getComposerEditSubmission(),
-            getQuoteReference: () => shell.quoteReference,
+            getQuoteReference: quote.getQuoteReference,
             buildQuotedUserParts: ({ question, quoteReference: reference }) => buildQuotedUserParts({
                 question,
                 quoteReference: reference,
@@ -572,8 +576,8 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             elements: ALL_ELEMENTS,
             getActiveConversation,
             getText,
-            getQuoteReference: () => shell.quoteReference,
-            setQuoteReference: (value) => { shell.quoteReference = value; },
+            getQuoteReference: quote.getQuoteReference,
+            setQuoteReference: quote.setQuoteReference,
             onComposerChange: () => {
                 updateInputState();
                 adjustTextareaHeight();
@@ -589,7 +593,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             setTimeout,
             console,
             elements: ALL_ELEMENTS,
-            state: shell,
+            runtimeConfigAccess, runtimeAppDataStore, session, uploads, reply, quote,
             getMemory,
             initChatApp,
             runtimeStorageAdapter,
@@ -703,7 +707,8 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             toggleSidebar: (...args) => toggleSidebar(...args),
             updateInputState,
             generateTitleAndSummary,
-            state: shell,
+            runtimeAppDataStore, liveConversationsBridge, session, selection,
+            isAutoScrolling: () => isAutoScrolling(),
             runtimeDomAccess,
             runtimeConfigAccess,
             conversationStateAccess,
@@ -745,8 +750,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             setupMessageIntersectionObserver: (...args) => setupMessageIntersectionObserver(...args),
             bindGeneratedImageAssets,
             getGeneratedImageAssetStore: async () => (await getGeneratedImageRuntime()).assetStore,
-            syncComposerLayout: (...args) => desktopComposerLayout.sync(...args),
-            replaceAstras: (nextAstras) => runtimeAppDataStore.replaceAstras(nextAstras)
+            syncComposerLayout: (...args) => desktopComposerLayout.sync(...args)
         });
         ({
             renderFolders,
@@ -771,8 +775,8 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             document,
             elements: ALL_ELEMENTS,
             getActiveConversation,
-            getUploadedFiles: () => shell.uploadedFiles,
-            setUploadedFiles: (files) => { shell.uploadedFiles = files; },
+            getUploadedFiles: uploads.getUploadedFiles,
+            setUploadedFiles: uploads.setUploadedFiles,
             renderFilePreviews: (...args) => renderFilePreviews(...args),
             renderInputIndicators: (...args) => renderInputIndicators(...args),
             updateInputState,
@@ -831,7 +835,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             normalizeFolderColorSelection: (selectedColor) =>
                 normalizeFolderColorSelection(selectedColor, FOLDER_COLORS),
             getI18n: () => i18n,
-            getUiLanguage: () => runtimeConfigAccess.getUiLanguage(),
+            getUiLanguage,
             randomUUID: () => crypto.randomUUID(),
             scheduleAnimationFrame: requestAnimationFrame,
             logger: console
@@ -839,18 +843,17 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
         const batchActionBarLifecycle = createBatchActionBarLifecycle({
             elements: ALL_ELEMENTS,
             getI18n: () => i18n,
-            getIsSelectionMode: () => shell.isSelectionMode,
-            setIsSelectionMode: (next) => { shell.isSelectionMode = next; },
-            getSelectedConversationIds: () => shell.selectedConversationIds,
-            getUiLanguage: () => runtimeConfigAccess.getUiLanguage(),
+            selection,
+            getUiLanguage,
             renderSidebar
         });
         const { renderBatchActionBar, toggleSelectionMode } = batchActionBarLifecycle;
         const workspaceFeatures = createWorkspaceFeatures({
             window, document, navigator, fetch, File, FileReader, Image, URL, Event, Chart, loadArchiveVendor,
             requestAnimationFrame, setTimeout, clearTimeout, crypto, console,
-            elements: ALL_ELEMENTS, state: shell, i18n, models: MODELS,
-            runtimeAppDataStore, runtimeStorageAdapter, runtimeDialogCoordinator, conversationStateAccess,
+            elements: ALL_ELEMENTS, i18n, models: MODELS,
+            runtimeConfigAccess, runtimeAppDataStore, liveConversationsBridge, runtimeStorageAdapter, runtimeDialogCoordinator,
+            conversationStateAccess, session, uploads, sidebar, selection,
             updateInputState, setupSettingsModal, initChatApp,
             applyUiTheme: (...args) => applyUiTheme(...args),
             applyLanguage: (...args) => applyLanguage(...args),
@@ -876,21 +879,21 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
         getMemoryFunctions = workspaceFeatures.getMemory;
         const {
             setupTimeAnalysis, updateTimeDistributionChart, applyUiTheme, renderUiColorOptions, openStore, closeStore, renderStore,
-            handleSubscription, openAvatarEditor, handleAvatarUpload, handleConfirmAvatarCrop, applyLanguage, showMobileContextMenu,
+            handleSubscription, openAvatarEditor, handleAvatarUpload, handleConfirmAvatarCrop, cancelAvatarCrop, applyLanguage, showMobileContextMenu,
             showMobileContextMenuForFolder, showMobileContextMenuForAstras, setupScrollToBottomButton, checkAndShowLatestUpdate,
-            setupMessageIntersectionObserver, renderTrash, handleRestoreTrashItem, handleDeleteTrashItemPermanently,
+            setupMessageIntersectionObserver, disconnectMessageObserver, isAutoScrolling, renderTrash, handleRestoreTrashItem, handleDeleteTrashItemPermanently,
             showTrashItemInViewModal, toggleTrashSelectionMode, renderTrashBatchActionBar, handleBatchRestoreFromTrash,
             handleBatchDeleteFromTrash, handleEmptyTrash, updateDisplayedVersion
         } = createPageFeatures({
             window, document, navigator, fetch, File, Event, Image, FileReader, Chart, Cropper,
             ResizeObserver, IntersectionObserver, requestAnimationFrame, setTimeout, clearTimeout, crypto, console,
-            elements: ALL_ELEMENTS, state: shell, runtimeConfigAccess, runtimeAppDataStore, runtimeDialogCoordinator, i18n,
+            elements: ALL_ELEMENTS, runtimeConfigAccess, runtimeAppDataStore, liveConversationsBridge, runtimeDialogCoordinator, i18n,
             OFFICIAL_ASTRAS, updateLogs, productVersion, UI_THEME_COLORS, getMemory,
             updateInputState, setTheme, updateThemeButtons, saveConfig, saveAppData, deleteConversationsFromCloud, deleteAstrasFromCloud,
             showNotification, showCustomConfirm, toggleModal, escapeHTML, sanitizeTrustedHTML,
             renderAll, renderAstras, renderInputIndicators, renderCouncilControls, renderPersonalMemoryList,
             showRenameModal, togglePinChat, archiveChat, deleteChat, moveConversationToFolder, renderBatchMoveModal,
-            showFolderSettingsModal, deleteFolder, deleteAstras,
+            showFolderSettingsModal, deleteFolder, deleteAstras, editAstras: sidebarChatAstraRenderLifecycle.editAstras,
             formatFullTimestamp, renderUserText, renderMarkdownWithFormulas, bindGeneratedImageAssets
         });
         // Created after the workspace and page features so its dependencies are plain
@@ -921,22 +924,20 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             },
             onRemoteConversationsApplied:()=>ensureMemorySummaryFresh({force:true}),
             onMemorySyncApplied:()=>ensureMemorySummaryFresh({force:true}),
-            saveAppData,busy:()=>shell.abortController&&liveConversationsBridge.getConversations().find(c=>c.__astraPendingResponse)
+            saveAppData,busy:()=>reply.getAbortController()&&liveConversationsBridge.getConversations().find(c=>c.__astraPendingResponse)
         });
 
         // The start of the page: the chat page once signed in (app-bootstrap-lifecycle.js), the sign-in page and loading (startup-lifecycle.js).
-        const { replaceMemoryState, restoreMemorySync } = createMemorySyncState({ state: shell, runtimeAppDataStore, saveConfig, saveAppData, console });
+        const { replaceMemoryState, restoreMemorySync } = createMemorySyncState({ runtimeConfigAccess, runtimeAppDataStore, saveConfig, saveAppData, console });
         appBootstrapLifecycle = createLegacyAppBootstrapLifecycle({
             window, document, elements: ALL_ELEMENTS, loadArchiveVendor, loadSharingVendor, BlobCtor: Blob,
-            getCurrentUser: () => shell.currentUser, getConfig: () => shell.config, getConversations: () => shell.conversations,
-            getFolders: () => shell.folders, getAstras: () => shell.astras, getPersonalMemories: () => shell.personalMemories,
+            getCurrentUser, getConfig, getConversations: () => liveConversationsBridge.getConversations(),
+            getFolders: () => runtimeAppDataStore.getFolders(), getAstras: () => runtimeAppDataStore.getAstras(),
+            getPersonalMemories: () => runtimeAppDataStore.getPersonalMemories(),
             getMemoryState: () => runtimeAppDataStore.getMemoryState(), replaceMemoryState,
             getCurrentConversationId: () => conversationStateAccess.getCurrentConversationId(),
             setCurrentConversationId: (id) => conversationStateAccess.setCurrentConversationId(id),
-            setSidebarOpen: (next) => (shell.sidebarOpen = next), setSendConfirmed: (next) => (shell.sendConfirmed = next),
-            getAbortController: () => shell.abortController, getCropperInstance: () => shell.cropperInstance,
-            setCropperInstance: (next) => (shell.cropperInstance = next),
-            setEditingAstraForAvatarId: (next) => (shell.editingAstraForAvatarId = next),
+            setSidebarOpen: sidebar.setSidebarOpen, setSendConfirmed: reply.setSendConfirmed, getAbortController: reply.getAbortController,
             startNewChat, renderAll, setTheme, setupVoiceInput, setupScrollToBottomButton, updateDisplayedVersion, checkAndShowLatestUpdate,
             updateFunctionButtonsState, updateInputState, setupSettingsModal, toggleSidebar, toggleModal, saveSettings, saveAppData,
             handleExport, handleImport, handleLogout, handleFileSelection, handleFormSubmit, handleRename, handleSaveFolderSettings,
@@ -946,7 +947,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             renderInputIndicators, toggleLearningMode, toggleSelectionMode, handleBatchDelete, handleBatchArchive, handleBatchMove,
             adjustTextareaHeight, submitChatForm, closeAllPopovers, showCustomPrompt, createNewFolder, createAstras, handleSaveAstras,
             renderPersonalMemoryList, handleDeleteAllData, applyLanguage, applyUiTheme, openStore, closeStore, handleAvatarUpload,
-            handleConfirmAvatarCrop, toggleTrashSelectionMode, handleBatchRestoreFromTrash, handleBatchDeleteFromTrash, handleEmptyTrash,
+            handleConfirmAvatarCrop, cancelAvatarCrop, toggleTrashSelectionMode, handleBatchRestoreFromTrash, handleBatchDeleteFromTrash, handleEmptyTrash,
             updateFileInputUI, postJsonWithReadableError, openCouncilPopoverFromAttachmentMenu, setupHistorySidebarInteractions,
             setupHistorySidebarTriggers, requestMemorySummaryBootstrap: ensureMemorySummaryFresh, escapeHTML, getDefaultFolder,
             isMobileSettingsViewport, openSettingsMobileSection, i18n,
@@ -955,7 +956,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
         });
         startupLifecycle = createLegacyStartupLifecycle({
             window, document, globalObject: globalThis, elements: ALL_ELEMENTS,
-            getConfig: () => shell.config, setCurrentUser: (nextUser) => (shell.currentUser = nextUser),
+            getConfig, setCurrentUser: session.setCurrentUser,
             getItem, getUserKey, loadConfig, loadAppData, restoreMemorySync,
             getText: (key) => getText(key, ''),
             applyLanguage, applyUiTheme, initChatApp: appBootstrapLifecycle.initChatApp, handleLogin, handleImportOnAuth, processAuthImport,

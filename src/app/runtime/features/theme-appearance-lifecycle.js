@@ -13,7 +13,7 @@ export function createThemeAppearanceLifecycle(dependencies = {}) {
         window,
         document,
         elements: ALL_ELEMENTS,
-        state,
+        getConfig,
         i18n,
         UI_THEME_COLORS
     } = dependencies;
@@ -26,8 +26,8 @@ export function createThemeAppearanceLifecycle(dependencies = {}) {
     const applyUiTheme = () => {
         const root = document.documentElement;
         // The light or the dark theme first (the accent below follows it).
-        const theme = colorScheme.apply(state.config.colorScheme);
-        const chosen = state.config.uiTheme.mode === 'custom' ? state.config.uiTheme.customColor : null;
+        const theme = colorScheme.apply(getConfig().colorScheme);
+        const chosen = getConfig().uiTheme.mode === 'custom' ? getConfig().uiTheme.customColor : null;
         const primaryBg = chosen ? (theme === 'dark' ? accentForDarkTheme(chosen) : chosen) : DEFAULT_ACCENT[theme];
         root.style.setProperty('--button-primary-bg', primaryBg);
         root.style.setProperty('--button-primary-text', getThemeTextColorForBackground(primaryBg));
@@ -78,8 +78,8 @@ export function createThemeAppearanceLifecycle(dependencies = {}) {
 
     const renderUiColorOptions = () => {
         const { uiColorOptions, customColorPickerContainer, customColorInput } = ALL_ELEMENTS;
-        const theme = state.config.uiTheme;
-        const text = (key, fallback) => i18n?.[state.config.uiLanguage]?.[key] || fallback;
+        const theme = getConfig().uiTheme;
+        const text = (key, fallback) => i18n?.[getConfig().uiLanguage]?.[key] || fallback;
         const labelFor = (choice) => (choice === CUSTOM_CHOICE
             ? text('colorCustom', 'Custom')
             : text(...labelKeysFor(choice)));

@@ -89,10 +89,14 @@ const assertMarkersInOrder = (source, markers, context) => {
 
 const countLiteral = (source, literal) => source.split(literal).length - 1;
 
-// The workspace data the lifecycles share is the store's, reached by name on the one state object (shell-state.js).
+// The workspace data is the store's own (kernel/app-data-store.js), read and replaced through its named functions; the shell state
+// (shell-state.js) holds none of it (NOU-78).
 const shellStateSource = readSource('src/app/runtime/legacy-core/shell-state.js');
+const appDataStoreSource = readSource('src/app/runtime/kernel/app-data-store.js');
 const assertShellReaches = (name, getter, setter) => {
-  assert.match(shellStateSource, new RegExp(`${name}:\\s*\\{\\s*get:\\s*\\(\\)\\s*=>\\s*appDataStore\\.${getter}\\(\\)${setter ? `,\\s*set:\\s*\\(next\\)\\s*=>\\s*appDataStore\\.${setter}\\(next\\)` : ''}`));
+  assert.doesNotMatch(shellStateSource, new RegExp(`\\b${name}\\s*:|appDataStore`));
+  assert.match(appDataStoreSource, new RegExp(`\\b${getter}:`));
+  if (setter) assert.match(appDataStoreSource, new RegExp(`\\b${setter}:`));
 };
 
 // loadAppData (the split workspace first, the old single item, the reset of an unreadable one) is tested in tests/workspace-load.test.js.
@@ -112,7 +116,7 @@ test('saveAppData reads the store snapshot while active conversation id uses the
 
   assertMarkersInOrder(fragment00Source, [
     'const runtimeAppDataPersistence = createLegacyRuntimeAppDataPersistence({',
-    'getCurrentUser: () => shell.currentUser',
+    'getCurrentUser,',
     'getAppData: () => runtimeAppDataStore.getSnapshot()',
     'getAppDataKey',
     'setItem'
@@ -145,8 +149,8 @@ test('app data state is store-backed without legacy local mirrors', () => {
   assert.doesNotMatch(legacyCoreSource, /let\s+conversations\s*=/);
   assert.doesNotMatch(legacyCoreSource, /\bconversations\s*=\s*runtimeAppDataStore\.getConversations\(\)/);
   assert.doesNotMatch(legacyCoreSource, /syncLegacyMirror/);
-  assert.match(shellStateSource, /conversations:\s*\{\s*get:\s*\(\)\s*=>\s*conversations\.getConversations\(\),\s*set:\s*\(next\)\s*=>\s*conversations\.replaceConversations\(next\)/);
-  assert.match(legacyCoreSource, /createShellState\(\{[^}]*conversations:\s*liveConversationsBridge,\s*appDataStore:\s*runtimeAppDataStore/);
+  assertShellReaches('conversations', 'getConversations', 'replaceConversations');
+  assert.match(legacyCoreSource, /createShellState\(\)/);
   assert.doesNotMatch(legacyCoreSource, /let\s+folders\s*=/);
   assert.doesNotMatch(legacyCoreSource, /folders\s*=\s*latestAppData\.folders/);
   assertShellReaches('folders', 'getFolders', 'replaceFolders');
@@ -159,11 +163,11 @@ test('app data state is store-backed without legacy local mirrors', () => {
   assert.doesNotMatch(legacyCoreSource, /personalMemories\s*=\s*latestAppData\.personalMemories/);
   assert.match(
     transitionBusSource,
-    /replacePersonalMemories:\s*\(nextPersonalMemories\)\s*=>\s*\{\s*state\.personalMemories\s*=\s*runtimeAppDataStore\.replacePersonalMemories\(nextPersonalMemories\)/
+    /replacePersonalMemories:\s*\(nextPersonalMemories\)\s*=>\s*runtimeAppDataStore\.replacePersonalMemories\(nextPersonalMemories\)/
   );
   assert.match(legacyCoreSource, /getFolders:\s*\(\)\s*=>\s*runtimeAppDataStore\.getFolders\(\)/);
   assert.match(legacyCoreSource, /replaceFolders:\s*\(nextFolders\)\s*=>\s*runtimeAppDataStore\.replaceFolders\(nextFolders\)/);
-  assert.match(legacyCoreSource, /replaceAstras:\s*\(nextAstras\)\s*=>\s*runtimeAppDataStore\.replaceAstras\(nextAstras\)/);
+  assert.match(readSource('src/app/runtime/legacy-core/page-features.js'), /replaceAstras:\s*\(next\)\s*=>\s*runtimeAppDataStore\.replaceAstras\(next\)/);
 });
 
 test('all legacy-core app data mirrors remain retired', () => {
@@ -209,7 +213,7 @@ test('Astra and folder delete flows keep linked conversation cleanup and save/re
 
   assertMarkersInOrder(deleteAstrasBody, [
     'showCustomConfirm',
-    'setAstras(replaceAstras(',
+    'runtimeAppDataStore.replaceAstras(',
     'getAstras().filter(a => a.id !== id)',
     'getConversations().forEach(c => {',
     'if (c.astrasId === id) c.astrasId = null',
@@ -229,10 +233,7 @@ test('Astra and folder delete flows keep linked conversation cleanup and save/re
   ], 'deleteFolder replacement and cleanup');
 
   assert.doesNotMatch(deleteAstrasBody, /astras\s*=\s*astras\.filter\(/);
-  assert.match(
-    fragment01Source,
-    /replaceAstras:\s*\(nextAstras\)\s*=>\s*runtimeAppDataStore\.replaceAstras\(nextAstras\)/
-  );
+  assert.match(fragment01Source, /runtimeAppDataStore, liveConversationsBridge, session, selection,/);
   assert.match(
     fragment02Source,
     /replaceFolders:\s*\(nextFolders\)\s*=>\s*runtimeAppDataStore\.replaceFolders\(nextFolders\)/
@@ -305,7 +306,7 @@ test('03 import and auth import paths keep bulk replacements, chunked pushes, an
   ], 'personal memory delete replacement order');
   assert.match(
     fragment03Source,
-    /replacePersonalMemories:\s*\(nextPersonalMemories\)\s*=>\s*\{\s*state\.personalMemories\s*=\s*runtimeAppDataStore\.replacePersonalMemories\(nextPersonalMemories\);\s*return\s+state\.personalMemories;\s*\}/
+    /replacePersonalMemories:\s*\(nextPersonalMemories\)\s*=>\s*runtimeAppDataStore\.replacePersonalMemories\(nextPersonalMemories\)/
   );
   assert.doesNotMatch(modelMemoryDashboardSource, /personalMemories\s*=\s*personalMemories\.filter\(m\s*=>\s*m\.id\s*!==\s*id\)/);
 });
@@ -320,16 +321,15 @@ test('04 store and trash destructive flows keep replacement, save, render, and n
   const emptyTrashBody = getConstFunctionBody(trashLifecycleSource, 'handleEmptyTrash');
 
   assertMarkersInOrder(handleSubscriptionBody, [
-    'state.astras = runtimeAppDataStore.replaceAstras(',
-    'state.astras.filter(a => a.officialId !== officialId)',
-    "showNotification(i18n[state.config.uiLanguage].unsubscribed",
-    'state.astras.unshift(newAstra)',
-    "showNotification(i18n[state.config.uiLanguage].subscribed",
+    'replaceAstras(getAstras().filter(a => a.officialId !== officialId))',
+    "showNotification(texts().unsubscribed",
+    'getAstras().unshift(newAstra)',
+    "showNotification(texts().subscribed",
     'await saveAppData()',
     'renderStore()',
     'renderAstras()'
   ], 'store subscription Astra replacement and render order');
-  assert.doesNotMatch(handleSubscriptionBody, /state\.astras\s*=\s*state\.astras\.filter\(a\s*=>\s*a\.officialId\s*!==\s*officialId\)/);
+  assert.doesNotMatch(handleSubscriptionBody, /\bstate\./);
 
   assertMarkersInOrder(permanentDeleteBody, [
     'showCustomConfirm',
@@ -372,11 +372,11 @@ test('04 store and trash destructive flows keep replacement, save, render, and n
 
   assert.match(
     pageFeaturesSource,
-    /replaceConversations:\s*\(nextConversations\)\s*=>\s*\{\s*state\.conversations\s*=\s*nextConversations;\s*return\s+state\.conversations;\s*\}/
+    /replaceConversations:\s*\(nextConversations\)\s*=>\s*liveConversationsBridge\.replaceConversations\(nextConversations\)/
   );
   assert.doesNotMatch(pageFeaturesSource, /runtimeAppDataStore\.replaceConversations\(/);
-  // The page features are given the shared shell state itself (legacy-core/shell-state.js), not a copy of its getters.
-  assert.match(readSource('src/app/runtime/legacy-core/legacy-core.js'), /createPageFeatures\(\{[\s\S]*?\bstate: shell,/);
+  // The page features read and replace the workspace data through its stores, not through a shared state object (NOU-78).
+  assert.match(readSource('src/app/runtime/legacy-core/legacy-core.js'), /createPageFeatures\(\{[\s\S]*?runtimeAppDataStore, liveConversationsBridge,/);
 });
 
 test('app data store remains wired while production boot moves through runtime entry', () => {
@@ -409,11 +409,8 @@ test('app data store remains wired while production boot moves through runtime e
   assertShellReaches('astras', 'getAstras', 'replaceAstras');
   assert.doesNotMatch(fragment00Source, /let\s+personalMemories\s*=/);
   assertShellReaches('personalMemories', 'getPersonalMemories', 'replacePersonalMemories');
-  assert.match(sidebarChatAstraRenderSource, /setAstras\(replaceAstras\(\s*getAstras\(\)\.filter\(a\s*=>\s*a\.id\s*!==\s*id\)\s*\)\)/);
-  assert.match(
-    fragment01Source,
-    /replaceAstras:\s*\(nextAstras\)\s*=>\s*runtimeAppDataStore\.replaceAstras\(nextAstras\)/
-  );
+  assert.match(sidebarChatAstraRenderSource, /runtimeAppDataStore\.replaceAstras\(getAstras\(\)\.filter\(a\s*=>\s*a\.id\s*!==\s*id\)\)/);
+  assert.match(fragment01Source, /runtimeAppDataStore, liveConversationsBridge, session, selection,/);
   assert.match(folderLifecycleSource, /replaceFolders\(folders\.filter\(item\s*=>\s*item\.id\s*!==\s*id\)\)/);
   assert.match(
     fragment02Source,
@@ -421,12 +418,12 @@ test('app data store remains wired while production boot moves through runtime e
   );
   assert.match(
     fragment03Source,
-    /replacePersonalMemories:\s*\(nextPersonalMemories\)\s*=>\s*\{\s*state\.personalMemories\s*=\s*runtimeAppDataStore\.replacePersonalMemories\(nextPersonalMemories\);\s*return\s+state\.personalMemories;\s*\}/
+    /replacePersonalMemories:\s*\(nextPersonalMemories\)\s*=>\s*runtimeAppDataStore\.replacePersonalMemories\(nextPersonalMemories\)/
   );
   assert.match(modelMemoryDashboardSource, /personalMemories\s*=\s*replacePersonalMemories\(\s*personalMemories\.filter\(m\s*=>\s*m\.id\s*!==\s*id\)\s*\)/);
-  assert.match(readSource('src/app/runtime/features/astra-store-lifecycle.js'), /state\.astras\s*=\s*runtimeAppDataStore\.replaceAstras\(\s*state\.astras\.filter\(a\s*=>\s*a\.officialId\s*!==\s*officialId\)\s*\)/);
-  // The page features are given the shared shell state itself (legacy-core/shell-state.js), not a copy of its getters.
-  assert.match(readSource('src/app/runtime/legacy-core/legacy-core.js'), /createPageFeatures\(\{[\s\S]*?\bstate: shell,/);
+  assert.match(readSource('src/app/runtime/features/astra-store-lifecycle.js'), /replaceAstras\(getAstras\(\)\.filter\(a\s*=>\s*a\.officialId\s*!==\s*officialId\)\)/);
+  // The page features read and replace the workspace data through its stores, not through a shared state object (NOU-78).
+  assert.match(readSource('src/app/runtime/legacy-core/legacy-core.js'), /createPageFeatures\(\{[\s\S]*?runtimeAppDataStore, liveConversationsBridge,/);
   assert.doesNotMatch(fragment01Source, /from\s+['"][^'"]*app-data-store\.js['"]/);
   assert.doesNotMatch(fragment02Source, /from\s+['"][^'"]*app-data-store\.js['"]/);
   assert.doesNotMatch(fragment03Source, /from\s+['"][^'"]*app-data-store\.js['"]/);

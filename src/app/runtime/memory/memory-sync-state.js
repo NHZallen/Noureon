@@ -5,7 +5,8 @@ import { memorySyncProjectionEquals, mergeSyncedMemoryState, projectMemoryStateF
 import { consolidateOverlappingTopicSummaries } from './topic-summaries.js';
 import { SERVICES, getService } from '../services.js';
 
-export function createMemorySyncState({ state, runtimeAppDataStore, saveConfig, saveAppData, console = globalThis.console }) {
+export function createMemorySyncState({ runtimeConfigAccess, runtimeAppDataStore, saveConfig, saveAppData, console = globalThis.console }) {
+    const getConfig = () => runtimeConfigAccess.getConfig();
     // The projection is saved when it changed, or when it still has the summary fields of the earlier format.
     const projectionNeedsSave = (projection, nextProjection) => Boolean(projection?.memorySummary || projection?.memoryOverview)
         || !memorySyncProjectionEquals(projection, nextProjection);
@@ -13,8 +14,8 @@ export function createMemorySyncState({ state, runtimeAppDataStore, saveConfig, 
     const replaceMemoryState = (nextMemoryState) => {
         const savedMemoryState = runtimeAppDataStore.replaceMemoryState(nextMemoryState);
         const nextProjection = projectMemoryStateForSync(savedMemoryState);
-        if (projectionNeedsSave(state.config.memorySync, nextProjection)) {
-            state.config.memorySync = nextProjection;
+        if (projectionNeedsSave(getConfig().memorySync, nextProjection)) {
+            getConfig().memorySync = nextProjection;
             void saveConfig().catch(error => console.warn('Memory sync projection could not save.', error));
         }
         void getService(SERVICES.memorySummarySync)?.captureMemoryState(savedMemoryState);
@@ -22,14 +23,14 @@ export function createMemorySyncState({ state, runtimeAppDataStore, saveConfig, 
     };
 
     const restoreMemorySync = async () => {
-        const projection = state.config.memorySync;
+        const projection = getConfig().memorySync;
         if (!projection) return;
         const currentMemoryState = runtimeAppDataStore.getMemoryState?.() || {};
         const restoredMemoryState = consolidateOverlappingTopicSummaries(mergeSyncedMemoryState(currentMemoryState, projection));
         runtimeAppDataStore.replaceMemoryState(restoredMemoryState);
         const nextProjection = projectMemoryStateForSync(restoredMemoryState);
         if (projectionNeedsSave(projection, nextProjection)) {
-            state.config.memorySync = nextProjection;
+            getConfig().memorySync = nextProjection;
             await saveConfig();
         }
         await saveAppData();

@@ -88,13 +88,30 @@ function createDependencies(overrides = {}) {
     updateInputState: () => calls.push('updateInputState'),
     generateTitleAndSummary: noop,
     state,
+    runtimeAppDataStore: {
+      getFolders: () => state.folders,
+      getAstras: () => state.astras,
+      replaceAstras: (nextAstras) => {
+        calls.push('replaceAstras');
+        state.astras = nextAstras;
+        return state.astras;
+      }
+    },
+    liveConversationsBridge: { getConversations: () => state.conversations },
+    session: { getCurrentUser: () => state.currentUser },
+    selection: {
+      isSelectionMode: () => state.isSelectionMode,
+      getSelectedConversationIds: () => new Set(state.selectedConversationIds),
+      selectConversation: (id, selected) => (selected ? state.selectedConversationIds.add(id) : state.selectedConversationIds.delete(id))
+    },
+    isAutoScrolling: () => state.isAutoScrolling,
     runtimeDomAccess: {
       getRequiredElement: (id) => {
         if (id === 'folderList') return folderList;
         return createElement();
       }
     },
-    runtimeConfigAccess: { getUiLanguage: () => state.config.uiLanguage },
+    runtimeConfigAccess: { getConfig: () => state.config, getUiLanguage: () => state.config.uiLanguage },
     conversationStateAccess: { getCurrentConversationId: () => 'active-conv' },
     runtimeRenderCoordinator: { renderSidebar: () => calls.push('renderSidebar') },
     runtimeDialogCoordinator: { showNotification: (...args) => calls.push(['runtimeNotify', ...args]) },
@@ -118,11 +135,6 @@ function createDependencies(overrides = {}) {
     showCustomConfirm: async () => true,
     deleteAstrasFromCloud: async (...args) => calls.push(['deleteAstrasFromCloud', ...args]),
     buildMessageRenderView: () => ({ role: 'model', html: '' }),
-    replaceAstras: (nextAstras) => {
-      calls.push('replaceAstras');
-      state.astras = nextAstras;
-      return state.astras;
-    },
     _folderList: folderList,
     _createdElements: createdElements,
     _calls: calls,

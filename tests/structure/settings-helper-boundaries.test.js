@@ -148,8 +148,8 @@ test('settings history and API key controls remain delegated without weakening s
   const apiKeyControlsSource = readSource('src/app/runtime/legacy-core/settings-api-key-controls.js');
 
   assert.match(lifecycleSource, /const\s+historyMenuHelper\s*=\s*createLazyFunctions\(\(\)\s*=>\s*import\('\.\/settings-history-menu-helper\.js'\)\.then\(\(\{\s*createSettingsHistoryMenuHelper\s*\}\)\s*=>\s*createSettingsHistoryMenuHelper\(\{/);
-  assert.match(lifecycleSource, /getConversations:\s*\(\)\s*=>\s*conversations/);
-  assert.match(lifecycleSource, /getFolders:\s*\(\)\s*=>\s*folders/);
+  assert.match(lifecycleSource, /getConversations:\s*\(\)\s*=>\s*runtimeAppDataStore\.getConversations\(\)/);
+  assert.match(lifecycleSource, /getFolders:\s*\(\)\s*=>\s*runtimeAppDataStore\.getFolders\(\)/);
   assert.match(lifecycleSource, /const\s+apiKeyControls\s*=\s*createSettingsApiKeyControls\(\{/);
   assert.match(lifecycleSource, /elements:\s*ALL_ELEMENTS/);
   assert.match(lifecycleSource, /setApiKeyForProvider,/);

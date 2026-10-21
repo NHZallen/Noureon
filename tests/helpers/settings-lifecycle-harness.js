@@ -86,6 +86,31 @@ export const createTrackedElement = (calls, name) => {
   };
 };
 
+// The stores of the shell (legacy-core/shell-state.js) and the workspace, over one plain object a test can read and change.
+export const storesOverState = (state) => ({
+  runtimeConfigAccess: { getConfig: () => state.config, getUiLanguage: () => state.config.uiLanguage },
+  runtimeAppDataStore: {
+    getConversations: () => state.conversations,
+    getFolders: () => state.folders,
+    getAstras: () => state.astras,
+    getPersonalMemories: () => state.personalMemories,
+    getMemoryState: () => state.memoryState || {}
+  },
+  session: { getCurrentUser: () => state.currentUser, setCurrentUser: (user) => (state.currentUser = user) },
+  uploads: {
+    getUploadedFiles: () => state.uploadedFiles,
+    setUploadedFiles: (files) => (state.uploadedFiles = files),
+    clearUploadedFiles: () => { state.uploadedFiles = []; }
+  },
+  reply: {
+    getAbortController: () => state.abortController,
+    setAbortController: (controller) => { state.abortController = controller; },
+    isCouncilRunning: () => Boolean(state.isCouncilRunning),
+    setCouncilRunning: (running) => { state.isCouncilRunning = running; }
+  },
+  quote: { getQuoteReference: () => state.quoteReference || null, setQuoteReference: (reference) => { state.quoteReference = reference; } }
+});
+
 export const createDependencies = (overrides = {}) => {
   const calls = [];
   const state = {
@@ -164,7 +189,7 @@ export const createDependencies = (overrides = {}) => {
     },
     console: { error: (...args) => calls.push(['error', ...args]) },
     elements,
-    state,
+    ...storesOverState(state),
     initChatApp: () => calls.push(['initChatApp']),
     runtimeStorageAdapter: { clear: async () => calls.push('clear') },
     models: [],

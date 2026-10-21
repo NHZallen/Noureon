@@ -9,7 +9,7 @@ const harness = (memorySync) => {
   let memoryState = { profileEntries: [], conversationCapsules: [{ id: 'local-capsule' }] };
   const state = { config: { memorySync } };
   const sync = createMemorySyncState({
-    state,
+    runtimeConfigAccess: { getConfig: () => state.config },
     runtimeAppDataStore: {
       getMemoryState: () => memoryState,
       replaceMemoryState: (next) => {

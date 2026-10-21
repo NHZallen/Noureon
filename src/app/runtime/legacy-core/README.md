@@ -1,7 +1,8 @@
 # `src/app/runtime/legacy-core/` — the application shell of the chat page
 
 `legacy-core.js` is the composition root of the signed-in page: it creates the stores (settings, workspace, the active conversation),
-the shared shell state (`shell-state.js`), and every lifecycle, and wires them together, up to the start of the page (the app
+the small stores the parts share (`shell-state.js`: who is signed in, the files waiting to be sent, the reply being made, the
+batch selection, the quoted text, the sidebar; each changed only through its named functions, NOU-78), and every lifecycle, and wires them together, up to the start of the page (the app
 bootstrap and the startup lifecycles in `../features/`). Production boots it through `src/app/runtime-entry.js`, which only imports
 it and calls `startPage()` (NOU-77). Each feature is made here with what it uses, not handed through another module. A part made
 before a function it needs gets a closure over that function (called only once the page runs), never a name to look up:

@@ -3,7 +3,7 @@ import { createMemorySummaryBootstrap } from '../memory/memory-summary-bootstrap
 
 /** Complete-memory maintenance and the explicitly refreshed display overview; returns the overview functions the settings use. */
 export function createLegacyMemorySummaryLifecycle({
-  state,
+  getConversations,
   runtimeAppDataStore,
   replaceMemoryState,
   persistMemoryState,
@@ -29,7 +29,7 @@ export function createLegacyMemorySummaryLifecycle({
   const requestMemorySummaryRebuild = memorySummaryRuntime.rebuildSummary;
   const ensureMemorySummaryFresh = createMemorySummaryBootstrap({
     getMemoryState,
-    getConversations: () => state.conversations,
+    getConversations,
     rebuildSummary: requestMemorySummaryRebuild
   });
 

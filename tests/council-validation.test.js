@@ -3,7 +3,6 @@ import test from 'node:test';
 
 import { createCouncilValidation } from '../src/app/runtime/legacy-core/council-validation.js';
 import { COUNCIL_TEXT } from '../src/app/runtime/legacy-core/model-registry.js';
-import { createShellState } from '../src/app/runtime/legacy-core/shell-state.js';
 
 const model = (id, extra = {}) => ({ id, name: id.toUpperCase(), provider: 'openrouter', ...extra });
 
@@ -61,34 +60,4 @@ test('the labels of a model and the summary of the members', () => {
   assert.equal(v.formatCouncilModelSummary([model('a'), model('b')]), 'A / B');
   assert.equal(v.formatCouncilModelSummary('abcde'.split('').map((id) => model(id))), 'A / B / C +2');
   assert.equal(v.getCouncilTexts(), COUNCIL_TEXT.en);
-});
-
-test('the shell state keeps its own values and reaches the stores by name', () => {
-  let config = { uiLanguage: 'en' };
-  let conversations = [{ id: 'a' }];
-  const store = { folders: [], astras: [], personalMemories: [], memoryState: { ok: true } };
-  const access = { getCurrentConversationId: () => 'a' };
-  const shell = createShellState({
-    configAccess: { getConfig: () => config, replaceConfig: (next) => { config = next; } },
-    conversations: { getConversations: () => conversations, replaceConversations: (next) => { conversations = next; } },
-    appDataStore: {
-      getFolders: () => store.folders, replaceFolders: (next) => { store.folders = next; },
-      getAstras: () => store.astras, replaceAstras: (next) => { store.astras = next; },
-      getPersonalMemories: () => store.personalMemories, replacePersonalMemories: (next) => { store.personalMemories = next; },
-      getMemoryState: () => store.memoryState
-    },
-    conversationStateAccess: access
-  });
-  assert.deepEqual(shell.uploadedFiles, []);
-  assert.equal(shell.currentStoreCategory, 'all');
-  shell.uploadedFiles = ['f'];
-  assert.deepEqual(shell.uploadedFiles, ['f']);
-  shell.config = { uiLanguage: 'fr' };
-  assert.equal(config.uiLanguage, 'fr');
-  shell.conversations = [];
-  assert.deepEqual(conversations, []);
-  shell.folders = [{ id: 'f' }];
-  assert.equal(store.folders[0].id, 'f');
-  assert.equal(shell.memoryState.ok, true);
-  assert.equal(shell.conversationStateAccess, access);
 });

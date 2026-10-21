@@ -233,7 +233,7 @@ test('config persistence receives the extracted IndexedDB adapter and keeps the 
   assert.match(storageSource, /idb\.transaction\(storeName,\s*'readwrite'\)/);
   assert.match(
     source,
-    /const\s+getConfigKey\s*=\s*\(\)\s*=>\s*`chatConfig_v_v8\.6_\$\{shell\.currentUser\.username\}`;/
+    /const\s+getConfigKey\s*=\s*\(\)\s*=>\s*`chatConfig_v_v8\.6_\$\{getCurrentUser\(\)\.username\}`;/
   );
   assert.equal((source.match(/chatConfig_v_v8\.6_/g) || []).length, 1);
   assert.doesNotMatch(source, /localStorage|sessionStorage/);
@@ -369,7 +369,7 @@ test('config persistence extracts only the serialized write adapter', () => {
   assert.match(persistenceSource, /import\s+\{\s*removeSensitiveConfig\s*\}/);
   assert.match(fragment00Source, /const\s+runtimeConfigPersistence\s*=\s*createLegacyRuntimeConfigPersistence\(\{/);
   assertMarkersInOrder(fragment00Source, [
-    'getCurrentUser: () => shell.currentUser',
+    'getCurrentUser,',
     'getConfig: () => runtimeConfigStore.getConfig()',
     'getConfigKey',
     'setItem'

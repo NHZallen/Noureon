@@ -14,7 +14,12 @@ const requiredDependencies = [
     'document',
     'fetch',
     'elements',
-    'state',
+    'runtimeConfigAccess',
+    'runtimeAppDataStore',
+    'session',
+    'uploads',
+    'reply',
+    'quote',
     'runtimeStorageAdapter',
     'models',
     'i18n',
@@ -72,7 +77,14 @@ export function createLegacySettingsAuthProviderLifecycle(dependencies = {}) {
         clearTimeout = globalThis.clearTimeout,
         console = globalThis.console,
         elements: ALL_ELEMENTS,
-        state,
+        // The settings and the workspace data, and who is signed in, the files waiting to be sent, the reply being made and the
+        // quoted text (legacy-core/shell-state.js).
+        runtimeConfigAccess,
+        runtimeAppDataStore,
+        session,
+        uploads,
+        reply,
+        quote,
         // The memory functions (memory-runtime.js), or null while memory is not set up.
         getMemory = () => null,
         // Starts the chat page after signing in.
@@ -159,12 +171,11 @@ export function createLegacySettingsAuthProviderLifecycle(dependencies = {}) {
         logger = console
     } = dependencies;
 
-    const config = createLiveObject(() => state.config);
-    const conversations = createLiveObject(() => state.conversations);
-    const folders = createLiveObject(() => state.folders);
-    const astras = createLiveObject(() => state.astras);
-    const personalMemories = createLiveObject(() => state.personalMemories);
-    const uploadedFiles = createLiveObject(() => state.uploadedFiles);
+    const config = createLiveObject(() => runtimeConfigAccess.getConfig());
+    const astras = createLiveObject(() => runtimeAppDataStore.getAstras());
+    const personalMemories = createLiveObject(() => runtimeAppDataStore.getPersonalMemories());
+    const uploadedFiles = createLiveObject(() => uploads.getUploadedFiles());
+    const getMemoryState = () => runtimeAppDataStore.getMemoryState();
     const {
         streamApiCall,
         runMemoryModel,
@@ -178,7 +189,7 @@ export function createLegacySettingsAuthProviderLifecycle(dependencies = {}) {
     } = createModelRequestRuntime({
         // Loaded ahead a few seconds after the start, when the page is idle, so the first message does not wait for it.
         whenIdle: (run) => window?.setTimeout?.(() => (window.requestIdleCallback ? window.requestIdleCallback(run, { timeout: 8000 }) : run()), 4000),
-        fetch, console, elements: ALL_ELEMENTS, state, getMemory, models: MODELS, i18n, config, astras, personalMemories,
+        fetch, console, elements: ALL_ELEMENTS, getMemoryState, getMemory, models: MODELS, i18n, config, astras, personalMemories,
         cheapModelId: CHEAP_MODEL_ID, councilResponseCharLimit: COUNCIL_RESPONSE_CHAR_LIMIT, councilRetryDelayMs: COUNCIL_RETRY_DELAY_MS,
         councilMaxModels: COUNCIL_MAX_MODELS, getActiveConversation, normalizeConversationModel, getModelApiId, getApiKeyForProvider,
         getDefaultGenConfig, modelSupportsUploadedFile, modelSupportsVision, modelSupportsDocumentUpload, modelUsesTavilySearch,
@@ -188,7 +199,8 @@ export function createLegacySettingsAuthProviderLifecycle(dependencies = {}) {
     });
     const updateInputStateHelper = createSettingsUpdateInputStateHelper({
         elements: ALL_ELEMENTS,
-        state,
+        getQuoteReference: quote.getQuoteReference,
+        getAbortController: reply.getAbortController,
         getConfig: () => config,
         getUploadedFiles: () => uploadedFiles,
         i18n,
@@ -252,7 +264,7 @@ export function createLegacySettingsAuthProviderLifecycle(dependencies = {}) {
         setTimeout,
         console,
         elements: ALL_ELEMENTS,
-        state,
+        session,
         getConfig: () => config,
         initChatApp,
         runtimeStorageAdapter,
@@ -307,7 +319,8 @@ export function createLegacySettingsAuthProviderLifecycle(dependencies = {}) {
         syncSettingsSectionForViewport
     } = desktopSectionHelper;
     const { setupSettingsModal, saveSettings } = createSettingsModalLifecycle({
-        window, document, console, elements: ALL_ELEMENTS, state, getMemory, runtimeStorageAdapter, models: MODELS, i18n, config,
+        window, document, console, elements: ALL_ELEMENTS, getCurrentUser: session.getCurrentUser, getMemoryState, getMemory,
+        runtimeStorageAdapter, models: MODELS, i18n, config,
         getSettingsText, getTavilySearchDepth, getApiKeyForProvider, saveConfig, showNotification, showCustomPrompt, showCustomDialog,
         showCustomConfirm, toggleModal, applyUiTheme, applyLanguage, renderModelSwitcher, renderStore, renderTrash, renderUiColorOptions,
         updateThemeButtons: (...args) => updateThemeButtons(...args), updateApiKeyWarningBadge, updateInputState, ensureSettingsMobileShell,
@@ -329,8 +342,8 @@ export function createLegacySettingsAuthProviderLifecycle(dependencies = {}) {
         document,
         requestAnimationFrame,
         getConfig: () => config,
-        getConversations: () => conversations,
-        getFolders: () => folders,
+        getConversations: () => runtimeAppDataStore.getConversations(),
+        getFolders: () => runtimeAppDataStore.getFolders(),
         i18n,
         showRenameModal,
         togglePinChat,

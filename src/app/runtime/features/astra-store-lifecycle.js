@@ -1,9 +1,14 @@
 // The Noura store (official and own Nouras by category, subscribing and unsubscribing) and the editor of a Noura's picture.
 
 export function createAstraStoreLifecycle({
-    document, elements: ALL_ELEMENTS, state, i18n, OFFICIAL_ASTRAS, runtimeAppDataStore, requestAnimationFrame, crypto, console,
-    FileReader, Cropper, escapeHTML, deleteAstrasFromCloud = async () => {}, showNotification, toggleModal, saveAppData, renderAstras
+    document, elements: ALL_ELEMENTS, i18n, OFFICIAL_ASTRAS, getUiLanguage, getAstras, replaceAstras, requestAnimationFrame, crypto,
+    console, FileReader, Cropper, escapeHTML, deleteAstrasFromCloud = async () => {}, showNotification, toggleModal, saveAppData, renderAstras
 }) {
+    // The category shown in the store, and the picture editor: its cropper and the Noura whose picture it changes.
+    let currentStoreCategory = 'all';
+    let cropperInstance = null;
+    let editingAstraForAvatarId = null;
+    const texts = () => i18n[getUiLanguage()] || {};
     const openStore = () => {
         ALL_ELEMENTS.appContainer.classList.remove('visible');
         ALL_ELEMENTS.storeContainer.classList.remove('hidden');
@@ -13,7 +18,7 @@ export function createAstraStoreLifecycle({
         ALL_ELEMENTS.appContainer.addEventListener('transitionend', () => {
             ALL_ELEMENTS.appContainer.classList.add('hidden');
         }, { once: true });
-        state.currentStoreCategory = 'all';
+        currentStoreCategory = 'all';
         const mainContent = document.querySelector('#store-main-content');
         if (mainContent) {
             mainContent.scrollTop = 0;
@@ -40,13 +45,13 @@ export function createAstraStoreLifecycle({
         if (!grid || !categoryList) return;
         grid.innerHTML = '';
         categoryList.innerHTML = '';
-        const translations = i18n[state.config.uiLanguage] || i18n['zh-TW'];
+        const translations = i18n[getUiLanguage()] || i18n['zh-TW'];
         const translatedOfficialAstras = OFFICIAL_ASTRAS.map(ast => ({
             ...ast,
             name: translations['astras_' + ast.id.replace(/-/g, '_') + '_name'] || ast.name,
             description: translations['astras_' + ast.id.replace(/-/g, '_') + '_desc'] || ast.description
         }));
-        const userCreatedAstras = state.astras.filter(a => !a.officialId);
+        const userCreatedAstras = getAstras().filter(a => !a.officialId);
         const categoryTranslationKeys = {
             '生產力': 'astrasCategoryProductivity',
             '規劃': 'astrasCategoryPlanning',
@@ -67,25 +72,25 @@ export function createAstraStoreLifecycle({
             const btn = document.createElement('button');
             btn.className = 'store-category-btn';
             btn.textContent = getCategoryLabel(category);
-            if (category === state.currentStoreCategory) {
+            if (category === currentStoreCategory) {
                 btn.classList.add('active');
             }
             btn.addEventListener('click', () => {
-                state.currentStoreCategory = category;
+                currentStoreCategory = category;
                 renderStore();
             });
             categoryList.appendChild(btn);
         });
         const allStoreAstras = [...translatedOfficialAstras, ...userCreatedAstras];
-        const filteredAstras = state.currentStoreCategory === 'all'
+        const filteredAstras = currentStoreCategory === 'all'
         ? allStoreAstras
-        : allStoreAstras.filter(a => a.category === state.currentStoreCategory);
+        : allStoreAstras.filter(a => a.category === currentStoreCategory);
         filteredAstras.forEach(ast => {
             const card = document.createElement('div');
             card.className = 'astras-store-card';
             const originalId = ast.officialId || ast.id;
-            const isSubscribed = state.astras.some(userAstra => userAstra.officialId === originalId);
-            const isUserCreated = !ast.officialId && state.astras.some(userAstra => userAstra.id === originalId);
+            const isSubscribed = getAstras().some(userAstra => userAstra.officialId === originalId);
+            const isUserCreated = !ast.officialId && getAstras().some(userAstra => userAstra.id === originalId);
             const avatarUrl = ast.avatarUrl;
             const initials = escapeHTML(ast.name.charAt(0));
             const avatarElement = `<div class="astras-card-avatar">${avatarUrl ? `<img src="${escapeHTML(avatarUrl)}" alt="${escapeHTML(ast.name)}">` : initials}</div>`;
@@ -113,9 +118,9 @@ export function createAstraStoreLifecycle({
         });
     };
     const handleSubscription = async (officialId) => {
-        const isSubscribed = state.astras.some(a => a.officialId === officialId);
+        const isSubscribed = getAstras().some(a => a.officialId === officialId);
         if (isSubscribed) {
-            const subscribedAstras = state.astras.filter(a => a.officialId === officialId);
+            const subscribedAstras = getAstras().filter(a => a.officialId === officialId);
             try {
                 await deleteAstrasFromCloud(
                     subscribedAstras.map(astra => astra.id),
@@ -123,13 +128,11 @@ export function createAstraStoreLifecycle({
                 );
             } catch (error) {
                 try { console.warn('Noureon cloud Noura unsubscribe failed; keeping the local Noura.', error); } catch {}
-                showNotification(i18n[state.config.uiLanguage].cloudDeleteFailed || '雲端刪除失敗，請稍後再試。', 'error');
+                showNotification(texts().cloudDeleteFailed || '雲端刪除失敗，請稍後再試。', 'error');
                 return;
             }
-            state.astras = runtimeAppDataStore.replaceAstras(
-                state.astras.filter(a => a.officialId !== officialId)
-            );
-            showNotification(i18n[state.config.uiLanguage].unsubscribed || '已取消訂閱', 'success');
+            replaceAstras(getAstras().filter(a => a.officialId !== officialId));
+            showNotification(texts().unsubscribed || '已取消訂閱', 'success');
         } else {
             const officialAstra = OFFICIAL_ASTRAS.find(a => a.id === officialId);
             if (officialAstra) {
@@ -138,8 +141,8 @@ export function createAstraStoreLifecycle({
                     id: crypto.randomUUID(),
                     officialId: officialAstra.id,
                 };
-                state.astras.unshift(newAstra);
-                showNotification(i18n[state.config.uiLanguage].subscribed || '訂閱成功！', 'success');
+                getAstras().unshift(newAstra);
+                showNotification(texts().subscribed || '訂閱成功！', 'success');
             }
         }
         await saveAppData();
@@ -147,7 +150,7 @@ export function createAstraStoreLifecycle({
         renderAstras();
     };
     const openAvatarEditor = (astrasId) => {
-        state.editingAstraForAvatarId = astrasId;
+        editingAstraForAvatarId = astrasId;
         ALL_ELEMENTS.astrasAvatarInput.click();
     };
     const handleAvatarUpload = (event) => {
@@ -158,10 +161,10 @@ export function createAstraStoreLifecycle({
             const imageUrl = e.target.result;
             ALL_ELEMENTS.avatarCropImage.src = imageUrl;
             toggleModal(ALL_ELEMENTS.astrasAvatarModal, true);
-            if (state.cropperInstance) {
-                state.cropperInstance.destroy();
+            if (cropperInstance) {
+                cropperInstance.destroy();
             }
-            state.cropperInstance = new Cropper(ALL_ELEMENTS.avatarCropImage, {
+            cropperInstance = new Cropper(ALL_ELEMENTS.avatarCropImage, {
                 aspectRatio: 1,
                 viewMode: 1,
                 background: false,
@@ -172,23 +175,30 @@ export function createAstraStoreLifecycle({
         event.target.value = '';
     };
     const handleConfirmAvatarCrop = async () => {
-        if (!state.cropperInstance || !state.editingAstraForAvatarId) return;
-        const canvas = state.cropperInstance.getCroppedCanvas({
+        if (!cropperInstance || !editingAstraForAvatarId) return;
+        const canvas = cropperInstance.getCroppedCanvas({
             width: 128,
             height: 128,
             imageSmoothingEnabled: true,
             imageSmoothingQuality: 'high',
         });
         const imageDataUrl = canvas.toDataURL('image/png');
-        const astra = state.astras.find(a => a.id === state.editingAstraForAvatarId);
+        const astra = getAstras().find(a => a.id === editingAstraForAvatarId);
         if (astra) {
             astra.avatarUrl = imageDataUrl;
             await saveAppData();
             renderAstras();
-            showNotification(i18n[state.config.uiLanguage].avatarUpdated || '頭像已更新', 'success');
+            showNotification(texts().avatarUpdated || '頭像已更新', 'success');
         }
         toggleModal(ALL_ELEMENTS.astrasAvatarModal, false);
-        state.editingAstraForAvatarId = null;
+        editingAstraForAvatarId = null;
     };
-    return { openStore, closeStore, renderStore, handleSubscription, openAvatarEditor, handleAvatarUpload, handleConfirmAvatarCrop };
+    // Closing the picture editor without saving: the cropper is let go and no Noura is being changed.
+    const cancelAvatarCrop = () => {
+        toggleModal(ALL_ELEMENTS.astrasAvatarModal, false);
+        cropperInstance?.destroy();
+        cropperInstance = null;
+        editingAstraForAvatarId = null;
+    };
+    return { openStore, closeStore, renderStore, handleSubscription, openAvatarEditor, handleAvatarUpload, handleConfirmAvatarCrop, cancelAvatarCrop };
 }

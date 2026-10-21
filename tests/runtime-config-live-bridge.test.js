@@ -75,11 +75,11 @@ test('legacy core routes lifecycle config state through the live store bridge', 
   assert.doesNotMatch(source, /syncConfig\s*:/);
   assert.match(source, /replaceConfig:\s*\(nextConfig\)\s*=>\s*runtimeConfigStore\.replaceConfig\(nextConfig\)/);
   assert.match(source, /initialApiKeys:\s*runtimeConfigAccess\.getConfig\(\)\.apiKeys/);
-  // The lifecycles share one state object whose settings are the store's (src/app/runtime/legacy-core/shell-state.js).
+  // The lifecycles read the settings from the config store itself; the shell state (shell-state.js) holds no settings (NOU-78).
   const shellSource = readSource('src/app/runtime/legacy-core/shell-state.js');
-  assert.match(shellSource, /config:\s*\{\s*get:\s*\(\)\s*=>\s*configAccess\.getConfig\(\),\s*set:\s*\(next\)\s*=>\s*configAccess\.replaceConfig\(next\)\s*\}/);
-  assert.match(source, /createShellState\(\{\s*configAccess:\s*runtimeConfigAccess/);
-  assert.ok((source.match(/state:\s*shell,/g) || []).length >= 4);
+  assert.doesNotMatch(shellSource, /getConfig|replaceConfig|configAccess\./);
+  assert.match(source, /const getConfig = \(\) => runtimeConfigAccess\.getConfig\(\);/);
+  assert.doesNotMatch(source, /state:\s*shell\b/);
   assert.doesNotMatch(source, /set config\(next\)\s*\{\s*config\s*=\s*next;\s*\}/);
 });
 
@@ -96,6 +96,7 @@ test('loadConfig replacement and mutation use the current store pointer through 
 test('the workspace features resolve state.config at call time', () => {
   const source = readSource('src/app/runtime/legacy-core/workspace-features.js');
 
-  assert.match(source, /if\s*\(typeof mutator === 'function'\) return mutator\(state\.config\)/);
-  assert.match(source, /Object\.assign\(state\.config,\s*mutator\)/);
+  assert.match(source, /const getConfig = \(\) => runtimeConfigAccess\.getConfig\(\);/);
+  assert.match(source, /if\s*\(typeof mutator === 'function'\) return mutator\(getConfig\(\)\)/);
+  assert.match(source, /Object\.assign\(getConfig\(\),\s*mutator\)/);
 });

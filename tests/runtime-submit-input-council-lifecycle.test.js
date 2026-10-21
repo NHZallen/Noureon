@@ -4,6 +4,7 @@ import test from 'node:test';
 
 import { createDom } from './behaviours/helpers/create-dom.js';
 import { createLegacySubmitInputCouncilLifecycle } from '../src/app/runtime/legacy-core/submit-input-council-lifecycle.js';
+import { storesOverState } from './helpers/settings-lifecycle-harness.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -78,6 +79,10 @@ function createDependencies(overrides = {}) {
     adjustTextareaHeight: noop,
     renderFilePreviews: noop,
     state,
+    uploads: storesOverState(state).uploads,
+    reply: storesOverState(state).reply,
+    getConfig: () => state.config,
+    getAstras: () => state.astras,
     models: [],
     i18n: { en: { errorPrefix: 'Error', autoSearchNotice: 'Auto search' } },
     getActiveConversation: () => null,

@@ -9,7 +9,7 @@ import { chipCloseButton } from '../features/composer-chip.js';
 import { syncInputIndicatorItems } from './input-indicator-sync.js';
 
 export function createSubmitInputComposer({
-  document, elements: ALL_ELEMENTS, updateInputState, state, models: MODELS, i18n, openRouterVisionModels, councilMinModels, councilMaxModels,
+  document, elements: ALL_ELEMENTS, updateInputState, getAstras, models: MODELS, i18n, openRouterVisionModels, councilMinModels, councilMaxModels,
   getLiveConfig, getLocalizedText, getUploadedFiles, getActiveConversation, normalizeConversationModel, isImageConversation,
   getCouncilSelectedModels, getCouncilTexts, getCouncilValidation, getVisibleCouncilModels, isCouncilEnabled, normalizeCouncilConfig, cloneCouncilConfig,
   modelSupportsVision, hasSingleDocumentAccess, hasCouncilWebSearchAccess, hasSingleWebSearchAccess,
@@ -156,7 +156,7 @@ export function createSubmitInputComposer({
 
     const activeIndicators = new Map();
     const astrasId = getActiveAstrasId();
-    const activeAstra = astrasId ? (state.astras || []).find((item) => item.id === astrasId) : null;
+    const activeAstra = astrasId ? (getAstras() || []).find((item) => item.id === astrasId) : null;
     const learningActive = config.isLearningMode && !isImageConversation(conv);
     // Both rule sets are active: surface how they combine on both chips.
     const combinedRulesNotice = learningActive && activeAstra ? getCombinedRulesNotice() : '';

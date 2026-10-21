@@ -3,10 +3,12 @@
 import { buildTimeDistributionChartData } from '../../legacy-runtime/features/time-distribution-chart-data.js';
 import { applyChartThemeDefaults } from '../../../utils/theme-colors.js';
 
-export function createTimeAnalysisChart({ document, elements: ALL_ELEMENTS, state, runtimeConfigAccess, i18n, Chart }) {
+export function createTimeAnalysisChart({ document, elements: ALL_ELEMENTS, getConversations, runtimeConfigAccess, i18n, Chart }) {
+    // The chart drawn last, destroyed before the next one is drawn.
+    let timeDistChart = null;
     const setupTimeAnalysis = () => {
         const { timeAnalysisYearSelect, timeAnalysisMonthSelect, timeAnalysisDaySelect } = ALL_ELEMENTS;
-        const allMessages = state.conversations.flatMap(c => c.messages.map(m => new Date(m.createdAt)));
+        const allMessages = getConversations().flatMap(c => c.messages.map(m => new Date(m.createdAt)));
         const years = [...new Set(allMessages.map(d => d.getFullYear()))].sort((a,b) => b-a);
         const uiLanguage = runtimeConfigAccess.getUiLanguage();
         timeAnalysisYearSelect.innerHTML = `<option value="">${i18n[uiLanguage].all || '全部'}</option>`;
@@ -63,15 +65,15 @@ export function createTimeAnalysisChart({ document, elements: ALL_ELEMENTS, stat
         const year = ALL_ELEMENTS.timeAnalysisYearSelect.value ? parseInt(ALL_ELEMENTS.timeAnalysisYearSelect.value) : null;
         const month = ALL_ELEMENTS.timeAnalysisMonthSelect.value ? parseInt(ALL_ELEMENTS.timeAnalysisMonthSelect.value) : null;
         const day = ALL_ELEMENTS.timeAnalysisDaySelect.value ? parseInt(ALL_ELEMENTS.timeAnalysisDaySelect.value) : null;
-        const allMessages = state.conversations.flatMap(c => c.messages);
+        const allMessages = getConversations().flatMap(c => c.messages);
         const lang = runtimeConfigAccess.getUiLanguage();
         const { chartType, label, labels, data } = buildTimeDistributionChartData({ messages: allMessages, year, month, day, text: i18n[lang] });
         const ctx = document.getElementById('time-distribution-chart').getContext('2d');
-        if (state.timeDistChart) {
-            state.timeDistChart.destroy();
+        if (timeDistChart) {
+            timeDistChart.destroy();
         }
         applyChartThemeDefaults(Chart);
-        state.timeDistChart = new Chart(ctx, {
+        timeDistChart = new Chart(ctx, {
             type: chartType,
             data: {
                 labels: labels,

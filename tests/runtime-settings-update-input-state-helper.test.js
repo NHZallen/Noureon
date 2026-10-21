@@ -40,7 +40,8 @@ const createHarness = (overrides = {}) => {
   };
   const helper = createSettingsUpdateInputStateHelper({
     elements,
-    state,
+    getQuoteReference: () => state.quoteReference,
+    getAbortController: () => state.abortController,
     getConfig: () => config,
     getUploadedFiles: () => overrides.uploadedFiles ?? [],
     i18n: {
@@ -228,7 +229,8 @@ test('updateInputState remains safe with injected default DOM fallbacks', () => 
   });
   const helper = createSettingsUpdateInputStateHelper({
     elements,
-    state: { abortController: null },
+    getQuoteReference: () => null,
+    getAbortController: () => null,
     getConfig: () => ({ uiLanguage: 'en' }),
     getUploadedFiles: () => [],
     i18n: { en: {} },

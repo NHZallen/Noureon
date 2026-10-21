@@ -26,7 +26,7 @@ function createHarness(overrides = {}) {
   const dependencies = {
     document,
     elements,
-    state,
+    getConfig: () => state.config,
     i18n: { 'zh-TW': { colorBlue: '藍色', colorGreen: '綠色', colorPink: '粉紅色', colorBlack: '黑色', colorCustom: '自訂' } },
     UI_THEME_COLORS: {
       default: '#3b82f6',

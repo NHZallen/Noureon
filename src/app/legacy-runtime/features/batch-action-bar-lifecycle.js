@@ -1,9 +1,8 @@
 export function createBatchActionBarLifecycle({
     elements = {},
     getI18n = () => ({}),
-    getIsSelectionMode = () => false,
-    setIsSelectionMode = () => {},
-    getSelectedConversationIds = () => new Set(),
+    // The batch selection of conversations (legacy-core/shell-state.js).
+    selection,
     getUiLanguage = () => 'zh-TW',
     renderSidebar = () => {}
 } = {}) {
@@ -19,10 +18,10 @@ export function createBatchActionBarLifecycle({
     const renderBatchActionBar = () => {
         if (!hasRequiredElements()) return false;
         const { batchActionBar, userControls, selectionCount, batchDeleteBtn, batchArchiveBtn, batchMoveBtn } = elements;
-        if (getIsSelectionMode()) {
+        if (selection.isSelectionMode()) {
             batchActionBar.classList.remove('hidden');
             userControls.classList.add('hidden');
-            const count = getSelectedConversationIds().size;
+            const count = selection.getSelectedConversationIds().size;
             const i18n = getI18n() || {};
             const uiLanguage = getUiLanguage();
             selectionCount.textContent = `${i18n[uiLanguage]?.selected || '已選取'} ${count} ${i18n[uiLanguage]?.items || '個項目'}`;
@@ -39,9 +38,9 @@ export function createBatchActionBarLifecycle({
 
     // Turns the batch selection of conversations on or off: nothing stays selected, and the sidebar is drawn again.
     const toggleSelectionMode = () => {
-        const isSelectionMode = !getIsSelectionMode();
-        setIsSelectionMode(isSelectionMode);
-        getSelectedConversationIds().clear();
+        const isSelectionMode = !selection.isSelectionMode();
+        selection.setSelectionMode(isSelectionMode);
+        selection.clearSelectedConversations();
         const texts = (getI18n() || {})[getUiLanguage()] || {};
         if (elements.selectionModeBtn) {
             elements.selectionModeBtn.title = isSelectionMode

@@ -33,8 +33,8 @@ test('history menu helper is composed while preserving lifecycle alias', () => {
   // It loads the first time a menu is opened.
   assert.doesNotMatch(source, /import\s+\{\s*createSettingsHistoryMenuHelper\s*\}\s+from/);
   assert.match(source, /const\s+historyMenuHelper\s*=\s*createLazyFunctions\(\(\)\s*=>\s*import\('\.\/settings-history-menu-helper\.js'\)\.then\(\(\{\s*createSettingsHistoryMenuHelper\s*\}\)\s*=>\s*createSettingsHistoryMenuHelper\(\{/);
-  assert.match(source, /getConversations:\s*\(\)\s*=>\s*conversations/);
-  assert.match(source, /getFolders:\s*\(\)\s*=>\s*folders/);
+  assert.match(source, /getConversations:\s*\(\)\s*=>\s*runtimeAppDataStore\.getConversations\(\)/);
+  assert.match(source, /getFolders:\s*\(\)\s*=>\s*runtimeAppDataStore\.getFolders\(\)/);
   assert.match(source, /showRenameModal,/);
   assert.match(source, /moveConversationToFolder,/);
   assert.match(source, /createHistoryMenu\s*\n?\s*\}\s*=\s*historyMenuHelper/);

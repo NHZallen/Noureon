@@ -53,7 +53,7 @@ const createHarness = (overrides = {}) => {
     },
     console: { error: (...args) => calls.push(['error', ...args]) },
     elements,
-    state,
+    session: { getCurrentUser: () => state.currentUser, setCurrentUser: (user) => (state.currentUser = user) },
     getConfig: () => config,
     initChatApp: () => calls.push(['initChatApp']),
     runtimeStorageAdapter: { clear: async () => calls.push('clear') },

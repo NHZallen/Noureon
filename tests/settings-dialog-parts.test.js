@@ -18,8 +18,7 @@ test('the dialog parts are built once and filled from the settings each time', (
   };
   const config = { uiLanguage: 'en', memoryProfileEnabled: false, enableAutoMemory: true, historyRecallEnabled: true, visionCheckEnabled: false, processOpen: true };
   const parts = createSettingsDialogParts({
-    document, elements, state: { memoryState: {} },
-    legacyRuntimeContext: { resolveOptionalBinding: () => null, resolveBinding: () => () => null, registerLazyBinding() {} },
+    document, elements, getMemoryState: () => ({}), getMemory: () => null,
     models: [{ id: 'gemini-3.5-flash-lite', name: 'Flash Lite' }], i18n: { en: {}, 'zh-TW': {} }, config,
     getApiKeyForProvider: () => '', saveConfig: async () => {}, showNotification() {}, showCustomPrompt: async () => null, showCustomDialog: async () => true
   });

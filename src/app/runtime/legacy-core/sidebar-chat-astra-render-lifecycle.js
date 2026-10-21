@@ -16,7 +16,10 @@ const REQUIRED_DEPENDENCIES = [
   'window',
   'document',
   'elements',
-  'state',
+  'runtimeAppDataStore',
+  'liveConversationsBridge',
+  'session',
+  'selection',
   'runtimeDomAccess',
   'runtimeConfigAccess',
   'conversationStateAccess',
@@ -41,7 +44,6 @@ const REQUIRED_DEPENDENCIES = [
   'showNotification',
   'showCustomConfirm',
   'deleteAstrasFromCloud',
-  'replaceAstras',
   'buildMessageRenderView'
 ];
 
@@ -63,7 +65,13 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
     toggleSidebar,
     updateInputState,
     generateTitleAndSummary,
-    state,
+    // The workspace data, who is signed in and the batch selection (legacy-core/shell-state.js).
+    runtimeAppDataStore,
+    liveConversationsBridge,
+    session,
+    selection,
+    // Whether the conversation is being scrolled down to its latest message (features/chat-scroll-lifecycle.js).
+    isAutoScrolling = () => false,
     runtimeDomAccess,
     runtimeConfigAccess,
     conversationStateAccess,
@@ -95,7 +103,6 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
     showNotification,
     showCustomConfirm,
     deleteAstrasFromCloud,
-    replaceAstras = (nextAstras) => nextAstras,
     buildMessageRenderView,
     escapeHTML = (value = '') => String(value ?? ''),
     renderUserText = (value = '') => String(value ?? ''),
@@ -111,21 +118,20 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
     crypto = globalThis.crypto
   } = dependencies;
 
-  const getConfig = () => state.config;
-  const getConversations = () => state.conversations;
-  const getFolders = () => state.folders;
-  const getAstras = () => state.astras;
-  const setAstras = (nextAstras) => { state.astras = nextAstras; return state.astras; };
-  const getCurrentUser = () => state.currentUser;
+  const getConfig = () => runtimeConfigAccess.getConfig();
+  const getConversations = () => liveConversationsBridge.getConversations();
+  const getFolders = () => runtimeAppDataStore.getFolders();
+  const getAstras = () => runtimeAppDataStore.getAstras();
+  const getCurrentUser = () => session.getCurrentUser();
   const getCurrentUserDisplayName = () => {
     const user = getCurrentUser();
     return user?.displayName || user?.email || user?.username || 'User';
   };
-  const getEditingAstrasId = () => state.editingAstrasId;
-  const setEditingAstrasId = (nextId) => { state.editingAstrasId = nextId; };
-  const getSelectedConversationIds = () => state.selectedConversationIds;
-  const getIsSelectionMode = () => Boolean(state.isSelectionMode);
-  const getIsAutoScrolling = () => Boolean(state.isAutoScrolling);
+  // The Noura whose dialog is open for editing, or null when the dialog makes a new one.
+  let editingAstrasId = null;
+  const getEditingAstrasId = () => editingAstrasId;
+  const setEditingAstrasId = (nextId) => { editingAstrasId = nextId; };
+  const getIsSelectionMode = () => selection.isSelectionMode();
   const isCouncilConversation = (conversation) => (
     isCouncilEnabled(conversation) ||
     (conversation?.messages || []).some((message) => (
@@ -246,14 +252,10 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
       const checkbox = document.createElement('input');
       checkbox.type = 'checkbox';
       checkbox.className = 'conv-select-checkbox h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 mr-3 flex-shrink-0';
-      checkbox.checked = getSelectedConversationIds().has(conv.id);
+      checkbox.checked = selection.getSelectedConversationIds().has(conv.id);
       checkbox.dataset.id = conv.id;
       checkbox.addEventListener('change', () => {
-        if (checkbox.checked) {
-          getSelectedConversationIds().add(conv.id);
-        } else {
-          getSelectedConversationIds().delete(conv.id);
-        }
+        selection.selectConversation(conv.id, checkbox.checked);
         renderBatchActionBar();
       });
       checkbox.addEventListener('click', event => event.stopPropagation());
@@ -375,6 +377,18 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
     }
   };
 
+  // Opens the dialog of a Noura with its name, description and instructions, to change them.
+  const editAstras = (astrasId) => {
+    const ast = getAstras().find(a => a.id === astrasId);
+    if (!ast) return;
+    setEditingAstrasId(astrasId);
+    ALL_ELEMENTS.astrasNameInput.value = ast.name;
+    ALL_ELEMENTS.astrasDescInput.value = ast.description;
+    ALL_ELEMENTS.astrasInstructionsInput.value = ast.instructions;
+    ALL_ELEMENTS.astrasCreateModal.querySelector('h2').textContent = i18n[getConfig().uiLanguage].editAstras || '編輯 Noura';
+    toggleModal(ALL_ELEMENTS.astrasCreateModal, true);
+  };
+
   const createAstras = async () => {
     setEditingAstrasId(null);
     ALL_ELEMENTS.astrasCreateModal.querySelector('h2').textContent = i18n[getConfig().uiLanguage].createAstras;
@@ -441,9 +455,7 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
       );
       return;
     }
-    setAstras(replaceAstras(
-      getAstras().filter(a => a.id !== id)
-    ));
+    runtimeAppDataStore.replaceAstras(getAstras().filter(a => a.id !== id));
     getConversations().forEach(c => {
       if (c.astrasId === id) c.astrasId = null;
     });
@@ -493,15 +505,7 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
     const editBtn = popover.querySelector('.edit-astras-btn');
     if (editBtn) {
       editBtn.addEventListener('click', () => {
-        const ast = getAstras().find(a => a.id === astrasId);
-        if (ast) {
-          setEditingAstrasId(astrasId);
-          ALL_ELEMENTS.astrasNameInput.value = ast.name;
-          ALL_ELEMENTS.astrasDescInput.value = ast.description;
-          ALL_ELEMENTS.astrasInstructionsInput.value = ast.instructions;
-          ALL_ELEMENTS.astrasCreateModal.querySelector('h2').textContent = i18n[getConfig().uiLanguage].editAstras || '編輯 Noura';
-          toggleModal(ALL_ELEMENTS.astrasCreateModal, true);
-        }
+        editAstras(astrasId);
         popover.remove();
       });
     }
@@ -636,7 +640,7 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
     setupMessageIntersectionObserver,
     updateInputState: () => updateInputState(),
     scheduleFrame: (callback) => requestAnimationFrame(callback),
-    isAutoScrolling: getIsAutoScrolling,
+    isAutoScrolling: () => Boolean(isAutoScrolling()),
     syncComposerLayout
   });
 
@@ -653,6 +657,7 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
     setAstrasForConversation,
     deactivateAstras,
     createAstras,
+    editAstras,
     handleSaveAstras,
     deleteAstras,
     createAstrasMenu

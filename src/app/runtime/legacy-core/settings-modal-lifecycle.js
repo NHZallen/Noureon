@@ -6,7 +6,7 @@ import { getSearchProvider } from '../kernel/search-provider.js';
 import { ensureAutoWebSearchSettingsControl as ensureAutoWebSearchControl, ensureFileModeSettingsControl as ensureFileModeControl, ensureProcessOpenSettingsControl } from './settings-vision-check-control.js';
 
 export function createSettingsModalLifecycle({
-    window, document, console, elements: ALL_ELEMENTS, state, getMemory, runtimeStorageAdapter, models: MODELS, i18n, config,
+    window, document, console, elements: ALL_ELEMENTS, getCurrentUser, getMemoryState, getMemory, runtimeStorageAdapter, models: MODELS, i18n, config,
     getSettingsText, getTavilySearchDepth, getApiKeyForProvider, saveConfig, showNotification, showCustomPrompt, showCustomDialog,
     showCustomConfirm, toggleModal, applyUiTheme, applyLanguage, renderModelSwitcher, renderStore, renderTrash, renderUiColorOptions,
     updateThemeButtons, updateApiKeyWarningBadge, updateInputState, ensureSettingsMobileShell, renderSettingsMobileList,
@@ -46,7 +46,7 @@ export function createSettingsModalLifecycle({
                     window,
                     document,
                     storage: runtimeStorageAdapter,
-                    getCurrentUser: () => state.currentUser,
+                    getCurrentUser,
                     getText: getSettingsText,
                     showNotification
                 })
@@ -64,7 +64,7 @@ export function createSettingsModalLifecycle({
     // Permissions tabs, the memory summary and the recall of past conversations. Saving waits for them.
     let dialogParts;
     const loadDialogParts = () => dialogParts ||= import('./settings-dialog-parts.js').then(({ createSettingsDialogParts }) => createSettingsDialogParts({
-        document, elements: ALL_ELEMENTS, state, getMemory, models: MODELS, i18n, config, getApiKeyForProvider, saveConfig,
+        document, elements: ALL_ELEMENTS, getMemoryState, getMemory, models: MODELS, i18n, config, getApiKeyForProvider, saveConfig,
         showNotification, showCustomPrompt, showCustomDialog
     }));
     let partsFilled = Promise.resolve();

@@ -4,6 +4,7 @@ import test from 'node:test';
 import { createConversationActions, getDefaultFolder, getDefaultGenConfig } from '../src/app/runtime/legacy-core/conversation-actions.js';
 import { MODELS } from '../src/app/runtime/legacy-core/model-registry.js';
 import { createDom } from './behaviours/helpers/create-dom.js';
+import { createUploadsStore } from '../src/app/runtime/legacy-core/shell-state.js';
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -21,13 +22,15 @@ function harness({ conversations = [], folders = [], currentId = null, config = 
     viewArchivedContent: doc?.getElementById('content') || {},
     viewArchivedChatModal: { id: 'archived-modal' }
   });
-  const shell = { uploadedFiles: ['file'], messageObserver: { disconnect: () => log.push('observer off') } };
+  const uploads = createUploadsStore();
+  uploads.setUploadedFiles(['file']);
   const deps = (doc) => ({
     window: { dispatchEvent: (event) => log.push(['event', event.type, event.detail]), CustomEvent: class { constructor(type, init) { this.type = type; this.detail = init.detail; } } },
     document: doc,
     elements: elementsWith(doc),
     i18n: { en: { chatMovedToTrash: 'Moved.' } },
-    shell,
+    uploads,
+    disconnectMessageObserver: () => log.push('observer off'),
     toggleSidebar: (...args) => log.push(['toggleSidebar', ...args]),
     updateFunctionButtonsState: () => log.push('function buttons'),
     runtimeConfigAccess: { getConfig: () => ({ lastCouncilConfig: { enabled: true, participantModelIds: ['a', 'b'] }, ...config }), getUiLanguage: () => 'en' },
@@ -51,7 +54,7 @@ function harness({ conversations = [], folders = [], currentId = null, config = 
     cancelPendingMemoryCapture: (id) => log.push(['memory capture cancelled', id]),
     invalidateConversationMemory: async (args) => log.push(['memory invalidated', args])
   });
-  return { log, shell, deps, list: () => list, current: () => current, actions: (doc) => createConversationActions(deps(doc)) };
+  return { log, uploads, deps, list: () => list, current: () => current, actions: (doc) => createConversationActions(deps(doc)) };
 }
 
 const conv = (id, extra = {}) => ({ id, title: id, messages: [{ role: 'user' }], archived: false, deletedAt: null, ...extra });
@@ -67,7 +70,7 @@ test('a new conversation drops empty and ephemeral ones, starts with the council
   assert.equal(created.council.enabled, false);
   assert.deepEqual(created.council.participantModelIds, ['a', 'b']);
   assert.deepEqual(created.genConfig, getDefaultGenConfig());
-  assert.deepEqual(h.shell.uploadedFiles, []);
+  assert.deepEqual(h.uploads.getUploadedFiles(), []);
   assert.ok(h.log.some((entry) => entry[0] === 'save'), 'saved because conversations were dropped');
   assert.ok(h.log.some((entry) => entry[0] === 'toggleSidebar' && entry[1] === false));
 
@@ -88,7 +91,7 @@ test('opening another conversation drops the empty one left, turns its council o
   assert.deepEqual(h.log.find((entry) => entry[0] === 'renderAll')[1], { reason: 'chat-switch', scrollMode: 'bottom' });
   assert.ok(h.log.some((entry) => entry[0] === 'event' && entry[1] === 'astra:active-conversation-changed' && entry[2].conversationId === 'b'));
   assert.ok(h.log.some((entry) => entry[0] === 'save'));
-  assert.deepEqual(h.shell.uploadedFiles, []);
+  assert.deepEqual(h.uploads.getUploadedFiles(), []);
 });
 
 test('moving the open conversation to the trash leaves it first, then saves at once, then says so', async () => {

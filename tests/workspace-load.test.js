@@ -10,7 +10,7 @@ function harness({ user = { username: 'alice' }, items = {}, split = null, confi
   let current = config;
   let data = null;
   const deps = {
-    shell: { currentUser: user },
+    getCurrentUser: () => user,
     storage: {
       getItem: async (key) => { log.push(['get', key]); return items[key] ?? null; },
       removeItem: async (key) => log.push(['remove', key])

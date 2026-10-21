@@ -36,7 +36,8 @@ import {
 const REQUIRED_DEPENDENCIES = [
   'document',
   'elements',
-  'state',
+  'uploads',
+  'reply',
   'models',
   'i18n',
   'getActiveConversation',
@@ -66,7 +67,10 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     generateTitleAndSummary,
     adjustTextareaHeight,
     renderFilePreviews,
-    state,
+    // The files waiting to be sent and the reply being made (legacy-core/shell-state.js), and the Nouras of the workspace.
+    uploads,
+    reply,
+    getAstras = () => [],
     models: MODELS,
     openRouterVisionModels = [],
     i18n,
@@ -79,7 +83,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     formatCouncilModelSummary = () => '',
     formatFullTimestamp = () => '',
     getActiveConversation,
-    getConfig = () => state.config,
+    getConfig = () => ({}),
     runtimeConfigAccess = { getUiLanguage: () => getLiveConfig().uiLanguage },
     getCouncilRuntimeTexts = () => ({}),
     getCouncilSelectedModels = () => ({ participants: [], synthesizer: null, council: {} }),
@@ -148,17 +152,17 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     logger = console
   } = dependencies;
 
-  const getLiveConfig = () => getConfig() || state.config || {};
+  const getLiveConfig = () => getConfig() || {};
   const getUiLanguage = () => runtimeConfigAccess.getUiLanguage?.()
     || getLiveConfig().uiLanguage
     || 'zh-TW';
   const getLocalizedText = (key, fallback) => i18n[getUiLanguage()]?.[key] || fallback;
-  const getUploadedFiles = () => state.uploadedFiles || [];
-  const setUploadedFiles = (files) => { state.uploadedFiles = files; };
-  const getAbortController = () => state.abortController || null;
-  const setAbortController = (value) => { state.abortController = value; };
-  const getIsCouncilRunning = () => Boolean(state.isCouncilRunning);
-  const setIsCouncilRunning = (value) => { state.isCouncilRunning = value; };
+  const getUploadedFiles = () => uploads.getUploadedFiles() || [];
+  const setUploadedFiles = (files) => { uploads.setUploadedFiles(files); };
+  const getAbortController = () => reply.getAbortController() || null;
+  const setAbortController = (value) => { reply.setAbortController(value); };
+  const getIsCouncilRunning = () => Boolean(reply.isCouncilRunning());
+  const setIsCouncilRunning = (value) => { reply.setCouncilRunning(value); };
   const vc = createVisionCheckScheduler({ getConfig: getLiveConfig, getActiveConversation, normalizeConversationModel, isCouncilEnabled, getCouncilSelectedModels, modelSupportsVision, streamApiCall, document, window, notificationContainer: ALL_ELEMENTS.notificationContainer, addMessageToUI, saveAppData, showNotification, crypto, logger, AbortController,
     // The composer follows the checks: a chat with one running cannot send.
     onChange: (conversationIds) => {
@@ -207,7 +211,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     getCouncilModeLabel,
     getCouncilModelList
   } = createSubmitInputComposer({
-    document, elements: ALL_ELEMENTS, updateInputState, state, models: MODELS, i18n, openRouterVisionModels, councilMinModels, councilMaxModels,
+    document, elements: ALL_ELEMENTS, updateInputState, getAstras, models: MODELS, i18n, openRouterVisionModels, councilMinModels, councilMaxModels,
     getLiveConfig, getLocalizedText, getUploadedFiles, getActiveConversation, normalizeConversationModel, isImageConversation,
     getCouncilSelectedModels, getCouncilTexts, getCouncilValidation, getVisibleCouncilModels, isCouncilEnabled, normalizeCouncilConfig, cloneCouncilConfig,
     modelSupportsVision, hasSingleDocumentAccess, hasCouncilWebSearchAccess, hasSingleWebSearchAccess,

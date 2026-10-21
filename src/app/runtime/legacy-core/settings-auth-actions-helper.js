@@ -9,7 +9,8 @@ export function createSettingsAuthActionsHelper({
     setTimeout,
     console,
     elements,
-    state,
+    // Who is signed in (legacy-core/shell-state.js).
+    session,
     getConfig,
     // Starts the chat page after signing in.
     initChatApp,
@@ -50,10 +51,10 @@ export function createSettingsAuthActionsHelper({
                 showNotification(getText('passwordIncorrect', '密碼錯誤。'), 'error');
                 return;
             }
-            state.currentUser = await upgradeLegacyPasswordRecord(password, userKey, parsedUser);
+            session.setCurrentUser(await upgradeLegacyPasswordRecord(password, userKey, parsedUser));
         } else {
-            state.currentUser = await createPasswordRecord(username, password);
-            await setItem(userKey, JSON.stringify(state.currentUser));
+            session.setCurrentUser(await createPasswordRecord(username, password));
+            await setItem(userKey, JSON.stringify(session.getCurrentUser()));
         }
         await reconcileStoredWorkspaceOwner({
             nextUsername: username,
@@ -87,8 +88,9 @@ export function createSettingsAuthActionsHelper({
 
     const handleLogout = async () => {
         if (await showCustomConfirm(getText('confirmLogout', '您確定要登出嗎？'), getText('logoutConfirmation', '登出確認'))) {
-            if (state.currentUser?.username) {
-                await setItem(STORAGE_OWNER_KEY, state.currentUser.username);
+            const username = session.getCurrentUser()?.username;
+            if (username) {
+                await setItem(STORAGE_OWNER_KEY, username);
             }
             await removeItem('chat_lastUser');
             window.location.reload();

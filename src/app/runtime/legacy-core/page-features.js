@@ -14,7 +14,7 @@ import { createThemeAppearanceLifecycle } from '../features/theme-appearance-lif
 export function createPageFeatures({
     window, document, navigator, fetch, File, Event, Image, FileReader, Chart, Cropper,
     ResizeObserver, IntersectionObserver, requestAnimationFrame, setTimeout, clearTimeout, crypto, console,
-    elements: ALL_ELEMENTS, state, runtimeConfigAccess, runtimeAppDataStore, runtimeDialogCoordinator, i18n,
+    elements: ALL_ELEMENTS, runtimeConfigAccess, runtimeAppDataStore, liveConversationsBridge, runtimeDialogCoordinator, i18n,
     OFFICIAL_ASTRAS, updateLogs, productVersion, UI_THEME_COLORS,
     // The memory functions (memory-runtime.js), or null while memory is not set up.
     getMemory = () => null,
@@ -23,9 +23,12 @@ export function createPageFeatures({
     showNotification, showCustomConfirm, toggleModal, escapeHTML, sanitizeTrustedHTML,
     renderAll, renderAstras, renderInputIndicators, renderCouncilControls = () => {}, renderPersonalMemoryList,
     showRenameModal, togglePinChat, archiveChat, deleteChat, moveConversationToFolder, renderBatchMoveModal,
-    showFolderSettingsModal, deleteFolder, deleteAstras,
+    showFolderSettingsModal, deleteFolder, deleteAstras, editAstras,
     formatFullTimestamp, renderUserText, renderMarkdownWithFormulas, bindGeneratedImageAssets = async () => {}
 }) {
+    const getConfig = () => runtimeConfigAccess.getConfig();
+    const getUiLanguage = () => runtimeConfigAccess.getUiLanguage();
+    const getConversations = () => liveConversationsBridge.getConversations();
     const themeAppearanceLifecycle = createThemeAppearanceLifecycle({
         window,
         document,
@@ -33,7 +36,7 @@ export function createPageFeatures({
         FileReader,
         Cropper,
         elements: ALL_ELEMENTS,
-        state,
+        getConfig,
         i18n,
         UI_THEME_COLORS,
         setTheme,
@@ -45,7 +48,7 @@ export function createPageFeatures({
     });
     const applyUiTheme = (...args) => themeAppearanceLifecycle.applyUiTheme(...args);
     const renderUiColorOptions = (...args) => themeAppearanceLifecycle.renderUiColorOptions(...args);
-    const { setupTimeAnalysis, updateTimeDistributionChart } = createTimeAnalysisChart({ document, elements: ALL_ELEMENTS, state, runtimeConfigAccess, i18n, Chart });
+    const { setupTimeAnalysis, updateTimeDistributionChart } = createTimeAnalysisChart({ document, elements: ALL_ELEMENTS, getConversations, runtimeConfigAccess, i18n, Chart });
     const {
         openStore,
         closeStore,
@@ -53,10 +56,13 @@ export function createPageFeatures({
         handleSubscription,
         openAvatarEditor,
         handleAvatarUpload,
-        handleConfirmAvatarCrop
+        handleConfirmAvatarCrop,
+        cancelAvatarCrop
     } = createAstraStoreLifecycle({
-        document, elements: ALL_ELEMENTS, state, i18n, OFFICIAL_ASTRAS, runtimeAppDataStore, requestAnimationFrame, crypto, console,
-        FileReader, Cropper, escapeHTML, deleteAstrasFromCloud, showNotification, toggleModal, saveAppData, renderAstras
+        document, elements: ALL_ELEMENTS, i18n, OFFICIAL_ASTRAS, getUiLanguage,
+        getAstras: () => runtimeAppDataStore.getAstras(),
+        replaceAstras: (next) => runtimeAppDataStore.replaceAstras(next),
+        requestAnimationFrame, crypto, console, FileReader, Cropper, escapeHTML, deleteAstrasFromCloud, showNotification, toggleModal, saveAppData, renderAstras
     });
     const applyLanguage = createLanguageApply({
         window, document, elements: ALL_ELEMENTS, i18n, updateInputState, console,
@@ -65,15 +71,18 @@ export function createPageFeatures({
         renderPersonalMemoryList: (...args) => renderPersonalMemoryList(...args)
     });
     const { showMobileContextMenu, showMobileContextMenuForFolder, showMobileContextMenuForAstras } = createMobileContextMenus({
-        document, elements: ALL_ELEMENTS, state, i18n, requestAnimationFrame, setTimeout,
+        document, elements: ALL_ELEMENTS, i18n, getUiLanguage, getConversations,
+        getFolders: () => runtimeAppDataStore.getFolders(),
+        getAstras: () => runtimeAppDataStore.getAstras(),
+        requestAnimationFrame, setTimeout,
         showRenameModal, togglePinChat, archiveChat, deleteChat, moveConversationToFolder, renderBatchMoveModal,
-        showFolderSettingsModal, deleteFolder, deleteAstras, openAvatarEditor, toggleModal
+        showFolderSettingsModal, deleteFolder, deleteAstras, openAvatarEditor, editAstras, toggleModal
     });
-    const { setupScrollToBottomButton, setupMessageIntersectionObserver } = createChatScrollLifecycle({
-        elements: ALL_ELEMENTS, state, requestAnimationFrame, setTimeout, clearTimeout, ResizeObserver, IntersectionObserver
+    const { setupScrollToBottomButton, setupMessageIntersectionObserver, disconnectMessageObserver, isAutoScrolling } = createChatScrollLifecycle({
+        elements: ALL_ELEMENTS, requestAnimationFrame, setTimeout, clearTimeout, ResizeObserver, IntersectionObserver
     });
     const { checkAndShowLatestUpdate, updateDisplayedVersion } = createLatestUpdateNotice({
-        document, elements: ALL_ELEMENTS, state, i18n, updateLogs, productVersion, sanitizeTrustedHTML, toggleModal, saveConfig
+        document, elements: ALL_ELEMENTS, getConfig, i18n, updateLogs, productVersion, sanitizeTrustedHTML, toggleModal, saveConfig
     });
     const {
         renderTrash,
@@ -91,15 +100,12 @@ export function createPageFeatures({
         fetch,
         File,
         elements: ALL_ELEMENTS,
-        getConversations: () => state.conversations,
-        replaceConversations: (nextConversations) => {
-            state.conversations = nextConversations;
-            return state.conversations;
-        },
+        getConversations,
+        replaceConversations: (nextConversations) => liveConversationsBridge.replaceConversations(nextConversations),
         saveAppData,
         renderAll,
         getI18n: () => i18n,
-        getUiLanguage: () => state.config.uiLanguage,
+        getUiLanguage,
         showCustomConfirm,
         showNotification,
         showCoordinatedNotification: (...args) => runtimeDialogCoordinator.showNotification(...args),
@@ -134,6 +140,7 @@ export function createPageFeatures({
         openAvatarEditor,
         handleAvatarUpload,
         handleConfirmAvatarCrop,
+        cancelAvatarCrop,
         applyLanguage,
         showMobileContextMenu,
         showMobileContextMenuForFolder,
@@ -141,6 +148,8 @@ export function createPageFeatures({
         setupScrollToBottomButton,
         checkAndShowLatestUpdate,
         setupMessageIntersectionObserver,
+        disconnectMessageObserver,
+        isAutoScrolling,
         renderTrash,
         handleRestoreTrashItem,
         handleDeleteTrashItemPermanently,

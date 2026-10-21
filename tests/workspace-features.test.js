@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import { createWorkspaceFeatures } from '../src/app/runtime/legacy-core/workspace-features.js';
+import { createShellState } from '../src/app/runtime/legacy-core/shell-state.js';
 
 const readSource = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const noop = () => {};
@@ -96,6 +97,7 @@ function createHarness(overrides = {}) {
     timeDistChart: null,
     isAutoScrolling: false
   };
+  const shell = createShellState();
   const document = {
     body: createNode(),
     createElement: () => createNode(),
@@ -120,10 +122,19 @@ function createHarness(overrides = {}) {
     crypto: { randomUUID: () => 'id' },
     console: { warn: noop, error: noop, log: noop },
     elements,
-    state,
     i18n: { en: {} },
+    ...shell,
+    runtimeConfigAccess: { getConfig: () => state.config, getUiLanguage: () => state.config.uiLanguage },
+    liveConversationsBridge: {
+      getConversations: () => state.conversations,
+      replaceConversations: (next) => (state.conversations = next)
+    },
     models: [{ id: 'm1', name: 'Model One', provider: 'openai' }],
     runtimeAppDataStore: {
+      getFolders: () => state.folders,
+      getAstras: () => state.astras,
+      getPersonalMemories: () => state.personalMemories,
+      getMemoryState: () => ({}),
       replaceAll(next) {
         state.conversations = next.conversations || [];
         state.folders = next.folders || [];
@@ -193,7 +204,7 @@ function createHarness(overrides = {}) {
   };
   const dependencies = { ...base, ...overrides };
   const lifecycle = createWorkspaceFeatures(dependencies);
-  return { calls, dependencies, elements, lifecycle, state };
+  return { calls, dependencies, elements, lifecycle, state, shell };
 }
 
 test('the workspace features are made at once and handed out by name', () => {
@@ -218,15 +229,14 @@ test('the workspace features are made at once and handed out by name', () => {
 });
 
 test('hands out the memory functions once they are made, and works on the live shell state', async () => {
-  const { elements, lifecycle, state } = createHarness();
+  const { elements, lifecycle, state, shell } = createHarness();
 
   assert.equal(typeof lifecycle.getMemory().rebuildHistoryIndex, 'function');
   assert.equal(typeof lifecycle.getMemory().retrieveHistory, 'function');
   assert.equal(typeof lifecycle.ensureMemorySummaryFresh, 'function');
 
-  state.sidebarOpen = false;
   lifecycle.toggleSidebar(true);
-  assert.equal(state.sidebarOpen, true, 'the sidebar writes the shell state it was given');
+  assert.equal(shell.sidebar.isSidebarOpen(), true, 'the sidebar writes the sidebar store it was given');
 
   // The batch move lists the folders of the shell state as it is now.
   state.folders = [{ id: 'f2', name: 'Folder Two', conversationIds: [] }];

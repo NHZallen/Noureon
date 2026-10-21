@@ -11,8 +11,11 @@ import { createMemoryRuntime } from '../memory/memory-runtime.js';
 export function createWorkspaceFeatures({
     window, document, navigator, fetch, File, FileReader: FileReaderCtor, Image: ImageCtor, URL, Event,
     Chart, loadArchiveVendor, requestAnimationFrame, setTimeout, clearTimeout, crypto, console = globalThis.console,
-    elements: ALL_ELEMENTS, state, i18n, models: MODELS,
-    runtimeAppDataStore, runtimeStorageAdapter = null, runtimeDialogCoordinator, conversationStateAccess,
+    elements: ALL_ELEMENTS, i18n, models: MODELS,
+    runtimeConfigAccess, runtimeAppDataStore, liveConversationsBridge, runtimeStorageAdapter = null, runtimeDialogCoordinator,
+    conversationStateAccess,
+    // Who is signed in, the files waiting to be sent, the sidebar and the batch selection (legacy-core/shell-state.js).
+    session, uploads, sidebar, selection,
     // Functions made after these features (the page features, the start of the page): each is called only once the page runs.
     updateInputState, setupSettingsModal, initChatApp, applyUiTheme, applyLanguage, setupTimeAnalysis,
     getSensitiveApiKeys, mergeSensitiveApiKeys, saveSensitiveConfig, saveConfig, saveAppData,
@@ -29,6 +32,11 @@ export function createWorkspaceFeatures({
     // The memory functions (memory-runtime.js, made further down), or null before.
     let memory = null;
     const getMemory = () => memory;
+    const getConfig = () => runtimeConfigAccess.getConfig();
+    const getConversations = () => liveConversationsBridge.getConversations();
+    // The speech recognition of the voice input running now, and the chart of the dashboard drawn last.
+    let currentSpeechRecognition = null;
+    let modelPieChart = null;
 
     const resolveUploadUpdateInputState = (...args) => updateInputState(...args);
 
@@ -41,18 +49,12 @@ export function createWorkspaceFeatures({
         FileReaderCtor,
         ImageCtor,
         elements: ALL_ELEMENTS,
-        getConfig: () => state.config,
-        getConversations: () => state.conversations,
-        getUploadedFiles: () => state.uploadedFiles,
-        setUploadedFiles: (files) => {
-            state.uploadedFiles = files;
-            return state.uploadedFiles;
-        },
-        getSidebarOpen: () => state.sidebarOpen,
-        setSidebarOpen: (nextSidebarOpen) => {
-            state.sidebarOpen = nextSidebarOpen;
-            return state.sidebarOpen;
-        },
+        getConfig,
+        getConversations,
+        getUploadedFiles: uploads.getUploadedFiles,
+        setUploadedFiles: uploads.setUploadedFiles,
+        getSidebarOpen: sidebar.isSidebarOpen,
+        setSidebarOpen: sidebar.setSidebarOpen,
         escapeHTML,
         renderUserText,
         renderMarkdownWithFormulas,
@@ -89,40 +91,24 @@ export function createWorkspaceFeatures({
         setupSettingsModal,
         initChatApp,
         runtimeStorageAdapter,
-        getConfig: () => state.config,
+        getConfig,
         getSensitiveApiKeys,
         mutateConfig: (mutator) => {
-            if (typeof mutator === 'function') return mutator(state.config);
-            Object.assign(state.config, mutator);
-            return state.config;
+            if (typeof mutator === 'function') return mutator(getConfig());
+            Object.assign(getConfig(), mutator);
+            return getConfig();
         },
         mergeSensitiveApiKeys,
-        getCurrentUser: () => state.currentUser,
-        setCurrentUser: (nextUser) => {
-            state.currentUser = nextUser;
-            return state.currentUser;
-        },
-        getConversations: () => state.conversations,
-        getFolders: () => state.folders,
-        getAstras: () => state.astras,
-        getPersonalMemories: () => state.personalMemories,
-        replaceAllAppData: (nextAppData) => {
-            const snapshot = runtimeAppDataStore.replaceAll(nextAppData);
-            state.conversations = snapshot.conversations;
-            state.folders = snapshot.folders;
-            state.astras = snapshot.astras;
-            state.personalMemories = snapshot.personalMemories;
-            return snapshot;
-        },
-        replaceFolders: (nextFolders) => {
-            state.folders = runtimeAppDataStore.replaceFolders(nextFolders);
-            return state.folders;
-        },
-        replacePersonalMemories: (nextPersonalMemories) => {
-            state.personalMemories = runtimeAppDataStore.replacePersonalMemories(nextPersonalMemories);
-            return state.personalMemories;
-        },
-        getSelectedConversationIds: () => state.selectedConversationIds,
+        getCurrentUser: session.getCurrentUser,
+        setCurrentUser: session.setCurrentUser,
+        getConversations,
+        getFolders: () => runtimeAppDataStore.getFolders(),
+        getAstras: () => runtimeAppDataStore.getAstras(),
+        getPersonalMemories: () => runtimeAppDataStore.getPersonalMemories(),
+        replaceAllAppData: (nextAppData) => runtimeAppDataStore.replaceAll(nextAppData),
+        replaceFolders: (nextFolders) => runtimeAppDataStore.replaceFolders(nextFolders),
+        replacePersonalMemories: (nextPersonalMemories) => runtimeAppDataStore.replacePersonalMemories(nextPersonalMemories),
+        getSelectedConversationIds: selection.getSelectedConversationIds,
         conversationStateAccess,
         runtimeDialogCoordinator,
         saveAppData,
@@ -150,15 +136,8 @@ export function createWorkspaceFeatures({
         getOutputMode,
         resolveUploadUpdateInputState,
         performSearchAndRenderResults,
-        getCurrentSpeechRecognition: () => state.currentSpeechRecognition,
-        setCurrentSpeechRecognition: (nextRecognition) => {
-            state.currentSpeechRecognition = nextRecognition;
-            return state.currentSpeechRecognition;
-        },
-        setCurrentVoiceTarget: (nextTarget) => {
-            state.currentVoiceTarget = nextTarget;
-            return state.currentVoiceTarget;
-        },
+        getCurrentSpeechRecognition: () => currentSpeechRecognition,
+        setCurrentSpeechRecognition: (nextRecognition) => (currentSpeechRecognition = nextRecognition),
         i18n,
         randomUUID: () => crypto.randomUUID(),
         getGeneratedImageBlob: async descriptor => (await getGeneratedImageRuntime()).assetStore.getBlob(descriptor),
@@ -193,7 +172,8 @@ export function createWorkspaceFeatures({
         ensureMemorySummaryFresh,
         memory: memoryFunctions
     } = createMemoryRuntime({
-        document, Event, fetch, crypto, setTimeout, clearTimeout, console, state, runtimeAppDataStore, runtimeStorageAdapter,
+        document, Event, fetch, crypto, setTimeout, clearTimeout, console, runtimeConfigAccess, runtimeAppDataStore, liveConversationsBridge,
+        getCurrentUser: session.getCurrentUser, runtimeStorageAdapter,
         models: MODELS, runMemoryModel, modelSupportsVision, getApiKeyForProvider, hashString, saveAppData, saveConfig
     });
     memory = memoryFunctions;
@@ -216,22 +196,19 @@ export function createWorkspaceFeatures({
         requestAnimationFrame,
         crypto,
         elements: ALL_ELEMENTS,
-        getConfig: () => state.config,
-        getConversations: () => state.conversations,
-        getFolders: () => state.folders,
-        getPersonalMemories: () => state.personalMemories,
-        replacePersonalMemories: (nextPersonalMemories) => {
-            state.personalMemories = runtimeAppDataStore.replacePersonalMemories(nextPersonalMemories);
-            return state.personalMemories;
-        },
+        getConfig,
+        getConversations,
+        getFolders: () => runtimeAppDataStore.getFolders(),
+        getPersonalMemories: () => runtimeAppDataStore.getPersonalMemories(),
+        replacePersonalMemories: (nextPersonalMemories) => runtimeAppDataStore.replacePersonalMemories(nextPersonalMemories),
         getMemoryState: () => runtimeAppDataStore.getMemoryState?.() || null,
         replaceMemoryState,
         captureCompletedTurn: options => captureCompletedTurnAndPersist(options),
         enqueueMemoryCapture: options => memoryWorkScheduler.enqueueCapture(options),
         hashString,
-        getModelPieChart: () => state.modelPieChart,
+        getModelPieChart: () => modelPieChart,
         setModelPieChart: (chart) => {
-            state.modelPieChart = chart;
+            modelPieChart = chart;
         },
         models: MODELS,
         i18n,

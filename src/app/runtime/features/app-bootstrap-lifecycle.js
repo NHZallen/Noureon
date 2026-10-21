@@ -37,9 +37,6 @@ export function createLegacyAppBootstrapLifecycle({
     setSidebarOpen,
     setSendConfirmed,
     getAbortController,
-    getCropperInstance,
-    setCropperInstance,
-    setEditingAstraForAvatarId,
     startNewChat,
     renderAll,
     setupVoiceInput,
@@ -94,6 +91,7 @@ export function createLegacyAppBootstrapLifecycle({
     closeStore,
     handleAvatarUpload,
     handleConfirmAvatarCrop,
+    cancelAvatarCrop,
     toggleTrashSelectionMode,
     handleBatchRestoreFromTrash,
     handleBatchDeleteFromTrash,
@@ -360,15 +358,7 @@ export function createLegacyAppBootstrapLifecycle({
         storeNavigationLifecycle.bind();
         ALL_ELEMENTS.astrasAvatarInput.addEventListener('change', handleAvatarUpload);
         ALL_ELEMENTS.confirmAvatarCropBtn.addEventListener('click', handleConfirmAvatarCrop);
-        ALL_ELEMENTS.cancelAvatarCropBtn.addEventListener('click', () => {
-            toggleModal(ALL_ELEMENTS.astrasAvatarModal, false);
-            const cropper = getCropperInstance();
-            if (cropper) {
-                cropper.destroy();
-                setCropperInstance(null);
-            }
-            setEditingAstraForAvatarId(null);
-        });
+        ALL_ELEMENTS.cancelAvatarCropBtn.addEventListener('click', cancelAvatarCrop);
         ALL_ELEMENTS.closeLatestUpdateModalBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.latestUpdateModal, false));
         ALL_ELEMENTS.closeLatestUpdateXBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.latestUpdateModal, false));
         // The link opens the update notes page (/updates) in a new tab; the window of the new version closes as it is followed.

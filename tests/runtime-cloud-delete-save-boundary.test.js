@@ -10,7 +10,7 @@ test('cloud permanent delete uses the active shadow sync instead of username pre
 
   assert.match(legacyCoreSource, /import\(['"]\/src\/app\/runtime\/legacy-core\/cloud-delete-lifecycle\.js['"]\)/);
   assert.match(legacyCoreSource, /createCloudDeletionLifecycle\(/);
-  assert.match(legacyCoreSource, /getCurrentUser:\s*\(\)\s*=>\s*shell\.currentUser/);
+  assert.match(legacyCoreSource, /const \{ getCurrentUser \} = session;/);
   assert.match(legacyCoreSource, /getConversations:\s*\(\)\s*=>\s*runtimeAppDataStore\.getConversations\(\)/);
   assert.match(legacyCoreSource, /getService\(SERVICES\.cloudSync\)/);
   assert.match(cloudDeleteSource, /getCurrentUser\?\.\(\)\?\.authProvider\s*===\s*['"]supabase['"]/);

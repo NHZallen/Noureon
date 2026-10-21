@@ -21,7 +21,12 @@ function menus(document, overrides = {}) {
     astrasCreateModal: { id: 'create', querySelector: () => ({}) }
   };
   const api = createMobileContextMenus({
-    document, elements, state, i18n: { en: {} },
+    document, elements, i18n: { en: {} },
+    getUiLanguage: () => state.config.uiLanguage,
+    getConversations: () => state.conversations,
+    getFolders: () => state.folders,
+    getAstras: () => state.astras,
+    editAstras: record('editAstra'),
     requestAnimationFrame: (callback) => callback(),
     setTimeout: (callback, ms) => timers.push([callback, ms]),
     showRenameModal: record('rename'), togglePinChat: record('pin'), archiveChat: record('archive'), deleteChat: record('delete'),
@@ -95,16 +100,14 @@ test('the sheet closes on the overlay and when pulled down far enough', () => {
 test('a held folder and a held Noura run their own actions', () => {
   const { document, cleanup } = createDom();
   try {
-    const { api, calls, state, elements, runTimers } = menus(document);
+    const { api, calls, runTimers } = menus(document);
     api.showMobileContextMenuForFolder('f');
     tap(document, 'customize-folder');
     runTimers();
     api.showMobileContextMenuForAstras('a');
     tap(document, 'edit-astras');
     runTimers();
-    assert.deepEqual(calls, [['folderSettings', 'f'], ['modal', 'create', true]]);
-    assert.equal(state.editingAstrasId, 'a');
-    assert.equal(elements.astrasInstructionsInput.value, 'I');
+    assert.deepEqual(calls, [['folderSettings', 'f'], ['editAstra', 'a']]);
   } finally {
     cleanup();
   }
@@ -116,11 +119,12 @@ test('subscribing to an official Noura adds a copy; unsubscribing deletes it in 
     const notes = [];
     const deleted = [];
     let astras = [];
-    const state = { config: { uiLanguage: 'en' }, currentStoreCategory: 'all', get astras() { return astras; }, set astras(next) { astras = next; } };
     const store = createAstraStoreLifecycle({
-      document, elements: { storeGrid: document.getElementById('grid') }, state, i18n: { en: { subscribed: 'Added', unsubscribed: 'Removed' } },
+      document, elements: { storeGrid: document.getElementById('grid') }, i18n: { en: { subscribed: 'Added', unsubscribed: 'Removed' } },
       OFFICIAL_ASTRAS: [{ id: 'writer', name: 'Writer', description: 'Writes', category: '生產力' }],
-      runtimeAppDataStore: { replaceAstras: (next) => next },
+      getUiLanguage: () => 'en',
+      getAstras: () => astras,
+      replaceAstras: (next) => { astras = next; return astras; },
       requestAnimationFrame: (callback) => callback(), crypto: { randomUUID: () => 'copy-1' }, console,
       FileReader: class {}, Cropper: class {}, escapeHTML: (value) => String(value),
       deleteAstrasFromCloud: async (ids) => deleted.push(ids), showNotification: (text) => notes.push(text), toggleModal() {},
@@ -134,6 +138,49 @@ test('subscribing to an official Noura adds a copy; unsubscribing deletes it in 
     assert.deepEqual(deleted, [['copy-1']]);
     assert.deepEqual(astras, []);
     assert.deepEqual(notes, ['Added', 'saved', 'astras', 'Removed', 'saved', 'astras']);
+  } finally {
+    cleanup();
+  }
+});
+
+test('the store keeps its own category, and closing the picture editor lets go of the cropper', async () => {
+  const { document, cleanup } = createDom('<div id="store-category-list"></div><div id="grid"></div><img id="crop">');
+  try {
+    const modals = [];
+    const destroyed = [];
+    let astras = [{ id: 'mine', name: 'Mine', description: 'D', category: '遊戲' }];
+    const store = createAstraStoreLifecycle({
+      document,
+      elements: {
+        storeGrid: document.getElementById('grid'),
+        avatarCropImage: document.getElementById('crop'),
+        astrasAvatarModal: { id: 'avatar' },
+        astrasAvatarInput: { click: () => modals.push('pick') }
+      },
+      i18n: { en: {} },
+      OFFICIAL_ASTRAS: [{ id: 'writer', name: 'Writer', description: 'Writes', category: '生產力' }],
+      getUiLanguage: () => 'en',
+      getAstras: () => astras,
+      replaceAstras: (next) => { astras = next; return astras; },
+      requestAnimationFrame: (callback) => callback(), crypto: { randomUUID: () => 'id' }, console,
+      FileReader: class { readAsDataURL() { this.onload({ target: { result: 'data:image/png;base64,' } }); } },
+      Cropper: class { destroy() { destroyed.push('cropper'); } },
+      escapeHTML: (value) => String(value), showNotification() {},
+      toggleModal: (modal, open) => modals.push([modal.id, open]),
+      saveAppData: async () => {}, renderAstras() {}
+    });
+    store.renderStore();
+    assert.equal(document.querySelectorAll('.astras-store-card').length, 2, 'every category at first');
+    [...document.querySelectorAll('.store-category-btn')].find((button) => button.textContent === '遊戲').click();
+    assert.equal(document.querySelectorAll('.astras-store-card').length, 1, 'the chosen category only');
+
+    store.openAvatarEditor('mine');
+    store.handleAvatarUpload({ target: { files: [new Blob(['x'])], value: 'x' } });
+    store.cancelAvatarCrop();
+    assert.deepEqual(destroyed, ['cropper']);
+    assert.deepEqual(modals, ['pick', ['avatar', true], ['avatar', false]]);
+    await store.handleConfirmAvatarCrop();
+    assert.equal(astras[0].avatarUrl, undefined, 'nothing is saved once the editor was closed');
   } finally {
     cleanup();
   }

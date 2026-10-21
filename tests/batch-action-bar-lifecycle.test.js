@@ -4,6 +4,7 @@ import test from 'node:test';
 
 import { createDom } from './behaviours/helpers/create-dom.js';
 import { createBatchActionBarLifecycle } from '../src/app/legacy-runtime/features/batch-action-bar-lifecycle.js';
+import { createSelectionStore } from '../src/app/runtime/legacy-core/shell-state.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -18,7 +19,10 @@ const createHarness = (overrides = {}) => {
     </div>
     <div id="user-controls"></div>
   `);
-  const selectedIds = overrides.selectedIds ?? new Set(['c-1', 'c-2']);
+  const selection = createSelectionStore();
+  selection.setSelectionMode(overrides.isSelectionMode ?? true);
+  for (const id of overrides.selectedIds ?? ['c-1', 'c-2']) selection.selectConversation(id);
+  const rendered = [];
   const lifecycle = createBatchActionBarLifecycle({
     elements: {
       batchActionBar: document.querySelector('#batch-action-bar'),
@@ -29,12 +33,12 @@ const createHarness = (overrides = {}) => {
       batchMoveBtn: document.querySelector('#batch-move')
     },
     getI18n: () => ({ en: { selected: 'Selected', items: 'items' } }),
-    getIsSelectionMode: () => overrides.isSelectionMode ?? true,
-    getSelectedConversationIds: () => selectedIds,
-    getUiLanguage: () => 'en'
+    selection,
+    getUiLanguage: () => 'en',
+    renderSidebar: () => rendered.push('sidebar')
   });
 
-  return { cleanup, document, lifecycle };
+  return { cleanup, document, lifecycle, selection, rendered };
 };
 
 test('renders visible batch action bar with selected count and enabled actions', () => {
@@ -54,7 +58,7 @@ test('renders visible batch action bar with selected count and enabled actions',
 });
 
 test('disables actions when selection mode has no selected conversations', () => {
-  const { cleanup, document, lifecycle } = createHarness({ selectedIds: new Set() });
+  const { cleanup, document, lifecycle } = createHarness({ selectedIds: [] });
   try {
     lifecycle.renderBatchActionBar();
 
@@ -83,13 +87,25 @@ test('hides batch action bar and restores user controls outside selection mode',
 });
 
 test('missing controls remain a safe no-op boundary', () => {
-  const lifecycle = createBatchActionBarLifecycle({
-    elements: {},
-    getIsSelectionMode: () => true,
-    getSelectedConversationIds: () => new Set(['c-1'])
-  });
+  const selection = createSelectionStore();
+  selection.setSelectionMode(true);
+  const lifecycle = createBatchActionBarLifecycle({ elements: {}, selection });
 
   assert.equal(lifecycle.renderBatchActionBar(), false);
+});
+
+test('switching the batch selection forgets what was selected, names the button and draws the sidebar', () => {
+  const { cleanup, document, lifecycle, selection, rendered } = createHarness({ isSelectionMode: false });
+  try {
+    const selectionModeBtn = document.createElement('button');
+    lifecycle.toggleSelectionMode.call(null);
+    assert.equal(selection.isSelectionMode(), true);
+    assert.equal(selection.getSelectedConversationIds().size, 0);
+    assert.deepEqual(rendered, ['sidebar']);
+    assert.equal(selectionModeBtn.title, '', 'no button given, nothing named');
+  } finally {
+    cleanup();
+  }
 });
 
 test('batch action bar lifecycle source avoids unrelated runtime systems', () => {

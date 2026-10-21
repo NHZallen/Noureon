@@ -9,7 +9,10 @@ function harness() {
   const state = { config: { memorySync: null }, conversations: [], currentUser: { username: 'alice' } };
   const runtime = createMemoryRuntime({
     document: { dispatchEvent() {} }, Event: class {}, fetch: async () => ({ ok: false }), crypto: globalThis.crypto,
-    setTimeout: () => 0, clearTimeout: () => {}, console: { warn() {}, error() {}, log() {} }, state,
+    setTimeout: () => 0, clearTimeout: () => {}, console: { warn() {}, error() {}, log() {} },
+    runtimeConfigAccess: { getConfig: () => state.config },
+    liveConversationsBridge: { getConversations: () => state.conversations },
+    getCurrentUser: () => state.currentUser,
     runtimeAppDataStore: { getMemoryState: () => memoryState, replaceMemoryState: (next) => { memoryState = next; return next; } },
     runtimeStorageAdapter: null,
     models: [], runMemoryModel: null, modelSupportsVision: () => false, getApiKeyForProvider: () => '',

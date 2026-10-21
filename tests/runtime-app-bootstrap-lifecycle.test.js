@@ -184,16 +184,12 @@ function createLifecycleHarness(overrides = {}) {
       return sendConfirmed;
     },
     getAbortController: () => abortController,
-    getCropperInstance: () => cropperInstance,
-    setCropperInstance: (next) => {
-      cropperInstance = next;
-      calls.push(`setCropperInstance:${next}`);
-      return cropperInstance;
-    },
-    setEditingAstraForAvatarId: (next) => {
-      editingAstraForAvatarId = next;
-      calls.push(`setEditingAstraForAvatarId:${next}`);
-      return editingAstraForAvatarId;
+    // The picture editor of a Noura belongs to the store (features/astra-store-lifecycle.js); its cancel button only asks it to close.
+    cancelAvatarCrop: () => {
+      cropperInstance?.destroy();
+      cropperInstance = null;
+      editingAstraForAvatarId = null;
+      calls.push('cancelAvatarCrop');
     },
     startNewChat: () => calls.push('startNewChat'),
     renderAll: () => calls.push('renderAll'),

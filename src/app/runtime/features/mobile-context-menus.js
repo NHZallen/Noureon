@@ -7,9 +7,9 @@ const CLOSE_DISTANCE = 100;
 const ACTION_DELAY_MS = 300;
 
 export function createMobileContextMenus({
-    document, elements: ALL_ELEMENTS, state, i18n, requestAnimationFrame, setTimeout,
+    document, elements: ALL_ELEMENTS, i18n, getUiLanguage, getConversations, getFolders, getAstras, requestAnimationFrame, setTimeout,
     showRenameModal, togglePinChat, archiveChat, deleteChat, moveConversationToFolder, renderBatchMoveModal,
-    showFolderSettingsModal, deleteFolder, deleteAstras, openAvatarEditor, toggleModal
+    showFolderSettingsModal, deleteFolder, deleteAstras, openAvatarEditor, editAstras, toggleModal
 }) {
     const openSheet = (markup, runAction) => {
         document.getElementById('mobile-context-menu-wrapper')?.remove();
@@ -63,10 +63,10 @@ export function createMobileContextMenus({
             setTimeout(() => runAction(action, e), ACTION_DELAY_MS);
         });
     };
-    const text = () => i18n[state.config.uiLanguage];
+    const text = () => i18n[getUiLanguage()];
 
     const showMobileContextMenu = (convId) => {
-        const conv = state.conversations.find(c => c.id === convId);
+        const conv = getConversations().find(c => c.id === convId);
         if (!conv) {
             document.getElementById('mobile-context-menu-wrapper')?.remove();
             return;
@@ -86,7 +86,7 @@ export function createMobileContextMenus({
         });
     };
     const showMobileContextMenuForFolder = (folderId) => {
-        const folder = state.folders.find(f => f.id === folderId);
+        const folder = getFolders().find(f => f.id === folderId);
         if (!folder) {
             document.getElementById('mobile-context-menu-wrapper')?.remove();
             return;
@@ -100,21 +100,14 @@ export function createMobileContextMenus({
         });
     };
     const showMobileContextMenuForAstras = (astrasId) => {
-        const astra = state.astras.find(a => a.id === astrasId);
+        const astra = getAstras().find(a => a.id === astrasId);
         if (!astra) {
             document.getElementById('mobile-context-menu-wrapper')?.remove();
             return;
         }
         openSheet(buildAstraMobileContextMenuMarkup({ name: astra.name, officialId: astra.officialId, text: text() }), (action) => {
             switch (action) {
-                case 'edit-astras':
-                    state.editingAstrasId = astrasId;
-                    ALL_ELEMENTS.astrasNameInput.value = astra.name;
-                    ALL_ELEMENTS.astrasDescInput.value = astra.description;
-                    ALL_ELEMENTS.astrasInstructionsInput.value = astra.instructions;
-                    ALL_ELEMENTS.astrasCreateModal.querySelector('h2').textContent = text().editAstras || '編輯 Noura';
-                    toggleModal(ALL_ELEMENTS.astrasCreateModal, true);
-                    break;
+                case 'edit-astras': editAstras(astrasId); break;
                 case 'edit-avatar': openAvatarEditor(astrasId); break;
                 case 'delete-astras': deleteAstras(astrasId); break;
             }

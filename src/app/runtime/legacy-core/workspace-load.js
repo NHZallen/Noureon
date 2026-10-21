@@ -10,14 +10,14 @@ import { COUNCIL_MAX_MODELS, MODELS } from './model-registry.js';
 import { getDefaultFolder, getDefaultGenConfig } from './conversation-actions.js';
 
 export function createWorkspaceLoad({
-    shell, storage, configAccess, appDataStore, sensitiveConfigPersistence, getConfigKey, getAppDataKey,
+    getCurrentUser, storage, configAccess, appDataStore, sensitiveConfigPersistence, getConfigKey, getAppDataKey,
     mergeSensitiveApiKeys, saveSensitiveConfig, saveConfig, normalizeCouncilConfig, normalizeConversationModel,
     getCouncilTranslatorCandidates, getSingleTranslatorCandidates, getFolderUiStatePersistence, showNotification,
     loadSplit = loadSplitWorkspace
 }) {
     const { getItem, removeItem } = storage;
     const loadConfig = async () => {
-        if (!shell.currentUser) return;
+        if (!getCurrentUser()) return;
         await sensitiveConfigPersistence.loadSensitiveConfig();
         const saved = await getItem(getConfigKey());
         if (saved) {
@@ -51,8 +51,8 @@ export function createWorkspaceLoad({
         if (applyLoginLanguage(configAccess.getConfig())) await saveConfig();
     };
     const loadAppData = async () => {
-        if (!shell.currentUser) return;
-        const split = await loadSplit({ storage, user: shell.currentUser, context: { getDefaultFolder, getDefaultGenConfig, runtimeConfigAccess: configAccess, normalizeCouncilConfig, normalizeConversationModel } });
+        if (!getCurrentUser()) return;
+        const split = await loadSplit({ storage, user: getCurrentUser(), context: { getDefaultFolder, getDefaultGenConfig, runtimeConfigAccess: configAccess, normalizeCouncilConfig, normalizeConversationModel } });
         if (split) { appDataStore.replaceAll(split.data); await (await getFolderUiStatePersistence()).restore(appDataStore.getFolders()); return; }
         const saved = await getItem(getAppDataKey());
         if (saved) {

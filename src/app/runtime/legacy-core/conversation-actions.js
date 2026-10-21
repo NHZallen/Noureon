@@ -14,7 +14,7 @@ export const getDefaultGenConfig = () => ({ temperature: 0.7, topP: 0.95, maxTok
 export const getDefaultFolder = () => ({ color: 'gray', icon: 'default', textColor: 'gray', isOpen: false});
 
 export function createConversationActions({
-    window, document, elements: ALL_ELEMENTS, i18n, shell, toggleSidebar, updateFunctionButtonsState,
+    window, document, elements: ALL_ELEMENTS, i18n, uploads, disconnectMessageObserver, toggleSidebar, updateFunctionButtonsState,
     runtimeConfigAccess, liveConversationsBridge, conversationStateAccess, runtimeAppDataStore, runtimeDialogCoordinator,
     cloneCouncilConfig, getText, toggleModal, saveAppData, renderMarkdown, bindGeneratedImageAssets,
     getActiveConversation, renderAll, renderSidebar, adjustTextareaHeight, updateInputState, updateApiKeyWarningBadge,
@@ -58,7 +58,7 @@ export function createConversationActions({
         if (cleanedConversations.length < oldTempChatCount) {
              await saveAppData();
         }
-        shell.uploadedFiles = [];
+        uploads.clearUploadedFiles();
         getQuoteInquiry()?.clearQuote();
         const newConv = createBaseConversation(getText('newChat'));
         liveConversationsBridge.getConversations().unshift(newConv);
@@ -73,9 +73,7 @@ export function createConversationActions({
         updateApiKeyWarningBadge();
     };
     const loadChat = (id) => {
-        if (shell.messageObserver) {
-            shell.messageObserver.disconnect();
-        }
+        disconnectMessageObserver();
         if (id !== conversationStateAccess.getCurrentConversationId()) {
             const previousConv = getActiveConversation();
             if (previousConv && (previousConv.isTemporary && previousConv.messages.length === 0 || previousConv.retentionMode === 'ephemeral')) {
@@ -85,7 +83,7 @@ export function createConversationActions({
                 );
             }
             conversationStateAccess.setCurrentConversationId(id);
-            shell.uploadedFiles = [];
+            uploads.clearUploadedFiles();
             getQuoteInquiry()?.clearQuote();
             const conv = getActiveConversation();
             const councilWasEnabled = disableConversationCouncil(conv, cloneCouncilConfig);
