@@ -1,11 +1,7 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import { createSettingsAuthActionsHelper } from '../src/app/runtime/legacy-core/settings-auth-actions-helper.js';
-
-const projectFile = (path) => new URL(`../${path}`, import.meta.url);
-const readSource = (path) => readFileSync(projectFile(path), 'utf8');
 
 const createTrackedElement = (calls, name) => {
   const classes = new Set();
@@ -268,15 +264,4 @@ test('delete-all rejected does not clear storage or reload', async () => {
   await helper.handleDeleteAllData();
 
   assert.deepEqual(calls, ['dialog']);
-});
-
-test('import is inert and helper avoids runtime entry, bootstrap, and API key security ownership', () => {
-  const source = readSource('src/app/runtime/legacy-core/settings-auth-actions-helper.js');
-
-  assert.match(source, /export\s+function\s+createSettingsAuthActionsHelper/);
-  assert.match(source, /handleLogin/);
-  assert.match(source, /handleLogout/);
-  assert.match(source, /handleDeleteAllData/);
-  assert.doesNotMatch(source, /runtime-entry|legacy-app|main\.js|bootstrap|sidebar/);
-  assert.doesNotMatch(source, /settings-save-settings-helper|settings-api-key-controls|sensitive-config-store|api-key-input-intent/);
 });

@@ -48,17 +48,21 @@ test('missing config returns undefined without inventing a fallback', () => {
   assert.equal(accessWithoutGetter.getUiLanguage(), undefined);
 });
 
-test('runtime config access bridge avoids unrelated systems', () => {
+test('reading the language changes nothing in the settings', () => {
+  const config = { uiLanguage: 'fr', theme: 'dark' };
+  const access = createRuntimeConfigAccess({ getConfig: () => config });
+
+  assert.equal(access.getUiLanguage(), 'fr');
+  assert.deepEqual(config, { uiLanguage: 'fr', theme: 'dark' });
+});
+
+// Boundary: the access only reads and replaces what it is given; the page, storage, the network and the saving of the settings are
+// elsewhere, and the old mirror synchronization does not come back.
+test('runtime config access stays a bridge to the injected store', () => {
   const source = readSource('src/app/legacy-runtime/runtime/runtime-config-access.js');
 
-  assert.match(source, /export\s+function\s+createRuntimeConfigAccess/);
-  assert.match(source, /const\s+readConfig\s*=\s*\(\)\s*=>\s*getConfig\?\.\(\)/);
-  assert.match(source, /replaceConfig\(nextConfig\)/);
-  assert.match(source, /mutateConfig\(mutatorOrPatch\)/);
-  assert.match(source, /return\s+readConfig\(\)\?\.uiLanguage/);
-  assert.doesNotMatch(source, /syncConfig|syncCurrentConfig/);
-  assert.doesNotMatch(source, /document|window|localStorage|sessionStorage|fetch|XMLHttpRequest/);
-  assert.doesNotMatch(source, /provider|parser|storage|schema|package|vite|css|template/i);
-  assert.doesNotMatch(source, /config\.uiLanguage\s*=/);
-  assert.doesNotMatch(source, /saveConfig|loadConfig|applyLanguage/);
+  assert.doesNotMatch(
+    source,
+    /\b(?:document|window|localStorage|sessionStorage|indexedDB|fetch|XMLHttpRequest)\b|saveConfig|loadConfig|applyLanguage|syncConfig|syncCurrentConfig/
+  );
 });

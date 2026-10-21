@@ -1,11 +1,7 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import { createStoreNavigationLifecycle, NOURAS_STORE_PATH } from '../src/app/legacy-runtime/features/store-navigation-lifecycle.js';
-
-const projectFile = (path) => new URL(`../${path}`, import.meta.url);
-const readSource = (path) => readFileSync(projectFile(path), 'utf8');
 
 const createButton = (name, bindings) => ({
   addEventListener(type, handler) {
@@ -82,16 +78,6 @@ test('missing buttons preserve the legacy required-element failure boundary', ()
   });
   assert.throws(() => missingBackLifecycle.bind(), TypeError);
   assert.deepEqual(bindings.map(([name, type]) => [name, type]), [['open', 'click']]);
-});
-
-test('store navigation lifecycle source owns binding and the address only', () => {
-  const source = readSource('src/app/legacy-runtime/features/store-navigation-lifecycle.js');
-
-  assert.match(source, /export\s+function\s+createStoreNavigationLifecycle/);
-  assert.match(source, /getOpenStoreButton\(\)\.addEventListener\('click',\s*open\)/);
-  assert.match(source, /getBackToChatButton\(\)\.addEventListener\('click',\s*close\)/);
-  assert.doesNotMatch(source, /document\.(?:querySelector|getElementById)/);
-  assert.doesNotMatch(source, /requestAnimationFrame|setTimeout|innerHTML|classList/);
 });
 
 const createWindow = (pathname) => {

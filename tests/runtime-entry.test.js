@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import { loadLegacyCore, startRuntimeEntry } from '../src/app/runtime-entry.js';
@@ -7,8 +6,6 @@ import { createLegacyStartupLifecycle } from '../src/app/runtime/features/startu
 
 // A first visit follows the language of the browser; these tests are about the start in Traditional Chinese.
 Object.defineProperty(globalThis, 'navigator', { value: { languages: ['zh-TW'], language: 'zh-TW' }, configurable: true, writable: true });
-
-const readSource = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
 test('the runtime entry loads the shell once and starts the page once', async () => {
   let loads = 0;
@@ -28,11 +25,11 @@ test('the runtime entry loads the shell once and starts the page once', async ()
   assert.equal(typeof loadLegacyCore, 'function');
 });
 
-test('the runtime entry loads the real shell, which starts the page itself', () => {
-  const source = readSource('src/app/runtime-entry.js');
-  assert.match(source, /return import\('\.\/runtime\/legacy-core\/legacy-core\.js'\)/);
-  assert.doesNotMatch(source, /virtual:legacy-app-runtime|legacy-runtime\/fragments/);
-  assert.match(readSource('src/app/runtime/legacy-core/legacy-core.js'), /export function startPage\(\)/);
+test('the runtime entry refuses a shell without startPage', async () => {
+  // A fresh copy of the module: the one above has already started.
+  const { startRuntimeEntry: startFresh } = await import('../src/app/runtime-entry.js?without-start-page');
+
+  await assert.rejects(startFresh({ loadCore: async () => ({}) }), /must provide startPage/);
 });
 
 // The start of the page (startPage() in legacy-core.js) binds the sign-in page, then loads the workspace, then binds the language
@@ -108,16 +105,4 @@ test('the start of the page binds the sign-in page once and checks for a signed-
     'class:auth-container:add:visible'
   ]);
   assert.equal(listeners.filter((listener) => listener === 'authForm:submit').length, 1);
-});
-
-test('legacy production entry starts runtime-entry without importing the legacy core directly', () => {
-  const source = readSource('src/app/legacy-app.js');
-
-  assert.match(
-    source,
-    /import\s+\{\s*startRuntimeEntry\s*\}\s+from\s+['"]\.\/runtime-entry\.js['"]/
-  );
-  assert.match(source, /export\s+const\s+legacyAppReady\s*=\s*startRuntimeEntry\(\);/);
-  assert.doesNotMatch(source, /virtual:legacy-app-runtime/);
-  assert.doesNotMatch(source, /legacy-core\/legacy-core\.js/);
 });

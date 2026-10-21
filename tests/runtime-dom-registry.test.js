@@ -1,12 +1,10 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import { createRuntimeAppKernel } from '../src/app/runtime-app.js';
 import { createLegacyRuntimeDomRegistry } from '../src/app/runtime/kernel/dom-registry.js';
 
-const readSource = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const hashJson = (value) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 
 test('DOM registry preserves the complete legacy key and element id order', () => {
@@ -69,22 +67,19 @@ test('runtime app kernel reuses provided elements without another DOM lookup', (
   assert.equal(kernel.elements, elements);
 });
 
-test('DOM registry module owns lookup creation only', () => {
-  const source = readSource('src/app/runtime/kernel/dom-registry.js');
+// Making the registry or the kernel only looks elements up: no listener, no query, no change to the page.
+test('the DOM registry and the kernel touch nothing of the document but getElementById', () => {
+  const touched = new Set();
+  const element = new Proxy({}, { get: (_target, prop) => assert.fail(`an element was read: ${String(prop)}`) });
+  const rootDocument = new Proxy({}, {
+    get(_target, prop) {
+      touched.add(prop);
+      return prop === 'getElementById' ? () => element : undefined;
+    }
+  });
 
-  assert.match(source, /export\s+function\s+createLegacyRuntimeDomRegistry/);
-  assert.match(source, /rootDocument\.getElementById\(id\)/);
-  assert.doesNotMatch(source, /addEventListener|removeEventListener|dispatchEvent/);
-  assert.doesNotMatch(source, /\b(?:config|conversations|folders|localStorage|sessionStorage|indexedDB|fetch)\b/i);
-  assert.doesNotMatch(source, /render|bootstrap|startup|resolveBinding|registerLazyBinding/i);
-});
+  createLegacyRuntimeDomRegistry(rootDocument);
+  createRuntimeAppKernel({ rootDocument });
 
-test('runtime app remains lifecycle-free while providing the production kernel', () => {
-  const source = readSource('src/app/runtime-app.js');
-
-  assert.match(source, /export\s+function\s+createRuntimeAppKernel/);
-  assert.match(source, /elements\s*\?\?\s*createLegacyRuntimeDomRegistry\(rootDocument\)/);
-  assert.doesNotMatch(source, /virtual:legacy-app-runtime|legacy-runtime\/fragments/);
-  assert.doesNotMatch(source, /addEventListener|DOMContentLoaded|bootstrap\(|initChatApp|initializeApp/);
-  assert.doesNotMatch(source, /document\.(?:getElementById|querySelector)|classList|innerHTML/);
+  assert.deepEqual([...touched], ['getElementById']);
 });

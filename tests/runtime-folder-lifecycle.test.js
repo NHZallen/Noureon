@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import { createLegacyFolderLifecycle } from '../src/app/runtime/features/folder-lifecycle.js';
+import { createDom } from './behaviours/helpers/create-dom.js';
 
 const readSource = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -69,12 +70,12 @@ function createHarness(overrides = {}) {
     ['text-color-container', createNode()],
     ['text-color-options', textColorOptions]
   ]);
-  const document = {
+  const document = overrides.document || {
     body,
     createElement: () => createNode(),
     getElementById: (id) => nodesById.get(id) || null
   };
-  const elements = {
+  const elements = overrides.elements || {
     colorSwatchesContainer,
     iconOptionsContainer,
     folderSettingsModal
@@ -294,22 +295,63 @@ test('settings lifecycle keeps folderToCustomize internal and saves the latest l
   assert.equal(harness.calls[0][1], harness.getFolders());
 });
 
-test('folder menu keeps rename, customize, and delete command wiring', () => {
-  const source = readSource('src/app/runtime/features/folder-lifecycle.js');
+test('folder menu buttons rename, customize, and delete the folder, then close the menu', async () => {
+  const { document, cleanup } = createDom(`
+    <button id="folder-more"></button>
+    <div id="folder-settings-modal">
+      <div><h3></h3><div id="color-swatches"></div></div>
+      <div><div id="icon-options"></div></div>
+    </div>
+  `);
+  try {
+    const folder = { id: 'folder', name: 'Work', color: 'gray', icon: 'default', textColor: 'gray', conversationIds: [] };
+    const harness = createHarness({
+      document,
+      folders: [folder],
+      elements: {
+        colorSwatchesContainer: document.getElementById('color-swatches'),
+        iconOptionsContainer: document.getElementById('icon-options'),
+        folderSettingsModal: document.getElementById('folder-settings-modal')
+      }
+    });
+    const target = document.getElementById('folder-more');
+    const openMenu = () => {
+      harness.lifecycle.createFolderMenu('folder', target);
+      const popover = document.getElementById('history-popover');
+      assert.equal(popover.classList.contains('visible'), true);
+      return popover;
+    };
 
-  assert.match(source, /querySelector\('\.rename-folder-btn'\)\.addEventListener\('click'/);
-  assert.match(source, /showRenameModal\(folderId,\s*'folder',\s*event\)/);
-  assert.match(source, /querySelector\('\.customize-folder-btn'\)\.addEventListener\('click'/);
-  assert.match(source, /showFolderSettingsModal\(folderId,\s*event\)/);
-  assert.match(source, /querySelector\('\.delete-folder-btn'\)\.addEventListener\('click'/);
-  assert.match(source, /deleteFolder\(folderId,\s*event\)/);
-  assert.match(source, /scheduleAnimationFrame\(\(\)\s*=>\s*popover\.classList\.add\('visible'\)\)/);
+    openMenu().querySelector('.rename-folder-btn').click();
+    assert.equal(document.getElementById('history-popover'), null);
+    assert.deepEqual(harness.calls.at(-1).slice(0, 3), ['showRenameModal', 'folder', 'folder']);
+
+    openMenu().querySelector('.customize-folder-btn').click();
+    assert.equal(document.getElementById('history-popover'), null);
+    assert.deepEqual(harness.calls.at(-1), ['toggleModal', harness.elements.folderSettingsModal, true]);
+    assert.ok(document.querySelector('#color-swatches [data-color="blue"]'));
+
+    harness.calls.length = 0;
+    openMenu().querySelector('.delete-folder-btn').click();
+    assert.equal(document.getElementById('history-popover'), null);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.deepEqual(harness.getFolders(), []);
+    assert.deepEqual(harness.calls.map((call) => call[0]), [
+      'confirm',
+      'deleteFolderFromCloud',
+      'replaceFolders',
+      'saveAppData',
+      'renderSidebar',
+      'notification'
+    ]);
+  } finally {
+    cleanup();
+  }
 });
 
 test('folder lifecycle has no storage, auth, import, P2P, startup, or runtime entry ownership', () => {
   const source = readSource('src/app/runtime/features/folder-lifecycle.js');
 
-  assert.match(source, /export\s+function\s+createLegacyFolderLifecycle/);
   assert.doesNotMatch(
     source,
     /legacy-runtime\/fragments|virtual:legacy-app-runtime|storage-adapter|runtime-app|indexedDB|localStorage|sessionStorage|currentUser|loadConfig|loadAppData|initChatApp|initializeApp|Peer|P2P|JSZip/

@@ -14,11 +14,7 @@ function createClassList() {
     add: (...names) => names.forEach((name) => values.add(name)),
     remove: (...names) => names.forEach((name) => values.delete(name)),
     contains: (name) => values.has(name),
-    toggle(name, force) {
-      const enabled = force ?? !values.has(name);
-      if (enabled) values.add(name);
-      else values.delete(name);
-    }
+    toggle: (name, force = !values.has(name)) => (force ? values.add(name) : values.delete(name))
   };
 }
 
@@ -32,16 +28,9 @@ function createNode() {
     className: '',
     classList: createClassList(),
     children: [],
-    appendChild(child) {
-      this.children.push(child);
-      return child;
-    },
-    addEventListener(type, listener) {
-      listeners.set(type, listener);
-    },
-    dispatch(type, event = {}) {
-      return listeners.get(type)?.(event);
-    },
+    appendChild(child) { this.children.push(child); return child; },
+    addEventListener: (type, listener) => listeners.set(type, listener),
+    dispatch: (type, event = {}) => listeners.get(type)?.(event),
     querySelectorAll(selector) {
       if (selector === 'button[data-folder-id]') {
         return this.children.filter((child) => child.dataset && Object.hasOwn(child.dataset, 'folderId'));
@@ -90,17 +79,10 @@ function createHarness(overrides = {}) {
     initChatApp: () => calls.push(['initChatApp']),
     getConfig: () => config,
     getSensitiveApiKeys: () => ({ gemini: 'sensitive-gemini-key' }),
-    mutateConfig: (mutator) => {
-      if (typeof mutator === 'function') return mutator(config);
-      Object.assign(config, mutator);
-      return config;
-    },
+    mutateConfig: (mutator) => (typeof mutator === 'function' ? mutator(config) : Object.assign(config, mutator)),
     mergeSensitiveApiKeys: (...args) => calls.push(['mergeSensitiveApiKeys', ...args]),
     getCurrentUser: () => currentUser,
-    setCurrentUser: (nextUser) => {
-      currentUser = nextUser;
-      return currentUser;
-    },
+    setCurrentUser: (nextUser) => (currentUser = nextUser),
     getConversations: () => conversations,
     getFolders: () => folders,
     getAstras: () => astras,
@@ -113,44 +95,24 @@ function createHarness(overrides = {}) {
       personalMemories = nextAppData.personalMemories || [];
       return { conversations, folders, astras, personalMemories };
     },
-    replaceFolders: (nextFolders) => {
-      folders = nextFolders;
-      return folders;
-    },
-    replacePersonalMemories: (nextPersonalMemories) => {
-      personalMemories = nextPersonalMemories;
-      return personalMemories;
-    },
+    replaceFolders: (nextFolders) => (folders = nextFolders),
+    replacePersonalMemories: (nextPersonalMemories) => (personalMemories = nextPersonalMemories),
     getSelectedConversationIds: () => selectedConversationIds,
     conversationStateAccess: {
       getCurrentConversationId: () => currentConversationId,
-      setCurrentConversationId: (nextId) => {
-        calls.push(['setCurrentConversationId', nextId]);
-        currentConversationId = nextId;
-      }
+      setCurrentConversationId: (nextId) => { calls.push(['setCurrentConversationId', nextId]); currentConversationId = nextId; }
     },
-    runtimeDialogCoordinator: {
-      showNotification: (...args) => calls.push(['runtimeDialogCoordinator.showNotification', ...args])
-    },
+    runtimeDialogCoordinator: { showNotification: (...args) => calls.push(['runtimeDialogCoordinator.showNotification', ...args]) },
     saveAppData: async (...args) => calls.push(['saveAppData', ...args]),
     saveConfig: async () => calls.push(['saveConfig']),
     saveSensitiveConfig: async () => calls.push(['saveSensitiveConfig']),
     toggleSelectionMode: () => calls.push(['toggleSelectionMode']),
     toggleModal: (...args) => calls.push(['toggleModal', ...args]),
     showNotification: (...args) => calls.push(['showNotification', ...args]),
-    showCustomConfirm: async (...args) => {
-      calls.push(['showCustomConfirm', ...args]);
-      return true;
-    },
-    showCustomPrompt: async (...args) => {
-      calls.push(['showCustomPrompt', ...args]);
-      return 'New Folder';
-    },
+    showCustomConfirm: async (...args) => { calls.push(['showCustomConfirm', ...args]); return true; },
+    showCustomPrompt: async (...args) => { calls.push(['showCustomPrompt', ...args]); return 'New Folder'; },
     moveConversationToFolder: (...args) => calls.push(['moveConversationToFolder', ...args]),
-    createNewFolder: (name) => {
-      calls.push(['createNewFolder', name]);
-      return 'new-folder';
-    },
+    createNewFolder: (name) => { calls.push(['createNewFolder', name]); return 'new-folder'; },
     startNewChat: () => calls.push(['startNewChat']),
     processInChunks: async (items, callback) => callback(items),
     getBackupUsername: () => 'user',
@@ -168,16 +130,8 @@ function createHarness(overrides = {}) {
     resolveUploadUpdateInputState: () => calls.push(['resolveUploadUpdateInputState']),
     performSearchAndRenderResults: () => calls.push(['performSearchAndRenderResults']),
     getCurrentSpeechRecognition: () => currentSpeechRecognition,
-    setCurrentSpeechRecognition: (nextRecognition) => {
-      currentSpeechRecognition = nextRecognition;
-      calls.push(['setCurrentSpeechRecognition', nextRecognition ? 'recognition' : null]);
-      return currentSpeechRecognition;
-    },
-    setCurrentVoiceTarget: (nextTarget) => {
-      currentVoiceTarget = nextTarget;
-      calls.push(['setCurrentVoiceTarget', nextTarget]);
-      return currentVoiceTarget;
-    },
+    setCurrentSpeechRecognition: (next) => { calls.push(['setCurrentSpeechRecognition', next ? 'recognition' : null]); return (currentSpeechRecognition = next); },
+    setCurrentVoiceTarget: (nextTarget) => { calls.push(['setCurrentVoiceTarget', nextTarget]); return (currentVoiceTarget = nextTarget); },
     i18n: { en: {} },
     randomUUID: () => 'id',
     scheduleTimeout: (callback) => callback(),
@@ -189,55 +143,28 @@ function createHarness(overrides = {}) {
     calls,
     elements,
     lifecycle,
-    get config() {
-      return config;
-    },
-    get conversations() {
-      return conversations;
-    },
-    get currentConversationId() {
-      return currentConversationId;
-    },
-    get currentSpeechRecognition() {
-      return currentSpeechRecognition;
-    },
-    get currentVoiceTarget() {
-      return currentVoiceTarget;
-    }
+    get config() { return config; },
+    get conversations() { return conversations; },
+    get currentConversationId() { return currentConversationId; },
+    get currentSpeechRecognition() { return currentSpeechRecognition; },
+    get currentVoiceTarget() { return currentVoiceTarget; }
   };
 }
 
 test('factory is inert on import and validates required dependencies', () => {
-  assert.throws(
-    () => createLegacyBatchImportVoiceLifecycle(),
-    /missing dependencies: document, window/
-  );
+  assert.throws(() => createLegacyBatchImportVoiceLifecycle(), /missing dependencies: document, window/);
 });
 
 test('factory exposes batch, import, auth-import, and voice functions', () => {
   const { lifecycle } = createHarness();
-  for (const name of [
-    'handleBatchDelete',
-    'handleBatchArchive',
-    'handleBatchMove',
-    'renderBatchMoveModal',
-    'batchMoveToFolder',
-    'handleExport',
-    'performImport',
-    'handleImport',
-    'handleImportOnAuth',
-    'processAuthImport',
-    'setupVoiceInput',
-    'toggleVoiceInput'
-  ]) {
+  for (const name of ['handleBatchDelete', 'handleBatchArchive', 'handleBatchMove', 'renderBatchMoveModal', 'batchMoveToFolder', 'handleExport',
+    'performImport', 'handleImport', 'handleImportOnAuth', 'processAuthImport', 'setupVoiceInput', 'toggleVoiceInput']) {
     assert.equal(typeof lifecycle[name], 'function', `${name} should be exposed`);
   }
 });
 
 test('batch delete uses live selection getters and preserves persistence ordering', async () => {
-  const harness = createHarness({
-    selectedConversationIds: new Set(['c1', 'c2'])
-  });
+  const harness = createHarness({ selectedConversationIds: new Set(['c1', 'c2']) });
   await harness.lifecycle.handleBatchDelete();
 
   assert.equal(harness.conversations[0].deletedAt != null, true);
@@ -245,17 +172,8 @@ test('batch delete uses live selection getters and preserves persistence orderin
   assert.equal(harness.conversations[0].trashStateUpdatedAt, harness.conversations[0].deletedAt);
   assert.equal(harness.conversations[0].archived, false);
   assert.equal(harness.conversations[0].lastUpdatedAt, undefined);
-  assert.deepEqual(harness.calls.find(call => call[0] === 'saveAppData'), [
-    'saveAppData',
-    { immediateCloudSync: true }
-  ]);
-  assert.deepEqual(harness.calls.map((call) => call[0]), [
-    'showCustomConfirm',
-    'startNewChat',
-    'saveAppData',
-    'toggleSelectionMode',
-    'showNotification'
-  ]);
+  assert.deepEqual(harness.calls.find(call => call[0] === 'saveAppData'), ['saveAppData', { immediateCloudSync: true }]);
+  assert.deepEqual(harness.calls.map((call) => call[0]), ['showCustomConfirm', 'startNewChat', 'saveAppData', 'toggleSelectionMode', 'showNotification']);
 });
 
 test('batch delete marks every selected conversation as trashed before invalidating its memory', async () => {
@@ -280,28 +198,14 @@ test('batch delete marks every selected conversation as trashed before invalidat
 });
 
 test('batch delete leaves the open conversation for a new chat at once, even when another one could be shown', async () => {
-  const harness = createHarness({
-    selectedConversationIds: new Set(['c1']),
-    currentConversationId: 'c1',
-    conversations: [
-      { id: 'c1', archived: false, deletedAt: null },
-      { id: 'c2', archived: false, deletedAt: null }
-    ]
-  });
+  // The defaults: c1 is open and selected, c2 could be shown.
+  const harness = createHarness();
 
   await harness.lifecycle.handleBatchDelete();
 
   assert.equal(harness.conversations[0].deletedAt != null, true);
-  assert.equal(harness.conversations[0].stateUpdatedAt, harness.conversations[0].deletedAt);
-  assert.equal(harness.conversations[0].trashStateUpdatedAt, harness.conversations[0].deletedAt);
-  assert.equal(harness.conversations[0].lastUpdatedAt, undefined);
-  assert.deepEqual(harness.calls.map((call) => call[0]), [
-    'showCustomConfirm',
-    'startNewChat',
-    'saveAppData',
-    'toggleSelectionMode',
-    'showNotification'
-  ]);
+  assert.equal(harness.conversations[1].deletedAt, null);
+  assert.deepEqual(harness.calls.map((call) => call[0]), ['showCustomConfirm', 'startNewChat', 'saveAppData', 'toggleSelectionMode', 'showNotification']);
 });
 
 test('batch delete clears folder membership before the immediate cloud save', async () => {
@@ -319,49 +223,27 @@ test('batch delete clears folder membership before the immediate cloud save', as
   assert.equal(deletedConversation.folderId, null);
   assert.equal(deletedConversation.archived, false);
   assert.deepEqual(folder.conversationIds, ['c2']);
-  assert.deepEqual(harness.calls.find(call => call[0] === 'saveAppData'), [
-    'saveAppData',
-    { immediateCloudSync: true }
-  ]);
+  assert.deepEqual(harness.calls.find(call => call[0] === 'saveAppData'), ['saveAppData', { immediateCloudSync: true }]);
 });
 
 test('batch archive uses runtime dialog notification after save and selection toggle', async () => {
-  const harness = createHarness({
-    selectedConversationIds: new Set(['c1', 'c2'])
-  });
+  const harness = createHarness({ selectedConversationIds: new Set(['c1', 'c2']) });
   await harness.lifecycle.handleBatchArchive();
 
   assert.equal(harness.conversations[0].archived, true);
-  assert.deepEqual(harness.calls.map((call) => call[0]), [
-    'setCurrentConversationId',
-    'startNewChat',
-    'saveAppData',
-    'toggleSelectionMode',
-    'runtimeDialogCoordinator.showNotification'
-  ]);
+  assert.deepEqual(harness.calls.map((call) => call[0]), ['setCurrentConversationId', 'startNewChat', 'saveAppData', 'toggleSelectionMode', 'runtimeDialogCoordinator.showNotification']);
 });
 
 test('batch archive falls back to the next unarchived live conversation without stale selection state', async () => {
-  const harness = createHarness({
-    selectedConversationIds: new Set(['c1']),
-    currentConversationId: 'c1',
-    conversations: [
-      { id: 'c1', archived: false, deletedAt: null },
-      { id: 'c2', archived: false, deletedAt: null }
-    ]
-  });
+  // The defaults: c1 is open and selected, c2 could be shown.
+  const harness = createHarness();
 
   await harness.lifecycle.handleBatchArchive();
 
   assert.equal(harness.conversations[0].archived, true);
   assert.equal(harness.currentConversationId, 'c2');
   assert.equal(harness.calls.some((call) => call[0] === 'startNewChat'), false);
-  assert.deepEqual(harness.calls.map((call) => call[0]), [
-    'setCurrentConversationId',
-    'saveAppData',
-    'toggleSelectionMode',
-    'runtimeDialogCoordinator.showNotification'
-  ]);
+  assert.deepEqual(harness.calls.map((call) => call[0]), ['setCurrentConversationId', 'saveAppData', 'toggleSelectionMode', 'runtimeDialogCoordinator.showNotification']);
 });
 
 test('batch move modal and move handoff use injected folder and selection dependencies', async () => {
@@ -376,9 +258,7 @@ test('batch move modal and move handoff use injected folder and selection depend
 });
 
 test('single conversation batch move preserves selection mode and routes only the requested id', async () => {
-  const harness = createHarness({
-    selectedConversationIds: new Set(['c1', 'c2'])
-  });
+  const harness = createHarness({ selectedConversationIds: new Set(['c1', 'c2']) });
   harness.lifecycle.renderBatchMoveModal('c2');
 
   await harness.lifecycle.batchMoveToFolder('f1');
@@ -389,20 +269,23 @@ test('single conversation batch move preserves selection mode and routes only th
 });
 
 class SpeechRecognitionFake {
-  start() {
-    this.started = true;
-  }
-  stop() {
-    this.stopped = true;
-  }
+  start() { this.started = true; }
+  stop() { this.stopped = true; }
 }
 
 // toggleVoiceInput awaits the one-time privacy notice, so let its microtasks settle.
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-const createVoiceHarness = (config = {}) => createHarness({
+const startVoice = async (harness) => {
+  harness.lifecycle.setupVoiceInput();
+  harness.elements.voiceInputBtnMessage.dispatch('click');
+  await settle();
+};
+
+const createVoiceHarness = (config = {}, overrides = {}) => createHarness({
   window: { SpeechRecognition: SpeechRecognitionFake },
-  config: { voicePrivacyNoticeAcknowledged: true, ...config }
+  config: { voicePrivacyNoticeAcknowledged: true, ...config },
+  ...overrides
 });
 
 test('voice setup and toggle use injected browser and state bridges', async () => {
@@ -431,19 +314,14 @@ test('speech recognition language follows the interface language', async () => {
 
   for (const [uiLanguage, recognitionLang] of Object.entries(expected)) {
     const harness = createVoiceHarness({ uiLanguage });
-    harness.lifecycle.setupVoiceInput();
-    harness.elements.voiceInputBtnMessage.dispatch('click');
-    await settle();
+    await startVoice(harness);
     assert.equal(harness.currentSpeechRecognition.lang, recognitionLang, uiLanguage);
   }
 });
 
 test('switching the interface language applies to the next recognition session', async () => {
   const harness = createVoiceHarness({ uiLanguage: 'en' });
-  harness.lifecycle.setupVoiceInput();
-
-  harness.elements.voiceInputBtnMessage.dispatch('click');
-  await settle();
+  await startVoice(harness);
   assert.equal(harness.currentSpeechRecognition.lang, 'en-US');
   harness.currentSpeechRecognition.onend();
 
@@ -454,14 +332,8 @@ test('switching the interface language applies to the next recognition session',
 });
 
 test('speech recognition errors are localized and always release the button state', async () => {
-  const harness = createHarness({
-    window: { SpeechRecognition: SpeechRecognitionFake },
-    config: { voicePrivacyNoticeAcknowledged: true },
-    i18n: { en: { voiceErrorNotAllowed: 'Microphone blocked', voiceError: 'Voice input error' } }
-  });
-  harness.lifecycle.setupVoiceInput();
-  harness.elements.voiceInputBtnMessage.dispatch('click');
-  await settle();
+  const harness = createVoiceHarness({}, { i18n: { en: { voiceErrorNotAllowed: 'Microphone blocked', voiceError: 'Voice input error' } } });
+  await startVoice(harness);
 
   harness.currentSpeechRecognition.onerror({ error: 'not-allowed' });
 
@@ -475,14 +347,8 @@ test('speech recognition errors are localized and always release the button stat
 });
 
 test('an unmapped speech error falls back to the generic localized message', async () => {
-  const harness = createHarness({
-    window: { SpeechRecognition: SpeechRecognitionFake },
-    config: { voicePrivacyNoticeAcknowledged: true },
-    i18n: { en: { voiceError: 'Voice input error' } }
-  });
-  harness.lifecycle.setupVoiceInput();
-  harness.elements.voiceInputBtnMessage.dispatch('click');
-  await settle();
+  const harness = createVoiceHarness({}, { i18n: { en: { voiceError: 'Voice input error' } } });
+  await startVoice(harness);
 
   harness.currentSpeechRecognition.onerror({ error: 'some-new-code' });
 
@@ -491,14 +357,8 @@ test('an unmapped speech error falls back to the generic localized message', asy
 });
 
 test('the first voice session asks for privacy consent before starting recognition', async () => {
-  const harness = createHarness({
-    window: { SpeechRecognition: SpeechRecognitionFake },
-    config: { voicePrivacyNoticeAcknowledged: false }
-  });
-  harness.lifecycle.setupVoiceInput();
-
-  harness.elements.voiceInputBtnMessage.dispatch('click');
-  await settle();
+  const harness = createVoiceHarness({ voicePrivacyNoticeAcknowledged: false });
+  await startVoice(harness);
 
   assert.ok(harness.calls.some((call) => call[0] === 'showCustomConfirm'), 'the notice is shown');
   assert.equal(harness.config.voicePrivacyNoticeAcknowledged, true, 'acceptance is persisted');
@@ -517,14 +377,10 @@ test('a second click during the privacy notice does not start a second recogniti
   let releaseConfirm;
   const created = [];
   class CountingSpeechRecognition extends SpeechRecognitionFake {
-    constructor() {
-      super();
-      created.push(this);
-    }
+    constructor() { super(); created.push(this); }
   }
-  const harness = createHarness({
+  const harness = createVoiceHarness({ voicePrivacyNoticeAcknowledged: false }, {
     window: { SpeechRecognition: CountingSpeechRecognition },
-    config: { voicePrivacyNoticeAcknowledged: false },
     showCustomConfirm: () => new Promise((resolve) => { releaseConfirm = () => resolve(true); })
   });
   harness.lifecycle.setupVoiceInput();
@@ -549,37 +405,51 @@ test('a second click during the privacy notice does not start a second recogniti
 });
 
 test('declining the voice privacy notice does not start recognition', async () => {
-  const harness = createHarness({
-    window: { SpeechRecognition: SpeechRecognitionFake },
-    config: { voicePrivacyNoticeAcknowledged: false },
-    showCustomConfirm: async () => false
-  });
-  harness.lifecycle.setupVoiceInput();
-
-  harness.elements.voiceInputBtnMessage.dispatch('click');
-  await settle();
+  const harness = createVoiceHarness({ voicePrivacyNoticeAcknowledged: false }, { showCustomConfirm: async () => false });
+  await startVoice(harness);
 
   assert.equal(harness.currentSpeechRecognition, null, 'no recognition is created');
   assert.equal(harness.config.voicePrivacyNoticeAcknowledged, false, 'the flag stays unset');
 });
 
-test('import and auth-import composition remains in real lifecycles and module has no fragment dependency', () => {
+test('importing a backup replaces the data, keeps its settings and API keys, and saves them', async () => {
+  const harness = createHarness({ getCurrentUser: () => ({ username: 'user' }) });
+  await harness.lifecycle.performImport({ conversations: [{ id: 'imported' }], settings: { uiLanguage: 'fr' }, apiKeys: { gemini: 'imported-key' } });
+
+  assert.deepEqual(harness.conversations, [{ id: 'imported' }]);
+  assert.equal(harness.config.uiLanguage, 'fr');
+  assert.deepEqual(harness.calls.map(([name]) => name), ['replaceAllAppData', 'saveAppData', 'mergeSensitiveApiKeys', 'saveSensitiveConfig', 'saveConfig']);
+  assert.deepEqual(harness.calls[2][1], { gemini: 'imported-key' });
+});
+
+test('importing a backup from the sign-in page signs in, restores the data and keys, then starts the app', async () => {
+  const harness = createHarness({ processInChunks: async (items, callback) => { for (const item of items) await callback(item); } });
+  const backup = { conversations: [{ id: 'restored', messages: [] }], settings: { uiLanguage: 'fr' }, apiKeys: { gemini: 'auth-key' } };
+  Object.assign(harness.elements, {
+    usernameInput: { value: 'user' },
+    passwordInput: { value: 'secret' },
+    importFileInputAuth: { files: [{ name: 'backup.json', type: 'application/json', text: async () => JSON.stringify(backup) }] }
+  });
+  for (const name of ['importProgressContainerAuth', 'importProgressBarAuth', 'importStatusTextAuth', 'importPercentageAuth', 'confirmImportBtnAuth', 'importDataModalAuth', 'authContainer', 'appContainer']) {
+    harness.elements[name] = Object.assign(createNode(), { setAttribute: noop, removeAttribute: noop });
+  }
+  await harness.lifecycle.processAuthImport();
+
+  const at = (name) => harness.calls.findIndex(([called]) => called === name);
+  assert.deepEqual(harness.conversations.map(({ id }) => id), ['restored']);
+  assert.equal(harness.config.uiLanguage, 'fr');
+  assert.deepEqual(harness.calls[at('mergeSensitiveApiKeys')][1], { gemini: 'auth-key' });
+  assert.ok(at('replaceAllAppData') >= 0 && at('replaceAllAppData') < at('saveAppData') && at('saveAppData') < at('saveSensitiveConfig') && at('saveSensitiveConfig') < at('initChatApp'));
+});
+
+test('the lifecycle does not reach into the legacy fragments or the virtual runtime', () => {
   const source = readSource('src/app/runtime/legacy-core/batch-import-voice-lifecycle.js');
-  assert.match(source, /createLegacyImportExportLifecycle\(\{/);
-  assert.match(source, /createLegacyAuthImportLifecycle\(\{/);
-  assert.match(source, /replaceAllAppData,/);
-  assert.match(source, /getSensitiveApiKeys,/);
-  assert.equal((source.match(/mergeSensitiveApiKeys,/g) || []).length >= 2, true);
-  assert.equal((source.match(/saveSensitiveConfig,/g) || []).length >= 2, true);
-  assert.match(source, /initChatApp:\s*\(\)\s*=>\s*initChatApp\(\)/);
   assert.doesNotMatch(source, /legacy-runtime\/fragments|virtual:legacy-app-runtime/);
 });
 
 // Dictating into the message: a bar over the composer, the words put in only when it is finished.
 class DictationRecognition {
-  constructor() {
-    this.calls = [];
-  }
+  calls = [];
   start() { this.calls.push('start'); }
   stop() { this.calls.push('stop'); }
   abort() { this.calls.push('abort'); }

@@ -5,7 +5,7 @@ import { formatSandboxRunBlock } from '../src/app/ui/sandbox/sandbox-run-block.j
 import { Window } from 'happy-dom';
 import katex from 'katex';
 import { marked } from 'marked';
-import { projectFile, readSource, readUiSource } from './helpers/source-guards.js';
+import { readSource, readUiSource } from './helpers/source-guards.js';
 
 const helperPath = 'src/app/runtime/legacy-core/markdown-rendering-helpers.js';
 const helperUrl = new URL(`../${helperPath}`, import.meta.url);
@@ -13,7 +13,6 @@ const helperExists = existsSync(helperUrl);
 const helperModule = helperExists ? await import(helperUrl.href) : {};
 const { createMarkdownRenderingHelpers } = helperModule;
 const helperSource = helperExists ? readSource(helperPath) : '';
-const legacyCoreSource = readSource('src/app/runtime/legacy-core/legacy-core.js');
 
 function createHarness(overrides = {}) {
   const window = new Window({ url: 'https://example.test/' });
@@ -87,10 +86,19 @@ test('renders numeric ranges without turning adjacent ranges into strikethrough'
 });
 
 test('chat prose restores ordered and unordered list markers after the CSS reset', () => {
-  const chatStyles = readUiSource('src/styles/chat.css');
+  const window = new Window();
+  try {
+    const { document } = window;
+    const style = document.createElement('style');
+    style.textContent = readUiSource('src/styles/chat.css');
+    document.head.appendChild(style);
+    document.body.innerHTML = '<div class="prose"><ol><li>one</li></ol><ul><li>two</li></ul></div>';
 
-  assert.match(chatStyles, /\.prose ol\s*\{\s*list-style-type:\s*decimal;/);
-  assert.match(chatStyles, /\.prose ul\s*\{\s*list-style-type:\s*disc;/);
+    assert.equal(window.getComputedStyle(document.querySelector('.prose ol')).listStyleType, 'decimal');
+    assert.equal(window.getComputedStyle(document.querySelector('.prose ul')).listStyleType, 'disc');
+  } finally {
+    window.close();
+  }
 });
 
 test('keeps the sanitizer handoff between markdown parsing and DOM rendering', () => {
@@ -326,16 +334,15 @@ test('the citations of a reply with sources become labels in the rendered answer
   }
 });
 
-test('markdown helper remains a rendering-only boundary after extraction', () => {
-  assert.equal(existsSync(projectFile(helperPath)), true);
-  assert.match(helperSource, /export\s+function\s+createMarkdownRenderingHelpers\s*\(/);
+// The real page must hand DOMPurify to the markdown helper; the behaviour tests above use a stand-in sanitizer.
+test('legacy core sanitizes rendered markdown with DOMPurify', () => {
   assert.match(
-    legacyCoreSource,
-    /import\s+\{\s*createMarkdownRenderingHelpers\s*\}\s+from\s+['"]\/src\/app\/runtime\/legacy-core\/markdown-rendering-helpers\.js['"]/
+    readSource('src/app/runtime/legacy-core/legacy-core.js'),
+    /createMarkdownRenderingHelpers\(\{[^}]*?sanitizer:\s*DOMPurify\b/
   );
-  assert.match(legacyCoreSource, /createMarkdownRenderingHelpers\(\{/);
-  assert.doesNotMatch(legacyCoreSource, /const\s+renderMarkdown\s*=\s*\(text\)\s*=>\s*\{/);
-  assert.doesNotMatch(legacyCoreSource, /function\s+renderMarkdownWithFormulas\s*\(text\)\s*\{/);
+});
+
+test('the markdown helper only renders: no saving, no network, no runtime bindings, no unrelated systems', () => {
   assert.doesNotMatch(
     helperSource,
     /legacyRuntimeContext|registerLazyBinding|resolveBinding|resolveOptionalBinding|saveAppData|saveConfig|fetch\(|apiKeys|provider|streamApiCall|handleFormSubmit|updateInputState/

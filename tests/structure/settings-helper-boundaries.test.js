@@ -1,312 +1,66 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { assertFileExists, readSource } from '../helpers/source-guards.js';
-import { readUiSource } from '../helpers/source-guards.js';
+import { readSource } from '../helpers/source-guards.js';
+
+// The settings dialog is put together by settings-auth-provider-lifecycle.js from small helpers. What each helper does is tested by
+// behaviour (tests/runtime-settings-*.test.js); this file keeps only the rules about what the helpers may depend on.
+
+const helperDir = 'src/app/runtime/legacy-core/';
 
 const settingsHelperModules = [
-  {
-    path: 'src/app/runtime/legacy-core/settings-provider-structured-helpers.js',
-    factory: 'createSettingsProviderStructuredHelpers',
-    blockedRuntimeGlobals: /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app|document\.|window\./
-  },
-  {
-    path: 'src/app/runtime/legacy-core/settings-title-summary-helpers.js',
-    factory: 'createSettingsTitleSummaryHelpers',
-    blockedRuntimeGlobals: /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app|document\.|window\./
-  },
-  {
-    path: 'src/app/runtime/legacy-core/settings-history-menu-helper.js',
-    factory: 'createSettingsHistoryMenuHelper',
-    // Loaded the first time a menu is opened.
-    lazy: true,
-    blockedRuntimeGlobals: /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-entry|legacy-core\.js/
-  },
-  {
-    path: 'src/app/runtime/legacy-core/settings-api-key-controls.js',
-    factory: 'createSettingsApiKeyControls',
-    blockedRuntimeGlobals: /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-entry|legacy-core\.js/
-  },
-  {
-    path: 'src/app/runtime/legacy-core/settings-output-translator-controls.js',
-    factory: 'createSettingsOutputTranslatorControls',
-    blockedRuntimeGlobals: /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-entry|legacy-core\.js/
-  },
-  {
-    path: 'src/app/runtime/legacy-core/settings-theme-bubble-controls.js',
-    factory: 'createSettingsThemeBubbleControls',
-    blockedRuntimeGlobals: /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-entry|legacy-core\.js/
-  },
-  {
-    path: 'src/app/runtime/legacy-core/settings-mobile-shell-helper.js',
-    factory: 'createSettingsMobileShellHelper',
-    blockedRuntimeGlobals: /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-entry|legacy-core\.js/
-  },
-  {
-    path: 'src/app/runtime/legacy-core/settings-desktop-section-helper.js',
-    factory: 'createSettingsDesktopSectionHelper',
-    blockedRuntimeGlobals: /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-entry|legacy-core\.js/
-  },
-  {
-    path: 'src/app/runtime/legacy-core/settings-auth-actions-helper.js',
-    factory: 'createSettingsAuthActionsHelper',
-    blockedRuntimeGlobals: /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-entry|legacy-core\.js|bootstrap|sidebar/
-  },
-  {
-    path: 'src/app/runtime/legacy-core/settings-update-input-state-helper.js',
-    factory: 'createSettingsUpdateInputStateHelper',
-    blockedRuntimeGlobals: /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-entry|legacy-core\.js|bootstrap|sidebar/
-  }
+  ['settings-provider-structured-helpers.js', 'createSettingsProviderStructuredHelpers'],
+  ['settings-title-summary-helpers.js', 'createSettingsTitleSummaryHelpers'],
+  ['settings-history-menu-helper.js', 'createSettingsHistoryMenuHelper'],
+  ['settings-api-key-controls.js', 'createSettingsApiKeyControls'],
+  ['settings-output-translator-controls.js', 'createSettingsOutputTranslatorControls'],
+  ['settings-theme-bubble-controls.js', 'createSettingsThemeBubbleControls'],
+  ['settings-mobile-shell-helper.js', 'createSettingsMobileShellHelper'],
+  ['settings-desktop-section-helper.js', 'createSettingsDesktopSectionHelper'],
+  ['settings-auth-actions-helper.js', 'createSettingsAuthActionsHelper'],
+  ['settings-update-input-state-helper.js', 'createSettingsUpdateInputStateHelper'],
+  ['settings-save-settings-helper.js', 'collectSettingsSaveFormValues'],
+  ['settings-auth-provider-lifecycle.js', 'createLegacySettingsAuthProviderLifecycle']
 ];
 
-const settingsCollectorHelpers = [
-  {
-    path: 'src/app/runtime/legacy-core/settings-save-settings-helper.js',
-    exportName: 'collectSettingsSaveFormValues',
-    blockedRuntimeGlobals: /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-entry|legacy-core\.js/
-  }
-];
+// The modules a file imports, static or loaded on demand.
+const importsOf = (source) => [...source.matchAll(/(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)['"]([^'"]+)['"]/g)].map((match) => match[1]);
 
-test('settings helper modules exist and keep their exported factories', () => {
-  for (const helper of settingsHelperModules) {
-    const source = readSource(helper.path);
-    assertFileExists(assert, helper.path);
-    assert.match(source, new RegExp(`export\\s+function\\s+${helper.factory}`));
-    assert.doesNotMatch(source, helper.blockedRuntimeGlobals);
+test('every settings helper loads without side effects and exports its factory', async () => {
+  for (const [file, exportName] of settingsHelperModules) {
+    const module = await import(`../../${helperDir}${file}`);
+    assert.equal(typeof module[exportName], 'function', `${file} exports ${exportName}`);
   }
 });
 
-test('settings collector helper modules exist and avoid runtime side effects', () => {
-  for (const helper of settingsCollectorHelpers) {
-    const source = readSource(helper.path);
-    assertFileExists(assert, helper.path);
-    assert.match(source, new RegExp(`export\\s+function\\s+${helper.exportName}`));
-    assert.doesNotMatch(source, helper.blockedRuntimeGlobals);
-    assert.doesNotMatch(source, /saveConfig|persistApiKeyInputIntents|saveSensitiveConfig|showNotification|toggleModal|applyUiTheme|applyLanguage|render[A-Z]/);
-    assert.doesNotMatch(source, /sensitive-config-store|api-key-input-intent/);
-  }
-});
-
-test('settings auth provider lifecycle composes every extracted settings helper', () => {
-  const lifecycleSource = readUiSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
-
-  assert.match(lifecycleSource, /export\s+function\s+createLegacySettingsAuthProviderLifecycle/);
-  assert.doesNotMatch(lifecycleSource, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app/);
-
-  for (const helper of settingsHelperModules) {
-    const moduleName = helper.path.replace('src/app/runtime/legacy-core/', './');
-    const localName = helper.factory
-      .replace(/^createSettings/, '')
-      .replace(/^ProviderStructuredHelpers$/, 'structuredHelpers')
-      .replace(/^TitleSummaryHelpers$/, 'titleSummaryHelpers')
-      .replace(/^HistoryMenuHelper$/, 'historyMenuHelper')
-      .replace(/^ApiKeyControls$/, 'apiKeyControls')
-      .replace(/^OutputTranslatorControls$/, 'outputTranslatorControls')
-      .replace(/^ThemeBubbleControls$/, 'themeBubbleControls')
-      .replace(/^MobileShellHelper$/, 'mobileShellHelper')
-      .replace(/^DesktopSectionHelper$/, 'desktopSectionHelper')
-      .replace(/^AuthActionsHelper$/, 'authActionsHelper')
-      .replace(/^UpdateInputStateHelper$/, 'updateInputStateHelper');
-
-    const modulePattern = moduleName.replace('.', '\\.');
-    if (helper.lazy) {
-      assert.match(
-        lifecycleSource,
-        new RegExp(`const\\s+${localName}\\s*=\\s*createLazyFunctions\\(\\(\\)\\s*=>\\s*import\\('${modulePattern}'\\)\\.then\\(\\(\\{\\s*${helper.factory}\\s*\\}\\)\\s*=>\\s*${helper.factory}\\(\\{`)
-      );
-      continue;
+test('settings helpers depend on nothing above them: not the app entry, the legacy core, nor retired runtime modules', () => {
+  for (const [file] of settingsHelperModules) {
+    for (const specifier of importsOf(readSource(`${helperDir}${file}`))) {
+      assert.doesNotMatch(specifier, /runtime-entry|runtime-app|legacy-app|\/main\.js|legacy-core\.js|legacy-runtime\/fragments|^virtual:/, `${file} imports ${specifier}`);
     }
-    assert.match(
-      lifecycleSource,
-      new RegExp(`import\\s+\\{\\s*${helper.factory}\\s*\\}\\s+from\\s+['"]${modulePattern}['"]`)
-    );
-    assert.match(
-      lifecycleSource,
-      new RegExp(`const\\s+${localName}\\s*=\\s*${helper.factory}\\(\\{`)
-    );
   }
-
-  assert.match(
-    lifecycleSource,
-    /import\s+\{\s*collectSettingsSaveFormValues\s*\}\s+from\s+['"]\.\/settings-save-settings-helper\.js['"]/
-  );
-  assert.match(lifecycleSource, /const\s+collectedSettings\s*=\s*collectSettingsSaveFormValues\(\{/);
 });
 
-test('settings structured provider and title summary helpers remain delegated from the lifecycle', () => {
-  const lifecycleSource = readUiSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
-
-  assert.match(lifecycleSource, /getApiKeyForProvider,/);
-  assert.match(lifecycleSource, /readErrorBody,/);
-  assert.match(lifecycleSource, /cheapModelId:\s*CHEAP_MODEL_ID/);
-  assert.match(lifecycleSource, /callApiWithSchema\s*\n?\s*\}\);/);
-  assert.match(lifecycleSource, /const\s+structuredHelpers\s*=\s*createSettingsProviderStructuredHelpers\(\{/);
-  assert.match(lifecycleSource, /const\s+titleSummaryHelpers\s*=\s*createSettingsTitleSummaryHelpers\(\{/);
+test('the sign-in and input state helpers do not reach into the start of the app or the sidebar', () => {
+  for (const file of ['settings-auth-actions-helper.js', 'settings-update-input-state-helper.js']) {
+    for (const specifier of importsOf(readSource(`${helperDir}${file}`))) {
+      assert.doesNotMatch(specifier, /bootstrap|sidebar/, `${file} imports ${specifier}`);
+    }
+  }
 });
 
-test('settings history and API key controls remain delegated without weakening security boundaries', () => {
-  const lifecycleSource = readUiSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
-  const apiKeyControlsSource = readSource('src/app/runtime/legacy-core/settings-api-key-controls.js');
-
-  assert.match(lifecycleSource, /const\s+historyMenuHelper\s*=\s*createLazyFunctions\(\(\)\s*=>\s*import\('\.\/settings-history-menu-helper\.js'\)\.then\(\(\{\s*createSettingsHistoryMenuHelper\s*\}\)\s*=>\s*createSettingsHistoryMenuHelper\(\{/);
-  assert.match(lifecycleSource, /getConversations:\s*\(\)\s*=>\s*runtimeAppDataStore\.getConversations\(\)/);
-  assert.match(lifecycleSource, /getFolders:\s*\(\)\s*=>\s*runtimeAppDataStore\.getFolders\(\)/);
-  assert.match(lifecycleSource, /const\s+apiKeyControls\s*=\s*createSettingsApiKeyControls\(\{/);
-  assert.match(lifecycleSource, /elements:\s*ALL_ELEMENTS/);
-  assert.match(lifecycleSource, /setApiKeyForProvider,/);
-  assert.match(lifecycleSource, /clearSensitiveApiKeys,/);
-  assert.doesNotMatch(lifecycleSource, /ALL_ELEMENTS\.geminiApiKeyInput\.value\s*=\s*getApiKeyForProvider/);
-  assert.doesNotMatch(apiKeyControlsSource, /dataset\.[A-Za-z0-9_$]*\s*=\s*rawValue/);
+// API keys are kept only by the API key controls and the sensitive store; the helpers that collect or act on ordinary settings never
+// load them, so a key cannot end up in the normal config.
+test('only the API key controls handle API keys among the settings helpers', () => {
+  for (const file of ['settings-save-settings-helper.js', 'settings-auth-actions-helper.js', 'settings-update-input-state-helper.js']) {
+    for (const specifier of importsOf(readSource(`${helperDir}${file}`))) {
+      assert.doesNotMatch(specifier, /sensitive-config-store|api-key-input-intent|settings-api-key-controls|settings-save-settings-helper/, `${file} imports ${specifier}`);
+    }
+  }
 });
 
-test('settings output, translator, theme, mobile, and desktop controls remain delegated', () => {
-  const lifecycleSource = readUiSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
-  const themeBubbleControlsSource = readSource('src/app/runtime/legacy-core/settings-theme-bubble-controls.js');
-  const mobileShellHelperSource = readSource('src/app/runtime/legacy-core/settings-mobile-shell-helper.js');
-  const desktopSectionHelperSource = readSource('src/app/runtime/legacy-core/settings-desktop-section-helper.js');
-
-  assert.match(lifecycleSource, /const\s+outputTranslatorControls\s*=\s*createSettingsOutputTranslatorControls\(\{/);
-  assert.match(lifecycleSource, /getCouncilTranslatorCandidates,/);
-  assert.match(lifecycleSource, /getSingleTranslatorCandidates,/);
-  assert.match(lifecycleSource, /const\s+themeBubbleControls\s*=\s*createSettingsThemeBubbleControls\(\{/);
-  assert.doesNotMatch(lifecycleSource, /USER_BUBBLE_COLORS|setUserBubbleColor|renderUserBubbleColorDropdown/, 'the colour of a bubble is no longer a setting');
-  assert.match(themeBubbleControlsSource, /const\s+setTheme\s*=\s*async/);
-  assert.match(themeBubbleControlsSource, /const\s+updateThemeButtons\s*=/);
-
-  assert.match(lifecycleSource, /const\s+mobileShellHelper\s*=\s*createSettingsMobileShellHelper\(\{/);
-  assert.match(lifecycleSource, /handleLogout:\s*\(\.\.\.args\)\s*=>\s*handleLogout\(\.\.\.args\)/);
-  assert.match(lifecycleSource, /ensureSettingsMobileShell,\s*\n\s*renderSettingsMobileList,\s*\n\s*clearSettingsMobileViewTransition,/);
-  assert.match(mobileShellHelperSource, /const\s+renderSettingsMobileList\s*=/);
-  assert.match(mobileShellHelperSource, /const\s+ensureSettingsMobileShell\s*=/);
-  assert.match(mobileShellHelperSource, /const\s+showSettingsMobileList\s*=/);
-  assert.match(mobileShellHelperSource, /const\s+openSettingsMobileSection\s*=/);
-  assert.match(mobileShellHelperSource, /settingsMobileBackBtn\.addEventListener\('click',\s*\(\)\s*=>\s*\{[\s\S]*?tryHandleSettingsBack\(open\.id\)[\s\S]*?showSettingsMobileList\(\);\s*\}\)/);
-
-  assert.match(lifecycleSource, /const\s+desktopSectionHelper\s*=\s*createSettingsDesktopSectionHelper\(\{/);
-  assert.match(lifecycleSource, /const\s+navItems\s*=\s*bindDesktopSettingsSections\(\);/);
-  assert.match(lifecycleSource, /syncSettingsSectionForViewport\(navItems\);/);
-  assert.match(desktopSectionHelperSource, /const\s+bindDesktopSettingsSections\s*=/);
-  assert.match(desktopSectionHelperSource, /const\s+syncSettingsSectionForViewport\s*=/);
-  assert.match(desktopSectionHelperSource, /settingsDesktopBound/);
-});
-
-test('settings auth provider lifecycle no longer owns extracted inline helper bodies', () => {
-  const lifecycleSource = readUiSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
-  const structuredHelperSource = readSource('src/app/runtime/legacy-core/settings-provider-structured-helpers.js');
-  const titleSummaryHelperSource = readSource('src/app/runtime/legacy-core/settings-title-summary-helpers.js');
-  const historyMenuHelperSource = readSource('src/app/runtime/legacy-core/settings-history-menu-helper.js');
-  const apiKeyControlsSource = readSource('src/app/runtime/legacy-core/settings-api-key-controls.js');
-  const outputTranslatorControlsSource = readSource('src/app/runtime/legacy-core/settings-output-translator-controls.js');
-  const authActionsHelperSource = readSource('src/app/runtime/legacy-core/settings-auth-actions-helper.js');
-  const updateInputStateHelperSource = readSource('src/app/runtime/legacy-core/settings-update-input-state-helper.js');
-  assert.doesNotMatch(lifecycleSource, /const\s+setTheme\s*=\s*async/);
-  assert.doesNotMatch(lifecycleSource, /const\s+updateThemeButtons\s*=\s*\(\)\s*=>/);
-  assert.doesNotMatch(lifecycleSource, /const\s+renderSettingsMobileList\s*=\s*\(\)\s*=>/);
-  assert.doesNotMatch(lifecycleSource, /const\s+ensureSettingsMobileShell\s*=\s*\(\)\s*=>/);
-  assert.doesNotMatch(lifecycleSource, /const\s+showSettingsMobileList\s*=\s*\(\{\s*animate\s*=\s*true\s*\}\s*=\s*\{\}\)\s*=>/);
-  assert.doesNotMatch(lifecycleSource, /const\s+openSettingsMobileSection\s*=\s*\(sectionName\)\s*=>/);
-  assert.doesNotMatch(lifecycleSource, /item\.dataset\.settingsDesktopBound\s*=\s*'true'/);
-  assert.doesNotMatch(lifecycleSource, /item\.addEventListener\('click',\s*\(\)\s*=>\s*\{/);
-  assert.doesNotMatch(lifecycleSource, /const\s+activeNavItem\s*=\s*ALL_ELEMENTS\.settingsNav\.querySelector/);
-  assert.doesNotMatch(lifecycleSource, /const\s+createHistoryMenu\s*=\s*\(convId,\s*targetButton\)\s*=>\s*\{/);
-  assert.match(lifecycleSource, /createHistoryMenu\s*\n?\s*\}\s*=\s*historyMenuHelper/);
-  assert.doesNotMatch(lifecycleSource, /const\s+getApiKeyInputDescriptors\s*=/);
-  assert.doesNotMatch(lifecycleSource, /const\s+createApiKeyClearButton\s*=/);
-  assert.doesNotMatch(lifecycleSource, /const\s+ensureApiKeyInputSecurityControls\s*=/);
-  assert.doesNotMatch(lifecycleSource, /const\s+prepareApiKeyInputsForSettings\s*=\s*\(\)\s*=>\s*\{/);
-  assert.doesNotMatch(lifecycleSource, /const\s+persistApiKeyInputIntents\s*=\s*async\s*\(\)\s*=>\s*\{/);
-  assert.doesNotMatch(lifecycleSource, /const\s+ensureCouncilTranslatorSettingsControls\s*=\s*\(\)\s*=>\s*\{/);
-  assert.doesNotMatch(lifecycleSource, /const\s+renderTranslatorModelPicker\s*=/);
-  assert.doesNotMatch(lifecycleSource, /const\s+renderTranslatorModelPickers\s*=/);
-  assert.doesNotMatch(lifecycleSource, /OutputModeSettingsControls/);
-  assert.doesNotMatch(lifecycleSource, /config\.uiLanguage\s*=\s*ALL_ELEMENTS\.uiLanguageSelect\.value/);
-  assert.doesNotMatch(lifecycleSource, /const\s+selectedThemeMode\s*=\s*document\.querySelector\('input\[name="color-theme"\]:checked'\)/);
-  assert.doesNotMatch(lifecycleSource, /const\s+selectedGradientSwatch\s*=\s*ALL_ELEMENTS\.gradientSwatches\.querySelector/);
-  assert.match(lifecycleSource, /prepareApiKeyInputsForSettings\(\);/);
-  assert.match(lifecycleSource, /await\s+persistApiKeyInputIntents\(\);/);
-  assert.match(lifecycleSource, /collectSettingsSaveFormValues\(\{/);
-  assert.match(lifecycleSource, /Object\.assign\(config\.uiTheme,\s*collectedSettings\.uiTheme\);/);
-  assert.match(lifecycleSource, /ensureCouncilTranslatorSettingsControls\(\);/);
-  assert.match(lifecycleSource, /renderTranslatorModelPickers\(\);/);
-  assert.doesNotMatch(lifecycleSource, /async\s+function\s+callApiWithSchema\b/);
-  assert.doesNotMatch(lifecycleSource, /async\s+function\s+shouldPerformWebSearch\b/);
-  assert.doesNotMatch(lifecycleSource, /const\s+conversationHistory\s*=\s*conv\.messages/);
-  assert.doesNotMatch(lifecycleSource, /const\s+responseSchema\s*=\s*\{/);
-  assert.match(lifecycleSource, /const\s+generateTitleAndSummary\s*=\s*async\s*\(conv\)\s*=>\s*\{/);
-  assert.match(lifecycleSource, /const\s+data\s*=\s*await\s+requestTitleSummary\(conv,\s*undefined,\s*\{\s*language:\s*config\.aiDefaultLanguage\s*\|\|\s*config\.uiLanguage\s*\}\);/);
-  assert.match(lifecycleSource, /conv\.title\s*=\s*data\.title/);
-  assert.match(lifecycleSource, /delete\s+conv\.summary/);
-  assert.match(lifecycleSource, /await\s+saveAppData\(\);/);
-  assert.match(lifecycleSource, /renderHistorySidebar\(\);/);
-  assert.match(structuredHelperSource, /async\s+function\s+callApiWithSchema\b/);
-  assert.doesNotMatch(structuredHelperSource, /shouldPerformWebSearch/);
-  assert.match(titleSummaryHelperSource, /function\s+buildTitleSummaryPrompt\b/);
-  assert.match(titleSummaryHelperSource, /TITLE_SUMMARY_RESPONSE_SCHEMA/);
-  assert.match(titleSummaryHelperSource, /async\s+function\s+requestTitleSummary\b/);
-  assert.match(historyMenuHelperSource, /function\s+createHistoryMenu\(convId,\s*targetButton\)\s*\{/);
-  assert.match(historyMenuHelperSource, /moveConversationToFolder\(convId,\s*button\.dataset\.folderId\)/);
-  assert.match(historyMenuHelperSource, /showRenameModal\(convId,\s*'conversation',\s*event\)/);
-  assert.match(apiKeyControlsSource, /const\s+getApiKeyInputDescriptors\s*=/);
-  assert.match(apiKeyControlsSource, /const\s+createApiKeyClearButton\s*=/);
-  assert.match(apiKeyControlsSource, /const\s+ensureApiKeyInputSecurityControls\s*=/);
-  assert.match(apiKeyControlsSource, /const\s+prepareApiKeyInputsForSettings\s*=/);
-  assert.match(apiKeyControlsSource, /const\s+persistApiKeyInputIntents\s*=/);
-  assert.match(apiKeyControlsSource, /readApiKeyInputIntent/);
-  assert.match(apiKeyControlsSource, /markApiKeyInputCleared/);
-  assert.match(outputTranslatorControlsSource, /const\s+ensureCouncilTranslatorSettingsControls\s*=/);
-  assert.match(outputTranslatorControlsSource, /const\s+renderTranslatorModelPicker\s*=/);
-  assert.match(outputTranslatorControlsSource, /const\s+renderTranslatorModelPickers\s*=/);
-  assert.doesNotMatch(outputTranslatorControlsSource, /OutputMode/);
-  assert.doesNotMatch(lifecycleSource, /const\s+handleLogin\s*=\s*async\s*\(e\)\s*=>\s*\{/);
-  assert.doesNotMatch(lifecycleSource, /const\s+handleLogout\s*=\s*async\s*\(\)\s*=>\s*\{/);
-  assert.doesNotMatch(lifecycleSource, /const\s+handleDeleteAllData\s*=\s*async\s*\(\)\s*=>\s*\{/);
-  assert.doesNotMatch(lifecycleSource, /const\s+updateInputState\s*=\s*\(\)\s*=>\s*\{/);
-  assert.match(authActionsHelperSource, /const\s+handleLogin\s*=\s*async\s*\(e\)\s*=>\s*\{/);
-  assert.match(authActionsHelperSource, /const\s+handleLogout\s*=\s*async\s*\(\)\s*=>\s*\{/);
-  assert.match(authActionsHelperSource, /const\s+handleDeleteAllData\s*=\s*async\s*\(\)\s*=>\s*\{/);
-  assert.doesNotMatch(authActionsHelperSource, /settings-save-settings-helper|settings-api-key-controls|sensitive-config-store|api-key-input-intent/);
-  assert.match(updateInputStateHelperSource, /const\s+updateInputState\s*=\s*\(\)\s*=>\s*\{/);
-  assert.match(updateInputStateHelperSource, /const\s+conv\s*=\s*getActiveConversation\(\);/);
-  assert.doesNotMatch(updateInputStateHelperSource, /settings-save-settings-helper|settings-api-key-controls|sensitive-config-store|api-key-input-intent|saveConfig|showNotification|toggleModal/);
-});
-
-test('settings modal orchestration and legacy core wiring remain in place', () => {
-  const lifecycleSource = readUiSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
-  const legacyCoreSource = readSource('src/app/runtime/legacy-core/legacy-core.js');
-  const authActionsHelperSource = readSource('src/app/runtime/legacy-core/settings-auth-actions-helper.js');
-  const updateInputStateHelperSource = readSource('src/app/runtime/legacy-core/settings-update-input-state-helper.js');
-
-  assert.match(lifecycleSource, /const\s+setupSettingsModal\s*=\s*\(\)\s*=>\s*\{/);
-  assert.match(lifecycleSource, /const\s+saveSettings\s*=\s*async\s*\(\{\s*close\s*=\s*true,\s*notify\s*=\s*true\s*\}\s*=\s*\{\}\)\s*=>\s*\{/);
-  assert.match(lifecycleSource, /const\s+authActionsHelper\s*=\s*createSettingsAuthActionsHelper\(\{/);
-  assert.match(lifecycleSource, /const\s+updateInputStateHelper\s*=\s*createSettingsUpdateInputStateHelper\(\{/);
-  assert.match(lifecycleSource, /handleLogin,\s*\n\s*handleLogout,\s*\n\s*handleDeleteAllData\s*\n?\}\s*=\s*authActionsHelper/);
-  assert.match(lifecycleSource, /updateInputState\s*\n?\}\s*=\s*updateInputStateHelper/);
-  assert.match(authActionsHelperSource, /const\s+handleLogin\s*=\s*async\s*\(e\)\s*=>\s*\{/);
-  assert.match(authActionsHelperSource, /const\s+handleLogout\s*=\s*async\s*\(\)\s*=>\s*\{/);
-  assert.match(authActionsHelperSource, /const\s+handleDeleteAllData\s*=\s*async\s*\(\)\s*=>\s*\{/);
-  assert.match(updateInputStateHelperSource, /const\s+updateInputState\s*=\s*\(\)\s*=>\s*\{/);
-  assert.match(
-    legacyCoreSource,
-    /import\s+\{\s*createLegacySettingsAuthProviderLifecycle\s*\}\s+from\s+['"]\/src\/app\/runtime\/legacy-core\/settings-auth-provider-lifecycle\.js['"]/
-  );
-  assert.match(legacyCoreSource, /const\s+settingsAuthProviderLifecycle\s*=\s*createLegacySettingsAuthProviderLifecycle\(\{/);
-  // There is only one way replies are shown, so the settings do not ask for it.
-  assert.doesNotMatch(legacyCoreSource, /getOutputMode,\s*\n\s*renderHistorySidebar,/);
-  assert.match(legacyCoreSource, /const\s+\{[\s\S]*runModelCouncil,[\s\S]*callApiWithSchema,[\s\S]*updateSubmitButtonState,[\s\S]*updateInputState,[\s\S]*setupSettingsModal,[\s\S]*saveSettings,[\s\S]*handleLogin,[\s\S]*handleLogout,[\s\S]*handleDeleteAllData[\s\S]*\}\s*=\s*settingsAuthProviderLifecycle;/);
-  // The settings opener and the input state are handed on as parameters (NOU-76), not registered by name.
-  assert.match(legacyCoreSource, /createWorkspaceFeatures\(\{[\s\S]*?updateInputState, setupSettingsModal,/);
-  assert.match(legacyCoreSource, /createLegacyAppBootstrapLifecycle\(\{[\s\S]*?updateInputState, setupSettingsModal,/);
-  assert.doesNotMatch(legacyCoreSource, /registerLazyBinding|resolveBinding/);
-  for (const removedInlineBody of [
-    /const\s+setupSettingsModal\s*=\s*\(\)\s*=>\s*\{/,
-    /const\s+saveSettings\s*=\s*async\s*\(\{/,
-    /const\s+handleLogin\s*=\s*async\s*\(e\)\s*=>\s*\{/,
-    /const\s+handleLogout\s*=\s*async\s*\(\)\s*=>\s*\{/,
-    /const\s+handleDeleteAllData\s*=\s*async\s*\(\)\s*=>\s*\{/,
-    /const\s+createHistoryMenu\s*=/,
-    /async\s+function\s+callApiWithSchema\b/,
-    /const\s+updateInputState\s*=\s*\(\)\s*=>\s*\{/
-  ]) {
-    assert.doesNotMatch(legacyCoreSource, removedInlineBody);
+// These two build requests and prompts only: they can run without a page.
+test('the structured request and title helpers do not touch the page', () => {
+  for (const file of ['settings-provider-structured-helpers.js', 'settings-title-summary-helpers.js']) {
+    assert.doesNotMatch(readSource(`${helperDir}${file}`), /\bdocument\.|\bwindow\./, `${file} must not use the page`);
   }
 });

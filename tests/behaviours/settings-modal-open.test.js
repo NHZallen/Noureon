@@ -1,100 +1,93 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import test from 'node:test';
+import test, { mock } from 'node:test';
 
 import { createDom } from './helpers/create-dom.js';
-import { readUiSource } from '../helpers/source-guards.js';
+import { createLegacyAppBootstrapLifecycle } from '../../src/app/runtime/features/app-bootstrap-lifecycle.js';
 
-const projectFile = (path) => new URL(`../../${path}`, import.meta.url);
-const readSource = (path) => readFileSync(projectFile(path), 'utf8');
+// Whatever the start of the app touches that these tests do not look at: every property is another stand-in, and calling one returns
+// one (never a promise, so nothing waits on it).
+const standIn = () => {
+  const values = {};
+  return new Proxy(function () {}, {
+    get(_target, property) {
+      if (property === 'then' || typeof property === 'symbol') return property === Symbol.toPrimitive ? () => '' : undefined;
+      if (!(property in values)) values[property] = standIn();
+      return values[property];
+    },
+    set(_target, property, value) {
+      values[property] = value;
+      return true;
+    },
+    apply: () => standIn(),
+    construct: () => standIn()
+  });
+};
 
 const fixture = `
   <button type="button" id="settings-btn">Settings</button>
-  <div id="settings-modal" class="modal hidden">
-    <nav id="settings-nav">
-      <button type="button" class="settings-nav-item active" data-section="personalization">Personalization</button>
-    </nav>
-    <section id="personalization-section" class="settings-section active"></section>
-    <select id="tavily-search-depth-select">
-      <option value="basic">Basic</option>
-      <option value="advanced">Advanced</option>
-    </select>
-  </div>
+  <button type="button" id="api-key-warning-badge">!</button>
+  <div id="settings-modal" class="modal hidden"></div>
 `;
 
-const setupSettingsOpenFixture = (document, { tavilySearchDepth = 'advanced' } = {}) => {
+// The real start of the app (initChatApp), with the settings dialog's own functions given as fakes that record what happens.
+const startApp = async (document, { phone = false } = {}) => {
   const calls = [];
-  const settingsBtn = document.getElementById('settings-btn');
-  const settingsModal = document.getElementById('settings-modal');
-  const tavilySearchDepthSelect = document.getElementById('tavily-search-depth-select');
-
-  const getTavilySearchDepth = () => tavilySearchDepth === 'advanced' ? 'advanced' : 'basic';
-  const setupSettingsModal = () => {
-    calls.push('setup');
-    tavilySearchDepthSelect.value = getTavilySearchDepth();
+  const real = {
+    settingsBtn: document.getElementById('settings-btn'),
+    apiKeyWarningBadge: document.getElementById('api-key-warning-badge'),
+    settingsModal: document.getElementById('settings-modal')
   };
-  const toggleModal = (modalElement, show) => {
-    calls.push(show ? 'open' : 'close');
-    modalElement.classList.toggle('hidden', !show);
-    modalElement.classList.toggle('visible', show);
+  const elements = new Proxy(real, { get: (target, name) => (target[name] ??= standIn()) });
+  const given = {
+    window: standIn(),
+    document: standIn(),
+    elements,
+    i18n: { en: {} },
+    getConfig: () => ({ uiLanguage: 'en' }),
+    getCurrentUser: () => ({ username: 'alice' }),
+    startNewChat: async () => {},
+    requestMemorySummaryBootstrap: async () => ({ skipped: true }),
+    setupSettingsModal: () => calls.push('setup'),
+    toggleModal: (element, show) => calls.push(`${show ? 'show' : 'hide'}:${element.id}`),
+    isMobileSettingsViewport: () => phone,
+    openSettingsMobileSection: (section) => calls.push(`open section:${section}`)
   };
-
-  settingsBtn.addEventListener('click', () => {
-    setupSettingsModal();
-    toggleModal(settingsModal, true);
-  });
-
-  return { calls, settingsBtn, settingsModal, tavilySearchDepthSelect };
+  const dependencies = new Proxy(given, { get: (target, name) => (name in target ? target[name] : standIn()) });
+  const { initChatApp } = createLegacyAppBootstrapLifecycle(dependencies);
+  await initChatApp();
+  return { calls, ...real };
 };
 
-test('settings button initializes settings state before opening the modal', () => {
+test('the settings button builds the settings page before it is shown', async (t) => {
+  // The page is also built ahead a few seconds after the start; that timer is not run here.
+  mock.timers.enable({ apis: ['setTimeout'] });
+  t.after(() => mock.timers.reset());
   const { window, document, cleanup } = createDom(fixture);
-
   try {
-    const { calls, settingsBtn, settingsModal, tavilySearchDepthSelect } = setupSettingsOpenFixture(document);
-
-    assert.equal(settingsModal.classList.contains('hidden'), true);
+    const { calls, settingsBtn } = await startApp(document);
+    assert.deepEqual(calls, []);
 
     settingsBtn.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+    await Promise.resolve();
 
-    assert.deepEqual(calls, ['setup', 'open']);
-    assert.equal(tavilySearchDepthSelect.value, 'advanced');
-    assert.equal(settingsModal.classList.contains('hidden'), false);
-    assert.equal(settingsModal.classList.contains('visible'), true);
+    assert.deepEqual(calls, ['setup', 'show:settings-modal']);
   } finally {
     cleanup();
   }
 });
 
-test('settings modal source keeps Tavily depth fallback local to setupSettingsModal', () => {
-  const settingsAuthProviderSource = readUiSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
-  const appBootstrapLifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
+test('on a phone the API key warning opens the settings on the models section', async (t) => {
+  mock.timers.enable({ apis: ['setTimeout'] });
+  t.after(() => mock.timers.reset());
+  const { window, document, cleanup } = createDom(fixture);
+  try {
+    const { calls, apiKeyWarningBadge } = await startApp(document, { phone: true });
 
-  assert.match(
-    settingsAuthProviderSource,
-    /const\s+getTavilySearchDepth\s*=\s*\(\)\s*=>\s*config\.tavilySearchDepth\s*===\s*'advanced'\s*\?\s*'advanced'\s*:\s*'basic';/
-  );
-  assert.match(
-    settingsAuthProviderSource,
-    /if\s*\(ALL_ELEMENTS\.tavilySearchDepthSelect\)\s*ALL_ELEMENTS\.tavilySearchDepthSelect\.value\s*=\s*getTavilySearchDepth\(\);/
-  );
-  assert.match(
-    appBootstrapLifecycleSource,
-    /ALL_ELEMENTS\.settingsBtn\.addEventListener\('click',\s*\(\)\s*=>\s*openWhenBuilt\(\{\s*setup:\s*resolveEventsSetupSettingsModal,\s*show:\s*\(\)\s*=>\s*toggleModal\(ALL_ELEMENTS\.settingsModal,\s*true\)\s*\}\)\);/
-  );
-});
+    apiKeyWarningBadge.dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+    await Promise.resolve();
 
-test('the settings opener is handed on as a function, not looked up by name', () => {
-  const legacyCoreSource = readSource('src/app/runtime/legacy-core/legacy-core.js');
-  const appBootstrapLifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
-
-  // legacy-core makes the opener and gives it to the app bootstrap it makes.
-  assert.match(legacyCoreSource, /createLegacyAppBootstrapLifecycle\(\{[\s\S]*?\bsetupSettingsModal,/);
-  assert.match(
-    appBootstrapLifecycleSource,
-    /const\s+resolveEventsSetupSettingsModal\s*=\s*setupSettingsModal;/
-  );
-  for (const source of [legacyCoreSource, appBootstrapLifecycleSource]) {
-    assert.doesNotMatch(source, /resolveBinding|registerLazyBinding|legacyRuntimeContext/);
+    assert.deepEqual(calls, ['setup', 'show:settings-modal', 'open section:model-management']);
+  } finally {
+    cleanup();
   }
 });

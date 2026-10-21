@@ -2,173 +2,59 @@ import assert from 'node:assert/strict';
 import { readFileSync, statSync } from 'node:fs';
 import test from 'node:test';
 
+import { createDom } from './behaviours/helpers/create-dom.js';
+
 // The contracts of the page's start that are not about how the code is split: the ids the app shell must have, the order the CSS files
-// are layered in, the order the vendor scripts and the first data are loaded in, and the order the sign-in listeners are bound in before
-// the app starts. (Kept from tests/structure-regressions.test.js by NOU-74; the rest of that file became retired-code.test.js and
-// module-exports.test.js.)
+// are layered in, KaTeX before its mhchem extension, and the order the shell starts the page in. (Kept from
+// tests/structure-regressions.test.js by NOU-74; what each start step does is tested on the real lifecycles in
+// runtime-startup-lifecycle.test.js and runtime-app-bootstrap-lifecycle.test.js.)
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
 
-const findMatchingBrace = (source, openIndex) => {
-  let state = 'code';
-  let depth = 0;
-  for (let index = openIndex; index < source.length; index += 1) {
-    const char = source[index];
-    const next = source[index + 1];
-    const previous = source[index - 1];
-    if (state === 'code') {
-      if (char === '/' && next === '/') {
-        state = 'line-comment';
-        index += 1;
-        continue;
-      }
-      if (char === '/' && next === '*') {
-        state = 'block-comment';
-        index += 1;
-        continue;
-      }
-      if (char === '"') {
-        state = 'double-quote';
-        continue;
-      }
-      if (char === "'") {
-        state = 'single-quote';
-        continue;
-      }
-      if (char === '`') {
-        state = 'template';
-        continue;
-      }
-      if (char === '{') {
-        depth += 1;
-      } else if (char === '}') {
-        depth -= 1;
-        if (depth === 0) {
-          return index;
-        }
-      }
-    } else if (state === 'line-comment') {
-      if (char === '\n') state = 'code';
-    } else if (state === 'block-comment') {
-      if (char === '*' && next === '/') {
-        state = 'code';
-        index += 1;
-      }
-    } else if (state === 'double-quote') {
-      if (char === '"' && previous !== '\\') state = 'code';
-    } else if (state === 'single-quote') {
-      if (char === "'" && previous !== '\\') state = 'code';
-    } else if (state === 'template') {
-      if (char === '`' && previous !== '\\') state = 'code';
-    }
-  }
-  return -1;
-};
-
-const getBlockFromMarker = (source, marker) => {
-  const markerIndex = source.indexOf(marker);
-  assert.notEqual(markerIndex, -1, `Expected to find marker ${marker}`);
-  const openIndex = source.indexOf('{', markerIndex);
-  assert.notEqual(openIndex, -1, `Expected to find block for marker ${marker}`);
-  const closeIndex = findMatchingBrace(source, openIndex);
-  assert.notEqual(closeIndex, -1, `Expected to close block for marker ${marker}`);
-  return source.slice(markerIndex, closeIndex + 1);
-};
-
-const assertMarkersInOrder = (source, markers, context) => {
+const assertInOrder = (source, markers, context) => {
   let cursor = -1;
   for (const marker of markers) {
     const next = source.indexOf(marker, cursor + 1);
-    assert.notEqual(next, -1, `${context} should contain ${marker}`);
-    assert.ok(next > cursor, `${marker} should remain in ${context} legacy order`);
+    assert.ok(next > cursor, `${context}: ${marker} should come next`);
     cursor = next;
   }
 };
 
-test('auth and homepage import bindings remain before startup in legacy order', () => {
-  const legacyCoreSource = readSource('src/app/runtime/legacy-core/legacy-core.js');
-  const startupLifecycleSource = readSource('src/app/runtime/features/startup-lifecycle.js');
-  const initializeAppBody = getBlockFromMarker(startupLifecycleSource, 'async function initializeApp()');
-
-  assertMarkersInOrder(startupLifecycleSource, [
-    "elements.authForm.addEventListener('submit', handleLogin)",
-    "elements.usernameInput.addEventListener('input', toggleAuthImportButton)",
-    "elements.passwordInput.addEventListener('input', toggleAuthImportButton)",
-    "elements.importBtnAuth.addEventListener('click', handleImportOnAuth)",
-    "elements.confirmImportBtnAuth.addEventListener('click', processAuthImport)",
-    "elements.cancelImportBtnAuth.addEventListener('click'",
-    'async function initializeApp()'
-  ], 'startup auth bootstrap');
-
-  assertMarkersInOrder(initializeAppBody, [
-    'await loadConfig()',
-    'await loadAppData()',
-    'applyUiTheme()',
-    "elements.authContainer.style.display = 'none'",
-    "elements.appContainer.classList.remove('hidden')",
-    "elements.appContainer.classList.add('visible')",
-    'initChatApp()'
-  ], 'auto-login startup');
-  assertMarkersInOrder(legacyCoreSource, [
+// legacy-core.js is the composition root and cannot be imported in a test, so the order of startPage() is read from it: the sign-in
+// listeners are bound before the workspace loads (a quick submit is not lost), the language switcher and the rest come after.
+test('the shell starts the page with the sign-in listeners, then the workspace, the language switcher and the rest', () => {
+  const source = readSource('src/app/runtime/legacy-core/legacy-core.js');
+  const startPage = source.slice(source.indexOf('export function startPage'));
+  assertInOrder(startPage, [
     'startupLifecycle.bindAuthStartupListeners()',
     'startupLifecycle.initializeApp()',
     'startupLifecycle.bindLoginLanguageSwitcher()',
     'startupLifecycle.runStartupPostlude()'
-  ], 'the start of the page in the shell');
+  ], 'startPage');
 });
 
-test('app shell imports and preserves critical DOM IDs', async () => {
+test('the app shell has the elements the page needs', async () => {
   const { default: appShell } = await import(projectFile('src/templates/app-shell.js'));
-
-  assert.equal(typeof appShell, 'string');
-  assert.ok(appShell.length > 0);
-
-  for (const id of [
-    'auth-container',
-    'app-container',
-    'sidebar',
-    'message-list',
-    'chat-form',
-    'message-input',
-    'settings-btn',
-    'settings-modal',
-    'model-switcher-container',
-    'file-options-popover',
-    'search-modal',
-    'trash-section',
-    'p2p-share-modal'
-  ]) {
-    assert.match(appShell, new RegExp(`id="${id}"`), `app shell should include #${id}`);
+  const { document, cleanup } = createDom(appShell);
+  try {
+    for (const id of [
+      'auth-container', 'app-container', 'sidebar', 'message-list', 'chat-form', 'message-input', 'settings-btn', 'settings-modal',
+      'model-switcher-container', 'file-options-popover', 'search-modal', 'trash-section', 'p2p-share-modal'
+    ]) {
+      assert.ok(document.getElementById(id), `app shell should include #${id}`);
+    }
+  } finally {
+    cleanup();
   }
 });
 
-test('main bootstrap loads KaTeX, mounts the shell and loads the data in order', () => {
+// KaTeX is its own file (imported as a URL, not bundled into the start), and mhchem, which extends it, is loaded only after it.
+test('main loads KaTeX as its own script before mhchem', () => {
   const mainSource = readSource('src/main.js');
-
-  assert.match(readSource('src/app/vendors/katex-vendor.js'), /import\s+katexScriptUrl\s+from\s+'katex\/dist\/katex\.min\.js\?url';/);
-  assert.doesNotMatch(mainSource, /from\s+'katex\/dist\/katex\.min\.js';/);
-  assert.match(mainSource, /import\s+\{\s*loadKatex\s*\}\s+from\s+'\.\/app\/vendors\/katex-vendor\.js';/);
-  assert.match(mainSource, /import\s+\{\s*loadVendorScript\s*\}\s+from\s+'\.\/app\/bootstrap\/load-vendor-script\.js';/);
-  assert.match(mainSource, /import\s+\{[^}]*\bmountAppShell\b[^}]*\}\s+from\s+'\.\/app\/bootstrap\/mount-shell\.js';/);
-
-  const orderedBootstrapSteps = [
-    'await loadKatex()',
-    'mountAppShell(appShell)',
-    "import('./data/i18n.js')",
-    "import('./data/astras-data.js')",
-    "import('./data/update-logs.js')",
-    "loadVendorScript('/vendor/mhchem.min.js')",
-    "await import('./app/legacy-app.js')"
-  ];
-
-  let previousIndex = -1;
-  for (const step of orderedBootstrapSteps) {
-    const currentIndex = mainSource.indexOf(step);
-    assert.notEqual(currentIndex, -1, `main bootstrap should include ${step}`);
-    assert.ok(currentIndex > previousIndex, `${step} should keep the legacy bootstrap order`);
-    previousIndex = currentIndex;
-  }
+  assert.match(readSource('src/app/vendors/katex-vendor.js'), /import\s+\w+\s+from\s+'katex\/dist\/katex\.min\.js\?url';/);
+  assert.doesNotMatch(mainSource, /from\s+'katex\/dist\/katex\.min\.js'/);
+  assertInOrder(mainSource, ['await loadKatex()', "loadVendorScript('/vendor/mhchem.min.js')"], 'main bootstrap');
 });
 
 test('main css is an ordered split manifest with every imported file under the source size limit', () => {
@@ -228,13 +114,17 @@ test('main css is an ordered split manifest with every imported file under the s
   assert.deepEqual(dialogImports.filter((name) => !imports.includes(name)), dialogOnly);
   assert.deepEqual(dialogImports.filter((name) => imports.includes(name)), imports.slice(imports.indexOf('input-polish.css')));
   for (const name of dialogOnly) assert.ok(statSync(projectFile(`src/styles/${name}`)).size > 0, `${name} should not be empty`);
-  assert.match(readSource('src/app/runtime/legacy-core/settings-modal-lifecycle.js'), /import\('\.\.\/\.\.\/\.\.\/styles\/settings-dialog\.css'\)/);
-  // The other sheets of parts that open on an action load with them.
-  assert.match(readSource('src/app/runtime/features/conversation-search-modal.js'), /import\('\.\.\/\.\.\/\.\.\/styles\/conversation-search\.css'\)/);
-  assert.match(readSource('src/app/runtime/features/latest-update-notice.js'), /import\('\.\.\/\.\.\/\.\.\/styles\/update-log\.css'\)/);
-  assert.match(readSource('src/app/ui/cli/cli-store.css'), /@import '\.\.\/\.\.\/\.\.\/styles\/permissions\.css';/);
-  assert.match(readSource('src/app/ui/charts/chart-styles.js'), /import\('\.\.\/\.\.\/\.\.\/styles\/charts\.css'\)/);
-  assert.match(readSource('src/app/legacy-runtime/features/generated-image-interactions.js'), /import\('\.\.\/\.\.\/\.\.\/styles\/generated-image-editor\.css'\)/);
+  // The other sheets load with the part that opens them, not with the page.
+  for (const [file, sheet] of [
+    ['src/app/runtime/legacy-core/settings-modal-lifecycle.js', 'settings-dialog.css'],
+    ['src/app/runtime/features/conversation-search-modal.js', 'conversation-search.css'],
+    ['src/app/runtime/features/latest-update-notice.js', 'update-log.css'],
+    ['src/app/ui/charts/chart-styles.js', 'charts.css'],
+    ['src/app/legacy-runtime/features/generated-image-interactions.js', 'generated-image-editor.css']
+  ]) {
+    assert.ok(readSource(file).includes(`import('../../../styles/${sheet}')`), `${file} should load ${sheet} when it opens`);
+  }
+  assert.ok(readSource('src/app/ui/cli/cli-store.css').includes("@import '../../../styles/permissions.css';"));
 });
 
 test('a vendor script is added once, and the shell needs its #app mount node', async () => {

@@ -1,12 +1,11 @@
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { Window } from 'happy-dom';
 
 import { createThemeAppearanceLifecycle } from '../src/app/runtime/features/theme-appearance-lifecycle.js';
 
-const projectFile = (path) => new URL(`../${path}`, import.meta.url);
-const readSource = (path) => readFileSync(projectFile(path), 'utf8');
+const readSource = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
 function createHarness(overrides = {}) {
   const window = new Window({ url: 'https://example.test/' });
@@ -202,27 +201,16 @@ test('the custom wallpaper and its colour extraction no longer exist', () => {
   assert.deepEqual(Object.keys(lifecycle).sort(), ['applyUiTheme', 'renderUiColorOptions']);
 });
 
-test('theme appearance helper is isolated while the page features keep the documented binding surface', () => {
-  const helperPath = 'src/app/runtime/features/theme-appearance-lifecycle.js';
-  const helperSource = readSource(helperPath);
+// The page features hand applyUiTheme and renderUiColorOptions out (tests/page-features.test.js); here only the boundary of the helper.
+test('the theme helper stays free of runtime bindings, unrelated systems, and the retired wallpaper colour extraction', () => {
+  const helperSource = readSource('src/app/runtime/features/theme-appearance-lifecycle.js');
   const pageFeaturesSource = readSource('src/app/runtime/legacy-core/page-features.js');
 
-  assert.equal(existsSync(projectFile(helperPath)), true);
-  assert.match(helperSource, /export\s+function\s+createThemeAppearanceLifecycle/);
-  assert.match(pageFeaturesSource, /import\s+\{\s*createThemeAppearanceLifecycle\s*\}/);
-  assert.match(pageFeaturesSource, /const\s+themeAppearanceLifecycle\s*=\s*createThemeAppearanceLifecycle\(\{/);
-
-  for (const name of [
-    'applyUiTheme',
-    'renderUiColorOptions',
-  ]) {
-    assert.match(pageFeaturesSource, new RegExp(`const\\s+${name}\\s*=\\s*\\(\\.\\.\\.args\\)\\s*=>\\s*themeAppearanceLifecycle\\.${name}\\(\\.\\.\\.args\\);`));
-  }
-
-  assert.doesNotMatch(pageFeaturesSource, /const\s+img\s*=\s*new\s+Image\(\)/);
-  assert.doesNotMatch(pageFeaturesSource, /root\.style\.setProperty\('--button-primary-bg'/);
   assert.doesNotMatch(helperSource, /registerLazyBinding|resolveBinding|resolveOptionalBinding/);
   assert.doesNotMatch(helperSource, /runtime-entry|app-bootstrap|submit-input|provider|security|api-key|legacy-runtime\/fragments|virtual:legacy-app-runtime/);
+  for (const source of [helperSource, pageFeaturesSource]) {
+    assert.doesNotMatch(source, /new\s+Image\(\)/);
+  }
 });
 
 test('applyUiTheme gives the message bubble the colours of the chosen accent in the light and the dark theme, and works one out for a colour of the person\'s own', () => {

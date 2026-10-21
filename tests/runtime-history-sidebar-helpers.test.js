@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import test from 'node:test';
 import { Window } from 'happy-dom';
-import { projectFile, readSource } from './helpers/source-guards.js';
+import { readSource } from './helpers/source-guards.js';
 
 const helperPath = 'src/app/runtime/legacy-core/history-sidebar-helpers.js';
 const helperUrl = new URL(`../${helperPath}`, import.meta.url);
@@ -10,7 +10,6 @@ const helperExists = existsSync(helperUrl);
 const helperModule = helperExists ? await import(helperUrl.href) : {};
 const { createHistorySidebarHelpers } = helperModule;
 const helperSource = helperExists ? readSource(helperPath) : '';
-const legacyCoreSource = readSource('src/app/runtime/legacy-core/legacy-core.js');
 
 function createHarness({
   activeConversation = { messages: [] },
@@ -228,7 +227,8 @@ test('conversation history rendering preserves filtering, pinned ordering, namin
     { id: 'temporary', isTemporary: true, createdAt: '2026-06-04T00:00:00.000Z' },
     { id: 'archived', archived: true, createdAt: '2026-06-05T00:00:00.000Z' },
     { id: 'foldered', folderId: 'folder-1', createdAt: '2026-06-06T00:00:00.000Z' },
-    { id: 'deleted', deletedAt: '2026-06-07T00:00:00.000Z', createdAt: '2026-06-07T00:00:00.000Z' }
+    { id: 'deleted', deletedAt: '2026-06-07T00:00:00.000Z', createdAt: '2026-06-07T00:00:00.000Z' },
+    { id: 'ephemeral', retentionMode: 'ephemeral', createdAt: '2026-06-08T00:00:00.000Z' }
   ];
   const originalOrder = conversations.map((conversation) => conversation.id);
   const harness = createHarness({ conversations });
@@ -405,32 +405,8 @@ test('a swipe to the left that starts on a box that slides sideways itself (the 
   }
 });
 
-test('legacy core delegates the read-only family without moving mutation behavior or runtime contracts', () => {
-  assert.equal(existsSync(projectFile(helperPath)), true);
-  assert.match(helperSource, /export\s+function\s+createHistorySidebarHelpers\s*\(/);
-  assert.match(
-    legacyCoreSource,
-    /import\s+\{\s*createHistorySidebarHelpers\s*\}\s+from\s+['"]\/src\/app\/runtime\/legacy-core\/history-sidebar-helpers\.js['"]/
-  );
-  assert.match(legacyCoreSource, /const\s+historySidebarHelpers\s*=\s*createHistorySidebarHelpers\(\{/);
-  assert.match(
-    legacyCoreSource,
-    /createHistorySidebarHelpers\(\{[\s\S]*?elements:\s*ALL_ELEMENTS,[\s\S]*?getActiveConversation,[\s\S]*?getConversations:\s*\(\)\s*=>\s*liveConversationsBridge\.getConversations\(\),[\s\S]*?createConversationElement:[\s\S]*?requestAnimationFrame,[\s\S]*?setupMessageIntersectionObserver/
-  );
-  for (const name of [
-    'toggleHistorySidebar',
-    'renderHistorySidebarContent',
-    'setupHistorySidebarInteractions',
-    'setupHistorySidebarTriggers',
-    'renderHistorySidebar'
-  ]) {
-    assert.match(helperSource, new RegExp(`function\\s+${name}\\s*\\(`));
-  }
-  assert.doesNotMatch(legacyCoreSource, /function\s+(?:toggleHistorySidebar|renderHistorySidebarContent|setupHistorySidebarInteractions|setupHistorySidebarTriggers)\s*\(/);
-  assert.match(
-    legacyCoreSource,
-    /const\s+renderHistorySidebar\s*=\s*\(\)\s*=>\s*\{[\s\S]*?currentConversations[\s\S]*?historySidebarHelpers\.isVisibleConversation[\s\S]*?historySidebarHelpers\.renderHistorySidebar\(sortedConversations\)/
-  );
+// The helpers only read: they never save, replace or change a conversation (the sidebar actions do that).
+test('the history sidebar helpers stay read-only and free of runtime bindings and unrelated systems', () => {
   assert.doesNotMatch(
     helperSource,
     /legacyRuntimeContext|registerLazyBinding|resolveBinding|resolveOptionalBinding|liveConversationsBridge|runtimeAppDataStore|app-data-store|saveAppData|replaceConversations/

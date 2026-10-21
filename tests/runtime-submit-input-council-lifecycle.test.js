@@ -103,38 +103,164 @@ test('factory exports createLegacySubmitInputCouncilLifecycle', () => {
   assert.equal(typeof createLegacySubmitInputCouncilLifecycle, 'function');
 });
 
-test('import is inert and module avoids fragments and virtual runtime', () => {
+test('the lifecycle does not reach into the legacy fragments or the virtual runtime', () => {
   const source = readSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
 
-  assert.match(source, /export\s+function\s+createLegacySubmitInputCouncilLifecycle/);
   assert.doesNotMatch(source, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app/);
 });
 
-test('history-source disclosure updates the completed message without rerendering the chat', () => {
-  const source = readSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
+// A whole send on a real DOM: the message typed, the user and the reply messages drawn, the reply streamed by a fake model.
+function createSubmitHarness({ stream, ...overrides } = {}) {
+  const dom = createDom('<div id="message-list"></div><textarea id="message-input"></textarea>');
+  const { document, window } = dom;
+  const conversation = { id: 'c1', archived: false, isTemporary: false, messages: [], model: 'model-a', provider: 'test' };
+  const state = { config: { uiLanguage: 'en', autoNaming: false }, uploadedFiles: [], abortController: null, isCouncilRunning: false };
+  const stores = storesOverState(state);
+  const messageList = document.getElementById('message-list');
+  const messageInput = document.getElementById('message-input');
+  const calls = [];
+  const timers = new Set();
+  const later = (callback, ms = 0) => {
+    const id = setTimeout(() => { timers.delete(id); callback(Date.now()); }, ms);
+    timers.add(id);
+    return id;
+  };
+  const drawn = [];
+  const lifecycle = createLegacySubmitInputCouncilLifecycle({
+    window,
+    document,
+    elements: { messageList, messageInput },
+    uploads: stores.uploads,
+    reply: stores.reply,
+    models: [{ id: 'model-a', name: 'Model A', provider: 'test' }],
+    i18n: { en: { errorPrefix: 'Error: ' } },
+    getConfig: () => state.config,
+    getOutputMode: () => 'realtime',
+    getActiveConversation: () => conversation,
+    normalizeConversationModel: () => ({ id: 'model-a', name: 'Model A', provider: 'test' }),
+    saveAppData: async () => calls.push('saveAppData'),
+    saveConfig: async () => {},
+    renderHistorySidebar: () => {},
+    renderChat: () => calls.push('renderChat'),
+    updateSubmitButtonState: () => {},
+    updateInputState: () => {},
+    adjustTextareaHeight: () => {},
+    renderFilePreviews: () => {},
+    generateTitleAndSummary: () => {},
+    addMessageToUI: (message, index, shouldSave) => {
+      if (shouldSave) conversation.messages.push(message);
+      const element = document.createElement('div');
+      element.innerHTML = '<div class="message-content"></div>';
+      messageList.appendChild(element);
+      drawn.push({ message, element });
+      return element;
+    },
+    buildSingleModelTranslatedRequestParts: async (parts) => parts,
+    streamApiCall: (parts, onChunk, signal, forceWebSearch, options) => stream({ parts, onChunk, options, abort: () => state.abortController.abort() }),
+    showNotification: () => {},
+    showCustomDialog: async () => true,
+    requestAnimationFrame: (callback) => later(callback),
+    setTimeout: later,
+    clearTimeout: (id) => { clearTimeout(id); timers.delete(id); },
+    logger: { error: () => {}, warn: () => {}, log: () => {} },
+    ...overrides
+  });
+  const send = async (text = 'Hello') => {
+    messageInput.value = text;
+    await lifecycle.handleFormSubmit({ preventDefault() {} });
+  };
+  const replyElement = () => drawn.find((item) => item.message.role === 'model')?.element;
+  const cleanup = () => {
+    timers.forEach((id) => clearTimeout(id));
+    dom.cleanup();
+  };
+  return { conversation, messageList, calls, send, replyElement, cleanup };
+}
 
-  assert.match(source, /historySourceConversationIds\.size > 0[\s\S]*?replaceHistorySourceMessage\(\{ finalAiMessage, loadingMessageDiv, refreshMessageHistorySources \}\)/);
-  assert.doesNotMatch(source, /historySourceConversationIds\.size > 0[\s\S]{0,500}?renderChat\(/);
+test('a reply that drew on past conversations gets its sources added in place, without redrawing the chat', async () => {
+  const refreshed = [];
+  const harness = createSubmitHarness({
+    stream: async ({ onChunk, options }) => {
+      options.onMemoryContextResolved({ historyResults: [{ conversationId: 'older-chat' }] });
+      onChunk('From before');
+      return 'From before';
+    },
+    refreshMessageHistorySources: (element, message) => refreshed.push({ element, message })
+  });
+  try {
+    await harness.send();
+
+    const reply = harness.conversation.messages.at(-1);
+    assert.equal(reply.parts[0].text, 'From before');
+    assert.deepEqual(reply.metadata.historySourceConversationIds, ['older-chat']);
+    assert.equal(refreshed.length, 1);
+    assert.equal(refreshed[0].element, harness.replyElement());
+    assert.equal(refreshed[0].message, reply);
+    assert.equal(harness.calls.includes('renderChat'), false);
+  } finally {
+    harness.cleanup();
+  }
 });
 
-test('abort cleanup retains a saved answer and removes only an unanswered loading message', () => {
-  const source = readSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
+test('stopping before any answer removes the waiting reply; stopping once the answer is saved keeps it', async () => {
+  const unanswered = createSubmitHarness({
+    stream: async ({ abort }) => {
+      abort();
+      throw Object.assign(new Error('stopped'), { name: 'AbortError' });
+    }
+  });
+  try {
+    await unanswered.send();
+    assert.deepEqual(unanswered.conversation.messages.map((message) => message.role), ['user']);
+    assert.equal(unanswered.messageList.contains(unanswered.replyElement()), false);
+  } finally {
+    unanswered.cleanup();
+  }
 
-  assert.match(source, /submitAbortController\.signal\.aborted\s*&&\s*conv\.messages\.at\(-1\)\?\.role\s*===\s*'user'/);
-  assert.doesNotMatch(source, /if\s*\(submitAbortController\.signal\.aborted\)\s*loadingMessageDiv\?\.remove\(\)/);
+  const answered = createSubmitHarness({
+    stream: async ({ onChunk, abort }) => {
+      onChunk('Done');
+      abort();
+      return 'Done';
+    }
+  });
+  try {
+    await answered.send();
+    assert.deepEqual(answered.conversation.messages.map((message) => message.role), ['user', 'model']);
+    assert.equal(answered.messageList.contains(answered.replyElement()), true);
+  } finally {
+    answered.cleanup();
+  }
 });
 
-test('quote reference dependencies reach the real submit preparation lifecycle', () => {
-  const source = readSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
-  const preparationStart = source.indexOf('createSubmitInputPreparationLifecycle({');
-  const preparationSource = source.slice(preparationStart, source.indexOf('\n  });', preparationStart));
+test('a quoted passage is sent with the question and the quote is cleared', async () => {
+  const quote = { text: 'the quoted words' };
+  const quoteCalls = [];
+  let sentParts = null;
+  const harness = createSubmitHarness({
+    stream: async ({ parts, onChunk }) => {
+      sentParts = parts;
+      onChunk('Answer');
+      return 'Answer';
+    },
+    getQuoteReference: () => quote,
+    buildQuotedUserParts: (options) => {
+      quoteCalls.push(['build', options.question, options.quoteReference ?? options.reference]);
+      return [{ text: `QUOTE[${quote.text}] ${options.question}` }];
+    },
+    clearQuoteReference: () => quoteCalls.push(['clear'])
+  });
+  try {
+    await harness.send('Why?');
 
-  assert.match(source, /getQuoteReference\s*=\s*\(\)\s*=>\s*null/);
-  assert.match(source, /buildQuotedUserParts\s*=\s*\(\{\s*question\s*\}\)/);
-  assert.match(source, /clearQuoteReference\s*=\s*\(\)\s*=>\s*\{\}/);
-  assert.match(preparationSource, /getQuoteReference/);
-  assert.match(preparationSource, /buildQuotedUserParts/);
-  assert.match(preparationSource, /clearQuoteReference/);
+    assert.deepEqual(harness.conversation.messages[0].parts, [{ text: 'QUOTE[the quoted words] Why?' }]);
+    assert.deepEqual(sentParts, [{ text: 'QUOTE[the quoted words] Why?' }]);
+    assert.equal(quoteCalls[0][0], 'build');
+    assert.equal(quoteCalls[0][1], 'Why?');
+    assert.ok(quoteCalls.some((call) => call[0] === 'clear'));
+  } finally {
+    harness.cleanup();
+  }
 });
 
 test('factory validates required dependencies', () => {
@@ -152,15 +278,6 @@ test('factory requires the dialog used by first-selection model notices', () => 
     () => createLegacySubmitInputCouncilLifecycle(dependencies),
     /missing dependency: showCustomDialog/
   );
-});
-
-test('production composition forwards the real custom dialog to the model switcher lifecycle', () => {
-  const source = readSource('src/app/runtime/legacy-core/legacy-core.js');
-  const start = source.indexOf('createLegacySubmitInputCouncilLifecycle({');
-  const wiring = source.slice(start, source.indexOf('\n        });', start));
-
-  assert.ok(start >= 0);
-  assert.match(wiring, /\bshowCustomDialog,/);
 });
 
 test('factory exposes submit, input, council, and streaming API', () => {

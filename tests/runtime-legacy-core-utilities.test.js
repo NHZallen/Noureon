@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import test from 'node:test';
-import { projectFile, readSource } from './helpers/source-guards.js';
+import { readSource } from './helpers/source-guards.js';
 
 const helperPath = 'src/app/runtime/legacy-core/legacy-core-utilities.js';
 const helperUrl = new URL(`../${helperPath}`, import.meta.url);
@@ -92,20 +92,12 @@ test('hexToRgba preserves valid, invalid, missing, and alpha behavior', () => {
   assert.equal(hexToRgba(null, 0), 'rgba(255, 255, 255, 0)');
 });
 
-test('legacy core imports pure utilities without retaining their full inline bodies', () => {
-  assert.equal(existsSync(projectFile(helperPath)), true);
-  assert.match(
-    legacyCoreSource,
-    /from\s+['"]\/src\/app\/runtime\/legacy-core\/legacy-core-utilities\.js['"]/
-  );
+// The real page must hand DOMPurify to the sanitizer; without it every trusted reply would fall back to escaped text.
+test('legacy core sanitizes trusted HTML with DOMPurify', () => {
   assert.match(legacyCoreSource, /createTrustedHtmlSanitizer\(\{\s*sanitizer:\s*DOMPurify\s*\}\)/);
-  for (const name of ['escapeHTML', 'renderUserText', 'readErrorBody', 'getErrorMessage', 'hexToRgba']) {
-    assert.doesNotMatch(
-      legacyCoreSource,
-      new RegExp(`const\\s+${name}\\s*=\\s*(?:async\\s*)?\\([^)]*\\)\\s*=>\\s*(?:\\{|\\()`)
-    );
-  }
+});
 
+test('the utilities stay free of the browser and of unrelated systems', () => {
   assert.doesNotMatch(
     helperSource,
     /legacyRuntimeContext|registerLazyBinding|resolveBinding|resolveOptionalBinding|\bdocument\b|\bwindow\b|globalThis/

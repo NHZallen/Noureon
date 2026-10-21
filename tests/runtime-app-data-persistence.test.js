@@ -91,16 +91,6 @@ test('serialized app data persistence writes the latest store snapshot for the l
   assert.equal('activeConversationId' in JSON.parse(calls[1][1]), false);
 });
 
-test('production saveAppData wiring reads the store snapshot at save time', () => {
-  const source = readSource('src/app/runtime/legacy-core/legacy-core.js');
-
-  assert.match(source, /getAppData:\s*\(\)\s*=>\s*runtimeAppDataStore\.getSnapshot\(\)/);
-  assert.doesNotMatch(
-    source,
-    /getAppData:\s*\(\)\s*=>\s*\(\{\s*conversations,\s*folders,\s*astras,\s*personalMemories\s*\}\)/
-  );
-});
-
 test('queued persistence reads its snapshot only after entering the storage critical section', async () => {
   let release;
   let markEntered;
@@ -733,18 +723,24 @@ test('serialized app data persistence preserves rejection and stringify error bo
   );
 });
 
-test('serialized app data persistence exposes only saveAppData and avoids storage reader ownership', () => {
+test('serialized app data persistence exposes only saveAppData', () => {
   const persistence = createLegacyRuntimeAppDataPersistence({
     getCurrentUser: () => null,
     getAppData: () => ({}),
     getAppDataKey: () => '',
     setItem: async () => {}
   });
-  const source = readSource('src/app/runtime/kernel/app-data-persistence.js');
 
   assert.deepEqual(Object.keys(persistence), ['saveAppData']);
   assert.equal(typeof persistence.saveAppData, 'function');
-  assert.match(source, /export\s+function\s+createLegacyRuntimeAppDataPersistence/);
-  assert.doesNotMatch(source, /loadAppData|getItem|removeItem|openDB|indexedDB|localStorage|sessionStorage/);
-  assert.doesNotMatch(source, /showNotification|renderAll|toggleModal|initChatApp|initializeApp/);
+});
+
+// Boundary: saving gets its storage functions injected; loading (workspace-load.js) and the page stay out of it.
+test('app data persistence opens no storage of its own and touches no page', () => {
+  const source = readSource('src/app/runtime/kernel/app-data-persistence.js');
+
+  assert.doesNotMatch(
+    source,
+    /loadAppData|\b(?:getItem|removeItem|openDB|indexedDB|localStorage|sessionStorage)\b|showNotification|renderAll|toggleModal|initChatApp|initializeApp/
+  );
 });

@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import { createLegacyAppBootstrapLifecycle } from '../src/app/runtime/features/app-bootstrap-lifecycle.js';
+import { createAppShellEnhancements } from '../src/app/runtime/features/app-shell-enhancements.js';
+import { setupConversationSearchModal } from '../src/app/runtime/features/conversation-search-modal.js';
+import { createDom } from './behaviours/helpers/create-dom.js';
 
-const projectFile = (path) => new URL(`../${path}`, import.meta.url);
-const readSource = (path) => readFileSync(projectFile(path), 'utf8');
+const flush = () => new Promise((resolve) => setImmediate(resolve));
 
 const createClassList = (id, calls) => ({
   add: (...names) => calls.push(`class:${id}:add:${names.join(',')}`),
@@ -41,7 +42,8 @@ function createFakeDom() {
       click() {
         calls.push(`click:${id}`);
       },
-      focus() {
+      focus(options) {
+        element.focusOptions = options;
         calls.push(`focus:${id}`);
       },
       remove() {
@@ -382,17 +384,6 @@ test('search controls expose the natural-language Enter hint and follow the visu
   assert.ok(harness.calls.includes('style:searchModal:--search-viewport-top:10px'));
   assert.ok(harness.calls.includes('style:searchModal:--search-viewport-left:3px'));
   assert.equal(findListener(harness.listeners, 'visualViewport', 'scroll') instanceof Function, true);
-
-  const source = readSource('src/app/runtime/features/conversation-search-modal.js');
-  assert.match(source, /naturalSearchEnterHint/);
-  assert.match(source, /naturalSearchHint\.classList\.toggle\('is-visible',\s*isNaturalSearch\)/);
-  assert.match(source, /naturalSearchHint\.setAttribute\('aria-hidden',\s*String\(!isNaturalSearch\)\)/);
-  assert.match(source, /if\s*\(ALL_ELEMENTS\.modalSearchScopeSelect\.value\s*===\s*'natural'\)\s*return/);
-  assert.match(source, /window\.requestAnimationFrame/);
-  assert.match(source, /Math\.round\(visibleViewportHeight\)/);
-  assert.doesNotMatch(source, /searchEmptyAnchor|--search-empty-/);
-  assert.doesNotMatch(source, /visibleViewport(?:Height|Width|OffsetTop|OffsetLeft)\.toFixed/);
-  assert.doesNotMatch(source, /searchKeyboardSyncTimer|scheduleTimeout\(syncSearchViewport,\s*140\)/);
 });
 
 test('search opens and focuses within one animation frame without scrolling the page', async () => {
@@ -411,10 +402,7 @@ test('search opens and focuses within one animation frame without scrolling the 
   assert.ok(frameIndex > openIndex);
   assert.ok(focusIndex > frameIndex);
   assert.equal(harness.calls.includes('scheduleTimeout'), false);
-
-  const source = readSource('src/app/runtime/features/conversation-search-modal.js');
-  assert.match(source, /modalSearchInput\.focus\(\{\s*preventScroll:\s*true\s*\}\)/);
-  assert.doesNotMatch(source, /scheduleTimeout\(\(\)\s*=>\s*\{\s*ALL_ELEMENTS\.modalSearchInput\.focus/);
+  assert.deepEqual(harness.elements.modalSearchInput.focusOptions, { preventScroll: true });
 });
 
 test('initChatApp binds settings, import/export, trash, P2P, file, and form listeners', async () => {
@@ -479,25 +467,6 @@ test('composer expand control toggles the expanded state and recalculates textar
   assert.ok(harness.calls.includes('focus:messageInput'));
 });
 
-test('app bootstrap lifecycle module avoids startup, storage, auth ownership, fragments, and runtime entry', () => {
-  const source = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
-
-  assert.doesNotMatch(source, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app/);
-  assert.doesNotMatch(source, /loadConfig|loadAppData|getItem\(|setItem\(|const\s+handleLogin|const\s+handleLogout|function\s+handleLogin|function\s+handleLogout/);
-  const currentUserAssignments = source.match(/currentUser\s*=/g) ?? [];
-  assert.equal(currentUserAssignments.length, 1);
-  assert.match(source, /const\s+currentUser\s*=\s*getCurrentUser\(\)/);
-  assert.match(source, /export\s+function\s+createLegacyAppBootstrapLifecycle/);
-  assert.match(source, /createAppBootstrapComposition\(\{/);
-  assert.match(source, /createLegacyP2PLifecycle\(\{/);
-  const enhancements = readSource('src/app/runtime/features/app-shell-enhancements.js');
-  assert.match(enhancements, /settings-desktop-logout-btn/);
-  assert.match(enhancements, /settings-desktop-logout-icon/);
-  assert.match(enhancements, /<span data-lang-key="logout">/);
-  assert.match(enhancements, /nav\.closest\('nav'\)\?\.appendChild\(button\)/);
-  assert.doesNotMatch(enhancements, /nav\.appendChild\(item\)/);
-});
-
 test('mobile attachment trigger reuses the desktop file options popover', async () => {
   const harness = createLifecycleHarness();
   harness.window.innerWidth = 599;
@@ -514,4 +483,171 @@ test('mobile attachment trigger reuses the desktop file options popover', async 
     'class:fileOptionsPopover:add:visible',
     'attr:addFileBtn:aria-expanded:true'
   ]);
+});
+
+test('initChatApp starts one new chat and binds the sharing buttons last, once each', async () => {
+  const harness = createLifecycleHarness();
+  const { initChatApp } = createLegacyAppBootstrapLifecycle(harness.dependencies);
+
+  await initChatApp();
+
+  assert.equal(harness.calls.filter((call) => call === 'startNewChat').length, 1);
+  const lastSetup = harness.calls.indexOf('checkAndShowLatestUpdate');
+  assert.ok(harness.calls.indexOf('setupHistorySidebarInteractions') > lastSetup);
+  assert.ok(harness.calls.indexOf('setupHistorySidebarTriggers') > harness.calls.indexOf('setupHistorySidebarInteractions'));
+  for (const id of ['share-astras-btn', 'p2p-start-scan-btn', 'p2p-connect-btn', 'settings-desktop-logout-btn']) {
+    assert.equal(harness.listeners.filter((entry) => entry.id === id && entry.type === 'click').length, 1, id);
+  }
+  assert.equal(findListener(harness.listeners, 'settings-desktop-logout-btn', 'click'), harness.dependencies.handleLogout);
+});
+
+test('the sharing buttons open the share dialog, check the code and start the QR scanner', async () => {
+  const harness = createLifecycleHarness({
+    loadSharingVendor: async () => ({
+      Peer: class {},
+      QRCode: class {},
+      Html5Qrcode: class {
+        constructor(id) { harness.calls.push(`scanner:new:${id}`); }
+        start() { harness.calls.push('scanner:start'); return Promise.resolve(); }
+        stop() { return Promise.resolve(); }
+      }
+    })
+  });
+  const { initChatApp } = createLegacyAppBootstrapLifecycle(harness.dependencies);
+  await initChatApp();
+  harness.calls.length = 0;
+
+  findListener(harness.listeners, 'share-astras-btn', 'click')({ stopPropagation() {} });
+  assert.ok(harness.calls.includes('toggleModal:p2p-share-modal:true'));
+
+  harness.getElement('p2p-code-input').value = ' abc ';
+  findListener(harness.listeners, 'p2p-connect-btn', 'click')();
+  assert.ok(harness.calls.some((call) => call.startsWith('showNotification:') && call.endsWith(':warning')));
+
+  findListener(harness.listeners, 'p2p-start-scan-btn', 'click')();
+  await flush();
+  assert.ok(harness.calls.includes('class:p2p-reader:remove:hidden'));
+  assert.ok(harness.calls.indexOf('scanner:start') > harness.calls.indexOf('scanner:new:p2p-reader'));
+});
+
+// The search dialog itself (conversation-search-modal.js), on a real DOM.
+function setupSearch({ scope = 'keyword-title' } = {}) {
+  const dom = createDom(`
+    <div id="search-modal">
+      <div><button id="close-search-modal-btn"></button></div>
+      <div>
+        <select id="modal-search-scope-select">
+          <option value="keyword-title">t</option><option value="keyword-content">c</option><option value="natural">n</option>
+        </select>
+        <input id="modal-search-input">
+      </div>
+    </div>
+    <button id="open-search-btn"></button><button id="perform-search-btn"></button>`);
+  const { document } = dom;
+  const byId = (id) => document.getElementById(id);
+  const elements = {
+    searchModal: byId('search-modal'),
+    closeSearchModalBtn: byId('close-search-modal-btn'),
+    modalSearchScopeSelect: byId('modal-search-scope-select'),
+    modalSearchInput: byId('modal-search-input'),
+    openSearchBtn: byId('open-search-btn'),
+    performSearchBtn: byId('perform-search-btn')
+  };
+  elements.modalSearchScopeSelect.value = scope;
+  const frames = [];
+  const viewportListeners = [];
+  const timers = [];
+  let searches = 0;
+  const fakeWindow = {
+    innerWidth: 1280,
+    innerHeight: 800,
+    visualViewport: {
+      width: 1280, height: 800, offsetTop: 0, offsetLeft: 0,
+      addEventListener: (type, handler) => viewportListeners.push({ type, handler })
+    },
+    requestAnimationFrame: (handler) => frames.push(handler)
+  };
+  setupConversationSearchModal({
+    window: fakeWindow, document, elements, i18n: { en: {} }, config: { uiLanguage: 'en' },
+    toggleModal: () => {}, performSearchAndRenderResults: () => { searches += 1; },
+    scheduleAnimationFrame: (handler) => handler(),
+    scheduleTimeout: (handler, delay) => timers.push(delay),
+    clearScheduledTimeout: () => {},
+    loadStyles: async () => {}
+  });
+  const hint = document.querySelector('.conversation-search-enter-hint');
+  const style = (name) => elements.searchModal.style.getPropertyValue(`--search-viewport-${name}`);
+  const fireViewport = (type) => viewportListeners.filter((entry) => entry.type === type).forEach((entry) => entry.handler());
+  return { ...dom, elements, frames, viewport: fakeWindow.visualViewport, fireViewport, timers, hint, style, getSearches: () => searches };
+}
+
+test('the search dialog shows the Enter hint only when searching by meaning, and searches by meaning only on Enter', () => {
+  const search = setupSearch();
+  try {
+    const { elements, hint, timers, window } = search;
+    assert.equal(hint.classList.contains('is-visible'), false);
+    assert.equal(hint.getAttribute('aria-hidden'), 'true');
+    elements.modalSearchInput.dispatchEvent(new window.Event('input'));
+    assert.deepEqual(timers, [180]);
+
+    elements.modalSearchInput.value = 'cats';
+    search.document.querySelector('[data-scope="natural"]').click();
+    assert.equal(hint.classList.contains('is-visible'), true);
+    assert.equal(hint.getAttribute('aria-hidden'), 'false');
+    assert.equal(search.getSearches(), 0);
+
+    elements.modalSearchInput.dispatchEvent(new window.Event('input'));
+    assert.deepEqual(timers, [180]);
+    elements.modalSearchInput.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Enter' }));
+    assert.equal(search.getSearches(), 1);
+  } finally {
+    search.cleanup();
+  }
+});
+
+test('the search dialog follows the visual viewport in whole pixels, once per animation frame and without timers', () => {
+  const search = setupSearch();
+  try {
+    assert.equal(search.style('height'), '800px');
+    Object.assign(search.viewport, { width: 360.4, height: 510.6, offsetTop: 10.2, offsetLeft: -3 });
+    search.fireViewport('resize');
+    search.fireViewport('scroll');
+    search.fireViewport('resize');
+
+    assert.equal(search.frames.length, 1);
+    assert.equal(search.style('height'), '800px');
+    search.frames[0]();
+    assert.equal(search.style('width'), '360px');
+    assert.equal(search.style('height'), '511px');
+    assert.equal(search.style('top'), '10px');
+    assert.equal(search.style('left'), '0px');
+    assert.deepEqual(search.timers, []);
+  } finally {
+    search.cleanup();
+  }
+});
+
+test('the desktop sign-out button of the settings is added once, under the menu, in the language in use', () => {
+  const { document, cleanup } = createDom('<nav><div id="settings-nav"></div></nav><button id="logout-btn"></button>');
+  try {
+    const enhancements = createAppShellEnhancements({
+      document,
+      elements: { settingsNav: document.getElementById('settings-nav'), logoutBtn: document.getElementById('logout-btn') },
+      i18n: { en: { logout: 'Sign out' } },
+      getConfig: () => ({ uiLanguage: 'en' })
+    });
+
+    const button = enhancements.ensureSettingsDesktopLogoutButton();
+    assert.equal(enhancements.ensureSettingsDesktopLogoutButton(), button);
+    assert.equal(button.parentElement.tagName, 'NAV');
+    assert.equal(document.querySelectorAll('#settings-desktop-logout-btn').length, 1);
+    assert.ok(button.querySelector('svg.settings-desktop-logout-icon'));
+    assert.equal(button.querySelector('[data-lang-key="logout"]').textContent, 'Sign out');
+
+    enhancements.enhanceSettingsLogoutButton();
+    enhancements.enhanceSettingsLogoutButton();
+    assert.equal(document.querySelectorAll('#logout-btn .settings-logout-label').length, 1);
+  } finally {
+    cleanup();
+  }
 });

@@ -1,227 +1,258 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-const projectFile = (path) => new URL(`../${path}`, import.meta.url);
-const readSource = (path) => readFileSync(projectFile(path), 'utf8');
+import { createLegacyRuntimeAppDataStore } from '../src/app/runtime/kernel/app-data-store.js';
+import { createLegacyImportExportLifecycle } from '../src/app/runtime/features/import-export-lifecycle.js';
+import { createLegacyAuthImportLifecycle } from '../src/app/runtime/features/auth-import-lifecycle.js';
 
-const findMatchingBrace = (source, openIndex) => {
-  let state = 'code';
-  let depth = 0;
-  for (let index = openIndex; index < source.length; index += 1) {
-    const char = source[index];
-    const next = source[index + 1];
-    const previous = source[index - 1];
-    if (state === 'code') {
-      if (char === '/' && next === '/') {
-        state = 'line-comment';
-        index += 1;
-      } else if (char === '/' && next === '*') {
-        state = 'block-comment';
-        index += 1;
-      } else if (char === '"') {
-        state = 'double-quote';
-      } else if (char === "'") {
-        state = 'single-quote';
-      } else if (char === '`') {
-        state = 'template';
-      } else if (char === '{') {
-        depth += 1;
-      } else if (char === '}') {
-        depth -= 1;
-        if (depth === 0) return index;
+// The imports replace the workspace through the app data store (kernel/app-data-store.js), as the workspace features wire them:
+// every group is replaced at once, the chunks are pushed into the store's new arrays, and the store is saved before the page moves on.
+
+const fakeElement = () => ({
+  value: '', files: [], disabled: false, textContent: '', style: {}, dataset: {},
+  classList: { add() {}, remove() {}, contains: () => false },
+  addEventListener() {}, setAttribute() {}, removeAttribute() {}
+});
+const elementsProxy = () => new Proxy({}, { get: (elements, name) => (elements[name] ||= fakeElement()) });
+const jsonFile = (data) => ({ name: 'backup.json', type: 'application/json', text: async () => JSON.stringify(data) });
+const ids = (items) => items.map((item) => item.id);
+
+function createStoreHarness(initial = {}) {
+  const store = createLegacyRuntimeAppDataStore({
+    initialConversations: initial.conversations || [{ id: 'before' }],
+    initialFolders: [{ id: 'folder-before' }],
+    initialAstras: [{ id: 'noura-before' }],
+    initialPersonalMemories: [{ id: 'memory-before' }]
+  });
+  const steps = [];
+  const groups = () => {
+    const { conversations, folders, astras, personalMemories } = store.getSnapshot();
+    return { conversations: ids(conversations), folders: ids(folders), astras: ids(astras), personalMemories: ids(personalMemories) };
+  };
+  const storeDependencies = {
+    getConversations: () => store.getConversations(),
+    getFolders: () => store.getFolders(),
+    getAstras: () => store.getAstras(),
+    getPersonalMemories: () => store.getPersonalMemories(),
+    replaceAllAppData: (next) => store.replaceAll(next),
+    replaceFolders: (next) => store.replaceFolders(next),
+    replacePersonalMemories: (next) => store.replacePersonalMemories(next),
+    processInChunks: async (items, processItem) => {
+      for (const item of items) await processItem(item);
+    },
+    getBackupUsername: (rawData) => rawData?.backup_identity?.username || '',
+    saveAppData: async () => steps.push(['saveAppData', groups()]),
+    saveConfig: async () => steps.push(['saveConfig', groups()]),
+    showNotification: (message, type) => steps.push(['notification', type]),
+    toggleModal: () => steps.push(['toggleModal']),
+    delay: async () => {},
+    logger: { warn: (message) => steps.push(['warn', message]), error: () => {} },
+    i18n: { en: {} }
+  };
+  return { store, steps, groups, storeDependencies };
+}
+
+function createImport({ file, user = { username: 'alice' }, confirm = true, JSZip, ...overrides } = {}) {
+  const harness = createStoreHarness(overrides.initial);
+  const config = { uiLanguage: 'en' };
+  const elements = elementsProxy();
+  if (file) elements.importFileInput.files = [file];
+  const lifecycle = createLegacyImportExportLifecycle({
+    ...harness.storeDependencies,
+    elements,
+    JSZip,
+    getCurrentUser: () => user,
+    getConfig: () => config,
+    mutateConfig: (mutator) => mutator(config),
+    showCustomConfirm: async () => confirm,
+    applyUiTheme: () => harness.steps.push(['applyUiTheme']),
+    applyLanguage: (language) => harness.steps.push(['applyLanguage', language]),
+    resolveSearchSetupSettingsModal: () => {},
+    loadChat: (id) => harness.steps.push(['loadChat', id]),
+    startNewChat: () => harness.steps.push(['startNewChat']),
+    ...overrides.dependencies
+  });
+  return { ...harness, config, elements, lifecycle };
+}
+
+test('performImport replaces every group in the store, saves it, then applies and saves the settings', async () => {
+  const harness = createImport();
+
+  await harness.lifecycle.performImport({
+    conversations: [{ id: 'c1' }],
+    astras: [{ id: 'n1' }],
+    settings: { uiLanguage: 'fr' }
+  });
+
+  const imported = { conversations: ['c1'], folders: [], astras: ['n1'], personalMemories: [] };
+  assert.deepEqual(harness.steps, [['saveAppData', imported], ['saveConfig', imported]]);
+  assert.equal(harness.config.uiLanguage, 'fr');
+});
+
+test('performImport without a signed-in user changes nothing', async () => {
+  const harness = createImport({ user: null });
+  const before = harness.groups();
+
+  await assert.rejects(harness.lifecycle.performImport({ conversations: [{ id: 'c1' }] }));
+
+  assert.deepEqual(harness.groups(), before);
+  assert.deepEqual(harness.steps, []);
+});
+
+test('handleImport clears the store, saves the settings, fills the new arrays, saves, and only then moves the page on', async () => {
+  const harness = createImport({
+    file: jsonFile({
+      backup_identity: { username: 'alice' },
+      settings: { uiLanguage: 'fr' },
+      astras: [{ id: 'n1' }],
+      folders: [{ id: 'f1' }],
+      personalMemories: [{ id: 'm1' }],
+      conversations: [
+        { id: 'archived', archived: true, messages: [] },
+        { id: 'trashed', deletedAt: '2026-01-01', messages: [] },
+        { id: 'open', messages: [] }
+      ]
+    })
+  });
+  const replacedArrays = [];
+  const replaceAll = harness.store.replaceAll;
+  harness.store.replaceAll = (next) => {
+    replacedArrays.push(next.conversations);
+    return replaceAll(next);
+  };
+
+  await harness.lifecycle.handleImport();
+
+  const empty = { conversations: [], folders: [], astras: [], personalMemories: [] };
+  const imported = { conversations: ['archived', 'trashed', 'open'], folders: ['f1'], astras: ['n1'], personalMemories: ['m1'] };
+  assert.deepEqual(harness.steps, [
+    ['saveConfig', empty],
+    ['saveAppData', imported],
+    ['toggleModal'],
+    ['notification', 'success'],
+    ['applyUiTheme'],
+    ['applyLanguage', 'fr'],
+    ['loadChat', 'open']
+  ]);
+  assert.equal(harness.store.getConversations(), replacedArrays[0], 'conversations are pushed into the array the store holds');
+});
+
+test('handleImport starts a new chat when no imported conversation is open', async () => {
+  const harness = createImport({
+    file: jsonFile({ backup_identity: { username: 'alice' }, conversations: [{ id: 'archived', archived: true, messages: [] }] })
+  });
+
+  await harness.lifecycle.handleImport();
+
+  assert.deepEqual(harness.steps.at(-1), ['startNewChat']);
+});
+
+test('handleImport leaves the store as it was when the person declines', async () => {
+  const harness = createImport({ confirm: false, file: jsonFile({ conversations: [{ id: 'c1', messages: [] }] }) });
+  const before = harness.groups();
+
+  await harness.lifecycle.handleImport();
+
+  assert.deepEqual(harness.groups(), before);
+  assert.deepEqual(harness.steps, [['notification', 'info']]);
+});
+
+test('handleImport keeps a Noura whose picture cannot be restored, without it', async () => {
+  class FakeZip {
+    static async loadAsync() {
+      return new FakeZip();
+    }
+
+    constructor() {
+      this.files = {};
+    }
+
+    file(name) {
+      if (name === 'data.json') {
+        const data = { backup_identity: { username: 'alice' }, astras: [{ id: 'n1', _avatarZipRef: 'images/n1.png' }] };
+        return { async: async () => JSON.stringify(data) };
       }
-    } else if (state === 'line-comment') {
-      if (char === '\n') state = 'code';
-    } else if (state === 'block-comment') {
-      if (char === '*' && next === '/') {
-        state = 'code';
-        index += 1;
-      }
-    } else if (state === 'double-quote') {
-      if (char === '"' && previous !== '\\') state = 'code';
-    } else if (state === 'single-quote') {
-      if (char === "'" && previous !== '\\') state = 'code';
-    } else if (state === 'template') {
-      if (char === '`' && previous !== '\\') state = 'code';
+      return { async: async () => { throw new Error('damaged entry'); } };
     }
   }
-  return -1;
-};
+  const harness = createImport({ JSZip: FakeZip, file: { name: 'backup.zip', type: 'application/zip' } });
 
-const getConstFunctionBody = (source, name) => {
-  const match = new RegExp(`const\\s+${name}\\s*=\\s*(?:async\\s*)?\\([^)]*\\)\\s*=>\\s*\\{`).exec(source);
-  assert.ok(match, `Expected to find ${name}`);
-  const openIndex = match.index + match[0].lastIndexOf('{');
-  const closeIndex = findMatchingBrace(source, openIndex);
-  assert.notEqual(closeIndex, -1, `Expected to close ${name}`);
-  return source.slice(match.index, closeIndex + 1);
-};
+  await harness.lifecycle.handleImport();
 
-const getFunctionDeclarationBody = (source, name) => {
-  const match = new RegExp(`(?:async\\s+)?function\\s+${name}\\s*\\([^)]*\\)\\s*\\{`).exec(source);
-  assert.ok(match, `Expected to find ${name}`);
-  const openIndex = match.index + match[0].lastIndexOf('{');
-  const closeIndex = findMatchingBrace(source, openIndex);
-  assert.notEqual(closeIndex, -1, `Expected to close ${name}`);
-  return source.slice(match.index, closeIndex + 1);
-};
-
-const assertMarkersInOrder = (source, markers, context) => {
-  let cursor = -1;
-  for (const marker of markers) {
-    const next = marker instanceof RegExp
-      ? (() => {
-          const match = marker.exec(source.slice(cursor + 1));
-          return match ? cursor + 1 + match.index : -1;
-        })()
-      : source.indexOf(marker, cursor + 1);
-    assert.notEqual(next, -1, `${context} should contain ${marker}`);
-    assert.ok(next > cursor, `${marker} should remain in legacy order for ${context}`);
-    cursor = next;
-  }
-};
-
-const fragment03Source = readSource('src/app/runtime/legacy-core/workspace-features.js');
-const importExportSource = readSource('src/app/runtime/features/import-export-lifecycle.js');
-const authImportSource = readSource('src/app/runtime/features/auth-import-lifecycle.js');
-const performImportBody = getFunctionDeclarationBody(importExportSource, 'performImport');
-const handleImportBody = getFunctionDeclarationBody(importExportSource, 'handleImport');
-const processAuthImportBody = getFunctionDeclarationBody(authImportSource, 'processAuthImport');
-
-test('performImport keeps four-group replacement before app and config persistence', () => {
-  assertMarkersInOrder(performImportBody, [
-    'if (!getCurrentUser())',
-    'replaceAllAppData({',
-    'conversations: data.conversations || []',
-    'folders: data.folders || []',
-    'astras: data.astras || []',
-    'personalMemories: data.personalMemories || []',
-    'await saveAppData()',
-    'applySettings(data.settings)',
-    'mergeApiKeys(await resolveImportedApiKeys(data))',
-    'await saveConfig()'
-  ], 'performImport persistence boundary');
+  assert.deepEqual(ids(harness.store.getAstras()), ['n1']);
+  assert.equal(harness.store.getAstras()[0].avatarUrl, undefined);
+  assert.ok(harness.steps.some(([step]) => step === 'warn'));
+  assert.ok(harness.steps.some(([step, type]) => step === 'notification' && type === 'success'));
 });
 
-test('handleImport keeps validation before clear and chunk mutations on active lexical arrays', () => {
-  assertMarkersInOrder(handleImportBody, [
-    'const backupUsername = getBackupUsername(rawData)',
-    'await showCustomConfirm',
-    'updateProgress(30',
-    'const activeAppData = replaceAllAppData({',
-    'conversations: []',
-    'folders: []',
-    'astras: []',
-    'personalMemories: []',
-    'await saveConfig()',
-    'await processInChunks(astrasToImport',
-    'activeAppData.astras.push(astra)',
-    'activeAppData.folders = replaceFolders(rawData.folders)',
-    'activeAppData.personalMemories = replacePersonalMemories(rawData.personalMemories)',
-    'await processInChunks(conversationsToImport',
-    'activeAppData.conversations.push(conversation)',
-    'updateProgress(90',
-    'await saveAppData()',
-    'updateProgress(100',
-    'toggleModal(elements.importDataModal, false)',
-    "showNotification(text('importSuccess'",
-    'applyUiTheme()',
-    'applyLanguage(getConfig().uiLanguage)',
-    'if (firstConversation) loadChat(firstConversation.id)',
-    'else startNewChat()'
-  ], 'handleImport mutation and UI handoff');
+test('handleImport does not roll back what was imported when saving fails', async () => {
+  const harness = createImport({
+    file: jsonFile({ backup_identity: { username: 'alice' }, conversations: [{ id: 'c1', messages: [] }] }),
+    dependencies: { saveAppData: async () => { throw new Error('disk full'); } }
+  });
+
+  await harness.lifecycle.handleImport();
+
+  assert.deepEqual(ids(harness.store.getConversations()), ['c1']);
+  assert.deepEqual(harness.steps.at(-1), ['notification', 'error']);
+  assert.equal(harness.elements.importPercentage.textContent, '0%');
+  assert.equal(harness.elements.confirmImportBtn.disabled, false);
 });
 
-test('handleImport preserves partial-state behavior without rollback', () => {
-  assertMarkersInOrder(handleImportBody, [
-    /catch \(error\) \{\r?\n\s+logger\.warn\('Noura/,
-    'activeAppData.astras.push(astra)',
-    /catch \(error\) \{\r?\n\s+logger\.warn\('/,
-    'activeAppData.conversations.push(conversation)'
-  ], 'handleImport recoverable transform failures');
+function createAuthImport({ rawData, ...overrides }) {
+  const harness = createStoreHarness();
+  const config = { uiLanguage: 'en' };
+  const elements = elementsProxy();
+  elements.usernameInput.value = 'alice';
+  elements.passwordInput.value = 'secret';
+  elements.importFileInputAuth.files = [jsonFile(rawData)];
+  const lifecycle = createLegacyAuthImportLifecycle({
+    ...harness.storeDependencies,
+    elements,
+    getConfig: () => config,
+    mutateConfig: (mutator) => mutator(config),
+    setCurrentUser: (user) => user,
+    createPasswordRecord: async (username) => ({ username }),
+    getUserKey: (username) => `chatUser_${username}`,
+    setItem: async (key) => harness.steps.push(['setItem', key, harness.groups().conversations]),
+    requestAnimationFrame: (callback) => callback(),
+    scheduleTimeout: () => {},
+    initChatApp: () => harness.steps.push(['initChatApp']),
+    ...overrides
+  });
+  return { ...harness, config, elements, lifecycle };
+}
 
-  const outerCatch = handleImportBody.slice(handleImportBody.lastIndexOf('catch (error)'));
-  assert.doesNotMatch(outerCatch, /(?:conversations|folders|astras|personalMemories)\s*=\s*\[\]/);
-  assert.doesNotMatch(outerCatch, /runtimeAppDataStore\.(?:replaceAll|replaceConversations|replaceFolders|replaceAstras|replacePersonalMemories)/);
-  assertMarkersInOrder(outerCatch, [
-    'catch (error)',
-    'showNotification',
-    'updateProgress(0',
-    'finally',
-    'confirmImportBtn.disabled = false'
-  ], 'handleImport failure and UI reset');
+test('processAuthImport saves the user first, then replaces the store, saves it, then the settings, then opens the app', async () => {
+  const harness = createAuthImport({
+    rawData: { backup_identity: { username: 'alice' }, settings: { uiLanguage: 'fr' }, conversations: [{ id: 'c1', messages: [] }] }
+  });
+
+  await harness.lifecycle.processAuthImport();
+
+  const imported = { conversations: ['c1'], folders: [], astras: [], personalMemories: [] };
+  assert.deepEqual(harness.steps, [
+    ['setItem', 'chatUser_alice', ['before']],
+    ['setItem', 'chat_lastUser', ['before']],
+    ['saveAppData', imported],
+    ['saveConfig', imported],
+    ['toggleModal'],
+    ['initChatApp'],
+    ['notification', 'success']
+  ]);
+  assert.equal(harness.config.uiLanguage, 'fr');
 });
 
-test('processAuthImport keeps user persistence before app data mutation and persistence', () => {
-  assertMarkersInOrder(processAuthImportBody, [
-    'const backupUsername = getBackupUsername(rawData)',
-    'const userKey = getUserKey(username)',
-    'const nextUser = await createPasswordRecord(username, password)',
-    'const persistedUser = setCurrentUser(nextUser)',
-    'await setItem(userKey, JSON.stringify(persistedUser))',
-    "await setItem('chat_lastUser', username)",
-    'updateProgress(30',
-    'const activeAppData = replaceAllAppData({',
-    'conversations: []',
-    'folders: []',
-    'astras: []',
-    'personalMemories: []',
-    'await processInChunks(astrasToImport',
-    'activeAppData.astras.push(astra)',
-    'activeAppData.folders = replaceFolders(rawData.folders)',
-    'activeAppData.personalMemories = replacePersonalMemories(rawData.personalMemories)',
-    'await processInChunks(conversationsToImport',
-    'activeAppData.conversations.push(conversation)',
-    'await saveAppData()',
-    'Object.assign(config, rawData.settings)',
-    'await saveConfig()',
-    'toggleModal(elements.importDataModalAuth, false)',
-    "elements.authContainer.addEventListener('transitionend'",
-    'scheduleTimeout(hideAuthContainer, 500)',
-    'initChatApp()',
-    "showNotification(text('importSuccess'"
-  ], 'processAuthImport auth, mutation, persistence, and app handoff');
-});
+test('processAuthImport does not roll back what was imported when saving fails', async () => {
+  const harness = createAuthImport({
+    rawData: { backup_identity: { username: 'alice' }, conversations: [{ id: 'c1', messages: [] }] },
+    saveAppData: async () => { throw new Error('disk full'); }
+  });
 
-test('processAuthImport preserves partial-state behavior without rollback', () => {
-  assertMarkersInOrder(processAuthImportBody, [
-    /catch \(error\) \{\r?\n\s+logger\.warn\('Noura/,
-    'activeAppData.astras.push(astra)',
-    /catch \(error\) \{\r?\n\s+logger\.warn\('Attachment/,
-    'activeAppData.conversations.push(conversation)'
-  ], 'processAuthImport recoverable transform failures');
+  await harness.lifecycle.processAuthImport();
 
-  const outerCatch = processAuthImportBody.slice(processAuthImportBody.lastIndexOf('catch (error)'));
-  assert.doesNotMatch(outerCatch, /(?:conversations|folders|astras|personalMemories)\s*=\s*\[\]/);
-  assert.doesNotMatch(outerCatch, /(?:replaceAllAppData|replaceFolders|replacePersonalMemories)\(/);
-  assertMarkersInOrder(outerCatch, [
-    'catch (error)',
-    'logger.error(error)',
-    'showNotification',
-    'updateProgress(0',
-    'finally',
-    'confirmImportBtnAuth.disabled = false'
-  ], 'processAuthImport failure and UI reset');
-});
-
-test('selected import flows use pointer replacement without adding store append or synchronization API', () => {
-  const storeSource = readSource('src/app/runtime/kernel/app-data-store.js');
-  const fragment00Source = readSource('src/app/runtime/legacy-core/legacy-core.js');
-  const runtimeAppSource = readSource('src/app/runtime-app.js');
-
-  assert.match(performImportBody, /replaceAllAppData\(/);
-  assert.match(handleImportBody, /replaceAllAppData\(/);
-  assert.match(processAuthImportBody, /replaceAllAppData\(/);
-  for (const body of [performImportBody, handleImportBody, processAuthImportBody]) {
-    assert.doesNotMatch(body, /appendConversations|appendAstras|syncFromLexical/);
-  }
-  assert.doesNotMatch(storeSource, /appendConversations|appendAstras|syncFromLexical/);
-  assert.match(fragment00Source, /getAppData:\s*\(\)\s*=>\s*runtimeAppDataStore\.getSnapshot\(\)/);
-  assert.match(runtimeAppSource, /createLegacyRuntimeAppDataStore/);
-  assert.match(runtimeAppSource, /const\s+appDataStore\s*=\s*createLegacyRuntimeAppDataStore\(\)/);
-  assert.doesNotMatch(
-    runtimeAppSource,
-    /createLegacyRuntime(?:AppData|Config)Persistence|getItem|setItem|removeItem|openDB|currentUser|addEventListener|bootstrap|initializeApp|initChatApp/
-  );
+  assert.deepEqual(ids(harness.store.getConversations()), ['c1']);
+  assert.deepEqual(harness.steps.at(-1), ['notification', 'error']);
+  assert.equal(harness.elements.confirmImportBtnAuth.disabled, false);
+  assert.equal(harness.steps.some(([step]) => step === 'initChatApp'), false);
 });

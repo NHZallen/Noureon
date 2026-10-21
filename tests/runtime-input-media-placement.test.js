@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import test from 'node:test';
 import { Window } from 'happy-dom';
-import { projectFile, readSource } from './helpers/source-guards.js';
+import { readSource } from './helpers/source-guards.js';
 
 const helperPath = 'src/app/runtime/features/input-media-placement.js';
 const helperUrl = new URL(`../${helperPath}`, import.meta.url);
@@ -10,7 +10,6 @@ const helperExists = existsSync(helperUrl);
 const helperModule = helperExists ? await import(helperUrl.href) : {};
 const { arrangeInputMediaPreview } = helperModule;
 const helperSource = helperExists ? readSource(helperPath) : '';
-const legacyCoreSource = readSource('src/app/runtime/legacy-core/legacy-core.js');
 
 function createFixture({
   includePreview = true,
@@ -125,18 +124,7 @@ test('missing wrapper, preview, settings button, or settings icon remains gracef
   }
 });
 
-test('legacy core delegates placement without adding runtime contracts', () => {
-  assert.equal(existsSync(projectFile(helperPath)), true);
-  assert.equal(typeof arrangeInputMediaPreview, 'function');
-  assert.match(
-    legacyCoreSource,
-    /import\s+\{\s*arrangeInputMediaPreview\s*\}\s+from\s+['"]\/src\/app\/runtime\/features\/input-media-placement\.js['"]/
-  );
-  assert.match(
-    legacyCoreSource,
-    /arrangeInputMediaPreview\(\{[\s\S]*?document,[\s\S]*?inputMediaPreview:\s*runtimeDomAccess\.getOptionalElement\('filePreviewContainer'\),[\s\S]*?settingsButton:\s*runtimeDomAccess\.getOptionalElement\('settingsBtn'\)/
-  );
-  assert.doesNotMatch(legacyCoreSource, /const\s+arrangeInputMediaPreview\s*=\s*\(\)\s*=>/);
+test('the placement helper stays free of runtime bindings and unrelated systems', () => {
   assert.doesNotMatch(helperSource, /registerLazyBinding|resolveBinding|resolveOptionalBinding|legacyRuntimeContext/);
   assert.doesNotMatch(
     helperSource,

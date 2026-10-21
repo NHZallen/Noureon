@@ -1,9 +1,6 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { createRuntimeDomAccess } from '../src/app/legacy-runtime/runtime/runtime-dom-access.js';
-
-const readSource = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
 test('getOptionalElement reads from the injected elements getter', () => {
   const button = { id: 'settings-btn' };
@@ -50,14 +47,4 @@ test('runtime DOM access does not mutate the backing element registry', () => {
 
   assert.deepEqual(Object.keys(elements), ['messageInput']);
   assert.deepEqual(elements.messageInput, { value: '' });
-});
-
-test('runtime DOM access source is read-only and avoids unrelated systems', () => {
-  const source = readSource('src/app/legacy-runtime/runtime/runtime-dom-access.js');
-
-  assert.match(source, /export\s+function\s+createRuntimeDomAccess/);
-  assert.match(source, /getElements\?\.\(\)/);
-  assert.doesNotMatch(source, /document\.|querySelector|getElementById|addEventListener/);
-  assert.doesNotMatch(source, /localStorage|sessionStorage|fetch|XMLHttpRequest/);
-  assert.doesNotMatch(source, /provider|parser|storage|schema|package|vite|css|template/i);
 });

@@ -1,19 +1,62 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
+import { Window } from 'happy-dom';
 
 import { createLegacyTrashLifecycle } from '../src/app/runtime/features/trash-lifecycle.js';
 
 const readSource = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
-const assertMarkersInOrder = (source, markers) => {
-  let lastIndex = -1;
-  for (const marker of markers) {
-    const index = source.indexOf(marker, lastIndex + 1);
-    assert.notEqual(index, -1, `Missing marker: ${marker}`);
-    assert.ok(index > lastIndex, `Marker out of order: ${marker}`);
-    lastIndex = index;
-  }
-};
+
+// A trash panel on a real DOM (happy-dom), so selection works through the checkboxes the person clicks.
+function createDomHarness(conversations) {
+  const window = new Window();
+  const { document } = window;
+  const calls = [];
+  const make = (tag = 'div') => document.createElement(tag);
+  const elements = Object.fromEntries(['trashListContainer', 'emptyTrashBtn', 'trashBatchSelectBtn', 'trashViewTitle', 'trashViewContent', 'trashViewModal', 'trashBatchActionBar', 'trashSelectionCount', 'trashBatchRestoreBtn', 'trashBatchDeleteBtn'].map((name) => [name, make(name.endsWith('Btn') ? 'button' : 'div')]));
+  document.body.appendChild(elements.trashListContainer);
+  let live = conversations;
+  const lifecycle = createLegacyTrashLifecycle({
+    document,
+    navigator: {},
+    fetch: async () => {},
+    File: class {},
+    elements,
+    getConversations: () => live,
+    replaceConversations: (next) => {
+      calls.push(['replaceConversations', next.map((conversation) => conversation.id)]);
+      live = next;
+      return live;
+    },
+    saveAppData: async (...args) => calls.push(['saveAppData', ...args]),
+    renderAll: () => {},
+    renderSidebar: () => calls.push(['renderSidebar']),
+    getI18n: () => ({ 'zh-TW': { items: 'items' } }),
+    getUiLanguage: () => 'zh-TW',
+    showCustomConfirm: async () => {
+      calls.push(['confirm']);
+      return true;
+    },
+    showNotification: (...args) => calls.push(['notification', ...args]),
+    showCoordinatedNotification: (...args) => calls.push(['coordinatedNotification', ...args]),
+    deleteConversationsFromCloud: async (ids, options) => calls.push(['deleteConversationsFromCloud', ids, options.conversations.map((conversation) => conversation.id)]),
+    invalidateConversationMemory: async ({ conversationId }) => calls.push(['invalidate', conversationId]),
+    rebuildHistoryIndex: async () => calls.push(['rebuild']),
+    toggleModal: (...args) => calls.push(['toggleModal', ...args]),
+    formatFullTimestamp: (value) => String(value),
+    renderUserText: (value) => `U:${value}`,
+    renderModelText: (value) => `M:${value}`,
+    escapeHTML: (value) => String(value),
+    scheduleTimeout: () => 0,
+    clearScheduledTimeout: () => {},
+    createChangeEvent: () => new window.Event('change')
+  });
+  const selectRow = (id) => elements.trashListContainer
+    .querySelector(`.trash-item[data-id="${id}"] .pz-text`)
+    .dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+  const inSelectionMode = () => !elements.trashBatchActionBar.classList.contains('hidden');
+  return { window, elements, lifecycle, calls, selectRow, inSelectionMode, getConversations: () => live };
+}
 
 function createNode() {
   const listeners = new Map();
@@ -319,32 +362,63 @@ test('empty trash keeps local rows when cloud deletion fails', async () => {
   assert.equal(harness.calls.at(-1)[2], 'error');
 });
 
-test('batch restore and delete preserve selection, persistence, and notification ordering', () => {
-  const source = readSource('src/app/runtime/features/trash-lifecycle.js');
+test('batch restore restores the selected rows, saves, leaves selection mode, then notifies', async () => {
+  const harness = createDomHarness([
+    { id: 'one', title: 'One', deletedAt: '2026-06-25T00:00:00.000Z', messages: [] },
+    { id: 'two', title: 'Two', deletedAt: '2026-06-24T00:00:00.000Z', messages: [] },
+    { id: 'three', title: 'Three', deletedAt: '2026-06-23T00:00:00.000Z', messages: [] }
+  ]);
+  try {
+    // Nothing selected: nothing happens.
+    harness.lifecycle.toggleTrashSelectionMode();
+    await harness.lifecycle.handleBatchRestoreFromTrash();
+    assert.deepEqual(harness.calls, []);
 
-  assertMarkersInOrder(source, [
-    'const handleBatchRestoreFromTrash = async () => {',
-    'const count = selectedTrashIds.size',
-    'selectedTrashIds.forEach(id => {',
-    'conversation.deletedAt = null',
-    'conversation.trashStateUpdatedAt = restoredAt',
-    'await saveAppData({ immediateCloudSync: true })',
-    'toggleTrashSelectionMode()',
-    'showCoordinatedNotification('
+    harness.selectRow('one');
+    harness.selectRow('three');
+    await harness.lifecycle.handleBatchRestoreFromTrash();
+
+    const [one, two, three] = harness.getConversations();
+    assert.equal(one.deletedAt, null);
+    assert.equal(two.deletedAt, '2026-06-24T00:00:00.000Z');
+    assert.equal(three.deletedAt, null);
+    assert.equal(one.trashStateUpdatedAt, one.stateUpdatedAt);
+    assert.deepEqual(harness.calls.map((call) => call[0]), ['saveAppData', 'renderSidebar', 'coordinatedNotification', 'rebuild']);
+    assert.deepEqual(harness.calls[0][1], { immediateCloudSync: true });
+    assert.match(harness.calls[2][1], /2/);
+    assert.equal(harness.inSelectionMode(), false);
+    assert.equal(harness.elements.trashListContainer.querySelector('.trash-select-checkbox'), null);
+  } finally {
+    harness.window.close();
+  }
+});
+
+test('batch delete confirms, deletes in the cloud, then replaces, saves, leaves selection mode and notifies', async () => {
+  const harness = createDomHarness([
+    { id: 'one', title: 'One', deletedAt: '2026-06-25T00:00:00.000Z', messages: [] },
+    { id: 'two', title: 'Two', deletedAt: '2026-06-24T00:00:00.000Z', messages: [] },
+    { id: 'kept', title: 'Kept', deletedAt: null, messages: [] }
   ]);
-  assertMarkersInOrder(source, [
-    'const handleBatchDeleteFromTrash = async () => {',
-    'const count = selectedTrashIds.size',
-    'await showCustomConfirm(',
-    'const selectedSnapshots = getConversations().filter(conversation => selectedTrashIds.has(conversation?.id))',
-    'confirmCloudDeletion(ids, selectedSnapshots)',
-    'replaceConversations(',
-    'getConversations().filter(conversation => !selectedTrashIds.has(conversation.id))',
-    'await saveAppData()',
-    'renderSidebar()',
-    'toggleTrashSelectionMode()',
-    'showNotification('
-  ]);
+  try {
+    harness.lifecycle.toggleTrashSelectionMode();
+    harness.selectRow('two');
+    await harness.lifecycle.handleBatchDeleteFromTrash();
+
+    assert.deepEqual(harness.getConversations().map((conversation) => conversation.id), ['one', 'kept']);
+    assert.deepEqual(harness.calls, [
+      ['confirm'],
+      ['deleteConversationsFromCloud', ['two'], ['two']],
+      ['invalidate', 'two'],
+      ['replaceConversations', ['one', 'kept']],
+      ['saveAppData'],
+      ['renderSidebar'],
+      ['notification', harness.calls.at(-1)[1], 'success']
+    ]);
+    assert.match(harness.calls.at(-1)[1], /1/);
+    assert.equal(harness.inSelectionMode(), false);
+  } finally {
+    harness.window.close();
+  }
 });
 
 test('selection state stays internal and drives list and batch action rendering', () => {
@@ -382,75 +456,71 @@ test('trash conversation view uses the composed renderer and opens the modal', (
   assert.deepEqual(harness.calls, [['toggleModal', harness.elements.trashViewModal, true]]);
 });
 
-test('trash lifecycle keeps media attachment, preview, and conversation view composition', () => {
-  const source = readSource('src/app/runtime/features/trash-lifecycle.js');
+const trashWithPicture = () => createDomHarness([{
+  id: 'gone',
+  title: 'Gone',
+  deletedAt: '2026-06-25T00:00:00.000Z',
+  messages: [
+    { role: 'user', parts: [{ text: 'hello' }, { inlineData: { mimeType: 'image/png', data: 'AAAA', name: 'cat.png' } }] },
+    { role: 'model', parts: [{ text: 'reply' }] }
+  ]
+}]);
 
-  assert.match(source, /createMediaAttachmentRenderer\(\{\s*escapeHTML\s*\}\)/);
-  assert.match(source, /createMediaPreviewLifecycle\(\{/);
-  assert.match(source, /getUiLanguage/);
-  assert.match(source, /createConversationViewRenderer\(\{/);
-  assert.match(source, /renderConversationMessages\(\{/);
+test('the trash view shows the texts through the given renderers and lists the attachments', () => {
+  const harness = trashWithPicture();
+  try {
+    harness.lifecycle.showTrashItemInViewModal('gone');
+
+    const content = harness.elements.trashViewContent;
+    assert.equal(content.querySelector('.user-message .message-content').textContent, 'U:hello');
+    assert.equal(content.querySelector('.model-message .message-content').textContent, 'M:reply');
+    assert.ok(content.querySelector('.user-message [data-media-index="0"]'), 'the attachment is listed');
+    assert.deepEqual(harness.calls, [['toggleModal', harness.elements.trashViewModal, true]]);
+  } finally {
+    harness.window.close();
+  }
+});
+
+// Found while replacing the source checks (NOU-80): the trash view hands whole parts ({ inlineData }) to the attachment grid,
+// which reads mimeType on the part, so a picture shows as an unnamed file row. The archive view unwraps them (mediaMode 'inlineData').
+test('the trash view shows an attached picture as a picture', () => {
+  const harness = trashWithPicture();
+  try {
+    harness.lifecycle.showTrashItemInViewModal('gone');
+    const thumb = harness.elements.trashViewContent.querySelector('.user-message .message-media-thumb img');
+    assert.equal(thumb?.getAttribute('src'), 'data:image/png;base64,AAAA');
+    assert.equal(thumb?.getAttribute('alt'), 'cat.png');
+  } finally {
+    harness.window.close();
+  }
 });
 
 test('trash lifecycle has no storage, auth, import, P2P, startup, or runtime entry ownership', () => {
   const source = readSource('src/app/runtime/features/trash-lifecycle.js');
 
-  assert.match(source, /export\s+function\s+createLegacyTrashLifecycle/);
   assert.doesNotMatch(
     source,
     /legacy-runtime\/fragments|virtual:legacy-app-runtime|storage-adapter|runtime-app|indexedDB|localStorage|sessionStorage|currentUser|loadConfig|loadAppData|initChatApp|initializeApp|Peer|P2P|JSZip/
   );
 });
 
-test('in selection mode a row click toggles its checkbox, and a click on the checkbox itself is not counted twice', async () => {
-  const { Window } = await import('happy-dom');
-  const window = new Window();
-  const { document } = window;
-  const make = (tag = 'div') => document.createElement(tag);
-  const elements = Object.fromEntries(['trashListContainer', 'emptyTrashBtn', 'trashBatchSelectBtn', 'trashViewTitle', 'trashViewContent', 'trashViewModal', 'trashBatchActionBar', 'trashSelectionCount', 'trashBatchRestoreBtn', 'trashBatchDeleteBtn'].map((name) => [name, make(name.endsWith('Btn') ? 'button' : 'div')]));
-  document.body.appendChild(elements.trashListContainer);
-  const conversations = [{ id: 'gone', title: 'Gone', deletedAt: '2026-06-25T00:00:00.000Z', messages: [] }];
-  const lifecycle = createLegacyTrashLifecycle({
-    document,
-    navigator: {},
-    fetch: async () => {},
-    File: class {},
-    elements,
-    getConversations: () => conversations,
-    replaceConversations: (next) => next,
-    saveAppData: async () => {},
-    renderAll: () => {},
-    renderSidebar: () => {},
-    getI18n: () => ({ 'zh-TW': { items: 'items' } }),
-    getUiLanguage: () => 'zh-TW',
-    showCustomConfirm: async () => true,
-    showNotification: () => {},
-    showCoordinatedNotification: () => {},
-    deleteConversationsFromCloud: async () => {},
-    invalidateConversationMemory: async () => {},
-    rebuildHistoryIndex: async () => {},
-    toggleModal: () => {},
-    formatFullTimestamp: (value) => String(value),
-    renderUserText: (value) => String(value),
-    renderModelText: (value) => String(value),
-    escapeHTML: (value) => String(value),
-    scheduleTimeout: () => 0,
-    clearScheduledTimeout: () => {},
-    createChangeEvent: () => new window.Event('change')
-  });
-  lifecycle.toggleTrashSelectionMode();
-  const row = elements.trashListContainer.querySelector('.trash-item');
-  const checkbox = row.querySelector('.trash-select-checkbox');
-  const selected = () => elements.trashSelectionCount.textContent;
+test('in selection mode a row click toggles its checkbox, and a click on the checkbox itself is not counted twice', () => {
+  const harness = createDomHarness([{ id: 'gone', title: 'Gone', deletedAt: '2026-06-25T00:00:00.000Z', messages: [] }]);
+  try {
+    harness.lifecycle.toggleTrashSelectionMode();
+    const row = harness.elements.trashListContainer.querySelector('.trash-item');
+    const selected = () => harness.elements.trashSelectionCount.textContent;
 
-  // A click on the row (not on a button) toggles the row's checkbox.
-  row.querySelector('.pz-text').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
-  assert.equal(row.querySelector('.trash-select-checkbox').checked, true);
-  assert.match(selected(), /1/);
-  // A click on the checkbox toggles it once (it does not reach the row, which would toggle it back).
-  const current = row.querySelector('.trash-select-checkbox');
-  current.click();
-  assert.equal(current.checked, false);
-  assert.ok(checkbox);
-  window.close();
+    // A click on the row (not on a button) toggles the row's checkbox.
+    harness.selectRow('gone');
+    assert.equal(row.querySelector('.trash-select-checkbox').checked, true);
+    assert.match(selected(), /1/);
+    // A click on the checkbox toggles it once (it does not reach the row, which would toggle it back).
+    const current = row.querySelector('.trash-select-checkbox');
+    current.click();
+    assert.equal(current.checked, false);
+    assert.match(selected(), /0/);
+  } finally {
+    harness.window.close();
+  }
 });

@@ -1,13 +1,9 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { SERVICES, getService } from '../src/app/runtime/services.js';
 
 import { createLegacyStartupLifecycle } from '../src/app/runtime/features/startup-lifecycle.js';
 import { mergeSyncedMemoryState } from '../src/app/runtime/memory/memory-sync-projection.js';
-
-const projectFile = (path) => new URL(`../${path}`, import.meta.url);
-const readSource = (path) => readFileSync(projectFile(path), 'utf8');
 
 const createClassList = (id, calls) => {
   const values = new Set();
@@ -381,12 +377,12 @@ test('startup postlude preserves update dialog, touch guard, and service worker 
   assert.deepEqual(harness.calls, ['installTouchGuards', 'registerServiceWorker']);
 });
 
-test('startup lifecycle has explicit boundaries and no fragment or runtime-entry imports', () => {
-  const source = readSource('src/app/runtime/features/startup-lifecycle.js');
+// Signing in and importing on the sign-in page belong to the shell; the start of the page only binds what it is given.
+test('the sign-in page buttons call the handlers the shell gives', () => {
+  const harness = createHarness();
+  createLegacyStartupLifecycle(harness.dependencies).bindAuthStartupListeners();
 
-  assert.match(source, /export\s+function\s+createLegacyStartupLifecycle/);
-  assert.doesNotMatch(source, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app/);
-  assert.doesNotMatch(source, /legacyRuntimeContext|indexedDB|openDB|createLegacyRuntimeStorageAdapter/);
-  assert.doesNotMatch(source, /function\s+handleLogin|function\s+handleImportOnAuth|function\s+processAuthImport/);
-  assert.doesNotMatch(source, /(?:^|\n)\s*currentUser\s*=/);
+  assert.equal(findListener(harness.listeners, 'authForm', 'submit'), harness.dependencies.handleLogin);
+  assert.equal(findListener(harness.listeners, 'importBtnAuth', 'click'), harness.dependencies.handleImportOnAuth);
+  assert.equal(findListener(harness.listeners, 'confirmImportBtnAuth', 'click'), harness.dependencies.processAuthImport);
 });

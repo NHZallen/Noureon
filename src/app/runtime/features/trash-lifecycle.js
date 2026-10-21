@@ -61,6 +61,8 @@ export function createLegacyTrashLifecycle({
     bindMediaPreviewButtons,
     bindGeneratedImageAssets,
     getLabels: () => ({ imagePreview: getTexts()?.imagePreview, imageAlt: getTexts()?.imageAlt, imageDownload: getTexts()?.imageDownload }),
+    // The attachment grid (media-attachment-renderer.js) takes the attachments themselves, as in the archived conversation view.
+    mediaMode: 'inlineData',
     logError: (...args) => logger.error(...args)
   });
   const confirmCloudDeletion = async (conversationIds, conversationSnapshots = []) => {

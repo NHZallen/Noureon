@@ -2,150 +2,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createLegacySettingsAuthProviderLifecycle } from '../src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js';
-import { readSource, getConstFunctionBody, assertMarkersInOrder, createDependencies } from './helpers/settings-lifecycle-harness.js';
-import { readUiSource } from './helpers/source-guards.js';
+import { createDependencies } from './helpers/settings-lifecycle-harness.js';
+import { createDom } from './behaviours/helpers/create-dom.js';
 
 test('factory exports createLegacySettingsAuthProviderLifecycle', () => {
   assert.equal(typeof createLegacySettingsAuthProviderLifecycle, 'function');
-});
-
-test('import is inert and module avoids fragments and virtual runtime', () => {
-  const source = readUiSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
-
-  assert.match(source, /export\s+function\s+createLegacySettingsAuthProviderLifecycle/);
-  assert.doesNotMatch(source, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app/);
-});
-
-test('structured provider helpers are composed through injected key access', () => {
-  const source = readUiSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
-
-  assert.match(source, /import\s+\{\s*createSettingsProviderStructuredHelpers\s*\}\s+from\s+['"]\.\/settings-provider-structured-helpers\.js['"]/);
-  assert.match(source, /const\s+structuredHelpers\s*=\s*createSettingsProviderStructuredHelpers\(\{/);
-  assert.match(source, /getApiKeyForProvider,/);
-  assert.match(source, /readErrorBody,/);
-  assert.match(source, /cheapModelId:\s*CHEAP_MODEL_ID/);
-  assert.match(source, /const\s*\{\s*\n\s*callApiWithSchema\s*\n\s*\}\s*=\s*structuredHelpers/);
-});
-
-test('history menu helper is composed while preserving lifecycle alias', () => {
-  const source = readUiSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
-
-  // It loads the first time a menu is opened.
-  assert.doesNotMatch(source, /import\s+\{\s*createSettingsHistoryMenuHelper\s*\}\s+from/);
-  assert.match(source, /const\s+historyMenuHelper\s*=\s*createLazyFunctions\(\(\)\s*=>\s*import\('\.\/settings-history-menu-helper\.js'\)\.then\(\(\{\s*createSettingsHistoryMenuHelper\s*\}\)\s*=>\s*createSettingsHistoryMenuHelper\(\{/);
-  assert.match(source, /getConversations:\s*\(\)\s*=>\s*runtimeAppDataStore\.getConversations\(\)/);
-  assert.match(source, /getFolders:\s*\(\)\s*=>\s*runtimeAppDataStore\.getFolders\(\)/);
-  assert.match(source, /showRenameModal,/);
-  assert.match(source, /moveConversationToFolder,/);
-  assert.match(source, /createHistoryMenu\s*\n?\s*\}\s*=\s*historyMenuHelper/);
-  assert.doesNotMatch(source, /const\s+createHistoryMenu\s*=\s*\(convId,\s*targetButton\)\s*=>\s*\{/);
-});
-
-test('API key controls are composed through the extracted helper', () => {
-  const source = readUiSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
-
-  assert.match(source, /import\s+\{\s*createSettingsApiKeyControls\s*\}\s+from\s+['"]\.\/settings-api-key-controls\.js['"]/);
-  assert.match(source, /const\s+apiKeyControls\s*=\s*createSettingsApiKeyControls\(\{/);
-  assert.match(source, /elements:\s*ALL_ELEMENTS/);
-  assert.match(source, /getApiKeyForProvider,/);
-  assert.match(source, /setApiKeyForProvider,/);
-  assert.match(source, /clearSensitiveApiKeys,/);
-  assert.match(source, /prepareApiKeyInputsForSettings,\s*\n\s*persistApiKeyInputIntents/);
-  assert.doesNotMatch(source, /const\s+getApiKeyInputDescriptors\s*=/);
-  assert.doesNotMatch(source, /const\s+createApiKeyClearButton\s*=/);
-});
-
-test('output and translator controls are composed through the extracted helper', () => {
-  const source = readUiSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
-  const controlsSource = readSource('src/app/runtime/legacy-core/settings-output-translator-controls.js');
-
-  assert.match(
-    source,
-    /import\s+\{\s*createSettingsOutputTranslatorControls\s*\}\s+from\s+['"]\.\/settings-output-translator-controls\.js['"]/
-  );
-  assert.match(source, /const\s+outputTranslatorControls\s*=\s*createSettingsOutputTranslatorControls\(\{/);
-  assert.match(source, /elements:\s*ALL_ELEMENTS/);
-  assert.match(source, /getCouncilTranslatorCandidates,/);
-  assert.match(source, /getSingleTranslatorCandidates,/);
-  assert.match(source, /ensureCouncilTranslatorSettingsControls\(\);/);
-  assert.match(source, /renderTranslatorModelPickers\(\);/);
-  assert.doesNotMatch(source, /const\s+renderTranslatorModelPicker\s*=/);
-  assert.doesNotMatch(source, /const\s+renderTranslatorModelPickers\s*=/);
-  // There is no output mode to choose: replies are always shown as they are written.
-  assert.doesNotMatch(source, /OutputModeSettingsControls/);
-  assert.doesNotMatch(controlsSource, /OutputModeSettingsControls/);
-  assert.doesNotMatch(source, /const\s+ensureCouncilTranslatorSettingsControls\s*=/);
-  assert.match(controlsSource, /export\s+function\s+createSettingsOutputTranslatorControls/);
-  assert.match(controlsSource, /const\s+renderTranslatorModelPicker\s*=/);
-  assert.match(controlsSource, /const\s+renderTranslatorModelPickers\s*=/);
-  assert.match(controlsSource, /const\s+ensureCouncilTranslatorSettingsControls\s*=/);
-});
-
-test('theme and bubble controls are composed through the extracted helper', () => {
-  const source = readUiSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
-  const controlsSource = readSource('src/app/runtime/legacy-core/settings-theme-bubble-controls.js');
-
-  assert.match(
-    source,
-    /import\s+\{\s*createSettingsThemeBubbleControls\s*\}\s+from\s+['"]\.\/settings-theme-bubble-controls\.js['"]/
-  );
-  assert.match(source, /const\s+themeBubbleControls\s*=\s*createSettingsThemeBubbleControls\(\{/);
-  assert.doesNotMatch(source, /USER_BUBBLE_COLORS|setUserBubbleColor|renderUserBubbleColorDropdown/, 'the colour of a bubble is no longer a setting');
-  assert.doesNotMatch(source, /const\s+setTheme\s*=\s*async/);
-  assert.doesNotMatch(source, /const\s+updateThemeButtons\s*=\s*\(\)\s*=>/);
-  assert.match(controlsSource, /export\s+function\s+createSettingsThemeBubbleControls/);
-  assert.match(controlsSource, /const\s+setTheme\s*=\s*async/);
-  assert.match(controlsSource, /const\s+updateThemeButtons\s*=/);
-});
-
-test('mobile settings shell is composed through the extracted helper', () => {
-  const source = readUiSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
-  const helperSource = readSource('src/app/runtime/legacy-core/settings-mobile-shell-helper.js');
-
-  assert.match(
-    source,
-    /import\s+\{\s*createSettingsMobileShellHelper\s*\}\s+from\s+['"]\.\/settings-mobile-shell-helper\.js['"]/
-  );
-  assert.match(source, /const\s+mobileShellHelper\s*=\s*createSettingsMobileShellHelper\(\{/);
-  assert.match(source, /elements:\s*ALL_ELEMENTS/);
-  assert.match(source, /handleLogout:\s*\(\.\.\.args\)\s*=>\s*handleLogout\(\.\.\.args\)/);
-  assert.match(source, /ensureSettingsMobileShell,\s*\n\s*renderSettingsMobileList,\s*\n\s*clearSettingsMobileViewTransition,/);
-  assert.match(source, /showSettingsMobileList,\s*\n\s*openSettingsMobileSection,\s*\n\s*isMobileSettingsViewport/);
-  assert.doesNotMatch(source, /const\s+renderSettingsMobileList\s*=\s*\(\)\s*=>/);
-  assert.doesNotMatch(source, /const\s+ensureSettingsMobileShell\s*=\s*\(\)\s*=>/);
-  assert.doesNotMatch(source, /const\s+showSettingsMobileList\s*=\s*\(\{\s*animate\s*=\s*true\s*\}\s*=\s*\{\}\)\s*=>/);
-  assert.doesNotMatch(source, /const\s+openSettingsMobileSection\s*=\s*\(sectionName\)\s*=>/);
-  assert.match(helperSource, /export\s+function\s+createSettingsMobileShellHelper/);
-  assert.match(helperSource, /const\s+renderSettingsMobileList\s*=/);
-  assert.match(helperSource, /const\s+ensureSettingsMobileShell\s*=/);
-  assert.match(helperSource, /const\s+showSettingsMobileList\s*=/);
-  assert.match(helperSource, /const\s+openSettingsMobileSection\s*=/);
-});
-
-test('desktop settings section navigation is composed through the extracted helper', () => {
-  const source = readUiSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
-  const helperSource = readSource('src/app/runtime/legacy-core/settings-desktop-section-helper.js');
-
-  assert.match(
-    source,
-    /import\s+\{\s*createSettingsDesktopSectionHelper\s*\}\s+from\s+['"]\.\/settings-desktop-section-helper\.js['"]/
-  );
-  assert.match(source, /const\s+desktopSectionHelper\s*=\s*createSettingsDesktopSectionHelper\(\{/);
-  assert.match(source, /isMobileSettingsViewport,/);
-  assert.match(source, /showSettingsMobileList,/);
-  assert.match(source, /clearSettingsMobileViewTransition/);
-  assert.match(source, /const\s+navItems\s*=\s*bindDesktopSettingsSections\(\);/);
-  assert.match(source, /activateDefaultDesktopSettingsSection\(navItems\);\s*syncSettingsSectionForViewport\(navItems\);/);
-  assert.match(source, /syncSettingsSectionForViewport\(navItems\);/);
-  assert.match(source, /const\s+ensureUserSettingsNavigationShell\s*=\s*\(\)\s*=>/);
-  assert.match(source, /ensureSettingsMobileShell\(\);\s*ensureUserSettingsNavigationShell\(\);\s*ensureAutoWebSearchSettingsControl\(\);/);
-  assert.doesNotMatch(source, /item\.dataset\.settingsDesktopBound\s*=\s*'true'/);
-  assert.doesNotMatch(source, /item\.addEventListener\('click',\s*\(\)\s*=>\s*\{/);
-  assert.doesNotMatch(source, /const\s+activeNavItem\s*=\s*ALL_ELEMENTS\.settingsNav\.querySelector/);
-  assert.match(helperSource, /export\s+function\s+createSettingsDesktopSectionHelper/);
-  assert.match(helperSource, /const\s+bindDesktopSettingsSections\s*=/);
-  assert.match(helperSource, /const\s+syncSettingsSectionForViewport\s*=/);
-  assert.match(helperSource, /settingsDesktopBound/);
 });
 
 test('factory validates required dependencies', () => {
@@ -303,79 +164,159 @@ test('generateTitleAndSummary keeps conversation side effects in lifecycle', asy
   assert.equal(requests[0].options.headers['x-goog-api-key'], 'gemini-secret-key');
 });
 
-test('source keeps settings save ownership and composes auth actions helper', () => {
-  const source = readUiSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
-  const authActionsHelperSource = readSource('src/app/runtime/legacy-core/settings-auth-actions-helper.js');
-  const apiKeyControlsSource = readSource('src/app/runtime/legacy-core/settings-api-key-controls.js');
-  const saveSettingsHelperSource = readSource('src/app/runtime/legacy-core/settings-save-settings-helper.js');
-  const handleLoginBody = getConstFunctionBody(authActionsHelperSource, 'handleLogin');
-  const handleLogoutBody = getConstFunctionBody(authActionsHelperSource, 'handleLogout');
-  const handleDeleteAllDataBody = getConstFunctionBody(authActionsHelperSource, 'handleDeleteAllData');
+// The settings dialog in a real page: the helpers the lifecycle puts together (desktop sections, the phone list, sign-out, saving)
+// are reached only through what the lifecycle hands out.
+const settingsMarkup = `
+  <div id="settings-modal" class="modal hidden">
+    <div class="flex flex-1 overflow-hidden">
+      <ul id="settings-nav">
+        <li class="settings-nav-item" data-section="personalization">Personalization</li>
+        <li class="settings-nav-item" data-section="model-management">Models</li>
+      </ul>
+      <div id="personalization-section" class="settings-section"></div>
+      <div id="model-management-section" class="settings-section"></div>
+    </div>
+    <select id="tavily-search-depth-select"><option value="basic">Basic</option><option value="advanced">Advanced</option></select>
+  </div>
+  <button type="button" id="history-menu-btn">...</button>
+`;
 
-  assert.match(source, /const\s+saveSettings\s*=\s*async\s*\(\{\s*close\s*=\s*true,\s*notify\s*=\s*true\s*\}\s*=\s*\{\}\)\s*=>\s*\{/);
-  assert.match(source, /import\s+\{\s*createSettingsAuthActionsHelper\s*\}\s+from\s+['"]\.\/settings-auth-actions-helper\.js['"]/);
-  assert.match(source, /const\s+authActionsHelper\s*=\s*createSettingsAuthActionsHelper\(\{/);
-  assert.match(source, /loadConfig,/);
-  assert.match(source, /loadAppData,/);
-  assert.match(source, /handleLogin,\s*\n\s*handleLogout,\s*\n\s*handleDeleteAllData\s*\n?\}\s*=\s*authActionsHelper/);
-  assert.doesNotMatch(source, /const\s+handleLogin\s*=\s*async\s*\(e\)\s*=>\s*\{/);
-  assert.doesNotMatch(source, /const\s+handleLogout\s*=\s*async\s*\(\)\s*=>\s*\{/);
-  assert.doesNotMatch(source, /const\s+handleDeleteAllData\s*=\s*async\s*\(\)\s*=>\s*\{/);
-  assert.match(authActionsHelperSource, /await\s+runtimeStorageAdapter\.clear\(\)/);
-  assert.match(source, /collectSettingsSaveFormValues\(\{/);
-  assert.doesNotMatch(source, /config\.uiLanguage\s*=\s*ALL_ELEMENTS\.uiLanguageSelect\.value/);
-  assert.match(source, /await\s+persistApiKeyInputIntents\(\)/);
-  assert.match(apiKeyControlsSource, /await\s+saveSensitiveConfig\(\)/);
-  assert.doesNotMatch(saveSettingsHelperSource, /saveConfig|persistApiKeyInputIntents|saveSensitiveConfig|showNotification|toggleModal/);
-  assert.doesNotMatch(saveSettingsHelperSource, /sensitive-config-store|api-key-input-intent/);
-  assert.doesNotMatch(saveSettingsHelperSource, /handleLogin|handleLogout|handleDeleteAllData|authContainer|appContainer|chat_lastUser|runtimeStorageAdapter\.clear|window\.location\.reload|initChatApp/);
-  assert.doesNotMatch(source, /config\.apiKeys\.gemini\s*=/);
-  assert.match(authActionsHelperSource, /\binitChatApp\(\);/);
-  assertMarkersInOrder(handleLoginBody, [
-    'await setItem(\'chat_lastUser\', username);',
-    'await loadConfig();',
-    'await loadAppData();',
-    'applyUiTheme();',
-    'elements.authContainer.classList.remove(\'visible\');',
-    'elements.authContainer.classList.add(\'fade-out\');',
-    'elements.appContainer.classList.remove(\'hidden\');',
-    'requestAnimationFrame(() =>',
-    'elements.authContainer.addEventListener(\'transitionend\'',
-    'initChatApp();'
-  ], 'handleLogin success transition and init handoff');
-  assertMarkersInOrder(handleLogoutBody, [
-    'await showCustomConfirm',
-    'await removeItem(\'chat_lastUser\');',
-    'window.location.reload();'
-  ], 'handleLogout confirm clear reload path');
-  assertMarkersInOrder(handleDeleteAllDataBody, [
-    'const confirmation = await showCustomDialog',
-    'if (confirmation === \'DELETE\')',
-    'await runtimeStorageAdapter.clear();',
-    'showNotification',
-    'setTimeout(() =>',
-    'window.location.reload();'
-  ], 'handleDeleteAllData clear notify reload path');
+const createSettingsPage = ({ phone = false, config = {}, overrides = {} } = {}) => {
+  const dom = createDom(settingsMarkup);
+  const { dependencies, calls, state } = createDependencies({ document: dom.document, ...overrides });
+  dependencies.window.matchMedia = () => ({ matches: phone });
+  dependencies.window.innerHeight = 800;
+  Object.assign(state.config, config);
+  Object.assign(dependencies.i18n.en, { settingsSaved: 'Saved', pin: 'Pin', unpin: 'Unpin' });
+  for (const [name, id] of [['settingsModal', 'settings-modal'], ['settingsNav', 'settings-nav'], ['tavilySearchDepthSelect', 'tavily-search-depth-select']]) {
+    dependencies.elements[name] = dom.document.getElementById(id);
+  }
+  return { ...dom, dependencies, calls, state, lifecycle: createLegacySettingsAuthProviderLifecycle(dependencies) };
+};
+
+const activeSectionIds = (document) => [...document.querySelectorAll('.settings-section.active')].map((section) => section.id);
+
+test('opening the settings on a wide screen adds the user page, shows it first and fills the saved search depth', async () => {
+  const page = createSettingsPage({ config: { tavilySearchDepth: 'advanced' } });
+  try {
+    await page.lifecycle.setupSettingsModal();
+
+    const navItems = [...page.document.querySelectorAll('#settings-nav .settings-nav-item')];
+    assert.deepEqual(navItems.map((item) => item.dataset.section), ['user', 'personalization', 'model-management']);
+    assert.equal(navItems[0].classList.contains('active'), true);
+    assert.deepEqual(activeSectionIds(page.document), ['user-section']);
+    assert.equal(page.document.getElementById('tavily-search-depth-select').value, 'advanced');
+  } finally {
+    page.cleanup();
+  }
 });
 
-test('source composes updateInputState through the extracted helper', () => {
-  const source = readUiSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
+test('a search depth the settings do not know is shown as basic', async () => {
+  const page = createSettingsPage({ config: { tavilySearchDepth: 'deep' } });
+  try {
+    await page.lifecycle.setupSettingsModal();
 
-  assert.match(source, /import\s+\{\s*createSettingsUpdateInputStateHelper\s*\}\s+from\s+['"]\.\/settings-update-input-state-helper\.js['"]/);
-  assert.match(source, /const\s+updateInputStateHelper\s*=\s*createSettingsUpdateInputStateHelper\(\{/);
-  assert.match(source, /updateInputState\s*\n?\}\s*=\s*updateInputStateHelper/);
-  assert.doesNotMatch(source, /const\s+updateInputState\s*=\s*\(\)\s*=>\s*\{/);
-  assertMarkersInOrder(source, [
-    'createSettingsUpdateInputStateHelper({',
-    'elements: ALL_ELEMENTS',
-    'getConfig: () => config',
-    'getUploadedFiles: () => uploadedFiles',
-    'getActiveConversation',
-    'normalizeConversationModel',
-    'getApiKeyForProvider',
-    'conversationNeedsTavilySearch',
-    'getCouncilValidation',
-    'isCouncilEnabled',
-    'const updateSubmitButtonState = (isGenerating) =>'
-  ], 'updateInputState helper composition');
+    assert.equal(page.lifecycle.getTavilySearchDepth(), 'basic');
+    assert.equal(page.document.getElementById('tavily-search-depth-select').value, 'basic');
+  } finally {
+    page.cleanup();
+  }
+});
+
+test('clicking a section in the settings menu shows that section only', async () => {
+  const page = createSettingsPage();
+  try {
+    await page.lifecycle.setupSettingsModal();
+    page.document.querySelector('#settings-nav [data-section="model-management"]').click();
+
+    assert.deepEqual(activeSectionIds(page.document), ['model-management-section']);
+    assert.equal(page.document.querySelector('#settings-nav .active').dataset.section, 'model-management');
+  } finally {
+    page.cleanup();
+  }
+});
+
+test('on a phone the settings open on the list of sections, and a row opens its section', async () => {
+  const page = createSettingsPage({ phone: true });
+  try {
+    await page.lifecycle.setupSettingsModal();
+
+    assert.deepEqual(activeSectionIds(page.document), []);
+    const row = page.document.querySelector('#settings-mobile-list [data-section="model-management"]');
+    assert.ok(row, 'the list has a row for the models section');
+    row.click();
+
+    assert.deepEqual(activeSectionIds(page.document), ['model-management-section']);
+    assert.equal(page.document.getElementById('settings-modal').classList.contains('settings-mobile-detail-open'), true);
+    assert.equal(page.document.getElementById('settings-mobile-title').textContent, row.dataset.mobileTitle);
+  } finally {
+    page.cleanup();
+  }
+});
+
+test('the log-out row of the phone settings list asks first, then signs out and reloads', async () => {
+  let asked = 0;
+  const page = createSettingsPage({ phone: true, overrides: { showCustomConfirm: async () => { asked += 1; return true; } } });
+  try {
+    await page.lifecycle.setupSettingsModal();
+    page.document.getElementById('settings-mobile-logout-btn').click();
+    await new Promise((resolve) => setImmediate(resolve));
+
+    assert.equal(asked, 1);
+    assert.deepEqual(page.calls.filter((call) => call === 'reload' || call[0] === 'removeItem'), [
+      ['removeItem', 'chat_lastUser'],
+      'reload'
+    ]);
+  } finally {
+    page.cleanup();
+  }
+});
+
+test('saving the settings writes the form into the current settings, saves them and closes the dialog', async () => {
+  const page = createSettingsPage();
+  try {
+    const { elements } = page.dependencies;
+    elements.tavilySearchDepthSelect.value = 'advanced';
+    elements.autoNamingToggleSwitch.checked = true;
+    elements.uiLanguageSelect.value = 'en';
+    elements.aiLanguageSelect.value = 'fr';
+    elements.uiColorOptions.dataset = { mode: 'custom', color: '#123456' };
+    // The settings were replaced (a sync, a sign-in) after the lifecycle was made: the save goes to the new ones.
+    const current = { ...page.state.config, uiTheme: {} };
+    page.state.config = current;
+
+    await page.lifecycle.saveSettings();
+
+    assert.equal(current.tavilySearchDepth, 'advanced');
+    assert.equal(current.autoNaming, true);
+    assert.equal(current.aiDefaultLanguage, 'fr');
+    assert.deepEqual(current.uiTheme, { mode: 'custom', customColor: '#123456' });
+    assert.deepEqual(current.apiKeys, {});
+    const names = page.calls.map((call) => (Array.isArray(call) ? call[0] : call));
+    assert.ok(names.indexOf('applyUiTheme') < names.indexOf('saveConfig'));
+    assert.ok(page.calls.some((call) => call[0] === 'toggleModal' && call[1] === elements.settingsModal && call[2] === false));
+    assert.ok(page.calls.some((call) => call[0] === 'notification' && call[1] === 'Saved'));
+  } finally {
+    page.cleanup();
+  }
+});
+
+test('the menu of a conversation loads on first use and acts on the conversation of the workspace', async () => {
+  const moves = [];
+  const page = createSettingsPage({ overrides: { moveConversationToFolder: (...args) => moves.push(args) } });
+  try {
+    page.state.conversations = [{ id: 'conv-1', pinned: true }];
+    page.state.folders = [{ id: 'folder-1', name: 'Work', icon: 'default', color: 'blue' }];
+
+    await page.lifecycle.createHistoryMenu('conv-1', page.document.getElementById('history-menu-btn'));
+
+    const popover = page.document.getElementById('history-popover');
+    assert.ok(popover, 'the menu is shown');
+    assert.equal(popover.querySelector('.pin-btn').textContent, 'Unpin');
+    popover.querySelector('.move-to-folder-btn[data-folder-id="folder-1"]').click();
+    assert.deepEqual(moves, [['conv-1', 'folder-1']]);
+    assert.equal(page.document.getElementById('history-popover'), null);
+  } finally {
+    page.cleanup();
+  }
 });

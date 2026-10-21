@@ -1,32 +1,19 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, statSync } from 'node:fs';
 import { extname, relative, resolve } from 'node:path';
 import test from 'node:test';
 import {
-  assertFileExists,
   listFilesIfDirExists,
   projectFile,
   projectRoot,
   readSource
 } from '../helpers/source-guards.js';
 
-const retiredRuntimeFragments = [
-  '00-runtime.fragment.js',
-  '01-runtime.fragment.js',
-  '02-runtime.fragment.js',
-  '03-runtime.fragment.js',
-  '04-runtime.fragment.js',
-  '05-runtime.fragment.js',
-  '06-runtime.fragment.js'
-];
+// The chat page's shell (legacy-core.js) is a real module that only the runtime entry loads; the runtime fragments and the virtual
+// module it was once built from stay gone. scripts/check-legacy-runtime-boundaries.mjs guards the same rules in `npm run check:legacy-runtime`.
 
-const oldViteRuntimeSymbols = [
-  'legacyRuntimeModuleId',
-  'resolvedLegacyRuntimeModuleId',
-  'legacyCoreFragmentNames',
-  'legacyRuntimeFragmentsPlugin'
-];
-
+const LEGACY_CORE = 'src/app/runtime/legacy-core/legacy-core.js';
 const productionSourceExtensions = new Set(['.js', '.mjs', '.css', '.html']);
 
 const collectFiles = (directory) => {
@@ -34,101 +21,63 @@ const collectFiles = (directory) => {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const filePath = resolve(directory, entry.name);
     if (entry.isDirectory()) return collectFiles(filePath);
-    if (!entry.isFile()) return [];
-    return [filePath];
+    return entry.isFile() ? [filePath] : [];
   });
 };
 
 const toProjectPath = (filePath) => relative(projectRoot, filePath).replace(/\\/g, '/');
 
-test('retired runtime fragments stay absent while the real legacy core module exists', () => {
-  const fragmentNames = listFilesIfDirExists('src/app/legacy-runtime/fragments')
-    .filter((name) => name.endsWith('.fragment.js'))
-    .sort();
-  const legacyCoreSource = readSource('src/app/runtime/legacy-core/legacy-core.js');
-
+test('retired runtime fragments stay absent and the shell exports only startPage', () => {
+  const fragmentNames = listFilesIfDirExists('src/app/legacy-runtime/fragments').filter((name) => name.endsWith('.fragment.js'));
   assert.deepEqual(fragmentNames, []);
-  assertFileExists(assert, 'src/app/runtime/legacy-core/legacy-core.js');
-  assert.match(legacyCoreSource, /export\s+function\s+startPage\b/);
 
-  for (const fragmentName of retiredRuntimeFragments) {
-    assert.equal(
-      existsSync(projectFile('src/app/legacy-runtime/fragments', fragmentName)),
-      false,
-      `${fragmentName} must remain retired`
-    );
-  }
+  const exportLines = readSource(LEGACY_CORE).match(/^export\b.*/gm) ?? [];
+  assert.equal(exportLines.length, 1, 'legacy-core.js hands nothing back but startPage');
+  assert.match(exportLines[0], /^export\s+function\s+startPage\b/);
 });
 
-test('production runtime entry uses the real legacy core without the virtual runtime plugin', () => {
+test('only the runtime entry loads the shell, and the page entry goes through it', () => {
+  assert.match(readSource('src/app/runtime-entry.js'), /import\('\.\/runtime\/legacy-core\/legacy-core\.js'\)/);
+  const legacyAppSource = readSource('src/app/legacy-app.js');
+  assert.match(legacyAppSource, /import\s+\{\s*startRuntimeEntry\s*\}\s+from\s+['"]\.\/runtime-entry\.js['"]/);
+
+  const loadsShell = /(?:from\s*|import\s*\(\s*)['"](?:[^'"]*\/legacy-core\/legacy-core|\.\/legacy-core)\.js['"]/;
+  const loaders = collectFiles(projectFile('src'))
+    .filter((filePath) => extname(filePath) === '.js' && loadsShell.test(readSource(toProjectPath(filePath))))
+    .map(toProjectPath);
+  assert.deepEqual(loaders, ['src/app/runtime-entry.js']);
+});
+
+test('production source has no virtual runtime, runtime fragments or bindings looked up by name', () => {
   const viteSource = readSource('vite.config.js');
-  const legacyEntrySource = readSource('src/app/legacy-app.js');
-  const runtimeEntrySource = readSource('src/app/runtime-entry.js');
-
-  assert.doesNotMatch(viteSource, /virtual:legacy-app-runtime/);
-  for (const symbol of oldViteRuntimeSymbols) {
-    assert.doesNotMatch(viteSource, new RegExp(symbol));
+  for (const symbol of ['legacyRuntimeModuleId', 'resolvedLegacyRuntimeModuleId', 'legacyCoreFragmentNames', 'legacyRuntimeFragmentsPlugin']) {
+    assert.equal(viteSource.includes(symbol), false, `vite.config.js must not bring back ${symbol}`);
   }
-  assert.doesNotMatch(viteSource, /readdirSync|readFileSync|addWatchFile|legacyRuntimeContext/);
-  assert.match(
-    runtimeEntrySource,
-    /import\('\.\/runtime\/legacy-core\/legacy-core\.js'\)/
-  );
-  assert.doesNotMatch(runtimeEntrySource, /virtual:legacy-app-runtime|legacy-runtime\/fragments/);
-  assert.match(
-    legacyEntrySource,
-    /import\s+\{\s*startRuntimeEntry\s*\}\s+from\s+['"]\.\/runtime-entry\.js['"]/
-  );
-  assert.match(legacyEntrySource, /startRuntimeEntry\(\);/);
-  assert.doesNotMatch(legacyEntrySource, /virtual:legacy-app-runtime|legacy-core\/legacy-core\.js/);
-});
 
-test('production source does not reference retired virtual runtime or runtime fragments', () => {
   const productionFiles = [
-    ...collectFiles(projectFile('src'))
-      .filter((filePath) => productionSourceExtensions.has(extname(filePath))),
+    ...collectFiles(projectFile('src')).filter((filePath) => productionSourceExtensions.has(extname(filePath))),
     projectFile('vite.config.js')
   ];
-
   for (const filePath of productionFiles) {
-    const source = readSource(toProjectPath(filePath));
-    assert.doesNotMatch(source, /virtual:legacy-app-runtime/, `${toProjectPath(filePath)} must not reference virtual runtime`);
-    assert.doesNotMatch(source, /src\/app\/legacy-runtime\/fragments|legacy-runtime\/fragments\//, `${toProjectPath(filePath)} must not reference retired runtime fragments`);
+    const path = toProjectPath(filePath);
+    const source = readSource(path);
+    assert.doesNotMatch(source, /virtual:legacy-app-runtime/, `${path} must not reference the virtual runtime`);
+    assert.doesNotMatch(source, /legacy-runtime\/fragments/, `${path} must not reference retired runtime fragments`);
+    assert.doesNotMatch(source, /\b(?:resolveBinding|resolveOptionalBinding|registerLazyBinding|registerValueBinding)\s*\(/, `${path} must pass functions as parameters`);
   }
 });
 
-test('check:legacy-runtime remains the primary script-level boundary guard', () => {
+test('check:legacy-runtime runs the boundary script, which passes on this tree', () => {
   const packageJson = JSON.parse(readSource('package.json'));
-  const scriptPath = 'scripts/check-legacy-runtime-boundaries.mjs';
-  const scriptSource = readSource(scriptPath);
-  const templateFragmentNames = readdirSync(projectFile('src/templates/fragments'))
-    .filter((name) => name.endsWith('.fragment.js'))
-    .sort();
+  assert.equal(packageJson.scripts['check:legacy-runtime'], 'node scripts/check-legacy-runtime-boundaries.mjs');
 
-  assert.equal(
-    packageJson.scripts['check:legacy-runtime'],
-    'node scripts/check-legacy-runtime-boundaries.mjs'
-  );
-  assert.match(scriptSource, /src\/app\/legacy-runtime\/fragments/);
-  assert.match(scriptSource, /virtual:legacy-app-runtime/);
-  assert.match(scriptSource, /legacyRuntimeFragmentsPlugin/);
-  assert.match(scriptSource, /legacyRuntimeModuleId/);
-  assert.match(scriptSource, /resolvedLegacyRuntimeModuleId/);
-  assert.match(scriptSource, /legacyCoreFragmentNames/);
-  assert.match(scriptSource, /\.\/runtime\/legacy-core\/legacy-core\.js/);
-  assert.match(scriptSource, /legacy-core ownership budget/);
-  assert.match(scriptSource, /maxBytes:\s*120\s*\*\s*1024/);
-  assert.match(scriptSource, /maxLines:\s*2300/);
-  assert.match(scriptSource, /legacy-core\.js exceeded the legacy runtime ownership budget/);
-  assert.match(scriptSource, /extract a real lifecycle\/module instead of expanding the core shell/);
-  assert.doesNotMatch(scriptSource, /src\/templates\/fragments/);
-  assert.ok(templateFragmentNames.length > 0, 'template fragments are unrelated and must remain allowed');
+  const output = execFileSync(process.execPath, ['scripts/check-legacy-runtime-boundaries.mjs'], { cwd: projectRoot, encoding: 'utf8' });
+  assert.match(output, /Legacy runtime boundary check passed\./);
 });
 
 test('legacy core remains under the explicit legacy runtime ownership budget', () => {
-  const legacyCoreSource = readSource('src/app/runtime/legacy-core/legacy-core.js');
-  const legacyCoreSize = statSync(projectFile('src/app/runtime/legacy-core/legacy-core.js')).size;
-  const legacyCoreLineCount = legacyCoreSource.split(/\r?\n/).length;
+  const legacyCoreSize = statSync(projectFile(LEGACY_CORE)).size;
+  const legacyCoreLineCount = readSource(LEGACY_CORE).split(/\r?\n/).length;
 
   assert.ok(legacyCoreSize <= 120 * 1024, 'legacy-core.js must stay within the legacy runtime byte budget');
   assert.ok(legacyCoreLineCount <= 2300, 'legacy-core.js must stay within the legacy runtime line budget');

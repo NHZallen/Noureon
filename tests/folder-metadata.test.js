@@ -6,6 +6,9 @@ import {
   FOLDER_SVGS,
   FOLDER_TEXT_COLORS
 } from '../src/app/legacy-runtime/data/folder-metadata.js';
+import { FOLDER_COLORS } from '../src/app/runtime/legacy-core/runtime-ui-colors.js';
+import { createSettingsHistoryMenuHelper } from '../src/app/runtime/legacy-core/settings-history-menu-helper.js';
+import { createDom } from './behaviours/helpers/create-dom.js';
 
 const readSource = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -61,25 +64,50 @@ test('folder text color metadata preserves exact legacy values', () => {
   });
 });
 
-test('folder runtime palettes include the seven expanded icon colors', () => {
-  const runtimeSource = readSource('src/app/runtime/legacy-core/legacy-core.js');
-  const runtimePaletteSource = readSource('src/app/runtime/legacy-core/runtime-ui-colors.js');
-  const historyMenuSource = readSource('src/app/runtime/legacy-core/settings-history-menu-helper.js');
-  const addedFolderColors = {
-    orange: '#fb923c',
-    amber: '#fbbf24',
-    lime: '#a3e635',
-    emerald: '#34d399',
-    teal: '#2dd4bf',
-    cyan: '#22d3ee',
-    rose: '#fb7185'
-  };
+const addedFolderColors = {
+  orange: '#fb923c',
+  amber: '#fbbf24',
+  lime: '#a3e635',
+  emerald: '#34d399',
+  teal: '#2dd4bf',
+  cyan: '#22d3ee',
+  rose: '#fb7185'
+};
 
-  assert.match(runtimeSource, /from ['"]\/src\/app\/runtime\/legacy-core\/runtime-ui-colors\.js['"]/);
+test('the runtime folder palette offers the seven expanded icon colors', () => {
   for (const [key, value] of Object.entries(addedFolderColors)) {
-    const entryPattern = new RegExp(`\\b${key}\\s*:\\s*['"]${value}['"]`);
-    assert.match(runtimePaletteSource, entryPattern);
-    assert.match(historyMenuSource, entryPattern);
+    assert.equal(FOLDER_COLORS[key], value, key);
+  }
+});
+
+test('the move-to-folder menu paints folders with the seven expanded icon colors', () => {
+  const { document, window, cleanup } = createDom('<button id="history-btn"></button>');
+  try {
+    const folders = Object.keys(addedFolderColors).map((color) => ({ id: `f-${color}`, name: color, color, icon: 'default' }));
+    const helper = createSettingsHistoryMenuHelper({
+      window,
+      document,
+      requestAnimationFrame: () => {},
+      getConfig: () => ({ uiLanguage: 'en' }),
+      getConversations: () => [{ id: 'c1', pinned: false, folderId: null }],
+      getFolders: () => folders,
+      i18n: { en: {} },
+      showRenameModal() {},
+      togglePinChat() {},
+      archiveChat() {},
+      deleteChat() {},
+      moveConversationToFolder() {},
+      createNewFolder() {},
+      showCustomPrompt() {}
+    });
+    helper.createHistoryMenu('c1', document.getElementById('history-btn'));
+
+    for (const [key, value] of Object.entries(addedFolderColors)) {
+      const icon = document.querySelector(`[data-folder-id="f-${key}"] .folder-icon`);
+      assert.equal(icon.style.getPropertyValue('--folder-icon-color').trim(), value, key);
+    }
+  } finally {
+    cleanup();
   }
 });
 

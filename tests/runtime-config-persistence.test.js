@@ -1,94 +1,20 @@
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
+
 import { createLegacyRuntimeConfigPersistence } from '../src/app/runtime/kernel/config-persistence.js';
-import { readUiSource } from './helpers/source-guards.js';
+import { normalizeLoadedLegacyConfig } from '../src/app/runtime/kernel/config-normalization.js';
+import { getStoredUserWorkspaceKeys } from '../src/app/runtime/kernel/user-data-retention.js';
+import { createLegacySettingsAuthProviderLifecycle } from '../src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js';
+import { createLegacyAppBootstrapLifecycle } from '../src/app/runtime/features/app-bootstrap-lifecycle.js';
+import { createDom } from './behaviours/helpers/create-dom.js';
+import { createDependencies } from './helpers/settings-lifecycle-harness.js';
 
-const projectFile = (path) => new URL(`../${path}`, import.meta.url);
-const readSource = (path) => readFileSync(projectFile(path), 'utf8');
+const readSource = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
-const findMatchingBrace = (source, openIndex) => {
-  let state = 'code';
-  let depth = 0;
-  for (let index = openIndex; index < source.length; index += 1) {
-    const char = source[index];
-    const next = source[index + 1];
-    const previous = source[index - 1];
-    if (state === 'code') {
-      if (char === '/' && next === '/') {
-        state = 'line-comment';
-        index += 1;
-        continue;
-      }
-      if (char === '/' && next === '*') {
-        state = 'block-comment';
-        index += 1;
-        continue;
-      }
-      if (char === '"') {
-        state = 'double-quote';
-        continue;
-      }
-      if (char === "'") {
-        state = 'single-quote';
-        continue;
-      }
-      if (char === '`') {
-        state = 'template';
-        continue;
-      }
-      if (char === '{') {
-        depth += 1;
-      } else if (char === '}') {
-        depth -= 1;
-        if (depth === 0) return index;
-      }
-    } else if (state === 'line-comment') {
-      if (char === '\n') state = 'code';
-    } else if (state === 'block-comment') {
-      if (char === '*' && next === '/') {
-        state = 'code';
-        index += 1;
-      }
-    } else if (state === 'double-quote') {
-      if (char === '"' && previous !== '\\') state = 'code';
-    } else if (state === 'single-quote') {
-      if (char === "'" && previous !== '\\') state = 'code';
-    } else if (state === 'template') {
-      if (char === '`' && previous !== '\\') state = 'code';
-    }
-  }
-  return -1;
-};
-
-const getConstFunctionBody = (source, name) => {
-  const match = new RegExp(`const\\s+${name}\\s*=\\s*(?:async\\s*)?\\([^)]*\\)\\s*=>\\s*\\{`).exec(source);
-  assert.ok(match, `Expected to find ${name}`);
-  const openIndex = match.index + match[0].lastIndexOf('{');
-  const closeIndex = findMatchingBrace(source, openIndex);
-  assert.notEqual(closeIndex, -1, `Expected to close ${name}`);
-  return source.slice(match.index, closeIndex + 1);
-};
-
-const getBlockFromMarker = (source, marker) => {
-  const markerIndex = source.indexOf(marker);
-  assert.notEqual(markerIndex, -1, `Expected to find marker ${marker}`);
-  const openIndex = source.indexOf('{', markerIndex);
-  assert.notEqual(openIndex, -1, `Expected to find block for marker ${marker}`);
-  const closeIndex = findMatchingBrace(source, openIndex);
-  assert.notEqual(closeIndex, -1, `Expected to close block for marker ${marker}`);
-  return source.slice(markerIndex, closeIndex + 1);
-};
-
-const assertMarkersInOrder = (source, markers, context) => {
-  let cursor = -1;
-  for (const marker of markers) {
-    const next = source.indexOf(marker, cursor + 1);
-    assert.notEqual(next, -1, `${context} should contain ${marker}`);
-    assert.ok(next > cursor, `${marker} should remain in ${context} legacy order`);
-    cursor = next;
-  }
-};
+// What loadConfig reads and in which order is tested in tests/workspace-load.test.js, the model and council normalization of loaded
+// settings in tests/runtime-config-normalization.test.js, and the restore of the user before the settings at start-up in
+// tests/runtime-startup-lifecycle.test.js.
 
 test('serialized config persistence writes the latest config for the latest user', async () => {
   const calls = [];
@@ -202,188 +128,156 @@ test('serialized config persistence preserves rejection and stringify error boun
   );
 });
 
-test('serialized config persistence exposes only saveConfig and avoids storage reader ownership', () => {
+test('serialized config persistence exposes only saveConfig', () => {
   const persistence = createLegacyRuntimeConfigPersistence({
     getCurrentUser: () => null,
     getConfig: () => ({}),
     getConfigKey: () => 'unused',
     setItem: async () => {}
   });
-  const source = readSource('src/app/runtime/kernel/config-persistence.js');
 
   assert.deepEqual(Object.keys(persistence), ['saveConfig']);
   assert.equal(typeof persistence.saveConfig, 'function');
-  assert.doesNotMatch(source, /loadConfig|getItem|removeItem|openDB|indexedDB|localStorage|sessionStorage/);
 });
 
-test('config persistence receives the extracted IndexedDB adapter and keeps the exact user-scoped key', () => {
-  const source = readSource('src/app/runtime/legacy-core/legacy-core.js');
-  const storageSource = readSource('src/app/runtime/kernel/storage-adapter.js');
+// The keys are composed in the composition root (legacy-core.js), which cannot be loaded in a test: each is taken from there and run
+// for one user. They must stay the keys the cloud sync reads and the removal of an account's data removes.
+const composedKey = (name) => {
+  const match = new RegExp(`const ${name} = \\(\\) => (\`[^\`]+\`);`).exec(readSource('src/app/runtime/legacy-core/legacy-core.js'));
+  assert.ok(match, `${name} should be composed in legacy-core.js`);
+  return new Function('getCurrentUser', `return ${match[1]};`)(() => ({ username: 'alice' }));
+};
 
-  assert.match(source, /createLegacyRuntimeStorageAdapter/);
-  assert.match(
-    source,
-    /const\s+\{\s*getItem,\s*setItem,\s*removeItem,\s*readItems,\s*setItemsAtomic\s*\}\s*=\s*runtimeStorageAdapter/
-  );
-  assert.match(storageSource, /dbName\s*=\s*'ChatAppDB'/);
-  assert.match(storageSource, /storeName\s*=\s*'keyValue'/);
-  assert.match(storageSource, /indexedDBFactory\.open\(dbName,\s*version\)/);
-  assert.match(storageSource, /idb\.createObjectStore\(storeName,\s*\{\s*keyPath:\s*'key'\s*\}\)/);
-  assert.match(storageSource, /idb\.transaction\(storeName,\s*'readonly'\)/);
-  assert.match(storageSource, /idb\.transaction\(storeName,\s*'readwrite'\)/);
-  assert.match(
-    source,
-    /const\s+getConfigKey\s*=\s*\(\)\s*=>\s*`chatConfig_v_v8\.6_\$\{getCurrentUser\(\)\.username\}`;/
-  );
-  assert.equal((source.match(/chatConfig_v_v8\.6_/g) || []).length, 1);
-  assert.doesNotMatch(source, /localStorage|sessionStorage/);
+test('settings and workspace are saved under the user-scoped keys the rest of the app reads and removes', () => {
+  assert.equal(composedKey('getConfigKey'), 'chatConfig_v_v8.6_alice');
+  assert.equal(composedKey('getAppDataKey'), 'chatAppData_v8.6_alice');
+  const removedWithTheAccount = getStoredUserWorkspaceKeys('alice');
+  assert.ok(removedWithTheAccount.includes('chatConfig_v_v8.6_alice'));
+  assert.ok(removedWithTheAccount.includes('chatAppData_v8.6_alice'));
 });
 
-test('saveConfig preserves missing-user, serialization, and rejection behavior', () => {
-  const source = readSource('src/app/runtime/legacy-core/legacy-core.js');
-  const persistenceSource = readSource('src/app/runtime/kernel/config-persistence.js');
-  const body = getConstFunctionBody(source, 'saveConfig');
+test('loaded settings win over the current ones, except the API keys and the retired theme', () => {
+  const currentConfig = {
+    apiKeys: { gemini: 'current-key' },
+    uiLanguage: 'zh-TW',
+    autoNaming: true,
+    enableAutoMemory: true,
+    uiTheme: { mode: 'default', customColor: '#3b82f6' }
+  };
+  const normalized = normalizeLoadedLegacyConfig({
+    currentConfig,
+    savedConfig: {
+      apiKeys: { gemini: 'saved-key' },
+      theme: 'dark',
+      uiLanguage: 'fr',
+      autoNaming: false,
+      uiTheme: { mode: 'custom' }
+    }
+  });
 
-  assert.match(
-    body,
-    /await\s+runtimeConfigPersistence\.saveConfig\(\)/
+  assert.equal(normalized.uiLanguage, 'fr');
+  assert.equal(normalized.autoNaming, false);
+  assert.equal(normalized.enableAutoMemory, true, 'a setting the saved config lacks keeps its current value');
+  assert.deepEqual(normalized.apiKeys, { gemini: 'current-key' });
+  assert.notEqual(normalized.apiKeys, currentConfig.apiKeys);
+  assert.equal('theme' in normalized, false);
+  assert.deepEqual(normalized.uiTheme, { mode: 'custom', customColor: '#3b82f6' }, 'the colours are merged, the saved ones first');
+});
+
+test('saving the settings changes the config, then saves it, before the page follows and says so', async () => {
+  const fakeNode = () => ({ value: '', dataset: {}, style: {}, classList: { add() {}, remove() {}, contains() { return false; } } });
+  let languageWhenSaved = null;
+  const { dependencies, calls, state } = createDependencies({
+    document: {
+      body: { classList: { contains() { return false; } } },
+      documentElement: { style: { setProperty: () => {} } },
+      createElement: fakeNode,
+      getElementById: fakeNode,
+      querySelector: () => null,
+      querySelectorAll: () => []
+    },
+    saveConfig: async () => {
+      languageWhenSaved = state.config.uiLanguage;
+      calls.push('saveConfig');
+    }
+  });
+  state.config.uiLanguage = 'zh-TW';
+  dependencies.elements.uiLanguageSelect.value = 'en';
+  dependencies.elements.aiLanguageSelect.value = 'en';
+  const lifecycle = createLegacySettingsAuthProviderLifecycle(dependencies);
+  const steps = () => calls.map((call) => (Array.isArray(call) ? call[0] : call));
+
+  await lifecycle.saveSettings();
+
+  assert.equal(languageWhenSaved, 'en');
+  assert.deepEqual(steps(), [
+    'applyUiTheme', 'saveConfig', 'applyLanguage', 'renderModelSwitcher', 'renderStore',
+    'toggleModal', 'updateApiKeyWarningBadge', 'notification'
+  ]);
+  assert.equal(calls[5][1], dependencies.elements.settingsModal);
+  assert.equal(calls[5][2], false);
+
+  calls.length = 0;
+  await lifecycle.saveSettings({ close: false, notify: false });
+  assert.deepEqual(steps(), ['applyUiTheme', 'saveConfig', 'applyLanguage', 'renderModelSwitcher', 'renderStore', 'updateApiKeyWarningBadge']);
+});
+
+test('a change in the settings dialog saves the settings quietly: at once, after typing, or after a colour pick', async () => {
+  const { document, window, cleanup } = createDom(
+    '<div id="settings-modal"><input id="name"><span class="color-swatch"></span></div><span class="user-avatar"></span>'
   );
-  assert.match(
-    persistenceSource,
-    /const\s+currentUser\s*=\s*getCurrentUser\(\);\s*if\s*\(currentUser\)\s*\{\s*const\s+serializedConfig\s*=\s*JSON\.stringify\(removeSensitiveConfig\(getConfig\(\)\)\);\s*await\s+markCloudSyncPending\(\);\s*await\s+setItem\(getConfigKey\(\),\s*serializedConfig\);\s*await\s+markCloudSyncPending\(\);/s
-  );
-  assert.doesNotMatch(body, /\belse\b|try\s*\{|catch\s*\(/);
-  assert.doesNotMatch(persistenceSource, /\belse\b/);
+  try {
+    // Every element the start of the app asks for exists; everything else it takes is a no-op here.
+    const findById = document.getElementById.bind(document);
+    const elementFor = (id) => {
+      const element = findById(id) || document.createElement(id.endsWith('Input') ? 'input' : 'div');
+      if (!element.isConnected) {
+        element.id = id;
+        document.body.append(Object.assign(document.createElement('div'), { id: `${id}-parent` }));
+        findById(`${id}-parent`).append(element);
+      }
+      return element;
+    };
+    document.getElementById = elementFor;
+    const saves = [];
+    const base = {
+      window, document, i18n: { en: {} },
+      elements: new Proxy({ settingsModal: findById('settings-modal') }, { get: (known, name) => known[name] || elementFor(String(name)) }),
+      getConfig: () => ({ uiLanguage: 'en' }),
+      getConversations: () => [], getFolders: () => [], getAstras: () => [], getPersonalMemories: () => [],
+      getCurrentUser: () => ({ username: 'alice' }),
+      getCouncilSelectedModels: () => ({ participants: [] }), getCouncilTexts: () => ({}),
+      saveSettings: (options) => saves.push(options),
+      scheduleTimeout: (handler, delay) => { saves.push(['after', delay]); handler(); return 1; },
+      clearScheduledTimeout: () => {}, scheduleAnimationFrame: (handler) => handler(),
+      logger: { warn() {}, error() {}, log() {} }
+    };
+    const { initChatApp } = createLegacyAppBootstrapLifecycle(new Proxy(base, { get: (deps, name) => (name in deps ? deps[name] : async () => {}) }));
+    await initChatApp();
+    saves.length = 0;
+
+    findById('name').dispatchEvent(new window.Event('change', { bubbles: true }));
+    findById('name').dispatchEvent(new window.Event('input', { bubbles: true }));
+    document.querySelector('.color-swatch').dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
+
+    const quiet = { close: false, notify: false };
+    assert.deepEqual(saves, [quiet, ['after', 350], quiet, ['after', 0], quiet]);
+  } finally {
+    cleanup();
+  }
+});
+
+// Boundary: saving the settings writes through the injected setItem only, and the store holds the pointer only. (That the kernel,
+// runtime-app.js, neither loads nor saves nor binds the page is guarded in tests/retired-code.test.js.)
+test('config persistence and the config store keep to their own jobs', () => {
   assert.doesNotMatch(
-    `${body}\n${persistenceSource}`,
-    /applyUiTheme|applyLanguage|render(?:All|Chat|Store|ModelSwitcher)|showNotification|runtimeDialogCoordinator/
-  );
-});
-
-// What loadConfig reads and in which order is tested in tests/workspace-load.test.js.
-
-test('config normalization keeps the saved settings over the current ones', () => {
-  const normalizationSource = readSource('src/app/runtime/kernel/config-normalization.js');
-
-  assertMarkersInOrder(normalizationSource, [
-    'const { apiKeys: _retiredApiKeys, theme: _retiredTheme, ...normalSavedConfig } = savedConfig',
-    '...currentConfig',
-    '...normalSavedConfig',
-    'apiKeys: { ...(currentConfig?.apiKeys || {}) }',
-    'uiTheme: { ...currentConfig.uiTheme, ...(normalSavedConfig.uiTheme || {}) }'
-  ], 'config normalization merge precedence');
-});
-
-test('config normalization keeps API, model, and council normalization in legacy order', () => {
-  const normalizationSource = readSource('src/app/runtime/kernel/config-normalization.js');
-
-  assertMarkersInOrder(normalizationSource, [
-    "normalizedConfig.outputMode = 'realtime'",
-    "normalizedConfig.tavilySearchDepth = normalizedConfig.tavilySearchDepth === 'advanced' ? 'advanced' : 'basic'",
-    'const allModelIds = new Set(models.map(m => m.id))',
-    'const id = canonicalizeModelId(setting.id)',
-    'models.forEach((model) =>',
-    'normalizedConfig.modelSettings.sort((a, b) => a.order - b.order)',
-    'normalizedConfig.modelSettings.forEach((s, index) => { s.order = index; })',
-    'normalizedConfig.defaultModel = canonicalizeModelId(normalizedConfig.defaultModel)',
-    'normalizedConfig.lastUsedModel = canonicalizeModelId(normalizedConfig.lastUsedModel)',
-    'normalizedConfig.lastCouncilConfig = normalizeCouncilConfig(normalizedConfig.lastCouncilConfig',
-    'councilTranslatorCandidates.some(model => model.id === normalizedConfig.councilTranslatorModelId)',
-    'singleTranslatorCandidates.some(model => model.id === normalizedConfig.singleDocumentTranslatorModelId)'
-  ], 'config normalization model and council order');
-});
-
-test('settings persistence keeps mutation, visual, save, render, and notification order', () => {
-  const settingsAuthProviderSource = readUiSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
-  const settingsSaveSettingsHelperSource = readSource('src/app/runtime/legacy-core/settings-save-settings-helper.js');
-  const appBootstrapLifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
-  const saveSettingsBody = getConstFunctionBody(settingsAuthProviderSource, 'saveSettings');
-  const initChatAppBody = getBlockFromMarker(appBootstrapLifecycleSource, 'async function initChatApp()');
-
-  assertMarkersInOrder(saveSettingsBody, [
-    'await persistApiKeyInputIntents()',
-    'const collectedSettings = collectSettingsSaveFormValues({',
-    'Object.assign(config, {',
-    'uiLanguage: collectedSettings.uiLanguage',
-    'Object.assign(config.uiTheme, collectedSettings.uiTheme)',
-    'applyUiTheme()',
-    'await saveConfig()',
-    'applyLanguage(config.uiLanguage)',
-    'renderModelSwitcher()',
-    'renderStore()',
-    'if (close) {',
-    'toggleModal(ALL_ELEMENTS.settingsModal, false)',
-    'updateApiKeyWarningBadge()',
-    'updateInputState()',
-    'if (notify) {',
-    'showNotification('
-  ], 'settings save persistence');
-  assert.match(settingsSaveSettingsHelperSource, /uiLanguage:\s*elements\.uiLanguageSelect\.value/);
-
-  assert.match(
-    initChatAppBody,
-    /ALL_ELEMENTS\.settingsModal\.addEventListener\('change',[\s\S]*?saveSettings\(\{\s*close:\s*false,\s*notify:\s*false\s*\}\)/
-  );
-  assert.match(
-    initChatAppBody,
-    /saveTimer\s*=\s*scheduleTimeout\(\(\)\s*=>\s*saveSettings\(\{\s*close:\s*false,\s*notify:\s*false\s*\}\),\s*350\)/
-  );
-  assert.match(
-    initChatAppBody,
-    /event\.target\.closest\('\.color-swatch, \.color-option, \.translator-picker-option'\)[\s\S]*?scheduleTimeout\(\(\)\s*=>\s*saveSettings\(\{\s*close:\s*false,\s*notify:\s*false\s*\}\),\s*0\)/
-  );
-});
-
-test('startup restores the user before config and app data visual handoff', () => {
-  const source = readSource('src/app/runtime/features/startup-lifecycle.js');
-  const body = getBlockFromMarker(source, 'async function initializeApp()');
-
-  assertMarkersInOrder(body, [
-    "const lastUsername = await getItem('chat_lastUser')",
-    'const userKey = getUserKey(lastUsername)',
-    'const savedUser = await getItem(userKey)',
-    'setCurrentUser(JSON.parse(savedUser))',
-    'await loadConfig()',
-    'await loadAppData()',
-    'applyUiTheme()',
-    "elements.authContainer.style.display = 'none'",
-    "elements.appContainer.classList.remove('hidden')",
-    "elements.appContainer.classList.add('visible')",
-    'initChatApp()'
-  ], 'startup config persistence');
-});
-
-test('config persistence extracts only the serialized write adapter', () => {
-  const fragment00Source = readSource('src/app/runtime/legacy-core/legacy-core.js');
-  const persistenceSource = readSource('src/app/runtime/kernel/config-persistence.js');
-  const storeSource = readSource('src/app/runtime/kernel/config-store.js');
-  const runtimeAppSource = readSource('src/app/runtime-app.js');
-
-  assert.equal(existsSync(projectFile('src/app/runtime/kernel/config-persistence.js')), true);
-  assert.match(persistenceSource, /export\s+function\s+createLegacyRuntimeConfigPersistence/);
-  assert.doesNotMatch(
-    persistenceSource,
-    /loadConfig|getItem|removeItem|openDB|indexedDB|localStorage|sessionStorage|legacy-runtime\/fragments|virtual:legacy-app-runtime/
-  );
-  assert.match(fragment00Source, /import\s+\{\s*createLegacyRuntimeConfigPersistence\s*\}/);
-  assert.match(persistenceSource, /import\s+\{\s*removeSensitiveConfig\s*\}/);
-  assert.match(fragment00Source, /const\s+runtimeConfigPersistence\s*=\s*createLegacyRuntimeConfigPersistence\(\{/);
-  assertMarkersInOrder(fragment00Source, [
-    'getCurrentUser,',
-    'getConfig: () => runtimeConfigStore.getConfig()',
-    'getConfigKey',
-    'setItem'
-  ], '00 config persistence adapter wiring');
-  assert.match(fragment00Source, /const\s+saveConfig\s*=\s*async\s*\(\)\s*=>\s*\{\s*await\s+runtimeConfigPersistence\.saveConfig\(\);\s*\}/);
-  assert.match(fragment00Source, /const\s+\{\s*loadConfig,\s*loadAppData\s*\}\s*=\s*createWorkspaceLoad\(\{/);
-  assert.doesNotMatch(
-    storeSource,
-    /indexedDB|localStorage|sessionStorage|getItem|setItem|removeItem|JSON\.parse|JSON\.stringify/
+    readSource('src/app/runtime/kernel/config-persistence.js'),
+    /loadConfig|\b(?:getItem|removeItem|openDB|indexedDB|localStorage|sessionStorage)\b/
   );
   assert.doesNotMatch(
-    runtimeAppSource,
-    /config-persistence|loadConfig|saveConfig|indexedDB|localStorage|sessionStorage/
+    readSource('src/app/runtime/kernel/config-store.js'),
+    /\b(?:indexedDB|localStorage|sessionStorage|getItem|setItem|removeItem)\b|JSON\.(?:parse|stringify)/
   );
-  assert.doesNotMatch(runtimeAppSource, /virtual:legacy-app-runtime|legacy-runtime\/fragments/);
-  assert.doesNotMatch(runtimeAppSource, /addEventListener|DOMContentLoaded|initChatApp|initializeApp/);
+  // The settings and the workspace live in IndexedDB, through the adapter, not in web storage.
+  assert.doesNotMatch(readSource('src/app/runtime/legacy-core/legacy-core.js'), /\b(?:localStorage|sessionStorage)\b/);
 });

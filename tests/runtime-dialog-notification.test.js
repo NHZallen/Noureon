@@ -2,9 +2,8 @@ import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import test from 'node:test';
 import { Window } from 'happy-dom';
-import { projectFile, readSource } from './helpers/source-guards.js';
+import { readSource } from './helpers/source-guards.js';
 
-const legacyCoreSource = readSource('src/app/runtime/legacy-core/legacy-core.js');
 const dialogNotificationModulePath = 'src/app/runtime/features/dialog-notification-lifecycle.js';
 const dialogNotificationModuleUrl = new URL(`../${dialogNotificationModulePath}`, import.meta.url);
 const dialogNotificationModuleExists = existsSync(dialogNotificationModuleUrl);
@@ -231,13 +230,14 @@ test('custom dialog renders safe external message links without HTML injection',
       messageParts: [
         'Read the ',
         { text: 'Stealth Model Terms(opens in new tab)', href: 'https://openrouter.ai/terms/stealth' },
-        '.'
+        '.<img src=x onerror="alert(1)">'
       ],
       buttons: [{ text: 'Confirm', class: 'btn-primary', value: () => true }]
     });
     const link = harness.elements.customDialogMessage.querySelector('a');
 
-    assert.equal(harness.elements.customDialogMessage.textContent, 'Read the Stealth Model Terms(opens in new tab).');
+    assert.equal(harness.elements.customDialogMessage.textContent, 'Read the Stealth Model Terms(opens in new tab).<img src=x onerror="alert(1)">');
+    assert.equal(harness.elements.customDialogMessage.querySelector('img'), null);
     assert.equal(link.href, 'https://openrouter.ai/terms/stealth');
     assert.equal(link.target, '_blank');
     assert.equal(link.rel, 'noopener noreferrer');
@@ -287,24 +287,7 @@ test('missing notification container preserves the current explicit failure beha
   }
 });
 
-test('legacy core composes the extracted lifecycle without moving runtime contracts', () => {
-  assert.equal(existsSync(projectFile(dialogNotificationModulePath)), true);
-  assert.equal(typeof createDialogNotificationLifecycle, 'function');
-  assert.match(
-    legacyCoreSource,
-    /import\s+\{\s*createDialogNotificationLifecycle\s*\}\s+from\s+['"]\/src\/app\/runtime\/features\/dialog-notification-lifecycle\.js['"]/
-  );
-  assert.match(legacyCoreSource, /createDialogNotificationLifecycle\(\{[\s\S]*?document,[\s\S]*?elements:\s*ALL_ELEMENTS/);
-  assert.match(
-    legacyCoreSource,
-    /createRuntimeDialogCoordinator\(\{\s*showNotification:\s*\(\.\.\.args\)\s*=>\s*showNotification\(\.\.\.args\)/
-  );
-  assert.match(legacyCoreSource, /document\.addEventListener\('DOMContentLoaded',[\s\S]*?querySelectorAll\('\.modal'\)/);
-  assert.doesNotMatch(legacyCoreSource, /const\s+showNotification\s*=\s*\(message,/);
-  assert.doesNotMatch(legacyCoreSource, /const\s+toggleModal\s*=\s*\(modalElement,/);
-  assert.doesNotMatch(legacyCoreSource, /const\s+showCustomDialog\s*=\s*\(options\)/);
-
-  assert.match(dialogNotificationModuleSource, /export\s+function\s+createDialogNotificationLifecycle\s*\(/);
+test('the dialog lifecycle stays free of runtime bindings and unrelated systems', () => {
   assert.doesNotMatch(
     dialogNotificationModuleSource,
     /legacyRuntimeContext|registerLazyBinding|resolveBinding|resolveOptionalBinding/

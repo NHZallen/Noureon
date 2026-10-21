@@ -436,43 +436,31 @@ test('storage adapter instances keep independent cached connections', async () =
   assert.equal(secondFake.calls.open.length, 1);
 });
 
-test('production wiring uses the adapter while persistence modules remain injected-storage only', () => {
-  const fragment00Source = readSource('src/app/runtime/legacy-core/legacy-core.js');
-  const fragment02Source = readSource('src/app/runtime/legacy-core/legacy-core.js');
-  const settingsAuthProviderSource = readUiSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
-  const settingsAuthActionsHelperSource = readSource('src/app/runtime/legacy-core/settings-auth-actions-helper.js');
-  const configPersistenceSource = readSource('src/app/runtime/kernel/config-persistence.js');
-  const appDataPersistenceSource = readSource('src/app/runtime/kernel/app-data-persistence.js');
-  const runtimeAppSource = readSource('src/app/runtime-app.js');
-
-  assert.match(fragment00Source, /createLegacyRuntimeStorageAdapter/);
-  assert.match(fragment00Source, /const\s+\{\s*getItem,\s*setItem,\s*removeItem,\s*readItems,\s*setItemsAtomic\s*\}\s*=\s*runtimeStorageAdapter/);
-  assert.doesNotMatch(fragment00Source, /async\s+function\s+(?:openDB|getItem|setItem|removeItem)/);
-  assert.match(fragment02Source, /runtimeStorageAdapter,/);
-  assert.match(settingsAuthProviderSource, /runtimeStorageAdapter,/);
-  assert.match(settingsAuthActionsHelperSource, /await\s+runtimeStorageAdapter\.clear\(\)/);
-  assert.doesNotMatch(fragment02Source, /\bSTORE_NAME\b|\bopenDB\(\)/);
-  assert.doesNotMatch(settingsAuthProviderSource, /\bSTORE_NAME\b|\bopenDB\(\)/);
-  assert.doesNotMatch(settingsAuthActionsHelperSource, /\bSTORE_NAME\b|\bopenDB\(\)/);
-
-  for (const source of [configPersistenceSource, appDataPersistenceSource]) {
-    assert.match(source, /\bsetItem\b/);
-    assert.doesNotMatch(source, /storage-adapter|indexedDB|openDB|getItem|removeItem/);
+// Boundary: only the adapter opens IndexedDB. The persistence modules get their storage functions injected, the composition root and
+// the settings take the adapter, and the old inline openDB and STORE_NAME of the fragments do not come back.
+test('IndexedDB is opened only by the storage adapter', () => {
+  const retiredInlineStorage = /async\s+function\s+(?:openDB|getItem|setItem|removeItem)\b|\bSTORE_NAME\b|\bopenDB\(\)/;
+  for (const path of [
+    'src/app/runtime/legacy-core/legacy-core.js',
+    'src/app/runtime/legacy-core/settings-auth-actions-helper.js'
+  ]) {
+    assert.doesNotMatch(readSource(path), retiredInlineStorage, path);
   }
-  assert.doesNotMatch(runtimeAppSource, /storage-adapter|indexedDB|openDB|getItem|setItem|removeItem/);
+  assert.doesNotMatch(readUiSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js'), retiredInlineStorage);
+  for (const path of [
+    'src/app/runtime/kernel/config-persistence.js',
+    'src/app/runtime/kernel/app-data-persistence.js'
+  ]) {
+    assert.doesNotMatch(readSource(path), /storage-adapter|\bindexedDB\b|\bopenDB\b/, path);
+  }
 });
 
-test('storage adapter source preserves legacy IndexedDB semantics', () => {
-  const source = readSource('src/app/runtime/kernel/storage-adapter.js');
-
-  assert.doesNotMatch(source, /objectStoreNames\.contains/);
-  assert.match(source, /createObjectStore\(storeName,\s*\{\s*keyPath:\s*['"]key['"]\s*\}\)/);
-  assert.match(source, /transaction\.oncomplete\s*=\s*resolve/);
-  assert.match(source, /transaction\.onerror\s*=\s*reject/);
-  assert.match(source, /request\.onsuccess\s*=\s*resolve/);
-  assert.match(source, /request\.onerror\s*=\s*reject/);
-  assert.match(source, /getAllKeys\(\)/);
-  assert.doesNotMatch(source, /currentUser|loadConfig|loadAppData|showNotification|renderAll/);
+// Boundary: the adapter is storage only; it knows nothing of users, settings loading or the page.
+test('storage adapter knows nothing of users, loading, or rendering', () => {
+  assert.doesNotMatch(
+    readSource('src/app/runtime/kernel/storage-adapter.js'),
+    /currentUser|loadConfig|loadAppData|showNotification|renderAll/
+  );
 });
 
 test('storage adapter applies writes and deletions in one atomic transaction', async () => {

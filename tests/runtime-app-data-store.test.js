@@ -238,8 +238,7 @@ test('runtime app kernel creates an independent empty app data store', () => {
   );
 });
 
-test('app data store source owns pointers only', () => {
-  const source = readSource('src/app/runtime/kernel/app-data-store.js');
+test('app data store hands out exactly its named read and replace functions', () => {
   const store = createLegacyRuntimeAppDataStore();
 
   assert.deepEqual(Object.keys(store), [
@@ -256,9 +255,14 @@ test('app data store source owns pointers only', () => {
     'replaceAll',
     'getSnapshot'
   ]);
-  assert.match(source, /export\s+function\s+createLegacyRuntimeAppDataStore/);
-  assert.doesNotMatch(source, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtimeContext/);
-  assert.doesNotMatch(source, /document|window|addEventListener|currentUser|localStorage|sessionStorage|indexedDB|getItem|setItem|removeItem|openDB/);
-  assert.doesNotMatch(source, /showNotification|renderAll|toggleModal|initChatApp|initializeApp/);
-  assert.doesNotMatch(source, /Object\.freeze|structuredClone|JSON\.parse|JSON\.stringify/);
+});
+
+// Boundary: the store only holds pointers; storage, the page, the signed-in user and the retired fragments stay out of it.
+test('app data store touches no storage, page, user, or retired fragment', () => {
+  const source = readSource('src/app/runtime/kernel/app-data-store.js');
+
+  assert.doesNotMatch(
+    source,
+    /\b(?:document|window|addEventListener|currentUser|localStorage|sessionStorage|indexedDB|getItem|setItem|removeItem|openDB)\b|showNotification|renderAll|toggleModal|legacy-runtime\/fragments|virtual:legacy-app-runtime/
+  );
 });
