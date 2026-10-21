@@ -88,6 +88,7 @@
     margin: 0.35rem 0 0;
     color: var(--text-secondary);
     font-size: 0.78rem;
+    overflow-wrap: anywhere; /* a long file name breaks at the edge of the screen instead of going past it */
 }
 
 

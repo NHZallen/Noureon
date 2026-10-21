@@ -1,5 +1,9 @@
 /* The width and margins of a reply, and the card of a deep research. Split from chat.css (imported right after it, in this order). */
 
+/* The chat is a flex item beside the sidebar: without min-width 0 a line that does not wrap (the code of a run, opened) widens it past
+   the screen on a phone, and the replies and what the person sent are cut off. */
+#chat-workspace { min-width: 0; }
+
 /* Every reply takes the full width of the chat column, so its copy button and time sit in the same place under
    a one-word reply (or only the "thinking interrupted" line) as under a long one: the time always at the far right. */
 .model-message > .message-stack-model {
