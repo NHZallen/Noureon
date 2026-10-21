@@ -2,6 +2,18 @@
 // content 為 zh-TW 的 HTML 字串（JSON 轉義、雙引號），目前不隨介面語言切換。
 export const updateLogEntries = [
   {
+    version: "18.15.4",
+    date: "2026-10-21",
+    content: [
+      "<strong>Noureon 18.15.4 發布說明</strong>",
+      "本版本修正手機上展開模型執行的程式時版面超出畫面，也不再在新步驟開始時收起你正在看的項目。",
+      "<strong>主要變更</strong>",
+      "<ul><li><strong>手機版面：</strong>展開「執行了程式」的步驟時，過長的程式碼不再把聊天區撐出畫面；程式碼在自己的卡片裡左右捲動，過長的檔名也會換行。</li><li><strong>步驟不再被收起：</strong>模型一步一步工作時，新步驟開始不會再把你點開的步驟收起來；你自己關上的才會維持關上。</li></ul>",
+      "<strong>相容性</strong>",
+      "本次更新不需要資料遷移，也沒有新的伺服器欄位。"
+    ]
+  },
+  {
     version: "18.15.3",
     date: "2026-10-21",
     content: [

@@ -1,6 +1,14 @@
 // The update notes in Spanish (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.15.4": [
+    "<strong>Notas de la versión de Noureon 18.15.4</strong>",
+    "Esta versión corrige el diseño que se salía de la pantalla en el teléfono al abrir el código que ejecutó un modelo, y ya no pliega el paso que estás leyendo cuando empieza un paso nuevo.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Diseño en el teléfono:</strong> al abrir un paso «Código ejecutado», una línea de código larga ya no ensancha el chat más allá de la pantalla; el código se desplaza hacia los lados dentro de su propia tarjeta y los nombres de archivo largos se ajustan.</li><li><strong>Los pasos siguen abiertos:</strong> mientras el modelo trabaja paso a paso, un paso nuevo ya no pliega el que abriste; solo se quedan cerrados los que cerraste tú.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "No hace falta migrar datos y no hay campos nuevos en el servidor."
+  ],
   "18.15.3": [
     "<strong>Notas de la versión de Noureon 18.15.3</strong>",
     "Esta versión hace que la página cargue menos al abrirse y corrige cómo se muestran las imágenes en las conversaciones de la papelera.",

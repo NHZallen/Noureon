@@ -1,6 +1,14 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.15.4": [
+    "<strong>Noureon 18.15.4 Release Notes</strong>",
+    "This version fixes the layout going past the screen on a phone when the code a model ran is opened, and no longer folds the step you are reading when a new step starts.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Phone layout:</strong> opening a “Ran code” step no longer lets a long line of code widen the chat past the screen; the code scrolls sideways inside its own card, and long file names wrap.</li><li><strong>Steps stay open:</strong> while the model works step by step, a new step no longer folds the step you opened; only the ones you closed stay closed.</li></ul>",
+    "<strong>Compatibility</strong>",
+    "No data migration is needed and there are no new server fields."
+  ],
   "18.15.3": [
     "<strong>Noureon 18.15.3 Release Notes</strong>",
     "This version makes the page load less when it opens, and fixes how pictures show in conversations in the trash.",
