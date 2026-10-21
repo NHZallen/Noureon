@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { Window } from 'happy-dom';
 
-import { createLegacyTrashLifecycle } from '../src/app/runtime/features/trash-lifecycle.js';
+import { createTrashLifecycle } from '../src/app/runtime/features/trash-lifecycle.js';
 
 const readSource = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -16,7 +16,7 @@ function createDomHarness(conversations) {
   const elements = Object.fromEntries(['trashListContainer', 'emptyTrashBtn', 'trashBatchSelectBtn', 'trashViewTitle', 'trashViewContent', 'trashViewModal', 'trashBatchActionBar', 'trashSelectionCount', 'trashBatchRestoreBtn', 'trashBatchDeleteBtn'].map((name) => [name, make(name.endsWith('Btn') ? 'button' : 'div')]));
   document.body.appendChild(elements.trashListContainer);
   let live = conversations;
-  const lifecycle = createLegacyTrashLifecycle({
+  const lifecycle = createTrashLifecycle({
     document,
     navigator: {},
     fetch: async () => {},
@@ -109,7 +109,7 @@ function createHarness(overrides = {}) {
   const document = {
     createElement: () => createNode()
   };
-  const lifecycle = createLegacyTrashLifecycle({
+  const lifecycle = createTrashLifecycle({
     document,
     navigator: {},
     fetch: async () => {},

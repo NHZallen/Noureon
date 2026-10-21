@@ -1,7 +1,7 @@
 // What the model is told in Advanced mode, and the one tool it gets.
 // Loaded only for Advanced mode replies.
 
-import { NOTE_PARAMETER } from '../../legacy-runtime/features/tool-call-formats.js';
+import { NOTE_PARAMETER } from '../features/tool-call-formats.js';
 
 export const RUN_PYTHON_TOOL = Object.freeze({
   name: 'run_python',

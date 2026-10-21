@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createCouncilMembers, createMemberSteps } from '../src/app/legacy-runtime/features/council-member-reply.js';
+import { createCouncilMembers, createMemberSteps } from '../src/app/runtime/council/council-member-reply.js';
 
 const tooly = { id: 'tooly', name: 'Tooly', provider: 'openrouter' };
 const other = { id: 'other', name: 'Other', provider: 'openrouter' };
@@ -164,6 +164,6 @@ test('the steps of a member: counts of each kind and the newest steps only', () 
 
 test('the members\' module is for the page and the server alike (no DOM)', async () => {
   const { readFileSync } = await import('node:fs');
-  const source = readFileSync(new URL('../src/app/legacy-runtime/features/council-member-reply.js', import.meta.url), 'utf8');
+  const source = readFileSync(new URL('../src/app/runtime/council/council-member-reply.js', import.meta.url), 'utf8');
   for (const forbidden of ['document.', 'window.', 'localStorage', 'import.meta.env']) assert.equal(source.includes(forbidden), false, forbidden);
 });

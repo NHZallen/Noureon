@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createWorkspaceLoad } from '../src/app/runtime/legacy-core/workspace-load.js';
+import { createWorkspaceLoad } from '../src/app/runtime/shell/workspace-load.js';
 
 const EMPTY = { conversations: [], folders: [], astras: [], personalMemories: [] };
 

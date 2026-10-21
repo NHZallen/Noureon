@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { createStreamApiCall } from '../src/app/legacy-runtime/features/stream-api-call.js';
+import { createStreamApiCall } from '../src/app/runtime/reply/stream-api-call.js';
 import { NOURAS_REQUEST_PURPOSE } from '../src/app/runtime/nouras/nouras-policy.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
@@ -954,7 +954,7 @@ test('missing provider keys fail before issuing a request', async () => {
 });
 
 test('stream API feature source stays isolated from DOM, storage, and runtime plugin concerns', () => {
-  const source = readSource('src/app/legacy-runtime/features/stream-api-call.js');
+  const source = readSource('src/app/runtime/reply/stream-api-call.js');
 
   for (const forbidden of [
     'document.querySelector',

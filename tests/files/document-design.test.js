@@ -184,7 +184,7 @@ test('a chosen Word template is enforced; only accent colours survive', async ()
   const plain = enforceDocumentTemplate(`${FENCE}file a.docx\n# 標題\n\n內容\n${FENCE}`, 'lines');
   assert.match(plain, /---\ntemplate: lines\n---\n# 標題/, 'a document without front matter gets one');
 
-  const { finalizeAssistantResponse } = await import('../../src/app/legacy-runtime/features/assistant-response-finalization.js');
+  const { finalizeAssistantResponse } = await import('../../src/app/runtime/reply/assistant-response-finalization.js');
   const message = {};
   await finalizeAssistantResponse({
     fullResponse: reply,

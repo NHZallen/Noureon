@@ -9,7 +9,7 @@ import {
   createShellState,
   createSidebarStore,
   createUploadsStore
-} from '../src/app/runtime/legacy-core/shell-state.js';
+} from '../src/app/runtime/shell/shell-state.js';
 
 // The state the parts of the shell share is a set of small stores, each changed only through its named functions (NOU-78).
 

@@ -6,9 +6,9 @@ import { DOMParser } from '@xmldom/xmldom';
 import { createDerivedPdfStore } from '../server/derived-pdf-store.js';
 import { createAssetSweeper } from '../server/asset-sweeper.js';
 import { createOfficePdfConverter } from '../server/office-pdf.js';
-import { createStreamApiCall } from '../src/app/legacy-runtime/features/stream-api-call.js';
-import { MODELS, getModelApiId, modelSupportsUploadedFile, modelSupportsVision } from '../src/app/runtime/legacy-core/model-registry.js';
-import { opencodeModelReadsOfficeViaPdf } from '../src/app/runtime/legacy-core/opencode-models.js';
+import { createStreamApiCall } from '../src/app/runtime/reply/stream-api-call.js';
+import { MODELS, getModelApiId, modelSupportsUploadedFile, modelSupportsVision } from '../src/app/runtime/shell/model-registry.js';
+import { opencodeModelReadsOfficeViaPdf } from '../src/app/runtime/shell/opencode-models.js';
 import { createOfficeReader } from '../src/app/ui/files/office-text/office-reader.js';
 import { OFFICE_KINDS } from '../src/app/ui/files/office-text/office-text.js';
 

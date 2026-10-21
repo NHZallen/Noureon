@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createSingleModelResponseLifecycle } from '../src/app/legacy-runtime/features/single-model-response-lifecycle.js';
+import { createSingleModelResponseLifecycle } from '../src/app/runtime/reply/single-model-response-lifecycle.js';
 import { sandboxText } from '../src/app/runtime/sandbox/sandbox-texts.js';
 import { liftSandboxRunBlock, summarizeSandboxRunText } from '../src/app/ui/sandbox/sandbox-run-block.js';
 import { createSandboxRunElement } from '../src/app/ui/sandbox/sandbox-run-view.js';

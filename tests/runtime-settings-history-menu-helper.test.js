@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { createSettingsHistoryMenuHelper } from '../src/app/runtime/legacy-core/settings-history-menu-helper.js';
+import { createSettingsHistoryMenuHelper } from '../src/app/runtime/settings/settings-history-menu-helper.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -132,7 +132,7 @@ function createHarness(overrides = {}) {
 
 test('module exports createSettingsHistoryMenuHelper and imports inertly', () => {
   assert.equal(typeof createSettingsHistoryMenuHelper, 'function');
-  const source = readSource('src/app/runtime/legacy-core/settings-history-menu-helper.js');
+  const source = readSource('src/app/runtime/settings/settings-history-menu-helper.js');
 
   assert.doesNotMatch(source, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-entry|legacy-core\.js/);
 });

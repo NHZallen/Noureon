@@ -6,13 +6,13 @@ const projectFile = (path) => new URL(`../../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
 
 const requestBuilderPaths = [
-  'src/app/legacy-runtime/features/stream-api-call.js',
-  'src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js',
-  'src/app/runtime/legacy-core/model-request-runtime.js',
-  'src/app/runtime/legacy-core/model-request-engine.js',
-  'src/app/runtime/legacy-core/settings-modal-lifecycle.js',
-  'src/app/runtime/legacy-core/settings-provider-structured-helpers.js',
-  'src/app/runtime/legacy-core/settings-title-summary-helpers.js'
+  'src/app/runtime/reply/stream-api-call.js',
+  'src/app/runtime/settings/settings-auth-provider-lifecycle.js',
+  'src/app/runtime/shell/model-request-runtime.js',
+  'src/app/runtime/shell/model-request-engine.js',
+  'src/app/runtime/settings/settings-modal-lifecycle.js',
+  'src/app/runtime/settings/settings-provider-structured-helpers.js',
+  'src/app/runtime/settings/settings-title-summary-helpers.js'
 ];
 
 test('Gemini request builders keep API keys out of request URLs', () => {
@@ -27,8 +27,8 @@ test('Gemini request builders keep API keys out of request URLs', () => {
 });
 
 test('Gemini request builders use x-goog-api-key header transport', () => {
-  const streamSource = readSource('src/app/legacy-runtime/features/stream-api-call.js');
-  const structuredHelperSource = readSource('src/app/runtime/legacy-core/settings-provider-structured-helpers.js');
+  const streamSource = readSource('src/app/runtime/reply/stream-api-call.js');
+  const structuredHelperSource = readSource('src/app/runtime/settings/settings-provider-structured-helpers.js');
 
   assert.match(streamSource, /'x-goog-api-key':\s*apiKey/);
   assert.match(structuredHelperSource, /'x-goog-api-key':\s*apiKey/);

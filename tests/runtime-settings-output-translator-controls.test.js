@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { createSettingsOutputTranslatorControls } from '../src/app/runtime/legacy-core/settings-output-translator-controls.js';
+import { createSettingsOutputTranslatorControls } from '../src/app/runtime/settings/settings-output-translator-controls.js';
 
 function createClassList() {
   const values = new Set();
@@ -171,7 +171,7 @@ function createHarness(overrides = {}) {
 
 test('module exports helper factory and imports inertly', () => {
   assert.equal(typeof createSettingsOutputTranslatorControls, 'function');
-  const source = readFileSync('src/app/runtime/legacy-core/settings-output-translator-controls.js', 'utf8');
+  const source = readFileSync('src/app/runtime/settings/settings-output-translator-controls.js', 'utf8');
   assert.doesNotMatch(source, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-entry|legacy-core\.js/);
 });
 

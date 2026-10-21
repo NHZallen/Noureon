@@ -4,7 +4,7 @@ import test from 'node:test';
 import {
   createCloudAstraDeletion,
   createCloudFolderDeletion
-} from '../src/app/runtime/legacy-core/cloud-delete-lifecycle.js';
+} from '../src/app/runtime/shell/cloud-delete-lifecycle.js';
 
 test('cloud Astra deletion forwards complete local snapshots to Sync V2', async () => {
   const calls = [];

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { ACCENT_BUBBLES, bubbleColorsFor } from '../src/utils/accent-bubble.js';
-import { UI_THEME_COLORS } from '../src/app/runtime/legacy-core/runtime-ui-colors.js';
+import { UI_THEME_COLORS } from '../src/app/runtime/shell/runtime-ui-colors.js';
 
 const HEX = /^#[0-9a-f]{6}$/;
 const lightness = (hex) => {

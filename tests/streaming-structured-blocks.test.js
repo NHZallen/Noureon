@@ -4,7 +4,7 @@ import test from 'node:test';
 import {
   findTrailingStreamingChart,
   findTrailingStreamingTable
-} from '../src/app/legacy-runtime/features/streaming-structured-blocks.js';
+} from '../src/app/runtime/reply/streaming-structured-blocks.js';
 
 test('detects an unfinished chart fence without exposing its source range', () => {
   const partialOpening = findTrailingStreamingChart('Before\n```cha');

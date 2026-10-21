@@ -37,17 +37,17 @@ const MODULE_PARTS = {
     'src/styles/chat-generated-image.css',
     'src/styles/chat-reply-layout.css'
   ],
-  'src/app/runtime/legacy-core/submit-input-council-lifecycle.js': [
-    'src/app/runtime/legacy-core/submit-input-composer.js',
-    'src/app/runtime/legacy-core/submit-input-playback.js',
-    'src/app/runtime/legacy-core/submit-input-image-reveal.js',
-    'src/app/runtime/legacy-core/submit-input-reply-services.js'
+  'src/app/runtime/shell/submit-input-council-lifecycle.js': [
+    'src/app/runtime/shell/submit-input-composer.js',
+    'src/app/runtime/shell/submit-input-playback.js',
+    'src/app/runtime/shell/submit-input-image-reveal.js',
+    'src/app/runtime/shell/submit-input-reply-services.js'
   ],
-  'src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js': [
-    'src/app/runtime/legacy-core/model-request-runtime.js',
-    'src/app/runtime/legacy-core/model-request-engine.js',
-    'src/app/runtime/legacy-core/settings-modal-lifecycle.js',
-    'src/app/runtime/legacy-core/settings-dialog-parts.js'
+  'src/app/runtime/settings/settings-auth-provider-lifecycle.js': [
+    'src/app/runtime/shell/model-request-runtime.js',
+    'src/app/runtime/shell/model-request-engine.js',
+    'src/app/runtime/settings/settings-modal-lifecycle.js',
+    'src/app/runtime/settings/settings-dialog-parts.js'
   ]
 };
 

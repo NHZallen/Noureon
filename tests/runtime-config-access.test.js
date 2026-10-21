@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { createRuntimeConfigAccess } from '../src/app/legacy-runtime/runtime/runtime-config-access.js';
-import { createLegacyRuntimeConfigStore } from '../src/app/runtime/kernel/config-store.js';
+import { createRuntimeConfigAccess } from '../src/app/runtime/kernel/runtime-config-access.js';
+import { createRuntimeConfigStore } from '../src/app/runtime/kernel/config-store.js';
 
 const readSource = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -28,7 +28,7 @@ test('getUiLanguage reads latest config without stale snapshots', () => {
 });
 
 test('getUiLanguage reads the latest config store pointer after replacement', () => {
-  const configStore = createLegacyRuntimeConfigStore({ defaultModelId: 'model' });
+  const configStore = createRuntimeConfigStore({ defaultModelId: 'model' });
   const access = createRuntimeConfigAccess({
     getConfig: () => configStore.getConfig()
   });
@@ -59,7 +59,7 @@ test('reading the language changes nothing in the settings', () => {
 // Boundary: the access only reads and replaces what it is given; the page, storage, the network and the saving of the settings are
 // elsewhere, and the old mirror synchronization does not come back.
 test('runtime config access stays a bridge to the injected store', () => {
-  const source = readSource('src/app/legacy-runtime/runtime/runtime-config-access.js');
+  const source = readSource('src/app/runtime/kernel/runtime-config-access.js');
 
   assert.doesNotMatch(
     source,

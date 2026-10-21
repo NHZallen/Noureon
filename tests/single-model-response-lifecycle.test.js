@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import { Window } from 'happy-dom';
-import { createSingleModelResponseLifecycle } from '../src/app/legacy-runtime/features/single-model-response-lifecycle.js';
+import { createSingleModelResponseLifecycle } from '../src/app/runtime/reply/single-model-response-lifecycle.js';
 import { liftSandboxRunBlock } from '../src/app/ui/sandbox/sandbox-run-block.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
@@ -473,7 +473,7 @@ test('completion handoff preserves realtime rendered, realtime fallback, and pla
 });
 
 test('single-model lifecycle source avoids provider parsing, storage, and runtime plugin coupling', () => {
-  const source = readSource('src/app/legacy-runtime/features/single-model-response-lifecycle.js');
+  const source = readSource('src/app/runtime/reply/single-model-response-lifecycle.js');
 
   for (const forbidden of [
     'fetch(',

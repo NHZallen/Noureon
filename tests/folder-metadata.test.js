@@ -5,9 +5,9 @@ import test from 'node:test';
 import {
   FOLDER_SVGS,
   FOLDER_TEXT_COLORS
-} from '../src/app/legacy-runtime/data/folder-metadata.js';
-import { FOLDER_COLORS } from '../src/app/runtime/legacy-core/runtime-ui-colors.js';
-import { createSettingsHistoryMenuHelper } from '../src/app/runtime/legacy-core/settings-history-menu-helper.js';
+} from '../src/app/runtime/features/folder-metadata.js';
+import { FOLDER_COLORS } from '../src/app/runtime/shell/runtime-ui-colors.js';
+import { createSettingsHistoryMenuHelper } from '../src/app/runtime/settings/settings-history-menu-helper.js';
 import { createDom } from './behaviours/helpers/create-dom.js';
 
 const readSource = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
@@ -112,7 +112,7 @@ test('the move-to-folder menu paints folders with the seven expanded icon colors
 });
 
 test('folder metadata remains plain mutable objects without runtime responsibilities', () => {
-  const source = readSource('src/app/legacy-runtime/data/folder-metadata.js');
+  const source = readSource('src/app/runtime/features/folder-metadata.js');
 
   assert.equal(Object.getPrototypeOf(FOLDER_SVGS), Object.prototype);
   assert.equal(Object.getPrototypeOf(FOLDER_TEXT_COLORS), Object.prototype);

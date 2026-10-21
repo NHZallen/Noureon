@@ -17,7 +17,7 @@ test('file card colours follow the text colour so they stay legible', () => {
 
 test('file card styles ship with the lazily loaded chat runtime, not the startup stylesheet', () => {
   assert.doesNotMatch(readSource('src/styles/main.css'), /file-cards\.css/);
-  assert.match(readSource('src/app/legacy-app.js'), /import '\.\.\/styles\/file-cards\.css';/);
+  assert.match(readSource('src/app/chat-app.js'), /import '\.\.\/styles\/file-cards\.css';/);
 });
 
 test('Tailwind does not scan document generators, page previews or the design system for utility classes', () => {
@@ -71,7 +71,7 @@ test('generators, previews, the design system, the preview dialog and the guidan
   const interactions = readSource('src/app/ui/files/file-card-interactions.js');
   assert.match(interactions, /await import\('\.\/file-preview-dialog\.js'\)/);
   assert.doesNotMatch(interactions, /from '\.\/file-preview-dialog\.js'/);
-  const streamApi = readSource('src/app/legacy-runtime/features/stream-api-call.js');
+  const streamApi = readSource('src/app/runtime/reply/stream-api-call.js');
   assert.match(streamApi, /await import\('\.\.\/\.\.\/ui\/files\/file-authoring-guidance\.js'\)/);
 });
 

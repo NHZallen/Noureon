@@ -42,7 +42,7 @@ test('no production code registers or resolves a runtime binding by name', () =>
 // The shell makes every feature of the page itself and the runtime entry only starts it (NOU-77): nothing is handed out to be made
 // elsewhere and connected back.
 test('the shell starts the page itself; the runtime entry only loads it', () => {
-  const legacyCore = readSource('src/app/runtime/legacy-core/legacy-core.js');
+  const legacyCore = readSource('src/app/runtime/shell/shell.js');
   assert.match(legacyCore, /export\s+function\s+startPage\b/);
   assert.doesNotMatch(legacyCore, /coreTailDependencies|connectCoreTail|connectRuntimeEntry/);
   const runtimeEntry = readSource('src/app/runtime-entry.js');

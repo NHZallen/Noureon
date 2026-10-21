@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createCouncilValidation } from '../src/app/runtime/legacy-core/council-validation.js';
-import { COUNCIL_TEXT } from '../src/app/runtime/legacy-core/model-registry.js';
+import { createCouncilValidation } from '../src/app/runtime/shell/council-validation.js';
+import { COUNCIL_TEXT } from '../src/app/runtime/shell/model-registry.js';
 
 const model = (id, extra = {}) => ({ id, name: id.toUpperCase(), provider: 'openrouter', ...extra });
 

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { createMediaAttachmentRenderer } from '../src/app/legacy-runtime/features/media-attachment-renderer.js';
+import { createMediaAttachmentRenderer } from '../src/app/runtime/messages/media-attachment-renderer.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -106,7 +106,7 @@ test('mobile touch layout keeps a single user photo right-aligned', () => {
 });
 
 test('media attachment renderer source avoids DOM and runtime ownership', () => {
-  const source = readSource('src/app/legacy-runtime/features/media-attachment-renderer.js');
+  const source = readSource('src/app/runtime/messages/media-attachment-renderer.js');
 
   for (const token of [
     'document',

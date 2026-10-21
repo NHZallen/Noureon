@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { buildQuotedUserParts } from '../../src/app/legacy-runtime/features/quote-inquiry-lifecycle.js';
-import { createSubmitInputPreparationLifecycle } from '../../src/app/legacy-runtime/features/submit-input-preparation-lifecycle.js';
+import { buildQuotedUserParts } from '../../src/app/runtime/messages/quote-inquiry-lifecycle.js';
+import { createSubmitInputPreparationLifecycle } from '../../src/app/runtime/features/submit-input-preparation-lifecycle.js';
 
 const createSubmitHarness = ({
   councilEnabled = false,

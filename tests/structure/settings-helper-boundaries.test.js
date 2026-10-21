@@ -5,7 +5,7 @@ import { readSource } from '../helpers/source-guards.js';
 // The settings dialog is put together by settings-auth-provider-lifecycle.js from small helpers. What each helper does is tested by
 // behaviour (tests/runtime-settings-*.test.js); this file keeps only the rules about what the helpers may depend on.
 
-const helperDir = 'src/app/runtime/legacy-core/';
+const helperDir = 'src/app/runtime/settings/';
 
 const settingsHelperModules = [
   ['settings-provider-structured-helpers.js', 'createSettingsProviderStructuredHelpers'],
@@ -19,7 +19,7 @@ const settingsHelperModules = [
   ['settings-auth-actions-helper.js', 'createSettingsAuthActionsHelper'],
   ['settings-update-input-state-helper.js', 'createSettingsUpdateInputStateHelper'],
   ['settings-save-settings-helper.js', 'collectSettingsSaveFormValues'],
-  ['settings-auth-provider-lifecycle.js', 'createLegacySettingsAuthProviderLifecycle']
+  ['settings-auth-provider-lifecycle.js', 'createSettingsAuthProviderLifecycle']
 ];
 
 // The modules a file imports, static or loaded on demand.
@@ -32,10 +32,10 @@ test('every settings helper loads without side effects and exports its factory',
   }
 });
 
-test('settings helpers depend on nothing above them: not the app entry, the legacy core, nor retired runtime modules', () => {
+test('settings helpers depend on nothing above them: not the app entry, the shell, nor retired runtime modules', () => {
   for (const [file] of settingsHelperModules) {
     for (const specifier of importsOf(readSource(`${helperDir}${file}`))) {
-      assert.doesNotMatch(specifier, /runtime-entry|runtime-app|legacy-app|\/main\.js|legacy-core\.js|legacy-runtime\/fragments|^virtual:/, `${file} imports ${specifier}`);
+      assert.doesNotMatch(specifier, /runtime-entry|runtime-app|chat-app|\/main\.js|shell\.js|legacy-runtime\/fragments|^virtual:/, `${file} imports ${specifier}`);
     }
   }
 });

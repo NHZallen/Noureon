@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { Window } from 'happy-dom';
-import { createSettingsSyncVaultControls } from '../src/app/runtime/legacy-core/settings-sync-vault-controls.js';
+import { createSettingsSyncVaultControls } from '../src/app/runtime/settings/settings-sync-vault-controls.js';
 import { createAndUnlockSyncVault, lockSyncVault } from '../src/app/sync/sync-vault.js';
 
 function createFixture(overrides = {}) {

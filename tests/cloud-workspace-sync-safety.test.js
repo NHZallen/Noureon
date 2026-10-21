@@ -20,7 +20,7 @@ test('cloud workspace sync cannot hydrate, upload, or queue monolithic app_data'
 test('main starts cloud workspace sync only after the local runtime becomes interactive', async () => {
   const source = await readFile(new URL('../src/main.js', import.meta.url), 'utf8');
   const bootstrapQueueAt = source.indexOf('const cloudSyncBootstrapQueue =');
-  const runtimeImportAt = source.indexOf("const legacyApp = await import('./app/legacy-app.js')");
+  const runtimeImportAt = source.indexOf("const chatApp = await import('./app/chat-app.js')");
   const runtimeAt = source.indexOf('STARTUP_MARKS.RUNTIME_INTERACTIVE');
   const syncAt = source.indexOf('initializeCloudWorkspaceSync({');
   const awaitedSyncAt = source.indexOf('await initializeCloudWorkspaceSync');
@@ -49,7 +49,7 @@ test('cloud workspace passes asset transport into record-level conversation sync
 test('active conversation selection is wired to the private cloud asset transport', async () => {
   const [syncSource, runtimeSource] = await Promise.all([
     readFile(new URL('../src/app/sync/cloud-workspace-sync.js', import.meta.url), 'utf8'),
-    readFile(new URL('../src/app/runtime/legacy-core/conversation-actions.js', import.meta.url), 'utf8')
+    readFile(new URL('../src/app/runtime/shell/conversation-actions.js', import.meta.url), 'utf8')
   ]);
 
   assert.match(

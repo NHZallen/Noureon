@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { createLegacyModelMemoryDashboardLifecycle } from '../src/app/runtime/legacy-core/model-memory-dashboard-lifecycle.js';
+import { createModelMemoryDashboardLifecycle } from '../src/app/runtime/shell/model-memory-dashboard-lifecycle.js';
 
 const readSource = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const noop = () => {};
@@ -144,7 +144,7 @@ function createHarness(overrides = {}) {
     setupTimeAnalysis: () => calls.push(['setupTimeAnalysis']),
     console
   };
-  const lifecycle = createLegacyModelMemoryDashboardLifecycle({ ...base, ...overrides });
+  const lifecycle = createModelMemoryDashboardLifecycle({ ...base, ...overrides });
   return {
     calls,
     config,
@@ -160,7 +160,7 @@ function createHarness(overrides = {}) {
 
 test('factory is inert on import and validates required dependencies', () => {
   assert.throws(
-    () => createLegacyModelMemoryDashboardLifecycle(),
+    () => createModelMemoryDashboardLifecycle(),
     /missing dependencies: document, elements/
   );
 });
@@ -270,7 +270,7 @@ test('openDashboard updates stats and delegates to setupTimeAnalysis before open
 });
 
 test('model memory dashboard module does not import fragments or virtual runtime', () => {
-  const source = readSource('src/app/runtime/legacy-core/model-memory-dashboard-lifecycle.js');
-  assert.match(source, /export\s+function\s+createLegacyModelMemoryDashboardLifecycle/);
+  const source = readSource('src/app/runtime/shell/model-memory-dashboard-lifecycle.js');
+  assert.match(source, /export\s+function\s+createModelMemoryDashboardLifecycle/);
   assert.doesNotMatch(source, /legacy-runtime\/fragments|virtual:legacy-app-runtime/);
 });

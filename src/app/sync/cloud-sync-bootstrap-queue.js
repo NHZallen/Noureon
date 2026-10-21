@@ -1,4 +1,4 @@
-import { createLegacyRuntimeStorageAdapter } from '../runtime/kernel/storage-adapter.js';
+import { createRuntimeStorageAdapter } from '../runtime/kernel/storage-adapter.js';
 import { SERVICES, getService, provideService } from '../runtime/services.js';
 
 export const CLOUD_SYNC_BOOTSTRAP_KINDS = Object.freeze(['config', 'sensitive', 'vault']);
@@ -12,7 +12,7 @@ export function getCloudSyncBootstrapPendingKey(username, kind) {
 export function installCloudSyncBootstrapQueue({
   window = globalThis.window,
   username,
-  storage = createLegacyRuntimeStorageAdapter(),
+  storage = createRuntimeStorageAdapter(),
   logger = console
 } = {}) {
   if (!window || !username) return null;

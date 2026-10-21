@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { runCouncilResponseRenderLifecycle } from '../src/app/legacy-runtime/features/council-response-render-lifecycle.js';
+import { runCouncilResponseRenderLifecycle } from '../src/app/runtime/council/council-response-render-lifecycle.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -166,7 +166,7 @@ test('council lifecycle stops progress ticker and propagates errors', async () =
 });
 
 test('council response render lifecycle source avoids provider parser, storage, package, and Vite coupling', () => {
-  const source = readSource('src/app/legacy-runtime/features/council-response-render-lifecycle.js');
+  const source = readSource('src/app/runtime/council/council-response-render-lifecycle.js');
 
   for (const forbidden of [
     'fetch',

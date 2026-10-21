@@ -7,11 +7,11 @@ import { setActiveWorkspaceStore } from './workspace-store-registry.js';
 
 const emptyWorkspace = () => ({ conversations: [], folders: [], astras: [], personalMemories: [] });
 
-// `user` is the signed-in user, `context` what the normalization needs from legacy-core.js. Returns { data } (the normalized workspace) when the user's workspace lives in the split store, or null when the old single item is
+// `user` is the signed-in user, `context` what the normalization needs from shell.js. Returns { data } (the normalized workspace) when the user's workspace lives in the split store, or null when the old single item is
 // to be used. A store whose records could not all be read still loads what it can: the damaged records stay in storage, untouched.
 export async function loadSplitWorkspace({ storage, user, context, logger = console } = {}) {
   const username = user.username;
-  // The old single item (the same key as getAppDataKey in legacy-core.js).
+  // The old single item (the same key as getAppDataKey in shell.js).
   const legacyKey = `chatAppData_v8.6_${username}`;
   const request = readWorkspaceV2Request();
   const selection = await selectWorkspaceStorage({ storage, username, legacyKey, enabled: isWorkspaceV2Enabled(), request, logger });
@@ -34,7 +34,7 @@ export async function loadSplitWorkspace({ storage, user, context, logger = cons
     selection.store.recordSuccessfulLoad({ legacyKey }).catch(error => logger.warn?.('The old storage item could not be checked for removal.', error));
   }
   if (!selection.loaded?.workspace) return { data: emptyWorkspace() };
-  // The same normalization the old single item goes through (legacy-core.js), with what it needs from there.
+  // The same normalization the old single item goes through (shell.js), with what it needs from there.
   return {
     data: normalizeLoadedLegacyAppData({
       rawData: selection.loaded.workspace,

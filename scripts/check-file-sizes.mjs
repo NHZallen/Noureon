@@ -116,14 +116,14 @@ const distFiles = collectFiles(join(root, 'dist')).map((file) => ({
 }));
 
 const runtimeBudgetDefinitions = [
-  { label: 'legacy-core shell', path: 'src/app/runtime/legacy-core/legacy-core.js', transitionalLimit: bytes(52), v5Target: bytes(55) },
-  { label: 'page features', path: 'src/app/runtime/legacy-core/page-features.js', transitionalLimit: bytes(12), v5Target: bytes(16) },
-  { label: 'settings auth provider lifecycle', path: 'src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js', transitionalLimit: bytes(14), v5Target: bytes(16) },
-  { label: 'submit input council lifecycle', path: 'src/app/runtime/legacy-core/submit-input-council-lifecycle.js', transitionalLimit: bytes(29), v5Target: bytes(30) },
+  { label: 'shell', path: 'src/app/runtime/shell/shell.js', transitionalLimit: bytes(52), v5Target: bytes(55) },
+  { label: 'page features', path: 'src/app/runtime/shell/page-features.js', transitionalLimit: bytes(12), v5Target: bytes(16) },
+  { label: 'settings auth provider lifecycle', path: 'src/app/runtime/settings/settings-auth-provider-lifecycle.js', transitionalLimit: bytes(14), v5Target: bytes(16) },
+  { label: 'submit input council lifecycle', path: 'src/app/runtime/shell/submit-input-council-lifecycle.js', transitionalLimit: bytes(29), v5Target: bytes(30) },
   { label: 'app bootstrap lifecycle', path: 'src/app/runtime/features/app-bootstrap-lifecycle.js', transitionalLimit: bytes(25), v5Target: bytes(35) },
-  { label: 'settings sync vault controls', path: 'src/app/runtime/legacy-core/settings-sync-vault-controls.js', transitionalLimit: bytes(20), v5Target: bytes(20) },
-  { label: 'council controls lifecycle', path: 'src/app/legacy-runtime/features/council-controls-lifecycle.js', transitionalLimit: bytes(18), v5Target: bytes(20) },
-  { label: 'workspace features', path: 'src/app/runtime/legacy-core/workspace-features.js', transitionalLimit: bytes(16), v5Target: bytes(20) }
+  { label: 'settings sync vault controls', path: 'src/app/runtime/settings/settings-sync-vault-controls.js', transitionalLimit: bytes(20), v5Target: bytes(20) },
+  { label: 'council controls lifecycle', path: 'src/app/runtime/council/council-controls-lifecycle.js', transitionalLimit: bytes(18), v5Target: bytes(20) },
+  { label: 'workspace features', path: 'src/app/runtime/shell/workspace-features.js', transitionalLimit: bytes(16), v5Target: bytes(20) }
 ];
 
 const cssBudgetDefinitions = [
@@ -145,7 +145,7 @@ const testBudgetDefinitions = [
 
 const buildJsFiles = distFiles.filter((file) => extname(file.filePath) === '.js');
 const buildCssFiles = distFiles.filter((file) => extname(file.filePath) === '.css');
-const legacyCoreChunk = buildJsFiles.find((file) => basename(file.filePath).startsWith('legacy-core-'));
+const shellChunk = buildJsFiles.find((file) => /^shell-[\w-]{6,}\.js$/.test(basename(file.filePath)));
 // File generator and preview libraries load only when someone makes or
 // previews that kind of file (and the service worker never precaches them),
 // so they have a budget of their own instead of counting as startup code.
@@ -169,7 +169,7 @@ const buildBudgetDefinitions = existsSync(join(root, 'dist'))
       { label: 'largest on-demand file library chunk', file: topFiles(onDemandJsFiles, 1)[0], transitionalLimit: bytes(1100), v5Target: bytes(1000), gzipTransitionalLimit: bytes(380), gzipV5Target: bytes(360) },
       { label: 'PDF formula typesetter', file: mathChunk, transitionalLimit: bytes(1700), v5Target: bytes(1650), gzipTransitionalLimit: bytes(580), gzipV5Target: bytes(560) },
       { label: 'PDF preview worker', file: pdfWorker, transitionalLimit: bytes(1400), v5Target: bytes(1300), gzipTransitionalLimit: bytes(420), gzipV5Target: bytes(400) },
-      { label: 'legacy-core chunk', file: legacyCoreChunk, transitionalLimit: bytes(255), v5Target: bytes(260), gzipTransitionalLimit: bytes(75), gzipV5Target: bytes(75) },
+      { label: 'shell chunk', file: shellChunk, transitionalLimit: bytes(255), v5Target: bytes(260), gzipTransitionalLimit: bytes(75), gzipV5Target: bytes(75) },
       { label: 'largest CSS asset', file: topFiles(buildCssFiles, 1)[0], transitionalLimit: bytes(157), v5Target: bytes(160), gzipTransitionalLimit: bytes(28), gzipV5Target: bytes(28) }
     ]
   : [];

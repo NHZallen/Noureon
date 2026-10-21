@@ -8,7 +8,7 @@ import {
   buildLinkedPagesText,
   extractLinkedUrls,
   pageCharsFor
-} from '../src/app/legacy-runtime/features/linked-pages.js';
+} from '../src/app/runtime/reply/linked-pages.js';
 
 test('web addresses are found in a message, in order, once each', () => {
   const { urls, skipped } = extractLinkedUrls('看 https://a.test/one 還有 http://b.test/two?x=1&y=2#top，再看 https://a.test/one');

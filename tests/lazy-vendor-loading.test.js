@@ -89,7 +89,7 @@ test('P2P and archive packages are dynamic-only and absent from main static impo
     );
   }
 
-  assert.match(readSource('src/app/runtime/legacy-core/legacy-core.js'), /from '\/src\/app\/vendors\/sharing-vendor\.js'/);
+  assert.match(readSource('src/app/runtime/shell/shell.js'), /from '\/src\/app\/vendors\/sharing-vendor\.js'/);
   assert.match(mainSource, /from '\.\/app\/vendors\/archive-vendor\.js'/);
   assert.match(sharingLoaderSource, /import\('peerjs'\)/);
   assert.match(sharingLoaderSource, /import\('qrcode'\)/);

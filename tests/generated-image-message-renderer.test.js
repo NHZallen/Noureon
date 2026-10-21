@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildMessageRenderView } from '../src/app/legacy-runtime/features/message-markup-renderer.js';
+import { buildMessageRenderView } from '../src/app/runtime/messages/message-markup-renderer.js';
 
 const render = (message) => buildMessageRenderView({
   message,

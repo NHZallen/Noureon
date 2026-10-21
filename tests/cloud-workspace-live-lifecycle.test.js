@@ -3,7 +3,7 @@ import test from 'node:test';
 import { SERVICES, getService } from '../src/app/runtime/services.js';
 
 import { createCloudWorkspaceLiveLifecycle } from '../src/app/runtime/features/cloud-workspace-live-lifecycle.js';
-import { createLegacyRuntimeAppDataStore } from '../src/app/runtime/kernel/app-data-store.js';
+import { createRuntimeAppDataStore } from '../src/app/runtime/kernel/app-data-store.js';
 
 function createWindowFixture() {
   const listeners = new Map();
@@ -24,7 +24,7 @@ function createPreciseRenderFixture({
   isActiveConversationViewCurrent = () => false
 } = {}) {
   const window = createWindowFixture();
-  const appDataStore = createLegacyRuntimeAppDataStore();
+  const appDataStore = createRuntimeAppDataStore();
   const renderCalls = { all: 0, sidebar: 0, chat: 0 };
   const chatOptions = [];
   let responseActive = false;
@@ -123,7 +123,7 @@ test('cloud workspace update preserves an active conversation reference and defe
     isNaming: true,
     messages: [{ role: 'user', parts: [{ text: 'Question' }] }]
   };
-  const appDataStore = createLegacyRuntimeAppDataStore({ initialConversations: [activeConversation] });
+  const appDataStore = createRuntimeAppDataStore({ initialConversations: [activeConversation] });
   let responseActive = true;
   let renders = 0;
   let scheduled = null;
@@ -166,7 +166,7 @@ test('cloud workspace update preserves an active conversation reference and defe
 
 test('cloud workspace update preserves local folder expansion state', () => {
   const window = createWindowFixture();
-  const appDataStore = createLegacyRuntimeAppDataStore({
+  const appDataStore = createRuntimeAppDataStore({
     initialFolders: [{ id: 'folder-1', name: 'Local', isOpen: true }]
   });
 
@@ -207,7 +207,7 @@ test('cloud workspace update keeps the fresh local draft selected after reload',
     deletedAt: null,
     messages: []
   };
-  const appDataStore = createLegacyRuntimeAppDataStore({ initialConversations: [localDraft] });
+  const appDataStore = createRuntimeAppDataStore({ initialConversations: [localDraft] });
 
   createCloudWorkspaceLiveLifecycle({
     window,
@@ -244,7 +244,7 @@ test('record-level cloud commit preserves unsynced local rows and applies remote
     isTemporary: false,
     messages: [{ role: 'user', parts: [{ text: 'Unsynced local message' }] }]
   };
-  const appDataStore = createLegacyRuntimeAppDataStore({
+  const appDataStore = createRuntimeAppDataStore({
     initialConversations: [localConversation]
   });
   let renders = 0;
@@ -283,7 +283,7 @@ test('record-level cloud commit preserves unsynced local rows and applies remote
 
 test('record-level cloud commit removes tombstoned local entities before merging', () => {
   const window = createWindowFixture();
-  const appDataStore = createLegacyRuntimeAppDataStore({
+  const appDataStore = createRuntimeAppDataStore({
     initialConversations: [{ id: 'deleted-conversation', folderId: 'deleted-folder', messages: [] }],
     initialFolders: [{ id: 'deleted-folder', conversationIds: ['deleted-conversation'] }],
     initialAstras: [{ id: 'deleted-astra' }]
@@ -322,7 +322,7 @@ test('record-level cloud commit removes tombstoned local entities before merging
 
 test('record-level cloud tombstones request removal from the fresh memory summary', async () => {
   const window = createWindowFixture();
-  const appDataStore = createLegacyRuntimeAppDataStore({
+  const appDataStore = createRuntimeAppDataStore({
     initialConversations: [{ id: 'deleted-conversation', messages: [] }]
   });
   const removed = [];
@@ -356,7 +356,7 @@ test('record-level cloud tombstones request removal from the fresh memory summar
 
 test('a cloud move to trash requests immediate removal from the fresh memory summary', async () => {
   const window = createWindowFixture();
-  const appDataStore = createLegacyRuntimeAppDataStore({
+  const appDataStore = createRuntimeAppDataStore({
     initialConversations: [{ id: 'trashed-conversation', deletedAt: null, messages: [] }]
   });
   const removed = [];
@@ -399,7 +399,7 @@ test('a cloud move to trash requests immediate removal from the fresh memory sum
 
 test('record-level cloud commit waits for runtime readiness and keeps its tombstones', () => {
   const window = createWindowFixture();
-  const appDataStore = createLegacyRuntimeAppDataStore({
+  const appDataStore = createRuntimeAppDataStore({
     initialConversations: [{ id: 'deleted-conversation', messages: [] }]
   });
 
@@ -458,7 +458,7 @@ test('the active conversation is hydrated after a cloud workspace commit', async
     id: 'active',
     messages: [{ parts: [{ inlineData: { mimeType: 'image/png', data: marker } }] }]
   };
-  const appDataStore = createLegacyRuntimeAppDataStore({
+  const appDataStore = createRuntimeAppDataStore({
     initialConversations: [activeConversation]
   });
   let saved = 0;
@@ -522,7 +522,7 @@ test('a stale hydration result cannot update a conversation after selection chan
     { id: 'first', messages: [{ parts: [{ text: 'first marker' }] }] },
     { id: 'second', messages: [{ parts: [{ text: 'second marker' }] }] }
   ];
-  const appDataStore = createLegacyRuntimeAppDataStore({ initialConversations: conversations });
+  const appDataStore = createRuntimeAppDataStore({ initialConversations: conversations });
   let activeId = 'first';
   const pending = [];
   createCloudWorkspaceLiveLifecycle({
@@ -745,7 +745,7 @@ test('an unchanged cloud workspace deferred during a response does not render af
 
 test('cloud config applies only the small synced memory projection and persists it locally', () => {
   const window = createWindowFixture();
-  const appDataStore = createLegacyRuntimeAppDataStore({
+  const appDataStore = createRuntimeAppDataStore({
     initialMemoryState: {
       version: 2,
       profileEntries: [],
@@ -805,7 +805,7 @@ test('cloud config applies only the small synced memory projection and persists 
 
 test('record-level memory updates apply without a config sync and preserve a local manual section', () => {
   const window = createWindowFixture();
-  const appDataStore = createLegacyRuntimeAppDataStore({
+  const appDataStore = createRuntimeAppDataStore({
     initialMemoryState: {
       memorySummary: {
         overview: 'Use the NUC.',
@@ -969,7 +969,7 @@ test('a genuine remote change still repaints', async () => {
 
 test('a colour theme (light, dark, system) that comes from another device is shown at once, like the accent', () => {
   const window = createWindowFixture();
-  const appDataStore = createLegacyRuntimeAppDataStore({ initialMemoryState: {} });
+  const appDataStore = createRuntimeAppDataStore({ initialMemoryState: {} });
   let config = { colorScheme: 'light', uiTheme: { mode: 'default', customColor: '#3b82f6' }, modelSettings: [], lastCouncilConfig: {} };
   let themeApplied = 0;
   createCloudWorkspaceLiveLifecycle({
@@ -1007,7 +1007,7 @@ test('the event of the merge of the CLI tools puts only the fields of that merge
   createCloudWorkspaceLiveLifecycle({
     window,
     configAccess: { getConfig: () => config, replaceConfig: (next) => { config = next; replaced.push(next); } },
-    appDataStore: createLegacyRuntimeAppDataStore(),
+    appDataStore: createRuntimeAppDataStore(),
     getDefaultFolder: () => ({ id: 'root' }),
     getDefaultGenConfig: () => ({}),
     normalizeCouncilConfig: value => value,

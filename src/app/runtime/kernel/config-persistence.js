@@ -1,6 +1,6 @@
 import { removeSensitiveConfig } from '../security/sensitive-config-redaction.js';
 
-export function createLegacyRuntimeConfigPersistence({
+export function createRuntimeConfigPersistence({
   getCurrentUser,
   getConfig,
   getConfigKey,

@@ -2,7 +2,7 @@
 // it is being written (composer-rich-editor.js) and in the message once it is sent (message-markup-renderer.js). The
 // text of the message is still the address itself, so what the model is sent does not change.
 
-import { findAddresses } from '../../legacy-runtime/features/linked-pages.js';
+import { findAddresses } from '../../runtime/reply/linked-pages.js';
 import { siteIconUrl } from './site-icon.js';
 
 const MAX_LABEL = 48;

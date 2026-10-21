@@ -1,7 +1,7 @@
 // The questions put to the Decisions API about a picture request (how many pictures, which shape, a collage or separate pictures, more than the
 // model can do), and the reading of its answers. The Decisions model answers yes-or-no questions with a probability (the probe of 2026-10-17,
 // scripts/decisions-image-probe.mjs: 39 of 40 answers as expected on sentences in five languages, 140 to 240 ms); it has no question for a number,
-// so a count is read from "exactly N pictures" questions. What the answers mean for the request is in legacy-runtime/features/image-spoken-request.js.
+// so a count is read from "exactly N pictures" questions. What the answers mean for the request is in runtime/images/image-spoken-request.js.
 
 import { DECISION_MODEL } from './decision-client.js';
 import { DECISION_THRESHOLD } from './decision-store.js';

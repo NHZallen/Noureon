@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { highlightText } from '../src/app/legacy-runtime/features/search-text-formatting.js';
+import { highlightText } from '../src/app/runtime/reply/search-text-formatting.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -60,7 +60,7 @@ test('search highlight preserves the legacy regex error logging fallback', () =>
 });
 
 test('search text formatting helper remains side-effect free', () => {
-  const helperSource = readSource('src/app/legacy-runtime/features/search-text-formatting.js');
+  const helperSource = readSource('src/app/runtime/reply/search-text-formatting.js');
 
   for (const forbidden of [
     'document',

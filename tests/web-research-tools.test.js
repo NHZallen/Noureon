@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createWebResearchTools } from '../src/app/legacy-runtime/features/web-research-tools.js';
-import { formatTavilySearchPacket, normalizePageReads, normalizeTinyfishSearch, resultDate } from '../src/app/legacy-runtime/features/model-request-formatting.js';
+import { createWebResearchTools } from '../src/app/runtime/features/web-research-tools.js';
+import { formatTavilySearchPacket, normalizePageReads, normalizeTinyfishSearch, resultDate } from '../src/app/runtime/reply/model-request-formatting.js';
 
 // Tavily and TinyFish as a fake internet: each endpoint answers with what it is given, or fails.
 const harness = ({ keys = { tavily: 'tv', tinyfish: 'tf' }, provider = 'tavily', tavily, tinyfish, pages } = {}) => {

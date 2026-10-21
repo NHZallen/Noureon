@@ -4,8 +4,8 @@ import { assertFileWithinBudget, collectCssSelectorHits, readSource, readUiSourc
 import { assertSelectorHits } from '../helpers/settings-css-surface.js';
 
 test('settings API key controls use masked intent helpers and scoped clear button styles', () => {
-  const settingsAuthProviderLifecycle = readUiSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js');
-  const settingsApiKeyControls = readUiSource('src/app/runtime/legacy-core/settings-api-key-controls.js');
+  const settingsAuthProviderLifecycle = readUiSource('src/app/runtime/settings/settings-auth-provider-lifecycle.js');
+  const settingsApiKeyControls = readUiSource('src/app/runtime/settings/settings-api-key-controls.js');
   const css = readUiSource('src/styles/main.css');
 
   assert.match(settingsAuthProviderLifecycle, /createSettingsApiKeyControls/);

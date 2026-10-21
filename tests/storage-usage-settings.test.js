@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { Window } from 'happy-dom';
-import { ensureStorageUsageBlock } from '../src/app/runtime/legacy-core/settings-storage-usage.js';
+import { ensureStorageUsageBlock } from '../src/app/runtime/settings/settings-storage-usage.js';
 import { formatBytes } from '../src/app/runtime/cli/storage-client.js';
 import { PERMISSION_TEXTS } from '../src/app/runtime/cli/permission-texts.js';
 

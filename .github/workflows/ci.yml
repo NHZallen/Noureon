@@ -20,7 +20,7 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm test
-      - run: npm run check:legacy-runtime
+      - run: npm run check:shell
       - run: npm run check:sizes
       - run: npm run check:version
       - run: npm audit --omit=dev

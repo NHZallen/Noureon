@@ -13,7 +13,7 @@
 import { DESIGN_PRESET_IDS, getPresetText } from '../../ui/files/design/design-presets.js';
 import { DOCUMENT_PRESET_IDS, getDocumentPresetText } from '../../ui/files/design/document-presets.js';
 import { getFileText } from '../../ui/files/file-texts.js';
-import { modelSupportsToolCalling } from '../legacy-core/model-registry.js';
+import { modelSupportsToolCalling } from '../shell/model-registry.js';
 import { describeFileModeState } from '../sandbox/file-mode.js';
 import { browserSupportsSandbox } from '../sandbox/sandbox-protocol.js';
 

@@ -6,7 +6,7 @@ import { Window } from 'happy-dom';
 import { marked } from 'marked';
 
 import { applyChartMarkdownPlaceholders } from '../../../src/app/ui/charts/chart-markdown-placeholders.js';
-import { createMarkdownRenderingHelpers } from '../../../src/app/runtime/legacy-core/markdown-rendering-helpers.js';
+import { createMarkdownRenderingHelpers } from '../../../src/app/runtime/shell/markdown-rendering-helpers.js';
 
 const createWindow = () => new Window({ url: 'https://example.test/' });
 

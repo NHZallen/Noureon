@@ -7,7 +7,7 @@ import katex from 'katex';
 import { marked } from 'marked';
 import { readSource, readUiSource } from './helpers/source-guards.js';
 
-const helperPath = 'src/app/runtime/legacy-core/markdown-rendering-helpers.js';
+const helperPath = 'src/app/runtime/shell/markdown-rendering-helpers.js';
 const helperUrl = new URL(`../${helperPath}`, import.meta.url);
 const helperExists = existsSync(helperUrl);
 const helperModule = helperExists ? await import(helperUrl.href) : {};
@@ -337,7 +337,7 @@ test('the citations of a reply with sources become labels in the rendered answer
 // The real page must hand DOMPurify to the markdown helper; the behaviour tests above use a stand-in sanitizer.
 test('legacy core sanitizes rendered markdown with DOMPurify', () => {
   assert.match(
-    readSource('src/app/runtime/legacy-core/legacy-core.js'),
+    readSource('src/app/runtime/shell/shell.js'),
     /createMarkdownRenderingHelpers\(\{[^}]*?sanitizer:\s*DOMPurify\b/
   );
 });

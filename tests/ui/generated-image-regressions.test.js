@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { Window } from 'happy-dom';
 
-import { createGeneratedImageInteractions } from '../../src/app/legacy-runtime/features/generated-image-interactions.js';
-import { revealGeneratedImage } from '../../src/app/runtime/legacy-core/submit-input-image-reveal.js';
+import { createGeneratedImageInteractions } from '../../src/app/runtime/images/generated-image-interactions.js';
+import { revealGeneratedImage } from '../../src/app/runtime/shell/submit-input-image-reveal.js';
 import { readUiSource } from '../helpers/source-guards.js';
 
 const chatCss = readUiSource('src/styles/chat.css');

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { createLegacySearchUploadSidebarLifecycle } from '../src/app/runtime/legacy-core/search-upload-sidebar-lifecycle.js';
+import { createSearchUploadSidebarLifecycle } from '../src/app/runtime/shell/search-upload-sidebar-lifecycle.js';
 
 const readSource = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const noop = () => {};
@@ -118,7 +118,7 @@ function createHarness(overrides = {}) {
     isTemporary: false,
     messages: [{ role: 'user', parts: [{ text: 'This body says hello.' }] }]
   }];
-  const lifecycle = createLegacySearchUploadSidebarLifecycle({
+  const lifecycle = createSearchUploadSidebarLifecycle({
     window: { innerWidth: overrides.innerWidth ?? 1280 },
     document,
     navigator: {},
@@ -176,7 +176,7 @@ function createHarness(overrides = {}) {
 
 test('factory is inert on import and validates required dependencies', () => {
   assert.throws(
-    () => createLegacySearchUploadSidebarLifecycle(),
+    () => createSearchUploadSidebarLifecycle(),
     /missing dependency: document/
   );
 });
@@ -309,6 +309,6 @@ test('toggleSidebar preserves desktop and mobile class behavior through injected
 });
 
 test('module has no fragment or virtual runtime dependency', () => {
-  const source = readSource('src/app/runtime/legacy-core/search-upload-sidebar-lifecycle.js');
+  const source = readSource('src/app/runtime/shell/search-upload-sidebar-lifecycle.js');
   assert.doesNotMatch(source, /legacy-runtime\/fragments|virtual:legacy-app-runtime/);
 });

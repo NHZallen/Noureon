@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { createReceivedDataLifecycle } from '../src/app/legacy-runtime/features/received-data-lifecycle.js';
+import { createReceivedDataLifecycle } from '../src/app/runtime/features/received-data-lifecycle.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -138,7 +138,7 @@ test('missing optional modal dependency keeps success import callbacks safe', as
 });
 
 test('received data lifecycle source avoids unrelated runtime systems', () => {
-  const source = readSource('src/app/legacy-runtime/features/received-data-lifecycle.js');
+  const source = readSource('src/app/runtime/features/received-data-lifecycle.js');
 
   for (const forbidden of [
     'streamApiCall',

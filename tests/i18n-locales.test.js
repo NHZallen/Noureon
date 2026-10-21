@@ -86,7 +86,7 @@ test('login UI and settings selectors expose the required locale order', () => {
 });
 
 test('AI reply language instructions support Russian and Spanish', () => {
-  const streamApiCall = projectSource('src/app/legacy-runtime/features/stream-api-call.js');
+  const streamApiCall = projectSource('src/app/runtime/reply/stream-api-call.js');
 
   assert.match(streamApiCall, /ru:\s*'[^']*русском[^']*'/i);
   assert.match(streamApiCall, /es:\s*'[^']*español[^']*'/i);

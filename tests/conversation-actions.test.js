@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createConversationActions, getDefaultFolder, getDefaultGenConfig } from '../src/app/runtime/legacy-core/conversation-actions.js';
-import { MODELS } from '../src/app/runtime/legacy-core/model-registry.js';
+import { createConversationActions, getDefaultFolder, getDefaultGenConfig } from '../src/app/runtime/shell/conversation-actions.js';
+import { MODELS } from '../src/app/runtime/shell/model-registry.js';
 import { createDom } from './behaviours/helpers/create-dom.js';
-import { createUploadsStore } from '../src/app/runtime/legacy-core/shell-state.js';
+import { createUploadsStore } from '../src/app/runtime/shell/shell-state.js';
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 

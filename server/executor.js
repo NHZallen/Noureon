@@ -2,10 +2,10 @@
 // what the browser packed in the RunSpec instead of what the page knows. Returns the message as it should be saved, and calls
 // `onUpdate` with the message so far (the caller writes it out, a few times a second at most).
 
-import { normalizePageReads, normalizeTinyfishSearch } from '../src/app/legacy-runtime/features/model-request-formatting.js';
-import { runSkillsReply } from '../src/app/legacy-runtime/features/skills-reply.js';
-import { runWebResearchReply } from '../src/app/legacy-runtime/features/web-research-reply.js';
-import { createWebResearchTools } from '../src/app/legacy-runtime/features/web-research-tools.js';
+import { normalizePageReads, normalizeTinyfishSearch } from '../src/app/runtime/reply/model-request-formatting.js';
+import { runSkillsReply } from '../src/app/runtime/reply/skills-reply.js';
+import { runWebResearchReply } from '../src/app/runtime/features/web-research-reply.js';
+import { createWebResearchTools } from '../src/app/runtime/features/web-research-tools.js';
 import { NOURAS_REQUEST_PURPOSE } from '../src/app/runtime/nouras/nouras-policy.js';
 import { insertGroundingMarkers } from '../src/app/ui/citations/citation-model.js';
 import { addNumberedSources } from '../src/app/ui/citations/source-numbering.js';

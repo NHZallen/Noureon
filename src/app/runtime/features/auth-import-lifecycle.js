@@ -3,7 +3,7 @@ import { getRuntimeText } from '../i18n/runtime-texts.js';
 
 const getText = (i18n, language, key, fallback) => i18n?.[language]?.[key] || fallback;
 
-export function createLegacyAuthImportLifecycle({
+export function createAuthImportLifecycle({
   elements,
   loadArchiveVendor,
   JSZip,

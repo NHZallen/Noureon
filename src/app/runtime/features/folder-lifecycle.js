@@ -1,6 +1,6 @@
-import { FOLDER_TEXT_COLORS } from '../../legacy-runtime/data/folder-metadata.js';
+import { FOLDER_TEXT_COLORS } from './folder-metadata.js';
 
-export function createLegacyFolderLifecycle({
+export function createFolderLifecycle({
   document,
   elements,
   getFolders,

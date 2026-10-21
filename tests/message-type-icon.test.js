@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { getMessageTypeIcon } from '../src/app/legacy-runtime/features/message-type-icon.js';
+import { getMessageTypeIcon } from '../src/app/runtime/messages/message-type-icon.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -43,7 +43,7 @@ test('message type icon gives image inline data precedence over file inline data
 });
 
 test('message type icon helper remains isolated from runtime side effects', () => {
-  const helperSource = readSource('src/app/legacy-runtime/features/message-type-icon.js');
+  const helperSource = readSource('src/app/runtime/messages/message-type-icon.js');
 
   for (const forbidden of [
     'document',

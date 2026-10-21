@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { createSubmitInputPreparationLifecycle } from '../src/app/legacy-runtime/features/submit-input-preparation-lifecycle.js';
+import { createSubmitInputPreparationLifecycle } from '../src/app/runtime/features/submit-input-preparation-lifecycle.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -448,7 +448,7 @@ test('empty, archived, and already-generating submissions remain no-op boundarie
 });
 
 test('submit preparation helper source avoids provider parser, storage schema, package, and Vite coupling', () => {
-  const source = readSource('src/app/legacy-runtime/features/submit-input-preparation-lifecycle.js');
+  const source = readSource('src/app/runtime/features/submit-input-preparation-lifecycle.js');
 
   for (const forbidden of [
     'TextDecoder',

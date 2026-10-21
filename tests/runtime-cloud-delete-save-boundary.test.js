@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createCloudDeletionLifecycle } from '../src/app/runtime/legacy-core/cloud-delete-lifecycle.js';
+import { createCloudDeletionLifecycle } from '../src/app/runtime/shell/cloud-delete-lifecycle.js';
 
 // What the saves hand to the cloud sync (the debounce, the immediate flush) is tested in tests/cloud-conversation-save-observer.test.js
 // and tests/runtime-app-data-persistence.test.js.

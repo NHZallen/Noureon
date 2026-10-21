@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createApiKeyWarningBadgeUpdater } from '../src/app/runtime/legacy-core/api-key-warning-badge.js';
+import { createApiKeyWarningBadgeUpdater } from '../src/app/runtime/shell/api-key-warning-badge.js';
 
 function harness({ conversation = { id: 'c', model: 'm' }, council = false, councilReason = '', keys = {} } = {}) {
   const hidden = new Set(['hidden']);

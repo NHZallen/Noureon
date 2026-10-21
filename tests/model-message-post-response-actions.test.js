@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import { createDom } from './behaviours/helpers/create-dom.js';
-import { applyModelMessagePostResponseActions } from '../src/app/legacy-runtime/features/model-message-post-response-actions.js';
+import { applyModelMessagePostResponseActions } from '../src/app/runtime/reply/model-message-post-response-actions.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -102,7 +102,7 @@ test('does not duplicate action buttons when called twice', () => {
 });
 
 test('model message post-response actions source avoids provider, storage, package, and Vite coupling', () => {
-  const source = readSource('src/app/legacy-runtime/features/model-message-post-response-actions.js');
+  const source = readSource('src/app/runtime/reply/model-message-post-response-actions.js');
 
   for (const token of [
     'fetch',

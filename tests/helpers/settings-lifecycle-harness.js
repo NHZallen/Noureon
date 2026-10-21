@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-import { createLegacySettingsAuthProviderLifecycle } from '../../src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js';
+import { createSettingsAuthProviderLifecycle } from '../../src/app/runtime/settings/settings-auth-provider-lifecycle.js';
 
 export const projectFile = (path) => new URL(`../../${path}`, import.meta.url);
 export const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -86,7 +86,7 @@ export const createTrackedElement = (calls, name) => {
   };
 };
 
-// The stores of the shell (legacy-core/shell-state.js) and the workspace, over one plain object a test can read and change.
+// The stores of the shell (shell/shell-state.js) and the workspace, over one plain object a test can read and change.
 export const storesOverState = (state) => ({
   runtimeConfigAccess: { getConfig: () => state.config, getUiLanguage: () => state.config.uiLanguage },
   runtimeAppDataStore: {
@@ -295,7 +295,7 @@ export const createUpdateInputStateHarness = (overrides = {}) => {
   if (overrides.abortController) state.abortController = overrides.abortController;
 
   return {
-    lifecycle: createLegacySettingsAuthProviderLifecycle(dependencies),
+    lifecycle: createSettingsAuthProviderLifecycle(dependencies),
     dependencies,
     calls,
     state,

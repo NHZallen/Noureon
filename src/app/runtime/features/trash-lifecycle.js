@@ -1,9 +1,9 @@
-import { createMediaAttachmentRenderer } from '../../legacy-runtime/features/media-attachment-renderer.js';
-import { createMediaPreviewLifecycle } from '../../legacy-runtime/features/media-preview-lifecycle.js';
-import { createConversationViewRenderer } from '../../legacy-runtime/features/conversation-view-renderer.js';
-import { escapeHTML as escapeMarkup } from '../legacy-core/legacy-core-utilities.js';
+import { createMediaAttachmentRenderer } from '../messages/media-attachment-renderer.js';
+import { createMediaPreviewLifecycle } from '../messages/media-preview-lifecycle.js';
+import { createConversationViewRenderer } from '../messages/conversation-view-renderer.js';
+import { escapeHTML as escapeMarkup } from '../shell/shell-utilities.js';
 
-export function createLegacyTrashLifecycle({
+export function createTrashLifecycle({
   document,
   navigator,
   fetch,

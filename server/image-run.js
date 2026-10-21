@@ -7,7 +7,7 @@
 
 import { randomUUID } from 'node:crypto';
 
-import { createOpenRouterImageGenerator } from '../src/app/legacy-runtime/features/openrouter-image-generation.js';
+import { createOpenRouterImageGenerator } from '../src/app/runtime/images/openrouter-image-generation.js';
 import { ReplyError, scrubMessage } from './executor.js';
 import { ERROR_CODES } from './protocol.js';
 

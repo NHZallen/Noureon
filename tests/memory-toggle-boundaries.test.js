@@ -28,13 +28,13 @@ test('the automatic memory flag is never wired into a confirmed-memory removal p
     .sort();
 
   assert.deepEqual(consumers, [
-    'src/app/legacy-runtime/features/assistant-response-finalization.js',
     'src/app/runtime/features/import-export-lifecycle.js',
     'src/app/runtime/kernel/config-store.js',
-    'src/app/runtime/legacy-core/settings-dialog-parts.js',
-    'src/app/runtime/legacy-core/settings-modal-lifecycle.js',
-    'src/app/runtime/legacy-core/settings-save-settings-helper.js',
-    'src/app/runtime/legacy-core/submit-input-council-lifecycle.js'
+    'src/app/runtime/reply/assistant-response-finalization.js',
+    'src/app/runtime/settings/settings-dialog-parts.js',
+    'src/app/runtime/settings/settings-modal-lifecycle.js',
+    'src/app/runtime/settings/settings-save-settings-helper.js',
+    'src/app/runtime/shell/submit-input-council-lifecycle.js'
   ], 'a new consumer of the automatic memory flag must be reviewed against this decision');
 
   for (const path of consumers) {

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { buildMessageRenderView } from '../src/app/legacy-runtime/features/message-markup-renderer.js';
+import { buildMessageRenderView } from '../src/app/runtime/messages/message-markup-renderer.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -205,7 +205,7 @@ test('preserves loading, empty, and unknown-role rendering boundaries', () => {
 });
 
 test('message markup renderer source avoids runtime side-effect ownership', () => {
-  const source = readSource('src/app/legacy-runtime/features/message-markup-renderer.js');
+  const source = readSource('src/app/runtime/messages/message-markup-renderer.js');
 
   for (const token of [
     'document',

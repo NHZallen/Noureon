@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import test from 'node:test';
 
 import { createRuntimeAppKernel } from '../src/app/runtime-app.js';
-import { createLegacyRuntimeDomRegistry } from '../src/app/runtime/kernel/dom-registry.js';
+import { createRuntimeDomRegistry } from '../src/app/runtime/kernel/dom-registry.js';
 
 const hashJson = (value) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 
@@ -16,7 +16,7 @@ test('DOM registry preserves the complete legacy key and element id order', () =
     }
   };
 
-  const registry = createLegacyRuntimeDomRegistry(rootDocument);
+  const registry = createRuntimeDomRegistry(rootDocument);
   const keys = Object.keys(registry);
 
   assert.equal(keys.length, 213);
@@ -38,7 +38,7 @@ test('DOM registry uses the injected document and preserves missing element null
     }
   };
 
-  const registry = createLegacyRuntimeDomRegistry(rootDocument);
+  const registry = createRuntimeDomRegistry(rootDocument);
 
   assert.equal(registry.settingsBtn, null);
   assert.equal(requestedIds[0], 'auth-container');
@@ -78,7 +78,7 @@ test('the DOM registry and the kernel touch nothing of the document but getEleme
     }
   });
 
-  createLegacyRuntimeDomRegistry(rootDocument);
+  createRuntimeDomRegistry(rootDocument);
   createRuntimeAppKernel({ rootDocument });
 
   assert.deepEqual([...touched], ['getElementById']);

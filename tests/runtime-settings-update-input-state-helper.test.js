@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import { chatsUnderVisionCheck } from '../src/app/runtime/features/vision-check-lock.js';
-import { createSettingsUpdateInputStateHelper } from '../src/app/runtime/legacy-core/settings-update-input-state-helper.js';
+import { createSettingsUpdateInputStateHelper } from '../src/app/runtime/settings/settings-update-input-state-helper.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -88,7 +88,7 @@ test('module exports createSettingsUpdateInputStateHelper', () => {
 });
 
 test('import is inert and avoids runtime wiring modules', () => {
-  const source = readSource('src/app/runtime/legacy-core/settings-update-input-state-helper.js');
+  const source = readSource('src/app/runtime/settings/settings-update-input-state-helper.js');
 
   assert.match(source, /export\s+function\s+createSettingsUpdateInputStateHelper/);
   assert.doesNotMatch(source, /runtime-entry|legacy-core\.js|bootstrap|sidebar/);

@@ -322,10 +322,10 @@ test('following a council can stop where its synthesis begins (another follower 
 test('the page asks the server for its council through the same call, and gives the server what it needs (source of the wiring)', async () => {
   const { readFileSync } = await import('node:fs');
   const { readUiSource } = await import('./helpers/source-guards.js');
-  const lifecycle = readUiSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
+  const lifecycle = readUiSource('src/app/runtime/shell/submit-input-council-lifecycle.js');
   assert.match(lifecycle, /runModelCouncil:\s*\(\.\.\.args\)\s*=>\s*serverReply\.council\(\{[^}]*args,\s*local:\s*runModelCouncil,\s*webSearchEnabled,\s*conversation:\s*conv,[^}]*assistantMessageId,\s*sequence:\s*conv\.messages\.length,\s*resumeRun/s);
   assert.match(lifecycle, /createBrowserServerReply\(\{[^]*?getCouncilSelectedModels,\s*getCouncilTranslatorModel,/);
-  const core = readFileSync(new URL('../src/app/runtime/legacy-core/legacy-core.js', import.meta.url), 'utf8');
+  const core = readFileSync(new URL('../src/app/runtime/shell/shell.js', import.meta.url), 'utf8');
   assert.match(core, /getCouncilTexts,\s*getCouncilTranslatorModel,\s*getCouncilValidation,/, 'the model that writes attachments down is given to the lifecycle');
   const reattach = readFileSync(new URL('../src/app/runtime/server-reply/reattach.js', import.meta.url), 'utf8');
   assert.match(reattach, /responseUsesCouncil:\s*run\.kind === 'council'/);
@@ -434,7 +434,7 @@ test('a council the server holds is followed until its synthesis begins, and the
 
 test('the visual check of a presentation the synthesizer writes is asked for, as for a reply: the setting on, a synthesizer that sees images', async () => {
   const { councilSynthesisTools } = await import('../src/app/runtime/server-reply/server-council.js');
-  const { MODELS, modelSupportsVision } = await import('../src/app/runtime/legacy-core/model-registry.js');
+  const { MODELS, modelSupportsVision } = await import('../src/app/runtime/shell/model-registry.js');
   const seeing = MODELS.find((model) => model.id === 'anthropic/claude-sonnet-5.5');
   assert.ok(modelSupportsVision(seeing));
   assert.deepEqual(councilSynthesisTools({ conversation: { ...CONVERSATION, deckDesign: 'swiss' }, config: {}, synthesizer: seeing, userParts: [{ text: 'hi' }] }), { advanced: false, visionCheck: { deckDesign: 'swiss', advanced: true } });

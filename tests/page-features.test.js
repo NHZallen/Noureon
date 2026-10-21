@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { createPageFeatures } from '../src/app/runtime/legacy-core/page-features.js';
+import { createPageFeatures } from '../src/app/runtime/shell/page-features.js';
 
 const readSource = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const noop = () => {};

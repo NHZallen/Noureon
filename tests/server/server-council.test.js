@@ -5,7 +5,7 @@ import { COUNCIL_CHECKPOINT_VERSION, executeCouncil } from '../../server/council
 import { ReplyError, scrubMessage } from '../../server/executor.js';
 import { PROTOCOL_VERSION } from '../../server/protocol.js';
 import { validateRunSpec } from '../../server/run-spec.js';
-import { MODELS } from '../../src/app/runtime/legacy-core/model-registry.js';
+import { MODELS } from '../../src/app/runtime/shell/model-registry.js';
 import { liftSandboxRunBlock } from '../../src/app/ui/sandbox/sandbox-run-block.js';
 
 // The text of a message after the record at its head (the council's line and timeline, its sources).

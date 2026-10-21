@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { PENDING_CLOUD_LINK_KEY, completePendingCloudAccountLink, markPendingCloudAccountLink } from '../src/app/auth/account-linking.js';
-import { createLegacyRuntimeAppDataPersistence } from '../src/app/runtime/kernel/app-data-persistence.js';
+import { createRuntimeAppDataPersistence } from '../src/app/runtime/kernel/app-data-persistence.js';
 import { removeStoredUserWorkspace } from '../src/app/runtime/kernel/user-data-retention.js';
 import { createWorkspaceStoreV2 } from '../src/app/runtime/kernel/workspace-store-v2.js';
 import { setActiveWorkspaceStore } from '../src/app/runtime/kernel/workspace-store-registry.js';
@@ -176,7 +176,7 @@ test('persistence finds the split store of the signed-in user in the registry wh
   const store = createWorkspaceStoreV2({ storage, username: 'alice', logger: quiet });
   setActiveWorkspaceStore('alice', store);
   try {
-    const persistence = createLegacyRuntimeAppDataPersistence({
+    const persistence = createRuntimeAppDataPersistence({
       getCurrentUser: () => ({ username: 'alice', authProvider: 'local' }),
       getAppData: () => ({ conversations: [conversation('c1')], folders: [], astras: [], personalMemories: [] }),
       getAppDataKey: () => 'chatAppData_v8.6_alice',
@@ -188,7 +188,7 @@ test('persistence finds the split store of the signed-in user in the registry wh
 
     setActiveWorkspaceStore('alice', null);
     const written = [];
-    const plain = createLegacyRuntimeAppDataPersistence({
+    const plain = createRuntimeAppDataPersistence({
       getCurrentUser: () => ({ username: 'alice', authProvider: 'local' }),
       getAppData: () => ({ conversations: [], folders: [], astras: [], personalMemories: [] }),
       getAppDataKey: () => 'chatAppData_v8.6_alice',

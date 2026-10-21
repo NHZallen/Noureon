@@ -5,7 +5,7 @@ import {
   IMAGE_GENERATION_MODEL_IDS,
   MODELS,
   modelGeneratesImages
-} from '../src/app/runtime/legacy-core/model-registry.js';
+} from '../src/app/runtime/shell/model-registry.js';
 import {
   DEFAULT_IMAGE_GENERATION_CONFIG,
   IMAGE_ASPECT_RATIOS,
@@ -13,7 +13,7 @@ import {
   normalizeImageGenerationConfig,
   resolveSupportedAspectRatio,
   resolveSupportedResolution
-} from '../src/app/legacy-runtime/features/image-generation-config.js';
+} from '../src/app/runtime/images/image-generation-config.js';
 
 const EXPECTED_MODELS = [
   'openai/gpt-image-2.5-flare',

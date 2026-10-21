@@ -4,7 +4,7 @@
 // far are in /input. Loaded on demand.
 
 import { NOURAS_REQUEST_PURPOSE } from '../../runtime/nouras/nouras-policy.js';
-import { modelSupportsToolCalling } from '../../runtime/legacy-core/model-registry.js';
+import { modelSupportsToolCalling } from '../../runtime/shell/model-registry.js';
 import { resolveReplyMode } from '../../runtime/sandbox/file-mode.js';
 import { browserSupportsSandbox } from '../../runtime/sandbox/sandbox-protocol.js';
 import { collectSandboxInputs, createSandboxFileParts, sandboxDocumentBlocks, sandboxDocumentNames, withoutDuplicatedFileBlocks, withoutEmptyDocumentBlocks } from './sandbox-files.js';

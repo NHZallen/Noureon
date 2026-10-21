@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { createLegacyAuthImportLifecycle } from '../src/app/runtime/features/auth-import-lifecycle.js';
+import { createAuthImportLifecycle } from '../src/app/runtime/features/auth-import-lifecycle.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -116,7 +116,7 @@ function createHarness({
     }
   }
 
-  const lifecycle = createLegacyAuthImportLifecycle({
+  const lifecycle = createAuthImportLifecycle({
     elements,
     JSZip: FakeJSZip,
     getConfig: () => config,

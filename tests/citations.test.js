@@ -13,7 +13,7 @@ import { createSourceItem, formatSourceDate } from '../src/app/ui/citations/sour
 import { closeSourceSheet, decideSheetDrag, openSourceSheet } from '../src/app/ui/citations/source-sheet.js';
 import { formatSandboxRunBlock, normalizeSandboxRun, summarizeSandboxRunText } from '../src/app/ui/sandbox/sandbox-run-block.js';
 import { sandboxText } from '../src/app/runtime/sandbox/sandbox-texts.js';
-import { createGeminiCollector } from '../src/app/legacy-runtime/features/tool-call-formats.js';
+import { createGeminiCollector } from '../src/app/runtime/features/tool-call-formats.js';
 
 const sources = [
   { n: 1, title: 'Security - Vercel', url: 'https://vercel.com/security', date: '2026-09-28' },

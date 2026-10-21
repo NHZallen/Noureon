@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs';
 import test from 'node:test';
 import { readSource } from './helpers/source-guards.js';
 
-const helperPath = 'src/app/runtime/legacy-core/legacy-core-utilities.js';
+const helperPath = 'src/app/runtime/shell/shell-utilities.js';
 const helperUrl = new URL(`../${helperPath}`, import.meta.url);
 const helperExists = existsSync(helperUrl);
 const helperModule = helperExists ? await import(helperUrl.href) : {};
@@ -16,7 +16,7 @@ const {
   renderUserText
 } = helperModule;
 const helperSource = helperExists ? readSource(helperPath) : '';
-const legacyCoreSource = readSource('src/app/runtime/legacy-core/legacy-core.js');
+const legacyCoreSource = readSource('src/app/runtime/shell/shell.js');
 
 test('escapeHTML preserves the legacy escaping and coercion contract', () => {
   assert.equal(typeof escapeHTML, 'function');

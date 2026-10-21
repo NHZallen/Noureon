@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import { createDom } from './behaviours/helpers/create-dom.js';
-import { createMessageListLifecycle } from '../src/app/legacy-runtime/features/message-list-lifecycle.js';
+import { createMessageListLifecycle } from '../src/app/runtime/messages/message-list-lifecycle.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -674,7 +674,7 @@ test('renderChat cancels delayed-media bottom anchoring after the reader scrolls
 });
 
 test('message list lifecycle source avoids provider, storage schema, package, and Vite coupling', () => {
-  const source = readSource('src/app/legacy-runtime/features/message-list-lifecycle.js');
+  const source = readSource('src/app/runtime/messages/message-list-lifecycle.js');
   for (const token of [
     'streamApiCall',
     'TextDecoder',

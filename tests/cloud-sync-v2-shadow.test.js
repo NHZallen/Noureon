@@ -11,7 +11,7 @@ import {
   deterministicUuid,
   encodeWorkspaceConversationShadow
 } from '../src/app/sync/cloud-sync-v2-codecs.js';
-import { createLegacyRuntimeAppDataPersistence } from '../src/app/runtime/kernel/app-data-persistence.js';
+import { createRuntimeAppDataPersistence } from '../src/app/runtime/kernel/app-data-persistence.js';
 import { withWorkspaceStorageExclusive } from '../src/app/sync/workspace-storage-coordinator.js';
 
 const userId = '11111111-1111-4111-8111-111111111111';
@@ -2589,7 +2589,7 @@ test('runtime save between initial read and cloud commit is re-read and uploaded
     cryptoProvider: webcrypto
   });
   const laterWorkspace = workspaceWithLaterConversation();
-  const persistence = createLegacyRuntimeAppDataPersistence({
+  const persistence = createRuntimeAppDataPersistence({
     getCurrentUser: () => ({ username: 'alice' }),
     getAppData: () => laterWorkspace,
     getAppDataKey: () => 'chatAppData_v8.6_alice',
@@ -2632,7 +2632,7 @@ test('runtime save during failed upload remains newest local storage', async () 
     logger: { warn: () => {} }
   });
   const laterWorkspace = workspaceWithLaterConversation();
-  const persistence = createLegacyRuntimeAppDataPersistence({
+  const persistence = createRuntimeAppDataPersistence({
     getCurrentUser: () => ({ username: 'alice' }),
     getAppData: () => laterWorkspace,
     getAppDataKey: () => 'chatAppData_v8.6_alice',
@@ -2855,7 +2855,7 @@ test('ready settles tombstoned merge before legacy load and subsequent runtime s
   const legacyLoadedWorkspace = JSON.parse(stored.get(appDataKey));
   assert.deepEqual(legacyLoadedWorkspace.conversations.map(({ id }) => id), [remoteId]);
 
-  const persistence = createLegacyRuntimeAppDataPersistence({
+  const persistence = createRuntimeAppDataPersistence({
     getCurrentUser: () => ({ username: 'ordering' }),
     getAppData: () => legacyLoadedWorkspace,
     getAppDataKey: () => 'chatAppData_v8.6_ordering',

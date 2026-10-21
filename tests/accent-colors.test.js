@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { UI_THEME_COLORS } from '../src/app/runtime/legacy-core/runtime-ui-colors.js';
+import { UI_THEME_COLORS } from '../src/app/runtime/shell/runtime-ui-colors.js';
 import { accentForDarkTheme } from '../src/utils/color-contrast.js';
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');

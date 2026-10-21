@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { createLegacyFolderLifecycle } from '../src/app/runtime/features/folder-lifecycle.js';
+import { createFolderLifecycle } from '../src/app/runtime/features/folder-lifecycle.js';
 import { createDom } from './behaviours/helpers/create-dom.js';
 
 const readSource = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
@@ -81,7 +81,7 @@ function createHarness(overrides = {}) {
     folderSettingsModal
   };
 
-  const lifecycle = createLegacyFolderLifecycle({
+  const lifecycle = createFolderLifecycle({
     document,
     elements,
     getFolders: () => folders,

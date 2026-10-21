@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createStreamApiCall } from '../../src/app/legacy-runtime/features/stream-api-call.js';
+import { createStreamApiCall } from '../../src/app/runtime/reply/stream-api-call.js';
 import { createDeckDesignControl, normalizeDeckDesign } from '../../src/app/runtime/features/deck-design-control.js';
 import { DESIGN_PARAM_KEYS } from '../../src/app/ui/files/design/design-params.js';
 import { DESIGN_PRESET_IDS, getPresetText } from '../../src/app/ui/files/design/design-presets.js';
@@ -282,7 +282,7 @@ test('a chosen template is enforced on the reply: only its accent colours can ch
 });
 
 test('the reply is saved with the template applied and redrawn', async () => {
-  const { finalizeAssistantResponse } = await import('../../src/app/legacy-runtime/features/assistant-response-finalization.js');
+  const { finalizeAssistantResponse } = await import('../../src/app/runtime/reply/assistant-response-finalization.js');
   const fence = '`'.repeat(4);
   const reply = `好的\n${fence}file deck.pptx\n${JSON.stringify({ design: { preset: 'playful', mode: 'dark' }, slides: [{ layout: 'cover', title: 'x' }] })}\n${fence}`;
   const run = async (deckDesign) => {

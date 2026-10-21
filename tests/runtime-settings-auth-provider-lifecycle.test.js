@@ -1,24 +1,24 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createLegacySettingsAuthProviderLifecycle } from '../src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js';
+import { createSettingsAuthProviderLifecycle } from '../src/app/runtime/settings/settings-auth-provider-lifecycle.js';
 import { createDependencies } from './helpers/settings-lifecycle-harness.js';
 import { createDom } from './behaviours/helpers/create-dom.js';
 
-test('factory exports createLegacySettingsAuthProviderLifecycle', () => {
-  assert.equal(typeof createLegacySettingsAuthProviderLifecycle, 'function');
+test('factory exports createSettingsAuthProviderLifecycle', () => {
+  assert.equal(typeof createSettingsAuthProviderLifecycle, 'function');
 });
 
 test('factory validates required dependencies', () => {
   assert.throws(
-    () => createLegacySettingsAuthProviderLifecycle(),
+    () => createSettingsAuthProviderLifecycle(),
     /missing dependencies:/
   );
 });
 
 test('factory exposes settings auth provider lifecycle API', () => {
   const { dependencies } = createDependencies();
-  const lifecycle = createLegacySettingsAuthProviderLifecycle(dependencies);
+  const lifecycle = createSettingsAuthProviderLifecycle(dependencies);
 
   for (const name of [
     'streamApiCall',
@@ -64,7 +64,7 @@ test('callApiWithSchema sends Gemini key through header instead of URL query', a
   }
 });
 
-  const lifecycle = createLegacySettingsAuthProviderLifecycle(dependencies);
+  const lifecycle = createSettingsAuthProviderLifecycle(dependencies);
 
   const result = await lifecycle.callApiWithSchema('Return JSON', {
     type: 'OBJECT',
@@ -98,7 +98,7 @@ test('settings config proxy reads and mutates the latest state config pointer', 
   });
   dependencies.elements.settingsModal.classList.contains = (name) => name === 'hidden';
   const staleConfig = state.config;
-  const lifecycle = createLegacySettingsAuthProviderLifecycle(dependencies);
+  const lifecycle = createSettingsAuthProviderLifecycle(dependencies);
   const replacement = {
     ...staleConfig,
     tavilySearchDepth: 'advanced',
@@ -116,7 +116,7 @@ test('settings config proxy reads and mutates the latest state config pointer', 
 
 test('settings lifecycle leaves auto-search classification out of the Gemini helper boundary', () => {
   const { dependencies } = createDependencies();
-  const lifecycle = createLegacySettingsAuthProviderLifecycle(dependencies);
+  const lifecycle = createSettingsAuthProviderLifecycle(dependencies);
 
   assert.equal('shouldPerformWebSearch' in lifecycle, false);
 });
@@ -148,7 +148,7 @@ test('generateTitleAndSummary keeps conversation side effects in lifecycle', asy
     conversationStateAccess: { getCurrentConversationId: () => 'conv-1' }
   });
   dependencies.elements.headerTitle.textContent = '';
-  const lifecycle = createLegacySettingsAuthProviderLifecycle(dependencies);
+  const lifecycle = createSettingsAuthProviderLifecycle(dependencies);
 
   await lifecycle.generateTitleAndSummary(conversation);
 
@@ -191,7 +191,7 @@ const createSettingsPage = ({ phone = false, config = {}, overrides = {} } = {})
   for (const [name, id] of [['settingsModal', 'settings-modal'], ['settingsNav', 'settings-nav'], ['tavilySearchDepthSelect', 'tavily-search-depth-select']]) {
     dependencies.elements[name] = dom.document.getElementById(id);
   }
-  return { ...dom, dependencies, calls, state, lifecycle: createLegacySettingsAuthProviderLifecycle(dependencies) };
+  return { ...dom, dependencies, calls, state, lifecycle: createSettingsAuthProviderLifecycle(dependencies) };
 };
 
 const activeSectionIds = (document) => [...document.querySelectorAll('.settings-section.active')].map((section) => section.id);

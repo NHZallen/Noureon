@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { loadLegacyCore, startRuntimeEntry } from '../src/app/runtime-entry.js';
-import { createLegacyStartupLifecycle } from '../src/app/runtime/features/startup-lifecycle.js';
+import { loadShell, startRuntimeEntry } from '../src/app/runtime-entry.js';
+import { createStartupLifecycle } from '../src/app/runtime/features/startup-lifecycle.js';
 
 // A first visit follows the language of the browser; these tests are about the start in Traditional Chinese.
 Object.defineProperty(globalThis, 'navigator', { value: { languages: ['zh-TW'], language: 'zh-TW' }, configurable: true, writable: true });
@@ -22,7 +22,7 @@ test('the runtime entry loads the shell once and starts the page once', async ()
   assert.equal(await firstStart, 'started');
   assert.equal(loads, 1);
   assert.equal(starts, 1);
-  assert.equal(typeof loadLegacyCore, 'function');
+  assert.equal(typeof loadShell, 'function');
 });
 
 test('the runtime entry refuses a shell without startPage', async () => {
@@ -60,7 +60,7 @@ test('the start of the page binds the sign-in page once and checks for a signed-
       return target[prop];
     }
   });
-  const startup = createLegacyStartupLifecycle({
+  const startup = createStartupLifecycle({
     window: {},
     document: {
       addEventListener: (type) => listeners.push(`document:${type}`),

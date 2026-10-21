@@ -2,12 +2,12 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { runCouncilResponseRenderLifecycle } from '../src/app/legacy-runtime/features/council-response-render-lifecycle.js';
-import { confirmCouncilExit, councilExitTexts } from '../src/app/legacy-runtime/features/council-exit-dialog.js';
-import { createResponseProgressRenderers } from '../src/app/legacy-runtime/features/response-progress-renderers.js';
+import { runCouncilResponseRenderLifecycle } from '../src/app/runtime/council/council-response-render-lifecycle.js';
+import { confirmCouncilExit, councilExitTexts } from '../src/app/runtime/council/council-exit-dialog.js';
+import { createResponseProgressRenderers } from '../src/app/runtime/reply/response-progress-renderers.js';
 import { createServerCouncil } from '../src/app/runtime/server-reply/server-council.js';
 import { createServerReply } from '../src/app/runtime/server-reply/server-reply.js';
-import { getCouncilRuntimeTexts } from '../src/app/runtime/legacy-core/council-runtime-texts.js';
+import { getCouncilRuntimeTexts } from '../src/app/runtime/shell/council-runtime-texts.js';
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const escapeHTML = (value = '') => String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
@@ -155,8 +155,8 @@ test('the request to let a model leave goes to the council on the server', async
 });
 
 test('the page asks the question when the person presses the button (source of the wiring and the style)', () => {
-  const lifecycle = read('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
-  assert.match(lifecycle, /confirmExit:\s*\(\{ modelName \}\)\s*=>\s*import\('\.\.\/\.\.\/legacy-runtime\/features\/council-exit-dialog\.js'\)/);
+  const lifecycle = read('src/app/runtime/shell/submit-input-council-lifecycle.js');
+  assert.match(lifecycle, /confirmExit:\s*\(\{ modelName \}\)\s*=>\s*import\('\.\.\/council\/council-exit-dialog\.js'\)/);
   const css = read('src/styles/model-council.css');
   assert.match(css, /\.council-tl-exit\s*\{/);
   assert.match(css, /\.council-tl-member:is\([^)]*\.is-exited[^)]*\) \.council-tl-member-name/);

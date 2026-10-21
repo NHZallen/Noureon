@@ -5,7 +5,7 @@ import JSZip from 'jszip';
 import { executeReply, ReplyError } from '../../server/executor.js';
 import { validateRunSpec } from '../../server/run-spec.js';
 import { PROTOCOL_VERSION } from '../../server/protocol.js';
-import { MODELS, modelSupportsSingleTranslation } from '../../src/app/runtime/legacy-core/model-registry.js';
+import { MODELS, modelSupportsSingleTranslation } from '../../src/app/runtime/shell/model-registry.js';
 
 const KEY = 'sk-provider-secret-value';
 const TRANSLATOR_KEY = 'sk-translator-secret-value';

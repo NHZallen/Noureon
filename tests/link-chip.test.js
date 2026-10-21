@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { Window } from 'happy-dom';
-import { findAddresses } from '../src/app/legacy-runtime/features/linked-pages.js';
+import { findAddresses } from '../src/app/runtime/reply/linked-pages.js';
 import { linkLabel, renderLinkChipHTML, splitAtAddresses } from '../src/app/ui/links/link-chip.js';
-import { buildMessageRenderView } from '../src/app/legacy-runtime/features/message-markup-renderer.js';
+import { buildMessageRenderView } from '../src/app/runtime/messages/message-markup-renderer.js';
 import {
   initializeComposerRichEditor,
   removeInlineComposerTokenOnDelete

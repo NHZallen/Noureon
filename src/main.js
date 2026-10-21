@@ -117,8 +117,8 @@ async function bootstrap() {
         username: `supabase:${auth.session.user.id}`
       })
     : null;
-  const legacyApp = await import('./app/legacy-app.js');
-  await legacyApp.legacyAppReady;
+  const chatApp = await import('./app/chat-app.js');
+  await chatApp.chatAppReady;
   dismissStartupSkeleton(document);
   keepChatOffItsEdges(document.getElementById('chat-container'));
   keepScrollBoxesOffTheirEdges(document);

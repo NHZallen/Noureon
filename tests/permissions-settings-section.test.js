@@ -2,10 +2,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { Window } from 'happy-dom';
-import { ensurePermissionsSettingsSection } from '../src/app/runtime/legacy-core/settings-permissions-section.js';
-import { ensurePrivacySettingsSection } from '../src/app/runtime/legacy-core/settings-privacy-section.js';
+import { ensurePermissionsSettingsSection } from '../src/app/runtime/settings/settings-permissions-section.js';
+import { ensurePrivacySettingsSection } from '../src/app/runtime/settings/settings-privacy-section.js';
 import { PERMISSION_TEXTS } from '../src/app/runtime/cli/permission-texts.js';
-import { getSettingsMobileGroups, SETTINGS_MOBILE_ICON_MAP } from '../src/app/legacy-runtime/features/settings-mobile-metadata.js';
+import { getSettingsMobileGroups, SETTINGS_MOBILE_ICON_MAP } from '../src/app/runtime/features/settings-mobile-metadata.js';
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 30));
 const createSettings = () => {

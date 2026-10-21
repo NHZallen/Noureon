@@ -3,9 +3,9 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import JSZip from 'jszip';
 import { DOMParser } from '@xmldom/xmldom';
-import { createProviderRequestSupport } from '../src/app/legacy-runtime/features/provider-request-support.js';
-import { createStreamApiCall } from '../src/app/legacy-runtime/features/stream-api-call.js';
-import { MODELS, getModelApiId, modelSupportsUploadedFile, modelSupportsVision } from '../src/app/runtime/legacy-core/model-registry.js';
+import { createProviderRequestSupport } from '../src/app/runtime/reply/provider-request-support.js';
+import { createStreamApiCall } from '../src/app/runtime/reply/stream-api-call.js';
+import { MODELS, getModelApiId, modelSupportsUploadedFile, modelSupportsVision } from '../src/app/runtime/shell/model-registry.js';
 import { createOfficeReader } from '../src/app/ui/files/office-text/office-reader.js';
 import { OFFICE_KINDS } from '../src/app/ui/files/office-text/office-text.js';
 

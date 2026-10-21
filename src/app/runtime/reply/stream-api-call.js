@@ -1,0 +1,887 @@
+import { formatMemoryContextForModel } from '../memory/memory-context-builder.js';
+import { NOURAS_REQUEST_PURPOSE, resolveNourasInstructions, shouldApplyNouras } from '../nouras/nouras-policy.js';
+import { compactFileHistoryForApi } from '../../ui/files/file-history-compaction.js';
+import { compactSandboxRunsForApi } from '../../ui/sandbox/sandbox-run-block.js';
+import { researchReportsForApi } from '../../ui/research/research-history.js';
+import { applyGeminiTools, applyOpenAiTools, applyResponsesTools, createGeminiCollector, createOpenAiCollector, createResponsesCollector, modelThinkingKind } from '../features/tool-call-formats.js';
+import { applyAnthropicTools, createAnthropicCollector } from './anthropic-messages-format.js';
+import { opencodeErrorMessage } from './opencode-errors.js';
+import { buildOpencodeRequest } from './opencode-request.js';
+import { opencodeFormatOf, opencodeModelReadsOfficeViaPdf, opencodeModelReadsPdf } from '../shell/opencode-models.js';
+import { createOfficeReader } from '../../ui/files/office-text/office-reader.js';
+
+export function mergeAdjacentModelMessages(history) {
+  return history.reduce((merged, message) => {
+    const previous = merged.at(-1);
+    if (message?.role === 'model' && previous?.role === 'model') {
+      previous.parts = [...(previous.parts || []), { text: '\n\n' }, ...(message.parts || [])];
+    } else {
+      merged.push({ ...message, parts: [...(message.parts || [])] });
+    }
+    return merged;
+  }, []);
+}
+import { shouldInjectFileGuidance } from '../../ui/files/file-intent.js';
+import { decisionsFor, verdictOf } from '../decisions/decision-store.js';
+import { expandMessageLabels, stampMessageLabels } from '../messages/attachment-labels.js';
+
+const LANGUAGE_INSTRUCTIONS = {
+  'zh-TW': '請用繁體中文回覆，除非使用者有特別要求。',
+  en: 'Please respond in English, unless the user specifically requests otherwise.',
+  fr: 'Veuillez répondre en français, sauf si l\'utilisateur demande spécifiquement le contraire.',
+  ru: 'Отвечайте на русском языке, если пользователь явно не попросит иначе.',
+  es: 'Responde en español, salvo que el usuario solicite expresamente otro idioma.'
+};
+
+
+const cleanGeminiHistory = (history, targetModel, modelSupportsUploadedFile) => {
+  const cleaned = [];
+  let lastRole = null;
+
+  history.forEach((message) => {
+    const sanitizedParts = message.parts.map((part) => {
+      if (part.inlineData) {
+        if (targetModel && !modelSupportsUploadedFile(targetModel, { inlineData: part.inlineData })) {
+          return null;
+        }
+        return {
+          inlineData: {
+            mimeType: part.inlineData.mimeType,
+            data: part.inlineData.data
+          }
+        };
+      }
+      if (part.text) {
+        return { text: part.text };
+      }
+      return null;
+    }).filter(Boolean);
+
+    const sanitizedMessage = { role: message.role, parts: sanitizedParts };
+    if (
+      sanitizedMessage.role === 'model' &&
+      !sanitizedMessage.parts.some((part) => (part.text && part.text.trim() !== '') || part.inlineData)
+    ) {
+      return;
+    }
+
+    if (sanitizedMessage.role === lastRole && lastRole === 'user') {
+      cleaned[cleaned.length - 1].parts.push(...sanitizedMessage.parts);
+    } else {
+      cleaned.push(sanitizedMessage);
+      lastRole = sanitizedMessage.role;
+    }
+  });
+
+  if (cleaned.length > 0 && cleaned[0].role !== 'user') cleaned.shift();
+  return cleaned;
+};
+
+const appendInstructionText = (systemInstruction, text) => {
+  if (!text) return systemInstruction;
+  if (systemInstruction?.parts?.[0]?.text) {
+    systemInstruction.parts[0].text += `\n\n${text}`;
+    return systemInstruction;
+  }
+  if (systemInstruction) {
+    systemInstruction.parts.push({ text });
+    return systemInstruction;
+  }
+  return { parts: [{ text }] };
+};
+
+const getMessageTextForGuidance = (message) => (
+  (message?.parts || [])
+    .filter((part) => part?.text)
+    .map((part) => part.text)
+    .join('\n')
+);
+
+const mayNeedChartGuidance = (text) => (
+  /圖表|統計圖|視覺化|趨勢|比較|分布|占比|比例|漏斗|排程|時程|儀表|折線圖|長條圖|柱狀圖|面積圖|散點圖|散佈圖|氣泡圖|環圈圖|甜甜圈圖|圓餅圖|餅圖|直方圖|熱力圖|樹狀圖|雷達圖|瀑布圖|桑基圖|箱型圖|盒鬚圖|甘特圖|用圖呈現|畫成圖|幫我分析這組數據|\b(?:chart|visuali[sz]e|trend|compare|comparison|distribution|percentage|share|schedule|timeline|funnel|KPI|gauge|stacked\s*bar|box\s*plot|boxplot|histogram|waterfall|heat\s*map|heatmap|treemap|scatter|bubble|donut|doughnut|pie|radar|sankey|gantt|area\s*chart|line\s*chart|bar\s*chart)\b/i.test(text) ||
+  /\|[^\n]*\|[^\n]*\n\s*\|?\s*:?-{3,}:?\s*(?:\|\s*:?-{3,}:?\s*)+\|?/m.test(text) ||
+  /(?:\d{4}[-/]\d{1,2}(?:[-/]\d{1,2})?|(?:\d{1,2}|[一二三四五六七八九十]+)月)[^\n\d-]{0,16}[-+]?\d[\d,]*(?:\.\d+)?/u.test(text) ||
+  text.split(/\r?\n/).filter((line) => /^[-*]?\s*[\p{L}\p{N}\s./年月日-]{1,40}[:：,\t ]+[-+]?\d[\d,]*(?:\.\d+)?\s*%?$/u.test(line.trim())).length >= 2
+);
+
+const getRuntimeChartAuthoringGuidance = async (inputText) => {
+  // The Decisions model's judgement of the message, when there is one (decision-client.js); otherwise the word lists above decide.
+  const decided = verdictOf(decisionsFor(inputText), 'chart');
+  if (decided === false) return '';
+  if (decided === null && !mayNeedChartGuidance(String(inputText || ''))) return '';
+  const { getChartAuthoringGuidance, getCompactChartGuidance } = await import('../../ui/charts/chart-selection-policy.js');
+  return getChartAuthoringGuidance(inputText) || (decided ? getCompactChartGuidance() : '');
+};
+
+// Council members and background tasks never hand files to the user directly;
+// only the answer the user reads (or the council synthesis) may contain them.
+const FILE_OUTPUT_PURPOSES = new Set([
+  undefined,
+  NOURAS_REQUEST_PURPOSE.USER_VISIBLE_ANSWER,
+  NOURAS_REQUEST_PURPOSE.COUNCIL_SYNTHESIS
+]);
+
+const getRuntimeFileAuthoringGuidance = async ({ inputText, history, requestPurpose, deckDesign, documentDesign }) => {
+  if (!FILE_OUTPUT_PURPOSES.has(requestPurpose)) return '';
+  if (!shouldInjectFileGuidance({ currentText: inputText, history, decided: verdictOf(decisionsFor(inputText), 'file') })) return '';
+  const { getFileAuthoringGuidance } = await import('../../ui/files/file-authoring-guidance.js');
+  // The designs chosen in the composer before the file is written.
+  return getFileAuthoringGuidance({ deckDesign, documentDesign });
+};
+
+// Loaded on demand so the learning mode prose stays out of the main runtime chunk.
+const getRuntimeLearningModeInstruction = async (config, includePrecedence) => {
+  if (!config.isLearningMode) return '';
+  const { buildLearningModeInstruction } = await import('./learning-mode-prompt.js');
+  return buildLearningModeInstruction(config.uiLanguage, includePrecedence);
+};
+
+const buildSystemInstruction = async ({
+  config,
+  conversation,
+  astras,
+  personalMemories,
+  memoryContext,
+  additionalSystemInstruction,
+  chartAuthoringGuidance,
+  fileAuthoringGuidance,
+  requestPurpose
+}) => {
+  let baseInstructionText = LANGUAGE_INSTRUCTIONS[config.aiDefaultLanguage] || '';
+  let hasAstraInstructions = false;
+
+  if (shouldApplyNouras(requestPurpose) && conversation?.astrasId) {
+    const astra = astras.find((item) => item.id === conversation.astrasId);
+    if (astra) {
+      baseInstructionText = `${resolveNourasInstructions(astra)}\n\n${baseInstructionText}`;
+      hasAstraInstructions = true;
+    }
+  }
+
+  // Learning mode adds its teaching rules on top of the Noura instead of replacing them.
+  // The precedence clause is only meaningful when a Noura is actually in play.
+  let systemInstruction = baseInstructionText ? { parts: [{ text: baseInstructionText }] } : null;
+  systemInstruction = appendInstructionText(
+    systemInstruction,
+    await getRuntimeLearningModeInstruction(config, hasAstraInstructions)
+  );
+
+  const canUseMemory = !(conversation?.retentionMode === 'ephemeral' && conversation?.memoryAccessEnabled === false);
+  if (canUseMemory && config.memorySystemVersion === 2 && memoryContext) {
+    systemInstruction = appendInstructionText(
+      systemInstruction,
+      formatMemoryContextForModel(memoryContext)
+    );
+  } else if (canUseMemory && config.memoryEnabled1) {
+    const enabledMemories = personalMemories
+      .filter((memory) => memory.enabled)
+      .map((memory) => memory.content)
+      .join('\n');
+    if (enabledMemories) {
+      systemInstruction = appendInstructionText(
+        systemInstruction,
+        `個人習慣記憶：\n${enabledMemories}\n`
+      );
+    }
+  }
+
+  systemInstruction = appendInstructionText(
+    systemInstruction,
+    chartAuthoringGuidance
+  );
+  systemInstruction = appendInstructionText(
+    systemInstruction,
+    fileAuthoringGuidance
+  );
+  return appendInstructionText(systemInstruction, additionalSystemInstruction);
+};
+
+const buildGeminiRequest = ({
+  modelId,
+  apiKey,
+  modelInfo,
+  historyForApi,
+  currentMessageForApi,
+  generationConfig,
+  reasoningEffort,
+  reasoningConfig,
+  systemInstruction,
+  conversation,
+  isWebSearchForced,
+  requestOptions,
+  modelSupportsUploadedFile,
+  viaOpencode = false
+}) => {
+  // Through OpenCode only what was tried is sent: no sampling numbers, no Google search (the search tool of the app does that); the depth of thinking is put in by opencode-request.js, the summaries of the thinking are asked for here.
+  const supportsSamplingParameters = !viaOpencode && ![
+    'gemini-3.8-flash',
+    'gemini-3.5-flash-lite',
+    // Gemini 4 Argon ignores temperature, topP and topK (Google's page of the latest models): they are not sent.
+    'gemini-4-argon'
+  ].includes(modelId);
+  const payload = {
+    contents: cleanGeminiHistory(
+      [...historyForApi, currentMessageForApi],
+      modelInfo,
+      modelSupportsUploadedFile
+    ),
+    generationConfig: {
+      ...(supportsSamplingParameters && generationConfig.temperature !== null && { temperature: generationConfig.temperature }),
+      ...(supportsSamplingParameters && generationConfig.topP !== null && { topP: generationConfig.topP }),
+      ...(generationConfig.maxTokens !== null && { maxOutputTokens: generationConfig.maxTokens })
+    }
+  };
+  if (systemInstruction) {
+    payload.systemInstruction = systemInstruction;
+  }
+  if (!viaOpencode && reasoningConfig?.providerParameter === 'geminiThinkingLevel' && reasoningEffort) {
+    payload.generationConfig.thinkingConfig = {
+      ...(payload.generationConfig.thinkingConfig || {}),
+      thinkingLevel: reasoningEffort
+    };
+  }
+  // Thought summaries only come when asked for.
+  if (requestOptions.onReasoning) {
+    payload.generationConfig.thinkingConfig = { ...(payload.generationConfig.thinkingConfig || {}), includeThoughts: true };
+  }
+  const shouldUseWebSearch = !requestOptions.ignoreConversationWebSearch
+    && (requestOptions.webSearchEnabled === true || conversation.isWebSearchEnabled);
+  if (!viaOpencode && (shouldUseWebSearch || isWebSearchForced || requestOptions.forceWebSearch)) {
+    payload.tools = [{ googleSearch: {} }];
+  }
+  return {
+    url: `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:streamGenerateContent`,
+    payload,
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey }
+  };
+};
+
+const buildOpenAiCompatibleMessages = ({
+  provider,
+  modelInfo,
+  historyForApi,
+  currentMessageForApi,
+  systemInstruction,
+  modelSupportsVision
+}) => {
+  const messages = [];
+  if (systemInstruction) {
+    messages.push({
+      role: 'system',
+      content: systemInstruction.parts.map((part) => part.text).join('\n')
+    });
+  }
+
+  for (const message of [...historyForApi, currentMessageForApi]) {
+    const role = message.role === 'model' ? 'assistant' : message.role;
+    const content = [];
+    for (const part of message.parts) {
+      if (part.text) {
+        content.push({ type: 'text', text: part.text });
+        continue;
+      }
+      if (!part.inlineData) continue;
+      const mimeType = part.inlineData.mimeType || '';
+      const base64Data = part.inlineData.data;
+      const fullDataUrl = `data:${mimeType};base64,${base64Data}`;
+      // OpenCode Go's models take pictures but not video, and the service refuses a field it does not know (no `detail`).
+      const takesVideo = provider !== 'opencode-go';
+      if (
+        (mimeType.startsWith('image/') || (takesVideo && mimeType.startsWith('video/'))) &&
+        modelSupportsVision(modelInfo)
+      ) {
+        content.push(
+          mimeType.startsWith('video/')
+            ? { type: 'video_url', video_url: { url: fullDataUrl } }
+            : { type: 'image_url', image_url: { url: fullDataUrl, ...(takesVideo ? { detail: 'high' } : {}) } }
+        );
+      } else if (provider === 'opencode-go' && role === 'user' && mimeType === 'application/pdf' && opencodeModelReadsPdf(modelInfo)) {
+        // A PDF, to the OpenCode models the probe found to read one (opencode-models.js): as a file, the way OpenAI's chat takes it.
+        content.push({ type: 'file', file: { filename: part.inlineData.name || 'document.pdf', file_data: fullDataUrl } });
+      } else {
+        content.push({
+          type: 'text',
+          text: `[Attachment omitted for ${modelInfo.name}: ${part.inlineData.name || mimeType || 'file'}]`
+        });
+      }
+    }
+    const textOnly = content.length === 1 && content[0].type === 'text'
+      ? content[0].text
+      : content;
+    if (
+      (Array.isArray(textOnly) && textOnly.length > 0) ||
+      (typeof textOnly === 'string' && textOnly.trim())
+    ) {
+      messages.push({ role, content: textOnly });
+    }
+  }
+  return messages;
+};
+
+const buildOpenAiCompatibleRequest = ({
+  provider,
+  modelId,
+  apiKey,
+  modelInfo,
+  historyForApi,
+  currentMessageForApi,
+  generationConfig,
+  reasoningEffort,
+  reasoningConfig,
+  systemInstruction,
+  modelSupportsVision
+}) => {
+  const messages = buildOpenAiCompatibleMessages({
+    provider,
+    modelInfo,
+    historyForApi,
+    currentMessageForApi,
+    systemInstruction,
+    modelSupportsVision
+  });
+  const payload = {
+    model: modelId,
+    messages,
+    stream: true,
+    ...(generationConfig.temperature !== null && { temperature: generationConfig.temperature }),
+    ...(generationConfig.topP !== null && { top_p: generationConfig.topP }),
+    ...(generationConfig.maxTokens !== null && { max_tokens: generationConfig.maxTokens })
+  };
+  if (reasoningConfig?.providerParameter === 'nvidiaReasoningEffort' && reasoningEffort) {
+    payload.reasoning_effort = reasoningConfig.effortValues?.[reasoningEffort] ?? reasoningEffort;
+    // NVIDIA streams the thinking (reasoning_content) only when told to; "none" (fast mode) turns it off, with nothing to stream.
+    if (reasoningEffort !== 'none') payload.chat_template_kwargs = { enable_thinking: true, thinking: true };
+  }
+  return {
+    url: '/api/nvidia-chat',
+    payload,
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    }
+  };
+};
+
+const buildOpenRouterRequest = ({
+  modelId,
+  apiKey,
+  historyForApi,
+  currentMessageForApi,
+  generationConfig,
+  reasoningEffort,
+  reasoningConfig,
+  systemInstruction
+}) => {
+  const messages = [];
+  if (systemInstruction) {
+    messages.push({
+      role: 'system',
+      content: systemInstruction.parts.map((part) => part.text).join('\n')
+    });
+  }
+
+  let hasOpenRouterFileAttachment = false;
+  [...historyForApi, currentMessageForApi].forEach((message) => {
+    const role = message.role === 'model' ? 'assistant' : message.role;
+    const hasAttachment = message.parts.some((part) => part.inlineData);
+    if (hasAttachment) {
+      const content = message.parts.map((part) => {
+        if (part.text) {
+          return { type: 'text', text: part.text };
+        }
+        if (part.inlineData) {
+          const mimeType = part.inlineData.mimeType || 'application/octet-stream';
+          const fullDataUrl = `data:${mimeType};base64,${part.inlineData.data}`;
+          if (mimeType.startsWith('image/')) {
+            return { type: 'image_url', image_url: { url: fullDataUrl } };
+          }
+          if (mimeType.startsWith('video/')) {
+            const videoMimeType = mimeType === 'video/quicktime' ? 'video/mov' : mimeType;
+            return {
+              type: 'video_url',
+              video_url: {
+                url: `data:${videoMimeType};base64,${part.inlineData.data}`
+              }
+            };
+          }
+          hasOpenRouterFileAttachment = true;
+          return {
+            type: 'file',
+            file: {
+              filename: part.inlineData.name || 'document.pdf',
+              file_data: fullDataUrl
+            }
+          };
+        }
+        return null;
+      }).filter(Boolean);
+      messages.push({ role, content });
+      return;
+    }
+    const content = message.parts
+      .filter((part) => part.text)
+      .map((part) => part.text)
+      .join('\n');
+    if (content) {
+      messages.push({ role, content });
+    }
+  });
+
+  const payload = {
+    model: modelId,
+    messages,
+    stream: true,
+    ...(generationConfig.temperature !== null && { temperature: generationConfig.temperature }),
+    ...(generationConfig.topP !== null && { top_p: generationConfig.topP }),
+    ...(generationConfig.maxTokens !== null && { max_tokens: generationConfig.maxTokens })
+  };
+  if (hasOpenRouterFileAttachment) {
+    payload.plugins = [{
+      id: 'file-parser',
+      pdf: { engine: 'mistral-ocr' }
+    }];
+  }
+  if (reasoningConfig?.providerParameter === 'openrouterReasoningEffort' && reasoningEffort) {
+    payload.reasoning = { effort: reasoningEffort };
+  }
+  return {
+    url: 'https://openrouter.ai/api/v1/chat/completions',
+    payload,
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    }
+  };
+};
+
+// The same conversation as Responses API input items. Models flagged for it (GPT-6.1 Sol) take tools only there;
+// OpenRouter's Responses endpoint is OpenAI's, so the shapes follow OpenAI's (input_text, input_image, input_file).
+// The name given to a file that came with none (the service reads the extension).
+const FILE_EXTENSIONS = {
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'pptx'
+};
+const buildOpenRouterResponsesInput = (messages) => messages.map((message) => {
+  const role = message.role === 'model' ? 'assistant' : message.role;
+  const content = [];
+  for (const part of message.parts || []) {
+    if (part.text) {
+      content.push({ type: role === 'assistant' ? 'output_text' : 'input_text', text: part.text });
+    } else if (part.inlineData && role !== 'assistant') {
+      const mimeType = part.inlineData.mimeType || 'application/octet-stream';
+      const dataUrl = `data:${mimeType};base64,${part.inlineData.data}`;
+      if (mimeType.startsWith('image/')) {
+        content.push({ type: 'input_image', image_url: dataUrl });
+      } else if (mimeType.startsWith('video/')) {
+        content.push({ type: 'input_text', text: `[Attachment omitted: ${part.inlineData.name || mimeType}]` });
+      } else {
+        content.push({ type: 'input_file', filename: part.inlineData.name || `document.${FILE_EXTENSIONS[mimeType] || 'pdf'}`, file_data: dataUrl });
+      }
+    }
+  }
+  return content.length ? { role, content } : null;
+}).filter(Boolean);
+
+const buildOpenRouterResponsesRequest = ({
+  modelId,
+  apiKey,
+  historyForApi,
+  currentMessageForApi,
+  generationConfig,
+  reasoningEffort,
+  reasoningConfig,
+  systemInstruction,
+  wantsReasoningSummary
+}) => {
+  const input = buildOpenRouterResponsesInput([...historyForApi, currentMessageForApi]);
+  const instructions = systemInstruction?.parts?.map((part) => part.text).filter(Boolean).join('\n');
+  const payload = {
+    model: modelId,
+    input,
+    stream: true,
+    // Nothing is kept on the server; the reasoning comes back encrypted and is sent again with the tool results.
+    store: false,
+    include: ['reasoning.encrypted_content'],
+    ...(instructions ? { instructions } : {}),
+    ...(generationConfig.temperature !== null && { temperature: generationConfig.temperature }),
+    ...(generationConfig.topP !== null && { top_p: generationConfig.topP }),
+    ...(generationConfig.maxTokens !== null && { max_output_tokens: generationConfig.maxTokens })
+  };
+  const hasFile = input.some((item) => item.content.some((part) => part.type === 'input_file'));
+  if (hasFile) payload.plugins = [{ id: 'file-parser', pdf: { engine: 'mistral-ocr' } }];
+  if (reasoningConfig?.providerParameter === 'openrouterReasoningEffort' && reasoningEffort) {
+    payload.reasoning = { effort: reasoningEffort, ...(wantsReasoningSummary ? { summary: 'auto' } : {}) };
+  } else if (wantsReasoningSummary) {
+    payload.reasoning = { summary: 'auto' };
+  }
+  return {
+    url: 'https://openrouter.ai/api/v1/responses',
+    payload,
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    }
+  };
+};
+
+const readProviderErrorBody = async (response) => {
+  const text = await response.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { error: { message: text || response.statusText } };
+  }
+};
+
+const getProviderErrorMessage = (errorBody, fallback = 'The API request failed') => (
+  errorBody?.error?.message ||
+  (typeof errorBody?.error === 'string' ? errorBody.error : '') ||
+  errorBody?.message ||
+  fallback
+);
+
+const findCompleteJsonObjectEnd = (source, startIndex) => {
+  let braceCount = 0;
+  let isInString = false;
+  let isEscaped = false;
+
+  for (let index = startIndex; index < source.length; index += 1) {
+    const character = source[index];
+    if (isInString) {
+      if (isEscaped) {
+        isEscaped = false;
+      } else if (character === '\\') {
+        isEscaped = true;
+      } else if (character === '"') {
+        isInString = false;
+      }
+      continue;
+    }
+
+    if (character === '"') {
+      isInString = true;
+    } else if (character === '{') {
+      braceCount += 1;
+    } else if (character === '}') {
+      braceCount -= 1;
+      if (braceCount === 0) return index;
+    }
+  }
+
+  return -1;
+};
+
+const consumeGeminiStream = async ({ reader, decoder, onChunk, warn, collector = createGeminiCollector() }) => {
+  let buffer = '';
+  let fullText = '';
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    while (true) {
+      const firstBrace = buffer.indexOf('{');
+      if (firstBrace === -1) break;
+
+      const endIndex = findCompleteJsonObjectEnd(buffer, firstBrace);
+      if (endIndex === -1) break;
+
+      const jsonString = buffer.substring(firstBrace, endIndex + 1);
+      buffer = buffer.substring(endIndex + 1);
+      try {
+        const parsed = JSON.parse(jsonString);
+        // Every part is kept (tool calls and their signatures go back to the
+        // model unchanged); thoughts are not shown.
+        const textChunk = collector.add(parsed);
+        if (textChunk) {
+          fullText += textChunk;
+          onChunk(textChunk);
+        }
+      } catch (error) {
+        warn('解析 Gemini 串流中的 JSON 區塊時出錯:', error, '區塊內容:', jsonString);
+      }
+    }
+  }
+  return fullText;
+};
+
+const consumeOpenAiCompatibleStream = async ({ reader, decoder, onChunk, collector = createOpenAiCollector() }) => {
+  let buffer = '';
+  let fullText = '';
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop();
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue;
+      const data = line.substring(6);
+      if (data.trim() === '[DONE]') break;
+      try {
+        const parsed = JSON.parse(data);
+        const textChunk = collector.add(parsed);
+        if (textChunk) {
+          fullText += textChunk;
+          onChunk(textChunk);
+        }
+      } catch {
+        // Preserve the legacy silent-ignore behavior for malformed SSE data.
+      }
+    }
+  }
+  return fullText;
+};
+
+export function createStreamApiCall({
+  getActiveConversation,
+  normalizeConversationModel,
+  getModelApiId,
+  getApiKeyForProvider,
+  getDefaultGenConfig,
+  getConfig,
+  getAstras,
+  getPersonalMemories,
+  getMemoryContext = () => null,
+  modelSupportsUploadedFile,
+  modelSupportsVision,
+  // Reads the Word, PowerPoint and Excel files the model cannot read into text (and pictures): in the history too (src/app/ui/files/office-text/).
+  officeReader = createOfficeReader(),
+  getModelReasoningConfig = () => null,
+  normalizeReasoningEffort = () => null,
+  // The interface text of the language in use (for the errors shown to the person); '' when there is none.
+  getText = () => '',
+  fetchImpl = fetch,
+  TextDecoderImpl = TextDecoder,
+  warn = (...args) => console.warn(...args)
+}) {
+  // The system instruction of a reply: what the app adds to the request (language, Noura, learning mode, memory, guidance).
+  // A reply run by the server gets this text from the browser (`systemInstructionText`), which puts it together with this same function.
+  const resolveSystemInstruction = async ({ config, conversation, currentMessageForApi, historyForApi, requestOptions }) => {
+    // The server runs a reply whose system instruction the browser has already put together (memory, Noura, guidance and all):
+    // it is used as it is, and nothing is looked up for it here.
+    const instructionGiven = typeof requestOptions.systemInstructionText === 'string';
+    let memoryContext = null;
+    if (!instructionGiven && !requestOptions.skipMemoryContext && config.memorySystemVersion === 2) {
+      try {
+        memoryContext = await getMemoryContext({
+          config,
+          conversation,
+          currentMessage: currentMessageForApi
+        });
+      } catch (error) {
+        warn('Memory context retrieval failed; continuing without it.', error);
+      }
+    }
+    if (memoryContext && typeof requestOptions.onMemoryContextResolved === 'function') {
+      requestOptions.onMemoryContextResolved(memoryContext);
+    }
+    const chartAuthoringGuidance = instructionGiven || requestOptions.requestPurpose === NOURAS_REQUEST_PURPOSE.VISION_CHECK ? ''
+      : await getRuntimeChartAuthoringGuidance(getMessageTextForGuidance(currentMessageForApi));
+    const fileAuthoringGuidance = instructionGiven ? '' : await getRuntimeFileAuthoringGuidance({
+      inputText: getMessageTextForGuidance(currentMessageForApi),
+      history: historyForApi,
+      requestPurpose: requestOptions.requestPurpose,
+      deckDesign: conversation?.deckDesign,
+      documentDesign: conversation?.documentDesign
+    });
+    return instructionGiven
+      ? appendInstructionText(requestOptions.systemInstructionText ? { parts: [{ text: requestOptions.systemInstructionText }] } : null, requestOptions.additionalSystemInstruction)
+      : requestOptions.skipConversationSystemContext ? null : await buildSystemInstruction({
+        config,
+        conversation,
+        astras: getAstras(),
+        personalMemories: getPersonalMemories(),
+        memoryContext,
+        additionalSystemInstruction: requestOptions.additionalSystemInstruction,
+        chartAuthoringGuidance,
+        fileAuthoringGuidance,
+        requestPurpose: requestOptions.requestPurpose
+      });
+  };
+
+  return async function streamApiCall(
+    parts,
+    onChunk,
+    signal,
+    isWebSearchForced = false,
+    requestOptions = {}
+  ) {
+    // A reply the server is to make: only the system instruction is put together here (everything the app adds to the request),
+    // as text for the browser to hand over. Nothing is asked of a provider.
+    if (requestOptions.describeOnly === true) {
+      const conversation = requestOptions.conversation || getActiveConversation();
+      const historyForApi = mergeAdjacentModelMessages(researchReportsForApi(compactSandboxRunsForApi(compactFileHistoryForApi(
+        requestOptions.historyForApi || (conversation?.messages || []).slice(0, -1)
+      ))));
+      const currentMessageForApi = requestOptions.currentMessageForApi || { role: 'user', parts };
+      const systemInstruction = await resolveSystemInstruction({ config: getConfig(), conversation, currentMessageForApi, historyForApi, requestOptions });
+      return { systemInstructionText: (systemInstruction?.parts || []).map((part) => part.text).filter(Boolean).join('\n\n') };
+    }
+    const activeConversation = getActiveConversation();
+    const conversation = requestOptions.conversation || activeConversation || {
+      messages: [],
+      astrasId: null,
+      isWebSearchEnabled: false,
+      genConfig: null
+    };
+    const modelInfo = requestOptions.modelInfo || normalizeConversationModel(conversation);
+    if (!modelInfo) throw new Error((getText('modelNotFound') || 'No settings found for the model: {model}').replace('{model}', conversation.model));
+
+    const { provider } = modelInfo;
+    const modelId = getModelApiId(modelInfo);
+    const apiKey = getApiKeyForProvider(provider);
+    if (!apiKey) {
+      throw new Error((getText('apiKeyNeededFor') || 'Add the API key that {name} needs in Settings first.').replace('{name}', modelInfo.name));
+    }
+
+    const readableOptions = { canRead: (inlineData) => modelSupportsUploadedFile(modelInfo, { inlineData }), viaPdf: (inlineData) => opencodeModelReadsOfficeViaPdf(modelInfo, inlineData.mimeType), supportsVision: Boolean(modelSupportsVision?.(modelInfo)) };
+    // Each attachment of what the person sent is numbered and named for the model (attachment-labels.js): "[Image 2 of 3 in this message: beach.png]".
+    // The numbers are made from the message as it was sent, before a file is read into text or left out, and put in front of what is left of it
+    // only for the request: the guidance and the memory look at the text of the message without those lines (a line says "File").
+    const readHistory = await officeReader.expandMessages(stampMessageLabels(mergeAdjacentModelMessages(researchReportsForApi(compactSandboxRunsForApi(compactFileHistoryForApi(
+      requestOptions.historyForApi || (conversation.messages || []).slice(0, -1)
+    ))))), readableOptions);
+    const [readCurrentMessage] = await officeReader.expandMessages(stampMessageLabels([requestOptions.currentMessageForApi || { role: 'user', parts }]), readableOptions);
+    const historyForApi = expandMessageLabels(readHistory);
+    const [currentMessageForApi] = expandMessageLabels([readCurrentMessage]);
+    const generationConfig = requestOptions.genConfig || conversation.genConfig || getDefaultGenConfig();
+    const disableReasoning = requestOptions.disableReasoning === true;
+    const reasoningConfig = disableReasoning ? null : getModelReasoningConfig(modelInfo);
+    const reasoningEffort = reasoningConfig
+      ? normalizeReasoningEffort(modelInfo, requestOptions.reasoningEffort ?? conversation.reasoningEffort)
+      : null;
+    const config = getConfig();
+    const systemInstruction = await resolveSystemInstruction({ config, conversation, currentMessageForApi: readCurrentMessage, historyForApi: readHistory, requestOptions });
+
+    // Advanced mode: the Python tool and the tool rounds of this reply so far.
+    const toolOptions = { tools: requestOptions.tools || [], toolTurns: requestOptions.toolTurns || [] };
+    const hasTools = toolOptions.tools.length > 0 || toolOptions.toolTurns.length > 0;
+    // A model that takes tools only through the Responses API uses it for the rounds of an Advanced mode reply;
+    // everything else it does goes the usual way.
+    const useResponsesApi = provider === 'openrouter' && modelInfo.responsesApiForTools === true && hasTools;
+    // A model of OpenCode Go speaks one of three forms of API, whatever it is asked (the form is in the list of its models, not in what the page says).
+    const opencodeFormat = provider === 'opencode-go' ? (opencodeFormatOf(modelInfo) || 'chat') : '';
+
+    const request = useResponsesApi
+      ? buildOpenRouterResponsesRequest({
+        modelId,
+        apiKey,
+        historyForApi,
+        currentMessageForApi,
+        generationConfig,
+        reasoningEffort,
+        reasoningConfig,
+        systemInstruction,
+        wantsReasoningSummary: Boolean(requestOptions.onReasoning)
+      })
+      : provider === 'gemini'
+      ? buildGeminiRequest({
+        modelId,
+        apiKey,
+        modelInfo,
+        historyForApi,
+        currentMessageForApi,
+        generationConfig,
+        reasoningEffort,
+        reasoningConfig,
+        systemInstruction,
+        conversation,
+        isWebSearchForced,
+        requestOptions,
+        modelSupportsUploadedFile
+      })
+      : provider === 'opencode-go'
+        ? buildOpencodeRequest({
+          format: opencodeFormat || 'chat',
+          modelId,
+          apiKey,
+          sessionId: conversation?.id,
+          modelInfo,
+          historyForApi,
+          currentMessageForApi,
+          generationConfig,
+          reasoningEffort,
+          systemInstruction,
+          modelSupportsVision,
+          buildResponsesInput: buildOpenRouterResponsesInput,
+          buildChatMessages: () => buildOpenAiCompatibleMessages({ provider, modelInfo, historyForApi, currentMessageForApi, systemInstruction, modelSupportsVision }),
+          buildGeminiPayload: () => buildGeminiRequest({
+            modelId, apiKey, modelInfo, historyForApi, currentMessageForApi, generationConfig, reasoningEffort, reasoningConfig, systemInstruction, conversation,
+            isWebSearchForced, requestOptions, modelSupportsUploadedFile, viaOpencode: true
+          }).payload
+        })
+      : provider === 'nvidia'
+        ? buildOpenAiCompatibleRequest({
+          provider,
+          modelId,
+          apiKey,
+          modelInfo,
+          historyForApi,
+          currentMessageForApi,
+          generationConfig,
+          reasoningEffort,
+          reasoningConfig,
+          systemInstruction,
+          modelSupportsVision
+        })
+        : buildOpenRouterRequest({
+          modelId,
+          apiKey,
+          historyForApi,
+          currentMessageForApi,
+          generationConfig,
+          reasoningEffort,
+          reasoningConfig,
+          systemInstruction
+        });
+
+    if (hasTools) {
+      if (useResponsesApi || opencodeFormat === 'responses') applyResponsesTools(request.payload, toolOptions);
+      else if (opencodeFormat === 'messages') applyAnthropicTools(request.payload, toolOptions);
+      else if (provider === 'gemini' || opencodeFormat === 'gemini') applyGeminiTools(request.payload, toolOptions);
+      // The service refuses fields it does not know: the thinking details of OpenRouter are not sent back to it.
+      else applyOpenAiTools(request.payload, { ...toolOptions, reasoningDetails: provider !== 'opencode-go' });
+    }
+
+    const response = await fetchImpl(request.url, {
+      method: 'POST',
+      headers: request.headers,
+      body: JSON.stringify(request.payload),
+      signal
+    });
+
+    if (!response.ok) {
+      const errorBody = await readProviderErrorBody(response);
+      const message = getProviderErrorMessage(errorBody);
+      const error = new Error(provider === 'opencode-go' ? await opencodeErrorMessage({ status: response.status, message, language: getConfig()?.uiLanguage }) : message);
+      error.status = response.status;
+      throw error;
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoderImpl();
+    // The thinking and the code being written reach the caller as they stream; the
+    // thinking comes with its kind (the model's own, or a summary of it).
+    const thinkingKind = modelThinkingKind(provider, modelId);
+    const hooks = {
+      onReasoning: requestOptions.onReasoning ? (chunk) => requestOptions.onReasoning(chunk, thinkingKind) : null,
+      onToolArguments: requestOptions.onToolArguments
+    };
+    const collector = (provider === 'gemini' || opencodeFormat === 'gemini') ? createGeminiCollector(hooks)
+      : (useResponsesApi || opencodeFormat === 'responses') ? createResponsesCollector(hooks)
+        : opencodeFormat === 'messages' ? createAnthropicCollector(hooks)
+          : createOpenAiCollector(hooks);
+    const fullText = (provider === 'gemini' || opencodeFormat === 'gemini')
+      ? await consumeGeminiStream({ reader, decoder, onChunk, warn, collector })
+      : await consumeOpenAiCompatibleStream({ reader, decoder, onChunk, collector });
+    // The Responses stream reports a failed response as an event; it is an error like any other.
+    if (collector.failure) throw new Error(collector.failure);
+    const collected = collector.result();
+    // The pages the provider's own web search used, for the reply's "Searched N sites" row.
+    if (collected.sources?.length) requestOptions.onSources?.(collected.sources);
+    // Where Gemini's answer cites those pages.
+    if (collected.supports?.length) requestOptions.onSupports?.(collected.supports);
+    requestOptions.onResponseComplete?.(collected);
+    return fullText;
+  };
+}

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { createCouncilResponseLifecycle } from '../src/app/legacy-runtime/features/council-response-lifecycle.js';
+import { createCouncilResponseLifecycle } from '../src/app/runtime/council/council-response-lifecycle.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -407,7 +407,7 @@ test('empty or missing participant responses preserve the all-failed boundary', 
 });
 
 test('council lifecycle source avoids DOM, storage, package, and provider parser ownership', () => {
-  const source = readSource('src/app/legacy-runtime/features/council-response-lifecycle.js');
+  const source = readSource('src/app/runtime/council/council-response-lifecycle.js');
 
   for (const forbidden of [
     'document.',

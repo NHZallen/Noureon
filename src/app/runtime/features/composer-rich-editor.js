@@ -1,5 +1,5 @@
 import { createLinkChipElement, splitAtAddresses } from '../../ui/links/link-chip.js';
-import { findAddresses } from '../../legacy-runtime/features/linked-pages.js';
+import { findAddresses } from '../reply/linked-pages.js';
 
 const LINK_SELECTOR = '.composer-link-token';
 const TOKEN_SELECTOR = '.composer-inline-mode-token';

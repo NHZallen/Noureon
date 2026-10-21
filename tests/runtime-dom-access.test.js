@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createRuntimeDomAccess } from '../src/app/legacy-runtime/runtime/runtime-dom-access.js';
+import { createRuntimeDomAccess } from '../src/app/runtime/kernel/runtime-dom-access.js';
 
 test('getOptionalElement reads from the injected elements getter', () => {
   const button = { id: 'settings-btn' };

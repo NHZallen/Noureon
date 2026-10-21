@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { createRuntimeDialogCoordinator } from '../src/app/legacy-runtime/runtime/runtime-dialog-coordinator.js';
+import { createRuntimeDialogCoordinator } from '../src/app/runtime/kernel/runtime-dialog-coordinator.js';
 
 const readSource = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -47,11 +47,11 @@ test('missing showNotification callback warns explicitly and remains a no-op', (
   const result = coordinator.showNotification('Missing callback', 'error');
 
   assert.equal(result, undefined);
-  assert.deepEqual(warnings, [['[legacy-runtime] showNotification callback is not available']]);
+  assert.deepEqual(warnings, [['[dialog coordinator] showNotification callback is not available']]);
 });
 
 test('runtime dialog coordinator source avoids unrelated runtime systems', () => {
-  const source = readSource('src/app/legacy-runtime/runtime/runtime-dialog-coordinator.js');
+  const source = readSource('src/app/runtime/kernel/runtime-dialog-coordinator.js');
 
   assert.match(source, /export\s+function\s+createRuntimeDialogCoordinator/);
   assert.doesNotMatch(source, /\bdocument\b|\bwindow\b|innerHTML|classList|setTimeout|requestAnimationFrame/);

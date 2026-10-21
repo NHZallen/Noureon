@@ -42,7 +42,7 @@ test('a reply with no deck, or a model that cannot see images, starts no check a
 
 test('sending is refused while the chat is under its visual check, before anything is prepared or cancelled', async () => {
   const { readFileSync } = await import('node:fs');
-  const source = readFileSync(new URL('../src/app/runtime/legacy-core/submit-input-council-lifecycle.js', import.meta.url), 'utf8');
+  const source = readFileSync(new URL('../src/app/runtime/shell/submit-input-council-lifecycle.js', import.meta.url), 'utf8');
   const submit = source.slice(source.indexOf('const handleFormSubmit'));
   const gate = submit.indexOf('vc.isRunning(activeId)');
   assert.ok(gate > 0 && gate < submit.indexOf('prepareSubmitResponse'), 'the gate comes first');

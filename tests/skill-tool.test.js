@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { runSkillsReply } from '../src/app/legacy-runtime/features/skills-reply.js';
-import { runWebResearchReply } from '../src/app/legacy-runtime/features/web-research-reply.js';
+import { runSkillsReply } from '../src/app/runtime/reply/skills-reply.js';
+import { runWebResearchReply } from '../src/app/runtime/features/web-research-reply.js';
 import {
   LISTED_DESCRIPTION_CHARS,
   LOAD_SKILL_TOOL,

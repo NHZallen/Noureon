@@ -77,7 +77,7 @@ export default defineConfig({
   }
 });
 
-// File cards are rendered synchronously with Markdown, so their small eager core ships in its own chunk instead of growing the legacy
+// File cards are rendered synchronously with Markdown, so their small eager core ships in its own chunk instead of growing the
 // shell. Generators, the design system, the preview dialog and the authoring guidance stay dynamic imports and must not be pulled into
 // this chunk.
 function isFileCardCore(id) {
@@ -91,17 +91,17 @@ function isFileCardCore(id) {
 }
 
 function chunkName(id) {
-  if (id.includes('/src/app/runtime/legacy-core/council-runtime-texts.js')) return 'legacy-council-texts';
+  if (id.includes('/src/app/runtime/shell/council-runtime-texts.js')) return 'council-texts';
   // The submit lifecycle and its parts (submit-input-*.js) ship together.
-  if (id.includes('/src/app/runtime/legacy-core/submit-input-')) return 'legacy-submit-input';
-  if (id.includes('/src/app/runtime/legacy-core/model-registry.js')) return 'legacy-model-registry';
-  // The start of the page and the page features (made by the shell, legacy-core.js) ship next to the shell, not inside it.
-  if (/\/src\/app\/runtime\/(?:features\/(?:app-bootstrap|startup)-lifecycle|legacy-core\/page-features)\.js$/.test(id)) return 'legacy-page';
+  if (id.includes('/src/app/runtime/shell/submit-input-')) return 'submit-input';
+  if (id.includes('/src/app/runtime/shell/model-registry.js')) return 'model-registry';
+  // The start of the page and the page features (made by the shell, shell.js) ship next to the shell, not inside it.
+  if (/\/src\/app\/runtime\/(?:features\/(?:app-bootstrap|startup)-lifecycle|shell\/page-features)\.js$/.test(id)) return 'chat-page';
   // Memory is loaded after the application shell and has its own lifecycle.
-  // Keep it out of the legacy shell chunk so adding memory capabilities does
+  // Keep it out of the shell chunk so adding memory capabilities does
   // not make first-load chat startup heavier.
   if (id.includes('/src/app/runtime/memory/')) return 'runtime-memory';
-  if (id.includes('/src/app/legacy-runtime/features/message-list-lifecycle.js')) return 'legacy-message-list';
+  if (id.includes('/src/app/runtime/messages/message-list-lifecycle.js')) return 'message-list';
   if (!id.includes('node_modules')) {
     return undefined;
   }

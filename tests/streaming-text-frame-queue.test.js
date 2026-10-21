@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { createStreamingTextFrameQueue } from '../src/app/legacy-runtime/features/streaming-text-frame-queue.js';
+import { createStreamingTextFrameQueue } from '../src/app/runtime/reply/streaming-text-frame-queue.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -196,7 +196,7 @@ test('flushUntilIdle drains pending typewriter text before completion', async ()
 });
 
 test('streaming text frame queue helper stays isolated from runtime side effects', () => {
-  const helperSource = readSource('src/app/legacy-runtime/features/streaming-text-frame-queue.js');
+  const helperSource = readSource('src/app/runtime/reply/streaming-text-frame-queue.js');
 
   for (const forbidden of [
     'document',

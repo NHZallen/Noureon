@@ -102,9 +102,9 @@ test('the saved message of a council: one line "3 members discussed · 1m 20s", 
 
 test('the panel is drawn as the timeline, a member is opened by a tap and stays open, and the timeline stays above the reply that writes the synthesis', async () => {
   const { Window } = await import('happy-dom');
-  const { createResponseProgressRenderers } = await import('../src/app/legacy-runtime/features/response-progress-renderers.js');
-  const { runCouncilResponseRenderLifecycle } = await import('../src/app/legacy-runtime/features/council-response-render-lifecycle.js');
-  const { getCouncilRuntimeTexts } = await import('../src/app/runtime/legacy-core/council-runtime-texts.js');
+  const { createResponseProgressRenderers } = await import('../src/app/runtime/reply/response-progress-renderers.js');
+  const { runCouncilResponseRenderLifecycle } = await import('../src/app/runtime/council/council-response-render-lifecycle.js');
+  const { getCouncilRuntimeTexts } = await import('../src/app/runtime/shell/council-runtime-texts.js');
   const window = new Window({ url: 'https://example.test/' });
   const { document } = window;
   const message = document.createElement('div');

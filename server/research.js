@@ -4,9 +4,9 @@
 // is taken up from its last checkpoint after a restart. The reply is a message of parts: { researchPlan } while it runs, and
 // { researchReport } (with the report as a file) when it is done.
 
-import { normalizePageReads, normalizeTinyfishSearch } from '../src/app/legacy-runtime/features/model-request-formatting.js';
-import { createNotes, createResearchCalls, researchGuidance, RESEARCH_TOOLS } from '../src/app/legacy-runtime/features/web-research-reply.js';
-import { createWebResearchTools } from '../src/app/legacy-runtime/features/web-research-tools.js';
+import { normalizePageReads, normalizeTinyfishSearch } from '../src/app/runtime/reply/model-request-formatting.js';
+import { createNotes, createResearchCalls, researchGuidance, RESEARCH_TOOLS } from '../src/app/runtime/features/web-research-reply.js';
+import { createWebResearchTools } from '../src/app/runtime/features/web-research-tools.js';
 import { NOURAS_REQUEST_PURPOSE } from '../src/app/runtime/nouras/nouras-policy.js';
 import { addNumberedSources } from '../src/app/ui/citations/source-numbering.js';
 import { parseAndNormalizeChartSchema } from '../src/app/ui/charts/chart-schema.js';

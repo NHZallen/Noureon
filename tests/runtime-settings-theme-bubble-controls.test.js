@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createSettingsThemeBubbleControls } from '../src/app/runtime/legacy-core/settings-theme-bubble-controls.js';
+import { createSettingsThemeBubbleControls } from '../src/app/runtime/settings/settings-theme-bubble-controls.js';
 
 // The colour of a message bubble is no longer a setting (it follows the accent, see --user-bubble-bg in src/styles/tokens.css): what is left
 // of this module is the compatibility that drops the theme of an earlier version from the settings.

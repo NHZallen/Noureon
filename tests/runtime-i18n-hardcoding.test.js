@@ -30,13 +30,13 @@ test('Russian and Spanish dynamic UI copy is native rather than English or Chine
 
 test('audited runtime surfaces no longer contain binary English-versus-Chinese language branches', () => {
   const sources = [
-    'src/app/legacy-runtime/features/assistant-response-finalization.js',
-    'src/app/legacy-runtime/features/council-response-lifecycle.js',
-    'src/app/legacy-runtime/features/generated-image-interactions.js',
-    'src/app/legacy-runtime/features/model-switcher-lifecycle.js',
-    'src/app/legacy-runtime/features/provider-request-support.js',
-    'src/app/legacy-runtime/features/response-progress-renderers.js',
-    'src/app/legacy-runtime/features/single-model-response-lifecycle.js'
+    'src/app/runtime/reply/assistant-response-finalization.js',
+    'src/app/runtime/council/council-response-lifecycle.js',
+    'src/app/runtime/images/generated-image-interactions.js',
+    'src/app/runtime/features/model-switcher-lifecycle.js',
+    'src/app/runtime/reply/provider-request-support.js',
+    'src/app/runtime/reply/response-progress-renderers.js',
+    'src/app/runtime/reply/single-model-response-lifecycle.js'
   ];
   for (const path of sources) {
     const source = read(path);
@@ -46,7 +46,7 @@ test('audited runtime surfaces no longer contain binary English-versus-Chinese l
 });
 
 test('learning mode provides a localized model instruction for all five languages', () => {
-  const source = read('src/app/legacy-runtime/features/learning-mode-prompt.js');
+  const source = read('src/app/runtime/reply/learning-mode-prompt.js');
   for (const language of ['zh-TW', 'en', 'fr', 'ru', 'es']) {
     assert.match(source, new RegExp(`(?:['"]${language}['"]|\\b${language}):`), language);
   }
@@ -54,7 +54,7 @@ test('learning mode provides a localized model instruction for all five language
   assert.match(source, /LEARNING_MODE_PRECEDENCE\[uiLanguage\]/);
 
   // The prompts are loaded on demand so their prose stays out of the main runtime chunk.
-  const caller = read('src/app/legacy-runtime/features/stream-api-call.js');
+  const caller = read('src/app/runtime/reply/stream-api-call.js');
   assert.match(caller, /await import\('\.\/learning-mode-prompt\.js'\)/);
   assert.match(caller, /buildLearningModeInstruction\(config\.uiLanguage/);
 });

@@ -101,8 +101,8 @@ test('the settings open the help center page, like the terms and the privacy pol
 });
 
 test('the Help Center names every model whose Word and PowerPoint files are turned into a PDF, in each language (NOU-68)', async () => {
-  const { MODELS } = await import('../src/app/runtime/legacy-core/model-registry.js');
-  const { opencodeModelReadsOfficeViaPdf } = await import('../src/app/runtime/legacy-core/opencode-models.js');
+  const { MODELS } = await import('../src/app/runtime/shell/model-registry.js');
+  const { opencodeModelReadsOfficeViaPdf } = await import('../src/app/runtime/shell/opencode-models.js');
   const docx = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
   const names = MODELS.filter((model) => opencodeModelReadsOfficeViaPdf(model, docx)).map((model) => model.name);
   assert.ok(names.length > 0);

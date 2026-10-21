@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createLegacyRuntimeAppDataPersistence } from '../src/app/runtime/kernel/app-data-persistence.js';
+import { createRuntimeAppDataPersistence } from '../src/app/runtime/kernel/app-data-persistence.js';
 import { createWorkspaceStoreV2 } from '../src/app/runtime/kernel/workspace-store-v2.js';
 
 const JOURNAL_KEY = 'chatCloudSyncJournal_v1_supabase:user-1';
@@ -39,7 +39,7 @@ function createBackends(authProvider) {
     let revision = 0;
     const saved = [];
     const store = useStore ? createWorkspaceStoreV2({ storage, username: user.username, logger: quiet }) : null;
-    const persistence = createLegacyRuntimeAppDataPersistence({
+    const persistence = createRuntimeAppDataPersistence({
       getCurrentUser: () => user,
       getAppData: () => snapshot,
       getAppDataKey: () => `chatAppData_v8.6_${user.username}`,
@@ -187,7 +187,7 @@ test('a journal that cannot be read falls back to a durable full-resync marker, 
   const { v2 } = createBackends('supabase');
   v2.snapshot = { ...v2.snapshot, conversations: [conversation('c1')] };
   await v2.save();
-  const failing = createLegacyRuntimeAppDataPersistence({
+  const failing = createRuntimeAppDataPersistence({
     getCurrentUser: () => ({ username: 'supabase:user-1', authProvider: 'supabase' }),
     getAppData: () => ({ ...v2.snapshot, conversations: [conversation('c1', { title: 'edited' })] }),
     getAppDataKey: () => 'unused',

@@ -204,7 +204,7 @@ test('the custom wallpaper and its colour extraction no longer exist', () => {
 // The page features hand applyUiTheme and renderUiColorOptions out (tests/page-features.test.js); here only the boundary of the helper.
 test('the theme helper stays free of runtime bindings, unrelated systems, and the retired wallpaper colour extraction', () => {
   const helperSource = readSource('src/app/runtime/features/theme-appearance-lifecycle.js');
-  const pageFeaturesSource = readSource('src/app/runtime/legacy-core/page-features.js');
+  const pageFeaturesSource = readSource('src/app/runtime/shell/page-features.js');
 
   assert.doesNotMatch(helperSource, /registerLazyBinding|resolveBinding|resolveOptionalBinding/);
   assert.doesNotMatch(helperSource, /runtime-entry|app-bootstrap|submit-input|provider|security|api-key|legacy-runtime\/fragments|virtual:legacy-app-runtime/);

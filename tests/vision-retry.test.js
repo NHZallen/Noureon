@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { buildMessageRenderView } from '../src/app/legacy-runtime/features/message-markup-renderer.js';
+import { buildMessageRenderView } from '../src/app/runtime/messages/message-markup-renderer.js';
 import { visionRetryOffered } from '../src/app/runtime/features/vision-retry-state.js';
 import { retryVisionCheck, visionNoteSource } from '../src/app/runtime/features/vision-retry.js';
 import { chatsUnderVisionCheck } from '../src/app/runtime/features/vision-check-lock.js';

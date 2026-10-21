@@ -3,7 +3,7 @@ import test from 'node:test';
 import { Window } from 'happy-dom';
 
 import { PERMISSION_TEXTS, permissionText } from '../src/app/runtime/cli/permission-texts.js';
-import { ensureWorkspaceStorageStatus, pickWorkspaceStorageStatus } from '../src/app/runtime/legacy-core/settings-workspace-storage-status.js';
+import { ensureWorkspaceStorageStatus, pickWorkspaceStorageStatus } from '../src/app/runtime/settings/settings-workspace-storage-status.js';
 
 const LANGUAGES = ['zh-TW', 'en', 'fr', 'ru', 'es'];
 const KEYS = ['wsActive', 'wsDegraded', 'wsFailed', 'wsGaveUp', 'wsUnusable', 'wsRollbackFailed'];

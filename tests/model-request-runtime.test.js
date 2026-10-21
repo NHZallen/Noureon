@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createModelRequestRuntime } from '../src/app/runtime/legacy-core/model-request-runtime.js';
+import { createModelRequestRuntime } from '../src/app/runtime/shell/model-request-runtime.js';
 
 function fakeEngine(log) {
   return {

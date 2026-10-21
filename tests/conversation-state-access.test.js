@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { createConversationStateAccess } from '../src/app/legacy-runtime/runtime/conversation-state-access.js';
+import { createConversationStateAccess } from '../src/app/runtime/kernel/conversation-state-access.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -104,7 +104,7 @@ test('non-array conversation state preserves a safe missing boundary', () => {
 });
 
 test('conversation state access source avoids runtime side effects and unrelated systems', () => {
-  const source = readSource('src/app/legacy-runtime/runtime/conversation-state-access.js');
+  const source = readSource('src/app/runtime/kernel/conversation-state-access.js');
 
   for (const forbidden of [
     'document.',

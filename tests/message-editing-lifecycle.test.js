@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createDom } from './behaviours/helpers/create-dom.js';
-import { createMessageEditingLifecycle } from '../src/app/legacy-runtime/features/message-editing-lifecycle.js';
+import { createMessageEditingLifecycle } from '../src/app/runtime/messages/message-editing-lifecycle.js';
 
 test('cancelling a desktop message edit restores only the original message without rerendering the chat', async () => {
   const { document, cleanup } = createDom(`

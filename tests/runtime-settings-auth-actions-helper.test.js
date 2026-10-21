@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createSettingsAuthActionsHelper } from '../src/app/runtime/legacy-core/settings-auth-actions-helper.js';
+import { createSettingsAuthActionsHelper } from '../src/app/runtime/settings/settings-auth-actions-helper.js';
 
 const createTrackedElement = (calls, name) => {
   const classes = new Set();

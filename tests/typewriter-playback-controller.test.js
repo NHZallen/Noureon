@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { createTypewriterPlaybackController } from '../src/app/legacy-runtime/features/typewriter-playback-controller.js';
+import { createTypewriterPlaybackController } from '../src/app/runtime/features/typewriter-playback-controller.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -131,7 +131,7 @@ test('aborted playback skips incremental steps and still completes', () => {
 });
 
 test('typewriter playback controller source stays isolated from runtime systems', () => {
-  const helperSource = readSource('src/app/legacy-runtime/features/typewriter-playback-controller.js');
+  const helperSource = readSource('src/app/runtime/features/typewriter-playback-controller.js');
 
   for (const forbidden of [
     'document',

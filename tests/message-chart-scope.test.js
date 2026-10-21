@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { buildMessageRenderView } from '../src/app/legacy-runtime/features/message-markup-renderer.js';
-import { renderUserText } from '../src/app/runtime/legacy-core/legacy-core-utilities.js';
+import { buildMessageRenderView } from '../src/app/runtime/messages/message-markup-renderer.js';
+import { renderUserText } from '../src/app/runtime/shell/shell-utilities.js';
 import { readSource } from './helpers/source-guards.js';
 
 test('table-like user input stays escaped text in the normal user bubble', () => {

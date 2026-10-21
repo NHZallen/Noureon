@@ -5,7 +5,7 @@ import test from 'node:test';
 import JSZip from 'jszip';
 import { loadPyodide } from 'pyodide';
 
-import { finalizeAssistantResponse } from '../../src/app/legacy-runtime/features/assistant-response-finalization.js';
+import { finalizeAssistantResponse } from '../../src/app/runtime/reply/assistant-response-finalization.js';
 import { generateFileBlob } from '../../src/app/ui/files/file-generators.js';
 import { applyFileCards } from '../../src/app/ui/files/file-markdown-cards.js';
 import { getFileBlock } from '../../src/app/ui/files/file-block-model.js';

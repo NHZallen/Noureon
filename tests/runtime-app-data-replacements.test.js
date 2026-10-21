@@ -2,11 +2,11 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { createLegacyRuntimeAppDataStore } from '../src/app/runtime/kernel/app-data-store.js';
+import { createRuntimeAppDataStore } from '../src/app/runtime/kernel/app-data-store.js';
 import { createLiveConversationsBridge } from '../src/app/runtime/kernel/live-conversations-bridge.js';
-import { createShellState } from '../src/app/runtime/legacy-core/shell-state.js';
-import { createLegacyTrashLifecycle } from '../src/app/runtime/features/trash-lifecycle.js';
-import { createLegacyFolderLifecycle } from '../src/app/runtime/features/folder-lifecycle.js';
+import { createShellState } from '../src/app/runtime/shell/shell-state.js';
+import { createTrashLifecycle } from '../src/app/runtime/features/trash-lifecycle.js';
+import { createFolderLifecycle } from '../src/app/runtime/features/folder-lifecycle.js';
 import { createDom } from './behaviours/helpers/create-dom.js';
 
 const readSource = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
@@ -19,7 +19,7 @@ const readSource = (path) => readFileSync(new URL(`../${path}`, import.meta.url)
 // the retired virtual runtime and the kernel boundaries in tests/retired-code.test.js.
 
 function createWorkspace(conversations, folders = []) {
-  const store = createLegacyRuntimeAppDataStore({ initialConversations: conversations, initialFolders: folders });
+  const store = createRuntimeAppDataStore({ initialConversations: conversations, initialFolders: folders });
   const bridge = createLiveConversationsBridge({
     getConversations: () => store.getConversations(),
     replaceConversations: (next) => store.replaceConversations(next)
@@ -41,7 +41,7 @@ function createTrash(workspace, document, overrides = {}) {
     trashBatchRestoreBtn: element('button'),
     trashBatchDeleteBtn: element('button')
   };
-  const trash = createLegacyTrashLifecycle({
+  const trash = createTrashLifecycle({
     document,
     elements,
     getConversations: () => bridge.getConversations(),
@@ -71,7 +71,7 @@ function createTrash(workspace, document, overrides = {}) {
 // Boundary: the composition root keeps no copy of the workspace data of its own; the store owns the pointers.
 test('legacy core keeps no local app data mirrors', () => {
   assert.doesNotMatch(
-    readSource('src/app/runtime/legacy-core/legacy-core.js'),
+    readSource('src/app/runtime/shell/shell.js'),
     /let\s+(?:conversations|folders|astras|personalMemories|activeConversationId)\s*=|syncLegacyMirror|createConversations?Store\b|getAppData:\s*\(\)\s*=>\s*\(\{\s*conversations/
   );
 });
@@ -79,12 +79,12 @@ test('legacy core keeps no local app data mirrors', () => {
 // Boundary: the store is made by the kernel (runtime-app.js) and reached through what the composition root hands out.
 test('compositions take the app data store instead of importing it', () => {
   for (const path of [
-    'src/app/runtime/legacy-core/legacy-core.js',
-    'src/app/runtime/legacy-core/workspace-features.js',
-    'src/app/runtime/legacy-core/page-features.js',
+    'src/app/runtime/shell/shell.js',
+    'src/app/runtime/shell/workspace-features.js',
+    'src/app/runtime/shell/page-features.js',
     'src/app/runtime-entry.js'
   ]) {
-    assert.doesNotMatch(readSource(path), /app-data-store\.js|createLegacyRuntimeAppDataStore/, path);
+    assert.doesNotMatch(readSource(path), /app-data-store\.js|createRuntimeAppDataStore/, path);
   }
 });
 
@@ -212,7 +212,7 @@ test('deleting a folder unfiles its conversations, replaces the folders in the s
     [{ id: 'f1', conversationIds: ['filed'] }, { id: 'f2', conversationIds: ['other'] }]
   );
   const { store, steps } = workspace;
-  const folders = createLegacyFolderLifecycle({
+  const folders = createFolderLifecycle({
     getFolders: () => store.getFolders(),
     getConversations: () => workspace.bridge.getConversations(),
     replaceFolders: (next) => store.replaceFolders(next),

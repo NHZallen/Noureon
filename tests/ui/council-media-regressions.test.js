@@ -4,7 +4,7 @@ import { readUiSource } from '../helpers/source-guards.js';
 
 test('media preview download and share icons stay white over dark media', () => {
   const css = readUiSource('src/styles/main.css');
-  const mediaPreviewLifecycle = readUiSource('src/app/legacy-runtime/features/media-preview-lifecycle.js');
+  const mediaPreviewLifecycle = readUiSource('src/app/runtime/messages/media-preview-lifecycle.js');
 
   assert.match(css, /\.media-lightbox-action,\s*\.media-lightbox-action\s+svg,\s*\.media-lightbox-action\s+svg\s+\*[^{]*\{[^}]*color:\s*var\(--on-color\)\s!important;[^}]*stroke:\s*var\(--on-color\)\s!important;/s);
   assert.match(css, /\.media-lightbox-action\s+svg\s*\{[^}]*fill:\s*none\s!important;/s);
@@ -23,7 +23,7 @@ test('media preview download and share icons stay white over dark media', () => 
 
 test('the model picker is one panel with a bounded, quietly scrolling list and a stepped thinking slider', () => {
   const css = readUiSource('src/styles/model-picker.css');
-  const lifecycle = readUiSource('src/app/legacy-runtime/features/council-controls-lifecycle.js');
+  const lifecycle = readUiSource('src/app/runtime/council/council-controls-lifecycle.js');
   const markup = readUiSource('src/app/ui/model-picker/model-picker-markup.js');
 
   // One panel: the way to answer, the model list or the council, and the thinking slider.
@@ -59,7 +59,7 @@ test('the model picker is one panel with a bounded, quietly scrolling list and a
 });
 
 test('closing popovers from outside also collapses the model and thinking buttons', () => {
-  const source = readUiSource('src/app/runtime/legacy-core/workspace-features.js');
+  const source = readUiSource('src/app/runtime/shell/workspace-features.js');
 
   assert.match(source, /function closeAllPopovers\(\)\s*\{[\s\S]*#model-council-control \.mp-trigger\[aria-expanded="true"\][\s\S]*setAttribute\('aria-expanded',\s*'false'\)/);
 });

@@ -5,7 +5,7 @@ import test from 'node:test';
 import {
   finalizeAssistantResponse,
   persistAssistantResponseError
-} from '../src/app/legacy-runtime/features/assistant-response-finalization.js';
+} from '../src/app/runtime/reply/assistant-response-finalization.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -383,7 +383,7 @@ test('error finalization preserves the legacy missing-prefix fallback text', asy
 });
 
 test('assistant response finalization source avoids provider parser, storage schema, package, and Vite coupling', () => {
-  const source = readSource('src/app/legacy-runtime/features/assistant-response-finalization.js');
+  const source = readSource('src/app/runtime/reply/assistant-response-finalization.js');
 
   for (const forbidden of [
     'fetch',

@@ -10,12 +10,12 @@ import test from 'node:test';
 // pattern is nowhere in it).
 
 const RETIRED = {
-  'src/app/legacy-app.js': {
+  'src/app/chat-app.js': {
     "production runtime entry composes the explicit legacy dependency facade": [
       /virtual:legacy-app-runtime/
     ],
   },
-  'src/app/legacy-runtime/features/assistant-response-finalization.js': {
+  'src/app/runtime/reply/assistant-response-finalization.js': {
     "assistant response finalization is isolated from the 01 runtime submit flow": [
       /sendConversationToMail|conversation-mail|google-form-submit/,
       /fetch\s*\(/,
@@ -24,7 +24,7 @@ const RETIRED = {
       /virtual:legacy-app-runtime|vite\.config|package\.json/
     ],
   },
-  'src/app/legacy-runtime/features/council-controls-lifecycle.js': {
+  'src/app/runtime/council/council-controls-lifecycle.js': {
     "council controls lifecycle is isolated from the 01 runtime shell": [
       /\belements\b/,
       /elements\.fileInputContainer/,
@@ -33,13 +33,13 @@ const RETIRED = {
       /virtual:legacy-app-runtime|vite\.config|package\.json|REFACTOR_PLAN/
     ],
   },
-  'src/app/legacy-runtime/features/council-response-lifecycle.js': {
+  'src/app/runtime/council/council-response-lifecycle.js': {
     "council response lifecycle core is isolated from the 02 runtime fragment": [
       /document\.|window\.|indexedDB|localStorage|sessionStorage/,
       /TextDecoder\b|response\.body\.getReader\(\)|virtual:legacy-app-runtime|vite\.config|package\.json/
     ],
   },
-  'src/app/legacy-runtime/features/council-response-render-lifecycle.js': {
+  'src/app/runtime/council/council-response-render-lifecycle.js': {
     "council response render lifecycle is isolated from the 01 runtime submit flow": [
       /fetch\s*\(/,
       /TextDecoder\b|response\.body|streamApiCall\b/,
@@ -47,23 +47,23 @@ const RETIRED = {
       /virtual:legacy-app-runtime|vite\.config|package\.json/
     ],
   },
-  'src/app/legacy-runtime/features/media-attachment-renderer.js': {
+  'src/app/runtime/messages/media-attachment-renderer.js': {
     "media renderer and preview lifecycle replace fragment-local and hidden lexical media helpers": [
       /document|window|globalThis|addEventListener|fetch\s*\(/,
       /indexedDB|localStorage|sessionStorage/
     ],
   },
-  'src/app/legacy-runtime/features/media-preview-lifecycle.js': {
+  'src/app/runtime/messages/media-preview-lifecycle.js': {
     "media renderer and preview lifecycle replace fragment-local and hidden lexical media helpers": [
       /indexedDB|localStorage|sessionStorage|streamApiCall/
     ],
   },
-  'src/app/legacy-runtime/features/message-markup-renderer.js': {
+  'src/app/runtime/messages/message-markup-renderer.js': {
     "general message markup rendering is isolated from the 01 runtime DOM shell": [
       /document|window|globalThis|addEventListener|fetch\s*\(/
     ],
   },
-  'src/app/legacy-runtime/features/model-message-post-response-actions.js': {
+  'src/app/runtime/reply/model-message-post-response-actions.js': {
     "model message post-response actions remove the 01 to 02 last message lexical continuation": [
       /fetch\s*\(/,
       /TextDecoder\b|response\.body|streamApiCall\b/,
@@ -71,7 +71,7 @@ const RETIRED = {
       /virtual:legacy-app-runtime|vite\.config|package\.json/
     ],
   },
-  'src/app/legacy-runtime/features/model-switcher-lifecycle.js': {
+  'src/app/runtime/features/model-switcher-lifecycle.js': {
     "model switcher preparation and lifecycle are isolated from the 01 runtime shell": [
       /\belements\b/,
       /\bALL_ELEMENTS\b/,
@@ -81,13 +81,13 @@ const RETIRED = {
       /virtual:legacy-app-runtime|vite\.config|package\.json|REFACTOR_PLAN/
     ],
   },
-  'src/app/legacy-runtime/features/provider-request-support.js': {
+  'src/app/runtime/reply/provider-request-support.js': {
     "provider request support helpers are isolated from the 02 runtime fragment": [
       /document\.|window\.|indexedDB|localStorage|sessionStorage/,
       /virtual:legacy-app-runtime|vite\.config|package\.json/
     ],
   },
-  'src/app/legacy-runtime/features/single-model-response-lifecycle.js': {
+  'src/app/runtime/reply/single-model-response-lifecycle.js': {
     "single-model response lifecycle is isolated from the 01 runtime submit flow": [
       /runModelCouncil\b/,
       /saveAppData\b/,
@@ -96,12 +96,12 @@ const RETIRED = {
       /indexedDB\b/
     ],
   },
-  'src/app/legacy-runtime/features/stream-api-call.js': {
+  'src/app/runtime/reply/stream-api-call.js': {
     "sensitive config export redaction boundary is explicit": [
       /:streamGenerateContent\?key=|\?key=\$\{apiKey\}/
     ],
   },
-  'src/app/legacy-runtime/features/streaming-markdown-renderer.js': {
+  'src/app/runtime/reply/streaming-markdown-renderer.js': {
     "streaming text frame queue helper is isolated from the 01 runtime stream response": [
       /\blet\s+textQueue\s*=/,
       /\blet\s+isFrameRequested\s*=/,
@@ -109,7 +109,7 @@ const RETIRED = {
       /\bconst\s+renderFrame\s*=/
     ],
   },
-  'src/app/legacy-runtime/features/submit-final-cleanup-lifecycle.js': {
+  'src/app/runtime/reply/submit-final-cleanup-lifecycle.js': {
     "submit final cleanup lifecycle is isolated from the 01 runtime submit flow": [
       /fetch\s*\(/,
       /TextDecoder\b|response\.body|streamApiCall\b/,
@@ -117,7 +117,7 @@ const RETIRED = {
       /virtual:legacy-app-runtime|vite\.config|package\.json/
     ],
   },
-  'src/app/legacy-runtime/runtime/runtime-dom-access.js': {
+  'src/app/runtime/kernel/runtime-dom-access.js': {
     "runtime DOM access owns selected element reads through the extracted DOM registry": [
       /document\.|querySelector|getElementById|addEventListener/
     ],
@@ -149,7 +149,7 @@ const RETIRED = {
       /(?:^|\n)\s*(?:void\s+)?(?:start|initializeApp|initChatApp)\(\);/
     ],
     "runtime app data store ownership covers 00 and selected linked replacements": [
-      /runtimeAppDataStore|createLegacyRuntimeAppDataStore|app-data-store/
+      /runtimeAppDataStore|createRuntimeAppDataStore|app-data-store/
     ],
   },
   'src/app/runtime/features/app-bootstrap-lifecycle.js': {
@@ -206,7 +206,7 @@ const RETIRED = {
   'src/app/runtime/features/startup-lifecycle.js': {
     "startup lifecycle and runtime entry own the retired 06 startup shell": [
       /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app/,
-      /legacyRuntimeContext|indexedDB|createLegacyRuntimeStorageAdapter/,
+      /legacyRuntimeContext|indexedDB|createRuntimeStorageAdapter/,
       /function\s+handleLogin|function\s+handleImportOnAuth|function\s+processAuthImport/
     ],
   },
@@ -290,7 +290,7 @@ const RETIRED = {
       /objectStoreNames\.contains/
     ],
   },
-  'src/app/runtime/legacy-core/batch-import-voice-lifecycle.js': {
+  'src/app/runtime/shell/batch-import-voice-lifecycle.js': {
     "batch import voice lifecycle moves batch import and voice ownership out of 03": [
       /legacy-runtime\/fragments|virtual:legacy-app-runtime/
     ],
@@ -298,7 +298,7 @@ const RETIRED = {
       /\bactiveConversationId\b/
     ],
   },
-  'src/app/runtime/legacy-core/page-features.js': {
+  'src/app/runtime/shell/page-features.js': {
     "runtime config ownership moves into a narrow non-live kernel store": [
       /state\.config\s*=/
     ],
@@ -335,7 +335,7 @@ const RETIRED = {
       /compareVersions\(log\.version,\s*max\)/
     ],
   },
-  'src/app/runtime/legacy-core/history-sidebar-helpers.js': {
+  'src/app/runtime/shell/history-sidebar-helpers.js': {
     "color contrast helper is shared without later-fragment lexical ownership": [
       /style\.(?:color|backgroundColor)/
     ],
@@ -344,7 +344,7 @@ const RETIRED = {
       /const\s+\{\s*historySidebarList\s*\}\s*=\s*ALL_ELEMENTS/
     ],
   },
-  'src/app/runtime/legacy-core/legacy-core.js': {
+  'src/app/runtime/shell/shell.js': {
     "legacy model registry owns static model metadata and capability helpers": [
       /const\s+MODELS\s*=\s*\[/,
       /const\s+OPENROUTER_VISION_MODELS\s*=\s*\[/,
@@ -378,13 +378,13 @@ const RETIRED = {
       /\blet\s+config\s*=/
     ],
     "runtime entry cutover helpers no longer rely on 05 lexical ownership": [
-      /conversation-mail|createLegacyConversationMailSender|sendConversationToMail/
+      /conversation-mail|createConversationMailSender|sendConversationToMail/
     ],
     "runtime DOM registry ownership moves into the non-live runtime kernel": [
       /const\s+ALL_ELEMENTS\s*=\s*\{/
     ],
     "runtime config ownership moves into a narrow non-live kernel store": [
-      /createLegacyRuntimeConfigStore\(/,
+      /createRuntimeConfigStore\(/,
       /let\s+config\s*=\s*\{\s*apiKeys:/,
       /async\s+function\s+(?:openDB|getItem|setItem|removeItem)/
     ],
@@ -392,7 +392,7 @@ const RETIRED = {
       /personalMemories\s*=\s*latestAppData\.personalMemories/
     ],
     "runtime app data store ownership covers 00 and selected linked replacements": [
-      /createLegacyRuntimeAppDataStore\(/,
+      /createRuntimeAppDataStore\(/,
       /\bconversations\.(?:length|filter|unshift)\b/,
       /\bconversations\.filter\(/,
       /from\s+['"][^'"]*app-data-store\.js['"]/,
@@ -517,18 +517,18 @@ const RETIRED = {
       /\b(?:const|function)\s+compareVersions\b/
     ],
   },
-  'src/app/runtime/legacy-core/model-memory-dashboard-lifecycle.js': {
+  'src/app/runtime/shell/model-memory-dashboard-lifecycle.js': {
     "model memory dashboard lifecycle moves model usage chart ownership out of 03": [
       /renderModelManagementUI|moveModelOrder/,
       /legacy-runtime\/fragments|virtual:legacy-app-runtime/
     ],
   },
-  'src/app/runtime/legacy-core/model-registry.js': {
+  'src/app/runtime/shell/model-registry.js': {
     "legacy model registry owns static model metadata and capability helpers": [
       /virtual:legacy-app-runtime|legacy-runtime\/fragments|runtime-entry|legacy-app\.js/
     ],
   },
-  'src/app/runtime/legacy-core/search-upload-sidebar-lifecycle.js': {
+  'src/app/runtime/shell/search-upload-sidebar-lifecycle.js': {
     "search upload sidebar lifecycle moves search upload sidebar ownership out of 03": [
       /showConversationInViewModal|search-view-btn/,
       /legacy-runtime\/fragments|virtual:legacy-app-runtime/
@@ -538,15 +538,15 @@ const RETIRED = {
       /renderSearchMediaAttachmentGrid|bindSearchMediaPreviewButtons/
     ],
   },
-  'src/app/runtime/legacy-core/settings-api-key-controls.js': {
+  'src/app/runtime/settings/settings-api-key-controls.js': {
     "sensitive config export redaction boundary is explicit": [
       /dataset\.[A-Za-z0-9_$]*\s*=\s*rawValue/,
       /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-entry|legacy-core\.js/
     ],
   },
-  'src/app/runtime/legacy-core/settings-auth-actions-helper.js': {
+  'src/app/runtime/settings/settings-auth-actions-helper.js': {
   },
-  'src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js': {
+  'src/app/runtime/settings/settings-auth-provider-lifecycle.js': {
     "sensitive config export redaction boundary is explicit": [
       /readApiKeyInputIntent|markApiKeyInputCleared/,
       /:generateContent\?key=|\?key=\$\{apiKey\}/
@@ -561,12 +561,12 @@ const RETIRED = {
       /const\s+updateInputState\s*=\s*\(\)\s*=>\s*\{/
     ],
   },
-  'src/app/runtime/legacy-core/settings-provider-structured-helpers.js': {
+  'src/app/runtime/settings/settings-provider-structured-helpers.js': {
     "sensitive config export redaction boundary is explicit": [
       /:generateContent\?key=|\?key=\$\{apiKey\}/
     ],
   },
-  'src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js': {
+  'src/app/runtime/shell/sidebar-chat-astra-render-lifecycle.js': {
     "sidebar chat Astra render lifecycle ownership stays in a real module with legacy core wiring": [
       /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app/
     ],
@@ -599,7 +599,7 @@ const RETIRED = {
       /\bconst\s+bindMediaPreviewButtons\s*=/
     ],
   },
-  'src/app/runtime/legacy-core/submit-input-council-lifecycle.js': {
+  'src/app/runtime/shell/submit-input-council-lifecycle.js': {
     "streaming council details helpers are isolated from the 01 runtime fragment": [
       /\bconst\s+getOpenCouncilDetailKeys\s*=/,
       /\bconst\s+restoreOpenCouncilDetails\s*=/,
@@ -699,7 +699,7 @@ const RETIRED = {
       /const\s+appendRendererTextGradually\s*=\s*async/
     ],
   },
-  'src/app/runtime/legacy-core/workspace-features.js': {
+  'src/app/runtime/shell/workspace-features.js': {
     "production runtime entry composes the explicit legacy dependency facade": [
       /\binitChatApp\(\);|\binitializeApp\(\);/
     ],
@@ -714,13 +714,13 @@ const RETIRED = {
       /\blet\s+isTrashSelectionMode\b|\bselectedTrashIds\s*=\s*new\s+Set\(\)/
     ],
     "normal import/export lifecycle ownership moves out of 03 into a real runtime module": [
-      /createLegacyImportExportLifecycle/,
+      /createImportExportLifecycle/,
       /const\s+handleExport\s*=\s*(?:async\s*)?\(/,
       /const\s+performImport\s*=\s*(?:async\s*)?\(/,
       /const\s+handleImport\s*=\s*(?:async\s*)?\(/
     ],
     "auth import lifecycle ownership moves out of 03 into a real runtime module": [
-      /createLegacyAuthImportLifecycle/,
+      /createAuthImportLifecycle/,
       /const\s+handleImportOnAuth\s*=\s*(?:async\s*)?\(/,
       /const\s+processAuthImport\s*=\s*(?:async\s*)?\(/
     ],
@@ -742,7 +742,7 @@ const RETIRED = {
       /const\s+handleBatchArchive\s*=\s*async\s*\(\)\s*=>\s*\{/,
       /const\s+setupVoiceInput\s*=\s*\(\)\s*=>\s*\{/,
       /const\s+toggleVoiceInput\s*=\s*(?:async\s*)?\(target\)\s*=>\s*\{/,
-      /createLegacyImportExportLifecycle|createLegacyAuthImportLifecycle/
+      /createImportExportLifecycle|createAuthImportLifecycle/
     ],
     "batch action bar lifecycle breaks the 02 to 03 renderBatchActionBar continuation boundary": [
       /^\s*userControls\.classList\.add\('hidden'\);/
@@ -822,19 +822,19 @@ const RETIRED = {
 
 // The parts a file was later split into (NOU-75) hold what it held, so what may not come back to it may not come back to them either.
 const PARTS = {
-  'src/app/legacy-runtime/features/council-controls-lifecycle.js': [
-    'src/app/legacy-runtime/features/council-controls-events.js',
-    'src/app/legacy-runtime/features/council-controls-view-state.js',
-    'src/app/legacy-runtime/features/council-controls-choices.js'
+  'src/app/runtime/council/council-controls-lifecycle.js': [
+    'src/app/runtime/council/council-controls-events.js',
+    'src/app/runtime/council/council-controls-view-state.js',
+    'src/app/runtime/council/council-controls-choices.js'
   ],
-  'src/app/runtime/legacy-core/legacy-core.js': [
-    'src/app/runtime/legacy-core/shell-state.js',
-    'src/app/runtime/legacy-core/conversation-actions.js',
-    'src/app/runtime/legacy-core/workspace-load.js',
-    'src/app/runtime/legacy-core/council-validation.js',
+  'src/app/runtime/shell/shell.js': [
+    'src/app/runtime/shell/shell-state.js',
+    'src/app/runtime/shell/conversation-actions.js',
+    'src/app/runtime/shell/workspace-load.js',
+    'src/app/runtime/shell/council-validation.js',
     'src/app/runtime/security/password-records.js'
   ],
-  'src/app/runtime/legacy-core/page-features.js': [
+  'src/app/runtime/shell/page-features.js': [
     'src/app/runtime/features/time-analysis-chart.js',
     'src/app/runtime/features/astra-store-lifecycle.js',
     'src/app/runtime/features/language-apply.js',
@@ -849,20 +849,20 @@ const PARTS = {
     'src/app/runtime/features/composer-input-bindings.js',
     'src/app/runtime/features/feedback-forms.js'
   ],
-  'src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js': [
-    'src/app/runtime/legacy-core/model-request-runtime.js',
-    'src/app/runtime/legacy-core/model-request-engine.js',
-    'src/app/runtime/legacy-core/settings-modal-lifecycle.js',
-    'src/app/runtime/legacy-core/settings-dialog-parts.js'
+  'src/app/runtime/settings/settings-auth-provider-lifecycle.js': [
+    'src/app/runtime/shell/model-request-runtime.js',
+    'src/app/runtime/shell/model-request-engine.js',
+    'src/app/runtime/settings/settings-modal-lifecycle.js',
+    'src/app/runtime/settings/settings-dialog-parts.js'
   ],
-  'src/app/runtime/legacy-core/workspace-features.js': [
+  'src/app/runtime/shell/workspace-features.js': [
     'src/app/runtime/memory/memory-runtime.js'
   ],
-  'src/app/runtime/legacy-core/submit-input-council-lifecycle.js': [
-    'src/app/runtime/legacy-core/submit-input-composer.js',
-    'src/app/runtime/legacy-core/submit-input-playback.js',
-    'src/app/runtime/legacy-core/submit-input-image-reveal.js',
-    'src/app/runtime/legacy-core/submit-input-reply-services.js'
+  'src/app/runtime/shell/submit-input-council-lifecycle.js': [
+    'src/app/runtime/shell/submit-input-composer.js',
+    'src/app/runtime/shell/submit-input-playback.js',
+    'src/app/runtime/shell/submit-input-image-reveal.js',
+    'src/app/runtime/shell/submit-input-reply-services.js'
   ]
 };
 

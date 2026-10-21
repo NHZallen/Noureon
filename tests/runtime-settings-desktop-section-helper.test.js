@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createSettingsDesktopSectionHelper } from '../src/app/runtime/legacy-core/settings-desktop-section-helper.js';
+import { createSettingsDesktopSectionHelper } from '../src/app/runtime/settings/settings-desktop-section-helper.js';
 
 function createClassList(initial = []) {
   const values = new Set(initial);

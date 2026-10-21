@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { webcrypto } from 'node:crypto';
 import test from 'node:test';
 
-import { createLegacyRuntimeAppDataPersistence } from '../src/app/runtime/kernel/app-data-persistence.js';
+import { createRuntimeAppDataPersistence } from '../src/app/runtime/kernel/app-data-persistence.js';
 import { initializeConversationShadowSync } from '../src/app/sync/cloud-sync-v2.js';
 import { createWorkspaceStoreV2, fingerprintText, getWorkspaceV2Keys } from '../src/app/runtime/kernel/workspace-store-v2.js';
 import {
@@ -341,7 +341,7 @@ eachBackend('a newer persisted revision during upload survives the old ACK and i
     createdAt: '2026-07-15T00:04:00.000Z',
     messages: [{ role: 'user', parts: [{ text: 'New revision' }] }]
   });
-  const persistence = createLegacyRuntimeAppDataPersistence({
+  const persistence = createRuntimeAppDataPersistence({
     getCurrentUser: () => ({ username, authProvider: 'supabase' }),
     getAppData: () => laterWorkspace,
     getAppDataKey: () => appDataKey,
@@ -510,7 +510,7 @@ eachBackend('save during remote fetch preserves dirty same-ID folder, Noura, and
   latest.astras[0].instructions = 'Saved instructions';
   latest.conversations[0].title = 'Saved conversation';
   latest.conversations[0].genConfig = { temperature: 0.95 };
-  const persistence = createLegacyRuntimeAppDataPersistence({
+  const persistence = createRuntimeAppDataPersistence({
     getCurrentUser: () => ({ username, authProvider: 'supabase' }),
     getAppData: () => latest,
     getAppDataKey: () => appDataKey,
@@ -593,7 +593,7 @@ eachBackend('a local folder edit does not hide another device new conversation m
 
   const localEdit = createWorkspace();
   localEdit.folders[0].name = 'Folder renamed on device A';
-  const persistence = createLegacyRuntimeAppDataPersistence({
+  const persistence = createRuntimeAppDataPersistence({
     getCurrentUser: () => ({ username, authProvider: 'supabase' }),
     getAppData: () => localEdit,
     getAppDataKey: () => appDataKey,
@@ -660,7 +660,7 @@ eachBackend('editing Astra X locally preserves a concurrent remote edit to Astra
   const localEdit = structuredClone(initial);
   localEdit.astras[0].name = 'Astra X edited on device A';
   localEdit.astras[0].instructions = 'X local edit';
-  const persistence = createLegacyRuntimeAppDataPersistence({
+  const persistence = createRuntimeAppDataPersistence({
     getCurrentUser: () => ({ username, authProvider: 'supabase' }),
     getAppData: () => localEdit,
     getAppDataKey: () => appDataKey,
@@ -719,7 +719,7 @@ eachBackend('a remote tombstone wins over a same-entity local edit during fetch'
 
   const localEdit = createWorkspace();
   localEdit.conversations[0].title = 'Edited locally after remote deletion';
-  const persistence = createLegacyRuntimeAppDataPersistence({
+  const persistence = createRuntimeAppDataPersistence({
     getCurrentUser: () => ({ username, authProvider: 'supabase' }),
     getAppData: () => localEdit,
     getAppDataKey: () => appDataKey,

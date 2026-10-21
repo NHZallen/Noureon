@@ -1,4 +1,4 @@
-const LEGACY_RUNTIME_DOM_ELEMENT_IDS = [
+const RUNTIME_DOM_ELEMENT_IDS = [
   ['authContainer', 'auth-container'],
   ['appContainer', 'app-container'],
   ['authForm', 'auth-form'],
@@ -214,9 +214,9 @@ const LEGACY_RUNTIME_DOM_ELEMENT_IDS = [
   ['importPercentageAuth', 'import-percentage-auth']
 ];
 
-export function createLegacyRuntimeDomRegistry(rootDocument = document) {
+export function createRuntimeDomRegistry(rootDocument = document) {
   return Object.fromEntries(
-    LEGACY_RUNTIME_DOM_ELEMENT_IDS.map(([key, id]) => [
+    RUNTIME_DOM_ELEMENT_IDS.map(([key, id]) => [
       key,
       rootDocument.getElementById(id)
     ])

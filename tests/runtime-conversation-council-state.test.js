@@ -4,7 +4,7 @@ import test from 'node:test';
 import {
   createDisabledCouncilConfig,
   disableConversationCouncil
-} from '../src/app/runtime/legacy-core/conversation-council-state.js';
+} from '../src/app/runtime/shell/conversation-council-state.js';
 
 test('createDisabledCouncilConfig preserves council selections while disabling it', () => {
   const original = {

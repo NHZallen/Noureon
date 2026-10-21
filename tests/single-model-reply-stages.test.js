@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { prepareReply } from '../src/app/legacy-runtime/features/single-model-reply-prepare.js';
-import { followServerReply, handOverToServer } from '../src/app/legacy-runtime/features/single-model-reply-server.js';
-import { createReplyLiveView } from '../src/app/legacy-runtime/features/single-model-reply-live-view.js';
-import { createLocalReply } from '../src/app/legacy-runtime/features/single-model-reply-local.js';
-import { composeReplyText, recordReplyRun } from '../src/app/legacy-runtime/features/single-model-reply-finish.js';
+import { prepareReply } from '../src/app/runtime/reply/single-model-reply-prepare.js';
+import { followServerReply, handOverToServer } from '../src/app/runtime/reply/single-model-reply-server.js';
+import { createReplyLiveView } from '../src/app/runtime/reply/single-model-reply-live-view.js';
+import { createLocalReply } from '../src/app/runtime/reply/single-model-reply-local.js';
+import { composeReplyText, recordReplyRun } from '../src/app/runtime/reply/single-model-reply-finish.js';
 import { liftSandboxRunBlock } from '../src/app/ui/sandbox/sandbox-run-block.js';
 
 const modelInfo = { id: 'm', name: 'Model', provider: 'openrouter' };

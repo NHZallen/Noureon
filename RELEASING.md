@@ -51,7 +51,7 @@
 4. 執行完整品質門檻：
 
    ```bash
-   npm run build && npm test && npm run check:legacy-runtime && npm run check:sizes && npm run check:version
+   npm run build && npm test && npm run check:shell && npm run check:sizes && npm run check:version
    ```
 
 5. 推送 `main`，等待 Vercel 部署完成。

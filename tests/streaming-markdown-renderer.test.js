@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { createStreamingMarkdownFeature } from '../src/app/legacy-runtime/features/streaming-markdown-renderer.js';
+import { createStreamingMarkdownFeature } from '../src/app/runtime/reply/streaming-markdown-renderer.js';
 import { createDom } from './behaviours/helpers/create-dom.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
@@ -363,7 +363,7 @@ test('non-abort stream errors preserve rendered error output and rethrow', async
 });
 
 test('streaming markdown renderer source avoids provider, storage, and runtime plugin coupling', () => {
-  const source = readSource('src/app/legacy-runtime/features/streaming-markdown-renderer.js');
+  const source = readSource('src/app/runtime/reply/streaming-markdown-renderer.js');
 
   for (const forbidden of [
     'fetch(',

@@ -2,11 +2,11 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { createLegacyRuntimeConfigPersistence } from '../src/app/runtime/kernel/config-persistence.js';
+import { createRuntimeConfigPersistence } from '../src/app/runtime/kernel/config-persistence.js';
 import { normalizeLoadedLegacyConfig } from '../src/app/runtime/kernel/config-normalization.js';
 import { getStoredUserWorkspaceKeys } from '../src/app/runtime/kernel/user-data-retention.js';
-import { createLegacySettingsAuthProviderLifecycle } from '../src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js';
-import { createLegacyAppBootstrapLifecycle } from '../src/app/runtime/features/app-bootstrap-lifecycle.js';
+import { createSettingsAuthProviderLifecycle } from '../src/app/runtime/settings/settings-auth-provider-lifecycle.js';
+import { createAppBootstrapLifecycle } from '../src/app/runtime/features/app-bootstrap-lifecycle.js';
 import { createDom } from './behaviours/helpers/create-dom.js';
 import { createDependencies } from './helpers/settings-lifecycle-harness.js';
 
@@ -20,7 +20,7 @@ test('serialized config persistence writes the latest config for the latest user
   const calls = [];
   let currentUser = null;
   let config = { nested: { enabled: false } };
-  const persistence = createLegacyRuntimeConfigPersistence({
+  const persistence = createRuntimeConfigPersistence({
     getCurrentUser: () => currentUser,
     getConfig: () => config,
     getConfigKey: () => `chatConfig_v_v8.6_${currentUser.username}`,
@@ -53,7 +53,7 @@ test('serialized config persistence writes the latest config for the latest user
 
 test('serialized config persistence removes apiKeys from normal config writes', async () => {
   const calls = [];
-  const persistence = createLegacyRuntimeConfigPersistence({
+  const persistence = createRuntimeConfigPersistence({
     getCurrentUser: () => ({ username: 'alice' }),
     getConfig: () => ({
       theme: 'dark',
@@ -81,7 +81,7 @@ test('serialized config persistence removes apiKeys from normal config writes', 
 test('serialized config persistence marks cloud sync before and after the durable write', async () => {
   const order = [];
   let markerCalls = 0;
-  const persistence = createLegacyRuntimeConfigPersistence({
+  const persistence = createRuntimeConfigPersistence({
     getCurrentUser: () => ({ username: 'alice' }),
     getConfig: () => ({ outputMode: 'typewriter' }),
     getConfigKey: () => 'chatConfig_v_v8.6_alice',
@@ -102,7 +102,7 @@ test('serialized config persistence marks cloud sync before and after the durabl
 
 test('serialized config persistence preserves rejection and stringify error boundaries', async () => {
   const setItemError = new Error('write failed');
-  const rejectingPersistence = createLegacyRuntimeConfigPersistence({
+  const rejectingPersistence = createRuntimeConfigPersistence({
     getCurrentUser: () => ({ username: 'alice' }),
     getConfig: () => ({ theme: 'dark' }),
     getConfigKey: () => 'chatConfig_v_v8.6_alice',
@@ -115,7 +115,7 @@ test('serialized config persistence preserves rejection and stringify error boun
 
   const circularConfig = {};
   circularConfig.self = circularConfig;
-  const circularPersistence = createLegacyRuntimeConfigPersistence({
+  const circularPersistence = createRuntimeConfigPersistence({
     getCurrentUser: () => ({ username: 'alice' }),
     getConfig: () => circularConfig,
     getConfigKey: () => 'chatConfig_v_v8.6_alice',
@@ -129,7 +129,7 @@ test('serialized config persistence preserves rejection and stringify error boun
 });
 
 test('serialized config persistence exposes only saveConfig', () => {
-  const persistence = createLegacyRuntimeConfigPersistence({
+  const persistence = createRuntimeConfigPersistence({
     getCurrentUser: () => null,
     getConfig: () => ({}),
     getConfigKey: () => 'unused',
@@ -143,7 +143,7 @@ test('serialized config persistence exposes only saveConfig', () => {
 // The keys are composed in the composition root (legacy-core.js), which cannot be loaded in a test: each is taken from there and run
 // for one user. They must stay the keys the cloud sync reads and the removal of an account's data removes.
 const composedKey = (name) => {
-  const match = new RegExp(`const ${name} = \\(\\) => (\`[^\`]+\`);`).exec(readSource('src/app/runtime/legacy-core/legacy-core.js'));
+  const match = new RegExp(`const ${name} = \\(\\) => (\`[^\`]+\`);`).exec(readSource('src/app/runtime/shell/shell.js'));
   assert.ok(match, `${name} should be composed in legacy-core.js`);
   return new Function('getCurrentUser', `return ${match[1]};`)(() => ({ username: 'alice' }));
 };
@@ -204,7 +204,7 @@ test('saving the settings changes the config, then saves it, before the page fol
   state.config.uiLanguage = 'zh-TW';
   dependencies.elements.uiLanguageSelect.value = 'en';
   dependencies.elements.aiLanguageSelect.value = 'en';
-  const lifecycle = createLegacySettingsAuthProviderLifecycle(dependencies);
+  const lifecycle = createSettingsAuthProviderLifecycle(dependencies);
   const steps = () => calls.map((call) => (Array.isArray(call) ? call[0] : call));
 
   await lifecycle.saveSettings();
@@ -252,7 +252,7 @@ test('a change in the settings dialog saves the settings quietly: at once, after
       clearScheduledTimeout: () => {}, scheduleAnimationFrame: (handler) => handler(),
       logger: { warn() {}, error() {}, log() {} }
     };
-    const { initChatApp } = createLegacyAppBootstrapLifecycle(new Proxy(base, { get: (deps, name) => (name in deps ? deps[name] : async () => {}) }));
+    const { initChatApp } = createAppBootstrapLifecycle(new Proxy(base, { get: (deps, name) => (name in deps ? deps[name] : async () => {}) }));
     await initChatApp();
     saves.length = 0;
 
@@ -279,5 +279,5 @@ test('config persistence and the config store keep to their own jobs', () => {
     /\b(?:indexedDB|localStorage|sessionStorage|getItem|setItem|removeItem)\b|JSON\.(?:parse|stringify)/
   );
   // The settings and the workspace live in IndexedDB, through the adapter, not in web storage.
-  assert.doesNotMatch(readSource('src/app/runtime/legacy-core/legacy-core.js'), /\b(?:localStorage|sessionStorage)\b/);
+  assert.doesNotMatch(readSource('src/app/runtime/shell/shell.js'), /\b(?:localStorage|sessionStorage)\b/);
 });

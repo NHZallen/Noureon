@@ -3,10 +3,10 @@
 // model, the search goes to the source chosen in Settings (and to the other one when that finds nothing), and what was found is put in front
 // of the request as "# Web search packet", the way the page puts it (provider-request-support.js). The pages found are the reply's sources.
 
-import { personParts, searchPacketSection, withContextSection } from '../src/app/legacy-runtime/features/search-packet-parts.js';
-import { createSearchQueryRewriter } from '../src/app/legacy-runtime/features/search-query-rewriter.js';
-import { buildTavilySearchQuery, formatTavilySearchPacket, normalizePageReads, normalizeTinyfishSearch, resultDate, withSearchContext } from '../src/app/legacy-runtime/features/model-request-formatting.js';
-import { createWebResearchTools } from '../src/app/legacy-runtime/features/web-research-tools.js';
+import { personParts, searchPacketSection, withContextSection } from '../src/app/runtime/reply/search-packet-parts.js';
+import { createSearchQueryRewriter } from '../src/app/runtime/reply/search-query-rewriter.js';
+import { buildTavilySearchQuery, formatTavilySearchPacket, normalizePageReads, normalizeTinyfishSearch, resultDate, withSearchContext } from '../src/app/runtime/reply/model-request-formatting.js';
+import { createWebResearchTools } from '../src/app/runtime/features/web-research-tools.js';
 import { getRuntimeText } from '../src/app/runtime/i18n/runtime-texts.js';
 import { searchProviderLabel } from '../src/app/runtime/kernel/search-provider.js';
 

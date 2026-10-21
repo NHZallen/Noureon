@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { Window } from 'happy-dom';
 
-import { createHistorySidebarHelpers, latestSources, timelineSnippet } from '../src/app/runtime/legacy-core/history-sidebar-helpers.js';
+import { createHistorySidebarHelpers, latestSources, timelineSnippet } from '../src/app/runtime/shell/history-sidebar-helpers.js';
 import { formatSandboxRunBlock } from '../src/app/ui/sandbox/sandbox-run-block.js';
 import { resetSiteNames } from '../src/app/ui/citations/site-names.js';
 import { openSourceSheet } from '../src/app/ui/citations/source-sheet.js';

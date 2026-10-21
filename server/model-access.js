@@ -1,9 +1,9 @@
 // How the server talks to the model of a reply: the page's own request code (createStreamApiCall), given the model, the keys and the
 // language from the RunSpec instead of what the page knows. A reply and the visual check that follows it use the same.
 
-import { createStreamApiCall } from '../src/app/legacy-runtime/features/stream-api-call.js';
+import { createStreamApiCall } from '../src/app/runtime/reply/stream-api-call.js';
 import { createServerOfficeReader } from './office-deps.js';
-import { getModelReasoningConfig, modelSupportsUploadedFile, modelSupportsVision, normalizeReasoningEffort } from '../src/app/runtime/legacy-core/model-registry.js';
+import { getModelReasoningConfig, modelSupportsUploadedFile, modelSupportsVision, normalizeReasoningEffort } from '../src/app/runtime/shell/model-registry.js';
 import { createUpstreamFetch } from './upstream-fetch.js';
 
 const SEARCH_SOURCES = ['tavily', 'tinyfish'];

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createLegacySettingsAuthProviderLifecycle } from '../src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js';
+import { createSettingsAuthProviderLifecycle } from '../src/app/runtime/settings/settings-auth-provider-lifecycle.js';
 import { createDependencies, createUpdateInputStateHarness, assertDisabledSubmitIcon, assertSendSubmitIcon, assertStopSubmitIcon } from './helpers/settings-lifecycle-harness.js';
 
 test('updateInputState disables submit and preserves input state when no conversation is active', () => {
@@ -121,7 +121,7 @@ test('updateInputState remains safe with the default injected DOM element fallba
   const { dependencies } = createDependencies({
     getActiveConversation: () => null
   });
-  const lifecycle = createLegacySettingsAuthProviderLifecycle(dependencies);
+  const lifecycle = createSettingsAuthProviderLifecycle(dependencies);
 
   assert.doesNotThrow(() => lifecycle.updateInputState());
   assert.equal(dependencies.elements.submitButton.disabled, true);

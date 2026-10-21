@@ -2,12 +2,12 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { createSettingsProviderStructuredHelpers } from '../src/app/runtime/legacy-core/settings-provider-structured-helpers.js';
+import { createSettingsProviderStructuredHelpers } from '../src/app/runtime/settings/settings-provider-structured-helpers.js';
 import {
   buildTitleSummaryPrompt,
   createSettingsTitleSummaryHelpers,
   normalizeTitleSummaryResponse
-} from '../src/app/runtime/legacy-core/settings-title-summary-helpers.js';
+} from '../src/app/runtime/settings/settings-title-summary-helpers.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -23,7 +23,7 @@ test('module exports title summary helper functions and imports inertly', () => 
   assert.equal(typeof createSettingsTitleSummaryHelpers, 'function');
   assert.equal(typeof buildTitleSummaryPrompt, 'function');
   assert.equal(typeof normalizeTitleSummaryResponse, 'function');
-  const source = readSource('src/app/runtime/legacy-core/settings-title-summary-helpers.js');
+  const source = readSource('src/app/runtime/settings/settings-title-summary-helpers.js');
 
   assert.doesNotMatch(source, /legacy-runtime\/fragments|virtual:legacy-app-runtime|document\.|window\./);
 });

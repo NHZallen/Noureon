@@ -5,10 +5,10 @@
 // given is what it would be given from the page. The web search is not made here: the search packet (search-packet.js) and the model's own tools do that.
 // `onPhase(phase)` says which step is going on ('reading', 'pdf', 'translating', 'links'), for the pages that watch.
 
-import { createProviderRequestSupport } from '../src/app/legacy-runtime/features/provider-request-support.js';
-import { buildTavilySearchQuery, formatTavilySearchPacket, normalizePageReads, normalizeTinyfishSearch, withSearchContext } from '../src/app/legacy-runtime/features/model-request-formatting.js';
-import { COUNCIL_RESPONSE_CHAR_LIMIT, COUNCIL_RETRY_DELAY_MS, modelSupportsUploadedFile, modelSupportsVision, modelUsesTavilySearch } from '../src/app/runtime/legacy-core/model-registry.js';
-import { opencodeModelReadsOfficeViaPdf } from '../src/app/runtime/legacy-core/opencode-models.js';
+import { createProviderRequestSupport } from '../src/app/runtime/reply/provider-request-support.js';
+import { buildTavilySearchQuery, formatTavilySearchPacket, normalizePageReads, normalizeTinyfishSearch, withSearchContext } from '../src/app/runtime/reply/model-request-formatting.js';
+import { COUNCIL_RESPONSE_CHAR_LIMIT, COUNCIL_RETRY_DELAY_MS, modelSupportsUploadedFile, modelSupportsVision, modelUsesTavilySearch } from '../src/app/runtime/shell/model-registry.js';
+import { opencodeModelReadsOfficeViaPdf } from '../src/app/runtime/shell/opencode-models.js';
 import { createServerOfficeReader } from './office-deps.js';
 
 // The stages the page's code names, and what the pages that watch are told.

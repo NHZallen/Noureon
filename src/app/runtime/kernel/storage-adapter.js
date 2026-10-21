@@ -1,4 +1,4 @@
-export function createLegacyRuntimeStorageAdapter({
+export function createRuntimeStorageAdapter({
   indexedDBFactory = indexedDB,
   dbName = 'ChatAppDB',
   storeName = 'keyValue',

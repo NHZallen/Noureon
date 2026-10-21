@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test, { mock } from 'node:test';
 
 import { createDom } from './helpers/create-dom.js';
-import { createLegacyAppBootstrapLifecycle } from '../../src/app/runtime/features/app-bootstrap-lifecycle.js';
+import { createAppBootstrapLifecycle } from '../../src/app/runtime/features/app-bootstrap-lifecycle.js';
 
 // Whatever the start of the app touches that these tests do not look at: every property is another stand-in, and calling one returns
 // one (never a promise, so nothing waits on it).
@@ -53,7 +53,7 @@ const startApp = async (document, { phone = false } = {}) => {
     openSettingsMobileSection: (section) => calls.push(`open section:${section}`)
   };
   const dependencies = new Proxy(given, { get: (target, name) => (name in target ? target[name] : standIn()) });
-  const { initChatApp } = createLegacyAppBootstrapLifecycle(dependencies);
+  const { initChatApp } = createAppBootstrapLifecycle(dependencies);
   await initChatApp();
   return { calls, ...real };
 };

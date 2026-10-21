@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import { buildImageDecisionRequest, describeLimits, parseImageDecisionResponse, readWrittenRatio } from '../src/app/runtime/decisions/image-decisions.js';
 import { createDecisionService } from '../src/app/runtime/decisions/decision-client.js';
-import { readSpokenRequest } from '../src/app/legacy-runtime/features/image-spoken-request.js';
+import { readSpokenRequest } from '../src/app/runtime/images/image-spoken-request.js';
 
 test('the request about a picture message holds its limits and the yes-or-no questions', () => {
   const request = buildImageDecisionRequest({ message: '給我兩張9:16草原的圖片', limits: { maxCount: 6, minReferences: 0, maxReferences: 4 }, attached: 1 });

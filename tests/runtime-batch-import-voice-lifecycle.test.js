@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { createLegacyBatchImportVoiceLifecycle } from '../src/app/runtime/legacy-core/batch-import-voice-lifecycle.js';
+import { createBatchImportVoiceLifecycle } from '../src/app/runtime/shell/batch-import-voice-lifecycle.js';
 
 const readSource = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const noop = () => {};
@@ -138,7 +138,7 @@ function createHarness(overrides = {}) {
     delay: async () => {},
     logger: { warn: noop, error: noop, log: noop }
   };
-  const lifecycle = createLegacyBatchImportVoiceLifecycle({ ...base, ...overrides });
+  const lifecycle = createBatchImportVoiceLifecycle({ ...base, ...overrides });
   return {
     calls,
     elements,
@@ -152,7 +152,7 @@ function createHarness(overrides = {}) {
 }
 
 test('factory is inert on import and validates required dependencies', () => {
-  assert.throws(() => createLegacyBatchImportVoiceLifecycle(), /missing dependencies: document, window/);
+  assert.throws(() => createBatchImportVoiceLifecycle(), /missing dependencies: document, window/);
 });
 
 test('factory exposes batch, import, auth-import, and voice functions', () => {
@@ -443,7 +443,7 @@ test('importing a backup from the sign-in page signs in, restores the data and k
 });
 
 test('the lifecycle does not reach into the legacy fragments or the virtual runtime', () => {
-  const source = readSource('src/app/runtime/legacy-core/batch-import-voice-lifecycle.js');
+  const source = readSource('src/app/runtime/shell/batch-import-voice-lifecycle.js');
   assert.doesNotMatch(source, /legacy-runtime\/fragments|virtual:legacy-app-runtime/);
 });
 

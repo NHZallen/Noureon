@@ -3,9 +3,9 @@
 // writes them into the words).
 
 export async function computeAppCounts() {
-  const registry = await import('../src/app/runtime/legacy-core/model-registry.js');
+  const registry = await import('../src/app/runtime/shell/model-registry.js');
   const groups = await import('../src/app/ui/model-picker/model-picker-groups.js');
-  const modelRegistry = registry.createLegacyModelRegistry({ getConfig: () => ({}) });
+  const modelRegistry = registry.createModelRegistry({ getConfig: () => ({}) });
   const vendors = new Set(registry.MODELS.map((model) => groups.getCompanyLabel(groups.getModelCompany(model, modelRegistry.getModelApiId(model)))));
   const { DESIGN_PRESET_IDS } = await import('../src/app/ui/files/design/design-presets.js');
   const { DOCUMENT_PRESET_IDS } = await import('../src/app/ui/files/design/document-presets.js');

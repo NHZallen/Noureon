@@ -3,7 +3,7 @@ import test from 'node:test';
 
 import { Window } from 'happy-dom';
 
-import { getCouncilRuntimeTexts } from '../src/app/runtime/legacy-core/council-runtime-texts.js';
+import { getCouncilRuntimeTexts } from '../src/app/runtime/shell/council-runtime-texts.js';
 import { createToastCenter, noticeDuration } from '../src/app/ui/notifications/toast-center.js';
 
 const setup = () => {

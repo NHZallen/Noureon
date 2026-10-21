@@ -9,7 +9,7 @@ import {
   isCouncilComparisonSummary,
   normalizeCouncilComparisonDetails,
   restoreOpenCouncilDetails
-} from '../src/app/legacy-runtime/features/streaming-council-details.js';
+} from '../src/app/runtime/council/streaming-council-details.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -101,7 +101,7 @@ test('detects incomplete council details markup', () => {
 });
 
 test('streaming council details helper stays isolated from high-risk runtime side effects', () => {
-  const helperSource = readSource('src/app/legacy-runtime/features/streaming-council-details.js');
+  const helperSource = readSource('src/app/runtime/council/streaming-council-details.js');
 
   for (const forbidden of [
     'document',

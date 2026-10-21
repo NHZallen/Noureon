@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { appendRendererTextGradually } from '../src/app/legacy-runtime/features/renderer-gradual-append-controller.js';
+import { appendRendererTextGradually } from '../src/app/runtime/reply/renderer-gradual-append-controller.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -118,7 +118,7 @@ test('empty gradual append schedules no frames and appends nothing', async () =>
 });
 
 test('renderer gradual append helper source stays isolated from runtime systems', () => {
-  const helperSource = readSource('src/app/legacy-runtime/features/renderer-gradual-append-controller.js');
+  const helperSource = readSource('src/app/runtime/reply/renderer-gradual-append-controller.js');
 
   for (const forbidden of [
     'document',

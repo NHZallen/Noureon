@@ -4,8 +4,8 @@ import test, { afterEach } from 'node:test';
 import JSZip from 'jszip';
 import { Window } from 'happy-dom';
 
-import { runWebResearchReply } from '../src/app/legacy-runtime/features/web-research-reply.js';
-import { runSkillsReply } from '../src/app/legacy-runtime/features/skills-reply.js';
+import { runWebResearchReply } from '../src/app/runtime/features/web-research-reply.js';
+import { runSkillsReply } from '../src/app/runtime/reply/skills-reply.js';
 import { sandboxText, skillStepEvent } from '../src/app/runtime/sandbox/sandbox-texts.js';
 import { createSkillMode } from '../src/app/runtime/skill/skill-mode.js';
 import { clearSkillSelection, readSkillFile } from '../src/app/runtime/skill/skill-bridge.js';

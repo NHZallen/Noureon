@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { SERVICES, getService } from '../src/app/runtime/services.js';
 
-import { createLegacyStartupLifecycle } from '../src/app/runtime/features/startup-lifecycle.js';
+import { createStartupLifecycle } from '../src/app/runtime/features/startup-lifecycle.js';
 import { mergeSyncedMemoryState } from '../src/app/runtime/memory/memory-sync-projection.js';
 
 const createClassList = (id, calls) => {
@@ -161,7 +161,7 @@ const findListener = (listeners, id, type) => {
 };
 
 test('factory exports the complete startup lifecycle API', () => {
-  const lifecycle = createLegacyStartupLifecycle(createHarness().dependencies);
+  const lifecycle = createStartupLifecycle(createHarness().dependencies);
 
   for (const name of [
     'bindAuthStartupListeners',
@@ -176,7 +176,7 @@ test('factory exports the complete startup lifecycle API', () => {
 
 test('auth startup listeners preserve binding order and import enablement behavior', () => {
   const harness = createHarness();
-  const lifecycle = createLegacyStartupLifecycle(harness.dependencies);
+  const lifecycle = createStartupLifecycle(harness.dependencies);
 
   lifecycle.bindAuthStartupListeners();
 
@@ -220,7 +220,7 @@ test('a first visit follows the language of the browser: one of the five, any Ch
     await withBrowserLanguages(languages, async () => {
       const harness = createHarness();
       harness.stored.delete('chatUser_alice');
-      await createLegacyStartupLifecycle(harness.dependencies).initializeApp();
+      await createStartupLifecycle(harness.dependencies).initializeApp();
       assert.equal(harness.calls[0], `applyLanguage:${expected}`, languages.join());
       assert.equal(harness.config.uiLanguage, expected, languages.join());
     });
@@ -230,7 +230,7 @@ test('a first visit follows the language of the browser: one of the five, any Ch
 test('initializeApp restores the user and preserves load and visual handoff order', async () => {
   await withBrowserLanguages(['zh-TW'], async () => {
   const harness = createHarness();
-  const lifecycle = createLegacyStartupLifecycle(harness.dependencies);
+  const lifecycle = createStartupLifecycle(harness.dependencies);
 
   await lifecycle.initializeApp();
 
@@ -286,7 +286,7 @@ test('initializeApp restores synced memory before the first app render', async (
     }
   });
 
-  await createLegacyStartupLifecycle(harness.dependencies).initializeApp();
+  await createStartupLifecycle(harness.dependencies).initializeApp();
 
   assert.ok(harness.calls.indexOf('restoreMemorySync') < harness.calls.indexOf('initChatApp'));
 });
@@ -294,7 +294,7 @@ test('initializeApp restores synced memory before the first app render', async (
 test('initializeApp preserves missing-user fallback behavior', async () => {
   const harness = createHarness();
   harness.stored.delete('chatUser_alice');
-  const lifecycle = createLegacyStartupLifecycle(harness.dependencies);
+  const lifecycle = createStartupLifecycle(harness.dependencies);
 
   await lifecycle.initializeApp();
 
@@ -306,7 +306,7 @@ test('initializeApp preserves missing-user fallback behavior', async () => {
 
 test('login language switcher mutates the live config and applies language', () => {
   const harness = createHarness();
-  const lifecycle = createLegacyStartupLifecycle(harness.dependencies);
+  const lifecycle = createStartupLifecycle(harness.dependencies);
 
   lifecycle.bindLoginLanguageSwitcher();
   const menuClick = findListener(harness.listeners, 'loginLangMenu', 'click');
@@ -329,7 +329,7 @@ test('adjustTextareaHeight preserves layout behavior and caches its measurement 
   harness.elements.messageInput.scrollHeight = 60;
   harness.elements.messageInput.clientWidth = 120;
   harness.elements.messageInput.closest = () => wrapper;
-  const lifecycle = createLegacyStartupLifecycle(harness.dependencies);
+  const lifecycle = createStartupLifecycle(harness.dependencies);
 
   lifecycle.adjustTextareaHeight();
   lifecycle.adjustTextareaHeight();
@@ -348,7 +348,7 @@ test('adjustTextareaHeight caps desktop growth at ten lines and exposes expansio
   harness.elements.messageInput.value = 'long draft';
   harness.elements.messageInput.scrollHeight = 520;
   harness.elements.messageInput.closest = () => wrapper;
-  const lifecycle = createLegacyStartupLifecycle(harness.dependencies);
+  const lifecycle = createStartupLifecycle(harness.dependencies);
 
   lifecycle.adjustTextareaHeight();
 
@@ -369,7 +369,7 @@ test('adjustTextareaHeight caps desktop growth at ten lines and exposes expansio
 
 test('startup postlude preserves update dialog, touch guard, and service worker order', () => {
   const harness = createHarness();
-  const lifecycle = createLegacyStartupLifecycle(harness.dependencies);
+  const lifecycle = createStartupLifecycle(harness.dependencies);
 
   lifecycle.runStartupPostlude();
 
@@ -380,7 +380,7 @@ test('startup postlude preserves update dialog, touch guard, and service worker 
 // Signing in and importing on the sign-in page belong to the shell; the start of the page only binds what it is given.
 test('the sign-in page buttons call the handlers the shell gives', () => {
   const harness = createHarness();
-  createLegacyStartupLifecycle(harness.dependencies).bindAuthStartupListeners();
+  createStartupLifecycle(harness.dependencies).bindAuthStartupListeners();
 
   assert.equal(findListener(harness.listeners, 'authForm', 'submit'), harness.dependencies.handleLogin);
   assert.equal(findListener(harness.listeners, 'importBtnAuth', 'click'), harness.dependencies.handleImportOnAuth);

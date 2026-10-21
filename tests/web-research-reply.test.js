@@ -8,7 +8,7 @@ import {
   researchGuidance,
   runWebResearchReply,
   searchResultText
-} from '../src/app/legacy-runtime/features/web-research-reply.js';
+} from '../src/app/runtime/features/web-research-reply.js';
 import { SANDBOX_TEXT_LANGUAGES, sandboxText } from '../src/app/runtime/sandbox/sandbox-texts.js';
 
 // A model that asks for the given calls round by round, then answers.

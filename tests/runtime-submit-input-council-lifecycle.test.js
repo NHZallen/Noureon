@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import { createDom } from './behaviours/helpers/create-dom.js';
-import { createLegacySubmitInputCouncilLifecycle } from '../src/app/runtime/legacy-core/submit-input-council-lifecycle.js';
+import { createSubmitInputCouncilLifecycle } from '../src/app/runtime/shell/submit-input-council-lifecycle.js';
 import { storesOverState } from './helpers/settings-lifecycle-harness.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
@@ -99,12 +99,12 @@ function createDependencies(overrides = {}) {
   };
 }
 
-test('factory exports createLegacySubmitInputCouncilLifecycle', () => {
-  assert.equal(typeof createLegacySubmitInputCouncilLifecycle, 'function');
+test('factory exports createSubmitInputCouncilLifecycle', () => {
+  assert.equal(typeof createSubmitInputCouncilLifecycle, 'function');
 });
 
 test('the lifecycle does not reach into the legacy fragments or the virtual runtime', () => {
-  const source = readSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
+  const source = readSource('src/app/runtime/shell/submit-input-council-lifecycle.js');
 
   assert.doesNotMatch(source, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app/);
 });
@@ -126,7 +126,7 @@ function createSubmitHarness({ stream, ...overrides } = {}) {
     return id;
   };
   const drawn = [];
-  const lifecycle = createLegacySubmitInputCouncilLifecycle({
+  const lifecycle = createSubmitInputCouncilLifecycle({
     window,
     document,
     elements: { messageList, messageInput },
@@ -265,7 +265,7 @@ test('a quoted passage is sent with the question and the quote is cleared', asyn
 
 test('factory validates required dependencies', () => {
   assert.throws(
-    () => createLegacySubmitInputCouncilLifecycle(),
+    () => createSubmitInputCouncilLifecycle(),
     /missing dependency: document/
   );
 });
@@ -275,13 +275,13 @@ test('factory requires the dialog used by first-selection model notices', () => 
   delete dependencies.showCustomDialog;
 
   assert.throws(
-    () => createLegacySubmitInputCouncilLifecycle(dependencies),
+    () => createSubmitInputCouncilLifecycle(dependencies),
     /missing dependency: showCustomDialog/
   );
 });
 
 test('factory exposes submit, input, council, and streaming API', () => {
-  const lifecycle = createLegacySubmitInputCouncilLifecycle(createDependencies());
+  const lifecycle = createSubmitInputCouncilLifecycle(createDependencies());
 
   for (const name of [
     'openCouncilPopoverFromAttachmentMenu',
@@ -303,7 +303,7 @@ test('factory exposes submit, input, council, and streaming API', () => {
 
 test('factory keeps live state bridge for uploaded files and abort controller', () => {
   const dependencies = createDependencies();
-  const lifecycle = createLegacySubmitInputCouncilLifecycle(dependencies);
+  const lifecycle = createSubmitInputCouncilLifecycle(dependencies);
 
   dependencies.state.uploadedFiles = [{ name: 'before.txt' }];
   lifecycle.updateFileInputUI();
@@ -343,7 +343,7 @@ test('image generation mode exposes camera and image upload while hiding generic
     outputModality: 'image',
     provider: 'openrouter'
   };
-  const lifecycle = createLegacySubmitInputCouncilLifecycle(createDependencies({
+  const lifecycle = createSubmitInputCouncilLifecycle(createDependencies({
     document,
     elements,
     getActiveConversation: () => conversation,
@@ -390,7 +390,7 @@ test('learning mode with an active Noura explains the combined rules on both chi
     } }
   });
   dependencies.state.astras = [{ id: 'astra-1', name: 'Direct Coach' }];
-  const lifecycle = createLegacySubmitInputCouncilLifecycle(dependencies);
+  const lifecycle = createSubmitInputCouncilLifecycle(dependencies);
 
   lifecycle.renderInputIndicators();
 
@@ -411,7 +411,7 @@ test('the combined-rules tooltip is absent when only one of the two is active', 
   `);
   const conversation = { archived: false, astrasId: null, model: 'model-a' };
   const config = { uiLanguage: 'en', isLearningMode: true };
-  const lifecycle = createLegacySubmitInputCouncilLifecycle(createDependencies({
+  const lifecycle = createSubmitInputCouncilLifecycle(createDependencies({
     document,
     elements: { inputIndicatorContainer: document.getElementById('input-indicator-container') },
     getActiveConversation: () => conversation,
@@ -446,7 +446,7 @@ test('a function indicator can be selected again while its previous instance is 
   let inlineSyncs = 0;
   const messageInput = document.getElementById('message-input');
   messageInput.syncInlineModeTokens = () => { inlineSyncs += 1; };
-  const lifecycle = createLegacySubmitInputCouncilLifecycle(createDependencies({
+  const lifecycle = createSubmitInputCouncilLifecycle(createDependencies({
     document,
     elements: {
       inputIndicatorContainer: document.getElementById('input-indicator-container'),
@@ -508,7 +508,7 @@ test('enabling learning mode with a Noura active explains the combination instea
     } }
   });
   dependencies.state.astras = [{ id: 'astra-1', name: 'Direct Coach' }];
-  const lifecycle = createLegacySubmitInputCouncilLifecycle(dependencies);
+  const lifecycle = createSubmitInputCouncilLifecycle(dependencies);
 
   await lifecycle.toggleLearningMode();
   assert.equal(config.isLearningMode, true);
@@ -548,7 +548,7 @@ test('council indicator close button updates the UI before persistence finishes'
   const appSavePending = new Promise((resolve) => { releaseAppSave = resolve; });
   let saveConfigCalls = 0;
   const inputUpdates = [];
-  const lifecycle = createLegacySubmitInputCouncilLifecycle(createDependencies({
+  const lifecycle = createSubmitInputCouncilLifecycle(createDependencies({
     document,
     elements: {
       inputIndicatorContainer: document.getElementById('input-indicator-container'),

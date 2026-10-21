@@ -159,10 +159,10 @@ test('recent runtime UI strings stay covered by locale keys', async () => {
   }
 
   const sourceChecks = [
-    ['src/app/runtime/legacy-core/settings-mobile-shell-helper.js', /getSettingsText\('back'/],
-    ['src/app/legacy-runtime/features/media-preview-lifecycle.js', /getText\('closePreview'/],
-    ['src/app/legacy-runtime/features/app-bootstrap-composition.js', /getText\('p2pInvalidCode'/],
-    ['src/app/legacy-runtime/features/received-data-lifecycle.js', /getText\('p2pReceivedAstrasSuccess'/],
+    ['src/app/runtime/settings/settings-mobile-shell-helper.js', /getSettingsText\('back'/],
+    ['src/app/runtime/messages/media-preview-lifecycle.js', /getText\('closePreview'/],
+    ['src/app/runtime/features/app-bootstrap-composition.js', /getText\('p2pInvalidCode'/],
+    ['src/app/runtime/features/received-data-lifecycle.js', /getText\('p2pReceivedAstrasSuccess'/],
     ['src/app/runtime/features/p2p-lifecycle.js', /getText\('p2pChooseRole'/],
     ['src/app/runtime/features/folder-lifecycle.js', /getTexts\(\)\.folderIconLineColor/],
     ['src/app/runtime/features/astra-store-lifecycle.js', /astrasCategoryProductivity/],

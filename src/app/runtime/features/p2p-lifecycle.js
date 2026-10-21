@@ -1,5 +1,5 @@
-import { createP2PScannerLifecycle } from '../../legacy-runtime/features/p2p-scanner-lifecycle.js';
-import { createReceivedDataLifecycle } from '../../legacy-runtime/features/received-data-lifecycle.js';
+import { createP2PScannerLifecycle } from './p2p-scanner-lifecycle.js';
+import { createReceivedDataLifecycle } from './received-data-lifecycle.js';
 
 const DEFAULT_CHUNK_SIZE = 16 * 1024;
 // Letters and digits in the code of a share: 32 to the 8th is about 1.1 million million, too many to try by guessing.
@@ -9,7 +9,7 @@ const P2P_CODE_LENGTH = 8;
 // guessed (the plain random function of the language can). A number from 0 up to, not including, 1.
 const secureRandom = () => globalThis.crypto.getRandomValues(new Uint32Array(1))[0] / 4294967296;
 
-export function createLegacyP2PLifecycle({
+export function createP2PLifecycle({
   document,
   getElementById,
   loadSharingVendor,

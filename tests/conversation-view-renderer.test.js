@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import { createDom } from './behaviours/helpers/create-dom.js';
-import { createConversationViewRenderer } from '../src/app/legacy-runtime/features/conversation-view-renderer.js';
+import { createConversationViewRenderer } from '../src/app/runtime/messages/conversation-view-renderer.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -274,7 +274,7 @@ test('stops archived bottom anchoring when the reader scrolls upward or the view
 });
 
 test('conversation view renderer source avoids provider, storage schema, package, and Vite coupling', () => {
-  const source = readSource('src/app/legacy-runtime/features/conversation-view-renderer.js');
+  const source = readSource('src/app/runtime/messages/conversation-view-renderer.js');
   for (const token of [
     'fetch',
     'streamApiCall',

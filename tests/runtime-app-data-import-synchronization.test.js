@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createLegacyRuntimeAppDataStore } from '../src/app/runtime/kernel/app-data-store.js';
-import { createLegacyImportExportLifecycle } from '../src/app/runtime/features/import-export-lifecycle.js';
-import { createLegacyAuthImportLifecycle } from '../src/app/runtime/features/auth-import-lifecycle.js';
+import { createRuntimeAppDataStore } from '../src/app/runtime/kernel/app-data-store.js';
+import { createImportExportLifecycle } from '../src/app/runtime/features/import-export-lifecycle.js';
+import { createAuthImportLifecycle } from '../src/app/runtime/features/auth-import-lifecycle.js';
 
 // The imports replace the workspace through the app data store (kernel/app-data-store.js), as the workspace features wire them:
 // every group is replaced at once, the chunks are pushed into the store's new arrays, and the store is saved before the page moves on.
@@ -18,7 +18,7 @@ const jsonFile = (data) => ({ name: 'backup.json', type: 'application/json', tex
 const ids = (items) => items.map((item) => item.id);
 
 function createStoreHarness(initial = {}) {
-  const store = createLegacyRuntimeAppDataStore({
+  const store = createRuntimeAppDataStore({
     initialConversations: initial.conversations || [{ id: 'before' }],
     initialFolders: [{ id: 'folder-before' }],
     initialAstras: [{ id: 'noura-before' }],
@@ -57,7 +57,7 @@ function createImport({ file, user = { username: 'alice' }, confirm = true, JSZi
   const config = { uiLanguage: 'en' };
   const elements = elementsProxy();
   if (file) elements.importFileInput.files = [file];
-  const lifecycle = createLegacyImportExportLifecycle({
+  const lifecycle = createImportExportLifecycle({
     ...harness.storeDependencies,
     elements,
     JSZip,
@@ -206,7 +206,7 @@ function createAuthImport({ rawData, ...overrides }) {
   elements.usernameInput.value = 'alice';
   elements.passwordInput.value = 'secret';
   elements.importFileInputAuth.files = [jsonFile(rawData)];
-  const lifecycle = createLegacyAuthImportLifecycle({
+  const lifecycle = createAuthImportLifecycle({
     ...harness.storeDependencies,
     elements,
     getConfig: () => config,

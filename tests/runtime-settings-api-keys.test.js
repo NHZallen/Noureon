@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createLegacySettingsAuthProviderLifecycle } from '../src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js';
+import { createSettingsAuthProviderLifecycle } from '../src/app/runtime/settings/settings-auth-provider-lifecycle.js';
 import { markApiKeyInputCleared, markApiKeyInputDirty, prepareApiKeyInput } from '../src/app/runtime/security/api-key-input-intent.js';
 import { createDependencies } from './helpers/settings-lifecycle-harness.js';
 
@@ -35,7 +35,7 @@ test('saveSettings writes API keys through sensitive key callbacks before normal
   state.config.theme = 'dark';
   dependencies.elements.uiColorOptions.dataset = {};
 
-  const lifecycle = createLegacySettingsAuthProviderLifecycle(dependencies);
+  const lifecycle = createSettingsAuthProviderLifecycle(dependencies);
   await lifecycle.saveSettings({ close: false, notify: false });
 
   assert.deepEqual(calls.filter((call) => Array.isArray(call) && call[0] === 'setApiKeyForProvider'), [
@@ -71,7 +71,7 @@ test('setupSettingsModal displays masked API keys without putting raw secrets in
   dependencies.elements.geminiApiKeyInput.id = 'gemini-api-key-input';
   dependencies.elements.openrouterApiKeyInputAll.id = 'openrouter-api-key-input-all';
 
-  const lifecycle = createLegacySettingsAuthProviderLifecycle(dependencies);
+  const lifecycle = createSettingsAuthProviderLifecycle(dependencies);
   lifecycle.setupSettingsModal();
 
   assert.notEqual(dependencies.elements.geminiApiKeyInput.value, rawKeys.gemini);
@@ -133,7 +133,7 @@ test('setupSettingsModal restores missing auto web search toggle control', () =>
     }
   });
 
-  const lifecycle = createLegacySettingsAuthProviderLifecycle(dependencies);
+  const lifecycle = createSettingsAuthProviderLifecycle(dependencies);
   lifecycle.setupSettingsModal();
 
   assert.equal(insertedRows.length > 0, true);
@@ -165,7 +165,7 @@ test('saveSettings preserves unchanged masked keys and never stores masked place
   dependencies.elements.aiLanguageSelect.value = 'en';
   dependencies.elements.uiColorOptions.dataset = {};
 
-  const lifecycle = createLegacySettingsAuthProviderLifecycle(dependencies);
+  const lifecycle = createSettingsAuthProviderLifecycle(dependencies);
   await lifecycle.saveSettings({ close: false, notify: false });
 
   assert.equal(calls.some((call) => Array.isArray(call) && call[0] === 'setApiKeyForProvider'), false);
@@ -198,7 +198,7 @@ test('saveSettings writes new and cleared API key intents through sensitive call
   dependencies.elements.aiLanguageSelect.value = 'en';
   dependencies.elements.uiColorOptions.dataset = {};
 
-  const lifecycle = createLegacySettingsAuthProviderLifecycle(dependencies);
+  const lifecycle = createSettingsAuthProviderLifecycle(dependencies);
   await lifecycle.saveSettings({ close: false, notify: false });
 
   assert.deepEqual(calls.filter((call) => Array.isArray(call) && call[0] === 'setApiKeyForProvider'), [
@@ -250,7 +250,7 @@ test('clear all API keys button clears sensitive store and saves without raw dat
   dependencies.elements.geminiApiKeyInput = makeElement('gemini-api-key-input');
   dependencies.elements.openrouterApiKeyInputAll = makeElement('openrouter-api-key-input-all');
 
-  const lifecycle = createLegacySettingsAuthProviderLifecycle(dependencies);
+  const lifecycle = createSettingsAuthProviderLifecycle(dependencies);
   lifecycle.setupSettingsModal();
   await createdButtons['clear-all-api-keys-btn'].listeners.click({ preventDefault() {} });
 

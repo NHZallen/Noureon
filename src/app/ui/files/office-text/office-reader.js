@@ -18,7 +18,7 @@ export function officeRequestParts(content, { sendImages, label = '' }) {
   if (content.imageTotal > 0 && !sendImages) notes.push(`The file has ${content.imageTotal} image(s) that this model cannot look at.`);
   else if (content.omitted > 0) notes.push(`${content.omitted} more image(s) of the file were not sent.`);
   if (content.kind === 'xlsx' && (content.charts > 0 || content.imageTotal > 0)) notes.push('Charts and pictures of the workbook are not included.');
-  // The line that numbers and names the file for the model (src/app/legacy-runtime/features/attachment-labels.js) comes first.
+  // The line that numbers and names the file for the model (src/app/runtime/messages/attachment-labels.js) comes first.
   const text = [label ? `[${label}]` : '', `# File: ${content.name || 'document'} (${content.label})`, content.text, ...notes.map((note) => `(${note})`)].filter(Boolean).join('\n\n');
   const parts = [{ text }];
   if (sendImages) {

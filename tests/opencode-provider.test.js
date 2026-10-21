@@ -2,13 +2,13 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import handler from '../api/opencode-chat.js';
-import { applyAnthropicTools, buildAnthropicMessages, createAnthropicCollector } from '../src/app/legacy-runtime/features/anthropic-messages-format.js';
-import { opencodeErrorHint, opencodeErrorMessage } from '../src/app/legacy-runtime/features/opencode-errors.js';
-import { OPENCODE_CHAT_PATH, buildOpencodeRequest } from '../src/app/legacy-runtime/features/opencode-request.js';
-import { createStreamApiCall } from '../src/app/legacy-runtime/features/stream-api-call.js';
-import { applyOpenAiTools, modelThinkingKind } from '../src/app/legacy-runtime/features/tool-call-formats.js';
-import { MODELS, getModelApiId, getModelReasoningConfig, normalizeReasoningEffort, getModelTiers, getProviderLabel, modelSupportsDocumentUpload, modelSupportsToolCalling, modelSupportsUploadedFile, modelSupportsVision, modelSupportsWebSearch } from '../src/app/runtime/legacy-core/model-registry.js';
-import { OPENCODE_GO_MODELS, OPENCODE_FORMATS, OPENCODE_REASONING_CONFIGS, opencodeFormatOf, opencodeThinkingFields } from '../src/app/runtime/legacy-core/opencode-models.js';
+import { applyAnthropicTools, buildAnthropicMessages, createAnthropicCollector } from '../src/app/runtime/reply/anthropic-messages-format.js';
+import { opencodeErrorHint, opencodeErrorMessage } from '../src/app/runtime/reply/opencode-errors.js';
+import { OPENCODE_CHAT_PATH, buildOpencodeRequest } from '../src/app/runtime/reply/opencode-request.js';
+import { createStreamApiCall } from '../src/app/runtime/reply/stream-api-call.js';
+import { applyOpenAiTools, modelThinkingKind } from '../src/app/runtime/features/tool-call-formats.js';
+import { MODELS, getModelApiId, getModelReasoningConfig, normalizeReasoningEffort, getModelTiers, getProviderLabel, modelSupportsDocumentUpload, modelSupportsToolCalling, modelSupportsUploadedFile, modelSupportsVision, modelSupportsWebSearch } from '../src/app/runtime/shell/model-registry.js';
+import { OPENCODE_GO_MODELS, OPENCODE_FORMATS, OPENCODE_REASONING_CONFIGS, opencodeFormatOf, opencodeThinkingFields } from '../src/app/runtime/shell/opencode-models.js';
 import { createUpstreamFetch } from '../server/upstream-fetch.js';
 
 const model = (apiId) => MODELS.find((entry) => entry.id === `opencode-go/${apiId}`);

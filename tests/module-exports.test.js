@@ -8,98 +8,98 @@ const EXPORTS = {
   'src/templates/app-shell.js': [
     'default'
   ],
-  'src/app/legacy-runtime/features/stream-api-call.js': [
+  'src/app/runtime/reply/stream-api-call.js': [
     'createStreamApiCall'
   ],
-  'src/app/legacy-runtime/features/provider-request-support.js': [
+  'src/app/runtime/reply/provider-request-support.js': [
     'createProviderRequestSupport'
   ],
-  'src/app/legacy-runtime/features/council-response-lifecycle.js': [
+  'src/app/runtime/council/council-response-lifecycle.js': [
     'createCouncilResponseLifecycle'
   ],
-  'src/app/legacy-runtime/features/settings-mobile-metadata.js': [
+  'src/app/runtime/features/settings-mobile-metadata.js': [
     'getSettingsMobileGroups'
   ],
-  'src/app/legacy-runtime/features/search-text-formatting.js': [
+  'src/app/runtime/reply/search-text-formatting.js': [
     'highlightText'
   ],
-  'src/app/legacy-runtime/features/message-type-icon.js': [
+  'src/app/runtime/messages/message-type-icon.js': [
     'getMessageTypeIcon'
   ],
-  'src/app/legacy-runtime/features/date-formatting.js': [
+  'src/app/runtime/messages/date-formatting.js': [
     'formatFullTimestamp'
   ],
-  'src/app/legacy-runtime/features/time-distribution-chart-data.js': [
+  'src/app/runtime/features/time-distribution-chart-data.js': [
     'buildTimeDistributionChartData'
   ],
-  'src/app/legacy-runtime/features/mobile-context-menu-markup.js': [
+  'src/app/runtime/features/mobile-context-menu-markup.js': [
     'buildAstraMobileContextMenuMarkup',
     'buildConversationMobileContextMenuMarkup',
     'buildFolderMobileContextMenuMarkup'
   ],
-  'src/app/legacy-runtime/features/streaming-markdown-render-state.js': [
+  'src/app/runtime/reply/streaming-markdown-render-state.js': [
     'createStreamingMarkdownRenderState'
   ],
-  'src/app/legacy-runtime/features/streaming-markdown-renderer.js': [
+  'src/app/runtime/reply/streaming-markdown-renderer.js': [
     'createStreamingMarkdownFeature'
   ],
-  'src/app/legacy-runtime/features/single-model-response-lifecycle.js': [
+  'src/app/runtime/reply/single-model-response-lifecycle.js': [
     'createSingleModelResponseLifecycle'
   ],
-  'src/app/legacy-runtime/features/response-progress-renderers.js': [
+  'src/app/runtime/reply/response-progress-renderers.js': [
     'createResponseProgressRenderers'
   ],
-  'src/app/legacy-runtime/features/submit-input-preparation-lifecycle.js': [
+  'src/app/runtime/features/submit-input-preparation-lifecycle.js': [
     'createSubmitInputPreparationLifecycle'
   ],
-  'src/app/legacy-runtime/features/model-switcher-lifecycle.js': [
+  'src/app/runtime/features/model-switcher-lifecycle.js': [
     'createModelSwitcherLifecycle',
     'prepareModelSwitcherModels'
   ],
-  'src/app/legacy-runtime/features/council-controls-lifecycle.js': [
+  'src/app/runtime/council/council-controls-lifecycle.js': [
     'createCouncilControlsLifecycle'
   ],
-  'src/app/legacy-runtime/features/assistant-response-finalization.js': [
+  'src/app/runtime/reply/assistant-response-finalization.js': [
     'finalizeAssistantResponse',
     'persistAssistantResponseError'
   ],
-  'src/app/legacy-runtime/features/submit-final-cleanup-lifecycle.js': [
+  'src/app/runtime/reply/submit-final-cleanup-lifecycle.js': [
     'runSubmitFinalCleanupLifecycle'
   ],
-  'src/app/legacy-runtime/features/model-message-post-response-actions.js': [
+  'src/app/runtime/reply/model-message-post-response-actions.js': [
     'applyModelMessagePostResponseActions'
   ],
-  'src/app/legacy-runtime/features/message-markup-renderer.js': [
+  'src/app/runtime/messages/message-markup-renderer.js': [
     'buildMessageRenderView'
   ],
-  'src/app/legacy-runtime/features/message-list-lifecycle.js': [
+  'src/app/runtime/messages/message-list-lifecycle.js': [
     'createMessageListLifecycle'
   ],
-  'src/app/legacy-runtime/features/media-attachment-renderer.js': [
+  'src/app/runtime/messages/media-attachment-renderer.js': [
     'createMediaAttachmentRenderer'
   ],
-  'src/app/legacy-runtime/features/media-preview-lifecycle.js': [
+  'src/app/runtime/messages/media-preview-lifecycle.js': [
     'createMediaPreviewLifecycle'
   ],
-  'src/app/legacy-runtime/features/conversation-view-renderer.js': [
+  'src/app/runtime/messages/conversation-view-renderer.js': [
     'createConversationViewRenderer'
   ],
-  'src/app/legacy-runtime/features/uploaded-file-preview-lifecycle.js': [
+  'src/app/runtime/features/uploaded-file-preview-lifecycle.js': [
     'createUploadedFilePreviewLifecycle'
   ],
-  'src/app/legacy-runtime/features/council-response-render-lifecycle.js': [
+  'src/app/runtime/council/council-response-render-lifecycle.js': [
     'runCouncilResponseRenderLifecycle'
   ],
-  'src/app/legacy-runtime/features/streaming-text-frame-queue.js': [
+  'src/app/runtime/reply/streaming-text-frame-queue.js': [
     'createStreamingTextFrameQueue'
   ],
-  'src/app/legacy-runtime/features/typewriter-playback-controller.js': [
+  'src/app/runtime/features/typewriter-playback-controller.js': [
     'createTypewriterPlaybackController'
   ],
-  'src/app/legacy-runtime/features/renderer-gradual-append-controller.js': [
+  'src/app/runtime/reply/renderer-gradual-append-controller.js': [
     'appendRendererTextGradually'
   ],
-  'src/app/legacy-runtime/features/version-compare.js': [
+  'src/app/runtime/features/version-compare.js': [
     'compareVersions'
   ]
 };

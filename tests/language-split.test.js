@@ -209,8 +209,8 @@ const NOT_SPLIT = {
   'src/data/home-texts.js': 'the home page before sign-in has its own five-language build and numbers worked out from the registry; to look at separately',
   'src/data/skill-catalog.js': 'the catalogue of skills is data of a chunk of its own, loaded when the Extensions page opens',
   'src/data/skill-catalog-guides.js': 'the guides of the skills, in the same lazy chunk as the catalogue',
-  'src/app/runtime/legacy-core/model-registry.js': 'the labels of the registry are lists in code (reasoning levels), not a table of words',
-  'src/app/runtime/legacy-core/settings-memory-summary-controls.js': 'texts written inside the code of a settings control, not a table of words'
+  'src/app/runtime/shell/model-registry.js': 'the labels of the registry are lists in code (reasoning levels), not a table of words',
+  'src/app/runtime/settings/settings-memory-summary-controls.js': 'texts written inside the code of a settings control, not a table of words'
 };
 
 test('a new text module with the five languages side by side must be cut by language, or say why it is not', async () => {

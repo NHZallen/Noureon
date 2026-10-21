@@ -1,6 +1,6 @@
 // The memory of the page (memory v2): the index of past conversations and its recall, what is learned from each finished turn, the
 // topic summaries and the memory summary, and the work that keeps them in step when a conversation is deleted. Made once with the
-// workspace features (legacy-core/workspace-features.js); the memory functions it returns are what the settings, the reply and the
+// workspace features (shell/workspace-features.js); the memory functions it returns are what the settings, the reply and the
 // trash reach.
 
 import { createMemoryCaptureService } from './memory-capture-service.js';
@@ -19,7 +19,7 @@ import { createMemoryInvalidationService } from './memory-invalidation-service.j
 import { createMediaMemoryService } from './media-memory-service.js';
 import { createMemoryTaskClients } from './memory-task-clients.js';
 import { createConfiguredMemoryModelClient } from './memory-model-runtime-client.js';
-import { createLegacyMemorySummaryLifecycle } from '../legacy-core/memory-summary-lifecycle.js';
+import { createMemorySummaryLifecycle } from '../shell/memory-summary-lifecycle.js';
 import { createHistoryIndexAuditService } from './history-index-audit-service.js';
 import { hasCurrentHistoryIndexRecords, migrateHistoryIndexSourceFingerprint } from './history-index-records.js';
 import { createHistoryIndexSourceRepair } from './history-index-source-repair.js';
@@ -289,7 +289,7 @@ export function createMemoryRuntime({
         schedule: (callback, delay) => setTimeout(callback, delay),
         cancel: timer => clearTimeout(timer)
     });
-    const memorySummary = createLegacyMemorySummaryLifecycle({
+    const memorySummary = createMemorySummaryLifecycle({
         getConversations,
         runtimeAppDataStore,
         replaceMemoryState,
@@ -300,7 +300,7 @@ export function createMemoryRuntime({
         memoryWorkScheduler
     });
     const { requestMemorySummaryRebuild, ensureMemorySummaryFresh } = memorySummary;
-    // The functions the settings, the requests, imports and the trash use (through getMemory() of legacy-core.js).
+    // The functions the settings, the requests, imports and the trash use (through getMemory() of shell.js).
     const memory = Object.freeze({
         retrieveHistory: historyRecallRuntime.retrieve,
         grantHistoryRecallConsent: historyRecallRuntime.grant,

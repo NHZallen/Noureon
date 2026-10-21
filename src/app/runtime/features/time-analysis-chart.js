@@ -1,6 +1,6 @@
 // The chart of when messages were sent (the dashboard's time analysis): a year, a month and a day to narrow it, drawn with Chart.js.
 
-import { buildTimeDistributionChartData } from '../../legacy-runtime/features/time-distribution-chart-data.js';
+import { buildTimeDistributionChartData } from './time-distribution-chart-data.js';
 import { applyChartThemeDefaults } from '../../../utils/theme-colors.js';
 
 export function createTimeAnalysisChart({ document, elements: ALL_ELEMENTS, getConversations, runtimeConfigAccess, i18n, Chart }) {

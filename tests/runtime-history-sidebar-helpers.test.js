@@ -4,7 +4,7 @@ import test from 'node:test';
 import { Window } from 'happy-dom';
 import { readSource } from './helpers/source-guards.js';
 
-const helperPath = 'src/app/runtime/legacy-core/history-sidebar-helpers.js';
+const helperPath = 'src/app/runtime/shell/history-sidebar-helpers.js';
 const helperUrl = new URL(`../${helperPath}`, import.meta.url);
 const helperExists = existsSync(helperUrl);
 const helperModule = helperExists ? await import(helperUrl.href) : {};

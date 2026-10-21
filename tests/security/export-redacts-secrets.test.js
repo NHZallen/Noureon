@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createLegacyImportExportLifecycle } from '../../src/app/runtime/features/import-export-lifecycle.js';
+import { createImportExportLifecycle } from '../../src/app/runtime/features/import-export-lifecycle.js';
 
 function createClassList() {
   const classes = new Set();
@@ -111,7 +111,7 @@ function createHarness({
   }
   FakeJSZip.instances = [];
 
-  const lifecycle = createLegacyImportExportLifecycle({
+  const lifecycle = createImportExportLifecycle({
     document,
     window: {},
     navigator: { userAgent: 'Desktop' },

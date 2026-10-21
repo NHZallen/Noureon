@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createLegacyAppBootstrapLifecycle } from '../src/app/runtime/features/app-bootstrap-lifecycle.js';
+import { createAppBootstrapLifecycle } from '../src/app/runtime/features/app-bootstrap-lifecycle.js';
 import { createAppShellEnhancements } from '../src/app/runtime/features/app-shell-enhancements.js';
 import { setupConversationSearchModal } from '../src/app/runtime/features/conversation-search-modal.js';
 import { createDom } from './behaviours/helpers/create-dom.js';
@@ -306,14 +306,14 @@ function createLifecycleHarness(overrides = {}) {
 }
 
 test('factory exports initChatApp from the app bootstrap lifecycle', () => {
-  const { initChatApp } = createLegacyAppBootstrapLifecycle(createLifecycleHarness().dependencies);
+  const { initChatApp } = createAppBootstrapLifecycle(createLifecycleHarness().dependencies);
 
   assert.equal(typeof initChatApp, 'function');
 });
 
 test('initChatApp uses live getters and preserves startup setup order', async () => {
   const harness = createLifecycleHarness();
-  const { initChatApp } = createLegacyAppBootstrapLifecycle(harness.dependencies);
+  const { initChatApp } = createAppBootstrapLifecycle(harness.dependencies);
 
   await initChatApp();
 
@@ -351,7 +351,7 @@ test('initChatApp uses live getters and preserves startup setup order', async ()
 
 test('desktop sidebar remains closed on startup and manual toggle wiring remains active', async () => {
   const harness = createLifecycleHarness();
-  const { initChatApp } = createLegacyAppBootstrapLifecycle(harness.dependencies);
+  const { initChatApp } = createAppBootstrapLifecycle(harness.dependencies);
 
   await initChatApp();
 
@@ -370,7 +370,7 @@ test('desktop sidebar remains closed on startup and manual toggle wiring remains
 
 test('search controls expose the natural-language Enter hint and follow the visual viewport', async () => {
   const harness = createLifecycleHarness();
-  const { initChatApp } = createLegacyAppBootstrapLifecycle(harness.dependencies);
+  const { initChatApp } = createAppBootstrapLifecycle(harness.dependencies);
 
   await initChatApp();
   harness.window.visualViewport.width = 360;
@@ -388,7 +388,7 @@ test('search controls expose the natural-language Enter hint and follow the visu
 
 test('search opens and focuses within one animation frame without scrolling the page', async () => {
   const harness = createLifecycleHarness();
-  const { initChatApp } = createLegacyAppBootstrapLifecycle(harness.dependencies);
+  const { initChatApp } = createAppBootstrapLifecycle(harness.dependencies);
 
   await initChatApp();
   harness.calls.length = 0;
@@ -407,7 +407,7 @@ test('search opens and focuses within one animation frame without scrolling the 
 
 test('initChatApp binds settings, import/export, trash, P2P, file, and form listeners', async () => {
   const harness = createLifecycleHarness();
-  const { initChatApp } = createLegacyAppBootstrapLifecycle(harness.dependencies);
+  const { initChatApp } = createAppBootstrapLifecycle(harness.dependencies);
 
   await initChatApp();
 
@@ -437,7 +437,7 @@ test('initChatApp binds settings, import/export, trash, P2P, file, and form list
 
 test('bound handlers preserve state bridges and injected handoffs', async () => {
   const harness = createLifecycleHarness();
-  const { initChatApp } = createLegacyAppBootstrapLifecycle(harness.dependencies);
+  const { initChatApp } = createAppBootstrapLifecycle(harness.dependencies);
 
   await initChatApp();
 
@@ -456,7 +456,7 @@ test('composer expand control toggles the expanded state and recalculates textar
   const harness = createLifecycleHarness();
   const wrapper = harness.getElement('composer-wrapper');
   harness.elements.messageInput.closest = () => wrapper;
-  const { initChatApp } = createLegacyAppBootstrapLifecycle(harness.dependencies);
+  const { initChatApp } = createAppBootstrapLifecycle(harness.dependencies);
 
   await initChatApp();
   harness.calls.length = 0;
@@ -470,7 +470,7 @@ test('composer expand control toggles the expanded state and recalculates textar
 test('mobile attachment trigger reuses the desktop file options popover', async () => {
   const harness = createLifecycleHarness();
   harness.window.innerWidth = 599;
-  const { initChatApp } = createLegacyAppBootstrapLifecycle(harness.dependencies);
+  const { initChatApp } = createAppBootstrapLifecycle(harness.dependencies);
 
   await initChatApp();
   harness.calls.length = 0;
@@ -487,7 +487,7 @@ test('mobile attachment trigger reuses the desktop file options popover', async 
 
 test('initChatApp starts one new chat and binds the sharing buttons last, once each', async () => {
   const harness = createLifecycleHarness();
-  const { initChatApp } = createLegacyAppBootstrapLifecycle(harness.dependencies);
+  const { initChatApp } = createAppBootstrapLifecycle(harness.dependencies);
 
   await initChatApp();
 
@@ -513,7 +513,7 @@ test('the sharing buttons open the share dialog, check the code and start the QR
       }
     })
   });
-  const { initChatApp } = createLegacyAppBootstrapLifecycle(harness.dependencies);
+  const { initChatApp } = createAppBootstrapLifecycle(harness.dependencies);
   await initChatApp();
   harness.calls.length = 0;
 

@@ -5,7 +5,7 @@ import test from 'node:test';
 import {
   SETTINGS_MOBILE_ICON_MAP,
   getSettingsMobileGroups
-} from '../src/app/legacy-runtime/features/settings-mobile-metadata.js';
+} from '../src/app/runtime/features/settings-mobile-metadata.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -88,7 +88,7 @@ test('settings mobile labels use injected text resolution without DOM access', (
 });
 
 test('settings mobile metadata helper remains side-effect free', () => {
-  const helperSource = readSource('src/app/legacy-runtime/features/settings-mobile-metadata.js');
+  const helperSource = readSource('src/app/runtime/features/settings-mobile-metadata.js');
 
   for (const forbidden of [
     'document',

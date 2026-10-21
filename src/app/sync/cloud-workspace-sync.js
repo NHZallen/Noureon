@@ -1,5 +1,5 @@
 import { getSupabaseClient } from '../auth/supabase-client.js';
-import { createLegacyRuntimeStorageAdapter } from '../runtime/kernel/storage-adapter.js';
+import { createRuntimeStorageAdapter } from '../runtime/kernel/storage-adapter.js';
 import {
   clearPreviousSyncVaultKeys,
   decryptSyncVaultPayload,
@@ -96,7 +96,7 @@ export async function initializeCloudWorkspaceSync({ window, session, bootstrapQ
     return { enabled: false };
   }
 
-  const storage = createLegacyRuntimeStorageAdapter();
+  const storage = createRuntimeStorageAdapter();
   const username = `supabase:${user.id}`;
   const lastUsername = await storage.getItem('chat_lastUser');
   if (lastUsername !== username) {

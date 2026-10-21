@@ -2,13 +2,13 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { createLegacyRuntimeAppDataStore } from '../src/app/runtime/kernel/app-data-store.js';
+import { createRuntimeAppDataStore } from '../src/app/runtime/kernel/app-data-store.js';
 import { createRuntimeAppKernel } from '../src/app/runtime-app.js';
 
 const readSource = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
 test('app data store creates empty pointer groups by default', () => {
-  const store = createLegacyRuntimeAppDataStore();
+  const store = createRuntimeAppDataStore();
 
   assert.deepEqual(store.getConversations(), []);
   assert.deepEqual(store.getFolders(), []);
@@ -47,7 +47,7 @@ test('app data store replaces versioned memory state without changing legacy poi
     suppressionRules: [],
     legacyInbox: []
   };
-  const store = createLegacyRuntimeAppDataStore({ initialPersonalMemories: legacyMemories });
+  const store = createRuntimeAppDataStore({ initialPersonalMemories: legacyMemories });
 
   assert.equal(store.replaceMemoryState(memoryState), memoryState);
   assert.equal(store.getMemoryState(), memoryState);
@@ -60,7 +60,7 @@ test('app data store preserves custom initial pointer identity', () => {
   const initialFolders = [{ id: 'folder-1' }];
   const initialAstras = [{ id: 'astra-1' }];
   const initialPersonalMemories = [{ id: 'memory-1' }];
-  const store = createLegacyRuntimeAppDataStore({
+  const store = createRuntimeAppDataStore({
     initialConversations,
     initialFolders,
     initialAstras,
@@ -74,7 +74,7 @@ test('app data store preserves custom initial pointer identity', () => {
 });
 
 test('replace methods return exact pointers without cloning, merging, or freezing', () => {
-  const store = createLegacyRuntimeAppDataStore({
+  const store = createRuntimeAppDataStore({
     initialConversations: [{ id: 'old-conv' }],
     initialFolders: [{ id: 'old-folder' }],
     initialAstras: [{ id: 'old-astra' }],
@@ -100,7 +100,7 @@ test('replace methods return exact pointers without cloning, merging, or freezin
 });
 
 test('replaceAll updates all pointers and returns the current pointer snapshot', () => {
-  const store = createLegacyRuntimeAppDataStore();
+  const store = createRuntimeAppDataStore();
   const nextData = {
     conversations: [{ id: 'conv-1' }],
     folders: [{ id: 'folder-1' }],
@@ -123,7 +123,7 @@ test('replaceAll updates all pointers and returns the current pointer snapshot',
 });
 
 test('getter arrays are live legacy pointers until mirror decomposition', () => {
-  const store = createLegacyRuntimeAppDataStore();
+  const store = createRuntimeAppDataStore();
 
   store.getConversations().push({ id: 'conv-live' });
   store.getFolders().push({ id: 'folder-live' });
@@ -141,7 +141,7 @@ test('getter arrays are live legacy pointers until mirror decomposition', () => 
 });
 
 test('replaceAll moves live mutation to the new active arrays only', () => {
-  const store = createLegacyRuntimeAppDataStore({
+  const store = createRuntimeAppDataStore({
     initialConversations: [{ id: 'old-conv' }],
     initialFolders: [{ id: 'old-folder' }],
     initialAstras: [{ id: 'old-astra' }],
@@ -183,7 +183,7 @@ test('replaceAll moves live mutation to the new active arrays only', () => {
 });
 
 test('replaceConversations moves live mutation to the new active conversation array only', () => {
-  const store = createLegacyRuntimeAppDataStore({
+  const store = createRuntimeAppDataStore({
     initialConversations: [{ id: 'old-conv' }]
   });
   const oldConversations = store.getConversations();
@@ -201,8 +201,8 @@ test('replaceConversations moves live mutation to the new active conversation ar
 });
 
 test('app data store instances are independent', () => {
-  const first = createLegacyRuntimeAppDataStore();
-  const second = createLegacyRuntimeAppDataStore();
+  const first = createRuntimeAppDataStore();
+  const second = createRuntimeAppDataStore();
   const firstConversations = [{ id: 'first' }];
   const secondConversations = [{ id: 'second' }];
 
@@ -239,7 +239,7 @@ test('runtime app kernel creates an independent empty app data store', () => {
 });
 
 test('app data store hands out exactly its named read and replace functions', () => {
-  const store = createLegacyRuntimeAppDataStore();
+  const store = createRuntimeAppDataStore();
 
   assert.deepEqual(Object.keys(store), [
     'getConversations',

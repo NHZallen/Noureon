@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import { createDom } from './behaviours/helpers/create-dom.js';
-import { createMediaPreviewLifecycle } from '../src/app/legacy-runtime/features/media-preview-lifecycle.js';
+import { createMediaPreviewLifecycle } from '../src/app/runtime/messages/media-preview-lifecycle.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -234,7 +234,7 @@ test('share handoff fetches the media and invokes navigator share when supported
 });
 
 test('media preview lifecycle source avoids provider, storage, package, and Vite coupling', () => {
-  const source = readSource('src/app/legacy-runtime/features/media-preview-lifecycle.js');
+  const source = readSource('src/app/runtime/messages/media-preview-lifecycle.js');
 
   for (const token of [
     'streamApiCall',

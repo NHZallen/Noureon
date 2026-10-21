@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { createLegacyP2PLifecycle } from '../src/app/runtime/features/p2p-lifecycle.js';
+import { createP2PLifecycle } from '../src/app/runtime/features/p2p-lifecycle.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -229,7 +229,7 @@ function createHarness({
   }
   FakeJSZip.instances = [];
 
-  const lifecycle = createLegacyP2PLifecycle({
+  const lifecycle = createP2PLifecycle({
     document,
     getElementById: (id) => document.getElementById(id),
     // The libraries come only from their loaders (app/vendors/); a test that gives none gets the fakes at once.
@@ -270,7 +270,7 @@ function createHarness({
   };
 }
 
-test('createLegacyP2PLifecycle exposes the legacy P2P handler surface', () => {
+test('createP2PLifecycle exposes the legacy P2P handler surface', () => {
   const { lifecycle } = createHarness();
 
   for (const handlerName of [

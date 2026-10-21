@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Window } from 'happy-dom';
 
-import { createGeneratedImageInteractions } from '../src/app/legacy-runtime/features/generated-image-interactions.js';
+import { createGeneratedImageInteractions } from '../src/app/runtime/images/generated-image-interactions.js';
 
 const flush = () => new Promise(resolve => setTimeout(resolve, 0));
 const lightweightPng = 'data:image/png;base64,aGVsbG8=';

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { createLegacyRuntimeConfigStore } from '../src/app/runtime/kernel/config-store.js';
+import { createRuntimeConfigStore } from '../src/app/runtime/kernel/config-store.js';
 import { createRuntimeAppKernel } from '../src/app/runtime-app.js';
 
 const readSource = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
@@ -68,15 +68,15 @@ const expectedConfig = (defaultModelId) => ({
 });
 
 test('config store creates the complete legacy default config shape', () => {
-  const store = createLegacyRuntimeConfigStore({ defaultModelId: 'model-default' });
+  const store = createRuntimeConfigStore({ defaultModelId: 'model-default' });
 
   assert.deepEqual(store.getConfig(), expectedConfig('model-default'));
   assert.equal(Object.isFrozen(store.getConfig()), false);
 });
 
 test('config store instances keep fresh nested mutable defaults', () => {
-  const first = createLegacyRuntimeConfigStore({ defaultModelId: 'first' });
-  const second = createLegacyRuntimeConfigStore({ defaultModelId: 'second' });
+  const first = createRuntimeConfigStore({ defaultModelId: 'first' });
+  const second = createRuntimeConfigStore({ defaultModelId: 'second' });
 
   assert.notEqual(first.getConfig(), second.getConfig());
   assert.notEqual(first.getConfig().apiKeys, second.getConfig().apiKeys);
@@ -91,7 +91,7 @@ test('config store instances keep fresh nested mutable defaults', () => {
 });
 
 test('replaceConfig replaces without merging, cloning, or freezing', () => {
-  const store = createLegacyRuntimeConfigStore({ defaultModelId: 'legacy' });
+  const store = createRuntimeConfigStore({ defaultModelId: 'legacy' });
   const nextConfig = { uiLanguage: 'en', custom: true };
 
   assert.equal(store.replaceConfig(nextConfig), nextConfig);
@@ -102,7 +102,7 @@ test('replaceConfig replaces without merging, cloning, or freezing', () => {
 });
 
 test('missing defaultModelId remains an explicit undefined injected value', () => {
-  const store = createLegacyRuntimeConfigStore();
+  const store = createRuntimeConfigStore();
 
   assert.equal(store.getConfig().defaultModel, undefined);
 });
@@ -123,7 +123,7 @@ test('runtime app kernel exposes the config store with the injected model id', (
 test('config store source owns config pointers without runtime side effects', () => {
   const source = readSource('src/app/runtime/kernel/config-store.js');
 
-  assert.match(source, /export\s+function\s+createLegacyRuntimeConfigStore/);
+  assert.match(source, /export\s+function\s+createRuntimeConfigStore/);
   assert.doesNotMatch(source, /(?:from|import)\s+['"][^'"]*(?:fragment|virtual:legacy-app-runtime|MODELS)/);
   assert.doesNotMatch(source, /document|window|addEventListener|localStorage|sessionStorage|indexedDB|fetch/);
   assert.doesNotMatch(source, /Object\.freeze|structuredClone|JSON\.parse|JSON\.stringify/);

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createSettingsMobileShellHelper } from '../src/app/runtime/legacy-core/settings-mobile-shell-helper.js';
+import { createSettingsMobileShellHelper } from '../src/app/runtime/settings/settings-mobile-shell-helper.js';
 
 function createClassList(initial = []) {
   const values = new Set(initial);

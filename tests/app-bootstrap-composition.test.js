@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { createAppBootstrapComposition } from '../src/app/legacy-runtime/features/app-bootstrap-composition.js';
+import { createAppBootstrapComposition } from '../src/app/runtime/features/app-bootstrap-composition.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -240,7 +240,7 @@ test('invalid P2P connect code preserves the legacy warning handoff', () => {
 });
 
 test('app bootstrap composition source avoids unrelated runtime systems', () => {
-  const source = readSource('src/app/legacy-runtime/features/app-bootstrap-composition.js');
+  const source = readSource('src/app/runtime/features/app-bootstrap-composition.js');
 
   for (const forbidden of [
     'streamApiCall',

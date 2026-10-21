@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createStreamingMarkdownFeature } from '../../src/app/legacy-runtime/features/streaming-markdown-renderer.js';
+import { createStreamingMarkdownFeature } from '../../src/app/runtime/reply/streaming-markdown-renderer.js';
 import { describeFileBlock, getGeneratedFileSize, registerFileBlock } from '../../src/app/ui/files/file-block-model.js';
 import { createFileBundleElement, createFileCardElement } from '../../src/app/ui/files/file-card-renderer.js';
 import { installFileCardInteractions } from '../../src/app/ui/files/file-card-interactions.js';

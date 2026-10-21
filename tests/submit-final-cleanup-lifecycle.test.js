@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { runSubmitFinalCleanupLifecycle } from '../src/app/legacy-runtime/features/submit-final-cleanup-lifecycle.js';
+import { runSubmitFinalCleanupLifecycle } from '../src/app/runtime/reply/submit-final-cleanup-lifecycle.js';
 
 const createCleanupFixture = () => {
   const calls = [];
@@ -76,7 +76,7 @@ test('submit final cleanup can be called twice without keeping stale state', () 
 
 test('submit final cleanup source avoids provider, storage schema, package, and Vite coupling', () => {
   const source = readFileSync(
-    new URL('../src/app/legacy-runtime/features/submit-final-cleanup-lifecycle.js', import.meta.url),
+    new URL('../src/app/runtime/reply/submit-final-cleanup-lifecycle.js', import.meta.url),
     'utf8'
   );
 

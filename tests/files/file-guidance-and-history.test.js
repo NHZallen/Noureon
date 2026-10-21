@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createStreamApiCall } from '../../src/app/legacy-runtime/features/stream-api-call.js';
+import { createStreamApiCall } from '../../src/app/runtime/reply/stream-api-call.js';
 import { NOURAS_REQUEST_PURPOSE } from '../../src/app/runtime/nouras/nouras-policy.js';
 import { buildHistoryIndexTurns } from '../../src/app/runtime/memory/history-index-source.js';
-import { buildTitleSummaryPrompt } from '../../src/app/runtime/legacy-core/settings-title-summary-helpers.js';
+import { buildTitleSummaryPrompt } from '../../src/app/runtime/settings/settings-title-summary-helpers.js';
 import { getFileAuthoringGuidance } from '../../src/app/ui/files/file-authoring-guidance.js';
 import { compactFileHistoryForApi, summarizeFileBlocks } from '../../src/app/ui/files/file-history-compaction.js';
 import { conversationHasRecentFile, mayNeedFileGuidance } from '../../src/app/ui/files/file-intent.js';

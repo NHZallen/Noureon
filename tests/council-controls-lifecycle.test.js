@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import { createDom } from './behaviours/helpers/create-dom.js';
-import { createCouncilControlsLifecycle } from '../src/app/legacy-runtime/features/council-controls-lifecycle.js';
+import { createCouncilControlsLifecycle } from '../src/app/runtime/council/council-controls-lifecycle.js';
 import { MODEL_PICKER_LANGUAGES, MODEL_PICKER_TEXT_KEYS, modelPickerText } from '../src/app/ui/model-picker/model-picker-texts.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
@@ -727,7 +727,7 @@ test('every word in the picker exists in all five languages', () => {
 });
 
 test('the picker is written for the panel, not the old header menu, and stays clear of storage and providers', () => {
-  const source = readSource('src/app/legacy-runtime/features/council-controls-lifecycle.js');
+  const source = readSource('src/app/runtime/council/council-controls-lifecycle.js');
   assert.match(source, /\bgetFileInputContainer\b/);
   assert.doesNotMatch(source, /\belements\b/);
   for (const forbidden of ['TextDecoder', 'response.body', 'streamApiCall', 'indexedDB', 'localStorage', 'sessionStorage', 'virtual:legacy-app-runtime', 'vite.config', 'package.json', 'REFACTOR_PLAN']) {

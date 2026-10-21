@@ -2,13 +2,13 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { createRuntimeConfigAccess } from '../src/app/legacy-runtime/runtime/runtime-config-access.js';
-import { createLegacyRuntimeAppDataStore } from '../src/app/runtime/kernel/app-data-store.js';
-import { createLegacyRuntimeConfigStore } from '../src/app/runtime/kernel/config-store.js';
+import { createRuntimeConfigAccess } from '../src/app/runtime/kernel/runtime-config-access.js';
+import { createRuntimeAppDataStore } from '../src/app/runtime/kernel/app-data-store.js';
+import { createRuntimeConfigStore } from '../src/app/runtime/kernel/config-store.js';
 import { createLiveConversationsBridge } from '../src/app/runtime/kernel/live-conversations-bridge.js';
-import { createShellState } from '../src/app/runtime/legacy-core/shell-state.js';
-import { createWorkspaceFeatures } from '../src/app/runtime/legacy-core/workspace-features.js';
-import { createWorkspaceLoad } from '../src/app/runtime/legacy-core/workspace-load.js';
+import { createShellState } from '../src/app/runtime/shell/shell-state.js';
+import { createWorkspaceFeatures } from '../src/app/runtime/shell/workspace-features.js';
+import { createWorkspaceLoad } from '../src/app/runtime/shell/workspace-load.js';
 
 const readSource = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -76,7 +76,7 @@ test('mutateConfig applies object patches without replacing the active pointer',
 
 // The config store and its access as legacy-core.js makes them: every reader goes through the store's current pointer.
 function createLiveConfig() {
-  const store = createLegacyRuntimeConfigStore({ defaultModelId: 'gemini-3.5-flash' });
+  const store = createRuntimeConfigStore({ defaultModelId: 'gemini-3.5-flash' });
   const access = createRuntimeConfigAccess({
     getConfig: () => store.getConfig(),
     replaceConfig: (nextConfig) => store.replaceConfig(nextConfig)
@@ -89,7 +89,7 @@ function createConfigLoad(access, savedConfig) {
     getCurrentUser: () => ({ username: 'alice' }),
     storage: { getItem: async () => (savedConfig ? JSON.stringify(savedConfig) : null), removeItem: async () => {} },
     configAccess: access,
-    appDataStore: createLegacyRuntimeAppDataStore(),
+    appDataStore: createRuntimeAppDataStore(),
     sensitiveConfigPersistence: { loadSensitiveConfig: async () => {} },
     getConfigKey: () => 'chatConfig_v_v8.6_alice',
     getAppDataKey: () => 'chatAppData_v8.6_alice',
@@ -104,7 +104,7 @@ function createConfigLoad(access, savedConfig) {
 
 // Boundary: the settings have one owner, the config store; the composition root keeps no copy of its own.
 test('legacy core keeps no local config mirror', () => {
-  const source = readSource('src/app/runtime/legacy-core/legacy-core.js');
+  const source = readSource('src/app/runtime/shell/shell.js');
 
   assert.doesNotMatch(source, /let\s+config\s*=|syncConfig\s*:|set config\(next\)|state:\s*shell\b/);
 });
@@ -146,7 +146,7 @@ test('loading with no saved settings normalizes the current config in place', as
 
 test('the workspace features change the settings that are current when they run', async () => {
   const { store, access } = createLiveConfig();
-  const appDataStore = createLegacyRuntimeAppDataStore();
+  const appDataStore = createRuntimeAppDataStore();
   const fakeNode = () => ({
     value: '', files: [], dataset: {}, style: {}, children: [],
     classList: { add() {}, remove() {}, toggle() {}, contains: () => false },

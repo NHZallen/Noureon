@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test, { after } from 'node:test';
 
-import { createImageGenerationResponseLifecycle } from '../src/app/legacy-runtime/features/image-generation-response-lifecycle.js';
+import { createImageGenerationResponseLifecycle } from '../src/app/runtime/images/image-generation-response-lifecycle.js';
 import { createServerReplyReattach } from '../src/app/runtime/server-reply/reattach.js';
 import { createServerReply, LOCAL_REASONS, localizeServerError, planServerImage, ServerReplyError } from '../src/app/runtime/server-reply/server-reply.js';
 import { createBrowserServerReply } from '../src/app/runtime/server-reply/server-reply-runtime.js';

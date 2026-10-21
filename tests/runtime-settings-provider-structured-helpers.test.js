@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { createSettingsProviderStructuredHelpers } from '../src/app/runtime/legacy-core/settings-provider-structured-helpers.js';
+import { createSettingsProviderStructuredHelpers } from '../src/app/runtime/settings/settings-provider-structured-helpers.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -42,7 +42,7 @@ function createHarness(overrides = {}) {
 
 test('module exports createSettingsProviderStructuredHelpers and imports inertly', () => {
   assert.equal(typeof createSettingsProviderStructuredHelpers, 'function');
-  const source = readSource('src/app/runtime/legacy-core/settings-provider-structured-helpers.js');
+  const source = readSource('src/app/runtime/settings/settings-provider-structured-helpers.js');
   assert.doesNotMatch(source, /legacy-runtime\/fragments|virtual:legacy-app-runtime|document\.|window\./);
 });
 

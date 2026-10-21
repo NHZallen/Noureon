@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { Window } from 'happy-dom';
 
-import { createSettingsOutputTranslatorControls } from '../src/app/runtime/legacy-core/settings-output-translator-controls.js';
-import { createLegacyRuntimeConfigStore } from '../src/app/runtime/kernel/config-store.js';
+import { createSettingsOutputTranslatorControls } from '../src/app/runtime/settings/settings-output-translator-controls.js';
+import { createRuntimeConfigStore } from '../src/app/runtime/kernel/config-store.js';
 import {
   DEFAULT_SEARCH_PROVIDER,
   getSearchProvider,
@@ -29,7 +29,7 @@ test('Tavily stays the search source unless TinyFish is chosen', () => {
 });
 
 test('a saved config keeps its search source, and one that never had one keeps using Tavily', () => {
-  const defaults = createLegacyRuntimeConfigStore({ defaultModelId: 'm' }).getConfig();
+  const defaults = createRuntimeConfigStore({ defaultModelId: 'm' }).getConfig();
   assert.equal(defaults.searchProvider, 'tavily');
   assert.ok('tinyfish' in defaults.apiKeys);
   const load = (savedConfig) => normalizeLoadedLegacyConfig({

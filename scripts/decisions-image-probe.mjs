@@ -13,7 +13,7 @@
 
 import { DECISION_MODEL, DECISION_URL } from '../src/app/runtime/decisions/decision-client.js';
 import { buildImageDecisionRequest, parseImageDecisionResponse } from '../src/app/runtime/decisions/image-decisions.js';
-import { limitsOf, readSpokenRequest } from '../src/app/legacy-runtime/features/image-spoken-request.js';
+import { limitsOf, readSpokenRequest } from '../src/app/runtime/images/image-spoken-request.js';
 
 const args = process.argv.slice(2);
 const option = (name) => { const at = args.indexOf(name); return at >= 0 ? args[at + 1] : ''; };

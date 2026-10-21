@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { createLegacyRuntimeStorageAdapter } from '../src/app/runtime/kernel/storage-adapter.js';
+import { createRuntimeStorageAdapter } from '../src/app/runtime/kernel/storage-adapter.js';
 import { readUiSource } from './helpers/source-guards.js';
 
 const readSource = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
@@ -200,7 +200,7 @@ function createAtomicFakeIndexedDB(initialValues = {}) {
 
 test('storage adapter preserves schema defaults, upgrade creation, and lazy connection cache', async () => {
   const fake = createFakeIndexedDB();
-  const adapter = createLegacyRuntimeStorageAdapter({
+  const adapter = createRuntimeStorageAdapter({
     indexedDBFactory: fake.indexedDBFactory
   });
 
@@ -215,7 +215,7 @@ test('storage adapter preserves schema defaults, upgrade creation, and lazy conn
 
 test('storage adapter getItem preserves readonly lookup and null fallback', async () => {
   const fake = createFakeIndexedDB({ initialValues: { saved: 'value' } });
-  const adapter = createLegacyRuntimeStorageAdapter({
+  const adapter = createRuntimeStorageAdapter({
     indexedDBFactory: fake.indexedDBFactory
   });
 
@@ -232,7 +232,7 @@ test('storage adapter reads related values from one readonly transaction snapsho
   const fake = createFakeIndexedDB({
     initialValues: { workspace: 'workspace-v1', journal: 'journal-v1' }
   });
-  const adapter = createLegacyRuntimeStorageAdapter({
+  const adapter = createRuntimeStorageAdapter({
     indexedDBFactory: fake.indexedDBFactory
   });
 
@@ -247,7 +247,7 @@ test('storage adapter reads related values from one readonly transaction snapsho
 
 test('storage adapter setItem and removeItem wait for transaction completion', async () => {
   const fake = createFakeIndexedDB({ manualWrites: true });
-  const adapter = createLegacyRuntimeStorageAdapter({
+  const adapter = createRuntimeStorageAdapter({
     indexedDBFactory: fake.indexedDBFactory
   });
   await adapter.openDB();
@@ -281,7 +281,7 @@ test('storage adapter setItem and removeItem wait for transaction completion', a
 
 test('storage adapter writes multiple items in one atomic readwrite transaction', async () => {
   const fake = createAtomicFakeIndexedDB({ existing: 'kept' });
-  const adapter = createLegacyRuntimeStorageAdapter({
+  const adapter = createRuntimeStorageAdapter({
     indexedDBFactory: fake.indexedDBFactory
   });
 
@@ -311,7 +311,7 @@ test('storage adapter writes multiple items in one atomic readwrite transaction'
 
 test('storage adapter atomic transaction failure leaves every item unchanged', async () => {
   const fake = createAtomicFakeIndexedDB({ workspace: 'old-workspace', journal: 'old-journal' });
-  const adapter = createLegacyRuntimeStorageAdapter({
+  const adapter = createRuntimeStorageAdapter({
     indexedDBFactory: fake.indexedDBFactory
   });
   const transactionError = new Error('atomic transaction failed');
@@ -331,7 +331,7 @@ test('storage adapter atomic transaction failure leaves every item unchanged', a
 
 test('storage adapter validates atomic entries before opening IndexedDB', async () => {
   const fake = createAtomicFakeIndexedDB();
-  const adapter = createLegacyRuntimeStorageAdapter({
+  const adapter = createRuntimeStorageAdapter({
     indexedDBFactory: fake.indexedDBFactory
   });
 
@@ -347,7 +347,7 @@ test('storage adapter clear preserves request success completion semantics', asy
     initialValues: { first: 'one', second: 'two' },
     manualClear: true
   });
-  const adapter = createLegacyRuntimeStorageAdapter({
+  const adapter = createRuntimeStorageAdapter({
     indexedDBFactory: fake.indexedDBFactory
   });
   await adapter.openDB();
@@ -375,7 +375,7 @@ test('storage adapter removes records by key prefix', async () => {
       saved: 'value'
     }
   });
-  const adapter = createLegacyRuntimeStorageAdapter({
+  const adapter = createRuntimeStorageAdapter({
     indexedDBFactory: fake.indexedDBFactory
   });
 
@@ -395,26 +395,26 @@ test('storage adapter propagates open, request, transaction, and clear failures'
   const clearError = new Error('clear failed');
 
   await assert.rejects(
-    createLegacyRuntimeStorageAdapter({
+    createRuntimeStorageAdapter({
       indexedDBFactory: createFakeIndexedDB({ openError }).indexedDBFactory
     }).openDB(),
     openError
   );
   await assert.rejects(
-    createLegacyRuntimeStorageAdapter({
+    createRuntimeStorageAdapter({
       indexedDBFactory: createFakeIndexedDB({ getError }).indexedDBFactory
     }).getItem('key'),
     getError
   );
 
-  const transactionAdapter = createLegacyRuntimeStorageAdapter({
+  const transactionAdapter = createRuntimeStorageAdapter({
     indexedDBFactory: createFakeIndexedDB({ transactionError }).indexedDBFactory
   });
   await assert.rejects(transactionAdapter.setItem('key', 'value'), transactionError);
   await assert.rejects(transactionAdapter.removeItem('key'), transactionError);
 
   await assert.rejects(
-    createLegacyRuntimeStorageAdapter({
+    createRuntimeStorageAdapter({
       indexedDBFactory: createFakeIndexedDB({ clearError }).indexedDBFactory
     }).clear(),
     clearError
@@ -424,10 +424,10 @@ test('storage adapter propagates open, request, transaction, and clear failures'
 test('storage adapter instances keep independent cached connections', async () => {
   const firstFake = createFakeIndexedDB();
   const secondFake = createFakeIndexedDB();
-  const first = createLegacyRuntimeStorageAdapter({
+  const first = createRuntimeStorageAdapter({
     indexedDBFactory: firstFake.indexedDBFactory
   });
-  const second = createLegacyRuntimeStorageAdapter({
+  const second = createRuntimeStorageAdapter({
     indexedDBFactory: secondFake.indexedDBFactory
   });
 
@@ -441,12 +441,12 @@ test('storage adapter instances keep independent cached connections', async () =
 test('IndexedDB is opened only by the storage adapter', () => {
   const retiredInlineStorage = /async\s+function\s+(?:openDB|getItem|setItem|removeItem)\b|\bSTORE_NAME\b|\bopenDB\(\)/;
   for (const path of [
-    'src/app/runtime/legacy-core/legacy-core.js',
-    'src/app/runtime/legacy-core/settings-auth-actions-helper.js'
+    'src/app/runtime/shell/shell.js',
+    'src/app/runtime/settings/settings-auth-actions-helper.js'
   ]) {
     assert.doesNotMatch(readSource(path), retiredInlineStorage, path);
   }
-  assert.doesNotMatch(readUiSource('src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js'), retiredInlineStorage);
+  assert.doesNotMatch(readUiSource('src/app/runtime/settings/settings-auth-provider-lifecycle.js'), retiredInlineStorage);
   for (const path of [
     'src/app/runtime/kernel/config-persistence.js',
     'src/app/runtime/kernel/app-data-persistence.js'
@@ -465,7 +465,7 @@ test('storage adapter knows nothing of users, loading, or rendering', () => {
 
 test('storage adapter applies writes and deletions in one atomic transaction', async () => {
   const fake = createAtomicFakeIndexedDB({ keep: 'kept', gone: 'old', other: 'old' });
-  const adapter = createLegacyRuntimeStorageAdapter({ indexedDBFactory: fake.indexedDBFactory });
+  const adapter = createRuntimeStorageAdapter({ indexedDBFactory: fake.indexedDBFactory });
 
   const applying = adapter.applyAtomic({
     puts: [{ key: 'new', value: 'v' }, { key: 'other', value: 'new' }],
@@ -485,7 +485,7 @@ test('storage adapter applies writes and deletions in one atomic transaction', a
 
 test('a failed atomic transaction keeps every write and every deletion from happening', async () => {
   const fake = createAtomicFakeIndexedDB({ gone: 'old', other: 'old' });
-  const adapter = createLegacyRuntimeStorageAdapter({ indexedDBFactory: fake.indexedDBFactory });
+  const adapter = createRuntimeStorageAdapter({ indexedDBFactory: fake.indexedDBFactory });
   const failure = new Error('quota');
 
   const applying = adapter.applyAtomic({ puts: [{ key: 'other', value: 'new' }], removes: ['gone'] });
@@ -499,7 +499,7 @@ test('a failed atomic transaction keeps every write and every deletion from happ
 
 test('applyAtomic validates its input before opening IndexedDB and ignores an empty request', async () => {
   const fake = createAtomicFakeIndexedDB();
-  const adapter = createLegacyRuntimeStorageAdapter({ indexedDBFactory: fake.indexedDBFactory });
+  const adapter = createRuntimeStorageAdapter({ indexedDBFactory: fake.indexedDBFactory });
 
   await adapter.applyAtomic({});
   await adapter.applyAtomic({ puts: [], removes: [] });

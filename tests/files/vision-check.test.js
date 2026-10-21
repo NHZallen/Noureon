@@ -12,7 +12,7 @@ import { visionText } from '../../src/app/ui/files/vision/vision-texts.js';
 import { createVisionProgress } from '../../src/app/ui/files/vision/vision-progress.js';
 import { buildVisionResult, buildVisionMetadata } from '../../src/app/ui/files/vision/vision-result.js';
 import { groupReviewedSlides } from '../../src/app/ui/files/vision/vision-sheet-plan.js';
-import { mergeAdjacentModelMessages } from '../../src/app/legacy-runtime/features/stream-api-call.js';
+import { mergeAdjacentModelMessages } from '../../src/app/runtime/reply/stream-api-call.js';
 import { createConversationImageResolver } from '../../src/app/ui/files/conversation-images.js';
 import { drawWhenFontsAreIn } from '../../src/app/ui/files/vision/slide-draw.js';
 import { watchSourceIcons } from '../../src/app/ui/sandbox/run-sources.js';

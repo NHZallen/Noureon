@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { SERVICES, getService, provideService } from '../src/app/runtime/services.js';
 
-import { persistAssistantResponseError } from '../src/app/legacy-runtime/features/assistant-response-finalization.js';
+import { persistAssistantResponseError } from '../src/app/runtime/reply/assistant-response-finalization.js';
 import { installStaleChunkRecovery, isStaleChunkError, offerReloadForNewVersion, staleChunkMessage } from '../src/pwa/stale-chunk-recovery.js';
 
 const storage = () => {

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { createP2PScannerLifecycle } from '../src/app/legacy-runtime/features/p2p-scanner-lifecycle.js';
+import { createP2PScannerLifecycle } from '../src/app/runtime/features/p2p-scanner-lifecycle.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -220,7 +220,7 @@ test('scanner start failures preserve logging and notification handoffs', async 
 });
 
 test('P2P scanner lifecycle source avoids unrelated runtime systems', () => {
-  const source = readSource('src/app/legacy-runtime/features/p2p-scanner-lifecycle.js');
+  const source = readSource('src/app/runtime/features/p2p-scanner-lifecycle.js');
 
   for (const forbidden of [
     'streamApiCall',

@@ -24,7 +24,7 @@ const assertInOrder = (source, markers, context) => {
 // legacy-core.js is the composition root and cannot be imported in a test, so the order of startPage() is read from it: the sign-in
 // listeners are bound before the workspace loads (a quick submit is not lost), the language switcher and the rest come after.
 test('the shell starts the page with the sign-in listeners, then the workspace, the language switcher and the rest', () => {
-  const source = readSource('src/app/runtime/legacy-core/legacy-core.js');
+  const source = readSource('src/app/runtime/shell/shell.js');
   const startPage = source.slice(source.indexOf('export function startPage'));
   assertInOrder(startPage, [
     'startupLifecycle.bindAuthStartupListeners()',
@@ -116,11 +116,11 @@ test('main css is an ordered split manifest with every imported file under the s
   for (const name of dialogOnly) assert.ok(statSync(projectFile(`src/styles/${name}`)).size > 0, `${name} should not be empty`);
   // The other sheets load with the part that opens them, not with the page.
   for (const [file, sheet] of [
-    ['src/app/runtime/legacy-core/settings-modal-lifecycle.js', 'settings-dialog.css'],
+    ['src/app/runtime/settings/settings-modal-lifecycle.js', 'settings-dialog.css'],
     ['src/app/runtime/features/conversation-search-modal.js', 'conversation-search.css'],
     ['src/app/runtime/features/latest-update-notice.js', 'update-log.css'],
     ['src/app/ui/charts/chart-styles.js', 'charts.css'],
-    ['src/app/legacy-runtime/features/generated-image-interactions.js', 'generated-image-editor.css']
+    ['src/app/runtime/images/generated-image-interactions.js', 'generated-image-editor.css']
   ]) {
     assert.ok(readSource(file).includes(`import('../../../styles/${sheet}')`), `${file} should load ${sheet} when it opens`);
   }

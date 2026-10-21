@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 import { NOT_MERGED_SETTINGS, digestSettings, mergeSettings, normalizeSettingsStamps, settingsMergeChanged, stampChangedSettings } from '../src/data/settings-merge.js';
-import { createLegacyRuntimeConfigStore } from '../src/app/runtime/kernel/config-store.js';
+import { createRuntimeConfigStore } from '../src/app/runtime/kernel/config-store.js';
 import { normalizeLoadedLegacyConfig } from '../src/app/runtime/kernel/config-normalization.js';
 
 test('a setting changed on one device is not wiped out by another device saving a different one', () => {
@@ -70,7 +70,7 @@ test('a setting is stamped when its digest differs from the one of the last time
 });
 
 test('the settings carry their stamps: an empty default, and a loaded config is normalized', () => {
-  assert.deepEqual(createLegacyRuntimeConfigStore({ defaultModelId: 'm' }).getConfig().settingsStamps, {});
+  assert.deepEqual(createRuntimeConfigStore({ defaultModelId: 'm' }).getConfig().settingsStamps, {});
   const loaded = normalizeLoadedLegacyConfig({ currentConfig: { uiTheme: {}, apiKeys: {} }, savedConfig: { settingsStamps: { netMode: 12, 'bad key!': 3 } } });
   assert.deepEqual(loaded.settingsStamps, { netMode: 12 });
   assert.deepEqual(normalizeLoadedLegacyConfig({ currentConfig: { uiTheme: {}, apiKeys: {} }, savedConfig: {} }).settingsStamps, {});
@@ -86,6 +86,6 @@ test('the sync merges the other settings with the cloud\'s too, in the same step
   assert.ok(merge.indexOf('stampChangedSettings(') < merge.indexOf('await fetchRemote()'), 'what changed here is stamped first');
   assert.match(merge, /settingsDigests/, 'the digests of the last time are kept in the meta');
   assert.match(merge, /astra:cloud-cli-merge[\s\S]*SETTINGS_STAMPS_FIELD/, 'the page is told of the stamps, so its next save keeps them');
-  const wiring = await readFile(new URL('../src/app/runtime/legacy-core/legacy-core.js', import.meta.url), 'utf8');
+  const wiring = await readFile(new URL('../src/app/runtime/shell/shell.js', import.meta.url), 'utf8');
   assert.doesNotMatch(wiring, /settingsStamper|settings-merge/, 'the page needs no wiring: the sync does it');
 });

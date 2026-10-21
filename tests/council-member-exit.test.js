@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createCouncilResponseLifecycle } from '../src/app/legacy-runtime/features/council-response-lifecycle.js';
+import { createCouncilResponseLifecycle } from '../src/app/runtime/council/council-response-lifecycle.js';
 
 const models = ['alpha', 'beta', 'gamma', 'synth'].map((id) => ({ id, name: id[0].toUpperCase() + id.slice(1), provider: 'openrouter' }));
 const runtimeTexts = { completed: 'completed', deliberation: 'deliberation', done: 'done', failed: 'failed', firstRound: 'first round', noVisionParticipants: 'none', retrying: 'retrying', running: 'running', searchDone: 'd', searchFailed: 'f', searchRunning: 's', skippedVisualReason: 'v', synthesis: 'synthesis', exited: 'left' };

@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { createLegacyRuntimeAppDataPersistence } from '../src/app/runtime/kernel/app-data-persistence.js';
-import { createLegacyRuntimeAppDataStore } from '../src/app/runtime/kernel/app-data-store.js';
+import { createRuntimeAppDataPersistence } from '../src/app/runtime/kernel/app-data-persistence.js';
+import { createRuntimeAppDataStore } from '../src/app/runtime/kernel/app-data-store.js';
 import { withWorkspaceStorageExclusive } from '../src/app/sync/workspace-storage-coordinator.js';
 
 const readSource = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
@@ -25,10 +25,10 @@ const emptyMemoryState = () => ({
 test('serialized app data persistence writes the latest store snapshot for the latest user', async () => {
   const calls = [];
   let currentUser = null;
-  const appDataStore = createLegacyRuntimeAppDataStore({
+  const appDataStore = createRuntimeAppDataStore({
     initialConversations: [{ id: 'initial-conv' }]
   });
-  const persistence = createLegacyRuntimeAppDataPersistence({
+  const persistence = createRuntimeAppDataPersistence({
     getCurrentUser: () => currentUser,
     getAppData: () => appDataStore.getSnapshot(),
     getAppDataKey: () => `chatAppData_v8.6_${currentUser.username}`,
@@ -102,7 +102,7 @@ test('queued persistence reads its snapshot only after entering the storage crit
   await entered;
   let snapshot = { conversations: [{ id: 'old' }] };
   const writes = [];
-  const persistence = createLegacyRuntimeAppDataPersistence({
+  const persistence = createRuntimeAppDataPersistence({
     getCurrentUser: () => ({ username: 'alice' }),
     getAppData: () => snapshot,
     getAppDataKey: () => 'chatAppData_v8.6_alice',
@@ -119,7 +119,7 @@ test('queued persistence reads its snapshot only after entering the storage crit
 });
 
 test('missing user does not read key, app data, or storage adapter', async () => {
-  const persistence = createLegacyRuntimeAppDataPersistence({
+  const persistence = createRuntimeAppDataPersistence({
     getCurrentUser: () => null,
     getAppData: () => assert.fail('missing user should not read app data'),
     getAppDataKey: () => assert.fail('missing user should not read app data key'),
@@ -132,7 +132,7 @@ test('missing user does not read key, app data, or storage adapter', async () =>
 test('successful local persistence hands the exact saved snapshot to shadow sync', async () => {
   const snapshot = { conversations: [{ id: 'conversation-1' }], folders: [], astras: [], personalMemories: [] };
   const calls = [];
-  const persistence = createLegacyRuntimeAppDataPersistence({
+  const persistence = createRuntimeAppDataPersistence({
     getCurrentUser: () => ({ username: 'alice' }),
     getAppData: () => snapshot,
     getAppDataKey: () => 'chatAppData_v8.6_alice',
@@ -150,7 +150,7 @@ test('cloud app data persistence atomically writes the workspace and dirty journ
   const stored = new Map();
   const atomicWrites = [];
   const observed = [];
-  const persistence = createLegacyRuntimeAppDataPersistence({
+  const persistence = createRuntimeAppDataPersistence({
     getCurrentUser: () => ({ username: 'supabase:user-1', authProvider: 'supabase' }),
     getAppData: () => snapshot,
     getAppDataKey: () => 'chatAppData_v8.6_supabase:user-1',
@@ -205,7 +205,7 @@ test('immediate cloud save marks both a new atomic write and an unchanged dirty 
   const stored = new Map();
   const atomicWrites = [];
   const observed = [];
-  const persistence = createLegacyRuntimeAppDataPersistence({
+  const persistence = createRuntimeAppDataPersistence({
     getCurrentUser: () => ({ username: 'supabase:user-1', authProvider: 'supabase' }),
     getAppData: () => snapshot,
     getAppDataKey: () => 'chatAppData_v8.6_supabase:user-1',
@@ -236,7 +236,7 @@ test('cloud persistence prefers one snapshot read for workspace and journal', as
   const workspaceKey = `chatAppData_v8.6_${username}`;
   const journalKey = `chatCloudSyncJournal_v1_${username}`;
   const readCalls = [];
-  const persistence = createLegacyRuntimeAppDataPersistence({
+  const persistence = createRuntimeAppDataPersistence({
     getCurrentUser: () => ({ username, authProvider: 'supabase' }),
     getAppData: () => ({ conversations: [{ id: 'next' }] }),
     getAppDataKey: () => workspaceKey,
@@ -259,7 +259,7 @@ test('cloud app data persistence preserves dirty age while assigning each save a
   const stored = new Map();
   const revisions = ['revision-1', 'revision-2'];
   let snapshotVersion = 1;
-  const persistence = createLegacyRuntimeAppDataPersistence({
+  const persistence = createRuntimeAppDataPersistence({
     getCurrentUser: () => ({ username: 'supabase:user-1', authProvider: 'supabase' }),
     getAppData: () => ({
       conversations: [{ id: `conversation-${snapshotVersion}` }],
@@ -318,7 +318,7 @@ test('cloud app data persistence unions entity-level dirty ids across saves', as
   ]);
   const revisions = ['folder-revision', 'astra-revision'];
   let atomicWrites = 0;
-  const persistence = createLegacyRuntimeAppDataPersistence({
+  const persistence = createRuntimeAppDataPersistence({
     getCurrentUser: () => ({ username, authProvider: 'supabase' }),
     getAppData: () => snapshot,
     getAppDataKey: () => workspaceKey,
@@ -373,7 +373,7 @@ test('unchanged clean cloud workspace is a storage and sync no-op', async () => 
   ]);
   let atomicWrites = 0;
   let notifications = 0;
-  const persistence = createLegacyRuntimeAppDataPersistence({
+  const persistence = createRuntimeAppDataPersistence({
     getCurrentUser: () => ({ username, authProvider: 'supabase' }),
     getAppData: () => snapshot,
     getAppDataKey: () => workspaceKey,
@@ -413,7 +413,7 @@ test('unchanged dirty cloud workspace requeues its existing revision without ano
   ]);
   let atomicWrites = 0;
   const observed = [];
-  const persistence = createLegacyRuntimeAppDataPersistence({
+  const persistence = createRuntimeAppDataPersistence({
     getCurrentUser: () => ({ username, authProvider: 'supabase' }),
     getAppData: () => snapshot,
     getAppDataKey: () => workspaceKey,
@@ -443,7 +443,7 @@ test('unchanged dirty cloud workspace requeues its existing revision without ano
 
 test('local accounts keep the legacy single-item persistence path', async () => {
   const calls = [];
-  const persistence = createLegacyRuntimeAppDataPersistence({
+  const persistence = createRuntimeAppDataPersistence({
     getCurrentUser: () => ({ username: 'alice', authProvider: 'local' }),
     getAppData: () => ({ conversations: [] }),
     getAppDataKey: () => 'chatAppData_v8.6_alice',
@@ -463,7 +463,7 @@ test('a local save of data that is already stored writes nothing and notifies no
   const writes = [];
   const saved = [];
   const stored = JSON.stringify({ conversations: [{ id: 'a' }] });
-  const persistence = createLegacyRuntimeAppDataPersistence({
+  const persistence = createRuntimeAppDataPersistence({
     getCurrentUser: () => ({ username: 'alice', authProvider: 'local' }),
     getAppData: () => ({ conversations: [{ id: 'a' }] }),
     getAppDataKey: () => 'chatAppData_v8.6_alice',
@@ -480,7 +480,7 @@ test('a local save of data that is already stored writes nothing and notifies no
 test('a local save writes when the stored data differs or cannot be read', async () => {
   const writes = [];
   let stored = JSON.stringify({ conversations: [{ id: 'old' }] });
-  const persistence = createLegacyRuntimeAppDataPersistence({
+  const persistence = createRuntimeAppDataPersistence({
     getCurrentUser: () => ({ username: 'alice', authProvider: 'local' }),
     getAppData: () => ({ conversations: [{ id: 'new' }] }),
     getAppDataKey: () => 'chatAppData_v8.6_alice',
@@ -516,7 +516,7 @@ const createSlowStore = () => {
 test('saves asked while one is writing share a single follow-up that holds the latest data', async () => {
   const store = createSlowStore();
   let snapshot = { conversations: [{ id: 'v1' }] };
-  const persistence = createLegacyRuntimeAppDataPersistence({
+  const persistence = createRuntimeAppDataPersistence({
     getCurrentUser: () => ({ username: 'alice' }),
     getAppData: () => snapshot,
     getAppDataKey: () => 'chatAppData_v8.6_alice',
@@ -541,7 +541,7 @@ test('saves asked while one is writing share a single follow-up that holds the l
 test('saves that are not overlapping are each written', async () => {
   const writes = [];
   let n = 0;
-  const persistence = createLegacyRuntimeAppDataPersistence({
+  const persistence = createRuntimeAppDataPersistence({
     getCurrentUser: () => ({ username: 'alice' }),
     getAppData: () => ({ conversations: [{ id: `v${n}` }] }),
     getAppDataKey: () => 'chatAppData_v8.6_alice',
@@ -555,7 +555,7 @@ test('the follow-up still runs when the save before it failed, and each caller g
   let fail = true;
   const writes = [];
   let release = () => {};
-  const persistence = createLegacyRuntimeAppDataPersistence({
+  const persistence = createRuntimeAppDataPersistence({
     getCurrentUser: () => ({ username: 'alice' }),
     getAppData: () => ({ conversations: [] }),
     getAppDataKey: () => 'chatAppData_v8.6_alice',
@@ -582,7 +582,7 @@ test('the follow-up still runs when the save before it failed, and each caller g
 test('an immediate cloud save asked while another save is writing is not lost in the follow-up', async () => {
   const seen = [];
   let release = () => {};
-  const persistence = createLegacyRuntimeAppDataPersistence({
+  const persistence = createRuntimeAppDataPersistence({
     getCurrentUser: () => ({ username: 'alice', authProvider: 'supabase' }),
     getAppData: () => ({ conversations: [{ id: String(seen.length) }] }),
     getAppDataKey: () => 'chatAppData_v8.6_alice',
@@ -609,7 +609,7 @@ test('an immediate cloud save asked while another save is writing is not lost in
 test('atomic cloud persistence failure rejects before notifying shadow sync', async () => {
   const atomicError = new Error('atomic write failed');
   let notified = false;
-  const persistence = createLegacyRuntimeAppDataPersistence({
+  const persistence = createRuntimeAppDataPersistence({
     getCurrentUser: () => ({ username: 'supabase:user-1', authProvider: 'supabase' }),
     getAppData: () => ({ conversations: [] }),
     getAppDataKey: () => 'chatAppData_v8.6_supabase:user-1',
@@ -626,7 +626,7 @@ test('atomic cloud persistence failure rejects before notifying shadow sync', as
 test('journal read failure falls back to a durable full-resync marker', async () => {
   const warnings = [];
   let journal;
-  const persistence = createLegacyRuntimeAppDataPersistence({
+  const persistence = createRuntimeAppDataPersistence({
     getCurrentUser: () => ({ username: 'supabase:user-1', authProvider: 'supabase' }),
     getAppData: () => ({ conversations: [] }),
     getAppDataKey: () => 'chatAppData_v8.6_supabase:user-1',
@@ -653,7 +653,7 @@ test('local app data persistence survives a failed shadow sync notification', as
   const snapshot = { conversations: [{ id: 'conversation-1' }], folders: [], astras: [], personalMemories: [] };
   const calls = [];
   const warnings = [];
-  const persistence = createLegacyRuntimeAppDataPersistence({
+  const persistence = createRuntimeAppDataPersistence({
     getCurrentUser: () => ({ username: 'alice' }),
     getAppData: () => snapshot,
     getAppDataKey: () => 'chatAppData_v8.6_alice',
@@ -672,7 +672,7 @@ test('local app data persistence survives a failed shadow sync notification', as
 
 test('save notification runs after releasing the workspace storage critical section', async () => {
   let notificationEnteredStorage = false;
-  const persistence = createLegacyRuntimeAppDataPersistence({
+  const persistence = createRuntimeAppDataPersistence({
     getCurrentUser: () => ({ username: 'alice', authProvider: 'local' }),
     getAppData: () => ({ conversations: [] }),
     getAppDataKey: () => 'chatAppData_v8.6_alice',
@@ -689,7 +689,7 @@ test('save notification runs after releasing the workspace storage critical sect
 
 test('serialized app data persistence preserves rejection and stringify error boundaries', async () => {
   const setItemError = new Error('storage failed');
-  const rejectingPersistence = createLegacyRuntimeAppDataPersistence({
+  const rejectingPersistence = createRuntimeAppDataPersistence({
     getCurrentUser: () => ({ username: 'alice' }),
     getAppData: () => ({
       conversations: [],
@@ -705,7 +705,7 @@ test('serialized app data persistence preserves rejection and stringify error bo
 
   const circular = {};
   circular.self = circular;
-  const circularPersistence = createLegacyRuntimeAppDataPersistence({
+  const circularPersistence = createRuntimeAppDataPersistence({
     getCurrentUser: () => ({ username: 'alice' }),
     getAppData: () => ({
       conversations: [circular],
@@ -724,7 +724,7 @@ test('serialized app data persistence preserves rejection and stringify error bo
 });
 
 test('serialized app data persistence exposes only saveAppData', () => {
-  const persistence = createLegacyRuntimeAppDataPersistence({
+  const persistence = createRuntimeAppDataPersistence({
     getCurrentUser: () => null,
     getAppData: () => ({}),
     getAppDataKey: () => '',

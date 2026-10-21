@@ -13,7 +13,7 @@ const IMPORT_CANCELLED = 'IMPORT_CANCELLED';
 
 const getLocaleText = (i18n, language, key, fallback) => i18n?.[language]?.[key] || fallback;
 
-export function createLegacyImportExportLifecycle({
+export function createImportExportLifecycle({
   document,
   window,
   navigator,

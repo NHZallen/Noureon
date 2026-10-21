@@ -9,7 +9,7 @@ import {
   MODELS,
   MODEL_CATALOG,
   TOOL_CALLING_MODEL_IDS,
-  createLegacyModelRegistry,
+  createModelRegistry,
   getCanonicalModelId,
   getModelApiId,
   getModelReasoningConfig,
@@ -26,7 +26,7 @@ import {
   modelSupportsToolCalling,
   modelSupportsWebSearch,
   normalizeReasoningEffort
-} from '../src/app/runtime/legacy-core/model-registry.js';
+} from '../src/app/runtime/shell/model-registry.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -298,7 +298,7 @@ test('model registry keeps council and translator helpers live-config backed', (
       singleDocumentTranslatorModelId: 'gemini-4-argon'
     }
   };
-  const registry = createLegacyModelRegistry({
+  const registry = createModelRegistry({
     getConfig: () => state.config,
     normalizeConversationModel: (conversation) => MODELS.find((model) => model.id === conversation.model)
   });
@@ -317,7 +317,7 @@ test('model registry keeps council and translator helpers live-config backed', (
 });
 
 test('model registry import is inert and independent from retired runtime fragments', () => {
-  const source = readSource('src/app/runtime/legacy-core/model-registry.js');
+  const source = readSource('src/app/runtime/shell/model-registry.js');
 
   assert.doesNotMatch(source, /virtual:legacy-app-runtime|legacy-runtime\/fragments/);
   assert.doesNotMatch(source, /runtime-entry|legacy-app\.js|document\.querySelector|indexedDB|localStorage|sessionStorage/);
@@ -379,7 +379,7 @@ test('the Gemini models are also on OpenRouter, with the settings of their nativ
 
 
 test('MiniMax M3.1 Flash (free, OpenRouter) is in the list with what the probe of 2026-10-20 found: pictures and video, tools, a PDF, and a thinking that cannot be turned off', async () => {
-  const { MODELS, modelSupportsVision, modelSupportsToolCalling, modelSupportsUploadedFile, getModelTiers, getModelReasoningConfig, normalizeReasoningEffort } = await import('../src/app/runtime/legacy-core/model-registry.js');
+  const { MODELS, modelSupportsVision, modelSupportsToolCalling, modelSupportsUploadedFile, getModelTiers, getModelReasoningConfig, normalizeReasoningEffort } = await import('../src/app/runtime/shell/model-registry.js');
   const model = MODELS.find((entry) => entry.id === 'minimax/minimax-m3.1-flash:free');
   assert.ok(model);
   assert.deepEqual([model.provider, model.category, getModelTiers(model)], ['openrouter', 'general', ['free']]);

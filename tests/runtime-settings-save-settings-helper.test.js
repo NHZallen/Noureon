@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
 
-import { collectSettingsSaveFormValues } from '../src/app/runtime/legacy-core/settings-save-settings-helper.js';
+import { collectSettingsSaveFormValues } from '../src/app/runtime/settings/settings-save-settings-helper.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -139,7 +139,7 @@ test('returns collected values without save, notification, modal, or render side
   assert.equal(JSON.stringify(elements), beforeElements);
   assert.equal(JSON.stringify(config), beforeConfig);
 
-  const source = readSource('src/app/runtime/legacy-core/settings-save-settings-helper.js');
+  const source = readSource('src/app/runtime/settings/settings-save-settings-helper.js');
   assert.doesNotMatch(source, /saveConfig|persistApiKeyInputIntents|saveSensitiveConfig|showNotification|toggleModal|applyUiTheme|applyLanguage|render[A-Z]/);
   assert.doesNotMatch(source, /sensitive-config-store|api-key-input-intent/);
 });

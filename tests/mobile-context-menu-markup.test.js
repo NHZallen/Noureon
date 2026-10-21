@@ -6,7 +6,7 @@ import {
   buildAstraMobileContextMenuMarkup,
   buildConversationMobileContextMenuMarkup,
   buildFolderMobileContextMenuMarkup
-} from '../src/app/legacy-runtime/features/mobile-context-menu-markup.js';
+} from '../src/app/runtime/features/mobile-context-menu-markup.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -104,7 +104,7 @@ test('escapes imported names in every mobile context menu header', () => {
 });
 
 test('mobile context menu markup helper has no runtime side-effect tokens', () => {
-  const source = readSource('src/app/legacy-runtime/features/mobile-context-menu-markup.js');
+  const source = readSource('src/app/runtime/features/mobile-context-menu-markup.js');
   const sourceWithoutExportNames = source
     .replaceAll('buildConversationMobileContextMenuMarkup', '')
     .replaceAll('buildFolderMobileContextMenuMarkup', '')

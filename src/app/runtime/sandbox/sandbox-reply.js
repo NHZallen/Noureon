@@ -6,8 +6,8 @@
 import { MAX_RUNS_PER_REPLY, MAX_RUNS_WITH_CLI, RUN_COMMAND_TOOL, RUN_PYTHON_TOOL, RUN_PYTHON_TOOL_SERVER, REQUEST_CREDENTIALS_TOOL, getCliGuidance, getSandboxGuidance } from './sandbox-guidance.js';
 import { loaderStepEvent, sandboxText } from './sandbox-texts.js';
 import { RUN_STATUS } from '../../ui/sandbox/sandbox-run-block.js';
-import { partialJsonString } from '../../legacy-runtime/features/tool-call-formats.js';
-import { RESEARCH_TOOLS, createNotes, createResearchCalls, researchGuidance } from '../../legacy-runtime/features/web-research-reply.js';
+import { partialJsonString } from '../features/tool-call-formats.js';
+import { RESEARCH_TOOLS, createNotes, createResearchCalls, researchGuidance } from '../features/web-research-reply.js';
 import { loaderInstruction } from '../../../data/skill-tool.js';
 
 const MODEL_TEXT_CHARS = 10_000;

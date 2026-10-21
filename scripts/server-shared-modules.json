@@ -2,15 +2,15 @@
   "comment": "Modules of src/ the server may use, with everything they import. Read a module for browser use (window, document, storage, import.meta.env) before adding it; the check fails when the server starts using a module that is not here, or when one here is no longer used.",
   "modules": [
     {
-      "path": "src/app/legacy-runtime/features/anthropic-messages-format.js",
+      "path": "src/app/runtime/reply/anthropic-messages-format.js",
       "note": "Reviewed 2026-10-13: no browser globals (the Messages form of API: conversation, tools, stream collector)."
     },
     {
-      "path": "src/app/legacy-runtime/features/attachment-labels.js",
+      "path": "src/app/runtime/messages/attachment-labels.js",
       "note": "Reviewed 2026-10-15: no browser globals (the line of text in front of each attachment: its number and its name)."
     },
     {
-      "path": "src/app/legacy-runtime/features/council-attachments.js",
+      "path": "src/app/runtime/council/council-attachments.js",
       "note": "Reviewed 2026-10-08: no browser globals (which attachments need a packet)."
     },
     {
@@ -18,75 +18,75 @@
       "note": "Reviewed 2026-10-19: pure functions (a council's members and stages put into the record at the head of a message)."
     },
     {
-      "path": "src/app/legacy-runtime/features/council-member-steps.js",
+      "path": "src/app/runtime/council/council-member-steps.js",
       "note": "Reviewed 2026-10-19: a plain function (the counts and newest steps of a council member)."
     },
     {
-      "path": "src/app/legacy-runtime/features/council-member-reply.js",
+      "path": "src/app/runtime/council/council-member-reply.js",
       "note": "Reviewed 2026-10-19: no browser globals (a member of a council answering with its own search, skills and connector reads; a test fails if it mentions document., window. or storage)."
     },
     {
-      "path": "src/app/legacy-runtime/features/council-response-lifecycle.js",
+      "path": "src/app/runtime/council/council-response-lifecycle.js",
       "note": "Reviewed 2026-10-08: no browser globals (a test fails the build if it mentions document., window. or globalThis)."
     },
     {
-      "path": "src/app/legacy-runtime/features/image-generation-config.js",
+      "path": "src/app/runtime/images/image-generation-config.js",
       "note": "Reviewed 2026-10-07: no browser globals (the lists of ratios and sizes and their checks)."
     },
     {
-      "path": "src/app/legacy-runtime/features/learning-mode-prompt.js"
+      "path": "src/app/runtime/reply/learning-mode-prompt.js"
     },
     {
-      "path": "src/app/legacy-runtime/features/linked-pages.js",
+      "path": "src/app/runtime/reply/linked-pages.js",
       "note": "Reviewed 2026-10-08: no browser globals (finds the addresses in a message)."
     },
     {
-      "path": "src/app/legacy-runtime/features/model-request-formatting.js"
+      "path": "src/app/runtime/reply/model-request-formatting.js"
     },
     {
-      "path": "src/app/legacy-runtime/features/opencode-errors.js",
+      "path": "src/app/runtime/reply/opencode-errors.js",
       "note": "Reviewed 2026-10-13: no browser globals (the hints for a refusal of OpenCode Go)."
     },
     {
-      "path": "src/app/legacy-runtime/features/opencode-request.js",
+      "path": "src/app/runtime/reply/opencode-request.js",
       "note": "Reviewed 2026-10-13: no browser globals (the request to OpenCode Go in its three forms)."
     },
     {
-      "path": "src/app/legacy-runtime/features/openrouter-image-generation.js",
+      "path": "src/app/runtime/images/openrouter-image-generation.js",
       "note": "Reviewed 2026-10-07: no browser globals (a `fetch` that is passed in; no streaming any more)."
     },
     {
-      "path": "src/app/legacy-runtime/features/provider-request-support.js",
+      "path": "src/app/runtime/reply/provider-request-support.js",
       "note": "Reviewed 2026-10-08: no browser globals (`DOMException` and `AbortSignal.any` exist in Node)."
     },
     {
-      "path": "src/app/legacy-runtime/features/search-packet-parts.js",
+      "path": "src/app/runtime/reply/search-packet-parts.js",
       "note": "Reviewed 2026-10-07: no browser globals (text of the supporting context)."
     },
     {
-      "path": "src/app/legacy-runtime/features/search-query-rewriter.js",
+      "path": "src/app/runtime/reply/search-query-rewriter.js",
       "note": "Reviewed 2026-10-07: no browser globals (a model call with its timers passed in)."
     },
     {
-      "path": "src/app/legacy-runtime/features/skills-reply.js",
+      "path": "src/app/runtime/reply/skills-reply.js",
       "note": "Reviewed 2026-10-09: the loop of a plain reply that may load skills; it only calls the functions it is given (streamApiCall) and has no browser globals."
     },
     {
-      "path": "src/app/legacy-runtime/features/stream-api-call.js",
+      "path": "src/app/runtime/reply/stream-api-call.js",
       "note": "Reviewed 2026-10-03: no browser globals (\"document.pdf\" is a file name)."
     },
     {
-      "path": "src/app/legacy-runtime/features/tool-call-formats.js"
+      "path": "src/app/runtime/features/tool-call-formats.js"
     },
     {
-      "path": "src/app/legacy-runtime/features/web-page-text.js"
+      "path": "src/app/runtime/features/web-page-text.js"
     },
     {
-      "path": "src/app/legacy-runtime/features/web-research-reply.js",
+      "path": "src/app/runtime/features/web-research-reply.js",
       "note": "Reviewed 2026-10-03: `window` there is a local variable (a window of a page)."
     },
     {
-      "path": "src/app/legacy-runtime/features/web-research-tools.js"
+      "path": "src/app/runtime/features/web-research-tools.js"
     },
     {
       "path": "src/app/runtime/decisions/decision-store.js",
@@ -106,14 +106,14 @@
       "path": "src/app/runtime/kernel/search-provider.js"
     },
     {
-      "path": "src/app/runtime/legacy-core/council-runtime-texts.js",
+      "path": "src/app/runtime/shell/council-runtime-texts.js",
       "note": "Reviewed 2026-10-08: no browser globals (texts by language)."
     },
     {
-      "path": "src/app/runtime/legacy-core/model-registry.js"
+      "path": "src/app/runtime/shell/model-registry.js"
     },
     {
-      "path": "src/app/runtime/legacy-core/opencode-models.js",
+      "path": "src/app/runtime/shell/opencode-models.js",
       "note": "Reviewed 2026-10-13: no browser globals (the list of OpenCode Go models: the form of API of each, pictures)."
     },
     {

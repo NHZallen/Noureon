@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { createRuntimeRenderCoordinator } from '../src/app/legacy-runtime/runtime/runtime-render-coordinator.js';
+import { createRuntimeRenderCoordinator } from '../src/app/runtime/kernel/runtime-render-coordinator.js';
 
 const createOrderedCoordinator = (calls, overrides = {}) => createRuntimeRenderCoordinator({
   renderHistorySidebar: () => calls.push('renderHistorySidebar'),
@@ -189,7 +189,7 @@ test('callback wrappers can resolve latest backing renderer', () => {
 });
 
 test('runtime render coordinator source stays render-composition only', () => {
-  const source = readFileSync(new URL('../src/app/legacy-runtime/runtime/runtime-render-coordinator.js', import.meta.url), 'utf8');
+  const source = readFileSync(new URL('../src/app/runtime/kernel/runtime-render-coordinator.js', import.meta.url), 'utf8');
 
   assert.doesNotMatch(source, /\bdocument\b|\bwindow\b|innerHTML|addEventListener|requestAnimationFrame|setTimeout/);
   assert.doesNotMatch(source, /streamApiCall|indexedDB|localStorage|sessionStorage|package\.json|vite\.config/);

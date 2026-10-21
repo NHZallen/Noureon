@@ -3,8 +3,8 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import { createDom } from './behaviours/helpers/create-dom.js';
-import { createBatchActionBarLifecycle } from '../src/app/legacy-runtime/features/batch-action-bar-lifecycle.js';
-import { createSelectionStore } from '../src/app/runtime/legacy-core/shell-state.js';
+import { createBatchActionBarLifecycle } from '../src/app/runtime/features/batch-action-bar-lifecycle.js';
+import { createSelectionStore } from '../src/app/runtime/shell/shell-state.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -109,7 +109,7 @@ test('switching the batch selection forgets what was selected, names the button 
 });
 
 test('batch action bar lifecycle source avoids unrelated runtime systems', () => {
-  const source = readSource('src/app/legacy-runtime/features/batch-action-bar-lifecycle.js');
+  const source = readSource('src/app/runtime/features/batch-action-bar-lifecycle.js');
 
   for (const forbidden of [
     'TextDecoder',

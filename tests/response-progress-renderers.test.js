@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { createResponseProgressRenderers } from '../src/app/legacy-runtime/features/response-progress-renderers.js';
+import { createResponseProgressRenderers } from '../src/app/runtime/reply/response-progress-renderers.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -83,7 +83,7 @@ test('before the first word a reply shows only a breathing dot, a quiet line aft
 });
 
 test('response progress renderers source avoids runtime side-effect ownership', () => {
-  const source = readSource('src/app/legacy-runtime/features/response-progress-renderers.js');
+  const source = readSource('src/app/runtime/reply/response-progress-renderers.js');
 
   for (const forbidden of [
     'document.',

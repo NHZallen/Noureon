@@ -5,7 +5,7 @@ import {
   buildRewritePrompt,
   cleanQuery,
   createSearchQueryRewriter
-} from '../src/app/legacy-runtime/features/search-query-rewriter.js';
+} from '../src/app/runtime/reply/search-query-rewriter.js';
 import { NOURAS_REQUEST_PURPOSE } from '../src/app/runtime/nouras/nouras-policy.js';
 
 const user = (text) => ({ role: 'user', parts: [{ text }] });

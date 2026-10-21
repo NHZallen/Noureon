@@ -4,7 +4,7 @@ import test from 'node:test';
 import {
   prepareVideoThumbnail,
   prepareVideoThumbnails
-} from '../src/app/legacy-runtime/features/video-thumbnail-lifecycle.js';
+} from '../src/app/runtime/features/video-thumbnail-lifecycle.js';
 
 const createVideo = () => {
   const listeners = new Map();

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { createOpenRouterImageGenerator } from '../src/app/legacy-runtime/features/openrouter-image-generation.js';
+import { createOpenRouterImageGenerator } from '../src/app/runtime/images/openrouter-image-generation.js';
 
 test('posts a normalized buffered request and returns raster and vector images', async () => {
   let request;
@@ -69,8 +69,8 @@ test('surfaces OpenRouter image API errors', async () => {
 });
 
 test('a model that gives the same picture again for a request of several gets one request for each, with its own seed, and the pictures come back in order', async () => {
-  const { SEPARATE_REQUEST_MODELS } = await import('../src/app/legacy-runtime/features/openrouter-image-generation.js');
-  const { MODELS } = await import('../src/app/runtime/legacy-core/model-registry.js');
+  const { SEPARATE_REQUEST_MODELS } = await import('../src/app/runtime/images/openrouter-image-generation.js');
+  const { MODELS } = await import('../src/app/runtime/shell/model-registry.js');
   for (const id of SEPARATE_REQUEST_MODELS) assert.ok(MODELS.some(model => (model.apiId || model.id) === id), `${id} is a model of the app`);
   const bodies = [];
   let seed = 100;

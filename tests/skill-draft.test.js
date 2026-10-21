@@ -8,7 +8,7 @@ import { Window } from 'happy-dom';
 import { createLazySkillMode } from '../src/app/runtime/skill/lazy-skill-mode.js';
 import { clearSkillSelection } from '../src/app/runtime/skill/skill-bridge.js';
 import { createSkillStore } from '../src/app/runtime/skill/skill-store.js';
-import { createMarkdownRenderingHelpers } from '../src/app/runtime/legacy-core/markdown-rendering-helpers.js';
+import { createMarkdownRenderingHelpers } from '../src/app/runtime/shell/markdown-rendering-helpers.js';
 import { draftOf, hydrateSkillDrafts } from '../src/app/ui/skill/skill-draft-card.js';
 import { draftHasFiles, readDraftBundle, splitDraft } from '../src/data/skill-draft.js';
 import { OFFICIAL_SKILL_CATALOG } from '../src/data/skill-catalog.js';

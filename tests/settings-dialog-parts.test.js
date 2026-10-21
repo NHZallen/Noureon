@@ -3,7 +3,7 @@ import test from 'node:test';
 import { Window } from 'happy-dom';
 
 import fragment03 from '../src/templates/fragments/03-shell.fragment.js';
-import { createSettingsDialogParts } from '../src/app/runtime/legacy-core/settings-dialog-parts.js';
+import { createSettingsDialogParts } from '../src/app/runtime/settings/settings-dialog-parts.js';
 
 // The parts of the settings dialog that load with it (not with the page): the visual check row, the memory summary and the recall of
 // past conversations. Built once, filled from the settings every time the dialog is built.

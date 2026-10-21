@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { absoluteLinks, findPassages, pageWindow } from '../src/app/legacy-runtime/features/web-page-text.js';
+import { absoluteLinks, findPassages, pageWindow } from '../src/app/runtime/features/web-page-text.js';
 
 const menu = ['Skip to content', '', 'Navigation Menu', ...Array.from({ length: 15 }, (_, index) => `- [Item ${index}](/m/${index})`)].join('\n');
 

@@ -3,8 +3,8 @@ import test from 'node:test';
 
 import { Window } from 'happy-dom';
 
-import { syncInputIndicatorItems } from '../src/app/runtime/legacy-core/input-indicator-sync.js';
-import { createGeneratedImageRuntimeLoader } from '../src/app/runtime/legacy-core/generated-image-runtime.js';
+import { syncInputIndicatorItems } from '../src/app/runtime/shell/input-indicator-sync.js';
+import { createGeneratedImageRuntimeLoader } from '../src/app/runtime/shell/generated-image-runtime.js';
 
 // Two pieces moved out of legacy-core.js and submit-input-council-lifecycle.js (both at the limit of their size): they must do what they did there.
 

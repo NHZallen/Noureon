@@ -5,7 +5,7 @@ import { readUiSource } from '../helpers/source-guards.js';
 
 test('active input modes use the theme color without black outline chrome', () => {
   const css = readUiSource('src/styles/main.css');
-  const runtime01 = readUiSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
+  const runtime01 = readUiSource('src/app/runtime/shell/submit-input-council-lifecycle.js');
 
   assert.match(css, /#attachment-menu\s+\.menu-item\.is-active/);
   assert.match(css, /#input-indicator-container\s+\.input-indicator-item[^{]*\{[^}]*border:\s*0(?:\s*!important)?;[^}]*color:\s*var\(--button-primary-bg\)(?:\s*!important)?;/s);
@@ -85,7 +85,7 @@ test('composer upload previews occupy a full-width row above desktop input contr
 
 test('desktop active modes have no hover close control and remain selectable text', () => {
   const css = readUiSource('src/styles/main.css');
-  const runtime01 = readUiSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
+  const runtime01 = readUiSource('src/app/runtime/shell/submit-input-council-lifecycle.js');
 
   assert.match(runtime01, /id: 'astras-input-indicator'[\s\S]*input-indicator-leading[\s\S]*input-indicator-mode-icon[\s\S]*close-astras-btn-input/);
   assert.match(css, /#astras-input-indicator[^{]*\{[^}]*color:\s*var\(--button-primary-bg\)(?:\s!important)?;/s);
@@ -118,7 +118,7 @@ test('mobile composer puts the editor on its own row above the tools', () => {
 test('desktop tools menu follows the centered or docked composer without changing mobile rules', () => {
   const css = readUiSource('src/styles/main.css');
   const bootstrap = readUiSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
-  const runtime01 = readUiSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
+  const runtime01 = readUiSource('src/app/runtime/shell/submit-input-council-lifecycle.js');
   const councilMenu = readUiSource('src/app/runtime/features/composer-menu-item.js');
 
   assert.match(css, /#chat-workspace\[data-composer-layout="empty"\]\s+#input-bar-container[^{]*\{[^}]*transform:\s*translateY\(var\(--desktop-composer-empty-offset\)\)/s);
@@ -145,7 +145,7 @@ test('desktop tools menu follows the centered or docked composer without changin
 
 test('sent function icons share the surrounding text baseline', () => {
   const css = readUiSource('src/styles/main.css');
-  const renderer = readUiSource('src/app/legacy-runtime/features/message-markup-renderer.js');
+  const renderer = readUiSource('src/app/runtime/messages/message-markup-renderer.js');
 
   assert.match(css, /\.sent-composer-mode\s*\{[^}]*display:\s*inline;[^}]*vertical-align:\s*baseline;/s);
   assert.match(css, /\.sent-composer-mode\s+\.sent-composer-mode-icon[^{]*\{[^}]*display:\s*inline-block;[^}]*vertical-align:\s*-0\.12em;/s);
@@ -154,7 +154,7 @@ test('sent function icons share the surrounding text baseline', () => {
 });
 
 test('mobile web search typing does not disable the message input when Tavily is missing', () => {
-  const updateInputStateHelper = readUiSource('src/app/runtime/legacy-core/settings-update-input-state-helper.js');
+  const updateInputStateHelper = readUiSource('src/app/runtime/settings/settings-update-input-state-helper.js');
   const startupLifecycle = readUiSource('src/app/runtime/features/startup-lifecycle.js');
 
   assert.match(updateInputStateHelper, /const\s+hasModelApiKey\s*=\s*isCouncilEnabled\(conv\)[\s\S]*!!getApiKeyForProvider\(provider\)/);
@@ -205,7 +205,7 @@ test('the chat scroller does not contain overscroll, which made iPhone swipes fr
 });
 
 test('switching chats fades the previous chat out instead of blanking the screen', () => {
-  const list = readUiSource('src/app/legacy-runtime/features/message-list-lifecycle.js');
+  const list = readUiSource('src/app/runtime/messages/message-list-lifecycle.js');
   const ghost = readUiSource('src/app/ui/motion/chat-switch-ghost.js');
 
   assert.match(list, /renderedConversationId !== conversation\.id/);
@@ -233,7 +233,7 @@ test('long-running buttons share one working ring (export, import, sign-in)', ()
     'src/app/runtime/features/auth-import-lifecycle.js',
     'src/app/auth/supabase-auth-bridge.js',
     'src/app/auth/password-recovery-page.js',
-    'src/app/legacy-runtime/features/generated-image-interactions.js'
+    'src/app/runtime/images/generated-image-interactions.js'
   ]) {
     assert.match(readUiSource(file), /busy-button\.js/, `${file} should use the shared busy button`);
   }
@@ -269,7 +269,7 @@ test('stopping while thinking leaves the thinking folded under its label', () =>
 
 test('the chat is never moved under a finger while a reply streams', () => {
   const position = readUiSource('src/app/runtime/features/chat-scroll-position.js');
-  const submit = readUiSource('src/app/runtime/legacy-core/submit-input-council-lifecycle.js');
+  const submit = readUiSource('src/app/runtime/shell/submit-input-council-lifecycle.js');
 
   assert.match(position, /setScrollTopQuietly\(/);
   assert.match(position, /isReaderScrolling\(chatContainer\)/);
@@ -278,7 +278,7 @@ test('the chat is never moved under a finger while a reply streams', () => {
 
 test('opening a chat fades it in without sliding anything, so it does not jump', () => {
   const css = readUiSource('src/styles/chat.css');
-  const lifecycle = readUiSource('src/app/legacy-runtime/features/message-list-lifecycle.js');
+  const lifecycle = readUiSource('src/app/runtime/messages/message-list-lifecycle.js');
   const fadeIn = css.match(/@keyframes chatFadeIn\s*\{[\s\S]*?\n\s*\}\n/)[0];
 
   assert.doesNotMatch(fadeIn, /transform|translate/);
@@ -287,7 +287,7 @@ test('opening a chat fades it in without sliding anything, so it does not jump',
 });
 
 test('the waiting panel is updated in place and says what the model does in the chosen language', () => {
-  const single = readUiSource('src/app/legacy-runtime/features/single-model-response-lifecycle.js');
+  const single = readUiSource('src/app/runtime/reply/single-model-response-lifecycle.js');
   const ledger = readUiSource('src/app/ui/ledger/ledger.js');
 
   assert.doesNotMatch(single, /targetElement\.innerHTML = renderSingleModelProgress/);

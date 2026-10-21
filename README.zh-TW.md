@@ -228,7 +228,7 @@ npm run preview
 | `npm run build` | 建立正式版 |
 | `npm run preview` | 預覽正式版 |
 | `npm test` | 執行回歸測試 |
-| `npm run check:legacy-runtime` | 驗證 legacy runtime 邊界 |
+| `npm run check:shell` | 驗證聊天頁外殼的邊界 |
 | `npm run check:sizes` | 檢查原始碼檔案大小預算 |
 | `npm audit --omit=dev` | 稽核正式環境依賴套件 |
 
@@ -237,7 +237,7 @@ npm run preview
 ```bash
 npm run build
 npm test
-npm run check:legacy-runtime
+npm run check:shell
 npm run check:sizes
 npm audit --omit=dev
 ```
@@ -246,8 +246,8 @@ npm audit --omit=dev
 
 | 路徑 | 用途 |
 | --- | --- |
-| `src/app/runtime/` | 應用程式 runtime、功能、狀態與 UI 協調 |
-| `src/app/legacy-runtime/` | 正在遷移至較小模組的既有功能 |
+| `src/app/runtime/shell/` | 聊天頁的外殼：建立各個 store 與功能，並啟動頁面 |
+| `src/app/runtime/` | 依領域分的聊天頁各部分：`reply/`、`council/`、`images/`、`messages/`、`settings/`、`features/`、`kernel/`（store）、`memory/` 等 |
 | `src/data/` | 語言、Nouras、示範對話與更新資訊 |
 | `src/styles/` | 依功能整理的應用程式樣式 |
 | `api/` | 選用的 serverless 端點 |
@@ -259,7 +259,7 @@ npm audit --omit=dev
 
 Noureon 正在積極開發中。
 
-核心聊天、模型議會、搜尋、圖片、PWA、個人化與資料可攜工作流程已可使用。專案也持續將 legacy runtime 模組遷移至較小的功能邊界，同時維持回歸測試涵蓋。
+核心聊天、模型議會、搜尋、圖片、PWA、個人化與資料可攜工作流程已可使用。舊的 runtime 已依領域拆成小模組，各自有行為測試涵蓋。
 
 介面、模型供應情況與內部架構仍可能持續演進。
 

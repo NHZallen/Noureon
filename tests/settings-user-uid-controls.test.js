@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { Window } from 'happy-dom';
 
-import { createUserUidControls, userUidMarkup } from '../src/app/runtime/legacy-core/settings-user-uid-controls.js';
+import { createUserUidControls, userUidMarkup } from '../src/app/runtime/settings/settings-user-uid-controls.js';
 
 function createHarness({ rows = {}, error = null, configured = true, clipboard } = {}) {
   const window = new Window({ url: 'https://example.test/' });

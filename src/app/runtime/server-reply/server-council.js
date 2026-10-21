@@ -11,7 +11,7 @@ import { invokedSkillsInstruction, skillNamesOfParts } from '../../../data/skill
 import { cliIdsForReply } from '../cli/cli-state.js';
 import { netPolicyForRun } from '../cli/net-state.js';
 import { decisionsFor, verdictOf } from '../decisions/decision-store.js';
-import { modelSupportsToolCalling, modelSupportsVision } from '../legacy-core/model-registry.js';
+import { modelSupportsToolCalling, modelSupportsVision } from '../shell/model-registry.js';
 import { resolveReplyMode } from '../sandbox/file-mode.js';
 import { mayNeedFileGuidance } from '../../ui/files/file-intent.js';
 

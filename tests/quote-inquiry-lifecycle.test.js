@@ -6,8 +6,8 @@ import {
   buildQuotedUserParts,
   getQuoteReferenceFromMessage,
   getVisibleUserText
-} from '../src/app/legacy-runtime/features/quote-inquiry-lifecycle.js';
-import * as quoteInquiryLifecycle from '../src/app/legacy-runtime/features/quote-inquiry-lifecycle.js';
+} from '../src/app/runtime/messages/quote-inquiry-lifecycle.js';
+import * as quoteInquiryLifecycle from '../src/app/runtime/messages/quote-inquiry-lifecycle.js';
 import { readUiSource } from './helpers/source-guards.js';
 
 const getText = (key, fallback) => ({
@@ -109,7 +109,7 @@ test('temporary source highlight changes text color without creating a browser s
 });
 
 test('desktop quote UI uses curved SVG arrows and turns the action blue only on hover', () => {
-  const lifecycle = readUiSource('src/app/legacy-runtime/features/quote-inquiry-lifecycle.js');
+  const lifecycle = readUiSource('src/app/runtime/messages/quote-inquiry-lifecycle.js');
   const css = readUiSource('src/styles/main.css');
   const selectionMenuSource = lifecycle.slice(
     lifecycle.indexOf('const createSelectionMenu = () => {'),

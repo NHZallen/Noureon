@@ -1,13 +1,13 @@
 let productionStartPromise;
 
-// The chat page's shell (legacy-core.js): importing it makes the stores and every feature of the page; startPage() then starts it.
-export function loadLegacyCore() {
-  return import('./runtime/legacy-core/legacy-core.js');
+// The chat page's shell (shell.js): importing it makes the stores and every feature of the page; startPage() then starts it.
+export function loadShell() {
+  return import('./runtime/shell/shell.js');
 }
 
 /** Loads the shell and starts the page, once. */
 export function startRuntimeEntry({
-  loadCore = loadLegacyCore
+  loadCore = loadShell
 } = {}) {
   if (productionStartPromise) return productionStartPromise;
 

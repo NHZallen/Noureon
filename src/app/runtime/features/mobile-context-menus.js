@@ -1,7 +1,7 @@
 // The menus that slide up from the bottom on a phone when a conversation, a folder or a Noura in the sidebar is held: one sheet with its
 // overlay, closed by a tap outside or by pulling it down, whose item runs its action once the sheet has slid away.
 
-import { buildConversationMobileContextMenuMarkup, buildFolderMobileContextMenuMarkup, buildAstraMobileContextMenuMarkup } from '../../legacy-runtime/features/mobile-context-menu-markup.js';
+import { buildConversationMobileContextMenuMarkup, buildFolderMobileContextMenuMarkup, buildAstraMobileContextMenuMarkup } from './mobile-context-menu-markup.js';
 
 const CLOSE_DISTANCE = 100;
 const ACTION_DELAY_MS = 300;

@@ -4,7 +4,7 @@ import { Window } from 'happy-dom';
 import katex from 'katex';
 import { marked } from 'marked';
 
-import { createMarkdownRenderingHelpers } from '../../src/app/runtime/legacy-core/markdown-rendering-helpers.js';
+import { createMarkdownRenderingHelpers } from '../../src/app/runtime/shell/markdown-rendering-helpers.js';
 import { getFileBlock } from '../../src/app/ui/files/file-block-model.js';
 import { getFileMarkdownRenderer } from '../../src/app/ui/files/file-markdown-cards.js';
 

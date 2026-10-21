@@ -3,7 +3,7 @@ import { installStaleChunkRecovery } from '../../../pwa/stale-chunk-recovery.js'
 import { detectSystemLanguage, readLastUiLanguage, readLoginLanguage, rememberLoginLanguage } from './login-language.js';
 import { SERVICES, provideService } from '../services.js';
 
-export function createLegacyStartupLifecycle({
+export function createStartupLifecycle({
     window,
     document,
     globalObject = globalThis,

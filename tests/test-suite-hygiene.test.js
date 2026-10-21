@@ -13,7 +13,7 @@ import {
 } from './helpers/source-guards.js';
 
 const focusedStructureSuites = [
-  ['tests', 'structure', 'legacy-runtime-boundaries.test.js'],
+  ['tests', 'structure', 'shell-boundaries.test.js'],
   ['tests', 'structure', 'settings-helper-boundaries.test.js']
 ];
 
@@ -102,9 +102,9 @@ test('check:sizes reports grouped budgets without using targets as hard failures
   assert.match(output, /\/ target [\d.]+ KB/);
   assert.match(output, /OK: all grouped size budgets are within transitional limits/);
   assert.match(source, /Hard failures use transitional limits/);
-  const shellBudget = /label:\s*'legacy-core shell'[^}]*transitionalLimit:\s*bytes\((\d+)\)[^}]*v5Target:\s*bytes\(55\)/.exec(source);
-  assert.ok(shellBudget, 'legacy-core shell keeps its long-term target');
-  assert.ok(Number(shellBudget[1]) <= 55, 'legacy-core shell budget stays ratcheted down to the long-term target');
+  const shellBudget = /label:\s*'shell'[^}]*transitionalLimit:\s*bytes\((\d+)\)[^}]*v5Target:\s*bytes\(55\)/.exec(source);
+  assert.ok(shellBudget, 'the shell keeps its long-term target');
+  assert.ok(Number(shellBudget[1]) <= 55, 'the shell budget stays ratcheted down to the long-term target');
   assert.match(source, /status\s*=\s*overTransitional[\s\S]*overTarget[\s\S]*'DEBT'/);
   assert.doesNotMatch(source, /process\.exit\(1\)[\s\S]{0,120}overTarget/);
 });

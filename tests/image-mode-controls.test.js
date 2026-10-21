@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { createDom } from './behaviours/helpers/create-dom.js';
-import { createImageModeControls } from '../src/app/legacy-runtime/features/image-mode-controls.js';
+import { createImageModeControls } from '../src/app/runtime/images/image-mode-controls.js';
 
 test('image models replace council and learning with ratio and resolution controls', async () => {
   const { document, cleanup } = createDom(`

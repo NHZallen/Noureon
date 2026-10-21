@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { createStreamingMarkdownRenderState } from '../src/app/legacy-runtime/features/streaming-markdown-render-state.js';
+import { createStreamingMarkdownRenderState } from '../src/app/runtime/reply/streaming-markdown-render-state.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -119,7 +119,7 @@ test('append after finalize is ignored and keeps accumulated text stable', () =>
 });
 
 test('streaming markdown render state helper remains isolated from runtime side effects', () => {
-  const helperSource = readSource('src/app/legacy-runtime/features/streaming-markdown-render-state.js');
+  const helperSource = readSource('src/app/runtime/reply/streaming-markdown-render-state.js');
 
   for (const forbidden of [
     'document',

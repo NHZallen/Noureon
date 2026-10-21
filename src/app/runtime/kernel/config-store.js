@@ -1,6 +1,6 @@
 import { getStartupLanguage } from '../../i18n/language-packs.js';
 
-export function createLegacyRuntimeConfigStore({ defaultModelId } = {}) {
+export function createRuntimeConfigStore({ defaultModelId } = {}) {
   let config = {
     apiKeys: { gemini: '', openrouter: '', nvidia: '', 'opencode-go': '', tavily: '', tinyfish: '' },
     defaultModel: defaultModelId,

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { Window } from 'happy-dom';
 
-import { createSyncNowControls, syncNowMarkup } from '../src/app/runtime/legacy-core/settings-sync-now-controls.js';
+import { createSyncNowControls, syncNowMarkup } from '../src/app/runtime/settings/settings-sync-now-controls.js';
 
 const kinds = (states) => ({
   config: { state: states[0] },
@@ -82,7 +82,7 @@ test('offline, a sync that throws, and sync that is not ready are each said plai
 });
 
 test('the panel is part of the unlocked sync vault panel and only that', async () => {
-  const { createSettingsSyncVaultControls } = await import('../src/app/runtime/legacy-core/settings-sync-vault-controls.js');
+  const { createSettingsSyncVaultControls } = await import('../src/app/runtime/settings/settings-sync-vault-controls.js');
   const window = new Window();
   window.document.body.innerHTML = '<div id="settings-modal"><ul id="settings-nav"><li class="settings-nav-item" data-section="personalization">P</li></ul><div id="personalization-section" class="settings-section"></div></div>';
   const controls = createSettingsSyncVaultControls({ window, document: window.document, storage: { getItem: async () => null, setItem: async () => {}, removeItem: async () => {} }, getCurrentUser: () => ({ username: 'u' }), getText: (_key, fallback) => fallback, showNotification: () => {} });

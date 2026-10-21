@@ -4,7 +4,7 @@
 
 import { getCliTool, isCliReady } from '../src/data/cli-catalog.js';
 import { NET_MAX_RULES, NET_MODES, NET_RULES, normalizeNetHost, normalizeNetMode, normalizeNetRules } from '../src/data/cli-net.js';
-import { IMAGE_ASPECT_RATIOS, IMAGE_RESOLUTIONS } from '../src/app/legacy-runtime/features/image-generation-config.js';
+import { IMAGE_ASPECT_RATIOS, IMAGE_RESOLUTIONS } from '../src/app/runtime/images/image-generation-config.js';
 import { SKILL_DESCRIPTION_MAX, isSkillName } from '../src/data/skill-format.js';
 import { MAX_LISTED_SKILLS, listedSkills } from '../src/data/skill-tool.js';
 import { LANGUAGES, LIMITS, PROTOCOL_VERSION } from './protocol.js';

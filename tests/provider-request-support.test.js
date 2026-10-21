@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { createProviderRequestSupport } from '../src/app/legacy-runtime/features/provider-request-support.js';
-import { normalizePageReads, normalizeTinyfishSearch, withSearchContext } from '../src/app/legacy-runtime/features/model-request-formatting.js';
+import { createProviderRequestSupport } from '../src/app/runtime/reply/provider-request-support.js';
+import { normalizePageReads, normalizeTinyfishSearch, withSearchContext } from '../src/app/runtime/reply/model-request-formatting.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -234,7 +234,7 @@ test('single-model translation support preserves missing translator boundary', a
 });
 
 test('provider request support source avoids DOM, storage schema, package, and Vite coupling', () => {
-  const source = readSource('src/app/legacy-runtime/features/provider-request-support.js');
+  const source = readSource('src/app/runtime/reply/provider-request-support.js');
 
   for (const forbidden of [
     'document.',

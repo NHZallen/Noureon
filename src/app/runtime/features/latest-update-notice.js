@@ -1,6 +1,6 @@
 // What is new since the version the person last saw (the dialog shown once after an update), and the version number in the settings.
 
-import { compareVersions } from '../../legacy-runtime/features/version-compare.js';
+import { compareVersions } from './version-compare.js';
 import { localizeUpdateLogs } from '../../../data/update-logs/translations.js';
 import { renderLatestUpdates } from '../../ui/updates/update-log-view.js';
 

@@ -18,7 +18,7 @@ function parseStoredWorkspace(value) {
   }
 }
 
-export function createLegacyRuntimeAppDataPersistence({
+export function createRuntimeAppDataPersistence({
   getCurrentUser,
   getAppData,
   getAppDataKey,

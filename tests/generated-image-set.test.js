@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { bindGeneratedImageSets, renderGeneratedImageSet } from '../src/app/legacy-runtime/features/generated-image-set.js';
+import { bindGeneratedImageSets, renderGeneratedImageSet } from '../src/app/runtime/images/generated-image-set.js';
 import { imageThumbsPlaceholder } from '../src/app/ui/image-wait/image-wait-markup.js';
 import { createDom } from './behaviours/helpers/create-dom.js';
 

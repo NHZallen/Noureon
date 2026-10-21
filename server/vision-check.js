@@ -6,7 +6,7 @@
 // What happens is told as it happens, as the calls the page's progress line has (`progress.set`, `slideRendered`, …), so every page
 // shows the same line (src/app/ui/files/vision/vision-progress.js); see `remoteProgress`.
 
-import { modelSupportsVision } from '../src/app/runtime/legacy-core/model-registry.js';
+import { modelSupportsVision } from '../src/app/runtime/shell/model-registry.js';
 import { parseDocumentSpec } from '../src/app/ui/files/design/document-spec.js';
 import { askVision } from '../src/app/ui/files/vision/vision-ask.js';
 import { eligibleVisionFiles } from '../src/app/ui/files/vision/vision-eligibility.js';

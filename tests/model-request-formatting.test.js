@@ -10,7 +10,7 @@ import {
   normalizePageReads,
   normalizeTinyfishSearch,
   withSearchContext
-} from '../src/app/legacy-runtime/features/model-request-formatting.js';
+} from '../src/app/runtime/reply/model-request-formatting.js';
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
 
@@ -81,7 +81,7 @@ test('Tavily search packet formatting keeps the no-results fallback', () => {
 });
 
 test('model request formatting helper remains isolated from runtime side effects', () => {
-  const helperSource = readSource('src/app/legacy-runtime/features/model-request-formatting.js');
+  const helperSource = readSource('src/app/runtime/reply/model-request-formatting.js');
 
   for (const forbidden of [
     'document',

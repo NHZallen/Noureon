@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { createLegacyRuntimeAppDataStore } from '../src/app/runtime/kernel/app-data-store.js';
+import { createRuntimeAppDataStore } from '../src/app/runtime/kernel/app-data-store.js';
 
 const bridgeModuleUrl = new URL('../src/app/runtime/kernel/live-conversations-bridge.js', import.meta.url);
 
@@ -18,7 +18,7 @@ test('live conversations bridge module exports a factory', async () => {
 });
 
 test('getConversations always returns the latest app data store pointer', async () => {
-  const store = createLegacyRuntimeAppDataStore({
+  const store = createRuntimeAppDataStore({
     initialConversations: [{ id: 'initial' }]
   });
   const bridge = await createBridge({
@@ -33,7 +33,7 @@ test('getConversations always returns the latest app data store pointer', async 
 });
 
 test('replaceConversations updates and returns the active store pointer', async () => {
-  const store = createLegacyRuntimeAppDataStore({
+  const store = createRuntimeAppDataStore({
     initialConversations: [{ id: 'initial' }]
   });
   const bridge = await createBridge({
@@ -50,7 +50,7 @@ test('replaceConversations updates and returns the active store pointer', async 
 });
 
 test('replaceConversations stops stale arrays from becoming the source of truth', async () => {
-  const store = createLegacyRuntimeAppDataStore({
+  const store = createRuntimeAppDataStore({
     initialConversations: [{ id: 'stale' }]
   });
   const staleConversations = store.getConversations();
@@ -70,7 +70,7 @@ test('replaceConversations stops stale arrays from becoming the source of truth'
 });
 
 test('getConversations sees the active pointer after an external replaceAll operation', async () => {
-  const store = createLegacyRuntimeAppDataStore({
+  const store = createRuntimeAppDataStore({
     initialConversations: [{ id: 'initial' }]
   });
   const bridge = await createBridge({

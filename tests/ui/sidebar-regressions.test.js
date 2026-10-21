@@ -4,7 +4,7 @@ import { readUiSource } from '../helpers/source-guards.js';
 
 test('sidebar search stays solid while history models render as inline gray metadata', () => {
   const css = readUiSource('src/styles/main.css');
-  const sidebarChatAstraRenderSource = readUiSource('src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js');
+  const sidebarChatAstraRenderSource = readUiSource('src/app/runtime/shell/sidebar-chat-astra-render-lifecycle.js');
 
   assert.match(css, /#open-search-btn[^{]*\{[^}]*background:\s*[^;]+\s!important;/s);
   assert.match(css, /\.conversation-sidebar-copy[^{]*\{[^}]*flex-direction:\s*column;/s);
@@ -17,7 +17,7 @@ test('sidebar search stays solid while history models render as inline gray meta
 
 test('desktop startup keeps sidebar closed while preserving manual and mobile toggle paths', () => {
   const appBootstrapLifecycle = readUiSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
-  const searchUploadSidebarLifecycle = readUiSource('src/app/runtime/legacy-core/search-upload-sidebar-lifecycle.js');
+  const searchUploadSidebarLifecycle = readUiSource('src/app/runtime/shell/search-upload-sidebar-lifecycle.js');
   const css = readUiSource('src/styles/main.css');
 
   assert.match(
@@ -41,10 +41,10 @@ test('desktop startup keeps sidebar closed while preserving manual and mobile to
 });
 
 test('folder color rendering supports saved css color values without falling back', () => {
-  const runtime01 = readUiSource('src/app/runtime/legacy-core/legacy-core.js');
-  const sidebarChatAstraRenderSource = readUiSource('src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js');
-  const runtime02 = readUiSource('src/app/runtime/legacy-core/legacy-core.js');
-  const runtime00 = readUiSource('src/app/runtime/legacy-core/legacy-core.js');
+  const runtime01 = readUiSource('src/app/runtime/shell/shell.js');
+  const sidebarChatAstraRenderSource = readUiSource('src/app/runtime/shell/sidebar-chat-astra-render-lifecycle.js');
+  const runtime02 = readUiSource('src/app/runtime/shell/shell.js');
+  const runtime00 = readUiSource('src/app/runtime/shell/shell.js');
   const css = readUiSource('src/styles/main.css');
 
   assert.match(runtime00, /resolveFolderColor/);

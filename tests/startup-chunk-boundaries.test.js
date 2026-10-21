@@ -64,7 +64,7 @@ test('startup data begins after shell mount and joins auth at the runtime gate',
   const localBypassAt = mainSource.indexOf("startupIdentity.mode === 'local'");
   const authAt = mainSource.indexOf('await initializeStartupAuthBridge({ window, document, startupIdentity })');
   const gateAt = mainSource.indexOf('const [{ auth, startupIdentity }] = await Promise.all([');
-  const runtimeAt = mainSource.indexOf("await import('./app/legacy-app.js')");
+  const runtimeAt = mainSource.indexOf("await import('./app/chat-app.js')");
 
   assert.ok(shellAt >= 0);
   assert.ok(dataAt > shellAt, 'startup data should begin immediately after the shell is mounted');
@@ -72,7 +72,7 @@ test('startup data begins after shell mount and joins auth at the runtime gate',
   assert.ok(localBypassAt > identityAt, 'only cached local identity may bypass required startup auth');
   assert.ok(authAt > identityAt, 'auth should begin as soon as identity resolves');
   assert.ok(gateAt > authAt, 'the runtime gate should await both concurrent branches');
-  assert.ok(runtimeAt > gateAt, 'legacy runtime must not load before auth and data are ready');
+  assert.ok(runtimeAt > gateAt, 'the chat page must not load before auth and data are ready');
   assert.match(
     mainSource.slice(gateAt, runtimeAt),
     /identityAndRequiredAuthReady,\s*startupDataReady/
@@ -111,7 +111,7 @@ test('local or anonymous startup resolves cloud readiness without fetching cloud
 test('normal auth and settings code depend only on the tiny recovery route helper', () => {
   const authBridgeSource = readSource('src/app/auth/supabase-auth-bridge.js');
   // The link to reset the login password is in the sign-in part of the user page (settings-account-linking-actions.js).
-  const settingsSource = readSource('src/app/runtime/legacy-core/settings-account-linking-actions.js');
+  const settingsSource = readSource('src/app/runtime/settings/settings-account-linking-actions.js');
   const recoveryPageSource = readSource('src/app/auth/password-recovery-page.js');
   const routeSource = readSource('src/app/auth/password-recovery-route.js');
 

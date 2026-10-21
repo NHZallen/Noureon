@@ -1,6 +1,6 @@
 import { normalizeMemoryState } from '../memory/memory-schema.js';
 
-export function createLegacyRuntimeAppDataStore({
+export function createRuntimeAppDataStore({
   initialConversations = [],
   initialFolders = [],
   initialAstras = [],

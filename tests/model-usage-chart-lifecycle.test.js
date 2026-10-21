@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import { createDom } from './behaviours/helpers/create-dom.js';
-import { createModelUsageChartLifecycle } from '../src/app/legacy-runtime/features/model-usage-chart-lifecycle.js';
+import { createModelUsageChartLifecycle } from '../src/app/runtime/features/model-usage-chart-lifecycle.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -110,7 +110,7 @@ test('missing chart container is a safe no-op boundary', () => {
 });
 
 test('model usage chart lifecycle source avoids unrelated runtime systems', () => {
-  const source = readSource('src/app/legacy-runtime/features/model-usage-chart-lifecycle.js');
+  const source = readSource('src/app/runtime/features/model-usage-chart-lifecycle.js');
 
   for (const forbidden of [
     'TextDecoder',

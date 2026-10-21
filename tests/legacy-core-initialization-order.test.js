@@ -14,7 +14,7 @@ import test from 'node:test';
 // created before those features. Only a direct read before the declaration is a defect.
 
 const source = readFileSync(
-  new URL('../src/app/runtime/legacy-core/legacy-core.js', import.meta.url),
+  new URL('../src/app/runtime/shell/shell.js', import.meta.url),
   'utf8'
 );
 

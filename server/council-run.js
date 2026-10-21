@@ -13,17 +13,17 @@
 
 import { createHash } from 'node:crypto';
 
-import { createCouncilAttachmentNeed } from '../src/app/legacy-runtime/features/council-attachments.js';
-import { createCouncilMembers } from '../src/app/legacy-runtime/features/council-member-reply.js';
-import { createCouncilResponseLifecycle } from '../src/app/legacy-runtime/features/council-response-lifecycle.js';
-import { buildTavilySearchQuery, formatTavilySearchPacket, getSearchCurrentDate, normalizePageReads, normalizeTinyfishSearch, withSearchContext } from '../src/app/legacy-runtime/features/model-request-formatting.js';
-import { createProviderRequestSupport } from '../src/app/legacy-runtime/features/provider-request-support.js';
-import { createStreamApiCall } from '../src/app/legacy-runtime/features/stream-api-call.js';
+import { createCouncilAttachmentNeed } from '../src/app/runtime/council/council-attachments.js';
+import { createCouncilMembers } from '../src/app/runtime/council/council-member-reply.js';
+import { createCouncilResponseLifecycle } from '../src/app/runtime/council/council-response-lifecycle.js';
+import { buildTavilySearchQuery, formatTavilySearchPacket, getSearchCurrentDate, normalizePageReads, normalizeTinyfishSearch, withSearchContext } from '../src/app/runtime/reply/model-request-formatting.js';
+import { createProviderRequestSupport } from '../src/app/runtime/reply/provider-request-support.js';
+import { createStreamApiCall } from '../src/app/runtime/reply/stream-api-call.js';
 import { formatSandboxRunBlock, hasSandboxRunBlock, liftSandboxRunBlock } from '../src/app/ui/sandbox/sandbox-run-block.js';
 import { withCouncilRecord } from '../src/app/ui/council/council-record.js';
 import { createSkillLoader } from '../src/data/skill-tool.js';
 import { createServerOfficeReader } from './office-deps.js';
-import { getCouncilRuntimeTexts } from '../src/app/runtime/legacy-core/council-runtime-texts.js';
+import { getCouncilRuntimeTexts } from '../src/app/runtime/shell/council-runtime-texts.js';
 import {
   COUNCIL_MAX_MODELS,
   COUNCIL_RESPONSE_CHAR_LIMIT,
@@ -37,7 +37,7 @@ import {
   modelUsesNativeWebSearch,
   modelUsesTavilySearch,
   normalizeReasoningEffort
-} from '../src/app/runtime/legacy-core/model-registry.js';
+} from '../src/app/runtime/shell/model-registry.js';
 import { NOURAS_REQUEST_PURPOSE } from '../src/app/runtime/nouras/nouras-policy.js';
 import { executeReply, getErrorMessage, readErrorBody, ReplyError, scrubMessage, scrubText } from './executor.js';
 import { ERROR_CODES, LIMITS } from './protocol.js';

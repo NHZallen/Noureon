@@ -228,7 +228,7 @@ The included serverless API route can optionally proxy feedback and Noura propos
 | `npm run build` | Create a production build |
 | `npm run preview` | Preview the production build |
 | `npm test` | Run the regression test suite |
-| `npm run check:legacy-runtime` | Validate legacy runtime boundaries |
+| `npm run check:shell` | Validate the boundaries of the chat page shell |
 | `npm run check:sizes` | Check source file size budgets |
 | `npm audit --omit=dev` | Audit production dependencies |
 
@@ -237,7 +237,7 @@ Before submitting a change, run:
 ```bash
 npm run build
 npm test
-npm run check:legacy-runtime
+npm run check:shell
 npm run check:sizes
 npm audit --omit=dev
 ```
@@ -246,8 +246,8 @@ npm audit --omit=dev
 
 | Path | Purpose |
 | --- | --- |
-| `src/app/runtime/` | Application runtime, features, state, and UI coordination |
-| `src/app/legacy-runtime/` | Legacy functionality being migrated into smaller modules |
+| `src/app/runtime/shell/` | The chat page's shell: creates the stores and every feature, and starts the page |
+| `src/app/runtime/` | The parts of the chat page by area: `reply/`, `council/`, `images/`, `messages/`, `settings/`, `features/`, `kernel/` (stores), `memory/` and more |
 | `src/data/` | Languages, Nouras, demo conversations, and update information |
 | `src/styles/` | Application styles organized by feature |
 | `api/` | Optional serverless endpoints |
@@ -259,7 +259,7 @@ npm audit --omit=dev
 
 Noureon is under active development.
 
-Core chat, Model Council, search, image, PWA, personalization, and data portability workflows are available. The project is also migrating legacy runtime modules into smaller feature boundaries while maintaining regression coverage.
+Core chat, Model Council, search, image, PWA, personalization, and data portability workflows are available. The older runtime has been split into small modules by area, each covered by behaviour tests.
 
 Interfaces, model availability, and internal architecture may continue to evolve.
 

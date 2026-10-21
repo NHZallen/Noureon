@@ -1,6 +1,6 @@
-import { createAppBootstrapComposition } from '../../legacy-runtime/features/app-bootstrap-composition.js';
-import { createStoreNavigationLifecycle } from '../../legacy-runtime/features/store-navigation-lifecycle.js';
-import { createLegacyP2PLifecycle } from './p2p-lifecycle.js';
+import { createAppBootstrapComposition } from './app-bootstrap-composition.js';
+import { createStoreNavigationLifecycle } from './store-navigation-lifecycle.js';
+import { createP2PLifecycle } from './p2p-lifecycle.js';
 import { addConfirmedProfileEntry } from '../memory/memory-profile-management.js';
 import { openWhenBuilt, prepareWhenIdle } from './open-settings-when-built.js';
 import { installFileCardInteractions } from '../../ui/files/file-card-interactions.js';
@@ -15,7 +15,7 @@ import { bindMessageListActions } from './message-list-actions.js';
 import { bindComposerInput } from './composer-input-bindings.js';
 import { bindFeedbackForms } from './feedback-forms.js';
 
-export function createLegacyAppBootstrapLifecycle({
+export function createAppBootstrapLifecycle({
     window,
     document,
     elements,
@@ -413,7 +413,7 @@ export function createLegacyAppBootstrapLifecycle({
         // ✨ P2P 分享功能 (PeerJS Implementation)
         // ==========================================
 
-        const p2pLifecycle = createLegacyP2PLifecycle({
+        const p2pLifecycle = createP2PLifecycle({
             document,
             getElementById: (id) => document.getElementById(id),
             loadSharingVendor,

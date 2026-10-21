@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createStreamApiCall } from '../src/app/legacy-runtime/features/stream-api-call.js';
+import { createStreamApiCall } from '../src/app/runtime/reply/stream-api-call.js';
 import { normalizeLoadedLegacyConfig } from '../src/app/runtime/kernel/config-normalization.js';
 import {
   GEMINI_DOCUMENT_MODELS,
@@ -13,7 +13,7 @@ import {
   modelSupportsUploadedFile,
   modelSupportsVision,
   normalizeReasoningEffort
-} from '../src/app/runtime/legacy-core/model-registry.js';
+} from '../src/app/runtime/shell/model-registry.js';
 import i18n from '../src/data/i18n.js';
 
 const native = MODELS.find((model) => model.id === 'gemini-4-argon');

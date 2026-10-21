@@ -8,7 +8,7 @@ import {
   createOpenAiCollector,
   modelThinkingKind,
   partialJsonString
-} from '../../src/app/legacy-runtime/features/tool-call-formats.js';
+} from '../../src/app/runtime/features/tool-call-formats.js';
 import { RUN_PYTHON_TOOL } from '../../src/app/runtime/sandbox/sandbox-guidance.js';
 
 test('Gemini: tools are declared, and earlier rounds go back with the model parts unchanged', () => {

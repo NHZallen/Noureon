@@ -4,8 +4,8 @@ import test from 'node:test';
 import { executeReply, getErrorMessage, readErrorBody, ReplyError } from '../../server/executor.js';
 import { validateRunSpec } from '../../server/run-spec.js';
 import { PROTOCOL_VERSION } from '../../server/protocol.js';
-import { createProviderRequestSupport } from '../../src/app/legacy-runtime/features/provider-request-support.js';
-import { buildTavilySearchQuery, formatTavilySearchPacket, normalizePageReads, normalizeTinyfishSearch, withSearchContext } from '../../src/app/legacy-runtime/features/model-request-formatting.js';
+import { createProviderRequestSupport } from '../../src/app/runtime/reply/provider-request-support.js';
+import { buildTavilySearchQuery, formatTavilySearchPacket, normalizePageReads, normalizeTinyfishSearch, withSearchContext } from '../../src/app/runtime/reply/model-request-formatting.js';
 import { liftSandboxRunBlock } from '../../src/app/ui/sandbox/sandbox-run-block.js';
 
 const KEY = 'sk-provider-secret-value';

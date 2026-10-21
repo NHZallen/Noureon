@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { createLegacyImportExportLifecycle } from '../src/app/runtime/features/import-export-lifecycle.js';
+import { createImportExportLifecycle } from '../src/app/runtime/features/import-export-lifecycle.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -153,7 +153,7 @@ function createHarness({
   }
   FakeJSZip.instances = [];
 
-  const lifecycle = createLegacyImportExportLifecycle({
+  const lifecycle = createImportExportLifecycle({
     document,
     window: {},
     navigator: { userAgent: 'Desktop' },

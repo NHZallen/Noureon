@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createLegacySettingsAuthProviderLifecycle } from '../src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js';
+import { createSettingsAuthProviderLifecycle } from '../src/app/runtime/settings/settings-auth-provider-lifecycle.js';
 import { createTrackedElement, createDependencies } from './helpers/settings-lifecycle-harness.js';
 
 test('delete-all path uses injected storage adapter and preserves reload ordering', async () => {
   const { dependencies, calls } = createDependencies();
-  const lifecycle = createLegacySettingsAuthProviderLifecycle(dependencies);
+  const lifecycle = createSettingsAuthProviderLifecycle(dependencies);
 
   await lifecycle.handleDeleteAllData();
 
@@ -32,7 +32,7 @@ test('login success preserves auth storage, visibility transitions, and init han
     return { username, passwordHash: 'new-hash' };
   };
 
-  const lifecycle = createLegacySettingsAuthProviderLifecycle(dependencies);
+  const lifecycle = createSettingsAuthProviderLifecycle(dependencies);
   await lifecycle.handleLogin(event);
 
   assert.deepEqual(calls.filter((call) => call === 'preventDefault'), ['preventDefault']);
@@ -69,7 +69,7 @@ test('login failure keeps failure path isolated and does not initialize app', as
   dependencies.elements.usernameInput.value = 'alice';
   dependencies.elements.passwordInput.value = 'wrong-password';
 
-  const lifecycle = createLegacySettingsAuthProviderLifecycle(dependencies);
+  const lifecycle = createSettingsAuthProviderLifecycle(dependencies);
   await lifecycle.handleLogin({ preventDefault: () => calls.push('preventDefault') });
 
   assert.equal(state.currentUser, null);
@@ -87,7 +87,7 @@ test('logout confirm accepted clears last user and reloads', async () => {
     },
     removeItem: async (...args) => calls.push(['removeItem', ...args])
   });
-  const lifecycle = createLegacySettingsAuthProviderLifecycle(dependencies);
+  const lifecycle = createSettingsAuthProviderLifecycle(dependencies);
 
   await lifecycle.handleLogout();
 
@@ -106,7 +106,7 @@ test('logout confirm rejected does not clear storage or reload', async () => {
     },
     removeItem: async (...args) => calls.push(['removeItem', ...args])
   });
-  const lifecycle = createLegacySettingsAuthProviderLifecycle(dependencies);
+  const lifecycle = createSettingsAuthProviderLifecycle(dependencies);
 
   await lifecycle.handleLogout();
 
@@ -120,7 +120,7 @@ test('delete-all confirm accepted clears storage, notifies, and reloads after de
       return 'DELETE';
     }
   });
-  const lifecycle = createLegacySettingsAuthProviderLifecycle(dependencies);
+  const lifecycle = createSettingsAuthProviderLifecycle(dependencies);
 
   await lifecycle.handleDeleteAllData();
 
@@ -140,7 +140,7 @@ test('delete-all confirm rejected does not clear storage or reload', async () =>
       return null;
     }
   });
-  const lifecycle = createLegacySettingsAuthProviderLifecycle(dependencies);
+  const lifecycle = createSettingsAuthProviderLifecycle(dependencies);
 
   await lifecycle.handleDeleteAllData();
 

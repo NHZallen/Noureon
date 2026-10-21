@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { buildTimeDistributionChartData } from '../src/app/legacy-runtime/features/time-distribution-chart-data.js';
+import { buildTimeDistributionChartData } from '../src/app/runtime/features/time-distribution-chart-data.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -89,7 +89,7 @@ test('uses local Date semantics for date filtering', () => {
 });
 
 test('time distribution chart data helper has no runtime side-effect tokens', () => {
-  const source = readSource('src/app/legacy-runtime/features/time-distribution-chart-data.js');
+  const source = readSource('src/app/runtime/features/time-distribution-chart-data.js');
   const sourceWithoutExportName = source.replaceAll('buildTimeDistributionChartData', '');
   const forbiddenTokens = [
     'document',

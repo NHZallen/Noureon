@@ -1,4 +1,4 @@
-import { createLegacyRuntimeStorageAdapter } from '../runtime/kernel/storage-adapter.js';
+import { createRuntimeStorageAdapter } from '../runtime/kernel/storage-adapter.js';
 
 const CLOUD_USER_PREFIX = 'supabase:';
 
@@ -47,7 +47,7 @@ function parseLocalUserRecord(value, expectedUsername) {
 }
 
 export async function resolveStartupIdentity({
-  storage = createLegacyRuntimeStorageAdapter(),
+  storage = createRuntimeStorageAdapter(),
   supabase,
   configured,
   loadSupabaseClientModule = loadDefaultSupabaseClientModule,

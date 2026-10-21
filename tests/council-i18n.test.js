@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { COUNCIL_TEXT } from '../src/app/runtime/legacy-core/model-registry.js';
-import { getCouncilRuntimeTexts } from '../src/app/runtime/legacy-core/council-runtime-texts.js';
+import { COUNCIL_TEXT } from '../src/app/runtime/shell/model-registry.js';
+import { getCouncilRuntimeTexts } from '../src/app/runtime/shell/council-runtime-texts.js';
 
 const languages = ['zh-TW', 'en', 'fr', 'ru', 'es'];
 const councilKeys = Object.keys(COUNCIL_TEXT.en).sort();

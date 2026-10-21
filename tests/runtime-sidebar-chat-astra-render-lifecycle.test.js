@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { createLegacySidebarChatAstraRenderLifecycle } from '../src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js';
+import { createSidebarChatAstraRenderLifecycle } from '../src/app/runtime/shell/sidebar-chat-astra-render-lifecycle.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -142,26 +142,26 @@ function createDependencies(overrides = {}) {
   };
 }
 
-test('factory exports createLegacySidebarChatAstraRenderLifecycle', () => {
-  assert.equal(typeof createLegacySidebarChatAstraRenderLifecycle, 'function');
+test('factory exports createSidebarChatAstraRenderLifecycle', () => {
+  assert.equal(typeof createSidebarChatAstraRenderLifecycle, 'function');
 });
 
 test('import is inert and module avoids fragments and virtual runtime', () => {
-  const source = readSource('src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js');
+  const source = readSource('src/app/runtime/shell/sidebar-chat-astra-render-lifecycle.js');
 
-  assert.match(source, /export\s+function\s+createLegacySidebarChatAstraRenderLifecycle/);
+  assert.match(source, /export\s+function\s+createSidebarChatAstraRenderLifecycle/);
   assert.doesNotMatch(source, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app/);
 });
 
 test('factory validates required dependencies', () => {
   assert.throws(
-    () => createLegacySidebarChatAstraRenderLifecycle(),
+    () => createSidebarChatAstraRenderLifecycle(),
     /missing dependency: window/
   );
 });
 
 test('factory exposes sidebar chat Astra render API', () => {
-  const lifecycle = createLegacySidebarChatAstraRenderLifecycle(createDependencies());
+  const lifecycle = createSidebarChatAstraRenderLifecycle(createDependencies());
 
   for (const name of [
     'renderFolders',
@@ -187,7 +187,7 @@ test('creating a high-risk custom Nouras warns but still saves it', async () => 
   });
   dependencies.elements.astrasNameInput.value = 'Therapist';
   dependencies.elements.astrasInstructionsInput.value = 'Provide mental-health diagnosis.';
-  const lifecycle = createLegacySidebarChatAstraRenderLifecycle(dependencies);
+  const lifecycle = createSidebarChatAstraRenderLifecycle(dependencies);
 
   await lifecycle.handleSaveAstras();
 
@@ -202,7 +202,7 @@ test('selecting and deactivating a Noura refreshes its composer indicator', asyn
   });
   const conversation = { id: 'active-conv', astrasId: null };
   dependencies.state.conversations = [conversation];
-  const lifecycle = createLegacySidebarChatAstraRenderLifecycle(dependencies);
+  const lifecycle = createSidebarChatAstraRenderLifecycle(dependencies);
 
   await lifecycle.setAstrasForConversation('astra-1');
 
@@ -234,7 +234,7 @@ test('activating a Noura while learning mode is on explains the combined rules',
   dependencies.state.config.isLearningMode = true;
   const conversation = { id: 'active-conv', astrasId: null };
   dependencies.state.conversations = [conversation];
-  const lifecycle = createLegacySidebarChatAstraRenderLifecycle(dependencies);
+  const lifecycle = createSidebarChatAstraRenderLifecycle(dependencies);
 
   await lifecycle.setAstrasForConversation('astra-1');
 
@@ -256,7 +256,7 @@ test('activating a Noura while learning mode is on explains the combined rules',
 
 test('renderFolders reads live folders and conversations', () => {
   const dependencies = createDependencies();
-  const lifecycle = createLegacySidebarChatAstraRenderLifecycle(dependencies);
+  const lifecycle = createSidebarChatAstraRenderLifecycle(dependencies);
 
   dependencies.state.conversations = [
     { id: 'conv-1', title: 'One', model: { name: 'Model (A)' }, createdAt: '2024-01-01' }
@@ -276,7 +276,7 @@ test('sidebar identifies a council conversation by the council label instead of 
     getCouncilTexts: () => ({ title: 'Model Council' }),
     normalizeConversationModel: () => ({ name: 'Fallback model' })
   });
-  const lifecycle = createLegacySidebarChatAstraRenderLifecycle(dependencies);
+  const lifecycle = createSidebarChatAstraRenderLifecycle(dependencies);
 
   lifecycle.createConversationElement({
     id: 'council-conversation',
@@ -291,7 +291,7 @@ test('sidebar identifies a council conversation by the council label instead of 
 
 test('folder and archived conversation renderers escape imported markup', () => {
   const dependencies = createDependencies();
-  const lifecycle = createLegacySidebarChatAstraRenderLifecycle(dependencies);
+  const lifecycle = createSidebarChatAstraRenderLifecycle(dependencies);
   const maliciousText = '<img src=x onerror="stealKeys()">安全名稱';
   const maliciousId = 'unsafe" onclick="stealKeys()';
   dependencies.state.folders = [{
@@ -328,7 +328,7 @@ test('sidebar keeps the council label after the council toggle is disabled', () 
     getCouncilTexts: () => ({ title: 'Model Council' }),
     normalizeConversationModel: () => ({ name: 'Fallback model' })
   });
-  const lifecycle = createLegacySidebarChatAstraRenderLifecycle(dependencies);
+  const lifecycle = createSidebarChatAstraRenderLifecycle(dependencies);
 
   lifecycle.createConversationElement({
     id: 'completed-council-conversation',
@@ -350,7 +350,7 @@ test('sidebar keeps the council label after the council toggle is disabled', () 
 });
 
 test('folder expansion persists device-local UI state instead of app data', () => {
-  const source = readSource('src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js');
+  const source = readSource('src/app/runtime/shell/sidebar-chat-astra-render-lifecycle.js');
   const renderFoldersStart = source.indexOf('const renderFolders = () => {');
   const createConversationStart = source.indexOf('const createConversationElement =', renderFoldersStart);
   const renderFoldersBody = source.slice(renderFoldersStart, createConversationStart);
@@ -361,7 +361,7 @@ test('folder expansion persists device-local UI state instead of app data', () =
 
 test('Astra delete path uses injected replacement bridge and live conversations', async () => {
   const dependencies = createDependencies();
-  const lifecycle = createLegacySidebarChatAstraRenderLifecycle(dependencies);
+  const lifecycle = createSidebarChatAstraRenderLifecycle(dependencies);
   dependencies.state.astras = [{ id: 'astra-1', name: 'Astra' }];
   dependencies.state.conversations = [{ id: 'conv-1', astrasId: 'astra-1' }];
 
@@ -379,7 +379,7 @@ test('Astra delete path uses injected replacement bridge and live conversations'
 
 test('Astra delete path clears astrasId on the latest conversations pointer only', async () => {
   const dependencies = createDependencies();
-  const lifecycle = createLegacySidebarChatAstraRenderLifecycle(dependencies);
+  const lifecycle = createSidebarChatAstraRenderLifecycle(dependencies);
   const staleConversation = { id: 'stale', astrasId: 'astra-1' };
   const activeConversation = { id: 'active', astrasId: 'astra-1' };
   const staleConversations = [staleConversation];
@@ -404,7 +404,7 @@ test('Astra delete path keeps local data when durable cloud deletion fails', asy
   const dependencies = createDependencies({
     deleteAstrasFromCloud: async () => { throw new Error('cloud down'); }
   });
-  const lifecycle = createLegacySidebarChatAstraRenderLifecycle(dependencies);
+  const lifecycle = createSidebarChatAstraRenderLifecycle(dependencies);
   const astra = { id: 'astra-1', name: 'Astra' };
   dependencies.state.astras = [astra];
 

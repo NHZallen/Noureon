@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createStoreNavigationLifecycle, NOURAS_STORE_PATH } from '../src/app/legacy-runtime/features/store-navigation-lifecycle.js';
+import { createStoreNavigationLifecycle, NOURAS_STORE_PATH } from '../src/app/runtime/features/store-navigation-lifecycle.js';
 
 const createButton = (name, bindings) => ({
   addEventListener(type, handler) {

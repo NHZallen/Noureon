@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { compareVersions } from '../src/app/legacy-runtime/features/version-compare.js';
+import { compareVersions } from '../src/app/runtime/features/version-compare.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -33,7 +33,7 @@ test('version compare preserves the legacy missing v2 behavior', () => {
 });
 
 test('version compare helper remains side-effect free', () => {
-  const helperSource = readSource('src/app/legacy-runtime/features/version-compare.js');
+  const helperSource = readSource('src/app/runtime/features/version-compare.js');
 
   for (const forbidden of [
     'document',

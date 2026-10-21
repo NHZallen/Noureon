@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { createImageGenerationResponseLifecycle } from '../src/app/legacy-runtime/features/image-generation-response-lifecycle.js';
-import { buildOpenRouterImagePayload } from '../src/app/legacy-runtime/features/openrouter-image-generation.js';
+import { createImageGenerationResponseLifecycle } from '../src/app/runtime/images/image-generation-response-lifecycle.js';
+import { buildOpenRouterImagePayload } from '../src/app/runtime/images/openrouter-image-generation.js';
 
 test('uses translated search context and new image attachments for generation', async () => {
   let request;

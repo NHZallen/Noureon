@@ -1,5 +1,5 @@
 import { setButtonBusy } from '../ui/motion/busy-button.js';
-import { createLegacyRuntimeStorageAdapter } from '../runtime/kernel/storage-adapter.js';
+import { createRuntimeStorageAdapter } from '../runtime/kernel/storage-adapter.js';
 import { reconcileStoredWorkspaceOwner, STORAGE_OWNER_KEY } from '../runtime/kernel/user-data-retention.js';
 import { createTurnstileClient } from '../runtime/security/turnstile-client.js';
 import { migrateSyncVaultRecord } from '../sync/sync-vault.js';
@@ -340,7 +340,7 @@ export async function initializeSupabaseAuthBridge({ window, document, startupId
   if (!isSupabaseConfigured()) return { enabled: false };
 
   const supabase = getSupabaseClient();
-  const storage = createLegacyRuntimeStorageAdapter();
+  const storage = createRuntimeStorageAdapter();
   const elements = enhanceAuthShell(document);
   if (!elements) return { enabled: true };
   const turnstile = createTurnstileClient({ window, document });

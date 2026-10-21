@@ -7,7 +7,7 @@ import { buildModelGroups, getCompanyLabel, getModelCompany } from '../src/app/u
 import {
   createModelSwitcherLifecycle,
   prepareModelSwitcherModels
-} from '../src/app/legacy-runtime/features/model-switcher-lifecycle.js';
+} from '../src/app/runtime/features/model-switcher-lifecycle.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -118,7 +118,7 @@ test('the model list is grouped by company: the models used lately first (and st
 });
 
 test('model switcher lifecycle source avoids provider parser, storage schema, package, and Vite coupling', () => {
-  const source = readSource('src/app/legacy-runtime/features/model-switcher-lifecycle.js');
+  const source = readSource('src/app/runtime/features/model-switcher-lifecycle.js');
 
   assert.match(source, /\bgetModelSwitcherContainer\b/);
   assert.doesNotMatch(source, /\belements\b/);

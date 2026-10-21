@@ -3,8 +3,8 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 import { Window } from 'happy-dom';
-import { onSettingsSectionBack, tryHandleSettingsBack } from '../src/app/runtime/legacy-core/settings-section-back.js';
-import { createSettingsMobileShellHelper } from '../src/app/runtime/legacy-core/settings-mobile-shell-helper.js';
+import { onSettingsSectionBack, tryHandleSettingsBack } from '../src/app/runtime/settings/settings-section-back.js';
+import { createSettingsMobileShellHelper } from '../src/app/runtime/settings/settings-mobile-shell-helper.js';
 
 test('a section that has pages of its own takes the back arrow first; one that has not, or is on its first page, lets it leave', () => {
   assert.equal(tryHandleSettingsBack('nothing-section'), false);
@@ -39,7 +39,7 @@ test('on a phone the arrow at the top of the page goes back through the pages of
 });
 
 test('the Permissions tab registers its pages with the arrow, the in-page back button is only for wide screens, and no line is drawn under a settings page on a phone', async () => {
-  const section = await readFile(new URL('../src/app/runtime/legacy-core/settings-permissions-section.js', import.meta.url), 'utf8');
+  const section = await readFile(new URL('../src/app/runtime/settings/settings-permissions-section.js', import.meta.url), 'utf8');
   assert.match(section, /onSettingsSectionBack\(SECTION_ID, \(\) => goBackInPermissionsView\(section\)\)/);
   const css = await readFile(new URL('../src/styles/permissions.css', import.meta.url), 'utf8');
   assert.match(css, /@media \(max-width: 768px\) \{\s*\.pm \.pm-back \{ display: none; \}/);

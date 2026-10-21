@@ -6,7 +6,7 @@ import { createDom } from './behaviours/helpers/create-dom.js';
 import {
   createSidebarAstrasLifecycle,
   isRenderableAstraAvatarUrl
-} from '../src/app/legacy-runtime/features/sidebar-astras-lifecycle.js';
+} from '../src/app/runtime/features/sidebar-astras-lifecycle.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -150,7 +150,7 @@ test('mobile long press delegates to the Astras context menu without assigning',
 });
 
 test('sidebar Astras lifecycle source avoids unrelated runtime systems', () => {
-  const source = readSource('src/app/legacy-runtime/features/sidebar-astras-lifecycle.js');
+  const source = readSource('src/app/runtime/features/sidebar-astras-lifecycle.js');
 
   for (const forbidden of [
     'TextDecoder',

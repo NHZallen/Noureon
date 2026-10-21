@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { attachmentKind, attachmentLabelText, expandAttachmentLabels, expandMessageLabels, stampAttachmentLabels, stampMessageLabels } from '../src/app/legacy-runtime/features/attachment-labels.js';
+import { attachmentKind, attachmentLabelText, expandAttachmentLabels, expandMessageLabels, stampAttachmentLabels, stampMessageLabels } from '../src/app/runtime/messages/attachment-labels.js';
 import { officeRequestParts } from '../src/app/ui/files/office-text/office-reader.js';
 
 const png = (name) => ({ inlineData: { mimeType: 'image/png', data: 'AA', name } });
