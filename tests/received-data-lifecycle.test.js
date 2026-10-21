@@ -33,13 +33,13 @@ const createHarness = (zip, overrides = {}) => {
         this.buffers = buffers;
       }
     },
-    JSZip: {
+    loadArchiveVendor: async () => ({
       async loadAsync(blob) {
         calls.push(['loadAsync', blob.buffers]);
         if (zip instanceof Error) throw zip;
         return zip;
       }
-    },
+    }),
     getAstras: () => astras,
     getConversations: () => conversations,
     getFolders: () => folders,

@@ -39,6 +39,17 @@ import { FOLDER_COLORS, UI_THEME_COLORS } from '/src/app/runtime/legacy-core/run
 import { SERVICES, getService } from '/src/app/runtime/services.js';
 import { createShellState } from '/src/app/runtime/legacy-core/shell-state.js';
 import * as passwordRecords from '/src/app/runtime/security/password-records.js';
+import { marked } from 'marked';
+import DOMPurify from 'dompurify';
+import Chart from 'chart.js/auto';
+import Cropper from 'cropperjs';
+import { getKatex } from '/src/app/vendors/katex-vendor.js';
+import { loadArchiveVendor } from '/src/app/vendors/archive-vendor.js';
+import { loadSharingVendor } from '/src/app/vendors/sharing-vendor.js';
+import { i18n } from '/src/data/i18n.js';
+import { OFFICIAL_ASTRAS } from '/src/data/astras-data.js';
+import { updateLogs } from '/src/data/update-logs.js';
+import { PRODUCT_VERSION as productVersion } from '/src/data/version.js';
 
 // The start of the chat page after signing in, and the height of the message field: made at the end of this module with the start of
 // the page (app-bootstrap-lifecycle.js, startup-lifecycle.js), and called only once the page runs.
@@ -49,19 +60,6 @@ const adjustTextareaHeight = (...args) => startupLifecycle?.adjustTextareaHeight
 // The memory functions (memory-runtime.js, made with the workspace features below), or null before they exist.
 let getMemoryFunctions = () => null;
 const getMemory = () => getMemoryFunctions();
-const {
-    marked,
-    DOMPurify,
-    Chart,
-    Cropper,
-    katex,
-    loadArchiveVendor,
-    loadSharingVendor
-} = globalThis;
-const i18n = globalThis.i18n;
-const OFFICIAL_ASTRAS = globalThis.OFFICIAL_ASTRAS;
-const updateLogs = globalThis.updateLogs;
-const productVersion = globalThis.PRODUCT_VERSION;
 const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify });
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -289,14 +287,14 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             marked,
             sanitizer: DOMPurify,
             DOMParser,
-            katex,
-            getUiLanguage: () => runtimeConfigAccess.getConfig().uiLanguage,
-            getText: (key, fallback) => i18n[runtimeConfigAccess.getConfig().uiLanguage]?.[key] || fallback,
+            katex: getKatex(),
+            getUiLanguage,
+            getText,
             logger: console
         });
         observeMessageCharts({
             root: ALL_ELEMENTS.messageList,
-            chartLabel: i18n[runtimeConfigAccess.getConfig().uiLanguage]?.chart || 'Chart'
+            chartLabel: getText('chart', 'Chart')
         });
         const saveConfig = async () => { await runtimeConfigPersistence.saveConfig(); };
         const { loadConfig, loadAppData } = createWorkspaceLoad({

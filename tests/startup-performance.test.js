@@ -84,8 +84,7 @@ test('main records local interactivity before starting non-blocking cloud sync',
   const mainSource = readFileSync(projectFile('src/main.js'), 'utf8');
   const orderedMarkers = [
     'markStartup(STARTUP_MARKS.BOOTSTRAP_START)',
-    'await loadVendorScript(katexScriptUrl)',
-    'installVendorBridge({',
+    'await loadKatex()',
     'mountAppShell(appShell)',
     'STARTUP_MARKS.SHELL_MOUNTED',
     'const startupDataReady = Promise.all([',

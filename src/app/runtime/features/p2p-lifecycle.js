@@ -14,10 +14,6 @@ export function createLegacyP2PLifecycle({
   getElementById,
   loadSharingVendor,
   loadArchiveVendor,
-  Peer,
-  QRCode,
-  Html5Qrcode,
-  JSZip,
   BlobCtor,
   getAstras,
   getFolders,
@@ -39,13 +35,10 @@ export function createLegacyP2PLifecycle({
   let p2pType = null;
   let operationGeneration = 0;
   let activeOperation = null;
-  let sharingVendors = (
-    typeof Peer === 'function'
-    && typeof QRCode === 'function'
-    && typeof Html5Qrcode === 'function'
-  ) ? Object.freeze({ Peer, QRCode, Html5Qrcode }) : null;
+  // The libraries of P2P sharing and of archives, loaded the first time they are needed.
+  let sharingVendors = null;
   let sharingVendorPromise;
-  let archiveVendor = typeof JSZip === 'function' ? JSZip : null;
+  let archiveVendor = null;
   let archiveVendorPromise;
 
   const getElement = (id) => getElementById(id);
@@ -605,7 +598,6 @@ export function createLegacyP2PLifecycle({
   const receivedDataLifecycle = createReceivedDataLifecycle({
     BlobCtor,
     loadArchiveVendor: requireArchiveVendor,
-    JSZip,
     getAstras,
     getConversations,
     getFolders,

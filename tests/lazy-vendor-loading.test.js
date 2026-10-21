@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { installVendorBridge } from '../src/app/bootstrap/vendor-bridge.js';
+import { createQrCodeClass } from '../src/app/vendors/sharing-vendor.js';
+import { createDom } from './behaviours/helpers/create-dom.js';
 import { createMemoizedVendorLoader } from '../src/app/vendors/memoized-vendor-loader.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
@@ -42,70 +43,34 @@ test('memoized vendor loaders share concurrent work and retry after a failed loa
   assert.equal(attempts, 2);
 });
 
-test('vendor bridge stays eager-free and memoizes compatibility handoffs', async () => {
-  const globalNames = [
-    'marked',
-    'DOMPurify',
-    'Chart',
-    'Cropper',
-    'katex',
-    'JSZip',
-    'Peer',
-    'QRCode',
-    'Html5Qrcode',
-    'loadArchiveVendor',
-    'loadSharingVendor'
-  ];
-  const previousGlobals = new Map(
-    globalNames.map((name) => [name, Object.getOwnPropertyDescriptor(globalThis, name)])
-  );
-  let archiveLoads = 0;
-  let sharingLoads = 0;
-  class FakeJSZip {}
-  class FakePeer {}
-  class FakeScanner {}
-  const QRCodeGenerator = { toCanvas: async () => {} };
-
+test('the QR code of a share is drawn on a canvas in its container, black on white', async () => {
+  const { document, cleanup } = createDom('<div id="qr"></div>');
+  const previousDocument = globalThis.document;
+  globalThis.document = document;
   try {
-    installVendorBridge({
-      marked: {},
-      DOMPurify: {},
-      Chart: class {},
-      Cropper: class {},
-      katex: {},
-      loadArchiveVendor: async () => {
-        archiveLoads += 1;
-        return FakeJSZip;
-      },
-      loadSharingVendor: async () => {
-        sharingLoads += 1;
-        return { Peer: FakePeer, QRCodeGenerator, Html5Qrcode: FakeScanner };
-      }
-    });
-
-    assert.equal(archiveLoads, 0);
-    assert.equal(sharingLoads, 0);
-
-    const firstArchiveLoad = globalThis.loadArchiveVendor();
-    assert.strictEqual(globalThis.loadArchiveVendor(), firstArchiveLoad);
-    assert.strictEqual(await firstArchiveLoad, FakeJSZip);
-    assert.strictEqual(globalThis.JSZip, FakeJSZip);
-    assert.equal(archiveLoads, 1);
-
-    const firstSharingLoad = globalThis.loadSharingVendor();
-    assert.strictEqual(globalThis.loadSharingVendor(), firstSharingLoad);
-    const sharingVendors = await firstSharingLoad;
-    assert.strictEqual(sharingVendors.Peer, FakePeer);
-    assert.strictEqual(sharingVendors.Html5Qrcode, FakeScanner);
-    assert.strictEqual(globalThis.Peer, FakePeer);
-    assert.strictEqual(globalThis.QRCode, sharingVendors.QRCode);
-    assert.equal(sharingLoads, 1);
+    const drawn = [];
+    const QRCode = createQrCodeClass({ toCanvas: async (canvas, text, options) => drawn.push([canvas.width, canvas.height, text, options.color]) });
+    new QRCode(document.getElementById('qr'), { text: 'astra-p2p-ABC', width: 128 });
+    await Promise.resolve();
+    assert.equal(document.querySelectorAll('#qr canvas').length, 1);
+    assert.deepEqual(drawn, [[128, 128, 'astra-p2p-ABC', { dark: '#000000', light: '#ffffff' }]]);
   } finally {
-    for (const [name, descriptor] of previousGlobals) {
-      if (descriptor) Object.defineProperty(globalThis, name, descriptor);
-      else delete globalThis[name];
-    }
+    globalThis.document = previousDocument;
+    cleanup();
   }
+});
+
+// The libraries are imported by the modules that use them, or loaded by their loaders (app/vendors/); none is put on globalThis
+// for other code to find (NOU-79). KaTeX is the one script whose own global is read, by its loader only: mhchem extends it.
+test('no source code reads a library from globalThis', () => {
+  const names = 'marked|DOMPurify|Chart|Cropper|katex|JSZip|Peer|QRCode|Html5Qrcode|loadArchiveVendor|loadSharingVendor';
+  const pattern = new RegExp(`(?:globalThis|window)\\??\\.(?:${names})\\b|\\}\\s*=\\s*globalThis\\s*;`);
+  const files = readdirSync(projectFile('src'), { recursive: true })
+    .filter((name) => name.endsWith('.js') && !name.endsWith('katex-vendor.js'));
+  const offenders = files.filter((name) => pattern.test(readSource(`src/${name}`)));
+  assert.deepEqual(offenders, []);
+  assert.match(readSource('src/app/vendors/katex-vendor.js'), /globalThis\.katex/);
+  assert.equal(existsSync(projectFile('src/app/bootstrap/vendor-bridge.js')), false);
 });
 
 test('P2P and archive packages are dynamic-only and absent from main static imports', () => {
@@ -124,7 +89,7 @@ test('P2P and archive packages are dynamic-only and absent from main static impo
     );
   }
 
-  assert.match(mainSource, /from '\.\/app\/vendors\/sharing-vendor\.js'/);
+  assert.match(readSource('src/app/runtime/legacy-core/legacy-core.js'), /from '\/src\/app\/vendors\/sharing-vendor\.js'/);
   assert.match(mainSource, /from '\.\/app\/vendors\/archive-vendor\.js'/);
   assert.match(sharingLoaderSource, /import\('peerjs'\)/);
   assert.match(sharingLoaderSource, /import\('qrcode'\)/);

@@ -33,7 +33,7 @@ const EXEMPT_FILES = new Map([
   ['src/templates/fragments/02-shell.fragment.js', 'the default value of the colour picker of the accent'],
   ['src/app/ui/code/code-highlighter.js', 'the palettes of the code themes (the colours of a language in an editor, not of the interface)'],
   ['src/app/legacy-runtime/features/generated-image-interactions.js', 'the pen colours of the image editor'],
-  ['src/app/bootstrap/vendor-bridge.js', 'a QR code is black on white so that a camera can read it'],
+  ['src/app/vendors/sharing-vendor.js', 'a QR code is black on white so that a camera can read it'],
   ['src/app/ui/research/research-document.js', 'the accent of the PDF and the Word file of a research report'],
 ]);
 

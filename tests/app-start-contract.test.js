@@ -143,18 +143,17 @@ test('app shell imports and preserves critical DOM IDs', async () => {
   }
 });
 
-test('main bootstrap delegates vendor bridge, shell mount, and vendor script loading in order', () => {
+test('main bootstrap loads KaTeX, mounts the shell and loads the data in order', () => {
   const mainSource = readSource('src/main.js');
 
-  assert.match(mainSource, /import\s+katexScriptUrl\s+from\s+'katex\/dist\/katex\.min\.js\?url';/);
-  assert.doesNotMatch(mainSource, /import\s+katex\s+from\s+'katex\/dist\/katex\.min\.js';/);
-  assert.match(mainSource, /import\s+\{\s*installVendorBridge\s*\}\s+from\s+'\.\/app\/bootstrap\/vendor-bridge\.js';/);
+  assert.match(readSource('src/app/vendors/katex-vendor.js'), /import\s+katexScriptUrl\s+from\s+'katex\/dist\/katex\.min\.js\?url';/);
+  assert.doesNotMatch(mainSource, /from\s+'katex\/dist\/katex\.min\.js';/);
+  assert.match(mainSource, /import\s+\{\s*loadKatex\s*\}\s+from\s+'\.\/app\/vendors\/katex-vendor\.js';/);
   assert.match(mainSource, /import\s+\{\s*loadVendorScript\s*\}\s+from\s+'\.\/app\/bootstrap\/load-vendor-script\.js';/);
   assert.match(mainSource, /import\s+\{[^}]*\bmountAppShell\b[^}]*\}\s+from\s+'\.\/app\/bootstrap\/mount-shell\.js';/);
 
   const orderedBootstrapSteps = [
-    'await loadVendorScript(katexScriptUrl)',
-    'installVendorBridge({',
+    'await loadKatex()',
     'mountAppShell(appShell)',
     "import('./data/i18n.js')",
     "import('./data/astras-data.js')",
@@ -236,31 +235,6 @@ test('main css is an ordered split manifest with every imported file under the s
   assert.match(readSource('src/app/ui/cli/cli-store.css'), /@import '\.\.\/\.\.\/\.\.\/styles\/permissions\.css';/);
   assert.match(readSource('src/app/ui/charts/chart-styles.js'), /import\('\.\.\/\.\.\/\.\.\/styles\/charts\.css'\)/);
   assert.match(readSource('src/app/legacy-runtime/features/generated-image-interactions.js'), /import\('\.\.\/\.\.\/\.\.\/styles\/generated-image-editor\.css'\)/);
-});
-
-test('the vendor bridge puts the libraries where the older code looks for them, and loads the archive and sharing ones on demand', async () => {
-  const { installVendorBridge } = await import(projectFile('src/app/bootstrap/vendor-bridge.js'));
-  const names = ['marked', 'DOMPurify', 'Chart', 'Cropper', 'katex', 'JSZip', 'Peer', 'QRCode', 'Html5Qrcode', 'loadArchiveVendor', 'loadSharingVendor'];
-  const previous = Object.fromEntries(names.map((name) => [name, globalThis[name]]));
-  try {
-    const stubs = { marked: {}, DOMPurify: {}, Chart: class {}, Cropper: class {}, katex: {} };
-    const JSZip = class {};
-    const Peer = class {};
-    const Html5Qrcode = class {};
-    installVendorBridge({ ...stubs, loadArchiveVendor: async () => JSZip, loadSharingVendor: async () => ({ Peer, QRCodeGenerator: { toCanvas: async () => {} }, Html5Qrcode }) });
-    for (const name of Object.keys(stubs)) assert.equal(globalThis[name], stubs[name], name);
-    assert.equal(await globalThis.loadArchiveVendor(), JSZip);
-    assert.equal(globalThis.JSZip, JSZip);
-    const sharing = await globalThis.loadSharingVendor();
-    assert.equal(globalThis.Peer, Peer);
-    assert.equal(globalThis.Html5Qrcode, Html5Qrcode);
-    assert.equal(globalThis.QRCode, sharing.QRCode);
-  } finally {
-    for (const name of names) {
-      if (previous[name] === undefined) delete globalThis[name];
-      else globalThis[name] = previous[name];
-    }
-  }
 });
 
 test('a vendor script is added once, and the shell needs its #app mount node', async () => {

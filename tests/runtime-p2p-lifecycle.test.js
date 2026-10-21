@@ -232,12 +232,9 @@ function createHarness({
   const lifecycle = createLegacyP2PLifecycle({
     document,
     getElementById: (id) => document.getElementById(id),
-    loadArchiveVendor,
-    loadSharingVendor,
-    Peer: loadSharingVendor ? undefined : FakePeer,
-    QRCode: loadSharingVendor ? undefined : FakeQRCode,
-    Html5Qrcode: loadSharingVendor ? undefined : FakeHtml5Qrcode,
-    JSZip: loadArchiveVendor ? undefined : FakeJSZip,
+    // The libraries come only from their loaders (app/vendors/); a test that gives none gets the fakes at once.
+    loadArchiveVendor: loadArchiveVendor ?? (async () => FakeJSZip),
+    loadSharingVendor: loadSharingVendor ?? (async () => ({ Peer: FakePeer, QRCode: FakeQRCode, Html5Qrcode: FakeHtml5Qrcode })),
     BlobCtor: FakeBlob,
     getAstras: () => astras,
     getFolders: () => folders,
@@ -542,7 +539,8 @@ test('receiver connects through Peer, processes received chunks, and warns on pa
   const harness = createHarness();
   const { astras, calls, FakePeer, lifecycle } = harness;
 
-  lifecycle.connectToSender('abcde');
+  await lifecycle.connectToSender('abcde');
+  await new Promise((resolve) => setTimeout(resolve, 0));
   FakePeer.instances[0].emit('open');
 
   const connection = FakePeer.instances[0].connection;
@@ -556,7 +554,8 @@ test('receiver connects through Peer, processes received chunks, and warns on pa
   assert.equal(calls.some((call) => call[0] === 'notification' && call[1] === 'error'), true);
   assert.equal(await connection.emit('data', { type: 'end' }), undefined, 'closed attempts stay inert');
 
-  lifecycle.connectToSender('abcde');
+  await lifecycle.connectToSender('abcde');
+  await new Promise((resolve) => setTimeout(resolve, 0));
   FakePeer.instances[1].emit('open');
   const retryConnection = FakePeer.instances[1].connection;
   retryConnection.emit('open');

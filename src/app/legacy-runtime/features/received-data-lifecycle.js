@@ -1,7 +1,7 @@
 export function createReceivedDataLifecycle({
     BlobCtor = Blob,
+    // Loads JSZip the first time a share is received (app/vendors/archive-vendor.js).
     loadArchiveVendor,
-    JSZip,
     getAstras = () => [],
     getConversations = () => [],
     getFolders = () => [],
@@ -16,9 +16,7 @@ export function createReceivedDataLifecycle({
     scheduleTimeout = setTimeout,
     logger = console
 } = {}) {
-    const resolveArchiveVendor = typeof loadArchiveVendor === 'function'
-        ? loadArchiveVendor
-        : () => Promise.resolve(JSZip);
+    const resolveArchiveVendor = () => loadArchiveVendor();
 
     const processReceivedData = async (buffers, type) => {
         try {

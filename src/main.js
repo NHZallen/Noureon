@@ -2,12 +2,7 @@ import 'cropperjs/dist/cropper.css';
 import 'katex/dist/katex.min.css';
 import './styles/main.css';
 
-import { marked } from 'marked';
-import DOMPurify from 'dompurify';
-import Chart from 'chart.js/auto';
-import Cropper from 'cropperjs';
-import katexScriptUrl from 'katex/dist/katex.min.js?url';
-import { installVendorBridge } from './app/bootstrap/vendor-bridge.js';
+import { loadKatex } from './app/vendors/katex-vendor.js';
 import { loadVendorScript } from './app/bootstrap/load-vendor-script.js';
 import {
   dismissStartupSkeleton,
@@ -33,7 +28,6 @@ import { detectSystemLanguage, readLastUiLanguage, readLoginLanguage } from './a
 import { isPasswordRecoveryRoute } from './app/auth/password-recovery-route.js';
 import { loadArchiveVendor } from './app/vendors/archive-vendor.js';
 import { scheduleArchiveVendorPrewarm } from './app/vendors/archive-vendor-prewarm.js';
-import { loadSharingVendor } from './app/vendors/sharing-vendor.js';
 import { installCloudSyncBootstrapQueue } from './app/sync/cloud-sync-bootstrap-queue.js';
 import { keepChatOffItsEdges } from './app/runtime/features/chat-scroll-edges.js';
 import { easeSavedDetails } from './app/ui/motion/collapse-motion.js';
@@ -57,20 +51,9 @@ const recordBootstrapMilestone = (markName, measureName) => {
 
 async function bootstrap() {
   markStartup(STARTUP_MARKS.BOOTSTRAP_START);
-  await loadVendorScript(katexScriptUrl);
-  const katex = globalThis.katex;
-  if (typeof katex?.renderToString !== 'function') {
-    throw new TypeError('KaTeX did not expose a usable renderer.');
-  }
-  installVendorBridge({
-    marked,
-    DOMPurify,
-    Chart,
-    Cropper,
-    katex,
-    loadArchiveVendor,
-    loadSharingVendor
-  });
+  // The typesetter of formulas is a script that mhchem extends (app/vendors/katex-vendor.js); the other libraries are imported by the
+  // modules that use them.
+  await loadKatex();
   if (isPasswordRecoveryRoute(window.location.pathname)) {
     const { initializePasswordRecoveryPage } = await import(
       './app/auth/password-recovery-page.js'
