@@ -1,6 +1,16 @@
 // The update notes in Spanish (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.15.3": [
+    "<strong>Notas de la versión de Noureon 18.15.3</strong>",
+    "Esta versión hace que la página cargue menos al abrirse y corrige cómo se muestran las imágenes en las conversaciones de la papelera.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Un inicio más ligero:</strong> los estilos de la ventana de ajustes, la ventana de búsqueda, la ventana de nueva versión, los gráficos y el editor de imágenes, y las funciones que se usan para una sola acción, ahora se cargan la primera vez que se usan. Los estilos que se descargan al abrir la página son aproximadamente una cuarta parte más pequeños, y el script principal también es más pequeño.</li><li><strong>Escaneo del código QR de un uso compartido P2P:</strong> ahora usa un pequeño escáner creado por Noureon. El escaneo funciona igual, con menos código que descargar.</li><li><strong>Papelera:</strong> se corrigió que las imágenes adjuntas a una conversación de la papelera se mostraran como una fila de archivo sin nombre en lugar de como una imagen.</li></ul>",
+    "<strong>Limpieza interna</strong>",
+    "El código se reorganizó sin cambiar ninguna función: las partes de la página se ordenan por área, ya no se buscan entre sí por nombre mientras se ejecutan, y muchas pruebas que leían el texto del código fuente se sustituyeron por pruebas de comportamiento.",
+    "<strong>Compatibilidad</strong>",
+    "No se necesita migración de datos y no hay campos nuevos en el servidor."
+  ],
   "18.15.2": [
     "<strong>Noureon 18.15.2 – Notas de la versión</strong>",
     "Esta versión reduce los datos que se desperdiciaban al volver a subir los mismos archivos durante la sincronización en la nube.",

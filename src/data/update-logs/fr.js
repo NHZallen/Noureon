@@ -1,6 +1,16 @@
 // The update notes in French (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.15.3": [
+    "<strong>Notes de version de Noureon 18.15.3</strong>",
+    "Cette version fait charger moins de choses à l'ouverture de la page et corrige l'affichage des images dans les conversations de la corbeille.",
+    "<strong>Principales modifications</strong>",
+    "<ul><li><strong>Un démarrage plus léger :</strong> les styles de la fenêtre des réglages, de la fenêtre de recherche, de la fenêtre de nouvelle version, des graphiques et de l'éditeur d'images, ainsi que les fonctions utilisées pour une seule action, ne se chargent plus qu'à leur première utilisation. Les styles téléchargés à l'ouverture de la page sont environ un quart plus petits, et le script principal est lui aussi plus petit.</li><li><strong>Lecture du QR code d'un partage P2P :</strong> elle utilise désormais un petit lecteur créé par Noureon. La lecture fonctionne de la même façon, avec moins de code à télécharger.</li><li><strong>Corbeille :</strong> correction des images jointes à une conversation de la corbeille, qui s'affichaient comme une ligne de fichier sans nom au lieu d'une image.</li></ul>",
+    "<strong>Nettoyage interne</strong>",
+    "Le code a été réorganisé sans changer aucune fonctionnalité : les parties de la page sont rangées par domaine, elles ne se cherchent plus par leur nom pendant l'exécution, et de nombreux tests qui lisaient le texte du code source ont été remplacés par des tests de comportement.",
+    "<strong>Compatibilité</strong>",
+    "Aucune migration de données n'est nécessaire et il n'y a aucun nouveau champ côté serveur."
+  ],
   "18.15.2": [
     "<strong>Noureon 18.15.2 – Notes de version</strong>",
     "Cette version réduit les données gaspillées à renvoyer les mêmes fichiers pendant la synchronisation cloud.",

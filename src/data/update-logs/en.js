@@ -1,6 +1,16 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.15.3": [
+    "<strong>Noureon 18.15.3 Release Notes</strong>",
+    "This version makes the page load less when it opens, and fixes how pictures show in conversations in the trash.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>A lighter start:</strong> the styles of the settings window, the search window, the new-version window, the charts and the image editor, and the features used for a single action, now load the first time they are used. The styles downloaded when the page opens are about a quarter smaller, and the main script is smaller too.</li><li><strong>Scanning the QR code of a P2P share:</strong> it now uses a small scanner made by Noureon. Scanning works the same way, with less code to download.</li><li><strong>Trash:</strong> fixed pictures attached to a conversation in the trash showing as a file row without a name instead of as a picture.</li></ul>",
+    "<strong>Internal clean-up</strong>",
+    "The code was reorganized without changing any feature: the parts of the page are laid out by area, they no longer look each other up by name while running, and many tests that read the source text were replaced by tests of behaviour.",
+    "<strong>Compatibility</strong>",
+    "No data migration is needed and there are no new server fields."
+  ],
   "18.15.2": [
     "<strong>Noureon 18.15.2 Release Notes</strong>",
     "This version cuts the data wasted on uploading the same files again during cloud sync.",
