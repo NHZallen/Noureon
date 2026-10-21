@@ -15,7 +15,6 @@ const requiredDependencies = [
     'fetch',
     'elements',
     'state',
-    'legacyRuntimeContext',
     'runtimeStorageAdapter',
     'models',
     'i18n',
@@ -74,7 +73,10 @@ export function createLegacySettingsAuthProviderLifecycle(dependencies = {}) {
         console = globalThis.console,
         elements: ALL_ELEMENTS,
         state,
-        legacyRuntimeContext,
+        // The memory functions (memory-runtime.js), or null while memory is not set up.
+        getMemory = () => null,
+        // Starts the chat page after signing in.
+        initChatApp,
         runtimeStorageAdapter,
         models: MODELS,
         i18n,
@@ -176,7 +178,7 @@ export function createLegacySettingsAuthProviderLifecycle(dependencies = {}) {
     } = createModelRequestRuntime({
         // Loaded ahead a few seconds after the start, when the page is idle, so the first message does not wait for it.
         whenIdle: (run) => window?.setTimeout?.(() => (window.requestIdleCallback ? window.requestIdleCallback(run, { timeout: 8000 }) : run()), 4000),
-        fetch, console, elements: ALL_ELEMENTS, state, legacyRuntimeContext, models: MODELS, i18n, config, astras, personalMemories,
+        fetch, console, elements: ALL_ELEMENTS, state, getMemory, models: MODELS, i18n, config, astras, personalMemories,
         cheapModelId: CHEAP_MODEL_ID, councilResponseCharLimit: COUNCIL_RESPONSE_CHAR_LIMIT, councilRetryDelayMs: COUNCIL_RETRY_DELAY_MS,
         councilMaxModels: COUNCIL_MAX_MODELS, getActiveConversation, normalizeConversationModel, getModelApiId, getApiKeyForProvider,
         getDefaultGenConfig, modelSupportsUploadedFile, modelSupportsVision, modelSupportsDocumentUpload, modelUsesTavilySearch,
@@ -252,7 +254,7 @@ export function createLegacySettingsAuthProviderLifecycle(dependencies = {}) {
         elements: ALL_ELEMENTS,
         state,
         getConfig: () => config,
-        legacyRuntimeContext,
+        initChatApp,
         runtimeStorageAdapter,
         i18n,
         showNotification,
@@ -305,7 +307,7 @@ export function createLegacySettingsAuthProviderLifecycle(dependencies = {}) {
         syncSettingsSectionForViewport
     } = desktopSectionHelper;
     const { setupSettingsModal, saveSettings } = createSettingsModalLifecycle({
-        window, document, console, elements: ALL_ELEMENTS, state, legacyRuntimeContext, runtimeStorageAdapter, models: MODELS, i18n, config,
+        window, document, console, elements: ALL_ELEMENTS, state, getMemory, runtimeStorageAdapter, models: MODELS, i18n, config,
         getSettingsText, getTavilySearchDepth, getApiKeyForProvider, saveConfig, showNotification, showCustomPrompt, showCustomDialog,
         showCustomConfirm, toggleModal, applyUiTheme, applyLanguage, renderModelSwitcher, renderStore, renderTrash, renderUiColorOptions,
         updateThemeButtons: (...args) => updateThemeButtons(...args), updateApiKeyWarningBadge, updateInputState, ensureSettingsMobileShell,

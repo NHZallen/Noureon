@@ -11,7 +11,8 @@ export function createSettingsAuthActionsHelper({
     elements,
     state,
     getConfig,
-    legacyRuntimeContext,
+    // Starts the chat page after signing in.
+    initChatApp,
     runtimeStorageAdapter,
     i18n,
     showNotification,
@@ -81,7 +82,7 @@ export function createSettingsAuthActionsHelper({
         elements.authContainer.addEventListener('transitionend', () => {
             elements.authContainer.style.display = 'none';
         }, { once: true });
-        legacyRuntimeContext.resolveBinding('app.initChatApp')();
+        initChatApp();
     };
 
     const handleLogout = async () => {

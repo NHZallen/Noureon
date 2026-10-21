@@ -84,12 +84,9 @@ function createDependencies(overrides = {}) {
     crypto: { randomUUID: () => 'new-astra-id' },
     requestAnimationFrame: (callback) => callback(),
     elements,
-    legacyRuntimeContext: {
-      resolveBinding: (name) => {
-        calls.push(`resolve:${name}`);
-        return noop;
-      }
-    },
+    toggleSidebar: () => calls.push('toggleSidebar'),
+    updateInputState: () => calls.push('updateInputState'),
+    generateTitleAndSummary: noop,
     state,
     runtimeDomAccess: {
       getRequiredElement: (id) => {
@@ -202,7 +199,7 @@ test('selecting and deactivating a Noura refreshes its composer indicator', asyn
     'saveAppData',
     'renderSidebar',
     'renderInputIndicators',
-    'resolve:input.updateInputState'
+    'updateInputState'
   ]);
 
   dependencies._calls.length = 0;
@@ -213,7 +210,7 @@ test('selecting and deactivating a Noura refreshes its composer indicator', asyn
     'saveAppData',
     'renderSidebar',
     'renderInputIndicators',
-    'resolve:input.updateInputState'
+    'updateInputState'
   ]);
 });
 

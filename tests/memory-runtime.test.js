@@ -4,7 +4,6 @@ import test from 'node:test';
 import { createMemoryRuntime } from '../src/app/runtime/memory/memory-runtime.js';
 
 function harness() {
-  const bindings = new Map();
   const saved = [];
   let memoryState = {};
   const state = { config: { memorySync: null }, conversations: [], currentUser: { username: 'alice' } };
@@ -13,20 +12,21 @@ function harness() {
     setTimeout: () => 0, clearTimeout: () => {}, console: { warn() {}, error() {}, log() {} }, state,
     runtimeAppDataStore: { getMemoryState: () => memoryState, replaceMemoryState: (next) => { memoryState = next; return next; } },
     runtimeStorageAdapter: null,
-    legacyRuntimeContext: { registerLazyBinding: (name, resolve) => bindings.set(name, resolve) },
     models: [], runMemoryModel: null, modelSupportsVision: () => false, getApiKeyForProvider: () => '',
     hashString: async (value) => String(value), saveAppData: async () => saved.push('app'), saveConfig: async () => saved.push('config')
   });
-  return { runtime, bindings, saved, state, getMemoryState: () => memoryState };
+  return { runtime, saved, state, getMemoryState: () => memoryState };
 }
 
-test('the memory services are registered on the runtime context for the settings, the reply and the trash', () => {
-  const { runtime, bindings } = harness();
-  for (const name of ['memory.retrieveHistory', 'memory.grantHistoryRecallConsent', 'memory.revokeHistoryRecallConsent', 'memory.getHistoryRecallStatus',
-    'memory.invalidateConversation', 'memory.rebuildHistoryIndex', 'memory.auditHistoryIndex', 'memory.optimizeHistoryIndex']) {
-    assert.equal(typeof bindings.get(name)?.(), 'function', name);
+test('the memory functions the settings, the reply and the trash use are returned together', () => {
+  const { runtime } = harness();
+  for (const name of ['retrieveHistory', 'grantHistoryRecallConsent', 'revokeHistoryRecallConsent', 'getHistoryRecallStatus',
+    'invalidateConversation', 'rebuildHistoryIndex', 'auditHistoryIndex', 'optimizeHistoryIndex', 'getOverview', 'updateSummary',
+    'refreshOverview', 'getWorkStatus']) {
+    assert.equal(typeof runtime.memory[name], 'function', name);
   }
-  assert.equal(bindings.get('memory.invalidateConversation')(), runtime.invalidateMemoryConversation);
+  assert.equal(runtime.memory.invalidateConversation, runtime.invalidateMemoryConversation);
+  assert.ok(Object.isFrozen(runtime.memory));
   for (const name of ['replaceMemoryState', 'captureCompletedTurnAndPersist', 'invalidateMemoryConversation', 'ensureMemorySummaryFresh']) {
     assert.equal(typeof runtime[name], 'function', name);
   }

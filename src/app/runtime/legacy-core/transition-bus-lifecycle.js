@@ -16,7 +16,9 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         setTimeout, clearTimeout, crypto,
         console = globalThis.console,
         globalObject = globalThis,
-        getComputedStyle, elements: ALL_ELEMENTS, legacyRuntimeContext, state,
+        getComputedStyle, elements: ALL_ELEMENTS, state,
+        // Functions made after this bus, by legacy-core.js and the runtime entry: each is called only once the page runs.
+        updateInputState, setupSettingsModal, adjustTextareaHeight, initChatApp,
         runtimeConfigAccess, runtimeAppDataStore,
         runtimeStorageAdapter = null,
         runtimeDialogCoordinator,
@@ -118,14 +120,15 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         logger = console
     } = dependencies;
 
-    // The functions of the core tail (core-tail-lifecycle.js), which is made after this bus: each calls the one registered as
-    // coreTail.<name> when it is called.
-    const resolveCoreTailFunction = (name) => {
-        const binding = legacyRuntimeContext.resolveBinding(`coreTail.${name}`);
-        if (typeof binding !== 'function') {
-            throw new TypeError(`Legacy core tail binding "coreTail.${name}" must be a function.`);
-        }
-        return binding;
+    // The functions of the core tail (core-tail-lifecycle.js), which the runtime entry makes after this bus from the dependencies this
+    // returns, and connects with connectCoreTail(): each calls the core tail's function of the same name.
+    let coreTailLifecycle = null;
+    const callCoreTail = (name, args) => {
+        if (!coreTailLifecycle) throw new Error(`The core tail is not connected yet (${name}).`);
+        return coreTailLifecycle[name](...args);
+    };
+    const connectCoreTail = (lifecycle) => {
+        coreTailLifecycle = lifecycle;
     };
     const coreTail = Object.fromEntries([
         'setupTimeAnalysis', 'updateTimeDistributionChart', 'applyUiTheme', 'renderUiColorOptions', 'openStore',
@@ -135,7 +138,10 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         'handleRestoreTrashItem', 'handleDeleteTrashItemPermanently', 'showTrashItemInViewModal', 'toggleTrashSelectionMode',
         'renderTrashBatchActionBar', 'handleBatchRestoreFromTrash', 'handleBatchDeleteFromTrash', 'handleEmptyTrash',
         'updateDisplayedVersion'
-    ].map((name) => [name, (...args) => resolveCoreTailFunction(name)(...args)]));
+    ].map((name) => [name, (...args) => callCoreTail(name, args)]));
+    // The memory functions (memory-runtime.js, made further down).
+    let memory = null;
+    const getMemory = () => memory;
     const {
         setupTimeAnalysis, updateTimeDistributionChart, applyUiTheme, renderUiColorOptions, openStore, closeStore,
         renderStore, handleSubscription, openAvatarEditor, handleAvatarUpload, handleConfirmAvatarCrop, applyLanguage,
@@ -145,8 +151,7 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         handleBatchDeleteFromTrash, handleEmptyTrash, updateDisplayedVersion
     } = coreTail;
 
-    const resolveUploadUpdateInputState = (...args) =>
-        legacyRuntimeContext.resolveBinding('input.updateInputState')(...args);
+    const resolveUploadUpdateInputState = (...args) => updateInputState(...args);
 
     const searchUploadSidebarLifecycle = createLegacySearchUploadSidebarLifecycle({
         window,
@@ -201,7 +206,9 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         File,
         loadArchiveVendor,
         elements: ALL_ELEMENTS,
-        legacyRuntimeContext,
+        getMemory,
+        setupSettingsModal,
+        initChatApp,
         runtimeStorageAdapter,
         getConfig: () => state.config,
         getSensitiveApiKeys,
@@ -302,11 +309,13 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         captureCompletedTurnAndPersist,
         invalidateMemoryConversation,
         memoryWorkScheduler,
-        ensureMemorySummaryFresh
+        ensureMemorySummaryFresh,
+        memory: memoryFunctions
     } = createMemoryRuntime({
         document, Event, fetch, crypto, setTimeout, clearTimeout, console, state, runtimeAppDataStore, runtimeStorageAdapter,
-        legacyRuntimeContext, models: MODELS, runMemoryModel, modelSupportsVision, getApiKeyForProvider, hashString, saveAppData, saveConfig
+        models: MODELS, runMemoryModel, modelSupportsVision, getApiKeyForProvider, hashString, saveAppData, saveConfig
     });
+    memory = memoryFunctions;
 
     const updateApiKeyWarningBadge = createApiKeyWarningBadgeUpdater({
         elements: ALL_ELEMENTS, getActiveConversation, normalizeConversationModel, isCouncilEnabled, getCouncilValidation, getApiKeyForProvider
@@ -426,7 +435,10 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         runtimeConfigAccess,
         runtimeAppDataStore,
         runtimeDialogCoordinator,
-        legacyRuntimeContext,
+        updateInputState,
+        setupSettingsModal,
+        adjustTextareaHeight,
+        getMemory,
         getCurrentConversationId,
         setCurrentConversationId,
         i18n,
@@ -522,17 +534,6 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         showCustomDialog
     };
 
-    const registerSidebarBindings = () => {
-        legacyRuntimeContext.registerLazyBinding('sidebar.toggleSidebar', () => toggleSidebar);
-    };
-
-    const registerCoreTailDependencies = () => {
-        legacyRuntimeContext.registerLazyBinding(
-            'runtime.coreTailDependencies',
-            () => coreTailDependencies
-        );
-    };
-
     return {
         renderPersonalMemoryList,
         refineAndStoreMemories,
@@ -593,8 +594,9 @@ export function createLegacyTransitionBusLifecycle(dependencies = {}) {
         cancelMemoryCapture: conversationId => memoryWorkScheduler.cancelConversation(conversationId),
         invalidateMemoryConversation,
         ensureMemorySummaryFresh,
+        // The core tail is made from these (by the runtime entry) and connected back with connectCoreTail().
         coreTailDependencies,
-        registerSidebarBindings,
-        registerCoreTailDependencies
+        connectCoreTail,
+        memory: getMemory
     };
 }

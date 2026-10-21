@@ -72,13 +72,11 @@ function createDependencies(overrides = {}) {
       querySelectorAll: () => []
     },
     elements,
-    legacyRuntimeContext: {
-      resolveBinding: (name) => {
-        if (name === 'input.updateInputState') return noop;
-        if (name === 'submit.updateSubmitButtonState') return noop;
-        return noop;
-      }
-    },
+    updateInputState: noop,
+    updateSubmitButtonState: noop,
+    generateTitleAndSummary: noop,
+    adjustTextareaHeight: noop,
+    renderFilePreviews: noop,
     state,
     models: [],
     i18n: { en: { errorPrefix: 'Error', autoSearchNotice: 'Auto search' } },
@@ -446,11 +444,7 @@ test('council indicator close button updates the UI before persistence finishes'
     normalizeConversationModel: () => ({ id: 'model-a' }),
     saveAppData: () => appSavePending,
     saveConfig: async () => { saveConfigCalls += 1; },
-    legacyRuntimeContext: {
-      resolveBinding: (name) => name === 'input.updateInputState'
-        ? () => inputUpdates.push(name)
-        : noop
-    }
+    updateInputState: () => inputUpdates.push('updateInputState')
   }));
 
   lifecycle.renderInputIndicators();
@@ -464,7 +458,7 @@ test('council indicator close button updates the UI before persistence finishes'
   assert.equal(document.getElementById('model-council-indicator'), null);
   assert.equal(document.querySelector('.input-wrapper').classList.contains('has-indicators'), false);
   assert.equal(saveConfigCalls, 0);
-  assert.deepEqual(inputUpdates, ['input.updateInputState']);
+  assert.deepEqual(inputUpdates, ['updateInputState']);
 
   releaseAppSave();
   await appSavePending;

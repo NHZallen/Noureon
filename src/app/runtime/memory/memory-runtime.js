@@ -28,7 +28,7 @@ import { SERVICES, getService } from '../services.js';
 
 export function createMemoryRuntime({
     document, Event, fetch, crypto, setTimeout, clearTimeout, console, state, runtimeAppDataStore, runtimeStorageAdapter,
-    legacyRuntimeContext, models: MODELS, runMemoryModel, modelSupportsVision, getApiKeyForProvider, hashString, saveAppData, saveConfig
+    models: MODELS, runMemoryModel, modelSupportsVision, getApiKeyForProvider, hashString, saveAppData, saveConfig
 }) {
     const historyIndex = createHistoryIndexStore();
     const getMemoryOwner = () => state.currentUser?.username || 'anonymous';
@@ -121,10 +121,6 @@ export function createMemoryRuntime({
             optimize: historyIndexOptimizeStatus
         })
     });
-    legacyRuntimeContext.registerLazyBinding('memory.retrieveHistory', () => historyRecallRuntime.retrieve);
-    legacyRuntimeContext.registerLazyBinding('memory.grantHistoryRecallConsent', () => historyRecallRuntime.grant);
-    legacyRuntimeContext.registerLazyBinding('memory.revokeHistoryRecallConsent', () => historyRecallRuntime.revoke);
-    legacyRuntimeContext.registerLazyBinding('memory.getHistoryRecallStatus', () => historyRecallRuntime.getStatus);
     const replaceMemoryState = nextMemoryState => {
         const savedMemoryState = runtimeAppDataStore.replaceMemoryState?.(nextMemoryState);
         const nextState = savedMemoryState || nextMemoryState;
@@ -193,7 +189,6 @@ export function createMemoryRuntime({
         }
         return result;
     };
-    legacyRuntimeContext.registerLazyBinding('memory.invalidateConversation', () => invalidateMemoryConversation);
     const repairHistoryIndexedSource = createHistoryIndexSourceRepair({
         getMemoryState: () => runtimeAppDataStore.getMemoryState?.() || {},
         indexCapsule: options => historyIndexingService.indexCapsule(options),
@@ -241,7 +236,6 @@ export function createMemoryRuntime({
         })().finally(() => { historyIndexWorkPromise = null; });
         return historyIndexWorkPromise;
     };
-    legacyRuntimeContext.registerLazyBinding('memory.rebuildHistoryIndex', () => rebuildHistoryIndex);
     const historyIndexAuditService = createHistoryIndexAuditService({
         getConversations: () => state.conversations,
         getMemoryState: () => runtimeAppDataStore.getMemoryState?.() || {},
@@ -284,8 +278,6 @@ export function createMemoryRuntime({
         })().finally(() => { historyIndexWorkPromise = null; });
         return historyIndexWorkPromise;
     };
-    legacyRuntimeContext.registerLazyBinding('memory.auditHistoryIndex', () => auditHistoryIndex);
-    legacyRuntimeContext.registerLazyBinding('memory.optimizeHistoryIndex', () => optimizeHistoryIndex);
     const memoryWorkScheduler = createMemoryWorkScheduler({
         runJob: async job => {
             await Promise.all([ensureHistoryIndexReady(), ensureDeviceDerivedMemoryReady()]);
@@ -294,7 +286,7 @@ export function createMemoryRuntime({
         schedule: (callback, delay) => setTimeout(callback, delay),
         cancel: timer => clearTimeout(timer)
     });
-    const { requestMemorySummaryRebuild, ensureMemorySummaryFresh } = createLegacyMemorySummaryLifecycle({
+    const memorySummary = createLegacyMemorySummaryLifecycle({
         state,
         runtimeAppDataStore,
         replaceMemoryState,
@@ -302,8 +294,23 @@ export function createMemoryRuntime({
         rebuildHistoryIndex,
         memoryModelClient,
         crypto,
-        legacyRuntimeContext,
         memoryWorkScheduler
     });
-    return { replaceMemoryState, captureCompletedTurnAndPersist, invalidateMemoryConversation, memoryWorkScheduler, ensureMemorySummaryFresh };
+    const { requestMemorySummaryRebuild, ensureMemorySummaryFresh } = memorySummary;
+    // The functions the settings, the requests, imports and the trash use (through getMemory() of legacy-core.js).
+    const memory = Object.freeze({
+        retrieveHistory: historyRecallRuntime.retrieve,
+        grantHistoryRecallConsent: historyRecallRuntime.grant,
+        revokeHistoryRecallConsent: historyRecallRuntime.revoke,
+        getHistoryRecallStatus: historyRecallRuntime.getStatus,
+        invalidateConversation: invalidateMemoryConversation,
+        rebuildHistoryIndex,
+        auditHistoryIndex,
+        optimizeHistoryIndex,
+        getOverview: memorySummary.getOverview,
+        updateSummary: memorySummary.updateSummary,
+        refreshOverview: memorySummary.refreshOverview,
+        getWorkStatus: memorySummary.getWorkStatus
+    });
+    return { replaceMemoryState, captureCompletedTurnAndPersist, invalidateMemoryConversation, memoryWorkScheduler, ensureMemorySummaryFresh, memory };
 }

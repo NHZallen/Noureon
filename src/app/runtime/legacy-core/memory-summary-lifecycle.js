@@ -1,7 +1,7 @@
 import { createMemorySummaryRuntimeService } from '../memory/memory-summary-runtime-service.js';
 import { createMemorySummaryBootstrap } from '../memory/memory-summary-bootstrap.js';
 
-/** Connects complete-memory maintenance and the explicitly refreshed display overview to legacy bindings. */
+/** Complete-memory maintenance and the explicitly refreshed display overview; returns the overview functions the settings use. */
 export function createLegacyMemorySummaryLifecycle({
   state,
   runtimeAppDataStore,
@@ -10,7 +10,6 @@ export function createLegacyMemorySummaryLifecycle({
   rebuildHistoryIndex,
   memoryModelClient,
   crypto,
-  legacyRuntimeContext,
   memoryWorkScheduler
 } = {}) {
   const getMemoryState = () => runtimeAppDataStore.getMemoryState?.() || {};
@@ -34,10 +33,12 @@ export function createLegacyMemorySummaryLifecycle({
     rebuildSummary: requestMemorySummaryRebuild
   });
 
-  legacyRuntimeContext.registerLazyBinding('memory.getOverview', () => memorySummaryRuntime.getOverview);
-  legacyRuntimeContext.registerLazyBinding('memory.updateSummary', () => memorySummaryRuntime.updateSummary);
-  legacyRuntimeContext.registerLazyBinding('memory.refreshOverview', () => memorySummaryRuntime.refreshOverview);
-  legacyRuntimeContext.registerLazyBinding('memory.getWorkStatus', () => memoryWorkScheduler.getStatus);
-
-  return { requestMemorySummaryRebuild, ensureMemorySummaryFresh };
+  return {
+    requestMemorySummaryRebuild,
+    ensureMemorySummaryFresh,
+    getOverview: memorySummaryRuntime.getOverview,
+    updateSummary: memorySummaryRuntime.updateSummary,
+    refreshOverview: memorySummaryRuntime.refreshOverview,
+    getWorkStatus: memoryWorkScheduler.getStatus
+  };
 }

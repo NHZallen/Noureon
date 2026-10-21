@@ -21,7 +21,6 @@ function createStyle() {
 }
 
 function createHarness(overrides = {}) {
-  const registrations = new Map();
   const calls = [];
   const documentStyle = createStyle();
   const bodyClasses = new Set();
@@ -126,12 +125,9 @@ function createHarness(overrides = {}) {
       replaceConversations: (next) => next
     },
     runtimeDialogCoordinator: { showNotification: noop },
-    legacyRuntimeContext: {
-      registerLazyBinding(name, resolver) {
-        registrations.set(name, resolver);
-      },
-      resolveBinding: () => noop
-    },
+    updateInputState: noop,
+    setupSettingsModal: noop,
+    adjustTextareaHeight: noop,
     i18n: { 'zh-TW': {} },
     OFFICIAL_ASTRAS: [],
     updateLogs: [],
@@ -161,7 +157,6 @@ function createHarness(overrides = {}) {
     documentStyle,
     bodyClasses,
     elements,
-    registrations,
     state,
     lifecycle: createLegacyCoreTailLifecycle(dependencies)
   };
@@ -185,20 +180,17 @@ test('factory exposes the former 04 public lifecycle API', () => {
     'showMobileContextMenu',
     'setupMessageIntersectionObserver',
     'renderTrash',
-    'setupTimeAnalysis',
-    'registerRuntimeEntryDependencies'
+    'setupTimeAnalysis'
   ]) {
     assert.equal(typeof lifecycle[name], 'function', `${name} should be exposed`);
   }
 });
 
-test('runtime entry dependency facade is built and registered only when requested', () => {
-  const { lifecycle, registrations } = createHarness();
-  assert.equal(registrations.size, 0);
-  const facade = lifecycle.registerRuntimeEntryDependencies();
-  assert.equal(registrations.has('runtime.entryDependencies'), true);
-  assert.equal(registrations.get('runtime.entryDependencies')(), facade);
-  assert.equal(facade, lifecycle.runtimeEntryDependencies);
+test('the core tail hands the runtime entry what the start of the page is made from', () => {
+  const { lifecycle } = createHarness();
+  assert.equal(typeof lifecycle.runtimeEntryDependencies, 'object');
+  assert.equal(typeof lifecycle.runtimeEntryDependencies.appBootstrap, 'object');
+  assert.equal(typeof lifecycle.runtimeEntryDependencies.startup, 'object');
 });
 
 test('theme helpers use injected live state and DOM dependencies', () => {

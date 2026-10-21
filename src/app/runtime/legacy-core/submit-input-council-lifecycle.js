@@ -36,7 +36,6 @@ import {
 const REQUIRED_DEPENDENCIES = [
   'document',
   'elements',
-  'legacyRuntimeContext',
   'state',
   'models',
   'i18n',
@@ -61,7 +60,12 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     window,
     document,
     elements: ALL_ELEMENTS,
-    legacyRuntimeContext,
+    // Functions made after this lifecycle by legacy-core.js, called once the page runs.
+    updateSubmitButtonState,
+    updateInputState,
+    generateTitleAndSummary,
+    adjustTextareaHeight,
+    renderFilePreviews,
     state,
     models: MODELS,
     openRouterVisionModels = [],
@@ -151,7 +155,6 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
   const getLocalizedText = (key, fallback) => i18n[getUiLanguage()]?.[key] || fallback;
   const getUploadedFiles = () => state.uploadedFiles || [];
   const setUploadedFiles = (files) => { state.uploadedFiles = files; };
-  const updateSubmitButtonState = (...args) => legacyRuntimeContext.resolveBinding('submit.updateSubmitButtonState')(...args);
   const getAbortController = () => state.abortController || null;
   const setAbortController = (value) => { state.abortController = value; };
   const getIsCouncilRunning = () => Boolean(state.isCouncilRunning);
@@ -204,7 +207,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     getCouncilModeLabel,
     getCouncilModelList
   } = createSubmitInputComposer({
-    document, elements: ALL_ELEMENTS, legacyRuntimeContext, state, models: MODELS, i18n, openRouterVisionModels, councilMinModels, councilMaxModels,
+    document, elements: ALL_ELEMENTS, updateInputState, state, models: MODELS, i18n, openRouterVisionModels, councilMinModels, councilMaxModels,
     getLiveConfig, getLocalizedText, getUploadedFiles, getActiveConversation, normalizeConversationModel, isImageConversation,
     getCouncilSelectedModels, getCouncilTexts, getCouncilValidation, getVisibleCouncilModels, isCouncilEnabled, normalizeCouncilConfig, cloneCouncilConfig,
     modelSupportsVision, hasSingleDocumentAccess, hasCouncilWebSearchAccess, hasSingleWebSearchAccess,
@@ -328,7 +331,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     getUploadedFiles,
     setUploadedFiles,
     getActiveConversation,
-    updateSubmitButtonState: (...args) => legacyRuntimeContext.resolveBinding('submit.updateSubmitButtonState')(...args),
+    updateSubmitButtonState: (...args) => updateSubmitButtonState(...args),
     getCouncilValidation,
     showNotification,
     renderCouncilControls,
@@ -337,7 +340,7 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     addMessageToUI: (...args) => addMessageToUI(...args),
     renderHistorySidebar,
     getAutoNaming: () => getLiveConfig().autoNaming,
-    generateTitleAndSummary: (...args) => legacyRuntimeContext.resolveBinding('submit.generateTitleAndSummary')(...args),
+    generateTitleAndSummary: (...args) => generateTitleAndSummary(...args),
     saveAppData,
     getAutoWebSearchEnabled: () => getLiveConfig().enableAutoWebSearch,
     requestDecisions,
@@ -356,8 +359,8 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
     canModelDecideWebSearch: (conversation) => !isCouncilEnabled(conversation) && webResearch.canUse(normalizeConversationModel(conversation)),
     getAutoSearchNotice: () => i18n[getLiveConfig().uiLanguage].autoSearchNotice || '自動啟用網路搜尋。',
     renderInputIndicators,
-    adjustTextareaHeight: (...args) => legacyRuntimeContext.resolveBinding('submit.adjustTextareaHeight')(...args),
-    renderFilePreviews: (...args) => legacyRuntimeContext.resolveBinding('submit.renderFilePreviews')(...args),
+    adjustTextareaHeight: (...args) => adjustTextareaHeight(...args),
+    renderFilePreviews: (...args) => renderFilePreviews(...args),
     requestFrame: (callback) => requestAnimationFrame(callback),
     isImageConversation,
     getQuoteReference,
@@ -555,8 +558,8 @@ export function createLegacySubmitInputCouncilLifecycle(dependencies = {}) {
       const lastMessageElement = runSubmitFinalCleanupLifecycle(
         () => singleModelResponseLifecycle.stop(),
         () => { setIsCouncilRunning(false); setAbortController(null); },
-        (...args) => legacyRuntimeContext.resolveBinding('submit.updateSubmitButtonState')(...args),
-        (...args) => legacyRuntimeContext.resolveBinding('input.updateInputState')(...args),
+        (...args) => updateSubmitButtonState(...args),
+        (...args) => updateInputState(...args),
         renderCouncilControls,
         renderInputIndicators,
         () => getActiveConversation()?.id === conv.id ? ALL_ELEMENTS.messageList.lastElementChild : null

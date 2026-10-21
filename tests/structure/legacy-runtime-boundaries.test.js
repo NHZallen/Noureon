@@ -49,8 +49,8 @@ test('retired runtime fragments stay absent while the real legacy core module ex
 
   assert.deepEqual(fragmentNames, []);
   assertFileExists(assert, 'src/app/runtime/legacy-core/legacy-core.js');
-  assert.match(legacyCoreSource, /const\s+legacyRuntimeContext\s*=\s*createLegacyRuntimeContext\(\);/);
-  assert.match(legacyCoreSource, /export\s+\{\s*legacyRuntimeContext\s*\};/);
+  assert.match(legacyCoreSource, /export\s+function\s+connectRuntimeEntry\b/);
+  assert.match(legacyCoreSource, /export\s+const\s+coreTailDependencies\b/);
 
   for (const fragmentName of retiredRuntimeFragments) {
     assert.equal(
@@ -73,7 +73,7 @@ test('production runtime entry uses the real legacy core without the virtual run
   assert.doesNotMatch(viteSource, /readdirSync|readFileSync|addWatchFile|legacyRuntimeContext/);
   assert.match(
     runtimeEntrySource,
-    /await\s+import\('\.\/runtime\/legacy-core\/legacy-core\.js'\)/
+    /import\('\.\/runtime\/legacy-core\/legacy-core\.js'\)/
   );
   assert.doesNotMatch(runtimeEntrySource, /virtual:legacy-app-runtime|legacy-runtime\/fragments/);
   assert.match(

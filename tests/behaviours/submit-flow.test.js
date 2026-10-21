@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createLegacyRuntimeContext } from '../../src/app/legacy-runtime/runtime/legacy-runtime-context.js';
 import { buildQuotedUserParts } from '../../src/app/legacy-runtime/features/quote-inquiry-lifecycle.js';
 import { createSubmitInputPreparationLifecycle } from '../../src/app/legacy-runtime/features/submit-input-preparation-lifecycle.js';
 
@@ -29,12 +28,6 @@ const createSubmitHarness = ({
   let generateTitleAndSummary;
   let adjustTextareaHeight;
   let renderFilePreviews;
-  const runtimeContext = createLegacyRuntimeContext();
-
-  runtimeContext.registerLazyBinding('submit.updateSubmitButtonState', () => updateSubmitButtonState);
-  runtimeContext.registerLazyBinding('submit.generateTitleAndSummary', () => generateTitleAndSummary);
-  runtimeContext.registerLazyBinding('submit.adjustTextareaHeight', () => adjustTextareaHeight);
-  runtimeContext.registerLazyBinding('submit.renderFilePreviews', () => renderFilePreviews);
 
   const preparation = createSubmitInputPreparationLifecycle({
     elements,
@@ -47,7 +40,7 @@ const createSubmitHarness = ({
     getUploadedFiles: () => [],
     setUploadedFiles: () => calls.push(['setUploadedFiles']),
     getActiveConversation: () => conversation,
-    updateSubmitButtonState: (...args) => runtimeContext.resolveBinding('submit.updateSubmitButtonState')(...args),
+    updateSubmitButtonState: (...args) => updateSubmitButtonState(...args),
     getCouncilValidation: () => ({ ok: true }),
     showNotification: () => {},
     renderCouncilControls: () => {},
@@ -63,13 +56,13 @@ const createSubmitHarness = ({
     },
     renderHistorySidebar: () => {},
     getAutoNaming: () => false,
-    generateTitleAndSummary: (...args) => runtimeContext.resolveBinding('submit.generateTitleAndSummary')(...args),
+    generateTitleAndSummary: (...args) => generateTitleAndSummary(...args),
     saveAppData: async () => {},
     getAutoWebSearchEnabled: () => autoWebSearchEnabled,
     getAutoSearchNotice: () => 'auto search',
     renderInputIndicators: () => {},
-    adjustTextareaHeight: (...args) => runtimeContext.resolveBinding('submit.adjustTextareaHeight')(...args),
-    renderFilePreviews: (...args) => runtimeContext.resolveBinding('submit.renderFilePreviews')(...args),
+    adjustTextareaHeight: (...args) => adjustTextareaHeight(...args),
+    renderFilePreviews: (...args) => renderFilePreviews(...args),
     requestFrame: (callback) => callback(),
     getQuoteReference: () => activeQuoteReference,
     buildQuotedUserParts: (options) => buildQuotedUserParts({

@@ -85,11 +85,11 @@ test('runtime entry composes initChatApp while preserving late bootstrap event b
   }
 
   assert.match(runtimeEntrySource, /createLegacyAppBootstrapLifecycle\(/);
+  // The shell gets the start of the chat page and the height of the message field back through connectRuntimeEntry().
   assert.match(
     runtimeEntrySource,
-    /registerBinding\(\s*'app\.initChatApp',\s*appBootstrapLifecycle\.initChatApp/
+    /connectRuntimeEntry\(\{\s*initChatApp:\s*appBootstrapLifecycle\.initChatApp,\s*adjustTextareaHeight:\s*startupLifecycle\.adjustTextareaHeight/
   );
-  assert.match(runtimeEntrySource, /runtimeEntry\.submit\.adjustTextareaHeight/);
   assert.match(runtimeEntrySource, /startupLifecycle\.bindAuthStartupListeners\(\)/);
   assert.match(runtimeEntrySource, /startupLifecycle\.initializeApp\(\)/);
   assert.match(appBootstrapLifecycleSource, /createLegacyP2PLifecycle\(\{/);

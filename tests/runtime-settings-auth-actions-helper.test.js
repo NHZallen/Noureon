@@ -55,12 +55,7 @@ const createHarness = (overrides = {}) => {
     elements,
     state,
     getConfig: () => config,
-    legacyRuntimeContext: {
-      resolveBinding: (name) => {
-        calls.push(['resolveBinding', name]);
-        return () => calls.push(['binding', name]);
-      }
-    },
+    initChatApp: () => calls.push(['initChatApp']),
     runtimeStorageAdapter: { clear: async () => calls.push('clear') },
     i18n: {
       en: {
@@ -137,9 +132,8 @@ test('login success writes auth storage, transitions containers, and initializes
     'loadAppData',
     'applyUiTheme'
   ]);
-  assert.deepEqual(calls.slice(-2), [
-    ['resolveBinding', 'app.initChatApp'],
-    ['binding', 'app.initChatApp']
+  assert.deepEqual(calls.slice(-1), [
+    ['initChatApp']
   ]);
 });
 
@@ -156,7 +150,7 @@ test('login failure reports error and does not initialize app', async () => {
   assert.equal(state.currentUser, null);
   assert.deepEqual(calls.filter((call) => Array.isArray(call) && call[0] === 'setItem'), []);
   assert.equal(calls.some((call) => Array.isArray(call) && call[0] === 'notification' && call[2] === 'error'), true);
-  assert.equal(calls.some((call) => Array.isArray(call) && call[0] === 'resolveBinding'), false);
+  assert.equal(calls.some((call) => Array.isArray(call) && call[0] === 'initChatApp'), false);
 });
 
 test('logout accepted removes last user and reloads', async () => {

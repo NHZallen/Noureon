@@ -7,7 +7,7 @@ functions that receive what they need.
 | Folder | What is in it |
 | --- | --- |
 | `features/` | One feature per module, usually a `create…Lifecycle(deps)` factory: rendering messages and conversations, the reply of one model and its stages (`single-model-reply-*.js`), the council (`council-*.js`, the model picker `council-controls-*.js`), media previews, editing a message, the model switcher… |
-| `runtime/` | The small access objects the shell hands to the features: the runtime context (lazy bindings between parts made at different times), config, conversation state, DOM, dialog and render coordinators. |
+| `runtime/` | The small access objects the shell hands to the features: config, conversation state, DOM, dialog and render coordinators. (Parts made at different times are connected by parameters and named exports, not by a runtime context: NOU-76.) |
 | `data/` | Static data of the old runtime (folder icons and colours). |
 
 How it differs from `src/app/runtime/legacy-core/`: that folder is the shell (it creates the stores and the lifecycles and wires them

@@ -76,8 +76,11 @@ if (!existsSync(legacyCorePath)) {
   const legacyCoreSize = statSync(legacyCorePath).size;
   const legacyCoreLineCount = countLines(legacyCoreSource);
 
-  if (!/export\s+\{\s*legacyRuntimeContext\s*\};/.test(legacyCoreSource)) {
-    fail('legacy-core.js must explicitly export legacyRuntimeContext.');
+  // The shell and the runtime entry are connected by named exports, not by names looked up at run time.
+  for (const name of ['coreTailDependencies', 'connectCoreTail', 'connectRuntimeEntry']) {
+    if (!new RegExp(`export\\s+(?:const|function)\\s+${name}\\b`).test(legacyCoreSource)) {
+      fail(`legacy-core.js must export ${name}.`);
+    }
   }
   if (legacyCoreSize > legacyCoreOwnershipBudget.maxBytes) {
     fail(
@@ -132,6 +135,10 @@ for (const file of productionFiles) {
     fail(`${projectPath} must not import or read retired legacy runtime fragments.`);
   }
   // The parts of the page find each other through src/app/runtime/services.js, not properties of window (NOU-73).
+  // The parts are connected by parameters and named exports, not by names looked up at run time (NOU-76).
+  if (/\b(?:resolveBinding|resolveOptionalBinding|registerLazyBinding|registerValueBinding)\s*\(/.test(source)) {
+    fail(`${projectPath} must not register or resolve a runtime binding by name: pass the function as a parameter.`);
+  }
   if (/\b(?:window|globalThis|globalObject|self)\??\.__astra/.test(source)) {
     fail(`${projectPath} must not keep or read a window.__astra… global: provide or get a service (src/app/runtime/services.js).`);
   }

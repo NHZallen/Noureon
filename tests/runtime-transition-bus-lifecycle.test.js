@@ -60,7 +60,6 @@ function createNode() {
 
 function createHarness(overrides = {}) {
   const calls = [];
-  const bindings = new Map();
   const elements = {
     batchMoveFolderList: createNode(),
     batchMoveModal: createNode(),
@@ -138,16 +137,10 @@ function createHarness(overrides = {}) {
     globalObject: {},
     getComputedStyle: () => ({}),
     elements,
-    legacyRuntimeContext: {
-      registerLazyBinding(name, getter) {
-        calls.push(['registerLazyBinding', name]);
-        bindings.set(name, getter);
-      },
-      resolveBinding(name) {
-        calls.push(['resolveBinding', name]);
-        return bindings.get(name)?.();
-      }
-    },
+    updateInputState: () => calls.push(['updateInputState']),
+    setupSettingsModal: () => calls.push(['setupSettingsModal']),
+    adjustTextareaHeight: () => calls.push(['adjustTextareaHeight']),
+    initChatApp: () => calls.push(['initChatApp']),
     state,
     runtimeConfigAccess: {},
     runtimeAppDataStore: {
@@ -266,7 +259,7 @@ function createHarness(overrides = {}) {
   };
   const dependencies = { ...base, ...overrides };
   const lifecycle = createLegacyTransitionBusLifecycle(dependencies);
-  return { bindings, calls, dependencies, elements, lifecycle, state };
+  return { calls, dependencies, elements, lifecycle, state };
 }
 
 test('factory is inert on import and validates required dependencies', () => {
@@ -311,19 +304,20 @@ test('factory exposes former 04 bridge functions with clear missing-binding erro
   ]) {
     assert.equal(typeof lifecycle[name], 'function', `${name} should be exposed`);
   }
-  assert.throws(
-    () => lifecycle.applyLanguage('en'),
-    /Legacy core tail binding "coreTail\.applyLanguage" must be a function/
-  );
+  assert.throws(() => lifecycle.applyLanguage('en'), /The core tail is not connected yet \(applyLanguage\)/);
+  const received = [];
+  lifecycle.connectCoreTail({ applyLanguage: (...args) => received.push(args) });
+  lifecycle.applyLanguage('en');
+  assert.deepEqual(received, [['en']], 'once connected, each function calls the core tail\'s');
 });
 
-test('registers sidebar.toggleSidebar and runtime.coreTailDependencies with live state', () => {
-  const { bindings, calls, lifecycle, state } = createHarness();
-  lifecycle.registerSidebarBindings();
-  lifecycle.registerCoreTailDependencies();
+test('hands out toggleSidebar, the memory functions and the core tail dependencies with live state', () => {
+  const { calls, lifecycle, state } = createHarness();
 
-  assert.equal(typeof bindings.get('sidebar.toggleSidebar')(), 'function');
-  const dependencies = bindings.get('runtime.coreTailDependencies')();
+  assert.equal(typeof lifecycle.toggleSidebar, 'function');
+  assert.equal(typeof lifecycle.memory().rebuildHistoryIndex, 'function');
+  const dependencies = lifecycle.coreTailDependencies;
+  assert.equal(dependencies.getMemory(), lifecycle.memory());
   assert.equal(dependencies.state.config.uiLanguage, 'en');
   state.config = { uiLanguage: 'fr' };
   assert.equal(dependencies.state.config.uiLanguage, 'fr');
@@ -356,7 +350,7 @@ test('a rebuild never replaces a persisted index when the workspace is temporari
   });
   harness.state.conversations = [];
 
-  await harness.bindings.get('memory.rebuildHistoryIndex')()();
+  await harness.lifecycle.memory().rebuildHistoryIndex();
 
   assert.deepEqual(
     values.get('noureon:history-index:v1:anonymous').records.map(record => record.recordId),
@@ -377,7 +371,6 @@ test('module owns transition wiring without fragments or virtual runtime imports
   assert.match(source, /createLegacyModelMemoryDashboardLifecycle/);
   assert.match(source, /createLegacySearchUploadSidebarLifecycle/);
   assert.match(source, /createLegacyBatchImportVoiceLifecycle/);
-  assert.match(source, /registerLazyBinding\('sidebar\.toggleSidebar'/);
-  assert.match(source, /registerLazyBinding\(\s*'runtime\.coreTailDependencies'/);
+  assert.doesNotMatch(source, /registerLazyBinding|resolveBinding/);
   assert.doesNotMatch(source, /legacy-runtime\/fragments|virtual:legacy-app-runtime/);
 });

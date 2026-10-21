@@ -8,7 +8,6 @@ import { formatFullTimestamp } from '/src/app/legacy-runtime/features/date-forma
 import { buildMessageRenderView } from '/src/app/legacy-runtime/features/message-markup-renderer.js';
 import { buildQuotedUserParts, createQuoteInquiryLifecycle } from '/src/app/legacy-runtime/features/quote-inquiry-lifecycle.js';
 import { createSidebarAstrasLifecycle } from '/src/app/legacy-runtime/features/sidebar-astras-lifecycle.js';
-import { createLegacyRuntimeContext } from '/src/app/legacy-runtime/runtime/legacy-runtime-context.js';
 import { createConversationStateAccess } from '/src/app/legacy-runtime/runtime/conversation-state-access.js';
 import { createRuntimeRenderCoordinator } from '/src/app/legacy-runtime/runtime/runtime-render-coordinator.js';
 import { createRuntimeDialogCoordinator } from '/src/app/legacy-runtime/runtime/runtime-dialog-coordinator.js';
@@ -41,8 +40,21 @@ import { SERVICES, getService } from '/src/app/runtime/services.js';
 import { createShellState } from '/src/app/runtime/legacy-core/shell-state.js';
 import * as passwordRecords from '/src/app/runtime/security/password-records.js';
 
-const legacyRuntimeContext = createLegacyRuntimeContext();
-const resolveFoundationUpdateInputState = (...args) => legacyRuntimeContext.resolveBinding('input.updateInputState')(...args);
+// What the runtime entry (runtime-entry.js) makes after this module and connects with connectRuntimeEntry(): the start of the chat page
+// after signing in, and the height of the message field.
+const runtimeEntry = { initChatApp: null, adjustTextareaHeight: null };
+export function connectRuntimeEntry({ initChatApp, adjustTextareaHeight }) {
+    runtimeEntry.initChatApp = initChatApp;
+    runtimeEntry.adjustTextareaHeight = adjustTextareaHeight;
+}
+const initChatApp = () => {
+    if (!runtimeEntry.initChatApp) throw new Error('The runtime entry is not connected yet (initChatApp).');
+    return runtimeEntry.initChatApp();
+};
+const adjustTextareaHeight = (...args) => runtimeEntry.adjustTextareaHeight?.(...args);
+// The memory functions (memory-runtime.js, made by the transition bus below), or null before it exists.
+let getMemoryFunctions = () => null;
+const getMemory = () => getMemoryFunctions();
 const {
     marked,
     DOMPurify,
@@ -169,7 +181,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             getImageReadyText: () => i18n[runtimeConfigAccess.getUiLanguage()]?.imageReadyToEdit || 'Image is ready for targeted editing.',
             escapeHTML,
             setUploadedFiles: files => { shell.uploadedFiles = files; },
-            renderFilePreviews: () => legacyRuntimeContext.resolveBinding('submit.renderFilePreviews')(),
+            renderFilePreviews: () => renderFilePreviews(),
             focusMessageInput: () => ALL_ELEMENTS.messageInput?.focus()
         });
         const bindGeneratedImageAssets = async (root, assets) => {
@@ -334,14 +346,16 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             showRenameModal,
             handleRename
         } = createConversationActions({
-            window, document, elements: ALL_ELEMENTS, i18n, shell, legacyRuntimeContext,
+            window, document, elements: ALL_ELEMENTS, i18n, shell,
+            toggleSidebar: (...args) => toggleSidebar(...args),
+            updateFunctionButtonsState: () => updateFunctionButtonsState(),
             runtimeConfigAccess, liveConversationsBridge, conversationStateAccess, runtimeAppDataStore, runtimeDialogCoordinator,
             cloneCouncilConfig, getText, toggleModal, saveAppData, renderMarkdown, bindGeneratedImageAssets,
             getActiveConversation: () => getActiveConversation(),
             renderAll: (...args) => renderAll(...args),
             renderSidebar: () => runtimeRenderCoordinator.renderSidebar(),
-            adjustTextareaHeightAlias: (...args) => adjustTextareaHeightAlias(...args),
-            resolveFoundationUpdateInputState,
+            adjustTextareaHeight,
+            updateInputState: (...args) => updateInputState(...args),
             updateApiKeyWarningBadge: () => updateApiKeyWarningBadge(),
             getQuoteInquiry: () => quoteInquiryLifecycle,
             cancelPendingMemoryCapture: (id) => cancelPendingMemoryCapture(id),
@@ -410,7 +424,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
         window?.addEventListener?.('astra:language-changed', () => {
             if (!shell.currentUser) return;
             renderAll({ animate: false, scrollMode: 'preserve', reason: 'language' });
-            legacyRuntimeContext.resolveBinding('input.updateFunctionButtonsState')();
+            updateFunctionButtonsState();
         });
         const renderSidebar=(...args)=>runtimeRenderCoordinator.renderSidebar(...args);
         const sidebarAstrasLifecycle = createSidebarAstrasLifecycle({
@@ -420,7 +434,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             getIsSelectionMode: () => shell.isSelectionMode,
             getText,
             setAstrasForConversation: (...args) => setAstrasForConversation(...args),
-            toggleSidebar: (...args) => legacyRuntimeContext.resolveBinding('sidebar.toggleSidebar')(...args),
+            toggleSidebar: (...args) => toggleSidebar(...args),
             createAstrasMenu: (...args) => createAstrasMenu(...args),
             showMobileContextMenuForAstras: (...args) => showMobileContextMenuForAstras(...args),
             setTimeoutFn: (...args) => setTimeout(...args),
@@ -462,7 +476,11 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             setTimeout,
             clearTimeout,
             elements: ALL_ELEMENTS,
-            legacyRuntimeContext,
+            updateSubmitButtonState: (...args) => updateSubmitButtonState(...args),
+            updateInputState: (...args) => updateInputState(...args),
+            generateTitleAndSummary: (...args) => generateTitleAndSummary(...args),
+            adjustTextareaHeight,
+            renderFilePreviews: (...args) => renderFilePreviews(...args),
             state: shell,
             models: MODELS,
             openRouterVisionModels: OPENROUTER_VISION_MODELS,
@@ -566,24 +584,6 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             handleFormSubmit,
             submitEditedMessage
         } = submitInputCouncilLifecycle;
-        legacyRuntimeContext.registerLazyBinding('input.updateFunctionButtonsState', () => updateFunctionButtonsState);
-        legacyRuntimeContext.registerLazyBinding('submit.updateSubmitButtonState', () => updateSubmitButtonState);
-        legacyRuntimeContext.registerLazyBinding('submit.generateTitleAndSummary', () => generateTitleAndSummary);
-        const resolveRuntimeEntryAdjustTextareaHeight = () => legacyRuntimeContext.resolveOptionalBinding(
-            'runtimeEntry.submit.adjustTextareaHeight'
-        );
-        const adjustTextareaHeightAlias = (...args) => {
-            const runtimeEntryAdjustTextareaHeight = resolveRuntimeEntryAdjustTextareaHeight();
-            if (runtimeEntryAdjustTextareaHeight) {
-                return runtimeEntryAdjustTextareaHeight(...args);
-            }
-            return undefined;
-        };
-        legacyRuntimeContext.registerLazyBinding('submit.adjustTextareaHeight', () => {
-            const runtimeEntryAdjustTextareaHeight = resolveRuntimeEntryAdjustTextareaHeight();
-            if (runtimeEntryAdjustTextareaHeight) return runtimeEntryAdjustTextareaHeight;
-            return adjustTextareaHeightAlias;
-        });
         quoteInquiryLifecycle = createQuoteInquiryLifecycle({
             window,
             document,
@@ -593,12 +593,11 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             getQuoteReference: () => shell.quoteReference,
             setQuoteReference: (value) => { shell.quoteReference = value; },
             onComposerChange: () => {
-                legacyRuntimeContext.resolveBinding('input.updateInputState')();
-                legacyRuntimeContext.resolveBinding('submit.adjustTextareaHeight')();
+                updateInputState();
+                adjustTextareaHeight();
             }
         });
         quoteInquiryLifecycle.init();
-        legacyRuntimeContext.registerLazyBinding('submit.renderFilePreviews', () => renderFilePreviews);
         const settingsAuthProviderLifecycle = createLegacySettingsAuthProviderLifecycle({
             window,
             document,
@@ -609,7 +608,8 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             console,
             elements: ALL_ELEMENTS,
             state: shell,
-            legacyRuntimeContext,
+            getMemory,
+            initChatApp,
             runtimeStorageAdapter,
             models: MODELS,
             i18n,
@@ -709,8 +709,6 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             handleLogout,
             handleDeleteAllData
         } = settingsAuthProviderLifecycle;
-        legacyRuntimeContext.registerLazyBinding('settings.setupSettingsModal', () => setupSettingsModal);
-        legacyRuntimeContext.registerLazyBinding('input.updateInputState', () => updateInputState);
         const sidebarChatAstraRenderLifecycle = createLegacySidebarChatAstraRenderLifecycle({
             window,
             document,
@@ -720,7 +718,9 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             crypto,
             requestAnimationFrame,
             elements: ALL_ELEMENTS,
-            legacyRuntimeContext,
+            toggleSidebar: (...args) => toggleSidebar(...args),
+            updateInputState,
+            generateTitleAndSummary,
             state: shell,
             runtimeDomAccess,
             runtimeConfigAccess,
@@ -791,9 +791,9 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             getActiveConversation,
             getUploadedFiles: () => shell.uploadedFiles,
             setUploadedFiles: (files) => { shell.uploadedFiles = files; },
-            renderFilePreviews: (...args) => legacyRuntimeContext.resolveBinding('submit.renderFilePreviews')(...args),
+            renderFilePreviews: (...args) => renderFilePreviews(...args),
             renderInputIndicators: (...args) => renderInputIndicators(...args),
-            updateInputState: (...args) => legacyRuntimeContext.resolveBinding('input.updateInputState')(...args),
+            updateInputState,
             renderChat: (...args) => renderChat(...args),
             saveAppData,
             invalidateConversationMemory: (...args) => invalidateConversationMemory(...args),
@@ -894,7 +894,10 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             globalObject: globalThis,
             getComputedStyle,
             elements: ALL_ELEMENTS,
-            legacyRuntimeContext,
+            updateInputState,
+            setupSettingsModal,
+            adjustTextareaHeight,
+            initChatApp,
             state: shell,
             runtimeConfigAccess,
             runtimeAppDataStore,
@@ -1061,8 +1064,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
         } = transitionBusLifecycle;
         cancelPendingMemoryCapture = cancelMemoryCaptureWork;
         invalidateConversationMemory = invalidateMemoryConversation;
-        transitionBusLifecycle.registerSidebarBindings();
-        transitionBusLifecycle.registerCoreTailDependencies();
+        getMemoryFunctions = transitionBusLifecycle.memory;
         // Created after the transition bus destructuring so its dependencies are plain
         // references. Its listeners only receive async cloud events, so ordering is safe.
         createCloudWorkspaceLiveLifecycle({
@@ -1094,4 +1096,6 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             saveAppData,busy:()=>shell.abortController&&liveConversationsBridge.getConversations().find(c=>c.__astraPendingResponse)
         });
 
-export { legacyRuntimeContext };
+// The runtime entry makes the core tail from these and connects it back (runtime-entry.js).
+export const coreTailDependencies = transitionBusLifecycle.coreTailDependencies;
+export const connectCoreTail = transitionBusLifecycle.connectCoreTail;

@@ -28,7 +28,8 @@ function harness({ conversations = [], folders = [], currentId = null, config = 
     elements: elementsWith(doc),
     i18n: { en: { chatMovedToTrash: 'Moved.' } },
     shell,
-    legacyRuntimeContext: { resolveBinding: (name) => (...args) => log.push(['binding', name, ...args]) },
+    toggleSidebar: (...args) => log.push(['toggleSidebar', ...args]),
+    updateFunctionButtonsState: () => log.push('function buttons'),
     runtimeConfigAccess: { getConfig: () => ({ lastCouncilConfig: { enabled: true, participantModelIds: ['a', 'b'] }, ...config }), getUiLanguage: () => 'en' },
     liveConversationsBridge: { getConversations: () => list, replaceConversations: (next) => { list = next; return list; } },
     conversationStateAccess: { getCurrentConversationId: () => current, setCurrentConversationId: (id) => { current = id; } },
@@ -43,8 +44,8 @@ function harness({ conversations = [], folders = [], currentId = null, config = 
     getActiveConversation: () => list.find((c) => c.id === current) || null,
     renderAll: (options) => log.push(['renderAll', options]),
     renderSidebar: () => log.push('sidebar'),
-    adjustTextareaHeightAlias: () => {},
-    resolveFoundationUpdateInputState: () => log.push('input state'),
+    adjustTextareaHeight: () => {},
+    updateInputState: () => log.push('input state'),
     updateApiKeyWarningBadge: () => {},
     getQuoteInquiry: () => ({ clearQuote: () => log.push('quote cleared') }),
     cancelPendingMemoryCapture: (id) => log.push(['memory capture cancelled', id]),
@@ -68,11 +69,11 @@ test('a new conversation drops empty and ephemeral ones, starts with the council
   assert.deepEqual(created.genConfig, getDefaultGenConfig());
   assert.deepEqual(h.shell.uploadedFiles, []);
   assert.ok(h.log.some((entry) => entry[0] === 'save'), 'saved because conversations were dropped');
-  assert.ok(h.log.some((entry) => entry[1] === 'sidebar.toggleSidebar' && entry[2] === false));
+  assert.ok(h.log.some((entry) => entry[0] === 'toggleSidebar' && entry[1] === false));
 
   const kept = harness();
   await kept.actions().startNewChat({ keepSidebarOpen: true });
-  assert.ok(!kept.log.some((entry) => entry[1] === 'sidebar.toggleSidebar'));
+  assert.ok(!kept.log.some((entry) => entry[0] === 'toggleSidebar'));
   assert.ok(!kept.log.some((entry) => entry[0] === 'save'), 'nothing dropped, nothing saved');
   assert.deepEqual(getDefaultFolder(), { color: 'gray', icon: 'default', textColor: 'gray', isOpen: false });
 });

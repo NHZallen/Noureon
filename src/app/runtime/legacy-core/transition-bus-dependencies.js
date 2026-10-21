@@ -1,5 +1,5 @@
 const requiredDependencies = [
-    'window', 'document', 'elements', 'legacyRuntimeContext', 'state',
+    'window', 'document', 'elements', 'state',
     'runtimeConfigAccess', 'runtimeAppDataStore', 'runtimeDialogCoordinator',
     'i18n', 'models', 'getSensitiveApiKeys', 'mergeSensitiveApiKeys',
     'saveSensitiveConfig', 'saveConfig', 'saveAppData', 'renderAll', 'loadChat',

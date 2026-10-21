@@ -50,9 +50,8 @@ test('login success preserves auth storage, visibility transitions, and init han
   assert.equal(appContainer.hasClass('hidden'), false);
   assert.equal(appContainer.hasClass('visible'), true);
   assert.equal(authContainer.listeners[0]?.event, 'transitionend');
-  assert.deepEqual(calls.slice(-2), [
-    ['resolveBinding', 'app.initChatApp'],
-    ['binding', 'app.initChatApp']
+  assert.deepEqual(calls.slice(-1), [
+    ['initChatApp']
   ]);
 });
 
@@ -76,7 +75,7 @@ test('login failure keeps failure path isolated and does not initialize app', as
   assert.equal(state.currentUser, null);
   assert.deepEqual(calls.filter((call) => Array.isArray(call) && call[0] === 'setItem'), []);
   assert.equal(calls.some((call) => Array.isArray(call) && call[0] === 'notification' && call[2] === 'error'), true);
-  assert.equal(calls.some((call) => Array.isArray(call) && call[0] === 'resolveBinding' && call[1] === 'app.initChatApp'), false);
+  assert.equal(calls.some((call) => Array.isArray(call) && call[0] === 'initChatApp'), false);
   assert.equal(calls.includes('renderAll'), false);
 });
 

@@ -7,13 +7,13 @@ import { createSettingsMemorySummaryControls } from './settings-memory-summary-c
 import { ensureVisionCheckSettingsControl } from './settings-vision-check-section.js';
 
 export function createSettingsDialogParts({
-    document, elements: ALL_ELEMENTS, state, legacyRuntimeContext, models: MODELS, i18n, config, getApiKeyForProvider, saveConfig,
+    document, elements: ALL_ELEMENTS, state, getMemory, models: MODELS, i18n, config, getApiKeyForProvider, saveConfig,
     showNotification, showCustomPrompt, showCustomDialog
 }) {
     const historyRecallControls = createSettingsHistoryRecallControls({
         document,
         elements: ALL_ELEMENTS,
-        legacyRuntimeContext,
+        getMemory,
         getConfig: () => config,
         getText: (key, fallback) => i18n[config.uiLanguage]?.[key] || fallback
     });
@@ -22,7 +22,7 @@ export function createSettingsDialogParts({
         models: MODELS,
         getConfig: () => config,
         getMemoryState: () => state.memoryState,
-        legacyRuntimeContext,
+        getMemory,
         saveConfig,
         isModelReady: model => Boolean(getApiKeyForProvider?.(model?.provider)),
         showNotification,

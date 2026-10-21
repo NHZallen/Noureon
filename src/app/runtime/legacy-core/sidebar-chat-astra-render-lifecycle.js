@@ -16,7 +16,6 @@ const REQUIRED_DEPENDENCIES = [
   'window',
   'document',
   'elements',
-  'legacyRuntimeContext',
   'state',
   'runtimeDomAccess',
   'runtimeConfigAccess',
@@ -60,7 +59,10 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
     fetch,
     File,
     elements: ALL_ELEMENTS,
-    legacyRuntimeContext,
+    // Functions made after this lifecycle by legacy-core.js, called once the page runs.
+    toggleSidebar,
+    updateInputState,
+    generateTitleAndSummary,
     state,
     runtimeDomAccess,
     runtimeConfigAccess,
@@ -285,7 +287,7 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
           }
         } else {
           loadChat(conv.id);
-          legacyRuntimeContext.resolveBinding('sidebar.toggleSidebar')(false);
+          toggleSidebar(false);
         }
       }
     };
@@ -350,7 +352,7 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
       await saveAppData();
       runtimeRenderCoordinator.renderSidebar();
       renderInputIndicators();
-      legacyRuntimeContext.resolveBinding('input.updateInputState')();
+      updateInputState();
       // Activating a Noura while learning mode is on: explain how the two rule sets combine.
       if (astrasId && getConfig().isLearningMode) {
         runtimeDialogCoordinator.showNotification(
@@ -368,7 +370,7 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
       await saveAppData();
       runtimeRenderCoordinator.renderSidebar();
       renderInputIndicators();
-      legacyRuntimeContext.resolveBinding('input.updateInputState')();
+      updateInputState();
       runtimeDialogCoordinator.showNotification(i18n[getConfig().uiLanguage].astrasDeactivated || '已關閉 Noura。', 'success');
     }
   };
@@ -543,7 +545,7 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
     renderAll,
     renderSidebar: (...args) => runtimeRenderCoordinator.renderSidebar(...args),
     getAutoNaming: () => getConfig().autoNaming,
-    generateTitleAndSummary: (...args) => legacyRuntimeContext.resolveBinding('submit.generateTitleAndSummary')(...args),
+    generateTitleAndSummary: (...args) => generateTitleAndSummary(...args),
     showNotification,
     persistGeneratedImageAssets: async conversation => {
       const assetStore = await getGeneratedImageAssetStore();
@@ -618,7 +620,7 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
       const sourceConversation = getConversations().find(conversation => conversation.id === id);
       if (!sourceConversation || sourceConversation.deletedAt) return;
       loadChat(sourceConversation.id);
-      legacyRuntimeContext.resolveBinding('sidebar.toggleSidebar')(false);
+      toggleSidebar(false);
     },
     buildMessageRenderView,
     buildMediaAttachmentView: buildMessageMediaAttachmentView,
@@ -632,7 +634,7 @@ export function createLegacySidebarChatAstraRenderLifecycle(dependencies = {}) {
     renderInputIndicators,
     renderCouncilControls,
     setupMessageIntersectionObserver,
-    updateInputState: () => legacyRuntimeContext.resolveBinding('input.updateInputState')(),
+    updateInputState: () => updateInputState(),
     scheduleFrame: (callback) => requestAnimationFrame(callback),
     isAutoScrolling: getIsAutoScrolling,
     syncComposerLayout

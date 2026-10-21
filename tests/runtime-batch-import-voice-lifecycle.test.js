@@ -86,12 +86,8 @@ function createHarness(overrides = {}) {
     File: class {},
     JSZip: class {},
     elements,
-    legacyRuntimeContext: {
-      resolveBinding(name) {
-        calls.push(['resolveBinding', name]);
-        return noop;
-      }
-    },
+    setupSettingsModal: (...args) => calls.push(['setupSettingsModal', ...args]),
+    initChatApp: () => calls.push(['initChatApp']),
     getConfig: () => config,
     getSensitiveApiKeys: () => ({ gemini: 'sensitive-gemini-key' }),
     mutateConfig: (mutator) => {
@@ -268,15 +264,12 @@ test('batch delete marks every selected conversation as trashed before invalidat
   let harness;
   harness = createHarness({
     selectedConversationIds: new Set(['c1', 'c2']),
-    legacyRuntimeContext: {
-      resolveOptionalBinding(name) {
-        assert.equal(name, 'memory.invalidateConversation');
-        return async ({ conversationId, skipSummaryRebuild }) => {
-          invalidated.push([conversationId, skipSummaryRebuild]);
-          allWereTrashed = harness.conversations.every(conversation => conversation.deletedAt);
-        };
+    getMemory: () => ({
+      invalidateConversation: async ({ conversationId, skipSummaryRebuild }) => {
+        invalidated.push([conversationId, skipSummaryRebuild]);
+        allWereTrashed = harness.conversations.every(conversation => conversation.deletedAt);
       }
-    }
+    })
   });
 
   await harness.lifecycle.handleBatchDelete();
@@ -578,7 +571,7 @@ test('import and auth-import composition remains in real lifecycles and module h
   assert.match(source, /getSensitiveApiKeys,/);
   assert.equal((source.match(/mergeSensitiveApiKeys,/g) || []).length >= 2, true);
   assert.equal((source.match(/saveSensitiveConfig,/g) || []).length >= 2, true);
-  assert.match(source, /initChatApp:\s*\(\)\s*=>\s*legacyRuntimeContext\.resolveBinding\('app\.initChatApp'\)\(\)/);
+  assert.match(source, /initChatApp:\s*\(\)\s*=>\s*initChatApp\(\)/);
   assert.doesNotMatch(source, /legacy-runtime\/fragments|virtual:legacy-app-runtime/);
 });
 

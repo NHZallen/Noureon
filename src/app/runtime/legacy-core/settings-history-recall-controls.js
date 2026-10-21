@@ -1,7 +1,8 @@
 export function createSettingsHistoryRecallControls({
   document,
   elements,
-  legacyRuntimeContext,
+  // The memory functions (memory-runtime.js), or null while memory is not set up.
+  getMemory = () => null,
   getConfig,
   getText = (_key, fallback) => fallback
 } = {}) {
@@ -10,32 +11,13 @@ export function createSettingsHistoryRecallControls({
     (text, [name, value]) => text.replaceAll(`{${name}}`, String(value)),
     getText(key, fallback)
   );
-  const getHistoryRecallStatus = () => (
-    typeof legacyRuntimeContext?.resolveOptionalBinding === 'function'
-      ? legacyRuntimeContext.resolveOptionalBinding('memory.getHistoryRecallStatus')
-      : null
-  );
-  const grantHistoryRecallConsent = () => (
-    typeof legacyRuntimeContext?.resolveOptionalBinding === 'function'
-      ? legacyRuntimeContext.resolveOptionalBinding('memory.grantHistoryRecallConsent')
-      : null
-  );
-  const revokeHistoryRecallConsent = () => (
-    typeof legacyRuntimeContext?.resolveOptionalBinding === 'function'
-      ? legacyRuntimeContext.resolveOptionalBinding('memory.revokeHistoryRecallConsent')
-      : null
-  );
-  const rebuildHistoryIndex = () => (
-    typeof legacyRuntimeContext?.resolveOptionalBinding === 'function'
-      ? legacyRuntimeContext.resolveOptionalBinding('memory.rebuildHistoryIndex')
-      : null
-  );
-  const auditHistoryIndex = () => typeof legacyRuntimeContext?.resolveOptionalBinding === 'function'
-    ? legacyRuntimeContext.resolveOptionalBinding('memory.auditHistoryIndex')
-    : null;
-  const optimizeHistoryIndex = () => typeof legacyRuntimeContext?.resolveOptionalBinding === 'function'
-    ? legacyRuntimeContext.resolveOptionalBinding('memory.optimizeHistoryIndex')
-    : null;
+  const memoryFunction = (name) => () => getMemory()?.[name] || null;
+  const getHistoryRecallStatus = memoryFunction('getHistoryRecallStatus');
+  const grantHistoryRecallConsent = memoryFunction('grantHistoryRecallConsent');
+  const revokeHistoryRecallConsent = memoryFunction('revokeHistoryRecallConsent');
+  const rebuildHistoryIndex = memoryFunction('rebuildHistoryIndex');
+  const auditHistoryIndex = memoryFunction('auditHistoryIndex');
+  const optimizeHistoryIndex = memoryFunction('optimizeHistoryIndex');
 
   const ensureHistoryRecallSettingsControl = () => {
     const existingToggle = document.getElementById('history-recall-toggle-switch');

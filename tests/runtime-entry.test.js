@@ -3,11 +3,9 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import {
+  composeCoreTail,
   createRuntimeEntry,
-  getLegacyRuntimeEntryDependencies,
-  loadLegacyRuntimeContext,
-  registerCoreTailBindings,
-  registerRuntimeEntryBindings,
+  loadLegacyCore,
   startRuntimeEntry
 } from '../src/app/runtime-entry.js';
 import {
@@ -123,7 +121,6 @@ const createDocumentFake = () => ({
 });
 
 const createCompleteCoreTailDependencies = ({
-  runtimeContext,
   elements = createElementsProxy(),
   document = createDocumentFake(),
   overrides = {}
@@ -184,7 +181,9 @@ const createCompleteCoreTailDependencies = ({
       replaceAstras: (next) => next
     },
     runtimeDialogCoordinator: { showNotification: noop },
-    legacyRuntimeContext: runtimeContext,
+    updateInputState: () => {},
+    setupSettingsModal: () => {},
+    adjustTextareaHeight: () => {},
     getCurrentConversationId: () => null,
     setCurrentConversationId: noop,
     i18n: { 'zh-TW': {} },
@@ -278,10 +277,8 @@ const createCompleteCoreTailDependencies = ({
 
 test('runtime entry exports an inert composition API', () => {
   assert.equal(typeof createRuntimeEntry, 'function');
-  assert.equal(typeof getLegacyRuntimeEntryDependencies, 'function');
-  assert.equal(typeof loadLegacyRuntimeContext, 'function');
-  assert.equal(typeof registerCoreTailBindings, 'function');
-  assert.equal(typeof registerRuntimeEntryBindings, 'function');
+  assert.equal(typeof composeCoreTail, 'function');
+  assert.equal(typeof loadLegacyCore, 'function');
   assert.equal(typeof startRuntimeEntry, 'function');
 
   const calls = [];
@@ -298,7 +295,7 @@ test('runtime entry exports an inert composition API', () => {
   assert.equal(typeof entry.initChatApp, 'function');
   assert.equal(typeof entry.initializeApp, 'function');
   assert.equal(typeof entry.adjustTextareaHeight, 'function');
-  assert.equal(typeof entry.registerBindings, 'function');
+  assert.equal(typeof entry.connect, 'function');
   assert.equal(typeof entry.start, 'function');
 });
 
@@ -306,119 +303,56 @@ test('runtime entry source composes core tail before app bootstrap and startup',
   const source = readSource('src/app/runtime-entry.js');
 
   assert.match(source, /import\s+\{\s*createLegacyCoreTailLifecycle\s*\}/);
-  assert.match(source, /resolveBinding\(\s*['"]runtime\.coreTailDependencies['"]\s*\)/);
-  assert.match(source, /createLegacyCoreTailLifecycle\(/);
-  assert.match(source, /registerCoreTailBindings\(/);
+  assert.match(source, /createLegacyCoreTailLifecycle\(core\.coreTailDependencies\)/);
+  assert.doesNotMatch(source, /resolveBinding|registerLazyBinding/);
   assertMarkersInOrder(source, [
-    'createLegacyCoreTailLifecycle',
-    'registerCoreTailBindings',
-    'registerRuntimeEntryDependencies',
-    'createLegacyAppBootstrapLifecycle',
-    'createLegacyStartupLifecycle'
+    'createLegacyCoreTailLifecycle(core.coreTailDependencies)',
+    'core.connectCoreTail(coreTailLifecycle)',
+    'coreTailLifecycle?.runtimeEntryDependencies',
+    'createLegacyAppBootstrapLifecycle(',
+    'createLegacyStartupLifecycle('
   ], 'runtime-entry production composition');
 });
 
-test('runtime entry explicitly registers startup textarea ownership without starting', () => {
-  const bindings = new Map();
-  const runtimeContext = {
-    registerLazyBinding(name, getter) {
-      assert.equal(bindings.has(name), false);
-      bindings.set(name, getter);
-    },
-    resolveOptionalBinding(name) {
-      return bindings.get(name)?.();
+// A shell (legacy-core.js) that records what is connected back to it.
+const createFakeCore = (coreTailDependencies = createCompleteCoreTailDependencies()) => {
+  const connected = { coreTail: [], runtimeEntry: [] };
+  return {
+    connected,
+    core: {
+      coreTailDependencies,
+      connectCoreTail: (lifecycle) => connected.coreTail.push(lifecycle),
+      connectRuntimeEntry: (links) => connected.runtimeEntry.push(links)
     }
   };
-  const adjustTextareaHeight = () => {};
-  const initChatApp = () => {};
-  const appBootstrapLifecycle = { initChatApp };
-  const startupLifecycle = { adjustTextareaHeight };
+};
 
-  assert.deepEqual(
-    registerRuntimeEntryBindings({
-      runtimeContext,
-      appBootstrapLifecycle,
-      startupLifecycle
-    }),
-    { initChatApp, adjustTextareaHeight }
-  );
-  assert.equal(
-    runtimeContext.resolveOptionalBinding('app.initChatApp'),
-    initChatApp
-  );
-  assert.equal(
-    runtimeContext.resolveOptionalBinding('runtimeEntry.submit.adjustTextareaHeight'),
-    adjustTextareaHeight
-  );
-  assert.deepEqual(
-    registerRuntimeEntryBindings({
-      runtimeContext,
-      appBootstrapLifecycle,
-      startupLifecycle
-    }),
-    { initChatApp, adjustTextareaHeight }
-  );
+test('the core tail is made from the shell\'s dependencies and connected back to it', () => {
+  const { core, connected } = createFakeCore();
+  const coreTailLifecycle = composeCoreTail(core);
+  assert.deepEqual(connected.coreTail, [coreTailLifecycle]);
+  assert.equal(typeof coreTailLifecycle.applyLanguage, 'function');
+  assert.equal(typeof coreTailLifecycle.runtimeEntryDependencies, 'object');
+  assert.throws(() => composeCoreTail({}), /must provide coreTailDependencies/);
 });
 
-test('createRuntimeEntry binding registration stays inert until explicitly requested', () => {
-  const registered = [];
-  const runtimeContext = {
-    registerLazyBinding(name) {
-      registered.push(name);
-    },
-    resolveOptionalBinding() {
-      return undefined;
-    }
-  };
-  const entry = createRuntimeEntry({
-    runtimeContext,
-    dependencies: createCompleteDependencies()
-  });
+test('the start and the textarea height reach the shell only when connected', () => {
+  const { core, connected } = createFakeCore();
+  const entry = createRuntimeEntry({ core });
 
-  assert.deepEqual(registered, []);
-  entry.registerBindings();
-  assert.deepEqual(registered, [
-    'app.initChatApp',
-    'runtimeEntry.submit.adjustTextareaHeight'
-  ]);
+  assert.equal(entry.dependencies, entry.coreTailLifecycle.runtimeEntryDependencies);
+  assert.deepEqual(connected.runtimeEntry, []);
+  entry.connect();
+  assert.deepEqual(connected.runtimeEntry, [{
+    initChatApp: entry.initChatApp,
+    adjustTextareaHeight: entry.adjustTextareaHeight
+  }]);
 });
 
-test('runtime entry resolves the registered facade from an injected runtime context', () => {
-  const calls = [];
-  const bindings = new Map();
-  const runtimeContext = {
-    registerLazyBinding(name, getter) {
-      bindings.set(name, getter);
-    },
-    resolveBinding(name) {
-      calls.push(name);
-      const getter = bindings.get(name);
-      if (!getter) throw new Error(`Missing binding: ${name}`);
-      return getter();
-    },
-    resolveOptionalBinding(name) {
-      return bindings.get(name)?.();
-    }
-  };
-  const coreTailDependencies = createCompleteCoreTailDependencies({ runtimeContext });
-  bindings.set('runtime.coreTailDependencies', () => coreTailDependencies);
-
-  assert.equal(
-    runtimeContext.resolveBinding('runtime.coreTailDependencies'),
-    coreTailDependencies
-  );
-  const entry = createRuntimeEntry({ runtimeContext });
-
-  assert.equal(entry.runtimeContext, runtimeContext);
-  assert.equal(entry.dependencies, runtimeContext.resolveBinding('runtime.entryDependencies'));
-  assert.equal(typeof runtimeContext.resolveBinding('coreTail.applyLanguage'), 'function');
-  assert.deepEqual(calls, [
-    'runtime.coreTailDependencies',
-    'runtime.coreTailDependencies',
-    'runtime.entryDependencies',
-    'runtime.entryDependencies',
-    'coreTail.applyLanguage'
-  ]);
+test('with dependencies given, no shell is needed and connecting does nothing', () => {
+  const entry = createRuntimeEntry({ dependencies: createCompleteDependencies() });
+  assert.equal(entry.coreTailLifecycle, undefined);
+  assert.doesNotThrow(() => entry.connect());
 });
 
 test('runtime entry start remains explicit and runs startup composition once', async () => {
@@ -525,10 +459,7 @@ test('dependency facade validates required groups and reports missing fields', (
 test('runtime entry loads the real legacy core without virtual runtime imports', () => {
   const source = readSource('src/app/runtime-entry.js');
 
-  assert.match(
-    source,
-    /const\s+\{\s*legacyRuntimeContext\s*\}\s*=\s*await\s+import\('\.\/runtime\/legacy-core\/legacy-core\.js'\)/
-  );
+  assert.match(source, /return import\('\.\/runtime\/legacy-core\/legacy-core\.js'\)/);
   assert.doesNotMatch(source, /virtual:legacy-app-runtime/);
   assert.doesNotMatch(source, /legacy-runtime\/fragments/);
   assert.doesNotMatch(source, /(?:^|\n)\s*(?:void\s+)?(?:start|initializeApp|initChatApp)\(\);/);
@@ -561,47 +492,25 @@ test('production runtime entry loads the legacy core and starts only once', asyn
       return target[prop];
     }
   });
-  const bindings = new Map([
-    ['input.updateInputState', () => () => {}]
-  ]);
-  const runtimeContext = {
-    registerLazyBinding(name, getter) {
-      assert.equal(bindings.has(name), false);
-      bindings.set(name, getter);
-    },
-    resolveBinding(name) {
-      const getter = bindings.get(name);
-      if (!getter) throw new Error(`Missing binding: ${name}`);
-      return getter();
-    },
-    resolveOptionalBinding(name) {
-      return bindings.get(name)?.();
-    }
-  };
-  bindings.set('runtime.coreTailDependencies', () => createCompleteCoreTailDependencies({
-    runtimeContext,
-    document,
-    elements
-  }));
+  const { core, connected } = createFakeCore(createCompleteCoreTailDependencies({ document, elements }));
   let loads = 0;
-  const loadRuntimeContext = async () => {
+  const loadCore = async () => {
     loads += 1;
-    return runtimeContext;
+    return core;
   };
 
-  const firstStart = startRuntimeEntry({ loadRuntimeContext });
-  const secondStart = startRuntimeEntry({ loadRuntimeContext });
+  const firstStart = startRuntimeEntry({ loadCore });
+  const secondStart = startRuntimeEntry({ loadCore });
 
   assert.equal(firstStart, secondStart);
   const entry = await firstStart;
   assert.equal(loads, 1);
-  assert.equal(typeof bindings.get('coreTail.applyLanguage')(), 'function');
-  assert.equal(entry.dependencies, bindings.get('runtime.entryDependencies')());
-  assert.equal(bindings.get('app.initChatApp')(), entry.initChatApp);
-  assert.equal(
-    bindings.get('runtimeEntry.submit.adjustTextareaHeight')(),
-    entry.adjustTextareaHeight
-  );
+  assert.deepEqual(connected.coreTail, [entry.coreTailLifecycle]);
+  assert.equal(entry.dependencies, entry.coreTailLifecycle.runtimeEntryDependencies);
+  assert.deepEqual(connected.runtimeEntry, [{
+    initChatApp: entry.initChatApp,
+    adjustTextareaHeight: entry.adjustTextareaHeight
+  }]);
   assert.equal(listeners.filter((type) => type === 'submit').length, 1);
 });
 

@@ -165,12 +165,7 @@ export const createDependencies = (overrides = {}) => {
     console: { error: (...args) => calls.push(['error', ...args]) },
     elements,
     state,
-    legacyRuntimeContext: {
-      resolveBinding: (name) => {
-        calls.push(['resolveBinding', name]);
-        return () => calls.push(['binding', name]);
-      }
-    },
+    initChatApp: () => calls.push(['initChatApp']),
     runtimeStorageAdapter: { clear: async () => calls.push('clear') },
     models: [],
     i18n,

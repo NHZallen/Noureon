@@ -84,22 +84,19 @@ test('settings modal source keeps Tavily depth fallback local to setupSettingsMo
   );
 });
 
-test('settings modal opener uses lazy context resolution instead of direct cross-fragment setup access', () => {
-  const fragment02Source = readSource('src/app/runtime/legacy-core/legacy-core.js');
+test('the settings opener is handed on as a function, not looked up by name', () => {
+  const legacyCoreSource = readSource('src/app/runtime/legacy-core/legacy-core.js');
   const coreTailSource = readSource('src/app/runtime/legacy-core/core-tail-lifecycle.js');
   const appBootstrapLifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
 
-  assert.match(
-    fragment02Source,
-    /legacyRuntimeContext\.registerLazyBinding\('settings\.setupSettingsModal',\s*\(\)\s*=>\s*setupSettingsModal\);/
-  );
-  assert.match(
-    coreTailSource,
-    /setupSettingsModal:\s*\(\.\.\.args\)\s*=>\s*legacyRuntimeContext\.resolveBinding\('settings\.setupSettingsModal'\)\(\.\.\.args\)/
-  );
+  // legacy-core gives the transition bus the opener it made; the bus gives it to the core tail, which gives it to the app bootstrap.
+  assert.match(legacyCoreSource, /createLegacyTransitionBusLifecycle\(\{[\s\S]*?setupSettingsModal,/);
+  assert.match(coreTailSource, /^\s+setupSettingsModal,$/m);
   assert.match(
     appBootstrapLifecycleSource,
     /const\s+resolveEventsSetupSettingsModal\s*=\s*setupSettingsModal;/
   );
-  assert.doesNotMatch(appBootstrapLifecycleSource, /legacyRuntimeContext/);
+  for (const source of [legacyCoreSource, coreTailSource, appBootstrapLifecycleSource]) {
+    assert.doesNotMatch(source, /resolveBinding|registerLazyBinding|legacyRuntimeContext/);
+  }
 });

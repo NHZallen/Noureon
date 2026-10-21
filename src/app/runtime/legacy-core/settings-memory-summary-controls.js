@@ -68,7 +68,8 @@ export function createSettingsMemorySummaryControls({
   models = [],
   getConfig,
   getMemoryState,
-  legacyRuntimeContext,
+  // The memory functions (memory-runtime.js), or null while memory is not set up.
+  getMemory = () => null,
   saveConfig,
   isModelReady = () => true,
   showNotification = () => {},
@@ -85,15 +86,12 @@ export function createSettingsMemorySummaryControls({
   ));
   let memoryModelControlRefs = null;
 
-  // Keep the lazy runtime contract explicit here. Besides documenting the
-  // settings-facing operations, this means a binding remains resolved only at
-  // the moment the user opens or acts on this settings area.
-  const canResolveMemoryBinding = typeof legacyRuntimeContext?.resolveOptionalBinding === 'function';
+  // The memory functions are looked up only when the person opens or acts on this settings area (null while memory is not set up).
   const memoryBindings = {
-    getOverview: () => canResolveMemoryBinding ? legacyRuntimeContext.resolveOptionalBinding('memory.getOverview') : null,
-    updateSummary: () => canResolveMemoryBinding ? legacyRuntimeContext.resolveOptionalBinding('memory.updateSummary') : null,
-    refreshOverview: () => canResolveMemoryBinding ? legacyRuntimeContext.resolveOptionalBinding('memory.refreshOverview') : null,
-    getWorkStatus: () => canResolveMemoryBinding ? legacyRuntimeContext.resolveOptionalBinding('memory.getWorkStatus') : null
+    getOverview: () => getMemory()?.getOverview || null,
+    updateSummary: () => getMemory()?.updateSummary || null,
+    refreshOverview: () => getMemory()?.refreshOverview || null,
+    getWorkStatus: () => getMemory()?.getWorkStatus || null
   };
 
   const render = () => {

@@ -2,7 +2,9 @@
 
 `legacy-core.js` is the composition root of the signed-in page: it creates the stores (settings, workspace, the active conversation),
 the shared shell state (`shell-state.js`), and every lifecycle, and wires them together. Production boots it through
-`src/app/runtime-entry.js`.
+`src/app/runtime-entry.js`, which makes the core tail from `coreTailDependencies` and connects it and the app start back with
+`connectCoreTail()` and `connectRuntimeEntry()`. A part made before a function it needs gets a closure over that function (called
+only once the page runs), never a name to look up: `npm run check:legacy-runtime` fails on `resolveBinding` / `registerLazyBinding`.
 
 The other modules here are the lifecycles the shell creates and the parts they were split into (NOU-75):
 

@@ -6,170 +6,33 @@ import { initializeComposerRichEditor } from './runtime/features/composer-rich-e
 
 let productionStartPromise;
 
-const CORE_TAIL_BINDING_NAMES = [
-  'setupTimeAnalysis',
-  'updateTimeDistributionChart',
-  'applyUiTheme',
-  'renderUiColorOptions',
-  'openStore',
-  'closeStore',
-  'renderStore',
-  'handleSubscription',
-  'openAvatarEditor',
-  'handleAvatarUpload',
-  'handleConfirmAvatarCrop',
-  'applyLanguage',
-  'showMobileContextMenu',
-  'showMobileContextMenuForFolder',
-  'showMobileContextMenuForAstras',
-  'setupScrollToBottomButton',
-  'checkAndShowLatestUpdate',
-  'setupMessageIntersectionObserver',
-  'renderTrash',
-  'handleRestoreTrashItem',
-  'handleDeleteTrashItemPermanently',
-  'showTrashItemInViewModal',
-  'toggleTrashSelectionMode',
-  'renderTrashBatchActionBar',
-  'handleBatchRestoreFromTrash',
-  'handleBatchDeleteFromTrash',
-  'handleEmptyTrash',
-  'updateDisplayedVersion'
-];
-
-export async function loadLegacyRuntimeContext() {
-  const { legacyRuntimeContext } = await import('./runtime/legacy-core/legacy-core.js');
-  return legacyRuntimeContext;
+// The chat page's shell (legacy-core.js): importing it builds the stores and the lifecycles. It hands out what the core tail is made
+// from (coreTailDependencies) and takes back, explicitly, the parts made here (connectCoreTail, connectRuntimeEntry).
+export function loadLegacyCore() {
+  return import('./runtime/legacy-core/legacy-core.js');
 }
 
-export function getLegacyRuntimeEntryDependencies({ runtimeContext } = {}) {
-  if (!runtimeContext || typeof runtimeContext.resolveBinding !== 'function') {
-    throw new TypeError('A legacy runtime context with resolveBinding() is required.');
+const assertLegacyCore = (core) => {
+  for (const name of ['coreTailDependencies', 'connectCoreTail', 'connectRuntimeEntry']) {
+    if (!core?.[name]) throw new TypeError(`The legacy core must provide ${name}.`);
   }
+};
 
-  return validateLegacyRuntimeEntryDependencies(
-    runtimeContext.resolveBinding('runtime.entryDependencies')
-  );
-}
-
-export function getLegacyRuntimeCoreTailDependencies({ runtimeContext } = {}) {
-  if (!runtimeContext || typeof runtimeContext.resolveBinding !== 'function') {
-    throw new TypeError('A legacy runtime context with resolveBinding() is required.');
-  }
-
-  return runtimeContext.resolveBinding('runtime.coreTailDependencies');
-}
-
-export function registerCoreTailBindings({
-  runtimeContext,
-  coreTailLifecycle
-} = {}) {
-  if (!runtimeContext || typeof runtimeContext.registerLazyBinding !== 'function') {
-    throw new TypeError('A legacy runtime context with registerLazyBinding() is required.');
-  }
-  if (!coreTailLifecycle || typeof coreTailLifecycle !== 'object') {
-    throw new TypeError('A core tail lifecycle object is required.');
-  }
-
-  const registerBinding = (bindingName, binding) => {
-    if (typeof binding !== 'function') {
-      throw new TypeError(`Legacy runtime binding "${bindingName}" must be a function.`);
-    }
-
-    const existingBinding = typeof runtimeContext.resolveOptionalBinding === 'function'
-      ? runtimeContext.resolveOptionalBinding(bindingName)
-      : undefined;
-
-    if (existingBinding) {
-      if (existingBinding !== binding) {
-        throw new Error(`Legacy runtime binding "${bindingName}" is already registered.`);
-      }
-      return existingBinding;
-    }
-
-    runtimeContext.registerLazyBinding(bindingName, () => binding);
-    return binding;
-  };
-
-  const registeredBindings = {};
-  for (const name of CORE_TAIL_BINDING_NAMES) {
-    registeredBindings[name] = registerBinding(
-      `coreTail.${name}`,
-      coreTailLifecycle[name]
-    );
-  }
-
-  return Object.freeze(registeredBindings);
-}
-
-function composeCoreTailLifecycle({ runtimeContext } = {}) {
-  const coreTailDependencies = getLegacyRuntimeCoreTailDependencies({ runtimeContext });
-  const coreTailLifecycle = createLegacyCoreTailLifecycle(coreTailDependencies);
-
-  registerCoreTailBindings({ runtimeContext, coreTailLifecycle });
-  coreTailLifecycle.registerRuntimeEntryDependencies();
-
+/** Makes the core tail from the shell's dependencies and connects it back to the shell. */
+export function composeCoreTail(core) {
+  assertLegacyCore(core);
+  const coreTailLifecycle = createLegacyCoreTailLifecycle(core.coreTailDependencies);
+  core.connectCoreTail(coreTailLifecycle);
   return coreTailLifecycle;
 }
 
-export function registerRuntimeEntryBindings({
-  runtimeContext,
-  appBootstrapLifecycle,
-  startupLifecycle
-} = {}) {
-  if (!runtimeContext || typeof runtimeContext.registerLazyBinding !== 'function') {
-    throw new TypeError('A legacy runtime context with registerLazyBinding() is required.');
-  }
-  if (!appBootstrapLifecycle || typeof appBootstrapLifecycle.initChatApp !== 'function') {
-    throw new TypeError('An app bootstrap lifecycle with initChatApp() is required.');
-  }
-  if (!startupLifecycle || typeof startupLifecycle.adjustTextareaHeight !== 'function') {
-    throw new TypeError('A startup lifecycle with adjustTextareaHeight() is required.');
-  }
-
-  const registerBinding = (bindingName, binding) => {
-    const existingBinding = typeof runtimeContext.resolveOptionalBinding === 'function'
-      ? runtimeContext.resolveOptionalBinding(bindingName)
-      : undefined;
-
-    if (existingBinding) {
-      if (existingBinding !== binding) {
-        throw new Error(`Legacy runtime binding "${bindingName}" is already registered.`);
-      }
-      return existingBinding;
-    }
-
-    runtimeContext.registerLazyBinding(bindingName, () => binding);
-    return binding;
-  };
-
-  return Object.freeze({
-    initChatApp: registerBinding(
-      'app.initChatApp',
-      appBootstrapLifecycle.initChatApp
-    ),
-    adjustTextareaHeight: registerBinding(
-      'runtimeEntry.submit.adjustTextareaHeight',
-      startupLifecycle.adjustTextareaHeight
-    )
-  });
-}
-
 export function createRuntimeEntry({
-  runtimeContext,
+  core,
   dependencies
 } = {}) {
-  const coreTailLifecycle = dependencies
-    ? undefined
-    : runtimeContext
-      ? composeCoreTailLifecycle({ runtimeContext })
-      : undefined;
+  const coreTailLifecycle = dependencies ? undefined : core ? composeCoreTail(core) : undefined;
   const resolvedDependencies = validateLegacyRuntimeEntryDependencies(
-    dependencies ?? (
-      runtimeContext
-        ? getLegacyRuntimeEntryDependencies({ runtimeContext })
-        : undefined
-    )
+    dependencies ?? coreTailLifecycle?.runtimeEntryDependencies
   );
   const appBootstrapLifecycle = createLegacyAppBootstrapLifecycle(
     resolvedDependencies.appBootstrap
@@ -179,20 +42,15 @@ export function createRuntimeEntry({
     initChatApp: appBootstrapLifecycle.initChatApp
   });
 
-  let startPromise;
-  const registerBindings = () => {
-    if (!runtimeContext) {
-      return Object.freeze({
-        initChatApp: appBootstrapLifecycle.initChatApp,
-        adjustTextareaHeight: startupLifecycle.adjustTextareaHeight
-      });
-    }
-    return registerRuntimeEntryBindings({
-      runtimeContext,
-      appBootstrapLifecycle,
-      startupLifecycle
+  // The shell calls these once the page runs: the start of the chat page after signing in, and the height of the message field.
+  const connect = () => {
+    core?.connectRuntimeEntry({
+      initChatApp: appBootstrapLifecycle.initChatApp,
+      adjustTextareaHeight: startupLifecycle.adjustTextareaHeight
     });
   };
+
+  let startPromise;
   const start = () => {
     if (startPromise) return startPromise;
 
@@ -201,7 +59,7 @@ export function createRuntimeEntry({
       inputIndicatorContainer: resolvedDependencies.appBootstrap.elements?.inputIndicatorContainer,
       document: resolvedDependencies.appBootstrap.document
     });
-    registerBindings();
+    connect();
     startupLifecycle.bindAuthStartupListeners();
     startPromise = Promise.resolve(startupLifecycle.initializeApp());
     startupLifecycle.bindLoginLanguageSwitcher();
@@ -211,30 +69,24 @@ export function createRuntimeEntry({
 
   return Object.freeze({
     dependencies: resolvedDependencies,
-    runtimeContext,
     coreTailLifecycle,
     initChatApp: appBootstrapLifecycle.initChatApp,
     initializeApp: startupLifecycle.initializeApp,
     adjustTextareaHeight: startupLifecycle.adjustTextareaHeight,
-    registerBindings,
+    connect,
     start
   });
 }
 
-export async function createRuntimeEntryFromLegacyRuntime() {
-  const runtimeContext = await loadLegacyRuntimeContext();
-  return createRuntimeEntry({ runtimeContext });
-}
-
 export function startRuntimeEntry({
-  loadRuntimeContext = loadLegacyRuntimeContext
+  loadCore = loadLegacyCore
 } = {}) {
   if (productionStartPromise) return productionStartPromise;
 
   productionStartPromise = Promise.resolve()
-    .then(() => loadRuntimeContext())
-    .then((runtimeContext) => {
-      const entry = createRuntimeEntry({ runtimeContext });
+    .then(() => loadCore())
+    .then((core) => {
+      const entry = createRuntimeEntry({ core });
       return Promise.resolve(entry.start()).then(() => entry);
     });
 

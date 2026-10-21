@@ -26,7 +26,6 @@ const requiredDependencies = [
     'document',
     'window',
     'elements',
-    'legacyRuntimeContext',
     'getConfig',
     'mutateConfig',
     'getSensitiveApiKeys',
@@ -83,7 +82,10 @@ export function createLegacyBatchImportVoiceLifecycle(dependencies = {}) {
         loadArchiveVendor,
         JSZip,
         elements: ALL_ELEMENTS,
-        legacyRuntimeContext,
+        // The memory functions (memory-runtime.js), or null while memory is not set up.
+        getMemory = () => null,
+        setupSettingsModal,
+        initChatApp,
         getConfig,
         mutateConfig,
         getSensitiveApiKeys,
@@ -165,9 +167,7 @@ export function createLegacyBatchImportVoiceLifecycle(dependencies = {}) {
         if (selectedConversationIds.has(conversationStateAccess.getCurrentConversationId())) {
             await startNewChat({ keepSidebarOpen: true });
         }
-        const invalidateConversationMemory = typeof legacyRuntimeContext.resolveOptionalBinding === 'function'
-            ? legacyRuntimeContext.resolveOptionalBinding('memory.invalidateConversation')
-            : null;
+        const invalidateConversationMemory = getMemory()?.invalidateConversation;
         if (typeof invalidateConversationMemory === 'function') {
             const ids = [...selectedConversationIds];
             for (const [index, conversationId] of ids.entries()) {
@@ -259,7 +259,7 @@ export function createLegacyBatchImportVoiceLifecycle(dependencies = {}) {
         showNotification(`${getTexts().moved || '已移動'} ${count} ${getTexts().conversations || '個對話。'}`);
     };
 
-    const resolveSearchSetupSettingsModal = (...args) => legacyRuntimeContext.resolveBinding('settings.setupSettingsModal')(...args);
+    const resolveSearchSetupSettingsModal = (...args) => setupSettingsModal(...args);
 
     // Import and export (features/import-export-lifecycle.js) load the first time one is used.
     const importExportLifecycle = createLazyFunctions(() => import('../features/import-export-lifecycle.js').then(({ createLegacyImportExportLifecycle }) => createLegacyImportExportLifecycle({
@@ -335,7 +335,7 @@ export function createLegacyBatchImportVoiceLifecycle(dependencies = {}) {
         requestAnimationFrame,
         scheduleTimeout,
         delay,
-        initChatApp: () => legacyRuntimeContext.resolveBinding('app.initChatApp')(),
+        initChatApp: () => initChatApp(),
         i18n,
         logger,
         resolveImportedApiKeys: importExportLifecycle.resolveImportedApiKeys,

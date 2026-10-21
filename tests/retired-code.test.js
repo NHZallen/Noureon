@@ -209,9 +209,6 @@ const RETIRED = {
       /legacyRuntimeContext|indexedDB|createLegacyRuntimeStorageAdapter/,
       /function\s+handleLogin|function\s+handleImportOnAuth|function\s+processAuthImport/
     ],
-    "initChatApp callers use the required runtime handoff without changing legacy order": [
-      /legacyRuntimeContext/
-    ],
   },
   'src/app/runtime/features/trash-lifecycle.js': {
     "trash lifecycle ownership moves out of 04 into a real runtime module": [
@@ -436,20 +433,6 @@ const RETIRED = {
       /const\s+(?:DB_NAME|STORE_NAME)\b|async\s+function\s+(?:openDB|getItem|setItem|removeItem)/,
       /\bSTORE_NAME\b|\bopenDB\(\)|store\.clear\(\)/
     ],
-    "initChatApp callers use the required runtime handoff without changing legacy order": [
-      /(^|[^\w.])initChatApp\(\)/,
-      /resolveOptionalBinding\('app\.initChatApp'/
-    ],
-    "loadChat resolves updateFunctionButtonsState through the required runtime handoff": [
-      /(^|[^\w.])updateFunctionButtonsState\(\)/,
-      /resolveOptionalBinding\('input\.updateFunctionButtonsState'\)/,
-      /await\s+legacyRuntimeContext\.resolveBinding\('input\.updateFunctionButtonsState'\)/
-    ],
-    "selected toggleSidebar callers use the required runtime handoff without changing sidebar behavior": [
-      /(^|[^\w.])toggleSidebar\(false\)/,
-      /resolveOptionalBinding\('sidebar\.toggleSidebar'/,
-      /await\s+legacyRuntimeContext\.resolveBinding\('sidebar\.toggleSidebar'/
-    ],
     "runtime render coordinator keeps sidebar-only updates out of the chat renderer": [
       /runtimeRenderCoordinator\.renderAll\(\)/
     ],
@@ -562,9 +545,6 @@ const RETIRED = {
     ],
   },
   'src/app/runtime/legacy-core/settings-auth-actions-helper.js': {
-    "initChatApp callers use the required runtime handoff without changing legacy order": [
-      /await\s+legacyRuntimeContext\.resolveBinding\('app\.initChatApp'\)/
-    ],
   },
   'src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js': {
     "sensitive config export redaction boundary is explicit": [
@@ -573,10 +553,6 @@ const RETIRED = {
     ],
     "legacy IndexedDB ownership moves into a narrow storage adapter": [
       /\bSTORE_NAME\b|\bopenDB\(\)|store\.clear\(\)/
-    ],
-    "initChatApp callers use the required runtime handoff without changing legacy order": [
-      /(^|[^\w.])initChatApp\(\)/,
-      /resolveOptionalBinding\('app\.initChatApp'/
     ],
     "runtime config access owns selected uiLanguage reads through the config store": [
       /config\.uiLanguage\s*=\s*ALL_ELEMENTS\.uiLanguageSelect\.value;/
@@ -594,11 +570,6 @@ const RETIRED = {
     "sidebar chat Astra render lifecycle ownership stays in a real module with legacy core wiring": [
       /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app/
     ],
-    "selected toggleSidebar callers use the required runtime handoff without changing sidebar behavior": [
-      /(^|[^\w.])toggleSidebar\(false\)/,
-      /resolveOptionalBinding\('sidebar\.toggleSidebar'/,
-      /await\s+legacyRuntimeContext\.resolveBinding\('sidebar\.toggleSidebar'/
-    ],
     "runtime render coordinator keeps sidebar-only updates out of the chat renderer": [
       /runtimeRenderCoordinator\.renderAll\(\)/
     ],
@@ -611,9 +582,6 @@ const RETIRED = {
     ],
     "conversation state access owns selected active conversation lookups without stale snapshots": [
       /conv\.id\s*===\s*activeConversationId/
-    ],
-    "settings sidebar button remains wired to initialize and open the settings modal": [
-      /\n\s*updateInputState,\s*\n/
     ],
     "general message markup rendering is isolated from the 01 runtime DOM shell": [
       /const\s+isUser\s*=\s*msg\.role\s*===\s*'user'/,
@@ -668,10 +636,6 @@ const RETIRED = {
       /let\s+singleProgressTimer\s*=\s*null/
     ],
     "response progress renderers and submit preparation are isolated from the 01 runtime shell": [
-      /\n\s*updateSubmitButtonState,\s*\n/,
-      /\n\s*generateTitleAndSummary,\s*\n/,
-      /\n\s*renderFilePreviews,\s*\n/,
-      /\n\s*adjustTextareaHeight,\s*\n/,
       /const\s+renderCouncilProgress\s*=\s*\(progress\)\s*=>/,
       /const\s+renderSingleModelProgress\s*=\s*\(progress\)\s*=>/,
       /const\s+renderSingleModelError\s*=\s*\(progress\s*=\s*\{\},\s*errorMessage\s*=\s*''\)\s*=>/,
@@ -782,10 +746,6 @@ const RETIRED = {
     ],
     "batch action bar lifecycle breaks the 02 to 03 renderBatchActionBar continuation boundary": [
       /^\s*userControls\.classList\.add\('hidden'\);/
-    ],
-    "initChatApp callers use the required runtime handoff without changing legacy order": [
-      /(^|[^\w.])initChatApp\(\)/,
-      /resolveOptionalBinding\('app\.initChatApp'/
     ],
     "settings sidebar button remains wired to initialize and open the settings modal": [
       /const\s+resolveSearchSetupSettingsModal\b/

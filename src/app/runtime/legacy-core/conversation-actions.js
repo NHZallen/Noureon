@@ -14,10 +14,10 @@ export const getDefaultGenConfig = () => ({ temperature: 0.7, topP: 0.95, maxTok
 export const getDefaultFolder = () => ({ color: 'gray', icon: 'default', textColor: 'gray', isOpen: false});
 
 export function createConversationActions({
-    window, document, elements: ALL_ELEMENTS, i18n, shell, legacyRuntimeContext,
+    window, document, elements: ALL_ELEMENTS, i18n, shell, toggleSidebar, updateFunctionButtonsState,
     runtimeConfigAccess, liveConversationsBridge, conversationStateAccess, runtimeAppDataStore, runtimeDialogCoordinator,
     cloneCouncilConfig, getText, toggleModal, saveAppData, renderMarkdown, bindGeneratedImageAssets,
-    getActiveConversation, renderAll, renderSidebar, adjustTextareaHeightAlias, resolveFoundationUpdateInputState, updateApiKeyWarningBadge,
+    getActiveConversation, renderAll, renderSidebar, adjustTextareaHeight, updateInputState, updateApiKeyWarningBadge,
     getQuoteInquiry, cancelPendingMemoryCapture, invalidateConversationMemory
 }) {
     let itemToRename = { id: null, type: null };
@@ -65,11 +65,11 @@ export function createConversationActions({
         conversationStateAccess.setCurrentConversationId(newConv.id);
         renderAll();
         ALL_ELEMENTS.messageInput.value = '';
-        setTimeout(adjustTextareaHeightAlias, 0);
+        setTimeout(adjustTextareaHeight, 0);
         if (!keepSidebarOpen) {
-            legacyRuntimeContext.resolveBinding('sidebar.toggleSidebar')(false);
+            toggleSidebar(false);
         }
-        resolveFoundationUpdateInputState();
+        updateInputState();
         updateApiKeyWarningBadge();
     };
     const loadChat = (id) => {
@@ -92,14 +92,14 @@ export function createConversationActions({
             renderAll({reason:'chat-switch',scrollMode:'bottom'});
             window.dispatchEvent(new window.CustomEvent('astra:active-conversation-changed',{detail:{conversationId:id}}));
             ALL_ELEMENTS.messageInput.value = conv ? conv.unsentMessage || '' : '';
-            setTimeout(adjustTextareaHeightAlias, 0);
+            setTimeout(adjustTextareaHeight, 0);
             if (councilWasEnabled) {
                 saveAppData().catch(error => console.error('Failed to persist council reset after switching conversations:', error));
             }
         }
-        resolveFoundationUpdateInputState();
+        updateInputState();
         updateApiKeyWarningBadge();
-        legacyRuntimeContext.resolveBinding('input.updateFunctionButtonsState')();
+        updateFunctionButtonsState();
     };
     const deleteChat = async (id, event) => {
         event?.stopPropagation();

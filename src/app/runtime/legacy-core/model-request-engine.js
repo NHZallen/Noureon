@@ -22,7 +22,7 @@ import { opencodeModelReadsOfficeViaPdf } from './opencode-models.js';
 import { createPageCouncilMembers } from '../../legacy-runtime/features/council-members-page.js';
 
 export function createModelRequestEngine({
-    fetch, console, elements: ALL_ELEMENTS, state, legacyRuntimeContext, models: MODELS, i18n, config, astras, personalMemories,
+    fetch, console, elements: ALL_ELEMENTS, state, getMemory = () => null, models: MODELS, i18n, config, astras, personalMemories,
     cheapModelId: CHEAP_MODEL_ID, councilResponseCharLimit: COUNCIL_RESPONSE_CHAR_LIMIT, councilRetryDelayMs: COUNCIL_RETRY_DELAY_MS,
     councilMaxModels: COUNCIL_MAX_MODELS, getActiveConversation, normalizeConversationModel, getModelApiId, getApiKeyForProvider,
     getDefaultGenConfig, modelSupportsUploadedFile, modelSupportsVision, modelSupportsDocumentUpload, modelUsesTavilySearch,
@@ -33,9 +33,7 @@ export function createModelRequestEngine({
     const getMemoryContext = createCurrentMemoryContextProvider({
         getMemoryState: () => state.memoryState,
         retrieveHistory: async options => {
-            const retrieve = typeof legacyRuntimeContext.resolveOptionalBinding === 'function'
-            ? legacyRuntimeContext.resolveOptionalBinding('memory.retrieveHistory')
-            : null;
+            const retrieve = getMemory()?.retrieveHistory;
             return typeof retrieve === 'function' ? retrieve(options) : [];
         }
     });

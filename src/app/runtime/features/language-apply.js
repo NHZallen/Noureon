@@ -4,7 +4,7 @@
 import { ensureLanguage, isLanguageLoaded } from '../../i18n/language-packs.js';
 
 export function createLanguageApply({
-    window, document, elements: ALL_ELEMENTS, i18n, legacyRuntimeContext, console,
+    window, document, elements: ALL_ELEMENTS, i18n, updateInputState, console,
     renderAstras, renderInputIndicators, renderCouncilControls, renderStore, renderTrash, renderPersonalMemoryList
 }) {
     let lastAppliedLanguage = null;
@@ -75,7 +75,7 @@ export function createLanguageApply({
         if(ALL_ELEMENTS.loginLangLabel) {
             ALL_ELEMENTS.loginLangLabel.textContent = translations.currentLanguageName || '繁體中文';
         }
-        legacyRuntimeContext.resolveBinding('input.updateInputState')();
+        updateInputState();
         document.documentElement.lang = lang;
         // Noura names are localized when the list is built, not through data-lang-key, so the
         // sidebar and the active-Noura chip keep the old language until they are rebuilt.

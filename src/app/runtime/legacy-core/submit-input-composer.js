@@ -9,7 +9,7 @@ import { chipCloseButton } from '../features/composer-chip.js';
 import { syncInputIndicatorItems } from './input-indicator-sync.js';
 
 export function createSubmitInputComposer({
-  document, elements: ALL_ELEMENTS, legacyRuntimeContext, state, models: MODELS, i18n, openRouterVisionModels, councilMinModels, councilMaxModels,
+  document, elements: ALL_ELEMENTS, updateInputState, state, models: MODELS, i18n, openRouterVisionModels, councilMinModels, councilMaxModels,
   getLiveConfig, getLocalizedText, getUploadedFiles, getActiveConversation, normalizeConversationModel, isImageConversation,
   getCouncilSelectedModels, getCouncilTexts, getCouncilValidation, getVisibleCouncilModels, isCouncilEnabled, normalizeCouncilConfig, cloneCouncilConfig,
   modelSupportsVision, hasSingleDocumentAccess, hasCouncilWebSearchAccess, hasSingleWebSearchAccess,
@@ -239,7 +239,7 @@ export function createSubmitInputComposer({
             wrapper.classList.remove('has-indicators');
           }
           const persistence = persistCouncilConfig(conv, false);
-          legacyRuntimeContext.resolveBinding('input.updateInputState')();
+          updateInputState();
           updateApiKeyWarningBadge();
           renderModelSwitcher();
           renderCouncilControls();
@@ -296,7 +296,7 @@ export function createSubmitInputComposer({
       renderModelSwitcher();
       renderCouncilControls();
       renderInputIndicators();
-      legacyRuntimeContext.resolveBinding('input.updateInputState')();
+      updateInputState();
       updateApiKeyWarningBadge();
     }
   };

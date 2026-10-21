@@ -46,9 +46,6 @@ const EXPORTS = {
   'src/app/legacy-runtime/features/single-model-response-lifecycle.js': [
     'createSingleModelResponseLifecycle'
   ],
-  'src/app/legacy-runtime/runtime/legacy-runtime-context.js': [
-    'createLegacyRuntimeContext'
-  ],
   'src/app/legacy-runtime/features/response-progress-renderers.js': [
     'createResponseProgressRenderers'
   ],

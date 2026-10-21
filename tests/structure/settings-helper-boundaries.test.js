@@ -293,10 +293,11 @@ test('settings modal orchestration and legacy core wiring remain in place', () =
   // There is only one way replies are shown, so the settings do not ask for it.
   assert.doesNotMatch(legacyCoreSource, /getOutputMode,\s*\n\s*renderHistorySidebar,/);
   assert.match(legacyCoreSource, /const\s+\{[\s\S]*runModelCouncil,[\s\S]*callApiWithSchema,[\s\S]*updateSubmitButtonState,[\s\S]*updateInputState,[\s\S]*setupSettingsModal,[\s\S]*saveSettings,[\s\S]*handleLogin,[\s\S]*handleLogout,[\s\S]*handleDeleteAllData[\s\S]*\}\s*=\s*settingsAuthProviderLifecycle;/);
-  assert.match(legacyCoreSource, /legacyRuntimeContext\.registerLazyBinding\('settings\.setupSettingsModal',\s*\(\)\s*=>\s*setupSettingsModal\);/);
-  assert.match(legacyCoreSource, /legacyRuntimeContext\.registerLazyBinding\('input\.updateInputState',\s*\(\)\s*=>\s*updateInputState\);/);
+  // The settings opener and the input state are handed on as parameters (NOU-76), not registered by name.
+  assert.match(legacyCoreSource, /createLegacyTransitionBusLifecycle\(\{[\s\S]*?updateInputState,\s*setupSettingsModal,/);
+  assert.doesNotMatch(legacyCoreSource, /registerLazyBinding|resolveBinding/);
   assert.match(legacyCoreSource, /const\s+transitionBusLifecycle\s*=\s*createLegacyTransitionBusLifecycle\(\{/);
-  assert.match(legacyCoreSource, /transitionBusLifecycle\.registerCoreTailDependencies\(\);/);
+  assert.match(legacyCoreSource, /export const coreTailDependencies = transitionBusLifecycle\.coreTailDependencies;/);
   for (const removedInlineBody of [
     /const\s+setupSettingsModal\s*=\s*\(\)\s*=>\s*\{/,
     /const\s+saveSettings\s*=\s*async\s*\(\{/,

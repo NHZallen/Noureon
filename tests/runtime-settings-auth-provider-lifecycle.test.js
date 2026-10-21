@@ -330,7 +330,7 @@ test('source keeps settings save ownership and composes auth actions helper', ()
   assert.doesNotMatch(saveSettingsHelperSource, /sensitive-config-store|api-key-input-intent/);
   assert.doesNotMatch(saveSettingsHelperSource, /handleLogin|handleLogout|handleDeleteAllData|authContainer|appContainer|chat_lastUser|runtimeStorageAdapter\.clear|window\.location\.reload|initChatApp/);
   assert.doesNotMatch(source, /config\.apiKeys\.gemini\s*=/);
-  assert.match(authActionsHelperSource, /legacyRuntimeContext\.resolveBinding\('app\.initChatApp'\)\(\)/);
+  assert.match(authActionsHelperSource, /\binitChatApp\(\);/);
   assertMarkersInOrder(handleLoginBody, [
     'await setItem(\'chat_lastUser\', username);',
     'await loadConfig();',
@@ -341,7 +341,7 @@ test('source keeps settings save ownership and composes auth actions helper', ()
     'elements.appContainer.classList.remove(\'hidden\');',
     'requestAnimationFrame(() =>',
     'elements.authContainer.addEventListener(\'transitionend\'',
-    'legacyRuntimeContext.resolveBinding(\'app.initChatApp\')();'
+    'initChatApp();'
   ], 'handleLogin success transition and init handoff');
   assertMarkersInOrder(handleLogoutBody, [
     'await showCustomConfirm',

@@ -23,7 +23,6 @@ const REQUIRED_DEPENDENCIES = [
     'runtimeConfigAccess',
     'runtimeAppDataStore',
     'runtimeDialogCoordinator',
-    'legacyRuntimeContext',
     'getCurrentConversationId',
     'setCurrentConversationId',
     'i18n'
@@ -74,7 +73,12 @@ export function createLegacyCoreTailLifecycle(dependencies = {}) {
         runtimeConfigAccess,
         runtimeAppDataStore,
         runtimeDialogCoordinator,
-        legacyRuntimeContext,
+        // Functions made by legacy-core.js and the runtime entry, called once the page runs.
+        updateInputState,
+        setupSettingsModal,
+        adjustTextareaHeight,
+        // The memory functions (memory-runtime.js), or null while memory is not set up.
+        getMemory = () => null,
         getCurrentConversationId,
         setCurrentConversationId,
         i18n,
@@ -211,7 +215,7 @@ export function createLegacyCoreTailLifecycle(dependencies = {}) {
             FileReader, Cropper, escapeHTML, deleteAstrasFromCloud, showNotification, toggleModal, saveAppData, renderAstras
         });
         const applyLanguage = createLanguageApply({
-            window, document, elements: ALL_ELEMENTS, i18n, legacyRuntimeContext, console,
+            window, document, elements: ALL_ELEMENTS, i18n, updateInputState, console,
             renderAstras, renderInputIndicators, renderCouncilControls, renderStore,
             renderTrash: (...args) => renderTrash(...args),
             renderPersonalMemoryList: (...args) => renderPersonalMemoryList(...args)
@@ -258,15 +262,11 @@ export function createLegacyCoreTailLifecycle(dependencies = {}) {
             showCoordinatedNotification: (...args) => runtimeDialogCoordinator.showNotification(...args),
             deleteConversationsFromCloud,
             invalidateConversationMemory: options => {
-                const invalidate = typeof legacyRuntimeContext.resolveOptionalBinding === 'function'
-                    ? legacyRuntimeContext.resolveOptionalBinding('memory.invalidateConversation')
-                    : null;
+                const invalidate = getMemory()?.invalidateConversation;
                 return typeof invalidate === 'function' ? invalidate(options) : Promise.resolve();
             },
             rebuildHistoryIndex: options => {
-                const rebuild = typeof legacyRuntimeContext.resolveOptionalBinding === 'function'
-                    ? legacyRuntimeContext.resolveOptionalBinding('memory.rebuildHistoryIndex')
-                    : null;
+                const rebuild = getMemory()?.rebuildHistoryIndex;
                 return typeof rebuild === 'function' ? rebuild(options) : Promise.resolve();
             },
             toggleModal,
@@ -335,10 +335,8 @@ export function createLegacyCoreTailLifecycle(dependencies = {}) {
                 updateDisplayedVersion,
                 checkAndShowLatestUpdate,
                 updateFunctionButtonsState,
-                updateInputState: (...args) =>
-                    legacyRuntimeContext.resolveBinding('input.updateInputState')(...args),
-                setupSettingsModal: (...args) =>
-                    legacyRuntimeContext.resolveBinding('settings.setupSettingsModal')(...args),
+                updateInputState,
+                setupSettingsModal,
                 toggleSidebar,
                 toggleModal,
                 saveSettings,
@@ -372,8 +370,7 @@ export function createLegacyCoreTailLifecycle(dependencies = {}) {
                 handleBatchDelete,
                 handleBatchArchive,
                 handleBatchMove,
-                adjustTextareaHeight: (...args) =>
-                    legacyRuntimeContext.resolveBinding('submit.adjustTextareaHeight')(...args),
+                adjustTextareaHeight,
                 submitChatForm,
                 closeAllPopovers,
                 showCustomPrompt,
@@ -454,14 +451,6 @@ export function createLegacyCoreTailLifecycle(dependencies = {}) {
                 getComputedStyle
             }
         });
-        const registerRuntimeEntryDependencies = () => {
-            legacyRuntimeContext.registerLazyBinding(
-                'runtime.entryDependencies',
-                () => runtimeEntryDependencies
-            );
-            return runtimeEntryDependencies;
-        };
-
         return Object.freeze({
             setupTimeAnalysis,
             updateTimeDistributionChart,
@@ -491,7 +480,7 @@ export function createLegacyCoreTailLifecycle(dependencies = {}) {
             handleBatchDeleteFromTrash,
             handleEmptyTrash,
             updateDisplayedVersion,
-            runtimeEntryDependencies,
-            registerRuntimeEntryDependencies
+            // What the runtime entry makes the start of the page and its bootstrap from (runtime-entry.js).
+            runtimeEntryDependencies
         });
     }
