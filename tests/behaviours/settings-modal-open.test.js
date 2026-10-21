@@ -86,17 +86,15 @@ test('settings modal source keeps Tavily depth fallback local to setupSettingsMo
 
 test('the settings opener is handed on as a function, not looked up by name', () => {
   const legacyCoreSource = readSource('src/app/runtime/legacy-core/legacy-core.js');
-  const coreTailSource = readSource('src/app/runtime/legacy-core/core-tail-lifecycle.js');
   const appBootstrapLifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
 
-  // legacy-core gives the transition bus the opener it made; the bus gives it to the core tail, which gives it to the app bootstrap.
-  assert.match(legacyCoreSource, /createLegacyTransitionBusLifecycle\(\{[\s\S]*?setupSettingsModal,/);
-  assert.match(coreTailSource, /^\s+setupSettingsModal,$/m);
+  // legacy-core makes the opener and gives it to the app bootstrap it makes.
+  assert.match(legacyCoreSource, /createLegacyAppBootstrapLifecycle\(\{[\s\S]*?\bsetupSettingsModal,/);
   assert.match(
     appBootstrapLifecycleSource,
     /const\s+resolveEventsSetupSettingsModal\s*=\s*setupSettingsModal;/
   );
-  for (const source of [legacyCoreSource, coreTailSource, appBootstrapLifecycleSource]) {
+  for (const source of [legacyCoreSource, appBootstrapLifecycleSource]) {
     assert.doesNotMatch(source, /resolveBinding|registerLazyBinding|legacyRuntimeContext/);
   }
 });

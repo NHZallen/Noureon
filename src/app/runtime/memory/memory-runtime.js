@@ -1,7 +1,7 @@
 // The memory of the page (memory v2): the index of past conversations and its recall, what is learned from each finished turn, the
-// topic summaries and the memory summary, and the work that keeps them in step when a conversation is deleted. Made once by the
-// transition bus (legacy-core/transition-bus-lifecycle.js); the services it registers on the runtime context are what the settings,
-// the reply and the trash reach.
+// topic summaries and the memory summary, and the work that keeps them in step when a conversation is deleted. Made once with the
+// workspace features (legacy-core/workspace-features.js); the memory functions it returns are what the settings, the reply and the
+// trash reach.
 
 import { createMemoryCaptureService } from './memory-capture-service.js';
 import { createMemoryWorkScheduler } from './memory-work-scheduler.js';

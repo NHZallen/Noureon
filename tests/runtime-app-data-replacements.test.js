@@ -124,7 +124,7 @@ test('saveAppData reads the store snapshot while active conversation id uses the
 
 test('app data state is store-backed without legacy local mirrors', () => {
   const legacyCoreSource = readSource('src/app/runtime/legacy-core/legacy-core.js');
-  const transitionBusSource = readSource('src/app/runtime/legacy-core/transition-bus-lifecycle.js');
+  const transitionBusSource = readSource('src/app/runtime/legacy-core/workspace-features.js');
 
   assertMarkersInOrder(legacyCoreSource, [
     'const runtimeAppDataStore = runtimeAppKernel.appDataStore',
@@ -169,7 +169,7 @@ test('app data state is store-backed without legacy local mirrors', () => {
 test('all legacy-core app data mirrors remain retired', () => {
   const legacyCoreSource = readSource('src/app/runtime/legacy-core/legacy-core.js');
   const modelMemoryDashboardSource = readSource('src/app/runtime/legacy-core/model-memory-dashboard-lifecycle.js');
-  const transitionBusSource = readSource('src/app/runtime/legacy-core/transition-bus-lifecycle.js');
+  const transitionBusSource = readSource('src/app/runtime/legacy-core/workspace-features.js');
   const folderLifecycleSource = readSource('src/app/runtime/features/folder-lifecycle.js');
   const sidebarChatAstraRenderSource = readSource('src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js');
 
@@ -241,7 +241,7 @@ test('Astra and folder delete flows keep linked conversation cleanup and save/re
 });
 
 test('03 import and auth import paths keep bulk replacements, chunked pushes, and persistence order', () => {
-  const fragment03Source = readSource('src/app/runtime/legacy-core/transition-bus-lifecycle.js');
+  const fragment03Source = readSource('src/app/runtime/legacy-core/workspace-features.js');
   const modelMemoryDashboardSource = readSource('src/app/runtime/legacy-core/model-memory-dashboard-lifecycle.js');
   const importExportSource = readSource('src/app/runtime/features/import-export-lifecycle.js');
   const authImportSource = readSource('src/app/runtime/features/auth-import-lifecycle.js');
@@ -311,8 +311,8 @@ test('03 import and auth import paths keep bulk replacements, chunked pushes, an
 });
 
 test('04 store and trash destructive flows keep replacement, save, render, and notification order', () => {
-  const fragment03Source = readSource('src/app/runtime/legacy-core/transition-bus-lifecycle.js');
-  const coreTailSource = readSource('src/app/runtime/legacy-core/core-tail-lifecycle.js');
+  const fragment03Source = readSource('src/app/runtime/legacy-core/workspace-features.js');
+  const pageFeaturesSource = readSource('src/app/runtime/legacy-core/page-features.js');
   const trashLifecycleSource = readSource('src/app/runtime/features/trash-lifecycle.js');
   const handleSubscriptionBody = getConstFunctionBody(readSource('src/app/runtime/features/astra-store-lifecycle.js'), 'handleSubscription');
   const permanentDeleteBody = getConstFunctionBody(trashLifecycleSource, 'handleDeleteTrashItemPermanently');
@@ -371,12 +371,12 @@ test('04 store and trash destructive flows keep replacement, save, render, and n
   ], 'empty trash replacement order');
 
   assert.match(
-    coreTailSource,
+    pageFeaturesSource,
     /replaceConversations:\s*\(nextConversations\)\s*=>\s*\{\s*state\.conversations\s*=\s*nextConversations;\s*return\s+state\.conversations;\s*\}/
   );
-  assert.doesNotMatch(coreTailSource, /runtimeAppDataStore\.replaceConversations\(/);
-  // The core tail is given the shared shell state itself (legacy-core/shell-state.js), not a copy of its getters.
-  assert.match(fragment03Source, /const coreTailDependencies = \{[\s\S]*?\n\s*state,\n/);
+  assert.doesNotMatch(pageFeaturesSource, /runtimeAppDataStore\.replaceConversations\(/);
+  // The page features are given the shared shell state itself (legacy-core/shell-state.js), not a copy of its getters.
+  assert.match(readSource('src/app/runtime/legacy-core/legacy-core.js'), /createPageFeatures\(\{[\s\S]*?\bstate: shell,/);
 });
 
 test('app data store remains wired while production boot moves through runtime entry', () => {
@@ -389,9 +389,9 @@ test('app data store remains wired while production boot moves through runtime e
   const fragment01Source = readSource('src/app/runtime/legacy-core/legacy-core.js');
   const fragment02Source = readSource('src/app/runtime/legacy-core/legacy-core.js');
   const sidebarChatAstraRenderSource = readSource('src/app/runtime/legacy-core/sidebar-chat-astra-render-lifecycle.js');
-  const fragment03Source = readSource('src/app/runtime/legacy-core/transition-bus-lifecycle.js');
+  const fragment03Source = readSource('src/app/runtime/legacy-core/workspace-features.js');
   const modelMemoryDashboardSource = readSource('src/app/runtime/legacy-core/model-memory-dashboard-lifecycle.js');
-  const coreTailSource = readSource('src/app/runtime/legacy-core/core-tail-lifecycle.js');
+  const pageFeaturesSource = readSource('src/app/runtime/legacy-core/page-features.js');
   const runtimeEntrySource = readSource('src/app/runtime-entry.js');
   const mainSource = readSource('src/main.js');
   const legacyEntrySource = readSource('src/app/legacy-app.js');
@@ -425,12 +425,12 @@ test('app data store remains wired while production boot moves through runtime e
   );
   assert.match(modelMemoryDashboardSource, /personalMemories\s*=\s*replacePersonalMemories\(\s*personalMemories\.filter\(m\s*=>\s*m\.id\s*!==\s*id\)\s*\)/);
   assert.match(readSource('src/app/runtime/features/astra-store-lifecycle.js'), /state\.astras\s*=\s*runtimeAppDataStore\.replaceAstras\(\s*state\.astras\.filter\(a\s*=>\s*a\.officialId\s*!==\s*officialId\)\s*\)/);
-  // The core tail is given the shared shell state itself (legacy-core/shell-state.js), not a copy of its getters.
-  assert.match(fragment03Source, /const coreTailDependencies = \{[\s\S]*?\n\s*state,\n/);
+  // The page features are given the shared shell state itself (legacy-core/shell-state.js), not a copy of its getters.
+  assert.match(readSource('src/app/runtime/legacy-core/legacy-core.js'), /createPageFeatures\(\{[\s\S]*?\bstate: shell,/);
   assert.doesNotMatch(fragment01Source, /from\s+['"][^'"]*app-data-store\.js['"]/);
   assert.doesNotMatch(fragment02Source, /from\s+['"][^'"]*app-data-store\.js['"]/);
   assert.doesNotMatch(fragment03Source, /from\s+['"][^'"]*app-data-store\.js['"]/);
-  assert.doesNotMatch(coreTailSource, /from\s+['"][^'"]*app-data-store\.js['"]/);
+  assert.doesNotMatch(pageFeaturesSource, /from\s+['"][^'"]*app-data-store\.js['"]/);
   assert.doesNotMatch(runtimeEntrySource, /runtimeAppDataStore|createLegacyRuntimeAppDataStore|app-data-store/);
   assert.match(runtimeAppSource, /import\s+\{\s*createLegacyRuntimeAppDataStore\s*\}/);
   assert.match(runtimeAppSource, /const\s+appDataStore\s*=\s*createLegacyRuntimeAppDataStore\(\)/);

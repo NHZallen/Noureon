@@ -49,8 +49,7 @@ test('retired runtime fragments stay absent while the real legacy core module ex
 
   assert.deepEqual(fragmentNames, []);
   assertFileExists(assert, 'src/app/runtime/legacy-core/legacy-core.js');
-  assert.match(legacyCoreSource, /export\s+function\s+connectRuntimeEntry\b/);
-  assert.match(legacyCoreSource, /export\s+const\s+coreTailDependencies\b/);
+  assert.match(legacyCoreSource, /export\s+function\s+startPage\b/);
 
   for (const fragmentName of retiredRuntimeFragments) {
     assert.equal(

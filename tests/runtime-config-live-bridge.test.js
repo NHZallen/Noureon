@@ -93,8 +93,8 @@ test('loadConfig replacement and mutation use the current store pointer through 
   assert.doesNotMatch(source, /Object\.assign\(config,\s*normalizedConfig\)/);
 });
 
-test('transition bus mutation resolves state.config at call time', () => {
-  const source = readSource('src/app/runtime/legacy-core/transition-bus-lifecycle.js');
+test('the workspace features resolve state.config at call time', () => {
+  const source = readSource('src/app/runtime/legacy-core/workspace-features.js');
 
   assert.match(source, /if\s*\(typeof mutator === 'function'\) return mutator\(state\.config\)/);
   assert.match(source, /Object\.assign\(state\.config,\s*mutator\)/);

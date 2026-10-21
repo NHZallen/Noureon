@@ -59,7 +59,7 @@ test('the model picker is one panel with a bounded, quietly scrolling list and a
 });
 
 test('closing popovers from outside also collapses the model and thinking buttons', () => {
-  const source = readUiSource('src/app/runtime/legacy-core/transition-bus-lifecycle.js');
+  const source = readUiSource('src/app/runtime/legacy-core/workspace-features.js');
 
   assert.match(source, /function closeAllPopovers\(\)\s*\{[\s\S]*#model-council-control \.mp-trigger\[aria-expanded="true"\][\s\S]*setAttribute\('aria-expanded',\s*'false'\)/);
 });

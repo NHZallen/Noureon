@@ -20,7 +20,7 @@ const renderShell = () => {
   return window.document;
 };
 
-// Mirrors the [data-lang-key] loop in core-tail-lifecycle.js applyLanguage().
+// Mirrors the [data-lang-key] loop in features/language-apply.js (applyLanguage).
 const applyLanguage = (document, locale) => {
   const translations = i18n[locale];
   document.querySelectorAll('[data-lang-key]').forEach((element) => {
@@ -80,7 +80,7 @@ test('the version row keeps the number outside the translated label', () => {
 
   applyLanguage(document, 'en');
 
-  // Mirrors updateDisplayedVersion() in core-tail-lifecycle.js: the number comes from the single
+  // Mirrors updateDisplayedVersion() in features/latest-update-notice.js: the number comes from the single
   // product version source, and must survive the translation pass that runs alongside it.
   const display = document.getElementById('version-number-display');
   assert.ok(display, 'the number element must survive translation');

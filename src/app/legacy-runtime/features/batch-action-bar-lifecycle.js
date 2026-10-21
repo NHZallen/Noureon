@@ -2,8 +2,10 @@ export function createBatchActionBarLifecycle({
     elements = {},
     getI18n = () => ({}),
     getIsSelectionMode = () => false,
+    setIsSelectionMode = () => {},
     getSelectedConversationIds = () => new Set(),
-    getUiLanguage = () => 'zh-TW'
+    getUiLanguage = () => 'zh-TW',
+    renderSidebar = () => {}
 } = {}) {
     const hasRequiredElements = () => (
         elements.batchActionBar &&
@@ -35,5 +37,19 @@ export function createBatchActionBarLifecycle({
         return true;
     };
 
-    return { renderBatchActionBar };
+    // Turns the batch selection of conversations on or off: nothing stays selected, and the sidebar is drawn again.
+    const toggleSelectionMode = () => {
+        const isSelectionMode = !getIsSelectionMode();
+        setIsSelectionMode(isSelectionMode);
+        getSelectedConversationIds().clear();
+        const texts = (getI18n() || {})[getUiLanguage()] || {};
+        if (elements.selectionModeBtn) {
+            elements.selectionModeBtn.title = isSelectionMode
+                ? texts.cancelBatchSelect || 'Cancel batch select'
+                : texts.batchSelect || 'Batch select';
+        }
+        renderSidebar();
+    };
+
+    return { renderBatchActionBar, toggleSelectionMode };
 }

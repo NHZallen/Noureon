@@ -202,25 +202,25 @@ test('the custom wallpaper and its colour extraction no longer exist', () => {
   assert.deepEqual(Object.keys(lifecycle).sort(), ['applyUiTheme', 'renderUiColorOptions']);
 });
 
-test('theme appearance helper is isolated while core-tail keeps the documented binding surface', () => {
+test('theme appearance helper is isolated while the page features keep the documented binding surface', () => {
   const helperPath = 'src/app/runtime/features/theme-appearance-lifecycle.js';
   const helperSource = readSource(helperPath);
-  const coreTailSource = readSource('src/app/runtime/legacy-core/core-tail-lifecycle.js');
+  const pageFeaturesSource = readSource('src/app/runtime/legacy-core/page-features.js');
 
   assert.equal(existsSync(projectFile(helperPath)), true);
   assert.match(helperSource, /export\s+function\s+createThemeAppearanceLifecycle/);
-  assert.match(coreTailSource, /import\s+\{\s*createThemeAppearanceLifecycle\s*\}/);
-  assert.match(coreTailSource, /const\s+themeAppearanceLifecycle\s*=\s*createThemeAppearanceLifecycle\(\{/);
+  assert.match(pageFeaturesSource, /import\s+\{\s*createThemeAppearanceLifecycle\s*\}/);
+  assert.match(pageFeaturesSource, /const\s+themeAppearanceLifecycle\s*=\s*createThemeAppearanceLifecycle\(\{/);
 
   for (const name of [
     'applyUiTheme',
     'renderUiColorOptions',
   ]) {
-    assert.match(coreTailSource, new RegExp(`const\\s+${name}\\s*=\\s*\\(\\.\\.\\.args\\)\\s*=>\\s*themeAppearanceLifecycle\\.${name}\\(\\.\\.\\.args\\);`));
+    assert.match(pageFeaturesSource, new RegExp(`const\\s+${name}\\s*=\\s*\\(\\.\\.\\.args\\)\\s*=>\\s*themeAppearanceLifecycle\\.${name}\\(\\.\\.\\.args\\);`));
   }
 
-  assert.doesNotMatch(coreTailSource, /const\s+img\s*=\s*new\s+Image\(\)/);
-  assert.doesNotMatch(coreTailSource, /root\.style\.setProperty\('--button-primary-bg'/);
+  assert.doesNotMatch(pageFeaturesSource, /const\s+img\s*=\s*new\s+Image\(\)/);
+  assert.doesNotMatch(pageFeaturesSource, /root\.style\.setProperty\('--button-primary-bg'/);
   assert.doesNotMatch(helperSource, /registerLazyBinding|resolveBinding|resolveOptionalBinding/);
   assert.doesNotMatch(helperSource, /runtime-entry|app-bootstrap|submit-input|provider|security|api-key|legacy-runtime\/fragments|virtual:legacy-app-runtime/);
 });

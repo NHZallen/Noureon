@@ -75,7 +75,7 @@ test('the production recall gate returns no history until this device consents',
   };
   const conversation = { id: 'chat-1', recentTurnSummary: '' };
 
-  // Mirrors transition-bus-lifecycle.js: retrieveHistory is gated on the device consent record,
+  // Mirrors memory/memory-runtime.js: retrieveHistory is gated on the device consent record,
   // and current-memory-context-provider.js is additionally gated on the synced config flag.
   let deviceConsentGranted = false;
   const retrieveHistory = async () => (deviceConsentGranted ? [{ recordId: 'old-chat', summary: 'earlier', sourceIds: [] }] : []);

@@ -76,11 +76,9 @@ if (!existsSync(legacyCorePath)) {
   const legacyCoreSize = statSync(legacyCorePath).size;
   const legacyCoreLineCount = countLines(legacyCoreSource);
 
-  // The shell and the runtime entry are connected by named exports, not by names looked up at run time.
-  for (const name of ['coreTailDependencies', 'connectCoreTail', 'connectRuntimeEntry']) {
-    if (!new RegExp(`export\\s+(?:const|function)\\s+${name}\\b`).test(legacyCoreSource)) {
-      fail(`legacy-core.js must export ${name}.`);
-    }
+  // The shell makes every feature of the page itself and the runtime entry only starts it: nothing is handed back and forth.
+  if (!/export\s+function\s+startPage\b/.test(legacyCoreSource)) {
+    fail('legacy-core.js must export startPage.');
   }
   if (legacyCoreSize > legacyCoreOwnershipBudget.maxBytes) {
     fail(

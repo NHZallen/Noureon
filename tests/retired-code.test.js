@@ -298,7 +298,7 @@ const RETIRED = {
       /\bactiveConversationId\b/
     ],
   },
-  'src/app/runtime/legacy-core/core-tail-lifecycle.js': {
+  'src/app/runtime/legacy-core/page-features.js': {
     "runtime config ownership moves into a narrow non-live kernel store": [
       /state\.config\s*=/
     ],
@@ -308,7 +308,7 @@ const RETIRED = {
     "trash lifecycle ownership moves out of 04 into a real runtime module": [
       /runtimeAppDataStore\.replaceConversations\(/
     ],
-    "legacy core tail ownership stays in runtime entry with transition bus bridges": [
+    "the page features are made by the shell, not by fragments": [
       /legacy-runtime\/fragments|virtual:legacy-app-runtime/
     ],
     "color contrast helper is shared without later-fragment lexical ownership": [
@@ -699,7 +699,7 @@ const RETIRED = {
       /const\s+appendRendererTextGradually\s*=\s*async/
     ],
   },
-  'src/app/runtime/legacy-core/transition-bus-lifecycle.js': {
+  'src/app/runtime/legacy-core/workspace-features.js': {
     "production runtime entry composes the explicit legacy dependency facade": [
       /\binitChatApp\(\);|\binitializeApp\(\);/
     ],
@@ -750,7 +750,7 @@ const RETIRED = {
     "settings sidebar button remains wired to initialize and open the settings modal": [
       /const\s+resolveSearchSetupSettingsModal\b/
     ],
-    "search text formatting helper is isolated from the transition bus": [
+    "search text formatting helper is isolated from the workspace features": [
       /\b(?:const|function)\s+highlightText\b/,
       /search-text-formatting\.js/
     ],
@@ -763,11 +763,7 @@ const RETIRED = {
       /conv\.messages\.forEach\(msg\s*=>/
     ],
   },
-  'src/app/runtime/runtime-entry-dependencies.js': {
-    "production runtime entry composes the explicit legacy dependency facade": [
-      /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app/
-    ],
-  },
+
   'src/app/runtime/security/api-key-input-intent.js': {
     "sensitive config export redaction boundary is explicit": [
       /dataset\.[A-Za-z0-9_$]*\s*=\s*rawValue/,
@@ -818,7 +814,7 @@ const RETIRED = {
     "runtime app data store ownership covers 00 and selected linked replacements": [
       /legacyRuntimeModuleId|virtual:legacy-app-runtime/
     ],
-    "legacy core tail ownership stays in runtime entry with transition bus bridges": [
+    "the page features are made by the shell, not by fragments": [
       /(?:04|05|06)-runtime\.fragment\.js/
     ],
   },
@@ -838,7 +834,7 @@ const PARTS = {
     'src/app/runtime/legacy-core/council-validation.js',
     'src/app/runtime/security/password-records.js'
   ],
-  'src/app/runtime/legacy-core/core-tail-lifecycle.js': [
+  'src/app/runtime/legacy-core/page-features.js': [
     'src/app/runtime/features/time-analysis-chart.js',
     'src/app/runtime/features/astra-store-lifecycle.js',
     'src/app/runtime/features/language-apply.js',
@@ -859,7 +855,7 @@ const PARTS = {
     'src/app/runtime/legacy-core/settings-modal-lifecycle.js',
     'src/app/runtime/legacy-core/settings-dialog-parts.js'
   ],
-  'src/app/runtime/legacy-core/transition-bus-lifecycle.js': [
+  'src/app/runtime/legacy-core/workspace-features.js': [
     'src/app/runtime/memory/memory-runtime.js'
   ],
   'src/app/runtime/legacy-core/submit-input-council-lifecycle.js': [

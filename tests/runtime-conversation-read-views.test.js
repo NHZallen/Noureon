@@ -107,9 +107,9 @@ test('direct app data store conversation replacements stay inside the bridge ada
   // through the live bridge.
   const conversationActionsSource = readSource('src', 'app', 'runtime', 'legacy-core', 'conversation-actions.js');
   assert.doesNotMatch(conversationActionsSource, directReplacementPattern);
-  const coreTailSource = readSource('src', 'app', 'runtime', 'legacy-core', 'core-tail-lifecycle.js');
-  assert.doesNotMatch(coreTailSource, directReplacementPattern);
-  assert.match(coreTailSource, /state\.conversations\s*=\s*nextConversations/);
+  const pageFeaturesSource = readSource('src', 'app', 'runtime', 'legacy-core', 'page-features.js');
+  assert.doesNotMatch(pageFeaturesSource, directReplacementPattern);
+  assert.match(pageFeaturesSource, /state\.conversations\s*=\s*nextConversations/);
 
   assert.doesNotMatch(legacyCoreSource, /let\s+conversations\s*=/);
   assert.doesNotMatch(legacyCoreSource, /syncLegacyMirror/);

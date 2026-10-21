@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { createLegacyCoreTailLifecycle } from '../src/app/runtime/legacy-core/core-tail-lifecycle.js';
+import { createPageFeatures } from '../src/app/runtime/legacy-core/page-features.js';
 
 const readSource = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const noop = () => {};
@@ -158,18 +158,11 @@ function createHarness(overrides = {}) {
     bodyClasses,
     elements,
     state,
-    lifecycle: createLegacyCoreTailLifecycle(dependencies)
+    lifecycle: createPageFeatures(dependencies)
   };
 }
 
-test('factory is inert on import and validates the core dependency boundary', () => {
-  assert.throws(
-    () => createLegacyCoreTailLifecycle(),
-    /missing dependencies: window, document, elements, state/
-  );
-});
-
-test('factory exposes the former 04 public lifecycle API', () => {
+test('the page features are made at once and handed out by name', () => {
   const { lifecycle } = createHarness();
   for (const name of [
     'setupTimeAnalysis',
@@ -186,13 +179,6 @@ test('factory exposes the former 04 public lifecycle API', () => {
   }
 });
 
-test('the core tail hands the runtime entry what the start of the page is made from', () => {
-  const { lifecycle } = createHarness();
-  assert.equal(typeof lifecycle.runtimeEntryDependencies, 'object');
-  assert.equal(typeof lifecycle.runtimeEntryDependencies.appBootstrap, 'object');
-  assert.equal(typeof lifecycle.runtimeEntryDependencies.startup, 'object');
-});
-
 test('theme helpers use injected live state and DOM dependencies', () => {
   const { lifecycle, calls, documentStyle } = createHarness();
   lifecycle.applyUiTheme();
@@ -200,11 +186,19 @@ test('theme helpers use injected live state and DOM dependencies', () => {
   assert.deepEqual(calls, []);
 });
 
-test('core tail module owns trash composition without importing legacy fragments or virtual runtime', () => {
-  const source = readSource('src/app/runtime/legacy-core/core-tail-lifecycle.js');
-  assert.match(source, /createLegacyTrashLifecycle\(\{/);
-  assert.doesNotMatch(source, /legacy-runtime\/fragments|virtual:legacy-app-runtime/);
-  assert.match(source, /createLegacyRuntimeEntryDependencies\(\{/);
+test('emptying the trash invalidates the memory of each conversation, once memory is set up', async () => {
+  let memory = null;
+  const invalidated = [];
+  const { lifecycle, state } = createHarness({
+    getMemory: () => memory,
+    showCustomConfirm: async () => true,
+    deleteConversationsFromCloud: async () => true
+  });
+  state.conversations = [{ id: 'gone', deletedAt: '2026-01-01', messages: [] }, { id: 'kept', deletedAt: null, messages: [] }];
+  memory = { invalidateConversation: async ({ conversationId }) => invalidated.push(conversationId), rebuildHistoryIndex: async () => {} };
+  await lifecycle.handleEmptyTrash();
+  assert.deepEqual(state.conversations.map((conversation) => conversation.id), ['kept']);
+  assert.deepEqual(invalidated, ['gone']);
 });
 
 // Noura names are localized when the sidebar list is built, not through data-lang-key, so

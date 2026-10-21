@@ -87,7 +87,7 @@ const assertMarkersInOrder = (source, markers, context) => {
 };
 
 test('auth and homepage import bindings remain before startup in legacy order', () => {
-  const runtimeEntrySource = readSource('src/app/runtime-entry.js');
+  const legacyCoreSource = readSource('src/app/runtime/legacy-core/legacy-core.js');
   const startupLifecycleSource = readSource('src/app/runtime/features/startup-lifecycle.js');
   const initializeAppBody = getBlockFromMarker(startupLifecycleSource, 'async function initializeApp()');
 
@@ -110,12 +110,12 @@ test('auth and homepage import bindings remain before startup in legacy order', 
     "elements.appContainer.classList.add('visible')",
     'initChatApp()'
   ], 'auto-login startup');
-  assertMarkersInOrder(runtimeEntrySource, [
+  assertMarkersInOrder(legacyCoreSource, [
     'startupLifecycle.bindAuthStartupListeners()',
     'startupLifecycle.initializeApp()',
     'startupLifecycle.bindLoginLanguageSwitcher()',
     'startupLifecycle.runStartupPostlude()'
-  ], 'runtime entry startup lifecycle wiring');
+  ], 'the start of the page in the shell');
 });
 
 test('app shell imports and preserves critical DOM IDs', async () => {

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
-import { createLegacyTransitionBusLifecycle } from '../src/app/runtime/legacy-core/transition-bus-lifecycle.js';
+import { createWorkspaceFeatures } from '../src/app/runtime/legacy-core/workspace-features.js';
 
 const readSource = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const noop = () => {};
@@ -69,6 +69,8 @@ function createHarness(overrides = {}) {
     modalSearchInput: createNode(),
     filePreviewContainer: createNode(),
     sidebar: createNode(),
+    sidebarOverlay: createNode(),
+    appContainer: createNode(),
     overlay: createNode()
   };
   const state = {
@@ -83,10 +85,6 @@ function createHarness(overrides = {}) {
     currentSpeechRecognition: null,
     currentVoiceTarget: null,
     selectedConversationIds: new Set(['c1']),
-    conversationStateAccess: {
-      getCurrentConversationId: () => 'c1',
-      setCurrentConversationId: (id) => calls.push(['setCurrentConversationId', id])
-    },
     modelPieChart: null,
     sendConfirmed: false,
     abortController: null,
@@ -114,35 +112,17 @@ function createHarness(overrides = {}) {
     Image: class {},
     URL: {},
     Event: class {},
-    Blob: class {},
     Chart: class {},
-    Cropper: class {},
     loadArchiveVendor: async () => class {},
-    loadSharingVendor: async () => ({
-      Peer: class {},
-      QRCode: class {},
-      Html5Qrcode: class {}
-    }),
-    Peer: class {},
-    QRCode: class {},
-    Html5Qrcode: class {},
-    JSZip: class {},
-    ResizeObserver: class {},
-    IntersectionObserver: class {},
     requestAnimationFrame: (callback) => callback(),
     setTimeout: (callback) => callback(),
     clearTimeout: noop,
     crypto: { randomUUID: () => 'id' },
     console: { warn: noop, error: noop, log: noop },
-    globalObject: {},
-    getComputedStyle: () => ({}),
     elements,
-    updateInputState: () => calls.push(['updateInputState']),
-    setupSettingsModal: () => calls.push(['setupSettingsModal']),
-    adjustTextareaHeight: () => calls.push(['adjustTextareaHeight']),
-    initChatApp: () => calls.push(['initChatApp']),
     state,
-    runtimeConfigAccess: {},
+    i18n: { en: {} },
+    models: [{ id: 'm1', name: 'Model One', provider: 'openai' }],
     runtimeAppDataStore: {
       replaceAll(next) {
         state.conversations = next.conversations || [];
@@ -166,87 +146,40 @@ function createHarness(overrides = {}) {
       }
     },
     runtimeDialogCoordinator: { showNotification: (...args) => calls.push(['dialogNotification', ...args]) },
-    i18n: { en: {} },
-    getCurrentConversationId: () => state.conversationStateAccess.getCurrentConversationId(),
-    setCurrentConversationId: (id) => state.conversationStateAccess.setCurrentConversationId(id),
-    officialAstras: [],
-    updateLogs: [],
-    uiThemeColors: {},
-    models: [{ id: 'm1', name: 'Model One', provider: 'openai' }],
+    conversationStateAccess: {
+      getCurrentConversationId: () => 'c1',
+      setCurrentConversationId: (id) => calls.push(['setCurrentConversationId', id])
+    },
+    updateInputState: () => calls.push(['updateInputState']),
+    setupSettingsModal: () => calls.push(['setupSettingsModal']),
+    initChatApp: () => calls.push(['initChatApp']),
+    applyUiTheme: () => calls.push(['applyUiTheme']),
+    applyLanguage: (...args) => calls.push(['applyLanguage', ...args]),
+    setupTimeAnalysis: () => calls.push(['setupTimeAnalysis']),
     getSensitiveApiKeys: () => ({ gemini: 'sensitive-gemini-key' }),
     mergeSensitiveApiKeys: (...args) => calls.push(['mergeSensitiveApiKeys', ...args]),
     saveSensitiveConfig: async () => calls.push(['saveSensitiveConfig']),
-    setTheme: noop,
-    updateThemeButtons: noop,
-    setAiBubbleColor: noop,
     saveConfig: async () => calls.push(['saveConfig']),
     saveAppData: async () => calls.push(['saveAppData']),
-    deleteConversationsFromCloud: async (...args) => calls.push(['deleteConversationsFromCloud', ...args]),
-    deleteAstrasFromCloud: async (...args) => calls.push(['deleteAstrasFromCloud', ...args]),
     showNotification: (...args) => calls.push(['showNotification', ...args]),
-    toggleModal: (...args) => calls.push(['toggleModal', ...args]),
-    renderAstras: noop,
-    escapeHTML: (value = '') => String(value),
-    sanitizeTrustedHTML: (value = '') => String(value),
-    showRenameModal: noop,
-    togglePinChat: noop,
-    archiveChat: noop,
-    deleteChat: noop,
-    moveConversationToFolder: noop,
-    showFolderSettingsModal: noop,
-    deleteFolder: noop,
-    deleteAstras: noop,
     showCustomConfirm: async () => true,
     showCustomPrompt: async () => 'name',
-    showCustomDialog: noop,
-    formatFullTimestamp: () => '',
+    toggleModal: (...args) => calls.push(['toggleModal', ...args]),
+    toggleSelectionMode: noop,
+    escapeHTML: (value = '') => String(value),
     renderUserText: (value = '') => String(value),
     renderMarkdownWithFormulas: (value = '') => String(value),
     startNewChat: noop,
-    renderAll: noop,
-    updateFunctionButtonsState: noop,
-    saveSettings: noop,
-    handleLogout: noop,
-    handleFormSubmit: noop,
-    handleRename: noop,
-    handleSaveFolderSettings: noop,
     loadChat: noop,
     getActiveConversation: () => state.conversations[0],
-    normalizeConversationModel: (conversation) => conversation,
-    getCouncilSelectedModels: () => [],
-    isCouncilEnabled: () => false,
-    hasCouncilWebSearchAccess: () => false,
-    hasSingleWebSearchAccess: () => false,
-    hasSingleDocumentAccess: () => false,
-    modelSupportsVision: () => false,
-    getCouncilTexts: () => ({}),
-    renderInputIndicators: noop,
-    toggleLearningMode: noop,
-    toggleSelectionMode: noop,
-    submitChatForm: noop,
+    moveConversationToFolder: noop,
     createNewFolder: () => 'new-folder',
-    createAstras: noop,
-    handleSaveAstras: noop,
-    handleDeleteAllData: noop,
-    updateFileInputUI: noop,
-    postJsonWithReadableError: noop,
-    openCouncilPopoverFromAttachmentMenu: noop,
-    setupHistorySidebarInteractions: noop,
-    setupHistorySidebarTriggers: noop,
-    getDefaultFolder: () => ({ id: 'default' }),
-    isMobileSettingsViewport: () => false,
-    openSettingsMobileSection: noop,
-    getItem: async () => null,
-    getUserKey: (username) => `user:${username}`,
-    loadConfig: async () => {},
-    loadAppData: async () => {},
-    handleLogin: noop,
-    installTouchGuards: noop,
-    registerServiceWorker: noop,
-    getModelTiers: () => ({}),
-    getModelApiId: (model) => model.id,
-    getApiKeyForProvider: () => '',
+    normalizeConversationModel: (conversation) => conversation,
+    isCouncilEnabled: () => false,
+    modelSupportsVision: () => false,
     getCouncilValidation: () => ({ valid: true }),
+    getApiKeyForProvider: () => '',
+    getGeneratedImageRuntime: async () => ({ assetStore: { getBlob: async () => null, put: async () => {} } }),
     callApiWithSchema: async () => ({}),
     getOutputMode: () => 'text',
     hashString: async () => 'hash',
@@ -254,22 +187,16 @@ function createHarness(overrides = {}) {
     processInChunks: async (items, callback) => callback(items),
     getBackupUsername: () => 'user',
     createPasswordRecord: async () => ({}),
+    getUserKey: (username) => `user:${username}`,
     setItem: async () => {},
     logger: { warn: noop, error: noop, log: noop }
   };
   const dependencies = { ...base, ...overrides };
-  const lifecycle = createLegacyTransitionBusLifecycle(dependencies);
+  const lifecycle = createWorkspaceFeatures(dependencies);
   return { calls, dependencies, elements, lifecycle, state };
 }
 
-test('factory is inert on import and validates required dependencies', () => {
-  assert.throws(
-    () => createLegacyTransitionBusLifecycle(),
-    /missing dependencies: window, document/
-  );
-});
-
-test('factory composes extracted lifecycles and exposes former aliases', () => {
+test('the workspace features are made at once and handed out by name', () => {
   const { lifecycle } = createHarness();
   for (const name of [
     'renderPersonalMemoryList',
@@ -290,44 +217,21 @@ test('factory composes extracted lifecycles and exposes former aliases', () => {
   }
 });
 
-test('factory exposes former 04 bridge functions with clear missing-binding errors', () => {
-  const { lifecycle } = createHarness();
-  for (const name of [
-    'applyLanguage',
-    'applyUiTheme',
-    'renderUiColorOptions',
-    'renderStore',
-    'renderTrash',
-    'setupTimeAnalysis',
-    'setupMessageIntersectionObserver',
-    'showMobileContextMenuForAstras'
-  ]) {
-    assert.equal(typeof lifecycle[name], 'function', `${name} should be exposed`);
-  }
-  assert.throws(() => lifecycle.applyLanguage('en'), /The core tail is not connected yet \(applyLanguage\)/);
-  const received = [];
-  lifecycle.connectCoreTail({ applyLanguage: (...args) => received.push(args) });
-  lifecycle.applyLanguage('en');
-  assert.deepEqual(received, [['en']], 'once connected, each function calls the core tail\'s');
-});
+test('hands out the memory functions once they are made, and works on the live shell state', async () => {
+  const { elements, lifecycle, state } = createHarness();
 
-test('hands out toggleSidebar, the memory functions and the core tail dependencies with live state', () => {
-  const { calls, lifecycle, state } = createHarness();
+  assert.equal(typeof lifecycle.getMemory().rebuildHistoryIndex, 'function');
+  assert.equal(typeof lifecycle.getMemory().retrieveHistory, 'function');
+  assert.equal(typeof lifecycle.ensureMemorySummaryFresh, 'function');
 
-  assert.equal(typeof lifecycle.toggleSidebar, 'function');
-  assert.equal(typeof lifecycle.memory().rebuildHistoryIndex, 'function');
-  const dependencies = lifecycle.coreTailDependencies;
-  assert.equal(dependencies.getMemory(), lifecycle.memory());
-  assert.equal(dependencies.state.config.uiLanguage, 'en');
-  state.config = { uiLanguage: 'fr' };
-  assert.equal(dependencies.state.config.uiLanguage, 'fr');
-  dependencies.state.sidebarOpen = true;
-  assert.equal(state.sidebarOpen, true);
-  assert.equal(dependencies.getCurrentConversationId(), 'c1');
-  assert.equal(typeof dependencies.deleteConversationsFromCloud, 'function');
-  assert.equal(typeof dependencies.deleteAstrasFromCloud, 'function');
-  dependencies.setCurrentConversationId('c2');
-  assert.deepEqual(calls.at(-1), ['setCurrentConversationId', 'c2']);
+  state.sidebarOpen = false;
+  lifecycle.toggleSidebar(true);
+  assert.equal(state.sidebarOpen, true, 'the sidebar writes the shell state it was given');
+
+  // The batch move lists the folders of the shell state as it is now.
+  state.folders = [{ id: 'f2', name: 'Folder Two', conversationIds: [] }];
+  lifecycle.renderBatchMoveModal();
+  assert.ok(elements.batchMoveFolderList.children.some((button) => button.textContent === 'Folder Two'));
 });
 
 test('a rebuild never replaces a persisted index when the workspace is temporarily empty', async () => {
@@ -350,7 +254,7 @@ test('a rebuild never replaces a persisted index when the workspace is temporari
   });
   harness.state.conversations = [];
 
-  await harness.lifecycle.memory().rebuildHistoryIndex();
+  await harness.lifecycle.getMemory().rebuildHistoryIndex();
 
   assert.deepEqual(
     values.get('noureon:history-index:v1:anonymous').records.map(record => record.recordId),
@@ -358,19 +262,22 @@ test('a rebuild never replaces a persisted index when the workspace is temporari
   );
 });
 
-test('legacy core passes cloud deletion through the production transition bus composition', () => {
-  const source = readSource('src/app/runtime/legacy-core/legacy-core.js');
-  assert.match(
-    source,
-    /createLegacyTransitionBusLifecycle\(\{[\s\S]*?saveAppData,\s*deleteConversationsFromCloud,\s*deleteAstrasFromCloud,\s*showNotification,/
-  );
-});
-
-test('module owns transition wiring without fragments or virtual runtime imports', () => {
-  const source = readSource('src/app/runtime/legacy-core/transition-bus-lifecycle.js');
-  assert.match(source, /createLegacyModelMemoryDashboardLifecycle/);
-  assert.match(source, /createLegacySearchUploadSidebarLifecycle/);
-  assert.match(source, /createLegacyBatchImportVoiceLifecycle/);
-  assert.doesNotMatch(source, /registerLazyBinding|resolveBinding/);
-  assert.doesNotMatch(source, /legacy-runtime\/fragments|virtual:legacy-app-runtime/);
+test('closing the popovers also collapses the model and thinking buttons', () => {
+  const popover = createNode();
+  popover.classList.add('popover', 'visible');
+  const trigger = createNode();
+  const attributes = { 'aria-expanded': 'true' };
+  trigger.setAttribute = (name, value) => { attributes[name] = value; };
+  const { lifecycle } = createHarness({
+    document: {
+      body: createNode(),
+      createElement: () => createNode(),
+      execCommand: () => true,
+      querySelectorAll: (selector) => (selector === '.popover.visible' ? [popover]
+        : selector.includes('#model-council-control .mp-trigger') ? [trigger] : [])
+    }
+  });
+  lifecycle.closeAllPopovers();
+  assert.equal(popover.classList.contains('visible'), false);
+  assert.equal(attributes['aria-expanded'], 'false');
 });

@@ -58,11 +58,12 @@ const findMatchingBrace = (source, openIndex) => {
   return -1;
 };
 
-test('runtime entry composes initChatApp while preserving late bootstrap event bindings', () => {
+test('the shell composes initChatApp while preserving late bootstrap event bindings', () => {
   const appBootstrapLifecycleSource = readSource('src/app/runtime/features/app-bootstrap-lifecycle.js');
   const p2pLifecycleSource = readSource('src/app/runtime/features/p2p-lifecycle.js');
   const startupLifecycleSource = readSource('src/app/runtime/features/startup-lifecycle.js');
   const runtimeEntrySource = readSource('src/app/runtime-entry.js');
+  const legacyCoreSource = readSource('src/app/runtime/legacy-core/legacy-core.js');
 
   const initStart = appBootstrapLifecycleSource.indexOf('async function initChatApp()');
   assert.notEqual(initStart, -1, 'app bootstrap lifecycle should define initChatApp');
@@ -84,14 +85,12 @@ test('runtime entry composes initChatApp while preserving late bootstrap event b
     cursor = next;
   }
 
-  assert.match(runtimeEntrySource, /createLegacyAppBootstrapLifecycle\(/);
-  // The shell gets the start of the chat page and the height of the message field back through connectRuntimeEntry().
-  assert.match(
-    runtimeEntrySource,
-    /connectRuntimeEntry\(\{\s*initChatApp:\s*appBootstrapLifecycle\.initChatApp,\s*adjustTextareaHeight:\s*startupLifecycle\.adjustTextareaHeight/
-  );
-  assert.match(runtimeEntrySource, /startupLifecycle\.bindAuthStartupListeners\(\)/);
-  assert.match(runtimeEntrySource, /startupLifecycle\.initializeApp\(\)/);
+  // The shell makes the start of the page itself and calls the start of the chat page and the height of the message field from it.
+  assert.match(legacyCoreSource, /appBootstrapLifecycle = createLegacyAppBootstrapLifecycle\(/);
+  assert.match(legacyCoreSource, /const initChatApp = \(\.\.\.args\) => appBootstrapLifecycle\.initChatApp\(\.\.\.args\)/);
+  assert.match(legacyCoreSource, /const adjustTextareaHeight = \(\.\.\.args\) => startupLifecycle\?\.adjustTextareaHeight\(\.\.\.args\)/);
+  assert.match(legacyCoreSource, /startupLifecycle\.bindAuthStartupListeners\(\)/);
+  assert.match(legacyCoreSource, /startupLifecycle\.initializeApp\(\)/);
   assert.match(appBootstrapLifecycleSource, /createLegacyP2PLifecycle\(\{/);
   assert.doesNotMatch(appBootstrapLifecycleSource, /selectActiveConversationId/);
   assert.match(initBody, /const\s+settingsDesktopLogoutBtn[\s\S]*?await\s+startNewChat\(\);/);

@@ -40,19 +40,13 @@ import { SERVICES, getService } from '/src/app/runtime/services.js';
 import { createShellState } from '/src/app/runtime/legacy-core/shell-state.js';
 import * as passwordRecords from '/src/app/runtime/security/password-records.js';
 
-// What the runtime entry (runtime-entry.js) makes after this module and connects with connectRuntimeEntry(): the start of the chat page
-// after signing in, and the height of the message field.
-const runtimeEntry = { initChatApp: null, adjustTextareaHeight: null };
-export function connectRuntimeEntry({ initChatApp, adjustTextareaHeight }) {
-    runtimeEntry.initChatApp = initChatApp;
-    runtimeEntry.adjustTextareaHeight = adjustTextareaHeight;
-}
-const initChatApp = () => {
-    if (!runtimeEntry.initChatApp) throw new Error('The runtime entry is not connected yet (initChatApp).');
-    return runtimeEntry.initChatApp();
-};
-const adjustTextareaHeight = (...args) => runtimeEntry.adjustTextareaHeight?.(...args);
-// The memory functions (memory-runtime.js, made by the transition bus below), or null before it exists.
+// The start of the chat page after signing in, and the height of the message field: made at the end of this module with the start of
+// the page (app-bootstrap-lifecycle.js, startup-lifecycle.js), and called only once the page runs.
+let appBootstrapLifecycle = null;
+let startupLifecycle = null;
+const initChatApp = (...args) => appBootstrapLifecycle.initChatApp(...args);
+const adjustTextareaHeight = (...args) => startupLifecycle?.adjustTextareaHeight(...args);
+// The memory functions (memory-runtime.js, made with the workspace features below), or null before they exist.
 let getMemoryFunctions = () => null;
 const getMemory = () => getMemoryFunctions();
 const {
@@ -284,18 +278,6 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
     }
   });
 });
-        const throttle = (func, limit) => {
-            let inThrottle;
-            return function() {
-                const args = arguments;
-                const context = this;
-                if (!inThrottle) {
-                    func.apply(context, args);
-                    inThrottle = true;
-                    setTimeout(() => inThrottle = false, limit);
-                }
-            };
-        };
         const {
             renderMarkdown,
             renderMarkdownWithFormulas
@@ -811,7 +793,12 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
         getComposerEditSubmission = (...args) => messageEditingLifecycle?.getComposerEditSubmission(...args) ?? null;
         import { createBatchActionBarLifecycle } from '/src/app/legacy-runtime/features/batch-action-bar-lifecycle.js';
         import { createLegacyFolderLifecycle } from '/src/app/runtime/features/folder-lifecycle.js';
-        import { createLegacyTransitionBusLifecycle } from '/src/app/runtime/legacy-core/transition-bus-lifecycle.js';
+        import { createWorkspaceFeatures } from '/src/app/runtime/legacy-core/workspace-features.js';
+        import { createPageFeatures } from '/src/app/runtime/legacy-core/page-features.js';
+        import { createMemorySyncState } from '/src/app/runtime/memory/memory-sync-state.js';
+        import { createLegacyAppBootstrapLifecycle } from '/src/app/runtime/features/app-bootstrap-lifecycle.js';
+        import { createLegacyStartupLifecycle } from '/src/app/runtime/features/startup-lifecycle.js';
+        import { initializeComposerRichEditor } from '/src/app/runtime/features/composer-rich-editor.js';
         import {
             FOLDER_SVGS as FOLDER_ICON_OPTIONS,
         } from '/src/app/legacy-runtime/data/folder-metadata.js';
@@ -849,223 +836,64 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             scheduleAnimationFrame: requestAnimationFrame,
             logger: console
         });
-        const toggleSelectionMode = () => {
-    shell.isSelectionMode = !shell.isSelectionMode;
-    shell.selectedConversationIds.clear();
-
-    if (shell.isSelectionMode) {
-        ALL_ELEMENTS.selectionModeBtn.title = i18n[runtimeConfigAccess.getUiLanguage()].cancelBatchSelect || 'Cancel batch select';
-    } else {
-        ALL_ELEMENTS.selectionModeBtn.title = i18n[runtimeConfigAccess.getUiLanguage()].batchSelect || 'Batch select';
-    }
-
-    renderSidebar();
-};
         const batchActionBarLifecycle = createBatchActionBarLifecycle({
             elements: ALL_ELEMENTS,
             getI18n: () => i18n,
             getIsSelectionMode: () => shell.isSelectionMode,
+            setIsSelectionMode: (next) => { shell.isSelectionMode = next; },
             getSelectedConversationIds: () => shell.selectedConversationIds,
-            getUiLanguage: () => runtimeConfigAccess.getUiLanguage()
+            getUiLanguage: () => runtimeConfigAccess.getUiLanguage(),
+            renderSidebar
         });
-        const renderBatchActionBar = (...args) => batchActionBarLifecycle.renderBatchActionBar(...args);
-        const transitionBusLifecycle = createLegacyTransitionBusLifecycle({
-            window,
-            document,
-            navigator,
-            fetch,
-            File,
-            FileReader,
-            Image,
-            URL,
-            Event,
-            Blob,
-            Chart,
-            Cropper,
-            loadArchiveVendor,
-            loadSharingVendor,
-            ResizeObserver,
-            IntersectionObserver,
-            requestAnimationFrame,
-            setTimeout,
-            clearTimeout,
-            crypto,
-            console,
-            globalObject: globalThis,
-            getComputedStyle,
-            elements: ALL_ELEMENTS,
-            updateInputState,
-            setupSettingsModal,
-            adjustTextareaHeight,
-            initChatApp,
-            state: shell,
-            runtimeConfigAccess,
-            runtimeAppDataStore,
-            runtimeStorageAdapter,
-            runtimeDialogCoordinator,
-            i18n,
-            officialAstras: OFFICIAL_ASTRAS,
-            updateLogs,
-            productVersion,
-            uiThemeColors: UI_THEME_COLORS,
-            models: MODELS,
-            getSensitiveApiKeys,
-            mergeSensitiveApiKeys,
-            saveSensitiveConfig,
-            setTheme,
-            updateThemeButtons,
-            saveConfig,
-            saveAppData,
-            deleteConversationsFromCloud,
-            deleteAstrasFromCloud,
-            showNotification,
-            toggleModal,
-            renderAstras,
-            escapeHTML,
-            sanitizeTrustedHTML,
-            showRenameModal,
-            togglePinChat,
-            archiveChat,
-            deleteChat,
-            moveConversationToFolder,
-            showFolderSettingsModal,
-            deleteFolder,
-            deleteAstras,
-            showCustomConfirm,
-            showCustomPrompt,
-            showCustomDialog,
-            formatFullTimestamp,
-            renderUserText,
-            renderMarkdownWithFormulas,
-            startNewChat,
-            renderAll,
-            renderSidebar,
-            updateFunctionButtonsState,
-            saveSettings,
-            handleLogout,
-            handleFormSubmit,
-            handleRename,
-            handleSaveFolderSettings,
-            loadChat,
-            getActiveConversation,
-            startMessageEditing,
-            normalizeConversationModel,
-            getCouncilSelectedModels,
-            isCouncilEnabled,
-            hasCouncilWebSearchAccess,
-            hasSingleWebSearchAccess,
-            hasSingleDocumentAccess,
-            modelSupportsVision,
-            bindGeneratedImageAssets,
-            getGeneratedImageBlob: async descriptor => (await getGeneratedImageRuntime()).assetStore.getBlob(descriptor),
-            saveGeneratedImageBlob: async (descriptor, blob) => {
-                await (await getGeneratedImageRuntime()).assetStore.put(descriptor, blob);
-            },
-            getCouncilTexts,
-            renderInputIndicators,
-            renderCouncilControls,
-            toggleLearningMode,
-            toggleSelectionMode,
-            submitChatForm,
-            createNewFolder,
-            createAstras,
-            handleSaveAstras,
-            handleDeleteAllData,
-            updateFileInputUI,
-            postJsonWithReadableError,
-            openCouncilPopoverFromAttachmentMenu,
-            setupHistorySidebarInteractions,
-            setupHistorySidebarTriggers,
-            getDefaultFolder,
-            isMobileSettingsViewport,
-            openSettingsMobileSection,
-            getItem,
-            getUserKey,
-            loadConfig,
-            loadAppData,
-            handleLogin,
-            installTouchGuards,
-            registerServiceWorker,
-            getModelTiers,
-            getModelApiId,
-            getApiKeyForProvider,
-            runMemoryModel,
-            getCouncilValidation,
-            callApiWithSchema,
-            getOutputMode,
-            hashString,
-            constantTimeEqual,
-            processInChunks,
-            getBackupUsername,
-            createPasswordRecord,
-            setItem,
-            logger: console
+        const { renderBatchActionBar, toggleSelectionMode } = batchActionBarLifecycle;
+        const workspaceFeatures = createWorkspaceFeatures({
+            window, document, navigator, fetch, File, FileReader, Image, URL, Event, Chart, loadArchiveVendor,
+            requestAnimationFrame, setTimeout, clearTimeout, crypto, console,
+            elements: ALL_ELEMENTS, state: shell, i18n, models: MODELS,
+            runtimeAppDataStore, runtimeStorageAdapter, runtimeDialogCoordinator, conversationStateAccess,
+            updateInputState, setupSettingsModal, initChatApp,
+            applyUiTheme: (...args) => applyUiTheme(...args),
+            applyLanguage: (...args) => applyLanguage(...args),
+            setupTimeAnalysis: (...args) => setupTimeAnalysis(...args),
+            getSensitiveApiKeys, mergeSensitiveApiKeys, saveSensitiveConfig, saveConfig, saveAppData,
+            showNotification, showCustomConfirm, showCustomPrompt, toggleModal, toggleSelectionMode,
+            escapeHTML, renderUserText, renderMarkdownWithFormulas,
+            startNewChat, loadChat, getActiveConversation, moveConversationToFolder, createNewFolder,
+            normalizeConversationModel, isCouncilEnabled, modelSupportsVision, getCouncilValidation, getApiKeyForProvider,
+            getGeneratedImageRuntime, runMemoryModel, callApiWithSchema, getOutputMode, hashString, constantTimeEqual,
+            processInChunks, getBackupUsername, createPasswordRecord, getUserKey, setItem
         });
         const {
-            renderPersonalMemoryList,
-            refineAndStoreMemories,
-            extractPersonalMemory,
-            updateApiKeyWarningBadge,
-            openDashboard,
-            renderDashboardStats,
-            renderModelUsageChart,
-            performSearchAndRenderResults,
-            generateSearchKeywords,
-            calculateRelevanceScores,
-            renderFilePreviews,
-            removeFile,
-            handleFileSelection,
-            toggleSidebar,
-            handleBatchDelete,
-            handleBatchArchive,
-            handleBatchMove,
-            renderBatchMoveModal,
-            batchMoveToFolder,
-            handleExport,
-            performImport,
-            handleImport,
-            handleImportOnAuth,
-            processAuthImport,
-            setupVoiceInput,
-            toggleVoiceInput,
-            closeAllPopovers,
-            copyTextToClipboard,
-            setupTimeAnalysis,
-            updateTimeDistributionChart,
-            applyUiTheme,
-            renderUiColorOptions,
-            openStore,
-            closeStore,
-            renderStore,
-            handleSubscription,
-            openAvatarEditor,
-            handleAvatarUpload,
-            handleConfirmAvatarCrop,
-            applyLanguage,
-            showMobileContextMenu,
-            showMobileContextMenuForFolder,
-            showMobileContextMenuForAstras,
-            setupScrollToBottomButton,
-            checkAndShowLatestUpdate,
-            setupMessageIntersectionObserver,
-            renderTrash,
-            handleRestoreTrashItem,
-            handleDeleteTrashItemPermanently,
-            showTrashItemInViewModal,
-            toggleTrashSelectionMode,
-            renderTrashBatchActionBar,
-            handleBatchRestoreFromTrash,
-            handleBatchDeleteFromTrash,
-            handleEmptyTrash,
-            updateDisplayedVersion,
-            cancelMemoryCapture: cancelMemoryCaptureWork,
-            invalidateMemoryConversation,
-            ensureMemorySummaryFresh
-        } = transitionBusLifecycle;
+            renderPersonalMemoryList, refineAndStoreMemories, extractPersonalMemory, updateApiKeyWarningBadge, openDashboard,
+            renderDashboardStats, renderModelUsageChart, performSearchAndRenderResults, generateSearchKeywords, calculateRelevanceScores,
+            renderFilePreviews, removeFile, handleFileSelection, toggleSidebar, handleBatchDelete, handleBatchArchive, handleBatchMove,
+            renderBatchMoveModal, batchMoveToFolder, handleExport, performImport, handleImport, handleImportOnAuth, processAuthImport,
+            setupVoiceInput, toggleVoiceInput, closeAllPopovers, copyTextToClipboard,
+            cancelMemoryCapture: cancelMemoryCaptureWork, invalidateMemoryConversation, ensureMemorySummaryFresh
+        } = workspaceFeatures;
         cancelPendingMemoryCapture = cancelMemoryCaptureWork;
         invalidateConversationMemory = invalidateMemoryConversation;
-        getMemoryFunctions = transitionBusLifecycle.memory;
-        // Created after the transition bus destructuring so its dependencies are plain
+        getMemoryFunctions = workspaceFeatures.getMemory;
+        const {
+            setupTimeAnalysis, updateTimeDistributionChart, applyUiTheme, renderUiColorOptions, openStore, closeStore, renderStore,
+            handleSubscription, openAvatarEditor, handleAvatarUpload, handleConfirmAvatarCrop, applyLanguage, showMobileContextMenu,
+            showMobileContextMenuForFolder, showMobileContextMenuForAstras, setupScrollToBottomButton, checkAndShowLatestUpdate,
+            setupMessageIntersectionObserver, renderTrash, handleRestoreTrashItem, handleDeleteTrashItemPermanently,
+            showTrashItemInViewModal, toggleTrashSelectionMode, renderTrashBatchActionBar, handleBatchRestoreFromTrash,
+            handleBatchDeleteFromTrash, handleEmptyTrash, updateDisplayedVersion
+        } = createPageFeatures({
+            window, document, navigator, fetch, File, Event, Image, FileReader, Chart, Cropper,
+            ResizeObserver, IntersectionObserver, requestAnimationFrame, setTimeout, clearTimeout, crypto, console,
+            elements: ALL_ELEMENTS, state: shell, runtimeConfigAccess, runtimeAppDataStore, runtimeDialogCoordinator, i18n,
+            OFFICIAL_ASTRAS, updateLogs, productVersion, UI_THEME_COLORS, getMemory,
+            updateInputState, setTheme, updateThemeButtons, saveConfig, saveAppData, deleteConversationsFromCloud, deleteAstrasFromCloud,
+            showNotification, showCustomConfirm, toggleModal, escapeHTML, sanitizeTrustedHTML,
+            renderAll, renderAstras, renderInputIndicators, renderCouncilControls, renderPersonalMemoryList,
+            showRenameModal, togglePinChat, archiveChat, deleteChat, moveConversationToFolder, renderBatchMoveModal,
+            showFolderSettingsModal, deleteFolder, deleteAstras,
+            formatFullTimestamp, renderUserText, renderMarkdownWithFormulas, bindGeneratedImageAssets
+        });
+        // Created after the workspace and page features so its dependencies are plain
         // references. Its listeners only receive async cloud events, so ordering is safe.
         createCloudWorkspaceLiveLifecycle({
             window,configAccess:runtimeConfigAccess,appDataStore:runtimeAppDataStore,
@@ -1096,6 +924,52 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             saveAppData,busy:()=>shell.abortController&&liveConversationsBridge.getConversations().find(c=>c.__astraPendingResponse)
         });
 
-// The runtime entry makes the core tail from these and connects it back (runtime-entry.js).
-export const coreTailDependencies = transitionBusLifecycle.coreTailDependencies;
-export const connectCoreTail = transitionBusLifecycle.connectCoreTail;
+        // The start of the page: the chat page once signed in (app-bootstrap-lifecycle.js), the sign-in page and loading (startup-lifecycle.js).
+        const { replaceMemoryState, restoreMemorySync } = createMemorySyncState({ state: shell, runtimeAppDataStore, saveConfig, saveAppData, console });
+        appBootstrapLifecycle = createLegacyAppBootstrapLifecycle({
+            window, document, elements: ALL_ELEMENTS, loadArchiveVendor, loadSharingVendor, BlobCtor: Blob,
+            getCurrentUser: () => shell.currentUser, getConfig: () => shell.config, getConversations: () => shell.conversations,
+            getFolders: () => shell.folders, getAstras: () => shell.astras, getPersonalMemories: () => shell.personalMemories,
+            getMemoryState: () => runtimeAppDataStore.getMemoryState(), replaceMemoryState,
+            getCurrentConversationId: () => conversationStateAccess.getCurrentConversationId(),
+            setCurrentConversationId: (id) => conversationStateAccess.setCurrentConversationId(id),
+            setSidebarOpen: (next) => (shell.sidebarOpen = next), setSendConfirmed: (next) => (shell.sendConfirmed = next),
+            getAbortController: () => shell.abortController, getCropperInstance: () => shell.cropperInstance,
+            setCropperInstance: (next) => (shell.cropperInstance = next),
+            setEditingAstraForAvatarId: (next) => (shell.editingAstraForAvatarId = next),
+            startNewChat, renderAll, setTheme, setupVoiceInput, setupScrollToBottomButton, updateDisplayedVersion, checkAndShowLatestUpdate,
+            updateFunctionButtonsState, updateInputState, setupSettingsModal, toggleSidebar, toggleModal, saveSettings, saveAppData,
+            handleExport, handleImport, handleLogout, handleFileSelection, handleFormSubmit, handleRename, handleSaveFolderSettings,
+            performSearchAndRenderResults, loadChat, openDashboard, getActiveConversation, copyTextToClipboard, startMessageEditing,
+            showNotification, showCustomConfirm, normalizeConversationModel, getCouncilSelectedModels, isCouncilEnabled,
+            hasCouncilWebSearchAccess, hasSingleWebSearchAccess, hasSingleDocumentAccess, modelSupportsVision, getCouncilTexts,
+            renderInputIndicators, toggleLearningMode, toggleSelectionMode, handleBatchDelete, handleBatchArchive, handleBatchMove,
+            adjustTextareaHeight, submitChatForm, closeAllPopovers, showCustomPrompt, createNewFolder, createAstras, handleSaveAstras,
+            renderPersonalMemoryList, handleDeleteAllData, applyLanguage, applyUiTheme, openStore, closeStore, handleAvatarUpload,
+            handleConfirmAvatarCrop, toggleTrashSelectionMode, handleBatchRestoreFromTrash, handleBatchDeleteFromTrash, handleEmptyTrash,
+            updateFileInputUI, postJsonWithReadableError, openCouncilPopoverFromAttachmentMenu, setupHistorySidebarInteractions,
+            setupHistorySidebarTriggers, requestMemorySummaryBootstrap: ensureMemorySummaryFresh, escapeHTML, getDefaultFolder,
+            isMobileSettingsViewport, openSettingsMobileSection, i18n,
+            randomUUID: () => crypto.randomUUID(), random: () => Math.random(), scheduleTimeout: setTimeout,
+            clearScheduledTimeout: clearTimeout, scheduleAnimationFrame: requestAnimationFrame, logger: console
+        });
+        startupLifecycle = createLegacyStartupLifecycle({
+            window, document, globalObject: globalThis, elements: ALL_ELEMENTS,
+            getConfig: () => shell.config, setCurrentUser: (nextUser) => (shell.currentUser = nextUser),
+            getItem, getUserKey, loadConfig, loadAppData, restoreMemorySync,
+            getText: (key) => getText(key, ''),
+            applyLanguage, applyUiTheme, initChatApp: appBootstrapLifecycle.initChatApp, handleLogin, handleImportOnAuth, processAuthImport,
+            toggleModal, installTouchGuards, registerServiceWorker, showCustomDialog, getComputedStyle
+        });
+
+let pageStart = null;
+/** Starts the page once (runtime-entry.js): the message field, the sign-in page and the loading of the workspace. */
+export function startPage() {
+    if (pageStart) return pageStart;
+    initializeComposerRichEditor({ editor: ALL_ELEMENTS.messageInput, inputIndicatorContainer: ALL_ELEMENTS.inputIndicatorContainer, document });
+    startupLifecycle.bindAuthStartupListeners();
+    pageStart = Promise.resolve(startupLifecycle.initializeApp());
+    startupLifecycle.bindLoginLanguageSwitcher();
+    startupLifecycle.runStartupPostlude();
+    return pageStart;
+}

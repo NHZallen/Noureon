@@ -95,6 +95,8 @@ function chunkName(id) {
   // The submit lifecycle and its parts (submit-input-*.js) ship together.
   if (id.includes('/src/app/runtime/legacy-core/submit-input-')) return 'legacy-submit-input';
   if (id.includes('/src/app/runtime/legacy-core/model-registry.js')) return 'legacy-model-registry';
+  // The start of the page and the page features (made by the shell, legacy-core.js) ship next to the shell, not inside it.
+  if (/\/src\/app\/runtime\/(?:features\/(?:app-bootstrap|startup)-lifecycle|legacy-core\/page-features)\.js$/.test(id)) return 'legacy-page';
   // Memory is loaded after the application shell and has its own lifecycle.
   // Keep it out of the legacy shell chunk so adding memory capabilities does
   // not make first-load chat startup heavier.

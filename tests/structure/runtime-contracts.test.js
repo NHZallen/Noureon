@@ -39,14 +39,18 @@ test('no production code registers or resolves a runtime binding by name', () =>
   assert.equal(existsSync(projectFile('src/app/legacy-runtime/runtime/legacy-runtime-context.js')), false);
 });
 
-test('the shell and the runtime entry are connected by named exports', () => {
+// The shell makes every feature of the page itself and the runtime entry only starts it (NOU-77): nothing is handed out to be made
+// elsewhere and connected back.
+test('the shell starts the page itself; the runtime entry only loads it', () => {
   const legacyCore = readSource('src/app/runtime/legacy-core/legacy-core.js');
-  for (const name of ['coreTailDependencies', 'connectCoreTail', 'connectRuntimeEntry']) {
-    assert.match(legacyCore, new RegExp(`export\\s+(?:const|function)\\s+${name}\\b`), `legacy-core.js exports ${name}`);
-  }
+  assert.match(legacyCore, /export\s+function\s+startPage\b/);
+  assert.doesNotMatch(legacyCore, /coreTailDependencies|connectCoreTail|connectRuntimeEntry/);
   const runtimeEntry = readSource('src/app/runtime-entry.js');
-  assert.match(runtimeEntry, /core\.connectCoreTail\(coreTailLifecycle\)/);
-  assert.match(runtimeEntry, /core\?\.connectRuntimeEntry\(\{/);
+  assert.match(runtimeEntry, /core\.startPage\(\)/);
+  for (const path of ['src/app/runtime/legacy-core/transition-bus-lifecycle.js', 'src/app/runtime/legacy-core/core-tail-lifecycle.js',
+    'src/app/runtime/runtime-entry-dependencies.js']) {
+    assert.equal(existsSync(projectFile(path)), false, `${path} stays removed`);
+  }
 });
 
 test('retired virtual runtime and fragment paths remain absent from production', () => {

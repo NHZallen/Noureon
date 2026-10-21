@@ -117,13 +117,13 @@ const distFiles = collectFiles(join(root, 'dist')).map((file) => ({
 
 const runtimeBudgetDefinitions = [
   { label: 'legacy-core shell', path: 'src/app/runtime/legacy-core/legacy-core.js', transitionalLimit: bytes(52), v5Target: bytes(55) },
-  { label: 'core-tail lifecycle', path: 'src/app/runtime/legacy-core/core-tail-lifecycle.js', transitionalLimit: bytes(20), v5Target: bytes(35) },
+  { label: 'page features', path: 'src/app/runtime/legacy-core/page-features.js', transitionalLimit: bytes(12), v5Target: bytes(16) },
   { label: 'settings auth provider lifecycle', path: 'src/app/runtime/legacy-core/settings-auth-provider-lifecycle.js', transitionalLimit: bytes(14), v5Target: bytes(16) },
   { label: 'submit input council lifecycle', path: 'src/app/runtime/legacy-core/submit-input-council-lifecycle.js', transitionalLimit: bytes(29), v5Target: bytes(30) },
   { label: 'app bootstrap lifecycle', path: 'src/app/runtime/features/app-bootstrap-lifecycle.js', transitionalLimit: bytes(25), v5Target: bytes(35) },
   { label: 'settings sync vault controls', path: 'src/app/runtime/legacy-core/settings-sync-vault-controls.js', transitionalLimit: bytes(20), v5Target: bytes(20) },
   { label: 'council controls lifecycle', path: 'src/app/legacy-runtime/features/council-controls-lifecycle.js', transitionalLimit: bytes(18), v5Target: bytes(20) },
-  { label: 'transition bus lifecycle', path: 'src/app/runtime/legacy-core/transition-bus-lifecycle.js', transitionalLimit: bytes(21), v5Target: bytes(24) }
+  { label: 'workspace features', path: 'src/app/runtime/legacy-core/workspace-features.js', transitionalLimit: bytes(16), v5Target: bytes(20) }
 ];
 
 const cssBudgetDefinitions = [
