@@ -7,6 +7,7 @@ import { GROUP_LIMIT, GROUP_NAME_LIMIT, councilMatchesGroup, pickRecentModels } 
 import { modelPickerText } from '../../ui/model-picker/model-picker-texts.js';
 import { prepareModelSwitcherModels } from '../features/model-switcher-lifecycle.js';
 import { opencodeModelReadsPdf } from '../shell/opencode-models.js';
+import { modelCanCallModels } from '../shell/model-registry.js';
 
 export function createPickerViewState({
   ui, models, councilMaxModels, getI18n, getCouncilTexts, getCouncilRuntimeTexts, getIsCouncilRunning, isImageConversation,
@@ -40,7 +41,8 @@ export function createPickerViewState({
         modelSupportsVision(model) ? t('vision') : '',
         // A model of OpenCode Go that reads a PDF as it is counts as reading documents (the others of its files are translated for it).
         (modelSupportsDocumentUpload(model) || opencodeModelReadsPdf(model)) ? t('documents') : (getSingleDocumentTranslatorModel() ? t('translatedDocuments') : ''),
-        modelSupportsWebSearch(model) ? t('search') : ''
+        modelSupportsWebSearch(model) ? t('search') : '',
+        modelCanCallModels(model) ? t('callsModels') : ''
       ].filter(Boolean),
       free: tiers.includes('free'),
       hidden: Boolean(model.hiddenModel),

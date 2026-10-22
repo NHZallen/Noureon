@@ -588,6 +588,11 @@ export const modelUsesTavilySearch = (model) => Boolean(model && (
 export const modelSupportsWebSearch = (model) => Boolean(modelUsesNativeWebSearch(model) || modelUsesTavilySearch(model));
 export const modelSupportsToolCalling = (model) => Boolean(model && model.outputModality !== 'image' && TOOL_CALLING_MODEL_IDS.includes(model.id));
 
+// A text model that can be given a tool and can look at a picture may call another model on the person's behalf (it draws pictures with the picture
+// model the person chose in the settings: docs/superpowers/specs/2026-10-22-text-model-image-tool-design.md). Both abilities are needed; with one of them
+// missing the tool is not offered.
+export const modelCanCallModels = (model) => Boolean(modelSupportsToolCalling(model) && modelSupportsVision(model));
+
 export function createModelRegistry({
     getConfig = () => ({}),
     normalizeConversationModel = () => null
