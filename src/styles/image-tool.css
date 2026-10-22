@@ -76,17 +76,19 @@
 
 /* The wait for a picture a text model draws, in the reply (draw-stage.js): the field of dots of the wait for a picture (chat-generated-image.css), the size the picture
    will have (the same as its card below), so the picture takes its place without the page moving. */
-.reply-draw-stage { width: min(100%, 28rem); margin: 0.3rem 0 0.2rem; }
-@keyframes reply-draw-stage-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
-.reply-draw-stage { animation: reply-draw-stage-in 0.3s ease; }
-@media (prefers-reduced-motion: reduce) { .reply-draw-stage { animation: none; } }
+.reply-draw-stage { width: min(100%, 28rem); margin: 0; }
 @keyframes reply-draw-stage-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 .reply-draw-stage { animation: reply-draw-stage-in 0.3s ease; }
 @media (prefers-reduced-motion: reduce) { .reply-draw-stage { animation: none; } }
 .reply-draw-stage .generated-image-skeleton { min-height: 0; max-height: 70vh; }
 
 /* The place of a picture a text model drew, between the bubbles of the words before and after it (picture-flow.js). */
-.reply-picture-slot { margin: 0.3rem 0; }
+.reply-picture-slot { margin: 0; }
+/* The words next to a picture end close to it: the bubble's own padding and the gap of the stack already stand between them. */
+.model-message .message-bubble:has(+ .reply-picture-slot, + .generated-image-card, + .generated-image-set) { padding-bottom: 0.25rem; }
+.model-message .reply-picture-slot + .message-bubble,
+.model-message .generated-image-card + .message-bubble,
+.model-message .generated-image-set + .message-bubble { padding-top: 0.25rem; }
 .reply-picture-slot .generated-image-card { max-width: min(100%, 28rem); }
 .reply-picture-slot .generated-image-set { max-width: min(100%, 28rem); }
 
