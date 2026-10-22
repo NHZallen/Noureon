@@ -55,6 +55,8 @@ const expectedConfig = (defaultModelId) => ({
   cliVersions: {},
   netMode: 'new',
   netRules: {},
+  toolModels: { image: null },
+  permissions: { imageGeneration: 'ask' },
   cliStamps: {},
   cliUseStamps: {},
   netStamps: {},

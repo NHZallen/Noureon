@@ -6,6 +6,7 @@ export const SETTINGS_MOBILE_ICON_MAP = Object.freeze({
   'data-management': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7c0-2 3.6-3.5 8-3.5s8 1.5 8 3.5-3.6 3.5-8 3.5S4 9 4 7z"></path><path d="M4 7v5c0 2 3.6 3.5 8 3.5s8-1.5 8-3.5V7"></path><path d="M4 12v5c0 2 3.6 3.5 8 3.5s8-1.5 8-3.5v-5"></path></svg>',
   privacy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M7 11h10a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2Z"></path><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>',
   permissions: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 5 6v5c0 4.4 3 8.2 7 10 4-1.8 7-5.6 7-10V6l-7-3Z"></path><path d="m9 12 2 2 4-4"></path></svg>',
+  'tool-models': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="3"></rect><circle cx="9" cy="9.5" r="1.6"></circle><path d="m4 16 5-4.5 3.5 3L16 11l5 5"></path></svg>',
   accessibility: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h10"></path><path d="M18 7h2"></path><circle cx="16" cy="7" r="2"></circle><path d="M4 17h2"></path><path d="M10 17h10"></path><circle cx="8" cy="17" r="2"></circle></svg>',
   trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M19 6l-1 15H6L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path></svg>',
   about: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4"></path><path d="M12 8h.01"></path></svg>'
@@ -34,6 +35,7 @@ export const getSettingsMobileGroups = (getText) => {
         { section: 'data-management', label: text('dataManagement', '資料管理') },
         { section: 'privacy', label: text('privacy', '隱私') },
         { section: 'permissions', label: text('permissions', '權限') },
+        { section: 'tool-models', label: text('toolModels', '模型可呼叫模型') },
         { section: 'accessibility', label: text('accessibility', '輔助功能') },
         { section: 'trash', label: text('trash', '垃圾桶') }
       ]

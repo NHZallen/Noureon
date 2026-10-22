@@ -3,6 +3,7 @@
 
 import { ensurePrivacySettingsSection } from './settings-privacy-section.js';
 import { ensurePermissionsSettingsSection } from './settings-permissions-section.js';
+import { ensureToolModelsSettingsSection } from './settings-tool-models-section.js';
 import { ensureWorkspaceStorageStatus } from './settings-workspace-storage-status.js';
 import { ensureProcessOpenSettingsControl } from './settings-vision-check-control.js';
 import { visionText } from '../../ui/files/vision/vision-texts.js';
@@ -11,6 +12,7 @@ export function ensureVisionCheckSettingsControl({ document, elements, config, s
   // The Privacy and Permissions tabs are set up with the other tabs that are added here.
   ensurePrivacySettingsSection({ document, elements, config, saveConfig });
   ensurePermissionsSettingsSection({ document, elements, config, saveConfig, showNotification });
+  ensureToolModelsSettingsSection({ document, elements, config, saveConfig });
   // The cloud space line is loaded with the settings, not with the page.
   void import('./settings-storage-usage.js').then(({ ensureStorageUsageBlock }) => ensureStorageUsageBlock({ document, elements, config })).catch(() => {});
   ensureWorkspaceStorageStatus({ document, elements, config });

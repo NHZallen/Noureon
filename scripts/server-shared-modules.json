@@ -404,6 +404,10 @@
       "note": "Reviewed 2026-10-05: plain data and checks (the rules for the network of the CLI tools); URL is a global of Node and browsers alike."
     },
     {
+      "path": "src/data/tool-models.js",
+      "note": "Reviewed 2026-10-22: no browser globals (the picture model a text model draws with and the permission for it, as the settings keep them; the server reads them through the settings merge)."
+    },
+    {
       "path": "src/data/cli-settings-merge.js",
       "note": "Reviewed 2026-10-05: pure functions over plain objects (the merge of the CLI tools' lists between devices); reached through the config normalization."
     },

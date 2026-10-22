@@ -1,6 +1,7 @@
 import { normalizeColorScheme } from '../../../data/color-scheme-choices.js';
 import { normalizeCliIds, normalizeCliVersions } from '../../../data/cli-catalog.js';
 import { normalizeNetHost, normalizeNetMode, normalizeNetRules } from '../../../data/cli-net.js';
+import { normalizePermissions, normalizeToolModels } from '../../../data/tool-models.js';
 import { normalizeStamps } from '../../../data/cli-settings-merge.js';
 import { normalizeSkillIds, normalizeSkillStamps } from '../../../data/skill-settings-merge.js';
 import { normalizeSettingsStamps } from '../../../data/settings-merge.js';
@@ -181,6 +182,9 @@ export function normalizeLoadedLegacyConfig({
   // The network of those tools: whether every site is asked about, and the person's rules for sites.
   normalizedConfig.netMode = normalizeNetMode(normalizedConfig.netMode);
   normalizedConfig.netRules = normalizeNetRules(normalizedConfig.netRules);
+  // The picture model a text model draws with, and whether the person is asked before each picture.
+  normalizedConfig.toolModels = normalizeToolModels(normalizedConfig.toolModels);
+  normalizedConfig.permissions = normalizePermissions(normalizedConfig.permissions);
   // When each item of those lists last changed: what lets devices merge them item by item.
   normalizedConfig.cliStamps = normalizeStamps(normalizedConfig.cliStamps, (key) => (/^[a-z][a-z0-9-]{1,39}$/.test(String(key)) ? String(key) : ''));
   normalizedConfig.cliUseStamps = normalizeStamps(normalizedConfig.cliUseStamps, (key) => (/^[a-z][a-z0-9-]{1,39}$/.test(String(key)) ? String(key) : ''));

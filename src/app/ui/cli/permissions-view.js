@@ -11,6 +11,7 @@ import { CREDENTIAL_NAME } from '../../runtime/cli/credentials-client.js';
 import { permissionText } from '../../runtime/cli/permission-texts.js';
 import { connectorText } from '../../runtime/connector/connector-texts.js';
 import { toolIconMarkup, watchToolIcons } from './cli-icons.js';
+import { imagePermissionCard } from '../tool-models/image-permission-card.js';
 
 const ICONS = {
   chevron: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>',
@@ -157,7 +158,7 @@ export function renderPermissionsView({ document, root, getLanguage, getConfig, 
     licenses.append(make(document, 'span', 'pm-row-label', t('licensesLink')), licensesChevron);
     licenses.addEventListener('click', openLicenses);
     licensesCard.append(licenses);
-    root.append(block, manage, licensesCard);
+    root.append(block, imagePermissionCard({ document, t, getConfig, change }), manage, licensesCard);
     // The number of credentials is known once they are loaded (a person with an account sees it without opening the row).
     if (state.creds.status === 'idle') void loadCredentials();
   };
