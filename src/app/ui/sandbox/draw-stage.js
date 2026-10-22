@@ -3,6 +3,7 @@
 // (after the person allowed it) and goes when the picture takes its place (picture-flow.js), or when the drawing stops or fails.
 
 import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
+import { leave } from './fold-animation.js';
 import { imageWaitMarkup, loadImageWait } from '../image-wait/image-wait-markup.js';
 
 const ratioOf = (value) => (/^\d{1,2}:\d{1,2}$/.test(String(value || '')) ? String(value).replace(':', ' / ') : '1 / 1');
@@ -13,6 +14,12 @@ export function createDrawStage({ document, place, language }) {
   const remove = () => {
     stage?.remove();
     stage = null;
+  };
+  // The wait ends without a picture (stopped, failed, or the picture is taken over): it folds away rather than vanishing.
+  const settle = () => {
+    const old = stage;
+    stage = null;
+    leave(old);
   };
   const show = (event) => {
     const after = place();
@@ -39,7 +46,7 @@ export function createDrawStage({ document, place, language }) {
       }
       if (event?.type !== 'image') return;
       if (event.event === 'drawing') show(event);
-      else if (event.event === 'failed' || event.event === 'stopped' || (event.event === 'answer' && stage)) remove();
+      else if (event.event === 'failed' || event.event === 'stopped' || (event.event === 'answer' && stage)) settle();
     },
     remove,
     get element() { return stage; }

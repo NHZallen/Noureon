@@ -3,6 +3,7 @@
 // answer (no button to confirm). "重找" says none is right. Once answered the card folds into one line (the picture and what was used) with "改" to choose again,
 // while the reply goes on. Everything shown comes from the model's call and is put in as text; the small pictures are data from the server of the person's own pictures.
 
+import { foldAnimated } from './fold-animation.js';
 import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
 import { setPictureNumber } from '../files/picture-number.js';
 
@@ -43,7 +44,6 @@ export function createImagePickCards({ document, host, language, onAnswer = asyn
     card.resolved = true;
     const chosen = /^pick:(\d+)$/.exec(answer || '') ? card.candidates[Number(answer.slice(5))] : null;
     if (chosen) onPicked({ round: chosen.round, source: chosen.source, number: chosen.number });
-    card.node.className = `net-ask image-pick is-resolved${chosen ? ' is-picked' : ' is-refused'}`;
     const line = make('div', 'image-picked-line');
     if (chosen) {
       line.append(make('span', 'image-picked-text', text('imagePicked', { number: chosen.number })), picture(chosen, 'image-picked-mini'));
@@ -68,7 +68,10 @@ export function createImagePickCards({ document, host, language, onAnswer = asyn
     } else {
       line.append(make('span', 'image-picked-text', text(answer === 'retry' ? 'imageRetried' : answer === 'timeout' ? 'imageTimedOut' : 'imageStopped')));
     }
-    card.node.replaceChildren(line);
+    foldAnimated(card.node, () => {
+      card.node.className = `net-ask image-pick is-resolved${chosen ? ' is-picked' : ' is-refused'}`;
+      card.node.replaceChildren(line);
+    });
   };
 
   const ask = ({ id, title, step, of, candidates }) => {

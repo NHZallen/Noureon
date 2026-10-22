@@ -6,6 +6,7 @@
 
 import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
 import { referencesLine } from './picture-steps-view.js';
+import { foldAnimated } from './fold-animation.js';
 
 const RESULT_KEYS = Object.freeze({ not: 'imageNotThisDone', once: 'imageAnsweredOnce', always: 'imageAnsweredAlways', deny: 'imageRefused', timeout: 'imageTimedOut', cancel: 'imageStopped' });
 
@@ -26,13 +27,16 @@ export function createImageAskCards({ document, host, language, onAnswer = async
   const resolve = (card, decision) => {
     if (card.resolved) return;
     card.resolved = true;
-    card.node.classList.add('is-resolved');
-    card.node.classList.toggle('is-refused', decision !== 'once' && decision !== 'always');
-    card.actions.remove();
-    card.note.remove();
-    card.prompt.remove();
-    card.refs?.remove();
-    card.title.textContent = text(RESULT_KEYS[String(decision).startsWith('not:') ? 'not' : decision] || RESULT_KEYS.timeout);
+    // The card folds up to its one line (the question, the pictures and the buttons go) instead of jumping.
+    foldAnimated(card.node, () => {
+      card.node.classList.add('is-resolved');
+      card.node.classList.toggle('is-refused', decision !== 'once' && decision !== 'always');
+      card.actions.remove();
+      card.note.remove();
+      card.prompt.remove();
+      card.refs?.remove();
+      card.title.textContent = text(RESULT_KEYS[String(decision).startsWith('not:') ? 'not' : decision] || RESULT_KEYS.timeout);
+    });
   };
 
   const ask = ({ id, model, prompt, summary, references, waitMs }) => {

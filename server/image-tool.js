@@ -23,9 +23,9 @@ export const MAX_VIEW_CALLS = 5;
 /** Questions "which one is it?" in one reply, the candidates in one, and the size of the small pictures on the card. */
 export const MAX_PICK_ASKS = 6;
 export const MAX_PICK_CANDIDATES = 12;
-const CARD_SIDE = 192;
-const CARD_QUALITY = 55;
-const CARD_MAX_CHARS = 30_000;
+const CARD_SIDE = 320;
+const CARD_QUALITY = 70;
+const CARD_MAX_CHARS = 60_000;
 /** The tiny pictures of the step list (and of the record kept with the reply): small, since a reply may keep many. */
 const STRIP_SIDE = 160;
 const STRIP_QUALITY = 50;
@@ -433,7 +433,8 @@ export function createImageToolLoader({ spec, secrets, userId, files, signal = n
         prompt: oneLine(prompt, 1500),
         ...(oneLine(args.summary, 200) ? { summary: oneLine(args.summary, 200) } : {}),
         count,
-        references: strips
+        // Larger than the little pictures of the step list: they are looked at on the card.
+        references: await Promise.all(found.map(async (picture) => ({ ...pictureRef(picture), thumb: await cardPicture(picture) })))
       }, (value) => ['once', 'always', 'deny'].includes(value) || (/^not:\d{1,2}$/.test(value) && Number(value.slice(4)) < found.length), (id) => { if (activeDraw) activeDraw.askId = id; });
       if (signal?.aborted) return 'The reply was stopped.';
       if (answer === 'always') allowed = true;

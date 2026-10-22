@@ -2,8 +2,8 @@
 // THUMB_SIDE and it is kept as a JPEG. The drawing library is not in every image of the server (it is the same one the slides use): without it a
 // picture that is small enough goes as it is, and a larger one is left out (the model is told, not shown).
 
-export const THUMB_SIDE = 512;
-const THUMB_QUALITY = 70;
+export const THUMB_SIDE = 1280;
+const THUMB_QUALITY = 82;
 const AS_IS_BYTES = 150_000;
 
 let canvasModule;

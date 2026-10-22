@@ -66,11 +66,15 @@ test('a thumbnail is a small JPEG when the drawing library is there; a picture i
   if (canvas) {
     const surface = canvas.createCanvas(2000, 1000);
     surface.getContext('2d').fillRect(0, 0, 2000, 1000);
+    const big = canvas.createCanvas(3000, 1500);
+    big.getContext('2d').fillRect(0, 0, 3000, 1500);
+    const cut = await canvas.loadImage(Buffer.from((await makeThumbnail(big.toBuffer('image/png'), 'image/png')).data, 'base64'));
+    assert.equal(cut.width, 1280, 'a large picture is cut to the side the model is shown');
     const thumb = await makeThumbnail(surface.toBuffer('image/png'), 'image/png');
     assert.equal(thumb.mimeType, 'image/jpeg');
     const small = await canvas.loadImage(Buffer.from(thumb.data, 'base64'));
-    assert.equal(small.width, 512);
-    assert.equal(small.height, 256);
+    assert.equal(small.width, 1280);
+    assert.equal(small.height, 640);
   }
   const garbage = Buffer.from('not a picture');
   const kept = await makeThumbnail(garbage, 'image/png');

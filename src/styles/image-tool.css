@@ -64,14 +64,25 @@
 .image-ref-tile img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .image-ref-tile .picture-number { display: inline-flex; }
 .image-ref-cap { font-size: 0.72rem; line-height: 1.2; color: var(--text-secondary); }
-.image-ask .image-refs-line { margin: 0.7rem 0 0; gap: 0.8rem 1rem; }
-.image-ask .image-refs-item { flex-direction: column; align-items: flex-start; gap: 0.3rem; }
-.image-ask .image-ref-tile { width: 5.5rem; height: 5.5rem; border-radius: 0.7rem; }
-.image-ask .image-ref-tile .picture-number { top: 0.35rem; left: 0.35rem; min-width: 1.25rem; height: 1.25rem; font-size: 0.72rem; }
+/* The question is one column, every part starting at the same edge as its words (it has no icon to make room for). */
+.image-ask .net-ask-actions { margin-left: 0; }
+.image-ask .net-ask-note, .image-ask .net-ask-failed { margin-left: 0; }
+.image-ask .image-refs-line { margin: 0.8rem 0 0; gap: 1rem 1.1rem; }
+.image-ask .image-refs-item { flex-direction: column; align-items: flex-start; gap: 0.35rem; width: 9rem; max-width: calc(50% - 0.6rem); }
+.image-ask .image-ref-tile { width: 100%; height: auto; aspect-ratio: 1; border-radius: 0.8rem; }
+.image-ask .image-ref-tile .picture-number { top: 0.45rem; left: 0.45rem; min-width: 1.35rem; height: 1.35rem; font-size: 0.78rem; }
+.image-ask .image-ref-cap { font-size: 0.8rem; }
+.image-ask .image-refs-item .image-pick-text-button { margin: 0 0 0 -0.4rem; }
 
 /* The wait for a picture a text model draws, in the reply (draw-stage.js): the field of dots of the wait for a picture (chat-generated-image.css), the size the picture
    will have (the same as its card below), so the picture takes its place without the page moving. */
 .reply-draw-stage { width: min(100%, 28rem); margin: 0.3rem 0 0.2rem; }
+@keyframes reply-draw-stage-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.reply-draw-stage { animation: reply-draw-stage-in 0.3s ease; }
+@media (prefers-reduced-motion: reduce) { .reply-draw-stage { animation: none; } }
+@keyframes reply-draw-stage-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.reply-draw-stage { animation: reply-draw-stage-in 0.3s ease; }
+@media (prefers-reduced-motion: reduce) { .reply-draw-stage { animation: none; } }
 .reply-draw-stage .generated-image-skeleton { min-height: 0; max-height: 70vh; }
 
 /* The place of a picture a text model drew, between the bubbles of the words before and after it (picture-flow.js). */
