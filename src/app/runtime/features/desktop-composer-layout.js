@@ -61,6 +61,20 @@ export function createDesktopComposerLayout({
     const anchoredComposerCenter = composerTop + (emptyComposerBaselineHeight * 0.5);
     const offset = Math.min(0, Math.round(targetCenter - anchoredComposerCenter));
     workspace.style.setProperty('--desktop-composer-empty-offset', `${offset}px`);
+    measureMenuRoom();
+  };
+
+  // The menu of the composer opens under it while the chat is empty: how much room there is between where it starts and the bottom of the window, so it does
+  // not run out of the window (it is cut off there and the rest cannot be reached).
+  const MENU_GAP_PX = 28;
+  const WINDOW_MARGIN_PX = 16;
+  const measureMenuRoom = () => {
+    const popover = workspace?.querySelector?.('#file-options-popover');
+    const anchor = popover?.offsetParent;
+    const view = workspace?.ownerDocument?.defaultView;
+    if (!anchor || !view) return;
+    const room = Math.floor(view.innerHeight - anchor.getBoundingClientRect().bottom - MENU_GAP_PX - WINDOW_MARGIN_PX);
+    if (room > 0) workspace.style.setProperty('--desktop-composer-menu-room', `${room}px`);
   };
 
   const queueMeasurement = () => {
@@ -91,6 +105,7 @@ export function createDesktopComposerLayout({
     if (mode === 'mobile') {
       workspace?.style?.removeProperty('--desktop-composer-empty-offset');
       workspace?.style?.removeProperty('--desktop-composer-menu-width');
+      workspace?.style?.removeProperty('--desktop-composer-menu-room');
     }
     return mode;
   };

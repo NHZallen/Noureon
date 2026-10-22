@@ -91,6 +91,27 @@ test('measures the empty composer position and matching desktop menu width', () 
   }
 });
 
+test('the menu of the empty composer is given the room between where it starts and the bottom of the window', () => {
+  const harness = createHarness();
+  try {
+    const document = harness.workspace.ownerDocument;
+    const popover = document.createElement('div');
+    popover.id = 'file-options-popover';
+    harness.workspace.append(popover);
+    // The menu starts under the composer; the window is 700px high and the composer ends at 400.
+    const anchor = harness.inputBarContainer;
+    anchor.getBoundingClientRect = () => ({ bottom: 400 });
+    Object.defineProperty(popover, 'offsetParent', { configurable: true, value: anchor });
+    harness.workspace.ownerDocument.defaultView.innerHeight = 700;
+    harness.controller.sync();
+    harness.flushFrame();
+    assert.equal(harness.workspace.style.getPropertyValue('--desktop-composer-menu-room'), `${700 - 400 - 28 - 16}px`);
+  } finally {
+    harness.controller.destroy();
+    harness.cleanup();
+  }
+});
+
 test('growing an empty composer keeps its top edge anchored below the greeting', () => {
   const harness = createHarness();
   try {

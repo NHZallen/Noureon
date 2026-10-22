@@ -143,6 +143,8 @@
     #chat-workspace[data-composer-layout="empty"] #file-options-popover:not(.message-edit-shared-popover) {
         top: calc(100% + 1.75rem) !important;
         bottom: auto !important;
+        /* It opens downward here: no taller than the room under it (measured in desktop-composer-layout.js), and it scrolls inside when there is more. */
+        max-height: max(12rem, min(31rem, var(--desktop-composer-menu-room, 31rem)));
         transform: none !important;
     }
 
