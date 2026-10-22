@@ -106,3 +106,7 @@ owner 的目標例子：「前幾輪藍色那張比較好看，把桌上的花�
 - **「不是」：** 詢問卡（每次問）與步驟列（永遠允許）的每張參考圖旁都有；畫的途中按會中止這次生成（只中止這張，不是整個回覆），顯示「已停止。」，模型在下一次工具答案裡被告知。
 - **還沒做 / 已知限制：** 只做伺服器端回覆；「在這個裝置上產生」的回覆沒有這個功能。圖片模型（OpenRouter）對參考圖大小的限制沒有資料，待驗收時確認。展開區沒有把模型的公開思考文字穿插在圖排之間（思考是前一列）。
 
+
+### Add details on the pick card (2026-10-23)
+
+The pick card (`choose_image`) has a third answer next to "Retry": "Add details". It opens a box under the buttons where the person says more about the picture they mean (up to 300 characters); "Cancel" or Escape closes it and sends nothing, so a press by mistake costs nothing. The answer is `hint:<words>` (the endpoint takes up to 320 characters now). Unlike "Retry" it rules nothing out: the model is told the words, looks again (`view_images` with another filter, or other candidates) and asks again or uses the picture. The same limit of questions per reply applies. The card folds to "Added details: …, looking again".

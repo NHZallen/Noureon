@@ -359,6 +359,23 @@ test('"none of these" the first time sends the model to look again without them,
   assert.match(await third, /second time[\s\S]*describe/);
 });
 
+test('details the person adds are given to the model and rule nothing out', async () => {
+  const { loader, events } = fakes();
+  const running = loader.run(choose({ title: 'Which?', candidates: CANDIDATES.slice(0, 2) }));
+  const ask = await until(() => askedEvent(events));
+  assert.deepEqual(loader.answer(ask.id, 'hint:'), { answered: false }, 'no words is not an answer');
+  assert.deepEqual(loader.answer(ask.id, `hint:${'x'.repeat(400)}`), { answered: false }, 'too long');
+  assert.deepEqual(loader.answer(ask.id, 'hint:white background, a cat'), { answered: true });
+  const told = await running;
+  assert.match(told, /white background, a cat/);
+  assert.match(told, /not ruled out/);
+  // The same pictures can be asked about again.
+  const again = loader.run(choose({ title: 'Which?', candidates: CANDIDATES.slice(0, 2) }));
+  const second = await until(() => events.filter((event) => event.event === 'ask')[1]);
+  loader.answer(second.id, 'pick:0');
+  assert.match(await again, /The user chose/);
+});
+
 test('choose_image checks its call: a title, pictures that exist, and not too many questions', async () => {
   const { loader } = fakes();
   assert.match(await loader.run(choose({ candidates: CANDIDATES })), /no "title"/);

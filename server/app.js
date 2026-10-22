@@ -282,7 +282,7 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
         const user = await authenticate(request);
         if (!runs) throw new RequestError(ERROR_CODES.runsUnavailable, 'Replies on the server are not set up yet.');
         const body = await readJson(request, 4096);
-        if (!/^[A-Za-z0-9-]{8,64}$/.test(String(body?.askId || '')) || typeof body?.answer !== 'string' || body.answer.length > 80) throw new RequestError(ERROR_CODES.badRequest, 'That is not an answer.');
+        if (!/^[A-Za-z0-9-]{8,64}$/.test(String(body?.askId || '')) || typeof body?.answer !== 'string' || body.answer.length > 320) throw new RequestError(ERROR_CODES.badRequest, 'That is not an answer.');
         const result = await runs.answerImage({ userId: user.id, runId: runPath[1], askId: body.askId, answer: body.answer });
         if (!result.ok) throw new RequestError(ERROR_CODES.notFound, 'No such reply is running here.');
         send(response, 200, { ok: true, answered: result.answered }, origin);

@@ -23,6 +23,9 @@ export const MAX_VIEW_CALLS = 5;
 /** Questions "which one is it?" in one reply, the candidates in one, and the size of the small pictures on the card. */
 export const MAX_PICK_ASKS = 6;
 export const MAX_PICK_CANDIDATES = 12;
+/** What the person may add to a question about which picture: the words (and the answer that carries them). */
+const HINT_CHARS = 300;
+const HINT_ANSWER_CHARS = HINT_CHARS + 5;
 const CARD_SIDE = 320;
 const CARD_QUALITY = 70;
 const CARD_MAX_CHARS = 60_000;
@@ -337,7 +340,7 @@ export function createImageToolLoader({ spec, secrets, userId, files, signal = n
     const step = Number.isInteger(args.step) && args.step >= 1 ? args.step : 0;
     const of = Number.isInteger(args.of) && args.of >= step && args.of >= 2 ? args.of : 0;
     let askId = '';
-    const answer = await asker.ask('pick', { title, ...(step && of ? { step, of } : {}), candidates: cards }, (value) => value === 'retry' || (/^pick:\d{1,2}$/.test(value) && Number(value.slice(5)) < cards.length), (id) => { askId = id; });
+    const answer = await asker.ask('pick', { title, ...(step && of ? { step, of } : {}), candidates: cards }, (value) => value === 'retry' || (value.startsWith('hint:') && value.slice(5).trim().length > 0 && value.length <= HINT_ANSWER_CHARS) || (/^pick:\d{1,2}$/.test(value) && Number(value.slice(5)) < cards.length), (id) => { askId = id; });
     if (signal?.aborted) return 'The reply was stopped.';
     if (answer === 'retry') {
       candidates.forEach((picture) => rejected.add(keyOf(picture)));
@@ -345,6 +348,10 @@ export function createImageToolLoader({ spec, secrets, userId, files, signal = n
       return retries === 1
         ? `The user says none of these is the picture. Look again for other pictures (view_images with another filter), leaving these out, and ask again with choose_image. If you find nothing better, ask the user to describe it.`
         : 'The user says none of these is the picture, for the second time. Do not look again: ask the user in your reply to describe the picture they mean (what it shows, which message it was in).';
+    }
+    if (answer.startsWith('hint:')) {
+      // The person did not rule these out: they say more about the picture, so the model can find it.
+      return `The user added this to help you find the picture they mean: "${oneLine(answer.slice(5), HINT_CHARS)}". Look again with it (view_images, with another filter or by naming other candidates; the pictures you showed are not ruled out). If it is clear now, use that picture; if you are still not sure, ask again with choose_image.`;
     }
     if (answer.startsWith('pick:')) {
       const picture = candidates[Number(answer.slice(5))];
@@ -548,7 +555,7 @@ export function createImageToolLoader({ spec, secrets, userId, files, signal = n
       const told = `${notices.splice(0).join(' ')}\n\n`;
       return typeof result === 'string' ? `${told}${result}` : { ...result, content: `${told}${result.content}` };
     },
-    /** The answer of the person to a question (once, always, deny, pick:N, retry), or "redo" for a pick they want to change. */
+    /** The answer of the person to a question (once, always, deny, pick:N, retry, hint:words), or "redo" for a pick they want to change. */
     answer: (askId, value) => (value === 'redo' ? redo(askId) : typeof value === 'string' && /^not:\d{1,2}$/.test(value) && activeDraw?.id === askId ? notThisReference(askId, Number(value.slice(4))) : asker.answer(askId, value))
   };
 }

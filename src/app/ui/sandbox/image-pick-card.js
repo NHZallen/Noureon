@@ -13,6 +13,8 @@ const dataUrl = (thumb) => (thumb?.data && /^image\/(png|jpeg|webp|gif)$/.test(t
  * `host`: where the cards go; `onPicked(ref)` is told which picture was chosen; `onAnswer({ id, decision })` sends the answer ('pick:N', 'retry', or 'redo' to change a pick) and resolves { ok, answered }.
  * Returns { handle(event), waitingText, open } for the events { type: 'image', kind: 'pick', event: 'ask' | 'answer', ... }.
  */
+const HINT_MAX = 300;
+
 export function createImagePickCards({ document, host, language, onAnswer = async () => ({ ok: false }), onPicked = () => {} }) {
   const text = (key, values) => sandboxText(language, key, values);
   const cards = new Map();
@@ -66,7 +68,8 @@ export function createImagePickCards({ document, host, language, onAnswer = asyn
       });
       line.append(change);
     } else {
-      line.append(make('span', 'image-picked-text', text(answer === 'retry' ? 'imageRetried' : answer === 'timeout' ? 'imageTimedOut' : 'imageStopped')));
+      const hinted = String(answer || '').startsWith('hint:');
+      line.append(make('span', 'image-picked-text', hinted ? text('imageHinted', { text: String(answer).slice(5) }) : text(answer === 'retry' ? 'imageRetried' : answer === 'timeout' ? 'imageTimedOut' : 'imageStopped')));
     }
     foldAnimated(card.node, () => {
       card.node.className = `net-ask image-pick is-resolved${chosen ? ' is-picked' : ' is-refused'}`;
@@ -124,8 +127,59 @@ export function createImagePickCards({ document, host, language, onAnswer = asyn
     retry.type = 'button';
     retry.addEventListener('click', () => { void send('retry'); });
     buttons.push(retry);
-    foot.append(retry);
-    node.append(head, row, foot, failure);
+    // "Add details": the person says more about the picture they mean (a box opens under the buttons; "cancel" or Escape closes it again, nothing is sent).
+    const hint = make('button', 'net-ask-button', text('imageHint'));
+    hint.type = 'button';
+    hint.setAttribute('aria-expanded', 'false');
+    buttons.push(hint);
+    foot.append(retry, hint);
+    const form = make('div', 'image-pick-hint');
+    form.hidden = true;
+    const field = make('textarea', 'image-pick-hint-field');
+    field.rows = 2;
+    field.maxLength = HINT_MAX;
+    field.placeholder = text('imageHintPlaceholder');
+    field.setAttribute('aria-label', text('imageHint'));
+    const actions = make('div', 'image-pick-hint-actions');
+    const submit = make('button', 'net-ask-button is-primary btn-primary', text('imageHintSend'));
+    submit.type = 'button';
+    submit.disabled = true;
+    const cancel = make('button', 'net-ask-button', text('imageHintCancel'));
+    cancel.type = 'button';
+    actions.append(submit, cancel);
+    form.append(field, actions);
+    const setHint = (open) => {
+      if (card.resolved) return;
+      foldAnimated(node, () => {
+        form.hidden = !open;
+        foot.hidden = open;
+      });
+      hint.setAttribute('aria-expanded', String(open));
+      if (open) field.focus();
+      else {
+        field.value = '';
+        submit.disabled = true;
+      }
+    };
+    hint.addEventListener('click', () => setHint(true));
+    cancel.addEventListener('click', () => setHint(false));
+    field.addEventListener('input', () => { submit.disabled = !field.value.trim(); });
+    const sendHint = () => {
+      const words = field.value.trim();
+      if (words) void send(`hint:${words}`);
+    };
+    submit.addEventListener('click', sendHint);
+    field.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setHint(false);
+      } else if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
+        event.preventDefault();
+        sendHint();
+      }
+    });
+    buttons.push(submit, cancel, field);
+    node.append(head, row, foot, form, failure);
     host.append(node);
     cards.set(id, card);
   };

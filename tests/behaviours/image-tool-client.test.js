@@ -192,6 +192,44 @@ test('"none of these" asks again, a change that comes too late is taken away, a 
   }
 });
 
+test('"add details" opens a box, cancel closes it without sending, and the words are the answer', async () => {
+  const dom = createDom('<div id="host"></div>');
+  try {
+    const answers = [];
+    const cards = createImagePickCards({ document: dom.document, host: dom.document.getElementById('host'), language: 'en', onAnswer: async (answer) => { answers.push(answer); return { ok: true, answered: true }; } });
+    cards.handle(PICK);
+    const doc = dom.document;
+    const foot = doc.querySelector('.image-pick-foot');
+    const form = doc.querySelector('.image-pick-hint');
+    assert.equal(form.hidden, true);
+    const hint = [...foot.querySelectorAll('button')].find((button) => button.textContent === 'Add details');
+    hint.click();
+    assert.equal(form.hidden, false);
+    assert.equal(foot.hidden, true);
+    const [send, cancel] = form.querySelectorAll('button');
+    assert.equal(send.disabled, true, 'nothing to send yet');
+    const field = form.querySelector('textarea');
+    field.value = 'white background';
+    field.dispatchEvent(new dom.window.Event('input'));
+    // A press by mistake: cancel closes the box, empties it and sends nothing.
+    cancel.click();
+    assert.equal(form.hidden, true);
+    assert.equal(foot.hidden, false);
+    assert.equal(field.value, '');
+    assert.deepEqual(answers, []);
+    hint.click();
+    field.value = '  white background, a cat ';
+    field.dispatchEvent(new dom.window.Event('input'));
+    send.click();
+    await flush();
+    assert.deepEqual(answers, [{ id: 'ask-pick-1', decision: 'hint:white background, a cat' }]);
+    cards.handle({ type: 'image', event: 'answer', kind: 'pick', id: 'ask-pick-1', answer: 'hint:white background, a cat' });
+    assert.equal(doc.querySelector('.image-picked-text').textContent, 'Added details: white background, a cat, looking again');
+  } finally {
+    dom.close?.();
+  }
+});
+
 test('the step list sends the pick questions to their own card and waits for the answer', async () => {
   const dom = createDom('<div id="host"></div>');
   let ledger = null;
