@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { GENERATE_IMAGE_TOOL, MAX_IMAGE_CALLS, createImageToolLoader, readReference } from '../../server/image-tool.js';
+import { GENERATE_IMAGE_TOOL, MAX_IMAGE_CALLS, MAX_VIEW_CALLS, MAX_VIEW_PICTURES, createImageToolLoader, readReference } from '../../server/image-tool.js';
 
 const USER = '123e4567-e89b-12d3-a456-426614174000';
 const KEY = 'sk-or-image-secret-value';
@@ -67,7 +67,7 @@ const call = (args) => ({ id: 'c1', name: 'generate_image', args });
 
 test('the tool is offered with its instructions, the pictures of the conversation and the round of the message', () => {
   const { loader } = fakes();
-  assert.deepEqual(loader.tools.map((tool) => tool.name), ['generate_image']);
+  assert.deepEqual(loader.tools.map((tool) => tool.name), ['generate_image', 'view_images', 'list_images']);
   assert.equal(loader.handles('generate_image'), true);
   assert.equal(loader.handles('load_skill'), false);
   assert.match(loader.instruction, /picture model "GPT Image"/);
@@ -234,7 +234,7 @@ test('a stop while the picture is made ends it', async () => {
 test('no more than a few requests in a reply; then the tool is no longer offered', async () => {
   const f = fakes();
   for (let i = 0; i < MAX_IMAGE_CALLS; i += 1) await f.loader.run(call({ prompt: `p${i}` }));
-  assert.equal(f.loader.tools.length, 0);
+  assert.equal(f.loader.tools.some((tool) => tool.name === 'generate_image'), false);
   assert.match(await f.loader.run(call({ prompt: 'one more' })), /limit of 4 picture requests/);
   assert.equal(f.requests.length, MAX_IMAGE_CALLS);
 });
@@ -249,4 +249,65 @@ test('the step the page draws names the references; a call with nothing to draw 
   assert.match(await f.loader.run(call({ prompt: 'x', references: Array.from({ length: 17 }, () => ({ round: 1, source: 'user', number: 1 })) })), /At most 16/);
   assert.deepEqual(readReference({ round: '3', source: ' Generated ', number: 2 }), { round: 3, source: 'generated', number: 2 });
   assert.equal(readReference('x'), null);
+});
+
+const look = (args, name = 'view_images') => ({ id: 'v1', name, args });
+
+test('view_images shows the named pictures, each after a line with its round, source and number', async () => {
+  const { loader, events } = fakes({ loadable: { [`${USER}/g1`]: PICTURE, [`${USER}/g2`]: PICTURE } });
+  const result = await loader.run(look({ reason: 'looking for the blue one', references: [{ round: 1, source: 'generated', number: 2 }, { round: 3, source: 'user', number: 1 }] }));
+  assert.equal(result.images.length, 2);
+  assert.equal(result.images[0].label, 'Round 1, drawn by you, picture 2 (asked for: "a blue living room"):');
+  assert.equal(result.images[1].label, 'Round 3, sent by the user, picture 1 "sofa.jpg":');
+  assert.match(result.content, /2 picture\(s\) follow/);
+  assert.deepEqual(events.map((event) => [event.type, event.event, event.kind]), [['image', 'done', 'view']]);
+  assert.equal(events[0].label, 'Looked at picture 1 and 2');
+  assert.equal(events[0].reason, 'looking for the blue one');
+  assert.deepEqual(events[0].pictures, [{ round: 1, source: 'generated', number: 2 }, { round: 3, source: 'user', number: 1 }]);
+  assert.equal(loader.stepEvent(look({ reason: 'x' })).kind, 'view');
+});
+
+test('view_images with a filter finds a number in every round, and says when nothing fits or a picture does not exist', async () => {
+  const { loader } = fakes({ loadable: { [`${USER}/g1`]: PICTURE, [`${USER}/g2`]: PICTURE } });
+  const ones = await loader.run(look({ reason: 'all the first pictures', filter: { number: 1 } }));
+  assert.deepEqual(ones.images.map((image) => image.label.split(', picture')[0] + ' #' + /picture (\d+)/.exec(image.label)[1]), ['Round 1, drawn by you #1', 'Round 2, sent by the user #1', 'Round 3, sent by the user #1']);
+  const none = await loader.run(look({ reason: 'x', filter: { number: 9 } }));
+  assert.match(none, /No picture matches/);
+  assert.match(await loader.run(look({ reason: 'x', references: [{ round: 9, source: 'user', number: 1 }] })), /do not exist/);
+  assert.match(await loader.run(look({ reason: 'x' })), /Name the pictures/);
+});
+
+test('more than twelve pictures: the newest twelve are shown and the model is told; a picture that cannot be read is said, not an error', async () => {
+  const many = Array.from({ length: 14 }, (_, index) => drawn(`m${index}`));
+  const spec = baseSpec({ request: { history: [{ role: 'user', parts: [{ text: 'many' }] }, { role: 'model', parts: many }], currentMessage: { parts: [{ text: 'which?' }] }, language: 'en' } });
+  const loadable = Object.fromEntries(many.slice(0, 13).map((part) => [`${USER}/${part.generatedImage.id}`, PICTURE]));
+  const { loader } = fakes({ spec, loadable });
+  const result = await loader.run(look({ reason: 'all', filter: { source: 'generated' } }));
+  assert.equal(MAX_VIEW_PICTURES, 12);
+  assert.equal(result.images.length, 11, 'twelve newest, one of them (the fourteenth) cannot be read');
+  assert.match(result.content, /14 pictures match; you are shown the newest 12/);
+  assert.match(result.content, /Not available to show \(round 1, drawn by you, picture 14\)/);
+});
+
+test('five looks per reply: the sixth is refused with what to tell the user, and the tool is no longer offered', async () => {
+  const { loader } = fakes({ loadable: { [`${USER}/g1`]: PICTURE, [`${USER}/g2`]: PICTURE } });
+  for (let index = 0; index < MAX_VIEW_CALLS; index += 1) await loader.run(look({ reason: 'again', filter: { number: 1 } }));
+  assert.equal(loader.tools.some((tool) => tool.name === 'view_images'), false);
+  assert.match(await loader.run(look({ reason: 'again', filter: { number: 1 } })), /ask them to describe it/);
+});
+
+test('list_images gives the whole list as text, or the part a filter names', async () => {
+  const { loader } = fakes();
+  const all = await loader.run(look({}, 'list_images'));
+  assert.match(all, /Round 1: you drew picture 1 \(asked for: "a blue living room"\), picture 2/);
+  assert.match(all, /Round 3 \(this message\): the user sent picture 1 "sofa\.jpg"/);
+  const mine = await loader.run(look({ filter: { source: 'user', from_round: 3 } }, 'list_images'));
+  assert.doesNotMatch(mine, /Round 1/);
+  assert.match(mine, /sofa\.jpg/);
+  assert.equal(loader.stepEvent(look({}, 'list_images')), null);
+});
+
+test('without any picture in the conversation only the drawing tool is offered', () => {
+  const { loader } = fakes({ spec: baseSpec({ request: { history: [], currentMessage: { parts: [{ text: 'hi' }] }, language: 'en' } }) });
+  assert.deepEqual(loader.tools.map((tool) => tool.name), ['generate_image']);
 });

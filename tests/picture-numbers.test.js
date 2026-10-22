@@ -106,3 +106,21 @@ test('the numbers are shown only while a picture model is chosen', () => {
     dom.cleanup();
   }
 });
+
+test('the label in front of an attachment, the number on the picture and the number in the index of the model are the same', async () => {
+  const { stampAttachmentLabels } = await import('../src/app/runtime/messages/attachment-labels.js');
+  const parts = [
+    { text: 'use these' },
+    { inlineData: { ...png('a.png') } },
+    { inlineData: { name: 'doc.pdf', mimeType: 'application/pdf', data: 'x' } },
+    { inlineData: { ...png('b.png') } },
+    { inlineData: { name: '', mimeType: 'image/png', data: 'x' } },
+    { inlineData: { ...png('c.png') } }
+  ];
+  const labelled = stampAttachmentLabels(parts).filter((part) => part.inlineData?.attachmentLabel && part.inlineData.mimeType === 'image/png').map((part) => Number(/Image (\d+) of/.exec(part.inlineData.attachmentLabel)[1]));
+  const numbers = attachedPictureNumbers(parts.filter((part) => part.inlineData).map((part) => part.inlineData)).filter(Boolean);
+  const indexed = listPictures({ current: parts }).map((picture) => picture.number);
+  assert.deepEqual(labelled, [1, 2, 3]);
+  assert.deepEqual(numbers, labelled);
+  assert.deepEqual(indexed, labelled);
+});

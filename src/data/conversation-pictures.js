@@ -118,6 +118,29 @@ export function pictureData(picture) {
   return marker?.__astraCloudAsset?.path ? { kind: 'marker', marker, mimeType: picture.mimeType } : null;
 }
 
+/**
+ * The pictures that fit a filter, oldest first: `{ source, number, fromRound, toRound }`, each optional (all the pictures with no filter). A filter that
+ * names a number matches that number in every round: "the third picture" of the user may be any round's third.
+ */
+export function selectPictures(pictures, filter = {}) {
+  const whole = (value) => (Number.isInteger(value) && value >= 1 ? value : null);
+  const source = PICTURE_SOURCES.includes(filter?.source) ? filter.source : null;
+  const number = whole(filter?.number);
+  const from = whole(filter?.fromRound);
+  const to = whole(filter?.toRound);
+  return (Array.isArray(pictures) ? pictures : []).filter((picture) => (!source || picture.source === source)
+    && (number === null || picture.number === number)
+    && (from === null || picture.round >= from)
+    && (to === null || picture.round <= to));
+}
+
+/** One picture in a line for a model that is about to see it: "Round 2, drawn by you, picture 3 (asked for: …):". */
+export function pictureCaption(picture) {
+  const who = picture.source === 'user' ? 'sent by the user' : 'drawn by you';
+  const what = picture.source === 'user' ? (picture.name ? ` ${JSON.stringify(picture.name)}` : '') : (picture.prompt ? ` (asked for: ${JSON.stringify(oneLine(picture.prompt, 100))})` : '');
+  return `Round ${picture.round}, ${who}, picture ${picture.number}${what}:`;
+}
+
 const INDEX_ROUNDS = 40;
 const INDEX_PROMPT_CHARS = 100;
 const quoted = (text) => `"${String(text).replace(/"/g, "'")}"`;
@@ -129,7 +152,7 @@ const quoted = (text) => `"${String(text).replace(/"/g, "'")}"`;
  * Only the newest INDEX_ROUNDS rounds that have pictures; older ones are counted. `currentRound` is the message being answered (marked "this message").
  * Plain English text for the model; the number of a picture is its place in its message, so it is what the person sees on the picture.
  */
-export function pictureIndexLines(pictures, { currentRound: current = 0 } = {}) {
+export function pictureIndexLines(pictures, { currentRound: current = 0, rounds: roundLimit = INDEX_ROUNDS } = {}) {
   const groups = [];
   for (const picture of Array.isArray(pictures) ? pictures : []) {
     const last = groups.at(-1);
@@ -137,7 +160,7 @@ export function pictureIndexLines(pictures, { currentRound: current = 0 } = {}) 
     else groups.push({ round: picture.round, source: picture.source, items: [picture] });
   }
   const rounds = [...new Set(groups.map((group) => group.round))];
-  const kept = new Set(rounds.slice(-INDEX_ROUNDS));
+  const kept = new Set(Number.isFinite(roundLimit) ? rounds.slice(-roundLimit) : rounds);
   const lines = [];
   if (rounds.length > kept.size) lines.push(`(${rounds.length - kept.size} older rounds with pictures are not listed.)`);
   for (const group of groups) {
