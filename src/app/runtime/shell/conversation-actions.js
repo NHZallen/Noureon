@@ -29,7 +29,11 @@ export function createConversationActions({
         const defaultModelInfo = MODELS.find(m => m.id === followed?.model) || MODELS.find(m => m.id === currentConfig.lastUsedModel) || MODELS.find(m => m.id === currentConfig.defaultModel) || MODELS[0];
         const now = new Date().toISOString();
         return {
-            ...(followed?.reasoningEffort && followed.model === defaultModelInfo.id ? { reasoningEffort: followed.reasoningEffort, reasoningEfforts: { [followed.model]: followed.reasoningEffort } } : {}),
+            // The levels are a copy (taken now): from here on this conversation has its own.
+            ...(followed && followed.model === defaultModelInfo.id ? {
+                ...(followed.reasoningEffort ? { reasoningEffort: followed.reasoningEffort } : {}),
+                ...(Object.keys(followed.reasoningEfforts || {}).length ? { reasoningEfforts: { ...followed.reasoningEfforts } } : {})
+            } : {}),
             id: crypto.randomUUID(),
             title: title,
             messages: [],

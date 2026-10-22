@@ -58,12 +58,35 @@ test('a new conversation follows the newest real one, as the sidebar lists them,
     chat({ id: 'empty', model: 'b', messages: [], lastUpdatedAt: '2026-10-09T00:00:00.000Z' })
   ];
   assert.equal(latestSingleModelConversation(rows, { models: MODELS }).id, 'old');
-  assert.deepEqual(startingChoice(rows, { models: MODELS, ...rules }), { model: 'a', provider: 'p', reasoningEffort: 'low' });
+  assert.deepEqual(startingChoice(rows, { models: MODELS, ...rules }), { model: 'a', provider: 'p', reasoningEffort: 'low', reasoningEfforts: { a: 'low' } });
   // Its model is not there any more: the next one.
   assert.equal(latestSingleModelConversation([chat({ id: 'gone', model: 'zzz' }), ...rows.slice(0, 2)], { models: MODELS }).id, 'old');
   // Nothing to follow.
   assert.equal(startingChoice([], { models: MODELS, ...rules }), null);
   assert.equal(startingChoice(rows.slice(2), { models: MODELS, ...rules }), null);
   // A model without levels: the model, no level.
-  assert.deepEqual(startingChoice([chat({ model: 'b' })], { models: MODELS, ...rules }), { model: 'b', provider: 'p', reasoningEffort: null });
+  assert.deepEqual(startingChoice([chat({ model: 'b' })], { models: MODELS, ...rules }), { model: 'b', provider: 'p', reasoningEffort: null, reasoningEfforts: {} });
+});
+
+test('a new conversation gets a copy of every level chosen in the newest real one, and the two do not follow each other', () => {
+  const source = chat({ id: 'src', model: 'a', reasoningEffort: 'low', reasoningEfforts: { a: 'low', c: 'high', b: 'high', gone: 'high' } });
+  const starting = startingChoice([source], { models: MODELS, ...rules });
+  // A is the model it starts on, with its level; C keeps the level chosen for it; B has no levels and the unknown model is not a model.
+  assert.deepEqual(starting, { model: 'a', provider: 'p', reasoningEffort: 'low', reasoningEfforts: { a: 'low', c: 'high' } });
+  // A level the model does not have any more is left out (its default is used).
+  const stale = chat({ model: 'a', reasoningEffort: 'medium', reasoningEfforts: { c: 'ultra' } });
+  assert.deepEqual(startingChoice([stale], { models: MODELS, ...rules }).reasoningEfforts, { a: 'medium' });
+  // A copy: changing the new one leaves the old one as it was, and the other way round.
+  const fresh = { model: 'a', reasoningEffort: starting.reasoningEffort, reasoningEfforts: { ...starting.reasoningEfforts } };
+  chooseEffort(fresh, 'a', 'high');
+  switchEffort(fresh, MODELS[2], rules);
+  chooseEffort(fresh, 'c', 'none');
+  assert.deepEqual(source.reasoningEfforts, { a: 'low', c: 'high', b: 'high', gone: 'high' });
+  assert.equal(source.reasoningEffort, 'low');
+  chooseEffort(source, 'a', 'medium');
+  assert.equal(fresh.reasoningEfforts.a, 'high');
+  // On the new one, going to C gives the level copied for it.
+  const again = { model: 'a', reasoningEffort: starting.reasoningEffort, reasoningEfforts: { ...starting.reasoningEfforts } };
+  switchEffort(again, MODELS[2], rules);
+  assert.equal(again.reasoningEffort, 'high');
 });

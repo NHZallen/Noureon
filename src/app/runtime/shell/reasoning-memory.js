@@ -50,11 +50,22 @@ export function latestSingleModelConversation(conversations, { models = [] } = {
     .sort((a, b) => time(b) - time(a))[0] || null;
 }
 
-/** The model and the level a new conversation starts with, from the conversations there are: { model, provider, reasoningEffort } or null (nothing to follow). */
+/**
+ * What a new conversation starts with, from the conversations there are: { model, provider, reasoningEffort, reasoningEfforts } or null (nothing to follow). It is a copy
+ * of what the newest real conversation has chosen, taken once: the model it is on, its level, and the level chosen for each of the others (a level that is not one of
+ * the model's any more is left out, so the model gets its default). After that the two do not follow each other.
+ */
 export function startingChoice(conversations, { models, getModelReasoningConfig, normalizeReasoningEffort }) {
   const source = latestSingleModelConversation(conversations, { models });
   const info = source ? models.find((model) => model.id === source.model) : null;
   if (!info) return null;
   const level = getModelReasoningConfig(info) ? normalizeReasoningEffort(info, rememberedEffort(source, info.id)) : null;
-  return { model: info.id, provider: info.provider, reasoningEffort: level };
+  const efforts = {};
+  for (const [modelId, chosen] of Object.entries(levelsOf(source))) {
+    const model = models.find((entry) => entry.id === modelId);
+    const config = model ? getModelReasoningConfig(model) : null;
+    if (config?.options.includes(chosen)) efforts[modelId] = chosen;
+  }
+  if (level) efforts[info.id] = level;
+  return { model: info.id, provider: info.provider, reasoningEffort: level, reasoningEfforts: efforts };
 }
