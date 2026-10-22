@@ -1,6 +1,6 @@
 # 文字模型直接畫圖（`generate_image` 工具、圖片編號、模型自己找圖）
 
-**狀態：** 第一、二階段與文件都已寫完並在 `staging`（2026-10-22，NOU-85 到 NOU-96，見 §10），等 owner 用真實帳號驗收（§9 的清單）。owner 已決定 §2 的全部事項（2026-10-21、10-22）。
+**狀態：** 第一、二階段與文件都已寫完並在 `staging`（2026-10-22，NOU-85 到 NOU-96，見 §10），owner 已用真實帳號驗收通過（§9 的清單，2026-10-22），已隨 18.16.0 上線。owner 已決定 §2 的全部事項（2026-10-21、10-22）。
 **前置閱讀：** [`AGENTS.md`](../../../AGENTS.md)、[伺服器圖片生成](2026-10-06-server-image-generation-design.md)（`kind: 'image'`、`server/image-run.js`）、[判斷模型 Decisions](2026-10-08-decisions-design.md)、[理事會工具](2026-10-19-council-tools-design.md)（伺服器工具迴圈與時間軸）、[連接器](2026-10-10-mcp-connectors-design.md)（權限、詢問卡）。
 **畫面草稿（可互動，點開就能玩）：** [`2026-10-22-text-model-image-tool-mock.html`](2026-10-22-text-model-image-tool-mock.html)。裡面的圖是畫出來的示意插圖，文字是手寫的示範，不是模型的實際輸出。
 
