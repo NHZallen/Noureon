@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createBundleFileName, dedupeFileNames, sanitizeFileName } from '../../src/app/ui/files/file-name-policy.js';
+import { createBackupFileName, createBundleFileName, createImageFileName, dedupeFileNames, nameKeyword, nameTimestamp, sanitizeFileName } from '../../src/app/ui/files/file-name-policy.js';
 import { resolveFileType } from '../../src/app/ui/files/file-type-registry.js';
 import {
   buildTextFileContent,
@@ -97,4 +97,24 @@ test('block descriptors expose the state the card needs', () => {
   const words = describeFileBlock({ name: 'a.md', content: 'one\ntwo\nthree', complete: true });
   assert.deepEqual(words.stats, { key: 'statLines', count: 3 });
   assert.equal(describeFileBlock({ name: '', extensionHint: 'csv', content: 'a\n1', complete: true }).name, 'noureon-file.csv');
+});
+
+test('what Noureon hands over is named noureon-<words>-<day>-<minute>-<number>, on the clock of the device', () => {
+  const at = new Date(2026, 9, 22, 23, 15);
+  assert.equal(nameTimestamp(at), '20261022-2315');
+  assert.equal(createImageFileName({ description: '虎斑貓', number: 2, now: at }), 'noureon-虎斑貓-20261022-2315-2.png');
+  assert.equal(createImageFileName({ number: 1, mediaType: 'image/jpeg', now: at }), 'noureon-20261022-2315-1.jpg', 'no words: just the time and the number');
+  assert.equal(createImageFileName({ description: 'cat', createdAt: new Date(2026, 0, 3, 7, 4).toISOString(), now: at }), 'noureon-cat-20260103-0704-1.png', 'the time it was made, when it is known');
+  assert.equal(createBackupFileName('Allen', at), 'noureon-backup-allen-20261022-2315.zip');
+  assert.equal(createBackupFileName('', at), 'noureon-backup-20261022-2315.zip');
+});
+
+test('a few words of a description are kept, neither too long nor too short to mean something', () => {
+  assert.equal(nameKeyword('A cute tabby cat with classic brown and black striped fur, sitting'), 'A-cute-tabby-cat-with');
+  assert.equal(nameKeyword('Poster: orange background'), 'Poster-orange-background');
+  assert.equal(nameKeyword('把第一張海報的白色背景換成粉紫粉末漸層背景，其他內容保留。'), '把第一張海報的白色背景換成粉');
+  assert.equal(nameKeyword('Une affiche de supermarché orange'), 'Une-affiche-de-supermarché');
+  assert.equal(nameKeyword('a'), '');
+  assert.equal(nameKeyword('  ...  '), '');
+  assert.equal(nameKeyword('a<b>c ab'), 'a-b-c-ab');
 });

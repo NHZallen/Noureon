@@ -101,6 +101,7 @@ export const GENERATE_IMAGE_TOOL = Object.freeze({
     type: 'object',
     properties: {
       summary: { type: 'string', maxLength: 200, description: 'One short sentence in the language the user writes in, saying what you are about to draw (for example "A poster of the delivery app with fresh produce"). The user reads this when asked to allow the picture; they do not read the prompt.' },
+      title: { type: 'string', maxLength: 40, description: 'A name for the picture in two to five words, in the language the user writes in (for example "Delivery app poster"). It becomes part of the name of the file when the user downloads it: say what it is, not how it is made.' },
       prompt: { type: 'string', maxLength: PROMPT_CHARS, description: 'The whole description of the picture: what it shows, the style, the colours, the light. When you edit or combine pictures, say what to keep and what to change, and refer to the reference pictures by their order in `references` (the first, the second, …).' },
       references: {
         type: 'array',
@@ -475,6 +476,7 @@ export function createImageToolLoader({ spec, secrets, userId, files, signal = n
         inputReferences: loaded.urls,
         aspectRatio,
         keepPrompt: true,
+        title: oneLine(args.title, 40) || oneLine(args.summary, 80),
         signal: drawing.signal,
         files,
         userId,

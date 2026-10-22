@@ -129,7 +129,7 @@ test('the image is asked of OpenRouter as the page asks it, kept in the cloud sp
   assert.deepEqual(files.saved.map((entry) => [entry.userId, entry.mimeType, entry.encoding, entry.quota]), [[USER, 'image/png', 'blob', false], [USER, 'image/webp', 'blob', false]]);
   assert.deepEqual([...files.saved[0].bytes], [...PICTURE]);
   const first = result.parts[0].generatedImage;
-  assert.deepEqual(Object.keys(first).sort(), ['aspectRatio', 'cloudAsset', 'id', 'mediaType', 'size', 'storageKey']);
+  assert.deepEqual(Object.keys(first).sort(), ['aspectRatio', 'cloudAsset', 'createdAt', 'id', 'mediaType', 'size', 'storageKey', 'title']);
   assert.equal(first.storageKey, `generatedImage:supabase:${USER}:${first.id}`);
   assert.equal(first.size, PICTURE.length);
   assert.equal(first.aspectRatio, '7:5');

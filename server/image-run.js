@@ -19,10 +19,10 @@ const toDataUrl = (bytes, mimeType) => `data:${mimeType};base64,${Buffer.from(by
 /**
  * Asks the picture model for pictures and keeps each one in the person's cloud space: resolves { parts } (the `generatedImage` parts of a message) or
  * { stopped: true } when the reply was stopped; throws a ReplyError (provider_error, or image_not_saved when the pictures were made but could not be
- * kept). `keepPrompt` writes the prompt into each part. `apiKey` is the picture model's key, `inputReferences` the pictures to start from as data addresses, `secrets` what the message of a failure must not show.
+ * kept). `keepPrompt` writes the prompt into each part, `title` a few words for the file name. `apiKey` is the picture model's key, `inputReferences` the pictures to start from as data addresses, `secrets` what the message of a failure must not show.
  * The same for an image of its own (executeImage) and for a picture a text model draws by itself (image-tool.js).
  */
-export async function drawPictures({ apiKey, model, prompt, config = {}, inputReferences = [], groups = null, aspectRatio = '', keepPrompt = false, signal, files, userId, fetchImpl = fetch, onProblem = () => {}, secrets = {}, wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)) }) {
+export async function drawPictures({ apiKey, model, prompt, config = {}, inputReferences = [], groups = null, aspectRatio = '', keepPrompt = false, title = '', signal, files, userId, fetchImpl = fetch, onProblem = () => {}, secrets = {}, wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)) }) {
   let result;
   try {
     result = await createOpenRouterImageGenerator({ fetchImpl })({
@@ -70,6 +70,9 @@ export async function drawPictures({ apiKey, model, prompt, config = {}, inputRe
         ...(picture.aspectRatio || aspectRatio ? { aspectRatio: picture.aspectRatio || aspectRatio } : {}),
         // What the picture was asked with (a text model that draws by itself keeps it, so it can find the picture again: src/data/conversation-pictures.js).
         ...(keepPrompt && prompt ? { prompt: String(prompt).slice(0, 2000) } : {}),
+        // Words for the name the picture is downloaded under (a few of them are used: src/app/ui/files/file-name-policy.js), and when it was made.
+        ...(String(title || '').trim() ? { title: String(title).replace(/\s+/g, ' ').trim().slice(0, 80) } : {}),
+        createdAt: new Date().toISOString(),
         cloudAsset: marker
       }
     });
@@ -134,7 +137,7 @@ export async function executeImage({
   }
   if (signal?.aborted) return stopped();
 
-  const drawn = await drawPictures({ apiKey: secrets.providerKey, model: spec.model.id, prompt: image.prompt, config: image.config, inputReferences, groups, aspectRatio, signal, files, userId, fetchImpl, onProblem, wait, secrets });
+  const drawn = await drawPictures({ apiKey: secrets.providerKey, model: spec.model.id, prompt: image.prompt, config: image.config, inputReferences, groups, aspectRatio, title: image.prompt, signal, files, userId, fetchImpl, onProblem, wait, secrets });
   if (drawn.stopped) return stopped();
   const parts = drawn.parts;
   return { parts, status: 'done', run: { elapsedMs: now() - startedAt }, toolCalls: 0 };

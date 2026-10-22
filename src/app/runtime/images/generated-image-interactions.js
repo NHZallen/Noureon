@@ -1,6 +1,7 @@
 import { setButtonBusy } from '../../ui/motion/busy-button.js';
 import { createMediaPreviewLifecycle } from '../messages/media-preview-lifecycle.js';
 import { bindGeneratedImageSets } from './generated-image-set.js';
+import { downloadNameOf } from './generated-image-assets.js';
 import { getRuntimeTexts } from '../i18n/runtime-texts.js';
 
 const EDITOR_COLORS = Object.freeze([
@@ -398,7 +399,7 @@ export function createGeneratedImageInteractions({
           if (src) preview({
             src,
             mimeType: descriptor.mediaType || 'image/png',
-            name: `noureon-generated-${descriptor.id}.png`
+            name: downloadNameOf(descriptor, sourceElement)
           }, sourceElement);
         });
       });

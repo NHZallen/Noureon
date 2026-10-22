@@ -1,10 +1,25 @@
+import { createImageFileName } from '../../ui/files/file-name-policy.js';
 import { settlePicture, settlePictures } from '../../ui/files/picture-loading.js';
 
-const extensionForMediaType = (mediaType = '') => ({
-  'image/jpeg': 'jpg',
-  'image/webp': 'webp',
-  'image/svg+xml': 'svg'
-}[mediaType] || 'png');
+/**
+ * The number a picture has in its message, as the person sees it on the picture (the chip), or its place among the pictures of the message.
+ * `element` is anything inside its card.
+ */
+export const pictureNumberOf = (element) => {
+  const card = element?.closest?.('.generated-image-card');
+  const shown = Number(card?.querySelector?.('.picture-number')?.textContent);
+  if (Number.isInteger(shown) && shown >= 1) return shown;
+  const cards = [...(card?.closest?.('.message-stack')?.querySelectorAll?.('.generated-image-card') || [])];
+  return Math.max(1, cards.indexOf(card) + 1);
+};
+
+/** The name a picture is downloaded under (src/app/ui/files/file-name-policy.js): its words, the day and the minute, its number. */
+export const downloadNameOf = (descriptor, element) => createImageFileName({
+  description: descriptor?.title || descriptor?.prompt || '',
+  createdAt: descriptor?.createdAt || null,
+  number: pictureNumberOf(element),
+  mediaType: descriptor?.mediaType
+});
 
 const decodeBase64 = (value) => {
   const binary = atob(value || '');
@@ -56,15 +71,17 @@ export function createGeneratedImageAssetStore({
     return descriptor;
   };
 
-  const save = async ({ b64Json, mediaType = 'image/png', aspectRatio = '' }) => {
+  const save = async ({ b64Json, mediaType = 'image/png', aspectRatio = '', title = '' }) => {
     const id = randomUUID();
     const bytes = decodeBase64(b64Json);
     const blob = new Blob([bytes], { type: mediaType });
     const descriptor = {
       id,
       mediaType,
-      size: blob.size
+      size: blob.size,
+      createdAt: new Date().toISOString()
     };
+    if (title) descriptor.title = String(title).replace(/\s+/g, ' ').trim().slice(0, 80);
     if (aspectRatio) descriptor.aspectRatio = aspectRatio;
     await put(descriptor, blob);
     return descriptor;
@@ -123,7 +140,9 @@ export function createGeneratedImageAssetStore({
       root.querySelectorAll(`[data-generated-image-download="${descriptor.id}"]`)
         .forEach(element => {
           element.href = objectUrl;
-          element.download = `astra-generated-${descriptor.id}.${extensionForMediaType(descriptor.mediaType)}`;
+          element.download = downloadNameOf(descriptor, element);
+          // The number is read when it is pressed (a picture of a reply may be numbered after it was bound).
+          element.addEventListener?.('click', () => { element.download = downloadNameOf(descriptor, element); });
         });
     }));
   };

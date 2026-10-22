@@ -274,7 +274,8 @@ export function createImageGenerationResponseLifecycle({
     if (!result.images?.length) throw new Error(getText('imageNoResult', 'The image was made, but no picture came back to show.'));
     const descriptors = await Promise.all(result.images.map(image => saveImageAsset({
       ...image,
-      aspectRatio: image.aspectRatio || normalizedConfig.aspectRatio
+      aspectRatio: image.aspectRatio || normalizedConfig.aspectRatio,
+      title: spokenMessage
     })));
     return {
       parts: descriptors.map(generatedImage => ({ generatedImage })),

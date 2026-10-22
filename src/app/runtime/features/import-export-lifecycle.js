@@ -1,6 +1,7 @@
 import { createExportSafeConfig } from '../security/sensitive-config-redaction.js';
 import { setButtonBusy } from '../../ui/motion/busy-button.js';
 import { getRuntimeText } from '../i18n/runtime-texts.js';
+import { createBackupFileName } from '../../ui/files/file-name-policy.js';
 import {
   decryptSyncVaultPayload,
   encryptSyncVaultPayload,
@@ -256,8 +257,7 @@ export function createImportExportLifecycle({
     const dataClone = JSON.parse(JSON.stringify(rawData));
     Object.assign(dataToExport, dataClone);
 
-    const timestamp = new Date().toISOString().split('T')[0];
-    const fileName = `noureon_backup_${currentUser.username}_${timestamp}.zip`;
+    const fileName = createBackupFileName(currentUser.username);
 
     try {
       const JSZipCtor = await requireArchiveVendor();

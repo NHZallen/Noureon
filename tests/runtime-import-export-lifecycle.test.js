@@ -437,7 +437,7 @@ test('handleExport uses live getters and packages every selected data group', as
   });
   assert.equal(calls.some((call) => call[0] === 'zipFile' && call[1] === 'data.json'), true);
   assert.equal(calls.some((call) => call[0] === 'zipGenerate'), true);
-  assert.equal(calls.some((call) => call[0] === 'File' && /^noureon_backup_alice_\d{4}-\d{2}-\d{2}\.zip$/.test(call[1])), true);
+  assert.equal(calls.some((call) => call[0] === 'File' && /^noureon-backup-alice-\d{8}-\d{4}\.zip$/.test(call[1])), true);
   assert.equal(calls.some((call) => call[0] === 'createObjectURL'), true);
   assert.equal(calls.some((call) => call[0] === 'toggleModal' && call[1] === 'importDataModal'), false);
   assert.equal(elements.confirmExportBtn.disabled, false);

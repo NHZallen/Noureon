@@ -1,6 +1,7 @@
 // The parts of the picture-making that are loaded the first time a picture is made or shown (the asset store of the pictures, the request to OpenRouter,
 // the reply lifecycle, the buttons on a picture): one promise, made on the first call. Moved out of shell.js, which is at the limit of its size;
 // everything it needs from the shell is given to it here.
+import { createImageFileName } from '../../ui/files/file-name-policy.js';
 export function createGeneratedImageRuntimeLoader({
     document,
     fetch,
@@ -56,7 +57,7 @@ export function createGeneratedImageRuntimeLoader({
                     attachAnnotatedImage: async ({ dataUrl, descriptor }) => {
                         const blob = await (await fetch(dataUrl)).blob();
                         setUploadedFiles([{
-                            name: `astra-targeted-edit-${descriptor.id}.png`,
+                            name: createImageFileName({ description: descriptor.title || descriptor.prompt, mediaType: 'image/png' }),
                             type: 'image/png',
                             size: blob.size,
                             base64: dataUrl,
