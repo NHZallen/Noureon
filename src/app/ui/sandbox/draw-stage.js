@@ -1,7 +1,6 @@
 // The wait for a picture a text model draws by itself, in the reply (docs/superpowers/specs/2026-10-22-text-model-image-tool-design.md): the same field of dots and
 // words of the stages the wait for a picture has (ui/image-wait/), under the words the model has written so far. It appears when the picture model is asked
-// (after the person allowed it), turns into a line saying the picture is ready when it is made, and goes when the reply is drawn whole (the picture is there then)
-// or when the drawing stops or fails.
+// (after the person allowed it) and goes when the picture takes its place (picture-flow.js), or when the drawing stops or fails.
 
 import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
 import { imageWaitMarkup, loadImageWait } from '../image-wait/image-wait-markup.js';
@@ -28,6 +27,9 @@ export function createDrawStage({ document, place, language }) {
     skeleton.setAttribute('aria-live', 'polite');
     skeleton.dataset.targetAspectRatio = String(event.aspectRatio || '1:1');
     skeleton.style.aspectRatio = ratioOf(event.aspectRatio);
+    // A small place, by its shape: a tall picture is narrow, a wide one is wider (the picture takes the room it needs when it comes).
+    const [width, height] = ratioOf(event.aspectRatio).split(' / ').map(Number);
+    stage.dataset.shape = width < height ? 'tall' : width > height ? 'wide' : 'square';
     skeleton.innerHTML = imageWaitMarkup({ label: sandboxText(language, 'imageDrawing'), startedAt: Date.now() });
     stage.append(skeleton);
     after.after(stage);
@@ -40,16 +42,7 @@ export function createDrawStage({ document, place, language }) {
       }
       if (event?.type !== 'image') return;
       if (event.event === 'drawing') show(event);
-      else if (event.event === 'done' && event.kind !== 'view' && stage) {
-        // The picture is made: the dots stop, and the line says so until the picture takes their place.
-        stage.classList.add('is-finished');
-        // (The shape it was waiting in is set on the element itself, so it is taken off there.)
-        const frame = stage.querySelector('.generated-image-skeleton');
-        if (frame) frame.style.aspectRatio = 'auto';
-        stage.querySelector('noureon-image-wait')?.remove();
-        const label = stage.querySelector('.generated-image-wait-label');
-        if (label) label.textContent = sandboxText(language, 'imageStageDone');
-      } else if (event.event === 'failed' || event.event === 'stopped' || (event.event === 'answer' && stage)) remove();
+      else if (event.event === 'failed' || event.event === 'stopped' || (event.event === 'answer' && stage)) remove();
     },
     remove,
     get element() { return stage; }

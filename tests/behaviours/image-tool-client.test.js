@@ -367,7 +367,7 @@ test('the question shows the short summary in the person\'s language, and the lo
 // The wait for the picture, in the reply.
 import { createDrawStage } from '../../src/app/ui/sandbox/draw-stage.js';
 
-test('the wait for a picture shows under the words when the picture model is asked, says the picture is ready, and goes when it fails or stops', () => {
+test('the wait for a picture shows under the words when the picture model is asked, stays until the picture takes its place, and goes when it fails or stops', () => {
   const dom = createDom('<div class="message-stack"><div class="message-bubble" id="bubble">I will draw a poster.</div></div>');
   try {
     const stage = createDrawStage({ document: dom.document, language: 'en', place: () => dom.document.getElementById('bubble') });
@@ -382,12 +382,9 @@ test('the wait for a picture shows under the words when the picture model is ask
     assert.ok(shown[0].querySelector('noureon-image-wait'), 'the field of dots of the wait for a picture');
     assert.equal(shown[0].querySelector('.generated-image-skeleton').style.aspectRatio, '9 / 16');
     assert.equal(shown[0].querySelector('.generated-image-wait-label').textContent, 'Drawing…');
-    stage.handle({ type: 'image', event: 'done', kind: 'view' });
-    assert.equal(shown[0].classList.contains('is-finished'), false, 'looking at pictures is not drawing');
+    assert.equal(shown[0].dataset.shape, 'tall', 'a small place, narrow for a tall picture');
     stage.handle({ type: 'image', event: 'done', count: 1, references: [], label: 'Drew a picture' });
-    assert.equal(shown[0].classList.contains('is-finished'), true);
-    assert.equal(shown[0].querySelector('noureon-image-wait'), null);
-    assert.equal(shown[0].querySelector('.generated-image-wait-label').textContent, 'The picture is ready, putting it in place…');
+    assert.equal(dom.document.querySelector('.reply-draw-stage'), shown[0], 'it stays (dots and all) until the picture takes its place: picture-flow.js');
     stage.handle({ type: 'image', event: 'drawing', id: 'd2' });
     stage.handle({ type: 'image', event: 'stopped', label: 'Stopped.' });
     assert.equal(dom.document.querySelector('.reply-draw-stage'), null);
