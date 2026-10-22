@@ -90,6 +90,9 @@ function conversationMetadata(conversation = {}) {
     genConfig: conversation.genConfig || null,
     imageConfig: conversation.imageConfig || null,
     council: conversation.council || null,
+    // How much each model thinks in this conversation (src/app/runtime/shell/reasoning-memory.js): the level of the model it is on, and the one chosen for each model.
+    ...(conversation.reasoningEffort ? { reasoningEffort: conversation.reasoningEffort } : {}),
+    ...(conversation.reasoningEfforts && typeof conversation.reasoningEfforts === 'object' && Object.keys(conversation.reasoningEfforts).length ? { reasoningEfforts: conversation.reasoningEfforts } : {}),
     isRenamed: Boolean(conversation.isRenamed),
     astrasId: conversation.astrasId || null,
     isWebSearchEnabled: Boolean(conversation.isWebSearchEnabled),
@@ -158,6 +161,8 @@ function conversationFromRow(row = {}, messages = []) {
     genConfig: metadata.genConfig || null,
     imageConfig: metadata.imageConfig || null,
     council: metadata.council || null,
+    ...(typeof metadata.reasoningEffort === 'string' && metadata.reasoningEffort ? { reasoningEffort: metadata.reasoningEffort } : {}),
+    ...(metadata.reasoningEfforts && typeof metadata.reasoningEfforts === 'object' && !Array.isArray(metadata.reasoningEfforts) ? { reasoningEfforts: metadata.reasoningEfforts } : {}),
     isRenamed: Boolean(metadata.isRenamed),
     astrasId: metadata.astrasId || null,
     isWebSearchEnabled: Boolean(metadata.isWebSearchEnabled),

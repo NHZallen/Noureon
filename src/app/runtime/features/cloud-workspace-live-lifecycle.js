@@ -69,6 +69,7 @@ function getConversationSidebarState(conversation = {}) {
     genConfig: _genConfig,
     imageConfig: _imageConfig,
     reasoningEffort: _reasoningEffort,
+    reasoningEfforts: _reasoningEfforts,
     isWebSearchEnabled: _isWebSearchEnabled,
     astrasId: _astrasId,
     // Merge bookkeeping: rewritten on every save and never painted.
@@ -112,7 +113,9 @@ function getActiveConversationState(workspace = {}, activeConversationId = null)
     isNaming: _isNaming,
     isRenamed: _isRenamed,
     unsentMessage: _unsentMessage,
-    reasoningEffort: _reasoningEffort, // not encoded by the conversation metadata codec
+    // The levels of thinking travel with the conversation now, but a change of one is no reason to draw the messages again.
+    reasoningEffort: _reasoningEffort,
+    reasoningEfforts: _reasoningEfforts,
     trashStateUpdatedAt: _trashStateUpdatedAt,
     messages,
     ...chatState

@@ -2,6 +2,7 @@
 // the terms a hidden or stealth model asks to be accepted first), and the depth slider of how much the model thinks.
 
 import { noteModelsUsed as noteRecent } from '../../ui/model-picker/model-groups.js';
+import { chooseEffort, switchEffort } from '../shell/reasoning-memory.js';
 
 export function createPickerChoices({
   document, models, getActiveConversation, getConfig, getI18n, showCustomDialog, getModelReasoningConfig, normalizeReasoningEffort,
@@ -47,11 +48,10 @@ export function createPickerChoices({
       if (!accepted) return false;
       config.acknowledgedStealthModelTerms = [...acknowledged, acknowledgementId];
     }
+    // The level of the model it leaves is kept, and the new one gets the level chosen for it in this conversation (its default the first time).
+    switchEffort(conv, info, { getModelReasoningConfig, normalizeReasoningEffort });
     conv.model = info.id;
     conv.provider = info.provider;
-    const defaultEffort = getModelReasoningConfig(info) ? normalizeReasoningEffort(info, null) : null;
-    if (defaultEffort) conv.reasoningEffort = defaultEffort;
-    else delete conv.reasoningEffort;
     if (info.outputModality === 'image' && conv.council) conv.council.enabled = false;
     config.lastUsedModel = modelId;
     config.recentModelIds = noteRecent(config.recentModelIds, [modelId]);
@@ -103,7 +103,7 @@ export function createPickerChoices({
     const options = getModelReasoningConfig(info)?.options || [];
     const chosen = normalizeReasoningEffort(info, options[index]);
     if (!conv || !chosen || chosen === normalizeReasoningEffort(info, conv.reasoningEffort)) return;
-    conv.reasoningEffort = chosen;
+    chooseEffort(conv, info.id, chosen);
     const shown = container.querySelector('.mp-depth-trigger-value');
     if (shown && label) shown.textContent = label;
     await saveAppData();

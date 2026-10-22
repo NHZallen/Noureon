@@ -7,7 +7,8 @@ import { createMediaPreviewLifecycle as createArchivedMediaPreviewLifecycle } fr
 import { createConversationViewRenderer as createArchivedConversationViewRenderer } from '../messages/conversation-view-renderer.js';
 import { createDisabledCouncilConfig, disableConversationCouncil } from './conversation-council-state.js';
 import { escapeHTML, renderUserText } from './shell-utilities.js';
-import { MODELS } from './model-registry.js';
+import { MODELS, getModelReasoningConfig, normalizeReasoningEffort } from './model-registry.js';
+import { startingChoice } from './reasoning-memory.js';
 import { getRuntimeTexts } from '../i18n/runtime-texts.js';
 
 export const getDefaultGenConfig = () => ({ temperature: 0.7, topP: 0.95, maxTokens: null });
@@ -23,9 +24,12 @@ export function createConversationActions({
     let itemToRename = { id: null, type: null };
     const createBaseConversation = (title) => {
         const currentConfig = runtimeConfigAccess.getConfig();
-        const defaultModelInfo = MODELS.find(m => m.id === currentConfig.lastUsedModel) || MODELS.find(m => m.id === currentConfig.defaultModel) || MODELS[0];
+        // A new conversation starts like the last real one (its model and how much it thinks); without one, with the model last chosen.
+        const followed = startingChoice(liveConversationsBridge.getConversations(), { models: MODELS, getModelReasoningConfig, normalizeReasoningEffort });
+        const defaultModelInfo = MODELS.find(m => m.id === followed?.model) || MODELS.find(m => m.id === currentConfig.lastUsedModel) || MODELS.find(m => m.id === currentConfig.defaultModel) || MODELS[0];
         const now = new Date().toISOString();
         return {
+            ...(followed?.reasoningEffort && followed.model === defaultModelInfo.id ? { reasoningEffort: followed.reasoningEffort, reasoningEfforts: { [followed.model]: followed.reasoningEffort } } : {}),
             id: crypto.randomUUID(),
             title: title,
             messages: [],

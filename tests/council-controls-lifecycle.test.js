@@ -202,6 +202,25 @@ test('typing in the search box narrows the list and says so when nothing is left
   }
 });
 
+test('going to another model and coming back leaves the level chosen for the first one where it was', async () => {
+  const { cleanup, conversation, document, lifecycle } = createHarness({ conversation: singleConversation({ reasoningEffort: 'high' }) });
+  try {
+    lifecycle.renderCouncilControls();
+    document.querySelector('#model-picker-btn').click();
+    document.querySelector('[data-mp-model="model-b"]').click();
+    await settle();
+    assert.equal(conversation.reasoningEffort, undefined, 'the other model has no levels');
+    assert.equal(conversation.reasoningEfforts['model-a'], 'high', 'the level it left is kept');
+    document.querySelector('#model-picker-btn').click();
+    document.querySelector('[data-mp-model="model-a"]').click();
+    await settle();
+    assert.equal(conversation.model, 'model-a');
+    assert.equal(conversation.reasoningEffort, 'high', 'back on the first model: the level chosen for it');
+  } finally {
+    cleanup();
+  }
+});
+
 test('choosing a model saves it with its default thinking level and closes the panel', async () => {
   const { calls, cleanup, config, conversation, document, lifecycle } = createHarness({ conversation: singleConversation({ reasoningEffort: 'high' }) });
   try {

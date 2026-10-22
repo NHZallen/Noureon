@@ -624,3 +624,22 @@ test('the time a conversation was cut back travels with it, and messages marked 
   assert.equal('messagesCutAt' in plain.conversations[0].metadata, false, 'a conversation never cut carries nothing new');
   assert.equal('messagesCutAt' in decodeWorkspaceConversationShadow({ conversations: plain.conversations }).conversations[0], false);
 });
+
+test('how much each model thinks in a conversation goes to the cloud and comes back, and an old conversation without it stays without', async () => {
+  const withLevels = await encodeWorkspaceConversationShadow({
+    userId,
+    cryptoProvider: webcrypto,
+    workspace: { conversations: [{ id: conversationId, title: 'Levels', model: 'model-a', provider: 'p', createdAt: '2026-07-06T01:00:00.000Z', reasoningEffort: 'high', reasoningEfforts: { 'model-a': 'high', 'model-b': 'low' }, messages: [] }] }
+  });
+  const back = decodeWorkspaceConversationShadow(withLevels).conversations[0];
+  assert.equal(back.reasoningEffort, 'high');
+  assert.deepEqual(back.reasoningEfforts, { 'model-a': 'high', 'model-b': 'low' });
+  const without = await encodeWorkspaceConversationShadow({
+    userId,
+    cryptoProvider: webcrypto,
+    workspace: { conversations: [{ id: conversationId, title: 'Old', model: 'model-a', provider: 'p', createdAt: '2026-07-06T01:00:00.000Z', messages: [] }] }
+  });
+  const old = decodeWorkspaceConversationShadow(without).conversations[0];
+  assert.equal('reasoningEffort' in old, false);
+  assert.equal('reasoningEfforts' in old, false);
+});
