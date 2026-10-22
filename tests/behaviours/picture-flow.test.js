@@ -65,6 +65,9 @@ test('words, the picture where it was drawn, words: they stream in that order an
     feed.end();
     await sink;
     assert.deepEqual(bubbles(dom), ['bubble:I will draw a poster.', 'slot:a', 'bubble:Here it is. Anything to change?']);
+    // The wait for a second picture goes under the words that follow the first one, not above it.
+    assert.equal(flow.lastElement().textContent, 'Here it is. Anything to change?');
+    assert.equal(flow.lastElement().previousElementSibling.className, 'reply-picture-slot');
     assert.equal(head, 'I will draw a poster.');
     assert.deepEqual(result.offsets, [21]);
     assert.equal(result.text, 'I will draw a poster.Here it is. Anything to change?');

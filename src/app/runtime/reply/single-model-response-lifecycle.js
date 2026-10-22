@@ -206,6 +206,7 @@ export function createSingleModelResponseLifecycle({
       ? createPictureFlow({ document: getDocument(), targetElement, streamMarkdownResponse, signal, hydrateParts: (parts) => serverReply.hydrateParts(parts), mountPictures, getStage: () => view.stageElement() })
       : null;
     if (flow) {
+      view.setStagePlace(flow.lastElement);
       const showEvent = view.event;
       view.event = (event) => {
         flow.handle(event);

@@ -61,6 +61,23 @@ test('renders plain text, basic markdown, and code without changing markdown sem
   }
 });
 
+test('dollar signs in words are not a formula: money in Chinese text stays text', () => {
+  const harness = createHarness();
+  try {
+    const words = harness.helpers.renderMarkdownWithFormulas('把「¥」改成「$」，例如金額直接寫「$529」。');
+    assert.doesNotMatch(words, /class="katex"/);
+    assert.match(words, /「\$」/);
+    assert.match(words, /\$529」/);
+    assert.doesNotMatch(harness.helpers.renderMarkdownWithFormulas('It costs $5 and $10 today.'), /class="katex"/);
+    assert.doesNotMatch(harness.helpers.renderMarkdownWithFormulas('From $5, to $10.'), /class="katex"/, 'a dollar sign followed by a digit does not close');
+    // A real formula, even next to words, still is one.
+    assert.match(harness.helpers.renderMarkdownWithFormulas('Value: $x^2$ and 公式 $\\text{面積} = a^2$'), /class="katex"/);
+    assert.equal((harness.helpers.renderMarkdownWithFormulas('So $a+b$ and $c$.').match(/class="katex"/g) || []).length, 2);
+  } finally {
+    harness.window.close();
+  }
+});
+
 test('preserves thinking labels and wraps rendered tables once', () => {
   const harness = createHarness();
   try {

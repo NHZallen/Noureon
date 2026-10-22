@@ -147,6 +147,14 @@ export function createMarkdownRenderingHelpers({
     }).join('\n');
   }
 
+  // Two dollar signs in a line of words are not always a formula ("改成「$」…例如「$529」": the words between them would be set as math). The text between
+  // them is a formula when it does not start or end with a space and holds no Chinese, Japanese or Korean words (outside a \text{…}).
+  const WORDS_OF_CJK = /[\u3000-\u30ff\u3400-\u9fff\uac00-\ud7af\uff00-\uffef]/;
+  function looksLikeInlineMath(formula) {
+    if (/^\s|\s$/.test(formula)) return false;
+    return !WORDS_OF_CJK.test(formula) || /\\(?:text|mathrm|operatorname|mbox)\s*\{/.test(formula);
+  }
+
   function extractFormulaTokens(text) {
     const formulas = [];
     const { protectedText, restore } = protectCodeSpans(text);
@@ -161,7 +169,7 @@ export function createMarkdownRenderingHelpers({
       .replace(/\$\$([\s\S]+?)\$\$/g, replaceFormula(true))
       .replace(/\\\[([\s\S]+?)\\\]/g, replaceFormula(true))
       .replace(/\\\(([^\n]+?)\\\)/g, replaceFormula(false))
-      .replace(/(?<!\\)\$(?!\$)([^$\n]+?)(?<!\\)\$/g, replaceFormula(false));
+      .replace(/(?<!\\)\$(?!\$)([^$\n]+?)(?<!\\)\$(?!\d)/g, (match, formula) => (looksLikeInlineMath(formula) ? replaceFormula(false)(match, formula) : match));
 
     return { formulas, markdown: restore(markdown) };
   }

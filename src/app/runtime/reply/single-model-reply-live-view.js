@@ -30,7 +30,9 @@ export function createReplyLiveView({ targetElement, getDocument, getConfig, lan
   let ownSearchNoticed = false;
 
   // The wait for a picture the model draws, under the words so far.
-  const drawStage = createDrawStage({ document: getDocument(), language, place: () => targetElement.closest?.('.message-bubble') || targetElement });
+  // Where it goes is the bubble of the words so far; when pictures are drawn between the words, the one the words are in now (picture-flow.js tells).
+  let stagePlace = null;
+  const drawStage = createDrawStage({ document: getDocument(), language, place: () => stagePlace?.() || targetElement.closest?.('.message-bubble') || targetElement });
 
   const stepList = () => {
     if (!liveRun && targetElement.parentElement) {
@@ -111,6 +113,7 @@ export function createReplyLiveView({ targetElement, getDocument, getConfig, lan
     stepList,
     // The wait for a picture the model draws, when it is on the page (the place for the picture is made around it).
     stageElement: () => drawStage.element,
+    setStagePlace: (place) => { stagePlace = place; },
     // An event of the steps (a run, a search, a skill): drawn in the list.
     event: (event) => {
       drawStage.handle(event);

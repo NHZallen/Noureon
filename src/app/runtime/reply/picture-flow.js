@@ -90,6 +90,8 @@ export function createPictureFlow({ document, targetElement, streamMarkdownRespo
   };
 
   return {
+    /** Where the wait for the next picture goes: under the bubble the words are streaming into now (below any picture already drawn). */
+    lastElement: () => current.bubble || bubbleOf(current.element) || current.element,
     /** The source of the words, between the server and the renderer of the first bubble: after a picture the words go to the bubble that follows it. */
     wrap(onChunk) {
       const give = (text) => {
