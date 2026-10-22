@@ -225,7 +225,7 @@ const TEXTS = Object.freeze({
     imagePicked: 'Used picture {number}',
     imageChange: 'Change',
     imageRetry: 'Retry',
-    imageNotThis: 'Not it',
+    imageNotThis: 'Not this',
     imagePickAria: 'Choose this one: round {round}, picture {number}',
     imagePickWaiting: 'Waiting for you to choose',
     imageRetried: 'None of them, looking again',

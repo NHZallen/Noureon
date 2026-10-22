@@ -1,6 +1,6 @@
 # 文字模型直接畫圖（`generate_image` 工具、圖片編號、模型自己找圖）
 
-**狀態：** 討論完成，owner 已決定 §2 的全部事項（2026-10-21、10-22）；Linear 專案「文字模型直接畫圖」已開單；**尚未寫程式**。
+**狀態：** 第一、二階段與文件都已寫完並在 `staging`（2026-10-22，NOU-85 到 NOU-96，見 §10），等 owner 用真實帳號驗收（§9 的清單）。owner 已決定 §2 的全部事項（2026-10-21、10-22）。
 **前置閱讀：** [`AGENTS.md`](../../../AGENTS.md)、[伺服器圖片生成](2026-10-06-server-image-generation-design.md)（`kind: 'image'`、`server/image-run.js`）、[判斷模型 Decisions](2026-10-08-decisions-design.md)、[理事會工具](2026-10-19-council-tools-design.md)（伺服器工具迴圈與時間軸）、[連接器](2026-10-10-mcp-connectors-design.md)（權限、詢問卡）。
 **畫面草稿（可互動，點開就能玩）：** [`2026-10-22-text-model-image-tool-mock.html`](2026-10-22-text-model-image-tool-mock.html)。裡面的圖是畫出來的示意插圖，文字是手寫的示範，不是模型的實際輸出。
 
@@ -94,3 +94,15 @@ owner 的目標例子：「前幾輪藍色那張比較好看，把桌上的花�
 
 - 有針對每個新模組的單元測試與行為測試（工具參數檢查、參考圖數量、編號、索引、批次上限、權限）。
 - 在 staging 用真實帳號：設定選圖片模型、每次問與永遠允許、一張圖的文字生圖、拿前面某一輪的圖加這次附的圖組合、模型很確定與沒把握兩種、按「不是」、畫的途中按「不是」、停止、圖被刪掉讀不到時的錯誤。
+
+## 10. 實作紀錄（2026-10-22）
+
+- **工具：** 伺服器載入器 `server/image-tool.js` 提供 `generate_image`、`view_images`、`choose_image`、`list_images`；與技能、連接器同一個載入器合約，另加「工具答案可帶小圖」（`src/data/tool-result.js`，四種 API 格式在 `tool-call-formats.js` 與 `anthropic-messages-format.js`）。
+- **詢問與回答：** 沿用連接器的詢問做法（`server/image-ask.js`，`POST /v1/runs/:id/image`）。回答值：`once`、`always`、`deny`（要不要畫）、`pick:N`、`retry`（選圖）、`not:N`（對某張參考圖說「不是」）、`redo`（改選過的圖）。
+- **協定：** RunSpec 版本 1 → 2（`tools.imageGeneration`、`secrets.imageKey`）。舊頁面送版本 1 仍可用（沒有畫圖工具）；新頁面遇到舊伺服器退回在這個裝置上回覆。
+- **編號不存：** 每次由訊息裡圖片的順序現算（`src/data/conversation-pictures.js` 的 `attachedPictureNumbers`、`drawnPictureNumbers`），輸入欄、已送出的訊息、生成圖與給模型的索引共用同一個函式；數字只在設定選了圖片模型時顯示（`<html data-picture-numbers>`）。
+- **找圖：** 每次最多 12 張、每則回覆最多 5 批（`MAX_VIEW_PICTURES`、`MAX_VIEW_CALLS`）；選圖卡每則回覆最多 6 問；「重找」第一次再找一輪，第二次請使用者描述。
+- **步驟列與紀錄：** 看過、選過、畫過的步驟寫進回覆的執行紀錄（`run.pictures`，`src/data/picture-steps.js`，小圖約 120 像素、每則最多 40 張），重開頁面或換裝置看到一樣；模型的公開思考文字是它前一列的「思考」，每次查看的 `reason` 寫在展開區裡當退路。
+- **「不是」：** 詢問卡（每次問）與步驟列（永遠允許）的每張參考圖旁都有；畫的途中按會中止這次生成（只中止這張，不是整個回覆），顯示「已停止。」，模型在下一次工具答案裡被告知。
+- **還沒做 / 已知限制：** 只做伺服器端回覆；「在這個裝置上產生」的回覆沒有這個功能。圖片模型（OpenRouter）對參考圖大小的限制沒有資料，待驗收時確認。展開區沒有把模型的公開思考文字穿插在圖排之間（思考是前一列）。
+

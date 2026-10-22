@@ -302,7 +302,7 @@ test('the question shows the pictures it starts from, "not this one" on each, an
     assert.equal(tiles.length, 2);
     assert.deepEqual(tiles.map((tile) => tile.querySelector('.picture-number').textContent), ['3', '1']);
     const nots = [...dom.document.querySelectorAll('.image-refs-item .image-pick-text-button')];
-    assert.deepEqual(nots.map((button) => button.textContent), ['Not it', 'Not it']);
+    assert.deepEqual(nots.map((button) => button.textContent), ['Not this', 'Not this']);
     nots[1].click();
     await flush();
     assert.deepEqual(answers, [{ id: 'ask-image-1', decision: 'not:1' }]);
