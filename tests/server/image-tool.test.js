@@ -430,3 +430,36 @@ test('a look marks the pictures used later', async () => {
   await loader.run(call({ prompt: 'a cat', references: [CANDIDATES[0]] }));
   assert.deepEqual(loader.record[0].used, [{ round: 1, source: 'generated', number: 1 }]);
 });
+
+test('the person sees the pictures a drawing starts from, and "not this one" on the question stops it before anything is drawn', async () => {
+  const { loader, events, requests } = fakes({ spec: baseSpec({ tools: { imageGeneration: { ...baseSpec().tools.imageGeneration, permission: 'ask' } } }), loadable: { [`${USER}/g1`]: PICTURE, [`${USER}/g2`]: PICTURE }, waitMs: 3000 });
+  const start = loader.stepEvent(call({ prompt: 'x' }));
+  assert.match(start.id, /^[0-9a-f-]{36}$/);
+  const running = loader.run(call({ prompt: 'a cat', references: [CANDIDATES[0], CANDIDATES[1]] }));
+  const ask = await until(() => askedEvent(events));
+  const refs = events.find((event) => event.event === 'refs');
+  assert.deepEqual(refs.references.map((entry) => [entry.round, entry.number, Boolean(entry.thumb)]), [[1, 1, true], [1, 2, true]]);
+  assert.equal(ask.drawId, refs.id);
+  assert.deepEqual(loader.answer(ask.id, 'not:5'), { answered: false });
+  assert.deepEqual(loader.answer(ask.id, 'not:1'), { answered: true });
+  const result = await running;
+  assert.match(result, /pressed "not this one" on round 1, drawn by you, picture 2/);
+  assert.equal(requests.length, 0, 'nothing was drawn, nothing was spent');
+  assert.match(await loader.run(call({ prompt: 'again', references: [CANDIDATES[1]] })), /already said that round 1, drawn by you, picture 2 is not the one/);
+});
+
+test('"not this one" on the row while the picture is drawn names the drawing: it stops, and the model learns it', async () => {
+  const { loader, events } = fakes({ hang: true, loadable: { [`${USER}/g1`]: PICTURE, [`${USER}/g2`]: PICTURE } });
+  const start = loader.stepEvent(call({ prompt: 'a cat' }));
+  const callObject = call({ prompt: 'a cat', references: [CANDIDATES[0]] });
+  const startFor = loader.stepEvent(callObject);
+  const drawing = loader.run(callObject);
+  await until(() => events.find((event) => event.event === 'refs'));
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.deepEqual(loader.answer(start.id, 'not:0'), { answered: false }, 'another drawing\'s id');
+  assert.deepEqual(loader.answer(startFor.id, 'not:3'), { answered: false }, 'a picture it does not start from');
+  assert.deepEqual(loader.answer(startFor.id, 'not:0'), { answered: true });
+  assert.match(await drawing, /pressed "not this one" on round 1, drawn by you, picture 1[\s\S]*stopped this drawing/);
+  assert.equal(events.at(-1).event, 'stopped');
+  assert.deepEqual(loader.answer(startFor.id, 'not:0'), { answered: false }, 'only once');
+});

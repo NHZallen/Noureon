@@ -6,6 +6,8 @@
 
 import { drawPictures } from './image-run.js';
 import { createImageAsk } from './image-ask.js';
+import { randomUUID } from 'node:crypto';
+
 import { currentRound, listPictures, pictureCaption, pictureData, pictureIndexLines, pictureRef, resolvePictureRefs, selectPictures } from '../src/data/conversation-pictures.js';
 import { IMAGE_ASPECT_RATIOS, resolveSupportedAspectRatio, resolveSupportedResolution } from '../src/app/runtime/images/image-generation-config.js';
 import { makeThumbnail } from './picture-thumb.js';
@@ -151,6 +153,9 @@ export function createImageToolLoader({ spec, secrets, userId, files, signal = n
   // The questions that were answered with a picture ({ title, picture }): a person may change the pick while the reply goes on.
   const picks = new Map();
   let drawing = null;
+  // The drawing the model has asked for and the person has not yet seen the end of: its id (the page names it when the person says "not this one"), the pictures it starts from and the question it waits on.
+  let activeDraw = null;
+  const drawIds = new WeakMap();
   const keyOf = (picture) => `${picture.round}/${picture.source}/${picture.number}`;
   const cardPictures = new Map();
   const stripPictures = new Map();
@@ -353,8 +358,21 @@ export function createImageToolLoader({ spec, secrets, userId, files, signal = n
   /** The person said "not this one" while a picture was drawn: the drawing is over, the row says so, the model learns it with the notice. */
   function stoppedByPerson() {
     drawing = null;
+    activeDraw = null;
     emit({ type: 'image', event: 'stopped', label: sandboxText(language, 'imageStopped') });
     return 'The user stopped this drawing: they said a picture you used is not the one. No picture was made.';
+  }
+
+  /** "Not this one" on a picture a drawing starts from: while the question waits it is the answer; while it is drawn the drawing stops. */
+  function notThisReference(drawId, index) {
+    if (!activeDraw || activeDraw.id !== drawId || !(index >= 0 && index < activeDraw.found.length)) return { answered: false };
+    if (activeDraw.askId && asker.answer(activeDraw.askId, `not:${index}`).answered) return { answered: true };
+    if (!drawing) return { answered: false };
+    const picture = activeDraw.found[index];
+    rejected.add(keyOf(picture));
+    notices.push(`The user pressed "not this one" on ${refName(pictureRef(picture))}, a picture you were drawing from, so the drawing was stopped. Do not use it: ask which one they mean with choose_image (other candidates), then draw again.`);
+    drawing.abort();
+    return { answered: true };
   }
 
   /** The person changes a pick or refuses a picture the model used ("改", "不是"): the picture is not used again, a drawing under way stops, and the model is told. */
@@ -382,6 +400,8 @@ export function createImageToolLoader({ spec, secrets, userId, files, signal = n
     const maxReferences = Number(info.maxImageReferences) || 0;
     if (found.length < minReferences) return `${modelName} edits pictures: it needs at least ${minReferences} reference picture(s). Name the picture(s) to start from in \`references\`, or tell the user there is none.`;
     if (maxReferences && found.length > maxReferences) return `${modelName} takes ${maxReferences} reference pictures at most and you named ${found.length}. Name fewer.`;
+    const refused = found.filter((picture) => rejected.has(keyOf(picture)));
+    if (refused.length) return `The user already said that ${refused.map((picture) => refName(pictureRef(picture))).join('; ')} is not the one they mean. Do not use ${refused.length > 1 ? 'them' : 'it'}: ask which one they mean with choose_image.`;
 
     const maxCount = Number(info.maxImageCount) || 1;
     const wanted = Number.isInteger(args.count) ? args.count : 1;
@@ -392,15 +412,28 @@ export function createImageToolLoader({ spec, secrets, userId, files, signal = n
     const aspectRatio = resolveSupportedAspectRatio(askedShape || firstShape || '1:1', ratios);
     const resolution = resolveSupportedResolution('1K', Array.isArray(info.supportedImageResolutions) ? info.supportedImageResolutions : undefined);
 
+    // The person sees which pictures it starts from, each with a "not this one" (the question below, or the row while it is drawn).
+    const drawId = drawIds.get(call) || randomUUID();
+    activeDraw = { id: drawId, found, askId: '' };
+    const strips = await Promise.all(found.map(withStrip));
+    if (found.length) emit({ type: 'image', event: 'refs', id: drawId, references: strips });
+    const notThis = (index) => {
+      const picture = found[index];
+      rejected.add(keyOf(picture));
+      activeDraw = null;
+      return `The user pressed "not this one" on ${refName(pictureRef(picture))}, a picture you were going to draw from. No picture was drawn. Do not use it: ask which one they mean with choose_image (other candidates), then draw again.`;
+    };
     if (!allowed) {
       const answer = await asker.ask('draw', {
+        drawId,
         model: { id: model.id, name: modelName },
         prompt: oneLine(prompt, 1500),
         count,
-        references: await Promise.all(found.map(withStrip))
-      }, (value) => ['once', 'always', 'deny'].includes(value));
+        references: strips
+      }, (value) => ['once', 'always', 'deny'].includes(value) || (/^not:\d{1,2}$/.test(value) && Number(value.slice(4)) < found.length), (id) => { if (activeDraw) activeDraw.askId = id; });
       if (signal?.aborted) return 'The reply was stopped.';
       if (answer === 'always') allowed = true;
+      else if (typeof answer === 'string' && answer.startsWith('not:')) return notThis(Number(answer.slice(4)));
       else if (answer !== 'once') {
         return answer === 'timeout'
           ? 'The user did not answer in time, so no picture was drawn. Go on without it and say so briefly.'
@@ -444,6 +477,7 @@ export function createImageToolLoader({ spec, secrets, userId, files, signal = n
     if (signal?.aborted) return 'The reply was stopped.';
     if (result.stopped || drawing.signal.aborted) return stoppedByPerson();
     drawing = null;
+    activeDraw = null;
     const first = drawn + 1;
     drawn += result.parts.length;
     onPictures(result.parts);
@@ -490,7 +524,9 @@ export function createImageToolLoader({ spec, secrets, userId, files, signal = n
       if (call?.name === LIST_IMAGES_TOOL.name || call?.name === CHOOSE_IMAGE_TOOL.name) return null;
       if (call?.name === VIEW_IMAGES_TOOL.name) return { type: 'image', event: 'start', kind: 'view', label: sandboxText(language, 'imageViewing'), reason: oneLine(call?.args?.reason, 300), references: [] };
       const asked = Array.isArray(call?.args?.references) ? call.args.references.map(readReference).filter(Boolean) : [];
-      return { type: 'image', event: 'start', label: sandboxText(language, 'imageDrawing'), references: asked.filter((ref) => Number.isInteger(ref.round) && Number.isInteger(ref.number) && ref.source) };
+      const id = randomUUID();
+      if (call && typeof call === 'object') drawIds.set(call, id);
+      return { type: 'image', event: 'start', id, label: sandboxText(language, 'imageDrawing'), references: asked.filter((ref) => Number.isInteger(ref.round) && Number.isInteger(ref.number) && ref.source) };
     },
     async run(call) {
       const result = call?.name === VIEW_IMAGES_TOOL.name ? await view(call)
@@ -503,7 +539,7 @@ export function createImageToolLoader({ spec, secrets, userId, files, signal = n
       return typeof result === 'string' ? `${told}${result}` : { ...result, content: `${told}${result.content}` };
     },
     /** The answer of the person to a question (once, always, deny, pick:N, retry), or "redo" for a pick they want to change. */
-    answer: (askId, value) => (value === 'redo' ? redo(askId) : asker.answer(askId, value))
+    answer: (askId, value) => (value === 'redo' ? redo(askId) : typeof value === 'string' && /^not:\d{1,2}$/.test(value) && activeDraw?.id === askId ? notThisReference(askId, Number(value.slice(4))) : asker.answer(askId, value))
   };
 }
 

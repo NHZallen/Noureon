@@ -288,3 +288,58 @@ test('live: looking opens to the pictures seen; the ones a drawing starts from a
     dom.close?.();
   }
 });
+
+// The pictures a drawing starts from, each with "not this one".
+const REFS = [{ round: 2, source: 'generated', number: 3, thumb: THUMB }, { round: 4, source: 'user', number: 1, thumb: THUMB }];
+
+test('the question shows the pictures it starts from, "not this one" on each, and folds when one is refused', async () => {
+  const dom = createDom('<div id="host"></div>');
+  try {
+    const answers = [];
+    const cards = createImageAskCards({ document: dom.document, host: dom.document.getElementById('host'), language: 'en', onAnswer: async (answer) => { answers.push(answer); return { ok: true }; } });
+    cards.handle({ ...ASK, drawId: 'draw-1', references: REFS });
+    const tiles = [...dom.document.querySelectorAll('.image-ref-tile')];
+    assert.equal(tiles.length, 2);
+    assert.deepEqual(tiles.map((tile) => tile.querySelector('.picture-number').textContent), ['3', '1']);
+    const nots = [...dom.document.querySelectorAll('.image-refs-item .image-pick-text-button')];
+    assert.deepEqual(nots.map((button) => button.textContent), ['Not it', 'Not it']);
+    nots[1].click();
+    await flush();
+    assert.deepEqual(answers, [{ id: 'ask-image-1', decision: 'not:1' }]);
+    cards.handle({ type: 'image', event: 'answer', id: 'ask-image-1', answer: 'not:1' });
+    assert.equal(dom.document.querySelector('.net-ask-title').textContent, 'Not that one, nothing was drawn');
+    assert.equal(dom.document.querySelectorAll('.image-ref-tile').length, 0);
+  } finally {
+    dom.close?.();
+  }
+});
+
+test('while the picture is drawn the row has the pictures with "not this one"; it goes when the picture is made or when it is too late', async () => {
+  const dom = createDom('<div id="host"></div>');
+  let ledger = null;
+  try {
+    const sent = [];
+    let answered = true;
+    ledger = createSandboxLedger({ document: dom.document, host: dom.document.getElementById('host'), language: 'en', summary: false, onImageAnswer: async (answer) => { sent.push(answer); return { ok: true, answered }; } });
+    ledger.event({ type: 'image', event: 'start', id: 'draw-1', label: 'Drawing…', references: [REFS[0]] });
+    ledger.event({ type: 'image', event: 'refs', id: 'draw-1', references: REFS });
+    const buttons = () => [...dom.document.querySelectorAll('.image-refs-line .image-pick-text-button')];
+    assert.equal(buttons().length, 2);
+    answered = false;
+    buttons()[0].click();
+    await flush();
+    assert.deepEqual(sent, [{ id: 'draw-1', decision: 'not:0' }]);
+    assert.equal(buttons().length, 1, 'too late for that one: its button goes');
+    ledger.event({ type: 'image', event: 'stopped', label: 'Stopped.' });
+    assert.equal(buttons().length, 0);
+    assert.match(dom.document.querySelector('.ledger-row[data-kind="image"]').textContent, /Stopped\./);
+    ledger.event({ type: 'image', event: 'start', id: 'draw-2', label: 'Drawing…', references: [] });
+    ledger.event({ type: 'image', event: 'refs', id: 'draw-2', references: REFS });
+    ledger.event({ type: 'image', event: 'done', count: 1, references: REFS, label: 'Drew a picture' });
+    assert.equal(buttons().length, 0, 'once the picture is made there is nothing left to refuse');
+    assert.equal(dom.document.querySelectorAll('.image-mini-ref').length, 2);
+  } finally {
+    ledger?.remove();
+    dom.close?.();
+  }
+});

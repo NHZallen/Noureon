@@ -5,8 +5,9 @@
 // it is put in as text, never as markup.
 
 import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
+import { referencesLine } from './picture-steps-view.js';
 
-const RESULT_KEYS = Object.freeze({ once: 'imageAnsweredOnce', always: 'imageAnsweredAlways', deny: 'imageRefused', timeout: 'imageTimedOut', cancel: 'imageStopped' });
+const RESULT_KEYS = Object.freeze({ not: 'imageNotThisDone', once: 'imageAnsweredOnce', always: 'imageAnsweredAlways', deny: 'imageRefused', timeout: 'imageTimedOut', cancel: 'imageStopped' });
 
 /**
  * `host`: the element the cards go in; `onAnswer({ id, decision })` sends the person's answer (resolves { ok }). Returns { handle(event), waitingText, open } for the
@@ -30,10 +31,11 @@ export function createImageAskCards({ document, host, language, onAnswer = async
     card.actions.remove();
     card.note.remove();
     card.prompt.remove();
-    card.title.textContent = text(RESULT_KEYS[decision] || RESULT_KEYS.timeout);
+    card.refs?.remove();
+    card.title.textContent = text(RESULT_KEYS[String(decision).startsWith('not:') ? 'not' : decision] || RESULT_KEYS.timeout);
   };
 
-  const ask = ({ id, model, prompt, waitMs }) => {
+  const ask = ({ id, model, prompt, references, waitMs }) => {
     if (!id || cards.has(id)) return;
     const node = make('div', 'net-ask image-ask');
     node.dataset.askId = id;
@@ -48,30 +50,34 @@ export function createImageAskCards({ document, host, language, onAnswer = async
     const buttons = [];
     const failure = make('div', 'net-ask-failed');
     failure.hidden = true;
+    const send = async (decision) => {
+      if (card.resolved) return;
+      buttons.forEach((entry) => { entry.disabled = true; });
+      failure.hidden = true;
+      let sent = { ok: false };
+      try {
+        sent = await onAnswer({ id, decision });
+      } catch {
+        sent = { ok: false };
+      }
+      // The answer is shown when the server says it took it (the "answer" event, which every page gets); a failed send can be tried again.
+      if (!sent?.ok && !card.resolved) {
+        failure.textContent = text('imageAskFailed');
+        failure.hidden = false;
+        buttons.forEach((entry) => { entry.disabled = false; });
+      }
+    };
+    // The pictures it starts from, each with "not this one".
+    const refs = Array.isArray(references) && references.length ? referencesLine(document, references, language, (index, button) => { buttons.push(button); void send(`not:${index}`); }) : null;
+    card.refs = refs;
     for (const [decision, key, primary] of [['once', 'imageAllowOnce', true], ['always', 'imageAllowAlways', false], ['deny', 'imageRefuse', false]]) {
       const button = make('button', `net-ask-button${primary ? ' is-primary btn-primary' : ''}`, text(key));
       button.type = 'button';
-      button.addEventListener('click', async () => {
-        if (card.resolved) return;
-        buttons.forEach((entry) => { entry.disabled = true; });
-        failure.hidden = true;
-        let sent = { ok: false };
-        try {
-          sent = await onAnswer({ id, decision });
-        } catch {
-          sent = { ok: false };
-        }
-        // The answer is shown when the server says it took it (the "answer" event), which every page gets; a failed send can be tried again.
-        if (!sent?.ok && !card.resolved) {
-          failure.textContent = text('imageAskFailed');
-          failure.hidden = false;
-          buttons.forEach((entry) => { entry.disabled = false; });
-        }
-      });
+      button.addEventListener('click', () => { void send(decision); });
       buttons.push(button);
       actions.append(button);
     }
-    node.append(head, promptNode, actions, note, failure);
+    node.append(head, promptNode, ...(refs ? [refs] : []), actions, note, failure);
     host.append(node);
     cards.set(id, card);
   };

@@ -54,6 +54,28 @@ export function appendMiniRefs(document, label, references) {
   label.append(refs);
 }
 
+/**
+ * The pictures a drawing starts from, each with "not this one" beside it (`onNot(index)` is told which): the line under the question and under the row while it is drawn.
+ * Returns the element; the buttons can be taken away with `.remove()` once it is too late to say.
+ */
+export function referencesLine(document, references, language, onNot) {
+  const line = make(document, 'div', 'image-refs-line');
+  references.forEach((picture, index) => {
+    const item = make(document, 'span', 'image-refs-item');
+    item.append(pictureTile(document, picture, 'image-ref-tile'));
+    const button = make(document, 'button', 'image-pick-text-button', sandboxText(language, 'imageNotThis'));
+    button.type = 'button';
+    button.setAttribute('aria-label', `${sandboxText(language, 'imageNotThis')} ${picture.number}`);
+    button.addEventListener('click', () => {
+      button.disabled = true;
+      onNot(index, button);
+    });
+    item.append(button);
+    line.append(item);
+  });
+  return line;
+}
+
 /** The body of a row of looking: the model's reason, then the pictures it saw. */
 export function viewBody(document, step, language) {
   const box = make(document, 'div', 'image-look');

@@ -12,7 +12,7 @@ import { createNetAskCards } from './net-ask-card.js';
 import { createSourceChips, mergeSources, putFirstSiteIcon, sourcesRowLabel } from './run-sources.js';
 import { keepEndInView } from '../motion/collapse-motion.js';
 import { fillThinkingText } from '../thinking/thinking-text.js';
-import { appendMiniRefs, markUsed, viewBody } from './picture-steps-view.js';
+import { appendMiniRefs, markUsed, referencesLine, viewBody } from './picture-steps-view.js';
 
 const MAX_OUTPUT_CHARS = 4000;
 const MAX_CODE_CHARS = 6000;
@@ -123,6 +123,24 @@ export function createSandboxLedger({ document, host, before = null, language = 
       askWhichPicture(event);
       return;
     }
+    if (event.event === 'refs') {
+      // The pictures the drawing starts from, each with "not this one", under the row while the question waits and the picture is drawn.
+      const running = imageRow && list.rows.includes(imageRow) && imageRow.state === 'running' ? imageRow : null;
+      if (!running || !event.references?.length) return;
+      running.refsLine?.remove();
+      running.refsLine = referencesLine(document, event.references, language, async (index, button) => {
+        let sent = { ok: false };
+        try {
+          sent = await (onImageAnswer || (async () => ({ ok: false })))({ id: event.id, decision: `not:${index}` });
+        } catch {
+          sent = { ok: false };
+        }
+        // Too late (the picture is made, or the question was answered): there is nothing to say any more.
+        if (!sent?.ok || sent.answered === false) button.remove();
+      });
+      running.node.after(running.refsLine);
+      return;
+    }
     if (event.event === 'start') {
       imageRow = begin(event.label, { kind: 'image' });
       // What it is drawn from was looked at before: those pictures are the ones used.
@@ -138,12 +156,15 @@ export function createSandboxLedger({ document, host, before = null, language = 
       askAboutImage(event);
       // A refusal (or no answer) ends the drawing: the row says so.
       if (row && event.answer !== 'once' && event.answer !== 'always') {
-        row.setLabel(text(event.answer === 'timeout' ? 'imageTimedOut' : event.answer === 'cancel' ? 'imageStopped' : 'imageRefused'));
+        row.refsLine?.remove();
+        row.setLabel(text(String(event.answer).startsWith('not:') ? 'imageNotThisDone' : event.answer === 'timeout' ? 'imageTimedOut' : event.answer === 'cancel' ? 'imageStopped' : 'imageRefused'));
         row.finish('done');
       }
       return;
     }
     if (!row) return;
+    // The picture is made, or it will not be: it is too late to say "not this one".
+    row.refsLine?.remove();
     row.setLabel(event.label || row.label);
     if (event.event === 'done' && event.kind === 'view' && event.shown?.length) {
       // The row opens to what the model thought and the pictures it saw.

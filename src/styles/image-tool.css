@@ -52,3 +52,11 @@
 .image-look-cell.is-used .image-look-who { color: var(--text-primary); font-weight: 600; }
 .image-look-cell:focus-visible { outline: 2px solid var(--text-primary); outline-offset: 2px; border-radius: 0.6rem; }
 @media (prefers-reduced-motion: reduce) { .image-look-cell .picture-tile { transition: none; } }
+
+/* The pictures a drawing starts from, each with "not this one" (picture-steps-view.js referencesLine): under the question, and under the row while the picture is drawn. */
+.image-refs-line { display: flex; flex-wrap: wrap; gap: 0.6rem 0.9rem; margin: 0.55rem 0 0.2rem 1.75rem; }
+.image-refs-item { display: inline-flex; align-items: center; gap: 0.35rem; }
+.image-ref-tile { position: relative; display: block; width: 2.6rem; height: 2.6rem; overflow: hidden; border-radius: 0.5rem; background: var(--hover-bg); box-shadow: 0 0 0 1px var(--border-color); }
+.image-ref-tile img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.image-ref-tile .picture-number { display: inline-flex; }
+.image-ask .image-refs-line { margin-left: 0; }
