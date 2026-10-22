@@ -16,6 +16,8 @@ import { followServerReply, handOverToServer } from './single-model-reply-server
 import { createLocalReply } from './single-model-reply-local.js';
 import { createReplyLiveView } from './single-model-reply-live-view.js';
 import { composeReplyText, recordReplyRun } from './single-model-reply-finish.js';
+import { createPictureFlow } from './picture-flow.js';
+import { liftSandboxRunBlock } from '../../ui/sandbox/sandbox-run-block.js';
 
 // What a reply makes as it goes: the request as it stands, the pages searched (kept with the reply, shown as "Searched N sites"), its run record,
 // its files and documents, and where the provider's own search cites its pages.
@@ -66,7 +68,9 @@ export function createSingleModelResponseLifecycle({
   // Replies run by the server ({ plan, start, notify, localizeError }, see runtime/server-reply/server-reply.js). Without it every reply is made here.
   serverReply = null,
   getWindow = () => globalThis.window,
-  getDocument = () => globalThis.document
+  getDocument = () => globalThis.document,
+  // ({ parts, firstNumber }) => the nodes of the cards of pictures a text model drew, bound and numbered: they are put in the reply as soon as they are made.
+  mountPictures = null
 }) {
   let progressTimer = null;
   let latestProgress = null;
@@ -196,11 +200,23 @@ export function createSingleModelResponseLifecycle({
       ...(synthesis ? { historyForApi: [], ignoreConversationWebSearch: true, requestPurpose: NOURAS_REQUEST_PURPOSE.COUNCIL_SYNTHESIS, additionalSystemInstruction: [prep.skillOptions.additionalSystemInstruction, synthesis.instruction].filter(Boolean).join('\n\n') } : {}) };
     // 3. Made here, or followed from the server.
     const local = createLocalReply({ streamApiCall, buildSingleModelTranslatedRequestParts, getConfig, webResearch, now }, { request, prep, reply, view, streamOptions });
+    // A text model that may draw pictures: the words before a picture, the picture and the words after it are drawn in that order as they come (picture-flow.js).
+    // (Not for a reply picked up again by a page that came late: it is drawn whole when it ends, as before.)
+    const flow = serverRun && !resumeRun && !synthesis && mountPictures && serverReply?.hydrateParts && getConfig().toolModels?.image
+      ? createPictureFlow({ document: getDocument(), targetElement, streamMarkdownResponse, signal, hydrateParts: (parts) => serverReply.hydrateParts(parts), mountPictures, getStage: () => view.stageElement() })
+      : null;
+    if (flow) {
+      const showEvent = view.event;
+      view.event = (event) => {
+        flow.handle(event);
+        return showEvent(event);
+      };
+    }
     const runApiStream = serverRun
       ? (onChunk) => followServerReply(
         { serverReply, now, setRunStartedAt: (value) => { runStartedAt = value; }, getRunStartedAt: () => runStartedAt },
         { serverRun, reply, view, progress, signal, uiLanguage, assistantMessageId, targetElement, advanced: replyMode.advanced, runHere: local.runAdvanced },
-        onChunk
+        flow ? flow.wrap(onChunk) : onChunk
       )
       : replyMode.advanced ? local.runAdvanced : local.runStandard;
     // The [n] an answer writes become small labels as it streams (and in the final view, from the saved sources).
@@ -208,8 +224,9 @@ export function createSingleModelResponseLifecycle({
 
     let fullResponse;
     let responseRenderedInRealtime = false;
+    let flowResult = null;
     try {
-      if (getOutputMode() === 'realtime') {
+      if (getOutputMode() === 'realtime' || flow) {
         stop();
         const realtimeProgress = {
           ...latestProgress,
@@ -237,6 +254,8 @@ export function createSingleModelResponseLifecycle({
         fullResponse = await streamWithWaitRow(targetElement, startedAt, runApiStream, signal);
       }
     } finally {
+      // The last bubble is finished and every picture is in place before the step list goes.
+      if (flow) flowResult = await flow.finish();
       stop();
       stopCitations();
       view.close();
@@ -253,11 +272,17 @@ export function createSingleModelResponseLifecycle({
       });
     }
 
+    const drewHere = Boolean(flowResult?.pictures.length);
+    const composed = composeReplyText({ reply, fullResponse: drewHere ? flowResult.text : fullResponse, targetElement, aborted: Boolean(signal?.aborted), uiLanguage });
+    // What the first bubble shows (the record above the words before the first picture): the rest is in the bubbles after the pictures.
+    const answerStart = composed.length - liftSandboxRunBlock(composed).text.length;
     return {
-      fullResponse: composeReplyText({ reply, fullResponse, targetElement, aborted: Boolean(signal?.aborted), uiLanguage }),
+      fullResponse: composed,
+      viewResponse: drewHere ? composed.slice(0, answerStart + flowResult.headText.length) : null,
+      picturesShown: drewHere && flowResult.shownAll,
       responseRenderedInRealtime,
       extraParts: reply.sandboxParts,
-      pictureOffsets: reply.pictureOffsets
+      pictureOffsets: drewHere ? flowResult.offsets : reply.pictureOffsets
     };
   };
 

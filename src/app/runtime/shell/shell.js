@@ -518,6 +518,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             renderMarkdownWithFormulas,
             renderUserText,
             addMessageToUI: (...args) => addMessageToUI(...args),
+            bindGeneratedImageAssets: (...args) => bindGeneratedImageAssets(...args),
             refreshMessageHistorySources: (...args) => refreshMessageHistorySources(...args),
             buildSingleModelTranslatedRequestParts: (...args) => buildSingleModelTranslatedRequestParts(...args),
             streamApiCall: (...args) => streamApiCall(...args),

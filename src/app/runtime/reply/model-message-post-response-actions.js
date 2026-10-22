@@ -11,8 +11,9 @@ export function applyModelMessagePostResponseActions({
         return false;
     }
 
-    const bubble = lastMessageElement.querySelector('.message-bubble');
-    const content = lastMessageElement.querySelector('.message-content');
+    // A reply with pictures in it has a bubble for each run of words: the footer is on the last one that shows.
+    const bubble = [...lastMessageElement.querySelectorAll('.message-bubble')].filter((node) => !node.hidden).at(-1) || null;
+    const content = bubble?.querySelector('.message-content') || null;
     const aiMessageObject = conversation?.messages?.[conversation.messages.length - 1];
     if (!bubble || !content || !aiMessageObject || bubble.querySelector('.absolute')) {
         return false;

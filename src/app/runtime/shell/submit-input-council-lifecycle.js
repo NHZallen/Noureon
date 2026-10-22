@@ -27,6 +27,7 @@ import { setVisionLocked } from '../features/vision-check-lock.js';
 import { visionText } from '../../ui/files/vision/vision-texts.js';
 import { createProgressTicker } from '../features/progress-ticker.js';
 import {
+import { createMountPictures } from '../reply/mount-pictures.js';
   getModelReasoningConfig,
   getReasoningEffortLabel,
   modelSupportsToolCalling,
@@ -123,6 +124,7 @@ export function createSubmitInputCouncilLifecycle(dependencies = {}) {
     renderMarkdownWithFormulas = renderMarkdown,
     renderUserText = (value) => String(value ?? ''),
     addMessageToUI,
+    bindGeneratedImageAssets = async () => {},
     refreshMessageHistorySources = () => null,
     buildSingleModelTranslatedRequestParts,
     streamApiCall,
@@ -322,7 +324,9 @@ export function createSubmitInputCouncilLifecycle(dependencies = {}) {
     supportsToolCalling: modelSupportsToolCalling,
     supportsVision: modelSupportsVision,
     webResearch,
-    serverReply
+    serverReply,
+    // The pictures a text model draws are put in the reply as soon as they are made (reply/mount-pictures.js).
+    mountPictures: createMountPictures({ getActiveConversation, addMessageToUI, bindGeneratedImageAssets })
   });
 
   const submitInputPreparationLifecycle = createSubmitInputPreparationLifecycle({
@@ -434,6 +438,9 @@ export function createSubmitInputCouncilLifecycle(dependencies = {}) {
       let generatedImageParts = null;
       let extraParts = [];
       let pictureOffsets = [];
+      // When the pictures were drawn into the page as they were made: the text the first bubble shows, and that they are there already.
+      let viewResponse = null;
+      let picturesShown = false;
       const historySourceConversationIds = new Set();
       const collectHistorySources = (memoryContext) => {
         collectHistorySourceConversationIds(memoryContext).forEach((id) => historySourceConversationIds.add(id));
@@ -496,6 +503,8 @@ export function createSubmitInputCouncilLifecycle(dependencies = {}) {
           responseRenderedInRealtime = singleResult.responseRenderedInRealtime;
           extraParts = singleResult.extraParts || [];
           pictureOffsets = singleResult.pictureOffsets || [];
+          viewResponse = singleResult.viewResponse ?? null;
+          picturesShown = Boolean(singleResult.picturesShown);
         }
       }
 
@@ -504,6 +513,8 @@ export function createSubmitInputCouncilLifecycle(dependencies = {}) {
         finalParts: generatedImageParts,
         extraParts,
         pictureOffsets,
+        viewResponse,
+        picturesShown,
         finalAiMessage,
         councilMetadata,
         includeCouncilMetadata: responseUsesCouncil,

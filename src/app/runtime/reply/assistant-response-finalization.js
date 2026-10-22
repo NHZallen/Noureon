@@ -52,6 +52,9 @@ export async function finalizeAssistantResponse({
   extraParts = [],
   // Where in the answer the pictures among `extraParts` that a text model drew stood: the message reads words, picture, words.
   pictureOffsets = [],
+  // Pictures drawn into the page as they were made: what the first bubble shows (the rest is in the bubbles after the pictures), and that nothing is drawn again.
+  viewResponse = null,
+  picturesShown = false,
   finalAiMessage,
   councilMetadata,
   includeCouncilMetadata = false,
@@ -120,7 +123,7 @@ export async function finalizeAssistantResponse({
   } else if (!responseUsesCouncil) {
     await completeSingleModelView({
       targetElement,
-      fullResponse,
+      fullResponse: viewResponse ?? fullResponse,
       signal,
       responseRenderedInRealtime
     });
@@ -132,7 +135,7 @@ export async function finalizeAssistantResponse({
     await playbackCouncilResponse({ targetElement, fullResponse, signal });
   }
   rememberRenderedMessage(targetElement, finalAiMessage);
-  if (!hasFinalParts && !responseUsesCouncil && showMessageWithPictures && finalAiMessage.parts.some((part) => part?.generatedImage)) {
+  if (!hasFinalParts && !responseUsesCouncil && !picturesShown && showMessageWithPictures && finalAiMessage.parts.some((part) => part?.generatedImage)) {
     showMessageWithPictures({ finalAiMessage });
   }
 

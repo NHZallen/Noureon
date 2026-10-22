@@ -109,6 +109,8 @@ export function createReplyLiveView({ targetElement, getDocument, getConfig, lan
 
   return {
     stepList,
+    // The wait for a picture the model draws, when it is on the page (the place for the picture is made around it).
+    stageElement: () => drawStage.element,
     // An event of the steps (a run, a search, a skill): drawn in the list.
     event: (event) => {
       drawStage.handle(event);

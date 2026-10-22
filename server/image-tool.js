@@ -490,7 +490,9 @@ export function createImageToolLoader({ spec, secrets, userId, files, signal = n
     const referenceStrips = await Promise.all(found.map(withStrip));
     steps.push({ kind: 'draw', count: result.parts.length, references: referenceStrips });
     markUsed(found.map(pictureRef));
-    emit({ type: 'image', event: 'done', count: result.parts.length, references: referenceStrips, label: sandboxText(language, result.parts.length > 1 ? 'imageDrawnMany' : 'imageDrawn', { n: result.parts.length }) });
+    // The pictures themselves (where they are kept, not their bytes), so that a page that follows the reply puts them in place as soon as they are made.
+    const made = result.parts.map(({ generatedImage: { prompt: _prompt, ...rest } }) => ({ generatedImage: rest }));
+    emit({ type: 'image', event: 'done', count: result.parts.length, pictures: made, references: referenceStrips, label: sandboxText(language, result.parts.length > 1 ? 'imageDrawnMany' : 'imageDrawn', { n: result.parts.length }) });
     const words = `${result.parts.length} picture(s) drawn with ${modelName} and shown to the user in your message (pictures ${result.parts.length > 1 ? `${first} to ${drawn}` : first} of this message). Say briefly what you did; do not describe a link.`;
     // The model sees how the pictures came out (small copies), so it can say so and the user can ask for a change.
     const images = [];

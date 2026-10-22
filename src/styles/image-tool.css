@@ -72,3 +72,8 @@
 .reply-draw-stage { width: min(24rem, 100%); margin: 0.6rem 0 0.25rem; }
 .reply-draw-stage .generated-image-skeleton { min-height: 0; max-height: 60vh; }
 .reply-draw-stage.is-finished .generated-image-skeleton { aspect-ratio: auto !important; min-height: 0; }
+
+/* The place of a picture a text model drew, between the bubbles of the words before and after it (picture-flow.js). */
+.reply-picture-slot { margin: 0.6rem 0; }
+.reply-picture-slot .generated-image-card { max-width: min(100%, 28rem); }
+.reply-picture-slot .generated-image-set { max-width: min(100%, 28rem); }
