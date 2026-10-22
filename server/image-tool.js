@@ -18,6 +18,12 @@ const PROMPT_CHARS = 4000;
 /** Pictures shown to the model in one look, and looks in one reply (more is asked of the person instead). */
 export const MAX_VIEW_PICTURES = 12;
 export const MAX_VIEW_CALLS = 5;
+/** Questions "which one is it?" in one reply, the candidates in one, and the size of the small pictures on the card. */
+export const MAX_PICK_ASKS = 6;
+export const MAX_PICK_CANDIDATES = 12;
+const CARD_SIDE = 192;
+const CARD_QUALITY = 55;
+const CARD_MAX_CHARS = 30_000;
 
 const REFERENCE_ITEM = Object.freeze({
   type: 'object',
@@ -50,6 +56,22 @@ export const VIEW_IMAGES_TOOL = Object.freeze({
       reason: { type: 'string', maxLength: 300, description: 'One short sentence for the user: what you are looking for, and your thought about which picture it may be.' }
     },
     required: ['reason']
+  })
+});
+
+export const CHOOSE_IMAGE_TOOL = Object.freeze({
+  name: 'choose_image',
+  description: 'Ask the user which picture they mean, when you are not sure (for example two pictures both fit what they said). The user sees the candidates and taps the right one. Ask one thing at a time. Do not ask when you are very sure, and do not ask about a picture attached to this message that the user called "this one".',
+  parameters: Object.freeze({
+    type: 'object',
+    properties: {
+      title: { type: 'string', maxLength: 120, description: 'The question the user reads, in their language, short and friendly, in your own words (for example "Which one is the blue living room?"), not a copy of what they wrote.' },
+      candidates: { type: 'array', minItems: 1, maxItems: MAX_PICK_CANDIDATES, items: REFERENCE_ITEM, description: 'The pictures to choose from, the likeliest first.' },
+      step: { type: 'integer', description: 'When you ask about several things in a row ("this bear with the cat"), which one this is (from 1).' },
+      of: { type: 'integer', description: 'How many things you will ask about in all.' },
+      reason: { type: 'string', maxLength: 300, description: 'One short sentence: why you are not sure.' }
+    },
+    required: ['title', 'candidates']
   })
 });
 
@@ -113,6 +135,16 @@ export function createImageToolLoader({ spec, secrets, userId, files, signal = n
   let calls = 0;
   let drawn = 0;
   let looks = 0;
+  let pickAsks = 0;
+  let retries = 0;
+  // What the person refused (pictures they said were not the one), and what they said while the reply was busy: the model is told with its next answer.
+  const rejected = new Set();
+  const notices = [];
+  // The questions that were answered with a picture ({ title, picture }): a person may change the pick while the reply goes on.
+  const picks = new Map();
+  let drawing = null;
+  const keyOf = (picture) => `${picture.round}/${picture.source}/${picture.number}`;
+  const cardPictures = new Map();
 
   const lines = pictureIndexLines(pictures, { currentRound: round });
   const instruction = [
@@ -122,6 +154,7 @@ export function createImageToolLoader({ spec, secrets, userId, files, signal = n
     lines.length ? lines.join('\n') : '(none yet)',
     'A picture the user attached to the message you are answering has a label in front of it ("Image 2 of 3 in this message: …"): the first number is its number, the one the user sees on it.',
     'The user may say "this one" (a picture of this message), "the one before", or give a number; read what they mean and pick the picture. If it is not clear which picture they mean, ask them in your reply instead of guessing.',
+    `When you are very sure which picture the user means, use it without asking. When you are not sure, ask with choose_image (a title of your own words; one thing at a time, with step and of when there are several); the user taps the right one and you get the answer, or "none of these" and you look again (once) or ask them to describe it. A picture the user attached to this message and called "this one" needs no question.`,
     `To find out which picture the user means, look at pictures with view_images (up to ${MAX_VIEW_PICTURES} each time, ${MAX_VIEW_CALLS} times in a reply): name some, or select by kind (for example every picture 3). A picture number alone does not say which round: "picture 3" may be any round\'s, so look at all of them and pick by what they show. list_images gives the full list when the one above is cut short. Do not guess: when you cannot tell, ask the user which one.`,
     'The user may be asked to allow each picture first. The pictures appear in your message by themselves once drawn: do not describe a link, and say briefly what you did.'
   ].join('\n');
@@ -223,6 +256,74 @@ export function createImageToolLoader({ spec, secrets, userId, files, signal = n
     return text.length ? `The pictures of this conversation:\n${text.join('\n')}` : 'No picture matches.';
   }
 
+  /** The small picture of a candidate for the card: { mimeType, data }, or null (the card then shows its number). */
+  async function cardPicture(picture) {
+    const key = keyOf(picture);
+    if (!cardPictures.has(key)) {
+      const loaded = await loadBytes(picture);
+      const thumb = loaded.bytes ? await makeThumbnail(loaded.bytes, loaded.mimeType, { side: CARD_SIDE, quality: CARD_QUALITY }) : null;
+      cardPictures.set(key, thumb && thumb.data.length <= CARD_MAX_CHARS ? thumb : null);
+    }
+    return cardPictures.get(key);
+  }
+
+  async function choose(call) {
+    const args = call?.args && typeof call.args === 'object' ? call.args : {};
+    const title = oneLine(args.title, 120);
+    if (!title) return 'The call had no "title" (the question for the user).';
+    if (pickAsks >= MAX_PICK_ASKS) return `You have asked ${MAX_PICK_ASKS} questions about pictures in this reply, which is the limit. Do not ask again: say what is unclear and let the user answer in their next message.`;
+    const asked = Array.isArray(args.candidates) ? args.candidates : [];
+    const { found, missing } = resolvePictureRefs(pictures, asked.slice(0, MAX_PICK_CANDIDATES + 1).map(readReference));
+    if (asked.length > MAX_PICK_CANDIDATES) return `Give at most ${MAX_PICK_CANDIDATES} candidates.`;
+    if (missing.length) return `These pictures do not exist: ${missing.map((ref) => refName(readReference(ref))).join('; ')}. The pictures of this conversation:\n${lines.join('\n') || '(none)'}`;
+    const candidates = found.filter((picture) => !rejected.has(keyOf(picture)));
+    if (!candidates.length) return 'The user already said that none of these is the one. Do not ask about them again: ask the user, in your reply, to describe the picture they mean.';
+    pickAsks += 1;
+    const cards = [];
+    for (const picture of candidates) {
+      cards.push({ ...pictureRef(picture), caption: pictureCaption(picture), thumb: await cardPicture(picture) });
+      if (signal?.aborted) return 'The reply was stopped.';
+    }
+    const step = Number.isInteger(args.step) && args.step >= 1 ? args.step : 0;
+    const of = Number.isInteger(args.of) && args.of >= step && args.of >= 2 ? args.of : 0;
+    let askId = '';
+    const answer = await asker.ask('pick', { title, ...(step && of ? { step, of } : {}), candidates: cards }, (value) => value === 'retry' || (/^pick:\d{1,2}$/.test(value) && Number(value.slice(5)) < cards.length), (id) => { askId = id; });
+    if (signal?.aborted) return 'The reply was stopped.';
+    if (answer === 'retry') {
+      candidates.forEach((picture) => rejected.add(keyOf(picture)));
+      retries += 1;
+      return retries === 1
+        ? `The user says none of these is the picture. Look again for other pictures (view_images with another filter), leaving these out, and ask again with choose_image. If you find nothing better, ask the user to describe it.`
+        : 'The user says none of these is the picture, for the second time. Do not look again: ask the user in your reply to describe the picture they mean (what it shows, which message it was in).';
+    }
+    if (answer.startsWith('pick:')) {
+      const picture = candidates[Number(answer.slice(5))];
+      picks.set(askId, { title, picture });
+      return `The user chose ${refName(pictureRef(picture))}. Use it.`;
+    }
+    return answer === 'timeout'
+      ? 'The user did not answer in time. Go on without the picture, or say that you need to know which one, in your reply.'
+      : 'The question was not answered. Go on without it.';
+  }
+
+  /** The person said "not this one" while a picture was drawn: the drawing is over, the row says so, the model learns it with the notice. */
+  function stoppedByPerson() {
+    drawing = null;
+    emit({ type: 'image', event: 'stopped', label: sandboxText(language, 'imageStopped') });
+    return 'The user stopped this drawing: they said a picture you used is not the one. No picture was made.';
+  }
+
+  /** The person changes a pick or refuses a picture the model used ("改", "不是"): the picture is not used again, a drawing under way stops, and the model is told. */
+  function redo(askId) {
+    const entry = picks.get(askId);
+    if (!entry) return { answered: false };
+    picks.delete(askId);
+    rejected.add(keyOf(entry.picture));
+    notices.push(`The user pressed "not this one" on ${refName(pictureRef(entry.picture))}, the picture you used for "${entry.title}". Do not use it again: ask which one they mean with choose_image (without that picture, or with other candidates), and if you were drawing, draw again after they chose.`);
+    drawing?.abort();
+    return { answered: true };
+  }
+
   async function generate(call) {
     const args = call?.args && typeof call.args === 'object' ? call.args : {};
     const prompt = typeof args.prompt === 'string' ? args.prompt.trim() : '';
@@ -268,6 +369,10 @@ export function createImageToolLoader({ spec, secrets, userId, files, signal = n
     if (loaded.stopped) return 'The reply was stopped.';
     if (loaded.error) return loaded.error;
 
+    // The person may say "not this one" while it is drawn: that stops this drawing (and only it), see redo().
+    drawing = new AbortController();
+    const stopDrawing = () => drawing?.abort();
+    signal?.addEventListener?.('abort', stopDrawing, { once: true });
     let result;
     try {
       result = await drawPictures({
@@ -278,7 +383,7 @@ export function createImageToolLoader({ spec, secrets, userId, files, signal = n
         inputReferences: loaded.urls,
         aspectRatio,
         keepPrompt: true,
-        signal,
+        signal: drawing.signal,
         files,
         userId,
         fetchImpl,
@@ -287,10 +392,14 @@ export function createImageToolLoader({ spec, secrets, userId, files, signal = n
       });
     } catch (error) {
       if (signal?.aborted) return 'The reply was stopped.';
+      if (drawing.signal.aborted) return stoppedByPerson();
       emit({ type: 'image', event: 'failed', label: sandboxText(language, 'imageDrawFailed') });
       return `The picture model could not draw it: ${oneLine(error?.message, 300)}. Tell the user briefly; try again only if it makes sense.`;
     }
-    if (result.stopped || signal?.aborted) return 'The reply was stopped.';
+    signal?.removeEventListener?.('abort', stopDrawing);
+    if (signal?.aborted) return 'The reply was stopped.';
+    if (result.stopped || drawing.signal.aborted) return stoppedByPerson();
+    drawing = null;
     const first = drawn + 1;
     drawn += result.parts.length;
     onPictures(result.parts);
@@ -313,24 +422,31 @@ export function createImageToolLoader({ spec, secrets, userId, files, signal = n
       return [
         ...(calls < maxCalls ? [GENERATE_IMAGE_TOOL] : []),
         ...(pictures.length && looks < MAX_VIEW_CALLS ? [VIEW_IMAGES_TOOL] : []),
+        ...(pictures.length > 1 && pickAsks < MAX_PICK_ASKS ? [CHOOSE_IMAGE_TOOL] : []),
         ...(pictures.length ? [LIST_IMAGES_TOOL] : [])
       ];
     },
-    handles: (name) => [GENERATE_IMAGE_TOOL.name, VIEW_IMAGES_TOOL.name, LIST_IMAGES_TOOL.name].includes(name),
+    handles: (name) => [GENERATE_IMAGE_TOOL.name, VIEW_IMAGES_TOOL.name, LIST_IMAGES_TOOL.name, CHOOSE_IMAGE_TOOL.name].includes(name),
     noteFor: () => null,
     /** The row of the step list for a call: the page draws it while the picture is made. */
     stepEvent(call) {
-      if (call?.name === LIST_IMAGES_TOOL.name) return null;
+      if (call?.name === LIST_IMAGES_TOOL.name || call?.name === CHOOSE_IMAGE_TOOL.name) return null;
       if (call?.name === VIEW_IMAGES_TOOL.name) return { type: 'image', event: 'start', kind: 'view', label: sandboxText(language, 'imageViewing'), reason: oneLine(call?.args?.reason, 300), references: [] };
       const asked = Array.isArray(call?.args?.references) ? call.args.references.map(readReference).filter(Boolean) : [];
       return { type: 'image', event: 'start', label: sandboxText(language, 'imageDrawing'), references: asked.filter((ref) => Number.isInteger(ref.round) && Number.isInteger(ref.number) && ref.source) };
     },
     async run(call) {
-      if (call?.name === VIEW_IMAGES_TOOL.name) return view(call);
-      if (call?.name === LIST_IMAGES_TOOL.name) return listAll(call);
-      return generate(call);
+      const result = call?.name === VIEW_IMAGES_TOOL.name ? await view(call)
+        : call?.name === LIST_IMAGES_TOOL.name ? listAll(call)
+          : call?.name === CHOOSE_IMAGE_TOOL.name ? await choose(call)
+            : await generate(call);
+      if (!notices.length) return result;
+      // What the person said while the model worked (a picture it used was not the one) comes first in its next answer.
+      const told = `${notices.splice(0).join(' ')}\n\n`;
+      return typeof result === 'string' ? `${told}${result}` : { ...result, content: `${told}${result.content}` };
     },
-    answer: asker.answer
+    /** The answer of the person to a question (once, always, deny, pick:N, retry), or "redo" for a pick they want to change. */
+    answer: (askId, value) => (value === 'redo' ? redo(askId) : asker.answer(askId, value))
   };
 }
 

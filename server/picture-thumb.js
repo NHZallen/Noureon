@@ -19,7 +19,7 @@ const loadCanvas = async () => {
 };
 
 /** { mimeType, data (base64) } for the bytes of a picture, or null when no small copy can be made. */
-export async function makeThumbnail(bytes, mimeType = 'image/png', { side = THUMB_SIDE } = {}) {
+export async function makeThumbnail(bytes, mimeType = 'image/png', { side = THUMB_SIDE, quality = THUMB_QUALITY } = {}) {
   const canvas = await loadCanvas();
   if (canvas) {
     try {
@@ -33,7 +33,7 @@ export async function makeThumbnail(bytes, mimeType = 'image/png', { side = THUM
       context.fillStyle = '#ffffff';
       context.fillRect(0, 0, width, height);
       context.drawImage(picture, 0, 0, width, height);
-      return { mimeType: 'image/jpeg', data: surface.toBuffer('image/jpeg', THUMB_QUALITY).toString('base64') };
+      return { mimeType: 'image/jpeg', data: surface.toBuffer('image/jpeg', quality).toString('base64') };
     } catch {
       // A picture this library cannot read: below.
     }

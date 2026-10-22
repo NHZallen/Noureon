@@ -62,9 +62,9 @@ test('the answer handler sends the answer, and "always" is kept in the settings'
   let saves = 0;
   registerToolModelsBridge({ getConfig: () => config, saveConfig: async () => { saves += 1; } });
   const handler = createImageAnswerHandler({ getRun: () => ({ answerImage: async (id, decision) => { sent.push([id, decision]); return { ok: true }; } }) });
-  assert.deepEqual(await handler({ id: 'a', decision: 'once' }), { ok: true });
+  assert.deepEqual(await handler({ id: 'a', decision: 'once' }), { ok: true, answered: true });
   assert.equal(config.permissions.imageGeneration, 'ask');
-  assert.deepEqual(await handler({ id: 'b', decision: 'always' }), { ok: true });
+  assert.deepEqual(await handler({ id: 'b', decision: 'always' }), { ok: true, answered: true });
   assert.equal(config.permissions.imageGeneration, 'always');
   assert.equal(saves, 1);
   assert.deepEqual(sent, [['a', 'once'], ['b', 'always']]);
@@ -119,6 +119,94 @@ test('a refusal ends the row with the refusal, a failed drawing marks it failed'
     const rows = dom.document.querySelectorAll('.ledger-row[data-kind="image"]');
     assert.equal(rows.length, 2);
     assert.equal(rows[1].classList.contains('is-failed'), true);
+  } finally {
+    ledger?.remove();
+    dom.close?.();
+  }
+});
+
+// The small card that asks which picture is meant.
+import { createImagePickCards } from '../../src/app/ui/sandbox/image-pick-card.js';
+
+const THUMB = { mimeType: 'image/jpeg', data: 'AAAA' };
+const PICK = { type: 'image', event: 'ask', kind: 'pick', id: 'ask-pick-1', title: 'Which one is the blue living room?', step: 1, of: 2, waitMs: 600000, candidates: [
+  { round: 2, source: 'generated', number: 3, caption: 'Round 2, drawn by you, picture 3:', thumb: THUMB },
+  { round: 6, source: 'generated', number: 3, caption: 'Round 6, drawn by you, picture 3:', thumb: THUMB },
+  { round: 3, source: 'user', number: 3, caption: 'Round 3, sent by the user, picture 3 "bear.jpg":', thumb: null }
+] };
+
+test('the pick card has the question, a counter, the candidates with their number, and a tap is the answer', async () => {
+  const dom = createDom('<div id="host"></div>');
+  try {
+    const answers = [];
+    const cards = createImagePickCards({ document: dom.document, host: dom.document.getElementById('host'), language: 'en', onAnswer: async (answer) => { answers.push(answer); return { ok: true, answered: true }; } });
+    cards.handle(PICK);
+    cards.handle(PICK);
+    assert.equal(dom.document.querySelectorAll('.image-pick').length, 1);
+    assert.equal(dom.document.querySelector('.net-ask-title').textContent, 'Which one is the blue living room?');
+    assert.equal(dom.document.querySelector('.image-pick-count').textContent, '1/2');
+    const candidates = [...dom.document.querySelectorAll('.image-pick-cand')];
+    assert.equal(candidates.length, 3);
+    assert.deepEqual(candidates.map((node) => node.querySelector('.picture-number').textContent), ['3', '3', '3']);
+    assert.equal(candidates[0].querySelector('img').src.startsWith('data:image/jpeg;base64,'), true);
+    assert.equal(candidates[2].querySelector('img'), null, 'a picture without a small copy shows its number alone');
+    assert.equal(candidates[0].getAttribute('aria-label'), 'Choose this one: round 2, picture 3');
+    assert.equal(dom.document.querySelector('.image-pick .net-ask-button').textContent, 'Retry');
+    candidates[1].click();
+    await flush();
+    assert.deepEqual(answers, [{ id: 'ask-pick-1', decision: 'pick:1' }]);
+    assert.equal(cards.open, 1, 'it folds when the server says it took the answer');
+    cards.handle({ type: 'image', event: 'answer', kind: 'pick', id: 'ask-pick-1', answer: 'pick:1' });
+    assert.equal(cards.open, 0);
+    assert.equal(dom.document.querySelector('.image-picked-text').textContent, 'Used picture 3');
+    assert.equal(dom.document.querySelectorAll('.image-pick-cand').length, 0);
+    dom.document.querySelector('.image-pick-text-button').click();
+    await flush();
+    assert.deepEqual(answers.at(-1), { id: 'ask-pick-1', decision: 'redo' });
+    assert.equal(dom.document.querySelector('.image-pick-text-button').textContent, 'Choosing again…');
+  } finally {
+    dom.close?.();
+  }
+});
+
+test('"none of these" asks again, a change that comes too late is taken away, a failed send can be tried again', async () => {
+  const dom = createDom('<div id="host"></div>');
+  try {
+    let result = { ok: false };
+    const cards = createImagePickCards({ document: dom.document, host: dom.document.getElementById('host'), language: 'en', onAnswer: async () => result });
+    cards.handle(PICK);
+    dom.document.querySelector('.image-pick .net-ask-button').click();
+    await flush();
+    assert.equal(dom.document.querySelector('.net-ask-failed').hidden, false);
+    assert.equal(dom.document.querySelector('.image-pick-cand').disabled, false);
+    cards.handle({ type: 'image', event: 'answer', kind: 'pick', id: 'ask-pick-1', answer: 'retry' });
+    assert.equal(dom.document.querySelector('.image-picked-text').textContent, 'None of them, looking again');
+    cards.handle({ ...PICK, id: 'ask-pick-2' });
+    cards.handle({ type: 'image', event: 'answer', kind: 'pick', id: 'ask-pick-2', answer: 'pick:0' });
+    result = { ok: true, answered: false };
+    dom.document.querySelector('.image-pick-text-button').click();
+    await flush();
+    assert.equal(dom.document.querySelector('.image-pick-text-button'), null);
+  } finally {
+    dom.close?.();
+  }
+});
+
+test('the step list sends the pick questions to their own card and waits for the answer', async () => {
+  const dom = createDom('<div id="host"></div>');
+  let ledger = null;
+  try {
+    ledger = createSandboxLedger({ document: dom.document, host: dom.document.getElementById('host'), language: 'en', summary: true, open: true, onImageAnswer: async () => ({ ok: true }) });
+    ledger.event(PICK);
+    await flush();
+    assert.equal(dom.document.querySelectorAll('.image-pick').length, 1);
+    assert.match(dom.document.body.textContent, /Waiting for you to choose/);
+    ledger.event({ type: 'image', event: 'answer', kind: 'pick', id: 'ask-pick-1', answer: 'pick:0' });
+    await flush();
+    assert.doesNotMatch(dom.document.body.textContent, /Waiting for you to choose/);
+    ledger.event({ type: 'image', event: 'start', label: 'Drawing…', references: [] });
+    ledger.event({ type: 'image', event: 'stopped', label: 'Stopped.' });
+    assert.match(dom.document.querySelector('.ledger-row[data-kind="image"]').textContent, /Stopped\./);
   } finally {
     ledger?.remove();
     dom.close?.();

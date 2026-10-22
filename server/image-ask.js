@@ -8,15 +8,16 @@ export const IMAGE_ASK_WAIT_MS = 10 * 60 * 1000;
 
 /**
  * `emit(event)` tells the pages (the events { type: 'image', event: 'ask' | 'answer', ... }); `signal` is the reply's stop; `onWaited(ms)` is told how long the
- * reply waited, so the reply's own clock and time limit do not count it. Returns { ask(kind, payload, accepts), answer(askId, value) }:
+ * reply waited, so the reply's own clock and time limit do not count it. Returns { ask(kind, payload, accepts, onId), answer(askId, value) } (`onId(id)` is told the question's id before it is shown):
  * `accepts(value)` says whether an answer is one the question takes (a kind of question has its own).
  */
 export function createImageAsk({ emit, signal = null, waitMs = IMAGE_ASK_WAIT_MS, now = Date.now, onWaited = () => {} }) {
   const pending = new Map();
   return {
     /** Resolves the answer, 'timeout', or 'cancel' (the reply was stopped while it waited). */
-    async ask(kind, payload, accepts) {
+    async ask(kind, payload, accepts, onId = () => {}) {
       const id = randomUUID();
+      onId(id);
       const began = now();
       const value = await new Promise((resolve) => {
         let timer = null;

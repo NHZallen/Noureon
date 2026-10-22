@@ -67,7 +67,7 @@ const call = (args) => ({ id: 'c1', name: 'generate_image', args });
 
 test('the tool is offered with its instructions, the pictures of the conversation and the round of the message', () => {
   const { loader } = fakes();
-  assert.deepEqual(loader.tools.map((tool) => tool.name), ['generate_image', 'view_images', 'list_images']);
+  assert.deepEqual(loader.tools.map((tool) => tool.name), ['generate_image', 'view_images', 'choose_image', 'list_images']);
   assert.equal(loader.handles('generate_image'), true);
   assert.equal(loader.handles('load_skill'), false);
   assert.match(loader.instruction, /picture model "GPT Image"/);
@@ -310,4 +310,97 @@ test('list_images gives the whole list as text, or the part a filter names', asy
 test('without any picture in the conversation only the drawing tool is offered', () => {
   const { loader } = fakes({ spec: baseSpec({ request: { history: [], currentMessage: { parts: [{ text: 'hi' }] }, language: 'en' } }) });
   assert.deepEqual(loader.tools.map((tool) => tool.name), ['generate_image']);
+});
+
+const until = async (check) => {
+  for (let index = 0; index < 400; index += 1) {
+    const value = check();
+    if (value) return value;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  throw new Error('it never happened');
+};
+const choose = (args) => ({ id: 'p1', name: 'choose_image', args });
+const CANDIDATES = [{ round: 1, source: 'generated', number: 1 }, { round: 1, source: 'generated', number: 2 }, { round: 2, source: 'user', number: 1 }];
+const askedEvent = (events) => events.find((event) => event.event === 'ask');
+
+test('choose_image shows the candidates with small pictures, waits for a tap and gives the model the picture the person chose', async () => {
+  const { loader, events } = fakes({ waitMs: 3000, loadable: { [`${USER}/g1`]: PICTURE, [`${USER}/g2`]: PICTURE } });
+  const running = loader.run(choose({ title: 'Which one is the blue living room?', candidates: CANDIDATES, step: 1, of: 2 }));
+  const ask = await until(() => askedEvent(events));
+  assert.equal(ask.kind, 'pick');
+  assert.equal(ask.title, 'Which one is the blue living room?');
+  assert.deepEqual([ask.step, ask.of], [1, 2]);
+  assert.deepEqual(ask.candidates.map((card) => [card.round, card.source, card.number, Boolean(card.thumb?.data)]), [[1, 'generated', 1, true], [1, 'generated', 2, true], [2, 'user', 1, true]], 'each has its small picture');
+  assert.match(ask.candidates[0].caption, /^Round 1, drawn by you, picture 1/);
+  assert.deepEqual(loader.answer(ask.id, 'pick:9'), { answered: false }, 'a number outside the candidates is not an answer');
+  assert.deepEqual(loader.answer(ask.id, 'once'), { answered: false });
+  assert.deepEqual(loader.answer(ask.id, 'pick:1'), { answered: true });
+  assert.equal(await running, 'The user chose round 1, drawn by you, picture 2. Use it.');
+  assert.deepEqual(events.map((event) => event.event), ['ask', 'answer']);
+  assert.equal(events[1].answer, 'pick:1');
+});
+
+test('"none of these" the first time sends the model to look again without them, the second time to ask the person', async () => {
+  const { loader, events } = fakes();
+  const asked = async (list) => {
+    const before = events.filter((event) => event.event === 'ask').length;
+    const running = loader.run(choose({ title: 'Which?', candidates: list }));
+    const ask = await until(() => events.filter((event) => event.event === 'ask')[before]);
+    loader.answer(ask.id, 'retry');
+    return running;
+  };
+  const first = await asked(CANDIDATES.slice(0, 2));
+  assert.match(first, /Look again for other pictures/);
+  assert.match(await loader.run(choose({ title: 'Which?', candidates: CANDIDATES.slice(0, 2) })), /already said that none of these/);
+  const third = loader.run(choose({ title: 'Which?', candidates: CANDIDATES.slice(2) }));
+  const thirdAsk = await until(() => events.filter((event) => event.event === 'ask')[1]);
+  loader.answer(thirdAsk.id, 'retry');
+  assert.match(await third, /second time[\s\S]*describe/);
+});
+
+test('choose_image checks its call: a title, pictures that exist, and not too many questions', async () => {
+  const { loader } = fakes();
+  assert.match(await loader.run(choose({ candidates: CANDIDATES })), /no "title"/);
+  assert.match(await loader.run(choose({ title: 'x', candidates: [{ round: 9, source: 'user', number: 1 }] })), /do not exist/);
+  assert.equal(loader.tools.some((tool) => tool.name === 'choose_image'), true);
+});
+
+test('a question nobody answered, or a stopped reply, ends without a picture', async () => {
+  const { loader } = fakes({ waitMs: 20 });
+  assert.match(await loader.run(choose({ title: 'Which?', candidates: CANDIDATES })), /did not answer in time/);
+});
+
+test('"not this one" on a pick the person made: the picture is not offered again, and the model hears it with its next answer', async () => {
+  const { loader, events } = fakes();
+  const running = loader.run(choose({ title: 'Which one is the blue living room?', candidates: CANDIDATES }));
+  const id = (await until(() => askedEvent(events))).id;
+  loader.answer(id, 'pick:0');
+  await running;
+  assert.deepEqual(loader.answer('no-such-question', 'redo'), { answered: false });
+  assert.deepEqual(loader.answer(id, 'redo'), { answered: true });
+  assert.deepEqual(loader.answer(id, 'redo'), { answered: false }, 'only once');
+  const next = await loader.run(look({ reason: 'x', filter: { number: 99 } }));
+  assert.match(next, /^The user pressed "not this one" on round 1, drawn by you, picture 1, the picture you used for "Which one is the blue living room\?"/);
+  const again = loader.run(choose({ title: 'Again?', candidates: CANDIDATES }));
+  const second = await until(() => events.filter((event) => event.event === 'ask')[1]);
+  assert.deepEqual(second.candidates.map((card) => [card.round, card.source, card.number]), [[1, 'generated', 2], [2, 'user', 1]], 'the refused picture is left out');
+  loader.answer(second.id, 'pick:0');
+  await again;
+});
+
+test('"not this one" while a picture is drawn stops that drawing, tells the row, and the reply goes on', async () => {
+  const { loader, events, requests } = fakes({ hang: true, loadable: { [`${USER}/g1`]: PICTURE } });
+  const picking = loader.run(choose({ title: 'Which?', candidates: CANDIDATES }));
+  const id = (await until(() => askedEvent(events))).id;
+  loader.answer(id, 'pick:0');
+  await picking;
+  const drawing = loader.run(call({ prompt: 'a cat', references: [CANDIDATES[0]] }));
+  await until(() => requests.length);
+  assert.deepEqual(loader.answer(id, 'redo'), { answered: true });
+  const result = await drawing;
+  assert.match(result, /The user stopped this drawing/);
+  assert.match(result, /pressed "not this one"/);
+  assert.equal(events.at(-1).event, 'stopped');
+  assert.equal(events.at(-1).label, 'Stopped.');
 });

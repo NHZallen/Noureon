@@ -91,6 +91,7 @@ export function createSandboxLedger({ document, host, before = null, language = 
   };
   // The picture the text model draws (generate_image): a row that runs while the picture is made, and the card that asks first when the person has not allowed it for good.
   let imageCards = null;
+  let pickCards = null;
   let imageRow = null;
   const askAboutImage = (event) => {
     imageCards = (imageCards || import('./image-ask-card.js').then(({ createImageAskCards }) => createImageAskCards({ document, host: askCardHost(), language, onAnswer: onImageAnswer || (async () => ({ ok: false })) })))
@@ -102,7 +103,22 @@ export function createSandboxLedger({ document, host, before = null, language = 
       });
     imageCards.catch(() => {});
   };
+  // The small card that asks which picture is meant (the model is not sure): a file of its own, like the card above.
+  const askWhichPicture = (event) => {
+    pickCards = (pickCards || import('./image-pick-card.js').then(({ createImagePickCards }) => createImagePickCards({ document, host: askCardHost(), language, onAnswer: onImageAnswer || (async () => ({ ok: false })) })))
+      .then((cards) => {
+        cards.handle(event);
+        waitingLabel = event.event === 'ask' ? cards.waitingText(event) : '';
+        syncLine();
+        return cards;
+      });
+    pickCards.catch(() => {});
+  };
   const imageEvent = (event) => {
+    if (event.kind === 'pick' && (event.event === 'ask' || event.event === 'answer')) {
+      askWhichPicture(event);
+      return;
+    }
     if (event.event === 'start') {
       imageRow = begin(event.label, { kind: 'image' });
       return;

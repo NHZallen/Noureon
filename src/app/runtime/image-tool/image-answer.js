@@ -10,5 +10,6 @@ export const createImageAnswerHandler = ({ getRun }) => async ({ id, decision })
   const result = await run.answerImage(id, decision);
   if (!result?.ok) return { ok: false };
   if (decision === 'always') await rememberImageAlways();
-  return { ok: true };
+  // `answered`: whether the reply took it (a change comes too late when the reply is over).
+  return { ok: true, answered: result.data?.answered !== false };
 };
