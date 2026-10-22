@@ -80,7 +80,11 @@ test('the tool is offered with its instructions, the pictures of the conversatio
 
 test('a new picture: the prompt goes to the picture model with the picture key and the shape, and the part comes back with its prompt', async () => {
   const { loader, requests, parts, events, saved } = fakes();
-  const text = await loader.run(call({ prompt: 'a cat in the rain', aspect_ratio: '9:16' }));
+  const result = await loader.run(call({ prompt: 'a cat in the rain', aspect_ratio: '9:16' }));
+  const text = result.content;
+  assert.equal(result.images.length, 1, 'the model is shown a small copy of the picture');
+  assert.match(result.images[0].mimeType, /^image\/(jpeg|png)$/);
+  assert.match(result.images[0].label, /Picture 1 of your message/);
   assert.equal(requests.length, 1);
   assert.match(requests[0].url, /openrouter\.ai\/api\/v1\/images$/);
   assert.equal(requests[0].headers.Authorization, `Bearer ${KEY}`, 'the key of the picture model, not the reply\'s');

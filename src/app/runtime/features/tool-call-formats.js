@@ -14,6 +14,8 @@
 // model produced (reasoning, function calls, messages) sent back unchanged, each
 // call answered by a `function_call_output` item with the same call_id.
 
+import { roundImages } from '../../../data/tool-result.js';
+
 const parseArguments = (text) => {
   if (!text) return {};
   try {
@@ -38,13 +40,20 @@ export function applyGeminiTools(payload, { tools = [], toolTurns = [] } = {}) {
     payload.contents.push({ role: 'model', parts });
     payload.contents.push({
       role: 'user',
-      parts: (turn.results || []).map((result) => ({
-        functionResponse: {
-          name: result.name,
-          ...(result.geminiId ? { id: result.geminiId } : {}),
-          response: { result: result.content }
-        }
-      }))
+      parts: [
+        ...(turn.results || []).map((result) => ({
+          functionResponse: {
+            name: result.name,
+            ...(result.geminiId ? { id: result.geminiId } : {}),
+            response: { result: result.content }
+          }
+        })),
+        // The pictures a tool shows the model (the one it has just drawn) follow the answers, in the same turn.
+        ...roundImages(turn.results).flatMap((image) => [
+          ...(image.label ? [{ text: image.label }] : []),
+          { inlineData: { mimeType: image.mimeType, data: image.data } }
+        ])
+      ]
     });
   }
   return payload;
@@ -70,6 +79,17 @@ export function applyOpenAiTools(payload, { tools = [], toolTurns = [], reasonin
     for (const result of turn.results || []) {
       payload.messages.push({ role: 'tool', tool_call_id: result.id, content: result.content });
     }
+    // A tool message holds words only: the pictures a tool shows the model follow as a message of the user.
+    const images = roundImages(turn.results);
+    if (images.length) {
+      payload.messages.push({
+        role: 'user',
+        content: images.flatMap((image) => [
+          ...(image.label ? [{ type: 'text', text: image.label }] : []),
+          { type: 'image_url', image_url: { url: `data:${image.mimeType};base64,${image.data}` } }
+        ])
+      });
+    }
   }
   return payload;
 }
@@ -91,6 +111,16 @@ export function applyResponsesTools(payload, { tools = [], toolTurns = [] } = {}
     }
     for (const result of turn.results || []) {
       payload.input.push({ type: 'function_call_output', call_id: result.id, output: result.content });
+    }
+    const images = roundImages(turn.results);
+    if (images.length) {
+      payload.input.push({
+        role: 'user',
+        content: images.flatMap((image) => [
+          ...(image.label ? [{ type: 'input_text', text: image.label }] : []),
+          { type: 'input_image', image_url: `data:${image.mimeType};base64,${image.data}` }
+        ])
+      });
     }
   }
   return payload;

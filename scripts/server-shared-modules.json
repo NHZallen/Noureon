@@ -466,6 +466,10 @@
     {
       "path": "src/data/skill-tool.js",
       "note": "Reviewed 2026-10-09: pure functions (the load_skill tool, the list of skills a model is shown and the loader that answers its calls); used by the loops of the replies on the server."
+    },
+    {
+      "path": "src/data/tool-result.js",
+      "note": "Reviewed 2026-10-22: no browser globals (a tool's answer: words, or words with small pictures)."
     }
   ]
 }

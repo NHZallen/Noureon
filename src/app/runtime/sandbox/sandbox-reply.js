@@ -9,6 +9,7 @@ import { RUN_STATUS } from '../../ui/sandbox/sandbox-run-block.js';
 import { partialJsonString } from '../features/tool-call-formats.js';
 import { RESEARCH_TOOLS, createNotes, createResearchCalls, researchGuidance } from '../features/web-research-reply.js';
 import { loaderInstruction } from '../../../data/skill-tool.js';
+import { keepToolResult } from '../../../data/tool-result.js';
 
 const MODEL_TEXT_CHARS = 10_000;
 const MAX_CRASHES = 2;
@@ -396,7 +397,7 @@ export async function runSandboxReply({
         // A skill the model loads: its text is the answer to the call (it never fails: the answer says what went wrong).
         const step = loaderStepEvent(skillLoader, call, language);
         if (step) onEvent(step);
-        reply(await skillLoader.run(call));
+        results.push(keepToolResult(call, await skillLoader.run(call)));
         continue;
       }
       if (!isRunTool(call.name)) {

@@ -8,6 +8,7 @@ import { drawPictures } from './image-run.js';
 import { createImageAsk } from './image-ask.js';
 import { currentRound, listPictures, pictureData, pictureIndexLines, pictureRef, resolvePictureRefs } from '../src/data/conversation-pictures.js';
 import { IMAGE_ASPECT_RATIOS, resolveSupportedAspectRatio, resolveSupportedResolution } from '../src/app/runtime/images/image-generation-config.js';
+import { makeThumbnail } from './picture-thumb.js';
 import { sandboxText } from '../src/app/runtime/sandbox/sandbox-texts.js';
 
 /** Pictures asked for in one reply (each call may make several). */
@@ -179,7 +180,14 @@ export function createImageToolLoader({ spec, secrets, userId, files, signal = n
     drawn += result.parts.length;
     onPictures(result.parts);
     emit({ type: 'image', event: 'done', count: result.parts.length, references: found.map(pictureRef), label: sandboxText(language, result.parts.length > 1 ? 'imageDrawnMany' : 'imageDrawn', { n: result.parts.length }) });
-    return `${result.parts.length} picture(s) drawn with ${modelName} and shown to the user in your message (pictures ${result.parts.length > 1 ? `${first} to ${drawn}` : first} of this message). Say briefly what you did; do not describe a link.`;
+    const words = `${result.parts.length} picture(s) drawn with ${modelName} and shown to the user in your message (pictures ${result.parts.length > 1 ? `${first} to ${drawn}` : first} of this message). Say briefly what you did; do not describe a link.`;
+    // The model sees how the pictures came out (small copies), so it can say so and the user can ask for a change.
+    const images = [];
+    for (const [index, picture] of (result.made || []).entries()) {
+      const thumb = await makeThumbnail(picture.bytes, picture.mediaType);
+      if (thumb) images.push({ ...thumb, label: `Picture ${first + index} of your message, just drawn:` });
+    }
+    return images.length ? { content: `${words} The pictures follow so that you can see them.`, images } : words;
   }
 
   return {

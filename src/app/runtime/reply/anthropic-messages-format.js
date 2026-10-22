@@ -5,6 +5,7 @@
 // Shared by the page and the server: no window, no document, no browser storage.
 
 import { opencodeModelReadsPdf } from '../shell/opencode-models.js';
+import { roundImages } from '../../../data/tool-result.js';
 
 const parseArguments = (text) => {
   if (!text) return {};
@@ -66,7 +67,14 @@ export function applyAnthropicTools(payload, { tools = [], toolTurns = [] } = {}
     payload.messages.push({ role: 'assistant', content: blocks });
     payload.messages.push({
       role: 'user',
-      content: (turn.results || []).map((result) => ({ type: 'tool_result', tool_use_id: result.id, content: result.content }))
+      content: [
+        ...(turn.results || []).map((result) => ({ type: 'tool_result', tool_use_id: result.id, content: result.content })),
+        // The pictures a tool shows the model go after the answers, in the same message.
+        ...roundImages(turn.results).flatMap((image) => [
+          ...(image.label ? [{ type: 'text', text: image.label }] : []),
+          { type: 'image', source: { type: 'base64', media_type: image.mimeType, data: image.data } }
+        ])
+      ]
     });
   }
   return payload;

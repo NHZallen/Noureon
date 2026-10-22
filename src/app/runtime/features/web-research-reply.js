@@ -7,6 +7,7 @@
 import { loaderInstruction } from '../../../data/skill-tool.js';
 import { loaderStepEvent, sandboxText } from '../sandbox/sandbox-texts.js';
 import { hostOf } from '../../ui/sandbox/run-sources.js';
+import { keepToolResult, withoutImages } from '../../../data/tool-result.js';
 import { resultDate } from '../reply/model-request-formatting.js';
 import { NOTE_PARAMETER, partialJsonString } from './tool-call-formats.js';
 import { absoluteLinks, findPassages, pageWindow } from './web-page-text.js';
@@ -420,12 +421,12 @@ export async function runWebResearchReply({
         notes.fromCall(call);
         content = await research.run(call);
       }
-      results.push({ id: call.id, geminiId: call.geminiId, name: call.name, content });
+      results.push(keepToolResult(call, content));
       if (signal?.aborted) break;
     }
     toolTurns.push({ assistant: response, results });
     if (signal?.aborted) break;
-    onRound({ toolTurns: [...toolTurns], text, research: research.snapshot() });
+    onRound({ toolTurns: withoutImages(toolTurns), text, research: research.snapshot() });
   }
 
   return { text, calls: research.used + (skills?.used || 0) };

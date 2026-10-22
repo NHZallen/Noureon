@@ -42,6 +42,8 @@ export async function drawPictures({ apiKey, model, prompt, config = {}, inputRe
   if (!result?.images?.length) throw new ReplyError('Image generation finished, but no picture came back.', ERROR_CODES.providerError);
 
   const parts = [];
+  // The bytes of each picture, for the caller that shows them to a text model.
+  const made = [];
   for (const picture of result.images) {
     const bytes = Buffer.from(picture.b64Json, 'base64');
     const mediaType = picture.mediaType || 'image/png';
@@ -57,6 +59,7 @@ export async function drawPictures({ apiKey, model, prompt, config = {}, inputRe
         await wait(500 * 2 ** attempt);
       }
     }
+    made.push({ bytes, mediaType });
     parts.push({
       generatedImage: {
         id,
@@ -71,7 +74,7 @@ export async function drawPictures({ apiKey, model, prompt, config = {}, inputRe
       }
     });
   }
-  return { parts };
+  return { parts, made };
 }
 
 /**

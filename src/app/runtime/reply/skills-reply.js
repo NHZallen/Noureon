@@ -4,6 +4,7 @@
 // Every word the model writes as text is the answer and streams as it comes.
 
 import { loaderInstruction } from '../../../data/skill-tool.js';
+import { keepToolResult } from '../../../data/tool-result.js';
 import { loaderStepEvent } from '../sandbox/sandbox-texts.js';
 
 /**
@@ -47,8 +48,7 @@ export async function runSkillsReply({ streamApiCall, requestParts, onChunk = ()
     for (const call of calls) {
       const step = loaderStepEvent(loader, call, language);
       if (step) onEvent(step);
-      const content = await loader.run(call);
-      results.push({ id: call.id, geminiId: call.geminiId, name: call.name, content });
+      results.push(keepToolResult(call, await loader.run(call)));
       if (signal?.aborted) break;
     }
     toolTurns.push({ assistant: response, results });
