@@ -16,7 +16,7 @@ const toolCall = (id, name, args) => ({ choices: [{ delta: { tool_calls: [{ inde
 
 const modelInfo = { id: 'openrouter-test', apiId: 'test/model', name: 'Test model', provider: 'openrouter' };
 const specFor = (tools = {}, request = {}) => ({
-  protocol: 1,
+  protocol: 2,
   clientVersion: '17.5.0',
   conversationId: '123e4567-e89b-12d3-a456-426614174000',
   assistantMessageId: '223e4567-e89b-12d3-a456-426614174001',
@@ -398,7 +398,7 @@ test('every tool of the store is a well formed manifest', () => {
 });
 
 test('a request names CLI tools of the store, for a reply with Python only', () => {
-  const base = { protocol: 1, clientVersion: '17.6.0', conversationId: '123e4567-e89b-12d3-a456-426614174000', assistantMessageId: '223e4567-e89b-12d3-a456-426614174001', sequence: 0, model: { provider: 'openrouter', id: 'm', info: modelInfo }, request: { history: [], currentMessage: { parts: [{ text: 'x' }] }, systemInstruction: '', language: 'en' }, secrets: { providerKey: KEY } };
+  const base = { protocol: 2, clientVersion: '17.6.0', conversationId: '123e4567-e89b-12d3-a456-426614174000', assistantMessageId: '223e4567-e89b-12d3-a456-426614174001', sequence: 0, model: { provider: 'openrouter', id: 'm', info: modelInfo }, request: { history: [], currentMessage: { parts: [{ text: 'x' }] }, systemInstruction: '', language: 'en' }, secrets: { providerKey: KEY } };
   const ok = validateRunSpec({ ...base, tools: { webSearch: 'off', advanced: true, cli: [{ id: 'officecli' }, { id: 'officecli' }] } });
   assert.equal(ok.ok, true);
   assert.deepEqual(ok.spec.tools.cli, [{ id: 'officecli', chosen: false }], 'once each');

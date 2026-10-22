@@ -7,6 +7,7 @@ import { NET_MAX_RULES, NET_MODES, NET_RULES, normalizeNetHost, normalizeNetMode
 import { IMAGE_ASPECT_RATIOS, IMAGE_RESOLUTIONS } from '../src/app/runtime/images/image-generation-config.js';
 import { SKILL_DESCRIPTION_MAX, isSkillName } from '../src/data/skill-format.js';
 import { MAX_LISTED_SKILLS, listedSkills } from '../src/data/skill-tool.js';
+import { IMAGE_PERMISSIONS } from '../src/data/tool-models.js';
 import { LANGUAGES, LIMITS, PROTOCOL_VERSION } from './protocol.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -42,6 +43,28 @@ function checkModelOf(model, path, fail) {
   return { provider: model.provider, id: model.id, info: model.info };
 }
 const text = (value, max) => typeof value === 'string' && value.length > 0 && value.length <= max;
+
+// A text model that draws pictures by itself (src/data/tool-models.js): the picture model (OpenRouter's images endpoint) and whether the person is asked
+// before each picture. The key of the picture model is `secrets.imageKey`.
+function checkImageGeneration(value, path, fail) {
+  if (!isObject(value)) {
+    fail(path, 'must be an object');
+    return null;
+  }
+  for (const name of Object.keys(value)) if (!['model', 'permission'].includes(name)) fail(`${path}.${name}`, 'is not a known field');
+  const model = value.model;
+  let kept = null;
+  if (!isObject(model)) fail(`${path}.model`, 'must be an object');
+  else {
+    if (model.provider !== 'openrouter') fail(`${path}.model.provider`, 'a picture is made with OpenRouter');
+    if (!text(model.id, 200)) fail(`${path}.model.id`, 'must be a short text');
+    if (!isObject(model.info) || JSON.stringify(model.info).length > 16_384) fail(`${path}.model.info`, 'must be an object of at most 16 KB');
+    for (const name of Object.keys(model)) if (!['provider', 'id', 'info'].includes(name)) fail(`${path}.model.${name}`, 'is not a known field');
+    kept = { provider: model.provider, id: model.id, info: model.info };
+  }
+  if (!IMAGE_PERMISSIONS.includes(value.permission)) fail(`${path}.permission`, `must be one of ${IMAGE_PERMISSIONS.join(', ')}`);
+  return kept ? { model: kept, permission: value.permission } : null;
+}
 
 const isInteger = (value, min, max) => Number.isInteger(value) && value >= min && value <= max;
 const isDataImage = (value) => typeof value === 'string' && value.startsWith('data:image/') && value.indexOf(';base64,') > 10;
@@ -390,6 +413,7 @@ export function validateRunSpec(input) {
   }
 
   const tools = input.tools;
+  let imageGeneration = null;
   if (!isObject(tools)) fail('tools', 'must be an object');
   else {
     if (!WEB_SEARCH.includes(tools.webSearch)) fail('tools.webSearch', `must be one of ${WEB_SEARCH.join(', ')}`);
@@ -437,6 +461,8 @@ export function validateRunSpec(input) {
       }
     }
     checkSkillsAndConnectors(tools, fail);
+    // A picture the text model draws by itself (src/data/tool-models.js).
+    if (tools.imageGeneration !== undefined) imageGeneration = checkImageGeneration(tools.imageGeneration, 'tools.imageGeneration', fail);
     if (tools.inputs !== undefined) {
       if (!Array.isArray(tools.inputs) || tools.inputs.length > 40) fail('tools.inputs', 'must be a list of at most 40 files');
       else tools.inputs.forEach((file, index) => {
@@ -480,6 +506,9 @@ export function validateRunSpec(input) {
     if (input.kind === 'research' || input.kind === 'vision') fail('documents', 'is for a reply to a message of the person');
   }
 
+  // Only a reply to a message of the person may draw (not a deep research, not a visual check).
+  if (isObject(tools) && tools.imageGeneration !== undefined && (input.kind === 'research' || input.kind === 'vision')) fail('tools.imageGeneration', 'is for a reply to a message of the person');
+
   const secrets = input.secrets;
   if (!isObject(secrets)) fail('secrets', 'must be an object');
   else {
@@ -491,7 +520,10 @@ export function validateRunSpec(input) {
     // The other search source's key: when the chosen one finds nothing or fails, the search goes on with it (as the page does).
     if (secrets.searchKeyAlt !== undefined && (!text(secrets.searchKeyAlt, 600) || !text(secrets.searchKey, 600))) fail('secrets.searchKeyAlt', 'must be a key, and only with a searchKey');
     if (isObject(tools) && tools.webSearch === 'packet' && !text(secrets.searchKey, 600)) fail('secrets.searchKey', 'is needed for a search packet');
-    for (const name of Object.keys(secrets)) if (!['providerKey', 'searchKey', 'searchKeyAlt', 'translatorKey'].includes(name)) fail(`secrets.${name}`, 'is not a known field');
+    // The key of the picture model (OpenRouter's), for a text model that draws.
+    if (secrets.imageKey !== undefined && (!text(secrets.imageKey, 600) || !imageGeneration)) fail('secrets.imageKey', 'must be a key, and only with tools.imageGeneration');
+    if (imageGeneration && !text(secrets.imageKey, 600)) fail('secrets.imageKey', 'is needed to draw pictures');
+    for (const name of Object.keys(secrets)) if (!['providerKey', 'searchKey', 'searchKeyAlt', 'translatorKey', 'imageKey'].includes(name)) fail(`secrets.${name}`, 'is not a known field');
   }
 
   if (errors.length) return { ok: false, errors: errors.slice(0, 20) };
@@ -526,10 +558,11 @@ export function validateRunSpec(input) {
         ...(Array.isArray(tools.cli) && tools.cli.length && isObject(tools.net) ? { net: { mode: normalizeNetMode(tools.net.mode), rules: normalizeNetRules(tools.net.rules) } } : {}),
         ...(Array.isArray(tools.skills) && listedSkills(tools.skills).length ? { skills: listedSkills(tools.skills) } : {}),
         ...(tools.connectors === true ? { connectors: true } : {}),
+        ...(imageGeneration ? { imageGeneration } : {}),
         ...(tools.inputs?.length ? { inputs: tools.inputs.map((file) => ({ name: file.name, mimeType: file.mimeType || '', data: file.data })) } : {})
       },
       ...(input.documents ? { documents: { linkedPages: input.documents.linkedPages === true, ...(translator ? { translator } : {}) } } : {}),
-      secrets: { providerKey: secrets.providerKey, ...(secrets.searchKey ? { searchKey: secrets.searchKey } : {}), ...(secrets.searchKeyAlt ? { searchKeyAlt: secrets.searchKeyAlt } : {}), ...(secrets.translatorKey ? { translatorKey: secrets.translatorKey } : {}) }
+      secrets: { providerKey: secrets.providerKey, ...(secrets.searchKey ? { searchKey: secrets.searchKey } : {}), ...(secrets.searchKeyAlt ? { searchKeyAlt: secrets.searchKeyAlt } : {}), ...(secrets.translatorKey ? { translatorKey: secrets.translatorKey } : {}), ...(secrets.imageKey ? { imageKey: secrets.imageKey } : {}) }
     }
   };
 }

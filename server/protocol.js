@@ -1,7 +1,8 @@
 // What the browser and the server agree on. A change that an older browser or server could misread raises PROTOCOL_VERSION; the server
 // refuses a request of another version (426) and the browser then runs the reply itself, as it does when the server cannot be reached.
 
-export const PROTOCOL_VERSION = 1;
+// 2 (2026-10-22): a reply may carry `tools.imageGeneration` and `secrets.imageKey` (a text model that draws pictures by itself); a server of version 1 would refuse them.
+export const PROTOCOL_VERSION = 2;
 
 /** Codes the browser turns into its messages (in all five languages). They are part of the protocol: do not rename them. */
 export const ERROR_CODES = Object.freeze({

@@ -227,10 +227,12 @@ export function createRunManager({
     const credentialControl = { answer: null };
     // And for the question about whether a tool of a connector may run (server/mcp/ask.js).
     const connectorControl = { answer: null };
+    // And for the question a text model's picture tool asks (whether it may draw): server/image-ask.js.
+    const imageControl = { answer: null };
     // How a person's request to let one model of a council leave reaches the council (it sets `exit`).
     const councilControl = { exit: null };
     const live = { answer: '', thought: { text: '', kind: 'model', ended: false, ms: 0, first: null }, sources: [], elapsedFrom: 0, elapsedAt: now(), steps: { events: [], chars: 0 }, vision: { events: [], chars: 0 }, research: { state: null, activity: [] }, searching: '', documents: '', council: null, councilAt: 0, subscribers: new Set() };
-    active.set(runId, { controller, userId, live, controls, netControl, credentialControl, connectorControl, councilControl });
+    active.set(runId, { controller, userId, live, controls, netControl, credentialControl, connectorControl, imageControl, councilControl });
     let finalStatus = 'error';
     const writer = createMessageWriter({
       store: db,
@@ -328,6 +330,7 @@ export function createRunManager({
         netControl,
         credentialControl,
         connectorControl,
+        imageControl,
         onPaused: extendLimit,
         // A page is watching: it can take over a reply whose Python was lost.
         watching: () => live.subscribers.size > 0,
@@ -619,6 +622,16 @@ export function createRunManager({
       const entry = active.get(runId);
       if (!entry || entry.userId !== userId || !entry.connectorControl?.answer) return { ok: false, reason: 'not_running' };
       return { ok: true, answered: Boolean(entry.connectorControl.answer(askId, decision)?.answered) };
+    },
+
+    /**
+     * A person's answer to a question a text model's picture tool asks ('once', 'always' or 'deny' to whether it may draw), in a reply of theirs that is running here.
+     * Resolves { ok: true, answered } or { ok: false, reason: 'not_running' }.
+     */
+    async answerImage({ userId, runId, askId, answer }) {
+      const entry = active.get(runId);
+      if (!entry || entry.userId !== userId || !entry.imageControl?.answer) return { ok: false, reason: 'not_running' };
+      return { ok: true, answered: Boolean(entry.imageControl.answer(askId, answer)?.answered) };
     },
 
     /** Whether this person's reply is being made by this process (so it can be watched live). */

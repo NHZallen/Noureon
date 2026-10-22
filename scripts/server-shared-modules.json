@@ -408,6 +408,10 @@
       "note": "Reviewed 2026-10-22: no browser globals (the picture model a text model draws with and the permission for it, as the settings keep them; the server reads them through the settings merge)."
     },
     {
+      "path": "src/data/conversation-pictures.js",
+      "note": "Reviewed 2026-10-22: no browser globals (the pictures of a conversation by round, source and number, worked out from its messages; the text model's picture tool finds the pictures it is told to start from with it)."
+    },
+    {
       "path": "src/data/cli-settings-merge.js",
       "note": "Reviewed 2026-10-05: pure functions over plain objects (the merge of the CLI tools' lists between devices); reached through the config normalization."
     },

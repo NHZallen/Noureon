@@ -17,6 +17,64 @@ const SAVE_RETRIES = 2;
 const toDataUrl = (bytes, mimeType) => `data:${mimeType};base64,${Buffer.from(bytes).toString('base64')}`;
 
 /**
+ * Asks the picture model for pictures and keeps each one in the person's cloud space: resolves { parts } (the `generatedImage` parts of a message) or
+ * { stopped: true } when the reply was stopped; throws a ReplyError (provider_error, or image_not_saved when the pictures were made but could not be
+ * kept). `keepPrompt` writes the prompt into each part. `apiKey` is the picture model's key, `inputReferences` the pictures to start from as data addresses, `secrets` what the message of a failure must not show.
+ * The same for an image of its own (executeImage) and for a picture a text model draws by itself (image-tool.js).
+ */
+export async function drawPictures({ apiKey, model, prompt, config = {}, inputReferences = [], groups = null, aspectRatio = '', keepPrompt = false, signal, files, userId, fetchImpl = fetch, onProblem = () => {}, secrets = {}, wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)) }) {
+  let result;
+  try {
+    result = await createOpenRouterImageGenerator({ fetchImpl })({
+      apiKey,
+      model,
+      prompt,
+      config,
+      inputReferences,
+      groups,
+      signal
+    });
+  } catch (error) {
+    if (signal?.aborted) return { stopped: true };
+    throw new ReplyError(scrubMessage(error?.message, secrets), ERROR_CODES.providerError);
+  }
+  if (signal?.aborted) return { stopped: true };
+  if (!result?.images?.length) throw new ReplyError('Image generation finished, but no picture came back.', ERROR_CODES.providerError);
+
+  const parts = [];
+  for (const picture of result.images) {
+    const bytes = Buffer.from(picture.b64Json, 'base64');
+    const mediaType = picture.mediaType || 'image/png';
+    const id = randomUUID();
+    let marker = null;
+    for (let attempt = 0; !marker; attempt += 1) {
+      try {
+        // Like the pictures the app's own sync keeps, a generated image is not stopped by the person's 500 MB (quota: false).
+        marker = await files.save({ userId, bytes, mimeType: mediaType, encoding: 'blob', quota: false });
+      } catch (error) {
+        onProblem('image_not_saved', error);
+        if (attempt >= SAVE_RETRIES) throw new ReplyError('The image could not be kept in the cloud space.', ERROR_CODES.imageNotSaved);
+        await wait(500 * 2 ** attempt);
+      }
+    }
+    parts.push({
+      generatedImage: {
+        id,
+        // The key the app's sync gives a picture it restores (src/app/sync/cloud-assets.js): the page stores the file under it.
+        storageKey: `generatedImage:supabase:${userId}:${id}`,
+        mediaType,
+        size: bytes.byteLength,
+        ...(picture.aspectRatio || aspectRatio ? { aspectRatio: picture.aspectRatio || aspectRatio } : {}),
+        // What the picture was asked with (a text model that draws by itself keeps it, so it can find the picture again: src/data/conversation-pictures.js).
+        ...(keepPrompt && prompt ? { prompt: String(prompt).slice(0, 2000) } : {}),
+        cloudAsset: marker
+      }
+    });
+  }
+  return { parts };
+}
+
+/**
  * Makes the image. `files` is the person's cloud store (file-store.js). Resolves { parts, status, run, toolCalls } (status 'done' or
  * 'stopped'); throws a ReplyError (provider_error, or image_not_saved when the pictures were made but could not be kept).
  */
@@ -73,51 +131,8 @@ export async function executeImage({
   }
   if (signal?.aborted) return stopped();
 
-  let result;
-  try {
-    result = await createOpenRouterImageGenerator({ fetchImpl })({
-      apiKey: secrets.providerKey,
-      model: spec.model.id,
-      prompt: image.prompt,
-      config: image.config,
-      inputReferences,
-      groups,
-      signal
-    });
-  } catch (error) {
-    if (signal?.aborted) return stopped();
-    throw new ReplyError(scrubMessage(error?.message, secrets), ERROR_CODES.providerError);
-  }
-  if (signal?.aborted) return stopped();
-  if (!result?.images?.length) throw new ReplyError('Image generation finished, but no picture came back.', ERROR_CODES.providerError);
-
-  const parts = [];
-  for (const picture of result.images) {
-    const bytes = Buffer.from(picture.b64Json, 'base64');
-    const mediaType = picture.mediaType || 'image/png';
-    const id = randomUUID();
-    let marker = null;
-    for (let attempt = 0; !marker; attempt += 1) {
-      try {
-        // Like the pictures the app's own sync keeps, a generated image is not stopped by the person's 500 MB (quota: false).
-        marker = await files.save({ userId, bytes, mimeType: mediaType, encoding: 'blob', quota: false });
-      } catch (error) {
-        onProblem('image_not_saved', error);
-        if (attempt >= SAVE_RETRIES) throw new ReplyError('The image could not be kept in the cloud space.', ERROR_CODES.imageNotSaved);
-        await wait(500 * 2 ** attempt);
-      }
-    }
-    parts.push({
-      generatedImage: {
-        id,
-        // The key the app's sync gives a picture it restores (src/app/sync/cloud-assets.js): the page stores the file under it.
-        storageKey: `generatedImage:supabase:${userId}:${id}`,
-        mediaType,
-        size: bytes.byteLength,
-        ...(picture.aspectRatio || aspectRatio ? { aspectRatio: picture.aspectRatio || aspectRatio } : {}),
-        cloudAsset: marker
-      }
-    });
-  }
+  const drawn = await drawPictures({ apiKey: secrets.providerKey, model: spec.model.id, prompt: image.prompt, config: image.config, inputReferences, groups, aspectRatio, signal, files, userId, fetchImpl, onProblem, wait, secrets });
+  if (drawn.stopped) return stopped();
+  const parts = drawn.parts;
   return { parts, status: 'done', run: { elapsedMs: now() - startedAt }, toolCalls: 0 };
 }

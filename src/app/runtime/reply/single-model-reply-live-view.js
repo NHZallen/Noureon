@@ -5,6 +5,7 @@
 import { sandboxText } from '../sandbox/sandbox-texts.js';
 import { createCredentialAnswerHandler } from '../cli/credential-answer.js';
 import { createConnectorAnswerHandler } from '../connector/connector-answer.js';
+import { createImageAnswerHandler } from '../image-tool/image-answer.js';
 import { createNetAnswerHandler } from '../cli/net-answer.js';
 import { createSandboxLedger } from '../../ui/sandbox/sandbox-ledger.js';
 import { createThinkingBlock } from '../../ui/thinking/thinking-block.js';
@@ -41,7 +42,8 @@ export function createReplyLiveView({ targetElement, getDocument, getConfig, lan
           startedAt: getRunStartedAt(),
           onNetAnswer: createNetAnswerHandler({ getRun: () => serverRun }),
           onCredentialAnswer: createCredentialAnswerHandler({ getRun: () => serverRun }),
-          onConnectorAnswer: createConnectorAnswerHandler({ getRun: () => serverRun })
+          onConnectorAnswer: createConnectorAnswerHandler({ getRun: () => serverRun }),
+          onImageAnswer: createImageAnswerHandler({ getRun: () => serverRun })
         } : {})
       });
       // Its line says the reply is working: the dot (and its "still getting ready") under it would say it twice.

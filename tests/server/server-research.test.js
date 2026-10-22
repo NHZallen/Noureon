@@ -12,7 +12,7 @@ const toolCall = (id, name, args) => ({ choices: [{ delta: { tool_calls: [{ inde
 const modelInfo = { id: 'openrouter-test', apiId: 'test/model', name: 'Test model', provider: 'openrouter' };
 
 const specFor = (topic = 'Solid-state batteries') => ({
-  protocol: 1,
+  protocol: 2,
   kind: 'research',
   research: { topic },
   clientVersion: '17.5.0',

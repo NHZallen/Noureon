@@ -6,8 +6,9 @@ import { liftSandboxRunBlock } from '../../ui/sandbox/sandbox-run-block.js';
 import { serverReplyText } from './server-reply-texts.js';
 import { readRunStream } from './server-stream.js';
 import { netPolicyForRun } from '../cli/net-state.js';
+import { imageGenerationForReply } from '../tool-models/image-generation-request.js';
 
-export const SERVER_PROTOCOL_VERSION = 1;
+export const SERVER_PROTOCOL_VERSION = 2;
 // Where the server is: api.noureon.com, or the one of the test site (staging) when its build sets VITE_SERVER_API_URL (docs/superpowers/specs/2026-10-11-staging-design.md).
 export const resolveServerApiUrl = (value) => {
   const text = String(value ?? '').trim().replace(/\/+$/, '');
@@ -245,6 +246,8 @@ export function createServerReply({
     // The conversations the memory drew on are known once the request was put together.
     const historySourceIds = getHistorySourceIds();
     const history = await withCloudFiles((conversation.messages || []).slice(0, -1).map((message) => ({ role: message.role, parts: message.parts })));
+    // A text model that may draw pictures by itself (the picture model the person chose in the settings): not for a deep research or a visual check, nor with Gemini's own search.
+    const drawing = research || vision || webSearch === 'grounding' ? null : imageGenerationForReply({ config, modelInfo, getApiKeyForProvider });
     const metadata = historySourceIds.length ? { historySourceConversationIds: historySourceIds } : null;
     const spec = {
       protocol: SERVER_PROTOCOL_VERSION,
@@ -282,9 +285,10 @@ export function createServerReply({
         // The connectors the person logged in to may be used (the server reads which ones from the person's own connections).
         ...(connectors ? { connectors: true } : {}),
         // The check of a presentation the reply writes (the page's setting is on and the model can see images): the server makes it too.
-        ...(visionCheck ? { visionCheck } : {})
+        ...(visionCheck ? { visionCheck } : {}),
+        ...(drawing ? { imageGeneration: drawing.imageGeneration } : {})
       },
-      secrets: { providerKey, ...(search ? { searchKey: search.searchKey, ...(search.searchKeyAlt ? { searchKeyAlt: search.searchKeyAlt } : {}) } : {}), ...(translatorKey ? { translatorKey } : {}) }
+      secrets: { providerKey, ...(search ? { searchKey: search.searchKey, ...(search.searchKeyAlt ? { searchKeyAlt: search.searchKeyAlt } : {}) } : {}), ...(translatorKey ? { translatorKey } : {}), ...(drawing ? { imageKey: drawing.imageKey } : {}) }
     };
     const body = JSON.stringify(spec);
     if (body.length > MAX_REQUEST_CHARS) return { ok: false, reason: LOCAL_REASONS.tooLarge, notify: false };
@@ -349,6 +353,8 @@ export function createServerReply({
     answerCredential: (askId, decision) => request('POST', `/v1/runs/${runId}/credential`, { body: JSON.stringify({ askId, decision }) }),
     // The person's answer ('once', 'always' or 'deny') to the question whether a tool of a connector may run.
     answerConnector: (askId, decision) => request('POST', `/v1/runs/${runId}/connector`, { body: JSON.stringify({ askId, decision }) }),
+    // The person's answer to a question a text model's picture tool asks (whether it may draw): 'once', 'always' or 'deny'.
+    answerImage: (askId, answer) => request('POST', `/v1/runs/${runId}/image`, { body: JSON.stringify({ askId, answer }) }),
     /** Follows an image the server is making until it is over: resolves { parts } or throws a ServerReplyError (server-image.js). */
     async followImage(options) {
       return (await import('./server-image.js')).followImageRun({ stop: () => this.stop(), watchRun, readMessage, hydrateParts, wait, setTimer, clearTimer, warn, ServerReplyError, graceMs: STOP_GRACE_MS, runId, assistantMessageId }, options);
@@ -577,8 +583,8 @@ export function createServerReply({
         const lifted = liftSandboxRunBlock(textOf(row.parts));
         if (lifted.text.startsWith(answerSoFar) && lifted.text.length > answerSoFar.length) emit(lifted.text.slice(answerSoFar.length));
         flush();
-        // The files of the reply: kept in the person's storage by the server, brought here.
-        const fileParts = (Array.isArray(row.parts) ? row.parts : []).filter((part) => part?.sandboxFile);
+        // The files of the reply, and the pictures the text model drew: kept in the person's storage by the server, brought here.
+        const fileParts = (Array.isArray(row.parts) ? row.parts : []).filter((part) => part?.sandboxFile || part?.generatedImage);
         let extraParts = [];
         if (fileParts.length) {
           try {

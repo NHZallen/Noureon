@@ -26,7 +26,7 @@ const sizeText = (bytes) => (bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toF
  * opens to the steps (`open`: it starts open). The steps are folded either way, newest too. Without it the steps are the list
  * itself (where this is inside a row of another list, such as the visual check's).
  */
-export function createSandboxLedger({ document, host, before = null, language = 'zh-TW', summary = false, open = false, startedAt: workStartedAt = null, madeHere = false, onNetAnswer = null, onCredentialAnswer = null, onConnectorAnswer = null }) {
+export function createSandboxLedger({ document, host, before = null, language = 'zh-TW', summary = false, open = false, startedAt: workStartedAt = null, madeHere = false, onNetAnswer = null, onCredentialAnswer = null, onConnectorAnswer = null, onImageAnswer = null }) {
   const text = (key, values) => sandboxText(language, key, values);
   const outer = summary ? createLedger({ document, host, before }) : null;
   const line = outer ? outer.addRow(text('processWorking')) : null;
@@ -88,6 +88,42 @@ export function createSandboxLedger({ document, host, before = null, language = 
         return cards;
       });
     connectorCards.catch(() => {});
+  };
+  // The picture the text model draws (generate_image): a row that runs while the picture is made, and the card that asks first when the person has not allowed it for good.
+  let imageCards = null;
+  let imageRow = null;
+  const askAboutImage = (event) => {
+    imageCards = (imageCards || import('./image-ask-card.js').then(({ createImageAskCards }) => createImageAskCards({ document, host: askCardHost(), language, onAnswer: onImageAnswer || (async () => ({ ok: false })) })))
+      .then((cards) => {
+        cards.handle(event);
+        waitingLabel = event.event === 'ask' ? cards.waitingText(event) : '';
+        syncLine();
+        return cards;
+      });
+    imageCards.catch(() => {});
+  };
+  const imageEvent = (event) => {
+    if (event.event === 'start') {
+      imageRow = begin(event.label, { kind: 'image' });
+      return;
+    }
+    if (event.event === 'ask') {
+      askAboutImage(event);
+      return;
+    }
+    const row = imageRow && list.rows.includes(imageRow) && imageRow.state === 'running' ? imageRow : null;
+    if (event.event === 'answer') {
+      askAboutImage(event);
+      // A refusal (or no answer) ends the drawing: the row says so.
+      if (row && event.answer !== 'once' && event.answer !== 'always') {
+        row.setLabel(text(event.answer === 'timeout' ? 'imageTimedOut' : event.answer === 'cancel' ? 'imageStopped' : 'imageRefused'));
+        row.finish('done');
+      }
+      return;
+    }
+    if (!row) return;
+    row.setLabel(event.label || row.label);
+    row.finish(event.event === 'failed' ? 'failed' : 'done');
   };
   const create = (name, className, content) => {
     const node = document.createElement(name);
@@ -278,7 +314,7 @@ export function createSandboxLedger({ document, host, before = null, language = 
   // line said the work was over. When more work follows, the line goes back to running.
   let answered = false;
   const handle = (event) => {
-      if (answered && ['round', 'searching', 'step', 'skill', 'connector'].includes(event.type)) {
+      if (answered && ['round', 'searching', 'step', 'skill', 'connector', 'image'].includes(event.type)) {
         answered = false;
         if (line && line.state !== 'running') {
           line.resume();
@@ -294,6 +330,8 @@ export function createSandboxLedger({ document, host, before = null, language = 
         // The model uses a connector: a row of its own (the call), and the card that asks when the person set the tool to ask.
         if (event.event === 'call') connectorCall(event);
         else askAboutConnector(event);
+      } else if (event.type === 'image') {
+        imageEvent(event);
       } else if (event.type === 'searching') {
         startSearch(event);
       } else if (event.type === 'sources') {

@@ -27,7 +27,7 @@ test('a reply after a research is sent the report', async () => {
   const requests = [];
   await executeReply({
     spec: {
-      protocol: 1,
+      protocol: 2,
       conversationId: '123e4567-e89b-12d3-a456-426614174000',
       assistantMessageId: '223e4567-e89b-12d3-a456-426614174001',
       sequence: 3,

@@ -228,3 +228,20 @@ test('message markup renderer source avoids runtime side-effect ownership', () =
     assert.equal(source.includes(token), false, token);
   }
 });
+
+test('a reply of words and pictures (a text model drew them itself) has the pictures and the footer; pictures alone have none', () => {
+  const picture = { generatedImage: { id: 'img-1', storageKey: 'k', mediaType: 'image/png', size: 10, aspectRatio: '1:1' } };
+  const mixed = buildMessageRenderView({
+    message: { role: 'model', parts: [{ text: 'Here it is' }, picture], createdAt: '2026-06-24T10:30:00.000Z' },
+    ...dependencies
+  });
+  assert.match(mixed.messageHTML, /data-generated-image-card="img-1"/);
+  assert.match(mixed.messageHTML, /MODEL:Here it is/);
+  assert.match(mixed.messageHTML, /copy-content-btn/);
+  assert.equal(mixed.generatedImageAssets.length, 1);
+  const alone = buildMessageRenderView({
+    message: { role: 'model', parts: [picture], createdAt: '2026-06-24T10:30:00.000Z' },
+    ...dependencies
+  });
+  assert.doesNotMatch(alone.messageHTML, /copy-content-btn/);
+});

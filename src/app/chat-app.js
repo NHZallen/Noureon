@@ -4,6 +4,7 @@ import '../styles/file-cards.css';
 import '../styles/file-visual.css';
 import '../styles/sandbox-run.css';
 import '../styles/ledger.css';
+import '../styles/image-tool.css';
 import '../styles/citations.css';
 import '../styles/scrollbars.css';
 import '../styles/edge-fades.css';

@@ -10,6 +10,7 @@ import { createLazySkillMode } from '../skill/lazy-skill-mode.js';
 import { createLazySkillStore } from '../skill/lazy-skill-store.js';
 import { researchText } from './research-texts.js';
 import { SERVICES, getService } from '../services.js';
+import { registerToolModelsBridge } from '../tool-models/tool-models-bridge.js';
 
 export const RESEARCH_INDICATOR_ID = 'deep-research-indicator';
 export const PLAN_INDICATOR_ID = 'research-plan-indicator';
@@ -43,6 +44,8 @@ export function createResearchMode({
   logger = console
 }) {
   const getInput = () => messageInput;
+  // "Always allow" in the card that asks about a picture is kept in the settings.
+  registerToolModelsBridge({ getConfig, saveConfig, logger });
   // The CLI tools (命令工具) share this host: they too put a chip in the box and an entry in the menus. A box that cannot take listeners
   // (a test) has none.
   // The skills the person pasted are kept in their cloud account: the account library is loaded when first needed.

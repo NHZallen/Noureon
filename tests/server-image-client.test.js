@@ -97,7 +97,7 @@ test('an image is handed over after the conversation was saved, with only the ke
   assert.equal(calls[0].options.headers.Authorization, 'Bearer token-123');
   const body = JSON.parse(calls[0].options.body);
   assert.equal(body.kind, 'image');
-  assert.equal(body.protocol, 1);
+  assert.equal(body.protocol, 2);
   assert.equal(body.conversationId, CONVERSATION.id);
   assert.equal(body.assistantMessageId, MESSAGE_ID);
   assert.equal(body.sequence, 4);

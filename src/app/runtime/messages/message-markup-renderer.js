@@ -154,7 +154,8 @@ export function buildMessageRenderView({
             });
             generatedImageHTML = renderGeneratedImageSet({ cards: generatedImageCards, assets: generatedImageAssets, label: labels.imageSetItem });
         }
-        if (!isUser && generatedImageAssets.length === 0) {
+        // A message of pictures only has no footer; one with words (a text model drew the pictures itself) does.
+        if (!isUser && (generatedImageAssets.length === 0 || textParts.length > 0)) {
             const timeString = formatTimestamp(message.createdAt);
             actionButtons = `
                         <div class="absolute bottom-2 left-2 right-2 flex justify-between items-center">

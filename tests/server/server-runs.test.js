@@ -250,7 +250,7 @@ function managerHarness({ execute, executeDeepResearch, executeCouncilRun, db = 
   return { manager, db, vault, repeating, timers, logs, store };
 }
 const specOf = () => ({
-  protocol: 1,
+  protocol: 2,
   clientVersion: '17.4.0',
   conversationId: CONVERSATION,
   assistantMessageId: MESSAGE,
@@ -309,7 +309,7 @@ test('a council is a run of its own kind: its keys (one for each provider) are s
     }
   });
   const council = {
-    protocol: 1,
+    protocol: 2,
     kind: 'council',
     clientVersion: '17.11.0',
     conversationId: CONVERSATION,
@@ -1062,7 +1062,7 @@ test('a person lets a model of their council leave: the request reaches their ru
     }
   });
   const council = {
-    protocol: 1, kind: 'council', clientVersion: '17.12.0', conversationId: CONVERSATION, assistantMessageId: MESSAGE, sequence: 2,
+    protocol: 2, kind: 'council', clientVersion: '17.12.0', conversationId: CONVERSATION, assistantMessageId: MESSAGE, sequence: 2,
     model: { provider: 'openrouter', id: 'synth', info: { provider: 'openrouter' } },
     council: { mode: 'consensus', participants: [], synthesizer: { provider: 'openrouter', id: 'synth', info: {} }, translator: null, showRawResponses: true, showComparisonTable: true },
     request: { history: [], currentMessage: { parts: [{ text: 'hi' }] }, systemInstruction: '', systemInstructions: { participant: '', deliberation: '', synthesis: '' }, language: 'en' },
@@ -1100,7 +1100,7 @@ test('a council whose synthesizer wrote a presentation is followed by its check,
     }
   });
   const council = {
-    protocol: 1, kind: 'council', clientVersion: '17.11.0', conversationId: CONVERSATION, assistantMessageId: MESSAGE, sequence: 2,
+    protocol: 2, kind: 'council', clientVersion: '17.11.0', conversationId: CONVERSATION, assistantMessageId: MESSAGE, sequence: 2,
     model: { provider: 'openrouter', id: 'synth', info: { provider: 'openrouter' } },
     council: { mode: 'consensus', participants: [], synthesizer: { provider: 'openrouter', id: 'synth', info: {} }, translator: null, showRawResponses: true, showComparisonTable: true },
     request: { history: [], currentMessage: { parts: [{ text: 'hi' }] }, systemInstruction: '', systemInstructions: { participant: '', deliberation: '', synthesis: '' }, language: 'en' },

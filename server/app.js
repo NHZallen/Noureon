@@ -155,7 +155,7 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
         status = 200;
         return;
       }
-      const runPath = /^\/v1\/runs\/([0-9a-f-]{36})(\/stop|\/stream|\/start|\/hold|\/release|\/plan|\/steer|\/pause|\/resume|\/net|\/credential|\/connector|\/member)?$/i.exec(url.pathname);
+      const runPath = /^\/v1\/runs\/([0-9a-f-]{36})(\/stop|\/stream|\/start|\/hold|\/release|\/plan|\/steer|\/pause|\/resume|\/net|\/credential|\/connector|\/image|\/member)?$/i.exec(url.pathname);
       if (route === 'POST /v1/runs' || route === 'POST /v1/research') {
         const deep = route === 'POST /v1/research';
         const user = await authenticate(request);
@@ -272,6 +272,18 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
         const body = await readJson(request, 4096);
         if (!/^[A-Za-z0-9-]{8,64}$/.test(String(body?.askId || '')) || !['once', 'always', 'deny'].includes(body?.decision)) throw new RequestError(ERROR_CODES.badRequest, 'That is not an answer.');
         const result = await runs.answerConnector({ userId: user.id, runId: runPath[1], askId: body.askId, decision: body.decision });
+        if (!result.ok) throw new RequestError(ERROR_CODES.notFound, 'No such reply is running here.');
+        send(response, 200, { ok: true, answered: result.answered }, origin);
+        status = 200;
+        return;
+      }
+      if (runPath && request.method === 'POST' && runPath[2] === '/image') {
+        // The person's answer to a question a text model's picture tool asks: { askId, answer } ('once', 'always' or 'deny' to whether it may draw).
+        const user = await authenticate(request);
+        if (!runs) throw new RequestError(ERROR_CODES.runsUnavailable, 'Replies on the server are not set up yet.');
+        const body = await readJson(request, 4096);
+        if (!/^[A-Za-z0-9-]{8,64}$/.test(String(body?.askId || '')) || typeof body?.answer !== 'string' || body.answer.length > 80) throw new RequestError(ERROR_CODES.badRequest, 'That is not an answer.');
+        const result = await runs.answerImage({ userId: user.id, runId: runPath[1], askId: body.askId, answer: body.answer });
         if (!result.ok) throw new RequestError(ERROR_CODES.notFound, 'No such reply is running here.');
         send(response, 200, { ok: true, answered: result.answered }, origin);
         status = 200;

@@ -16,6 +16,7 @@ import { effectiveNetPolicy } from '../src/data/cli-net.js';
 import { createSkillLoader } from '../src/data/skill-tool.js';
 import { prepareToolCredentials, scrubResult, scrubSecrets } from './cli-credentials.js';
 import { runSandboxReply } from '../src/app/runtime/sandbox/sandbox-reply.js';
+import { createImageToolLoader } from './image-tool.js';
 import { sandboxText } from '../src/app/runtime/sandbox/sandbox-texts.js';
 import { collectInputFiles, createStepEvents, finishAdvancedReply } from './advanced-reply.js';
 import { ERROR_CODES } from './protocol.js';
@@ -82,7 +83,7 @@ export class ReplyError extends Error {
  * With CLI tools, `credentials` (server/cli-credentials.js) gives the person's secure credentials for them, and `netControl` is what the run manager
  * answers the person's questions about sites with (it is given the function that does so once the sandbox is there).
  */
-export async function executeReply({ spec, secrets, signal, resume: resumeFrom = null, userId = '', sandboxHost = null, files = null, credentials = null, skills = null, connectors = null, netControl = null, credentialControl = null, connectorControl = null, credentialWaitMs = 10 * 60 * 1000, knownSources = [], onPaused = () => {}, watching = () => false, onUpdate = () => {}, onLive = () => {}, onCheckpoint = async () => {}, onProblem = () => {}, fetchImpl = fetch, now = Date.now }) {
+export async function executeReply({ spec, secrets, signal, resume: resumeFrom = null, userId = '', sandboxHost = null, files = null, credentials = null, skills = null, connectors = null, netControl = null, credentialControl = null, connectorControl = null, imageControl = null, credentialWaitMs = 10 * 60 * 1000, knownSources = [], onPaused = () => {}, watching = () => false, onUpdate = () => {}, onLive = () => {}, onCheckpoint = async () => {}, onProblem = () => {}, fetchImpl = fetch, now = Date.now }) {
   const resume = spec.tools.advanced ? null : resumeFrom;
   const mode = spec.tools.webSearch;
   const language = spec.request.language;
@@ -106,7 +107,9 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
     ...(thought.text ? { thought: thought.text, thoughtKind: thought.kind, ...(thought.first && thought.last > thought.first ? { thoughtMs: thought.last - thought.first } : {}) } : {})
   });
   const messageText = (status) => `${sources.length || thought.text || usedConnectors.size ? formatSandboxRunBlock(record(status)) : ''}${answer}`;
-  const update = () => onUpdate([{ text: messageText('running') }]);
+  // The pictures the text model drew by itself (server/image-tool.js), as parts of the message.
+  const drawnParts = [];
+  const update = () => onUpdate([{ text: messageText('running') }, ...drawnParts]);
   // The times every page shows come from here, so they agree: how long the reply has been going, and how long it thought.
   let thoughtClosed = false;
   onLive({ r: { answer, thought: { text: thought.text, kind: thought.kind, ms: 0, ended: false }, sources, elapsedMs: now() - startedAt } });
@@ -158,9 +161,9 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
   const skillList = skills && mode !== 'grounding' ? spec.tools.skills || [] : [];
   const makeSkillsOnly = ({ lookup = (name) => skills.body(userId, name) } = {}) => (skillList.length ? createSkillLoader({ available: skillList, lookup, readFile: skills.readFile ? (name, path) => skills.readFile(userId, name, path) : null }) : null);
   // What the reply's loops are given: the skills and the connectors as one loader (either may be missing).
-  const makeSkillLoader = (options) => combineLoaders(makeSkillsOnly(options), connectorLoader);
+  const makeSkillLoader = (options) => combineLoaders(makeSkillsOnly(options), connectorLoader, imageLoader);
   // A skill being loaded is a row of the step list the pages show (the other steps of a reply without Python are not).
-  const skillEvents = (event) => { if (event.type === 'skill' || event.type === 'connector') onLive({ ev: { ...event, t: Math.max(0, now() - startedAt) } }); };
+  const skillEvents = (event) => { if (event.type === 'skill' || event.type === 'connector' || event.type === 'image') onLive({ ev: { ...event, t: Math.max(0, now() - startedAt) } }); };
 
   // The connectors (連接器): the services the person logged in to, with the tools they let a reply use. Not with Gemini's own search either (it refuses the tools beside it).
   // The question about a tool is a card in the step list, and the time the reply waits for the answer is not the reply's (as with a tool's login).
@@ -189,6 +192,24 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
     } catch (error) {
       onProblem('connectors_failed', error);
     }
+  }
+  // A picture the text model draws by itself (server/image-tool.js): the person chose the picture model in the settings. Not with Gemini's own search either.
+  let imageLoader = null;
+  if (spec.tools.imageGeneration && mode !== 'grounding' && userId && files) {
+    imageLoader = createImageToolLoader({
+      spec,
+      secrets,
+      userId,
+      files,
+      signal,
+      fetchImpl,
+      language,
+      emit: (event) => emitEvent(event),
+      onPictures: (made) => { drawnParts.push(...made); update(); },
+      onWaited: (waited) => { startedAt += waited; onPaused(waited); onLive({ tm: Math.max(0, now() - startedAt) }); },
+      now
+    });
+    if (imageControl) imageControl.answer = imageLoader.answer;
   }
   const closeConnectors = () => Promise.all([...connectorClients.values()].map((client) => client.close().catch(() => {})));
 
@@ -491,11 +512,11 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
     const stopped = Boolean(signal?.aborted) || advanced.run?.status === RUN_STATUS.stopped;
     const run = advanced.run || (sources.length || usedConnectors.size ? { status: RUN_STATUS.done, steps: [] } : null);
     if (!run || (!advanced.text.trim() && !run.steps.length && !run.thought)) {
-      if (!advanced.text.trim() && !sources.length) {
+      if (!advanced.text.trim() && !sources.length && !drawnParts.length) {
         if (stopped) return { parts: [{ text: '' }], status: 'stopped', run: record('stopped'), toolCalls };
         throw new ReplyError('The model gave no answer.', 'provider_error');
       }
-      if (!run) return { parts: [{ text: advanced.text }], status: stopped ? 'stopped' : 'done', run: record(stopped ? 'stopped' : 'done'), toolCalls };
+      if (!run) return { parts: [{ text: advanced.text }, ...drawnParts], status: stopped ? 'stopped' : 'done', run: record(stopped ? 'stopped' : 'done'), toolCalls };
     }
     // The pages the reply searched and the time it took are kept with the steps, as the browser keeps them.
     if (sources.length) run.sources = sources;
@@ -515,10 +536,10 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
         const output = run.steps.flatMap((step) => step.outputs || []).filter((entry) => entry.name === file.name).at(-1);
         if (output?.bytes) decks.set(file.id, output.bytes);
       }
-      return { parts: [{ text: finished.text }, ...finished.parts], status: stopped ? 'stopped' : 'done', run, toolCalls, artifacts: { decks } };
+      return { parts: [{ text: finished.text }, ...finished.parts, ...drawnParts], status: stopped ? 'stopped' : 'done', run, toolCalls, artifacts: { decks } };
     } catch (error) {
       onProblem('finish_failed', error);
-      return { parts: [{ text: advanced.text }], status: stopped ? 'stopped' : 'done', run, toolCalls, artifacts: { decks: new Map() } };
+      return { parts: [{ text: advanced.text }, ...drawnParts], status: stopped ? 'stopped' : 'done', run, toolCalls, artifacts: { decks: new Map() } };
     }
   }
 
@@ -527,10 +548,10 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
     const numberOf = (url) => Number(sources.find((source) => source.url === url)?.n) || 0;
     answer = insertGroundingMarkers(answer, supports, numberOf);
   }
-  if (!answer.trim() && !sources.length && !thought.text && !usedConnectors.size) {
+  if (!answer.trim() && !sources.length && !thought.text && !usedConnectors.size && !drawnParts.length) {
     if (signal?.aborted) return { parts: [{ text: '' }], status: 'stopped', run: record('stopped'), toolCalls };
     throw new ReplyError('The model gave no answer.', 'provider_error');
   }
   const status = signal?.aborted ? 'stopped' : 'done';
-  return { parts: [{ text: messageText(status) }], status, run: record(status), toolCalls };
+  return { parts: [{ text: messageText(status) }, ...drawnParts], status, run: record(status), toolCalls };
 }

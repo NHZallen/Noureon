@@ -61,7 +61,7 @@ test('a reply is handed over with everything it needs, after the conversation wa
   assert.equal(calls[0].url, 'https://api.noureon.com/v1/runs');
   assert.equal(calls[0].options.headers.Authorization, 'Bearer token-123');
   const spec = JSON.parse(calls[0].options.body);
-  assert.equal(spec.protocol, 1);
+  assert.equal(spec.protocol, 2);
   assert.equal(spec.clientVersion, '17.5.0');
   assert.equal(spec.conversationId, CONVERSATION.id);
   assert.equal(spec.assistantMessageId, MESSAGE_ID);
