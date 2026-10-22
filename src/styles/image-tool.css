@@ -1,3 +1,7 @@
 /* The picture a text model draws by itself: the icon of its row in the step list (ledger.css) and the question whether it may (image-ask-card.js, drawn like net-ask in ledger.css). */
 .ledger-row[data-kind='image'] { --run-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='2.5' y='3.5' width='15' height='13' rx='3'/%3E%3Ccircle cx='7' cy='8' r='1.4'/%3E%3Cpath d='M3 15l4.5-4.5 3 3L13 11l4 4'/%3E%3C/svg%3E"); }
 .image-ask-prompt { margin: 0.35rem 0 0; font-size: 0.85rem; color: var(--text-secondary); overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* The number in the corner of a picture (picture-number.js): shown only while a text model may draw pictures. Style of the chips on a photo: --media-chip-bg and --on-color. */
+.picture-number { display: none; position: absolute; top: 0.4rem; left: 0.4rem; z-index: 2; min-width: 1.25rem; height: 1.25rem; padding: 0 0.3rem; box-sizing: border-box; align-items: center; justify-content: center; border-radius: 0.4rem; background: var(--media-chip-bg); color: var(--on-color); font-size: 0.72rem; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; pointer-events: none; -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+:root[data-picture-numbers] .picture-number { display: inline-flex; }

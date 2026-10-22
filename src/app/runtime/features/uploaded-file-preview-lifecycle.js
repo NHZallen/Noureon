@@ -2,6 +2,8 @@ import { prepareVideoThumbnail } from './video-thumbnail-lifecycle.js';
 
 import { createAttachmentCard } from '../../ui/files/attachment-card.js';
 import { describeAttachment } from '../../ui/files/file-visual.js';
+import { setPictureNumber } from '../../ui/files/picture-number.js';
+import { attachedPictureNumbers } from '../../../data/conversation-pictures.js';
 
 export function createUploadedFilePreviewLifecycle({
     document,
@@ -83,7 +85,7 @@ export function createUploadedFilePreviewLifecycle({
                     onOpen: openFile,
                     onRemove: (removed) => removeFile(removed.id)
                 });
-                card = { ...made, language, fresh: true };
+                card = { ...made, language, fresh: true, fileId: file.id };
                 cards.set(file.id, card);
             }
             return card;
@@ -91,7 +93,11 @@ export function createUploadedFilePreviewLifecycle({
         const keep = new Set(wanted.map((card) => card.element));
         const isLeaving = (child) => child.dataset?.leaving === 'true';
         [...(container.children || [])].forEach((child) => { if (!keep.has(child) && !isLeaving(child)) child.remove?.(); });
+        // The pictures show their place among the pictures of the message (the number the sent message will show).
+        const numbers = attachedPictureNumbers(files.map((file) => ({ mimeType: file.type, name: file.name, data: file.base64 || file.id })));
+        const numberOf = new Map(files.map((file, index) => [file.id, numbers[index]]));
         wanted.forEach((card, index) => {
+            setPictureNumber(document, card.element.querySelector?.('.ac-attach-thumb'), numberOf.get(card.fileId));
             const present = [...(container.children || [])].filter((child) => !isLeaving(child));
             if (present[index] !== card.element) {
                 const before = present[index] || null;

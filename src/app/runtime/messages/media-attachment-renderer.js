@@ -1,3 +1,5 @@
+import { attachedPictureNumbers } from '../../../data/conversation-pictures.js';
+import { pictureNumberHTML } from '../../ui/files/picture-number.js';
 import { describeAttachment, fileFamilyLabel, fileKindIconHTML } from '../../ui/files/file-visual.js';
 
 export function createMediaAttachmentRenderer({ escapeHTML, getUiLanguage = () => 'zh-TW' }) {
@@ -10,6 +12,7 @@ export function createMediaAttachmentRenderer({ escapeHTML, getUiLanguage = () =
         if (!previewMediaParts.length) {
             return { html: '', previewMediaParts };
         }
+        const pictureNumbers = attachedPictureNumbers(previewMediaParts);
         const isVisual = (media) => /^(image|video)\//.test(media.mimeType || '');
         const visualItems = previewMediaParts.map((media, mediaIndex) => {
             const mimeType = media.mimeType || 'application/octet-stream';
@@ -18,7 +21,7 @@ export function createMediaAttachmentRenderer({ escapeHTML, getUiLanguage = () =
             if (mimeType.startsWith('image/')) {
                 return `
                     <button type="button" class="message-media-thumb" data-media-index="${mediaIndex}" aria-label="${escapeHTML(name)}">
-                        <img src="${escapeHTML(src)}" alt="${escapeHTML(name)}" loading="lazy">
+                        <img src="${escapeHTML(src)}" alt="${escapeHTML(name)}" loading="lazy">${pictureNumberHTML(pictureNumbers[mediaIndex])}
                     </button>
                 `;
             }

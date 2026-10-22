@@ -24,6 +24,22 @@ const isAttachedPicture = (part) => Boolean(part?.inlineData?.data && attachment
 const isDrawnPicture = (part) => Boolean(part?.generatedImage?.id);
 
 /**
+ * The number each of the attachments of one message has as a picture (0 for one that is not): the pictures are counted in the order they are in, from 1.
+ * `items` are attachments as the message keeps them ({ data, mimeType, name }). What the message shows on its pictures, what the box shows before the
+ * message is sent and what the model is told are all counted here, so they are the same.
+ */
+export function attachedPictureNumbers(items = []) {
+  let number = 0;
+  return (Array.isArray(items) ? items : []).map((item) => (isAttachedPicture({ inlineData: item }) ? (number += 1) : 0));
+}
+
+/** The number each of the drawn pictures of one reply ({ id }) has, from 1 in their order (0 for one without an id). */
+export function drawnPictureNumbers(items = []) {
+  let number = 0;
+  return (Array.isArray(items) ? items : []).map((item) => (isDrawnPicture({ generatedImage: item }) ? (number += 1) : 0));
+}
+
+/**
  * Every picture of the conversation, oldest first: [{ round, source, number, name?, mimeType, prompt?, part }]. `history` is the messages before this one
  * ({ role, parts }), `current` the parts of the message being answered (the person's, so it starts the newest round). A reply that came before any
  * message of the person belongs to the first round. `prompt` of a drawn picture is what it was asked with (kept with it, or else the person's message of its round).

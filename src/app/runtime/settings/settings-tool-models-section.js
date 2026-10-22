@@ -2,6 +2,7 @@
 // the picture model a text model draws with. What is drawn is ui/tool-models/tool-models-view.js; the choice is saved as soon as it is made.
 
 import { MODELS, getProviderLabel, modelGeneratesImages } from '../shell/model-registry.js';
+import { syncPictureNumbers } from '../tool-models/picture-numbers.js';
 import { getImageToolModel, setImageToolModel } from '../tool-models/tool-models-state.js';
 import { toolModelText } from '../tool-models/tool-models-texts.js';
 import { renderToolModelsView } from '../../ui/tool-models/tool-models-view.js';
@@ -47,7 +48,11 @@ export function ensureToolModelsSettingsSection({ document, elements, config, sa
       getImageModel: () => getImageToolModel(config),
       setImageModel: (model) => setImageToolModel(config, model),
       hasKey: (provider) => Boolean(config.apiKeys?.[provider]),
-      save: () => saveConfig().catch((error) => console.warn('Saving the models a text model may call failed.', error))
+      save: () => {
+        // The pictures show their numbers only while a picture model is chosen.
+        syncPictureNumbers(document.documentElement, config);
+        return saveConfig().catch((error) => console.warn('Saving the models a text model may call failed.', error));
+      }
     });
   };
   draw();

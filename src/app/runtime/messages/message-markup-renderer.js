@@ -1,3 +1,5 @@
+import { drawnPictureNumbers } from '../../../data/conversation-pictures.js';
+import { pictureNumberHTML } from '../../ui/files/picture-number.js';
 import { skillMark, toolIconMarkup } from '../../ui/cli/cli-icons.js';
 import { getCliTool } from '../../../data/cli-catalog.js';
 import { renderComposerToolIcon } from '../../composer-tool-icons.js';
@@ -135,13 +137,15 @@ export function buildMessageRenderView({
             mediaGridHTML = mediaView.html;
         }
         if (generatedImageAssets.length > 0) {
-            const generatedImageCards = generatedImageAssets.map(asset => {
+            const drawnNumbers = drawnPictureNumbers(generatedImageAssets);
+            const generatedImageCards = generatedImageAssets.map((asset, assetIndex) => {
                 const imageAspectRatio = resolveImageAspectRatio(asset.aspectRatio);
                 return `
                 <figure class="generated-image-card${imageAspectRatio ? ' has-known-aspect' : ''}" data-generated-image-card="${asset.id}"${imageAspectRatio ? ` style="aspect-ratio: ${imageAspectRatio}"` : ''}>
                     <button type="button" class="generated-image-preview-btn" data-generated-image-preview="${asset.id}" aria-label="${escapeHTML(labels.imagePreview || '')}">
                         <img data-generated-image-id="${asset.id}" alt="${escapeHTML(labels.imageAlt || '')}" loading="lazy">
                     </button>
+                    ${pictureNumberHTML(drawnNumbers[assetIndex])}
                     <div class="generated-image-actions">
                         <button type="button" data-generated-image-edit="${asset.id}" class="generated-image-action-btn generated-image-edit-btn">
                             <span>${escapeHTML(labels.edit || '')}</span>

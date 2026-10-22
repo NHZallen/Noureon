@@ -4,6 +4,7 @@ import {
 } from '../../../utils/color-contrast.js';
 import { bubbleColorsFor } from '../../../utils/accent-bubble.js';
 import { createColorScheme } from './color-scheme.js';
+import { syncPictureNumbers } from '../tool-models/picture-numbers.js';
 
 // The accent when the person has not chosen a colour of their own: the blue of the theme in use.
 const DEFAULT_ACCENT = Object.freeze({ light: '#3b82f6', dark: '#5b9bff' });
@@ -37,6 +38,7 @@ export function createThemeAppearanceLifecycle(dependencies = {}) {
         root.style.setProperty('--user-bubble-bg', bubble.bg);
         root.style.setProperty('--user-bubble-text', bubble.text);
         shownTheme = theme;
+        syncPictureNumbers(root, getConfig());
         refreshColorChoices();
     };
 
