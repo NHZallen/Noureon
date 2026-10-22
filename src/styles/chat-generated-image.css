@@ -150,8 +150,9 @@
     display: block;
     max-width: 100%;
     transition: opacity .3s ease;
-    font-size: .8125rem;
-    line-height: 1.4;
+    /* The size of the words of the reply it stands in (not smaller). */
+    font-size: inherit;
+    line-height: 1.5;
     color: var(--text-secondary);
 }
 
