@@ -1,0 +1,1390 @@
+<!doctype html><html lang='zh-TW' data-theme='light'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>文字模型畫圖：互動示範（小卡版）</title><style>/*
+ * The colours of the app, in one place.
+ *
+ * Every colour of the interface comes from these names (docs/superpowers/specs/2026-10-08-dark-mode-design.md): text has three
+ * levels, surfaces have three layers, there is one border colour, one accent and three state colours. A new style uses them and
+ * never writes a colour of its own, so that the light and the dark theme stay in step.
+ *
+ * `data-theme` on <html> is "light" or "dark" (public/theme-init.js sets it before the first paint, color-scheme.js keeps it up to date).
+ * The dark theme is a dark grey after ChatGPT's (page #212121, side bar #171717, input #2f2f2f).
+ */
+:root {
+    color-scheme: light;
+
+    /* surfaces: page, side bar, the box of the message input and its field, popups and dialogs */
+    --chat-bg: #ffffff;
+    --sidebar-bg: #f7f7f8;
+    --input-bar-bg: #ffffff;
+    --input-field-bg: #f9fafb;
+    --modal-bg: #ffffff;
+
+    /* text: primary, secondary (labels, descriptions), tertiary (placeholders, disabled) */
+    --text-primary: #111827;
+    --text-secondary: #6b7280;
+    --text-tertiary: #838a96;
+
+    /* lines and the states of a row */
+    --border-color: #e5e7eb;
+    --hover-bg: #f3f4f6;
+    --active-bg: #e5e7eb;
+    --shadow-color: rgba(0, 0, 0, 0.1);
+
+    --sidebar-edge: rgba(255, 255, 255, 0.6);
+
+    /* the base of a full page of cards (the settings on a phone): opaque, unlike --hover-bg which is a veil */
+    --surface-muted: #f3f4f6;
+    /* what the pages of a file preview lie on */
+    --page-well: #e5e7eb;
+    /* the left menu is a veil of --sidebar-bg over the page; the strips that fade a list into it must be that same colour */
+    --sidebar-veil: color-mix(in srgb, var(--sidebar-bg) 55%, var(--chat-bg));
+
+    /* messages */
+    --ai-bubble-bg: transparent;
+    --user-bubble-bg: color-mix(in srgb, var(--button-primary-bg) 12%, var(--chat-bg));
+    --user-bubble-text: var(--text-primary);
+
+    /* the accent (the person may choose another colour in Settings) */
+    --button-primary-bg: #3b82f6;
+    --button-primary-hover-bg: color-mix(in srgb, var(--button-primary-bg) 88%, black);
+    --button-primary-text: #ffffff;
+
+    /* the black-and-white main button (dark pill on light, light pill on dark) and the surfaces of the settings and menus */
+    --gpt-surface: #ffffff;
+    --gpt-subtle: #f4f4f4;
+    --gpt-subtle-hover: #ececec;
+    --gpt-border: #dedede;
+    --gpt-menu-border: #d7d7d7;
+    --gpt-shadow: 0 10px 28px rgba(0, 0, 0, 0.13);
+    --gpt-primary-action-bg: #000000;
+    --gpt-primary-action-text: #ffffff;
+    --gpt-icon: #000000;
+    --gpt-control-bg: #ffffff;
+    --gpt-control-text: #000000;
+    --gpt-control-border: #000000;
+    --gpt-scrollbar: #d8d8d8;
+
+    /* states and links */
+    --state-success: #16a34a;
+    --state-danger: #dc2626;
+    --state-warning: #b45309;
+    --link-color: #2563eb;
+    /* the indigo of the logo: the glow of the home page */
+    --brand-logo: #5b4fcf;
+
+    /* code blocks and the track of a switch that is off */
+    --code-bg: #f6f7f9;
+    --code-block-bg: #111827;
+    --code-block-text: #f3f4f6;
+    --code-block-border: transparent;
+    --switch-off-bg: #d9d9d9;
+
+    /* sizes of shadow: one for each height a surface can float at */
+    --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.06);
+    --shadow-sm: 0 3px 12px rgba(15, 23, 42, 0.08);
+    --shadow-md: 0 8px 24px rgba(15, 23, 42, 0.14);
+    --shadow-lg: 0 14px 40px rgba(15, 23, 42, 0.16);
+    --shadow-xl: 0 24px 64px rgba(15, 23, 42, 0.28);
+    --shadow-up: 0 -8px 40px rgba(0, 0, 0, 0.18);
+    --shadow-side: 4px 0 15px rgba(0, 0, 0, 0.05);
+    --shadow-composer: 0 1px 2px rgba(15, 23, 42, 0.06), 0 10px 30px rgba(15, 23, 42, 0.08);
+
+    /* what is behind a dialog or a sheet */
+    --scrim-soft: rgba(0, 0, 0, 0.32);
+    --scrim: rgba(0, 0, 0, 0.5);
+    --scrim-strong: rgba(0, 0, 0, 0.88);
+
+
+    /* the colour that flashes a line that was just jumped to */
+    --flash-bg: rgba(250, 204, 21, 0.7);
+
+    /* the pin of a pinned conversation */
+    --pin-color: #fbbf24;
+
+    /* charts: a rise, a fall, and the softer pair of a waterfall */
+    --chart-up: #27835e;
+    --chart-down: #b45353;
+    --chart-up-soft: #5aa987;
+    --chart-down-soft: #d48787;
+
+    /* the pictures of the tools (a dark drawing on a clear background) are inverted on the dark theme */
+    --tool-icon-filter: none;
+
+    /* the same in both themes: text and icons on a photo, a video or a dark scrim; what is behind a video; the paper of a document */
+    --on-color: #ffffff;
+    --media-bg: #111827;
+    --media-black: #000000;
+    --media-control-bg: rgba(64, 64, 64, 0.68);
+    --media-control-bg-active: rgba(64, 64, 64, 0.78);
+    --media-chip-bg: rgba(15, 23, 42, 0.42);
+    --media-chip-bg-hover: rgba(15, 23, 42, 0.58);
+    --media-drop-shadow: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.45));
+    --paper-bg: #ffffff;
+    --paper-text: #111827;
+    --paper-text-soft: #4b5563;
+    --paper-shadow: 0 1px 3px rgba(15, 23, 42, 0.18), 0 6px 18px rgba(15, 23, 42, 0.08);
+    --paper-ring: transparent;
+
+    /* the raised button (the large main button of a dialog) */
+    --btn-raised-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.45), 0 4px 8px rgba(0, 0, 0, 0.2);
+    --btn-raised-shadow-hover: inset 0 1px 1px rgba(255, 255, 255, 0.5), 0 6px 12px rgba(0, 0, 0, 0.25);
+    --btn-pressed-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+    --btn-text-shadow: 0 -1px 1px rgba(0, 0, 0, 0.2);
+    --thumb-shadow: 0 1px 5px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(0, 0, 0, 0.1);
+
+    /* the file cards: the colour of the logo of each kind of file */
+    --file-default: #64748b;
+    --file-word: #2b579a;
+    --file-excel: #217346;
+    --file-powerpoint: #c43e1c;
+    --file-pdf: #d93025;
+    --file-csv: #1e8e3e;
+    --file-markdown: #475569;
+    --file-code: #6d5ce7;
+    --file-data: #0284c7;
+    --file-web: #e44d26;
+    --file-calendar: #d97706;
+    --file-contact: #7c3aed;
+    --file-subtitle: #0d9488;
+    --file-blocked: #9ca3af;
+}
+
+:root[data-theme="dark"] {
+    color-scheme: dark;
+
+    /* the file cards in the dark theme are lighter, so the logo of each kind of file reads on a dark ground */
+    --file-default: #94a3b8;
+    --file-word: #7da2ff;
+    --file-excel: #4cc38a;
+    --file-powerpoint: #ff8f66;
+    --file-pdf: #ff7a70;
+    --file-csv: #4cc38a;
+    --file-markdown: #a3b1c4;
+    --file-code: #aa9eff;
+    --file-data: #4cb8ee;
+    --file-web: #ff8f66;
+    --file-calendar: #f6b94a;
+    --file-contact: #bfa0ff;
+    --file-subtitle: #3fd3c3;
+    --file-blocked: #9ca3af;
+
+    --chat-bg: #212121;
+    --sidebar-bg: #171717;
+    --input-bar-bg: #2a2a2a;
+    --input-field-bg: #2f2f2f;
+    --modal-bg: #2a2a2a;
+
+    --text-primary: #ececec;
+    --text-secondary: #b0b0b0;
+    --text-tertiary: #8c8c8c;
+
+    --border-color: rgba(255, 255, 255, 0.12);
+    --hover-bg: rgba(255, 255, 255, 0.07);
+    --active-bg: rgba(255, 255, 255, 0.12);
+    --shadow-color: rgba(0, 0, 0, 0.5);
+
+    --sidebar-edge: var(--border-color);
+
+    --surface-muted: #212121;
+    --page-well: #1c1c1c;
+    --paper-ring: rgba(255, 255, 255, 0.14);
+
+    --ai-bubble-bg: transparent;
+    --user-bubble-bg: color-mix(in srgb, var(--button-primary-bg) 22%, var(--chat-bg));
+    --user-bubble-text: var(--text-primary);
+
+    --button-primary-bg: #5b9bff;
+    --button-primary-hover-bg: color-mix(in srgb, var(--button-primary-bg) 85%, white);
+    --button-primary-text: #0b0b0b;
+
+    --gpt-surface: #2a2a2a;
+    --gpt-subtle: #303030;
+    --gpt-subtle-hover: #383838;
+    --gpt-border: rgba(255, 255, 255, 0.12);
+    --gpt-menu-border: rgba(255, 255, 255, 0.14);
+    --gpt-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
+    --gpt-primary-action-bg: #ececec;
+    --gpt-primary-action-text: #171717;
+    --gpt-icon: #ececec;
+    --gpt-control-bg: #2f2f2f;
+    --gpt-control-text: #ececec;
+    --gpt-control-border: rgba(255, 255, 255, 0.2);
+    --gpt-scrollbar: #4a4a4a;
+
+    --state-success: #4ade80;
+    --state-danger: #f87171;
+    --state-warning: #fbbf24;
+    --link-color: #8ab8ff;
+    --brand-logo: #9a90f5;
+
+    --code-bg: #181818;
+    --code-block-bg: #181818;
+    --code-block-text: #ececec;
+    --code-block-border: var(--border-color);
+    --switch-off-bg: #4a4a4a;
+
+    --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-sm: 0 3px 12px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.45);
+    --shadow-lg: 0 14px 40px rgba(0, 0, 0, 0.5);
+    --shadow-xl: 0 24px 64px rgba(0, 0, 0, 0.6);
+    --shadow-up: 0 -8px 40px rgba(0, 0, 0, 0.5);
+    --shadow-side: 4px 0 15px rgba(0, 0, 0, 0.3);
+    --shadow-composer: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 30px rgba(0, 0, 0, 0.35);
+
+    --scrim-soft: rgba(0, 0, 0, 0.5);
+    --scrim: rgba(0, 0, 0, 0.65);
+
+
+    --flash-bg: rgba(250, 204, 21, 0.35);
+
+    --chart-up: #4fb98b;
+    --chart-down: #e07a7a;
+
+    --tool-icon-filter: invert(1) hue-rotate(180deg);
+}
+
+/* The live step list inside a message (ledger.js): Python runs, the visual check. */
+
+.ledger {
+    margin: 0 0 0.5rem;
+    font-size: 1rem;
+    line-height: 1.45;
+    color: var(--text-primary);
+}
+
+.ledger-action {
+    flex: none;
+    padding: 0 0.55rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.4rem;
+    background: transparent;
+    color: var(--text-secondary);
+    font: inherit;
+    font-size: 0.75rem;
+    cursor: pointer;
+}
+
+.ledger-action:hover,
+.ledger-action:focus-visible { background: var(--hover-bg); }
+
+.ledger-list { display: flex; flex-direction: column; gap: 0.1rem; }
+
+.ledger-row { animation: ledger-in 0.18s ease; }
+
+@keyframes ledger-in {
+    from { opacity: 0; transform: translateY(3px); }
+    to { opacity: 1; transform: none; }
+}
+
+.ledger-row-head {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    padding: 0.1rem 0;
+}
+
+.ledger-row-head.is-expandable { cursor: pointer; }
+.ledger-row-head.is-expandable .ledger-label::after {
+    content: '›';
+    display: inline-block;
+    margin-left: 0.35rem;
+    color: var(--text-secondary);
+    transition: transform 0.28s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+.ledger-row-head.is-expandable[aria-expanded='true'] .ledger-label::after { transform: rotate(90deg); }
+
+.ledger-mark {
+    flex: none;
+    width: 1rem;
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+.is-failed > .ledger-row-head .ledger-mark,
+.is-failed > .ledger-row-head .ledger-label { color: var(--state-danger); }
+
+/* The step in progress: a ring turning in front, the label shimmering. */
+.is-running > .ledger-row-head .ledger-mark::before {
+    content: '';
+    display: inline-block;
+    width: 0.7rem;
+    height: 0.7rem;
+    border: 1.5px solid color-mix(in srgb, var(--text-primary, #111827) 20%, transparent);
+    border-top-color: var(--text-primary, #111827);
+    border-radius: 50%;
+    animation: ledger-spin 0.9s linear infinite;
+    vertical-align: -0.05em;
+}
+
+@keyframes ledger-spin { to { transform: rotate(360deg); } }
+
+.ledger-label { flex: 0 1 auto; min-width: 0; overflow-wrap: anywhere; }
+
+.is-running > .ledger-row-head .ledger-label {
+    --shimmer-band: var(--text-secondary, #6b7280);
+    background: linear-gradient(90deg, var(--text-secondary, #6b7280) 0%, var(--shimmer-band) 50%, var(--text-secondary, #6b7280) 100%);
+    background-size: 200% 100%;
+    background-repeat: repeat-x;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+    animation: ledger-shimmer 1.8s linear infinite;
+}
+
+/* The passing band is the lighter one: paler on a light page, brighter on a dark one. */
+@supports (color: oklch(from red l c h)) {
+    .is-running > .ledger-row-head .ledger-label {
+        --shimmer-band: oklch(from var(--text-secondary, #6b7280) calc(l + 0.3) c h);
+    }
+}
+
+@keyframes ledger-shimmer {
+    from { background-position: 200% 0; }
+    to { background-position: 0 0; }
+}
+
+.is-done > .ledger-row-head .ledger-label { color: var(--text-secondary); }
+
+/* A finished thinking line is just its label, the way the saved reply draws it. */
+.ledger-row.is-quiet > .ledger-row-head .ledger-mark,
+.ledger-row.is-quiet > .ledger-row-head .ledger-time { display: none; }
+
+.ledger-time {
+    flex: none;
+    margin-left: -0.15rem;
+    color: var(--text-secondary);
+    font-size: 0.9375rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.ledger-detail {
+    margin: 0 0 0.1rem 1.5rem;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.ledger-body {
+    margin: 0.25rem 0 0.4rem 0.5rem;
+    padding-left: 1rem;
+    border-left: 1px solid color-mix(in srgb, var(--text-primary, #111827) 14%, transparent);
+}
+
+.ledger-code,
+.ledger-output {
+    margin: 0 0 0.4rem;
+    padding: 0.5rem 0.65rem;
+    max-height: 9rem;
+    overflow: auto;
+    border: 1px solid color-mix(in srgb, var(--text-primary, #111827) 12%, transparent);
+    border-radius: 0.5rem;
+    background: color-mix(in srgb, var(--text-primary, var(--gpt-primary-action-bg)) 4%, transparent);
+    font: 0.75rem/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.ledger-output { max-height: 10rem; }
+
+/* The model's thinking, streaming or saved: quiet prose, no box. The top and
+   bottom edges fade instead of ending in a hard line, and the scroll bar is a
+   thin thumb that only shows while the pointer is over it. */
+.ledger-thought {
+    --thought-fade: 0.6rem;
+    margin: 0.1rem 0 0.4rem;
+    padding: var(--thought-fade) 0;
+    max-height: 16rem;
+    overflow: auto;
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    -webkit-mask-image: linear-gradient(to bottom, transparent, black var(--thought-fade), black calc(100% - var(--thought-fade)), transparent);
+    mask-image: linear-gradient(to bottom, transparent, black var(--thought-fade), black calc(100% - var(--thought-fade)), transparent);
+}
+
+/* No mask on a touch screen: a mask on a scrolling box made it drag on phones. */
+@media (pointer: coarse) {
+    .ledger-thought {
+        -webkit-mask-image: none;
+        mask-image: none;
+    }
+}
+
+.ledger-thought strong { color: var(--text-primary); font-weight: 600; }
+
+/* Saved with the reply, under its summary line. */
+.ledger-thought.is-saved {
+    margin: 0.25rem 0 0.4rem 0.5rem;
+    padding-left: 1rem;
+    border-left: 1px solid color-mix(in srgb, var(--text-primary, #111827) 14%, transparent);
+}
+
+/* Its scrollbar shows only while the pointer is over it. */
+.ledger-thought { scrollbar-color: transparent transparent; }
+.ledger-thought:hover { scrollbar-color: color-mix(in srgb, var(--text-primary, #111827) 28%, transparent) transparent; }
+
+.ledger-output.is-error { color: var(--state-danger); }
+
+.ledger-files { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0 0 0.25rem; }
+.ledger-file { margin: 0; font-size: 0.75rem; }
+.ledger-file-image { width: 7rem; }
+.ledger-file-image img {
+    display: block;
+    width: 100%;
+    height: 4.5rem;
+    object-fit: contain;
+    border: 1px solid var(--border-color);
+    border-radius: 0.3rem;
+    background: var(--chat-bg);
+}
+.ledger-file-name { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.ledger-file-chip {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    max-width: 100%;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.4rem;
+}
+.ledger-file-type { flex: none; font-weight: 700; }
+.ledger-file-size { flex: none; color: var(--text-secondary); }
+
+/* The visual check: slides as they are drawn, contact sheets, problems. */
+.ledger-thumbs {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(5.5rem, 1fr));
+    gap: 0.35rem;
+    margin: 0 0 0.4rem;
+}
+
+.ledger-thumb {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+    border-radius: 0.25rem;
+    background: color-mix(in srgb, var(--text-primary, var(--gpt-primary-action-bg)) 5%, transparent);
+}
+
+.ledger-thumb img { display: block; width: 100%; height: 100%; object-fit: contain; animation: ledger-in 0.25s ease; }
+.ledger-thumb.is-current { outline: 1.5px solid var(--text-primary, #111827); outline-offset: 1px; }
+.ledger-thumb.has-issue { border-color: var(--state-danger); box-shadow: 0 0 0 1.5px var(--state-danger); }
+
+.ledger-thumb-number {
+    position: absolute;
+    left: 0.2rem;
+    bottom: 0.15rem;
+    padding: 0 0.25rem;
+    border-radius: 0.2rem;
+    background: color-mix(in srgb, var(--chat-bg) 85%, transparent);
+    color: var(--text-primary);
+    font-size: 0.625rem;
+    line-height: 1.3;
+}
+
+.ledger-sheets { display: flex; gap: 0.4rem; margin: 0 0 0.4rem; overflow-x: auto; }
+.ledger-sheets img { flex: none; width: 22rem; max-width: 92%; border: 1px solid var(--border-color); border-radius: 0.3rem; }
+
+.ledger-issues { margin: 0 0 0.4rem; padding: 0 0 0 1.1rem; font-size: 0.8125rem; }
+
+/* The same end room as the chat has (chat-edge-fade.css): a box resting on its end is taken off it without moving. */
+.ledger-thought::after,
+.ledger-code::after,
+.ledger-output::after {
+    content: '';
+    display: block;
+    height: var(--end-room, 0px);
+}
+
+/* The process list drawn like ChatGPT's: grey lines, an outline icon for the kind of step, a small chevron on the
+   ones that open, and what opens (thinking, code, output) as plain text with no box and no rule beside it. The
+   saved reply draws the same rows (sandbox-run-view.js), so what streamed in is what stays. */
+.run-icon::before {
+    content: '';
+    display: inline-block;
+    width: 1.25rem;
+    height: 1.25rem;
+    background: currentColor;
+    -webkit-mask: var(--run-icon) center / contain no-repeat;
+    mask: var(--run-icon) center / contain no-repeat;
+}
+
+.ledger-row[data-kind='code'] { --run-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='2.5' y='3.5' width='15' height='13' rx='3'/%3E%3Cpath d='M6.5 8l3 2-3 2M11.5 12.5h2.5'/%3E%3C/svg%3E"); }
+.ledger-row[data-kind='search'] { --run-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='10' cy='10' r='7.5'/%3E%3Cpath d='M2.5 10h15M10 2.5c2.2 2.3 3.3 4.8 3.3 7.5s-1.1 5.2-3.3 7.5c-2.2-2.3-3.3-4.8-3.3-7.5S7.8 4.8 10 2.5z'/%3E%3C/svg%3E"); }
+.ledger-row[data-kind='skill'] { --run-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10 2.8l2.1 4.4 4.8.7-3.5 3.3.9 4.8L10 13.6l-4.3 2.4.9-4.8-3.5-3.3 4.8-.7z'/%3E%3C/svg%3E"); }
+.ledger-row[data-kind='connector'] { --run-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10 18v-3.5M7.5 7V2.5M12.5 7V2.5M15 7v3.5a3.5 3.5 0 0 1-3.5 3.5h-3A3.5 3.5 0 0 1 5 10.5V7z'/%3E%3C/svg%3E"); }
+.ledger-row[data-kind='file'] { --run-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5.5 2.5h6l4 4v10a1.5 1.5 0 0 1-1.5 1.5H5.5A1.5 1.5 0 0 1 4 16.5v-12A1.5 1.5 0 0 1 5.5 2.5z'/%3E%3Cpath d='M11.5 2.7v4h4'/%3E%3C/svg%3E"); }
+
+/* In progress the icon gives way to the turning ring. */
+.is-running > .ledger-row-head .ledger-mark.run-icon::before {
+    -webkit-mask: none;
+    mask: none;
+    background: none;
+    width: 0.95rem;
+    height: 0.95rem;
+}
+
+.ledger-row[data-kind] > .ledger-row-head {
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.4rem 0;
+    list-style: none;
+}
+
+.ledger-row[data-kind] > .ledger-row-head::-webkit-details-marker { display: none; }
+
+.ledger-row[data-kind] > .ledger-row-head .ledger-mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.25rem;
+    height: 1.45rem;
+}
+
+.ledger-row[data-kind] > .ledger-row-head .ledger-time { margin-left: 0; align-self: center; }
+
+.ledger-row[data-kind] > .ledger-row-head.is-expandable .ledger-label::after {
+    content: '';
+    display: inline-block;
+    width: 0.4rem;
+    height: 0.4rem;
+    margin: 0 0 0.2rem 0.5rem;
+    border: solid currentColor;
+    border-width: 0 1.5px 1.5px 0;
+    vertical-align: middle;
+    /* Shut, no chevron shows until the pointer is over the row, and then it points on (›); open, it points down. */
+    opacity: 0;
+    transform: rotate(-45deg);
+    transition: opacity 0.2s ease, transform 0.28s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+@media (hover: hover) {
+    .ledger-row[data-kind] > .ledger-row-head.is-expandable:hover { color: var(--text-primary); }
+    .ledger-row[data-kind] > .ledger-row-head.is-expandable:hover .ledger-label { color: var(--text-primary); }
+    .ledger-row[data-kind] > .ledger-row-head.is-expandable:hover .ledger-label::after { opacity: 1; }
+}
+
+/* A touch screen has no pointer to hover with: a row that opens always shows its chevron, shut as well as open. */
+@media (hover: none) {
+    .ledger-row[data-kind] > .ledger-row-head.is-expandable .ledger-label::after { opacity: 1; }
+}
+
+.ledger-row[data-kind].is-failed > .ledger-row-head.is-expandable:hover .ledger-label { color: var(--state-danger); }
+
+.ledger-row[data-kind] > .ledger-row-head.is-expandable[aria-expanded='true'] .ledger-label::after,
+.ledger-row[data-kind][open]:not([data-closing]) > .ledger-row-head.is-expandable .ledger-label::after {
+    opacity: 1;
+    transform: rotate(45deg);
+}
+
+.ledger-row[data-kind] > .ledger-body {
+    margin: 0 0 0.5rem;
+    padding: 0;
+    border-left: 0;
+}
+
+.ledger-row[data-kind='thought'] > .ledger-row-head .ledger-mark { display: none; }
+.ledger-row[data-kind='thought'] > .ledger-row-head { gap: 0; }
+/* The thinking line has no icon in front, so no gap either; the clock gets its own room after the chevron. */
+.ledger-row[data-kind='thought'] > .ledger-row-head .ledger-time { margin-left: 0.75rem; }
+
+/* The pages a web search found: grey rounded chips with the site's icon and address; the one under the pointer turns dark. */
+.run-sources {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 0.4rem 0 0.35rem;
+}
+
+.run-source-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    max-width: 100%;
+    padding: 0.4rem 0.85rem;
+    border: 0;
+    border-radius: 9999px;
+    background: var(--hover-bg);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 0.9rem;
+    line-height: 1.2;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.run-source-chip:hover,
+.run-source-chip:focus-visible {
+    background: var(--text-primary, var(--gpt-primary-action-bg));
+    color: var(--chat-bg, var(--gpt-primary-action-text));
+}
+
+.run-source-host { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* A globe until the site's own icon has loaded on top of it. */
+.run-source-icon {
+    position: relative;
+    flex: none;
+    width: 1.05rem;
+    height: 1.05rem;
+    border-radius: 9999px;
+    overflow: hidden;
+}
+
+.run-source-icon::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: currentColor;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='10' cy='10' r='7.5'/%3E%3Cpath d='M2.5 10h15M10 2.5c2.2 2.3 3.3 4.8 3.3 7.5s-1.1 5.2-3.3 7.5c-2.2-2.3-3.3-4.8-3.3-7.5S7.8 4.8 10 2.5z'/%3E%3C/svg%3E") center / contain no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='10' cy='10' r='7.5'/%3E%3Cpath d='M2.5 10h15M10 2.5c2.2 2.3 3.3 4.8 3.3 7.5s-1.1 5.2-3.3 7.5c-2.2-2.3-3.3-4.8-3.3-7.5S7.8 4.8 10 2.5z'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.run-source-icon.is-loaded::before { display: none; }
+
+/* The first site's icon in front of "Searched N sites": it covers the row's own icon once it has loaded. */
+.ledger-mark { position: relative; }
+.run-mark-site { position: absolute; inset: 0.15rem 0.1rem; width: auto; height: auto; }
+.run-mark-site::before { display: none; }
+.ledger-mark:has(.run-mark-site.is-loaded)::before { visibility: hidden; }
+.run-source-icon img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+
+/* The code of a step sits in a light card headed by the language and a copy button. */
+.run-code-card {
+    margin: 0.25rem 0 0.6rem;
+    padding: 0.7rem 1rem 0.4rem;
+    border-radius: 1rem;
+    background: color-mix(in srgb, var(--text-primary, var(--gpt-primary-action-bg)) 5%, transparent);
+}
+
+.run-code-head {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
+    color: var(--text-primary);
+    font-size: 0.8125rem;
+    font-weight: 600;
+}
+
+.run-code-icon,
+.run-code-copy-icon {
+    display: inline-block;
+    width: 1rem;
+    height: 1rem;
+    background: currentColor;
+    -webkit-mask: var(--run-card-icon) center / contain no-repeat;
+    mask: var(--run-card-icon) center / contain no-repeat;
+}
+
+.run-code-icon { --run-card-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 6L3 10l4 4M13 6l4 4-4 4'/%3E%3C/svg%3E"); }
+.run-code-copy-icon { --run-card-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='7' y='7' width='9.5' height='9.5' rx='2'/%3E%3Cpath d='M13 7V5.5A2 2 0 0 0 11 3.5H5.5a2 2 0 0 0-2 2V11a2 2 0 0 0 2 2H7'/%3E%3C/svg%3E"); }
+
+.run-code-copy {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: auto;
+    padding: 0.2rem;
+    border: 0;
+    border-radius: 0.4rem;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.run-code-copy:hover,
+.run-code-copy:focus-visible { color: var(--text-primary); background: color-mix(in srgb, var(--text-primary, var(--gpt-primary-action-bg)) 8%, transparent); }
+
+/* The code runs on one line and scrolls sideways, like a code editor. */
+.ledger-row[data-kind] .run-code-card .ledger-code {
+    margin: 0;
+    padding: 0.25rem 0 0.5rem;
+    white-space: pre;
+    overflow-wrap: normal;
+}
+
+.ledger-row[data-kind] .sandbox-run-label,
+.ledger-row[data-kind] .ledger-output { margin-left: 0.5rem; }
+
+.ledger-row[data-kind] .ledger-code,
+.ledger-row[data-kind] .ledger-output {
+    padding: 0.25rem 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    color: var(--text-primary);
+    font-size: 0.8125rem;
+    line-height: 1.6;
+}
+
+.ledger-row[data-kind] .ledger-output { color: var(--text-primary); }
+.ledger-row[data-kind] .ledger-output.is-error { color: var(--state-danger); }
+
+.ledger-row[data-kind] .ledger-code code {
+    padding: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+}
+
+.ledger-row[data-kind] .ledger-output { margin-top: 0.15rem; }
+
+@media (prefers-reduced-motion: reduce) {
+    .ledger-row, .ledger-thumb img { animation: none; }
+    .is-running > .ledger-row-head .ledger-mark::before { animation-duration: 2.4s; }
+    .is-running > .ledger-row-head .ledger-label { animation: none; -webkit-text-fill-color: currentColor; color: var(--text-primary); background: none; }
+}
+
+/* The visual check of a message that is no longer on screen. */
+.ledger-floating {
+    position: fixed;
+    right: 1rem;
+    bottom: 1rem;
+    z-index: 60;
+    width: min(22rem, calc(100vw - 2rem));
+    padding: 0.6rem 0.75rem 0.25rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.8rem;
+    background: var(--modal-bg, var(--chat-bg));
+    box-shadow: var(--shadow-md);
+}
+
+/* The mark on a reply the automatic visual check asked for (message-markup-renderer.js). */
+.auto-check-note {
+    width: fit-content;
+    margin: 0 0 0.35rem;
+    padding: 0.05rem 0.55rem;
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+}
+
+/* The 重試 of the note of a visual check that failed or was stopped (vision-retry.js). */
+.vision-retry-row { display: flex; justify-content: flex-end; margin-top: 0.5rem; }
+.vision-retry { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.25rem 0.75rem; border: 1px solid var(--border-color); border-radius: 999px; color: var(--text-primary); font-size: 0.8rem; }
+.vision-retry:hover { background: var(--hover-bg); }
+.vision-retry:disabled { opacity: 0.5; }
+.vision-retry svg { width: 0.9rem; height: 0.9rem; }
+
+/* The question to the person about a site a CLI tool wants to reach (net-ask-card.js). */
+.net-ask {
+    margin: 0.5rem 0;
+    padding: 0.7rem 0.85rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.75rem;
+    background: var(--chat-bg, transparent);
+    animation: ledger-in 0.18s ease;
+}
+.net-ask-head { display: flex; align-items: center; gap: 0.5rem; font-weight: 600; }
+.net-ask-icon { display: inline-flex; color: var(--text-secondary); }
+.net-ask-title { overflow-wrap: anywhere; }
+.net-ask-command {
+    margin: 0.3rem 0 0 1.55rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    overflow-wrap: anywhere;
+}
+.net-ask-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0.65rem 0 0 1.55rem; }
+.net-ask-button {
+    padding: 0.4rem 0.9rem;
+    border: 1px solid var(--border-color);
+    border-radius: 9999px;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+.net-ask-button:hover:not(:disabled) { background: var(--hover-bg); }
+.net-ask-button:disabled { opacity: 0.5; cursor: default; }
+.net-ask-button.is-primary { border-color: transparent; background: var(--gpt-primary-action-bg); color: var(--gpt-primary-action-text); }
+.net-ask-button.is-primary:hover:not(:disabled) { background: var(--gpt-primary-action-bg); opacity: 0.88; }
+.net-ask-note, .net-ask-failed { margin: 0.5rem 0 0 1.55rem; font-size: 0.78rem; color: var(--text-secondary); }
+.net-ask-failed { color: var(--state-danger); }
+.net-ask.is-resolved { padding: 0.45rem 0.85rem; border-style: dashed; }
+.net-ask.is-resolved .net-ask-head { font-weight: 500; color: var(--text-secondary); }
+.net-ask.is-resolved.is-refused .net-ask-title { color: var(--state-danger); }
+
+/* The question whether a tool of a connector may run (connector-ask-card.js): the same card as the one about a site, with the connector's mark and the inputs. */
+.ask-host:empty { display: none; }
+.ask-host .net-ask, .ask-host .cred-ask { margin: 0.6rem 0; }
+/* The picture of a connector (connector-mark.js): its logo, or its first letter; the Extensions page sizes it for its own rows. */
+.connector-mark { display: inline-flex; align-items: center; justify-content: center; flex: none; overflow: hidden; }
+.connector-mark-img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
+.connector-mark-letter { font-weight: 700; line-height: 1; }
+.connector-ask-mark { width: 1.3rem; height: 1.3rem; border-radius: 0.35rem; border: 1px solid var(--border-color); }
+.connector-ask-mark .connector-mark-letter { font-size: 0.72rem; }
+.connector-ask-summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.2rem 0.75rem; margin: 0.3rem 0 0 1.8rem; font-size: 0.82rem; color: var(--text-secondary); }
+.connector-ask-values { overflow-wrap: anywhere; }
+.connector-ask-toggle { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-decoration: underline; cursor: pointer; }
+.connector-ask-detail {
+    margin: 0.5rem 0 0 1.8rem;
+    padding: 0.55rem 0.7rem;
+    max-height: 14rem;
+    overflow: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.78rem;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+.connector-ask-actions { margin-left: 1.8rem; }
+.connector-ask .net-ask-note, .connector-ask .net-ask-failed { margin-left: 1.8rem; }
+
+/* A file a step made that is not offered for download, and why. */
+.sandbox-run-note.is-skipped { margin: 0.35rem 0 0; color: var(--state-warning); font-size: 0.82rem; }
+
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--sidebar-bg);color:var(--text-primary);font:15px/1.6 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI","Noto Sans TC","PingFang TC",sans-serif;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit}
+.stage{display:grid;grid-template-columns:230px minmax(0,1fr);gap:40px;max-width:1040px;margin:0 auto;padding:32px 24px 48px;align-items:start}
+@media(max-width:860px){.stage{grid-template-columns:minmax(0,1fr);gap:20px;padding:16px 12px 32px}.panel{position:static!important;flex-direction:row!important;flex-wrap:wrap;gap:14px 20px!important}.panel .intro{width:100%}}
+.stage>*{min-width:0}
+.panel{position:sticky;top:32px;display:flex;flex-direction:column;gap:22px}
+.intro h1{font-size:15px;line-height:1.4;margin:0 0 6px;font-weight:650;letter-spacing:.01em}
+.intro p{margin:0;font-size:12.5px;line-height:1.65;color:var(--text-secondary)}
+.ctl{display:flex;flex-direction:column;gap:7px}
+.ctl label{font-size:12px;color:var(--text-secondary)}
+.seg{display:inline-flex;padding:3px;background:var(--hover-bg);border-radius:11px;align-self:flex-start}
+.seg button{border:0;background:transparent;font-size:13px;padding:5px 12px;border-radius:8px;color:var(--text-secondary);cursor:pointer;transition:background .15s,color .15s}
+.seg button[aria-pressed=true]{background:var(--chat-bg);color:var(--text-primary);box-shadow:var(--shadow-xs)}
+.replay{align-self:flex-start;border:1px solid var(--border-color);background:transparent;border-radius:999px;padding:6px 16px;font-size:13px;cursor:pointer}
+.replay:hover{background:var(--hover-bg)}
+
+.device{width:var(--w,390px);max-width:100%;height:min(800px,calc(100vh - 64px));min-height:620px;margin:0 auto;background:var(--chat-bg);border:1px solid var(--border-color);border-radius:30px;box-shadow:var(--shadow-lg);display:flex;flex-direction:column;overflow:hidden;transition:width .3s cubic-bezier(.2,.8,.2,1)}
+.topbar{height:52px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 14px;color:var(--text-primary)}
+.topbar .model{font-size:15px;font-weight:600;display:flex;align-items:center;gap:4px}
+.topbar .model svg{width:14px;height:14px;color:var(--text-secondary)}
+.ib{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;border:0;background:transparent;cursor:pointer;color:var(--text-primary)}
+.ib:hover{background:var(--hover-bg)}
+.ib svg{width:20px;height:20px}
+.chat{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:8px 18px 32px;scroll-behavior:smooth}
+.flow{display:flex;flex-direction:column;gap:12px;min-height:100%;justify-content:flex-end}
+.empty{margin:auto;text-align:center;color:var(--text-tertiary);font-size:14px;padding:0 20px}
+@keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.flow>*{animation:rise .32s cubic-bezier(.2,.8,.2,1)}
+
+/* the picture chip: the small label an app already puts on a picture */
+.chip{position:absolute;top:6px;left:6px;min-width:20px;height:20px;padding:0 6px;border-radius:7px;display:grid;place-items:center;font-style:normal;font-size:11.5px;font-weight:600;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:.01em;color:var(--on-color);background:var(--media-chip-bg);-webkit-backdrop-filter:blur(8px) saturate(1.2);backdrop-filter:blur(8px) saturate(1.2)}
+.pic{position:relative;flex:none;background-size:cover;background-position:center;box-shadow:0 0 0 1px var(--border-color) inset}
+.pic::after{content:'';position:absolute;inset:0;border-radius:inherit;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--text-primary) 8%,transparent);pointer-events:none}
+
+.user{align-self:flex-end;max-width:88%;display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.user .pics{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}
+.user .pics .pic{width:76px;height:76px;border-radius:16px}
+.user .bubble{background:var(--user-bubble-bg);border-radius:20px;padding:9px 14px;overflow-wrap:anywhere}
+
+.model-text{margin:0;color:var(--text-primary)}
+.model-text.typing::after{content:'';display:inline-block;width:6px;height:6px;margin-left:4px;border-radius:50%;background:var(--text-primary);vertical-align:middle;animation:blink 1s infinite}
+@keyframes blink{50%{opacity:.2}}
+.ledger{font-size:14.5px}
+.ledger-row[data-kind='image']{--run-icon:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='2.5' y='3.5' width='15' height='13' rx='3'/%3E%3Ccircle cx='7.2' cy='8' r='1.3'/%3E%3Cpath d='M3 14.2l4.2-3.6 3 2.4 2.6-2.2 4.2 3.8'/%3E%3C/svg%3E")}
+.mini-refs{display:inline-flex;gap:4px;margin-left:10px;vertical-align:-6px}
+.mini-refs .pic{width:22px;height:22px;border-radius:6px}
+
+/* the small cards of the earlier versions */
+.ic{display:inline-flex;flex:none;color:var(--text-secondary)}
+.ic svg{width:1.1rem;height:1.1rem}
+.textbtn{border:0;background:none;font-size:.85rem;color:var(--text-secondary);padding:.15rem .4rem;border-radius:.4rem;cursor:pointer}
+.textbtn:hover{color:var(--text-primary);background:var(--hover-bg)}
+.textbtn:focus-visible,.cand:focus-visible,.btn:focus-visible,.net-ask-button:focus-visible,.send:focus-visible,.seg button:focus-visible,.ib:focus-visible{outline:2px solid var(--text-primary);outline-offset:2px}
+.btn{border:1px solid var(--border-color);border-radius:9999px;padding:.4rem .9rem;font-size:.85rem;cursor:pointer;background:transparent;color:inherit}
+.btn:hover{background:var(--hover-bg)}
+
+.picked{display:flex;align-items:center;gap:.5rem;padding:.45rem .85rem;border:1px dashed var(--border-color);border-radius:.75rem;color:var(--text-secondary);font-weight:500;font-size:.95rem}
+.picked b{font-weight:500;color:var(--text-primary)}
+.picked .mini{margin-left:auto;display:inline-flex}
+.picked .mini .pic{width:28px;height:28px;border-radius:.4rem}
+.picked .textbtn{margin-right:-.25rem}
+
+.ask{margin:.1rem 0;padding:.8rem .9rem;border:1px solid var(--border-color);border-radius:.75rem;background:var(--chat-bg);max-height:520px}
+.ask-q{display:flex;align-items:center;gap:.5rem;margin:0;font-weight:600}
+.ask-q .count{margin-left:auto;font-size:.8rem;font-weight:500;color:var(--text-secondary);font-variant-numeric:tabular-nums}
+.cands{display:flex;gap:.6rem;overflow-x:auto;scroll-snap-type:x proximity;margin:.7rem 0 0 1.55rem;padding:2px 2px 6px 2px;scrollbar-width:none}
+.cands::-webkit-scrollbar{display:none}
+.cand{flex:none;width:88px;height:88px;border-radius:.7rem;padding:0;border:0;cursor:pointer;scroll-snap-align:start;transition:transform .15s ease,box-shadow .15s,opacity .2s}
+@media(hover:hover){.cand:hover{transform:translateY(-2px)}}
+.cand:active{transform:scale(.97)}
+.cands.chosen{pointer-events:none}
+.cands.chosen .cand{opacity:.35}
+.cands.chosen .cand.is-picked{opacity:1;box-shadow:0 0 0 2px var(--chat-bg),0 0 0 4px var(--gpt-primary-action-bg)}
+.ask-foot{display:flex;gap:.5rem;margin:.55rem 0 0 1.55rem}
+.ask.closing{animation:fold .26s ease forwards;overflow:hidden}
+@keyframes fold{to{opacity:0;max-height:0;margin:0;padding-top:0;padding-bottom:0;border-width:0}}
+.note{font-size:.85rem;color:var(--text-secondary);margin:0}
+.refs{display:flex;gap:.5rem;margin:.65rem 0 0 1.55rem}
+.refs .pic{width:64px;height:64px;border-radius:.6rem}
+.net-ask-icon svg{width:1.1rem;height:1.1rem}
+
+/* the picture while it is made, and when it is made */
+.gen,.result{width:100%;max-width:340px;aspect-ratio:4/3;border-radius:20px;position:relative;overflow:hidden}
+.gen{background:var(--hover-bg)}
+.gen::before{content:'';position:absolute;inset:0;background:linear-gradient(105deg,transparent 35%,color-mix(in srgb,var(--chat-bg) 70%,transparent) 50%,transparent 65%);transform:translateX(-100%);animation:sweep 1.7s ease-in-out infinite}
+@keyframes sweep{to{transform:translateX(100%)}}
+.gen-stage{position:absolute;left:16px;bottom:14px;font-size:13px;color:var(--text-secondary);transition:opacity .3s}
+.result{box-shadow:0 0 0 1px var(--border-color),var(--shadow-sm);animation:reveal .8s cubic-bezier(.2,.8,.2,1)}
+@keyframes reveal{from{filter:blur(16px) saturate(.6);opacity:.2;transform:scale(1.02)}to{filter:none;opacity:1;transform:none}}
+
+/* the message box */
+.composer{margin:0 12px 12px;border:1px solid var(--border-color);border-radius:28px;background:var(--input-bar-bg);box-shadow:var(--shadow-composer);padding:12px 12px 10px 16px}
+.att{display:flex;gap:8px;padding:2px 0 12px;flex-wrap:wrap}
+.att:empty{display:none}
+.att .pic{width:60px;height:60px;border-radius:14px}
+.att .x{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;border:0;display:grid;place-items:center;background:var(--text-primary);color:var(--chat-bg);cursor:pointer;opacity:0;transform:scale(.8);transition:.15s}
+.att .pic:hover .x,.att .pic:focus-within .x{opacity:1;transform:none}
+@media(hover:none){.att .x{opacity:1;transform:none}}
+.att .x svg{width:10px;height:10px}
+.composer textarea{display:block;width:100%;border:0;outline:0;resize:none;background:transparent;font:inherit;color:var(--text-primary);line-height:1.55;min-height:46px;padding:0 4px 0 0}
+.composer .bar{display:flex;align-items:center;gap:4px;margin-top:2px}
+.composer .bar .grow{flex:1}
+.send{width:36px;height:36px;border-radius:50%;border:0;display:grid;place-items:center;background:var(--gpt-primary-action-bg);color:var(--gpt-primary-action-text);cursor:pointer;transition:opacity .15s}
+.send:hover{opacity:.85}
+.send svg{width:18px;height:18px}
+@media(prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+
+/* what opens from the "looked at" row: plain, in the list's own manner, pictures with a short caption */
+.look-body[hidden]{display:none}
+.look{margin:.35rem 0 .6rem 1.75rem;display:flex;flex-direction:column;gap:.85rem}
+.look-line{margin:0 0 .45rem;font-size:.85rem;color:var(--text-secondary)}
+.look-strip{display:flex;gap:.7rem;overflow-x:auto;padding:5px 5px 6px;margin:-5px -5px 0;scrollbar-width:none}
+.look-strip::-webkit-scrollbar{display:none}
+.look-cell{flex:none;width:64px}
+.look-cell .pic{width:64px;height:64px;border-radius:.6rem}
+.look-cell .chip{top:4px;left:4px;min-width:17px;height:17px;padding:0 4px;border-radius:6px;font-size:10.5px}
+.look-cap{display:block;margin-top:.35rem;font-size:.72rem;line-height:1.4;color:var(--text-secondary)}
+.look-cell.is-used .pic{box-shadow:0 0 0 2px var(--chat-bg),0 0 0 3.5px var(--gpt-primary-action-bg)}
+.look-cell.is-used .look-cap{color:var(--text-primary);font-weight:600}
+.look-note{margin:0;font-size:.85rem;line-height:1.65;color:var(--text-secondary)}
+
+.look-think{margin:0;font-size:.9rem;line-height:1.7;color:var(--text-secondary)}
+.look-think b{font-weight:500;color:var(--text-primary)}
+.look{gap:.8rem}
+</style></head><body><div class="stage">
+  <aside class="panel">
+    <div class="intro">
+      <h1>文字模型直接畫圖：互動示範（小卡版）</h1>
+      <p>按右邊輸入欄的送出鈕開始。下面的設定可以隨時切換，每次切換都會重播。</p>
+    </div>
+    <div class="ctl"><label>模型有沒有把握</label><div class="seg" data-key="confidence"><button type="button" data-v="sure">很確定</button><button type="button" data-v="unsure">沒把握</button></div></div>
+    <div class="ctl"><label>「圖片生成」權限</label><div class="seg" data-key="perm"><button type="button" data-v="ask">每次問</button><button type="button" data-v="always">永遠允許</button></div></div>
+    <div class="ctl"><label>外觀</label><div class="seg" data-key="theme"><button type="button" data-v="light">淺色</button><button type="button" data-v="dark">深色</button></div></div>
+    <div class="ctl"><label>寬度</label><div class="seg" data-key="width"><button type="button" data-v="390">手機</button><button type="button" data-v="720">桌面</button></div></div>
+    <button class="replay" id="replay" type="button">重新開始</button>
+  </aside>
+
+  <section class="device" id="device" aria-label="對話示範">
+    <header class="topbar">
+      <button class="ib" type="button" aria-label="選單"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 8h16M4 16h10"/></svg></button>
+      <div class="model">Claude Sonnet 5.5<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l4 4 4-4"/></svg></div>
+      <button class="ib" type="button" aria-label="新對話"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5H7a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5M17.5 3.5a1.8 1.8 0 0 1 2.5 2.5L11 15l-3.5 1 1-3.5z"/></svg></button>
+    </header>
+    <div class="chat" id="chat"><div class="flow" id="flow"></div></div>
+    <div class="composer">
+      <div class="att" id="att"></div>
+      <textarea id="text" rows="2" aria-label="訊息" placeholder="問任何問題"></textarea>
+      <div class="bar">
+        <button class="ib" id="add" type="button" aria-label="附加圖片"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+        <span class="grow"></span>
+        <button class="send" id="send" type="button" aria-label="送出"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 16V4M5 9l5-5 5 5"/></svg></button>
+      </div>
+    </div>
+  </section>
+</div>
+<script>// ---- Illustrations: small SVG scenes with light and soft shadow (stand-ins for real generated pictures) ----
+const P = {
+  blue: { w1:'#e3edf9', w2:'#c3d6ee', f1:'#b2c6e2', f2:'#93acd0', t:'#5d7fb4', v1:'#7b9dd2', v2:'#3a5b94', frame:'#f6f9fd', art:'#cfdef0', stem:'#4f7a58', fl:'#f2b8c6', sofa1:'#7d93b8', sofa2:'#566f9a' },
+  dusk: { w1:'#c6d6ee', w2:'#9db7dc', f1:'#8aa5cd', f2:'#6f8bb7', t:'#41609a', v1:'#5f84bd', v2:'#2a4577', frame:'#e6eefa', art:'#adc3e4', stem:'#3f6a50', fl:'#f6dd8a', sofa1:'#6d85ad', sofa2:'#485f88' },
+  warm: { w1:'#f8e6d0', w2:'#efcea9', f1:'#dcb98f', f2:'#c49d70', t:'#a8723f', v1:'#e69158', v2:'#b4521e', frame:'#fff6e8', art:'#f1d4ae', stem:'#7a8f4a', fl:'#f6d36a', sofa1:'#b98f6a', sofa2:'#94694a' }
+};
+const svg = (w, h, inner) => `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 ${w} ${h}'>${inner}</svg>`;
+const roomBg = (p, w) => `
+<defs>
+<linearGradient id='w' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='${p.w1}'/><stop offset='1' stop-color='${p.w2}'/></linearGradient>
+<linearGradient id='f' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='${p.f1}'/><stop offset='1' stop-color='${p.f2}'/></linearGradient>
+<linearGradient id='l' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#fff' stop-opacity='.6'/><stop offset='1' stop-color='#fff' stop-opacity='0'/></linearGradient>
+<filter id='b' x='-30%' y='-60%' width='160%' height='220%'><feGaussianBlur stdDeviation='2.2'/></filter>
+</defs>
+<rect width='${w}' height='120' fill='url(#w)'/>
+<rect y='84' width='${w}' height='36' fill='url(#f)'/>
+<rect y='83.2' width='${w}' height='1.6' fill='#000' opacity='.07'/>
+<path d='M8 0h40l-16 84H-10z' fill='url(#l)'/>`;
+const roomProps = (p) => `
+<rect x='62' y='14' width='34' height='38' rx='2' fill='${p.frame}'/><rect x='65' y='17' width='28' height='32' fill='${p.art}'/>
+<ellipse cx='68' cy='101' rx='27' ry='4' fill='#000' opacity='.2' filter='url(#b)'/>
+<rect x='44' y='73' width='48' height='5' rx='2' fill='${p.t}'/><rect x='49' y='78' width='4' height='24' rx='1' fill='${p.t}'/><rect x='83' y='78' width='4' height='24' rx='1' fill='${p.t}'/>
+<defs><radialGradient id='v' cx='.35' cy='.3' r='.9'><stop offset='0' stop-color='${p.v1}'/><stop offset='1' stop-color='${p.v2}'/></radialGradient></defs>
+<ellipse cx='68' cy='73' rx='8' ry='1.6' fill='#000' opacity='.16'/>
+<path d='M62 72c-2-9 0-14 3-16h6c3 2 5 7 3 16z' fill='url(#v)'/>
+<path d='M68 56c0-8-4-12-9-14M68 56c1-9 6-13 11-14' stroke='${p.stem}' stroke-width='1.2' fill='none' stroke-linecap='round'/>
+<circle cx='59' cy='42' r='3' fill='${p.fl}'/><circle cx='79' cy='42' r='3.4' fill='${p.fl}'/>`;
+const room = (p) => svg(120, 120, roomBg(p, 120) + roomProps(p));
+
+// a sofa, 84 wide and 40 tall, drawn at the origin
+const sofaGroup = (p) => `
+<defs><linearGradient id='s1' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='${p.sofa1}'/><stop offset='1' stop-color='${p.sofa2}'/></linearGradient></defs>
+<ellipse cx='42' cy='41' rx='44' ry='4' fill='#000' opacity='.2' filter='url(#b)'/>
+<rect x='8' y='4' width='68' height='26' rx='11' fill='url(#s1)'/>
+<rect x='0' y='16' width='18' height='24' rx='9' fill='${p.sofa2}'/><rect x='66' y='16' width='18' height='24' rx='9' fill='${p.sofa2}'/>
+<rect x='14' y='20' width='56' height='16' rx='6' fill='${p.sofa1}'/><rect x='14' y='20' width='56' height='5' rx='2.5' fill='#fff' opacity='.12'/>
+<rect x='10' y='38' width='3.5' height='5' rx='1' fill='#2b2b2e'/><rect x='70.5' y='38' width='3.5' height='5' rx='1' fill='#2b2b2e'/>`;
+
+// a sitting animal (cat or bear), 40 wide and 50 tall, at the origin
+const critter = (k) => {
+  const C = {
+    catA: { a:'#f4b468', b:'#d88b3d', ear:'#f7c4b0', eye:'#8cc266', nose:'#d77b7b', stripe:'#b8691f', cat:1 },
+    catB: { a:'#4a4a52', b:'#222227', ear:'#6d5560', eye:'#f1d25a', nose:'#8a6670', stripe:'', cat:1 },
+    bearA: { a:'#cf9b68', b:'#a3703f', ear:'#e6c3a0', eye:'#2b1d12', nose:'#2b1d12', stripe:'', muzzle:'#efd5b0' },
+    bearB: { a:'#f6f6f8', b:'#d4d4dc', ear:'#e9e9ee', eye:'#26262b', nose:'#26262b', stripe:'', muzzle:'#ffffff' }
+  }[k];
+  const id = 'g' + k;
+  const ears = C.cat
+    ? `<path d='M9 12L10 -1 20 6z' fill='url(#${id})'/><path d='M31 12L30 -1 20 6z' fill='url(#${id})'/><path d='M11 9l.8-6 5 3.4z' fill='${C.ear}'/><path d='M29 9l-.8-6-5 3.4z' fill='${C.ear}'/>`
+    : `<circle cx='9.5' cy='7' r='5' fill='url(#${id})'/><circle cx='30.5' cy='7' r='5' fill='url(#${id})'/><circle cx='9.5' cy='7' r='2.6' fill='${C.ear}'/><circle cx='30.5' cy='7' r='2.6' fill='${C.ear}'/>`;
+  const eyes = C.cat
+    ? `<ellipse cx='15' cy='17' rx='2.6' ry='3' fill='${C.eye}'/><ellipse cx='25' cy='17' rx='2.6' ry='3' fill='${C.eye}'/><rect x='14.4' y='14.8' width='1.3' height='4.4' rx='.6' fill='#1c1c1c'/><rect x='24.4' y='14.8' width='1.3' height='4.4' rx='.6' fill='#1c1c1c'/>`
+    : `<circle cx='15' cy='16.5' r='1.9' fill='${C.eye}'/><circle cx='25' cy='16.5' r='1.9' fill='${C.eye}'/><circle cx='15.6' cy='15.9' r='.6' fill='#fff'/><circle cx='25.6' cy='15.9' r='.6' fill='#fff'/>`;
+  const face = C.cat
+    ? `<path d='M18.6 22.4h2.8l-1.4 1.8z' fill='${C.nose}'/><path d='M20 24.2c-.2 1.6-1.6 2.2-2.8 1.8M20 24.2c.2 1.6 1.6 2.2 2.8 1.8' stroke='#5a3a2a' stroke-width='.7' fill='none' stroke-linecap='round'/><path d='M12 22.6l-6.5-1.2M12 24.4l-6 2M28 22.6l6.5-1.2M28 24.4l6 2' stroke='#fff' stroke-opacity='.75' stroke-width='.6' stroke-linecap='round'/>${C.stripe ? `<path d='M20 6v5M16 7l1 4M24 7l-1 4' stroke='${C.stripe}' stroke-width='1.3' stroke-linecap='round'/>` : ''}`
+    : `<ellipse cx='20' cy='23' rx='7.5' ry='5.6' fill='${C.muzzle}'/><ellipse cx='20' cy='21' rx='2.5' ry='1.8' fill='${C.nose}'/><path d='M20 22.6v2.2M17.2 25.6c1.2 1 4.4 1 5.6 0' stroke='${C.nose}' stroke-width='.8' fill='none' stroke-linecap='round'/>`;
+  const tail = C.cat ? `<path d='M32 44c9-2 11-12 6-19' stroke='url(#${id})' stroke-width='4.2' fill='none' stroke-linecap='round'/>` : '';
+  return `<defs><radialGradient id='${id}' cx='.38' cy='.3' r='.95'><stop offset='0' stop-color='${C.a}'/><stop offset='1' stop-color='${C.b}'/></radialGradient></defs>
+${tail}<ellipse cx='20' cy='38' rx='13' ry='12' fill='url(#${id})'/>
+<ellipse cx='20' cy='42' rx='7.5' ry='7' fill='#fff' opacity='${C.cat ? '.16' : '.22'}'/>
+<ellipse cx='12' cy='48.6' rx='5' ry='2.2' fill='${C.b}'/><ellipse cx='28' cy='48.6' rx='5' ry='2.2' fill='${C.b}'/>
+${ears}<circle cx='20' cy='18' r='13' fill='url(#${id})'/>${eyes}${face}`;
+};
+const kettleGroup = () => `
+<defs><radialGradient id='kt' cx='.34' cy='.3' r='.95'><stop offset='0' stop-color='#e2705f'/><stop offset='1' stop-color='#a83223'/></radialGradient></defs>
+<ellipse cx='22' cy='45' rx='20' ry='3.4' fill='#000' opacity='.22' filter='url(#b)'/>
+<path d='M8 42c-2-16 4-26 15-26s17 10 15 26z' fill='url(#kt)'/>
+<path d='M14 34c-.8-8 1.6-13 6-15' stroke='#fff' stroke-opacity='.55' stroke-width='2.2' fill='none' stroke-linecap='round'/>
+<rect x='17' y='11' width='14' height='6' rx='3' fill='#7d241a'/><circle cx='24' cy='9.6' r='2.3' fill='#2b2b2e'/>
+<path d='M38 30c9-1 12 3 12 9' stroke='#2b2b2e' stroke-width='3.2' fill='none' stroke-linecap='round'/>
+<path d='M8 32c-5-4-8-9-6-14' stroke='#a83223' stroke-width='4' fill='none' stroke-linecap='round'/>`;
+
+const placed = (inner, x, y, s) => `<g transform='translate(${x} ${y}) scale(${s})'>${inner}</g>`;
+const studio = (w, inner) => svg(w, 120, `<defs><linearGradient id='st' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#f3f4f6'/><stop offset='1' stop-color='#dcdfe4'/></linearGradient><filter id='b' x='-30%' y='-60%' width='160%' height='220%'><feGaussianBlur stdDeviation='2.2'/></filter></defs><rect width='${w}' height='120' fill='url(#st)'/>${inner}`);
+const critterScene = (k, bg1, bg2) => svg(120, 120, `<defs><linearGradient id='cb' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='${bg1}'/><stop offset='1' stop-color='${bg2}'/></linearGradient><filter id='b' x='-30%' y='-60%' width='160%' height='220%'><feGaussianBlur stdDeviation='2.2'/></filter></defs><rect width='120' height='120' fill='url(#cb)'/><ellipse cx='60' cy='99' rx='30' ry='5' fill='#000' opacity='.16' filter='url(#b)'/>${placed(critter(k), 30, 20, 1.5)}`);
+
+const SCENES = {
+  roomBlue: () => room(P.blue),
+  roomBlue2: () => room(P.dusk),
+  roomWarm: () => room(P.warm),
+  catA: () => critterScene('catA', '#efe7f7', '#d9cdea'),
+  catB: () => critterScene('catB', '#dde9e4', '#c3d6cf'),
+  bearA: () => critterScene('bearA', '#f7ead8', '#ecd3b0'),
+  bearB: () => critterScene('bearB', '#dfeee2', '#c6dcc9'),
+  kettle: () => studio(120, placed(kettleGroup(), 30, 28, 1.2)),
+  sofa: () => svg(120, 120, roomBg({ ...P.warm, w1: '#f3eee7', w2: '#e4dccf', f1: '#d9cdbb', f2: '#c6b8a2' }, 120) + `<defs><linearGradient id='s1' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#86a084'/><stop offset='1' stop-color='#5c7a5c'/></linearGradient></defs>` + placed(sofaGroup({ sofa1: '#86a084', sofa2: '#5c7a5c' }).replace(/<defs>.*?<\/defs>/, ''), 16, 52, 1.0))
+};
+// the result: the chosen room, the sofa, and the chosen one sitting on it
+const resultScene = (roomId, petId) => {
+  const p = roomId === 'roomBlue2' ? P.dusk : roomId === 'roomWarm' ? P.warm : P.blue;
+  const sofaP = { sofa1: '#86a084', sofa2: '#5c7a5c' };
+  const pet = petId === 'kettle' ? placed(kettleGroup(), 2, 68, .6) : placed(critter(petId === 'catB' || petId === 'bearA' || petId === 'bearB' ? petId : 'catA'), 52, 50, .8);
+  return svg(160, 120, roomBg(p, 160) + `
+<rect x='104' y='16' width='34' height='38' rx='2' fill='${p.frame}'/><rect x='107' y='19' width='28' height='32' fill='${p.art}'/>
+${placed(sofaGroup(sofaP).replace(/<defs>.*?<\/defs>/, `<defs><linearGradient id='s1' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='${sofaP.sofa1}'/><stop offset='1' stop-color='${sofaP.sofa2}'/></linearGradient></defs>`), 34, 62, 1.25)}
+${pet}`);
+};
+const sceneUrl = (id, extra) => `url("data:image/svg+xml;utf8,${encodeURIComponent(extra ? resultScene(...extra) : SCENES[id]())}")`;
+
+const $ = (s, r = document) => r.querySelector(s);
+const el = (tag, cls, html) => { const n = document.createElement(tag); if (cls) n.className = cls; if (html != null) n.innerHTML = html; return n; };
+const X_ICON = '<svg viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2 2l6 6M8 2L2 8"/></svg>';
+const DEFAULT_TEXT = '用之前圖三那個，搭配更之前圖五的貓，再加上這張，組合在一起';
+const ICON = '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="3.5" width="15" height="13" rx="3"/><circle cx="7.2" cy="8" r="1.3"/><path d="M3 14.2l4.2-3.6 3 2.4 2.6-2.2 4.2 3.8"/></svg>';
+const POOL = ['kettle', 'bearB', 'catB'];
+
+const state = { confidence: 'sure', perm: 'ask', theme: matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light', width: '390', run: 0, attached: ['sofa'], picks: {}, after: [] };
+const TARGETS = [
+  { key: 'room', q: '哪一張是藍色客廳？', label: '藍色客廳', n: 3, cands: ['roomBlue', 'roomBlue2', 'roomWarm', 'bearB'], guess: 'roomBlue' },
+  { key: 'pet', q: '哪一張是你說的貓？', label: '橘貓', n: 5, cands: ['catB', 'catA', 'bearA', 'kettle', 'bearB'], guess: 'catA' }
+];
+const flow = $('#flow'), chat = $('#chat');
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+class Stop extends Error {}
+
+const paint = (node, id, extra) => { node.style.backgroundImage = sceneUrl(id, extra); return node; };
+const pic = (id, n, cls = '') => { const p = paint(el('div', 'pic ' + cls), id); if (n != null) p.append(el('i', 'chip', String(n))); return p; };
+const scroll = () => requestAnimationFrame(() => chat.scrollTo({ top: chat.scrollHeight, behavior: 'smooth' }));
+const add = (node, { after = false } = {}) => { flow.append(node); if (after) state.after.push(node); scroll(); return node; };
+const clearAfter = () => { state.after.forEach((n) => n.remove()); state.after = []; };
+
+// ---------- the message box ----------
+function drawAttachments() {
+  const box = $('#att'); box.replaceChildren();
+  state.attached.forEach((id, i) => {
+    const p = pic(id, i + 1);
+    const x = el('button', 'x', X_ICON); x.type = 'button'; x.setAttribute('aria-label', '移除');
+    x.onclick = () => { state.attached.splice(i, 1); drawAttachments(); };
+    p.append(x); box.append(p);
+  });
+}
+$('#add').onclick = () => {
+  const next = POOL.find((id) => !state.attached.includes(id));
+  if (next && state.attached.length < 4) { state.attached.push(next); drawAttachments(); }
+};
+
+// ---------- one step row, in the app's own list ----------
+function stepRow(label, { kind = 'image', running = true, refs = null, time = '' } = {}) {
+  const wrap = el('div', 'ledger'); const list = el('div', 'ledger-list'); wrap.append(list);
+  const row = el('div', 'ledger-row ' + (running ? 'is-running' : 'is-done'));
+  row.dataset.kind = kind;
+  row.innerHTML = '<div class="ledger-row-head"><span class="ledger-mark run-icon"></span><span class="ledger-label"></span><span class="ledger-time"></span></div>';
+  list.append(row);
+  const api = {
+    wrap,
+    done(text, time, refs) {
+      row.classList.replace('is-running', 'is-done');
+      row.querySelector('.ledger-label').textContent = text;
+      row.querySelector('.ledger-time').textContent = time || '';
+      if (refs) { const r = el('span', 'mini-refs'); refs.forEach((s) => r.append(pic(s.scene, null))); row.querySelector('.ledger-label').after(r); }
+    },
+    label(text) { row.querySelector('.ledger-label').textContent = text; },
+    expand(content) {
+      const head = row.querySelector('.ledger-row-head');
+      head.classList.add('is-expandable'); head.setAttribute('aria-expanded', 'false'); head.setAttribute('role', 'button'); head.tabIndex = 0;
+      const body = el('div', 'ledger-body look-body'); body.hidden = true; body.append(content); row.append(body);
+      const toggle = () => { const open = body.hidden; body.hidden = !open; head.setAttribute('aria-expanded', String(open)); if (open) scroll(); };
+      head.onclick = toggle;
+      head.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } };
+    }
+  };
+  row.querySelector('.ledger-label').textContent = label;
+  if (!running) api.done(label, time, refs);
+  return api;
+}
+
+
+// ---------- what the model looked at (opens from the "looked at" row) ----------
+const SEEN = [
+  { n: 3, picked: 'roomBlue', items: [{ s: 'roomBlue', r: 2, who: '生成' }, { s: 'roomWarm', r: 4, who: '生成' }, { s: 'roomBlue2', r: 6, who: '生成' }, { s: 'bearB', r: 3, who: '你傳的' }] },
+  { n: 5, picked: 'catA', items: [{ s: 'catA', r: 1, who: '生成' }, { s: 'catB', r: 7, who: '生成' }, { s: 'bearA', r: 3, who: '你傳的' }, { s: 'kettle', r: 4, who: '你傳的' }, { s: 'bearB', r: 8, who: '生成' }] }
+];
+function lookBody() {
+  const sure = state.confidence === 'sure';
+  const box = el('div', 'look');
+  const think = (html) => box.append(el('p', 'look-think', html));
+  const group = (g, mark) => {
+    const wrap = el('div', 'look-group');
+    wrap.append(el('p', 'look-line', `編號 ${g.n} 的圖，共 ${g.items.length} 張`));
+    const strip = el('div', 'look-strip');
+    [...g.items].sort((x, y) => (mark && (y.s === g.picked) - (x.s === g.picked)) || y.r - x.r).forEach((it) => {
+      const used = mark && it.s === g.picked;
+      const cell = el('div', 'look-cell' + (used ? ' is-used' : ''));
+      cell.append(pic(it.s, g.n));
+      cell.append(el('span', 'look-cap', `第 ${it.r} 輪<br>${used ? '用了' : it.who}`));
+      strip.append(cell);
+    });
+    wrap.append(strip); box.append(wrap);
+  };
+  think('你說「之前圖三那個」，沒說是哪一輪。我先看索引：編號 3 的圖有 4 張，3 張是我生成的，1 張是你傳的。提示詞寫到「藍色調客廳」的只有第 2 輪那一張，所以先把這 4 張都看一遍。');
+  group(SEEN[0], sure);
+  think(sure
+    ? '看完了。第 2 輪的是藍色調的客廳，桌上有花瓶，跟你說的最像；第 6 輪也是藍色，但是黃昏的色調；第 4 輪偏暖色；第 3 輪是你傳的白熊。<b>我選第 2 輪的圖 3。</b>'
+    : '看完了。第 2 輪和第 6 輪都是藍色調的客廳，只差在光線，我分不出你說的是哪一張，所以<b>等一下請你選。</b>');
+  think('接著是「更之前圖五的貓」。編號 5 的圖有 5 張，其中有貓的是第 1 輪的橘貓和第 7 輪的黑貓。你說「更之前」，比剛才的第 2 輪還早，只有第 1 輪符合。');
+  group(SEEN[1], sure);
+  think(sure
+    ? '<b>橘貓就是第 1 輪的圖 5，我很確定，不需要再問你。</b>如果不是這張，按「不是」，我會把其他的給你選。'
+    : '<b>橘貓不確定</b>：你只說「貓」，沒說顏色，兩隻都有可能，所以也請你選。');
+  return box;
+}
+
+// ---------- a thing the model chose ----------
+function pickedRow(t, scene, auto) {
+  const row = el('div', 'picked');
+  row.append(el('span', 'ic', ICON));
+  row.append(el('span', 't', `用了 <b>${t.label}</b>`));
+  const m = el('span', 'mini'); m.append(pic(scene, null)); row.append(m);
+  const b = el('button', 'textbtn', auto ? '不是' : '改'); b.type = 'button';
+  b.setAttribute('aria-label', auto ? `不是這張${t.label}` : `改${t.label}`);
+  b.onclick = () => reopen(t, row, scene);
+  row.append(b);
+  return row;
+}
+
+// ---------- the question: one thing at a time ----------
+function ask(t, { exclude = [], index = 0, total = 0, replace = null } = {}) {
+  return new Promise((resolve, reject) => {
+    const my = state.run;
+    let cands = t.cands.filter((c) => !exclude.includes(c));
+    let searches = 0;
+    const block = el('div', 'ask');
+    const draw = () => {
+      block.replaceChildren();
+      const q = el('p', 'ask-q', `<span class="ic">${ICON}</span><span>${t.q}</span>${total > 1 ? `<span class="count">${index}/${total}</span>` : ''}`);
+      const row = el('div', 'cands');
+      cands.forEach((id) => {
+        const b = paint(el('button', 'pic cand'), id); b.type = 'button'; b.setAttribute('aria-label', `選這一張${t.label}`);
+        b.append(el('i', 'chip', String(t.n)));
+        b.onclick = async () => {
+          if (my !== state.run) return;
+          row.classList.add('chosen'); b.classList.add('is-picked');
+          await sleep(420);
+          block.classList.add('closing'); await sleep(260);
+          if (my !== state.run) return;
+          resolve(id);
+        };
+        row.append(b);
+      });
+      const foot = el('div', 'ask-foot');
+      const more = el('button', 'btn', '重找'); more.type = 'button';
+      more.onclick = async () => {
+        searches++;
+        if (searches > 1) { block.remove(); add(el('p', 'model-text', '我找不到更像的了。可以再描述一下它長什麼樣子嗎？')); state.run++; return; }
+        block.replaceChildren(el('div', 'ledger', '<div class="ledger-list"><div class="ledger-row is-running" data-kind="image"><div class="ledger-row-head"><span class="ledger-mark run-icon"></span><span class="ledger-label">再找一輪…</span></div></div></div>'));
+        await sleep(1100); if (my !== state.run) return;
+        cands = [...cands.slice(1), cands[0]]; if (!cands.includes('sofa')) cands.push('sofa');
+        draw();
+      };
+      foot.append(more);
+      block.append(q, row, foot);
+    };
+    draw();
+    if (replace) replace.replaceWith(block); else add(block);
+    scroll();
+    state._cancel = () => reject(new Stop());
+  });
+}
+
+// ---------- a click on "不是" or "改" ----------
+async function reopen(t, row, current) {
+  state.run++;                    // whatever was going on stops here
+  const my = state.run;
+  if (state.after.length) { clearAfter(); }
+  const stopped = el('p', 'note', '已停止。');
+  if (state.generating) { state.generating = false; row.after(stopped); setTimeout(() => stopped.remove(), 1600); }
+  try {
+    const choice = await ask(t, { exclude: state.confidence === 'sure' && row.dataset.auto !== '0' ? [current] : [], replace: row });
+    state.picks[t.key] = choice;
+    const next = pickedRow(t, choice, false); next.dataset.auto = '0';
+    const old = flow.querySelector('.ask'); if (old) old.replaceWith(next);
+    await afterPicks(my);
+  } catch (e) { if (!(e instanceof Stop)) throw e; }
+}
+
+// ---------- after the things are chosen: the question about money, then the picture ----------
+const refsOf = () => {
+  const r = [{ scene: state.picks.room, n: 3 }, { scene: state.picks.pet, n: 5 }];
+  if (state.attached[0]) r.push({ scene: state.attached[0], n: 1 });
+  return r;
+};
+async function afterPicks(my) {
+  const alive = () => { if (my !== state.run) throw new Stop(); };
+  const refs = refsOf();
+  const prompt = `以${TARGETS[0].label}為底，把${TARGETS[1].label}放在${state.attached[0] ? '你附的沙發旁，沙發用你附的這張' : '沙發旁'}，其他不變`;
+  if (state.perm === 'ask') {
+    const card = el('div', 'net-ask');
+    card.innerHTML = `<div class="net-ask-head"><span class="net-ask-icon">${ICON}</span><span class="net-ask-title">要用「GPT Image 2.5」畫一張圖嗎？</span></div>`;
+    card.append(el('div', 'net-ask-command', prompt));
+    const fan = el('div', 'refs'); refs.forEach((r) => fan.append(pic(r.scene, r.n)));
+    card.append(fan);
+    const actions = el('div', 'net-ask-actions');
+    const once = el('button', 'net-ask-button is-primary', '允許一次'), always = el('button', 'net-ask-button', '永遠允許'), deny = el('button', 'net-ask-button', '拒絕');
+    [once, always, deny].forEach((b) => (b.type = 'button'));
+    actions.append(once, always, deny); card.append(actions);
+    card.append(el('p', 'net-ask-note', '參考圖就是上面這幾張，會用原圖送給圖片模型。'));
+    add(card, { after: true });
+    const decision = await new Promise((resolve, reject) => {
+      state._cancel = () => reject(new Stop());
+      once.onclick = () => resolve('once'); always.onclick = () => resolve('always'); deny.onclick = () => resolve('deny');
+    });
+    alive();
+    if (decision === 'deny') {
+      card.remove();
+      add(el('p', 'model-text', '好的，我先不畫。需要的話隨時告訴我。'), { after: true });
+      return;
+    }
+    if (decision === 'always') setSeg('perm', 'always');
+    card.remove();
+  }
+  state.generating = true;
+  const step = stepRow('正在畫圖…', {}); add(step.wrap, { after: true });
+  const gen = el('div', 'gen'); const stage = el('span', 'gen-stage', '整理參考圖'); gen.append(stage); add(gen, { after: true });
+  const stages = ['整理參考圖', '合成畫面', '修飾細節'];
+  for (let i = 1; i < 3; i++) { await sleep(1500); alive(); stage.style.opacity = 0; await sleep(180); stage.textContent = stages[i]; stage.style.opacity = 1; }
+  await sleep(1200); alive();
+  state.generating = false;
+  step.done('畫了一張圖，參考', '38 秒', refs);
+  const result = paint(el('div', 'result'), null, [state.picks.room, state.picks.pet]);
+  result.append(el('i', 'chip', '1'));
+  gen.replaceWith(result); state.after[state.after.indexOf(gen)] = result; scroll();
+  await sleep(500); alive();
+  const text = el('p', 'model-text typing'); add(text, { after: true });
+  const words = `畫好了。我把${TARGETS[1].label}放在你附的沙發旁，背景用的是${TARGETS[0].label}。要調整牠的位置或大小的話，跟我說。`.split(/(?<=[，。])/);
+  let acc = '';
+  for (const w of words) { for (const ch of w) { acc += ch; text.textContent = acc; await sleep(24); alive(); if (acc.length % 12 === 0) scroll(); } await sleep(160); }
+  text.classList.remove('typing'); scroll();
+}
+
+// ---------- the whole flow ----------
+async function run() {
+  const my = ++state.run; state.after = []; state.generating = false; state.picks = {};
+  flow.replaceChildren();
+  const message = $('#text').value.trim() || DEFAULT_TEXT;
+  const user = el('div', 'user');
+  if (state.attached.length) { const ps = el('div', 'pics'); state.attached.forEach((id, i) => ps.append(pic(id, i + 1))); user.append(ps); }
+  user.append(el('div', 'bubble', message.replace(/</g, '&lt;')));
+  add(user);
+  $('#text').value = ''; const sent = state.attached.slice(); state.attached = []; drawAttachments(); state.attached = sent;
+  const alive = () => { if (my !== state.run) throw new Stop(); };
+  try {
+    await sleep(500); alive();
+    const look = stepRow('正在看之前的圖…'); add(look.wrap);
+    await sleep(1500); alive();
+    look.done('查看了編號 3 和編號 5 的圖', '6 秒'); look.expand(lookBody());
+    await sleep(400); alive();
+    if (state.confidence === 'sure') {
+      for (const t of TARGETS) {
+        state.picks[t.key] = t.guess;
+        const row = pickedRow(t, t.guess, true); row.dataset.auto = '1'; add(row);
+        await sleep(450); alive();
+      }
+    } else {
+      for (let i = 0; i < TARGETS.length; i++) {
+        const t = TARGETS[i];
+        const choice = await ask(t, { index: i + 1, total: TARGETS.length }); alive();
+        state.picks[t.key] = choice;
+        const row = pickedRow(t, choice, false); row.dataset.auto = '0';
+        flow.querySelector('.ask').replaceWith(row);
+      }
+    }
+    await afterPicks(my);
+  } catch (e) { if (!(e instanceof Stop)) throw e; }
+}
+
+// ---------- the controls ----------
+function setSeg(key, value) {
+  state[key] = value;
+  document.querySelectorAll(`.seg[data-key="${key}"] button`).forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === value)));
+  if (key === 'theme') document.documentElement.dataset.theme = value;
+  if (key === 'width') $('#device').style.setProperty('--w', value + 'px');
+}
+document.querySelectorAll('.seg button').forEach((b) => b.addEventListener('click', () => {
+  const key = b.parentElement.dataset.key; if (state[key] === b.dataset.v) return;
+  setSeg(key, b.dataset.v);
+  if (key === 'confidence' || key === 'perm') reset(true);
+}));
+function reset(autoStart) {
+  state.run++; state.after = []; state.generating = false; flow.replaceChildren();
+  state.attached = ['sofa']; drawAttachments(); $('#text').value = DEFAULT_TEXT;
+  if (autoStart) run(); else flow.append(el('p', 'empty', '按下送出，看模型怎麼處理這句話。'));
+}
+$('#replay').onclick = () => reset(false);
+$('#send').onclick = () => run();
+$('#text').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); run(); } });
+['confidence', 'perm', 'theme', 'width'].forEach((k) => setSeg(k, state[k]));
+reset(false);
+</script></body></html>
