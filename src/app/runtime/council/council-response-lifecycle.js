@@ -28,7 +28,6 @@ export function createCouncilResponseLifecycle({
   modelSupportsDocumentUpload
 }) {
   const MODELS = models;
-  const COUNCIL_MAX_MODELS = councilMaxModels;
 
   const formatRecentConversationContext = (conv) => {
       if (!conv?.messages?.length) return '';

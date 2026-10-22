@@ -8,7 +8,7 @@ export const highlightText = (text, query) => {
   if (!text) return text;
   if (!query) return escapeHtml(text);
   try {
-    const safeQuery = query.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    const safeQuery = query.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
     const regex = new RegExp(safeQuery, 'gi');
     const source = String(text);
     let html = '';

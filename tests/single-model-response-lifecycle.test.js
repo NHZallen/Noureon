@@ -971,7 +971,6 @@ test('skills the model may load by itself: a plain reply gets the small loop wit
   try {
     const rounds = [];
     const make = (extra = {}) => {
-      let round = 0;
       return createHarness({
         extraDependencies: {
           supportsToolCalling: () => true,

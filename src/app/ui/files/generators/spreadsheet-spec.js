@@ -73,7 +73,7 @@ const decimalsOf = (digits) => (digits.includes('.') ? digits.split('.')[1].leng
  * with leading zeros (codes, phone numbers stay text).
  */
 export function parseValueText(input) {
-  const text = String(input ?? '').trim().replace(/[−‒–]/g, '-').replace(/ /g, ' ');
+  const text = String(input ?? '').trim().replace(/[−‒–]/g, '-').replace(/\u00A0/g, ' ');
   if (!text) return null;
   const date = /^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/.exec(text);
   if (date) {
@@ -118,6 +118,7 @@ export function parseValueText(input) {
 
 // ------------------------------------------------------------ cells
 
+// eslint-disable-next-line no-control-regex -- control characters (not tab, line feed, carriage return) are not allowed in a cell
 const TEXT_LIMIT = (value) => String(value).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '').slice(0, SHEET_LIMITS.text);
 const ALIGN = new Set(['left', 'center', 'right']);
 
@@ -451,7 +452,7 @@ function fromDelimited(source) {
  * SpreadsheetSpecError when nothing tabular can be read.
  */
 export function parseSpreadsheet(content, { language = 'zh-TW' } = {}) {
-  let source = String(content ?? '').replace(/\r\n?/g, '\n').replace(/^﻿/, '');
+  let source = String(content ?? '').replace(/\r\n?/g, '\n').replace(/^\uFEFF/, '');
   const fenced = /^\s*(`{3,}|~{3,})[^\n]*\n([\s\S]*?)\n\1\s*$/.exec(source);
   if (fenced) source = fenced[2];
   if (!source.trim()) throw new SpreadsheetSpecError('empty');

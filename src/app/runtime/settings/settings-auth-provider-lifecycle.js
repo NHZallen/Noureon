@@ -112,7 +112,6 @@ export function createSettingsAuthProviderLifecycle(dependencies = {}) {
         getCouncilRuntimeTexts,
         getCouncilAttachmentTranslationNeed,
         getCouncilTranslatorModel,
-        getCouncilSharedSearchModel,
         modelUsesNativeWebSearch,
         modelSupportsDocumentUpload,
         conversationNeedsTavilySearch,
@@ -135,12 +134,9 @@ export function createSettingsAuthProviderLifecycle(dependencies = {}) {
         getCouncilTranslatorCandidates,
         getSingleTranslatorCandidates,
         escapeHTML,
-        hexToRgba,
-        renderPersonalMemoryList,
         renderUiColorOptions,
         renderTrash,
         renderModelSwitcher,
-        renderChat,
         renderStore,
         updateApiKeyWarningBadge,
         applyUiTheme,
@@ -166,9 +162,7 @@ export function createSettingsAuthProviderLifecycle(dependencies = {}) {
         removeItem,
         verifyPasswordRecord,
         upgradeLegacyPasswordRecord,
-        createPasswordRecord,
-        renderAll,
-        logger = console
+        createPasswordRecord
     } = dependencies;
 
     const config = createLiveObject(() => runtimeConfigAccess.getConfig());

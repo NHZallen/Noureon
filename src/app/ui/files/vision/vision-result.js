@@ -1,7 +1,7 @@
 import { serializeDeckSpec } from '../design/spec-serializer.js';
 import { VISION_TEXTS, visionText } from './vision-texts.js';
 
-const escapeMarkdown = value => String(value || '').replace(/[\\`*_{}\[\]()#+.!|>~-]/g, '\\$&').replace(/\r?\n/g, ' ');
+const escapeMarkdown = value => String(value || '').replace(/[\\`*_{}[\]()#+.!|>~-]/g, '\\$&').replace(/\r?\n/g, ' ');
 
 export function buildVisionResult({ result, edits, renderedSlides, file, language, checkedSlides, totalSlides }) {
   const labels = VISION_TEXTS[language] || VISION_TEXTS.en;

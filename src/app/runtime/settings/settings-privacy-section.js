@@ -16,12 +16,6 @@ const el = (document, tag, className = '', text = '') => {
   return node;
 };
 
-const bulletList = (document, items) => {
-  const list = el(document, 'ul', 'list-disc pl-5 space-y-1 text-sm text-[var(--text-secondary)]');
-  for (const item of items) list.appendChild(el(document, 'li', '', item));
-  return list;
-};
-
 export function renderPrivacySection({ document, section, config, language, hasAccount, onChange }) {
   const t = (key) => serverReplyText(language, key);
   section.replaceChildren();

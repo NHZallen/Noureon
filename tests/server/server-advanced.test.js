@@ -189,7 +189,6 @@ test('stopping a reply with Python keeps what was written and marks the run stop
     run: async () => { controller.abort(); return { stopped: true }; },
     dispose: async () => {}
   });
-  let round = 0;
   const result = await executeReply({
     spec: specFor(),
     secrets,
@@ -197,7 +196,7 @@ test('stopping a reply with Python keeps what was written and marks the run stop
     sandboxHost: host,
     files: fakeFiles(),
     signal: controller.signal,
-    fetchImpl: async () => { round += 1; return streamResponse(sse(content('Starting. '), toolCall('c', 'run_python', { code: 'while True: pass' }))); }
+    fetchImpl: async () => { return streamResponse(sse(content('Starting. '), toolCall('c', 'run_python', { code: 'while True: pass' }))); }
   });
   assert.equal(result.status, 'stopped');
   const { run, text } = liftSandboxRunBlock(result.parts[0].text);

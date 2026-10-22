@@ -31,7 +31,7 @@ test('a Word file: headings, paragraphs, lists, a table (with its bar escaped), 
 test('a PowerPoint file: each slide with its title, its text, the numbers of its chart as a table, its picture marked with the slide, its table and the notes', async () => {
   const content = await read('pptx');
   assert.match(content.text, /## Slide 1: Quarterly review\n\n- Revenue grew\n {2}- Costs fell\n\nNotes: Speaker note: mention the new market\./);
-  assert.match(content.text, /## Slide 2: Chart and picture\n\n\[Chart 1\]\n\n\[Image 1: slide 2\]\n\n\[Chart 1, bar\]\n\|  \| Sales \| Cost \|\n\| --- \| --- \| --- \|\n\| Q1 \| 10 \| 5 \|\n\| Q2 \| 20 \| 7 \|\n\| Q3 \| 30 \| 9 \|/);
+  assert.match(content.text, /## Slide 2: Chart and picture\n\n\[Chart 1\]\n\n\[Image 1: slide 2\]\n\n\[Chart 1, bar\]\n\| {2}\| Sales \| Cost \|\n\| --- \| --- \| --- \|\n\| Q1 \| 10 \| 5 \|\n\| Q2 \| 20 \| 7 \|\n\| Q3 \| 30 \| 9 \|/);
   assert.match(content.text, /## Slide 3: Table\n\n\| A \| B \|\n\| --- \| --- \|\n\| 1 \| 2 \|/);
   assert.equal(content.imageTotal, 1);
   assert.equal(content.images[0].label, 'slide 2');

@@ -4,7 +4,6 @@ import { setButtonBusy as markButtonBusy } from '../ui/motion/busy-button.js';
 import { createTurnstileClient } from '../runtime/security/turnstile-client.js';
 import { getSupabaseClient, isSupabaseConfigured } from './supabase-client.js';
 import {
-  PASSWORD_RECOVERY_ROUTE,
   PASSWORD_RESET_ROUTE,
   RECOVERY_EMAIL_KEY,
   RECOVERY_LANGUAGE_KEY,

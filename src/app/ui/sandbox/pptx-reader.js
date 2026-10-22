@@ -50,7 +50,7 @@ function createPackage(zip, DOMParser) {
     let root = null;
     if (entry) {
       // The declaration adds nothing (files are UTF-8) and not every parser takes its single quotes.
-      const text = (await entry.async('string')).replace(/^﻿?\s*(?:<\?xml[^>]*\?>)?\s*/, '');
+      const text = (await entry.async('string')).replace(/^\uFEFF?\s*(?:<\?xml[^>]*\?>)?\s*/, '');
       const document = new DOMParser().parseFromString(text, 'application/xml');
       if (document.getElementsByTagName('parsererror').length) throw new Error(`${path} could not be read`);
       root = document.documentElement;

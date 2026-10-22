@@ -55,7 +55,7 @@ test('renders plain text, basic markdown, and code without changing markdown sem
   try {
     assert.match(harness.helpers.renderMarkdown('Plain text'), /<p>Plain text<\/p>/);
     assert.match(harness.helpers.renderMarkdown('**Bold**'), /<strong>Bold<\/strong>/);
-    assert.match(harness.helpers.renderMarkdown('```html\n<script>alert(1)<\/script>\n```'), /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
+    assert.match(harness.helpers.renderMarkdown('```html\n<script>alert(1)</script>\n```'), /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
   } finally {
     harness.window.close();
   }

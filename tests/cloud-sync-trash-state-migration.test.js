@@ -22,7 +22,7 @@ test('trash clock parser accepts only finite offset timestamps under a locked-do
   const helper = functionSql(sql, 'workspace_safe_timestamptz');
 
   assert.match(helper, /returns timestamptz[\s\S]*language plpgsql[\s\S]*stable[\s\S]*security definer[\s\S]*set search_path = ''/i);
-  assert.match(helper, /p_value !~ '[^']*\[Zz\][^']*\[\+\-\][^']*'/i);
+  assert.match(helper, /p_value !~ '[^']*\[Zz\][^']*\[\+-\][^']*'/i);
   assert.match(helper, /pg_catalog\.isfinite\(v_parsed\)/i);
   assert.match(sql, /revoke all on function public\.workspace_safe_timestamptz\(text\)\s+from public, anon, authenticated/i);
 });

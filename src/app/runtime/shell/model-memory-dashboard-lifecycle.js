@@ -41,7 +41,6 @@ export function createModelMemoryDashboardLifecycle(dependencies = {}) {
     const {
         Chart,
         document,
-        requestAnimationFrame = (callback) => callback(),
         crypto = globalThis.crypto,
         elements: ALL_ELEMENTS,
         getConfig,
@@ -494,13 +493,14 @@ ${JSON.stringify(potentialMemories, null, 2)}
                                     memoriesChanged = true;
                                 }
                                 break;
-                            case 'UPDATE':
+                            case 'UPDATE': {
                                 const memoryToUpdate = personalMemories.find(m => m.id === act.id);
                                 if (memoryToUpdate && memoryToUpdate.content !== act.content) {
                                     memoryToUpdate.content = act.content;
                                     memoriesChanged = true;
                                 }
                                 break;
+                            }
                             case 'IGNORE':
                                 break;
                         }

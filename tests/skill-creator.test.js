@@ -99,7 +99,7 @@ test('a reply is given the text of skill-creator when it is asked for with "/", 
   assert.match(invokedSkillsInstruction(asked), /<skill name="skill-creator">\n# Creating a skill/);
   assert.deepEqual((await getAvailableSkills()).map((skill) => skill.name), ['skill-creator']);
   assert.equal((await t.mode.lookup('skill-creator')).body, OFFICIAL_SKILL_BODIES['skill-creator']);
-  const notAdded = page();
+  page();
   assert.deepEqual(await getAvailableSkills(), [], 'a skill that is not added is not offered');
   assert.deepEqual(await resolveInvokedSkills(['skill-creator']), []);
 });

@@ -334,7 +334,8 @@ const KANA = /[぀-ヿㇰ-ㇿｦ-ﾟ]/u;
 const PICTOGRAPHIC = /\p{Extended_Pictographic}/u;
 const SPACE = /^\s+$/u;
 // Code points that only modify the character before them.
-const IGNORED = /[‍︎️⃣\u{1F3FB}-\u{1F3FF}\u{E0020}-\u{E007F}]/gu;
+// eslint-disable-next-line no-misleading-character-class -- each code point of the class is meant on its own (joiners, variation selectors, skin tones, tags)
+const IGNORED = /[\u200D\uFE0E\uFE0F\u20E3\u{1F3FB}-\u{1F3FF}\u{E0020}-\u{E007F}]/gu;
 
 function graphemes(text) {
   if (typeof Intl?.Segmenter === 'function') {
@@ -343,7 +344,8 @@ function graphemes(text) {
   const clusters = [];
   for (const char of text) {
     const last = clusters.at(-1);
-    if (last && (/[‍︎️⃣\u{1F3FB}-\u{1F3FF}\u{E0020}-\u{E007F}̀-ͯ]/u.test(char) || last.endsWith('‍'))) {
+    // eslint-disable-next-line no-misleading-character-class -- each code point of the class is meant on its own (joiners, variation selectors, skin tones, tags, combining marks)
+    if (last && (/[\u200D\uFE0E\uFE0F\u20E3\u{1F3FB}-\u{1F3FF}\u{E0020}-\u{E007F}\u0300-\u036F]/u.test(char) || last.endsWith('\u200D'))) {
       clusters[clusters.length - 1] = last + char;
     } else {
       clusters.push(char);
@@ -357,9 +359,10 @@ const isRegionalIndicator = (point) => point >= 0x1F1E6 && point <= 0x1F1FF;
 /** Whether a cluster is an emoji drawn as a picture (not ©, ™ or ↔ as text). */
 export function isEmojiCluster(cluster) {
   const first = cluster.codePointAt(0);
-  if (isRegionalIndicator(first) || cluster.includes('⃣')) return true;
+  if (isRegionalIndicator(first) || cluster.includes('\u20E3')) return true;
   if (!PICTOGRAPHIC.test(cluster)) return false;
-  return first >= 0x1F000 || /[️‍\u{1F3FB}-\u{1F3FF}]/u.test(cluster);
+  // eslint-disable-next-line no-misleading-character-class -- each code point of the class is meant on its own (variation selector, joiner, skin tones)
+  return first >= 0x1F000 || /[\uFE0F\u200D\u{1F3FB}-\u{1F3FF}]/u.test(cluster);
 }
 
 function scriptFallbacks(cluster, script) {

@@ -30,6 +30,7 @@ export function reportMarkdown(report, language = 'en') {
 }
 
 export const reportFileName = (report, extension = 'md') => {
+  // eslint-disable-next-line no-control-regex -- control characters are not allowed in the name of a file
   const safe = String(report?.title || 'report').replace(/[\\/:*?"<>|\u0000-\u001f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80);
   return `${safe || 'report'}.${extension}`;
 };

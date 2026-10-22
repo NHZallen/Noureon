@@ -114,7 +114,6 @@ export function createSearchUploadSidebarLifecycle(dependencies = {}) {
         const conversations = getSearchableConversations();
         const results = [];
         const processedConvIds = new Set();
-        const totalWeightSum = weightedKeywords.reduce((sum, kw) => sum + kw.weight, 0);
 
         conversations.forEach(conv => {
                 if (processedConvIds.has(conv.id)) return;

@@ -1,11 +1,9 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import { createWorkspaceFeatures } from '../src/app/runtime/shell/workspace-features.js';
 import { createShellState } from '../src/app/runtime/shell/shell-state.js';
 
-const readSource = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const noop = () => {};
 
 function createClassList() {

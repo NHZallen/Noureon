@@ -30,6 +30,7 @@ test('Tavily query formatting normalizes and truncates queries', () => {
   assert.equal(normalized.includes('secret block'), false);
   assert.ok(normalized.length <= 380);
   assert.ok(query.length <= 380);
+  // eslint-disable-next-line no-control-regex -- the point of the test: no control character is left in the query
   assert.doesNotMatch(query, /[\u0000-\u001f\u007f]/);
 });
 

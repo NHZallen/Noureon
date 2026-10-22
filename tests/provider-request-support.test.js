@@ -83,7 +83,6 @@ const createHarness = ({
 
 test('provider request support retries once after a transient stream failure', async () => {
   const firstError = new Error('first failed');
-  const secondError = new Error('second failed');
   const attempts = [];
   const { support, timers } = createHarness({
     streamImpl: async (parts, onChunk, signal, isWebSearchForced, options) => {

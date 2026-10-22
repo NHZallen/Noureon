@@ -59,7 +59,7 @@ export function createMarkdownRenderingHelpers({
       if (char === '(' || char === '[') delimiterDepth += 1;
       if (char === ')' || char === ']') delimiterDepth = Math.max(0, delimiterDepth - 1);
       if (delimiterDepth > 0 || scalableDelimiterDepth > 0) continue;
-      if (/[=+\-]/.test(char) && index > 0) {
+      if (/[=+-]/.test(char) && index > 0) {
         breakpoints.push(index);
       }
     }

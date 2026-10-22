@@ -64,7 +64,7 @@ const fail = (error) => ({ ok: false, error });
  * body_empty, body_too_long.
  */
 export function parseSkillMarkdown(input) {
-  const text = String(input ?? '').replace(/^﻿/, '').replace(/\r\n?/g, '\n');
+  const text = String(input ?? '').replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
   if (!text.trim()) return fail('empty');
   if (text.length > SKILL_TEXT_MAX) return fail('text_too_long');
   const lines = text.replace(/^\s*\n/, '').split('\n');
