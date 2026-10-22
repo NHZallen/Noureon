@@ -176,7 +176,7 @@ export function createQuoteInquiryLifecycle({
       || !content.contains(focusElement)
       || !Number.isInteger(sourceMessageIndex)
       || sourceMessage?.role !== 'model'
-      || content.querySelector('.typing-cursor')
+      || content.querySelector('.typing-cursor, .reply-wait')
       || content.closest('[data-image-generation-stage]')
     ) return null;
 

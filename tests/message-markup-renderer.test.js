@@ -197,7 +197,8 @@ test('preserves loading, empty, and unknown-role rendering boundaries', () => {
     ...dependencies
   });
 
-  assert.match(loading.messageHTML, /<div class="typing-cursor">&nbsp;<\/div>/);
+  assert.match(loading.messageHTML, /<div class="reply-wait"[^>]*><span class="reply-wait-dot"/, 'the same breathing dot the wait view draws next');
+  assert.doesNotMatch(loading.messageHTML, /typing-cursor/);
   assert.doesNotMatch(empty.messageHTML, /message-bubble/);
   assert.equal(unknown.isUser, false);
   assert.match(unknown.messageClassName, /model-message$/);

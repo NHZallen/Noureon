@@ -127,7 +127,8 @@ export function buildMessageRenderView({
                 ${imageThumbsPlaceholder(loadingPart?.imageCount)}
             </div>`;
     } else if (isLoadingMessage) {
-        contentHTML = '<div class="typing-cursor">&nbsp;</div>';
+        // The empty reply until its first word is the same breathing dot the wait view draws next (reply/response-progress-renderers.js), not a blinking cursor.
+        contentHTML = '<div class="reply-wait" role="status" aria-busy="true"><span class="reply-wait-dot" aria-hidden="true"></span></div>';
     } else {
         const textParts = [];
         const mediaParts = [];
