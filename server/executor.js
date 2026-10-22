@@ -211,7 +211,8 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
       signal,
       fetchImpl,
       language,
-      emit: (event) => emitEvent(event),
+      // A picture says where in the answer it stands, so that a page that joins the reply late puts it in the same place.
+      emit: (event) => emitEvent(event.type === 'image' && event.event === 'done' && event.pictures ? { ...event, at: answer.length } : event),
       onPictures: (made) => { drawnParts.push(...made); made.forEach(() => drawnAt.push(answer.length)); update(); },
       onWaited: (waited) => { startedAt += waited; onPaused(waited); onLive({ tm: Math.max(0, now() - startedAt) }); },
       now

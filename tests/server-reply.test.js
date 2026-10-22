@@ -331,6 +331,27 @@ test('a page that comes in late is given what there is so far at once, then goes
   assert.equal(result.text, 'Apple pie is good');
 });
 
+test('a page that comes in late is told where the pictures a text model drew stand before it is given the words', async () => {
+  const drawn = { type: 'image', event: 'done', pictures: [{ generatedImage: { id: 'a' } }], at: 8 };
+  const { reply } = liveHarness({
+    events: [{ r: { answer: 'I draw. Here it is.', thought: { text: '', kind: 'model' }, sources: [], events: [{ type: 'step', n: 1 }, drawn] } }, { done: 'complete' }],
+    rows: [row('I draw. Here it is.', 'complete')]
+  });
+  const { run } = await reply.start(startArgs());
+  const order = [];
+  await run.follow({ onText: () => order.push('text'), onEvent: (event) => order.push(event.type === 'image' ? 'picture' : event.type) });
+  assert.deepEqual(order, ['step', 'picture', 'text'], 'the places of the pictures first, then the words');
+  // Without a picture the order is as it always was.
+  const plain = liveHarness({
+    events: [{ r: { answer: 'Words', thought: { text: '', kind: 'model' }, sources: [], events: [{ type: 'step', n: 1 }] } }, { done: 'complete' }],
+    rows: [row('Words', 'complete')]
+  });
+  const started = await plain.reply.start(startArgs());
+  const plainOrder = [];
+  await started.run.follow({ onText: () => plainOrder.push('text'), onEvent: (event) => plainOrder.push(event.type) });
+  assert.deepEqual(plainOrder, ['text', 'step']);
+});
+
 test('when the live channel breaks the message is read instead and nothing is shown twice', async () => {
   const { reply } = liveHarness({
     events: [{ r: { answer: '', thought: { text: '', kind: 'model' }, sources: [] } }, { a: 'Hello' }],

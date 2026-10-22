@@ -180,3 +180,50 @@ test('the cards of the pictures are made as a message\'s are, put in the slot wi
     dom.cleanup();
   }
 });
+
+test('a page that joins the reply late is told where the picture stands, then given the words in one piece: the same order', async () => {
+  const { dom, target, flow, mounted } = setup();
+  try {
+    const feed = flow.wrap((chunk) => feed.head(chunk));
+    const sink = fakeStream(target, (onChunk) => new Promise((resolve) => { feed.head = onChunk; feed.end = resolve; }));
+    await tick();
+    flow.handle({ type: 'image', event: 'start', label: 'Drawing…' });
+    flow.handle({ type: 'image', event: 'done', count: 1, pictures: [pic('a')], at: 8 });
+    // The picture waits for the words to get to its place.
+    assert.equal(dom.document.querySelector('.reply-picture-slot'), null);
+    feed('I draw. Here it is.');
+    await tick();
+    assert.equal(target.textContent, 'I draw. ');
+    // The same events told again (the channel was joined again): the picture is not placed twice.
+    flow.handle({ type: 'image', event: 'done', count: 1, pictures: [pic('a')], at: 8 });
+    feed(' More.');
+    const result = await flow.finish();
+    feed.end();
+    await sink;
+    assert.deepEqual(bubbles(dom), ['bubble:I draw. ', 'slot:a', 'bubble:Here it is. More.']);
+    assert.deepEqual(result.offsets, [8]);
+    assert.equal(result.text, 'I draw. Here it is. More.');
+    assert.equal(mounted.length, 1);
+  } finally {
+    dom.cleanup();
+  }
+});
+
+test('a picture told to stand further on than the words ever got stands at the end; one told to stand where the words already are stands there', async () => {
+  const { dom, target, flow } = setup();
+  try {
+    const feed = flow.wrap((chunk) => feed.head(chunk));
+    const sink = fakeStream(target, (onChunk) => new Promise((resolve) => { feed.head = onChunk; feed.end = resolve; }));
+    await tick();
+    feed('Short.');
+    flow.handle({ type: 'image', event: 'done', count: 1, pictures: [pic('late')], at: 500 });
+    flow.handle({ type: 'image', event: 'done', count: 1, pictures: [pic('past')], at: 2 });
+    const result = await flow.finish();
+    feed.end();
+    await sink;
+    assert.deepEqual(result.pictures.map((part) => part.generatedImage.id), ['past', 'late']);
+    assert.deepEqual(result.offsets, [6, 6]);
+  } finally {
+    dom.cleanup();
+  }
+});

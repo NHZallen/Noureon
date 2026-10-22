@@ -17,6 +17,10 @@ export function createPictureFlow({ document, targetElement, streamMarkdownRespo
   const offsets = [];
   const pictures = [];
   const mounting = [];
+  // Pictures that stand further on in the answer than the words that have come so far (a page that joins late is told where they stand before it is given the words).
+  const pending = [];
+  // The pictures already placed or waiting (the steps are told again when the channel is joined again: a picture is not placed twice).
+  const known = new Set();
   let shown = 0;
   let failed = false;
 
@@ -88,20 +92,42 @@ export function createPictureFlow({ document, targetElement, streamMarkdownRespo
   return {
     /** The source of the words, between the server and the renderer of the first bubble: after a picture the words go to the bubble that follows it. */
     wrap(onChunk) {
-      return (delta) => {
-        const text = String(delta ?? '');
+      const give = (text) => {
         if (!text) return;
         delivered += text.length;
         current.text += text;
         if (current.feed) current.feed(text);
         else onChunk(text);
       };
+      return (delta) => {
+        let text = String(delta ?? '');
+        // Words that run past the place of a picture are given in two: what comes before it, the picture, what comes after.
+        while (text && pending.length && pending[0].at < delivered + text.length) {
+          const next = pending.shift();
+          const cut = Math.max(0, next.at - delivered);
+          give(text.slice(0, cut));
+          text = text.slice(cut);
+          split(next.pictures);
+        }
+        give(text);
+      };
     },
     handle(event) {
-      if (event?.type === 'image' && event.event === 'done' && event.kind !== 'view' && Array.isArray(event.pictures)) split(event.pictures);
+      if (event?.type !== 'image' || event.event !== 'done' || event.kind === 'view' || !Array.isArray(event.pictures)) return;
+      const fresh = event.pictures.filter((part) => part?.generatedImage?.id && !known.has(part.generatedImage.id));
+      if (!fresh.length) return;
+      fresh.forEach((part) => known.add(part.generatedImage.id));
+      // As it happens it stands where the words are now; told where it stood, further on, it waits for the words to get there (a place already passed is the place now).
+      const at = Number.isFinite(event.at) ? event.at : delivered;
+      if (at > delivered) {
+        pending.push({ at, pictures: fresh });
+        pending.sort((a, b) => a.at - b.at);
+      } else split(fresh);
     },
     /** The reply is over: the last bubble is finished, every picture is in place. Resolves what the message is made of. */
     async finish() {
+      // A picture further on than the words ever got stands at the end.
+      while (pending.length) split(pending.shift().pictures);
       for (const segment of segments) segment.done?.(END);
       await Promise.all(segments.map((segment) => segment.drawn));
       await Promise.all(mounting);

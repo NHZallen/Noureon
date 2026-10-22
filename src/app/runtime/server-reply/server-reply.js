@@ -417,6 +417,9 @@ export function createServerReply({
             if (Array.isArray(event.r.events)) onEvent({ type: 'reset' });
             if (!text.startsWith(answerSoFar)) restarted = true;
           }
+          // A page that joins late is told first where the pictures of a text model stand in the answer, then given the words: they are drawn in that order.
+          const picturesFirst = Array.isArray(event.r.events) && event.r.events.some((step) => step?.type === 'image' && step.event === 'done' && Array.isArray(step.pictures));
+          if (picturesFirst) for (const step of event.r.events) onEvent(withFileBytes(step));
           if (text.startsWith(answerSoFar) && text.length > answerSoFar.length) {
             onText(text.slice(answerSoFar.length));
             answerSoFar = text;
@@ -436,7 +439,7 @@ export function createServerReply({
             onRun({ sources: event.r.sources });
           }
           // A page that joins late is given the steps so far, to draw the same list.
-          if (Array.isArray(event.r.events)) for (const step of event.r.events) onEvent(withFileBytes(step));
+          if (Array.isArray(event.r.events) && !picturesFirst) for (const step of event.r.events) onEvent(withFileBytes(step));
         } else if (event.cs) {
           if (handOver?.(event.cs)) return 'handover';
           onCouncil(event.cs);

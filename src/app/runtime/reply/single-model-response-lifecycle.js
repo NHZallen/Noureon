@@ -201,8 +201,8 @@ export function createSingleModelResponseLifecycle({
     // 3. Made here, or followed from the server.
     const local = createLocalReply({ streamApiCall, buildSingleModelTranslatedRequestParts, getConfig, webResearch, now }, { request, prep, reply, view, streamOptions });
     // A text model that may draw pictures: the words before a picture, the picture and the words after it are drawn in that order as they come (picture-flow.js).
-    // (Not for a reply picked up again by a page that came late: it is drawn whole when it ends, as before.)
-    const flow = serverRun && !resumeRun && !synthesis && mountPictures && serverReply?.hydrateParts && getConfig().toolModels?.image
+    // (A page that joins the reply late is told where each picture stands, so it draws the same.)
+    const flow = serverRun && !synthesis && mountPictures && serverReply?.hydrateParts && getConfig().toolModels?.image
       ? createPictureFlow({ document: getDocument(), targetElement, streamMarkdownResponse, signal, hydrateParts: (parts) => serverReply.hydrateParts(parts), mountPictures, getStage: () => view.stageElement() })
       : null;
     if (flow) {
