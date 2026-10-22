@@ -194,16 +194,19 @@ export function createServerReply({
 
   // The files earlier replies made are kept in the cloud (first, if they are not there yet); the request names where they are instead
   // of carrying them, so a long conversation of files does not outgrow it. A file that cannot be kept there stays in the request.
-  const withCloudFiles = async (history) => {
+  // A picture drawn earlier keeps only its local copy on this page (the place in the cloud is dropped once it is brought here): the text model's picture
+  // tool reads it from the cloud, so with that tool on, the request names the place again.
+  const needsCloudFile = (part, pictures) => typeof part?.sandboxFile?.data === 'string' || (pictures && part?.generatedImage?.storageKey && !part.generatedImage.cloudAsset);
+  const withCloudFiles = async (history, { pictures = false } = {}) => {
     const result = [];
     for (const message of history) {
-      if (!message.parts?.some((part) => typeof part?.sandboxFile?.data === 'string')) {
+      if (!message.parts?.some((part) => needsCloudFile(part, pictures))) {
         result.push(message);
         continue;
       }
       const parts = [];
       for (const part of message.parts) {
-        if (typeof part?.sandboxFile?.data !== 'string') {
+        if (!needsCloudFile(part, pictures)) {
           parts.push(part);
           continue;
         }
@@ -246,7 +249,7 @@ export function createServerReply({
     }
     // The conversations the memory drew on are known once the request was put together.
     const historySourceIds = getHistorySourceIds();
-    const history = await withCloudFiles((conversation.messages || []).slice(0, -1).map((message) => ({ role: message.role, parts: message.parts })));
+    const history = await withCloudFiles((conversation.messages || []).slice(0, -1).map((message) => ({ role: message.role, parts: message.parts })), { pictures: Boolean(config?.toolModels?.image) });
     // A text model that may draw pictures by itself (the picture model the person chose in the settings): not for a deep research or a visual check, nor with Gemini's own search.
     const drawing = research || vision || webSearch === 'grounding' ? null : imageGenerationForReply({ config, modelInfo, getApiKeyForProvider });
     const metadata = historySourceIds.length ? { historySourceConversationIds: historySourceIds } : null;

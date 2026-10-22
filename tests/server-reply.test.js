@@ -482,6 +482,29 @@ test('the files earlier replies made are kept in the cloud first, and the reques
   assert.deepEqual(history[0], { role: 'user', parts: [{ text: 'make a file' }] });
 });
 
+test('with the picture tool on, a picture drawn earlier is named by its place in the cloud again (the page drops it once the picture is brought here)', async () => {
+  const drawn = (id) => ({ generatedImage: { id, storageKey: `generatedImage:supabase:u:${id}`, mediaType: 'image/png' } });
+  const withPicture = { ...CONVERSATION, messages: [
+    { role: 'user', parts: [{ text: 'draw' }] },
+    { role: 'model', parts: [{ text: 'here' }, drawn('p1'), { generatedImage: { ...drawn('p2').generatedImage, cloudAsset: { __astraCloudAsset: { path: 'u/known' } } } }] },
+    { role: 'user', parts: [{ text: 'change it' }] }
+  ] };
+  const externalized = [];
+  const externalizeParts = async (parts) => {
+    externalized.push(parts[0].generatedImage.id);
+    return [{ generatedImage: { ...parts[0].generatedImage, cloudAsset: { __astraCloudAsset: { path: 'u/hash', mimeType: 'image/png', encoding: 'blob' } } } }];
+  };
+  const on = harness({ externalizeParts });
+  await on.reply.start(startArgs({ conversation: withPicture, config: { toolModels: { image: { provider: 'openrouter', id: 'img' } } } }));
+  const history = JSON.parse(on.calls[0].options.body).request.history;
+  assert.deepEqual(externalized, ['p1'], 'only the one without a place');
+  assert.equal(history[1].parts[1].generatedImage.cloudAsset.__astraCloudAsset.path, 'u/hash');
+  assert.equal(history[1].parts[2].generatedImage.cloudAsset.__astraCloudAsset.path, 'u/known');
+  const off = harness({ externalizeParts });
+  await off.reply.start(startArgs({ conversation: withPicture }));
+  assert.deepEqual(externalized, ['p1'], 'nothing is kept in the cloud for the picture tool when it is off');
+});
+
 test('a reply whose Python the server lost is told apart, in the language of the page', () => {
   const error = new ServerReplyError('The Python sandbox is not available.', 'sandbox_unavailable');
   assert.equal(localizeServerError(error, 'zh-TW').message, SERVER_REPLY_TEXTS['zh-TW'].sandboxUnavailable);

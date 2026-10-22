@@ -63,6 +63,8 @@ export function referencesLine(document, references, language, onNot) {
   references.forEach((picture, index) => {
     const item = make(document, 'span', 'image-refs-item');
     item.append(pictureTile(document, picture, 'image-ref-tile'));
+    // Which one it is (the numbers start again in every round): the round and whose it is, so a picture of an earlier round is not taken for a new one.
+    if (Number.isInteger(picture.round)) item.append(make(document, 'span', 'image-ref-cap', `${sandboxText(language, 'imageRound', { round: picture.round })} · ${sandboxText(language, picture.source === 'user' ? 'imageFromUser' : 'imageFromModel')}`));
     const button = make(document, 'button', 'image-pick-text-button', sandboxText(language, 'imageNotThis'));
     button.type = 'button';
     button.setAttribute('aria-label', `${sandboxText(language, 'imageNotThis')} ${picture.number}`);
