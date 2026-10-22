@@ -24,7 +24,7 @@
 
 .generated-image-editor-enter .generated-image-editor-toolbar,
 .generated-image-editor-enter .generated-image-editor-header {
-    animation: generated-image-editor-controls-in .28s ease-out .12s both;
+    animation: generated-image-editor-controls-in .28s ease-out .12s backwards;
 }
 
 /* The "edge slider" layout: a top bar (the way out, the history, the confirm button), the picture with the size slider on its left edge, and one row of

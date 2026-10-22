@@ -355,3 +355,9 @@ test('the editor is a black full screen with white controls, the picture square-
 test('the editor\'s old frame around the drawing area does not come back', () => {
   assert.doesNotMatch(editorCss, /\.generated-image-editor-canvas-wrap::before/);
 });
+
+test('the controls of the editor do not keep a transform once they have come in (it made the toolbar the frame of the size slider, which then stood at the bottom of the screen)', () => {
+  const rule = /\.generated-image-editor-enter \.generated-image-editor-toolbar,[\s\S]*?\{([^}]*)\}/.exec(editorCss)?.[1] || '';
+  assert.match(rule, /animation:\s*generated-image-editor-controls-in/);
+  assert.doesNotMatch(rule, /\b(?:both|forwards)\b/);
+});
