@@ -420,6 +420,7 @@ test('the wait for a picture shows under the words when the picture model is ask
     assert.equal(dom.document.getElementById('bubble').nextElementSibling, shown[0], 'right under the words');
     assert.ok(shown[0].querySelector('noureon-image-wait'), 'the field of dots of the wait for a picture');
     assert.equal(shown[0].querySelector('.generated-image-skeleton').style.aspectRatio, '9 / 16');
+    assert.equal(shown[0].querySelector('.generated-image-skeleton').style.getPropertyValue('--picture-ratio'), String(9 / 16), 'the stylesheet works its size out from the shape');
     assert.equal(shown[0].querySelector('.generated-image-wait-label').textContent, 'Drawing…');
     stage.handle({ type: 'image', event: 'done', count: 1, references: [], label: 'Drew a picture' });
     assert.equal(dom.document.querySelector('.reply-draw-stage'), shown[0], 'it stays (dots and all) until the picture takes its place: picture-flow.js');

@@ -82,21 +82,21 @@
 
 /* The wait for a picture a text model draws, in the reply (draw-stage.js): the field of dots of the wait for a picture (chat-generated-image.css), the size the picture
    will have (the same as its card below), so the picture takes its place without the page moving. */
-.reply-draw-stage { width: min(100%, 28rem); margin: 0; }
+/* The same size as the wait and the picture of the picture model (chat-generated-image.css): as wide as the card may be (48rem) and no taller than 70% of the screen. */
+.reply-draw-stage { width: 100%; max-width: min(48rem, calc(100% - var(--reply-inset, 0px))); margin: 0; }
+.model-message .reply-picture-slot .reply-draw-stage { max-width: min(48rem, 100%); margin-left: 0; }
 @keyframes reply-draw-stage-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 .reply-draw-stage { animation: reply-draw-stage-in 0.3s ease; }
 @media (prefers-reduced-motion: reduce) { .reply-draw-stage { animation: none; } }
-.reply-draw-stage .generated-image-skeleton { min-height: 0; max-height: 70vh; }
+.reply-draw-stage .generated-image-skeleton { min-height: 0; max-height: none; width: min(100%, calc(70vh * var(--picture-ratio, 1))); aspect-ratio: var(--picture-ratio, 1); }
 
 /* The place of a picture a text model drew, between the bubbles of the words before and after it (picture-flow.js). */
-.reply-picture-slot { margin: 0; }
+.reply-picture-slot { width: 100%; max-width: calc(100% - var(--reply-inset, 0px)); margin: 0; }
 /* The words next to a picture end close to it: the bubble's own padding and the gap of the stack already stand between them. */
 .model-message .message-bubble:has(+ .reply-picture-slot, + .generated-image-card, + .generated-image-set) { padding-bottom: 0.25rem; }
 .model-message .reply-picture-slot + .message-bubble,
 .model-message .generated-image-card + .message-bubble,
 .model-message .generated-image-set + .message-bubble { padding-top: 0.25rem; }
-.reply-picture-slot .generated-image-card { max-width: min(100%, 28rem); }
-.reply-picture-slot .generated-image-set { max-width: min(100%, 28rem); }
 
 /* What stands between the bubbles of a reply that has pictures in it starts where the words start: the inset of a bubble (its padding; 0.25rem on a phone). */
 .model-message { --reply-inset: 1rem; }

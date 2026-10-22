@@ -7,6 +7,11 @@ import { leave } from './fold-animation.js';
 import { imageWaitMarkup, loadImageWait } from '../image-wait/image-wait-markup.js';
 
 const ratioOf = (value) => (/^\d{1,2}:\d{1,2}$/.test(String(value || '')) ? String(value).replace(':', ' / ') : '1 / 1');
+/** The shape as a number (width over height), for the size the stylesheet works out. */
+export const ratioNumber = (value) => {
+  const [width, height] = String(value || '').split(':').map(Number);
+  return width > 0 && height > 0 ? width / height : 1;
+};
 
 /** `place()` returns the element the stage goes after (the bubble of the words so far), or null when there is none yet. Returns { handle(event), remove() }. */
 export function createDrawStage({ document, place, language }) {
@@ -34,6 +39,7 @@ export function createDrawStage({ document, place, language }) {
     skeleton.setAttribute('aria-live', 'polite');
     skeleton.dataset.targetAspectRatio = String(event.aspectRatio || '1:1');
     skeleton.style.aspectRatio = ratioOf(event.aspectRatio);
+    skeleton.style.setProperty('--picture-ratio', String(ratioNumber(event.aspectRatio)));
     skeleton.innerHTML = imageWaitMarkup({ label: sandboxText(language, 'imageDrawing'), startedAt: Date.now() });
     stage.append(skeleton);
     after.after(stage);

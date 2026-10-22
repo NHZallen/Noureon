@@ -6,8 +6,12 @@ const cardsOf = (root, id) => [...(root?.querySelectorAll?.(`[data-generated-ima
 /** The cards of these pictures wait (shimmer) until `settlePicture` is told the picture is there. */
 export function markPicturesPending(root, assets) {
   for (const asset of Array.isArray(assets) ? assets : []) {
+    const [width, height] = String(asset?.aspectRatio || '').split(':').map(Number);
     for (const card of cardsOf(root, asset?.id)) {
-      if (!card.classList.contains('is-ready')) card.classList.add('is-pending');
+      if (card.classList.contains('is-ready')) continue;
+      card.classList.add('is-pending');
+      // The shape it will have, so the place is the size of the picture (the same size the wait for it had).
+      if (width > 0 && height > 0) card.style.setProperty('--picture-ratio', String(width / height));
     }
   }
 }

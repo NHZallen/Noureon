@@ -171,6 +171,7 @@ export function createImageToolLoader({ spec, secrets, userId, files, signal = n
     `You can draw pictures for the user with the tool generate_image, using the picture model "${modelName}" that the user chose in the settings. Call it when the user asks for a picture, or asks you to change, redo or combine pictures; do not draw unasked.`,
     'Write the prompt yourself, in full (it may be in English when the picture model draws better from it, but any words that must appear in the picture are written exactly as the user wants them, in their language), and give a short `summary` of it in the language the user writes in.',
     'To change or combine pictures, name them in `references` and say in the prompt what to keep and what to change, referring to them by their order in `references`. Leave `references` out for a new picture.',
+    'Name only the pictures the drawing really needs: the one the user wants changed, and the ones whose content has to appear in the result because the user asked for it. A picture that was sent in this conversation (even in this round) is not a reference by itself: if the user did not ask for it to be used, leave it out, because every reference is shown to the user, who is asked about it.',
     `The message you are answering is round ${round}. A picture is named by its round, its source ("user": the user sent it; "generated": you drew it) and its number in its message, which is the number the user sees on the picture. The pictures of this conversation:`,
     lines.length ? lines.join('\n') : '(none yet)',
     'A picture the user attached to the message you are answering has a label in front of it ("Image 2 of 3 in this message: …"): the first number is its number, the one the user sees on it.',
@@ -380,7 +381,7 @@ export function createImageToolLoader({ spec, secrets, userId, files, signal = n
     if (!drawing) return { answered: false };
     const picture = activeDraw.found[index];
     rejected.add(keyOf(picture));
-    notices.push(`The user pressed "not this one" on ${refName(pictureRef(picture))}, a picture you were drawing from, so the drawing was stopped. Do not use it: ask which one they mean with choose_image (other candidates), then draw again.`);
+    notices.push(`The user pressed "not this one" on ${refName(pictureRef(picture))}, a picture you were drawing from, so the drawing was stopped. Do not use it. If they meant another picture, ask which one with choose_image (other candidates); if the picture is not needed for what they asked, draw again without it.`);
     drawing.abort();
     return { answered: true };
   }
@@ -431,7 +432,7 @@ export function createImageToolLoader({ spec, secrets, userId, files, signal = n
       const picture = found[index];
       rejected.add(keyOf(picture));
       activeDraw = null;
-      return `The user pressed "not this one" on ${refName(pictureRef(picture))}, a picture you were going to draw from. No picture was drawn. Do not use it: ask which one they mean with choose_image (other candidates), then draw again.`;
+      return `The user pressed "not this one" on ${refName(pictureRef(picture))}, a picture you were going to draw from. No picture was drawn. Do not use it. If they meant another picture, ask which one with choose_image (other candidates); if the picture is not needed for what they asked, draw again without it.`;
     };
     if (!allowed) {
       const answer = await asker.ask('draw', {
