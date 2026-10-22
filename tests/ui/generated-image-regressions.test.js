@@ -360,4 +360,7 @@ test('the controls of the editor do not keep a transform once they have come in 
   const rule = /\.generated-image-editor-enter \.generated-image-editor-toolbar,[\s\S]*?\{([^}]*)\}/.exec(editorCss)?.[1] || '';
   assert.match(rule, /animation:\s*generated-image-editor-controls-in/);
   assert.doesNotMatch(rule, /\b(?:both|forwards)\b/);
+  const frames = /@keyframes generated-image-editor-controls-in\s*\{([\s\S]*?)\n\}/.exec(editorCss)?.[1] || '';
+  assert.ok(frames.length > 0);
+  assert.doesNotMatch(frames, /transform|translate|scale|rotate|filter/, 'only the opacity moves while the controls come in');
 });

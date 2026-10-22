@@ -315,15 +315,11 @@
     }
 }
 
+/* Opacity only: any transform on the toolbar (even while it runs) makes it the frame of the size slider that stands in it, and the slider then jumps from the
+   bottom of the screen to the left edge when the animation ends. */
 @keyframes generated-image-editor-controls-in {
-    from {
-        opacity: 0;
-        transform: translateY(.4rem);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
 @media (prefers-reduced-motion: reduce) {
