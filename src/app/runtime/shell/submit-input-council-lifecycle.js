@@ -26,8 +26,8 @@ import { createResearchMode } from '../research/research-mode.js';
 import { setVisionLocked } from '../features/vision-check-lock.js';
 import { visionText } from '../../ui/files/vision/vision-texts.js';
 import { createProgressTicker } from '../features/progress-ticker.js';
-import {
 import { createMountPictures } from '../reply/mount-pictures.js';
+import {
   getModelReasoningConfig,
   getReasoningEffortLabel,
   modelSupportsToolCalling,

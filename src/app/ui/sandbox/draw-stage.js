@@ -43,6 +43,9 @@ export function createDrawStage({ document, place, language }) {
       else if (event.event === 'done' && event.kind !== 'view' && stage) {
         // The picture is made: the dots stop, and the line says so until the picture takes their place.
         stage.classList.add('is-finished');
+        // (The shape it was waiting in is set on the element itself, so it is taken off there.)
+        const frame = stage.querySelector('.generated-image-skeleton');
+        if (frame) frame.style.aspectRatio = 'auto';
         stage.querySelector('noureon-image-wait')?.remove();
         const label = stage.querySelector('.generated-image-wait-label');
         if (label) label.textContent = sandboxText(language, 'imageStageDone');
