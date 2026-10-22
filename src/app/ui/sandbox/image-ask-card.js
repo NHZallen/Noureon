@@ -35,7 +35,7 @@ export function createImageAskCards({ document, host, language, onAnswer = async
     card.title.textContent = text(RESULT_KEYS[String(decision).startsWith('not:') ? 'not' : decision] || RESULT_KEYS.timeout);
   };
 
-  const ask = ({ id, model, prompt, references, waitMs }) => {
+  const ask = ({ id, model, prompt, summary, references, waitMs }) => {
     if (!id || cards.has(id)) return;
     const node = make('div', 'net-ask image-ask');
     node.dataset.askId = id;
@@ -43,7 +43,26 @@ export function createImageAskCards({ document, host, language, onAnswer = async
     const head = make('div', 'net-ask-head');
     const title = make('span', 'net-ask-title', text('imageAskTitle', { model: model?.name || model?.id || '' }));
     head.append(title);
-    const promptNode = make('div', 'image-ask-prompt', String(prompt || ''));
+    // What the person reads is the model's short summary in their language; the prompt the picture model gets (often in English, and long) is one tap away.
+    const promptNode = make('div', 'image-ask-prompt');
+    const said = String(summary || '').trim();
+    if (said) {
+      promptNode.append(make('p', 'image-ask-summary', said));
+      const full = make('p', 'image-ask-full', String(prompt || ''));
+      full.hidden = true;
+      const toggle = make('button', 'image-pick-text-button image-ask-toggle', text('imagePromptShow'));
+      toggle.type = 'button';
+      toggle.setAttribute('aria-expanded', 'false');
+      toggle.addEventListener('click', () => {
+        full.hidden = !full.hidden;
+        toggle.setAttribute('aria-expanded', String(!full.hidden));
+        toggle.textContent = text(full.hidden ? 'imagePromptShow' : 'imagePromptHide');
+      });
+      promptNode.append(toggle, full);
+    } else {
+      promptNode.classList.add('is-clamped');
+      promptNode.textContent = String(prompt || '');
+    }
     const actions = make('div', 'net-ask-actions image-ask-actions');
     const note = make('div', 'net-ask-note', text('imageAskWait', { minutes: Math.max(1, Math.round((Number(waitMs) || 600_000) / 60_000)) }));
     const card = { node, title, actions, note, prompt: promptNode, resolved: false };

@@ -27,11 +27,11 @@ const CARD_SIDE = 192;
 const CARD_QUALITY = 55;
 const CARD_MAX_CHARS = 30_000;
 /** The tiny pictures of the step list (and of the record kept with the reply): small, since a reply may keep many. */
-const STRIP_SIDE = 120;
+const STRIP_SIDE = 160;
 const STRIP_QUALITY = 50;
-const STRIP_MAX_CHARS = 8_000;
+const STRIP_MAX_CHARS = 12_000;
 /** Tiny pictures the record keeps in all: past it the record keeps the numbers only. */
-const RECORD_THUMBS = 40;
+const RECORD_THUMBS = 30;
 const CACHE_PICTURE_BYTES = 6 * 1024 * 1024;
 const CACHE_TOTAL_BYTES = 36 * 1024 * 1024;
 
@@ -97,6 +97,7 @@ export const GENERATE_IMAGE_TOOL = Object.freeze({
   parameters: Object.freeze({
     type: 'object',
     properties: {
+      summary: { type: 'string', maxLength: 200, description: 'One short sentence in the language the user writes in, saying what you are about to draw (for example "A poster of the delivery app with fresh produce"). The user reads this when asked to allow the picture; they do not read the prompt.' },
       prompt: { type: 'string', maxLength: PROMPT_CHARS, description: 'The whole description of the picture: what it shows, the style, the colours, the light. When you edit or combine pictures, say what to keep and what to change, and refer to the reference pictures by their order in `references` (the first, the second, …).' },
       references: {
         type: 'array',
@@ -108,7 +109,7 @@ export const GENERATE_IMAGE_TOOL = Object.freeze({
       aspect_ratio: { type: 'string', description: 'The shape, like "1:1", "16:9" or "9:16". Leave it out to keep the shape of the first reference, or 1:1.' },
       reason: { type: 'string', maxLength: 300, description: 'One short sentence for the user: why you draw it this way and which pictures you use.' }
     },
-    required: ['prompt']
+    required: ['prompt', 'summary']
   })
 });
 
@@ -165,7 +166,8 @@ export function createImageToolLoader({ spec, secrets, userId, files, signal = n
   const lines = pictureIndexLines(pictures, { currentRound: round });
   const instruction = [
     `You can draw pictures for the user with the tool generate_image, using the picture model "${modelName}" that the user chose in the settings. Call it when the user asks for a picture, or asks you to change, redo or combine pictures; do not draw unasked.`,
-    'Write the prompt yourself, in full. To change or combine pictures, name them in `references` and say in the prompt what to keep and what to change, referring to them by their order in `references`. Leave `references` out for a new picture.',
+    'Write the prompt yourself, in full (it may be in English when the picture model draws better from it, but any words that must appear in the picture are written exactly as the user wants them, in their language), and give a short `summary` of it in the language the user writes in.',
+    'To change or combine pictures, name them in `references` and say in the prompt what to keep and what to change, referring to them by their order in `references`. Leave `references` out for a new picture.',
     `The message you are answering is round ${round}. A picture is named by its round, its source ("user": the user sent it; "generated": you drew it) and its number in its message, which is the number the user sees on the picture. The pictures of this conversation:`,
     lines.length ? lines.join('\n') : '(none yet)',
     'A picture the user attached to the message you are answering has a label in front of it ("Image 2 of 3 in this message: …"): the first number is its number, the one the user sees on it.',
@@ -428,6 +430,7 @@ export function createImageToolLoader({ spec, secrets, userId, files, signal = n
         drawId,
         model: { id: model.id, name: modelName },
         prompt: oneLine(prompt, 1500),
+        ...(oneLine(args.summary, 200) ? { summary: oneLine(args.summary, 200) } : {}),
         count,
         references: strips
       }, (value) => ['once', 'always', 'deny'].includes(value) || (/^not:\d{1,2}$/.test(value) && Number(value.slice(4)) < found.length), (id) => { if (activeDraw) activeDraw.askId = id; });

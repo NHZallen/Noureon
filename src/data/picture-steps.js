@@ -8,7 +8,7 @@
 
 const MAX_STEPS = 40;
 const MAX_PICTURES = 16;
-const MAX_THUMB_CHARS = 8000;
+const MAX_THUMB_CHARS = 12000;
 const THUMB_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
 
 const whole = (value) => (Number.isInteger(value) && value >= 1 && value <= 100_000 ? value : null);

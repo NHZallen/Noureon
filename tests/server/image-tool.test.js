@@ -75,7 +75,7 @@ test('the tool is offered with its instructions, the pictures of the conversatio
   assert.match(loader.instruction, /Round 1: you drew picture 1 \(asked for: "a blue living room"\), picture 2/);
   assert.match(loader.instruction, /Round 2: the user sent picture 1 "kettle\.jpg"/);
   assert.match(loader.instruction, /Round 3 \(this message\): the user sent picture 1 "sofa\.jpg"/);
-  assert.deepEqual(GENERATE_IMAGE_TOOL.parameters.required, ['prompt']);
+  assert.deepEqual(GENERATE_IMAGE_TOOL.parameters.required, ['prompt', 'summary']);
 });
 
 test('a new picture: the prompt goes to the picture model with the picture key and the shape, and the part comes back with its prompt', async () => {

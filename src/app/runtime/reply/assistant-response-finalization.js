@@ -63,6 +63,8 @@ export async function finalizeAssistantResponse({
   playbackCouncilResponse,
   extractPersonalMemory,
   completeImageView = null,
+  // A text reply that has pictures in it (a text model drew them itself): the message is drawn again whole, so the pictures are there at once.
+  showMessageWithPictures = null,
   scheduleVisionCheck = () => {},
   queueBackgroundTask = (task) => {
     void Promise.resolve()
@@ -120,6 +122,9 @@ export async function finalizeAssistantResponse({
     await playbackCouncilResponse({ targetElement, fullResponse, signal });
   }
   rememberRenderedMessage(targetElement, finalAiMessage);
+  if (!hasFinalParts && !responseUsesCouncil && showMessageWithPictures && finalAiMessage.parts.some((part) => part?.generatedImage)) {
+    showMessageWithPictures({ finalAiMessage });
+  }
 
   // A council's reply too: its synthesizer may have written a presentation (the check is made with the synthesizer).
   if (!hasFinalParts && !signal.aborted) {

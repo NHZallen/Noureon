@@ -343,3 +343,23 @@ test('while the picture is drawn the row has the pictures with "not this one"; i
     dom.close?.();
   }
 });
+
+test('the question shows the short summary in the person\'s language, and the long prompt only on a tap', () => {
+  const dom = createDom('<div id="host"></div>');
+  try {
+    const cards = createImageAskCards({ document: dom.document, host: dom.document.getElementById('host'), language: 'en', onAnswer: async () => ({ ok: true }) });
+    cards.handle({ ...ASK, summary: 'A poster of the delivery app with fresh produce' });
+    assert.equal(dom.document.querySelector('.image-ask-summary').textContent, 'A poster of the delivery app with fresh produce');
+    const full = dom.document.querySelector('.image-ask-full');
+    assert.equal(full.hidden, true);
+    assert.equal(full.textContent, ASK.prompt);
+    const toggle = dom.document.querySelector('.image-ask-toggle');
+    toggle.click();
+    assert.equal(full.hidden, false);
+    assert.equal(toggle.textContent, 'Hide the prompt');
+    cards.handle({ ...ASK, id: 'ask-image-9' });
+    assert.equal(dom.document.querySelectorAll('.image-ask-prompt.is-clamped').length, 1, 'without a summary the prompt itself shows, cut to a few lines');
+  } finally {
+    dom.close?.();
+  }
+});

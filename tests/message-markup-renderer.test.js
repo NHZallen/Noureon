@@ -245,3 +245,29 @@ test('a reply of words and pictures (a text model drew them itself) has the pict
   });
   assert.doesNotMatch(alone.messageHTML, /copy-content-btn/);
 });
+
+test('a text reply with pictures in it is drawn again whole once it is finished, so the pictures show at once', async () => {
+  const { finalizeAssistantResponse } = await import('../src/app/runtime/reply/assistant-response-finalization.js');
+  const run = async (extraParts, options = {}) => {
+    const shown = [];
+    await finalizeAssistantResponse({
+      fullResponse: 'Here it is.',
+      extraParts,
+      finalAiMessage: { role: 'model', parts: [] },
+      conversation: { messages: [] },
+      signal: new AbortController().signal,
+      responseUsesCouncil: false,
+      targetElement: null,
+      uiLanguage: 'en',
+      persistAppData: async () => {},
+      completeSingleModelView: async () => {},
+      queueBackgroundTask: () => {},
+      showMessageWithPictures: ({ finalAiMessage }) => shown.push(finalAiMessage.parts.length),
+      ...options
+    });
+    return shown;
+  };
+  assert.deepEqual(await run([{ generatedImage: { id: 'a' } }]), [2]);
+  assert.deepEqual(await run([{ sandboxFile: { id: 'q', name: 'q.csv', data: 'YQ==' } }]), [], 'files are cards in the text: nothing to draw again');
+  assert.deepEqual(await run([]), []);
+});

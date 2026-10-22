@@ -526,6 +526,11 @@ export function createSubmitInputCouncilLifecycle(dependencies = {}) {
         renderRealtimeCouncilFinal: ({ targetElement, fullResponse }) => renderIncrementalResponse(targetElement, fullResponse, { final: true, preserveCouncilDetails: true }),
         playbackCouncilResponse: ({ targetElement, fullResponse, signal }) => playbackStreamingMarkdownResponse(targetElement, fullResponse, signal, true),
         extractPersonalMemory: (userMessageText, fullResponse) => extractPersonalMemory(userMessageText, fullResponse),
+        showMessageWithPictures: ({ finalAiMessage: made }) => {
+          if (!loadingMessageDiv?.isConnected) return;
+          const whole = addMessageToUI(made, conv.messages.length - 1, false, false, { conversation: conv });
+          if (whole && whole !== loadingMessageDiv) loadingMessageDiv.replaceWith(whole);
+        },
         completeImageView: generatedImageParts
           ? () => revealGeneratedImage({ finalAiMessage, conversation: conv, loadingMessageDiv, addMessageToUI, requestAnimationFrame })
           : null
