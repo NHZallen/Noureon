@@ -155,7 +155,7 @@ test('the reply reads words, picture, words: what the model said before it drew,
   const result = await executeReply({ spec: validateRunSpec(goodSpec()).spec, secrets: { providerKey: 'k', imageKey: 'i' }, userId: USER, files: h.files, fetchImpl: h.fetchImpl, onLive: (event) => live.push(event) });
   // The picture says where in the answer it stands (a page that joins the reply late puts it in the same place), and where it is kept.
   const done = live.map((event) => event.ev).find((event) => event?.type === 'image' && event.event === 'done');
-  assert.equal(done.at, 'I will draw a cat in the rain.'.length);
+  assert.equal(done.textAt, 'I will draw a cat in the rain.'.length);
   assert.equal(done.pictures[0].generatedImage.cloudAsset.__astraCloudAsset.path, `${USER}/pic-1`);
   assert.equal(done.pictures[0].generatedImage.prompt, undefined);
   assert.deepEqual(result.parts.map((part) => (part.generatedImage ? 'picture' : 'text')), ['text', 'picture', 'text']);

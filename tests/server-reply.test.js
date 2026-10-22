@@ -332,7 +332,7 @@ test('a page that comes in late is given what there is so far at once, then goes
 });
 
 test('a page that comes in late is told where the pictures a text model drew stand before it is given the words', async () => {
-  const drawn = { type: 'image', event: 'done', pictures: [{ generatedImage: { id: 'a' } }], at: 8 };
+  const drawn = { type: 'image', event: 'done', pictures: [{ generatedImage: { id: 'a' } }], textAt: 8 };
   const { reply } = liveHarness({
     events: [{ r: { answer: 'I draw. Here it is.', thought: { text: '', kind: 'model' }, sources: [], events: [{ type: 'step', n: 1 }, drawn] } }, { done: 'complete' }],
     rows: [row('I draw. Here it is.', 'complete')]

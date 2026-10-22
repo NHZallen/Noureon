@@ -118,7 +118,7 @@ export function createPictureFlow({ document, targetElement, streamMarkdownRespo
       if (!fresh.length) return;
       fresh.forEach((part) => known.add(part.generatedImage.id));
       // As it happens it stands where the words are now; told where it stood, further on, it waits for the words to get there (a place already passed is the place now).
-      const at = Number.isFinite(event.at) ? event.at : delivered;
+      const at = Number.isFinite(event.textAt) ? event.textAt : delivered;
       if (at > delivered) {
         pending.push({ at, pictures: fresh });
         pending.sort((a, b) => a.at - b.at);

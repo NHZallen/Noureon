@@ -188,14 +188,14 @@ test('a page that joins the reply late is told where the picture stands, then gi
     const sink = fakeStream(target, (onChunk) => new Promise((resolve) => { feed.head = onChunk; feed.end = resolve; }));
     await tick();
     flow.handle({ type: 'image', event: 'start', label: 'Drawing…' });
-    flow.handle({ type: 'image', event: 'done', count: 1, pictures: [pic('a')], at: 8 });
+    flow.handle({ type: 'image', event: 'done', count: 1, pictures: [pic('a')], textAt: 8 });
     // The picture waits for the words to get to its place.
     assert.equal(dom.document.querySelector('.reply-picture-slot'), null);
     feed('I draw. Here it is.');
     await tick();
     assert.equal(target.textContent, 'I draw. ');
     // The same events told again (the channel was joined again): the picture is not placed twice.
-    flow.handle({ type: 'image', event: 'done', count: 1, pictures: [pic('a')], at: 8 });
+    flow.handle({ type: 'image', event: 'done', count: 1, pictures: [pic('a')], textAt: 8 });
     feed(' More.');
     const result = await flow.finish();
     feed.end();
@@ -216,13 +216,33 @@ test('a picture told to stand further on than the words ever got stands at the e
     const sink = fakeStream(target, (onChunk) => new Promise((resolve) => { feed.head = onChunk; feed.end = resolve; }));
     await tick();
     feed('Short.');
-    flow.handle({ type: 'image', event: 'done', count: 1, pictures: [pic('late')], at: 500 });
-    flow.handle({ type: 'image', event: 'done', count: 1, pictures: [pic('past')], at: 2 });
+    flow.handle({ type: 'image', event: 'done', count: 1, pictures: [pic('late')], textAt: 500 });
+    flow.handle({ type: 'image', event: 'done', count: 1, pictures: [pic('past')], textAt: 2 });
     const result = await flow.finish();
     feed.end();
     await sink;
     assert.deepEqual(result.pictures.map((part) => part.generatedImage.id), ['past', 'late']);
     assert.deepEqual(result.offsets, [6, 6]);
+  } finally {
+    dom.cleanup();
+  }
+});
+
+test('the time the page stamps on an event is not mistaken for where the picture stands: only the place in the answer counts', async () => {
+  const { dom, target, flow } = setup();
+  try {
+    const feed = flow.wrap((chunk) => feed.head(chunk));
+    const sink = fakeStream(target, (onChunk) => new Promise((resolve) => { feed.head = onChunk; feed.end = resolve; }));
+    await tick();
+    feed('Intro.');
+    // followServerReply puts the server's clock in `at` of every event; the place in the answer is `textAt`.
+    flow.handle({ type: 'image', event: 'done', pictures: [pic('a')], at: 1_790_000_000_000, textAt: 6 });
+    feed('Closing.');
+    const result = await flow.finish();
+    feed.end();
+    await sink;
+    assert.deepEqual(bubbles(dom), ['bubble:Intro.', 'slot:a', 'bubble:Closing.']);
+    assert.deepEqual(result.offsets, [6]);
   } finally {
     dom.cleanup();
   }
