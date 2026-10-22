@@ -84,6 +84,11 @@
     <link rel="apple-touch-startup-image" href="/splash/dark-2266x1488.png" media="(device-width: 1133px) and (device-height: 744px) and (-webkit-device-pixel-ratio: 2) and (orientation: landscape) and (prefers-color-scheme: dark)" />
     <!-- ios-splash:end -->
     <style>
+      /* The cover is fixed over the page; what is built under it (the page of a visitor is tall) must not show a scroll bar beside it. */
+      html:has([data-startup-skeleton]) {
+        overflow: hidden;
+      }
+
       [data-startup-skeleton] {
         position: fixed;
         inset: 0;

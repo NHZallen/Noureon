@@ -60,3 +60,9 @@ html, body { overscroll-behavior: none; }
     }
 }
 [data-startup-skeleton] { touch-action: none; overscroll-behavior: none; }
+/* The page of a visitor (the sign-in page, tall) stays in the document while the workspace of someone signed in starts and while the app is on screen: it is
+   covered or fading out, and its scroll bar must not show beside it (it showed while the workspace was loading). The page of a visitor scrolls as it did. */
+html:has([data-startup-skeleton]),
+html:has(#auth-container.fade-out),
+html:has(#app-container:not(.hidden)),
+html:has(#store-container:not(.hidden)) { overflow: hidden; }
