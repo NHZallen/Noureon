@@ -27,9 +27,6 @@ export function createDrawStage({ document, place, language }) {
     skeleton.setAttribute('aria-live', 'polite');
     skeleton.dataset.targetAspectRatio = String(event.aspectRatio || '1:1');
     skeleton.style.aspectRatio = ratioOf(event.aspectRatio);
-    // A small place, by its shape: a tall picture is narrow, a wide one is wider (the picture takes the room it needs when it comes).
-    const [width, height] = ratioOf(event.aspectRatio).split(' / ').map(Number);
-    stage.dataset.shape = width < height ? 'tall' : width > height ? 'wide' : 'square';
     skeleton.innerHTML = imageWaitMarkup({ label: sandboxText(language, 'imageDrawing'), startedAt: Date.now() });
     stage.append(skeleton);
     after.after(stage);

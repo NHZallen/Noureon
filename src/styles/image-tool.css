@@ -68,11 +68,10 @@
 .image-ask .image-ref-tile { width: 5.5rem; height: 5.5rem; border-radius: 0.7rem; }
 .image-ask .image-ref-tile .picture-number { top: 0.35rem; left: 0.35rem; min-width: 1.25rem; height: 1.25rem; font-size: 0.72rem; }
 
-/* The wait for a picture a text model draws, in the reply (draw-stage.js): the field of dots of the wait for a picture (chat-generated-image.css), small, under the words so far. */
-.reply-draw-stage { width: min(14rem, 100%); margin: 0.5rem 0 0.25rem; }
-.reply-draw-stage[data-shape='tall'] { width: min(10rem, 100%); }
-.reply-draw-stage[data-shape='wide'] { width: min(18rem, 100%); }
-.reply-draw-stage .generated-image-skeleton { min-height: 0; max-height: 18rem; }
+/* The wait for a picture a text model draws, in the reply (draw-stage.js): the field of dots of the wait for a picture (chat-generated-image.css), the size the picture
+   will have (the same as its card below), so the picture takes its place without the page moving. */
+.reply-draw-stage { width: min(100%, 28rem); margin: 0.5rem 0 0.25rem; }
+.reply-draw-stage .generated-image-skeleton { min-height: 0; max-height: 70vh; }
 
 /* The place of a picture a text model drew, between the bubbles of the words before and after it (picture-flow.js). */
 .reply-picture-slot { margin: 0.6rem 0; }

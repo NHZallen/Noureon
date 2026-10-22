@@ -382,7 +382,6 @@ test('the wait for a picture shows under the words when the picture model is ask
     assert.ok(shown[0].querySelector('noureon-image-wait'), 'the field of dots of the wait for a picture');
     assert.equal(shown[0].querySelector('.generated-image-skeleton').style.aspectRatio, '9 / 16');
     assert.equal(shown[0].querySelector('.generated-image-wait-label').textContent, 'Drawing…');
-    assert.equal(shown[0].dataset.shape, 'tall', 'a small place, narrow for a tall picture');
     stage.handle({ type: 'image', event: 'done', count: 1, references: [], label: 'Drew a picture' });
     assert.equal(dom.document.querySelector('.reply-draw-stage'), shown[0], 'it stays (dots and all) until the picture takes its place: picture-flow.js');
     stage.handle({ type: 'image', event: 'drawing', id: 'd2' });
