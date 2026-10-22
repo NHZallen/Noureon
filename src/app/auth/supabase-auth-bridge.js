@@ -336,14 +336,15 @@ async function finishCloudLogin({ window, elements, storage, user }) {
   window.location.reload();
 }
 
-export async function initializeSupabaseAuthBridge({ window, document, startupIdentity } = globalThis) {
-  if (!isSupabaseConfigured()) return { enabled: false };
+// `deps` replaces what the bridge builds for itself (whether the cloud is set up, its client, the device storage, the human check) with stand-ins, for tests.
+export async function initializeSupabaseAuthBridge({ window, document, startupIdentity, deps = {} } = globalThis) {
+  if (!(deps.configured ?? isSupabaseConfigured())) return { enabled: false };
 
-  const supabase = getSupabaseClient();
-  const storage = createRuntimeStorageAdapter();
+  const supabase = deps.supabase || getSupabaseClient();
+  const storage = deps.storage || createRuntimeStorageAdapter();
   const elements = enhanceAuthShell(document);
   if (!elements) return { enabled: true };
-  const turnstile = createTurnstileClient({ window, document });
+  const turnstile = deps.turnstile || createTurnstileClient({ window, document });
   const skipTurnstileForLocalStartup = startupIdentity?.mode === 'local';
 
   const resolvedSession = startupIdentity?.sessionChecked
