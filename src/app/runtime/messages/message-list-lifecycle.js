@@ -329,7 +329,9 @@ export function createMessageListLifecycle({
             fadeOutPreviousChat({ messageList, chatContainer, document });
         }
         renderedConversationId = conversation.id;
-        messageList.classList.remove('chat-view-transition');
+        // The same chat drawn again (the cloud brought a change): the list is drawn anew, so it comes back with a short fade rather than a blink.
+        const drawnAgain = !animate && messageList.childElementCount > 0;
+        messageList.classList.remove('chat-view-transition', 'chat-view-refresh');
         messageList.innerHTML = '';
         if (conversation.messages.length === 0) {
             const greeting = `${getCurrentUserName()}, ${getText('howCanIHelp')}`;
@@ -355,9 +357,9 @@ export function createMessageListLifecycle({
                 keepBottomAnchoredWhileMediaLoads({ messageList, renderToken });
             }
         });
-        if (animate) {
+        if (animate || drawnAgain) {
             void messageList.offsetWidth;
-            messageList.classList.add('chat-view-transition');
+            messageList.classList.add(animate ? 'chat-view-transition' : 'chat-view-refresh');
         }
         updateInputState();
         announceChatChanged();

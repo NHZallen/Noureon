@@ -28,6 +28,9 @@
     .chat-view-transition {
         animation: chatFadeIn 0.3s ease-out forwards;
     }
+    .chat-view-refresh {
+        animation: chatFadeIn 0.22s ease-out;
+    }
     .folder-item > .folder-content-container {
     display: grid;
     grid-template-rows: 0fr;

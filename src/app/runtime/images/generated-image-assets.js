@@ -1,3 +1,5 @@
+import { settlePicture, settlePictures } from '../../ui/files/picture-loading.js';
+
 const extensionForMediaType = (mediaType = '') => ({
   'image/jpeg': 'jpg',
   'image/webp': 'webp',
@@ -101,12 +103,19 @@ export function createGeneratedImageAssetStore({
   const bind = async (root, descriptors = []) => {
     await Promise.all(descriptors.map(async descriptor => {
       const blob = await getBlob(descriptor);
-      if (!blob) return;
+      if (!blob) {
+        settlePictures(root, descriptor.id);
+        return;
+      }
       const objectUrl = createObjectURL(blob);
       root.querySelectorAll(`[data-generated-image-id="${descriptor.id}"]`)
         .forEach(element => {
           if (typeof element.addEventListener === 'function') {
-            element.addEventListener('load', () => applyNaturalImageAspect(element), { once: true });
+            element.addEventListener('load', () => {
+              applyNaturalImageAspect(element);
+              settlePicture(element);
+            }, { once: true });
+            element.addEventListener('error', () => settlePicture(element), { once: true });
           }
           element.src = objectUrl;
           applyNaturalImageAspect(element);

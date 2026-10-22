@@ -63,6 +63,24 @@
     cursor: zoom-in;
 }
 
+/* A picture that is still on its way (ui/files/picture-loading.js): a soft block in the shape it will have, slowly breathing (no sweeping light: the owner took that out), then the picture fades in. */
+.generated-image-card img { transition: opacity .4s ease; }
+.generated-image-card.is-pending { width: min(100%, 24rem); aspect-ratio: 1 / 1; }
+.generated-image-card.is-pending img { opacity: 0; }
+.generated-image-card.is-pending::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 1.2rem;
+    background: var(--hover-bg);
+    animation: generated-image-pending-breathe 1.8s ease-in-out infinite;
+}
+@keyframes generated-image-pending-breathe { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+    .generated-image-card img { transition: none; }
+    .generated-image-card.is-pending::before { animation: none; }
+}
+
 .generated-image-card + .generated-image-card {
     margin-top: .75rem;
 }

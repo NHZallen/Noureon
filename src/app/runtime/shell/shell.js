@@ -50,6 +50,7 @@ import { i18n } from '/src/data/i18n.js';
 import { OFFICIAL_ASTRAS } from '/src/data/astras-data.js';
 import { updateLogs } from '/src/data/update-logs.js';
 import { PRODUCT_VERSION as productVersion } from '/src/data/version.js';
+import { markPicturesPending } from '../../ui/files/picture-loading.js';
 
 // The start of the chat page after signing in, and the height of the message field: made at the end of this module with the start of
 // the page (app-bootstrap-lifecycle.js, startup-lifecycle.js), and called only once the page runs.
@@ -181,6 +182,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             focusMessageInput: () => ALL_ELEMENTS.messageInput?.focus()
         });
         const bindGeneratedImageAssets = async (root, assets) => {
+            markPicturesPending(root, assets);
             const { assetStore, interactions } = await getGeneratedImageRuntime();
             await assetStore.bind(root, assets);
             interactions.bind(root, assets);
