@@ -123,6 +123,8 @@ export function createSandboxLedger({ document, host, before = null, language = 
       askWhichPicture(event);
       return;
     }
+    // The picture model is being asked: the wait for the picture is the reply's own (draw-stage.js); the row goes on running.
+    if (event.event === 'drawing') return;
     if (event.event === 'refs') {
       // The pictures the drawing starts from, each with "not this one", under the row while the question waits and the picture is drawn.
       const running = imageRow && list.rows.includes(imageRow) && imageRow.state === 'running' ? imageRow : null;

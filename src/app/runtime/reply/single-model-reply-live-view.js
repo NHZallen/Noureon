@@ -9,6 +9,7 @@ import { createImageAnswerHandler } from '../image-tool/image-answer.js';
 import { createNetAnswerHandler } from '../cli/net-answer.js';
 import { createSandboxLedger } from '../../ui/sandbox/sandbox-ledger.js';
 import { createThinkingBlock } from '../../ui/thinking/thinking-block.js';
+import { createDrawStage } from '../../ui/sandbox/draw-stage.js';
 
 /**
  * `serverRun`: the run of the server when it makes the reply (its questions to the person are answered through it). `madeHere`: the server
@@ -27,6 +28,9 @@ export function createReplyLiveView({ targetElement, getDocument, getConfig, lan
   let answered = false;
   let answerStarted = false;
   let ownSearchNoticed = false;
+
+  // The wait for a picture the model draws, under the words so far.
+  const drawStage = createDrawStage({ document: getDocument(), language, place: () => targetElement.closest?.('.message-bubble') || targetElement });
 
   const stepList = () => {
     if (!liveRun && targetElement.parentElement) {
@@ -106,7 +110,10 @@ export function createReplyLiveView({ targetElement, getDocument, getConfig, lan
   return {
     stepList,
     // An event of the steps (a run, a search, a skill): drawn in the list.
-    event: (event) => stepList()?.event(event),
+    event: (event) => {
+      drawStage.handle(event);
+      stepList()?.event(event);
+    },
     noteOwnSearch,
     showThinking,
     endThinking,
@@ -121,6 +128,7 @@ export function createReplyLiveView({ targetElement, getDocument, getConfig, lan
     resetSteps: () => {
       liveRun?.remove();
       liveRun = null;
+      drawStage.remove();
     },
     setStartedAt: (startedAt) => liveRun?.setStartedAt?.(startedAt),
     get answered() { return answered; },
@@ -128,6 +136,7 @@ export function createReplyLiveView({ targetElement, getDocument, getConfig, lan
     // The reply is over: the list and the thinking blocks leave (what was thought is kept with the reply, in its run record).
     close: () => {
       liveRun?.remove();
+      drawStage.remove();
       endThinking();
       thinkingBlocks.forEach((block) => block.remove());
       thinkingBlock?.remove();

@@ -3,6 +3,7 @@
 // into the same message the app already syncs. This file is that hand-over and the following of the reply until it is done.
 
 import { liftSandboxRunBlock } from '../../ui/sandbox/sandbox-run-block.js';
+import { pictureOffsets } from '../../../data/picture-interleave.js';
 import { serverReplyText } from './server-reply-texts.js';
 import { readRunStream } from './server-stream.js';
 import { netPolicyForRun } from '../cli/net-state.js';
@@ -594,7 +595,8 @@ export function createServerReply({
             extraParts = fileParts;
           }
         }
-        return { text: lifted.text, run: lifted.run, rewritten: !lifted.text.startsWith(answerSoFar), extraParts, visionRunId };
+        // Where in the answer the pictures the model drew stood (the message reads words, picture, words).
+        return { text: lifted.text, run: lifted.run, rewritten: !lifted.text.startsWith(answerSoFar), extraParts, pictureOffsets: pictureOffsets(row.parts).offsets, visionRunId };
       }
     }
   });

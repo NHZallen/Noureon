@@ -1,6 +1,7 @@
 import { getRuntimeText } from '../i18n/runtime-texts.js';
 import { normalizeHistorySourceConversationIds } from '../memory/history-source-references.js';
 import { isStaleChunkError, offerReloadForNewVersion, staleChunkMessage } from '../../../pwa/stale-chunk-recovery.js';
+import { placePictures } from '../../../data/picture-interleave.js';
 
 const getEmptyResponseMessage = (uiLanguage) => getRuntimeText(uiLanguage, 'emptyResponse');
 
@@ -37,11 +38,20 @@ const rememberRenderedMessage = (targetElement, message) => {
   if (messageElement) messageElement.__astraRenderedMessage = message;
 };
 
+// The text, then the files; the pictures a text model drew stand among the words where it drew them.
+const partsWithPictures = (text, extraParts, offsets) => {
+  const pictures = extraParts.filter((part) => part?.generatedImage);
+  if (!pictures.length) return [{ text }, ...extraParts];
+  return [...placePictures(text, pictures, offsets), ...extraParts.filter((part) => !part?.generatedImage)];
+};
+
 export async function finalizeAssistantResponse({
   fullResponse,
   finalParts = null,
   // Files made in Advanced mode, kept after the text.
   extraParts = [],
+  // Where in the answer the pictures among `extraParts` that a text model drew stood: the message reads words, picture, words.
+  pictureOffsets = [],
   finalAiMessage,
   councilMetadata,
   includeCouncilMetadata = false,
@@ -90,7 +100,7 @@ export async function finalizeAssistantResponse({
     }
   }
 
-  finalAiMessage.parts = hasFinalParts ? finalParts : [{ text: fullResponse }, ...extraParts];
+  finalAiMessage.parts = hasFinalParts ? finalParts : partsWithPictures(fullResponse, extraParts, pictureOffsets);
   const normalizedHistorySourceConversationIds = normalizeHistorySourceConversationIds(historySourceConversationIds);
   if (normalizedHistorySourceConversationIds.length > 0) {
     finalAiMessage.metadata = {

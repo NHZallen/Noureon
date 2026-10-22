@@ -474,6 +474,10 @@
     {
       "path": "src/data/picture-steps.js",
       "note": "Reviewed 2026-10-22: no browser globals (the record of the pictures a text model looked at, asked about and drew)."
+    },
+    {
+      "path": "src/data/picture-interleave.js",
+      "note": "Reviewed 2026-10-22: no browser globals (where the pictures a text model drew stand among the words of its reply)."
     }
   ]
 }

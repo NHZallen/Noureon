@@ -83,6 +83,34 @@ export function buildMessageRenderView({
     // A reply the automatic visual check asked for is marked, so it does not read as an answer to the user.
     let autoNoteHTML = '';
     let researchCard = false;
+    // The pictures of a run of pictures (the card of each, or the set of several).
+    // A picture's number is its place among the pictures of the whole message, whichever words stand between.
+    const drawnNumberOf = new Map();
+    drawnPictureNumbers(message.parts.filter((part) => part?.generatedImage).map((part) => part.generatedImage)).forEach((number, index) => {
+        drawnNumberOf.set(message.parts.filter((part) => part?.generatedImage)[index].generatedImage.id, number);
+    });
+    const generatedPicturesHTML = (assets) => {
+        const generatedImageCards = assets.map((asset) => {
+            const imageAspectRatio = resolveImageAspectRatio(asset.aspectRatio);
+            return `
+            <figure class="generated-image-card${imageAspectRatio ? ' has-known-aspect' : ''}" data-generated-image-card="${asset.id}"${imageAspectRatio ? ` style="aspect-ratio: ${imageAspectRatio}"` : ''}>
+                <button type="button" class="generated-image-preview-btn" data-generated-image-preview="${asset.id}" aria-label="${escapeHTML(labels.imagePreview || '')}">
+                    <img data-generated-image-id="${asset.id}" alt="${escapeHTML(labels.imageAlt || '')}" loading="lazy">
+                </button>
+                ${pictureNumberHTML(drawnNumberOf.get(asset.id))}
+                <div class="generated-image-actions">
+                    <button type="button" data-generated-image-edit="${asset.id}" class="generated-image-action-btn generated-image-edit-btn">
+                        <span>${escapeHTML(labels.edit || '')}</span>
+                    </button>
+                    <a data-generated-image-download="${asset.id}" class="generated-image-action-btn generated-image-download-btn" title="${escapeHTML(labels.imageDownloadOriginal || '')}" aria-label="${escapeHTML(labels.imageDownloadOriginal || '')}">
+                        <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg>
+                    </a>
+                </div>
+            </figure>`;
+        });
+        return renderGeneratedImageSet({ cards: generatedImageCards, assets: assets, label: labels.imageSetItem });
+    };
+
     const isImageGenerationLoading = !isUser && message.parts.some(part => part.imageGenerationLoading);
     const isLoadingMessage = !isUser && message.parts.length === 1 && message.parts[0].text === '...';
 
@@ -137,26 +165,7 @@ export function buildMessageRenderView({
             mediaGridHTML = mediaView.html;
         }
         if (generatedImageAssets.length > 0) {
-            const drawnNumbers = drawnPictureNumbers(generatedImageAssets);
-            const generatedImageCards = generatedImageAssets.map((asset, assetIndex) => {
-                const imageAspectRatio = resolveImageAspectRatio(asset.aspectRatio);
-                return `
-                <figure class="generated-image-card${imageAspectRatio ? ' has-known-aspect' : ''}" data-generated-image-card="${asset.id}"${imageAspectRatio ? ` style="aspect-ratio: ${imageAspectRatio}"` : ''}>
-                    <button type="button" class="generated-image-preview-btn" data-generated-image-preview="${asset.id}" aria-label="${escapeHTML(labels.imagePreview || '')}">
-                        <img data-generated-image-id="${asset.id}" alt="${escapeHTML(labels.imageAlt || '')}" loading="lazy">
-                    </button>
-                    ${pictureNumberHTML(drawnNumbers[assetIndex])}
-                    <div class="generated-image-actions">
-                        <button type="button" data-generated-image-edit="${asset.id}" class="generated-image-action-btn generated-image-edit-btn">
-                            <span>${escapeHTML(labels.edit || '')}</span>
-                        </button>
-                        <a data-generated-image-download="${asset.id}" class="generated-image-action-btn generated-image-download-btn" title="${escapeHTML(labels.imageDownloadOriginal || '')}" aria-label="${escapeHTML(labels.imageDownloadOriginal || '')}">
-                            <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg>
-                        </a>
-                    </div>
-                </figure>`;
-            });
-            generatedImageHTML = renderGeneratedImageSet({ cards: generatedImageCards, assets: generatedImageAssets, label: labels.imageSetItem });
+            generatedImageHTML = generatedPicturesHTML(generatedImageAssets);
         }
         // A message of pictures only has no footer; one with words (a text model drew the pictures itself) does.
         if (!isUser && (generatedImageAssets.length === 0 || textParts.length > 0)) {
@@ -227,16 +236,44 @@ export function buildMessageRenderView({
         }
     }
 
+    // A reply a text model drew pictures into reads in the order it was written: words, pictures, words. Each run of words is a bubble of its own and each run
+    // of pictures stands between them; the footer (copy, time) is on the last bubble.
+    let sequenceHTML = '';
+    if (!isUser && !isImageGenerationLoading && !isLoadingMessage && generatedImageAssets.length > 0 && !researchCard && message.parts.some((part) => part.text && !part.quoteContext)) {
+        registerSandboxFileParts(message.parts);
+        const segments = [];
+        message.parts.forEach((part) => {
+            const last = segments.at(-1);
+            if (part.text && !part.quoteContext) {
+                if (last?.kind === 'text') last.texts.push(part.text);
+                else segments.push({ kind: 'text', texts: [part.text] });
+            } else if (part.generatedImage) {
+                if (last?.kind === 'pictures') last.assets.push(part.generatedImage);
+                else segments.push({ kind: 'pictures', assets: [part.generatedImage] });
+            }
+        });
+        const lastText = segments.map((segment) => segment.kind).lastIndexOf('text');
+        const bubble = (html, isLast) => `
+                    <div class="p-3 md:p-4 rounded-lg shadow-sm max-w-full md:max-w-xl message-bubble relative">
+                        <div class="prose prose-sm max-w-none text-[var(--text-primary)] ${isLast ? contentPaddingClass : ''} message-content"><div>${html}</div>${isLast && visionRetry && historySourceTexts.retryLabel ? `<div class="vision-retry-row"><button type="button" class="vision-retry" data-vision-retry="${escapeHTML(message.id)}"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/></svg>${escapeHTML(historySourceTexts.retryLabel)}</button></div>` : ''}</div>
+                        ${isLast ? actionButtons : ''}
+                    </div>`;
+        sequenceHTML = segments.map((segment, index) => (segment.kind === 'pictures'
+            ? generatedPicturesHTML(segment.assets)
+            : bubble(renderMarkdownWithFormulas(withRunFilesListed(segment.texts.join('\n'), message.parts)), index === lastText))).join('');
+    }
+
     const hasBubbleContent = isLoadingMessage || contentHTML.trim();
     const imageStackClass = generatedImageHTML ? ' image-message-stack' : '';
+    const sequenceClass = sequenceHTML ? ' reply-with-pictures' : '';
     const quoteStackClass = quoteReferenceHTML ? ' message-stack-has-quote' : '';
     const messageHTML = `
-                <div class="message-stack ${isUser ? 'message-stack-user' : 'message-stack-model'}${imageStackClass}${quoteStackClass}">
+                <div class="message-stack ${isUser ? 'message-stack-user' : 'message-stack-model'}${imageStackClass}${sequenceClass}${quoteStackClass}">
                     ${autoNoteHTML}
                     ${mediaGridHTML}
-                    ${generatedImageHTML}
+                    ${sequenceHTML || generatedImageHTML}
                     ${quoteReferenceHTML}
-                    ${hasBubbleContent ? `
+                    ${hasBubbleContent && !sequenceHTML ? `
                         <div class="p-3 md:p-4 rounded-lg shadow-sm max-w-full md:max-w-xl message-bubble relative${researchCard ? ' research-bubble' : ''}" >
                             <div class="prose prose-sm max-w-none text-[var(--text-primary)] ${contentPaddingClass} message-content">${contentHTML}${visionRetry && historySourceTexts.retryLabel ? `<div class="vision-retry-row"><button type="button" class="vision-retry" data-vision-retry="${escapeHTML(message.id)}"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/></svg>${escapeHTML(historySourceTexts.retryLabel)}</button></div>` : ''}</div>
                             ${actionButtons}

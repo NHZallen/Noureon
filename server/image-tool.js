@@ -174,6 +174,7 @@ export function createImageToolLoader({ spec, secrets, userId, files, signal = n
     'The user may say "this one" (a picture of this message), "the one before", or give a number; read what they mean and pick the picture. If it is not clear which picture they mean, ask them in your reply instead of guessing.',
     `When you are very sure which picture the user means, use it without asking. When you are not sure, ask with choose_image (a title of your own words; one thing at a time, with step and of when there are several); the user taps the right one and you get the answer, or "none of these" and you look again (once) or ask them to describe it. A picture the user attached to this message and called "this one" needs no question.`,
     `To find out which picture the user means, look at pictures with view_images (up to ${MAX_VIEW_PICTURES} each time, ${MAX_VIEW_CALLS} times in a reply): name some, or select by kind (for example every picture 3). A picture number alone does not say which round: "picture 3" may be any round\'s, so look at all of them and pick by what they show. list_images gives the full list when the one above is cut short. Do not guess: when you cannot tell, ask the user which one.`,
+    'Before you call generate_image, write one short sentence to the user, in their language, saying what you are about to draw; the picture appears after it, and you may add a few words after the picture.',
     'The user may be asked to allow each picture first. The pictures appear in your message by themselves once drawn: do not describe a link, and say briefly what you did.'
   ].join('\n');
 
@@ -453,6 +454,8 @@ export function createImageToolLoader({ spec, secrets, userId, files, signal = n
     drawing = new AbortController();
     const stopDrawing = () => drawing?.abort();
     signal?.addEventListener?.('abort', stopDrawing, { once: true });
+    // Now the picture model is asked: the page shows the wait for the picture (the question, if there was one, is answered).
+    emit({ type: 'image', event: 'drawing', id: drawId, aspectRatio });
     let result;
     try {
       result = await drawPictures({
@@ -529,7 +532,8 @@ export function createImageToolLoader({ spec, secrets, userId, files, signal = n
       const asked = Array.isArray(call?.args?.references) ? call.args.references.map(readReference).filter(Boolean) : [];
       const id = randomUUID();
       if (call && typeof call === 'object') drawIds.set(call, id);
-      return { type: 'image', event: 'start', id, label: sandboxText(language, 'imageDrawing'), references: asked.filter((ref) => Number.isInteger(ref.round) && Number.isInteger(ref.number) && ref.source) };
+      const shape = typeof call?.args?.aspect_ratio === 'string' && IMAGE_ASPECT_RATIOS.includes(call.args.aspect_ratio.trim()) ? call.args.aspect_ratio.trim() : '';
+      return { type: 'image', event: 'start', id, ...(shape ? { aspectRatio: shape } : {}), label: sandboxText(language, 'imageDrawing'), references: asked.filter((ref) => Number.isInteger(ref.round) && Number.isInteger(ref.number) && ref.source) };
     },
     async run(call) {
       const result = call?.name === VIEW_IMAGES_TOOL.name ? await view(call)

@@ -271,3 +271,46 @@ test('a text reply with pictures in it is drawn again whole once it is finished,
   assert.deepEqual(await run([{ sandboxFile: { id: 'q', name: 'q.csv', data: 'YQ==' } }]), [], 'files are cards in the text: nothing to draw again');
   assert.deepEqual(await run([]), []);
 });
+
+test('a reply that reads words, picture, words is drawn in that order, numbers count across the whole message, the footer is on the last bubble', () => {
+  const picture = (id) => ({ generatedImage: { id, storageKey: id, mediaType: 'image/png', size: 1, aspectRatio: '1:1' } });
+  const view = buildMessageRenderView({
+    message: { role: 'model', parts: [{ text: 'I will draw it.' }, picture('a'), { text: 'Here it is.' }, picture('b'), picture('c'), { text: 'Anything else?' }], createdAt: '2026-06-24T10:30:00.000Z' },
+    ...dependencies
+  });
+  const html = view.messageHTML;
+  const at = (needle) => html.indexOf(needle);
+  assert.ok(at('MODEL:I will draw it.') < at('data-generated-image-card="a"'));
+  assert.ok(at('data-generated-image-card="a"') < at('MODEL:Here it is.'));
+  assert.ok(at('MODEL:Here it is.') < at('data-generated-image-card="b"'));
+  assert.ok(at('data-generated-image-card="c"') < at('MODEL:Anything else?'));
+  assert.equal((html.match(/class="p-3 md:p-4 rounded-lg shadow-sm max-w-full md:max-w-xl message-bubble relative"/g) || []).length, 3);
+  assert.equal((html.match(/copy-content-btn/g) || []).length, 1, 'one footer');
+  assert.ok(at('copy-content-btn') > at('MODEL:Anything else?'));
+  assert.deepEqual([...html.matchAll(/class="picture-number" aria-hidden="true">(\d+)</g)].map((match) => match[1]), ['1', '2', '3']);
+  assert.equal(view.generatedImageAssets.length, 3);
+  assert.match(html, /reply-with-pictures/);
+});
+
+test('the finished message puts the pictures a text model drew among the words, where the server had them', async () => {
+  const { finalizeAssistantResponse } = await import('../src/app/runtime/reply/assistant-response-finalization.js');
+  const { formatSandboxRunBlock } = await import('../src/app/ui/sandbox/sandbox-run-block.js');
+  const record = formatSandboxRunBlock({ status: 'done', steps: [], elapsedMs: 3000 });
+  const finalAiMessage = { role: 'model', parts: [] };
+  const file = { sandboxFile: { id: 'q', name: 'q.csv', data: 'YQ==' } };
+  await finalizeAssistantResponse({
+    fullResponse: `${record}I will draw it.Here it is.`,
+    extraParts: [{ generatedImage: { id: 'a' } }, file],
+    pictureOffsets: [15],
+    finalAiMessage,
+    conversation: { messages: [] },
+    signal: new AbortController().signal,
+    responseUsesCouncil: false,
+    targetElement: null,
+    uiLanguage: 'en',
+    persistAppData: async () => {},
+    completeSingleModelView: async () => {},
+    queueBackgroundTask: () => {}
+  });
+  assert.deepEqual(finalAiMessage.parts.map((part) => (part.generatedImage ? 'picture' : part.sandboxFile ? 'file' : part.text.replace(record, '[record]'))), ['[record]I will draw it.', 'picture', 'Here it is.', 'file']);
+});

@@ -25,6 +25,7 @@ import { withSearchPacket } from './search-packet.js';
 import { withDocumentPrep } from './document-prep.js';
 import { createConnectorAsk } from './mcp/ask.js';
 import { combineLoaders, createConnectorLoader } from './mcp/tool-loader.js';
+import { placePictures } from '../src/data/picture-interleave.js';
 
 export const CHECKPOINT_VERSION = 1;
 
@@ -112,7 +113,10 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
   const messageText = (status) => `${sources.length || thought.text || usedConnectors.size || pictureSteps().length ? formatSandboxRunBlock(record(status)) : ''}${answer}`;
   // The pictures the text model drew by itself (server/image-tool.js), as parts of the message.
   const drawnParts = [];
-  const update = () => onUpdate([{ text: messageText('running') }, ...drawnParts]);
+  // Where in the answer each picture was kept, so that the message reads "words, picture, words" (data/picture-interleave.js).
+  const drawnAt = [];
+  const withPictures = (text, tail = []) => [...placePictures(text, drawnParts, drawnAt), ...tail];
+  const update = () => onUpdate(withPictures(messageText('running')));
   // The times every page shows come from here, so they agree: how long the reply has been going, and how long it thought.
   let thoughtClosed = false;
   onLive({ r: { answer, thought: { text: thought.text, kind: thought.kind, ms: 0, ended: false }, sources, elapsedMs: now() - startedAt } });
@@ -208,7 +212,7 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
       fetchImpl,
       language,
       emit: (event) => emitEvent(event),
-      onPictures: (made) => { drawnParts.push(...made); update(); },
+      onPictures: (made) => { drawnParts.push(...made); made.forEach(() => drawnAt.push(answer.length)); update(); },
       onWaited: (waited) => { startedAt += waited; onPaused(waited); onLive({ tm: Math.max(0, now() - startedAt) }); },
       now
     });
@@ -519,7 +523,7 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
         if (stopped) return { parts: [{ text: '' }], status: 'stopped', run: record('stopped'), toolCalls };
         throw new ReplyError('The model gave no answer.', 'provider_error');
       }
-      if (!run) return { parts: [{ text: advanced.text }, ...drawnParts], status: stopped ? 'stopped' : 'done', run: record(stopped ? 'stopped' : 'done'), toolCalls };
+      if (!run) return { parts: withPictures(advanced.text), status: stopped ? 'stopped' : 'done', run: record(stopped ? 'stopped' : 'done'), toolCalls };
     }
     // The pages the reply searched and the time it took are kept with the steps, as the browser keeps them.
     if (sources.length) run.sources = sources;
@@ -540,10 +544,10 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
         const output = run.steps.flatMap((step) => step.outputs || []).filter((entry) => entry.name === file.name).at(-1);
         if (output?.bytes) decks.set(file.id, output.bytes);
       }
-      return { parts: [{ text: finished.text }, ...finished.parts, ...drawnParts], status: stopped ? 'stopped' : 'done', run, toolCalls, artifacts: { decks } };
+      return { parts: withPictures(finished.text, finished.parts), status: stopped ? 'stopped' : 'done', run, toolCalls, artifacts: { decks } };
     } catch (error) {
       onProblem('finish_failed', error);
-      return { parts: [{ text: advanced.text }, ...drawnParts], status: stopped ? 'stopped' : 'done', run, toolCalls, artifacts: { decks: new Map() } };
+      return { parts: withPictures(advanced.text), status: stopped ? 'stopped' : 'done', run, toolCalls, artifacts: { decks: new Map() } };
     }
   }
 
@@ -557,5 +561,5 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
     throw new ReplyError('The model gave no answer.', 'provider_error');
   }
   const status = signal?.aborted ? 'stopped' : 'done';
-  return { parts: [{ text: messageText(status) }, ...drawnParts], status, run: record(status), toolCalls };
+  return { parts: withPictures(messageText(status)), status, run: record(status), toolCalls };
 }

@@ -363,3 +363,52 @@ test('the question shows the short summary in the person\'s language, and the lo
     dom.close?.();
   }
 });
+
+// The wait for the picture, in the reply.
+import { createDrawStage } from '../../src/app/ui/sandbox/draw-stage.js';
+
+test('the wait for a picture shows under the words when the picture model is asked, says the picture is ready, and goes when it fails or stops', () => {
+  const dom = createDom('<div class="message-stack"><div class="message-bubble" id="bubble">I will draw a poster.</div></div>');
+  try {
+    const stage = createDrawStage({ document: dom.document, language: 'en', place: () => dom.document.getElementById('bubble') });
+    stage.handle({ type: 'image', event: 'start', id: 'd1', label: 'Drawing…', references: [] });
+    stage.handle({ type: 'image', event: 'refs', id: 'd1', references: [] });
+    assert.equal(dom.document.querySelector('.reply-draw-stage'), null, 'nothing yet: the person may still be asked');
+    stage.handle({ type: 'image', event: 'drawing', id: 'd1', aspectRatio: '9:16' });
+    stage.handle({ type: 'image', event: 'drawing', id: 'd1', aspectRatio: '9:16' });
+    const shown = dom.document.querySelectorAll('.reply-draw-stage');
+    assert.equal(shown.length, 1);
+    assert.equal(dom.document.getElementById('bubble').nextElementSibling, shown[0], 'right under the words');
+    assert.ok(shown[0].querySelector('noureon-image-wait'), 'the field of dots of the wait for a picture');
+    assert.equal(shown[0].querySelector('.generated-image-skeleton').style.aspectRatio, '9 / 16');
+    assert.equal(shown[0].querySelector('.generated-image-wait-label').textContent, 'Drawing…');
+    stage.handle({ type: 'image', event: 'done', kind: 'view' });
+    assert.equal(shown[0].classList.contains('is-finished'), false, 'looking at pictures is not drawing');
+    stage.handle({ type: 'image', event: 'done', count: 1, references: [], label: 'Drew a picture' });
+    assert.equal(shown[0].classList.contains('is-finished'), true);
+    assert.equal(shown[0].querySelector('noureon-image-wait'), null);
+    assert.equal(shown[0].querySelector('.generated-image-wait-label').textContent, 'The picture is ready, putting it in place…');
+    stage.handle({ type: 'image', event: 'drawing', id: 'd2' });
+    stage.handle({ type: 'image', event: 'stopped', label: 'Stopped.' });
+    assert.equal(dom.document.querySelector('.reply-draw-stage'), null);
+    stage.handle({ type: 'image', event: 'drawing', id: 'd3' });
+    stage.handle({ type: 'reset' });
+    assert.equal(dom.document.querySelector('.reply-draw-stage'), null);
+  } finally {
+    dom.close?.();
+  }
+});
+
+test('the row of the step list is not ended by the picture model being asked', () => {
+  const dom = createDom('<div id="host"></div>');
+  let ledger = null;
+  try {
+    ledger = createSandboxLedger({ document: dom.document, host: dom.document.getElementById('host'), language: 'en', summary: false });
+    ledger.event({ type: 'image', event: 'start', id: 'd1', label: 'Drawing…', references: [] });
+    ledger.event({ type: 'image', event: 'drawing', id: 'd1', aspectRatio: '1:1' });
+    assert.equal(dom.document.querySelector('.ledger-row[data-kind="image"]').classList.contains('is-running'), true);
+  } finally {
+    ledger?.remove();
+    dom.close?.();
+  }
+});

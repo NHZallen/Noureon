@@ -35,6 +35,8 @@ const createReplyRecord = ({ userParts, synthesis, replyMode }) => {
       : null,
     // Files the run made, kept as parts of the reply message, and documents the code handed to the design system, as file blocks.
     sandboxParts: [],
+    // Where in the answer each picture a text model drew stood (data/picture-interleave.js).
+    pictureOffsets: [],
     sandboxDocuments: ''
   };
   return reply;
@@ -254,7 +256,8 @@ export function createSingleModelResponseLifecycle({
     return {
       fullResponse: composeReplyText({ reply, fullResponse, targetElement, aborted: Boolean(signal?.aborted), uiLanguage }),
       responseRenderedInRealtime,
-      extraParts: reply.sandboxParts
+      extraParts: reply.sandboxParts,
+      pictureOffsets: reply.pictureOffsets
     };
   };
 

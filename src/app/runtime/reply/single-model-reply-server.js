@@ -120,6 +120,7 @@ export async function followServerReply({ serverReply, now, setRunStartedAt, get
     // The files the reply made are parts of its message (their bytes are in the person's cloud storage; they are brought here).
     if (outcome.extraParts?.length) {
       reply.sandboxParts = outcome.extraParts;
+      reply.pictureOffsets = outcome.pictureOffsets || [];
       registerSandboxFileParts(reply.sandboxParts);
     }
     return outcome.text;

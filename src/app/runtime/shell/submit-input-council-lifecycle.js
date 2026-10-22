@@ -433,6 +433,7 @@ export function createSubmitInputCouncilLifecycle(dependencies = {}) {
       let responseRenderedInRealtime = false;
       let generatedImageParts = null;
       let extraParts = [];
+      let pictureOffsets = [];
       const historySourceConversationIds = new Set();
       const collectHistorySources = (memoryContext) => {
         collectHistorySourceConversationIds(memoryContext).forEach((id) => historySourceConversationIds.add(id));
@@ -494,6 +495,7 @@ export function createSubmitInputCouncilLifecycle(dependencies = {}) {
           fullResponse = singleResult.fullResponse;
           responseRenderedInRealtime = singleResult.responseRenderedInRealtime;
           extraParts = singleResult.extraParts || [];
+          pictureOffsets = singleResult.pictureOffsets || [];
         }
       }
 
@@ -501,6 +503,7 @@ export function createSubmitInputCouncilLifecycle(dependencies = {}) {
         fullResponse,
         finalParts: generatedImageParts,
         extraParts,
+        pictureOffsets,
         finalAiMessage,
         councilMetadata,
         includeCouncilMetadata: responseUsesCouncil,

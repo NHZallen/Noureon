@@ -4,6 +4,7 @@ import test from 'node:test';
 import { PROTOCOL_VERSION } from '../../server/protocol.js';
 import { executeReply } from '../../server/executor.js';
 import { validateRunSpec } from '../../server/run-spec.js';
+import { pictureOffsets } from '../../src/data/picture-interleave.js';
 import { liftSandboxRunBlock } from '../../src/app/ui/sandbox/sandbox-run-block.js';
 
 const USER = 'u1';
@@ -29,7 +30,7 @@ const goodSpec = (permission = 'always', extraTools = {}) => ({
   secrets: { providerKey: 'sk-provider-secret-value', imageKey: 'sk-image-secret-value' }
 });
 
-const harness = (spec, { replies = ['Here is your cat.'] } = {}) => {
+const harness = (spec, { replies = ['Here is your cat.'], intro = '' } = {}) => {
   const chat = [];
   const images = [];
   const saved = [];
@@ -42,7 +43,7 @@ const harness = (spec, { replies = ['Here is your cat.'] } = {}) => {
     }
     chat.push(JSON.parse(options.body));
     round += 1;
-    return streamResponse(round === 1 ? sse(toolCall('call_1', 'generate_image', { prompt: 'a cat in the rain', reason: 'The user wants a cat.' })) : sse(content(replies[0])));
+    return streamResponse(round === 1 ? sse(...(intro ? [content(intro)] : []), toolCall('call_1', 'generate_image', { prompt: 'a cat in the rain', reason: 'The user wants a cat.' })) : sse(content(replies[0])));
   };
   return { chat, images, saved, files, fetchImpl };
 };
@@ -62,11 +63,13 @@ test('the model is offered the tool and told its rules; it draws; the picture is
   });
   assert.equal(result.status, 'done');
   // The record kept with the reply says what was drawn (the saved step list draws it).
-  const lifted = liftSandboxRunBlock(result.parts[0].text);
+  // The model said nothing before it drew, so the picture stands first and the words after it.
+  const lifted = liftSandboxRunBlock(result.parts.map((part) => part.text || '').join(''));
   assert.equal(lifted.text, 'Here is your cat.');
+  assert.deepEqual(result.parts.map((part) => (part.generatedImage ? 'picture' : 'text')), ['text', 'picture', 'text']);
   assert.deepEqual(lifted.run.pictures, [{ kind: 'draw', count: 1, references: [] }]);
   assert.deepEqual(result.run.pictures, [{ kind: 'draw', count: 1, references: [] }]);
-  assert.equal(result.parts.length, 2);
+  assert.equal(result.parts.length, 3);
   assert.equal(result.parts[1].generatedImage.prompt, 'a cat in the rain');
   assert.equal(result.parts[1].generatedImage.cloudAsset.__astraCloudAsset.path, `${USER}/pic-1`);
   // The first request carries the tool and its rules; the second the picture's result.
@@ -80,7 +83,7 @@ test('the model is offered the tool and told its rules; it draws; the picture is
   assert.equal(h.images[0].body.prompt, 'a cat in the rain');
   // The pages see the row while it is drawn, and the message with the picture as soon as it is kept.
   const rows = live.filter((event) => event.ev?.type === 'image').map((event) => [event.ev.event, event.ev.label]);
-  assert.deepEqual(rows, [['start', 'Drawing…'], ['done', 'Drew a picture']]);
+  assert.deepEqual(rows, [['start', 'Drawing…'], ['drawing', undefined], ['done', 'Drew a picture']]);
   assert.ok(updates.some((parts) => parts.some((part) => part.generatedImage)), 'the message is written with the picture');
   assert.equal(JSON.stringify([result, live, updates]).includes('sk-image-secret-value'), false);
 });
@@ -144,4 +147,16 @@ test('with Gemini\'s own search or with nowhere to keep pictures, the tool is no
   await executeReply({ spec: validateRunSpec(goodSpec()).spec, secrets: { providerKey: 'k', imageKey: 'i' }, userId: USER, files: null, fetchImpl });
   await executeReply({ spec: validateRunSpec(goodSpec()).spec, secrets: { providerKey: 'k', imageKey: 'i' }, userId: '', files: harness().files, fetchImpl });
   assert.equal(requests.every((body) => !/generate_image/.test(JSON.stringify(body))), true);
+});
+
+test('the reply reads words, picture, words: what the model said before it drew, the picture, and what it said after', async () => {
+  const h = harness(undefined, { intro: 'I will draw a cat in the rain.' });
+  const result = await executeReply({ spec: validateRunSpec(goodSpec()).spec, secrets: { providerKey: 'k', imageKey: 'i' }, userId: USER, files: h.files, fetchImpl: h.fetchImpl });
+  assert.deepEqual(result.parts.map((part) => (part.generatedImage ? 'picture' : 'text')), ['text', 'picture', 'text']);
+  assert.match(result.parts[0].text, /I will draw a cat in the rain\.$/);
+  assert.match(result.parts[2].text, /Here is your cat\.$/);
+  const { text, offsets } = pictureOffsets(result.parts);
+  assert.equal(liftSandboxRunBlock(text).text.slice(0, offsets[0]), 'I will draw a cat in the rain.');
+  // The prompt the model is told says to say what it will draw first.
+  assert.match(JSON.stringify(h.chat[0].messages), /write one short sentence to the user/);
 });

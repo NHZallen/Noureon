@@ -97,8 +97,8 @@ test('a new picture: the prompt goes to the picture model with the picture key a
   assert.equal(parts[0].generatedImage.prompt, 'a cat in the rain');
   assert.equal(parts[0].generatedImage.cloudAsset.__astraCloudAsset.path, `${USER}/new-1`);
   assert.match(text, /1 picture\(s\) drawn with GPT Image/);
-  assert.deepEqual(events.map((event) => [event.type, event.event]), [['image', 'done']]);
-  assert.equal(events[0].count, 1);
+  assert.deepEqual(events.map((event) => [event.type, event.event]), [['image', 'drawing'], ['image', 'done']]);
+  assert.equal(events.at(-1).count, 1);
   assert.equal(JSON.stringify([text, events]).includes(KEY), false, 'the key is never said');
 });
 
@@ -217,7 +217,7 @@ test('a failure of the picture model is told to the model briefly, without the k
   const text = await f.loader.run(call({ prompt: 'x' }));
   assert.match(text, /could not draw it/);
   assert.equal(text.includes(KEY), false);
-  assert.deepEqual(f.events.map((event) => event.event), ['failed']);
+  assert.deepEqual(f.events.map((event) => event.event), ['drawing', 'failed']);
   assert.equal(f.parts.length, 0);
 });
 
@@ -462,4 +462,13 @@ test('"not this one" on the row while the picture is drawn names the drawing: it
   assert.match(await drawing, /pressed "not this one" on round 1, drawn by you, picture 1[\s\S]*stopped this drawing/);
   assert.equal(events.at(-1).event, 'stopped');
   assert.deepEqual(loader.answer(startFor.id, 'not:0'), { answered: false }, 'only once');
+});
+
+test('the page is told when the picture model is asked (after the question), with the shape', async () => {
+  const { loader, events } = fakes();
+  await loader.run(call({ prompt: 'a cat', aspect_ratio: '9:16' }));
+  const drawing = events.find((event) => event.event === 'drawing');
+  assert.equal(drawing.aspectRatio, '9:16');
+  assert.ok(events.findIndex((event) => event.event === 'drawing') < events.findIndex((event) => event.event === 'done'));
+  assert.equal(loader.stepEvent(call({ prompt: 'x', aspect_ratio: '16:9' })).aspectRatio, '16:9');
 });
