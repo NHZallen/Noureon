@@ -4,6 +4,7 @@ import test from 'node:test';
 import { PROTOCOL_VERSION } from '../../server/protocol.js';
 import { executeReply } from '../../server/executor.js';
 import { validateRunSpec } from '../../server/run-spec.js';
+import { liftSandboxRunBlock } from '../../src/app/ui/sandbox/sandbox-run-block.js';
 
 const USER = 'u1';
 const ID_A = '123e4567-e89b-12d3-a456-426614174000';
@@ -60,7 +61,11 @@ test('the model is offered the tool and told its rules; it draws; the picture is
     onUpdate: (parts) => updates.push(parts)
   });
   assert.equal(result.status, 'done');
-  assert.equal(result.parts[0].text, 'Here is your cat.');
+  // The record kept with the reply says what was drawn (the saved step list draws it).
+  const lifted = liftSandboxRunBlock(result.parts[0].text);
+  assert.equal(lifted.text, 'Here is your cat.');
+  assert.deepEqual(lifted.run.pictures, [{ kind: 'draw', count: 1, references: [] }]);
+  assert.deepEqual(result.run.pictures, [{ kind: 'draw', count: 1, references: [] }]);
   assert.equal(result.parts.length, 2);
   assert.equal(result.parts[1].generatedImage.prompt, 'a cat in the rain');
   assert.equal(result.parts[1].generatedImage.cloudAsset.__astraCloudAsset.path, `${USER}/pic-1`);

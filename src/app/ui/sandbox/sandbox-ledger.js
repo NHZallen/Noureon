@@ -12,6 +12,7 @@ import { createNetAskCards } from './net-ask-card.js';
 import { createSourceChips, mergeSources, putFirstSiteIcon, sourcesRowLabel } from './run-sources.js';
 import { keepEndInView } from '../motion/collapse-motion.js';
 import { fillThinkingText } from '../thinking/thinking-text.js';
+import { appendMiniRefs, markUsed, viewBody } from './picture-steps-view.js';
 
 const MAX_OUTPUT_CHARS = 4000;
 const MAX_CODE_CHARS = 6000;
@@ -93,6 +94,9 @@ export function createSandboxLedger({ document, host, before = null, language = 
   let imageCards = null;
   let pickCards = null;
   let imageRow = null;
+  // The rows of looking, so that the pictures used afterwards can be outlined in them.
+  const lookBodies = [];
+  const usePictures = (refs) => lookBodies.forEach((body) => markUsed(body, refs, language));
   const askAboutImage = (event) => {
     imageCards = (imageCards || import('./image-ask-card.js').then(({ createImageAskCards }) => createImageAskCards({ document, host: askCardHost(), language, onAnswer: onImageAnswer || (async () => ({ ok: false })) })))
       .then((cards) => {
@@ -105,7 +109,7 @@ export function createSandboxLedger({ document, host, before = null, language = 
   };
   // The small card that asks which picture is meant (the model is not sure): a file of its own, like the card above.
   const askWhichPicture = (event) => {
-    pickCards = (pickCards || import('./image-pick-card.js').then(({ createImagePickCards }) => createImagePickCards({ document, host: askCardHost(), language, onAnswer: onImageAnswer || (async () => ({ ok: false })) })))
+    pickCards = (pickCards || import('./image-pick-card.js').then(({ createImagePickCards }) => createImagePickCards({ document, host: askCardHost(), language, onAnswer: onImageAnswer || (async () => ({ ok: false })), onPicked: (ref) => usePictures([ref]) })))
       .then((cards) => {
         cards.handle(event);
         waitingLabel = event.event === 'ask' ? cards.waitingText(event) : '';
@@ -121,6 +125,8 @@ export function createSandboxLedger({ document, host, before = null, language = 
     }
     if (event.event === 'start') {
       imageRow = begin(event.label, { kind: 'image' });
+      // What it is drawn from was looked at before: those pictures are the ones used.
+      if (Array.isArray(event.references) && event.references.length) usePictures(event.references);
       return;
     }
     if (event.event === 'ask') {
@@ -139,6 +145,15 @@ export function createSandboxLedger({ document, host, before = null, language = 
     }
     if (!row) return;
     row.setLabel(event.label || row.label);
+    if (event.event === 'done' && event.kind === 'view' && event.shown?.length) {
+      // The row opens to what the model thought and the pictures it saw.
+      const body = viewBody(document, { reason: event.reason || '', shown: event.shown, used: [] }, language);
+      row.body.append(body);
+      row.enableBody(false);
+      lookBodies.push(body);
+    } else if (event.event === 'done' && Array.isArray(event.references)) {
+      appendMiniRefs(document, row.node.querySelector('.ledger-label'), event.references);
+    }
     row.finish(event.event === 'failed' ? 'failed' : 'done');
   };
   const create = (name, className, content) => {

@@ -10,6 +10,7 @@ import { formatElapsed } from '../ledger/ledger.js';
 import { createCodeCard } from './run-code-card.js';
 import { createSourceChips, mergeSources, putFirstSiteIcon, sourcesRowLabel } from './run-sources.js';
 import { RUN_STATUS } from './sandbox-run-block.js';
+import { appendMiniRefs, pictureStepRow } from './picture-steps-view.js';
 import { councilTimelineHTML } from '../council/council-timeline.js';
 
 const element = (document, tag, className, text) => {
@@ -61,6 +62,16 @@ function sourcesRows(document, sources, language) {
 // "Using connector: GitHub": a row for each connector the reply used (the same row the live step list had; which tools it called is not kept).
 function connectorRows(document, run, language) {
   return (run.connectors || []).map((name) => renderRow(document, { kind: 'connector', label: sandboxText(language, 'connectorUsing', { connector: name }), body: [] }));
+}
+
+// The pictures the text model looked at, was asked about and drew: a row each (ui/sandbox/picture-steps-view.js).
+function pictureRows(document, run, language) {
+  return (run.pictures || []).map((step) => {
+    const made = pictureStepRow(document, step, language);
+    const row = renderRow(document, { kind: made.kind, label: made.label, body: made.empty ? [] : made.body });
+    appendMiniRefs(document, row.querySelector('.ledger-label'), made.references);
+    return row;
+  });
 }
 
 // What the model said before a run, between the steps in ordinary text.
@@ -191,13 +202,13 @@ export function createSandboxRunElement(document, run, { language = 'zh-TW' } = 
     container.append(element(document, 'p', 'sandbox-fallback-note', sandboxText(language, 'fallbackNotice', { reason: sandboxText(language, `reason.${run.fallback}`) })));
   }
   if (run.council) return councilRunElement(document, container, run, language);
-  if (!run.steps.length && (run.sources?.length || run.connectors?.length) && run.elapsedMs > 0) {
+  if (!run.steps.length && (run.sources?.length || run.connectors?.length || run.pictures?.length) && run.elapsedMs > 0) {
     // A reply that searched the web but ran no Python is a process like any other: the one line with how long it took,
     // as the live view had, opening to the pages and the thinking. (Replies saved before the time was kept have no line.)
     const details = element(document, 'details', 'sandbox-run-details');
     const summary = element(document, 'summary', 'sandbox-run-summary', summaryText(run, language));
     const list = element(document, 'div', 'sandbox-run-steps');
-    list.append(...sourcesRows(document, run.sources, language), ...connectorRows(document, run, language));
+    list.append(...sourcesRows(document, run.sources, language), ...connectorRows(document, run, language), ...pictureRows(document, run, language));
     if (run.thought) list.append(thoughtRow(document, run.thought, language, { interrupted: run.thoughtInterrupted, label: thinkingLabel(run, language) }));
     details.append(summary, list);
     animateDetails(details);
@@ -207,7 +218,7 @@ export function createSandboxRunElement(document, run, { language = 'zh-TW' } = 
   if (!run.steps.length) {
     // A reply without Python: the pages it searched, and how the model thought before it answered.
     if (run.sources?.length) container.append(...sourcesRows(document, run.sources, language));
-    container.append(...connectorRows(document, run, language));
+    container.append(...connectorRows(document, run, language), ...pictureRows(document, run, language));
     if (run.thought) container.append(renderReplyThinking(document, run, language));
     // Nothing else to say above the answer: only where it was made.
     else if (run.madeHere) container.append(element(document, 'p', 'sandbox-made-here', sandboxText(language, 'madeHere')));
@@ -217,7 +228,7 @@ export function createSandboxRunElement(document, run, { language = 'zh-TW' } = 
   const summary = element(document, 'summary', 'sandbox-run-summary', summaryText(run, language));
   const list = element(document, 'div', 'sandbox-run-steps');
   if (run.sources?.length) list.append(...sourcesRows(document, run.sources, language));
-  list.append(...connectorRows(document, run, language));
+  list.append(...connectorRows(document, run, language), ...pictureRows(document, run, language));
   run.steps.forEach((step, index) => {
     if (step.thought) list.append(thoughtRow(document, step.thought, language));
     if (step.narration) list.append(narrationBlock(document, step.narration));

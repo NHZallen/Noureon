@@ -104,9 +104,12 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
     elapsedMs: now() - startedAt,
     ...(sources.length ? { sources } : {}),
     ...(usedConnectors.size ? { connectors: [...usedConnectors.values()] } : {}),
+    ...(pictureSteps().length ? { pictures: pictureSteps() } : {}),
     ...(thought.text ? { thought: thought.text, thoughtKind: thought.kind, ...(thought.first && thought.last > thought.first ? { thoughtMs: thought.last - thought.first } : {}) } : {})
   });
-  const messageText = (status) => `${sources.length || thought.text || usedConnectors.size ? formatSandboxRunBlock(record(status)) : ''}${answer}`;
+  // What the step list showed of the pictures looked at, chosen and drawn (server/image-tool.js): kept with the reply.
+  const pictureSteps = () => imageLoader?.record || [];
+  const messageText = (status) => `${sources.length || thought.text || usedConnectors.size || pictureSteps().length ? formatSandboxRunBlock(record(status)) : ''}${answer}`;
   // The pictures the text model drew by itself (server/image-tool.js), as parts of the message.
   const drawnParts = [];
   const update = () => onUpdate([{ text: messageText('running') }, ...drawnParts]);
@@ -510,7 +513,7 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
 
   if (advanced) {
     const stopped = Boolean(signal?.aborted) || advanced.run?.status === RUN_STATUS.stopped;
-    const run = advanced.run || (sources.length || usedConnectors.size ? { status: RUN_STATUS.done, steps: [] } : null);
+    const run = advanced.run || (sources.length || usedConnectors.size || pictureSteps().length ? { status: RUN_STATUS.done, steps: [] } : null);
     if (!run || (!advanced.text.trim() && !run.steps.length && !run.thought)) {
       if (!advanced.text.trim() && !sources.length && !drawnParts.length) {
         if (stopped) return { parts: [{ text: '' }], status: 'stopped', run: record('stopped'), toolCalls };
@@ -521,6 +524,7 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
     // The pages the reply searched and the time it took are kept with the steps, as the browser keeps them.
     if (sources.length) run.sources = sources;
     if (usedConnectors.size) run.connectors = [...usedConnectors.values()];
+    if (pictureSteps().length) run.pictures = pictureSteps();
     run.elapsedMs = now() - startedAt;
     if (stopped) run.status = RUN_STATUS.stopped;
     toolCalls = run.steps.length;
@@ -548,7 +552,7 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
     const numberOf = (url) => Number(sources.find((source) => source.url === url)?.n) || 0;
     answer = insertGroundingMarkers(answer, supports, numberOf);
   }
-  if (!answer.trim() && !sources.length && !thought.text && !usedConnectors.size && !drawnParts.length) {
+  if (!answer.trim() && !sources.length && !thought.text && !usedConnectors.size && !drawnParts.length && !pictureSteps().length) {
     if (signal?.aborted) return { parts: [{ text: '' }], status: 'stopped', run: record('stopped'), toolCalls };
     throw new ReplyError('The model gave no answer.', 'provider_error');
   }

@@ -9,10 +9,10 @@ import { setPictureNumber } from '../files/picture-number.js';
 const dataUrl = (thumb) => (thumb?.data && /^image\/(png|jpeg|webp|gif)$/.test(thumb.mimeType || '') ? `data:${thumb.mimeType};base64,${thumb.data}` : '');
 
 /**
- * `host`: where the cards go; `onAnswer({ id, decision })` sends the answer ('pick:N', 'retry', or 'redo' to change a pick) and resolves { ok, answered }.
+ * `host`: where the cards go; `onPicked(ref)` is told which picture was chosen; `onAnswer({ id, decision })` sends the answer ('pick:N', 'retry', or 'redo' to change a pick) and resolves { ok, answered }.
  * Returns { handle(event), waitingText, open } for the events { type: 'image', kind: 'pick', event: 'ask' | 'answer', ... }.
  */
-export function createImagePickCards({ document, host, language, onAnswer = async () => ({ ok: false }) }) {
+export function createImagePickCards({ document, host, language, onAnswer = async () => ({ ok: false }), onPicked = () => {} }) {
   const text = (key, values) => sandboxText(language, key, values);
   const cards = new Map();
   const make = (tag, className, content) => {
@@ -42,6 +42,7 @@ export function createImagePickCards({ document, host, language, onAnswer = asyn
     if (card.resolved) return;
     card.resolved = true;
     const chosen = /^pick:(\d+)$/.exec(answer || '') ? card.candidates[Number(answer.slice(5))] : null;
+    if (chosen) onPicked({ round: chosen.round, source: chosen.source, number: chosen.number });
     card.node.className = `net-ask image-pick is-resolved${chosen ? ' is-picked' : ' is-refused'}`;
     const line = make('div', 'image-picked-line');
     if (chosen) {

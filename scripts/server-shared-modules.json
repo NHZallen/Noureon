@@ -470,6 +470,10 @@
     {
       "path": "src/data/tool-result.js",
       "note": "Reviewed 2026-10-22: no browser globals (a tool's answer: words, or words with small pictures)."
+    },
+    {
+      "path": "src/data/picture-steps.js",
+      "note": "Reviewed 2026-10-22: no browser globals (the record of the pictures a text model looked at, asked about and drew)."
     }
   ]
 }

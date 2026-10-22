@@ -32,3 +32,23 @@
 .image-pick-text-button:hover:not(:disabled) { background: var(--hover-bg); color: var(--text-primary); }
 .image-pick-text-button:disabled { cursor: default; }
 @media (prefers-reduced-motion: reduce) { .image-pick-cand { transition: none; } }
+
+/* The row of the step list for the pictures looked at and drawn (picture-steps-view.js): tiny pictures after the words, and what the row opens to. */
+.ledger-row[data-kind='image'] .ledger-label { min-width: 0; }
+.image-mini-refs { display: inline-flex; gap: 0.25rem; margin-left: 0.6rem; vertical-align: -0.4rem; }
+.image-mini-ref { position: relative; display: inline-block; width: 1.4rem; height: 1.4rem; overflow: hidden; border-radius: 0.35rem; background: var(--hover-bg); }
+.image-mini-ref img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.image-mini-ref .picture-number { top: 0.1rem; left: 0.1rem; min-width: 0.7rem; height: 0.7rem; padding: 0 0.1rem; border-radius: 0.2rem; font-size: 0.5rem; }
+.image-look { margin: 0.35rem 0 0.6rem 1.75rem; display: flex; flex-direction: column; gap: 0.6rem; }
+.image-look-think { margin: 0; font-size: 0.9rem; line-height: 1.5; color: var(--text-secondary); overflow-wrap: anywhere; }
+.image-look-strip { display: flex; gap: 0.7rem; padding: 5px; margin: -5px; overflow-x: auto; scrollbar-width: none; }
+.image-look-strip::-webkit-scrollbar { display: none; }
+.image-look-cell { flex: none; display: flex; flex-direction: column; align-items: flex-start; gap: 0.2rem; padding: 0; border: 0; background: none; color: var(--text-secondary); font: inherit; font-size: 0.72rem; line-height: 1.25; cursor: zoom-in; }
+.image-look-cell .picture-tile { position: relative; display: block; width: 4rem; height: 4rem; overflow: hidden; border-radius: 0.6rem; background: var(--hover-bg); box-shadow: 0 0 0 1px var(--border-color); transition: width 0.18s ease, height 0.18s ease; }
+.image-look-cell.is-zoomed .picture-tile { width: 7.5rem; height: 7.5rem; }
+.image-look-cell .picture-tile img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.image-look-cell .picture-number { display: inline-flex; }
+.image-look-cell.is-used .picture-tile { box-shadow: 0 0 0 2px var(--chat-bg), 0 0 0 4px var(--gpt-primary-action-bg); }
+.image-look-cell.is-used .image-look-who { color: var(--text-primary); font-weight: 600; }
+.image-look-cell:focus-visible { outline: 2px solid var(--text-primary); outline-offset: 2px; border-radius: 0.6rem; }
+@media (prefers-reduced-motion: reduce) { .image-look-cell .picture-tile { transition: none; } }

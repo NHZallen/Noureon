@@ -212,3 +212,79 @@ test('the step list sends the pick questions to their own card and waits for the
     dom.close?.();
   }
 });
+
+// The rows for the pictures looked at and drawn, live and saved.
+import { formatSandboxRunBlock, liftSandboxRunBlock } from '../../src/app/ui/sandbox/sandbox-run-block.js';
+import { createSandboxRunElement } from '../../src/app/ui/sandbox/sandbox-run-view.js';
+import { normalizePictureSteps } from '../../src/data/picture-steps.js';
+
+const shown = [
+  { round: 2, source: 'generated', number: 3, thumb: THUMB },
+  { round: 6, source: 'generated', number: 3, thumb: THUMB },
+  { round: 3, source: 'user', number: 3 }
+];
+
+test('the record of the pictures is cleaned: only well-made steps and tiny pictures stay', () => {
+  const steps = normalizePictureSteps([
+    { kind: 'view', reason: '  looking\n for it ', shown: [...shown, { round: 0, source: 'user', number: 1 }, { round: 1, source: 'other', number: 1 }, { round: 1, source: 'user', number: 1, thumb: { mimeType: 'text/html', data: 'AAAA' } }], used: [{ round: 2, source: 'generated', number: 3 }, { nonsense: true }] },
+    { kind: 'view', shown: [] },
+    { kind: 'pick', title: 'Which?', picked: shown[0] },
+    { kind: 'pick', title: 'x', picked: null },
+    { kind: 'draw', count: 2, references: [shown[0]] },
+    { kind: 'draw', count: 0 },
+    'junk'
+  ]);
+  assert.deepEqual(steps.map((step) => step.kind), ['view', 'pick', 'draw']);
+  assert.equal(steps[0].reason, 'looking for it');
+  assert.deepEqual(steps[0].shown.map((picture) => [picture.round, picture.number, Boolean(picture.thumb)]), [[2, 3, true], [6, 3, true], [3, 3, false], [1, 1, false]]);
+  assert.deepEqual(steps[0].used, [{ round: 2, source: 'generated', number: 3 }]);
+});
+
+test('a saved reply draws the rows of the pictures: looking opens to the reason and the pictures, the used one outlined', () => {
+  const run = { status: 'done', steps: [], elapsedMs: 5000, pictures: [
+    { kind: 'view', reason: 'Round 2 and 6 are both blue.', shown, used: [{ round: 2, source: 'generated', number: 3 }] },
+    { kind: 'pick', title: 'Which one?', picked: shown[0] },
+    { kind: 'draw', count: 1, references: [shown[0]] }
+  ] };
+  const lifted = liftSandboxRunBlock(`${formatSandboxRunBlock(run)}Done.`);
+  assert.equal(lifted.run.pictures.length, 3, 'it goes through the text of the message');
+  const dom = createDom('<div id="host"></div>');
+  try {
+    const element = createSandboxRunElement(dom.document, lifted.run, { language: 'en' });
+    dom.document.getElementById('host').append(element);
+    const rows = [...dom.document.querySelectorAll('.ledger-row[data-kind="image"]')];
+    assert.deepEqual(rows.map((row) => row.querySelector('.ledger-label').childNodes[0].textContent), ['Looked at picture 3', 'Used picture 3', 'Drew a picture']);
+    assert.equal(rows[0].querySelector('.image-look-think').textContent, 'Round 2 and 6 are both blue.');
+    const cells = [...rows[0].querySelectorAll('.image-look-cell')];
+    assert.equal(cells.length, 3);
+    assert.deepEqual(cells.map((cell) => cell.querySelector('.image-look-who').textContent), ['Used', 'Drawn', 'Yours']);
+    assert.equal(cells[0].classList.contains('is-used'), true);
+    cells[1].click();
+    assert.equal(cells[1].classList.contains('is-zoomed'), true);
+    assert.equal(rows[2].querySelectorAll('.image-mini-ref').length, 1);
+  } finally {
+    dom.close?.();
+  }
+});
+
+test('live: looking opens to the pictures seen; the ones a drawing starts from are outlined; the drawing shows its references', () => {
+  const dom = createDom('<div id="host"></div>');
+  let ledger = null;
+  try {
+    ledger = createSandboxLedger({ document: dom.document, host: dom.document.getElementById('host'), language: 'en', summary: false });
+    ledger.event({ type: 'image', event: 'start', kind: 'view', label: 'Looking at pictures…', reason: 'x', references: [] });
+    ledger.event({ type: 'image', event: 'done', kind: 'view', count: 3, shown, reason: 'Both blue.', label: 'Looked at picture 3' });
+    const look = dom.document.querySelector('.ledger-row[data-kind="image"]');
+    assert.equal(look.querySelectorAll('.image-look-cell').length, 3);
+    assert.match(look.textContent, /Both blue\./);
+    ledger.event({ type: 'image', event: 'start', label: 'Drawing…', references: [{ round: 6, source: 'generated', number: 3 }] });
+    const cells = [...look.querySelectorAll('.image-look-cell')];
+    assert.deepEqual(cells.map((cell) => cell.classList.contains('is-used')), [false, true, false]);
+    ledger.event({ type: 'image', event: 'done', count: 1, references: [shown[1]], label: 'Drew a picture' });
+    const rows = dom.document.querySelectorAll('.ledger-row[data-kind="image"]');
+    assert.equal(rows[1].querySelectorAll('.image-mini-ref').length, 1);
+  } finally {
+    ledger?.remove();
+    dom.close?.();
+  }
+});

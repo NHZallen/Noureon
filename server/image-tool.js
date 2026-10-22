@@ -24,6 +24,14 @@ export const MAX_PICK_CANDIDATES = 12;
 const CARD_SIDE = 192;
 const CARD_QUALITY = 55;
 const CARD_MAX_CHARS = 30_000;
+/** The tiny pictures of the step list (and of the record kept with the reply): small, since a reply may keep many. */
+const STRIP_SIDE = 120;
+const STRIP_QUALITY = 50;
+const STRIP_MAX_CHARS = 8_000;
+/** Tiny pictures the record keeps in all: past it the record keeps the numbers only. */
+const RECORD_THUMBS = 40;
+const CACHE_PICTURE_BYTES = 6 * 1024 * 1024;
+const CACHE_TOTAL_BYTES = 36 * 1024 * 1024;
 
 const REFERENCE_ITEM = Object.freeze({
   type: 'object',
@@ -145,6 +153,9 @@ export function createImageToolLoader({ spec, secrets, userId, files, signal = n
   let drawing = null;
   const keyOf = (picture) => `${picture.round}/${picture.source}/${picture.number}`;
   const cardPictures = new Map();
+  const stripPictures = new Map();
+  // What the person's step list shows of the pictures looked at, chosen and drawn, kept with the reply so that a page that opens it later draws the same.
+  const steps = [];
 
   const lines = pictureIndexLines(pictures, { currentRound: round });
   const instruction = [
@@ -162,34 +173,42 @@ export function createImageToolLoader({ spec, secrets, userId, files, signal = n
   async function loadReferences(found) {
     const urls = [];
     for (const picture of found) {
-      const data = pictureData(picture);
-      if (!data) return { error: `The picture (${refName(pictureRef(picture))}) is not available any more: it was never kept in the user's cloud space. Tell the user, and go on without it only if they agree.` };
-      if (data.kind === 'base64') {
-        urls.push(`data:${data.mimeType || 'image/png'};base64,${data.data}`);
-        continue;
-      }
-      if (!String(data.marker.__astraCloudAsset.path).startsWith(`${userId}/`)) return { error: `The picture (${refName(pictureRef(picture))}) cannot be read.` };
-      try {
-        urls.push(toDataUrl(await files.load({ userId, marker: data.marker }), data.mimeType));
-      } catch (error) {
-        if (signal?.aborted) return { stopped: true };
-        return { error: `The picture (${refName(pictureRef(picture))}) could not be read now. Tell the user briefly.` };
-      }
+      const loaded = await loadBytes(picture);
+      if (loaded.stopped) return { stopped: true };
+      if (loaded.reason === 'gone') return { error: `The picture (${refName(pictureRef(picture))}) is not available any more: it was never kept in the user's cloud space. Tell the user, and go on without it only if they agree.` };
+      if (loaded.reason === 'foreign') return { error: `The picture (${refName(pictureRef(picture))}) cannot be read.` };
+      if (loaded.missing) return { error: `The picture (${refName(pictureRef(picture))}) could not be read now. Tell the user briefly.` };
+      urls.push(toDataUrl(loaded.bytes, loaded.mimeType));
     }
     return { urls };
   }
 
-  /** The bytes of a picture of the conversation: { bytes, mimeType }, { stopped: true } or { missing: true }. */
+  // The bytes of the pictures read so far (a picture is looked at, shown on a card and used to draw): kept while they are few and small.
+  const byteCache = new Map();
+  let cachedBytes = 0;
+  /** The bytes of a picture of the conversation: { bytes, mimeType }, { stopped: true } or { missing: true, reason }. */
   async function loadBytes(picture) {
+    const key = keyOf(picture);
+    if (byteCache.has(key)) return byteCache.get(key);
     const data = pictureData(picture);
-    if (!data) return { missing: true };
-    if (data.kind === 'base64') return { bytes: Buffer.from(data.data, 'base64'), mimeType: data.mimeType || 'image/png' };
-    if (!String(data.marker.__astraCloudAsset.path).startsWith(`${userId}/`)) return { missing: true };
-    try {
-      return { bytes: await files.load({ userId, marker: data.marker }), mimeType: data.mimeType || 'image/png' };
-    } catch {
-      return signal?.aborted ? { stopped: true } : { missing: true };
+    if (!data) return { missing: true, reason: 'gone' };
+    let loaded;
+    if (data.kind === 'base64') {
+      loaded = { bytes: Buffer.from(data.data, 'base64'), mimeType: data.mimeType || 'image/png' };
+    } else if (!String(data.marker.__astraCloudAsset.path).startsWith(`${userId}/`)) {
+      return { missing: true, reason: 'foreign' };
+    } else {
+      try {
+        loaded = { bytes: await files.load({ userId, marker: data.marker }), mimeType: data.mimeType || 'image/png' };
+      } catch {
+        return signal?.aborted ? { stopped: true } : { missing: true, reason: 'unreadable' };
+      }
     }
+    if (loaded.bytes.byteLength <= CACHE_PICTURE_BYTES && cachedBytes + loaded.bytes.byteLength <= CACHE_TOTAL_BYTES) {
+      byteCache.set(key, loaded);
+      cachedBytes += loaded.bytes.byteLength;
+    }
+    return loaded;
   }
 
   const readFilter = (value) => (value && typeof value === 'object' && !Array.isArray(value)
@@ -241,7 +260,11 @@ export function createImageToolLoader({ spec, secrets, userId, files, signal = n
       images.push({ ...thumb, label: pictureCaption(picture) });
       shown.push(picture);
     }
-    emit({ type: 'image', event: 'done', kind: 'view', count: shown.length, pictures: shown.map(pictureRef), reason: oneLine(args.reason, 300), label: shown.length ? sandboxText(language, 'imageViewed', { list: numbersText(shown) }) : sandboxText(language, 'imageViewedNone') });
+    const strips = [];
+    for (const picture of shown) strips.push(await withStrip(picture));
+    const step = { kind: 'view', reason: oneLine(args.reason, 300), shown: strips, used: [] };
+    steps.push(step);
+    emit({ type: 'image', event: 'done', kind: 'view', count: shown.length, pictures: shown.map(pictureRef), shown: strips, reason: oneLine(args.reason, 300), label: shown.length ? sandboxText(language, 'imageViewed', { list: numbersText(shown) }) : sandboxText(language, 'imageViewedNone') });
     const notes = [
       chosen.length > given.length ? `${chosen.length} pictures match; you are shown the newest ${given.length}. Look again with a narrower filter (a round range, one source) to see the others.` : `${shown.length} picture(s) follow.`,
       gone.length ? `Not available to show (${gone.map((picture) => refName(pictureRef(picture))).join('; ')}).` : ''
@@ -266,6 +289,25 @@ export function createImageToolLoader({ spec, secrets, userId, files, signal = n
     }
     return cardPictures.get(key);
   }
+
+  /** The tiny picture of a picture for the step list: { mimeType, data } or null. */
+  async function stripPicture(picture) {
+    const key = keyOf(picture);
+    if (!stripPictures.has(key)) {
+      const loaded = await loadBytes(picture);
+      const thumb = loaded.bytes ? await makeThumbnail(loaded.bytes, loaded.mimeType, { side: STRIP_SIDE, quality: STRIP_QUALITY }) : null;
+      stripPictures.set(key, thumb && thumb.data.length <= STRIP_MAX_CHARS ? thumb : null);
+    }
+    return stripPictures.get(key);
+  }
+  const withStrip = async (picture) => ({ ...pictureRef(picture), thumb: await stripPicture(picture) });
+  /** The pictures the model used (drawn from, or chosen by the person): the looks before it mark them. */
+  const markUsed = (used) => {
+    for (const step of steps) {
+      if (step.kind !== 'view') continue;
+      step.used = step.shown.filter((entry) => used.some((ref) => ref.round === entry.round && ref.source === entry.source && ref.number === entry.number)).map((entry) => pictureRef(entry));
+    }
+  };
 
   async function choose(call) {
     const args = call?.args && typeof call.args === 'object' ? call.args : {};
@@ -299,6 +341,8 @@ export function createImageToolLoader({ spec, secrets, userId, files, signal = n
     if (answer.startsWith('pick:')) {
       const picture = candidates[Number(answer.slice(5))];
       picks.set(askId, { title, picture });
+      steps.push({ kind: 'pick', title, picked: await withStrip(picture) });
+      markUsed([pictureRef(picture)]);
       return `The user chose ${refName(pictureRef(picture))}. Use it.`;
     }
     return answer === 'timeout'
@@ -353,7 +397,7 @@ export function createImageToolLoader({ spec, secrets, userId, files, signal = n
         model: { id: model.id, name: modelName },
         prompt: oneLine(prompt, 1500),
         count,
-        references: found.map(pictureRef)
+        references: await Promise.all(found.map(withStrip))
       }, (value) => ['once', 'always', 'deny'].includes(value));
       if (signal?.aborted) return 'The reply was stopped.';
       if (answer === 'always') allowed = true;
@@ -403,7 +447,10 @@ export function createImageToolLoader({ spec, secrets, userId, files, signal = n
     const first = drawn + 1;
     drawn += result.parts.length;
     onPictures(result.parts);
-    emit({ type: 'image', event: 'done', count: result.parts.length, references: found.map(pictureRef), label: sandboxText(language, result.parts.length > 1 ? 'imageDrawnMany' : 'imageDrawn', { n: result.parts.length }) });
+    const referenceStrips = await Promise.all(found.map(withStrip));
+    steps.push({ kind: 'draw', count: result.parts.length, references: referenceStrips });
+    markUsed(found.map(pictureRef));
+    emit({ type: 'image', event: 'done', count: result.parts.length, references: referenceStrips, label: sandboxText(language, result.parts.length > 1 ? 'imageDrawnMany' : 'imageDrawn', { n: result.parts.length }) });
     const words = `${result.parts.length} picture(s) drawn with ${modelName} and shown to the user in your message (pictures ${result.parts.length > 1 ? `${first} to ${drawn}` : first} of this message). Say briefly what you did; do not describe a link.`;
     // The model sees how the pictures came out (small copies), so it can say so and the user can ask for a change.
     const images = [];
@@ -418,6 +465,16 @@ export function createImageToolLoader({ spec, secrets, userId, files, signal = n
     get list() { return []; },
     get instruction() { return instruction; },
     get used() { return calls; },
+    /** The steps with pictures, for the record kept with the reply ({ kind: 'view' | 'pick' | 'draw', ... }). */
+    get record() {
+      let thumbs = 0;
+      const keep = (entry) => {
+        if (!entry.thumb) return entry;
+        thumbs += 1;
+        return thumbs <= RECORD_THUMBS ? entry : { round: entry.round, source: entry.source, number: entry.number };
+      };
+      return steps.map((step) => (step.kind === 'view' ? { ...step, shown: step.shown.map(keep) } : step.kind === 'pick' ? { ...step, picked: keep(step.picked) } : { ...step, references: step.references.map(keep) }));
+    },
     get tools() {
       return [
         ...(calls < maxCalls ? [GENERATE_IMAGE_TOOL] : []),

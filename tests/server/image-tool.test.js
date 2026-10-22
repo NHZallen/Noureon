@@ -404,3 +404,29 @@ test('"not this one" while a picture is drawn stops that drawing, tells the row,
   assert.equal(events.at(-1).event, 'stopped');
   assert.equal(events.at(-1).label, 'Stopped.');
 });
+
+test('the record keeps what was looked at, chosen and drawn, with the pictures used marked in the looks before', async () => {
+  const { loader, events } = fakes({ loadable: { [`${USER}/g1`]: PICTURE, [`${USER}/g2`]: PICTURE } });
+  await loader.run(look({ reason: 'the blue one may be the first', filter: { number: 1 } }));
+  const picking = loader.run(choose({ title: 'Which?', candidates: CANDIDATES.slice(0, 2) }));
+  const ask = await until(() => askedEvent(events));
+  loader.answer(ask.id, 'pick:1');
+  await picking;
+  await loader.run(call({ prompt: 'a cat', references: [CANDIDATES[1]] }));
+  const record = loader.record;
+  assert.deepEqual(record.map((step) => step.kind), ['view', 'pick', 'draw']);
+  assert.equal(record[0].reason, 'the blue one may be the first');
+  assert.deepEqual(record[0].shown.map((entry) => [entry.round, entry.source, entry.number]), [[1, 'generated', 1], [2, 'user', 1], [3, 'user', 1]]);
+  assert.ok(record[0].shown.every((entry) => entry.thumb?.data), 'a tiny picture each');
+  assert.deepEqual(record[0].used, [], 'the picture used was not among the ones looked at');
+  assert.deepEqual([record[1].title, record[1].picked.number], ['Which?', 2]);
+  assert.deepEqual(record[2].references.map((entry) => entry.number), [2]);
+  assert.equal(JSON.stringify(record).includes(KEY), false);
+});
+
+test('a look marks the pictures used later', async () => {
+  const { loader } = fakes({ loadable: { [`${USER}/g1`]: PICTURE, [`${USER}/g2`]: PICTURE } });
+  await loader.run(look({ reason: 'x', references: CANDIDATES.slice(0, 2) }));
+  await loader.run(call({ prompt: 'a cat', references: [CANDIDATES[0]] }));
+  assert.deepEqual(loader.record[0].used, [{ round: 1, source: 'generated', number: 1 }]);
+});
