@@ -771,3 +771,31 @@ test('the reply of the visual check is typed in as a draft with a grey card, the
     fixture.cleanup?.();
   }
 });
+
+test('the draft of the check grows as its words are told again: the lines before the new one stay as they are, and the line goes where it was told', () => {
+  const fixture = createFixture();
+  try {
+    drawn(fixture, [{ role: 'user', parts: [{ text: 'Make a deck' }] }, { id: 'a1', role: 'model', parts: [{ text: 'Here it is' }] }]);
+    const view = fixture.document.defaultView;
+    fixture.conversation.id = 'c1';
+    const tell = (text) => view.dispatchEvent(new view.CustomEvent('astra:result-draft', { detail: { conversationId: 'c1', id: 'r1', text, label: 'Redoing', onDrawn: () => { throw new Error('told again'); } } }));
+    let root = null;
+    view.dispatchEvent(new view.CustomEvent('astra:result-draft', { detail: { conversationId: 'c1', id: 'r1', text: '<p>Heading</p><ul><li>one</li></ul>', label: 'Redoing', onDrawn: (container) => { root = container; } } }));
+    const draft = fixture.document.querySelector('[data-arrival-draft="r1"]');
+    assert.ok(root && draft.contains(root), 'told where the words begin');
+    const heading = draft.querySelector('p');
+    const item = draft.querySelector('li');
+    assert.equal(draft.querySelectorAll('.result-draft-text').length, 1, 'the words have a place of their own');
+    assert.equal(draft.querySelectorAll('.file-skeleton').length, 1);
+    assert.equal(draft.querySelector('.result-draft-text').nextElementSibling?.classList.contains('file-skeleton'), true, 'the card is below the words');
+
+    tell('<p>Heading</p><ul><li>one</li><li>two</li></ul>');
+    assert.equal(fixture.document.querySelectorAll('[data-arrival-draft="r1"]').length, 1, 'the same draft, not another');
+    assert.equal(draft.querySelector('p'), heading, 'the heading stays the same element');
+    assert.equal(draft.querySelector('li'), item, 'so does the first item');
+    assert.deepEqual([...draft.querySelectorAll('li')].map((node) => node.textContent), ['one', 'two']);
+    assert.equal(draft.querySelectorAll('.file-skeleton').length, 1, 'one card');
+  } finally {
+    fixture.cleanup?.();
+  }
+});

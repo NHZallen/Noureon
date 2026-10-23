@@ -211,16 +211,16 @@
 }
 
 /* A message typed in below what is on the page (src/app/ui/motion/stream-in.js) and the files of a reply being kept: a block waits until its first
-   word, the files wait as grey placeholders and then rise in. */
+   word, the files wait invisible and then fade in. */
 .stream-pending { display: none; }
-.is-awaiting-files .ac-file-card > * { visibility: hidden; }
-/* The grey card (more than one class: the card's own style loads later and has one). It reaches a little left, so what is in it stays where it
-   will be once the card is the file's. */
-.ac-file-card.file-skeleton, .is-awaiting-files .ac-file-card { pointer-events: none; margin-left: -1rem; padding-inline: 1rem; border-radius: 0.75rem; background: color-mix(in srgb, var(--text-primary) 9%, transparent); animation: file-waiting 1.4s ease-in-out infinite; }
-.ac-file-card.file-skeleton { min-height: 4.45rem; max-width: min(calc(100% + 1rem), 35rem); color: var(--text-secondary); }
-.footer-arriving { animation: result-arrive 0.45s ease-out backwards; }
-.is-arriving-files .ac-file-card { animation: file-arrive 0.5s ease-out backwards; }
-@keyframes file-waiting { 50% { opacity: 0.45; } }
-@keyframes result-arrive { from { opacity: 0; transform: translateY(8px); } }
+/* The place of a file being made (ui/files/file-skeleton.js): the card's own boxes with bars that shimmer, so the file takes its place without moving
+   anything. The files of a message being typed in wait invisible. */
+.is-awaiting-files .ac-file-card { opacity: 0; pointer-events: none; }
+.file-skeleton { pointer-events: none; --sk: color-mix(in srgb, var(--text-primary) 7%, transparent); }
+.file-skeleton .sk { display: block; border-radius: 0.4rem; background: linear-gradient(90deg, var(--sk) 30%, color-mix(in srgb, var(--text-primary) 15%, transparent) 50%, var(--sk) 70%) 100% 0 / 300% 100%; animation: sk-shimmer 1.6s ease-in-out infinite; }
+.file-skeleton .sk-icon { width: 1.7rem; height: 1.7rem; border-radius: 0.5rem; }
+.file-skeleton .sk-name { width: min(9rem, 60%); height: 0.8rem; margin: 0.24rem 0; }
+.footer-arriving, .is-arriving-files .ac-file-card { animation: file-arrive 0.5s ease-out backwards; }
+@keyframes sk-shimmer { to { background-position: 0 0; } }
 @keyframes file-arrive { from { opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { .file-skeleton, .is-awaiting-files .ac-file-card, .is-arriving-files .ac-file-card, .footer-arriving { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .file-skeleton .sk, .is-arriving-files .ac-file-card, .footer-arriving { animation: none; } }

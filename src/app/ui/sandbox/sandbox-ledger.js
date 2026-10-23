@@ -195,6 +195,11 @@ export function createSandboxLedger({ document, host, before = null, language = 
       row.discard();
       return;
     }
+    // A round the model gave no thinking for has nothing to open: a row that says "finished thinking" and does not open is no use, so it goes.
+    if (row.round && !row.thought) {
+      row.discard();
+      return;
+    }
     if (row.doneLabel) row.setLabel(row.doneLabel);
     row.finish(state);
   };
@@ -393,14 +398,14 @@ export function createSandboxLedger({ document, host, before = null, language = 
       } else if (event.type === 'round') {
         const row = begin(event.label, { kind: 'thought' });
         row.doneLabel = event.doneLabel;
+        row.round = true;
       } else if (event.type === 'answering' || event.type === 'answered') {
         // Writing the answer is not thinking: that row is over and folds.
         if (event.type === 'answering') {
           endCurrent();
           list.foldFinished();
-          // The words of the answer have begun: the whole list folds into its line (with the ease of a row, the page held still), also one the reader
-          // opened. The line says what is being done, and a tap opens it again.
-          line?.setOpen(false);
+          // Words may come before a call (the model says what it is about to do), so they do not fold the list the reader opened: `fold` does,
+          // when the words are known to be the answer.
         } else if (list.current?.draft) {
           // The answer was the last words: a row that said the model was writing a call (it was only quiet a while) goes.
           list.current.discard();
@@ -465,6 +470,9 @@ export function createSandboxLedger({ document, host, before = null, language = 
       }
       syncLine();
     },
+    // The words are the answer, not words before a call: the whole list folds into its line (with the ease of a row, the page held still), also
+    // one the reader opened. The line says what is being done, and a tap opens it again.
+    fold() { line?.setOpen(false); },
     // Where something else can put its own rows under the line (the model's thinking), above the steps; null without a line.
     get body() { return line ? line.body : null; },
     get stepsElement() { return list.element; },

@@ -2,6 +2,8 @@ import { fadeOutPreviousChat } from '../../ui/motion/chat-switch-ghost.js';
 import { isReaderScrolling, setScrollTopQuietly } from '../../ui/motion/reader-scroll-guard.js';
 import { revealArrival } from '../../ui/motion/arrival-reveal.js';
 import { streamInMessage } from '../../ui/motion/stream-in.js';
+import { morphChildren } from '../../ui/motion/morph-children.js';
+import { createFileSkeleton } from '../../ui/files/file-skeleton.js';
 import { takeArrival } from './arriving-messages.js';
 import { loadImageWait } from '../../ui/image-wait/image-wait-markup.js';
 
@@ -144,47 +146,62 @@ export function createMessageListLifecycle({
         });
     };
 
+    // Follows words that grow down the chat by their own bottom edge (not the end of the chat: room that is kept below them would be scrolled into),
+    // unless the reader is scrolling or has moved away from them.
+    const followWords = (typed) => {
+        const chat = elements.chatContainer;
+        if (isReaderScrolling(chat)) return;
+        const view = chat.getBoundingClientRect();
+        const box = typed.getBoundingClientRect();
+        if (box.top > view.bottom) return;
+        const over = box.bottom - (view.bottom - FOLLOW_MARGIN_PX);
+        if (over > 0) setScrollTopQuietly(chat, chat.scrollTop + over);
+    };
     // Types the words of a message in below what is on the page, the chat following them down unless the reader has scrolled up.
     const typeIn = (element, { revealFiles = true } = {}) => {
-        const chat = elements.chatContainer;
         const reducedMotion = Boolean(document.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches);
         return streamInMessage(element, {
             requestFrame: scheduleFrame,
             reducedMotion,
             revealFiles,
-            // Follows the words down by their own bottom edge (not the end of the chat: room that is kept below them would be scrolled into), unless the
-            // reader is scrolling or has moved away from them.
-            follow: (typed) => {
-                if (isReaderScrolling(chat)) return;
-                const view = chat.getBoundingClientRect();
-                const box = typed.getBoundingClientRect();
-                if (box.top > view.bottom) return;
-                const over = box.bottom - (view.bottom - FOLLOW_MARGIN_PX);
-                if (over > 0) setScrollTopQuietly(chat, chat.scrollTop + over);
-            }
+            follow: followWords
         });
     };
     const draftOf = (id) => (id ? [...elements.messageList.children].find(element => element.dataset?.arrivalDraft === id) || null : null);
 
-    // The reply the server is making (the visual check's), whose words are known before its deck is: typed in below the chat at once, with a grey
-    // card where the deck will be. It is not one of the conversation's messages (no index): the message that comes in the end takes its place, and
-    // when the check ends some other way it goes (arriving-messages.js, appendMissingMessages, discardResultDraft).
+    // The reply the server is making (the visual check's), whose words are known before its deck is: drawn below the chat at once as the model writes
+    // them (each time the words are told again they are the words so far), with the card of a file being made where the deck will be. It is not one
+    // of the conversation's messages (no index): the message that comes in the end takes its place, and when the check ends some other way it goes
+    // (arriving-messages.js, appendMissingMessages, discardResultDraft).
     const showResultDraft = ({ conversationId, id, text, label, onDrawn }) => {
         const conversation = getActiveConversation();
-        if (!id || !text || !conversation || conversation.id !== conversationId || draftOf(id)) return;
+        if (!id || !text || !conversation || conversation.id !== conversationId) return;
+        const existing = draftOf(id);
+        if (existing) {
+            const slot = existing.querySelector('.result-draft-text');
+            if (!slot) return;
+            const staging = document.createElement('div');
+            staging.innerHTML = renderMarkdownWithFormulas(text);
+            morphChildren(slot, staging);
+            followWords(existing);
+            return;
+        }
         const drawn = [...elements.messageList.children].filter(element => element.dataset?.messageIndex !== undefined);
         if (drawn.length !== (conversation.messages || []).length) return;
-        const element = addMessageToUI({ id, role: 'model', parts: [{ text }], createdAt: new Date().toISOString() }, drawn.length, false, false, { conversation });
+        const element = addMessageToUI({ id, role: 'model', parts: [{ text }], createdAt: new Date().toISOString(), metadata: { visionCheck: { free: true } } }, drawn.length, false, false, { conversation });
         delete element.dataset.messageIndex;
         element.dataset.arrivalDraft = id;
-        const placeholder = document.createElement('div');
-        placeholder.className = 'ac-file-card file-skeleton';
-        placeholder.textContent = label || '';
         const content = element.querySelector('.message-content');
-        content?.append(placeholder);
-        void typeIn(element, { revealFiles: false });
-        // Told after the words were taken to be typed: what is put in now is not typed. The top of the words is where the saved panel of the run goes.
-        onDrawn?.(content?.firstElementChild?.tagName === 'DIV' ? content.firstElementChild : content);
+        const root = content?.firstElementChild?.tagName === 'DIV' ? content.firstElementChild : content;
+        if (!root) return;
+        // The words have a place of their own, so they can grow with the line above them and the card below.
+        const slot = document.createElement('div');
+        slot.className = 'result-draft-text';
+        slot.append(...root.childNodes);
+        root.append(slot, createFileSkeleton(document, label));
+        // The top of the words is where the saved panel of the run goes.
+        onDrawn?.(root);
+        followWords(element);
     };
     const discardResultDraft = ({ id }) => draftOf(id)?.remove();
     document.defaultView?.addEventListener?.('astra:result-draft', event => showResultDraft(event.detail || {}));

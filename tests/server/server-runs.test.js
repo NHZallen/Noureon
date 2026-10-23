@@ -782,6 +782,29 @@ test('those watching the check are given what it has told so far (joined where t
   assert.ok(late.some((event) => event.done));
 });
 
+test('the words of the reply told again as the model writes them are one telling for a page that joins late: the last', async () => {
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  const { manager } = visionHarness({
+    onCheck: ({ onLive }) => {
+      onLive({ vc: { m: 'result', a: [{ id: 'm1', text: 'Found' }] } });
+      onLive({ vc: { m: 'issues', a: [[]] } });
+      onLive({ vc: { m: 'result', a: [{ id: 'm1', text: 'Found one problem' }] } });
+      return gate;
+    }
+  });
+  await manager.start({ userId: USER, spec: VISION_SPEC() });
+  await settle();
+  await settle();
+  const late = [];
+  manager.watch({ userId: USER, runId: 'run-2', send: (event) => late.push(event), close() {} });
+  const told = late[0].r.vc.filter((call) => call.m === 'result');
+  assert.equal(told.length, 1, 'one telling');
+  assert.equal(told[0].a[0].text, 'Found one problem', 'the last');
+  release();
+  await settle();
+});
+
 test('a stop of the check ends it without a reply, and nothing is started when the server cannot draw, the reply was stopped or no presentation was written', async () => {
   const none = visionHarness({ available: false });
   await none.manager.start({ userId: USER, spec: VISION_SPEC() });

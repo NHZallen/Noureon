@@ -351,7 +351,6 @@
             transform: none;
         }
     }
-    .message-media-label { display: none; }
     .message-media-play {
         position: absolute;
         inset: 0;
@@ -429,9 +428,6 @@
         border-radius: 0.6rem;
         box-shadow: var(--shadow-xl);
         background: black;
-    }
-    .media-lightbox-title {
-        display: none;
     }
     .media-lightbox-close {
         position: absolute;

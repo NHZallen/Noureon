@@ -295,3 +295,23 @@ test('the line goes up into the message being typed (where the saved panel of th
   assert.equal(container.firstElementChild?.classList.contains('ledger'), true, 'the line is the first thing in the message');
   assert.equal(built.stack.querySelector('.ledger'), null, 'and no longer under the message it checked');
 });
+
+test('the words told again as the model writes them draw the same reply, and the line is folded the first time only', async () => {
+  const built = harness({
+    watch: async (runId, { onEvent }) => {
+      onEvent(call('begin', { name: 'deck.pptx' }));
+      onEvent(call('result', { id: 'r4', text: 'Found' }));
+      // The reader opens the line while the model is still writing.
+      built.document.querySelector('.ledger-row-head').click();
+      onEvent(call('result', { id: 'r4', text: 'Found one problem' }));
+      stayed = built.document.querySelector('.ledger-row-head').getAttribute('aria-expanded');
+      return true;
+    }
+  });
+  let stayed = '';
+  const heard = listen(built.window, ['astra:result-draft']);
+  await built.follow.attach({ runId: 'run-v', conversation });
+  assert.equal(stayed, 'true', 'the line the reader opened is not folded again by the next telling');
+  assert.deepEqual(heard.map((entry) => entry[1].text), ['Found', 'Found one problem']);
+  assert.equal(new Set(heard.map((entry) => entry[1].id)).size, 1);
+});

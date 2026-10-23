@@ -59,6 +59,7 @@ test('the sandbox list shows the model, each run with its code, output as it com
   const { window, document, message, answer } = setup();
   const list = createSandboxLedger({ document, host: message, before: answer, language: 'en' });
   list.event({ type: 'round', label: 'Thinking…', doneLabel: 'Finished thinking' });
+  list.event({ type: 'thinking', text: 'Let me work it out.' });
   const rows = () => [...message.querySelectorAll('.ledger-row')];
   assert.equal(rows()[0].classList.contains('is-running'), true, 'shown at once');
   list.event({ type: 'step', n: 1, title: 'Sum', code: 'print(1 + 1)' });
@@ -93,6 +94,7 @@ test('each kind of step has its own icon instead of a tick, and the code is a co
   const { window, document, message, answer } = setup();
   const list = createSandboxLedger({ document, host: message, before: answer, language: 'en' });
   list.event({ type: 'round', label: 'Thinking…', doneLabel: 'Finished thinking' });
+  list.event({ type: 'thinking', text: 'Let me work it out.' });
   list.event({ type: 'step', n: 1, title: 'Sum', code: 'print(1 + 1)' });
   list.event({ type: 'step-end', n: 1, ok: true, error: '', files: [], elapsedMs: 10 });
   list.event({ type: 'finishing', label: 'Preparing the files…' });
@@ -129,6 +131,7 @@ test('what the model says before a run appears between the step lines, in ordina
   const { window, document, message } = setup();
   const list = createSandboxLedger({ document, host: message, language: 'en' });
   list.event({ type: 'round', label: 'Thinking…', doneLabel: 'Finished thinking' });
+  list.event({ type: 'thinking', text: 'Let me work it out.' });
   list.event({ type: 'narration', text: "First I'll **check** the folder." });
   list.event({ type: 'narration', text: '   ' });
   list.event({ type: 'step', n: 1, title: 'Look', code: 'import os' });
@@ -460,6 +463,7 @@ test('steps told later keep the time they happened at: a page that joins late sh
   const began = Date.now() - 100_000;
   const ledger = createSandboxLedger({ document, host: message, before: answer, language: 'en', summary: true, startedAt: began });
   ledger.event({ type: 'round', label: 'Thinking', doneLabel: 'Thought', at: began + 1000 });
+  ledger.event({ type: 'thinking', text: 'Plot it.', at: began + 2000 });
   ledger.event({ type: 'step', n: 1, title: 'Plot', code: 'plot()', at: began + 20_000 });
   ledger.event({ type: 'step-end', n: 1, ok: true, files: [], elapsedMs: 5, at: began + 50_000 });
   ledger.event({ type: 'step', n: 2, title: 'Save', code: 'save()', at: began + 60_000 });
@@ -536,7 +540,7 @@ test('once the answer is written the line says how long it thought, the sites it
   }
 });
 
-test('when the words of the answer begin, the list folds into its line, also one the reader opened, and a tap opens it again', () => {
+test('when the words are the answer, the list folds into its line, also one the reader opened, and a tap opens it again', () => {
   const { window, document, message } = setup();
   const list = createSandboxLedger({ document, host: message, language: 'en', summary: true, open: true });
   const head = () => message.querySelector('.ledger-row-head');
@@ -549,11 +553,43 @@ test('when the words of the answer begin, the list folds into its line, also one
   assert.equal(head().getAttribute('aria-expanded'), 'true', 'opened by the reader');
 
   list.event({ type: 'answering', more: true });
-  assert.equal(head().getAttribute('aria-expanded'), 'false', 'folded as the words begin, though more work may follow');
+  assert.equal(head().getAttribute('aria-expanded'), 'true', 'words that may come before a call leave it open');
+  list.fold();
+  assert.equal(head().getAttribute('aria-expanded'), 'false', 'folded when the words are the answer, though more work may follow');
   assert.equal(message.querySelector('.ledger-row-head .ledger-label').textContent.startsWith('Working'), true, 'the line goes on saying what is being done');
   head().click();
   assert.equal(head().getAttribute('aria-expanded'), 'true', 'a tap opens it again');
   assert.equal(body().hidden, false);
+  list.remove();
+  window.happyDOM.abort();
+});
+
+test('a round the model gave no thinking for leaves no row that cannot be opened', () => {
+  const { window, document, message } = setup();
+  const list = createSandboxLedger({ document, host: message, language: 'en' });
+  list.event({ type: 'round', label: 'Thinking…', doneLabel: 'Finished thinking' });
+  list.event({ type: 'step', n: 1, title: 'Sum', code: 'print(1)' });
+  assert.deepEqual([...message.querySelectorAll('.ledger-row')].map((row) => row.dataset.kind), ['code'], 'no row says "finished thinking" with nothing to open');
+  list.event({ type: 'step-end', n: 1, ok: true, error: '', files: [], elapsedMs: 5 });
+  list.event({ type: 'round', label: 'Thinking…', doneLabel: 'Finished thinking' });
+  list.event({ type: 'thinking', text: 'Now the answer.' });
+  list.event({ type: 'answering', more: false });
+  assert.deepEqual([...message.querySelectorAll('.ledger-row')].map((row) => row.dataset.kind), ['code', 'thought'], 'a round with thinking keeps its row');
+  list.remove();
+  window.happyDOM.abort();
+});
+
+test('words before a call do not fold the list the reader opened; fold() does', () => {
+  const { window, document, message, answer } = setup();
+  const list = createSandboxLedger({ document, host: message, before: answer, language: 'en', summary: true });
+  list.event({ type: 'round', label: 'Thinking…', doneLabel: 'Finished thinking' });
+  const head = message.querySelector('.ledger-row-head');
+  head.click();
+  assert.equal(head.getAttribute('aria-expanded'), 'true', 'the reader opened the list');
+  list.event({ type: 'answering', more: true });
+  assert.equal(head.getAttribute('aria-expanded'), 'true', 'words before a call leave it open');
+  list.fold();
+  assert.equal(head.getAttribute('aria-expanded'), 'false', 'the answer folds it');
   list.remove();
   window.happyDOM.abort();
 });

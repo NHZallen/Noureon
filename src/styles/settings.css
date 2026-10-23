@@ -561,14 +561,6 @@ body svg {
     gap: 0.45rem;
 }
 
-.archived-chat-summary {
-    margin-top: 0.45rem;
-    color: var(--text-secondary);
-    font-size: 0.82rem;
-    line-height: 1.45;
-    overflow-wrap: anywhere;
-}
-
 .folder-icon,
 .folder-icon svg,
 .folder-icon-svg,

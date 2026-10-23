@@ -8,11 +8,12 @@ import { INVALID_VISION_RESPONSE, parseVisionResponse } from './vision-prompt.js
 
 export const RETRY_NOTE = '\n\nYour previous reply could not be read. Reply with the JSON object only, with no other text, and write all of it.';
 
-export async function askVision({ streamApiCall, prompt, images, model, conversation, signal, progress, arm = () => {}, requireEdits = true }) {
+// `onAnswerText(answer)`: told the answer so far, each time more of it comes (the problems can be shown while the model writes them).
+export async function askVision({ streamApiCall, prompt, images, model, conversation, signal, progress, arm = () => {}, requireEdits = true, onAnswerText = null }) {
   for (let attempt = 0; ; attempt += 1) {
     const parts = [{ text: attempt ? `${prompt}${RETRY_NOTE}` : prompt }, ...images];
     let answer = '';
-    await streamApiCall(parts, (chunk) => { answer += chunk; }, signal, false, {
+    await streamApiCall(parts, (chunk) => { answer += chunk; onAnswerText?.(answer); }, signal, false, {
       modelInfo: model, conversation, historyForApi: [], currentMessageForApi: { role: 'user', parts },
       onReasoning: (chunk) => progress?.thinking(chunk),
       disableReasoning: false, ignoreConversationWebSearch: true, skipMemoryContext: true,

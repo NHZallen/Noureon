@@ -129,6 +129,15 @@ export function createRunManager({
       live.vision.chars += String(event.a[0]).length;
       return;
     }
+    // The words of the reply being told again as the model writes them: each replaces the one before (the last is what a late page needs).
+    if (event.m === 'result') {
+      const earlier = events.findLast((entry) => entry.m === 'result' && entry.a?.[0]?.id === event.a?.[0]?.id);
+      if (earlier) {
+        live.vision.chars += JSON.stringify(event.a).length - JSON.stringify(earlier.a).length;
+        earlier.a = structuredClone(event.a);
+        return;
+      }
+    }
     if (last && event.m === 'py' && last.m === 'py') {
       const before = last.a[0];
       const next = event.a[0];

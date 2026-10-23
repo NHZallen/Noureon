@@ -11,6 +11,7 @@ import { parseDocumentSpec } from '../src/app/ui/files/design/document-spec.js';
 import { askVision } from '../src/app/ui/files/vision/vision-ask.js';
 import { eligibleVisionFiles } from '../src/app/ui/files/vision/vision-eligibility.js';
 import { buildFixRequest, buildFreeVisionMetadata, buildFreeVisionPrompt, buildFreeVisionResult } from '../src/app/ui/files/vision/vision-free.js';
+import { createIssueStream } from '../src/app/ui/files/vision/vision-issue-stream.js';
 import { buildVisionPrompt, INVALID_VISION_RESPONSE } from '../src/app/ui/files/vision/vision-prompt.js';
 import { buildVisionMetadata, buildVisionResult } from '../src/app/ui/files/vision/vision-result.js';
 import { applyVisionEdits } from '../src/app/ui/files/vision/vision-edits.js';
@@ -257,17 +258,21 @@ async function checkFreeDeck({ file, spec, source, access, model, config, contro
   progress.set('reviewing', { model: model.name || model.id });
   const prompt = buildFreeVisionPrompt({ file, layout: presentation.layout, uiLanguage: language, checkedSlides: sheets.checkedSlides });
   const images = sheets.images.map((data) => ({ inlineData: { mimeType: 'image/jpeg', data } }));
-  const result = await askVision({ streamApiCall: access.streamApiCall, prompt, images, model, conversation: access.conversation, signal: controller.signal, progress, arm, requireEdits: false });
+  // Redoing the deck needs Python, which the person's conversation may not have (the page says: advanced) or the host may not answer: the deck stays as it is.
+  const canRedo = Boolean(spec.tools.visionCheck.advanced && sandboxHost?.configured);
+  // When the deck is going to be redone, what the reply says about the problems is told while the model writes them, so the page draws it as it is
+  // written (the reply with the deck is written when the work is done, and takes the place of what was drawn).
+  const live = canRedo ? createIssueStream({ language, checkedSlides: sheets.checkedSlides, totalSlides: sheets.totalSlides, send: (text) => progress.result({ id: reserveMessageId(), text }) }) : null;
+  const result = await askVision({ streamApiCall: access.streamApiCall, prompt, images, model, conversation: access.conversation, signal: controller.signal, progress, arm, requireEdits: false, onAnswerText: live ? (answer) => live.feed(answer) : null });
+  live?.flush();
   if (!result.issues.length) {
     progress.remove();
     return { clean: true };
   }
   progress.showIssues(result.issues);
   progress.set('fixing', { model: model.name || model.id });
-  // Redoing the deck needs Python, which the person's conversation may not have (the page says: advanced) or the host may not answer: the deck stays as it is.
-  if (!spec.tools.visionCheck.advanced || !sandboxHost?.configured) return { left: true, found: result.issues.length };
-  // The deck is going to be redone: what the reply says about the problems is known now, and is told at once, so the page can type it in
-  // while the work goes on (the reply with the deck is written when it is done, and takes the place of what was typed).
+  if (!canRedo) return { left: true, found: result.issues.length };
+  // The words as the model finished them (a problem it left out is not in them): the page's words are made the same.
   progress.result({ id: reserveMessageId(), text: buildFreeVisionResult({ result, language, checkedSlides: sheets.checkedSlides, totalSlides: sheets.totalSlides }) });
   arm(FIX_TIMEOUT_MS);
   const steps = progress.python(language);
