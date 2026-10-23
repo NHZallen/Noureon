@@ -9,9 +9,12 @@
 const pieces = (text) => String(text || '').split(/\*\*([^*\n]+)\*\*/g)
   .map((value, index) => ({ strong: index % 2 === 1, value }));
 
-/** Puts `text` into `node`, with **headings** in bold. */
+/**
+ * Puts `text` into `node`, with **headings** in bold. The blank lines a summary puts between its paragraphs are not drawn at its ends: the box sets its text as it is
+ * (pre-wrap), so the two newlines that end a paragraph while the next one has not come yet showed as a blank space of two lines under it (Allen, 2026-10-24).
+ */
 export function fillThinkingText(document, node, text) {
-  const wanted = pieces(text);
+  const wanted = pieces(String(text || '').trim());
   const nodes = [...node.childNodes];
   wanted.forEach((piece, index) => {
     const current = nodes[index];

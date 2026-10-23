@@ -528,7 +528,7 @@ test('the model\'s thinking is a step under the "Working" line, which says it is
   });
   assert.equal(seen.parent, 'Working · Thinking…', 'the line says what the work is at');
   assert.equal(seen.topLevelRows, 1, 'one list in the message: the thinking is not a second one beside it');
-  assert.equal(seen.thoughtInsideParent, 'Let me think. ', 'the thinking is a step inside the line');
+  assert.equal(seen.thoughtInsideParent, 'Let me think.', 'the thinking is a step inside the line');
   assert.match(seen.afterAnswer, /^Thought for \d/, 'once the answer starts, the line is the time the work took');
   assert.equal(host.querySelectorAll('.ledger').length, 0, 'it goes when the reply is finished: the saved reply shows it');
   assert.match(result.fullResponse, /The answer\./);

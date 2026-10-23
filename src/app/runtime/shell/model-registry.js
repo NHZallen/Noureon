@@ -35,8 +35,8 @@ const MODEL_RELEASE_METADATA = Object.freeze({
     'qwen/qwen-image-2.1-turbo': { releasedAt: 20261017 },
     'qwen/qwen-image-2.1-pro': { releasedAt: 20261017 },
     'minimax/minimax-m3': { releasedAt: 20260531, outputPricePerMillion: 1.2 },
-    // The free version is gone (the owner, 2026-10-24: OpenRouter lists only the paid one, 524288 tokens of output): its price is not known here, so none is given.
-    'minimax/minimax-m3.1-flash': { releasedAt: 20261020 },
+    // The free version is gone (the owner, 2026-10-24: OpenRouter lists only the paid one, 524288 tokens of output): $0.10 in and $0.55 out per million (the owner).
+    'minimax/minimax-m3.1-flash': { releasedAt: 20261020, outputPricePerMillion: 0.55 },
     'moonshotai/kimi-k3.1-pro': { releasedAt: 20261024, outputPricePerMillion: 10 },
     'poolside/laguna-s-2.1:free': { releasedAt: 20260721, outputPricePerMillion: 0 },
     'nvidia/nemotron-3-ultra-550b-a55b:free': { releasedAt: 20260604, outputPricePerMillion: 0 },

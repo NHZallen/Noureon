@@ -18,6 +18,22 @@ const bubble = (document) => {
   return { host, answer };
 };
 
+test('the blank lines that end or begin a thought summary are not drawn (they were a blank space under the thinking, and in the saved reply)', () => {
+  const { window, cleanup } = createDom('');
+  try {
+    const node = window.document.createElement('pre');
+    fillThinkingText(window.document, node, '\n\nSince today is the 23rd, I should look up the news.\n\n');
+    assert.equal(node.textContent, 'Since today is the 23rd, I should look up the news.');
+    // A paragraph break in the middle stays; the next paragraph comes in after it.
+    fillThinkingText(window.document, node, 'First paragraph.\n\nSecond paragraph.\n\n');
+    assert.equal(node.textContent, 'First paragraph.\n\nSecond paragraph.');
+    fillThinkingText(window.document, node, '   ');
+    assert.equal(node.textContent, '');
+  } finally {
+    cleanup();
+  }
+});
+
 test('thought summaries show their headings in bold, and nothing else is treated as markup', () => {
   const { window, cleanup } = createDom('');
   try {
@@ -96,7 +112,7 @@ test('an ordinary reply keeps the model\'s thinking in its run record and shows 
       signal: new AbortController().signal,
       uiLanguage: 'en'
     });
-    assert.deepEqual(seen, ['Plan\n', true], 'streamed live, then folded once the answer began');
+    assert.deepEqual(seen, ['Plan', true], 'streamed live (the newline that ends a paragraph is not drawn), then folded once the answer began');
     assert.equal(host.querySelector('.ledger'), null, 'the live line is replaced by the saved one');
     const { run, text } = liftSandboxRunBlock(result.fullResponse);
     assert.equal(text, 'Answer');

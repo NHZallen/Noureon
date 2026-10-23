@@ -19,10 +19,84 @@
 import { writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
+import { MODELS, getModelApiId } from '../src/app/runtime/shell/model-registry.js';
 import { readEvents } from './opencode-claude-probe.mjs';
-import { absorb, buildRequest, modelsToAsk } from './output-limit-probe.mjs';
 
+
+const ENDPOINTS = Object.freeze({
+  openrouter: 'https://openrouter.ai/api/v1',
+  nvidia: 'https://integrate.api.nvidia.com/v1',
+  gemini: 'https://generativelanguage.googleapis.com/v1beta'
+});
+const REGISTRY_PROVIDER = Object.freeze({ openrouter: 'openrouter', gemini: 'gemini', nvidia: 'nvidia' });
+const USER_AGENT = 'Noureon-probe/1 (+https://noureon.com)';
 export const PROMPT = 'A train leaves at 3:40 pm and travels 135 km at 45 km/h, stops 12 minutes, then travels 60 km at 40 km/h. At what time does it arrive? Answer with the time only.';
+
+/** The models to ask, with the form of API each is asked in: the text models of the app of these providers. */
+function modelsToAsk({ providers = Object.keys(ENDPOINTS), only = [] } = {}) {
+  const wanted = new Set(only.map((name) => name.trim()).filter(Boolean));
+  const rows = [];
+  for (const provider of providers) {
+    for (const model of MODELS.filter((entry) => entry.provider === REGISTRY_PROVIDER[provider] && entry.outputModality !== 'image')) {
+      const form = provider === 'gemini' ? 'gemini' : 'chat';
+      const apiId = getModelApiId(model);
+      if (wanted.size && !wanted.has(model.id) && !wanted.has(apiId)) continue;
+      rows.push({ provider, id: model.id, apiId, name: model.name || model.id, form });
+    }
+  }
+  return rows;
+}
+
+/** The request for a model: no limit given, read as it streams. */
+function buildRequest({ provider, apiId, form, key, prompt = PROMPT }) {
+  const base = ENDPOINTS[provider];
+  if (form === 'gemini') {
+    return {
+      url: `${base}/models/${apiId}:streamGenerateContent?alt=sse`,
+      headers: { 'content-type': 'application/json', 'x-goog-api-key': key, 'user-agent': USER_AGENT },
+      body: { contents: [{ role: 'user', parts: [{ text: prompt }] }] }
+    };
+  }
+  const headers = { 'content-type': 'application/json', authorization: `Bearer ${key}`, 'user-agent': USER_AGENT };
+  if (form === 'responses') {
+    return { url: `${base}/responses`, headers, body: { model: apiId, input: prompt, stream: true } };
+  }
+  return {
+    url: `${base}/chat/completions`,
+    headers,
+    body: { model: apiId, messages: [{ role: 'user', content: prompt }], stream: true, stream_options: { include_usage: true } }
+  };
+}
+
+/** What a stream has said so far, event by event: the characters written, the characters thought, and how it ended. */
+function absorb(form, event, state) {
+  if (form === 'gemini') {
+    for (const part of event.candidates?.[0]?.content?.parts || []) {
+      if (typeof part.text !== 'string') continue;
+      if (part.thought) state.reasoningChars += part.text.length;
+      else state.visibleChars += part.text.length;
+    }
+    if (event.candidates?.[0]?.finishReason) state.finish = event.candidates[0].finishReason;
+    const usage = event.usageMetadata;
+    if (usage) state.tokens = (usage.candidatesTokenCount ?? 0) + (usage.thoughtsTokenCount ?? 0) || state.tokens;
+    return;
+  }
+  if (form === 'responses') {
+    if (event.type === 'response.output_text.delta') state.visibleChars += String(event.delta || '').length;
+    else if (event.type === 'response.reasoning_summary_text.delta' || event.type === 'response.reasoning_text.delta') state.reasoningChars += String(event.delta || '').length;
+    else if (event.type === 'response.completed' || event.type === 'response.incomplete') {
+      state.finish = event.response?.status === 'incomplete' ? event.response?.incomplete_details?.reason || 'incomplete' : 'stop';
+      state.tokens = event.response?.usage?.output_tokens ?? state.tokens;
+    }
+    return;
+  }
+  const delta = event.choices?.[0]?.delta || {};
+  if (typeof delta.content === 'string') state.visibleChars += delta.content.length;
+  for (const field of ['reasoning_content', 'reasoning', 'reasoning_text']) if (typeof delta[field] === 'string') state.reasoningChars += delta[field].length;
+  if (event.choices?.[0]?.finish_reason) state.finish = event.choices[0].finish_reason;
+  if (event.usage?.completion_tokens) state.tokens = event.usage.completion_tokens;
+}
+
 const PROVIDERS = Object.freeze(['openrouter', 'nvidia', 'gemini']);
 const KEY_NAMES = Object.freeze({ openrouter: 'OPENROUTER_API_KEY', nvidia: 'NVIDIA_API_KEY', gemini: 'GEMINI_API_KEY' });
 const ENOUGH_CHARS = 200;
