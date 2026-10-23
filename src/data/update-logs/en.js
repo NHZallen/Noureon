@@ -1,6 +1,14 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.16.1": [
+    "<strong>Noureon 18.16.1 Release Notes</strong>",
+    "This version fixes three small problems and tightens the safety checks on model answers.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Styles and forms in answers:</strong> an answer from a model (or from a page it read) can no longer contain styles that change the look of the whole screen, or forms that send what you type to another site.</li><li><strong>Memory page:</strong> data whose item ids contain special characters (for example imported or synced data) no longer makes the memory page create extra elements.</li><li><strong>Keys in the settings:</strong> an API key typed right after opening the settings for the first time, within seconds of the page loading, is no longer cleared.</li><li><strong>Package update:</strong> dompurify is updated to 3.4.17, which addresses the security advisories of the previous version.</li></ul>",
+    "<strong>Compatibility</strong>",
+    "This update needs no data migration and adds no server fields."
+  ],
   "18.16.0": [
     "<strong>Noureon 18.16.0 Release Notes</strong>",
     "This version lets a text model call the picture model you chose to draw, and lays out the words, the pictures and the steps in one reply.",
