@@ -58,12 +58,25 @@ test('no cloud account, a temporary chat, a missing key', async () => {
   assert.ok(noAccount.plan.every((row) => row.reason === 'no-account'));
   assert.equal(noAccount.server.signIn, undefined, 'the sign-in is not asked when there is no account');
 
-  const temporary = await runDiagnostics(make({ conversation: { id: 't', model: 'm', isTemporary: true } }));
+  const temporary = await runDiagnostics(make({ conversation: { id: 't', model: 'm', retentionMode: 'ephemeral' } }));
   assert.ok(temporary.plan.every((row) => row.reason === 'not-synced'));
   assert.ok(temporary.problems.some((text) => /temporary/.test(text)));
 
   const noKey = await runDiagnostics(make({ keys: {} }));
   assert.ok(noKey.problems.some((text) => /No API key/.test(text) && /openrouter/.test(text)));
+});
+
+test('a new empty chat (flagged isTemporary until its first message) is not a temporary chat: it is planned as the chat it becomes', async () => {
+  const draft = await runDiagnostics(make({ conversation: { id: 'd', model: 'm', isTemporary: true, messages: [] } }));
+  assert.equal(draft.chat.draft, true);
+  assert.equal(draft.chat.temporary, false);
+  assert.deepEqual(draft.problems, []);
+  assert.equal(runsOn(draft, 'Python (file or data task)').runsOn, 'server');
+  assert.match(formatReport(draft), /chat: new \(empty\)/);
+  assert.ok(draft.notes.some((text) => /new empty chat/.test(text)));
+  // The same flag on a chat that has messages is a real "temporary" state.
+  const odd = await runDiagnostics(make({ conversation: { id: 'x', model: 'm', isTemporary: true, messages: [{ role: 'user' }] } }));
+  assert.equal(odd.chat.temporary, true);
 });
 
 test('a server that does not answer, answers an error, or is half configured', async () => {

@@ -54,7 +54,11 @@ const timed = async (fn) => {
 export async function runDiagnostics(deps) {
   const { serverReply, baseUrl, version = '', getConfig, getConversation, resolveModel, hasKey, canResearch, fetchImpl = (...args) => globalThis.fetch(...args), online = () => globalThis.navigator?.onLine } = deps;
   const config = getConfig() || {};
-  const conversation = getConversation() || null;
+  const open = getConversation() || null;
+  // A new empty chat is flagged `isTemporary` until its first message is sent (then it is kept, like any chat); only `retentionMode: 'ephemeral'`
+  // is a temporary chat. The plan is made when the message is sent, so a draft is planned as the chat it is about to become.
+  const isDraft = Boolean(open?.isTemporary) && !(open?.messages?.length > 0);
+  const conversation = open && isDraft ? { ...open, isTemporary: false } : open;
   const model = conversation ? resolveModel(conversation) : null;
   const report = { at: new Date().toISOString(), problems: [], notes: [] };
   const problem = (text) => report.problems.push(text);
@@ -96,6 +100,7 @@ export async function runDiagnostics(deps) {
   }
 
   report.chat = conversation ? {
+    draft: isDraft,
     temporary: Boolean(conversation.isTemporary || conversation.retentionMode === 'ephemeral'),
     model: model?.id || conversation.model || '',
     provider: model?.provider || '',
@@ -104,6 +109,7 @@ export async function runDiagnostics(deps) {
     modelSearchesByItself: model ? Boolean(canResearch(model)) : false
   } : null;
   if (!conversation) report.notes.push('No chat is open: the plan below is for a new chat.');
+  if (isDraft) report.notes.push('This is a new empty chat: it is kept (and can go to the server) once the first message is sent. The plan below is for that.');
   if (report.chat?.temporary) problem(explainReason('not-synced').meaning);
   if (report.chat && !report.chat.hasKeyForModel) problem(`${explainReason('no-key').meaning} (provider: ${report.chat.provider || 'unknown'})`);
   if (report.chat?.webSearchOn && !report.chat.modelSearchesByItself) report.notes.push('Web search is on but this model does not search by itself (no search key, or the model does not call tools): the server searches first and puts the result in front of the request; with Python that cannot be done on the server.');
@@ -126,7 +132,7 @@ export function formatReport(report) {
   const server = report.server;
   lines.push(`server: ${server.baseUrl} — ${server.reachable ? `reachable in ${server.ms} ms, build ${server.build}, protocol ${server.protocol}, replies ${server.runsEnabled ? 'on' : 'OFF'}, sandbox ${server.sandbox}, up ${Math.round(server.uptimeSeconds / 60)} min` : `NOT reachable (${server.error || `status ${server.status}`})`}`);
   if (server.signIn) lines.push(`sign-in at the server: ${server.signIn.accepted ? 'accepted' : `REFUSED (${server.signIn.code || server.signIn.status})`}`);
-  if (report.chat) lines.push(`chat: ${report.chat.temporary ? 'TEMPORARY' : 'kept'}, model ${report.chat.model} (${report.chat.provider}), key ${report.chat.hasKeyForModel ? 'yes' : 'NO'}, web search ${report.chat.webSearchOn ? 'on' : 'off'}, model searches itself ${report.chat.modelSearchesByItself ? 'yes' : 'no'}`);
+  if (report.chat) lines.push(`chat: ${report.chat.temporary ? 'TEMPORARY' : report.chat.draft ? 'new (empty)' : 'kept'}, model ${report.chat.model} (${report.chat.provider}), key ${report.chat.hasKeyForModel ? 'yes' : 'NO'}, web search ${report.chat.webSearchOn ? 'on' : 'off'}, model searches itself ${report.chat.modelSearchesByItself ? 'yes' : 'no'}`);
   lines.push('', 'Where each kind of reply would be made:');
   for (const row of report.plan) lines.push(`  ${row.runsOn === 'server' ? VERDICTS.server : VERDICTS.device} ${row.scenario}: ${row.runsOn}${row.meaning ? ` — ${row.meaning} ${row.fix}` : ''}`);
   lines.push('', 'The last decisions of this page (newest last):');
