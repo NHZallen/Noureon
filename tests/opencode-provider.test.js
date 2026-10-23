@@ -433,7 +433,7 @@ test('the depth of thinking of each model: the options of the slider, and the fi
   assert.deepEqual(fields('minimax-m3.1-flash-free', 'none'), {}, 'its thinking cannot be turned off');
   assert.deepEqual(fields('beam-free', 'xhigh'), { reasoning_effort: 'xhigh' });
   assert.deepEqual(fields('beam-free', 'none'), {});
-  assert.deepEqual(fields('claude-haiku-5-5', 'max'), { thinking: { type: 'adaptive' }, output_config: { effort: 'max' } });
+  assert.deepEqual(fields('claude-haiku-5-5', 'max'), { thinking: { type: 'adaptive', display: 'summarized' }, output_config: { effort: 'max' } });
   assert.deepEqual(fields('qwen3.8-max', 'low'), { thinking: { type: 'adaptive' }, output_config: { effort: 'low' } });
   assert.deepEqual(fields('qwen3.8-max', 'none'), { thinking: { type: 'disabled' } });
   // Never a value the probe saw refused: no `none` for Muse, Grok, GLM, Step, Hy4, Kimi K2.7; no `max` for Grok and Muse 1.2; no `minimal` for the MiMo and GPT Luna.
@@ -538,4 +538,17 @@ test('Claude Haiku 5.5 gets room for its hidden thinking (65536), the other mode
   assert.equal(buildOpencodeRequest({ ...common, modelInfo: { provider: 'opencode-go', id: 'claude-haiku-5-5' } }).payload.max_tokens, 65536);
   assert.equal(buildOpencodeRequest({ ...common, modelInfo: { provider: 'opencode-go', id: 'minimax-m3' } }).payload.max_tokens, 16384);
   assert.equal(buildOpencodeRequest({ ...common, modelInfo: { provider: 'opencode-go', id: 'claude-haiku-5-5' }, generationConfig: { maxTokens: 2000 } }).payload.max_tokens, 2000);
+});
+
+test('the thinking of Claude Haiku 5.5 comes as a summary (it sends none otherwise); no other model of the Messages form is sent the field', () => {
+  const common = {
+    format: 'messages', modelId: 'x', apiKey: 'k', sessionId: 's', historyForApi: [], currentMessageForApi: { role: 'user', parts: [{ text: 'Hi' }] }, generationConfig: { maxTokens: null },
+    systemInstruction: { parts: [{ text: 'Be kind.' }] }, modelSupportsVision: () => true, buildChatMessages: () => [], buildResponsesInput: () => [], reasoningEffort: 'high'
+  };
+  const haiku = buildOpencodeRequest({ ...common, modelInfo: { provider: 'opencode-go', id: 'claude-haiku-5-5' } }).payload;
+  assert.deepEqual(haiku.thinking, { type: 'adaptive', display: 'summarized' });
+  assert.deepEqual(haiku.output_config, { effort: 'high' });
+  for (const id of ['minimax-m3.1-flash-free', 'qwen3.8-max']) {
+    assert.equal(buildOpencodeRequest({ ...common, modelInfo: { provider: 'opencode-go', id } }).payload.thinking.display, undefined, id);
+  }
 });

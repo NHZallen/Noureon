@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 
-import { MODELS, OFFICE_FILES, THINKING, buildBody, main, modelsNamed, newModels, parseEvents, probeModel, probeToolLoop, readAnswer, send, summarizeStream } from '../scripts/opencode-probe.mjs';
+import { MODELS, OFFICE_FILES, THINKING, askedThinkingFields, buildBody, main, modelsNamed, newModels, parseEvents, probeModel, probeShown, probeToolLoop, readAnswer, send, summarizeStream, thinkingOfStream } from '../scripts/opencode-probe.mjs';
 
 const KEY = 'oc_sk_very-secret-key-for-the-test';
 const reply = (status, body) => ({ status, text: async () => (typeof body === 'string' ? body : JSON.stringify(body)) });
@@ -370,4 +370,51 @@ test('--new lists the ids the service has that the probe does not, without a key
   assert.equal(await main(['--new'], {}, { log: (line) => lines.push(line), error() {} }, fetchImpl), 0);
   assert.match(lines[0], /4 models listed.*a-brand-new-one, another-one-free/);
   assert.equal(await main(['--new'], {}, { log() {}, error() {} }, async () => reply(404, 'nope')), 1);
+});
+
+const streamText = (events) => events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join('');
+
+test('the text of the thinking is counted in the stream of each form of the API, and a field without text is not thinking', () => {
+  const chat = streamText([
+    { choices: [{ delta: { reasoning_content: 'Let me ' } }] },
+    { choices: [{ delta: { reasoning: 'compute.' } }] },
+    { choices: [{ delta: { content: 'ok' } }] }
+  ]);
+  assert.deepEqual(thinkingOfStream('chat', chat), { chars: 15, sample: 'Let me compute.', fields: ['reasoning_content', 'reasoning'] });
+  const responses = streamText([{ type: 'response.reasoning_summary_text.delta', delta: 'Summary.' }, { type: 'response.output_text.delta', delta: 'ok' }, { type: 'response.output_item.added', item: { type: 'reasoning' } }]);
+  assert.equal(thinkingOfStream('responses', responses).chars, 8, 'a reasoning item with no summary text is nothing to show');
+  const messages = streamText([{ type: 'content_block_delta', delta: { type: 'thinking_delta', thinking: 'Plan.' } }, { type: 'content_block_delta', delta: { type: 'text_delta', text: 'ok' } }]);
+  assert.equal(thinkingOfStream('messages', messages).chars, 5);
+  const gemini = streamText([{ candidates: [{ content: { parts: [{ thought: true, text: 'Hmm.' }, { text: 'ok' }] } }] }]);
+  assert.equal(thinkingOfStream('gemini', gemini).chars, 4);
+  assert.equal(thinkingOfStream('messages', streamText([{ type: 'content_block_delta', delta: { type: 'text_delta', text: 'ok' } }])).chars, 0);
+});
+
+test('each form asks for the summary of the thinking with its own field, added to what the app already sends', () => {
+  assert.deepEqual(askedThinkingFields('messages', { thinking: { type: 'adaptive' }, output_config: { effort: 'high' } }), { thinking: { type: 'adaptive', display: 'summarized' }, output_config: { effort: 'high' } });
+  assert.deepEqual(askedThinkingFields('messages', {}), { thinking: { type: 'adaptive', display: 'summarized' } }, 'a model that is sent no setting is asked in the adaptive form');
+  assert.deepEqual(askedThinkingFields('responses', { reasoning: { effort: 'medium' } }), { reasoning: { effort: 'medium', summary: 'auto' } });
+  assert.deepEqual(askedThinkingFields('gemini', { generationConfig: { thinkingConfig: { thinkingLevel: 'low' } } }), { generationConfig: { thinkingConfig: { thinkingLevel: 'low', includeThoughts: true } } });
+  assert.equal(askedThinkingFields('chat', { reasoning_effort: 'high' }), null, 'the chat form has no field for it');
+});
+
+test('the test shown says, for each model, whether the thinking comes by default, only when asked, is refused when asked, or does not come', async () => {
+  const think = (text) => ({ ok: true, status: 200, ms: 5, raw: streamText([{ type: 'content_block_delta', delta: { type: 'thinking_delta', thinking: text } }]) });
+  const quiet = { ok: true, status: 200, ms: 5, raw: streamText([{ type: 'content_block_delta', delta: { type: 'text_delta', text: 'ok' } }]) };
+  const bodies = [];
+  const make = (answers) => async (family, body) => {
+    bodies.push(body);
+    return answers.shift();
+  };
+  assert.equal((await probeShown({ id: 'claude-haiku-5-5', family: 'messages', run: make([quiet, think('plan')]) })).verdict, 'only when asked');
+  assert.equal((await probeShown({ id: 'minimax-m3', family: 'messages', run: make([think('plan'), think('plan')]) })).verdict, 'by default');
+  assert.equal((await probeShown({ id: 'qwen3.7-plus', family: 'messages', run: make([quiet, { ok: false, status: 400, message: 'unknown field display' }]) })).verdict, 'refused when asked');
+  assert.equal((await probeShown({ id: 'gpt-6-luna', family: 'responses', run: make([quiet, quiet]) })).verdict, 'none');
+  assert.equal((await probeShown({ id: 'kimi-k3', family: 'chat', run: make([think('x')]) })).asked, null, 'a chat model is asked once');
+  assert.equal((await probeShown({ id: 'kimi-k3', family: 'chat', run: make([{ ok: false, status: 500, message: 'down' }]) })).verdict, 'error');
+  // What the first request holds is what the app sends today, without the field that only asks for the summary.
+  assert.deepEqual(bodies[0].thinking, { type: 'adaptive' });
+  assert.equal(bodies[0].output_config.effort, 'medium');
+  assert.equal(bodies[0].stream, true, 'it is read as a stream, as the app reads it');
+  assert.deepEqual(bodies[1].thinking, { type: 'adaptive', display: 'summarized' });
 });

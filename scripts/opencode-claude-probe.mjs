@@ -68,7 +68,9 @@ export function buildProbeRequest({ model = 'claude-haiku-5-5', effort = null, m
     buildChatMessages: () => [],
     buildResponsesInput: () => []
   });
-  if (display && payload.thinking) payload.thinking = { ...payload.thinking, display };
+  // The app asks for the summary of the thinking of this model itself now (opencode-models.js); `display: 'off'` takes that field out, to compare.
+  if (display === 'off' && payload.thinking) delete payload.thinking.display;
+  else if (display && payload.thinking) payload.thinking = { ...payload.thinking, display };
   if (tools || toolTurns.length) applyAnthropicTools(payload, { tools: tools ? [RUN_PYTHON_TOOL_SERVER] : [], toolTurns });
   return payload;
 }
@@ -235,14 +237,14 @@ export async function probe({ key, base = BASE, model = 'claude-haiku-5-5', test
   if (tests.includes('tools') || tests.includes('loop')) {
     for (const limit of limits) {
       for (const effort of efforts) {
-        const run = { effort, limit, ...(await ask({ fetchImpl, key, base, payload: buildProbeRequest({ model, effort, maxTokens: limit, prompt, tools: true }) })) };
+        const run = { effort, limit, ...(await ask({ fetchImpl, key, base, payload: buildProbeRequest({ model, effort, maxTokens: limit, prompt, tools: true, display }) })) };
         const collected = run.collected;
         delete run.collected;
         results.tools.push(run);
         log(line(`tools ${effort} @ ${limit}`, run));
         if (tests.includes('loop') && run.ok && run.calls.length && run.calls.every((call) => call.argumentsReadable)) {
           const turn = { assistant: collected, results: collected.toolCalls.map((call) => ({ id: call.id, name: call.name, content: JSON.stringify({ ok: true, stdout: 'saved typhoon.pptx\n', stderr: '', files: [{ path: '/output/typhoon.pptx', size: 4096 }], elapsed_ms: 120 }) })) };
-          const next = { effort, limit, ...(await ask({ fetchImpl, key, base, payload: buildProbeRequest({ model, effort, maxTokens: limit, prompt, tools: true, toolTurns: [turn] }) })) };
+          const next = { effort, limit, ...(await ask({ fetchImpl, key, base, payload: buildProbeRequest({ model, effort, maxTokens: limit, prompt, tools: true, toolTurns: [turn], display }) })) };
           delete next.collected;
           results.loop.push(next);
           log(line(`loop  ${effort} @ ${limit}`, next));
@@ -251,7 +253,7 @@ export async function probe({ key, base = BASE, model = 'claude-haiku-5-5', test
     }
   }
   if (tests.includes('route')) {
-    for (const effort of efforts.slice(0, 1)) {
+    for (const effort of efforts) {
       const systems = Object.fromEntries(await Promise.all(ROUTE_VARIANTS.map(async (variant) => [variant, await routeSystem(variant)])));
       const jobs = [];
       for (const variant of ROUTE_VARIANTS) for (const text of ROUTE_PROMPTS) for (let trial = 1; trial <= trials; trial += 1) jobs.push({ variant, text, trial });
@@ -269,13 +271,13 @@ export async function probe({ key, base = BASE, model = 'claude-haiku-5-5', test
     }
   }
   if (tests.includes('display')) {
-    for (const shown of [null, 'summarized']) {
+    for (const shown of ['off', 'summarized']) {
       for (let trial = 1; trial <= 2; trial += 1) {
         const { decide } = routeDecider();
         const run = await ask({ fetchImpl, key, base, earlyStop: decide, payload: buildProbeRequest({ model, effort: efforts[0] || 'medium', prompt: ROUTE_PROMPTS[0], tools: true, system: await routeSystem('priority'), display: shown }) });
         delete run.collected;
-        results.display.push({ display: shown || '(not sent)', trial, ok: run.ok, status: run.status, error: run.error || run.failure || '', thinkingChars: run.thinkingChars, thinkingSample: run.thinkingSample, elapsedMs: run.elapsedMs });
-        log(`display ${(shown || '(not sent)').padEnd(11)} #${trial} ${run.ok ? `thinking ${run.thinkingChars} ch` : `HTTP ${run.status} ${run.error}`}${run.thinkingSample ? `  «${run.thinkingSample.replace(/\s+/g, ' ').slice(0, 100)}»` : ''}`);
+        results.display.push({ display: shown === 'off' ? '(not sent)' : shown, trial, ok: run.ok, status: run.status, error: run.error || run.failure || '', thinkingChars: run.thinkingChars, thinkingSample: run.thinkingSample, elapsedMs: run.elapsedMs });
+        log(`display ${(shown === 'off' ? '(not sent)' : shown).padEnd(11)} #${trial} ${run.ok ? `thinking ${run.thinkingChars} ch` : `HTTP ${run.status} ${run.error}`}${run.thinkingSample ? `  «${run.thinkingSample.replace(/\s+/g, ' ').slice(0, 100)}»` : ''}`);
       }
     }
   }

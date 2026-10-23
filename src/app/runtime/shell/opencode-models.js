@@ -187,6 +187,11 @@ export const OPENCODE_REASONING_CONFIGS = Object.freeze(Object.fromEntries(Objec
   return [`${OPENCODE_GO_PROVIDER}/${apiId}`, { providerParameter: 'opencodeThinking', options: [...row.options], defaultEffort: row.defaultEffort }];
 })));
 
+// The models that give the text of their thinking only when asked: Claude Haiku 5.5 sends none at all unless `thinking.display` is `summarized` (the probe of
+// 2026-10-23: 0 characters of thinking without it, 648 to 2079 with it; the service takes the field, and a model that does not know it would be refused with a 400,
+// so it is sent only to the models listed here, each one probed).
+const SUMMARIZED_THINKING_API_IDS = new Set(['claude-haiku-5-5']);
+
 /** The fields to put in the request to say how deep the model is to think (an empty object: nothing, the model's own way). */
 export function opencodeThinkingFields(model, effort) {
   const row = isOpencodeModel(model) ? THINKING_BY_ID.get(model.id) : null;
@@ -196,7 +201,7 @@ export function opencodeThinkingFields(model, effort) {
     case 'toggle': return effort === 'none' ? { thinking: { type: 'disabled' } } : {};
     case 'responses': return { reasoning: { effort } };
     case 'gemini': return { generationConfig: { thinkingConfig: { thinkingLevel: effort } } };
-    case 'adaptive': return { thinking: { type: 'adaptive' }, output_config: { effort } };
+    case 'adaptive': return { thinking: { type: 'adaptive', ...(SUMMARIZED_THINKING_API_IDS.has(BY_ID.get(model.id)?.apiId) ? { display: 'summarized' } : {}) }, output_config: { effort } };
     case 'adaptiveOrOff': return effort === 'none' ? { thinking: { type: 'disabled' } } : { thinking: { type: 'adaptive' }, output_config: { effort } };
     default: return {};
   }

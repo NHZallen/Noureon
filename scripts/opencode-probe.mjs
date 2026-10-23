@@ -16,6 +16,8 @@
 //   node scripts/opencode-probe.mjs --list                                the list of models of the service (public, no key, costs nothing)
 //   (Gemini 4 Argon Contributor, Google's own form: `--only gemini-4-argon-contributor --tests basic,stream,effort,thinking,tools,toolloop,vision,document,auth --max-tokens 1500`)
 //   Word and PowerPoint sent as they are, to the models that read a PDF: `--tests office --only <models>` (the answer holds MANGO when the file was read; "text" shows it)
+//   OPENCODE_GO_KEY=... node scripts/opencode-probe.mjs --tests shown                    which models give the text of their thinking (stream): by default, only when asked for it
+//                                                                          (a summary: `thinking.display`, `reasoning.summary`, `includeThoughts`), or not at all; a table at the end
 //   --max-tokens 1500   a bigger limit for every request (for the models that think long before they answer)
 //   --out file.json   where the result is written (default opencode-probe-result.json)        --base <address>   another base address
 //
@@ -26,8 +28,10 @@ import { spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { OPENCODE_REASONING_CONFIGS, opencodeThinkingFields } from '../src/app/runtime/shell/opencode-models.js';
+
 export const BASE = 'https://opencode.ai/inference/go/v1';
-export const TESTS = Object.freeze(['basic', 'stream', 'tools', 'toolloop', 'params', 'effort', 'vision', 'document', 'office', 'converted', 'pdfimage', 'thinking', 'auth', 'errors']);
+export const TESTS = Object.freeze(['basic', 'stream', 'tools', 'toolloop', 'params', 'effort', 'vision', 'document', 'office', 'converted', 'pdfimage', 'thinking', 'shown', 'auth', 'errors']);
 
 // From https://opencode.ai/docs/go/ (Endpoints), 2026-10-13: the model, the form of its API, and whether it is free.
 const chat = ['glm-5.3-flash', 'glm-5.3', 'glm-5.2', 'kimi-k3', 'kimi-k2.7-code', 'kimi-k2.6', 'longcat-2.0', 'deepseek-v4.1-flash', 'deepseek-v4-pro', 'deepseek-v4-flash', 'deepseek-v4-flash-vision-exp', 'mimo-v2.6-flash', 'mimo-v2.6-pro', 'mimo-v2.5', 'mimo-v2.5-pro', 'hy4-preview', 'hy3', 'space-bunny', 'longcat-2.5-preview-free', 'step-5-preview-free'];
@@ -90,6 +94,8 @@ const PNG = 'iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR4nO3NsQ0AAAz
 const TOOL = { name: 'get_time', description: 'Gets the local time of a city.', schema: { type: 'object', properties: { city: { type: 'string' } }, required: ['city'] } };
 // A small sum: the thinking a model puts into it shows how much a setting of depth changes (the numbers of tokens of the thinking).
 const THINK_PROMPT = 'What is 17 times 24, minus 38? Answer with just the number.';
+// A question a model that can think does think about (the test `shown`).
+const SHOWN_PROMPT = 'A train leaves at 3:40 pm and travels 135 km at 45 km/h, stops 12 minutes, then travels 60 km at 40 km/h. At what time does it arrive? Answer with the time only.';
 const TOOL_PROMPT = 'What time is it in Paris? Use the tool.';
 
 /** The settings that make a model think, by form of API: what is tried (each alone). */
@@ -128,7 +134,7 @@ export function buildBody(family, model, kind = 'basic', { stream = false, extra
   const maxTokens = extra.max_tokens || 96;
   let body;
   if (family === 'gemini') {
-    const text = kind === 'vision' ? 'What colour is this picture? One word.' : isPdfKind(kind) ? docPrompt(kind) : kind === 'tool' ? TOOL_PROMPT : kind === 'think' ? THINK_PROMPT : PROMPT;
+    const text = kind === 'vision' ? 'What colour is this picture? One word.' : isPdfKind(kind) ? docPrompt(kind) : kind === 'tool' ? TOOL_PROMPT : kind === 'think' ? THINK_PROMPT : kind === 'shown' ? SHOWN_PROMPT : PROMPT;
     const parts = kind === 'vision' ? [{ text }, { inlineData: { mimeType: 'image/png', data: PNG } }]
       : isPdfKind(kind) ? [{ text }, { inlineData: { mimeType: 'application/pdf', data: pdfBase64(kind) } }]
         : OFFICE_FILES[kind] ? [{ text: DOC_PROMPT }, { inlineData: { mimeType: OFFICE_FILES[kind].mime, data: officeBase64(kind) } }] : [{ text }];
@@ -144,7 +150,7 @@ export function buildBody(family, model, kind = 'basic', { stream = false, extra
       ? [{ type: 'text', text: 'What colour is this picture? One word.' }, { type: 'image_url', image_url: { url: `data:image/png;base64,${PNG}` } }]
       : isPdfKind(kind) ? [{ type: 'text', text: docPrompt(kind) }, { type: 'file', file: { filename: 'probe.pdf', file_data: `data:application/pdf;base64,${pdfBase64(kind)}` } }]
         : OFFICE_FILES[kind] ? [{ type: 'text', text: DOC_PROMPT }, { type: 'file', file: { filename: OFFICE_FILES[kind].name, file_data: `data:${OFFICE_FILES[kind].mime};base64,${officeBase64(kind)}` } }]
-        : kind === 'tool' ? TOOL_PROMPT : kind === 'think' ? THINK_PROMPT : PROMPT;
+        : kind === 'tool' ? TOOL_PROMPT : kind === 'think' ? THINK_PROMPT : kind === 'shown' ? SHOWN_PROMPT : PROMPT;
     body = { model, messages: [{ role: 'user', content: user }], max_tokens: maxTokens };
     if (kind === 'tool') Object.assign(body, { tools: [{ type: 'function', function: { name: TOOL.name, description: TOOL.description, parameters: TOOL.schema } }], tool_choice: 'auto' });
     if (stream) Object.assign(body, { stream: true, stream_options: { include_usage: true } });
@@ -153,7 +159,7 @@ export function buildBody(family, model, kind = 'basic', { stream = false, extra
       ? [{ role: 'user', content: [{ type: 'input_text', text: 'What colour is this picture? One word.' }, { type: 'input_image', image_url: `data:image/png;base64,${PNG}` }] }]
       : isPdfKind(kind) ? [{ role: 'user', content: [{ type: 'input_text', text: docPrompt(kind) }, { type: 'input_file', filename: 'probe.pdf', file_data: `data:application/pdf;base64,${pdfBase64(kind)}` }] }]
         : OFFICE_FILES[kind] ? [{ role: 'user', content: [{ type: 'input_text', text: DOC_PROMPT }, { type: 'input_file', filename: OFFICE_FILES[kind].name, file_data: `data:${OFFICE_FILES[kind].mime};base64,${officeBase64(kind)}` }] }]
-        : kind === 'tool' ? TOOL_PROMPT : kind === 'think' ? THINK_PROMPT : PROMPT;
+        : kind === 'tool' ? TOOL_PROMPT : kind === 'think' ? THINK_PROMPT : kind === 'shown' ? SHOWN_PROMPT : PROMPT;
     body = { model, input, max_output_tokens: Math.max(maxTokens, 32) };
     if (kind === 'tool') Object.assign(body, { tools: [{ type: 'function', name: TOOL.name, description: TOOL.description, parameters: TOOL.schema }], tool_choice: 'auto' });
     if (stream) body.stream = true;
@@ -162,7 +168,7 @@ export function buildBody(family, model, kind = 'basic', { stream = false, extra
       ? [{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: PNG } }, { type: 'text', text: 'What colour is this picture? One word.' }]
       : isPdfKind(kind) ? [{ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdfBase64(kind) } }, { type: 'text', text: docPrompt(kind) }]
         : OFFICE_FILES[kind] ? [{ type: 'document', source: { type: 'base64', media_type: OFFICE_FILES[kind].mime, data: officeBase64(kind) } }, { type: 'text', text: DOC_PROMPT }]
-        : kind === 'tool' ? TOOL_PROMPT : kind === 'think' ? THINK_PROMPT : PROMPT;
+        : kind === 'tool' ? TOOL_PROMPT : kind === 'think' ? THINK_PROMPT : kind === 'shown' ? SHOWN_PROMPT : PROMPT;
     body = { model, max_tokens: maxTokens, messages: [{ role: 'user', content: user }] };
     if (kind === 'tool') Object.assign(body, { tools: [{ name: TOOL.name, description: TOOL.description, input_schema: TOOL.schema }], tool_choice: { type: 'auto' } });
     if (stream) body.stream = true;
@@ -370,6 +376,69 @@ export async function probeToolLoop({ model, family, run }) {
   return out;
 }
 
+/** The text of the thinking in a stream (not only that there is a field), by the form of the API: how many characters, the first words, and where it came. */
+export function thinkingOfStream(family, text) {
+  let chars = 0;
+  let sample = '';
+  const fields = new Set();
+  const take = (value, field) => {
+    if (typeof value !== 'string' || !value) return;
+    chars += value.length;
+    fields.add(field);
+    if (sample.length < 120) sample += value.slice(0, 120 - sample.length);
+  };
+  for (const event of parseEvents(text)) {
+    if (family === 'gemini') {
+      for (const part of event.candidates?.[0]?.content?.parts || []) if (part.thought) take(part.text, 'parts[].thought');
+    } else if (family === 'chat') {
+      const delta = event.choices?.[0]?.delta || {};
+      for (const field of ['reasoning_content', 'reasoning', 'reasoning_text']) take(delta[field], field);
+      for (const detail of Array.isArray(delta.reasoning_details) ? delta.reasoning_details : []) take(detail?.text || detail?.summary, 'reasoning_details');
+    } else if (family === 'responses') {
+      if (event.type === 'response.reasoning_summary_text.delta' || event.type === 'response.reasoning_text.delta') take(event.delta, event.type);
+    } else if (event.type === 'content_block_delta' && event.delta?.type === 'thinking_delta') take(event.delta.thinking, 'thinking_delta');
+  }
+  return { chars, sample: plain(sample, 120), fields: [...fields] };
+}
+
+/** What the app sends today to say how deep the model thinks (its default depth), without the field that only asks for the summary. */
+function defaultThinkingFields(id) {
+  const row = OPENCODE_REASONING_CONFIGS[`opencode-go/${id}`];
+  const fields = row ? opencodeThinkingFields({ provider: 'opencode-go', id: `opencode-go/${id}` }, row.defaultEffort) : {};
+  if (fields.thinking?.display) delete fields.thinking.display;
+  return fields;
+}
+
+/** The field of each form that asks for the text of the thinking, added to what the app sends (a model of the chat form has none to add). */
+export function askedThinkingFields(family, fields) {
+  if (family === 'messages') return { ...fields, thinking: { ...(fields.thinking?.type === 'disabled' ? {} : fields.thinking), type: fields.thinking?.type && fields.thinking.type !== 'disabled' ? fields.thinking.type : 'adaptive', display: 'summarized' } };
+  if (family === 'responses') return { ...fields, reasoning: { ...fields.reasoning, summary: 'auto' } };
+  if (family === 'gemini') return { generationConfig: { thinkingConfig: { ...fields.generationConfig?.thinkingConfig, includeThoughts: true } } };
+  return null;
+}
+
+/**
+ * Whether the model gives the text of its thinking in a stream: with what the app sends today (`default`), and with the field of its form that asks for a
+ * summary (`asked`). `verdict`: "by default", "only when asked", "refused when asked" (the service took the first and refused the second), "none" or "error".
+ */
+export async function probeShown({ id, family, run, maxTokens = 3000 }) {
+  const attempt = async (extra) => {
+    const result = await run(family, buildBody(family, id, 'shown', { stream: true, extra: { max_tokens: maxTokens, ...extra } }), { stream: true });
+    if (!result.ok) return { ok: false, status: result.status, message: result.message };
+    return { ok: true, status: result.status, ms: result.ms, ...thinkingOfStream(family, result.raw) };
+  };
+  const baseline = defaultThinkingFields(id);
+  const byDefault = await attempt(baseline);
+  const extra = askedThinkingFields(family, JSON.parse(JSON.stringify(baseline)));
+  const asked = extra ? await attempt(extra) : null;
+  let verdict = 'none';
+  if (!byDefault.ok) verdict = 'error';
+  else if (byDefault.chars > 0) verdict = 'by default';
+  else if (asked?.ok && asked.chars > 0) verdict = 'only when asked';
+  else if (asked && !asked.ok) verdict = 'refused when asked';
+  return { default: byDefault, asked, verdict };
+}
+
 /** The tests of one model. `run(body, options)` sends and gives the result of `send`. */
 export async function probeModel({ model, tests = TESTS, run, key = '' }) {
   const { id } = model;
@@ -441,6 +510,7 @@ export async function probeModel({ model, tests = TESTS, run, key = '' }) {
     result.office = {};
     for (const kind of Object.keys(OFFICE_FILES)) result.office[kind] = await one(kind, { extra: { max_tokens: 200 } });
   }
+  if (tests.includes('shown')) result.shown = await probeShown({ id, family, run });
   if (tests.includes('thinking')) {
     result.thinking = {};
     for (const [name, extra] of THINKING[family]) result.thinking[name] = await one('basic', { extra });
@@ -582,6 +652,10 @@ export async function main(args = process.argv.slice(2), env = process.env, out 
   }
   if (tests.includes('errors')) report.errors = await probeErrors({ run, key });
   keep();
+  if (tests.includes('shown')) {
+    out.log('\nWho gives the text of the thinking (stream):');
+    for (const model of report.models) if (model.shown) out.log(`${model.id.padEnd(30)} ${model.family.padEnd(10)} ${model.shown.verdict.padEnd(20)} default ${String(model.shown.default.chars ?? model.shown.default.message ?? '').slice(0, 40).padEnd(8)} asked ${model.shown.asked ? String(model.shown.asked.chars ?? model.shown.asked.message ?? '').slice(0, 60) : '-'}`);
+  }
   out.log(`written: ${file} (no key in it; paste it to be read)`);
   return stopped ? 1 : 0;
 }
