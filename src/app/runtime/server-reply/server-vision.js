@@ -5,7 +5,7 @@
 
 import { visionText } from '../../ui/files/vision/vision-texts.js';
 import { setVisionLocked } from '../features/vision-check-lock.js';
-import { revealArrival } from '../../ui/motion/arrival-reveal.js';
+import { expectArrival } from '../messages/arriving-messages.js';
 import { withFileBytes } from './server-reply.js';
 import { SERVICES, getService } from '../services.js';
 
@@ -13,6 +13,8 @@ const LOOKS = 4;
 const LOOK_EVERY_MS = 1500;
 // How often it is looked at whether the line is still on the page, and how many calls are kept to draw it again.
 const KEEP_ON_PAGE_MS = 1000;
+// How long the line takes to fold when the check is over, before the reply is brought in.
+const FOLD_MS = 350;
 const MAX_REPLAYED_CALLS = 300;
 
 // Whether a reply may hold a presentation (as the page's own check asks): a block of a .pptx file in its text, or a .pptx that Python made.
@@ -95,19 +97,20 @@ export function createServerVisionFollow({
         replaying = false;
       }
     };
-    // Asks the sync to read what the cloud holds now (`retry` reads, then sends; `flush` only sends: writing a message does not touch its
-    // conversation, so no live change tells the page), then takes the line away and draws the new message in.
-    const bringInResult = async (line) => {
-      const before = lastMessageStack(document);
+    // The check is over and its reply was written by the server. The line folds into one quiet line (with the ease of any row, which takes a
+    // moment: the message waits for it), then the message is typed in below it. The page is told to expect the message, and the sync is asked to
+    // read what the cloud holds now (`retry` reads, then sends; `flush` only sends: writing a message does not touch its conversation, so no
+    // live change tells the page).
+    const bringInResult = async (line, messageId) => {
+      line?.complete?.();
+      expectArrival(messageId);
+      await wait(FOLD_MS);
       try {
         const sync = getSync();
         await (sync?.retry ? sync.retry() : sync?.flush?.());
       } catch {
-        // The line goes all the same; the message comes with the next sync.
+        // The message comes with the next sync.
       }
-      line?.remove();
-      const after = lastMessageStack(document);
-      if (after && after !== before) revealArrival(after, 'is-arriving');
     };
     const apply = (call, first, second, at) => {
       switch (call.m) {
@@ -147,7 +150,7 @@ export function createServerVisionFollow({
           // in. The line stays until it is there, and the reply is drawn in (not set down at once, after a gap). Only when it could not be written
           // is the result told by a notice.
           if (first?.messageId) {
-            void bringInResult(line);
+            void bringInResult(line, first.messageId);
             break;
           }
           line?.remove();

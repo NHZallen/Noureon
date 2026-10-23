@@ -5,6 +5,7 @@ import { Window } from 'happy-dom';
 
 import { createServerVisionFollow } from '../src/app/runtime/server-reply/server-vision.js';
 import { chatsUnderVisionCheck, setVisionLocked } from '../src/app/runtime/features/vision-check-lock.js';
+import { takeArrival } from '../src/app/runtime/messages/arriving-messages.js';
 
 const setup = () => {
   const window = new Window();
@@ -70,7 +71,7 @@ test('the check the server makes is drawn as the page draws its own, from what t
   await running;
   assert.deepEqual([...chatsUnderVisionCheck], [], 'free again');
   assert.deepEqual(locks, [['conv-1'], []], 'the composer is asked to look each time');
-  assert.equal(document.querySelectorAll('.ledger').length, 0, 'the line is gone when the check is over');
+  assert.match(document.querySelector('.ledger-label')?.textContent || '', /Visual check done/, 'the line stays, folded into one line that says it is done');
   assert.deepEqual(notices, [], 'a corrected reply is the message, not a notice');
   assert.deepEqual(flushes, [1], 'the sync is asked to read the cloud for the corrected reply, not only to send');
   void labels;
@@ -223,33 +224,17 @@ test('the lock is the union of the page\'s own checks and the server\'s', () => 
   assert.deepEqual([...chatsUnderVisionCheck], []);
 });
 
-test('the line stays until the sync has brought the result in, then the new message is drawn in instead of being set down at once', async () => {
-  let release;
-  const gate = new Promise((resolve) => { release = resolve; });
-  let documentOfTest = null;
-  const events = [call('begin', { name: 'deck.pptx' }), call('issues', [{ slide: 1, category: 'text', problem: 'Small', fix: 'Larger' }]), call('file-end', { outcome: 'fixed', messageId: 'm2' }), { done: 'complete' }];
-  const built = harness({
-    events,
-    sync: {
-      retry: async () => {
-        await gate;
-        const stack = documentOfTest.createElement('div');
-        stack.className = 'message-stack';
-        documentOfTest.body.append(stack);
-      }
-    }
-  });
-  documentOfTest = built.document;
-  const running = built.follow.attach({ runId: 'run-v', conversation });
+test('when the check is over its line folds into one quiet line (no clock, no stop button), the message is expected, and the sync reads the cloud', async () => {
+  const events = [call('begin', { name: 'deck.pptx' }), call('issues', [{ slide: 1, category: 'text', problem: 'Small', fix: 'Larger' }]), call('file-end', { outcome: 'fixed', messageId: 'm-arrive' }), { done: 'complete' }];
+  const built = harness({ events });
+  await built.follow.attach({ runId: 'run-v', conversation });
   await new Promise((resolve) => setTimeout(resolve, 20));
-  assert.ok(built.document.querySelectorAll('.ledger').length > 0, 'the line is still there while the result is on its way');
-  assert.equal(built.document.querySelectorAll('.message-stack').length, 1);
-  release();
-  await running;
-  await new Promise((resolve) => setTimeout(resolve, 20));
-  assert.equal(built.document.querySelectorAll('.ledger').length, 0, 'the line goes when the result is there');
-  const stacks = [...built.document.querySelectorAll('.message-stack')];
-  assert.equal(stacks.length, 2);
-  assert.equal(stacks[1].classList.contains('is-arriving'), true, 'the new message is drawn in');
-  assert.equal(stacks[0].classList.contains('is-arriving'), false);
+  assert.ok(built.document.querySelectorAll('.ledger').length > 0, 'the line is not taken away');
+  assert.match(built.document.querySelector('.ledger-label')?.textContent || '', /Visual check done/);
+  assert.equal(built.document.querySelectorAll('.ledger-action').length, 0, 'the stop button is gone');
+  assert.equal(built.document.querySelectorAll('.ledger-issues').length, 1, 'what it showed is kept, folded');
+  assert.equal(built.document.querySelector('.ledger-row-head')?.getAttribute('aria-expanded'), 'false', 'folded');
+  assert.deepEqual(built.flushes, [1], 'the sync read the cloud');
+  assert.equal(takeArrival('m-arrive'), true, 'the page expects the message, to type it in');
+  assert.equal(takeArrival('m-arrive'), false, 'taken once');
 });

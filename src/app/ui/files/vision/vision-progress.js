@@ -26,7 +26,7 @@ export function createVisionProgress({ document, language, controller, host = nu
   const parent = outer.addRow(text('ledgerTitle'));
   outer.happenedAt(null);
   parent.enableBody(false);
-  parent.addAction(text('stop'), () => controller?.abort());
+  const stopButton = parent.addAction(text('stop'), () => controller?.abort());
   const ledger = createLedger({ document, host: parent.body });
   // The line says which step it is at, so it can stay folded.
   const sync = () => {
@@ -149,6 +149,17 @@ export function createVisionProgress({ document, language, controller, host = nu
       row.body.append(list);
       row.enableBody(true);
       row.finish('done');
+    },
+    // The work is over and the reply is on its way: the line folds with the ease every row has (not at once), into one quiet line that says it
+    // is done, with no clock running and no stop button. What was in it opens again with a tap.
+    complete() {
+      ledger.current?.finish('done');
+      parent.finish('done');
+      parent.setLabel(text('ledgerDone'));
+      stopButton?.remove();
+      parent.setOpen(false);
+      ledger.stopClock();
+      outer.stopClock();
     },
     // The Python steps of the redoing go inside its row.
     python(language = 'zh-TW') {

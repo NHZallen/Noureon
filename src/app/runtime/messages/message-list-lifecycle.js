@@ -1,5 +1,7 @@
 import { fadeOutPreviousChat } from '../../ui/motion/chat-switch-ghost.js';
-import { isReaderScrolling } from '../../ui/motion/reader-scroll-guard.js';
+import { followTop, isReaderScrolling, setScrollTopQuietly } from '../../ui/motion/reader-scroll-guard.js';
+import { streamInMessage } from '../../ui/motion/stream-in.js';
+import { takeArrival } from './arriving-messages.js';
 import { loadImageWait } from '../../ui/image-wait/image-wait-markup.js';
 
 export function createMessageListLifecycle({
@@ -136,6 +138,35 @@ export function createMessageListLifecycle({
             return element?.dataset?.messageIndex === String(index)
                 && messageViewSignature(element.__astraRenderedMessage) === messageViewSignature(message);
         });
+    };
+
+    // The messages the cloud brought in after the last one drawn (the result of a visual check, written by the server while the page was open):
+    // drawn below the others, and the rest of the chat is left as it is (a panel the reader opened stays open, the chat does not jump). One the page
+    // was told to expect (arriving-messages.js) is typed in. False when the messages drawn are not the first ones of the conversation.
+    const appendMissingMessages = () => {
+        const conversation = getActiveConversation();
+        const messages = conversation?.messages || [];
+        const pendingElement = conversation?.__astraPendingResponse?.loadingMessageDiv;
+        const drawn = [...elements.messageList.children].filter(element => element !== pendingElement && element.dataset?.messageIndex !== undefined);
+        if (!drawn.length || drawn.length >= messages.length) return false;
+        const sameStart = drawn.every((element, index) => element.dataset.messageIndex === String(index)
+            && messageViewSignature(element.__astraRenderedMessage) === messageViewSignature(messages[index]));
+        if (!sameStart) return false;
+        const chat = elements.chatContainer;
+        messages.slice(drawn.length).forEach((message, offset) => {
+            const typedIn = Boolean(message.id) && message.role === 'model' && takeArrival(message.id);
+            const element = addMessageToUI(message, drawn.length + offset, false, !typedIn, { conversation });
+            if (!typedIn) return;
+            const reducedMotion = Boolean(document.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches);
+            void streamInMessage(element, {
+                requestFrame: scheduleFrame,
+                reducedMotion,
+                follow: () => {
+                    if (!isReaderScrolling(chat) && chat.scrollHeight - chat.scrollTop <= chat.clientHeight + 120) setScrollTopQuietly(chat, followTop(chat));
+                }
+            });
+        });
+        return true;
     };
 
     const scrollChatToBottom = () => {
@@ -367,6 +398,7 @@ export function createMessageListLifecycle({
 
     return {
         addMessageToUI,
+        appendMissingMessages,
         isActiveConversationViewCurrent,
         markMessageElementAsCurrent,
         refreshMessageHistorySources,

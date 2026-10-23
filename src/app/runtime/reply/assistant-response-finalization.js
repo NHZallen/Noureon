@@ -136,6 +136,7 @@ export async function finalizeAssistantResponse({
     await playbackCouncilResponse({ targetElement, fullResponse, signal });
   }
   rememberRenderedMessage(targetElement, finalAiMessage);
+  targetElement?.querySelectorAll?.('.file-skeleton').forEach((placeholder) => placeholder.remove());
   // The files the reply made come in one after the other instead of appearing at once when the reply ends.
   if (finalAiMessage.parts.some((part) => part?.sandboxFile)) revealArrival(targetElement?.closest?.('[data-message-index]'), 'is-arriving-files');
   if (!hasFinalParts && !responseUsesCouncil && !picturesShown && showMessageWithPictures && finalAiMessage.parts.some((part) => part?.generatedImage)) {

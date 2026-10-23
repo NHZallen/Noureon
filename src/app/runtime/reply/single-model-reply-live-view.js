@@ -118,6 +118,14 @@ export function createReplyLiveView({ targetElement, getDocument, getConfig, lan
     event: (event) => {
       drawStage.handle(event);
       stepList()?.event(event);
+      // The words are done and the files are being kept: a grey card stands where they will be, so they do not appear out of nothing when the
+      // reply ends (the reply is drawn again then, which takes the card away; finalizeAssistantResponse takes away any that is left).
+      if (event?.type === 'finishing' && !targetElement.querySelector?.('.file-skeleton')) {
+        const placeholder = getDocument().createElement('div');
+        placeholder.className = 'ac-file-card file-skeleton';
+        placeholder.setAttribute('aria-hidden', 'true');
+        targetElement.append(placeholder);
+      }
     },
     noteOwnSearch,
     showThinking,

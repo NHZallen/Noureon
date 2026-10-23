@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { Window } from 'happy-dom';
+
 import { prepareReply } from '../src/app/runtime/reply/single-model-reply-prepare.js';
 import { followServerReply, handOverToServer } from '../src/app/runtime/reply/single-model-reply-server.js';
 import { createReplyLiveView } from '../src/app/runtime/reply/single-model-reply-live-view.js';
@@ -128,4 +130,19 @@ test('finish: the run record keeps the thinking, the pages and "made here"; the 
   const empty = { searchSources: [], sandboxRun: null, sandboxDocuments: '', groundingSupports: [] };
   assert.throws(() => composeReplyText({ reply: empty, fullResponse: '  ', targetElement: null, aborted: false, uiLanguage: 'en' }));
   assert.throws(() => composeReplyText({ reply: empty, fullResponse: '', targetElement: null, aborted: true, uiLanguage: 'en' }), { name: 'AbortError' });
+});
+
+test('when the files are being kept, a grey card stands where they will be, once, and is not there when there are no files to wait for', () => {
+  const { document } = new Window();
+  const bubble = document.createElement('div');
+  const target = document.createElement('div');
+  bubble.append(target);
+  document.body.append(bubble);
+  const view = createReplyLiveView({ targetElement: target, getDocument: () => document, getConfig: () => ({}), language: 'en', now: () => 0, serverReply: null, serverRun: null, madeHere: false, getRunStartedAt: () => 0, onStepsShown() {} });
+  assert.equal(target.querySelectorAll('.file-skeleton').length, 0);
+  view.event({ type: 'finishing', label: 'Saving the files' });
+  view.event({ type: 'finishing', label: 'Saving the files' });
+  assert.equal(target.querySelectorAll('.file-skeleton').length, 1, 'one card, not one for each event');
+  assert.equal(target.querySelector('.file-skeleton').classList.contains('ac-file-card'), true);
+  view.close();
 });

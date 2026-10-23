@@ -242,10 +242,6 @@
     .dialog-warning-border {
         animation: pulse-red-border 1.5s infinite;
     }
-    @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
-    }
     .message-content {
     transition: opacity 0.2s ease-in-out;
 }

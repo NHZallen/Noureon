@@ -210,9 +210,13 @@
     table-layout: auto; /* 讓內容決定寬度，這是防止擠壓的關鍵 */
 }
 
-/* A message that arrives whole (the visual check's result) is wiped in from the top and the files a reply made rise in, not set down at once
-   (src/app/ui/motion/arrival-reveal.js adds the class for a moment). */
-.message-stack.is-arriving { animation: result-arrive 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) backwards; }
-.is-arriving-files .file-card { animation: result-arrive 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) backwards; }
-@keyframes result-arrive { from { opacity: 0; clip-path: inset(0 0 100% 0); transform: translateY(6px); } }
-@media (prefers-reduced-motion: reduce) { .message-stack.is-arriving, .is-arriving-files .file-card { animation: none; } }
+/* A message typed in below what is on the page (src/app/ui/motion/stream-in.js) and the files of a reply being kept: a block waits until its first
+   word, the files wait as grey placeholders and then rise in. */
+.stream-pending { display: none; }
+.is-awaiting-files .ac-file-card > * { visibility: hidden; }
+.is-awaiting-files .ac-file-card, .file-skeleton { pointer-events: none; background: color-mix(in srgb, var(--text-primary) 9%, transparent); animation: file-waiting 1.4s ease-in-out infinite; }
+.file-skeleton { min-height: 4.5rem; }
+.is-arriving-files .ac-file-card { animation: result-arrive 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) backwards; }
+@keyframes file-waiting { 50% { opacity: 0.45; } }
+@keyframes result-arrive { from { opacity: 0; transform: translateY(8px); } }
+@media (prefers-reduced-motion: reduce) { .file-skeleton, .is-awaiting-files .ac-file-card, .is-arriving-files .ac-file-card { animation: none; } }
