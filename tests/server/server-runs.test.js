@@ -270,7 +270,7 @@ test('a reply is accepted, run, written, and finished, and its key goes with it'
       seen.push({ secrets, hasSecretsInSpec: 'secrets' in spec });
       onUpdate([{ text: 'partial' }]);
       await onCheckpoint({ round: 1 });
-      return { parts: [{ text: 'whole answer' }], status: 'done', run: { elapsedMs: 5 }, toolCalls: 2 };
+      return { parts: [{ text: 'whole answer' }], status: 'done', run: { elapsedMs: 5 }, toolCalls: 2, rounds: [{ finish: 'tool_use', calls: 2, chars: 0 }, { finish: 'end_turn', calls: 0, chars: 12 }] };
     }
   });
   const runId = await manager.start({ userId: USER, spec: specOf() });
@@ -290,6 +290,7 @@ test('a reply is accepted, run, written, and finished, and its key goes with it'
   assert.equal(db.log.updates.some((update) => update.values.checkpoint?.round === 1), true);
   const done = db.log.updates.find((update) => update.values.status === 'done');
   assert.equal(done.values.key_envelope, null);
+  assert.deepEqual(done.values.usage.rounds, [{ finish: 'tool_use', calls: 2, chars: 0 }, { finish: 'end_turn', calls: 0, chars: 12 }], 'how each round ended is kept with the run');
   assert.equal(manager.activeCount, 0);
 });
 

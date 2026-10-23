@@ -47,7 +47,7 @@ Fix them now with run_python: change your code (or open /input/${file.name} with
 }
 
 /** The visible text of the reply that reports the check and carries the redone deck. */
-export function buildFreeVisionResult({ result, language, checkedSlides, totalSlides, answer }) {
+export function buildFreeVisionResult({ result, language, checkedSlides, totalSlides, answer, narration = '' }) {
   const labels = VISION_TEXTS[language] || VISION_TEXTS.en;
   const lines = result.issues.map((issue) => {
     const page = visionText(language, 'slide', { number: issue.slide });
@@ -58,7 +58,9 @@ export function buildFreeVisionResult({ result, language, checkedSlides, totalSl
   const partial = checkedSlides < totalSlides ? `\n\n${visionText(language, 'partial', { count: checkedSlides })}` : '';
   const summary = result.summary ? `\n\n${escapeMarkdown(result.summary)}` : '';
   const reply = String(answer || '').trim();
-  return `${visionText(language, 'freeHeading', { found: result.issues.length })}\n\n${lines.join('\n')}${summary}${partial}${reply ? `\n\n${reply}` : ''}`;
+  // What the model said while it worked comes first, then the problems the check found, then how it ended.
+  const said = String(narration || '').trim();
+  return `${said ? `${said}\n\n` : ''}${visionText(language, 'freeHeading', { found: result.issues.length })}\n\n${lines.join('\n')}${summary}${partial}${reply ? `\n\n${reply}` : ''}`;
 }
 
 export function buildFreeVisionMetadata({ file, model, result, checkedSlides, totalSlides }) {

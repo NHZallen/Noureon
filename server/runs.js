@@ -368,7 +368,7 @@ export function createRunManager({
       }
       await writer.finish(result.parts, 'complete');
       finalStatus = 'complete';
-      await store.finish(runId, { status: result.status === 'stopped' ? 'stopped' : 'done', usage: { toolCalls: result.toolCalls, elapsedMs: result.run?.elapsedMs }, ...(isImage ? { clearSpec: true } : {}) });
+      await store.finish(runId, { status: result.status === 'stopped' ? 'stopped' : 'done', usage: { toolCalls: result.toolCalls, elapsedMs: result.run?.elapsedMs, ...(result.rounds?.length ? { rounds: result.rounds } : {}) }, ...(isImage ? { clearSpec: true } : {}) });
       // A reply that wrote a presentation is looked at next, as a run of its own (recorded before the page is told this one is over).
       if (result.status === 'done' && !controller.signal.aborted) visionNext = await planVision({ userId, spec, secrets, result }).catch((error) => {
         log('vision_not_started', { runId, message: String(error?.message || '').slice(0, 160) });

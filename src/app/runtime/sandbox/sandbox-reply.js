@@ -20,6 +20,9 @@ const THOUGHT_CHARS_IN_ALL = 30_000;
 // program arrives all at once, and the line would otherwise look stuck on what came before.
 const WRITING_AFTER_MS = 600;
 
+// Rounds whose ending is kept in the run's record.
+const MAX_ROUND_NOTES = 40;
+
 // Long output keeps its start and end for the model.
 export function trimForModel(text = '', limit = MODEL_TEXT_CHARS) {
   const source = String(text || '');
@@ -107,6 +110,10 @@ export async function runSandboxReply({
   const startedAt = Date.now();
   const toolTurns = [];
   let text = '';
+  // Where the words of the round under way begin in `text`: what came before it was said between runs.
+  let roundTextStart = 0;
+  // How each round ended (the provider's stop reason, the calls it made, the words it wrote): a reply that stops short shows here why.
+  const rounds = [];
   // The end of what the live view has been sent (only its last characters matter).
   let streamed = '';
   let toolsAllowed = true;
@@ -266,6 +273,7 @@ export async function runSandboxReply({
     const canCall = canRun || canResearch || canSkill;
     let response = null;
     deliver.continuing = false;
+    roundTextStart = text.length;
     roundMayCall = canCall;
     notes.reset();
     thought = '';
@@ -341,6 +349,7 @@ export async function runSandboxReply({
     }
     // The round wrote its words and no call follows: that was the answer, and the work is over.
     const answerEnded = () => { if (deliver.continuing && roundMayCall) onEvent({ type: 'answered' }); };
+    if (rounds.length < MAX_ROUND_NOTES) rounds.push({ finish: String(response?.finishReason || ''), calls: response?.toolCalls?.length || 0, chars: text.length - roundTextStart });
     if (signal?.aborted) {
       answerEnded();
       // Stopped while thinking: what was thought so far stays, marked as interrupted.
@@ -517,5 +526,6 @@ export async function runSandboxReply({
     }
   }
   run.elapsedMs = Date.now() - startedAt;
-  return { text, run: run.steps.length || run.fallback || run.thought ? run : null };
+  // `narration`: what the model said before its runs; `answer`: what it said in the last round (the whole text is the two together).
+  return { text, narration: text.slice(0, roundTextStart).trim(), answer: text.slice(roundTextStart).trim(), rounds, run: run.steps.length || run.fallback || run.thought ? run : null };
 }

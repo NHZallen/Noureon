@@ -25,7 +25,7 @@ function scriptedModel(rounds) {
     if (round.error) throw round.error;
     for (const chunk of round.chunks || [round.text || '']) onChunk(chunk);
     for (const raw of round.argumentChunks || []) options.onToolArguments?.({ name: round.argumentName || 'run_python', arguments: raw });
-    options.onResponseComplete({ text: round.text || '', toolCalls: round.calls || [], parts: [], reasoningDetails: [] });
+    options.onResponseComplete({ text: round.text || '', toolCalls: round.calls || [], parts: [], reasoningDetails: [], ...(round.finish ? { finishReason: round.finish } : {}) });
     return round.text || '';
   };
   return { streamApiCall, requests };
@@ -689,4 +689,27 @@ test('the model may read a file of a skill next to Python: the tool comes once t
   assert.deepEqual(events.filter((event) => event.type === 'skill').map((event) => event.label), ['Loading skill: sales-report', 'Reading skill file: references/format.md']);
   assert.match(model.requests[1].toolTurns[0].results[0].content, /The scripts are in the sandbox, read only, in \/skills\/sales-report\//);
   assert.match(model.requests[2].toolTurns[1].results[0].content, /<skill-file skill="sales-report" path="references\/format.md">\nUse bullets\.\n<\/skill-file>/);
+});
+
+test('what the model said before its runs is kept apart from its last words, and each round records how it ended', async () => {
+  const model = scriptedModel([
+    { text: '我會先檢查簡報。', finish: 'tool_use', calls: [call('c1', 'print(1)', '檢查')] },
+    { text: '已修正並輸出。', finish: 'end_turn' }
+  ]);
+  const { sandbox } = fakeSandbox([{ stdout: { text: '1\n', dropped: 0 }, stderr: { text: '', dropped: 0 }, error: null, files: [], elapsedMs: 1 }]);
+  const result = await runSandboxReply({ streamApiCall: model.streamApiCall, requestParts: [{ text: 'q' }], getSandbox: () => sandbox });
+  assert.equal(result.narration, '我會先檢查簡報。');
+  assert.equal(result.answer, '已修正並輸出。');
+  assert.equal(result.text, '我會先檢查簡報。\n\n已修正並輸出。', 'the whole text is unchanged');
+  assert.deepEqual(result.rounds, [
+    { finish: 'tool_use', calls: 1, chars: 8 },
+    { finish: 'end_turn', calls: 0, chars: 9 }
+  ]);
+});
+
+test('a reply cut short by the output limit before it called anything shows it in the record of its rounds', async () => {
+  const model = scriptedModel([{ text: '', finish: 'max_tokens' }]);
+  const result = await runSandboxReply({ streamApiCall: model.streamApiCall, requestParts: [{ text: 'q' }], getSandbox: () => fakeSandbox([]).sandbox });
+  assert.equal(result.run, null);
+  assert.deepEqual(result.rounds, [{ finish: 'max_tokens', calls: 0, chars: 0 }]);
 });

@@ -73,3 +73,13 @@ test('the reply reports the problems, then what the model said, in every languag
   const metadata = buildFreeVisionMetadata({ file: { id: 'f', name: 'deck.pptx' }, model: { name: 'M' }, result, checkedSlides: 4, totalSlides: 4 });
   assert.deepEqual([metadata.sourceFileId, metadata.model, metadata.free, metadata.issues.length], ['f', 'M', true, 1]);
 });
+
+test('what the model said while it worked comes before the problems the check found, and its last words come after', () => {
+  const result = { issues: [{ slide: 3, category: 'layout', problem: 'Crowded.', fix: 'Split.' }], summary: 'One slide was crowded.' };
+  const text = buildFreeVisionResult({ result, language: 'en', checkedSlides: 4, totalSlides: 4, narration: 'I will look at the shapes first.', answer: 'Fixed and saved.' });
+  const heading = visionText('en', 'freeHeading', { found: 1 });
+  assert.ok(text.startsWith('I will look at the shapes first.\n\n'));
+  assert.ok(text.indexOf('I will look') < text.indexOf(heading));
+  assert.ok(text.indexOf(heading) < text.indexOf('Fixed and saved.'));
+  assert.ok(text.endsWith('Fixed and saved.'));
+});
