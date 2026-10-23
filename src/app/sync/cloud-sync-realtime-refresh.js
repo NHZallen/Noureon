@@ -43,7 +43,13 @@ export function createConversationRealtimeRefreshScheduler({
       .then(async () => {
         if (stopped) return;
         const sync = getSync?.();
-        if (!sync?.getStatus?.().enabled) return;
+        const status = sync?.getStatus?.();
+        // A sync that could not start is asked to start again (it keeps its own pace); only an enabled one refreshes.
+        if (status && !status.enabled && status.state === 'retry') {
+          await sync.flush?.();
+          return;
+        }
+        if (!status?.enabled) return;
         settlePendingSequence();
         const forceThisRefresh = forced;
         forced = false;

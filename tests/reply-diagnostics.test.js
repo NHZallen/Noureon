@@ -159,7 +159,7 @@ test('the text report names what runs where and the problems; the log of decisio
   assert.match(text, /plain reply: this device — Settings → Privacy/);
   assert.match(text, /plan: device — packet-search: Python together with a web search made as a packet/);
   assert.match(text, /start: device — unsupported_mode: The server refuses/);
-  assert.match(text, /Problems:\n  - Settings → Privacy/);
+  assert.match(text, /Problems:\n {2}- Settings → Privacy/);
   const clean = formatReport(await runDiagnostics(make()));
   assert.match(clean, /No problem found\./);
   assert.match(clean, /server: https:\/\/api\.example\.test — reachable/);
