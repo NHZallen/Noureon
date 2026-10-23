@@ -16,6 +16,7 @@ const MODEL_RELEASE_METADATA = Object.freeze({
     'nvidia/z-ai/glm-5.3': { releasedAt: 20260827, outputPricePerMillion: 0 },
     'nvidia/nvidia/nemotron-3.5-super-vl-120b-a12b': { releasedAt: 20261014, outputPricePerMillion: 0 },
     'nvidia/stepfun-ai/step-5-preview': { releasedAt: 20261008, outputPricePerMillion: 0 },
+    'nvidia/minimaxai/minimax-m3.1-flash': { releasedAt: 20261024, outputPricePerMillion: 0 },
     'anthropic/claude-haiku-5.5': { releasedAt: 20261007, outputPricePerMillion: 0.5 },
     'anthropic/claude-sonnet-5.5': { releasedAt: 20260928, outputPricePerMillion: 10 },
     'anthropic/claude-opus-5.5': { releasedAt: 20260922, outputPricePerMillion: 20 },
@@ -34,10 +35,10 @@ const MODEL_RELEASE_METADATA = Object.freeze({
     'qwen/qwen-image-2.1-turbo': { releasedAt: 20261017 },
     'qwen/qwen-image-2.1-pro': { releasedAt: 20261017 },
     'minimax/minimax-m3': { releasedAt: 20260531, outputPricePerMillion: 1.2 },
-    'minimax/minimax-m3.1-flash:free': { releasedAt: 20261020, outputPricePerMillion: 0 },
-    'moonshotai/kimi-k3': { releasedAt: 20260716, outputPricePerMillion: 15 },
+    // The free version is gone (the owner, 2026-10-24: OpenRouter lists only the paid one, 524288 tokens of output): $0.10 in and $0.55 out per million (the owner).
+    'minimax/minimax-m3.1-flash': { releasedAt: 20261020, outputPricePerMillion: 0.55 },
+    'moonshotai/kimi-k3.1-pro': { releasedAt: 20261024, outputPricePerMillion: 10 },
     'poolside/laguna-s-2.1:free': { releasedAt: 20260721, outputPricePerMillion: 0 },
-    'nvidia/nemotron-3-super-120b-a12b:free': { releasedAt: 20260311, outputPricePerMillion: 0 },
     'nvidia/nemotron-3-ultra-550b-a55b:free': { releasedAt: 20260604, outputPricePerMillion: 0 },
     'nvidia/nemotron-3.5-lightning:free': { releasedAt: 20260807, outputPricePerMillion: 0 },
     'nvidia/nemotron-3.5-super-vl:free': { releasedAt: 20261014, outputPricePerMillion: 0 },
@@ -93,6 +94,9 @@ export const MODEL_CATALOG = [
     // Nemotron sees pictures and videos, Step 5 Preview pictures only; both call tools (the probe of 2026-10-16 with a real key, which also confirmed the api ids).
     { id: 'nvidia/nvidia/nemotron-3.5-super-vl-120b-a12b', apiId: 'nvidia/nemotron-3.5-super-vl-120b-a12b', name: 'NVIDIA Nemotron 3.5 Super VL', provider: 'nvidia', descriptionKey: 'model_nvidia_nemotron_3_5_super_vl_desc', tier: ['free'], category: 'general' },
     { id: 'nvidia/stepfun-ai/step-5-preview', apiId: 'stepfun-ai/step-5-preview', name: 'NVIDIA Step 5 Preview', provider: 'nvidia', descriptionKey: 'model_nvidia_step_5_preview_desc', tier: ['free'], category: 'general' },
+    // Asked for by the owner on 2026-10-24; the probe of the same day (scripts/nvidia-probe.mjs) found the id right: a call and the answer of the tool, pictures and video are read, a PDF as a file part is refused (400);
+    // the thinking cannot be turned off and its depth changes nothing (`reasoning_effort` and `enable_thinking` are taken and make no difference), so it has no setting of its depth.
+    { id: 'nvidia/minimaxai/minimax-m3.1-flash', apiId: 'minimaxai/minimax-m3.1-flash', name: 'NVIDIA MiniMax M3.1 Flash', provider: 'nvidia', descriptionKey: 'model_nvidia_minimax_m3_1_flash_desc', tier: ['free'], category: 'general' },
 
     // OpenCode Go: the list is in opencode-models.js (the form of API of each model, pictures, tools).
     ...OPENCODE_GO_MODELS,
@@ -128,19 +132,21 @@ export const MODEL_CATALOG = [
     { id: 'minimax/minimax-m3', name: 'Minimax M3', provider: 'openrouter', descriptionKey: 'model_minimax_m3_desc', category: 'general' },
 
     // OpenRouter Paid Models (MoonshotAI)
-    { id: 'moonshotai/kimi-k3', name: 'Kimi K3', provider: 'openrouter', descriptionKey: 'model_kimi_k3_desc', category: 'coding' },
+    // Tried with a real key on 2026-10-24 (scripts/nvidia-probe.mjs --openrouter): pictures, video, a PDF (and the picture in it) and tools are taken; it sees 1048576 tokens and says its thinking by itself.
+    // Kimi K3 left the list (the owner, 2026-10-24): a chat that names it goes to Kimi K3.1 Pro.
+    { id: 'moonshotai/kimi-k3.1-pro', legacyIds: ['moonshotai/kimi-k3'], name: 'Kimi K3.1 Pro', provider: 'openrouter', descriptionKey: 'model_kimi_k3_1_pro_desc', category: 'coding' },
 
     // OpenRouter Free Models (Minimax)
-    { id: 'minimax/minimax-m3.1-flash:free', name: 'Minimax M3.1 Flash', provider: 'openrouter', descriptionKey: 'model_minimax_m3_1_flash_desc', category: 'general' },
+    { id: 'minimax/minimax-m3.1-flash', legacyIds: ['minimax/minimax-m3.1-flash:free'], name: 'Minimax M3.1 Flash', provider: 'openrouter', descriptionKey: 'model_minimax_m3_1_flash_desc', category: 'general' },
 
     // OpenRouter Free Models (Poolside)
     { id: 'poolside/laguna-s-2.1:free', name: 'Laguna S 2.1', provider: 'openrouter', descriptionKey: 'model_laguna_s_2_1_desc', category: 'coding' },
 
     // OpenRouter Free Models (NVIDIA)
-    { id: 'nvidia/nemotron-3-super-120b-a12b:free', name: 'NVIDIA Nemotron 3 Super', provider: 'openrouter', descriptionKey: 'model_nemotron_3_super_120b_a12b_desc', category: 'general' },
     { id: 'nvidia/nemotron-3-ultra-550b-a55b:free', name: 'NVIDIA Nemotron 3 Ultra', provider: 'openrouter', descriptionKey: 'model_nemotron_3_ultra_550b_a55b_desc', category: 'general' },
     { id: 'nvidia/nemotron-3.5-lightning:free', name: 'NVIDIA Nemotron 3.5 Lightning', provider: 'openrouter', descriptionKey: 'model_nemotron_3_5_lightning_desc', category: 'general' },
-    { id: 'nvidia/nemotron-3.5-super-vl:free', name: 'NVIDIA Nemotron 3.5 Super VL', provider: 'openrouter', descriptionKey: 'model_nemotron_3_5_super_vl_desc', category: 'general' },
+    // NVIDIA Nemotron 3 Super (free) is gone: its function at the provider was not found (404, probe of 2026-10-24); a chat that names it goes to this one.
+    { id: 'nvidia/nemotron-3.5-super-vl:free', legacyIds: ['nvidia/nemotron-3-super-120b-a12b:free'], name: 'NVIDIA Nemotron 3.5 Super VL', provider: 'openrouter', descriptionKey: 'model_nemotron_3_5_super_vl_desc', category: 'general' },
 
     // OpenRouter Paid Models (OpenAI)
     { id: 'openai/gpt-6-astra', legacyIds: ['openai/gpt-5.5'], name: 'OpenAI GPT-6 Astra', provider: 'openrouter', descriptionKey: 'model_gpt_6_astra_desc', category: 'general' },
@@ -200,8 +206,8 @@ export const OPENROUTER_VISION_MODELS = [
     'deepseek/deepseek-v4.1-flash-1017',
     'minimax/minimax-m3',
     // Tried with a real key on 2026-10-20 (scripts/nvidia-probe.mjs --openrouter): a picture and a video are read.
-    'minimax/minimax-m3.1-flash:free',
-    'moonshotai/kimi-k3',
+    'minimax/minimax-m3.1-flash',
+    'moonshotai/kimi-k3.1-pro',
     'nvidia/nemotron-3.5-super-vl:free',
     'openai/gpt-6-astra',
     'openai/gpt-6-luna',
@@ -222,7 +228,9 @@ export const NVIDIA_VISION_MODELS = [
     'deepseek-ai/deepseek-v4.1-flash',
     'z-ai/glm-5.3-flash',
     'nvidia/nemotron-3.5-super-vl-120b-a12b',
-    'stepfun-ai/step-5-preview'
+    'stepfun-ai/step-5-preview',
+    // The probe of 2026-10-24: a picture and a video are read (a PDF as a file part is refused: 400).
+    'minimaxai/minimax-m3.1-flash'
 ];
 // Models that can call tools, which Advanced mode (Python in the browser)
 // needs. OpenRouter's list was checked against the `tools` entry of
@@ -243,10 +251,9 @@ export const TOOL_CALLING_MODEL_IDS = Object.freeze([
     'deepseek/deepseek-v4.1-flash-1017',
     'minimax/minimax-m3',
     // Tried with a real key on 2026-10-20: a call, and the answer after the result of the tool.
-    'minimax/minimax-m3.1-flash:free',
-    'moonshotai/kimi-k3',
+    'minimax/minimax-m3.1-flash',
+    'moonshotai/kimi-k3.1-pro',
     'poolside/laguna-s-2.1:free',
-    'nvidia/nemotron-3-super-120b-a12b:free',
     'nvidia/nemotron-3-ultra-550b-a55b:free',
     'nvidia/nemotron-3.5-lightning:free',
     'nvidia/nemotron-3.5-super-vl:free',
@@ -256,6 +263,8 @@ export const TOOL_CALLING_MODEL_IDS = Object.freeze([
     'nvidia/z-ai/glm-5.3',
     'nvidia/nvidia/nemotron-3.5-super-vl-120b-a12b',
     'nvidia/stepfun-ai/step-5-preview',
+    // The probe of 2026-10-24: a call, and the answer after the result of the tool.
+    'nvidia/minimaxai/minimax-m3.1-flash',
     'openai/gpt-6-astra',
     'openai/gpt-6-luna',
     'openai/gpt-5.6-terra',
@@ -319,7 +328,6 @@ export const MODEL_REASONING_CONFIGS = Object.freeze({ ...createReasoningConfigs
     [OPENROUTER_REASONING_EFFORT, ['minimal', 'low', 'medium', 'high'], 'minimal', ['google/gemini-3.5-flash-lite']],
     [OPENROUTER_REASONING_EFFORT, LOW_MEDIUM_HIGH, 'medium', ['google/gemini-4-argon']],
     [OPENROUTER_REASONING_EFFORT, ['minimal', 'high'], 'minimal', ['google/gemini-nano-banana-2.1']],
-    [OPENROUTER_REASONING_EFFORT, ['low', 'medium'], 'medium', ['nvidia/nemotron-3-super-120b-a12b:free'], { supportsMaxTokens: true }],
     [OPENROUTER_REASONING_EFFORT, ['medium', 'high'], 'high', ['nvidia/nemotron-3-ultra-550b-a55b:free'], { supportsMaxTokens: true }],
     // Nemotron 3.5 Super VL through OpenRouter: none (fast, no thinking), low, medium, high (the probe of 2026-10-16).
     [OPENROUTER_REASONING_EFFORT, ['none', 'low', 'medium', 'high'], 'medium', ['nvidia/nemotron-3.5-super-vl:free']],
@@ -331,9 +339,10 @@ export const MODEL_REASONING_CONFIGS = Object.freeze({ ...createReasoningConfigs
     // Step 5 Preview thinks at three levels and cannot be turned off (the owner, from OpenRouter's model page; default level: medium).
     [OPENROUTER_REASONING_EFFORT, LOW_MEDIUM_HIGH, 'medium', ['stepfun/step-5-preview']],
     [OPENROUTER_REASONING_EFFORT, ['none', 'high'], 'high', ['xiaomi/mimo-v2.6-pro', 'xiaomi/mimo-v2.6-flash']],
-    [OPENROUTER_REASONING_EFFORT, ['low', 'high', 'max'], 'high', ['moonshotai/kimi-k3']],
+    // The probe of 2026-10-24: none turns the thinking off (0 tokens), low to max and xhigh are taken.
+    [OPENROUTER_REASONING_EFFORT, ['none', 'low', 'medium', 'high', 'xhigh', 'max'], 'high', ['moonshotai/kimi-k3.1-pro']],
     // MiniMax M3.1 Flash: the thinking is mandatory (`none` is refused: "Reasoning is mandatory for this endpoint"); low, medium, high, xhigh and max are taken (the probe of 2026-10-20).
-    [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'medium', ['minimax/minimax-m3.1-flash:free']],
+    [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'medium', ['minimax/minimax-m3.1-flash']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh'], 'high', ['x-ai/grok-4.6']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'high', 'max'], 'max', ['z-ai/glm-5.3', 'z-ai/glm-5.3-flash']]
 ]), ...OPENCODE_REASONING_CONFIGS });

@@ -3,7 +3,7 @@
 // Keys are read from the environment and never printed.
 //
 //   NVIDIA_API_KEY=nvapi-... node scripts/nvidia-probe.mjs                  (the two NVIDIA models)
-//   OPENROUTER_API_KEY=sk-or-... node scripts/nvidia-probe.mjs --openrouter  (minimax/minimax-m3.1-flash:free, the one asked for on 2026-10-20)
+//   OPENROUTER_API_KEY=sk-or-... node scripts/nvidia-probe.mjs --openrouter  (minimax/minimax-m3.1-flash: the free version of 2026-10-20 is gone)
 //   OPENROUTER_API_KEY=sk-or-... node scripts/nvidia-probe.mjs --openrouter --model deepseek/deepseek-v4.1-flash-1017   (any OpenRouter id)
 //   node scripts/nvidia-probe.mjs --only video --video ./clip.mp4            (one check; a video of your own instead of the made one)
 //   node scripts/nvidia-probe.mjs --model stepfun-ai/step-5-preview          (one model id as the provider lists it; several: --model a,b)
@@ -36,7 +36,7 @@ const OTHER_NVIDIA_MODELS = ['deepseek-ai/deepseek-v4.1-flash', 'z-ai/glm-5.3-fl
 const models = option('--model')
   ? option('--model').split(',').map((id) => id.trim()).filter(Boolean)
   : args.includes('--others') ? OTHER_NVIDIA_MODELS
-  : viaOpenRouter ? ['minimax/minimax-m3.1-flash:free'] : ['nvidia/nemotron-3.5-super-vl-120b-a12b', 'stepfun-ai/step-5-preview'];
+  : viaOpenRouter ? ['minimax/minimax-m3.1-flash'] : ['nvidia/nemotron-3.5-super-vl-120b-a12b', 'stepfun-ai/step-5-preview'];
 const ALL = viaOpenRouter ? ['list', 'info', 'endpoints', 'basic', 'stream', 'tool', 'params', 'vision', 'video', 'pdf', 'pdfimage', 'reasoning']
   : ['list', 'basic', 'stream', 'tool', 'params', 'vision', 'video', 'pdf', 'pdfimage', 'reasoning'];
 const only = option('--only');

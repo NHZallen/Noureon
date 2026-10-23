@@ -50,9 +50,9 @@ export const REQUEST_CREDENTIALS_TOOL = Object.freeze({
   })
 });
 
-export const MAX_RUNS_PER_REPLY = 20;
-// A document made with a CLI tool is many small commands; a reply that has one may run more steps.
-export const MAX_RUNS_WITH_CLI = 50;
+export const MAX_RUNS_PER_REPLY = 100;
+// A document made with a CLI tool is many small commands; a reply that has one may run as many steps.
+export const MAX_RUNS_WITH_CLI = 100;
 
 /**
  * What the model is told about the CLI tools the person chose: each tool and how to use it. `tools`: [{ name, version, id, usage, problem?, missing? }]
@@ -101,6 +101,11 @@ const FONTS = `Fonts (open source; Word and PowerPoint files get them embedded a
 - PDF tools need the files: /fonts/Inter-Regular.ttf, /fonts/Inter-Bold.ttf, /fonts/NotoSansTC-Regular.ttf, /fonts/NotoSansTC-Bold.ttf, /fonts/NotoSerifTC-Regular.ttf, /fonts/NotoSerifTC-Bold.ttf, and NotoSansSC / NotoSansJP / NotoSansKR in the same two weights. reportlab: \`pdfmetrics.registerFont(TTFont("NotoSansTC", "/fonts/NotoSansTC-Regular.ttf"))\`; fpdf2: \`pdf.add_font("NotoSansTC", "", "/fonts/NotoSansTC-Regular.ttf")\`. They appear once reportlab, fpdf2 or matplotlib is imported.
 - matplotlib already uses these fonts; do not change its font family.`;
 
+// Which way a Word, PowerPoint, Excel or PDF file is made. The file instructions of the app (a ````file block that the page turns into the file) reach the model in
+// the same request, and a model that is not told which wins writes the block: its answer becomes the whole content of the file, shown word by word, and
+// the page makes the file, not the sandbox (Claude Haiku 5.5, 2026-10-23: three replies in a row until the person said "use the server").
+export const FILE_ROUTE = `When the user does ask for a Word, PowerPoint, Excel or PDF file: always make it with run_python and save it in /output, even though the file instructions describe a file block for the format; do not write them as \`\`\`\`file blocks. A \`\`\`\`file block makes your whole answer the content of the file, which is slow to show and is not made in the sandbox. Only when run_python is not available, or has failed twice in a row in a way you cannot fix, hand the file over as a \`\`\`\`file block instead, as the file instructions describe. You have full freedom over layout, colour, typography and graphics.`;
+
 const FREE_DESIGN = `Designing the file yourself (like a professional designer, never the bare default Office look):
 - Plan the structure first, then build it with python-docx, python-pptx, openpyxl or reportlab.
 - A clear hierarchy (title, headings, body), consistent spacing and margins, one restrained palette (a dark text colour, one accent, light neutrals), aligned grids.
@@ -138,7 +143,7 @@ ${inputs}
 
 Make a file only when the user asks for one or hands you a file to change: a Word document, a presentation, a spreadsheet, a PDF, a chart or image, and so on. Never turn an ordinary request into a file on your own. Writing (stories, essays, letters, summaries, explanations, code) is answered in the chat as text; if a file might help, answer in text and offer it ("I can also make this a Word file") instead of making it.
 
-When the user does ask for a Word, PowerPoint, Excel or PDF file: create it with Python and save it in /output. You have full freedom over layout, colour, typography and graphics; do not write them as \`\`\`\`file blocks.
+${FILE_ROUTE}
 ${templates.length ? `${templates.join('\n')}\n` : ''}
 ${FREE_DESIGN}
 

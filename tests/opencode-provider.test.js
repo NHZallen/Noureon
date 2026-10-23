@@ -7,7 +7,7 @@ import { opencodeErrorHint, opencodeErrorMessage } from '../src/app/runtime/repl
 import { OPENCODE_CHAT_PATH, buildOpencodeRequest } from '../src/app/runtime/reply/opencode-request.js';
 import { createStreamApiCall } from '../src/app/runtime/reply/stream-api-call.js';
 import { applyOpenAiTools, modelThinkingKind } from '../src/app/runtime/features/tool-call-formats.js';
-import { MODELS, getModelApiId, getModelReasoningConfig, normalizeReasoningEffort, getModelTiers, getProviderLabel, modelSupportsDocumentUpload, modelSupportsToolCalling, modelSupportsUploadedFile, modelSupportsVision, modelSupportsWebSearch } from '../src/app/runtime/shell/model-registry.js';
+import { MODELS, getCanonicalModelId, getModelApiId, getModelReasoningConfig, normalizeReasoningEffort, getModelTiers, getProviderLabel, modelSupportsDocumentUpload, modelSupportsToolCalling, modelSupportsUploadedFile, modelSupportsVision, modelSupportsWebSearch } from '../src/app/runtime/shell/model-registry.js';
 import { OPENCODE_GO_MODELS, OPENCODE_FORMATS, OPENCODE_REASONING_CONFIGS, opencodeFormatOf, opencodeThinkingFields } from '../src/app/runtime/shell/opencode-models.js';
 import { createUpstreamFetch } from '../server/upstream-fetch.js';
 
@@ -19,8 +19,9 @@ const byteStream = (chunks) => {
 const reply = ({ ok = true, status = 200, chunks = [], body } = {}) => ({ ok, status, statusText: '', body: byteStream(chunks), text: async () => body ?? '', json: async () => JSON.parse(body ?? '{}') });
 
 test('the list of OpenCode Go models: the ones of the owner\'s table, each in one of the three forms of API, with the pictures the owner confirmed', () => {
-  assert.equal(OPENCODE_GO_MODELS.length, 35);
-  assert.equal(new Set(OPENCODE_GO_MODELS.map((entry) => entry.id)).size, 35);
+  // The list of the page of limits of OpenCode (the owner's screenshots of 2026-10-23): 29 models, not one more or less.
+  assert.equal(OPENCODE_GO_MODELS.length, 29);
+  assert.equal(new Set(OPENCODE_GO_MODELS.map((entry) => entry.id)).size, 29);
   for (const entry of OPENCODE_GO_MODELS) {
     assert.ok(OPENCODE_FORMATS.includes(opencodeFormatOf(entry)), entry.id);
     assert.equal(entry.provider, 'opencode-go');
@@ -30,27 +31,29 @@ test('the list of OpenCode Go models: the ones of the owner\'s table, each in on
     assert.ok(modelSupportsWebSearch(entry), `${entry.id} searches the web (through the search tool)`);
   }
   const forms = (format) => OPENCODE_GO_MODELS.filter((entry) => entry.opencodeFormat === format).map((entry) => entry.apiId);
-  assert.deepEqual(forms('responses').sort(), ['gpt-5.6-luna', 'gpt-6-luna', 'grok-4.6', 'grok-4.7', 'muse-spark-1.2-contributor', 'muse-spark-1.3-contributor']);
+  assert.deepEqual(forms('responses').sort(), ['gpt-5.6-luna', 'gpt-6-luna', 'grok-4.7', 'muse-spark-1.2-contributor', 'muse-spark-1.3-contributor']);
   assert.deepEqual(forms('gemini'), ['gemini-4-argon-contributor']);
-  assert.deepEqual(forms('messages').sort(), ['claude-haiku-5-5', 'minimax-m2.7', 'minimax-m3', 'minimax-m3.1-flash-free', 'qwen3.7-plus', 'qwen3.8-flash', 'qwen3.8-max']);
+  assert.deepEqual(forms('messages').sort(), ['claude-haiku-5-5', 'minimax-m3', 'minimax-m3.1-flash', 'qwen3.7-plus', 'qwen3.8-flash', 'qwen3.8-max']);
   const noPictures = OPENCODE_GO_MODELS.filter((entry) => !modelSupportsVision(entry)).map((entry) => entry.apiId).sort();
-  assert.deepEqual(noPictures, ['beam-free', 'cat-jam-free', 'deepseek-v4-flash', 'deepseek-v4-pro', 'glm-5.2', 'glm-5.3', 'hy3', 'hy4-preview', 'longcat-2.0', 'mimo-v2.5-pro', 'minimax-m2.7']);
+  assert.deepEqual(noPictures, ['beam-free', 'deepseek-v4-pro', 'glm-5.2', 'glm-5.3', 'hy3', 'hy4-preview', 'longcat-2.0', 'mimo-v2.5-pro']);
   assert.ok(modelSupportsVision(model('minimax-m3')) && modelSupportsVision(model('longcat-2.5-preview-free')) && modelSupportsVision(model('muse-spark-1.3-contributor')));
-  assert.deepEqual(getModelTiers(model('step-5-preview-free')), ['free']);
-  // The two of 2026-10-20 (the owner's probe): free; Beam is a hidden test model; MiniMax M3.1 Flash sees pictures, Beam is text only.
-  for (const apiId of ['minimax-m3.1-flash-free', 'beam-free']) assert.deepEqual(getModelTiers(model(apiId)), ['free'], apiId);
-  assert.equal(model('minimax-m3.1-flash-free').hiddenModel, undefined, 'MiniMax M3.1 Flash is in the list of the documents');
+  // Step 5 Preview and MiniMax M3.1 Flash have a price on the page of limits now (they were free, with `-free` ids the service refuses); LongCat 2.5 Preview and Beam are free.
+  for (const apiId of ['step-5-preview', 'minimax-m3.1-flash']) assert.deepEqual(getModelTiers(model(apiId)), ['paid'], apiId);
+  for (const apiId of ['longcat-2.5-preview-free', 'beam-free']) assert.deepEqual(getModelTiers(model(apiId)), ['free'], apiId);
+  assert.equal(model('minimax-m3.1-flash').hiddenModel, undefined, 'MiniMax M3.1 Flash is in the list of the documents');
   assert.deepEqual([model('beam-free').hiddenModel, model('beam-free').requiresStealthTermsAcknowledgement], [true, true], 'Beam is a test model (the owner)');
-  assert.ok(modelSupportsVision(model('minimax-m3.1-flash-free')));
+  assert.ok(modelSupportsVision(model('minimax-m3.1-flash')));
   assert.equal(modelSupportsVision(model('beam-free')), false);
-  // The two hidden test models: marked as hidden and asked about the first time they are chosen; Cat Jam is free, Space Bunny is not (a Go plan model).
-  for (const apiId of ['cat-jam-free', 'space-bunny']) {
-    assert.equal(model(apiId).hiddenModel, true, apiId);
-    assert.equal(model(apiId).requiresStealthTermsAcknowledgement, true, apiId);
-  }
-  assert.deepEqual(getModelTiers(model('cat-jam-free')), ['free']);
-  assert.deepEqual(getModelTiers(model('space-bunny')), ['paid'], 'Space Bunny is not free');
-  assert.equal(OPENCODE_GO_MODELS.filter((entry) => entry.hiddenModel).length, 3, 'those two and Beam');
+  assert.equal(OPENCODE_GO_MODELS.filter((entry) => entry.hiddenModel).length, 1, 'only Beam is a test model now (Space Bunny and Cat Jam are not on the page of limits)');
+  // A model that left the list, or took another id, is still known by its old id: it goes to the one that replaces it.
+  const legacy = (apiId) => model(apiId).legacyIds;
+  assert.deepEqual(legacy('minimax-m3.1-flash'), ['opencode-go/minimax-m3.1-flash-free']);
+  assert.deepEqual(legacy('step-5-preview'), ['opencode-go/step-5-preview-free']);
+  assert.deepEqual(legacy('deepseek-v4.1-flash'), ['opencode-go/deepseek-v4-flash', 'opencode-go/deepseek-v4-flash-vision-exp']);
+  assert.deepEqual(legacy('grok-4.7'), ['opencode-go/grok-4.6']);
+  assert.deepEqual(legacy('minimax-m3'), ['opencode-go/minimax-m2.7']);
+  assert.equal(getCanonicalModelId('opencode-go/grok-4.6'), 'opencode-go/grok-4.7');
+  assert.equal(getCanonicalModelId('opencode-go/step-5-preview-free'), 'opencode-go/step-5-preview');
   assert.deepEqual(getModelTiers(model('kimi-k3')), ['paid']);
   assert.equal(getProviderLabel('opencode-go'), 'OpenCode Go');
   assert.equal(getModelApiId(model('kimi-k3')), 'kimi-k3');
@@ -88,7 +91,7 @@ test('a request to OpenCode: the form of the model, our path, the key and the se
   const messages = buildOpencodeRequest({ ...common, format: 'messages' });
   assert.equal(messages.url, `${OPENCODE_CHAT_PATH}?format=messages`);
   assert.equal(messages.payload.system, 'Be kind.');
-  assert.equal(messages.payload.max_tokens, 16384);
+  assert.equal(messages.payload.max_tokens, 32768, 'a model whose limit is not known: twice the old default');
   assert.deepEqual(messages.payload.messages.map((entry) => entry.role), ['user', 'assistant', 'user']);
   assert.equal(JSON.stringify(messages.payload).includes('temperature'), false);
 
@@ -409,35 +412,33 @@ test('a tool round in each form (what Python, connectors, skills, command tools 
 
 test('the depth of thinking of each model: the options of the slider, and the fields that say it in the way of the model (the ones the probe found accepted)', () => {
   // The slider is the one of the app: the models that have a choice get a row in its table.
-  assert.equal(Object.keys(OPENCODE_REASONING_CONFIGS).length, 32);
+  assert.equal(Object.keys(OPENCODE_REASONING_CONFIGS).length, 28);
   const config = getModelReasoningConfig(model('kimi-k3'));
   assert.deepEqual([config.options, config.defaultEffort], [['none', 'low', 'medium', 'high', 'max'], 'high']);
   assert.equal(normalizeReasoningEffort(model('kimi-k3'), 'xhigh'), 'high');
   // The models with no choice (their depths do nothing, or they cannot stop) have none.
-  for (const apiId of ['glm-5.3-flash', 'space-bunny', 'minimax-m2.7']) assert.equal(getModelReasoningConfig(model(apiId)), null, apiId);
+  for (const apiId of ['glm-5.3-flash']) assert.equal(getModelReasoningConfig(model(apiId)), null, apiId);
 
   const fields = (apiId, effort) => opencodeThinkingFields(model(apiId), effort);
   assert.deepEqual(fields('kimi-k3', 'none'), { reasoning_effort: 'none' });
   assert.deepEqual(fields('deepseek-v4-pro', 'max'), { reasoning_effort: 'max' });
   assert.deepEqual(fields('longcat-2.0', 'none'), { thinking: { type: 'disabled' } });
   assert.deepEqual(fields('longcat-2.0', 'high'), {});
-  assert.deepEqual(fields('cat-jam-free', 'xhigh'), { reasoning_effort: 'xhigh' });
-  assert.deepEqual(fields('cat-jam-free', 'none'), {}, 'no none for Cat Jam: only the depths Pi maps to the API');
   assert.deepEqual(fields('minimax-m3', 'none'), { thinking: { type: 'disabled' } });
   assert.deepEqual(fields('grok-4.7', 'xhigh'), { reasoning: { effort: 'xhigh' } });
-  assert.deepEqual(fields('muse-spark-1.3-contributor', 'minimal'), { reasoning: { effort: 'minimal' } });
+  assert.deepEqual(fields('muse-spark-1.3-contributor', 'minimal'), { reasoning: { effort: 'minimal', summary: 'auto' } });
   assert.deepEqual(fields('gemini-4-argon-contributor', 'high'), { generationConfig: { thinkingConfig: { thinkingLevel: 'high' } } });
   assert.deepEqual(fields('gemini-4-argon-contributor', 'minimal'), {}, 'minimal is refused by the service');
   // The two of 2026-10-20: MiniMax M3.1 Flash is asked as Claude Haiku is (it cannot stop thinking); Beam takes the depths as `reasoning_effort`, never none or minimal.
-  assert.deepEqual(fields('minimax-m3.1-flash-free', 'high'), { thinking: { type: 'adaptive' }, output_config: { effort: 'high' } });
-  assert.deepEqual(fields('minimax-m3.1-flash-free', 'none'), {}, 'its thinking cannot be turned off');
+  assert.deepEqual(fields('minimax-m3.1-flash', 'high'), { thinking: { type: 'adaptive' }, output_config: { effort: 'high' } });
+  assert.deepEqual(fields('minimax-m3.1-flash', 'none'), {}, 'its thinking cannot be turned off');
   assert.deepEqual(fields('beam-free', 'xhigh'), { reasoning_effort: 'xhigh' });
   assert.deepEqual(fields('beam-free', 'none'), {});
-  assert.deepEqual(fields('claude-haiku-5-5', 'max'), { thinking: { type: 'adaptive' }, output_config: { effort: 'max' } });
+  assert.deepEqual(fields('claude-haiku-5-5', 'max'), { thinking: { type: 'adaptive', display: 'summarized' }, output_config: { effort: 'max' } });
   assert.deepEqual(fields('qwen3.8-max', 'low'), { thinking: { type: 'adaptive' }, output_config: { effort: 'low' } });
   assert.deepEqual(fields('qwen3.8-max', 'none'), { thinking: { type: 'disabled' } });
   // Never a value the probe saw refused: no `none` for Muse, Grok, GLM, Step, Hy4, Kimi K2.7; no `max` for Grok and Muse 1.2; no `minimal` for the MiMo and GPT Luna.
-  const refused = { 'muse-spark-1.3-contributor': ['none'], 'muse-spark-1.2-contributor': ['none', 'max'], 'grok-4.7': ['none', 'max'], 'grok-4.6': ['none', 'max'], 'glm-5.3': ['none'], 'glm-5.2': ['none'], 'step-5-preview-free': ['none'], 'kimi-k2.7-code': ['none'], 'mimo-v2.6-pro': ['minimal', 'xhigh', 'max'], 'gpt-6-luna': ['minimal'], 'gpt-5.6-luna': ['minimal'], 'deepseek-v4.1-flash': ['minimal'] };
+  const refused = { 'muse-spark-1.3-contributor': ['none'], 'muse-spark-1.2-contributor': ['none', 'max'], 'grok-4.7': ['none', 'max'], 'glm-5.3': ['none'], 'glm-5.2': ['none'], 'step-5-preview': ['none'], 'kimi-k2.7-code': ['none'], 'mimo-v2.6-pro': ['minimal', 'xhigh', 'max'], 'gpt-6-luna': ['minimal'], 'gpt-5.6-luna': ['minimal'], 'deepseek-v4.1-flash': ['minimal'] };
   for (const [apiId, values] of Object.entries(refused)) for (const value of values) assert.equal(getModelReasoningConfig(model(apiId)).options.includes(value), false, `${apiId} ${value}`);
   // Another provider's model, an unknown depth: nothing.
   assert.deepEqual(opencodeThinkingFields({ provider: 'openrouter', id: 'opencode-go/kimi-k3' }, 'high'), {});
@@ -471,18 +472,18 @@ test('a reply says the depth in the request, in the form of the model, and says 
   assert.deepEqual((await sent('claude-haiku-5-5', 'xhigh')).output_config, { effort: 'xhigh' });
   assert.deepEqual((await sent('gpt-6-luna', 'none')).reasoning, { effort: 'none' });
   assert.deepEqual((await sent('qwen3.8-flash', 'none')).thinking, { type: 'disabled' });
-  const plain = await sent('space-bunny', 'high');
+  const plain = await sent('glm-5.3-flash', 'high');
   assert.equal('reasoning_effort' in plain || 'thinking' in plain, false);
 });
 
 test('a PDF goes to the models that read it (the probe of 2026-10-14), in the form of each API; any other file, and the other models, still go through the translator', async () => {
   const pdf = { inlineData: { mimeType: 'application/pdf', data: 'JVBERi0x', name: 'a.pdf' } };
   const docx = { inlineData: { mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', data: 'UEsDBA==', name: 'a.docx' } };
-  const reads = ['hy3', 'grok-4.7', 'gpt-6-luna', 'claude-haiku-5-5', 'minimax-m3', 'minimax-m2.7', 'minimax-m3.1-flash-free', 'qwen3.8-max', 'muse-spark-1.3-contributor', 'gemini-4-argon-contributor'];
-  const refuses = ['beam-free', 'deepseek-v4-flash', 'deepseek-v4.1-flash', 'mimo-v2.5', 'step-5-preview-free', 'glm-5.3', 'kimi-k3', 'kimi-k2.7-code', 'mimo-v2.6-pro', 'longcat-2.5-preview-free', 'cat-jam-free', 'deepseek-v4-flash-vision-exp', 'deepseek-v4-pro', 'space-bunny', 'longcat-2.0'];
+  const reads = ['hy3', 'grok-4.7', 'gpt-6-luna', 'claude-haiku-5-5', 'minimax-m3', 'minimax-m3.1-flash', 'qwen3.8-max', 'muse-spark-1.3-contributor', 'gemini-4-argon-contributor'];
+  const refuses = ['beam-free', 'deepseek-v4.1-flash', 'mimo-v2.5', 'step-5-preview', 'glm-5.3', 'kimi-k3', 'kimi-k2.7-code', 'mimo-v2.6-pro', 'longcat-2.5-preview-free', 'deepseek-v4-pro', 'longcat-2.0'];
   // Word and PowerPoint files as they are: only the five that answered MANGO to both in the probe; for every other model they are translated.
   const pptx = { inlineData: { mimeType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', data: 'UEsDBA==', name: 'a.pptx' } };
-  const officeReaders = ['grok-4.7', 'grok-4.6', 'gpt-6-luna', 'gpt-5.6-luna', 'gemini-4-argon-contributor'];
+  const officeReaders = ['grok-4.7', 'gpt-6-luna', 'gpt-5.6-luna', 'gemini-4-argon-contributor'];
   for (const apiId of reads) {
     assert.equal(modelSupportsUploadedFile(model(apiId), pdf), true, `${apiId} reads a PDF`);
     assert.equal(modelSupportsUploadedFile(model(apiId), docx), officeReaders.includes(apiId), `${apiId}: a Word file ${officeReaders.includes(apiId) ? 'goes as it is' : 'is translated'}`);
@@ -525,7 +526,71 @@ test('a PDF goes to the models that read it (the probe of 2026-10-14), in the fo
 });
 
 test('the OpenCode models are shown by their own names, without OpenCode in front', () => {
-  assert.equal(OPENCODE_GO_MODELS.find((entry) => entry.apiId === 'step-5-preview-free').name, 'Step 5 Preview');
+  assert.equal(OPENCODE_GO_MODELS.find((entry) => entry.apiId === 'step-5-preview').name, 'Step 5 Preview');
   assert.equal(OPENCODE_GO_MODELS.find((entry) => entry.apiId === 'longcat-2.5-preview-free').name, 'LongCat 2.5 Preview');
   assert.equal(OPENCODE_GO_MODELS.find((entry) => entry.apiId === 'kimi-k3').name, 'Kimi K3');
+});
+
+test('the Messages form must say how much may be written: the limit of a model whose limit is known, twice the old default (32768) for one whose limit is not, a number the person set kept but never above the limit; the other forms are sent none', () => {
+  const common = {
+    format: 'messages', modelId: 'x', apiKey: 'k', sessionId: 's', historyForApi: [], currentMessageForApi: { role: 'user', parts: [{ text: 'Hi' }] }, generationConfig: { maxTokens: null },
+    systemInstruction: { parts: [{ text: 'Be kind.' }] }, modelSupportsVision: () => true, buildChatMessages: () => [], buildResponsesInput: () => []
+  };
+  assert.equal(buildOpencodeRequest({ ...common, modelInfo: { provider: 'opencode-go', id: 'claude-haiku-5-5' } }).payload.max_tokens, 128000);
+  // What the service named when it was asked for far too much (the probe of 2026-10-23).
+  for (const [id, limit] of [['minimax-m3', 524288], ['minimax-m3.1-flash', 524288]]) assert.equal(buildOpencodeRequest({ ...common, modelInfo: { provider: 'opencode-go', id } }).payload.max_tokens, limit, id);
+  for (const id of ['qwen3.8-max', 'qwen3.8-flash', 'qwen3.7-plus']) assert.equal(buildOpencodeRequest({ ...common, modelInfo: { provider: 'opencode-go', id } }).payload.max_tokens, 32768, id);
+  const haiku = { provider: 'opencode-go', id: 'claude-haiku-5-5' };
+  assert.equal(buildOpencodeRequest({ ...common, modelInfo: haiku, generationConfig: { maxTokens: 2000 } }).payload.max_tokens, 2000);
+  assert.equal(buildOpencodeRequest({ ...common, modelInfo: haiku, generationConfig: { maxTokens: 999999 } }).payload.max_tokens, 128000, 'never above the limit of the model: the service refuses it');
+  assert.equal(buildOpencodeRequest({ ...common, modelInfo: { provider: 'opencode-go', id: 'qwen3.8-max' }, generationConfig: { maxTokens: 50000 } }).payload.max_tokens, 50000, 'no limit known: what the person set');
+  // The chat and responses forms say nothing unless the person set a number: the service decides.
+  for (const format of ['chat', 'responses']) {
+    const payload = buildOpencodeRequest({ ...common, format, modelInfo: { provider: 'opencode-go', id: 'kimi-k3' } }).payload;
+    assert.equal('max_tokens' in payload || 'max_output_tokens' in payload, false, format);
+  }
+});
+
+test('the thinking of Claude Haiku 5.5 comes as a summary (it sends none otherwise); no other model of the Messages form is sent the field', () => {
+  const common = {
+    format: 'messages', modelId: 'x', apiKey: 'k', sessionId: 's', historyForApi: [], currentMessageForApi: { role: 'user', parts: [{ text: 'Hi' }] }, generationConfig: { maxTokens: null },
+    systemInstruction: { parts: [{ text: 'Be kind.' }] }, modelSupportsVision: () => true, buildChatMessages: () => [], buildResponsesInput: () => [], reasoningEffort: 'high'
+  };
+  const haiku = buildOpencodeRequest({ ...common, modelInfo: { provider: 'opencode-go', id: 'claude-haiku-5-5' } }).payload;
+  assert.deepEqual(haiku.thinking, { type: 'adaptive', display: 'summarized' });
+  assert.deepEqual(haiku.output_config, { effort: 'high' });
+  for (const id of ['minimax-m3.1-flash', 'qwen3.8-max']) {
+    assert.equal(buildOpencodeRequest({ ...common, modelInfo: { provider: 'opencode-go', id } }).payload.thinking.display, undefined, id);
+  }
+});
+
+test('the summary of the thinking is asked for where the probe of 2026-10-23 found it comes only when asked: GPT Luna and Muse Spark (reasoning.summary), MiniMax M3 and Claude Haiku (thinking.display); not for the models that give it by themselves', () => {
+  const common = {
+    modelId: 'x', apiKey: 'k', sessionId: 's', historyForApi: [], currentMessageForApi: { role: 'user', parts: [{ text: 'Hi' }] }, generationConfig: { maxTokens: null },
+    systemInstruction: { parts: [{ text: 'Be kind.' }] }, modelSupportsVision: () => true, buildChatMessages: () => [], buildResponsesInput: () => []
+  };
+  const sent = (apiId, format, reasoningEffort) => buildOpencodeRequest({ ...common, format, reasoningEffort, modelInfo: { provider: 'opencode-go', id: apiId } }).payload;
+  for (const apiId of ['gpt-6-luna', 'gpt-5.6-luna', 'muse-spark-1.3-contributor']) {
+    assert.deepEqual(sent(apiId, 'responses', 'medium').reasoning, { effort: 'medium', summary: 'auto' }, apiId);
+    assert.deepEqual(sent(apiId, 'responses', null).reasoning, { summary: 'auto' }, `${apiId}: asked for even when no depth is`);
+  }
+  assert.deepEqual(sent('gpt-6-luna', 'responses', 'none').reasoning, { effort: 'none' }, 'no thinking, no summary to ask for');
+  assert.deepEqual(sent('grok-4.7', 'responses', 'high').reasoning, { effort: 'high' }, 'Grok gives it by default');
+  assert.deepEqual(sent('minimax-m3', 'messages', 'high').thinking, { type: 'adaptive', display: 'summarized' });
+  assert.deepEqual(sent('minimax-m3', 'messages', null).thinking, { type: 'adaptive', display: 'summarized' });
+  assert.deepEqual(sent('minimax-m3', 'messages', 'none').thinking, { type: 'disabled' }, 'turned off: nothing to ask for');
+  assert.deepEqual(sent('claude-haiku-5-5', 'messages', null).thinking, { type: 'adaptive', display: 'summarized' });
+  for (const apiId of ['kimi-k3', 'deepseek-v4.1-flash']) {
+    const payload = sent(apiId, 'chat', 'high');
+    assert.equal('thinking' in payload || 'reasoning' in payload, false, `${apiId}: the chat form gives its thinking by itself`);
+  }
+});
+
+test('MiniMax M3.1 Flash on NVIDIA: a call, pictures and video are taken, no setting of the depth (it cannot be turned off and the depth changes nothing), a PDF is not', () => {
+  const nvidia = MODELS.find((entry) => entry.id === 'nvidia/minimaxai/minimax-m3.1-flash');
+  assert.ok(nvidia && nvidia.provider === 'nvidia');
+  assert.equal(modelSupportsToolCalling(nvidia), true);
+  assert.equal(modelSupportsVision(nvidia), true);
+  assert.equal(getModelReasoningConfig(nvidia), null);
+  assert.equal(modelSupportsUploadedFile(nvidia, { mimeType: 'application/pdf' }), false);
 });

@@ -9,12 +9,13 @@
 //
 // Shared by the page and the server: no window, no document, no browser storage.
 
-import { opencodeThinkingFields } from '../shell/opencode-models.js';
+import { opencodeMaxOutputTokens, opencodeSummaryFields, opencodeThinkingFields } from '../shell/opencode-models.js';
 import { buildAnthropicMessages } from './anthropic-messages-format.js';
 
 export const OPENCODE_CHAT_PATH = '/api/opencode-chat';
-// Messages has no default for the length of the answer: it must be given. Long enough for a report; the probe took 16384 on a small question.
-export const OPENCODE_DEFAULT_MAX_TOKENS = 16384;
+// Messages has no default for the length of the answer: it must be given. For a model whose limit is not known: 32768, twice what it was (the owner, 2026-10-23); a model
+// whose limit is known gets it (opencode-models.js). The other forms are sent none unless the person set one.
+export const OPENCODE_DEFAULT_MAX_TOKENS = 32768;
 
 // OpenCode now refuses a request with no `x-opencode-session`. A conversation gives its own id; a request with none (a background task, a test) gets one
 // id for the whole page, so the cache and the routing still work for it.
@@ -73,9 +74,12 @@ export function buildOpencodeRequest({
     };
   } else if (format === 'messages') {
     const system = systemText(systemInstruction);
+    // A number the person set is kept, but never above the limit of the model (the service refuses it with a 400).
+    const limit = opencodeMaxOutputTokens(modelInfo);
+    const asked = maxTokens ?? limit ?? OPENCODE_DEFAULT_MAX_TOKENS;
     payload = {
       model: modelId,
-      max_tokens: maxTokens ?? OPENCODE_DEFAULT_MAX_TOKENS,
+      max_tokens: limit ? Math.min(asked, limit) : asked,
       messages: buildAnthropicMessages(conversation, { modelInfo, modelSupportsVision }),
       stream: true,
       ...(system ? { system } : {})
@@ -91,6 +95,8 @@ export function buildOpencodeRequest({
     };
   }
   // The depth of thinking, if the person (or the default of the model) asks for one.
-  if (reasoningEffort) Object.assign(payload, opencodeThinkingFields(modelInfo, reasoningEffort));
+  // (A depth that is none, or that the model does not take, gives no field: the summary is still asked for the models that give it only then.)
+  const depth = reasoningEffort ? opencodeThinkingFields(modelInfo, reasoningEffort) : {};
+  Object.assign(payload, Object.keys(depth).length || reasoningEffort === 'none' ? depth : opencodeSummaryFields(modelInfo));
   return { url: `${OPENCODE_CHAT_PATH}?format=${format === 'responses' || format === 'messages' ? format : 'chat'}`, payload, headers };
 }

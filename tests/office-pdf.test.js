@@ -36,13 +36,13 @@ const fakeHost = ({ pdf = Buffer.from('%PDF-1.4 fake'), result = null, onRun = (
 };
 
 test('the models that have their Word and PowerPoint files made into a PDF: the ones that look at the pictures of a PDF, for those two kinds only', () => {
-  for (const apiId of ['hy3', 'muse-spark-1.3-contributor', 'muse-spark-1.2-contributor', 'claude-haiku-5-5', 'minimax-m3', 'minimax-m3.1-flash-free', 'qwen3.8-max', 'qwen3.8-flash']) {
+  for (const apiId of ['hy3', 'muse-spark-1.3-contributor', 'muse-spark-1.2-contributor', 'claude-haiku-5-5', 'minimax-m3', 'minimax-m3.1-flash', 'qwen3.8-max', 'qwen3.8-flash']) {
     assert.equal(opencodeModelReadsOfficeViaPdf(model(apiId), DOCX), true, apiId);
     assert.equal(opencodeModelReadsOfficeViaPdf(model(apiId), OFFICE_KINDS.pptx.mime), true, apiId);
     assert.equal(opencodeModelReadsOfficeViaPdf(model(apiId), OFFICE_KINDS.xlsx.mime), false, `${apiId}: a workbook is text, not a PDF`);
     assert.equal(opencodeModelReadsOfficeViaPdf(model(apiId), 'application/pdf'), false);
   }
-  for (const apiId of ['hy4-preview', 'minimax-m2.7', 'qwen3.7-plus', 'grok-4.7', 'kimi-k3', 'beam-free']) assert.equal(opencodeModelReadsOfficeViaPdf(model(apiId), DOCX), false, apiId);
+  for (const apiId of ['hy4-preview', 'qwen3.7-plus', 'grok-4.7', 'kimi-k3', 'beam-free']) assert.equal(opencodeModelReadsOfficeViaPdf(model(apiId), DOCX), false, apiId);
 });
 
 test('the converter: the file is mounted in the sandbox, LibreOffice runs, the PDF comes back and is kept; asked again it comes from the cache with no sandbox', async () => {

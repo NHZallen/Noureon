@@ -2,6 +2,16 @@
 // content 為 zh-TW 的 HTML 字串（JSON 轉義、雙引號），目前不隨介面語言切換。
 export const updateLogEntries = [
   {
+    version: "18.18.0",
+    date: "2026-10-23",
+    content: [
+      "<strong>Noureon 18.18.0 發布說明</strong>",
+      "本版本讓進階模式下的 Claude 更穩定地用伺服器做出 Office 與 PDF 檔案，讓更多模型顯示思考摘要，並更新各提供者的模型清單。",
+      "<strong>主要變更</strong>",
+      "<ul><li><strong>進階模式做檔案：</strong>OpenCode 的 Claude Haiku 製作 Word、PowerPoint、Excel 與 PDF 時，會優先用伺服器的 Python 製作，不再把檔案內容一段一段慢慢輸出；一則回覆可執行 Python 的次數提高到 100 次。Python 出錯或次數用完而沒有做出檔案時，模型會改用一般方式把檔案給你。</li><li><strong>輸出長度：</strong>Claude Haiku、MiniMax M3、MiniMax M3.1 Flash 與 Qwen 現在可以寫出更長的回覆；模型用完輸出額度卻什麼都沒寫出時，會明確告訴你原因，不再只是一片空白。</li><li><strong>思考摘要：</strong>OpenCode 的 Claude Haiku、MiniMax M3、GPT-6 Luna、GPT-5.6 Luna 與 Muse Spark 1.3 / 1.2 現在會顯示思考摘要。</li><li><strong>OpenCode 模型清單：</strong>清單改為與 OpenCode 目前提供的 29 個模型一致。移除 DeepSeek V4 Flash、DeepSeek V4 Flash Vision Exp、Grok 4.6、MiniMax M2.7、Cat Jam 與 Space Bunny；MiniMax M3.1 Flash 與 Step 5 Preview 改為付費，原本使用它們的對話會自動接上新版本。</li><li><strong>OpenRouter 與 NVIDIA：</strong>OpenRouter 的 MiniMax M3.1 Flash 由免費改為付費（每百萬輸入 0.10 美元、輸出 0.55 美元）；新增 OpenRouter 的 Kimi K3.1 Pro（每百萬輸入 2 美元、輸出 10 美元）與 NVIDIA 的 MiniMax M3.1 Flash；移除 OpenRouter 的 Kimi K3 與免費的 Nemotron 3 Super，原本使用它們的對話會自動改用 Kimi K3.1 Pro 與 Nemotron 3.5 Super VL。</li><li><strong>思考面板：</strong>思考文字下方不再多出一大段空白。</li></ul>"
+    ]
+  },
+  {
     version: "18.17.0",
     date: "2026-10-23",
     content: [

@@ -3,7 +3,7 @@ import test from 'node:test';
 
 import { modelSupportsToolCalling, MODEL_CATALOG, MODELS, NON_TOOL_CALLING_MODEL_IDS, TOOL_CALLING_MODEL_IDS } from '../../src/app/runtime/shell/model-registry.js';
 import { describeFileModeState, resolveReplyMode } from '../../src/app/runtime/sandbox/file-mode.js';
-import { MAX_RUNS_PER_REPLY } from '../../src/app/runtime/sandbox/sandbox-guidance.js';
+import { MAX_RUNS_PER_REPLY, MAX_RUNS_WITH_CLI, getSandboxGuidance } from '../../src/app/runtime/sandbox/sandbox-guidance.js';
 import { runSandboxReply, toolResultFor, trimForModel } from '../../src/app/runtime/sandbox/sandbox-reply.js';
 import { SANDBOX_TEXT_KEYS, SANDBOX_TEXT_LANGUAGES, sandboxText } from '../../src/app/runtime/sandbox/sandbox-texts.js';
 import {
@@ -680,9 +680,66 @@ test('what the model said in its last round is kept apart from the whole text, a
   ]);
 });
 
-test('a reply cut short by the output limit before it called anything shows it in the record of its rounds', async () => {
-  const model = scriptedModel([{ text: '', finish: 'max_tokens' }]);
-  const result = await runSandboxReply({ streamApiCall: model.streamApiCall, requestParts: [{ text: 'q' }], getSandbox: () => fakeSandbox([]).sandbox });
-  assert.equal(result.run, null);
-  assert.deepEqual(result.rounds, [{ finish: 'max_tokens', calls: 0, chars: 0 }]);
+test('a reply cut short by the output limit before it wrote anything is said, in the language of the page, instead of ending with no answer', async () => {
+  for (const [language, pattern] of [['en', /output limit[\s\S]*lower thinking depth/], ['zh-TW', /輸出額度[\s\S]*思考程度/], ['fr', /limite de sortie/], ['ru', /лимит вывода/], ['es', /límite de salida/]]) {
+    const model = scriptedModel([{ text: '', finish: 'max_tokens' }]);
+    await assert.rejects(
+      runSandboxReply({ streamApiCall: model.streamApiCall, requestParts: [{ text: 'q' }], getSandbox: () => fakeSandbox([]).sandbox, language }),
+      (error) => pattern.test(error.message),
+      language
+    );
+  }
+  // The chat form says `length`: the same.
+  await assert.rejects(runSandboxReply({ streamApiCall: scriptedModel([{ text: '', finish: 'length' }]).streamApiCall, requestParts: [{ text: 'q' }], getSandbox: () => fakeSandbox([]).sandbox, language: 'en' }), /output limit/);
+});
+
+test('a reply that wrote something, or did its work, before the output limit ended it is kept as it is, with the record of how its rounds ended', async () => {
+  const wrote = await runSandboxReply({ streamApiCall: scriptedModel([{ text: 'Half of an ans', finish: 'max_tokens' }]).streamApiCall, requestParts: [{ text: 'q' }], getSandbox: () => fakeSandbox([]).sandbox });
+  assert.equal(wrote.text, 'Half of an ans');
+  assert.deepEqual(wrote.rounds, [{ finish: 'max_tokens', calls: 0, chars: 14 }]);
+  const worked = scriptedModel([{ calls: [call('c1', 'print(1)', 'Look')] }, { text: '', finish: 'max_tokens' }]);
+  const result = await runSandboxReply({ streamApiCall: worked.streamApiCall, requestParts: [{ text: 'q' }], getSandbox: () => fakeSandbox([{ stdout: { text: '1\n', dropped: 0 }, stderr: { text: '', dropped: 0 }, error: null, files: [], elapsedMs: 1 }]).sandbox });
+  assert.equal(result.run.steps.length, 1, 'the work is kept');
+  assert.equal(result.rounds.at(-1).finish, 'max_tokens');
+});
+
+test('a reply may run Python 100 times, with or without a CLI tool, and says so', () => {
+  assert.equal(MAX_RUNS_PER_REPLY, 100);
+  assert.equal(MAX_RUNS_WITH_CLI, 100);
+  assert.match(getSandboxGuidance({ host: 'server' }), /at most 100 times per reply/);
+});
+
+const toolNote = (model, request, turn = 0) => JSON.parse(model.requests[request].toolTurns[turn].results[0].content);
+
+test('when Python keeps crashing and no file was made, the model is told a file block is the way left', async () => {
+  const crash = { stdout: '', stderr: '', error: 'crashed', crashed: true, files: [], elapsedMs: 1 };
+  const model = scriptedModel([{ calls: [call('c1', 'x = 1')] }, { calls: [call('c2', 'x = 2')] }, { text: 'Here is the file as a block.' }]);
+  const { sandbox } = fakeSandbox([crash, crash]);
+  const result = await runSandboxReply({ streamApiCall: model.streamApiCall, requestParts: [], getSandbox: () => sandbox });
+  assert.equal(result.run.fallback, 'sandbox-crashed');
+  assert.match(toolNote(model, 2, 1).note, /keeps crashing[\s\S]*write it as a ````file block/);
+});
+
+test('a call of run_python after Python was given up (the model still has a search) is told Python can no longer be used, and not that a limit was reached', async () => {
+  const crash = { stdout: '', stderr: '', error: 'crashed', crashed: true, files: [], elapsedMs: 1 };
+  const model = scriptedModel([{ calls: [call('c1', 'x = 1')] }, { calls: [call('c2', 'x = 2')] }, { calls: [call('c3', 'x = 3')] }, { text: 'Here is the file as a block.' }]);
+  const { sandbox } = fakeSandbox([crash, crash]);
+  await runSandboxReply({
+    streamApiCall: model.streamApiCall,
+    requestParts: [],
+    getSandbox: () => sandbox,
+    research: { searchWeb: async () => ({ results: [] }), openPage: async () => ({ text: '' }), onSources: () => {} }
+  });
+  const late = toolNote(model, 3, 2);
+  assert.match(late.error, /Python can no longer be used in this reply[\s\S]*````file block/);
+  assert.doesNotMatch(late.error, /limit of/);
+});
+
+test('when Python crashed after it made a file, the model is not sent to a file block', async () => {
+  const made = { stdout: '', stderr: '', error: null, files: [{ name: 'a.pptx', size: 10, data: new Uint8Array(1) }], elapsedMs: 1 };
+  const crash = { stdout: '', stderr: '', error: 'crashed', crashed: true, files: [], elapsedMs: 1 };
+  const model = scriptedModel([{ calls: [call('c1', 'x = 1')] }, { calls: [call('c2', 'x = 2')] }, { calls: [call('c3', 'x = 3')] }, { text: 'Done.' }]);
+  const { sandbox } = fakeSandbox([made, crash, crash]);
+  await runSandboxReply({ streamApiCall: model.streamApiCall, requestParts: [], getSandbox: () => sandbox });
+  assert.doesNotMatch(toolNote(model, 3, 2).note || '', /file block/);
 });

@@ -5,15 +5,15 @@ import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 
-import { MODELS, OFFICE_FILES, THINKING, buildBody, main, modelsNamed, newModels, parseEvents, probeModel, probeToolLoop, readAnswer, send, summarizeStream } from '../scripts/opencode-probe.mjs';
+import { MODELS, OFFICE_FILES, THINKING, askedThinkingFields, buildBody, contextNamed, limitNamed, main, modelsNamed, newModels, parseEvents, probeMaxOut, probeModel, probeShown, probeToolLoop, readAnswer, send, summarizeStream, thinkingOfStream } from '../scripts/opencode-probe.mjs';
 
 const KEY = 'oc_sk_very-secret-key-for-the-test';
 const reply = (status, body) => ({ status, text: async () => (typeof body === 'string' ? body : JSON.stringify(body)) });
 
-test('the models of the probe are those of the documents: three forms of API, and only the two named free ones are free', () => {
-  assert.equal(MODELS.length, 42);
+test('the models of the probe are those of the app (the page of limits of OpenCode): four forms of API, and only the two named free ones are free', () => {
+  assert.equal(MODELS.length, 29);
   assert.deepEqual([...new Set(MODELS.map((model) => model.family))].sort(), ['chat', 'gemini', 'messages', 'responses']);
-  assert.deepEqual(MODELS.filter((model) => model.free).map((model) => model.id), ['longcat-2.5-preview-free', 'step-5-preview-free', 'cat-jam-free', 'minimax-m3.1-flash-free', 'beam-free']);
+  assert.deepEqual(MODELS.filter((model) => model.free).map((model) => model.id), ['longcat-2.5-preview-free', 'beam-free']);
   assert.equal(MODELS.find((model) => model.id === 'claude-haiku-5-5').family, 'messages');
   assert.equal(MODELS.find((model) => model.id === 'gpt-6-luna').family, 'responses');
   for (const family of ['chat', 'responses', 'messages', 'gemini']) assert.ok(THINKING[family].length >= 2);
@@ -140,7 +140,7 @@ test('one 429 does not stop the run (a free model whose endpoint is unavailable 
     assert.equal(await main(['--only', 'kimi-k3,glm-5.3', '--tests', 'basic', '--out', join(dir, 'a.json')], { OPENCODE_GO_KEY: KEY }, quiet, once), 0);
     assert.equal(calls, 2);
     const always = async () => reply(429, { error: { message: 'limit' } });
-    assert.equal(await main(['--only', 'kimi-k3,glm-5.3,glm-5.2,kimi-k2.6,hy3', '--tests', 'basic', '--out', join(dir, 'b.json')], { OPENCODE_GO_KEY: KEY }, quiet, always), 1);
+    assert.equal(await main(['--only', 'kimi-k3,glm-5.3,glm-5.2,kimi-k2.7-code,hy3', '--tests', 'basic', '--out', join(dir, 'b.json')], { OPENCODE_GO_KEY: KEY }, quiet, always), 1);
     const stopped = JSON.parse(readFileSync(join(dir, 'b.json'), 'utf8')).models.filter((model) => model.basic.status === 0);
     assert.ok(stopped.length >= 1);
   } finally {
@@ -340,11 +340,12 @@ test('the probe of the picture inside a PDF: the PDF whose only picture holds th
   assert.equal(result.pdfimage.text, 'BANANA');
 });
 
-test('MiniMax M3.1 Flash Free and Beam Free are in the probe as free models whose form of API is a guess; --model tries any id, with or without its form', async () => {
-  for (const [id, family] of [['minimax-m3.1-flash-free', 'messages'], ['beam-free', 'chat']]) {
+test('MiniMax M3.1 Flash and Step 5 Preview are in the probe with ids guessed from the page of limits (they were free before); --model tries any id, with or without its form', async () => {
+  for (const [id, family] of [['minimax-m3.1-flash', 'messages'], ['step-5-preview', 'chat']]) {
     const model = MODELS.find((entry) => entry.id === id);
-    assert.deepEqual([model.family, model.free, model.guess], [family, true, true], id);
+    assert.deepEqual([model.family, model.free, model.guess], [family, false, true], id);
   }
+  assert.equal(MODELS.find((entry) => entry.id === 'beam-free').guess, undefined);
   assert.deepEqual(modelsNamed('some-new-free, other:responses , kimi-k3'), [
     { id: 'some-new-free', family: 'chat', free: true, guess: true },
     { id: 'other', family: 'responses', free: false },
@@ -364,10 +365,109 @@ test('MiniMax M3.1 Flash Free and Beam Free are in the probe as free models whos
 });
 
 test('--new lists the ids the service has that the probe does not, without a key', async () => {
-  const fetchImpl = async () => reply(200, { data: [{ id: 'kimi-k3' }, { id: 'minimax-m3.1-flash-free' }, { id: 'a-brand-new-one' }, { id: 'another-one-free' }] });
+  const fetchImpl = async () => reply(200, { data: [{ id: 'kimi-k3' }, { id: 'minimax-m3.1-flash' }, { id: 'a-brand-new-one' }, { id: 'another-one-free' }] });
   assert.deepEqual(await newModels({ fetchImpl }), { status: 200, listed: 4, new: ['a-brand-new-one', 'another-one-free'] });
   const lines = [];
   assert.equal(await main(['--new'], {}, { log: (line) => lines.push(line), error() {} }, fetchImpl), 0);
   assert.match(lines[0], /4 models listed.*a-brand-new-one, another-one-free/);
   assert.equal(await main(['--new'], {}, { log() {}, error() {} }, async () => reply(404, 'nope')), 1);
+});
+
+const streamText = (events) => events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join('');
+
+test('the text of the thinking is counted in the stream of each form of the API, and a field without text is not thinking', () => {
+  const chat = streamText([
+    { choices: [{ delta: { reasoning_content: 'Let me ' } }] },
+    { choices: [{ delta: { reasoning: 'compute.' } }] },
+    { choices: [{ delta: { content: 'ok' } }] }
+  ]);
+  assert.deepEqual(thinkingOfStream('chat', chat), { chars: 15, sample: 'Let me compute.', fields: ['reasoning_content', 'reasoning'] });
+  const responses = streamText([{ type: 'response.reasoning_summary_text.delta', delta: 'Summary.' }, { type: 'response.output_text.delta', delta: 'ok' }, { type: 'response.output_item.added', item: { type: 'reasoning' } }]);
+  assert.equal(thinkingOfStream('responses', responses).chars, 8, 'a reasoning item with no summary text is nothing to show');
+  const messages = streamText([{ type: 'content_block_delta', delta: { type: 'thinking_delta', thinking: 'Plan.' } }, { type: 'content_block_delta', delta: { type: 'text_delta', text: 'ok' } }]);
+  assert.equal(thinkingOfStream('messages', messages).chars, 5);
+  const gemini = streamText([{ candidates: [{ content: { parts: [{ thought: true, text: 'Hmm.' }, { text: 'ok' }] } }] }]);
+  assert.equal(thinkingOfStream('gemini', gemini).chars, 4);
+  assert.equal(thinkingOfStream('messages', streamText([{ type: 'content_block_delta', delta: { type: 'text_delta', text: 'ok' } }])).chars, 0);
+});
+
+test('each form asks for the summary of the thinking with its own field, added to what the app already sends', () => {
+  assert.deepEqual(askedThinkingFields('messages', { thinking: { type: 'adaptive' }, output_config: { effort: 'high' } }), { thinking: { type: 'adaptive', display: 'summarized' }, output_config: { effort: 'high' } });
+  assert.deepEqual(askedThinkingFields('messages', {}), { thinking: { type: 'adaptive', display: 'summarized' } }, 'a model that is sent no setting is asked in the adaptive form');
+  assert.deepEqual(askedThinkingFields('responses', { reasoning: { effort: 'medium' } }), { reasoning: { effort: 'medium', summary: 'auto' } });
+  assert.deepEqual(askedThinkingFields('gemini', { generationConfig: { thinkingConfig: { thinkingLevel: 'low' } } }), { generationConfig: { thinkingConfig: { thinkingLevel: 'low', includeThoughts: true } } });
+  assert.equal(askedThinkingFields('chat', { reasoning_effort: 'high' }), null, 'the chat form has no field for it');
+});
+
+test('the test shown says, for each model, whether the thinking comes by default, only when asked, is refused when asked, or does not come', async () => {
+  const think = (text) => ({ ok: true, status: 200, ms: 5, raw: streamText([{ type: 'content_block_delta', delta: { type: 'thinking_delta', thinking: text } }]) });
+  const quiet = { ok: true, status: 200, ms: 5, raw: streamText([{ type: 'content_block_delta', delta: { type: 'text_delta', text: 'ok' } }]) };
+  const bodies = [];
+  const make = (answers) => async (family, body) => {
+    bodies.push(body);
+    return answers.shift();
+  };
+  assert.equal((await probeShown({ id: 'claude-haiku-5-5', family: 'messages', run: make([quiet, think('plan')]) })).verdict, 'only when asked');
+  assert.equal((await probeShown({ id: 'minimax-m3', family: 'messages', run: make([think('plan'), think('plan')]) })).verdict, 'by default');
+  assert.equal((await probeShown({ id: 'qwen3.7-plus', family: 'messages', run: make([quiet, { ok: false, status: 400, message: 'unknown field display' }]) })).verdict, 'refused when asked');
+  assert.equal((await probeShown({ id: 'gpt-6-luna', family: 'responses', run: make([quiet, quiet]) })).verdict, 'none');
+  assert.equal((await probeShown({ id: 'kimi-k3', family: 'chat', run: make([think('x')]) })).asked, null, 'a chat model is asked once');
+  assert.equal((await probeShown({ id: 'kimi-k3', family: 'chat', run: make([{ ok: false, status: 500, message: 'down' }]) })).verdict, 'error');
+  // What the first request holds is what the app sends today, without the field that only asks for the summary.
+  assert.deepEqual(bodies[0].thinking, { type: 'adaptive' });
+  assert.equal(bodies[0].output_config.effort, 'medium');
+  assert.equal(bodies[0].stream, true, 'it is read as a stream, as the app reads it');
+  assert.deepEqual(bodies[1].thinking, { type: 'adaptive', display: 'summarized' });
+});
+
+test('the limit of a reply is read from what the service says when it is asked for far too much, and found by smaller numbers when it says none', async () => {
+  assert.equal(limitNamed('Upstream request failed: [invalid_request_error] max_tokens: 131072 > 128000, which is the maximum allowed number of output tokens for claude-haiku-5-5'), 128000);
+  assert.equal(limitNamed('max_tokens must be less than or equal to 65536'), 65536);
+  assert.equal(limitNamed('max_tokens is too large: 10000000. This model supports at most 32768 completion tokens'), 32768);
+  assert.equal(limitNamed('Invalid value'), null);
+
+  const sentLimits = [];
+  const runWith = (rule) => async (family, body) => {
+    const limit = body.max_tokens ?? body.max_output_tokens ?? body.generationConfig?.maxOutputTokens;
+    sentLimits.push(limit);
+    return rule(limit);
+  };
+  const ok = { ok: true, status: 200 };
+  // The service names its limit: asked once for it, to be sure.
+  const named = await probeMaxOut({ id: 'claude-haiku-5-5', family: 'messages', run: runWith((limit) => (limit > 128000 ? { ok: false, status: 400, message: `max_tokens: ${limit} > 128000, which is the maximum allowed` } : ok)) });
+  assert.deepEqual([named.cap, named.accepted], [128000, 128000]);
+  assert.deepEqual(sentLimits, [10_000_000, 128000]);
+  // A service that takes the huge number says no limit.
+  sentLimits.length = 0;
+  const taken = await probeMaxOut({ id: 'kimi-k3', family: 'chat', run: runWith(() => ok) });
+  assert.deepEqual([taken.cap, taken.accepted, sentLimits.length], [null, 10_000_000, 1]);
+  // A service that refuses without saying: smaller numbers until one is taken.
+  sentLimits.length = 0;
+  const found = await probeMaxOut({ id: 'hy3', family: 'chat', run: runWith((limit) => (limit > 32768 ? { ok: false, status: 400, message: 'invalid max_tokens' } : ok)) });
+  assert.deepEqual([found.cap, found.accepted], [null, 32768]);
+  assert.deepEqual(sentLimits, [10_000_000, 1_000_000, 524_288, 262_144, 131_072, 65_536, 32_768]);
+  // Nothing taken: said.
+  const none = await probeMaxOut({ id: 'x', family: 'chat', run: runWith(() => ({ ok: false, status: 500, message: 'down' })) });
+  assert.deepEqual([none.cap, none.accepted], [null, null]);
+});
+
+test('every refusal the service gave in the probe of 2026-10-23 is read right: its limit when it names one, never the status or a request id, and the context window is not a limit', () => {
+  const real = [
+    ['Upstream request failed: [400] Validation: Max tokens must not exceed 1048576, got 10000000', 1048576],
+    ['Upstream request failed: [invalid_value] Validation: Max tokens must not exceed 1048576, got 10000000', 1048576],
+    ['Upstream request failed: [invalid_parameter] : /max_tokens: 10000000 is not less or equal to 131072', 131072],
+    ['Upstream request failed: [invalid_request_error] Invalid max_tokens value, the valid range of max_tokens is [1, 393216] (request_id: fafd6508-d850-4c45-baf6-10cddc4993a3)', 393216],
+    ['Upstream request failed: [invalid_request_error] invalid params, model[MiniMax-M3] does not support max tokens > 524288 (2013)', 524288],
+    ['Upstream request failed: [invalid_request_error] max_tokens: 10000000 > 128000, which is the maximum allowed number of output tokens for claude-haiku-5-5', 128000],
+    ["Upstream request failed: [400] This endpoint's maximum context length is 262144 tokens. However, you requested about 262152 tokens (8 of text input, 262144 in the output). Please reduce the length of either one", null],
+    ["The input (172 tokens) plus the requested output (10000000 tokens) exceeds the model's context window of 1048576 tokens. Reduce the input or the maximum output tokens.", null],
+    ['Upstream request failed: [400] Param Incorrect', null],
+    ['Upstream request failed: Invalid request parameters. Please check your input and try again.', null],
+    ['{"model":"qwen3.7-plus"}', null],
+    ['Upstream request failed: [400] Unsupported model mimo-v2.5-pro', null]
+  ];
+  for (const [message, limit] of real) assert.equal(limitNamed(message), limit, message.slice(0, 70));
+  assert.equal(contextNamed(real[6][0]), 262144);
+  assert.equal(contextNamed(real[7][0]), 1048576);
+  assert.equal(contextNamed(real[0][0]), null);
 });

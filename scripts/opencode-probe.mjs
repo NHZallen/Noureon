@@ -16,6 +16,9 @@
 //   node scripts/opencode-probe.mjs --list                                the list of models of the service (public, no key, costs nothing)
 //   (Gemini 4 Argon Contributor, Google's own form: `--only gemini-4-argon-contributor --tests basic,stream,effort,thinking,tools,toolloop,vision,document,auth --max-tokens 1500`)
 //   Word and PowerPoint sent as they are, to the models that read a PDF: `--tests office --only <models>` (the answer holds MANGO when the file was read; "text" shows it)
+//   OPENCODE_GO_KEY=... node scripts/opencode-probe.mjs --tests shown                    which models give the text of their thinking (stream): by default, only when asked for it
+//                                                                          (a summary: `thinking.display`, `reasoning.summary`, `includeThoughts`), or not at all; a table at the end
+//   OPENCODE_GO_KEY=... node scripts/opencode-probe.mjs --tests maxout                   the most a model may write in one reply (`max_tokens`): asked for far too much, and what the service says is read
 //   --max-tokens 1500   a bigger limit for every request (for the models that think long before they answer)
 //   --out file.json   where the result is written (default opencode-probe-result.json)        --base <address>   another base address
 //
@@ -26,26 +29,24 @@ import { spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export const BASE = 'https://opencode.ai/inference/go/v1';
-export const TESTS = Object.freeze(['basic', 'stream', 'tools', 'toolloop', 'params', 'effort', 'vision', 'document', 'office', 'converted', 'pdfimage', 'thinking', 'auth', 'errors']);
+import { OPENCODE_REASONING_CONFIGS, opencodeThinkingFields } from '../src/app/runtime/shell/opencode-models.js';
 
-// From https://opencode.ai/docs/go/ (Endpoints), 2026-10-13: the model, the form of its API, and whether it is free.
-const chat = ['glm-5.3-flash', 'glm-5.3', 'glm-5.2', 'kimi-k3', 'kimi-k2.7-code', 'kimi-k2.6', 'longcat-2.0', 'deepseek-v4.1-flash', 'deepseek-v4-pro', 'deepseek-v4-flash', 'deepseek-v4-flash-vision-exp', 'mimo-v2.6-flash', 'mimo-v2.6-pro', 'mimo-v2.5', 'mimo-v2.5-pro', 'hy4-preview', 'hy3', 'space-bunny', 'longcat-2.5-preview-free', 'step-5-preview-free'];
-const responses = ['grok-4.7', 'grok-4.6', 'gpt-6-luna', 'gpt-5.6-luna', 'muse-spark-1.3-contributor', 'muse-spark-1.2-contributor'];
-const messages = ['claude-haiku-5-5', 'minimax-m3', 'minimax-m2.7', 'qwen3.8-max', 'qwen3.8-flash', 'qwen3.7-plus'];
+export const BASE = 'https://opencode.ai/inference/go/v1';
+export const TESTS = Object.freeze(['basic', 'stream', 'tools', 'toolloop', 'params', 'effort', 'vision', 'document', 'office', 'converted', 'pdfimage', 'thinking', 'shown', 'maxout', 'auth', 'errors']);
+
+// The models of the app: the ones on the page of limits of OpenCode (the owner's screenshots of 2026-10-23, 29 models), each with the form of its API and whether it is free.
+// Another id is tried with `--model <id>` (`--new` lists what the service has that is not here).
+const chat = ['glm-5.3-flash', 'glm-5.3', 'glm-5.2', 'kimi-k3', 'kimi-k2.7-code', 'longcat-2.0', 'deepseek-v4.1-flash', 'deepseek-v4-pro', 'mimo-v2.6-pro', 'mimo-v2.6-flash', 'mimo-v2.5-pro', 'mimo-v2.5', 'hy4-preview', 'hy3', 'longcat-2.5-preview-free', 'step-5-preview', 'beam-free'];
+const responses = ['grok-4.7', 'gpt-6-luna', 'gpt-5.6-luna', 'muse-spark-1.3-contributor', 'muse-spark-1.2-contributor'];
+// `minimax-m3.1-flash` and `step-5-preview` are the ids of the models that were free before (`-free` ids that the service now refuses: 410 "deprecated", "Model is unavailable");
+// they are guessed from the page of limits, where they have a price and no "Free": the probe says whether the service knows them.
+const messages = ['claude-haiku-5-5', 'minimax-m3', 'minimax-m3.1-flash', 'qwen3.8-max', 'qwen3.8-flash', 'qwen3.7-plus'];
 export const MODELS = Object.freeze([
-  ...chat.map((id) => ({ id, family: 'chat', free: id.endsWith('-free') })),
+  ...chat.map((id) => ({ id, family: 'chat', free: id.endsWith('-free'), ...(id === 'step-5-preview' ? { guess: true } : {}) })),
   ...responses.map((id) => ({ id, family: 'responses', free: false })),
-  ...messages.map((id) => ({ id, family: 'messages', free: false })),
+  ...messages.map((id) => ({ id, family: 'messages', free: false, ...(id === 'minimax-m3.1-flash' ? { guess: true } : {}) })),
   // Google's own form (2026-10-14, told by the owner): only `models/<id>:generateContent` answers; the stream, the depths of thinking, documents and the key are what the probe finds out.
-  { id: 'gemini-4-argon-contributor', family: 'gemini', free: false },
-  // In the list of the service (2026-10-13) but not in the documents: the form of the API is a guess, and the probe tries the others when the guess is refused.
-  ...['deepseek-flash', 'glm-5.1', 'omen-alpha', 'cat-jam-free'].map((id) => ({ id, family: 'chat', free: id.endsWith('-free'), guess: true })),
-  ...['minimax-m2.5', 'qwen3.6-plus', 'qwen3.7-max'].map((id) => ({ id, family: 'messages', free: false, guess: true })),
-  // Told by the owner on 2026-10-20 ("MiniMax M3.1 Flash Free", "Beam Free"): the ids are guessed from the names of the others (a free model ends in `-free`, MiniMax's are of the
-  // Messages form) and may be spelt otherwise: `--new` shows what the service really lists, `--model <id>` tries any id.
-  { id: 'minimax-m3.1-flash-free', family: 'messages', free: true, guess: true },
-  { id: 'beam-free', family: 'chat', free: true, guess: true }
+  { id: 'gemini-4-argon-contributor', family: 'gemini', free: false }
 ]);
 
 const PATH = { chat: '/chat/completions', responses: '/responses', messages: '/messages' };
@@ -90,6 +91,8 @@ const PNG = 'iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKElEQVR4nO3NsQ0AAAz
 const TOOL = { name: 'get_time', description: 'Gets the local time of a city.', schema: { type: 'object', properties: { city: { type: 'string' } }, required: ['city'] } };
 // A small sum: the thinking a model puts into it shows how much a setting of depth changes (the numbers of tokens of the thinking).
 const THINK_PROMPT = 'What is 17 times 24, minus 38? Answer with just the number.';
+// A question a model that can think does think about (the test `shown`).
+const SHOWN_PROMPT = 'A train leaves at 3:40 pm and travels 135 km at 45 km/h, stops 12 minutes, then travels 60 km at 40 km/h. At what time does it arrive? Answer with the time only.';
 const TOOL_PROMPT = 'What time is it in Paris? Use the tool.';
 
 /** The settings that make a model think, by form of API: what is tried (each alone). */
@@ -128,7 +131,7 @@ export function buildBody(family, model, kind = 'basic', { stream = false, extra
   const maxTokens = extra.max_tokens || 96;
   let body;
   if (family === 'gemini') {
-    const text = kind === 'vision' ? 'What colour is this picture? One word.' : isPdfKind(kind) ? docPrompt(kind) : kind === 'tool' ? TOOL_PROMPT : kind === 'think' ? THINK_PROMPT : PROMPT;
+    const text = kind === 'vision' ? 'What colour is this picture? One word.' : isPdfKind(kind) ? docPrompt(kind) : kind === 'tool' ? TOOL_PROMPT : kind === 'think' ? THINK_PROMPT : kind === 'shown' ? SHOWN_PROMPT : PROMPT;
     const parts = kind === 'vision' ? [{ text }, { inlineData: { mimeType: 'image/png', data: PNG } }]
       : isPdfKind(kind) ? [{ text }, { inlineData: { mimeType: 'application/pdf', data: pdfBase64(kind) } }]
         : OFFICE_FILES[kind] ? [{ text: DOC_PROMPT }, { inlineData: { mimeType: OFFICE_FILES[kind].mime, data: officeBase64(kind) } }] : [{ text }];
@@ -144,7 +147,7 @@ export function buildBody(family, model, kind = 'basic', { stream = false, extra
       ? [{ type: 'text', text: 'What colour is this picture? One word.' }, { type: 'image_url', image_url: { url: `data:image/png;base64,${PNG}` } }]
       : isPdfKind(kind) ? [{ type: 'text', text: docPrompt(kind) }, { type: 'file', file: { filename: 'probe.pdf', file_data: `data:application/pdf;base64,${pdfBase64(kind)}` } }]
         : OFFICE_FILES[kind] ? [{ type: 'text', text: DOC_PROMPT }, { type: 'file', file: { filename: OFFICE_FILES[kind].name, file_data: `data:${OFFICE_FILES[kind].mime};base64,${officeBase64(kind)}` } }]
-        : kind === 'tool' ? TOOL_PROMPT : kind === 'think' ? THINK_PROMPT : PROMPT;
+        : kind === 'tool' ? TOOL_PROMPT : kind === 'think' ? THINK_PROMPT : kind === 'shown' ? SHOWN_PROMPT : PROMPT;
     body = { model, messages: [{ role: 'user', content: user }], max_tokens: maxTokens };
     if (kind === 'tool') Object.assign(body, { tools: [{ type: 'function', function: { name: TOOL.name, description: TOOL.description, parameters: TOOL.schema } }], tool_choice: 'auto' });
     if (stream) Object.assign(body, { stream: true, stream_options: { include_usage: true } });
@@ -153,7 +156,7 @@ export function buildBody(family, model, kind = 'basic', { stream = false, extra
       ? [{ role: 'user', content: [{ type: 'input_text', text: 'What colour is this picture? One word.' }, { type: 'input_image', image_url: `data:image/png;base64,${PNG}` }] }]
       : isPdfKind(kind) ? [{ role: 'user', content: [{ type: 'input_text', text: docPrompt(kind) }, { type: 'input_file', filename: 'probe.pdf', file_data: `data:application/pdf;base64,${pdfBase64(kind)}` }] }]
         : OFFICE_FILES[kind] ? [{ role: 'user', content: [{ type: 'input_text', text: DOC_PROMPT }, { type: 'input_file', filename: OFFICE_FILES[kind].name, file_data: `data:${OFFICE_FILES[kind].mime};base64,${officeBase64(kind)}` }] }]
-        : kind === 'tool' ? TOOL_PROMPT : kind === 'think' ? THINK_PROMPT : PROMPT;
+        : kind === 'tool' ? TOOL_PROMPT : kind === 'think' ? THINK_PROMPT : kind === 'shown' ? SHOWN_PROMPT : PROMPT;
     body = { model, input, max_output_tokens: Math.max(maxTokens, 32) };
     if (kind === 'tool') Object.assign(body, { tools: [{ type: 'function', name: TOOL.name, description: TOOL.description, parameters: TOOL.schema }], tool_choice: 'auto' });
     if (stream) body.stream = true;
@@ -162,7 +165,7 @@ export function buildBody(family, model, kind = 'basic', { stream = false, extra
       ? [{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: PNG } }, { type: 'text', text: 'What colour is this picture? One word.' }]
       : isPdfKind(kind) ? [{ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdfBase64(kind) } }, { type: 'text', text: docPrompt(kind) }]
         : OFFICE_FILES[kind] ? [{ type: 'document', source: { type: 'base64', media_type: OFFICE_FILES[kind].mime, data: officeBase64(kind) } }, { type: 'text', text: DOC_PROMPT }]
-        : kind === 'tool' ? TOOL_PROMPT : kind === 'think' ? THINK_PROMPT : PROMPT;
+        : kind === 'tool' ? TOOL_PROMPT : kind === 'think' ? THINK_PROMPT : kind === 'shown' ? SHOWN_PROMPT : PROMPT;
     body = { model, max_tokens: maxTokens, messages: [{ role: 'user', content: user }] };
     if (kind === 'tool') Object.assign(body, { tools: [{ name: TOOL.name, description: TOOL.description, input_schema: TOOL.schema }], tool_choice: { type: 'auto' } });
     if (stream) body.stream = true;
@@ -370,6 +373,119 @@ export async function probeToolLoop({ model, family, run }) {
   return out;
 }
 
+/** The text of the thinking in a stream (not only that there is a field), by the form of the API: how many characters, the first words, and where it came. */
+export function thinkingOfStream(family, text) {
+  let chars = 0;
+  let sample = '';
+  const fields = new Set();
+  const take = (value, field) => {
+    if (typeof value !== 'string' || !value) return;
+    chars += value.length;
+    fields.add(field);
+    if (sample.length < 120) sample += value.slice(0, 120 - sample.length);
+  };
+  for (const event of parseEvents(text)) {
+    if (family === 'gemini') {
+      for (const part of event.candidates?.[0]?.content?.parts || []) if (part.thought) take(part.text, 'parts[].thought');
+    } else if (family === 'chat') {
+      const delta = event.choices?.[0]?.delta || {};
+      for (const field of ['reasoning_content', 'reasoning', 'reasoning_text']) take(delta[field], field);
+      for (const detail of Array.isArray(delta.reasoning_details) ? delta.reasoning_details : []) take(detail?.text || detail?.summary, 'reasoning_details');
+    } else if (family === 'responses') {
+      if (event.type === 'response.reasoning_summary_text.delta' || event.type === 'response.reasoning_text.delta') take(event.delta, event.type);
+    } else if (event.type === 'content_block_delta' && event.delta?.type === 'thinking_delta') take(event.delta.thinking, 'thinking_delta');
+  }
+  return { chars, sample: plain(sample, 120), fields: [...fields] };
+}
+
+/** What the app sends today to say how deep the model thinks (its default depth), without the field that only asks for the summary. */
+function defaultThinkingFields(id) {
+  const row = OPENCODE_REASONING_CONFIGS[`opencode-go/${id}`];
+  const fields = row ? opencodeThinkingFields({ provider: 'opencode-go', id: `opencode-go/${id}` }, row.defaultEffort) : {};
+  if (fields.thinking?.display) delete fields.thinking.display;
+  return fields;
+}
+
+/** The field of each form that asks for the text of the thinking, added to what the app sends (a model of the chat form has none to add). */
+export function askedThinkingFields(family, fields) {
+  if (family === 'messages') return { ...fields, thinking: { ...(fields.thinking?.type === 'disabled' ? {} : fields.thinking), type: fields.thinking?.type && fields.thinking.type !== 'disabled' ? fields.thinking.type : 'adaptive', display: 'summarized' } };
+  if (family === 'responses') return { ...fields, reasoning: { ...fields.reasoning, summary: 'auto' } };
+  if (family === 'gemini') return { generationConfig: { thinkingConfig: { ...fields.generationConfig?.thinkingConfig, includeThoughts: true } } };
+  return null;
+}
+
+/**
+ * Whether the model gives the text of its thinking in a stream: with what the app sends today (`default`), and with the field of its form that asks for a
+ * summary (`asked`). `verdict`: "by default", "only when asked", "refused when asked" (the service took the first and refused the second), "none" or "error".
+ */
+export async function probeShown({ id, family, run, maxTokens = 3000 }) {
+  const attempt = async (extra) => {
+    const result = await run(family, buildBody(family, id, 'shown', { stream: true, extra: { max_tokens: maxTokens, ...extra } }), { stream: true });
+    if (!result.ok) return { ok: false, status: result.status, message: result.message };
+    return { ok: true, status: result.status, ms: result.ms, ...thinkingOfStream(family, result.raw) };
+  };
+  const baseline = defaultThinkingFields(id);
+  const byDefault = await attempt(baseline);
+  const extra = askedThinkingFields(family, JSON.parse(JSON.stringify(baseline)));
+  const asked = extra ? await attempt(extra) : null;
+  let verdict = 'none';
+  if (!byDefault.ok) verdict = 'error';
+  else if (byDefault.chars > 0) verdict = 'by default';
+  else if (asked?.ok && asked.chars > 0) verdict = 'only when asked';
+  else if (asked && !asked.ok) verdict = 'refused when asked';
+  return { default: byDefault, asked, verdict };
+}
+
+// How much a reply may write at most: asked for far more than any model takes (the tiny question costs a few tokens whatever the limit), the service names its own
+// limit in the refusal ("max_tokens: 131072 > 128000, which is the maximum allowed number of output tokens for ..."). A service that does not name it is asked with
+// smaller numbers until one is taken; one that takes the huge number has no limit that it tells (`accepted`).
+export const MAXOUT_ASKED = 10_000_000;
+export const MAXOUT_LADDER = Object.freeze([1_000_000, 524_288, 262_144, 131_072, 65_536, 32_768, 16_384]);
+
+/** The context window a refusal names ("maximum context length is 262144 tokens", "context window of 1048576 tokens"): there the output and the input share it, so it is no limit of the output. */
+export function contextNamed(message) {
+  const match = String(message || '').match(/context (?:length|window)[^0-9]{0,40}(\d{4,8})/i);
+  return match ? Number(match[1]) : null;
+}
+
+/** The limit of the output that a refusal names, in the words the services use; null when it names none (and when it only names the context window). */
+export function limitNamed(message) {
+  const text = String(message || '');
+  // `[400]` is the status, a request id is not a limit: only a number after the words that say a limit counts, and the number that was asked never does.
+  const numbers = [
+    ...text.matchAll(/(?:max_tokens|max_output_tokens|maxOutputTokens)[^0-9]{0,40}\d+\s*(?:>|exceeds?|is greater than|above)\s*(\d{3,8})/gi),
+    ...text.matchAll(/(?:must not exceed|not less or equal to|less than or equal to|does not support max tokens >|valid range of max_tokens is \[\d+,|supports at most|at most|no more than|limited to|<=)\s*(\d{3,8})/gi),
+    ...text.matchAll(/(?:maximum|up to)[^0-9[]{0,60}(\d{3,8})/gi),
+    ...text.matchAll(/(\d{3,8})[^0-9]{0,40}(?:is the maximum|maximum)/gi)
+  ].map((match) => Number(match[1])).filter((number) => number < MAXOUT_ASKED);
+  if (contextNamed(text) && !/(?:max_tokens|max tokens|output tokens)[^.]{0,80}(?:exceed|support|valid range|not less)/i.test(text)) return null;
+  return numbers.length ? numbers.at(-1) : null;
+}
+
+export async function probeMaxOut({ id, family, run }) {
+  const ask = async (limit) => {
+    const result = await run(family, buildBody(family, id, 'basic', { extra: { max_tokens: limit } }), {});
+    return result.ok ? { limit, ok: true, status: result.status } : { limit, ok: false, status: result.status, message: result.message };
+  };
+  const first = await ask(MAXOUT_ASKED);
+  const tried = [first];
+  if (first.ok) return { cap: null, accepted: MAXOUT_ASKED, tried };
+  const named = limitNamed(first.message);
+  const context = contextNamed(first.message);
+  if (named) {
+    // Said by the service: taken, to be sure it really is the limit.
+    const check = await ask(named);
+    tried.push(check);
+    return { cap: check.ok ? named : null, accepted: check.ok ? named : null, ...(context ? { context } : {}), message: first.message, tried };
+  }
+  for (const limit of MAXOUT_LADDER) {
+    const step = await ask(limit);
+    tried.push(step);
+    if (step.ok) return { cap: null, accepted: limit, ...(context ? { context } : {}), message: first.message, tried };
+  }
+  return { cap: null, accepted: null, ...(context ? { context } : {}), message: first.message, tried };
+}
+
 /** The tests of one model. `run(body, options)` sends and gives the result of `send`. */
 export async function probeModel({ model, tests = TESTS, run, key = '' }) {
   const { id } = model;
@@ -441,6 +557,8 @@ export async function probeModel({ model, tests = TESTS, run, key = '' }) {
     result.office = {};
     for (const kind of Object.keys(OFFICE_FILES)) result.office[kind] = await one(kind, { extra: { max_tokens: 200 } });
   }
+  if (tests.includes('shown')) result.shown = await probeShown({ id, family, run });
+  if (tests.includes('maxout')) result.maxout = await probeMaxOut({ id, family, run });
   if (tests.includes('thinking')) {
     result.thinking = {};
     for (const [name, extra] of THINKING[family]) result.thinking[name] = await one('basic', { extra });
@@ -582,6 +700,14 @@ export async function main(args = process.argv.slice(2), env = process.env, out 
   }
   if (tests.includes('errors')) report.errors = await probeErrors({ run, key });
   keep();
+  if (tests.includes('maxout')) {
+    out.log('\nThe most a reply may write (max_tokens):');
+    for (const model of report.models) if (model.maxout) out.log(`${model.id.padEnd(30)} ${model.family.padEnd(10)} ${model.maxout.cap ? `limit ${model.maxout.cap}` : model.maxout.accepted ? `takes ${model.maxout.accepted}, names no limit` : `none taken: ${String(model.maxout.message || '').slice(0, 80)}`}`);
+  }
+  if (tests.includes('shown')) {
+    out.log('\nWho gives the text of the thinking (stream):');
+    for (const model of report.models) if (model.shown) out.log(`${model.id.padEnd(30)} ${model.family.padEnd(10)} ${model.shown.verdict.padEnd(20)} default ${String(model.shown.default.chars ?? model.shown.default.message ?? '').slice(0, 40).padEnd(8)} asked ${model.shown.asked ? String(model.shown.asked.chars ?? model.shown.asked.message ?? '').slice(0, 60) : '-'}`);
+  }
   out.log(`written: ${file} (no key in it; paste it to be read)`);
   return stopped ? 1 : 0;
 }
