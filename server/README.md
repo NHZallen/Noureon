@@ -70,3 +70,8 @@ npm run check:server # 伺服器程式不得使用瀏覽器專用的東西，也
 - 日誌只記路徑、狀態、耗時、錯誤碼，**不記請求內容、金鑰、登入 token**（`server/log.js` 會把名稱像祕密的欄位遮住）。
 - 錯誤訊息不得重複使用者送來的值（金鑰不能出現在任何回應或日誌裡）。
 - 伺服器要用 `src/` 裡的模組，必須先讀過確認沒用到瀏覽器，再加進 `scripts/check-server-boundaries.mjs` 的 `ALLOWED_SHARED` 清單。
+
+## 伺服器好像掛了：檢查
+
+1. 在自己的電腦跑 `node scripts/diagnose-server.mjs`：從外面檢查正式與測試伺服器和兩個網站，依序看名稱解析、憑證、`/healthz`、CORS、Python 沙盒狀態，並說明哪一層壞了（可加 `--token <登入後的 access token>` 檢查登入路徑）。
+2. 若外面檢查說應用程式或代理壞了，到 VPS 上以 root 跑 `bash sandbox-host/diagnose.sh`（只讀，不改任何東西）：看記憶體、磁碟、Docker 容器狀態與重啟次數、80/443/7788 埠、沙盒 runner、近兩小時的錯誤日誌。把標 `[!]` 的行貼回來。
