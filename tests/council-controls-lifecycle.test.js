@@ -202,6 +202,33 @@ test('typing in the search box narrows the list and says so when nothing is left
   }
 });
 
+test('while something is typed the rows stand in one list, best first, each model once, and the groups come back when it is cleared', () => {
+  const { cleanup, document, lifecycle } = createHarness({ conversation: singleConversation() });
+  try {
+    lifecycle.renderCouncilControls();
+    const panel = document.querySelector('#model-picker-popover');
+    const search = panel.querySelector('[data-mp-search]');
+    const type = (value) => {
+      search.value = value;
+      search.dispatchEvent(new document.defaultView.Event('input', { bubbles: true }));
+    };
+    type('model b');
+    const scroller = panel.querySelector('[data-mp-scroll]');
+    assert.equal(scroller.classList.contains('is-searching'), true);
+    const visible = (id) => [...panel.querySelectorAll(`[data-mp-model="${id}"]`)].filter((row) => !row.hidden);
+    assert.equal(visible('model-b').length, 1);
+    assert.equal(visible('model-b')[0].style.order, '1', 'the best fit is the first of the list');
+    type('model a');
+    assert.equal(visible('model-a').length, 1, 'a model in two groups (recent and its company) shows once');
+    type('');
+    assert.equal(scroller.classList.contains('is-searching'), false);
+    assert.equal(visible('model-a').length, 2, 'cleared, both places show it again');
+    assert.equal(visible('model-b')[0].style.order, '');
+  } finally {
+    cleanup();
+  }
+});
+
 test('going to another model and coming back leaves the level chosen for the first one where it was', async () => {
   const { cleanup, conversation, document, lifecycle } = createHarness({ conversation: singleConversation({ reasoningEffort: 'high' }) });
   try {

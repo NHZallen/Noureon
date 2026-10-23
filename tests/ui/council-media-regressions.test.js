@@ -33,7 +33,8 @@ test('the model picker is one panel with a bounded, quietly scrolling list and a
   assert.match(markup, /data-mp-remove=[\s\S]*data-mp-open="members"/);
   assert.match(markup, /data-mp-open="combiner"/);
   assert.match(markup, /data-mp-mode=/);
-  assert.match(lifecycle, /const\s+applySearch\s*=\s*\(container\)\s*=>[\s\S]*group\.hidden\s*=\s*!any/);
+  assert.match(lifecycle, /const\s+applySearch\s*=\s*\(container\)\s*=>\s*applyModelSearch\(/);
+  assert.match(readUiSource('src/app/ui/model-picker/model-search.js'), /group\.hidden\s*=\s*!any/);
   assert.doesNotMatch(lifecycle, /council-filter-panel|data-council-filter|applyCouncilSearchFilter/);
 
   // Bounded: the list scrolls inside the panel, and the panel never outgrows the screen.

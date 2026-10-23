@@ -1,6 +1,12 @@
 // The update notes in Spanish (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.19.0": [
+    "<strong>Notas de la versión de Noureon 18.19.0</strong>",
+    "Esta versión mejora la búsqueda del menú de modelos y añade Kimi K3.1 Pro a OpenCode.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Búsqueda de modelos:</strong> se pueden escribir varias palabras en cualquier orden, con otras palabras entre ellas; los espacios, guiones y puntos no importan («gpt5.6» encuentra GPT-5.6). Mientras se busca, los resultados forman una sola lista con el más adecuado primero, y cada modelo aparece una vez. También se puede buscar «gratis» o una capacidad (imágenes, documentos, búsqueda), y una o dos letras mal escritas se toleran.</li><li><strong>Nuevo modelo:</strong> Kimi K3.1 Pro se añade a OpenCode. Lee imágenes, llama a herramientas y tiene una profundidad de razonamiento ajustable; los documentos subidos se traducen a texto antes de entregárselos.</li></ul>"
+  ],
   "18.18.0": [
     "<strong>Notas de la versión de Noureon 18.18.0</strong>",
     "Esta versión hace que Claude en modo Avanzado cree con mayor fiabilidad archivos de Office y PDF usando el servidor, muestra el resumen del razonamiento de más modelos y actualiza las listas de modelos de varios proveedores.",

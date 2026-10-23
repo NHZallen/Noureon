@@ -16,6 +16,7 @@ const DESC = Object.freeze({ go: 'model_opencode_go_desc', go30: 'model_opencode
 
 // [id at OpenCode, name, company, form of API, takes pictures, line of text, tier, hidden (a test model that is not in the list of the documents)]. Every one calls tools (the probe: a call, and the answer of the tool sent back).
 const ROWS = [
+  ['kimi-k3.1-pro', 'Kimi K3.1 Pro', 'moonshotai', 'chat', true, DESC.go],
   ['kimi-k3', 'Kimi K3', 'moonshotai', 'chat', true, DESC.go],
   ['kimi-k2.7-code', 'Kimi K2.7 Code', 'moonshotai', 'chat', true, DESC.go],
   ['glm-5.3', 'GLM-5.3', 'z-ai', 'chat', false, DESC.go],
@@ -148,6 +149,7 @@ export const opencodeModelSupportsVision = (model) => isOpencodeModel(model) && 
 //   adaptiveOrOff  the same, and `thinking: { type: 'disabled' }` for none (Qwen)
 // A model that is not here (GLM-5.3 Flash and Space Bunny act at random, LongCat's depths change nothing, MiniMax M2.7 cannot stop) is asked with no setting.
 const THINKING = {
+  'kimi-k3.1-pro': ['effort', ['none', 'low', 'medium', 'high', 'xhigh', 'max'], 'high'],
   'kimi-k3': ['effort', ['none', 'low', 'medium', 'high', 'max'], 'high'],
   'kimi-k2.7-code': ['effort', ['low', 'medium', 'high', 'max'], 'high'],
   'glm-5.3': ['effort', ['low', 'high', 'max'], 'high'],

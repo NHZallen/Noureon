@@ -19,6 +19,7 @@ import { modelPickerText } from '../../ui/model-picker/model-picker-texts.js';
 import { bindCouncilControlEvents } from './council-controls-events.js';
 import { createPickerViewState } from './council-controls-view-state.js';
 import { createPickerChoices } from './council-controls-choices.js';
+import { applyModelSearch } from '../../ui/model-picker/model-search.js';
 
 export function createCouncilControlsLifecycle(deps) {
   const {
@@ -215,24 +216,7 @@ export function createCouncilControlsLifecycle(deps) {
     if (refocusSlider) container.querySelector('[data-mp-depth-input]')?.focus();
   };
 
-  const applySearch = (container) => {
-    const needle = ui.query.trim().toLowerCase();
-    const panel = container.querySelector('#model-picker-popover');
-    if (!panel) return;
-    let shown = 0;
-    panel.querySelectorAll('[data-mp-group]').forEach((group) => {
-      let any = false;
-      group.querySelectorAll('[data-mp-search-text]').forEach((row) => {
-        const match = !needle || (row.dataset.mpSearchText || '').includes(needle);
-        row.hidden = !match;
-        any ||= match;
-      });
-      group.hidden = !any;
-      if (any) shown += 1;
-    });
-    const empty = panel.querySelector('[data-mp-empty]');
-    if (empty) empty.hidden = shown > 0;
-  };
+  const applySearch = (container) => applyModelSearch(container.querySelector('#model-picker-popover'), ui.query);
 
   // The council changed: draw it now and save it after the drawing is painted. (When the save ends the
   // page redraws, which changes nothing that shows.)
