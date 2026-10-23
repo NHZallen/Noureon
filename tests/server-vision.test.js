@@ -38,7 +38,7 @@ function harness({ events = [], find = async () => null, watch } = {}) {
     getLanguage: () => 'en',
     showNotification: (text, kind) => notices.push([text, kind]),
     getActiveConversation: () => conversation,
-    getSync: () => ({ flush: async () => { flushes.push(1); } }),
+    getSync: () => ({ retry: async () => { flushes.push(1); }, flush: async () => { flushes.push('send only'); } }),
     onLockChange: () => locks.push([...chatsUnderVisionCheck]),
     wait: async () => {}
   });
@@ -72,7 +72,7 @@ test('the check the server makes is drawn as the page draws its own, from what t
   assert.deepEqual(locks, [['conv-1'], []], 'the composer is asked to look each time');
   assert.equal(document.querySelectorAll('.ledger').length, 0, 'the line is gone when the check is over');
   assert.deepEqual(notices, [], 'a corrected reply is the message, not a notice');
-  assert.equal(flushes.length, 1, 'the sync is asked to bring the corrected reply');
+  assert.deepEqual(flushes, [1], 'the sync is asked to read the cloud for the corrected reply, not only to send');
   void labels;
 });
 

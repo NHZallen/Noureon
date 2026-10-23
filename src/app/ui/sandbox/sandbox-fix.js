@@ -50,7 +50,6 @@ export async function runSandboxFix({
   return {
     // A file block the model wrote for a file it saved would be a second, empty card.
     text: withoutEmptyDocumentBlocks(withoutDuplicatedFileBlocks(result.answer ?? result.text, [...parts.map((part) => part.sandboxFile.name), ...sandboxDocumentNames(result.run)])),
-    narration: result.narration || '',
     run: result.run,
     parts,
     documents: sandboxDocumentBlocks(result.run)

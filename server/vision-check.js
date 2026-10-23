@@ -271,7 +271,7 @@ async function checkFreeDeck({ file, spec, source, access, model, config, contro
   }
   controller.signal.throwIfAborted();
   if (!fix.parts.some((part) => part.sandboxFile && part.sandboxFile.name === file.name)) throw new Error(visionText(language, 'freeNoFile'));
-  const text = `${formatSandboxRunBlock(fix.run)}${buildFreeVisionResult({ result, language, checkedSlides: sheets.checkedSlides, totalSlides: sheets.totalSlides, answer: fix.answer, narration: fix.narration })}${fix.documents ? `\n\n${fix.documents}` : ''}`;
+  const text = `${formatSandboxRunBlock(fix.run)}${buildFreeVisionResult({ result, language, checkedSlides: sheets.checkedSlides, totalSlides: sheets.totalSlides, answer: fix.answer })}${fix.documents ? `\n\n${fix.documents}` : ''}`;
   progress.remove();
   return {
     revised: {
@@ -317,7 +317,7 @@ async function redoDeck({ file, spec, source, access, model, config, controller,
     });
     stepEvents.flush();
     const finished = await finishAdvancedReply({ result: { ...result, text: result.answer ?? result.text }, run: result.run || { status: 'done', steps: [] }, userId, files });
-    return { run: result.run || { status: 'done', steps: [] }, parts: finished.parts, answer: finished.answer, narration: result.narration || '', documents: finished.documents };
+    return { run: result.run || { status: 'done', steps: [] }, parts: finished.parts, answer: finished.answer, documents: finished.documents };
   } finally {
     await sandbox?.dispose().catch(() => {});
   }

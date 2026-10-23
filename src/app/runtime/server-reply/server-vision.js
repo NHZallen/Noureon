@@ -126,8 +126,9 @@ export function createServerVisionFollow({
           // What the page already told is not told again when the calls so far are replayed to it.
           if (replaying) break;
           // The result is a reply the server wrote into the chat (a corrected reply, or a note of how the check ended): the cloud sync brings it
-          // in. Only when it could not be written is the result told by a notice.
-          if (first?.messageId) void Promise.resolve(getSync()?.flush?.()).catch(() => {});
+          // in. Writing a message does not touch its conversation, so no live change tells the page: the sync is asked to read what the cloud
+          // holds now (`retry` reads, then sends; `flush` only sends). Only when it could not be written is the result told by a notice.
+          if (first?.messageId) void Promise.resolve(getSync()?.retry ? getSync().retry() : getSync()?.flush?.()).catch(() => {});
           else if (first?.outcome === 'clean' && getActiveConversation()?.id === conversation.id) showNotification(visionText(language, 'clean'), 'success');
           else if (first?.outcome === 'failed') showNotification(visionText(language, 'failed', { reason: first.reason || '' }), 'warning');
           else if (first?.outcome === 'left' && first.found) showNotification(visionText(language, 'leftAlone', { found: first.found }), 'warning');
