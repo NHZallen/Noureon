@@ -5,7 +5,7 @@ import globals from 'globals';
 
 export default [
   // Other people's code, and what the build writes.
-  { ignores: ['dist/**', 'public/vendor/**', 'public/sandbox/pyodide/**', 'node_modules/**'] },
+  { ignores: ['dist/**', 'public/vendor/**', 'public/sandbox/pyodide/**', 'node_modules/**', 'reports/**', '.stryker-tmp/**'] },
   js.configs.recommended,
   {
     files: ['**/*.js', '**/*.mjs'],
