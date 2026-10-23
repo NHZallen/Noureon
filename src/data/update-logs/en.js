@@ -1,6 +1,12 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.18.0": [
+    "<strong>Noureon 18.18.0 Release Notes</strong>",
+    "This version makes Claude in Advanced mode build Office and PDF files with the server more reliably, shows thinking summaries for more models, and updates the model lists of several providers.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Making files in Advanced mode:</strong> when Claude Haiku (OpenCode) makes Word, PowerPoint, Excel and PDF files, it now uses the server's Python first instead of writing the content of the file out piece by piece; a reply can run Python up to 100 times. If Python fails or the runs are used up before a file is made, the model gives you the file the usual way.</li><li><strong>Output length:</strong> Claude Haiku, MiniMax M3, MiniMax M3.1 Flash and Qwen can now write longer replies; when a model uses up its output allowance without writing anything, you are told why instead of seeing an empty reply.</li><li><strong>Thinking summaries:</strong> Claude Haiku, MiniMax M3, GPT-6 Luna, GPT-5.6 Luna and Muse Spark 1.3 / 1.2 on OpenCode now show a summary of their thinking.</li><li><strong>OpenCode model list:</strong> the list now matches the 29 models OpenCode offers today. DeepSeek V4 Flash, DeepSeek V4 Flash Vision Exp, Grok 4.6, MiniMax M2.7, Cat Jam and Space Bunny are removed; MiniMax M3.1 Flash and Step 5 Preview are now paid, and chats that used them move to the new versions by themselves.</li><li><strong>OpenRouter and NVIDIA:</strong> MiniMax M3.1 Flash on OpenRouter changes from free to paid ($0.10 per million input, $0.55 per million output); Kimi K3.1 Pro on OpenRouter ($2 per million input, $10 per million output) and MiniMax M3.1 Flash on NVIDIA are added; Kimi K3 and the free Nemotron 3 Super on OpenRouter are removed, and chats that used them move to Kimi K3.1 Pro and Nemotron 3.5 Super VL by themselves.</li><li><strong>Thinking panel:</strong> the large blank space under the thinking text is gone.</li></ul>"
+  ],
   "18.17.0": [
     "<strong>Noureon 18.17.0 Release Notes</strong>",
     "This version shows the result text of the automatic visual check as the model writes it, and smooths the changes on screen while a reply runs and when it ends.",
