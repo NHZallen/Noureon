@@ -12,9 +12,10 @@ const healthy = { ok: true, protocol: 2, build: 'abc123', runs: true, sandbox: '
 const respond = (data, status = 200) => async () => ({ ok: status < 400, status, json: async () => data });
 
 // The parts the diagnostics read, as the page has them (the plan is the real one).
-const make = ({ config = { replyRunLocation: 'server' }, account = true, conversation = { id: 'c1', model: 'm', isWebSearchEnabled: false }, health = respond(healthy), whoami = { ok: true, status: 200 }, keys = { openrouter: true }, researches = true, model = { id: 'm', provider: 'openrouter' } } = {}) => {
+const make = ({ sync = null, config = { replyRunLocation: 'server' }, account = true, conversation = { id: 'c1', model: 'm', isWebSearchEnabled: false }, health = respond(healthy), whoami = { ok: true, status: 200 }, keys = { openrouter: true }, researches = true, model = { id: 'm', provider: 'openrouter' } } = {}) => {
   const serverReply = {
     hasAccount: () => account,
+    syncStatus: () => sync,
     request: async () => whoami,
     plan: (context) => planServerReply({ config, ...context, hasAccount: account })
   };
@@ -77,6 +78,20 @@ test('a new empty chat (flagged isTemporary until its first message) is not a te
   // The same flag on a chat that has messages is a real "temporary" state.
   const odd = await runDiagnostics(make({ conversation: { id: 'x', model: 'm', isTemporary: true, messages: [{ role: 'user' }] } }));
   assert.equal(odd.chat.temporary, true);
+});
+
+test('a sync that could not start is reported with its error, not as "no account"', async () => {
+  const sync = { state: 'retry', enabled: false, error: 'Sync V2 shadow verification did not match the local workspace.', code: 'ASTRA_SHADOW_VERIFY_MISMATCH', details: { table: 'workspace_messages', ids: ['m1'] } };
+  const report = await runDiagnostics(make({ account: false, sync }));
+  assert.ok(report.problems.some((text) => /cloud sync is not active \(retry, ASTRA_SHADOW_VERIFY_MISMATCH: Sync V2 shadow verification did not match/.test(text)));
+  assert.equal(report.sync.code, 'ASTRA_SHADOW_VERIFY_MISMATCH');
+  assert.match(report.sync.details, /workspace_messages/);
+  const text = formatReport(report);
+  assert.match(text, /sync: retry \(NOT enabled\), error: Sync V2 shadow verification did not match/);
+  assert.match(text, /\[ASTRA_SHADOW_VERIFY_MISMATCH\], details: .*workspace_messages/);
+  const healthyReport = await runDiagnostics(make({ sync: { state: 'ready', enabled: true } }));
+  assert.equal(healthyReport.sync.enabled, true);
+  assert.deepEqual(healthyReport.problems, []);
 });
 
 test('a server that does not answer, answers an error, or is half configured', async () => {

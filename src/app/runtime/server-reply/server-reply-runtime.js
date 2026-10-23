@@ -168,6 +168,8 @@ export function createBrowserServerReply({
 
   return {
     hasAccount,
+    // The state of the conversation sync as it is (for the diagnostics: a sync that could not start leaves every reply on this device).
+    syncStatus: () => getSync()?.getStatus?.() || null,
     council,
     // The visual check of the presentations a reply wrote, when the server makes it (server-vision.js).
     noteVision: (messageId, { vision: checked = false, visionRunId = null } = {}) => {

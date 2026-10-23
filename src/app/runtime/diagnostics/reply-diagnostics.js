@@ -66,8 +66,15 @@ export async function runDiagnostics(deps) {
   report.page = { version, origin: globalThis.location?.origin || '', online: online() !== false, language: config.uiLanguage || '' };
   if (!report.page.online) problem('The browser reports it is offline.');
 
+  // The server takes a reply only while the conversation sync is enabled; a sync that failed to start ('retry') leaves the page in local mode, which looks the same as no account.
+  const sync = serverReply.syncStatus?.() || null;
   report.account = { signedInToCloud: Boolean(serverReply.hasAccount()) };
-  if (!report.account.signedInToCloud) problem('Not signed in to a cloud account: every reply is made on this device.');
+  report.sync = sync ? { state: sync.state, enabled: Boolean(sync.enabled), error: sync.error, code: sync.code, details: sync.details === undefined ? undefined : JSON.stringify(sync.details).slice(0, 600), lastErrorAt: sync.lastErrorAt } : null;
+  if (!report.account.signedInToCloud) {
+    problem(sync?.error
+      ? `The cloud sync is not active (${sync.state}${sync.code ? `, ${sync.code}` : ''}: ${sync.error}). Until it recovers every reply is made on this device.`
+      : 'Not signed in to a cloud account (or the sync has not started): every reply is made on this device.');
+  }
 
   report.settings = { replyRunLocation: config.replyRunLocation || 'server', searchProvider: config.searchProvider || '', hasSearchKey: Boolean(hasKey('tavily') || hasKey('tinyfish')) };
   if (report.settings.replyRunLocation === 'local') problem('Settings → Privacy: replies are set to run on this device.');
@@ -128,6 +135,7 @@ const VERDICTS = Object.freeze({ server: '✅', device: '⚠️' });
 export function formatReport(report) {
   const lines = [`Noureon diagnostics ${report.at}`, `page: version ${report.page.version}, ${report.page.origin}, ${report.page.online ? 'online' : 'OFFLINE'}`];
   lines.push(`account: ${report.account.signedInToCloud ? 'signed in to the cloud' : 'NOT signed in to the cloud'}`);
+  if (report.sync) lines.push(`sync: ${report.sync.state}${report.sync.enabled ? ' (enabled)' : ' (NOT enabled)'}${report.sync.error ? `, error: ${report.sync.error}` : ''}${report.sync.code ? ` [${report.sync.code}]` : ''}${report.sync.details ? `, details: ${report.sync.details}` : ''}`);
   lines.push(`settings: replies run on "${report.settings.replyRunLocation}", search provider ${report.settings.searchProvider || '-'}, search key ${report.settings.hasSearchKey ? 'yes' : 'no'}`);
   const server = report.server;
   lines.push(`server: ${server.baseUrl} — ${server.reachable ? `reachable in ${server.ms} ms, build ${server.build}, protocol ${server.protocol}, replies ${server.runsEnabled ? 'on' : 'OFF'}, sandbox ${server.sandbox}, up ${Math.round(server.uptimeSeconds / 60)} min` : `NOT reachable (${server.error || `status ${server.status}`})`}`);
