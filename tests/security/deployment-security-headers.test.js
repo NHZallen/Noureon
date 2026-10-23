@@ -9,7 +9,7 @@ const getGlobalHeaders = () => {
   return Object.fromEntries((globalRule?.headers || []).map(({ key, value }) => [key, value]));
 };
 
-test('deployment enables CSP in report-only mode before enforcement', () => {
+test('the shared rule keeps the CSP in report-only mode; enforcement is only on the rule of the staging host (audit L-3, NOU-51)', () => {
   const headers = getGlobalHeaders();
   const policy = headers['Content-Security-Policy-Report-Only'];
 
@@ -25,6 +25,30 @@ test('deployment enables CSP in report-only mode before enforcement', () => {
   ]) {
     assert.match(policy, new RegExp(directive.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   }
+});
+
+const getStagingRule = () => vercelConfig.headers.find((rule) => rule.has?.some((condition) => condition.type === 'host' && condition.value === 'staging.noureon.com'));
+
+test('staging enforces the very policy the other hosts only report on, and sends nothing else with it', () => {
+  const rule = getStagingRule();
+  assert.ok(rule, 'a rule for the staging host');
+  assert.equal(rule.source, '/(.*)');
+  assert.deepEqual(rule.headers.map((header) => header.key), ['Content-Security-Policy']);
+  assert.equal(rule.headers[0].value, getGlobalHeaders()['Content-Security-Policy-Report-Only']);
+  assert.equal(vercelConfig.headers.filter((entry) => entry.headers.some((header) => header.key === 'Content-Security-Policy' && /^default-src 'self'/.test(header.value))).length, 1, 'only staging enforces it');
+});
+
+test('the policy lets the page compile WebAssembly (font embedding) and nothing runs from the page itself', () => {
+  const policy = getGlobalHeaders()['Content-Security-Policy-Report-Only'];
+  assert.match(policy, /script-src 'self' 'wasm-unsafe-eval' https:\/\/challenges\.cloudflare\.com;/);
+  assert.doesNotMatch(policy, /'unsafe-eval'|script-src[^;]*'unsafe-inline'/);
+});
+
+test('the pages carry no inline script or handler, so a policy that forbids them breaks nothing', () => {
+  const scripts = [...readFileSync(new URL('../../index.html', import.meta.url), 'utf8').matchAll(/<script\b([^>]*)>/gi)].map((match) => match[1]);
+  assert.ok(scripts.length >= 3);
+  for (const attributes of scripts) assert.match(attributes, /\bsrc=/, `an inline script: <script${attributes}>`);
+  assert.doesNotMatch(readFileSync(new URL('../../index.html', import.meta.url), 'utf8'), /<[^>]*\son[a-z]+\s*=|href\s*=\s*["']javascript:/i);
 });
 
 test('report-only CSP covers current provider, auth, verification, P2P and server transports', () => {
