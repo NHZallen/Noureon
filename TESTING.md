@@ -27,6 +27,17 @@ On Windows, use `npm.cmd` from PowerShell or Command Prompt. The test script is:
 - `tests/security/*.test.js`: API-key, export redaction, and sensitive-config tests.
 - `tests/structure/*.test.js`: architecture and boundary checks.
 - `tests/ui/*.test.js`: focused UI regression checks.
+- `tests/page-boot.test.js` and `tests/helpers/page-runtime/`: the real page booted in happy-dom (module hooks, in-memory IndexedDB).
+- `tests/database/*.test.js`: the real `supabase/migrations/` applied to an embedded Postgres (PGlite) with a stand-in for roles, auth and storage; checks row level security, grants and the server-only functions.
+- `tests/sandbox/*.test.js`: the sandbox page, its service worker and the Python worker's isolation.
+- `tests/browser/*.e2e.js`: the built site in a real Chromium (see below). Not part of `npm test`.
+
+## Browser Tests
+
+`npm run test:browser` builds the site, serves `dist/` on a local port and drives Chromium with `playwright-core`
+(sign up, set a key, send a message to a stand-in provider, reload, a phone-sized screen). Everything outside the site is refused except the stand-in provider.
+
+The browser is found from `CHROMIUM_PATH`, else `PLAYWRIGHT_BROWSERS_PATH`, else the one `npx playwright-core install chromium` puts in the cache. CI runs it as the `browser` job.
 
 ## DOM Tests
 

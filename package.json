@@ -24,7 +24,8 @@
     "check:sizes": "node scripts/check-file-sizes.mjs",
     "check:version": "node scripts/check-version-consistency.mjs",
     "check:server": "node scripts/check-server-boundaries.mjs",
-    "preview": "vite preview --host 0.0.0.0"
+    "preview": "vite preview --host 0.0.0.0",
+    "test:browser": "npm run build && node --test --test-concurrency=1 \"tests/browser/**/*.e2e.js\""
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.0",
@@ -48,6 +49,7 @@
     "write-excel-file": "4.1.1"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.11",
     "@eslint/js": "^9.39.5",
     "@napi-rs/canvas": "^1.0.9",
     "@resvg/resvg-js": "^2.6.2",
@@ -56,6 +58,7 @@
     "eslint": "^9.39.5",
     "globals": "^17.13.0",
     "happy-dom": "^20.10.6",
+    "playwright-core": "^1.56.1",
     "postcss": "^8.5.6",
     "pyodide": "314.0.7",
     "tailwindcss": "^3.4.17",
