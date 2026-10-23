@@ -378,11 +378,14 @@ test('the Gemini models are also on OpenRouter, with the settings of their nativ
 });
 
 
-test('MiniMax M3.1 Flash (free, OpenRouter) is in the list with what the probe of 2026-10-20 found: pictures and video, tools, a PDF, and a thinking that cannot be turned off', async () => {
+test('MiniMax M3.1 Flash (paid now, OpenRouter) is in the list with what the probe of 2026-10-20 found: pictures and video, tools, a PDF, and a thinking that cannot be turned off', async () => {
   const { MODELS, modelSupportsVision, modelSupportsToolCalling, modelSupportsUploadedFile, getModelTiers, getModelReasoningConfig, normalizeReasoningEffort } = await import('../src/app/runtime/shell/model-registry.js');
-  const model = MODELS.find((entry) => entry.id === 'minimax/minimax-m3.1-flash:free');
+  const model = MODELS.find((entry) => entry.id === 'minimax/minimax-m3.1-flash');
   assert.ok(model);
-  assert.deepEqual([model.provider, model.category, getModelTiers(model)], ['openrouter', 'general', ['free']]);
+  assert.deepEqual([model.provider, model.category, getModelTiers(model)], ['openrouter', 'general', ['paid']]);
+  // The free version left OpenRouter's list: a conversation that names it goes to this one.
+  assert.equal(MODELS.some((entry) => entry.id === 'minimax/minimax-m3.1-flash:free'), false);
+  assert.equal((await import('../src/app/runtime/shell/model-registry.js')).getCanonicalModelId('minimax/minimax-m3.1-flash:free'), 'minimax/minimax-m3.1-flash');
   assert.ok(modelSupportsVision(model) && modelSupportsToolCalling(model));
   for (const mimeType of ['image/png', 'video/mp4', 'application/pdf']) assert.equal(modelSupportsUploadedFile(model, { mimeType }), true, mimeType);
   const reasoning = getModelReasoningConfig(model);

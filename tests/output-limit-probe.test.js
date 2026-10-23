@@ -22,7 +22,7 @@ const endless = (chunk) => {
 test('the models asked are the text models of the three providers and the forms of OpenCode that are sent no limit; an id of the app or of the provider picks them', () => {
   const by = (providers) => modelsToAsk({ providers }).length;
   assert.equal(by(['gemini']), 3);
-  assert.equal(by(['nvidia']), 5);
+  assert.equal(by(['nvidia']), 6);
   assert.equal(by(['openrouter']), 29, 'the picture models are not asked');
   const opencode = modelsToAsk({ providers: ['opencode'] });
   assert.ok(opencode.length > 15 && opencode.every((row) => ['chat', 'responses'].includes(row.form)));
