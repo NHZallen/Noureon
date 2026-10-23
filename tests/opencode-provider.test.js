@@ -91,7 +91,7 @@ test('a request to OpenCode: the form of the model, our path, the key and the se
   const messages = buildOpencodeRequest({ ...common, format: 'messages' });
   assert.equal(messages.url, `${OPENCODE_CHAT_PATH}?format=messages`);
   assert.equal(messages.payload.system, 'Be kind.');
-  assert.equal(messages.payload.max_tokens, 16384);
+  assert.equal(messages.payload.max_tokens, 32768, 'a model whose limit is not known: twice the old default');
   assert.deepEqual(messages.payload.messages.map((entry) => entry.role), ['user', 'assistant', 'user']);
   assert.equal(JSON.stringify(messages.payload).includes('temperature'), false);
 
@@ -531,14 +531,24 @@ test('the OpenCode models are shown by their own names, without OpenCode in fron
   assert.equal(OPENCODE_GO_MODELS.find((entry) => entry.apiId === 'kimi-k3').name, 'Kimi K3');
 });
 
-test('Claude Haiku 5.5 gets room for its hidden thinking (128000, what the service takes), the other models of the Messages form the default of the app, and what is asked for is kept', () => {
+test('the Messages form must say how much may be written: the limit of a model whose limit is known, twice the old default (32768) for one whose limit is not, a number the person set kept but never above the limit; the other forms are sent none', () => {
   const common = {
     format: 'messages', modelId: 'x', apiKey: 'k', sessionId: 's', historyForApi: [], currentMessageForApi: { role: 'user', parts: [{ text: 'Hi' }] }, generationConfig: { maxTokens: null },
     systemInstruction: { parts: [{ text: 'Be kind.' }] }, modelSupportsVision: () => true, buildChatMessages: () => [], buildResponsesInput: () => []
   };
   assert.equal(buildOpencodeRequest({ ...common, modelInfo: { provider: 'opencode-go', id: 'claude-haiku-5-5' } }).payload.max_tokens, 128000);
-  assert.equal(buildOpencodeRequest({ ...common, modelInfo: { provider: 'opencode-go', id: 'minimax-m3' } }).payload.max_tokens, 16384);
-  assert.equal(buildOpencodeRequest({ ...common, modelInfo: { provider: 'opencode-go', id: 'claude-haiku-5-5' }, generationConfig: { maxTokens: 2000 } }).payload.max_tokens, 2000);
+  // What the service named when it was asked for far too much (the probe of 2026-10-23).
+  for (const [id, limit] of [['minimax-m3', 524288], ['minimax-m3.1-flash', 524288]]) assert.equal(buildOpencodeRequest({ ...common, modelInfo: { provider: 'opencode-go', id } }).payload.max_tokens, limit, id);
+  for (const id of ['qwen3.8-max', 'qwen3.8-flash', 'qwen3.7-plus']) assert.equal(buildOpencodeRequest({ ...common, modelInfo: { provider: 'opencode-go', id } }).payload.max_tokens, 32768, id);
+  const haiku = { provider: 'opencode-go', id: 'claude-haiku-5-5' };
+  assert.equal(buildOpencodeRequest({ ...common, modelInfo: haiku, generationConfig: { maxTokens: 2000 } }).payload.max_tokens, 2000);
+  assert.equal(buildOpencodeRequest({ ...common, modelInfo: haiku, generationConfig: { maxTokens: 999999 } }).payload.max_tokens, 128000, 'never above the limit of the model: the service refuses it');
+  assert.equal(buildOpencodeRequest({ ...common, modelInfo: { provider: 'opencode-go', id: 'qwen3.8-max' }, generationConfig: { maxTokens: 50000 } }).payload.max_tokens, 50000, 'no limit known: what the person set');
+  // The chat and responses forms say nothing unless the person set a number: the service decides.
+  for (const format of ['chat', 'responses']) {
+    const payload = buildOpencodeRequest({ ...common, format, modelInfo: { provider: 'opencode-go', id: 'kimi-k3' } }).payload;
+    assert.equal('max_tokens' in payload || 'max_output_tokens' in payload, false, format);
+  }
 });
 
 test('the thinking of Claude Haiku 5.5 comes as a summary (it sends none otherwise); no other model of the Messages form is sent the field', () => {

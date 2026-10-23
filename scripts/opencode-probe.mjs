@@ -442,15 +442,23 @@ export async function probeShown({ id, family, run, maxTokens = 3000 }) {
 export const MAXOUT_ASKED = 10_000_000;
 export const MAXOUT_LADDER = Object.freeze([1_000_000, 524_288, 262_144, 131_072, 65_536, 32_768, 16_384]);
 
-/** The limit a refusal names: the number after "> " in `max_tokens: N > LIMIT`, or the number said to be the maximum; null when it names none. */
+/** The context window a refusal names ("maximum context length is 262144 tokens", "context window of 1048576 tokens"): there the output and the input share it, so it is no limit of the output. */
+export function contextNamed(message) {
+  const match = String(message || '').match(/context (?:length|window)[^0-9]{0,40}(\d{4,8})/i);
+  return match ? Number(match[1]) : null;
+}
+
+/** The limit of the output that a refusal names, in the words the services use; null when it names none (and when it only names the context window). */
 export function limitNamed(message) {
   const text = String(message || '');
-  const compared = text.match(/(?:max_tokens|max_output_tokens|maxOutputTokens)[^0-9]{0,40}\d+\s*(?:>|exceeds?|is greater than|above)\s*(\d{3,8})/i);
-  if (compared) return Number(compared[1]);
+  // `[400]` is the status, a request id is not a limit: only a number after the words that say a limit counts, and the number that was asked never does.
   const numbers = [
-    ...text.matchAll(/(?:maximum|at most|up to|no more than|limited to|less than or equal to|<=)[^0-9]{0,60}(\d{3,8})/gi),
+    ...text.matchAll(/(?:max_tokens|max_output_tokens|maxOutputTokens)[^0-9]{0,40}\d+\s*(?:>|exceeds?|is greater than|above)\s*(\d{3,8})/gi),
+    ...text.matchAll(/(?:must not exceed|not less or equal to|less than or equal to|does not support max tokens >|valid range of max_tokens is \[\d+,|supports at most|at most|no more than|limited to|<=)\s*(\d{3,8})/gi),
+    ...text.matchAll(/(?:maximum|up to)[^0-9[]{0,60}(\d{3,8})/gi),
     ...text.matchAll(/(\d{3,8})[^0-9]{0,40}(?:is the maximum|maximum)/gi)
   ].map((match) => Number(match[1])).filter((number) => number < MAXOUT_ASKED);
+  if (contextNamed(text) && !/(?:max_tokens|max tokens|output tokens)[^.]{0,80}(?:exceed|support|valid range|not less)/i.test(text)) return null;
   return numbers.length ? numbers.at(-1) : null;
 }
 
@@ -463,18 +471,19 @@ export async function probeMaxOut({ id, family, run }) {
   const tried = [first];
   if (first.ok) return { cap: null, accepted: MAXOUT_ASKED, tried };
   const named = limitNamed(first.message);
+  const context = contextNamed(first.message);
   if (named) {
     // Said by the service: taken, to be sure it really is the limit.
     const check = await ask(named);
     tried.push(check);
-    return { cap: check.ok ? named : null, accepted: check.ok ? named : null, message: first.message, tried };
+    return { cap: check.ok ? named : null, accepted: check.ok ? named : null, ...(context ? { context } : {}), message: first.message, tried };
   }
   for (const limit of MAXOUT_LADDER) {
     const step = await ask(limit);
     tried.push(step);
-    if (step.ok) return { cap: null, accepted: limit, message: first.message, tried };
+    if (step.ok) return { cap: null, accepted: limit, ...(context ? { context } : {}), message: first.message, tried };
   }
-  return { cap: null, accepted: null, message: first.message, tried };
+  return { cap: null, accepted: null, ...(context ? { context } : {}), message: first.message, tried };
 }
 
 /** The tests of one model. `run(body, options)` sends and gives the result of `send`. */

@@ -33,7 +33,8 @@ const cutInThinking = [
 test('the request of the probe is the request of the app: adaptive thinking with the depth, the limit of the app, the tool and the guidance of Advanced mode', () => {
   const plain = buildProbeRequest({ effort: 'max', maxTokens: null, prompt: 'Hi' });
   assert.equal(plain.max_tokens, 128000, 'what the app sends for Claude Haiku 5.5 when nothing says otherwise: the limit of the service (its thinking counts: up to 47320 tokens at the deepest depth, and 65536 was used up in some requests)');
-  assert.equal(buildProbeRequest({ model: 'minimax-m3', prompt: 'Hi' }).max_tokens, 16384, 'the default of the app for the models that were not probed');
+  assert.equal(buildProbeRequest({ model: 'qwen3.8-max', prompt: 'Hi' }).max_tokens, 32768, 'the default of the app for a model whose limit is not known');
+  assert.equal(buildProbeRequest({ model: 'minimax-m3', prompt: 'Hi' }).max_tokens, 524288, 'the limit the service named for MiniMax M3');
   assert.deepEqual(plain.thinking, { type: 'adaptive', display: 'summarized' }, 'the app asks for the summary of the thinking: this model sends none otherwise');
   assert.deepEqual(buildProbeRequest({ effort: 'max', prompt: 'Hi', display: 'off' }).thinking, { type: 'adaptive' }, "`off` is the request as it was before, to compare");
   assert.deepEqual(plain.output_config, { effort: 'max' });

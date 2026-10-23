@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 
-import { MODELS, OFFICE_FILES, THINKING, askedThinkingFields, buildBody, limitNamed, main, modelsNamed, newModels, parseEvents, probeMaxOut, probeModel, probeShown, probeToolLoop, readAnswer, send, summarizeStream, thinkingOfStream } from '../scripts/opencode-probe.mjs';
+import { MODELS, OFFICE_FILES, THINKING, askedThinkingFields, buildBody, contextNamed, limitNamed, main, modelsNamed, newModels, parseEvents, probeMaxOut, probeModel, probeShown, probeToolLoop, readAnswer, send, summarizeStream, thinkingOfStream } from '../scripts/opencode-probe.mjs';
 
 const KEY = 'oc_sk_very-secret-key-for-the-test';
 const reply = (status, body) => ({ status, text: async () => (typeof body === 'string' ? body : JSON.stringify(body)) });
@@ -449,4 +449,25 @@ test('the limit of a reply is read from what the service says when it is asked f
   // Nothing taken: said.
   const none = await probeMaxOut({ id: 'x', family: 'chat', run: runWith(() => ({ ok: false, status: 500, message: 'down' })) });
   assert.deepEqual([none.cap, none.accepted], [null, null]);
+});
+
+test('every refusal the service gave in the probe of 2026-10-23 is read right: its limit when it names one, never the status or a request id, and the context window is not a limit', () => {
+  const real = [
+    ['Upstream request failed: [400] Validation: Max tokens must not exceed 1048576, got 10000000', 1048576],
+    ['Upstream request failed: [invalid_value] Validation: Max tokens must not exceed 1048576, got 10000000', 1048576],
+    ['Upstream request failed: [invalid_parameter] : /max_tokens: 10000000 is not less or equal to 131072', 131072],
+    ['Upstream request failed: [invalid_request_error] Invalid max_tokens value, the valid range of max_tokens is [1, 393216] (request_id: fafd6508-d850-4c45-baf6-10cddc4993a3)', 393216],
+    ['Upstream request failed: [invalid_request_error] invalid params, model[MiniMax-M3] does not support max tokens > 524288 (2013)', 524288],
+    ['Upstream request failed: [invalid_request_error] max_tokens: 10000000 > 128000, which is the maximum allowed number of output tokens for claude-haiku-5-5', 128000],
+    ["Upstream request failed: [400] This endpoint's maximum context length is 262144 tokens. However, you requested about 262152 tokens (8 of text input, 262144 in the output). Please reduce the length of either one", null],
+    ["The input (172 tokens) plus the requested output (10000000 tokens) exceeds the model's context window of 1048576 tokens. Reduce the input or the maximum output tokens.", null],
+    ['Upstream request failed: [400] Param Incorrect', null],
+    ['Upstream request failed: Invalid request parameters. Please check your input and try again.', null],
+    ['{"model":"qwen3.7-plus"}', null],
+    ['Upstream request failed: [400] Unsupported model mimo-v2.5-pro', null]
+  ];
+  for (const [message, limit] of real) assert.equal(limitNamed(message), limit, message.slice(0, 70));
+  assert.equal(contextNamed(real[6][0]), 262144);
+  assert.equal(contextNamed(real[7][0]), 1048576);
+  assert.equal(contextNamed(real[0][0]), null);
 });
