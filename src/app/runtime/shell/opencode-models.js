@@ -22,9 +22,7 @@ const ROWS = [
   ['glm-5.3-flash', 'GLM-5.3 Flash', 'z-ai', 'chat', true, DESC.go],
   ['glm-5.2', 'GLM-5.2', 'z-ai', 'chat', false, DESC.go],
   ['deepseek-v4-pro', 'DeepSeek V4 Pro', 'deepseek', 'chat', false, DESC.go],
-  ['deepseek-v4-flash', 'DeepSeek V4 Flash', 'deepseek', 'chat', false, DESC.go],
   ['deepseek-v4.1-flash', 'DeepSeek V4.1 Flash', 'deepseek', 'chat', true, DESC.go],
-  ['deepseek-v4-flash-vision-exp', 'DeepSeek V4 Flash Vision Exp', 'deepseek', 'chat', true, DESC.go],
   ['mimo-v2.6-pro', 'MiMo V2.6 Pro', 'xiaomi', 'chat', true, DESC.go],
   ['mimo-v2.6-flash', 'MiMo V2.6 Flash', 'xiaomi', 'chat', true, DESC.go],
   ['mimo-v2.5-pro', 'MiMo V2.5 Pro', 'xiaomi', 'chat', false, DESC.go],
@@ -32,17 +30,14 @@ const ROWS = [
   ['longcat-2.0', 'LongCat 2.0', 'meituan', 'chat', false, DESC.go],
   ['hy4-preview', 'Hy4 Preview', 'tencent', 'chat', false, DESC.go],
   ['hy3', 'Hy3', 'tencent', 'chat', false, DESC.go],
-  ['space-bunny', 'Space Bunny', 'opencode', 'chat', true, DESC.hiddenGo, null, true],
   ['longcat-2.5-preview-free', 'LongCat 2.5 Preview', 'meituan', 'chat', true, DESC.free, 'free'],
-  ['step-5-preview-free', 'Step 5 Preview', 'stepfun', 'chat', true, DESC.free, 'free'],
+  ['step-5-preview', 'Step 5 Preview', 'stepfun', 'chat', true, DESC.go],
   // The probe of 2026-10-20 (scripts/opencode-probe.mjs, the owner ran it): the ids were guessed right. MiniMax M3.1 Flash speaks the Messages form, sees pictures, reads a PDF (and the pictures in it).
   // Beam is text only (a picture is refused: "Beam supports text input only"; a file part is refused too) and a test model (the owner, 2026-10-20): hidden, with the window the first time it is chosen,
   // like Cat Jam. Neither has a price: they are free for a time.
-  ['minimax-m3.1-flash-free', 'MiniMax M3.1 Flash', 'minimax', 'messages', true, DESC.free, 'free'],
+  ['minimax-m3.1-flash', 'MiniMax M3.1 Flash', 'minimax', 'messages', true, DESC.go],
   ['beam-free', 'Beam', 'opencode', 'chat', false, DESC.hidden, 'free', true],
-  ['cat-jam-free', 'Cat Jam', 'opencode', 'chat', false, DESC.hidden, 'free', true],
   ['grok-4.7', 'Grok 4.7', 'x-ai', 'responses', true, DESC.go30],
-  ['grok-4.6', 'Grok 4.6', 'x-ai', 'responses', true, DESC.go30],
   ['gpt-6-luna', 'GPT-6 Luna', 'openai', 'responses', true, DESC.go30],
   ['gpt-5.6-luna', 'GPT-5.6 Luna', 'openai', 'responses', true, DESC.go30],
   ['muse-spark-1.3-contributor', 'Muse Spark 1.3 Contributor', 'meta', 'responses', true, DESC.muse],
@@ -50,7 +45,6 @@ const ROWS = [
   ['gemini-4-argon-contributor', 'Gemini 4 Argon Contributor', 'google', 'gemini', true, DESC.argon],
   ['claude-haiku-5-5', 'Claude Haiku 5.5', 'anthropic', 'messages', true, DESC.go30],
   ['minimax-m3', 'MiniMax M3', 'minimax', 'messages', true, DESC.go],
-  ['minimax-m2.7', 'MiniMax M2.7', 'minimax', 'messages', false, DESC.go],
   ['qwen3.8-max', 'Qwen3.8 Max', 'qwen', 'messages', true, DESC.go],
   ['qwen3.8-flash', 'Qwen3.8 Flash', 'qwen', 'messages', true, DESC.go],
   ['qwen3.7-plus', 'Qwen3.7 Plus', 'qwen', 'messages', true, DESC.go]
@@ -59,8 +53,19 @@ const ROWS = [
 // The day the models were put in the list (the order of the menu is by day, then name: no price per token is known, the limit is the one of the plan).
 const ADDED_AT = 20261013;
 
+// The list is the one OpenCode shows on its page of limits (the owner's screenshots of 2026-10-23: 29 models). A model that left it, or took another id, is still
+// known by its old id: a conversation or a choice that names it goes to the model that replaces it (Space Bunny and Cat Jam had none).
+const LEGACY_API_IDS = {
+  'deepseek-v4.1-flash': ['deepseek-v4-flash', 'deepseek-v4-flash-vision-exp'],
+  'grok-4.7': ['grok-4.6'],
+  'minimax-m3': ['minimax-m2.7'],
+  'minimax-m3.1-flash': ['minimax-m3.1-flash-free'],
+  'step-5-preview': ['step-5-preview-free']
+};
+
 export const OPENCODE_GO_MODELS = Object.freeze(ROWS.map(([apiId, name, company, format, vision, descriptionKey, tier, hidden]) => Object.freeze({
   id: `${OPENCODE_GO_PROVIDER}/${apiId}`,
+  ...(LEGACY_API_IDS[apiId] ? { legacyIds: LEGACY_API_IDS[apiId].map((legacy) => `${OPENCODE_GO_PROVIDER}/${legacy}`) } : {}),
   apiId,
   // Shown by its own name, without "OpenCode" in front (the owner's choice, 2026-10-16): the picker says the provider on its own.
   name,
@@ -90,17 +95,17 @@ const VISION_IDS = new Set(OPENCODE_GO_MODELS.filter((model) => model.opencodeVi
 // "file must have a file_id or file_data", now "I can't open the file", Step 5's endpoint now and then unavailable): they are not trusted with a PDF, and a file is translated for them.
 const PDF_API_IDS = new Set([
   'hy4-preview', 'hy3',
-  'grok-4.7', 'grok-4.6', 'gpt-6-luna', 'gpt-5.6-luna',
+  'grok-4.7', 'gpt-6-luna', 'gpt-5.6-luna',
   'muse-spark-1.3-contributor', 'muse-spark-1.2-contributor', 'gemini-4-argon-contributor',
-  'claude-haiku-5-5', 'minimax-m3', 'minimax-m2.7', 'qwen3.8-max', 'qwen3.8-flash', 'qwen3.7-plus',
+  'claude-haiku-5-5', 'minimax-m3', 'qwen3.8-max', 'qwen3.8-flash', 'qwen3.7-plus',
   // The probe of 2026-10-20: a one-page PDF answered MANGO, and the word written in a picture of a PDF answered BANANA.
-  'minimax-m3.1-flash-free'
+  'minimax-m3.1-flash'
 ]);
 
 // The models that also read a Word (.docx) and a PowerPoint (.pptx) file as they are (the probe of 2026-10-14, test `office`: both files, each with "The secret word
 // is MANGO.", were sent in the form of each model's API; these answered MANGO to both). Every other model of the PDF list refused the file (400) or took it and
 // did not read it, so a Word or PowerPoint file is translated for them as before. Only these two kinds were tried.
-const OFFICE_API_IDS = new Set(['grok-4.7', 'grok-4.6', 'gpt-6-luna', 'gpt-5.6-luna', 'gemini-4-argon-contributor']);
+const OFFICE_API_IDS = new Set(['grok-4.7', 'gpt-6-luna', 'gpt-5.6-luna', 'gemini-4-argon-contributor']);
 const OFFICE_MIME_TYPES = new Set([
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   'application/vnd.openxmlformats-officedocument.presentationml.presentation'
@@ -110,8 +115,9 @@ export const isOpencodeModel = (model) => Boolean(model && model.provider === OP
 
 // How much a model may write in one reply, where the app has to say (the Messages form wants `max_tokens`); a model not here gets the app's own default
 // (opencode-request.js). The probe of 2026-10-23 (scripts/opencode-claude-probe.mjs): Claude Haiku 5.5 takes up to 128000, and its thinking is not shown but
-// counts: at the deepest depth it wrote 10739 to 47320 tokens before its first call, so 16384 ended the reply at `max_tokens` with nothing written.
-const MAX_OUTPUT_TOKENS = { 'claude-haiku-5-5': 65536 };
+// counts: at the deepest depth it wrote 10739 to 47320 tokens before its first call, so 16384 ended the reply at `max_tokens` with nothing written, and 65536 did too
+// in some of the requests for a deck (the probe of 2026-10-23, 276 to 285 seconds). The owner chose the limit of the service (2026-10-23); the other models get theirs from the test `maxout`.
+const MAX_OUTPUT_TOKENS = { 'claude-haiku-5-5': 128000 };
 export const opencodeMaxOutputTokens = (model) => (isOpencodeModel(model) ? MAX_OUTPUT_TOKENS[BY_ID.get(model.id)?.apiId] || null : null);
 /** The form of API of a model of OpenCode (`chat`, `responses` or `messages`), from this list and not from what the page says; '' for any other model. */
 export const opencodeFormatOf = (model) => (isOpencodeModel(model) ? BY_ID.get(model.id)?.opencodeFormat || '' : '');
@@ -120,7 +126,7 @@ export const opencodeModelReadsPdf = (model) => isOpencodeModel(model) && PDF_AP
 // they also look at the pictures in it (the probe of 2026-10-14, test `pdfimage`: a word written in a picture of the PDF was read). Hy4 Preview, MiniMax M2.7 and Qwen3.7 Plus
 // did not (or not reliably), so their files are read by the app (the text and the pictures) instead.
 // MiniMax M3.1 Flash (2026-10-20) reads the PDF and the picture in it, and did not read a Word or PowerPoint file as it is ("Unreadable"); the test `converted` was not run for it.
-const OFFICE_VIA_PDF_API_IDS = new Set(['hy3', 'muse-spark-1.3-contributor', 'muse-spark-1.2-contributor', 'claude-haiku-5-5', 'minimax-m3', 'minimax-m3.1-flash-free', 'qwen3.8-max', 'qwen3.8-flash']);
+const OFFICE_VIA_PDF_API_IDS = new Set(['hy3', 'muse-spark-1.3-contributor', 'muse-spark-1.2-contributor', 'claude-haiku-5-5', 'minimax-m3', 'minimax-m3.1-flash', 'qwen3.8-max', 'qwen3.8-flash']);
 export const opencodeModelReadsOfficeViaPdf = (model, mimeType) => isOpencodeModel(model) && OFFICE_MIME_TYPES.has(mimeType) && OFFICE_VIA_PDF_API_IDS.has(BY_ID.get(model.id)?.apiId);
 
 /** True when the model reads a file of this type as it is: a PDF (the list above), or a Word or PowerPoint file (the shorter list). */
@@ -145,21 +151,17 @@ const THINKING = {
   'glm-5.3': ['effort', ['low', 'high', 'max'], 'high'],
   'glm-5.2': ['effort', ['low', 'high', 'max'], 'high'],
   'deepseek-v4-pro': ['effort', ['none', 'low', 'high', 'max'], 'high'],
-  'deepseek-v4-flash': ['effort', ['none', 'low', 'high', 'max'], 'high'],
   'deepseek-v4.1-flash': ['effort', ['none', 'low', 'high', 'max'], 'high'],
-  'deepseek-v4-flash-vision-exp': ['effort', ['none', 'low', 'high', 'max'], 'high'],
   'mimo-v2.6-pro': ['effort', ['none', 'high'], 'high'],
   'mimo-v2.6-flash': ['effort', ['none', 'high'], 'high'],
   'mimo-v2.5-pro': ['effort', ['none', 'high'], 'high'],
   'mimo-v2.5': ['effort', ['none', 'high'], 'high'],
   'hy4-preview': ['effort', ['low', 'medium', 'high', 'max'], 'high'],
   'hy3': ['effort', ['none', 'high'], 'high'],
-  'step-5-preview-free': ['effort', ['low', 'medium', 'high', 'max'], 'high'],
-  'cat-jam-free': ['effort', ['low', 'medium', 'high', 'xhigh', 'max'], 'high'],
+  'step-5-preview': ['effort', ['low', 'medium', 'high', 'max'], 'high'],
   'longcat-2.0': ['toggle', ['none', 'high'], 'high'],
   'longcat-2.5-preview-free': ['toggle', ['none', 'high'], 'high'],
   'grok-4.7': ['responses', ['low', 'medium', 'high', 'xhigh'], 'high'],
-  'grok-4.6': ['responses', ['low', 'medium', 'high', 'xhigh'], 'high'],
   'gpt-6-luna': ['responses', ['none', 'low', 'medium', 'high', 'xhigh', 'max'], 'medium'],
   'gpt-5.6-luna': ['responses', ['none', 'low', 'medium', 'high', 'xhigh', 'max'], 'medium'],
   'muse-spark-1.3-contributor': ['responses', ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'], 'medium'],
@@ -169,7 +171,7 @@ const THINKING = {
   'claude-haiku-5-5': ['adaptive', ['low', 'medium', 'high', 'xhigh', 'max'], 'medium'],
   'minimax-m3': ['toggle', ['none', 'high'], 'high'],
   // The probe of 2026-10-20: the thinking cannot be turned off ("requires adaptive thinking; disabled is not allowed"); low to max are taken, as for Claude Haiku.
-  'minimax-m3.1-flash-free': ['adaptive', ['low', 'medium', 'high', 'xhigh', 'max'], 'medium'],
+  'minimax-m3.1-flash': ['adaptive', ['low', 'medium', 'high', 'xhigh', 'max'], 'medium'],
   // The probe of 2026-10-20: it always thinks (`reasoning_content`); `none` and `minimal` are refused (400), low to max are taken; `thinking` and `enable_thinking` are unknown to it.
   'beam-free': ['effort', ['low', 'medium', 'high', 'xhigh', 'max'], 'high'],
   'qwen3.8-max': ['adaptiveOrOff', ['none', 'low', 'medium', 'high', 'xhigh'], 'high'],

@@ -18,6 +18,7 @@
 //   Word and PowerPoint sent as they are, to the models that read a PDF: `--tests office --only <models>` (the answer holds MANGO when the file was read; "text" shows it)
 //   OPENCODE_GO_KEY=... node scripts/opencode-probe.mjs --tests shown                    which models give the text of their thinking (stream): by default, only when asked for it
 //                                                                          (a summary: `thinking.display`, `reasoning.summary`, `includeThoughts`), or not at all; a table at the end
+//   OPENCODE_GO_KEY=... node scripts/opencode-probe.mjs --tests maxout                   the most a model may write in one reply (`max_tokens`): asked for far too much, and what the service says is read
 //   --max-tokens 1500   a bigger limit for every request (for the models that think long before they answer)
 //   --out file.json   where the result is written (default opencode-probe-result.json)        --base <address>   another base address
 //
@@ -31,25 +32,21 @@ import { fileURLToPath } from 'node:url';
 import { OPENCODE_REASONING_CONFIGS, opencodeThinkingFields } from '../src/app/runtime/shell/opencode-models.js';
 
 export const BASE = 'https://opencode.ai/inference/go/v1';
-export const TESTS = Object.freeze(['basic', 'stream', 'tools', 'toolloop', 'params', 'effort', 'vision', 'document', 'office', 'converted', 'pdfimage', 'thinking', 'shown', 'auth', 'errors']);
+export const TESTS = Object.freeze(['basic', 'stream', 'tools', 'toolloop', 'params', 'effort', 'vision', 'document', 'office', 'converted', 'pdfimage', 'thinking', 'shown', 'maxout', 'auth', 'errors']);
 
-// From https://opencode.ai/docs/go/ (Endpoints), 2026-10-13: the model, the form of its API, and whether it is free.
-const chat = ['glm-5.3-flash', 'glm-5.3', 'glm-5.2', 'kimi-k3', 'kimi-k2.7-code', 'kimi-k2.6', 'longcat-2.0', 'deepseek-v4.1-flash', 'deepseek-v4-pro', 'deepseek-v4-flash', 'deepseek-v4-flash-vision-exp', 'mimo-v2.6-flash', 'mimo-v2.6-pro', 'mimo-v2.5', 'mimo-v2.5-pro', 'hy4-preview', 'hy3', 'space-bunny', 'longcat-2.5-preview-free', 'step-5-preview-free'];
-const responses = ['grok-4.7', 'grok-4.6', 'gpt-6-luna', 'gpt-5.6-luna', 'muse-spark-1.3-contributor', 'muse-spark-1.2-contributor'];
-const messages = ['claude-haiku-5-5', 'minimax-m3', 'minimax-m2.7', 'qwen3.8-max', 'qwen3.8-flash', 'qwen3.7-plus'];
+// The models of the app: the ones on the page of limits of OpenCode (the owner's screenshots of 2026-10-23, 29 models), each with the form of its API and whether it is free.
+// Another id is tried with `--model <id>` (`--new` lists what the service has that is not here).
+const chat = ['glm-5.3-flash', 'glm-5.3', 'glm-5.2', 'kimi-k3', 'kimi-k2.7-code', 'longcat-2.0', 'deepseek-v4.1-flash', 'deepseek-v4-pro', 'mimo-v2.6-pro', 'mimo-v2.6-flash', 'mimo-v2.5-pro', 'mimo-v2.5', 'hy4-preview', 'hy3', 'longcat-2.5-preview-free', 'step-5-preview', 'beam-free'];
+const responses = ['grok-4.7', 'gpt-6-luna', 'gpt-5.6-luna', 'muse-spark-1.3-contributor', 'muse-spark-1.2-contributor'];
+// `minimax-m3.1-flash` and `step-5-preview` are the ids of the models that were free before (`-free` ids that the service now refuses: 410 "deprecated", "Model is unavailable");
+// they are guessed from the page of limits, where they have a price and no "Free": the probe says whether the service knows them.
+const messages = ['claude-haiku-5-5', 'minimax-m3', 'minimax-m3.1-flash', 'qwen3.8-max', 'qwen3.8-flash', 'qwen3.7-plus'];
 export const MODELS = Object.freeze([
-  ...chat.map((id) => ({ id, family: 'chat', free: id.endsWith('-free') })),
+  ...chat.map((id) => ({ id, family: 'chat', free: id.endsWith('-free'), ...(id === 'step-5-preview' ? { guess: true } : {}) })),
   ...responses.map((id) => ({ id, family: 'responses', free: false })),
-  ...messages.map((id) => ({ id, family: 'messages', free: false })),
+  ...messages.map((id) => ({ id, family: 'messages', free: false, ...(id === 'minimax-m3.1-flash' ? { guess: true } : {}) })),
   // Google's own form (2026-10-14, told by the owner): only `models/<id>:generateContent` answers; the stream, the depths of thinking, documents and the key are what the probe finds out.
-  { id: 'gemini-4-argon-contributor', family: 'gemini', free: false },
-  // In the list of the service (2026-10-13) but not in the documents: the form of the API is a guess, and the probe tries the others when the guess is refused.
-  ...['deepseek-flash', 'glm-5.1', 'omen-alpha', 'cat-jam-free'].map((id) => ({ id, family: 'chat', free: id.endsWith('-free'), guess: true })),
-  ...['minimax-m2.5', 'qwen3.6-plus', 'qwen3.7-max'].map((id) => ({ id, family: 'messages', free: false, guess: true })),
-  // Told by the owner on 2026-10-20 ("MiniMax M3.1 Flash Free", "Beam Free"): the ids are guessed from the names of the others (a free model ends in `-free`, MiniMax's are of the
-  // Messages form) and may be spelt otherwise: `--new` shows what the service really lists, `--model <id>` tries any id.
-  { id: 'minimax-m3.1-flash-free', family: 'messages', free: true, guess: true },
-  { id: 'beam-free', family: 'chat', free: true, guess: true }
+  { id: 'gemini-4-argon-contributor', family: 'gemini', free: false }
 ]);
 
 const PATH = { chat: '/chat/completions', responses: '/responses', messages: '/messages' };
@@ -439,6 +436,47 @@ export async function probeShown({ id, family, run, maxTokens = 3000 }) {
   return { default: byDefault, asked, verdict };
 }
 
+// How much a reply may write at most: asked for far more than any model takes (the tiny question costs a few tokens whatever the limit), the service names its own
+// limit in the refusal ("max_tokens: 131072 > 128000, which is the maximum allowed number of output tokens for ..."). A service that does not name it is asked with
+// smaller numbers until one is taken; one that takes the huge number has no limit that it tells (`accepted`).
+export const MAXOUT_ASKED = 10_000_000;
+export const MAXOUT_LADDER = Object.freeze([1_000_000, 524_288, 262_144, 131_072, 65_536, 32_768, 16_384]);
+
+/** The limit a refusal names: the number after "> " in `max_tokens: N > LIMIT`, or the number said to be the maximum; null when it names none. */
+export function limitNamed(message) {
+  const text = String(message || '');
+  const compared = text.match(/(?:max_tokens|max_output_tokens|maxOutputTokens)[^0-9]{0,40}\d+\s*(?:>|exceeds?|is greater than|above)\s*(\d{3,8})/i);
+  if (compared) return Number(compared[1]);
+  const numbers = [
+    ...text.matchAll(/(?:maximum|at most|up to|no more than|limited to|less than or equal to|<=)[^0-9]{0,60}(\d{3,8})/gi),
+    ...text.matchAll(/(\d{3,8})[^0-9]{0,40}(?:is the maximum|maximum)/gi)
+  ].map((match) => Number(match[1])).filter((number) => number < MAXOUT_ASKED);
+  return numbers.length ? numbers.at(-1) : null;
+}
+
+export async function probeMaxOut({ id, family, run }) {
+  const ask = async (limit) => {
+    const result = await run(family, buildBody(family, id, 'basic', { extra: { max_tokens: limit } }), {});
+    return result.ok ? { limit, ok: true, status: result.status } : { limit, ok: false, status: result.status, message: result.message };
+  };
+  const first = await ask(MAXOUT_ASKED);
+  const tried = [first];
+  if (first.ok) return { cap: null, accepted: MAXOUT_ASKED, tried };
+  const named = limitNamed(first.message);
+  if (named) {
+    // Said by the service: taken, to be sure it really is the limit.
+    const check = await ask(named);
+    tried.push(check);
+    return { cap: check.ok ? named : null, accepted: check.ok ? named : null, message: first.message, tried };
+  }
+  for (const limit of MAXOUT_LADDER) {
+    const step = await ask(limit);
+    tried.push(step);
+    if (step.ok) return { cap: null, accepted: limit, message: first.message, tried };
+  }
+  return { cap: null, accepted: null, message: first.message, tried };
+}
+
 /** The tests of one model. `run(body, options)` sends and gives the result of `send`. */
 export async function probeModel({ model, tests = TESTS, run, key = '' }) {
   const { id } = model;
@@ -511,6 +549,7 @@ export async function probeModel({ model, tests = TESTS, run, key = '' }) {
     for (const kind of Object.keys(OFFICE_FILES)) result.office[kind] = await one(kind, { extra: { max_tokens: 200 } });
   }
   if (tests.includes('shown')) result.shown = await probeShown({ id, family, run });
+  if (tests.includes('maxout')) result.maxout = await probeMaxOut({ id, family, run });
   if (tests.includes('thinking')) {
     result.thinking = {};
     for (const [name, extra] of THINKING[family]) result.thinking[name] = await one('basic', { extra });
@@ -652,6 +691,10 @@ export async function main(args = process.argv.slice(2), env = process.env, out 
   }
   if (tests.includes('errors')) report.errors = await probeErrors({ run, key });
   keep();
+  if (tests.includes('maxout')) {
+    out.log('\nThe most a reply may write (max_tokens):');
+    for (const model of report.models) if (model.maxout) out.log(`${model.id.padEnd(30)} ${model.family.padEnd(10)} ${model.maxout.cap ? `limit ${model.maxout.cap}` : model.maxout.accepted ? `takes ${model.maxout.accepted}, names no limit` : `none taken: ${String(model.maxout.message || '').slice(0, 80)}`}`);
+  }
   if (tests.includes('shown')) {
     out.log('\nWho gives the text of the thinking (stream):');
     for (const model of report.models) if (model.shown) out.log(`${model.id.padEnd(30)} ${model.family.padEnd(10)} ${model.shown.verdict.padEnd(20)} default ${String(model.shown.default.chars ?? model.shown.default.message ?? '').slice(0, 40).padEnd(8)} asked ${model.shown.asked ? String(model.shown.asked.chars ?? model.shown.asked.message ?? '').slice(0, 60) : '-'}`);
