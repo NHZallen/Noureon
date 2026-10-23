@@ -310,15 +310,6 @@ export function createSandboxLedger({ document, host, before = null, language = 
     step.row.finish(ok ? 'done' : 'failed');
   };
 
-  // What the model says before a run, in ordinary text between the step lines (the saved reply draws it the same way).
-  const addNarration = ({ text: said }) => {
-    if (!String(said || '').trim()) return;
-    // Said while the model was quiet, it arrives whole: it unfolds instead of appearing at once.
-    const block = create('div', 'sandbox-run-narration is-arriving');
-    fillThinkingText(document, block, String(said).trim());
-    list.list.append(block);
-  };
-
   // A web search that runs before the model: a row in progress, which becomes the finished, folded row that opens
   // to the pages it found (or goes, if it found none).
   const startSearch = ({ label }) => {
@@ -380,9 +371,7 @@ export function createSandboxLedger({ document, host, before = null, language = 
           line.node.classList.remove('is-quiet');
         }
       }
-      if (event.type === 'narration') {
-        addNarration(event);
-      } else if (event.type === 'skill') {
+      if (event.type === 'skill') {
         // The model loads a skill: a row of its own, over when the next thing begins.
         begin(event.label, { kind: 'skill' });
       } else if (event.type === 'connector') {

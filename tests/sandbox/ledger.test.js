@@ -127,22 +127,6 @@ test('the code of a step sits in a card with the language and a copy button, liv
   window.happyDOM.abort();
 });
 
-test('what the model says before a run appears between the step lines, in ordinary text', () => {
-  const { window, document, message } = setup();
-  const list = createSandboxLedger({ document, host: message, language: 'en' });
-  list.event({ type: 'round', label: 'Thinking…', doneLabel: 'Finished thinking' });
-  list.event({ type: 'thinking', text: 'Let me work it out.' });
-  list.event({ type: 'narration', text: "First I'll **check** the folder." });
-  list.event({ type: 'narration', text: '   ' });
-  list.event({ type: 'step', n: 1, title: 'Look', code: 'import os' });
-  const children = [...message.querySelector('.ledger-list').children];
-  assert.deepEqual(children.map((node) => (node.classList.contains('sandbox-run-narration') ? 'narration' : 'row')), ['row', 'narration', 'row'], 'between the thinking line and the run');
-  assert.equal(children[1].textContent, "First I'll check the folder.");
-  assert.equal(children[1].querySelector('strong').textContent, 'check');
-  list.remove();
-  window.happyDOM.abort();
-});
-
 test('a search that runs first is a row in progress that becomes the finished row of pages, or goes if it found none', () => {
   const { window, document, message } = setup();
   const list = createSandboxLedger({ document, host: message, language: 'en' });
@@ -284,7 +268,6 @@ test('every search and page of a reply adds to one row of sites, and the rows of
   const list = createSandboxLedger({ document, host: message, language: 'en' });
   list.event({ type: 'searching', label: 'Searching: a' });
   list.event({ type: 'sources', sources: [{ title: 'A', url: 'https://a.example/1' }, { title: 'B', url: 'https://b.example/1' }] });
-  list.event({ type: 'narration', text: 'Now the page.' });
   list.event({ type: 'searching', label: 'Reading page: a.example' });
   assert.equal(message.querySelectorAll('.ledger-row').length, 2, 'the call that is running has its row for now');
   list.event({ type: 'sources', sources: [{ title: 'A', url: 'https://a.example/1', read: true }] });
@@ -431,14 +414,12 @@ test('removing a ledger with a summary stops every clock it started, the one of 
   window.happyDOM.abort();
 });
 
-test('the line names what the model is doing once it says it is writing, and what it said while quiet unfolds', () => {
+test('the line names what the model is doing once it says it is writing', () => {
   const { document, message } = setup();
   const list = createSandboxLedger({ document, host: message, language: 'en' });
   list.event({ type: 'round', label: 'Thinking…', doneLabel: 'Finished thinking' });
   list.event({ type: 'writing', label: 'Writing the code…' });
   assert.match(message.querySelector('.ledger-label').textContent, /Writing the code…/, 'the one line says it');
-  list.event({ type: 'narration', text: 'I will make the deck now.' });
-  assert.ok(message.querySelector('.sandbox-run-narration').classList.contains('is-arriving'));
   list.remove();
 });
 

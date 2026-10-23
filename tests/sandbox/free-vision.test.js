@@ -63,7 +63,7 @@ test('the fix request lists the problems and names the file', () => {
 test('the reply reports the problems found, in every language, and nothing the model said', () => {
   const result = { issues: [{ slide: 3, category: 'layout', problem: 'Crowded.', fix: 'Split.' }], summary: 'One slide was crowded.' };
   for (const language of ['zh-TW', 'en', 'fr', 'ru', 'es']) {
-    const text = buildFreeVisionResult({ result, language, checkedSlides: 24, totalSlides: 30, answer: 'Redone.', narration: 'I will look first.' });
+    const text = buildFreeVisionResult({ result, language, checkedSlides: 24, totalSlides: 30, answer: 'Redone.' });
     assert.ok(text.startsWith(visionText(language, 'freeHeading', { found: 1 })), language);
     assert.ok(text.includes(`${visionText(language, 'slide', { number: 3 })}`), language);
     assert.ok(text.includes(visionText(language, 'partial', { count: 24 })), language);

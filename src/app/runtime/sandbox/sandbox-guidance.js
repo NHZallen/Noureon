@@ -1,7 +1,6 @@
 // What the model is told in Advanced mode, and the one tool it gets.
 // Loaded only for Advanced mode replies.
 
-import { NOTE_PARAMETER } from '../features/tool-call-formats.js';
 
 export const RUN_PYTHON_TOOL = Object.freeze({
   name: 'run_python',
@@ -9,7 +8,6 @@ export const RUN_PYTHON_TOOL = Object.freeze({
   parameters: Object.freeze({
     type: 'object',
     properties: {
-      note: NOTE_PARAMETER,
       title: { type: 'string', description: 'What this step does, in one short sentence in the language of your reply.' },
       code: { type: 'string', description: 'The Python code to run.' }
     },
@@ -31,7 +29,6 @@ export const RUN_COMMAND_TOOL = Object.freeze({
   parameters: Object.freeze({
     type: 'object',
     properties: {
-      note: NOTE_PARAMETER,
       title: { type: 'string', description: 'What this step does, in one short sentence in the language of your reply.' },
       command: { type: 'string', description: 'The command line to run.' },
       timeout_seconds: { type: 'number', description: 'How long the command may run, in seconds: 60 when left out, at most 120.' }
@@ -47,7 +44,6 @@ export const REQUEST_CREDENTIALS_TOOL = Object.freeze({
   parameters: Object.freeze({
     type: 'object',
     properties: {
-      note: NOTE_PARAMETER,
       tool: { type: 'string', description: 'The id of the CLI tool, as in the instructions (for example "twitter-cli").' }
     },
     required: ['tool']
@@ -152,7 +148,7 @@ When to use it:
 - Use Python for the files above, calculations, data analysis, reading or transforming the user's files, and charts the user asked for. Do not run code for ordinary conversation, writing or questions you can answer directly.
 - Plain text files (Markdown, CSV, code, JSON) can still be written directly as \`\`\`\`file blocks.
 - Print short summaries (for example df.head() or totals), not whole datasets.
-- Say what a run_python call is for in its \`note\` argument: one short sentence in the language of your reply (for example "First I'll check what is in the folder."). The user sees it between the steps. Never write text before or between calls, not even one sentence ("First I'll look it up…"): any text you write is shown as your final answer at once, so when you need a tool, call it straight away and say what it is for only in \`note\`; write text only when you are answering.
+- Never write text before or between calls, not even one sentence ("First I'll look it up…"): any text you write is shown as your final answer at once, so when you need a tool, call it straight away; write text only when you are answering.
 - If a run fails, read the error, fix the code and try again; do not repeat the same code. You can run code at most ${MAX_RUNS_PER_REPLY} times per reply.
 
 In your answer, explain the results in words. Do not paste the code you ran: the user can open the run log above your answer. Refer to files you created by their names. A file appears under your answer as a card by itself: never write a marker such as "[File: name]" for it (that form only stands for a file in summaries of earlier conversations).`;

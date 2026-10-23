@@ -58,7 +58,7 @@ function scripted({ plan = PLAN, onRequest = () => {}, searchesPerItem = 1, fail
       const item = /<- you are researching this one now/.test(text) ? /(\d)\. ([^\\<]+?) +<- you are researching/.exec(text)?.[2] || 'item' : 'item';
       const rounds = itemRounds.get(item) || 0;
       itemRounds.set(item, rounds + 1);
-      if (rounds < searchesPerItem) return streamResponse(sse(toolCall(`call_${item}_${rounds}`, 'web_search', { query: `${item} ${rounds}`, note: `Looking up ${item}.` })));
+      if (rounds < searchesPerItem) return streamResponse(sse(toolCall(`call_${item}_${rounds}`, 'web_search', { query: `${item} ${rounds}` })));
       return streamResponse(sse(content(`Notes for ${item}: a finding [${searchNumber}].`)));
     }
     if (kind === 'outline') return streamResponse(sse(content('SECTION: Overview\nSECTION: Players')));
@@ -156,7 +156,7 @@ test('a research is planned, waits out its countdown, searches each item, and wr
   assert.deepEqual(report.sources.map((source) => [source.n, source.url]), [[1, 'https://site1.example/page']]);
   assert.deepEqual(report.toc.map((entry) => entry.text), ['Solid-state battery research', 'Executive summary', 'Overview', 'Players']);
   assert.ok(report.activity.some((entry) => entry.type === 'searching'));
-  assert.ok(report.activity.some((entry) => entry.type === 'narration' && /Looking up/.test(entry.text)));
+  assert.equal(report.activity.some((entry) => entry.type === 'narration'), false, 'no narration is told');
   assert.deepEqual(report.items.map((item) => item.text), ['How the cells work', 'Who builds them', 'Cost and timeline']);
   assert.doesNotMatch(JSON.stringify(parts), new RegExp(KEY));
 });

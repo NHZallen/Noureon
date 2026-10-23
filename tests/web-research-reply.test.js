@@ -26,8 +26,8 @@ function scriptedModel(rounds) {
   return { streamApiCall, requests };
 }
 
-const search = (id, query, topic, note) => ({ id, name: 'web_search', args: { ...(note ? { note } : {}), query, ...(topic ? { topic } : {}) } });
-const open = (id, url, note) => ({ id, name: 'open_page', args: { ...(note ? { note } : {}), url } });
+const search = (id, query, topic) => ({ id, name: 'web_search', args: { query, ...(topic ? { topic } : {}) } });
+const open = (id, url) => ({ id, name: 'open_page', args: { url } });
 
 const tools = ({ results, pages } = {}) => {
   const searches = [];
@@ -69,7 +69,7 @@ const run = (model, helper, extra = {}) => {
 
 test('the model searches, opens a page and answers, each call a row and the sources reported', async () => {
   const model = scriptedModel([
-    { calls: [search('1', 'a/b releases', undefined, 'Let me look.')] },
+    { calls: [search('1', 'a/b releases')] },
     { text: '', calls: [open('2', 'https://github.com/a/b/releases')] },
     { text: 'v2.0 is the latest.' }
   ]);
@@ -79,12 +79,11 @@ test('the model searches, opens a page and answers, each call a row and the sour
   assert.equal(result.calls, 2);
   assert.deepEqual(helper.searches.map((entry) => [entry.query, entry.topic]), [['a/b releases', 'general']]);
   assert.deepEqual(helper.opened, ['https://github.com/a/b/releases']);
-  assert.deepEqual(result.events.map((event) => event.type), ['narration', 'searching', 'sources', 'searching', 'sources', 'answering', 'answered']);
-  assert.equal(result.events[0].text, 'Let me look.', 'what the model says about a call is its note, shown between the rows, not in the answer');
-  assert.equal(result.events[1].label, 'Searching: a/b releases');
-  assert.equal(result.events[3].label, 'Reading page: github.com');
-  assert.deepEqual(result.events[2].sources, [{ title: 'Releases', url: 'https://github.com/a/b/releases', n: 1, snippet: 'v2.0' }], 'a result is numbered, with the start of its text');
-  assert.deepEqual(result.events[4].sources, [{ title: 'Releases', url: 'https://github.com/a/b/releases', n: 1, snippet: 'v2.0', read: true }], 'the page that was found and then read keeps its number');
+  assert.deepEqual(result.events.map((event) => event.type), ['searching', 'sources', 'searching', 'sources', 'answering', 'answered']);
+  assert.equal(result.events[0].label, 'Searching: a/b releases');
+  assert.equal(result.events[2].label, 'Reading page: github.com');
+  assert.deepEqual(result.events[1].sources, [{ title: 'Releases', url: 'https://github.com/a/b/releases', n: 1, snippet: 'v2.0' }], 'a result is numbered, with the start of its text');
+  assert.deepEqual(result.events[3].sources, [{ title: 'Releases', url: 'https://github.com/a/b/releases', n: 1, snippet: 'v2.0', read: true }], 'the page that was found and then read keeps its number');
   assert.equal(result.found.length, 2);
   assert.deepEqual(model.requests.map((request) => request.turns), [0, 1, 2]);
   assert.deepEqual(model.requests[0].tools.map((tool) => tool.name), ['web_search', 'open_page', 'find_in_page']);
@@ -109,26 +108,9 @@ test('the words of a round are the answer and show as they come, even when a cal
   const model = scriptedModel([{ chunks: ['I will ', 'look it up.'], text: 'I will look it up.', calls: [search('1', 'q')] }, { text: 'tail' }]);
   const result = await run(model, tools());
   assert.deepEqual(result.chunks, ['I will ', 'look it up.', '\n\ntail'], 'nothing is held back to find out whether it was an announcement');
-  assert.equal(result.events.some((event) => event.type === 'narration'), false, 'a call without a note has no narration');
+  assert.equal(result.events.some((event) => event.type === 'narration'), false, 'no narration is told');
   assert.equal(result.text, 'I will look it up.\n\ntail');
   assert.equal(result.events.filter((event) => event.type === 'answering').length, 2, 'each round that writes tells the step list the answer began');
-});
-
-test('a note is told once, as soon as it is complete, and a short answer streams without waiting for the round to end', async () => {
-  const model = scriptedModel([
-    { argumentChunks: ['{"note":"Checking the rel', '{"note":"Checking the releases.","que', '{"note":"Checking the releases.","query":"q"}'], calls: [search('1', 'q', undefined, 'Checking the releases.')] },
-    { chunks: ['Short ', 'answer.'], text: 'Short answer.' }
-  ]);
-  const told = [];
-  const original = model.streamApiCall;
-  const events = [];
-  const result = await runWebResearchReply({
-    streamApiCall: (parts, onChunk, signal, forced, options) => original(parts, onChunk, signal, forced, { ...options, onToolArguments: (value) => { options.onToolArguments(value); told.push(events.filter((event) => event.type === 'narration').length); } }),
-    requestParts: [{ text: 'q' }], searchWeb: tools().searchWeb, openPage: tools().openPage, language: 'en', today: '2026-10-01', onEvent: (event) => events.push(event)
-  });
-  assert.deepEqual(told, [0, 1, 1]);
-  assert.equal(events.filter((event) => event.type === 'narration').length, 1);
-  assert.equal(result.text, 'Short answer.');
 });
 
 test('a search or a page that fails is told to the model, which goes on', async () => {

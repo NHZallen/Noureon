@@ -176,15 +176,6 @@ export function partialJsonString(raw = '', key = 'code', { complete = false } =
   return complete && !closed ? '' : out;
 }
 
-/**
- * The `note` every tool takes: what the model says to the user about the step it is taking, in one sentence. It travels
- * in the call, not as text before it, so any text the model writes is the answer and can be shown as it comes.
- */
-export const NOTE_PARAMETER = Object.freeze({
-  type: 'string',
-  description: 'One short sentence to the user, in the language of your reply: what this step is for and why (for example "First I\'ll check what is in the folder."). It is shown between the steps. Put it here; never write text before the call: the first words you write are your final answer.'
-});
-
 // Collects one Gemini streamed response: its visible text, every part (to
 // send back unchanged) and its function calls. `onReasoning(text)` hears the
 // model's thought summaries and `onToolArguments({ name, arguments })` its

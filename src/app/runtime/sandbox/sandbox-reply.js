@@ -7,7 +7,7 @@ import { MAX_RUNS_PER_REPLY, MAX_RUNS_WITH_CLI, RUN_COMMAND_TOOL, RUN_PYTHON_TOO
 import { loaderStepEvent, sandboxText } from './sandbox-texts.js';
 import { RUN_STATUS } from '../../ui/sandbox/sandbox-run-block.js';
 import { partialJsonString } from '../features/tool-call-formats.js';
-import { RESEARCH_TOOLS, createNotes, createResearchCalls, researchGuidance } from '../features/web-research-reply.js';
+import { RESEARCH_TOOLS, createResearchCalls, researchGuidance } from '../features/web-research-reply.js';
 import { loaderInstruction } from '../../../data/skill-tool.js';
 import { keepToolResult } from '../../../data/tool-result.js';
 
@@ -143,7 +143,6 @@ export async function runSandboxReply({
     if (!chunk) return;
     deliver(chunk);
   };
-  const notes = createNotes(onEvent);
   const useCli = host === 'server' && cliTools.length > 0;
   const maxRuns = useCli ? MAX_RUNS_WITH_CLI : MAX_RUNS_PER_REPLY;
   // What the programs of the tools need in the environment of a command.
@@ -275,7 +274,6 @@ export async function runSandboxReply({
     deliver.continuing = false;
     roundTextStart = text.length;
     roundMayCall = canCall;
-    notes.reset();
     thought = '';
     thoughtStartedAt = null;
     thoughtEndedAt = null;
@@ -316,8 +314,6 @@ export async function runSandboxReply({
       },
       onToolArguments: ({ name, arguments: raw }) => {
         if (!isRunTool(name) && !research?.handles(name)) return;
-        // What the model says about the step is in its note: shown between the rows as soon as it is written.
-        notes.fromArguments(raw);
         if (isRunTool(name)) {
           stopWatching();
           codeStarted = true;
@@ -409,8 +405,7 @@ export async function runSandboxReply({
         continue;
       }
       if (!isRunTool(call.name)) {
-        // A search or a page: what the model says about it is shown between the rows.
-        notes.fromCall(call);
+        // A search or a page.
         try {
           reply(await research.run(call));
         } catch (error) {
@@ -433,13 +428,6 @@ export async function runSandboxReply({
       const title = typeof call.args?.title === 'string' ? call.args.title.trim() : '';
       const step = { title, code, ...(isCommand ? { command: true } : {}), stdout: '', stderr: '', files: [], elapsedMs: 0, ...(roundThought ? { thought: roundThought } : {}) };
       roundThought = '';
-      // "I'll check the environment first": the note of the call, shown between the steps as the run begins (when it was not
-      // already shown while the code was written) and kept with the step.
-      const said = String(call.args?.note || '').replace(/\s+/g, ' ').trim();
-      if (said) {
-        step.narration = said;
-        notes.fromCall(call);
-      }
       run.steps.push(step);
       currentStep = run.steps.length;
       onEvent({ type: 'step', n: currentStep, title, code, ...(isCommand ? { command: true } : {}) });
@@ -526,6 +514,6 @@ export async function runSandboxReply({
     }
   }
   run.elapsedMs = Date.now() - startedAt;
-  // `narration`: what the model said before its runs; `answer`: what it said in the last round (the whole text is the two together).
-  return { text, narration: text.slice(0, roundTextStart).trim(), answer: text.slice(roundTextStart).trim(), rounds, run: run.steps.length || run.fallback || run.thought ? run : null };
+  // `answer`: what the model said in the last round (the whole text also holds what it said before its runs, if it said any).
+  return { text, answer: text.slice(roundTextStart).trim(), rounds, run: run.steps.length || run.fallback || run.thought ? run : null };
 }

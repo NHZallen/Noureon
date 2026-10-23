@@ -25,7 +25,6 @@ const STORED_CODE_CHARS = 100_000;
 export const MAX_STEPS = 60;
 const STORED_THOUGHT_CHARS = 6000;
 // What the model said before a run ("I'll check the environment first"), shown between the steps.
-const STORED_NARRATION_CHARS = 2000;
 // (A council's members may meet many pages, all cited by number.)
 const MAX_SOURCES = 100;
 // The connectors a reply used: their names, one row each.
@@ -44,7 +43,6 @@ const cleanStep = (step = {}) => {
   return {
     title: String(step.title || '').slice(0, 200),
     ...(step.thought ? { thought: clip(step.thought, STORED_THOUGHT_CHARS).text } : {}),
-    ...(String(step.narration || '').trim() ? { narration: clip(String(step.narration).trim(), STORED_NARRATION_CHARS).text } : {}),
     code: clip(step.code, STORED_CODE_CHARS).text,
     // A command line of a CLI tool, not Python.
     ...(step.command ? { command: true } : {}),
