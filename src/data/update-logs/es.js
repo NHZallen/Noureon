@@ -1,6 +1,14 @@
 // The update notes in Spanish (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.17.0": [
+    "<strong>Notas de la versión de Noureon 18.17.0</strong>",
+    "Esta versión muestra el texto del resultado de la revisión visual automática a medida que el modelo lo escribe, y suaviza los cambios en pantalla mientras corre una respuesta y cuando termina.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Resultado de la revisión visual mostrado en directo:</strong> cuando se rehace una presentación, los problemas encontrados aparecen en el chat línea por línea mientras el modelo los escribe, en lugar de esperar a que termine toda la respuesta. Un lector que está al final del chat es seguido hacia abajo; desplazarse hacia arriba evita que el chat vuelva a tirar de él. El título ya no indica el número de problemas.</li><li><strong>Una tarjeta esqueleto donde irá el archivo:</strong> mientras se crea la presentación, el lugar del archivo muestra un esqueleto del tamaño de la tarjeta del archivo (con el paso actual como texto), y la tarjeta del archivo ocupa su lugar en el mismo sitio, de modo que el mensaje ya no se vuelve a dibujar.</li><li><strong>Panel de proceso:</strong> el panel se pliega en cuanto aparece la primera palabra de la respuesta (también uno que abriste tú); durante una revisión visual, el texto del razonamiento ya no se abre ni se pliega solo; una ronda sin razonamiento ya no muestra una fila «razonamiento terminado» que no se puede abrir.</li><li><strong>Narración eliminada:</strong> el modelo ya no da una «narración» por cada llamada a una herramienta, y no se muestra texto de narración entre los pasos; se le indica que no escriba texto antes de una llamada. Las narraciones guardadas en chats antiguos ya no se muestran.</li><li><strong>Final de una respuesta:</strong> la fila de botones de abajo aparece con un fundido y la burbuja crece gradualmente en lugar de saltar.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "El evento en directo result de la revisión visual ahora se envía varias veces mientras el modelo escribe su respuesta, y cada uno sustituye al anterior; una página que aún no se ha actualizado muestra solo el primer fragmento de texto hasta que se escribe el mensaje de resultado, y entonces el mensaje completo. La base de datos real recibió una función actualizada (un mensaje que escribe el servidor ahora actualiza su conversación, para avisar a las demás pestañas); no se añadieron tablas ni columnas."
+  ],
   "18.16.1": [
     "<strong>Notas de la versión de Noureon 18.16.1</strong>",
     "Esta versión corrige tres problemas pequeños y refuerza las comprobaciones de seguridad de las respuestas de los modelos.",

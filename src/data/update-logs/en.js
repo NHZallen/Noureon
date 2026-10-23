@@ -1,6 +1,14 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.17.0": [
+    "<strong>Noureon 18.17.0 Release Notes</strong>",
+    "This version shows the result text of the automatic visual check as the model writes it, and smooths the changes on screen while a reply runs and when it ends.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Visual check result shown as it is written:</strong> when a presentation is redone, the problems found appear in the chat one line at a time as the model writes them, instead of after the whole answer is done. A reader at the bottom of the chat is followed down; scrolling up stops it from pulling the chat back. The heading no longer states the number of problems.</li><li><strong>A card skeleton where the file will be:</strong> while the presentation is being made, the file's place shows a skeleton the size of the file card (with the current step as text), and the file card takes its place in the same spot, so the message is no longer drawn again.</li><li><strong>Process panel:</strong> the panel folds as soon as the first word of the answer appears (also one you opened yourself); during a visual check the thinking text no longer opens or folds by itself; a round without any thinking no longer shows a \"finished thinking\" row that cannot be opened.</li><li><strong>Narration removed:</strong> the model no longer gives a \"narration\" for each tool call, and no narration text is shown between the steps; the model is told to write no text before a call. Narration saved in older chats is no longer shown.</li><li><strong>End of a reply:</strong> the row of buttons below fades in and the bubble grows gradually instead of jumping.</li></ul>",
+    "<strong>Compatibility</strong>",
+    "The server's live event result of the visual check is now sent repeatedly while the model writes its answer, each replacing the one before; a page that is not updated yet shows only the first piece of text until the result message is written, and then the whole message. The real database got an updated database function (a message the server writes now updates its conversation, so other tabs are told); no tables or columns were added."
+  ],
   "18.16.1": [
     "<strong>Noureon 18.16.1 Release Notes</strong>",
     "This version fixes three small problems and tightens the safety checks on model answers.",
