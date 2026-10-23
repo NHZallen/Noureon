@@ -14,6 +14,7 @@
 //   node scripts/thinking-shown-probe.mjs --dry-run
 //   OPENROUTER_API_KEY=... NVIDIA_API_KEY=... GEMINI_API_KEY=... node scripts/thinking-shown-probe.mjs
 //   node scripts/thinking-shown-probe.mjs --provider openrouter --only openai/gpt-6-luna,anthropic/claude-haiku-5.5      --out file.json   (default thinking-shown-probe-result.json)
+//   --prompt "..."   another question (a model that does not think about an easy one, such as Claude Sonnet, says "none": ask it something that needs thinking)
 
 import { writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -50,8 +51,8 @@ export function variantsFor(row) {
 }
 
 /** One request, read until enough thinking has come or the answer is there. */
-export async function askOnce({ fetchImpl = fetch, row, variant, key }) {
-  const request = buildRequest({ provider: row.provider, apiId: row.apiId, form: variant.form, key, prompt: PROMPT });
+export async function askOnce({ fetchImpl = fetch, row, variant, key, prompt = PROMPT }) {
+  const request = buildRequest({ provider: row.provider, apiId: row.apiId, form: variant.form, key, prompt });
   const body = { ...request.body, ...variant.extra };
   const state = { visibleChars: 0, reasoningChars: 0, finish: '', tokens: null };
   const controller = new AbortController();
@@ -86,7 +87,7 @@ export function verdictOf(results) {
   return 'error';
 }
 
-export async function runProbe({ fetchImpl = fetch, env = {}, providers = PROVIDERS, only = [], log = () => {}, delayMs = 800 }) {
+export async function runProbe({ fetchImpl = fetch, env = {}, providers = PROVIDERS, only = [], prompt = PROMPT, log = () => {}, delayMs = 800 }) {
   const result = { when: new Date().toISOString(), rows: [], skipped: [] };
   for (const row of modelsToAsk({ providers, only })) {
     const key = String(env[KEY_NAMES[row.provider]] || '').trim();
@@ -97,7 +98,7 @@ export async function runProbe({ fetchImpl = fetch, env = {}, providers = PROVID
     const results = [];
     for (const variant of variantsFor(row)) {
       await new Promise((resolve) => setTimeout(resolve, delayMs));
-      results.push({ name: variant.name, ...(await askOnce({ fetchImpl, row, variant, key })) });
+      results.push({ name: variant.name, ...(await askOnce({ fetchImpl, row, variant, key, prompt })) });
     }
     const verdict = verdictOf(results);
     result.rows.push({ provider: row.provider, id: row.id, apiId: row.apiId, verdict, results });
@@ -117,7 +118,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
     console.log(`\n${rows.length} models; about ${rows.reduce((sum, row) => sum + variantsFor(row).length, 0)} small requests (each read until ${ENOUGH_CHARS} characters of thinking, a few tokens).`);
   } else {
     const out = option('--out') || 'thinking-shown-probe-result.json';
-    const result = await runProbe({ env: process.env, providers, only, log: (text) => console.log(text) });
+    const result = await runProbe({ env: process.env, providers, only, prompt: option('--prompt') || PROMPT, log: (text) => console.log(text) });
     writeFileSync(out, `${JSON.stringify(result, null, 2)}\n`);
     console.log(`\nThe result is in ${out} (no key in it).`);
   }

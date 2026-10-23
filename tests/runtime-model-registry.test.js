@@ -393,3 +393,15 @@ test('MiniMax M3.1 Flash (paid now, OpenRouter) is in the list with what the pro
   assert.equal(reasoning.options.includes('none'), false, 'OpenRouter refuses none: the reasoning is mandatory');
   assert.equal(normalizeReasoningEffort(model, 'none'), 'medium');
 });
+
+test('Kimi K3.1 Pro (OpenRouter) is in the list with what the probe of 2026-10-24 found: pictures, video and a PDF, tools, $2 and $10 per million, and a thinking that none turns off', async () => {
+  const { MODELS, modelSupportsVision, modelSupportsToolCalling, modelSupportsUploadedFile, getModelTiers, getModelReasoningConfig } = await import('../src/app/runtime/shell/model-registry.js');
+  const model = MODELS.find((entry) => entry.id === 'moonshotai/kimi-k3.1-pro');
+  assert.ok(model);
+  assert.deepEqual([model.provider, model.name, getModelTiers(model)], ['openrouter', 'Kimi K3.1 Pro', ['paid']]);
+  assert.ok(modelSupportsVision(model) && modelSupportsToolCalling(model));
+  for (const mimeType of ['image/png', 'video/mp4', 'application/pdf']) assert.equal(modelSupportsUploadedFile(model, { mimeType }), true, mimeType);
+  const reasoning = getModelReasoningConfig(model);
+  assert.deepEqual([reasoning.options, reasoning.defaultEffort], [['none', 'low', 'medium', 'high', 'xhigh', 'max'], 'high']);
+  assert.equal(MODELS.some((entry) => entry.id === 'moonshotai/kimi-k3'), true, 'Kimi K3 stays');
+});

@@ -38,6 +38,7 @@ const MODEL_RELEASE_METADATA = Object.freeze({
     // The free version is gone (the owner, 2026-10-24: OpenRouter lists only the paid one, 524288 tokens of output): its price is not known here, so none is given.
     'minimax/minimax-m3.1-flash': { releasedAt: 20261020 },
     'moonshotai/kimi-k3': { releasedAt: 20260716, outputPricePerMillion: 15 },
+    'moonshotai/kimi-k3.1-pro': { releasedAt: 20261024, outputPricePerMillion: 10 },
     'poolside/laguna-s-2.1:free': { releasedAt: 20260721, outputPricePerMillion: 0 },
     'nvidia/nemotron-3-super-120b-a12b:free': { releasedAt: 20260311, outputPricePerMillion: 0 },
     'nvidia/nemotron-3-ultra-550b-a55b:free': { releasedAt: 20260604, outputPricePerMillion: 0 },
@@ -134,6 +135,8 @@ export const MODEL_CATALOG = [
 
     // OpenRouter Paid Models (MoonshotAI)
     { id: 'moonshotai/kimi-k3', name: 'Kimi K3', provider: 'openrouter', descriptionKey: 'model_kimi_k3_desc', category: 'coding' },
+    // Tried with a real key on 2026-10-24 (scripts/nvidia-probe.mjs --openrouter): pictures, video, a PDF (and the picture in it) and tools are taken; it sees 1048576 tokens and says its thinking by itself.
+    { id: 'moonshotai/kimi-k3.1-pro', name: 'Kimi K3.1 Pro', provider: 'openrouter', descriptionKey: 'model_kimi_k3_1_pro_desc', category: 'coding' },
 
     // OpenRouter Free Models (Minimax)
     { id: 'minimax/minimax-m3.1-flash', legacyIds: ['minimax/minimax-m3.1-flash:free'], name: 'Minimax M3.1 Flash', provider: 'openrouter', descriptionKey: 'model_minimax_m3_1_flash_desc', category: 'general' },
@@ -207,6 +210,7 @@ export const OPENROUTER_VISION_MODELS = [
     // Tried with a real key on 2026-10-20 (scripts/nvidia-probe.mjs --openrouter): a picture and a video are read.
     'minimax/minimax-m3.1-flash',
     'moonshotai/kimi-k3',
+    'moonshotai/kimi-k3.1-pro',
     'nvidia/nemotron-3.5-super-vl:free',
     'openai/gpt-6-astra',
     'openai/gpt-6-luna',
@@ -252,6 +256,7 @@ export const TOOL_CALLING_MODEL_IDS = Object.freeze([
     // Tried with a real key on 2026-10-20: a call, and the answer after the result of the tool.
     'minimax/minimax-m3.1-flash',
     'moonshotai/kimi-k3',
+    'moonshotai/kimi-k3.1-pro',
     'poolside/laguna-s-2.1:free',
     'nvidia/nemotron-3-super-120b-a12b:free',
     'nvidia/nemotron-3-ultra-550b-a55b:free',
@@ -341,6 +346,8 @@ export const MODEL_REASONING_CONFIGS = Object.freeze({ ...createReasoningConfigs
     [OPENROUTER_REASONING_EFFORT, LOW_MEDIUM_HIGH, 'medium', ['stepfun/step-5-preview']],
     [OPENROUTER_REASONING_EFFORT, ['none', 'high'], 'high', ['xiaomi/mimo-v2.6-pro', 'xiaomi/mimo-v2.6-flash']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'high', 'max'], 'high', ['moonshotai/kimi-k3']],
+    // The probe of 2026-10-24: none turns the thinking off (0 tokens), low to max and xhigh are taken.
+    [OPENROUTER_REASONING_EFFORT, ['none', 'low', 'medium', 'high', 'xhigh', 'max'], 'high', ['moonshotai/kimi-k3.1-pro']],
     // MiniMax M3.1 Flash: the thinking is mandatory (`none` is refused: "Reasoning is mandatory for this endpoint"); low, medium, high, xhigh and max are taken (the probe of 2026-10-20).
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'medium', ['minimax/minimax-m3.1-flash']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh'], 'high', ['x-ai/grok-4.6']],

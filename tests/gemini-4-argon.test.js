@@ -24,7 +24,7 @@ test('Gemini 4 Argon replaces Gemini 3.1 Pro Preview, natively and on OpenRouter
   assert.deepEqual([native.provider, viaOpenRouter.provider], ['gemini', 'openrouter']);
   assert.equal(native.name, 'Gemini 4 Argon');
   assert.equal(viaOpenRouter.name, native.name, 'the same name: the row says where it comes from');
-  assert.equal(MODELS.some((model) => /3\.1-pro/.test(model.id)), false, 'the old model is gone from the list');
+  assert.equal(MODELS.some((model) => /gemini-3\.1-pro/.test(model.id)), false, 'the old model is gone from the list');
   for (const model of [native, viaOpenRouter]) {
     assert.equal(modelSupportsVision(model), true, `${model.id} takes pictures`);
     assert.equal(modelSupportsToolCalling(model), true, `${model.id} calls tools`);

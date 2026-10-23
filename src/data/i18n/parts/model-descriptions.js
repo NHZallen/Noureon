@@ -85,6 +85,7 @@ export default {
         model_glm_5_3_flash_desc_tier_paid: '百萬輸入/0.075$、百萬輸出/0.25$',
         model_deepseek_v4_1_flash_desc_tier_paid: '百萬輸入/0.10$、百萬輸出/0.50$',
         model_kimi_k3_desc_tier_paid: '百萬輸入/3$、百萬輸出/15$',
+        model_kimi_k3_1_pro_desc_tier_paid: '百萬輸入/2$、百萬輸出/10$',
     },
     en: {
         model_opencode_go_desc: 'Used through an OpenCode Go plan; usage follows the limits shown in the OpenCode Go console.',
@@ -171,6 +172,7 @@ export default {
         model_glm_5_3_flash_desc_tier_paid: '$0.075/M input, $0.25/M output',
         model_deepseek_v4_1_flash_desc_tier_paid: '$0.10/M input, $0.50/M output',
         model_kimi_k3_desc_tier_paid: '$3/M input, $15/M output',
+        model_kimi_k3_1_pro_desc_tier_paid: '$2/M input, $10/M output',
     },
     fr: {
         model_opencode_go_desc: 'Utilisé avec un forfait OpenCode Go ; l’utilisation suit les limites affichées dans la console OpenCode Go.',
@@ -257,6 +259,7 @@ export default {
         model_glm_5_3_flash_desc_tier_paid: '0,075 $/M entrée, 0,25 $/M sortie',
         model_deepseek_v4_1_flash_desc_tier_paid: '0,10 $/M entrée, 0,50 $/M sortie',
         model_kimi_k3_desc_tier_paid: '3 $/M entrée, 15 $/M sortie',
+        model_kimi_k3_1_pro_desc_tier_paid: '2 $/M entrée, 10 $/M sortie',
     },
     ru: {
         model_opencode_go_desc: 'Используется по подписке OpenCode Go; использование определяется лимитами в консоли OpenCode Go.',
@@ -343,6 +346,7 @@ export default {
         model_glm_5_3_flash_desc_tier_paid: 'Вход $0,075/млн, выход $0,25/млн',
         model_deepseek_v4_1_flash_desc_tier_paid: 'Вход $0,10/млн, выход $0,50/млн',
         model_kimi_k3_desc_tier_paid: 'Вход $3/млн, выход $15/млн',
+        model_kimi_k3_1_pro_desc_tier_paid: 'Вход $2/млн, выход $10/млн',
     },
     es: {
         model_opencode_go_desc: 'Se usa con un plan de OpenCode Go; el uso depende de los límites que muestra la consola de OpenCode Go.',
@@ -429,5 +433,6 @@ export default {
         model_glm_5_3_flash_desc_tier_paid: '$0.075/M de entrada, $0.25/M de salida',
         model_deepseek_v4_1_flash_desc_tier_paid: '$0.10/M de entrada, $0.50/M de salida',
         model_kimi_k3_desc_tier_paid: '$3/M de entrada, $15/M de salida',
+        model_kimi_k3_1_pro_desc_tier_paid: '$2/M de entrada, $10/M de salida',
     }
 };

@@ -62,3 +62,11 @@ test('a run asks each model in each way, leaves out a provider with no key, and 
   assert.equal(calls.filter((url) => url.endsWith('/responses')).length, 1);
   assert.doesNotMatch(JSON.stringify(result) + lines.join('\n'), new RegExp(KEY));
 });
+
+test('another question can be asked of every model', async () => {
+  const bodies = [];
+  const fetchImpl = async (url, init) => { bodies.push(init.body); return stream([answers('ok')]); };
+  await runProbe({ fetchImpl, env: { OPENROUTER_API_KEY: KEY }, providers: ['openrouter'], only: ['anthropic/claude-sonnet-5.5'], prompt: 'Prove that the square root of 2 is irrational.', delayMs: 0 });
+  assert.equal(bodies.length, 2);
+  assert.ok(bodies.every((body) => body.includes('square root of 2')));
+});
