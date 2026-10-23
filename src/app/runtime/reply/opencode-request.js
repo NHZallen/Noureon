@@ -9,7 +9,7 @@
 //
 // Shared by the page and the server: no window, no document, no browser storage.
 
-import { opencodeMaxOutputTokens, opencodeThinkingFields } from '../shell/opencode-models.js';
+import { opencodeMaxOutputTokens, opencodeSummaryFields, opencodeThinkingFields } from '../shell/opencode-models.js';
 import { buildAnthropicMessages } from './anthropic-messages-format.js';
 
 export const OPENCODE_CHAT_PATH = '/api/opencode-chat';
@@ -95,6 +95,8 @@ export function buildOpencodeRequest({
     };
   }
   // The depth of thinking, if the person (or the default of the model) asks for one.
-  if (reasoningEffort) Object.assign(payload, opencodeThinkingFields(modelInfo, reasoningEffort));
+  // (A depth that is none, or that the model does not take, gives no field: the summary is still asked for the models that give it only then.)
+  const depth = reasoningEffort ? opencodeThinkingFields(modelInfo, reasoningEffort) : {};
+  Object.assign(payload, Object.keys(depth).length || reasoningEffort === 'none' ? depth : opencodeSummaryFields(modelInfo));
   return { url: `${OPENCODE_CHAT_PATH}?format=${format === 'responses' || format === 'messages' ? format : 'chat'}`, payload, headers };
 }

@@ -194,7 +194,20 @@ export const OPENCODE_REASONING_CONFIGS = Object.freeze(Object.fromEntries(Objec
 // The models that give the text of their thinking only when asked: Claude Haiku 5.5 sends none at all unless `thinking.display` is `summarized` (the probe of
 // 2026-10-23: 0 characters of thinking without it, 648 to 2079 with it; the service takes the field, and a model that does not know it would be refused with a 400,
 // so it is sent only to the models listed here, each one probed).
-const SUMMARIZED_THINKING_API_IDS = new Set(['claude-haiku-5-5']);
+// MiniMax M3 is the same (the probe of 2026-10-23, test `shown`: no thinking text by default, 166 characters with it). The GPT Luna and Muse Spark models of the Responses form give no
+// summary unless `reasoning.summary` is `auto` (0 characters by default, 81 to 350 with it); Grok gives it by default, and the models of the chat form give their thinking by default.
+const SUMMARIZED_THINKING_API_IDS = new Set(['claude-haiku-5-5', 'minimax-m3']);
+const SUMMARY_AUTO_API_IDS = new Set(['gpt-6-luna', 'gpt-5.6-luna', 'muse-spark-1.3-contributor', 'muse-spark-1.2-contributor']);
+const apiIdOf = (model) => BY_ID.get(model?.id)?.apiId;
+
+/** What asks for the summary of the thinking when no depth of thinking is asked for (the model is then sent nothing else): nothing for a model that gives it by default. */
+export function opencodeSummaryFields(model) {
+  if (!isOpencodeModel(model)) return {};
+  const apiId = apiIdOf(model);
+  if (SUMMARIZED_THINKING_API_IDS.has(apiId)) return { thinking: { type: 'adaptive', display: 'summarized' } };
+  if (SUMMARY_AUTO_API_IDS.has(apiId)) return { reasoning: { summary: 'auto' } };
+  return {};
+}
 
 /** The fields to put in the request to say how deep the model is to think (an empty object: nothing, the model's own way). */
 export function opencodeThinkingFields(model, effort) {
@@ -202,10 +215,10 @@ export function opencodeThinkingFields(model, effort) {
   if (!row || !row.options.includes(effort)) return {};
   switch (row.style) {
     case 'effort': return { reasoning_effort: effort };
-    case 'toggle': return effort === 'none' ? { thinking: { type: 'disabled' } } : {};
-    case 'responses': return { reasoning: { effort } };
+    case 'toggle': return effort === 'none' ? { thinking: { type: 'disabled' } } : SUMMARIZED_THINKING_API_IDS.has(apiIdOf(model)) ? { thinking: { type: 'adaptive', display: 'summarized' } } : {};
+    case 'responses': return { reasoning: { effort, ...(SUMMARY_AUTO_API_IDS.has(apiIdOf(model)) && effort !== 'none' ? { summary: 'auto' } : {}) } };
     case 'gemini': return { generationConfig: { thinkingConfig: { thinkingLevel: effort } } };
-    case 'adaptive': return { thinking: { type: 'adaptive', ...(SUMMARIZED_THINKING_API_IDS.has(BY_ID.get(model.id)?.apiId) ? { display: 'summarized' } : {}) }, output_config: { effort } };
+    case 'adaptive': return { thinking: { type: 'adaptive', ...(SUMMARIZED_THINKING_API_IDS.has(apiIdOf(model)) ? { display: 'summarized' } : {}) }, output_config: { effort } };
     case 'adaptiveOrOff': return effort === 'none' ? { thinking: { type: 'disabled' } } : { thinking: { type: 'adaptive' }, output_config: { effort } };
     default: return {};
   }

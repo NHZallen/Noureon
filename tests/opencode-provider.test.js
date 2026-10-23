@@ -426,7 +426,7 @@ test('the depth of thinking of each model: the options of the slider, and the fi
   assert.deepEqual(fields('longcat-2.0', 'high'), {});
   assert.deepEqual(fields('minimax-m3', 'none'), { thinking: { type: 'disabled' } });
   assert.deepEqual(fields('grok-4.7', 'xhigh'), { reasoning: { effort: 'xhigh' } });
-  assert.deepEqual(fields('muse-spark-1.3-contributor', 'minimal'), { reasoning: { effort: 'minimal' } });
+  assert.deepEqual(fields('muse-spark-1.3-contributor', 'minimal'), { reasoning: { effort: 'minimal', summary: 'auto' } });
   assert.deepEqual(fields('gemini-4-argon-contributor', 'high'), { generationConfig: { thinkingConfig: { thinkingLevel: 'high' } } });
   assert.deepEqual(fields('gemini-4-argon-contributor', 'minimal'), {}, 'minimal is refused by the service');
   // The two of 2026-10-20: MiniMax M3.1 Flash is asked as Claude Haiku is (it cannot stop thinking); Beam takes the depths as `reasoning_effort`, never none or minimal.
@@ -562,4 +562,35 @@ test('the thinking of Claude Haiku 5.5 comes as a summary (it sends none otherwi
   for (const id of ['minimax-m3.1-flash', 'qwen3.8-max']) {
     assert.equal(buildOpencodeRequest({ ...common, modelInfo: { provider: 'opencode-go', id } }).payload.thinking.display, undefined, id);
   }
+});
+
+test('the summary of the thinking is asked for where the probe of 2026-10-23 found it comes only when asked: GPT Luna and Muse Spark (reasoning.summary), MiniMax M3 and Claude Haiku (thinking.display); not for the models that give it by themselves', () => {
+  const common = {
+    modelId: 'x', apiKey: 'k', sessionId: 's', historyForApi: [], currentMessageForApi: { role: 'user', parts: [{ text: 'Hi' }] }, generationConfig: { maxTokens: null },
+    systemInstruction: { parts: [{ text: 'Be kind.' }] }, modelSupportsVision: () => true, buildChatMessages: () => [], buildResponsesInput: () => []
+  };
+  const sent = (apiId, format, reasoningEffort) => buildOpencodeRequest({ ...common, format, reasoningEffort, modelInfo: { provider: 'opencode-go', id: apiId } }).payload;
+  for (const apiId of ['gpt-6-luna', 'gpt-5.6-luna', 'muse-spark-1.3-contributor']) {
+    assert.deepEqual(sent(apiId, 'responses', 'medium').reasoning, { effort: 'medium', summary: 'auto' }, apiId);
+    assert.deepEqual(sent(apiId, 'responses', null).reasoning, { summary: 'auto' }, `${apiId}: asked for even when no depth is`);
+  }
+  assert.deepEqual(sent('gpt-6-luna', 'responses', 'none').reasoning, { effort: 'none' }, 'no thinking, no summary to ask for');
+  assert.deepEqual(sent('grok-4.7', 'responses', 'high').reasoning, { effort: 'high' }, 'Grok gives it by default');
+  assert.deepEqual(sent('minimax-m3', 'messages', 'high').thinking, { type: 'adaptive', display: 'summarized' });
+  assert.deepEqual(sent('minimax-m3', 'messages', null).thinking, { type: 'adaptive', display: 'summarized' });
+  assert.deepEqual(sent('minimax-m3', 'messages', 'none').thinking, { type: 'disabled' }, 'turned off: nothing to ask for');
+  assert.deepEqual(sent('claude-haiku-5-5', 'messages', null).thinking, { type: 'adaptive', display: 'summarized' });
+  for (const apiId of ['kimi-k3', 'deepseek-v4.1-flash']) {
+    const payload = sent(apiId, 'chat', 'high');
+    assert.equal('thinking' in payload || 'reasoning' in payload, false, `${apiId}: the chat form gives its thinking by itself`);
+  }
+});
+
+test('MiniMax M3.1 Flash on NVIDIA: a call, pictures and video are taken, no setting of the depth (it cannot be turned off and the depth changes nothing), a PDF is not', () => {
+  const nvidia = MODELS.find((entry) => entry.id === 'nvidia/minimaxai/minimax-m3.1-flash');
+  assert.ok(nvidia && nvidia.provider === 'nvidia');
+  assert.equal(modelSupportsToolCalling(nvidia), true);
+  assert.equal(modelSupportsVision(nvidia), true);
+  assert.equal(getModelReasoningConfig(nvidia), null);
+  assert.equal(modelSupportsUploadedFile(nvidia, { mimeType: 'application/pdf' }), false);
 });

@@ -95,8 +95,8 @@ export const MODEL_CATALOG = [
     // Nemotron sees pictures and videos, Step 5 Preview pictures only; both call tools (the probe of 2026-10-16 with a real key, which also confirmed the api ids).
     { id: 'nvidia/nvidia/nemotron-3.5-super-vl-120b-a12b', apiId: 'nvidia/nemotron-3.5-super-vl-120b-a12b', name: 'NVIDIA Nemotron 3.5 Super VL', provider: 'nvidia', descriptionKey: 'model_nvidia_nemotron_3_5_super_vl_desc', tier: ['free'], category: 'general' },
     { id: 'nvidia/stepfun-ai/step-5-preview', apiId: 'stepfun-ai/step-5-preview', name: 'NVIDIA Step 5 Preview', provider: 'nvidia', descriptionKey: 'model_nvidia_step_5_preview_desc', tier: ['free'], category: 'general' },
-    // Asked for by the owner on 2026-10-24. The id at NVIDIA is a guess (`minimaxai/` is how NVIDIA names MiniMax); nothing else is known of it yet, so it is a text model with no tools,
-    // no pictures and no setting of its depth until `node scripts/nvidia-probe.mjs --model <id>` has been run for it (and it says the right id if this one is not listed).
+    // Asked for by the owner on 2026-10-24; the probe of the same day (scripts/nvidia-probe.mjs) found the id right: a call and the answer of the tool, pictures and video are read, a PDF as a file part is refused (400);
+    // the thinking cannot be turned off and its depth changes nothing (`reasoning_effort` and `enable_thinking` are taken and make no difference), so it has no setting of its depth.
     { id: 'nvidia/minimaxai/minimax-m3.1-flash', apiId: 'minimaxai/minimax-m3.1-flash', name: 'NVIDIA MiniMax M3.1 Flash', provider: 'nvidia', descriptionKey: 'model_nvidia_minimax_m3_1_flash_desc', tier: ['free'], category: 'general' },
 
     // OpenCode Go: the list is in opencode-models.js (the form of API of each model, pictures, tools).
@@ -227,7 +227,9 @@ export const NVIDIA_VISION_MODELS = [
     'deepseek-ai/deepseek-v4.1-flash',
     'z-ai/glm-5.3-flash',
     'nvidia/nemotron-3.5-super-vl-120b-a12b',
-    'stepfun-ai/step-5-preview'
+    'stepfun-ai/step-5-preview',
+    // The probe of 2026-10-24: a picture and a video are read (a PDF as a file part is refused: 400).
+    'minimaxai/minimax-m3.1-flash'
 ];
 // Models that can call tools, which Advanced mode (Python in the browser)
 // needs. OpenRouter's list was checked against the `tools` entry of
@@ -261,6 +263,8 @@ export const TOOL_CALLING_MODEL_IDS = Object.freeze([
     'nvidia/z-ai/glm-5.3',
     'nvidia/nvidia/nemotron-3.5-super-vl-120b-a12b',
     'nvidia/stepfun-ai/step-5-preview',
+    // The probe of 2026-10-24: a call, and the answer after the result of the tool.
+    'nvidia/minimaxai/minimax-m3.1-flash',
     'openai/gpt-6-astra',
     'openai/gpt-6-luna',
     'openai/gpt-5.6-terra',
@@ -278,7 +282,7 @@ export const TOOL_CALLING_MODEL_IDS = Object.freeze([
     ...OPENCODE_GO_MODEL_IDS
 ]);
 // Text models without tool calling (or not yet shown to have it).
-export const NON_TOOL_CALLING_MODEL_IDS = Object.freeze(['nvidia/minimaxai/minimax-m3.1-flash']);
+export const NON_TOOL_CALLING_MODEL_IDS = Object.freeze([]);
 export const GEMINI_DOCUMENT_MODELS = [
     'gemini-3.8-flash',
     'gemini-3.5-flash-lite',
