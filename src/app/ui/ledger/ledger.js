@@ -96,6 +96,7 @@ export function createLedger({ document, host, before = null }) {
       if (showBody !== bodyShown) {
         bodyShown = showBody;
         setCollapsed(content, showBody, { animate: painted });
+        if (!showBody && root.style.minWidth) window.setTimeout(() => { if (!bodyShown) root.style.minWidth = ''; }, 400);
         // Opened again, the thinking (or code) shows its newest end, not where it was left when it was folded.
         if (showBody && painted) jumpToEnd(content);
       }
@@ -129,6 +130,9 @@ export function createLedger({ document, host, before = null }) {
       },
       setLabel(value) {
         if (text.textContent === value) return;
+        // The list is as wide as its widest part, a label included: a shorter label would narrow it and wrap what is open (it grew taller
+        // from nothing). The width is kept while the body is open, and let go a moment after it has folded.
+        if (bodyShown) root.style.minWidth = `${root.offsetWidth}px`;
         text.textContent = value;
         softChange(text);
       },

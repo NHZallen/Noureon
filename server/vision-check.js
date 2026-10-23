@@ -55,6 +55,8 @@ export function remoteProgress(emit, { language }) {
     sheetReady: (event) => send('sheet', event),
     thinking: (chunk) => { if (chunk) send('think', chunk); },
     showIssues: (issues) => send('issues', issues),
+    // What the reply will say about the problems, known as soon as they are: the page types it in while the deck is redone.
+    result: (draft) => send('result', draft),
     setText: (line) => send('text', line),
     python: () => {
       const steps = createStepEvents({ send: (event) => send('py', event) });
@@ -137,12 +139,15 @@ export async function executeVisionCheck({
     };
     arm(REVIEW_TIMEOUT_MS);
     const progress = remoteProgress(emit, { language });
+    // The id of the reply that will carry this file (the first takes the one the run reserved), given out when the page is told what it will say.
+    let reserved = '';
+    const reserveMessageId = () => (reserved ||= written.length ? createId() : spec.assistantMessageId);
     try {
       const outcome = file.free
-        ? await checkFreeDeck({ file, spec, source, access, model, config, controller, language, progress, arm, userId, files, sandboxHost, decks, getKit, secrets })
+        ? await checkFreeDeck({ file, spec, source, access, model, config, controller, language, progress, arm, userId, files, sandboxHost, decks, getKit, secrets, reserveMessageId })
         : await checkDesignedDeck({ file, spec, access, model, language, controller, progress, arm, getKit, source });
       if (outcome.revised) {
-        const id = written.length ? createId() : spec.assistantMessageId;
+        const id = reserveMessageId();
         const { metadata } = outcome.revised;
         await writeMessage({ id, parts: outcome.revised.parts, metadata: source.messageId ? { ...metadata, visionCheck: { ...metadata.visionCheck, sourceMessageId: source.messageId } } : metadata });
         written.push(id);
@@ -237,7 +242,7 @@ async function checkDesignedDeck({ file, spec, access, model, language, controll
 
 // ------------------------------------------------------------ a deck Python drew
 
-async function checkFreeDeck({ file, spec, source, access, model, config, controller, language, progress, arm, userId, files, sandboxHost, decks, getKit, secrets }) {
+async function checkFreeDeck({ file, spec, source, access, model, config, controller, language, progress, arm, userId, files, sandboxHost, decks, getKit, secrets, reserveMessageId = () => '' }) {
   const [{ buildFreePresentation }, { renderContactSheets }, kit] = await Promise.all([import('./slides/free-deck.js'), import('./slides/render.js'), getKit()]);
   let bytes = decks.get(file.id);
   if (!bytes) {
@@ -261,6 +266,9 @@ async function checkFreeDeck({ file, spec, source, access, model, config, contro
   progress.set('fixing', { model: model.name || model.id });
   // Redoing the deck needs Python, which the person's conversation may not have (the page says: advanced) or the host may not answer: the deck stays as it is.
   if (!spec.tools.visionCheck.advanced || !sandboxHost?.configured) return { left: true, found: result.issues.length };
+  // The deck is going to be redone: what the reply says about the problems is known now, and is told at once, so the page can type it in
+  // while the work goes on (the reply with the deck is written when it is done, and takes the place of what was typed).
+  progress.result({ id: reserveMessageId(), text: buildFreeVisionResult({ result, language, checkedSlides: sheets.checkedSlides, totalSlides: sheets.totalSlides }) });
   arm(FIX_TIMEOUT_MS);
   const steps = progress.python(language);
   let fix;

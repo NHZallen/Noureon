@@ -535,3 +535,25 @@ test('once the answer is written the line says how long it thought, the sites it
     window.happyDOM.abort();
   }
 });
+
+test('when the words of the answer begin, the list folds into its line, also one the reader opened, and a tap opens it again', () => {
+  const { window, document, message } = setup();
+  const list = createSandboxLedger({ document, host: message, language: 'en', summary: true, open: true });
+  const head = () => message.querySelector('.ledger-row-head');
+  const body = () => message.querySelector('.ledger-row > .ledger-body');
+  list.event({ type: 'round', label: 'Thinking…', doneLabel: 'Thought' });
+  list.event({ type: 'step', n: 1, title: 'Sum', code: 'print(1)' });
+  assert.equal(head().getAttribute('aria-expanded'), 'true', 'the reader has it open');
+  head().click();
+  head().click();
+  assert.equal(head().getAttribute('aria-expanded'), 'true', 'opened by the reader');
+
+  list.event({ type: 'answering', more: true });
+  assert.equal(head().getAttribute('aria-expanded'), 'false', 'folded as the words begin, though more work may follow');
+  assert.equal(message.querySelector('.ledger-row-head .ledger-label').textContent.startsWith('Working'), true, 'the line goes on saying what is being done');
+  head().click();
+  assert.equal(head().getAttribute('aria-expanded'), 'true', 'a tap opens it again');
+  assert.equal(body().hidden, false);
+  list.remove();
+  window.happyDOM.abort();
+});

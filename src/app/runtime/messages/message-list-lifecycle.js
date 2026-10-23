@@ -1,8 +1,12 @@
 import { fadeOutPreviousChat } from '../../ui/motion/chat-switch-ghost.js';
-import { followTop, isReaderScrolling, setScrollTopQuietly } from '../../ui/motion/reader-scroll-guard.js';
+import { isReaderScrolling, setScrollTopQuietly } from '../../ui/motion/reader-scroll-guard.js';
+import { revealArrival } from '../../ui/motion/arrival-reveal.js';
 import { streamInMessage } from '../../ui/motion/stream-in.js';
 import { takeArrival } from './arriving-messages.js';
 import { loadImageWait } from '../../ui/image-wait/image-wait-markup.js';
+
+// How far above the bottom of the chat the newest words are kept while a message is typed in (the message box lies over its end).
+const FOLLOW_MARGIN_PX = 160;
 
 export function createMessageListLifecycle({
     document,
@@ -140,9 +144,53 @@ export function createMessageListLifecycle({
         });
     };
 
+    // Types the words of a message in below what is on the page, the chat following them down unless the reader has scrolled up.
+    const typeIn = (element, { revealFiles = true } = {}) => {
+        const chat = elements.chatContainer;
+        const reducedMotion = Boolean(document.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches);
+        return streamInMessage(element, {
+            requestFrame: scheduleFrame,
+            reducedMotion,
+            revealFiles,
+            // Follows the words down by their own bottom edge (not the end of the chat: room that is kept below them would be scrolled into), unless the
+            // reader is scrolling or has moved away from them.
+            follow: (typed) => {
+                if (isReaderScrolling(chat)) return;
+                const view = chat.getBoundingClientRect();
+                const box = typed.getBoundingClientRect();
+                if (box.top > view.bottom) return;
+                const over = box.bottom - (view.bottom - FOLLOW_MARGIN_PX);
+                if (over > 0) setScrollTopQuietly(chat, chat.scrollTop + over);
+            }
+        });
+    };
+    const draftOf = (id) => (id ? [...elements.messageList.children].find(element => element.dataset?.arrivalDraft === id) || null : null);
+
+    // The reply the server is making (the visual check's), whose words are known before its deck is: typed in below the chat at once, with a grey
+    // card where the deck will be. It is not one of the conversation's messages (no index): the message that comes in the end takes its place, and
+    // when the check ends some other way it goes (arriving-messages.js, appendMissingMessages, discardResultDraft).
+    const showResultDraft = ({ conversationId, id, text, label }) => {
+        const conversation = getActiveConversation();
+        if (!id || !text || !conversation || conversation.id !== conversationId || draftOf(id)) return;
+        const drawn = [...elements.messageList.children].filter(element => element.dataset?.messageIndex !== undefined);
+        if (drawn.length !== (conversation.messages || []).length) return;
+        const element = addMessageToUI({ id, role: 'model', parts: [{ text }], createdAt: new Date().toISOString() }, drawn.length, false, false, { conversation });
+        delete element.dataset.messageIndex;
+        element.dataset.arrivalDraft = id;
+        const placeholder = document.createElement('div');
+        placeholder.className = 'ac-file-card file-skeleton';
+        placeholder.textContent = label || '';
+        element.querySelector('.message-content')?.append(placeholder);
+        void typeIn(element, { revealFiles: false });
+    };
+    const discardResultDraft = ({ id }) => draftOf(id)?.remove();
+    document.defaultView?.addEventListener?.('astra:result-draft', event => showResultDraft(event.detail || {}));
+    document.defaultView?.addEventListener?.('astra:result-draft-discard', event => discardResultDraft(event.detail || {}));
+
     // The messages the cloud brought in after the last one drawn (the result of a visual check, written by the server while the page was open):
-    // drawn below the others, and the rest of the chat is left as it is (a panel the reader opened stays open, the chat does not jump). One the page
-    // was told to expect (arriving-messages.js) is typed in. False when the messages drawn are not the first ones of the conversation.
+    // drawn below the others, and the rest of the chat is left as it is (a panel the reader opened stays open, the chat does not jump). One the
+    // page was told to expect (arriving-messages.js) is typed in; one the page had typed in as a draft takes its place at once. False when the
+    // messages drawn are not the first ones of the conversation.
     const appendMissingMessages = () => {
         const conversation = getActiveConversation();
         const messages = conversation?.messages || [];
@@ -152,19 +200,15 @@ export function createMessageListLifecycle({
         const sameStart = drawn.every((element, index) => element.dataset.messageIndex === String(index)
             && messageViewSignature(element.__astraRenderedMessage) === messageViewSignature(messages[index]));
         if (!sameStart) return false;
-        const chat = elements.chatContainer;
         messages.slice(drawn.length).forEach((message, offset) => {
-            const typedIn = Boolean(message.id) && message.role === 'model' && takeArrival(message.id);
-            const element = addMessageToUI(message, drawn.length + offset, false, !typedIn, { conversation });
-            if (!typedIn) return;
-            const reducedMotion = Boolean(document.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches);
-            void streamInMessage(element, {
-                requestFrame: scheduleFrame,
-                reducedMotion,
-                follow: () => {
-                    if (!isReaderScrolling(chat) && chat.scrollHeight - chat.scrollTop <= chat.clientHeight + 120) setScrollTopQuietly(chat, followTop(chat));
-                }
-            });
+            const draft = draftOf(message.id);
+            const typedIn = !draft && Boolean(message.id) && message.role === 'model' && takeArrival(message.id);
+            const element = addMessageToUI(message, drawn.length + offset, false, !(typedIn || draft), { conversation });
+            if (draft) {
+                // The words are on the page already: the message takes their place in one go, and its deck comes in.
+                draft.remove();
+                revealArrival(element, 'is-arriving-files');
+            } else if (typedIn) void typeIn(element);
         });
         return true;
     };

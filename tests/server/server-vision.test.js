@@ -116,12 +116,19 @@ test('a deck Python drew with problems: the model is asked to redo it in the san
   const names = methods(live);
   assert.ok(names.includes('issues') && names.includes('py') && names.includes('pyEnd'));
   assert.deepEqual(live.at(-1), { m: 'file-end', a: [{ outcome: 'fixed', messageId: result.written[0] }] });
+  // What the reply says about the problems is told as soon as they are known, before the deck is redone, under the id the reply will have.
+  const told = live.find((event) => event.m === 'result');
+  assert.ok(told, 'the page is told what the reply will say');
+  assert.equal(told.a[0].id, result.written[0]);
+  assert.equal(told.a[0].text, text.text.replace(/^```noureon-run[\s\S]*?```\n\n/, ''), 'the words told are the words written (the run record aside)');
+  assert.ok(names.indexOf('result') > names.indexOf('issues') && names.indexOf('result') < names.indexOf('py'), 'after the problems, before the redoing');
 });
 
 test('a deck Python drew with problems, when Python cannot be used here: the deck is left as it is', async () => {
   const issues = '{"issues":[{"slide":1,"category":"text","problem":"Small text","fix":"Make it larger"}],"summary":""}';
   const { run, live, written } = harness({ answers: [chunk(issues)], source: freeSource, decks: new Map([['deck-1', deckBytes]]) });
   assert.deepEqual(await run(), { checked: 0, written: [], outcomes: ['left'], details: [{ outcome: 'left', name: 'deck.pptx', found: 1, reason: 'no_python' }] });
+  assert.equal(methods(live).includes('result'), false, 'a deck that is not redone has no reply to type in ahead');
   assert.equal(written.length, 1, 'the person is told in the chat that problems were found and the deck was left');
   assert.match(written[0].parts[0].text, /1 issues found, but they cannot be fixed automatically here/);
   assert.deepEqual(live.at(-1), { m: 'file-end', a: [{ outcome: 'left', found: 1, messageId: written[0].id }] });

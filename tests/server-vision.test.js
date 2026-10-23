@@ -238,3 +238,42 @@ test('when the check is over its line folds into one quiet line (no clock, no st
   assert.equal(takeArrival('m-arrive'), true, 'the page expects the message, to type it in');
   assert.equal(takeArrival('m-arrive'), false, 'taken once');
 });
+
+const listen = (window, names) => {
+  const heard = [];
+  for (const name of names) window.addEventListener(name, (event) => heard.push([name, event.detail]));
+  return heard;
+};
+
+test('when the server tells what the reply will say, the line folds and the chat is told to type it in; a check that ends without that reply takes it away again', async () => {
+  const events = [
+    call('begin', { name: 'deck.pptx' }),
+    call('issues', [{ slide: 1, category: 'text', problem: 'Small', fix: 'Larger' }]),
+    call('result', { id: 'r1', text: 'Found one problem' }),
+    call('file-end', { outcome: 'failed', reason: 'x', messageId: 'note-1' }),
+    { done: 'complete' }
+  ];
+  const built = harness({ events });
+  const heard = listen(built.window, ['astra:result-draft', 'astra:result-draft-discard']);
+  await built.follow.attach({ runId: 'run-v', conversation });
+  assert.equal(heard.length, 2);
+  assert.equal(heard[0][0], 'astra:result-draft');
+  assert.equal(heard[0][1].conversationId, 'conv-1');
+  assert.equal(heard[0][1].id, 'r1');
+  assert.equal(heard[0][1].text, 'Found one problem');
+  assert.equal(typeof heard[0][1].label, 'string');
+  assert.deepEqual(heard[1], ['astra:result-draft-discard', { id: 'r1' }], 'the check ended without the deck: the typed words go');
+});
+
+test('a check that ends with the reply it announced keeps what was typed (the message takes its place)', async () => {
+  const events = [
+    call('begin', { name: 'deck.pptx' }),
+    call('result', { id: 'r2', text: 'Found one problem' }),
+    call('file-end', { outcome: 'fixed', messageId: 'r2' }),
+    { done: 'complete' }
+  ];
+  const built = harness({ events });
+  const heard = listen(built.window, ['astra:result-draft', 'astra:result-draft-discard']);
+  await built.follow.attach({ runId: 'run-v', conversation });
+  assert.deepEqual(heard.map((entry) => entry[0]), ['astra:result-draft']);
+});

@@ -5,6 +5,7 @@
 import { followTop, isFollowingEnd, isReaderScrolling, setScrollTopQuietly, watchReader } from './reader-scroll-guard.js';
 
 const DURATION_MS = 280;
+const MAX_DURATION_MS = 720;
 // Quick to start, long to settle: the way accordions move in ChatGPT and Claude.
 const EASING = 'cubic-bezier(0.25, 0.8, 0.25, 1)';
 
@@ -30,11 +31,24 @@ const openFrame = (node) => {
   };
 };
 
+// The space a part takes now, for the frame it folds from. Not `scrollHeight`: that counts what spills out of the part (the margins of what is
+// inside), so a part could start its fold taller than it was and pop open for a frame before it shrank.
+const shownFrame = (node) => {
+  const style = node.ownerDocument.defaultView.getComputedStyle(node);
+  const box = node.getBoundingClientRect().height;
+  const inner = style.boxSizing === 'border-box' ? 0 : ['paddingTop', 'paddingBottom', 'borderTopWidth', 'borderBottomWidth'].reduce((sum, key) => sum + (Number.parseFloat(style[key]) || 0), 0);
+  return { ...openFrame(node), height: `${Math.max(0, box - inner)}px` };
+};
+
 const closedFrame = { height: '0px', marginTop: '0px', marginBottom: '0px', paddingTop: '0px', paddingBottom: '0px', opacity: 0 };
 
-const run = (node, frames, onDone) => {
+// A tall part takes longer to fold, so that what slides past while the page follows its end can be followed by the eye (a part of 800 px in 280 ms
+// is a cut).
+const durationFor = (node, closing) => (closing ? Math.min(MAX_DURATION_MS, Math.max(DURATION_MS, 200 + node.getBoundingClientRect().height * 0.55)) : DURATION_MS);
+
+const run = (node, frames, onDone, closing = false) => {
   node.style.overflow = 'hidden';
-  const animation = node.animate(frames, { duration: DURATION_MS, easing: EASING });
+  const animation = node.animate(frames, { duration: durationFor(node, closing), easing: EASING });
   node.__collapseAnimation = animation;
   animation.onfinish = () => {
     // A finish that arrives after the part was moved on again is not for this animation.
@@ -66,7 +80,7 @@ export function setCollapsed(node, show, { animate = true } = {}) {
     return;
   }
   if (node.hidden) return;
-  run(node, [openFrame(node), { opacity: 0, offset: 0.5 }, closedFrame], () => { node.hidden = true; });
+  run(node, [shownFrame(node), { opacity: 0, offset: 0.5 }, closedFrame], () => { node.hidden = true; }, true);
 }
 
 /** A label that changes (thinking → done) eases in instead of switching. */
@@ -83,10 +97,10 @@ const toggleDetails = (details, content) => {
   settle(content);
   if (details.open && !details.hasAttribute('data-closing')) {
     details.setAttribute('data-closing', '');
-    run(content, [openFrame(content), { opacity: 0, offset: 0.5 }, closedFrame], () => {
+    run(content, [shownFrame(content), { opacity: 0, offset: 0.5 }, closedFrame], () => {
       details.open = false;
       details.removeAttribute('data-closing');
-    });
+    }, true);
   } else {
     details.removeAttribute('data-closing');
     details.open = true;

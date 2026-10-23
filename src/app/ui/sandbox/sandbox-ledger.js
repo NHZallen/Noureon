@@ -398,6 +398,9 @@ export function createSandboxLedger({ document, host, before = null, language = 
         if (event.type === 'answering') {
           endCurrent();
           list.foldFinished();
+          // The words of the answer have begun: the whole list folds into its line (with the ease of a row, the page held still), also one the reader
+          // opened. The line says what is being done, and a tap opens it again.
+          line?.setOpen(false);
         } else if (list.current?.draft) {
           // The answer was the last words: a row that said the model was writing a call (it was only quiet a while) goes.
           list.current.discard();

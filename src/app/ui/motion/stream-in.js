@@ -20,9 +20,10 @@ const typedTexts = (node, out = []) => {
 
 /**
  * Types the words of the drawn message `element` in. Resolves when it is done (or when the message is gone from the page).
- * `follow(element)` is told after each step so the chat can follow the words down.
+ * `follow(element)` is told after each step so the chat can follow the words down. `revealFiles: false` for a message whose files are not there yet
+ * (a grey card holds their place): nothing rises in when the words are done.
  */
-export function streamInMessage(element, { requestFrame = (callback) => globalThis.requestAnimationFrame(callback), follow = () => {}, reducedMotion = false } = {}) {
+export function streamInMessage(element, { requestFrame = (callback) => globalThis.requestAnimationFrame(callback), follow = () => {}, reducedMotion = false, revealFiles = true } = {}) {
   const content = element?.querySelector?.('.message-content');
   if (!content || reducedMotion) return Promise.resolve(false);
   const nodes = typedTexts(content).map((node) => ({ node, full: node.data, block: node.parentElement?.closest(BLOCKS) || null }));
@@ -39,7 +40,7 @@ export function streamInMessage(element, { requestFrame = (callback) => globalTh
   return new Promise((resolve) => {
     const finish = () => {
       element.classList.remove('is-awaiting-files');
-      revealArrival(element, 'is-arriving-files');
+      if (revealFiles) revealArrival(element, 'is-arriving-files');
       resolve(true);
     };
     const step = () => {

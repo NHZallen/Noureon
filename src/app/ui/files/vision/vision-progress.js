@@ -150,6 +150,10 @@ export function createVisionProgress({ document, language, controller, host = nu
       row.enableBody(true);
       row.finish('done');
     },
+    // The reply has begun to be written (its words are typed in below): the line folds into its one line, and goes on saying what is being done.
+    fold() {
+      parent.setOpen(false);
+    },
     // The work is over and the reply is on its way: the line folds with the ease every row has (not at once), into one quiet line that says it
     // is done, with no clock running and no stop button. What was in it opens again with a tap.
     complete() {

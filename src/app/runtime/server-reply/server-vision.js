@@ -62,6 +62,12 @@ export function createServerVisionFollow({
     let python = null;
     let replaying = false;
     let createVisionProgress = null;
+    // The reply typed in ahead of its deck (the server told what it says as soon as the problems were known), and a way to tell the chat.
+    let draftId = '';
+    const announce = (name, detail) => {
+      const view = document?.defaultView;
+      if (view?.dispatchEvent && typeof view.CustomEvent === 'function') view.dispatchEvent(new view.CustomEvent(name, { detail }));
+    };
     // When the check began, in this page's clock: the server says how long it has been going (the calls so far come with it), and each
     // call says when it happened, so every page shows the same seconds, however late it was opened.
     let began = null;
@@ -125,6 +131,12 @@ export function createServerVisionFollow({
         case 'think': progress?.thinking(first); break;
         case 'issues': progress?.showIssues(first); break;
         case 'text': progress?.setText(first); break;
+        case 'result':
+          // What the reply will say is known: the line folds and the words are typed in below it, the deck's place held by a grey card until it comes.
+          draftId = first?.id || '';
+          progress?.fold?.();
+          announce('astra:result-draft', { conversationId: conversation.id, id: first?.id, text: first?.text, label: visionText(language, 'fixing') });
+          break;
         case 'py':
           python ||= progress?.python(language) || null;
           python?.event(at === null ? withFileBytes(first) : { ...withFileBytes(first), at });
@@ -149,6 +161,8 @@ export function createServerVisionFollow({
           // The result is a reply the server wrote into the chat (a corrected reply, or a note of how the check ended): the cloud sync brings it
           // in. The line stays until it is there, and the reply is drawn in (not set down at once, after a gap). Only when it could not be written
           // is the result told by a notice.
+          if (draftId && first?.messageId !== draftId) announce('astra:result-draft-discard', { id: draftId });
+          draftId = '';
           if (first?.messageId) {
             void bringInResult(line, first.messageId);
             break;
