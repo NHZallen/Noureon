@@ -277,3 +277,21 @@ test('a check that ends with the reply it announced keeps what was typed (the me
   await built.follow.attach({ runId: 'run-v', conversation });
   assert.deepEqual(heard.map((entry) => entry[0]), ['astra:result-draft']);
 });
+
+test('the line goes up into the message being typed (where the saved panel of the run will be), and is not typed itself', async () => {
+  const events = [
+    call('begin', { name: 'deck.pptx' }),
+    call('issues', [{ slide: 1, category: 'text', problem: 'Small', fix: 'Larger' }]),
+    call('result', { id: 'r3', text: 'Found one problem' }),
+    call('file-end', { outcome: 'fixed', messageId: 'r3' }),
+    { done: 'complete' }
+  ];
+  const built = harness({ events });
+  const container = built.document.createElement('div');
+  container.append(built.document.createElement('p'));
+  built.document.body.append(container);
+  built.window.addEventListener('astra:result-draft', (event) => event.detail.onDrawn(container));
+  await built.follow.attach({ runId: 'run-v', conversation });
+  assert.equal(container.firstElementChild?.classList.contains('ledger'), true, 'the line is the first thing in the message');
+  assert.equal(built.stack.querySelector('.ledger'), null, 'and no longer under the message it checked');
+});

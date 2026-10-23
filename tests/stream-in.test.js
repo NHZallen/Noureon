@@ -54,3 +54,23 @@ test('nothing is typed with reduced motion, and a message that left the page sto
   frames.shift()();
   assert.equal(await running, false);
 });
+
+test('the words are not made to wait: a few letters a frame, and about forty frames at most however long they are', async () => {
+  const frames = [];
+  const make = (text) => {
+    const { element } = draw();
+    element.querySelector('.message-content').innerHTML = `<p>${text}</p>`;
+    return element;
+  };
+  const count = async (element) => {
+    const queue = [];
+    const running = streamInMessage(element, { requestFrame: (callback) => queue.push(callback) });
+    let steps = 0;
+    while (queue.length) { steps += 1; queue.shift()(); }
+    await running;
+    return steps;
+  };
+  assert.ok(await count(make('x'.repeat(80))) <= 10, 'a short reply takes a handful of frames');
+  assert.ok(await count(make('x'.repeat(4000))) <= 41, 'a long one is not slower than forty frames');
+  assert.equal(frames.length, 0);
+});

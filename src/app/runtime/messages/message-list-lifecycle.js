@@ -169,7 +169,7 @@ export function createMessageListLifecycle({
     // The reply the server is making (the visual check's), whose words are known before its deck is: typed in below the chat at once, with a grey
     // card where the deck will be. It is not one of the conversation's messages (no index): the message that comes in the end takes its place, and
     // when the check ends some other way it goes (arriving-messages.js, appendMissingMessages, discardResultDraft).
-    const showResultDraft = ({ conversationId, id, text, label }) => {
+    const showResultDraft = ({ conversationId, id, text, label, onDrawn }) => {
         const conversation = getActiveConversation();
         if (!id || !text || !conversation || conversation.id !== conversationId || draftOf(id)) return;
         const drawn = [...elements.messageList.children].filter(element => element.dataset?.messageIndex !== undefined);
@@ -180,8 +180,11 @@ export function createMessageListLifecycle({
         const placeholder = document.createElement('div');
         placeholder.className = 'ac-file-card file-skeleton';
         placeholder.textContent = label || '';
-        element.querySelector('.message-content')?.append(placeholder);
+        const content = element.querySelector('.message-content');
+        content?.append(placeholder);
         void typeIn(element, { revealFiles: false });
+        // Told after the words were taken to be typed: what is put in now is not typed. The top of the words is where the saved panel of the run goes.
+        onDrawn?.(content?.firstElementChild?.tagName === 'DIV' ? content.firstElementChild : content);
     };
     const discardResultDraft = ({ id }) => draftOf(id)?.remove();
     document.defaultView?.addEventListener?.('astra:result-draft', event => showResultDraft(event.detail || {}));
@@ -205,8 +208,9 @@ export function createMessageListLifecycle({
             const typedIn = !draft && Boolean(message.id) && message.role === 'model' && takeArrival(message.id);
             const element = addMessageToUI(message, drawn.length + offset, false, !(typedIn || draft), { conversation });
             if (draft) {
-                // The words are on the page already: the message takes their place in one go, and its deck comes in.
+                // The words are on the page already: the message takes their place in one go (without coming in again: the draft did), and its deck comes in.
                 draft.remove();
+                element.classList.add('is-history');
                 revealArrival(element, 'is-arriving-files');
             } else if (typedIn) void typeIn(element);
         });

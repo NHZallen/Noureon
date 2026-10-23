@@ -736,8 +736,10 @@ test('the reply of the visual check is typed in as a draft with a grey card, the
     fixture.conversation.id = 'c1';
     view.dispatchEvent(new view.CustomEvent('astra:result-draft', { detail: { conversationId: 'another', id: 'r1', text: 'Found two problems', label: 'Redoing' } }));
     assert.equal(fixture.document.querySelectorAll('[data-arrival-draft]').length, 0, 'a draft for another conversation is not drawn');
-    view.dispatchEvent(new view.CustomEvent('astra:result-draft', { detail: { conversationId: 'c1', id: 'r1', text: 'Found two problems', label: 'Redoing' } }));
+    let told = null;
+    view.dispatchEvent(new view.CustomEvent('astra:result-draft', { detail: { conversationId: 'c1', id: 'r1', text: 'Found two problems', label: 'Redoing', onDrawn: (container) => { told = container; } } }));
     const draft = fixture.document.querySelector('[data-arrival-draft="r1"]');
+    assert.ok(told && draft.contains(told), 'the page is told where the words begin (the line goes there)');
     assert.ok(draft);
     assert.equal(draft.dataset.messageIndex, undefined, 'not one of the conversation messages');
     assert.match(draft.textContent, /Found two problems/);
@@ -751,6 +753,7 @@ test('the reply of the visual check is typed in as a draft with a grey card, the
     assert.equal(all.length, 3);
     assert.equal(all[2].classList.contains('is-arriving-files'), true, 'the deck comes in');
     assert.equal(all[2].classList.contains('is-awaiting-files'), false);
+    assert.equal(all[2].classList.contains('is-history'), true, 'the message does not come in again: the draft did');
 
     const second = createFixture();
     try {

@@ -135,7 +135,9 @@ export function createServerVisionFollow({
           // What the reply will say is known: the line folds and the words are typed in below it, the deck's place held by a grey card until it comes.
           draftId = first?.id || '';
           progress?.fold?.();
-          announce('astra:result-draft', { conversationId: conversation.id, id: first?.id, text: first?.text, label: visionText(language, 'fixing') });
+          // The line goes up into the message being typed (where the saved panel of the run will be), so the message that comes in the end takes
+          // its place with the same shape, and the words sit right under the line instead of after a gap.
+          announce('astra:result-draft', { conversationId: conversation.id, id: first?.id, text: first?.text, label: visionText(language, 'fixing'), onDrawn: (container) => progress?.moveInto?.(container) });
           break;
         case 'py':
           python ||= progress?.python(language) || null;

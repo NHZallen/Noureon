@@ -197,8 +197,8 @@ export function createLedger({ document, host, before = null }) {
     happenedAt(time) { happenedAt = Number.isFinite(time) ? time : null; },
     // The row in progress, if any.
     get current() { return [...rows].reverse().find((row) => row.state === 'running') || null; },
-    // Folds the rows that are done, so the newest is the one open. A row the reader opened stays open until the reader closes it.
-    foldFinished() { rows.filter((row) => row.state !== 'running' && !row.openedByReader).forEach((row) => row.setOpen(false)); },
+    // Folds the rows that are done, so the newest is the one open. A row the reader opened stays open until the reader closes it, and so does `keep`.
+    foldFinished(keep = null) { rows.filter((row) => row !== keep && row.state !== 'running' && !row.openedByReader).forEach((row) => row.setOpen(false)); },
     // Every row is done and the ledger stays on the page: nothing needs the clock any more.
     stopClock() {
       if (timer) window.clearInterval(timer);

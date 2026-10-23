@@ -214,10 +214,13 @@
    word, the files wait as grey placeholders and then rise in. */
 .stream-pending { display: none; }
 .is-awaiting-files .ac-file-card > * { visibility: hidden; }
-.is-awaiting-files .ac-file-card, .file-skeleton { pointer-events: none; background: color-mix(in srgb, var(--text-primary) 9%, transparent); animation: file-waiting 1.4s ease-in-out infinite; }
-.file-skeleton { min-height: 4.5rem; }
+/* The grey card (more than one class: the card's own style loads later and has one). It reaches a little left, so what is in it stays where it
+   will be once the card is the file's. */
+.ac-file-card.file-skeleton, .is-awaiting-files .ac-file-card { pointer-events: none; margin-left: -1rem; padding-inline: 1rem; border-radius: 0.75rem; background: color-mix(in srgb, var(--text-primary) 9%, transparent); animation: file-waiting 1.4s ease-in-out infinite; }
+.ac-file-card.file-skeleton { min-height: 4.45rem; max-width: min(calc(100% + 1rem), 35rem); color: var(--text-secondary); }
 .footer-arriving { animation: result-arrive 0.45s ease-out backwards; }
-.is-arriving-files .ac-file-card { animation: result-arrive 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) backwards; }
+.is-arriving-files .ac-file-card { animation: file-arrive 0.5s ease-out backwards; }
 @keyframes file-waiting { 50% { opacity: 0.45; } }
 @keyframes result-arrive { from { opacity: 0; transform: translateY(8px); } }
+@keyframes file-arrive { from { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .file-skeleton, .is-awaiting-files .ac-file-card, .is-arriving-files .ac-file-card, .footer-arriving { animation: none; } }

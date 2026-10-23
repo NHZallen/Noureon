@@ -7,7 +7,9 @@ import { revealArrival } from './arrival-reveal.js';
 // What is shown at once and never typed: the panel of the run, the files, buttons, pictures, formulas and code.
 const LEAVE_ALONE = '.sandbox-run, .ac-file-card, button, svg, pre, .katex, img';
 const BLOCKS = 'p, li, h1, h2, h3, h4, h5, h6, blockquote, tr';
-const FRAMES = 180;
+// The words are not made to wait: a few letters a frame, and never more than about 40 frames (two thirds of a second) however long they are.
+const MIN_PER_FRAME = 8;
+const MAX_FRAMES = 40;
 
 const typedTexts = (node, out = []) => {
   for (const child of node.childNodes || []) {
@@ -34,7 +36,7 @@ export function streamInMessage(element, { requestFrame = (callback) => globalTh
     entry.node.data = '';
     entry.block?.classList.add('stream-pending');
   }
-  const perFrame = Math.max(2, Math.ceil(total / FRAMES));
+  const perFrame = Math.max(MIN_PER_FRAME, Math.ceil(total / MAX_FRAMES));
   let index = 0;
   let shown = 0;
   return new Promise((resolve) => {
