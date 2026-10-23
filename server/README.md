@@ -75,3 +75,4 @@ npm run check:server # 伺服器程式不得使用瀏覽器專用的東西，也
 
 1. 在自己的電腦跑 `node scripts/diagnose-server.mjs`：從外面檢查正式與測試伺服器和兩個網站，依序看名稱解析、憑證、`/healthz`、CORS、Python 沙盒狀態，並說明哪一層壞了（可加 `--token <登入後的 access token>` 檢查登入路徑）。
 2. 若外面檢查說應用程式或代理壞了，到 VPS 上以 root 跑 `bash sandbox-host/diagnose.sh`（只讀，不改任何東西）：看記憶體、磁碟、Docker 容器狀態與重啟次數、80/443/7788 埠、沙盒 runner、近兩小時的錯誤日誌。把標 `[!]` 的行貼回來。
+3. 想知道「這則回覆為什麼在本機跑」：在網站上按 F12，Console 輸入 `await noureonDiagnose()`。它檢查頁面、帳號、伺服器（`/healthz`、登入、沙盒）、設定與目前的對話，列出六種回覆（一般、加網路搜尋、進階模式 Python…）各自會在伺服器還是本機，不在伺服器時說明原因與解法，並列出這個頁面最近幾次的實際決定；報告會複製到剪貼簿，不含金鑰與訊息內容。

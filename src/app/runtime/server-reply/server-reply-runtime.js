@@ -8,6 +8,7 @@ import { PRODUCT_VERSION } from '../../../data/version.js';
 import { createServerReply, localizeServerError, planServerCouncil, planServerImage, planServerReply } from './server-reply.js';
 import { serverReplyText } from './server-reply-texts.js';
 import { SERVICES, getService } from '../services.js';
+import { recordReplyDecision } from '../diagnostics/reply-decision-log.js';
 
 export function createBrowserServerReply({
   getApiKeyForProvider,
@@ -200,9 +201,18 @@ export function createBrowserServerReply({
       const language = getUiLanguage();
       return { id: row.message_id, role: 'model', parts: [{ text: `${serverReplyText(language, 'errorPrefix')}${serverReplyText(language, FAILURE_TEXT[row.error_code] || 'unknownError')}` }], createdAt: row.finished_at };
     },
-    plan: (context) => planServerReply({ config: getConfig(), ...context, hasAccount: hasAccount(), hasTranslator: Boolean(getSingleDocumentTranslatorModel()) }),
+    plan: (context) => {
+      const plan = planServerReply({ config: getConfig(), ...context, hasAccount: hasAccount(), hasTranslator: Boolean(getSingleDocumentTranslatorModel()) });
+      // Kept for the diagnostics (noureonDiagnose): where this reply goes and why; a check made by the diagnostics itself is not a reply.
+      if (!context?.diagnostic) recordReplyDecision({ kind: 'plan', ok: plan.ok, reason: plan.reason, webSearch: plan.webSearch, advanced: Boolean(context?.advanced), provider: context?.provider || '' });
+      return plan;
+    },
     planImage: (context) => planServerImage({ config: getConfig(), ...context, hasAccount: hasAccount() }),
-    start: (args) => serverReply.start({ ...args, config: args.config, ...(args.documents ? { documents: { ...args.documents, translator: getSingleDocumentTranslatorModel() } } : {}) }),
+    start: async (args) => {
+      const result = await serverReply.start({ ...args, config: args.config, ...(args.documents ? { documents: { ...args.documents, translator: getSingleDocumentTranslatorModel() } } : {}) });
+      recordReplyDecision({ kind: 'start', ok: result.ok, reason: result.ok ? undefined : result.reason });
+      return result;
+    },
     startResearch: (args) => serverReply.startResearch(args),
     startImage: (args) => serverReply.startImage(args),
     readMessage: (messageId) => readMessage(messageId),

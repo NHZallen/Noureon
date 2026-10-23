@@ -37,6 +37,9 @@ export function createSubmitInputReplyServices({
     onVisionLock: () => updateSubmitButtonState(false)
   });
 
+  // `noureonDiagnose()` in the console: where replies are made and why (loaded on first use, not part of the page's own code).
+  globalThis.noureonDiagnose = async () => (await import('../diagnostics/diagnostics-setup.js')).diagnoseReplies({ serverReply, webResearch, getLiveConfig, getApiKeyForProvider, getActiveConversation });
+
   // The 重試 button of the note of a visual check that failed or was stopped (vision-retry.js, loaded on the first press).
   document.addEventListener?.('click', (event) => {
     const button = event.target?.closest?.('[data-vision-retry]');

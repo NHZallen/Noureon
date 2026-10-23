@@ -165,3 +165,19 @@ test('on a phone the page opens, the menu opens, and the composer is within the 
     await context.close();
   }
 });
+
+test('noureonDiagnose() in the console says where replies are made, and why not on the server', async () => {
+  const { context, page, problems } = await newPerson();
+  try {
+    await signUp(page, 'diagnose');
+    const report = await page.evaluate(() => window.noureonDiagnose());
+    assert.equal(report.account.signedInToCloud, false, 'a local account has no server');
+    assert.equal(report.server.reachable, false, 'every connection but the site\'s is refused here');
+    assert.ok(report.problems.some((text) => /Not signed in/.test(text)));
+    assert.ok(report.plan.every((row) => row.runsOn === 'this device' && row.reason === 'no-account'));
+    assert.ok(report.chat === null || typeof report.chat.model === 'string');
+    assert.deepEqual(problems, []);
+  } finally {
+    await context.close();
+  }
+});
