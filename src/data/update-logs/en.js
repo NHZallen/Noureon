@@ -1,6 +1,12 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.19.0": [
+    "<strong>Noureon 18.19.0 Release Notes</strong>",
+    "This version improves the search of the model menu and adds Kimi K3.1 Pro to OpenCode.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Model search:</strong> several words can be typed in any order, with other words between them; spaces, dashes and dots do not matter (\"gpt5.6\" finds GPT-5.6). While you search, the results stand in one list with the best fit first, and each model appears once. You can also search for \"free\" or for an ability (pictures, documents, search), and a letter or two typed wrong is still found.</li><li><strong>New model:</strong> Kimi K3.1 Pro is added to OpenCode. It reads pictures, calls tools and has a depth of thinking you can set; uploaded documents are translated into text before they are handed to it.</li></ul>"
+  ],
   "18.18.0": [
     "<strong>Noureon 18.18.0 Release Notes</strong>",
     "This version makes Claude in Advanced mode build Office and PDF files with the server more reliably, shows thinking summaries for more models, and updates the model lists of several providers.",

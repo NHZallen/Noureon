@@ -2,6 +2,16 @@
 // content 為 zh-TW 的 HTML 字串（JSON 轉義、雙引號），目前不隨介面語言切換。
 export const updateLogEntries = [
   {
+    version: "18.19.0",
+    date: "2026-10-23",
+    content: [
+      "<strong>Noureon 18.19.0 發布說明</strong>",
+      "本版本改善模型選單的搜尋，並在 OpenCode 加入 Kimi K3.1 Pro。",
+      "<strong>主要變更</strong>",
+      "<ul><li><strong>模型搜尋：</strong>輸入多個詞時順序不拘，中間隔了別的字也找得到；空白、橫線與句點不影響結果（輸入「gpt5.6」找得到 GPT-5.6）。搜尋時結果合併成一條清單，最吻合的排在最上面，同一個模型只出現一次。也可以用「免費」或能力（圖片、文件、搜尋）來找，打錯一兩個字母同樣找得到。</li><li><strong>新模型：</strong>OpenCode 新增 Kimi K3.1 Pro，可讀圖片、呼叫工具，並可調整思考深度；上傳的文件會先翻譯成文字再交給它。</li></ul>"
+    ]
+  },
+  {
     version: "18.18.0",
     date: "2026-10-23",
     content: [
