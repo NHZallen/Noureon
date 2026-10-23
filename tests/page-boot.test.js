@@ -46,10 +46,10 @@ test('the services the rest of the page waits for are provided once it has start
 });
 
 test('the settings button opens the settings dialog and its close button closes it again', async () => {
-  const opened = await boot({ seed: localUser, steps: [{ click: 'settings-btn', wait: 300 }], read: ['settings-modal'] });
+  const opened = await boot({ seed: localUser, steps: [{ click: 'settings-btn', wait: 1500 }], read: ['settings-modal'] });
   assert.deepEqual(opened.logged, []);
   assert.match(opened.elements['settings-modal'].className, /\bvisible\b/);
-  const closed = await boot({ seed: localUser, steps: [{ click: 'settings-btn', wait: 300 }, { click: 'close-settings-btn', wait: 300 }], read: ['settings-modal'] });
+  const closed = await boot({ seed: localUser, steps: [{ click: 'settings-btn', wait: 1500 }, { click: 'close-settings-btn', wait: 800 }], read: ['settings-modal'] });
   assert.deepEqual(closed.logged, []);
   assert.match(closed.elements['settings-modal'].className, /\bhidden\b/);
 });

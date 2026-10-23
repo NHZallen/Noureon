@@ -189,13 +189,20 @@ export function createSettingsApiKeyControls(dependencies = {}) {
     });
   };
 
+  const hasUnsavedApiKeyChange = (input, storedValue) => {
+    const intent = readApiKeyInputIntent(input);
+    if (intent.action === 'set') return intent.value !== storedValue;
+    return intent.action === 'clear' && storedValue !== '';
+  };
+
   const prepareApiKeyInputsForSettings = () => {
     ensureApiKeyInputSecurityControls();
     getApiKeyInputDescriptors().forEach(({ provider, input }) => {
-      prepareApiKeyInput(input, {
-        provider,
-        rawValue: getApiKeyForProvider(provider)
-      });
+      const rawValue = getApiKeyForProvider(provider);
+      // The page is prepared again a few seconds after it loaded (open-settings-when-built.js): a key typed or cleared by then and not yet
+      // stored is kept, not replaced by what is stored.
+      if (hasUnsavedApiKeyChange(input, rawValue)) return;
+      prepareApiKeyInput(input, { provider, rawValue });
       resetApiKeyInputVisibility(input);
     });
   };

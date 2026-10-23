@@ -66,7 +66,6 @@ const signUp = async (page, username) => {
   await page.click('#close-latest-update-modal-btn');
 };
 
-// The settings page builds itself the first time it opens; a key typed while that goes on can be wiped, so it is typed again until it stays.
 const saveKey = async (page, openSidebar) => {
   if (openSidebar) {
     await page.click('#menu-toggle-btn');
@@ -77,14 +76,10 @@ const saveKey = async (page, openSidebar) => {
   await page.locator('#settings-nav [data-section="model-management"]').click();
   const input = page.locator('#openrouter-api-key-input-all');
   await page.waitForFunction(() => document.querySelector('#openrouter-api-key-input-all')?.dataset.apiKeyIntentBound === 'true');
-  for (let attempt = 0; attempt < 5; attempt += 1) {
-    if ((await input.inputValue()) === '') {
-      await input.click();
-      await input.pressSequentially(KEY, { delay: 10 });
-    }
-    const kept = await page.waitForFunction(() => document.querySelector('#openrouter-api-key-input-all')?.dataset.apiKeyState === 'masked', null, { timeout: 3000 }).catch(() => null);
-    if (kept) break;
-  }
+  // Typed at once, while the page is still being prepared (it is prepared again a few seconds after it loaded): the key must stay.
+  await input.click();
+  await input.pressSequentially(KEY, { delay: 10 });
+  await page.waitForFunction(() => document.querySelector('#openrouter-api-key-input-all')?.dataset.apiKeyState === 'masked', null, { timeout: 10_000 });
   assert.equal(await input.getAttribute('data-api-key-state'), 'masked', 'the key was kept and shown masked');
   assert.notEqual(await input.inputValue(), KEY, 'the key is not shown in the clear');
   await page.click('#close-settings-btn');
