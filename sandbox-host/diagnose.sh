@@ -46,16 +46,18 @@ proxy=$(docker ps --format '{{.Names}}' | grep -i -E 'proxy|traefik' | head -1)
 [ -n "$proxy" ] && ok "proxy container: $proxy" || bad "no proxy container is running: no name is reachable (Coolify > Servers > Proxy > Start)"
 echo "Answer on the machine itself:"
 for host in api.noureon.com api-staging.noureon.com; do
-  code=$(curl -s -o /dev/null -m 10 -w '%{http_code}' --resolve "$host:443:127.0.0.1" "https://$host/healthz" 2>/dev/null)
+  body=$(curl -s -m 10 -w ' HTTP%{http_code}' --resolve "$host:443:127.0.0.1" "https://$host/healthz" 2>/dev/null)
+  code=${body##*HTTP}
   case "$code" in
-    200) ok "$host /healthz 200" ;;
+    200) ok "$host /healthz 200: ${body% HTTP*}"
+         case "$body" in *'"sandbox":"down"'*) bad "$host says the Python sandbox is down" ;; esac ;;
     000) bad "$host: no answer (TLS or proxy)" ;;
     *)   bad "$host /healthz answers $code (502/503/504 = the application behind the proxy is down; 404 = no application for this name)" ;;
   esac
 done
 
 head_ "Python sandbox runner"
-runner=$(docker ps -a --format '{{.Names}}' | grep -i sandbox | head -1)
+runner=$(docker ps -a --format '{{.Names}}' | grep -i -E 'sandbox.*runner|runner' | head -1)
 if [ -z "$runner" ]; then
   bad "no sandbox runner container (sandbox-host/install.sh)"
 else
@@ -64,7 +66,7 @@ else
   gateway=$(ip -4 addr show docker0 2>/dev/null | awk '/inet / {sub("/.*","",$2); print $2}')
   if [ -r "$token_file" ] && [ -n "$gateway" ]; then
     code=$(curl -s -o /dev/null -m 10 -w '%{http_code}' -H "Authorization: Bearer $(cat "$token_file")" "http://$gateway:7788/v1/health")
-    [ "$code" = "200" ] && ok "runner answers on $gateway:7788" || bad "runner on $gateway:7788 answers $code (000 = not reachable from here, 401/403 = token differs from SANDBOX_RUNNER_TOKEN of the server)"
+    [ "$code" = "200" ] && ok "runner answers on $gateway:7788" || bad "runner on $gateway:7788 answers $code (000 = not reachable from here; 401/403 may only mean this shell is not an address the runner accepts or the token file is not the runner's token: trust the \"sandbox\" field of /healthz above)"
   else
     bad "cannot ask the runner: token file ($token_file) or docker0 address missing"
   fi
