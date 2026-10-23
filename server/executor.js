@@ -521,10 +521,10 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
     const run = advanced.run || (sources.length || usedConnectors.size || pictureSteps().length ? { status: RUN_STATUS.done, steps: [] } : null);
     if (!run || (!advanced.text.trim() && !run.steps.length && !run.thought)) {
       if (!advanced.text.trim() && !sources.length && !drawnParts.length) {
-        if (stopped) return { parts: [{ text: '' }], status: 'stopped', run: record('stopped'), toolCalls };
+        if (stopped) return { parts: [{ text: '' }], status: 'stopped', run: record('stopped'), toolCalls, rounds: advanced.rounds };
         throw new ReplyError('The model gave no answer.', 'provider_error');
       }
-      if (!run) return { parts: withPictures(advanced.text), status: stopped ? 'stopped' : 'done', run: record(stopped ? 'stopped' : 'done'), toolCalls };
+      if (!run) return { parts: withPictures(advanced.text), status: stopped ? 'stopped' : 'done', run: record(stopped ? 'stopped' : 'done'), toolCalls, rounds: advanced.rounds };
     }
     // The pages the reply searched and the time it took are kept with the steps, as the browser keeps them.
     if (sources.length) run.sources = sources;
@@ -545,10 +545,10 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
         const output = run.steps.flatMap((step) => step.outputs || []).filter((entry) => entry.name === file.name).at(-1);
         if (output?.bytes) decks.set(file.id, output.bytes);
       }
-      return { parts: withPictures(finished.text, finished.parts), status: stopped ? 'stopped' : 'done', run, toolCalls, artifacts: { decks } };
+      return { parts: withPictures(finished.text, finished.parts), status: stopped ? 'stopped' : 'done', run, toolCalls, rounds: advanced.rounds, artifacts: { decks } };
     } catch (error) {
       onProblem('finish_failed', error);
-      return { parts: withPictures(advanced.text), status: stopped ? 'stopped' : 'done', run, toolCalls, artifacts: { decks: new Map() } };
+      return { parts: withPictures(advanced.text), status: stopped ? 'stopped' : 'done', run, toolCalls, rounds: advanced.rounds, artifacts: { decks: new Map() } };
     }
   }
 

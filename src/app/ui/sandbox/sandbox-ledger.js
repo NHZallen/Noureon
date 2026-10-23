@@ -195,6 +195,11 @@ export function createSandboxLedger({ document, host, before = null, language = 
       row.discard();
       return;
     }
+    // A round the model gave no thinking for has nothing to open: a row that says "finished thinking" and does not open is no use, so it goes.
+    if (row.round && !row.thought) {
+      row.discard();
+      return;
+    }
     if (row.doneLabel) row.setLabel(row.doneLabel);
     row.finish(state);
   };
@@ -305,15 +310,6 @@ export function createSandboxLedger({ document, host, before = null, language = 
     step.row.finish(ok ? 'done' : 'failed');
   };
 
-  // What the model says before a run, in ordinary text between the step lines (the saved reply draws it the same way).
-  const addNarration = ({ text: said }) => {
-    if (!String(said || '').trim()) return;
-    // Said while the model was quiet, it arrives whole: it unfolds instead of appearing at once.
-    const block = create('div', 'sandbox-run-narration is-arriving');
-    fillThinkingText(document, block, String(said).trim());
-    list.list.append(block);
-  };
-
   // A web search that runs before the model: a row in progress, which becomes the finished, folded row that opens
   // to the pages it found (or goes, if it found none).
   const startSearch = ({ label }) => {
@@ -375,9 +371,7 @@ export function createSandboxLedger({ document, host, before = null, language = 
           line.node.classList.remove('is-quiet');
         }
       }
-      if (event.type === 'narration') {
-        addNarration(event);
-      } else if (event.type === 'skill') {
+      if (event.type === 'skill') {
         // The model loads a skill: a row of its own, over when the next thing begins.
         begin(event.label, { kind: 'skill' });
       } else if (event.type === 'connector') {
@@ -393,11 +387,16 @@ export function createSandboxLedger({ document, host, before = null, language = 
       } else if (event.type === 'round') {
         const row = begin(event.label, { kind: 'thought' });
         row.doneLabel = event.doneLabel;
+        row.round = true;
       } else if (event.type === 'answering' || event.type === 'answered') {
         // Writing the answer is not thinking: that row is over and folds.
         if (event.type === 'answering') {
           endCurrent();
           list.foldFinished();
+          // The words of the answer have begun (the model is told to say what it does in the call's note, so any words it writes are the answer): the
+          // whole list folds into its line (with the ease of a row, the page held still), also one the reader opened. The line says what is being
+          // done, and a tap opens it again.
+          line?.setOpen(false);
         } else if (list.current?.draft) {
           // The answer was the last words: a row that said the model was writing a call (it was only quiet a while) goes.
           list.current.discard();

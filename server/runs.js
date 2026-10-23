@@ -129,6 +129,15 @@ export function createRunManager({
       live.vision.chars += String(event.a[0]).length;
       return;
     }
+    // The words of the reply being told again as the model writes them: each replaces the one before (the last is what a late page needs).
+    if (event.m === 'result') {
+      const earlier = events.findLast((entry) => entry.m === 'result' && entry.a?.[0]?.id === event.a?.[0]?.id);
+      if (earlier) {
+        live.vision.chars += JSON.stringify(event.a).length - JSON.stringify(earlier.a).length;
+        earlier.a = structuredClone(event.a);
+        return;
+      }
+    }
     if (last && event.m === 'py' && last.m === 'py') {
       const before = last.a[0];
       const next = event.a[0];
@@ -368,7 +377,7 @@ export function createRunManager({
       }
       await writer.finish(result.parts, 'complete');
       finalStatus = 'complete';
-      await store.finish(runId, { status: result.status === 'stopped' ? 'stopped' : 'done', usage: { toolCalls: result.toolCalls, elapsedMs: result.run?.elapsedMs }, ...(isImage ? { clearSpec: true } : {}) });
+      await store.finish(runId, { status: result.status === 'stopped' ? 'stopped' : 'done', usage: { toolCalls: result.toolCalls, elapsedMs: result.run?.elapsedMs, ...(result.rounds?.length ? { rounds: result.rounds } : {}) }, ...(isImage ? { clearSpec: true } : {}) });
       // A reply that wrote a presentation is looked at next, as a run of its own (recorded before the page is told this one is over).
       if (result.status === 'done' && !controller.signal.aborted) visionNext = await planVision({ userId, spec, secrets, result }).catch((error) => {
         log('vision_not_started', { runId, message: String(error?.message || '').slice(0, 160) });

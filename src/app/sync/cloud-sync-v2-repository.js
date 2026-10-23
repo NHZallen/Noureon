@@ -277,6 +277,18 @@ export function createConversationShadowRepository({
       id: local?.id || remote?.id || null,
       differingFields: differingFields || getShadowRowDifferingFields(local, remote)
     });
+    // A reply the server is still writing is the server's: the database keeps the copy the browser sends out of it
+    // (upsert_workspace_messages), so the cloud differs from the browser's copy on purpose. The finished message comes back by the sync.
+    const writtenByLiveRun = async (id) => {
+      const { data, error } = await supabase
+        .from('server_runs')
+        .select('id')
+        .eq('message_id', id)
+        .in('status', ['queued', 'running'])
+        .limit(1);
+      if (error) throw error;
+      return Boolean(data?.length);
+    };
     const verifyRows = async (collection, table, columns, localRows) => {
       for (let index = 0; index < localRows.length; index += 200) {
         const chunk = localRows.slice(index, index + 200);
@@ -290,7 +302,9 @@ export function createConversationShadowRepository({
         for (const local of chunk) {
           const remote = remoteById.get(local.id);
           const differingFields = getShadowRowDifferingFields(local, remote);
-          if (differingFields.length) return mismatch(collection, local, remote, differingFields);
+          if (!differingFields.length) continue;
+          if (collection === 'messages' && remote && await writtenByLiveRun(local.id)) continue;
+          return mismatch(collection, local, remote, differingFields);
         }
       }
       return null;

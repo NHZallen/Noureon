@@ -26,7 +26,7 @@ export function createVisionProgress({ document, language, controller, host = nu
   const parent = outer.addRow(text('ledgerTitle'));
   outer.happenedAt(null);
   parent.enableBody(false);
-  parent.addAction(text('stop'), () => controller?.abort());
+  const stopButton = parent.addAction(text('stop'), () => controller?.abort());
   const ledger = createLedger({ document, host: parent.body });
   // The line says which step it is at, so it can stay folded.
   const sync = () => {
@@ -44,10 +44,10 @@ export function createVisionProgress({ document, language, controller, host = nu
   let thought = null;
   let thoughtText = '';
 
-  const open = (name, label, options) => {
+  const open = (name, label, options, keepOpen = null) => {
     // A step starts when the one before it is done.
     ledger.current?.finish('done');
-    ledger.foldFinished();
+    ledger.foldFinished(keepOpen);
     rows[name] = ledger.addRow(label, options);
     return rows[name];
   };
@@ -73,9 +73,8 @@ export function createVisionProgress({ document, language, controller, host = nu
         if (!rows.render) open('render', text('rendering'));
       } else if (key === 'reviewing') {
         finish('sheets', text('sheetsDone', { total: sheets?.children.length ?? 0 }));
-        open('review', text('reviewingSheets', { model: values?.model || '', count: sheets?.children.length ?? 0 }));
-        // What the model is looking at stays in view while it looks.
-        rows.sheets?.setOpen(true);
+        // What the model is looking at stays in view (open, not folded and opened again) while it looks.
+        open('review', text('reviewingSheets', { model: values?.model || '', count: sheets?.children.length ?? 0 }), undefined, rows.sheets);
         rows.review.doneLabel = text('reviewedBy', { model: values?.model || '' });
       } else if (key === 'applying' || key === 'fixing') {
         redo = open('redo', text(key, values));
@@ -129,7 +128,8 @@ export function createVisionProgress({ document, language, controller, host = nu
       if (!thought) {
         thought = create('div', 'ledger-thought');
         row.body.append(thought);
-        row.enableBody(true);
+        // The thinking is there to open when wanted: it is not opened for the reader while it streams, so nothing folds it before the answer.
+        row.enableBody(false);
       }
       thoughtText = (thoughtText + chunk).slice(-12_000);
       keepEndInView(thought, () => fillThinkingText(document, thought, thoughtText));
@@ -149,6 +149,26 @@ export function createVisionProgress({ document, language, controller, host = nu
       row.body.append(list);
       row.enableBody(true);
       row.finish('done');
+    },
+    // The reply has begun to be written (its words are typed in below): the line folds into its one line, and goes on saying what is being done.
+    fold() {
+      parent.setOpen(false);
+    },
+    // The line goes to the top of `container` (the message that is being typed in, where the saved panel of its run will be), so the message
+    // that comes in the end takes the place of this one with the same shape.
+    moveInto(container) {
+      if (container && outer.element.parentElement !== container) container.prepend(outer.element);
+    },
+    // The work is over and the reply is on its way: the line folds with the ease every row has (not at once), into one quiet line that says it
+    // is done, with no clock running and no stop button. What was in it opens again with a tap.
+    complete() {
+      ledger.current?.finish('done');
+      parent.finish('done');
+      parent.setLabel(text('ledgerDone'));
+      stopButton?.remove();
+      parent.setOpen(false);
+      ledger.stopClock();
+      outer.stopClock();
     },
     // The Python steps of the redoing go inside its row.
     python(language = 'zh-TW') {

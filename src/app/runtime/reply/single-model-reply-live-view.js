@@ -10,6 +10,7 @@ import { createNetAnswerHandler } from '../cli/net-answer.js';
 import { createSandboxLedger } from '../../ui/sandbox/sandbox-ledger.js';
 import { createThinkingBlock } from '../../ui/thinking/thinking-block.js';
 import { createDrawStage } from '../../ui/sandbox/draw-stage.js';
+import { createFileSkeleton } from '../../ui/files/file-skeleton.js';
 
 /**
  * `serverRun`: the run of the server when it makes the reply (its questions to the person are answered through it). `madeHere`: the server
@@ -118,6 +119,11 @@ export function createReplyLiveView({ targetElement, getDocument, getConfig, lan
     event: (event) => {
       drawStage.handle(event);
       stepList()?.event(event);
+      // The words are done and the files are being kept: a grey card stands where they will be, so they do not appear out of nothing when the
+      // reply ends (the reply is drawn again then, which takes the card away; finalizeAssistantResponse takes away any that is left).
+      if (event?.type === 'finishing' && !targetElement.querySelector?.('.file-skeleton')) {
+        targetElement.append(createFileSkeleton(getDocument(), event.label));
+      }
     },
     noteOwnSearch,
     showThinking,

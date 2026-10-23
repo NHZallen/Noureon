@@ -25,7 +25,7 @@ function scriptedModel(rounds) {
     if (round.error) throw round.error;
     for (const chunk of round.chunks || [round.text || '']) onChunk(chunk);
     for (const raw of round.argumentChunks || []) options.onToolArguments?.({ name: round.argumentName || 'run_python', arguments: raw });
-    options.onResponseComplete({ text: round.text || '', toolCalls: round.calls || [], parts: [], reasoningDetails: [] });
+    options.onResponseComplete({ text: round.text || '', toolCalls: round.calls || [], parts: [], reasoningDetails: [], ...(round.finish ? { finishReason: round.finish } : {}) });
     return round.text || '';
   };
   return { streamApiCall, requests };
@@ -109,14 +109,11 @@ test('the loop runs each requested call, returns the results and stops when the 
     onEvent: (event) => events.push(event)
   });
   assert.deepEqual(runs, ['print(sum([3, 5, 7]))']);
-  // What the model says about the run is the call's note: it goes with the run; the answer is only the answer, live and kept.
+  // The answer is only the answer, live and kept; the model says nothing about a run (no narration is drawn between the steps).
   assert.equal(result.text, '總和是 15。');
-  assert.equal(result.run.steps[0].narration, '我來算一下。');
-  assert.equal(chunks.join(''), '總和是 15。', 'the note is not streamed into the answer');
-  const kinds = events.map((event) => event.type);
-  assert.equal(kinds.indexOf('narration') < kinds.indexOf('step'), true, 'shown between the steps before the run starts');
-  assert.equal(events.find((event) => event.type === 'narration').text, '我來算一下。');
-  assert.equal(kinds.filter((kind) => kind === 'narration').length, 1);
+  assert.equal(chunks.join(''), '總和是 15。');
+  assert.equal(events.some((event) => event.type === 'narration'), false);
+  assert.equal('narration' in result.run.steps[0], false);
   assert.equal(model.requests.length, 2);
   assert.equal(model.requests[0].tools[0].name, 'run_python');
   assert.match(model.requests[0].additionalSystemInstruction, /Advanced mode: Python in the browser/);
@@ -131,7 +128,7 @@ test('the loop runs each requested call, returns the results and stops when the 
 
 test('with web research, the model searches and opens pages next to Python, and the words before them are not the answer', async () => {
   const model = scriptedModel([
-    { calls: [{ id: 's1', name: 'web_search', arguments: '{}', args: { note: '先查一下。', query: 'noureon version' } }] },
+    { calls: [{ id: 's1', name: 'web_search', arguments: '{}', args: { query: 'noureon version' } }] },
     { text: '', calls: [{ id: 'o1', name: 'open_page', arguments: '{}', args: { url: 'https://example.com/v' } }, call('c1', 'print(1)', '算')] },
     { text: '版本是 17.3.0。' }
   ]);
@@ -162,7 +159,7 @@ test('with web research, the model searches and opens pages next to Python, and 
   assert.equal(found.length, 2);
   assert.equal(result.text, '版本是 17.3.0。');
   assert.equal(chunks.join(''), '版本是 17.3.0。');
-  assert.equal(events.find((event) => event.type === 'narration').text, '先查一下。');
+  assert.equal(events.some((event) => event.type === 'narration'), false);
   assert.deepEqual(model.requests[2].toolTurns.map((turn) => turn.results.map((entry) => entry.name)), [['web_search'], ['open_page', 'run_python']]);
   assert.equal(result.run.steps.length, 1, 'only Python is a step');
 });
@@ -181,29 +178,7 @@ test('text is the answer and shows as it comes, a short one as much as a long on
   assert.deepEqual(shortChunks, ['短的', '答案。'], 'nothing is held back to find out whether it was an announcement');
 });
 
-test('a note is shown between the rows as soon as it is written, once, and the text a model writes before a call stays in the answer', async () => {
-  const events = [];
-  const chunks = [];
-  const model = scriptedModel([
-    {
-      // The code is still being written when the note is complete.
-      argumentChunks: ['{"note":"先看一下檔', '{"note":"先看一下檔案。","code":"pri', '{"note":"先看一下檔案。","code":"print(1)","title":"看"}'],
-      calls: [call('c1', 'print(1)', '看', '先看一下檔案。')]
-    },
-    { chunks: ['好，', '結果是 1。'], text: '好，結果是 1。' }
-  ]);
-  const { sandbox } = fakeSandbox([{ stdout: { text: '1\n', dropped: 0 }, stderr: { text: '', dropped: 0 }, error: null, files: [], elapsedMs: 1 }]);
-  const seen = [];
-  const original = model.streamApiCall;
-  const result = await runSandboxReply({
-    streamApiCall: (parts, onChunk, signal, forced, options) => original(parts, onChunk, signal, forced, { ...options, onToolArguments: (value) => { options.onToolArguments(value); seen.push(events.filter((event) => event.type === 'narration').length); } }),
-    requestParts: [{ text: 'q' }], onChunk: (chunk) => chunks.push(chunk), getSandbox: () => sandbox, onEvent: (event) => events.push(event)
-  });
-  assert.deepEqual(seen, [0, 1, 1], 'told when its closing quote arrives, not before and not again');
-  assert.equal(events.filter((event) => event.type === 'narration').length, 1, 'and not told a second time when the round is over');
-  assert.equal(result.run.steps[0].narration, '先看一下檔案。');
-
-  // A model that writes text before its call anyway: it is shown at once as the answer and kept, not held back or lost.
+test('the text a model writes before a call is the answer: shown at once and kept, never held back or made into anything else', async () => {
   const lateEvents = [];
   const lateChunks = [];
   const late = scriptedModel([{ chunks: ['我先算一下。'], text: '我先算一下。', calls: [call('c1', 'print(2)')] }, { text: '答案是 2。' }]);
@@ -214,7 +189,7 @@ test('a note is shown between the rows as soon as it is written, once, and the t
   });
   assert.equal(lateChunks[0], '我先算一下。', 'shown at once');
   assert.equal(lateResult.text, '我先算一下。\n\n答案是 2。');
-  assert.equal(lateEvents.some((event) => event.type === 'narration'), false, 'it is not made into a note');
+  assert.equal(lateEvents.some((event) => event.type === 'narration'), false);
 });
 
 test('after the run limit the model gets no tool and must answer', async () => {
@@ -362,7 +337,7 @@ test('the pages a search found and what the model said before a run are kept, sh
         { title: 'bad', url: 'javascript:alert(1)' },
         { title: 'plain', url: 'http://example.com/a b' }
       ],
-      steps: [{ title: 'Sum', code: 'print(1)', stdout: '1', narration: 'First **check** the tools.', elapsedMs: 10 }]
+      steps: [{ title: 'Sum', code: 'print(1)', stdout: '1', narration: 'Saved by an older version.', elapsedMs: 10 }]
     });
     const run = liftSandboxRunBlock(`${block}x`).run;
     assert.deepEqual(run.sources, [{ title: 'MDN', url: 'https://developer.mozilla.org/docs' }], 'web addresses only, once each');
@@ -375,10 +350,8 @@ test('the pages a search found and what the model said before a run are kept, sh
     assert.equal(chip.dataset.url, 'https://developer.mozilla.org/docs');
     assert.equal(chip.querySelector('.run-source-host').textContent, 'developer.mozilla.org');
     assert.equal(chip.getAttribute('href'), null, 'a chip is no link: the page asks first');
-    const narration = view.querySelector('.sandbox-run-narration');
-    assert.equal(narration.textContent, 'First check the tools.');
-    assert.equal(narration.querySelector('strong').textContent, 'check');
-    assert.equal(narration.compareDocumentPosition(view.querySelectorAll('.sandbox-run-row')[1]) & 4, 4, 'said before its run');
+    assert.equal(view.querySelector('.sandbox-run-narration'), null, 'what an older version kept as narration is not drawn');
+    assert.equal(run.steps[0].narration, undefined, 'and is not kept');
     // A reply that only searched (Standard mode) is the search row alone.
     const only = createSandboxRunElement(document, { status: 'done', steps: [], sources: run.sources }, { language: 'en' });
     assert.equal(only.querySelectorAll('.sandbox-run-row').length, 1);
@@ -689,4 +662,27 @@ test('the model may read a file of a skill next to Python: the tool comes once t
   assert.deepEqual(events.filter((event) => event.type === 'skill').map((event) => event.label), ['Loading skill: sales-report', 'Reading skill file: references/format.md']);
   assert.match(model.requests[1].toolTurns[0].results[0].content, /The scripts are in the sandbox, read only, in \/skills\/sales-report\//);
   assert.match(model.requests[2].toolTurns[1].results[0].content, /<skill-file skill="sales-report" path="references\/format.md">\nUse bullets\.\n<\/skill-file>/);
+});
+
+test('what the model said in its last round is kept apart from the whole text, and each round records how it ended', async () => {
+  const model = scriptedModel([
+    { text: '我會先檢查簡報。', finish: 'tool_use', calls: [call('c1', 'print(1)', '檢查')] },
+    { text: '已修正並輸出。', finish: 'end_turn' }
+  ]);
+  const { sandbox } = fakeSandbox([{ stdout: { text: '1\n', dropped: 0 }, stderr: { text: '', dropped: 0 }, error: null, files: [], elapsedMs: 1 }]);
+  const result = await runSandboxReply({ streamApiCall: model.streamApiCall, requestParts: [{ text: 'q' }], getSandbox: () => sandbox });
+  assert.equal('narration' in result, false);
+  assert.equal(result.answer, '已修正並輸出。');
+  assert.equal(result.text, '我會先檢查簡報。\n\n已修正並輸出。', 'the whole text holds what was said before the run too');
+  assert.deepEqual(result.rounds, [
+    { finish: 'tool_use', calls: 1, chars: 8 },
+    { finish: 'end_turn', calls: 0, chars: 9 }
+  ]);
+});
+
+test('a reply cut short by the output limit before it called anything shows it in the record of its rounds', async () => {
+  const model = scriptedModel([{ text: '', finish: 'max_tokens' }]);
+  const result = await runSandboxReply({ streamApiCall: model.streamApiCall, requestParts: [{ text: 'q' }], getSandbox: () => fakeSandbox([]).sandbox });
+  assert.equal(result.run, null);
+  assert.deepEqual(result.rounds, [{ finish: 'max_tokens', calls: 0, chars: 0 }]);
 });

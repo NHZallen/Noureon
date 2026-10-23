@@ -11,6 +11,7 @@ import { parseDocumentSpec } from '../src/app/ui/files/design/document-spec.js';
 import { askVision } from '../src/app/ui/files/vision/vision-ask.js';
 import { eligibleVisionFiles } from '../src/app/ui/files/vision/vision-eligibility.js';
 import { buildFixRequest, buildFreeVisionMetadata, buildFreeVisionPrompt, buildFreeVisionResult } from '../src/app/ui/files/vision/vision-free.js';
+import { createIssueStream } from '../src/app/ui/files/vision/vision-issue-stream.js';
 import { buildVisionPrompt, INVALID_VISION_RESPONSE } from '../src/app/ui/files/vision/vision-prompt.js';
 import { buildVisionMetadata, buildVisionResult } from '../src/app/ui/files/vision/vision-result.js';
 import { applyVisionEdits } from '../src/app/ui/files/vision/vision-edits.js';
@@ -55,6 +56,8 @@ export function remoteProgress(emit, { language }) {
     sheetReady: (event) => send('sheet', event),
     thinking: (chunk) => { if (chunk) send('think', chunk); },
     showIssues: (issues) => send('issues', issues),
+    // What the reply will say about the problems, known as soon as they are: the page types it in while the deck is redone.
+    result: (draft) => send('result', draft),
     setText: (line) => send('text', line),
     python: () => {
       const steps = createStepEvents({ send: (event) => send('py', event) });
@@ -137,12 +140,15 @@ export async function executeVisionCheck({
     };
     arm(REVIEW_TIMEOUT_MS);
     const progress = remoteProgress(emit, { language });
+    // The id of the reply that will carry this file (the first takes the one the run reserved), given out when the page is told what it will say.
+    let reserved = '';
+    const reserveMessageId = () => (reserved ||= written.length ? createId() : spec.assistantMessageId);
     try {
       const outcome = file.free
-        ? await checkFreeDeck({ file, spec, source, access, model, config, controller, language, progress, arm, userId, files, sandboxHost, decks, getKit, secrets })
+        ? await checkFreeDeck({ file, spec, source, access, model, config, controller, language, progress, arm, userId, files, sandboxHost, decks, getKit, secrets, reserveMessageId })
         : await checkDesignedDeck({ file, spec, access, model, language, controller, progress, arm, getKit, source });
       if (outcome.revised) {
-        const id = written.length ? createId() : spec.assistantMessageId;
+        const id = reserveMessageId();
         const { metadata } = outcome.revised;
         await writeMessage({ id, parts: outcome.revised.parts, metadata: source.messageId ? { ...metadata, visionCheck: { ...metadata.visionCheck, sourceMessageId: source.messageId } } : metadata });
         written.push(id);
@@ -237,7 +243,7 @@ async function checkDesignedDeck({ file, spec, access, model, language, controll
 
 // ------------------------------------------------------------ a deck Python drew
 
-async function checkFreeDeck({ file, spec, source, access, model, config, controller, language, progress, arm, userId, files, sandboxHost, decks, getKit, secrets }) {
+async function checkFreeDeck({ file, spec, source, access, model, config, controller, language, progress, arm, userId, files, sandboxHost, decks, getKit, secrets, reserveMessageId = () => '' }) {
   const [{ buildFreePresentation }, { renderContactSheets }, kit] = await Promise.all([import('./slides/free-deck.js'), import('./slides/render.js'), getKit()]);
   let bytes = decks.get(file.id);
   if (!bytes) {
@@ -252,15 +258,22 @@ async function checkFreeDeck({ file, spec, source, access, model, config, contro
   progress.set('reviewing', { model: model.name || model.id });
   const prompt = buildFreeVisionPrompt({ file, layout: presentation.layout, uiLanguage: language, checkedSlides: sheets.checkedSlides });
   const images = sheets.images.map((data) => ({ inlineData: { mimeType: 'image/jpeg', data } }));
-  const result = await askVision({ streamApiCall: access.streamApiCall, prompt, images, model, conversation: access.conversation, signal: controller.signal, progress, arm, requireEdits: false });
+  // Redoing the deck needs Python, which the person's conversation may not have (the page says: advanced) or the host may not answer: the deck stays as it is.
+  const canRedo = Boolean(spec.tools.visionCheck.advanced && sandboxHost?.configured);
+  // When the deck is going to be redone, what the reply says about the problems is told while the model writes them, so the page draws it as it is
+  // written (the reply with the deck is written when the work is done, and takes the place of what was drawn).
+  const live = canRedo ? createIssueStream({ language, checkedSlides: sheets.checkedSlides, totalSlides: sheets.totalSlides, send: (text) => progress.result({ id: reserveMessageId(), text }) }) : null;
+  const result = await askVision({ streamApiCall: access.streamApiCall, prompt, images, model, conversation: access.conversation, signal: controller.signal, progress, arm, requireEdits: false, onAnswerText: live ? (answer) => live.feed(answer) : null });
+  live?.flush();
   if (!result.issues.length) {
     progress.remove();
     return { clean: true };
   }
   progress.showIssues(result.issues);
   progress.set('fixing', { model: model.name || model.id });
-  // Redoing the deck needs Python, which the person's conversation may not have (the page says: advanced) or the host may not answer: the deck stays as it is.
-  if (!spec.tools.visionCheck.advanced || !sandboxHost?.configured) return { left: true, found: result.issues.length };
+  if (!canRedo) return { left: true, found: result.issues.length };
+  // The words as the model finished them (a problem it left out is not in them): the page's words are made the same.
+  progress.result({ id: reserveMessageId(), text: buildFreeVisionResult({ result, language, checkedSlides: sheets.checkedSlides, totalSlides: sheets.totalSlides }) });
   arm(FIX_TIMEOUT_MS);
   const steps = progress.python(language);
   let fix;
@@ -271,7 +284,7 @@ async function checkFreeDeck({ file, spec, source, access, model, config, contro
   }
   controller.signal.throwIfAborted();
   if (!fix.parts.some((part) => part.sandboxFile && part.sandboxFile.name === file.name)) throw new Error(visionText(language, 'freeNoFile'));
-  const text = `${formatSandboxRunBlock(fix.run)}${buildFreeVisionResult({ result, language, checkedSlides: sheets.checkedSlides, totalSlides: sheets.totalSlides, answer: fix.answer })}${fix.documents ? `\n\n${fix.documents}` : ''}`;
+  const text = `${formatSandboxRunBlock(fix.run)}${buildFreeVisionResult({ result, language, checkedSlides: sheets.checkedSlides, totalSlides: sheets.totalSlides })}${fix.documents ? `\n\n${fix.documents}` : ''}`;
   progress.remove();
   return {
     revised: {
@@ -316,7 +329,7 @@ async function redoDeck({ file, spec, source, access, model, config, controller,
       onEvent: stepEvents.event
     });
     stepEvents.flush();
-    const finished = await finishAdvancedReply({ result, run: result.run || { status: 'done', steps: [] }, userId, files });
+    const finished = await finishAdvancedReply({ result: { ...result, text: result.answer ?? result.text }, run: result.run || { status: 'done', steps: [] }, userId, files });
     return { run: result.run || { status: 'done', steps: [] }, parts: finished.parts, answer: finished.answer, documents: finished.documents };
   } finally {
     await sandbox?.dispose().catch(() => {});

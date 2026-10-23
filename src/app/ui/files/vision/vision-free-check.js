@@ -69,7 +69,7 @@ export async function checkFreeDeck({
   const redone = fix.parts.some((part) => part.sandboxFile && part.sandboxFile.name === file.name);
   if (!redone) throw new Error(visionText(language, 'freeNoFile'));
   const text = `${formatSandboxRunBlock(fix.run)}${buildFreeVisionResult({
-    result, language, checkedSlides: sheets.checkedSlides, totalSlides: sheets.totalSlides, answer: fix.text
+    result, language, checkedSlides: sheets.checkedSlides, totalSlides: sheets.totalSlides
   })}${fix.documents ? `\n\n${fix.documents}` : ''}`;
   const revised = {
     id: crypto.randomUUID(), role: 'model', parts: [{ text }, ...fix.parts], createdAt: new Date().toISOString(),

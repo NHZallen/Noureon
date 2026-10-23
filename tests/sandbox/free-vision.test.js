@@ -60,14 +60,15 @@ test('the fix request lists the problems and names the file', () => {
   assert.match(request, /Traditional Chinese/);
 });
 
-test('the reply reports the problems, then what the model said, in every language', () => {
+test('the reply reports the problems found, in every language, and nothing the model said', () => {
   const result = { issues: [{ slide: 3, category: 'layout', problem: 'Crowded.', fix: 'Split.' }], summary: 'One slide was crowded.' };
   for (const language of ['zh-TW', 'en', 'fr', 'ru', 'es']) {
     const text = buildFreeVisionResult({ result, language, checkedSlides: 24, totalSlides: 30, answer: 'Redone.' });
     assert.ok(text.startsWith(visionText(language, 'freeHeading', { found: 1 })), language);
     assert.ok(text.includes(`${visionText(language, 'slide', { number: 3 })}`), language);
     assert.ok(text.includes(visionText(language, 'partial', { count: 24 })), language);
-    assert.ok(text.endsWith('Redone.'), language);
+    assert.ok(text.endsWith(visionText(language, 'partial', { count: 24 })), language);
+    assert.equal(text.includes('Redone.') || text.includes('One slide was crowded.') || text.includes('I will look'), false, language);
     for (const key of ['fixing', 'freeHeading', 'freeNoFile']) assert.ok(VISION_TEXTS[language][key], `${language} ${key}`);
   }
   const metadata = buildFreeVisionMetadata({ file: { id: 'f', name: 'deck.pptx' }, model: { name: 'M' }, result, checkedSlides: 4, totalSlides: 4 });

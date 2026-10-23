@@ -34,6 +34,8 @@ export function applyModelMessagePostResponseActions({
                             </div>
                         `;
     bubble.insertAdjacentHTML('beforeend', actionButtonsHTML);
+    // The footer comes in, and the room it needs under the words is eased (a transition of the padding), not both set down at once when the reply ends.
+    bubble.lastElementChild?.classList.add('footer-arriving');
     // The right-hand panel (timeline, sources) is told that the chat has a new reply.
     lastMessageElement.ownerDocument.dispatchEvent(new lastMessageElement.ownerDocument.defaultView.CustomEvent('noureon:chat-changed'));
     return true;

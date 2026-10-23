@@ -45,7 +45,7 @@ export function createLedger({ document, host, before = null }) {
   const clock = () => happenedAt ?? Date.now();
   // One clock for every running row.
   const tick = () => rows.forEach((row) => row.draw());
-  const timer = window?.setInterval?.(tick, 1000);
+  let timer = window?.setInterval?.(tick, 1000);
   let gone = false;
 
   // `kind` (thought, code, file) gives the row its own icon in front of the label, the way chat products draw
@@ -96,6 +96,7 @@ export function createLedger({ document, host, before = null }) {
       if (showBody !== bodyShown) {
         bodyShown = showBody;
         setCollapsed(content, showBody, { animate: painted });
+        if (!showBody && root.style.minWidth) window.setTimeout(() => { if (!bodyShown) root.style.minWidth = ''; }, 400);
         // Opened again, the thinking (or code) shows its newest end, not where it was left when it was folded.
         if (showBody && painted) jumpToEnd(content);
       }
@@ -125,9 +126,13 @@ export function createLedger({ document, host, before = null }) {
           handler();
         });
         head.append(button);
+        return button;
       },
       setLabel(value) {
         if (text.textContent === value) return;
+        // The list is as wide as its widest part, a label included: a shorter label would narrow it and wrap what is open (it grew taller
+        // from nothing). The width is kept while the body is open, and let go a moment after it has folded.
+        if (bodyShown) root.style.minWidth = `${root.offsetWidth}px`;
         text.textContent = value;
         softChange(text);
       },
@@ -192,8 +197,13 @@ export function createLedger({ document, host, before = null }) {
     happenedAt(time) { happenedAt = Number.isFinite(time) ? time : null; },
     // The row in progress, if any.
     get current() { return [...rows].reverse().find((row) => row.state === 'running') || null; },
-    // Folds the rows that are done, so the newest is the one open. A row the reader opened stays open until the reader closes it.
-    foldFinished() { rows.filter((row) => row.state !== 'running' && !row.openedByReader).forEach((row) => row.setOpen(false)); },
+    // Folds the rows that are done, so the newest is the one open. A row the reader opened stays open until the reader closes it, and so does `keep`.
+    foldFinished(keep = null) { rows.filter((row) => row !== keep && row.state !== 'running' && !row.openedByReader).forEach((row) => row.setOpen(false)); },
+    // Every row is done and the ledger stays on the page: nothing needs the clock any more.
+    stopClock() {
+      if (timer) window.clearInterval(timer);
+      timer = null;
+    },
     remove() {
       if (gone) return;
       gone = true;

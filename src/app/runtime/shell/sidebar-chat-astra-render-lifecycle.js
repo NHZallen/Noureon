@@ -566,6 +566,7 @@ export function createSidebarChatAstraRenderLifecycle(dependencies = {}) {
 
   const {
     addMessageToUI,
+    appendMissingMessages,
     isActiveConversationViewCurrent,
     refreshMessageHistorySources,
     renderChat
@@ -650,6 +651,7 @@ export function createSidebarChatAstraRenderLifecycle(dependencies = {}) {
     renderArchivedChats,
     renderChat,
     addMessageToUI,
+    appendMissingMessages,
     isActiveConversationViewCurrent,
     refreshMessageHistorySources,
     renderAstras,

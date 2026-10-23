@@ -270,7 +270,7 @@ test('a reply is accepted, run, written, and finished, and its key goes with it'
       seen.push({ secrets, hasSecretsInSpec: 'secrets' in spec });
       onUpdate([{ text: 'partial' }]);
       await onCheckpoint({ round: 1 });
-      return { parts: [{ text: 'whole answer' }], status: 'done', run: { elapsedMs: 5 }, toolCalls: 2 };
+      return { parts: [{ text: 'whole answer' }], status: 'done', run: { elapsedMs: 5 }, toolCalls: 2, rounds: [{ finish: 'tool_use', calls: 2, chars: 0 }, { finish: 'end_turn', calls: 0, chars: 12 }] };
     }
   });
   const runId = await manager.start({ userId: USER, spec: specOf() });
@@ -290,6 +290,7 @@ test('a reply is accepted, run, written, and finished, and its key goes with it'
   assert.equal(db.log.updates.some((update) => update.values.checkpoint?.round === 1), true);
   const done = db.log.updates.find((update) => update.values.status === 'done');
   assert.equal(done.values.key_envelope, null);
+  assert.deepEqual(done.values.usage.rounds, [{ finish: 'tool_use', calls: 2, chars: 0 }, { finish: 'end_turn', calls: 0, chars: 12 }], 'how each round ended is kept with the run');
   assert.equal(manager.activeCount, 0);
 });
 
@@ -779,6 +780,29 @@ test('those watching the check are given what it has told so far (joined where t
   await settle();
   assert.ok(late.some((event) => event.vc?.m === 'file-end'));
   assert.ok(late.some((event) => event.done));
+});
+
+test('the words of the reply told again as the model writes them are one telling for a page that joins late: the last', async () => {
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  const { manager } = visionHarness({
+    onCheck: ({ onLive }) => {
+      onLive({ vc: { m: 'result', a: [{ id: 'm1', text: 'Found' }] } });
+      onLive({ vc: { m: 'issues', a: [[]] } });
+      onLive({ vc: { m: 'result', a: [{ id: 'm1', text: 'Found one problem' }] } });
+      return gate;
+    }
+  });
+  await manager.start({ userId: USER, spec: VISION_SPEC() });
+  await settle();
+  await settle();
+  const late = [];
+  manager.watch({ userId: USER, runId: 'run-2', send: (event) => late.push(event), close() {} });
+  const told = late[0].r.vc.filter((call) => call.m === 'result');
+  assert.equal(told.length, 1, 'one telling');
+  assert.equal(told[0].a[0].text, 'Found one problem', 'the last');
+  release();
+  await settle();
 });
 
 test('a stop of the check ends it without a reply, and nothing is started when the server cannot draw, the reply was stopped or no presentation was written', async () => {

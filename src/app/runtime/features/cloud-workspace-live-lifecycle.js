@@ -148,6 +148,8 @@ export function createCloudWorkspaceLiveLifecycle({
   renderSidebar,
   renderChat,
   isActiveConversationViewCurrent = () => false,
+  // Draws the messages that came after the last one on the page, below it, without drawing the chat again (false when it cannot).
+  appendMissingMessages = () => false,
   applyLanguage = () => {},
   getActiveConversation = () => null,
   hydrateConversation = conversation => getService(SERVICES.cloudAssets)?.hydrateConversation?.(conversation),
@@ -233,13 +235,15 @@ export function createCloudWorkspaceLiveLifecycle({
       renderSidebar({ reason: 'cloud-sidebar-changed' });
     }
     if (activeConversationChanged) {
+      // A message that only came after the last one is added below it: the rest of the chat is not drawn again.
+      const appended = !activeConversationViewCurrent && appendMissingMessages();
       renderChat({
         reason: 'cloud-active-conversation-changed',
         animate: false,
         scrollMode: 'preserve',
         // A completed local stream already has the same visible message data. The cloud codec
         // can still differ in storage-only fields, so do not clear and recreate the message list.
-        renderMessages: !activeConversationViewCurrent
+        renderMessages: !(activeConversationViewCurrent || appended)
       });
     } else if (controlsChanged) {
       renderChat({

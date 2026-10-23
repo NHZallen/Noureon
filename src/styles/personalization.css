@@ -61,12 +61,6 @@
         gap: 0.5rem;
         cursor: pointer;
     }
-    .color-preview {
-        width: 1.5rem;
-        height: 1.5rem;
-        border-radius: 0.25rem;
-        border: 1px solid var(--border-color);
-    }
     .color-dropdown-menu {
         position: absolute;
         top: 100%;
@@ -242,12 +236,8 @@
     .dialog-warning-border {
         animation: pulse-red-border 1.5s infinite;
     }
-    @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
-    }
     .message-content {
-    transition: opacity 0.2s ease-in-out;
+    transition: opacity 0.2s ease-in-out, padding-bottom 0.35s ease;
 }
     .astras-store-card {
         background-color: var(--sidebar-bg);

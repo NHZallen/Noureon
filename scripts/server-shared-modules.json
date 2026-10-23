@@ -332,6 +332,10 @@
       "note": "Reviewed 2026-10-03: no browser globals."
     },
     {
+      "path": "src/app/ui/files/vision/vision-issue-stream.js",
+      "note": "Reviewed 2026-10-23: pure functions (the problems read from the model's JSON answer as it is written, and the throttle that tells the reply of the check); no browser globals."
+    },
+    {
       "path": "src/app/ui/files/vision/vision-prompt.js",
       "note": "Reviewed 2026-10-03: no browser globals."
     },

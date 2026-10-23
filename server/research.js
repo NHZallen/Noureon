@@ -5,7 +5,7 @@
 // { researchReport } (with the report as a file) when it is done.
 
 import { normalizePageReads, normalizeTinyfishSearch } from '../src/app/runtime/reply/model-request-formatting.js';
-import { createNotes, createResearchCalls, researchGuidance, RESEARCH_TOOLS } from '../src/app/runtime/features/web-research-reply.js';
+import { createResearchCalls, researchGuidance, RESEARCH_TOOLS } from '../src/app/runtime/features/web-research-reply.js';
 import { createWebResearchTools } from '../src/app/runtime/features/web-research-tools.js';
 import { NOURAS_REQUEST_PURPOSE } from '../src/app/runtime/nouras/nouras-policy.js';
 import { addNumberedSources } from '../src/app/ui/citations/source-numbering.js';
@@ -439,7 +439,6 @@ export async function executeResearch({
   };
   const researchEvent = (event) => {
     if (event.type === 'searching') log({ type: 'searching', text: clip(event.label, 200) });
-    else if (event.type === 'narration') log({ type: 'narration', text: clip(event.text, 300) });
     if (event.type === 'searching' || event.type === 'sources') publish();
   };
   const tools = createWebResearchTools({ getConfig: () => config, getApiKeyForProvider: keyFor, fetchImpl: upstreamFetch, getErrorMessage, readErrorBody, normalizePageReads, normalizeTinyfishSearch });
@@ -682,7 +681,6 @@ export async function executeResearch({
         log({ type: 'item', text: clip(item.text, 200) });
         await publish({ save: true });
 
-        const noteMaker = createNotes((event) => researchEvent(event));
         const toolTurns = Array.isArray(inItem.toolTurns) ? [...inItem.toolTurns] : [];
         let text = typeof inItem.text === 'string' ? inItem.text : '';
         const prompt = itemPrompt({ topic, plan, item, notes, language });
@@ -690,7 +688,6 @@ export async function executeResearch({
           const canCall = itemCalls.left > 0;
           let response = null;
           let roundText = '';
-          noteMaker.reset();
           try {
             await withRetry(async () => {
               roundText = '';
@@ -701,7 +698,6 @@ export async function executeResearch({
                 tools: canCall ? RESEARCH_TOOLS : [],
                 toolTurns,
                 additionalSystemInstruction: `${researchGuidance()}\nThis is deep research: be thorough, cross-check important facts in a second source, and keep going until the item is well covered.`,
-                onToolArguments: ({ name, arguments: raw }) => { if (research.handles(name)) noteMaker.fromArguments(raw); },
                 onResponseComplete: (value) => { response = value; }
               }));
             }, work.signal);
@@ -715,7 +711,6 @@ export async function executeResearch({
           research.prefetch(calls);
           const results = [];
           for (const call of calls) {
-            noteMaker.fromCall(call);
             const content = await research.run(call);
             results.push({ id: call.id, geminiId: call.geminiId, name: call.name, content });
             if (work.signal.aborted) break;

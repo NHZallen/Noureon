@@ -1,6 +1,17 @@
 import { fadeOutPreviousChat } from '../../ui/motion/chat-switch-ghost.js';
-import { isReaderScrolling } from '../../ui/motion/reader-scroll-guard.js';
+import { followTop, isReaderScrolling, setScrollTopQuietly } from '../../ui/motion/reader-scroll-guard.js';
+import { revealArrival } from '../../ui/motion/arrival-reveal.js';
+import { streamInMessage } from '../../ui/motion/stream-in.js';
+import { morphChildren } from '../../ui/motion/morph-children.js';
+import { createFileSkeleton } from '../../ui/files/file-skeleton.js';
+import { takeArrival } from './arriving-messages.js';
 import { loadImageWait } from '../../ui/image-wait/image-wait-markup.js';
+
+// How far above the bottom of the chat the newest words are kept while a message is typed in (the message box lies over its end).
+const FOLLOW_MARGIN_PX = 160;
+// At the end of the chat is within this far of it; a chat moved more than this since the last follow was moved by the reader.
+const FOLLOW_NEAR_PX = 24;
+const FOLLOW_MOVED_PX = 4;
 
 export function createMessageListLifecycle({
     document,
@@ -136,6 +147,107 @@ export function createMessageListLifecycle({
             return element?.dataset?.messageIndex === String(index)
                 && messageViewSignature(element.__astraRenderedMessage) === messageViewSignature(message);
         });
+    };
+
+    // Whether the reader is at the end of the chat: true while they rest at it, and still true when the content grew below them (nothing was
+    // scrolled, so nothing took them away); false once they scroll up, until they come back to the end. The chat's own moves down leave it as it
+    // was (they are moves down, not up), so words that are kept above the chat's end by a margin do not end the following.
+    let atEnd = true;
+    let lastTop = 0;
+    const watchEnd = () => {
+        const chat = elements.chatContainer;
+        if (!chat?.addEventListener) return;
+        lastTop = chat.scrollTop;
+        chat.addEventListener('scroll', () => {
+            const top = chat.scrollTop;
+            if (chat.scrollHeight - top - chat.clientHeight <= FOLLOW_NEAR_PX) atEnd = true;
+            else if (top < lastTop - FOLLOW_MOVED_PX) atEnd = false;
+            lastTop = top;
+        }, { passive: true });
+    };
+    watchEnd();
+    // Follows words that grow down the chat by their own bottom edge (not the end of the chat: room that is kept below them would be scrolled into),
+    // for a reader who is at the end. A reader who scrolls up to read what is above is let go, and followed again when they come back to the end:
+    // the chat is never pulled out of their hands.
+    const follow = (typed) => {
+        const chat = elements.chatContainer;
+        if (!atEnd || isReaderScrolling(chat)) return;
+        const view = chat.getBoundingClientRect();
+        const box = typed.getBoundingClientRect();
+        const over = box.bottom - (view.bottom - FOLLOW_MARGIN_PX);
+        if (over > 0) setScrollTopQuietly(chat, Math.min(chat.scrollTop + over, followTop(chat)));
+        lastTop = chat.scrollTop;
+    };
+    // Types the words of a message in below what is on the page, the chat following them down for a reader who is at the end.
+    const typeIn = (element, { revealFiles = true } = {}) => {
+        const reducedMotion = Boolean(document.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches);
+        return streamInMessage(element, { requestFrame: scheduleFrame, reducedMotion, revealFiles, follow });
+    };
+    const draftOf = (id) => (id ? [...elements.messageList.children].find(element => element.dataset?.arrivalDraft === id) || null : null);
+
+    // The reply the server is making (the visual check's), whose words are known before its deck is: drawn below the chat at once as the model writes
+    // them (each time the words are told again they are the words so far), with the card of a file being made where the deck will be. It is not one
+    // of the conversation's messages (no index): the message that comes in the end takes its place, and when the check ends some other way it goes
+    // (arriving-messages.js, appendMissingMessages, discardResultDraft).
+    const showResultDraft = ({ conversationId, id, text, label, onDrawn }) => {
+        const conversation = getActiveConversation();
+        if (!id || !text || !conversation || conversation.id !== conversationId) return;
+        const existing = draftOf(id);
+        if (existing) {
+            const slot = existing.querySelector('.result-draft-text');
+            if (!slot) return;
+            const staging = document.createElement('div');
+            staging.innerHTML = renderMarkdownWithFormulas(text);
+            morphChildren(slot, staging);
+            follow(existing);
+            return;
+        }
+        const drawn = [...elements.messageList.children].filter(element => element.dataset?.messageIndex !== undefined);
+        if (drawn.length !== (conversation.messages || []).length) return;
+        const element = addMessageToUI({ id, role: 'model', parts: [{ text }], createdAt: new Date().toISOString(), metadata: { visionCheck: { free: true } } }, drawn.length, false, false, { conversation });
+        delete element.dataset.messageIndex;
+        element.dataset.arrivalDraft = id;
+        const content = element.querySelector('.message-content');
+        const root = content?.firstElementChild?.tagName === 'DIV' ? content.firstElementChild : content;
+        if (!root) return;
+        // The words have a place of their own, so they can grow with the line above them and the card below.
+        const slot = document.createElement('div');
+        slot.className = 'result-draft-text';
+        slot.append(...root.childNodes);
+        root.append(slot, createFileSkeleton(document, label));
+        // The top of the words is where the saved panel of the run goes.
+        onDrawn?.(root);
+        follow(element);
+    };
+    const discardResultDraft = ({ id }) => draftOf(id)?.remove();
+    document.defaultView?.addEventListener?.('astra:result-draft', event => showResultDraft(event.detail || {}));
+    document.defaultView?.addEventListener?.('astra:result-draft-discard', event => discardResultDraft(event.detail || {}));
+
+    // The messages the cloud brought in after the last one drawn (the result of a visual check, written by the server while the page was open):
+    // drawn below the others, and the rest of the chat is left as it is (a panel the reader opened stays open, the chat does not jump). One the
+    // page was told to expect (arriving-messages.js) is typed in; one the page had typed in as a draft takes its place at once. False when the
+    // messages drawn are not the first ones of the conversation.
+    const appendMissingMessages = () => {
+        const conversation = getActiveConversation();
+        const messages = conversation?.messages || [];
+        const pendingElement = conversation?.__astraPendingResponse?.loadingMessageDiv;
+        const drawn = [...elements.messageList.children].filter(element => element !== pendingElement && element.dataset?.messageIndex !== undefined);
+        if (!drawn.length || drawn.length >= messages.length) return false;
+        const sameStart = drawn.every((element, index) => element.dataset.messageIndex === String(index)
+            && messageViewSignature(element.__astraRenderedMessage) === messageViewSignature(messages[index]));
+        if (!sameStart) return false;
+        messages.slice(drawn.length).forEach((message, offset) => {
+            const draft = draftOf(message.id);
+            const typedIn = !draft && Boolean(message.id) && message.role === 'model' && takeArrival(message.id);
+            const element = addMessageToUI(message, drawn.length + offset, false, !(typedIn || draft), { conversation });
+            if (draft) {
+                // The words are on the page already: the message takes their place in one go (without coming in again: the draft did), and its deck comes in.
+                draft.remove();
+                element.classList.add('is-history');
+                revealArrival(element, 'is-arriving-files');
+            } else if (typedIn) void typeIn(element);
+        });
+        return true;
     };
 
     const scrollChatToBottom = () => {
@@ -367,6 +479,7 @@ export function createMessageListLifecycle({
 
     return {
         addMessageToUI,
+        appendMissingMessages,
         isActiveConversationViewCurrent,
         markMessageElementAsCurrent,
         refreshMessageHistorySources,

@@ -5,6 +5,7 @@ import { Window } from 'happy-dom';
 
 import { createServerVisionFollow } from '../src/app/runtime/server-reply/server-vision.js';
 import { chatsUnderVisionCheck, setVisionLocked } from '../src/app/runtime/features/vision-check-lock.js';
+import { takeArrival } from '../src/app/runtime/messages/arriving-messages.js';
 
 const setup = () => {
   const window = new Window();
@@ -18,7 +19,7 @@ const setup = () => {
 };
 const conversation = { id: 'conv-1' };
 
-function harness({ events = [], find = async () => null, watch } = {}) {
+function harness({ events = [], find = async () => null, watch, sync = null } = {}) {
   const { window, document, stack } = setup();
   const requests = [];
   const notices = [];
@@ -38,7 +39,7 @@ function harness({ events = [], find = async () => null, watch } = {}) {
     getLanguage: () => 'en',
     showNotification: (text, kind) => notices.push([text, kind]),
     getActiveConversation: () => conversation,
-    getSync: () => ({ flush: async () => { flushes.push(1); } }),
+    getSync: () => sync || ({ retry: async () => { flushes.push(1); }, flush: async () => { flushes.push('send only'); } }),
     onLockChange: () => locks.push([...chatsUnderVisionCheck]),
     wait: async () => {}
   });
@@ -70,9 +71,9 @@ test('the check the server makes is drawn as the page draws its own, from what t
   await running;
   assert.deepEqual([...chatsUnderVisionCheck], [], 'free again');
   assert.deepEqual(locks, [['conv-1'], []], 'the composer is asked to look each time');
-  assert.equal(document.querySelectorAll('.ledger').length, 0, 'the line is gone when the check is over');
+  assert.match(document.querySelector('.ledger-label')?.textContent || '', /Visual check done/, 'the line stays, folded into one line that says it is done');
   assert.deepEqual(notices, [], 'a corrected reply is the message, not a notice');
-  assert.equal(flushes.length, 1, 'the sync is asked to bring the corrected reply');
+  assert.deepEqual(flushes, [1], 'the sync is asked to read the cloud for the corrected reply, not only to send');
   void labels;
 });
 
@@ -221,4 +222,96 @@ test('the lock is the union of the page\'s own checks and the server\'s', () => 
   assert.deepEqual([...chatsUnderVisionCheck], ['b']);
   setVisionLocked('server', []);
   assert.deepEqual([...chatsUnderVisionCheck], []);
+});
+
+test('when the check is over its line folds into one quiet line (no clock, no stop button), the message is expected, and the sync reads the cloud', async () => {
+  const events = [call('begin', { name: 'deck.pptx' }), call('issues', [{ slide: 1, category: 'text', problem: 'Small', fix: 'Larger' }]), call('file-end', { outcome: 'fixed', messageId: 'm-arrive' }), { done: 'complete' }];
+  const built = harness({ events });
+  await built.follow.attach({ runId: 'run-v', conversation });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.ok(built.document.querySelectorAll('.ledger').length > 0, 'the line is not taken away');
+  assert.match(built.document.querySelector('.ledger-label')?.textContent || '', /Visual check done/);
+  assert.equal(built.document.querySelectorAll('.ledger-action').length, 0, 'the stop button is gone');
+  assert.equal(built.document.querySelectorAll('.ledger-issues').length, 1, 'what it showed is kept, folded');
+  assert.equal(built.document.querySelector('.ledger-row-head')?.getAttribute('aria-expanded'), 'false', 'folded');
+  assert.deepEqual(built.flushes, [1], 'the sync read the cloud');
+  assert.equal(takeArrival('m-arrive'), true, 'the page expects the message, to type it in');
+  assert.equal(takeArrival('m-arrive'), false, 'taken once');
+});
+
+const listen = (window, names) => {
+  const heard = [];
+  for (const name of names) window.addEventListener(name, (event) => heard.push([name, event.detail]));
+  return heard;
+};
+
+test('when the server tells what the reply will say, the line folds and the chat is told to type it in; a check that ends without that reply takes it away again', async () => {
+  const events = [
+    call('begin', { name: 'deck.pptx' }),
+    call('issues', [{ slide: 1, category: 'text', problem: 'Small', fix: 'Larger' }]),
+    call('result', { id: 'r1', text: 'Found one problem' }),
+    call('file-end', { outcome: 'failed', reason: 'x', messageId: 'note-1' }),
+    { done: 'complete' }
+  ];
+  const built = harness({ events });
+  const heard = listen(built.window, ['astra:result-draft', 'astra:result-draft-discard']);
+  await built.follow.attach({ runId: 'run-v', conversation });
+  assert.equal(heard.length, 2);
+  assert.equal(heard[0][0], 'astra:result-draft');
+  assert.equal(heard[0][1].conversationId, 'conv-1');
+  assert.equal(heard[0][1].id, 'r1');
+  assert.equal(heard[0][1].text, 'Found one problem');
+  assert.equal(typeof heard[0][1].label, 'string');
+  assert.deepEqual(heard[1], ['astra:result-draft-discard', { id: 'r1' }], 'the check ended without the deck: the typed words go');
+});
+
+test('a check that ends with the reply it announced keeps what was typed (the message takes its place)', async () => {
+  const events = [
+    call('begin', { name: 'deck.pptx' }),
+    call('result', { id: 'r2', text: 'Found one problem' }),
+    call('file-end', { outcome: 'fixed', messageId: 'r2' }),
+    { done: 'complete' }
+  ];
+  const built = harness({ events });
+  const heard = listen(built.window, ['astra:result-draft', 'astra:result-draft-discard']);
+  await built.follow.attach({ runId: 'run-v', conversation });
+  assert.deepEqual(heard.map((entry) => entry[0]), ['astra:result-draft']);
+});
+
+test('the line goes up into the message being typed (where the saved panel of the run will be), and is not typed itself', async () => {
+  const events = [
+    call('begin', { name: 'deck.pptx' }),
+    call('issues', [{ slide: 1, category: 'text', problem: 'Small', fix: 'Larger' }]),
+    call('result', { id: 'r3', text: 'Found one problem' }),
+    call('file-end', { outcome: 'fixed', messageId: 'r3' }),
+    { done: 'complete' }
+  ];
+  const built = harness({ events });
+  const container = built.document.createElement('div');
+  container.append(built.document.createElement('p'));
+  built.document.body.append(container);
+  built.window.addEventListener('astra:result-draft', (event) => event.detail.onDrawn(container));
+  await built.follow.attach({ runId: 'run-v', conversation });
+  assert.equal(container.firstElementChild?.classList.contains('ledger'), true, 'the line is the first thing in the message');
+  assert.equal(built.stack.querySelector('.ledger'), null, 'and no longer under the message it checked');
+});
+
+test('the words told again as the model writes them draw the same reply, and the line is folded the first time only', async () => {
+  const built = harness({
+    watch: async (runId, { onEvent }) => {
+      onEvent(call('begin', { name: 'deck.pptx' }));
+      onEvent(call('result', { id: 'r4', text: 'Found' }));
+      // The reader opens the line while the model is still writing.
+      built.document.querySelector('.ledger-row-head').click();
+      onEvent(call('result', { id: 'r4', text: 'Found one problem' }));
+      stayed = built.document.querySelector('.ledger-row-head').getAttribute('aria-expanded');
+      return true;
+    }
+  });
+  let stayed = '';
+  const heard = listen(built.window, ['astra:result-draft']);
+  await built.follow.attach({ runId: 'run-v', conversation });
+  assert.equal(stayed, 'true', 'the line the reader opened is not folded again by the next telling');
+  assert.deepEqual(heard.map((entry) => entry[1].text), ['Found', 'Found one problem']);
+  assert.equal(new Set(heard.map((entry) => entry[1].id)).size, 1);
 });

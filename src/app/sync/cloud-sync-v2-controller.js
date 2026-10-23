@@ -17,6 +17,9 @@ import {
   summarizeWorkspace
 } from './cloud-sync-v2-shared.js';
 
+// How long a sync that could not start waits before another request to send or look may start it again.
+const RECOVER_COOLDOWN_MS = 15_000;
+
 const INITIAL_STATUS = Object.freeze({
   state: 'idle',
   enabled: false,
@@ -150,6 +153,7 @@ export function createConversationShadowSync({
   schedule = (callback, delay) => globalThis.setTimeout(callback, delay),
   cancel = timer => globalThis.clearTimeout(timer),
   now = () => new Date().toISOString(),
+  clock = () => Date.now(),
   logger = console
 } = {}) {
   const options = {
@@ -228,8 +232,18 @@ export function createConversationShadowSync({
     return state.work;
   }
 
+  // A sync that could not start ('retry', not enabled) leaves the app in local mode, and nothing but a reload started it again: the
+  // realtime refresh only runs while enabled. Anything that asks the sync to send (a reply that ended) or to look (the page came back
+  // online) tries to start it again, at most once in RECOVER_COOLDOWN_MS.
+  let lastRecoveryAt = -Infinity;
+  const recoverIfStuck = () => {
+    if (state.enabled || state.status.state !== 'retry' || clock() - lastRecoveryAt < RECOVER_COOLDOWN_MS) return null;
+    lastRecoveryAt = clock();
+    return retry();
+  };
+
   function flush() {
-    if (!state.enabled) return state.work.then(() => state.status);
+    if (!state.enabled) return recoverIfStuck() || state.work.then(() => state.status);
     if (state.timer != null) cancel(state.timer);
     state.timer = null;
     return drain();

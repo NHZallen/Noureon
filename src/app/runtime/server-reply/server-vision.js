@@ -5,6 +5,7 @@
 
 import { visionText } from '../../ui/files/vision/vision-texts.js';
 import { setVisionLocked } from '../features/vision-check-lock.js';
+import { expectArrival } from '../messages/arriving-messages.js';
 import { withFileBytes } from './server-reply.js';
 import { SERVICES, getService } from '../services.js';
 
@@ -12,6 +13,8 @@ const LOOKS = 4;
 const LOOK_EVERY_MS = 1500;
 // How often it is looked at whether the line is still on the page, and how many calls are kept to draw it again.
 const KEEP_ON_PAGE_MS = 1000;
+// How long the line takes to fold when the check is over, before the reply is brought in.
+const FOLD_MS = 350;
 const MAX_REPLAYED_CALLS = 300;
 
 // Whether a reply may hold a presentation (as the page's own check asks): a block of a .pptx file in its text, or a .pptx that Python made.
@@ -59,6 +62,12 @@ export function createServerVisionFollow({
     let python = null;
     let replaying = false;
     let createVisionProgress = null;
+    // The reply typed in ahead of its deck (the server told what it says as soon as the problems were known), and a way to tell the chat.
+    let draftId = '';
+    const announce = (name, detail) => {
+      const view = document?.defaultView;
+      if (view?.dispatchEvent && typeof view.CustomEvent === 'function') view.dispatchEvent(new view.CustomEvent(name, { detail }));
+    };
     // When the check began, in this page's clock: the server says how long it has been going (the calls so far come with it), and each
     // call says when it happened, so every page shows the same seconds, however late it was opened.
     let began = null;
@@ -94,6 +103,21 @@ export function createServerVisionFollow({
         replaying = false;
       }
     };
+    // The check is over and its reply was written by the server. The line folds into one quiet line (with the ease of any row, which takes a
+    // moment: the message waits for it), then the message is typed in below it. The page is told to expect the message, and the sync is asked to
+    // read what the cloud holds now (`retry` reads, then sends; `flush` only sends: writing a message does not touch its conversation, so no
+    // live change tells the page).
+    const bringInResult = async (line, messageId) => {
+      line?.complete?.();
+      expectArrival(messageId);
+      await wait(FOLD_MS);
+      try {
+        const sync = getSync();
+        await (sync?.retry ? sync.retry() : sync?.flush?.());
+      } catch {
+        // The message comes with the next sync.
+      }
+    };
     const apply = (call, first, second, at) => {
       switch (call.m) {
         case 'begin':
@@ -107,6 +131,16 @@ export function createServerVisionFollow({
         case 'think': progress?.thinking(first); break;
         case 'issues': progress?.showIssues(first); break;
         case 'text': progress?.setText(first); break;
+        case 'result':
+          // What the reply will say is known: the line folds and the words are typed in below it, the deck's place held by a grey card until it comes.
+          // Told again as the model writes the words (each time the words so far): the line folds the first time only, so a reader who opens it
+          // again is not shut out.
+          if (draftId !== (first?.id || '')) progress?.fold?.();
+          draftId = first?.id || '';
+          // The line goes up into the message being typed (where the saved panel of the run will be), so the message that comes in the end takes
+          // its place with the same shape, and the words sit right under the line instead of after a gap.
+          announce('astra:result-draft', { conversationId: conversation.id, id: first?.id, text: first?.text, label: visionText(language, 'fixing'), onDrawn: (container) => progress?.moveInto?.(container) });
+          break;
         case 'py':
           python ||= progress?.python(language) || null;
           python?.event(at === null ? withFileBytes(first) : { ...withFileBytes(first), at });
@@ -120,15 +154,25 @@ export function createServerVisionFollow({
           progress = null;
           break;
         case 'file-end': {
-          progress?.remove();
+          const line = progress;
           progress = null;
           python = null;
           // What the page already told is not told again when the calls so far are replayed to it.
-          if (replaying) break;
+          if (replaying) {
+            line?.remove();
+            break;
+          }
           // The result is a reply the server wrote into the chat (a corrected reply, or a note of how the check ended): the cloud sync brings it
-          // in. Only when it could not be written is the result told by a notice.
-          if (first?.messageId) void Promise.resolve(getSync()?.flush?.()).catch(() => {});
-          else if (first?.outcome === 'clean' && getActiveConversation()?.id === conversation.id) showNotification(visionText(language, 'clean'), 'success');
+          // in. The line stays until it is there, and the reply is drawn in (not set down at once, after a gap). Only when it could not be written
+          // is the result told by a notice.
+          if (draftId && first?.messageId !== draftId) announce('astra:result-draft-discard', { id: draftId });
+          draftId = '';
+          if (first?.messageId) {
+            void bringInResult(line, first.messageId);
+            break;
+          }
+          line?.remove();
+          if (first?.outcome === 'clean' && getActiveConversation()?.id === conversation.id) showNotification(visionText(language, 'clean'), 'success');
           else if (first?.outcome === 'failed') showNotification(visionText(language, 'failed', { reason: first.reason || '' }), 'warning');
           else if (first?.outcome === 'left' && first.found) showNotification(visionText(language, 'leftAlone', { found: first.found }), 'warning');
           break;

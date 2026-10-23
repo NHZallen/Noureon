@@ -209,3 +209,18 @@
     word-break: normal; /* 防止文字被暴力切斷 */
     table-layout: auto; /* 讓內容決定寬度，這是防止擠壓的關鍵 */
 }
+
+/* A message typed in below what is on the page (src/app/ui/motion/stream-in.js) and the files of a reply being kept: a block waits until its first
+   word, the files wait invisible and then fade in. */
+.stream-pending { display: none; }
+/* The place of a file being made (ui/files/file-skeleton.js): the card's own boxes with bars that shimmer, so the file takes its place without moving
+   anything. The files of a message being typed in wait invisible. */
+.is-awaiting-files .ac-file-card { opacity: 0; pointer-events: none; }
+.file-skeleton { pointer-events: none; --sk: color-mix(in srgb, var(--text-primary) 7%, transparent); }
+.file-skeleton .sk { display: block; border-radius: 0.4rem; background: linear-gradient(90deg, var(--sk) 30%, color-mix(in srgb, var(--text-primary) 15%, transparent) 50%, var(--sk) 70%) 100% 0 / 300% 100%; animation: sk-shimmer 1.6s ease-in-out infinite; }
+.file-skeleton .sk-icon { width: 1.7rem; height: 1.7rem; border-radius: 0.5rem; }
+.file-skeleton .sk-name { width: min(9rem, 60%); height: 0.8rem; margin: 0.24rem 0; }
+.footer-arriving, .is-arriving-files .ac-file-card { animation: file-arrive 0.5s ease-out backwards; }
+@keyframes sk-shimmer { to { background-position: 0 0; } }
+@keyframes file-arrive { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .file-skeleton .sk, .is-arriving-files .ac-file-card, .footer-arriving { animation: none; } }

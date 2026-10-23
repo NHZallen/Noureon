@@ -108,7 +108,7 @@ test('a deck Python drew with problems: the model is asked to redo it in the san
   const [text, file] = written[0].parts;
   assert.match(text.text, /^```noureon-run/);
   assert.match(text.text, /The title runs over two lines/);
-  assert.match(text.text, /I shortened the title\./);
+  assert.doesNotMatch(text.text, /I shortened the title/, 'what the model said about redoing the deck is not part of the reply');
   assert.equal(file.sandboxFile.name, 'deck.pptx');
   assert.equal(written[0].metadata.visionCheck.free, true);
   assert.equal(written[0].metadata.visionCheck.issues.length, 1);
@@ -116,12 +116,43 @@ test('a deck Python drew with problems: the model is asked to redo it in the san
   const names = methods(live);
   assert.ok(names.includes('issues') && names.includes('py') && names.includes('pyEnd'));
   assert.deepEqual(live.at(-1), { m: 'file-end', a: [{ outcome: 'fixed', messageId: result.written[0] }] });
+  // What the reply says about the problems is told while the model writes them, and once more as they were finished, before the deck is redone,
+  // under the id the reply will have.
+  const told = live.filter((event) => event.m === 'result').at(-1);
+  assert.ok(told, 'the page is told what the reply will say');
+  assert.equal(told.a[0].id, result.written[0]);
+  assert.equal(told.a[0].text, text.text.replace(/^```noureon-run[\s\S]*?```\n\n/, ''), 'the words told are the words written (the run record aside)');
+  assert.ok(names.indexOf('result') < names.indexOf('issues'), 'the words come while the model is still answering');
+  assert.ok(names.lastIndexOf('result') > names.indexOf('issues') && names.lastIndexOf('result') < names.indexOf('py'), 'the finished words come before the redoing');
+});
+
+test('the reply of the check is told as the model writes the problems, a piece at a time, and a check that finds none tells nothing', async () => {
+  const whole = '{"issues":[{"slide":4,"category":"layout","problem":"The title runs over two lines","fix":"Shorten the title"},{"slide":5,"category":"text","problem":"Small text","fix":"Larger"}],"summary":"Two."}';
+  const cut = whole.indexOf('over two lines') + 4;
+  const newDeck = new Uint8Array([80, 75, 3, 4, 1, 2, 3]);
+  const files = { save: async () => ({ __astraCloudAsset: { path: `${USER}/new`, mimeType: 'x', encoding: 'base64' } }), load: async () => deckBytes };
+  const sandbox = { configured: true, getSandbox: () => ({ prepare: async () => ({}), clear: async () => ({}), mount: async () => ({}), run: async () => ({ stdout: { text: '', dropped: 0 }, stderr: { text: '', dropped: 0 }, error: '', elapsedMs: 5, files: [{ name: 'deck.pptx', size: newDeck.length, bytes: newDeck }], skippedFiles: [] }), dispose: async () => {} }) };
+  const answers = [chunk(whole.slice(0, cut)) + chunk(whole.slice(cut)), call('run_python', { title: 'Fix', code: 'save()' }), chunk('Done.')];
+  const { run, live } = harness({ answers, spec: specFor({ visionCheck: { deckDesign: 'auto', advanced: true } }), source: freeSource, decks: new Map([['deck-1', deckBytes]]), sandboxHost: sandbox, files });
+  await run();
+  const results = live.filter((event) => event.m === 'result').map((event) => event.a[0].text);
+  assert.ok(results.length >= 2, 'more than one telling');
+  assert.match(results[0], /The title runs/, 'the first telling has what was written so far');
+  assert.doesNotMatch(results[0], /two lines/, 'and not what was not written yet');
+  assert.doesNotMatch(results[0], /Small text/);
+  assert.match(results.at(-1), /Small text/, 'the last has all of it');
+  assert.equal(new Set(live.filter((event) => event.m === 'result').map((event) => event.a[0].id)).size, 1, 'always the same reply');
+
+  const clean = harness({ answers: [chunk('{"issues":[],"summary":""}')], spec: specFor({ visionCheck: { deckDesign: 'auto', advanced: true } }), source: freeSource, decks: new Map([['deck-1', deckBytes]]), sandboxHost: sandbox, files });
+  await clean.run();
+  assert.equal(methods(clean.live).includes('result'), false, 'no problems, nothing to tell');
 });
 
 test('a deck Python drew with problems, when Python cannot be used here: the deck is left as it is', async () => {
   const issues = '{"issues":[{"slide":1,"category":"text","problem":"Small text","fix":"Make it larger"}],"summary":""}';
   const { run, live, written } = harness({ answers: [chunk(issues)], source: freeSource, decks: new Map([['deck-1', deckBytes]]) });
   assert.deepEqual(await run(), { checked: 0, written: [], outcomes: ['left'], details: [{ outcome: 'left', name: 'deck.pptx', found: 1, reason: 'no_python' }] });
+  assert.equal(methods(live).includes('result'), false, 'a deck that is not redone has no reply to type in ahead');
   assert.equal(written.length, 1, 'the person is told in the chat that problems were found and the deck was left');
   assert.match(written[0].parts[0].text, /1 issues found, but they cannot be fixed automatically here/);
   assert.deepEqual(live.at(-1), { m: 'file-end', a: [{ outcome: 'left', found: 1, messageId: written[0].id }] });

@@ -272,3 +272,26 @@ test('a site icon that loads replaces the globe, and one that fails is removed, 
   assert.ok(document.getElementById('c'), 'images elsewhere are left alone');
   stop();
 });
+
+test('the thinking of the model is not opened while it streams, and the sheets stay open while the model looks at them', () => {
+  const { window } = new Window();
+  const { document } = window;
+  const stack = document.createElement('div');
+  document.body.append(stack);
+  const progress = createVisionProgress({ document, language: 'en', controller: new AbortController(), host: stack });
+  const url = 'data:image/jpeg;base64,AA==';
+  progress.set('rendering');
+  progress.slideRendered({ index: 0, total: 1, number: 1, url });
+  progress.sheetReady({ index: 0, total: 1, url });
+  progress.set('reviewing', { model: 'M' });
+  const expanded = () => [...stack.querySelectorAll('.ledger-row-head')].map((head) => `${head.textContent.slice(0, 12)}=${head.getAttribute('aria-expanded')}`);
+  const sheetsRow = [...stack.querySelectorAll('.ledger-row-head')].find((head) => head.getAttribute('aria-expanded') === 'true' && head.closest('.ledger-row')?.querySelector('.ledger-sheets'));
+  if (!sheetsRow) progress.remove();
+  assert.ok(sheetsRow, `the sheets stay open while the model looks: ${expanded().join(' ')}`);
+  progress.thinking('Looking at slide one. ');
+  const review = [...stack.querySelectorAll('.ledger-row-head')].find((head) => head.closest('.ledger-row')?.querySelector('.ledger-thought'));
+  if (!review) progress.remove();
+  assert.ok(review, 'the thinking has a row');
+  assert.notEqual(review.getAttribute('aria-expanded'), 'true', 'the thinking is there to open when wanted, not opened for the reader');
+  progress.remove();
+});

@@ -74,13 +74,6 @@ function pictureRows(document, run, language) {
   });
 }
 
-// What the model said before a run, between the steps in ordinary text.
-function narrationBlock(document, text) {
-  const block = element(document, 'div', 'sandbox-run-narration');
-  fillThinkingText(document, block, text);
-  return block;
-}
-
 function stepRow(document, step, index, language) {
   const body = [createCodeCard(document, step.code, language, { shell: Boolean(step.command) })];
 
@@ -167,7 +160,6 @@ function councilRunElement(document, container, run, language) {
   list.append(...connectorRows(document, run, language));
   run.steps.forEach((step, index) => {
     if (step.thought) list.append(thoughtRow(document, step.thought, language));
-    if (step.narration) list.append(narrationBlock(document, step.narration));
     list.append(stepRow(document, step, index, language));
   });
   if (run.thought) list.append(thoughtRow(document, run.thought, language, { interrupted: run.thoughtInterrupted, label: thinkingLabel(run, language) }));
@@ -231,7 +223,6 @@ export function createSandboxRunElement(document, run, { language = 'zh-TW' } = 
   list.append(...connectorRows(document, run, language), ...pictureRows(document, run, language));
   run.steps.forEach((step, index) => {
     if (step.thought) list.append(thoughtRow(document, step.thought, language));
-    if (step.narration) list.append(narrationBlock(document, step.narration));
     list.append(stepRow(document, step, index, language));
   });
   if (run.thought) list.append(thoughtRow(document, run.thought, language, { interrupted: run.thoughtInterrupted }));

@@ -21,6 +21,8 @@
       var manifest = document.createElement('link');
       manifest.rel = 'manifest';
       manifest.href = '/manifest-dark.json';
+      // With the cookie of the site, as the link of index.html: a test site behind a login would otherwise send the request to the login page.
+      manifest.crossOrigin = 'use-credentials';
       document.head.insertBefore(manifest, document.head.firstChild);
     }
   } catch (error) { /* the page stays as it is */ }

@@ -4,6 +4,7 @@ import test from 'node:test';
 
 import { createDom } from './behaviours/helpers/create-dom.js';
 import { createMessageListLifecycle } from '../src/app/runtime/messages/message-list-lifecycle.js';
+import { expectArrival } from '../src/app/runtime/messages/arriving-messages.js';
 
 const projectFile = (path) => new URL(`../${path}`, import.meta.url);
 const readSource = (path) => readFileSync(projectFile(path), 'utf8');
@@ -686,5 +687,168 @@ test('message list lifecycle source avoids provider, storage schema, package, an
     'virtual:legacy-app-runtime'
   ]) {
     assert.equal(source.includes(token), false, token);
+  }
+});
+
+const drawn = (fixture, messages) => {
+  messages.forEach((message, index) => { fixture.conversation.messages.push(message); fixture.lifecycle.addMessageToUI(message, index, false, false); });
+};
+const texts = (fixture) => [...fixture.document.querySelectorAll('#messages > *')].map((element) => element.textContent);
+
+test('a message that came after the last one drawn is added below it and nothing else is drawn again; one that was expected is typed in', () => {
+  const fixture = createFixture();
+  try {
+    drawn(fixture, [{ role: 'user', parts: [{ text: 'Make a deck' }] }, { id: 'a1', role: 'model', parts: [{ text: 'Here it is' }] }]);
+    const before = [...fixture.document.querySelectorAll('#messages > *')];
+    fixture.conversation.messages.push({ id: 'r1', role: 'model', parts: [{ text: 'Found two problems' }] });
+    fixture.conversation.messages.push({ id: 'r2', role: 'model', parts: [{ text: 'A second note' }] });
+    expectArrival('r1');
+    assert.equal(fixture.lifecycle.appendMissingMessages(), true);
+    const after = [...fixture.document.querySelectorAll('#messages > *')];
+    assert.equal(after.length, 4);
+    assert.equal(before.every((element, index) => element === after[index]), true, 'the messages already there are the same elements');
+    assert.deepEqual(texts(fixture), ['Make a deck', 'Here it is', 'Found two problems', 'A second note']);
+    assert.equal(after[2].classList.contains('is-awaiting-files'), false, 'typed in, and over');
+    assert.equal(fixture.lifecycle.isActiveConversationViewCurrent(), true);
+  } finally {
+    fixture.cleanup?.();
+  }
+});
+
+test('nothing is added below when the messages drawn are not the first ones of the conversation, or there is nothing new', () => {
+  const fixture = createFixture();
+  try {
+    drawn(fixture, [{ role: 'user', parts: [{ text: 'Q' }] }, { id: 'a1', role: 'model', parts: [{ text: 'A' }] }]);
+    assert.equal(fixture.lifecycle.appendMissingMessages(), false, 'nothing new');
+    fixture.conversation.messages[1] = { id: 'a1', role: 'model', parts: [{ text: 'A, changed elsewhere' }] };
+    fixture.conversation.messages.push({ id: 'r1', role: 'model', parts: [{ text: 'new' }] });
+    assert.equal(fixture.lifecycle.appendMissingMessages(), false, 'what is drawn differs: the chat is drawn again as before');
+  } finally {
+    fixture.cleanup?.();
+  }
+});
+
+test('the reply of the visual check is typed in as a draft with a grey card, the message that comes takes its place, and another ending takes it away', () => {
+  const fixture = createFixture();
+  try {
+    drawn(fixture, [{ role: 'user', parts: [{ text: 'Make a deck' }] }, { id: 'a1', role: 'model', parts: [{ text: 'Here it is' }] }]);
+    const view = fixture.document.defaultView;
+    fixture.conversation.id = 'c1';
+    view.dispatchEvent(new view.CustomEvent('astra:result-draft', { detail: { conversationId: 'another', id: 'r1', text: 'Found two problems', label: 'Redoing' } }));
+    assert.equal(fixture.document.querySelectorAll('[data-arrival-draft]').length, 0, 'a draft for another conversation is not drawn');
+    let told = null;
+    view.dispatchEvent(new view.CustomEvent('astra:result-draft', { detail: { conversationId: 'c1', id: 'r1', text: 'Found two problems', label: 'Redoing', onDrawn: (container) => { told = container; } } }));
+    const draft = fixture.document.querySelector('[data-arrival-draft="r1"]');
+    assert.ok(told && draft.contains(told), 'the page is told where the words begin (the line goes there)');
+    assert.ok(draft);
+    assert.equal(draft.dataset.messageIndex, undefined, 'not one of the conversation messages');
+    assert.match(draft.textContent, /Found two problems/);
+    assert.equal(draft.querySelectorAll('.file-skeleton').length, 1, 'a grey card holds the deck place');
+    assert.equal(fixture.lifecycle.isActiveConversationViewCurrent(), true, 'the draft does not make the view look out of date');
+
+    fixture.conversation.messages.push({ id: 'r1', role: 'model', parts: [{ text: 'Found two problems' }] });
+    assert.equal(fixture.lifecycle.appendMissingMessages(), true);
+    assert.equal(fixture.document.querySelectorAll('[data-arrival-draft]').length, 0, 'the draft is gone');
+    const all = [...fixture.document.querySelectorAll('#messages > *')];
+    assert.equal(all.length, 3);
+    assert.equal(all[2].classList.contains('is-arriving-files'), true, 'the deck comes in');
+    assert.equal(all[2].classList.contains('is-awaiting-files'), false);
+    assert.equal(all[2].classList.contains('is-history'), true, 'the message does not come in again: the draft did');
+
+    const second = createFixture();
+    try {
+      drawn(second, [{ role: 'user', parts: [{ text: 'Q' }] }, { id: 'a2', role: 'model', parts: [{ text: 'A' }] }]);
+      second.conversation.id = 'c2';
+      const other = second.document.defaultView;
+      other.dispatchEvent(new other.CustomEvent('astra:result-draft', { detail: { conversationId: 'c2', id: 'r9', text: 'Found one', label: 'Redoing' } }));
+      assert.equal(second.document.querySelectorAll('[data-arrival-draft]').length, 1);
+      other.dispatchEvent(new other.CustomEvent('astra:result-draft-discard', { detail: { id: 'r9' } }));
+      assert.equal(second.document.querySelectorAll('[data-arrival-draft]').length, 0);
+    } finally {
+      second.cleanup?.();
+    }
+  } finally {
+    fixture.cleanup?.();
+  }
+});
+
+test('the draft of the check grows as its words are told again: the lines before the new one stay as they are, and the line goes where it was told', () => {
+  const fixture = createFixture();
+  try {
+    drawn(fixture, [{ role: 'user', parts: [{ text: 'Make a deck' }] }, { id: 'a1', role: 'model', parts: [{ text: 'Here it is' }] }]);
+    const view = fixture.document.defaultView;
+    fixture.conversation.id = 'c1';
+    const tell = (text) => view.dispatchEvent(new view.CustomEvent('astra:result-draft', { detail: { conversationId: 'c1', id: 'r1', text, label: 'Redoing', onDrawn: () => { throw new Error('told again'); } } }));
+    let root = null;
+    view.dispatchEvent(new view.CustomEvent('astra:result-draft', { detail: { conversationId: 'c1', id: 'r1', text: '<p>Heading</p><ul><li>one</li></ul>', label: 'Redoing', onDrawn: (container) => { root = container; } } }));
+    const draft = fixture.document.querySelector('[data-arrival-draft="r1"]');
+    assert.ok(root && draft.contains(root), 'told where the words begin');
+    const heading = draft.querySelector('p');
+    const item = draft.querySelector('li');
+    assert.equal(draft.querySelectorAll('.result-draft-text').length, 1, 'the words have a place of their own');
+    assert.equal(draft.querySelectorAll('.file-skeleton').length, 1);
+    assert.equal(draft.querySelector('.result-draft-text').nextElementSibling?.classList.contains('file-skeleton'), true, 'the card is below the words');
+
+    tell('<p>Heading</p><ul><li>one</li><li>two</li></ul>');
+    assert.equal(fixture.document.querySelectorAll('[data-arrival-draft="r1"]').length, 1, 'the same draft, not another');
+    assert.equal(draft.querySelector('p'), heading, 'the heading stays the same element');
+    assert.equal(draft.querySelector('li'), item, 'so does the first item');
+    assert.deepEqual([...draft.querySelectorAll('li')].map((node) => node.textContent), ['one', 'two']);
+    assert.equal(draft.querySelectorAll('.file-skeleton').length, 1, 'one card');
+  } finally {
+    fixture.cleanup?.();
+  }
+});
+
+test('a draft that grows follows a reader who is at the end (also when the content grew below them first), and lets go of one who scrolled up, until they come back', () => {
+  const fixture = createFixture();
+  try {
+    drawn(fixture, [{ role: 'user', parts: [{ text: 'Make a deck' }] }, { id: 'a1', role: 'model', parts: [{ text: 'Here it is' }] }]);
+    const view = fixture.document.defaultView;
+    fixture.conversation.id = 'c1';
+    const chat = fixture.document.querySelector('#chat');
+    assert.ok(chat, 'the chat box of the fixture');
+    // A chat of fixed size whose content height is told by the test.
+    let content = 1000;
+    let top = 500;
+    Object.defineProperty(chat, 'scrollHeight', { configurable: true, get: () => content });
+    Object.defineProperty(chat, 'clientHeight', { configurable: true, get: () => 500 });
+    Object.defineProperty(chat, 'scrollTop', { configurable: true, get: () => top, set: (value) => { top = value; } });
+    chat.getBoundingClientRect = () => ({ top: 0, bottom: 500, height: 500 });
+    const scrolled = () => chat.dispatchEvent(new view.Event('scroll'));
+    const tell = (text) => view.dispatchEvent(new view.CustomEvent('astra:result-draft', { detail: { conversationId: 'c1', id: 'r1', text, label: 'Redoing' } }));
+    const draftBottom = (bottom) => { fixture.document.querySelector('[data-arrival-draft="r1"]').getBoundingClientRect = () => ({ top: bottom - 100, bottom, height: 100 }); };
+
+    // The reader is at the end, and the content grows below them before the words come (a step list opening): they are still followed.
+    scrolled();
+    content += 200;
+    tell('<p>One</p>');
+    draftBottom(900);
+    tell('<p>One</p><p>Two</p>');
+    assert.ok(top > 500, 'the chat followed the words down, though it was no longer at the end when they began');
+    const followed = top;
+    scrolled();
+
+    // The reader scrolls up to read what is above.
+    top = 100;
+    scrolled();
+    content += 100;
+    draftBottom(1100);
+    tell('<p>One</p><p>Two</p><p>Three</p>');
+    assert.equal(top, 100, 'a reader who moved the chat is not pulled back');
+    content += 100;
+    draftBottom(1200);
+    tell('<p>One</p><p>Two</p><p>Three</p><p>Four</p>');
+    assert.equal(top, 100, 'and still not');
+
+    // The reader comes back to the end: followed again.
+    top = content - 500;
+    scrolled();
+    content += 150;
+    draftBottom(1500);
+    tell('<p>One</p><p>Two</p><p>Three</p><p>Four</p><p>Five</p>');
+    assert.ok(top > content - 500 - 400 && top > followed, 'followed again');
+  } finally {
+    fixture.cleanup?.();
   }
 });
