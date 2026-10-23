@@ -37,7 +37,7 @@ test('model registry exports the canonical model inventory', () => {
   assert.ok(MODELS.some((model) => model.id === 'gemini-3.8-flash' && model.provider === 'gemini'));
   assert.equal(MODELS.some((model) => model.id === 'gemini-3.7-flash'), false);
   assert.ok(MODELS.some((model) => model.id === 'gemini-3.5-flash-lite' && model.provider === 'gemini'));
-  assert.ok(MODELS.some((model) => model.id === 'moonshotai/kimi-k3' && model.provider === 'openrouter'));
+  assert.ok(MODELS.some((model) => model.id === 'moonshotai/kimi-k3.1-pro' && model.provider === 'openrouter'));
   assert.ok(MODELS.some((model) => model.id === 'poolside/laguna-s-2.1:free' && model.provider === 'openrouter'));
   assert.ok(MODELS.some((model) => model.id === 'anthropic/claude-opus-5.5' && model.provider === 'openrouter'));
   assert.equal(MODELS.some((model) => model.id === 'anthropic/claude-opus-4.8'), false);
@@ -115,7 +115,7 @@ test('model registry preserves provider labels and API id aliases', () => {
 test('model registry preserves vision and document capability behavior', () => {
   const geminiModel = MODELS.find((model) => model.id === 'gemini-3.8-flash');
   const geminiLiteModel = MODELS.find((model) => model.id === 'gemini-3.5-flash-lite');
-  const kimiK3Model = MODELS.find((model) => model.id === 'moonshotai/kimi-k3');
+  const kimiK3Model = MODELS.find((model) => model.id === 'moonshotai/kimi-k3.1-pro');
   const lagunaModel = MODELS.find((model) => model.id === 'poolside/laguna-s-2.1:free');
   const opus5Model = MODELS.find((model) => model.id === 'anthropic/claude-opus-5.5');
   const openRouterVisionModel = MODELS.find((model) => model.id === 'openai/gpt-6-astra');
@@ -166,7 +166,7 @@ test('model registry exposes precise reasoning depth options for supported model
   const imageModel = MODELS.find((model) => model.id === 'google/gemini-nano-banana-2.1');
   const geminiFlashModel = MODELS.find((model) => model.id === 'gemini-3.8-flash');
   const geminiFlashLiteModel = MODELS.find((model) => model.id === 'gemini-3.5-flash-lite');
-  const kimiK3Model = MODELS.find((model) => model.id === 'moonshotai/kimi-k3');
+  const kimiK3Model = MODELS.find((model) => model.id === 'moonshotai/kimi-k3.1-pro');
   const opus5Model = MODELS.find((model) => model.id === 'anthropic/claude-opus-5.5');
   const fableModel = MODELS.find((model) => model.id === 'anthropic/claude-fable-5.1');
   const glmFlashModel = MODELS.find((model) => model.id === 'z-ai/glm-5.3-flash');
@@ -205,7 +205,7 @@ test('model registry exposes precise reasoning depth options for supported model
   assert.deepEqual(getModelReasoningConfig(imageModel)?.options, ['minimal', 'high']);
   assert.deepEqual(getModelReasoningConfig(geminiFlashModel)?.options, ['low', 'medium', 'high']);
   assert.equal(getModelReasoningConfig(geminiFlashLiteModel)?.defaultEffort, 'minimal');
-  assert.deepEqual(getModelReasoningConfig(kimiK3Model)?.options, ['low', 'high', 'max']);
+  assert.deepEqual(getModelReasoningConfig(kimiK3Model)?.options, ['none', 'low', 'medium', 'high', 'xhigh', 'max']);
   assert.deepEqual(getModelReasoningConfig(opus5Model)?.options, ['low', 'medium', 'high', 'xhigh', 'max']);
   assert.equal(getModelReasoningConfig(opus5Model)?.defaultEffort, 'medium');
   assert.deepEqual(getModelReasoningConfig(fableModel)?.options, ['low', 'medium', 'high', 'xhigh', 'max']);
@@ -403,5 +403,10 @@ test('Kimi K3.1 Pro (OpenRouter) is in the list with what the probe of 2026-10-2
   for (const mimeType of ['image/png', 'video/mp4', 'application/pdf']) assert.equal(modelSupportsUploadedFile(model, { mimeType }), true, mimeType);
   const reasoning = getModelReasoningConfig(model);
   assert.deepEqual([reasoning.options, reasoning.defaultEffort], [['none', 'low', 'medium', 'high', 'xhigh', 'max'], 'high']);
-  assert.equal(MODELS.some((entry) => entry.id === 'moonshotai/kimi-k3'), true, 'Kimi K3 stays');
+  // Kimi K3 and the free Nemotron 3 Super (its function at the provider is gone) left the list; a chat that names them goes to the model that replaces them.
+  const { getCanonicalModelId } = await import('../src/app/runtime/shell/model-registry.js');
+  assert.equal(MODELS.some((entry) => entry.id === 'moonshotai/kimi-k3'), false);
+  assert.equal(MODELS.some((entry) => entry.id === 'nvidia/nemotron-3-super-120b-a12b:free'), false);
+  assert.equal(getCanonicalModelId('moonshotai/kimi-k3'), 'moonshotai/kimi-k3.1-pro');
+  assert.equal(getCanonicalModelId('nvidia/nemotron-3-super-120b-a12b:free'), 'nvidia/nemotron-3.5-super-vl:free');
 });

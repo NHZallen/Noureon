@@ -26,7 +26,6 @@ export default {
         model_nvidia_glm_5_3_flash_desc_tier_free: '費用-免費',
         model_nemotron_3_ultra_550b_a55b_desc_tier_free: '費用-免費',
         model_nex_n2_pro_desc_tier_free: '費用-免費',
-        model_nemotron_3_super_120b_a12b_desc_tier_free: '費用-免費',
         model_nemotron_3_5_lightning_desc_tier_free: '費用-免費',
         model_nemotron_3_5_super_vl_desc_tier_free: '費用-免費',
         model_nvidia_nemotron_3_5_super_vl_desc_tier_free: '費用-免費',
@@ -84,7 +83,6 @@ export default {
         model_glm_5_3_desc_tier_paid: '百萬輸入/1.15$、百萬輸出/3.50$',
         model_glm_5_3_flash_desc_tier_paid: '百萬輸入/0.075$、百萬輸出/0.25$',
         model_deepseek_v4_1_flash_desc_tier_paid: '百萬輸入/0.10$、百萬輸出/0.50$',
-        model_kimi_k3_desc_tier_paid: '百萬輸入/3$、百萬輸出/15$',
         model_kimi_k3_1_pro_desc_tier_paid: '百萬輸入/2$、百萬輸出/10$',
     },
     en: {
@@ -113,7 +111,6 @@ export default {
         model_nvidia_glm_5_3_flash_desc_tier_free: 'Cost - Free',
         model_nemotron_3_ultra_550b_a55b_desc_tier_free: 'Cost - Free',
         model_nex_n2_pro_desc_tier_free: 'Cost - Free',
-        model_nemotron_3_super_120b_a12b_desc_tier_free: 'Cost - Free',
         model_nemotron_3_5_lightning_desc_tier_free: 'Cost - Free',
         model_nemotron_3_5_super_vl_desc_tier_free: 'Cost - Free',
         model_nvidia_nemotron_3_5_super_vl_desc_tier_free: 'Cost - Free',
@@ -171,7 +168,6 @@ export default {
         model_glm_5_3_desc_tier_paid: '$1.15/M input, $3.50/M output',
         model_glm_5_3_flash_desc_tier_paid: '$0.075/M input, $0.25/M output',
         model_deepseek_v4_1_flash_desc_tier_paid: '$0.10/M input, $0.50/M output',
-        model_kimi_k3_desc_tier_paid: '$3/M input, $15/M output',
         model_kimi_k3_1_pro_desc_tier_paid: '$2/M input, $10/M output',
     },
     fr: {
@@ -200,7 +196,6 @@ export default {
         model_nvidia_glm_5_3_flash_desc_tier_free: 'Coût - Gratuit',
         model_nemotron_3_ultra_550b_a55b_desc_tier_free: 'Coût - Gratuit',
         model_nex_n2_pro_desc_tier_free: 'Coût - Gratuit',
-        model_nemotron_3_super_120b_a12b_desc_tier_free: 'Coût - Gratuit',
         model_nemotron_3_5_lightning_desc_tier_free: 'Coût - Gratuit',
         model_nemotron_3_5_super_vl_desc_tier_free: 'Coût - Gratuit',
         model_nvidia_nemotron_3_5_super_vl_desc_tier_free: 'Coût - Gratuit',
@@ -258,7 +253,6 @@ export default {
         model_glm_5_3_desc_tier_paid: '1,15 $/M entrée, 3,50 $/M sortie',
         model_glm_5_3_flash_desc_tier_paid: '0,075 $/M entrée, 0,25 $/M sortie',
         model_deepseek_v4_1_flash_desc_tier_paid: '0,10 $/M entrée, 0,50 $/M sortie',
-        model_kimi_k3_desc_tier_paid: '3 $/M entrée, 15 $/M sortie',
         model_kimi_k3_1_pro_desc_tier_paid: '2 $/M entrée, 10 $/M sortie',
     },
     ru: {
@@ -287,7 +281,6 @@ export default {
         model_nvidia_glm_5_3_flash_desc_tier_free: 'Стоимость - Бесплатно',
         model_nemotron_3_ultra_550b_a55b_desc_tier_free: 'Стоимость - Бесплатно',
         model_nex_n2_pro_desc_tier_free: 'Стоимость - Бесплатно',
-        model_nemotron_3_super_120b_a12b_desc_tier_free: 'Стоимость - Бесплатно',
         model_nemotron_3_5_lightning_desc_tier_free: 'Стоимость - Бесплатно',
         model_nemotron_3_5_super_vl_desc_tier_free: 'Стоимость - Бесплатно',
         model_nvidia_nemotron_3_5_super_vl_desc_tier_free: 'Стоимость - Бесплатно',
@@ -345,7 +338,6 @@ export default {
         model_glm_5_3_desc_tier_paid: 'Вход $1,15/млн, выход $3,50/млн',
         model_glm_5_3_flash_desc_tier_paid: 'Вход $0,075/млн, выход $0,25/млн',
         model_deepseek_v4_1_flash_desc_tier_paid: 'Вход $0,10/млн, выход $0,50/млн',
-        model_kimi_k3_desc_tier_paid: 'Вход $3/млн, выход $15/млн',
         model_kimi_k3_1_pro_desc_tier_paid: 'Вход $2/млн, выход $10/млн',
     },
     es: {
@@ -374,7 +366,6 @@ export default {
         model_nvidia_glm_5_3_flash_desc_tier_free: 'Costo - Gratis',
         model_nemotron_3_ultra_550b_a55b_desc_tier_free: 'Costo - Gratis',
         model_nex_n2_pro_desc_tier_free: 'Costo - Gratis',
-        model_nemotron_3_super_120b_a12b_desc_tier_free: 'Costo - Gratis',
         model_nemotron_3_5_lightning_desc_tier_free: 'Costo - Gratis',
         model_nemotron_3_5_super_vl_desc_tier_free: 'Costo - Gratis',
         model_nvidia_nemotron_3_5_super_vl_desc_tier_free: 'Costo - Gratis',
@@ -432,7 +423,6 @@ export default {
         model_glm_5_3_desc_tier_paid: '$1.15/M de entrada, $3.50/M de salida',
         model_glm_5_3_flash_desc_tier_paid: '$0.075/M de entrada, $0.25/M de salida',
         model_deepseek_v4_1_flash_desc_tier_paid: '$0.10/M de entrada, $0.50/M de salida',
-        model_kimi_k3_desc_tier_paid: '$3/M de entrada, $15/M de salida',
         model_kimi_k3_1_pro_desc_tier_paid: '$2/M de entrada, $10/M de salida',
     }
 };

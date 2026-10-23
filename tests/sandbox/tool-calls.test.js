@@ -139,7 +139,7 @@ test('the pages Gemini searched (grounding) are collected once each, and shown b
 });
 
 test('the thinking is labelled as the model itself or as the summary its provider gives', () => {
-  for (const id of ['deepseek/deepseek-v4.1-flash-1017', 'z-ai/glm-5.3', 'moonshotai/kimi-k3', 'minimax/minimax-m3', 'x-ai/grok-4.6']) assert.equal(modelThinkingKind('openrouter', id), 'raw', id);
+  for (const id of ['deepseek/deepseek-v4.1-flash-1017', 'z-ai/glm-5.3', 'moonshotai/kimi-k3.1-pro', 'minimax/minimax-m3', 'x-ai/grok-4.6']) assert.equal(modelThinkingKind('openrouter', id), 'raw', id);
   assert.equal(modelThinkingKind('nvidia', 'moonshotai/kimi-k3'), 'raw');
   for (const id of ['anthropic/claude-opus-5.5', 'openai/gpt-6-luna', 'google/gemini-nano-banana-2.1']) assert.equal(modelThinkingKind('openrouter', id), 'summary', id);
   assert.equal(modelThinkingKind('gemini', 'gemini-3.8-flash'), 'summary');
