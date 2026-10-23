@@ -243,7 +243,7 @@
         animation: pulse-red-border 1.5s infinite;
     }
     .message-content {
-    transition: opacity 0.2s ease-in-out;
+    transition: opacity 0.2s ease-in-out, padding-bottom 0.35s ease;
 }
     .astras-store-card {
         background-color: var(--sidebar-bg);

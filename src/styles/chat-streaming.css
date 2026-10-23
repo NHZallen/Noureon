@@ -216,7 +216,8 @@
 .is-awaiting-files .ac-file-card > * { visibility: hidden; }
 .is-awaiting-files .ac-file-card, .file-skeleton { pointer-events: none; background: color-mix(in srgb, var(--text-primary) 9%, transparent); animation: file-waiting 1.4s ease-in-out infinite; }
 .file-skeleton { min-height: 4.5rem; }
+.footer-arriving { animation: result-arrive 0.45s ease-out backwards; }
 .is-arriving-files .ac-file-card { animation: result-arrive 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) backwards; }
 @keyframes file-waiting { 50% { opacity: 0.45; } }
 @keyframes result-arrive { from { opacity: 0; transform: translateY(8px); } }
-@media (prefers-reduced-motion: reduce) { .file-skeleton, .is-awaiting-files .ac-file-card, .is-arriving-files .ac-file-card { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .file-skeleton, .is-awaiting-files .ac-file-card, .is-arriving-files .ac-file-card, .footer-arriving { animation: none; } }
