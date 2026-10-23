@@ -36,7 +36,7 @@ test('builds the user message role, text markup, and bubble classes', () => {
   assert.equal(view.isUser, true);
   assert.deepEqual(view.previewMediaParts, []);
   assert.match(view.messageHTML, /message-stack message-stack-user/);
-  assert.match(view.messageHTML, /message-content">\<div>USER:Hello<\/div>/);
+  assert.match(view.messageHTML, /message-content"><div>USER:Hello<\/div>/);
   assert.doesNotMatch(view.messageHTML, /copy-content-btn/);
   assert.match(view.messageHTML, /data-message-action="copy"/);
   assert.match(view.messageHTML, /data-message-action="edit"/);
@@ -58,7 +58,7 @@ test('builds model markdown, timestamp, and exact action markup', () => {
   );
   assert.equal(view.isUser, false);
   assert.match(view.messageHTML, /message-stack message-stack-model/);
-  assert.match(view.messageHTML, /pb-8 message-content">\<div>MODEL:Answer<\/div>/);
+  assert.match(view.messageHTML, /pb-8 message-content"><div>MODEL:Answer<\/div>/);
   assert.match(view.messageHTML, /class="copy-content-btn p-1 rounded-md/);
   assert.match(view.messageHTML, /title="Copy content"/);
   assert.match(view.messageHTML, /class="pointer-events-none"/);
@@ -157,7 +157,7 @@ test('renders a sent quote above the user bubble without exposing hidden model c
   assert.match(view.messageHTML, /M6 4v4\.5A4\.5 4\.5 0 0 0 10\.5 13H18/);
   assert.doesNotMatch(view.messageHTML, /↳/);
   assert.match(view.messageHTML, /sent-message-quote-text">USER:Selected model output/);
-  assert.match(view.messageHTML, /message-content">\<div>USER:Question<\/div>/);
+  assert.match(view.messageHTML, /message-content"><div>USER:Question<\/div>/);
   assert.doesNotMatch(view.messageHTML, /Hidden request context/);
   assert.ok(view.messageHTML.indexOf('sent-message-quote') < view.messageHTML.indexOf('message-bubble'));
 });

@@ -33,7 +33,7 @@ test('settings theme and bubble color selectors are scoped to the theme bubble s
 });
 
 test('theme button selectors are shared-adjacent and not a pure settings-only surface', () => {
-  const themeButtonHits = collectCssSelectorHits(/\.theme-btn(?:[\.#:,\s{]|:not|\[)/, settingsSurfaceCssFiles);
+  const themeButtonHits = collectCssSelectorHits(/\.theme-btn(?:[.#:,\s{]|:not|\[)/, settingsSurfaceCssFiles);
   assert.deepEqual(
     themeButtonHits.sort(),
     [

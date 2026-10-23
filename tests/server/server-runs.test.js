@@ -386,7 +386,7 @@ test('a stop, from the person or found at a heartbeat, ends the reply and keeps 
   let release;
   const gate = new Promise((resolve) => { release = resolve; });
   const outcomes = [];
-  const { manager, db, repeating } = managerHarness({
+  const { manager, db } = managerHarness({
     execute: async ({ signal }) => {
       await gate;
       outcomes.push(signal.aborted ? String(signal.reason) : 'not stopped');

@@ -246,7 +246,6 @@ export function createAppBootstrapLifecycle({
             ALL_ELEMENTS.fileOptionsPopover.classList.remove('visible');
             const conv = getActiveConversation();
             const modelInfo = normalizeConversationModel(conv);
-            const imageMode = modelInfo?.outputModality === 'image';
             const { synthesizer } = getCouncilSelectedModels(conv);
             const supportsWebSearch = isCouncilEnabled(conv)
             ? hasCouncilWebSearchAccess(synthesizer || modelInfo)
@@ -287,11 +286,6 @@ export function createAppBootstrapLifecycle({
         ALL_ELEMENTS.chatForm.addEventListener('submit', handleFormSubmit);
         installScrollbarArrows(document);
         document.addEventListener('click', (e) => {
-            const targets = [
-                ALL_ELEMENTS.modelSwitcherContainer,
-                ALL_ELEMENTS.fileInputContainer,
-                document.getElementById('model-council-control')
-            ];
             let clickedInsidePopover = false;
             document.querySelectorAll('.popover.visible').forEach(popover => {
                 if (popover.contains(e.target)) clickedInsidePopover = true;
@@ -442,9 +436,7 @@ export function createAppBootstrapLifecycle({
             startP2PReceiverUI,
             startP2PSender,
             connectToSender,
-            startQRScanner,
-            processReceivedData,
-            updateP2PProgress
+            startQRScanner
         } = p2pLifecycle;
         const appBootstrapComposition = createAppBootstrapComposition({
             allElements: ALL_ELEMENTS,

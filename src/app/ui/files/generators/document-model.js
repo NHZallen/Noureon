@@ -48,7 +48,7 @@ function parseScalar(value) {
 // A deliberately small YAML subset: `key: value` lines. Models rarely need
 // more, and a real YAML parser would be a large dependency for no benefit.
 export function parseFrontMatter(content = '') {
-  const source = String(content || '').replace(/^﻿/, '');
+  const source = String(content || '').replace(/^\uFEFF/, '');
   const match = /^---[ \t]*\n([\s\S]*?)\n---[ \t]*(?:\n|$)/.exec(source);
   if (!match) return { meta: { ...DEFAULT_META }, body: source };
 

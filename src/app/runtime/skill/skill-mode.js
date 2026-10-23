@@ -4,7 +4,7 @@
 // keys): the skills' own table is loaded only with the page.
 
 import { MAX_INVOKED_SKILLS, skillIndicatorId } from '../../../data/skill-prompt.js';
-import { skillDescription, skillTitle } from '../../../data/skill-catalog.js';
+import { skillTitle } from '../../../data/skill-catalog.js';
 import { skillIcon, skillMark } from '../../ui/cli/cli-icons.js';
 import { cliText } from '../cli/cli-texts.js';
 import { registerSkillMode } from './skill-bridge.js';

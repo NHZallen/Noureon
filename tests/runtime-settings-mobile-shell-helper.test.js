@@ -69,7 +69,7 @@ function createFixture({ mobile = true } = {}) {
   const title = createElement('settings-mobile-title');
   const backButton = createElement('settings-mobile-back-btn');
   const mobileList = createElement('settings-mobile-list');
-  const mobileHeader = createElement('settings-mobile-header');
+  createElement('settings-mobile-header');
   const settingsBody = createElement('settings-body');
   const settingsModal = createElement('settings-modal');
   settingsModal.settingsBody = settingsBody;

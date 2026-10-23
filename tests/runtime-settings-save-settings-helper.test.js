@@ -9,12 +9,6 @@ const readSource = (path) => readFileSync(projectFile(path), 'utf8');
 
 const select = (value) => ({ value });
 const toggle = (checked) => ({ checked });
-const dropdown = (color) => ({
-  querySelector: (selector) => selector === '.color-dropdown-btn' ? { dataset: { color } } : null
-});
-const swatches = (selector, dataset) => ({
-  querySelector: (requestedSelector) => requestedSelector === selector ? { dataset } : null
-});
 
 function createDocument({ theme = 'dark', style = 'gradient' } = {}) {
   return {

@@ -20,7 +20,23 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm test
+      - run: npm run lint
       - run: npm run check:shell
       - run: npm run check:sizes
       - run: npm run check:version
       - run: npm audit --omit=dev
+
+  browser:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npx playwright-core install --with-deps chromium
+      - run: npm run test:browser

@@ -151,7 +151,7 @@ export function describeSandboxFile(entry, { canRerun = false } = {}) {
   // Text files keep their text for the source and table views.
   if (available && !type.binary && type.generator === 'text' && (file.size || 0) <= TEXT_PREVIEW_BYTES) {
     try {
-      content = new TextDecoder().decode(decodeBase64(file.data)).replace(/^﻿/, '');
+      content = new TextDecoder().decode(decodeBase64(file.data)).replace(/^\uFEFF/, '');
     } catch {
       content = '';
     }

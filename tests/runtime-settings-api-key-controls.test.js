@@ -221,3 +221,37 @@ test('clear all button clears all providers and saves', async () => {
   assert.equal(elements.nvidiaApiKeyInput.value, '');
   assert.equal(elements.tavilyApiKeyInput.value, '');
 });
+
+test('preparing the page again keeps a key that was typed and is not stored yet, and a key that was cleared and is not stored yet', async () => {
+  const { controls, calls, elements } = createHarness();
+
+  controls.prepareApiKeyInputsForSettings();
+  elements.geminiApiKeyInput.value = 'typed-before-the-second-prepare';
+  elements.geminiApiKeyInput.listeners.input();
+  elements.tavilyApiKeyInput.value = '';
+  elements.tavilyApiKeyInput.listeners.input();
+  controls.prepareApiKeyInputsForSettings();
+
+  assert.equal(elements.geminiApiKeyInput.value, 'typed-before-the-second-prepare');
+  assert.equal(elements.tavilyApiKeyInput.value, '');
+  await controls.persistApiKeyInputIntents();
+  assert.deepEqual(calls, [
+    ['setApiKeyForProvider', 'gemini', 'typed-before-the-second-prepare'],
+    ['setApiKeyForProvider', 'tavily', ''],
+    'saveSensitiveConfig'
+  ]);
+});
+
+test('once a typed key is stored, preparing the page again masks it', async () => {
+  const stored = {};
+  const { controls, elements } = createHarness({ dependencies: { getApiKeyForProvider: (provider) => stored[provider] ?? `${provider}-secret-value-abcd`, setApiKeyForProvider: (provider, value) => { stored[provider] = value; } } });
+
+  controls.prepareApiKeyInputsForSettings();
+  elements.geminiApiKeyInput.value = 'typed-and-saved-key-1234';
+  elements.geminiApiKeyInput.listeners.input();
+  await controls.persistApiKeyInputIntents();
+  controls.prepareApiKeyInputsForSettings();
+
+  assert.notEqual(elements.geminiApiKeyInput.value, 'typed-and-saved-key-1234');
+  assert.match(elements.geminiApiKeyInput.value, /\*+/);
+});

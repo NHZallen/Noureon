@@ -228,7 +228,7 @@ export function createConnectorService({ db, vault, fetchImpl = fetch, now = Dat
     if (!force && !ending) return first.tokens.accessToken;
     return exclusively(`${userId}|${connectorId}`, async () => {
       // Another reply may have refreshed while this one waited: if what is kept is not what was seen, it is used.
-      const { row, tokens } = await load();
+      const { tokens } = await load();
       if (tokens.accessToken !== first.tokens.accessToken || (!force && tokens.expiresAt && tokens.expiresAt - now() >= REFRESH_AHEAD_MS)) return tokens.accessToken;
       if (!tokens.refreshToken) {
         await saveRow(userId, connectorId, { status: 'needs_login', last_error: 'expired' });

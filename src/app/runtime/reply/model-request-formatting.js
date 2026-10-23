@@ -9,6 +9,7 @@ export const isWorldCupQuery = (value = '') => /(\bworld cup\b|\bfifa\b|世界�
 export const isSportsResultsQuery = (value = '') => /(\bmatch\b|\bmatches\b|\bscore\b|\bscores\b|\bfixture\b|\bfixtures\b|\bstandings\b|\bgroup stage\b|\bwin\b|\bwins\b|\bwon\b|贏幾場|贏了幾場|幾勝|比分|賽果|戰績|小組賽|足球|賽程|排名)/i.test(String(value || '')) || isWorldCupQuery(value);
 
 export const normalizeSearchQuery = (value = '') => String(value || '')
+  // eslint-disable-next-line no-control-regex -- control characters in a search query become spaces
   .replace(/[\u0000-\u001f\u007f]/g, ' ')
   .replace(/```[\s\S]*?```/g, ' ')
   .replace(/\s+/g, ' ')

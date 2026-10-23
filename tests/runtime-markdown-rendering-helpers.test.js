@@ -55,7 +55,7 @@ test('renders plain text, basic markdown, and code without changing markdown sem
   try {
     assert.match(harness.helpers.renderMarkdown('Plain text'), /<p>Plain text<\/p>/);
     assert.match(harness.helpers.renderMarkdown('**Bold**'), /<strong>Bold<\/strong>/);
-    assert.match(harness.helpers.renderMarkdown('```html\n<script>alert(1)<\/script>\n```'), /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
+    assert.match(harness.helpers.renderMarkdown('```html\n<script>alert(1)</script>\n```'), /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
   } finally {
     harness.window.close();
   }
@@ -412,5 +412,20 @@ test('a formula cannot carry a link, an attribute or an image into the page: KaT
     }
   } finally {
     console.warn = warn;
+  }
+});
+
+test('a model\'s markdown is sanitized with styles and forms forbidden (the real check is tests/browser/markup-injection.e2e.js)', () => {
+  const configs = [];
+  const harness = createHarness({
+    sanitizer: { sanitize: (html, config) => { configs.push(config); return html; } }
+  });
+  try {
+    harness.helpers.renderMarkdown('hello');
+    assert.equal(configs.length, 1);
+    assert.ok(configs[0].FORBID_TAGS.includes('style') && configs[0].FORBID_TAGS.includes('form'));
+    assert.ok(configs[0].FORBID_ATTR.includes('style') && configs[0].FORBID_ATTR.includes('formaction'));
+  } finally {
+    harness.window.close();
   }
 });

@@ -84,8 +84,9 @@ function hasApiKeys(value) {
   return apiKeys && typeof apiKeys === 'object' && Object.values(apiKeys).some(Boolean);
 }
 
-export async function initializeCloudWorkspaceSync({ window, session, bootstrapQueue } = {}) {
-  const supabase = getSupabaseClient();
+// `deps` replaces what the sync builds for itself (the cloud client, the device storage, the two syncs of records) with stand-ins, for tests.
+export async function initializeCloudWorkspaceSync({ window, session, bootstrapQueue, deps = {} } = {}) {
+  const supabase = deps.supabase !== undefined ? deps.supabase : getSupabaseClient();
   const user = session?.user;
   if (!supabase) {
     installConversationShadowStatus(window, { reason: 'supabase-not-configured' });
@@ -96,7 +97,7 @@ export async function initializeCloudWorkspaceSync({ window, session, bootstrapQ
     return { enabled: false };
   }
 
-  const storage = createRuntimeStorageAdapter();
+  const storage = deps.storage || createRuntimeStorageAdapter();
   const username = `supabase:${user.id}`;
   const lastUsername = await storage.getItem('chat_lastUser');
   if (lastUsername !== username) {
@@ -664,7 +665,7 @@ export async function initializeCloudWorkspaceSync({ window, session, bootstrapQ
   } catch (error) {
     console.warn('Noureon cloud sync is unavailable until its database migration is installed:', error);
   }
-  conversationShadowSync = initializeConversationShadowSync({
+  conversationShadowSync = (deps.initializeConversationShadowSync || initializeConversationShadowSync)({
     window,
     supabase,
     storage,
@@ -678,7 +679,7 @@ export async function initializeCloudWorkspaceSync({ window, session, bootstrapQ
   } catch (error) {
     console.warn('Noureon conversation refresh did not block local runtime startup:', error);
   }
-  memorySummarySync = initializeMemorySummaryCloudSync({
+  memorySummarySync = (deps.initializeMemorySummaryCloudSync || initializeMemorySummaryCloudSync)({
     window,
     supabase,
     storage,

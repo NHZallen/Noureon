@@ -143,7 +143,7 @@ test('a complete document produces valid Word parts with native equations', asyn
   assert.match(document, /<m:oMathPara>[\s\S]*<m:mcs><m:mc><m:mcPr><m:count m:val="2"\/>/, 'display matrix declares its columns');
   assert.match(document, /<w:bookmarkStart w:name="noureon_heading_1" w:id="\d+"\/>/);
   assert.match(document, /<w:hyperlink [^>]*w:anchor="noureon_heading_1"/, 'table of contents links to the heading');
-  assert.match(document, /<w:t xml:space="preserve">  indented\(\)<\/w:t>/, 'code keeps leading spaces');
+  assert.match(document, /<w:t xml:space="preserve"> {2}indented\(\)<\/w:t>/, 'code keeps leading spaces');
   assert.match(document, /☑<\/w:t><w:tab\/>/, 'task checkbox is followed by a real tab');
   assert.match(document, /<w:tabs><w:tab w:val="left" w:pos="720"\/><\/w:tabs>[\s\S]*?☑/, 'the tab stop is explicit for non-Word renderers');
   assert.match(document, /<w:tblHeader\/>/, 'table header repeats across pages');

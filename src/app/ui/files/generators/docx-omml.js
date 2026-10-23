@@ -79,7 +79,7 @@ function convertNode(node) {
       return [delimiter(node.open, node.close, convertNodes(node.children))];
     case 'function':
       // Function names are upright; the thin space keeps "sin x" from fusing.
-      return [run(`${node.name} `, 'p')];
+      return [run(`${node.name}\u2009`, 'p')];
     case 'limit':
       return [el('m:limLow', [el('m:e', [run(node.name, 'p')]), argument('m:lim', node.below)])];
     case 'accent':

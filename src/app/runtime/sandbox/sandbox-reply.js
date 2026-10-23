@@ -93,7 +93,6 @@ export async function runSandboxReply({
 }) {
   // The model's name in the status lines, so the wait says who is working.
   const model = requestOptions.modelInfo?.name || requestOptions.modelInfo?.id || 'AI';
-  const say = (key, values = {}) => onStatus(sandboxText(language, key, { model, ...values }));
   let roundLabel = '';
   // A new stretch of work with its own line in the step list.
   const round = (key, values = {}) => {

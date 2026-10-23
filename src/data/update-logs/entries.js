@@ -2,6 +2,18 @@
 // content 為 zh-TW 的 HTML 字串（JSON 轉義、雙引號），目前不隨介面語言切換。
 export const updateLogEntries = [
   {
+    version: "18.16.1",
+    date: "2026-10-23",
+    content: [
+      "<strong>Noureon 18.16.1 發布說明</strong>",
+      "本版本修正三個小問題，並加強模型回答的安全檢查。",
+      "<strong>主要變更</strong>",
+      "<ul><li><strong>回答中的樣式與表單：</strong>模型的回答（或它讀到的網頁）不再能放入會改變整個畫面外觀的樣式，也不能放入會把輸入內容送到其他網站的表單。</li><li><strong>記憶頁：</strong>項目編號含特殊字元的資料（例如匯入或同步而來）不再讓記憶頁產生多餘的元素。</li><li><strong>設定中的金鑰：</strong>頁面載入後數秒內第一次開啟設定並立刻輸入 API 金鑰時，金鑰不再被清空。</li><li><strong>套件更新：</strong>dompurify 更新到 3.4.17，處理上一版的安全公告。</li></ul>",
+      "<strong>相容性</strong>",
+      "本次更新不需要資料遷移，也沒有新的伺服器欄位。"
+    ]
+  },
+  {
     version: "18.16.0",
     date: "2026-10-23",
     content: [

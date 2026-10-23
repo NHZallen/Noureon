@@ -20,8 +20,8 @@ test('conversation search keeps mobile controls above the keyboard and aligns de
   assert.match(css, /\.conversation-search-enter-hint\.is-visible\s*\{[^}]*opacity:\s*1;[^}]*visibility:\s*visible;/s);
   assert.match(css, /\.conversation-search-mode-control button:focus,[\s\S]*outline:\s*none;/s);
   assert.doesNotMatch(css, /\.conversation-search-mode-control button:focus[^{]*\{[^}]*yellow/s);
-  assert.match(css, /#modal-search-input::\-webkit-search-cancel-button\s*\{[^}]*\-webkit-appearance:\s*none;[^}]*[^;]+?/s);
-  assert.doesNotMatch(css, /#modal-search-input::\-webkit-search-cancel-button\s*\{[^}]*var\(--button-primary-bg/s);
+  assert.match(css, /#modal-search-input::-webkit-search-cancel-button\s*\{[^}]*-webkit-appearance:\s*none;[^}]*[^;]+?/s);
+  assert.doesNotMatch(css, /#modal-search-input::-webkit-search-cancel-button\s*\{[^}]*var\(--button-primary-bg/s);
   assert.match(css, /#modal-search-input\s*\{[^}]*height:\s*2\.9rem;[^}]*padding:\s*0 0\.9rem 0 2\.75rem;[^}]*line-height:\s*2\.9rem;/s);
   assert.match(css, /#modal-search-input\s*\{[^}]*height:\s*3rem;[^}]*padding:\s*0 0\.85rem 0 2\.7rem;[^}]*line-height:\s*3rem;/s);
   assert.match(css, /#search-results-container\s*\{[^}]*grid-area:\s*results;[^}]*height:\s*auto;[^}]*min-height:\s*0;[^}]*overflow-y:\s*auto;/s);

@@ -104,7 +104,6 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             normalizeConversationModel: (conv) => normalizeConversationModel(conv)
         });
         const {
-            getDefaultCouncilConfig,
             getCanonicalModelId,
             normalizeCouncilConfig,
             cloneCouncilConfig,
@@ -119,9 +118,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             modelSupportsUploadedFile,
             modelSupportsVision,
             modelSupportsDocumentUpload,
-            modelSupportsCouncilTranslation,
             getCouncilTranslatorCandidates,
-            modelSupportsSingleTranslation,
             getSingleTranslatorCandidates,
             getCouncilTranslatorModel,
             getSingleDocumentTranslatorModel,
@@ -383,10 +380,8 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             setupMessageIntersectionObserver: (...args) => setupMessageIntersectionObserver(...args)
         });
         const {
-            renderHistorySidebarContent,
             setupHistorySidebarInteractions,
-            setupHistorySidebarTriggers,
-            toggleHistorySidebar
+            setupHistorySidebarTriggers
         } = historySidebarHelpers;
         const renderHistorySidebar = () => {
             const currentConversations = liveConversationsBridge.getConversations();
@@ -548,26 +543,12 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
         });
         const {
             openCouncilPopoverFromAttachmentMenu,
-            ensureCouncilMenuButton,
             updateFunctionButtonsState,
             toggleLearningMode,
             renderInputIndicators,
             updateFileInputUI,
-            seedCouncilParticipants,
-            persistCouncilConfig,
-            getCouncilModeLabel,
-            getCouncilModelList,
             renderCouncilControls,
             renderModelSwitcher,
-            renderCouncilProgress,
-            renderSingleModelError,
-            renderSingleModelProgress,
-            typewriterStream,
-            renderIncrementalResponse,
-            playbackTypewriterResponse,
-            playbackStreamingMarkdownResponse,
-            startProgressTicker,
-            stopProgressTicker,
             handleFormSubmit,
             submitEditedMessage
         } = submitInputCouncilLifecycle;
@@ -662,8 +643,6 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             loadConfig,
             loadAppData,
             getSensitiveApiKeys,
-            mergeSensitiveApiKeys,
-            saveSensitiveConfig,
             saveAppData,
             getUserKey,
             getItem,
@@ -684,7 +663,6 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             generateTitleAndSummary,
             updateSubmitButtonState,
             updateInputState,
-            getTavilySearchDepth,
             isMobileSettingsViewport,
             openSettingsMobileSection,
             setupSettingsModal,
@@ -868,22 +846,22 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             processInChunks, getBackupUsername, createPasswordRecord, getUserKey, setItem
         });
         const {
-            renderPersonalMemoryList, refineAndStoreMemories, extractPersonalMemory, updateApiKeyWarningBadge, openDashboard,
-            renderDashboardStats, renderModelUsageChart, performSearchAndRenderResults, generateSearchKeywords, calculateRelevanceScores,
-            renderFilePreviews, removeFile, handleFileSelection, toggleSidebar, handleBatchDelete, handleBatchArchive, handleBatchMove,
-            renderBatchMoveModal, batchMoveToFolder, handleExport, performImport, handleImport, handleImportOnAuth, processAuthImport,
-            setupVoiceInput, toggleVoiceInput, closeAllPopovers, copyTextToClipboard,
+            renderPersonalMemoryList, extractPersonalMemory, updateApiKeyWarningBadge, openDashboard,
+            performSearchAndRenderResults,
+            renderFilePreviews, handleFileSelection, toggleSidebar, handleBatchDelete, handleBatchArchive, handleBatchMove,
+            renderBatchMoveModal, handleExport, handleImport, handleImportOnAuth, processAuthImport,
+            setupVoiceInput, closeAllPopovers, copyTextToClipboard,
             cancelMemoryCapture: cancelMemoryCaptureWork, invalidateMemoryConversation, ensureMemorySummaryFresh
         } = workspaceFeatures;
         cancelPendingMemoryCapture = cancelMemoryCaptureWork;
         invalidateConversationMemory = invalidateMemoryConversation;
         getMemoryFunctions = workspaceFeatures.getMemory;
         const {
-            setupTimeAnalysis, updateTimeDistributionChart, applyUiTheme, renderUiColorOptions, openStore, closeStore, renderStore,
-            handleSubscription, openAvatarEditor, handleAvatarUpload, handleConfirmAvatarCrop, cancelAvatarCrop, applyLanguage, showMobileContextMenu,
+            setupTimeAnalysis, applyUiTheme, renderUiColorOptions, openStore, closeStore, renderStore,
+            openAvatarEditor, handleAvatarUpload, handleConfirmAvatarCrop, cancelAvatarCrop, applyLanguage, showMobileContextMenu,
             showMobileContextMenuForFolder, showMobileContextMenuForAstras, setupScrollToBottomButton, checkAndShowLatestUpdate,
-            setupMessageIntersectionObserver, disconnectMessageObserver, isAutoScrolling, renderTrash, handleRestoreTrashItem, handleDeleteTrashItemPermanently,
-            showTrashItemInViewModal, toggleTrashSelectionMode, renderTrashBatchActionBar, handleBatchRestoreFromTrash,
+            setupMessageIntersectionObserver, disconnectMessageObserver, isAutoScrolling, renderTrash,
+            toggleTrashSelectionMode, handleBatchRestoreFromTrash,
             handleBatchDeleteFromTrash, handleEmptyTrash, updateDisplayedVersion
         } = createPageFeatures({
             window, document, navigator, fetch, File, Event, Image, FileReader, Chart, Cropper,

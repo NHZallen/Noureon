@@ -6,7 +6,7 @@ const DEFAULT_BASE_NAME = 'noureon-file';
 
 // Bidirectional overrides can disguise an extension ("report‮fdp.exe"),
 // and zero-width characters make visually identical names differ.
-const INVISIBLE_CHARACTERS = /[؜​-‏‪-‮⁠-⁩﻿]/g;
+const INVISIBLE_CHARACTERS = /[؜\u200B-‏‪-‮⁠-⁩\uFEFF]/g;
 // eslint-disable-next-line no-control-regex
 const CONTROL_CHARACTERS = /[\u0000-\u001F\u007F-\u009F]/g;
 const RESERVED_CHARACTERS = /[<>:"|?*]/g;

@@ -1,6 +1,14 @@
 // The update notes in French (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.16.1": [
+    "<strong>Notes de version de Noureon 18.16.1</strong>",
+    "Cette version corrige trois petits problèmes et renforce les contrôles de sécurité sur les réponses des modèles.",
+    "<strong>Principales modifications</strong>",
+    "<ul><li><strong>Styles et formulaires dans les réponses :</strong> la réponse d’un modèle (ou d’une page qu’il a lue) ne peut plus contenir de styles qui changent l’apparence de tout l’écran, ni de formulaires qui envoient ce que vous saisissez vers un autre site.</li><li><strong>Page de mémoire :</strong> les données dont les identifiants d’éléments contiennent des caractères spéciaux (par exemple importées ou synchronisées) ne font plus créer d’éléments en trop à la page de mémoire.</li><li><strong>Clés dans les réglages :</strong> une clé d’API saisie juste après la première ouverture des réglages, dans les secondes qui suivent le chargement de la page, n’est plus effacée.</li><li><strong>Mise à jour d’un paquet :</strong> dompurify passe à la version 3.4.17, qui traite les avis de sécurité de la version précédente.</li></ul>",
+    "<strong>Compatibilité</strong>",
+    "Cette mise à jour ne nécessite aucune migration de données et n’ajoute aucun champ serveur."
+  ],
   "18.16.0": [
     "<strong>Notes de version de Noureon 18.16.0</strong>",
     "Cette version permet à un modèle de texte d’appeler le modèle d’images que vous avez choisi pour dessiner, et range les mots, les images et les étapes dans une même réponse.",

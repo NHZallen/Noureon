@@ -4,7 +4,7 @@ import postcss from 'postcss';
 import hoverOnly from '../scripts/postcss-hover-only.mjs';
 
 const run = async (css) => (await postcss([hoverOnly()]).process(css, { from: undefined })).css;
-const squash = (css) => css.replace(/\s+/g, ' ').replace(/\{ ?/g, '{ ').replace(/ ?\}/g, ' }').replace(/\{  /g, '{ ').replace(/\}@media/g, '} @media').trim();
+const squash = (css) => css.replace(/\s+/g, ' ').replace(/\{ ?/g, '{ ').replace(/ ?\}/g, ' }').replace(/\{ {2}/g, '{ ').replace(/\}@media/g, '} @media').trim();
 
 test('a plain :hover rule moves into the hover media query', async () => {
   const out = squash(await run('.a:hover { color: red; }'));

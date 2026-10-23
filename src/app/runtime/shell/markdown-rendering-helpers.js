@@ -8,6 +8,11 @@ import { describeSandboxFile, latestRunFiles, referencedAssetNames } from '../..
 import { getRuntimeTexts } from '../i18n/runtime-texts.js';
 import { markNumericColumns } from '../../ui/markdown/table-columns.js';
 
+// What a model (or a page it read) may not put in an answer even when it is not a script: a style would restyle the whole page (cover it with a
+// fake sign-in, send addresses of the page to another site), and a form would post what the person types in it to another site. The page's own
+// parts (cards, formulas, charts) are made after this and bring their own styles.
+const MARKDOWN_SANITIZE_CONFIG = Object.freeze({ FORBID_TAGS: ['style', 'form'], FORBID_ATTR: ['style', 'formaction', 'form'] });
+
 const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
 
 export function createMarkdownRenderingHelpers({
@@ -59,7 +64,7 @@ export function createMarkdownRenderingHelpers({
       if (char === '(' || char === '[') delimiterDepth += 1;
       if (char === ')' || char === ']') delimiterDepth = Math.max(0, delimiterDepth - 1);
       if (delimiterDepth > 0 || scalableDelimiterDepth > 0) continue;
-      if (/[=+\-]/.test(char) && index > 0) {
+      if (/[=+-]/.test(char) && index > 0) {
         breakpoints.push(index);
       }
     }
@@ -216,7 +221,7 @@ export function createMarkdownRenderingHelpers({
       return `\n\n<details class="thinking-collapse"><summary>${thinkingLabel}</summary>\n\n${content.trim()}\n\n</details>\n\n`;
       });
     const dirty = marked.parse(normalizedText);
-    const clean = sanitizer.sanitize(dirty);
+    const clean = sanitizer.sanitize(dirty, MARKDOWN_SANITIZE_CONFIG);
     const documentFragment = new DOMParser().parseFromString(`<body>${clean}</body>`, 'text/html');
 
     documentFragment.body.querySelectorAll('table').forEach((table) => {

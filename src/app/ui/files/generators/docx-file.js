@@ -58,8 +58,6 @@ const PAGE_SIZES_MM = Object.freeze({
 // Covers that take a page of their own (a separate section without header,
 // footer or page number); the others are a title block on the first page.
 const PAGE_COVERS = new Set(['page', 'band', 'shapes', 'title']);
-// Full-bleed covers draw colour blocks from the page edges.
-const BLEED_COVERS = new Set(['band', 'shapes']);
 
 const visualLength = (text) => [...String(text || '')].reduce((total, char) => total + (/[⺀-￿]/.test(char) ? 2 : 1), 0);
 const fontAttributes = (face) => ({ ascii: face.latin, hAnsi: face.latin, cs: face.latin, eastAsia: face.eastAsian });

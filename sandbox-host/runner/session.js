@@ -24,6 +24,7 @@ export class RunnerError extends Error {
 
 /** A name the user's file keeps inside /input: no folders or characters a file system cannot hold, "(2)" when taken. */
 export function safeFileName(name, taken = new Set()) {
+  // eslint-disable-next-line no-control-regex -- control characters are not allowed in the name of a file
   const base = String(name || '').split(/[\\/]/).pop().replace(/[\u0000-\u001f<>:"|?*]/g, '_').trim().replace(/^\.+/, '') || 'file';
   const clipped = base.length > 180 ? base.slice(base.length - 180) : base;
   if (!taken.has(clipped)) return clipped;
@@ -69,6 +70,7 @@ const MAX_SKILLS_BYTES = 12 * 1024 * 1024;
 /** A path inside a skill's folder, cleaned: forward slashes, no empty, "." or ".." parts, no hidden parts, at most 200 characters; null when it cannot be one. */
 export function safeSkillPath(raw) {
   const text = String(raw ?? '');
+  // eslint-disable-next-line no-control-regex -- a path with a control character is refused
   if (!text || text.length > 200 || /[\u0000-\u001f\\]/.test(text) || text.startsWith('/')) return null;
   const parts = text.split('/');
   if (parts.some((part) => !part || part === '.' || part === '..' || part.startsWith('.'))) return null;

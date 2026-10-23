@@ -498,7 +498,7 @@ test('the row of a skill has an icon in the style', async () => {
 });
 
 test('the line shows the time since the work began, not since the list was drawn (a reply that thought a long time before its first step, a page that joined late)', () => {
-  const { window, document, message, answer } = setup();
+  const { document, message, answer } = setup();
   const ledger = createSandboxLedger({ document, host: message, before: answer, language: 'en', summary: true, startedAt: Date.now() - 110_000 });
   const lineTime = () => message.querySelector('.ledger-row .ledger-time').textContent;
   assert.match(lineTime(), /^1:5[0-1]$/, 'drawn a minute and a half after the work began, it still says how long the work has been going');

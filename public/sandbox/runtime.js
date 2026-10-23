@@ -152,6 +152,7 @@ export function clearFolders(pyodide) {
 // A name the user's file keeps inside /input: its own name without folders
 // or characters the file system cannot hold, and "(2)" etc. when taken.
 export function safeFileName(name, taken = new Set()) {
+  // eslint-disable-next-line no-control-regex -- control characters are not allowed in the name of a file
   const base = String(name || '').split(/[\\/]/).pop().replace(/[\u0000-\u001f<>:"|?*]/g, '_').trim().replace(/^\.+/, '') || 'file';
   const clipped = base.length > 180 ? base.slice(base.length - 180) : base;
   if (!taken.has(clipped)) return clipped;

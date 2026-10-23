@@ -12,3 +12,7 @@ scripts/probe-files/converted-*.pdf
 
 # Python caches (the official skills have Python scripts)
 __pycache__/
+
+# Mutation testing
+/reports/
+/.stryker-tmp/

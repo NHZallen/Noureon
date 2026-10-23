@@ -41,7 +41,6 @@ export function createModelMemoryDashboardLifecycle(dependencies = {}) {
     const {
         Chart,
         document,
-        requestAnimationFrame = (callback) => callback(),
         crypto = globalThis.crypto,
         elements: ALL_ELEMENTS,
         getConfig,
@@ -83,6 +82,8 @@ export function createModelMemoryDashboardLifecycle(dependencies = {}) {
         memoryState = typeof getMemoryState === 'function' ? getMemoryState() : null;
     };
     syncState();
+    // Ids come from stored (and synced, imported) data and go into markup below: they are written as attribute text, never as markup.
+    const attr = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]);
     const getText = (key, fallback) => i18n[config.uiLanguage]?.[key] || fallback;
     const fillText = (key, values) => Object.entries(values).reduce((text, [name, value]) => text.replaceAll(`{${name}}`, value), getText(key, ''));
 
@@ -111,12 +112,12 @@ export function createModelMemoryDashboardLifecycle(dependencies = {}) {
                 item.className = 'flex items-center justify-between p-2 rounded-lg bg-[var(--hover-bg)] border border-[var(--border-color)]';
                 item.innerHTML = `
     <div class="flex items-center gap-2 flex-1 min-w-0">
-        <input type="checkbox" class="memory-enabled-checkbox w-4 h-4" data-id="${memory.id}" ${(usingV2Memory ? memory.status === 'active' : memory.enabled) ? 'checked' : ''} ${usingV2Memory && memory.status === 'superseded' ? 'disabled' : ''}>
+        <input type="checkbox" class="memory-enabled-checkbox w-4 h-4" data-id="${attr(memory.id)}" ${(usingV2Memory ? memory.status === 'active' : memory.enabled) ? 'checked' : ''} ${usingV2Memory && memory.status === 'superseded' ? 'disabled' : ''}>
         <span class="text-sm word-break: break-word;"></span>
     </div>
     <div class="memory-entry-actions flex items-center gap-3 ml-4 shrink-0">
-        ${usingV2Memory && memory.status === 'active' ? `<button class="replace-memory-btn memory-action-button px-3 py-1.5 rounded-md text-sm" data-id="${memory.id}" data-lang-key="memoryReplaceAction">${getText('memoryReplaceAction', '取代')}</button>` : ''}
-        <button class="delete-memory-btn memory-action-button inline-flex items-center justify-center w-8 h-8 rounded-md" data-id="${memory.id}" title="${getText('delete', '刪除')}" aria-label="${getText('delete', '刪除')}">
+        ${usingV2Memory && memory.status === 'active' ? `<button class="replace-memory-btn memory-action-button px-3 py-1.5 rounded-md text-sm" data-id="${attr(memory.id)}" data-lang-key="memoryReplaceAction">${getText('memoryReplaceAction', '取代')}</button>` : ''}
+        <button class="delete-memory-btn memory-action-button inline-flex items-center justify-center w-8 h-8 rounded-md" data-id="${attr(memory.id)}" title="${getText('delete', '刪除')}" aria-label="${getText('delete', '刪除')}">
             <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
         </button>
     </div>
@@ -137,9 +138,9 @@ export function createModelMemoryDashboardLifecycle(dependencies = {}) {
     </div>
     <div class="candidate-replacement-list flex flex-wrap gap-2 w-full"></div>
     <div class="flex flex-wrap items-center justify-end gap-2 w-full">
-        <button class="dismiss-memory-candidate-btn memory-action-button px-3 py-1.5 rounded-md text-sm" data-id="${candidate.id}">${getText('memoryCandidateDismiss', '')}</button>
-        ${candidate.suggestedSupersedes?.length ? `<button class="approve-superseding-candidate-btn memory-action-button px-3 py-1.5 rounded-md text-sm" data-id="${candidate.id}">${getText('memoryCandidateReplaceKeep', '')}</button>` : ''}
-        <button class="approve-memory-candidate-btn memory-action-button px-3 py-1.5 rounded-md text-sm" data-id="${candidate.id}">${getText('memoryCandidateKeep', '')}</button>
+        <button class="dismiss-memory-candidate-btn memory-action-button px-3 py-1.5 rounded-md text-sm" data-id="${attr(candidate.id)}">${getText('memoryCandidateDismiss', '')}</button>
+        ${candidate.suggestedSupersedes?.length ? `<button class="approve-superseding-candidate-btn memory-action-button px-3 py-1.5 rounded-md text-sm" data-id="${attr(candidate.id)}">${getText('memoryCandidateReplaceKeep', '')}</button>` : ''}
+        <button class="approve-memory-candidate-btn memory-action-button px-3 py-1.5 rounded-md text-sm" data-id="${attr(candidate.id)}">${getText('memoryCandidateKeep', '')}</button>
     </div>`;
                 item.querySelectorAll('span')[1].textContent = candidate.content;
                 const replacementList = item.querySelector('.candidate-replacement-list');
@@ -160,8 +161,8 @@ export function createModelMemoryDashboardLifecycle(dependencies = {}) {
         <span class="text-xs text-[var(--text-secondary)]">${getText('memoryLegacyLabel', '')}</span>
         <span class="text-sm word-break: break-word;"></span>
     </div>
-    <button class="review-memory-btn text-[var(--button-primary-bg)] text-sm" data-id="${memory.id}">${getText('memoryCandidateKeep', '')}</button>
-    <button class="delete-legacy-memory-btn text-red-600 hover:text-red-800" data-id="${memory.id}">${getText('delete', '')}</button>`;
+    <button class="review-memory-btn text-[var(--button-primary-bg)] text-sm" data-id="${attr(memory.id)}">${getText('memoryCandidateKeep', '')}</button>
+    <button class="delete-legacy-memory-btn text-red-600 hover:text-red-800" data-id="${attr(memory.id)}">${getText('delete', '')}</button>`;
                 item.querySelectorAll('span')[1].textContent = memory.content;
                 container.appendChild(item);
             });
@@ -176,7 +177,7 @@ export function createModelMemoryDashboardLifecycle(dependencies = {}) {
                     topicSummaries.forEach(topic => {
                         const item = document.createElement('div');
                         item.className = 'flex items-start justify-between gap-2 p-2 rounded-lg bg-[var(--hover-bg)] border border-[var(--border-color)]';
-                        item.innerHTML = `<div class="flex flex-col gap-1 min-w-0"><span class="text-sm font-medium"></span><span class="text-xs text-[var(--text-secondary)] word-break: break-word;"></span></div><button class="delete-topic-summary-btn text-red-600 hover:text-red-800 text-sm" data-id="${topic.id}">${getText('delete', '')}</button>`;
+                        item.innerHTML = `<div class="flex flex-col gap-1 min-w-0"><span class="text-sm font-medium"></span><span class="text-xs text-[var(--text-secondary)] word-break: break-word;"></span></div><button class="delete-topic-summary-btn text-red-600 hover:text-red-800 text-sm" data-id="${attr(topic.id)}">${getText('delete', '')}</button>`;
                         const spans = item.querySelectorAll('span');
                         spans[0].textContent = topic.topic || getRuntimeText(config.uiLanguage, 'unnamedTopic');
                         spans[1].textContent = topic.summary || '';
@@ -191,7 +192,7 @@ export function createModelMemoryDashboardLifecycle(dependencies = {}) {
                     suppressionRules.forEach((rule, index) => {
                         const item = document.createElement('div');
                         item.className = 'flex items-center justify-between gap-2 p-2 rounded-lg bg-[var(--hover-bg)] border border-[var(--border-color)]';
-                        item.innerHTML = `<span class="text-sm flex-1 min-w-0"></span><div class="flex items-center justify-end gap-2 ml-auto shrink-0">${rule.id ? `<button class="edit-suppression-rule-btn memory-action-button inline-flex items-center justify-center w-8 h-8 rounded-md" data-id="${rule.id}" title="${getText('edit', '編輯')}" aria-label="${getText('edit', '編輯')}"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></button>` : ''}<button class="delete-suppression-rule-btn memory-action-button inline-flex items-center justify-center w-8 h-8 rounded-md" data-id="${rule.id || ''}" data-index="${index}" title="${getText('delete', '刪除')}" aria-label="${getText('delete', '刪除')}"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg></button></div>`;
+                        item.innerHTML = `<span class="text-sm flex-1 min-w-0"></span><div class="flex items-center justify-end gap-2 ml-auto shrink-0">${rule.id ? `<button class="edit-suppression-rule-btn memory-action-button inline-flex items-center justify-center w-8 h-8 rounded-md" data-id="${attr(rule.id)}" title="${getText('edit', '編輯')}" aria-label="${getText('edit', '編輯')}"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg></button>` : ''}<button class="delete-suppression-rule-btn memory-action-button inline-flex items-center justify-center w-8 h-8 rounded-md" data-id="${attr(rule.id)}" data-index="${index}" title="${getText('delete', '刪除')}" aria-label="${getText('delete', '刪除')}"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg></button></div>`;
                         item.querySelector('span').textContent = rule.instruction || (rule.type === 'do-not-mention' && rule.target === 'profile-name'
                             ? getText('memoryNoMentionName', '')
                             : `${rule.type || 'suppression'}: ${rule.target || ''}`);
@@ -494,13 +495,14 @@ ${JSON.stringify(potentialMemories, null, 2)}
                                     memoriesChanged = true;
                                 }
                                 break;
-                            case 'UPDATE':
+                            case 'UPDATE': {
                                 const memoryToUpdate = personalMemories.find(m => m.id === act.id);
                                 if (memoryToUpdate && memoryToUpdate.content !== act.content) {
                                     memoryToUpdate.content = act.content;
                                     memoriesChanged = true;
                                 }
                                 break;
+                            }
                             case 'IGNORE':
                                 break;
                         }

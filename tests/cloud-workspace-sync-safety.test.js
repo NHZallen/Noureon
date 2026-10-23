@@ -38,7 +38,7 @@ test('main starts cloud workspace sync only after the local runtime becomes inte
 
 test('cloud workspace passes asset transport into record-level conversation sync', async () => {
   const source = await readFile(new URL('../src/app/sync/cloud-workspace-sync.js', import.meta.url), 'utf8');
-  const initializeAt = source.indexOf('initializeConversationShadowSync({');
+  const initializeAt = source.indexOf('initializeConversationShadowSync)({');
   const closeAt = source.indexOf('});', initializeAt);
   const initializer = source.slice(initializeAt, closeAt);
 
@@ -85,7 +85,7 @@ test('cloud remote snapshots reject stale fetches and independently retry deferr
 test('record-level trash Realtime closes startup and reconnect gaps without subscribing to delete payloads', async () => {
   const source = await readFile(new URL('../src/app/sync/cloud-workspace-sync.js', import.meta.url), 'utf8');
   const conversationChannelAt = source.indexOf('.channel(`user-conversations:');
-  const shadowInitializeAt = source.indexOf('conversationShadowSync = initializeConversationShadowSync({');
+  const shadowInitializeAt = source.indexOf('conversationShadowSync = (deps.initializeConversationShadowSync || initializeConversationShadowSync)({');
   const conversationChannel = source.slice(conversationChannelAt, shadowInitializeAt);
 
   assert.ok(conversationChannelAt >= 0);

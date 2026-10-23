@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { Window } from 'happy-dom';
 
-import i18n from '../src/data/i18n/index.js';
+import '../src/data/i18n/index.js';
 import updateLogEntries from '../src/data/update-logs/entries.js';
 import { PRODUCT_VERSION } from '../src/data/version.js';
 import { LEGAL } from '../src/data/legal/index.js';

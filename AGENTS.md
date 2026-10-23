@@ -51,4 +51,4 @@ Rules that always apply:
 - Every feature and text covers zh-TW, en, fr, ru and es.
 - Colours: use the names of `src/styles/tokens.css` (`var(--text-primary)`, `var(--modal-bg)`…) and never write a colour of your own in a stylesheet; the light and the dark theme depend on it.
 - Base visual designs on real vendor designs with references; the owner prefers minimal black and white. Ask before deciding user-facing layout.
-- Before finishing: `npm test`, `npm run build`, `npm run check:sizes`, `npm run check:shell`, `npm run check:server`, `npm audit --omit=dev`.
+- Before finishing: `npm test`, `npm run build`, `npm run check:sizes`, `npm run check:shell`, `npm run check:server`, `npm run lint`, `npm audit --omit=dev`.

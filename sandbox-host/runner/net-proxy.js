@@ -75,7 +75,7 @@ export function normalizeHost(value) {
 
 /** "host:port" or "[v6]:port" (what a CONNECT asks for) as { host, port }, or null. */
 export function parseTarget(text) {
-  const match = /^(?:\[([^\]]+)\]|([^:\[\]]+)):(\d{1,5})$/.exec(String(text || '').trim());
+  const match = /^(?:\[([^\]]+)\]|([^:[\]]+)):(\d{1,5})$/.exec(String(text || '').trim());
   if (!match) return null;
   const host = normalizeHost(match[1] || match[2]);
   const port = Number(match[3]);

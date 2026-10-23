@@ -667,7 +667,7 @@ function alignCoverPage(page, align) {
   Object.assign(article.style, { flex: '1 1 auto', display: 'flex', flexDirection: 'column', justifyContent: align === 'center' ? 'center' : 'flex-end' });
 }
 
-export async function renderDocxPreview(blob, host, { window = globalThis.window, document = globalThis.document } = {}) {
+export async function renderDocxPreview(blob, host, { window = globalThis.window, document = globalThis.document, renderDocx = renderAsync } = {}) {
   const fonts = await registerPreviewFonts(blob.documentFonts, { window, document });
   const cover = blob.documentLayout?.cover || null;
   const prepared = await prepareDocxPackage(await blob.arrayBuffer(), { window, document, fontAliases: fonts.aliases });
@@ -682,7 +682,7 @@ export async function renderDocxPreview(blob, host, { window = globalThis.window
   viewport.appendChild(body);
   shadow.append(styleRoot, baseStyle, viewport);
 
-  await renderAsync(prepared.data, body, styleRoot, {
+  await renderDocx(prepared.data, body, styleRoot, {
     className: CLASS_NAME,
     inWrapper: true,
     breakPages: true,

@@ -6,7 +6,6 @@ import { MODELS } from '../src/app/runtime/shell/model-registry.js';
 import { createDom } from './behaviours/helpers/create-dom.js';
 import { createUploadsStore } from '../src/app/runtime/shell/shell-state.js';
 
-const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 // The shell around the actions: a store of conversations and folders that hands out a new array on each replace (as the live bridge
 // does), and a log of what was saved, drawn and said, in order.
