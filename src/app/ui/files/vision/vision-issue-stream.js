@@ -105,9 +105,9 @@ const toIssue = (entry, categories) => {
 
 /**
  * Tells the reply of the check (`send(text)`, the words so far) as the model writes its answer: `feed(answer)` with the answer so far. The words
- * are sent at most every `every` ms (the last of them by `flush`), and nothing is sent until a problem has begun.
+ * are sent at most every `every` ms (40: it is as good as live) (the last of them by `flush`), and nothing is sent until a problem has begun.
  */
-export function createIssueStream({ language, checkedSlides, totalSlides, send, every = 80, now = Date.now, setTimer = setTimeout, clearTimer = clearTimeout }) {
+export function createIssueStream({ language, checkedSlides, totalSlides, send, every = 40, now = Date.now, setTimer = setTimeout, clearTimer = clearTimeout }) {
   const categories = (VISION_TEXTS[language] || VISION_TEXTS.en).categories;
   let sent = '';
   let sentAt = -Infinity;

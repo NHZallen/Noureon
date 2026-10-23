@@ -146,30 +146,3 @@ test('when the files are being kept, a grey card stands where they will be, once
   assert.equal(target.querySelector('.file-skeleton').classList.contains('ac-file-card'), true);
   view.close();
 });
-
-test('words before a call leave the step list the reader opened as it is; words that go on without a call fold it', () => {
-  const window = new Window();
-  const { document } = window;
-  const message = document.createElement('div');
-  const target = document.createElement('div');
-  message.append(target);
-  document.body.append(message);
-  const view = createReplyLiveView({ targetElement: target, getDocument: () => document, getConfig: () => ({}), language: 'en', now: () => 0, serverReply: null, serverRun: null, madeHere: false, getRunStartedAt: () => 0, onStepsShown() {} });
-  view.event({ type: 'round', label: 'Thinking…', doneLabel: 'Finished thinking' });
-  const head = message.querySelector('.ledger-row-head');
-  head.click();
-  assert.equal(head.getAttribute('aria-expanded'), 'true', 'the reader opened the list');
-  view.event({ type: 'answering', more: true });
-  view.serverText("First I'll look at the page.");
-  assert.equal(head.getAttribute('aria-expanded'), 'true', 'short words: they may come before a call');
-  view.event({ type: 'writing', label: 'Writing the program' });
-  view.serverText('x'.repeat(100));
-  assert.equal(head.getAttribute('aria-expanded'), 'true', 'work began again: the count began again');
-  view.serverText('y'.repeat(40));
-  assert.equal(head.getAttribute('aria-expanded'), 'false', 'long enough, with no call: the answer');
-  head.click();
-  view.serverText('z'.repeat(500));
-  assert.equal(head.getAttribute('aria-expanded'), 'true', 'a reader who opens it again is not shut out again');
-  view.close();
-  window.happyDOM.abort();
-});

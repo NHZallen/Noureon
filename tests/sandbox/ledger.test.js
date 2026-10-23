@@ -540,7 +540,7 @@ test('once the answer is written the line says how long it thought, the sites it
   }
 });
 
-test('when the words are the answer, the list folds into its line, also one the reader opened, and a tap opens it again', () => {
+test('when the words of the answer begin, the list folds into its line, also one the reader opened, and a tap opens it again', () => {
   const { window, document, message } = setup();
   const list = createSandboxLedger({ document, host: message, language: 'en', summary: true, open: true });
   const head = () => message.querySelector('.ledger-row-head');
@@ -553,9 +553,7 @@ test('when the words are the answer, the list folds into its line, also one the 
   assert.equal(head().getAttribute('aria-expanded'), 'true', 'opened by the reader');
 
   list.event({ type: 'answering', more: true });
-  assert.equal(head().getAttribute('aria-expanded'), 'true', 'words that may come before a call leave it open');
-  list.fold();
-  assert.equal(head().getAttribute('aria-expanded'), 'false', 'folded when the words are the answer, though more work may follow');
+  assert.equal(head().getAttribute('aria-expanded'), 'false', 'folded as the words begin, though more work may follow');
   assert.equal(message.querySelector('.ledger-row-head .ledger-label').textContent.startsWith('Working'), true, 'the line goes on saying what is being done');
   head().click();
   assert.equal(head().getAttribute('aria-expanded'), 'true', 'a tap opens it again');
@@ -575,21 +573,6 @@ test('a round the model gave no thinking for leaves no row that cannot be opened
   list.event({ type: 'thinking', text: 'Now the answer.' });
   list.event({ type: 'answering', more: false });
   assert.deepEqual([...message.querySelectorAll('.ledger-row')].map((row) => row.dataset.kind), ['code', 'thought'], 'a round with thinking keeps its row');
-  list.remove();
-  window.happyDOM.abort();
-});
-
-test('words before a call do not fold the list the reader opened; fold() does', () => {
-  const { window, document, message, answer } = setup();
-  const list = createSandboxLedger({ document, host: message, before: answer, language: 'en', summary: true });
-  list.event({ type: 'round', label: 'Thinking…', doneLabel: 'Finished thinking' });
-  const head = message.querySelector('.ledger-row-head');
-  head.click();
-  assert.equal(head.getAttribute('aria-expanded'), 'true', 'the reader opened the list');
-  list.event({ type: 'answering', more: true });
-  assert.equal(head.getAttribute('aria-expanded'), 'true', 'words before a call leave it open');
-  list.fold();
-  assert.equal(head.getAttribute('aria-expanded'), 'false', 'the answer folds it');
   list.remove();
   window.happyDOM.abort();
 });

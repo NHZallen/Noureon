@@ -799,3 +799,55 @@ test('the draft of the check grows as its words are told again: the lines before
     fixture.cleanup?.();
   }
 });
+
+test('a draft that grows follows a reader who is at the end, and lets go of one who scrolled up to read, until they come back', () => {
+  const fixture = createFixture();
+  try {
+    drawn(fixture, [{ role: 'user', parts: [{ text: 'Make a deck' }] }, { id: 'a1', role: 'model', parts: [{ text: 'Here it is' }] }]);
+    const view = fixture.document.defaultView;
+    fixture.conversation.id = 'c1';
+    const chat = fixture.document.getElementById('chat-container') || fixture.document.querySelector('#chat');
+    assert.ok(chat, 'the chat box of the fixture');
+    // A chat of fixed size whose content height is told by the test.
+    let content = 1000;
+    Object.defineProperty(chat, 'scrollHeight', { configurable: true, get: () => content });
+    Object.defineProperty(chat, 'clientHeight', { configurable: true, get: () => 500 });
+    chat.getBoundingClientRect = () => ({ top: 0, bottom: 500, height: 500 });
+    let top = 500;
+    Object.defineProperty(chat, 'scrollTop', { configurable: true, get: () => top, set: (value) => { top = value; } });
+    const tell = (text) => view.dispatchEvent(new view.CustomEvent('astra:result-draft', { detail: { conversationId: 'c1', id: 'r1', text, label: 'Redoing' } }));
+    const grow = (by, boxBottom) => {
+      content += by;
+      const draft = fixture.document.querySelector('[data-arrival-draft="r1"]');
+      draft.getBoundingClientRect = () => ({ top: 400, bottom: boxBottom, height: 100 });
+    };
+    tell('<p>One</p>');
+    const draft = fixture.document.querySelector('[data-arrival-draft="r1"]');
+    draft.getBoundingClientRect = () => ({ top: 400, bottom: 480, height: 80 });
+    // At the end: following.
+    top = content - 500;
+    content += 100;
+    draft.getBoundingClientRect = () => ({ top: 400, bottom: 700, height: 300 });
+    tell('<p>One</p><p>Two</p>');
+    assert.ok(top > content - 500 - 300, 'the chat followed the words down');
+    // The reader scrolls up to read what is above.
+    top = 100;
+    const before = top;
+    content += 100;
+    draft.getBoundingClientRect = () => ({ top: 400, bottom: 900, height: 500 });
+    tell('<p>One</p><p>Two</p><p>Three</p>');
+    assert.equal(top, before, 'a reader who moved the chat is not pulled back');
+    content += 100;
+    tell('<p>One</p><p>Two</p><p>Three</p><p>Four</p>');
+    assert.equal(top, before, 'and still not');
+    // The reader comes back to the end: following again.
+    top = content - 500;
+    content += 100;
+    draft.getBoundingClientRect = () => ({ top: 400, bottom: 1100, height: 700 });
+    tell('<p>One</p><p>Two</p><p>Three</p><p>Four</p><p>Five</p>');
+    assert.ok(top > content - 500 - 400, 'followed again');
+    void grow;
+  } finally {
+    fixture.cleanup?.();
+  }
+});

@@ -12,11 +12,6 @@ import { createThinkingBlock } from '../../ui/thinking/thinking-block.js';
 import { createDrawStage } from '../../ui/sandbox/draw-stage.js';
 import { createFileSkeleton } from '../../ui/files/file-skeleton.js';
 
-// Words before a call ("First I'll look at the page") are not the answer, and must not fold the list the reader opened; words that go on this long
-// without a call are. Work (a round, a search, a step, a program being written) starts the count again.
-const SURE_ANSWER_CHARS = 120;
-const WORK_EVENTS = new Set(['round', 'searching', 'step', 'skill', 'connector', 'image', 'writing', 'code', 'prepare']);
-
 /**
  * `serverRun`: the run of the server when it makes the reply (its questions to the person are answered through it). `madeHere`: the server
  * did not take the reply, and its line says so. `getRunStartedAt`: when the reply began (the server's clock for a reply it makes).
@@ -34,16 +29,6 @@ export function createReplyLiveView({ targetElement, getDocument, getConfig, lan
   let answered = false;
   let answerStarted = false;
   let ownSearchNoticed = false;
-  let answerChars = 0;
-  let answerFolded = false;
-  const countAnswer = (delta) => {
-    if (answerFolded) return;
-    answerChars += String(delta || '').length;
-    if (answerChars >= SURE_ANSWER_CHARS) {
-      answerFolded = true;
-      liveRun?.fold?.();
-    }
-  };
 
   // The wait for a picture the model draws, under the words so far.
   // Where it goes is the bubble of the words so far; when pictures are drawn between the words, the one the words are in now (picture-flow.js tells).
@@ -116,9 +101,8 @@ export function createReplyLiveView({ targetElement, getDocument, getConfig, lan
   };
 
   // Words of the answer arrived: the thinking is over, and (the first time) the "Working" line ends and says how long it took.
-  const answering = (delta = '') => {
+  const answering = () => {
     answered = true;
-    countAnswer(delta);
     endThinking();
     if (!answerStarted) {
       answerStarted = true;
@@ -133,10 +117,6 @@ export function createReplyLiveView({ targetElement, getDocument, getConfig, lan
     setStagePlace: (place) => { stagePlace = place; },
     // An event of the steps (a run, a search, a skill): drawn in the list.
     event: (event) => {
-      if (WORK_EVENTS.has(event?.type)) {
-        answerChars = 0;
-        answerFolded = false;
-      }
       drawStage.handle(event);
       stepList()?.event(event);
       // The words are done and the files are being kept: a grey card stands where they will be, so they do not appear out of nothing when the
@@ -151,8 +131,7 @@ export function createReplyLiveView({ targetElement, getDocument, getConfig, lan
     workResumed,
     answering,
     // The server's answer arrived (its step list is the server's: no "answering" step of the page's own).
-    serverText: (delta = '') => {
-      countAnswer(delta);
+    serverText: () => {
       if (!answered) endThinking();
       answered = true;
     },

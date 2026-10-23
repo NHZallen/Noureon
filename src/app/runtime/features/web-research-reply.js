@@ -75,7 +75,7 @@ export const researchGuidance = (today = new Date().toISOString().slice(0, 10)) 
   '- For a GitHub repository, its README and /releases, /tags and /commits pages are the first places; a version is also written in files such as package.json, pyproject.toml or a version file, whose raw text is at raw.githubusercontent.com/<owner>/<repo>/<branch>/<path>.',
   '- When a search misses, search again with other words (the exact name, another language, a site name added). When a page cannot be read, try another route to the same fact before giving up.',
   '- Do not stop after one search and do not say you cannot look it up: you can. Stop when you have the answer or when the routes you tried are used up, and then say what you tried.',
-  'Say what a call is for in its `note` argument: one short sentence in the language of your reply. The user sees it between the steps. Do not write text before a call: any text you write is shown as your answer at once.',
+  'Say what a call is for in its `note` argument: one short sentence in the language of your reply. The user sees it between the steps. Never write text before or between calls, not even one sentence ("First I\'ll look it up…"): any text you write is shown as your final answer at once, so when you need a tool, call it straight away and say what it is for only in `note`.',
   'Cite what you rely on: each result and page has a number in square brackets. Put the number right after the sentence it supports, like [2], or [1][3] for several. Use only numbers you were given, never invent one, and do not add a list of sources at the end: the app shows them.',
   'Answer from what you read. Name the sources (site and title) naturally in your answer, and say plainly what you could not find or open.'
 ].join('\n');

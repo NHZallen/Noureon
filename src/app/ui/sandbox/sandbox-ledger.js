@@ -404,8 +404,10 @@ export function createSandboxLedger({ document, host, before = null, language = 
         if (event.type === 'answering') {
           endCurrent();
           list.foldFinished();
-          // Words may come before a call (the model says what it is about to do), so they do not fold the list the reader opened: `fold` does,
-          // when the words are known to be the answer.
+          // The words of the answer have begun (the model is told to say what it does in the call's note, so any words it writes are the answer): the
+          // whole list folds into its line (with the ease of a row, the page held still), also one the reader opened. The line says what is being
+          // done, and a tap opens it again.
+          line?.setOpen(false);
         } else if (list.current?.draft) {
           // The answer was the last words: a row that said the model was writing a call (it was only quiet a while) goes.
           list.current.discard();
@@ -470,9 +472,6 @@ export function createSandboxLedger({ document, host, before = null, language = 
       }
       syncLine();
     },
-    // The words are the answer, not words before a call: the whole list folds into its line (with the ease of a row, the page held still), also
-    // one the reader opened. The line says what is being done, and a tap opens it again.
-    fold() { line?.setOpen(false); },
     // Where something else can put its own rows under the line (the model's thinking), above the steps; null without a line.
     get body() { return line ? line.body : null; },
     get stepsElement() { return list.element; },

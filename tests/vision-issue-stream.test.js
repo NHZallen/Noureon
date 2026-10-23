@@ -31,7 +31,7 @@ test('a number counts once what ends it has come, and a cut in the middle of an 
   assert.equal(readIssuesSoFar('Here it is:\n```json\n{"issues":[{"fix":"f","slide":2,"category":"text","problem":"p"}]}').at(0)?.problem, 'p', 'in a fence, in any order');
 });
 
-test('the reply is told as the problems are written: nothing before a problem has begun, its words as they come, at most every 80 ms', () => {
+test('the reply is told as the problems are written: nothing before a problem has begun, its words as they come, at most every 40 ms', () => {
   const told = [];
   let clock = 1000;
   const timers = [];
@@ -49,7 +49,7 @@ test('the reply is told as the problems are written: nothing before a problem ha
   stream.feed('{"issues":[{"slide":4,"category":"layout","problem":"The title runs over two lines","fix":"Short');
   assert.equal(told.length, 1, 'too soon: held back');
   assert.equal(timers.length, 1);
-  assert.ok(timers[0].ms > 0 && timers[0].ms <= 80);
+  assert.ok(timers[0].ms > 0 && timers[0].ms <= 40);
   stream.feed(whole);
   assert.equal(timers.length, 1, 'one wait at a time');
   stream.flush();

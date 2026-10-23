@@ -106,7 +106,7 @@ export async function followServerReply({ serverReply, now, setRunStartedAt, get
         view.event(at !== null ? { ...event, at } : event);
       },
       onText: (delta) => {
-        view.serverText(delta);
+        view.serverText();
         onChunk(delta);
       }
     });

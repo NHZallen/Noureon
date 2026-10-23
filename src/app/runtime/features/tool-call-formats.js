@@ -182,7 +182,7 @@ export function partialJsonString(raw = '', key = 'code', { complete = false } =
  */
 export const NOTE_PARAMETER = Object.freeze({
   type: 'string',
-  description: 'One short sentence to the user, in the language of your reply: what this step is for and why (for example "First I\'ll check what is in the folder."). It is shown between the steps. Put it here; do not write text before the call.'
+  description: 'One short sentence to the user, in the language of your reply: what this step is for and why (for example "First I\'ll check what is in the folder."). It is shown between the steps. Put it here; never write text before the call: the first words you write are your final answer.'
 });
 
 // Collects one Gemini streamed response: its visible text, every part (to

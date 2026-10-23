@@ -102,7 +102,7 @@ export function createLocalReply({ streamApiCall, buildSingleModelTranslatedRequ
 
   const runStandard = async (onChunk) => {
     const onAnswer = (chunk) => {
-      view.answering(chunk);
+      view.answering();
       onChunk(chunk);
     };
     if (researchByModel) {
