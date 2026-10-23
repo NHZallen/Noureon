@@ -149,38 +149,39 @@ export function createMessageListLifecycle({
         });
     };
 
-    // Whether the chat rests at its end (and nobody is scrolling it): only then may words that grow below it be followed.
-    const restsAtEnd = () => {
+    // Whether the reader is at the end of the chat: true while they rest at it, and still true when the content grew below them (nothing was
+    // scrolled, so nothing took them away); false once they scroll up, until they come back to the end. The chat's own moves down leave it as it
+    // was (they are moves down, not up), so words that are kept above the chat's end by a margin do not end the following.
+    let atEnd = true;
+    let lastTop = 0;
+    const watchEnd = () => {
         const chat = elements.chatContainer;
-        return !isReaderScrolling(chat) && chat.scrollHeight - chat.scrollTop - chat.clientHeight <= FOLLOW_NEAR_PX;
+        if (!chat?.addEventListener) return;
+        lastTop = chat.scrollTop;
+        chat.addEventListener('scroll', () => {
+            const top = chat.scrollTop;
+            if (chat.scrollHeight - top - chat.clientHeight <= FOLLOW_NEAR_PX) atEnd = true;
+            else if (top < lastTop - FOLLOW_MOVED_PX) atEnd = false;
+            lastTop = top;
+        }, { passive: true });
     };
+    watchEnd();
     // Follows words that grow down the chat by their own bottom edge (not the end of the chat: room that is kept below them would be scrolled into),
-    // for a reader who was at the end when they began. A reader who moves the chat (scrolls up to read what is above) is let go, and followed again
-    // only when they come back to the end: the chat is never pulled out of their hands.
-    const createFollower = (following) => {
+    // for a reader who is at the end. A reader who scrolls up to read what is above is let go, and followed again when they come back to the end:
+    // the chat is never pulled out of their hands.
+    const follow = (typed) => {
         const chat = elements.chatContainer;
-        let left = null;
-        return (typed) => {
-            if (left !== null && Math.abs(chat.scrollTop - left) > FOLLOW_MOVED_PX) following = false;
-            if (chat.scrollHeight - chat.scrollTop - chat.clientHeight <= FOLLOW_NEAR_PX && !isReaderScrolling(chat)) following = true;
-            if (following && !isReaderScrolling(chat)) {
-                const view = chat.getBoundingClientRect();
-                const box = typed.getBoundingClientRect();
-                const over = box.bottom - (view.bottom - FOLLOW_MARGIN_PX);
-                if (box.top <= view.bottom && over > 0) setScrollTopQuietly(chat, Math.min(chat.scrollTop + over, followTop(chat)));
-            }
-            left = chat.scrollTop;
-        };
+        if (!atEnd || isReaderScrolling(chat)) return;
+        const view = chat.getBoundingClientRect();
+        const box = typed.getBoundingClientRect();
+        const over = box.bottom - (view.bottom - FOLLOW_MARGIN_PX);
+        if (over > 0) setScrollTopQuietly(chat, Math.min(chat.scrollTop + over, followTop(chat)));
+        lastTop = chat.scrollTop;
     };
-    // Types the words of a message in below what is on the page, the chat following them down for a reader who was at the end.
-    const typeIn = (element, { revealFiles = true, following = false } = {}) => {
+    // Types the words of a message in below what is on the page, the chat following them down for a reader who is at the end.
+    const typeIn = (element, { revealFiles = true } = {}) => {
         const reducedMotion = Boolean(document.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches);
-        return streamInMessage(element, {
-            requestFrame: scheduleFrame,
-            reducedMotion,
-            revealFiles,
-            follow: createFollower(following)
-        });
+        return streamInMessage(element, { requestFrame: scheduleFrame, reducedMotion, revealFiles, follow });
     };
     const draftOf = (id) => (id ? [...elements.messageList.children].find(element => element.dataset?.arrivalDraft === id) || null : null);
 
@@ -198,12 +199,11 @@ export function createMessageListLifecycle({
             const staging = document.createElement('div');
             staging.innerHTML = renderMarkdownWithFormulas(text);
             morphChildren(slot, staging);
-            existing.__astraFollow?.(existing);
+            follow(existing);
             return;
         }
         const drawn = [...elements.messageList.children].filter(element => element.dataset?.messageIndex !== undefined);
         if (drawn.length !== (conversation.messages || []).length) return;
-        const following = restsAtEnd();
         const element = addMessageToUI({ id, role: 'model', parts: [{ text }], createdAt: new Date().toISOString(), metadata: { visionCheck: { free: true } } }, drawn.length, false, false, { conversation });
         delete element.dataset.messageIndex;
         element.dataset.arrivalDraft = id;
@@ -217,8 +217,7 @@ export function createMessageListLifecycle({
         root.append(slot, createFileSkeleton(document, label));
         // The top of the words is where the saved panel of the run goes.
         onDrawn?.(root);
-        element.__astraFollow = createFollower(following);
-        element.__astraFollow(element);
+        follow(element);
     };
     const discardResultDraft = ({ id }) => draftOf(id)?.remove();
     document.defaultView?.addEventListener?.('astra:result-draft', event => showResultDraft(event.detail || {}));
@@ -237,7 +236,6 @@ export function createMessageListLifecycle({
         const sameStart = drawn.every((element, index) => element.dataset.messageIndex === String(index)
             && messageViewSignature(element.__astraRenderedMessage) === messageViewSignature(messages[index]));
         if (!sameStart) return false;
-        const following = restsAtEnd();
         messages.slice(drawn.length).forEach((message, offset) => {
             const draft = draftOf(message.id);
             const typedIn = !draft && Boolean(message.id) && message.role === 'model' && takeArrival(message.id);
@@ -247,7 +245,7 @@ export function createMessageListLifecycle({
                 draft.remove();
                 element.classList.add('is-history');
                 revealArrival(element, 'is-arriving-files');
-            } else if (typedIn) void typeIn(element, { following });
+            } else if (typedIn) void typeIn(element);
         });
         return true;
     };
