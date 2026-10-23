@@ -9,7 +9,7 @@
 //
 // Shared by the page and the server: no window, no document, no browser storage.
 
-import { opencodeThinkingFields } from '../shell/opencode-models.js';
+import { opencodeMaxOutputTokens, opencodeThinkingFields } from '../shell/opencode-models.js';
 import { buildAnthropicMessages } from './anthropic-messages-format.js';
 
 export const OPENCODE_CHAT_PATH = '/api/opencode-chat';
@@ -75,7 +75,7 @@ export function buildOpencodeRequest({
     const system = systemText(systemInstruction);
     payload = {
       model: modelId,
-      max_tokens: maxTokens ?? OPENCODE_DEFAULT_MAX_TOKENS,
+      max_tokens: maxTokens ?? opencodeMaxOutputTokens(modelInfo) ?? OPENCODE_DEFAULT_MAX_TOKENS,
       messages: buildAnthropicMessages(conversation, { modelInfo, modelSupportsVision }),
       stream: true,
       ...(system ? { system } : {})

@@ -14,6 +14,8 @@ import { keepToolResult } from '../../../data/tool-result.js';
 const MODEL_TEXT_CHARS = 10_000;
 const MAX_CRASHES = 2;
 // The thinking kept with the run (it is saved with the message), per round and in all.
+// How a round ends when the model reached the most it may write: the Messages form says `max_tokens`, the chat form `length`, Responses `incomplete`, Gemini `MAX_TOKENS`.
+const OUTPUT_LIMIT_FINISH = new Set(['max_tokens', 'length', 'incomplete']);
 const THOUGHT_CHARS_PER_ROUND = 6000;
 const THOUGHT_CHARS_IN_ALL = 30_000;
 // After the model has gone quiet this long in a round that may call a tool, the line says it is writing it: a long
@@ -514,6 +516,11 @@ export async function runSandboxReply({
     }
   }
   run.elapsedMs = Date.now() - startedAt;
+  // The model ran out of its output limit and wrote nothing at all (its thinking, which is not shown, took all of it): that is said, not left as a reply with no
+  // answer. A reply that did its work (a run, thinking that was kept) goes on as it is.
+  if (!signal?.aborted && !text.trim() && !run.steps.length && !run.thought && OUTPUT_LIMIT_FINISH.has(String(rounds.at(-1)?.finish || '').toLowerCase())) {
+    throw new Error(sandboxText(language, 'outputLimit'));
+  }
   // `answer`: what the model said in the last round (the whole text also holds what it said before its runs, if it said any).
   return { text, answer: text.slice(roundTextStart).trim(), rounds, run: run.steps.length || run.fallback || run.thought ? run : null };
 }

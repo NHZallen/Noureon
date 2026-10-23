@@ -680,9 +680,25 @@ test('what the model said in its last round is kept apart from the whole text, a
   ]);
 });
 
-test('a reply cut short by the output limit before it called anything shows it in the record of its rounds', async () => {
-  const model = scriptedModel([{ text: '', finish: 'max_tokens' }]);
-  const result = await runSandboxReply({ streamApiCall: model.streamApiCall, requestParts: [{ text: 'q' }], getSandbox: () => fakeSandbox([]).sandbox });
-  assert.equal(result.run, null);
-  assert.deepEqual(result.rounds, [{ finish: 'max_tokens', calls: 0, chars: 0 }]);
+test('a reply cut short by the output limit before it wrote anything is said, in the language of the page, instead of ending with no answer', async () => {
+  for (const [language, pattern] of [['en', /output limit[\s\S]*lower thinking depth/], ['zh-TW', /輸出額度[\s\S]*思考程度/], ['fr', /limite de sortie/], ['ru', /лимит вывода/], ['es', /límite de salida/]]) {
+    const model = scriptedModel([{ text: '', finish: 'max_tokens' }]);
+    await assert.rejects(
+      runSandboxReply({ streamApiCall: model.streamApiCall, requestParts: [{ text: 'q' }], getSandbox: () => fakeSandbox([]).sandbox, language }),
+      (error) => pattern.test(error.message),
+      language
+    );
+  }
+  // The chat form says `length`: the same.
+  await assert.rejects(runSandboxReply({ streamApiCall: scriptedModel([{ text: '', finish: 'length' }]).streamApiCall, requestParts: [{ text: 'q' }], getSandbox: () => fakeSandbox([]).sandbox, language: 'en' }), /output limit/);
+});
+
+test('a reply that wrote something, or did its work, before the output limit ended it is kept as it is, with the record of how its rounds ended', async () => {
+  const wrote = await runSandboxReply({ streamApiCall: scriptedModel([{ text: 'Half of an ans', finish: 'max_tokens' }]).streamApiCall, requestParts: [{ text: 'q' }], getSandbox: () => fakeSandbox([]).sandbox });
+  assert.equal(wrote.text, 'Half of an ans');
+  assert.deepEqual(wrote.rounds, [{ finish: 'max_tokens', calls: 0, chars: 14 }]);
+  const worked = scriptedModel([{ calls: [call('c1', 'print(1)', 'Look')] }, { text: '', finish: 'max_tokens' }]);
+  const result = await runSandboxReply({ streamApiCall: worked.streamApiCall, requestParts: [{ text: 'q' }], getSandbox: () => fakeSandbox([{ stdout: { text: '1\n', dropped: 0 }, stderr: { text: '', dropped: 0 }, error: null, files: [], elapsedMs: 1 }]).sandbox });
+  assert.equal(result.run.steps.length, 1, 'the work is kept');
+  assert.equal(result.rounds.at(-1).finish, 'max_tokens');
 });

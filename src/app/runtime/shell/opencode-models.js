@@ -107,6 +107,12 @@ const OFFICE_MIME_TYPES = new Set([
 ]);
 
 export const isOpencodeModel = (model) => Boolean(model && model.provider === OPENCODE_GO_PROVIDER);
+
+// How much a model may write in one reply, where the app has to say (the Messages form wants `max_tokens`); a model not here gets the app's own default
+// (opencode-request.js). The probe of 2026-10-23 (scripts/opencode-claude-probe.mjs): Claude Haiku 5.5 takes up to 128000, and its thinking is not shown but
+// counts: at the deepest depth it wrote 10739 to 47320 tokens before its first call, so 16384 ended the reply at `max_tokens` with nothing written.
+const MAX_OUTPUT_TOKENS = { 'claude-haiku-5-5': 65536 };
+export const opencodeMaxOutputTokens = (model) => (isOpencodeModel(model) ? MAX_OUTPUT_TOKENS[BY_ID.get(model.id)?.apiId] || null : null);
 /** The form of API of a model of OpenCode (`chat`, `responses` or `messages`), from this list and not from what the page says; '' for any other model. */
 export const opencodeFormatOf = (model) => (isOpencodeModel(model) ? BY_ID.get(model.id)?.opencodeFormat || '' : '');
 export const opencodeModelReadsPdf = (model) => isOpencodeModel(model) && PDF_API_IDS.has(BY_ID.get(model.id)?.apiId);

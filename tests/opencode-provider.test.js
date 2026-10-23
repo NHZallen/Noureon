@@ -529,3 +529,13 @@ test('the OpenCode models are shown by their own names, without OpenCode in fron
   assert.equal(OPENCODE_GO_MODELS.find((entry) => entry.apiId === 'longcat-2.5-preview-free').name, 'LongCat 2.5 Preview');
   assert.equal(OPENCODE_GO_MODELS.find((entry) => entry.apiId === 'kimi-k3').name, 'Kimi K3');
 });
+
+test('Claude Haiku 5.5 gets room for its hidden thinking (65536), the other models of the Messages form the default of the app, and what is asked for is kept', () => {
+  const common = {
+    format: 'messages', modelId: 'x', apiKey: 'k', sessionId: 's', historyForApi: [], currentMessageForApi: { role: 'user', parts: [{ text: 'Hi' }] }, generationConfig: { maxTokens: null },
+    systemInstruction: { parts: [{ text: 'Be kind.' }] }, modelSupportsVision: () => true, buildChatMessages: () => [], buildResponsesInput: () => []
+  };
+  assert.equal(buildOpencodeRequest({ ...common, modelInfo: { provider: 'opencode-go', id: 'claude-haiku-5-5' } }).payload.max_tokens, 65536);
+  assert.equal(buildOpencodeRequest({ ...common, modelInfo: { provider: 'opencode-go', id: 'minimax-m3' } }).payload.max_tokens, 16384);
+  assert.equal(buildOpencodeRequest({ ...common, modelInfo: { provider: 'opencode-go', id: 'claude-haiku-5-5' }, generationConfig: { maxTokens: 2000 } }).payload.max_tokens, 2000);
+});

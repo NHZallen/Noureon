@@ -31,7 +31,8 @@ const cutInThinking = [
 
 test('the request of the probe is the request of the app: adaptive thinking with the depth, the limit of the app, the tool and the guidance of Advanced mode', () => {
   const plain = buildProbeRequest({ effort: 'max', maxTokens: null, prompt: 'Hi' });
-  assert.equal(plain.max_tokens, 16384, 'the limit the app sends when nothing says otherwise');
+  assert.equal(plain.max_tokens, 65536, 'what the app sends for Claude Haiku 5.5 when nothing says otherwise: its thinking, which is not shown, counts (the probe of 2026-10-23: up to 47320 tokens at the deepest depth)');
+  assert.equal(buildProbeRequest({ model: 'minimax-m3', prompt: 'Hi' }).max_tokens, 16384, 'the default of the app for the models that were not probed');
   assert.deepEqual(plain.thinking, { type: 'adaptive' });
   assert.deepEqual(plain.output_config, { effort: 'max' });
   assert.equal(plain.tools, undefined);
@@ -59,7 +60,7 @@ test('a round with a tool call is read: thinking with its signature, the argumen
   assert.deepEqual(next.messages[2].content, [{ type: 'tool_result', tool_use_id: 'toolu_1', content: '{"ok":true}' }]);
 });
 
-test('a round cut at the limit while it thinks has no call and no text, and the loop of Advanced mode takes it for the end of the reply', async () => {
+test('a round cut at the limit while it thinks has no call and no text, and the loop of Advanced mode says so', async () => {
   const run = await ask({ fetchImpl: async () => reply(cutInThinking), key: KEY, payload: {} });
   assert.equal(run.stopReason, 'max_tokens');
   assert.deepEqual(run.calls, []);
@@ -68,14 +69,12 @@ test('a round cut at the limit while it thinks has no call and no text, and the 
   // The same stream through the loop of the app (what a reply of this model does when it is cut): no step, no answer, the reply "done".
   const collector = createAnthropicCollector();
   for (const event of cutInThinking) collector.add(event);
-  const result = await runSandboxReply({
+  await assert.rejects(runSandboxReply({
     streamApiCall: async (parts, onChunk, signal, forced, options) => { options.onResponseComplete(collector.result()); return ''; },
     requestParts: [{ text: 'Make a deck' }],
-    getSandbox: () => { throw new Error('the sandbox is not needed'); }
-  });
-  assert.equal(result.run?.steps?.length || 0, 0, 'no step was run');
-  assert.equal(result.answer, '', 'nothing was answered');
-  assert.deepEqual(result.rounds, [{ finish: 'max_tokens', calls: 0, chars: 0 }], 'the record of the rounds says how it ended');
+    getSandbox: () => { throw new Error('the sandbox is not needed'); },
+    language: 'en'
+  }), /output limit/, 'it is said that the model ran out of its output limit (it used to end as a reply with no answer)');
 });
 
 test('the probe tells the service refusing a limit, a call cut, and a request that ended at the limit, and never the key', async () => {
