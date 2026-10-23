@@ -3,7 +3,8 @@ import test from 'node:test';
 
 import { createAnthropicCollector } from '../src/app/runtime/reply/anthropic-messages-format.js';
 import { runSandboxReply } from '../src/app/runtime/sandbox/sandbox-reply.js';
-import { ask, buildProbeRequest, line, probe, verdict } from '../scripts/opencode-claude-probe.mjs';
+import { LEGACY_FILE_ROUTE, ask, buildProbeRequest, line, probe, routeDecider, routeSystem, verdict } from '../scripts/opencode-claude-probe.mjs';
+import { FILE_ROUTE } from '../src/app/runtime/sandbox/sandbox-guidance.js';
 
 const KEY = 'oc_sk_secret_key';
 const sse = (events) => events.map((event) => `event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`).join('');
@@ -99,4 +100,60 @@ test('the probe tells the service refusing a limit, a call cut, and a request th
   assert.match(notes, /refused these limits: 131072 \(HTTP 400/);
   assert.match(line('x', results.tools[0]), /max_tokens +out +16384 tok/);
   assert.deepEqual(verdict({ limits: [], tools: [], loop: [] }), ['Nothing wrong was found in this run: every request ended normally and every call of the tool was readable.']);
+});
+
+const writesFileBlock = [
+  { type: 'message_start', message: { usage: { input_tokens: 900 } } },
+  { type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } },
+  { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: '好的，這是簡報。\n\n````file 簡報.pptx\n{"title":"x"' } },
+  { type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'y'.repeat(4000) } }
+];
+
+test('the three versions of the instructions for the route test differ only where they should, and each puts the file instructions before the Python ones', async () => {
+  const legacy = await routeSystem('legacy');
+  const priority = await routeSystem('priority');
+  const noSpec = await routeSystem('no-spec');
+  assert.ok(legacy.includes(LEGACY_FILE_ROUTE) && !legacy.includes(FILE_ROUTE), 'legacy has the old line');
+  assert.ok(priority.includes(FILE_ROUTE) && !priority.includes(LEGACY_FILE_ROUTE), 'priority has the line of today');
+  assert.match(priority, /# Downloadable file output[\s\S]*## Advanced mode: Python on the server/, 'the file instructions come first, as in the request of the app');
+  assert.doesNotMatch(noSpec, /Downloadable file output/);
+  assert.match(noSpec, /Advanced mode: Python on the server/);
+});
+
+test('the route of a request is read from its first signs and the stream is left there: a call of run_python, or a ````file block', async () => {
+  const python = routeDecider();
+  assert.equal(thinkingThenCall().some((event) => python.decide(event)), true);
+  assert.equal(python.seen.route, 'python');
+  const block = routeDecider();
+  assert.equal(writesFileBlock.some((event) => block.decide(event)), true);
+  assert.equal(block.seen.route, 'file-block');
+  const talk = routeDecider();
+  talk.decide({ type: 'content_block_delta', delta: { type: 'text_delta', text: 'a'.repeat(900) } });
+  assert.equal(talk.seen.route, 'text');
+});
+
+test('the route test counts, for each version, how many requests called run_python and how many wrote a file block, and the verdict says it', async () => {
+  let at = 0;
+  const fetchImpl = async () => reply(at++ % 3 === 0 ? writesFileBlock : thinkingThenCall());
+  const result = await probe({ key: KEY, fetchImpl, tests: ['route'], efforts: ['medium'], trials: 1 });
+  assert.equal(result.route.length, 3 * 2 * 1, 'three versions, two prompts, one trial');
+  assert.ok(result.route.every((row) => ['python', 'file-block'].includes(row.route)));
+  assert.ok(result.route.some((row) => row.route === 'file-block') && result.route.some((row) => row.route === 'python'));
+  assert.match(result.verdict.join('\n'), /route legacy: .*(python|file-block) \d/);
+  assert.doesNotMatch(JSON.stringify(result), new RegExp(KEY));
+});
+
+test('the display test sends thinking.display and tells whether a summary of the thinking came', async () => {
+  const bodies = [];
+  const fetchImpl = async (url, init) => {
+    const body = JSON.parse(init.body);
+    bodies.push(body.thinking);
+    return reply(body.thinking?.display ? thinkingThenCall() : thinkingThenCall().filter((event) => event.delta?.type !== 'thinking_delta'));
+  };
+  const result = await probe({ key: KEY, fetchImpl, tests: ['display'], efforts: ['medium'] });
+  assert.deepEqual(bodies.map((thinking) => thinking.display ?? null), [null, null, 'summarized', 'summarized']);
+  assert.match(result.verdict.join('\n'), /thinking\.display "summarized": the service sent a summary of the thinking/);
+  assert.equal(result.display.find((row) => row.display === 'summarized').thinkingSample, 'Let me plan the deck. ');
+  const refused = await probe({ key: KEY, fetchImpl: async () => new Response('{"error":"display is not allowed"}', { status: 400 }), tests: ['display'], efforts: ['medium'] });
+  assert.match(refused.verdict.join('\n'), /was refused/);
 });

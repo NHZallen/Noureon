@@ -9,6 +9,11 @@
 //   tools    for each depth of thinking, a request for a file with the tool of Advanced mode: how it ended (`stop_reason`), how many tokens it wrote,
 //            how many characters of thinking and of text, and whether a call of the tool came with arguments that can be read;
 //   loop     the answer of the tool sent back with the thinking block kept (its signature), as the app does for the next round: does the service take it.
+//   route    which way the model makes a file when the request carries both sets of instructions the app sends in Advanced mode (the file instructions with
+//            the ````file block, and the Python ones): for each version of the Python instructions (`legacy` = before 2026-10-23, `priority` = now,
+//            `no-spec` = without the file instructions), each request is read only as far as the first sign of the way (a call of run_python, or a
+//            ````file block) and counted. `--trials` requests for each prompt and version, `--efforts` picks the depth.
+//   display  whether the service gives a summary of the thinking when `thinking.display` is `summarized` (and how long, with a sample of its first words).
 //
 // The key is read from the environment (OPENCODE_GO_KEY); it is never printed or written. Every request is small except the ones of `tools`, whose
 // length is the point (a deep thinking can write the whole of `--limits`: a few cents at most per request).
@@ -16,6 +21,8 @@
 //   OPENCODE_GO_KEY=... node scripts/opencode-claude-probe.mjs                          limits, then tools and loop for medium, high and max at 16384
 //   OPENCODE_GO_KEY=... node scripts/opencode-claude-probe.mjs --tests limits           only which limits are taken
 //   OPENCODE_GO_KEY=... node scripts/opencode-claude-probe.mjs --efforts low,medium,high,xhigh,max --limits 16384,65536
+//   OPENCODE_GO_KEY=... node scripts/opencode-claude-probe.mjs --tests route,display --efforts medium --trials 4     which way a file is made, and the thinking summary
+//   --trials N   requests for each version and prompt of `route` (default 4)       --display summarized   send thinking.display in the other tests too
 //   --prompt "..."   another request for the tools test        --out file.json   where the result is written (default opencode-claude-probe-result.json)
 //   --base <address>   another base address        --model <id>   another model of the Messages form (default claude-haiku-5-5)
 
@@ -24,17 +31,27 @@ import { fileURLToPath } from 'node:url';
 
 import { buildOpencodeRequest, OPENCODE_DEFAULT_MAX_TOKENS } from '../src/app/runtime/reply/opencode-request.js';
 import { applyAnthropicTools, createAnthropicCollector } from '../src/app/runtime/reply/anthropic-messages-format.js';
-import { RUN_PYTHON_TOOL_SERVER, getSandboxGuidance } from '../src/app/runtime/sandbox/sandbox-guidance.js';
+import { FILE_ROUTE, RUN_PYTHON_TOOL_SERVER, getSandboxGuidance } from '../src/app/runtime/sandbox/sandbox-guidance.js';
+import { getFileAuthoringGuidance } from '../src/app/ui/files/file-authoring-guidance.js';
 
 export const BASE = 'https://opencode.ai/inference/go/v1';
 export const EFFORTS = Object.freeze(['low', 'medium', 'high', 'xhigh', 'max']);
 export const LIMIT_CANDIDATES = Object.freeze([16384, 32768, 65536, 131072]);
 export const DEFAULT_PROMPT = '請用 Python 做一份 3 頁的 PowerPoint 簡報，主題是颱風來臨前的準備，存成 typhoon.pptx，內容要有標題、重點條列與一頁檢查清單。';
 
+// The instructions of Advanced mode before the order of the two ways was told (the line `FILE_ROUTE` replaced).
+export const LEGACY_FILE_ROUTE = 'When the user does ask for a Word, PowerPoint, Excel or PDF file: create it with Python and save it in /output. You have full freedom over layout, colour, typography and graphics; do not write them as ````file blocks.';
+// Asks that do not say how: the way is the model's to choose.
+export const ROUTE_PROMPTS = Object.freeze([
+  '幫我做一份 5 頁的簡報，主題是颱風來臨前的準備。',
+  'Write me a two-page Word report on how to keep a household budget.'
+]);
+export const ROUTE_VARIANTS = Object.freeze(['legacy', 'priority', 'no-spec']);
+
 const USER_AGENT = 'Noureon/1 (+https://noureon.com)';
 
 /** The request of the app for this model: its payload, with what the app puts in it (system instruction, thinking depth, tools). */
-export function buildProbeRequest({ model = 'claude-haiku-5-5', effort = null, maxTokens = null, prompt, tools = false, toolTurns = [] }) {
+export function buildProbeRequest({ model = 'claude-haiku-5-5', effort = null, maxTokens = null, prompt, tools = false, toolTurns = [], system = null, display = null }) {
   const modelInfo = { provider: 'opencode-go', id: model, name: model };
   const { payload } = buildOpencodeRequest({
     format: 'messages',
@@ -46,13 +63,41 @@ export function buildProbeRequest({ model = 'claude-haiku-5-5', effort = null, m
     currentMessageForApi: { role: 'user', parts: [{ text: prompt }] },
     generationConfig: { maxTokens },
     reasoningEffort: effort,
-    systemInstruction: { parts: [{ text: tools ? getSandboxGuidance({ host: 'server' }) : 'Answer briefly.' }] },
+    systemInstruction: { parts: [{ text: system ?? (tools ? getSandboxGuidance({ host: 'server' }) : 'Answer briefly.') }] },
     modelSupportsVision: () => true,
     buildChatMessages: () => [],
     buildResponsesInput: () => []
   });
+  if (display && payload.thinking) payload.thinking = { ...payload.thinking, display };
   if (tools || toolTurns.length) applyAnthropicTools(payload, { tools: tools ? [RUN_PYTHON_TOOL_SERVER] : [], toolTurns });
   return payload;
+}
+
+/** The system instruction of a version of Advanced mode: the file instructions of the app (when `withSpec`) and the Python ones, in that order. */
+export async function routeSystem(variant) {
+  const python = getSandboxGuidance({ host: 'server' });
+  const spec = variant === 'no-spec' ? '' : await getFileAuthoringGuidance({ deckDesign: 'auto', documentDesign: 'auto' });
+  const text = variant === 'legacy' ? python.replace(FILE_ROUTE, LEGACY_FILE_ROUTE) : python;
+  return [spec, text].filter(Boolean).join('\n\n');
+}
+
+/** Which way a request goes, from its first signs: 'python' (a call of run_python), 'file-block' (a ````file block in its text), 'text' (it wrote on without either). */
+export function routeDecider() {
+  const seen = { route: '', text: '' };
+  const decide = (event) => {
+    if (event.type === 'content_block_start' && event.content_block?.type === 'tool_use') {
+      seen.route = 'python';
+      return true;
+    }
+    if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta') {
+      seen.text += event.delta.text || '';
+      if (/`{3,}file\b/.test(seen.text)) seen.route = 'file-block';
+      else if (seen.text.length > 800) seen.route = 'text';
+      return Boolean(seen.route);
+    }
+    return false;
+  };
+  return { seen, decide };
 }
 
 /** The server-sent events of a response, one object for each `data:` line (a line that is not JSON is skipped). */
@@ -78,7 +123,7 @@ export async function* readEvents(response) {
 }
 
 /** One request, sent and read to its end: how it went, in the terms of the questions above. */
-export async function ask({ fetchImpl = fetch, key, base = BASE, payload, signal }) {
+export async function ask({ fetchImpl = fetch, key, base = BASE, payload, signal, earlyStop = null }) {
   const startedAt = Date.now();
   const response = await fetchImpl(`${base}/messages`, {
     method: 'POST',
@@ -93,6 +138,8 @@ export async function ask({ fetchImpl = fetch, key, base = BASE, payload, signal
   const collector = createAnthropicCollector();
   let firstByteMs = null;
   let thinkingChars = 0;
+  let thinkingSample = '';
+  let stoppedEarly = false;
   let outputTokens = null;
   let inputTokens = null;
   let stopReason = '';
@@ -105,8 +152,15 @@ export async function ask({ fetchImpl = fetch, key, base = BASE, payload, signal
       outputTokens = event.usage?.output_tokens ?? outputTokens;
       stopReason = event.delta?.stop_reason || stopReason;
     }
-    if (event.type === 'content_block_delta' && event.delta?.type === 'thinking_delta') thinkingChars += String(event.delta.thinking || '').length;
+    if (event.type === 'content_block_delta' && event.delta?.type === 'thinking_delta') {
+      thinkingChars += String(event.delta.thinking || '').length;
+      if (thinkingSample.length < 300) thinkingSample += String(event.delta.thinking || '').slice(0, 300 - thinkingSample.length);
+    }
     collector.add(event);
+    if (earlyStop?.(event)) {
+      stoppedEarly = true;
+      break;
+    }
   }
   const result = collector.result();
   return {
@@ -119,6 +173,8 @@ export async function ask({ fetchImpl = fetch, key, base = BASE, payload, signal
     inputTokens,
     outputTokens,
     thinkingChars,
+    thinkingSample,
+    stoppedEarly,
     textChars: result.text.length,
     calls: result.toolCalls.map((call) => ({ name: call.name, argumentsReadable: call.args !== null, argumentChars: String(call.arguments || '').length })),
     eventKinds: kinds,
@@ -149,12 +205,25 @@ export function verdict(results) {
   if (refused.length) notes.push(`The service refused these limits: ${refused.map((run) => `${run.limit} (HTTP ${run.status}: ${run.error})`).join('; ')}.`);
   const badLoop = results.loop.filter((run) => !run.ok);
   if (badLoop.length) notes.push(`The next round (answer of the tool, thinking kept) was refused or failed for: ${badLoop.map((run) => `${run.effort}@${run.limit}: ${run.error || run.failure}`).join('; ')}.`);
+  if (results.route?.length) {
+    const table = {};
+    for (const row of results.route) {
+      table[row.variant] ||= { python: 0, 'file-block': 0, text: 0, none: 0, error: 0 };
+      table[row.variant][row.route] = (table[row.variant][row.route] || 0) + 1;
+    }
+    for (const [variant, counts] of Object.entries(table)) notes.push(`route ${variant}: ${Object.entries(counts).filter(([, count]) => count).map(([name, count]) => `${name} ${count}`).join(', ')}.`);
+  }
+  if (results.display?.length) {
+    const summarized = results.display.filter((row) => row.display === 'summarized');
+    if (summarized.some((row) => !row.ok)) notes.push(`thinking.display "summarized" was refused: ${summarized.find((row) => !row.ok).error}`);
+    else if (summarized.length) notes.push(`thinking.display "summarized": ${summarized.every((row) => row.thinkingChars > 0) ? 'the service sent a summary of the thinking' : 'accepted, but no thinking text came'} (${summarized.map((row) => row.thinkingChars).join('/')} characters); without it: ${results.display.filter((row) => row.display !== 'summarized').map((row) => row.thinkingChars).join('/')}.`);
+  }
   if (!notes.length) notes.push('Nothing wrong was found in this run: every request ended normally and every call of the tool was readable.');
   return notes;
 }
 
-export async function probe({ key, base = BASE, model = 'claude-haiku-5-5', tests = ['limits', 'tools', 'loop'], efforts = ['medium', 'high', 'max'], limits = [OPENCODE_DEFAULT_MAX_TOKENS], prompt = DEFAULT_PROMPT, fetchImpl = fetch, log = () => {} }) {
-  const results = { model, limits: [], tools: [], loop: [] };
+export async function probe({ key, base = BASE, model = 'claude-haiku-5-5', tests = ['limits', 'tools', 'loop'], efforts = ['medium', 'high', 'max'], limits = [OPENCODE_DEFAULT_MAX_TOKENS], prompt = DEFAULT_PROMPT, trials = 4, display = null, fetchImpl = fetch, log = () => {} }) {
+  const results = { model, limits: [], tools: [], loop: [], route: [], display: [] };
   if (tests.includes('limits')) {
     for (const limit of LIMIT_CANDIDATES) {
       const run = { limit, ...(await ask({ fetchImpl, key, base, payload: buildProbeRequest({ model, effort: 'low', maxTokens: limit, prompt: 'Reply with the single word: ok' }) })) };
@@ -181,12 +250,41 @@ export async function probe({ key, base = BASE, model = 'claude-haiku-5-5', test
       }
     }
   }
+  if (tests.includes('route')) {
+    for (const effort of efforts.slice(0, 1)) {
+      const systems = Object.fromEntries(await Promise.all(ROUTE_VARIANTS.map(async (variant) => [variant, await routeSystem(variant)])));
+      const jobs = [];
+      for (const variant of ROUTE_VARIANTS) for (const text of ROUTE_PROMPTS) for (let trial = 1; trial <= trials; trial += 1) jobs.push({ variant, text, trial });
+      // A few at a time: each is read only as far as its first sign, so they are short.
+      for (let at = 0; at < jobs.length; at += 4) {
+        await Promise.all(jobs.slice(at, at + 4).map(async ({ variant, text, trial }) => {
+          const { seen, decide } = routeDecider();
+          const run = await ask({ fetchImpl, key, base, earlyStop: decide, payload: buildProbeRequest({ model, effort, prompt: text, tools: true, system: systems[variant], display }) });
+          delete run.collected;
+          const row = { variant, prompt: text.slice(0, 24), trial, effort, route: seen.route || (run.ok ? 'none' : 'error'), elapsedMs: run.elapsedMs, stopReason: run.stopReason, outputTokens: run.outputTokens, error: run.error || run.failure || '' };
+          results.route.push(row);
+          log(`route ${variant.padEnd(8)} ${text.slice(0, 18).padEnd(18)} #${trial} ${row.route.padEnd(10)} ${(row.elapsedMs / 1000).toFixed(1)}s${row.error ? `  ${row.error.slice(0, 120)}` : ''}`);
+        }));
+      }
+    }
+  }
+  if (tests.includes('display')) {
+    for (const shown of [null, 'summarized']) {
+      for (let trial = 1; trial <= 2; trial += 1) {
+        const { decide } = routeDecider();
+        const run = await ask({ fetchImpl, key, base, earlyStop: decide, payload: buildProbeRequest({ model, effort: efforts[0] || 'medium', prompt: ROUTE_PROMPTS[0], tools: true, system: await routeSystem('priority'), display: shown }) });
+        delete run.collected;
+        results.display.push({ display: shown || '(not sent)', trial, ok: run.ok, status: run.status, error: run.error || run.failure || '', thinkingChars: run.thinkingChars, thinkingSample: run.thinkingSample, elapsedMs: run.elapsedMs });
+        log(`display ${(shown || '(not sent)').padEnd(11)} #${trial} ${run.ok ? `thinking ${run.thinkingChars} ch` : `HTTP ${run.status} ${run.error}`}${run.thinkingSample ? `  «${run.thinkingSample.replace(/\s+/g, ' ').slice(0, 100)}»` : ''}`);
+      }
+    }
+  }
   results.verdict = verdict(results);
   return results;
 }
 
 function parseArguments(argv) {
-  const options = { tests: ['limits', 'tools', 'loop'], efforts: ['medium', 'high', 'max'], limits: [OPENCODE_DEFAULT_MAX_TOKENS], prompt: DEFAULT_PROMPT, out: 'opencode-claude-probe-result.json', base: BASE, model: 'claude-haiku-5-5' };
+  const options = { tests: ['limits', 'tools', 'loop'], efforts: ['medium', 'high', 'max'], limits: [OPENCODE_DEFAULT_MAX_TOKENS], prompt: DEFAULT_PROMPT, trials: 4, display: null, out: 'opencode-claude-probe-result.json', base: BASE, model: 'claude-haiku-5-5' };
   for (let index = 0; index < argv.length; index += 1) {
     const flag = argv[index];
     const value = argv[index + 1];
@@ -197,6 +295,8 @@ function parseArguments(argv) {
     else if (flag === '--out') options.out = String(value);
     else if (flag === '--base') options.base = String(value);
     else if (flag === '--model') options.model = String(value);
+    else if (flag === '--trials') options.trials = Math.max(1, Number(value) || 4);
+    else if (flag === '--display') options.display = String(value);
     else continue;
     index += 1;
   }
