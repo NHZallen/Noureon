@@ -36,7 +36,7 @@ export const TESTS = Object.freeze(['basic', 'stream', 'tools', 'toolloop', 'par
 
 // The models of the app: the ones on the page of limits of OpenCode (the owner's screenshots of 2026-10-23, 29 models), each with the form of its API and whether it is free.
 // Another id is tried with `--model <id>` (`--new` lists what the service has that is not here).
-const chat = ['glm-5.3-flash', 'glm-5.3', 'glm-5.2', 'kimi-k3', 'kimi-k2.7-code', 'longcat-2.0', 'deepseek-v4.1-flash', 'deepseek-v4-pro', 'mimo-v2.6-pro', 'mimo-v2.6-flash', 'mimo-v2.5-pro', 'mimo-v2.5', 'hy4-preview', 'hy3', 'longcat-2.5-preview-free', 'step-5-preview', 'beam-free'];
+const chat = ['glm-5.3-flash', 'glm-5.3', 'glm-5.2', 'kimi-k3.1-pro', 'kimi-k3', 'kimi-k2.7-code', 'longcat-2.0', 'deepseek-v4.1-flash', 'deepseek-v4-pro', 'mimo-v2.6-pro', 'mimo-v2.6-flash', 'mimo-v2.5-pro', 'mimo-v2.5', 'hy4-preview', 'hy3', 'longcat-2.5-preview-free', 'step-5-preview', 'beam-free'];
 const responses = ['grok-4.7', 'gpt-6-luna', 'gpt-5.6-luna', 'muse-spark-1.3-contributor', 'muse-spark-1.2-contributor'];
 // `minimax-m3.1-flash` and `step-5-preview` are the ids of the models that were free before (`-free` ids that the service now refuses: 410 "deprecated", "Model is unavailable");
 // they are guessed from the page of limits, where they have a price and no "Free": the probe says whether the service knows them.

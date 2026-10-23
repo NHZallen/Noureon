@@ -171,6 +171,14 @@
     font-weight: 500;
 }
 
+/* While something is typed the groups lose their titles and the rows that fit stand in one list, best first
+   (the order of each row is set by model-search.js). */
+.mp-scroll.is-searching { display: flex; flex-direction: column; }
+.mp-scroll.is-searching .mp-group { display: contents; }
+.mp-scroll.is-searching .mp-group[hidden] { display: none; }
+.mp-scroll.is-searching .mp-group-title { display: none; }
+.mp-scroll.is-searching .mp-empty { order: 9999; }
+
 .mp-empty { margin: 1.5rem 0.5rem; color: var(--text-secondary); font-size: 0.875rem; text-align: center; }
 
 #model-council-control .mp-row {

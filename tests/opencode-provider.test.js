@@ -19,9 +19,9 @@ const byteStream = (chunks) => {
 const reply = ({ ok = true, status = 200, chunks = [], body } = {}) => ({ ok, status, statusText: '', body: byteStream(chunks), text: async () => body ?? '', json: async () => JSON.parse(body ?? '{}') });
 
 test('the list of OpenCode Go models: the ones of the owner\'s table, each in one of the three forms of API, with the pictures the owner confirmed', () => {
-  // The list of the page of limits of OpenCode (the owner's screenshots of 2026-10-23): 29 models, not one more or less.
-  assert.equal(OPENCODE_GO_MODELS.length, 29);
-  assert.equal(new Set(OPENCODE_GO_MODELS.map((entry) => entry.id)).size, 29);
+  // The list of the page of limits of OpenCode (the owner's screenshots of 2026-10-23): 30 models, not one more or less.
+  assert.equal(OPENCODE_GO_MODELS.length, 30);
+  assert.equal(new Set(OPENCODE_GO_MODELS.map((entry) => entry.id)).size, 30);
   for (const entry of OPENCODE_GO_MODELS) {
     assert.ok(OPENCODE_FORMATS.includes(opencodeFormatOf(entry)), entry.id);
     assert.equal(entry.provider, 'opencode-go');
@@ -412,7 +412,7 @@ test('a tool round in each form (what Python, connectors, skills, command tools 
 
 test('the depth of thinking of each model: the options of the slider, and the fields that say it in the way of the model (the ones the probe found accepted)', () => {
   // The slider is the one of the app: the models that have a choice get a row in its table.
-  assert.equal(Object.keys(OPENCODE_REASONING_CONFIGS).length, 28);
+  assert.equal(Object.keys(OPENCODE_REASONING_CONFIGS).length, 29);
   const config = getModelReasoningConfig(model('kimi-k3'));
   assert.deepEqual([config.options, config.defaultEffort], [['none', 'low', 'medium', 'high', 'max'], 'high']);
   assert.equal(normalizeReasoningEffort(model('kimi-k3'), 'xhigh'), 'high');
@@ -421,6 +421,7 @@ test('the depth of thinking of each model: the options of the slider, and the fi
 
   const fields = (apiId, effort) => opencodeThinkingFields(model(apiId), effort);
   assert.deepEqual(fields('kimi-k3', 'none'), { reasoning_effort: 'none' });
+  assert.deepEqual(fields('kimi-k3.1-pro', 'xhigh'), { reasoning_effort: 'xhigh' });
   assert.deepEqual(fields('deepseek-v4-pro', 'max'), { reasoning_effort: 'max' });
   assert.deepEqual(fields('longcat-2.0', 'none'), { thinking: { type: 'disabled' } });
   assert.deepEqual(fields('longcat-2.0', 'high'), {});

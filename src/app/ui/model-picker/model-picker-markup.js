@@ -27,7 +27,14 @@ function renderRowBody(model, { t, escape }) {
 
 const rowTitle = (model, escape) => escape([model.name, model.description].filter(Boolean).join('\n'));
 
-const searchText = (model) => `${model.name} ${model.providerLabel} ${model.company} ${model.apiId} ${model.description}`.toLowerCase();
+/** What the search can find in a row, in the order of the fields of model-search.js: name, id, maker, tags (free, abilities) and description. */
+const searchFields = (model, t) => JSON.stringify([
+  model.name,
+  `${model.apiId} ${model.id}`,
+  `${model.company} ${model.providerLabel}`,
+  [model.free ? `free ${t('free')}` : '', model.hidden ? t('hiddenModel') : '', ...model.abilities].filter(Boolean).join(' '),
+  model.description
+]);
 
 /** The list rows for one way of choosing: pick a model, tick members, or pick the one that combines. */
 function renderGroups(groups, kind, ctx) {
@@ -36,12 +43,12 @@ function renderGroups(groups, kind, ctx) {
     <section class="mp-group" data-mp-group>
       <h4 class="mp-group-title">${escape(group.label)}</h4>
       ${group.models.map((model) => {
-    const text = escape(searchText(model));
+    const text = escape(searchFields(model, t));
     if (kind === 'single') {
-      return `<button type="button" class="mp-row${model.selected ? ' is-selected' : ''}" data-mp-model="${escape(model.id)}" data-mp-search-text="${text}" title="${rowTitle(model, escape)}" ${model.disabled ? 'disabled' : ''}>${renderRowBody(model, ctx)}${model.selected ? ICONS.check : ''}</button>`;
+      return `<button type="button" class="mp-row${model.selected ? ' is-selected' : ''}" data-mp-model="${escape(model.id)}" data-mp-search-fields="${text}" data-mp-key="${escape(model.id)}" title="${rowTitle(model, escape)}" ${model.disabled ? 'disabled' : ''}>${renderRowBody(model, ctx)}${model.selected ? ICONS.check : ''}</button>`;
     }
     const attribute = kind === 'members' ? `data-mp-member="${escape(model.id)}"` : `data-mp-combiner="${escape(model.id)}"`;
-    return `<label class="mp-row mp-pick${model.selected ? ' is-selected' : ''}${model.disabled ? ' is-disabled' : ''}" data-mp-search-text="${text}" title="${rowTitle(model, escape)}"><input type="${kind === 'members' ? 'checkbox' : 'radio'}" ${kind === 'combiner' ? 'name="mp-combiner"' : ''} ${attribute} ${model.selected ? 'checked' : ''} ${model.disabled ? 'disabled' : ''}><span class="mp-mark" aria-hidden="true">${ICONS.check}</span>${renderRowBody(model, ctx)}</label>`;
+    return `<label class="mp-row mp-pick${model.selected ? ' is-selected' : ''}${model.disabled ? ' is-disabled' : ''}" data-mp-search-fields="${text}" data-mp-key="${escape(model.id)}" title="${rowTitle(model, escape)}"><input type="${kind === 'members' ? 'checkbox' : 'radio'}" ${kind === 'combiner' ? 'name="mp-combiner"' : ''} ${attribute} ${model.selected ? 'checked' : ''} ${model.disabled ? 'disabled' : ''}><span class="mp-mark" aria-hidden="true">${ICONS.check}</span>${renderRowBody(model, ctx)}</label>`;
   }).join('')}
     </section>`).join('') + `<p class="mp-empty" data-mp-empty hidden>${escape(t('noResults'))}</p>`;
 }
