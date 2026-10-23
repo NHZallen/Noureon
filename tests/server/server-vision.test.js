@@ -108,7 +108,7 @@ test('a deck Python drew with problems: the model is asked to redo it in the san
   const [text, file] = written[0].parts;
   assert.match(text.text, /^```noureon-run/);
   assert.match(text.text, /The title runs over two lines/);
-  assert.match(text.text, /I shortened the title\./);
+  assert.doesNotMatch(text.text, /I shortened the title/, 'what the model said about redoing the deck is not part of the reply');
   assert.equal(file.sandboxFile.name, 'deck.pptx');
   assert.equal(written[0].metadata.visionCheck.free, true);
   assert.equal(written[0].metadata.visionCheck.issues.length, 1);

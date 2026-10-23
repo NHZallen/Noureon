@@ -18,7 +18,7 @@ const setup = () => {
 };
 const conversation = { id: 'conv-1' };
 
-function harness({ events = [], find = async () => null, watch } = {}) {
+function harness({ events = [], find = async () => null, watch, sync = null } = {}) {
   const { window, document, stack } = setup();
   const requests = [];
   const notices = [];
@@ -38,7 +38,7 @@ function harness({ events = [], find = async () => null, watch } = {}) {
     getLanguage: () => 'en',
     showNotification: (text, kind) => notices.push([text, kind]),
     getActiveConversation: () => conversation,
-    getSync: () => ({ retry: async () => { flushes.push(1); }, flush: async () => { flushes.push('send only'); } }),
+    getSync: () => sync || ({ retry: async () => { flushes.push(1); }, flush: async () => { flushes.push('send only'); } }),
     onLockChange: () => locks.push([...chatsUnderVisionCheck]),
     wait: async () => {}
   });
@@ -221,4 +221,35 @@ test('the lock is the union of the page\'s own checks and the server\'s', () => 
   assert.deepEqual([...chatsUnderVisionCheck], ['b']);
   setVisionLocked('server', []);
   assert.deepEqual([...chatsUnderVisionCheck], []);
+});
+
+test('the line stays until the sync has brought the result in, then the new message is drawn in instead of being set down at once', async () => {
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  let documentOfTest = null;
+  const events = [call('begin', { name: 'deck.pptx' }), call('issues', [{ slide: 1, category: 'text', problem: 'Small', fix: 'Larger' }]), call('file-end', { outcome: 'fixed', messageId: 'm2' }), { done: 'complete' }];
+  const built = harness({
+    events,
+    sync: {
+      retry: async () => {
+        await gate;
+        const stack = documentOfTest.createElement('div');
+        stack.className = 'message-stack';
+        documentOfTest.body.append(stack);
+      }
+    }
+  });
+  documentOfTest = built.document;
+  const running = built.follow.attach({ runId: 'run-v', conversation });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.ok(built.document.querySelectorAll('.ledger').length > 0, 'the line is still there while the result is on its way');
+  assert.equal(built.document.querySelectorAll('.message-stack').length, 1);
+  release();
+  await running;
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(built.document.querySelectorAll('.ledger').length, 0, 'the line goes when the result is there');
+  const stacks = [...built.document.querySelectorAll('.message-stack')];
+  assert.equal(stacks.length, 2);
+  assert.equal(stacks[1].classList.contains('is-arriving'), true, 'the new message is drawn in');
+  assert.equal(stacks[0].classList.contains('is-arriving'), false);
 });

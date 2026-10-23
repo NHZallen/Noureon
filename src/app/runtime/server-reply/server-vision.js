@@ -5,6 +5,7 @@
 
 import { visionText } from '../../ui/files/vision/vision-texts.js';
 import { setVisionLocked } from '../features/vision-check-lock.js';
+import { revealArrival } from '../../ui/motion/arrival-reveal.js';
 import { withFileBytes } from './server-reply.js';
 import { SERVICES, getService } from '../services.js';
 
@@ -94,6 +95,20 @@ export function createServerVisionFollow({
         replaying = false;
       }
     };
+    // Asks the sync to read what the cloud holds now (`retry` reads, then sends; `flush` only sends: writing a message does not touch its
+    // conversation, so no live change tells the page), then takes the line away and draws the new message in.
+    const bringInResult = async (line) => {
+      const before = lastMessageStack(document);
+      try {
+        const sync = getSync();
+        await (sync?.retry ? sync.retry() : sync?.flush?.());
+      } catch {
+        // The line goes all the same; the message comes with the next sync.
+      }
+      line?.remove();
+      const after = lastMessageStack(document);
+      if (after && after !== before) revealArrival(after, 'is-arriving');
+    };
     const apply = (call, first, second, at) => {
       switch (call.m) {
         case 'begin':
@@ -120,16 +135,23 @@ export function createServerVisionFollow({
           progress = null;
           break;
         case 'file-end': {
-          progress?.remove();
+          const line = progress;
           progress = null;
           python = null;
           // What the page already told is not told again when the calls so far are replayed to it.
-          if (replaying) break;
+          if (replaying) {
+            line?.remove();
+            break;
+          }
           // The result is a reply the server wrote into the chat (a corrected reply, or a note of how the check ended): the cloud sync brings it
-          // in. Writing a message does not touch its conversation, so no live change tells the page: the sync is asked to read what the cloud
-          // holds now (`retry` reads, then sends; `flush` only sends). Only when it could not be written is the result told by a notice.
-          if (first?.messageId) void Promise.resolve(getSync()?.retry ? getSync().retry() : getSync()?.flush?.()).catch(() => {});
-          else if (first?.outcome === 'clean' && getActiveConversation()?.id === conversation.id) showNotification(visionText(language, 'clean'), 'success');
+          // in. The line stays until it is there, and the reply is drawn in (not set down at once, after a gap). Only when it could not be written
+          // is the result told by a notice.
+          if (first?.messageId) {
+            void bringInResult(line);
+            break;
+          }
+          line?.remove();
+          if (first?.outcome === 'clean' && getActiveConversation()?.id === conversation.id) showNotification(visionText(language, 'clean'), 'success');
           else if (first?.outcome === 'failed') showNotification(visionText(language, 'failed', { reason: first.reason || '' }), 'warning');
           else if (first?.outcome === 'left' && first.found) showNotification(visionText(language, 'leftAlone', { found: first.found }), 'warning');
           break;

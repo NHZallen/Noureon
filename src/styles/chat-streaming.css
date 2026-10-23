@@ -209,3 +209,10 @@
     word-break: normal; /* 防止文字被暴力切斷 */
     table-layout: auto; /* 讓內容決定寬度，這是防止擠壓的關鍵 */
 }
+
+/* A message that arrives whole (the visual check's result) is wiped in from the top and the files a reply made rise in, not set down at once
+   (src/app/ui/motion/arrival-reveal.js adds the class for a moment). */
+.message-stack.is-arriving { animation: result-arrive 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) backwards; }
+.is-arriving-files .file-card { animation: result-arrive 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) backwards; }
+@keyframes result-arrive { from { opacity: 0; clip-path: inset(0 0 100% 0); transform: translateY(6px); } }
+@media (prefers-reduced-motion: reduce) { .message-stack.is-arriving, .is-arriving-files .file-card { animation: none; } }

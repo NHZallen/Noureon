@@ -46,8 +46,11 @@ ${list}
 Fix them now with run_python: change your code (or open /input/${file.name} with python-pptx) and save the corrected deck to /output/${file.name}, the same file name. Keep the content, facts and language, and leave everything that is not listed as it is. Then tell the user in one or two sentences, in ${LANGUAGE_NAMES[uiLanguage] || LANGUAGE_NAMES.en}, what you changed. Do not start a new topic.`;
 }
 
-/** The visible text of the reply that reports the check and carries the redone deck. */
-export function buildFreeVisionResult({ result, language, checkedSlides, totalSlides, answer }) {
+/**
+ * The visible text of the reply that reports the check and carries the redone deck: how many problems were found and each of them. Neither the
+ * review's own summary nor what the model said about redoing the deck is added: they read as the model talking, and the deck is the answer.
+ */
+export function buildFreeVisionResult({ result, language, checkedSlides, totalSlides }) {
   const labels = VISION_TEXTS[language] || VISION_TEXTS.en;
   const lines = result.issues.map((issue) => {
     const page = visionText(language, 'slide', { number: issue.slide });
@@ -56,10 +59,7 @@ export function buildFreeVisionResult({ result, language, checkedSlides, totalSl
     return `- ${lead}${escapeMarkdown(issue.problem)} → ${escapeMarkdown(issue.fix)}`;
   });
   const partial = checkedSlides < totalSlides ? `\n\n${visionText(language, 'partial', { count: checkedSlides })}` : '';
-  const summary = result.summary ? `\n\n${escapeMarkdown(result.summary)}` : '';
-  const reply = String(answer || '').trim();
-  // What the model said between its runs is not part of the reply: the reply is the problems found and how it ended.
-  return `${visionText(language, 'freeHeading', { found: result.issues.length })}\n\n${lines.join('\n')}${summary}${partial}${reply ? `\n\n${reply}` : ''}`;
+  return `${visionText(language, 'freeHeading', { found: result.issues.length })}\n\n${lines.join('\n')}${partial}`;
 }
 
 export function buildFreeVisionMetadata({ file, model, result, checkedSlides, totalSlides }) {

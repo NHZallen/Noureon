@@ -271,7 +271,7 @@ async function checkFreeDeck({ file, spec, source, access, model, config, contro
   }
   controller.signal.throwIfAborted();
   if (!fix.parts.some((part) => part.sandboxFile && part.sandboxFile.name === file.name)) throw new Error(visionText(language, 'freeNoFile'));
-  const text = `${formatSandboxRunBlock(fix.run)}${buildFreeVisionResult({ result, language, checkedSlides: sheets.checkedSlides, totalSlides: sheets.totalSlides, answer: fix.answer })}${fix.documents ? `\n\n${fix.documents}` : ''}`;
+  const text = `${formatSandboxRunBlock(fix.run)}${buildFreeVisionResult({ result, language, checkedSlides: sheets.checkedSlides, totalSlides: sheets.totalSlides })}${fix.documents ? `\n\n${fix.documents}` : ''}`;
   progress.remove();
   return {
     revised: {
