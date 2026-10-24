@@ -1,6 +1,12 @@
 // The update notes in French (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.20.0": [
+    "<strong>Notes de version de Noureon 18.20.0</strong>",
+    "Cette version permet au mode Avancé sur le serveur d’atteindre des sites web, avec un réglage pour le désactiver.",
+    "<strong>Principaux changements</strong>",
+    "<ul><li><strong>Les programmes peuvent se connecter :</strong> quand le mode Avancé s’exécute sur le serveur, le Python écrit par le modèle peut désormais atteindre des sites web pour récupérer des données et des images, ou installer un paquet Python dont il a besoin. On vous demande l’accord pour chaque nouveau site que vous n’avez pas encore autorisé (autoriser cette fois, toujours autoriser, refuser) ; le réseau interne du serveur reste toujours inaccessible ; une réponse peut transférer 500 Mo au plus.</li><li><strong>Réglage du réseau :</strong> la page Confidentialité des réglages propose un nouveau choix, « Réseau des programmes sur le serveur » : connecté (demander pour les nouveaux sites) ou non connecté. Non connecté, les outils en ligne de commande ne peuvent pas non plus se connecter.</li><li><strong>Carte de question :</strong> la carte qui demande si un site web peut être atteint indique maintenant « Le modèle veut se connecter à … ».</li></ul>"
+  ],
   "18.19.0": [
     "<strong>Notes de version de Noureon 18.19.0</strong>",
     "Cette version améliore la recherche du menu des modèles et ajoute Kimi K3.1 Pro à OpenCode.",
