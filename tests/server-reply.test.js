@@ -417,9 +417,11 @@ test('a reply with Python is handed over with the Design menu\'s choices and the
   const { reply, calls } = harness();
   const files = [{ name: 'a.csv', mimeType: 'text/csv', data: 'YSxi' }];
   await reply.start(startArgs({ advanced: true, designs: { deck: 'Slate', document: 'auto' }, inputs: files }));
-  assert.deepEqual(JSON.parse(calls[0].options.body).tools, { webSearch: 'off', advanced: true, designs: { deck: 'Slate', document: 'auto' }, inputs: files });
+  assert.deepEqual(JSON.parse(calls[0].options.body).tools, { webSearch: 'off', advanced: true, designs: { deck: 'Slate', document: 'auto' }, inputs: files, net: { mode: 'new', rules: {} } });
+  await reply.start(startArgs({ advanced: true, config: { sandboxNetwork: 'off' } }));
+  assert.deepEqual(JSON.parse(calls[1].options.body).tools.net, { mode: 'new', rules: {}, enabled: false }, 'the switch for no network goes with the reply');
   await reply.start(startArgs({ advanced: false, designs: { deck: 'Slate' }, inputs: files }));
-  assert.deepEqual(JSON.parse(calls[1].options.body).tools, { webSearch: 'off', advanced: false }, 'a reply without Python carries neither');
+  assert.deepEqual(JSON.parse(calls[2].options.body).tools, { webSearch: 'off', advanced: false }, 'a reply without Python carries neither');
 });
 
 test('the steps of a reply with Python reach the page as they happen, a page that joins late is given the ones so far, and the files come back as parts', async () => {

@@ -111,3 +111,12 @@ test('the Help Center names every model whose Word and PowerPoint files are turn
     for (const name of names) assert.ok(help.includes(name), `${language}: ${name}`);
   }
 });
+
+test('the proxy ports named in the texts are 80 and 443, whatever the count of models is (sync:counts once changed the 80 into the number of models)', () => {
+  for (const language of ['zh-TW', 'en', 'fr', 'ru', 'es']) {
+    const source = readFileSync(new URL(`../src/data/legal/${language}.js`, import.meta.url), 'utf8');
+    const ports = [...source.matchAll(/(?<![\d.])(\d+)\D{1,8}443(?!\d)/g)].map((match) => match[1]);
+    assert.ok(ports.length >= 2, `${language}: the ports are named`);
+    assert.deepEqual([...new Set(ports)], ['80'], language);
+  }
+});

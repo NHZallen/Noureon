@@ -96,7 +96,9 @@ export function createNetProxy({
   own = ownAddresses,
   connect = netConnect,
   request = httpRequest,
-  ports = DEFAULT_PORTS
+  ports = DEFAULT_PORTS,
+  // How much may pass in both directions in this session (a reply): past it every connection is cut and no new one is made. 0: no limit.
+  maxBytes = 0
 }) {
   const allowedPorts = new Set(ports);
   let mode = initial.mode === 'always' ? 'always' : 'new';
@@ -107,6 +109,18 @@ export function createNetProxy({
   const sockets = new Set();
   let tunnels = 0;
   let closed = false;
+  let used = 0;
+  const overQuota = () => maxBytes > 0 && used >= maxBytes;
+  /** Counts what passes; when the allowance is used up, what is open is cut. */
+  const count = (size) => {
+    if (maxBytes <= 0) return;
+    const before = used;
+    used += size;
+    if (before < maxBytes && used >= maxBytes) {
+      log('net_quota', { bytes: used });
+      for (const socket of [...sockets]) socket.destroy();
+    }
+  };
 
   const decide = (host) => {
     if (answered.has(host)) return answered.get(host);
@@ -116,23 +130,22 @@ export function createNetProxy({
     return 'ask';
   };
 
-  /** Whether a connection to the site is to be made: { ok: true, address } or { ok: false, status, reason }. */
+  /**
+   * Whether a connection to the site is to be made: { ok: true, addresses } or { ok: false, status, reason }.
+   * The person's rules and answer come first, and a name is looked up only when it is let through: looking a name up tells it to whoever
+   * runs the name's DNS, so a program could carry what it knows out in the name (`<what it read>.example.com`) even when the person says no.
+   */
   async function authorize(host, port) {
     if (!host || !allowedPorts.has(port)) return { ok: false, status: 403, reason: 'port' };
-    let addresses;
-    if (isIP(host)) addresses = [{ address: host, family: isIP(host) }];
-    else {
-      try {
-        addresses = await resolve(host);
-      } catch {
-        return { ok: false, status: 502, reason: 'dns' };
-      }
+    if (overQuota()) return { ok: false, status: 403, reason: 'quota' };
+    const literal = isIP(host);
+    // An address written out has nothing to look up: an internal one is refused at once, whatever the rules say.
+    if (literal && isInternal(unmapped(host), own())) {
+      log('net_blocked', { host, reason: 'internal' });
+      return { ok: false, status: 403, reason: 'internal' };
     }
-    addresses = (Array.isArray(addresses) ? addresses : []).map((entry) => ({ address: unmapped(entry.address), family: entry.family }));
-    if (!addresses.length) return { ok: false, status: 502, reason: 'dns' };
-    const mine = own();
-    // One internal address among them is enough to refuse: the program must not be left to pick the one that works.
-    if (addresses.some((entry) => isInternal(entry.address, mine))) {
+    // Names that only mean "inside" are refused at once as well: they are not worth a question, nor a lookup.
+    if (!literal && /(^|\.)(localhost|local|internal|localdomain)$/.test(host)) {
       log('net_blocked', { host, reason: 'internal' });
       return { ok: false, status: 403, reason: 'internal' };
     }
@@ -160,6 +173,23 @@ export function createNetProxy({
       log('net_blocked', { host, reason: 'denied' });
       return { ok: false, status: 403, reason: 'denied' };
     }
+    let addresses;
+    if (literal) addresses = [{ address: host, family: literal }];
+    else {
+      try {
+        addresses = await resolve(host);
+      } catch {
+        return { ok: false, status: 502, reason: 'dns' };
+      }
+    }
+    addresses = (Array.isArray(addresses) ? addresses : []).map((entry) => ({ address: unmapped(entry.address), family: entry.family }));
+    if (!addresses.length) return { ok: false, status: 502, reason: 'dns' };
+    const mine = own();
+    // One internal address among them is enough to refuse: the program must not be left to pick the one that works.
+    if (addresses.some((entry) => isInternal(entry.address, mine))) {
+      log('net_blocked', { host, reason: 'internal' });
+      return { ok: false, status: 403, reason: 'internal' };
+    }
     return { ok: true, addresses };
   }
 
@@ -168,7 +198,8 @@ export function createNetProxy({
     denied: 'Blocked by Noureon: the person did not allow this site',
     timeout: 'Blocked by Noureon: the person did not answer in time',
     port: 'Blocked by Noureon: only ports 80 and 443 are open',
-    dns: 'Noureon could not find this site'
+    dns: 'Noureon could not find this site',
+    quota: 'Blocked by Noureon: this reply has used the data a sandbox may move'
   };
   const refusal = (verdict) => `${verdict.status} ${REASONS[verdict.reason] || 'Blocked by Noureon'}`;
 
@@ -234,8 +265,10 @@ export function createNetProxy({
     headers.connection = 'close';
     let released = false;
     const release = () => { if (!released) { released = true; tunnels -= 1; } };
+    clientRequest.on('data', (chunk) => count(chunk.length));
     const upstream = request({ host: verdict.addresses[0].address, port, method: clientRequest.method, path: `${target.pathname}${target.search}`, headers, agent: false, setHost: false, timeout: IDLE_MS }, (answer) => {
       clientResponse.writeHead(answer.statusCode || 502, answer.headers);
+      answer.on('data', (chunk) => count(chunk.length));
       answer.pipe(clientResponse);
       answer.once('end', release);
     });
@@ -279,7 +312,8 @@ export function createNetProxy({
     idle(upstream);
     idle(clientSocket);
     let bytes = 0;
-    upstream.on('data', (chunk) => { bytes += chunk.length; });
+    upstream.on('data', (chunk) => { bytes += chunk.length; count(chunk.length); });
+    clientSocket.on('data', (chunk) => count(chunk.length));
     const finish = () => {
       tunnels -= 1;
       log('net_tunnel', { host: target.host, port: target.port, bytes });

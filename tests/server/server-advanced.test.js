@@ -989,3 +989,68 @@ test('a reply with Python may also use a connector: the same tools, and the ques
   const events = live.map((event) => event.ev).filter((event) => event?.type === 'connector').map((event) => event.event);
   assert.deepEqual(events, ['call', 'ask', 'answer']);
 });
+
+// ----- The web for Python (docs/superpowers/specs/2026-10-24-sandbox-network-design.md)
+
+async function replyWithNet(net) {
+  const host = fakeCliHost();
+  const bodies = [];
+  let round = 0;
+  const result = await executeReply({
+    spec: specFor({ net }),
+    secrets,
+    userId: USER,
+    sandboxHost: host,
+    files: fakeFiles(),
+    fetchImpl: async (url, options) => {
+      bodies.push(JSON.parse(options.body));
+      round += 1;
+      return streamResponse(round === 1 ? sse(toolCall('call_1', 'run_python', { title: 'Fetch', code: 'print(1)' })) : sse(content('Done.')));
+    }
+  });
+  return { host, bodies, result };
+}
+
+test('Python has the web through the sandbox\'s proxy with no command tool at all: the sites are mounted at the start, and the model is told what to expect', async () => {
+  const { host, bodies, result } = await replyWithNet({ mode: 'new', rules: { 'example.org': 'deny' } });
+  assert.equal(result.status, 'done');
+  assert.deepEqual(host.record.mountedCli, []);
+  assert.equal(host.record.net.mode, 'new');
+  assert.equal(host.record.net.rules['example.org'], 'deny', 'the person\'s rule is kept');
+  assert.equal(host.record.net.rules['pypi.org'], 'allow', 'the sites tools are made of are allowed at first');
+  const system = bodies[0].messages[0].content;
+  assert.match(system, /Network: your Python can reach the web only through a filter/);
+  assert.match(system, /"pip", "install"/);
+  assert.match(system, /do not try to build it/);
+  assert.match(JSON.stringify(bodies[0].tools), /a filter that asks the user about each new site/);
+});
+
+test('with the web switched off there is no proxy, and the model is told it has none', async () => {
+  const { host, bodies } = await replyWithNet({ mode: 'new', rules: {}, enabled: false });
+  assert.equal(host.record.mountedCli, null, 'nothing was mounted');
+  assert.equal(host.record.net, null);
+  const system = bodies[0].messages[0].content;
+  assert.match(system, /No network access and no pip\/micropip installs/);
+  assert.doesNotMatch(system, /through a filter/);
+  assert.doesNotMatch(JSON.stringify(bodies[0].tools), /filter/);
+});
+
+test('a sandbox that cannot give the proxy leaves the reply with Python and no web, and the log is told', async () => {
+  const host = fakeCliHost({ failMount: 'The host is old.' });
+  const problems = [];
+  let round = 0;
+  const result = await executeReply({
+    spec: specFor({ net: { mode: 'new', rules: {} } }),
+    secrets,
+    userId: USER,
+    sandboxHost: host,
+    files: fakeFiles(),
+    onProblem: (code) => problems.push(code),
+    fetchImpl: async () => {
+      round += 1;
+      return streamResponse(round === 1 ? sse(toolCall('call_1', 'run_python', { title: 'Fetch', code: 'print(1)' })) : sse(content('Answer.')));
+    }
+  });
+  assert.equal(result.status, 'done');
+  assert.ok(problems.includes('sandbox_net_failed'));
+});

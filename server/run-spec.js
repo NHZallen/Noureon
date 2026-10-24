@@ -457,7 +457,8 @@ export function validateRunSpec(input) {
           if (!isObject(tools.net.rules) || Object.keys(tools.net.rules).length > NET_MAX_RULES) fail('tools.net.rules', `must be an object of at most ${NET_MAX_RULES} sites`);
           else for (const [host, rule] of Object.entries(tools.net.rules)) if (!normalizeNetHost(host) || !NET_RULES.includes(rule)) fail('tools.net.rules', 'must name sites with the rules allow, ask or deny');
         }
-        for (const name of Object.keys(tools.net)) if (!['mode', 'rules'].includes(name)) fail(`tools.net.${name}`, 'is not a known field');
+        if (tools.net.enabled !== undefined && typeof tools.net.enabled !== 'boolean') fail('tools.net.enabled', 'must be true or false');
+        for (const name of Object.keys(tools.net)) if (!['mode', 'rules', 'enabled'].includes(name)) fail(`tools.net.${name}`, 'is not a known field');
       }
     }
     checkSkillsAndConnectors(tools, fail);
@@ -555,7 +556,8 @@ export function validateRunSpec(input) {
         ...(isObject(tools.visionCheck) ? { visionCheck: { deckDesign: tools.visionCheck.deckDesign || 'auto', advanced: tools.visionCheck.advanced === true } } : {}),
         ...(tools.designs ? { designs: { deck: tools.designs.deck || 'auto', document: tools.designs.document || 'auto' } } : {}),
         ...(Array.isArray(tools.cli) && tools.cli.length ? { cli: [...new Set(tools.cli.map((entry) => entry.id))].map((id) => ({ id, chosen: tools.cli.some((entry) => entry.id === id && entry.chosen === true) })) } : {}),
-        ...(Array.isArray(tools.cli) && tools.cli.length && isObject(tools.net) ? { net: { mode: normalizeNetMode(tools.net.mode), rules: normalizeNetRules(tools.net.rules) } } : {}),
+        // The sites the sandbox may reach (Python and the command tools alike); `enabled: false` is the person's switch for no network at all.
+        ...(tools.advanced === true && isObject(tools.net) ? { net: { mode: normalizeNetMode(tools.net.mode), rules: normalizeNetRules(tools.net.rules), ...(tools.net.enabled === false ? { enabled: false } : {}) } } : {}),
         ...(Array.isArray(tools.skills) && listedSkills(tools.skills).length ? { skills: listedSkills(tools.skills) } : {}),
         ...(tools.connectors === true ? { connectors: true } : {}),
         ...(imageGeneration ? { imageGeneration } : {}),

@@ -167,7 +167,12 @@ test('the rules for the sites of CLI tools are checked, and kept only with a too
   const ok = withTools({ cli: [{ id: 'officecli' }], net: { mode: 'always', rules: { 'Example.ORG.': 'allow', 'bad.example': 'deny', 'x.com': 'ask' } } });
   assert.equal(ok.ok, true);
   assert.deepEqual(ok.spec.tools.net, { mode: 'always', rules: { 'example.org': 'allow', 'bad.example': 'deny', 'x.com': 'ask' } }, 'in one form');
-  assert.equal(withTools({ net: { mode: 'new', rules: {} } }).spec.tools.net, undefined, 'no tool, no network');
+  // The sites are for Python too, so they are kept with no tool; the switch for no network is kept when it is off, and said nowhere when it is on.
+  assert.deepEqual(withTools({ net: { mode: 'new', rules: {} } }).spec.tools.net, { mode: 'new', rules: {} });
+  assert.deepEqual(withTools({ net: { rules: {}, enabled: false } }).spec.tools.net, { mode: 'new', rules: {}, enabled: false });
+  assert.deepEqual(withTools({ net: { rules: {}, enabled: true } }).spec.tools.net, { mode: 'new', rules: {} });
+  assert.equal(withTools({ net: { enabled: 'no' } }).ok, false, 'the switch is true or false');
+  assert.equal(validateRunSpec({ ...good(), tools: { webSearch: 'off', advanced: false, net: { mode: 'new', rules: {} } } }).spec.tools.net, undefined, 'without Python there is no sandbox to reach the web from');
   assert.equal(withTools({ cli: [{ id: 'officecli' }] }).spec.tools.net, undefined);
   for (const [net, what] of [[[], 'a list'], [{ mode: 'sometimes' }, 'a mode that is not one'], [{ rules: { 'a b': 'allow' } }, 'a site that is not a name'], [{ rules: { '127.0.0.1': 'allow' } }, 'an address'], [{ rules: { 'a.example': 'maybe' } }, 'a rule that is not one'], [{ rules: [] }, 'rules as a list'], [{ other: 1 }, 'an unknown field'], [{ rules: Object.fromEntries(Array.from({ length: 501 }, (_, index) => [`site${index}.example`, 'allow'])) }, 'too many sites']]) {
     const bad = withTools({ cli: [{ id: 'officecli' }], net });

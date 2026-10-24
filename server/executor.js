@@ -362,7 +362,8 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
           if (chosenIds.has(tool.id) && toolCredentials.missing[tool.id]?.length) await askCredentials(tool.id);
         }
       }
-      const netPolicy = chosenTools.length ? effectiveNetPolicy(spec.tools.net || {}) : null;
+      // The sandbox's way to the web: the person's sites and answers (Python and the tools alike). Switched off in the settings, there is none.
+      const netPolicy = spec.tools.net?.enabled === false ? null : effectiveNetPolicy(spec.tools.net || {});
       if (mode === 'briefing') {
         // Gemini cannot search and call a tool in one request: it searches first, and Python gets the briefing as reference text.
         stepEvents.event({ type: 'searching', label: sandboxText(language, 'sandboxSearching') });
@@ -394,6 +395,7 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
           signal: inner.signal,
           requestOptions: advancedOptions,
           host: 'server',
+          network: Boolean(netPolicy),
           getSandbox: (options) => {
             // What a command prints is scrubbed of the credentials, live too.
             const real = sandboxHost.getSandbox({
@@ -422,6 +424,14 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
               clear: () => guard(() => real.clear()),
               mount: (inputs) => guard(async () => {
                 const mounted = await real.mount(inputs);
+                // The proxy is there from the start, also with no command tool; a host that cannot give it leaves the reply without network, not without Python.
+                if (netPolicy && typeof real.mountCli === 'function') {
+                  try {
+                    await real.mountCli([], { net: netPolicy });
+                  } catch (error) {
+                    onProblem('sandbox_net_failed', error);
+                  }
+                }
                 if (skillFolders.size && real.mountSkills) await real.mountSkills(folderPayload());
                 return mounted;
               }),

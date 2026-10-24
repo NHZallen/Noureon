@@ -17,6 +17,7 @@ const expectedConfig = (defaultModelId) => ({
   processOpen: false,
   fileModeDefault: 'advanced',
   replyRunLocation: 'server',
+  sandboxNetwork: 'on',
   searchProvider: 'tavily',
   tavilySearchDepth: 'basic',
   outputMode: 'realtime',

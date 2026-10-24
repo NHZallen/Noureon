@@ -44,6 +44,8 @@ export function loadConfig(env = process.env) {
     diskCheckMs: number(env.SANDBOX_DISK_CHECK_MS, 250, 20, 60_000),
     // How long the person is given to answer a question about a site before it counts as a refusal.
     netAskTimeoutMs: number(env.SANDBOX_NET_ASK_MS, 10 * 60_000, 1000, 3_600_000),
+    // How much may pass through the proxy of a session (both ways, one reply): past it the connections are cut. 0 is no limit.
+    netMaxBytes: number(env.SANDBOX_NET_MAX_BYTES, 500 * 1024 * 1024, 0, 100 * 1024 * 1024 * 1024),
     // Per container.
     memory: env.SANDBOX_MEMORY || '2g',
     cpus: env.SANDBOX_CPUS || '2',

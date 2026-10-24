@@ -69,3 +69,23 @@ test('on a phone the tab is in the list too, with its own icon', () => {
   assert.ok(sections.includes('privacy'));
   assert.ok(SETTINGS_MOBILE_ICON_MAP.privacy.startsWith('<svg'));
 });
+
+test('the network of the server sandbox is a choice of its own: connected is the default, and not connected is kept at once', async () => {
+  const { document, elements } = createSettings();
+  const config = { uiLanguage: 'en' };
+  const saved = [];
+  const options = { document, elements, config, saveConfig: async () => saved.push(config.sandboxNetwork), getSync: () => ({ getStatus: () => ({ enabled: true }) }) };
+  ensurePrivacySettingsSection(options);
+  const section = document.getElementById('privacy-section');
+  assert.match(section.textContent, new RegExp(SERVER_REPLY_TEXTS.en.netTitle));
+  assert.equal(section.querySelector('#sandbox-network-on').checked, true);
+  assert.equal(section.querySelector('#sandbox-network-off').checked, false);
+  const off = document.getElementById('sandbox-network-off');
+  off.checked = true;
+  off.dispatchEvent(new document.defaultView.Event('change'));
+  await Promise.resolve();
+  assert.equal(config.sandboxNetwork, 'off');
+  assert.deepEqual(saved, ['off']);
+  ensurePrivacySettingsSection(options);
+  assert.equal(document.getElementById('sandbox-network-off').checked, true);
+});

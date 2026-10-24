@@ -116,6 +116,29 @@ R=$(cli_step 'curl -sS -m 30 -o /dev/null -w "%{http_code}" https://example.com'
 R=$(cli_step 'curl -sS -m 30 -o /dev/null -w "%{http_code}" http://127.0.0.1/; echo; curl -sS -m 30 -o /dev/null -w "%{http_code}" http://localhost:7788/healthz; echo; curl -sS -m 30 -o /dev/null -w "%{http_code}" http://169.254.169.254/' "$ID"); [ "$(printf '%s' "$R" | json "d['stdout']['text'].split()")" = "['403', '403', '403']" ] && check "this machine, the pod network and the metadata address are refused" ok || check "this machine, the pod network and the metadata address are refused" "$R"
 R=$(cli_step 'curl -sS -m 30 -o /dev/null -w "%{http_code}" --noproxy "*" -m 5 https://example.com || echo unreachable' "$ID"); printf '%s' "$R" | json "d['stdout']['text']" | grep -q "unreachable" && check "without the proxy there is no way out" ok || check "without the proxy there is no way out" "$R"
 R=$(cli_step 'pip install --quiet --no-input --target /opt/pip six && python3 -c "import six; print(six.__version__)"' "$ID"); printf '%s' "$R" | json "d['stdout']['text']" | grep -Eq "^[0-9]+\.[0-9]+" && check "pip installs a package into /opt/pip and Python finds it" ok || check "pip installs a package into /opt/pip" "$R"
+# Python and the web (2026-10-24): the proxy is given to the steps of Python too, and a direct socket still has no way out.
+R=$(step 'import urllib.request
+print(urllib.request.urlopen("https://example.com", timeout=30).status)' "$ID"); [ "$(printf '%s' "$R" | json "d['stdout']['text'].strip()")" = "200" ] && check "Python reaches a site the person allowed, through the proxy" ok || check "Python reaches a site the person allowed, through the proxy" "$R"
+R=$(step 'import urllib.request, urllib.error
+try:
+    urllib.request.urlopen("http://169.254.169.254/", timeout=30); print("REACHED")
+except urllib.error.HTTPError as e:
+    print(e.code)
+except OSError as e:
+    print("refused")' "$ID"); printf '%s' "$R" | json "d['stdout']['text'].strip()" | grep -Eq "^(403|refused)$" && check "Python cannot reach the metadata address through the proxy" ok || check "Python cannot reach the metadata address through the proxy" "$R"
+R=$(step 'import socket
+s = socket.socket(); s.settimeout(3)
+try:
+    s.connect(("93.184.216.34", 443)); print("CONNECTED")
+except OSError:
+    print("no direct way")' "$ID"); [ "$(printf '%s' "$R" | json "d['stdout']['text'].strip()")" = "no direct way" ] && check "a socket of Python still has no way out of the container" ok || check "a socket of Python still has no way out of the container" "$R"
+R=$(step 'import subprocess, sys
+r = subprocess.run([sys.executable, "-m", "pip", "install", "--quiet", "six"], capture_output=True, text=True)
+print(r.returncode)
+import six; print(six.__version__)' "$ID"); printf '%s' "$R" | json "d['stdout']['text']" | grep -Eq "^0" && check "Python installs a built package with pip and imports it in the same step" ok || check "Python installs a built package with pip" "$R"
+R=$(step 'import subprocess, sys
+r = subprocess.run([sys.executable, "-m", "pip", "install", "--quiet", "--no-deps", "pysftp==0.2.8"], capture_output=True, text=True)
+print("failed" if r.returncode else "installed")' "$ID"); [ "$(printf '%s' "$R" | json "d['stdout']['text'].strip()")" = "failed" ] && check "a package with no built wheel fails at once, nothing is compiled" ok || check "a package with no built wheel fails at once" "$R"
 # `file` is in the image (a command that is not found ends a step as a failure).
 R=$(cli_step 'file --version | head -1' "$ID"); printf '%s' "$R" | json "d['stdout']['text']" | grep -q "^file-" && check "the command file is there" ok || check "the command file is there" "$R"
 # The Python tools: installed once on this machine (the first time takes a while), then every session runs them from the cache, read only.

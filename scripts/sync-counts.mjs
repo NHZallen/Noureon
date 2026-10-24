@@ -41,7 +41,10 @@ const rewrite = (text) => {
   let models = 0;
   let vendors = 0;
   // One pass over the original text, so the places found are the places changed.
+  // A number that stands beside the port 443 is a port (80), whatever the count of models is.
+  const isPort = (offset, match) => /^\D{1,8}443\b/.test(text.slice(offset + match.length, offset + match.length + 14)) || /\b443\D{1,8}$/.test(text.slice(Math.max(0, offset - 14), offset));
   const result = text.replace(numbers, (match, value, offset) => {
+    if (isPort(offset, match)) return match;
     if (value === String(written.models)) {
       models += 1;
       return String(now.models);

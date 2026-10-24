@@ -283,7 +283,9 @@ export function createServerReply({
         ...(advanced && designs ? { designs } : {}),
         ...(advanced && inputs.length ? { inputs } : {}),
         // The CLI tools (命令工具) chosen for this reply: ids of tools in the store (they run in the same sandbox).
-        ...(advanced && cli.length ? { cli: cli.map((id) => ({ id, chosen: cliChosen.includes(id) })), net: netPolicyForRun(config) } : {}),
+        ...(advanced && cli.length ? { cli: cli.map((id) => ({ id, chosen: cliChosen.includes(id) })) } : {}),
+        // The sites the sandbox may reach (Python and the tools alike), and whether the web is switched off.
+        ...(advanced ? { net: netPolicyForRun(config) } : {}),
         // The skills the model may load by itself (a name and when it applies): the server reads the text of the one it calls for.
         ...(skills.length ? { skills } : {}),
         // The connectors the person logged in to may be used (the server reads which ones from the person's own connections).

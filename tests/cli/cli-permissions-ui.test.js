@@ -49,7 +49,7 @@ test('a refused answer and a missing one are shown as refused; an answer that co
   cards.handle({ event: 'ask', id: 'ask0000000000002', host: 'a.example', port: 443 });
   cards.handle({ event: 'ask', id: 'ask0000000000003', host: 'b.example', port: 80 });
   const [first, second] = host.querySelectorAll('.net-ask');
-  assert.equal(first.querySelector('.net-ask-title').textContent, '命令工具想連到 a.example');
+  assert.equal(first.querySelector('.net-ask-title').textContent, '模型想連到 a.example');
   first.querySelectorAll('.net-ask-button')[2].click();
   await flush();
   assert.equal(first.querySelector('.net-ask-failed').hidden, false, 'the answer was not sent: it says so');
