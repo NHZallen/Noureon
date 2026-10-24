@@ -1,6 +1,12 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.20.1": [
+    "<strong>Noureon 18.20.1 Release Notes</strong>",
+    "This version tidies the list of files under a reply made in Advanced mode.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Files of a reply:</strong> when Advanced mode makes files, the pictures the model downloads on the way, caches and scratch presentations no longer end up in the list of files under the reply, and are no longer checked a second time as if they were finished work.</li></ul>"
+  ],
   "18.20.0": [
     "<strong>Noureon 18.20.0 Release Notes</strong>",
     "This version lets Advanced mode on the server reach websites, and adds a setting to turn that off.",

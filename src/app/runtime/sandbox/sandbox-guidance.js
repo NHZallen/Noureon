@@ -130,7 +130,7 @@ function templateRule(kind, template) {
 // (docs/superpowers/specs/2026-10-24-sandbox-network-design.md); everywhere else the code has no network at all.
 const NETWORK_LINES = {
   none: '- No network access and no pip/micropip installs.',
-  proxy: `- Network: your Python can reach the web only through a filter (requests, urllib and httpx use it by themselves). The first time you reach a site the user is asked and may refuse; a refused site answers HTTP 403 with the header X-Noureon-Block: do not try the same site again, do the job another way and say in your answer what you could not reach. Only ports 80 and 443; about 500 MB can move in one reply. Fetch what the task needs from a few well-chosen sites: every new site asks the user.
+  proxy: `- Network: your Python can reach the web only through a filter (requests, urllib and httpx use it by themselves). The first time you reach a site the user is asked and may refuse; a refused site answers HTTP 403 with the header X-Noureon-Block: do not try the same site again, do the job another way and say in your answer what you could not reach. Only ports 80 and 443; about 500 MB can move in one reply. Save what you download in /tmp or /work, never in /output (only the finished files you hand over go there). Fetch what the task needs from a few well-chosen sites: every new site asks the user.
 - Packages: if one you need is missing, install it in a run_python step with \`import subprocess, sys; subprocess.run([sys.executable, "-m", "pip", "install", "name"], check=True)\` (it installs into memory and is gone when the reply ends; importing it works in the next step). Only built packages (wheels) can be installed. If pip says there is no matching distribution, do not try to build it: use another package or another way, and tell the user in your answer what you used instead.`
 };
 const networkLine = (online) => (online ? NETWORK_LINES.proxy : NETWORK_LINES.none);
@@ -156,6 +156,7 @@ ${networkLine(onServer && network)} Available: ${PACKAGES}. Packages load automa
 - Files from the user are in /input:
 ${inputs}
 - Save every file meant for the user in /output (e.g. /output/報告.docx). Files elsewhere are not delivered. Never write macro-enabled or executable files.
+- /output holds only what you hand to the user: every file in it is listed under your answer, and every .pptx in it is checked as a finished deck. Keep working files (downloaded or cropped pictures, caches, intermediate copies, a draft .pptx you build on) in /tmp or /work, never in /output, and delete any scratch file you did put there before you finish.
 
 Make a file only when the user asks for one or hands you a file to change: a Word document, a presentation, a spreadsheet, a PDF, a chart or image, and so on. Never turn an ordinary request into a file on your own. Writing (stories, essays, letters, summaries, explanations, code) is answered in the chat as text; if a file might help, answer in text and offer it ("I can also make this a Word file") instead of making it.
 

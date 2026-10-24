@@ -1022,6 +1022,8 @@ test('Python has the web through the sandbox\'s proxy with no command tool at al
   assert.match(system, /Network: your Python can reach the web only through a filter/);
   assert.match(system, /"pip", "install"/);
   assert.match(system, /do not try to build it/);
+  assert.match(system, /Save what you download in \/tmp or \/work, never in \/output/);
+  assert.match(system, /Keep working files .* in \/tmp or \/work, never in \/output, and delete any scratch file/);
   assert.match(JSON.stringify(bodies[0].tools), /a filter that asks the user about each new site/);
 });
 
