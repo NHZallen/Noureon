@@ -1,6 +1,12 @@
 // The update notes in Spanish (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.20.1": [
+    "<strong>Notas de la versión de Noureon 18.20.1</strong>",
+    "Esta versión ordena la lista de archivos bajo una respuesta hecha en modo Avanzado.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Archivos de una respuesta:</strong> cuando el modo Avanzado crea archivos, las imágenes que el modelo descarga por el camino, las cachés y las presentaciones provisionales ya no acaban en la lista de archivos bajo la respuesta ni se revisan una segunda vez como si fueran trabajo terminado.</li></ul>"
+  ],
   "18.20.0": [
     "<strong>Notas de la versión de Noureon 18.20.0</strong>",
     "Esta versión permite que el modo Avanzado en el servidor llegue a sitios web, con un ajuste para desactivarlo.",

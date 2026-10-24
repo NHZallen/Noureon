@@ -1,6 +1,12 @@
 // The update notes in Russian (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.20.1": [
+    "<strong>Примечания к выпуску Noureon 18.20.1</strong>",
+    "Эта версия наводит порядок в списке файлов под ответом, сделанным в расширенном режиме.",
+    "<strong>Основные изменения</strong>",
+    "<ul><li><strong>Файлы ответа:</strong> когда расширенный режим создаёт файлы, изображения, которые модель скачала по пути, кэши и черновые презентации больше не попадают в список файлов под ответом и не проверяются повторно как готовая работа.</li></ul>"
+  ],
   "18.20.0": [
     "<strong>Примечания к выпуску Noureon 18.20.0</strong>",
     "В этой версии расширенный режим на сервере может обращаться к сайтам; в настройках это можно отключить.",
