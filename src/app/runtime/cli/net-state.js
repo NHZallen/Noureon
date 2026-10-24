@@ -64,5 +64,15 @@ export function rememberNetAnswer(config, host, decision) {
   return false;
 }
 
-/** What goes with a reply that has CLI tools: the person's own rules (the server adds the sites that are allowed at first). */
-export const netPolicyForRun = (config) => ({ mode: getNetMode(config), rules: normalizeNetRules(config?.netRules) });
+/** Whether the sandbox on the server may reach the web ('on', the default) or not at all ('off'); the person's switch on the privacy page. */
+export const getSandboxNetwork = (config) => (config?.sandboxNetwork === 'off' ? 'off' : 'on');
+
+export function setSandboxNetwork(config, value) {
+  const next = value === 'off' ? 'off' : 'on';
+  if (getSandboxNetwork(config) === next && config.sandboxNetwork === next) return false;
+  config.sandboxNetwork = next;
+  return true;
+}
+
+/** What goes with a reply that has Python on the server: the person's own rules (the server adds the sites that are allowed at first), and `enabled: false` when the web is switched off. */
+export const netPolicyForRun = (config) => ({ mode: getNetMode(config), rules: normalizeNetRules(config?.netRules), ...(getSandboxNetwork(config) === 'off' ? { enabled: false } : {}) });

@@ -21,6 +21,13 @@ export const RUN_PYTHON_TOOL_SERVER = Object.freeze({
   description: RUN_PYTHON_TOOL.description.replace('Python 3.14 in a sandbox in the user\'s browser', 'Python 3.12 in an isolated sandbox on a server')
 });
 
+// The same tool when the sandbox on the server can reach the web through the filtering proxy (the person allows each new site).
+export const RUN_PYTHON_TOOL_SERVER_NET = Object.freeze({
+  ...RUN_PYTHON_TOOL,
+  description: RUN_PYTHON_TOOL.description
+    .replace('Python 3.14 in a sandbox in the user\'s browser (no network, no package installs)', 'Python 3.12 in an isolated sandbox on a server (the web only through a filter that asks the user about each new site; pip installs built packages)')
+});
+
 // The tool of the CLI tools (命令工具) the person chose with "@": a command line in the same sandbox, in /output, with their programs on the
 // path. Only a reply made on the server has it (the browser's Python has no programs to run).
 export const RUN_COMMAND_TOOL = Object.freeze({
@@ -119,11 +126,20 @@ function templateRule(kind, template) {
   return `- ${formats}: the user chose the "${template}" template, so hand the finished content to Noureon's design system instead of designing it yourself: \`import noureon; noureon.save_document(${example})\`. The content is exactly what a \`\`\`\`file block for that format holds (see the file instructions); Noureon applies the template, embeds fonts and shows a preview. Pictures you saved in /output are used as asset:<name> (\`![說明](asset:trend.png)\` in Markdown; on a slide \`{"src": "asset:trend.png", "fit": "contain"}\` in the "split" layout).`;
 }
 
+// What the sandbox can reach. On the server the web goes through a filtering proxy that asks the user about every site they have not allowed
+// (docs/superpowers/specs/2026-10-24-sandbox-network-design.md); everywhere else the code has no network at all.
+const NETWORK_LINES = {
+  none: '- No network access and no pip/micropip installs.',
+  proxy: `- Network: your Python can reach the web only through a filter (requests, urllib and httpx use it by themselves). The first time you reach a site the user is asked and may refuse; a refused site answers HTTP 403 with the header X-Noureon-Block: do not try the same site again, do the job another way and say in your answer what you could not reach. Only ports 80 and 443; about 500 MB can move in one reply. Fetch what the task needs from a few well-chosen sites: every new site asks the user.
+- Packages: if one you need is missing, install it in a run_python step with \`import subprocess, sys; subprocess.run([sys.executable, "-m", "pip", "install", "name"], check=True)\` (it installs into memory and is gone when the reply ends; importing it works in the next step). Only built packages (wheels) can be installed. If pip says there is no matching distribution, do not try to build it: use another package or another way, and tell the user in your answer what you used instead.`
+};
+const networkLine = (online) => (online ? NETWORK_LINES.proxy : NETWORK_LINES.none);
+
 /**
  * `designs`: the conversation's choices from the Design menu,
  * { deck, document }, each "auto" or a template name.
  */
-export function getSandboxGuidance({ inputFiles = [], designs = {}, host = 'browser' } = {}) {
+export function getSandboxGuidance({ inputFiles = [], designs = {}, host = 'browser', network = false } = {}) {
   const inputs = inputFiles.length
     ? inputFiles.map((file) => `- /input/${file.name} (${file.type || 'file'}, ${file.size} bytes)`).join('\n')
     : '- (none)';
@@ -135,7 +151,7 @@ export function getSandboxGuidance({ inputFiles = [], designs = {}, host = 'brow
   return `## Advanced mode: Python ${onServer ? 'on the server' : 'in the browser'}
 
 You can call the tool run_python to run ${onServer ? 'Python 3.12 in an isolated sandbox on a server' : "Python 3.14 (Pyodide) in a sandbox in the user's browser"}.
-- No network access and no pip/micropip installs. Available: ${PACKAGES}. Packages load automatically on import.
+${networkLine(onServer && network)} Available: ${PACKAGES}. Packages load automatically on import.
 - Each call may take up to 60 seconds. Variables persist between calls in this reply; a new reply starts with a clean environment.
 - Files from the user are in /input:
 ${inputs}

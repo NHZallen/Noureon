@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { createInterface } from 'node:readline';
 
@@ -205,4 +205,29 @@ withRepl('a command with credentials is run without the folders that the steps w
   writeFileSync(join(repl.dirs.pip, 'bin', 'printenv'), '#!/bin/sh\necho PLANTED\n', { mode: 0o755 });
   assert.match((await repl.command('printenv HOME')).stdout.text, /PLANTED/, 'it is found by a command without credentials (the person\'s own)');
   assert.doesNotMatch((await repl.command('printenv TOKEN', { env: { TOKEN: 'secret' } })).stdout.text, /PLANTED/);
+});
+
+withRepl('a step has no proxy variables until the proxy is there; then it gets them, and a place for pip to install into that it can import from', async (repl) => {
+  const before = await repl.run('import os\nprint(os.environ.get("HTTPS_PROXY"), os.environ.get("PIP_TARGET"))');
+  assert.equal(before.stdout.text, 'None None\n');
+  const net = await repl.request({ type: 'net', on: true });
+  assert.ok(Number.isInteger(net.port) && net.port > 0);
+  const after = await repl.run('import os, sys\nprint(os.environ["HTTPS_PROXY"], os.environ["http_proxy"], os.environ["PIP_TARGET"], os.environ["PIP_ONLY_BINARY"], sys.path[0], os.environ.get("NO_PROXY"))');
+  assert.equal(after.stdout.text, `http://127.0.0.1:${net.port} http://127.0.0.1:${net.port} ${repl.dirs.pip} :all: ${repl.dirs.pip} None\n`);
+  // What an earlier step installed there is found by a later one.
+  await repl.run(`open(${JSON.stringify(join(repl.dirs.pip, 'installed_by_a_step.py'))}, "w").write("VALUE = 7")`);
+  assert.equal((await repl.run('import installed_by_a_step\nprint(installed_by_a_step.VALUE)')).stdout.text, '7\n');
+});
+
+withRepl('the time of a step does not run while the person is being asked about a site', async (repl) => {
+  const marker = join(dirname(repl.dirs.input), 'waiting');
+  writeFileSync(marker, '1');
+  setTimeout(() => rmSync(marker, { force: true }), 1400);
+  // One second of time, 1.8 seconds of work: it ends well only because the clock stood still while the marker was there.
+  const result = await repl.run('import time\ntime.sleep(1.8)\nprint("done")', 1000);
+  assert.equal(result.error ?? null, null);
+  assert.equal(result.stdout.text, 'done\n');
+  // With no marker the same step is stopped at its time.
+  const late = await repl.run('import time\ntime.sleep(3)', 1000);
+  assert.match(late.error, /time limit/);
 });

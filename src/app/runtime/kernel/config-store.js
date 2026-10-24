@@ -56,6 +56,8 @@ export function createRuntimeConfigStore({ defaultModelId } = {}) {
     cliVersions: {},
     // The network of the CLI tools: ask about a site with no rule ('new') or about every site ('always'), and the person's rules for sites.
     netMode: 'new',
+    // Whether what runs in the server's sandbox (Python and the command tools) may reach the web at all ('on': sites the person has not allowed are asked about; 'off': none).
+    sandboxNetwork: 'on',
     netRules: {},
     // The models a text model may call by itself (the picture model it draws with) and the permission for it: data/tool-models.js.
     toolModels: { image: null },

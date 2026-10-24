@@ -1,6 +1,12 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.20.0": [
+    "<strong>Noureon 18.20.0 Release Notes</strong>",
+    "This version lets Advanced mode on the server reach websites, and adds a setting to turn that off.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Programs can go online:</strong> when Advanced mode runs on the server, the Python the model writes can now reach websites to fetch data and pictures, or to install a Python package it needs. You are asked about every new site you have not allowed yet (allow this time, always allow, refuse); the server’s own internal network can never be reached; a reply can move at most 500 MB.</li><li><strong>Network switch:</strong> the Privacy page of the settings has a new choice, “Network for programs on the server”: connected (ask about new sites) or not connected. When it is not connected, the command tools cannot go online either.</li><li><strong>Question card:</strong> the card that asks whether a website may be reached now reads “The model wants to connect to …”.</li></ul>"
+  ],
   "18.19.0": [
     "<strong>Noureon 18.19.0 Release Notes</strong>",
     "This version improves the search of the model menu and adds Kimi K3.1 Pro to OpenCode.",

@@ -16,7 +16,7 @@ const el = (document, tag, className = '', text = '') => {
   return node;
 };
 
-export function renderPrivacySection({ document, section, config, language, hasAccount, onChange }) {
+export function renderPrivacySection({ document, section, config, language, hasAccount, onChange, onNetworkChange = () => {} }) {
   const t = (key) => serverReplyText(language, key);
   section.replaceChildren();
   const wrap = el(document, 'div', 'pz');
@@ -45,6 +45,25 @@ export function renderPrivacySection({ document, section, config, language, hasA
     run.appendChild(row);
   }
   if (!hasAccount) run.appendChild(el(document, 'p', 'pz-note text-[var(--text-secondary)]', t('needAccount')));
+
+  // What runs in the server's sandbox (Python and the command tools) may reach the web, or nothing at all.
+  const network = card(t('netTitle'));
+  const networkNow = config.sandboxNetwork === 'off' ? 'off' : 'on';
+  for (const [value, label, description] of [['on', t('netOn'), t('netOnDesc')], ['off', t('netOff'), t('netOffDesc')]]) {
+    const row = el(document, 'label', 'pz-row pz-pick');
+    row.htmlFor = `sandbox-network-${value}`;
+    const input = el(document, 'input');
+    input.type = 'radio';
+    input.name = 'sandbox-network';
+    input.id = `sandbox-network-${value}`;
+    input.value = value;
+    input.checked = networkNow === value;
+    input.addEventListener('change', () => { if (input.checked) onNetworkChange(value); });
+    const text = el(document, 'span', 'pz-text');
+    text.append(el(document, 'span', 'pz-label', label), el(document, 'span', 'pz-sub text-[var(--text-secondary)]', description));
+    row.append(input, text);
+    network.appendChild(row);
+  }
 
   const block = (titleKey, keys) => {
     const info = card(t(titleKey));
@@ -92,6 +111,14 @@ export function ensurePrivacySettingsSection({ document, elements, config, saveC
         await saveConfig();
       } catch (error) {
         console.warn('Saving where replies run failed.', error);
+      }
+    },
+    onNetworkChange: async (value) => {
+      config.sandboxNetwork = value === 'off' ? 'off' : 'on';
+      try {
+        await saveConfig();
+      } catch (error) {
+        console.warn('Saving the network of the server sandbox failed.', error);
       }
     }
   });

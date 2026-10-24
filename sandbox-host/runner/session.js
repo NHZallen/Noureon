@@ -486,7 +486,7 @@ export function createSessionManager({ config, spawn = nodeSpawn, now = Date.now
         if (policy) {
           if (session.proxy) session.proxy.setPolicy(policy);
           else {
-            session.proxy = createNetProxy({ socketPath: join(session.dirs.net, 'p.sock'), policy, ask: (question) => askPerson(session, question), log, ...proxyOptions });
+            session.proxy = createNetProxy({ socketPath: join(session.dirs.net, 'p.sock'), policy, ask: (question) => askPerson(session, question), log, maxBytes: config.netMaxBytes, ...proxyOptions });
             await session.proxy.listen();
             await ensureRunning(session);
             await enableNet(session);

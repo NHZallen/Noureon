@@ -261,3 +261,73 @@ test('closing the proxy ends its connections and removes its socket', async () =
   assert.throws(() => statSync(h.proxy.socketPath));
   await h.done().catch(() => {});
 });
+
+test('a name is looked up only after the person let it through: a refused or unanswered site is never looked up, so its name carries nothing out through DNS', async () => {
+  const looked = [];
+  const order = [];
+  const answers = { 'yes.test': 'once', 'no.test': 'deny', 'silent.test': 'timeout' };
+  const h = await harness({
+    policy: { mode: 'new', rules: { 'rule-deny.test': 'deny' } },
+    ask: async (question) => { order.push(`ask ${question.host}`); return answers[question.host]; },
+    resolve: async (host) => { looked.push(host); order.push(`look ${host}`); return [{ address: '127.0.0.1', family: 4 }]; }
+  });
+  try {
+    const url = (host) => `http://${host}:${h.port}/`;
+    assert.equal((await through(h.proxy.socketPath, url('no.test'))).status, 403);
+    assert.equal((await through(h.proxy.socketPath, url('silent.test'))).status, 403);
+    assert.equal((await through(h.proxy.socketPath, url('rule-deny.test'))).status, 403);
+    assert.equal((await tunnel(h.proxy.socketPath, 'secret-data.no.test:443')).status, 403);
+    assert.deepEqual(looked, [], 'nothing was looked up for a site that was refused');
+    assert.equal((await through(h.proxy.socketPath, url('yes.test'))).status, 200);
+    assert.deepEqual(order.slice(-2), ['ask yes.test', 'look yes.test'], 'the question comes first, the lookup after it');
+  } finally {
+    await h.done();
+  }
+});
+
+test('names that only mean "inside" are refused with no question and no lookup', async () => {
+  let asked = 0;
+  let looked = 0;
+  const h = await harness({ policy: { mode: 'new', rules: {} }, ask: async () => { asked += 1; return 'always'; }, resolve: async () => { looked += 1; return []; }, withSite: false });
+  try {
+    for (const name of ['localhost', 'app.localhost', 'printer.local', 'db.internal']) {
+      const refused = await tunnel(h.proxy.socketPath, `${name}:443`);
+      assert.equal(refused.status, 403, name);
+      assert.equal(refused.headers['x-noureon-block'], 'internal', name);
+    }
+    assert.deepEqual([asked, looked], [0, 0]);
+  } finally {
+    await h.done();
+  }
+});
+
+test('a session may move only so much: past the allowance what is open is cut and a new connection is refused', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'noureon-net-'));
+  const site = createHttpServer((request, response) => { response.end('x'.repeat(5000)); });
+  await new Promise((resolveListen) => site.listen(0, '127.0.0.1', resolveListen));
+  const port = site.address().port;
+  const logs = [];
+  const proxy = createNetProxy({
+    socketPath: join(dir, 'net', 'p.sock'),
+    policy: { mode: 'new', rules: { 'big.test': 'allow' } },
+    log: (event, fields) => logs.push(event),
+    resolve: async () => [{ address: '127.0.0.1', family: 4 }],
+    isInternal: () => false,
+    ports: [port],
+    maxBytes: 8000
+  });
+  await proxy.listen();
+  try {
+    const url = `http://big.test:${port}/`;
+    assert.equal((await through(proxy.socketPath, url)).status, 200);
+    try { await through(proxy.socketPath, url); } catch { /* cut while it came */ }
+    const refused = await through(proxy.socketPath, url);
+    assert.equal(refused.status, 403);
+    assert.equal(refused.headers['x-noureon-block'], 'quota');
+    assert.ok(logs.includes('net_quota'));
+  } finally {
+    await proxy.close();
+    await new Promise((resolveClose) => site.close(resolveClose));
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

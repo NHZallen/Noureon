@@ -3,7 +3,7 @@
 // answers without a call (at most MAX_RUNS_PER_REPLY runs). Returns the
 // answer text and the run record kept above it. Loaded on demand.
 
-import { MAX_RUNS_PER_REPLY, MAX_RUNS_WITH_CLI, RUN_COMMAND_TOOL, RUN_PYTHON_TOOL, RUN_PYTHON_TOOL_SERVER, REQUEST_CREDENTIALS_TOOL, getCliGuidance, getSandboxGuidance } from './sandbox-guidance.js';
+import { MAX_RUNS_PER_REPLY, MAX_RUNS_WITH_CLI, RUN_COMMAND_TOOL, RUN_PYTHON_TOOL, RUN_PYTHON_TOOL_SERVER, RUN_PYTHON_TOOL_SERVER_NET, REQUEST_CREDENTIALS_TOOL, getCliGuidance, getSandboxGuidance } from './sandbox-guidance.js';
 import { loaderStepEvent, sandboxText } from './sandbox-texts.js';
 import { RUN_STATUS } from '../../ui/sandbox/sandbox-run-block.js';
 import { partialJsonString } from '../features/tool-call-formats.js';
@@ -78,6 +78,8 @@ export async function runSandboxReply({
   provider = '',
   // Where the code runs: 'browser' (Pyodide in the page) or 'server' (a container; the server makes the reply).
   host = 'browser',
+  // The sandbox on the server can reach the web through its filtering proxy (the person's setting, and a host that has the proxy).
+  network = false,
   // Files for /input: [{ name, type, size, bytes: () => Uint8Array }].
   inputFiles = [],
   // The Design menu's choices: a template means the design system.
@@ -263,7 +265,7 @@ export async function runSandboxReply({
     }
   };
 
-  const guidance = [getSandboxGuidance({ inputFiles, designs, host }), useCli ? getCliGuidance(cliTools.map((tool) => ({ ...tool, file: tool.program?.file || tool.pip?.command || tool.image?.command })), { canAsk: typeof askCredentials === 'function' }) : '', researchTools ? researchGuidance() : '', skillLoader ? loaderInstruction(skillLoader) : ''].filter(Boolean).join('\n\n');
+  const guidance = [getSandboxGuidance({ inputFiles, designs, host, network: host === 'server' && network }), useCli ? getCliGuidance(cliTools.map((tool) => ({ ...tool, file: tool.program?.file || tool.pip?.command || tool.image?.command })), { canAsk: typeof askCredentials === 'function' }) : '', researchTools ? researchGuidance() : '', skillLoader ? loaderInstruction(skillLoader) : ''].filter(Boolean).join('\n\n');
   const research = researchTools
     ? createResearchCalls({ ...researchTools, language, signal, onEvent })
     : null;
@@ -325,7 +327,7 @@ export async function runSandboxReply({
           onEvent({ type: 'code', text: partialJsonString(raw, name === RUN_COMMAND_TOOL.name ? 'command' : 'code') });
         }
       },
-      tools: [...(canRun ? [host === 'server' ? RUN_PYTHON_TOOL_SERVER : RUN_PYTHON_TOOL, ...(useCli ? [RUN_COMMAND_TOOL] : []), ...(canAskCredentials ? [REQUEST_CREDENTIALS_TOOL] : [])] : []), ...(canResearch ? RESEARCH_TOOLS : []), ...(canSkill ? skillTools : [])],
+      tools: [...(canRun ? [host === 'server' ? (network ? RUN_PYTHON_TOOL_SERVER_NET : RUN_PYTHON_TOOL_SERVER) : RUN_PYTHON_TOOL, ...(useCli ? [RUN_COMMAND_TOOL] : []), ...(canAskCredentials ? [REQUEST_CREDENTIALS_TOOL] : [])] : []), ...(canResearch ? RESEARCH_TOOLS : []), ...(canSkill ? skillTools : [])],
       toolTurns,
       additionalSystemInstruction: [requestOptions.additionalSystemInstruction, guidance].filter(Boolean).join('\n\n'),
       onResponseComplete: (value) => { response = value; }

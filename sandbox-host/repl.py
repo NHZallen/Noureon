@@ -18,10 +18,11 @@ taken away from the user's code (it gets /dev/null), so nothing it prints can pa
 Folders: /input (read only), /output, /work (home), /fonts. NOUREON_INPUT, NOUREON_OUTPUT and NOUREON_WORK move them (tests).
 
 The container has no network. When the runner gives the session a network proxy (the "net" message), a socket of it is in /run/noureon-net and
-this program relays 127.0.0.1:<port> to it: the commands it runs get HTTP_PROXY and HTTPS_PROXY pointing there (the code of a Python step does not).
+this program relays 127.0.0.1:<port> to it: the commands it runs get HTTP_PROXY and HTTPS_PROXY pointing there (the code of a Python step gets them too, per step, when the proxy is there: see apply_network_environment).
 """
 import ast
 import asyncio
+import importlib
 import inspect
 import json
 import os
@@ -170,6 +171,68 @@ def setup_charts(language):
         pass
 
 
+PROXY_VARS = ("HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy")
+NO_PROXY_VARS = ("NO_PROXY", "no_proxy", "ALL_PROXY", "all_proxy")
+
+
+def apply_network_environment(port):
+    """What a step of Python is given when the proxy is there (the runner's filtering proxy, 127.0.0.1:<port>, which the supervisor relays to its socket):
+    the proxy variables (requests, urllib, httpx and pip read them), and for pip a place that can be written (/opt/pip, in memory, gone with the
+    sandbox) and only built packages (no setup code runs while one is installed; there is no compiler here, so a source package would only fail slowly).
+    Without the proxy the step has no network at all, and none of it is set."""
+    if isinstance(port, int) and not isinstance(port, bool) and 0 < port < 65536:
+        proxy = f"http://127.0.0.1:{port}"
+        for name in PROXY_VARS:
+            os.environ[name] = proxy
+        for name in NO_PROXY_VARS:
+            os.environ.pop(name, None)
+        os.environ["PIP_TARGET"] = PIP
+        os.environ["PIP_ONLY_BINARY"] = ":all:"
+        os.environ["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
+        os.environ["PIP_NO_CACHE_DIR"] = "1"
+        if PIP not in sys.path:
+            sys.path.insert(0, PIP)
+    else:
+        for name in PROXY_VARS + ("PIP_TARGET", "PIP_ONLY_BINARY"):
+            os.environ.pop(name, None)
+    # A package installed by an earlier step of this reply is found.
+    importlib.invalidate_caches()
+
+
+class AlarmPause:
+    """While the runner asks the person about a site (a sign file is there), the time of the step does not run: the alarm is put away and set again."""
+
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._stop = threading.Event()
+        self._left = None
+        self._done = False
+        self._thread = threading.Thread(target=self._watch, daemon=True)
+
+    def start(self):
+        self._thread.start()
+
+    def _watch(self):
+        while not self._stop.wait(0.25):
+            waiting = os.path.exists(NET_WAITING)
+            with self._lock:
+                if self._done:
+                    return
+                if waiting and self._left is None:
+                    self._left = signal.setitimer(signal.ITIMER_REAL, 0)[0]
+                elif not waiting and self._left is not None:
+                    signal.setitimer(signal.ITIMER_REAL, max(self._left, 0.05))
+                    self._left = None
+
+    def finish(self):
+        """Ends the watching; the alarm is cleared by the caller."""
+        self._stop.set()
+        with self._lock:
+            self._done = True
+            self._left = None
+        self._thread.join(timeout=1)
+
+
 def run_step(request, user_globals):
     request_id = request.get("id")
     code = str(request.get("code") or "")
@@ -181,8 +244,11 @@ def run_step(request, user_globals):
     sys.stdout, sys.stderr = out, err
     started = time.monotonic()
     error = None
+    apply_network_environment(request.get("netPort"))
     signal.signal(signal.SIGALRM, _on_alarm)
     signal.setitimer(signal.ITIMER_REAL, timeout)
+    pause = AlarmPause()
+    pause.start()
     try:
         compiled = compile(code, "<exec>", "exec", flags=ast.PyCF_ALLOW_TOP_LEVEL_AWAIT)
         result = eval(compiled, user_globals)
@@ -195,6 +261,7 @@ def run_step(request, user_globals):
     except BaseException:  # noqa: BLE001 - everything the code raises is its result
         error = trim_traceback("".join(traceback.format_exception(*sys.exc_info())))
     finally:
+        pause.finish()
         signal.setitimer(signal.ITIMER_REAL, 0)
         sys.stdout, sys.stderr = sys.__stdout__, sys.__stderr__
         out.flush()
@@ -540,11 +607,26 @@ def stop_worker():
         pass
 
 
+class Deadline:
+    """A time limit that does not run while the runner is asking the person about a site (a sign file is there)."""
+
+    def __init__(self, at):
+        self.at = at
+        self._tick = time.monotonic()
+
+    def remaining(self):
+        now = time.monotonic()
+        if os.path.exists(NET_WAITING):
+            self.at += now - self._tick
+        self._tick = now
+        return self.at - now
+
+
 def _read_worker_line(worker, deadline):
-    """The next line the worker wrote, or None when it ended; raises TimeoutError at the deadline."""
+    """The next line the worker wrote, or None when it ended; raises TimeoutError at the deadline (a number, or a Deadline)."""
     global _worker_buffer
     while b"\n" not in _worker_buffer:
-        remaining = deadline - time.monotonic()
+        remaining = deadline.remaining() if isinstance(deadline, Deadline) else deadline - time.monotonic()
         if remaining <= 0:
             raise TimeoutError()
         ready, _, _ = select.select([worker.stdout], [], [], min(remaining, 0.5))
@@ -595,12 +677,12 @@ def run_python_step(request):
               "elapsedMs": int((time.monotonic() - started) * 1000), "restarted": True})
 
     try:
-        worker.stdin.write((json.dumps({"id": request_id, "type": "run", "code": code, "timeoutMs": int(timeout * 1000)}) + "\n").encode("utf-8"))
+        worker.stdin.write((json.dumps({"id": request_id, "type": "run", "code": code, "timeoutMs": int(timeout * 1000), "netPort": _net_port}) + "\n").encode("utf-8"))
         worker.stdin.flush()
     except OSError:
         ended("The Python process had ended; the variables of the earlier steps are gone. Run the step again.", gone=True)
         return
-    deadline = started + timeout + WORKER_GRACE
+    deadline = Deadline(started + timeout + WORKER_GRACE)
     forwarded = 0
     while True:
         try:

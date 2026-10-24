@@ -62,7 +62,7 @@ const SNIPPET_CHARS = 700;
 const RESULTS_SHOWN = 8;
 
 export const researchGuidance = (today = new Date().toISOString().slice(0, 10)) => [
-  `You can search the web (web_search), open pages (open_page) and look for a word in a page (find_in_page). Today is ${today}. Python, if you have it, has no internet: everything from the web comes through these tools.`,
+  `You can search the web (web_search), open pages (open_page) and look for a word in a page (find_in_page). Today is ${today}. Use these tools to find and read pages; Python, if you have it, is for working on what they bring.`,
   'Search when the answer depends on facts that may have changed or that you do not know. Do not search for what you already know well.',
   'Research like a person who needs the real answer, not the first plausible one:',
   '- A result may have a Date: when its page was published. For what changes over time (versions, prices, news), prefer the newer pages; an undated result is not necessarily old.',
