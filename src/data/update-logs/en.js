@@ -1,6 +1,12 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.21.0": [
+    "<strong>Noureon 18.21.0 Release Notes</strong>",
+    "This version adds the Google connector.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Google connector:</strong> the Connectors page has Google now: log in once and the model can read your Google Calendar, Sheets, Docs, Slides, Drive and Gmail and, where you allow it, create calendar events, write cells, edit documents, add slides, create and share files, write drafts and send mail. The login you get first is \"Read-only\"; to let the model change things, switch the card to \"Read and write\" and log in again. You can set, tool by tool, whether it runs, asks you first or is off; by default every action that changes something asks you first.</li><li><strong>Waitlist:</strong> the Google connector is open to invited accounts only for now. If you are not on the list, you see \"Join the waitlist\" on the Google row; press it and we are told, and we answer at your account’s email when it opens.</li></ul>"
+  ],
   "18.20.1": [
     "<strong>Noureon 18.20.1 Release Notes</strong>",
     "This version tidies the list of files under a reply made in Advanced mode.",
