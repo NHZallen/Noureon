@@ -7,7 +7,7 @@
 
 import { CONNECTORS, CONNECTOR_CATEGORIES, connectorDescription, connectorDetails, connectorExamples, defaultLoginMode, getConnector, hasReadonlyLogin } from '../../../data/connector-catalog.js';
 import { connectorMark } from './connector-mark.js';
-import { disconnectConnector, listConnectors, refreshConnector, saveToolStates, startConnector } from '../../runtime/connector/connectors-client.js';
+import { disconnectConnector, listConnectors, refreshConnector, requestWaitlist, saveToolStates, startConnector } from '../../runtime/connector/connectors-client.js';
 
 const STATES = Object.freeze(['allow', 'ask', 'deny']);
 const STATE_KEYS = Object.freeze({ allow: 'connectorStateAllow', ask: 'connectorStateAsk', deny: 'connectorStateDeny' });
@@ -27,8 +27,8 @@ export function createConnectorsPart({ document, win, t, getLanguage, getAccount
   };
   // What the server says: { status: 'idle' | 'loading' | 'ready' | 'failed', byId: Map(id -> { id, status, mode, tools, error }) }.
   // `openMine`: the permissions of a connection the person opened under Mine (folded at first); `openPerms`: the ones opened in the settings (folded at first); `expanded`: the rows of the list opened in place.
-  const state = { status: 'idle', byId: new Map(), openGroups: new Set(), openMine: new Set(), openPerms: new Set(), expanded: new Set(), confirming: null, sheet: null };
-  const connectionOf = (id) => state.byId.get(id) || { id, status: 'none', mode: getConnector(id) ? defaultLoginMode(getConnector(id)) : 'readwrite', tools: [], error: '' };
+  const state = { status: 'idle', byId: new Map(), openGroups: new Set(), openMine: new Set(), openPerms: new Set(), expanded: new Set(), confirming: null, sheet: null, asked: new Set(), asking: new Set() };
+  const connectionOf = (id) => state.byId.get(id) || { id, status: 'none', mode: getConnector(id) ? defaultLoginMode(getConnector(id)) : 'readwrite', tools: [], error: '', access: 'open' };
 
   const load = async () => {
     if (state.status === 'loading' || !getAccountReady()) return;
@@ -86,6 +86,17 @@ export function createConnectorsPart({ document, win, t, getLanguage, getAccount
       box.append(item);
     }
     return box;
+  };
+  // A connector that is for some accounts only: this one is not among them, so it asks to be let in (a mail goes to us) instead of connecting.
+  const askWaitlist = async (connector) => {
+    if (state.asked.has(connector.id) || state.asking.has(connector.id)) return;
+    state.asking.add(connector.id);
+    redraw();
+    const result = await requestWaitlist(connector.id);
+    state.asking.delete(connector.id);
+    if (result.ok) state.asked.add(connector.id);
+    else showNotification(t('connectorWaitlistFailed'), 'error');
+    redraw();
   };
   const openSheet = (connector, { mode = defaultLoginMode(connector), switching = false } = {}) => {
     closeSheet();
@@ -336,7 +347,9 @@ export function createConnectorsPart({ document, win, t, getLanguage, getAccount
     const action = make('div', 'cs-action');
     // A service that has not yet approved Noureon (Vercel): it is said so, and no login begins.
     const pending = Boolean(connector.pending) && !connected;
+    const waiting = !connected && !pending && connection.access === 'waitlist' && Boolean(connector.waitlist);
     if (pending) action.append(make('span', 'cs-pending', t('connectorPending')));
+    else if (waiting) action.append(make('span', state.asked.has(connector.id) ? 'cs-pending' : 'cs-connect', state.asked.has(connector.id) ? t('connectorWaitlistSent') : t('connectorWaitlist')));
     else if (connected) {
       const needs = connection.status === 'needs_login';
       action.append(make('span', `cs-conn-status${needs ? ' is-warning' : ''}`, t(needs ? 'connectorNeedsLogin' : 'connectorConnected')));
@@ -365,6 +378,7 @@ export function createConnectorsPart({ document, win, t, getLanguage, getAccount
         nodes.push(box);
       }
       if (pending) nodes.push(make('p', 'cs-pending-note', t('connectorPendingNote', { name: connector.name })));
+      if (waiting) nodes.push(make('p', 'cs-pending-note', t('connectorWaitlistNote', { name: connector.name })));
       if (connected) {
         const manage = make('button', 'cs-link cs-feature-manage', t('connectorManage'));
         manage.type = 'button';
@@ -394,7 +408,8 @@ export function createConnectorsPart({ document, win, t, getLanguage, getAccount
     text.addEventListener('click', toggle);
     // The right side: a connection that needs a login logs in again, one that is not connected begins (the status of a good one only opens the words).
     action.addEventListener('click', () => {
-      if (pending || (connected && connection.status === 'connected')) toggle();
+      if (waiting) void askWaitlist(connector);
+      else if (pending || (connected && connection.status === 'connected')) toggle();
       else if (connected) openSheet(connector, { mode: connection.mode });
       else if (!getAccountReady()) showNotification(t('connectorNeedAccount'), 'error');
       else openSheet(connector);

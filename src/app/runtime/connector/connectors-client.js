@@ -33,3 +33,9 @@ export async function refreshConnector(id) {
   const result = await serverRequest('POST', `/v1/connectors/${encodeURIComponent(id)}/refresh`);
   return result.ok ? { ok: true, connector: Array.isArray(result.data?.connectors) ? result.data.connectors[0] || null : null } : failure(result);
 }
+
+/** Asks to be let in to a connector that is not open to this account yet (a mail goes to us): { ok } (`already` when it was asked a short time ago). */
+export async function requestWaitlist(id) {
+  const result = await serverRequest('POST', `/v1/connectors/${encodeURIComponent(id)}/waitlist`);
+  return result.ok ? { ok: true, already: result.data?.already === true, open: result.data?.open === true } : failure(result);
+}

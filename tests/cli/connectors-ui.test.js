@@ -23,7 +23,7 @@ const LINEAR = {
 };
 
 /** A page and a server that answers the calls of the connectors part; `calls` records them. */
-function setup({ account = true, connections = [LINEAR], language = 'zh-TW', failPut = false, startUrl = 'https://auth.linear.app/authorize?x=1' } = {}) {
+function setup({ account = true, connections = [LINEAR], language = 'zh-TW', failPut = false, failWaitlist = false, startUrl = 'https://auth.linear.app/authorize?x=1' } = {}) {
   const window = new Window({ url: 'https://example.test/connectors' });
   const { document } = window;
   document.body.innerHTML = '<div class="cs"></div>';
@@ -32,6 +32,7 @@ function setup({ account = true, connections = [LINEAR], language = 'zh-TW', fai
   registerServerRequest(async (method, path, options = {}) => {
     calls.push([method, path, options.body ? JSON.parse(options.body) : null]);
     if (method === 'GET' && path === '/v1/connectors') return { ok: true, status: 200, data: { connectors: CONNECTORS.map((connector) => data.get(connector.id) || { id: connector.id, status: 'none', mode: 'readwrite', tools: [], error: '' }) } };
+    if (method === 'POST' && /\/waitlist$/.test(path)) return failWaitlist ? { ok: false, status: 400, code: 'bad_request', data: { error: { reason: 'failed', detail: 'mail_not_configured' } } } : { ok: true, status: 200, data: { ok: true } };
     if (method === 'POST' && /\/connect$/.test(path)) return { ok: true, status: 200, data: { url: startUrl } };
     if (method === 'POST' && /\/disconnect$/.test(path)) { data.delete(path.split('/')[3]); return { ok: true, status: 200, data: { ok: true, revoked: true } }; }
     if (method === 'PUT' && /\/permissions$/.test(path)) return failPut ? { ok: false, status: 500, code: 'internal_error', data: {} } : { ok: true, status: 200, data: { ok: true } };
@@ -665,4 +666,32 @@ test('the saved reply keeps the connectors it used and shows a row for each, wit
   // Replies saved before have none, and look as they did.
   const old = createSandboxRunElement(document, liftSandboxRunBlock(formatSandboxRunBlock({ status: 'done', steps: [], thought: 'x' })).run, { language: 'zh-TW' });
   assert.equal(old.querySelector('[data-kind="connector"]'), null);
+});
+
+const GOOGLE_WAITING = { id: 'google', status: 'none', mode: 'readonly', error: '', tools: [], access: 'waitlist' };
+
+test('a connector that is not open to this account yet asks for the waitlist instead of connecting, once, and says so when it was sent or could not be', async () => {
+  const t = setup({ connections: [GOOGLE_WAITING] });
+  await settle(t);
+  const row = t.host.querySelector('[data-connector-id="google"]');
+  assert.equal(row.querySelector('.cs-action').textContent.trim(), '申請候補');
+  assert.equal(t.host.querySelector('[data-connector-id="notion"] .cs-action').textContent.includes('申請候補'), false, 'the others connect as ever');
+  row.querySelector('.cs-action').click();
+  await flush();
+  await flush();
+  assert.equal(t.host.querySelector('.cs-dialog'), null, 'no sheet, no login');
+  assert.deepEqual(t.calls.filter(([method, path]) => method === 'POST' && path.endsWith('/waitlist')), [['POST', '/v1/connectors/google/waitlist', null]]);
+  t.draw();
+  assert.equal(t.host.querySelector('[data-connector-id="google"] .cs-action').textContent.trim(), '已送出申請');
+  t.host.querySelector('[data-connector-id="google"] .cs-action').click();
+  await flush();
+  assert.equal(t.calls.filter(([, path]) => path.endsWith('/waitlist')).length, 1, 'asked once');
+  // A request that cannot be sent says so and may be tried again.
+  const failing = setup({ connections: [GOOGLE_WAITING], failWaitlist: true });
+  await settle(failing);
+  failing.host.querySelector('[data-connector-id="google"] .cs-action').click();
+  await flush();
+  await flush();
+  assert.match(failing.notices.at(-1)?.[0] ?? failing.notices.at(-1)?.text ?? JSON.stringify(failing.notices), /無法送出申請/);
+  assert.equal(failing.host.querySelector('[data-connector-id="google"] .cs-action').textContent.trim(), '申請候補');
 });

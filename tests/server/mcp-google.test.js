@@ -11,6 +11,7 @@ import { explain } from '../../server/mcp/native/google/index.js';
 import { CONNECTORS, connectorProblems, defaultLoginMode, getConnector, loginScopes, toolKind } from '../../src/data/connector-catalog.js';
 
 const USER = '123e4567-e89b-12d3-a456-426614174000';
+const OTHER = '223e4567-e89b-12d3-a456-426614174001';
 const REDIRECT = 'https://api.noureon.com/mcp/callback';
 const google = getConnector('google');
 const tool = (name) => PROVIDERS.google.tools.find((item) => item.name === name);
@@ -44,7 +45,7 @@ test('the catalog entry is right, and every tool the provider has is known to re
   assert.ok(CONNECTORS.indexOf(google) === 0);
 });
 
-function setup(fetchImpl) {
+function setup(fetchImpl, extra = {}) {
   const rows = [];
   const matches = (filters) => (row) => Object.entries(filters || {}).every(([column, condition]) => {
     const [op, ...rest] = String(condition).split('.');
@@ -64,7 +65,8 @@ function setup(fetchImpl) {
     }
   };
   const vault = createKeyVault([{ version: 1, key: randomBytes(32).toString('base64') }]);
-  const service = createConnectorService({ db, vault, fetchImpl, config: { redirectUri: REDIRECT, cimdUrl: '', preregistered: { google: { clientId: 'the-id.apps.googleusercontent.com', clientSecret: 'GOCSPX-secret' } } } });
+  const { now, ...settings } = extra;
+  const service = createConnectorService({ db, vault, fetchImpl, ...(now ? { now } : {}), config: { redirectUri: REDIRECT, cimdUrl: '', preregistered: { google: { clientId: 'the-id.apps.googleusercontent.com', clientSecret: 'GOCSPX-secret' } }, ...settings } });
   return { db, service };
 }
 
@@ -294,4 +296,69 @@ test('the client of a native connector lists its tools without the network, and 
   assert.ok(listed.every((item) => item.description && item.inputSchema?.type === 'object'));
   assert.equal(calls, 0);
   assert.throws(() => createNativeClient('nothing', { getToken: async () => 'T' }));
+});
+
+// The waitlist: the connector is for some accounts only, and the others ask to be let in by a mail to us that answers to them.
+function gated({ mailer, now } = {}) {
+  const world = fakeGoogle();
+  const made = setup(world.fetchImpl, { allowed: { google: new Set(['ana@example.com', OTHER]) }, mailer, waitlistTo: 'support@noureon.com', now });
+  return { ...made, world };
+}
+const fakeMailer = ({ fail = false } = {}) => {
+  const sent = [];
+  return { sent, configured: true, send: async (mail) => { if (fail) throw Object.assign(new Error('refused'), { code: 'refused', status: 422 }); sent.push(mail); } };
+};
+
+test('a connector that is for some accounts only: the others are told to wait, cannot begin a login, and the ones on the list are not asked', async () => {
+  const { service } = gated({ mailer: fakeMailer() });
+  const access = async (email) => (await service.list(USER, { email })).find((entry) => entry.id === 'google').access;
+  assert.equal(await access('ANA@example.com'), 'open', 'the list is read in lower case');
+  assert.equal(await access('bob@example.com'), 'waitlist');
+  assert.equal(await access(''), 'waitlist', 'an account with no address is not on a list');
+  assert.equal((await service.list(USER)).find((entry) => entry.id === 'notion').access, 'open', 'a connector with no list is for everyone');
+  assert.equal((await service.list(OTHER, { email: 'carol@example.com' })).find((entry) => entry.id === 'google').access, 'open', 'an account id on the list is enough, whatever its address');
+  await assert.rejects(service.startLogin(USER, 'google', 'readonly', { email: 'bob@example.com' }), (error) => error.code === 'not_allowed');
+  const { url } = await service.startLogin(USER, 'google', 'readonly', { email: 'ana@example.com' });
+  assert.match(url, /^https:\/\/accounts\.google\.com\//);
+});
+
+test('a request for the waitlist is one mail to the address of the settings that answers to the person; asking again does nothing more, and a mail that is refused can be asked again', async () => {
+  let time = 1_000_000;
+  const mailer = fakeMailer();
+  const { service } = gated({ mailer, now: () => time });
+  const bob = { id: USER, email: 'bob@example.com' };
+  assert.deepEqual(await service.requestAccess(bob, 'google'), { ok: true });
+  assert.equal(mailer.sent.length, 1);
+  assert.equal(mailer.sent[0].to, 'support@noureon.com');
+  assert.equal(mailer.sent[0].replyTo, 'bob@example.com');
+  assert.match(mailer.sent[0].text, /bob@example\.com/);
+  assert.ok(mailer.sent[0].text.includes(USER), 'the account id is in the mail, for the list');
+  assert.match(mailer.sent[0].text, /CONNECTOR_GOOGLE_ALLOWED/);
+  assert.deepEqual(await service.requestAccess(bob, 'google'), { ok: true, already: true });
+  assert.equal(mailer.sent.length, 1);
+  time += 25 * 60 * 60 * 1000;
+  assert.deepEqual(await service.requestAccess(bob, 'google'), { ok: true });
+  assert.equal(mailer.sent.length, 2, 'a day later it is asked again');
+  // Someone on the list has nothing to wait for; a connector with no waitlist, an account with no address, or a mail that cannot be sent say so.
+  assert.deepEqual(await service.requestAccess({ id: OTHER, email: 'carol@example.com' }, 'google'), { ok: true, open: true });
+  await assert.rejects(service.requestAccess(bob, 'notion'), (error) => error.code === 'bad_request');
+  await assert.rejects(service.requestAccess({ id: '323e4567-e89b-12d3-a456-426614174002', email: '' }, 'google'), (error) => error.code === 'bad_request');
+  const refusing = gated({ mailer: fakeMailer({ fail: true }) });
+  await assert.rejects(refusing.service.requestAccess(bob, 'google'), (error) => error.code === 'failed' && error.detail === 'refused');
+  const silent = gated({ mailer: { configured: false, send: async () => {} } });
+  await assert.rejects(silent.service.requestAccess(bob, 'google'), (error) => error.code === 'failed' && error.detail === 'mail_not_configured');
+});
+
+test('the mailer sends to Resend with the key in the header only, names who an answer goes to, and refuses a header with a line break', async () => {
+  const { createMailer, MailError } = await import('../../server/mailer.js');
+  const seen = [];
+  const mailer = createMailer({ apiKey: 're_key', from: 'Noureon <noreply@noureon.com>', fetchImpl: async (url, options) => { seen.push({ url, options }); return new Response('{}', { status: 200 }); } });
+  await mailer.send({ to: 'support@noureon.com', subject: 'Hi', text: 'Body', replyTo: 'bob@example.com' });
+  assert.equal(seen[0].url, 'https://api.resend.com/emails');
+  assert.equal(seen[0].options.headers.authorization, 'Bearer re_key');
+  assert.deepEqual(JSON.parse(seen[0].options.body), { from: 'Noureon <noreply@noureon.com>', to: ['support@noureon.com'], subject: 'Hi', text: 'Body', reply_to: 'bob@example.com' });
+  assert.ok(!seen[0].options.body.includes('re_key'));
+  await assert.rejects(mailer.send({ to: 'a@b.co', subject: 'x\r\nBcc: y@z.co', text: 't' }), MailError);
+  await assert.rejects(createMailer({ apiKey: '', from: 'x' }).send({ to: 'a@b.co', subject: 's', text: 't' }), (error) => error.code === 'not_configured');
+  await assert.rejects(createMailer({ apiKey: 'k', from: 'x', fetchImpl: async () => new Response('no', { status: 403 }) }).send({ to: 'a@b.co', subject: 's', text: 't' }), (error) => error.code === 'refused' && error.status === 403);
 });

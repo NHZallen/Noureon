@@ -364,24 +364,27 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
         return;
       }
       // The person's connectors: the state of each, and what they do about it.
-      const connectorPath = /^\/v1\/connectors(?:\/([a-z][a-z0-9-]{1,31})(?:\/(connect|disconnect|permissions|refresh))?)?$/.exec(url.pathname);
+      const connectorPath = /^\/v1\/connectors(?:\/([a-z][a-z0-9-]{1,31})(?:\/(connect|disconnect|permissions|refresh|waitlist))?)?$/.exec(url.pathname);
       if (connectorPath) {
         const user = await authenticate(request);
         if (!connectors) throw new RequestError(ERROR_CODES.runsUnavailable, 'Connectors are not set up yet.');
         const [, id, action] = connectorPath;
         try {
           if (request.method === 'GET' && !id) {
-            send(response, 200, { connectors: await connectors.list(user.id) }, origin);
+            send(response, 200, { connectors: await connectors.list(user.id, { email: user.email }) }, origin);
           } else if (request.method === 'POST' && id && action === 'connect') {
             if (!connectorLimiter.take(user.id)) throw new RequestError(ERROR_CODES.rateLimited, 'Too many requests; wait a minute.');
             const body = await readJson(request, 2048, { optional: true });
-            send(response, 200, await connectors.startLogin(user.id, id, body?.mode === 'readonly' ? 'readonly' : 'readwrite'), origin);
+            send(response, 200, await connectors.startLogin(user.id, id, body?.mode === 'readonly' ? 'readonly' : 'readwrite', { email: user.email }), origin);
+          } else if (request.method === 'POST' && id && action === 'waitlist') {
+            if (!connectorLimiter.take(user.id)) throw new RequestError(ERROR_CODES.rateLimited, 'Too many requests; wait a minute.');
+            send(response, 200, await connectors.requestAccess(user, id), origin);
           } else if (request.method === 'POST' && id && action === 'disconnect') {
             send(response, 200, { ok: true, ...(await connectors.disconnect(user.id, id)) }, origin);
           } else if (request.method === 'POST' && id && action === 'refresh') {
             if (!connectorLimiter.take(user.id)) throw new RequestError(ERROR_CODES.rateLimited, 'Too many requests; wait a minute.');
             await connectors.refreshTools(user.id, id);
-            send(response, 200, { ok: true, connectors: (await connectors.list(user.id)).filter((entry) => entry.id === id) }, origin);
+            send(response, 200, { ok: true, connectors: (await connectors.list(user.id, { email: user.email })).filter((entry) => entry.id === id) }, origin);
           } else if (request.method === 'PUT' && id && action === 'permissions') {
             const body = await readJson(request, 32 * 1024);
             const states = body?.tools;

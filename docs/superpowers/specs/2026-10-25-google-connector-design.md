@@ -77,3 +77,16 @@ Linear：NOU-136。Allen 的決定在 2026-10-25 討論中定案（§2）。
 2. Coolify：測試與正式兩個應用程式都加 `CONNECTOR_GOOGLE_CLIENT_ID`、`CONNECTOR_GOOGLE_CLIENT_SECRET`（Build time 不要開）。
 3. 部署 `staging` 後，用 Allen 的帳號在測試站：連接器頁 → Google → 唯讀登入 → 問「我明天有什麼行程」「讀一下某份試算表」「找上週的未讀信」；再換「可讀寫連線」重新登入 → 建一個行事曆活動、在試算表加一列、寫一份草稿（不要寄）、建一份 Google 文件與一份簡報。
 4. 看日誌有沒有 `connector_tools_failed`、`connector_login_failed`。
+
+## 9. 候補申請（waitlist，2026-10-25）
+
+Google 的應用程式在「測試中」，只有名單上的人能登入。沒在名單上的人不該被 Google 的錯誤頁擋住，而是看到「申請候補」。
+
+* **名單**：Noureon 自己的允許名單，環境變數 `CONNECTOR_GOOGLE_ALLOWED`（信箱或帳號 ID，逗號分隔；沒設 = 所有人）。名單裡的信箱也要加進 Google 的測試使用者。2026-10-25 Allen 給的名單：`yles2007.allen@gmail.com`、`jedocy0722@gmail.com`（帳號 ID 也能填：正式 Allen `b51fda26-c61e-4f5f-95db-3e9a6d7b1c00`、Sun `223d21c4-24df-4b09-a028-afa8ec0f947e`；測試站 Allen `314ef058-7ed4-44d2-b365-c06c0282a6d1`，Sun 在測試站還沒有帳號）。
+* **目錄**：`waitlist: true`（只有 Google）。
+* **伺服器**：`server/auth.js` 的使用者多了 `email`（小寫，沒有可用的就是空字串）；`connections.js` 的 `list(userId, { email })` 給每個連接器 `access: 'open' | 'waitlist'`（已連線的人永遠是 open）、`startLogin` 對不在名單的人丟 `not_allowed`、`requestAccess({ id, email }, connectorId)`；`POST /v1/connectors/:id/waitlist`。
+* **通知信**：`server/mailer.js` 用 Resend（`RESEND_API_KEY`、`MAIL_FROM`、`WAITLIST_TO`）寄到客服信箱，`Reply-To` 是申請人的信箱，內文有信箱、**帳號 ID（UID）**、時間與開放方式。同一個人同一個連接器 24 小時內只寄一次（記憶體裡記，重啟會忘），全部合計每小時最多 30 封。信沒寄成就回錯誤，頁面顯示「無法送出申請」，可再按。
+* **頁面**：名單外的人在 Google 那一列看到「申請候補」（取代「連線」），按下去寄信，成功後顯示「已送出申請」；展開說明有一段解釋。
+* **隱私**：Resend 加進隱私權政策的外部服務清單（五語）與 `PRIVACY.md`。
+* **開放一個人**：收到信後，把信裡的信箱或 UID 加進 Coolify 的 `CONNECTOR_GOOGLE_ALLOWED`、重新部署，再把信箱加進 Google 的測試使用者，回信給申請人。
+* **Allen 要做**：註冊 Resend、在 Cloudflare 加 Resend 要求的 DNS 記錄驗證 `noureon.com`、把 `RESEND_API_KEY` 放進 Coolify（測試與正式）；沒做之前按鈕可以按，但會顯示無法送出。

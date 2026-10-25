@@ -9,12 +9,16 @@ import { CONNECTORS, TOOL_STATES, defaultToolState, getConnector, isNativeConnec
 import { OAuthError, buildAuthorizationUrl, discover, exchangeCode, hashState, pkcePair, randomState, refreshTokens, resolveClient, revokeToken, staticMetadata } from './oauth.js';
 import { McpError, createMcpClient } from './client.js';
 import { createNativeClient } from './native/index.js';
+import { createRateLimiter } from '../rate-limit.js';
 
 const TABLE = 'user_mcp_connections';
 const PENDING_MS = 10 * 60 * 1000;
 const METADATA_KEEP_MS = 60 * 60 * 1000;
 const TOOLS_KEEP_MS = 60 * 60 * 1000;
 const REFRESH_AHEAD_MS = 60 * 1000;
+// A person who asked for the waitlist of a connector is not asked again for this long, and all of them together may send so many requests an hour.
+const WAITLIST_AGAIN_MS = 24 * 60 * 60 * 1000;
+const WAITLIST_PER_HOUR = 30;
 const MAX_DESCRIPTION_CHARS = 2000;
 const MAX_SCHEMA_CHARS = 20_000;
 
@@ -119,9 +123,18 @@ export function createConnectorService({ db, vault, fetchImpl = fetch, now = Dat
     fetchImpl
   });
 
-  /** Begins a login: the address to send the person to. `mode`: 'readonly' or 'readwrite'. */
-  async function startLogin(userId, connectorId, mode) {
+  // Some connectors are for some accounts only for now (the emails or the account ids of `config.allowed[id]`); a connector with no list is for everyone.
+  const mayConnect = (connector, { email = '', userId = '' }) => {
+    const list = config.allowed?.[connector.id];
+    return !list || list.has(String(email).toLowerCase()) || list.has(String(userId).toLowerCase());
+  };
+  const waitlistSent = new Map();
+  const waitlistLimiter = createRateLimiter({ limit: WAITLIST_PER_HOUR, windowMs: 60 * 60 * 1000, now });
+
+  /** Begins a login: the address to send the person to. `mode`: 'readonly' or 'readwrite'. `email`: the account's address (for the connectors that are not open to everyone). */
+  async function startLogin(userId, connectorId, mode, { email = '' } = {}) {
     const connector = connectorOf(connectorId);
+    if (!mayConnect(connector, { email, userId })) throw new ConnectorError('not_allowed', 'This connector is not open to your account yet.');
     const kind = mode === 'readonly' && connector.scopes.readonly ? 'readonly' : 'readwrite';
     let metadata;
     let client;
@@ -305,8 +318,8 @@ export function createConnectorService({ db, vault, fetchImpl = fetch, now = Dat
     return { tools: fresh, changed: [...changed] };
   }
 
-  /** What a person sees of a connection (never a token). */
-  function summarize(connector, row) {
+  /** What a person sees of a connection (never a token). `access`: 'open', or 'waitlist' when the connector is only for some accounts and this one is not (yet) among them. */
+  function summarize(connector, row, access = 'open') {
     const tools = asArray(row?.tools).map((tool) => ({
       name: tool.name,
       description: String(tool.description || '').slice(0, 300),
@@ -314,7 +327,7 @@ export function createConnectorService({ db, vault, fetchImpl = fetch, now = Dat
       state: effectiveState(connector, row, tool.name),
       changed: asArray(row.changed).includes(tool.name)
     }));
-    return { id: connector.id, status: row?.status === 'connected' || row?.status === 'needs_login' ? row.status : 'none', mode: row?.mode === 'readonly' ? 'readonly' : 'readwrite', tools, error: row?.last_error || '', connectedAt: row?.created_at || '' };
+    return { id: connector.id, status: row?.status === 'connected' || row?.status === 'needs_login' ? row.status : 'none', mode: row?.mode === 'readonly' ? 'readonly' : 'readwrite', tools, error: row?.last_error || '', connectedAt: row?.created_at || '', access };
   }
 
   const service = {
@@ -324,9 +337,51 @@ export function createConnectorService({ db, vault, fetchImpl = fetch, now = Dat
     refreshTools,
     clientFor,
     /** The person's connections: one entry for every connector of the catalog (status 'none' when not connected). */
-    async list(userId) {
+    async list(userId, { email = '' } = {}) {
       const rows = asArray(await db.select(TABLE, { filters: { user_id: `eq.${userId}` }, limit: CONNECTORS.length + 5 }));
-      return CONNECTORS.map((connector) => summarize(connector, rows.find((row) => row.connector_id === connector.id) || null));
+      return CONNECTORS.map((connector) => {
+        const row = rows.find((entry) => entry.connector_id === connector.id) || null;
+        // A connection that exists stays as it is; the waitlist is for those who have none.
+        return summarize(connector, row, row?.status === 'connected' || mayConnect(connector, { email, userId }) ? 'open' : 'waitlist');
+      });
+    },
+    /**
+     * A person asks to be let in to a connector that is not open to their account: a mail goes to us (the settings' address) that answers to the person. Asking again within a day does nothing
+     * more. Returns { ok: true } (or { ok: true, already: true }); throws a ConnectorError when it cannot be sent now.
+     */
+    async requestAccess({ id: userId, email = '' }, connectorId) {
+      const connector = connectorOf(connectorId);
+      if (!connector.waitlist || !config.allowed?.[connector.id]) throw new ConnectorError('bad_request', 'This connector has no waitlist.');
+      if (mayConnect(connector, { email, userId })) return { ok: true, open: true };
+      if (!email) throw new ConnectorError('bad_request', 'This account has no email address to answer at.');
+      const key = `${userId}|${connector.id}`;
+      const before = waitlistSent.get(key);
+      if (before && now() - before < WAITLIST_AGAIN_MS) return { ok: true, already: true };
+      if (!config.mailer?.configured) throw new ConnectorError('failed', 'Requests cannot be sent right now.', 'mail_not_configured');
+      if (!waitlistLimiter.take('all')) throw new ConnectorError('failed', 'Too many requests right now: try again later.', 'busy');
+      try {
+        await config.mailer.send({
+          to: config.waitlistTo,
+          replyTo: email,
+          subject: `Noureon 候補申請：${connector.name}`,
+          text: [
+            `有人申請候補「${connector.name}」連接器。`,
+            '',
+            `申請人信箱：${email}`,
+            `帳號 ID：${userId}`,
+            `時間：${new Date(now()).toISOString()}`,
+            '',
+            `開放方式：把申請人的信箱或帳號 ID（UID）加進伺服器的 CONNECTOR_${connector.id.toUpperCase()}_ALLOWED（Coolify，用逗號分隔，改完要重新部署），如果該服務的應用程式還在測試中，也要把信箱加進它的測試使用者。直接回覆這封信就會寄給申請人。`
+          ].join('\n')
+        });
+      } catch (error) {
+        log('connector_waitlist_failed', { connector: connector.id, code: error?.code || error?.name || 'error', ...(error?.status ? { status: error.status } : {}) });
+        throw new ConnectorError('failed', 'The request could not be sent now.', error?.code || '');
+      }
+      if (waitlistSent.size > 2000) for (const [name, at] of waitlistSent) if (now() - at >= WAITLIST_AGAIN_MS) waitlistSent.delete(name);
+      waitlistSent.set(key, now());
+      log('connector_waitlist_sent', { connector: connector.id });
+      return { ok: true };
     },
     /** One connection of the person's, as it is kept (for a reply: the tools with their states), or null when it is not connected. */
     async connection(userId, connectorId) {

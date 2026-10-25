@@ -35,6 +35,8 @@ export const CONNECTORS = Object.freeze([
     clientAuth: 'post',
     // The login a person gets first is the read-only one; the other is chosen on the card (a new login).
     defaultLogin: 'readonly',
+    // Only some accounts may connect for now (the application of Google is in testing, 100 people at most; the server's list is CONNECTOR_GOOGLE_ALLOWED: emails or account ids): the others ask for the waitlist.
+    waitlist: true,
     scopes: Object.freeze({
       readonly: Object.freeze([
         'https://www.googleapis.com/auth/calendar.readonly',
@@ -462,6 +464,7 @@ export function connectorProblems(connector) {
   if (connector?.registration !== undefined && connector.registration !== 'dcr') problems.push('registration');
   if (connector?.clientAuth !== undefined && connector.clientAuth !== 'post') problems.push('clientAuth');
   if (!connector?.scopes?.readwrite) problems.push('scopes');
+  if (connector?.waitlist !== undefined && connector.waitlist !== true) problems.push('waitlist');
   if (connector?.defaultLogin !== undefined && (connector.defaultLogin !== 'readonly' || !connector.scopes?.readonly)) problems.push('defaultLogin');
   // A native connector says where its login is (https, public), and every tool it has is known to read or to write.
   if (connector?.native !== undefined) {
