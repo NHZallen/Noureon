@@ -41,7 +41,7 @@ export function loadConfig(env = process.env) {
   const connectorClientId = String(env.CONNECTOR_CLIENT_ID || `${appUrl}/.well-known/oauth-client.json`);
   // Services that have no registration of their own (GitHub), or that only take clients it has approved (Canva): the client made by hand in the service's portal, one id and one secret for every person; both or neither. The secret only ever lives here.
   const preregistered = {};
-  for (const id of ['github', 'canva']) {
+  for (const id of ['github', 'canva', 'google']) {
     const key = `CONNECTOR_${id.toUpperCase()}_CLIENT`;
     const clientId = String(env[`${key}_ID`] || '');
     const clientSecret = String(env[`${key}_SECRET`] || '');

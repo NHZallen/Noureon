@@ -5,7 +5,7 @@
 // groups, reading and writing, each with one setting for the group (allow, ask, refuse) and a list that sets each tool apart. Whatever the person sets stands.
 // Everything a service says (a tool's description) is put in as text, never as markup.
 
-import { CONNECTORS, CONNECTOR_CATEGORIES, connectorDescription, connectorDetails, connectorExamples, hasReadonlyLogin } from '../../../data/connector-catalog.js';
+import { CONNECTORS, CONNECTOR_CATEGORIES, connectorDescription, connectorDetails, connectorExamples, defaultLoginMode, getConnector, hasReadonlyLogin } from '../../../data/connector-catalog.js';
 import { connectorMark } from './connector-mark.js';
 import { disconnectConnector, listConnectors, refreshConnector, saveToolStates, startConnector } from '../../runtime/connector/connectors-client.js';
 
@@ -28,7 +28,7 @@ export function createConnectorsPart({ document, win, t, getLanguage, getAccount
   // What the server says: { status: 'idle' | 'loading' | 'ready' | 'failed', byId: Map(id -> { id, status, mode, tools, error }) }.
   // `openMine`: the permissions of a connection the person opened under Mine (folded at first); `openPerms`: the ones opened in the settings (folded at first); `expanded`: the rows of the list opened in place.
   const state = { status: 'idle', byId: new Map(), openGroups: new Set(), openMine: new Set(), openPerms: new Set(), expanded: new Set(), confirming: null, sheet: null };
-  const connectionOf = (id) => state.byId.get(id) || { id, status: 'none', mode: 'readwrite', tools: [], error: '' };
+  const connectionOf = (id) => state.byId.get(id) || { id, status: 'none', mode: getConnector(id) ? defaultLoginMode(getConnector(id)) : 'readwrite', tools: [], error: '' };
 
   const load = async () => {
     if (state.status === 'loading' || !getAccountReady()) return;
@@ -87,7 +87,7 @@ export function createConnectorsPart({ document, win, t, getLanguage, getAccount
     }
     return box;
   };
-  const openSheet = (connector, { mode = 'readwrite', switching = false } = {}) => {
+  const openSheet = (connector, { mode = defaultLoginMode(connector), switching = false } = {}) => {
     closeSheet();
     let chosen = mode;
     const backdrop = make('div', 'cs-dialog-backdrop');

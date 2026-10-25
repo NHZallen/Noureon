@@ -36,6 +36,7 @@
 | `ASSET_SWEEP` | 選填：設成 `delete` 才會真的刪除「沒有任何資料列提到、且超過一天」的孤兒檔案（每天一次，啟動後 2 分鐘先跑一次）；不設就只在日誌寫 `asset_orphans_found`（數量、位元組、前 20 個檔名），什麼都不刪。第一次刪除請先看過清單再設 |
 | `CONNECTOR_GITHUB_CLIENT_ID`、`CONNECTOR_GITHUB_CLIENT_SECRET` | 選填，要一起設：在 GitHub（Settings → Developer settings → OAuth Apps）建的 OAuth App 的 Client ID 與 Secret，給連接器 GitHub 登入用（回呼位址 `https://api.noureon.com/mcp/callback`）。**Secret 只放在這裡**。沒設時 GitHub 無法登入（畫面會顯示 `no_client`）；只設一個啟動會失敗 |
 | `CONNECTOR_CANVA_CLIENT_ID`、`CONNECTOR_CANVA_CLIENT_SECRET` | 選填，要一起設：在 Canva 開發者入口（canva.com/developers → 你的應用程式 → Configuration，開啟 Canva MCP）建的 App 的 Client ID 與 Secret，給連接器 Canva 用（Canva 只讓核准過的回呼網址登入）。回呼網址要在入口的 Redirect URLs 填 `CONNECTOR_REDIRECT_URI` 的值。Secret 只放在這裡 |
+| `CONNECTOR_GOOGLE_CLIENT_ID`、`CONNECTOR_GOOGLE_CLIENT_SECRET` | 選填，要一起設：在 Google Cloud 主控台（Google Auth Platform → 用戶端，類型「網頁應用程式」）建的 OAuth 用戶端的 ID 與密鑰，給連接器 Google 登入用。已授權的重新導向 URI 要填 `CONNECTOR_REDIRECT_URI` 的值（正式與測試各一個）。專案要啟用 Calendar、Sheets、Docs、Slides、Drive、Gmail 六個 API，資料存取權要加入 `src/data/connector-catalog.js` 裡 google 的全部範圍。同意畫面在「測試中」時，登入每 7 天失效一次。**Secret 只放在這裡** |
 | `PORT` | 選填，預設 8080 |
 
 **服務金鑰、主金鑰與沙盒密鑰只能放在 Coolify 的環境變數裡，不要寫進程式碼、不要貼到對話或日誌。**

@@ -5,9 +5,10 @@
 // person and connector; only this server (the service key) can read it.
 
 import { createHash } from 'node:crypto';
-import { CONNECTORS, TOOL_STATES, defaultToolState, getConnector, loginScopes, toolKind } from '../../src/data/connector-catalog.js';
-import { OAuthError, buildAuthorizationUrl, discover, exchangeCode, hashState, pkcePair, randomState, refreshTokens, resolveClient, revokeToken } from './oauth.js';
+import { CONNECTORS, TOOL_STATES, defaultToolState, getConnector, isNativeConnector, loginScopes, toolKind } from '../../src/data/connector-catalog.js';
+import { OAuthError, buildAuthorizationUrl, discover, exchangeCode, hashState, pkcePair, randomState, refreshTokens, resolveClient, revokeToken, staticMetadata } from './oauth.js';
 import { McpError, createMcpClient } from './client.js';
+import { createNativeClient } from './native/index.js';
 
 const TABLE = 'user_mcp_connections';
 const PENDING_MS = 10 * 60 * 1000;
@@ -50,6 +51,8 @@ export function keptTools(connector, tools) {
 /** What a tool may do now: 'allow', 'ask' or 'deny'. A tool that is new or changed since the person saw the list is 'deny' until they say otherwise. */
 export function effectiveState(connector, row, toolName) {
   if (asArray(row.changed).includes(toolName)) return 'deny';
+  // A native connector knows what a read-only login cannot do: its tools that change things are off until the person logs in with the other kind of login.
+  if (isNativeConnector(connector) && row.mode === 'readonly' && toolKind(connector, toolName) === 'write') return 'deny';
   const set = asObject(row.permissions)[toolName];
   return TOOL_STATES.includes(set) ? set : defaultToolState(connector, toolName);
 }
@@ -93,7 +96,7 @@ export function createConnectorService({ db, vault, fetchImpl = fetch, now = Dat
   async function metadataOf(connector) {
     const kept = metadataKept.get(connector.id);
     if (kept && now() - kept.at < METADATA_KEEP_MS) return kept.metadata;
-    const metadata = await discover(connector.endpoint, { fetchImpl });
+    const metadata = connector.oauth ? staticMetadata(connector.oauth) : await discover(connector.endpoint, { fetchImpl });
     metadataKept.set(connector.id, { at: now(), metadata });
     return metadata;
   }
@@ -253,12 +256,12 @@ export function createConnectorService({ db, vault, fetchImpl = fetch, now = Dat
   /** A client of the service for one person (the token is fetched and renewed as it is needed). */
   function clientFor(userId, connectorId) {
     const connector = connectorOf(connectorId);
-    return createMcpClient({
-      endpoint: connector.endpoint,
+    const access = {
       fetchImpl,
       getToken: () => accessToken(userId, connectorId),
       onUnauthorized: () => accessToken(userId, connectorId, { force: true }).catch(() => null)
-    });
+    };
+    return isNativeConnector(connector) ? createNativeClient(connector.native, access) : createMcpClient({ endpoint: connector.endpoint, ...access });
   }
 
   /**
@@ -290,7 +293,8 @@ export function createConnectorService({ db, vault, fetchImpl = fetch, now = Dat
     const before = asArray(row.tools);
     const known = new Map(before.map((tool) => [tool.name, tool]));
     const changed = new Set(asArray(row.changed).filter((name) => fresh.some((tool) => tool.name === name)));
-    if (!first && before.length) {
+    // The tools of a native connector are our own code: a change in their text is ours, not a service changing what a tool does, so nothing is switched off for it.
+    if (!first && before.length && !isNativeConnector(connector)) {
       for (const tool of fresh) {
         const was = known.get(tool.name);
         if (!was || was.hash !== tool.hash) changed.add(tool.name);
