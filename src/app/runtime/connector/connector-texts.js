@@ -24,6 +24,7 @@ export const CONNECTOR_TEXTS = Object.freeze({
     connectorAskFailed: '答案沒有送出，請再試一次。',
     connectorKind: '連接器',
     connectorSearchPlaceholder: '搜尋連接器',
+    connectorCategory_office: '辦公與日常',
     connectorCategory_notes: '筆記與專案',
     connectorCategory_design: '設計與白板',
     connectorCategory_dev: '開發',
@@ -73,7 +74,11 @@ export const CONNECTOR_TEXTS = Object.freeze({
     connectorErr_busy: '現在連線的人太多，請稍後再試。',
     connectorSaveFailed: '設定沒有儲存，請再試一次。',
     connectorPending: '審核中',
-    connectorPendingNote: '{name} 要先核准 Noureon 才能連線。申請已經送出，核准之前暫時不能連線。'
+    connectorPendingNote: '{name} 要先核准 Noureon 才能連線。申請已經送出，核准之前暫時不能連線。',
+    connectorWaitlist: '申請候補',
+    connectorWaitlistSent: '已送出申請',
+    connectorWaitlistNote: '{name} 目前只開放給受邀的使用者。按「申請候補」會通知我們，開放時會用你帳號的信箱回覆你。',
+    connectorWaitlistFailed: '無法送出申請，請稍後再試。'
   },
   en: {
     connectorExamplesTitle: 'Try asking',
@@ -96,6 +101,7 @@ export const CONNECTOR_TEXTS = Object.freeze({
     connectorAskFailed: 'The answer could not be sent. Try again.',
     connectorKind: 'Connectors',
     connectorSearchPlaceholder: 'Search connectors',
+    connectorCategory_office: 'Work and everyday',
     connectorCategory_notes: 'Notes and projects',
     connectorCategory_design: 'Design and whiteboards',
     connectorCategory_dev: 'Development',
@@ -145,7 +151,11 @@ export const CONNECTOR_TEXTS = Object.freeze({
     connectorErr_busy: 'Too many people are connecting now. Try again in a moment.',
     connectorSaveFailed: 'The setting was not saved. Try again.',
     connectorPending: 'Under review',
-    connectorPendingNote: '{name} must approve Noureon before it can be connected. The application has been sent; until it is approved, it cannot be connected.'
+    connectorPendingNote: '{name} must approve Noureon before it can be connected. The application has been sent; until it is approved, it cannot be connected.',
+    connectorWaitlist: 'Join the waitlist',
+    connectorWaitlistSent: 'Request sent',
+    connectorWaitlistNote: '{name} is open to invited users only for now. "Join the waitlist" lets us know, and we will answer at your account\'s email when it opens.',
+    connectorWaitlistFailed: 'The request could not be sent. Try again in a moment.'
   },
   fr: {
     connectorExamplesTitle: 'Exemples à essayer',
@@ -168,6 +178,7 @@ export const CONNECTOR_TEXTS = Object.freeze({
     connectorAskFailed: 'La réponse n’a pas pu être envoyée. Réessayez.',
     connectorKind: 'Connecteurs',
     connectorSearchPlaceholder: 'Rechercher un connecteur',
+    connectorCategory_office: 'Travail et quotidien',
     connectorCategory_notes: 'Notes et projets',
     connectorCategory_design: 'Design et tableaux blancs',
     connectorCategory_dev: 'Développement',
@@ -217,7 +228,11 @@ export const CONNECTOR_TEXTS = Object.freeze({
     connectorErr_busy: 'Trop de personnes se connectent en ce moment. Réessayez dans un instant.',
     connectorSaveFailed: 'Le réglage n’a pas été enregistré. Réessayez.',
     connectorPending: 'En cours de validation',
-    connectorPendingNote: '{name} doit d’abord approuver Noureon avant qu’on puisse s’y connecter. La demande a été envoyée ; tant qu’elle n’est pas approuvée, la connexion est impossible.'
+    connectorPendingNote: '{name} doit d’abord approuver Noureon avant qu’on puisse s’y connecter. La demande a été envoyée ; tant qu’elle n’est pas approuvée, la connexion est impossible.',
+    connectorWaitlist: 'Rejoindre la liste d’attente',
+    connectorWaitlistSent: 'Demande envoyée',
+    connectorWaitlistNote: '{name} n’est ouvert pour l’instant qu’aux utilisateurs invités. « Rejoindre la liste d’attente » nous prévient ; nous vous répondrons à l’e-mail de votre compte à l’ouverture.',
+    connectorWaitlistFailed: 'La demande n’a pas pu être envoyée. Réessayez dans un instant.'
   },
   ru: {
     connectorExamplesTitle: 'Примеры запросов',
@@ -240,6 +255,7 @@ export const CONNECTOR_TEXTS = Object.freeze({
     connectorAskFailed: 'Не удалось отправить ответ. Попробуйте ещё раз.',
     connectorKind: 'Коннекторы',
     connectorSearchPlaceholder: 'Поиск коннекторов',
+    connectorCategory_office: 'Работа и повседневность',
     connectorCategory_notes: 'Заметки и проекты',
     connectorCategory_design: 'Дизайн и доски',
     connectorCategory_dev: 'Разработка',
@@ -289,7 +305,11 @@ export const CONNECTOR_TEXTS = Object.freeze({
     connectorErr_busy: 'Сейчас подключается слишком много людей. Попробуйте чуть позже.',
     connectorSaveFailed: 'Настройка не сохранена. Попробуйте ещё раз.',
     connectorPending: 'На рассмотрении',
-    connectorPendingNote: '{name} должен сначала одобрить Noureon, чтобы можно было подключиться. Заявка отправлена; пока она не одобрена, подключиться нельзя.'
+    connectorPendingNote: '{name} должен сначала одобрить Noureon, чтобы можно было подключиться. Заявка отправлена; пока она не одобрена, подключиться нельзя.',
+    connectorWaitlist: 'Встать в очередь',
+    connectorWaitlistSent: 'Заявка отправлена',
+    connectorWaitlistNote: '{name} пока открыт только для приглашённых пользователей. Кнопка «Встать в очередь» сообщит нам, и мы ответим на почту вашего аккаунта, когда доступ откроется.',
+    connectorWaitlistFailed: 'Не удалось отправить заявку. Попробуйте ещё раз чуть позже.'
   },
   es: {
     connectorExamplesTitle: 'Prueba a pedir',
@@ -312,6 +332,7 @@ export const CONNECTOR_TEXTS = Object.freeze({
     connectorAskFailed: 'La respuesta no pudo enviarse. Inténtalo de nuevo.',
     connectorKind: 'Conectores',
     connectorSearchPlaceholder: 'Buscar conectores',
+    connectorCategory_office: 'Trabajo y día a día',
     connectorCategory_notes: 'Notas y proyectos',
     connectorCategory_design: 'Diseño y pizarras',
     connectorCategory_dev: 'Desarrollo',
@@ -361,7 +382,11 @@ export const CONNECTOR_TEXTS = Object.freeze({
     connectorErr_busy: 'Demasiadas personas se están conectando. Inténtalo de nuevo en un momento.',
     connectorSaveFailed: 'El ajuste no se guardó. Inténtalo de nuevo.',
     connectorPending: 'En revisión',
-    connectorPendingNote: '{name} debe aprobar primero a Noureon para poder conectarlo. La solicitud ya se envió; hasta que se apruebe, no se puede conectar.'
+    connectorPendingNote: '{name} debe aprobar primero a Noureon para poder conectarlo. La solicitud ya se envió; hasta que se apruebe, no se puede conectar.',
+    connectorWaitlist: 'Unirme a la lista de espera',
+    connectorWaitlistSent: 'Solicitud enviada',
+    connectorWaitlistNote: '{name} está abierto por ahora solo a usuarios invitados. «Unirme a la lista de espera» nos avisa y te responderemos al correo de tu cuenta cuando se abra.',
+    connectorWaitlistFailed: 'No se pudo enviar la solicitud. Inténtalo de nuevo en un momento.'
   }
 });
 

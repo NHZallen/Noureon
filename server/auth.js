@@ -40,7 +40,9 @@ export function createTokenVerifier({ supabaseUrl, anonKey, fetchImpl = fetch, n
     const body = await response.json().catch(() => null);
     const id = typeof body?.id === 'string' && /^[0-9a-f-]{36}$/i.test(body.id) ? body.id : '';
     if (!id) return null;
-    const user = Object.freeze({ id });
+    // The address of the account (the connectors that are open to some accounts only, and the waitlist, need it): lower case, or empty when the sign-in service gives none that can be used.
+    const email = typeof body?.email === 'string' && /^[^\s<>,;"]{1,64}@[^\s<>,;"]{1,255}$/.test(body.email) ? body.email.toLowerCase() : '';
+    const user = Object.freeze({ id, email });
     if (known.size >= MAX_CACHE) known.delete(known.keys().next().value);
     known.set(key, { user, until: now() + CACHE_MS });
     return user;

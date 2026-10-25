@@ -2,6 +2,16 @@
 // content 為 zh-TW 的 HTML 字串（JSON 轉義、雙引號），目前不隨介面語言切換。
 export const updateLogEntries = [
   {
+    version: "18.21.0",
+    date: "2026-10-25",
+    content: [
+      "<strong>Noureon 18.21.0 發布說明</strong>",
+      "本版本新增 Google 連接器。",
+      "<strong>主要變更</strong>",
+      "<ul><li><strong>Google 連接器：</strong>「連接器」頁多了 Google：登入一次，模型就能讀取你的 Google 行事曆、試算表、文件、簡報、雲端硬碟與 Gmail；在你允許時，也能新增行事曆活動、寫入儲存格、編輯文件、新增投影片、建立與分享檔案、寫草稿與寄信。預設的登入是「唯讀連線」，要讓模型能修改，請在卡片上切換成「可讀寫連線」並重新登入；每個工具都能設定直接執行、先問你或停用，所有會改動內容的動作預設都會先問你。</li><li><strong>申請候補：</strong>Google 連接器目前只開放給受邀的帳號。不在名單上的人，在 Google 那一列會看到「申請候補」，按下去我們就會收到通知，開放時用你帳號的信箱回覆你。</li></ul>"
+    ]
+  },
+  {
     version: "18.20.1",
     date: "2026-10-23",
     content: [

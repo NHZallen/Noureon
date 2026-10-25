@@ -41,13 +41,28 @@ export function loadConfig(env = process.env) {
   const connectorClientId = String(env.CONNECTOR_CLIENT_ID || `${appUrl}/.well-known/oauth-client.json`);
   // Services that have no registration of their own (GitHub), or that only take clients it has approved (Canva): the client made by hand in the service's portal, one id and one secret for every person; both or neither. The secret only ever lives here.
   const preregistered = {};
-  for (const id of ['github', 'canva']) {
+  for (const id of ['github', 'canva', 'google']) {
     const key = `CONNECTOR_${id.toUpperCase()}_CLIENT`;
     const clientId = String(env[`${key}_ID`] || '');
     const clientSecret = String(env[`${key}_SECRET`] || '');
     if (Boolean(clientId) !== Boolean(clientSecret)) problems.push(`${key}_ID and ${key}_SECRET go together: set both or neither`);
     if (clientId && clientSecret) preregistered[id] = Object.freeze({ clientId, clientSecret });
   }
+  // Connectors that only some accounts may connect for now (the Google application is "in testing": 100 people at most): the emails or account ids (UID) that may, per connector (CONNECTOR_GOOGLE_ALLOWED, separated by commas). Not set: open to everyone.
+  const connectorAllowed = {};
+  for (const id of ['google']) {
+    const entries = String(env[`CONNECTOR_${id.toUpperCase()}_ALLOWED`] || env[`CONNECTOR_${id.toUpperCase()}_ALLOWED_EMAILS`] || '').split(/[\s,;]+/).map((item) => item.trim().toLowerCase()).filter(Boolean);
+    // An entry is an email address or the id of an account (the UID in the mail that tells us of a request).
+    const bad = entries.find((entry) => !/^[^\s<>,;"]{1,64}@[^\s<>,;"]{1,255}$/.test(entry) && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(entry));
+    if (bad) problems.push(`CONNECTOR_${id.toUpperCase()}_ALLOWED has something that is neither an email address nor an account id: ${bad.slice(0, 40)}`);
+    else if (entries.length) connectorAllowed[id] = Object.freeze(new Set(entries));
+  }
+  // The mail that tells us of a request for the waitlist (Resend, https://resend.com): the key, the sender (an address of a domain verified there) and where it goes. Without the key a request cannot be sent, and the page says so.
+  const mailKey = String(env.RESEND_API_KEY || '');
+  const mailFrom = String(env.MAIL_FROM || 'Noureon <noreply@noureon.com>');
+  const waitlistTo = String(env.WAITLIST_TO || 'support@noureon.com');
+  if (!/^[^\r\n]{3,160}$/.test(mailFrom) || !mailFrom.includes('@')) problems.push('MAIL_FROM must be an address, or Name <address>');
+  if (!/^[^\s<>,;"]{1,64}@[^\s<>,;"]{1,255}$/.test(waitlistTo)) problems.push('WAITLIST_TO must be an email address');
   for (const [name, value] of [['APP_URL', appUrl], ['CONNECTOR_REDIRECT_URI', connectorRedirectUri], ['CONNECTOR_CLIENT_ID', connectorClientId]]) if (!/^https:\/\/[^\s]+$/i.test(value)) problems.push(`${name} must be an https address`);
   if (problems.length) throw new Error(`Server settings are not right: ${problems.join('; ')}`);
   return Object.freeze({
@@ -64,6 +79,10 @@ export function loadConfig(env = process.env) {
     connectorRedirectUri,
     connectorClientId,
     connectorPreregistered: Object.freeze(preregistered),
+    connectorAllowed: Object.freeze(connectorAllowed),
+    mailKey,
+    mailFrom,
+    waitlistTo,
     allowedOrigins: Object.freeze(list(env.ALLOWED_ORIGINS, DEFAULT_ALLOWED_ORIGINS)),
     // The version of the server (shown by /healthz): the Git commit when the deployment gives it.
     build: String(env.SOURCE_COMMIT || env.GIT_COMMIT || 'dev').slice(0, 12)

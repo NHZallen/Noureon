@@ -252,10 +252,32 @@ export function buildAuthorizationUrl({ metadata, clientId, redirectUri, scopes 
   url.searchParams.set('state', state);
   url.searchParams.set('code_challenge', challenge);
   url.searchParams.set('code_challenge_method', 'S256');
-  // RFC 8707: the token is asked for this service and no other.
-  url.searchParams.set('resource', metadata.resource);
+  // RFC 8707: the token is asked for this service and no other (a service that is not an MCP server has no resource to name).
+  if (metadata.resource) url.searchParams.set('resource', metadata.resource);
   if (scopes.length) url.searchParams.set('scope', scopes.join(' '));
+  // What a service wants besides (Google: access_type=offline, to give a refresh token).
+  for (const [key, value] of Object.entries(metadata.authParams || {})) url.searchParams.set(key, String(value));
   return url.toString();
+}
+
+/**
+ * How a service that is not an MCP server logs people in, when the catalog says it (`oauth` of a native connector): the same shape as `discover` gives, with no resource and no
+ * registration (its client is the one made by hand). The addresses are checked as those of a service are.
+ */
+export function staticMetadata(oauth) {
+  return {
+    resource: '',
+    issuer: withoutTrailingSlash(assertPublicHttps(oauth.issuer, 'authorization server')),
+    authorizationEndpoint: assertPublicHttps(oauth.authorizationEndpoint, 'authorization address'),
+    tokenEndpoint: assertPublicHttps(oauth.tokenEndpoint, 'token address'),
+    registrationEndpoint: '',
+    revocationEndpoint: oauth.revocationEndpoint ? assertPublicHttps(oauth.revocationEndpoint, 'revocation address') : '',
+    cimd: false,
+    issuerInResponse: false,
+    authMethods: ['client_secret_post', 'client_secret_basic'],
+    scopes: [],
+    authParams: { ...(oauth.authParams || {}) }
+  };
 }
 
 async function tokenRequest(url, form, { clientSecret = '', auth = 'basic', fetchImpl, timeoutMs }) {

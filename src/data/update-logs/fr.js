@@ -1,6 +1,12 @@
 // The update notes in French (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.21.0": [
+    "<strong>Notes de version de Noureon 18.21.0</strong>",
+    "Cette version ajoute le connecteur Google.",
+    "<strong>Principaux changements</strong>",
+    "<ul><li><strong>Connecteur Google :</strong> la page Connecteurs a maintenant Google : connectez-vous une fois et le modèle peut lire votre Google Agenda, vos feuilles de calcul, documents, présentations, votre Drive et Gmail et, si vous l’autorisez, créer des événements, écrire dans des cellules, modifier des documents, ajouter des diapositives, créer et partager des fichiers, écrire des brouillons et envoyer des e-mails. La connexion proposée d’abord est « Lecture seule » ; pour que le modèle puisse modifier, passez la carte sur « Lecture et écriture » et reconnectez-vous. Vous réglez outil par outil s’il s’exécute, demande d’abord ou reste désactivé ; par défaut, toute action qui modifie quelque chose vous demande d’abord.</li><li><strong>Liste d’attente :</strong> le connecteur Google n’est ouvert pour l’instant qu’aux comptes invités. Si vous n’êtes pas sur la liste, vous voyez « Rejoindre la liste d’attente » sur la ligne Google ; en appuyant, nous sommes prévenus et nous vous répondrons à l’e-mail de votre compte à l’ouverture.</li></ul>"
+  ],
   "18.20.1": [
     "<strong>Notes de version de Noureon 18.20.1</strong>",
     "Cette version range la liste des fichiers sous une réponse faite en mode Avancé.",

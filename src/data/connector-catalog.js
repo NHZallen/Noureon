@@ -7,13 +7,79 @@ const LANGUAGES = Object.freeze(['zh-TW', 'en', 'fr', 'ru', 'es']);
 const ID = /^[a-z][a-z0-9-]{1,31}$/;
 
 /** The groups the list is shown in, in this order (the words are in the page's texts, `connectors.category.<id>`). */
-export const CONNECTOR_CATEGORIES = Object.freeze(['notes', 'design', 'dev']);
+export const CONNECTOR_CATEGORIES = Object.freeze(['office', 'notes', 'design', 'dev']);
 
 // `scopes`: what the login asks for. `readonly` and `readwrite` are the two kinds of login a person may choose when the service lets the login itself say
 // it (Linear: the scope `read` alone gives a token that cannot write); a service with only `readwrite` gives one token for everything, and what a reply
 // may do is then up to the person's settings for each tool (the page says so). `readOnlyService`: the service has nothing that changes anything.
 // `reads`/`writes`: the tools we know (the name the service gives). Anything else is judged by `toolKind` below.
 export const CONNECTORS = Object.freeze([
+  Object.freeze({
+    id: 'google',
+    name: 'Google',
+    category: 'office',
+    // Native: Noureon's server speaks to Google's own APIs (Calendar, Sheets, Docs, Slides, Drive, Gmail) by itself, not through an MCP server (server/mcp/native/google/;
+    // docs/superpowers/specs/2026-10-25-google-connector-design.md). The address is only the family of the service; where to log in is `oauth`.
+    native: 'google',
+    endpoint: 'https://www.googleapis.com/',
+    icon: 'https://github.com/google.png?size=96',
+    // Google has no registration of its own: Noureon is an OAuth client that the owner made in the Google Cloud console (its id and secret are in the server's environment,
+    // CONNECTOR_GOOGLE_CLIENT_ID and _SECRET). `authParams`: without access_type=offline Google gives no refresh token, and without prompt=consent it gives one only the first time.
+    oauth: Object.freeze({
+      issuer: 'https://accounts.google.com',
+      authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
+      tokenEndpoint: 'https://oauth2.googleapis.com/token',
+      revocationEndpoint: 'https://oauth2.googleapis.com/revoke',
+      authParams: Object.freeze({ access_type: 'offline', prompt: 'consent' })
+    }),
+    clientAuth: 'post',
+    // The login a person gets first is the read-only one; the other is chosen on the card (a new login).
+    defaultLogin: 'readonly',
+    // Only some accounts may connect for now (the application of Google is in testing, 100 people at most; the server's list is CONNECTOR_GOOGLE_ALLOWED: emails or account ids): the others ask for the waitlist.
+    waitlist: true,
+    scopes: Object.freeze({
+      readonly: Object.freeze([
+        'https://www.googleapis.com/auth/calendar.readonly',
+        'https://www.googleapis.com/auth/spreadsheets.readonly',
+        'https://www.googleapis.com/auth/documents.readonly',
+        'https://www.googleapis.com/auth/presentations.readonly',
+        'https://www.googleapis.com/auth/drive.readonly',
+        'https://www.googleapis.com/auth/gmail.readonly'
+      ]),
+      readwrite: Object.freeze([
+        'https://www.googleapis.com/auth/calendar',
+        'https://www.googleapis.com/auth/spreadsheets',
+        'https://www.googleapis.com/auth/documents',
+        'https://www.googleapis.com/auth/presentations',
+        'https://www.googleapis.com/auth/drive',
+        'https://www.googleapis.com/auth/gmail.modify',
+        'https://www.googleapis.com/auth/gmail.compose'
+      ])
+    }),
+    description: Object.freeze({
+      'zh-TW': '讀取與管理你的 Google 行事曆、試算表、文件、簡報、雲端硬碟與 Gmail。',
+      en: 'Read and manage your Google Calendar, Sheets, Docs, Slides, Drive and Gmail.',
+      fr: 'Lire et gérer votre Google Agenda, Sheets, Docs, Slides, Drive et Gmail.',
+      ru: 'Чтение и управление вашими Google Календарём, Таблицами, Документами, Презентациями, Диском и Gmail.',
+      es: 'Lee y gestiona tu Google Calendar, Hojas de cálculo, Documentos, Presentaciones, Drive y Gmail.'
+    }),
+    details: Object.freeze({
+      'zh-TW': '連接 Google 後（只要登入一次），模型可以讀取你的行事曆、試算表、文件、簡報、雲端硬碟檔案與 Gmail 郵件；在你允許時，也能新增與修改行事曆活動、寫入儲存格、編輯文件、新增投影片、建立檔案與資料夾、分享檔案、寫草稿與寄信。預設的登入是「唯讀連線」；要讓模型能修改，請把這張卡片切換成「可讀寫連線」並重新登入。每個工具要直接執行、先問你或停用，都能逐項設定，預設所有會改動內容的動作都會先問你。讀到的內容會成為這段對話的一部分。',
+      en: 'Once Google is connected (one login is enough), the model can read your calendar, spreadsheets, documents, presentations, Drive files and Gmail messages and, where you allow it, create and change calendar events, write cells, edit documents, add slides, create files and folders, share files, write drafts and send mail. The login you get first is "Read-only"; to let the model change things, switch this card to "Read and write" and log in again. You can set, tool by tool, whether it runs, asks you first or is off; by default every action that changes something asks you first. What is read becomes part of the conversation.',
+      fr: 'Une fois Google connecté (une seule connexion suffit), le modèle peut lire votre agenda, vos feuilles de calcul, documents, présentations, fichiers Drive et messages Gmail et, si vous l’autorisez, créer et modifier des événements, écrire dans des cellules, modifier des documents, ajouter des diapositives, créer des fichiers et des dossiers, partager des fichiers, écrire des brouillons et envoyer des e-mails. La connexion proposée d’abord est « Lecture seule » ; pour que le modèle puisse modifier, passez cette carte sur « Lecture et écriture » et reconnectez-vous. Vous réglez outil par outil s’il s’exécute, demande d’abord ou reste désactivé ; par défaut, toute action qui modifie quelque chose vous demande d’abord. Ce qui est lu fait partie de la conversation.',
+      ru: 'После подключения Google (достаточно одного входа) модель может читать ваш календарь, таблицы, документы, презентации, файлы на Диске и письма Gmail и, если вы разрешите, создавать и менять события, записывать данные в ячейки, редактировать документы, добавлять слайды, создавать файлы и папки, делиться файлами, писать черновики и отправлять письма. Сначала предлагается вход «Только чтение»; чтобы модель могла что-то менять, переключите эту карточку на «Чтение и запись» и войдите заново. Для каждого инструмента можно выбрать: выполнять, сначала спрашивать или отключить; по умолчанию любое действие, что-то меняющее, сначала спрашивает вас. Прочитанное становится частью разговора.',
+      es: 'Una vez conectado Google (basta un solo inicio de sesión), el modelo puede leer tu calendario, hojas de cálculo, documentos, presentaciones, archivos de Drive y mensajes de Gmail y, si lo permites, crear y cambiar eventos, escribir en celdas, editar documentos, añadir diapositivas, crear archivos y carpetas, compartir archivos, escribir borradores y enviar correos. El inicio de sesión que se ofrece primero es «Solo lectura»; para que el modelo pueda cambiar cosas, cambia esta tarjeta a «Lectura y escritura» e inicia sesión de nuevo. Puedes decidir herramienta por herramienta si se ejecuta, te pregunta antes o está desactivada; por defecto, toda acción que cambia algo te pregunta antes. Lo que se lee pasa a formar parte de la conversación.'
+    }),
+    examples: Object.freeze({
+      'zh-TW': Object.freeze(['我明天和這週有什麼行程？有空檔的話幫我排出三個適合開一小時會議的時段', '讀一下雲端硬碟裡「預算」那份試算表，算出每個月的總支出', '找出上週還沒讀、寄件人是客戶的郵件，整理成我還需要回覆的清單']),
+      en: Object.freeze(['What is on my calendar tomorrow and this week? Suggest three free slots for a one-hour meeting', 'Read the "Budget" spreadsheet in my Drive and add up the spending of each month', 'Find last week\'s unread mail from clients and make a list of the ones I still need to answer']),
+      fr: Object.freeze(['Qu’y a-t-il dans mon agenda demain et cette semaine ? Propose trois créneaux libres pour une réunion d’une heure', 'Lis la feuille de calcul « Budget » dans mon Drive et additionne les dépenses de chaque mois', 'Trouve les e-mails non lus de la semaine dernière envoyés par des clients et fais la liste de ceux auxquels je dois encore répondre']),
+      ru: Object.freeze(['Что у меня в календаре завтра и на этой неделе? Предложи три свободных окна для часовой встречи', 'Прочитай таблицу «Бюджет» на моём Диске и сложи расходы по каждому месяцу', 'Найди непрочитанные письма клиентов за прошлую неделю и составь список тех, на которые мне ещё нужно ответить']),
+      es: Object.freeze(['¿Qué tengo en el calendario mañana y esta semana? Propón tres huecos libres para una reunión de una hora', 'Lee la hoja de cálculo «Presupuesto» de mi Drive y suma los gastos de cada mes', 'Busca los correos de clientes sin leer de la semana pasada y haz una lista de los que aún tengo que responder'])
+    }),
+    reads: Object.freeze(['calendar_list_calendars', 'calendar_list_events', 'calendar_get_event', 'calendar_get_free_busy', 'sheets_get_spreadsheet', 'sheets_get_values', 'docs_get_document', 'slides_get_presentation', 'drive_search_files', 'drive_get_file', 'drive_read_file', 'gmail_search_messages', 'gmail_get_message', 'gmail_get_thread', 'gmail_list_labels']),
+    writes: Object.freeze(['calendar_create_event', 'calendar_update_event', 'calendar_delete_event', 'sheets_update_values', 'sheets_append_values', 'sheets_clear_values', 'sheets_add_sheet', 'sheets_create_spreadsheet', 'docs_create_document', 'docs_append_text', 'docs_replace_text', 'slides_create_presentation', 'slides_add_slide', 'slides_replace_text', 'drive_create_folder', 'drive_create_text_file', 'drive_rename_file', 'drive_move_file', 'drive_trash_file', 'drive_share_file', 'gmail_create_draft', 'gmail_send_message', 'gmail_modify_labels', 'gmail_trash_message'])
+  }),
   Object.freeze({
     id: 'notion',
     name: 'Notion',
@@ -363,6 +429,10 @@ export const connectorExamples = (connector, language) => [...(connector?.exampl
 export const hasReadonlyLogin = (connector) => Boolean(connector?.scopes?.readonly);
 /** The scopes to ask for: `mode` is 'readonly' or 'readwrite' (a service with no read-only login always gets the second). */
 export const loginScopes = (connector, mode) => [...(mode === 'readonly' && connector?.scopes?.readonly ? connector.scopes.readonly : connector?.scopes?.readwrite || [])];
+/** The login a person is offered first: the read-only one for a service that says so (`defaultLogin`), otherwise the one that reads and writes. */
+export const defaultLoginMode = (connector) => (connector?.defaultLogin === 'readonly' && hasReadonlyLogin(connector) ? 'readonly' : 'readwrite');
+/** Whether a connector is spoken to by our own code (not an MCP server): its tools are ours, and what a login for reading only allows is known to us. */
+export const isNativeConnector = (connector) => typeof connector?.native === 'string' && connector.native !== '';
 
 // A tool is a "read" only when it is one we know reads or its name is one that a reading tool of the services has (get, list, search, fetch, read, find ...).
 // A service may mark its own tools read only, but it can be wrong, so that mark is never trusted: what is not known to read is a "write", which by default asks.
@@ -394,6 +464,15 @@ export function connectorProblems(connector) {
   if (connector?.registration !== undefined && connector.registration !== 'dcr') problems.push('registration');
   if (connector?.clientAuth !== undefined && connector.clientAuth !== 'post') problems.push('clientAuth');
   if (!connector?.scopes?.readwrite) problems.push('scopes');
+  if (connector?.waitlist !== undefined && connector.waitlist !== true) problems.push('waitlist');
+  if (connector?.defaultLogin !== undefined && (connector.defaultLogin !== 'readonly' || !connector.scopes?.readonly)) problems.push('defaultLogin');
+  // A native connector says where its login is (https, public), and every tool it has is known to read or to write.
+  if (connector?.native !== undefined) {
+    const oauth = connector.oauth || {};
+    if (!/^[a-z][a-z0-9]{1,31}$/.test(String(connector.native))) problems.push('native');
+    if (!['issuer', 'authorizationEndpoint', 'tokenEndpoint'].every((key) => /^https:\/\/[^\s/]+(?:\/[^\s]*)?$/.test(String(oauth[key] || '')))) problems.push('oauth');
+    if (!Array.isArray(connector.reads) || !connector.reads.length || !Array.isArray(connector.writes) || !connector.writes.length) problems.push('reads and writes');
+  }
   if (!connector?.description || !LANGUAGES.every((language) => String(connector.description[language] || '').trim())) problems.push('description in the five languages');
   if (!connector?.details || !LANGUAGES.every((language) => String(connector.details[language] || '').trim())) problems.push('details in the five languages');
   if (!connector?.examples || !LANGUAGES.every((language) => Array.isArray(connector.examples[language]) && connector.examples[language].length === 3 && connector.examples[language].every((example) => String(example || '').trim()))) problems.push('three examples in the five languages');

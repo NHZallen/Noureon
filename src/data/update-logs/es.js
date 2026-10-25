@@ -1,6 +1,12 @@
 // The update notes in Spanish (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.21.0": [
+    "<strong>Notas de la versión de Noureon 18.21.0</strong>",
+    "Esta versión añade el conector de Google.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Conector de Google:</strong> la página de Conectores tiene ahora Google: inicia sesión una vez y el modelo puede leer tu Google Calendar, Hojas de cálculo, Documentos, Presentaciones, Drive y Gmail y, si lo permites, crear eventos, escribir en celdas, editar documentos, añadir diapositivas, crear y compartir archivos, escribir borradores y enviar correos. El inicio de sesión que se ofrece primero es «Solo lectura»; para que el modelo pueda cambiar cosas, cambia la tarjeta a «Lectura y escritura» e inicia sesión de nuevo. Puedes decidir herramienta por herramienta si se ejecuta, te pregunta antes o está desactivada; por defecto, toda acción que cambia algo te pregunta antes.</li><li><strong>Lista de espera:</strong> el conector de Google está abierto por ahora solo a cuentas invitadas. Si no estás en la lista, verás «Unirme a la lista de espera» en la fila de Google; al pulsarlo nos avisan y te responderemos al correo de tu cuenta cuando se abra.</li></ul>"
+  ],
   "18.20.1": [
     "<strong>Notas de la versión de Noureon 18.20.1</strong>",
     "Esta versión ordena la lista de archivos bajo una respuesta hecha en modo Avanzado.",

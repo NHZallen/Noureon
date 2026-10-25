@@ -6,6 +6,7 @@ import { loadConfig } from './config.js';
 import { createAssetSweeper } from './asset-sweeper.js';
 import { createCredentialStore } from './cli-credentials.js';
 import { createConnectorService, createDbClientStore } from './mcp/connections.js';
+import { createMailer } from './mailer.js';
 import { createKeyVault } from './key-vault.js';
 import { createLogger } from './log.js';
 import { LIMITS } from './protocol.js';
@@ -68,7 +69,7 @@ if (config.runsConfigured) {
     });
     const vault = createKeyVault(config.encryptionKeys);
     credentials = createCredentialStore({ db, vault });
-    connectors = createConnectorService({ db, vault, log, config: { preregistered: config.connectorPreregistered, redirectUri: config.connectorRedirectUri, cimdUrl: config.connectorClientId, identity: { clientUri: config.siteUrl, logoUri: `${config.siteUrl}/logo.png`, tosUri: `${config.siteUrl}/terms`, policyUri: `${config.siteUrl}/privacy` }, clientStore: createDbClientStore(db, vault) } });
+    connectors = createConnectorService({ db, vault, log, config: { allowed: config.connectorAllowed, mailer: createMailer({ apiKey: config.mailKey, from: config.mailFrom }), waitlistTo: config.waitlistTo, preregistered: config.connectorPreregistered, redirectUri: config.connectorRedirectUri, cimdUrl: config.connectorClientId, identity: { clientUri: config.siteUrl, logoUri: `${config.siteUrl}/logo.png`, tosUri: `${config.siteUrl}/terms`, policyUri: `${config.siteUrl}/privacy` }, clientStore: createDbClientStore(db, vault) } });
     runs = createRunManager({ store: createRunStore({ db, limits: LIMITS }), db, vault, sandbox, files, credentials, connectors, skills: createServerSkills({ db, bundles: skillBundles }), vision: { available: canDrawSlides, execute: executeVisionCheck, getKit: getFontKit }, limits: LIMITS, log });
   } catch (error) {
     log('config_error', { message: error.message });
