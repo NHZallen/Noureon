@@ -115,6 +115,7 @@ export async function followServerReply({ serverReply, now, setRunStartedAt, get
       if (outcome.run.sources?.length) reply.searchSources = outcome.run.sources;
     }
     reply.steersLeft = outcome.steersLeft || [];
+    reply.cut = outcome.segment || null;
     if (outcome.rewritten && targetElement?.dataset) targetElement.dataset.streamRendered = 'false';
     // The server may check the presentations of the reply too: the page then follows that check and makes none of its own.
     serverReply.noteVision?.(assistantMessageId, { vision: Boolean(serverRun.vision), visionRunId: outcome.visionRunId });

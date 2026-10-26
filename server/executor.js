@@ -84,7 +84,7 @@ export class ReplyError extends Error {
  * With CLI tools, `credentials` (server/cli-credentials.js) gives the person's secure credentials for them, and `netControl` is what the run manager
  * answers the person's questions about sites with (it is given the function that does so once the sandbox is there).
  */
-export async function executeReply({ spec, secrets, signal, steer = null, resume: resumeFrom = null, userId = '', sandboxHost = null, files = null, credentials = null, skills = null, connectors = null, netControl = null, credentialControl = null, connectorControl = null, imageControl = null, credentialWaitMs = 10 * 60 * 1000, knownSources = [], onPaused = () => {}, watching = () => false, onUpdate = () => {}, onLive = () => {}, onCheckpoint = async () => {}, onProblem = () => {}, fetchImpl = fetch, now = Date.now }) {
+export async function executeReply({ spec, secrets, signal, steer = null, onSegment = null, resume: resumeFrom = null, userId = '', sandboxHost = null, files = null, credentials = null, skills = null, connectors = null, netControl = null, credentialControl = null, connectorControl = null, imageControl = null, credentialWaitMs = 10 * 60 * 1000, knownSources = [], onPaused = () => {}, watching = () => false, onUpdate = () => {}, onLive = () => {}, onCheckpoint = async () => {}, onProblem = () => {}, fetchImpl = fetch, now = Date.now }) {
   const resume = spec.tools.advanced ? null : resumeFrom;
   const mode = spec.tools.webSearch;
   const language = spec.request.language;
@@ -106,30 +106,74 @@ export async function executeReply({ spec, secrets, signal, steer = null, resume
     ...(sources.length ? { sources } : {}),
     ...(usedConnectors.size ? { connectors: [...usedConnectors.values()] } : {}),
     ...(pictureSteps().length ? { pictures: pictureSteps() } : {}),
-    ...(steered().length ? { steers: steered() } : {}),
     ...(thought.text ? { thought: thought.text, thoughtKind: thought.kind, ...(thought.first && thought.last > thought.first ? { thoughtMs: thought.last - thought.first } : {}) } : {})
   });
   // What the step list showed of the pictures looked at, chosen and drawn (server/image-tool.js): kept with the reply.
-  const pictureSteps = () => imageLoader?.record || [];
-  // What the person added that the model has been given (reply/steer-queue.js): kept with the reply as rows of its process.
-  const steered = () => (steer ? steer.taken().map(({ text }) => ({ text })) : []);
-  const messageText = (status) => `${sources.length || thought.text || usedConnectors.size || pictureSteps().length || steered().length ? formatSandboxRunBlock(record(status)) : ''}${answer}`;
+  // (After a cut, only what came after it: the earlier message keeps its own.)
+  let pictureBase = 0;
+  const pictureSteps = () => (imageLoader?.record || []).slice(pictureBase);
+  const messageText = (status) => `${sources.length || thought.text || usedConnectors.size || pictureSteps().length ? formatSandboxRunBlock(record(status)) : ''}${answer}`;
   // The pictures the text model drew by itself (server/image-tool.js), as parts of the message.
   const drawnParts = [];
   // Where in the answer each picture was kept, so that the message reads "words, picture, words" (data/picture-interleave.js).
   const drawnAt = [];
   const withPictures = (text, tail = []) => [...placePictures(text, drawnParts, drawnAt), ...tail];
+  const withPicturesOf = (snapshot, text, tail = []) => [...placePictures(text, snapshot.pictures, snapshot.at), ...tail];
   const update = () => onUpdate(withPictures(messageText('running')));
   // The times every page shows come from here, so they agree: how long the reply has been going, and how long it thought.
   let thoughtClosed = false;
   onLive({ r: { answer, thought: { text: thought.text, kind: thought.kind, ms: 0, ended: false }, sources, elapsedMs: now() - startedAt } });
+
+  // The messages the person adds while the reply works are taken at the boundaries of its loops (reply/steer-queue.js). The reply is cut there: what it has done so far is written
+  // as a message of its own (its process line, with the files its steps made), the person's messages come after it, and the rest of the reply is written into a new message
+  // (server/runs.js does the writing, `onSegment`). What a message holds is only what happened in it, except the pages found, which the answer's [n] cite.
+  let stepBase = 0;
+  const cloneStep = (step) => ({ ...step, files: (step.files || []).map((file) => ({ ...file })) });
+  if (steer && onSegment) {
+    steer.setBatchHandler((items, context) => {
+      const steps = Array.isArray(context.steps) ? context.steps.slice(stepBase).map(cloneStep) : null;
+      const snapshot = { rec: { ...record('done'), segment: true }, answer, pictures: [...drawnParts], at: [...drawnAt] };
+      if (steps) snapshot.rec.steps = steps;
+      const finishing = (async () => {
+        if (steps) {
+          try {
+            const finished = await finishAdvancedReply({ result: { text: snapshot.answer }, run: snapshot.rec, userId, files });
+            return withPicturesOf(snapshot, finished.text, finished.parts);
+          } catch (error) {
+            onProblem('segment_files_failed', error);
+          }
+        }
+        return withPicturesOf(snapshot, `${formatSandboxRunBlock(snapshot.rec)}${snapshot.answer}`, []);
+      })();
+      if (steps) stepBase = context.steps.length;
+      answer = '';
+      thought.text = '';
+      thought.first = null;
+      thought.last = null;
+      thoughtClosed = false;
+      trimStart = true;
+      usedConnectors.clear();
+      drawnParts.length = 0;
+      drawnAt.length = 0;
+      pictureBase = imageLoader?.record?.length || 0;
+      startedAt = now();
+      onLive({ r: { answer, thought: { text: '', kind: thought.kind, ms: 0, ended: false }, sources, elapsedMs: 0 } });
+      onSegment({ items, finishing });
+    });
+  }
 
   const addSources = (found) => {
     sources = addNumberedSources(sources, found);
     onLive({ src: sources });
     update();
   };
+  // The words of the loop after a cut begin after the blank lines that parted them from the words before (they are in the message before).
+  let trimStart = false;
   const onChunk = (chunk) => {
+    if (trimStart) {
+      chunk = String(chunk || '').replace(/^\s+/, '');
+      if (chunk) trimStart = false;
+    }
     if (!chunk) return;
     // The first words of the answer end the thinking: that is the moment the time it thought is taken.
     if (!thoughtClosed && thought.text && thought.first) {
@@ -536,7 +580,7 @@ export async function executeReply({ spec, secrets, signal, steer = null, resume
 
   if (advanced) {
     const stopped = Boolean(signal?.aborted) || advanced.run?.status === RUN_STATUS.stopped;
-    const run = advanced.run || (sources.length || usedConnectors.size || pictureSteps().length || steered().length ? { status: RUN_STATUS.done, steps: [] } : null);
+    const run = advanced.run || (sources.length || usedConnectors.size || pictureSteps().length ? { status: RUN_STATUS.done, steps: [] } : null);
     if (!run || (!advanced.text.trim() && !run.steps.length && !run.thought)) {
       if (!advanced.text.trim() && !sources.length && !drawnParts.length) {
         if (stopped) return { parts: [{ text: '' }], status: 'stopped', run: record('stopped'), toolCalls, rounds: advanced.rounds };
@@ -548,7 +592,8 @@ export async function executeReply({ spec, secrets, signal, steer = null, resume
     if (sources.length) run.sources = sources;
     if (usedConnectors.size) run.connectors = [...usedConnectors.values()];
     if (pictureSteps().length) run.pictures = pictureSteps();
-    if (steered().length) run.steers = steered();
+    // Python's steps are the whole reply's: what an earlier message of it already shows is not shown again.
+    if (stepBase > 0) run.steps = run.steps.slice(stepBase);
     run.elapsedMs = now() - startedAt;
     if (stopped) run.status = RUN_STATUS.stopped;
     toolCalls = run.steps.length;

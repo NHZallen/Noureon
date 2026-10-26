@@ -3,80 +3,124 @@ import test from 'node:test';
 
 import { Window } from 'happy-dom';
 
-import { createSteerBubbles, steerBubblesHTML } from '../src/app/ui/sandbox/steer-bubbles.js';
+import { createPendingSteers } from '../src/app/ui/sandbox/steer-bubbles.js';
 import { formatSandboxRunBlock, liftSandboxRunBlock, normalizeSandboxRun, summarizeSandboxRunText } from '../src/app/ui/sandbox/sandbox-run-block.js';
 import { createSandboxRunElement } from '../src/app/ui/sandbox/sandbox-run-view.js';
+import { mergeAdjacentModelMessages } from '../src/app/runtime/reply/stream-api-call.js';
+import { replyCut } from '../src/app/runtime/reply/reply-cut.js';
 
 const setup = () => {
   const window = new Window();
   const { document } = window;
-  const message = document.createElement('div');
-  const answer = document.createElement('div');
-  answer.className = 'message-content';
-  message.append(answer);
-  document.body.append(message);
-  window.URL.createObjectURL = () => 'blob:test';
-  window.URL.revokeObjectURL = () => {};
-  return { window, document, message, answer };
+  const list = document.createElement('div');
+  const reply = document.createElement('div');
+  reply.className = 'message-item model-message';
+  list.append(reply);
+  document.body.append(list);
+  return { window, document, list, reply };
 };
 
-test('the run record keeps what the person added: cleaned, cut, at most twenty, none that is empty', () => {
-  const run = normalizeSandboxRun({ status: 'done', steps: [], steers: [{ text: '  use \n a table ' }, { text: '   ' }, { nothing: true }, { text: 'x'.repeat(400) }, ...Array.from({ length: 30 }, (_, i) => ({ text: `more ${i}` }))] });
-  assert.equal(run.steers.length, 20);
-  assert.equal(run.steers[0].text, 'use a table');
-  assert.equal(run.steers[1].text.length, 300);
-  assert.equal('steers' in normalizeSandboxRun({ status: 'done', steps: [], steers: [] }), false, 'nothing when there is nothing');
-  const { run: lifted } = liftSandboxRunBlock(`${formatSandboxRunBlock(run)}Answer`);
-  assert.deepEqual(lifted.steers, run.steers, 'kept in the saved text');
-});
-
-test('a later turn is told the reply was steered, in the words of the person, and not the other way round', () => {
-  const text = `${formatSandboxRunBlock({ status: 'done', steps: [], steers: [{ text: 'make it a table' }, { text: 'in French' }] })}The answer.`;
-  const summary = summarizeSandboxRunText(text);
-  assert.match(summary, /While this reply was being made the user added: "make it a table"; "in French"/);
-  assert.ok(summary.endsWith('The answer.'));
-  assert.equal(summarizeSandboxRunText(`${formatSandboxRunBlock({ status: 'done', steps: [] })}The answer.`), 'The answer.', 'nothing added when nothing was');
-});
-
-test('the live reply draws a bubble like the person\'s own for each message put into it, at once, above the reply, and takes the faded look off when the model has seen it', () => {
-  const { window, document } = setup();
+test('a message the reply has not taken yet is a faded bubble like the person\'s own, under the reply, in the order they came, and goes when it is taken', () => {
+  const { window, document, list, reply } = setup();
   try {
-    const stack = document.createElement('div');
-    stack.className = 'message-stack message-stack-model';
-    stack.innerHTML = '<div class="message-bubble"><div class="message-content"></div></div>';
-    document.body.append(stack);
-    const bubbles = createSteerBubbles({ document, place: () => stack });
-    bubbles.add({ text: 'make it a table', pending: true });
-    bubbles.add({ text: 'in <French>', pending: true });
-    const items = [...stack.children];
+    const pending = createPendingSteers({ document, place: () => reply });
+    assert.equal(pending.add({ id: 'a', text: 'make it a table' }), true);
+    assert.equal(pending.add({ id: 'b', text: 'in <French>' }), true);
+    const items = [...list.children];
     assert.equal(items.length, 3);
-    assert.ok(items[0].classList.contains('user-message') && items[1].classList.contains('user-message'), 'in the order they came, in front of the reply\'s own bubble');
-    assert.ok(items[2].querySelector('.message-content') && !items[2].classList.contains('user-message'));
-    assert.equal(items[0].querySelector('.message-bubble .message-content').textContent, 'make it a table');
-    assert.equal(items[1].querySelector('.message-content').textContent, 'in <French>', 'the words are text, not markup');
-    assert.equal(items[0].classList.contains('is-pending'), true);
-    assert.equal(bubbles.seen('make it a table'), true);
-    assert.equal(items[0].classList.contains('is-pending'), false);
-    assert.equal(items[1].classList.contains('is-pending'), true);
-    assert.equal(bubbles.seen('never sent'), false);
-    bubbles.remove();
-    assert.equal(stack.children.length, 1);
+    assert.equal(items[0], reply);
+    assert.ok(items[1].classList.contains('user-message') && items[1].classList.contains('is-pending'));
+    assert.equal(items[1].querySelector('.message-content').textContent, 'make it a table');
+    assert.equal(items[2].querySelector('.message-content').textContent, 'in <French>', 'the words are text, not markup');
+    assert.equal(pending.has('a'), true);
+    assert.deepEqual(pending.remove(['a']), ['make it a table']);
+    assert.equal(list.children.length, 2);
+    assert.deepEqual(pending.remove(), ['in <French>']);
+    assert.equal(list.children.length, 1);
+    assert.equal(createPendingSteers({ document, place: () => null }).add({ id: 'c', text: 'x' }), false, 'nowhere to put it');
   } finally {
     window.happyDOM.abort();
   }
 });
 
-test('the saved reply has the same bubbles, made from its run record', () => {
-  const html = steerBubblesHTML(normalizeSandboxRun({ status: 'done', steps: [], steers: [{ text: 'make it a table' }, { text: 'a <b>' }] }).steers);
-  assert.equal((html.match(/user-message steer-message/g) || []).length, 2);
-  assert.match(html, /make it a table/);
-  assert.match(html, /a &lt;b&gt;/);
-  assert.equal(steerBubblesHTML(undefined), '');
-  const { window, document } = setup();
+test('after a cut the person\'s messages become messages of the conversation (once), their bubbles go, and the reply is followed in the new message', async () => {
+  const { window, document, list, reply } = setup();
   try {
-    const run = normalizeSandboxRun({ status: 'done', steps: [], elapsedMs: 9000, steers: [{ text: 'make it a table' }] });
-    assert.doesNotMatch(createSandboxRunElement(document, run, { language: 'en' })?.textContent || '', /make it a table/, 'not inside the process list');
+    const added = [];
+    const conversation = { messages: [{ id: 'u0', role: 'user', parts: [{ text: 'go' }] }, { id: 'r1', role: 'model', parts: [{ text: '' }] }] };
+    replyCut.configure({
+      document,
+      addMessageToUI: (message, index, shouldSave, shouldScroll, options) => {
+        assert.equal(index, conversation.messages.length);
+        assert.equal(options.conversation, conversation);
+        if (shouldSave) options.conversation.messages.push(message);
+        added.push(message);
+      },
+      now: () => '2026-10-26T00:00:00.000Z'
+    });
+    replyCut.pending.setPlace(() => reply);
+    replyCut.pending.add({ id: 's1', text: 'make it a table' });
+    replyCut.pending.add({ id: 's2', text: 'later one' });
+    const followed = [];
+    const run = { inMessage: (id) => ({ forMessage: id }) };
+    const result = await replyCut.continueAfterCut({
+      conversation,
+      cut: { next: 'r2', sequence: 4, users: [{ id: 's1', text: 'make it a table', sequence: 2 }] },
+      serverRun: run,
+      abortController: 'controller',
+      continueReply: async (conv, followedRun, controller) => {
+        followed.push([conv, followedRun, controller]);
+        // The follower draws the message the reply goes on in before it first waits.
+        const loading = document.createElement('div');
+        loading.className = 'message-item model-message';
+        list.append(loading);
+        Object.defineProperty(conv, '__astraPendingResponse', { configurable: true, value: { loadingMessageDiv: loading } });
+        return true;
+      }
+    });
+    assert.equal(result, true);
+    assert.deepEqual(conversation.messages.map((message) => message.id), ['u0', 'r1', 's1']);
+    assert.deepEqual(conversation.messages[2].metadata, { steer: true });
+    assert.deepEqual(followed, [[conversation, { forMessage: 'r2' }, 'controller']]);
+    assert.equal(replyCut.pending.has('s1'), false, 'the bubble of the message that was taken is gone');
+    assert.equal(replyCut.pending.has('s2'), true, 'the one that was not stays');
+    assert.equal(list.children.length, 3, 'the reply, the message it goes on in, and under that what was not taken');
+    assert.equal(list.children[1].classList.contains('model-message'), true);
+    assert.equal(list.children[2].dataset.steerId, 's2');
+    await replyCut.continueAfterCut({ conversation, cut: { next: 'r3', sequence: 5, users: [{ id: 's1', text: 'make it a table', sequence: 2 }] }, serverRun: run, abortController: null, continueReply: async () => true });
+    assert.equal(added.length, 1, 'a message the page has already is not made twice');
+    replyCut.pending.remove();
   } finally {
     window.happyDOM.abort();
   }
+});
+
+test('a message that was cut keeps its process line, which is drawn even when it has only the time', () => {
+  const run = normalizeSandboxRun({ status: 'done', steps: [], elapsedMs: 32_000, segment: true });
+  assert.equal(run.segment, true);
+  assert.equal(normalizeSandboxRun({ status: 'done', steps: [] }).segment, undefined);
+  const { window, document } = setup();
+  try {
+    const view = createSandboxRunElement(document, run, { language: 'en' });
+    assert.ok(view.querySelector('summary'), 'a line that opens');
+    const { run: lifted } = liftSandboxRunBlock(`${formatSandboxRunBlock(run)}`);
+    assert.equal(lifted.segment, true, 'kept in the saved text');
+  } finally {
+    window.happyDOM.abort();
+  }
+});
+
+test('for the model, a message with only its process is left out and what the person added joins their message before it', () => {
+  const merged = mergeAdjacentModelMessages([
+    { role: 'user', parts: [{ text: 'make a deck' }] },
+    { role: 'model', parts: [{ text: summarizeSandboxRunText(`${formatSandboxRunBlock({ status: 'done', steps: [], segment: true })}`) }] },
+    { role: 'user', parts: [{ text: 'make it five pages' }], metadata: { steer: true } },
+    { role: 'user', parts: [{ text: 'and in French' }], metadata: { steer: true } },
+    { role: 'model', parts: [{ text: 'Here it is.' }] },
+    { role: 'user', parts: [{ text: 'thanks' }] },
+    { role: 'user', parts: [{ text: 'a second message that is not a steer' }] }
+  ]);
+  assert.deepEqual(merged.map((message) => message.role), ['user', 'model', 'user', 'user']);
+  assert.equal(merged[0].parts.map((part) => part.text).join(''), 'make a deck\n\nmake it five pages\n\nand in French');
+  assert.equal(merged[3].parts[0].text, 'a second message that is not a steer', 'messages that are not steers are left as they were');
 });

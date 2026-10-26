@@ -24,6 +24,36 @@ export function createServerReplyReattach({
 }) {
   let reattaching = false;
 
+  // The reply the server is making, shown in the message it writes now: the half-written copy of the message the cloud gave this page is taken out, a place-holder stands
+  // in its place, and the reply is followed to its end and kept like any other. `abortController` is the person's way to stop it.
+  const followRun = async (conv, run, abortController) => {
+    const others = conv.messages.filter((message) => message.id !== run.assistantMessageId);
+    const userMessageObject = others.at(-1);
+    if (userMessageObject?.role !== 'user') return false;
+    conv.messages.splice(0, conv.messages.length, ...others);
+    [...messageList().children].find((element) => element.__astraRenderedMessage?.id === run.assistantMessageId)?.remove();
+    setAbortController(abortController);
+    setSubmitBusy(true);
+    // A picture the server is making is waited for under the same place-holder the page draws when it makes one itself.
+    const loadingParts = run.kind === 'image' ? [{ imageGenerationLoading: true, imageAspectRatio: conv.imageConfig?.aspectRatio || '1:1', imageCount: Number(conv.imageAdvancedConfig?.n) || 1, imageStartedAt: run.startedAt || now() }] : [{ text: '...' }];
+    const loadingMessageDiv = addMessageToUI({ role: 'model', parts: loadingParts, createdAt: new Date().toISOString() }, conv.messages.length, false, true, { conversation: conv });
+    Object.defineProperty(conv, '__astraPendingResponse', { configurable: true, value: { loadingMessageDiv } });
+    loadingMessageDiv.scrollIntoView?.({ behavior: 'smooth', block: 'end' });
+    await completeReply({
+      abortController,
+      contentDiv: loadingMessageDiv.querySelector('.message-content') || loadingMessageDiv,
+      conversation: conv,
+      loadingMessageDiv,
+      // A council the server is holding is followed as the page's own would be (the panel, then the answer as it is written).
+      responseUsesCouncil: run.kind === 'council',
+      webSearchEnabled: false,
+      userMessage: (userMessageObject.parts || []).map((part) => part.text || '').join(''),
+      userMessageObject,
+      userParts: []
+    }, { resumeRun: run });
+    return true;
+  };
+
   const reattachServerReply = async () => {
     const conv = getActiveConversation();
     if (!conv || reattaching || getAbortController() || conv.__astraPendingResponse) return false;
@@ -54,32 +84,7 @@ export function createServerReplyReattach({
         void followResearch({ run, conversation: conv });
         return true;
       }
-      const others = conv.messages.filter((message) => message.id !== run.assistantMessageId);
-      const userMessageObject = others.at(-1);
-      if (userMessageObject?.role !== 'user') return false;
-      conv.messages.splice(0, conv.messages.length, ...others);
-      [...messageList().children].find((element) => element.__astraRenderedMessage?.id === run.assistantMessageId)?.remove();
-      const abortController = new AbortController();
-      setAbortController(abortController);
-      setSubmitBusy(true);
-      // A picture the server is making is waited for under the same place-holder the page draws when it makes one itself.
-      const loadingParts = run.kind === 'image' ? [{ imageGenerationLoading: true, imageAspectRatio: conv.imageConfig?.aspectRatio || '1:1', imageCount: Number(conv.imageAdvancedConfig?.n) || 1, imageStartedAt: run.startedAt || now() }] : [{ text: '...' }];
-      const loadingMessageDiv = addMessageToUI({ role: 'model', parts: loadingParts, createdAt: new Date().toISOString() }, conv.messages.length, false, true, { conversation: conv });
-      Object.defineProperty(conv, '__astraPendingResponse', { configurable: true, value: { loadingMessageDiv } });
-      loadingMessageDiv.scrollIntoView?.({ behavior: 'smooth', block: 'end' });
-      await completeReply({
-        abortController,
-        contentDiv: loadingMessageDiv.querySelector('.message-content') || loadingMessageDiv,
-        conversation: conv,
-        loadingMessageDiv,
-        // A council the server is holding is followed as the page's own would be (the panel, then the answer as it is written).
-        responseUsesCouncil: run.kind === 'council',
-        webSearchEnabled: false,
-        userMessage: (userMessageObject.parts || []).map((part) => part.text || '').join(''),
-        userMessageObject,
-        userParts: []
-      }, { resumeRun: run });
-      return true;
+      return await followRun(conv, run, new AbortController());
     } finally {
       reattaching = false;
     }
@@ -103,5 +108,5 @@ export function createServerReplyReattach({
   // The cloud sync may take a while to be ready after the page opens: look again a few times.
   for (const delay of [1000, 2500, 5000, 9000, 15000, 25000, 40000, 60000]) scheduleTimeout(() => scheduleLook(0), delay);
 
-  return { reattachServerReply };
+  return { reattachServerReply, continueReply: followRun };
 }

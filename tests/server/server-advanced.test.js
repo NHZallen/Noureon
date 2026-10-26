@@ -6,6 +6,7 @@ import { executeReply, ReplyError } from '../../server/executor.js';
 import { liftSandboxRunBlock } from '../../src/app/ui/sandbox/sandbox-run-block.js';
 import { OFFICIAL_CLI_CATALOG, validateCliManifest } from '../../src/data/cli-catalog.js';
 import { validateRunSpec } from '../../server/run-spec.js';
+import { createSteerQueue } from '../../src/app/runtime/reply/steer-queue.js';
 
 const KEY = 'sk-provider-secret-value';
 const USER = '323e4567-e89b-12d3-a456-426614174002';
@@ -117,6 +118,50 @@ test('a reply with Python: the model\'s code runs in the sandbox, its files are 
   assert.ok(first.tools.some((tool) => tool.function.name === 'run_python'));
   assert.match(JSON.stringify(first.messages), /on the server/);
   assert.doesNotMatch(JSON.stringify(first.messages), /Pyodide/);
+});
+
+test('a reply with Python is cut where the person\'s message is taken: the steps so far and their files are a message of their own, and the rest only has the steps that came after', async () => {
+  const host = fakeHost([
+    { stdout: 'one\n', files: [{ name: 'a.txt', size: 3, bytes: new TextEncoder().encode('aaa') }] },
+    { stdout: 'two\n', files: [{ name: 'b.txt', size: 3, bytes: new TextEncoder().encode('bbb') }] }
+  ]);
+  const files = fakeFiles();
+  const steer = createSteerQueue({});
+  const segments = [];
+  let round = 0;
+  const result = await executeReply({
+    spec: specFor(),
+    secrets,
+    userId: USER,
+    sandboxHost: host,
+    files,
+    steer,
+    onSegment: (segment) => segments.push(segment),
+    fetchImpl: async () => {
+      round += 1;
+      if (round === 1) {
+        steer.push('make it blue', 'steer-1');
+        return streamResponse(sse(toolCall('call_1', 'run_python', { title: 'Step one', note: 'One.', code: 'print("one")' })));
+      }
+      return streamResponse(round === 2
+        ? sse(toolCall('call_2', 'run_python', { title: 'Step two', note: 'Two.', code: 'print("two")' }))
+        : sse(content('Done.')));
+    }
+  });
+  assert.equal(segments.length, 1);
+  assert.deepEqual(segments[0].items.map((item) => item.id), ['steer-1']);
+  const first = await segments[0].finishing;
+  const { run: firstRun } = liftSandboxRunBlock(first[0].text);
+  assert.equal(firstRun.segment, true);
+  assert.deepEqual(firstRun.steps.map((step) => step.title), ['Step one']);
+  assert.deepEqual(first.slice(1).map((part) => part.sandboxFile.name), ['a.txt'], 'the file made before the cut is in the message before it');
+  assert.equal(firstRun.steps[0].files[0].id, first[1].sandboxFile.id);
+  const [text, ...fileParts] = result.parts;
+  const { run, text: answer } = liftSandboxRunBlock(text.text);
+  assert.equal(answer, 'Done.');
+  assert.deepEqual(run.steps.map((step) => step.title), ['Step two'], 'only the steps after the cut');
+  assert.deepEqual(fileParts.map((part) => part.sandboxFile.name), ['b.txt']);
+  assert.equal(run.segment, undefined);
 });
 
 test('the files of the conversation are what the code finds in /input', async () => {

@@ -22,6 +22,7 @@ import { createVisionCheckScheduler } from '../features/vision-check-scheduler.j
 import { getSearchProvider } from '../kernel/search-provider.js';
 import { stopReplyAndWait } from '../features/reply-stop.js';
 import { createServerReplyReattach } from '../server-reply/reattach.js';
+import { replyCut } from '../reply/reply-cut.js';
 import { createResearchMode } from '../research/research-mode.js';
 import { setVisionLocked } from '../features/vision-check-lock.js';
 import { visionText } from '../../ui/files/vision/vision-texts.js';
@@ -422,6 +423,10 @@ export function createSubmitInputCouncilLifecycle(dependencies = {}) {
 
     // The reply's message id comes first: the server writes under it.
     const assistantMessageId = resumeRun?.assistantMessageId || crypto.randomUUID();
+    // The reply was cut where the server took a message of the person's: it goes on in a new message, followed below (reply-cut.js).
+    let cut = null;
+    let cutRun = null;
+    let continued = false;
     try {
       let fullResponse = '';
       const finalAiMessage = { id: assistantMessageId, role: 'model', parts: [{ text: '' }], createdAt: new Date().toISOString() };
@@ -497,6 +502,8 @@ export function createSubmitInputCouncilLifecycle(dependencies = {}) {
           pictureOffsets = singleResult.pictureOffsets || [];
           viewResponse = singleResult.viewResponse ?? null;
           picturesShown = Boolean(singleResult.picturesShown);
+          cut = singleResult.cut;
+          cutRun = singleResult.serverRun;
         }
       }
 
@@ -544,6 +551,15 @@ export function createSubmitInputCouncilLifecycle(dependencies = {}) {
       if (historySourceConversationIds.size > 0) {
         replaceHistorySourceMessage({ finalAiMessage, loadingMessageDiv, refreshMessageHistorySources });
       }
+      if (cut && cutRun) {
+        continued = true;
+        try {
+          if (await replyCut.continueAfterCut({ conversation: conv, cut, serverRun: cutRun, abortController: submitAbortController, continueReply: (...args) => continueReply(...args) }) !== false) return;
+        } catch (error) {
+          logger?.warn?.('Following the reply after it was cut failed.', error);
+        }
+        continued = false;
+      }
     } catch (error) {
       await persistAssistantResponseError({
         error,
@@ -560,37 +576,41 @@ export function createSubmitInputCouncilLifecycle(dependencies = {}) {
         messageId: error?.serverRun ? assistantMessageId : null
       });
     } finally {
-      if (conv.__astraPendingResponse?.loadingMessageDiv === loadingMessageDiv) {
-        delete conv.__astraPendingResponse;
+      // A reply that was cut went on in the next message, which has cleaned up.
+      if (!continued) {
+        if (conv.__astraPendingResponse?.loadingMessageDiv === loadingMessageDiv) {
+          delete conv.__astraPendingResponse;
+        }
+        const nothingSent = submitAbortController.signal.aborted && conv.messages.at(-1)?.role === 'user';
+        if (nothingSent) {
+          loadingMessageDiv?.remove();
+        } else {
+          // The models this message went to are offered first next time.
+          noteConversationModels(conv).catch(() => {});
+        }
+        const lastMessageElement = runSubmitFinalCleanupLifecycle(
+          () => singleModelResponseLifecycle.stop(),
+          () => { setIsCouncilRunning(false); setAbortController(null); },
+          (...args) => updateSubmitButtonState(...args),
+          (...args) => updateInputState(...args),
+          renderCouncilControls,
+          renderInputIndicators,
+          () => getActiveConversation()?.id === conv.id ? ALL_ELEMENTS.messageList.lastElementChild : null
+        );
+        applyModelMessagePostResponseActions({
+          lastMessageElement,
+          conversation: conv,
+          i18n,
+          uiLanguage: getLiveConfig().uiLanguage,
+          formatTimestamp: formatFullTimestamp
+        });
       }
-      const nothingSent = submitAbortController.signal.aborted && conv.messages.at(-1)?.role === 'user';
-      if (nothingSent) {
-        loadingMessageDiv?.remove();
-      } else {
-        // The models this message went to are offered first next time.
-        noteConversationModels(conv).catch(() => {});
-      }
-      const lastMessageElement = runSubmitFinalCleanupLifecycle(
-        () => singleModelResponseLifecycle.stop(),
-        () => { setIsCouncilRunning(false); setAbortController(null); },
-        (...args) => updateSubmitButtonState(...args),
-        (...args) => updateInputState(...args),
-        renderCouncilControls,
-        renderInputIndicators,
-        () => getActiveConversation()?.id === conv.id ? ALL_ELEMENTS.messageList.lastElementChild : null
-      );
-      applyModelMessagePostResponseActions({
-        lastMessageElement,
-        conversation: conv,
-        i18n,
-        uiLanguage: getLiveConfig().uiLanguage,
-        formatTimestamp: formatFullTimestamp
-      });
     }
   };
 
   // A reply the server is still making is shown when the page opens (reattach.js).
-  const { reattachServerReply } = createServerReplyReattach({
+  replyCut.configure({ document, addMessageToUI });
+  const { reattachServerReply, continueReply } = createServerReplyReattach({
     getActiveConversation,
     getAbortController,
     setAbortController,

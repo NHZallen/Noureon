@@ -295,7 +295,7 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
         const user = await authenticate(request);
         if (!runs) throw new RequestError(ERROR_CODES.runsUnavailable, 'Replies on the server are not set up yet.');
         const body = await readJson(request, 16 * 1024, { optional: true });
-        const result = runs.control({ userId: user.id, runId: runPath[1], action: runPath[2].slice(1), payload: { instruction: typeof body?.instruction === 'string' ? body.instruction : (typeof body?.text === 'string' ? body.text : '') } });
+        const result = runs.control({ userId: user.id, runId: runPath[1], action: runPath[2].slice(1), payload: { instruction: typeof body?.instruction === 'string' ? body.instruction : (typeof body?.text === 'string' ? body.text : ''), id: typeof body?.id === 'string' ? body.id.slice(0, 64) : '' } });
         if (!result.ok) {
           if (result.reason === 'wrong_phase') throw new RequestError(ERROR_CODES.wrongPhase, 'The research is not at a stage where that can be done.');
           if (result.reason === 'unsupported') throw new RequestError(ERROR_CODES.wrongPhase, 'This reply cannot take a message while it is made.');

@@ -5,32 +5,40 @@
 export const MAX_STEERS = 20;
 export const MAX_STEER_CHARS = 2000;
 
-/** `onTaken({ text, at })` is told for each message when it is taken (the live view shows where the model saw it). */
+/**
+ * `onTaken({ text, at, id })` is told for each message when it is taken. `setBatchHandler(fn)`: `fn(items, context)` is told once for the messages one boundary took (the server cuts the
+ * reply there and starts the next message), with what the loop that took them gave (the steps it has run so far).
+ */
 export function createSteerQueue({ onTaken = () => {}, now = Date.now } = {}) {
   const pending = [];
   const taken = [];
   let supported = false;
+  let batchHandler = null;
   return {
+    setBatchHandler(handler) {
+      batchHandler = typeof handler === 'function' ? handler : null;
+    },
     /** A loop with boundaries (it takes the messages) is running: until it says so, a message has nowhere to go. */
     support() {
       supported = true;
     },
     supported: () => supported,
     /** True when the message was kept (false for an empty one, or when this reply has had its share of them). */
-    push(text) {
+    push(text, id = '') {
       const value = String(text ?? '').trim().slice(0, MAX_STEER_CHARS);
       if (!value || pending.length + taken.length >= MAX_STEERS) return false;
-      pending.push({ text: value, at: now() });
+      pending.push({ text: value, at: now(), ...(id ? { id: String(id) } : {}) });
       return true;
     },
     has: () => pending.length > 0,
     /** The texts waiting, in the order they came; they are no longer waiting. */
-    take() {
+    take(context = {}) {
       const items = pending.splice(0);
       for (const item of items) {
         taken.push(item);
         onTaken(item);
       }
+      if (items.length && batchHandler) batchHandler(items.map((item) => ({ ...item })), context);
       return items.map((item) => item.text);
     },
     /** What was taken: [{ text, at }]. */
@@ -41,8 +49,8 @@ export function createSteerQueue({ onTaken = () => {}, now = Date.now } = {}) {
 }
 
 /** The field of a round of tool answers that carries what the person added (nothing when nothing was added). */
-export const steerTurnFields = (steer) => {
-  const texts = steer?.take?.() ?? [];
+export const steerTurnFields = (steer, context = {}) => {
+  const texts = steer?.take?.(context) ?? [];
   return texts.length ? { steer: texts } : {};
 };
 

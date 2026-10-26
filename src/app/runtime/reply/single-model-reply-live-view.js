@@ -11,7 +11,6 @@ import { createSandboxLedger } from '../../ui/sandbox/sandbox-ledger.js';
 import { createThinkingBlock } from '../../ui/thinking/thinking-block.js';
 import { createDrawStage } from '../../ui/sandbox/draw-stage.js';
 import { createFileSkeleton } from '../../ui/files/file-skeleton.js';
-import { createSteerBubbles } from '../../ui/sandbox/steer-bubbles.js';
 
 /**
  * `serverRun`: the run of the server when it makes the reply (its questions to the person are answered through it). `madeHere`: the server
@@ -35,21 +34,6 @@ export function createReplyLiveView({ targetElement, getDocument, getConfig, lan
   // Where it goes is the bubble of the words so far; when pictures are drawn between the words, the one the words are in now (picture-flow.js tells).
   let stagePlace = null;
   const drawStage = createDrawStage({ document: getDocument(), language, place: () => stagePlace?.() || targetElement.closest?.('.message-bubble') || targetElement });
-
-  // What the person adds while the reply is made: bubbles like their other messages, in the message, above the reply. (A page that rejoins, or another tab, is told the same
-  // messages again: each is drawn once.)
-  const steerBubbles = createSteerBubbles({ document: getDocument(), place: () => targetElement.closest?.('.message-stack') || null });
-  const drawnSteers = new Set();
-  const steerEvent = ({ phase, text, at }) => {
-    if (phase === 'sent') {
-      steerBubbles.add({ text, pending: true });
-      return;
-    }
-    const key = `${at ?? ''}|${text}`;
-    if (drawnSteers.has(key)) return;
-    drawnSteers.add(key);
-    if (!steerBubbles.seen(text)) steerBubbles.add({ text });
-  };
 
   const stepList = () => {
     if (!liveRun && targetElement.parentElement) {
@@ -133,10 +117,6 @@ export function createReplyLiveView({ targetElement, getDocument, getConfig, lan
     setStagePlace: (place) => { stagePlace = place; },
     // An event of the steps (a run, a search, a skill): drawn in the list.
     event: (event) => {
-      if (event?.type === 'steer') {
-        steerEvent(event);
-        return;
-      }
       drawStage.handle(event);
       stepList()?.event(event);
       // The words are done and the files are being kept: a grey card stands where they will be, so they do not appear out of nothing when the

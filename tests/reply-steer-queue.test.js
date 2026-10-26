@@ -96,3 +96,17 @@ test('in the loop of a reply a message added during a round is taken after the a
   assert.deepEqual(queue.taken().map((item) => item.text), ['make it short']);
   assert.deepEqual(queue.left().map((item) => item.text), ['too late']);
 });
+
+test('the messages one boundary takes are told once, together, with what the loop gave, and each keeps the id the page made for it', () => {
+  const told = [];
+  const queue = createSteerQueue({});
+  queue.setBatchHandler((items, context) => told.push([items.map((item) => [item.text, item.id]), context]));
+  queue.push('one', 'id-1');
+  queue.push('two');
+  assert.deepEqual(queue.take({ steps: ['a'] }), ['one', 'two']);
+  assert.deepEqual(told, [[[['one', 'id-1'], ['two', undefined]], { steps: ['a'] }]]);
+  assert.deepEqual(queue.take(), [], 'nothing waiting: nothing told');
+  assert.equal(told.length, 1);
+  queue.push('three', 'id-3');
+  assert.deepEqual(queue.left().map((item) => item.id), ['id-3']);
+});

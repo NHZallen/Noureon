@@ -101,34 +101,63 @@ test('a plain reply on the server: the model is told of the skills, loads one, a
   assert.ok(Number.isFinite(row.ev.t));
 });
 
-test('a message the person adds while the reply works is put into the request after the tool answer, and the saved reply keeps it as a row of its process', async () => {
+test('a message the person adds while the reply works is put into the request after the tool answer, and the reply is cut there: the message so far is its own, the rest is written anew', async () => {
   const requests = [];
-  const taken = [];
-  const steer = createSteerQueue({ onTaken: (item) => taken.push(item.text) });
+  const segments = [];
+  const steer = createSteerQueue({});
   let round = 0;
   const result = await executeReply({
     spec: goodSpec({ skills: [{ name: 'meeting-notes', description: 'Turns a transcript into decisions.' }] }),
     secrets: { providerKey: 'sk-provider-secret-value' },
     userId: 'u1',
     steer,
+    onSegment: (segment) => segments.push(segment),
     skills: { body: async (userId, name) => ({ name, body: 'List the decisions first.' }) },
     fetchImpl: async (url, options) => {
       requests.push(JSON.parse(options.body));
       round += 1;
       if (round === 1) {
         assert.equal(steer.supported(), true, 'the loop that has boundaries said so');
-        steer.push('  make it a table  ');
+        steer.push('  make it a table  ', 'id-1');
+        return streamResponse(sse(content('Let me look. '), toolCall('call_1', 'load_skill', { name: 'meeting-notes' })));
+      }
+      return streamResponse(sse(content('| decision |')));
+    }
+  });
+  assert.equal(segments.length, 1);
+  assert.deepEqual(segments[0].items.map((item) => [item.text, item.id]), [['make it a table', 'id-1']]);
+  assert.doesNotMatch(JSON.stringify(requests[0].messages), /make it a table/);
+  assert.match(JSON.stringify(requests[1].messages), /The user added this message while you were working[\s\S]*make it a table/);
+  const first = await segments[0].finishing;
+  const { run: firstRun, text: firstText } = liftSandboxRunBlock(first[0].text);
+  assert.equal(firstRun.segment, true, 'the message that was cut is marked, so its process line is drawn');
+  assert.ok(firstRun.elapsedMs >= 0);
+  assert.equal(firstText.includes('| decision |'), false, 'what came after is not in it');
+  const { run, text } = liftSandboxRunBlock(result.parts[0].text);
+  assert.equal(text, '| decision |', 'the new message holds only what came after the cut');
+  assert.equal(run?.segment, undefined);
+});
+
+test('without a place to write the cut, the loop still takes the message and the reply goes on in one message', async () => {
+  const steer = createSteerQueue({});
+  let round = 0;
+  const result = await executeReply({
+    spec: goodSpec({ skills: [{ name: 'meeting-notes', description: 'Turns a transcript into decisions.' }] }),
+    secrets: { providerKey: 'sk-provider-secret-value' },
+    userId: 'u1',
+    steer,
+    skills: { body: async (userId, name) => ({ name, body: 'x' }) },
+    fetchImpl: async () => {
+      round += 1;
+      if (round === 1) {
+        steer.push('make it a table');
         return streamResponse(sse(toolCall('call_1', 'load_skill', { name: 'meeting-notes' })));
       }
       return streamResponse(sse(content('| decision |')));
     }
   });
-  assert.deepEqual(taken, ['make it a table']);
-  assert.doesNotMatch(JSON.stringify(requests[0].messages), /make it a table/);
-  assert.match(JSON.stringify(requests[1].messages), /The user added this message while you were working[\s\S]*make it a table/);
-  const { run, text } = liftSandboxRunBlock(result.parts[0].text);
-  assert.deepEqual(run.steers, [{ text: 'make it a table' }]);
-  assert.equal(text, '| decision |');
+  assert.equal(liftSandboxRunBlock(result.parts[0].text).text, '| decision |');
+  assert.deepEqual(steer.taken().map((item) => item.text), ['make it a table']);
 });
 
 test('without the server\'s reader, with Gemini\'s own search, or with no skills, the reply is one plain request', async () => {

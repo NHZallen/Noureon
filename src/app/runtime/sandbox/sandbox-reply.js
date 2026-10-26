@@ -505,7 +505,8 @@ export async function runSandboxReply({
       }
       reply(toolResultFor(result, { note }));
     }
-    toolTurns.push({ assistant: response, results, ...steerTurnFields(steer) });
+    // What the person added is taken here, with the steps run so far (the server cuts the reply into messages at this point).
+    toolTurns.push({ assistant: response, results, ...steerTurnFields(steer, { steps: run.steps }) });
     if (signal?.aborted || run.steps.some((step) => step.stopped)) break;
     const pythonCalls = calls.filter((entry) => isRunTool(entry.name)).length;
     const latest = run.steps.slice(-pythonCalls);

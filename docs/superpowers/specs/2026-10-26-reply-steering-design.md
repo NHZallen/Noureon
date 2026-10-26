@@ -112,3 +112,22 @@ Linear：NOU-138（相容說明 `contract` 在工單裡）。
 * **頁面** `features/reply-steering.js`：「引導」模式下只有純文字（沒有附件、引用）才放進回覆——伺服器回覆打 `/steer`，本機回覆放進本機佇列（`createLocalReply().steer`）；被拒、沒有邊界、有附件或打不通時退回立刻送出。成功後輸入框清空；（2026-10-26 Allen 試過後改了）補充的訊息畫成跟一般使用者訊息一樣的泡泡（`ui/sandbox/steer-bubbles.js`），放在回覆那一則訊息裡、回覆氣泡的上方，不放進處理列（處理列收合後會看不到，重新接上時位置也會跑掉）；送出當下就出現（模型看到之前略淡），模型看到後恢復；其他分頁與重新接上的頁面在模型看到時才出現。已存檔的回覆由執行紀錄的 `steers` 在 `message-markup-renderer.js` 畫出同樣的泡泡；給之後輪次的歷史摘要加一行「While this reply was being made the user added: …」。
 * **沒被取走的引導**：回覆結束時（`hold`）若輸入框是空的而且回覆不是被使用者中斷的，就自動當下一則訊息送出；輸入框有內容時放到內容前面，被中斷時放回輸入框（不送）。
 * **已知取捨**：迴圈有在跑但模型最後不再呼叫工具時，引導會留到回覆結束才送出（等同「排隊」），不會中斷回覆。
+
+## 11. 補充的訊息是真的訊息：回覆在邊界切段（2026-10-26，Allen 看過 ChatGPT 的做法後決定）
+
+**決定（Allen）**：補充的訊息不放在回覆裡面，是跟一般使用者訊息一樣的訊息（可以編輯），排在它發生的位置；回覆被它切成一段一段，每一段是一則普通的回覆訊息、有自己的處理紀錄。重整、換裝置後看到的跟進行中一樣。編輯機制不動；沒有工具的回覆和本機產生的回覆不能引導，照舊退回立刻送出。這一節取代 §10 中「執行紀錄的 `steers`、泡泡放在回覆上方」的做法（已拿掉）。
+
+**流程（伺服器回覆）**
+1. 使用者在回覆中按傳送（引導）：頁面產生訊息 id，`POST /v1/runs/:id/steer { instruction, id }`；成功後頁面在回覆下方畫一個半透明的泡泡（`ui/sandbox/steer-bubbles.js`，只是待處理，不是訊息）。
+2. 迴圈在下一個工具邊界取走（`steer.take(context)`，`context.steps` 是 Python 到目前為止的步驟），佇列的 `batchHandler` 通知執行器 `executor.js` 的切段處理：把這一段的紀錄（`segment: true`、這一段的搜尋／思考／連接器／步驟與步驟做出的檔案）做成一則訊息的內容，並把狀態歸零（答案、思考、連接器、圖片、計時、`stepBase`）；搜尋到的網頁累積保留（答案的 [n] 要用）。
+3. `runs.js` 的 `cut`：換掉寫入器；舊訊息收尾（`status: complete`，`metadata.segment = { next, sequence, users: [{ id, text, sequence }] }`）；伺服器用 `server_upsert_workspace_message` 寫使用者的訊息（`role: 'user'`、`metadata: { steer: true }`、序號接在後面）；`server_runs.message_id` 改成新訊息（這樣重新載入後找得到）；最後廣播 `{ seg }` 事件。新訊息的寫入要等切段完成。切段到 `seg` 之間，即時事件只記在鏡像、不廣播（`live.holding`）。
+4. 頁面：`follow()` 讀到 `seg`（或讀到訊息的 `metadata.segment`）就把這一則收尾，結果帶著 `cut`；`completePreparedReply` 照常存下這一則，然後 `reply-cut.js` 把使用者的訊息變成對話的訊息（已經有的不重複），再用 `reattach.js` 的 `followRun` 跟著同一個 run 在新訊息裡接著寫（同一個 AbortController，停止鈕不變；中間不做清理）。還沒被取走的泡泡移到新訊息下面。
+5. 沒被取走的補充（模型最後沒再用工具）照舊：存在最後那則訊息的 `metadata.steersLeft`，結束時變成下一則訊息。
+
+**給模型的歷史**：`stream-api-call.js` 的 `mergeAdjacentModelMessages` 現在會略過沒有內容的回覆訊息（只有處理列的那種），並把標了 `metadata.steer` 的使用者訊息併進它前面的使用者訊息。`steer` 在雲端同步的 metadata 白名單裡。
+
+**限制與取捨**
+* 只有伺服器回覆能引導；伺服器重啟後接手的 run 若已切過段，金鑰的訊息 id 對不上，會以「伺服器重啟」結束（切段前的內容都已存好）。
+* 搜尋到的網頁在每一段都是累積的（「搜尋了 N 個網站」會重複算前面的）；Python 的步驟與檔案則依段分開。
+* 回覆訊息的底部動作列（複製等）每一段都有；只有處理列的那一段複製出來是空的。
+* 沒有新的資料庫遷移：用既有的 `server_runs.message_id` 更新和 `server_upsert_workspace_message` 的 `role`、`sequence` 參數。

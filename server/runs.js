@@ -97,8 +97,14 @@ export function createRunManager({
       // The reply's clock was set back (time spent waiting for the person is not counted): every page is told how long it has gone on.
       live.elapsedFrom = event.tm;
       live.elapsedAt = now();
-    } else if (event.st) live.steers.push(event.st);
-    else if (typeof event.a === 'string') live.answer += event.a;
+    } else if (event.seg) {
+      // The reply goes on in a new message: what the mirror holds is the new one's (the pages that join now are given that).
+      live.answer = '';
+      live.thought = { text: '', kind: live.thought.kind, ended: false, ms: 0, first: null };
+      live.steps = { events: [], chars: 0 };
+      live.elapsedFrom = 0;
+      live.elapsedAt = now();
+    } else if (typeof event.a === 'string') live.answer += event.a;
     else if (typeof event.th === 'string') {
       live.thought.text += event.th;
       live.thought.first ??= now();
@@ -199,14 +205,14 @@ export function createRunManager({
       ...(live.council ? { cs: { ...live.council, elapsedMs: (Number(live.council.elapsedMs) || 0) + (now() - live.councilAt) } } : {}),
       elapsedMs: live.elapsedFrom + (now() - live.elapsedAt),
       ...(live.steps.events.length ? { events: live.steps.events } : {}),
-      // What the person added while the reply was made and the model has seen, so a page that joins late shows the same marks.
-      ...(live.steers.length ? { st: live.steers } : {}),
       ...(live.vision.events.length ? { vc: live.vision.events } : {}),
       // A deep research: where it stands and what it has done, and the server's clock (the times in them are the server's).
       ...(live.research.state ? { rs: live.research.state, ra: live.research.activity, serverNow: now() } : {})
     }
   });
   const fan = (live, event) => {
+    // Between the cut of a reply and the word that the next message is there, what comes is in the mirror (the next message's page is given it), and not told to a page that is still on the old one.
+    if (live.holding && !event.seg && !event.done) return;
     for (const watcher of [...live.subscribers]) {
       try {
         watcher.send(event);
@@ -244,21 +250,78 @@ export function createRunManager({
     const imageControl = { answer: null };
     // How a person's request to let one model of a council leave reaches the council (it sets `exit`).
     const councilControl = { exit: null };
-    const live = { steers: [], answer: '', thought: { text: '', kind: 'model', ended: false, ms: 0, first: null }, sources: [], elapsedFrom: 0, elapsedAt: now(), steps: { events: [], chars: 0 }, vision: { events: [], chars: 0 }, research: { state: null, activity: [] }, searching: '', documents: '', council: null, councilAt: 0, subscribers: new Set() };
-    // What the person adds while an ordinary reply is made is taken at the next boundary of its loop (reply/steer-queue.js); the pages watching are told when it was.
-    const steer = isVision || isResearch || isImage || isCouncil ? null : createSteerQueue({ now, onTaken: (item) => { const event = { st: { text: item.text, at: item.at } }; applyLive(live, event); fan(live, event); } });
+    const live = { holding: false, answer: '', thought: { text: '', kind: 'model', ended: false, ms: 0, first: null }, sources: [], elapsedFrom: 0, elapsedAt: now(), steps: { events: [], chars: 0 }, vision: { events: [], chars: 0 }, research: { state: null, activity: [] }, searching: '', documents: '', council: null, councilAt: 0, subscribers: new Set() };
+    // What the person adds while an ordinary reply is made is taken at the next boundary of its loop (reply/steer-queue.js), where the reply is cut (below).
+    const steer = isVision || isResearch || isImage || isCouncil ? null : createSteerQueue({ now });
     active.set(runId, { steer, controller, userId, live, controls, netControl, credentialControl, connectorControl, imageControl, councilControl });
     let finalStatus = 'error';
-    const writer = createMessageWriter({
+    // The message the reply is being written into now. A reply that takes messages of the person is cut at the boundary that took them: the message so far is finished,
+    // the person's messages are written after it, and the rest of the reply goes into a new message (`cut`). Writes into the new message wait until the cut is whole.
+    const cursor = { messageId: spec.assistantMessageId, sequence: spec.sequence };
+    const newWriter = (messageId, sequence) => createMessageWriter({
       store: db,
       userId,
       conversationId: spec.conversationId,
-      messageId: spec.assistantMessageId,
-      sequence: spec.sequence,
+      messageId,
+      sequence,
       metadata: spec.request.messageMetadata || null,
       onError: (error) => log('message_write_failed', { runId, code: error?.code || '', message: scrubMessage(error?.message, secrets).slice(0, 200) }),
       onWritten: (status, attempt) => log('message_written', { runId, status, attempt })
     });
+    let segment = { writer: newWriter(cursor.messageId, cursor.sequence), ready: Promise.resolve(), isReady: true, latest: null };
+    const writer = {
+      update(parts) {
+        const current = segment;
+        if (current.isReady) {
+          current.writer.update(parts);
+          return;
+        }
+        current.latest = parts;
+        void current.ready.then(() => { if (current.latest === parts) current.writer.update(parts); });
+      },
+      async finish(parts, status, extra) {
+        const current = segment;
+        await current.ready;
+        await current.writer.finish(parts, status, extra);
+      }
+    };
+    const isUuid = (value) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(value || ''));
+    const cut = ({ items, finishing }) => {
+      const previous = segment;
+      const users = items.map((item, index) => ({ id: isUuid(item.id) ? item.id : crypto.randomUUID(), text: item.text, sequence: cursor.sequence + 1 + index }));
+      const next = { messageId: crypto.randomUUID(), sequence: cursor.sequence + 1 + users.length };
+      cursor.messageId = next.messageId;
+      cursor.sequence = next.sequence;
+      const note = { next: next.messageId, sequence: next.sequence, users };
+      let open;
+      segment = { writer: newWriter(next.messageId, next.sequence), ready: new Promise((resolve) => { open = resolve; }), isReady: false, latest: null };
+      const current = segment;
+      live.holding = true;
+      applyLive(live, { seg: note });
+      void (async () => {
+        try {
+          let parts = [{ text: '' }];
+          try {
+            parts = await finishing;
+          } catch (error) {
+            log('segment_text_failed', { runId, ...diagnosis(error, secrets) });
+          }
+          await previous.ready;
+          await previous.writer.finish(parts, 'complete', { segment: note });
+          for (const user of users) {
+            await db.rpc('server_upsert_workspace_message', { p_user_id: userId, p_row: { id: user.id, conversation_id: spec.conversationId, role: 'user', parts: [{ text: user.text }], metadata: { steer: true }, status: 'complete', sequence: user.sequence, created_at: new Date(now()).toISOString() } });
+          }
+          await store.setMessage(runId, next.messageId);
+        } catch (error) {
+          log('segment_write_failed', { runId, ...diagnosis(error, secrets) });
+        } finally {
+          current.isReady = true;
+          open();
+          live.holding = false;
+          fan(live, { seg: note });
+        }
+      })();
+    };
     let beat = null;
     let limit = null;
     let limitAt = 0;
@@ -337,7 +400,7 @@ export function createRunManager({
         resume,
         userId,
         ...(isResearch ? { controls } : {}),
-        ...(steer ? { steer } : {}),
+        ...(steer ? { steer, onSegment: cut } : {}),
         sandboxHost: sandbox?.host || null,
         files: sandbox?.files || null,
         credentials,
@@ -387,7 +450,7 @@ export function createRunManager({
       finalStatus = 'complete';
       await store.finish(runId, { status: result.status === 'stopped' ? 'stopped' : 'done', usage: { toolCalls: result.toolCalls, elapsedMs: result.run?.elapsedMs, ...(result.rounds?.length ? { rounds: result.rounds } : {}) }, ...(isImage ? { clearSpec: true } : {}) });
       // A reply that wrote a presentation is looked at next, as a run of its own (recorded before the page is told this one is over).
-      if (result.status === 'done' && !controller.signal.aborted) visionNext = await planVision({ userId, spec, secrets, result }).catch((error) => {
+      if (result.status === 'done' && !controller.signal.aborted) visionNext = await planVision({ userId, spec: cursor.messageId === spec.assistantMessageId ? spec : { ...spec, assistantMessageId: cursor.messageId, sequence: cursor.sequence }, secrets, result }).catch((error) => {
         log('vision_not_started', { runId, message: String(error?.message || '').slice(0, 160) });
         return null;
       });
@@ -596,7 +659,7 @@ export function createRunManager({
         if (!entry.steer?.supported()) return { ok: false, reason: 'unsupported' };
         const text = String(payload.instruction ?? '').trim();
         if (!text) return { ok: false, reason: 'empty' };
-        return entry.steer.push(text) ? { ok: true } : { ok: false, reason: 'too_many' };
+        return entry.steer.push(text, payload.id) ? { ok: true } : { ok: false, reason: 'too_many' };
       }
       return { ok: false, reason: 'not_running' };
     },
