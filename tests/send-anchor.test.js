@@ -64,3 +64,11 @@ test('the room goes when the conversation is drawn again (the message is not on 
   sendAnchor.release();
   assert.equal(again.messageList.style.values.has('--send-room'), false);
 });
+
+test('a message that takes over from one the chat is held at is anchored without the chat moving', () => {
+  const { anchor, scrolls, frames, messageList } = setup();
+  sendAnchor.anchorTo(anchor, { scroll: false });
+  assert.equal(messageList.style.values.has('--send-room'), true, 'the room is kept');
+  assert.equal(frames.length, 0);
+  assert.deepEqual(scrolls, [], 'and nothing is scrolled');
+});

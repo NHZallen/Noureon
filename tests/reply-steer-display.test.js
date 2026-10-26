@@ -8,6 +8,7 @@ import { formatSandboxRunBlock, liftSandboxRunBlock, normalizeSandboxRun, summar
 import { createSandboxRunElement } from '../src/app/ui/sandbox/sandbox-run-view.js';
 import { mergeAdjacentModelMessages } from '../src/app/runtime/reply/stream-api-call.js';
 import { replyCut } from '../src/app/runtime/reply/reply-cut.js';
+import { sendAnchor } from '../src/app/runtime/features/send-anchor.js';
 
 const setup = () => {
   const window = new Window();
@@ -24,8 +25,9 @@ test('a message the reply has not taken yet is a faded bubble like the person\'s
   const { window, document, list, reply } = setup();
   try {
     const pending = createPendingSteers({ document, place: () => reply });
-    assert.equal(pending.add({ id: 'a', text: 'make it a table' }), true);
-    assert.equal(pending.add({ id: 'b', text: 'in <French>' }), true);
+    const first = pending.add({ id: 'a', text: 'make it a table' });
+    assert.equal(pending.add({ id: 'b', text: 'in <French>' }) !== null, true);
+    assert.equal(first.dataset.steerId, 'a', 'the bubble is given back (the chat is held at it)');
     const items = [...list.children];
     assert.equal(items.length, 3);
     assert.equal(items[0], reply);
@@ -37,7 +39,7 @@ test('a message the reply has not taken yet is a faded bubble like the person\'s
     assert.equal(list.children.length, 2);
     assert.deepEqual(pending.remove(), ['in <French>']);
     assert.equal(list.children.length, 1);
-    assert.equal(createPendingSteers({ document, place: () => null }).add({ id: 'c', text: 'x' }), false, 'nowhere to put it');
+    assert.equal(createPendingSteers({ document, place: () => null }).add({ id: 'c', text: 'x' }), null, 'nowhere to put it');
   } finally {
     window.happyDOM.abort();
   }
@@ -55,6 +57,9 @@ test('after a cut the person\'s messages become messages of the conversation (on
         assert.equal(options.conversation, conversation);
         if (shouldSave) options.conversation.messages.push(message);
         added.push(message);
+        const element = document.createElement('div');
+        element.dataset.messageId = message.id;
+        return element;
       },
       now: () => '2026-10-26T00:00:00.000Z'
     });
@@ -63,6 +68,9 @@ test('after a cut the person\'s messages become messages of the conversation (on
     replyCut.pending.add({ id: 's2', text: 'later one' });
     const followed = [];
     const followedOptions = [];
+    const anchored = [];
+    const anchorTo = sendAnchor.anchorTo;
+    sendAnchor.anchorTo = (element, options) => anchored.push([element.dataset.messageId, options]);
     const run = { inMessage: (id) => ({ forMessage: id }) };
     const result = await replyCut.continueAfterCut({
       conversation,
@@ -85,6 +93,8 @@ test('after a cut the person\'s messages become messages of the conversation (on
     assert.deepEqual(conversation.messages[2].metadata, { steer: true });
     assert.deepEqual(followed, [[conversation, { forMessage: 'r2' }, 'controller']]);
     assert.deepEqual(followedOptions, [{ scroll: false }], 'the reply that goes on stays where the person is');
+    assert.deepEqual(anchored, [['s1', { scroll: false }]], 'the chat is held at the message the waiting one became, without moving');
+    sendAnchor.anchorTo = anchorTo;
     assert.equal(replyCut.pending.has('s1'), false, 'the bubble of the message that was taken is gone');
     assert.equal(replyCut.pending.has('s2'), true, 'the one that was not stays');
     assert.equal(list.children.length, 3, 'the reply, the message it goes on in, and under that what was not taken');

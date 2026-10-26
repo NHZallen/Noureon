@@ -3,6 +3,7 @@
 // into messages of the conversation, and the new message is followed like a reply the page comes back to (server-reply/reattach.js). One object for the page, set up once with `configure`.
 
 import { createPendingSteers } from '../../ui/sandbox/steer-bubbles.js';
+import { sendAnchor } from '../features/send-anchor.js';
 
 const state = { document: null, addMessageToUI: null, now: () => new Date().toISOString() };
 const pendingSteers = createPendingSteers({ document: { createElement: (...args) => state.document.createElement(...args) } });
@@ -25,10 +26,13 @@ export const replyCut = {
     pendingSteers.remove(cut.users.map((user) => user.id));
     // What the reply has not taken yet waits under the message it goes on in, not between the messages that are made now.
     const waiting = pendingSteers.detach();
+    let latest = null;
     for (const user of cut.users) {
       if (conversation.messages.some((message) => message.id === user.id)) continue;
-      state.addMessageToUI({ id: user.id, role: 'user', parts: [{ text: user.text }], createdAt: state.now(), metadata: { steer: true } }, conversation.messages.length, true, true, { conversation });
+      latest = state.addMessageToUI({ id: user.id, role: 'user', parts: [{ text: user.text }], createdAt: state.now(), metadata: { steer: true } }, conversation.messages.length, true, true, { conversation }) || latest;
     }
+    // The chat was held at the bubble of the message that was waiting; the message it became takes over without the chat moving.
+    if (latest) sendAnchor.anchorTo(latest, { scroll: false });
     // (The follower draws the message the reply goes on in before it first waits, and says where it is.)
     const following = continueReply(conversation, serverRun.inMessage(cut.next), abortController, { scroll: false });
     pendingSteers.setPlace(() => conversation.__astraPendingResponse?.loadingMessageDiv || null);

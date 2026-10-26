@@ -52,8 +52,11 @@ export const sendAnchor = {
   },
   /** The room that is kept now (px): the button that goes to the end of the chat goes to the end of the messages, not of the room. */
   room: () => state.shown,
-  /** The message just sent: its bubble goes to the top, with the room for the reply below it. */
-  anchorTo(element) {
+  /**
+   * The message just sent: its bubble goes to the top, with the room for the reply below it. A message the person adds to a reply that is being made is the same (its bubble is the
+   * pending one, and the message it becomes takes over without the chat moving: `scroll: false`).
+   */
+  anchorTo(element, { scroll = true } = {}) {
     if (!element || !chat() || !list()) return;
     release();
     state.anchor = element;
@@ -63,6 +66,7 @@ export const sendAnchor = {
       state.observer.observe(list());
       state.observer.observe(chat());
     }
+    if (!scroll) return;
     state.requestFrame(() => {
       if (state.anchor !== element || !element.isConnected) return;
       update();

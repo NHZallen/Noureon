@@ -19,6 +19,7 @@ import { composeReplyText, recordReplyRun } from './single-model-reply-finish.js
 import { createPictureFlow } from './picture-flow.js';
 import { replySteering } from '../features/reply-steering.js';
 import { replyCut } from './reply-cut.js';
+import { sendAnchor } from '../features/send-anchor.js';
 import { liftSandboxRunBlock } from '../../ui/sandbox/sandbox-run-block.js';
 
 // What a reply makes as it goes: the request as it stands, the pages searched (kept with the reply, shown as "Searched N sites"), its run record,
@@ -235,7 +236,8 @@ export function createSingleModelResponseLifecycle({
         const id = crypto.randomUUID();
         if ((await serverRun.steer(text, id))?.ok !== true) return false;
         replyCut.pending.setPlace(() => targetElement.closest?.('.message-item') || null);
-        replyCut.pending.add({ id, text });
+        // Like any message the person sends, its bubble goes to the top of the chat.
+        sendAnchor.anchorTo(replyCut.pending.add({ id, text }));
         return true;
       }
     };

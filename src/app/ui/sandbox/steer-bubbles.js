@@ -15,14 +15,14 @@ export function createPendingSteers({ document, place = () => null }) {
     },
     add({ id, text }) {
       const anchor = pending.at(-1)?.element || where();
-      if (!anchor?.parentElement) return false;
+      if (!anchor?.parentElement) return null;
       const element = document.createElement('div');
       element.className = 'message-item flex items-start gap-2 md:gap-4 justify-end user-message steer-message is-pending';
       element.dataset.steerId = id;
       element.innerHTML = bubbleHTML(text);
       anchor.after(element);
       pending.push({ id, text, element });
-      return true;
+      return element;
     },
     /** Takes the bubbles of these ids away (they are messages now); with no ids, all of them. Returns the texts taken away. */
     remove(ids = null) {
