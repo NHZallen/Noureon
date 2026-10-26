@@ -514,7 +514,8 @@ export default {
             '可使用的供應商包括 Google Gemini、OpenRouter（它會再把請求轉給各模型廠商）、NVIDIA API Catalog、OpenCode Go（轉接多家廠商模型的訂閱服務），以及搜尋服務 Tavily 與 TinyFish。你只要設定自己用的那幾家。',
             '這些供應商依自己的條款與隱私權政策處理你的資料，包括是否記錄、保存或用於訓練；我們無法控制，建議你查看各家的設定。',
             '你的金鑰預設存在瀏覽器裡，由瀏覽器直接呼叫供應商，請求不經過 Noureon 的伺服器；例外是你選擇由伺服器執行，或使用本站的代理端點（見下）。',
-            'OpenCode Go 不接受瀏覽器直接送出的請求。所以回覆不是由我們的伺服器執行時，請求會經過本網站的函式（/api/opencode-chat），由它加上 OpenCode 對用戶端的要求（一個 User-Agent 和對話的編號，讓 OpenCode 能安排路由並重複使用快取）再轉送出去；你的金鑰與送出的內容只是經過，我們不儲存。OpenCode Go 自己的資料保留規則依模型而不同：例如 Grok、GPT Luna 與 Claude Haiku 5.5 保留資料 30 天，Muse Spark Contributor 模型與 Gemini 4 Argon Contributor 會用你的提示與回應訓練 Meta 與 Google 的模型（選單裡每個模型都有標示）。'
+            'OpenCode Go 不接受瀏覽器直接送出的請求。所以回覆不是由我們的伺服器執行時，請求會經過本網站的函式（/api/opencode-chat），由它加上 OpenCode 對用戶端的要求（一個 User-Agent 和對話的編號，讓 OpenCode 能安排路由並重複使用快取）再轉送出去；你的金鑰與送出的內容只是經過，我們不儲存。OpenCode Go 自己的資料保留規則依模型而不同：例如 Grok、GPT Luna 與 Claude Haiku 5.5 保留資料 30 天，Muse Spark Contributor 模型與 Gemini 4 Argon Contributor 會用你的提示與回應訓練 Meta 與 Google 的模型（選單裡每個模型都有標示）。',
+            '若你設定了 OpenCode Go 金鑰，頁面會向 OpenCode（opencode.ai）查詢你的方案在 5 小時、每週與每月三個限額各剩多少，用來畫出左側選單「擴充」上方的用量圓環。這個請求從你的瀏覽器直接送到 OpenCode（不經過我們的伺服器），只在 Authorization 標頭帶你的金鑰；回傳的百分比與重設時間只顯示在畫面上，在記憶體裡保留一分鐘，不會儲存。'
           ]
         ]
       },

@@ -295,3 +295,13 @@ OpenCode Go 兩個免費模型（id 猜對了）：
   - 思考：`none` 被拒（400「Reasoning is mandatory」），low 到 max 和 enabled 都收。
   - 套用（`model-registry.js`）：加進模型清單、看圖名單、工具名單，思考深度 low 到 max、預設 medium。
 - 模型數 77 個變成 80 個（`npm run sync:counts`）；協助中心（五語言）的「轉 PDF 模型」名單加上 MiniMax M3.1 Flash。
+
+## 2026-10-27：剩餘額度的三個圓環（側邊欄「擴充」上方）
+
+- **端點（Allen 用自己的 Go 金鑰實測，HTTP 200，兩個回傳相同）：** 主用 `GET https://opencode.ai/inference/go/v1/usage`，失敗再退回 `https://opencode.ai/zen/go/v1/usage`；只帶 `Authorization: Bearer <金鑰>`。回傳 `{ usage: { rolling | weekly | monthly: { status, percent (0–100，已用), resetsAt } } }`。**只有百分比，沒有金額；Zen 儲值餘額沒有 API。** 401 金鑰錯、403 沒有 Go 訂閱，對方常回 503。
+- **CORS：** 這個端點有 `Access-Control-Allow-Origin: *`，所以頁面直接打（不經 `api/opencode-chat`）；但 allow-headers 沒有 `x-opencode-session`，帶了會被擋，查額度時不送。聊天本身仍走轉送（沒有 CORS）。
+- **CSP：** `vercel.json` 兩處 `connect-src` 加了 `https://opencode.ai`（Allen 選 A：頁面直接連）。
+- **程式：** `src/app/runtime/shell/opencode-usage.js`（共用、無瀏覽器依賴：解析、兩個端點備援、401/403 不換端點、單一金鑰快取一分鐘、同時多個請求合併、失敗時回上一次的答案並標 `stale`、點一下強制重查最少隔 5 秒；快取以金鑰為準，換金鑰就丟掉，不會把別人的額度給另一把金鑰）；`src/app/ui/opencode-quota/quota-rings.js`（畫面）、`quota-texts.js`（五語言）、`src/styles/opencode-quota.css`（只用 `tokens.css` 的名稱：綠 `--state-success`、低於 20% 用 `--state-warning`、用完 `--state-danger`）。`shell.js` 只加一行延遲載入的註冊。
+- **畫面（Allen 指定）：** 左側選單「擴充」上方，三個同心圓：5 小時最內、週最外（所以月在中間；`RING_ORDER` 一行可改）。整圈＝額度全剩，圓弧長度＝剩餘百分比；右邊三行文字（5 小時／本週／本月剩 N%），滑過或長按看重設時間與「點一下重新整理」。沒有金鑰、金鑰錯、沒有訂閱、服務沒回應就不顯示。
+- **何時查：** 頁面載入、分頁回到前景或視窗取得焦點、雲端金鑰同步進來、離開金鑰輸入框、點圓環；不做背景輪詢。
+- **隱私：** 隱私政策五語言加一句（請求從瀏覽器直送 OpenCode、只帶金鑰、回傳只顯示並在記憶體留一分鐘）；`PRIVACY.md` 已重新產生。

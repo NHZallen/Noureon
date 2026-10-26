@@ -209,6 +209,8 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
         function getApiKeyForProvider(provider) {
             return sensitiveConfigStore.getApiKey(provider);
         }
+        // The usage rings of OpenCode Go above the Extensions entry (only with a key for it); loaded after the page.
+        import('/src/app/ui/opencode-quota/quota-rings.js').then(({ startQuotaRings }) => startQuotaRings({ document, getApiKey: () => getApiKeyForProvider('opencode-go'), getLanguage: () => runtimeConfigAccess.getConfig().uiLanguage })).catch((error) => console.warn('The OpenCode Go usage rings did not start.', error));
         function normalizeConversationModel(conv) {
             if (!conv) return null;
             const canonicalModelId = getCanonicalModelId(conv.model);

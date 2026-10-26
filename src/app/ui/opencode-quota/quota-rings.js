@@ -1,0 +1,167 @@
+// The usage rings above the Extensions entry of the left menu: what is left of the OpenCode Go limits, three rings, the 5 hour limit in the
+// middle and the week on the outside (the month between them). Shown only when the person has an OpenCode Go key and the service answers;
+// otherwise it is not there. It asks again when the page comes back into view, when the key is changed, and when it is tapped (a minute
+// is kept, see opencode-usage.js). Words: quota-texts.js; styles: styles/opencode-quota.css.
+
+import { createOpencodeUsage } from '../../runtime/shell/opencode-usage.js';
+import { quotaText } from './quota-texts.js';
+
+// From the inside out. (A ring is called by its window: rolling is the 5 hours.)
+export const RING_ORDER = Object.freeze(['rolling', 'monthly', 'weekly']);
+// The order of the lines of words.
+const LINE_ORDER = Object.freeze(['rolling', 'weekly', 'monthly']);
+const ENTRY_ID = 'opencode-quota-btn';
+const KEY_INPUT_ID = 'opencode-go-api-key-input';
+const SIZE = 56;
+const STROKE = 4;
+const GAP = 2.5;
+const LOW_PERCENT = 20;
+
+const radiusOf = (position) => SIZE / 2 - STROKE / 2 - (RING_ORDER.length - 1 - position) * (STROKE + GAP);
+
+/** "in 3 hours" in the language, for a time in the future (an empty text when the time is not known or has passed). */
+export function relativeReset(language, resetsAt, now) {
+  if (!Number.isFinite(resetsAt)) return '';
+  const seconds = Math.round((resetsAt - now) / 1000);
+  if (seconds <= 0) return '';
+  let value = seconds / 60;
+  let unit = 'minute';
+  if (value >= 60 * 24) { value /= 60 * 24; unit = 'day'; } else if (value >= 60) { value /= 60; unit = 'hour'; }
+  try {
+    return new Intl.RelativeTimeFormat(language, { numeric: 'auto' }).format(Math.max(1, Math.round(value)), unit);
+  } catch {
+    return '';
+  }
+}
+
+export function startQuotaRings({ document, getApiKey, getLanguage = () => 'en', usage = createOpencodeUsage(), now = () => Date.now(), setTimer = (callback, ms) => setTimeout(callback, ms) }) {
+  const win = document.defaultView;
+  let element = null;
+  let last = null;
+
+  const list = () => document.querySelector('#sidebar .overflow-y-auto');
+
+  const circles = () => RING_ORDER.map((name, position) => {
+    const radius = radiusOf(position);
+    // The outside ring is the first (ring-1), the inside the last.
+    const strength = RING_ORDER.length - position;
+    return `<g class="oq-ring-${strength}" data-window="${name}"><circle class="oq-track" cx="${SIZE / 2}" cy="${SIZE / 2}" r="${radius}"></circle><circle class="oq-arc" cx="${SIZE / 2}" cy="${SIZE / 2}" r="${radius}" transform="rotate(-90 ${SIZE / 2} ${SIZE / 2})" stroke-dasharray="0 ${(2 * Math.PI * radius).toFixed(2)}"></circle></g>`;
+  }).join('');
+
+  const ensureElement = () => {
+    if (element) return element;
+    element = document.createElement('button');
+    element.id = ENTRY_ID;
+    element.type = 'button';
+    element.className = 'sidebar-item oq-entry';
+    element.hidden = true;
+    element.innerHTML = `<svg class="oq-rings" viewBox="0 0 ${SIZE} ${SIZE}" aria-hidden="true">${circles()}</svg><span class="oq-lines"></span>`;
+    element.addEventListener('click', () => { void sync({ force: true }); });
+    return element;
+  };
+
+  // The Extensions entry is made by another part of the page, a moment after: the rings stay above it.
+  let watched = false;
+  const watch = (parent) => {
+    if (watched || typeof win?.MutationObserver !== 'function') return;
+    watched = true;
+    new win.MutationObserver(() => place()).observe(parent, { childList: true });
+  };
+
+  // Above the Extensions entry (first in the list when that is not there yet).
+  const place = () => {
+    const parent = list();
+    if (!parent || !element) return;
+    watch(parent);
+    const entry = document.getElementById('open-cli-store-btn');
+    const before = entry && entry.parentNode === parent ? entry : parent.firstChild;
+    if (before === element) return;
+    if (element.parentNode === parent && element.nextSibling === before) return;
+    parent.insertBefore(element, before);
+  };
+
+  const hide = () => {
+    last = null;
+    if (element) element.hidden = true;
+  };
+
+  const render = () => {
+    if (!element) return;
+    if (!last?.ok) { element.hidden = true; return; }
+    const language = getLanguage();
+    const at = now();
+    const lines = [];
+    const tips = [quotaText(language, 'title')];
+    for (const name of RING_ORDER) {
+      const part = last.windows[name];
+      const group = element.querySelector(`[data-window="${name}"]`);
+      const arc = group?.querySelector('.oq-arc');
+      if (!arc) continue;
+      // A window the answer does not hold has no ring (an SVG group is hidden by its display, not by `hidden`).
+      group.style.display = part ? '' : 'none';
+      if (!part) continue;
+      const radius = radiusOf(RING_ORDER.indexOf(name));
+      const circumference = 2 * Math.PI * radius;
+      arc.setAttribute('stroke-dasharray', `${((part.remainingPercent / 100) * circumference).toFixed(2)} ${circumference.toFixed(2)}`);
+      arc.classList.toggle('is-low', part.remainingPercent < LOW_PERCENT && part.remainingPercent > 0);
+      arc.classList.toggle('is-empty', part.remainingPercent <= 0);
+    }
+    for (const name of LINE_ORDER) {
+      const part = last.windows[name];
+      if (!part) continue;
+      const percent = Math.round(part.remainingPercent);
+      const reset = relativeReset(language, part.resetsAt, at);
+      tips.push(`${quotaText(language, name)}: ${quotaText(language, 'left', { percent })}${reset ? `, ${quotaText(language, 'resets', { when: reset })}` : ''}`);
+      const strength = RING_ORDER.length - RING_ORDER.indexOf(name);
+      const state = part.remainingPercent <= 0 ? ' is-empty' : part.remainingPercent < LOW_PERCENT ? ' is-low' : '';
+      lines.push({ name: quotaText(language, name), left: quotaText(language, 'left', { percent }), strength, state });
+    }
+    const box = element.querySelector('.oq-lines');
+    box.replaceChildren(...lines.map(({ name, left, strength, state }) => {
+      const row = document.createElement('span');
+      row.className = 'oq-line';
+      const dot = document.createElement('span');
+      dot.className = `oq-dot oq-ring-${strength}${state}`;
+      const label = document.createElement('span');
+      label.className = 'oq-name';
+      label.textContent = name;
+      const value = document.createElement('span');
+      value.className = 'oq-left';
+      value.textContent = left;
+      row.append(dot, label, value);
+      return row;
+    }));
+    if (last.stale) tips.push(quotaText(language, 'stale'));
+    tips.push(quotaText(language, 'refresh'));
+    element.title = tips.join('\n');
+    element.setAttribute('aria-label', tips.join('. '));
+    element.classList.toggle('is-stale', Boolean(last.stale));
+    element.hidden = false;
+  };
+
+  /** Asks (a minute is kept) and draws; `force` is a tap. Nothing is shown without a key, or when the service does not answer. */
+  const sync = async ({ force = false } = {}) => {
+    const key = String(getApiKey() || '').trim();
+    ensureElement();
+    place();
+    if (!key) { hide(); return; }
+    const result = await usage.get(key, { force });
+    // The key was changed (or removed) while the answer was on its way.
+    if (String(getApiKey() || '').trim() !== key) return;
+    last = result;
+    render();
+  };
+
+  const onKeyInputLeft = (event) => {
+    if (event.target?.id === KEY_INPUT_ID) setTimer(() => { void sync(); }, 800);
+  };
+  const onVisible = () => { if (document.visibilityState !== 'hidden') void sync(); };
+
+  document.addEventListener('visibilitychange', onVisible);
+  document.addEventListener('focusout', onKeyInputLeft);
+  win?.addEventListener?.('focus', onVisible);
+  win?.addEventListener?.('astra:cloud-sensitive-config', () => { void sync(); });
+  void sync();
+
+  return { sync, render, element: () => element };
+}
