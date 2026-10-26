@@ -26,7 +26,7 @@ export function createServerReplyReattach({
 
   // The reply the server is making, shown in the message it writes now: the half-written copy of the message the cloud gave this page is taken out, a place-holder stands
   // in its place, and the reply is followed to its end and kept like any other. `abortController` is the person's way to stop it.
-  const followRun = async (conv, run, abortController) => {
+  const followRun = async (conv, run, abortController, { scroll = true } = {}) => {
     const others = conv.messages.filter((message) => message.id !== run.assistantMessageId);
     const userMessageObject = others.at(-1);
     if (userMessageObject?.role !== 'user') return false;
@@ -38,7 +38,8 @@ export function createServerReplyReattach({
     const loadingParts = run.kind === 'image' ? [{ imageGenerationLoading: true, imageAspectRatio: conv.imageConfig?.aspectRatio || '1:1', imageCount: Number(conv.imageAdvancedConfig?.n) || 1, imageStartedAt: run.startedAt || now() }] : [{ text: '...' }];
     const loadingMessageDiv = addMessageToUI({ role: 'model', parts: loadingParts, createdAt: new Date().toISOString() }, conv.messages.length, false, true, { conversation: conv });
     Object.defineProperty(conv, '__astraPendingResponse', { configurable: true, value: { loadingMessageDiv } });
-    loadingMessageDiv.scrollIntoView?.({ behavior: 'smooth', block: 'end' });
+    // (A reply that goes on in a new message, where it was cut, stays where the person is.)
+    if (scroll) loadingMessageDiv.scrollIntoView?.({ behavior: 'smooth', block: 'end' });
     await completeReply({
       abortController,
       contentDiv: loadingMessageDiv.querySelector('.message-content') || loadingMessageDiv,

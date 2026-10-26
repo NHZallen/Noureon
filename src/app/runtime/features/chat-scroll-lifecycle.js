@@ -1,3 +1,5 @@
+import { sendAnchor } from './send-anchor.js';
+
 // The scrolling of a conversation: the button that goes down to the latest message, and the outline beside the messages that marks the
 // one being read.
 
@@ -5,6 +7,7 @@ export function createChatScrollLifecycle({ elements: ALL_ELEMENTS, requestAnima
     // Whether the button is taking the conversation down to its latest message, and the watcher of the messages in view.
     let autoScrolling = false;
     let messageObserver = null;
+    sendAnchor.configure({ elements: ALL_ELEMENTS, ResizeObserver, requestFrame: requestAnimationFrame });
     const disconnectMessageObserver = () => {
         messageObserver?.disconnect();
         messageObserver = null;
@@ -12,7 +15,8 @@ export function createChatScrollLifecycle({ elements: ALL_ELEMENTS, requestAnima
     const setupScrollToBottomButton = () => {
         const { scrollToBottomBtn, chatContainer } = ALL_ELEMENTS;
         const updateScrollButtonVisibility = () => {
-            const bottomDistance = Math.max(0, chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight);
+            // (The room kept below a message just sent is not content: the button is for what is below the messages.)
+            const bottomDistance = Math.max(0, chatContainer.scrollHeight - chatContainer.scrollTop - chatContainer.clientHeight - sendAnchor.room());
             scrollToBottomBtn.classList.toggle('visible', bottomDistance > 8);
         };
         let scrollButtonFrame = null;
@@ -31,7 +35,7 @@ export function createChatScrollLifecycle({ elements: ALL_ELEMENTS, requestAnima
                 scrollToBottomBtn.classList.remove('jelly-animate');
             }, { once: true });
             chatContainer.scrollTo({
-                top: chatContainer.scrollHeight,
+                top: chatContainer.scrollHeight - sendAnchor.room(),
                 behavior: 'smooth'
             });
             const scrollEndTimer = setTimeout(() => {

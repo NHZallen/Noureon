@@ -30,7 +30,7 @@ export const replyCut = {
       state.addMessageToUI({ id: user.id, role: 'user', parts: [{ text: user.text }], createdAt: state.now(), metadata: { steer: true } }, conversation.messages.length, true, true, { conversation });
     }
     // (The follower draws the message the reply goes on in before it first waits, and says where it is.)
-    const following = continueReply(conversation, serverRun.inMessage(cut.next), abortController);
+    const following = continueReply(conversation, serverRun.inMessage(cut.next), abortController, { scroll: false });
     pendingSteers.setPlace(() => conversation.__astraPendingResponse?.loadingMessageDiv || null);
     for (const item of waiting) pendingSteers.add(item);
     return following;

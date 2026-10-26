@@ -4,6 +4,7 @@ import { clearCliSelection, getCliSelection } from '../cli/cli-bridge.js';
 import { clearSkillSelection, getSkillSelection } from '../skill/skill-bridge.js';
 import { cliIdsOfParts, withCliSegments } from '../cli/cli-state.js';
 import { rememberDecisions, verdictOf } from '../decisions/decision-store.js';
+import { sendAnchor } from './send-anchor.js';
 
 export function createSubmitInputPreparationLifecycle({
   elements,
@@ -126,7 +127,7 @@ export function createSubmitInputPreparationLifecycle({
     const userMessageObject = { role: 'user', parts: userParts, createdAt: new Date().toISOString(), ...(responseUsesCouncil ? { metadata: { councilTurn: { mode: conversation.council?.mode === 'deliberation' ? 'deliberation' : 'consensus' } } } : {}) };
     const userMessageDiv = addMessageToUI(userMessageObject, conversation.messages.length, true);
     requestFrame(() => {
-      userMessageDiv?.scrollIntoView?.({ behavior: 'smooth', block: 'end' });
+      sendAnchor.anchorTo(userMessageDiv);
     });
     conversation.lastUpdatedAt = new Date().toISOString();
     conversation.unsentMessage = '';
@@ -183,9 +184,6 @@ export function createSubmitInputPreparationLifecycle({
     const contentDiv = loadingMessageDiv.querySelector('[data-image-generation-stage]')
       || loadingMessageDiv.querySelector('.message-content')
       || loadingMessageDiv;
-    requestFrame(() => {
-      loadingMessageDiv.scrollIntoView({ behavior: 'smooth', block: 'end' });
-    });
     // A message with a web address turns the search on whatever the settings say (where search can work at all): it is about
     // something on the web. Without one, only the automatic search does, and only for what needs current facts.
     // Except when the address is for a CLI tool the person chose with "@" and the model calls tools: the address is the tool's (a post to

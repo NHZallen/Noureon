@@ -62,14 +62,16 @@ test('after a cut the person\'s messages become messages of the conversation (on
     replyCut.pending.add({ id: 's1', text: 'make it a table' });
     replyCut.pending.add({ id: 's2', text: 'later one' });
     const followed = [];
+    const followedOptions = [];
     const run = { inMessage: (id) => ({ forMessage: id }) };
     const result = await replyCut.continueAfterCut({
       conversation,
       cut: { next: 'r2', sequence: 4, users: [{ id: 's1', text: 'make it a table', sequence: 2 }] },
       serverRun: run,
       abortController: 'controller',
-      continueReply: async (conv, followedRun, controller) => {
+      continueReply: async (conv, followedRun, controller, options) => {
         followed.push([conv, followedRun, controller]);
+        followedOptions.push(options);
         // The follower draws the message the reply goes on in before it first waits.
         const loading = document.createElement('div');
         loading.className = 'message-item model-message';
@@ -82,6 +84,7 @@ test('after a cut the person\'s messages become messages of the conversation (on
     assert.deepEqual(conversation.messages.map((message) => message.id), ['u0', 'r1', 's1']);
     assert.deepEqual(conversation.messages[2].metadata, { steer: true });
     assert.deepEqual(followed, [[conversation, { forMessage: 'r2' }, 'controller']]);
+    assert.deepEqual(followedOptions, [{ scroll: false }], 'the reply that goes on stays where the person is');
     assert.equal(replyCut.pending.has('s1'), false, 'the bubble of the message that was taken is gone');
     assert.equal(replyCut.pending.has('s2'), true, 'the one that was not stays');
     assert.equal(list.children.length, 3, 'the reply, the message it goes on in, and under that what was not taken');

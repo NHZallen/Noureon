@@ -147,7 +147,6 @@ test('prepares user text, uploaded files, temporary conversation, request-scoped
     'beginFirstSubmit',
     'addMessageToUI',
     'requestFrame',
-    'scrollIntoView',
     'setUploadedFiles',
     'adjustTextareaHeight',
     'renderFilePreviews',
@@ -156,8 +155,6 @@ test('prepares user text, uploaded files, temporary conversation, request-scoped
     'saveAppData',
     'addMessageToUI',
     'querySelector',
-    'requestFrame',
-    'scrollIntoView',
     'showNotification'
   ]);
 });
