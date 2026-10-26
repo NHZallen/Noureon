@@ -106,11 +106,14 @@ export async function executeReply({ spec, secrets, signal, steer = null, resume
     ...(sources.length ? { sources } : {}),
     ...(usedConnectors.size ? { connectors: [...usedConnectors.values()] } : {}),
     ...(pictureSteps().length ? { pictures: pictureSteps() } : {}),
+    ...(steered().length ? { steers: steered() } : {}),
     ...(thought.text ? { thought: thought.text, thoughtKind: thought.kind, ...(thought.first && thought.last > thought.first ? { thoughtMs: thought.last - thought.first } : {}) } : {})
   });
   // What the step list showed of the pictures looked at, chosen and drawn (server/image-tool.js): kept with the reply.
   const pictureSteps = () => imageLoader?.record || [];
-  const messageText = (status) => `${sources.length || thought.text || usedConnectors.size || pictureSteps().length ? formatSandboxRunBlock(record(status)) : ''}${answer}`;
+  // What the person added that the model has been given (reply/steer-queue.js): kept with the reply as rows of its process.
+  const steered = () => (steer ? steer.taken().map(({ text }) => ({ text })) : []);
+  const messageText = (status) => `${sources.length || thought.text || usedConnectors.size || pictureSteps().length || steered().length ? formatSandboxRunBlock(record(status)) : ''}${answer}`;
   // The pictures the text model drew by itself (server/image-tool.js), as parts of the message.
   const drawnParts = [];
   // Where in the answer each picture was kept, so that the message reads "words, picture, words" (data/picture-interleave.js).
@@ -533,7 +536,7 @@ export async function executeReply({ spec, secrets, signal, steer = null, resume
 
   if (advanced) {
     const stopped = Boolean(signal?.aborted) || advanced.run?.status === RUN_STATUS.stopped;
-    const run = advanced.run || (sources.length || usedConnectors.size || pictureSteps().length ? { status: RUN_STATUS.done, steps: [] } : null);
+    const run = advanced.run || (sources.length || usedConnectors.size || pictureSteps().length || steered().length ? { status: RUN_STATUS.done, steps: [] } : null);
     if (!run || (!advanced.text.trim() && !run.steps.length && !run.thought)) {
       if (!advanced.text.trim() && !sources.length && !drawnParts.length) {
         if (stopped) return { parts: [{ text: '' }], status: 'stopped', run: record('stopped'), toolCalls, rounds: advanced.rounds };
@@ -545,6 +548,7 @@ export async function executeReply({ spec, secrets, signal, steer = null, resume
     if (sources.length) run.sources = sources;
     if (usedConnectors.size) run.connectors = [...usedConnectors.values()];
     if (pictureSteps().length) run.pictures = pictureSteps();
+    if (steered().length) run.steers = steered();
     run.elapsedMs = now() - startedAt;
     if (stopped) run.status = RUN_STATUS.stopped;
     toolCalls = run.steps.length;

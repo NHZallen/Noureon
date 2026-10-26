@@ -29,6 +29,9 @@ const STORED_THOUGHT_CHARS = 6000;
 const MAX_SOURCES = 100;
 // The connectors a reply used: their names, one row each.
 const MAX_CONNECTORS = 12;
+// What the person added while the reply was made (reply/steer-queue.js): one row each.
+const MAX_STEERS = 20;
+const STORED_STEER_CHARS = 300;
 
 export const RUN_STATUS = Object.freeze({ running: 'running', done: 'done', failed: 'failed', stopped: 'stopped' });
 
@@ -93,6 +96,11 @@ export function normalizeConnectors(connectors) {
   return [...new Set((Array.isArray(connectors) ? connectors : []).map((name) => String(name ?? '').replace(/\s+/g, ' ').trim().slice(0, 60)).filter(Boolean))].slice(0, MAX_CONNECTORS);
 }
 
+// The messages the person added while the reply was made and the model has seen.
+export function normalizeSteers(steers) {
+  return (Array.isArray(steers) ? steers : []).map((steer) => ({ text: String(steer?.text ?? '').replace(/\s+/g, ' ').trim().slice(0, STORED_STEER_CHARS) })).filter((steer) => steer.text).slice(0, MAX_STEERS);
+}
+
 const COUNCIL_STAGES = ['translation', 'firstRound', 'deliberation', 'synthesis'];
 const MEMBER_STATUSES = ['done', 'failed', 'exited', 'skipped', 'running', 'pending'];
 const count = (value) => Math.max(0, Math.min(100_000_000, Math.round(Number(value) || 0)));
@@ -131,6 +139,7 @@ export function normalizeSandboxRun(run = {}) {
     ...(Number(run.elapsedMs) > 0 ? { elapsedMs: Math.round(Number(run.elapsedMs)) } : {}),
     ...(normalizeSources(run.sources).length ? { sources: normalizeSources(run.sources) } : {}),
     ...(normalizeConnectors(run.connectors).length ? { connectors: normalizeConnectors(run.connectors) } : {}),
+    ...(normalizeSteers(run.steers).length ? { steers: normalizeSteers(run.steers) } : {}),
     // The pictures a text model looked at, asked about and drew (data/picture-steps.js).
     ...(normalizePictureSteps(run.pictures).length ? { pictures: normalizePictureSteps(run.pictures) } : {}),
     ...(run.thought ? { thought: clip(run.thought, STORED_THOUGHT_CHARS).text } : {}),
@@ -170,6 +179,16 @@ export const hasSandboxRunBlock = (text = '') => String(text || '').startsWith(F
 // what it produced, never the code or its output.
 export function summarizeSandboxRun(run) {
   if (!run) return '';
+  return `${summarizeSteps(run)}${summarizeSteers(run)}`;
+}
+
+// What the person added while the reply was made, so a later turn knows the reply was steered (the words are in the reply's run record, not in its text).
+function summarizeSteers(run) {
+  const steers = run.steers || [];
+  return steers.length ? `[While this reply was being made the user added: ${steers.map((steer) => `"${steer.text}"`).join('; ')}.]\n` : '';
+}
+
+function summarizeSteps(run) {
   if (!run.steps.length) return run.fallback ? '[Answered in Standard mode.]\n' : '';
   const files = [...new Set(run.steps.flatMap((step) => step.files.map((file) => file.name)))];
   const produced = files.length ? `; it created ${files.map((name) => `/output/${name}`).join(', ')}` : '';

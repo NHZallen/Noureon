@@ -1046,7 +1046,7 @@ test('the person\'s answer to the window for a tool\'s login goes to the reply t
   assert.equal(answered.length, 2);
 });
 
-test('a message added while an ordinary reply is made waits for a boundary of its loop, the pages watching are told when it was taken, and the message records what was taken and what was left', async () => {
+test('a message added while an ordinary reply is made waits for a boundary of its loop, the pages watching are told when it was taken, and the message is left with nothing to send again', async () => {
   let release;
   const gate = new Promise((resolve) => { release = resolve; });
   let queue = null;
@@ -1073,8 +1073,6 @@ test('a message added while an ordinary reply is made waits for a boundary of it
   assert.equal(told.length, 1, 'the page is told once, when the model was given it');
   assert.equal(told[0].st.text, 'use a table');
   const written = messageWrites(db).at(-1);
-  assert.equal(written.metadata.steers.length, 1);
-  assert.equal(written.metadata.steers[0].text, 'use a table');
   assert.equal(written.metadata.steersLeft, undefined, 'nothing was left');
   assert.deepEqual(manager.control({ userId: USER, runId, action: 'steer', payload: { instruction: 'late' } }), { ok: false, reason: 'not_running' }, 'it is over');
 });
@@ -1101,7 +1099,6 @@ test('a message that no boundary took is kept in the finished message for the pa
   release();
   await settle();
   const written = messageWrites(db).at(-1);
-  assert.deepEqual(written.metadata.steers, [], 'none was taken');
   assert.equal(written.metadata.steersLeft[0].text, 'and also this');
   assert.ok(written.metadata.steersLeft.length >= 2);
 });

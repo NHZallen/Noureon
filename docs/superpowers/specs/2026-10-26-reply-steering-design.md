@@ -104,3 +104,11 @@ Linear：NOU-138（相容說明 `contract` 在工單裡）。
 * **P1 頁面**：新模組 `reply-steering.js`（回覆中的傳送行為、排隊、立刻送出；引導在 P2 之前先走立刻送出）、設定欄位與選項、五語文字、按鈕圖示切換、排隊的顯示與取消、測試。
 * **P2 伺服器與共用迴圈**：`/steer` 擴充、`steerQueue`、`turn.steer`、四種格式、顯示與 `metadata.steers`。
 * **P3 收尾**：隱私與協助文件（五語）、更新紀錄（Allen 發版時寫）。
+
+## 10. P2 實作紀錄（2026-10-26）
+
+* **共用佇列** `src/app/runtime/reply/steer-queue.js`（頁面與伺服器共用，已列入 `scripts/server-shared-modules.json`）：`createSteerQueue({ onTaken })`，`push`／`take`／`taken`／`left`，`support()` 表示「有邊界的迴圈正在跑」。三個迴圈（`runSkillsReply`、`runSandboxReply`、`runWebResearchReply`）在 `toolTurns.push` 時取走，四種格式（Gemini、OpenAI 聊天、Responses、Anthropic）把一則使用者訊息接在工具結果後面（`steerNote`）。
+* **伺服器** `server/runs.js`：一般回覆（不含議會、圖片、看圖檢查、深度研究）建立佇列；`POST /v1/runs/:id/steer` 走 `control()`，沒有邊界的回覆回 `409 wrong_phase`（頁面據此退到立刻送出）、空白 `400`、超過 20 則 `400`。取走時送即時事件 `{ st: { text, at } }`（晚加入的頁面在快照的 `r.st` 拿到）；取走的存在回覆的執行紀錄 `steers: [{ text }]`（跟處理步驟一起存，重新載入還在），沒被取走的存在訊息 `metadata.steersLeft`。**與 §9-6 的差別**：取走的不放 `metadata.steers`，而放執行紀錄，因為已存檔的處理列本來就由執行紀錄畫。
+* **頁面** `features/reply-steering.js`：「引導」模式下只有純文字（沒有附件、引用）才放進回覆——伺服器回覆打 `/steer`，本機回覆放進本機佇列（`createLocalReply().steer`）；被拒、沒有邊界、有附件或打不通時退回立刻送出。成功後輸入框清空；處理列出現「已補充：…」，模型看到後改成「模型已看到：…」（`sandbox-ledger.js` 的 `steer` 事件；其他分頁只看到「模型已看到」）。已存檔的回覆畫「模型已看到」列；給之後輪次的歷史摘要加一行「While this reply was being made the user added: …」。
+* **沒被取走的引導**：回覆結束時（`hold`）若輸入框是空的而且回覆不是被使用者中斷的，就自動當下一則訊息送出；輸入框有內容時放到內容前面，被中斷時放回輸入框（不送）。
+* **已知取捨**：迴圈有在跑但模型最後不再呼叫工具時，引導會留到回覆結束才送出（等同「排隊」），不會中斷回覆。

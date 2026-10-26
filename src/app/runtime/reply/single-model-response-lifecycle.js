@@ -17,6 +17,7 @@ import { createLocalReply } from './single-model-reply-local.js';
 import { createReplyLiveView } from './single-model-reply-live-view.js';
 import { composeReplyText, recordReplyRun } from './single-model-reply-finish.js';
 import { createPictureFlow } from './picture-flow.js';
+import { replySteering } from '../features/reply-steering.js';
 import { liftSandboxRunBlock } from '../../ui/sandbox/sandbox-run-block.js';
 
 // What a reply makes as it goes: the request as it stands, the pages searched (kept with the reply, shown as "Searched N sites"), its run record,
@@ -226,6 +227,15 @@ export function createSingleModelResponseLifecycle({
     let fullResponse;
     let responseRenderedInRealtime = false;
     let flowResult = null;
+    // What the person adds in the box while this reply is made goes into it (features/reply-steering.js): to the server's run, or to the loops here. A council's synthesis takes none.
+    const steerSink = synthesis ? null : {
+      push: async (text) => {
+        const kept = serverRun ? (await serverRun.steer?.(text))?.ok === true : local.steer.supported() && local.steer.push(text);
+        if (kept) view.event({ type: 'steer', phase: 'sent', text });
+        return kept;
+      }
+    };
+    if (steerSink) replySteering.attach(steerSink);
     try {
       if (getOutputMode() === 'realtime' || flow) {
         stop();
@@ -255,6 +265,11 @@ export function createSingleModelResponseLifecycle({
         fullResponse = await streamWithWaitRow(targetElement, startedAt, runApiStream, signal);
       }
     } finally {
+      if (steerSink) {
+        replySteering.detach(steerSink);
+        // What was added and never taken goes as the next message when the reply is over (features/reply-steering.js).
+        replySteering.hold(serverRun ? reply.steersLeft : local.steer.left().map((item) => item.text), { stopped: Boolean(signal?.aborted) });
+      }
       // The last bubble is finished and every picture is in place before the step list goes.
       if (flow) flowResult = await flow.finish();
       stop();
@@ -269,7 +284,9 @@ export function createSingleModelResponseLifecycle({
         serverRun,
         madeHere,
         aborted: Boolean(signal?.aborted),
-        elapsedMs: now() - runStartedAt
+        elapsedMs: now() - runStartedAt,
+        // (A reply the server made has them in its own record.)
+        steers: serverRun ? [] : local.steer.taken()
       });
     }
 

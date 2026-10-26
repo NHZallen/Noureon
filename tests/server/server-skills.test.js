@@ -9,6 +9,8 @@ import { OFFICIAL_SKILL_CATALOG } from '../../src/data/skill-catalog.js';
 import { createSkillBundleStore } from '../../server/skill-bundles.js';
 import { SKILL_BUNDLE_LIMITS, skillBundlePath } from '../../src/data/skill-bundle.js';
 import JSZip from 'jszip';
+import { createSteerQueue } from '../../src/app/runtime/reply/steer-queue.js';
+import { liftSandboxRunBlock } from '../../src/app/ui/sandbox/sandbox-run-block.js';
 
 // These tests put the official skills they need in the list themselves; the real ones are looked at in skill-settings-merge.test.js and skill-creator.test.js.
 OFFICIAL_SKILL_CATALOG.length = 0;
@@ -97,6 +99,36 @@ test('a plain reply on the server: the model is told of the skills, loads one, a
   const row = live.find((event) => event.ev?.type === 'skill');
   assert.equal(row.ev.label, 'Loading skill: meeting-notes');
   assert.ok(Number.isFinite(row.ev.t));
+});
+
+test('a message the person adds while the reply works is put into the request after the tool answer, and the saved reply keeps it as a row of its process', async () => {
+  const requests = [];
+  const taken = [];
+  const steer = createSteerQueue({ onTaken: (item) => taken.push(item.text) });
+  let round = 0;
+  const result = await executeReply({
+    spec: goodSpec({ skills: [{ name: 'meeting-notes', description: 'Turns a transcript into decisions.' }] }),
+    secrets: { providerKey: 'sk-provider-secret-value' },
+    userId: 'u1',
+    steer,
+    skills: { body: async (userId, name) => ({ name, body: 'List the decisions first.' }) },
+    fetchImpl: async (url, options) => {
+      requests.push(JSON.parse(options.body));
+      round += 1;
+      if (round === 1) {
+        assert.equal(steer.supported(), true, 'the loop that has boundaries said so');
+        steer.push('  make it a table  ');
+        return streamResponse(sse(toolCall('call_1', 'load_skill', { name: 'meeting-notes' })));
+      }
+      return streamResponse(sse(content('| decision |')));
+    }
+  });
+  assert.deepEqual(taken, ['make it a table']);
+  assert.doesNotMatch(JSON.stringify(requests[0].messages), /make it a table/);
+  assert.match(JSON.stringify(requests[1].messages), /The user added this message while you were working[\s\S]*make it a table/);
+  const { run, text } = liftSandboxRunBlock(result.parts[0].text);
+  assert.deepEqual(run.steers, [{ text: 'make it a table' }]);
+  assert.equal(text, '| decision |');
 });
 
 test('without the server\'s reader, with Gemini\'s own search, or with no skills, the reply is one plain request', async () => {

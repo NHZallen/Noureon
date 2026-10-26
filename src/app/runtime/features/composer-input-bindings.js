@@ -12,7 +12,21 @@ export function bindComposerInput({
 }) {
     replySteering.configure({
         getConfig, getAbortController, submitChatForm, isSteerable,
-        onChange: () => { renderInputIndicators(); resolveEventsUpdateInputState(); }
+        onChange: () => { renderInputIndicators(); resolveEventsUpdateInputState(); },
+        // The message went into the reply: the box is empty again (unless the person has typed on since).
+        clearDraft: (text) => {
+            if (ALL_ELEMENTS.messageInput.value.trim() !== text) return;
+            ALL_ELEMENTS.messageInput.value = '';
+            adjustTextareaHeight();
+            resolveEventsUpdateInputState();
+        },
+        // Messages put into the reply that it never took come back to the box (in front of what is there).
+        fillDraft: (text) => {
+            const current = ALL_ELEMENTS.messageInput.value;
+            ALL_ELEMENTS.messageInput.value = current.trim() ? `${text}\n\n${current}` : text;
+            adjustTextareaHeight();
+            resolveEventsUpdateInputState();
+        }
     });
     ALL_ELEMENTS.messageInput.addEventListener('input', (e) => {
         setSendConfirmed(false);

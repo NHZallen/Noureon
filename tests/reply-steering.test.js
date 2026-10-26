@@ -15,7 +15,9 @@ function setup({ mode = 'steer', steerable = true, running = true } = {}) {
     getAbortController: () => controller,
     submitChatForm: () => log.push('submit'),
     isSteerable: () => steerable,
-    onChange: () => log.push('change')
+    onChange: () => log.push('change'),
+    clearDraft: (text) => log.push(`clear:${text}`),
+    fillDraft: (text) => log.push(`fill:${text}`)
   });
   return { log, finishReply: () => { controller = null; } };
 }
@@ -157,4 +159,113 @@ test('in the page: with something in the box the button and Enter go to the choi
   replySteering.onReplyEnded();
   await tick();
   assert.equal(stopped.log.includes('submit'), false);
+});
+
+test('steer puts the words in the box into the reply that takes them, and empties the box', async () => {
+  const { log } = setup({ mode: 'steer' });
+  const pushed = [];
+  const sink = { push: async (text) => { pushed.push(text); return true; } };
+  replySteering.attach(sink);
+  replySteering.setDraft(true, '  use a table  ');
+  assert.equal(replySteering.press(), true);
+  await tick(20);
+  assert.deepEqual(pushed, ['use a table']);
+  assert.deepEqual(log, ['clear:use a table'], 'the reply was not stopped and nothing was sent');
+  replySteering.detach(sink);
+});
+
+test('steer falls back to send now when the reply does not take the message, there is no reply to put it in, or the box holds more than words', async () => {
+  const refuses = setup({ mode: 'steer' });
+  const sink = { push: async () => false };
+  replySteering.attach(sink);
+  replySteering.setDraft(true, 'use a table');
+  assert.equal(replySteering.press(), true);
+  await tick(120);
+  assert.deepEqual(refuses.log, ['abort', 'submit']);
+  replySteering.detach(sink);
+
+  const none = setup({ mode: 'steer' });
+  replySteering.setDraft(true, 'use a table');
+  assert.equal(replySteering.press(), true);
+  await tick(120);
+  assert.deepEqual(none.log, ['abort', 'submit'], 'no reply is taking messages');
+
+  const withFile = setup({ mode: 'steer' });
+  const taker = { push: async () => { withFile.log.push('pushed'); return true; } };
+  replySteering.attach(taker);
+  replySteering.setDraft(true, '');
+  assert.equal(replySteering.press(), true);
+  await tick(120);
+  assert.deepEqual(withFile.log, ['abort', 'submit'], 'a file or a quote cannot be put into a reply');
+  replySteering.detach(taker);
+
+  const broken = setup({ mode: 'steer' });
+  const throws = { push: async () => { throw new Error('offline'); } };
+  replySteering.attach(throws);
+  replySteering.setDraft(true, 'use a table');
+  assert.equal(replySteering.press(), true);
+  await tick(120);
+  assert.deepEqual(broken.log, ['abort', 'submit']);
+  replySteering.detach(throws);
+});
+
+test('a second press while the first message is on its way does nothing, and the setting queue or send now never uses the reply', async () => {
+  const { log } = setup({ mode: 'steer' });
+  let release;
+  const slow = { push: () => new Promise((resolve) => { release = () => resolve(true); }) };
+  replySteering.attach(slow);
+  replySteering.setDraft(true, 'one');
+  replySteering.press();
+  assert.equal(replySteering.press(), true);
+  release();
+  await tick(20);
+  assert.deepEqual(log, ['clear:one']);
+  replySteering.detach(slow);
+
+  const queue = setup({ mode: 'queue' });
+  const never = { push: async () => { queue.log.push('pushed'); return true; } };
+  replySteering.attach(never);
+  replySteering.setDraft(true, 'later');
+  replySteering.press();
+  assert.equal(replySteering.isQueued(), true);
+  assert.deepEqual(queue.log, ['change']);
+  replySteering.detach(never);
+});
+
+test('messages the reply never took go as the next message when the box is empty and the reply was not stopped', async () => {
+  const { log } = setup({ mode: 'steer' });
+  replySteering.setDraft(false);
+  replySteering.hold(['one', ' two ', ''], { stopped: false });
+  replySteering.onReplyEnded();
+  await tick(20);
+  assert.deepEqual(log, ['fill:one\n\ntwo', 'submit']);
+  replySteering.onReplyEnded();
+  await tick(20);
+  assert.deepEqual(log, ['fill:one\n\ntwo', 'submit'], 'only once');
+});
+
+test('messages the reply never took are put back in the box, not sent, when the person stopped the reply or already has something in the box', async () => {
+  const stopped = setup({ mode: 'steer' });
+  replySteering.setDraft(false);
+  replySteering.hold(['one'], { stopped: true });
+  replySteering.onReplyEnded();
+  await tick(20);
+  assert.deepEqual(stopped.log, ['fill:one']);
+
+  const typing = setup({ mode: 'steer' });
+  replySteering.setDraft(true, 'a new thought');
+  replySteering.hold(['one']);
+  replySteering.onReplyEnded();
+  await tick(20);
+  assert.deepEqual(typing.log, ['fill:one']);
+});
+
+test('a queued message and the messages the reply never took go together, once', async () => {
+  const { log } = setup({ mode: 'queue' });
+  replySteering.setDraft(true, 'queued words');
+  replySteering.press();
+  replySteering.hold(['one']);
+  replySteering.onReplyEnded();
+  await tick(20);
+  assert.deepEqual(log, ['change', 'fill:one', 'change', 'submit']);
 });

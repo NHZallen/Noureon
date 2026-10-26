@@ -26,7 +26,7 @@ export function createSettingsUpdateInputStateHelper({
         const hasContent = elements.messageInput.value.trim() !== '' || uploadedFiles.length > 0 || hasQuoteInquiry;
         const { submitButton, submitButtonIcon } = elements;
         // The send button while a reply is made follows the box: something in it is sent (see features/reply-steering.js), nothing stops the reply.
-        replySteering.setDraft(hasContent);
+        replySteering.setDraft(hasContent, uploadedFiles.length || hasQuoteInquiry ? '' : elements.messageInput.value);
         const sendIconHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"></path><path d="m5 12 7-7 7 7"></path></svg>`;
         const disabledIconHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="m5.7 5.7 12.6 12.6"></path></svg>`;
         if (getAbortController()) {

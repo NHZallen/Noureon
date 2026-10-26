@@ -2,6 +2,7 @@
 // words (Standard), with the model searching by itself or loading skills when it can.
 
 import { sandboxText } from '../sandbox/sandbox-texts.js';
+import { createSteerQueue } from './steer-queue.js';
 import { lookupSkill, openSkillFiles } from '../skill/skill-bridge.js';
 import { collectSandboxInputs, createSandboxFileParts, sandboxDocumentBlocks, sandboxDocumentNames, withoutDuplicatedFileBlocks, withoutEmptyDocumentBlocks } from '../../ui/sandbox/sandbox-files.js';
 
@@ -19,6 +20,8 @@ const loadSandboxReply = () => Promise.all([
 export function createLocalReply({ streamApiCall, buildSingleModelTranslatedRequestParts, getConfig, webResearch, now }, { request, prep, reply, view, streamOptions }) {
   const { modelInfo, conversation, userParts, signal, uiLanguage, webSearchEnabled } = request;
   const { researchByModel, invokedSkills, makeSkillLoader } = prep;
+  // What the person adds while this reply is made here: the loops take it after each round of tool answers (steer-queue.js); the view shows when they did.
+  const steer = createSteerQueue({ now, onTaken: (item) => view.event({ type: 'steer', phase: 'taken', text: item.text, at: item.at }) });
 
   const runAdvanced = async (onChunk) => {
     const [{ runSandboxReply }, { getPythonSandbox }] = await loadSandboxReply();
@@ -49,7 +52,9 @@ export function createLocalReply({ streamApiCall, buildSingleModelTranslatedRequ
     // Skills with scripts get their folder in the browser's Python too (/skills/<name>/, as on the server).
     const skillFolders = (await import('../skill/local-skill-folders.js')).createLocalSkillFolders({ lookup: lookupSkill, openFiles: openSkillFiles });
     await skillFolders.include(invokedSkills);
+    steer.support();
     const result = await runSandboxReply({
+      steer,
       streamApiCall,
       requestParts: advancedParts,
       onChunk,
@@ -84,6 +89,8 @@ export function createLocalReply({ streamApiCall, buildSingleModelTranslatedRequ
   // tools before anything happened answers without them (resolves null then).
   const tryToolLoop = async (load, onAnswer) => {
     let begun = false;
+    // A loop that takes the person's added messages after its tool answers is running.
+    steer.support();
     try {
       const result = await load({
         streamApiCall,
@@ -108,6 +115,7 @@ export function createLocalReply({ streamApiCall, buildSingleModelTranslatedRequ
     if (researchByModel) {
       const text = await tryToolLoop(async (options, begin) => (await import('../features/web-research-reply.js')).runWebResearchReply({
         ...options,
+        steer,
         searchWeb: webResearch.searchWeb,
         openPage: webResearch.openPage,
         onSources: reply.addSearchSources,
@@ -132,6 +140,7 @@ export function createLocalReply({ streamApiCall, buildSingleModelTranslatedRequ
     if (skillLoader) {
       const text = await tryToolLoop(async (options, begin) => (await import('./skills-reply.js')).runSkillsReply({
         ...options,
+        steer,
         loader: skillLoader,
         onEvent: (event) => {
           begin();
@@ -144,5 +153,5 @@ export function createLocalReply({ streamApiCall, buildSingleModelTranslatedRequ
     return streamApiCall(reply.requestParts, onAnswer, signal, false, { ...streamOptions, onReasoning: view.showThinking });
   };
 
-  return { runAdvanced, runStandard };
+  return { runAdvanced, runStandard, steer };
 }

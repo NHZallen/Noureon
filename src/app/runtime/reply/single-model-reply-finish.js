@@ -10,12 +10,14 @@ import { formatSandboxRunBlock } from '../../ui/sandbox/sandbox-run-block.js';
  * The run record of the reply as it ends (called whether it ended well or not). `thought` is the live view's; `aborted`: the person
  * stopped it. Sets reply.sandboxRun.
  */
-export function recordReplyRun({ reply, thought, answered, advanced, serverRun, madeHere, aborted, elapsedMs }) {
+export function recordReplyRun({ reply, thought, answered, advanced, serverRun, madeHere, aborted, elapsedMs, steers = [] }) {
   if (reply.searchSources.length) reply.sandboxRun = { status: 'done', steps: [], elapsedMs, ...(reply.sandboxRun || {}), sources: reply.searchSources };
   // (For a reply the server made, the time it thought is the server's, kept in its run record.)
   if (thought.text && !advanced && !serverRun) {
     reply.sandboxRun = { status: 'done', steps: [], ...(reply.sandboxRun || {}), thought: thought.text, thoughtKind: thought.kind, thoughtMs: thought.endedAt - thought.startedAt, ...(aborted && !answered ? { thoughtInterrupted: true } : {}) };
   }
+  // What the person added that the model has seen (reply/steer-queue.js): rows of the process, as in the live list.
+  if (steers.length) reply.sandboxRun = { status: 'done', steps: [], elapsedMs, ...(reply.sandboxRun || {}), steers: steers.map(({ text }) => ({ text })) };
   if (madeHere) reply.sandboxRun = { status: 'done', steps: [], ...(reply.sandboxRun || {}), madeHere: true };
 }
 

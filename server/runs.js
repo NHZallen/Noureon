@@ -382,8 +382,8 @@ export function createRunManager({
         await store.finish(runId, { status: 'failed', errorCode: ERROR_CODES.timeLimit, usage: { toolCalls: result.toolCalls }, ...(isImage ? { clearSpec: true } : {}) });
         return;
       }
-      // What the person added while the reply was made: what the model saw (and where), and what no boundary took (the page sends it as the next message).
-      await writer.finish(result.parts, 'complete', steer && (steer.taken().length || steer.left().length) ? { steers: steer.taken(), ...(steer.left().length ? { steersLeft: steer.left() } : {}) } : null);
+      // What the person added that no boundary of the reply took: the page sends it as the next message (what the model did see is in the reply's run record).
+      await writer.finish(result.parts, 'complete', steer?.left().length ? { steersLeft: steer.left() } : null);
       finalStatus = 'complete';
       await store.finish(runId, { status: result.status === 'stopped' ? 'stopped' : 'done', usage: { toolCalls: result.toolCalls, elapsedMs: result.run?.elapsedMs, ...(result.rounds?.length ? { rounds: result.rounds } : {}) }, ...(isImage ? { clearSpec: true } : {}) });
       // A reply that wrote a presentation is looked at next, as a run of its own (recorded before the page is told this one is over).

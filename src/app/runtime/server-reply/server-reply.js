@@ -351,6 +351,8 @@ export function createServerReply({
     kind,
     vision,
     stop: () => request('POST', `/v1/runs/${runId}/stop`),
+    // A message the person adds while the reply is made (features/reply-steering.js): kept until the reply's next tool answer. Not ok when this reply cannot take it.
+    steer: (text) => request('POST', `/v1/runs/${runId}/steer`, { body: JSON.stringify({ instruction: text }) }),
     // The person lets one model of a council leave it.
     exitMember: (modelId) => request('POST', `/v1/runs/${runId}/member`, { body: JSON.stringify({ modelId }) }),
     // The person's answer ('once', 'always' or 'deny') to the question a tool's command put about a site.
@@ -445,6 +447,8 @@ export function createServerReply({
           }
           // A page that joins late is given the steps so far, to draw the same list.
           if (Array.isArray(event.r.events) && !picturesFirst) for (const step of event.r.events) onEvent(withFileBytes(step));
+          // The messages the person added that the model has been given (features/reply-steering.js).
+          if (Array.isArray(event.r.st)) for (const steer of event.r.st) onEvent({ type: 'steer', phase: 'taken', text: steer.text, at: steer.at });
         } else if (event.cs) {
           if (handOver?.(event.cs)) return 'handover';
           onCouncil(event.cs);
@@ -452,6 +456,7 @@ export function createServerReply({
         else if (typeof event.dp === 'string') onDocumentPhase(event.dp);
         else if (Number.isFinite(event.tm)) onTiming(event.tm);
         else if (event.ev) onEvent(withFileBytes(event.ev));
+        else if (event.st) onEvent({ type: 'steer', phase: 'taken', text: event.st.text, at: event.st.at });
         else if (typeof event.a === 'string') {
           answerSoFar += event.a;
           if (!restarted) onText(event.a);
@@ -604,7 +609,9 @@ export function createServerReply({
           }
         }
         // Where in the answer the pictures the model drew stood (the message reads words, picture, words).
-        return { text: lifted.text, run: lifted.run, rewritten: !lifted.text.startsWith(answerSoFar), extraParts, pictureOffsets: pictureOffsets(row.parts).offsets, visionRunId };
+        return { text: lifted.text, run: lifted.run, rewritten: !lifted.text.startsWith(answerSoFar), extraParts, pictureOffsets: pictureOffsets(row.parts).offsets, visionRunId,
+          // What the person added that the reply never reached a boundary for (the page sends it as the next message).
+          steersLeft: (Array.isArray(row.metadata?.steersLeft) ? row.metadata.steersLeft : []).map((entry) => String(entry?.text ?? '').trim()).filter(Boolean) };
       }
     }
   });
