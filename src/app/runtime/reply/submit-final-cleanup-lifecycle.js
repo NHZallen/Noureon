@@ -1,3 +1,5 @@
+import { replySteering } from '../features/reply-steering.js';
+
 export function runSubmitFinalCleanupLifecycle(
   stopSingleModelLifecycle,
   resetSubmitState,
@@ -13,5 +15,7 @@ export function runSubmitFinalCleanupLifecycle(
   updateInputState();
   renderCouncilControls();
   renderInputIndicators();
+  // A message that waited for the reply to end goes now.
+  replySteering.onReplyEnded();
   return getLastMessageElement();
 }

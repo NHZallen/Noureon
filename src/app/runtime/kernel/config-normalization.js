@@ -182,6 +182,7 @@ export function normalizeLoadedLegacyConfig({
   // The network of those tools: whether every site is asked about, and the person's rules for sites.
   normalizedConfig.netMode = normalizeNetMode(normalizedConfig.netMode);
   normalizedConfig.sandboxNetwork = normalizedConfig.sandboxNetwork === 'off' ? 'off' : 'on';
+  normalizedConfig.replyInputMode = ['steer', 'queue', 'send-now'].includes(normalizedConfig.replyInputMode) ? normalizedConfig.replyInputMode : 'steer';
   normalizedConfig.netRules = normalizeNetRules(normalizedConfig.netRules);
   // The picture model a text model draws with, and whether the person is asked before each picture.
   normalizedConfig.toolModels = normalizeToolModels(normalizedConfig.toolModels);

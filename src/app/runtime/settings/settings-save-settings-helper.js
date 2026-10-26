@@ -1,5 +1,6 @@
 import { normalizeSearchProvider } from '../kernel/search-provider.js';
 import { normalizeColorScheme } from '../../../data/color-scheme-choices.js';
+import { normalizeReplyInputMode } from '../features/reply-steering.js';
 
 export function collectSettingsSaveFormValues({
     document,
@@ -25,6 +26,8 @@ export function collectSettingsSaveFormValues({
         // Kept as it was where the setting is not shown.
         fileModeDefault: elements.fileModeDefaultSelect?.value === 'standard' ? 'standard'
             : elements.fileModeDefaultSelect ? 'advanced' : (config.fileModeDefault === 'standard' ? 'standard' : 'advanced'),
+        // Kept as it was where the setting is not shown.
+        replyInputMode: normalizeReplyInputMode(elements.replyInputModeSelect ? elements.replyInputModeSelect.value : config.replyInputMode),
         autoNaming: elements.autoNamingToggleSwitch.checked,
         memoryEnabled1: elements.memoryToggle1?.isConnected !== false
             ? elements.memoryToggle1.checked

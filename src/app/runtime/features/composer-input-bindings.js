@@ -2,11 +2,18 @@
 // conversation, the box kept above a phone's keyboard, and the button that sends or stops.
 
 import { removeLastComposerIndicatorOnDelete } from './composer-indicator-keyboard.js';
+import { replySteering } from './reply-steering.js';
 
 export function bindComposerInput({
     window, document, elements: ALL_ELEMENTS, setSendConfirmed, updateInputState: resolveEventsUpdateInputState, adjustTextareaHeight,
-    submitChatForm, getActiveConversation, getAbortController, scheduleAnimationFrame, scheduleTimeout
+    submitChatForm, getActiveConversation, getAbortController, scheduleAnimationFrame, scheduleTimeout,
+    // What a message does while a reply is running (reply-steering.js): the settings, whether the reply can be steered, and drawing the line that says a message waits.
+    getConfig = () => ({}), isSteerable = () => true, renderInputIndicators = () => {}
 }) {
+    replySteering.configure({
+        getConfig, getAbortController, submitChatForm, isSteerable,
+        onChange: () => { renderInputIndicators(); resolveEventsUpdateInputState(); }
+    });
     ALL_ELEMENTS.messageInput.addEventListener('input', (e) => {
         setSendConfirmed(false);
         resolveEventsUpdateInputState();
@@ -35,7 +42,8 @@ export function bindComposerInput({
         if (removedIndicator) return;
         if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
             e.preventDefault();
-            if (!ALL_ELEMENTS.submitButton.disabled) {
+            if (getAbortController()) replySteering.press();
+            else if (!ALL_ELEMENTS.submitButton.disabled) {
                 submitChatForm();
             }
         }
@@ -87,6 +95,9 @@ export function bindComposerInput({
     ALL_ELEMENTS.submitButton.addEventListener('click', (e) => {
         e.preventDefault();
         if (getAbortController()) {
+            // With something in the box the press goes to what the person chose (steer, queue, send now); with nothing it stops the reply.
+            if (replySteering.press()) return;
+            replySteering.cancelQueue();
             try { getAbortController().abort(); } catch {}
         } else if (!ALL_ELEMENTS.submitButton.disabled) {
             submitChatForm();

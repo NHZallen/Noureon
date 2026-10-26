@@ -7,6 +7,8 @@ import { renderModelCouncilMenuItem } from '../features/composer-menu-item.js';
 import { renderComposerToolIcon } from '../../composer-tool-icons.js';
 import { chipCloseButton } from '../features/composer-chip.js';
 import { syncInputIndicatorItems } from './input-indicator-sync.js';
+import { replySteering } from '../features/reply-steering.js';
+import { replySteeringText } from '../features/reply-steering-texts.js';
 
 export function createSubmitInputComposer({
   document, elements: ALL_ELEMENTS, updateInputState, getAstras, models: MODELS, i18n, openRouterVisionModels, councilMinModels, councilMaxModels,
@@ -193,6 +195,19 @@ export function createSubmitInputComposer({
                             ${chipCloseButton('close-astras-btn-input', i18n[config.uiLanguage].closeAstras || 'Close Noura')}
                         `,
         eventListener: (el) => el.querySelector('#close-astras-btn-input').addEventListener('click', deactivateAstras)
+      });
+    }
+    // The message that waits for the reply to end (features/reply-steering.js).
+    if (replySteering.isQueued()) {
+      activeIndicators.set('queued-send-indicator', {
+        id: 'queued-send-indicator',
+        html: `
+                        <span class="input-indicator-content flex items-center gap-2">
+                            <span>${escapeHTML(replySteeringText(config.uiLanguage, 'queued'))}</span>
+                        </span>
+                        ${chipCloseButton('close-queued-send-btn-input', replySteeringText(config.uiLanguage, 'cancelQueue'))}
+                    `,
+        eventListener: (el) => el.querySelector('#close-queued-send-btn-input').addEventListener('click', () => replySteering.cancelQueue())
       });
     }
     if (conv.isWebSearchEnabled) {
