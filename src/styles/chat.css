@@ -416,3 +416,7 @@
     display: inline-block; /* 讓 transform 生效 */
     animation: fadeInChar 0.25s ease-out forwards;
 }
+
+/* What the person added while a reply was made: bubbles like their other messages, above the reply (ui/sandbox/steer-bubbles.js); faded until the model has seen the message. */
+.steer-message { width: 100%; }
+.steer-message.is-pending .message-bubble { opacity: .6; }

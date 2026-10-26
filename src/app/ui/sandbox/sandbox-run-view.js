@@ -59,13 +59,9 @@ function sourcesRows(document, sources, language) {
   return all.length ? [renderRow(document, { kind: 'search', label: sourcesRowLabel(language, all), body: [createSourceChips(document, all)], sources: all })] : [];
 }
 
-// "Using connector: GitHub": a row for each connector the reply used (the same row the live step list had; which tools it called is not kept), and a row for
-// each message the person added that the model saw ("The model saw: ...").
+// "Using connector: GitHub": a row for each connector the reply used (the same row the live step list had; which tools it called is not kept).
 function connectorRows(document, run, language) {
-  return [
-    ...(run.connectors || []).map((name) => renderRow(document, { kind: 'connector', label: sandboxText(language, 'connectorUsing', { connector: name }), body: [] })),
-    ...(run.steers || []).map((steer) => renderRow(document, { kind: 'steer', label: sandboxText(language, 'steerTaken', { text: steer.text.length > 120 ? `${steer.text.slice(0, 117)}...` : steer.text }), body: [] }))
-  ];
+  return (run.connectors || []).map((name) => renderRow(document, { kind: 'connector', label: sandboxText(language, 'connectorUsing', { connector: name }), body: [] }));
 }
 
 // The pictures the text model looked at, was asked about and drew: a row each (ui/sandbox/picture-steps-view.js).
@@ -198,7 +194,7 @@ export function createSandboxRunElement(document, run, { language = 'zh-TW' } = 
     container.append(element(document, 'p', 'sandbox-fallback-note', sandboxText(language, 'fallbackNotice', { reason: sandboxText(language, `reason.${run.fallback}`) })));
   }
   if (run.council) return councilRunElement(document, container, run, language);
-  if (!run.steps.length && (run.sources?.length || run.connectors?.length || run.pictures?.length || run.steers?.length) && run.elapsedMs > 0) {
+  if (!run.steps.length && (run.sources?.length || run.connectors?.length || run.pictures?.length) && run.elapsedMs > 0) {
     // A reply that searched the web but ran no Python is a process like any other: the one line with how long it took,
     // as the live view had, opening to the pages and the thinking. (Replies saved before the time was kept have no line.)
     const details = element(document, 'details', 'sandbox-run-details');

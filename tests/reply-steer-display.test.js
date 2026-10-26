@@ -3,8 +3,7 @@ import test from 'node:test';
 
 import { Window } from 'happy-dom';
 
-import { sandboxText } from '../src/app/runtime/sandbox/sandbox-texts.js';
-import { createSandboxLedger } from '../src/app/ui/sandbox/sandbox-ledger.js';
+import { createSteerBubbles, steerBubblesHTML } from '../src/app/ui/sandbox/steer-bubbles.js';
 import { formatSandboxRunBlock, liftSandboxRunBlock, normalizeSandboxRun, summarizeSandboxRunText } from '../src/app/ui/sandbox/sandbox-run-block.js';
 import { createSandboxRunElement } from '../src/app/ui/sandbox/sandbox-run-view.js';
 
@@ -20,8 +19,6 @@ const setup = () => {
   window.URL.revokeObjectURL = () => {};
   return { window, document, message, answer };
 };
-
-const rowLabels = (message) => [...message.querySelectorAll('.ledger-row[data-kind="steer"]')].map((row) => row.textContent.trim());
 
 test('the run record keeps what the person added: cleaned, cut, at most twenty, none that is empty', () => {
   const run = normalizeSandboxRun({ status: 'done', steps: [], steers: [{ text: '  use \n a table ' }, { text: '   ' }, { nothing: true }, { text: 'x'.repeat(400) }, ...Array.from({ length: 30 }, (_, i) => ({ text: `more ${i}` }))] });
@@ -41,37 +38,45 @@ test('a later turn is told the reply was steered, in the words of the person, an
   assert.equal(summarizeSandboxRunText(`${formatSandboxRunBlock({ status: 'done', steps: [] })}The answer.`), 'The answer.', 'nothing added when nothing was');
 });
 
-test('the live step list shows a message when it is put into the reply, and says the model saw it when it has; a page that did not add it just shows that it did', () => {
-  const { window, document, message, answer } = setup();
+test('the live reply draws a bubble like the person\'s own for each message put into it, at once, above the reply, and takes the faded look off when the model has seen it', () => {
+  const { window, document } = setup();
   try {
-    const ledger = createSandboxLedger({ document, host: message, before: answer, language: 'en', summary: true, open: true });
-    ledger.event({ type: 'steer', phase: 'sent', text: 'make it a table' });
-    assert.ok(rowLabels(message).some((label) => label.includes(sandboxText('en', 'steerSent', { text: 'make it a table' }))));
-    ledger.event({ type: 'steer', phase: 'taken', text: 'make it a table' });
-    const labels = rowLabels(message);
-    assert.ok(labels.some((label) => label.includes(sandboxText('en', 'steerTaken', { text: 'make it a table' }))));
-    assert.equal(labels.filter((label) => label.includes('make it a table')).length, 1, 'the same row, not a second one');
-    ledger.event({ type: 'steer', phase: 'taken', text: 'from another tab' });
-    assert.ok(rowLabels(message).some((label) => label.includes(sandboxText('en', 'steerTaken', { text: 'from another tab' }))));
+    const stack = document.createElement('div');
+    stack.className = 'message-stack message-stack-model';
+    stack.innerHTML = '<div class="message-bubble"><div class="message-content"></div></div>';
+    document.body.append(stack);
+    const bubbles = createSteerBubbles({ document, place: () => stack });
+    bubbles.add({ text: 'make it a table', pending: true });
+    bubbles.add({ text: 'in <French>', pending: true });
+    const items = [...stack.children];
+    assert.equal(items.length, 3);
+    assert.ok(items[0].classList.contains('user-message') && items[1].classList.contains('user-message'), 'in the order they came, in front of the reply\'s own bubble');
+    assert.ok(items[2].querySelector('.message-content') && !items[2].classList.contains('user-message'));
+    assert.equal(items[0].querySelector('.message-bubble .message-content').textContent, 'make it a table');
+    assert.equal(items[1].querySelector('.message-content').textContent, 'in <French>', 'the words are text, not markup');
+    assert.equal(items[0].classList.contains('is-pending'), true);
+    assert.equal(bubbles.seen('make it a table'), true);
+    assert.equal(items[0].classList.contains('is-pending'), false);
+    assert.equal(items[1].classList.contains('is-pending'), true);
+    assert.equal(bubbles.seen('never sent'), false);
+    bubbles.remove();
+    assert.equal(stack.children.length, 1);
   } finally {
     window.happyDOM.abort();
   }
 });
 
-test('the saved reply draws a row for each message the model saw, with the line of how long it took', () => {
+test('the saved reply has the same bubbles, made from its run record', () => {
+  const html = steerBubblesHTML(normalizeSandboxRun({ status: 'done', steps: [], steers: [{ text: 'make it a table' }, { text: 'a <b>' }] }).steers);
+  assert.equal((html.match(/user-message steer-message/g) || []).length, 2);
+  assert.match(html, /make it a table/);
+  assert.match(html, /a &lt;b&gt;/);
+  assert.equal(steerBubblesHTML(undefined), '');
   const { window, document } = setup();
-  const run = normalizeSandboxRun({ status: 'done', steps: [], elapsedMs: 9000, steers: [{ text: 'make it a table' }] });
-  const view = createSandboxRunElement(document, run, { language: 'en' });
-  assert.match(view.textContent, new RegExp(sandboxText('en', 'steerTaken', { text: 'make it a table' }).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
-  assert.equal(view.querySelector('.ledger-row[data-kind="steer"], [data-kind="steer"]') !== null, true, 'with its own kind (its icon)');
-  window.happyDOM.abort();
-});
-
-test('the words of a steer are in all five languages', () => {
-  for (const language of ['zh-TW', 'en', 'fr', 'ru', 'es']) {
-    for (const key of ['steerSent', 'steerTaken']) {
-      const text = sandboxText(language, key, { text: 'X' });
-      assert.ok(text.includes('X') && text !== key, `${language} ${key}`);
-    }
+  try {
+    const run = normalizeSandboxRun({ status: 'done', steps: [], elapsedMs: 9000, steers: [{ text: 'make it a table' }] });
+    assert.doesNotMatch(createSandboxRunElement(document, run, { language: 'en' })?.textContent || '', /make it a table/, 'not inside the process list');
+  } finally {
+    window.happyDOM.abort();
   }
 });

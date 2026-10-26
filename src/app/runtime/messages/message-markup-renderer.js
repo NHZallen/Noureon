@@ -5,7 +5,8 @@ import { getCliTool } from '../../../data/cli-catalog.js';
 import { renderComposerToolIcon } from '../../composer-tool-icons.js';
 import { renderLinkChipHTML, splitAtAddresses } from '../../ui/links/link-chip.js';
 import { registerSandboxFileParts } from '../../ui/sandbox/sandbox-files.js';
-import { withRunFilesListed } from '../../ui/sandbox/sandbox-run-block.js';
+import { liftSandboxRunBlock, withRunFilesListed } from '../../ui/sandbox/sandbox-run-block.js';
+import { steerBubblesHTML } from '../../ui/sandbox/steer-bubbles.js';
 import { replySourcesButtonHTML } from '../../ui/citations/citation-pills.js';
 import { imageThumbsPlaceholder } from '../../ui/image-wait/image-wait-markup.js';
 import { renderGeneratedImageSet } from '../images/generated-image-set.js';
@@ -71,6 +72,7 @@ export function buildMessageRenderView({
     const isUser = message.role === 'user';
     const messageClassName = `message-item flex items-start gap-2 md:gap-4 ${isUser ? 'justify-end user-message' : 'model-message'}`;
     let contentHTML = '';
+    let steerHTML = '';
     let mediaGridHTML = '';
     let actionButtons = '';
     let contentPaddingClass = '';
@@ -153,6 +155,8 @@ export function buildMessageRenderView({
                 // Files made in Advanced mode are parts; their cards come from the text.
                 registerSandboxFileParts(message.parts);
                 contentHTML = `<div>${renderMarkdownWithFormulas(withRunFilesListed(textParts.join('\n'), message.parts))}</div>`;
+                // What the person added while the reply was made: bubbles like their own messages, above the reply.
+                steerHTML = steerBubblesHTML(liftSandboxRunBlock(textParts.join('\n')).run?.steers);
             }
         }
         // A deep research is a card (ui/research/), drawn into this place once the message is on the page.
@@ -272,6 +276,7 @@ export function buildMessageRenderView({
                 <div class="message-stack ${isUser ? 'message-stack-user' : 'message-stack-model'}${imageStackClass}${sequenceClass}${quoteStackClass}">
                     ${autoNoteHTML}
                     ${mediaGridHTML}
+                    ${steerHTML}
                     ${sequenceHTML || generatedImageHTML}
                     ${quoteReferenceHTML}
                     ${hasBubbleContent && !sequenceHTML ? `

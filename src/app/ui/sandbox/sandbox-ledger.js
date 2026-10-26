@@ -360,26 +360,11 @@ export function createSandboxLedger({ document, host, before = null, language = 
     connectorRows.set(key, begin(label, { kind: 'connector' }));
   };
 
-  // A message the person added while the reply is made (features/reply-steering.js): a row when it was put into the reply, which says the model saw it when the model has.
-  // (A page that did not add it, or joined later, is told only that the model saw it.)
-  const steerRows = [];
-  const steerEvent = ({ phase, text: added }) => {
-    const shown = String(added || '').replace(/\s+/g, ' ').trim();
-    const short = shown.length > 120 ? `${shown.slice(0, 117)}...` : shown;
-    if (phase === 'sent') {
-      steerRows.push({ text: shown, row: begin(text('steerSent', { text: short }), { kind: 'steer' }) });
-      return;
-    }
-    const index = steerRows.findIndex((entry) => entry.text === shown && list.rows.includes(entry.row));
-    if (index >= 0) steerRows.splice(index, 1)[0].row.setLabel(text('steerTaken', { text: short }));
-    else begin(text('steerTaken', { text: short }), { kind: 'steer' });
-  };
-
   // Words the model wrote before a call (it was asked to put that in the call's note) were taken for the answer, and the
   // line said the work was over. When more work follows, the line goes back to running.
   let answered = false;
   const handle = (event) => {
-      if (answered && ['round', 'searching', 'step', 'skill', 'connector', 'image', 'steer'].includes(event.type)) {
+      if (answered && ['round', 'searching', 'step', 'skill', 'connector', 'image'].includes(event.type)) {
         answered = false;
         if (line && line.state !== 'running') {
           line.resume();
@@ -389,8 +374,6 @@ export function createSandboxLedger({ document, host, before = null, language = 
       if (event.type === 'skill') {
         // The model loads a skill: a row of its own, over when the next thing begins.
         begin(event.label, { kind: 'skill' });
-      } else if (event.type === 'steer') {
-        steerEvent(event);
       } else if (event.type === 'connector') {
         // The model uses a connector: a row of its own (the call), and the card that asks when the person set the tool to ask.
         if (event.event === 'call') connectorCall(event);

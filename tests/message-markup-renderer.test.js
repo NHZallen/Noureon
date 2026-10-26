@@ -42,6 +42,19 @@ test('builds the user message role, text markup, and bubble classes', () => {
   assert.match(view.messageHTML, /data-message-action="edit"/);
 });
 
+test('a reply whose run record has messages the person added draws them as bubbles of their own, above the reply\'s', () => {
+  const run = '```noureon-run\n{"v":1,"status":"done","steps":[],"steers":[{"text":"make it a table"}]}\n```\n\n';
+  const view = buildMessageRenderView({
+    message: { role: 'model', parts: [{ text: `${run}Answer` }], createdAt: '2026-06-24T10:30:00.000Z' },
+    ...dependencies
+  });
+  const steer = view.messageHTML.indexOf('user-message steer-message');
+  assert.ok(steer > 0 && /make it a table/.test(view.messageHTML));
+  assert.ok(steer < view.messageHTML.indexOf('MODEL:'), 'above the reply');
+  const plain = buildMessageRenderView({ message: { role: 'model', parts: [{ text: 'Answer' }], createdAt: '2026-06-24T10:30:00.000Z' }, ...dependencies });
+  assert.equal(plain.messageHTML.includes('steer-message'), false);
+});
+
 test('builds model markdown, timestamp, and exact action markup', () => {
   const view = buildMessageRenderView({
     message: {
