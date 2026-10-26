@@ -6,12 +6,13 @@
 import { loaderInstruction } from '../../../data/skill-tool.js';
 import { keepToolResult } from '../../../data/tool-result.js';
 import { loaderStepEvent } from '../sandbox/sandbox-texts.js';
+import { steerTurnFields } from './steer-queue.js';
 
 /**
  * `loader` is createSkillLoader(...) (skill-tool.js). `onEvent({ type: 'skill', name, label })` is told when a skill is being loaded (the label says so in
  * `language`). Resolves { text, calls }.
  */
-export async function runSkillsReply({ streamApiCall, requestParts, onChunk = () => {}, signal, requestOptions = {}, loader, language = 'zh-TW', onEvent = () => {} }) {
+export async function runSkillsReply({ streamApiCall, requestParts, onChunk = () => {}, signal, requestOptions = {}, loader, language = 'zh-TW', onEvent = () => {}, steer = null }) {
   const toolTurns = [];
   let text = '';
   const guidance = loaderInstruction(loader);
@@ -51,7 +52,7 @@ export async function runSkillsReply({ streamApiCall, requestParts, onChunk = ()
       results.push(keepToolResult(call, await loader.run(call)));
       if (signal?.aborted) break;
     }
-    toolTurns.push({ assistant: response, results });
+    toolTurns.push({ assistant: response, results, ...steerTurnFields(steer) });
     if (signal?.aborted) break;
   }
   return { text, calls: loader.used };

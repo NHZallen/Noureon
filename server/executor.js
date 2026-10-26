@@ -84,7 +84,7 @@ export class ReplyError extends Error {
  * With CLI tools, `credentials` (server/cli-credentials.js) gives the person's secure credentials for them, and `netControl` is what the run manager
  * answers the person's questions about sites with (it is given the function that does so once the sandbox is there).
  */
-export async function executeReply({ spec, secrets, signal, resume: resumeFrom = null, userId = '', sandboxHost = null, files = null, credentials = null, skills = null, connectors = null, netControl = null, credentialControl = null, connectorControl = null, imageControl = null, credentialWaitMs = 10 * 60 * 1000, knownSources = [], onPaused = () => {}, watching = () => false, onUpdate = () => {}, onLive = () => {}, onCheckpoint = async () => {}, onProblem = () => {}, fetchImpl = fetch, now = Date.now }) {
+export async function executeReply({ spec, secrets, signal, steer = null, resume: resumeFrom = null, userId = '', sandboxHost = null, files = null, credentials = null, skills = null, connectors = null, netControl = null, credentialControl = null, connectorControl = null, imageControl = null, credentialWaitMs = 10 * 60 * 1000, knownSources = [], onPaused = () => {}, watching = () => false, onUpdate = () => {}, onLive = () => {}, onCheckpoint = async () => {}, onProblem = () => {}, fetchImpl = fetch, now = Date.now }) {
   const resume = spec.tools.advanced ? null : resumeFrom;
   const mode = spec.tools.webSearch;
   const language = spec.request.language;
@@ -225,7 +225,8 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
   const streamWithSkills = async (requestParts) => {
     const loader = makeSkillLoader();
     if (!loader) return streamApiCall(requestParts, onChunk, signal, false, requestOptions);
-    const result = await runSkillsReply({ streamApiCall, requestParts, onChunk, signal, requestOptions, loader, language, onEvent: skillEvents });
+    steer?.support();
+    const result = await runSkillsReply({ streamApiCall, requestParts, onChunk, signal, requestOptions, loader, language, onEvent: skillEvents, steer });
     toolCalls += result.calls;
     return result;
   };
@@ -388,7 +389,9 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
         }
       }
       try {
+        steer?.support();
         const result = await runSandboxReply({
+          steer,
           streamApiCall,
           requestParts: advancedParts,
           onChunk,
@@ -479,7 +482,9 @@ export async function executeReply({ spec, secrets, signal, resume: resumeFrom =
       if (handBack && !signal?.aborted) throw new ReplyError('The Python sandbox is not available.', ERROR_CODES.sandboxUnavailable);
     } else if (mode === 'research') {
       const tools = createWebResearchTools({ getConfig: () => config, getApiKeyForProvider: keyFor, fetchImpl: upstreamFetch, getErrorMessage, readErrorBody, normalizePageReads, normalizeTinyfishSearch });
+      steer?.support();
       const result = await runWebResearchReply({
+        steer,
         streamApiCall,
         requestParts: parts,
         onChunk,

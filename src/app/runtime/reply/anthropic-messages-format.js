@@ -51,6 +51,8 @@ export function buildAnthropicMessages(messages, { modelInfo, modelSupportsVisio
 }
 
 /** The tools, and the rounds of tool calls so far, in this form: a call is a `tool_use` block, its answer a `tool_result` block in the next user message. */
+import { steerNote } from './steer-queue.js';
+
 export function applyAnthropicTools(payload, { tools = [], toolTurns = [] } = {}) {
   if (tools.length) {
     payload.tools = tools.map(({ name, description, parameters }) => ({ name, description, input_schema: parameters }));
@@ -73,7 +75,9 @@ export function applyAnthropicTools(payload, { tools = [], toolTurns = [] } = {}
         ...roundImages(turn.results).flatMap((image) => [
           ...(image.label ? [{ type: 'text', text: image.label }] : []),
           { type: 'image', source: { type: 'base64', media_type: image.mimeType, data: image.data } }
-        ])
+        ]),
+        // What the person added while the reply was being made.
+        ...(turn.steer?.length ? [{ type: 'text', text: steerNote(turn.steer) }] : [])
       ]
     });
   }

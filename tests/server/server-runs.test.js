@@ -1046,6 +1046,66 @@ test('the person\'s answer to the window for a tool\'s login goes to the reply t
   assert.equal(answered.length, 2);
 });
 
+test('a message added while an ordinary reply is made waits for a boundary of its loop, the pages watching are told when it was taken, and the message records what was taken and what was left', async () => {
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  let queue = null;
+  const { manager, db } = managerHarness({
+    execute: async ({ steer }) => {
+      queue = steer;
+      await gate;
+      steer.take();
+      return { parts: [{ text: 'done' }], status: 'done', run: { elapsedMs: 1 }, toolCalls: 1 };
+    }
+  });
+  const runId = await manager.start({ userId: USER, spec: specOf() });
+  await settle();
+  assert.deepEqual(manager.control({ userId: USER, runId, action: 'steer', payload: { instruction: 'too early' } }), { ok: false, reason: 'unsupported' }, 'a reply whose loop has no boundary cannot take it (the page sends it at once instead)');
+  queue.support();
+  assert.deepEqual(manager.control({ userId: USER, runId, action: 'steer', payload: { instruction: '   ' } }), { ok: false, reason: 'empty' });
+  assert.deepEqual(manager.control({ userId: '999e4567-e89b-12d3-a456-426614174009', runId, action: 'steer', payload: { instruction: 'x' } }), { ok: false, reason: 'not_running' }, 'not another person\'s reply');
+  assert.deepEqual(manager.control({ userId: USER, runId, action: 'steer', payload: { instruction: ' use a table ' } }), { ok: true });
+  const seen = [];
+  manager.watch({ userId: USER, runId, send: (event) => seen.push(event), close: () => seen.push('closed') });
+  release();
+  await settle();
+  const told = seen.filter((event) => event && event.st);
+  assert.equal(told.length, 1, 'the page is told once, when the model was given it');
+  assert.equal(told[0].st.text, 'use a table');
+  const written = messageWrites(db).at(-1);
+  assert.equal(written.metadata.steers.length, 1);
+  assert.equal(written.metadata.steers[0].text, 'use a table');
+  assert.equal(written.metadata.steersLeft, undefined, 'nothing was left');
+  assert.deepEqual(manager.control({ userId: USER, runId, action: 'steer', payload: { instruction: 'late' } }), { ok: false, reason: 'not_running' }, 'it is over');
+});
+
+test('a message that no boundary took is kept in the finished message for the page to send as the next one, and a limit is told', async () => {
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  const { manager, db } = managerHarness({
+    execute: async ({ steer }) => {
+      steer.support();
+      await gate;
+      return { parts: [{ text: 'done' }], status: 'done', run: { elapsedMs: 1 }, toolCalls: 0 };
+    }
+  });
+  const runId = await manager.start({ userId: USER, spec: specOf() });
+  await settle();
+  assert.deepEqual(manager.control({ userId: USER, runId, action: 'steer', payload: { instruction: 'and also this' } }), { ok: true });
+  let refused = null;
+  for (let i = 0; i < 30 && !refused; i += 1) {
+    const result = manager.control({ userId: USER, runId, action: 'steer', payload: { instruction: `more ${i}` } });
+    if (!result.ok) refused = result;
+  }
+  assert.deepEqual(refused, { ok: false, reason: 'too_many' });
+  release();
+  await settle();
+  const written = messageWrites(db).at(-1);
+  assert.deepEqual(written.metadata.steers, [], 'none was taken');
+  assert.equal(written.metadata.steersLeft[0].text, 'and also this');
+  assert.ok(written.metadata.steersLeft.length >= 2);
+});
+
 test('time the reply spent waiting for the person is given back to its time limit, and every page is told the clock was set back', async () => {
   let release;
   const gate = new Promise((resolve) => { release = resolve; });

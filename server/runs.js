@@ -11,6 +11,7 @@ import { createResearchControls, executeResearch } from './research.js';
 import { runStartErrorCode } from './run-store.js';
 import { executeVisionCheck, visionFiles, visionNoteMetadata } from './vision-check.js';
 import { visionText } from '../src/app/ui/files/vision/vision-texts.js';
+import { createSteerQueue } from '../src/app/runtime/reply/steer-queue.js';
 
 const HEARTBEAT_MS = 15_000;
 // A run whose heartbeat is older than this has no process: the next sweep takes it up.
@@ -96,7 +97,8 @@ export function createRunManager({
       // The reply's clock was set back (time spent waiting for the person is not counted): every page is told how long it has gone on.
       live.elapsedFrom = event.tm;
       live.elapsedAt = now();
-    } else if (typeof event.a === 'string') live.answer += event.a;
+    } else if (event.st) live.steers.push(event.st);
+    else if (typeof event.a === 'string') live.answer += event.a;
     else if (typeof event.th === 'string') {
       live.thought.text += event.th;
       live.thought.first ??= now();
@@ -197,6 +199,8 @@ export function createRunManager({
       ...(live.council ? { cs: { ...live.council, elapsedMs: (Number(live.council.elapsedMs) || 0) + (now() - live.councilAt) } } : {}),
       elapsedMs: live.elapsedFrom + (now() - live.elapsedAt),
       ...(live.steps.events.length ? { events: live.steps.events } : {}),
+      // What the person added while the reply was made and the model has seen, so a page that joins late shows the same marks.
+      ...(live.steers.length ? { st: live.steers } : {}),
       ...(live.vision.events.length ? { vc: live.vision.events } : {}),
       // A deep research: where it stands and what it has done, and the server's clock (the times in them are the server's).
       ...(live.research.state ? { rs: live.research.state, ra: live.research.activity, serverNow: now() } : {})
@@ -240,8 +244,10 @@ export function createRunManager({
     const imageControl = { answer: null };
     // How a person's request to let one model of a council leave reaches the council (it sets `exit`).
     const councilControl = { exit: null };
-    const live = { answer: '', thought: { text: '', kind: 'model', ended: false, ms: 0, first: null }, sources: [], elapsedFrom: 0, elapsedAt: now(), steps: { events: [], chars: 0 }, vision: { events: [], chars: 0 }, research: { state: null, activity: [] }, searching: '', documents: '', council: null, councilAt: 0, subscribers: new Set() };
-    active.set(runId, { controller, userId, live, controls, netControl, credentialControl, connectorControl, imageControl, councilControl });
+    const live = { steers: [], answer: '', thought: { text: '', kind: 'model', ended: false, ms: 0, first: null }, sources: [], elapsedFrom: 0, elapsedAt: now(), steps: { events: [], chars: 0 }, vision: { events: [], chars: 0 }, research: { state: null, activity: [] }, searching: '', documents: '', council: null, councilAt: 0, subscribers: new Set() };
+    // What the person adds while an ordinary reply is made is taken at the next boundary of its loop (reply/steer-queue.js); the pages watching are told when it was.
+    const steer = isVision || isResearch || isImage || isCouncil ? null : createSteerQueue({ now, onTaken: (item) => { const event = { st: { text: item.text, at: item.at } }; applyLive(live, event); fan(live, event); } });
+    active.set(runId, { steer, controller, userId, live, controls, netControl, credentialControl, connectorControl, imageControl, councilControl });
     let finalStatus = 'error';
     const writer = createMessageWriter({
       store: db,
@@ -331,6 +337,7 @@ export function createRunManager({
         resume,
         userId,
         ...(isResearch ? { controls } : {}),
+        ...(steer ? { steer } : {}),
         sandboxHost: sandbox?.host || null,
         files: sandbox?.files || null,
         credentials,
@@ -375,7 +382,8 @@ export function createRunManager({
         await store.finish(runId, { status: 'failed', errorCode: ERROR_CODES.timeLimit, usage: { toolCalls: result.toolCalls }, ...(isImage ? { clearSpec: true } : {}) });
         return;
       }
-      await writer.finish(result.parts, 'complete');
+      // What the person added while the reply was made: what the model saw (and where), and what no boundary took (the page sends it as the next message).
+      await writer.finish(result.parts, 'complete', steer && (steer.taken().length || steer.left().length) ? { steers: steer.taken(), ...(steer.left().length ? { steersLeft: steer.left() } : {}) } : null);
       finalStatus = 'complete';
       await store.finish(runId, { status: result.status === 'stopped' ? 'stopped' : 'done', usage: { toolCalls: result.toolCalls, elapsedMs: result.run?.elapsedMs, ...(result.rounds?.length ? { rounds: result.rounds } : {}) }, ...(isImage ? { clearSpec: true } : {}) });
       // A reply that wrote a presentation is looked at next, as a run of its own (recorded before the page is told this one is over).
@@ -581,8 +589,16 @@ export function createRunManager({
      */
     control({ userId, runId, action, payload = {} }) {
       const entry = active.get(runId);
-      if (!entry?.controls || entry.userId !== userId) return { ok: false, reason: 'not_running' };
-      return entry.controls.send(action, payload);
+      if (!entry || entry.userId !== userId) return { ok: false, reason: 'not_running' };
+      if (entry.controls) return entry.controls.send(action, payload);
+      // A message added to an ordinary reply that is being made: kept until the next boundary of its loop. Not for a council, a picture or a visual check.
+      if (action === 'steer') {
+        if (!entry.steer?.supported()) return { ok: false, reason: 'unsupported' };
+        const text = String(payload.instruction ?? '').trim();
+        if (!text) return { ok: false, reason: 'empty' };
+        return entry.steer.push(text) ? { ok: true } : { ok: false, reason: 'too_many' };
+      }
+      return { ok: false, reason: 'not_running' };
     },
 
     /**
