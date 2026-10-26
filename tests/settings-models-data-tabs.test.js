@@ -7,6 +7,7 @@ import fragment04 from '../src/templates/fragments/04-shell.fragment.js';
 import { ensureStorageUsageBlock } from '../src/app/runtime/settings/settings-storage-usage.js';
 import { ensureAutoWebSearchSettingsControl, ensureFileModeSettingsControl, ensureProcessOpenSettingsControl } from '../src/app/runtime/settings/settings-vision-check-control.js';
 import { ensureVisionCheckSettingsControl } from '../src/app/runtime/settings/settings-vision-check-section.js';
+import { ensureReplyInputSettingsControl } from '../src/app/runtime/settings/settings-reply-input-control.js';
 import { createSettingsMemorySummaryControls } from '../src/app/runtime/settings/settings-memory-summary-controls.js';
 
 // The Models and Data tabs are written out in full in the page (03-shell fragment): the controls that used to build them find
@@ -123,9 +124,13 @@ test('the Accessibility tab has its rows in the page, and the controls that used
   ensureVisionCheckSettingsControl({ document, elements, config, saveConfig: async () => {}, showNotification: () => {} });
   ensureProcessOpenSettingsControl({ document, elements, config });
   ensureFileModeSettingsControl({ document, elements, config });
+  ensureReplyInputSettingsControl({ document, elements, config: { ...config, replyInputMode: 'queue' } });
 
   assert.equal(document.querySelectorAll('#accessibility-section .pz-row').length, before, 'no row is added');
-  assert.equal(document.querySelectorAll('#vision-check-setting-row, #process-open-setting-row, #file-mode-setting-row').length, 3);
+  assert.equal(document.querySelectorAll('#vision-check-setting-row, #process-open-setting-row, #file-mode-setting-row, #reply-input-setting-row').length, 4);
+  assert.equal(elements.replyInputModeSelect.value, 'queue', 'what is saved is shown on the choice that is in the page');
+  assert.deepEqual([...elements.replyInputModeSelect.options].map((option) => option.textContent), ['Steer', 'Queue', 'Send now'], 'short words, in the language of the settings (a phone cuts a long one)');
+  assert.equal(document.querySelector('#reply-input-setting-row').closest('.pz-card') !== null, true);
   assert.deepEqual(
     [...document.querySelectorAll('#accessibility-section .pz-card .pz-head h3')].map((heading) => heading.dataset.langKey),
     ['settingsCardChat', 'settingsCardRepliesFiles']

@@ -104,6 +104,8 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
     steps: [],
     elapsedMs: now() - startedAt,
     ...(sources.length ? { sources } : {}),
+    // (Of the pages in `sources`, this many were found in the messages before it: the row "Searched N sites" counts only its own, the answer's [n] cite them all.)
+    ...(sources.length && sourceBase ? { sourcesBefore: Math.min(sourceBase, sources.length) } : {}),
     ...(usedConnectors.size ? { connectors: [...usedConnectors.values()] } : {}),
     ...(pictureSteps().length ? { pictures: pictureSteps() } : {}),
     ...(thought.text ? { thought: thought.text, thoughtKind: thought.kind, ...(thought.first && thought.last > thought.first ? { thoughtMs: thought.last - thought.first } : {}) } : {})
@@ -128,6 +130,7 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
   // as a message of its own (its process line, with the files its steps made), the person's messages come after it, and the rest of the reply is written into a new message
   // (server/runs.js does the writing, `onSegment`). What a message holds is only what happened in it, except the pages found, which the answer's [n] cite.
   let stepBase = 0;
+  let sourceBase = 0;
   const cloneStep = (step) => ({ ...step, files: (step.files || []).map((file) => ({ ...file })) });
   if (steer && onSegment) {
     steer.setBatchHandler((items, context) => {
@@ -146,6 +149,7 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
         return withPicturesOf(snapshot, `${formatSandboxRunBlock(snapshot.rec)}${snapshot.answer}`, []);
       })();
       if (steps) stepBase = context.steps.length;
+      sourceBase = sources.length;
       answer = '';
       thought.text = '';
       thought.first = null;

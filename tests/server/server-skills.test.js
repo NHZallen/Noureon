@@ -138,6 +138,36 @@ test('a message the person adds while the reply works is put into the request af
   assert.equal(run?.segment, undefined);
 });
 
+test('the pages found before a cut stay in the list of the message after it, which says how many were not its own', async () => {
+  const steer = createSteerQueue({});
+  const segments = [];
+  let round = 0;
+  const known = [{ n: 1, url: 'https://a.example/', title: 'A' }, { n: 2, url: 'https://b.example/', title: 'B' }];
+  const result = await executeReply({
+    spec: goodSpec({ skills: [{ name: 'meeting-notes', description: 'd' }] }),
+    secrets: { providerKey: 'sk-provider-secret-value' },
+    userId: 'u1',
+    steer,
+    knownSources: known,
+    onSegment: (segment) => segments.push(segment),
+    skills: { body: async (userId, name) => ({ name, body: 'x' }) },
+    fetchImpl: async () => {
+      round += 1;
+      if (round === 1) {
+        steer.push('more');
+        return streamResponse(sse(toolCall('call_1', 'load_skill', { name: 'meeting-notes' })));
+      }
+      return streamResponse(sse(content('Answer [2].')));
+    }
+  });
+  const first = liftSandboxRunBlock((await segments[0].finishing)[0].text).run;
+  assert.equal(first.sources.length, 2);
+  assert.equal(first.sourcesBefore, undefined, 'all of them are its own');
+  const last = liftSandboxRunBlock(result.parts[0].text).run;
+  assert.equal(last.sources.length, 2, 'the answer\'s [2] still finds its page');
+  assert.equal(last.sourcesBefore, 2);
+});
+
 test('without a place to write the cut, the loop still takes the message and the reply goes on in one message', async () => {
   const steer = createSteerQueue({});
   let round = 0;

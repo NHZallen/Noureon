@@ -124,3 +124,21 @@ test('for the model, a message with only its process is left out and what the pe
   assert.equal(merged[0].parts.map((part) => part.text).join(''), 'make a deck\n\nmake it five pages\n\nand in French');
   assert.equal(merged[3].parts[0].text, 'a second message that is not a steer', 'messages that are not steers are left as they were');
 });
+
+test('a message of a cut reply counts only the pages its own work found; the earlier ones stay in its list for the answer\'s [n]', () => {
+  const sources = [1, 2, 3].map((n) => ({ n, url: `https://site${n}.example/`, title: `Site ${n}` }));
+  const run = normalizeSandboxRun({ status: 'done', steps: [], elapsedMs: 9000, sources, sourcesBefore: 2 });
+  assert.equal(run.sources.length, 3);
+  assert.equal(run.sourcesBefore, 2);
+  assert.equal(normalizeSandboxRun({ status: 'done', steps: [], sources }).sourcesBefore, undefined);
+  assert.equal(normalizeSandboxRun({ status: 'done', steps: [], sourcesBefore: 2 }).sourcesBefore, undefined, 'no pages, nothing before them');
+  const { window, document } = setup();
+  try {
+    const view = createSandboxRunElement(document, run, { language: 'en' });
+    const text = view.textContent;
+    assert.match(text, /Searched 1 site|1 site/i, 'one site of its own');
+    assert.doesNotMatch(text, /3 sites/);
+  } finally {
+    window.happyDOM.abort();
+  }
+});
