@@ -44,7 +44,7 @@ const MODEL_RELEASE_METADATA = Object.freeze({
     'nvidia/nemotron-3.5-super-vl:free': { releasedAt: 20261014, outputPricePerMillion: 0 },
     'openai/gpt-6-astra': { releasedAt: 20260904, outputPricePerMillion: 50 },
     'openai/gpt-6-luna': { releasedAt: 20260922, outputPricePerMillion: 0.5 },
-    'openai/gpt-5.6-terra': { releasedAt: 20260709, outputPricePerMillion: 15 },
+    'openai/gpt-6.1-terra': { releasedAt: 20261027, outputPricePerMillion: 5 },
     'openai/gpt-6.1-sol': { releasedAt: 20260929, outputPricePerMillion: 10 },
     'openai/gpt-image-2.5-flare': { releasedAt: 20260909, outputPricePerMillion: 30 },
     'openai/gpt-image-2.5-sunburst': { releasedAt: 20260909, outputPricePerMillion: 30 },
@@ -151,7 +151,7 @@ export const MODEL_CATALOG = [
     // OpenRouter Paid Models (OpenAI)
     { id: 'openai/gpt-6-astra', legacyIds: ['openai/gpt-5.5'], name: 'OpenAI GPT-6 Astra', provider: 'openrouter', descriptionKey: 'model_gpt_6_astra_desc', category: 'general' },
     { id: 'openai/gpt-6-luna', legacyIds: ['openai/gpt-5.6-luna'], name: 'OpenAI GPT-6 Luna', provider: 'openrouter', descriptionKey: 'model_gpt_6_luna_desc', category: 'general' },
-    { id: 'openai/gpt-5.6-terra', name: 'OpenAI GPT-5.6 Terra', provider: 'openrouter', descriptionKey: 'model_gpt_5_6_terra_desc', category: 'general' },
+    { id: 'openai/gpt-6.1-terra', legacyIds: ['openai/gpt-5.6-terra'], name: 'OpenAI GPT-6.1 Terra', provider: 'openrouter', descriptionKey: 'model_gpt_6_1_terra_desc', category: 'general' },
     // Takes tools (Advanced mode's Python) only through the Responses API, so the rounds of an Advanced reply use it.
     { id: 'openai/gpt-6.1-sol', legacyIds: ['openai/gpt-6-sol', 'openai/gpt-5.6-sol'], name: 'OpenAI GPT-6.1 Sol', provider: 'openrouter', descriptionKey: 'model_gpt_6_1_sol_desc', category: 'general', responsesApiForTools: true },
     { id: 'openai/gpt-image-2.5-flare', legacyIds: ['openai/gpt-image-2'], name: 'OpenAI GPT Image 2.5 Flare', provider: 'openrouter', descriptionKey: 'model_gpt_image_2_5_flare_desc', category: 'image_generation', outputModality: 'image', supportedImageAspectRatios: GPT_IMAGE_RATIOS, supportedImageResolutions: GPT_IMAGE_RESOLUTIONS, supportedImageQualities: GPT_IMAGE_QUALITIES, supportedImageOptions: GPT_IMAGE_OPTIONS, maxImageCount: 10, maxImageReferences: 16 },
@@ -211,7 +211,7 @@ export const OPENROUTER_VISION_MODELS = [
     'nvidia/nemotron-3.5-super-vl:free',
     'openai/gpt-6-astra',
     'openai/gpt-6-luna',
-    'openai/gpt-5.6-terra',
+    'openai/gpt-6.1-terra',
     'openai/gpt-6.1-sol',
     'qwen/qwen3.7-flash',
     'qwen/qwen3.7-plus',
@@ -223,7 +223,7 @@ export const OPENROUTER_VISION_MODELS = [
     'x-ai/grok-4.6'
 ];
 // Models that see pictures but refuse a video (400 on a video_url: Step 5 Preview, DeepSeek V4.1 Flash and GLM-5.3 Flash on NVIDIA; the probe of 2026-10-16).
-export const NO_VIDEO_MODEL_IDS = Object.freeze(['deepseek/deepseek-v4.1-flash-1017', 'nvidia/stepfun-ai/step-5-preview', 'nvidia/deepseek-ai/deepseek-v4.1-flash', 'nvidia/z-ai/glm-5.3-flash']);
+export const NO_VIDEO_MODEL_IDS = Object.freeze(['deepseek/deepseek-v4.1-flash-1017', 'nvidia/stepfun-ai/step-5-preview', 'nvidia/deepseek-ai/deepseek-v4.1-flash', 'nvidia/z-ai/glm-5.3-flash', 'openai/gpt-6.1-terra']);
 export const NVIDIA_VISION_MODELS = [
     'deepseek-ai/deepseek-v4.1-flash',
     'z-ai/glm-5.3-flash',
@@ -267,7 +267,7 @@ export const TOOL_CALLING_MODEL_IDS = Object.freeze([
     'nvidia/minimaxai/minimax-m3.1-flash',
     'openai/gpt-6-astra',
     'openai/gpt-6-luna',
-    'openai/gpt-5.6-terra',
+    'openai/gpt-6.1-terra',
     'openai/gpt-6.1-sol',
     'qwen/qwen3.7-flash',
     'qwen/qwen3.7-plus',
@@ -333,7 +333,9 @@ export const MODEL_REASONING_CONFIGS = Object.freeze({ ...createReasoningConfigs
     [OPENROUTER_REASONING_EFFORT, ['none', 'low', 'medium', 'high'], 'medium', ['nvidia/nemotron-3.5-super-vl:free']],
     [OPENROUTER_REASONING_EFFORT, ['none', 'low', 'medium', 'xhigh'], 'xhigh', ['qwen/qwen3.8-max-0902']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'medium', ['openai/gpt-6-astra']],
-    [OPENROUTER_REASONING_EFFORT, ['none', 'low', 'medium', 'high', 'xhigh', 'max'], 'medium', ['openai/gpt-6-luna', 'openai/gpt-5.6-terra']],
+    [OPENROUTER_REASONING_EFFORT, ['none', 'low', 'medium', 'high', 'xhigh', 'max'], 'medium', ['openai/gpt-6-luna']],
+    // GPT-6.1 Terra cannot turn its thinking off (the probe of 2026-10-27: "none" is refused with 400, "Reasoning is mandatory"); low to max are taken, and its thinking comes back by default.
+    [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'medium', ['openai/gpt-6.1-terra']],
     // GPT-6.1 Sol has no "none" (OpenAI docs, OpenRouter model page: low, medium, high, xhigh, max; default medium).
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'medium', ['openai/gpt-6.1-sol']],
     // Step 5 Preview thinks at three levels and cannot be turned off (the owner, from OpenRouter's model page; default level: medium).

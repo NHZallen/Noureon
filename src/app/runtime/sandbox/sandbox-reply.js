@@ -10,6 +10,7 @@ import { partialJsonString } from '../features/tool-call-formats.js';
 import { RESEARCH_TOOLS, createResearchCalls, researchGuidance } from '../features/web-research-reply.js';
 import { loaderInstruction } from '../../../data/skill-tool.js';
 import { keepToolResult } from '../../../data/tool-result.js';
+import { steerTurnFields } from '../reply/steer-queue.js';
 
 const MODEL_TEXT_CHARS = 10_000;
 const MAX_CRASHES = 2;
@@ -94,6 +95,8 @@ export async function runSandboxReply({
   // Asks the person for the login a tool needs, in a window of the app: ({ toolId }) => Promise<{ provided }>. Only the server has it.
   askCredentials = null,
   onStatus = () => {},
+  // What the person adds while the reply is made (reply/steer-queue.js), or null: taken after each round of tool answers.
+  steer = null,
   // What happens in each run, for the work window: { type: 'step', n, title, code },
   // { type: 'output', n, stream, text } and { type: 'step-end', n, ok, error, files, elapsedMs }.
   onEvent = () => {}
@@ -502,7 +505,8 @@ export async function runSandboxReply({
       }
       reply(toolResultFor(result, { note }));
     }
-    toolTurns.push({ assistant: response, results });
+    // What the person added is taken here, with the steps run so far (the server cuts the reply into messages at this point).
+    toolTurns.push({ assistant: response, results, ...steerTurnFields(steer, { steps: run.steps }) });
     if (signal?.aborted || run.steps.some((step) => step.stopped)) break;
     const pythonCalls = calls.filter((entry) => isRunTool(entry.name)).length;
     const latest = run.steps.slice(-pythonCalls);

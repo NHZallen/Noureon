@@ -1,6 +1,16 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.22.0": [
+    "<strong>Noureon 18.22.0 Release Notes</strong>",
+    "This version adds adding a message while a reply is being made (steering), changes the scrolling after a message is sent, and updates OpenRouter's GPT-5.6 Terra to GPT-6.1 Terra.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Steering a reply:</strong> while the model is answering, with text in the box, Send hands your message to the reply that is running, and the model sees it the next time it has finished using a tool. The reply is split there: what it did so far (searches, thinking, steps and files) becomes a reply message of its own, your message follows it as an ordinary message of the conversation (you can edit it), and the model goes on in a new reply message. This is for replies the server makes that use tools; a reply that uses no tools, a reply made on this device, and a message with a file or a quote are sent at once instead. With nothing in the box the button is still \"Stop\".</li><li><strong>What Send does during a reply:</strong> Settings → Accessibility has a new choice, \"When you press Send while a reply is running\": steer (the default), queue (send when the reply ends) or send now (stop the reply, then send).</li><li><strong>Scrolling after sending:</strong> after you send a message it goes to the top of the screen with room below it for the reply; the screen no longer follows the reply down as it grows, and follows again once you scroll to the end. The same on phones and computers.</li><li><strong>OpenAI GPT-6.1 Terra:</strong> replaces OpenAI GPT-5.6 Terra. Price: $1 per million input and $5 per million output tokens; context 1,050,000, maximum output 128,000; it takes pictures and files, not video. Thinking levels are low, medium, high, extra high and maximum, with medium the default; thinking cannot be turned off. Chats, Model Council groups and recent models that used GPT-5.6 Terra move to the new one, and a thinking level of \"none\" becomes medium.</li><li><strong>Other changes:</strong> in a reply that was split by a message you added, each message counts only the sites its own part found; a reply message that holds only its process line has no copy row.</li></ul>",
+    "<strong>Known limits</strong>",
+    "<ul><li>If the server restarts just after a reply was split, that reply ends as \"server restarted\"; what was made before the split is kept.</li><li>In the later messages of a split reply, \"Searched N sites\" counts only that part, but the [n] in the answer still point to the pages found earlier.</li></ul>",
+    "<strong>Compatibility</strong>",
+    "This update needs no data migration. The messages you add are kept as ordinary messages in your cloud workspace."
+  ],
   "18.21.0": [
     "<strong>Noureon 18.21.0 Release Notes</strong>",
     "This version adds the Google connector.",

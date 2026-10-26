@@ -17,6 +17,9 @@ import { createLocalReply } from './single-model-reply-local.js';
 import { createReplyLiveView } from './single-model-reply-live-view.js';
 import { composeReplyText, recordReplyRun } from './single-model-reply-finish.js';
 import { createPictureFlow } from './picture-flow.js';
+import { replySteering } from '../features/reply-steering.js';
+import { replyCut } from './reply-cut.js';
+import { sendAnchor } from '../features/send-anchor.js';
 import { liftSandboxRunBlock } from '../../ui/sandbox/sandbox-run-block.js';
 
 // What a reply makes as it goes: the request as it stands, the pages searched (kept with the reply, shown as "Searched N sites"), its run record,
@@ -226,6 +229,19 @@ export function createSingleModelResponseLifecycle({
     let fullResponse;
     let responseRenderedInRealtime = false;
     let flowResult = null;
+    // What the person adds in the box while a reply the server makes goes into it (features/reply-steering.js): its bubble stands under the reply until the reply takes the message and is cut
+    // there (reply-cut.js). A reply made here, and a council's synthesis, take none.
+    const steerSink = synthesis || !serverRun?.steer ? null : {
+      push: async (text) => {
+        const id = crypto.randomUUID();
+        if ((await serverRun.steer(text, id))?.ok !== true) return false;
+        replyCut.pending.setPlace(() => targetElement.closest?.('.message-item') || null);
+        // Like any message the person sends, its bubble goes to the top of the chat.
+        sendAnchor.anchorTo(replyCut.pending.add({ id, text }));
+        return true;
+      }
+    };
+    if (steerSink) replySteering.attach(steerSink);
     try {
       if (getOutputMode() === 'realtime' || flow) {
         stop();
@@ -255,6 +271,15 @@ export function createSingleModelResponseLifecycle({
         fullResponse = await streamWithWaitRow(targetElement, startedAt, runApiStream, signal);
       }
     } finally {
+      if (steerSink) {
+        replySteering.detach(steerSink);
+        // A reply that was cut goes on in a new message, and what is still waiting waits on. At the end of the reply, what was added and never taken goes as the next message
+        // (features/reply-steering.js).
+        if (!reply.cut || signal?.aborted) {
+          replyCut.pending.remove();
+          replySteering.hold(reply.steersLeft, { stopped: Boolean(signal?.aborted) });
+        }
+      }
       // The last bubble is finished and every picture is in place before the step list goes.
       if (flow) flowResult = await flow.finish();
       stop();
@@ -283,6 +308,9 @@ export function createSingleModelResponseLifecycle({
       picturesShown: drewHere && flowResult.shownAll,
       responseRenderedInRealtime,
       extraParts: reply.sandboxParts,
+      // The reply was cut where the person's messages were taken: the message it goes on in (reply-cut.js).
+      cut: signal?.aborted ? null : reply.cut || null,
+      serverRun,
       pictureOffsets: drewHere ? flowResult.offsets : reply.pictureOffsets
     };
   };

@@ -10,10 +10,16 @@ import { buildOpencodeRequest } from './opencode-request.js';
 import { opencodeFormatOf, opencodeModelReadsOfficeViaPdf, opencodeModelReadsPdf } from '../shell/opencode-models.js';
 import { createOfficeReader } from '../../ui/files/office-text/office-reader.js';
 
+// A reply that was cut where the person added a message (reply/reply-cut.js) leaves a message with nothing but its process: it says nothing to the model and is left out, and the
+// message the person added joins the message before it, as one turn of theirs.
+const hasContent = (message) => (message?.parts || []).some((part) => (typeof part?.text === 'string' ? part.text.trim() !== '' : Boolean(part && Object.keys(part).length)));
+
 export function mergeAdjacentModelMessages(history) {
-  return history.reduce((merged, message) => {
+  return history.filter((message) => message?.role !== 'model' || hasContent(message)).reduce((merged, message) => {
     const previous = merged.at(-1);
     if (message?.role === 'model' && previous?.role === 'model') {
+      previous.parts = [...(previous.parts || []), { text: '\n\n' }, ...(message.parts || [])];
+    } else if (message?.role === 'user' && message.metadata?.steer && previous?.role === 'user') {
       previous.parts = [...(previous.parts || []), { text: '\n\n' }, ...(message.parts || [])];
     } else {
       merged.push({ ...message, parts: [...(message.parts || [])] });

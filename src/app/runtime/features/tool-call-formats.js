@@ -26,6 +26,8 @@ const parseArguments = (text) => {
   }
 };
 
+import { steerNote } from '../reply/steer-queue.js';
+
 export function applyGeminiTools(payload, { tools = [], toolTurns = [] } = {}) {
   if (tools.length) {
     payload.tools = [...(payload.tools || []), {
@@ -52,7 +54,9 @@ export function applyGeminiTools(payload, { tools = [], toolTurns = [] } = {}) {
         ...roundImages(turn.results).flatMap((image) => [
           ...(image.label ? [{ text: image.label }] : []),
           { inlineData: { mimeType: image.mimeType, data: image.data } }
-        ])
+        ]),
+        // What the person added while the reply was being made.
+        ...(turn.steer?.length ? [{ text: steerNote(turn.steer) }] : [])
       ]
     });
   }
@@ -90,6 +94,7 @@ export function applyOpenAiTools(payload, { tools = [], toolTurns = [], reasonin
         ])
       });
     }
+    if (turn.steer?.length) payload.messages.push({ role: 'user', content: steerNote(turn.steer) });
   }
   return payload;
 }
@@ -122,6 +127,7 @@ export function applyResponsesTools(payload, { tools = [], toolTurns = [] } = {}
         ])
       });
     }
+    if (turn.steer?.length) payload.input.push({ role: 'user', content: [{ type: 'input_text', text: steerNote(turn.steer) }] });
   }
   return payload;
 }

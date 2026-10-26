@@ -42,6 +42,16 @@ test('builds the user message role, text markup, and bubble classes', () => {
   assert.match(view.messageHTML, /data-message-action="edit"/);
 });
 
+test('a message of a reply that was cut, with nothing but its process line, has no footer to copy from', () => {
+  const run = (extra) => `\`\`\`noureon-run\n{"v":1,"status":"done","steps":[],"segment":true,"elapsedMs":5000}\n\`\`\`\n\n${extra}`;
+  const process = buildMessageRenderView({ message: { role: 'model', parts: [{ text: run('') }], createdAt: '2026-06-24T10:30:00.000Z' }, ...dependencies });
+  assert.equal(process.messageHTML.includes('copy-content-btn'), false);
+  const withWords = buildMessageRenderView({ message: { role: 'model', parts: [{ text: run('Some words.') }], createdAt: '2026-06-24T10:30:00.000Z' }, ...dependencies });
+  assert.equal(withWords.messageHTML.includes('copy-content-btn'), true, 'a cut message that has words keeps its footer');
+  const withFile = buildMessageRenderView({ message: { role: 'model', parts: [{ text: run('') }, { sandboxFile: { id: 'f', name: 'a.txt', mimeType: 'text/plain', size: 1, data: 'x' } }], createdAt: '2026-06-24T10:30:00.000Z' }, ...dependencies });
+  assert.equal(withFile.messageHTML.includes('copy-content-btn'), true, 'one that made a file keeps it');
+});
+
 test('builds model markdown, timestamp, and exact action markup', () => {
   const view = buildMessageRenderView({
     message: {

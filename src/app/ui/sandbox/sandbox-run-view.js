@@ -53,6 +53,9 @@ function thoughtRow(document, thought, language, { interrupted = false, label } 
   });
 }
 
+// The pages this message's own work found (a reply that was cut keeps the earlier ones in `sources` for the answer's [n], but its row counts only its own).
+const ownSources = (run) => (run.sources || []).slice(run.sourcesBefore || 0);
+
 // "Searched 2 sites": the sites the reply looked at, found by a search or read in full, as one row of chips.
 function sourcesRows(document, sources, language) {
   const all = mergeSources(sources);
@@ -122,7 +125,7 @@ function totalMs(run) {
 // "Thought for 12s · Searched 5 sites · Made on this device": the reply's line, once it is written (the live line ends the same way, sandbox-ledger.js).
 function summaryText(run, language) {
   const total = totalMs(run);
-  const sources = mergeSources(run.sources || []);
+  const sources = mergeSources(ownSources(run));
   const head = [
     total > 0 ? sandboxText(language, 'workedFor', { t: formatTotal(total) }) : sandboxText(language, 'sandboxDone', { n: run.steps.length }),
     sources.length ? sourcesRowLabel(language, sources) : '',
@@ -156,7 +159,7 @@ function councilRunElement(document, container, run, language) {
   const timeline = element(document, 'div', 'council-tl-saved');
   timeline.innerHTML = councilTimelineHTML({ ...run.council, stage: 'completed' }, { language });
   list.append(timeline);
-  if (run.sources?.length) list.append(...sourcesRows(document, run.sources, language));
+  if (ownSources(run).length) list.append(...sourcesRows(document, ownSources(run), language));
   list.append(...connectorRows(document, run, language));
   run.steps.forEach((step, index) => {
     if (step.thought) list.append(thoughtRow(document, step.thought, language));
@@ -194,13 +197,13 @@ export function createSandboxRunElement(document, run, { language = 'zh-TW' } = 
     container.append(element(document, 'p', 'sandbox-fallback-note', sandboxText(language, 'fallbackNotice', { reason: sandboxText(language, `reason.${run.fallback}`) })));
   }
   if (run.council) return councilRunElement(document, container, run, language);
-  if (!run.steps.length && (run.sources?.length || run.connectors?.length || run.pictures?.length) && run.elapsedMs > 0) {
+  if (!run.steps.length && (ownSources(run).length || run.connectors?.length || run.pictures?.length || run.segment) && run.elapsedMs > 0) {
     // A reply that searched the web but ran no Python is a process like any other: the one line with how long it took,
     // as the live view had, opening to the pages and the thinking. (Replies saved before the time was kept have no line.)
     const details = element(document, 'details', 'sandbox-run-details');
     const summary = element(document, 'summary', 'sandbox-run-summary', summaryText(run, language));
     const list = element(document, 'div', 'sandbox-run-steps');
-    list.append(...sourcesRows(document, run.sources, language), ...connectorRows(document, run, language), ...pictureRows(document, run, language));
+    list.append(...sourcesRows(document, ownSources(run), language), ...connectorRows(document, run, language), ...pictureRows(document, run, language));
     if (run.thought) list.append(thoughtRow(document, run.thought, language, { interrupted: run.thoughtInterrupted, label: thinkingLabel(run, language) }));
     details.append(summary, list);
     animateDetails(details);
@@ -209,7 +212,7 @@ export function createSandboxRunElement(document, run, { language = 'zh-TW' } = 
   }
   if (!run.steps.length) {
     // A reply without Python: the pages it searched, and how the model thought before it answered.
-    if (run.sources?.length) container.append(...sourcesRows(document, run.sources, language));
+    if (ownSources(run).length) container.append(...sourcesRows(document, ownSources(run), language));
     container.append(...connectorRows(document, run, language), ...pictureRows(document, run, language));
     if (run.thought) container.append(renderReplyThinking(document, run, language));
     // Nothing else to say above the answer: only where it was made.
@@ -219,7 +222,7 @@ export function createSandboxRunElement(document, run, { language = 'zh-TW' } = 
   const details = element(document, 'details', 'sandbox-run-details');
   const summary = element(document, 'summary', 'sandbox-run-summary', summaryText(run, language));
   const list = element(document, 'div', 'sandbox-run-steps');
-  if (run.sources?.length) list.append(...sourcesRows(document, run.sources, language));
+  if (ownSources(run).length) list.append(...sourcesRows(document, ownSources(run), language));
   list.append(...connectorRows(document, run, language), ...pictureRows(document, run, language));
   run.steps.forEach((step, index) => {
     if (step.thought) list.append(thoughtRow(document, step.thought, language));

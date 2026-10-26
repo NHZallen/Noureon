@@ -52,6 +52,7 @@ test('collects checkbox, input, select, dropdown, and theme values as plain data
     colorScheme: 'light',
     processOpen: false,
     fileModeDefault: 'advanced',
+    replyInputMode: 'steer',
     autoNaming: true,
     memoryEnabled1: false,
     historyRecallEnabled: false,

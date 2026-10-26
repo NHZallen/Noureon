@@ -5,7 +5,7 @@ import { getCliTool } from '../../../data/cli-catalog.js';
 import { renderComposerToolIcon } from '../../composer-tool-icons.js';
 import { renderLinkChipHTML, splitAtAddresses } from '../../ui/links/link-chip.js';
 import { registerSandboxFileParts } from '../../ui/sandbox/sandbox-files.js';
-import { withRunFilesListed } from '../../ui/sandbox/sandbox-run-block.js';
+import { liftSandboxRunBlock, withRunFilesListed } from '../../ui/sandbox/sandbox-run-block.js';
 import { replySourcesButtonHTML } from '../../ui/citations/citation-pills.js';
 import { imageThumbsPlaceholder } from '../../ui/image-wait/image-wait-markup.js';
 import { renderGeneratedImageSet } from '../images/generated-image-set.js';
@@ -169,7 +169,9 @@ export function buildMessageRenderView({
             generatedImageHTML = generatedPicturesHTML(generatedImageAssets);
         }
         // A message of pictures only has no footer; one with words (a text model drew the pictures itself) does.
-        if (!isUser && (generatedImageAssets.length === 0 || textParts.length > 0)) {
+        // A message of a reply that was cut where the person added a message (reply/reply-cut.js), with nothing but its process line, has no footer: there is nothing to copy.
+        const processOnly = !isUser && message.parts.length > 0 && message.parts.every((part) => !part || (typeof part.text === 'string' ? liftSandboxRunBlock(part.text).text.trim() === '' && liftSandboxRunBlock(part.text).run?.segment === true : false));
+        if (!isUser && !processOnly && (generatedImageAssets.length === 0 || textParts.length > 0)) {
             const timeString = formatTimestamp(message.createdAt);
             actionButtons = `
                         <div class="absolute bottom-2 left-2 right-2 flex justify-between items-center">

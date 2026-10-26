@@ -58,6 +58,8 @@ export function createRuntimeConfigStore({ defaultModelId } = {}) {
     netMode: 'new',
     // Whether what runs in the server's sandbox (Python and the command tools) may reach the web at all ('on': sites the person has not allowed are asked about; 'off': none).
     sandboxNetwork: 'on',
+    // What Send does while a reply is running: 'steer', 'queue' or 'send-now' (features/reply-steering.js).
+    replyInputMode: 'steer',
     netRules: {},
     // The models a text model may call by itself (the picture model it draws with) and the permission for it: data/tool-models.js.
     toolModels: { image: null },

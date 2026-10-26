@@ -61,6 +61,10 @@ export function createRunStore({ db, limits, now = () => new Date() }) {
         ...(clearSpec ? { spec: null } : {})
       });
     },
+    /** The reply went on in a new message (it was cut where the person's message was taken): the run is now found by that message. */
+    async setMessage(id, messageId) {
+      await db.update('server_runs', { id: `eq.${id}` }, { message_id: messageId });
+    },
     /** A person's request to stop their own run. Returns whether there was a live run of theirs. */
     async requestStop({ userId, runId }) {
       const rows = await db.update('server_runs', { id: `eq.${runId}`, user_id: `eq.${userId}`, status: 'in.(queued,running)' }, { stop_requested: true });

@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import { buildQuotedUserParts } from '../../src/app/runtime/messages/quote-inquiry-lifecycle.js';
 import { createSubmitInputPreparationLifecycle } from '../../src/app/runtime/features/submit-input-preparation-lifecycle.js';
+import { sendAnchor } from '../../src/app/runtime/features/send-anchor.js';
 
 const createSubmitHarness = ({
   councilEnabled = false,
@@ -129,12 +130,14 @@ test('submit proceeds immediately because auto-search detection is local', async
     messageValue: 'What is the weather today?'
   });
 
-  const prepared = await harness.submit();
+  // The message just sent goes to the top of the chat, with room for the reply (features/send-anchor.js).
+  const anchored = [];
+  const anchorTo = sendAnchor.anchorTo;
+  sendAnchor.anchorTo = (element) => anchored.push(element);
+  const prepared = await harness.submit().finally(() => { sendAnchor.anchorTo = anchorTo; });
 
-  assert.equal(
-    harness.calls.some(([name, role]) => name === 'scrollIntoView' && role === 'user'),
-    true
-  );
+  assert.equal(anchored.length, 1);
+  assert.equal(typeof anchored[0].scrollIntoView, 'function', 'the element of the message that was sent');
   assert.equal(
     harness.calls.some(([name, role]) => name === 'addMessageToUI' && role === 'model'),
     true

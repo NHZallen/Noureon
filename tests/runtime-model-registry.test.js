@@ -93,6 +93,7 @@ test('model registry exports the canonical model inventory', () => {
   assert.equal(getCanonicalModelId('openai/gpt-6-sol'), 'openai/gpt-6.1-sol', 'chats saved with GPT-6 Sol move to 6.1');
   assert.equal(getCanonicalModelId('anthropic/claude-sonnet-5'), 'anthropic/claude-sonnet-5.5', 'chats saved with Sonnet 5 move to 5.5');
   assert.equal(getCanonicalModelId('openai/gpt-5.6-luna'), 'openai/gpt-6-luna');
+  assert.equal(getCanonicalModelId('openai/gpt-5.6-terra'), 'openai/gpt-6.1-terra', 'chats saved with GPT-5.6 Terra move to 6.1 Terra');
   assert.equal(getCanonicalModelId('anthropic/claude-opus-5'), 'anthropic/claude-opus-5.5');
   // NVIDIA's Kimi K3 is retired (2026-10-15), so the old Kimi K2.6 ids no longer lead anywhere in the list.
   assert.equal(getCanonicalModelId('deepseek/deepseek-v4.1-flash'), 'deepseek/deepseek-v4.1-flash-1017');
@@ -119,7 +120,7 @@ test('model registry preserves vision and document capability behavior', () => {
   const lagunaModel = MODELS.find((model) => model.id === 'poolside/laguna-s-2.1:free');
   const opus5Model = MODELS.find((model) => model.id === 'anthropic/claude-opus-5.5');
   const openRouterVisionModel = MODELS.find((model) => model.id === 'openai/gpt-6-astra');
-  const openRouterGpt56Models = ['openai/gpt-6-luna', 'openai/gpt-5.6-terra', 'openai/gpt-6.1-sol']
+  const openRouterGpt56Models = ['openai/gpt-6-luna', 'openai/gpt-6.1-terra', 'openai/gpt-6.1-sol']
     .map((id) => MODELS.find((model) => model.id === id));
   const openRouterGrokVisionModel = MODELS.find((model) => model.id === 'x-ai/grok-4.6');
   const deepseekVisionModel = MODELS.find((model) => model.id === 'deepseek/deepseek-v4.1-flash-1017');
@@ -160,7 +161,8 @@ test('model registry exposes precise reasoning depth options for supported model
   const deepseekModel = MODELS.find((model) => model.id === 'deepseek/deepseek-v4.1-flash-1017');
   const grokModel = MODELS.find((model) => model.id === 'x-ai/grok-4.6');
   const openAiModel = MODELS.find((model) => model.id === 'openai/gpt-6-astra');
-  const gpt56Model = MODELS.find((model) => model.id === 'openai/gpt-5.6-terra');
+  const gpt56Model = MODELS.find((model) => model.id === 'openai/gpt-6-luna');
+  const gpt61TerraModel = MODELS.find((model) => model.id === 'openai/gpt-6.1-terra');
   const gpt61SolModel = MODELS.find((model) => model.id === 'openai/gpt-6.1-sol');
   const sonnet55Model = MODELS.find((model) => model.id === 'anthropic/claude-sonnet-5.5');
   const imageModel = MODELS.find((model) => model.id === 'google/gemini-nano-banana-2.1');
@@ -187,6 +189,9 @@ test('model registry exposes precise reasoning depth options for supported model
   // GPT-6.1 Sol has no "none" and defaults to medium; Sonnet 5.5 keeps the five Claude levels.
   assert.deepEqual(getModelReasoningConfig(gpt61SolModel)?.options, ['low', 'medium', 'high', 'xhigh', 'max']);
   assert.equal(normalizeReasoningEffort(gpt61SolModel, 'none'), 'medium', 'a chat saved with GPT-6 Sol at "none" falls back');
+  assert.deepEqual(getModelReasoningConfig(gpt61TerraModel)?.options, ['low', 'medium', 'high', 'xhigh', 'max'], 'GPT-6.1 Terra cannot turn its thinking off');
+  assert.equal(normalizeReasoningEffort(gpt61TerraModel, 'none'), 'medium', 'a chat saved with GPT-5.6 Terra at "none" falls back');
+  assert.equal(gpt61TerraModel.responsesApiForTools, undefined, 'it takes tools through the usual API (the probe of 2026-10-27)');
   assert.deepEqual(getModelReasoningConfig(sonnet55Model)?.options, ['low', 'medium', 'high', 'xhigh', 'max']);
   assert.equal(normalizeReasoningEffort(sonnet55Model, 'max'), 'max');
   assert.equal(gpt61SolModel.responsesApiForTools, true, 'GPT-6.1 Sol takes tools through the Responses API');

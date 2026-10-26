@@ -130,7 +130,10 @@ export function normalizeSandboxRun(run = {}) {
     // How long the reply took in all (thinking, runs and files), for the "Processed for 1m 5s" line.
     ...(Number(run.elapsedMs) > 0 ? { elapsedMs: Math.round(Number(run.elapsedMs)) } : {}),
     ...(normalizeSources(run.sources).length ? { sources: normalizeSources(run.sources) } : {}),
+    ...(normalizeSources(run.sources).length && Number.isInteger(run.sourcesBefore) && run.sourcesBefore > 0 ? { sourcesBefore: Math.min(run.sourcesBefore, 1000) } : {}),
     ...(normalizeConnectors(run.connectors).length ? { connectors: normalizeConnectors(run.connectors) } : {}),
+    // A message of a reply that was cut where the person added a message: its process line is drawn even when it has nothing but the time.
+    ...(run.segment ? { segment: true } : {}),
     // The pictures a text model looked at, asked about and drew (data/picture-steps.js).
     ...(normalizePictureSteps(run.pictures).length ? { pictures: normalizePictureSteps(run.pictures) } : {}),
     ...(run.thought ? { thought: clip(run.thought, STORED_THOUGHT_CHARS).text } : {}),

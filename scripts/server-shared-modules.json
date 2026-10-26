@@ -2,6 +2,10 @@
   "comment": "Modules of src/ the server may use, with everything they import. Read a module for browser use (window, document, storage, import.meta.env) before adding it; the check fails when the server starts using a module that is not here, or when one here is no longer used.",
   "modules": [
     {
+      "path": "src/app/runtime/reply/steer-queue.js",
+      "note": "Reviewed 2026-10-26: no browser globals (the messages a person adds while a reply is made, kept until the next boundary of its loop)."
+    },
+    {
       "path": "src/app/runtime/reply/anthropic-messages-format.js",
       "note": "Reviewed 2026-10-13: no browser globals (the Messages form of API: conversation, tools, stream collector)."
     },

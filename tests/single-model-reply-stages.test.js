@@ -71,6 +71,20 @@ test('following the server: its words, run record and files go into the reply; a
   assert.equal(reply.sandboxRun, null);
 });
 
+test('following the server when it cuts the reply: the cut goes with the reply, and a message cut to nothing but its process line is not an empty reply', async () => {
+  const view = createReplyLiveView({ targetElement: {}, getDocument: () => null, getConfig: () => ({}), language: 'en', now: () => 0, serverReply: null, serverRun: null, madeHere: false, getRunStartedAt: () => 0, onStepsShown() {} });
+  const reply = { searchSources: [], sandboxParts: [], sandboxRun: null, groundingSupports: [], sandboxDocuments: '' };
+  const cut = { next: 'next-message', sequence: 4, users: [{ id: 'u', text: 'make it a table', sequence: 3 }] };
+  const serverRun = { follow: async () => ({ text: '', run: { status: 'done', steps: [], segment: true, elapsedMs: 9000 }, extraParts: [], steersLeft: ['left'], segment: cut }) };
+  const lifecycle = { serverReply: { noteVision() {}, localizeError: (error) => error }, now: () => 0, setRunStartedAt() {}, getRunStartedAt: () => 0 };
+  const text = await followServerReply(lifecycle, { serverRun, reply, view, progress() {}, uiLanguage: 'en', advanced: false, runHere: async () => 'here' }, () => {});
+  assert.equal(text, '');
+  assert.deepEqual(reply.cut, cut);
+  assert.deepEqual(reply.steersLeft, ['left']);
+  const composed = composeReplyText({ reply, fullResponse: text, targetElement: { dataset: {} }, aborted: false, uiLanguage: 'en' });
+  assert.equal(liftSandboxRunBlock(composed).run.segment, true, 'the message is its process line');
+});
+
 test('the live view tells once that the model searches by itself, and not for an event of long ago', () => {
   let time = 100_000;
   const notices = [];

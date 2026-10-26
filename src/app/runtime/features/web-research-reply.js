@@ -10,6 +10,7 @@ import { hostOf } from '../../ui/sandbox/run-sources.js';
 import { keepToolResult, withoutImages } from '../../../data/tool-result.js';
 import { resultDate } from '../reply/model-request-formatting.js';
 import { absoluteLinks, findPassages, pageWindow } from './web-page-text.js';
+import { steerTurnFields } from '../reply/steer-queue.js';
 
 export const WEB_SEARCH_TOOL = Object.freeze({
   name: 'web_search',
@@ -332,7 +333,9 @@ export async function runWebResearchReply({
   // The skills the model may load next to searching: createSkillLoader(...) (data/skill-tool.js), or null. `onEvent` is told { type: 'skill', name, label }.
   skills = null,
   // Shared numbers of the pages (see createResearchCalls), or null.
-  numbering = null
+  numbering = null,
+  // What the person adds while the reply is made (reply/steer-queue.js), or null.
+  steer = null
 }) {
   const toolTurns = Array.isArray(resume?.toolTurns) ? [...resume.toolTurns] : [];
   const research = createResearchCalls({ searchWeb, openPage, language, maxCalls, signal, onEvent, onSources, resume: resume?.research, numbering });
@@ -391,7 +394,7 @@ export async function runWebResearchReply({
       results.push(keepToolResult(call, content));
       if (signal?.aborted) break;
     }
-    toolTurns.push({ assistant: response, results });
+    toolTurns.push({ assistant: response, results, ...steerTurnFields(steer) });
     if (signal?.aborted) break;
     onRound({ toolTurns: withoutImages(toolTurns), text, research: research.snapshot() });
   }

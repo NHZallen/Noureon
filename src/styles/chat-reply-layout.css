@@ -44,3 +44,10 @@
 html:not(.ac-chart-styles-ready) .ac-chart {
     visibility: hidden;
 }
+
+/* Room kept empty below a message just sent, so that its bubble can stand at the top of the chat while the reply is written under it (features/send-anchor.js). */
+#message-list::after {
+    content: "";
+    display: block;
+    height: var(--send-room, 0px);
+}

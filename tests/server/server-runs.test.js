@@ -1046,6 +1046,112 @@ test('the person\'s answer to the window for a tool\'s login goes to the reply t
   assert.equal(answered.length, 2);
 });
 
+test('a message added while an ordinary reply is made waits for a boundary of its loop, and is refused when the reply has none, is empty, or is another person\'s', async () => {
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  let queue = null;
+  const { manager } = managerHarness({
+    execute: async ({ steer }) => {
+      queue = steer;
+      await gate;
+      return { parts: [{ text: 'done' }], status: 'done', run: { elapsedMs: 1 }, toolCalls: 1 };
+    }
+  });
+  const runId = await manager.start({ userId: USER, spec: specOf() });
+  await settle();
+  assert.deepEqual(manager.control({ userId: USER, runId, action: 'steer', payload: { instruction: 'too early' } }), { ok: false, reason: 'unsupported' }, 'a reply whose loop has no boundary cannot take it (the page sends it at once instead)');
+  queue.support();
+  assert.deepEqual(manager.control({ userId: USER, runId, action: 'steer', payload: { instruction: '   ' } }), { ok: false, reason: 'empty' });
+  assert.deepEqual(manager.control({ userId: '999e4567-e89b-12d3-a456-426614174009', runId, action: 'steer', payload: { instruction: 'x' } }), { ok: false, reason: 'not_running' }, 'not another person\'s reply');
+  assert.deepEqual(manager.control({ userId: USER, runId, action: 'steer', payload: { instruction: ' use a table ' } }), { ok: true });
+  assert.deepEqual(queue.left().map((item) => item.text), ['use a table']);
+  release();
+  await settle();
+  assert.deepEqual(manager.control({ userId: USER, runId, action: 'steer', payload: { instruction: 'late' } }), { ok: false, reason: 'not_running' }, 'it is over');
+});
+
+test('the reply is cut where its loop takes the person\'s messages: the message so far is finished, their messages are written after it, the rest goes into a new message, the run is found by that one, and the pages are told', async () => {
+  const USER_MESSAGE = '423e4567-e89b-12d3-a456-426614174004';
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  const { manager, db } = managerHarness({
+    execute: async ({ steer, onSegment, onUpdate, onLive }) => {
+      steer.support();
+      steer.setBatchHandler((items) => onSegment({ items, finishing: Promise.resolve([{ text: 'process one' }]) }));
+      onUpdate([{ text: 'first words' }]);
+      await gate;
+      steer.take();
+      onLive({ r: { answer: '', thought: { text: '', kind: 'model', ended: false, ms: 0 }, sources: [], elapsedMs: 0 } });
+      onUpdate([{ text: 'second words' }]);
+      return { parts: [{ text: 'second done' }], status: 'done', run: { elapsedMs: 1 }, toolCalls: 1 };
+    }
+  });
+  const runId = await manager.start({ userId: USER, spec: specOf() });
+  await settle();
+  const seen = [];
+  manager.watch({ userId: USER, runId, send: (event) => seen.push(event), close: () => seen.push('closed') });
+  assert.deepEqual(manager.control({ userId: USER, runId, action: 'steer', payload: { instruction: 'use a table', id: USER_MESSAGE } }), { ok: true });
+  assert.deepEqual(manager.control({ userId: USER, runId, action: 'steer', payload: { instruction: 'in French', id: 'not-an-id' } }), { ok: true });
+  release();
+  await settle();
+  await settle();
+  const rows = messageWrites(db);
+  const first = rows.find((row) => row.id === MESSAGE && row.status === 'complete');
+  assert.equal(first.parts[0].text, 'process one');
+  assert.equal(first.sequence, 4);
+  const note = first.metadata.segment;
+  assert.equal(note.users.length, 2);
+  assert.deepEqual(note.users.map((user) => [user.text, user.sequence]), [['use a table', 5], ['in French', 6]]);
+  assert.equal(note.users[0].id, USER_MESSAGE, 'the id the page gave');
+  assert.match(note.users[1].id, /^[0-9a-f-]{36}$/, 'one is made when the page gave none');
+  assert.equal(note.sequence, 7);
+  const users = rows.filter((row) => row.role === 'user');
+  assert.deepEqual(users.map((row) => [row.id, row.sequence, row.parts[0].text, row.status]), note.users.map((user) => [user.id, user.sequence, user.text, 'complete']));
+  assert.ok(users.every((row) => row.metadata?.steer === true), 'marked as messages the person added during a reply');
+  const last = rows.filter((row) => row.id === note.next);
+  assert.equal(last.at(-1).status, 'complete');
+  assert.equal(last.at(-1).parts[0].text, 'second done');
+  assert.equal(last.at(-1).sequence, 7);
+  assert.equal(last.at(-1).role, 'model');
+  assert.deepEqual(last.at(-1).metadata, { model: 'M' }, 'the same facts of the message');
+  const order = rows.map((row) => row.id);
+  assert.ok(order.indexOf(MESSAGE) < order.indexOf(users[0].id) && order.lastIndexOf(users.at(-1).id) < order.indexOf(note.next), 'the first message, then theirs, then the new one');
+  const moved = db.log.updates.find((call) => call.table === 'server_runs' && call.values.message_id);
+  assert.equal(moved.values.message_id, note.next, 'the run is found by the message it writes now');
+  const told = seen.filter((event) => event && event.seg);
+  assert.equal(told.length, 1);
+  assert.deepEqual(told[0].seg, note);
+  assert.equal(seen.indexOf(told[0]) > -1, true);
+  assert.deepEqual(seen.at(-1), 'closed');
+});
+
+test('a message that no boundary took is kept in the finished message for the page to send as the next one, and a limit is told', async () => {
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  const { manager, db } = managerHarness({
+    execute: async ({ steer }) => {
+      steer.support();
+      await gate;
+      return { parts: [{ text: 'done' }], status: 'done', run: { elapsedMs: 1 }, toolCalls: 0 };
+    }
+  });
+  const runId = await manager.start({ userId: USER, spec: specOf() });
+  await settle();
+  assert.deepEqual(manager.control({ userId: USER, runId, action: 'steer', payload: { instruction: 'and also this' } }), { ok: true });
+  let refused = null;
+  for (let i = 0; i < 30 && !refused; i += 1) {
+    const result = manager.control({ userId: USER, runId, action: 'steer', payload: { instruction: `more ${i}` } });
+    if (!result.ok) refused = result;
+  }
+  assert.deepEqual(refused, { ok: false, reason: 'too_many' });
+  release();
+  await settle();
+  const written = messageWrites(db).at(-1);
+  assert.equal(written.metadata.steersLeft[0].text, 'and also this');
+  assert.ok(written.metadata.steersLeft.length >= 2);
+  assert.equal(written.metadata.segment, undefined, 'no cut was made');
+});
+
 test('time the reply spent waiting for the person is given back to its time limit, and every page is told the clock was set back', async () => {
   let release;
   const gate = new Promise((resolve) => { release = resolve; });

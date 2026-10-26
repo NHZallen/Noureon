@@ -14,6 +14,7 @@ import { setupConversationSearchModal } from './conversation-search-modal.js';
 import { bindMessageListActions } from './message-list-actions.js';
 import { bindComposerInput } from './composer-input-bindings.js';
 import { bindFeedbackForms } from './feedback-forms.js';
+import { modelGeneratesImages } from '../shell/model-registry.js';
 
 export function createAppBootstrapLifecycle({
     window,
@@ -281,7 +282,10 @@ export function createAppBootstrapLifecycle({
         ALL_ELEMENTS.batchMoveConfirmBtn.addEventListener('click', () => { /* Logic moved to option clicks */ });
         bindComposerInput({
             window, document, elements: ALL_ELEMENTS, setSendConfirmed, updateInputState: resolveEventsUpdateInputState, adjustTextareaHeight,
-            submitChatForm, getActiveConversation, getAbortController, scheduleAnimationFrame, scheduleTimeout
+            submitChatForm, getActiveConversation, getAbortController, scheduleAnimationFrame, scheduleTimeout,
+            getConfig, renderInputIndicators,
+            // A reply that a message may be put into: a council or a picture is not one (features/reply-steering.js).
+            isSteerable: () => { const conv = getActiveConversation(); return !conv || (!isCouncilEnabled(conv) && !modelGeneratesImages(normalizeConversationModel(conv))); }
         });
         ALL_ELEMENTS.chatForm.addEventListener('submit', handleFormSubmit);
         installScrollbarArrows(document);

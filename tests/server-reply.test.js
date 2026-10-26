@@ -280,6 +280,33 @@ test('a reply watched live is given to the page piece by piece as the server mak
   assert.equal(streamCall.options.headers.Authorization, 'Bearer token-123');
 });
 
+test('a reply the server cut ends there: the page is told, reads the finished message, learns the messages of the person and where the reply goes on, and follows that', async () => {
+  const note = { next: 'next-message', sequence: 7, users: [{ id: 'user-1', text: 'make it a table', sequence: 5 }, { id: 'user-2', text: 'in French', sequence: 6 }, { nothing: true }] };
+  const { reply } = liveHarness({
+    events: [{ r: { answer: '', thought: { text: '', kind: 'model' }, sources: [] } }, { a: 'So far' }, { seg: note }],
+    rows: [row(`${formatSandboxRunBlock({ status: 'done', steps: [], segment: true, elapsedMs: 5000 })}`, 'complete', { metadata: { segment: note } })]
+  });
+  const { run } = await reply.start(startArgs());
+  const result = await run.follow({});
+  assert.deepEqual(result.segment, { next: 'next-message', sequence: 7, users: [{ id: 'user-1', text: 'make it a table', sequence: 5 }, { id: 'user-2', text: 'in French', sequence: 6 }] });
+  assert.equal(result.run.segment, true);
+  const next = run.inMessage('next-message');
+  assert.equal(next.assistantMessageId, 'next-message');
+  assert.equal(next.runId, run.runId, 'the same run');
+  assert.equal(typeof next.steer, 'function');
+  const plain = liveHarness({ events: [{ a: 'Hi' }, { done: 'complete' }], rows: [row('Hi', 'complete')] });
+  assert.equal((await (await plain.reply.start(startArgs())).run.follow({})).segment, null, 'a reply that was not cut says nothing');
+});
+
+test('a message to add to a reply is sent to the run with the id it will have', async () => {
+  const { reply, calls } = liveHarness({ events: [{ done: 'complete' }], rows: [row('x', 'complete')] });
+  const { run } = await reply.start(startArgs());
+  await run.steer('make it a table', 'abc');
+  const call = calls.find((entry) => entry.url.endsWith(`/v1/runs/${run.runId}/steer`));
+  assert.equal(call.options.method, 'POST');
+  assert.deepEqual(JSON.parse(call.options.body), { instruction: 'make it a table', id: 'abc' });
+});
+
 test('a search the server makes first is told to the page as it begins, and also to a page that joins while it goes on', async () => {
   const { reply } = liveHarness({
     events: [{ r: { answer: '', thought: { text: '', kind: 'model' }, sources: [], ss: 'tinyfish' } }, { ss: '' }, { a: 'Done' }, { done: 'complete' }],

@@ -105,6 +105,13 @@ export function localizeServerError(error, language) {
 }
 
 // A picture in the event of a finished step comes as base64 (small ones, to be shown while the step runs): the step list takes bytes.
+/** The note a cut leaves in the message it ends (server/runs.js): { next, sequence, users: [{ id, text, sequence }] }, or null for a message that was not cut. */
+export const cutOf = (note) => {
+  if (!note || typeof note.next !== 'string' || !Array.isArray(note.users)) return null;
+  const users = note.users.filter((user) => typeof user?.id === 'string' && typeof user.text === 'string').map((user) => ({ id: user.id, text: user.text, sequence: Number(user.sequence) }));
+  return { next: note.next, sequence: Number(note.sequence), users };
+};
+
 export const withFileBytes = (event) => {
   if (event?.type !== 'step-end' || !Array.isArray(event.files)) return event;
   return {
@@ -351,6 +358,11 @@ export function createServerReply({
     kind,
     vision,
     stop: () => request('POST', `/v1/runs/${runId}/stop`),
+    // A message the person adds while the reply is made (features/reply-steering.js): kept until the reply's next tool answer, where the reply is cut (the message is written after what was
+    // made so far, and the rest goes into a new message). `id` is the id the message will have. Not ok when this reply cannot take it.
+    steer: (text, id) => request('POST', `/v1/runs/${runId}/steer`, { body: JSON.stringify({ instruction: text, id }) }),
+    // The same run, followed in the message the reply went on in after a cut.
+    inMessage: (messageId) => createRun({ runId, assistantMessageId: messageId, kind, vision, startedAt }),
     // The person lets one model of a council leave it.
     exitMember: (modelId) => request('POST', `/v1/runs/${runId}/member`, { body: JSON.stringify({ modelId }) }),
     // The person's answer ('once', 'always' or 'deny') to the question a tool's command put about a site.
@@ -452,6 +464,7 @@ export function createServerReply({
         else if (typeof event.dp === 'string') onDocumentPhase(event.dp);
         else if (Number.isFinite(event.tm)) onTiming(event.tm);
         else if (event.ev) onEvent(withFileBytes(event.ev));
+        else if (event.seg) return 'segment';
         else if (typeof event.a === 'string') {
           answerSoFar += event.a;
           if (!restarted) onText(event.a);
@@ -525,7 +538,8 @@ export function createServerReply({
           signal?.removeEventListener?.('abort', onStopAsked);
           return { handedOver: true };
         }
-        if (live === 'done' || signal?.aborted || stopSent) break;
+        // A cut: the message is whole now (the server writes it before it says so), and is read like a finished reply.
+        if (live === 'done' || live === 'segment' || signal?.aborted || stopSent) break;
         // A server that has no live channel is read from the message, as before: only a channel that worked and broke is joined again.
         if (!everJoined) break;
         let over = false;
@@ -604,7 +618,11 @@ export function createServerReply({
           }
         }
         // Where in the answer the pictures the model drew stood (the message reads words, picture, words).
-        return { text: lifted.text, run: lifted.run, rewritten: !lifted.text.startsWith(answerSoFar), extraParts, pictureOffsets: pictureOffsets(row.parts).offsets, visionRunId };
+        return { text: lifted.text, run: lifted.run, rewritten: !lifted.text.startsWith(answerSoFar), extraParts, pictureOffsets: pictureOffsets(row.parts).offsets, visionRunId,
+          // What the person added that the reply never reached a boundary for (the page sends it as the next message).
+          // The reply was cut after this message: the messages of the person that follow it, and the message the reply goes on in.
+          segment: cutOf(row.metadata?.segment),
+          steersLeft: (Array.isArray(row.metadata?.steersLeft) ? row.metadata.steersLeft : []).map((entry) => String(entry?.text ?? '').trim()).filter(Boolean) };
       }
     }
   });

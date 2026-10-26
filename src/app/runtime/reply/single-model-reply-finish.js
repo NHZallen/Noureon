@@ -35,7 +35,7 @@ export function composeReplyText({ reply, fullResponse, targetElement, aborted, 
     }
   }
   // Stopped while thinking, with nothing else to show: the reply is the interrupted thinking.
-  if (!String(text || '').trim() && !reply.sandboxRun?.steps?.length && !reply.sandboxRun?.thought) {
+  if (!String(text || '').trim() && !reply.sandboxRun?.steps?.length && !reply.sandboxRun?.thought && !reply.sandboxRun?.segment) {
     if (aborted) throw new DOMException('Aborted', 'AbortError');
     throw new Error(getRuntimeText(uiLanguage, 'emptyResponse'));
   }

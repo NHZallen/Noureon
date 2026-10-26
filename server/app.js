@@ -295,11 +295,12 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
         const user = await authenticate(request);
         if (!runs) throw new RequestError(ERROR_CODES.runsUnavailable, 'Replies on the server are not set up yet.');
         const body = await readJson(request, 16 * 1024, { optional: true });
-        const result = runs.control({ userId: user.id, runId: runPath[1], action: runPath[2].slice(1), payload: { instruction: typeof body?.instruction === 'string' ? body.instruction : '' } });
+        const result = runs.control({ userId: user.id, runId: runPath[1], action: runPath[2].slice(1), payload: { instruction: typeof body?.instruction === 'string' ? body.instruction : (typeof body?.text === 'string' ? body.text : ''), id: typeof body?.id === 'string' ? body.id.slice(0, 64) : '' } });
         if (!result.ok) {
           if (result.reason === 'wrong_phase') throw new RequestError(ERROR_CODES.wrongPhase, 'The research is not at a stage where that can be done.');
-          if (result.reason === 'empty' || result.reason === 'too_many') throw new RequestError(ERROR_CODES.badRequest, result.reason === 'empty' ? 'Say what to add.' : 'That is enough instructions for one research.');
-          throw new RequestError(ERROR_CODES.notFound, 'No such research is running here.');
+          if (result.reason === 'unsupported') throw new RequestError(ERROR_CODES.wrongPhase, 'This reply cannot take a message while it is made.');
+          if (result.reason === 'empty' || result.reason === 'too_many') throw new RequestError(ERROR_CODES.badRequest, result.reason === 'empty' ? 'Say what to add.' : 'That is enough messages for one reply.');
+          throw new RequestError(ERROR_CODES.notFound, 'No such reply is running here.');
         }
         send(response, 200, { ok: true }, origin);
         status = 200;
