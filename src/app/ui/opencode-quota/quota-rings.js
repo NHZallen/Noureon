@@ -1,5 +1,5 @@
-// The usage rings above the Extensions entry of the left menu: what is left of the OpenCode Go limits, three rings, the 5 hour limit in the
-// middle and the week on the outside (the month between them). Shown only when the person has an OpenCode Go key and the service answers;
+// The usage rings above the Extensions entry of the left menu: what is left of the OpenCode Go limits, three rings and no words, the 5 hour
+// limit in the middle and the week on the outside (the month between them); the words are in the tip. Shown only when the person has an OpenCode Go key and the service answers;
 // otherwise it is not there. It asks again when the page comes back into view, when the key is changed, and when it is tapped (a minute
 // is kept, see opencode-usage.js). Words: quota-texts.js; styles: styles/opencode-quota.css.
 
@@ -8,13 +8,13 @@ import { quotaText } from './quota-texts.js';
 
 // From the inside out. (A ring is called by its window: rolling is the 5 hours.)
 export const RING_ORDER = Object.freeze(['rolling', 'monthly', 'weekly']);
-// The order of the lines of words.
+// The order of the lines of the tip.
 const LINE_ORDER = Object.freeze(['rolling', 'weekly', 'monthly']);
 const ENTRY_ID = 'opencode-quota-btn';
 const KEY_INPUT_ID = 'opencode-go-api-key-input';
-const SIZE = 56;
-const STROKE = 4;
-const GAP = 2.5;
+const SIZE = 100;
+const STROKE = 9;
+const GAP = 5;
 const LOW_PERCENT = 20;
 
 const radiusOf = (position) => SIZE / 2 - STROKE / 2 - (RING_ORDER.length - 1 - position) * (STROKE + GAP);
@@ -43,9 +43,7 @@ export function startQuotaRings({ document, getApiKey, getLanguage = () => 'en',
 
   const circles = () => RING_ORDER.map((name, position) => {
     const radius = radiusOf(position);
-    // The outside ring is the first (ring-1), the inside the last.
-    const strength = RING_ORDER.length - position;
-    return `<g class="oq-ring-${strength}" data-window="${name}"><circle class="oq-track" cx="${SIZE / 2}" cy="${SIZE / 2}" r="${radius}"></circle><circle class="oq-arc" cx="${SIZE / 2}" cy="${SIZE / 2}" r="${radius}" transform="rotate(-90 ${SIZE / 2} ${SIZE / 2})" stroke-dasharray="0 ${(2 * Math.PI * radius).toFixed(2)}"></circle></g>`;
+    return `<g data-window="${name}"><circle class="oq-track" cx="${SIZE / 2}" cy="${SIZE / 2}" r="${radius}"></circle><circle class="oq-arc" cx="${SIZE / 2}" cy="${SIZE / 2}" r="${radius}" transform="rotate(-90 ${SIZE / 2} ${SIZE / 2})" stroke-dasharray="0 ${(2 * Math.PI * radius).toFixed(2)}"></circle></g>`;
   }).join('');
 
   const ensureElement = () => {
@@ -55,7 +53,7 @@ export function startQuotaRings({ document, getApiKey, getLanguage = () => 'en',
     element.type = 'button';
     element.className = 'sidebar-item oq-entry';
     element.hidden = true;
-    element.innerHTML = `<svg class="oq-rings" viewBox="0 0 ${SIZE} ${SIZE}" aria-hidden="true">${circles()}</svg><span class="oq-lines"></span>`;
+    element.innerHTML = `<svg class="oq-rings" viewBox="0 0 ${SIZE} ${SIZE}" aria-hidden="true">${circles()}</svg>`;
     element.addEventListener('click', () => { void sync({ force: true }); });
     return element;
   };
@@ -90,7 +88,6 @@ export function startQuotaRings({ document, getApiKey, getLanguage = () => 'en',
     if (!last?.ok) { element.hidden = true; return; }
     const language = getLanguage();
     const at = now();
-    const lines = [];
     const tips = [quotaText(language, 'title')];
     for (const name of RING_ORDER) {
       const part = last.windows[name];
@@ -112,25 +109,7 @@ export function startQuotaRings({ document, getApiKey, getLanguage = () => 'en',
       const percent = Math.round(part.remainingPercent);
       const reset = relativeReset(language, part.resetsAt, at);
       tips.push(`${quotaText(language, name)}: ${quotaText(language, 'left', { percent })}${reset ? `, ${quotaText(language, 'resets', { when: reset })}` : ''}`);
-      const strength = RING_ORDER.length - RING_ORDER.indexOf(name);
-      const state = part.remainingPercent <= 0 ? ' is-empty' : part.remainingPercent < LOW_PERCENT ? ' is-low' : '';
-      lines.push({ name: quotaText(language, name), left: quotaText(language, 'left', { percent }), strength, state });
     }
-    const box = element.querySelector('.oq-lines');
-    box.replaceChildren(...lines.map(({ name, left, strength, state }) => {
-      const row = document.createElement('span');
-      row.className = 'oq-line';
-      const dot = document.createElement('span');
-      dot.className = `oq-dot oq-ring-${strength}${state}`;
-      const label = document.createElement('span');
-      label.className = 'oq-name';
-      label.textContent = name;
-      const value = document.createElement('span');
-      value.className = 'oq-left';
-      value.textContent = left;
-      row.append(dot, label, value);
-      return row;
-    }));
     if (last.stale) tips.push(quotaText(language, 'stale'));
     tips.push(quotaText(language, 'refresh'));
     element.title = tips.join('\n');

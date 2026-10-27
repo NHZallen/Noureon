@@ -1,23 +1,16 @@
-/* The usage rings above the Extensions entry of the left menu (OpenCode Go: the 5 hour, weekly and monthly limits, from the outside in:
-   week, month, 5 hours). A full ring is a full limit left. The colours are the names of tokens.css: green, then amber under a fifth, then red. */
+/* The usage rings above the Extensions entry of the left menu (OpenCode Go: the 5 hour, weekly and monthly limits), only rings, in the
+   shape of the usage rings of the apps that show a limit: thick rings with round ends, a grey track under each, centred in the menu,
+   from the outside in: week, month, 5 hours. A full ring is a full limit left. The words are in the tip (title). The colours are the
+   names of tokens.css: green, then amber under a fifth, then red. */
 
-.oq-entry { display: flex; align-items: center; gap: 0.8rem; width: 100%; margin: 0.1rem 0 0.3rem; padding: 0.5rem 0.75rem; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; border-radius: 0.5rem; cursor: pointer; }
+.oq-entry { display: flex; align-items: center; justify-content: center; width: 100%; margin: 0.4rem 0 0.8rem; padding: 0.6rem 0; border: 0; background: transparent; color: inherit; font: inherit; border-radius: 0.5rem; cursor: pointer; }
 .oq-entry[hidden] { display: none; }
-.oq-rings { flex: none; width: 3.5rem; height: 3.5rem; }
-.oq-track { fill: none; stroke: var(--border-color); stroke-width: 4; }
-.oq-arc { fill: none; stroke: var(--state-success); stroke-width: 4; stroke-linecap: round; transition: stroke-dasharray 0.4s ease; }
-.oq-arc.is-low, .oq-dot.is-low { stroke: var(--state-warning); background: var(--state-warning); }
-.oq-arc.is-empty, .oq-dot.is-empty { stroke: var(--state-danger); background: var(--state-danger); }
-/* The rings are told apart by how strong they are: the outer one most, the inner one least. */
-.oq-ring-1 { opacity: 1; }
-.oq-ring-2 { opacity: 0.75; }
-.oq-ring-3 { opacity: 0.5; }
-.oq-lines { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.12rem; color: var(--text-secondary); font-size: 0.82rem; line-height: 1.25; }
-.oq-line { display: flex; align-items: center; gap: 0.45rem; min-width: 0; }
-.oq-dot { flex: none; width: 0.5rem; height: 0.5rem; border-radius: 9999px; background: var(--state-success); }
-.oq-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.oq-left { flex: none; color: var(--text-primary); font-variant-numeric: tabular-nums; }
-.oq-entry.is-stale .oq-lines { opacity: 0.6; }
+.oq-rings { flex: none; width: 6.5rem; height: 6.5rem; }
+.oq-track { fill: none; stroke: color-mix(in srgb, var(--text-primary) 12%, transparent); stroke-width: 9; }
+.oq-arc { fill: none; stroke: var(--state-success); stroke-width: 9; stroke-linecap: round; transition: stroke-dasharray 0.4s ease; }
+.oq-arc.is-low { stroke: var(--state-warning); }
+.oq-arc.is-empty { stroke: var(--state-danger); }
+.oq-entry.is-stale .oq-rings { opacity: 0.6; }
 
 @media (prefers-reduced-motion: reduce) {
   .oq-arc { transition: none; }

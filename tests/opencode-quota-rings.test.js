@@ -64,13 +64,16 @@ test('three rings, the 5 hours inside and the week outside, each as long as what
   window.happyDOM.abort();
 });
 
-test('the words say what is left of each, and the tip says when it starts again', async () => {
+test('there are no words on the page, they are in the tip, which says when each starts again', async () => {
   const { window, el } = setup();
   await flush();
-  const rows = [...el().querySelectorAll('.oq-line')].map((row) => [row.querySelector('.oq-name').textContent, row.querySelector('.oq-left').textContent]);
-  assert.deepEqual(rows, [['5 hours', '100% left'], ['This week', '100% left'], ['This month', '79% left']]);
+  assert.equal(el().textContent.trim(), '');
+  assert.equal(el().querySelectorAll('.oq-line').length, 0);
   assert.match(el().title, /OpenCode Go usage/);
+  assert.match(el().title, /5 hours: 100% left, resets in 3 hours/);
+  assert.match(el().title, /This week: 100% left, resets in 2 days/);
   assert.match(el().title, /This month: 79% left, resets in 20 days/);
+  assert.match(el().getAttribute('aria-label'), /This month: 79% left/);
   window.happyDOM.abort();
 });
 
@@ -83,10 +86,10 @@ test('a ring is amber under a fifth and red when it is used up', async () => {
   window.happyDOM.abort();
 });
 
-test('a window the answer does not have has no ring and no line', async () => {
+test('a window the answer does not have has no ring', async () => {
   const { window, el } = setup({ result: { ok: true, windows: { monthly: windows(1, 1, 50).monthly }, stale: false } });
   await flush();
-  assert.equal(el().querySelectorAll('.oq-line').length, 1);
+  assert.doesNotMatch(el().title, /This week/);
   assert.equal(el().querySelector('[data-window="weekly"]').style.display, 'none');
   window.happyDOM.abort();
 });
@@ -142,13 +145,13 @@ test('leaving the key box asks again a moment later, and a tap asks at once', as
   window.happyDOM.abort();
 });
 
-test('the words follow the language', async () => {
+test('the tip follows the language', async () => {
   const { window, state, rings, el } = setup({ language: 'zh-TW' });
   await flush();
-  assert.equal(el().querySelector('.oq-name').textContent, '5 小時');
+  assert.match(el().title, /5 小時: 剩 100%/);
   state.language = 'fr';
   await rings.sync();
-  assert.equal(el().querySelector('.oq-left').textContent, '100 % restant');
+  assert.match(el().title, /5 heures: 100 % restant/);
   window.happyDOM.abort();
 });
 
