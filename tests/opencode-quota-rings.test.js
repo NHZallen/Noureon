@@ -47,10 +47,10 @@ test('the rings stay above the entry when the entry comes after them', async () 
   window.happyDOM.abort();
 });
 
-test('three rings, the 5 hours inside and the week outside, each as long as what is left', async () => {
+test('three rings, the 5 hours inside and the month outside, each as long as what is left', async () => {
   const { window, el } = setup({ result: { ok: true, windows: windows(100, 40, 79), stale: false } });
   await flush();
-  assert.deepEqual([...RING_ORDER], ['rolling', 'monthly', 'weekly']);
+  assert.deepEqual([...RING_ORDER], ['rolling', 'weekly', 'monthly']);
   const radii = RING_ORDER.map((name) => Number(el().querySelector(`[data-window="${name}"] .oq-arc`).getAttribute('r')));
   assert.ok(radii[0] < radii[1] && radii[1] < radii[2], `inside out: ${radii}`);
   const filled = (name) => {

@@ -1,5 +1,5 @@
 // The usage rings above the Extensions entry of the left menu: what is left of the OpenCode Go limits, three rings around the mark of OpenCode and no words, the 5 hour
-// limit in the middle and the week on the outside (the month between them); the words are in the tip. Shown only when the person has an OpenCode Go key and the service answers;
+// limit in the middle and the month on the outside (the week between them); the words are in the tip. Shown only when the person has an OpenCode Go key and the service answers;
 // otherwise it is not there. It asks again when the page comes back into view, when the key is changed, and when it is tapped (a minute
 // is kept, see opencode-usage.js). Words: quota-texts.js; styles: styles/opencode-quota.css.
 
@@ -7,7 +7,7 @@ import { createOpencodeUsage } from '../../runtime/shell/opencode-usage.js';
 import { quotaText } from './quota-texts.js';
 
 // From the inside out. (A ring is called by its window: rolling is the 5 hours.)
-export const RING_ORDER = Object.freeze(['rolling', 'monthly', 'weekly']);
+export const RING_ORDER = Object.freeze(['rolling', 'weekly', 'monthly']);
 // The order of the lines of the tip.
 const LINE_ORDER = Object.freeze(['rolling', 'weekly', 'monthly']);
 const ENTRY_ID = 'opencode-quota-btn';
