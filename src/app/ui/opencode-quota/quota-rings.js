@@ -13,13 +13,13 @@ const LINE_ORDER = Object.freeze(['rolling', 'weekly', 'monthly']);
 const ENTRY_ID = 'opencode-quota-btn';
 const KEY_INPUT_ID = 'opencode-go-api-key-input';
 const SIZE = 100;
-const STROKE = 9;
-const GAP = 5;
+const STROKE = 5;
+const GAP = 4;
 const LOW_PERCENT = 20;
 
 // The mark of OpenCode in the middle (a frame with a grey block in its lower part), 240 by 300 in its own units, centred and scaled to fit
 // inside the inner ring.
-const MARK_SCALE = 0.06;
+const MARK_SCALE = 0.11;
 const MARK = `<g class="oq-mark" transform="translate(${(SIZE / 2 - 120 * MARK_SCALE).toFixed(2)} ${(SIZE / 2 - 150 * MARK_SCALE).toFixed(2)}) scale(${MARK_SCALE})"><path class="oq-mark-frame" fill-rule="evenodd" d="M180 60H60V240H180V60ZM240 300H0V0H240V300Z"></path><path class="oq-mark-block" d="M180 240H60V120H180V240Z"></path></g>`;
 
 const radiusOf = (position) => SIZE / 2 - STROKE / 2 - (RING_ORDER.length - 1 - position) * (STROKE + GAP);
