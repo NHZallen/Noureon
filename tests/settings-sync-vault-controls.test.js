@@ -117,12 +117,19 @@ const fillPasswordChange = (document, { current = 'old-password', next = 'new-pa
 test('the user page has the identity card, folded password settings and a place for the verification check', async () => {
   const { window, controls, setCurrentUser } = createFixture();
   setCurrentUser(cloudUser);
+  const announced = [];
+  window.document.addEventListener('noureon:user-ready', (event) => announced.push(event.detail.user));
   controls.ensureSyncVaultSettings();
   await controls.refreshSyncVaultControls();
   const { document } = window;
 
   assert.equal(document.getElementById('sync-vault-account').textContent, 'person@example.com');
-  assert.equal(document.getElementById('user-avatar').textContent, 'P');
+  // The round picture is drawn by ui/user-avatar/: the page only says who is signed in, and the places for it are in the markup.
+  assert.equal(announced.at(-1)?.email, 'person@example.com');
+  assert.ok(document.getElementById('user-avatar'));
+  assert.ok(document.getElementById('user-avatar-edit'));
+  assert.ok(document.getElementById('user-avatar-menu'));
+  assert.ok(document.getElementById('user-avatar-input'));
   assert.equal(document.getElementById('login-password-panel').classList.contains('hidden'), true, 'the password settings start folded');
   assert.equal(document.getElementById('login-password-signout-all').checked, true, 'signing out of every device is the default');
   assert.equal(document.getElementById('sync-vault-turnstile-slot').classList.contains('hidden'), true, 'no check, no box');

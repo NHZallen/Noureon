@@ -8,6 +8,9 @@
 // The zips of the skills with files (the bucket `user-skill-bundles`, server/skill-bundles.js) are looked after the same way, in a second pass: the files that no row of
 // `user_skills` points to any more (an account that was deleted takes its rows, not its files; a save that did not finish; a file put under any other name).
 //
+// The round pictures of the accounts (the bucket `user-avatars`, server/avatar-files.js) are looked after in a fourth pass: the files that no row of
+// `user_profiles` points to any more (an account that was deleted takes its row, not its file).
+//
 // It only reports at first (log `asset_orphans_found`); files are removed when the environment says `ASSET_SWEEP=delete`, so the first real
 // removal is the owner's choice after reading what was found.
 
@@ -16,7 +19,7 @@ const FIRST_RUN_MS = 2 * 60 * 1000;
 const BATCH = 500;
 const MAX_BATCHES = 20;
 
-export function createAssetSweeper({ db, files, bundles = null, derived = null, log = () => {}, mode = 'report', setTimer = setTimeout, setRepeat = setInterval, clearRepeat = clearInterval, clearTimer = clearTimeout }) {
+export function createAssetSweeper({ db, files, bundles = null, derived = null, avatars = null, log = () => {}, mode = 'report', setTimer = setTimeout, setRepeat = setInterval, clearRepeat = clearInterval, clearTimer = clearTimeout }) {
   let first = null;
   let repeat = null;
   let running = false;
@@ -62,6 +65,8 @@ export function createAssetSweeper({ db, files, bundles = null, derived = null, 
       if (bundles) summary.bundles = await sweepKind({ rpc: 'orphan_skill_bundles', store: bundles, events: { found: 'skill_bundle_orphans_found', removed: 'skill_bundle_orphans_removed', failed: 'skill_bundle_sweep_failed' } });
       // The PDFs made of Word and PowerPoint files: those whose original no row mentions any more, and those older than 30 days (the function tells which).
       if (derived) summary.derived = await sweepKind({ rpc: 'orphan_user_derived', store: derived, events: { found: 'derived_pdf_orphans_found', removed: 'derived_pdf_orphans_removed', failed: 'derived_pdf_sweep_failed' } });
+      // The pictures of the accounts: the files no row of `user_profiles` points to any more.
+      if (avatars) summary.avatars = await sweepKind({ rpc: 'orphan_user_avatars', store: avatars, events: { found: 'avatar_orphans_found', removed: 'avatar_orphans_removed', failed: 'avatar_sweep_failed' } });
       return summary;
     } finally {
       running = false;

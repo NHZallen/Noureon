@@ -10,6 +10,7 @@ import { installCodeHighlighting } from '../../ui/code/code-highlighting.js';
 import { installScrollbarArrows } from '../../ui/scroll/scrollbar-arrows.js';
 import { SERVICES, getService } from '../services.js';
 import { createAppShellEnhancements } from './app-shell-enhancements.js';
+import { announceUser } from './user-ready.js';
 import { setupConversationSearchModal } from './conversation-search-modal.js';
 import { bindMessageListActions } from './message-list-actions.js';
 import { bindComposerInput } from './composer-input-bindings.js';
@@ -125,7 +126,7 @@ export function createAppBootstrapLifecycle({
         }
         const currentUserLabel = currentUser.displayName || currentUser.email || currentUser.username;
         ALL_ELEMENTS.usernameDisplay.textContent = currentUserLabel;
-        document.querySelector('.user-avatar').textContent = currentUserLabel.charAt(0).toUpperCase();
+        announceUser(document, currentUser);
         enhanceSettingsLogoutButton();
         const settingsDesktopLogoutBtn = ensureSettingsDesktopLogoutButton();
         setupConversationSearchModal({

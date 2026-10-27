@@ -1,0 +1,32 @@
+/* The round picture of the account (docs/superpowers/specs/2026-10-27-user-avatar-design.md): the left menu under the list (`.user-avatar`) and the User tab
+   (`.us-avatar`) show it as an image that fills the circle; without one they show the first letter, as before. In the User tab a small pencil at the
+   corner of the circle opens the menu and the crop window. The colours are the names of tokens.css. */
+
+.user-avatar, .us-avatar { overflow: hidden; }
+.user-avatar img, .us-avatar img { display: block; width: 100%; height: 100%; border-radius: inherit; object-fit: cover; user-select: none; -webkit-user-drag: none; }
+.user-avatar.has-picture, .us-avatar.has-picture { background: transparent; }
+
+.us-avatar-wrap { position: relative; flex: none; }
+.us-avatar-edit { position: absolute; right: -0.15rem; bottom: -0.15rem; display: grid; place-items: center; width: 1.35rem; height: 1.35rem; padding: 0; border: 1px solid var(--border-color); border-radius: 9999px; background: var(--modal-bg, var(--chat-bg)); color: var(--text-primary); cursor: pointer; box-shadow: var(--shadow-xs); }
+.us-avatar-edit[hidden] { display: none; }
+.us-avatar-edit:hover { background: var(--hover-bg); }
+.us-avatar-menu { position: absolute; top: calc(100% + 0.4rem); left: 0; z-index: 30; display: flex; flex-direction: column; min-width: 12rem; padding: 0.3rem; border: 1px solid var(--border-color); border-radius: 0.9rem; background: var(--modal-bg, var(--chat-bg)); box-shadow: var(--shadow-xs); }
+.us-avatar-menu[hidden] { display: none; }
+.us-avatar-menu button { padding: 0.55rem 0.7rem; border: 0; border-radius: 0.6rem; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; white-space: nowrap; }
+.us-avatar-menu button:hover { background: var(--hover-bg); }
+.us-avatar-menu button[hidden] { display: none; }
+
+/* The crop window. */
+.ua-modal { position: fixed; inset: 0; z-index: 70; display: flex; align-items: center; justify-content: center; padding: 1rem; background: var(--scrim); }
+.ua-dialog { display: flex; flex-direction: column; gap: 0.8rem; width: 100%; max-width: 28rem; padding: 1.4rem; border-radius: 1rem; background: var(--modal-bg); color: var(--text-primary); }
+.ua-title { margin: 0; font-size: 1.25rem; font-weight: 600; }
+.ua-desc { margin: 0; color: var(--text-secondary); font-size: 0.9rem; }
+.ua-crop { max-height: 50vh; overflow: hidden; border-radius: 0.6rem; background: var(--hover-bg); }
+.ua-crop img { display: block; max-width: 100%; }
+.ua-crop .cropper-view-box, .ua-crop .cropper-face { border-radius: 50%; }
+.ua-actions { display: flex; justify-content: flex-end; gap: 0.6rem; }
+.ua-actions button { padding: 0.5rem 1rem; border: 0; border-radius: 0.6rem; font: inherit; cursor: pointer; }
+.ua-cancel { background: var(--hover-bg); color: inherit; }
+.ua-cancel:hover { background: var(--active-bg); }
+.ua-save { background: var(--button-primary-bg); color: var(--button-primary-text); }
+.ua-save:disabled { opacity: 0.6; cursor: default; }

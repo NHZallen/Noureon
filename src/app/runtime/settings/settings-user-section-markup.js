@@ -67,6 +67,7 @@ export function buildUserSectionMarkup(text) {
     mail: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m3.5 7 8.5 6 8.5-6"/></svg>',
     key: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="3.5"/><path d="m10.5 12.5 8-8M16 7l2.5 2.5M14 9l2 2"/></svg>',
     cloud: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.5 19a4.5 4.5 0 0 0 .4-9A6 6 0 0 0 6.3 8.6 4.8 4.8 0 0 0 7 19z"/></svg>',
+    pencil: '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
     chevron: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>',
     // Hidden (dots): the eye with a slash. Shown (text): the open eye. The button's aria-pressed picks which one is drawn (user-settings.css).
     eyeOff: '<svg class="us-eye-off" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/><path d="m3 3 18 18"/></svg>',
@@ -96,7 +97,15 @@ export function buildUserSectionMarkup(text) {
     return `
       <div class="us">
         <div class="us-identity">
-          <div id="user-avatar" class="us-avatar" aria-hidden="true"></div>
+          <div class="us-avatar-wrap">
+            <div id="user-avatar" class="us-avatar" aria-hidden="true"></div>
+            <button id="user-avatar-edit" type="button" class="us-avatar-edit" aria-haspopup="menu" aria-expanded="false" hidden>${ICONS.pencil}</button>
+            <div id="user-avatar-menu" class="us-avatar-menu" role="menu" hidden>
+              <button type="button" role="menuitem" data-avatar-action="change"></button>
+              <button type="button" role="menuitem" data-avatar-action="reset"></button>
+            </div>
+            <input id="user-avatar-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+          </div>
           <div class="min-w-0">
             <p id="sync-vault-account" class="us-email"></p>
             <div class="us-tags">

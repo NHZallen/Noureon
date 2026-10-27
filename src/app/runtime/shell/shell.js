@@ -209,6 +209,8 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
         function getApiKeyForProvider(provider) {
             return sensitiveConfigStore.getApiKey(provider);
         }
+        // The round picture of the account (the left menu, the User tab): the Google photo, the one the person chose, or the first letter.
+        import('/src/app/ui/user-avatar/user-avatar.js').then(({ startUserAvatar }) => startUserAvatar({ document, getLanguage: () => runtimeConfigAccess.getConfig().uiLanguage, showNotification: (...args) => showNotification(...args) })).catch((error) => console.warn('The picture of the account did not start.', error));
         // The usage rings of OpenCode Go above the Extensions entry (only with a key for it); loaded after the page.
         import('/src/app/ui/opencode-quota/quota-rings.js').then(({ startQuotaRings }) => startQuotaRings({ document, getApiKey: () => getApiKeyForProvider('opencode-go'), getLanguage: () => runtimeConfigAccess.getConfig().uiLanguage })).catch((error) => console.warn('The OpenCode Go usage rings did not start.', error));
         function normalizeConversationModel(conv) {
