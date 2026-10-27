@@ -25,26 +25,35 @@ function setup({ key = 'oc-key', result = { ok: true, windows: windows(100, 100,
   return { window, document, state, rings, timers, el: () => document.getElementById('opencode-quota-btn') };
 }
 
-test('the rings are above the Extensions entry', async () => {
+test('the rings are in the row above the Extensions entry', async () => {
   const { window, document, el } = setup();
-  await flush();
-  const list = document.querySelector('#sidebar .overflow-y-auto');
-  assert.equal(el().nextElementSibling.id, 'open-cli-store-btn');
-  assert.equal(el().hidden, false);
-  window.happyDOM.abort();
-  assert.equal(list.contains(el()), true);
+  try {
+    await flush();
+    const row = el().parentElement;
+    assert.equal(row.id, 'provider-quota-row');
+    assert.equal(row.nextElementSibling.id, 'open-cli-store-btn');
+    assert.equal(el().hidden, false);
+    assert.equal(document.querySelector('#sidebar .overflow-y-auto').contains(el()), true);
+  } finally {
+    window.happyDOM.abort();
+  }
 });
 
-test('the rings stay above the entry when the entry comes after them', async () => {
+test('the row stays above the entry when the entry comes after it', async () => {
   const { window, document, el } = setup({ withEntry: false });
-  await flush();
-  assert.equal(el().parentElement.firstElementChild, el());
-  const entry = document.createElement('button');
-  entry.id = 'open-cli-store-btn';
-  document.querySelector('#sidebar .overflow-y-auto').insertBefore(entry, document.querySelector('#sidebar .overflow-y-auto').firstChild);
-  await flush();
-  assert.equal(el().nextElementSibling, entry);
-  window.happyDOM.abort();
+  try {
+    await flush();
+    const row = el().parentElement;
+    assert.equal(row.parentElement.firstElementChild, row);
+    const entry = document.createElement('button');
+    entry.id = 'open-cli-store-btn';
+    const list = document.querySelector('#sidebar .overflow-y-auto');
+    list.insertBefore(entry, list.firstChild);
+    await flush();
+    assert.equal(row.nextElementSibling, entry);
+  } finally {
+    window.happyDOM.abort();
+  }
 });
 
 test('three rings, the 5 hours inside and the month outside, each as long as what is left', async () => {

@@ -211,8 +211,8 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
         }
         // The round picture of the account (the left menu, the User tab): the Google photo, the one the person chose, or the first letter.
         import('/src/app/ui/user-avatar/user-avatar.js').then(({ startUserAvatar }) => startUserAvatar({ document, getLanguage: () => runtimeConfigAccess.getConfig().uiLanguage, showNotification: (...args) => showNotification(...args) })).catch((error) => console.warn('The picture of the account did not start.', error));
-        // The usage rings of OpenCode Go above the Extensions entry (only with a key for it); loaded after the page.
-        import('/src/app/ui/opencode-quota/quota-rings.js').then(({ startQuotaRings }) => startQuotaRings({ document, getApiKey: () => getApiKeyForProvider('opencode-go'), getLanguage: () => runtimeConfigAccess.getConfig().uiLanguage })).catch((error) => console.warn('The OpenCode Go usage rings did not start.', error));
+        // The usage rings of the providers (OpenCode Go, OpenRouter) above the Extensions entry; each only with its key; loaded after the page.
+        import('/src/app/ui/provider-quota/start-quota.js').then(({ startProviderQuota }) => startProviderQuota({ document, getApiKeyForProvider, getLanguage: () => runtimeConfigAccess.getConfig().uiLanguage })).catch((error) => console.warn('The usage rings did not start.', error));
         function normalizeConversationModel(conv) {
             if (!conv) return null;
             const canonicalModelId = getCanonicalModelId(conv.model);

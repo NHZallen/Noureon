@@ -6,13 +6,12 @@
 //
 // Shared by the page and tests: no `window`, no `document`, no storage.
 
+import { createUsageCache, USAGE_CACHE_MS } from './usage-cache.js';
+
 export const OPENCODE_USAGE_URLS = Object.freeze(['https://opencode.ai/inference/go/v1/usage', 'https://opencode.ai/zen/go/v1/usage']);
 export const USAGE_WINDOWS = Object.freeze(['rolling', 'weekly', 'monthly']);
 
-const CACHE_MS = 60_000;
 const TIMEOUT_MS = 8_000;
-// A refresh the person asks for (a tap) is let through at most this often.
-const FORCE_MIN_MS = 5_000;
 
 /** One window as { usedPercent, remainingPercent, resetsAt (ms or null), status }, or null when its percent is not a number. */
 export function parseUsageWindow(raw) {
@@ -39,13 +38,9 @@ export function parseUsage(body) {
 /**
  * The reader of the usage. `get(key)` gives { ok: true, windows, fetchedAt, stale } or { ok: false, reason }, where reason is `no-key`,
  * `invalid-key` (401), `no-plan` (403) or `unavailable` (anything else: the last answer for the same key is kept and given, marked stale).
- * One answer is kept, for one key (a person has one), for a minute; a second ask while one is running waits for it.
+ * The way the answer is kept (a minute, for one key; a second ask waits; a tap; the last answer when the service is silent) is usage-cache.js.
  */
-export function createOpencodeUsage({ fetchImpl = (...args) => globalThis.fetch(...args), now = () => Date.now(), urls = OPENCODE_USAGE_URLS, cacheMs = CACHE_MS, timeoutMs = TIMEOUT_MS } = {}) {
-  let kept = null; // { key, at, result }
-  let running = null; // { key, promise }
-  let lastForced = 0;
-
+export function createOpencodeUsage({ fetchImpl = (...args) => globalThis.fetch(...args), now = () => Date.now(), urls = OPENCODE_USAGE_URLS, cacheMs = USAGE_CACHE_MS, timeoutMs = TIMEOUT_MS } = {}) {
   const ask = async (key) => {
     for (const url of urls) {
       const controller = new AbortController();
@@ -66,33 +61,5 @@ export function createOpencodeUsage({ fetchImpl = (...args) => globalThis.fetch(
     }
     return { ok: false, reason: 'unavailable' };
   };
-
-  const get = (key, { force = false } = {}) => {
-    const apiKey = String(key || '').trim();
-    if (!apiKey) return Promise.resolve({ ok: false, reason: 'no-key' });
-    if (kept && kept.key !== apiKey) kept = null;
-    const age = kept ? now() - kept.at : Infinity;
-    const allowedForce = force && now() - lastForced >= FORCE_MIN_MS;
-    if (kept && age < cacheMs && !allowedForce) return Promise.resolve(kept.result);
-    if (running && running.key === apiKey) return running.promise;
-    if (allowedForce) lastForced = now();
-    const promise = ask(apiKey).then((result) => {
-      let given = result;
-      if (result.ok) {
-        kept = { key: apiKey, at: now(), result };
-      } else if (result.reason === 'unavailable' && kept?.result?.ok) {
-        // The service did not answer: the last answer is given again (marked), and asked for again in a minute.
-        given = { ...kept.result, stale: true };
-        kept = { key: apiKey, at: now(), result: kept.result };
-      } else {
-        kept = { key: apiKey, at: now(), result };
-      }
-      return given;
-    }).finally(() => { if (running?.promise === promise) running = null; });
-    running = { key: apiKey, promise };
-    return promise;
-  };
-
-  const forget = () => { kept = null; };
-  return { get, forget };
+  return createUsageCache({ ask, now, cacheMs });
 }

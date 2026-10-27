@@ -1,9 +1,10 @@
-// The usage rings above the Extensions entry of the left menu: what is left of the OpenCode Go limits, three rings around the mark of OpenCode and no words, the 5 hour
+// The usage rings in the row above the Extensions entry of the left menu (the OpenRouter ring is beside them, provider-quota/): what is left of the OpenCode Go limits, three rings around the mark of OpenCode and no words, the 5 hour
 // limit in the middle and the month on the outside (the week between them); the words are in the tip. Shown only when the person has an OpenCode Go key and the service answers;
 // otherwise it is not there. It asks again when the page comes back into view, when the key is changed, and when it is tapped (a minute
 // is kept, see opencode-usage.js). Words: quota-texts.js; styles: styles/opencode-quota.css.
 
 import { createOpencodeUsage } from '../../runtime/shell/opencode-usage.js';
+import { getQuotaRow } from '../provider-quota/quota-row.js';
 import { quotaText } from './quota-texts.js';
 
 // From the inside out. (A ring is called by its window: rolling is the 5 hours.)
@@ -44,8 +45,6 @@ export function startQuotaRings({ document, getApiKey, getLanguage = () => 'en',
   let element = null;
   let last = null;
 
-  const list = () => document.querySelector('#sidebar .overflow-y-auto');
-
   const circles = () => RING_ORDER.map((name, position) => {
     const radius = radiusOf(position);
     return `<g data-window="${name}"><circle class="oq-track" cx="${SIZE / 2}" cy="${SIZE / 2}" r="${radius}"></circle><circle class="oq-arc" cx="${SIZE / 2}" cy="${SIZE / 2}" r="${radius}" transform="rotate(-90 ${SIZE / 2} ${SIZE / 2})" stroke-dasharray="0 ${(2 * Math.PI * radius).toFixed(2)}"></circle></g>`;
@@ -63,24 +62,11 @@ export function startQuotaRings({ document, getApiKey, getLanguage = () => 'en',
     return element;
   };
 
-  // The Extensions entry is made by another part of the page, a moment after: the rings stay above it.
-  let watched = false;
-  const watch = (parent) => {
-    if (watched || typeof win?.MutationObserver !== 'function') return;
-    watched = true;
-    new win.MutationObserver(() => place()).observe(parent, { childList: true });
-  };
-
-  // Above the Extensions entry (first in the list when that is not there yet).
-  const place = () => {
-    const parent = list();
-    if (!parent || !element) return;
-    watch(parent);
-    const entry = document.getElementById('open-cli-store-btn');
-    const before = entry && entry.parentNode === parent ? entry : parent.firstChild;
-    if (before === element) return;
-    if (element.parentNode === parent && element.nextSibling === before) return;
-    parent.insertBefore(element, before);
+  // The rings stand in the row above the Extensions entry (provider-quota/quota-row.js), the OpenRouter ring beside them.
+  const mount = () => {
+    ensureElement();
+    const row = getQuotaRow(document);
+    if (row && element.parentNode !== row) row.append(element);
   };
 
   const hide = () => {
@@ -126,8 +112,7 @@ export function startQuotaRings({ document, getApiKey, getLanguage = () => 'en',
   /** Asks (a minute is kept) and draws; `force` is a tap. Nothing is shown without a key, or when the service does not answer. */
   const sync = async ({ force = false } = {}) => {
     const key = String(getApiKey() || '').trim();
-    ensureElement();
-    place();
+    mount();
     if (!key) { hide(); return; }
     const result = await usage.get(key, { force });
     // The key was changed (or removed) while the answer was on its way.
