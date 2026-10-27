@@ -1,9 +1,9 @@
 /* The usage rings above the Extensions entry of the left menu (OpenCode Go: the 5 hour, weekly and monthly limits), only rings, in the
-   shape of the usage rings of the apps that show a limit: thick rings with round ends, a grey track under each, centred in the menu,
+   shape of the usage rings of the apps that show a limit: thick rings with round ends, a grey track under each, at the left of the menu (in line with the entries),
    from the outside in: month, week, 5 hours. A full ring is a full limit left. The words are in the tip (title). The colours are the
    names of tokens.css: green, then amber under a fifth, then red. */
 
-.oq-entry { display: flex; align-items: center; justify-content: center; width: 100%; margin: 0.2rem 0 0.4rem; padding: 0.3rem 0; border: 0; background: transparent; color: inherit; font: inherit; border-radius: 0.5rem; cursor: pointer; }
+.oq-entry { display: flex; align-items: center; justify-content: flex-start; width: 100%; margin: 0.2rem 0 0.4rem; padding: 0.3rem 0.75rem; border: 0; background: transparent; color: inherit; font: inherit; border-radius: 0.5rem; cursor: pointer; }
 .oq-entry[hidden] { display: none; }
 .oq-rings { flex: none; width: 3.25rem; height: 3.25rem; }
 .oq-track { fill: none; stroke: color-mix(in srgb, var(--text-primary) 12%, transparent); stroke-width: 9; }
