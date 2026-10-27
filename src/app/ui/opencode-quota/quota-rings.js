@@ -1,4 +1,4 @@
-// The usage rings above the Extensions entry of the left menu: what is left of the OpenCode Go limits, three rings and no words, the 5 hour
+// The usage rings above the Extensions entry of the left menu: what is left of the OpenCode Go limits, three rings around the mark of OpenCode and no words, the 5 hour
 // limit in the middle and the week on the outside (the month between them); the words are in the tip. Shown only when the person has an OpenCode Go key and the service answers;
 // otherwise it is not there. It asks again when the page comes back into view, when the key is changed, and when it is tapped (a minute
 // is kept, see opencode-usage.js). Words: quota-texts.js; styles: styles/opencode-quota.css.
@@ -16,6 +16,11 @@ const SIZE = 100;
 const STROKE = 9;
 const GAP = 5;
 const LOW_PERCENT = 20;
+
+// The mark of OpenCode in the middle (a frame with a grey block in its lower part), 240 by 300 in its own units, centred and scaled to fit
+// inside the inner ring.
+const MARK_SCALE = 0.06;
+const MARK = `<g class="oq-mark" transform="translate(${(SIZE / 2 - 120 * MARK_SCALE).toFixed(2)} ${(SIZE / 2 - 150 * MARK_SCALE).toFixed(2)}) scale(${MARK_SCALE})"><path class="oq-mark-frame" fill-rule="evenodd" d="M180 60H60V240H180V60ZM240 300H0V0H240V300Z"></path><path class="oq-mark-block" d="M180 240H60V120H180V240Z"></path></g>`;
 
 const radiusOf = (position) => SIZE / 2 - STROKE / 2 - (RING_ORDER.length - 1 - position) * (STROKE + GAP);
 
@@ -53,7 +58,7 @@ export function startQuotaRings({ document, getApiKey, getLanguage = () => 'en',
     element.type = 'button';
     element.className = 'sidebar-item oq-entry';
     element.hidden = true;
-    element.innerHTML = `<svg class="oq-rings" viewBox="0 0 ${SIZE} ${SIZE}" aria-hidden="true">${circles()}</svg>`;
+    element.innerHTML = `<svg class="oq-rings" viewBox="0 0 ${SIZE} ${SIZE}" aria-hidden="true">${circles()}${MARK}</svg>`;
     element.addEventListener('click', () => { void sync({ force: true }); });
     return element;
   };

@@ -10,6 +10,8 @@
 .oq-arc { fill: none; stroke: var(--state-success); stroke-width: 9; stroke-linecap: round; transition: stroke-dasharray 0.4s ease; }
 .oq-arc.is-low { stroke: var(--state-warning); }
 .oq-arc.is-empty { stroke: var(--state-danger); }
+.oq-mark-frame { fill: var(--text-primary); }
+.oq-mark-block { fill: color-mix(in srgb, var(--text-primary) 35%, transparent); }
 .oq-entry.is-stale .oq-rings { opacity: 0.6; }
 
 @media (prefers-reduced-motion: reduce) {

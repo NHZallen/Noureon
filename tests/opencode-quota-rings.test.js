@@ -77,6 +77,19 @@ test('there are no words on the page, they are in the tip, which says when each 
   window.happyDOM.abort();
 });
 
+test('the mark of OpenCode is in the middle, inside the inner ring', async () => {
+  const { window, el } = setup();
+  await flush();
+  assert.equal(el().querySelectorAll('.oq-mark path').length, 2);
+  const inner = Number(el().querySelector('[data-window="rolling"] .oq-arc').getAttribute('r'));
+  const transform = el().querySelector('.oq-mark').getAttribute('transform');
+  const [, x, y, scale] = /translate\(([\d.]+) ([\d.]+)\) scale\(([\d.]+)\)/.exec(transform).map(Number);
+  // The corners of the mark (240 by 300 units) are nearer the middle than the inside of the inner ring.
+  const corner = Math.hypot(x + 240 * scale - 50, y + 300 * scale - 50);
+  assert.ok(corner < inner - 4.5, `corner ${corner} inner ${inner}`);
+  window.happyDOM.abort();
+});
+
 test('a ring is amber under a fifth and red when it is used up', async () => {
   const { window, el } = setup({ result: { ok: true, windows: windows(10, 0, 79), stale: false } });
   await flush();
