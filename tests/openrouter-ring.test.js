@@ -27,12 +27,14 @@ function setup({ key = 'sk-or-key', result = limited(25), language = 'en' } = {}
   return { window, document, state, ring, timers, el: () => document.getElementById('openrouter-quota-btn') };
 }
 
-test('a key with a limit shows one ring as full as what is left, with OR in the middle and no words', async () => {
+test('a key with a limit shows one ring as full as what is left, with the mark of OpenRouter in the middle and no words', async () => {
   const { window, el } = setup({ result: limited(25) });
   try {
     await flush();
     assert.equal(el().hidden, false);
-    assert.equal(el().textContent.trim(), 'OR', 'only the two letters in the middle');
+    assert.equal(el().textContent.trim(), '', 'no words on the page');
+    assert.equal(el().querySelectorAll('.oq-or-mark .oq-or-line').length, 2);
+    assert.equal(el().querySelectorAll('.oq-or-mark .oq-or-head').length, 2);
     const arc = el().querySelector('.oq-arc');
     const [length, circumference] = arc.getAttribute('stroke-dasharray').split(' ').map(Number);
     assert.equal(Math.round((length / circumference) * 100), 25);

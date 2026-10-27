@@ -1,6 +1,6 @@
 # 側邊欄額度圓環：OpenCode Go 與 OpenRouter（2026-10-27）
 
-左側選單「擴充」上方有一列圓環，沒有文字，滑過看提示。兩組並排：左邊 OpenCode Go（三圈，由外到內月、週、5 小時，中間是 OpenCode 圖示），右邊 OpenRouter（一圈，中間「OR」）。每一組只在有對應金鑰、而且服務有回答時才出現；一組都沒有時，這一列不佔空間。OpenCode 的細節在 `2026-10-13-opencode-provider-design.md` 最後一節。
+左側選單「擴充」上方有一列圓環，沒有文字，滑過看提示。兩組並排：左邊 OpenCode Go（三圈，由外到內月、週、5 小時，中間是 OpenCode 圖示），右邊 OpenRouter（一圈，中間是 OpenRouter 的圖示：兩條線分開、尾端各一個向右的箭頭；用 SVG 照形狀畫，專案裡沒有原檔）。每一組只在有對應金鑰、而且服務有回答時才出現；一組都沒有時，這一列不佔空間。OpenCode 的細節在 `2026-10-13-opencode-provider-design.md` 最後一節。
 
 ## OpenRouter（Allen 的決定，2026-10-27）
 

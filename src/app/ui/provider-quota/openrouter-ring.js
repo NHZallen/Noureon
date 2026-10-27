@@ -1,5 +1,5 @@
 // The usage ring of an OpenRouter key, beside the OpenCode rings above the Extensions entry: one ring, as full as what is left of the spending limit the person set for
-// the key in OpenRouter, with "OR" in the middle and no words (they are in the tip, with what was spent). A key with no limit has nothing to show, and no ring is there
+// the key in OpenRouter, with the mark of OpenRouter in the middle and no words (they are in the tip, with what was spent). A key with no limit has nothing to show, and no ring is there
 // (Allen's decision, 2026-10-27); so it is when there is no key or the service does not answer. It asks when the page comes back into view, when the key is
 // changed, and when it is tapped (a minute is kept, see openrouter-usage.js). Styles: styles/opencode-quota.css.
 
@@ -14,6 +14,11 @@ const SIZE = 100;
 const STROKE = 5;
 const RADIUS = SIZE / 2 - STROKE / 2;
 const LOW_PERCENT = 20;
+
+// The mark of OpenRouter in the middle: two lines that part from the left and end in arrowheads pointing right (a router). It is 512 units wide in its own units
+// (the lines are 512 by about 430), centred and scaled to fill the middle of the ring.
+const MARK_SCALE = 0.095;
+const MARK = `<g class="oq-or-mark" transform="translate(${(SIZE / 2 - 256 * MARK_SCALE).toFixed(2)} ${(SIZE / 2 - 249 * MARK_SCALE).toFixed(2)}) scale(${MARK_SCALE})"><path class="oq-or-line" d="M3 248.945C18 248.945 76 236 106 219C136 202 136 202 198 158C276.497 102.293 332 120.945 423 120.945"></path><path class="oq-or-head" d="M511 121.5L357.25 210.268L357.25 32.7324L511 121.5Z"></path><path class="oq-or-line" d="M0 249C15 249 73 261.945 103 278.945C133 295.945 133 295.945 195 339.945C273.497 395.652 329 377 420 377"></path><path class="oq-or-head" d="M508 376.445L354.25 287.678L354.25 465.213L508 376.445Z"></path></g>`;
 
 /** A sum of money for the tip: "$1.25" ("$12" from ten up, "$0.003" for the very small). */
 export const formatMoney = (value) => {
@@ -35,7 +40,7 @@ export function startOpenrouterRing({ document, getApiKey, getLanguage = () => '
     element.type = 'button';
     element.className = 'sidebar-item oq-entry oq-entry-openrouter';
     element.hidden = true;
-    element.innerHTML = `<svg class="oq-rings" viewBox="0 0 ${SIZE} ${SIZE}" aria-hidden="true"><circle class="oq-track" cx="${SIZE / 2}" cy="${SIZE / 2}" r="${RADIUS}"></circle><circle class="oq-arc" cx="${SIZE / 2}" cy="${SIZE / 2}" r="${RADIUS}" transform="rotate(-90 ${SIZE / 2} ${SIZE / 2})" stroke-dasharray="0 ${circumference.toFixed(2)}"></circle><text class="oq-letters" x="${SIZE / 2}" y="${SIZE / 2}">OR</text></svg>`;
+    element.innerHTML = `<svg class="oq-rings" viewBox="0 0 ${SIZE} ${SIZE}" aria-hidden="true"><circle class="oq-track" cx="${SIZE / 2}" cy="${SIZE / 2}" r="${RADIUS}"></circle><circle class="oq-arc" cx="${SIZE / 2}" cy="${SIZE / 2}" r="${RADIUS}" transform="rotate(-90 ${SIZE / 2} ${SIZE / 2})" stroke-dasharray="0 ${circumference.toFixed(2)}"></circle>${MARK}</svg>`;
     element.addEventListener('click', () => { void sync({ force: true }); });
     return element;
   };

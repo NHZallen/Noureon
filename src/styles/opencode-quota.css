@@ -1,5 +1,5 @@
 /* The usage rings above the Extensions entry of the left menu, side by side in one row (OpenCode Go: the 5 hour, weekly and monthly limits, three rings; OpenRouter: the
-   spending limit of the key, one ring, "OR" in the middle), only rings, in the
+   spending limit of the key, one ring, the mark of OpenRouter in the middle), only rings, in the
    shape of the usage rings of the apps that show a limit: thick rings with round ends, a grey track under each, at the left of the menu (in line with the entries),
    from the outside in: month, week, 5 hours. A full ring is a full limit left. The words are in the tip (title). The colours are the
    names of tokens.css: green, then amber under a fifth, then red. */
@@ -15,7 +15,8 @@
 .oq-arc { fill: none; stroke: var(--state-success); stroke-width: 5; stroke-linecap: round; transition: stroke-dasharray 0.4s ease; }
 .oq-arc.is-low { stroke: var(--state-warning); }
 .oq-arc.is-empty { stroke: var(--state-danger); }
-.oq-letters { fill: var(--text-primary); font: 700 28px system-ui, sans-serif; text-anchor: middle; dominant-baseline: central; letter-spacing: -1px; }
+.oq-or-line { fill: none; stroke: var(--text-primary); stroke-width: 84; }
+.oq-or-head { fill: var(--text-primary); }
 .oq-mark-frame { fill: var(--text-primary); }
 .oq-mark-block { fill: color-mix(in srgb, var(--text-primary) 35%, transparent); }
 .oq-entry.is-stale .oq-rings { opacity: 0.6; }
