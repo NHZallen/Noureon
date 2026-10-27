@@ -28,7 +28,7 @@ async function setup({ keys = { 'opencode-go': 'oc-key', openrouter: 'or-key' },
     globalThis.fetch = real;
   }
   const panel = () => document.getElementById('provider-quota-panel');
-  const rows = () => [...panel().querySelectorAll('.oq-pl')].map((line) => [line.querySelector('.oq-pl-name').textContent, line.querySelector('.oq-pl-val').textContent, line.querySelector('.oq-pl-sub')?.textContent || '']);
+  const rows = () => [...panel().querySelectorAll('.oq-seg')].map((part) => [part.querySelector('.oq-seg-name')?.textContent || '', part.querySelector('.oq-seg-val').textContent]);
   return { window, document, calls, state, panel, rows, oc: () => document.getElementById('opencode-quota-btn'), or: () => document.getElementById('openrouter-quota-btn') };
 }
 
@@ -53,7 +53,8 @@ test('a tap on the OpenCode rings opens the panel with the three windows, a seco
     assert.equal(panel().getAttribute('aria-hidden'), 'false');
     assert.equal(oc().classList.contains('is-open'), true);
     assert.equal(oc().getAttribute('aria-expanded'), 'true');
-    assert.deepEqual(rows(), [['5 hours', '38% left', 'resets in 3 hours'], ['This week', '92% left', ''], ['This month', '9% left', '']]);
+    assert.deepEqual(rows(), [['5h', '38%'], ['1w', '92%'], ['1m', '9%']]);
+    assert.equal(panel().querySelectorAll('.oq-seg').length, 3, 'one line: three parts side by side');
     oc().click();
     assert.equal(panel().classList.contains('is-open'), false);
     assert.equal(panel().getAttribute('aria-hidden'), 'true');
@@ -66,12 +67,12 @@ test('a tap on the OpenCode rings opens the panel with the three windows, a seco
   }
 });
 
-test('a tap on the OpenRouter ring opens the panel with the limit and what was spent', async () => {
+test('a tap on the OpenRouter ring opens the panel with what is left of the limit, in one line', async () => {
   const { window, panel, rows, or } = await setup();
   try {
     or().click();
     assert.equal(panel().classList.contains('is-open'), true);
-    assert.deepEqual(rows(), [['Limit', '35% left', '$7.00 of $20 · resets monthly'], ['Spent', 'month $13', 'today $0.40 · week $2.10']]);
+    assert.deepEqual(rows(), [['', '35%'], ['', '$7.00 / $20']]);
   } finally {
     window.happyDOM.abort();
   }
@@ -83,7 +84,7 @@ test('a tap on the other ring changes what the panel says and who has it; one pa
     oc().click();
     or().click();
     assert.equal(panel().classList.contains('is-open'), true);
-    assert.equal(rows()[0][0], 'Limit');
+    assert.equal(rows()[1][1], '$7.00 / $20');
     assert.equal(or().classList.contains('is-open'), true);
     assert.equal(oc().classList.contains('is-open'), false);
     assert.equal(document.querySelectorAll('#provider-quota-panel').length, 1);
@@ -136,8 +137,7 @@ test('the panel follows the language', async () => {
   const { window, rows, oc } = await setup({ language: 'zh-TW' });
   try {
     oc().click();
-    assert.deepEqual(rows().map((row) => row[0]), ['5 小時', '本週', '本月']);
-    assert.equal(rows()[0][1], '剩 38%');
+    assert.deepEqual(rows(), [['5時', '38%'], ['週', '92%'], ['月', '9%']]);
   } finally {
     window.happyDOM.abort();
   }

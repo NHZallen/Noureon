@@ -5,6 +5,9 @@ export const QUOTA_TEXTS = Object.freeze({
   'zh-TW': {
     title: 'OpenCode Go 用量',
     rolling: '5 小時',
+    rollingShort: '5時',
+    weeklyShort: '週',
+    monthlyShort: '月',
     weekly: '本週',
     monthly: '本月',
     left: '剩 {percent}%',
@@ -15,6 +18,9 @@ export const QUOTA_TEXTS = Object.freeze({
   en: {
     title: 'OpenCode Go usage',
     rolling: '5 hours',
+    rollingShort: '5h',
+    weeklyShort: '1w',
+    monthlyShort: '1m',
     weekly: 'This week',
     monthly: 'This month',
     left: '{percent}% left',
@@ -25,6 +31,9 @@ export const QUOTA_TEXTS = Object.freeze({
   fr: {
     title: 'Utilisation d’OpenCode Go',
     rolling: '5 heures',
+    rollingShort: '5h',
+    weeklyShort: '1w',
+    monthlyShort: '1m',
     weekly: 'Cette semaine',
     monthly: 'Ce mois-ci',
     left: '{percent} % restant',
@@ -35,6 +44,9 @@ export const QUOTA_TEXTS = Object.freeze({
   ru: {
     title: 'Использование OpenCode Go',
     rolling: '5 часов',
+    rollingShort: '5h',
+    weeklyShort: '1w',
+    monthlyShort: '1m',
     weekly: 'Неделя',
     monthly: 'Месяц',
     left: 'осталось {percent}%',
@@ -45,6 +57,9 @@ export const QUOTA_TEXTS = Object.freeze({
   es: {
     title: 'Uso de OpenCode Go',
     rolling: '5 horas',
+    rollingShort: '5h',
+    weeklyShort: '1w',
+    monthlyShort: '1m',
     weekly: 'Esta semana',
     monthly: 'Este mes',
     left: 'queda {percent} %',

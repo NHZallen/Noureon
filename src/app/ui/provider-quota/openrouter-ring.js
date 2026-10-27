@@ -57,17 +57,11 @@ export function startOpenrouterRing({ document, getApiKey, getLanguage = () => '
     if (row && element.parentNode !== row) row.append(element);
   };
 
-  // What the panel says: what is left of the limit (and of how much, and when it starts again), and what was spent.
+  // What the panel says, in one line: what is left of the limit, and in money (35%  $7.00 / $20).
   const panelLines = () => {
     if (!last?.ok) return [];
     const language = getLanguage();
-    const reset = last.resetKind ? ` · ${openrouterText(language, last.resetKind)}` : '';
-    const lines = [{ name: openrouterText(language, 'limitName'), value: quotaText(language, 'left', { percent: Math.round(last.remainingPercent) }), sub: `${openrouterText(language, 'limitSub', { remaining: formatMoney(last.remaining), limit: formatMoney(last.limit) })}${reset}` }];
-    const { daily, weekly, monthly } = last.spent;
-    if ([daily, weekly, monthly].some((value) => value !== null)) {
-      lines.push({ name: openrouterText(language, 'spentName'), value: openrouterText(language, 'spentValue', { monthly: formatMoney(monthly) }), sub: openrouterText(language, 'spentSub', { daily: formatMoney(daily), weekly: formatMoney(weekly) }) });
-    }
-    return lines;
+    return [{ name: '', value: `${Math.round(last.remainingPercent)}%` }, { name: '', value: openrouterText(language, 'limitSub', { remaining: formatMoney(last.remaining), limit: formatMoney(last.limit) }) }];
   };
 
   const render = () => {

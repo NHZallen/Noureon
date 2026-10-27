@@ -75,16 +75,11 @@ export function startQuotaRings({ document, getApiKey, getLanguage = () => 'en',
     if (row && element.parentNode !== row) row.append(element);
   };
 
-  // What the panel says: a line for each window, with what is left and when it starts again.
+  // What the panel says, in one line: a short name and what is left for each window (5h 38%  wk 92%  mo 9%).
   const panelLines = () => {
     if (!last?.ok) return [];
     const language = getLanguage();
-    const at = now();
-    return LINE_ORDER.filter((name) => last.windows[name]).map((name) => {
-      const part = last.windows[name];
-      const reset = relativeReset(language, part.resetsAt, at);
-      return { name: quotaText(language, name), value: quotaText(language, 'left', { percent: Math.round(part.remainingPercent) }), sub: reset ? quotaText(language, 'resets', { when: reset }) : '' };
-    });
+    return LINE_ORDER.filter((name) => last.windows[name]).map((name) => ({ name: quotaText(language, `${name}Short`), value: `${Math.round(last.windows[name].remainingPercent)}%` }));
   };
 
   const hide = () => {
