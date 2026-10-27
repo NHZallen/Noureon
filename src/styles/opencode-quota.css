@@ -21,6 +21,18 @@
 .oq-mark-block { fill: color-mix(in srgb, var(--text-primary) 35%, transparent); }
 .oq-entry.is-stale .oq-rings { opacity: 0.6; }
 
+/* The panel beside the rings: a tap on a ring opens it (it grows from nothing, in width and in height, and fades in), a tap on the same ring closes it. The words have a fixed
+   width and are clipped, so they do not wrap again while it moves. */
+.oq-entry.is-open { background: var(--hover-bg); }
+.oq-panel { order: 3; flex: 1; min-width: 0; display: grid; grid-template-columns: 0fr; grid-template-rows: 0fr; opacity: 0; pointer-events: none; transition: grid-template-columns 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), grid-template-rows 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.22s ease; }
+.oq-panel.is-open { grid-template-columns: 1fr; grid-template-rows: 1fr; opacity: 1; pointer-events: auto; }
+.oq-panel-clip { min-width: 0; min-height: 0; overflow: hidden; }
+.oq-panel-inner { display: flex; flex-direction: column; gap: 0.35rem; width: 8.5rem; padding: 0.1rem 0 0.1rem 0.5rem; font-size: 0.8rem; line-height: 1.25; }
+.oq-pl-top { display: flex; flex-wrap: wrap; justify-content: space-between; column-gap: 0.5rem; }
+.oq-pl-name { color: var(--text-secondary); }
+.oq-pl-val { color: var(--text-primary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.oq-pl-sub { color: var(--text-secondary); font-size: 0.72rem; }
+
 @media (prefers-reduced-motion: reduce) {
-  .oq-arc { transition: none; }
+  .oq-arc, .oq-panel { transition: none; }
 }

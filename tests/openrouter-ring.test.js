@@ -51,7 +51,7 @@ test('the tip says what is left, of what limit, when it starts again, and what w
     assert.match(el().title, /OpenRouter key limit/);
     assert.match(el().title, /25% left \(\$5\.00 of \$20\), resets monthly/);
     assert.match(el().title, /Spent: today \$0\.40, this week \$2\.10, this month \$15/);
-    assert.match(el().title, /Tap to refresh/);
+    assert.match(el().title, /Tap for details/);
     assert.match(el().getAttribute('aria-label'), /25% left/);
   } finally {
     window.happyDOM.abort();
@@ -172,8 +172,8 @@ test('the two providers stand side by side in one row above the Extensions entry
       globalThis.fetch = real;
     }
     const row = document.getElementById('provider-quota-row');
-    assert.equal(row.children.length, 2);
-    assert.deepEqual([...row.children].map((child) => child.id).sort(), ['opencode-quota-btn', 'openrouter-quota-btn']);
+    assert.deepEqual([...row.querySelectorAll('.oq-entry')].map((child) => child.id).sort(), ['opencode-quota-btn', 'openrouter-quota-btn']);
+    assert.ok(row.querySelector('#provider-quota-panel'), 'and the panel they share');
     assert.equal(document.getElementById('opencode-quota-btn').hidden, false);
     assert.equal(document.getElementById('openrouter-quota-btn').hidden, false);
     assert.equal(row.nextElementSibling.id, 'open-cli-store-btn');

@@ -1,12 +1,12 @@
 // The usage ring of an OpenRouter key, beside the OpenCode rings above the Extensions entry: one ring, as full as what is left of the spending limit the person set for
 // the key in OpenRouter, with the mark of OpenRouter in the middle and no words (they are in the tip, with what was spent). A key with no limit has nothing to show, and no ring is there
 // (Allen's decision, 2026-10-27); so it is when there is no key or the service does not answer. It asks when the page comes back into view, when the key is
-// changed, and when it is tapped (a minute is kept, see openrouter-usage.js). Styles: styles/opencode-quota.css.
+// changed, and when it is tapped (a tap also opens the panel beside the rings with the words, a second tap closes it; a minute is kept, see openrouter-usage.js). Styles: styles/opencode-quota.css.
 
 import { createOpenrouterUsage } from '../../runtime/shell/openrouter-usage.js';
 import { quotaText } from '../opencode-quota/quota-texts.js';
 import { openrouterText } from './openrouter-texts.js';
-import { getQuotaRow } from './quota-row.js';
+import { getQuotaPanel, getQuotaRow } from './quota-row.js';
 
 const ENTRY_ID = 'openrouter-quota-btn';
 const KEY_INPUT_IDS = Object.freeze(['openrouter-api-key-input', 'openrouter-api-key-input-all']);
@@ -40,8 +40,14 @@ export function startOpenrouterRing({ document, getApiKey, getLanguage = () => '
     element.type = 'button';
     element.className = 'sidebar-item oq-entry oq-entry-openrouter';
     element.hidden = true;
+    element.setAttribute('aria-expanded', 'false');
+    element.setAttribute('aria-controls', 'provider-quota-panel');
     element.innerHTML = `<svg class="oq-rings" viewBox="0 0 ${SIZE} ${SIZE}" aria-hidden="true"><circle class="oq-track" cx="${SIZE / 2}" cy="${SIZE / 2}" r="${RADIUS}"></circle><circle class="oq-arc" cx="${SIZE / 2}" cy="${SIZE / 2}" r="${RADIUS}" transform="rotate(-90 ${SIZE / 2} ${SIZE / 2})" stroke-dasharray="0 ${circumference.toFixed(2)}"></circle>${MARK}</svg>`;
-    element.addEventListener('click', () => { void sync({ force: true }); });
+    element.addEventListener('click', () => {
+      // A tap opens (and asks again) or closes the panel beside the rings.
+      const panel = getQuotaPanel(document);
+      if (panel?.toggle(ENTRY_ID, panelLines())) void sync({ force: true });
+    });
     return element;
   };
 
@@ -51,9 +57,22 @@ export function startOpenrouterRing({ document, getApiKey, getLanguage = () => '
     if (row && element.parentNode !== row) row.append(element);
   };
 
+  // What the panel says: what is left of the limit (and of how much, and when it starts again), and what was spent.
+  const panelLines = () => {
+    if (!last?.ok) return [];
+    const language = getLanguage();
+    const reset = last.resetKind ? ` · ${openrouterText(language, last.resetKind)}` : '';
+    const lines = [{ name: openrouterText(language, 'limitName'), value: quotaText(language, 'left', { percent: Math.round(last.remainingPercent) }), sub: `${openrouterText(language, 'limitSub', { remaining: formatMoney(last.remaining), limit: formatMoney(last.limit) })}${reset}` }];
+    const { daily, weekly, monthly } = last.spent;
+    if ([daily, weekly, monthly].some((value) => value !== null)) {
+      lines.push({ name: openrouterText(language, 'spentName'), value: openrouterText(language, 'spentValue', { monthly: formatMoney(monthly) }), sub: openrouterText(language, 'spentSub', { daily: formatMoney(daily), weekly: formatMoney(weekly) }) });
+    }
+    return lines;
+  };
+
   const render = () => {
     if (!element) return;
-    if (!last?.ok) { element.hidden = true; return; }
+    if (!last?.ok) { element.hidden = true; getQuotaPanel(document)?.release(ENTRY_ID); return; }
     const language = getLanguage();
     const arc = element.querySelector('.oq-arc');
     arc.setAttribute('stroke-dasharray', `${((last.remainingPercent / 100) * circumference).toFixed(2)} ${circumference.toFixed(2)}`);
@@ -67,11 +86,12 @@ export function startOpenrouterRing({ document, getApiKey, getLanguage = () => '
     const { daily, weekly, monthly } = last.spent;
     if ([daily, weekly, monthly].some((value) => value !== null)) tips.push(openrouterText(language, 'spent', { daily: formatMoney(daily), weekly: formatMoney(weekly), monthly: formatMoney(monthly) }));
     if (last.stale) tips.push(quotaText(language, 'stale'));
-    tips.push(quotaText(language, 'refresh'));
+    tips.push(quotaText(language, 'toggle'));
     element.title = tips.join('\n');
     element.setAttribute('aria-label', tips.join('. '));
     element.classList.toggle('is-stale', Boolean(last.stale));
     element.hidden = false;
+    getQuotaPanel(document)?.update(ENTRY_ID, panelLines());
   };
 
   /** Asks (a minute is kept) and draws; `force` is a tap. Nothing is shown without a key, with a key that has no limit, or when the service does not answer. */

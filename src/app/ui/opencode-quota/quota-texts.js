@@ -10,7 +10,7 @@ export const QUOTA_TEXTS = Object.freeze({
     left: '剩 {percent}%',
     resets: '{when}重設',
     stale: '可能不是最新的數字',
-    refresh: '點一下重新整理'
+    toggle: '點一下看詳細資料'
   },
   en: {
     title: 'OpenCode Go usage',
@@ -20,7 +20,7 @@ export const QUOTA_TEXTS = Object.freeze({
     left: '{percent}% left',
     resets: 'resets {when}',
     stale: 'these numbers may be out of date',
-    refresh: 'Tap to refresh'
+    toggle: 'Tap for details'
   },
   fr: {
     title: 'Utilisation d’OpenCode Go',
@@ -30,7 +30,7 @@ export const QUOTA_TEXTS = Object.freeze({
     left: '{percent} % restant',
     resets: 'se réinitialise {when}',
     stale: 'ces chiffres ne sont peut-être pas à jour',
-    refresh: 'Touchez pour actualiser'
+    toggle: 'Touchez pour les détails'
   },
   ru: {
     title: 'Использование OpenCode Go',
@@ -40,7 +40,7 @@ export const QUOTA_TEXTS = Object.freeze({
     left: 'осталось {percent}%',
     resets: 'сброс {when}',
     stale: 'цифры могут быть устаревшими',
-    refresh: 'Нажмите, чтобы обновить'
+    toggle: 'Нажмите для подробностей'
   },
   es: {
     title: 'Uso de OpenCode Go',
@@ -50,7 +50,7 @@ export const QUOTA_TEXTS = Object.freeze({
     left: 'queda {percent} %',
     resets: 'se restablece {when}',
     stale: 'estas cifras pueden no estar al día',
-    refresh: 'Toca para actualizar'
+    toggle: 'Toca para ver detalles'
   }
 });
 

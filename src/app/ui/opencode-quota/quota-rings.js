@@ -1,10 +1,10 @@
 // The usage rings in the row above the Extensions entry of the left menu (the OpenRouter ring is beside them, provider-quota/): what is left of the OpenCode Go limits, three rings around the mark of OpenCode and no words, the 5 hour
 // limit in the middle and the month on the outside (the week between them); the words are in the tip. Shown only when the person has an OpenCode Go key and the service answers;
-// otherwise it is not there. It asks again when the page comes back into view, when the key is changed, and when it is tapped (a minute
-// is kept, see opencode-usage.js). Words: quota-texts.js; styles: styles/opencode-quota.css.
+// otherwise it is not there. It asks again when the page comes back into view, when the key is changed, and when it is tapped (a tap also opens the panel beside the
+// rings with the words, a second tap closes it; a minute is kept, see opencode-usage.js). Words: quota-texts.js; styles: styles/opencode-quota.css.
 
 import { createOpencodeUsage } from '../../runtime/shell/opencode-usage.js';
-import { getQuotaRow } from '../provider-quota/quota-row.js';
+import { getQuotaPanel, getQuotaRow } from '../provider-quota/quota-row.js';
 import { quotaText } from './quota-texts.js';
 
 // From the inside out. (A ring is called by its window: rolling is the 5 hours.)
@@ -57,8 +57,14 @@ export function startQuotaRings({ document, getApiKey, getLanguage = () => 'en',
     element.type = 'button';
     element.className = 'sidebar-item oq-entry';
     element.hidden = true;
+    element.setAttribute('aria-expanded', 'false');
+    element.setAttribute('aria-controls', 'provider-quota-panel');
     element.innerHTML = `<svg class="oq-rings" viewBox="0 0 ${SIZE} ${SIZE}" aria-hidden="true">${circles()}${MARK}</svg>`;
-    element.addEventListener('click', () => { void sync({ force: true }); });
+    element.addEventListener('click', () => {
+      // A tap opens (and asks again) or closes the panel beside the rings.
+      const panel = getQuotaPanel(document);
+      if (panel?.toggle(ENTRY_ID, panelLines())) void sync({ force: true });
+    });
     return element;
   };
 
@@ -69,14 +75,27 @@ export function startQuotaRings({ document, getApiKey, getLanguage = () => 'en',
     if (row && element.parentNode !== row) row.append(element);
   };
 
+  // What the panel says: a line for each window, with what is left and when it starts again.
+  const panelLines = () => {
+    if (!last?.ok) return [];
+    const language = getLanguage();
+    const at = now();
+    return LINE_ORDER.filter((name) => last.windows[name]).map((name) => {
+      const part = last.windows[name];
+      const reset = relativeReset(language, part.resetsAt, at);
+      return { name: quotaText(language, name), value: quotaText(language, 'left', { percent: Math.round(part.remainingPercent) }), sub: reset ? quotaText(language, 'resets', { when: reset }) : '' };
+    });
+  };
+
   const hide = () => {
     last = null;
     if (element) element.hidden = true;
+    getQuotaPanel(document)?.release(ENTRY_ID);
   };
 
   const render = () => {
     if (!element) return;
-    if (!last?.ok) { element.hidden = true; return; }
+    if (!last?.ok) { element.hidden = true; getQuotaPanel(document)?.release(ENTRY_ID); return; }
     const language = getLanguage();
     const at = now();
     const tips = [quotaText(language, 'title')];
@@ -102,11 +121,12 @@ export function startQuotaRings({ document, getApiKey, getLanguage = () => 'en',
       tips.push(`${quotaText(language, name)}: ${quotaText(language, 'left', { percent })}${reset ? `, ${quotaText(language, 'resets', { when: reset })}` : ''}`);
     }
     if (last.stale) tips.push(quotaText(language, 'stale'));
-    tips.push(quotaText(language, 'refresh'));
+    tips.push(quotaText(language, 'toggle'));
     element.title = tips.join('\n');
     element.setAttribute('aria-label', tips.join('. '));
     element.classList.toggle('is-stale', Boolean(last.stale));
     element.hidden = false;
+    getQuotaPanel(document)?.update(ENTRY_ID, panelLines());
   };
 
   /** Asks (a minute is kept) and draws; `force` is a tap. Nothing is shown without a key, or when the service does not answer. */
