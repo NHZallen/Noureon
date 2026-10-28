@@ -1,0 +1,15 @@
+/* The suggested reply in the message box (ui/reply-suggestion/): one faint line over the empty box with a small arrow right after it. The colours are the names
+   of tokens.css. The box's own placeholder is hidden while the line is shown. */
+
+#chat-form.has-suggestion #message-input[data-composer-editor]:empty::before { content: none; }
+.rs-ghost { position: absolute; inset: 0; z-index: 1; display: flex; align-items: center; gap: 0.35rem; min-width: 0; padding: 0 2rem 0 0.5rem; pointer-events: none; opacity: 0; transform: translateY(2px); transition: opacity 0.25s ease, transform 0.25s ease; }
+.rs-ghost[hidden] { display: none; }
+.rs-ghost.is-shown { opacity: 1; transform: none; }
+.rs-text { min-width: 0; overflow: hidden; color: var(--text-secondary); font: inherit; line-height: 1.5rem; opacity: 0.7; text-overflow: ellipsis; white-space: nowrap; }
+.rs-accept { flex: none; display: grid; place-items: center; width: 1.5rem; height: 1.5rem; padding: 0; border: 1px solid var(--border-color); border-radius: 9999px; background: transparent; color: var(--text-secondary); cursor: pointer; pointer-events: auto; transition: background-color 0.15s ease, color 0.15s ease; }
+.rs-accept:hover { background: var(--hover-bg); color: var(--text-primary); }
+.rs-accept:active { background: var(--active-bg); }
+
+@media (prefers-reduced-motion: reduce) {
+  .rs-ghost { transition: none; transform: none; }
+}
