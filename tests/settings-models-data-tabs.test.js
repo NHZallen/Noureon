@@ -7,6 +7,7 @@ import fragment04 from '../src/templates/fragments/04-shell.fragment.js';
 import { ensureStorageUsageBlock } from '../src/app/runtime/settings/settings-storage-usage.js';
 import { ensureAutoWebSearchSettingsControl, ensureFileModeSettingsControl, ensureProcessOpenSettingsControl } from '../src/app/runtime/settings/settings-vision-check-control.js';
 import { ensureVisionCheckSettingsControl } from '../src/app/runtime/settings/settings-vision-check-section.js';
+import { ensureReplySuggestionSettingsControl } from '../src/app/runtime/settings/settings-reply-suggestion-control.js';
 import { ensureReplyInputSettingsControl } from '../src/app/runtime/settings/settings-reply-input-control.js';
 import { createSettingsMemorySummaryControls } from '../src/app/runtime/settings/settings-memory-summary-controls.js';
 
@@ -125,10 +126,16 @@ test('the Accessibility tab has its rows in the page, and the controls that used
   ensureProcessOpenSettingsControl({ document, elements, config });
   ensureFileModeSettingsControl({ document, elements, config });
   ensureReplyInputSettingsControl({ document, elements, config: { ...config, replyInputMode: 'queue' } });
+  ensureReplySuggestionSettingsControl({ document, elements, config: { ...config, replySuggestionEnabled: false } });
 
   assert.equal(document.querySelectorAll('#accessibility-section .pz-row').length, before, 'no row is added');
   assert.equal(document.querySelectorAll('#vision-check-setting-row, #process-open-setting-row, #file-mode-setting-row, #reply-input-setting-row').length, 4);
   assert.equal(elements.replyInputModeSelect.value, 'queue', 'what is saved is shown on the choice that is in the page');
+  assert.equal(elements.replySuggestionToggle, document.getElementById('reply-suggestion-toggle-switch'));
+  assert.equal(elements.replySuggestionToggle.checked, false, 'the saved choice is shown on the switch');
+  assert.equal(document.querySelector('#reply-suggestion-setting-row .pz-label').textContent, 'Suggested reply');
+  ensureReplySuggestionSettingsControl({ document, elements, config: { ...config } });
+  assert.equal(elements.replySuggestionToggle.checked, true, 'it is on when nothing was chosen');
   assert.deepEqual([...elements.replyInputModeSelect.options].map((option) => option.textContent), ['Steer', 'Queue', 'Send now'], 'short words, in the language of the settings (a phone cuts a long one)');
   assert.equal(document.querySelector('#reply-input-setting-row').closest('.pz-card') !== null, true);
   assert.deepEqual(

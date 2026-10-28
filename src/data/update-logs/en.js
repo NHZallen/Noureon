@@ -1,6 +1,14 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.23.0": [
+    "<strong>Noureon 18.23.0 Release Notes</strong>",
+    "This version adds usage rings, an account picture, and suggested replies.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Usage rings:</strong> above Extensions in the left menu, with an OpenCode Go key you see three rings (5 hours, week, month) for what is left; an OpenRouter key that has a limit gets one more ring. Tap a ring and a one-line panel opens beside them with the amounts; tap again to close it. Nothing is shown without a key, when the service does not answer, or when the key has no limit.</li><li><strong>Account picture:</strong> the left menu and Settings → User show a round picture: the photo of your Google account by default, else the first letter of your name. In the User tab you can upload your own, crop it to a square, and change it or go back to the default any time; it is kept in your cloud account and only you can see it.</li><li><strong>Suggested reply:</strong> when an answer ends, the message box shows in grey one sentence you might reply. The thin grey arrow at its right, or Tab, turns it into normal text you can send or edit; typing, Esc or sending drops it. It is thought up by your memory model, asked once per reply, and never stored; it does not appear in temporary chats, image, deep-research or council replies. Turn it off in Settings → Chat.</li><li><strong>Settings fix:</strong> the \"Input during a reply\" choice was not remembered after saving; now it is.</li></ul>",
+    "<strong>Compatibility</strong>",
+    "This update adds a table and a storage space for the picture (already set up in the cloud database; nothing for you to do); older versions keep working."
+  ],
   "18.22.0": [
     "<strong>Noureon 18.22.0 Release Notes</strong>",
     "This version adds adding a message while a reply is being made (steering), changes the scrolling after a message is sent, and updates OpenRouter's GPT-5.6 Terra to GPT-6.1 Terra.",

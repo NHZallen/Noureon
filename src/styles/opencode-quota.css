@@ -1,0 +1,36 @@
+/* The usage rings above the Extensions entry of the left menu, side by side in one row (OpenCode Go: the 5 hour, weekly and monthly limits, three rings; OpenRouter: the
+   spending limit of the key, one ring, the mark of OpenRouter in the middle), only rings, in the
+   shape of the usage rings of the apps that show a limit: thick rings with round ends, a grey track under each, at the left of the menu (in line with the entries),
+   from the outside in: month, week, 5 hours. A full ring is a full limit left. The words are in the tip (title). The colours are the
+   names of tokens.css: green, then amber under a fifth, then red. */
+
+.oq-row { display: flex; align-items: center; justify-content: flex-start; gap: 0.25rem; margin: 0.15rem 0 0.3rem; padding: 0 0.4rem; }
+.oq-row:not(:has(.oq-entry:not([hidden]))) { display: none; }
+#opencode-quota-btn { order: 1; }
+#openrouter-quota-btn { order: 2; }
+.oq-entry { display: flex; align-items: center; justify-content: center; flex: none; padding: 0.25rem 0.25rem; border: 0; background: transparent; color: inherit; font: inherit; border-radius: 0.5rem; cursor: pointer; }
+.oq-entry[hidden] { display: none; }
+.oq-rings { flex: none; width: 2.25rem; height: 2.25rem; }
+.oq-track { fill: none; stroke: color-mix(in srgb, var(--text-primary) 12%, transparent); stroke-width: 5; }
+.oq-arc { fill: none; stroke: var(--state-success); stroke-width: 5; stroke-linecap: round; transition: stroke-dasharray 0.4s ease; }
+.oq-arc.is-low { stroke: var(--state-warning); }
+.oq-arc.is-empty { stroke: var(--state-danger); }
+.oq-or-line { fill: none; stroke: var(--text-primary); stroke-width: 84; }
+.oq-or-head { fill: var(--text-primary); }
+.oq-mark-frame { fill: var(--text-primary); }
+.oq-mark-block { fill: color-mix(in srgb, var(--text-primary) 35%, transparent); }
+.oq-entry.is-stale .oq-rings { opacity: 0.6; }
+
+/* The panel beside the rings: a tap on a ring opens it (it grows from nothing, in width and in height, and fades in), a tap on the same ring closes it. It is one line that never wraps, clipped at the edge, so
+   nothing is set again while it moves. */
+.oq-entry.is-open { background: var(--hover-bg); }
+.oq-panel { order: 3; flex: 1; min-width: 0; display: grid; grid-template-columns: 0fr; grid-template-rows: 0fr; opacity: 0; pointer-events: none; transition: grid-template-columns 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), grid-template-rows 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.22s ease; }
+.oq-panel.is-open { grid-template-columns: 1fr; grid-template-rows: 1fr; opacity: 1; pointer-events: auto; }
+.oq-panel-clip { min-width: 0; min-height: 0; overflow: hidden; }
+.oq-panel-inner { display: flex; align-items: baseline; gap: 0.4rem; width: max-content; padding: 0 0 0 0.3rem; white-space: nowrap; font-size: 0.72rem; line-height: 1.25; }
+.oq-seg-name { margin-right: 0.15rem; color: var(--text-secondary); }
+.oq-seg-val { color: var(--text-primary); font-variant-numeric: tabular-nums; }
+
+@media (prefers-reduced-motion: reduce) {
+  .oq-arc, .oq-panel { transition: none; }
+}

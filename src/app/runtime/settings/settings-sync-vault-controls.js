@@ -1,5 +1,6 @@
 import { createSyncNowControls } from './settings-sync-now-controls.js';
 import { createUserUidControls } from './settings-user-uid-controls.js';
+import { announceUser } from '../features/user-ready.js';
 import { isSyncVaultUnlocked, readSyncVaultRecord, syncVaultPolicy } from '../../sync/sync-vault.js';
 import { getSupabaseClient, isSupabaseConfigured } from '../../auth/supabase-client.js';
 import { createTurnstileClient } from '../security/turnstile-client.js';
@@ -254,7 +255,7 @@ export function createSettingsSyncVaultControls({
       : (user.displayName || user.username);
     elements.account.textContent = accountLabel;
     void userUid.refresh(user);
-    if (elements.avatar) elements.avatar.textContent = Array.from(String(user.email || user.displayName || user.username).trim())[0]?.toUpperCase() || '?';
+    announceUser(document, user);
     elements.status.textContent = !isCloudUser
       ? text('cloudSyncUnavailableForLocal', '本機帳號尚未綁定，雲端同步不可用')
       : !record

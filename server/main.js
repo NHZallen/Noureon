@@ -4,6 +4,7 @@ import { createServer } from 'node:http';
 import { createApp } from './app.js';
 import { loadConfig } from './config.js';
 import { createAssetSweeper } from './asset-sweeper.js';
+import { createAvatarFileStore } from './avatar-files.js';
 import { createCredentialStore } from './cli-credentials.js';
 import { createConnectorService, createDbClientStore } from './mcp/connections.js';
 import { createMailer } from './mailer.js';
@@ -56,7 +57,7 @@ if (config.runsConfigured) {
     // Word and PowerPoint files are turned into PDFs for the models that read those better (in the sandbox, kept as a cache that is cleared with the original).
     const derived = createDerivedPdfStore({ url: config.supabaseUrl, serviceKey: config.serviceKey });
     if (host) setOfficePdfConverter(createOfficePdfConverter({ host, derived, log }));
-    sweeper = createAssetSweeper({ db, files, bundles: skillBundles, derived, log, mode: process.env.ASSET_SWEEP === 'delete' ? 'delete' : 'report' });
+    sweeper = createAssetSweeper({ db, files, bundles: skillBundles, derived, avatars: createAvatarFileStore({ url: config.supabaseUrl, serviceKey: config.serviceKey }), log, mode: process.env.ASSET_SWEEP === 'delete' ? 'delete' : 'report' });
     checkSlides = () => canDrawSlides().then((ok) => log(ok ? 'slides_ok' : 'slides_unavailable'));
     // Asked at the start and every 10 minutes after (through `ready`, so /healthz shows what was found): a host that stops working, or whose image a
     // clean-up deleted, shows in the log without waiting for a reply with Python to find it.

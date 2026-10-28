@@ -1,6 +1,14 @@
 // The update notes in Spanish (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.23.0": [
+    "<strong>Notas de la versión de Noureon 18.23.0</strong>",
+    "Esta versión añade anillos de uso, una imagen de cuenta y respuestas sugeridas.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Anillos de uso:</strong> encima de Extensiones en el menú izquierdo, con una clave de OpenCode Go se ven tres anillos (5 horas, semana, mes) con lo que queda; una clave de OpenRouter con límite añade otro anillo. Toca un anillo y se abre al lado una línea con los valores; vuelve a tocar para cerrarla. No se muestra nada sin clave, si el servicio no responde o si la clave no tiene límite.</li><li><strong>Imagen de cuenta:</strong> el menú izquierdo y Ajustes → Usuario muestran una imagen redonda: por defecto la foto de tu cuenta de Google, si no la primera letra de tu nombre. En la pestaña Usuario puedes subir la tuya, recortarla en cuadrado y cambiarla o volver a la predeterminada cuando quieras; se guarda en tu cuenta en la nube y solo tú la ves.</li><li><strong>Respuesta sugerida:</strong> cuando termina una respuesta, el cuadro de mensaje muestra en gris una frase que podrías responder. La flecha gris fina a la derecha, o Tab, la convierte en texto normal para enviar o editar; escribir, Esc o enviar la quita. La piensa tu modelo de memoria, se pide una vez por respuesta y nunca se guarda; no aparece en chats temporales ni en respuestas de imagen, investigación profunda o consejo. Se desactiva en Ajustes → Chat.</li><li><strong>Corrección de ajustes:</strong> la opción «Entrada durante una respuesta» no se recordaba al guardar; ahora sí.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "Esta actualización añade una tabla y un espacio de almacenamiento para la imagen (ya creados en la base de datos en la nube; no tienes que hacer nada); las versiones anteriores siguen funcionando."
+  ],
   "18.22.0": [
     "<strong>Notas de la versión de Noureon 18.22.0</strong>",
     "Esta versión añade poder añadir un mensaje mientras se hace una respuesta (guiar), cambia el desplazamiento tras enviar un mensaje y sustituye GPT-5.6 Terra de OpenRouter por GPT-6.1 Terra.",

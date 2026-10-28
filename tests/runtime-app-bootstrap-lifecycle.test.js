@@ -21,6 +21,7 @@ const createClassList = (id, calls) => ({
 function createFakeDom() {
   const calls = [];
   const listeners = [];
+  const announced = [];
   const elementsById = new Map();
 
   const createElement = (id) => {
@@ -98,6 +99,10 @@ function createFakeDom() {
     querySelectorAll: () => [],
     addEventListener(type, handler, options) {
       listeners.push({ id: 'document', type, handler, options });
+    },
+    dispatchEvent(event) {
+      announced.push(event);
+      return true;
     }
   };
   document.documentElement.clientHeight = 800;
@@ -116,7 +121,7 @@ function createFakeDom() {
     scrollTo: (...args) => calls.push(`scrollTo:${args.length}`)
   };
 
-  return { calls, listeners, elements, document, window, getElement };
+  return { calls, listeners, elements, document, window, getElement, announced };
 }
 
 const findListener = (listeners, id, type) => {
@@ -337,7 +342,8 @@ test('initChatApp uses live getters and preserves startup setup order', async ()
   }
   assert.equal(harness.calls.includes('renderAll'), false);
   assert.equal(harness.elements.usernameDisplay.textContent, 'alice');
-  assert.equal(harness.document.querySelector('.user-avatar').textContent, 'A');
+  // The round picture is drawn by ui/user-avatar/: the page only says who is signed in.
+  assert.deepEqual(harness.announced.map((event) => [event.type, event.detail.user.username]), [['noureon:user-ready', 'alice']]);
   assert.equal(harness.getState().sidebarOpen, false);
   assert.ok(
     harness.calls.includes('class:appContainer:remove:sidebar-open'),
