@@ -60,7 +60,6 @@ export function createRuntimeConfigStore({ defaultModelId } = {}) {
     sandboxNetwork: 'on',
     // What Send does while a reply is running: 'steer', 'queue' or 'send-now' (features/reply-steering.js).
     replyInputMode: 'steer',
-    replySuggestionEnabled: true,
     netRules: {},
     // The models a text model may call by itself (the picture model it draws with) and the permission for it: data/tool-models.js.
     toolModels: { image: null },

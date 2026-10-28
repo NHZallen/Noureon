@@ -152,7 +152,6 @@ export function createSettingsModalLifecycle({
             processOpen: collectedSettings.processOpen,
             fileModeDefault: collectedSettings.fileModeDefault,
             replyInputMode: collectedSettings.replyInputMode,
-            replySuggestionEnabled: collectedSettings.replySuggestionEnabled,
             autoNaming: collectedSettings.autoNaming,
             memoryEnabled1: collectedSettings.memoryEnabled1,
             memoryProfileEnabled: collectedSettings.memoryEnabled1,
