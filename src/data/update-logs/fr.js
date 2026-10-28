@@ -1,6 +1,14 @@
 // The update notes in French (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.23.0": [
+    "<strong>Notes de version de Noureon 18.23.0</strong>",
+    "Cette version ajoute des anneaux d’utilisation, une photo de compte et des réponses suggérées.",
+    "<strong>Principaux changements</strong>",
+    "<ul><li><strong>Anneaux d’utilisation :</strong> au-dessus de Extensions dans le menu de gauche, avec une clé OpenCode Go, trois anneaux (5 heures, semaine, mois) montrent ce qu’il reste ; une clé OpenRouter avec limite ajoute un anneau. Touchez un anneau : une ligne s’ouvre à côté avec les valeurs ; touchez de nouveau pour la fermer. Rien ne s’affiche sans clé, si le service ne répond pas ou si la clé n’a pas de limite.</li><li><strong>Photo du compte :</strong> le menu de gauche et Réglages → Utilisateur affichent une photo ronde : par défaut celle de votre compte Google, sinon la première lettre de votre nom. Dans l’onglet Utilisateur, vous pouvez envoyer la vôtre, la recadrer en carré, la changer ou revenir au défaut à tout moment ; elle est conservée dans votre compte cloud et vous seul la voyez.</li><li><strong>Réponse suggérée :</strong> quand une réponse se termine, la zone de message affiche en gris une phrase que vous pourriez répondre. La fine flèche grise à droite, ou Tab, la transforme en texte normal à envoyer ou modifier ; écrire, Échap ou envoyer la fait disparaître. Elle est imaginée par votre modèle de mémoire, demandée une fois par réponse, et jamais enregistrée ; elle n’apparaît pas dans les discussions temporaires, les réponses d’image, de recherche approfondie ou de conseil. Désactivable dans Réglages → Discussion.</li><li><strong>Correction des réglages :</strong> le choix « Saisie pendant une réponse » n’était pas retenu après l’enregistrement ; il l’est maintenant.</li></ul>",
+    "<strong>Compatibilité</strong>",
+    "Cette mise à jour ajoute une table et un espace de stockage pour la photo (déjà créés dans la base cloud ; rien à faire) ; les anciennes versions continuent de fonctionner."
+  ],
   "18.22.0": [
     "<strong>Notes de version de Noureon 18.22.0</strong>",
     "Cette version ajoute l’ajout d’un message pendant qu’une réponse est faite (guidage), change le défilement après l’envoi d’un message et remplace GPT-5.6 Terra d’OpenRouter par GPT-6.1 Terra.",

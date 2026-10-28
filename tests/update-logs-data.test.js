@@ -4,7 +4,7 @@ import test from 'node:test';
 
 import { PRODUCT_VERSION } from '../src/data/version.js';
 
-const UPDATE_LOG_COUNT = 171;
+const UPDATE_LOG_COUNT = 172;
 // Derived, not copied: the newest update-log entry is by definition the product version.
 const LATEST_UPDATE_VERSION = PRODUCT_VERSION;
 const UPDATE_LOGS_CONTENT_HASH = '3fbaee2b71820ca70b13ff70b55314a5955815201c75ab040915eea48c716d90';
