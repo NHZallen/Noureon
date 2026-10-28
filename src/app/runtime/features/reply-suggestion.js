@@ -7,6 +7,9 @@ import { NOURAS_REQUEST_PURPOSE } from '../nouras/nouras-policy.js';
 import { buildSuggestionPrompt, parseSuggestion, suggestionSubject } from './reply-suggestion-core.js';
 
 const MAX_TOKENS = 120;
+// Many suggestions in a row that were not used: the person does not want them now, so only every third reply gets one until one is used (as Claude Code does).
+const UNUSED_LIMIT = 5;
+const BACKOFF_EVERY = 3;
 
 export function createReplySuggestion({
   view,
@@ -25,6 +28,9 @@ export function createReplySuggestion({
   let abort = null;
   let timer = null;
   let shownFor = null;
+  let pending = false;
+  let unused = 0;
+  let skipped = 0;
 
   const enabled = () => getConfig()?.replySuggestionEnabled !== false;
 
@@ -65,18 +71,27 @@ export function createReplySuggestion({
     const now = getConversation();
     if (!text || now?.id !== conversation.id || now.messages.at(-1) !== last) return;
     shownFor = { id: conversation.id, last };
+    pending = true;
     view.show(text);
   };
 
   return {
     /** A reply has ended: the old suggestion goes, and a new one is asked for (when the setting is on). */
     onReplyEnded() {
+      // The one before was shown and the person went on without it.
+      if (pending) { unused += 1; pending = false; }
       cancel();
       if (!enabled()) return;
+      if (unused >= UNUSED_LIMIT) {
+        skipped += 1;
+        if (skipped % BACKOFF_EVERY !== 0) return;
+      }
       const mine = generation;
       timer = setTimer(() => { void run(mine); }, delayMs);
     },
     cancel,
+    /** The person took the suggestion: they want them again as often as before. */
+    accepted() { pending = false; unused = 0; skipped = 0; },
     /** Whether what is shown is still for the conversation and the reply that are on the screen. */
     stillValid() {
       const conversation = getConversation();

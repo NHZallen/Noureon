@@ -46,6 +46,7 @@ export function buildSuggestionPrompt({ userText, replyText, earlier = [] }) {
     '- never a generic filler such as "thanks", "ok", "continue" or "tell me more" unless that is truly what this user would write here; be specific to the conversation;',
     '- in the voice of the user: the same language, tone and length habits as their messages (for Chinese at most 20 characters, otherwise at most 10 words);',
     '- only the words of the message: no quotes, no explanation, no label, one line.',
+    'Before you answer, check it: would this user read it and think "that is just what I was about to type"? If not, change it to something that fits better.',
     'Answer exactly NONE only when the user\'s next words cannot be guessed at all (for example the conversation is over).',
     '',
     ...(earlier.length ? ['What the user said earlier (oldest first):', ...earlier.map((text) => `- ${text}`), ''] : []),

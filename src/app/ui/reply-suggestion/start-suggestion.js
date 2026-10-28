@@ -10,8 +10,9 @@ export function startReplySuggestion({ document, getConfig, getConversation, run
   const editor = document.getElementById('message-input');
   const form = document.getElementById('chat-form');
   if (!editor || !form || typeof runModel !== 'function') return null;
-  const view = createReplySuggestionView({ document, form, editor, getLabel: () => replySuggestionText(getLanguage(), 'use') });
-  const controller = createReplySuggestion({ view, getConversation, getConfig, runModel, isImageConversation, getErrorPrefixes, warn });
+  let controller = null;
+  const view = createReplySuggestionView({ document, form, editor, getLabel: () => replySuggestionText(getLanguage(), 'use'), onAccept: () => controller?.accepted() });
+  controller = createReplySuggestion({ view, getConversation, getConfig, runModel, isImageConversation, getErrorPrefixes, warn });
   // A message is sent: the suggestion was for the one before it.
   form.addEventListener('submit', () => controller.cancel(), true);
   // Another conversation (or a new one) fills the list: the suggestion stays with its own.

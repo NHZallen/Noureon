@@ -49,6 +49,7 @@ test('the words for the model carry both messages, and ask for NONE only when no
   assert.match(prompt, /The user's last message:\n幫我做簡報/);
   assert.match(prompt, /The assistant's last message:\n我可以做成/);
   assert.match(prompt, /the same language, tone and length habits/);
+  assert.match(prompt, /just what I was about to type/);
 });
 
 test('the answer of the model is made one clean line, or nothing', () => {
