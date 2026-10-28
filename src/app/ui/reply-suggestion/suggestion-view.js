@@ -5,7 +5,8 @@
 // The line sits over the box (it is not the box's placeholder: the placeholder is only hidden while the line is shown, and comes back with it gone).
 
 export const SUGGESTION_ID = 'reply-suggestion';
-const ARROW = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg>';
+const ARROW = '<svg class="rs-arrow" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg>';
+const CHEVRON = '<svg class="rs-chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"></path></svg>';
 
 const isEmpty = (editor) => !String(editor.value ?? editor.textContent ?? '').trim() && !editor.querySelector?.('[data-composer-token], [data-composer-chip]');
 
@@ -15,7 +16,7 @@ export function createReplySuggestionView({ document, form, editor, getLabel = (
   element.id = SUGGESTION_ID;
   element.className = 'rs-ghost';
   element.hidden = true;
-  element.innerHTML = `<span class="rs-text"></span><button type="button" class="rs-accept" data-no-press>${ARROW}</button>`;
+  element.innerHTML = `<span class="rs-text"></span><button type="button" class="rs-accept" data-no-press>${ARROW}${CHEVRON}<span class="rs-key" aria-hidden="true">Tab</span></button>`;
   form.append(element);
   const textElement = element.querySelector('.rs-text');
   const button = element.querySelector('.rs-accept');
@@ -58,6 +59,8 @@ export function createReplySuggestionView({ document, form, editor, getLabel = (
   button.addEventListener('mousedown', (event) => event.preventDefault());
   editor.addEventListener('input', sync);
   editor.addEventListener('keydown', (event) => {
+    // Escape takes it away without a trace (it comes back with the next reply).
+    if (event.key === 'Escape' && element.classList.contains('is-shown')) { text = ''; sync(); return; }
     if (event.key === 'Tab' && !event.shiftKey && !event.isComposing && element.classList.contains('is-shown') && accept()) event.preventDefault();
   });
 
