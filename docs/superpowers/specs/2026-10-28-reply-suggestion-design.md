@@ -5,7 +5,8 @@ After a reply ends, the message box shows one short grey sentence the person mig
 ## How it works
 - **Trigger**: `emitReplyEnded()` (`runtime/features/reply-events.js`) is called from `runSubmitFinalCleanupLifecycle`, which every kind of reply reaches. `startReplySuggestion` (`ui/reply-suggestion/start-suggestion.js`) listens.
 - **Model**: the memory model (`config.memoryModelId`) through `runMemoryModel` with its own request purpose `background-suggestion` and `maxTokens: 120`. No memory model, no suggestion.
-- **Content sent**: the last 1500 characters of the reply and the first 400 of the question before it. Nothing else; the answer is never saved.
+- **Content sent**: the last 1500 characters of the reply, the first 400 of the question before it, and up to three earlier messages of the person (200 characters each, to match how they write). Nothing else; the answer is never saved.
+- **What it guesses** (changed the same day, at Allen's request): always the next message of this person, not only after a question. After a question or options, the answer they would give; after plain information, the natural next step for this topic and this person. Never a generic filler; NONE only when the next words cannot be guessed at all.
 - **Skipped**: temporary chats, image conversations, council on, replies under 8 characters, error replies, a reply that followed a steer message, and when the model answers NONE / nothing / more than 80 characters or fails or takes more than 12 s.
 - **Dropped**: when the person types, presses Esc, sends, changes conversation, or another message arrives (generation counter + abort).
 - **Setting**: Settings → Chat, switch `#reply-suggestion-toggle-switch`, config `replySuggestionEnabled` (true unless `false`).

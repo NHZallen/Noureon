@@ -10,7 +10,7 @@ const QUESTION = '我可以做成 A 方案（8 頁精簡版）或 B 方案（15 
 
 test('the subject is the last answer of a model to a message of the person', () => {
   const subject = suggestionSubject(conversation([user('幫我做簡報'), model(QUESTION, { id: 'm2' })]));
-  assert.deepEqual(subject, { replyText: QUESTION, userText: '幫我做簡報', replyId: 'm2' });
+  assert.deepEqual(subject, { replyText: QUESTION, userText: '幫我做簡報', earlier: [], replyId: 'm2' });
 });
 
 test('only the end of a long answer and the start of a long message are looked at', () => {
@@ -43,12 +43,12 @@ test('nothing for a temporary chat, a council, or a reply that a message was put
   assert.equal(suggestionSubject(conversation(plainAfterSteer)).userText, '第二題');
 });
 
-test('the words for the model carry both messages, and ask for NONE when nothing is asked', () => {
+test('the words for the model carry both messages, and ask for NONE only when nothing can be guessed', () => {
   const prompt = buildSuggestionPrompt({ userText: '幫我做簡報', replyText: QUESTION });
-  assert.match(prompt, /exactly: NONE/);
+  assert.match(prompt, /exactly NONE only when/);
   assert.match(prompt, /The user's last message:\n幫我做簡報/);
   assert.match(prompt, /The assistant's last message:\n我可以做成/);
-  assert.match(prompt, /same language as the user's last message/);
+  assert.match(prompt, /the same language, tone and length habits/);
 });
 
 test('the answer of the model is made one clean line, or nothing', () => {
@@ -95,4 +95,12 @@ test('the setting is on unless it was turned off, in the defaults and when it is
     assert.equal(normalizeConfig({ ...createDefaultConfig(), replySuggestionEnabled: undefined }).replySuggestionEnabled, true);
     assert.equal(normalizeConfig({ ...createDefaultConfig(), replySuggestionEnabled: false }).replySuggestionEnabled, false);
   }
+});
+
+test('what the person said before is given to the model, so the guess is in their own voice', () => {
+  const subject = suggestionSubject(conversation([user('第一題'), model('第一答案，很長的答案'), user('第二題'), model('第二答案，很長的答案'), user('第三題'), model('第三答案，很長的答案', { id: 'm6' })]));
+  assert.deepEqual(subject.earlier, ['第一題', '第二題']);
+  const prompt = buildSuggestionPrompt(subject);
+  assert.match(prompt, /What the user said earlier \(oldest first\):\n- 第一題\n- 第二題/);
+  assert.doesNotMatch(buildSuggestionPrompt({ userText: 'a', replyText: 'b' }), /said earlier/);
 });

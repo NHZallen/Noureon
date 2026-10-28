@@ -5,13 +5,15 @@ const MAX_REPLY_CHARS = 1500;
 const MAX_USER_CHARS = 400;
 const MAX_SUGGESTION_CHARS = 80;
 const MIN_REPLY_CHARS = 8;
+const MAX_EARLIER = 3;
+const MAX_EARLIER_CHARS = 200;
 
 const textOf = (message) => (Array.isArray(message?.parts) ? message.parts.filter((part) => typeof part?.text === 'string').map((part) => part.text).join('\n') : '').trim();
 const tail = (text, limit) => (text.length > limit ? text.slice(text.length - limit) : text);
 const head = (text, limit) => (text.length > limit ? text.slice(0, limit) : text);
 
 /**
- * What the suggestion is about: { replyText, userText, replyId } for the last message of the conversation when it is a finished answer of a model to a message of the person, or
+ * What the suggestion is about: { replyText, userText, earlier (the last few things the person said before, oldest first: how they talk), replyId } for the last message of the conversation when it is a finished answer of a model to a message of the person, or
  * null when there is nothing to suggest for: no answer yet, an error, a very short answer, an answer that a message put into it cut (a steered reply), a temporary chat, or a
  * council. `errorPrefixes` are the words an error message starts with (in every language of the app).
  */
@@ -30,18 +32,23 @@ export function suggestionSubject(conversation, { errorPrefixes = [] } = {}) {
   if (lastUser < 0) return null;
   // A message put into the reply (a steer) is a user message between the one that was asked and the answer: the answer is then not a plain reply to a question.
   if (messages.slice(lastUser + 1, -1).some((message) => message?.role === 'user')) return null;
-  return { replyText: tail(replyText, MAX_REPLY_CHARS), userText: head(textOf(messages[lastUser]), MAX_USER_CHARS), replyId: last.id || String(messages.length) };
+  const earlier = messages.slice(0, lastUser).filter((message) => message?.role === 'user' && !message?.metadata?.steer).map((message) => head(textOf(message), MAX_EARLIER_CHARS)).filter(Boolean).slice(-MAX_EARLIER);
+  return { replyText: tail(replyText, MAX_REPLY_CHARS), userText: head(textOf(messages[lastUser]), MAX_USER_CHARS), earlier, replyId: last.id || String(messages.length) };
 }
 
-/** The words for the small model. It answers with the one line, or with NONE. */
-export function buildSuggestionPrompt({ userText, replyText }) {
+/** The words for the small model. It answers with the one line; NONE only when the next words cannot be guessed at all. */
+export function buildSuggestionPrompt({ userText, replyText, earlier = [] }) {
   return [
-    'You predict what the user will type next in a chat with an AI assistant.',
-    'Read the assistant\'s last message. If it asks the user a question, offers options, or waits for a decision or a confirmation, write the ONE short reply the user is most likely to send:',
-    '- in the voice of the user, in the same language as the user\'s last message (for Chinese at most 20 characters, otherwise at most 10 words);',
-    '- only the words of the reply: no quotes, no explanation, no label, one line.',
-    'If the assistant did not ask for anything (it only gave information, finished a task, or what the user would say is unclear), answer exactly: NONE',
+    'You predict what the user will type next in a chat with an AI assistant, so that they can send it with one key.',
+    'Read the assistant\'s last message and how this user talks, then write the ONE short message this particular user is most likely to send next:',
+    '- if the assistant asked a question, offered options or waits for a decision, the answer the user would most likely give (for example agreeing with the option they seem to prefer);',
+    '- if the assistant just gave information or finished something, the natural next step for this user and this topic (a follow-up question, a request to go deeper, change, apply or continue the work), based on what they asked before and what the answer left open;',
+    '- never a generic filler such as "thanks", "ok", "continue" or "tell me more" unless that is truly what this user would write here; be specific to the conversation;',
+    '- in the voice of the user: the same language, tone and length habits as their messages (for Chinese at most 20 characters, otherwise at most 10 words);',
+    '- only the words of the message: no quotes, no explanation, no label, one line.',
+    'Answer exactly NONE only when the user\'s next words cannot be guessed at all (for example the conversation is over).',
     '',
+    ...(earlier.length ? ['What the user said earlier (oldest first):', ...earlier.map((text) => `- ${text}`), ''] : []),
     'The user\'s last message:',
     userText || '(none)',
     '',
