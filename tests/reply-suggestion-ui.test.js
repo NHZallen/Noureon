@@ -179,3 +179,26 @@ test('the words are the same in the five languages', () => {
   for (const language of ['zh-TW', 'fr', 'ru', 'es']) assert.deepEqual(Object.keys(REPLY_SUGGESTION_TEXTS[language]).sort(), keys, language);
   assert.equal(replySuggestionText('xx', 'use'), 'Use this reply');
 });
+
+test('Right arrow takes it in the empty box, and is the caret\'s own with words in the box or with a modifier', () => {
+  const { window, document, editor, form } = page();
+  try {
+    const taken = [];
+    const view = createReplySuggestionView({ document, form, editor, onAccept: (words) => taken.push(words) });
+    view.show('好，採用 A 方案');
+    const withShift = new window.KeyboardEvent('keydown', { key: 'ArrowRight', shiftKey: true, bubbles: true, cancelable: true });
+    editor.dispatchEvent(withShift);
+    assert.equal(withShift.defaultPrevented, false);
+    assert.deepEqual(taken, []);
+    const arrow = new window.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true });
+    editor.dispatchEvent(arrow);
+    assert.equal(arrow.defaultPrevented, true);
+    assert.equal(editor.value, '好，採用 A 方案');
+    assert.deepEqual(taken, ['好，採用 A 方案']);
+    const again = new window.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true });
+    editor.dispatchEvent(again);
+    assert.equal(again.defaultPrevented, false, 'nothing is shown any more');
+  } finally {
+    window.happyDOM.abort();
+  }
+});

@@ -63,6 +63,8 @@ export function createReplySuggestionView({ document, form, editor, getLabel = (
     // Escape takes it away without a trace (it comes back with the next reply).
     if (event.key === 'Escape' && element.classList.contains('is-shown')) { text = ''; sync(); return; }
     if (event.key === 'Tab' && !event.shiftKey && !event.isComposing && element.classList.contains('is-shown') && accept()) event.preventDefault();
+    // Right arrow in the empty box takes it too (as in Claude Code); with words in the box it moves the caret as always.
+    if (event.key === 'ArrowRight' && !event.shiftKey && !event.ctrlKey && !event.altKey && !event.metaKey && !event.isComposing && element.classList.contains('is-shown') && accept()) event.preventDefault();
   });
 
   return {

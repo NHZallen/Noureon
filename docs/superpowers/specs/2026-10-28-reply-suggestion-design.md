@@ -9,6 +9,9 @@ After a reply ends, the message box shows one short grey sentence the person mig
 - **What it guesses** (changed the same day, at Allen's request): always the next message of this person, not only after a question. After a question or options, the answer they would give; after plain information, the natural next step for this topic and this person. Never a generic filler; NONE only when the next words cannot be guessed at all.
 - **Skipped**: temporary chats, image conversations, council on, replies under 8 characters, error replies, a reply that followed a steer message, and when the model answers NONE / nothing / more than 80 characters or fails or takes more than 12 s.
 - **Dropped**: when the person types, presses Esc, sends, changes conversation, or another message arrives (generation counter + abort).
+- **Taking it**: Tab, the arrow button, or Right arrow in the empty box (as Claude Code). Typing, Esc, sending drop it.
+- **Back-off** (looked at how Claude Code and Qwen Code do it, 2026-10-28): after 5 suggestions in a row that were not taken, only every third reply gets one until the person takes one. The counters live in memory only.
+- **Self-check in the prompt**: the model asks itself whether the person would think "that is just what I was about to type" (Qwen Code's idea).
 - **Setting**: Settings → Chat, switch `#reply-suggestion-toggle-switch`, config `replySuggestionEnabled` (true unless `false`).
 - **Page start**: `ui/page-extras.js` starts avatar, provider quota and reply suggestion with one registration line in `shell.js`.
 

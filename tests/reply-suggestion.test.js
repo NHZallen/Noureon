@@ -133,3 +133,26 @@ test('the end of a reply is told to whoever listens, and a listener that fails d
   assert.deepEqual(seen, ['b']);
   assert.equal(warned.length, 1);
 });
+
+test('after five suggestions in a row that were not used, only every third reply gets one, until one is used', async () => {
+  const { state, suggestion, settle, timers } = setup();
+  const reply = async () => { timers.length = 0; const before = state.shown.length; suggestion.onReplyEnded(); await settle(); return state.shown.length - before; };
+  const got = [];
+  for (let i = 0; i < 8; i += 1) got.push(await reply());
+  assert.deepEqual(got, [1, 1, 1, 1, 1, 0, 0, 1]);
+  // One is taken: they come back for every reply.
+  suggestion.accepted();
+  assert.equal(await reply(), 1);
+  assert.equal(await reply(), 1);
+});
+
+test('a suggestion that is taken does not count as unused', async () => {
+  const { state, suggestion, settle, timers } = setup();
+  for (let i = 0; i < 9; i += 1) {
+    timers.length = 0;
+    suggestion.onReplyEnded();
+    await settle();
+    suggestion.accepted();
+  }
+  assert.equal(state.shown.length, 9);
+});
