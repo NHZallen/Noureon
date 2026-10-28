@@ -57,7 +57,8 @@ export function createReplySuggestionView({ document, form, editor, getLabel = (
   button.addEventListener('click', (event) => { event.preventDefault(); accept(); });
   // The box is not focused yet when the arrow is pressed: the press must not move the focus away from it.
   button.addEventListener('mousedown', (event) => event.preventDefault());
-  editor.addEventListener('input', sync);
+  // Typing takes it away for good (it does not come back when the box is emptied again).
+  editor.addEventListener('input', () => { if (!isEmpty(editor)) text = ''; sync(); });
   editor.addEventListener('keydown', (event) => {
     // Escape takes it away without a trace (it comes back with the next reply).
     if (event.key === 'Escape' && element.classList.contains('is-shown')) { text = ''; sync(); return; }
