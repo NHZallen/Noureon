@@ -28,7 +28,6 @@ export function collectSettingsSaveFormValues({
             : elements.fileModeDefaultSelect ? 'advanced' : (config.fileModeDefault === 'standard' ? 'standard' : 'advanced'),
         // Kept as it was where the setting is not shown.
         replyInputMode: normalizeReplyInputMode(elements.replyInputModeSelect ? elements.replyInputModeSelect.value : config.replyInputMode),
-        replySuggestionEnabled: elements.replySuggestionToggle ? elements.replySuggestionToggle.checked : config.replySuggestionEnabled !== false,
         autoNaming: elements.autoNamingToggleSwitch.checked,
         memoryEnabled1: elements.memoryToggle1?.isConnected !== false
             ? elements.memoryToggle1.checked

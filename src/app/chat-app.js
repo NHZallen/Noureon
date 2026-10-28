@@ -11,7 +11,6 @@ import '../styles/edge-fades.css';
 import '../styles/cli-menu.css';
 import '../styles/opencode-quota.css';
 import '../styles/user-avatar.css';
-import '../styles/reply-suggestion.css';
 import '../styles/model-picker.css';
 import '../styles/notification.css';
 import '../styles/dictation.css';
