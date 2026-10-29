@@ -12,7 +12,7 @@
 - **不做額度顯示**（沒有圓環）。
 - 顯示名稱：**全部模型**都標供應商，格式 `GPT-6 Astra · OpenAI`、`GPT-6 Astra · OpenRouter`（Allen，2026-10-29）。
 - 圖片模型和文字模型擺在一起，依公司分組，和 OpenRouter 的圖片模型一樣的做法（Allen，2026-10-29）。
-- **網路搜尋讓使用者選**：OpenAI 直連的模型可以用 OpenAI 官方內建搜尋（Responses 的 `web_search` 工具），或用設定裡原有的搜尋服務（Tavily／TinyFish）。實測官方搜尋一次約 8,400 個輸入 token，使用者要知道會比較貴。
+- **網路搜尋讓使用者選**：OpenAI 直連的模型可以用 OpenAI 官方內建搜尋（Responses 的 `web_search` 工具），或用設定裡原有的搜尋服務（Tavily／TinyFish）。官方搜尋每 1,000 次收費 10 美元（Allen，2026-10-29：畫面上要寫價格，不要寫會多用多少 token；模型的 token 另計），使用者要知道會比較貴。
 - 其他三個文字模型（Terra、Sol、Astra）**不另外實測**，思考程度等能力照 OpenRouter 登錄和 Luna 的結果；上測試站後由 Allen 用真金鑰試，錯了再改（Allen，2026-10-29）。
 
 ## 2. 事實與限制

@@ -91,7 +91,7 @@ export default {
         h: '六、網路搜尋',
         blocks: [
           [
-            'Gemini 模型可以使用內建的搜尋能力，OpenAI 模型可以用 OpenAI 內建的搜尋，或用下方的搜尋服務，在「設定 → 模型管理 → 網路搜尋」選擇（OpenAI 自己的搜尋每次約多用 8,000 個輸入 token）。OpenRouter、NVIDIA 與 OpenCode Go 模型使用你在設定選的 Tavily 或 TinyFish：到「設定 → 模型管理 → 網路搜尋」選擇搜尋來源、填入金鑰；Tavily 可選基礎或進階搜尋深度，TinyFish 同時用來讀取你貼的網址。',
+            'Gemini 模型可以使用內建的搜尋能力，OpenAI 模型可以用 OpenAI 內建的搜尋，或用下方的搜尋服務，在「設定 → 模型管理 → 網路搜尋」選擇（OpenAI 自己的搜尋每 1,000 次收費 10 美元，另加模型的 token 費用）。OpenRouter、NVIDIA 與 OpenCode Go 模型使用你在設定選的 Tavily 或 TinyFish：到「設定 → 模型管理 → 網路搜尋」選擇搜尋來源、填入金鑰；Tavily 可選基礎或進階搜尋深度，TinyFish 同時用來讀取你貼的網址。',
             '「智慧搜索」開啟時，Noureon 會判斷這則訊息要不要先上網搜尋；有 OpenRouter 金鑰時，由一個小型判斷模型協助判斷（內容見隱私權政策），失敗或太慢時改用內建的字詞清單。',
             '模型沒有工具能力時，搜尋由伺服器先做好，再把找到的網頁當作「先搜一包」交給模型；你也可以在設定改成只在自己的裝置上搜尋。',
             '回答中引用的來源會標上編號，旁邊顯示網站的名稱與小圖示。'
@@ -513,7 +513,7 @@ export default {
         blocks: [
           [
             '可使用的供應商包括 Google Gemini、OpenRouter（它會再把請求轉給各模型廠商）、NVIDIA API Catalog、OpenCode Go（轉接多家廠商模型的訂閱服務）、OpenAI（官方模型，用你自己的 OpenAI 金鑰），以及搜尋服務 Tavily 與 TinyFish。你只要設定自己用的那幾家。',
-            'OpenAI：設定 OpenAI 金鑰後，頁面會用你的金鑰，把對話（你的文字，以及你附上的圖片與 PDF）直接從瀏覽器送到 OpenAI（api.openai.com）；回覆在我們的伺服器上進行時則從伺服器送出；用 GPT Image 畫圖也是同樣的路徑。每次請求都會要求 OpenAI 不要保存回應（store: false），OpenAI 仍會依自己的規則保留請求一段時間。在「設定 → 模型管理 → API 金鑰管理」有「送出匿名識別碼給 OpenAI」，預設開啟：每次請求會帶一個由你的帳號編號算出的雜湊值，不含姓名與信箱，讓 OpenAI 在有人濫用時只針對該使用者，不牽連你整個組織；關閉後就不送出。選擇讓 OpenAI 搜尋時，搜尋由 OpenAI 進行。',
+            'OpenAI：設定 OpenAI 金鑰後，頁面會用你的金鑰，把對話（你的文字，以及你附上的圖片與 PDF）直接從瀏覽器送到 OpenAI（api.openai.com）；回覆在我們的伺服器上進行時則從伺服器送出；用 OpenAI 的圖片模型畫圖也是同樣的路徑。每次請求都會要求 OpenAI 不要保存回應（store: false），OpenAI 仍會依自己的規則保留請求一段時間。在「設定 → 模型管理 → API 金鑰管理」有「送出匿名識別碼給 OpenAI」，預設開啟：每次請求會帶一個由你的帳號編號算出的雜湊值，不含姓名與信箱，讓 OpenAI 在有人濫用時只針對該使用者，不牽連你整個組織；關閉後就不送出。選擇讓 OpenAI 搜尋時，搜尋由 OpenAI 進行。',
             '這些供應商依自己的條款與隱私權政策處理你的資料，包括是否記錄、保存或用於訓練；我們無法控制，建議你查看各家的設定。',
             '你的金鑰預設存在瀏覽器裡，由瀏覽器直接呼叫供應商，請求不經過 Noureon 的伺服器；例外是你選擇由伺服器執行，或使用本站的代理端點（見下）。',
             'OpenCode Go 不接受瀏覽器直接送出的請求。所以回覆不是由我們的伺服器執行時，請求會經過本網站的函式（/api/opencode-chat），由它加上 OpenCode 對用戶端的要求（一個 User-Agent 和對話的編號，讓 OpenCode 能安排路由並重複使用快取）再轉送出去；你的金鑰與送出的內容只是經過，我們不儲存。OpenCode Go 自己的資料保留規則依模型而不同：例如 Grok、GPT Luna 與 Claude Haiku 5.5 保留資料 30 天，Muse Spark Contributor 模型與 Gemini 4 Argon Contributor 會用你的提示與回應訓練 Meta 與 Google 的模型（選單裡每個模型都有標示）。',
