@@ -89,7 +89,7 @@ export default {
         h: '6. Web search',
         blocks: [
           [
-            'Gemini models can use their built-in search, and OpenAI models can use OpenAI\'s built-in search or the service below, as you choose in Settings → Model management → Web search (OpenAI charges $10 per 1,000 of its own searches, plus the model\'s tokens). OpenRouter, NVIDIA and OpenCode Go models use the Tavily or TinyFish service you choose: in Settings → Model management → Web search choose the source and enter the key; Tavily has basic and advanced depth, and TinyFish is also used to read the addresses you paste.',
+            'Gemini models can use their built-in search, and OpenAI models can use OpenAI\'s built-in search or the service below, as you choose in Settings → Model management → Web search (OpenAI charges $10 per 1,000 of its own searches). OpenRouter, NVIDIA and OpenCode Go models use the Tavily or TinyFish service you choose: in Settings → Model management → Web search choose the source and enter the key; Tavily has basic and advanced depth, and TinyFish is also used to read the addresses you paste.',
             'With "smart search" on, Noureon decides whether a message should search the web first; with an OpenRouter key a small judgement model helps decide (what it receives is in the Privacy Policy), and when it fails or is slow the app uses its own word lists.',
             'When a model has no tool ability, the server makes the search first and gives the pages it found to the model as a "search packet"; you can also change this in Settings so that searches are made only on your own device.',
             'The sources cited in an answer are numbered, with the site\'s name and small icon beside them.'
