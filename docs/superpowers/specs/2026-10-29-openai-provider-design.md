@@ -1,0 +1,54 @@
+# OpenAI 官方供應商（文字與圖片，用使用者自己的金鑰直連）
+
+**狀態：** 設計，探測結果出來後才動程式（2026-10-29）。區塊 02「模型供應商與模型管理」，Allen 負責。OpenAI 的模型頁（`developers.openai.com`）不在開發環境允許的網域內，這份文件沒有讀到原文；能力、價格、上下文長度要靠探測工具（§8）和 Allen 貼的頁面重點補。
+
+## 1. Allen 的決定（2026-10-29）
+
+- 新增供應商 `openai`（OpenAI API，使用者自己的金鑰），四個文字模型：`gpt-6-astra`、`gpt-6.1-sol`、`gpt-6.1-terra`、`gpt-6-luna`。
+- **圖片也做**：`gpt-image-2.5-sunburst`（編輯精準度優先）與 `gpt-image-2.5-flare`（快、日常高品質）。用最好的格式：文字與圖片都走 Responses API，圖片用 Responses 的 `image_generation` 工具（可多輪編輯），Images API 只在探測顯示 Responses 工具不夠用時才補。
+- 測試用最便宜的模型：文字 `gpt-6-luna`、圖片 `gpt-image-2.5-flare` 的 `quality: low`。
+- 顯示名稱全部標供應商名稱（細節見 §4，等 Allen 確認）。
+- 送 `safety_identifier`，**讓使用者在設定自己開關**。
+- **不做額度顯示**（沒有圓環）。
+
+## 2. 事實與限制
+
+- 四個文字模型已在 OpenRouter 供應商下（`openai/gpt-6-astra` 等，見 `model-registry.js`），`gpt-6-luna` 也在 OpenCode Go（Responses 格式）。直連的 id 是不帶前綴的 `gpt-6-astra`，不會和 OpenRouter 的 id 衝突，對話裡記的模型 id 也不會混。
+- 圖片生成現在只有 OpenRouter。OpenAI 官方文件：用 GPT Image 模型可能需要先完成 API 組織驗證（使用者端的事，錯誤訊息要講清楚）。
+- 圖片模型的品質選項：`low / medium / high / xhigh / max / auto`；尺寸 `WIDTHxHEIGHT`（16 的倍數、長寬比 1:3 到 3:1、單邊不超過 3840、總像素 655,360 到 8,294,400）；格式 `png / jpeg / webp`，透明背景要 `png` 或 `webp`。兩個 GPT Image 2.5 模型的 token 價格相同（圖片輸出 $30 / 百萬 token），但同品質下用的 token 數可能不同。
+- Responses 的圖片工具：主模型（如 `gpt-6-astra`）呼叫，`action` 可設 `auto / generate / edit`；回傳 `image_generation_call`，內含 `result`（base64）與 `revised_prompt`。串流可收 0 到 3 張部分圖，每張部分圖多收 100 個圖片輸出 token。
+- 使用者金鑰；請求一律 `store: false`（我們每次都送完整歷史，不靠 OpenAI 保存對話）。因此多輪編輯**不能用圖片 id**，要把上一張圖當 `input_image` 的 data URL 送回去（探測的 `image` 測試會確認這樣行）。
+
+## 3. 通道
+
+- **瀏覽器直連是否可行：未知。** 要先用 `node scripts/openai-probe.mjs --cors-snippet` 印出的片段在網頁 Console 實測。能直連就和 Gemini 一樣由瀏覽器送（`vercel.json` 的 `connect-src` 要加 `https://api.openai.com`）；被擋就像 NVIDIA／OpenCode 一樣走網站函式轉送。
+- **伺服器上跑的回覆**（關頁繼續、Python、連接器、技能、CLI、理事會、深度研究）：共用的 `stream-api-call.js` 在伺服器上執行，`server/upstream-fetch.js` 加 OpenAI 的路徑；`COUNCIL_PROVIDERS`（`server/run-spec.js`）加 `openai`。
+- 請求格式：Responses API（`/v1/responses`），重用 OpenCode 的 `responses` 轉接器；Chat Completions 只在探測顯示某個模型不收 Responses 時才當退路。
+
+## 4. 顯示名稱
+
+選單按「公司」分組（`model-picker-groups.js`），所以直連的 OpenAI 模型和 OpenRouter 的 OpenAI 模型會落在同一個「OpenAI」組，名稱都叫 `OpenAI GPT-6 Astra`，只有第二行小字（`providerLabel`）不同。要在名稱上標供應商，建議顯示成 `GPT-6 Astra · OpenAI`、`GPT-6 Astra · OpenRouter` 這種形式。「全部模型」都標還是「同一個模型出現在兩個供應商時才標」，等 Allen 確認（全部都標會動到所有模型名稱和相關測試）。
+
+## 5. 隱私
+
+- `safety_identifier`：用帳號 id（雲端帳號用 Supabase 使用者 id，本機帳號用本機 id）做 SHA-256 取前 32 字元；設定 → 隱私有開關，預設開（Allen 的決定）。不送姓名、信箱。
+- `store: false`：永遠送。隱私政策要寫：OpenAI 仍會依自己的規則保留一段時間做濫用偵測。
+- 五種語言的隱私政策、協助中心與 `PRIVACY.md` 要補 OpenAI（金鑰存在哪、請求送到哪、`safety_identifier` 與開關）。
+
+## 6. 要改的檔案（依 OpenCode 的前例，實作時再逐一確認）
+
+供應商順序與設定（`model-switcher-lifecycle.js`、`config-store.js`）、金鑰欄位（`settings-api-key-controls.js`、`03-shell.fragment.js`、`dom-registry.js`）、敏感設定加密與遮蔽（`sensitive-config-store.js`、`sensitive-config-redaction.js`）、請求轉接（`stream-api-call.js`、`provider-request-support.js`、`model-request-engine.js`）、模型登錄（新檔 `openai-models.js`＋`model-registry.js`）、圖片生成路徑、伺服器（`upstream-fetch.js`、`run-spec.js`）、`vercel.json`、i18n 五語言、法律文字五語言。
+
+## 7. 不做
+
+額度圓環、Batch／Flex／優先處理、Assistants、Realtime、語音、Fine-tuning。
+
+## 8. 探測工具 `scripts/openai-probe.mjs`
+
+Allen 在自己的電腦跑（金鑰只放環境變數 `OPENAI_API_KEY`，不印出、不寫檔）。預設只用最便宜的 `gpt-6-luna`，約 25 個小請求。記錄：Responses 與 Chat Completions 各自能不能用、串流事件（思考摘要在哪個事件）、每個思考程度（`none` 到 `max`）是否被接受、函式呼叫與工具結果回送（`store: false` 下）、圖片輸入、PDF 輸入、內建網路搜尋、`safety_identifier`、錯誤格式（錯金鑰／沒金鑰／不存在的模型／錯的思考程度）、金鑰可用的模型清單。`--tests image` 用 `gpt-image-2.5-flare` 低品質各畫一張（Responses 工具、接著編輯、Images API），`--tests imagequality` 試各品質（`xhigh`、`max` 較貴）。測試：`tests/openai-probe.test.js`（假服務，不連網）。
+
+## 9. 待 Allen 確認
+
+1. 顯示名稱：全部模型都標，還是只標同時出現在兩個供應商的？格式 `GPT-6 Astra · OpenAI` 可以嗎？
+2. 探測結果（`openai-probe-result.json`，不含金鑰）和四個模型頁的重點（價格、上下文、輸出上限、思考程度）。
+3. 圖片模型在選單裡的位置：和 OpenRouter 的圖片模型放同一區，還是 OpenAI 自己一組？
