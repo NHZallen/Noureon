@@ -45,7 +45,8 @@ Noureon uses no advertising or tracking cookies and has no third-party analytics
 
 ## 5. The third-party providers you set up
 
-- Providers you can use include Google Gemini, OpenRouter (which passes requests on to the model vendors), NVIDIA API Catalog, OpenCode Go (a subscription service that runs models from several vendors), and the search services Tavily and TinyFish. Set up only the ones you use.
+- Providers you can use include Google Gemini, OpenRouter (which passes requests on to the model vendors), NVIDIA API Catalog, OpenCode Go (a subscription service that runs models from several vendors), OpenAI (its own models, with your OpenAI key), and the search services Tavily and TinyFish. Set up only the ones you use.
+- OpenAI: if you set an OpenAI key, the page sends your conversation (your text, and the pictures and PDFs you attach) straight from your browser to OpenAI (api.openai.com) with your key, or from our server when the reply runs there; pictures made with GPT Image go the same way. Each request asks OpenAI not to keep the response (store: false); OpenAI still keeps requests for a time under its own rules. Under Settings → Model management → API key management, "Send an anonymous identifier to OpenAI" is on by default: each request then carries a hash made from your account number, never a name or an email, so that OpenAI can act on one user instead of your whole organization; turn it off to send none. When you let OpenAI search, the search is done by OpenAI.
 - These providers handle your data under their own terms and privacy policies, including whether they log it, keep it or use it for training; we do not control this, and we suggest you check each one's settings.
 - By default your keys are kept in the browser and the browser calls the provider directly, so the requests do not pass through Noureon's server; the exceptions are when you choose server-side running, and the proxy endpoints of this site (see below).
 - OpenCode Go does not accept requests made directly by a browser. So when the reply is not run by our server, the request passes through this site's function (/api/opencode-chat), which adds the headers OpenCode asks of a client (a User-Agent and the id of the conversation, so that OpenCode can route and reuse its cache) and sends it on; your key and what you send pass through it as they are sent and we do not store them. OpenCode Go's own rules on keeping data apply and differ by model: for example Grok, GPT Luna and Claude Haiku 5.5 keep data for 30 days, and the Muse Spark Contributor models and Gemini 4 Argon Contributor use your prompts and replies to train Meta's and Google's models (each model says so in the picker).
@@ -151,7 +152,7 @@ Noureon has no built-in analytics, advertising tracking or cross-site tracking s
 
 - Supabase: account verification, database and file storage (for cloud sync and server-side running).
 - Cloudflare: the Turnstile bot check.
-- Google Gemini, OpenRouter, NVIDIA, OpenCode Go, Tavily, TinyFish: the model and search providers you set up.
+- Google Gemini, OpenRouter, NVIDIA, OpenCode Go, OpenAI, Tavily, TinyFish: the model and search providers you set up.
 - GitHub: downloads and icons of command tools, and the source code.
 - Google, Notion, Linear, Miro, Canva, Context7, Upstash, Vercel, GitHub, Supabase, Hugging Face: the services you connect as connectors, when you connect them (each has its own terms and privacy policy).
 - Resend: sends us a mail when you press "Join the waitlist" on a connector; the mail has your account's email address and id, and goes to our support mailbox.

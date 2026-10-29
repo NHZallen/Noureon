@@ -539,6 +539,15 @@ export const getProviderLabel = (provider) => {
     return provider || '';
 };
 
+// The name of a model as the picker shows it: the provider after it ("GPT-6 Astra · OpenAI", "OpenAI GPT-6 Astra · OpenRouter"), so that the same model reached through two providers
+// can be told apart. A name that starts with the provider (NVIDIA's, Gemini's) already says it.
+export const getModelDisplayName = (model) => {
+    const name = String(model?.name || '');
+    const label = getProviderLabel(model?.provider);
+    if (!name || !label || name.toLowerCase().startsWith(label.toLowerCase())) return name;
+    return `${name} · ${label}`;
+};
+
 export const getModelFamilyKey = (model) => {
     const apiId = getModelApiId(model).replace(/:free$/, '');
     return apiId

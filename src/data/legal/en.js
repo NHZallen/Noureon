@@ -16,7 +16,7 @@ export default {
           'Noureon does not provide model credit and does not resell model usage: you bring an API key from each provider you want to use, and you settle the cost with the provider directly. The shortest way to start:',
           [
             'On the sign-in page, enter a name and a password to create a "local account": its data stays in this browser. You can also bind an Email or a Google account in Settings → Personalization to use a cloud account and cloud sync.',
-            'Go to Settings → Model management, find API key management, and enter a key for at least one provider: Google Gemini, OpenRouter (one key opens every model it routes to), NVIDIA (free models) or OpenCode Go (a subscription whose key opens its models). Set up only the ones you will use.',
+            'Go to Settings → Model management, find API key management, and enter a key for at least one provider: Google Gemini, OpenRouter (one key opens every model it routes to), NVIDIA (free models), OpenCode Go (a subscription whose key opens its models) or OpenAI (its own text and image models). Set up only the ones you will use.',
             'Back in the chat, pick a model next to the message box, type a message and send it. With no key, the message box reminds you to add one in Settings first.'
           ],
           'Keys stay in your browser by default and are not uploaded. Only when you choose to have replies made by the server are they sent, encrypted and temporarily, to Noureon\'s server (see "Server-side running" and the Privacy Policy). Never send a key, a sync password or recovery data to anyone, support included.'
@@ -89,7 +89,7 @@ export default {
         h: '6. Web search',
         blocks: [
           [
-            'Gemini models can use their built-in search. OpenRouter, NVIDIA and OpenCode Go models use the Tavily or TinyFish service you choose: in Settings → Model management → Web search choose the source and enter the key; Tavily has basic and advanced depth, and TinyFish is also used to read the addresses you paste.',
+            'Gemini models can use their built-in search, and OpenAI models can use OpenAI\'s built-in search or the service below, as you choose in Settings → Model management → Web search (OpenAI\'s own search uses about 8,000 more input tokens each time). OpenRouter, NVIDIA and OpenCode Go models use the Tavily or TinyFish service you choose: in Settings → Model management → Web search choose the source and enter the key; Tavily has basic and advanced depth, and TinyFish is also used to read the addresses you paste.',
             'With "smart search" on, Noureon decides whether a message should search the web first; with an OpenRouter key a small judgement model helps decide (what it receives is in the Privacy Policy), and when it fails or is slow the app uses its own word lists.',
             'When a model has no tool ability, the server makes the search first and gives the pages it found to the model as a "search packet"; you can also change this in Settings so that searches are made only on your own device.',
             'The sources cited in an answer are numbered, with the site\'s name and small icon beside them.'
@@ -224,7 +224,7 @@ export default {
         h: '16. Troubleshooting',
         blocks: [
           [
-            'No reply after sending: check that the key of that model\'s provider is right and has credit, then try another model. Gemini, OpenRouter, NVIDIA and OpenCode Go each have their own error messages and quota rules. For OpenCode Go, an error that mentions Privacy settings (the Global region, or paid endpoints that train on request data) is fixed in the Privacy settings of your OpenCode workspace; usage follows the limits shown in the OpenCode Go console.',
+            'No reply after sending: check that the key of that model\'s provider is right and has credit, then try another model. Gemini, OpenRouter, NVIDIA, OpenCode Go and OpenAI each have their own error messages and quota rules. For OpenCode Go, an error that mentions Privacy settings (the Global region, or paid endpoints that train on request data) is fixed in the Privacy settings of your OpenCode workspace; usage follows the limits shown in the OpenCode Go console.',
             'A reply is slow or stops: long answers, deep research and the council take time; when the server runs them you can leave and come back. The server allows 5 replies at once and 10 new ones a minute per person.',
             'Sync does not update: check that you are signed in, the sync password is unlocked (enter it in the cloud sync area of Settings when needed) and the network works, then press "Sync now". Offline changes sync when the connection returns.',
             'Forgot the sync password: recover by Email (see "Accounts, signing in and recovery"). If the sync password was cleared, old encrypted data cannot be decrypted.',
@@ -318,7 +318,7 @@ export default {
         h: '5. Providers, keys and costs',
         blocks: [
           [
-            'Using the service requires you to obtain API keys from third-party providers (for example Google Gemini, OpenRouter, NVIDIA, OpenCode Go, Tavily, TinyFish) and to follow each provider\'s terms of service, usage policies and privacy policy. What you send is handled under those providers\' rules, which we do not control; we are not responsible for their service quality, availability, content policies or price changes.',
+            'Using the service requires you to obtain API keys from third-party providers (for example Google Gemini, OpenRouter, NVIDIA, OpenCode Go, OpenAI, Tavily, TinyFish) and to follow each provider\'s terms of service, usage policies and privacy policy. What you send is handled under those providers\' rules, which we do not control; we are not responsible for their service quality, availability, content policies or price changes.',
             'All model and search costs are charged to you by the providers. Watch your credit and billing yourself, and we suggest you set a usage limit with the provider.',
             'When the server runs a reply, your key is kept encrypted for a short time and used to call the provider on your behalf to complete that reply (see the Privacy Policy for how long). If the server restarts during an image or the synthesis of a council, a request may be sent again and the provider may charge twice; we do not refund such costs.',
             'Pictures a text model draws for you are charged to your key by the picture model\'s provider, and each reply may ask for several. Stopping a picture with "Not this" does not refund what was already spent, and if you allow "Image generation" for good the model draws without asking first.',
@@ -510,7 +510,8 @@ export default {
         h: '5. The third-party providers you set up',
         blocks: [
           [
-            'Providers you can use include Google Gemini, OpenRouter (which passes requests on to the model vendors), NVIDIA API Catalog, OpenCode Go (a subscription service that runs models from several vendors), and the search services Tavily and TinyFish. Set up only the ones you use.',
+            'Providers you can use include Google Gemini, OpenRouter (which passes requests on to the model vendors), NVIDIA API Catalog, OpenCode Go (a subscription service that runs models from several vendors), OpenAI (its own models, with your OpenAI key), and the search services Tavily and TinyFish. Set up only the ones you use.',
+            'OpenAI: if you set an OpenAI key, the page sends your conversation (your text, and the pictures and PDFs you attach) straight from your browser to OpenAI (api.openai.com) with your key, or from our server when the reply runs there; pictures made with GPT Image go the same way. Each request asks OpenAI not to keep the response (store: false); OpenAI still keeps requests for a time under its own rules. Under Settings → Model management → API key management, "Send an anonymous identifier to OpenAI" is on by default: each request then carries a hash made from your account number, never a name or an email, so that OpenAI can act on one user instead of your whole organization; turn it off to send none. When you let OpenAI search, the search is done by OpenAI.',
             'These providers handle your data under their own terms and privacy policies, including whether they log it, keep it or use it for training; we do not control this, and we suggest you check each one\'s settings.',
             'By default your keys are kept in the browser and the browser calls the provider directly, so the requests do not pass through Noureon\'s server; the exceptions are when you choose server-side running, and the proxy endpoints of this site (see below).',
             'OpenCode Go does not accept requests made directly by a browser. So when the reply is not run by our server, the request passes through this site\'s function (/api/opencode-chat), which adds the headers OpenCode asks of a client (a User-Agent and the id of the conversation, so that OpenCode can route and reuse its cache) and sends it on; your key and what you send pass through it as they are sent and we do not store them. OpenCode Go\'s own rules on keeping data apply and differ by model: for example Grok, GPT Luna and Claude Haiku 5.5 keep data for 30 days, and the Muse Spark Contributor models and Gemini 4 Argon Contributor use your prompts and replies to train Meta\'s and Google\'s models (each model says so in the picker).',
@@ -670,7 +671,7 @@ export default {
           [
             'Supabase: account verification, database and file storage (for cloud sync and server-side running).',
             'Cloudflare: the Turnstile bot check.',
-            'Google Gemini, OpenRouter, NVIDIA, OpenCode Go, Tavily, TinyFish: the model and search providers you set up.',
+            'Google Gemini, OpenRouter, NVIDIA, OpenCode Go, OpenAI, Tavily, TinyFish: the model and search providers you set up.',
             'GitHub: downloads and icons of command tools, and the source code.',
             'Google, Notion, Linear, Miro, Canva, Context7, Upstash, Vercel, GitHub, Supabase, Hugging Face: the services you connect as connectors, when you connect them (each has its own terms and privacy policy).',
             'Resend: sends us a mail when you press "Join the waitlist" on a connector; the mail has your account\'s email address and id, and goes to our support mailbox.',

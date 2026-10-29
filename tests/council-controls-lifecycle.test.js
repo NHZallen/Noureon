@@ -136,7 +136,7 @@ test('the composer button names the model, or the council, and sits before the s
     const container = single.document.querySelector('#model-council-control');
     assert.equal(container.nextElementSibling.id, 'voice');
     const trigger = container.querySelector('#model-picker-btn');
-    assert.equal(trigger.querySelector('.mp-trigger-name').textContent, 'Model A');
+    assert.equal(trigger.querySelector('.mp-trigger-name').textContent, 'Model A · Gemini');
     assert.equal(trigger.querySelector('.mp-trigger-effort'), null, 'how deeply it thinks has its own button');
     assert.equal(trigger.getAttribute('aria-expanded'), 'false');
     const depth = container.querySelector('#model-depth-btn');
@@ -504,7 +504,7 @@ test('the council page shows members as removable tags, who combines them, and h
   try {
     lifecycle.renderCouncilControls();
     const panel = document.querySelector('#model-picker-popover');
-    assert.deepEqual([...panel.querySelectorAll('.mp-chip-name')].map((node) => node.textContent), ['Model A', 'Model C']);
+    assert.deepEqual([...panel.querySelectorAll('.mp-chip-name')].map((node) => node.textContent), ['Model A · Gemini', 'Model C · OpenRouter']);
     assert.deepEqual([...panel.querySelectorAll('.mp-count')].map((node) => node.textContent), ['0/5', '2/4'], 'groups, then members');
     assert.match(panel.querySelector('[data-mp-open="combiner"]').textContent, /Model B/);
     assert.equal(panel.querySelector('[data-mp-mode="consensus"]').getAttribute('aria-checked'), 'true');
@@ -970,7 +970,7 @@ test('the current members and combiner can be saved as a group, which then shows
     const chip = document.querySelector('[data-mp-group-apply="group-1"]');
     assert.equal(chip.textContent, 'Group 1');
     assert.equal(chip.classList.contains('is-active'), true, 'it is what the council is now');
-    assert.match(chip.title, /Model A, Model C · Combined by Model B/);
+    assert.match(chip.title, /Model A · Gemini, Model C · OpenRouter · Combined by Model B · OpenRouter/);
     assert.equal(document.querySelector('#model-picker-popover').classList.contains('visible'), true, 'the panel stays open');
   } finally {
     cleanup();
@@ -1073,7 +1073,7 @@ test('a group\'s members and combiner are picked from the same lists, and change
     assert.equal(config.councilGroups[0].synthesizerModelId, 'model-a');
     assert.equal(conversation.council.synthesizerModelId, 'model-b');
     assert.equal(document.querySelector('.mp-view').dataset.mpView, 'groups', 'back on the groups page once one is chosen');
-    assert.match(document.querySelector('.mp-group-summary').textContent, /Model B, Model C · Combined by Model A/);
+    assert.match(document.querySelector('.mp-group-summary').textContent, /Model B · OpenRouter, Model C · OpenRouter · Combined by Model A · Gemini/);
   } finally {
     cleanup();
   }

@@ -18,7 +18,7 @@ export default {
           'Noureon 本身不提供模型額度，也不轉售模型用量：你要自己準備想用的供應商的 API 金鑰，費用由你直接與供應商結算。第一次使用的最短路徑如下。',
           [
             '在登入頁輸入名稱與密碼，建立「本機帳號」：資料只存在這個瀏覽器裡。也可以到「設定 → 個人化」綁定 Email 或 Google，使用雲端帳號與雲端同步。',
-            '到「設定 → 模型管理」找到 API 金鑰管理，填入至少一家供應商的金鑰：Google Gemini、OpenRouter（一把金鑰就能使用它轉接的所有模型）、NVIDIA（免費模型）或 OpenCode Go（訂閱服務，一把金鑰使用它的模型）。只需要設定你要用的那幾家。',
+            '到「設定 → 模型管理」找到 API 金鑰管理，填入至少一家供應商的金鑰：Google Gemini、OpenRouter（一把金鑰就能使用它轉接的所有模型）、NVIDIA（免費模型）、OpenCode Go（訂閱服務，一把金鑰使用它的模型）或 OpenAI（官方的文字與圖片模型）。只需要設定你要用的那幾家。',
             '回到對話畫面，在輸入框旁挑選模型，輸入訊息送出。沒有金鑰時，輸入框會提示先到設定加入金鑰。'
           ],
           '金鑰預設只存在你的瀏覽器裡，不會上傳；只有在你選擇由伺服器執行回覆時，才會暫時加密送到 Noureon 的伺服器（見「伺服器執行」與隱私權政策）。請勿把金鑰、同步密碼或復原資料寄給任何人，包括客服。'
@@ -91,7 +91,7 @@ export default {
         h: '六、網路搜尋',
         blocks: [
           [
-            'Gemini 模型可以使用內建的搜尋能力。OpenRouter、NVIDIA 與 OpenCode Go 模型使用你在設定選的 Tavily 或 TinyFish：到「設定 → 模型管理 → 網路搜尋」選擇搜尋來源、填入金鑰；Tavily 可選基礎或進階搜尋深度，TinyFish 同時用來讀取你貼的網址。',
+            'Gemini 模型可以使用內建的搜尋能力，OpenAI 模型可以用 OpenAI 內建的搜尋，或用下方的搜尋服務，在「設定 → 模型管理 → 網路搜尋」選擇（OpenAI 自己的搜尋每次約多用 8,000 個輸入 token）。OpenRouter、NVIDIA 與 OpenCode Go 模型使用你在設定選的 Tavily 或 TinyFish：到「設定 → 模型管理 → 網路搜尋」選擇搜尋來源、填入金鑰；Tavily 可選基礎或進階搜尋深度，TinyFish 同時用來讀取你貼的網址。',
             '「智慧搜索」開啟時，Noureon 會判斷這則訊息要不要先上網搜尋；有 OpenRouter 金鑰時，由一個小型判斷模型協助判斷（內容見隱私權政策），失敗或太慢時改用內建的字詞清單。',
             '模型沒有工具能力時，搜尋由伺服器先做好，再把找到的網頁當作「先搜一包」交給模型；你也可以在設定改成只在自己的裝置上搜尋。',
             '回答中引用的來源會標上編號，旁邊顯示網站的名稱與小圖示。'
@@ -226,7 +226,7 @@ export default {
         h: '十六、疑難排解',
         blocks: [
           [
-            '送出後沒有回覆：先確認該模型的供應商金鑰是否正確、額度是否足夠；再試試切換模型。Gemini、OpenRouter、NVIDIA、OpenCode Go 各自有自己的錯誤訊息與額度規則。OpenCode Go 的錯誤若提到「隱私」設定（區域要選 Global，或要允許會用請求資料訓練的付費端點），請到你的 OpenCode 工作區的隱私設定修改；用量以 OpenCode Go 後台限額為準。',
+            '送出後沒有回覆：先確認該模型的供應商金鑰是否正確、額度是否足夠；再試試切換模型。Gemini、OpenRouter、NVIDIA、OpenCode Go、OpenAI 各自有自己的錯誤訊息與額度規則。OpenCode Go 的錯誤若提到「隱私」設定（區域要選 Global，或要允許會用請求資料訓練的付費端點），請到你的 OpenCode 工作區的隱私設定修改；用量以 OpenCode Go 後台限額為準。',
             '回覆很慢或中斷：長回答、深度研究與理事會本來就需要時間；若由伺服器執行，可以先離開再回來看。伺服器有每人同時 5 則、每分鐘 10 則的上限。',
             '同步沒有更新：確認已登入、同步密碼已解鎖（需要時在設定的雲端同步區輸入）、網路正常，然後按「立即同步」。離線時會在重新連線後自動同步。',
             '忘記同步密碼：用 Email 復原（見「帳號、登入與復原」）。若已清除同步密碼，舊的加密資料無法解密。',
@@ -320,7 +320,7 @@ export default {
         h: '五、供應商、金鑰與費用',
         blocks: [
           [
-            '使用本服務需要你自行取得第三方供應商（例如 Google Gemini、OpenRouter、NVIDIA、OpenCode Go、Tavily、TinyFish）的 API 金鑰，並遵守各供應商的服務條款、使用政策與隱私權政策。你送出的內容會依這些供應商的規則處理，我們無法控制，也不負責他們的服務品質、可用性、內容政策或價格變動。',
+            '使用本服務需要你自行取得第三方供應商（例如 Google Gemini、OpenRouter、NVIDIA、OpenCode Go、OpenAI、Tavily、TinyFish）的 API 金鑰，並遵守各供應商的服務條款、使用政策與隱私權政策。你送出的內容會依這些供應商的規則處理，我們無法控制，也不負責他們的服務品質、可用性、內容政策或價格變動。',
             '所有模型與搜尋的費用由供應商向你收取。你要自己留意額度與計費，並建議在供應商那邊設定用量上限。',
             '由伺服器執行時，為了完成那一則回覆，你的金鑰會被暫時加密保存並用來代你呼叫供應商（保存時間見隱私權政策）。如果伺服器在圖片生成或理事會整合的途中重啟，請求可能被重送，供應商可能因此計費兩次，我們不負責補償這些費用。',
             '文字模型替你畫的圖，費用由圖片模型的供應商向你的金鑰收取，一則回覆也可能要求畫好幾張。用「不是」中止一張圖，不會退回已經花掉的費用；如果你把「圖片生成」設成永遠允許，模型畫圖前就不會先問你。',
@@ -512,7 +512,8 @@ export default {
         h: '五、你自己設定的第三方供應商',
         blocks: [
           [
-            '可使用的供應商包括 Google Gemini、OpenRouter（它會再把請求轉給各模型廠商）、NVIDIA API Catalog、OpenCode Go（轉接多家廠商模型的訂閱服務），以及搜尋服務 Tavily 與 TinyFish。你只要設定自己用的那幾家。',
+            '可使用的供應商包括 Google Gemini、OpenRouter（它會再把請求轉給各模型廠商）、NVIDIA API Catalog、OpenCode Go（轉接多家廠商模型的訂閱服務）、OpenAI（官方模型，用你自己的 OpenAI 金鑰），以及搜尋服務 Tavily 與 TinyFish。你只要設定自己用的那幾家。',
+            'OpenAI：設定 OpenAI 金鑰後，頁面會用你的金鑰，把對話（你的文字，以及你附上的圖片與 PDF）直接從瀏覽器送到 OpenAI（api.openai.com）；回覆在我們的伺服器上進行時則從伺服器送出；用 GPT Image 畫圖也是同樣的路徑。每次請求都會要求 OpenAI 不要保存回應（store: false），OpenAI 仍會依自己的規則保留請求一段時間。在「設定 → 模型管理 → API 金鑰管理」有「送出匿名識別碼給 OpenAI」，預設開啟：每次請求會帶一個由你的帳號編號算出的雜湊值，不含姓名與信箱，讓 OpenAI 在有人濫用時只針對該使用者，不牽連你整個組織；關閉後就不送出。選擇讓 OpenAI 搜尋時，搜尋由 OpenAI 進行。',
             '這些供應商依自己的條款與隱私權政策處理你的資料，包括是否記錄、保存或用於訓練；我們無法控制，建議你查看各家的設定。',
             '你的金鑰預設存在瀏覽器裡，由瀏覽器直接呼叫供應商，請求不經過 Noureon 的伺服器；例外是你選擇由伺服器執行，或使用本站的代理端點（見下）。',
             'OpenCode Go 不接受瀏覽器直接送出的請求。所以回覆不是由我們的伺服器執行時，請求會經過本網站的函式（/api/opencode-chat），由它加上 OpenCode 對用戶端的要求（一個 User-Agent 和對話的編號，讓 OpenCode 能安排路由並重複使用快取）再轉送出去；你的金鑰與送出的內容只是經過，我們不儲存。OpenCode Go 自己的資料保留規則依模型而不同：例如 Grok、GPT Luna 與 Claude Haiku 5.5 保留資料 30 天，Muse Spark Contributor 模型與 Gemini 4 Argon Contributor 會用你的提示與回應訓練 Meta 與 Google 的模型（選單裡每個模型都有標示）。',
@@ -672,7 +673,7 @@ export default {
           [
             'Supabase：帳號驗證、資料庫與檔案儲存（雲端同步與伺服器執行用）。',
             'Cloudflare：Turnstile 機器人檢查。',
-            'Google Gemini、OpenRouter、NVIDIA、OpenCode Go、Tavily、TinyFish：你設定的模型與搜尋供應商。',
+            'Google Gemini、OpenRouter、NVIDIA、OpenCode Go、OpenAI、Tavily、TinyFish：你設定的模型與搜尋供應商。',
             'GitHub：命令工具的程式下載與圖示、原始碼。',
             'Google、Notion、Linear、Miro、Canva、Context7、Upstash、Vercel、GitHub、Supabase、Hugging Face：你連線的連接器服務（連線時才會用到；各自有自己的條款與隱私權政策）。',
             'Resend：你在連接器按下「申請候補」時，替我們寄出通知信；信件包含你帳號的電子郵件與帳號 ID，寄到我們的客服信箱。',

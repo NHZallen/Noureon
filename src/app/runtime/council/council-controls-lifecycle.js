@@ -16,6 +16,7 @@ import {
   noteModelsUsed as noteRecent
 } from '../../ui/model-picker/model-groups.js';
 import { modelPickerText } from '../../ui/model-picker/model-picker-texts.js';
+import { getModelDisplayName } from '../shell/model-registry.js';
 import { bindCouncilControlEvents } from './council-controls-events.js';
 import { createPickerViewState } from './council-controls-view-state.js';
 import { createPickerChoices } from './council-controls-choices.js';
@@ -112,7 +113,7 @@ export function createCouncilControlsLifecycle(deps) {
   let lastLayout = null;
 
   const groupsOf = (config) => (Array.isArray(config.councilGroups) ? config.councilGroups : []);
-  const modelName = (id) => models.find((model) => model.id === id)?.name || '';
+  const modelName = (id) => getModelDisplayName(models.find((model) => model.id === id));
   // Saving writes everything and can hold the page for a moment, so a change is drawn first and its
   // save starts two frames later, after the drawing has been painted.
   const inBackground = (work) => Promise.resolve(work).catch((error) => console.error('Could not save the model picker settings', error));
