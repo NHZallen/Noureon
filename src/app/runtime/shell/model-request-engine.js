@@ -11,6 +11,7 @@ import {
     withSearchContext
 } from '../reply/model-request-formatting.js';
 import { createStreamApiCall } from '../reply/stream-api-call.js';
+import { getOpenAiSafetyIdentifier } from '../reply/openai-request.js';
 import { createCurrentMemoryContextProvider } from '../memory/current-memory-context-provider.js';
 import { createCouncilResponseLifecycle } from '../council/council-response-lifecycle.js';
 import { createProviderRequestSupport } from '../reply/provider-request-support.js';
@@ -52,6 +53,7 @@ export function createModelRequestEngine({
         modelSupportsVision,
         getModelReasoningConfig,
         normalizeReasoningEffort,
+        getSafetyIdentifier: () => getOpenAiSafetyIdentifier(config),
         getText: (key) => i18n[config.uiLanguage]?.[key] || ''
     });
     const runMemoryModel = createMemoryModelRunner({ streamApiCall, models: MODELS });

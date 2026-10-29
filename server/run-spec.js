@@ -23,7 +23,9 @@ const SEARCH_DEPTHS = ['basic', 'advanced'];
 const TOP_LEVEL = ['protocol', 'clientVersion', 'conversationId', 'assistantMessageId', 'sequence', 'model', 'request', 'tools', 'secrets', 'kind', 'research', 'source', 'documents'];
 const COUNCIL_TOP_LEVEL = ['protocol', 'clientVersion', 'conversationId', 'assistantMessageId', 'sequence', 'request', 'council', 'tools', 'secrets', 'kind'];
 const COUNCIL_MODES = ['consensus', 'deliberation'];
-const COUNCIL_PROVIDERS = ['gemini', 'openrouter', 'nvidia', 'opencode-go'];
+const COUNCIL_PROVIDERS = ['gemini', 'openrouter', 'nvidia', 'opencode-go', 'openai'];
+// Where the models of OpenAI search the web (the page's `openaiWebSearch` setting): with OpenAI's own tool or with the search service.
+const OPENAI_WEB_SEARCH = ['official', 'provider'];
 const IMAGE_TOP_LEVEL = ['protocol', 'clientVersion', 'conversationId', 'assistantMessageId', 'sequence', 'model', 'request', 'image', 'secrets', 'kind'];
 // What the page may ask of an image model (the fields of the request to OpenRouter's images endpoint that the app sets).
 const IMAGE_CONFIG_FIELDS = ['aspectRatio', 'resolution', 'n', 'size', 'quality', 'outputFormat', 'background', 'outputCompression', 'seed', 'provider', 'reasoningEffort'];
@@ -272,9 +274,11 @@ function validateCouncilSpec(input) {
     if (!['off', 'on'].includes(tools.webSearch)) fail('tools.webSearch', 'must be off or on');
     if (tools.searchProvider !== undefined && !SEARCH_PROVIDERS.includes(tools.searchProvider)) fail('tools.searchProvider', `must be one of ${SEARCH_PROVIDERS.join(', ')}`);
     if (tools.searchDepth !== undefined && !SEARCH_DEPTHS.includes(tools.searchDepth)) fail('tools.searchDepth', `must be one of ${SEARCH_DEPTHS.join(', ')}`);
+    if (tools.openaiWebSearch !== undefined && !OPENAI_WEB_SEARCH.includes(tools.openaiWebSearch)) fail('tools.openaiWebSearch', `must be one of ${OPENAI_WEB_SEARCH.join(', ')}`);
+    if (tools.openaiSafetyId !== undefined && typeof tools.openaiSafetyId !== 'boolean') fail('tools.openaiSafetyId', 'must be true or false');
     // What the members may read by themselves (docs/superpowers/specs/2026-10-19-council-tools-design.md): the person's skills and connectors, as for a reply.
     checkSkillsAndConnectors(tools, fail);
-    for (const name of Object.keys(tools)) if (!['webSearch', 'searchProvider', 'searchDepth', 'skills', 'connectors', 'synthesis'].includes(name)) fail(`tools.${name}`, 'is not a known field');
+    for (const name of Object.keys(tools)) if (!['webSearch', 'searchProvider', 'searchDepth', 'openaiWebSearch', 'openaiSafetyId', 'skills', 'connectors', 'synthesis'].includes(name)) fail(`tools.${name}`, 'is not a known field');
   }
   // What the synthesizer may use besides (§2.2): Python with the Design menu's choices and the files of the message, and the CLI tools with their
   // sites; and the visual check of a presentation it writes. Checked as the tools of a reply are, since the synthesis is made as one.
@@ -298,7 +302,7 @@ function validateCouncilSpec(input) {
       });
       if (!asReply.ok) for (const error of asReply.errors) fail(String(error.path).replace(/^tools\./, 'tools.synthesis.'), error.message);
       else {
-        const { webSearch: _off, searchProvider: _provider, searchDepth: _depth, ...checked } = asReply.spec.tools;
+        const { webSearch: _off, searchProvider: _provider, searchDepth: _depth, openaiWebSearch: _openaiSearch, openaiSafetyId: _openaiId, ...checked } = asReply.spec.tools;
         synthesisTools = checked;
       }
     }
@@ -358,6 +362,8 @@ function validateCouncilSpec(input) {
         webSearch: tools.webSearch,
         searchProvider: tools.searchProvider || 'tavily',
         searchDepth: tools.searchDepth === 'advanced' ? 'advanced' : 'basic',
+        ...(tools.openaiWebSearch === 'provider' ? { openaiWebSearch: 'provider' } : {}),
+        ...(tools.openaiSafetyId === false ? { openaiSafetyId: false } : {}),
         advanced: false,
         ...(Array.isArray(tools.skills) && listedSkills(tools.skills).length ? { skills: listedSkills(tools.skills) } : {}),
         ...(tools.connectors === true ? { connectors: true } : {}),
@@ -419,6 +425,7 @@ export function validateRunSpec(input) {
     if (!WEB_SEARCH.includes(tools.webSearch)) fail('tools.webSearch', `must be one of ${WEB_SEARCH.join(', ')}`);
     if (tools.searchProvider !== undefined && !SEARCH_PROVIDERS.includes(tools.searchProvider)) fail('tools.searchProvider', `must be one of ${SEARCH_PROVIDERS.join(', ')}`);
     if (tools.searchDepth !== undefined && !SEARCH_DEPTHS.includes(tools.searchDepth)) fail('tools.searchDepth', `must be one of ${SEARCH_DEPTHS.join(', ')}`);
+    if (tools.openaiSafetyId !== undefined && typeof tools.openaiSafetyId !== 'boolean') fail('tools.openaiSafetyId', 'must be true or false');
     if (typeof tools.advanced !== 'boolean') fail('tools.advanced', 'must be true or false');
     if (tools.webSearch === 'packet' && tools.advanced !== false) fail('tools.webSearch', 'a search packet is for replies without Python');
     if (tools.webSearch === 'briefing' && tools.advanced !== true) fail('tools.webSearch', 'briefing is for replies with Python');
@@ -552,6 +559,7 @@ export function validateRunSpec(input) {
         webSearch: tools.webSearch,
         searchProvider: tools.searchProvider || 'tavily',
         searchDepth: tools.searchDepth === 'advanced' ? 'advanced' : 'basic',
+        ...(tools.openaiSafetyId === false ? { openaiSafetyId: false } : {}),
         advanced: tools.advanced,
         ...(isObject(tools.visionCheck) ? { visionCheck: { deckDesign: tools.visionCheck.deckDesign || 'auto', advanced: tools.visionCheck.advanced === true } } : {}),
         ...(tools.designs ? { designs: { deck: tools.designs.deck || 'auto', document: tools.designs.document || 'auto' } } : {}),

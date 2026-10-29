@@ -102,7 +102,7 @@ export async function startCouncilRun({ getApiKeyForProvider, describeRequest, s
       language: uiLanguage,
       ...(historySourceIds.length ? { messageMetadata: { historySourceConversationIds: historySourceIds } } : {})
     },
-    tools: { webSearch, ...(search ? { searchProvider: search.searchProvider, searchDepth: search.searchDepth } : {}), ...(skills.length ? { skills } : {}), connectors: true, ...(synthesis ? { synthesis } : {}) },
+    tools: { webSearch, ...(search ? { searchProvider: search.searchProvider, searchDepth: search.searchDepth } : {}), ...(config?.openaiWebSearch === 'provider' ? { openaiWebSearch: 'provider' } : {}), ...(config?.openaiSafetyIdentifier === false ? { openaiSafetyId: false } : {}), ...(skills.length ? { skills } : {}), connectors: true, ...(synthesis ? { synthesis } : {}) },
     secrets: { keys, ...(search ? { searchKey: search.searchKey, ...(search.searchKeyAlt ? { searchKeyAlt: search.searchKeyAlt } : {}) } : {}) }
   };
   const body = JSON.stringify(spec);

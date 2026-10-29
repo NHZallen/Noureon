@@ -79,3 +79,7 @@ export const OPENAI_REASONING_CONFIGS = Object.freeze(Object.fromEntries(TEXT_RO
 ])));
 
 export const isOpenAiModel = (model) => model?.provider === OPENAI_PROVIDER;
+
+// A text model of OpenAI searches with OpenAI's own tool (`web_search` in the Responses API) or, when the person chose so (`config.openaiWebSearch` is `provider`), with the search
+// service of the settings like the models that have none of their own. Without a config the first (the default) is meant.
+export const openAiUsesOfficialSearch = (model, config) => Boolean(model && model.provider === OPENAI_PROVIDER && model.outputModality !== 'image' && config?.openaiWebSearch !== 'provider');

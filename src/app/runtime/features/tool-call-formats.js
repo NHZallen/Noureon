@@ -102,11 +102,13 @@ export function applyOpenAiTools(payload, { tools = [], toolTurns = [], reasonin
 export function applyResponsesTools(payload, { tools = [], toolTurns = [] } = {}) {
   if (tools.length) {
     // The Responses API describes a function flat, not under a `function` key.
-    payload.tools = tools.map(({ name, description, parameters }) => ({ type: 'function', name, description, parameters }));
+    // The tools the provider brings (OpenAI's web_search) stay beside the functions.
+    payload.tools = [...(payload.tools || []).filter((tool) => tool.type !== 'function'), ...tools.map(({ name, description, parameters }) => ({ type: 'function', name, description, parameters }))];
     payload.tool_choice = 'auto';
   }
   for (const turn of toolTurns) {
-    const items = turn.assistant?.responseItems;
+    // The searches of OpenAI's own tool are not sent back: only the text, the thinking and the calls of functions are needed for the next round.
+    const items = turn.assistant?.responseItems?.filter((item) => item?.type !== 'web_search_call');
     if (items?.length) {
       payload.input.push(...items);
     } else {
@@ -246,6 +248,12 @@ export function createGeminiCollector({ onReasoning = null, onToolArguments = nu
 export function createResponsesCollector({ onReasoning = null, onToolArguments = null } = {}) {
   const calls = new Map();
   const items = [];
+  // The pages a built-in web search of the provider cited (OpenAI's `url_citation` notes in the text), for the "Searched N sites" row.
+  const sources = [];
+  const addSource = (note) => {
+    const url = typeof note?.url === 'string' ? note.url : '';
+    if (note?.type === 'url_citation' && url && !sources.some((source) => source.url === url)) sources.push({ title: String(note.title || ''), url });
+  };
   let text = '';
   let finishReason = '';
   let failure = '';
@@ -272,6 +280,9 @@ export function createResponsesCollector({ onReasoning = null, onToolArguments =
         case 'response.reasoning_text.delta':
           summaryStarted = true;
           if (event.delta) onReasoning?.(event.delta);
+          return '';
+        case 'response.output_text.annotation.added':
+          addSource(event.annotation);
           return '';
         case 'response.output_item.added':
           if (event.item?.type === 'function_call') {
@@ -310,6 +321,7 @@ export function createResponsesCollector({ onReasoning = null, onToolArguments =
             items.length = 0;
             items.push(...event.response.output);
           }
+          for (const item of items) for (const part of item?.content || []) for (const note of part?.annotations || []) addSource(note);
           return '';
         case 'response.failed':
           failure = event.response?.error?.message || event.response?.error?.code || 'The response failed.';
@@ -327,6 +339,7 @@ export function createResponsesCollector({ onReasoning = null, onToolArguments =
       parts: [],
       reasoningDetails: [],
       responseItems: items.filter(Boolean),
+      sources: [...sources],
       finishReason,
       toolCalls: [...calls.values()].filter((call) => call.id || call.name).map((call, index) => ({
         id: call.id || `call_${index}`,

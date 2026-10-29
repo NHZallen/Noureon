@@ -76,6 +76,10 @@
       "note": "Reviewed 2026-10-09: the loop of a plain reply that may load skills; it only calls the functions it is given (streamApiCall) and has no browser globals."
     },
     {
+      "path": "src/app/runtime/reply/openai-request.js",
+      "note": "Reviewed 2026-10-29: no browser globals (the request to OpenAI's Responses API; the identifier uses globalThis.crypto, which Node has too)."
+    },
+    {
       "path": "src/app/runtime/reply/stream-api-call.js",
       "note": "Reviewed 2026-10-03: no browser globals (\"document.pdf\" is a file name)."
     },

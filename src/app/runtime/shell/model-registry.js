@@ -4,7 +4,9 @@ import {
     createModelIdCanonicalizer,
     normalizeCouncilConfig as normalizeLegacyCouncilConfig
 } from '../kernel/config-normalization.js';
-import { OPENAI_IMAGE_MODEL_IDS, OPENAI_MODELS, OPENAI_PROVIDER, OPENAI_REASONING_CONFIGS, OPENAI_TEXT_MODEL_IDS } from './openai-models.js';
+import { OPENAI_IMAGE_MODEL_IDS, OPENAI_MODELS, OPENAI_PROVIDER, OPENAI_REASONING_CONFIGS, OPENAI_TEXT_MODEL_IDS, openAiUsesOfficialSearch } from './openai-models.js';
+
+export { openAiUsesOfficialSearch };
 import { OPENCODE_GO_MODELS, OPENCODE_GO_MODEL_IDS, OPENCODE_GO_PROVIDER, OPENCODE_REASONING_CONFIGS, isOpencodeModel, opencodeModelReadsFile, opencodeModelReadsPdf, opencodeModelSupportsVision } from './opencode-models.js';
 
 const MODEL_RELEASE_METADATA = Object.freeze({
@@ -605,9 +607,6 @@ export const modelSupportsSingleTranslation = (model) => Boolean(model && (
 ));
 export const getSingleTranslatorCandidates = () => MODELS.filter(modelSupportsSingleTranslation);
 
-// A text model of OpenAI searches with OpenAI's own tool (`web_search` in the Responses API) or, when the person chose so (`config.openaiWebSearch` is `provider`), with the
-// search service of the settings like the models that have none of their own. Without a config the first (the default) is meant.
-export const openAiUsesOfficialSearch = (model, config) => Boolean(model && model.provider === OPENAI_PROVIDER && model.outputModality !== 'image' && config?.openaiWebSearch !== 'provider');
 export const modelUsesNativeWebSearch = (model, config) => Boolean(model && (model.provider === 'gemini' || openAiUsesOfficialSearch(model, config)));
 export const modelUsesTavilySearch = (model, config) => Boolean(model && (
     model.provider === 'openrouter' ||
