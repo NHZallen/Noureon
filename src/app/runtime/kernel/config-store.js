@@ -2,7 +2,7 @@ import { getStartupLanguage } from '../../i18n/language-packs.js';
 
 export function createRuntimeConfigStore({ defaultModelId } = {}) {
   let config = {
-    apiKeys: { gemini: '', openrouter: '', nvidia: '', 'opencode-go': '', tavily: '', tinyfish: '' },
+    apiKeys: { gemini: '', openrouter: '', nvidia: '', 'opencode-go': '', openai: '', tavily: '', tinyfish: '' },
     defaultModel: defaultModelId,
     modelSettings: [],
     enableAutoWebSearch: false,
@@ -60,6 +60,9 @@ export function createRuntimeConfigStore({ defaultModelId } = {}) {
     sandboxNetwork: 'on',
     // What Send does while a reply is running: 'steer', 'queue' or 'send-now' (features/reply-steering.js).
     replyInputMode: 'steer',
+    // OpenAI's own API: where its models search the web ('official': OpenAI's tool; 'provider': the search service of the settings), and whether an anonymous identifier of the user is sent with each request.
+    openaiWebSearch: 'official',
+    openaiSafetyIdentifier: true,
     netRules: {},
     // The models a text model may call by itself (the picture model it draws with) and the permission for it: data/tool-models.js.
     toolModels: { image: null },

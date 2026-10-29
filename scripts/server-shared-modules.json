@@ -117,6 +117,10 @@
       "path": "src/app/runtime/shell/model-registry.js"
     },
     {
+      "path": "src/app/runtime/shell/openai-models.js",
+      "note": "Reviewed 2026-10-29: no browser globals (the list of OpenAI's own models: the ids, the depths of thinking, what the picture models take)."
+    },
+    {
       "path": "src/app/runtime/shell/opencode-models.js",
       "note": "Reviewed 2026-10-13: no browser globals (the list of OpenCode Go models: the form of API of each, pictures)."
     },

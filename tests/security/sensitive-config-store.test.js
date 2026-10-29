@@ -49,6 +49,7 @@ test('store reads, writes, merges, replaces, clears, and protects external mutat
     openrouter: '',
     nvidia: '',
     'opencode-go': '',
+    openai: '',
     tavily: '',
     tinyfish: ''
   });

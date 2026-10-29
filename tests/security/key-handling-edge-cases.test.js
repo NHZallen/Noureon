@@ -140,7 +140,7 @@ test('a masked display is recognised by its mask, and nothing else is', () => {
 });
 
 test('keys are listed by the providers the page knows, and "apiKeys" is sensitive too', () => {
-  assert.deepEqual([...SENSITIVE_API_KEY_FIELDS], ['gemini', 'openrouter', 'nvidia', 'opencode-go', 'tavily', 'tinyfish']);
+  assert.deepEqual([...SENSITIVE_API_KEY_FIELDS], ['gemini', 'openrouter', 'nvidia', 'opencode-go', 'openai', 'tavily', 'tinyfish']);
   assert.equal(isSensitiveConfigKey('apiKeys'), true);
   for (const field of SENSITIVE_API_KEY_FIELDS) assert.equal(isSensitiveConfigKey(field), true, field);
   assert.equal(isSensitiveConfigKey('theme'), false);

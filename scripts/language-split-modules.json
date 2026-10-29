@@ -120,6 +120,10 @@
     {
       "path": "src/data/i18n/parts/chat-actions-and-errors.js",
       "table": "default"
+    },
+    {
+      "path": "src/data/i18n/parts/openai.js",
+      "table": "default"
     }
   ]
 }

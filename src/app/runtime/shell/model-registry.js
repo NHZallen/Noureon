@@ -4,6 +4,7 @@ import {
     createModelIdCanonicalizer,
     normalizeCouncilConfig as normalizeLegacyCouncilConfig
 } from '../kernel/config-normalization.js';
+import { OPENAI_IMAGE_MODEL_IDS, OPENAI_MODELS, OPENAI_PROVIDER, OPENAI_REASONING_CONFIGS, OPENAI_TEXT_MODEL_IDS } from './openai-models.js';
 import { OPENCODE_GO_MODELS, OPENCODE_GO_MODEL_IDS, OPENCODE_GO_PROVIDER, OPENCODE_REASONING_CONFIGS, isOpencodeModel, opencodeModelReadsFile, opencodeModelReadsPdf, opencodeModelSupportsVision } from './opencode-models.js';
 
 const MODEL_RELEASE_METADATA = Object.freeze({
@@ -101,6 +102,9 @@ export const MODEL_CATALOG = [
     // OpenCode Go: the list is in opencode-models.js (the form of API of each model, pictures, tools).
     ...OPENCODE_GO_MODELS,
 
+    // OpenAI's own API (the person's OpenAI key): the list is in openai-models.js.
+    ...OPENAI_MODELS,
+
     // OpenRouter Paid Models (Anthropic)
     { id: 'anthropic/claude-haiku-5.5', legacyIds: ['anthropic/claude-haiku-4.5'], name: 'Claude Haiku 5.5', provider: 'openrouter', descriptionKey: 'model_claude_haiku_5_5_desc' },
     { id: 'anthropic/claude-sonnet-5.5', legacyIds: ['anthropic/claude-sonnet-5'], name: 'Claude Sonnet 5.5', provider: 'openrouter', descriptionKey: 'model_claude_sonnet_5_5_desc' },
@@ -192,7 +196,8 @@ export const IMAGE_GENERATION_MODEL_IDS = Object.freeze([
     'black-forest-labs/flux-3-image-klein',
     'krea/k3-edit',
     'qwen/qwen-image-2.1-turbo',
-    'qwen/qwen-image-2.1-pro'
+    'qwen/qwen-image-2.1-pro',
+    ...OPENAI_IMAGE_MODEL_IDS
 ]);
 export const CHEAP_MODEL_ID = 'gemini-3.5-flash-lite';
 export const OPENROUTER_VISION_MODELS = [
@@ -279,7 +284,9 @@ export const TOOL_CALLING_MODEL_IDS = Object.freeze([
     'z-ai/glm-5.3',
     'z-ai/glm-5.3-flash',
     // OpenCode Go: every model calls tools (the probe of 2026-10-13: a call and the answer of the tool sent back, in each form of API).
-    ...OPENCODE_GO_MODEL_IDS
+    ...OPENCODE_GO_MODEL_IDS,
+    // OpenAI's own API: a call and the answer of the tool sent back, with `store: false` (the probe of 2026-10-29).
+    ...OPENAI_TEXT_MODEL_IDS
 ]);
 // Text models without tool calling (or not yet shown to have it).
 export const NON_TOOL_CALLING_MODEL_IDS = Object.freeze([]);
@@ -347,7 +354,7 @@ export const MODEL_REASONING_CONFIGS = Object.freeze({ ...createReasoningConfigs
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'medium', ['minimax/minimax-m3.1-flash']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh'], 'high', ['x-ai/grok-4.6']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'high', 'max'], 'max', ['z-ai/glm-5.3', 'z-ai/glm-5.3-flash']]
-]), ...OPENCODE_REASONING_CONFIGS });
+]), ...OPENCODE_REASONING_CONFIGS, ...OPENAI_REASONING_CONFIGS });
 export const COUNCIL_MIN_MODELS = 2;
 export const COUNCIL_MAX_MODELS = 5;
 export const COUNCIL_RESPONSE_CHAR_LIMIT = 8000;
@@ -524,6 +531,7 @@ export const getProviderLabel = (provider) => {
     if (provider === 'openrouter') return 'OpenRouter';
     if (provider === 'nvidia') return 'NVIDIA';
     if (provider === OPENCODE_GO_PROVIDER) return 'OpenCode Go';
+    if (provider === OPENAI_PROVIDER) return 'OpenAI';
     if (provider === 'tavily') return 'Tavily';
     if (provider === 'tinyfish') return 'TinyFish';
     return provider || '';
@@ -556,6 +564,7 @@ export const modelSupportsVision = (model) => Boolean(model && (
     model.provider === 'gemini' ||
     (model.provider === 'openrouter' && OPENROUTER_VISION_MODELS.includes(model.id)) ||
     (model.provider === 'nvidia' && NVIDIA_VISION_MODELS.includes(getModelApiId(model))) ||
+    model.provider === OPENAI_PROVIDER ||
     opencodeModelSupportsVision(model)
 ));
 
@@ -565,7 +574,8 @@ export const modelGeneratesImages = (model) => Boolean(
 
 export const modelSupportsDocumentUpload = (model) => Boolean(model && (
     (model.provider === 'gemini' && GEMINI_DOCUMENT_MODELS.includes(model.id)) ||
-    model.provider === 'openrouter'
+    model.provider === 'openrouter' ||
+    model.provider === OPENAI_PROVIDER
 ));
 
 export const modelSupportsUploadedFile = (model, file) => {
@@ -573,6 +583,11 @@ export const modelSupportsUploadedFile = (model, file) => {
     const mimeType = file.type || file.mimeType || file.inlineData?.mimeType || '';
     if (!mimeType) return true;
     if (mimeType.startsWith('video/') && NO_VIDEO_MODEL_IDS.includes(model.id)) return false;
+    // OpenAI's Responses API takes no video, and of the documents only a PDF was tried as a file part (the probe of 2026-10-29): the others are read here and sent as text.
+    if (model.provider === OPENAI_PROVIDER && model.outputModality !== 'image') {
+        if (mimeType.startsWith('video/')) return false;
+        if (!mimeType.startsWith('image/')) return mimeType === 'application/pdf';
+    }
     if (mimeType.startsWith('image/') || mimeType.startsWith('video/')) {
         return modelSupportsVision(model);
     }
@@ -590,13 +605,17 @@ export const modelSupportsSingleTranslation = (model) => Boolean(model && (
 ));
 export const getSingleTranslatorCandidates = () => MODELS.filter(modelSupportsSingleTranslation);
 
-export const modelUsesNativeWebSearch = (model) => Boolean(model && model.provider === 'gemini');
-export const modelUsesTavilySearch = (model) => Boolean(model && (
+// A text model of OpenAI searches with OpenAI's own tool (`web_search` in the Responses API) or, when the person chose so (`config.openaiWebSearch` is `provider`), with the
+// search service of the settings like the models that have none of their own. Without a config the first (the default) is meant.
+export const openAiUsesOfficialSearch = (model, config) => Boolean(model && model.provider === OPENAI_PROVIDER && model.outputModality !== 'image' && config?.openaiWebSearch !== 'provider');
+export const modelUsesNativeWebSearch = (model, config) => Boolean(model && (model.provider === 'gemini' || openAiUsesOfficialSearch(model, config)));
+export const modelUsesTavilySearch = (model, config) => Boolean(model && (
     model.provider === 'openrouter' ||
     model.provider === 'nvidia' ||
-    isOpencodeModel(model)
+    isOpencodeModel(model) ||
+    (model.provider === OPENAI_PROVIDER && model.outputModality !== 'image' && !openAiUsesOfficialSearch(model, config))
 ));
-export const modelSupportsWebSearch = (model) => Boolean(modelUsesNativeWebSearch(model) || modelUsesTavilySearch(model));
+export const modelSupportsWebSearch = (model, config) => Boolean(modelUsesNativeWebSearch(model, config) || modelUsesTavilySearch(model, config));
 export const modelSupportsToolCalling = (model) => Boolean(model && model.outputModality !== 'image' && TOOL_CALLING_MODEL_IDS.includes(model.id));
 
 // A text model that can be given a tool and can look at a picture may call another model on the person's behalf (it draws pictures with the picture
@@ -643,16 +662,20 @@ export function createModelRegistry({
     };
 
     const hasSingleDocumentAccess = (model) => Boolean(modelSupportsDocumentUpload(model) || opencodeModelReadsPdf(model) || getSingleDocumentTranslatorModel());
-    const hasSingleWebSearchAccess = (model) => Boolean(modelSupportsWebSearch(model));
-    const getCouncilSharedSearchModel = (synthesizer) => modelSupportsWebSearch(synthesizer) ? synthesizer : null;
+    // The page's own versions of the three: the choice of the person for the models of OpenAI (settings) is read each time.
+    const usesNativeWebSearch = (model) => modelUsesNativeWebSearch(model, getConfig());
+    const usesTavilySearch = (model) => modelUsesTavilySearch(model, getConfig());
+    const supportsWebSearch = (model) => modelSupportsWebSearch(model, getConfig());
+    const hasSingleWebSearchAccess = (model) => Boolean(supportsWebSearch(model));
+    const getCouncilSharedSearchModel = (synthesizer) => supportsWebSearch(synthesizer) ? synthesizer : null;
     const hasCouncilWebSearchAccess = (synthesizer) => Boolean(getCouncilSharedSearchModel(synthesizer));
     const conversationNeedsTavilySearch = (conv) => {
         if (!conv?.isWebSearchEnabled) return false;
         if (isCouncilEnabled(conv)) {
             const { synthesizer } = getCouncilSelectedModels(conv);
-            return modelUsesTavilySearch(synthesizer);
+            return usesTavilySearch(synthesizer);
         }
-        return modelUsesTavilySearch(normalizeConversationModel(conv));
+        return usesTavilySearch(normalizeConversationModel(conv));
     };
 
     return {
@@ -677,9 +700,9 @@ export function createModelRegistry({
         getSingleTranslatorCandidates,
         getCouncilTranslatorModel,
         getSingleDocumentTranslatorModel,
-        modelUsesNativeWebSearch,
-        modelUsesTavilySearch,
-        modelSupportsWebSearch,
+        modelUsesNativeWebSearch: usesNativeWebSearch,
+        modelUsesTavilySearch: usesTavilySearch,
+        modelSupportsWebSearch: supportsWebSearch,
         hasSingleDocumentAccess,
         hasSingleWebSearchAccess,
         getCouncilSharedSearchModel,

@@ -28,6 +28,9 @@ export function collectSettingsSaveFormValues({
             : elements.fileModeDefaultSelect ? 'advanced' : (config.fileModeDefault === 'standard' ? 'standard' : 'advanced'),
         // Kept as it was where the setting is not shown.
         replyInputMode: normalizeReplyInputMode(elements.replyInputModeSelect ? elements.replyInputModeSelect.value : config.replyInputMode),
+        // Kept as it was where the setting is not shown.
+        openaiWebSearch: elements.openaiWebSearchSelect ? (elements.openaiWebSearchSelect.value === 'provider' ? 'provider' : 'official') : (config.openaiWebSearch === 'provider' ? 'provider' : 'official'),
+        openaiSafetyIdentifier: elements.openaiSafetyIdToggle ? elements.openaiSafetyIdToggle.checked : config.openaiSafetyIdentifier !== false,
         autoNaming: elements.autoNamingToggleSwitch.checked,
         memoryEnabled1: elements.memoryToggle1?.isConnected !== false
             ? elements.memoryToggle1.checked

@@ -6,6 +6,7 @@ import { ensurePermissionsSettingsSection } from './settings-permissions-section
 import { ensureToolModelsSettingsSection } from './settings-tool-models-section.js';
 import { ensureWorkspaceStorageStatus } from './settings-workspace-storage-status.js';
 import { ensureProcessOpenSettingsControl } from './settings-vision-check-control.js';
+import { ensureOpenAiSettingsControls } from './settings-openai-controls.js';
 import { ensureReplyInputSettingsControl } from './settings-reply-input-control.js';
 import { visionText } from '../../ui/files/vision/vision-texts.js';
 
@@ -60,6 +61,7 @@ export function ensureVisionCheckSettingsControl({ document, elements, config, s
   elements.visionCheckToggleSwitch = row.querySelector('#vision-check-toggle-switch');
   ensureProcessOpenSettingsControl({ document, elements, config });
   ensureReplyInputSettingsControl({ document, elements, config });
+  ensureOpenAiSettingsControls({ document, elements, config });
 }
 
 const languageBound = new WeakSet();

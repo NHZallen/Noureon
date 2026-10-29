@@ -23,14 +23,16 @@ const EXPECTED_MODELS = [
   'black-forest-labs/flux-3-image-klein',
   'krea/k3-edit',
   'qwen/qwen-image-2.1-turbo',
-  'qwen/qwen-image-2.1-pro'
+  'qwen/qwen-image-2.1-pro',
+  'openai-api/gpt-image-2.5-sunburst',
+  'openai-api/gpt-image-2.5-flare'
 ];
 
 test('registers the curated image generation models', () => {
   assert.deepEqual(IMAGE_GENERATION_MODEL_IDS, EXPECTED_MODELS);
   for (const id of EXPECTED_MODELS) {
     const model = MODELS.find(candidate => candidate.id === id);
-    assert.equal(model?.provider, 'openrouter');
+    assert.equal(model?.provider, id.startsWith('openai-api/') ? 'openai' : 'openrouter');
     assert.equal(model?.outputModality, 'image');
     assert.equal(modelGeneratesImages(model), true);
   }
