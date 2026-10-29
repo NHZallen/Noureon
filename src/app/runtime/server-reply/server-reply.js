@@ -67,7 +67,8 @@ function planServerReplyKind({ config = {}, conversation = null, advanced = fals
   if (!webSearchEnabled) return { ok: true, webSearch: 'off' };
   if (researchByModel) return { ok: true, webSearch: 'research' };
   // Gemini searches by itself; for the others the server searches first and puts what it found in front of the request (a packet).
-  if (provider === 'gemini') return { ok: true, webSearch: 'grounding' };
+  // OpenAI's models do too (its own search tool), when the person left their search to OpenAI (settings).
+  if (provider === 'gemini' || (provider === 'openai' && config.openaiWebSearch !== 'provider')) return { ok: true, webSearch: 'grounding' };
   return { ok: true, webSearch: 'packet' };
 }
 
@@ -285,6 +286,8 @@ export function createServerReply({
       tools: {
         webSearch,
         ...(search ? { searchProvider: search.searchProvider, searchDepth: search.searchDepth } : {}),
+        // Whether the account's anonymous identifier goes to OpenAI (the setting; a reply's model or the picture model it draws with may be OpenAI's); the default is yes, so only a no is said.
+        ...(config?.openaiSafetyIdentifier === false ? { openaiSafetyId: false } : {}),
         advanced: Boolean(advanced),
         // What Python is given: the Design menu's choices, and the files attached to this message.
         ...(advanced && designs ? { designs } : {}),

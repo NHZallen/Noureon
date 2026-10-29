@@ -55,6 +55,7 @@ export function createSettingsApiKeyControls(dependencies = {}) {
     { provider: 'openrouter', input: elements.openrouterApiKeyInputAll },
     { provider: 'nvidia', input: elements.nvidiaApiKeyInput },
     { provider: 'opencode-go', input: elements.opencodeGoApiKeyInput },
+    { provider: 'openai', input: elements.openaiApiKeyInput },
     { provider: 'tavily', input: elements.tavilyApiKeyInput },
     { provider: 'tinyfish', input: elements.tinyfishApiKeyInput }
   ].filter(({ input }) => input);

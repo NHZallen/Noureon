@@ -15,6 +15,7 @@ import officialNouras from './official-nouras.js';
 import accountAndSyncPassword from './account-and-sync-password.js';
 import memoryAndImport from './memory-and-import.js';
 import chatActionsAndErrors from './chat-actions-and-errors.js';
+import openai from './openai.js';
 
 const parts = [
     login,
@@ -32,7 +33,8 @@ const parts = [
     officialNouras,
     accountAndSyncPassword,
     memoryAndImport,
-    chatActionsAndErrors
+    chatActionsAndErrors,
+    openai
 ];
 
 const mergeLocale = (locale) => Object.assign({}, ...parts.map((part) => part[locale]));

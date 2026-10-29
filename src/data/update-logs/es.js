@@ -1,6 +1,14 @@
 // The update notes in Spanish (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.24.0": [
+    "<strong>Notas de la versión de Noureon 18.24.0</strong>",
+    "Esta versión añade una conexión directa a la API de OpenAI, para texto y para imágenes.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>OpenAI, directamente:</strong> introduce tu clave de API de OpenAI en Ajustes → Gestión de modelos y podrás usar los modelos de texto e imagen de OpenAI. Las peticiones salen de tu navegador (o del servidor cuando la respuesta se hace allí) directamente a OpenAI, pidiéndole siempre que no guarde la respuesta; los modelos de imagen dibujan y pueden continuar una imagen que ya tienes.</li><li><strong>Elegir la búsqueda web:</strong> los modelos de OpenAI pueden buscar con la búsqueda integrada de OpenAI (10 $ por 1.000 búsquedas, sin otra clave de búsqueda) o con el Tavily o TinyFish que ya configuraste. Esta opción solo afecta a los modelos de OpenAI; los de otros proveedores no se tocan. Se elige en Ajustes → Búsqueda web.</li><li><strong>Identificador anónimo:</strong> por defecto cada petición lleva un hash calculado a partir del número de tu cuenta (nunca un nombre ni un correo) para que, si alguien abusa del servicio, OpenAI pueda actuar solo sobre ese usuario; se desactiva en Ajustes → Gestión de modelos.</li><li><strong>El proveedor tras el nombre de cada modelo:</strong> el menú muestra el proveedor después del nombre de cada modelo, para distinguir un mismo modelo al que se llega por dos proveedores.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "Esta actualización no necesita migración de datos. Cuando una respuesta se hace en el servidor, este también debe actualizarse a esta versión para usar allí los modelos de OpenAI; hasta entonces, la página hace la respuesta en este dispositivo."
+  ],
   "18.23.0": [
     "<strong>Notas de la versión de Noureon 18.23.0</strong>",
     "Esta versión añade anillos de uso y una imagen de cuenta.",

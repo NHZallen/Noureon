@@ -7,7 +7,7 @@ import { GROUP_LIMIT, GROUP_NAME_LIMIT, councilMatchesGroup, pickRecentModels } 
 import { modelPickerText } from '../../ui/model-picker/model-picker-texts.js';
 import { prepareModelSwitcherModels } from '../features/model-switcher-lifecycle.js';
 import { opencodeModelReadsPdf } from '../shell/opencode-models.js';
-import { modelCanCallModels } from '../shell/model-registry.js';
+import { getModelDisplayName, modelCanCallModels } from '../shell/model-registry.js';
 
 export function createPickerViewState({
   ui, models, councilMaxModels, getI18n, getCouncilTexts, getCouncilRuntimeTexts, getIsCouncilRunning, isImageConversation,
@@ -30,7 +30,7 @@ export function createPickerViewState({
     const description = translations[base] || (tiers[0] ? translations[`${base}_tier_${tiers[0]}`] : '') || '';
     return {
       id: model.id,
-      name: model.name,
+      name: getModelDisplayName(model),
       apiId: getModelApiId(model),
       company: model.company || getModelCompany(model, getModelApiId(model)),
       provider: model.provider,
@@ -100,8 +100,8 @@ export function createPickerViewState({
       pickTitle: '',
       groupsPage: null,
       depth: null,
-      modelName: currentModel?.name || '',
-      title: currentModel?.name || t('modelPicker')
+      modelName: getModelDisplayName(currentModel),
+      title: getModelDisplayName(currentModel) || t('modelPicker')
     };
 
     if (councilActive) {
@@ -111,7 +111,7 @@ export function createPickerViewState({
       const atMax = participants.length >= councilMaxModels;
       state.council = {
         count: participants.length,
-        members: participants.map((model) => ({ id: model.id, name: model.name })),
+        members: participants.map((model) => ({ id: model.id, name: getModelDisplayName(model) })),
         max: councilMaxModels,
         canAdd: !atMax,
         groupLimit: GROUP_LIMIT,
@@ -122,7 +122,7 @@ export function createPickerViewState({
           summary: groupSummary(group),
           active: councilMatchesGroup(group, conversation.council)
         })),
-        combinerName: synthesizer?.name || '',
+        combinerName: getModelDisplayName(synthesizer),
         combinerPlaceholder: texts.selectSynthesizer,
         mode: conversation.council.mode,
         moreOpen: ui.moreOpen,
@@ -131,7 +131,7 @@ export function createPickerViewState({
         searchAvailable: hasCouncilWebSearchAccess(synthesizer || normalizeConversationModel(conversation)) && !archived,
         searchOn: Boolean(conversation.isWebSearchEnabled),
         ok: validation.ok,
-        message: validation.ok ? `${texts.ready} · ${participants.length} · ${synthesizer?.name || ''}` : validation.message,
+        message: validation.ok ? `${texts.ready} · ${participants.length} · ${getModelDisplayName(synthesizer)}` : validation.message,
         labels: {
           consensus: texts.consensus,
           deliberation: texts.deliberation,

@@ -16,3 +16,6 @@ __pycache__/
 # Mutation testing
 /reports/
 /.stryker-tmp/
+
+openai-probe-result.json
+openai-probe-*.json

@@ -23,7 +23,10 @@ const SEARCH_DEPTHS = ['basic', 'advanced'];
 const TOP_LEVEL = ['protocol', 'clientVersion', 'conversationId', 'assistantMessageId', 'sequence', 'model', 'request', 'tools', 'secrets', 'kind', 'research', 'source', 'documents'];
 const COUNCIL_TOP_LEVEL = ['protocol', 'clientVersion', 'conversationId', 'assistantMessageId', 'sequence', 'request', 'council', 'tools', 'secrets', 'kind'];
 const COUNCIL_MODES = ['consensus', 'deliberation'];
-const COUNCIL_PROVIDERS = ['gemini', 'openrouter', 'nvidia', 'opencode-go'];
+const COUNCIL_PROVIDERS = ['gemini', 'openrouter', 'nvidia', 'opencode-go', 'openai'];
+const IMAGE_PROVIDERS = ['openrouter', 'openai'];
+// Where the models of OpenAI search the web (the page's `openaiWebSearch` setting): with OpenAI's own tool or with the search service.
+const OPENAI_WEB_SEARCH = ['official', 'provider'];
 const IMAGE_TOP_LEVEL = ['protocol', 'clientVersion', 'conversationId', 'assistantMessageId', 'sequence', 'model', 'request', 'image', 'secrets', 'kind'];
 // What the page may ask of an image model (the fields of the request to OpenRouter's images endpoint that the app sets).
 const IMAGE_CONFIG_FIELDS = ['aspectRatio', 'resolution', 'n', 'size', 'quality', 'outputFormat', 'background', 'outputCompression', 'seed', 'provider', 'reasoningEffort'];
@@ -56,7 +59,7 @@ function checkImageGeneration(value, path, fail) {
   let kept = null;
   if (!isObject(model)) fail(`${path}.model`, 'must be an object');
   else {
-    if (model.provider !== 'openrouter') fail(`${path}.model.provider`, 'a picture is made with OpenRouter');
+    if (!IMAGE_PROVIDERS.includes(model.provider)) fail(`${path}.model.provider`, `a picture is made with ${IMAGE_PROVIDERS.join(' or ')}`);
     if (!text(model.id, 200)) fail(`${path}.model.id`, 'must be a short text');
     if (!isObject(model.info) || JSON.stringify(model.info).length > 16_384) fail(`${path}.model.info`, 'must be an object of at most 16 KB');
     for (const name of Object.keys(model)) if (!['provider', 'id', 'info'].includes(name)) fail(`${path}.model.${name}`, 'is not a known field');
@@ -103,8 +106,8 @@ function validateImageSpec(input) {
   const model = input.model;
   if (!isObject(model)) fail('model', 'must be an object');
   else {
-    // Image models are OpenRouter's (the images endpoint).
-    if (model.provider !== 'openrouter') fail('model.provider', 'an image is made with OpenRouter');
+    // Image models are OpenRouter's (the images endpoint) or OpenAI's own.
+    if (!IMAGE_PROVIDERS.includes(model.provider)) fail('model.provider', `an image is made with ${IMAGE_PROVIDERS.join(' or ')}`);
     if (!text(model.id, 200)) fail('model.id', 'must be a short text');
     if (!isObject(model.info)) fail('model.info', 'must be an object');
   }
@@ -123,7 +126,7 @@ function validateImageSpec(input) {
   let groups = null;
   if (!isObject(image)) fail('image', 'must be an object');
   else {
-    for (const name of Object.keys(image)) if (!['prompt', 'config', 'references', 'groups'].includes(name)) fail(`image.${name}`, 'is not a known field');
+    for (const name of Object.keys(image)) if (!['prompt', 'config', 'references', 'groups', 'safetyId'].includes(name)) fail(`image.${name}`, 'is not a known field');
     if (!text(image.prompt, LIMITS.maxImagePromptChars)) fail('image.prompt', `must be a text of at most ${LIMITS.maxImagePromptChars} characters`);
     if (!isObject(image.config)) fail('image.config', 'must be an object');
     else {
@@ -191,7 +194,7 @@ function validateImageSpec(input) {
       // What the rest of the server reads of any reply (the language of its error, the metadata of its message); an image has no history.
       request: { history: [], currentMessage: { parts: [] }, systemInstruction: '', language: request.language, ...(request.messageMetadata ? { messageMetadata: request.messageMetadata } : {}) },
       tools: { webSearch: 'off', searchProvider: 'tavily', advanced: false },
-      image: { prompt: image.prompt, config, references, ...(groups ? { groups } : {}) },
+      image: { prompt: image.prompt, config, references, ...(groups ? { groups } : {}), ...(image.safetyId === false ? { safetyId: false } : {}) },
       secrets: { providerKey: secrets.providerKey }
     }
   };
@@ -272,9 +275,11 @@ function validateCouncilSpec(input) {
     if (!['off', 'on'].includes(tools.webSearch)) fail('tools.webSearch', 'must be off or on');
     if (tools.searchProvider !== undefined && !SEARCH_PROVIDERS.includes(tools.searchProvider)) fail('tools.searchProvider', `must be one of ${SEARCH_PROVIDERS.join(', ')}`);
     if (tools.searchDepth !== undefined && !SEARCH_DEPTHS.includes(tools.searchDepth)) fail('tools.searchDepth', `must be one of ${SEARCH_DEPTHS.join(', ')}`);
+    if (tools.openaiWebSearch !== undefined && !OPENAI_WEB_SEARCH.includes(tools.openaiWebSearch)) fail('tools.openaiWebSearch', `must be one of ${OPENAI_WEB_SEARCH.join(', ')}`);
+    if (tools.openaiSafetyId !== undefined && typeof tools.openaiSafetyId !== 'boolean') fail('tools.openaiSafetyId', 'must be true or false');
     // What the members may read by themselves (docs/superpowers/specs/2026-10-19-council-tools-design.md): the person's skills and connectors, as for a reply.
     checkSkillsAndConnectors(tools, fail);
-    for (const name of Object.keys(tools)) if (!['webSearch', 'searchProvider', 'searchDepth', 'skills', 'connectors', 'synthesis'].includes(name)) fail(`tools.${name}`, 'is not a known field');
+    for (const name of Object.keys(tools)) if (!['webSearch', 'searchProvider', 'searchDepth', 'openaiWebSearch', 'openaiSafetyId', 'skills', 'connectors', 'synthesis'].includes(name)) fail(`tools.${name}`, 'is not a known field');
   }
   // What the synthesizer may use besides (§2.2): Python with the Design menu's choices and the files of the message, and the CLI tools with their
   // sites; and the visual check of a presentation it writes. Checked as the tools of a reply are, since the synthesis is made as one.
@@ -298,7 +303,7 @@ function validateCouncilSpec(input) {
       });
       if (!asReply.ok) for (const error of asReply.errors) fail(String(error.path).replace(/^tools\./, 'tools.synthesis.'), error.message);
       else {
-        const { webSearch: _off, searchProvider: _provider, searchDepth: _depth, ...checked } = asReply.spec.tools;
+        const { webSearch: _off, searchProvider: _provider, searchDepth: _depth, openaiWebSearch: _openaiSearch, openaiSafetyId: _openaiId, ...checked } = asReply.spec.tools;
         synthesisTools = checked;
       }
     }
@@ -358,6 +363,8 @@ function validateCouncilSpec(input) {
         webSearch: tools.webSearch,
         searchProvider: tools.searchProvider || 'tavily',
         searchDepth: tools.searchDepth === 'advanced' ? 'advanced' : 'basic',
+        ...(tools.openaiWebSearch === 'provider' ? { openaiWebSearch: 'provider' } : {}),
+        ...(tools.openaiSafetyId === false ? { openaiSafetyId: false } : {}),
         advanced: false,
         ...(Array.isArray(tools.skills) && listedSkills(tools.skills).length ? { skills: listedSkills(tools.skills) } : {}),
         ...(tools.connectors === true ? { connectors: true } : {}),
@@ -419,6 +426,7 @@ export function validateRunSpec(input) {
     if (!WEB_SEARCH.includes(tools.webSearch)) fail('tools.webSearch', `must be one of ${WEB_SEARCH.join(', ')}`);
     if (tools.searchProvider !== undefined && !SEARCH_PROVIDERS.includes(tools.searchProvider)) fail('tools.searchProvider', `must be one of ${SEARCH_PROVIDERS.join(', ')}`);
     if (tools.searchDepth !== undefined && !SEARCH_DEPTHS.includes(tools.searchDepth)) fail('tools.searchDepth', `must be one of ${SEARCH_DEPTHS.join(', ')}`);
+    if (tools.openaiSafetyId !== undefined && typeof tools.openaiSafetyId !== 'boolean') fail('tools.openaiSafetyId', 'must be true or false');
     if (typeof tools.advanced !== 'boolean') fail('tools.advanced', 'must be true or false');
     if (tools.webSearch === 'packet' && tools.advanced !== false) fail('tools.webSearch', 'a search packet is for replies without Python');
     if (tools.webSearch === 'briefing' && tools.advanced !== true) fail('tools.webSearch', 'briefing is for replies with Python');
@@ -552,6 +560,7 @@ export function validateRunSpec(input) {
         webSearch: tools.webSearch,
         searchProvider: tools.searchProvider || 'tavily',
         searchDepth: tools.searchDepth === 'advanced' ? 'advanced' : 'basic',
+        ...(tools.openaiSafetyId === false ? { openaiSafetyId: false } : {}),
         advanced: tools.advanced,
         ...(isObject(tools.visionCheck) ? { visionCheck: { deckDesign: tools.visionCheck.deckDesign || 'auto', advanced: tools.visionCheck.advanced === true } } : {}),
         ...(tools.designs ? { designs: { deck: tools.designs.deck || 'auto', document: tools.designs.document || 'auto' } } : {}),

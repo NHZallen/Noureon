@@ -6,6 +6,7 @@ const PROVIDER_KEY_ALIASES = Object.freeze({
   openrouter: 'openrouter',
   nvidia: 'nvidia',
   'opencode-go': 'opencode-go',
+  openai: 'openai',
   tavily: 'tavily',
   tinyfish: 'tinyfish'
 });

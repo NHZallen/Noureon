@@ -5,6 +5,7 @@
 // allowed it for good). The pictures are kept in the person's cloud space and become parts of the reply's message.
 
 import { drawPictures } from './image-run.js';
+import { openAiSafetyIdentifier } from '../src/app/runtime/reply/openai-request.js';
 import { createImageAsk } from './image-ask.js';
 import { randomUUID } from 'node:crypto';
 
@@ -471,6 +472,8 @@ export function createImageToolLoader({ spec, secrets, userId, files, signal = n
       result = await drawPictures({
         apiKey: secrets.imageKey,
         model: model.id,
+        provider: model.provider,
+        safetyIdentifier: model.provider === 'openai' && spec.tools.openaiSafetyId !== false ? await openAiSafetyIdentifier(userId) : '',
         prompt,
         config: { aspectRatio, ...(resolution ? { resolution } : {}), ...(count > 1 ? { n: count } : {}) },
         inputReferences: loaded.urls,
