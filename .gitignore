@@ -18,3 +18,4 @@ __pycache__/
 /.stryker-tmp/
 
 openai-probe-result.json
+openai-probe-*.json
