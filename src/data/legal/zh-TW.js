@@ -676,7 +676,7 @@ export default {
             'Google Gemini、OpenRouter、NVIDIA、OpenCode Go、OpenAI、Tavily、TinyFish：你設定的模型與搜尋供應商。',
             'GitHub：命令工具的程式下載與圖示、原始碼。',
             'Google、Notion、Linear、Miro、Canva、Context7、Upstash、Vercel、GitHub、Supabase、Hugging Face：你連線的連接器服務（連線時才會用到；各自有自己的條款與隱私權政策）。',
-            'Resend：你在連接器按下「申請候補」時，替我們寄出通知信；信件包含你帳號的電子郵件與帳號 ID，寄到我們的客服信箱。',
+            'Resend：你在連接器按下「申請候補」時，替我們寄出通知信；信件包含你帳號的電子郵件與帳號 ID，以及你填寫的要登入該服務的帳號信箱，寄到我們的客服信箱。',
             'Vercel：網站託管與傳送。',
             'jsDelivr：瀏覽器端 Python（Pyodide）的載入。',
             'PeerJS：點對點傳輸的配對伺服器。',

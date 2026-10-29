@@ -90,3 +90,12 @@ Google 的應用程式在「測試中」，只有名單上的人能登入。沒�
 * **隱私**：Resend 加進隱私權政策的外部服務清單（五語）與 `PRIVACY.md`。
 * **開放一個人**：收到信後，把信裡的信箱或 UID 加進 Coolify 的 `CONNECTOR_GOOGLE_ALLOWED`、重新部署，再把信箱加進 Google 的測試使用者，回信給申請人。
 * **Allen 要做**：註冊 Resend、在 Cloudflare 加 Resend 要求的 DNS 記錄驗證 `noureon.com`、把 `RESEND_API_KEY` 放進 Coolify（測試與正式）；沒做之前按鈕可以按，但會顯示無法送出。
+
+### 9.1 申請時填「要登入的 Google 帳號信箱」（2026-10-29）
+
+名單認的是 Noureon 帳號（信箱或 UID），Google 測試使用者認的是實際授權的 Google 帳號，兩者可以不同（用 Outlook 或學校信箱登入 Noureon 的人，或 Noureon 與 Google 用不同信箱的人）。
+
+* 名單內的人照舊看到「連線」，名單外的人看到「申請候補」；按下去不再直接寄出，而是展開說明並多一個輸入欄：要登入 Google 的帳號信箱。
+* `POST /v1/connectors/:id/waitlist` 的 body 多了 `{ email }`（必填，伺服器驗格式，錯誤回 `bad_request`、detail `invalid_email`）；`requestAccess(user, id, { serviceEmail })`。重複申請的記憶鍵多了這個信箱（打錯可以改填再申請）。
+* 通知信：`Reply-To` 與主要信箱是填的 Google 帳號信箱，另附 Noureon 帳號信箱與 UID；開放方式改成「UID 加進 `CONNECTOR_GOOGLE_ALLOWED`，填的信箱加進 Google 測試使用者」。
+* 隱私文字（五語）與 `PRIVACY.md` 補上這個信箱。

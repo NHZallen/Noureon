@@ -34,8 +34,8 @@ export async function refreshConnector(id) {
   return result.ok ? { ok: true, connector: Array.isArray(result.data?.connectors) ? result.data.connectors[0] || null : null } : failure(result);
 }
 
-/** Asks to be let in to a connector that is not open to this account yet (a mail goes to us): { ok } (`already` when it was asked a short time ago). */
-export async function requestWaitlist(id) {
-  const result = await serverRequest('POST', `/v1/connectors/${encodeURIComponent(id)}/waitlist`);
+/** Asks to be let in to a connector that is not open to this account yet (a mail goes to us): { ok } (`already` when it was asked a short time ago). `email`: the account of the service the person will log in with. */
+export async function requestWaitlist(id, email = '') {
+  const result = await serverRequest('POST', `/v1/connectors/${encodeURIComponent(id)}/waitlist`, { body: JSON.stringify({ email: String(email || '').trim() }) });
   return result.ok ? { ok: true, already: result.data?.already === true, open: result.data?.open === true } : failure(result);
 }

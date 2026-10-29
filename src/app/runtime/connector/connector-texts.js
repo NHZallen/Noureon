@@ -77,7 +77,10 @@ export const CONNECTOR_TEXTS = Object.freeze({
     connectorPendingNote: '{name} 要先核准 Noureon 才能連線。申請已經送出，核准之前暫時不能連線。',
     connectorWaitlist: '申請候補',
     connectorWaitlistSent: '已送出申請',
-    connectorWaitlistNote: '{name} 目前只開放給受邀的使用者。按「申請候補」會通知我們，開放時會用你帳號的信箱回覆你。',
+    connectorWaitlistNote: '{name} 目前只開放給受邀的使用者。請填你要用來登入 {name} 的帳號信箱（不一定要和 Noureon 的登入信箱相同），按「申請候補」會通知我們，開放時會回覆到這個信箱。',
+    connectorWaitlistEmailLabel: '要登入 {name} 的帳號信箱',
+    connectorWaitlistEmailPlaceholder: '你的信箱@example.com',
+    connectorWaitlistEmailInvalid: '請填正確的信箱。',
     connectorWaitlistFailed: '無法送出申請，請稍後再試。'
   },
   en: {
@@ -154,7 +157,10 @@ export const CONNECTOR_TEXTS = Object.freeze({
     connectorPendingNote: '{name} must approve Noureon before it can be connected. The application has been sent; until it is approved, it cannot be connected.',
     connectorWaitlist: 'Join the waitlist',
     connectorWaitlistSent: 'Request sent',
-    connectorWaitlistNote: '{name} is open to invited users only for now. "Join the waitlist" lets us know, and we will answer at your account\'s email when it opens.',
+    connectorWaitlistNote: '{name} is open to invited users only for now. Enter the email of the account you will log in to {name} with (it need not be the one you sign in to Noureon with). "Join the waitlist" lets us know, and we will answer at that address when it opens.',
+    connectorWaitlistEmailLabel: 'Email of the account to log in to {name} with',
+    connectorWaitlistEmailPlaceholder: 'you@example.com',
+    connectorWaitlistEmailInvalid: 'Enter a valid email address.',
     connectorWaitlistFailed: 'The request could not be sent. Try again in a moment.'
   },
   fr: {
@@ -231,7 +237,10 @@ export const CONNECTOR_TEXTS = Object.freeze({
     connectorPendingNote: '{name} doit d’abord approuver Noureon avant qu’on puisse s’y connecter. La demande a été envoyée ; tant qu’elle n’est pas approuvée, la connexion est impossible.',
     connectorWaitlist: 'Rejoindre la liste d’attente',
     connectorWaitlistSent: 'Demande envoyée',
-    connectorWaitlistNote: '{name} n’est ouvert pour l’instant qu’aux utilisateurs invités. « Rejoindre la liste d’attente » nous prévient ; nous vous répondrons à l’e-mail de votre compte à l’ouverture.',
+    connectorWaitlistNote: '{name} n’est ouvert pour l’instant qu’aux utilisateurs invités. Indiquez l’e-mail du compte avec lequel vous vous connecterez à {name} (il peut différer de celui de votre compte Noureon). « Rejoindre la liste d’attente » nous prévient ; nous répondrons à cette adresse à l’ouverture.',
+    connectorWaitlistEmailLabel: 'E-mail du compte pour se connecter à {name}',
+    connectorWaitlistEmailPlaceholder: 'vous@example.com',
+    connectorWaitlistEmailInvalid: 'Saisissez une adresse e-mail valide.',
     connectorWaitlistFailed: 'La demande n’a pas pu être envoyée. Réessayez dans un instant.'
   },
   ru: {
@@ -308,7 +317,10 @@ export const CONNECTOR_TEXTS = Object.freeze({
     connectorPendingNote: '{name} должен сначала одобрить Noureon, чтобы можно было подключиться. Заявка отправлена; пока она не одобрена, подключиться нельзя.',
     connectorWaitlist: 'Встать в очередь',
     connectorWaitlistSent: 'Заявка отправлена',
-    connectorWaitlistNote: '{name} пока открыт только для приглашённых пользователей. Кнопка «Встать в очередь» сообщит нам, и мы ответим на почту вашего аккаунта, когда доступ откроется.',
+    connectorWaitlistNote: '{name} пока открыт только для приглашённых пользователей. Укажите почту аккаунта, с которым вы будете входить в {name} (она может отличаться от почты вашего аккаунта Noureon). Кнопка «Встать в очередь» сообщит нам, и мы ответим на этот адрес, когда доступ откроется.',
+    connectorWaitlistEmailLabel: 'Почта аккаунта для входа в {name}',
+    connectorWaitlistEmailPlaceholder: 'you@example.com',
+    connectorWaitlistEmailInvalid: 'Введите корректный адрес почты.',
     connectorWaitlistFailed: 'Не удалось отправить заявку. Попробуйте ещё раз чуть позже.'
   },
   es: {
@@ -385,7 +397,10 @@ export const CONNECTOR_TEXTS = Object.freeze({
     connectorPendingNote: '{name} debe aprobar primero a Noureon para poder conectarlo. La solicitud ya se envió; hasta que se apruebe, no se puede conectar.',
     connectorWaitlist: 'Unirme a la lista de espera',
     connectorWaitlistSent: 'Solicitud enviada',
-    connectorWaitlistNote: '{name} está abierto por ahora solo a usuarios invitados. «Unirme a la lista de espera» nos avisa y te responderemos al correo de tu cuenta cuando se abra.',
+    connectorWaitlistNote: '{name} está abierto por ahora solo a usuarios invitados. Indica el correo de la cuenta con la que iniciarás sesión en {name} (puede ser distinto del de tu cuenta de Noureon). «Unirme a la lista de espera» nos avisa y te responderemos a esa dirección cuando se abra.',
+    connectorWaitlistEmailLabel: 'Correo de la cuenta para iniciar sesión en {name}',
+    connectorWaitlistEmailPlaceholder: 'tu@example.com',
+    connectorWaitlistEmailInvalid: 'Introduce un correo válido.',
     connectorWaitlistFailed: 'No se pudo enviar la solicitud. Inténtalo de nuevo en un momento.'
   }
 });

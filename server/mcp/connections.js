@@ -18,6 +18,7 @@ const TOOLS_KEEP_MS = 60 * 60 * 1000;
 const REFRESH_AHEAD_MS = 60 * 1000;
 // A person who asked for the waitlist of a connector is not asked again for this long, and all of them together may send so many requests an hour.
 const WAITLIST_AGAIN_MS = 24 * 60 * 60 * 1000;
+const EMAIL_PATTERN = /^[^\s@<>",;]+@[^\s@<>",;]+\.[^\s@<>",;]+$/;
 const WAITLIST_PER_HOUR = 30;
 const MAX_DESCRIPTION_CHARS = 2000;
 const MAX_SCHEMA_CHARS = 20_000;
@@ -346,15 +347,17 @@ export function createConnectorService({ db, vault, fetchImpl = fetch, now = Dat
       });
     },
     /**
-     * A person asks to be let in to a connector that is not open to their account: a mail goes to us (the settings' address) that answers to the person. Asking again within a day does nothing
-     * more. Returns { ok: true } (or { ok: true, already: true }); throws a ConnectorError when it cannot be sent now.
+     * A person asks to be let in to a connector that is not open to their account: a mail goes to us (the settings' address) that answers to the person. The person says which account of the
+     * service they will log in with (`serviceEmail`: for Google it goes into the test users of the application, and it need not be the address they sign in to Noureon with); the list itself
+     * stays by account id. Asking again within a day with the same address does nothing more. Returns { ok: true } (or { ok: true, already: true }); throws a ConnectorError when it cannot be sent now.
      */
-    async requestAccess({ id: userId, email = '' }, connectorId) {
+    async requestAccess({ id: userId, email = '' }, connectorId, { serviceEmail = '' } = {}) {
       const connector = connectorOf(connectorId);
       if (!connector.waitlist || !config.allowed?.[connector.id]) throw new ConnectorError('bad_request', 'This connector has no waitlist.');
       if (mayConnect(connector, { email, userId })) return { ok: true, open: true };
-      if (!email) throw new ConnectorError('bad_request', 'This account has no email address to answer at.');
-      const key = `${userId}|${connector.id}`;
+      const contact = String(serviceEmail || '').trim().toLowerCase();
+      if (!contact || contact.length > 254 || !EMAIL_PATTERN.test(contact)) throw new ConnectorError('bad_request', 'An email address of the account to log in with is needed.', 'invalid_email');
+      const key = `${userId}|${connector.id}|${contact}`;
       const before = waitlistSent.get(key);
       if (before && now() - before < WAITLIST_AGAIN_MS) return { ok: true, already: true };
       if (!config.mailer?.configured) throw new ConnectorError('failed', 'Requests cannot be sent right now.', 'mail_not_configured');
@@ -362,16 +365,17 @@ export function createConnectorService({ db, vault, fetchImpl = fetch, now = Dat
       try {
         await config.mailer.send({
           to: config.waitlistTo,
-          replyTo: email,
+          replyTo: contact,
           subject: `Noureon 候補申請：${connector.name}`,
           text: [
             `有人申請候補「${connector.name}」連接器。`,
             '',
-            `申請人信箱：${email}`,
+            `要登入${connector.name}的帳號信箱：${contact}`,
+            `Noureon 帳號信箱：${email || '（沒有）'}`,
             `帳號 ID：${userId}`,
             `時間：${new Date(now()).toISOString()}`,
             '',
-            `開放方式：把申請人的信箱或帳號 ID（UID）加進伺服器的 CONNECTOR_${connector.id.toUpperCase()}_ALLOWED（Coolify，用逗號分隔，改完要重新部署），如果該服務的應用程式還在測試中，也要把信箱加進它的測試使用者。直接回覆這封信就會寄給申請人。`
+            `開放方式：把申請人的帳號 ID（UID）加進伺服器的 CONNECTOR_${connector.id.toUpperCase()}_ALLOWED（Coolify，用逗號分隔，改完要重新部署）；如果該服務的應用程式還在測試中，也要把「要登入的帳號信箱」（不是 Noureon 帳號信箱）加進它的測試使用者。直接回覆這封信就會寄給「要登入的帳號信箱」。`
           ].join('\n')
         });
       } catch (error) {

@@ -674,7 +674,7 @@ export default {
             'Google Gemini, OpenRouter, NVIDIA, OpenCode Go, OpenAI, Tavily, TinyFish : les fournisseurs de modèles et de recherche que vous configurez.',
             'GitHub : téléchargements et icônes des outils en ligne de commande, et code source.',
             'Google, Notion, Linear, Miro, Canva, Context7, Upstash, Vercel, GitHub, Supabase, Hugging Face : les services que vous connectez comme connecteurs, quand vous les connectez (chacun a ses propres conditions et sa politique de confidentialité).',
-            'Resend : nous envoie un e-mail quand vous appuyez sur « Rejoindre la liste d’attente » d’un connecteur ; l’e-mail contient l’adresse e-mail et l’identifiant de votre compte, et va à notre boîte d’assistance.',
+            'Resend : nous envoie un e-mail quand vous appuyez sur « Rejoindre la liste d’attente » d’un connecteur ; l’e-mail contient l’adresse e-mail et l’identifiant de votre compte ainsi que l’adresse que vous avez saisie pour le compte avec lequel vous vous connecterez, et va à notre boîte d’assistance.',
             'Vercel : hébergement et diffusion du site.',
             'jsDelivr : chargement de Python dans le navigateur (Pyodide).',
             'PeerJS : le serveur d’appairage du transfert d’appareil à appareil.',

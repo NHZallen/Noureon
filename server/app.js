@@ -379,7 +379,8 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
             send(response, 200, await connectors.startLogin(user.id, id, body?.mode === 'readonly' ? 'readonly' : 'readwrite', { email: user.email }), origin);
           } else if (request.method === 'POST' && id && action === 'waitlist') {
             if (!connectorLimiter.take(user.id)) throw new RequestError(ERROR_CODES.rateLimited, 'Too many requests; wait a minute.');
-            send(response, 200, await connectors.requestAccess(user, id), origin);
+            const body = await readJson(request, 2048, { optional: true });
+            send(response, 200, await connectors.requestAccess(user, id, { serviceEmail: typeof body?.email === 'string' ? body.email : '' }), origin);
           } else if (request.method === 'POST' && id && action === 'disconnect') {
             send(response, 200, { ok: true, ...(await connectors.disconnect(user.id, id)) }, origin);
           } else if (request.method === 'POST' && id && action === 'refresh') {
