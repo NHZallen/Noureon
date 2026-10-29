@@ -252,7 +252,7 @@ export function createImageGenerationResponseLifecycle({
     if (reasoningEffort) {
       generationRequest.config.reasoningEffort = reasoningEffort;
     }
-    if (!generationRequest.apiKey) throw new Error(getText('imageKeyRequired', 'Enter your OpenRouter API key in Settings first.'));
+    if (!generationRequest.apiKey) throw new Error(modelInfo.provider === 'openai' ? getText('imageKeyRequiredOpenAI', 'Enter your OpenAI API key in Settings first.') : getText('imageKeyRequired', 'Enter your OpenRouter API key in Settings first.'));
     // The server makes the picture when it can (the setting, the account and the kind of chat allow it, and it takes it): the page then only
     // follows it, and a page that is closed meanwhile finds it done. Otherwise it is made here, as always.
     if (serverReply && assistantMessageId && serverReply.planImage({ conversation }).ok) {

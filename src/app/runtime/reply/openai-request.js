@@ -10,6 +10,13 @@
 import { OPENAI_BASE_URL } from '../shell/openai-models.js';
 
 let currentUserId = '';
+let readConfig = () => null;
+
+/** The page says where its settings are (model-request-engine.js), so the parts that make a request without a config of their own can read the choice about the identifier. */
+export const setOpenAiConfigReader = (reader) => { readConfig = typeof reader === 'function' ? reader : () => null; };
+
+/** Whether the setting lets the anonymous identifier go to OpenAI (it does unless the person turned it off). */
+export const openAiSafetyIdentifierEnabled = (config = readConfig()) => config?.openaiSafetyIdentifier !== false;
 
 /** The page says who is signed in (features/user-ready.js); the server gives the id of the account of the reply itself. */
 export const setOpenAiUserId = (id) => { currentUserId = String(id || '').trim(); };
@@ -25,8 +32,8 @@ export async function openAiSafetyIdentifier(userId) {
 }
 
 /** The identifier to send, or '' (the setting is off, or nobody is known). */
-export async function getOpenAiSafetyIdentifier(config, userId = currentUserId) {
-  if (config?.openaiSafetyIdentifier === false) return '';
+export async function getOpenAiSafetyIdentifier(config = readConfig(), userId = currentUserId) {
+  if (!openAiSafetyIdentifierEnabled(config)) return '';
   return openAiSafetyIdentifier(userId);
 }
 

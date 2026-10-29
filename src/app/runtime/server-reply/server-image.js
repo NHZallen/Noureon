@@ -1,6 +1,8 @@
 // The parts of an image made by the server (docs/superpowers/specs/2026-10-06-server-image-generation-design.md) that only a page making an
 // image needs: handing it over, and following it until it is over. Loaded when the first image is made (server-reply.js gives it what it uses).
 
+import { openAiSafetyIdentifierEnabled } from '../reply/openai-request.js';
+
 /**
  * Hands the making of an image to the server (docs/superpowers/specs/2026-10-06-server-image-generation-design.md): the prompt, the shape and
  * size and the pictures to start from (data addresses), with the key of OpenRouter. Resolves like `begin`: { ok: true, run } or
@@ -20,7 +22,8 @@ export async function startImageRun({ getApiKeyForProvider, getModelApiId, flush
     sequence,
     model: { provider: modelInfo.provider, id: getModelApiId(modelInfo), info: modelInfo },
     request: { language: uiLanguage },
-    image: { prompt, config: imageConfig, references, ...(Array.isArray(groups) && groups.length > 1 ? { groups } : {}) },
+    // Whether the account's anonymous identifier goes to OpenAI (the setting; the default is yes, so only a no is said).
+    image: { prompt, config: imageConfig, references, ...(Array.isArray(groups) && groups.length > 1 ? { groups } : {}), ...(modelInfo.provider === 'openai' && !openAiSafetyIdentifierEnabled() ? { safetyId: false } : {}) },
     secrets: { providerKey }
   };
   const body = JSON.stringify(spec);

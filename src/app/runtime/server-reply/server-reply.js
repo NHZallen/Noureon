@@ -286,8 +286,8 @@ export function createServerReply({
       tools: {
         webSearch,
         ...(search ? { searchProvider: search.searchProvider, searchDepth: search.searchDepth } : {}),
-        // Whether the account's anonymous identifier goes to OpenAI (the setting); the default is yes, so only a no is said.
-        ...(modelInfo?.provider === 'openai' && config?.openaiSafetyIdentifier === false ? { openaiSafetyId: false } : {}),
+        // Whether the account's anonymous identifier goes to OpenAI (the setting; a reply's model or the picture model it draws with may be OpenAI's); the default is yes, so only a no is said.
+        ...(config?.openaiSafetyIdentifier === false ? { openaiSafetyId: false } : {}),
         advanced: Boolean(advanced),
         // What Python is given: the Design menu's choices, and the files attached to this message.
         ...(advanced && designs ? { designs } : {}),

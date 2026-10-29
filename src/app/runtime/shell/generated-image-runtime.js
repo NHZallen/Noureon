@@ -29,20 +29,20 @@ export function createGeneratedImageRuntimeLoader({
         if (!generatedImageRuntimePromise) {
             generatedImageRuntimePromise = Promise.all([
                 import('../images/generated-image-assets.js'),
-                import('../images/openrouter-image-generation.js'),
+                import('../images/image-generators.js'),
                 import('../images/image-generation-response-lifecycle.js'),
                 import('../images/generated-image-interactions.js')
-            ]).then(([assetsModule, openRouterModule, lifecycleModule, interactionsModule]) => {
+            ]).then(([assetsModule, generatorsModule, lifecycleModule, interactionsModule]) => {
                 const assetStore = assetsModule.createGeneratedImageAssetStore({
                     getItem,
                     setItem,
                     getUserName,
                     shouldPersist: () => getActiveConversation()?.retentionMode !== 'ephemeral'
                 });
-                const generateOpenRouterImage = openRouterModule.createOpenRouterImageGenerator({ fetchImpl: fetch });
+                const generateImage = generatorsModule.createImageGenerator({ fetchImpl: fetch });
                 const responseLifecycle = lifecycleModule.createImageGenerationResponseLifecycle({
                     buildSingleModelTranslatedRequestParts: (...args) => buildSingleModelTranslatedRequestParts(...args),
-                    generateImage: generateOpenRouterImage,
+                    generateImage,
                     saveImageAsset: image => assetStore.save(image),
                     getStoredImageDataUrl: descriptor => assetStore.getDataUrl(descriptor),
                     getApiKey: provider => getApiKeyForProvider(provider),

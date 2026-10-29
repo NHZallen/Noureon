@@ -7,7 +7,8 @@
 
 import { randomUUID } from 'node:crypto';
 
-import { createOpenRouterImageGenerator } from '../src/app/runtime/images/openrouter-image-generation.js';
+import { createImageGenerator } from '../src/app/runtime/images/image-generators.js';
+import { openAiSafetyIdentifier } from '../src/app/runtime/reply/openai-request.js';
 import { ReplyError, scrubMessage } from './executor.js';
 import { ERROR_CODES } from './protocol.js';
 
@@ -22,12 +23,13 @@ const toDataUrl = (bytes, mimeType) => `data:${mimeType};base64,${Buffer.from(by
  * kept). `keepPrompt` writes the prompt into each part, `title` a few words for the file name. `apiKey` is the picture model's key, `inputReferences` the pictures to start from as data addresses, `secrets` what the message of a failure must not show.
  * The same for an image of its own (executeImage) and for a picture a text model draws by itself (image-tool.js).
  */
-export async function drawPictures({ apiKey, model, prompt, config = {}, inputReferences = [], groups = null, aspectRatio = '', keepPrompt = false, title = '', signal, files, userId, fetchImpl = fetch, onProblem = () => {}, secrets = {}, wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)) }) {
+export async function drawPictures({ apiKey, model, provider = 'openrouter', safetyIdentifier = '', prompt, config = {}, inputReferences = [], groups = null, aspectRatio = '', keepPrompt = false, title = '', signal, files, userId, fetchImpl = fetch, onProblem = () => {}, secrets = {}, wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)) }) {
   let result;
   try {
-    result = await createOpenRouterImageGenerator({ fetchImpl })({
+    result = await createImageGenerator({ fetchImpl, getSafetyIdentifier: async () => safetyIdentifier })({
       apiKey,
       model,
+      provider,
       prompt,
       config,
       inputReferences,
@@ -137,7 +139,8 @@ export async function executeImage({
   }
   if (signal?.aborted) return stopped();
 
-  const drawn = await drawPictures({ apiKey: secrets.providerKey, model: spec.model.id, prompt: image.prompt, config: image.config, inputReferences, groups, aspectRatio, title: image.prompt, signal, files, userId, fetchImpl, onProblem, wait, secrets });
+  const safetyIdentifier = spec.model.provider === 'openai' && image.safetyId !== false ? await openAiSafetyIdentifier(userId) : '';
+  const drawn = await drawPictures({ apiKey: secrets.providerKey, model: spec.model.id, provider: spec.model.provider, safetyIdentifier, prompt: image.prompt, config: image.config, inputReferences, groups, aspectRatio, title: image.prompt, signal, files, userId, fetchImpl, onProblem, wait, secrets });
   if (drawn.stopped) return stopped();
   const parts = drawn.parts;
   return { parts, status: 'done', run: { elapsedMs: now() - startedAt }, toolCalls: 0 };

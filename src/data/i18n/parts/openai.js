@@ -1,6 +1,7 @@
 // OpenAI's own API: the key, its two settings, and the lines under the names of its models (docs/superpowers/specs/2026-10-29-openai-provider-design.md)
 export default {
     'zh-TW': {
+        imageKeyRequiredOpenAI: '請先在設定中輸入 OpenAI API 金鑰',
         openaiApiKey: 'OpenAI API 金鑰',
         openaiApiPlaceholder: '輸入您的 OpenAI API 金鑰',
         openaiApiDesc: '輸入您的 OpenAI API 金鑰以啟用 OpenAI 官方的文字與圖片模型（GPT-6 系列、GPT Image 2.5）。費用由 OpenAI 依您的帳戶計算。',
@@ -18,6 +19,7 @@ export default {
         model_openai_gpt_image_2_5_sunburst_desc_tier_paid: '文字輸入每百萬/5$、圖片輸入每百萬/8$、圖片輸出每百萬/30$'
     },
     en: {
+        imageKeyRequiredOpenAI: 'Enter your OpenAI API key in Settings first.',
         openaiApiKey: 'OpenAI API Key',
         openaiApiPlaceholder: 'Enter your OpenAI API key',
         openaiApiDesc: 'Enter your OpenAI API key to enable OpenAI\'s own text and image models (the GPT-6 series, GPT Image 2.5). OpenAI charges your account.',
@@ -35,6 +37,7 @@ export default {
         model_openai_gpt_image_2_5_sunburst_desc_tier_paid: '$5/M text input, $8/M image input, $30/M image output'
     },
     fr: {
+        imageKeyRequiredOpenAI: 'Saisissez d’abord votre clé API OpenAI dans les réglages.',
         openaiApiKey: 'Clé API OpenAI',
         openaiApiPlaceholder: 'Entrez votre clé API OpenAI',
         openaiApiDesc: 'Entrez votre clé API OpenAI pour activer les modèles de texte et d’image d’OpenAI (la série GPT-6, GPT Image 2.5). OpenAI facture votre compte.',
@@ -52,6 +55,7 @@ export default {
         model_openai_gpt_image_2_5_sunburst_desc_tier_paid: '5 $/M entrée texte, 8 $/M entrée image, 30 $/M sortie image'
     },
     ru: {
+        imageKeyRequiredOpenAI: 'Сначала введите ключ API OpenAI в настройках.',
         openaiApiKey: 'Ключ OpenAI API',
         openaiApiPlaceholder: 'Введите ключ OpenAI API',
         openaiApiDesc: 'Введите ключ OpenAI API, чтобы включить собственные текстовые и графические модели OpenAI (серия GPT-6, GPT Image 2.5). Оплату списывает OpenAI с вашего аккаунта.',
@@ -69,6 +73,7 @@ export default {
         model_openai_gpt_image_2_5_sunburst_desc_tier_paid: 'Текстовый вход $5/млн, вход изображения $8/млн, выход изображения $30/млн'
     },
     es: {
+        imageKeyRequiredOpenAI: 'Primero introduce tu clave de API de OpenAI en Ajustes.',
         openaiApiKey: 'Clave de API de OpenAI',
         openaiApiPlaceholder: 'Ingrese su clave de API de OpenAI',
         openaiApiDesc: 'Ingrese su clave de API de OpenAI para habilitar los modelos de texto e imagen propios de OpenAI (la serie GPT-6, GPT Image 2.5). OpenAI cobra a su cuenta.',

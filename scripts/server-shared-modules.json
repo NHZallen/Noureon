@@ -76,6 +76,14 @@
       "note": "Reviewed 2026-10-09: the loop of a plain reply that may load skills; it only calls the functions it is given (streamApiCall) and has no browser globals."
     },
     {
+      "path": "src/app/runtime/images/image-generators.js",
+      "note": "Reviewed 2026-10-29: no browser globals (it picks the OpenAI or the OpenRouter picture maker by the provider a request names)."
+    },
+    {
+      "path": "src/app/runtime/images/openai-image-generation.js",
+      "note": "Reviewed 2026-10-29: no browser globals (the calls to OpenAI's Images API; FormData, Blob and atob are also in Node)."
+    },
+    {
       "path": "src/app/runtime/reply/openai-request.js",
       "note": "Reviewed 2026-10-29: no browser globals (the request to OpenAI's Responses API; the identifier uses globalThis.crypto, which Node has too)."
     },

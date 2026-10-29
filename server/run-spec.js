@@ -24,6 +24,7 @@ const TOP_LEVEL = ['protocol', 'clientVersion', 'conversationId', 'assistantMess
 const COUNCIL_TOP_LEVEL = ['protocol', 'clientVersion', 'conversationId', 'assistantMessageId', 'sequence', 'request', 'council', 'tools', 'secrets', 'kind'];
 const COUNCIL_MODES = ['consensus', 'deliberation'];
 const COUNCIL_PROVIDERS = ['gemini', 'openrouter', 'nvidia', 'opencode-go', 'openai'];
+const IMAGE_PROVIDERS = ['openrouter', 'openai'];
 // Where the models of OpenAI search the web (the page's `openaiWebSearch` setting): with OpenAI's own tool or with the search service.
 const OPENAI_WEB_SEARCH = ['official', 'provider'];
 const IMAGE_TOP_LEVEL = ['protocol', 'clientVersion', 'conversationId', 'assistantMessageId', 'sequence', 'model', 'request', 'image', 'secrets', 'kind'];
@@ -58,7 +59,7 @@ function checkImageGeneration(value, path, fail) {
   let kept = null;
   if (!isObject(model)) fail(`${path}.model`, 'must be an object');
   else {
-    if (model.provider !== 'openrouter') fail(`${path}.model.provider`, 'a picture is made with OpenRouter');
+    if (!IMAGE_PROVIDERS.includes(model.provider)) fail(`${path}.model.provider`, `a picture is made with ${IMAGE_PROVIDERS.join(' or ')}`);
     if (!text(model.id, 200)) fail(`${path}.model.id`, 'must be a short text');
     if (!isObject(model.info) || JSON.stringify(model.info).length > 16_384) fail(`${path}.model.info`, 'must be an object of at most 16 KB');
     for (const name of Object.keys(model)) if (!['provider', 'id', 'info'].includes(name)) fail(`${path}.model.${name}`, 'is not a known field');
@@ -105,8 +106,8 @@ function validateImageSpec(input) {
   const model = input.model;
   if (!isObject(model)) fail('model', 'must be an object');
   else {
-    // Image models are OpenRouter's (the images endpoint).
-    if (model.provider !== 'openrouter') fail('model.provider', 'an image is made with OpenRouter');
+    // Image models are OpenRouter's (the images endpoint) or OpenAI's own.
+    if (!IMAGE_PROVIDERS.includes(model.provider)) fail('model.provider', `an image is made with ${IMAGE_PROVIDERS.join(' or ')}`);
     if (!text(model.id, 200)) fail('model.id', 'must be a short text');
     if (!isObject(model.info)) fail('model.info', 'must be an object');
   }
@@ -125,7 +126,7 @@ function validateImageSpec(input) {
   let groups = null;
   if (!isObject(image)) fail('image', 'must be an object');
   else {
-    for (const name of Object.keys(image)) if (!['prompt', 'config', 'references', 'groups'].includes(name)) fail(`image.${name}`, 'is not a known field');
+    for (const name of Object.keys(image)) if (!['prompt', 'config', 'references', 'groups', 'safetyId'].includes(name)) fail(`image.${name}`, 'is not a known field');
     if (!text(image.prompt, LIMITS.maxImagePromptChars)) fail('image.prompt', `must be a text of at most ${LIMITS.maxImagePromptChars} characters`);
     if (!isObject(image.config)) fail('image.config', 'must be an object');
     else {
@@ -193,7 +194,7 @@ function validateImageSpec(input) {
       // What the rest of the server reads of any reply (the language of its error, the metadata of its message); an image has no history.
       request: { history: [], currentMessage: { parts: [] }, systemInstruction: '', language: request.language, ...(request.messageMetadata ? { messageMetadata: request.messageMetadata } : {}) },
       tools: { webSearch: 'off', searchProvider: 'tavily', advanced: false },
-      image: { prompt: image.prompt, config, references, ...(groups ? { groups } : {}) },
+      image: { prompt: image.prompt, config, references, ...(groups ? { groups } : {}), ...(image.safetyId === false ? { safetyId: false } : {}) },
       secrets: { providerKey: secrets.providerKey }
     }
   };
