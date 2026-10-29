@@ -10,6 +10,10 @@
 - 顯示名稱全部標供應商名稱（細節見 §4，等 Allen 確認）。
 - 送 `safety_identifier`，**讓使用者在設定自己開關**。
 - **不做額度顯示**（沒有圓環）。
+- 顯示名稱：**全部模型**都標供應商，格式 `GPT-6 Astra · OpenAI`、`GPT-6 Astra · OpenRouter`（Allen，2026-10-29）。
+- 圖片模型和文字模型擺在一起，依公司分組，和 OpenRouter 的圖片模型一樣的做法（Allen，2026-10-29）。
+- **網路搜尋讓使用者選**：OpenAI 直連的模型可以用 OpenAI 官方內建搜尋（Responses 的 `web_search` 工具），或用設定裡原有的搜尋服務（Tavily／TinyFish）。實測官方搜尋一次約 8,400 個輸入 token，使用者要知道會比較貴。
+- 其他三個文字模型（Terra、Sol、Astra）**不另外實測**，思考程度等能力照 OpenRouter 登錄和 Luna 的結果；上測試站後由 Allen 用真金鑰試，錯了再改（Allen，2026-10-29）。
 
 ## 2. 事實與限制
 
@@ -47,8 +51,12 @@
 
 Allen 在自己的電腦跑（金鑰只放環境變數 `OPENAI_API_KEY`，不印出、不寫檔）。預設只用最便宜的 `gpt-6-luna`，約 25 個小請求。記錄：Responses 與 Chat Completions 各自能不能用、串流事件（思考摘要在哪個事件）、每個思考程度（`none` 到 `max`）是否被接受、函式呼叫與工具結果回送（`store: false` 下）、圖片輸入、PDF 輸入、內建網路搜尋、`safety_identifier`、錯誤格式（錯金鑰／沒金鑰／不存在的模型／錯的思考程度）、金鑰可用的模型清單。`--tests image` 用 `gpt-image-2.5-flare` 低品質各畫一張（Responses 工具、接著編輯、Images API），`--tests imagequality` 試各品質（`xhigh`、`max` 較貴）。測試：`tests/openai-probe.test.js`（假服務，不連網）。
 
+## 8.1 探測結果（2026-10-29，Allen 用自己的金鑰跑）
+
+`gpt-6-luna`：Responses 與 Chat Completions 都 200；思考程度 `none / low / medium / high / xhigh / max` 接受，`minimal` 被拒（400）；串流沒有思考摘要事件（即使要求 `summary: auto`），所以 OpenAI 直連**不顯示思考內容**；函式呼叫與 `store: false` 下送回結果成功；圖片輸入（`input_image` data URL）、PDF（`input_file` base64）成功；`safety_identifier` 接受；內建 `web_search` 成功但一次約 8,421 輸入 token。`gpt-image-2.5-flare`（低品質）：Responses 圖片工具成功（約 6.7 秒、約 31 KB jpeg）；用 data URL 把圖送回編輯成功（約 7.7 秒），不需要圖片 id；Images API 成功（1024×1024 低品質約 196 個圖片輸出 token，約 0.006 美元）。限額（這把金鑰）：5000 請求／分、2,000,000 token／分。**還沒有的：** 瀏覽器 CORS 結果、錯誤格式、金鑰可用的模型清單、Sunburst。
+
 ## 9. 待 Allen 確認
 
-1. 顯示名稱：全部模型都標，還是只標同時出現在兩個供應商的？格式 `GPT-6 Astra · OpenAI` 可以嗎？
-2. 探測結果（`openai-probe-result.json`，不含金鑰）和四個模型頁的重點（價格、上下文、輸出上限、思考程度）。
-3. 圖片模型在選單裡的位置：和 OpenRouter 的圖片模型放同一區，還是 OpenAI 自己一組？
+1. 瀏覽器 CORS 結果（決定要不要做轉送函式）。
+2. 官方搜尋和 Tavily／TinyFish 的選擇放哪裡、預設是誰：建議放在「OpenAI 金鑰」那一塊的下面，一個選單「OpenAI 模型的網路搜尋：官方內建／使用上面選的搜尋服務」，預設官方內建（不需要另外的搜尋金鑰）。
+3. 價格：先用 OpenRouter 登錄的數字（Astra 50、Terra 5、Luna 0.5 美元／百萬輸出 token），OpenAI 官方價格若不同再改。
