@@ -2,6 +2,18 @@
 // content 為 zh-TW 的 HTML 字串（JSON 轉義、雙引號），目前不隨介面語言切換。
 export const updateLogEntries = [
   {
+    version: "18.24.0",
+    date: "2026-10-29",
+    content: [
+      "<strong>Noureon 18.24.0 發布說明</strong>",
+      "本版本新增 OpenAI 官方 API 直連，文字與圖片都能用。",
+      "<strong>主要變更</strong>",
+      "<ul><li><strong>OpenAI 直連：</strong>在「設定 → 模型管理」填入你的 OpenAI API 金鑰，就能使用 OpenAI 官方的文字與圖片模型。請求由你的瀏覽器（或回覆在伺服器上進行時由伺服器）直接送到 OpenAI，一律要求 OpenAI 不保存回應；圖片模型可以畫圖，也能拿已有的圖接著編輯。</li><li><strong>網路搜尋選擇：</strong>OpenAI 的模型可以用 OpenAI 內建的搜尋（每 1,000 次收費 10 美元，不需要另外的搜尋金鑰），或改用你原本設定的 Tavily／TinyFish；這個選項只影響 OpenAI 的模型，其他供應商的模型不受影響。在「設定 → 網路搜尋」選擇。</li><li><strong>匿名識別碼：</strong>預設會隨請求送一個由帳號編號算出的雜湊值給 OpenAI（不含姓名與信箱），讓 OpenAI 在有人濫用時只針對該使用者；可在「設定 → 模型管理」關閉。</li><li><strong>模型名稱標上供應商：</strong>選單裡每個模型的名稱後面都標出供應商，同一個模型從不同供應商使用時可以分辨。</li></ul>",
+      "<strong>相容性</strong>",
+      "本次更新不需要資料遷移。回覆在伺服器上進行時，需要伺服器也更新到這個版本才能使用 OpenAI 模型；伺服器還沒更新時，頁面會改在本機進行回覆。"
+    ]
+  },
+  {
     version: "18.23.0",
     date: "2026-10-28",
     content: [

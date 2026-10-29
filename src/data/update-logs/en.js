@@ -1,6 +1,14 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "18.24.0": [
+    "<strong>Noureon 18.24.0 Release Notes</strong>",
+    "This version adds a direct connection to OpenAI's own API, for text and for pictures.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>OpenAI, directly:</strong> enter your OpenAI API key in Settings → Model management and OpenAI's own text and picture models are yours to use. Requests go from your browser (or from the server when the reply is made there) straight to OpenAI, always asking it not to keep the response; the picture models draw, and can build on a picture you already have.</li><li><strong>Choosing the web search:</strong> OpenAI models can search with OpenAI's built-in search ($10 per 1,000 searches, no other search key needed) or with the Tavily or TinyFish you already set up. This choice affects OpenAI models only; the models of other providers are not touched. Choose it in Settings → Web search.</li><li><strong>Anonymous identifier:</strong> by default each request carries a hash made from your account number (never a name or an email) so that, if someone misuses the service, OpenAI can act on that user alone; turn it off in Settings → Model management.</li><li><strong>The provider after each model's name:</strong> the menu shows the provider after the name of every model, so the same model reached through two providers can be told apart.</li></ul>",
+    "<strong>Compatibility</strong>",
+    "This update needs no data migration. When a reply is made on the server, the server must be updated to this version too before OpenAI models can be used there; until then the page makes the reply on this device."
+  ],
   "18.23.0": [
     "<strong>Noureon 18.23.0 Release Notes</strong>",
     "This version adds usage rings and an account picture.",
