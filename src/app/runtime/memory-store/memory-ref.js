@@ -16,6 +16,11 @@ let vectors = null;
 export const getPageVectors = () => vectors;
 export const setPageVectors = (value) => { vectors = value; return vectors; };
 
+/** The controller that builds the memory from the past conversations (page-rebuild.js), made by the page when it starts; the settings use the same one. */
+let rebuildController = null;
+export const getRebuildController = () => rebuildController;
+export const setRebuildController = (value) => { rebuildController = value; return rebuildController; };
+
 /** The function that runs a small background request with a chosen model (`runMemoryModel`), given once the page has it; the rebuild and the settings use it. */
 let modelRunner = null;
 export const getMemoryModelRunner = () => modelRunner;

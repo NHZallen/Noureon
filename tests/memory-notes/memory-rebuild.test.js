@@ -161,3 +161,32 @@ test('carrying on after a pause does not read again what was read through the sa
   assert.equal(carried.done, 3);
   assert.equal(asked.length, 3, 'the first was not read again; the other two were');
 });
+
+const keyed = () => 'key';
+const MODELS = [{ id: 'm1', provider: 'gemini' }, { id: 'gemini-3.5-flash-lite', provider: 'gemini' }];
+const autoController = (store, { runner = async () => '{"ops":[]}', conversations = CONVERSATIONS, hasKey = keyed } = {}) => createRebuildController({ getStore: () => store, getConversations: () => conversations, getConfig: () => ({ memoryModelId: 'gemini-3.5-flash-lite' }), getModelRunner: () => runner, models: MODELS, getApiKeyForProvider: hasKey, createId, now, logger: { warn() {} } });
+const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
+
+test('the first time, with no notes and a model to read with, the memory is built by itself, once for the account', async () => {
+  const store = await newStore();
+  const controller = autoController(store);
+  assert.equal(await controller.maybeAutoStart(), true);
+  assert.ok(store.getSettings().rebuiltAt, 'the time is written first');
+  await settle();
+  assert.equal(controller.getState().status, 'done');
+  assert.equal(await autoController(store).maybeAutoStart(), false, 'not again for this account');
+});
+
+test('it does not start by itself with notes, with learning off or paused, with no conversation, no key or no model runner', async () => {
+  const note = createNote({ id: 'n1', text: 'The user likes tea', now });
+  assert.equal(await autoController(await newStore([{ record_key: 'note:n1', payload: note }])).maybeAutoStart(), false, 'there are notes already');
+  for (const settings of [{ learn: false }, { paused: true }, { use: false }]) {
+    assert.equal(await autoController(await newStore([{ record_key: 'meta:settings', payload: settings }])).maybeAutoStart(), false, JSON.stringify(settings));
+  }
+  assert.equal(await autoController(await newStore(), { conversations: [] }).maybeAutoStart(), false, 'nothing to read');
+  assert.equal(await autoController(await newStore(), { hasKey: () => '' }).maybeAutoStart(), false, 'no key for any model');
+  const store = await newStore();
+  const noRunnerStore = createRebuildController({ getStore: () => store, getConversations: () => CONVERSATIONS, getConfig: () => ({}), getModelRunner: () => null, models: MODELS, getApiKeyForProvider: keyed });
+  assert.equal(await noRunnerStore.maybeAutoStart(), false);
+  assert.equal(store.getSettings().rebuiltAt, null, 'nothing was claimed');
+});

@@ -130,7 +130,11 @@ test('the step list gets a row for each call', () => {
   const { loader } = setup();
   assert.equal(loader.stepEvent(call('memory_write', {}), 'en').type, 'memory');
   assert.equal(loader.stepEvent(call('memory_write', {}), 'en').label, 'Updating memory');
-  assert.equal(loader.stepEvent(call('search_memory', {}), 'zh-TW').label, '查詢記憶');
+  assert.equal(loader.stepEvent(call('search_memory', {}), 'zh-TW').label, '正在回憶…');
+  const withHistory = setup({ searchHistory: async () => [] }).loader;
+  assert.equal(withHistory.stepEvent(call('search_memory', { scope: 'history' }), 'zh-TW').label, '正在回顧對話…');
+  assert.equal(withHistory.stepEvent(call('search_memory', { scope: 'both' }), 'en').label, 'Reviewing past conversations…');
+  assert.equal(withHistory.stepEvent(call('search_memory', { scope: 'notes' }), 'en').label, 'Recalling…');
 });
 
 test('with a history to look in, the search takes a scope and gives pieces of past conversations', async () => {

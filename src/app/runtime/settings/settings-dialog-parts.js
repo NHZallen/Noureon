@@ -3,7 +3,7 @@
 
 import { ensureVisionCheckSettingsControl } from './settings-vision-check-section.js';
 import { createMemoryNotesSettings } from '../../ui/memory-notes/memory-notes-settings.js';
-import { getNotesMemory, getMemoryModelRunner, getPageHistory, getPageVectors } from '../memory-store/memory-ref.js';
+import { getNotesMemory, getMemoryModelRunner, getPageHistory, getPageVectors, getRebuildController } from '../memory-store/memory-ref.js';
 import { createRebuildController } from '../memory-store/page-rebuild.js';
 import { getAnnouncedUser } from '../features/user-ready.js';
 
@@ -11,7 +11,7 @@ export function createSettingsDialogParts({
     document, elements: ALL_ELEMENTS, models: MODELS, i18n, config, getApiKeyForProvider, saveConfig,
     showNotification, showCustomPrompt, showCustomDialog
 }) {
-    const rebuildController = createRebuildController({
+    const rebuildController = getRebuildController() || createRebuildController({
         getStore: () => getNotesMemory()?.getStore?.() || null,
         getConversations: () => getPageHistory()?.conversations() || [],
         getConfig: () => config,

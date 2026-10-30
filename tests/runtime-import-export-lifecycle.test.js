@@ -49,8 +49,6 @@ function createHarness({
     modelSettings: [],
     autoNaming: true,
     enableAutoWebSearch: false,
-    memoryEnabled1: true,
-    enableAutoMemory: true,
     uiTheme: {},
     aiDefaultLanguage: 'en',
     isLearningMode: false
@@ -426,7 +424,8 @@ test('handleExport uses live getters and packages every selected data group', as
   assert.deepEqual(exportedData.conversations, [{ id: 'conv-1', messages: [] }]);
   assert.deepEqual(exportedData.folders, [{ id: 'folder-1' }]);
   assert.deepEqual(exportedData.astras, [{ id: 'astra-1', name: 'Astra One' }]);
-  assert.deepEqual(exportedData.personalMemories, [{ id: 'memory-1' }]);
+  assert.equal('personalMemories' in exportedData, false, 'the old list of personal memories is not written any more');
+  assert.equal('memoryNotes' in exportedData, false, 'no notes memory is loaded in this test');
   assert.equal(exportedData.settings.defaultModel, 'model-a');
   assert.equal('apiKeys' in exportedData, false);
   assert.equal(JSON.stringify(exportedData).includes('sensitive-gemini-key'), false);
@@ -459,8 +458,6 @@ test('handleExport excludes apiKeys from normal settings exports by default', as
       modelSettings: [],
       autoNaming: true,
       enableAutoWebSearch: false,
-      memoryEnabled1: true,
-      enableAutoMemory: true,
       uiTheme: {},
       aiDefaultLanguage: 'en',
       isLearningMode: false
@@ -496,8 +493,6 @@ test('handleExport encrypts explicit API key exports and uses localized warning 
       modelSettings: [],
       autoNaming: true,
       enableAutoWebSearch: false,
-      memoryEnabled1: true,
-      enableAutoMemory: true,
       uiTheme: {},
       aiDefaultLanguage: 'en',
       isLearningMode: false
@@ -583,4 +578,26 @@ test('import/export lifecycle module avoids auth, startup, runtime entry, and fr
   assert.doesNotMatch(source, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app/);
   assert.doesNotMatch(source, /(?:^|\n)\s*currentUser\s*=/);
   assert.doesNotMatch(source, /chat_lastUser|createPasswordRecord|getUserKey|initChatApp|initializeApp/);
+});
+
+test('handleExport writes the notes of the memory and the words of the deleted ones when the memory is loaded, and a backup with notes brings them back', async () => {
+  const { createNotesMemory } = await import('../src/app/runtime/memory-store/notes-memory.js');
+  const { setNotesMemory } = await import('../src/app/runtime/memory-store/memory-ref.js');
+  const stored = new Map();
+  const memory = createNotesMemory({ storage: { getItem: (key) => stored.get(key) ?? null, setItem: (key, value) => { stored.set(key, value); } }, logger: { warn() {} } });
+  await memory.attach({ username: 'alice' });
+  setNotesMemory(memory);
+  try {
+    const { importNotes } = await import('../src/app/runtime/memory-store/notes-transfer.js');
+    await importNotes({ data: { version: 1, notes: [{ text: 'The user prefers short answers' }] } });
+    const { elements, FakeJSZip, lifecycle } = createHarness({ conversations: [], folders: [], astras: [] });
+    elements.exportMemoryCheck.checked = true;
+    await lifecycle.handleExport();
+    const zip = FakeJSZip.instances.at(-1);
+    const exportedData = JSON.parse(await zip.files['data.json'].async('string'));
+    assert.deepEqual(exportedData.memoryNotes.notes.map((note) => note.text), ['The user prefers short answers']);
+    assert.equal('personalMemories' in exportedData, false);
+  } finally {
+    setNotesMemory(null);
+  }
 });

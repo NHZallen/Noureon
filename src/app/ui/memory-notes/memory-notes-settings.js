@@ -3,6 +3,7 @@
 // summary with the recent changes (each can be undone), and, one step further, the list of notes with search, kinds, and what the person can do with each note.
 // Everything is drawn with textContent (a note is the person's text), and colours come from the tokens in memory-notes.css.
 
+import { buildNotesExport, planNotesImport } from '../../runtime/memory-notes/notes-transfer.js';
 import { renderVectorCard } from './memory-vector-card.js';
 import { addByUser, deleteByUser, describeEvent, describeTidy, editByUser, filterNotes, joinTidyEvents, setNeverByUser, setStandingByUser, summarize, undoEvent } from '../../runtime/memory-notes/manage.js';
 import { NOTE_KINDS, isActive } from '../../runtime/memory-notes/notes.js';
@@ -129,9 +130,19 @@ export function createMemoryNotesSettings({
       await store().clearAll({ keepTombstones: true });
       showNotification(text('mnCleared'), 'success');
     },
+    /** Reads a file of notes (the one the export wrote), checked as every write is. */
+    async importNotes(file) {
+      let data = null;
+      try {
+        data = JSON.parse(await file.text());
+      } catch { /* A file that is not JSON is told below. */ }
+      const plan = planNotesImport(store().getNotes(), data, { createId, now });
+      if (!plan.ok) return showNotification(text('mnImportBad'), 'error');
+      await store().commitNotes(plan.notes);
+      showNotification(text('mnImportDone', { added: plan.added, skipped: Object.values(plan.skipped).reduce((sum, count) => sum + count, 0) }), 'success');
+    },
     exportNotes() {
-      const notes = store().getNotes().filter(isActive).map(({ text: words, kind, standing, surface, createdAt, updatedAt }) => ({ text: words, kind, standing, surface, createdAt, updatedAt }));
-      const url = URL.createObjectURL(new Blob([JSON.stringify(notes, null, 2)], { type: 'application/json' }));
+      const url = URL.createObjectURL(new Blob([JSON.stringify(buildNotesExport(store().getNotes(), now), null, 2)], { type: 'application/json' }));
       const link = el('a');
       link.href = url;
       link.download = 'noureon-memory-notes.json';
@@ -226,7 +237,12 @@ export function createMemoryNotesSettings({
     const tidy = tidyCard(live);
     const vector = renderVectorCard({ vectors: getVectors(), el, button, text, ask, showNotification, render });
     const foot = el('section', 'pz-card mn-foot');
-    foot.append(button(text('mnExport'), 'mn-btn', () => actions.exportNotes()), button(text('mnClear'), 'mn-btn mn-danger', () => void actions.clear()));
+    const picker = el('input');
+    picker.type = 'file';
+    picker.accept = 'application/json,.json';
+    picker.hidden = true;
+    picker.addEventListener('change', () => { const [file] = picker.files; picker.value = ''; if (file) void actions.importNotes(file); });
+    foot.append(picker, button(text('mnImport'), 'mn-btn', () => picker.click()), button(text('mnExport'), 'mn-btn', () => actions.exportNotes()), button(text('mnClear'), 'mn-btn mn-danger', () => void actions.clear()));
     return [card, ...(rebuild ? [rebuild] : []), ...(tidy ? [tidy] : []), ...(vector ? [vector] : []), recent, foot];
   };
 

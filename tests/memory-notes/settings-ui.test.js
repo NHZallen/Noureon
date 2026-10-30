@@ -281,3 +281,22 @@ test('the texts of the search by meaning exist in all five languages and say wha
     assert.match(i18n[language].mnVecConsent, /\{pieces\}/);
   }
 });
+
+test('the notes can be imported from a file of the export, and a file that is not one is refused', async () => {
+  const { buildNotesExport } = await import('../../src/app/runtime/memory-notes/notes-transfer.js');
+  const { memory, root, notices, window } = await setup({ notes: [dog] });
+  const picker = root().querySelector('input[type=file]');
+  assert.ok(picker, 'a file picker is there');
+  const fileOf = (content) => ({ text: async () => content });
+  const file = JSON.stringify(buildNotesExport([tea], () => '2026-10-30T00:00:00.000Z'));
+  Object.defineProperty(picker, 'files', { value: [fileOf(file)], configurable: true });
+  picker.dispatchEvent(new window.Event('change'));
+  await tick();
+  await tick();
+  assert.ok(memory.getStore().getNotes().some((note) => note.text === 'The user prefers jasmine tea'));
+  assert.match(notices.at(-1).message, /imported: 1 added/);
+  Object.defineProperty(picker, 'files', { value: [fileOf('not json')], configurable: true });
+  picker.dispatchEvent(new window.Event('change'));
+  await tick();
+  assert.equal(notices.at(-1).kind, 'error');
+});

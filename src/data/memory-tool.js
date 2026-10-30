@@ -132,7 +132,13 @@ export function createMemoryLoader({ getNotes, getContext, commit, canWrite = tr
     handles: (name) => isMemoryToolName(name),
     noteFor: (call) => ({ name: call?.name }),
     /** The row of the step list for a call. */
-    stepEvent: (call, lang = language) => ({ type: 'memory', event: 'call', tool: call?.name, label: sandboxText(lang, call?.name === MEMORY_WRITE_TOOL.name ? 'memoryWriting' : 'memorySearching') }),
+    stepEvent: (call, lang = language) => {
+      const writing = call?.name === MEMORY_WRITE_TOOL.name;
+      // Looking at the notes is "recalling"; looking into past conversations is "reviewing" them.
+      const scope = call?.args?.scope;
+      const key = writing ? 'memoryWriting' : searchHistory && (scope === 'history' || scope === 'both') ? 'memoryReviewing' : 'memorySearching';
+      return { type: 'memory', event: 'call', tool: call?.name, label: sandboxText(lang, key) };
+    },
     async run(call) {
       return call?.name === MEMORY_WRITE_TOOL.name ? write(call) : search(call);
     }

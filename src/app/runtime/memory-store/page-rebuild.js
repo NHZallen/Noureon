@@ -68,6 +68,23 @@ export function createRebuildController({ getStore, getConversations, getConfig,
     pause() {
       stopRequested = true;
     },
+    /**
+     * The first time (an account whose memory was never built and has no notes at all, with learning on and a model to read with): builds it from the newest conversations without being asked,
+     * once for the account. The time is written first, so that another device or page does not start it too, and a person who clears the notes is not started again. Resolves true when it started.
+     */
+    async maybeAutoStart() {
+      const store = getStore();
+      if (!store?.isLoaded() || state.status === 'running') return false;
+      const settings = store.getSettings();
+      if (!settings.use || !settings.learn || settings.paused || settings.rebuiltAt || store.getNotes().length) return false;
+      if (!pickConversations(getConversations(), { limit: REBUILD.conversations }).length) return false;
+      if (typeof getModelRunner() !== 'function') return false;
+      const current = models.find((model) => model.id === getConfig()?.memoryModelId);
+      if (!pickCuratorModel({ settingsId: settings.curatorModelId, current, models, hasKey: (provider) => Boolean(getApiKeyForProvider(provider)) })) return false;
+      await store.setSettings({ rebuiltAt: now() });
+      void run({ clearFirst: false, skip: 0 });
+      return true;
+    },
     /** Tidies the notes now, whatever the schedule says (the settings button). Resolves the result of the tidy. */
     tidyNow: () => tidyNotes({ store: getStore(), getConfig, getRunner: getModelRunner, models, getApiKeyForProvider, createId, now, force: true, logger })
   };

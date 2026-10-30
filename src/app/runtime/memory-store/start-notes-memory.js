@@ -4,7 +4,9 @@
 import { getAnnouncedUser, USER_READY_EVENT } from '../features/user-ready.js';
 import { getSupabaseClient } from '../../auth/supabase-client.js';
 import { createNotesMemory } from './notes-memory.js';
-import { setNotesMemory, setPageHistory, setPageVectors } from './memory-ref.js';
+import { MODELS } from '../shell/model-registry.js';
+import { getMemoryModelRunner, setNotesMemory, setPageHistory, setPageVectors, setRebuildController } from './memory-ref.js';
+import { createRebuildController } from './page-rebuild.js';
 import { createPageHistory } from './page-history.js';
 import { createPageVectors } from './page-vectors.js';
 
@@ -26,14 +28,17 @@ export function startNotesMemory({ document, configAccess, dataStore, getActiveC
   let lastUser = getAnnouncedUser();
   const vectors = setPageVectors(createPageVectors({ getStore: () => memory.getStore(), getHistory: () => history, getApiKeyForProvider, indexedDB: globalThis.indexedDB || null, userKey: () => String(lastUser?.supabaseUserId || lastUser?.username || 'local'), logger }));
   history.setVectors(vectors);
+  // Building the memory from the past conversations (the settings show it); the first time it starts by itself, a little after the page has loaded.
+  const rebuild = setRebuildController(createRebuildController({ getStore: () => memory.getStore(), getConversations: () => history.conversations(), getConfig, getModelRunner: getMemoryModelRunner, models: MODELS, getApiKeyForProvider, logger }));
+  const autoRebuild = (loading) => { void Promise.resolve(loading).then(() => memory.ready()).then(() => setTimeout(() => void rebuild.maybeAutoStart().catch(() => {}), 10000)); };
   const syncVectors = (loading) => { void Promise.resolve(loading).then(() => memory.ready()).then(() => setTimeout(() => void vectors.sync(), 5000)); };
   // The line under a reply about what the memory did draws itself from the page's events.
   void import('../../ui/memory-notes/memory-reply-line.js').then(({ startMemoryLines }) => startMemoryLines({ document, getConfig, getMemory: () => memory, getConversation, getText, logger })).catch((error) => logger.warn?.('The memory line under replies did not start.', error));
   // The page may have announced the person before this part was loaded.
-  if (lastUser) syncVectors(memory.attach(lastUser));
+  if (lastUser) { const loading = memory.attach(lastUser); syncVectors(loading); autoRebuild(loading); }
   document.addEventListener(USER_READY_EVENT, (event) => {
     lastUser = event.detail?.user || null;
-    if (lastUser) syncVectors(memory.attach(lastUser));
+    if (lastUser) { const loading = memory.attach(lastUser); syncVectors(loading); autoRebuild(loading); }
   });
   return {
     memory,

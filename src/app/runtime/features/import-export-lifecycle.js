@@ -213,8 +213,6 @@ export function createImportExportLifecycle({
         visionCheckEnabled: config.visionCheckEnabled !== false,
         fileModeDefault: config.fileModeDefault === 'standard' ? 'standard' : 'advanced',
         replyRunLocation: config.replyRunLocation === 'local' ? 'local' : 'server',
-        memoryEnabled1: config.memoryEnabled1,
-        enableAutoMemory: config.enableAutoMemory,
         uiTheme: config.uiTheme,
         uiLanguage: config.uiLanguage,
         aiDefaultLanguage: config.aiDefaultLanguage,
@@ -241,7 +239,9 @@ export function createImportExportLifecycle({
       rawData.encryptedApiKeys = encryptedApiKeys;
     }
     if (elements.exportMemoryCheck.checked) {
-      rawData.personalMemories = getPersonalMemories();
+      // The notes of the memory (and the words of the ones the person deleted); the old list of personal memories is not written any more.
+      const notes = await (await import('../memory-store/notes-transfer.js')).exportNotes().catch(() => null);
+      if (notes) rawData.memoryNotes = notes;
     }
 
     if (Object.keys(rawData).length === 0) {
@@ -377,6 +377,18 @@ export function createImportExportLifecycle({
     }
   }
 
+  // The notes of a backup go into the memory, checked as every write is; a backup without them, or a memory that is not loaded, is left as it is.
+  async function importMemoryNotes(data) {
+    if (!data?.memoryNotes) return;
+    try {
+      const result = await (await import('../memory-store/notes-transfer.js')).importNotes({ data: data.memoryNotes });
+      if (result.ok) showNotification(text('mnImportDone', 'Memory notes imported: {added} added, {skipped} left out.').replace('{added}', result.added).replace('{skipped}', Object.values(result.skipped).reduce((sum, count) => sum + count, 0)), 'success');
+      else showNotification(text('mnImportBad', 'The memory notes in this file could not be imported.'), 'warning');
+    } catch (error) {
+      logger.warn?.('The memory notes of the backup could not be imported.', error);
+    }
+  }
+
   async function performImport(data) {
     if (!getCurrentUser()) {
       throw new Error(text('importNoUser', 'Data cannot be imported without a signed-in user.'));
@@ -389,6 +401,7 @@ export function createImportExportLifecycle({
     });
     await saveAppData();
     applySettings(data.settings);
+    await importMemoryNotes(data);
     await mergeApiKeys(await resolveImportedApiKeys(data));
     await saveConfig();
   }
@@ -478,6 +491,7 @@ export function createImportExportLifecycle({
       applySettings(rawData.settings);
       await mergeApiKeys(importedApiKeys);
       await saveConfig();
+      await importMemoryNotes(rawData);
 
       const astrasToImport = rawData.astras || [];
       if (astrasToImport.length > 0) {

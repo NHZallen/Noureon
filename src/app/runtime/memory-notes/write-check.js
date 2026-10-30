@@ -82,6 +82,9 @@ const hasSecret = (text) => SECRET_PATTERNS.some((pattern) => pattern.test(text)
 const hasForbidden = (text) => FORBIDDEN.some((pattern) => pattern.test(text));
 const isOrder = (text) => IMPERATIVE.some((pattern) => pattern.test(text));
 
+/** Why a text may not be kept as a note ('secret', 'forbidden_category', 'instruction'), or '' when it may: the same rules as for every write, for what comes from a file. */
+export const refusalFor = (text) => (hasSecret(text) ? 'secret' : hasForbidden(text) ? 'forbidden_category' : isOrder(text) ? 'instruction' : '');
+
 /** Whether a message of the person looks like something pasted in (an article, a mail, code) rather than what the person wrote: nothing is learned from such a text. */
 export function looksPasted(message) {
   if (message.untrusted === true || message.pasted === true) return true;

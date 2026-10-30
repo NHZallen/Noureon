@@ -26,6 +26,8 @@ const DEFAULT_SETTINGS = Object.freeze({
   paused: false,
   /** The model that tidies and learns for a model with no tools ('' is automatic). */
   curatorModelId: '',
+  /** When the memory was first built from the past conversations on its own (once for the account, see memory-store/page-rebuild.js). */
+  rebuiltAt: null,
   /** When the notes were last tidied (src/data/memory-consolidate.js): the tidy is due after a week, or when twenty notes changed since. */
   consolidatedAt: null,
   /** The search by meaning over the conversations (needs the consent of the person). */
@@ -41,6 +43,7 @@ export function normalizeSettings(raw) {
     use: value.use !== false,
     paused: value.paused === true,
     curatorModelId: typeof value.curatorModelId === 'string' ? value.curatorModelId.slice(0, 120) : '',
+    rebuiltAt: typeof value.rebuiltAt === 'string' && !Number.isNaN(Date.parse(value.rebuiltAt)) ? value.rebuiltAt : null,
     consolidatedAt: typeof value.consolidatedAt === 'string' && !Number.isNaN(Date.parse(value.consolidatedAt)) ? value.consolidatedAt : null,
     vector: {
       enabled: vector.enabled === true && typeof vector.consentAt === 'string',
