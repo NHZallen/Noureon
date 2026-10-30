@@ -97,3 +97,18 @@ test('the trace starts afresh with each reply, and says whether the model has th
   resetTrace('c9');
   assert.equal(toolsOffered('c9'), false);
 });
+
+test('a reply made by the server is told it may look back through the past conversations only on a cloud account, and by meaning only with the vectors synced and a key', async () => {
+  const memory = await memoryWith();
+  const make = (vectors) => createPageMemoryTools({ getConfig: config(), getMemory: () => memory, getVectors: () => vectors, conversation: conversation() });
+  const local = (await make({ canSync: () => false, embeddingAccess: () => null })).snapshot();
+  assert.equal('history' in local, false, 'a local account has no conversations in the cloud');
+  assert.equal('vector' in local, false);
+  const cloud = (await make({ canSync: () => true, embeddingAccess: () => null })).snapshot();
+  assert.equal(cloud.history, true);
+  assert.equal('vector' in cloud, false, 'no meaning search without synced vectors');
+  const meaning = (await make({ canSync: () => true, embeddingAccess: () => ({ provider: 'gemini', key: 'g-key' }) })).snapshot();
+  assert.deepEqual(meaning.vector, { provider: 'gemini' });
+  assert.equal(meaning.embeddingKey, 'g-key', 'the key goes to the part of the request that holds secrets, which server-reply.js splits off');
+  assert.equal('history' in (await createPageMemoryTools({ getConfig: config(), getMemory: () => memory, conversation: conversation() })).snapshot(), false);
+});

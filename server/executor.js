@@ -276,6 +276,10 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
             loaded = await memory.load(userId, { conversationId });
           },
           canWrite,
+          // Looking back through the past conversations (scope "history" or "both"): from the cloud workspace, by meaning too when the person synced their vectors and the page gave a key for this run.
+          searchHistory: spec.tools.memory.history === true && memory.history
+            ? memory.history.forReply({ userId, conversationId, vector: spec.tools.memory.vector && secrets.embeddingKey ? { provider: spec.tools.memory.vector.provider, key: secrets.embeddingKey } : null, signal })
+            : null,
           onUsed: ({ ids }) => { ids.forEach((id) => used.add(id)); if (memoryOut) memoryOut.used = [...used]; },
           onWrite: ({ event }) => { if (event?.id) { events.push(event.id); if (memoryOut) memoryOut.events = events; } },
           language,

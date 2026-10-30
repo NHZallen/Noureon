@@ -59,7 +59,7 @@ test('the functions the page may call are exactly the ones named here, and nothi
   assert.deepEqual(forPeople, ['fetch_workspace_delta', 'permanently_delete_workspace_conversations', 'permanently_delete_workspace_folder', 'upsert_workspace_conversations', 'upsert_workspace_folders', 'upsert_workspace_memory_summary_records', 'upsert_workspace_messages']);
   // (The functions of triggers cannot be called by hand, and workspace_safe_timestamptz is the helper of the functions above.)
   const forTheServer = securityDefiners.filter((row) => row.service && !row.authenticated && row.returns !== 'trigger').map((row) => row.proname).sort();
-  assert.deepEqual(forTheServer, ['orphan_skill_bundles', 'orphan_user_assets', 'orphan_user_avatars', 'orphan_user_derived', 'server_claim_stale_runs', 'server_start_run', 'server_upsert_workspace_message', 'user_asset_usage', 'workspace_safe_timestamptz']);
+  assert.deepEqual(forTheServer, ['orphan_skill_bundles', 'orphan_user_assets', 'orphan_user_avatars', 'orphan_user_derived', 'server_claim_stale_runs', 'server_read_history', 'server_start_run', 'server_upsert_workspace_message', 'user_asset_usage', 'workspace_safe_timestamptz']);
 });
 
 // ---------- one person never sees or changes another's

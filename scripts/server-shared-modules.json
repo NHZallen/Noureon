@@ -567,6 +567,18 @@
     {
       "path": "src/data/memory-consolidate.js",
       "note": "Reviewed 2026-10-30: no browser globals (runs the tidy of the notes: the prompt for a group, the reading of the answer, the archive of what was joined and the event that undoes it; docs/superpowers/specs/2026-10-30-memory-redesign-design.md)."
+    },
+    {
+      "path": "src/app/runtime/memory-notes/history-index.js",
+      "note": "Reviewed 2026-10-30: no browser globals (the search over the pieces of past conversations; shared with the page; docs/superpowers/specs/2026-10-30-memory-redesign-design.md, §5)."
+    },
+    {
+      "path": "src/app/runtime/memory-notes/vector-math.js",
+      "note": "Reviewed 2026-10-30: pure functions (unit vectors, cosine, the way two orders are put together, the hash of a text)."
+    },
+    {
+      "path": "src/app/runtime/memory-store/embedding-client.js",
+      "note": "Reviewed 2026-10-30: no browser globals; the page gives it the fetch and the key (the question of a search by meaning is turned into a vector with the key the page put in the request for this run)."
     }
   ]
 }

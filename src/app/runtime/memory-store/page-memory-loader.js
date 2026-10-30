@@ -21,7 +21,7 @@ export function userMessagesOf(conversation) {
 }
 
 /** `canUse(conversation)`: the chat may use memory at all. Resolves `{ make(language) }` (each call gives a new loader for one loop of the reply), or null. */
-export async function createPageMemoryTools({ getConfig, getMemory, getHistory = () => null, conversation, createId = () => globalThis.crypto.randomUUID(), now = () => new Date().toISOString() }) {
+export async function createPageMemoryTools({ getConfig, getMemory, getHistory = () => null, getVectors = () => null, conversation, createId = () => globalThis.crypto.randomUUID(), now = () => new Date().toISOString() }) {
   if (conversation?.retentionMode === 'ephemeral' && conversation?.memoryAccessEnabled === false) return null;
   const memory = getMemory();
   if (!memory) return null;
@@ -38,6 +38,9 @@ export async function createPageMemoryTools({ getConfig, getMemory, getHistory =
     snapshot: ({ curator = false } = {}) => ({
       canWrite,
       ...(curator ? { curator: true } : {}),
+      // A person on a cloud account has their conversations there, so the server can look back through them too; with the vectors synced it can also search by meaning (with a key for this run only).
+      ...(getVectors()?.canSync?.() ? { history: true } : {}),
+      ...(getVectors()?.embeddingAccess?.() ? { vector: { provider: getVectors().embeddingAccess().provider }, embeddingKey: getVectors().embeddingAccess().key } : {}),
       messages: userMessagesOf(conversation).slice(-MAX_SNAPSHOT_MESSAGES).map((message) => ({ id: message.id, text: message.text.slice(0, MAX_SNAPSHOT_CHARS), ...(message.at ? { at: message.at } : {}) }))
     }),
     make: (language) => createMemoryLoader({

@@ -175,6 +175,12 @@ export function createPageVectors({ getStore, getHistory, getApiKeyForProvider =
     /** Whether the vectors can be kept in a cloud account (a cloud account is signed in), and whether the person chose to. */
     canSync: () => Boolean(getCloud()?.supabase && getCloud()?.userId),
     isSyncing: () => settings().sync === true && Boolean(getCloud()?.userId),
+    /** The provider and the key the server may use for the question of one reply (it keeps the key for that run only), or null: not when syncing is off, since the server finds no vectors then. */
+    embeddingAccess() {
+      const provider = providerNow();
+      const key = provider ? getApiKeyForProvider(EMBEDDING_PROVIDERS[provider].keyProvider) : '';
+      return enabled() && settings().sync === true && getCloud()?.userId && provider && key ? { provider, key } : null;
+    },
     /** Turns keeping the vectors in the cloud on or off. Off deletes the cloud copy; the vectors of this device stay. */
     async setSync(on) {
       if (!getStore()?.isLoaded?.() || (on && !getCloud()?.userId)) return false;

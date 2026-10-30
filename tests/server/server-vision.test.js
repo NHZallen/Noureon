@@ -24,7 +24,7 @@ const DESIGNED = JSON.stringify({
 });
 
 const specFor = ({ visionCheck = { deckDesign: 'auto', advanced: false }, history = [] } = {}) => ({
-  protocol: 2,
+  protocol: 3,
   clientVersion: '17.5.0',
   conversationId: '123e4567-e89b-12d3-a456-426614174000',
   assistantMessageId: '223e4567-e89b-12d3-a456-426614174001',

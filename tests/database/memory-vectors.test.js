@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test, { after, before } from 'node:test';
 
-import { createDatabase } from '../helpers/database/supabase-database.js';
+import { callWith, createDatabase } from '../helpers/database/supabase-database.js';
 
 // The table of the vectors of the past conversations (supabase/migrations/20261031010000_add_workspace_memory_vectors.sql), with the real SQL except pgvector itself (PGlite does not carry
 // it, see the helper): a person reads, adds, changes and deletes only their own rows, the server does all, a row has a vector or says it failed, and only the server may run the search.
@@ -49,5 +49,23 @@ test('a row has a vector or says that it failed; the server may do everything; t
 test('only the server may run the search over the vectors of a person', async () => {
   for (const client of [A, B, database.anon]) {
     assert.match((await client.error("select * from public.match_workspace_memory_vectors($1, 'm', '[1]', 5, 0.5)", [bob]))?.message || 'it worked', /permission denied/);
+  }
+});
+
+test('the server reads the text of the finished messages of one person through its function, and nobody else may call it', async () => {
+  const conversation = { id: crypto.randomUUID(), title: 'Puppy', model: 'm', provider: 'p', created_at: new Date().toISOString() };
+  await callWith(B, 'upsert_workspace_conversations', [conversation]);
+  await callWith(B, 'upsert_workspace_messages', [
+    { id: crypto.randomUUID(), conversation_id: conversation.id, role: 'user', parts: [{ text: 'My puppy will not eat' }, { inlineData: { mimeType: 'image/png', data: 'AAAA' } }], sequence: 0, created_at: new Date().toISOString() },
+    { id: crypto.randomUUID(), conversation_id: conversation.id, role: 'model', parts: [{ text: 'still writing' }], status: 'streaming', sequence: 1, created_at: new Date().toISOString() }
+  ]);
+  const [{ read }] = await database.service.query('select public.server_read_history($1) as read', [bob]);
+  assert.equal(read.conversations.length, 1);
+  assert.equal(read.messages.length, 1, 'a message still being written is not read');
+  assert.deepEqual(read.messages[0].parts, [{ text: 'My puppy will not eat' }], 'only the text, never a file');
+  const [{ read: other }] = await database.service.query('select public.server_read_history($1) as read', [crypto.randomUUID()]);
+  assert.deepEqual(other, { conversations: [], messages: [] }, 'someone else\'s conversations are not in it');
+  for (const client of [A, B, database.anon]) {
+    assert.match((await client.error('select public.server_read_history($1)', [bob]))?.message || 'it worked', /permission denied/);
   }
 });

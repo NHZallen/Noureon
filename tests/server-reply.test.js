@@ -61,7 +61,7 @@ test('a reply is handed over with everything it needs, after the conversation wa
   assert.equal(calls[0].url, 'https://api.noureon.com/v1/runs');
   assert.equal(calls[0].options.headers.Authorization, 'Bearer token-123');
   const spec = JSON.parse(calls[0].options.body);
-  assert.equal(spec.protocol, 2);
+  assert.equal(spec.protocol, 3);
   assert.equal(spec.clientVersion, '17.5.0');
   assert.equal(spec.conversationId, CONVERSATION.id);
   assert.equal(spec.assistantMessageId, MESSAGE_ID);
@@ -748,4 +748,20 @@ test('the browser\'s wiring: the translator set in Settings decides whether the 
   assert.equal(started.ok, true);
   assert.equal(sent[0].documents.translator.id, 'tr');
   assert.equal(sent[0].secrets.translatorKey, 'gem-key');
+});
+
+test('the key for a search by meaning goes among the secrets of the request, once, and not in the memory part', async () => {
+  const { reply, calls } = harness();
+  await reply.start(startArgs({ memory: { canWrite: true, history: true, vector: { provider: 'gemini' }, embeddingKey: 'g-embed-key', messages: [] } }));
+  const body = JSON.parse(calls[0].options.body);
+  assert.equal(body.secrets.embeddingKey, 'g-embed-key');
+  assert.deepEqual(body.tools.memory, { canWrite: true, history: true, vector: { provider: 'gemini' }, messages: [] });
+  assert.equal(body.protocol, 3);
+  const none = harness();
+  await none.reply.start(startArgs({ memory: { canWrite: true, messages: [] } }));
+  const plain = JSON.parse(none.calls[0].options.body);
+  assert.equal('embeddingKey' in plain.secrets, false);
+  const without = harness();
+  await without.reply.start(startArgs());
+  assert.equal('memory' in JSON.parse(without.calls[0].options.body).tools, false, 'no memory part when there is none');
 });

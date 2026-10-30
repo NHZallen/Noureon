@@ -18,7 +18,7 @@ const content = (text) => ({ choices: [{ delta: { content: text } }] });
 const modelInfo = { id: 'openrouter-test', apiId: 'test/model', name: 'Test model', provider: 'openrouter' };
 const HISTORY = [{ role: 'user', parts: [{ text: 'Tell me about the Vercel pricing' }] }, { role: 'model', parts: [{ text: 'Hobby is free.' }] }];
 const specFor = ({ message = 'and the pro plan?', parts = null, tools = {}, history = HISTORY } = {}) => ({
-  protocol: 2,
+  protocol: 3,
   clientVersion: '17.9.2',
   conversationId: '123e4567-e89b-12d3-a456-426614174000',
   assistantMessageId: '223e4567-e89b-12d3-a456-426614174001',

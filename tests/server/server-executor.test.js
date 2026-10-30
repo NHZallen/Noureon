@@ -12,7 +12,7 @@ const toolCall = (id, name, args) => ({ choices: [{ delta: { tool_calls: [{ inde
 
 const modelInfo = { id: 'openrouter-test', apiId: 'test/model', name: 'Test model', provider: 'openrouter' };
 const specFor = (overrides = {}) => ({
-  protocol: 2,
+  protocol: 3,
   clientVersion: '17.4.0',
   conversationId: '123e4567-e89b-12d3-a456-426614174000',
   assistantMessageId: '223e4567-e89b-12d3-a456-426614174001',
