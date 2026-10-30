@@ -245,9 +245,9 @@ main.flex-1 > header { z-index: 11; }
 .history-panel-toggle.is-active { background: var(--hover-bg); }
 
 /* The sources of a reply as one panel with tabs (ui/citations/source-panel.js): memory and chat rows beside the pages. */
-.source-panel-tabs { display: flex; flex-wrap: nowrap; gap: 0.3rem; margin: 0.1rem 0.5rem 0.4rem; padding: 0; width: auto; max-width: none; overflow-x: auto; border-radius: 0; background: transparent; scrollbar-width: none; }
-.source-panel-tabs::-webkit-scrollbar { display: none; }
-.source-panel-tab { display: inline-flex; flex: none; align-items: center; gap: 0.3rem; padding: 0.2rem 0.6rem; border: 1px solid transparent; font-size: 0.8rem; white-space: nowrap; }
+.source-panel-tabs { display: flex; flex-wrap: nowrap; gap: 0.15rem; margin: 0.1rem 0.4rem 0.4rem; padding: 0; width: auto; max-width: none; border-radius: 0; background: transparent; }
+.source-panel-tab { display: inline-flex; flex: 0 1 auto; align-items: center; gap: 0.2rem; min-width: 0; padding: 0.2rem 0.45rem; border: 1px solid transparent; font-size: 0.78rem; white-space: nowrap; }
+.source-panel-tab .history-tab-count { margin-left: 0.1rem; }
 .source-panel-tab[aria-selected='true'] { border-color: var(--border-color); background: var(--hover-bg); box-shadow: none; }
 .source-row { display: grid; grid-template-columns: 1.5rem minmax(0, 1fr); gap: 0.55rem; align-items: start; padding: 0.45rem 0.5rem; border-radius: 0.7rem; }
 .source-row-icon { display: grid; place-items: center; width: 1.5rem; height: 1.5rem; border-radius: 9999px; background: var(--hover-bg); color: var(--text-primary); }
