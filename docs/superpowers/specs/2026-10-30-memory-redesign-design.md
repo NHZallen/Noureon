@@ -327,3 +327,11 @@ Linear：A 在專案「記憶系統重做」，B 是獨立的單（都在 Backlo
 - **隱私**：第二層會把小組裡的筆記文字（不含對話）送給模型供應商；這是新的資料流，**隱私權政策與協助中心五語要在 P8 一起更新**。
 - **契約**：設定列 `meta:settings` 新增 `consolidatedAt`；`event:*` 新增 `who: 'consolidation'`、`batch`、`summary`、op 的 `action: 'tidy'`（舊版頁面會當作沒有可顯示的內容而略過）。`server/memory-records.js` 新增 `saveSettings`、`pruneEvents`，`saveWrite` 接受 `result.events`。
 - **還沒做**：實機（真模型）驗證第二層的判斷品質；`scripts/memory-eval.mjs` 目前不含整理案例。
+
+### P7（2026-10-30）：向量搜尋（選配）
+- **預設關閉**。設定 → 記憶 → 新卡片「語意搜尋（選配）」：要先有 Gemini 或 OpenAI 的金鑰（Gemini 優先）；按「開啟…」會跳出同意視窗，**先講清楚會送什麼**（過去對話約 N 段、M 字元、約 K tokens，送到哪一家、用自己的金鑰、向量只存在這台裝置、可隨時關閉並刪除）；同意才寫入 `vector: { enabled, consentAt, provider }`（`enabled` 沒有 `consentAt` 一律視為關閉）。關閉會刪掉這台裝置的向量並停止送出。
+- **模組**（都是頁面端，伺服器不碰）：`memory-notes/vector-math.js`（單位向量、內積、取前幾名、RRF 合併、文字雜湊）、`memory-store/embedding-client.js`（Gemini `gemini-embedding-2` 的 `batchEmbedContents`，模型沒有批次呼叫時退回一則一則 `embedContent`；OpenAI `text-embedding-3-small`；都是 768 維，頁面直接用使用者自己的金鑰呼叫，`vercel.json` 的 connect-src 本來就有這兩家）、`memory-store/vector-store.js`（IndexedDB，每個使用者一個資料庫；記錄 = 切片 id＋文字雜湊＋向量；索引帶模型版本，換模型整個丟掉重建）、`memory-store/page-vectors.js`（同意、建立、搜尋、關閉）、`ui/memory-notes/memory-vector-card.js`。
+- **建立**：在歷史索引的切片上做（少於 12 字元的切片不送）；一組最多 32 段或 16000 字元；已經有向量且文字雜湊沒變的不重送；對話刪掉或訊息改了，向量隨切片消失；暫時對話本來就不進索引所以不會送出。連續失敗 3 次或 401／403 就停下並顯示原因（可按「重試」）。觸發：頁面載入後 5 秒、每一輪結束後。
+- **搜尋**：`search_memory` 工具的歷史範圍改成「關鍵字結果＋最接近的向量結果」用 RRF 合併（每個對話最多一片）；向量沒開、沒金鑰、供應商失敗、沒有向量時，一律退回只用關鍵字，不影響回覆。相似度下限 `minCosine` 初始 0.5。
+- **與計劃的差別（請 Allen 看）**：**每一輪自動帶的「便條」不用向量**，只有模型主動呼叫 `search_memory`（歷史範圍）時才用。原因：便條是同步組出來的，要用向量就得在每次送出前多等一次網路來回（約 0.3 至 0.5 秒）。想要的話可以做成「關鍵字沒命中時才查向量，最多等 0.7 秒」，要 Allen 決定。另外沒有存「向量庫大小」的上限，幾萬片（約 60 MB）還可以，再大要另外處理。
+- **還沒做**：用真實金鑰驗證兩家 embedding 的實際回應格式與 `minCosine` 的合適值（測試用的是假的伺服器，格式依官方文件）；第二層整理（P6）的分組也沒有用向量；隱私權政策與協助中心五語要在 P8 更新（這是新的資料流）。

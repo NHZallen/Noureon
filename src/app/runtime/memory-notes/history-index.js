@@ -89,6 +89,11 @@ export function createHistoryIndex() {
       if (dirty) rebuild();
       return all.length;
     },
+    /** Every piece, [{ id, conversationId, at, role, text }] (the search by meaning gives each a vector). */
+    pieces() {
+      if (dirty) rebuild();
+      return all;
+    },
     /**
      * The bar for a piece: it shares at least `minStrong` words of weight with the question and covers `coverage` of the question's strong words (a piece of a long text holds each word once, so
      * its BM25 share is lower than a note's; coverage is what says it is about the same thing); a question of one or two words may be met by one word that only this piece holds.

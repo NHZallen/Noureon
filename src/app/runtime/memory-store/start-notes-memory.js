@@ -5,10 +5,11 @@
 import { getAnnouncedUser, USER_READY_EVENT } from '../features/user-ready.js';
 import { getSupabaseClient } from '../../auth/supabase-client.js';
 import { createNotesMemory } from './notes-memory.js';
-import { setNotesMemory, setPageHistory } from './memory-ref.js';
+import { setNotesMemory, setPageHistory, setPageVectors } from './memory-ref.js';
 import { createPageHistory } from './page-history.js';
+import { createPageVectors } from './page-vectors.js';
 
-export function startNotesMemory({ document, configAccess, dataStore, getActiveConversation = () => null, i18n = {}, storage = null, logger = console }) {
+export function startNotesMemory({ document, configAccess, dataStore, getActiveConversation = () => null, getApiKeyForProvider = () => '', i18n = {}, storage = null, logger = console }) {
   const getConfig = () => configAccess.getConfig();
   const getConversation = () => getActiveConversation();
   const getConversations = () => dataStore.getConversations();
@@ -22,15 +23,19 @@ export function startNotesMemory({ document, configAccess, dataStore, getActiveC
   const history = createPageHistory({ getConversations });
   memory.setHistorySearch((question, options) => (getConfig()?.memorySystem === 'notes' ? history.search(question, options) : []));
   setPageHistory(history);
+  // The search by meaning is off until the person turns it on and agrees (page-vectors.js); when it is on, the vectors of the past conversations are brought up to date a little after the page has loaded.
+  let lastUser = getAnnouncedUser();
+  const vectors = setPageVectors(createPageVectors({ getStore: () => memory.getStore(), getHistory: () => history, getApiKeyForProvider, indexedDB: globalThis.indexedDB || null, userKey: () => String(lastUser?.supabaseUserId || lastUser?.username || 'local'), logger }));
+  history.setVectors(vectors);
+  const syncVectors = (loading) => { if (getConfig()?.memorySystem === 'notes') void Promise.resolve(loading).then(() => memory.ready()).then(() => setTimeout(() => void vectors.sync(), 5000)); };
   // The line under a reply about what the memory did draws itself from the page's events.
   void import('../../ui/memory-notes/memory-reply-line.js').then(({ startMemoryLines }) => startMemoryLines({ document, getConfig, getMemory: () => memory, getConversation, getText, logger })).catch((error) => logger.warn?.('The memory line under replies did not start.', error));
   // The page may have announced the person before this part was loaded.
-  let lastUser = getAnnouncedUser();
-  if (lastUser && getConfig()?.memorySystem === 'notes') void memory.attach(lastUser);
+  if (lastUser && getConfig()?.memorySystem === 'notes') syncVectors(memory.attach(lastUser));
   const wanted = () => getConfig()?.memorySystem === 'notes';
   document.addEventListener(USER_READY_EVENT, (event) => {
     lastUser = event.detail?.user || null;
-    if (lastUser && wanted()) void memory.attach(lastUser);
+    if (lastUser && wanted()) syncVectors(memory.attach(lastUser));
   });
   return {
     memory,

@@ -3,6 +3,7 @@
 // summary with the recent changes (each can be undone), and, one step further, the list of notes with search, kinds, and what the person can do with each note.
 // Everything is drawn with textContent (a note is the person's text), and colours come from the tokens in memory-notes.css.
 
+import { renderVectorCard } from './memory-vector-card.js';
 import { addByUser, deleteByUser, describeEvent, describeTidy, editByUser, filterNotes, joinTidyEvents, setNeverByUser, setStandingByUser, summarize, undoEvent } from '../../runtime/memory-notes/manage.js';
 import { NOTE_KINDS, isActive } from '../../runtime/memory-notes/notes.js';
 
@@ -21,6 +22,8 @@ export function createMemoryNotesSettings({
   getModels = () => [],
   // Building the memory from the old conversations (memory-store/page-rebuild.js): the controller, or null when this page cannot.
   getRebuild = () => null,
+  // The search by meaning (memory-store/page-vectors.js), or null.
+  getVectors = () => null,
   getText,
   showNotification = () => {},
   showCustomDialog,
@@ -31,6 +34,7 @@ export function createMemoryNotesSettings({
   let container = null;
   let stopListening = null;
   let stopRebuild = null;
+  let stopVectors = null;
   const hiddenByUs = new Set();
 
   const text = (key, values = {}) => Object.entries(values).reduce((out, [name, value]) => out.replaceAll(`{${name}}`, String(value)), getText(key) || key);
@@ -227,9 +231,10 @@ export function createMemoryNotesSettings({
 
     const rebuild = rebuildCard(live);
     const tidy = tidyCard(live);
+    const vector = renderVectorCard({ vectors: getVectors(), el, button, text, ask, showNotification, render });
     const foot = el('section', 'pz-card mn-foot');
     foot.append(button(text('mnExport'), 'mn-btn', () => actions.exportNotes()), button(text('mnClear'), 'mn-btn mn-danger', () => void actions.clear()));
-    return [card, ...(rebuild ? [rebuild] : []), ...(tidy ? [tidy] : []), recent, foot];
+    return [card, ...(rebuild ? [rebuild] : []), ...(tidy ? [tidy] : []), ...(vector ? [vector] : []), recent, foot];
   };
 
   // The tidy of the notes (memory-store/page-tidy.js): when it last ran, and a button to run it now.
@@ -395,6 +400,8 @@ export function createMemoryNotesSettings({
       stopListening = getMemory()?.onChange?.(render) || null;
       stopRebuild?.();
       stopRebuild = getRebuild()?.subscribe?.(() => render()) || null;
+      stopVectors?.();
+      stopVectors = getVectors()?.subscribe?.(() => render()) || null;
       // Opening the settings starts at the summary, not where the person left the list.
       state.view = 'summary';
       render();

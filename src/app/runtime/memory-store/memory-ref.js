@@ -11,6 +11,11 @@ export const setNotesMemory = (memory) => { shared = memory; return shared; };
 export const getPageHistory = () => history;
 export const setPageHistory = (value) => { history = value; return history; };
 
+/** The search by meaning (page-vectors.js), or null until the page has started it. */
+let vectors = null;
+export const getPageVectors = () => vectors;
+export const setPageVectors = (value) => { vectors = value; return vectors; };
+
 /** The function that runs a small background request with a chosen model (`runMemoryModel`), given once the page has it; the rebuild and the settings use it. */
 let modelRunner = null;
 export const getMemoryModelRunner = () => modelRunner;

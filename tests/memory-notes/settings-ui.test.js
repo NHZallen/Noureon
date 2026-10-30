@@ -8,11 +8,14 @@ import { createNotesMemory } from '../../src/app/runtime/memory-store/notes-memo
 import { createNote } from '../../src/app/runtime/memory-notes/notes.js';
 import { applyWrite } from '../../src/app/runtime/memory-notes/write-check.js';
 import { createRebuildController } from '../../src/app/runtime/memory-store/page-rebuild.js';
+import { createPageVectors } from '../../src/app/runtime/memory-store/page-vectors.js';
+import { createPageHistory } from '../../src/app/runtime/memory-store/page-history.js';
+import { createFakeIndexedDb } from '../helpers/fake-indexeddb.js';
 
 const noteRow = (note) => ({ record_key: `note:${note.id}`, payload: note, version: 1, updated_at: note.updatedAt, deleted_at: null });
 const tick = () => new Promise((resolve) => setTimeout(resolve, 15));
 
-async function setup({ language = 'en', memorySystem = 'classic', notes = [], extraRows = [], conversations = [] } = {}) {
+async function setup({ language = 'en', memorySystem = 'classic', notes = [], extraRows = [], conversations = [], makeVectors = () => null } = {}) {
   const window = new Window();
   const { document } = window;
   document.body.innerHTML = '<div id="memory-section"><div id="memory-summary-settings">old summary</div></div>';
@@ -24,6 +27,7 @@ async function setup({ language = 'en', memorySystem = 'classic', notes = [], ex
   let counter = 0;
   const answers = [];
   const rebuild = createRebuildController({ getStore: () => memory.getStore(), getConversations: () => conversations, getConfig: () => config, getModelRunner: () => async () => '{"ops":[]}', models: [{ id: 'm1', provider: 'gemini' }], getApiKeyForProvider: () => 'key', logger: { warn() {} } });
+  const vectors = makeVectors(memory);
   const ui = createMemoryNotesSettings({
     document,
     getConfig: () => config,
@@ -31,6 +35,7 @@ async function setup({ language = 'en', memorySystem = 'classic', notes = [], ex
     getMemory: () => memory,
     getUser: () => ({ username: 'tester' }),
     getRebuild: () => rebuild,
+    getVectors: () => vectors,
     getModels: () => [{ id: 'gemini-3.5-flash-lite', name: 'Gemini 3.5 Flash Lite' }, { id: 'gemini-3.8-flash', name: 'Gemini 3.8 Flash' }],
     getText: (key) => i18n[config.uiLanguage]?.[key] || '',
     showNotification: (message, kind) => notices.push({ message, kind }),
@@ -46,7 +51,7 @@ async function setup({ language = 'en', memorySystem = 'classic', notes = [], ex
     target.click();
     await tick();
   };
-  return { window, document, memory, config, notices, answers, ui, root, click, rebuild };
+  return { window, document, memory, config, notices, answers, ui, root, click, rebuild, vectors };
 }
 
 const dog = createNote({ id: 'dog', text: 'The user has a Shiba Inu named Mochi', kind: 'relationship' });
@@ -250,5 +255,51 @@ test('the tidy texts exist in all five languages', async () => {
     for (const key of ['mnTidyTitle', 'mnTidyDesc', 'mnTidyLast', 'mnTidyNever', 'mnTidyNow', 'mnTidyRunning', 'mnTidyDoneChanged', 'mnTidyDoneNone', 'mnTidyFailed', 'mnTidyPartMerge', 'mnTidyPartSupersede', 'mnTidyPartExpire', 'mnTidyPartFade', 'mnTidyPartStanding', 'mnEvTidy']) {
       assert.ok(i18n[language]?.[key], `${language} has ${key}`);
     }
+  }
+});
+
+test('the card of the search by meaning: needs a key, shows what will be sent before it asks, and turning it off deletes the vectors', async () => {
+  const conversations = [{ id: 'a', lastUpdatedAt: '2026-10-01T00:00:00.000Z', messages: [{ role: 'user', parts: [{ text: 'My puppy does not eat his food lately' }], createdAt: '2026-10-01T00:00:00.000Z' }] }];
+  const fetchImpl = async (url, options) => Response.json({ embeddings: JSON.parse(options.body).requests.map(() => ({ values: [1, 0, 0] })) });
+  const make = (keys) => (memory) => {
+    const history = createPageHistory({ getConversations: () => conversations });
+    const vectors = createPageVectors({ getStore: () => memory.getStore(), getHistory: () => history, getApiKeyForProvider: (name) => keys[name] || '', indexedDB: createFakeIndexedDb(), userKey: () => 'tester', fetchImpl, wait: async () => {}, logger: { warn() {} }, options: { pauseMs: 0 } });
+    history.setVectors(vectors);
+    return vectors;
+  };
+  const noKey = await setup({ memorySystem: 'notes', makeVectors: make({}) });
+  assert.match(noKey.root().textContent, /Search by meaning \(optional\)/);
+  assert.match(noKey.root().textContent, /A Gemini or OpenAI API key is needed/);
+  assert.equal([...noKey.root().querySelectorAll('button')].some((button) => button.textContent === 'Turn on…'), false);
+
+  const keyed = await setup({ memorySystem: 'notes', makeVectors: make({ gemini: 'g-key' }) });
+  const asked = [];
+  keyed.answers.push(null);
+  await keyed.click('Turn on…');
+  assert.equal(keyed.vectors.isEnabled(), false, 'declining turns nothing on');
+  assert.equal(keyed.memory.getStore().getSettings().vector.enabled, false);
+
+  keyed.answers.push(true);
+  await keyed.click('Turn on…');
+  await tick();
+  await tick();
+  assert.equal(keyed.vectors.isEnabled(), true);
+  assert.ok(keyed.memory.getStore().getSettings().vector.consentAt);
+  assert.match(keyed.root().textContent, /1\/1 pieces ready \(Gemini\)/);
+  asked.push(keyed.root().textContent);
+
+  await keyed.click('Turn off and delete vectors');
+  assert.equal(keyed.vectors.isEnabled(), false);
+  assert.match(keyed.notices.at(-1).message, /Turned off/);
+  assert.match(keyed.root().textContent, /Turn on…/);
+});
+
+test('the texts of the search by meaning exist in all five languages and say what is sent', async () => {
+  for (const language of ['zh-TW', 'en', 'fr', 'ru', 'es']) {
+    for (const key of ['mnVecTitle', 'mnVecDesc', 'mnVecNoKey', 'mnVecOn', 'mnVecConsentTitle', 'mnVecConsent', 'mnVecConsentOk', 'mnVecBuilding', 'mnVecReady', 'mnVecError', 'mnVecRetry', 'mnVecOff', 'mnVecOffDone']) {
+      assert.ok(i18n[language]?.[key], `${language} has ${key}`);
+    }
+    assert.match(i18n[language].mnVecConsent, /\{provider\}/);
+    assert.match(i18n[language].mnVecConsent, /\{pieces\}/);
   }
 });

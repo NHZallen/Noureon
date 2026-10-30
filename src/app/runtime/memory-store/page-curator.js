@@ -8,6 +8,7 @@ import { userMessagesOf } from './page-memory-loader.js';
 import { toolsOffered } from './memory-trace.js';
 import { announceMemoryUpdated } from '../../ui/memory-notes/memory-events.js';
 import { tidyNotes } from './page-tidy.js';
+import { getPageVectors } from './memory-ref.js';
 
 const DELAY_MS = 2000;
 
@@ -69,6 +70,8 @@ export async function curateNotesTurn(args) {
     if (args.getConfig()?.memorySystem === 'notes') {
       const store = await args.getMemory()?.ready();
       await tidyNotes({ store, getConfig: args.getConfig, getRunner: () => args.runMemoryModel, models: args.models, getApiKeyForProvider: args.getApiKeyForProvider, logger: args.logger });
+      // The new messages of this conversation get their vectors too, if the search by meaning is on.
+      void getPageVectors()?.sync();
     }
   } catch (error) {
     (args.logger || console).warn?.('The memory could not be tidied after the turn.', error);

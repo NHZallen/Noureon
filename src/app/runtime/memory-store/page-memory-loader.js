@@ -49,7 +49,7 @@ export async function createPageMemoryTools({ getConfig, getMemory, getHistory =
       onUsed: ({ ids }) => recordUsed(conversationId, ids),
       onWrite: ({ event }) => recordEvent(conversationId, event?.id),
       // The past conversations (history index on this page): the search then takes a scope. The conversation being written is left out.
-      searchHistory: getHistory() ? async (query, limit) => getHistory().lookup(query, limit, { excludeConversationId: conversationId }) : null,
+      searchHistory: getHistory() ? async (query, limit) => (getHistory().lookupHybrid || getHistory().lookup).call(getHistory(), query, limit, { excludeConversationId: conversationId }) : null,
       language,
       createId,
       now

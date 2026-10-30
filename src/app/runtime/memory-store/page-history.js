@@ -6,6 +6,7 @@ import { createHistoryIndex } from '../memory-notes/history-index.js';
 export function createPageHistory({ getConversations }) {
   const index = createHistoryIndex();
   const fresh = () => index.update(getConversations() || []);
+  let vectors = null;
   return {
     /** For the slip: at most two pieces from two other conversations that clearly bear on the question. */
     search(question, options = {}) {
@@ -16,6 +17,20 @@ export function createPageHistory({ getConversations }) {
     lookup(query, limit = 5, options = {}) {
       fresh();
       return index.search(query, { limit, minNorm: 0.1, minStrong: 1, coverage: 0, soleNorm: 0.1, ...options }).map((piece) => ({ conversationId: piece.conversationId, at: piece.at, role: piece.role, text: piece.text.slice(0, 400) }));
+    },
+    /** Every piece the index holds (the search by meaning gives each a vector). */
+    pieces() {
+      fresh();
+      return index.pieces();
+    },
+    /** The search by meaning, when the person turned it on (page-vectors.js); the tool then puts it together with the keywords. */
+    setVectors(value) { vectors = value || null; },
+    /** For the tool, async: the keyword hits, and when the search by meaning is on, the nearest in meaning, put together. Always resolves a list. */
+    async lookupHybrid(query, limit = 5, options = {}) {
+      const keywords = this.lookup(query, limit, options);
+      if (!vectors?.available?.()) return keywords;
+      const meaning = (await vectors.search(query, { limit, excludeConversationId: options.excludeConversationId || '' })).map((hit) => ({ conversationId: hit.conversationId, at: hit.at, role: hit.role, text: hit.text.slice(0, 400) }));
+      return meaning.length ? vectors.fuse(keywords, meaning, limit) : keywords;
     },
     /** The conversations the page holds (the rebuild reads them). */
     conversations: () => getConversations() || [],
