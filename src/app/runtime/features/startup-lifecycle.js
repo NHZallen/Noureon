@@ -14,7 +14,6 @@ export function createStartupLifecycle({
     getUserKey,
     loadConfig,
     loadAppData,
-    restoreMemorySync,
     applyLanguage,
     getText = () => '',
     applyUiTheme,
@@ -107,7 +106,6 @@ export function createStartupLifecycle({
                 setCurrentUser(JSON.parse(savedUser));
                 await loadConfig();
                 await loadAppData();
-                await restoreMemorySync();
                 applyUiTheme();
                 elements.authContainer.style.display = 'none';
                 elements.appContainer.classList.remove('hidden');

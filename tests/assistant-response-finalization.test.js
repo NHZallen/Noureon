@@ -13,7 +13,7 @@ const readSource = (path) => readFileSync(projectFile(path), 'utf8');
 test('successful finalization completes the view before queuing persistence and memory work', async () => {
   const calls = [];
   const backgroundTasks = [];
-  const conversation = { messages: [], lastUpdatedAt: 'old' };
+  const conversation = { id: 'c1', messages: [], lastUpdatedAt: 'old' };
   const finalAiMessage = { role: 'model', parts: [{ text: '' }], createdAt: 'created' };
   const signal = new AbortController().signal;
 
@@ -28,15 +28,14 @@ test('successful finalization completes the view before queuing persistence and 
     responseRenderedInRealtime: true,
     targetElement: { dataset: { streamRendered: 'true' } },
     uiLanguage: 'en',
-    memoryEnabled: true,
-    autoMemoryEnabled: true,
+    learnEnabled: true,
     councilMetadata: null,
     persistAppData: async () => calls.push(['persist']),
     completeSingleModelView: async ({ fullResponse, responseRenderedInRealtime }) => calls.push(['singleView', fullResponse, responseRenderedInRealtime]),
     restoreRealtimeCouncilDetails: () => calls.push(['restoreCouncil']),
     renderRealtimeCouncilFinal: () => calls.push(['renderCouncilFinal']),
     playbackCouncilResponse: async () => calls.push(['playbackCouncil']),
-    extractPersonalMemory: async (message, response) => calls.push(['memory', message, response]),
+    learnFromTurn: async (conversation) => calls.push(['memory', conversation.id]),
     queueBackgroundTask: (task) => backgroundTasks.push(task),
     nowIso: () => 'now'
   });
@@ -51,11 +50,11 @@ test('successful finalization completes the view before queuing persistence and 
   assert.deepEqual(calls, [
     ['singleView', 'Hello Astra', true],
     ['persist'],
-    ['memory', 'Hi', 'Hello Astra']
+    ['memory', 'c1']
   ]);
 });
 
-test('turning off automatic memory stops new capture without touching confirmed memories', async () => {
+test('turning learning off stops the memory from learning from the turn', async () => {
   const calls = [];
   const backgroundTasks = [];
 
@@ -70,15 +69,14 @@ test('turning off automatic memory stops new capture without touching confirmed 
     responseRenderedInRealtime: true,
     targetElement: { dataset: { streamRendered: 'true' } },
     uiLanguage: 'en',
-    memoryEnabled: true,
-    autoMemoryEnabled: false,
+    learnEnabled: false,
     councilMetadata: null,
     persistAppData: async () => calls.push('persist'),
     completeSingleModelView: async () => calls.push('singleView'),
     restoreRealtimeCouncilDetails: () => {},
     renderRealtimeCouncilFinal: () => {},
     playbackCouncilResponse: async () => {},
-    extractPersonalMemory: async () => calls.push('memory'),
+    learnFromTurn: async () => calls.push('memory'),
     queueBackgroundTask: (task) => backgroundTasks.push(task),
     nowIso: () => 'now'
   });
@@ -106,11 +104,10 @@ test('stopped responses persist received text without starting memory capture', 
     responseRenderedInRealtime: true,
     targetElement: { dataset: { streamRendered: 'true' } },
     uiLanguage: 'en',
-    memoryEnabled: true,
-    autoMemoryEnabled: true,
+    learnEnabled: true,
     persistAppData: async () => {},
     completeSingleModelView: async () => {},
-    extractPersonalMemory: async () => { memoryCalls += 1; },
+    learnFromTurn: async () => { memoryCalls += 1; },
     queueBackgroundTask: (task) => tasks.push(task)
   });
 
@@ -143,13 +140,13 @@ test('successful answers persist only normalized history source conversation ids
     restoreRealtimeCouncilDetails: () => {},
     renderRealtimeCouncilFinal: () => {},
     playbackCouncilResponse: async () => {},
-    extractPersonalMemory: async () => {}
+    learnFromTurn: async () => {}
   });
 
   assert.deepEqual(finalAiMessage.metadata, { historySourceConversationIds: [first, second] });
 });
 
-test('automatic memory capture still runs while the toggle is on', async () => {
+test('the memory learns from the turn while learning is on', async () => {
   const calls = [];
   const backgroundTasks = [];
 
@@ -164,15 +161,14 @@ test('automatic memory capture still runs while the toggle is on', async () => {
     responseRenderedInRealtime: true,
     targetElement: { dataset: { streamRendered: 'true' } },
     uiLanguage: 'en',
-    memoryEnabled: true,
-    autoMemoryEnabled: true,
+    learnEnabled: true,
     councilMetadata: null,
     persistAppData: async () => calls.push('persist'),
     completeSingleModelView: async () => calls.push('singleView'),
     restoreRealtimeCouncilDetails: () => {},
     renderRealtimeCouncilFinal: () => {},
     playbackCouncilResponse: async () => {},
-    extractPersonalMemory: async () => calls.push('memory'),
+    learnFromTurn: async () => calls.push('memory'),
     queueBackgroundTask: (task) => backgroundTasks.push(task),
     nowIso: () => 'now'
   });
@@ -203,7 +199,7 @@ test('council finalization attaches metadata and preserves realtime/buffered vie
     restoreRealtimeCouncilDetails: ({ targetElement }) => realtimeCalls.push(['restore', targetElement === realtimeElement]),
     renderRealtimeCouncilFinal: () => realtimeCalls.push('renderFinal'),
     playbackCouncilResponse: async () => realtimeCalls.push('playback'),
-    extractPersonalMemory: async () => realtimeCalls.push('memory'),
+    learnFromTurn: async () => realtimeCalls.push('memory'),
     nowIso: () => 'now'
   });
   assert.deepEqual(realtimeCalls, [['restore', true], 'persist']);
@@ -228,7 +224,7 @@ test('council finalization attaches metadata and preserves realtime/buffered vie
     restoreRealtimeCouncilDetails: () => bufferedCalls.push('restore'),
     renderRealtimeCouncilFinal: () => bufferedCalls.push('renderFinal'),
     playbackCouncilResponse: async () => bufferedCalls.push('playback'),
-    extractPersonalMemory: async () => bufferedCalls.push('memory'),
+    learnFromTurn: async () => bufferedCalls.push('memory'),
     nowIso: () => 'now'
   });
 
@@ -256,7 +252,7 @@ test('finalization rejects empty responses before persistence or side effects', 
       restoreRealtimeCouncilDetails: () => calls.push('restore'),
       renderRealtimeCouncilFinal: () => calls.push('renderFinal'),
       playbackCouncilResponse: async () => calls.push('playback'),
-      extractPersonalMemory: async () => calls.push('memory')
+      learnFromTurn: async () => calls.push('memory')
     }),
     /without any response text/
   );
@@ -280,12 +276,11 @@ test('image finalization persists asset parts without mail or learning-memory si
     responseRenderedInRealtime: false,
     targetElement: { dataset: {} },
     uiLanguage: 'en',
-    memoryEnabled: true,
-    autoMemoryEnabled: true,
+    learnEnabled: true,
     persistAppData: async () => calls.push('persist'),
     completeSingleModelView: async () => calls.push('singleView'),
     completeImageView: async () => calls.push('imageView'),
-    extractPersonalMemory: async () => calls.push('memory'),
+    learnFromTurn: async () => calls.push('memory'),
     nowIso: () => 'now'
   });
   assert.deepEqual(finalAiMessage.parts, finalParts);

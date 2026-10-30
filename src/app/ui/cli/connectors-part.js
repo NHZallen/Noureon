@@ -9,6 +9,7 @@ import { CONNECTORS, CONNECTOR_CATEGORIES, connectorDescription, connectorDetail
 import { connectorMark } from './connector-mark.js';
 import { disconnectConnector, listConnectors, refreshConnector, requestWaitlist, saveToolStates, startConnector } from '../../runtime/connector/connectors-client.js';
 
+const WAITLIST_EMAIL = /^[^\s@<>",;]+@[^\s@<>",;]+\.[^\s@<>",;]+$/;
 const STATES = Object.freeze(['allow', 'ask', 'deny']);
 const STATE_KEYS = Object.freeze({ allow: 'connectorStateAllow', ask: 'connectorStateAsk', deny: 'connectorStateDeny' });
 const DEFAULT_STATE = Object.freeze({ read: 'allow', write: 'ask' });
@@ -27,7 +28,7 @@ export function createConnectorsPart({ document, win, t, getLanguage, getAccount
   };
   // What the server says: { status: 'idle' | 'loading' | 'ready' | 'failed', byId: Map(id -> { id, status, mode, tools, error }) }.
   // `openMine`: the permissions of a connection the person opened under Mine (folded at first); `openPerms`: the ones opened in the settings (folded at first); `expanded`: the rows of the list opened in place.
-  const state = { status: 'idle', byId: new Map(), openGroups: new Set(), openMine: new Set(), openPerms: new Set(), expanded: new Set(), confirming: null, sheet: null, asked: new Set(), asking: new Set() };
+  const state = { status: 'idle', byId: new Map(), openGroups: new Set(), openMine: new Set(), openPerms: new Set(), expanded: new Set(), confirming: null, sheet: null, asked: new Set(), asking: new Set(), waitlistEmail: new Map() };
   const connectionOf = (id) => state.byId.get(id) || { id, status: 'none', mode: getConnector(id) ? defaultLoginMode(getConnector(id)) : 'readwrite', tools: [], error: '', access: 'open' };
 
   const load = async () => {
@@ -88,14 +89,19 @@ export function createConnectorsPart({ document, win, t, getLanguage, getAccount
     return box;
   };
   // A connector that is for some accounts only: this one is not among them, so it asks to be let in (a mail goes to us) instead of connecting.
-  const askWaitlist = async (connector) => {
+  // It also asks which account of the service the person will log in with (for Google: the address that goes into the test users of the application; it need not be the one of the Noureon account).
+  const askWaitlist = async (connector, email) => {
     if (state.asked.has(connector.id) || state.asking.has(connector.id)) return;
+    if (!WAITLIST_EMAIL.test(String(email || '').trim())) {
+      showNotification(t('connectorWaitlistEmailInvalid'), 'error');
+      return;
+    }
     state.asking.add(connector.id);
     redraw();
-    const result = await requestWaitlist(connector.id);
+    const result = await requestWaitlist(connector.id, email);
     state.asking.delete(connector.id);
     if (result.ok) state.asked.add(connector.id);
-    else showNotification(t('connectorWaitlistFailed'), 'error');
+    else showNotification(t(result.detail === 'invalid_email' ? 'connectorWaitlistEmailInvalid' : 'connectorWaitlistFailed'), 'error');
     redraw();
   };
   const openSheet = (connector, { mode = defaultLoginMode(connector), switching = false } = {}) => {
@@ -334,6 +340,28 @@ export function createConnectorsPart({ document, win, t, getLanguage, getAccount
   };
 
   // A row of the list of all the connectors.
+  // The line that asks which account of the service the person will log in with, and sends the request (what the person typed is kept when the list is drawn again).
+  const waitlistForm = (connector) => {
+    const form = make('form', 'cs-waitlist');
+    form.noValidate = true;
+    const input = make('input', 'cs-waitlist-input');
+    input.type = 'email';
+    input.autocomplete = 'email';
+    input.value = state.waitlistEmail.get(connector.id) || '';
+    input.placeholder = t('connectorWaitlistEmailPlaceholder');
+    input.setAttribute('aria-label', t('connectorWaitlistEmailLabel', { name: connector.name }));
+    input.addEventListener('input', () => state.waitlistEmail.set(connector.id, input.value));
+    const send = make('button', 'cs-button cs-button-primary', t('connectorWaitlist'));
+    send.type = 'submit';
+    send.disabled = state.asking.has(connector.id);
+    form.append(input, send);
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      void askWaitlist(connector, input.value);
+    });
+    return form;
+  };
+
   const row = (connector, { onShowMine }) => {
     const connection = connectionOf(connector.id);
     const connected = connection.status !== 'none';
@@ -378,7 +406,10 @@ export function createConnectorsPart({ document, win, t, getLanguage, getAccount
         nodes.push(box);
       }
       if (pending) nodes.push(make('p', 'cs-pending-note', t('connectorPendingNote', { name: connector.name })));
-      if (waiting) nodes.push(make('p', 'cs-pending-note', t('connectorWaitlistNote', { name: connector.name })));
+      if (waiting) {
+        nodes.push(make('p', 'cs-pending-note', t('connectorWaitlistNote', { name: connector.name })));
+        if (!state.asked.has(connector.id)) nodes.push(waitlistForm(connector));
+      }
       if (connected) {
         const manage = make('button', 'cs-link cs-feature-manage', t('connectorManage'));
         manage.type = 'button';
@@ -406,9 +437,15 @@ export function createConnectorsPart({ document, win, t, getLanguage, getAccount
       setOpen(open);
     };
     text.addEventListener('click', toggle);
+    // "Join the waitlist" at the right opens the words where the address is asked (nothing is sent before the person gives it).
+    const openWaitlistForm = () => {
+      if (state.asked.has(connector.id) || state.asking.has(connector.id)) return;
+      if (!state.expanded.has(connector.id)) toggle();
+      element.querySelector('.cs-waitlist-input')?.focus();
+    };
     // The right side: a connection that needs a login logs in again, one that is not connected begins (the status of a good one only opens the words).
     action.addEventListener('click', () => {
-      if (waiting) void askWaitlist(connector);
+      if (waiting) openWaitlistForm();
       else if (pending || (connected && connection.status === 'connected')) toggle();
       else if (connected) openSheet(connector, { mode: connection.mode });
       else if (!getAccountReady()) showNotification(t('connectorNeedAccount'), 'error');

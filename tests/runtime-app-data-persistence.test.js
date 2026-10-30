@@ -8,19 +8,7 @@ import { withWorkspaceStorageExclusive } from '../src/app/sync/workspace-storage
 
 const readSource = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
-const emptyMemoryState = () => ({
-  version: 2,
-  profileEntries: [],
-  profileCandidates: [],
-  resolvedProfileCandidateIds: [],
-  recentConversationStates: [],
-  mediaMemories: [],
-  conversationCapsules: [],
-  longTermTopicSummaries: [],
-  resolvedTopicSummaryIds: [],
-  suppressionRules: [],
-  legacyInbox: []
-});
+const emptyMemoryState = () => ({});
 
 test('serialized app data persistence writes the latest store snapshot for the latest user', async () => {
   const calls = [];

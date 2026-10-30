@@ -4,16 +4,16 @@ import test from 'node:test';
 import { SERVICES, getService, provideService, withdrawService } from '../src/app/runtime/services.js';
 
 test('a service is provided, got, replaced, and withdrawn only by the one that provided it', () => {
-  assert.equal(getService(SERVICES.memorySummarySync), null);
+  assert.equal(getService(SERVICES.cloudAssets), null);
   const first = { name: 'first' };
   const second = { name: 'second' };
-  assert.equal(provideService(SERVICES.memorySummarySync, first), first);
-  assert.equal(getService(SERVICES.memorySummarySync), first);
-  provideService(SERVICES.memorySummarySync, second);
-  withdrawService(SERVICES.memorySummarySync, first);
-  assert.equal(getService(SERVICES.memorySummarySync), second, 'a newer service is not withdrawn by the older one');
-  withdrawService(SERVICES.memorySummarySync, second);
-  assert.equal(getService(SERVICES.memorySummarySync), null);
+  assert.equal(provideService(SERVICES.cloudAssets, first), first);
+  assert.equal(getService(SERVICES.cloudAssets), first);
+  provideService(SERVICES.cloudAssets, second);
+  withdrawService(SERVICES.cloudAssets, first);
+  assert.equal(getService(SERVICES.cloudAssets), second, 'a newer service is not withdrawn by the older one');
+  withdrawService(SERVICES.cloudAssets, second);
+  assert.equal(getService(SERVICES.cloudAssets), null);
 });
 
 test('an unknown service name is a mistake, not a silent null', () => {

@@ -16,6 +16,7 @@ import accountAndSyncPassword from './account-and-sync-password.js';
 import memoryAndImport from './memory-and-import.js';
 import chatActionsAndErrors from './chat-actions-and-errors.js';
 import openai from './openai.js';
+import memoryNotes from './memory-notes.js';
 
 const parts = [
     login,
@@ -34,7 +35,8 @@ const parts = [
     accountAndSyncPassword,
     memoryAndImport,
     chatActionsAndErrors,
-    openai
+    openai,
+    memoryNotes
 ];
 
 const mergeLocale = (locale) => Object.assign({}, ...parts.map((part) => part[locale]));

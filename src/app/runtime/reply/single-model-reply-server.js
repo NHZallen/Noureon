@@ -6,6 +6,7 @@ import { NOURAS_REQUEST_PURPOSE } from '../nouras/nouras-policy.js';
 import { getRuntimeText } from '../i18n/runtime-texts.js';
 import { cliIdsForReply } from '../cli/cli-state.js';
 import { registerSandboxFileParts } from '../../ui/sandbox/sandbox-files.js';
+import { recordEvent, recordHistory, recordUsed } from '../memory-store/memory-trace.js';
 
 // What the server says it is doing with the message's files and addresses, as the stage the wait row draws (the page's own names for them).
 const DOCUMENT_STAGES = { reading: 'fileReading', pdf: 'makingPdf', translating: 'documentTranslation', links: 'linkedPages' };
@@ -16,7 +17,7 @@ const DOCUMENT_STAGES = { reading: 'fileReading', pdf: 'makingPdf', translating:
  */
 export async function handOverToServer({ serverReply, getConfig, supportsVision }, request, prep) {
   const { conversation, modelInfo, userParts, uiLanguage, assistantMessageId, sequence, onMemoryContextResolved, getHistorySourceIds, requestParts } = request;
-  const { plan, canCallTools, cli, replyMode, ownSearchReply, availableSkills, serverPrepares, hasAddresses, skillOptions } = prep;
+  const { plan, canCallTools, cli, replyMode, ownSearchReply, availableSkills, memoryAccess, memoryTools, serverPrepares, hasAddresses, skillOptions } = prep;
   // A tool was chosen but cannot be used for this reply: the person is told (the reply is made without it).
   if (!canCallTools && cliIdsForReply(getConfig(), userParts).chosen.length) serverReply.notify('cli-tool-model', uiLanguage);
   else if (!plan.ok && cli.chosen.length) serverReply.notify('cli-local', uiLanguage);
@@ -38,6 +39,8 @@ export async function handOverToServer({ serverReply, getConfig, supportsVision 
     skills: ownSearchReply ? [] : availableSkills,
     // The connectors of the person (a model that calls tools, not with the provider's own search): the server reads which ones are connected.
     connectors: canCallTools && !ownSearchReply,
+    // The memory of notes: whether the reply may write to it and what the person said in this conversation (the server reads the notes from the person's table).
+    memory: memoryAccess ? memoryAccess.snapshot({ curator: !memoryTools }) : null,
     // The message goes as the person sent it; the server prepares its files and addresses (the translator is the one set in Settings).
     documents: serverPrepares ? { linkedPages: hasAddresses } : null,
     inputs: userParts.filter((part) => part?.inlineData?.data).map((part) => ({
@@ -68,7 +71,7 @@ export async function handOverToServer({ serverReply, getConfig, supportsVision 
  * (sources, run, files); `view` is single-model-reply-live-view.js; `progress(stage, message)` draws the wait row. `runHere(onChunk)` makes
  * the reply on this device instead, when the server lost its Python before it had an answer. Resolves the text of the answer.
  */
-export async function followServerReply({ serverReply, now, setRunStartedAt, getRunStartedAt }, { serverRun, reply, view, progress, signal, uiLanguage, assistantMessageId, targetElement, advanced, runHere }, onChunk) {
+export async function followServerReply({ serverReply, now, setRunStartedAt, getRunStartedAt }, { serverRun, reply, view, progress, signal, uiLanguage, assistantMessageId, targetElement, conversationId = '', advanced, runHere }, onChunk) {
   let documentStageShown = false;
   try {
     const outcome = await serverRun.follow({
@@ -115,6 +118,12 @@ export async function followServerReply({ serverReply, now, setRunStartedAt, get
       if (outcome.run.sources?.length) reply.searchSources = outcome.run.sources;
     }
     reply.steersLeft = outcome.steersLeft || [];
+    // What the server's memory did for this reply goes where the page's own would (the message takes it from there when it is saved).
+    if (outcome.memory) {
+      recordUsed(conversationId, outcome.memory.used);
+      (outcome.memory.events || []).forEach((id) => recordEvent(conversationId, id));
+      recordHistory(conversationId, outcome.memory.history);
+    }
     reply.cut = outcome.segment || null;
     if (outcome.rewritten && targetElement?.dataset) targetElement.dataset.streamRendered = 'false';
     // The server may check the presentations of the reply too: the page then follows that check and makes none of its own.

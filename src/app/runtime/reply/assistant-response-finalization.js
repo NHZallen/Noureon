@@ -1,8 +1,10 @@
 import { getRuntimeText } from '../i18n/runtime-texts.js';
-import { normalizeHistorySourceConversationIds } from '../memory/history-source-references.js';
+import { normalizeHistorySourceConversationIds } from '../memory-notes/history-sources.js';
 import { isStaleChunkError, offerReloadForNewVersion, staleChunkMessage } from '../../../pwa/stale-chunk-recovery.js';
 import { placePictures } from '../../../data/picture-interleave.js';
 import { revealArrival } from '../../ui/motion/arrival-reveal.js';
+import { takeTrace } from '../memory-store/memory-trace.js';
+import { announceMemoryUpdated } from '../../ui/memory-notes/memory-events.js';
 
 const getEmptyResponseMessage = (uiLanguage) => getRuntimeText(uiLanguage, 'emptyResponse');
 
@@ -67,15 +69,14 @@ export async function finalizeAssistantResponse({
   responseRenderedInRealtime,
   targetElement,
   uiLanguage,
-  memoryEnabled,
-  autoMemoryEnabled,
+  learnEnabled,
   historySourceConversationIds = [],
   persistAppData,
   completeSingleModelView,
   restoreRealtimeCouncilDetails,
   renderRealtimeCouncilFinal,
   playbackCouncilResponse,
-  extractPersonalMemory,
+  learnFromTurn,
   completeImageView = null,
   // A text reply that has pictures in it (a text model drew them itself): the message is drawn again whole, so the pictures are there at once.
   showMessageWithPictures = null,
@@ -112,6 +113,18 @@ export async function finalizeAssistantResponse({
       historySourceConversationIds: normalizedHistorySourceConversationIds
     };
   }
+  // What the memory did for this reply (notes given to the model, changes it made): shown under the reply, kept with the message.
+  const memoryTrace = takeTrace(conversation?.id);
+  let memoryLineAfterDraw = false;
+  if (memoryTrace.used.length || memoryTrace.events.length || memoryTrace.history.length) {
+    memoryLineAfterDraw = true;
+    finalAiMessage.metadata = {
+      ...(finalAiMessage.metadata || {}),
+      ...(memoryTrace.used.length ? { memoryUsed: memoryTrace.used } : {}),
+      ...(memoryTrace.events.length ? { memoryUpdated: memoryTrace.events } : {}),
+      ...(memoryTrace.history.length ? { memoryHistory: memoryTrace.history } : {})
+    };
+  }
   if (includeCouncilMetadata) {
     finalAiMessage.council = councilMetadata;
   }
@@ -136,6 +149,8 @@ export async function finalizeAssistantResponse({
     await playbackCouncilResponse({ targetElement, fullResponse, signal });
   }
   rememberRenderedMessage(targetElement, finalAiMessage);
+  // The line under the reply about what the memory did (it was not there when the message was drawn).
+  if (memoryLineAfterDraw) announceMemoryUpdated(globalThis.document, { conversationId: conversation?.id });
   targetElement?.querySelectorAll?.('.file-skeleton').forEach((placeholder) => placeholder.remove());
   // The files the reply made come in one after the other instead of appearing at once when the reply ends.
   if (finalAiMessage.parts.some((part) => part?.sandboxFile)) revealArrival(targetElement?.closest?.('[data-message-index]'), 'is-arriving-files');
@@ -148,8 +163,9 @@ export async function finalizeAssistantResponse({
     scheduleVisionCheck({ conversation, message: finalAiMessage, targetElement });
   }
 
-  if (!hasFinalParts && !signal.aborted && memoryEnabled && autoMemoryEnabled) {
-    queueBackgroundTask(() => extractPersonalMemory(userMessageText, fullResponse));
+  // The memory of notes learns from the turn (memory-store/page-curator.js), once the reply is written.
+  if (!hasFinalParts && !signal.aborted && learnEnabled) {
+    queueBackgroundTask(() => learnFromTurn(conversation));
   }
 
   return {

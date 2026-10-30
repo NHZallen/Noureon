@@ -180,3 +180,18 @@ test('the rules for the sites of CLI tools are checked, and kept only with a too
     assert.ok(bad.errors.every((error) => error.path.startsWith('tools.net')), what);
   }
 });
+
+test('the slip of the memory is kept when it is a short text, and refused when it is not', () => {
+  const given = good();
+  given.request.memorySlip = '<memory-context>\n- Note: The user has a dog named Mochi\n</memory-context>';
+  const result = validateRunSpec(given);
+  assert.equal(result.ok, true);
+  assert.equal(result.spec.request.memorySlip, given.request.memorySlip);
+  assert.equal('memorySlip' in validateRunSpec(good()).spec.request, false, 'no slip, no field');
+  const tooLong = good();
+  tooLong.request.memorySlip = 'x'.repeat(4_001);
+  assert.equal(validateRunSpec(tooLong).ok, false);
+  const notText = good();
+  notText.request.memorySlip = { text: 'no' };
+  assert.equal(validateRunSpec(notText).ok, false);
+});

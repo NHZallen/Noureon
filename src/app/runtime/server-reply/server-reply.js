@@ -7,9 +7,10 @@ import { pictureOffsets } from '../../../data/picture-interleave.js';
 import { serverReplyText } from './server-reply-texts.js';
 import { readRunStream } from './server-stream.js';
 import { netPolicyForRun } from '../cli/net-state.js';
+import { takeTrace } from '../memory-store/memory-trace.js';
 import { imageGenerationForReply } from '../tool-models/image-generation-request.js';
 
-export const SERVER_PROTOCOL_VERSION = 2;
+export const SERVER_PROTOCOL_VERSION = 3;
 // Where the server is: api.noureon.com, or the one of the test site (staging) when its build sets VITE_SERVER_API_URL (docs/superpowers/specs/2026-10-11-staging-design.md).
 export const resolveServerApiUrl = (value) => {
   const text = String(value ?? '').trim().replace(/\/+$/, '');
@@ -235,9 +236,11 @@ export function createServerReply({
    * Hands a reply to the server. Resolves { ok: true, run } when it was accepted (the server has it now) or { ok: false, reason,
    * notify } when it was not and the reply is to be made here ('notify' is true when the person should be told).
    */
-  const begin = async (path, { conversation, modelInfo, requestParts, webSearch = 'off', advanced = false, designs = null, inputs = [], cli = [], cliChosen = [], skills = [], connectors = false, visionCheck = null, documents = null, research = null, vision = null, assistantMessageId, sequence, uiLanguage, config = {}, requestOptions = {}, getHistorySourceIds = () => [] }) => {
+  const begin = async (path, { conversation, modelInfo, requestParts, webSearch = 'off', advanced = false, designs = null, inputs = [], cli = [], cliChosen = [], skills = [], connectors = false, memory = null, visionCheck = null, documents = null, research = null, vision = null, assistantMessageId, sequence, uiLanguage, config = {}, requestOptions = {}, getHistorySourceIds = () => [] }) => {
     const providerKey = getApiKeyForProvider(modelInfo?.provider);
     if (!providerKey) return { ok: false, reason: 'no-key', notify: false };
+    // The key for the question of a search by meaning goes in `secrets`, not in the memory part of the request.
+    const { embeddingKey, ...memoryTools } = memory || {};
     let search = null;
     // The addresses of the message are read with the search source's key too.
     if (webSearch === 'research' || webSearch === 'packet' || documents?.linkedPages) {
@@ -250,7 +253,7 @@ export function createServerReply({
     if (translator && translator.provider !== modelInfo?.provider && !translatorKey) return { ok: false, reason: 'no-key', notify: false };
     let described;
     try {
-      described = await describeRequest(requestParts, { ...requestOptions, conversation, modelInfo });
+      described = await describeRequest(requestParts, { ...requestOptions, conversation, modelInfo, markMemoryUsed: true });
     } catch (error) {
       warn('Putting the request for the server together failed; the reply is made here.', error);
       return { ok: false, reason: 'prepare-failed', notify: false };
@@ -260,7 +263,9 @@ export function createServerReply({
     const history = await withCloudFiles((conversation.messages || []).slice(0, -1).map((message) => ({ role: message.role, parts: message.parts })), { pictures: Boolean(config?.toolModels?.image) });
     // A text model that may draw pictures by itself (the picture model the person chose in the settings): not for a deep research or a visual check, nor with Gemini's own search.
     const drawing = research || vision || webSearch === 'grounding' ? null : imageGenerationForReply({ config, modelInfo, getApiKeyForProvider });
-    const metadata = historySourceIds.length ? { historySourceConversationIds: historySourceIds } : null;
+    // The notes of the memory given to the model for this reply (the slip) stay with the message; what the model looks up and writes the server adds when the reply ends.
+    const memoryUsed = takeTrace(conversation.id).used;
+    const metadata = historySourceIds.length || memoryUsed.length ? { ...(historySourceIds.length ? { historySourceConversationIds: historySourceIds } : {}), ...(memoryUsed.length ? { memoryUsed } : {}) } : null;
     const spec = {
       protocol: SERVER_PROTOCOL_VERSION,
       // A deep research: its topic is what the person typed (the server plans, searches and writes from it).
@@ -276,6 +281,7 @@ export function createServerReply({
         history,
         currentMessage: { parts: requestParts },
         systemInstruction: described.systemInstructionText || '',
+        ...(described.memorySlipText ? { memorySlip: described.memorySlipText } : {}),
         generation: conversation.genConfig || getDefaultGenConfig(),
         ...(conversation.reasoningEffort ? { reasoningEffort: conversation.reasoningEffort } : {}),
         ...(metadata ? { messageMetadata: metadata } : {}),
@@ -300,11 +306,13 @@ export function createServerReply({
         ...(skills.length ? { skills } : {}),
         // The connectors the person logged in to may be used (the server reads which ones from the person's own connections).
         ...(connectors ? { connectors: true } : {}),
+        // The memory of notes: the server gives the model search_memory and memory_write (it reads the notes from the table, checks a write and saves it there).
+        ...(memory ? { memory: memoryTools } : {}),
         // The check of a presentation the reply writes (the page's setting is on and the model can see images): the server makes it too.
         ...(visionCheck ? { visionCheck } : {}),
         ...(drawing ? { imageGeneration: drawing.imageGeneration } : {})
       },
-      secrets: { providerKey, ...(search ? { searchKey: search.searchKey, ...(search.searchKeyAlt ? { searchKeyAlt: search.searchKeyAlt } : {}) } : {}), ...(translatorKey ? { translatorKey } : {}), ...(drawing ? { imageKey: drawing.imageKey } : {}) }
+      secrets: { providerKey, ...(embeddingKey ? { embeddingKey } : {}), ...(search ? { searchKey: search.searchKey, ...(search.searchKeyAlt ? { searchKeyAlt: search.searchKeyAlt } : {}) } : {}), ...(translatorKey ? { translatorKey } : {}), ...(drawing ? { imageKey: drawing.imageKey } : {}) }
     };
     const body = JSON.stringify(spec);
     if (body.length > MAX_REQUEST_CHARS) return { ok: false, reason: LOCAL_REASONS.tooLarge, notify: false };
@@ -625,7 +633,9 @@ export function createServerReply({
           // What the person added that the reply never reached a boundary for (the page sends it as the next message).
           // The reply was cut after this message: the messages of the person that follow it, and the message the reply goes on in.
           segment: cutOf(row.metadata?.segment),
-          steersLeft: (Array.isArray(row.metadata?.steersLeft) ? row.metadata.steersLeft : []).map((entry) => String(entry?.text ?? '').trim()).filter(Boolean) };
+          steersLeft: (Array.isArray(row.metadata?.steersLeft) ? row.metadata.steersLeft : []).map((entry) => String(entry?.text ?? '').trim()).filter(Boolean),
+          // What the memory did on the server for this reply (the notes looked up, the changes it made, the conversations looked into): the message the page saves keeps it.
+          memory: { used: Array.isArray(row.metadata?.memoryUsed) ? row.metadata.memoryUsed : [], events: Array.isArray(row.metadata?.memoryUpdated) ? row.metadata.memoryUpdated : [], history: Array.isArray(row.metadata?.memoryHistory) ? row.metadata.memoryHistory : [] } };
       }
     }
   });

@@ -9,7 +9,7 @@ import { createWebResearchTools } from '../src/app/runtime/features/web-research
 import { NOURAS_REQUEST_PURPOSE } from '../src/app/runtime/nouras/nouras-policy.js';
 import { insertGroundingMarkers } from '../src/app/ui/citations/citation-model.js';
 import { addNumberedSources } from '../src/app/ui/citations/source-numbering.js';
-import { RUN_STATUS, formatSandboxRunBlock } from '../src/app/ui/sandbox/sandbox-run-block.js';
+import { RUN_STATUS, formatSandboxRunBlock, noteToolEnd, noteWebStep } from '../src/app/ui/sandbox/sandbox-run-block.js';
 import { briefingPart, runSearchBriefing } from '../src/app/runtime/sandbox/search-briefing.js';
 import { CLI_PLATFORM, cliInstallCommand, cliPipCommands, getCliTool, isCliReady } from '../src/data/cli-catalog.js';
 import { effectiveNetPolicy } from '../src/data/cli-net.js';
@@ -25,6 +25,11 @@ import { withSearchPacket } from './search-packet.js';
 import { withDocumentPrep } from './document-prep.js';
 import { createConnectorAsk } from './mcp/ask.js';
 import { combineLoaders, createConnectorLoader } from './mcp/tool-loader.js';
+import { createMemoryLoader } from '../src/data/memory-tool.js';
+import { pickCuratorModel, runCurator } from '../src/data/memory-curator.js';
+import { createServerTidy } from './memory-tidy.js';
+import { createMemoryModelRunner } from '../src/app/runtime/shell/memory-model-runner.js';
+import { MODELS } from '../src/app/runtime/shell/model-registry.js';
 import { placePictures } from '../src/data/picture-interleave.js';
 
 export const CHECKPOINT_VERSION = 1;
@@ -78,13 +83,15 @@ export class ReplyError extends Error {
  * and `userId`; it is made again from its start when it is taken up after a restart (the sandbox was lost with the process). When the
  * sandbox cannot be had before any answer was written and a page is watching (`watching()`), it ends with a ReplyError of code
  * `sandbox_unavailable`: the page then makes the reply itself, with its own Python.
+ * `memory` (server/memory-records.js) is the person's memory of notes: with `spec.tools.memory` the reply is given search_memory and memory_write, reading the notes from the table (so what is there now
+ * counts) and writing what the check of writes accepts straight into it. `memoryOut` is told, as the reply goes, which notes it looked up ({ used }) and which changes it made ({ events }): the message keeps them.
  * `skills` (server/skills.js) reads the text of a skill the model loads by itself (the names it may load are in `spec.tools.skills`).
  * `connectors` (server/mcp/connections.js) gives the services the person has logged in to (the tools of them are offered when `spec.tools.connectors`), and
  * `connectorControl` is what the run manager answers the person's question about a tool with (the reply sets `answer`).
  * With CLI tools, `credentials` (server/cli-credentials.js) gives the person's secure credentials for them, and `netControl` is what the run manager
  * answers the person's questions about sites with (it is given the function that does so once the sandbox is there).
  */
-export async function executeReply({ spec, secrets, signal, steer = null, onSegment = null, resume: resumeFrom = null, userId = '', sandboxHost = null, files = null, credentials = null, skills = null, connectors = null, netControl = null, credentialControl = null, connectorControl = null, imageControl = null, credentialWaitMs = 10 * 60 * 1000, knownSources = [], onPaused = () => {}, watching = () => false, onUpdate = () => {}, onLive = () => {}, onCheckpoint = async () => {}, onProblem = () => {}, fetchImpl = fetch, now = Date.now }) {
+export async function executeReply({ spec, secrets, signal, steer = null, onSegment = null, resume: resumeFrom = null, userId = '', sandboxHost = null, files = null, credentials = null, skills = null, connectors = null, netControl = null, credentialControl = null, connectorControl = null, imageControl = null, memory = null, memoryOut = null, credentialWaitMs = 10 * 60 * 1000, knownSources = [], onPaused = () => {}, watching = () => false, onUpdate = () => {}, onLive = () => {}, onCheckpoint = async () => {}, onProblem = () => {}, fetchImpl = fetch, now = Date.now }) {
   const resume = spec.tools.advanced ? null : resumeFrom;
   const mode = spec.tools.webSearch;
   const language = spec.request.language;
@@ -99,6 +106,10 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
 
   // The connectors the reply really used (each once, in the order they were first used): the saved reply shows a row for each, as the live step list did.
   const usedConnectors = new Map();
+  // The skills loaded and the memory lookups and writes of the reply (each skill once): the saved reply shows a row for each, as the live step list did.
+  const usedTools = [];
+  // The searches and pages the model opened by itself, one row each (what the step list showed).
+  const usedWeb = [];
   const record = (status) => ({
     status,
     steps: [],
@@ -107,6 +118,8 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
     // (Of the pages in `sources`, this many were found in the messages before it: the row "Searched N sites" counts only its own, the answer's [n] cite them all.)
     ...(sources.length && sourceBase ? { sourcesBefore: Math.min(sourceBase, sources.length) } : {}),
     ...(usedConnectors.size ? { connectors: [...usedConnectors.values()] } : {}),
+    ...(usedTools.length ? { tools: usedTools.slice(0, 20) } : {}),
+    ...(usedWeb.length ? { web: usedWeb } : {}),
     ...(pictureSteps().length ? { pictures: pictureSteps() } : {}),
     ...(thought.text ? { thought: thought.text, thoughtKind: thought.kind, ...(thought.first && thought.last > thought.first ? { thoughtMs: thought.last - thought.first } : {}) } : {})
   });
@@ -114,7 +127,7 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
   // (After a cut, only what came after it: the earlier message keeps its own.)
   let pictureBase = 0;
   const pictureSteps = () => (imageLoader?.record || []).slice(pictureBase);
-  const messageText = (status) => `${sources.length || thought.text || usedConnectors.size || pictureSteps().length ? formatSandboxRunBlock(record(status)) : ''}${answer}`;
+  const messageText = (status) => `${sources.length || thought.text || usedConnectors.size || usedTools.length || pictureSteps().length ? formatSandboxRunBlock(record(status)) : ''}${answer}`;
   // The pictures the text model drew by itself (server/image-tool.js), as parts of the message.
   const drawnParts = [];
   // Where in the answer each picture was kept, so that the message reads "words, picture, words" (data/picture-interleave.js).
@@ -157,6 +170,8 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
       thoughtClosed = false;
       trimStart = true;
       usedConnectors.clear();
+      usedTools.length = 0;
+      usedWeb.length = 0;
       drawnParts.length = 0;
       drawnAt.length = 0;
       pictureBase = imageLoader?.record?.length || 0;
@@ -207,6 +222,8 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
     genConfig: spec.request.generation || { ...DEFAULT_GENERATION },
     reasoningEffort: spec.request.reasoningEffort,
     systemInstructionText: spec.request.systemInstruction,
+    // What bears on this message from the memory of notes (the page chose it); streamApiCall puts it after the message in the copy of the request.
+    ...(spec.request.memorySlip ? { memorySlipText: spec.request.memorySlip } : {}),
     webSearchEnabled: mode === 'grounding',
     requestPurpose: NOURAS_REQUEST_PURPOSE.USER_VISIBLE_ANSWER,
     onReasoning,
@@ -218,10 +235,102 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
   // The skills the model may load by itself: not with Gemini's own search (the provider refuses its tools next to that search).
   const skillList = skills && mode !== 'grounding' ? spec.tools.skills || [] : [];
   const makeSkillsOnly = ({ lookup = (name) => skills.body(userId, name) } = {}) => (skillList.length ? createSkillLoader({ available: skillList, lookup, readFile: skills.readFile ? (name, path) => skills.readFile(userId, name, path) : null }) : null);
+  // The memory of notes: the notes are read from the table now (not from the page), and an accepted write goes straight into it. Not with Gemini's own search (it refuses the tools beside it).
+  let memoryLoader = null;
+  const afterSteps = [];
+  if (memory && spec.tools.memory && (mode !== 'grounding' || spec.tools.memory.curator === true) && userId) {
+    try {
+      const conversationId = spec.conversationId;
+      let loaded = await memory.load(userId, { conversationId });
+      if (loaded.settings.use && spec.tools.memory.curator === true) {
+        // No tools for this model: after the reply (and its message is written) a small model reads the turn and the program keeps what the check accepts (runs.js calls this).
+        const turnMessages = spec.tools.memory.messages;
+        if (memoryOut) {
+          afterSteps.push(async () => {
+            const fresh = await memory.load(userId, { conversationId });
+            const settings = fresh.settings;
+            const current = turnMessages[turnMessages.length - 1];
+            if (!current || !settings.use || !settings.learn || settings.paused || spec.tools.memory.canWrite !== true) return;
+            const model = pickCuratorModel({ settingsId: settings.curatorModelId, current: spec.model.info, models: MODELS, hasKey: (provider) => provider === spec.model.provider });
+            if (!model) return;
+            const runModel = createMemoryModelRunner({ streamApiCall: access.streamApiCall, models: [model] });
+            let state = fresh;
+            await runCurator({
+              notes: fresh.notes,
+              turn: { messages: turnMessages, current, assistantExcerpt: answer.slice(0, 400) },
+              callModel: (prompt) => runModel({ modelId: model.id, prompt, signal }),
+              commit: async (result) => {
+                await memory.saveWrite(userId, { before: state, result, conversationId });
+                state = await memory.load(userId, { conversationId });
+              },
+              conversationId,
+              appliedOps: fresh.cursor.appliedOps,
+              createId: () => crypto.randomUUID(),
+              now: () => new Date(now()).toISOString()
+            });
+          });
+        }
+      } else if (loaded.settings.use) {
+        const used = new Set(spec.request.messageMetadata?.memoryUsed || []);
+        const events = [];
+        if (memoryOut) { memoryOut.used = [...used]; memoryOut.events = events; }
+        const appliedOps = [...loaded.cursor.appliedOps];
+        const canWrite = spec.tools.memory.canWrite === true && loaded.settings.learn && !loaded.settings.paused;
+        memoryLoader = createMemoryLoader({
+          getNotes: () => loaded.notes,
+          getContext: () => ({ conversationId, messages: spec.tools.memory.messages.map((message) => ({ id: message.id, role: 'user', text: message.text, at: message.at })), appliedOps }),
+          commit: async (result) => {
+            await memory.saveWrite(userId, { before: loaded, result, conversationId });
+            loaded = await memory.load(userId, { conversationId });
+          },
+          canWrite,
+          // Looking back through the past conversations (scope "history" or "both"): from the cloud workspace, by meaning too when the person synced their vectors and the page gave a key for this run.
+          searchHistory: spec.tools.memory.history === true && memory.history ? (() => {
+            const search = memory.history.forReply({ userId, conversationId, vector: spec.tools.memory.vector && secrets.embeddingKey ? { provider: spec.tools.memory.vector.provider, key: secrets.embeddingKey } : null, signal });
+            // The conversations looked into stay with the message (their ids and days, never their words).
+            return async (query, limit) => {
+              const hits = await search(query, limit);
+              if (memoryOut) {
+                const seen = memoryOut.history || (memoryOut.history = []);
+                for (const hit of hits) if (seen.length < 5 && !seen.some((entry) => entry.id === hit.conversationId)) seen.push({ id: hit.conversationId, ...(hit.at ? { at: String(hit.at).slice(0, 40) } : {}) });
+              }
+              return hits;
+            };
+          })() : null,
+          onUsed: ({ ids }) => {
+            ids.forEach((id) => used.add(id));
+            if (memoryOut) memoryOut.used = [...used];
+            // The notes the model looked up count as used (the list in the settings says when), as the ones of the slip do on the page.
+            void Promise.resolve(memory.markUsed?.(userId, ids)).catch((error) => onProblem('memory_mark_used_failed', error));
+          },
+          onWrite: ({ event }) => { if (event?.id) { events.push(event.id); if (memoryOut) memoryOut.events = events; } },
+          language,
+          createId: () => crypto.randomUUID(),
+          now: () => new Date(now()).toISOString()
+        });
+      }
+      // Once the reply is written, the notes are tidied if that is due (memory-tidy.js).
+      if (memoryOut && loaded.settings.use) {
+        afterSteps.push(createServerTidy({ memory, userId, replyModel: spec.model.info, provider: spec.model.provider, models: MODELS, makeRunner: (model) => createMemoryModelRunner({ streamApiCall: access.streamApiCall, models: [model] }), signal, now }));
+        memoryOut.afterReply = async () => { for (const step of afterSteps) { try { await step(); } catch (error) { onProblem('memory_after_reply_failed', error); } } };
+      }
+    } catch (error) {
+      memoryLoader = null;
+      onProblem('memory_unavailable', error);
+    }
+  }
   // What the reply's loops are given: the skills and the connectors as one loader (either may be missing).
-  const makeSkillLoader = (options) => combineLoaders(makeSkillsOnly(options), connectorLoader, imageLoader);
+  const makeSkillLoader = (options) => combineLoaders(makeSkillsOnly(options), connectorLoader, imageLoader, memoryLoader);
   // A skill being loaded is a row of the step list the pages show (the other steps of a reply without Python are not).
-  const skillEvents = (event) => { if (event.type === 'skill' || event.type === 'connector' || event.type === 'image') onLive({ ev: { ...event, t: Math.max(0, now() - startedAt) } }); };
+  const skillEvents = (event) => {
+    if (event.type === 'skill' && event.name && !usedTools.some((tool) => tool.kind === 'skill' && tool.name === event.name)) usedTools.push({ kind: 'skill', name: String(event.name).slice(0, 60) });
+    if (event.type === 'memory' && event.key) usedTools.push({ kind: 'memory', key: event.key });
+    else noteToolEnd(usedTools, event);
+    noteWebStep(usedWeb, event);
+    // Every step of the loops goes to the pages watching (the search, the pages it opened, the answer beginning) as well as the skills and the memory: they draw the same step list
+    // as a reply made on the page, and a page that joins late is given the steps so far (runs.js keeps them).
+    if (typeof event?.type === 'string') onLive({ ev: { ...event, t: Math.max(0, now() - startedAt) } });
+  };
 
   // The connectors (連接器): the services the person logged in to, with the tools they let a reply use. Not with Gemini's own search either (it refuses the tools beside it).
   // The question about a tool is a card in the step list, and the time the reply waits for the answer is not the reply's (as with a tool's login).
@@ -584,7 +693,7 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
 
   if (advanced) {
     const stopped = Boolean(signal?.aborted) || advanced.run?.status === RUN_STATUS.stopped;
-    const run = advanced.run || (sources.length || usedConnectors.size || pictureSteps().length ? { status: RUN_STATUS.done, steps: [] } : null);
+    const run = advanced.run || (sources.length || usedConnectors.size || usedTools.length || pictureSteps().length ? { status: RUN_STATUS.done, steps: [] } : null);
     if (!run || (!advanced.text.trim() && !run.steps.length && !run.thought)) {
       if (!advanced.text.trim() && !sources.length && !drawnParts.length) {
         if (stopped) return { parts: [{ text: '' }], status: 'stopped', run: record('stopped'), toolCalls, rounds: advanced.rounds };
@@ -595,6 +704,8 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
     // The pages the reply searched and the time it took are kept with the steps, as the browser keeps them.
     if (sources.length) run.sources = sources;
     if (usedConnectors.size) run.connectors = [...usedConnectors.values()];
+    if (usedTools.length || run.tools?.length) run.tools = [...(run.tools || []), ...usedTools].slice(0, 20);
+    if (usedWeb.length && !run.web?.length) run.web = usedWeb;
     if (pictureSteps().length) run.pictures = pictureSteps();
     // Python's steps are the whole reply's: what an earlier message of it already shows is not shown again.
     if (stepBase > 0) run.steps = run.steps.slice(stepBase);
@@ -625,7 +736,7 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
     const numberOf = (url) => Number(sources.find((source) => source.url === url)?.n) || 0;
     answer = insertGroundingMarkers(answer, supports, numberOf);
   }
-  if (!answer.trim() && !sources.length && !thought.text && !usedConnectors.size && !drawnParts.length && !pictureSteps().length) {
+  if (!answer.trim() && !sources.length && !thought.text && !usedConnectors.size && !usedTools.length && !drawnParts.length && !pictureSteps().length) {
     if (signal?.aborted) return { parts: [{ text: '' }], status: 'stopped', run: record('stopped'), toolCalls };
     throw new ReplyError('The model gave no answer.', 'provider_error');
   }

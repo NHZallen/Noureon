@@ -6,7 +6,6 @@ import { createMediaAttachmentRenderer as createMessageMediaAttachmentRenderer }
 import { createMediaPreviewLifecycle as createMessageMediaPreviewLifecycle } from '../messages/media-preview-lifecycle.js';
 import { createMessageListLifecycle } from '../messages/message-list-lifecycle.js';
 import { escapeHTML as escapeMarkup } from './shell-utilities.js';
-import { normalizeHistorySourceConversationIds } from '../memory/history-source-references.js';
 import { isHighRiskCustomNouras } from '../nouras/nouras-policy.js';
 import { createTemporaryChatLifecycle } from '../features/temporary-chat-lifecycle.js';
 import { visionRetryOffered } from '../features/vision-retry-state.js';
@@ -601,18 +600,8 @@ export function createSidebarChatAstraRenderLifecycle(dependencies = {}) {
         };
       })()
     }[key]),
-    getHistorySourceViews: (message) => normalizeHistorySourceConversationIds(
-      message?.metadata?.historySourceConversationIds
-    ).map((id) => {
-      const sourceConversation = getConversations().find(conversation => conversation.id === id);
-      if (!sourceConversation || sourceConversation.deletedAt) return { available: false };
-      return {
-        id: sourceConversation.id,
-        title: sourceConversation.title || i18n[getConfig().uiLanguage].newChat,
-        updatedAtLabel: formatFullTimestamp(sourceConversation.lastUpdatedAt || sourceConversation.createdAt),
-        available: true
-      };
-    }),
+    // The conversations a reply looked into are listed in its sources now (ui/citations/source-panel.js), not as a line of their own under it.
+    getHistorySourceViews: () => [],
     getHistorySourceTexts: () => ({
       referenceLabel: i18n[getConfig().uiLanguage].historySourcesUsed,
       updatedLabel: i18n[getConfig().uiLanguage].historySourceUpdated,

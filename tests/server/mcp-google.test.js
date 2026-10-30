@@ -322,31 +322,41 @@ test('a connector that is for some accounts only: the others are told to wait, c
   assert.match(url, /^https:\/\/accounts\.google\.com\//);
 });
 
-test('a request for the waitlist is one mail to the address of the settings that answers to the person; asking again does nothing more, and a mail that is refused can be asked again', async () => {
+test('a request for the waitlist is one mail to the address of the settings that answers to the account the person will log in with; asking again does nothing more, and a mail that is refused can be asked again', async () => {
   let time = 1_000_000;
   const mailer = fakeMailer();
   const { service } = gated({ mailer, now: () => time });
-  const bob = { id: USER, email: 'bob@example.com' };
-  assert.deepEqual(await service.requestAccess(bob, 'google'), { ok: true });
+  const bob = { id: USER, email: 'bob@outlook.example' };
+  const ask = (person, serviceEmail, connector = 'google') => service.requestAccess(person, connector, { serviceEmail });
+  assert.deepEqual(await ask(bob, 'Bob.Google@Example.com '), { ok: true });
   assert.equal(mailer.sent.length, 1);
   assert.equal(mailer.sent[0].to, 'support@noureon.com');
-  assert.equal(mailer.sent[0].replyTo, 'bob@example.com');
-  assert.match(mailer.sent[0].text, /bob@example\.com/);
+  assert.equal(mailer.sent[0].replyTo, 'bob.google@example.com', 'the answer goes to the account to log in with, not to the address of the Noureon account');
+  assert.match(mailer.sent[0].text, /bob\.google@example\.com/);
+  assert.match(mailer.sent[0].text, /bob@outlook\.example/, 'the address of the Noureon account is in the mail too');
   assert.ok(mailer.sent[0].text.includes(USER), 'the account id is in the mail, for the list');
   assert.match(mailer.sent[0].text, /CONNECTOR_GOOGLE_ALLOWED/);
-  assert.deepEqual(await service.requestAccess(bob, 'google'), { ok: true, already: true });
+  assert.deepEqual(await ask(bob, 'bob.google@example.com'), { ok: true, already: true });
   assert.equal(mailer.sent.length, 1);
+  // Another address (a typing mistake put right) is a new request.
+  assert.deepEqual(await ask(bob, 'bob.right@example.com'), { ok: true });
+  assert.equal(mailer.sent.length, 2);
   time += 25 * 60 * 60 * 1000;
-  assert.deepEqual(await service.requestAccess(bob, 'google'), { ok: true });
-  assert.equal(mailer.sent.length, 2, 'a day later it is asked again');
-  // Someone on the list has nothing to wait for; a connector with no waitlist, an account with no address, or a mail that cannot be sent say so.
-  assert.deepEqual(await service.requestAccess({ id: OTHER, email: 'carol@example.com' }, 'google'), { ok: true, open: true });
-  await assert.rejects(service.requestAccess(bob, 'notion'), (error) => error.code === 'bad_request');
-  await assert.rejects(service.requestAccess({ id: '323e4567-e89b-12d3-a456-426614174002', email: '' }, 'google'), (error) => error.code === 'bad_request');
+  assert.deepEqual(await ask(bob, 'bob.google@example.com'), { ok: true });
+  assert.equal(mailer.sent.length, 3, 'a day later it is asked again');
+  // An address that is not one is refused before any mail; an account with no address of its own may ask with the one it will log in with.
+  for (const bad of ['', 'bob', 'bob@', 'a b@example.com', 'bob@example', 'x@y.z,evil@a.b', '<x>@example.com']) {
+    await assert.rejects(ask(bob, bad), (error) => error.code === 'bad_request' && error.detail === 'invalid_email', `refused: ${bad}`);
+  }
+  assert.equal(mailer.sent.length, 3);
+  assert.deepEqual(await ask({ id: '323e4567-e89b-12d3-a456-426614174002', email: '' }, 'dan@example.com'), { ok: true });
+  // Someone on the list has nothing to wait for; a connector with no waitlist, or a mail that cannot be sent say so.
+  assert.deepEqual(await ask({ id: OTHER, email: 'carol@example.com' }, 'carol@example.com'), { ok: true, open: true });
+  await assert.rejects(ask(bob, 'bob@example.com', 'notion'), (error) => error.code === 'bad_request');
   const refusing = gated({ mailer: fakeMailer({ fail: true }) });
-  await assert.rejects(refusing.service.requestAccess(bob, 'google'), (error) => error.code === 'failed' && error.detail === 'refused');
+  await assert.rejects(refusing.service.requestAccess(bob, 'google', { serviceEmail: 'bob@example.com' }), (error) => error.code === 'failed' && error.detail === 'refused');
   const silent = gated({ mailer: { configured: false, send: async () => {} } });
-  await assert.rejects(silent.service.requestAccess(bob, 'google'), (error) => error.code === 'failed' && error.detail === 'mail_not_configured');
+  await assert.rejects(silent.service.requestAccess(bob, 'google', { serviceEmail: 'bob@example.com' }), (error) => error.code === 'failed' && error.detail === 'mail_not_configured');
 });
 
 test('the mailer sends to Resend with the key in the header only, names who an answer goes to, and refuses a header with a line break', async () => {

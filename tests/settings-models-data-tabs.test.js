@@ -8,7 +8,6 @@ import { ensureStorageUsageBlock } from '../src/app/runtime/settings/settings-st
 import { ensureAutoWebSearchSettingsControl, ensureFileModeSettingsControl, ensureProcessOpenSettingsControl } from '../src/app/runtime/settings/settings-vision-check-control.js';
 import { ensureVisionCheckSettingsControl } from '../src/app/runtime/settings/settings-vision-check-section.js';
 import { ensureReplyInputSettingsControl } from '../src/app/runtime/settings/settings-reply-input-control.js';
-import { createSettingsMemorySummaryControls } from '../src/app/runtime/settings/settings-memory-summary-controls.js';
 
 // The Models and Data tabs are written out in full in the page (03-shell fragment): the controls that used to build them find
 // what is there and only attach to it.
@@ -48,33 +47,6 @@ test('each key sits in its own block, so the key controls can wrap it with the s
   }
   // What comes and goes with the search source is a whole row or key block, never half of one.
   assert.equal(document.getElementById('tavily-search-depth-select').closest('div').classList.contains('pz-row'), true);
-});
-
-test('the memory model control that is in the page is used, and saves once however often the tab is opened', async () => {
-  const { document } = createPage();
-  const saved = [];
-  const config = { uiLanguage: 'zh-TW', memoryModelId: 'gemini-3.5-flash-lite' };
-  const controls = createSettingsMemorySummaryControls({
-    document,
-    models: [{ id: 'gemini-3.5-flash-lite', name: 'Flash Lite' }, { id: 'gemini-3-flash', name: 'Flash' }],
-    getConfig: () => config,
-    getMemoryState: () => ({}),
-    saveConfig: async () => { saved.push(config.memoryModelId); }
-  });
-  document.body.insertAdjacentHTML('beforeend', '<div id="memory-section"></div>');
-  controls.ensureControls();
-  controls.ensureControls();
-
-  assert.equal(document.querySelectorAll('#memory-model-setting').length, 1, 'no second control is built');
-  assert.equal(document.getElementById('model-management-section').contains(document.getElementById('memory-model-setting')), true);
-  const select = document.getElementById('memory-model-select');
-  assert.deepEqual([...select.options].map((option) => option.value), ['gemini-3.5-flash-lite', 'gemini-3-flash']);
-  assert.equal(document.getElementById('memory-model-title').textContent.length > 0, true);
-
-  select.value = 'gemini-3-flash';
-  select.dispatchEvent(new document.defaultView.Event('change'));
-  await new Promise((resolve) => setTimeout(resolve, 0));
-  assert.deepEqual(saved, ['gemini-3-flash'], 'one change is saved once');
 });
 
 test('the Data tab has the three actions as rows and the delete-all button in the danger card', () => {

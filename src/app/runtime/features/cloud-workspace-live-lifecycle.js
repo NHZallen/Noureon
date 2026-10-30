@@ -14,8 +14,6 @@ import {
 import { CLI_MERGED_FIELDS } from '../../../data/cli-settings-merge.js';
 import { SETTINGS_STAMPS_FIELD } from '../../../data/settings-merge.js';
 import { SKILL_MERGED_FIELDS } from '../../../data/skill-settings-merge.js';
-import { mergeSyncedMemoryState } from '../memory/memory-sync-projection.js';
-import { mergeMemoryStateWithSummaryRecords } from '../memory/memory-summary-records.js';
 import { SERVICES, getService, provideService } from '../services.js';
 
 // The only settings the merge of the CLI tools and the skills hands to the page (see sync/cloud-workspace-sync.js): any other field of the event is dropped,
@@ -127,6 +125,7 @@ function getActiveConversationState(workspace = {}, activeConversationId = null)
 }
 
 function getVisibleConfigState(config = {}) {
+  // The old memory summary was kept in the settings under `memorySync`; it is no longer written, and one that is still there is left out.
   const { memorySync: _memorySync, ...visibleConfig } = config;
   return visibleConfig;
 }
@@ -157,7 +156,6 @@ export function createCloudWorkspaceLiveLifecycle({
   onRemoteConversationsApplied = () => {},
   onRemoteConversationsMovedToTrash = () => {},
   onRemoteConversationsPermanentlyDeleted = () => {},
-  onMemorySyncApplied = () => {},
   saveAppData = async () => {},
   busy = () => false,
   schedule = (callback, delay) => globalThis.setTimeout(callback, delay),
@@ -166,7 +164,6 @@ export function createCloudWorkspaceLiveLifecycle({
   let ready = false;
   let pendingAppData = null;
   let pendingConfig = null;
-  let pendingMemorySummaryRecords = null;
   let deferredRenderTimer = null;
   let protectedConversation = null;
   let hydrationGeneration = 0;
@@ -391,18 +388,6 @@ export function createCloudWorkspaceLiveLifecycle({
     const languageChanged = changedSyncedKeys.includes('uiLanguage');
     const visibleConfigChanged = changedSyncedKeys.length > 0;
     configAccess.replaceConfig(normalizedConfig);
-    if (normalizedConfig.memorySync) {
-      const mergedMemoryState = mergeSyncedMemoryState(
-        appDataStore.getMemoryState?.() || {},
-        normalizedConfig.memorySync
-      );
-      appDataStore.replaceMemoryState(mergedMemoryState);
-      void saveAppData();
-      if (mergedMemoryState.memorySummary?.needsRefresh === true) {
-        void Promise.resolve(onMemorySyncApplied(mergedMemoryState.memorySummary))
-          .catch(error => logger.warn('Memory summary could not reconcile a sync merge.', error));
-      }
-    }
     if (appearanceChanged) {
       applyUiTheme();
     }
@@ -416,34 +401,12 @@ export function createCloudWorkspaceLiveLifecycle({
     }
   };
 
-  const applyMemorySummaryRecords = records => {
-    if (!ready) {
-      pendingMemorySummaryRecords = records;
-      return;
-    }
-    if (!Array.isArray(records)) return;
-    const currentMemoryState = appDataStore.getMemoryState?.() || {};
-    const mergedMemoryState = mergeMemoryStateWithSummaryRecords(currentMemoryState, records);
-    if (cloudValuesEqual(currentMemoryState, mergedMemoryState)) return;
-    appDataStore.replaceMemoryState(mergedMemoryState);
-    void saveAppData();
-    if (mergedMemoryState.memorySummary?.needsRefresh === true) {
-      void Promise.resolve(onMemorySyncApplied(mergedMemoryState.memorySummary))
-        .catch(error => logger.warn('Memory summary could not reconcile a record sync merge.', error));
-    }
-  };
-
   const markReady = () => {
     ready = true;
     if (pendingConfig) {
       const nextConfig = pendingConfig;
       pendingConfig = null;
       applyConfig(nextConfig);
-    }
-    if (pendingMemorySummaryRecords) {
-      const nextRecords = pendingMemorySummaryRecords;
-      pendingMemorySummaryRecords = null;
-      applyMemorySummaryRecords(nextRecords);
     }
     if (pendingAppData) {
       const nextAppData = pendingAppData;
@@ -465,7 +428,6 @@ export function createCloudWorkspaceLiveLifecycle({
     if (!Object.keys(fields).length) return;
     configAccess.replaceConfig({ ...configAccess.getConfig(), ...fields });
   });
-  window.addEventListener('astra:cloud-memory-summary', event => applyMemorySummaryRecords(event.detail?.records));
   window.addEventListener('astra:active-conversation-changed', requestActiveConversationHydration);
   provideService(SERVICES.cloudRuntimeReady, markReady);
 

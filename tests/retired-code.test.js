@@ -517,12 +517,6 @@ const RETIRED = {
       /\b(?:const|function)\s+compareVersions\b/
     ],
   },
-  'src/app/runtime/shell/model-memory-dashboard-lifecycle.js': {
-    "model memory dashboard lifecycle moves model usage chart ownership out of 03": [
-      /renderModelManagementUI|moveModelOrder/,
-      /legacy-runtime\/fragments|virtual:legacy-app-runtime/
-    ],
-  },
   'src/app/runtime/shell/model-registry.js': {
     "legacy model registry owns static model metadata and capability helpers": [
       /virtual:legacy-app-runtime|legacy-runtime\/fragments|runtime-entry|legacy-app\.js/
@@ -854,9 +848,6 @@ const PARTS = {
     'src/app/runtime/shell/model-request-engine.js',
     'src/app/runtime/settings/settings-modal-lifecycle.js',
     'src/app/runtime/settings/settings-dialog-parts.js'
-  ],
-  'src/app/runtime/shell/workspace-features.js': [
-    'src/app/runtime/memory/memory-runtime.js'
   ],
   'src/app/runtime/shell/submit-input-council-lifecycle.js': [
     'src/app/runtime/shell/submit-input-composer.js',

@@ -32,6 +32,13 @@ alter default privileges in schema public grant all on functions to anon, authen
 alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;
 `;
 
+// PGlite does not carry pgvector, so a migration that uses it is run with the vector column as plain text and the extension line taken out (the tables, the rules and the grants are
+// what the tests look at). The distance function is not run here; Supabase has the real extension.
+function withoutPgvector(sql) {
+  if (!/create extension if not exists vector/i.test(sql)) return sql;
+  return `set check_function_bodies = off;\n${sql.replace(/create extension if not exists vector[^;]*;/i, '').replaceAll('extensions.vector(768)', 'text').replaceAll('extensions.vector', 'text')}`;
+}
+
 const quote = (value) => `'${String(value).replaceAll("'", "''")}'`;
 
 /** A database with all the migrations applied. `files` says which ones (all by default). */
@@ -41,7 +48,7 @@ export async function createDatabase({ upTo = null } = {}) {
   const files = readdirSync(MIGRATIONS).filter((name) => name.endsWith('.sql')).sort().filter((name) => !upTo || name <= upTo);
   for (const file of files) {
     try {
-      await db.exec(readFileSync(new URL(file, MIGRATIONS), 'utf8'));
+      await db.exec(withoutPgvector(readFileSync(new URL(file, MIGRATIONS), 'utf8')));
     } catch (error) {
       throw new Error(`${file}: ${error.message}`);
     }

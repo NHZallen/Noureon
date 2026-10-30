@@ -2,6 +2,22 @@
   "comment": "Modules of src/ the server may use, with everything they import. Read a module for browser use (window, document, storage, import.meta.env) before adding it; the check fails when the server starts using a module that is not here, or when one here is no longer used.",
   "modules": [
     {
+      "path": "src/app/runtime/memory-notes/records.js",
+      "note": "Reviewed 2026-10-30: no browser globals (the rows of the memory: a row into a note, two versions of a note into one; docs/superpowers/specs/2026-10-30-memory-redesign-design.md)."
+    },
+    {
+      "path": "src/app/runtime/memory-notes/supersede.js",
+      "note": "Reviewed 2026-10-30: no browser globals (which of two sightings holds; docs/superpowers/specs/2026-10-30-memory-redesign-design.md)."
+    },
+    {
+      "path": "src/app/runtime/memory-notes/tokenize.js",
+      "note": "Reviewed 2026-10-30: no browser globals (the terms a text is searched by; docs/superpowers/specs/2026-10-30-memory-redesign-design.md)."
+    },
+    {
+      "path": "src/app/runtime/memory-notes/notes.js",
+      "note": "Reviewed 2026-10-30: no browser globals (the shape of a note of the memory and its limits; docs/superpowers/specs/2026-10-30-memory-redesign-design.md)."
+    },
+    {
       "path": "src/app/runtime/reply/steer-queue.js",
       "note": "Reviewed 2026-10-26: no browser globals (the messages a person adds while a reply is made, kept until the next boundary of its loop)."
     },
@@ -135,9 +151,6 @@
     {
       "path": "src/app/runtime/shell/opencode-models.js",
       "note": "Reviewed 2026-10-13: no browser globals (the list of OpenCode Go models: the form of API of each, pictures)."
-    },
-    {
-      "path": "src/app/runtime/memory/memory-context-builder.js"
     },
     {
       "path": "src/app/runtime/nouras/nouras-policy.js"
@@ -502,6 +515,74 @@
     {
       "path": "src/data/picture-interleave.js",
       "note": "Reviewed 2026-10-22: no browser globals (where the pictures a text model drew stand among the words of its reply)."
+    },
+    {
+      "path": "src/data/combine-loaders.js",
+      "note": "Reviewed 2026-10-30: no browser globals (one loader out of the loaders of skills, connectors, pictures and memory; moved here from server/mcp/tool-loader.js so the page can use it; docs/superpowers/specs/2026-10-30-memory-redesign-design.md)."
+    },
+    {
+      "path": "src/app/runtime/memory-notes/bm25.js",
+      "note": "Reviewed 2026-10-30: no browser globals (the search over notes; docs/superpowers/specs/2026-10-30-memory-redesign-design.md)."
+    },
+    {
+      "path": "src/app/runtime/memory-notes/inject.js",
+      "note": "Reviewed 2026-10-30: no browser globals (the first page, the slip and the search of notes; docs/superpowers/specs/2026-10-30-memory-redesign-design.md)."
+    },
+    {
+      "path": "src/app/runtime/memory-notes/lifecycle.js",
+      "note": "Reviewed 2026-10-30: no browser globals (reinforce, expire, fade of notes; docs/superpowers/specs/2026-10-30-memory-redesign-design.md)."
+    },
+    {
+      "path": "src/app/runtime/memory-notes/standing.js",
+      "note": "Reviewed 2026-10-30: no browser globals (which notes are on the first page; docs/superpowers/specs/2026-10-30-memory-redesign-design.md)."
+    },
+    {
+      "path": "src/app/runtime/memory-notes/tombstone.js",
+      "note": "Reviewed 2026-10-30: no browser globals (what the person deleted is not learned again; docs/superpowers/specs/2026-10-30-memory-redesign-design.md)."
+    },
+    {
+      "path": "src/app/runtime/memory-notes/write-check.js",
+      "note": "Reviewed 2026-10-30: no browser globals (the check every write into the memory goes through; docs/superpowers/specs/2026-10-30-memory-redesign-design.md)."
+    },
+    {
+      "path": "src/app/runtime/memory-store/memory-trace.js",
+      "note": "Reviewed 2026-10-30: no browser globals (what the memory did in the reply being made (a small registry); docs/superpowers/specs/2026-10-30-memory-redesign-design.md)."
+    },
+    {
+      "path": "src/data/memory-tool.js",
+      "note": "Reviewed 2026-10-30: no browser globals (the tools search_memory and memory_write and their loader; docs/superpowers/specs/2026-10-30-memory-redesign-design.md)."
+    },
+    {
+      "path": "src/data/memory-curator.js",
+      "note": "Reviewed 2026-10-30: no browser globals (the curator that learns from a turn for a model with no memory tools: its prompt, the reading of its answer, which model; docs/superpowers/specs/2026-10-30-memory-redesign-design.md)."
+    },
+    {
+      "path": "src/app/runtime/shell/memory-model-runner.js",
+      "note": "Reviewed 2026-10-30: no browser globals (runs a small background request through the usual transport; used by the curator on the server)."
+    },
+    {
+      "path": "src/app/runtime/memory-notes/consolidate.js",
+      "note": "Reviewed 2026-10-30: no browser globals (the rules of the tidy of the notes: due, first layer, suspect groups, the check of the model's answer; docs/superpowers/specs/2026-10-30-memory-redesign-design.md)."
+    },
+    {
+      "path": "src/data/memory-consolidate.js",
+      "note": "Reviewed 2026-10-30: no browser globals (runs the tidy of the notes: the prompt for a group, the reading of the answer, the archive of what was joined and the event that undoes it; docs/superpowers/specs/2026-10-30-memory-redesign-design.md)."
+    },
+    {
+      "path": "src/app/runtime/memory-notes/history-index.js",
+      "note": "Reviewed 2026-10-30: no browser globals (the search over the pieces of past conversations; shared with the page; docs/superpowers/specs/2026-10-30-memory-redesign-design.md, §5)."
+    },
+    {
+      "path": "src/app/runtime/memory-notes/vector-math.js",
+      "note": "Reviewed 2026-10-30: pure functions (unit vectors, cosine, the way two orders are put together, the hash of a text)."
+    },
+    {
+      "path": "src/app/runtime/memory-store/embedding-client.js",
+      "note": "Reviewed 2026-10-30: no browser globals; the page gives it the fetch and the key (the question of a search by meaning is turned into a vector with the key the page put in the request for this run)."
+    },
+    {
+      "path": "src/data/memory-rebuild.js",
+      "note": "Reviewed 2026-10-30: no browser globals (which conversations are read and how the curator is run over them; the server runs the same rebuild as the page; docs/superpowers/specs/2026-10-30-memory-redesign-design.md)."
     }
   ]
 }

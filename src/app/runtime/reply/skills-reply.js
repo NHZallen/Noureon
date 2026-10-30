@@ -5,7 +5,7 @@
 
 import { loaderInstruction } from '../../../data/skill-tool.js';
 import { keepToolResult } from '../../../data/tool-result.js';
-import { loaderStepEvent } from '../sandbox/sandbox-texts.js';
+import { loaderEndEvent, loaderStepEvent } from '../sandbox/sandbox-texts.js';
 import { steerTurnFields } from './steer-queue.js';
 
 /**
@@ -50,6 +50,7 @@ export async function runSkillsReply({ streamApiCall, requestParts, onChunk = ()
       const step = loaderStepEvent(loader, call, language);
       if (step) onEvent(step);
       results.push(keepToolResult(call, await loader.run(call)));
+      if (step) onEvent(loaderEndEvent(loader, call, language));
       if (signal?.aborted) break;
     }
     toolTurns.push({ assistant: response, results, ...steerTurnFields(steer) });

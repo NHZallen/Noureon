@@ -4,8 +4,8 @@
 // answer text and the run record kept above it. Loaded on demand.
 
 import { MAX_RUNS_PER_REPLY, MAX_RUNS_WITH_CLI, RUN_COMMAND_TOOL, RUN_PYTHON_TOOL, RUN_PYTHON_TOOL_SERVER, RUN_PYTHON_TOOL_SERVER_NET, REQUEST_CREDENTIALS_TOOL, getCliGuidance, getSandboxGuidance } from './sandbox-guidance.js';
-import { loaderStepEvent, sandboxText } from './sandbox-texts.js';
-import { RUN_STATUS } from '../../ui/sandbox/sandbox-run-block.js';
+import { loaderEndEvent, loaderStepEvent, sandboxText } from './sandbox-texts.js';
+import { RUN_STATUS, applyToolEnd, noteWebStep, toolOfEvent } from '../../ui/sandbox/sandbox-run-block.js';
 import { partialJsonString } from '../features/tool-call-formats.js';
 import { RESEARCH_TOOLS, createResearchCalls, researchGuidance } from '../features/web-research-reply.js';
 import { loaderInstruction } from '../../../data/skill-tool.js';
@@ -270,7 +270,7 @@ export async function runSandboxReply({
 
   const guidance = [getSandboxGuidance({ inputFiles, designs, host, network: host === 'server' && network }), useCli ? getCliGuidance(cliTools.map((tool) => ({ ...tool, file: tool.program?.file || tool.pip?.command || tool.image?.command })), { canAsk: typeof askCredentials === 'function' }) : '', researchTools ? researchGuidance() : '', skillLoader ? loaderInstruction(skillLoader) : ''].filter(Boolean).join('\n\n');
   const research = researchTools
-    ? createResearchCalls({ ...researchTools, language, signal, onEvent })
+    ? createResearchCalls({ ...researchTools, language, signal, onEvent: (event) => { noteWebStep((run.web ||= []), event); onEvent(event); } })
     : null;
 
   for (;;) {
@@ -410,7 +410,15 @@ export async function runSandboxReply({
         // A skill the model loads: its text is the answer to the call (it never fails: the answer says what went wrong).
         const step = loaderStepEvent(skillLoader, call, language);
         if (step) onEvent(step);
+        // Kept with the saved reply (the rows of the step list that are not Python).
+        const tool = toolOfEvent(step);
+        if (tool) (run.tools ||= []).push(tool);
         results.push(keepToolResult(call, await skillLoader.run(call)));
+        if (step) {
+          const ended = loaderEndEvent(skillLoader, call, language);
+          applyToolEnd(tool, ended);
+          onEvent(ended);
+        }
         continue;
       }
       if (!isRunTool(call.name)) {
@@ -530,5 +538,5 @@ export async function runSandboxReply({
     throw new Error(sandboxText(language, 'outputLimit'));
   }
   // `answer`: what the model said in the last round (the whole text also holds what it said before its runs, if it said any).
-  return { text, answer: text.slice(roundTextStart).trim(), rounds, run: run.steps.length || run.fallback || run.thought ? run : null };
+  return { text, answer: text.slice(roundTextStart).trim(), rounds, run: run.steps.length || run.fallback || run.thought || run.tools?.length ? run : null };
 }

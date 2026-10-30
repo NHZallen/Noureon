@@ -3,7 +3,7 @@ import test from 'node:test';
 
 import { createStreamApiCall } from '../../src/app/runtime/reply/stream-api-call.js';
 import { NOURAS_REQUEST_PURPOSE } from '../../src/app/runtime/nouras/nouras-policy.js';
-import { buildHistoryIndexTurns } from '../../src/app/runtime/memory/history-index-source.js';
+import { piecesOf } from '../../src/app/runtime/memory-notes/history-index.js';
 import { buildTitleSummaryPrompt } from '../../src/app/runtime/settings/settings-title-summary-helpers.js';
 import { getFileAuthoringGuidance } from '../../src/app/ui/files/file-authoring-guidance.js';
 import { compactFileHistoryForApi, summarizeFileBlocks } from '../../src/app/ui/files/file-history-compaction.js';
@@ -144,7 +144,7 @@ test('memory, history index and title prompts see a file summary instead of its 
   const summary = summarizeFileBlocks(text, { excerptLength: 20 });
   assert.match(summary, /^Here:\n\[File: data\.json\] x{20}…\nDone$/);
 
-  const turns = buildHistoryIndexTurns({ id: 'c', messages: [{ role: 'model', parts: [{ text }] }] });
+  const turns = piecesOf({ id: 'c', messages: [{ role: 'model', parts: [{ text }] }] }, summarizeFileBlocks);
   assert.ok(turns[0].text.length < 600);
   assert.match(turns[0].text, /\[File: data\.json\]/);
 

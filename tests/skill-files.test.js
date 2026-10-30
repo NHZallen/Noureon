@@ -165,7 +165,8 @@ test('a plain reply: the model loads a skill with files, reads one, and answers;
   });
   assert.equal(result.text, 'Report in bullets.');
   assert.deepEqual(requests.map((request) => request.tools), [['load_skill'], ['load_skill', 'read_skill_file'], ['load_skill', 'read_skill_file']]);
-  assert.deepEqual(events.map((event) => event.label), ['Loading skill: sales-report', 'Reading skill file: references/format.md']);
+  assert.deepEqual(events.filter((event) => event.label).map((event) => event.label), ['Loading skill: sales-report', 'Reading skill file: references/format.md']);
+  assert.equal(events.filter((event) => event.type === 'tool-end').length, 2, 'each call tells that it is over');
   assert.equal(result.calls, 2);
 });
 

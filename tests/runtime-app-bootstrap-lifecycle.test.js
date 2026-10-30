@@ -449,13 +449,11 @@ test('bound handlers preserve state bridges and injected handoffs', async () => 
 
   findListener(harness.listeners, 'messageInput', 'input')({ target: { closest: () => null } });
   findListener(harness.listeners, 'cancelAvatarCropBtn', 'click')();
-  await findListener(harness.listeners, 'addPersonalMemoryBtn', 'click')();
 
   assert.equal(harness.getState().sendConfirmed, false);
   assert.equal(harness.getState().cropperDestroyed, true);
   assert.equal(harness.getState().cropperInstance, null);
   assert.equal(harness.getState().editingAstraForAvatarId, null);
-  assert.deepEqual(harness.getState().personalMemories, []);
 });
 
 test('composer expand control toggles the expanded state and recalculates textarea height', async () => {

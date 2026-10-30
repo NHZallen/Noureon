@@ -3,6 +3,7 @@
 
 import { removeLastComposerIndicatorOnDelete } from './composer-indicator-keyboard.js';
 import { replySteering } from './reply-steering.js';
+import { watchComposerGrowth } from './composer-growth-watch.js';
 
 export function bindComposerInput({
     window, document, elements: ALL_ELEMENTS, setSendConfirmed, updateInputState: resolveEventsUpdateInputState, adjustTextareaHeight,
@@ -40,6 +41,7 @@ export function bindComposerInput({
     });
     ALL_ELEMENTS.messageInput.addEventListener('input', adjustTextareaHeight);
     ALL_ELEMENTS.messageInput.addEventListener('composerplaceholderchange', adjustTextareaHeight);
+    watchComposerGrowth({ textarea: ALL_ELEMENTS.messageInput, adjust: adjustTextareaHeight });
     ALL_ELEMENTS.expandInputButton?.addEventListener('click', () => {
         const wrapper = ALL_ELEMENTS.messageInput.closest('.input-wrapper');
         if (!wrapper) return;

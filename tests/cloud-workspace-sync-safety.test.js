@@ -138,7 +138,7 @@ test('"sync now" sends, fetches and reports per kind, leaves conversations alone
   assert.ok(syncNow.indexOf('await flush()') < syncNow.indexOf('await fetchRemote()'));
   assert.match(syncNow, /for \(const kind of Object\.keys\(CLOUD_SYNC_KINDS\)\)[\s\S]*await reconcileKind\(kind\)/);
   assert.ok(syncNow.lastIndexOf('await flush()') > syncNow.indexOf('await fetchRemote()'));
-  assert.doesNotMatch(syncNow, /conversationShadowSync|memorySummarySync/);
+  assert.doesNotMatch(syncNow, /conversationShadowSync/);
   // Each kind that fails is told, and the others still go.
   assert.match(source, /try \{\s*const result = await uploadKind\(kind\);[\s\S]*?\} catch \(error\) \{\s*kindErrors\.set\(kind/);
   // A kind is synced, pending, waiting for the vault, or failed.

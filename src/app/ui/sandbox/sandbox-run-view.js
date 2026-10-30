@@ -3,7 +3,7 @@
 // the model thought, the code (coloured like other code blocks), its output and the files it made. The rows are
 // drawn like the live step list is (ledger.js), so what streamed in is what stays.
 
-import { sandboxText, skippedFileText } from '../../runtime/sandbox/sandbox-texts.js';
+import { memoryDoneLabel, sandboxText, skippedFileText } from '../../runtime/sandbox/sandbox-texts.js';
 import { animateDetails } from '../motion/collapse-motion.js';
 import { fillThinkingText } from '../thinking/thinking-text.js';
 import { formatElapsed } from '../ledger/ledger.js';
@@ -57,14 +57,30 @@ function thoughtRow(document, thought, language, { interrupted = false, label } 
 const ownSources = (run) => (run.sources || []).slice(run.sourcesBefore || 0);
 
 // "Searched 2 sites": the sites the reply looked at, found by a search or read in full, as one row of chips.
-function sourcesRows(document, sources, language) {
+function sourcesRows(document, sources, language, web = []) {
+  // The model's own searches and pages are a row each (what the live step list showed), with the pages each gave back; the others are one row.
+  if (web.length) {
+    const byNumber = new Map(sources.filter((source) => Number.isInteger(source.n)).map((source) => [source.n, source]));
+    return web.map((step) => {
+      const found = mergeSources((step.ns || []).map((n) => byNumber.get(n)).filter(Boolean));
+      return renderRow(document, { kind: 'search', label: sandboxText(language, step.kind === 'page' ? 'webOpened' : 'webSearched', { query: step.target, host: step.target }), body: found.length ? [createSourceChips(document, found)] : [], ...(found.length ? { sources: found } : {}) });
+    });
+  }
   const all = mergeSources(sources);
   return all.length ? [renderRow(document, { kind: 'search', label: sourcesRowLabel(language, all), body: [createSourceChips(document, all)], sources: all })] : [];
 }
 
 // "Using connector: GitHub": a row for each connector the reply used (the same row the live step list had; which tools it called is not kept).
 function connectorRows(document, run, language) {
-  return (run.connectors || []).map((name) => renderRow(document, { kind: 'connector', label: sandboxText(language, 'connectorUsing', { connector: name }), body: [] }));
+  const tools = (run.tools || []).map((tool) => {
+    if (tool.kind === 'skill') return renderRow(document, { kind: 'skill', label: sandboxText(language, 'skillLoaded', { name: tool.name }), body: [] });
+    // A step that says which notes or conversations it gave back opens to them; the list is filled when it opens (the page knows the notes and the chats as they are then).
+    const items = tool.key === 'memorySearching' ? tool.ids : tool.key === 'memoryReviewing' ? tool.chats : null;
+    const row = renderRow(document, { kind: { memorySearching: 'memory-recall', memoryReviewing: 'memory-review', memoryWriting: 'memory-write' }[tool.key], label: memoryDoneLabel(language, tool.key, tool.count), body: items?.length ? [element(document, 'div', 'memory-row-list')] : [] });
+    if (items?.length) row.dataset.memoryItems = JSON.stringify(items);
+    return row;
+  });
+  return [...tools, ...(run.connectors || []).map((name) => renderRow(document, { kind: 'connector', label: sandboxText(language, 'connectorUsing', { connector: name }), body: [] }))];
 }
 
 // The pictures the text model looked at, was asked about and drew: a row each (ui/sandbox/picture-steps-view.js).
@@ -159,7 +175,7 @@ function councilRunElement(document, container, run, language) {
   const timeline = element(document, 'div', 'council-tl-saved');
   timeline.innerHTML = councilTimelineHTML({ ...run.council, stage: 'completed' }, { language });
   list.append(timeline);
-  if (ownSources(run).length) list.append(...sourcesRows(document, ownSources(run), language));
+  if (ownSources(run).length) list.append(...sourcesRows(document, ownSources(run), language, run.web));
   list.append(...connectorRows(document, run, language));
   run.steps.forEach((step, index) => {
     if (step.thought) list.append(thoughtRow(document, step.thought, language));
@@ -197,13 +213,13 @@ export function createSandboxRunElement(document, run, { language = 'zh-TW' } = 
     container.append(element(document, 'p', 'sandbox-fallback-note', sandboxText(language, 'fallbackNotice', { reason: sandboxText(language, `reason.${run.fallback}`) })));
   }
   if (run.council) return councilRunElement(document, container, run, language);
-  if (!run.steps.length && (ownSources(run).length || run.connectors?.length || run.pictures?.length || run.segment) && run.elapsedMs > 0) {
+  if (!run.steps.length && (ownSources(run).length || run.connectors?.length || run.tools?.length || run.pictures?.length || run.segment) && run.elapsedMs > 0) {
     // A reply that searched the web but ran no Python is a process like any other: the one line with how long it took,
     // as the live view had, opening to the pages and the thinking. (Replies saved before the time was kept have no line.)
     const details = element(document, 'details', 'sandbox-run-details');
     const summary = element(document, 'summary', 'sandbox-run-summary', summaryText(run, language));
     const list = element(document, 'div', 'sandbox-run-steps');
-    list.append(...sourcesRows(document, ownSources(run), language), ...connectorRows(document, run, language), ...pictureRows(document, run, language));
+    list.append(...sourcesRows(document, ownSources(run), language, run.web), ...connectorRows(document, run, language), ...pictureRows(document, run, language));
     if (run.thought) list.append(thoughtRow(document, run.thought, language, { interrupted: run.thoughtInterrupted, label: thinkingLabel(run, language) }));
     details.append(summary, list);
     animateDetails(details);
@@ -212,7 +228,7 @@ export function createSandboxRunElement(document, run, { language = 'zh-TW' } = 
   }
   if (!run.steps.length) {
     // A reply without Python: the pages it searched, and how the model thought before it answered.
-    if (ownSources(run).length) container.append(...sourcesRows(document, ownSources(run), language));
+    if (ownSources(run).length) container.append(...sourcesRows(document, ownSources(run), language, run.web));
     container.append(...connectorRows(document, run, language), ...pictureRows(document, run, language));
     if (run.thought) container.append(renderReplyThinking(document, run, language));
     // Nothing else to say above the answer: only where it was made.
@@ -222,7 +238,7 @@ export function createSandboxRunElement(document, run, { language = 'zh-TW' } = 
   const details = element(document, 'details', 'sandbox-run-details');
   const summary = element(document, 'summary', 'sandbox-run-summary', summaryText(run, language));
   const list = element(document, 'div', 'sandbox-run-steps');
-  if (ownSources(run).length) list.append(...sourcesRows(document, ownSources(run), language));
+  if (ownSources(run).length) list.append(...sourcesRows(document, ownSources(run), language, run.web));
   list.append(...connectorRows(document, run, language), ...pictureRows(document, run, language));
   run.steps.forEach((step, index) => {
     if (step.thought) list.append(thoughtRow(document, step.thought, language));

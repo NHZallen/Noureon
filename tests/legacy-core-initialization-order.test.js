@@ -51,7 +51,7 @@ for (const [label, endPattern] of blocks) {
     assert.ok(block, `the ${label} destructuring block should exist`);
 
     const declared = declaredNames(lines.slice(block.start + 1, block.end));
-    assert.ok(declared.size > 20, `expected many bindings, found ${declared.size}`);
+    assert.ok(declared.size > 10, `expected many bindings, found ${declared.size}`);
 
     const beforeDeclaration = stripComments(lines.slice(0, block.start).join('\n'));
 

@@ -27,8 +27,6 @@ test('saveSettings writes API keys through sensitive key callbacks before normal
   dependencies.elements.tavilySearchDepthSelect.value = 'advanced';
   dependencies.elements.autoWebSearchToggleSwitch.checked = true;
   dependencies.elements.autoNamingToggleSwitch.checked = true;
-  dependencies.elements.memoryToggle1.checked = true;
-  dependencies.elements.autoMemoryToggleSwitch.checked = true;
   dependencies.elements.uiLanguageSelect.value = 'en';
   dependencies.elements.aiLanguageSelect.value = 'en';
   dependencies.elements.enableUpdateNotificationsToggle.checked = true;

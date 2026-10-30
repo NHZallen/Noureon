@@ -45,8 +45,7 @@ const createHarness = ({
   conversation = {},
   config = {},
   astras = [],
-  personalMemories = [],
-  getMemoryContext,
+  getNotesMemory,
   warn = () => {},
   fetchImpl,
   getActiveConversation,
@@ -86,12 +85,10 @@ const createHarness = ({
     getConfig: () => ({
       aiDefaultLanguage: 'en',
       isLearningMode: false,
-      memoryEnabled1: false,
       ...config
     }),
     getAstras: () => astras,
-    getPersonalMemories: () => personalMemories,
-    getMemoryContext,
+    getNotesMemory,
     modelSupportsUploadedFile: () => true,
     modelSupportsVision: () => true,
     getModelReasoningConfig,
@@ -144,16 +141,9 @@ test('vision requests omit conversation context, web search and file authoring g
   assert.equal(payload.contents[0].parts[1].inlineData.mimeType, 'image/jpeg');
 });
 
-test('v2 memory injects only its filtered context and never the legacy memory list', async () => {
+test('the memory of notes puts its first page in the system instruction and nothing of the old memory', async () => {
   const { streamApiCall, requests } = createHarness({
-    config: { memorySystemVersion: 2 },
-    personalMemories: [{ id: 'legacy-name', content: 'Always call the user Allen', enabled: true }],
-    getMemoryContext: () => ({
-      currentChatSummary: '',
-      instructions: ['Do not use stored names as unsolicited forms of address.'],
-      profileEntries: [{ id: 'language', kind: 'preference', content: '使用繁體中文回答' }],
-      historyResults: []
-    })
+    getNotesMemory: () => ({ contextFor: () => ({ systemText: 'Standing preferences:\n- 使用繁體中文回答', slipText: '', noteIds: [], historyIds: [] }) })
   });
 
   await streamApiCall([{ text: 'Hello' }], () => {});
@@ -161,9 +151,6 @@ test('v2 memory injects only its filtered context and never the legacy memory li
   const payload = JSON.parse(requests[0].options.body);
   const systemMessage = payload.messages.find(message => message.role === 'system');
   assert.match(systemMessage.content, /使用繁體中文回答/);
-  assert.match(systemMessage.content, /Do not use stored names/);
-  assert.doesNotMatch(systemMessage.content, /Always call the user Allen/);
-  assert.doesNotMatch(systemMessage.content, /legacy-name|language/);
 });
 
 const ASTRA_FIXTURE = {
@@ -1022,8 +1009,8 @@ test('describeOnly puts the system instruction together as text for the server, 
   const { streamApiCall, requests, conversation } = createHarness({
     conversation: { astrasId: 'a1' },
     astras: [{ id: 'a1', name: 'Helper', instructions: 'Be a helper.' }],
-    config: { aiDefaultLanguage: 'fr', memorySystemVersion: 2 },
-    getMemoryContext: async () => ({ summary: 'likes tea', sources: [] })
+    config: { aiDefaultLanguage: 'fr' },
+    getNotesMemory: () => ({ contextFor: () => ({ systemText: 'Standing preferences:\n- likes tea', slipText: '', noteIds: [], historyIds: ['c-old'] }), markUsed: async () => 0 })
   });
   const described = await streamApiCall([{ text: 'Hello' }], null, undefined, false, {
     conversation,

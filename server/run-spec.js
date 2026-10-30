@@ -413,6 +413,8 @@ export function validateRunSpec(input) {
     }
     if (!isObject(request.currentMessage) || !Array.isArray(request.currentMessage.parts) || request.currentMessage.parts.length === 0) fail('request.currentMessage', 'must have parts');
     if (typeof request.systemInstruction !== 'string' || request.systemInstruction.length > LIMITS.maxSystemInstructionChars) fail('request.systemInstruction', `must be a text of at most ${LIMITS.maxSystemInstructionChars} characters`);
+    // The slip of the memory (what bears on this message): the server puts it after the message, in the copy of the request only.
+    if (request.memorySlip !== undefined && (typeof request.memorySlip !== 'string' || request.memorySlip.length > LIMITS.maxMemorySlipChars)) fail('request.memorySlip', `must be a text of at most ${LIMITS.maxMemorySlipChars} characters`);
     if (request.generation !== undefined && !isObject(request.generation)) fail('request.generation', 'must be an object');
     if (request.reasoningEffort !== undefined && request.reasoningEffort !== null && !text(request.reasoningEffort, 40)) fail('request.reasoningEffort', 'must be a short text');
     if (request.messageMetadata !== undefined && (!isObject(request.messageMetadata) || JSON.stringify(request.messageMetadata).length > 8192)) fail('request.messageMetadata', 'must be an object of at most 8 KB');
@@ -442,6 +444,26 @@ export function validateRunSpec(input) {
       else {
         if (tools.visionCheck.deckDesign !== undefined && !text(tools.visionCheck.deckDesign, 80)) fail('tools.visionCheck.deckDesign', 'must be a short text');
         if (tools.visionCheck.advanced !== undefined && typeof tools.visionCheck.advanced !== 'boolean') fail('tools.visionCheck.advanced', 'must be true or false');
+      }
+    }
+    // The memory of notes (docs/superpowers/specs/2026-10-30-memory-redesign-design.md, §5): the reply may look up and write notes. The server reads the notes themselves from the
+    // table of the person (so it works on what is there now); the page says whether writing is allowed, and gives the person's own messages of the conversation that a write is checked against.
+    if (tools.memory !== undefined) {
+      if (!isObject(tools.memory)) fail('tools.memory', 'must be an object');
+      else {
+        if (typeof tools.memory.canWrite !== 'boolean') fail('tools.memory.canWrite', 'must be true or false');
+        // `curator`: the reply's model has no memory tools (or its provider refuses them beside its own search): the server learns from the turn after the reply, with a small model (memory-curator.js).
+        if (tools.memory.curator !== undefined && typeof tools.memory.curator !== 'boolean') fail('tools.memory.curator', 'must be true or false');
+        // `history`: the reply may also look back through the person's past conversations in the cloud workspace (a cloud account). `vector`: and by meaning, with the key of `secrets.embeddingKey`.
+        if (tools.memory.history !== undefined && typeof tools.memory.history !== 'boolean') fail('tools.memory.history', 'must be true or false');
+        if (tools.memory.vector !== undefined && (!isObject(tools.memory.vector) || !['gemini', 'openrouter'].includes(tools.memory.vector.provider))) fail('tools.memory.vector', 'must name the provider of the embedding model (gemini or openrouter)');
+        if (isObject(tools.memory.vector) && tools.memory.history !== true) fail('tools.memory.vector', 'is only for a reply that may look back through the past conversations');
+        if (!Array.isArray(tools.memory.messages) || tools.memory.messages.length > LIMITS.maxMemoryMessages) fail('tools.memory.messages', `must be a list of at most ${LIMITS.maxMemoryMessages} messages`);
+        else {
+          tools.memory.messages.forEach((message, index) => {
+            if (!isObject(message) || !text(message.id, 120) || typeof message.text !== 'string' || message.text.length > LIMITS.maxMemoryMessageChars || (message.at !== undefined && !text(message.at, 40))) fail(`tools.memory.messages[${index}]`, `must have an id and a text of at most ${LIMITS.maxMemoryMessageChars} characters`);
+          });
+        }
       }
     }
     // The CLI tools (命令工具) the person chose with "@" for this message: ids of the store's tools. They run in the sandbox, so this is a reply
@@ -532,7 +554,10 @@ export function validateRunSpec(input) {
     // The key of the picture model (OpenRouter's), for a text model that draws.
     if (secrets.imageKey !== undefined && (!text(secrets.imageKey, 600) || !imageGeneration)) fail('secrets.imageKey', 'must be a key, and only with tools.imageGeneration');
     if (imageGeneration && !text(secrets.imageKey, 600)) fail('secrets.imageKey', 'is needed to draw pictures');
-    for (const name of Object.keys(secrets)) if (!['providerKey', 'searchKey', 'searchKeyAlt', 'translatorKey', 'imageKey'].includes(name)) fail(`secrets.${name}`, 'is not a known field');
+    // The key of the embedding model for the question of a search by meaning: kept for this run only, like the others.
+    if (secrets.embeddingKey !== undefined && (!text(secrets.embeddingKey, 600) || !isObject(tools?.memory?.vector))) fail('secrets.embeddingKey', 'must be a key, and only with tools.memory.vector');
+    if (isObject(tools?.memory?.vector) && !text(secrets.embeddingKey, 600)) fail('secrets.embeddingKey', 'is needed for a search by meaning');
+    for (const name of Object.keys(secrets)) if (!['providerKey', 'searchKey', 'searchKeyAlt', 'translatorKey', 'imageKey', 'embeddingKey'].includes(name)) fail(`secrets.${name}`, 'is not a known field');
   }
 
   if (errors.length) return { ok: false, errors: errors.slice(0, 20) };
@@ -551,6 +576,7 @@ export function validateRunSpec(input) {
         history: request.history,
         currentMessage: request.currentMessage,
         systemInstruction: request.systemInstruction,
+        ...(request.memorySlip ? { memorySlip: request.memorySlip } : {}),
         ...(request.generation ? { generation: request.generation } : {}),
         ...(request.reasoningEffort ? { reasoningEffort: request.reasoningEffort } : {}),
         ...(request.messageMetadata ? { messageMetadata: request.messageMetadata } : {}),
@@ -569,11 +595,12 @@ export function validateRunSpec(input) {
         ...(tools.advanced === true && isObject(tools.net) ? { net: { mode: normalizeNetMode(tools.net.mode), rules: normalizeNetRules(tools.net.rules), ...(tools.net.enabled === false ? { enabled: false } : {}) } } : {}),
         ...(Array.isArray(tools.skills) && listedSkills(tools.skills).length ? { skills: listedSkills(tools.skills) } : {}),
         ...(tools.connectors === true ? { connectors: true } : {}),
+        ...(isObject(tools.memory) ? { memory: { canWrite: tools.memory.canWrite === true, ...(tools.memory.curator === true ? { curator: true } : {}), ...(tools.memory.history === true ? { history: true } : {}), ...(isObject(tools.memory.vector) ? { vector: { provider: tools.memory.vector.provider } } : {}), messages: tools.memory.messages.map((message) => ({ id: message.id, text: message.text, ...(message.at ? { at: message.at } : {}) })) } } : {}),
         ...(imageGeneration ? { imageGeneration } : {}),
         ...(tools.inputs?.length ? { inputs: tools.inputs.map((file) => ({ name: file.name, mimeType: file.mimeType || '', data: file.data })) } : {})
       },
       ...(input.documents ? { documents: { linkedPages: input.documents.linkedPages === true, ...(translator ? { translator } : {}) } } : {}),
-      secrets: { providerKey: secrets.providerKey, ...(secrets.searchKey ? { searchKey: secrets.searchKey } : {}), ...(secrets.searchKeyAlt ? { searchKeyAlt: secrets.searchKeyAlt } : {}), ...(secrets.translatorKey ? { translatorKey: secrets.translatorKey } : {}), ...(secrets.imageKey ? { imageKey: secrets.imageKey } : {}) }
+      secrets: { providerKey: secrets.providerKey, ...(secrets.searchKey ? { searchKey: secrets.searchKey } : {}), ...(secrets.searchKeyAlt ? { searchKeyAlt: secrets.searchKeyAlt } : {}), ...(secrets.translatorKey ? { translatorKey: secrets.translatorKey } : {}), ...(secrets.imageKey ? { imageKey: secrets.imageKey } : {}), ...(secrets.embeddingKey ? { embeddingKey: secrets.embeddingKey } : {}) }
     }
   };
 }

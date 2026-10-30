@@ -16,6 +16,9 @@ import { createRunStore } from './run-store.js';
 import { createFileStore } from './file-store.js';
 import { createSandboxHost } from './sandbox-client.js';
 import { createServerSkills } from './skills.js';
+import { createMemoryRecords } from './memory-records.js';
+import { createHistorySearch } from './memory-history.js';
+import { createRebuildJobs } from './memory-rebuild.js';
 import { createSkillBundleStore } from './skill-bundles.js';
 import { createDerivedPdfStore } from './derived-pdf-store.js';
 import { createOfficePdfConverter, setOfficePdfConverter } from './office-pdf.js';
@@ -36,6 +39,7 @@ try {
 let runs = null;
 let credentials = null;
 let connectors = null;
+let memoryRebuild = null;
 let files = null;
 let sweeper = null;
 let checkRunsStore = async () => {};
@@ -71,14 +75,16 @@ if (config.runsConfigured) {
     const vault = createKeyVault(config.encryptionKeys);
     credentials = createCredentialStore({ db, vault });
     connectors = createConnectorService({ db, vault, log, config: { allowed: config.connectorAllowed, mailer: createMailer({ apiKey: config.mailKey, from: config.mailFrom }), waitlistTo: config.waitlistTo, preregistered: config.connectorPreregistered, redirectUri: config.connectorRedirectUri, cimdUrl: config.connectorClientId, identity: { clientUri: config.siteUrl, logoUri: `${config.siteUrl}/logo.png`, tosUri: `${config.siteUrl}/terms`, policyUri: `${config.siteUrl}/privacy` }, clientStore: createDbClientStore(db, vault) } });
-    runs = createRunManager({ store: createRunStore({ db, limits: LIMITS }), db, vault, sandbox, files, credentials, connectors, skills: createServerSkills({ db, bundles: skillBundles }), vision: { available: canDrawSlides, execute: executeVisionCheck, getKit: getFontKit }, limits: LIMITS, log });
+    runs = createRunManager({ store: createRunStore({ db, limits: LIMITS }), db, vault, sandbox, files, credentials, connectors, skills: createServerSkills({ db, bundles: skillBundles }), memory: Object.assign(createMemoryRecords({ db }), { history: createHistorySearch({ db }) }), vision: { available: canDrawSlides, execute: executeVisionCheck, getKit: getFontKit }, limits: LIMITS, log });
+    // The rebuild of the memory from the past conversations, which goes on when the page is closed (server/memory-rebuild.js).
+    memoryRebuild = createRebuildJobs({ memory: createMemoryRecords({ db }), db, log });
   } catch (error) {
     log('config_error', { message: error.message });
     process.exit(1);
   }
 }
 
-const server = createServer(createApp({ config, log, runs, credentials, files, connectors }));
+const server = createServer(createApp({ config, log, runs, credentials, files, connectors, memoryRebuild }));
 // A long request (a reply that streams) is never cut by these; the replies themselves run apart from the request.
 server.requestTimeout = 60_000;
 server.headersTimeout = 30_000;

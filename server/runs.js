@@ -14,6 +14,8 @@ import { visionText } from '../src/app/ui/files/vision/vision-texts.js';
 import { createSteerQueue } from '../src/app/runtime/reply/steer-queue.js';
 
 const HEARTBEAT_MS = 15_000;
+// How long the learning of the memory after a reply may take before the run is let go.
+const CURATOR_MS = 30_000;
 // A run whose heartbeat is older than this has no process: the next sweep takes it up.
 const STALE_SECONDS = 45;
 const SWEEP_MS = 30_000;
@@ -47,6 +49,8 @@ export function createRunManager({
   skills = null,
   // The services a person has logged in to (server/mcp/connections.js), or null: then no connector is offered to a reply.
   connectors = null,
+  // The person's memory of notes (server/memory-records.js), or null: then a reply is given no memory tools.
+  memory = null,
   // Where the pictures an image run makes are kept (server/file-store.js), or null: then images are not made here.
   files = null,
   // The visual check that follows a reply with a presentation (server/vision-check.js): whether the server can draw slides, and how.
@@ -246,6 +250,7 @@ export function createRunManager({
     const credentialControl = { answer: null };
     // And for the question about whether a tool of a connector may run (server/mcp/ask.js).
     const connectorControl = { answer: null };
+    const memoryOut = { used: [], events: [] };
     // And for the question a text model's picture tool asks (whether it may draw): server/image-ask.js.
     const imageControl = { answer: null };
     // How a person's request to let one model of a council leave reaches the council (it sets `exit`).
@@ -406,6 +411,8 @@ export function createRunManager({
         credentials,
         skills,
         connectors,
+        memory,
+        memoryOut,
         netControl,
         credentialControl,
         connectorControl,
@@ -446,7 +453,9 @@ export function createRunManager({
         return;
       }
       // What the person added that no boundary of the reply took: the page sends it as the next message (what the model did see is in the reply's run record).
-      await writer.finish(result.parts, 'complete', steer?.left().length ? { steersLeft: steer.left() } : null);
+      // What the memory did in this reply (the notes it looked up, the changes it made) stays with the message.
+      const kept = { ...(steer?.left().length ? { steersLeft: steer.left() } : {}), ...(memoryOut.used.length ? { memoryUsed: memoryOut.used.slice(0, 20) } : {}), ...(memoryOut.events.length ? { memoryUpdated: memoryOut.events.slice(0, 20) } : {}), ...(memoryOut.history?.length ? { memoryHistory: memoryOut.history.slice(0, 5) } : {}) };
+      await writer.finish(result.parts, 'complete', Object.keys(kept).length ? kept : null);
       finalStatus = 'complete';
       await store.finish(runId, { status: result.status === 'stopped' ? 'stopped' : 'done', usage: { toolCalls: result.toolCalls, elapsedMs: result.run?.elapsedMs, ...(result.rounds?.length ? { rounds: result.rounds } : {}) }, ...(isImage ? { clearSpec: true } : {}) });
       // A reply that wrote a presentation is looked at next, as a run of its own (recorded before the page is told this one is over).
@@ -496,6 +505,20 @@ export function createRunManager({
       active.delete(runId);
       if (!ended && controller.signal.reason !== RESTART && !controller.signal.aborted) log('run_left_open', { runId });
       if (visionNext && controller.signal.reason !== RESTART) void run(visionNext);
+      // A model with no memory tools is followed by the curator: it reads the turn once the reply is written and the page is told it is over (the key is still held for this).
+      if (memoryOut.afterReply && finalStatus === 'complete' && !controller.signal.aborted && controller.signal.reason !== RESTART) await curateAfterReply(memoryOut.afterReply, runId);
+    }
+  }
+
+  // The learning of the memory after a reply (memory-curator.js): it may not hold the run longer than this, and a failure is only logged.
+  async function curateAfterReply(curate, runId) {
+    let timer = null;
+    try {
+      await Promise.race([curate(), new Promise((resolve) => { timer = setTimer(resolve, CURATOR_MS); })]);
+    } catch (error) {
+      log('memory_curator_failed', { runId, message: String(error?.message || '').slice(0, 160) });
+    } finally {
+      if (timer) clearTimer(timer);
     }
   }
 

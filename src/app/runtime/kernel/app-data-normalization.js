@@ -1,4 +1,3 @@
-import { normalizeMemoryState } from '../memory/memory-schema.js';
 
 const resolveDefault = (value) => (typeof value === 'function' ? value() : value);
 const firstValidTimestamp = (...values) => values.find(value => Number.isFinite(Date.parse(value || ''))) || null;
@@ -76,6 +75,7 @@ export function normalizeLoadedLegacyAppData({
     })),
     astras: (data.astras || []).map(normalizeAstraRecord),
     personalMemories: data.personalMemories || [],
-    memoryState: normalizeMemoryState(data)
+    // The old memory summary is dropped (the notes of the memory are in memory-store/).
+    memoryState: {}
   };
 }

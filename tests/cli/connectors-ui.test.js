@@ -670,19 +670,34 @@ test('the saved reply keeps the connectors it used and shows a row for each, wit
 
 const GOOGLE_WAITING = { id: 'google', status: 'none', mode: 'readonly', error: '', tools: [], access: 'waitlist' };
 
-test('a connector that is not open to this account yet asks for the waitlist instead of connecting, once, and says so when it was sent or could not be', async () => {
+test('a connector that is not open to this account yet asks for the waitlist instead of connecting: it asks which account to log in with, sends once, and says so when it was sent or could not be', async () => {
   const t = setup({ connections: [GOOGLE_WAITING] });
   await settle(t);
   const row = t.host.querySelector('[data-connector-id="google"]');
   assert.equal(row.querySelector('.cs-action').textContent.trim(), '申請候補');
   assert.equal(t.host.querySelector('[data-connector-id="notion"] .cs-action').textContent.includes('申請候補'), false, 'the others connect as ever');
+  // The button at the right opens the words with the address; nothing is sent before it is given.
   row.querySelector('.cs-action').click();
   await flush();
-  await flush();
   assert.equal(t.host.querySelector('.cs-dialog'), null, 'no sheet, no login');
-  assert.deepEqual(t.calls.filter(([method, path]) => method === 'POST' && path.endsWith('/waitlist')), [['POST', '/v1/connectors/google/waitlist', null]]);
+  assert.equal(t.calls.filter(([, path]) => path.endsWith('/waitlist')).length, 0);
+  const input = t.host.querySelector('[data-connector-id="google"] .cs-waitlist-input');
+  assert.ok(input, 'the address is asked');
+  const form = t.host.querySelector('[data-connector-id="google"] .cs-waitlist');
+  input.value = 'not an address';
+  form.dispatchEvent(new t.window.Event('submit', { cancelable: true }));
+  await flush();
+  assert.equal(t.calls.filter(([, path]) => path.endsWith('/waitlist')).length, 0, 'a wrong address is not sent');
+  assert.match(JSON.stringify(t.notices), /請填正確的信箱/);
+  input.value = ' me@gmail.example ';
+  input.dispatchEvent(new t.window.Event('input'));
+  form.dispatchEvent(new t.window.Event('submit', { cancelable: true }));
+  await flush();
+  await flush();
+  assert.deepEqual(t.calls.filter(([method, path]) => method === 'POST' && path.endsWith('/waitlist')), [['POST', '/v1/connectors/google/waitlist', { email: 'me@gmail.example' }]]);
   t.draw();
   assert.equal(t.host.querySelector('[data-connector-id="google"] .cs-action').textContent.trim(), '已送出申請');
+  assert.equal(t.host.querySelector('[data-connector-id="google"] .cs-waitlist'), null, 'asked once: no form again');
   t.host.querySelector('[data-connector-id="google"] .cs-action').click();
   await flush();
   assert.equal(t.calls.filter(([, path]) => path.endsWith('/waitlist')).length, 1, 'asked once');
@@ -691,7 +706,12 @@ test('a connector that is not open to this account yet asks for the waitlist ins
   await settle(failing);
   failing.host.querySelector('[data-connector-id="google"] .cs-action').click();
   await flush();
+  const failInput = failing.host.querySelector('[data-connector-id="google"] .cs-waitlist-input');
+  failInput.value = 'me@gmail.example';
+  failing.host.querySelector('[data-connector-id="google"] .cs-waitlist').dispatchEvent(new failing.window.Event('submit', { cancelable: true }));
+  await flush();
   await flush();
   assert.match(failing.notices.at(-1)?.[0] ?? failing.notices.at(-1)?.text ?? JSON.stringify(failing.notices), /無法送出申請/);
   assert.equal(failing.host.querySelector('[data-connector-id="google"] .cs-action').textContent.trim(), '申請候補');
+  assert.ok(failing.host.querySelector('[data-connector-id="google"] .cs-waitlist-input'), 'it may be asked again');
 });

@@ -219,7 +219,7 @@ export function createSingleModelResponseLifecycle({
     const runApiStream = serverRun
       ? (onChunk) => followServerReply(
         { serverReply, now, setRunStartedAt: (value) => { runStartedAt = value; }, getRunStartedAt: () => runStartedAt },
-        { serverRun, reply, view, progress, signal, uiLanguage, assistantMessageId, targetElement, advanced: replyMode.advanced, runHere: local.runAdvanced },
+        { serverRun, reply, view, progress, signal, uiLanguage, assistantMessageId, targetElement, conversationId: conversation?.id, advanced: replyMode.advanced, runHere: local.runAdvanced },
         flow ? flow.wrap(onChunk) : onChunk
       )
       : replyMode.advanced ? local.runAdvanced : local.runStandard;

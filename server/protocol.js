@@ -2,7 +2,8 @@
 // refuses a request of another version (426) and the browser then runs the reply itself, as it does when the server cannot be reached.
 
 // 2 (2026-10-22): a reply may carry `tools.imageGeneration` and `secrets.imageKey` (a text model that draws pictures by itself); a server of version 1 would refuse them.
-export const PROTOCOL_VERSION = 2;
+// 3 (2026-10-30): `tools.memory` may carry `history` and `vector`, and `secrets` an `embeddingKey` (the reply looks back through the person's past conversations, by meaning when they synced their vectors); a server of version 2 would refuse the key.
+export const PROTOCOL_VERSION = 3;
 
 /** Codes the browser turns into its messages (in all five languages). They are part of the protocol: do not rename them. */
 export const ERROR_CODES = Object.freeze({
@@ -41,6 +42,11 @@ export const LIMITS = Object.freeze({
   createPerMinute: 10,
   maxRequestBytes: 25 * 1024 * 1024,
   maxSystemInstructionChars: 400_000,
+  // The slip of the memory (the notes and old conversations that bear on a message): at most two notes and two pieces of conversation, a few thousand characters.
+  maxMemorySlipChars: 4_000,
+  // The messages of the person that a write into the memory is checked against (the last ones of the conversation), and the size of each.
+  maxMemoryMessages: 12,
+  maxMemoryMessageChars: 6_000,
   maxHistoryMessages: 2000,
   // Tool calls in one reply (the same number the browser uses).
   maxToolCalls: 20,

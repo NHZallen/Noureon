@@ -8,7 +8,6 @@ import { createWorkspaceStoreV2 } from '../src/app/runtime/kernel/workspace-stor
 import { setActiveWorkspaceStore } from '../src/app/runtime/kernel/workspace-store-registry.js';
 import { getCloudSyncJournalKey } from '../src/app/sync/cloud-sync-journal.js';
 import { repairCloudWorkspaceGeneratedImageKeys } from '../src/app/sync/cloud-workspace-image-repair.js';
-import { initializeMemorySummaryCloudSync } from '../src/app/sync/memory-summary-cloud-sync.js';
 
 const quiet = { warn() {}, error() {}, info() {} };
 
@@ -77,54 +76,6 @@ test('image key repair in the split store writes nothing when nothing needs repa
   const writes = storage.applies.length;
   assert.deepEqual(await repairCloudWorkspaceGeneratedImageKeys({ storage, username, appDataKey: 'unused', workspaceStore: store, withExclusive: cb => cb() }), { changed: false });
   assert.equal(storage.applies.length, writes);
-});
-
-test('the memory summary sync reads only the memory record of the split store, never the conversations or the old item', async () => {
-  const storage = createFakeStorage();
-  const store = createWorkspaceStoreV2({ storage, username: 'supabase:user-1', logger: quiet });
-  await store.save({
-    conversations: [conversation('c1'), conversation('c2')],
-    folders: [],
-    astras: [],
-    memoryState: {
-      memorySummary: { overview: 'Current setup.', updatedAt: '2026-07-29T00:00:00.000Z', sections: [{ id: 'deploy', title: 'Deployment', content: 'NUC', updatedAt: '2026-07-29T00:00:00.000Z' }] }
-    }
-  });
-  const reads = [];
-  const watched = { ...storage, getItem: async key => { reads.push(key); return storage.getItem(key); } };
-  const writes = [];
-  const supabase = {
-    from() { return { select() { return this; }, async eq() { return { data: [], error: null }; } }; },
-    async rpc(name, { p_rows: records }) { writes.push(records); return { data: records, error: null }; },
-    channel() { return { on() { return this; }, subscribe() { return this; } }; },
-    async removeChannel() {}
-  };
-  const listeners = new Map();
-  const window = {
-    navigator: { onLine: true },
-    CustomEvent: class { constructor(type, init = {}) { this.type = type; this.detail = init.detail; } },
-    addEventListener(type, listener) { listeners.set(type, listener); },
-    removeEventListener(type) { listeners.delete(type); },
-    dispatchEvent() {},
-    setTimeout,
-    clearTimeout
-  };
-  const sync = initializeMemorySummaryCloudSync({
-    window,
-    storage: watched,
-    supabase,
-    user: { id: 'user-1' },
-    username: 'supabase:user-1',
-    appDataKey: 'chatAppData_v8.6_supabase:user-1',
-    getWorkspaceStore: () => store,
-    logger: quiet
-  });
-  await sync.ready;
-  await sync.flush();
-
-  assert.ok(writes.length > 0, 'the local memory summary was uploaded');
-  assert.equal(reads.includes('chatAppData_v8.6_supabase:user-1'), false, 'the old item was not read');
-  assert.equal(reads.some(key => key.includes(':conv:')), false, 'no conversation was read');
 });
 
 test('account linking moves a split workspace to the cloud user, repairs its image keys, and removes the local user\'s records', async () => {

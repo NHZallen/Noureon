@@ -312,9 +312,11 @@ export function createSandboxLedger({ document, host, before = null, language = 
 
   // A web search that runs before the model: a row in progress, which becomes the finished, folded row that opens
   // to the pages it found (or goes, if it found none).
-  const startSearch = ({ label }) => {
-    const row = begin(label, { body: true, kind: 'search' });
+  const startSearch = ({ label, doneLabel }) => {
+    const row = begin(label, { body: !doneLabel, kind: 'search' });
     row.searching = true;
+    // A search or a page the model asked for by itself stays as a row of its own, with the pages it gave back (searchOnce below); the ones before the model do not.
+    if (doneLabel) row.callLabel = doneLabel;
   };
   // The sites a reply looked at are one row however many searches and pages that took: the row of the first grows, and the
   // rows of the calls after it are only there while they run.
@@ -322,6 +324,20 @@ export function createSandboxLedger({ document, host, before = null, language = 
   let webSources = [];
   const addSources = ({ sources }) => {
     const searching = list.current?.searching ? list.current : null;
+    if (searching?.callLabel) {
+      // The call's own row: its words in the past, and the pages it gave back to open (a call that found none says so by having nothing to open).
+      const found = mergeSources(sources || []);
+      searching.setLabel(searching.callLabel);
+      searching.searching = false;
+      if (found.length) {
+        searching.body.append(createSourceChips(document, found));
+        putFirstSiteIcon(document, searching.node, found);
+        searching.enableBody(false);
+      }
+      searching.finish('done');
+      webSources = mergeSources(webSources, sources || []);
+      return;
+    }
     const all = mergeSources(webSources, sources || []);
     if (!all.length) {
       searching?.discard();
@@ -364,16 +380,23 @@ export function createSandboxLedger({ document, host, before = null, language = 
   // line said the work was over. When more work follows, the line goes back to running.
   let answered = false;
   const handle = (event) => {
-      if (answered && ['round', 'searching', 'step', 'skill', 'connector', 'image'].includes(event.type)) {
+      if (answered && ['round', 'searching', 'step', 'skill', 'connector', 'image', 'memory'].includes(event.type)) {
         answered = false;
         if (line && line.state !== 'running') {
           line.resume();
           line.node.classList.remove('is-quiet');
         }
       }
-      if (event.type === 'skill') {
-        // The model loads a skill: a row of its own, over when the next thing begins.
-        begin(event.label, { kind: 'skill' });
+      if (event.type === 'tool-end') {
+        // The skill or memory call has its answer: its row is over now, not when the next thing begins (the model's thinking after it is not the call's time).
+        if (['skill', 'memory-recall', 'memory-review', 'memory-write'].includes(list.current?.node?.dataset?.kind)) {
+          // A memory search says what it found once it is answered.
+          if (event.label) list.current.doneLabel = event.label;
+          endCurrent();
+        }
+      } else if (event.type === 'skill' || event.type === 'memory') {
+        // The model loads a skill, or looks up or writes the memory: a row of its own (its own icon), over when the call has its answer.
+        begin(event.label, { kind: { memorySearching: 'memory-recall', memoryReviewing: 'memory-review', memoryWriting: 'memory-write' }[event.key] || 'skill' });
       } else if (event.type === 'connector') {
         // The model uses a connector: a row of its own (the call), and the card that asks when the person set the tool to ask.
         if (event.event === 'call') connectorCall(event);

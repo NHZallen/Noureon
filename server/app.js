@@ -72,12 +72,13 @@ export function clientAddress(request) {
 }
 
 /** Returns the function that answers one request: `(request, response) => Promise<void>`. */
-export function createApp({ config, fetchImpl = fetch, log = createLogger(), now = Date.now, runs = null, credentials = null, files = null, connectors = null } = {}) {
+export function createApp({ config, fetchImpl = fetch, log = createLogger(), now = Date.now, runs = null, credentials = null, files = null, connectors = null, memoryRebuild = null } = {}) {
   const verify = createTokenVerifier({ supabaseUrl: config.supabaseUrl, anonKey: config.supabaseAnonKey, fetchImpl, now });
   const startLimiter = createRateLimiter({ limit: LIMITS.createPerMinute, windowMs: 60_000, now });
   const credentialLimiter = createRateLimiter({ limit: 30, windowMs: 60_000, now });
   const connectorLimiter = createRateLimiter({ limit: 30, windowMs: 60_000, now });
   const callbackLimiter = createRateLimiter({ limit: 30, windowMs: 60_000, now });
+  const memoryLimiter = createRateLimiter({ limit: 10, windowMs: 60_000, now });
   const startedAt = now();
 
   const corsHeaders = (origin) => (origin && config.allowedOrigins.includes(origin)
@@ -379,7 +380,8 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
             send(response, 200, await connectors.startLogin(user.id, id, body?.mode === 'readonly' ? 'readonly' : 'readwrite', { email: user.email }), origin);
           } else if (request.method === 'POST' && id && action === 'waitlist') {
             if (!connectorLimiter.take(user.id)) throw new RequestError(ERROR_CODES.rateLimited, 'Too many requests; wait a minute.');
-            send(response, 200, await connectors.requestAccess(user, id), origin);
+            const body = await readJson(request, 2048, { optional: true });
+            send(response, 200, await connectors.requestAccess(user, id, { serviceEmail: typeof body?.email === 'string' ? body.email : '' }), origin);
           } else if (request.method === 'POST' && id && action === 'disconnect') {
             send(response, 200, { ok: true, ...(await connectors.disconnect(user.id, id)) }, origin);
           } else if (request.method === 'POST' && id && action === 'refresh') {
@@ -401,6 +403,23 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
           }
           throw error;
         }
+        return;
+      }
+      // Building the memory from the past conversations here (server/memory-rebuild.js): the page sends the key of the model that reads, which the job keeps only until it ends.
+      if (route === 'POST /v1/memory/rebuild' || route === 'POST /v1/memory/rebuild/stop') {
+        const user = await authenticate(request);
+        if (!memoryRebuild) throw new RequestError(ERROR_CODES.runsUnavailable, 'The memory is not set up on the server.');
+        if (!memoryLimiter.take(user.id)) throw new RequestError(ERROR_CODES.rateLimited, 'Too many requests.');
+        if (route.endsWith('/stop')) {
+          send(response, 200, { stopped: memoryRebuild.stop(user.id) }, origin);
+          status = 200;
+          return;
+        }
+        const body = await readJson(request, 4096);
+        const started = await memoryRebuild.start({ userId: user.id, modelId: String(body?.modelId || ''), key: typeof body?.key === 'string' && body.key.length <= 600 ? body.key : '', language: String(body?.language || 'en').slice(0, 10) });
+        if (!started.ok) throw new RequestError(started.code === 'already_running' || started.code === 'memory_off' ? ERROR_CODES.wrongPhase : ERROR_CODES.badRequest, 'The memory could not be rebuilt now.', { reason: started.code });
+        send(response, 202, { started: true }, origin);
+        status = 202;
         return;
       }
       // How much of the person's space in the cloud is used: { usedBytes, quotaBytes } (usedBytes is null when it cannot be known).

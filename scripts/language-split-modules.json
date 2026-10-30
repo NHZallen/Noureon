@@ -124,6 +124,10 @@
     {
       "path": "src/data/i18n/parts/openai.js",
       "table": "default"
+    },
+    {
+      "path": "src/data/i18n/parts/memory-notes.js",
+      "table": "default"
     }
   ]
 }

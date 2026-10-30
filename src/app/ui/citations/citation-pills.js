@@ -5,6 +5,8 @@
 import { sandboxText } from '../../runtime/sandbox/sandbox-texts.js';
 import { liftSandboxRunBlock } from '../sandbox/sandbox-run-block.js';
 import { siteIconUrl } from '../links/site-icon.js';
+import { memoryIconMarkup } from '../icons/memory-icons.js';
+import { historyEntriesOf } from '../../runtime/memory-store/reply-sources.js';
 import { siteIcon } from '../sandbox/run-sources.js';
 import { citableSources, findCitations, listableSources, siteHost, siteLabel, stripCitationMarkers } from './citation-model.js';
 import { knownSiteName, loadSiteNames, onSiteNames } from './site-names.js';
@@ -140,12 +142,15 @@ export function watchCitations(root, getSources, { document = root?.ownerDocumen
 }
 
 /** The "Sources" button under a reply: three of its sites' icons, overlapped, and the word. As markup, for the reply's footer. */
-export function sourcesButtonHTML(sources, language = 'zh-TW') {
+export function sourcesButtonHTML(sources, language = 'zh-TW', { memory = false, chats = false } = {}) {
   const list = listableSources(sources);
-  if (list.length === 0) return '';
-  const hosts = [...new Set(list.map(siteHost))].filter(Boolean).slice(0, 3);
+  if (list.length === 0 && !memory && !chats) return '';
+  // The notes and past conversations a reply drew on are sources too: their icons stand in the stack beside the sites'.
+  const hosts = [...new Set(list.map(siteHost))].filter(Boolean).slice(0, 3 - (memory ? 1 : 0) - (chats ? 1 : 0));
   const escape = (value) => String(value).replace(/[&<>"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[char]));
-  const icons = hosts.map((host) => `<span class="run-source-icon sources-button-icon"><img src="${escape(siteIconUrl(host))}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer"></span>`).join('');
+  const icons = hosts.map((host) => `<span class="run-source-icon sources-button-icon"><img src="${escape(siteIconUrl(host))}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer"></span>`).join('')
+    + (memory ? `<span class="sources-button-icon is-kind">${memoryIconMarkup('brain', { size: 14 })}</span>` : '')
+    + (chats ? `<span class="sources-button-icon is-kind">${memoryIconMarkup('messages', { size: 14 })}</span>` : '');
   const label = escape(sandboxText(language, 'sourcesTab'));
   return `<button type="button" class="sources-button" data-sources-button title="${label}" aria-label="${label}"><span class="sources-button-icons">${icons}</span><span class="sources-button-label">${label}</span></button>`;
 }
@@ -153,7 +158,8 @@ export function sourcesButtonHTML(sources, language = 'zh-TW') {
 /** The "Sources" button for a reply (from the record kept in its text), or '' when it looked at no pages. */
 export function replySourcesButtonHTML(message, language = 'zh-TW') {
   const { run } = liftSandboxRunBlock((message?.parts || []).map((part) => part?.text || '').join('\n'));
-  return sourcesButtonHTML(run?.sources, language);
+  const extras = { memory: Array.isArray(message?.metadata?.memoryUsed) && message.metadata.memoryUsed.length > 0, chats: historyEntriesOf(message?.metadata).length > 0 };
+  return sourcesButtonHTML(run?.sources, language, extras);
 }
 
 /** What a reply says, as it is copied: without the record of what the model did and without the citation markers. */

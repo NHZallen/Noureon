@@ -1,5 +1,3 @@
-import { normalizeMemoryState } from '../memory/memory-schema.js';
-
 export function createRuntimeAppDataStore({
   initialConversations = [],
   initialFolders = [],
@@ -11,7 +9,8 @@ export function createRuntimeAppDataStore({
   let folders = initialFolders;
   let astras = initialAstras;
   let personalMemories = initialPersonalMemories;
-  let memoryState = initialMemoryState || normalizeMemoryState();
+  // The old memory summary was kept here; it is not used any more and starts empty (the notes of the memory are in memory-store/).
+  let memoryState = initialMemoryState || {};
 
   function getSnapshot() {
     return {

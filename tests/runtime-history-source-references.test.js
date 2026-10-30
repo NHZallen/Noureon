@@ -4,7 +4,7 @@ import test from 'node:test';
 import {
   collectHistorySourceConversationIds,
   normalizeHistorySourceConversationIds
-} from '../src/app/runtime/memory/history-source-references.js';
+} from '../src/app/runtime/memory-notes/history-sources.js';
 
 test('history source helpers deduplicate and cap source conversation references', () => {
   const first = '11111111-1111-4111-8111-111111111111';

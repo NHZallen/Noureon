@@ -2,6 +2,7 @@ import { sandboxText } from '../sandbox/sandbox-texts.js';
 import { liftSandboxRunBlock } from '../../ui/sandbox/sandbox-run-block.js';
 import { listableSources, stripCitationMarkers } from '../../ui/citations/citation-model.js';
 import { fillSourceList } from '../../ui/citations/source-list.js';
+import { createSourcePanel } from '../../ui/citations/source-panel.js';
 import { plainMarkdown } from '../../ui/citations/plain-text.js';
 import { trackPointedRow } from '../../ui/scroll/pointed-row.js';
 
@@ -55,26 +56,29 @@ export function createHistorySidebarHelpers({
   // Timeline | Sources: the tab shown, with its content.
   // `sources`: the sources of one reply, asked for by its "Sources" button (kept while its chat is the one on screen);
   // `keep`: the same tab or the same panel drawn again, not opened afresh.
-  function setHistoryTab(tab, { sources = null, highlight = null, keep = false } = {}) {
+  function setHistoryTab(tab, { sources = null, highlight = null, groups = null, panel = null, keep = false } = {}) {
     const { historySidebar } = elements;
     activeTab = tab === 'sources' ? 'sources' : 'timeline';
     const conversationId = getActiveConversation()?.id ?? null;
-    if (sources) pinned = { id: conversationId, sources, highlight };
+    if (sources) pinned = { id: conversationId, sources, highlight, groups, panel };
     else if (!keep) pinned = null;
     if (pinned && pinned.id !== conversationId) pinned = null;
     highlight = pinned?.highlight ?? null;
     sources = pinned?.sources ?? null;
+    // A reply that drew on the memory or on past conversations opens its sources as one panel with tabs.
+    const extra = pinned?.groups && ((pinned.groups.notes?.length || 0) + (pinned.groups.conversations?.length || 0) > 0) ? pinned : null;
     const timelineList = historySidebar.querySelector('#history-sidebar-list');
     const sourcesList = historySidebar.querySelector('#history-sources-list');
     const shown = sources ? listableSources(sources) : latestSources(getActiveConversation());
+    const shownCount = extra ? shown.length + extra.groups.notes.length + extra.groups.conversations.length : shown.length;
     historySidebar.querySelectorAll('[data-history-tab]').forEach((button) => {
       button.setAttribute('aria-selected', String(button.dataset.historyTab === activeTab));
       if (button.dataset.historyTab === 'sources') {
         button.textContent = sandboxText(language(), 'sourcesTab');
-        if (shown.length) {
+        if (shownCount) {
           const count = document.createElement('span');
           count.className = 'history-tab-count';
-          count.textContent = String(shown.length);
+          count.textContent = String(shownCount);
           button.append(count);
         }
       }
@@ -89,6 +93,10 @@ export function createHistorySidebarHelpers({
     }
     if (!sourcesList) return;
     sourcesList.replaceChildren();
+    if (extra) {
+      sourcesList.append(createSourcePanel(document, { ...extra.groups, web: shown }, { ...extra.panel }));
+      return;
+    }
     if (!shown.length) {
       const empty = document.createElement('p');
       empty.className = 'history-sources-empty';
@@ -229,7 +237,7 @@ export function createHistorySidebarHelpers({
     // The "Sources" button under a reply asks for its sources in the panel.
     document.addEventListener('noureon:open-sources', (event) => {
       const detail = event.detail || {};
-      toggleHistorySidebar(true, { tab: 'sources', sources: detail.sources || null, highlight: detail.highlight ? new Set(detail.highlight) : null });
+      toggleHistorySidebar(true, { tab: 'sources', sources: detail.sources || null, groups: detail.groups || null, panel: detail.panel || null, highlight: detail.highlight ? new Set(detail.highlight) : null });
     });
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape' && historySidebar.classList.contains('visible') && !document.documentElement.classList.contains('source-sheet-open')) {

@@ -88,6 +88,75 @@ export function normalizeSources(sources) {
   return kept;
 }
 
+// The skills the model loaded and the times it looked up or wrote the memory, one row each (kept so that the saved reply shows them as the live step list did).
+const MAX_TOOLS = 20;
+const MEMORY_KEYS = ['memorySearching', 'memoryReviewing', 'memoryWriting'];
+const MAX_MEMORY_ITEMS = 10;
+// Which notes (their ids) and which past conversations (id and day) a memory step gave back, so that the step can be opened: never the words of either.
+const memoryItemsOf = (tool) => {
+  const ids = (Array.isArray(tool.ids) ? tool.ids : []).filter((id) => typeof id === 'string' && id && id.length <= 80).slice(0, MAX_MEMORY_ITEMS);
+  const chats = (Array.isArray(tool.chats) ? tool.chats : []).filter((chat) => typeof chat?.id === 'string' && chat.id && chat.id.length <= 80).slice(0, MAX_MEMORY_ITEMS).map((chat) => ({ id: chat.id, at: String(chat.at || '').slice(0, 40) }));
+  return { ...(ids.length ? { ids } : {}), ...(chats.length ? { chats } : {}) };
+};
+/** The answer of a memory search put on its step: how many, and which (`tool-end` event → the record's tool). */
+export function applyToolEnd(tool, event) {
+  if (!tool || !Number.isInteger(event?.count)) return;
+  tool.count = event.count;
+  if (Array.isArray(event.ids) && event.ids.length) tool.ids = event.ids;
+  if (Array.isArray(event.chats) && event.chats.length) tool.chats = event.chats;
+}
+export function normalizeTools(tools) {
+  const out = [];
+  for (const tool of Array.isArray(tools) ? tools : []) {
+    if (tool?.kind === 'memory' && MEMORY_KEYS.includes(tool.key)) out.push({ kind: 'memory', key: tool.key, ...(Number.isInteger(tool.count) && tool.count >= 0 ? { count: Math.min(tool.count, 1000) } : {}), ...memoryItemsOf(tool) });
+    else if (tool?.kind === 'skill') {
+      const name = String(tool.name ?? '').replace(/\s+/g, ' ').trim().slice(0, 60);
+      if (name && !out.some((entry) => entry.kind === 'skill' && entry.name === name)) out.push({ kind: 'skill', name });
+    }
+    if (out.length >= MAX_TOOLS) break;
+  }
+  return out;
+}
+
+/** The row a step event of a tool leaves in the saved reply ({ kind, name | key }), or null (the event is not one of a skill or the memory). */
+export const toolOfEvent = (event) => (event?.type === 'skill' && event.name ? { kind: 'skill', name: event.name } : event?.type === 'memory' && event.key ? { kind: 'memory', key: event.key } : null);
+
+// Each search and each page a model opened by itself is a row of the step list that stays: its words (the query, the site) and the numbers of the pages it gave back.
+const MAX_WEB_STEPS = 40;
+export function normalizeWebSteps(steps) {
+  const out = [];
+  for (const step of Array.isArray(steps) ? steps : []) {
+    if (step?.kind !== 'search' && step?.kind !== 'page') continue;
+    const target = String(step.target ?? '').replace(/\s+/g, ' ').trim().slice(0, 120);
+    if (!target) continue;
+    const ns = (Array.isArray(step.ns) ? step.ns : []).filter((n) => Number.isInteger(n) && n > 0 && n < 1000).slice(0, 12);
+    out.push({ kind: step.kind, target, ...(ns.length ? { ns } : {}) });
+    if (out.length >= MAX_WEB_STEPS) break;
+  }
+  return out;
+}
+
+/** The events of the loops that search and open pages, put on the list that is kept with the reply: a `searching` begins a step, the `sources` that follow say which pages it gave back. */
+export function noteWebStep(list, event) {
+  if (!Array.isArray(list)) return;
+  if (event?.type === 'searching' && (event.kind === 'search' || event.kind === 'page') && event.doneLabel && event.target) {
+    list.push({ kind: event.kind, target: String(event.target), pending: true });
+  } else if (event?.type === 'sources') {
+    const open = list.findLast((step) => step.pending);
+    if (!open) return;
+    delete open.pending;
+    const ns = (Array.isArray(event.sources) ? event.sources : []).map((source) => source?.n).filter((n) => Number.isInteger(n));
+    if (ns.length) open.ns = ns;
+  }
+}
+
+/** The answer of a memory search ends its row (`tool-end` with the count of notes or past conversations that came back): the last memory row without a count gets it. */
+export function noteToolEnd(tools, event) {
+  if (event?.type !== 'tool-end' || !Number.isInteger(event.count) || !Array.isArray(tools)) return;
+  const last = [...tools].reverse().find((tool) => tool.kind === 'memory');
+  if (last && last.count === undefined) applyToolEnd(last, event);
+}
+
 // The names of the connectors a reply used, each once.
 export function normalizeConnectors(connectors) {
   return [...new Set((Array.isArray(connectors) ? connectors : []).map((name) => String(name ?? '').replace(/\s+/g, ' ').trim().slice(0, 60)).filter(Boolean))].slice(0, MAX_CONNECTORS);
@@ -132,6 +201,8 @@ export function normalizeSandboxRun(run = {}) {
     ...(normalizeSources(run.sources).length ? { sources: normalizeSources(run.sources) } : {}),
     ...(normalizeSources(run.sources).length && Number.isInteger(run.sourcesBefore) && run.sourcesBefore > 0 ? { sourcesBefore: Math.min(run.sourcesBefore, 1000) } : {}),
     ...(normalizeConnectors(run.connectors).length ? { connectors: normalizeConnectors(run.connectors) } : {}),
+    ...(normalizeTools(run.tools).length ? { tools: normalizeTools(run.tools) } : {}),
+    ...(normalizeWebSteps(run.web).length ? { web: normalizeWebSteps(run.web) } : {}),
     // A message of a reply that was cut where the person added a message: its process line is drawn even when it has nothing but the time.
     ...(run.segment ? { segment: true } : {}),
     // The pictures a text model looked at, asked about and drew (data/picture-steps.js).

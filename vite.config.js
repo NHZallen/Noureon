@@ -97,10 +97,6 @@ function chunkName(id) {
   if (id.includes('/src/app/runtime/shell/model-registry.js')) return 'model-registry';
   // The start of the page and the page features (made by the shell, shell.js) ship next to the shell, not inside it.
   if (/\/src\/app\/runtime\/(?:features\/(?:app-bootstrap|startup)-lifecycle|shell\/page-features)\.js$/.test(id)) return 'chat-page';
-  // Memory is loaded after the application shell and has its own lifecycle.
-  // Keep it out of the shell chunk so adding memory capabilities does
-  // not make first-load chat startup heavier.
-  if (id.includes('/src/app/runtime/memory/')) return 'runtime-memory';
   if (id.includes('/src/app/runtime/messages/message-list-lifecycle.js')) return 'message-list';
   if (!id.includes('node_modules')) {
     return undefined;

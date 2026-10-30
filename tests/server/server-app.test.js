@@ -12,14 +12,14 @@ const USER = '123e4567-e89b-12d3-a456-426614174000';
 const TOKEN = 'good-token-good-token-good-token';
 const KEY = 'sk-live-provider-key-value';
 
-async function withServer(run, { auth = true, runs = null, credentials = null, files = null } = {}) {
+async function withServer(run, { auth = true, runs = null, credentials = null, files = null, memoryRebuild = null } = {}) {
   const lines = [];
   const config = loadConfig({ SUPABASE_URL: 'https://project.supabase.example', SUPABASE_ANON_KEY: 'anon', SOURCE_COMMIT: 'abc123' });
   const fetchImpl = async (url, options) => {
     if (!auth) throw new Error('offline');
     return options.headers.Authorization === `Bearer ${TOKEN}` ? new Response(JSON.stringify({ id: USER }), { status: 200 }) : new Response('{}', { status: 401 });
   };
-  const server = createServer(createApp({ config, fetchImpl, runs, credentials, files, log: createLogger((line) => lines.push(line)) }));
+  const server = createServer(createApp({ config, fetchImpl, runs, credentials, files, memoryRebuild, log: createLogger((line) => lines.push(line)) }));
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
   try {
@@ -475,4 +475,33 @@ test('a person\'s request to let a model of their council leave reaches that cou
     assert.equal((await exit('323e4567-e89b-12d3-a456-426614174002', { modelId: 'can-leave' })).status, 404, 'a council that is not running here');
     assert.equal((await exit(USER, { modelId: 'can-leave' }, json)).status, 401);
   }, { runs });
+});
+
+test('the rebuild of the memory: only for a signed-in person, with the key passed on to the job once and never into the log; the answers say what happened', async () => {
+  const calls = [];
+  let result = { ok: true };
+  const memoryRebuild = { start: async (args) => { calls.push(args); return result; }, stop: (userId) => userId === USER };
+  await withServer(async ({ base, lines }) => {
+    const send = (path, body, token = TOKEN) => fetch(`${base}${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify(body) });
+    assert.equal((await send('/v1/memory/rebuild', { modelId: 'm', key: KEY }, null)).status, 401);
+    const started = await send('/v1/memory/rebuild', { modelId: 'm', key: KEY, language: 'fr' });
+    assert.equal(started.status, 202);
+    assert.deepEqual(await started.json(), { started: true });
+    assert.deepEqual(calls, [{ userId: USER, modelId: 'm', key: KEY, language: 'fr' }]);
+    result = { ok: false, code: 'already_running' };
+    const running = await send('/v1/memory/rebuild', { modelId: 'm', key: KEY });
+    assert.equal(running.status, 409);
+    assert.equal((await running.json()).error.reason, 'already_running');
+    result = { ok: false, code: 'unknown_model' };
+    assert.equal((await send('/v1/memory/rebuild', { modelId: 'nope', key: KEY })).status, 400);
+    assert.equal((await send('/v1/memory/rebuild', { modelId: 'm', key: 'x'.repeat(601) })).status, 400, 'a key that long is not passed on');
+    assert.equal(calls.at(-1).key, '', 'it reached the job as no key');
+    const stopped = await send('/v1/memory/rebuild/stop', {});
+    assert.deepEqual(await stopped.json(), { stopped: true });
+    assert.equal(lines.join('\n').includes(KEY), false, 'the key is not in the log');
+  }, { memoryRebuild });
+  await withServer(async ({ base }) => {
+    const response = await fetch(`${base}/v1/memory/rebuild`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${TOKEN}` }, body: '{}' });
+    assert.equal(response.status, 503, 'a server without the memory says so');
+  });
 });

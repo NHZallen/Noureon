@@ -35,6 +35,10 @@ function createElement(id = '') {
     },
     removeChild(child) {
       if (this.child === child) this.child = null;
+    },
+    listeners: {},
+    addEventListener(name, handler) {
+      (this.listeners[name] ||= []).push(handler);
     }
   };
 }
@@ -49,8 +53,6 @@ function createHarness({
     modelSettings: [],
     autoNaming: true,
     enableAutoWebSearch: false,
-    memoryEnabled1: true,
-    enableAutoMemory: true,
     uiTheme: {},
     aiDefaultLanguage: 'en',
     isLearningMode: false
@@ -63,14 +65,17 @@ function createHarness({
   vaultRecord = { version: 1, salt: 'vault-salt' },
   vaultUnlocked = true,
   promptResponses = ['sync-password'],
-  importFile
+  importFile,
+  confirmAnswer = null
 } = {}) {
   const calls = [];
+  const confirmOptions = [];
   const elements = {
     exportHistoryCheck: createElement('exportHistoryCheck'),
     exportAstrasCheck: createElement('exportAstrasCheck'),
     exportSettingsCheck: createElement('exportSettingsCheck'),
     exportMemoryCheck: createElement('exportMemoryCheck'),
+    exportDataBtn: createElement('exportDataBtn'),
     confirmExportBtn: createElement('confirmExportBtn'),
     exportDataModal: createElement('exportDataModal'),
     importFileInput: createElement('importFileInput'),
@@ -218,9 +223,10 @@ function createHarness({
     applyLanguage: (language) => calls.push(['applyLanguage', language]),
     loadChat: (id) => calls.push(['loadChat', id]),
     startNewChat: () => calls.push(['startNewChat']),
-    showCustomConfirm: async (message, title) => {
+    showCustomConfirm: async (message, title, options) => {
       calls.push(['confirm', message, title]);
-      return true;
+      confirmOptions.push(options || {});
+      return confirmAnswer ? confirmAnswer(message, title, options) : true;
     },
     showCustomPrompt: async (message, title, inputType) => {
       calls.push(['prompt', message, title, inputType]);
@@ -264,6 +270,7 @@ function createHarness({
 
   return {
     calls,
+    confirmOptions,
     config,
     get sensitiveApiKeys() {
       return sensitiveApiKeys;
@@ -426,7 +433,8 @@ test('handleExport uses live getters and packages every selected data group', as
   assert.deepEqual(exportedData.conversations, [{ id: 'conv-1', messages: [] }]);
   assert.deepEqual(exportedData.folders, [{ id: 'folder-1' }]);
   assert.deepEqual(exportedData.astras, [{ id: 'astra-1', name: 'Astra One' }]);
-  assert.deepEqual(exportedData.personalMemories, [{ id: 'memory-1' }]);
+  assert.equal('personalMemories' in exportedData, false, 'the old list of personal memories is not written any more');
+  assert.equal('memoryNotes' in exportedData, false, 'no notes memory is loaded in this test');
   assert.equal(exportedData.settings.defaultModel, 'model-a');
   assert.equal('apiKeys' in exportedData, false);
   assert.equal(JSON.stringify(exportedData).includes('sensitive-gemini-key'), false);
@@ -459,8 +467,6 @@ test('handleExport excludes apiKeys from normal settings exports by default', as
       modelSettings: [],
       autoNaming: true,
       enableAutoWebSearch: false,
-      memoryEnabled1: true,
-      enableAutoMemory: true,
       uiTheme: {},
       aiDefaultLanguage: 'en',
       isLearningMode: false
@@ -496,8 +502,6 @@ test('handleExport encrypts explicit API key exports and uses localized warning 
       modelSettings: [],
       autoNaming: true,
       enableAutoWebSearch: false,
-      memoryEnabled1: true,
-      enableAutoMemory: true,
       uiTheme: {},
       aiDefaultLanguage: 'en',
       isLearningMode: false
@@ -583,4 +587,132 @@ test('import/export lifecycle module avoids auth, startup, runtime entry, and fr
   assert.doesNotMatch(source, /legacy-runtime\/fragments|virtual:legacy-app-runtime|runtime-app/);
   assert.doesNotMatch(source, /(?:^|\n)\s*currentUser\s*=/);
   assert.doesNotMatch(source, /chat_lastUser|createPasswordRecord|getUserKey|initChatApp|initializeApp/);
+});
+
+test('handleExport writes the notes of the memory and the words of the deleted ones when the memory is loaded, and a backup with notes brings them back', async () => {
+  const { createNotesMemory } = await import('../src/app/runtime/memory-store/notes-memory.js');
+  const { setNotesMemory } = await import('../src/app/runtime/memory-store/memory-ref.js');
+  const stored = new Map();
+  const memory = createNotesMemory({ storage: { getItem: (key) => stored.get(key) ?? null, setItem: (key, value) => { stored.set(key, value); } }, logger: { warn() {} } });
+  await memory.attach({ username: 'alice' });
+  setNotesMemory(memory);
+  try {
+    const { importNotes } = await import('../src/app/runtime/memory-store/notes-transfer.js');
+    await importNotes({ data: { version: 1, notes: [{ text: 'The user prefers short answers' }] } });
+    const { elements, FakeJSZip, lifecycle } = createHarness({ conversations: [], folders: [], astras: [] });
+    elements.exportMemoryCheck.checked = true;
+    await lifecycle.handleExport();
+    const zip = FakeJSZip.instances.at(-1);
+    const exportedData = JSON.parse(await zip.files['data.json'].async('string'));
+    assert.deepEqual(exportedData.memoryNotes.notes.map((note) => note.text), ['The user prefers short answers']);
+    assert.equal('personalMemories' in exportedData, false);
+  } finally {
+    setNotesMemory(null);
+  }
+});
+
+async function withMemory(run) {
+  const { createNotesMemory } = await import('../src/app/runtime/memory-store/notes-memory.js');
+  const { setNotesMemory } = await import('../src/app/runtime/memory-store/memory-ref.js');
+  const stored = new Map();
+  const memory = createNotesMemory({ storage: { getItem: (key) => stored.get(key) ?? null, setItem: (key, value) => { stored.set(key, value); } }, logger: { warn() {} } });
+  await memory.attach({ username: 'alice' });
+  setNotesMemory(memory);
+  try {
+    await run(memory);
+  } finally {
+    setNotesMemory(null);
+  }
+}
+
+const backupWithNotes = () => ({
+  backup_identity: { username: 'alice' },
+  conversations: [{ id: 'conv-1', messages: [] }],
+  folders: [],
+  astras: [],
+  settings: { uiLanguage: 'en' },
+  memoryNotes: { version: 1, notes: [{ text: 'The user prefers short answers' }, { text: 'The user lives in Taipei' }, { text: 'my password is hunter2 and the card 4111 1111 1111 1111' }], blocked: [{ keywords: ['karaoke'], hint: 'karaoke' }] }
+});
+
+test('handleImport says what the file holds, lets the notes be left out, and brings them in only when they are ticked', async () => {
+  await withMemory(async (memory) => {
+    const left = createHarness({ importFile: { name: 'b.json', type: 'application/json', async text() { return JSON.stringify(backupWithNotes()); } }, confirmAnswer: async () => ({ accepted: true, selected: [] }) });
+    await left.lifecycle.handleImport();
+    const asked = left.confirmOptions.find((options) => options.checklist);
+    assert.ok(asked, 'the notes are a tick box of the confirmation');
+    assert.deepEqual(asked.checklist.map((item) => item.id), ['chats', 'settings', 'notes'], 'what the file holds is a list of tick boxes, one for each kind');
+    assert.match(asked.checklist[0].label, /對話 1/);
+    assert.match(asked.checklist.at(-1).label, /3 /);
+    assert.equal(memory.getStore().getNotes().length, 0, 'unticked: nothing of the notes came in');
+
+    const taken = createHarness({ importFile: { name: 'b.json', type: 'application/json', async text() { return JSON.stringify(backupWithNotes()); } }, confirmAnswer: async () => ({ accepted: true, selected: ['notes'] }) });
+    await taken.lifecycle.handleImport();
+    const texts = memory.getStore().getNotes().filter((note) => note.status === 'active').map((note) => note.text).sort();
+    assert.deepEqual(texts, ['The user lives in Taipei', 'The user prefers short answers']);
+    assert.ok(memory.getStore().getNotes().some((note) => note.status !== 'active' && note.keywords.includes('karaoke')), 'the words of a deleted note came in too');
+  });
+});
+
+test('after the import a message lists the notes that came in and the ones that were left out with the reason', async () => {
+  await withMemory(async () => {
+    const harness = createHarness({ confirmAnswer: async (message, title, options) => (options?.checklist ? { accepted: true, selected: ['notes'] } : true) });
+    await harness.lifecycle.performImport(backupWithNotes());
+    const index = harness.confirmOptions.findIndex((options) => options.okOnly);
+    assert.ok(index >= 0, 'a message with only an OK, to read');
+    const [, message, title] = harness.calls.filter((call) => call[0] === 'confirm')[index];
+    assert.match(title, /記憶匯入結果|Memory import result/);
+    assert.match(message, /The user prefers short answers/);
+    assert.match(message, /The user lives in Taipei/);
+    assert.match(message, /password is hunter2/, 'the one that was left out is named');
+    assert.match(message, /機密|secret/);
+    assert.equal(harness.confirmOptions[index].preformatted, true);
+  });
+});
+
+test('the tick box of the notes in the export says how many there are when the export opens', async () => {
+  await withMemory(async () => {
+    const { importNotes } = await import('../src/app/runtime/memory-store/notes-transfer.js');
+    await importNotes({ data: { version: 1, notes: [{ text: 'The user prefers short answers' }, { text: 'The user lives in Taipei' }] } });
+    const label = { textContent: 'Memory notes' };
+    // The label is set up before the lifecycle looks at the button, as the page is.
+    const { elements } = createHarness({ config: undefined });
+    assert.ok(elements.exportDataBtn.listeners.click?.length, 'the lifecycle listens to the export button');
+    elements.exportMemoryCheck.closest = () => ({ querySelector: () => label });
+    await Promise.all(elements.exportDataBtn.listeners.click.map((handler) => handler()));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    assert.match(label.textContent, /（2）/);
+  });
+});
+
+test('handleImport replaces only the kinds the person ticked and leaves the rest of the app as it is', async () => {
+  const backup = () => ({
+    backup_identity: { username: 'alice' },
+    conversations: [{ id: 'imported-chat', messages: [] }],
+    folders: [{ id: 'imported-folder', name: 'From the file' }],
+    astras: [{ id: 'imported-noura', name: 'Imported' }],
+    settings: { uiLanguage: 'fr' }
+  });
+  const file = { name: 'b.json', type: 'application/json', async text() { return JSON.stringify(backup()); } };
+  const mine = { conversations: [{ id: 'my-chat', messages: [] }], folders: [{ id: 'my-folder', name: 'Mine' }], astras: [{ id: 'my-noura', name: 'Mine' }] };
+
+  const onlyChats = createHarness({ ...mine, importFile: file, confirmAnswer: async () => ({ accepted: true, selected: ['chats'] }) });
+  await onlyChats.lifecycle.handleImport();
+  assert.deepEqual(onlyChats.conversations.map((conversation) => conversation.id), ['imported-chat'], 'the ticked kind is replaced by the file');
+  assert.deepEqual(onlyChats.astras.map((astra) => astra.id), ['my-noura'], 'the kinds that were not ticked stay');
+  assert.equal(onlyChats.config.uiLanguage, 'en', 'the settings were not ticked, so they stay');
+
+  const keepChats = createHarness({ ...mine, importFile: file, confirmAnswer: async () => ({ accepted: true, selected: ['astras', 'folders'] }) });
+  await keepChats.lifecycle.handleImport();
+  assert.deepEqual(keepChats.conversations.map((conversation) => conversation.id), ['my-chat']);
+  assert.deepEqual(keepChats.astras.map((astra) => astra.id), ['imported-noura']);
+
+  const none = createHarness({ ...mine, importFile: file, confirmAnswer: async () => ({ accepted: true, selected: [] }) });
+  await none.lifecycle.handleImport();
+  assert.deepEqual(none.conversations.map((conversation) => conversation.id), ['my-chat'], 'nothing ticked: nothing is touched');
+  assert.equal(none.calls.some((call) => call[0] === 'replaceAllAppData'), false);
+
+  const all = createHarness({ ...mine, importFile: file });
+  await all.lifecycle.handleImport();
+  assert.equal(all.config.uiLanguage, 'fr', 'and the settings come in when everything is taken');
+  assert.deepEqual(all.conversations.map((conversation) => conversation.id), ['imported-chat'], 'a plain yes takes everything, as before');
 });

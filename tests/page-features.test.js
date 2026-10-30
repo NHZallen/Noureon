@@ -190,21 +190,6 @@ test('theme helpers use injected live state and DOM dependencies', () => {
   assert.deepEqual(calls, []);
 });
 
-test('emptying the trash invalidates the memory of each conversation, once memory is set up', async () => {
-  let memory = null;
-  const invalidated = [];
-  const { lifecycle, state } = createHarness({
-    getMemory: () => memory,
-    showCustomConfirm: async () => true,
-    deleteConversationsFromCloud: async () => true
-  });
-  state.conversations = [{ id: 'gone', deletedAt: '2026-01-01', messages: [] }, { id: 'kept', deletedAt: null, messages: [] }];
-  memory = { invalidateConversation: async ({ conversationId }) => invalidated.push(conversationId), rebuildHistoryIndex: async () => {} };
-  await lifecycle.handleEmptyTrash();
-  assert.deepEqual(state.conversations.map((conversation) => conversation.id), ['kept']);
-  assert.deepEqual(invalidated, ['gone']);
-});
-
 // Noura names are localized when the sidebar list is built, not through data-lang-key, so
 // applyLanguage's [data-lang-key] sweep cannot reach them. Without an explicit re-render the
 // sidebar kept the previous language until some unrelated interaction rebuilt the list.
@@ -214,16 +199,15 @@ test('changing the interface language re-renders the language-dependent Noura li
     i18n: { 'zh-TW': {}, en: {} },
     renderAstras: () => rendered.push('astras'),
     renderInputIndicators: () => rendered.push('indicators'),
-    renderCouncilControls: () => rendered.push('council'),
-    renderPersonalMemoryList: () => rendered.push('memory')
+    renderCouncilControls: () => rendered.push('council')
   });
 
   lifecycle.applyLanguage('zh-TW');
-  assert.deepEqual(rendered, ['astras', 'indicators', 'council', 'memory'], 'the first application establishes the language');
+  assert.deepEqual(rendered, ['astras', 'indicators', 'council'], 'the first application establishes the language');
 
   rendered.length = 0;
   lifecycle.applyLanguage('en');
-  assert.deepEqual(rendered, ['astras', 'indicators', 'council', 'memory'], 'switching language rebuilds the localized lists');
+  assert.deepEqual(rendered, ['astras', 'indicators', 'council'], 'switching language rebuilds the localized lists');
 });
 
 // The store grid and trash list are rebuilt inside the same block; they are module-internal,
@@ -232,7 +216,7 @@ test('the language change block also rebuilds the store grid and trash list', ()
   const source = readSource('src/app/runtime/features/language-apply.js');
   const block = /if \(languageChanged\) \{[\s\S]*?\}/.exec(source);
   assert.ok(block, 'the languageChanged block should exist');
-  for (const call of ['renderStore()', 'renderTrash()', 'renderPersonalMemoryList()']) {
+  for (const call of ['renderStore()', 'renderTrash()']) {
     assert.ok(block[0].includes(call), `${call} should run on language change`);
   }
 });
@@ -243,8 +227,7 @@ test('re-applying the same interface language does no extra rendering work', () 
     i18n: { 'zh-TW': {}, en: {} },
     renderAstras: () => rendered.push('astras'),
     renderInputIndicators: () => rendered.push('indicators'),
-    renderCouncilControls: () => rendered.push('council'),
-    renderPersonalMemoryList: () => rendered.push('memory')
+    renderCouncilControls: () => rendered.push('council')
   });
 
   lifecycle.applyLanguage('en');
@@ -257,5 +240,5 @@ test('re-applying the same interface language does no extra rendering work', () 
 
   // An unknown language resolves to the zh-TW fallback, which is a real change.
   lifecycle.applyLanguage('not-a-language');
-  assert.deepEqual(rendered, ['astras', 'indicators', 'council', 'memory']);
+  assert.deepEqual(rendered, ['astras', 'indicators', 'council']);
 });

@@ -213,8 +213,6 @@ export function createImportExportLifecycle({
         visionCheckEnabled: config.visionCheckEnabled !== false,
         fileModeDefault: config.fileModeDefault === 'standard' ? 'standard' : 'advanced',
         replyRunLocation: config.replyRunLocation === 'local' ? 'local' : 'server',
-        memoryEnabled1: config.memoryEnabled1,
-        enableAutoMemory: config.enableAutoMemory,
         uiTheme: config.uiTheme,
         uiLanguage: config.uiLanguage,
         aiDefaultLanguage: config.aiDefaultLanguage,
@@ -241,7 +239,9 @@ export function createImportExportLifecycle({
       rawData.encryptedApiKeys = encryptedApiKeys;
     }
     if (elements.exportMemoryCheck.checked) {
-      rawData.personalMemories = getPersonalMemories();
+      // The notes of the memory (and the words of the ones the person deleted); the old list of personal memories is not written any more.
+      const notes = await (await import('../memory-store/notes-transfer.js')).exportNotes().catch(() => null);
+      if (notes) rawData.memoryNotes = notes;
     }
 
     if (Object.keys(rawData).length === 0) {
@@ -377,6 +377,56 @@ export function createImportExportLifecycle({
     }
   }
 
+  // The notes of a backup go into the memory, checked as every write is; a backup without them, or a memory that is not loaded, is left as it is.
+  async function importMemoryNotes(data, { selected = true } = {}) {
+    if (!data?.memoryNotes || !selected) return null;
+    try {
+      const result = await (await import('../memory-store/notes-transfer.js')).importNotes({ data: data.memoryNotes });
+      if (result.ok) showNotification(text('mnImportDone', 'Memory notes imported: {added} added, {skipped} left out.').replace('{added}', result.added).replace('{skipped}', Object.values(result.skipped).reduce((sum, count) => sum + count, 0)), 'success');
+      else showNotification(text('mnImportBad', 'The memory notes in this file could not be imported.'), 'warning');
+      return result;
+    } catch (error) {
+      logger.warn?.('The memory notes of the backup could not be imported.', error);
+      return null;
+    }
+  }
+
+  // What the file holds, as a list the person ticks before anything is replaced (only what is ticked is replaced; the rest of the app stays as it is).
+  // Resolves { accepted, chosen: { chats, folders, astras, settings, keys, notes } }.
+  async function confirmImportOf(data, message, title) {
+    const held = data?.memoryNotes;
+    const has = (list) => Array.isArray(list) && list.length > 0;
+    const items = [
+      has(data?.conversations) && { id: 'chats', label: text('importHasChats', '對話 {n}').replace('{n}', data.conversations.length) },
+      has(data?.folders) && { id: 'folders', label: text('importHasFolders', '資料夾 {n}').replace('{n}', data.folders.length) },
+      has(data?.astras) && { id: 'astras', label: text('importHasAstras', 'Nouras {n}').replace('{n}', data.astras.length) },
+      data?.settings && { id: 'settings', label: text('importHasSettings', '設定') },
+      (data?.encryptedApiKeys || data?.apiKeys) && { id: 'keys', label: text('importHasApiKeys', 'API 金鑰') },
+      Array.isArray(held?.notes) && { id: 'notes', label: text('importMemoryChoice', '記憶筆記（{n} 條，忘記的關鍵字 {m} 個）').replace('{n}', held.notes.length).replace('{m}', Array.isArray(held.blocked) ? held.blocked.length : 0) }
+    ].filter(Boolean).map((item) => ({ ...item, checked: true }));
+    const everything = Object.fromEntries(['chats', 'folders', 'astras', 'settings', 'keys', 'notes'].map((id) => [id, items.some((item) => item.id === id)]));
+    if (!items.length) return { accepted: Boolean(await showCustomConfirm(message, title)), chosen: everything };
+    const answer = await showCustomConfirm(`${message}\n\n${text('importChooseItems', '勾選要匯入的項目；沒勾的維持現狀。')}`, title, { preformatted: true, checklist: items });
+    // (A confirm that only answers yes or no takes everything along.)
+    if (typeof answer === 'boolean') return { accepted: answer, chosen: everything };
+    const picked = new Set(Array.isArray(answer?.selected) ? answer.selected : []);
+    return { accepted: Boolean(answer?.accepted), chosen: Object.fromEntries(Object.keys(everything).map((id) => [id, picked.has(id)])) };
+  }
+
+  // After the import: which notes came in and which were left out, and why.
+  async function showMemoryImportDetail(result) {
+    if (!result?.ok) return;
+    const lines = [text('importMemoryAdded', '新增 {n} 條').replace('{n}', result.added)];
+    for (const note of result.details?.added || []) lines.push(`・${note}`);
+    const left = Object.values(result.skipped).reduce((sum, count) => sum + count, 0);
+    if (left) {
+      lines.push('', text('importMemorySkipped', '略過 {n} 條').replace('{n}', left));
+      for (const item of result.details?.skipped || []) lines.push(`・${item.text}（${text(`importSkip_${item.reason}`, item.reason)}）`);
+    }
+    if (result.blocked) lines.push('', text('importMemoryBlocked', '另外加入 {n} 個「不要再學」的關鍵字').replace('{n}', result.blocked));
+    await showCustomConfirm(lines.join('\n'), text('importMemoryTitle', '記憶匯入結果'), { preformatted: true, okOnly: true });
+  }
+
   async function performImport(data) {
     if (!getCurrentUser()) {
       throw new Error(text('importNoUser', 'Data cannot be imported without a signed-in user.'));
@@ -389,8 +439,10 @@ export function createImportExportLifecycle({
     });
     await saveAppData();
     applySettings(data.settings);
+    const memoryResult = await importMemoryNotes(data);
     await mergeApiKeys(await resolveImportedApiKeys(data));
     await saveConfig();
+    await showMemoryImportDetail(memoryResult);
   }
 
   async function handleImport() {
@@ -452,34 +504,40 @@ export function createImportExportLifecycle({
       }
 
       const backupUsername = getBackupUsername(rawData);
-      if (backupUsername && backupUsername !== getCurrentUser().username) {
-        const confirmed = await showCustomConfirm(
+      const confirmedImport = backupUsername && backupUsername !== getCurrentUser().username
+        ? await confirmImportOf(
+          rawData,
           text('importUserMismatch', '備份使用者 {backupUser} 與目前使用者 {currentUser} 不同。')
             .replace('{backupUser}', backupUsername)
             .replace('{currentUser}', getCurrentUser().username),
           text('importUserMismatchTitle', '使用者不符')
-        );
-        if (!confirmed) throw new Error(IMPORT_CANCELLED);
-      } else if (!(await showCustomConfirm(text('importOverwriteWarning', '匯入將覆蓋目前資料。'), text('importConfirmation', '確認匯入')))) {
+        )
+        : await confirmImportOf(rawData, text('importOverwriteWarning', '匯入將覆蓋目前資料。'), text('importConfirmation', '確認匯入'));
+      if (!confirmedImport.accepted) throw new Error(IMPORT_CANCELLED);
+      const chosen = confirmedImport.chosen;
+      if (!Object.values(chosen).some(Boolean) && !Array.isArray(rawData.personalMemories)) {
+        showNotification(text('importNothingChosen', '沒有勾選任何要匯入的項目。'), 'info');
         throw new Error(IMPORT_CANCELLED);
       }
 
-      const importedApiKeys = await resolveImportedApiKeys(rawData);
+      const importedApiKeys = chosen.keys ? await resolveImportedApiKeys(rawData) : null;
 
       updateProgress(30, text('importPreparing', 'Getting ready to import...'));
 
+      // What was not ticked stays as it is; what was ticked is replaced by the file's.
       const activeAppData = replaceAllAppData({
-        conversations: [],
-        folders: [],
-        astras: [],
+        conversations: chosen.chats ? [] : getConversations(),
+        folders: chosen.folders ? [] : getFolders(),
+        astras: chosen.astras ? [] : getAstras(),
         personalMemories: []
       });
 
-      applySettings(rawData.settings);
+      if (chosen.settings) applySettings(rawData.settings);
       await mergeApiKeys(importedApiKeys);
       await saveConfig();
+      const memoryResult = await importMemoryNotes(rawData, { selected: chosen.notes });
 
-      const astrasToImport = rawData.astras || [];
+      const astrasToImport = chosen.astras ? rawData.astras || [] : [];
       if (astrasToImport.length > 0) {
         await processInChunks(astrasToImport, async (astra) => {
           if (astra._avatarZipRef && zip) {
@@ -503,7 +561,7 @@ export function createImportExportLifecycle({
         });
       }
 
-      if (rawData.folders) {
+      if (chosen.folders && rawData.folders) {
         activeAppData.folders = replaceFolders(rawData.folders);
       }
 
@@ -511,7 +569,7 @@ export function createImportExportLifecycle({
         activeAppData.personalMemories = replacePersonalMemories(rawData.personalMemories);
       }
 
-      const conversationsToImport = rawData.conversations || [];
+      const conversationsToImport = chosen.chats ? rawData.conversations || [] : [];
       if (conversationsToImport.length > 0) {
         await processInChunks(conversationsToImport, async (conversation) => {
           for (const message of conversation.messages) {
@@ -568,6 +626,7 @@ export function createImportExportLifecycle({
       const firstConversation = getConversations().find((conversation) => !conversation.archived && !conversation.deletedAt);
       if (firstConversation) loadChat(firstConversation.id);
       else startNewChat();
+      await showMemoryImportDetail(memoryResult);
     } catch (error) {
       if (error.message === IMPORT_CANCELLED) {
         showNotification(getRuntimeText(getConfig().uiLanguage, 'importCancelled'), 'info');
@@ -583,6 +642,18 @@ export function createImportExportLifecycle({
       confirmImportBtn.textContent = text('confirmAndImport', '確認並匯入');
     }
   }
+
+  // The tick box of the notes says how many there are when the export opens.
+  async function showExportMemoryCount() {
+    try {
+      const data = await (await import('../memory-store/notes-transfer.js')).exportNotes();
+      const label = elements.exportMemoryCheck?.closest?.('label')?.querySelector?.('span');
+      if (data && label) label.textContent = `${text('exportPersonalMemory', '記憶筆記')}（${data.notes.length}）`;
+    } catch {
+      // The label stays as it is.
+    }
+  }
+  elements.exportDataBtn?.addEventListener?.('click', () => { void showExportMemoryCount(); });
 
   return {
     handleExport,

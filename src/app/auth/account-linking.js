@@ -5,6 +5,7 @@ import {
 } from '../runtime/kernel/user-data-retention.js';
 import { repairGeneratedImageStorageKeys } from '../sync/generated-image-key-repair.js';
 import { createWorkspaceStoreV2, getWorkspaceV2Keys } from '../runtime/kernel/workspace-store-v2.js';
+import { carryLocalNotes } from '../runtime/memory-store/notes-carry.js';
 
 export const PENDING_CLOUD_LINK_KEY = 'chat_pendingCloudLink_v1';
 
@@ -69,6 +70,9 @@ export async function completePendingCloudAccountLink({
       transform: value => repairGeneratedImageStorageKeys({ value, storage, username: targetUsername })
     });
   }
+
+  // The notes of the memory of the local account go with it (they wait in the browser until the memory of the cloud account is opened).
+  carryLocalNotes({ source: sourceUsername, target: targetUsername, storage: globalThis.localStorage });
 
   const targetAppDataKey = `chatAppData_v8.6_${targetUsername}`;
   const savedAppData = await storage.getItem(targetAppDataKey);

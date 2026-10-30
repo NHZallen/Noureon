@@ -83,7 +83,6 @@ export function createBatchImportVoiceLifecycle(dependencies = {}) {
         JSZip,
         elements: ALL_ELEMENTS,
         // The memory functions (memory-runtime.js), or null while memory is not set up.
-        getMemory = () => null,
         setupSettingsModal,
         initChatApp,
         getConfig,
@@ -166,16 +165,6 @@ export function createBatchImportVoiceLifecycle(dependencies = {}) {
         // The open conversation is left at once, for a new chat; memory and saving come after.
         if (selectedConversationIds.has(conversationStateAccess.getCurrentConversationId())) {
             await startNewChat({ keepSidebarOpen: true });
-        }
-        const invalidateConversationMemory = getMemory()?.invalidateConversation;
-        if (typeof invalidateConversationMemory === 'function') {
-            const ids = [...selectedConversationIds];
-            for (const [index, conversationId] of ids.entries()) {
-                await invalidateConversationMemory({
-                    conversationId,
-                    skipSummaryRebuild: index < ids.length - 1
-                });
-            }
         }
         await saveAppData({ immediateCloudSync: true });
         toggleSelectionMode();

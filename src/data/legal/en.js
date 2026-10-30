@@ -181,13 +181,13 @@ export default {
       },
       {
         id: 'memory',
-        h: '13. Memory and cross-conversation recall',
+        h: '13. Memory',
         blocks: [
           [
-            'Confirmed personal preferences: in Settings → Memory management you can add, replace or delete them yourself, and add "do not bring up" rules, for example not to mention your name or health information.',
-            'Automatic memory: when on, Noureon uses your Gemini key to turn conversations into summaries and possible preferences for you to confirm; turning it off only stops new memories, confirmed ones stay and are removed one by one.',
-            'Cross-conversation recall: needs your explicit consent. When on, this device sends your current question to Gemini Embedding 2 and uses a local index to find up to three relevant summaries of earlier conversations; the sources are not shown in the chat. Consent follows your account to all devices, but the index and the vectors are not synced: each device builds its own; you can check or optimize the local index in Settings.',
-            'Attached pictures, video, audio and documents may be summarized through Gemini\'s file feature when memory is built.'
+            'Notes: Noureon keeps what is worth remembering about you as short notes, one fact each (for example: The user prefers short answers). In Settings → Memory you can see, edit, put on the first page, mark as "do not bring up", delete, export or clear all of them. A note you delete is not learned again.',
+            'How it is used: the few notes you pinned go with every message; the other notes are looked up only when they bear on what you ask, and your past conversations can be searched the same way on this device. Under a reply you can see "Used N notes from memory" and tell it that a note is not relevant here.',
+            'How it learns: while you chat, the model may save a note itself (the reply then shows "Memory updated" with Undo); for a model that cannot, a small model reads what you said once the reply is written. Every note must quote your own words, and secrets are never kept. You can switch learning, use and pause off in Settings. The automatic tidy (and the Tidy now button) archives, merges and replaces notes, and its changes can be undone for 30 days.',
+            'Past conversations: a keyword index is built in your browser from your conversations (no model, nothing is sent). The button "Build memory from past conversations" reads your newest 30 conversations with a small model once you press it (the first time you open the memory it also starts on its own). The search by meaning is off until you agree: when on, the text of your past conversations and the pictures, videos, sounds and documents you attached are sent in groups to Gemini Embedding 2 (straight, or through OpenRouter), with your own key, to make vectors. The vectors stay in this browser; with a cloud account you can also turn on "Sync to the cloud account", and they are kept there too, so another device and the server can use them. Turning either off deletes what it kept.'
           ]
         ]
       },
@@ -196,8 +196,8 @@ export default {
         h: '14. Data, sync, export and deletion',
         blocks: [
           [
-            'Local first: conversations, folders, the archive, settings, Nouras, API keys, appearance preferences and the memory index are kept in your browser by default. Clearing browser data can remove them.',
-            'Cloud sync: turn it on in Settings → Personalization after binding an Email or Google account. It includes conversations and messages, folders, Nouras, memories and summary records, sync metadata, deletion markers, and the files you upload or make. To sync API keys you must first create a sync password (at least 10 characters); keys and other sensitive data are encrypted with it before they are uploaded.',
+            'Local first: conversations, folders, the archive, settings, Nouras, API keys, appearance preferences and the index of past conversations are kept in your browser by default. Clearing browser data can remove them.',
+            'Cloud sync: turn it on in Settings → Personalization after binding an Email or Google account. It includes conversations and messages, folders, Nouras, memory notes, sync metadata, deletion markers, and the files you upload or make. To sync API keys you must first create a sync password (at least 10 characters); keys and other sensitive data are encrypted with it before they are uploaded.',
             'Keep the sync password yourself: after it is cleared, existing encrypted data cannot be decrypted. The sync password itself is kept encrypted with a server-side key, for cross-device and Email recovery.',
             'Export and import (Settings → Data management): export .json or .zip (conversation history with the archive and folders, Nouras, app settings, confirmed personal preferences; API keys need a sync password to be exported safely). Importing replaces your current data, so check first. Review an exported file before sharing it, especially if you chose to include sensitive data.',
             'Peer-to-peer transfer: in Settings, "Cross-device sync (P2P)", choose "I want to send" or "I want to receive", connect with an 8-character code or by scanning a QR code, and the items you chose go straight between the two devices; Nouras can be shared this way too.',
@@ -460,9 +460,9 @@ export default {
         h: '1. Data at a glance',
         blocks: [
           [
-            'In your browser: conversations, folders and the archive, settings, Nouras, memories and the local index, API keys, appearance preferences, local account data.',
+            'In your browser: conversations, folders and the archive, settings, Nouras, memory notes (for a local account, and a copy of the notes of a cloud account for when the server cannot be reached), the local index of past conversations and, if you turn it on, their vectors, API keys, appearance preferences, local account data.',
             'Sent to AI and search providers: your prompts, conversation context, attachments, system instructions and the model options you choose (section 6).',
-            'In Noureon\'s cloud (when you sign in and sync): workspace data (conversations, messages, folders, Nouras, memory summaries), uploaded and generated files, an encrypted copy of the sync password, skills and skill packs, the logins and tool settings of connectors, secure credentials (section 4 and section 8).',
+            'In Noureon\'s cloud (when you sign in and sync): workspace data (conversations, messages, folders, Nouras, memory notes), uploaded and generated files, an encrypted copy of the sync password, skills and skill packs, the logins and tool settings of connectors, secure credentials (section 4 and section 8).',
             'Passing through Noureon\'s server for a while (when you choose server-side running): the history, system instructions and your key that one reply needs, deleted when the reply ends (section 7).',
             'Third-party infrastructure: Supabase, Cloudflare Turnstile, GitHub, Vercel, PeerJS and others (section 17).'
           ]
@@ -480,7 +480,7 @@ export default {
         h: '3. Data kept in your browser',
         blocks: [
           [
-            'By default Noureon keeps conversations and messages, folders and the archive, app settings, Nouras, confirmed personal preferences and memories, the local index and vectors for cross-conversation recall, provider API keys, appearance preferences, generated-image information and the local profile in the browser\'s storage (IndexedDB and localStorage).',
+            'By default Noureon keeps conversations and messages, folders and the archive, app settings, Nouras, memory notes (for a local account, and a copy of the notes of a cloud account for when the server cannot be reached), the local index of past conversations and, if you turn on the search by meaning, its vectors, provider API keys, appearance preferences, generated-image information and the local profile in the browser\'s storage (IndexedDB and localStorage).',
             'localStorage also holds a copy of your light/dark choice, so the page has the right theme when it opens.',
             'The public pages (Help Center, Terms of Use, Privacy Policy, update history) also remember in localStorage the language you chose there; it is sent to no one.',
             'As a PWA, the service worker caches only the files of the app itself (programs, styles, icons), not your conversations or personal data.',
@@ -499,7 +499,7 @@ export default {
             'Your picture: when you sign in with Google, the page shows the photo of your Google account (its address comes with the sign-in; the image is loaded from Google\'s servers) until you choose another. If you choose your own, a small round picture (256 × 256, webp) is kept in your cloud account in Supabase Storage (a private bucket that only you can read), with a row in your profile saying it exists; you can change or remove it in Settings → User, and removing it deletes the file. It is shown only to you (in the left menu and the User tab), never to other people, and it is also kept in this browser so that it loads fast.',
             'Registration, sign-in, password recovery and the feedback form use Cloudflare Turnstile as a bot check, so Cloudflare sees browser and connection details.',
             'The mail we send is used only for account access and recovery: confirmation of registration, password reset (a code), the link for a forgotten sync password, and notices that a sign-in method was added or the password changed.',
-            'With cloud sync on, Supabase keeps what is needed for cross-device sync: folders, conversations, messages (with their metadata), Nouras, memories and memory summary records, sync metadata, deletion markers (tombstones), and the files you upload or make (in Supabase Storage).',
+            'With cloud sync on, Supabase keeps what is needed for cross-device sync: folders, conversations, messages (with their metadata), Nouras, memory notes and the record of their changes, the vectors of your past conversations (only if you turn on syncing them), sync metadata, deletion markers (tombstones), and the files you upload or make (in Supabase Storage).',
             'The sync password: keys and other sensitive content are first encrypted in the browser with your sync password before they go into the cloud vault; without a sync password, provider API keys are not uploaded. The sync password itself is kept encrypted with a server-side key, for cross-device and Email recovery, and the database holds no plain text. Note that this means recovery of the sync password is carried out with the help of the service; it is not true in every case that only you can unlock it.',
             'You can choose not to sign in to a cloud account; then none of this data leaves your device (apart from the requests you send to providers).'
           ]
@@ -576,13 +576,15 @@ export default {
       },
       {
         id: 'memory',
-        h: '9. Memory and cross-conversation recall',
+        h: '9. Memory',
         blocks: [
           [
-            'Automatic memory: when on, the browser uses your Gemini key to turn the last turns of a conversation, topics and the attachments you provided into summaries and possible personal preferences (with a light Gemini model); the summaries and confirmed memories are kept in your workspace, and when you sign in and sync, memories and summary records are synced to the cloud. You can look at, replace or delete each at any time, and turning automatic memory off only stops new memories.',
-            'Cross-conversation recall: needs your explicit consent. Once given, each question is sent to Gemini Embedding 2 for a vector and a local index on this device finds up to three relevant summaries, which become part of the request sent to the model provider you chose. The state of consent follows the account to all devices, but vectors and the index are not synced: each device builds its own. Without consent, earlier conversations are not searched or sent and Embedding is not called.',
-            'Attachment memory: pictures, video, audio and documents may be summarized into key points through Gemini\'s file feature when memory is built.',
-            'You can switch these features on or off in Settings, check or optimize the index, and export the confirmed personal preferences.'
+            'Notes: Noureon keeps short notes about you (one fact each, with your own words that show it, and when it was seen and used). When you are signed in they are kept in your cloud workspace (protected so that only you, and Noureon\'s server when it makes a reply for you, can read them); for a local account they are kept in this browser. You can read, edit, delete, export or clear them at any time. A deleted note leaves only its keywords so that it is not learned again. The record of changes made without being asked is kept for 30 days so that you can undo them.',
+            'What goes to a model: a short first page of your pinned notes goes in the system instructions, and the few notes (and pieces of earlier conversations) that bear on your message go after it, to the provider of the model you chose for that reply. When Noureon\'s server makes a reply, it reads your notes from the cloud for that reply and may save notes the model asked to keep; it keeps no key after the reply ends.',
+            'Learning and tidying: a small model (by default the cheap model of the same provider as your reply, or the one you pick in Settings; when the server makes a reply it can only use that provider\'s key) reads what you said in the latest turn and decides whether to keep a note. Every note must quote your own words, and the program checks it. Now and then, groups of notes that seem alike (their text, not your conversations) are sent to that model to be merged or replaced; nothing is deleted and you can undo it for 30 days. Switching learning off stops both; switching use off stops notes being given to any model.',
+            'Building from past conversations: only when you press the button, the last messages you wrote in your newest 30 conversations are sent to that model to make notes.',
+            'Past conversations: a keyword index is made in this browser from your conversations (temporary and deleted ones are left out); it calls no model. When the server makes a reply for a cloud account, it reads the text (not the files) of your newest conversations from your cloud workspace to search them for that reply, and keeps nothing afterwards. The search by meaning is off by default and needs your explicit consent: once given, the text of your past conversations, the pictures, videos, sounds and documents you attached, and your questions are sent to the Gemini Embedding 2 model (straight to Google, or through OpenRouter) with your own key. The vectors stay in this browser (each device builds its own) unless you also turn on "Sync to the cloud account", a separate switch for cloud accounts only: then they are kept in your cloud account (protected so that only you, and Noureon\'s server when it makes a reply for you, can read them), and for a reply made by the server your embedding key goes with that request to turn your question into a vector and is discarded when the reply ends. Turning the search off, or the sync off, deletes the vectors it kept. A reply also keeps, for its sources, the names and days of the past conversations it looked into (never their words).',
+            'Controls: Settings → Memory has the switches for using and learning (and a pause), the choice of the model, the list of notes, export, clear all and the search by meaning. The memory summaries of earlier versions are no longer used.'
           ]
         ]
       },
@@ -647,7 +649,7 @@ export default {
           [
             'Do not sign in to a cloud account, and no workspace data leaves your device (apart from the requests you send to providers).',
             'In Settings → Privacy choose to make replies only on your own device, and the history and keys are not sent to our servers.',
-            'Turn off automatic memory and cross-conversation recall to stop those data flows.',
+            'Turn off learning and the search by meaning in Settings → Memory to stop those data flows.',
             'Export, import, delete, restore or permanently delete your data at any time; use "Clear all records and data" to empty this browser.',
             'Look at, replace or delete your secure credentials, connectors, skills and website rules.',
             'To obtain, correct or delete the data of your cloud account, write to support@noureon.com from the Email you registered with; we will reply within a reasonable time. Depending on the law where you live you may also have rights of access, correction, erasure, restriction, portability and objection; write to us to exercise them.'
@@ -674,7 +676,7 @@ export default {
             'Google Gemini, OpenRouter, NVIDIA, OpenCode Go, OpenAI, Tavily, TinyFish: the model and search providers you set up.',
             'GitHub: downloads and icons of command tools, and the source code.',
             'Google, Notion, Linear, Miro, Canva, Context7, Upstash, Vercel, GitHub, Supabase, Hugging Face: the services you connect as connectors, when you connect them (each has its own terms and privacy policy).',
-            'Resend: sends us a mail when you press "Join the waitlist" on a connector; the mail has your account\'s email address and id, and goes to our support mailbox.',
+            'Resend: sends us a mail when you press "Join the waitlist" on a connector; the mail has your account\'s email address and id and the email address you typed for the account you will log in with, and goes to our support mailbox.',
             'Vercel: web hosting and delivery.',
             'jsDelivr: loading of Python in the browser (Pyodide).',
             'PeerJS: the pairing server of peer-to-peer transfer.',

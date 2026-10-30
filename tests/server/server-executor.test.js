@@ -12,7 +12,7 @@ const toolCall = (id, name, args) => ({ choices: [{ delta: { tool_calls: [{ inde
 
 const modelInfo = { id: 'openrouter-test', apiId: 'test/model', name: 'Test model', provider: 'openrouter' };
 const specFor = (overrides = {}) => ({
-  protocol: 2,
+  protocol: 3,
   clientVersion: '17.4.0',
   conversationId: '123e4567-e89b-12d3-a456-426614174000',
   assistantMessageId: '223e4567-e89b-12d3-a456-426614174001',
@@ -88,6 +88,29 @@ test('a model that searches by itself: its calls are answered, pages are numbere
   assert.equal(checkpoints[0].research.used, 1);
   assert.equal(checkpoints[0].sources[0].n, 1);
   assert.equal(JSON.stringify(checkpoints).includes(KEY), false, 'a checkpoint never holds a key');
+});
+
+test('a model that searches by itself shows its search and the pages it opened to the pages watching, as the steps of the list', async () => {
+  const live = [];
+  let round = 0;
+  const result = await executeReply({
+    spec: specFor({ tools: { webSearch: 'research', searchProvider: 'tavily', advanced: false } }),
+    secrets,
+    onLive: (event) => live.push(event),
+    fetchImpl: async (url) => {
+      if (String(url) === 'https://api.tavily.com/search') return new Response(JSON.stringify({ results: [{ title: 'Weather today', url: 'https://weather.example/today', content: 'Sunny, 24 degrees.' }] }), { status: 200 });
+      round += 1;
+      return streamResponse(round === 1 ? sse(toolCall('call_1', 'web_search', { query: 'weather today' })) : sse(content('It is sunny [1].')));
+    }
+  });
+  const steps = live.filter((event) => event.ev).map((event) => event.ev);
+  const search = steps.find((step) => step.type === 'searching' && step.kind === 'search');
+  assert.ok(search, 'the search is a step of the list while it happens');
+  assert.match(search.label, /weather today/);
+  assert.ok(Number.isFinite(search.t), 'it says when it happened, so every page draws the same times');
+  assert.ok(steps.some((step) => step.type === 'sources' && step.sources.length === 1), 'and so are the pages it found');
+  const { run } = liftSandboxRunBlock(result.parts[0].text);
+  assert.deepEqual(run.web, [{ kind: 'search', target: 'weather today', ns: [1] }], 'the saved reply keeps the search as a row of its own, with the page it gave back');
 });
 
 test('a reply taken up after a restart carries on from its checkpoint, with the pages numbered as before', async () => {

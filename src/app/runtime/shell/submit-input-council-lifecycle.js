@@ -15,7 +15,7 @@ import { createSubmitInputComposer } from './submit-input-composer.js';
 import { createSubmitInputPlayback } from './submit-input-playback.js';
 import { revealGeneratedImage } from './submit-input-image-reveal.js';
 import { createSubmitInputReplyServices } from './submit-input-reply-services.js';
-import { collectHistorySourceConversationIds } from '../memory/history-source-references.js';
+import { collectHistorySourceConversationIds } from '../memory-notes/history-sources.js';
 import { canCaptureConversationMessage } from '../features/temporary-chat-state.js';
 import { createDeckDesignControl } from '../features/deck-design-control.js';
 import { createVisionCheckScheduler } from '../features/vision-check-scheduler.js';
@@ -123,7 +123,7 @@ export function createSubmitInputCouncilLifecycle(dependencies = {}) {
     streamApiCall,
     getDefaultGenConfig = () => ({ temperature: 0.7, topP: 0.95, maxTokens: null }),
     runModelCouncil,
-    extractPersonalMemory,
+    learnFromTurn,
     requestAnimationFrame = (callback) => callback(),
     AbortController = globalThis.AbortController,
     crypto = globalThis.crypto,
@@ -525,12 +525,7 @@ export function createSubmitInputCouncilLifecycle(dependencies = {}) {
         responseRenderedInRealtime,
         targetElement: contentDiv,
         uiLanguage: getLiveConfig().uiLanguage,
-        memoryEnabled: canCaptureConversationMessage(conv, userMessageObject)
-          && (getLiveConfig().memorySystemVersion === 2 || getLiveConfig().memoryEnabled1),
-        // v2 Memory Summary is always refreshed in the background. The retired legacy toggle no
-        // longer suppresses capture for an existing user configuration.
-        autoMemoryEnabled: canCaptureConversationMessage(conv, userMessageObject)
-          && (getLiveConfig().memorySystemVersion === 2 || getLiveConfig().enableAutoMemory),
+        learnEnabled: canCaptureConversationMessage(conv, userMessageObject),
         historySourceConversationIds: [...historySourceConversationIds],
         persistAppData: saveAppData,
         completeSingleModelView: (options) => singleModelResponseLifecycle.completeView(options),
@@ -538,7 +533,7 @@ export function createSubmitInputCouncilLifecycle(dependencies = {}) {
         restoreRealtimeCouncilDetails: ({ targetElement }) => restoreOpenCouncilDetails(targetElement, getOpenCouncilDetailKeys(targetElement)),
         renderRealtimeCouncilFinal: ({ targetElement, fullResponse }) => renderIncrementalResponse(targetElement, fullResponse, { final: true, preserveCouncilDetails: true }),
         playbackCouncilResponse: ({ targetElement, fullResponse, signal }) => playbackStreamingMarkdownResponse(targetElement, fullResponse, signal, true),
-        extractPersonalMemory: (userMessageText, fullResponse) => extractPersonalMemory(userMessageText, fullResponse),
+        learnFromTurn: (conversation) => learnFromTurn(conversation),
         showMessageWithPictures: ({ finalAiMessage: made }) => {
           if (!loadingMessageDiv?.isConnected) return;
           const whole = addMessageToUI(made, conv.messages.length - 1, false, false, { conversation: conv });

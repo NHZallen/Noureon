@@ -160,3 +160,16 @@ test('when the files are being kept, a grey card stands where they will be, once
   assert.equal(target.querySelector('.file-skeleton').classList.contains('ac-file-card'), true);
   view.close();
 });
+
+test('what the memory did on the server (notes looked up, changes made, conversations looked into) goes into the trace, where the saved message takes it from', async () => {
+  const { resetTrace, takeTrace, setHistoryTitle } = await import('../src/app/runtime/memory-store/memory-trace.js');
+  const view = createReplyLiveView({ targetElement: {}, getDocument: () => null, getConfig: () => ({}), language: 'en', now: () => 0, serverReply: null, serverRun: null, madeHere: false, getRunStartedAt: () => 0, onStepsShown() {} });
+  const reply = { searchSources: [], sandboxParts: [], sandboxRun: null, groundingSupports: [], sandboxDocuments: '' };
+  const serverRun = { follow: async () => ({ text: 'answer', run: null, extraParts: [], steersLeft: [], memory: { used: ['n1'], events: ['e1'], history: [{ id: 'c1', at: '2026-10-21T00:00:00.000Z' }, { id: 'c2' }] } }) };
+  const lifecycle = { serverReply: { noteVision() {}, localizeError: (error) => error }, now: () => 0, setRunStartedAt() {}, getRunStartedAt: () => 0 };
+  setHistoryTitle((id) => ({ c1: 'Scooter commute' }[id] || ''));
+  resetTrace('conv-x');
+  await followServerReply(lifecycle, { serverRun, reply, view, progress() {}, uiLanguage: 'en', conversationId: 'conv-x', advanced: false, runHere: async () => '' }, () => {});
+  assert.deepEqual(takeTrace('conv-x'), { used: ['n1'], events: ['e1'], history: [{ id: 'c1', title: 'Scooter commute', at: '2026-10-21T00:00:00.000Z' }, { id: 'c2', title: '' }] });
+  setHistoryTitle(null);
+});

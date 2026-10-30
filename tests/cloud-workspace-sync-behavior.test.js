@@ -103,7 +103,7 @@ const start = async ({ cloud, storage = makeStorage(), window = makeWindow(), se
   const api = await initializeCloudWorkspaceSync({
     window,
     session,
-    deps: { supabase: cloud, storage, initializeConversationShadowSync: () => ({ ...stand(), stop: () => stopped.push('conversations') }), initializeMemorySummaryCloudSync: () => ({ ...stand(), stop: () => stopped.push('memory') }) }
+    deps: { supabase: cloud, storage, initializeConversationShadowSync: () => ({ ...stand(), stop: () => stopped.push('conversations') }) }
   });
   return { api, storage, window, cloud, stopped };
 };
@@ -280,14 +280,14 @@ test('a change another device makes arrives live and is applied here, and a clou
   });
 });
 
-test('stopping the sync leaves the cloud channels, the conversation sync and the memory sync, and the files service is withdrawn', async () => {
+test('stopping the sync leaves the cloud channels, and the conversation sync, and the files service is withdrawn', async () => {
   await withNavigator(true, async () => {
     const cloud = makeCloud(null);
     const { api, stopped } = await start({ cloud, storage: makeStorage({ chat_lastUser: USERNAME }) });
     assert.ok(getService(SERVICES.cloudAssets));
     await api.stop();
     assert.deepEqual(cloud.state.removed.sort(), [`user-conversations:${USER.id}`, `user-workspace:${USER.id}`]);
-    assert.deepEqual(stopped.sort(), ['conversations', 'memory']);
+    assert.deepEqual(stopped.sort(), ['conversations']);
     assert.equal(getService(SERVICES.cloudAssets), null);
     cleanup();
   });
