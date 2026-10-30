@@ -1,6 +1,14 @@
 // The update notes in French (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "19.0.2": [
+    "<strong>Noureon 19.0.2 Notes de version</strong>",
+    "Cette version ajoute Mistral Large 4 de NVIDIA, ajuste les modèles d'OpenCode Go et place un lien pour obtenir la clé au-dessus de chaque clé des réglages.",
+    "<strong>Principaux changements</strong>",
+    "<ul><li><strong>NVIDIA Mistral Large 4 :</strong> Mistral Large 4 de NVIDIA est ajouté (gratuit). Il lit les images et appelle des outils ; il ne lit pas la vidéo, sa réflexion ne peut pas être désactivée, et elle a trois niveaux : bas, moyen et élevé.</li><li><strong>Modèles d'OpenCode Go :</strong> LongCat 2.5 Preview et Gemini 4 Argon Contributor, qui ont disparu, sont retirés ; Gemini 4 Argon prend son nouvel identifiant, et une conversation qui avait choisi un ancien modèle passe sur lui et sur LongCat 2.0. Le modèle d'essai gratuit et caché Iceman Contributor Free est ajouté ; il ne traite que le texte, et la première fois qu'on le choisit, une fenêtre explique ce qu'est un modèle d'essai.</li><li><strong>Liens pour les clés :</strong> dans Réglages → Gestion des modèles et dans les réglages de recherche, les champs de clé de Gemini, OpenRouter, NVIDIA, OpenCode Go, OpenAI et Tavily ont chacun, au-dessus, l'adresse où obtenir la clé.</li><li><strong>Panneau des sources :</strong> les onglets Tout, Web, Mémoire et Discussions sont fixés au-dessus de la liste, qui défile dessous, et ne peuvent donc plus être tirés avec elle ; le fondu commence sous les onglets ; les onglets et les lignes sont aussi plus petits.</li></ul>",
+    "<strong>Compatibilité</strong>",
+    "Cette mise à jour ne nécessite aucune migration de données."
+  ],
   "19.0.1": [
     "<strong>Noureon 19.0.1 Notes de version</strong>",
     "Cette version corrige les durées de la liste des étapes et aligne les sources du panneau latéral sur celles sous une réponse.",

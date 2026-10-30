@@ -1,6 +1,14 @@
 // The update notes in Spanish (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "19.0.2": [
+    "<strong>Noureon 19.0.2 Notas de la versión</strong>",
+    "Esta versión añade Mistral Large 4 de NVIDIA, ajusta los modelos de OpenCode Go y pone un enlace para obtener la clave sobre cada clave de los ajustes.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>NVIDIA Mistral Large 4:</strong> se añade Mistral Large 4 de NVIDIA (gratis). Lee imágenes y llama a herramientas; no lee vídeo, su razonamiento no se puede desactivar y tiene tres niveles: bajo, medio y alto.</li><li><strong>Modelos de OpenCode Go:</strong> se quitan LongCat 2.5 Preview y Gemini 4 Argon Contributor, que ya no están; Gemini 4 Argon toma su nuevo identificador, y una conversación que había elegido un modelo antiguo pasa a él y a LongCat 2.0. Se añade el modelo de prueba gratuito y oculto Iceman Contributor Free, que solo maneja texto; la primera vez que se elige, una ventana explica qué es un modelo de prueba.</li><li><strong>Enlaces para las claves:</strong> en Ajustes → Gestión de modelos y en los ajustes de búsqueda, los campos de clave de Gemini, OpenRouter, NVIDIA, OpenCode Go, OpenAI y Tavily tienen encima la dirección donde se obtiene la clave.</li><li><strong>Panel de fuentes:</strong> las pestañas Todo, Web, Memoria y Conversaciones quedan fijas sobre la lista, que se desplaza por debajo, así que ya no se pueden arrastrar con ella; el desvanecido empieza bajo las pestañas; las pestañas y las filas también son más pequeñas.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "Esta actualización no necesita migración de datos."
+  ],
   "19.0.1": [
     "<strong>Noureon 19.0.1 Notas de la versión</strong>",
     "Esta versión corrige los tiempos de la lista de pasos y hace que las fuentes del panel lateral sean las mismas que las de debajo de una respuesta.",

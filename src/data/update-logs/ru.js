@@ -1,6 +1,14 @@
 // The update notes in Russian (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "19.0.2": [
+    "<strong>Noureon 19.0.2 Примечания к выпуску</strong>",
+    "В этой версии добавлена модель NVIDIA Mistral Large 4, изменён список моделей OpenCode Go, а над каждым ключом в настройках появилась ссылка, где его получить.",
+    "<strong>Основные изменения</strong>",
+    "<ul><li><strong>NVIDIA Mistral Large 4:</strong> добавлена Mistral Large 4 от NVIDIA (бесплатно). Она читает изображения и вызывает инструменты; видео не читает, размышление отключить нельзя, и у него три уровня: низкий, средний и высокий.</li><li><strong>Модели OpenCode Go:</strong> убраны снятые с предложения LongCat 2.5 Preview и Gemini 4 Argon Contributor; Gemini 4 Argon получила новый идентификатор, а диалоги, где был выбран старый вариант, переходят на неё и на LongCat 2.0. Добавлена скрытая бесплатная тестовая модель Iceman Contributor Free: она работает только с текстом, и при первом выборе окно объясняет, что значит тестовая модель.</li><li><strong>Ссылки для ключей:</strong> в «Настройки → Управление моделями» и в настройках поиска над полями ключей Gemini, OpenRouter, NVIDIA, OpenCode Go, OpenAI и Tavily указан адрес, где ключ можно получить.</li><li><strong>Панель источников:</strong> вкладки «Все», «Веб», «Память» и «Диалоги» закреплены над списком, который прокручивается под ними, поэтому их больше нельзя потянуть вместе со списком; затухание начинается под вкладками; вкладки и строки стали меньше.</li></ul>",
+    "<strong>Совместимость</strong>",
+    "Для этого обновления миграция данных не нужна."
+  ],
   "19.0.1": [
     "<strong>Noureon 19.0.1 Примечания к выпуску</strong>",
     "В этой версии исправлено время в списке шагов, а источники в боковой панели теперь такие же, как под ответом.",
