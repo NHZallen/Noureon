@@ -6,7 +6,8 @@ import { createSettingsHistoryRecallControls } from './settings-history-recall-c
 import { createSettingsMemorySummaryControls } from './settings-memory-summary-controls.js';
 import { ensureVisionCheckSettingsControl } from './settings-vision-check-section.js';
 import { createMemoryNotesSettings } from '../../ui/memory-notes/memory-notes-settings.js';
-import { getNotesMemory } from '../memory-store/memory-ref.js';
+import { getNotesMemory, getMemoryModelRunner, getPageHistory } from '../memory-store/memory-ref.js';
+import { createRebuildController } from '../memory-store/page-rebuild.js';
 import { getAnnouncedUser } from '../features/user-ready.js';
 
 export function createSettingsDialogParts({
@@ -32,7 +33,16 @@ export function createSettingsDialogParts({
         showCustomPrompt,
         showCustomDialog
     });
+    const rebuildController = createRebuildController({
+        getStore: () => getNotesMemory()?.getStore?.() || null,
+        getConversations: () => getPageHistory()?.conversations() || [],
+        getConfig: () => config,
+        getModelRunner: getMemoryModelRunner,
+        models: MODELS,
+        getApiKeyForProvider
+    });
     const memoryNotesSettings = createMemoryNotesSettings({
+        getRebuild: () => rebuildController,
         document, getConfig: () => config, saveConfig, getMemory: getNotesMemory, getUser: getAnnouncedUser,
         getModels: () => MODELS.filter((model) => model.category !== 'image_generation' && model.outputModality !== 'image' && getApiKeyForProvider?.(model.provider)).map((model) => ({ id: model.id, name: model.name })),
         getText: (key) => i18n[config.uiLanguage]?.[key] || i18n['zh-TW']?.[key] || '', showNotification, showCustomDialog

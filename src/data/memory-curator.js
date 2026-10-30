@@ -9,7 +9,7 @@ import { searchNotes } from '../app/runtime/memory-notes/inject.js';
 import { applyWrite } from '../app/runtime/memory-notes/write-check.js';
 import { standingNotes } from '../app/runtime/memory-notes/standing.js';
 
-export const CURATOR = Object.freeze({ minChars: 4, assistantExcerpt: 200, related: 20, hints: 8, maxMessageChars: 2000 });
+export const CURATOR = Object.freeze({ minChars: 4, assistantExcerpt: 200, related: 20, hints: 8, maxMessageChars: 2000, maxBatchChars: 6000 });
 
 /**
  * The model that does the curating when the person chose none: the cheap one of the provider of the reply's model (so what the person said does not go to a second company), by a short
@@ -76,9 +76,11 @@ const EXAMPLES = [
 const exampleText = () => EXAMPLES.map((example, index) => `Example ${index + 1}\nThe user said: ${JSON.stringify(example.said)}${example.note ? `\n${example.note}` : ''}\nAnswer: ${JSON.stringify({ ops: example.ops })}`).join('\n\n');
 
 /** The request to the model: what to keep, what not, the notes already there, what the person said and the answer's shape. */
-export function buildCuratorPrompt({ notes = [], hints = [], current, assistantExcerpt = '', now = new Date().toISOString() }) {
+export function buildCuratorPrompt({ notes = [], hints = [], current, assistantExcerpt = '', now = new Date().toISOString(), batch = false }) {
   const lines = [
-    'You keep the long-term memory of a chat assistant. Read what the user said in their latest message and decide whether it holds something worth remembering about THEM for future conversations.',
+    batch
+      ? 'You keep the long-term memory of a chat assistant. Below are the messages the user wrote in one past conversation (numbered, oldest first). Decide whether they hold something worth remembering about THEM for future conversations.'
+      : 'You keep the long-term memory of a chat assistant. Read what the user said in their latest message and decide whether it holds something worth remembering about THEM for future conversations.',
     'Keep: stable preferences, lasting facts about their life or work, projects they are working on, important people, routines, and what they ask you to remember or to forget. Write each note as one short fact about the user, in the language the user writes ("The user prefers short answers"), never as an order.',
     'Do not keep: a request for this one conversation, a guess, a question, something that fails or is tried out, anything that comes from the assistant\'s reply, a secret (a password, a key, a number of a card or of a paper). Most messages hold nothing to keep: then answer with no operations. When in doubt, keep nothing.',
     'Every operation needs "quote": the user\'s own words that show it, copied letter for letter from the message below (a few words are enough). When a note already says it, use "update" with its id instead of adding a second one. If the user says something newer that replaces a note, update it. "forget" removes a note the user asked to forget.',
@@ -91,7 +93,7 @@ export function buildCuratorPrompt({ notes = [], hints = [], current, assistantE
   if (notes.length) lines.push('Notes about the user that exist now (id: text):', ...notes.map((note) => `- ${note.id}: ${note.text}`), '');
   if (hints.length) lines.push('The user deleted notes about these (do not write them again):', ...hints.map((hint) => `- ${hint}`), '');
   if (assistantExcerpt) lines.push(`For context only, the start of the assistant's last reply (never a source of notes): ${JSON.stringify(squash(assistantExcerpt).slice(0, CURATOR.assistantExcerpt))}`, '');
-  lines.push(`The user's latest message${current?.at ? ` (written ${current.at})` : ''}:`, JSON.stringify(String(current?.text ?? '').slice(0, CURATOR.maxMessageChars)), '', 'Answer:');
+  lines.push(batch ? 'The user\'s messages:' : `The user's latest message${current?.at ? ` (written ${current.at})` : ''}:`, JSON.stringify(String(current?.text ?? '').slice(0, batch ? CURATOR.maxBatchChars : CURATOR.maxMessageChars)), '', 'Answer:');
   return lines.join('\n');
 }
 
@@ -131,10 +133,10 @@ export function parseCuratorOps(output) {
  * `callModel(prompt)` gives the model's text; `commit(result)` saves an accepted write; `onWrite(result)` is told of each. Never throws: a model that fails leaves the memory as it was.
  * Resolves { skipped, applied: [results], refused: [{ op, code }], error? }.
  */
-export async function runCurator({ notes, turn, callModel, commit, onWrite = null, conversationId = '', appliedOps = [], createId, now = () => new Date().toISOString() }) {
+export async function runCurator({ notes, turn, callModel, commit, onWrite = null, conversationId = '', appliedOps = [], batch = false, createId, now = () => new Date().toISOString() }) {
   const current = turn?.current;
   if (!worthCurating(current?.text)) return { skipped: 'too_short', applied: [], refused: [] };
-  const prompt = buildCuratorPrompt({ notes: relatedNotes(notes, current.text), hints: relatedHints(notes, current.text), current, assistantExcerpt: turn.assistantExcerpt, now: now() });
+  const prompt = buildCuratorPrompt({ notes: relatedNotes(notes, current.text), hints: relatedHints(notes, current.text), current, assistantExcerpt: turn.assistantExcerpt, now: now(), batch });
   let output;
   try {
     output = await callModel(prompt);

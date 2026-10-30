@@ -7,11 +7,12 @@ import { createMemoryNotesSettings } from '../../src/app/ui/memory-notes/memory-
 import { createNotesMemory } from '../../src/app/runtime/memory-store/notes-memory.js';
 import { createNote } from '../../src/app/runtime/memory-notes/notes.js';
 import { applyWrite } from '../../src/app/runtime/memory-notes/write-check.js';
+import { createRebuildController } from '../../src/app/runtime/memory-store/page-rebuild.js';
 
 const noteRow = (note) => ({ record_key: `note:${note.id}`, payload: note, version: 1, updated_at: note.updatedAt, deleted_at: null });
 const tick = () => new Promise((resolve) => setTimeout(resolve, 15));
 
-async function setup({ language = 'en', memorySystem = 'classic', notes = [], extraRows = [] } = {}) {
+async function setup({ language = 'en', memorySystem = 'classic', notes = [], extraRows = [], conversations = [] } = {}) {
   const window = new Window();
   const { document } = window;
   document.body.innerHTML = '<div id="memory-section"><div id="memory-summary-settings">old summary</div></div>';
@@ -22,12 +23,14 @@ async function setup({ language = 'en', memorySystem = 'classic', notes = [], ex
   const notices = [];
   let counter = 0;
   const answers = [];
+  const rebuild = createRebuildController({ getStore: () => memory.getStore(), getConversations: () => conversations, getConfig: () => config, getModelRunner: () => async () => '{"ops":[]}', models: [{ id: 'm1', provider: 'gemini' }], getApiKeyForProvider: () => 'key', logger: { warn() {} } });
   const ui = createMemoryNotesSettings({
     document,
     getConfig: () => config,
     saveConfig: async () => {},
     getMemory: () => memory,
     getUser: () => ({ username: 'tester' }),
+    getRebuild: () => rebuild,
     getModels: () => [{ id: 'gemini-3.5-flash-lite', name: 'Gemini 3.5 Flash Lite' }, { id: 'gemini-3.8-flash', name: 'Gemini 3.8 Flash' }],
     getText: (key) => i18n[config.uiLanguage]?.[key] || '',
     showNotification: (message, kind) => notices.push({ message, kind }),
@@ -43,7 +46,7 @@ async function setup({ language = 'en', memorySystem = 'classic', notes = [], ex
     target.click();
     await tick();
   };
-  return { window, document, memory, config, notices, answers, ui, root, click };
+  return { window, document, memory, config, notices, answers, ui, root, click, rebuild };
 }
 
 const dog = createNote({ id: 'dog', text: 'The user has a Shiba Inu named Mochi', kind: 'relationship' });
@@ -193,4 +196,26 @@ test('the curator model can be chosen, and automatic is the first choice', async
   select.dispatchEvent(new document.defaultView.Event('change'));
   await tick();
   assert.equal(memory.getStore().getSettings().curatorModelId, 'gemini-3.8-flash');
+});
+
+test('the card that builds the memory from old conversations: start, progress, done, and a confirmation before clearing', async () => {
+  const conversations = [
+    { id: 'a', model: 'm1', lastUpdatedAt: '2026-03-01T00:00:00.000Z', messages: [{ role: 'user', parts: [{ text: 'I live in Taipei and work as a nurse' }], createdAt: '2026-03-01T00:00:00.000Z' }, { role: 'model', parts: [{ text: 'ok' }] }] },
+    { id: 'b', model: 'm1', lastUpdatedAt: '2026-04-01T00:00:00.000Z', messages: [{ role: 'user', parts: [{ text: 'I moved to Hsinchu for a new hospital' }], createdAt: '2026-04-01T00:00:00.000Z' }, { role: 'model', parts: [{ text: 'ok' }] }] }
+  ];
+  const empty = await setup({ memorySystem: 'notes', conversations });
+  assert.match(empty.root().textContent, /Build memory from past conversations/);
+  await empty.click('Start');
+  await tick();
+  await tick();
+  assert.match(empty.root().textContent, /Done: read 2 conversations, added 0 notes\./);
+
+  const withNotes = await setup({ memorySystem: 'notes', notes: [dog], conversations });
+  assert.ok([...withNotes.root().querySelectorAll('button')].some((button) => button.textContent === 'Clear and build again'));
+  withNotes.answers.push(null);
+  await withNotes.click('Clear and build again');
+  assert.equal(withNotes.memory.getStore().getNotes().filter((note) => note.status === 'active').length, 1, 'cancel keeps the notes');
+
+  const none = await setup({ memorySystem: 'notes', conversations: [] });
+  assert.match(none.root().textContent, /There are no conversations to read yet/);
 });

@@ -24,6 +24,8 @@ export function createNotesMemory({ getSupabase = () => null, storage = null, no
   let attaching = null;
   let failed = false;
   const listeners = new Set();
+  // (question, { excludeConversationId }) -> pieces of past conversations that bear on it (memory-notes/history-index.js), set by the page; none by default.
+  let historySearch = null;
 
   const open = async (user) => {
     const userId = String(user?.supabaseUserId || '');
@@ -70,14 +72,23 @@ export function createNotesMemory({ getSupabase = () => null, storage = null, no
     },
     /**
      * What the model is given for a message: `{ systemText, slipText, noteIds, historyIds }`, all empty when the memory is not loaded, the person switched the use of
-     * memory off, or there is nothing to say. `history` is the pieces of old conversation that bear on the question (P5).
+     * memory off, or there is nothing to say. The pieces of old conversation that bear on the question come from the history search the page set.
      */
-    contextFor({ question = '', canSearch = false, history = [] } = {}) {
+    /** The page gives the way to look into the past conversations (the index of history); without it the slip holds notes only. */
+    setHistorySearch(fn) { historySearch = typeof fn === 'function' ? fn : null; },
+    contextFor({ question = '', canSearch = false, excludeConversationId = '' } = {}) {
       if (!store?.isLoaded()) return EMPTY;
       const settings = store.getSettings();
       if (!settings.use) return EMPTY;
       const notes = store.getNotes();
-      if (!notes.some(isActive)) return EMPTY;
+      let history = [];
+      try {
+        history = historySearch ? historySearch(question, { excludeConversationId }) : [];
+      } catch (error) {
+        logger.warn?.('The history could not be searched.', error);
+      }
+      // No notes and nothing of the past that bears on the question: nothing to say. (Past conversations alone make a slip.)
+      if (!notes.some(isActive) && !history.length) return EMPTY;
       const systemText = buildSystemText({ notes, canSearch });
       const slip = buildPrefetch({ notes, question, history });
       return { systemText, slipText: slip.text, noteIds: slip.noteIds, historyIds: slip.historyIds };

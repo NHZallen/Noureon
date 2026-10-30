@@ -2,6 +2,16 @@
 // code that makes a request. A tiny module on its own so that asking for it does not load the memory itself. No `window`, no `document`.
 
 let shared = null;
+let history = null;
 
 export const getNotesMemory = () => shared;
 export const setNotesMemory = (memory) => { shared = memory; return shared; };
+
+/** The search over the past conversations of this page (page-history.js), or null until the page has started it. */
+export const getPageHistory = () => history;
+export const setPageHistory = (value) => { history = value; return history; };
+
+/** The function that runs a small background request with a chosen model (`runMemoryModel`), given once the page has it; the rebuild and the settings use it. */
+let modelRunner = null;
+export const getMemoryModelRunner = () => modelRunner;
+export const setMemoryModelRunner = (fn) => { modelRunner = typeof fn === 'function' ? fn : null; return modelRunner; };

@@ -687,7 +687,7 @@ export function createStreamApiCall({
     const notesMode = config.memorySystem === 'notes';
     const canUseMemory = !(conversation?.retentionMode === 'ephemeral' && conversation?.memoryAccessEnabled === false);
     const notes = notesMode && !instructionGiven && canUseMemory && !requestOptions.skipMemoryContext && !requestOptions.skipConversationSystemContext
-      ? getNotesMemory()?.contextFor({ question: getMessageTextForGuidance(currentMessageForApi), canSearch: toolsOffered(conversation?.id) }) || NO_NOTES
+      ? getNotesMemory()?.contextFor({ question: getMessageTextForGuidance(currentMessageForApi), canSearch: toolsOffered(conversation?.id), excludeConversationId: conversation?.id || '' }) || NO_NOTES
       : NO_NOTES;
     if (!notesMode && !instructionGiven && !requestOptions.skipMemoryContext && config.memorySystemVersion === 2) {
       try {
@@ -702,6 +702,10 @@ export function createStreamApiCall({
     }
     if (memoryContext && typeof requestOptions.onMemoryContextResolved === 'function') {
       requestOptions.onMemoryContextResolved(memoryContext);
+    }
+    // The past conversations the slip drew on are shown under the reply like the old memory's ("references").
+    if (notes.historyIds.length && typeof requestOptions.onMemoryContextResolved === 'function') {
+      requestOptions.onMemoryContextResolved({ historyResults: notes.historyIds.map((conversationId) => ({ conversationId })) });
     }
     const chartAuthoringGuidance = instructionGiven || requestOptions.requestPurpose === NOURAS_REQUEST_PURPOSE.VISION_CHECK ? ''
       : await getRuntimeChartAuthoringGuidance(getMessageTextForGuidance(currentMessageForApi));

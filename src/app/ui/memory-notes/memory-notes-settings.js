@@ -19,6 +19,8 @@ export function createMemoryNotesSettings({
   getUser = () => null,
   // The models the person may choose to curate with (text models with a key), as [{ id, name }]; none given: no choice is offered.
   getModels = () => [],
+  // Building the memory from the old conversations (memory-store/page-rebuild.js): the controller, or null when this page cannot.
+  getRebuild = () => null,
   getText,
   showNotification = () => {},
   showCustomDialog,
@@ -28,6 +30,7 @@ export function createMemoryNotesSettings({
   const state = { view: 'summary', query: '', kind: '', filter: 'active', shown: PAGE, menu: '' };
   let container = null;
   let stopListening = null;
+  let stopRebuild = null;
   const hiddenByUs = new Set();
 
   const text = (key, values = {}) => Object.entries(values).reduce((out, [name, value]) => out.replaceAll(`{${name}}`, String(value)), getText(key) || key);
@@ -215,9 +218,39 @@ export function createMemoryNotesSettings({
       recent.append(row);
     }
 
+    const rebuild = rebuildCard(live);
     const foot = el('section', 'pz-card mn-foot');
     foot.append(button(text('mnExport'), 'mn-btn', () => actions.exportNotes()), button(text('mnClear'), 'mn-btn mn-danger', () => void actions.clear()));
-    return [card, recent, foot];
+    return [card, ...(rebuild ? [rebuild] : []), recent, foot];
+  };
+
+  const rebuildCard = (live) => {
+    const controller = getRebuild();
+    if (!controller) return null;
+    const state = controller.getState();
+    const card = el('section', 'pz-card mn-rebuild');
+    const head = el('div', 'pz-head');
+    head.append(el('h3', '', text('mnRebuildTitle')));
+    const body = el('div', 'mn-rebuild-body');
+    body.append(el('p', 'pz-sub text-[var(--text-secondary)]', text('mnRebuildDesc')));
+    const status = { running: 'mnRebuildRunning', paused: 'mnRebuildPaused', done: 'mnRebuildDone', error: 'mnRebuildError' }[state.status];
+    const available = controller.available(state.status === 'idle' ? 0 : state.skip);
+    if (status) body.append(el('p', 'mn-rebuild-status', text(status, { done: state.done, total: state.total, added: state.added, error: state.error })));
+    else if (!available) body.append(el('p', 'mn-rebuild-status mn-faint', text('mnRebuildNone')));
+    const actions = el('div', 'mn-rebuild-actions');
+    const hasNotes = live.getNotes().some(isActive);
+    if (state.status === 'running') actions.append(button(text('mnRebuildPause'), 'mn-btn', () => controller.pause()));
+    else {
+      if (state.status === 'paused') actions.append(button(text('mnRebuildContinue'), 'btn-primary mn-btn', () => void controller.start()));
+      else if (available) actions.append(button(text(hasNotes ? 'mnRebuildAgain' : 'mnRebuildStart'), hasNotes ? 'mn-btn' : 'btn-primary mn-btn', async () => {
+        if (hasNotes && !await ask({ title: text('mnRebuildConfirmTitle'), message: text('mnRebuildConfirm'), confirmLabel: text('mnRebuildAgain') })) return;
+        void controller.start({ clearFirst: hasNotes });
+      }));
+      if (state.status === 'done' && controller.available(state.skip + 30)) actions.append(button(text('mnRebuildOlder'), 'mn-btn', () => void controller.older()));
+    }
+    if (actions.children.length) body.append(actions);
+    card.append(head, body);
+    return card;
   };
 
   const chip = (label, active, onClick) => button(label, `mn-chip${active ? ' mn-chip-on' : ''}`, onClick);
@@ -323,6 +356,8 @@ export function createMemoryNotesSettings({
       }
       stopListening?.();
       stopListening = getMemory()?.onChange?.(render) || null;
+      stopRebuild?.();
+      stopRebuild = getRebuild()?.subscribe?.(() => render()) || null;
       // Opening the settings starts at the summary, not where the person left the list.
       state.view = 'summary';
       render();

@@ -12,7 +12,7 @@ import { invokedSkillsInstruction, skillNamesOfParts } from '../../../data/skill
 import { decisionsFor, verdictOf } from '../decisions/decision-store.js';
 import { mayNeedFileGuidance } from '../../ui/files/file-intent.js';
 import { combineLoaders } from '../../../data/combine-loaders.js';
-import { getNotesMemory } from '../memory-store/memory-ref.js';
+import { getNotesMemory, getPageHistory } from '../memory-store/memory-ref.js';
 import { resetTrace } from '../memory-store/memory-trace.js';
 
 export const textOfParts = (parts = []) => parts.map((part) => part?.text || '').join('\n');
@@ -67,7 +67,7 @@ export async function prepareReply({ getConfig, supportsToolCalling, webResearch
   // (a provider's own search) learns afterwards by the curator instead.
   resetTrace(conversation?.id);
   const memoryAccess = getConfig().memorySystem === 'notes'
-    ? await (await import('../memory-store/page-memory-loader.js')).createPageMemoryTools({ getConfig, getMemory: getNotesMemory, conversation }).catch(() => null)
+    ? await (await import('../memory-store/page-memory-loader.js')).createPageMemoryTools({ getConfig, getMemory: getNotesMemory, getHistory: getPageHistory, conversation }).catch(() => null)
     : null;
   const memoryTools = memoryAccess && canCallTools && !ownSearchReply ? memoryAccess : null;
   if (memoryTools) resetTrace(conversation?.id, { toolsOffered: true });

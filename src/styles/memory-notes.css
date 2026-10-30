@@ -57,3 +57,9 @@
 .memory-line-text { min-width: 0; overflow-wrap: anywhere; }
 .memory-line-faint { color: var(--text-tertiary); }
 .memory-line-link { flex: none; padding: 0; border: 0; background: transparent; color: var(--text-secondary); font: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; white-space: nowrap; }
+
+/* The card that builds the memory from the old conversations. */
+#settings-modal .mn-root .mn-rebuild-body { display: grid; gap: 0.6rem; padding: 0 1.15rem 1.1rem; }
+#settings-modal .mn-root .mn-rebuild-body .pz-sub { margin: 0; line-height: 1.6; }
+#settings-modal .mn-root .mn-rebuild-status { margin: 0; font-size: 0.875rem; }
+#settings-modal .mn-root .mn-rebuild-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }

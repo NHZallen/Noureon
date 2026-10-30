@@ -7,7 +7,7 @@ import { createSearchUploadSidebarLifecycle } from './search-upload-sidebar-life
 import { createApiKeyWarningBadgeUpdater } from './api-key-warning-badge.js';
 import { createLazyFunctions } from '../kernel/lazy-functions.js';
 import { createMemoryRuntime } from '../memory/memory-runtime.js';
-import { getNotesMemory } from '../memory-store/memory-ref.js';
+import { getNotesMemory, setMemoryModelRunner } from '../memory-store/memory-ref.js';
 
 export function createWorkspaceFeatures({
     window, document, navigator, fetch, File, FileReader: FileReaderCtor, Image: ImageCtor, URL, Event,
@@ -178,6 +178,8 @@ export function createWorkspaceFeatures({
         models: MODELS, runMemoryModel, modelSupportsVision, getApiKeyForProvider, hashString, saveAppData, saveConfig
     });
     memory = memoryFunctions;
+    // The memory of notes reads the old conversations with the same small-request runner (memory-store/page-rebuild.js).
+    setMemoryModelRunner((...args) => runMemoryModel(...args));
 
     const updateApiKeyWarningBadge = createApiKeyWarningBadgeUpdater({
         elements: ALL_ELEMENTS, getActiveConversation, normalizeConversationModel, isCouncilEnabled, getCouncilValidation, getApiKeyForProvider

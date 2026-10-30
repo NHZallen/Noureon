@@ -122,10 +122,10 @@ export function createMemoryLoader({ getNotes, getContext, commit, canWrite = tr
     get list() { return []; },
     instruction: '',
     get used() { return searches + writes; },
-    /** The tools worth offering now: the search while there are notes and searches are left, the write while the memory may learn and writes are left. */
+    /** The tools worth offering now: the search while there are notes (or past conversations to look in) and searches are left, the write while the memory may learn and writes are left. */
     get tools() {
       return [
-        ...(hasNotes() && searches < maxSearches ? [searchHistory ? { ...SEARCH_MEMORY_TOOL, parameters: { ...SEARCH_MEMORY_TOOL.parameters, properties: { ...SEARCH_MEMORY_TOOL.parameters.properties, scope: { type: 'string', enum: ['notes', 'history', 'both'], description: 'notes (the default), history (pieces of past conversations) or both.' } } } } : SEARCH_MEMORY_TOOL] : []),
+        ...((hasNotes() || searchHistory) && searches < maxSearches ? [searchHistory ? { ...SEARCH_MEMORY_TOOL, parameters: { ...SEARCH_MEMORY_TOOL.parameters, properties: { ...SEARCH_MEMORY_TOOL.parameters.properties, scope: { type: 'string', enum: ['notes', 'history', 'both'], description: 'notes (the default), history (pieces of past conversations) or both.' } } } } : SEARCH_MEMORY_TOOL] : []),
         ...(canWrite && writes < maxWrites ? [MEMORY_WRITE_TOOL] : [])
       ];
     },

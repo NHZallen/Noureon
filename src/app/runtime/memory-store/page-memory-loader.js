@@ -21,7 +21,7 @@ export function userMessagesOf(conversation) {
 }
 
 /** `canUse(conversation)`: the chat may use memory at all. Resolves `{ make(language) }` (each call gives a new loader for one loop of the reply), or null. */
-export async function createPageMemoryTools({ getConfig, getMemory, conversation, createId = () => globalThis.crypto.randomUUID(), now = () => new Date().toISOString() }) {
+export async function createPageMemoryTools({ getConfig, getMemory, getHistory = () => null, conversation, createId = () => globalThis.crypto.randomUUID(), now = () => new Date().toISOString() }) {
   if (getConfig()?.memorySystem !== 'notes') return null;
   if (conversation?.retentionMode === 'ephemeral' && conversation?.memoryAccessEnabled === false) return null;
   const memory = getMemory();
@@ -48,6 +48,8 @@ export async function createPageMemoryTools({ getConfig, getMemory, conversation
       canWrite,
       onUsed: ({ ids }) => recordUsed(conversationId, ids),
       onWrite: ({ event }) => recordEvent(conversationId, event?.id),
+      // The past conversations (history index on this page): the search then takes a scope. The conversation being written is left out.
+      searchHistory: getHistory() ? async (query, limit) => getHistory().lookup(query, limit, { excludeConversationId: conversationId }) : null,
       language,
       createId,
       now

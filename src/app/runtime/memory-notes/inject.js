@@ -19,7 +19,7 @@ import { terms } from './tokenize.js';
  * The slip is attached only above this: how much of the question a note covers, and how many strong words it shares (two; or one when that word names one thing in the
  * notebook and the question is mostly about it).
  */
-export const PREFETCH = Object.freeze({ minNorm: 0.45, minStrong: 2, soleNorm: 0.55, maxNotes: 2, maxHistory: 2, historyMinNorm: 0.45, historyMinStrong: 2 });
+export const PREFETCH = Object.freeze({ minNorm: 0.45, minStrong: 2, soleNorm: 0.55, maxNotes: 2, maxHistory: 2, historyMinNorm: 0.25, historyMinStrong: 2 });
 
 const clears = (hit, { minStrong, soleNorm }) => hit.strong >= minStrong || (hit.strong >= 1 && hit.specific >= 1 && hit.norm >= soleNorm);
 
