@@ -118,6 +118,15 @@ export function createNotesStore({ backend, now = () => new Date().toISOString()
       emit();
       return merged;
     }),
+    /** Takes one event away (the person undid it, or dismissed it). */
+    removeEvent: (id) => enqueue(async () => {
+      const key = eventKey(id);
+      const row = rows.get(key);
+      if (!row || row.deleted_at) return 0;
+      await persist([{ key, payload: row.payload, deleted: true }], (change, remote) => (remote ? { ...change, payload: remote.payload } : null));
+      emit();
+      return 1;
+    }),
     /** Takes away the events older than thirty days. */
     pruneEvents: () => enqueue(async () => {
       const old = expiredEventKeys([...rows.values()], now);

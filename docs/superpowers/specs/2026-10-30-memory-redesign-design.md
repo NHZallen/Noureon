@@ -287,3 +287,18 @@ memory_settings（隨設定同步）：learn / use / paused、整理模型（aut
 - **不做**：模型自動改人格與系統指令（只能使用者核准）；集中所有使用者的回饋改產品。
 
 Linear：A 在專案「記憶系統重做」，B 是獨立的單（都在 Backlog）。
+
+## 15. 實作紀錄
+
+### P2（2026-10-30）：資料表與同步
+- 資料表 `workspace_memory_records` 已由 Allen 在**測試站**（`nnousccvghbkucloewrs`）的 SQL Editor 套用並查證（欄位、三條 RLS、觸發器、realtime）。**正式站尚未套用**，等 Allen 上線時處理。
+- 沒有做 RPC：版本與時間由資料庫觸發器給，樂觀更新用 `version=eq.N`。頁面 store 見 `src/app/runtime/memory-store/`；伺服器直接以服務身分寫入（`server/memory-records.js`）。
+
+### P3（2026-10-30）：注入與設定畫面
+- 開關：設定鍵 `memorySystem`（`'classic'` 預設，`'notes'` 為新記憶；P8 才改預設）。在設定 → 記憶最上面的卡片，隨設定一起跨裝置同步。
+- 注入（`stream-api-call.js`）：第一頁（常駐＋規則＋目錄行）放進系統指令；便條（`<memory-context>`）只接在**請求複本**裡最後一則使用者訊息後面，不存進訊息。改版前後每一輪系統指令的文字不變，便條才是變動的部分。臨時對話且不可使用記憶時兩者都不給；`use` 關掉時也不給。
+- 伺服器代跑的回覆：頁面的 `describeOnly` 多回傳 `memorySlipText`，run-spec 多一個選填欄位 `request.memorySlip`（≤4000 字元，`server/protocol.js` 的 `maxMemorySlipChars`），伺服器把它傳給 `streamApiCall`，同樣接在使用者訊息後。舊版頁面不帶這個欄位，不受影響。
+- 「用到」的記錄：便條實際送出時，那幾條便條的 `lastUsedAt`、`recallCount` 才更新（一個回覆只算一次，工具後續回合與 `describeOnly` 不重複算；伺服器代跑的由頁面在送出請求時算）。
+- 載入失敗（資料表不在、網路斷）只讓記憶變空，聊天照常；設定畫面會說「暫時讀不到記憶」。
+- 畫面（Allen 2026-10-30 選 B）：摘要卡（筆記數、常駐數、最近更新）＋「最近的變動」（可復原）＋「管理筆記」獨立頁（搜尋、分類、新增、編輯、常駐、不主動提起、刪除）。手動操作的規則在 `memory-notes/manage.js`（純函式）；使用者編輯過的筆記會鎖定，之後模型不覆蓋；刪除留墓碑。文字在 `src/data/i18n/parts/memory-notes.js`（五語）。
+- 還沒做：便條裡的「歷史片段」要等 P5 的歷史索引；工具（`search_memory`、`memory_write`）在 P4。

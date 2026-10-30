@@ -5,6 +5,9 @@
 import { createSettingsHistoryRecallControls } from './settings-history-recall-controls.js';
 import { createSettingsMemorySummaryControls } from './settings-memory-summary-controls.js';
 import { ensureVisionCheckSettingsControl } from './settings-vision-check-section.js';
+import { createMemoryNotesSettings } from '../../ui/memory-notes/memory-notes-settings.js';
+import { getNotesMemory } from '../memory-store/notes-memory.js';
+import { getAnnouncedUser } from '../features/user-ready.js';
 
 export function createSettingsDialogParts({
     document, elements: ALL_ELEMENTS, getMemoryState, getMemory, models: MODELS, i18n, config, getApiKeyForProvider, saveConfig,
@@ -29,6 +32,10 @@ export function createSettingsDialogParts({
         showCustomPrompt,
         showCustomDialog
     });
+    const memoryNotesSettings = createMemoryNotesSettings({
+        document, getConfig: () => config, saveConfig, getMemory: getNotesMemory, getUser: getAnnouncedUser,
+        getText: (key) => i18n[config.uiLanguage]?.[key] || i18n['zh-TW']?.[key] || '', showNotification, showCustomDialog
+    });
     let built = false;
     /** Builds the controls (once) and fills them from the settings. True when they were built now. */
     const build = () => {
@@ -49,6 +56,8 @@ export function createSettingsDialogParts({
         }
         void historyRecallControls.refreshHistoryRecallStatus();
         memorySummaryControls.render();
+        // The memory of notes sits at the top of the memory section (after the old controls made it).
+        memoryNotesSettings.mount();
         return fresh;
     };
     return {

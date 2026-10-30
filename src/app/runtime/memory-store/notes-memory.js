@@ -22,6 +22,7 @@ export function createNotesMemory({ getSupabase = () => null, storage = null, no
   let store = null;
   let who = '';
   let attaching = null;
+  let failed = false;
   const listeners = new Set();
 
   const open = async (user) => {
@@ -47,16 +48,19 @@ export function createNotesMemory({ getSupabase = () => null, storage = null, no
       store = null;
       who = key;
       attaching = open(user)
-        .then((opened) => { store = opened; return store; })
+        .then((opened) => { store = opened; failed = false; return store; })
         .catch((error) => {
           logger.warn?.('The memory of notes could not be read; replies go on without it.', error);
           store = null;
+          failed = true;
           return null;
         })
         .finally(() => { attaching = null; for (const listener of [...listeners]) { try { listener(); } catch { /* A broken listener must not stop the others. */ } } });
       return attaching;
     },
     isReady: () => Boolean(store?.isLoaded()),
+    /** The last try to load the memory failed (the table is missing, the network is down): the part that shows the notes says so. */
+    failed: () => failed,
     getStore: () => store,
     onChange(listener) {
       listeners.add(listener);
