@@ -106,6 +106,8 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
 
   // The connectors the reply really used (each once, in the order they were first used): the saved reply shows a row for each, as the live step list did.
   const usedConnectors = new Map();
+  // The skills loaded and the memory lookups and writes of the reply (each skill once): the saved reply shows a row for each, as the live step list did.
+  const usedTools = [];
   const record = (status) => ({
     status,
     steps: [],
@@ -114,6 +116,7 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
     // (Of the pages in `sources`, this many were found in the messages before it: the row "Searched N sites" counts only its own, the answer's [n] cite them all.)
     ...(sources.length && sourceBase ? { sourcesBefore: Math.min(sourceBase, sources.length) } : {}),
     ...(usedConnectors.size ? { connectors: [...usedConnectors.values()] } : {}),
+    ...(usedTools.length ? { tools: usedTools.slice(0, 20) } : {}),
     ...(pictureSteps().length ? { pictures: pictureSteps() } : {}),
     ...(thought.text ? { thought: thought.text, thoughtKind: thought.kind, ...(thought.first && thought.last > thought.first ? { thoughtMs: thought.last - thought.first } : {}) } : {})
   });
@@ -121,7 +124,7 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
   // (After a cut, only what came after it: the earlier message keeps its own.)
   let pictureBase = 0;
   const pictureSteps = () => (imageLoader?.record || []).slice(pictureBase);
-  const messageText = (status) => `${sources.length || thought.text || usedConnectors.size || pictureSteps().length ? formatSandboxRunBlock(record(status)) : ''}${answer}`;
+  const messageText = (status) => `${sources.length || thought.text || usedConnectors.size || usedTools.length || pictureSteps().length ? formatSandboxRunBlock(record(status)) : ''}${answer}`;
   // The pictures the text model drew by itself (server/image-tool.js), as parts of the message.
   const drawnParts = [];
   // Where in the answer each picture was kept, so that the message reads "words, picture, words" (data/picture-interleave.js).
@@ -164,6 +167,7 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
       thoughtClosed = false;
       trimStart = true;
       usedConnectors.clear();
+      usedTools.length = 0;
       drawnParts.length = 0;
       drawnAt.length = 0;
       pictureBase = imageLoader?.record?.length || 0;
@@ -280,7 +284,12 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
           searchHistory: spec.tools.memory.history === true && memory.history
             ? memory.history.forReply({ userId, conversationId, vector: spec.tools.memory.vector && secrets.embeddingKey ? { provider: spec.tools.memory.vector.provider, key: secrets.embeddingKey } : null, signal })
             : null,
-          onUsed: ({ ids }) => { ids.forEach((id) => used.add(id)); if (memoryOut) memoryOut.used = [...used]; },
+          onUsed: ({ ids }) => {
+            ids.forEach((id) => used.add(id));
+            if (memoryOut) memoryOut.used = [...used];
+            // The notes the model looked up count as used (the list in the settings says when), as the ones of the slip do on the page.
+            void Promise.resolve(memory.markUsed?.(userId, ids)).catch((error) => onProblem('memory_mark_used_failed', error));
+          },
           onWrite: ({ event }) => { if (event?.id) { events.push(event.id); if (memoryOut) memoryOut.events = events; } },
           language,
           createId: () => crypto.randomUUID(),
@@ -300,7 +309,11 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
   // What the reply's loops are given: the skills and the connectors as one loader (either may be missing).
   const makeSkillLoader = (options) => combineLoaders(makeSkillsOnly(options), connectorLoader, imageLoader, memoryLoader);
   // A skill being loaded is a row of the step list the pages show (the other steps of a reply without Python are not).
-  const skillEvents = (event) => { if (event.type === 'skill' || event.type === 'connector' || event.type === 'image' || event.type === 'memory') onLive({ ev: { ...event, t: Math.max(0, now() - startedAt) } }); };
+  const skillEvents = (event) => {
+    if (event.type === 'skill' && event.name && !usedTools.some((tool) => tool.kind === 'skill' && tool.name === event.name)) usedTools.push({ kind: 'skill', name: String(event.name).slice(0, 60) });
+    if (event.type === 'memory' && event.key) usedTools.push({ kind: 'memory', key: event.key });
+    if (event.type === 'skill' || event.type === 'connector' || event.type === 'image' || event.type === 'memory' || event.type === 'tool-end') onLive({ ev: { ...event, t: Math.max(0, now() - startedAt) } });
+  };
 
   // The connectors (連接器): the services the person logged in to, with the tools they let a reply use. Not with Gemini's own search either (it refuses the tools beside it).
   // The question about a tool is a card in the step list, and the time the reply waits for the answer is not the reply's (as with a tool's login).
@@ -663,7 +676,7 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
 
   if (advanced) {
     const stopped = Boolean(signal?.aborted) || advanced.run?.status === RUN_STATUS.stopped;
-    const run = advanced.run || (sources.length || usedConnectors.size || pictureSteps().length ? { status: RUN_STATUS.done, steps: [] } : null);
+    const run = advanced.run || (sources.length || usedConnectors.size || usedTools.length || pictureSteps().length ? { status: RUN_STATUS.done, steps: [] } : null);
     if (!run || (!advanced.text.trim() && !run.steps.length && !run.thought)) {
       if (!advanced.text.trim() && !sources.length && !drawnParts.length) {
         if (stopped) return { parts: [{ text: '' }], status: 'stopped', run: record('stopped'), toolCalls, rounds: advanced.rounds };
@@ -674,6 +687,7 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
     // The pages the reply searched and the time it took are kept with the steps, as the browser keeps them.
     if (sources.length) run.sources = sources;
     if (usedConnectors.size) run.connectors = [...usedConnectors.values()];
+    if (usedTools.length || run.tools?.length) run.tools = [...(run.tools || []), ...usedTools].slice(0, 20);
     if (pictureSteps().length) run.pictures = pictureSteps();
     // Python's steps are the whole reply's: what an earlier message of it already shows is not shown again.
     if (stepBase > 0) run.steps = run.steps.slice(stepBase);
@@ -704,7 +718,7 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
     const numberOf = (url) => Number(sources.find((source) => source.url === url)?.n) || 0;
     answer = insertGroundingMarkers(answer, supports, numberOf);
   }
-  if (!answer.trim() && !sources.length && !thought.text && !usedConnectors.size && !drawnParts.length && !pictureSteps().length) {
+  if (!answer.trim() && !sources.length && !thought.text && !usedConnectors.size && !usedTools.length && !drawnParts.length && !pictureSteps().length) {
     if (signal?.aborted) return { parts: [{ text: '' }], status: 'stopped', run: record('stopped'), toolCalls };
     throw new ReplyError('The model gave no answer.', 'provider_error');
   }

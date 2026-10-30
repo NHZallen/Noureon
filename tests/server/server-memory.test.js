@@ -74,7 +74,8 @@ test('a reply on the server writes a note straight into the table, tells the pag
     }
   });
   assert.equal(result.status, 'done');
-  assert.equal(result.parts[0].text, 'Roses are red.');
+  assert.ok(result.parts[0].text.endsWith('Roses are red.'));
+  assert.match(result.parts[0].text, /"tools":\[\{"kind":"memory","key":"memoryWriting"\}\]/, 'the saved reply keeps the row of the memory');
   assert.ok(requests[0].tools.some((tool) => (tool.function?.name || tool.name) === 'memory_write'), 'the tool is offered');
   assert.equal(requests[0].tools.some((tool) => (tool.function?.name || tool.name) === 'search_memory'), false, 'no notes yet, so nothing to look up');
   assert.match(JSON.stringify(requests[1].messages), /Saved/, 'the second request carries the answer of the tool');

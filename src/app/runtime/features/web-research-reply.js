@@ -388,6 +388,7 @@ export async function runWebResearchReply({
         const step = loaderStepEvent(skills, call, language);
         if (step) onEvent(step);
         content = await skills.run(call);
+        if (step) onEvent({ type: 'tool-end' });
       } else {
         content = await research.run(call);
       }

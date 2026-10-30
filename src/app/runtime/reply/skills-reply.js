@@ -50,6 +50,7 @@ export async function runSkillsReply({ streamApiCall, requestParts, onChunk = ()
       const step = loaderStepEvent(loader, call, language);
       if (step) onEvent(step);
       results.push(keepToolResult(call, await loader.run(call)));
+      if (step) onEvent({ type: 'tool-end' });
       if (signal?.aborted) break;
     }
     toolTurns.push({ assistant: response, results, ...steerTurnFields(steer) });

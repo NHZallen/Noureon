@@ -3,6 +3,7 @@
 // check of writes (src/app/runtime/memory-notes/write-check.js) first. The version and the time are the database's; a note that changed under it (the person edited it
 // from a page, another reply saved one) is joined with what is there and saved again, as the page does.
 
+import { isActive } from '../src/app/runtime/memory-notes/notes.js';
 import { changedNotes, cursorKey, eventKey, expiredEventKeys, keyKind, mergeNotes, noteFromRow, noteKey, normalizeCursor, normalizeSettings, SETTINGS_KEY } from '../src/app/runtime/memory-notes/records.js';
 
 const TABLE = 'workspace_memory_records';
@@ -57,6 +58,23 @@ export function createMemoryRecords({ db, now = () => new Date().toISOString() }
         const row = rows.find((entry) => entry.record_key === key);
         const marked = await db.update(TABLE, { user_id: `eq.${userId}`, record_key: `eq.${key}`, version: `eq.${row.version}` }, { deleted_at: new Date().toISOString() }, { returning: COLUMNS });
         count += marked.length;
+      }
+      return count;
+    },
+    /**
+     * The notes a reply looked up were used: when, and how often (for fading and for the person to see in the list). Joined with what is there if a row moved on meanwhile.
+     * Returns how many notes were marked; a note that is gone or no longer active is left alone.
+     */
+    async markUsed(userId, ids) {
+      let count = 0;
+      for (const id of [...new Set(ids || [])].slice(0, 20)) {
+        for (let attempt = 0; attempt < ATTEMPTS; attempt += 1) {
+          const row = await readRow(userId, noteKey(id));
+          const note = row && !row.deleted_at ? noteFromRow(row, { now }) : null;
+          if (!note || !isActive(note)) break;
+          const saved = await save(userId, noteKey(id), { ...note, lastUsedAt: now(), recallCount: note.recallCount + 1 }, row.version);
+          if (saved.ok) { count += 1; break; }
+        }
       }
       return count;
     },

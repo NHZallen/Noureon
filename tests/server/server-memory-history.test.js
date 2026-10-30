@@ -151,3 +151,26 @@ test('without the flag the tool has no scope and the past conversations are not 
   assert.equal(JSON.stringify(tool).includes('"history"'), false);
   assert.equal(db.calls.length, 0);
 });
+
+test('the notes a reply looked up are marked as used, so the list in the settings no longer says "never used"', async () => {
+  const table = createFakeTable();
+  const note = { id: 'n1', text: 'The user lives in Banqiao', keywords: ['banqiao', 'home'], kind: 'fact', status: 'active', observedAt: NOW, createdAt: NOW, updatedAt: NOW, recallCount: 0, lastUsedAt: null };
+  table.write({ user_id: USER, record_key: 'note:n1', payload: note });
+  const memory = createMemoryRecords({ db: table.service });
+  let round = 0;
+  const memoryOut = {};
+  await executeReply({
+    spec: validateRunSpec(specWith({})).spec,
+    secrets: { providerKey: 'sk-provider' },
+    userId: USER,
+    memory,
+    memoryOut,
+    fetchImpl: async () => { round += 1; return round === 1 ? sse(toolCall('c1', 'search_memory', { query: 'where does the user live' })) : sse(content('Banqiao.')); }
+  });
+  for (let wait = 0; wait < 20 && !(await memory.load(USER)).notes[0].lastUsedAt; wait += 1) await new Promise((resolve) => setImmediate(resolve));
+  const saved = (await memory.load(USER)).notes[0];
+  assert.ok(saved.lastUsedAt, 'used now');
+  assert.equal(saved.recallCount, 1);
+  assert.deepEqual(memoryOut.used, ['n1']);
+  assert.equal(await memory.markUsed(USER, ['gone']), 0, 'a note that is not there is left alone');
+});

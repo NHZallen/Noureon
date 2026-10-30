@@ -137,7 +137,7 @@ export function createMemoryLoader({ getNotes, getContext, commit, canWrite = tr
       // Looking at the notes is "recalling"; looking into past conversations is "reviewing" them.
       const scope = call?.args?.scope;
       const key = writing ? 'memoryWriting' : searchHistory && (scope === 'history' || scope === 'both') ? 'memoryReviewing' : 'memorySearching';
-      return { type: 'memory', event: 'call', tool: call?.name, label: sandboxText(lang, key) };
+      return { type: 'memory', event: 'call', tool: call?.name, key, label: sandboxText(lang, key) };
     },
     async run(call) {
       return call?.name === MEMORY_WRITE_TOOL.name ? write(call) : search(call);

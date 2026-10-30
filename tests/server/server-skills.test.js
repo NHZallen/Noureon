@@ -90,7 +90,8 @@ test('a plain reply on the server: the model is told of the skills, loads one, a
     }
   });
   assert.equal(result.status, 'done');
-  assert.equal(result.parts[0].text, 'Decisions: none.');
+  assert.ok(result.parts[0].text.endsWith('Decisions: none.'));
+  assert.match(result.parts[0].text, /"tools":\[\{"kind":"skill","name":"meeting-notes"\}\]/, 'the saved reply keeps the row of the skill');
   assert.equal(result.toolCalls, 1);
   assert.equal(requests.length, 2);
   assert.ok(requests[0].tools.some((tool) => tool.function?.name === 'load_skill' || tool.name === 'load_skill'), 'the tool is offered');
@@ -301,7 +302,8 @@ test('a reply on the server: the model loads a skill with files, reads one, and 
     }
   });
   assert.equal(result.status, 'done');
-  assert.equal(result.parts[0].text, 'Report in bullets.');
+  assert.ok(result.parts[0].text.endsWith('Report in bullets.'));
+  assert.match(result.parts[0].text, /"tools":\[\{"kind":"skill","name":"sales-report"\}\]/);
   const toolNames = (request) => (request.tools || []).map((tool) => tool.function?.name || tool.name);
   assert.deepEqual(toolNames(requests[0]), ['load_skill'], 'nothing to read before the skill is loaded');
   assert.deepEqual(toolNames(requests[1]), ['load_skill', 'read_skill_file']);

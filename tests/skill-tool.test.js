@@ -94,7 +94,7 @@ test('a plain reply with skills: the model is told of them and given the tool, l
   assert.equal(result.text, 'Decisions: none.');
   assert.equal(result.calls, 1);
   assert.deepEqual(chunks, ['Decisions: none.']);
-  assert.deepEqual(events, [{ type: 'skill', name: 'meeting-notes', label: 'Loading skill: meeting-notes' }]);
+  assert.deepEqual(events, [{ type: 'skill', name: 'meeting-notes', label: 'Loading skill: meeting-notes' }, { type: 'tool-end' }], 'the row, and then that the call is over');
   assert.equal(requests.length, 2);
   assert.deepEqual(requests[0].tools, [LOAD_SKILL_TOOL]);
   assert.match(requests[0].additionalSystemInstruction, /^Base instruction\.\n\nThe user keeps a collection of skills/);

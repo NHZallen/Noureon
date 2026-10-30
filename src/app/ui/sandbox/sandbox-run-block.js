@@ -88,6 +88,25 @@ export function normalizeSources(sources) {
   return kept;
 }
 
+// The skills the model loaded and the times it looked up or wrote the memory, one row each (kept so that the saved reply shows them as the live step list did).
+const MAX_TOOLS = 20;
+const MEMORY_KEYS = ['memorySearching', 'memoryReviewing', 'memoryWriting'];
+export function normalizeTools(tools) {
+  const out = [];
+  for (const tool of Array.isArray(tools) ? tools : []) {
+    if (tool?.kind === 'memory' && MEMORY_KEYS.includes(tool.key)) out.push({ kind: 'memory', key: tool.key });
+    else if (tool?.kind === 'skill') {
+      const name = String(tool.name ?? '').replace(/\s+/g, ' ').trim().slice(0, 60);
+      if (name && !out.some((entry) => entry.kind === 'skill' && entry.name === name)) out.push({ kind: 'skill', name });
+    }
+    if (out.length >= MAX_TOOLS) break;
+  }
+  return out;
+}
+
+/** The row a step event of a tool leaves in the saved reply ({ kind, name | key }), or null (the event is not one of a skill or the memory). */
+export const toolOfEvent = (event) => (event?.type === 'skill' && event.name ? { kind: 'skill', name: event.name } : event?.type === 'memory' && event.key ? { kind: 'memory', key: event.key } : null);
+
 // The names of the connectors a reply used, each once.
 export function normalizeConnectors(connectors) {
   return [...new Set((Array.isArray(connectors) ? connectors : []).map((name) => String(name ?? '').replace(/\s+/g, ' ').trim().slice(0, 60)).filter(Boolean))].slice(0, MAX_CONNECTORS);
@@ -132,6 +151,7 @@ export function normalizeSandboxRun(run = {}) {
     ...(normalizeSources(run.sources).length ? { sources: normalizeSources(run.sources) } : {}),
     ...(normalizeSources(run.sources).length && Number.isInteger(run.sourcesBefore) && run.sourcesBefore > 0 ? { sourcesBefore: Math.min(run.sourcesBefore, 1000) } : {}),
     ...(normalizeConnectors(run.connectors).length ? { connectors: normalizeConnectors(run.connectors) } : {}),
+    ...(normalizeTools(run.tools).length ? { tools: normalizeTools(run.tools) } : {}),
     // A message of a reply that was cut where the person added a message: its process line is drawn even when it has nothing but the time.
     ...(run.segment ? { segment: true } : {}),
     // The pictures a text model looked at, asked about and drew (data/picture-steps.js).

@@ -371,7 +371,10 @@ export function createSandboxLedger({ document, host, before = null, language = 
           line.node.classList.remove('is-quiet');
         }
       }
-      if (event.type === 'skill' || event.type === 'memory') {
+      if (event.type === 'tool-end') {
+        // The skill or memory call has its answer: its row is over now, not when the next thing begins (the model's thinking after it is not the call's time).
+        if (list.current?.node?.dataset?.kind === 'skill') endCurrent();
+      } else if (event.type === 'skill' || event.type === 'memory') {
         // The model loads a skill, or looks up or writes the memory: a row of its own, over when the next thing begins.
         begin(event.label, { kind: 'skill' });
       } else if (event.type === 'connector') {

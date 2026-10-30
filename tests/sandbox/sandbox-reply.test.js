@@ -629,7 +629,8 @@ test('the model may load a skill next to Python: the tool is offered with the li
   const turn = model.requests[1].toolTurns[0];
   assert.equal(turn.results[0].name, 'load_skill');
   assert.match(turn.results[0].content, /<skill name="write-up">\nKeep the meaning\.\n<\/skill>/);
-  assert.equal(result.run, null, 'a skill alone makes no run record');
+  assert.deepEqual(result.run.tools, [{ kind: 'skill', name: 'write-up' }], 'a skill alone makes a record with its row, so that the saved reply still shows it');
+  assert.equal(result.run.steps.length, 0);
 
   // with no skills the tool is not there
   const plain = scriptedModel([{ text: 'Plain.' }]);

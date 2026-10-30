@@ -9,7 +9,7 @@ import { createHistoryIndex } from '../src/app/runtime/memory-notes/history-inde
 import { fuseRanks, textHash } from '../src/app/runtime/memory-notes/vector-math.js';
 import { createEmbeddingClient, versionOf } from '../src/app/runtime/memory-store/embedding-client.js';
 
-export const HISTORY = Object.freeze({ conversations: 150, messages: 6000, cacheMs: 60_000, minCosine: 0.5 });
+export const HISTORY = Object.freeze({ conversations: 150, messages: 6000, cacheMs: 60_000, minCosine: 0.5, embedMs: 8000 });
 
 const literal = (vector) => `[${Array.from(vector, (value) => Number(value.toFixed(6))).join(',')}]`;
 const short = (hit) => ({ conversationId: hit.conversationId, at: hit.at, role: hit.role, text: String(hit.text).slice(0, 400) });
@@ -53,7 +53,9 @@ export function createHistorySearch({ db, now = () => Date.now(), fetchImpl = (.
         if (!vector?.key) return keywords;
         try {
           const client = createEmbeddingClient({ provider: vector.provider, getApiKey: () => vector.key, fetchImpl });
-          const [embedding] = await client.embed([String(query).slice(0, 2000)], { kind: 'query', signal });
+          // A provider that does not answer must not hold the reply: the search by meaning waits a few seconds at most.
+          const waiting = AbortSignal.timeout(limits.embedMs);
+          const [embedding] = await client.embed([String(query).slice(0, 2000)], { kind: 'query', signal: signal ? AbortSignal.any([signal, waiting]) : waiting });
           const hits = await db.rpc('match_workspace_memory_vectors', { p_user_id: userId, p_model: versionOf(vector.provider), p_query: literal(embedding), p_limit: limit * 4, p_min_cosine: limits.minCosine });
           const pieces = new Map(index.pieces().map((piece) => [piece.id, piece]));
           const taken = new Set();

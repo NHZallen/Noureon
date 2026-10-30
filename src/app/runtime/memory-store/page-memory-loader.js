@@ -48,7 +48,11 @@ export async function createPageMemoryTools({ getConfig, getMemory, getHistory =
       getContext: () => ({ conversationId, messages: userMessagesOf(conversation), appliedOps }),
       commit: (result) => store.commitWrite(result, { conversationId }),
       canWrite,
-      onUsed: ({ ids }) => recordUsed(conversationId, ids),
+      onUsed: ({ ids }) => {
+        recordUsed(conversationId, ids);
+        // The notes the model looked up count as used (the list in the settings says when).
+        void memory.markUsed(ids);
+      },
       onWrite: ({ event }) => recordEvent(conversationId, event?.id),
       // The past conversations (history index on this page): the search then takes a scope. The conversation being written is left out.
       searchHistory: getHistory() ? async (query, limit) => (getHistory().lookupHybrid || getHistory().lookup).call(getHistory(), query, limit, { excludeConversationId: conversationId }) : null,
