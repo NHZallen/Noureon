@@ -98,6 +98,7 @@ export function createNotesStore({ backend, now = () => new Date().toISOString()
       const changed = changedNotes(notesById(), result.notes);
       const changes = changed.map((note) => ({ key: noteKey(note.id), payload: note, deleted: false }));
       if (result.event) changes.push({ key: eventKey(result.event.id), payload: result.event, deleted: false });
+      for (const event of result.events || []) changes.push({ key: eventKey(event.id), payload: event, deleted: false });
       if (result.opId && conversationId) {
         const cursor = normalizeCursor(rows.get(cursorKey(conversationId))?.payload);
         changes.push({ key: cursorKey(conversationId), payload: { ...cursor, appliedOps: [...cursor.appliedOps, result.opId].slice(-50) }, deleted: false });

@@ -7,13 +7,14 @@ import { pickCuratorModel, runCurator } from '../../../data/memory-curator.js';
 import { userMessagesOf } from './page-memory-loader.js';
 import { toolsOffered } from './memory-trace.js';
 import { announceMemoryUpdated } from '../../ui/memory-notes/memory-events.js';
+import { tidyNotes } from './page-tidy.js';
 
 const DELAY_MS = 2000;
 
 const lastOf = (messages, role) => [...messages].reverse().find((message) => message?.role === role);
 const textOf = (message) => (Array.isArray(message?.parts) ? message.parts.filter((part) => typeof part?.text === 'string').map((part) => part.text).join('\n') : '');
 
-export async function curateNotesTurn({ conversation, getConfig, getMemory, runMemoryModel, models, getApiKeyForProvider, saveAppData = async () => {}, document = null, createId = () => globalThis.crypto.randomUUID(), now = () => new Date().toISOString(), wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), logger = console }) {
+async function curateTurn({ conversation, getConfig, getMemory, runMemoryModel, models, getApiKeyForProvider, saveAppData = async () => {}, document = null, createId = () => globalThis.crypto.randomUUID(), now = () => new Date().toISOString(), wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), logger = console }) {
   try {
     if (getConfig()?.memorySystem !== 'notes' || !conversation?.id) return { skipped: 'off' };
     if (conversation.retentionMode === 'ephemeral') return { skipped: 'temporary' };
@@ -59,4 +60,18 @@ export async function curateNotesTurn({ conversation, getConfig, getMemory, runM
     logger.warn?.('The memory could not learn from this turn.', error);
     return { skipped: 'failed' };
   }
+}
+
+/** Learns from the turn (above), then tidies the notes if that is due (page-tidy.js): the page is open and in use, which is when a tidy is cheap to make. Never throws. */
+export async function curateNotesTurn(args) {
+  const result = await curateTurn(args);
+  try {
+    if (args.getConfig()?.memorySystem === 'notes') {
+      const store = await args.getMemory()?.ready();
+      await tidyNotes({ store, getConfig: args.getConfig, getRunner: () => args.runMemoryModel, models: args.models, getApiKeyForProvider: args.getApiKeyForProvider, logger: args.logger });
+    }
+  } catch (error) {
+    (args.logger || console).warn?.('The memory could not be tidied after the turn.', error);
+  }
+  return result;
 }

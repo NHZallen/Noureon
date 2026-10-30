@@ -27,6 +27,7 @@ import { createConnectorAsk } from './mcp/ask.js';
 import { combineLoaders, createConnectorLoader } from './mcp/tool-loader.js';
 import { createMemoryLoader } from '../src/data/memory-tool.js';
 import { pickCuratorModel, runCurator } from '../src/data/memory-curator.js';
+import { createServerTidy } from './memory-tidy.js';
 import { createMemoryModelRunner } from '../src/app/runtime/shell/memory-model-runner.js';
 import { MODELS } from '../src/app/runtime/shell/model-registry.js';
 import { placePictures } from '../src/data/picture-interleave.js';
@@ -228,6 +229,7 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
   const makeSkillsOnly = ({ lookup = (name) => skills.body(userId, name) } = {}) => (skillList.length ? createSkillLoader({ available: skillList, lookup, readFile: skills.readFile ? (name, path) => skills.readFile(userId, name, path) : null }) : null);
   // The memory of notes: the notes are read from the table now (not from the page), and an accepted write goes straight into it. Not with Gemini's own search (it refuses the tools beside it).
   let memoryLoader = null;
+  const afterSteps = [];
   if (memory && spec.tools.memory && (mode !== 'grounding' || spec.tools.memory.curator === true) && userId) {
     try {
       const conversationId = spec.conversationId;
@@ -236,7 +238,7 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
         // No tools for this model: after the reply (and its message is written) a small model reads the turn and the program keeps what the check accepts (runs.js calls this).
         const turnMessages = spec.tools.memory.messages;
         if (memoryOut) {
-          memoryOut.afterReply = async () => {
+          afterSteps.push(async () => {
             const fresh = await memory.load(userId, { conversationId });
             const settings = fresh.settings;
             const current = turnMessages[turnMessages.length - 1];
@@ -258,7 +260,7 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
               createId: () => crypto.randomUUID(),
               now: () => new Date(now()).toISOString()
             });
-          };
+          });
         }
       } else if (loaded.settings.use) {
         const used = new Set(spec.request.messageMetadata?.memoryUsed || []);
@@ -280,6 +282,11 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
           createId: () => crypto.randomUUID(),
           now: () => new Date(now()).toISOString()
         });
+      }
+      // Once the reply is written, the notes are tidied if that is due (memory-tidy.js).
+      if (memoryOut && loaded.settings.use) {
+        afterSteps.push(createServerTidy({ memory, userId, replyModel: spec.model.info, provider: spec.model.provider, models: MODELS, makeRunner: (model) => createMemoryModelRunner({ streamApiCall: access.streamApiCall, models: [model] }), signal, now }));
+        memoryOut.afterReply = async () => { for (const step of afterSteps) { try { await step(); } catch (error) { onProblem('memory_after_reply_failed', error); } } };
       }
     } catch (error) {
       memoryLoader = null;

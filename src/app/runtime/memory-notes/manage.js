@@ -93,6 +93,59 @@ export function summarize(notes) {
 
 const CHANGES = ['add', 'update', 'forget', 'archive'];
 
+const time = (value) => Date.parse(value || '') || 0;
+
+/** The tidy of the notes (src/data/memory-consolidate.js) is one event with an operation for each note it touched: `{ count, summary }`, or null for any other event. */
+export function describeTidy(event) {
+  if (event?.who !== 'consolidation') return null;
+  const count = (event.ops || []).filter((op) => op.action === 'tidy').length;
+  return count ? { count, summary: event.summary && typeof event.summary === 'object' ? event.summary : {} } : null;
+}
+
+/** The events as the person sees them: the parts of one tidy (the same `batch`) are one event with all the operations and the ids of the parts (`ids`). The order is kept. */
+export function joinTidyEvents(events) {
+  const out = [];
+  const byBatch = new Map();
+  for (const event of events || []) {
+    if (event?.who !== 'consolidation' || !event.batch) {
+      out.push(event);
+      continue;
+    }
+    const joined = byBatch.get(event.batch);
+    if (!joined) {
+      const first = { ...event, ids: [event.id], ops: [...(event.ops || [])] };
+      byBatch.set(event.batch, first);
+      out.push(first);
+    } else {
+      joined.ids.push(event.id);
+      joined.ops.push(...(event.ops || []));
+      if (event.summary && Object.keys(event.summary).length) joined.summary = event.summary;
+    }
+  }
+  return out;
+}
+
+/**
+ * Undoes a tidy: every note it touched gets back what it was before. A note the person has changed or deleted since (its time is later than the tidy's) is left as it is.
+ * Returns { ok, notes, undone, skipped }.
+ */
+export function undoTidy(notes, event) {
+  let next = notes;
+  let undone = 0;
+  let skipped = 0;
+  for (const op of event?.ops || []) {
+    const target = find(next, op.noteId);
+    if (op.action !== 'tidy' || !op.before || !target) continue;
+    if (isTombstone(target) || time(target.updatedAt) > time(event.at)) {
+      skipped += 1;
+      continue;
+    }
+    next = replaceNote(next, op.noteId, () => op.before);
+    undone += 1;
+  }
+  return { ok: undone > 0, notes: next, undone, skipped };
+}
+
 /** What an event (see write-check.js) did, for the line the person reads: `{ action, text, beforeText }`, or null when it only saw a note again (nothing to undo). */
 export function describeEvent(event) {
   const op = (event?.ops || []).find((entry) => CHANGES.includes(entry.action));
@@ -105,6 +158,7 @@ export function describeEvent(event) {
  * forgotten or sent to the archive comes back. Returns { ok, notes, undone: number of operations undone }.
  */
 export function undoEvent(notes, event, { now = () => new Date().toISOString() } = {}) {
+  if (event?.who === 'consolidation') return undoTidy(notes, event);
   let next = notes;
   let undone = 0;
   for (const op of [...(event?.ops || [])].reverse()) {

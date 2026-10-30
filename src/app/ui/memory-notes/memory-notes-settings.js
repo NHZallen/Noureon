@@ -3,7 +3,7 @@
 // summary with the recent changes (each can be undone), and, one step further, the list of notes with search, kinds, and what the person can do with each note.
 // Everything is drawn with textContent (a note is the person's text), and colours come from the tokens in memory-notes.css.
 
-import { addByUser, deleteByUser, describeEvent, editByUser, filterNotes, setNeverByUser, setStandingByUser, summarize, undoEvent } from '../../runtime/memory-notes/manage.js';
+import { addByUser, deleteByUser, describeEvent, describeTidy, editByUser, filterNotes, joinTidyEvents, setNeverByUser, setStandingByUser, summarize, undoEvent } from '../../runtime/memory-notes/manage.js';
 import { NOTE_KINDS, isActive } from '../../runtime/memory-notes/notes.js';
 
 const PAGE = 50;
@@ -118,7 +118,7 @@ export function createMemoryNotesSettings({
     async undo(event) {
       const result = undoEvent(store().getNotes(), event, { now });
       if (result.ok) await store().commitNotes(result.notes);
-      await store().removeEvent(event.id);
+      for (const id of event.ids || [event.id]) await store().removeEvent(id);
       if (result.ok) showNotification(text('mnUndone'), 'success');
     },
     async clear() {
@@ -141,7 +141,14 @@ export function createMemoryNotesSettings({
 
   const go = (patch) => { Object.assign(state, patch); render(); };
 
+  const tidyLine = (event) => {
+    const info = describeTidy(event);
+    const parts = ['merge', 'supersede', 'expire', 'fade', 'standing'].filter((kind) => info.summary[kind]).map((kind) => text(`mnTidyPart${kind[0].toUpperCase()}${kind.slice(1)}`, { n: info.summary[kind] }));
+    return text('mnEvTidy', { count: info.count, detail: parts.join(', ') || '…' });
+  };
+
   const eventLine = (event) => {
+    if (describeTidy(event)) return tidyLine(event);
     const info = describeEvent(event);
     if (!info) return '';
     const key = { add: 'mnEvAdd', update: 'mnEvUpdate', forget: 'mnEvForget', archive: 'mnEvArchive' }[info.action];
@@ -208,7 +215,7 @@ export function createMemoryNotesSettings({
     const recent = el('section', 'pz-card mn-recent');
     recent.append(el('div', 'pz-head', ''));
     recent.firstChild.append(el('h3', '', text('mnRecent')));
-    const events = live.getEvents().filter((event) => describeEvent(event)).slice(0, RECENT);
+    const events = joinTidyEvents(live.getEvents()).filter((event) => describeEvent(event) || describeTidy(event)).slice(0, RECENT);
     if (!events.length) recent.append(el('p', 'pz-sub mn-pad text-[var(--text-secondary)]', text('mnNoRecent')));
     for (const event of events) {
       const row = el('div', 'mn-event');
@@ -219,9 +226,39 @@ export function createMemoryNotesSettings({
     }
 
     const rebuild = rebuildCard(live);
+    const tidy = tidyCard(live);
     const foot = el('section', 'pz-card mn-foot');
     foot.append(button(text('mnExport'), 'mn-btn', () => actions.exportNotes()), button(text('mnClear'), 'mn-btn mn-danger', () => void actions.clear()));
-    return [card, ...(rebuild ? [rebuild] : []), recent, foot];
+    return [card, ...(rebuild ? [rebuild] : []), ...(tidy ? [tidy] : []), recent, foot];
+  };
+
+  // The tidy of the notes (memory-store/page-tidy.js): when it last ran, and a button to run it now.
+  let tidying = false;
+  const tidyCard = (live) => {
+    const controller = getRebuild();
+    if (!controller?.tidyNow) return null;
+    const card = el('section', 'pz-card mn-rebuild');
+    const head = el('div', 'pz-head');
+    head.append(el('h3', '', text('mnTidyTitle')));
+    const body = el('div', 'mn-rebuild-body');
+    const last = live.getSettings().consolidatedAt;
+    body.append(el('p', 'pz-sub text-[var(--text-secondary)]', text('mnTidyDesc')), el('p', 'mn-rebuild-status mn-faint', last ? text('mnTidyLast', { when: relative(last) }) : text('mnTidyNever')));
+    const run = button(text(tidying ? 'mnTidyRunning' : 'mnTidyNow'), 'mn-btn', async () => {
+      if (tidying) return;
+      tidying = true;
+      render();
+      const result = await controller.tidyNow();
+      tidying = false;
+      render();
+      const done = result.ran || result.skipped === 'empty';
+      showNotification(text(!done ? 'mnTidyFailed' : result.changed?.length ? 'mnTidyDoneChanged' : 'mnTidyDoneNone', { n: result.changed?.length || 0 }), done ? 'success' : 'error');
+    });
+    run.disabled = tidying;
+    const actions = el('div', 'mn-rebuild-actions');
+    actions.append(run);
+    body.append(actions);
+    card.append(head, body);
+    return card;
   };
 
   const rebuildCard = (live) => {

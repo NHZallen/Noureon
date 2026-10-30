@@ -3,7 +3,7 @@
 // check of writes (src/app/runtime/memory-notes/write-check.js) first. The version and the time are the database's; a note that changed under it (the person edited it
 // from a page, another reply saved one) is joined with what is there and saved again, as the page does.
 
-import { changedNotes, cursorKey, eventKey, keyKind, mergeNotes, noteFromRow, noteKey, normalizeCursor, normalizeSettings, SETTINGS_KEY } from '../src/app/runtime/memory-notes/records.js';
+import { changedNotes, cursorKey, eventKey, expiredEventKeys, keyKind, mergeNotes, noteFromRow, noteKey, normalizeCursor, normalizeSettings, SETTINGS_KEY } from '../src/app/runtime/memory-notes/records.js';
 
 const TABLE = 'workspace_memory_records';
 const COLUMNS = 'record_key,payload,version,updated_at,deleted_at';
@@ -38,6 +38,28 @@ export function createMemoryRecords({ db, now = () => new Date().toISOString() }
       const cursor = normalizeCursor(rows.find((row) => row.record_key === cursorKey(conversationId))?.payload);
       return { notes, settings, cursor, versions };
     },
+    /** Saves a change to the settings (the time of the last tidy): joined with what is there, so another setting changed meanwhile is kept. */
+    async saveSettings(userId, patch) {
+      for (let attempt = 0; attempt < ATTEMPTS; attempt += 1) {
+        const row = await readRow(userId, SETTINGS_KEY);
+        const merged = normalizeSettings({ ...(row && !row.deleted_at ? row.payload : {}), ...patch });
+        const saved = await save(userId, SETTINGS_KEY, merged, row ? row.version : null);
+        if (saved.ok) return merged;
+      }
+      return null;
+    },
+    /** Takes away the events older than thirty days (marked, as the page does). Returns how many. */
+    async pruneEvents(userId) {
+      const rows = await readRows(userId, { prefix: 'event:' });
+      const old = expiredEventKeys(rows, now);
+      let count = 0;
+      for (const key of old) {
+        const row = rows.find((entry) => entry.record_key === key);
+        const marked = await db.update(TABLE, { user_id: `eq.${userId}`, record_key: `eq.${key}`, version: `eq.${row.version}` }, { deleted_at: new Date().toISOString() }, { returning: COLUMNS });
+        count += marked.length;
+      }
+      return count;
+    },
     /**
      * Saves what an accepted write brought (see write-check.js `applyWrite`): the notes that are new or changed, the event, and the operation done for the conversation.
      * `before` is what `load` gave (the notes and the versions). Returns the number of rows written.
@@ -47,6 +69,7 @@ export function createMemoryRecords({ db, now = () => new Date().toISOString() }
       const versions = new Map(before.versions);
       const pending = changedNotes(known, result.notes).map((note) => ({ key: noteKey(note.id), payload: note }));
       if (result.event) pending.push({ key: eventKey(result.event.id), payload: result.event });
+      for (const event of result.events || []) pending.push({ key: eventKey(event.id), payload: event });
       if (result.opId && conversationId) pending.push({ key: cursorKey(conversationId), payload: { ...before.cursor, appliedOps: [...before.cursor.appliedOps, result.opId].slice(-50) } });
       let written = 0;
       let todo = pending;

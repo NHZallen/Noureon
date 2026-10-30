@@ -4,6 +4,7 @@
 
 import { pickCuratorModel } from '../../../data/memory-curator.js';
 import { REBUILD, pickConversations, rebuildFromHistory } from '../../../data/memory-rebuild.js';
+import { tidyNotes } from './page-tidy.js';
 
 export function createRebuildController({ getStore, getConversations, getConfig, getModelRunner, models, getApiKeyForProvider, createId = () => globalThis.crypto.randomUUID(), now = () => new Date().toISOString(), logger = console }) {
   const listeners = new Set();
@@ -66,6 +67,8 @@ export function createRebuildController({ getStore, getConversations, getConfig,
     older: () => run({ clearFirst: false, skip: state.skip + REBUILD.conversations }),
     pause() {
       stopRequested = true;
-    }
+    },
+    /** Tidies the notes now, whatever the schedule says (the settings button). Resolves the result of the tidy. */
+    tidyNow: () => tidyNotes({ store: getStore(), getConfig, getRunner: getModelRunner, models, getApiKeyForProvider, createId, now, force: true, logger })
   };
 }

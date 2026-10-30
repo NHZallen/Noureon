@@ -219,3 +219,36 @@ test('the card that builds the memory from old conversations: start, progress, d
   const none = await setup({ memorySystem: 'notes', conversations: [] });
   assert.match(none.root().textContent, /There are no conversations to read yet/);
 });
+
+test('the tidy card says when the notes were last tidied, tidies on a click, and a tidy is listed with Undo that brings every note back', async () => {
+  const { runConsolidation } = await import('../../src/data/memory-consolidate.js');
+  const trip = { ...createNote({ id: 'trip', text: 'The user travels to Japan', kind: 'project', now: () => '2026-09-01T00:00:00.000Z' }), validUntil: '2026-10-01T00:00:00.000Z' };
+  const tidy = await runConsolidation({ notes: [trip, tea], settings: {}, commit: async () => {}, createId: () => 'tidy1', now: () => '2026-10-30T01:00:00.000Z' });
+  assert.equal(tidy.events.length, 1);
+  const { memory, root, click, notices } = await setup({
+    memorySystem: 'notes',
+    notes: tidy.notes,
+    extraRows: [{ record_key: 'event:tidy1', payload: tidy.events[0], version: 1, updated_at: tidy.events[0].at, deleted_at: null }]
+  });
+  assert.match(root().textContent, /Tidy the memory/);
+  assert.match(root().textContent, /Not tidied yet/);
+  assert.match(root().textContent, /Tidied 1 notes \(1 expired\)/);
+  await click('Tidy now');
+  await tick();
+  assert.match(notices.at(-1).message, /Tidied/);
+  assert.equal(notices.at(-1).kind, 'success');
+  assert.ok(memory.getStore().getSettings().consolidatedAt, 'the time of the tidy is kept');
+  assert.match(root().textContent, /Last tidied/);
+  assert.equal(memory.getStore().getNotes().find((note) => note.id === 'trip').status, 'archived');
+  await click('Undo');
+  assert.equal(memory.getStore().getNotes().find((note) => note.id === 'trip').status, 'active');
+  assert.equal(memory.getStore().getEvents().some((event) => event.id === 'tidy1'), false, 'the line goes away');
+});
+
+test('the tidy texts exist in all five languages', async () => {
+  for (const language of ['zh-TW', 'en', 'fr', 'ru', 'es']) {
+    for (const key of ['mnTidyTitle', 'mnTidyDesc', 'mnTidyLast', 'mnTidyNever', 'mnTidyNow', 'mnTidyRunning', 'mnTidyDoneChanged', 'mnTidyDoneNone', 'mnTidyFailed', 'mnTidyPartMerge', 'mnTidyPartSupersede', 'mnTidyPartExpire', 'mnTidyPartFade', 'mnTidyPartStanding', 'mnEvTidy']) {
+      assert.ok(i18n[language]?.[key], `${language} has ${key}`);
+    }
+  }
+});

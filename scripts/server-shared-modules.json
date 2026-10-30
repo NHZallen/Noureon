@@ -562,6 +562,14 @@
     {
       "path": "src/app/runtime/shell/memory-model-runner.js",
       "note": "Reviewed 2026-10-30: no browser globals (runs a small background request through the usual transport; used by the curator on the server)."
+    },
+    {
+      "path": "src/app/runtime/memory-notes/consolidate.js",
+      "note": "Reviewed 2026-10-30: no browser globals (the rules of the tidy of the notes: due, first layer, suspect groups, the check of the model's answer; docs/superpowers/specs/2026-10-30-memory-redesign-design.md)."
+    },
+    {
+      "path": "src/data/memory-consolidate.js",
+      "note": "Reviewed 2026-10-30: no browser globals (runs the tidy of the notes: the prompt for a group, the reading of the answer, the archive of what was joined and the event that undoes it; docs/superpowers/specs/2026-10-30-memory-redesign-design.md)."
     }
   ]
 }
