@@ -345,3 +345,18 @@ Linear：A 在專案「記憶系統重做」，B 是獨立的單（都在 Backlo
 - **歷史索引**：新索引在切片前先用 `summarizeFileBlocks` 把檔案區塊縮成摘要（舊索引就是這樣），避免附件全文被索引、也不會被送去做向量。
 - **文字**：隱私權政策第 9 節與協助中心第 13 節的記憶段落五語重寫（筆記、怎麼用、怎麼學、整理、重建、過去對話、語意搜尋與同意、30 天紀錄、伺服器代跑時怎麼讀寫），其他提到記憶的句子（本機／雲端保存、同步內容）改成筆記；`PRIVACY.md` 重新產生；刪掉約 60 組不再使用的舊記憶／回憶文字（五語）與 `settings.css` 裡的舊樣式。
 - **還沒做／Allen 要看**：①舊使用者上線後筆記是空的，要按「用過去的對話建立記憶」（計劃 D5 寫「自動重建」，目前是按鈕，沒有自動開始，因為會把對話文字送去模型）；②匯出／匯入資料還帶著 `personalMemories`（舊清單），沒有匯出筆記（筆記有自己的匯出）；③正式站要先套 `20261030010000_add_workspace_memory_records.sql`；④更新紀錄與版本由 Allen 發版時處理；⑤實機（真實金鑰）沒有驗證過：兩家 embedding 的實際回應、curator／整理的判斷品質、伺服器代跑時的讀寫。
+
+### 第二輪（2026-10-30，Allen 說「開始做，附件也一起進向量」之後）：MEM2-A 到 E
+- **A 自動重建與匯出匯入**：第一次載入記憶（`rebuiltAt` 空）時，約 10 秒後自動用最新 30 個對話重建一次（`page-rebuild.js` 的 `maybeAutoStart`），之後只在按鈕時重建；筆記（含「已刪除的關鍵字」黑名單）可以在設定頁匯出、匯入，也跟著資料匯出匯入走（`memory-notes/notes-transfer.js`）；模型查筆記或歷史時，回覆下方的步驟顯示「正在回憶…／正在回顧對話…」。
+- **B 向量一律 Gemini Embedding 2**：直連 Gemini，或經 OpenRouter 的 `google/gemini-embedding-2`；兩條路共用同一個索引（版本字串 `versionOf` 一樣，切換不重建），768 維；拿掉 OpenAI。圖片、影片、音訊、文件（PDF）也各自一片進向量（`memory-notes/media-pieces.js`，一個檔案一次請求；模型讀不了的標成 `failed`，不再重試）。**沒驗證**：OpenRouter 多模態 embedding 的請求格式是照官方文件推測的，沙盒連不到文件站與 API；失敗只會被略過，不會中斷。
+- **C 本機備份與雲端向量**：
+  - 雲端帳號的筆記在瀏覽器留一份鏡像（`backends.js` 的 `createMirroredBackend`，`notes-memory.js` 包上去）：伺服器連不上時讀鏡像、寫入先排隊，連上後以 `mergeNotes` 合併送出，不會蓋掉別台裝置的變動。
+  - 本機帳號綁定到雲端帳號時，筆記跟著搬（`notes-carry.js`：綁定時複製一份到雲端帳號名下，雲端帳號的記憶下次開啟時併入，併入後才刪副本）。
+  - 向量可以另外選擇「同步到雲端帳號」（`meta:settings` 的 `vector.sync`，獨立開關，預設關；本機帳號沒有這個選項，向量只留瀏覽器）。新 migration `20261031010000_add_workspace_memory_vectors.sql`：`workspace_memory_vectors`（pgvector `vector(768)`、`model`、`hash`、`failed`，RLS 只讓本人讀寫刪，伺服器用 service key），以及只有 service role 能呼叫的 `match_workspace_memory_vectors`。頁面端 `memory-store/vector-sync.js`：建立前先從雲端拉別台已做的、建完推上去、清掉已不存在的片段與別的模型的向量；雲端連不上只記警告，繼續用本機的。關閉搜尋或關閉同步會刪掉雲端副本。
+  - **測試環境限制**：PGlite 沒有 pgvector，`tests/helpers/database/supabase-database.js` 的 `withoutPgvector` 在跑這支 migration 時把向量欄位換成 text、拿掉 `create extension`；表、RLS、權限測得到，`<=>` 距離與 RPC 的真實行為**要在 staging 的 Supabase 上驗證**。
+- **D 伺服器搬運**（本機候補都保留）：
+  - 伺服器回覆也能查過去的對話（`search_memory` 的 `history`／`both` 範圍）：`server/memory-history.js` 用資料庫函式 `server_read_history`（migration `20261031020000_add_server_read_history.sql`；伺服器依規定不直接讀 `workspace_*` 表，這個函式只給最新 150 個對話的**文字**，不含檔案與中繼資料，只有 service role 能呼叫）讀對話，用跟頁面同一套 BM25 索引（`history-index.js`，共用模組）搜尋，快取 60 秒。有同步向量且頁面給了金鑰時，再把問題轉成向量、呼叫 `match_workspace_memory_vectors`，與關鍵字結果用 RRF 合併；文字雜湊對不上的向量不用。任何失敗都退回只用關鍵字或空結果，不影響回覆。本機帳號沒有雲端對話，仍由頁面自己查。
+  - **契約變更（protocol 2 → 3）**：`tools.memory.history`（布林）、`tools.memory.vector`（`{ provider: 'gemini' | 'openrouter' }`，只有 `history` 為真時可用）、`secrets.embeddingKey`（只有有 `vector` 時可帶、有 `vector` 時必帶；跟其他金鑰一樣只活到這次回覆結束）。舊版伺服器會因為協定版本不同（426）讓頁面改在本機回覆。新增的共用模組：`history-index.js`、`vector-math.js`、`embedding-client.js`（已列入 `scripts/server-shared-modules.json`）。
+  - **這輪沒做**：①「用過去對話建立記憶」的伺服器版——執行環境的 run 都綁在一則訊息上（寫訊息、重新連線、金鑰保管），做這個要先決定新的 run 種類（沒有訊息的背景工作）怎麼進 `run-spec`／`runs.js`，頁面版（可暫停、可接續）原樣保留；②每一輪自動帶的便條仍不用向量（0.7 秒等待的做法已核可，等伺服器版查詢穩定後再加）。
+- **E 文字**：隱私權政策與協助中心的過去對話段落五語改寫（Gemini Embedding 2、附件進向量、本機備份、獨立的雲端同步開關、伺服器讀文字與回覆結束就丟的金鑰），`PRIVACY.md` 重新產生。
+- **要 Allen 套用到 Supabase 的檔案（順序）**：`20261030010000_add_workspace_memory_records.sql`（如果還沒套）、`20261031010000_add_workspace_memory_vectors.sql`、`20261031020000_add_server_read_history.sql`；先套 staging 專案，確認 pgvector 擴充可用（`create extension vector` 在 Supabase 要啟用 Database → Extensions → vector）再套正式。
