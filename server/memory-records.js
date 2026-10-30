@@ -37,7 +37,9 @@ export function createMemoryRecords({ db, now = () => new Date().toISOString() }
       const notes = rows.map((row) => noteFromRow(row, { now })).filter(Boolean);
       const settings = normalizeSettings(rows.find((row) => row.record_key === SETTINGS_KEY)?.payload);
       const cursor = normalizeCursor(rows.find((row) => row.record_key === cursorKey(conversationId))?.payload);
-      return { notes, settings, cursor, versions };
+      // How far each conversation was read (the rebuild reads many).
+      const cursors = new Map(rows.filter((row) => keyKind(row.record_key) === 'cursor').map((row) => [row.record_key.slice('cursor:'.length), normalizeCursor(row.payload)]));
+      return { notes, settings, cursor, cursors, versions };
     },
     /** Saves a change to the settings (the time of the last tidy): joined with what is there, so another setting changed meanwhile is kept. */
     async saveSettings(userId, patch) {
@@ -45,6 +47,17 @@ export function createMemoryRecords({ db, now = () => new Date().toISOString() }
         const row = await readRow(userId, SETTINGS_KEY);
         const merged = normalizeSettings({ ...(row && !row.deleted_at ? row.payload : {}), ...patch });
         const saved = await save(userId, SETTINGS_KEY, merged, row ? row.version : null);
+        if (saved.ok) return merged;
+      }
+      return null;
+    },
+    /** Notes how far a conversation was read (the rebuild): merged with what is there. Resolves the cursor, or null when it could not be saved. */
+    async setCursor(userId, conversationId, patch) {
+      const key = cursorKey(conversationId);
+      for (let attempt = 0; attempt < ATTEMPTS; attempt += 1) {
+        const row = await readRow(userId, key);
+        const merged = normalizeCursor({ ...(row && !row.deleted_at ? normalizeCursor(row.payload) : {}), ...patch });
+        const saved = await save(userId, key, merged, row ? row.version : null);
         if (saved.ok) return merged;
       }
       return null;

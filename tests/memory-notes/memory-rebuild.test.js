@@ -190,3 +190,54 @@ test('it does not start by itself with notes, with learning off or paused, with 
   assert.equal(await noRunnerStore.maybeAutoStart(), false);
   assert.equal(store.getSettings().rebuiltAt, null, 'nothing was claimed');
 });
+
+test('the controller hands a plain start to the server, follows the job in the memory settings, and stops it there', async () => {
+  const store = await newStore();
+  const models = [{ id: 'm1', provider: 'gemini' }];
+  const sent = [];
+  let stopped = 0;
+  const serverRebuild = { canUse: () => true, start: async (body) => { sent.push(body); return { ok: true }; }, stop: async () => { stopped += 1; return { ok: true, stopped: true }; } };
+  const ran = [];
+  const controller = createRebuildController({ getStore: () => store, getConversations: () => CONVERSATIONS, getConfig: () => ({ memoryModelId: 'm1', uiLanguage: 'fr' }), getModelRunner: () => async () => { ran.push(1); return '{"ops":[]}'; }, models, getApiKeyForProvider: () => 'the-key', serverRebuild, createId, now, logger: { warn() {} } });
+  const seen = [];
+  controller.subscribe((state) => seen.push(state.status));
+  await controller.start();
+  assert.deepEqual(sent, [{ modelId: 'm1', key: 'the-key', language: 'fr' }]);
+  assert.equal(ran.length, 0, 'the page did not read anything itself');
+
+  await store.setSettings({ rebuildJob: { status: 'running', done: 2, total: 5, added: 1, startedAt: new Date().toISOString(), updatedAt: new Date().toISOString() } });
+  assert.equal(controller.getState().status, 'running');
+  assert.equal(controller.getState().done, 2);
+  assert.ok(seen.includes('running'), 'the settings card hears about the server\'s progress');
+  controller.pause();
+  assert.equal(stopped, 1);
+
+  await store.setSettings({ rebuildJob: { status: 'stopped', done: 3, total: 5, added: 1, startedAt: '2026-10-30T10:00:00.000Z', updatedAt: new Date().toISOString() } });
+  assert.equal(controller.getState().status, 'paused');
+  await store.setSettings({ rebuildJob: { status: 'done', done: 5, total: 5, added: 2, startedAt: '2026-10-30T10:00:00.000Z', updatedAt: new Date().toISOString() } });
+  assert.equal(controller.getState().status, 'done');
+  await store.setSettings({ rebuildJob: { status: 'failed', done: 1, total: 5, added: 0, error: 'no key', startedAt: '2026-10-30T10:00:00.000Z', updatedAt: new Date().toISOString() } });
+  assert.deepEqual([controller.getState().status, controller.getState().error], ['error', 'no key']);
+  await store.setSettings({ rebuildJob: { status: 'running', done: 1, total: 5, added: 0, startedAt: '2026-10-30T10:00:00.000Z', updatedAt: '2026-10-30T09:00:00.000Z' } });
+  assert.deepEqual([controller.getState().status, controller.getState().error], ['error', 'interrupted'], 'a job that stopped writing lost its server');
+});
+
+test('the controller makes the build itself when the server cannot take it, when clearing first, or when there is no account', async () => {
+  const models = [{ id: 'm1', provider: 'gemini' }];
+  const make = async (serverRebuild) => {
+    const store = await newStore();
+    const ran = [];
+    const controller = createRebuildController({ getStore: () => store, getConversations: () => CONVERSATIONS, getConfig: () => ({ memoryModelId: 'm1' }), getModelRunner: () => async () => { ran.push(1); return '{"ops":[]}'; }, models, getApiKeyForProvider: () => 'k', serverRebuild, createId, now, logger: { warn() {} } });
+    return { controller, ran };
+  };
+  const refusing = await make({ canUse: () => true, start: async () => ({ ok: false, code: 'network' }), stop: async () => ({ ok: true }) });
+  assert.equal((await refusing.controller.start()).status, 'done');
+  assert.ok(refusing.ran.length > 0, 'the server said no, so the page read the conversations');
+  const clearing = await make({ canUse: () => true, start: async () => { throw new Error('must not be asked'); }, stop: async () => ({ ok: true }) });
+  assert.equal((await clearing.controller.start({ clearFirst: true })).status, 'done');
+  const noAccount = await make({ canUse: () => false, start: async () => { throw new Error('must not be asked'); }, stop: async () => ({ ok: true }) });
+  assert.equal((await noAccount.controller.start()).status, 'done');
+  const busy = await make({ canUse: () => true, start: async () => ({ ok: false, reason: 'already_running' }), stop: async () => ({ ok: true }) });
+  await busy.controller.start();
+  assert.equal(busy.ran.length, 0, 'a job already running on the server is not started a second time');
+});

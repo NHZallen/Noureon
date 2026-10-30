@@ -8,6 +8,7 @@ import { MODELS } from '../shell/model-registry.js';
 import { getMemoryModelRunner, setNotesMemory, setPageHistory, setPageVectors, setRebuildController } from './memory-ref.js';
 import { createRebuildController } from './page-rebuild.js';
 import { createPageHistory } from './page-history.js';
+import { startServerRebuild, stopServerRebuild } from './server-rebuild.js';
 import { setHistoryTitle } from './memory-trace.js';
 import { createPageVectors } from './page-vectors.js';
 
@@ -32,7 +33,10 @@ export function startNotesMemory({ document, configAccess, dataStore, getActiveC
   const vectors = setPageVectors(createPageVectors({ getStore: () => memory.getStore(), getHistory: () => history, getApiKeyForProvider, getCloud: () => { const supabase = lastUser?.supabaseUserId ? (() => { try { return getSupabaseClient(); } catch { return null; } })() : null; return supabase ? { supabase, userId: String(lastUser.supabaseUserId) } : null; }, indexedDB: globalThis.indexedDB || null, userKey: () => String(lastUser?.supabaseUserId || lastUser?.username || 'local'), logger }));
   history.setVectors(vectors);
   // Building the memory from the past conversations (the settings show it); the first time it starts by itself, a little after the page has loaded.
-  const rebuild = setRebuildController(createRebuildController({ getStore: () => memory.getStore(), getConversations: () => history.conversations(), getConfig, getModelRunner: getMemoryModelRunner, models: MODELS, getApiKeyForProvider, logger }));
+  const rebuild = setRebuildController(createRebuildController({ getStore: () => memory.getStore(), getConversations: () => history.conversations(), getConfig, getModelRunner: getMemoryModelRunner, models: MODELS, getApiKeyForProvider,
+    // The first build can be made by the server (an account in the cloud, and the person did not choose to keep replies on this device).
+    serverRebuild: { canUse: () => Boolean(lastUser?.supabaseUserId) && getConfig()?.replyRunLocation !== 'local', start: startServerRebuild, stop: stopServerRebuild },
+    logger }));
   const autoRebuild = (loading) => { void Promise.resolve(loading).then(() => memory.ready()).then(() => setTimeout(() => void rebuild.maybeAutoStart().catch(() => {}), 10000)); };
   const syncVectors = (loading) => { void Promise.resolve(loading).then(() => memory.ready()).then(() => setTimeout(() => void vectors.sync(), 5000)); };
   // The line under a reply about what the memory did draws itself from the page's events.

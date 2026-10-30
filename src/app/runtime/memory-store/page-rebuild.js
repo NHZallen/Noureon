@@ -6,7 +6,8 @@ import { pickCuratorModel } from '../../../data/memory-curator.js';
 import { REBUILD, pickConversations, rebuildFromHistory } from '../../../data/memory-rebuild.js';
 import { tidyNotes } from './page-tidy.js';
 
-export function createRebuildController({ getStore, getConversations, getConfig, getModelRunner, models, getApiKeyForProvider, createId = () => globalThis.crypto.randomUUID(), now = () => new Date().toISOString(), logger = console }) {
+// `serverRebuild` ({ canUse(), start({ modelId, key, language }), stop() }) lets the server make the first build, so that it goes on when the page is closed (server/memory-rebuild.js).
+export function createRebuildController({ getStore, getConversations, getConfig, getModelRunner, models, getApiKeyForProvider, serverRebuild = null, createId = () => globalThis.crypto.randomUUID(), now = () => new Date().toISOString(), logger = console }) {
   const listeners = new Set();
   let state = { status: 'idle', done: 0, total: 0, added: 0, skip: 0, error: '' };
   let stopRequested = false;
@@ -15,6 +16,36 @@ export function createRebuildController({ getStore, getConversations, getConfig,
     for (const listener of [...listeners]) { try { listener(state); } catch { /* A broken listener must not stop the others. */ } }
     return state;
   };
+
+  // The job the server makes (its state is in the memory settings, so every page of the person sees it). One that has not written for two minutes lost its server: it shows as interrupted.
+  const SERVER_STALE_MS = 120_000;
+  const serverState = () => {
+    const job = getStore()?.getSettings?.()?.rebuildJob;
+    if (!job) return null;
+    const stale = job.status === 'running' && Date.now() - (Date.parse(job.updatedAt || '') || 0) > SERVER_STALE_MS;
+    const status = stale ? 'error' : { running: 'running', done: 'done', stopped: 'paused', failed: 'error' }[job.status];
+    return { status, done: job.done, total: job.total, added: job.added, skip: 0, error: stale ? 'interrupted' : job.error, onServer: true };
+  };
+  let storeWatch = null;
+  const watchStore = () => {
+    if (storeWatch || !getStore()?.subscribe) return;
+    storeWatch = getStore().subscribe(() => { for (const listener of [...listeners]) { try { listener(serverState() || state); } catch { /* A broken listener must not stop the others. */ } } });
+  };
+  // The model that reads and the key of its provider, chosen as the page's own run chooses; null when there is none.
+  const readerForServer = (store) => {
+    const current = models.find((model) => model.id === getConfig()?.memoryModelId);
+    const model = pickCuratorModel({ settingsId: store.getSettings().curatorModelId, current, models, hasKey: (provider) => Boolean(getApiKeyForProvider(provider)) });
+    return model ? { modelId: model.id, key: getApiKeyForProvider(model.provider) } : null;
+  };
+  /** Starts the build on the server when it can (an account in the cloud, the first build, a model with a key). Resolves true when the server took it. */
+  async function startOnServer() {
+    const store = getStore();
+    if (!serverRebuild?.canUse?.() || !store?.isLoaded()) return false;
+    const reader = readerForServer(store);
+    if (!reader) return false;
+    const answer = await serverRebuild.start({ ...reader, language: getConfig()?.uiLanguage || 'en' });
+    return Boolean(answer?.ok) || answer?.reason === 'already_running';
+  }
 
   const callModel = (store) => async (prompt, conversation) => {
     const runner = getModelRunner();
@@ -54,19 +85,25 @@ export function createRebuildController({ getStore, getConversations, getConfig,
   }
 
   return {
-    getState: () => state,
+    getState: () => (state.status === 'running' ? state : serverState() || state),
     subscribe(listener) {
       listeners.add(listener);
+      watchStore();
       return () => listeners.delete(listener);
     },
     /** How many conversations there are to read (the newest 30 are read at a time). */
     available: (skip = 0) => pickConversations(getConversations(), { skip, limit: REBUILD.conversations }).length,
     /** Reads the newest conversations; `clearFirst` empties the notes before (what the person deleted stays deleted). */
-    start: ({ clearFirst = false } = {}) => run({ clearFirst, skip: 0 }),
+    start: async ({ clearFirst = false } = {}) => {
+      // Adding to the notes (not clearing them) can be left to the server; anything else, and a server that does not take it, is made here.
+      if (!clearFirst && await startOnServer()) return serverState() || state;
+      return run({ clearFirst, skip: 0 });
+    },
     /** The 30 conversations before the ones already read. */
     older: () => run({ clearFirst: false, skip: state.skip + REBUILD.conversations }),
     pause() {
       stopRequested = true;
+      if (serverState()?.status === 'running') void serverRebuild?.stop?.();
     },
     /**
      * The first time (an account whose memory was never built and has no notes at all, with learning on and a model to read with): builds it from the newest conversations without being asked,
@@ -82,6 +119,7 @@ export function createRebuildController({ getStore, getConversations, getConfig,
       const current = models.find((model) => model.id === getConfig()?.memoryModelId);
       if (!pickCuratorModel({ settingsId: settings.curatorModelId, current, models, hasKey: (provider) => Boolean(getApiKeyForProvider(provider)) })) return false;
       await store.setSettings({ rebuiltAt: now() });
+      if (await startOnServer()) return true;
       void run({ clearFirst: false, skip: 0 });
       return true;
     },

@@ -260,7 +260,7 @@ export function createMemoryNotesSettings({
     head.append(el('h3', '', text('mnRebuildTitle')));
     const body = el('div', 'mn-rebuild-body');
     body.append(el('p', 'pz-sub text-[var(--text-secondary)]', text('mnRebuildDesc')));
-    const status = { running: 'mnRebuildRunning', paused: 'mnRebuildPaused', done: 'mnRebuildDone', error: 'mnRebuildError' }[state.status];
+    const status = { running: 'mnRebuildRunning', paused: 'mnRebuildPaused', done: 'mnRebuildDone', error: state.error === 'interrupted' ? 'mnRebuildInterrupted' : 'mnRebuildError' }[state.status];
     const available = controller.available(state.status === 'idle' ? 0 : state.skip);
     if (status) body.append(el('p', 'mn-rebuild-status', text(status, { done: state.done, total: state.total, added: state.added, error: state.error })));
     else if (!available) body.append(el('p', 'mn-rebuild-status mn-faint', text('mnRebuildNone')));
@@ -268,7 +268,7 @@ export function createMemoryNotesSettings({
     const hasNotes = live.getNotes().some(isActive);
     if (state.status === 'running') actions.append(button(text('mnRebuildPause'), 'mn-btn', () => controller.pause()));
     else {
-      if (state.status === 'paused') actions.append(button(text('mnRebuildContinue'), 'btn-primary mn-btn', () => void controller.start()));
+      if (state.status === 'paused' || state.error === 'interrupted') actions.append(button(text('mnRebuildContinue'), 'btn-primary mn-btn', () => void controller.start()));
       else if (available) actions.append(button(text(hasNotes ? 'mnRebuildAgain' : 'mnRebuildStart'), hasNotes ? 'mn-btn' : 'btn-primary mn-btn', async () => {
         if (hasNotes && !await ask({ title: text('mnRebuildConfirmTitle'), message: text('mnRebuildConfirm'), confirmLabel: text('mnRebuildAgain') })) return;
         void controller.start({ clearFirst: hasNotes });

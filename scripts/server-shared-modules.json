@@ -579,6 +579,10 @@
     {
       "path": "src/app/runtime/memory-store/embedding-client.js",
       "note": "Reviewed 2026-10-30: no browser globals; the page gives it the fetch and the key (the question of a search by meaning is turned into a vector with the key the page put in the request for this run)."
+    },
+    {
+      "path": "src/data/memory-rebuild.js",
+      "note": "Reviewed 2026-10-30: no browser globals (which conversations are read and how the curator is run over them; the server runs the same rebuild as the page; docs/superpowers/specs/2026-10-30-memory-redesign-design.md)."
     }
   ]
 }

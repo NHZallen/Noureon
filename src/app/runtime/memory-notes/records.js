@@ -30,9 +30,20 @@ const DEFAULT_SETTINGS = Object.freeze({
   rebuiltAt: null,
   /** When the notes were last tidied (src/data/memory-consolidate.js): the tidy is due after a week, or when twenty notes changed since. */
   consolidatedAt: null,
+  /** How the rebuild from the past conversations that the SERVER makes stands (server/memory-rebuild.js): { status: 'running' | 'done' | 'stopped' | 'failed', done, total, added, startedAt, updatedAt, error }, or null. */
+  rebuildJob: null,
   /** The search by meaning over the conversations (needs the consent of the person). */
   vector: Object.freeze({ enabled: false, consentAt: null, provider: '', sync: false })
 });
+
+const JOB_STATUS = ['running', 'done', 'stopped', 'failed'];
+const countOf = (value) => Math.max(0, Math.min(100_000, Math.round(Number(value) || 0)));
+const timeOr = (value) => (typeof value === 'string' && !Number.isNaN(Date.parse(value)) ? value : null);
+/** The state of the rebuild the server makes, or null when there is none. */
+export function normalizeRebuildJob(raw) {
+  if (!raw || typeof raw !== 'object' || !JOB_STATUS.includes(raw.status)) return null;
+  return { status: raw.status, done: countOf(raw.done), total: countOf(raw.total), added: countOf(raw.added), startedAt: timeOr(raw.startedAt), updatedAt: timeOr(raw.updatedAt), error: typeof raw.error === 'string' ? raw.error.slice(0, 120) : '' };
+}
 
 /** The settings as they are used, from whatever was saved. */
 export function normalizeSettings(raw) {
@@ -45,6 +56,7 @@ export function normalizeSettings(raw) {
     curatorModelId: typeof value.curatorModelId === 'string' ? value.curatorModelId.slice(0, 120) : '',
     rebuiltAt: typeof value.rebuiltAt === 'string' && !Number.isNaN(Date.parse(value.rebuiltAt)) ? value.rebuiltAt : null,
     consolidatedAt: typeof value.consolidatedAt === 'string' && !Number.isNaN(Date.parse(value.consolidatedAt)) ? value.consolidatedAt : null,
+    rebuildJob: normalizeRebuildJob(value.rebuildJob),
     vector: {
       enabled: vector.enabled === true && typeof vector.consentAt === 'string',
       consentAt: typeof vector.consentAt === 'string' ? vector.consentAt : null,

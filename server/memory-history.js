@@ -14,16 +14,17 @@ export const HISTORY = Object.freeze({ conversations: 150, messages: 6000, cache
 const literal = (vector) => `[${Array.from(vector, (value) => Number(value.toFixed(6))).join(',')}]`;
 const short = (hit) => ({ conversationId: hit.conversationId, at: hit.at, role: hit.role, text: String(hit.text).slice(0, 400) });
 
+/** The conversations of the person as the page holds them: { id, lastUpdatedAt, messages: [{ role, parts, createdAt }] }. The server has no grant on the workspace tables: it asks a function of the database. */
+export async function readConversations(db, userId, limits = HISTORY) {
+  const read = await db.rpc('server_read_history', { p_user_id: userId, p_max_conversations: limits.conversations, p_max_messages: limits.messages });
+  const byConversation = new Map((read?.conversations || []).map((row) => [row.id, { id: row.id, lastUpdatedAt: row.updated_at, messages: [] }]));
+  for (const message of read?.messages || []) byConversation.get(message.conversation_id)?.messages.push({ role: message.role, parts: Array.isArray(message.parts) ? message.parts : [], createdAt: message.created_at });
+  return [...byConversation.values()];
+}
+
 export function createHistorySearch({ db, now = () => Date.now(), fetchImpl = (...args) => globalThis.fetch(...args), logger = console, limits = HISTORY }) {
   const cache = new Map();
-
-  /** The conversations of the person as the page holds them: { id, lastUpdatedAt, messages: [{ role, parts, createdAt }] }. The server has no grant on the workspace tables: it asks a function of the database. */
-  async function conversationsOf(userId) {
-    const read = await db.rpc('server_read_history', { p_user_id: userId, p_max_conversations: limits.conversations, p_max_messages: limits.messages });
-    const byConversation = new Map((read?.conversations || []).map((row) => [row.id, { id: row.id, lastUpdatedAt: row.updated_at, messages: [] }]));
-    for (const message of read?.messages || []) byConversation.get(message.conversation_id)?.messages.push({ role: message.role, parts: Array.isArray(message.parts) ? message.parts : [], createdAt: message.created_at });
-    return [...byConversation.values()];
-  }
+  const conversationsOf = (userId) => readConversations(db, userId, limits);
 
   async function indexOf(userId) {
     const held = cache.get(userId);

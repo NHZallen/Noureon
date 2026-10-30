@@ -370,3 +370,13 @@ Linear：A 在專案「記憶系統重做」，B 是獨立的單（都在 Backlo
 - **常駐筆記**：顯示「常駐，每次都會帶」，不再顯示「還沒用過」。
 - **隱私文字**：隱私權政策過去對話段落補一句：回覆為了來源會記下查過的對話的名稱與日期（不記內容）；`PRIVACY.md` 已重新產生。
 - **還沒驗證**：以上全是測試加手寫的畫面，沒有在 staging 用真資料看過（來源面板、匯入明細、新的步驟圖示都要 Allen 在 staging 看）。
+
+### NOU-151（2026-10-30）：伺服器版「用過去對話建立記憶」
+- **做法**：`server/memory-rebuild.js`。每個使用者同時只有一個工作（在伺服器行程裡），用 `src/data/memory-rebuild.js` 的 `rebuildFromHistory`（頁面版同一份，已列入 `scripts/server-shared-modules.json`），讀對話用 `server/memory-history.js` 的 `readConversations`，筆記與游標寫回 `workspace_memory_records`。最長 25 分鐘。
+- **金鑰**：隨 `POST /v1/memory/rebuild`（`{ modelId, key, language }`）送來，只放在工作的記憶體，不寫入資料庫、不進紀錄；工作結束就丟掉。
+- **進度**：寫在記憶設定的 `rebuildJob`（`status: running | done | stopped | failed`、`done`、`total`、`added`、`startedAt`、`updatedAt`、`error`）。頁面不用另外輪詢，記憶庫本來就會同步，設定卡片跟著更新。`POST /v1/memory/rebuild/stop` 停掉。
+- **伺服器重啟會中斷**：`running` 但 `updatedAt` 超過兩分鐘沒動，頁面當作「中斷」，卡片顯示「繼續」（只補沒讀過的，游標會跳過讀過的對話）。
+- **只做第一次／繼續，不做「先清空再重建」**：先清空要的是全有或全無，伺服器工作可能中斷，所以清空的重建仍在頁面做。伺服器不可用（沒有雲端帳號、回覆設為本機、網路失敗）時，頁面版照舊。
+- **頁面端**：`memory-store/server-rebuild.js` 呼叫兩個端點；`createRebuildController` 的 `start()`（非 `clearFirst`）與自動第一次建立先試伺服器，被拒絕才在頁面做；`already_running` 視為已接手。
+- **契約**：新增兩個 HTTP 端點、設定欄位 `rebuildJob`、共用模組 `src/data/memory-rebuild.js`（Linear NOU-151 留言）。
+- **還沒驗證**：真的在 staging 的伺服器上跑（要 Allen 重新部署前端與伺服器）。
