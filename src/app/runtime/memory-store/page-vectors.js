@@ -32,6 +32,7 @@ export function createPageVectors({ getStore, getHistory, getApiKeyForProvider =
   const mediaPieces = () => getHistory()?.mediaPieces?.() || [];
   const worth = () => [...textPieces(), ...mediaPieces()];
   const hasKey = (name) => Boolean(getApiKeyForProvider(name));
+  const hasKey_ = (name) => hasKey(EMBEDDING_PROVIDERS[name].keyProvider);
   const providerNow = () => pickEmbeddingProvider({ chosen: settings().provider, hasKey });
   // The cloud copy: only for a person signed in to a cloud account who also turned on syncing the vectors; `getCloud()` gives { supabase, userId } or null (a local account).
   const cloudFor = (provider) => {
@@ -171,6 +172,18 @@ export function createPageVectors({ getStore, getHistory, getApiKeyForProvider =
       store = null;
       storeKey = '';
       set({ status: 'off', done: 0, total: 0, error: '' });
+    },
+    /** The providers the person has a key for ([{ name, label, current }]): both make the same vectors, so changing needs no rebuild. */
+    providers() {
+      const now = providerNow();
+      return Object.keys(EMBEDDING_PROVIDERS).filter(hasKey_).map((name) => ({ name, label: EMBEDDING_PROVIDERS[name].label, current: name === now }));
+    },
+    /** Uses another provider from now on (it needs a key). The vectors made so far stay; the build goes on with the new one. */
+    async setProvider(name) {
+      if (!EMBEDDING_PROVIDERS[name] || !hasKey_(name) || !getStore()?.isLoaded?.()) return false;
+      await getStore().setSettings({ vector: { ...settings(), provider: name } });
+      void this.sync();
+      return true;
     },
     /** Whether the vectors can be kept in a cloud account (a cloud account is signed in), and whether the person chose to. */
     canSync: () => Boolean(getCloud()?.supabase && getCloud()?.userId),

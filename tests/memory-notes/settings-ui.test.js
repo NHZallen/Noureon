@@ -305,7 +305,7 @@ test('a cloud account can keep the vectors in the cloud as a choice of its own, 
 
 test('the texts of the search by meaning exist in all five languages and say what is sent', async () => {
   for (const language of ['zh-TW', 'en', 'fr', 'ru', 'es']) {
-    for (const key of ['mnVecTitle', 'mnVecDesc', 'mnVecNoKey', 'mnVecOn', 'mnVecConsentTitle', 'mnVecConsent', 'mnVecConsentOk', 'mnVecBuilding', 'mnVecReady', 'mnVecError', 'mnVecRetry', 'mnVecOff', 'mnVecOffDone', 'mnVecSyncTitle', 'mnVecSyncDesc', 'mnVecSyncOn', 'mnVecSyncOff', 'mnVecSyncIs', 'mnVecSyncLocal', 'mnVecSyncOffDone']) {
+    for (const key of ['mnVecTitle', 'mnVecDesc', 'mnVecNoKey', 'mnVecOn', 'mnVecConsentTitle', 'mnVecConsent', 'mnVecConsentOk', 'mnVecBuilding', 'mnVecReady', 'mnVecError', 'mnVecRetry', 'mnVecOff', 'mnVecOffDone', 'mnVecSyncTitle', 'mnVecSyncDesc', 'mnVecSyncOn', 'mnVecSyncOff', 'mnVecSyncIs', 'mnVecSyncLocal', 'mnVecSyncOffDone', 'mnVecProviderTitle', 'mnVecProviderDesc']) {
       assert.ok(i18n[language]?.[key], `${language} has ${key}`);
     }
     assert.match(i18n[language].mnVecConsent, /\{provider\}/);

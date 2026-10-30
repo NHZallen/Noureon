@@ -140,3 +140,24 @@ test('turning the search off also deletes the cloud copy', async () => {
   await one.vectors.disable();
   assert.equal(cloud.rows.size, 0);
 });
+
+test('the person may change which provider makes the vectors when there is a key for each; the vectors made stay', async () => {
+  const calls = [];
+  const settings = { vector: { enabled: true, consentAt: '2026-10-30T00:00:00.000Z', provider: 'openrouter', sync: false } };
+  const rows = [{ record_key: 'meta:settings', payload: settings, version: 1, updated_at: '2026-10-30T00:00:00.000Z', deleted_at: null }];
+  const data = new Map([['noureon.memoryNotes.v1.tester', JSON.stringify({ version: 1, rows })]]);
+  const memory = createNotesMemory({ storage: { getItem: (key) => data.get(key) ?? null, setItem: (key, value) => { data.set(key, value); } }, logger: { warn() {} } });
+  await memory.attach({ username: 'tester' });
+  const history = createPageHistory({ getConversations: () => CONVERSATIONS });
+  const keys = { openrouter: 'o-key' };
+  const vectors = createPageVectors({ getStore: () => memory.getStore(), getHistory: () => history, getApiKeyForProvider: (name) => keys[name] || '', indexedDB: createFakeIndexedDb(), userKey: () => 'tester', fetchImpl: async (url, options) => { calls.push(url); return geminiFetch([])(url, options); }, wait: async () => {}, logger: { warn() {} }, options: { pauseMs: 0 } });
+  assert.deepEqual(vectors.providers().map((entry) => entry.name), ['openrouter']);
+  assert.equal(await vectors.setProvider('gemini'), false, 'no key, no change');
+  keys.gemini = 'g-key';
+  assert.deepEqual(vectors.providers().map((entry) => [entry.name, entry.current]), [['gemini', false], ['openrouter', true]]);
+  assert.equal(await vectors.setProvider('gemini'), true);
+  assert.equal(memory.getStore().getSettings().vector.provider, 'gemini');
+  assert.equal(memory.getStore().getSettings().vector.consentAt, '2026-10-30T00:00:00.000Z', 'the consent stays');
+  await vectors.sync();
+  assert.ok(calls.some((url) => url.includes('generativelanguage.googleapis.com')), 'the build now goes straight to Google');
+});

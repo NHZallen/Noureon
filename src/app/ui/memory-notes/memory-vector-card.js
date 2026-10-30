@@ -21,6 +21,19 @@ export function renderVectorCard({ vectors, el, button, text, ask, showNotificat
     const line = { building: ['mnVecBuilding', 'mn-rebuild-status'], idle: ['mnVecReady', 'mn-rebuild-status'], error: ['mnVecError', 'mn-rebuild-status'] }[state.status] || ['mnVecReady', 'mn-rebuild-status'];
     body.append(el('p', line[1], text(line[0], { done: state.done, total: state.total, provider: EMBEDDING_PROVIDERS[provider]?.label || '', error: state.error })));
     if (state.status === 'error') actions.append(button(text('mnVecRetry'), 'btn-primary mn-btn', () => void vectors.sync()));
+    // Both providers make the same vectors from the same model, so the person may change which one is used (when there is a key for each).
+    const providers = vectors.providers();
+    if (providers.length > 1) {
+      body.append(el('h4', 'pz-sub', text('mnVecProviderTitle')), el('p', 'pz-sub text-[var(--text-secondary)]', text('mnVecProviderDesc')));
+      const choices = el('div', 'mn-rebuild-actions');
+      for (const choice of providers) {
+        choices.append(button(choice.label, choice.current ? 'btn-primary mn-btn' : 'mn-btn', async () => {
+          if (!choice.current) await vectors.setProvider(choice.name);
+          render();
+        }));
+      }
+      body.append(choices);
+    }
     // Keeping the vectors in the cloud account is a choice of its own; a local account has no cloud.
     const syncing = vectors.isSyncing();
     body.append(el('h4', 'pz-sub', text('mnVecSyncTitle')), el('p', 'pz-sub text-[var(--text-secondary)]', text(vectors.canSync() ? (syncing ? 'mnVecSyncIs' : 'mnVecSyncDesc') : 'mnVecSyncLocal')));
