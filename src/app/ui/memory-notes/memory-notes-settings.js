@@ -17,6 +17,8 @@ export function createMemoryNotesSettings({
   saveConfig,
   getMemory,
   getUser = () => null,
+  // The models the person may choose to curate with (text models with a key), as [{ id, name }]; none given: no choice is offered.
+  getModels = () => [],
   getText,
   showNotification = () => {},
   showCustomDialog,
@@ -157,6 +159,28 @@ export function createMemoryNotesSettings({
     return card;
   };
 
+  const curatorRow = (live, settings) => {
+    const models = getModels();
+    if (!models.length) return null;
+    const row = el('div', 'pz-row');
+    const copy = el('div', 'pz-text');
+    copy.append(el('span', 'pz-label', text('mnCuratorTitle')), el('p', 'pz-sub text-[var(--text-secondary)]', text('mnCuratorDesc')));
+    const select = el('select', 'pz-select');
+    select.setAttribute('aria-label', text('mnCuratorTitle'));
+    const auto = el('option', '', text('mnCuratorAuto'));
+    auto.value = '';
+    select.append(auto);
+    for (const model of models) {
+      const option = el('option', '', model.name);
+      option.value = model.id;
+      select.append(option);
+    }
+    select.value = models.some((model) => model.id === settings.curatorModelId) ? settings.curatorModelId : '';
+    select.addEventListener('change', () => live.setSettings({ curatorModelId: select.value }));
+    row.append(copy, select);
+    return row;
+  };
+
   const renderSwitches = (live) => {
     const settings = live.getSettings();
     const card = el('section', 'pz-card');
@@ -164,6 +188,8 @@ export function createMemoryNotesSettings({
       switchRow(text('mnUse'), text('mnUseDesc'), settings.use, (on) => live.setSettings({ use: on })),
       switchRow(text('mnLearn'), text('mnLearnDesc'), settings.learn, (on) => live.setSettings({ learn: on }))
     );
+    const curator = curatorRow(live, settings);
+    if (curator) card.append(curator);
     return card;
   };
 

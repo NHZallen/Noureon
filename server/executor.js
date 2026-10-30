@@ -26,6 +26,9 @@ import { withDocumentPrep } from './document-prep.js';
 import { createConnectorAsk } from './mcp/ask.js';
 import { combineLoaders, createConnectorLoader } from './mcp/tool-loader.js';
 import { createMemoryLoader } from '../src/data/memory-tool.js';
+import { pickCuratorModel, runCurator } from '../src/data/memory-curator.js';
+import { createMemoryModelRunner } from '../src/app/runtime/shell/memory-model-runner.js';
+import { MODELS } from '../src/app/runtime/shell/model-registry.js';
 import { placePictures } from '../src/data/picture-interleave.js';
 
 export const CHECKPOINT_VERSION = 1;
@@ -225,11 +228,39 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
   const makeSkillsOnly = ({ lookup = (name) => skills.body(userId, name) } = {}) => (skillList.length ? createSkillLoader({ available: skillList, lookup, readFile: skills.readFile ? (name, path) => skills.readFile(userId, name, path) : null }) : null);
   // The memory of notes: the notes are read from the table now (not from the page), and an accepted write goes straight into it. Not with Gemini's own search (it refuses the tools beside it).
   let memoryLoader = null;
-  if (memory && spec.tools.memory && mode !== 'grounding' && userId) {
+  if (memory && spec.tools.memory && (mode !== 'grounding' || spec.tools.memory.curator === true) && userId) {
     try {
       const conversationId = spec.conversationId;
       let loaded = await memory.load(userId, { conversationId });
-      if (loaded.settings.use) {
+      if (loaded.settings.use && spec.tools.memory.curator === true) {
+        // No tools for this model: after the reply (and its message is written) a small model reads the turn and the program keeps what the check accepts (runs.js calls this).
+        const turnMessages = spec.tools.memory.messages;
+        if (memoryOut) {
+          memoryOut.afterReply = async () => {
+            const fresh = await memory.load(userId, { conversationId });
+            const settings = fresh.settings;
+            const current = turnMessages[turnMessages.length - 1];
+            if (!current || !settings.use || !settings.learn || settings.paused || spec.tools.memory.canWrite !== true) return;
+            const model = pickCuratorModel({ settingsId: settings.curatorModelId, current: spec.model.info, models: MODELS, hasKey: (provider) => provider === spec.model.provider });
+            if (!model) return;
+            const runModel = createMemoryModelRunner({ streamApiCall: access.streamApiCall, models: [model] });
+            let state = fresh;
+            await runCurator({
+              notes: fresh.notes,
+              turn: { messages: turnMessages, current, assistantExcerpt: answer.slice(0, 400) },
+              callModel: (prompt) => runModel({ modelId: model.id, prompt, signal }),
+              commit: async (result) => {
+                await memory.saveWrite(userId, { before: state, result, conversationId });
+                state = await memory.load(userId, { conversationId });
+              },
+              conversationId,
+              appliedOps: fresh.cursor.appliedOps,
+              createId: () => crypto.randomUUID(),
+              now: () => new Date(now()).toISOString()
+            });
+          };
+        }
+      } else if (loaded.settings.use) {
         const used = new Set(spec.request.messageMetadata?.memoryUsed || []);
         const events = [];
         if (memoryOut) { memoryOut.used = [...used]; memoryOut.events = events; }

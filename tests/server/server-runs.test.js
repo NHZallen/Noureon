@@ -294,6 +294,34 @@ test('a reply is accepted, run, written, and finished, and its key goes with it'
   assert.equal(manager.activeCount, 0);
 });
 
+test('what the memory did in a reply stays with its message, and the curator runs after the message is written, only for a finished reply', async () => {
+  const order = [];
+  const { manager, db } = managerHarness({
+    execute: async ({ memoryOut }) => {
+      memoryOut.used = ['n1', 'n2'];
+      memoryOut.events = ['e1'];
+      memoryOut.afterReply = async () => { order.push(`curate after ${messageWrites(db).at(-1).status}`); };
+      return { parts: [{ text: 'answer' }], status: 'done', run: { elapsedMs: 1 }, toolCalls: 0 };
+    }
+  });
+  await manager.start({ userId: USER, spec: specOf() });
+  await settle();
+  const last = messageWrites(db).at(-1);
+  assert.equal(last.status, 'complete');
+  assert.deepEqual(last.metadata, { model: 'M', memoryUsed: ['n1', 'n2'], memoryUpdated: ['e1'] });
+  assert.deepEqual(order, ['curate after complete'], 'the reply was written before the curator ran');
+});
+
+test('a curator that throws, or a reply that was stopped, costs the run nothing', async () => {
+  const logs = [];
+  const thrown = managerHarness({ logs, execute: async ({ memoryOut }) => { memoryOut.afterReply = async () => { throw new Error('boom'); }; return { parts: [{ text: 'ok' }], status: 'done', run: { elapsedMs: 1 }, toolCalls: 0 }; } });
+  await thrown.manager.start({ userId: USER, spec: specOf() });
+  await settle();
+  assert.equal(messageWrites(thrown.db).at(-1).status, 'complete');
+  assert.ok(logs.some((line) => line.includes('memory_curator_failed')));
+  assert.equal(thrown.manager.activeCount, 0);
+});
+
 test('a council is a run of its own kind: its keys (one for each provider) are sealed and gone at the end, its checkpoints count as progress, and a page that joins late is given how it stands', async () => {
   let release;
   const gate = new Promise((resolve) => { release = resolve; });

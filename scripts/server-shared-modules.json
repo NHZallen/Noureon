@@ -554,6 +554,14 @@
     {
       "path": "src/data/memory-tool.js",
       "note": "Reviewed 2026-10-30: no browser globals (the tools search_memory and memory_write and their loader; docs/superpowers/specs/2026-10-30-memory-redesign-design.md)."
+    },
+    {
+      "path": "src/data/memory-curator.js",
+      "note": "Reviewed 2026-10-30: no browser globals (the curator that learns from a turn for a model with no memory tools: its prompt, the reading of its answer, which model; docs/superpowers/specs/2026-10-30-memory-redesign-design.md)."
+    },
+    {
+      "path": "src/app/runtime/shell/memory-model-runner.js",
+      "note": "Reviewed 2026-10-30: no browser globals (runs a small background request through the usual transport; used by the curator on the server)."
     }
   ]
 }

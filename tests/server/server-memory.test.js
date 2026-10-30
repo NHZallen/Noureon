@@ -159,3 +159,61 @@ test('a table that cannot be read leaves the reply without memory tools, and the
   assert.deepEqual(problems, ['memory_unavailable']);
   assert.equal(requests[0].tools, undefined);
 });
+
+const CURATOR_SPEC = (extra = {}) => goodSpec({ canWrite: true, curator: true, messages: [{ id: 'm1', text: USER_MESSAGE, at: '2026-10-30T09:00:00.000Z' }], ...extra });
+
+test('a model with no memory tools is followed by the curator: no tools are offered, and after the reply a small model of the same provider is asked and its notes are kept', async () => {
+  const table = createFakeTable();
+  const memory = createMemoryRecords({ db: table.service });
+  const requests = [];
+  const memoryOut = {};
+  const curatorAnswer = JSON.stringify({ ops: [{ op: 'add', text: 'The user lives in Hsinchu and works as a nurse', quote: 'I live in Hsinchu and I work as a nurse', kind: 'fact', keywords: ['hsinchu', 'nurse'] }] });
+  const result = await executeReply({
+    spec: CURATOR_SPEC(),
+    secrets: { providerKey: 'sk-provider-secret-value' },
+    userId: USER,
+    memory,
+    memoryOut,
+    fetchImpl: async (url, options) => {
+      const body = JSON.parse(options.body);
+      requests.push(body);
+      return streamResponse(requests.length === 1 ? sse(content('Roses are red.')) : sse(content(curatorAnswer)));
+    }
+  });
+  assert.equal(result.parts[0].text, 'Roses are red.');
+  assert.equal(requests[0].tools, undefined, 'the reply itself gets no memory tools');
+  assert.equal(typeof memoryOut.afterReply, 'function');
+  assert.equal(rowCount(table, `${USER}\u0000note:`), 0, 'nothing is written while the reply is made');
+  await memoryOut.afterReply();
+  assert.equal(requests.length, 2);
+  assert.equal(requests[1].model, 'google/gemini-3.5-flash-lite', 'the cheap model of the same provider');
+  assert.match(JSON.stringify(requests[1].messages), /I live in Hsinchu and I work as a nurse/);
+  assert.match(JSON.stringify(requests[1].messages), /Roses are red/, 'the start of the reply is there as context');
+  const saved = await memory.load(USER, { conversationId: ID_A });
+  assert.deepEqual(saved.notes.map((note) => note.text), ['The user lives in Hsinchu and works as a nurse']);
+  assert.equal(rowCount(table, `${USER}\u0000event:`), 1);
+});
+
+test('the curator does nothing when learning is off in the table, or the page does not allow writing', async () => {
+  for (const [settings, spec] of [[{ learn: false }, CURATOR_SPEC()], [null, CURATOR_SPEC({ canWrite: false })], [{ paused: true }, CURATOR_SPEC()]]) {
+    const table = createFakeTable();
+    if (settings) table.write({ user_id: USER, record_key: 'meta:settings', payload: settings });
+    const memory = createMemoryRecords({ db: table.service });
+    const requests = [];
+    const memoryOut = {};
+    await executeReply({ spec, secrets: { providerKey: 'sk-provider-secret-value' }, userId: USER, memory, memoryOut, fetchImpl: async (url, options) => { requests.push(JSON.parse(options.body)); return streamResponse(sse(content('hi'))); } });
+    await memoryOut.afterReply?.();
+    assert.equal(requests.length, 1, 'the model is asked only for the reply');
+    assert.equal(rowCount(table, `${USER}\u0000note:`), 0);
+  }
+});
+
+test('a curator whose model fails leaves the memory as it was and does not throw', async () => {
+  const table = createFakeTable();
+  const memory = createMemoryRecords({ db: table.service });
+  const memoryOut = {};
+  let round = 0;
+  await executeReply({ spec: CURATOR_SPEC(), secrets: { providerKey: 'sk-provider-secret-value' }, userId: USER, memory, memoryOut, fetchImpl: async () => { round += 1; return round === 1 ? streamResponse(sse(content('fine'))) : new Response('rate limited', { status: 429 }); } });
+  await memoryOut.afterReply();
+  assert.equal(rowCount(table, `${USER}\u0000note:`), 0);
+});

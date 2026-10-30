@@ -45,3 +45,15 @@
     #settings-modal .mn-root .mn-stats { gap: 1.1rem; }
     #settings-modal .mn-root .mn-tools { flex-wrap: wrap; }
 }
+
+/* Under a reply: "Memory updated" and "Used N notes" (src/app/ui/memory-notes/memory-reply-line.js). Quiet on purpose. */
+.memory-line { margin-top: 0.35rem; font-size: 0.75rem; color: var(--text-tertiary); }
+.memory-line-bar { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.memory-line-chip { padding: 0.1rem 0.5rem; border: 1px solid var(--border-color); border-radius: 999px; background: transparent; color: var(--text-tertiary); font: inherit; cursor: pointer; }
+.memory-line-chip:hover { background: var(--hover-bg); color: var(--text-secondary); }
+.memory-line-panel { display: grid; margin-top: 0.4rem; border: 1px solid var(--border-color); border-radius: 0.625rem; overflow: hidden; }
+.memory-line-row { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 0.45rem 0.7rem; border-top: 1px solid var(--border-color); color: var(--text-secondary); }
+.memory-line-row:first-child { border-top: 0; }
+.memory-line-text { min-width: 0; overflow-wrap: anywhere; }
+.memory-line-faint { color: var(--text-tertiary); }
+.memory-line-link { flex: none; padding: 0; border: 0; background: transparent; color: var(--text-secondary); font: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; white-space: nowrap; }

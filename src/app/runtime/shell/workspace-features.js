@@ -7,6 +7,7 @@ import { createSearchUploadSidebarLifecycle } from './search-upload-sidebar-life
 import { createApiKeyWarningBadgeUpdater } from './api-key-warning-badge.js';
 import { createLazyFunctions } from '../kernel/lazy-functions.js';
 import { createMemoryRuntime } from '../memory/memory-runtime.js';
+import { getNotesMemory } from '../memory-store/memory-ref.js';
 
 export function createWorkspaceFeatures({
     window, document, navigator, fetch, File, FileReader: FileReaderCtor, Image: ImageCtor, URL, Event,
@@ -204,6 +205,7 @@ export function createWorkspaceFeatures({
         getMemoryState: () => runtimeAppDataStore.getMemoryState?.() || null,
         replaceMemoryState,
         captureCompletedTurn: options => captureCompletedTurnAndPersist(options),
+        curateNotesTurn: (conversation) => import('../memory-store/page-curator.js').then(({ curateNotesTurn }) => curateNotesTurn({ conversation, getConfig, getMemory: getNotesMemory, runMemoryModel, models: MODELS, getApiKeyForProvider, saveAppData, document })),
         enqueueMemoryCapture: options => memoryWorkScheduler.enqueueCapture(options),
         hashString,
         getModelPieChart: () => modelPieChart,

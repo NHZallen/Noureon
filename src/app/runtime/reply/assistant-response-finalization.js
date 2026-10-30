@@ -4,6 +4,7 @@ import { isStaleChunkError, offerReloadForNewVersion, staleChunkMessage } from '
 import { placePictures } from '../../../data/picture-interleave.js';
 import { revealArrival } from '../../ui/motion/arrival-reveal.js';
 import { takeTrace } from '../memory-store/memory-trace.js';
+import { announceMemoryUpdated } from '../../ui/memory-notes/memory-events.js';
 
 const getEmptyResponseMessage = (uiLanguage) => getRuntimeText(uiLanguage, 'emptyResponse');
 
@@ -115,7 +116,9 @@ export async function finalizeAssistantResponse({
   }
   // What the memory did for this reply (notes given to the model, changes it made): shown under the reply, kept with the message.
   const memoryTrace = takeTrace(conversation?.id);
+  let memoryLineAfterDraw = false;
   if (memoryTrace.used.length || memoryTrace.events.length) {
+    memoryLineAfterDraw = true;
     finalAiMessage.metadata = {
       ...(finalAiMessage.metadata || {}),
       ...(memoryTrace.used.length ? { memoryUsed: memoryTrace.used } : {}),
@@ -146,6 +149,8 @@ export async function finalizeAssistantResponse({
     await playbackCouncilResponse({ targetElement, fullResponse, signal });
   }
   rememberRenderedMessage(targetElement, finalAiMessage);
+  // The line under the reply about what the memory did (it was not there when the message was drawn).
+  if (memoryLineAfterDraw) announceMemoryUpdated(globalThis.document, { conversationId: conversation?.id });
   targetElement?.querySelectorAll?.('.file-skeleton').forEach((placeholder) => placeholder.remove());
   // The files the reply made come in one after the other instead of appearing at once when the reply ends.
   if (finalAiMessage.parts.some((part) => part?.sandboxFile)) revealArrival(targetElement?.closest?.('[data-message-index]'), 'is-arriving-files');
@@ -159,7 +164,7 @@ export async function finalizeAssistantResponse({
   }
 
   if (!hasFinalParts && !signal.aborted && memoryEnabled && autoMemoryEnabled) {
-    queueBackgroundTask(() => extractPersonalMemory(userMessageText, fullResponse));
+    queueBackgroundTask(() => extractPersonalMemory(userMessageText, fullResponse, conversation));
   }
 
   return {

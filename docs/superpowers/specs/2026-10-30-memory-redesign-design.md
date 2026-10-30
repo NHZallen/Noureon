@@ -302,3 +302,12 @@ Linear：A 在專案「記憶系統重做」，B 是獨立的單（都在 Backlo
 - 載入失敗（資料表不在、網路斷）只讓記憶變空，聊天照常；設定畫面會說「暫時讀不到記憶」。
 - 畫面（Allen 2026-10-30 選 B）：摘要卡（筆記數、常駐數、最近更新）＋「最近的變動」（可復原）＋「管理筆記」獨立頁（搜尋、分類、新增、編輯、常駐、不主動提起、刪除）。手動操作的規則在 `memory-notes/manage.js`（純函式）；使用者編輯過的筆記會鎖定，之後模型不覆蓋；刪除留墓碑。文字在 `src/data/i18n/parts/memory-notes.js`（五語）。
 - 還沒做：便條裡的「歷史片段」要等 P5 的歷史索引；工具（`search_memory`、`memory_write`）在 P4。
+
+### P4（2026-10-30）：學習
+- **工具**：`src/data/memory-tool.js`（`search_memory`、`memory_write`，共用給頁面與伺服器）。工具描述用「觸發情境」寫法，寫入一律經過 `applyWrite`。`combineLoaders` 從 `server/mcp/tool-loader.js` 搬到 `src/data/combine-loaders.js`（頁面也要用；伺服器那邊照舊 re-export）。
+- **頁面本機回覆**：`prepareReply` 在 `memorySystem: 'notes'`、模型會用工具、且不是服務商自己搜尋的回覆時，把記憶載入器併進 skills 的載入器（`memory-store/page-memory-loader.js`）；各回覆迴圈不用改。「學習」關閉或暫停時只給 `search_memory`；臨時對話只讀不寫；「使用」關閉時什麼都不給。
+- **伺服器回覆**：run-spec 的 `tools.memory = { canWrite, curator?, messages[] }`（上限見 `server/protocol.js`）。**與計劃的差別**：計劃寫「頁面把整份筆記本放進 run-spec」，實作改成**伺服器自己從 `workspace_memory_records` 讀筆記**（最新、含墓碑與設定與已套用的操作游標，也不用把幾百條筆記塞進請求）；頁面只傳「能不能寫」與使用者最近 12 則訊息（寫入檢查要比對逐字引用）。寫入直接進同一張表，並用既有的寫入檢查。讀表失敗時這次回覆沒有記憶工具、照常回答。
+- **整理補位（沒有工具的模型）**：`src/data/memory-curator.js`（提示詞含 8 個範例、5 個是 none；解析容錯；每個操作都走 `applyWrite`，`who: 'curator'`）。頁面：回覆結束後延遲 2 秒由 `page-curator.js` 執行（接在舊的 `extractPersonalMemory` 入口，筆記模式下舊記憶不再寫入）；伺服器：`executeReply` 設 `memoryOut.afterReply`，`runs.js` 在訊息寫完、頁面已被告知結束之後呼叫（最多 30 秒、失敗只記日誌）。整理模型：使用者在設定選的 → 同供應商的便宜模型（`CURATOR_DEFAULTS`，**目錄沒有價格資料，所以是一張人工看過的短表**；沒有對應的供應商就用回覆的模型）→ 回覆的模型。伺服器只有回覆那一家的金鑰，所以只能用同供應商的模型。
+- **畫面**：回覆下方「已更新記憶」（每個對話第一次有寫入的回覆才出現；點開看變動並可復原）、「用到 N 條記憶」（點開每條可按「這裡不相關」，三次後離開常駐區）。ID 放訊息 `metadata.memoryUsed`／`memoryUpdated`，已加入雲端同步放行名單。伺服器補位寫入的變動不進那則訊息（訊息已寫完），只出現在設定 → 記憶的「最近的變動」。設定頁多了「整理模型」下拉。
+- **步驟列**：每次呼叫記憶工具會在處理步驟列出現一行（「查詢記憶」「更新記憶」）。
+- **還沒做**：實機評估（`scripts/memory-eval.mjs` 的真模型模式需要金鑰，離線評估仍通過）；歷史範圍的 `search_memory`（P5）。

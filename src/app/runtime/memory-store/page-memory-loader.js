@@ -36,8 +36,9 @@ export async function createPageMemoryTools({ getConfig, getMemory, conversation
   return {
     canWrite,
     /** What a reply the server makes is told: whether it may write, and the last messages of the person (the server reads the notes themselves from the table). */
-    snapshot: () => ({
+    snapshot: ({ curator = false } = {}) => ({
       canWrite,
+      ...(curator ? { curator: true } : {}),
       messages: userMessagesOf(conversation).slice(-MAX_SNAPSHOT_MESSAGES).map((message) => ({ id: message.id, text: message.text.slice(0, MAX_SNAPSHOT_CHARS), ...(message.at ? { at: message.at } : {}) }))
     }),
     make: (language) => createMemoryLoader({

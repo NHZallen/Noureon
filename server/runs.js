@@ -14,6 +14,8 @@ import { visionText } from '../src/app/ui/files/vision/vision-texts.js';
 import { createSteerQueue } from '../src/app/runtime/reply/steer-queue.js';
 
 const HEARTBEAT_MS = 15_000;
+// How long the learning of the memory after a reply may take before the run is let go.
+const CURATOR_MS = 30_000;
 // A run whose heartbeat is older than this has no process: the next sweep takes it up.
 const STALE_SECONDS = 45;
 const SWEEP_MS = 30_000;
@@ -503,6 +505,20 @@ export function createRunManager({
       active.delete(runId);
       if (!ended && controller.signal.reason !== RESTART && !controller.signal.aborted) log('run_left_open', { runId });
       if (visionNext && controller.signal.reason !== RESTART) void run(visionNext);
+      // A model with no memory tools is followed by the curator: it reads the turn once the reply is written and the page is told it is over (the key is still held for this).
+      if (memoryOut.afterReply && finalStatus === 'complete' && !controller.signal.aborted && controller.signal.reason !== RESTART) await curateAfterReply(memoryOut.afterReply, runId);
+    }
+  }
+
+  // The learning of the memory after a reply (memory-curator.js): it may not hold the run longer than this, and a failure is only logged.
+  async function curateAfterReply(curate, runId) {
+    let timer = null;
+    try {
+      await Promise.race([curate(), new Promise((resolve) => { timer = setTimer(resolve, CURATOR_MS); })]);
+    } catch (error) {
+      log('memory_curator_failed', { runId, message: String(error?.message || '').slice(0, 160) });
+    } finally {
+      if (timer) clearTimer(timer);
     }
   }
 

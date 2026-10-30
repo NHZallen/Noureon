@@ -51,6 +51,8 @@ export function createModelMemoryDashboardLifecycle(dependencies = {}) {
         getMemoryState = null,
         replaceMemoryState = () => {},
         captureCompletedTurn = null,
+        // The memory of notes learns from a turn (memory-store/page-curator.js) when the setting `memorySystem` is 'notes': then nothing below runs (the old memory is not written to).
+        curateNotesTurn = null,
         enqueueMemoryCapture = null,
         hashString = null,
         getModelPieChart = () => null,
@@ -521,9 +523,13 @@ ${JSON.stringify(potentialMemories, null, 2)}
                 console.error("Error refining memories:", error);
             }
         };
-        const extractPersonalMemory = async (userMessage, aiResponse) => {
+        const extractPersonalMemory = async (userMessage, aiResponse, repliedConversation = null) => {
             syncState();
-            const conversation = getActiveConversation();
+            const conversation = repliedConversation || getActiveConversation();
+            if (config.memorySystem === 'notes') {
+                if (typeof curateNotesTurn === 'function') await curateNotesTurn(conversation);
+                return;
+            }
             if (conversation?.retentionMode === 'ephemeral') return;
             if (config.memorySystemVersion === 2 && typeof captureCompletedTurn === 'function' && typeof hashString === 'function') {
                 const allTurns = buildHistoryIndexTurns(conversation);

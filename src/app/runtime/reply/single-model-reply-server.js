@@ -16,7 +16,7 @@ const DOCUMENT_STAGES = { reading: 'fileReading', pdf: 'makingPdf', translating:
  */
 export async function handOverToServer({ serverReply, getConfig, supportsVision }, request, prep) {
   const { conversation, modelInfo, userParts, uiLanguage, assistantMessageId, sequence, onMemoryContextResolved, getHistorySourceIds, requestParts } = request;
-  const { plan, canCallTools, cli, replyMode, ownSearchReply, availableSkills, memoryTools, serverPrepares, hasAddresses, skillOptions } = prep;
+  const { plan, canCallTools, cli, replyMode, ownSearchReply, availableSkills, memoryAccess, memoryTools, serverPrepares, hasAddresses, skillOptions } = prep;
   // A tool was chosen but cannot be used for this reply: the person is told (the reply is made without it).
   if (!canCallTools && cliIdsForReply(getConfig(), userParts).chosen.length) serverReply.notify('cli-tool-model', uiLanguage);
   else if (!plan.ok && cli.chosen.length) serverReply.notify('cli-local', uiLanguage);
@@ -39,7 +39,7 @@ export async function handOverToServer({ serverReply, getConfig, supportsVision 
     // The connectors of the person (a model that calls tools, not with the provider's own search): the server reads which ones are connected.
     connectors: canCallTools && !ownSearchReply,
     // The memory of notes: whether the reply may write to it and what the person said in this conversation (the server reads the notes from the person's table).
-    memory: memoryTools?.snapshot() || null,
+    memory: memoryAccess ? memoryAccess.snapshot({ curator: !memoryTools }) : null,
     // The message goes as the person sent it; the server prepares its files and addresses (the translator is the one set in Settings).
     documents: serverPrepares ? { linkedPages: hasAddresses } : null,
     inputs: userParts.filter((part) => part?.inlineData?.data).map((part) => ({

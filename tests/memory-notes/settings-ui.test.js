@@ -28,6 +28,7 @@ async function setup({ language = 'en', memorySystem = 'classic', notes = [], ex
     saveConfig: async () => {},
     getMemory: () => memory,
     getUser: () => ({ username: 'tester' }),
+    getModels: () => [{ id: 'gemini-3.5-flash-lite', name: 'Gemini 3.5 Flash Lite' }, { id: 'gemini-3.8-flash', name: 'Gemini 3.8 Flash' }],
     getText: (key) => i18n[config.uiLanguage]?.[key] || '',
     showNotification: (message, kind) => notices.push({ message, kind }),
     // The dialog gives back what the next entry of `answers` says: a text for an input, true for a confirmation, null for cancel.
@@ -181,4 +182,15 @@ test('a memory that could not be loaded says so and does not break the screen', 
   const ui = createMemoryNotesSettings({ document, getConfig: () => ({ uiLanguage: 'en', memorySystem: 'notes' }), saveConfig: async () => {}, getMemory: () => memory, getText: (key) => i18n.en[key] || '', showCustomDialog: async () => null });
   assert.equal(ui.mount(), true);
   assert.match(document.getElementById('memory-notes-settings').textContent, /cannot be read right now/);
+});
+
+test('the curator model can be chosen, and automatic is the first choice', async () => {
+  const { document, memory, root } = await setup({ memorySystem: 'notes', notes: [dog] });
+  const select = root().querySelector('select');
+  assert.equal(select.value, '', 'automatic by default');
+  assert.deepEqual([...select.options].map((option) => option.value), ['', 'gemini-3.5-flash-lite', 'gemini-3.8-flash']);
+  select.value = 'gemini-3.8-flash';
+  select.dispatchEvent(new document.defaultView.Event('change'));
+  await tick();
+  assert.equal(memory.getStore().getSettings().curatorModelId, 'gemini-3.8-flash');
 });

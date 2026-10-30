@@ -7,12 +7,14 @@ import { getSupabaseClient } from '../../auth/supabase-client.js';
 import { createNotesMemory } from './notes-memory.js';
 import { setNotesMemory } from './memory-ref.js';
 
-export function startNotesMemory({ document, getConfig, storage = null, logger = console }) {
+export function startNotesMemory({ document, getConfig, getConversation = () => null, getText = () => '', storage = null, logger = console }) {
   const memory = setNotesMemory(createNotesMemory({
     getSupabase: () => { try { return getSupabaseClient(); } catch { return null; } },
     storage: storage || (() => { try { return globalThis.localStorage || null; } catch { return null; } })(),
     logger
   }));
+  // The line under a reply about what the memory did draws itself from the page's events.
+  void import('../../ui/memory-notes/memory-reply-line.js').then(({ startMemoryLines }) => startMemoryLines({ document, getConfig, getMemory: () => memory, getConversation, getText, logger })).catch((error) => logger.warn?.('The memory line under replies did not start.', error));
   // The page may have announced the person before this part was loaded.
   let lastUser = getAnnouncedUser();
   if (lastUser && getConfig()?.memorySystem === 'notes') void memory.attach(lastUser);

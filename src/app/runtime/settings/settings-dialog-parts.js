@@ -34,6 +34,7 @@ export function createSettingsDialogParts({
     });
     const memoryNotesSettings = createMemoryNotesSettings({
         document, getConfig: () => config, saveConfig, getMemory: getNotesMemory, getUser: getAnnouncedUser,
+        getModels: () => MODELS.filter((model) => model.category !== 'image_generation' && model.outputModality !== 'image' && getApiKeyForProvider?.(model.provider)).map((model) => ({ id: model.id, name: model.name })),
         getText: (key) => i18n[config.uiLanguage]?.[key] || i18n['zh-TW']?.[key] || '', showNotification, showCustomDialog
     });
     let built = false;

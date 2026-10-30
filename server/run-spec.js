@@ -452,6 +452,8 @@ export function validateRunSpec(input) {
       if (!isObject(tools.memory)) fail('tools.memory', 'must be an object');
       else {
         if (typeof tools.memory.canWrite !== 'boolean') fail('tools.memory.canWrite', 'must be true or false');
+        // `curator`: the reply's model has no memory tools (or its provider refuses them beside its own search): the server learns from the turn after the reply, with a small model (memory-curator.js).
+        if (tools.memory.curator !== undefined && typeof tools.memory.curator !== 'boolean') fail('tools.memory.curator', 'must be true or false');
         if (!Array.isArray(tools.memory.messages) || tools.memory.messages.length > LIMITS.maxMemoryMessages) fail('tools.memory.messages', `must be a list of at most ${LIMITS.maxMemoryMessages} messages`);
         else {
           tools.memory.messages.forEach((message, index) => {
@@ -586,7 +588,7 @@ export function validateRunSpec(input) {
         ...(tools.advanced === true && isObject(tools.net) ? { net: { mode: normalizeNetMode(tools.net.mode), rules: normalizeNetRules(tools.net.rules), ...(tools.net.enabled === false ? { enabled: false } : {}) } } : {}),
         ...(Array.isArray(tools.skills) && listedSkills(tools.skills).length ? { skills: listedSkills(tools.skills) } : {}),
         ...(tools.connectors === true ? { connectors: true } : {}),
-        ...(isObject(tools.memory) ? { memory: { canWrite: tools.memory.canWrite === true, messages: tools.memory.messages.map((message) => ({ id: message.id, text: message.text, ...(message.at ? { at: message.at } : {}) })) } } : {}),
+        ...(isObject(tools.memory) ? { memory: { canWrite: tools.memory.canWrite === true, ...(tools.memory.curator === true ? { curator: true } : {}), messages: tools.memory.messages.map((message) => ({ id: message.id, text: message.text, ...(message.at ? { at: message.at } : {}) })) } } : {}),
         ...(imageGeneration ? { imageGeneration } : {}),
         ...(tools.inputs?.length ? { inputs: tools.inputs.map((file) => ({ name: file.name, mimeType: file.mimeType || '', data: file.data })) } : {})
       },

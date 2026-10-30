@@ -1,4 +1,5 @@
 import { fadeOutPreviousChat } from '../../ui/motion/chat-switch-ghost.js';
+import { announceMessageDrawn } from '../../ui/memory-notes/memory-events.js';
 import { followTop, isReaderScrolling, setScrollTopQuietly } from '../../ui/motion/reader-scroll-guard.js';
 import { revealArrival } from '../../ui/motion/arrival-reveal.js';
 import { streamInMessage } from '../../ui/motion/stream-in.js';
@@ -329,6 +330,8 @@ export function createMessageListLifecycle({
         bindMediaPreviewButtons(messageElement, messageView.previewMediaParts);
         void bindGeneratedImageAssets(messageElement, messageView.generatedImageAssets || [])
             .catch(error => logError('Failed to bind generated image assets:', error));
+        // The line under a reply about what the memory did (ui/memory-notes/memory-reply-line.js) draws itself when it hears this.
+        announceMessageDrawn(document, { element: messageElement, message, conversation });
         if (conversation?.id === activeConversation?.id) {
             if (elements.messageList.querySelector('.text-center')) {
                 elements.messageList.innerHTML = '';
