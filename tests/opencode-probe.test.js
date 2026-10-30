@@ -374,12 +374,20 @@ test('MiniMax M3.1 Flash and Step 5 Preview are in the probe with ids guessed fr
   }
 });
 
+test('--model takes the form of Google for a model that is not in the list yet', () => {
+  assert.equal(modelsNamed('gemini-4-argon:gemini')[0].family, 'gemini');
+  assert.equal(modelsNamed('iceman-contributor-free')[0].family, 'chat');
+  assert.equal(modelsNamed('iceman-contributor-free')[0].free, true);
+});
+
 test('--new lists the ids the service has that the probe does not, without a key', async () => {
   const fetchImpl = async () => reply(200, { data: [{ id: 'kimi-k3' }, { id: 'minimax-m3.1-flash' }, { id: 'a-brand-new-one' }, { id: 'another-one-free' }] });
-  assert.deepEqual(await newModels({ fetchImpl }), { status: 200, listed: 4, new: ['a-brand-new-one', 'another-one-free'] });
+  const found = await newModels({ fetchImpl });
+  assert.deepEqual([found.status, found.listed, found.new], [200, 4, ['a-brand-new-one', 'another-one-free']]);
+  assert.ok(found.gone.includes('kimi-k3.1-pro') && !found.gone.includes('kimi-k3') && !found.gone.includes('minimax-m3.1-flash'), 'a model of the probe that the service does not list is said to be gone');
   const lines = [];
   assert.equal(await main(['--new'], {}, { log: (line) => lines.push(line), error() {} }, fetchImpl), 0);
-  assert.match(lines[0], /4 models listed.*a-brand-new-one, another-one-free/);
+  assert.match(lines[0], /4 models listed.*a-brand-new-one, another-one-free.*no longer listed: .*kimi-k3\.1-pro/);
   assert.equal(await main(['--new'], {}, { log() {}, error() {} }, async () => reply(404, 'nope')), 1);
 });
 
