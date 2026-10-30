@@ -36,7 +36,7 @@ export function createSourcePanel(document, groups, { language = 'zh-TW', kindLa
 
   const rowIcon = (name) => {
     const holder = make(document, 'span', 'source-row-icon');
-    holder.append(memoryIcon(document, name, { size: 16 }));
+    holder.append(memoryIcon(document, name, { size: 14 }));
     return holder;
   };
   const actionsOf = (button) => {
