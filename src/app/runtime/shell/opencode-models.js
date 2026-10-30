@@ -111,7 +111,7 @@ const PDF_API_IDS = new Set([
 // The models that also read a Word (.docx) and a PowerPoint (.pptx) file as they are (the probe of 2026-10-14, test `office`: both files, each with "The secret word
 // is MANGO.", were sent in the form of each model's API; these answered MANGO to both). Every other model of the PDF list refused the file (400) or took it and
 // did not read it, so a Word or PowerPoint file is translated for them as before. Only these two kinds were tried.
-// (Gemini 4 Argon read them as "Contributor"; the new id has only been tried with a PDF, so its Word and PowerPoint files are turned into a PDF until `--tests office` says it reads them.)
+// (Gemini 4 Argon is not here: it read them as "Contributor", but the probe of 2026-10-30 on the new id refused both (400: the mime type is not supported), so its Word and PowerPoint files are turned into a PDF, which it reads.)
 const OFFICE_API_IDS = new Set(['grok-4.7', 'gpt-6-luna', 'gpt-5.6-luna']);
 const OFFICE_MIME_TYPES = new Set([
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
