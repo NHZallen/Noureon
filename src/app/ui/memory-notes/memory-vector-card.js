@@ -21,6 +21,16 @@ export function renderVectorCard({ vectors, el, button, text, ask, showNotificat
     const line = { building: ['mnVecBuilding', 'mn-rebuild-status'], idle: ['mnVecReady', 'mn-rebuild-status'], error: ['mnVecError', 'mn-rebuild-status'] }[state.status] || ['mnVecReady', 'mn-rebuild-status'];
     body.append(el('p', line[1], text(line[0], { done: state.done, total: state.total, provider: EMBEDDING_PROVIDERS[provider]?.label || '', error: state.error })));
     if (state.status === 'error') actions.append(button(text('mnVecRetry'), 'btn-primary mn-btn', () => void vectors.sync()));
+    // Keeping the vectors in the cloud account is a choice of its own; a local account has no cloud.
+    const syncing = vectors.isSyncing();
+    body.append(el('h4', 'pz-sub', text('mnVecSyncTitle')), el('p', 'pz-sub text-[var(--text-secondary)]', text(vectors.canSync() ? (syncing ? 'mnVecSyncIs' : 'mnVecSyncDesc') : 'mnVecSyncLocal')));
+    if (vectors.canSync()) {
+      actions.append(button(text(syncing ? 'mnVecSyncOff' : 'mnVecSyncOn'), 'mn-btn', async () => {
+        await vectors.setSync(!syncing);
+        if (syncing) showNotification(text('mnVecSyncOffDone'), 'success');
+        render();
+      }));
+    }
     actions.append(button(text('mnVecOff'), 'mn-btn', async () => {
       await vectors.disable();
       showNotification(text('mnVecOffDone'), 'success');

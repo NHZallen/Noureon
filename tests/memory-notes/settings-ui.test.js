@@ -265,6 +265,8 @@ test('the card of the search by meaning: needs a key, shows what will be sent be
   assert.ok(keyed.memory.getStore().getSettings().vector.consentAt);
   assert.match(keyed.root().textContent, /1\/1 pieces ready \(Gemini\)/);
   asked.push(keyed.root().textContent);
+  assert.match(keyed.root().textContent, /A local account has no cloud/, 'a local account is told its vectors stay here');
+  assert.equal([...keyed.root().querySelectorAll('button')].some((button) => button.textContent === 'Turn on sync'), false, 'and has no switch for the cloud');
 
   await keyed.click('Turn off and delete vectors');
   assert.equal(keyed.vectors.isEnabled(), false);
@@ -272,9 +274,38 @@ test('the card of the search by meaning: needs a key, shows what will be sent be
   assert.match(keyed.root().textContent, /Turn on…/);
 });
 
+test('a cloud account can keep the vectors in the cloud as a choice of its own, and turn it off again', async () => {
+  const conversations = [{ id: 'a', lastUpdatedAt: '2026-10-01T00:00:00.000Z', messages: [{ role: 'user', parts: [{ text: 'My puppy does not eat his food lately' }], createdAt: '2026-10-01T00:00:00.000Z' }] }];
+  const fetchImpl = async (url, options) => Response.json({ embeddings: JSON.parse(options.body).requests.map(() => ({ values: [1, 0, 0] })) });
+  const cleared = [];
+  const supabase = { from: () => { const builder = { select: () => builder, eq: () => builder, neq: () => builder, in: () => builder, order: () => builder, range: () => builder, upsert: () => builder, delete: () => { cleared.push('delete'); return builder; }, then: (resolve) => Promise.resolve({ data: [], error: null }).then(resolve) }; return builder; } };
+  const makeVectors = (memory) => {
+    const history = createPageHistory({ getConversations: () => conversations });
+    const vectors = createPageVectors({ getStore: () => memory.getStore(), getHistory: () => history, getApiKeyForProvider: (name) => (name === 'gemini' ? 'g-key' : ''), getCloud: () => ({ supabase, userId: 'user-1' }), indexedDB: createFakeIndexedDb(), userKey: () => 'tester', fetchImpl, wait: async () => {}, logger: { warn() {} }, options: { pauseMs: 0 } });
+    history.setVectors(vectors);
+    return vectors;
+  };
+  const cloud = await setup({ makeVectors });
+  cloud.answers.push(true);
+  await cloud.click('Turn on…');
+  await tick();
+  await tick();
+  assert.match(cloud.root().textContent, /Sync to the cloud account/);
+  assert.equal(cloud.vectors.isSyncing(), false, 'off until the person turns it on');
+  await cloud.click('Turn on sync');
+  await tick();
+  assert.equal(cloud.vectors.isSyncing(), true);
+  assert.equal(cloud.memory.getStore().getSettings().vector.sync, true);
+  assert.match(cloud.root().textContent, /synced to your cloud account/);
+  await cloud.click('Turn off sync and delete cloud vectors');
+  assert.equal(cloud.vectors.isSyncing(), false);
+  assert.ok(cleared.length > 0, 'the copy in the cloud was deleted');
+  assert.match(cloud.notices.at(-1).message, /Sync is off/);
+});
+
 test('the texts of the search by meaning exist in all five languages and say what is sent', async () => {
   for (const language of ['zh-TW', 'en', 'fr', 'ru', 'es']) {
-    for (const key of ['mnVecTitle', 'mnVecDesc', 'mnVecNoKey', 'mnVecOn', 'mnVecConsentTitle', 'mnVecConsent', 'mnVecConsentOk', 'mnVecBuilding', 'mnVecReady', 'mnVecError', 'mnVecRetry', 'mnVecOff', 'mnVecOffDone']) {
+    for (const key of ['mnVecTitle', 'mnVecDesc', 'mnVecNoKey', 'mnVecOn', 'mnVecConsentTitle', 'mnVecConsent', 'mnVecConsentOk', 'mnVecBuilding', 'mnVecReady', 'mnVecError', 'mnVecRetry', 'mnVecOff', 'mnVecOffDone', 'mnVecSyncTitle', 'mnVecSyncDesc', 'mnVecSyncOn', 'mnVecSyncOff', 'mnVecSyncIs', 'mnVecSyncLocal', 'mnVecSyncOffDone']) {
       assert.ok(i18n[language]?.[key], `${language} has ${key}`);
     }
     assert.match(i18n[language].mnVecConsent, /\{provider\}/);

@@ -5,13 +5,14 @@
 
 import { fuseRanks, textHash, topByCosine } from '../memory-notes/vector-math.js';
 import { createEmbeddingClient, EMBEDDING_PROVIDERS, pickEmbeddingProvider, versionOf } from './embedding-client.js';
+import { createVectorSync } from './vector-sync.js';
 import { createIdbBackend, createMemoryBackend, createVectorStore } from './vector-store.js';
 
 export const VECTOR = Object.freeze({ minChars: 12, batchTexts: 32, batchChars: 16_000, failures: 3, minCosine: 0.5, pauseMs: 150, tokensPerChar: 0.4 });
 
 const hashed = (piece) => piece.hash || textHash(piece.text);
 
-export function createPageVectors({ getStore, getHistory, getApiKeyForProvider = () => '', indexedDB = null, userKey = () => 'local', fetchImpl, now = () => new Date().toISOString(), wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), logger = console, options = {} }) {
+export function createPageVectors({ getStore, getHistory, getApiKeyForProvider = () => '', getCloud = () => null, indexedDB = null, userKey = () => 'local', fetchImpl, now = () => new Date().toISOString(), wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), logger = console, options = {} }) {
   const config = { ...VECTOR, ...options };
   const listeners = new Set();
   let state = { status: 'off', done: 0, total: 0, error: '' };
@@ -25,13 +26,18 @@ export function createPageVectors({ getStore, getHistory, getApiKeyForProvider =
     for (const listener of [...listeners]) { try { listener(state); } catch { /* A broken listener must not stop the others. */ } }
     return state;
   };
-  const settings = () => getStore()?.getSettings?.()?.vector || { enabled: false, consentAt: null, provider: '' };
+  const settings = () => getStore()?.getSettings?.()?.vector || { enabled: false, consentAt: null, provider: '', sync: false };
   // A piece of a few words ("Sure.") says nothing a vector could find, so it is not sent. The files of the messages are pieces of their own (one request each).
   const textPieces = () => (getHistory()?.pieces() || []).filter((piece) => piece.text.length >= config.minChars);
   const mediaPieces = () => getHistory()?.mediaPieces?.() || [];
   const worth = () => [...textPieces(), ...mediaPieces()];
   const hasKey = (name) => Boolean(getApiKeyForProvider(name));
   const providerNow = () => pickEmbeddingProvider({ chosen: settings().provider, hasKey });
+  // The cloud copy: only for a person signed in to a cloud account who also turned on syncing the vectors; `getCloud()` gives { supabase, userId } or null (a local account).
+  const cloudFor = (provider) => {
+    const cloud = settings().sync === true ? getCloud() : null;
+    return cloud?.supabase && cloud.userId && provider ? createVectorSync({ supabase: cloud.supabase, userId: cloud.userId, model: versionOf(provider) }) : null;
+  };
   const enabled = () => settings().enabled === true && Boolean(providerNow());
 
   async function ensureStore(provider) {
@@ -74,6 +80,9 @@ export function createPageVectors({ getStore, getHistory, getApiKeyForProvider =
       const vectors = await ensureStore(provider);
       const pieces = worth();
       await vectors.prune(pieces.map((piece) => piece.id));
+      // What another device already made is taken from the cloud first (it costs nothing); when the cloud cannot be reached the page goes on with its own.
+      const cloud = cloudFor(provider);
+      if (cloud) { try { await cloud.pull(vectors, new Set(pieces.map((piece) => piece.id))); } catch (error) { logger.warn?.('The vectors in the cloud could not be fetched.', error); } }
       const missing = pieces.filter((piece) => !vectors.has(piece.id, hashed(piece)));
       set({ done: pieces.length - missing.length, total: pieces.length });
       const client = clientFor(provider);
@@ -112,6 +121,14 @@ export function createPageVectors({ getStore, getHistory, getApiKeyForProvider =
         set({ done: Math.min(state.total, state.done + 1) });
         if (config.pauseMs) await wait(config.pauseMs);
       }
+      if (cloud && !stopRequested) {
+        try {
+          await cloud.push(vectors);
+          await cloud.prune(pieces.map((piece) => piece.id));
+        } catch (error) {
+          logger.warn?.('The vectors could not be kept in the cloud; they stay on this device.', error);
+        }
+      }
       return set({ status: 'idle', error: '' });
     } catch (error) {
       logger.warn?.('The vectors of the past conversations could not be built.', error);
@@ -138,7 +155,7 @@ export function createPageVectors({ getStore, getHistory, getApiKeyForProvider =
     async enable(chosen = '') {
       const provider = pickEmbeddingProvider({ chosen, hasKey });
       if (!provider || !getStore()?.isLoaded?.()) return false;
-      await getStore().setSettings({ vector: { enabled: true, consentAt: now(), provider } });
+      await getStore().setSettings({ vector: { ...settings(), enabled: true, consentAt: now(), provider } });
       void this.sync();
       return true;
     },
@@ -147,11 +164,26 @@ export function createPageVectors({ getStore, getHistory, getApiKeyForProvider =
       stopRequested = true;
       await running?.catch(() => {});
       const provider = providerNow() || settings().provider;
-      await getStore()?.setSettings?.({ vector: { enabled: false, consentAt: null, provider: settings().provider } });
+      const cloud = cloudFor(provider);
+      await getStore()?.setSettings?.({ vector: { enabled: false, consentAt: null, provider: settings().provider, sync: settings().sync === true } });
+      if (cloud) { try { await cloud.clear(); } catch (error) { logger.warn?.('The vectors in the cloud could not be deleted.', error); } }
       if (provider) { try { await (await ensureStore(provider)).clear(); } catch { /* The next time the vectors are made they start from nothing anyway. */ } }
       store = null;
       storeKey = '';
       set({ status: 'off', done: 0, total: 0, error: '' });
+    },
+    /** Whether the vectors can be kept in a cloud account (a cloud account is signed in), and whether the person chose to. */
+    canSync: () => Boolean(getCloud()?.supabase && getCloud()?.userId),
+    isSyncing: () => settings().sync === true && Boolean(getCloud()?.userId),
+    /** Turns keeping the vectors in the cloud on or off. Off deletes the cloud copy; the vectors of this device stay. */
+    async setSync(on) {
+      if (!getStore()?.isLoaded?.() || (on && !getCloud()?.userId)) return false;
+      const provider = providerNow() || settings().provider;
+      const before = cloudFor(provider);
+      await getStore().setSettings({ vector: { ...settings(), sync: on === true } });
+      if (on) void this.sync();
+      else if (before) { try { await before.clear(); } catch (error) { logger.warn?.('The vectors in the cloud could not be deleted.', error); } }
+      return true;
     },
     /** Builds the vectors that are missing (and drops those of pieces that are gone). One run at a time; does nothing when it is off. */
     sync() {

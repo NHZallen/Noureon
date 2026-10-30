@@ -31,7 +31,7 @@ const DEFAULT_SETTINGS = Object.freeze({
   /** When the notes were last tidied (src/data/memory-consolidate.js): the tidy is due after a week, or when twenty notes changed since. */
   consolidatedAt: null,
   /** The search by meaning over the conversations (needs the consent of the person). */
-  vector: Object.freeze({ enabled: false, consentAt: null, provider: '' })
+  vector: Object.freeze({ enabled: false, consentAt: null, provider: '', sync: false })
 });
 
 /** The settings as they are used, from whatever was saved. */
@@ -48,7 +48,9 @@ export function normalizeSettings(raw) {
     vector: {
       enabled: vector.enabled === true && typeof vector.consentAt === 'string',
       consentAt: typeof vector.consentAt === 'string' ? vector.consentAt : null,
-      provider: typeof vector.provider === 'string' ? vector.provider.slice(0, 40) : ''
+      provider: typeof vector.provider === 'string' ? vector.provider.slice(0, 40) : '',
+      /** Whether the vectors are also kept in the cloud account (a separate choice; a local account has none). */
+      sync: vector.sync === true
     }
   };
 }
