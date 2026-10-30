@@ -212,10 +212,6 @@ button:active:not(:disabled),
     font-weight: 500 !important;
 }
 
-#settings-modal #memory-section > h3[data-lang-key="memorySwitch"] {
-    display: none !important;
-}
-
 #settings-modal .border-red-500\/30,
 #settings-modal .border-red-500,
 #settings-modal .border-blue-500,
@@ -585,28 +581,6 @@ body svg {
     border: 1px solid var(--gpt-control-border) !important;
     background: var(--modal-bg) !important;
     color: var(--text-primary) !important;
-}
-.memory-action-button {
-    border: 0;
-    background: var(--modal-bg);
-    color: var(--text-secondary);
-    transition: background-color 160ms ease, color 160ms ease;
-}
-
-.replace-memory-btn.memory-action-button {
-    color: var(--text-primary);
-}
-
-.memory-action-button:hover,
-.memory-action-button:active,
-.memory-action-button:focus,
-.memory-action-button:focus-visible {
-    background: var(--modal-bg);
-    color: var(--button-primary-bg);
-}
-
-.memory-action-button svg {
-    stroke: currentColor;
 }
 #custom-dialog-message {
     white-space: pre-line;

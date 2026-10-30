@@ -335,3 +335,13 @@ Linear：A 在專案「記憶系統重做」，B 是獨立的單（都在 Backlo
 - **搜尋**：`search_memory` 工具的歷史範圍改成「關鍵字結果＋最接近的向量結果」用 RRF 合併（每個對話最多一片）；向量沒開、沒金鑰、供應商失敗、沒有向量時，一律退回只用關鍵字，不影響回覆。相似度下限 `minCosine` 初始 0.5。
 - **與計劃的差別（請 Allen 看）**：**每一輪自動帶的「便條」不用向量**，只有模型主動呼叫 `search_memory`（歷史範圍）時才用。原因：便條是同步組出來的，要用向量就得在每次送出前多等一次網路來回（約 0.3 至 0.5 秒）。想要的話可以做成「關鍵字沒命中時才查向量，最多等 0.7 秒」，要 Allen 決定。另外沒有存「向量庫大小」的上限，幾萬片（約 60 MB）還可以，再大要另外處理。
 - **還沒做**：用真實金鑰驗證兩家 embedding 的實際回應格式與 `minCosine` 的合適值（測試用的是假的伺服器，格式依官方文件）；第二層整理（P6）的分組也沒有用向量；隱私權政策與協助中心五語要在 P8 更新（這是新的資料流）。
+
+### P8（2026-10-30）：切換與清理
+- **切換**：不再有「使用新記憶系統」的開關，也沒有 `memorySystem` 設定鍵：筆記就是唯一的記憶。設定 → 記憶只剩新畫面（標題、使用／學習開關、摘要、最近的變動、重建、整理、語意搜尋、管理頁）。`#memory-section` 在版面範本裡變成空容器，由 `memory-notes-settings.js` 填入。
+- **刪掉的程式**：`src/app/runtime/memory/` 全部（42 檔）、`shell/memory-summary-lifecycle.js`、`shell/model-memory-dashboard-lifecycle.js`（**資料儀表板的部分先搬到新的 `shell/dashboard-lifecycle.js`**，其餘刪除）、`settings/settings-memory-summary-controls.js`、`settings/settings-history-recall-controls.js`、`sync/memory-summary-cloud-sync.js`，以及它們的約 30 個測試。`memory-model-runner.js` 留下（curator、重建、整理、伺服器都用它）。「回覆下方參考歷史對話」的兩個小函式搬到 `memory-notes/history-sources.js`。
+- **一輪結束後的學習**：`assistant-response-finalization.js` 的 `memoryEnabled`／`autoMemoryEnabled`／`extractPersonalMemory` 換成 `learnEnabled`／`learnFromTurn(conversation)`（接到 `curateNotesTurn`，也會順便試整理與補向量）。
+- **設定鍵**：刪掉 `memorySystem`、`memorySystemVersion`、`memoryEnabled1`、`enableAutoMemory`、`memoryProfileEnabled`、`historyRecallEnabled`、`memorySync`；留下 `memoryModelId`（curator、重建、整理在沒有「目前對話模型」時的後備）。舊設定裡殘留的這些鍵會在下次正規化時消失（`memorySync` 在雲端設定比對時仍被忽略）。
+- **舊資料**：應用資料的 `memoryState`（舊記憶摘要）載入時一律換成 `{}`，下次存檔就沒有了（D5：舊記憶資料全部丟掉）；欄位本身留著（儲存層的 `memory` 區塊還在讀寫，之後可再拿掉）。**`personalMemories`（舊的手動個人習慣記憶清單）沒有動**：它還在匯出／匯入裡，但不再被讀取、不再顯示。雲端 `workspace_memory_summary_records` 停止讀寫，**資料表留給 Allen 之後用 migration 清**；本機 `noureon:history-index:v1:*`、`noureon:derived-memory:v1:*` 沒有主動清（不再讀，只佔空間）。
+- **歷史索引**：新索引在切片前先用 `summarizeFileBlocks` 把檔案區塊縮成摘要（舊索引就是這樣），避免附件全文被索引、也不會被送去做向量。
+- **文字**：隱私權政策第 9 節與協助中心第 13 節的記憶段落五語重寫（筆記、怎麼用、怎麼學、整理、重建、過去對話、語意搜尋與同意、30 天紀錄、伺服器代跑時怎麼讀寫），其他提到記憶的句子（本機／雲端保存、同步內容）改成筆記；`PRIVACY.md` 重新產生；刪掉約 60 組不再使用的舊記憶／回憶文字（五語）與 `settings.css` 裡的舊樣式。
+- **還沒做／Allen 要看**：①舊使用者上線後筆記是空的，要按「用過去的對話建立記憶」（計劃 D5 寫「自動重建」，目前是按鈕，沒有自動開始，因為會把對話文字送去模型）；②匯出／匯入資料還帶著 `personalMemories`（舊清單），沒有匯出筆記（筆記有自己的匯出）；③正式站要先套 `20261030010000_add_workspace_memory_records.sql`；④更新紀錄與版本由 Allen 發版時處理；⑤實機（真實金鑰）沒有驗證過：兩家 embedding 的實際回應、curator／整理的判斷品質、伺服器代跑時的讀寫。

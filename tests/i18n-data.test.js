@@ -177,16 +177,6 @@ test('recent runtime UI strings stay covered by locale keys', async () => {
   }
 });
 
-test('history index progress distinguishes checking from rebuilding', async () => {
-  const { default: i18n } = await importI18n('history-index-status');
-
-  assert.match(i18n['zh-TW'].historyRecallStatusBuilding, /檢查本機索引/);
-  assert.doesNotMatch(i18n['zh-TW'].historyRecallStatusBuilding, /建立索引中/);
-  assert.match(i18n.en.historyRecallStatusBuilding, /Checking the local index/);
-  assert.match(i18n['zh-TW'].historyRecallStatusComplete, /修復 \{indexed\}/);
-  assert.match(i18n.en.historyRecallStatusComplete, /\{indexed\} repaired/);
-});
-
 test('every i18n part holds all five locales with the same keys and no key is defined twice', async () => {
   const partsDir = new URL('../src/data/i18n/parts/', import.meta.url);
   const names = readdirSync(partsDir).filter((name) => name.endsWith('.js') && name !== 'index.js').sort();
