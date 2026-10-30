@@ -308,15 +308,25 @@ test('the probe of Word and PowerPoint files: each form sends the file as it is,
 });
 
 test('the probe of converted files: the PDF made of the Word or PowerPoint file goes as a PDF in each form; a run that asks for it says what is missing first', async () => {
-  const { existsSync } = await import('node:fs');
   const { tmpdir } = await import('node:os');
   const { join } = await import('node:path');
-  const there = ['docx', 'pptx'].every((kind) => existsSync(new URL(`../scripts/probe-files/converted-${kind}.pdf`, import.meta.url)));
-  if (there) {
-    assert.ok(buildBody('chat', 'm', 'convdocx').messages[0].content.some((part) => part.file?.file_data.startsWith('data:application/pdf;base64,')));
-    assert.ok(buildBody('gemini', 'm', 'convpptx').contents[0].parts.some((part) => part.inlineData?.mimeType === 'application/pdf'));
-  } else {
-    assert.throws(() => buildBody('chat', 'm', 'convdocx'), /converted-docx\.pdf is missing/);
+  // Whether the PDFs are there depends on the machine: they are made from the Word and PowerPoint files when LibreOffice is installed (and kept), otherwise they must be saved by hand.
+  // So each kind is checked either way: the PDF goes in the request, or the person is told what to do.
+  const tried = ['docx', 'pptx'].map((kind) => {
+    try {
+      return { kind, body: buildBody('chat', 'm', `conv${kind}`), gemini: buildBody('gemini', 'm', `conv${kind}`) };
+    } catch (error) {
+      return { kind, error };
+    }
+  });
+  for (const entry of tried) {
+    if (entry.error) assert.match(entry.error.message, new RegExp(`converted-${entry.kind}\\.pdf is missing`), `${entry.kind}: the person is told what is missing`);
+    else {
+      assert.ok(entry.body.messages[0].content.some((part) => part.file?.file_data.startsWith('data:application/pdf;base64,')), `${entry.kind}: goes as a PDF`);
+      assert.ok(entry.gemini.contents[0].parts.some((part) => part.inlineData?.mimeType === 'application/pdf'), `${entry.kind}: goes as a PDF to Gemini`);
+    }
+  }
+  if (tried.some((entry) => entry.error)) {
     const errors = [];
     const code = await main(['--tests', 'converted', '--only', 'kimi-k3'], { OPENCODE_GO_KEY: 'k' }, { log() {}, error: (line) => errors.push(line) }, async () => { throw new Error('no network'); });
     assert.equal(code, 2);
