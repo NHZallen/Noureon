@@ -29,6 +29,7 @@ export function createNotesMemory({ getSupabase = () => null, storage = null, no
   const listeners = new Set();
   // (question, { excludeConversationId }) -> pieces of past conversations that bear on it (memory-notes/history-index.js), set by the page; none by default.
   let historySearch = null;
+  let historyMeaning = null;
 
   const open = async (user) => {
     const userId = String(user?.supabaseUserId || '');
@@ -53,6 +54,27 @@ export function createNotesMemory({ getSupabase = () => null, storage = null, no
     }
     next.subscribe(() => { for (const listener of [...listeners]) { try { listener(); } catch (error) { logger.warn?.('A memory listener failed.', error); } } });
     return next;
+  };
+
+  // The slip and the system text for a message. `meaningPieces` (from the search by meaning) stand in for the keyword hits of the past conversations when given.
+  const compose = ({ question = '', canSearch = false, excludeConversationId = '' }, meaningPieces) => {
+    if (!store?.isLoaded()) return EMPTY;
+    const settings = store.getSettings();
+    if (!settings.use) return EMPTY;
+    const notes = store.getNotes();
+    let history = meaningPieces || [];
+    if (!meaningPieces) {
+      try {
+        history = historySearch ? historySearch(question, { excludeConversationId }) : [];
+      } catch (error) {
+        logger.warn?.('The history could not be searched.', error);
+      }
+    }
+    // No notes and nothing of the past that bears on the question: nothing to say. (Past conversations alone make a slip.)
+    if (!notes.some(isActive) && !history.length) return EMPTY;
+    const systemText = buildSystemText({ notes, canSearch });
+    const slip = buildPrefetch({ notes, question, history });
+    return { systemText, slipText: slip.text, noteIds: slip.noteIds, historyIds: slip.historyIds };
   };
 
   return {
@@ -90,22 +112,25 @@ export function createNotesMemory({ getSupabase = () => null, storage = null, no
      */
     /** The page gives the way to look into the past conversations (the index of history); without it the slip holds notes only. */
     setHistorySearch(fn) { historySearch = typeof fn === 'function' ? fn : null; },
-    contextFor({ question = '', canSearch = false, excludeConversationId = '' } = {}) {
-      if (!store?.isLoaded()) return EMPTY;
-      const settings = store.getSettings();
-      if (!settings.use) return EMPTY;
-      const notes = store.getNotes();
-      let history = [];
+    /** The page gives the search by meaning for the slip (page-history.js `meaning`); it is asked only when the keywords found nothing. */
+    setHistoryMeaning(fn) { historyMeaning = typeof fn === 'function' ? fn : null; },
+    contextFor(options = {}) {
+      return compose(options, null);
+    },
+    /**
+     * Like `contextFor`, but when the keywords found no past conversation for the question and the search by meaning is on, it also asks the vectors, waiting at most `waitMs`
+     * (the vectors never delay a reply longer than that, and a failure just leaves the slip as `contextFor` made it).
+     */
+    async contextWithMeaning(options = {}, { waitMs = 700 } = {}) {
+      const first = compose(options, null);
+      if (first.historyIds.length || !historyMeaning || !store?.isLoaded() || !store.getSettings().use) return first;
       try {
-        history = historySearch ? historySearch(question, { excludeConversationId }) : [];
+        const found = await historyMeaning(options.question || '', { excludeConversationId: options.excludeConversationId || '', waitMs });
+        return Array.isArray(found) && found.length ? compose(options, found) : first;
       } catch (error) {
-        logger.warn?.('The history could not be searched.', error);
+        logger.warn?.('The search by meaning for the slip failed.', error);
+        return first;
       }
-      // No notes and nothing of the past that bears on the question: nothing to say. (Past conversations alone make a slip.)
-      if (!notes.some(isActive) && !history.length) return EMPTY;
-      const systemText = buildSystemText({ notes, canSearch });
-      const slip = buildPrefetch({ notes, question, history });
-      return { systemText, slipText: slip.text, noteIds: slip.noteIds, historyIds: slip.historyIds };
     },
     /** The notes of the slip were given to the model: when and how often they were used (for fading and for the person to see). Never throws. */
     async markUsed(noteIds) {

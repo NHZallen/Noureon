@@ -661,9 +661,10 @@ export function createStreamApiCall({
     const instructionGiven = typeof requestOptions.systemInstructionText === 'string';
     // The memory of notes: the first page for the system instruction and the slip for after the message (nothing when the person is in a chat that may not use memory).
     const canUseMemory = !(conversation?.retentionMode === 'ephemeral' && conversation?.memoryAccessEnabled === false);
-    const notes = !instructionGiven && canUseMemory && !requestOptions.skipMemoryContext && !requestOptions.skipConversationSystemContext
-      ? getNotesMemory()?.contextFor({ question: getMessageTextForGuidance(currentMessageForApi), canSearch: toolsOffered(conversation?.id), excludeConversationId: conversation?.id || '' }) || NO_NOTES
-      : NO_NOTES;
+    // When the keywords find no past conversation for the question, the slip also asks the vectors (if the person turned them on), waiting at most 0.7 s.
+    const memory = !instructionGiven && canUseMemory && !requestOptions.skipMemoryContext && !requestOptions.skipConversationSystemContext ? getNotesMemory() : null;
+    const slipOptions = { question: getMessageTextForGuidance(currentMessageForApi), canSearch: toolsOffered(conversation?.id), excludeConversationId: conversation?.id || '' };
+    const notes = (memory?.contextWithMeaning ? await memory.contextWithMeaning(slipOptions) : memory?.contextFor(slipOptions)) || NO_NOTES;
     // The past conversations the slip drew on are shown under the reply ("references").
     if (notes.historyIds.length && typeof requestOptions.onMemoryContextResolved === 'function') {
       requestOptions.onMemoryContextResolved({ historyResults: notes.historyIds.map((conversationId) => ({ conversationId })) });

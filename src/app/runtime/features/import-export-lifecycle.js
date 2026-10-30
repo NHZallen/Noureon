@@ -391,24 +391,26 @@ export function createImportExportLifecycle({
     }
   }
 
-  // What the file holds, said before anything is replaced; with notes in it, the person may leave them out. Resolves { accepted, notes }.
+  // What the file holds, as a list the person ticks before anything is replaced (only what is ticked is replaced; the rest of the app stays as it is).
+  // Resolves { accepted, chosen: { chats, folders, astras, settings, keys, notes } }.
   async function confirmImportOf(data, message, title) {
     const held = data?.memoryNotes;
-    if (!Array.isArray(held?.notes)) return { accepted: Boolean(await showCustomConfirm(message, title)), notes: false };
-    const parts = [
-      Array.isArray(data.conversations) && data.conversations.length ? text('importHasChats', '對話 {n}').replace('{n}', data.conversations.length) : '',
-      Array.isArray(data.folders) && data.folders.length ? text('importHasFolders', '資料夾 {n}').replace('{n}', data.folders.length) : '',
-      Array.isArray(data.astras) && data.astras.length ? text('importHasAstras', 'Nouras {n}').replace('{n}', data.astras.length) : '',
-      data.settings ? text('importHasSettings', '設定') : ''
-    ].filter(Boolean);
-    const answer = await showCustomConfirm(
-      `${message}${parts.length ? `\n\n${text('importFileHas', '檔案內容：{parts}').replace('{parts}', parts.join('、'))}` : ''}`,
-      title,
-      { preformatted: true, checklist: [{ id: 'notes', checked: true, label: text('importMemoryChoice', '記憶筆記（{n} 條，忘記的關鍵字 {m} 個）').replace('{n}', held.notes.length).replace('{m}', Array.isArray(held.blocked) ? held.blocked.length : 0) }] }
-    );
-    // (A confirm that only answers yes or no takes the notes along.)
-    if (typeof answer === 'boolean') return { accepted: answer, notes: true };
-    return { accepted: Boolean(answer?.accepted), notes: Boolean(answer?.selected?.includes('notes')) };
+    const has = (list) => Array.isArray(list) && list.length > 0;
+    const items = [
+      has(data?.conversations) && { id: 'chats', label: text('importHasChats', '對話 {n}').replace('{n}', data.conversations.length) },
+      has(data?.folders) && { id: 'folders', label: text('importHasFolders', '資料夾 {n}').replace('{n}', data.folders.length) },
+      has(data?.astras) && { id: 'astras', label: text('importHasAstras', 'Nouras {n}').replace('{n}', data.astras.length) },
+      data?.settings && { id: 'settings', label: text('importHasSettings', '設定') },
+      (data?.encryptedApiKeys || data?.apiKeys) && { id: 'keys', label: text('importHasApiKeys', 'API 金鑰') },
+      Array.isArray(held?.notes) && { id: 'notes', label: text('importMemoryChoice', '記憶筆記（{n} 條，忘記的關鍵字 {m} 個）').replace('{n}', held.notes.length).replace('{m}', Array.isArray(held.blocked) ? held.blocked.length : 0) }
+    ].filter(Boolean).map((item) => ({ ...item, checked: true }));
+    const everything = Object.fromEntries(['chats', 'folders', 'astras', 'settings', 'keys', 'notes'].map((id) => [id, items.some((item) => item.id === id)]));
+    if (!items.length) return { accepted: Boolean(await showCustomConfirm(message, title)), chosen: everything };
+    const answer = await showCustomConfirm(`${message}\n\n${text('importChooseItems', '勾選要匯入的項目；沒勾的維持現狀。')}`, title, { preformatted: true, checklist: items });
+    // (A confirm that only answers yes or no takes everything along.)
+    if (typeof answer === 'boolean') return { accepted: answer, chosen: everything };
+    const picked = new Set(Array.isArray(answer?.selected) ? answer.selected : []);
+    return { accepted: Boolean(answer?.accepted), chosen: Object.fromEntries(Object.keys(everything).map((id) => [id, picked.has(id)])) };
   }
 
   // After the import: which notes came in and which were left out, and why.
@@ -512,24 +514,30 @@ export function createImportExportLifecycle({
         )
         : await confirmImportOf(rawData, text('importOverwriteWarning', '匯入將覆蓋目前資料。'), text('importConfirmation', '確認匯入'));
       if (!confirmedImport.accepted) throw new Error(IMPORT_CANCELLED);
+      const chosen = confirmedImport.chosen;
+      if (!Object.values(chosen).some(Boolean) && !Array.isArray(rawData.personalMemories)) {
+        showNotification(text('importNothingChosen', '沒有勾選任何要匯入的項目。'), 'info');
+        throw new Error(IMPORT_CANCELLED);
+      }
 
-      const importedApiKeys = await resolveImportedApiKeys(rawData);
+      const importedApiKeys = chosen.keys ? await resolveImportedApiKeys(rawData) : null;
 
       updateProgress(30, text('importPreparing', 'Getting ready to import...'));
 
+      // What was not ticked stays as it is; what was ticked is replaced by the file's.
       const activeAppData = replaceAllAppData({
-        conversations: [],
-        folders: [],
-        astras: [],
+        conversations: chosen.chats ? [] : getConversations(),
+        folders: chosen.folders ? [] : getFolders(),
+        astras: chosen.astras ? [] : getAstras(),
         personalMemories: []
       });
 
-      applySettings(rawData.settings);
+      if (chosen.settings) applySettings(rawData.settings);
       await mergeApiKeys(importedApiKeys);
       await saveConfig();
-      const memoryResult = await importMemoryNotes(rawData, { selected: confirmedImport.notes });
+      const memoryResult = await importMemoryNotes(rawData, { selected: chosen.notes });
 
-      const astrasToImport = rawData.astras || [];
+      const astrasToImport = chosen.astras ? rawData.astras || [] : [];
       if (astrasToImport.length > 0) {
         await processInChunks(astrasToImport, async (astra) => {
           if (astra._avatarZipRef && zip) {
@@ -553,7 +561,7 @@ export function createImportExportLifecycle({
         });
       }
 
-      if (rawData.folders) {
+      if (chosen.folders && rawData.folders) {
         activeAppData.folders = replaceFolders(rawData.folders);
       }
 
@@ -561,7 +569,7 @@ export function createImportExportLifecycle({
         activeAppData.personalMemories = replacePersonalMemories(rawData.personalMemories);
       }
 
-      const conversationsToImport = rawData.conversations || [];
+      const conversationsToImport = chosen.chats ? rawData.conversations || [] : [];
       if (conversationsToImport.length > 0) {
         await processInChunks(conversationsToImport, async (conversation) => {
           for (const message of conversation.messages) {

@@ -4,7 +4,7 @@
 // answer text and the run record kept above it. Loaded on demand.
 
 import { MAX_RUNS_PER_REPLY, MAX_RUNS_WITH_CLI, RUN_COMMAND_TOOL, RUN_PYTHON_TOOL, RUN_PYTHON_TOOL_SERVER, RUN_PYTHON_TOOL_SERVER_NET, REQUEST_CREDENTIALS_TOOL, getCliGuidance, getSandboxGuidance } from './sandbox-guidance.js';
-import { loaderStepEvent, sandboxText } from './sandbox-texts.js';
+import { loaderEndEvent, loaderStepEvent, sandboxText } from './sandbox-texts.js';
 import { RUN_STATUS, toolOfEvent } from '../../ui/sandbox/sandbox-run-block.js';
 import { partialJsonString } from '../features/tool-call-formats.js';
 import { RESEARCH_TOOLS, createResearchCalls, researchGuidance } from '../features/web-research-reply.js';
@@ -414,7 +414,11 @@ export async function runSandboxReply({
         const tool = toolOfEvent(step);
         if (tool) (run.tools ||= []).push(tool);
         results.push(keepToolResult(call, await skillLoader.run(call)));
-        if (step) onEvent({ type: 'tool-end' });
+        if (step) {
+          const ended = loaderEndEvent(skillLoader, call, language);
+          if (tool && ended.count !== undefined) tool.count = ended.count;
+          onEvent(ended);
+        }
         continue;
       }
       if (!isRunTool(call.name)) {

@@ -27,6 +27,7 @@ export function startNotesMemory({ document, configAccess, dataStore, getActiveC
   // A conversation the model looked into keeps its name with the reply (memory-trace.js), for when it is deleted later.
   setHistoryTitle((id) => String((getConversations() || []).find((entry) => entry.id === id)?.title || ''));
   memory.setHistorySearch((question, options) => history.search(question, options));
+  memory.setHistoryMeaning((question, options) => history.meaning(question, options));
   setPageHistory(history);
   // The search by meaning is off until the person turns it on and agrees (page-vectors.js); when it is on, the vectors of the past conversations are brought up to date a little after the page has loaded.
   let lastUser = getAnnouncedUser();

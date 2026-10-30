@@ -100,3 +100,44 @@ test('search_memory takes a scope on this page and gives pieces of past conversa
   assert.match(await loader.run({ name: 'search_memory', args: { query: 'trip to Kyoto temples', scope: 'history' } }), /Nothing in the memory matches/, 'the conversation being written is not looked in');
   assert.deepEqual(loader.tools.map((tool) => tool.name).sort(), ['memory_write', 'search_memory'], 'with a history to look in the search is offered even with no notes');
 });
+
+test('the slip asks the vectors only when the keywords found nothing, waits at most the time given, and never breaks the reply', async () => {
+  const data = new Map([['noureon.memoryNotes.v1.tester', JSON.stringify({ version: 1, rows: [] })]]);
+  const memory = createNotesMemory({ storage: { getItem: (key) => data.get(key) ?? null, setItem: (key, value) => { data.set(key, value); } }, logger: { warn() {} } });
+  await memory.attach({ username: 'tester' });
+  const history = createPageHistory({ getConversations: () => [OLD] });
+  memory.setHistorySearch((question, options) => history.search(question, options));
+  const asks = [];
+  const nearest = { conversationId: 'old', at: '2026-03-01T00:00:00.000Z', role: 'user', text: 'my dog keeps ripping up the couch cushions', meaning: true };
+  let answer = async (question, options) => { asks.push({ question, options }); return [nearest]; };
+  memory.setHistoryMeaning((question, options) => answer(question, options));
+
+  const byMeaning = await memory.contextWithMeaning({ question: 'puppy destroys furniture when alone', excludeConversationId: 'now' });
+  assert.deepEqual(byMeaning.historyIds, ['old'], 'no keyword matched, the vectors did');
+  assert.match(byMeaning.slipText, /ripping up the couch cushions/);
+  assert.equal(asks.length, 1);
+  assert.equal(asks[0].options.excludeConversationId, 'now');
+
+  const byKeywords = await memory.contextWithMeaning({ question: 'how to stop my Shiba Inu Mochi chewing the sofa', excludeConversationId: 'now' });
+  assert.deepEqual(byKeywords.historyIds, ['old']);
+  assert.equal(asks.length, 1, 'the keywords were enough, so the vectors were not asked');
+
+  answer = async () => { throw new Error('offline'); };
+  assert.equal((await memory.contextWithMeaning({ question: 'translate this into French' })).slipText, '', 'a failure leaves the slip as the keywords made it');
+  answer = async () => [];
+  assert.equal((await memory.contextWithMeaning({ question: 'translate this into French' })).slipText, '');
+});
+
+test('the history waits for the vectors only as long as it was told, and marks what they found', async () => {
+  const history = createPageHistory({ getConversations: () => [OLD] });
+  assert.deepEqual(await history.meaning('anything'), [], 'no vectors set');
+  let abortedWith = null;
+  const slow = { available: () => true, search: (query, options) => new Promise((resolve) => { options.signal.addEventListener('abort', () => { abortedWith = 'aborted'; resolve([]); }); }), fuse: () => [] };
+  history.setVectors(slow);
+  const started = Date.now();
+  assert.deepEqual(await history.meaning('anything', { waitMs: 30 }), []);
+  assert.ok(Date.now() - started < 500);
+  assert.equal(abortedWith, 'aborted', 'the request is given up with the wait');
+  history.setVectors({ available: () => true, search: async (query, options) => { assert.equal(options.minCosine, 0.6); assert.equal(options.limit, 2); return [{ conversationId: 'old', at: 'x', role: 'user', text: 'near', cosine: 0.8 }]; }, fuse: () => [] });
+  assert.deepEqual(await history.meaning('anything'), [{ conversationId: 'old', at: 'x', role: 'user', text: 'near', meaning: true }]);
+});

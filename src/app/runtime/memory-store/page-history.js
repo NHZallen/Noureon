@@ -37,6 +37,24 @@ export function createPageHistory({ getConversations }) {
       const meaning = (await vectors.search(query, { limit, excludeConversationId: options.excludeConversationId || '' })).map((hit) => ({ conversationId: hit.conversationId, at: hit.at, role: hit.role, text: hit.text.slice(0, 400) }));
       return meaning.length ? vectors.fuse(keywords, meaning, limit) : keywords;
     },
+    /**
+     * For the slip, when the keywords found nothing: the pieces nearest in meaning to the question, at a higher bar than the tool's, and the wait is cut short after `waitMs`
+     * (the reply must not wait for the network). Always resolves a list (at most two), marked `meaning: true`.
+     */
+    async meaning(question, { excludeConversationId = '', waitMs = 700, minCosine = 0.6 } = {}) {
+      if (!vectors?.available?.() || !String(question || '').trim()) return [];
+      const controller = new AbortController();
+      let timer = null;
+      const wait = new Promise((resolve) => { timer = setTimeout(() => { controller.abort(); resolve([]); }, waitMs); });
+      try {
+        const hits = await Promise.race([vectors.search(question, { limit: 2, excludeConversationId, minCosine, signal: controller.signal }), wait]);
+        return hits.map((hit) => ({ conversationId: hit.conversationId, at: hit.at, role: hit.role, text: hit.text.slice(0, 400), meaning: true }));
+      } catch {
+        return [];
+      } finally {
+        clearTimeout(timer);
+      }
+    },
     /** The conversations the page holds (the rebuild reads them). */
     conversations: () => getConversations() || [],
     stats() {

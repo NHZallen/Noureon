@@ -75,6 +75,10 @@ const TEXTS = Object.freeze({
     memoryRecalled: '已回憶',
     memoryReviewed: '已回顧對話',
     memoryWrote: '已更新記憶',
+    memoryRecalledCount: '已回憶 {n} 條記憶',
+    memoryRecalledNone: '沒有找到相關的記憶',
+    memoryReviewedCount: '已回顧 {n} 個對話',
+    memoryReviewedNone: '沒有找到相關的對話',
     skillLoaded: '已載入技能：{name}',
     sourceTabAll: '全部',
     sourceTabWeb: '網頁',
@@ -236,6 +240,10 @@ const TEXTS = Object.freeze({
     memoryRecalled: 'Recalled',
     memoryReviewed: 'Reviewed past conversations',
     memoryWrote: 'Updated memory',
+    memoryRecalledCount: 'Recalled notes: {n}',
+    memoryRecalledNone: 'No related notes found',
+    memoryReviewedCount: 'Past conversations reviewed: {n}',
+    memoryReviewedNone: 'No related past conversations found',
     skillLoaded: 'Loaded skill: {name}',
     sourceTabAll: 'All',
     sourceTabWeb: 'Web',
@@ -397,6 +405,10 @@ const TEXTS = Object.freeze({
     memoryRecalled: 'Rappel effectué',
     memoryReviewed: 'Discussions passées relues',
     memoryWrote: 'Mémoire mise à jour',
+    memoryRecalledCount: 'Notes rappelées : {n}',
+    memoryRecalledNone: 'Aucune note liée trouvée',
+    memoryReviewedCount: 'Discussions passées relues : {n}',
+    memoryReviewedNone: 'Aucune discussion passée liée trouvée',
     skillLoaded: 'Compétence chargée : {name}',
     sourceTabAll: 'Tout',
     sourceTabWeb: 'Web',
@@ -558,6 +570,10 @@ const TEXTS = Object.freeze({
     memoryRecalled: 'Вспомнено',
     memoryReviewed: 'Прошлые диалоги просмотрены',
     memoryWrote: 'Память обновлена',
+    memoryRecalledCount: 'Вспомнено заметок: {n}',
+    memoryRecalledNone: 'Связанных заметок не найдено',
+    memoryReviewedCount: 'Просмотрено прошлых диалогов: {n}',
+    memoryReviewedNone: 'Связанных прошлых диалогов не найдено',
     skillLoaded: 'Навык загружен: {name}',
     sourceTabAll: 'Все',
     sourceTabWeb: 'Сайты',
@@ -719,6 +735,10 @@ const TEXTS = Object.freeze({
     memoryRecalled: 'Recordado',
     memoryReviewed: 'Conversaciones pasadas repasadas',
     memoryWrote: 'Memoria actualizada',
+    memoryRecalledCount: 'Notas recordadas: {n}',
+    memoryRecalledNone: 'No se encontraron notas relacionadas',
+    memoryReviewedCount: 'Conversaciones pasadas repasadas: {n}',
+    memoryReviewedNone: 'No se encontraron conversaciones pasadas relacionadas',
     skillLoaded: 'Habilidad cargada: {name}',
     sourceTabAll: 'Todo',
     sourceTabWeb: 'Web',
@@ -825,6 +845,20 @@ export const skillStepEvent = (language, note) => (note ? { type: 'skill', name:
 
 /** The row of the step list for a call of any loader: the loader's own (the connectors') or the one of a skill. */
 export const loaderStepEvent = (loader, call, language) => loader.stepEvent?.(call, language) ?? skillStepEvent(language, loader.noteFor(call));
+
+/** The label of a memory row once its call is answered: what the search gave back, counted (`count` unknown: the plain past form). */
+export function memoryDoneLabel(language, key, count) {
+  const reviewing = key === 'memoryReviewing';
+  if (!Number.isInteger(count) || count < 0) return sandboxText(language, key === 'memoryWriting' ? 'memoryWrote' : reviewing ? 'memoryReviewed' : 'memoryRecalled');
+  if (key === 'memoryWriting') return sandboxText(language, 'memoryWrote');
+  return count > 0 ? sandboxText(language, reviewing ? 'memoryReviewedCount' : 'memoryRecalledCount', { n: count }) : sandboxText(language, reviewing ? 'memoryReviewedNone' : 'memoryRecalledNone');
+}
+
+/** The event that ends the row of a call once the loader has answered it: for a memory search it says how many notes or past conversations came back, with the row's label. */
+export function loaderEndEvent(loader, call, language) {
+  const outcome = loader.outcome?.(call);
+  return outcome && Number.isInteger(outcome.count) ? { type: 'tool-end', count: outcome.count, label: memoryDoneLabel(language, outcome.key, outcome.count) } : { type: 'tool-end' };
+}
 
 const SKIPPED_KEYS = Object.freeze({ 'file-too-large': 'sandboxSkippedLarge', 'total-too-large': 'sandboxSkippedTotal', 'too-many-files': 'sandboxSkippedCount', 'blocked-type': 'sandboxSkippedBlocked', 'not-saved': 'sandboxSkippedNotSaved', quota: 'sandboxSkippedQuota' });
 const megabytes = (bytes) => `${Math.max(1, Math.round(Number(bytes) / (1024 * 1024)))} MB`;

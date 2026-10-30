@@ -3,7 +3,7 @@
 // the model thought, the code (coloured like other code blocks), its output and the files it made. The rows are
 // drawn like the live step list is (ledger.js), so what streamed in is what stays.
 
-import { sandboxText, skippedFileText } from '../../runtime/sandbox/sandbox-texts.js';
+import { memoryDoneLabel, sandboxText, skippedFileText } from '../../runtime/sandbox/sandbox-texts.js';
 import { animateDetails } from '../motion/collapse-motion.js';
 import { fillThinkingText } from '../thinking/thinking-text.js';
 import { formatElapsed } from '../ledger/ledger.js';
@@ -66,7 +66,7 @@ function sourcesRows(document, sources, language) {
 function connectorRows(document, run, language) {
   const tools = (run.tools || []).map((tool) => renderRow(document, tool.kind === 'skill'
     ? { kind: 'skill', label: sandboxText(language, 'skillLoaded', { name: tool.name }), body: [] }
-    : { kind: { memorySearching: 'memory-recall', memoryReviewing: 'memory-review', memoryWriting: 'memory-write' }[tool.key], label: sandboxText(language, { memorySearching: 'memoryRecalled', memoryReviewing: 'memoryReviewed', memoryWriting: 'memoryWrote' }[tool.key]), body: [] }));
+    : { kind: { memorySearching: 'memory-recall', memoryReviewing: 'memory-review', memoryWriting: 'memory-write' }[tool.key], label: memoryDoneLabel(language, tool.key, tool.count), body: [] }));
   return [...tools, ...(run.connectors || []).map((name) => renderRow(document, { kind: 'connector', label: sandboxText(language, 'connectorUsing', { connector: name }), body: [] }))];
 }
 

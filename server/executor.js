@@ -9,7 +9,7 @@ import { createWebResearchTools } from '../src/app/runtime/features/web-research
 import { NOURAS_REQUEST_PURPOSE } from '../src/app/runtime/nouras/nouras-policy.js';
 import { insertGroundingMarkers } from '../src/app/ui/citations/citation-model.js';
 import { addNumberedSources } from '../src/app/ui/citations/source-numbering.js';
-import { RUN_STATUS, formatSandboxRunBlock } from '../src/app/ui/sandbox/sandbox-run-block.js';
+import { RUN_STATUS, formatSandboxRunBlock, noteToolEnd } from '../src/app/ui/sandbox/sandbox-run-block.js';
 import { briefingPart, runSearchBriefing } from '../src/app/runtime/sandbox/search-briefing.js';
 import { CLI_PLATFORM, cliInstallCommand, cliPipCommands, getCliTool, isCliReady } from '../src/data/cli-catalog.js';
 import { effectiveNetPolicy } from '../src/data/cli-net.js';
@@ -321,6 +321,7 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
   const skillEvents = (event) => {
     if (event.type === 'skill' && event.name && !usedTools.some((tool) => tool.kind === 'skill' && tool.name === event.name)) usedTools.push({ kind: 'skill', name: String(event.name).slice(0, 60) });
     if (event.type === 'memory' && event.key) usedTools.push({ kind: 'memory', key: event.key });
+    else noteToolEnd(usedTools, event);
     if (event.type === 'skill' || event.type === 'connector' || event.type === 'image' || event.type === 'memory' || event.type === 'tool-end') onLive({ ev: { ...event, t: Math.max(0, now() - startedAt) } });
   };
 

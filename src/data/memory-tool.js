@@ -64,6 +64,7 @@ const clean = (value, limit) => String(value ?? '').replace(/\s+/g, ' ').trim().
 export function createMemoryLoader({ getNotes, getContext, commit, canWrite = true, onUsed = null, onWrite = null, searchHistory = null, language = 'zh-TW', createId, now, maxSearches = MAX_MEMORY_SEARCHES, maxWrites = MAX_MEMORY_WRITES }) {
   let searches = 0;
   let writes = 0;
+  let lastOutcome = null;
   const hasNotes = () => getNotes().some(isActive);
 
   async function search(call) {
@@ -83,6 +84,8 @@ export function createMemoryLoader({ getNotes, getContext, commit, canWrite = tr
       }
     }
     if (found.length) onUsed?.({ ids: found.map((note) => note.id) });
+    // What the row of the step list says once the call is answered: the past conversations that came back (when looking into them) or the notes.
+    lastOutcome = scope === 'notes' ? { key: 'memorySearching', count: found.length } : { key: 'memoryReviewing', count: pieces.length };
     if (!found.length && !pieces.length) return 'Nothing in the memory matches that. Go on without it, and do not say you looked.';
     return JSON.stringify({
       note: 'What is known about the user. It may be out of date: what the user says now wins. Do not announce that you looked this up.',
@@ -131,6 +134,12 @@ export function createMemoryLoader({ getNotes, getContext, commit, canWrite = tr
     },
     handles: (name) => isMemoryToolName(name),
     noteFor: (call) => ({ name: call?.name }),
+    /** What the last search gave back, `{ key, count }` (once; null after a write or when nothing was searched). */
+    outcome() {
+      const outcome = lastOutcome;
+      lastOutcome = null;
+      return outcome;
+    },
     /** The row of the step list for a call. */
     stepEvent: (call, lang = language) => {
       const writing = call?.name === MEMORY_WRITE_TOOL.name;

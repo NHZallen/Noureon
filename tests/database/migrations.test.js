@@ -48,6 +48,12 @@ test('no rule lets anyone in but the signed-in person, and every rule is tied to
   }
 });
 
+test('the table of the old memory summaries is gone, and the notes of the new memory are there', async () => {
+  const tables = (await database.db.query(`select tablename from pg_tables where schemaname = 'public'`)).rows.map((row) => row.tablename);
+  assert.equal(tables.includes('workspace_memory_summary_records'), false);
+  assert.equal(tables.includes('workspace_memory_records'), true);
+});
+
 test('the functions the page may call are exactly the ones named here, and nothing that acts for the server can be called by a person', async () => {
   const rows = (await database.db.query(`select p.proname, p.prosecdef, p.proconfig, p.prorettype::regtype::text as returns, has_function_privilege('anon', p.oid, 'execute') as anon, has_function_privilege('authenticated', p.oid, 'execute') as authenticated, has_function_privilege('service_role', p.oid, 'execute') as service from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public'`)).rows;
   const securityDefiners = rows.filter((row) => row.prosecdef);
@@ -56,7 +62,7 @@ test('the functions the page may call are exactly the ones named here, and nothi
     assert.equal(row.anon, false, `${row.proname} is not for anyone signed out`);
   }
   const forPeople = securityDefiners.filter((row) => row.authenticated).map((row) => row.proname).sort();
-  assert.deepEqual(forPeople, ['fetch_workspace_delta', 'permanently_delete_workspace_conversations', 'permanently_delete_workspace_folder', 'upsert_workspace_conversations', 'upsert_workspace_folders', 'upsert_workspace_memory_summary_records', 'upsert_workspace_messages']);
+  assert.deepEqual(forPeople, ['fetch_workspace_delta', 'permanently_delete_workspace_conversations', 'permanently_delete_workspace_folder', 'upsert_workspace_conversations', 'upsert_workspace_folders', 'upsert_workspace_messages']);
   // (The functions of triggers cannot be called by hand, and workspace_safe_timestamptz is the helper of the functions above.)
   const forTheServer = securityDefiners.filter((row) => row.service && !row.authenticated && row.returns !== 'trigger').map((row) => row.proname).sort();
   assert.deepEqual(forTheServer, ['orphan_skill_bundles', 'orphan_user_assets', 'orphan_user_avatars', 'orphan_user_derived', 'server_claim_stale_runs', 'server_read_history', 'server_start_run', 'server_upsert_workspace_message', 'user_asset_usage', 'workspace_safe_timestamptz']);

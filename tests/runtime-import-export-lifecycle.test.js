@@ -640,9 +640,9 @@ test('handleImport says what the file holds, lets the notes be left out, and bri
     await left.lifecycle.handleImport();
     const asked = left.confirmOptions.find((options) => options.checklist);
     assert.ok(asked, 'the notes are a tick box of the confirmation');
-    assert.match(left.calls.find((call) => call[0] === 'confirm')[1], /對話 1/, 'the confirmation says what the file holds');
-    assert.deepEqual(asked.checklist.map((item) => item.id), ['notes']);
-    assert.match(asked.checklist[0].label, /3 /);
+    assert.deepEqual(asked.checklist.map((item) => item.id), ['chats', 'settings', 'notes'], 'what the file holds is a list of tick boxes, one for each kind');
+    assert.match(asked.checklist[0].label, /對話 1/);
+    assert.match(asked.checklist.at(-1).label, /3 /);
     assert.equal(memory.getStore().getNotes().length, 0, 'unticked: nothing of the notes came in');
 
     const taken = createHarness({ importFile: { name: 'b.json', type: 'application/json', async text() { return JSON.stringify(backupWithNotes()); } }, confirmAnswer: async () => ({ accepted: true, selected: ['notes'] }) });
@@ -682,4 +682,37 @@ test('the tick box of the notes in the export says how many there are when the e
     await new Promise((resolve) => setTimeout(resolve, 20));
     assert.match(label.textContent, /（2）/);
   });
+});
+
+test('handleImport replaces only the kinds the person ticked and leaves the rest of the app as it is', async () => {
+  const backup = () => ({
+    backup_identity: { username: 'alice' },
+    conversations: [{ id: 'imported-chat', messages: [] }],
+    folders: [{ id: 'imported-folder', name: 'From the file' }],
+    astras: [{ id: 'imported-noura', name: 'Imported' }],
+    settings: { uiLanguage: 'fr' }
+  });
+  const file = { name: 'b.json', type: 'application/json', async text() { return JSON.stringify(backup()); } };
+  const mine = { conversations: [{ id: 'my-chat', messages: [] }], folders: [{ id: 'my-folder', name: 'Mine' }], astras: [{ id: 'my-noura', name: 'Mine' }] };
+
+  const onlyChats = createHarness({ ...mine, importFile: file, confirmAnswer: async () => ({ accepted: true, selected: ['chats'] }) });
+  await onlyChats.lifecycle.handleImport();
+  assert.deepEqual(onlyChats.conversations.map((conversation) => conversation.id), ['imported-chat'], 'the ticked kind is replaced by the file');
+  assert.deepEqual(onlyChats.astras.map((astra) => astra.id), ['my-noura'], 'the kinds that were not ticked stay');
+  assert.equal(onlyChats.config.uiLanguage, 'en', 'the settings were not ticked, so they stay');
+
+  const keepChats = createHarness({ ...mine, importFile: file, confirmAnswer: async () => ({ accepted: true, selected: ['astras', 'folders'] }) });
+  await keepChats.lifecycle.handleImport();
+  assert.deepEqual(keepChats.conversations.map((conversation) => conversation.id), ['my-chat']);
+  assert.deepEqual(keepChats.astras.map((astra) => astra.id), ['imported-noura']);
+
+  const none = createHarness({ ...mine, importFile: file, confirmAnswer: async () => ({ accepted: true, selected: [] }) });
+  await none.lifecycle.handleImport();
+  assert.deepEqual(none.conversations.map((conversation) => conversation.id), ['my-chat'], 'nothing ticked: nothing is touched');
+  assert.equal(none.calls.some((call) => call[0] === 'replaceAllAppData'), false);
+
+  const all = createHarness({ ...mine, importFile: file });
+  await all.lifecycle.handleImport();
+  assert.equal(all.config.uiLanguage, 'fr', 'and the settings come in when everything is taken');
+  assert.deepEqual(all.conversations.map((conversation) => conversation.id), ['imported-chat'], 'a plain yes takes everything, as before');
 });

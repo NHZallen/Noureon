@@ -8,7 +8,7 @@ import { createEmbeddingClient, EMBEDDING_PROVIDERS, pickEmbeddingProvider, vers
 import { createVectorSync } from './vector-sync.js';
 import { createIdbBackend, createMemoryBackend, createVectorStore } from './vector-store.js';
 
-export const VECTOR = Object.freeze({ minChars: 12, batchTexts: 32, batchChars: 16_000, failures: 3, minCosine: 0.5, pauseMs: 150, tokensPerChar: 0.4 });
+export const VECTOR = Object.freeze({ minChars: 12, batchTexts: 32, batchChars: 16_000, failures: 3, minCosine: 0.5, slipCosine: 0.6, slipWaitMs: 700, pauseMs: 150, tokensPerChar: 0.4 });
 
 const hashed = (piece) => piece.hash || textHash(piece.text);
 

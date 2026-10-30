@@ -5,7 +5,7 @@
 // no search of their own but do call tools (OpenRouter's); the others get a search packet in front of the request.
 
 import { loaderInstruction } from '../../../data/skill-tool.js';
-import { loaderStepEvent, sandboxText } from '../sandbox/sandbox-texts.js';
+import { loaderEndEvent, loaderStepEvent, sandboxText } from '../sandbox/sandbox-texts.js';
 import { hostOf } from '../../ui/sandbox/run-sources.js';
 import { keepToolResult, withoutImages } from '../../../data/tool-result.js';
 import { resultDate } from '../reply/model-request-formatting.js';
@@ -388,7 +388,7 @@ export async function runWebResearchReply({
         const step = loaderStepEvent(skills, call, language);
         if (step) onEvent(step);
         content = await skills.run(call);
-        if (step) onEvent({ type: 'tool-end' });
+        if (step) onEvent(loaderEndEvent(skills, call, language));
       } else {
         content = await research.run(call);
       }

@@ -94,7 +94,7 @@ const MEMORY_KEYS = ['memorySearching', 'memoryReviewing', 'memoryWriting'];
 export function normalizeTools(tools) {
   const out = [];
   for (const tool of Array.isArray(tools) ? tools : []) {
-    if (tool?.kind === 'memory' && MEMORY_KEYS.includes(tool.key)) out.push({ kind: 'memory', key: tool.key });
+    if (tool?.kind === 'memory' && MEMORY_KEYS.includes(tool.key)) out.push({ kind: 'memory', key: tool.key, ...(Number.isInteger(tool.count) && tool.count >= 0 ? { count: Math.min(tool.count, 1000) } : {}) });
     else if (tool?.kind === 'skill') {
       const name = String(tool.name ?? '').replace(/\s+/g, ' ').trim().slice(0, 60);
       if (name && !out.some((entry) => entry.kind === 'skill' && entry.name === name)) out.push({ kind: 'skill', name });
@@ -106,6 +106,13 @@ export function normalizeTools(tools) {
 
 /** The row a step event of a tool leaves in the saved reply ({ kind, name | key }), or null (the event is not one of a skill or the memory). */
 export const toolOfEvent = (event) => (event?.type === 'skill' && event.name ? { kind: 'skill', name: event.name } : event?.type === 'memory' && event.key ? { kind: 'memory', key: event.key } : null);
+
+/** The answer of a memory search ends its row (`tool-end` with the count of notes or past conversations that came back): the last memory row without a count gets it. */
+export function noteToolEnd(tools, event) {
+  if (event?.type !== 'tool-end' || !Number.isInteger(event.count) || !Array.isArray(tools)) return;
+  const last = [...tools].reverse().find((tool) => tool.kind === 'memory');
+  if (last && last.count === undefined) last.count = event.count;
+}
 
 // The names of the connectors a reply used, each once.
 export function normalizeConnectors(connectors) {

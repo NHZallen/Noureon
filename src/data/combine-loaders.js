@@ -17,6 +17,7 @@ export function combineLoaders(...loaders) {
     handles: (name) => parts.some((part) => part.handles(name)),
     noteFor: (call) => owner(call.name)?.noteFor(call) ?? null,
     stepEvent: (call, language) => owner(call.name)?.stepEvent?.(call, language) ?? null,
+    outcome: (call) => owner(call.name)?.outcome?.(call) ?? null,
     run: (call) => owner(call.name).run(call)
   };
 }
