@@ -226,7 +226,7 @@ test('share handoff fetches the media and invokes navigator share when supported
 
     assert.deepEqual(fetched, ['data:image/png;base64,share']);
     assert.equal(shared.length, 1);
-    assert.equal(shared[0].title, 'share.png');
+    assert.deepEqual(Object.keys(shared[0]), ['files'], 'only the file is shared: a title or a text would be put into the message as words');
     assert.equal(shared[0].files[0].name, 'share.png');
   } finally {
     cleanup();

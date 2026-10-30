@@ -40,9 +40,9 @@ test('iPhone browsers other than Safari use the share sheet', () => {
 
 test('Chrome on iPhone shares the file; Safari downloads it', async () => {
   const shared = [];
-  const chrome = fakeWindow({ userAgent: UA.iosChrome, share: async (data) => { shared.push(data.files[0].name); } });
+  const chrome = fakeWindow({ userAgent: UA.iosChrome, share: async (data) => { shared.push([data.files[0].name, Object.keys(data).join()]); } });
   assert.equal(await deliverFile({ ...chrome, blob, fileName: 'deck.pptx' }), 'shared');
-  assert.deepEqual(shared, ['deck.pptx']);
+  assert.deepEqual(shared, [['deck.pptx', 'files']], 'only the file is shared, with no title or text beside it');
   assert.deepEqual(chrome.clicks, []);
 
   const safari = fakeWindow({ userAgent: UA.iosSafari, share: async () => { throw new Error('unused'); } });
