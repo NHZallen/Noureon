@@ -8,11 +8,14 @@
 
 import { buildPrefetch, buildSystemText } from '../memory-notes/inject.js';
 import { isActive } from '../memory-notes/notes.js';
-import { createCloudBackend, createLocalBackend } from './backends.js';
+import { createCloudBackend, createLocalBackend, createMirroredBackend } from './backends.js';
+import { carriedNotes, clearCarried, joinCarried } from './notes-carry.js';
 import { createNotesStore } from './notes-store.js';
 
 const EMPTY = Object.freeze({ systemText: '', slipText: '', noteIds: [], historyIds: [] });
 const LOCAL_KEY = (who) => `noureon.memoryNotes.v1.${who}`;
+// The copy of the notes of a cloud account kept in the browser, for when the database cannot be reached.
+const MIRROR_KEY = (userId) => `noureon.memoryNotes.mirror.v1.${userId}`;
 
 /**
  * `getSupabase()` gives the database client (or null), `storage` is { getItem, setItem } of the browser. Returns the memory: `attach(user)`, `contextFor(...)`,
@@ -32,11 +35,22 @@ export function createNotesMemory({ getSupabase = () => null, storage = null, no
     const name = String(user?.username || '');
     const supabase = userId ? getSupabase() : null;
     let backend = null;
-    if (supabase) backend = createCloudBackend({ supabase, userId, logger });
+    if (supabase) {
+      const remote = createCloudBackend({ supabase, userId, logger });
+      backend = storage ? createMirroredBackend({ remote, storage, key: MIRROR_KEY(userId), now, logger }) : remote;
+    }
     else if (storage && name) backend = createLocalBackend({ storage, key: LOCAL_KEY(name), now });
     if (!backend) return null;
     const next = createNotesStore({ backend, now, logger });
     await next.load();
+    // The notes of the local account that was linked to this cloud account join its memory (notes-carry.js).
+    if (supabase && storage && name) {
+      const carried = carriedNotes({ name, storage, now });
+      if (carried.length) {
+        await next.commitNotes(joinCarried(next.getNotes(), carried));
+        clearCarried({ name, storage });
+      }
+    }
     next.subscribe(() => { for (const listener of [...listeners]) { try { listener(); } catch (error) { logger.warn?.('A memory listener failed.', error); } } });
     return next;
   };
