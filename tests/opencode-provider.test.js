@@ -32,19 +32,19 @@ test('the list of OpenCode Go models: the ones of the owner\'s table, each in on
   }
   const forms = (format) => OPENCODE_GO_MODELS.filter((entry) => entry.opencodeFormat === format).map((entry) => entry.apiId);
   assert.deepEqual(forms('responses').sort(), ['gpt-5.6-luna', 'gpt-6-luna', 'grok-4.7', 'muse-spark-1.2-contributor', 'muse-spark-1.3-contributor']);
-  assert.deepEqual(forms('gemini'), ['gemini-4-argon-contributor']);
+  assert.deepEqual(forms('gemini'), ['gemini-4-argon']);
   assert.deepEqual(forms('messages').sort(), ['claude-haiku-5-5', 'minimax-m3', 'minimax-m3.1-flash', 'qwen3.7-plus', 'qwen3.8-flash', 'qwen3.8-max']);
   const noPictures = OPENCODE_GO_MODELS.filter((entry) => !modelSupportsVision(entry)).map((entry) => entry.apiId).sort();
-  assert.deepEqual(noPictures, ['beam-free', 'deepseek-v4-pro', 'glm-5.2', 'glm-5.3', 'hy3', 'hy4-preview', 'longcat-2.0', 'mimo-v2.5-pro']);
-  assert.ok(modelSupportsVision(model('minimax-m3')) && modelSupportsVision(model('longcat-2.5-preview-free')) && modelSupportsVision(model('muse-spark-1.3-contributor')));
-  // Step 5 Preview and MiniMax M3.1 Flash have a price on the page of limits now (they were free, with `-free` ids the service refuses); LongCat 2.5 Preview and Beam are free.
+  assert.deepEqual(noPictures, ['beam-free', 'deepseek-v4-pro', 'glm-5.2', 'glm-5.3', 'hy3', 'hy4-preview', 'iceman-contributor-free', 'longcat-2.0', 'mimo-v2.5-pro']);
+  assert.ok(modelSupportsVision(model('minimax-m3')) && modelSupportsVision(model('gemini-4-argon')) && modelSupportsVision(model('muse-spark-1.3-contributor')));
+  // Step 5 Preview and MiniMax M3.1 Flash have a price on the page of limits now (they were free, with `-free` ids the service refuses); Beam and Iceman are free.
   for (const apiId of ['step-5-preview', 'minimax-m3.1-flash']) assert.deepEqual(getModelTiers(model(apiId)), ['paid'], apiId);
-  for (const apiId of ['longcat-2.5-preview-free', 'beam-free']) assert.deepEqual(getModelTiers(model(apiId)), ['free'], apiId);
+  for (const apiId of ['iceman-contributor-free', 'beam-free']) assert.deepEqual(getModelTiers(model(apiId)), ['free'], apiId);
   assert.equal(model('minimax-m3.1-flash').hiddenModel, undefined, 'MiniMax M3.1 Flash is in the list of the documents');
   assert.deepEqual([model('beam-free').hiddenModel, model('beam-free').requiresStealthTermsAcknowledgement], [true, true], 'Beam is a test model (the owner)');
   assert.ok(modelSupportsVision(model('minimax-m3.1-flash')));
   assert.equal(modelSupportsVision(model('beam-free')), false);
-  assert.equal(OPENCODE_GO_MODELS.filter((entry) => entry.hiddenModel).length, 1, 'only Beam is a test model now (Space Bunny and Cat Jam are not on the page of limits)');
+  assert.deepEqual(OPENCODE_GO_MODELS.filter((entry) => entry.hiddenModel).map((entry) => entry.apiId), ['beam-free', 'iceman-contributor-free'], 'only Beam and Iceman are test models now (Space Bunny and Cat Jam are not on the page of limits)');
   // A model that left the list, or took another id, is still known by its old id: it goes to the one that replaces it.
   const legacy = (apiId) => model(apiId).legacyIds;
   assert.deepEqual(legacy('minimax-m3.1-flash'), ['opencode-go/minimax-m3.1-flash-free']);
@@ -101,8 +101,8 @@ test('a request to OpenCode: the form of the model, our path, the key and the se
   assert.equal(buildOpencodeRequest({ ...common, sessionId: undefined, format: 'chat' }).headers['x-opencode-session'], noSession.headers['x-opencode-session']);
 
   // Google's form: the model in the path, the body made by the page's Gemini builder, no `stream`.
-  const gemini = buildOpencodeRequest({ ...common, modelId: 'gemini-4-argon-contributor', format: 'gemini', buildGeminiPayload: () => ({ contents: [] }) });
-  assert.equal(gemini.url, `${OPENCODE_CHAT_PATH}?format=gemini&model=gemini-4-argon-contributor`);
+  const gemini = buildOpencodeRequest({ ...common, modelId: 'gemini-4-argon', format: 'gemini', buildGeminiPayload: () => ({ contents: [] }) });
+  assert.equal(gemini.url, `${OPENCODE_CHAT_PATH}?format=gemini&model=gemini-4-argon`);
   assert.deepEqual(gemini.payload, { contents: [] });
   assert.equal(gemini.headers['x-opencode-session'], 'conv-1');
 });
@@ -287,8 +287,8 @@ test('the server\'s fetch sends the path of OpenCode straight to the service, wi
   await upstream('/api/opencode-chat', { method: 'POST', headers: { Authorization: 'Bearer k' }, body });
   assert.match(calls.at(-1).options.headers['x-opencode-session'], /^noureon-/);
   // Google's form: the model in the path, the stream as lines of text, the key as a Bearer like the others (the probe of 2026-10-14).
-  await upstream('/api/opencode-chat?format=gemini&model=gemini-4-argon-contributor', { method: 'POST', headers: { Authorization: 'Bearer oc_sk_secret', 'x-opencode-session': 'conv-42' }, body });
-  assert.equal(calls.at(-1).url, 'https://opencode.ai/inference/go/v1/models/gemini-4-argon-contributor:streamGenerateContent?alt=sse');
+  await upstream('/api/opencode-chat?format=gemini&model=gemini-4-argon', { method: 'POST', headers: { Authorization: 'Bearer oc_sk_secret', 'x-opencode-session': 'conv-42' }, body });
+  assert.equal(calls.at(-1).url, 'https://opencode.ai/inference/go/v1/models/gemini-4-argon:streamGenerateContent?alt=sse');
   assert.equal(calls.at(-1).options.headers.Accept, 'text/event-stream');
   assert.equal('x-goog-api-key' in calls.at(-1).options.headers, false);
   const badModel = await upstream('/api/opencode-chat?format=gemini&model=../x', { method: 'POST', headers: { Authorization: 'Bearer k' }, body });
@@ -304,16 +304,16 @@ test('Gemini 4 Argon Contributor: Google\'s form, streamed as lines of text with
     { candidates: [{ content: { role: 'model', parts: [{ text: 'Hel' }] } }] },
     { candidates: [{ content: { role: 'model', parts: [{ text: 'lo', thoughtSignature: 'sig' }] } }], usageMetadata: { totalTokenCount: 9 } }
   );
-  const { streamApiCall, requests } = harness({ apiId: 'gemini-4-argon-contributor', fetchImpl: async () => reply({ chunks }) });
+  const { streamApiCall, requests } = harness({ apiId: 'gemini-4-argon', fetchImpl: async () => reply({ chunks }) });
   const seen = [];
   const thoughts = [];
   const text = await streamApiCall([{ text: 'Hello' }, { inlineData: { mimeType: 'image/png', data: 'AAAA' } }], (chunk) => seen.push(chunk), undefined, false, { onReasoning: (chunk) => thoughts.push(chunk), forceWebSearch: true });
   assert.equal(text, 'Hello');
   assert.equal(seen.join(''), 'Hello');
   assert.equal(thoughts.join(''), 'hm');
-  assert.equal(modelThinkingKind('opencode-go', 'gemini-4-argon-contributor'), 'summary');
+  assert.equal(modelThinkingKind('opencode-go', 'gemini-4-argon'), 'summary');
   const [{ url, options, body }] = requests;
-  assert.equal(url, '/api/opencode-chat?format=gemini&model=gemini-4-argon-contributor');
+  assert.equal(url, '/api/opencode-chat?format=gemini&model=gemini-4-argon');
   assert.equal(options.headers['x-opencode-session'], 'conv-42');
   assert.ok(body.contents.length > 0 && body.contents.at(-1).parts.some((part) => part.inlineData));
   assert.equal('model' in body || 'stream' in body || 'tools' in body, false);
@@ -323,7 +323,7 @@ test('Gemini 4 Argon Contributor: Google\'s form, streamed as lines of text with
 
   const call = lines({ candidates: [{ content: { role: 'model', parts: [{ functionCall: { name: 'run_python', args: { code: '1+1' } } }] } }] });
   const tool = { name: 'run_python', description: 'Runs code', parameters: { type: 'object', properties: { code: { type: 'string' } } } };
-  const second = harness({ apiId: 'gemini-4-argon-contributor', fetchImpl: async () => reply({ chunks: call }) });
+  const second = harness({ apiId: 'gemini-4-argon', fetchImpl: async () => reply({ chunks: call }) });
   let collected = null;
   await second.streamApiCall([{ text: 'Run it' }], () => {}, undefined, false, { tools: [tool], toolTurns: [], onResponseComplete: (value) => { collected = value; } });
   assert.deepEqual(collected.toolCalls[0].args, { code: '1+1' });
@@ -428,8 +428,8 @@ test('the depth of thinking of each model: the options of the slider, and the fi
   assert.deepEqual(fields('minimax-m3', 'none'), { thinking: { type: 'disabled' } });
   assert.deepEqual(fields('grok-4.7', 'xhigh'), { reasoning: { effort: 'xhigh' } });
   assert.deepEqual(fields('muse-spark-1.3-contributor', 'minimal'), { reasoning: { effort: 'minimal', summary: 'auto' } });
-  assert.deepEqual(fields('gemini-4-argon-contributor', 'high'), { generationConfig: { thinkingConfig: { thinkingLevel: 'high' } } });
-  assert.deepEqual(fields('gemini-4-argon-contributor', 'minimal'), {}, 'minimal is refused by the service');
+  assert.deepEqual(fields('gemini-4-argon', 'high'), { generationConfig: { thinkingConfig: { thinkingLevel: 'high' } } });
+  assert.deepEqual(fields('gemini-4-argon', 'minimal'), {}, 'minimal is refused by the service');
   // The two of 2026-10-20: MiniMax M3.1 Flash is asked as Claude Haiku is (it cannot stop thinking); Beam takes the depths as `reasoning_effort`, never none or minimal.
   assert.deepEqual(fields('minimax-m3.1-flash', 'high'), { thinking: { type: 'adaptive' }, output_config: { effort: 'high' } });
   assert.deepEqual(fields('minimax-m3.1-flash', 'none'), {}, 'its thinking cannot be turned off');
@@ -480,11 +480,11 @@ test('a reply says the depth in the request, in the form of the model, and says 
 test('a PDF goes to the models that read it (the probe of 2026-10-14), in the form of each API; any other file, and the other models, still go through the translator', async () => {
   const pdf = { inlineData: { mimeType: 'application/pdf', data: 'JVBERi0x', name: 'a.pdf' } };
   const docx = { inlineData: { mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', data: 'UEsDBA==', name: 'a.docx' } };
-  const reads = ['hy3', 'grok-4.7', 'gpt-6-luna', 'claude-haiku-5-5', 'minimax-m3', 'minimax-m3.1-flash', 'qwen3.8-max', 'muse-spark-1.3-contributor', 'gemini-4-argon-contributor'];
-  const refuses = ['beam-free', 'deepseek-v4.1-flash', 'mimo-v2.5', 'step-5-preview', 'glm-5.3', 'kimi-k3', 'kimi-k2.7-code', 'mimo-v2.6-pro', 'longcat-2.5-preview-free', 'deepseek-v4-pro', 'longcat-2.0'];
+  const reads = ['hy3', 'grok-4.7', 'gpt-6-luna', 'claude-haiku-5-5', 'minimax-m3', 'minimax-m3.1-flash', 'qwen3.8-max', 'muse-spark-1.3-contributor', 'gemini-4-argon'];
+  const refuses = ['beam-free', 'deepseek-v4.1-flash', 'mimo-v2.5', 'step-5-preview', 'glm-5.3', 'kimi-k3', 'kimi-k2.7-code', 'mimo-v2.6-pro', 'iceman-contributor-free', 'deepseek-v4-pro', 'longcat-2.0'];
   // Word and PowerPoint files as they are: only the five that answered MANGO to both in the probe; for every other model they are translated.
   const pptx = { inlineData: { mimeType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', data: 'UEsDBA==', name: 'a.pptx' } };
-  const officeReaders = ['grok-4.7', 'gpt-6-luna', 'gpt-5.6-luna', 'gemini-4-argon-contributor'];
+  const officeReaders = ['grok-4.7', 'gpt-6-luna', 'gpt-5.6-luna'];
   for (const apiId of reads) {
     assert.equal(modelSupportsUploadedFile(model(apiId), pdf), true, `${apiId} reads a PDF`);
     assert.equal(modelSupportsUploadedFile(model(apiId), docx), officeReaders.includes(apiId), `${apiId}: a Word file ${officeReaders.includes(apiId) ? 'goes as it is' : 'is translated'}`);
@@ -528,7 +528,7 @@ test('a PDF goes to the models that read it (the probe of 2026-10-14), in the fo
 
 test('the OpenCode models are shown by their own names, without OpenCode in front', () => {
   assert.equal(OPENCODE_GO_MODELS.find((entry) => entry.apiId === 'step-5-preview').name, 'Step 5 Preview');
-  assert.equal(OPENCODE_GO_MODELS.find((entry) => entry.apiId === 'longcat-2.5-preview-free').name, 'LongCat 2.5 Preview');
+  assert.equal(OPENCODE_GO_MODELS.find((entry) => entry.apiId === 'iceman-contributor-free').name, 'Iceman Contributor Free');
   assert.equal(OPENCODE_GO_MODELS.find((entry) => entry.apiId === 'kimi-k3').name, 'Kimi K3');
 });
 
@@ -594,4 +594,21 @@ test('MiniMax M3.1 Flash on NVIDIA: a call, pictures and video are taken, no set
   assert.equal(modelSupportsVision(nvidia), true);
   assert.equal(getModelReasoningConfig(nvidia), null);
   assert.equal(modelSupportsUploadedFile(nvidia, { mimeType: 'application/pdf' }), false);
+});
+
+test('the models that left the page of limits are known by their old ids: a choice or a conversation that names them goes to the model that replaces them', async () => {
+  const { getCanonicalModelId } = await import('../src/app/runtime/shell/model-registry.js');
+  assert.equal(getCanonicalModelId('opencode-go/gemini-4-argon-contributor'), 'opencode-go/gemini-4-argon');
+  assert.equal(getCanonicalModelId('opencode-go/longcat-2.5-preview-free'), 'opencode-go/longcat-2.0');
+  assert.equal(OPENCODE_GO_MODELS.some((entry) => entry.apiId === 'gemini-4-argon-contributor' || entry.apiId === 'longcat-2.5-preview-free'), false);
+});
+
+test('Iceman Contributor Free is a hidden free test model that takes text only, calls tools, and thinks at low to xhigh (the probe of 2026-10-30)', () => {
+  const iceman = model('iceman-contributor-free');
+  assert.deepEqual([iceman.hiddenModel, iceman.requiresStealthTermsAcknowledgement, iceman.tier, iceman.opencodeFormat], [true, true, ['free'], 'chat']);
+  assert.equal(modelSupportsVision(iceman), false);
+  assert.equal(modelSupportsToolCalling(iceman), true);
+  assert.deepEqual(OPENCODE_REASONING_CONFIGS['opencode-go/iceman-contributor-free'].options, ['low', 'medium', 'high', 'xhigh']);
+  const pdf = { inlineData: { mimeType: 'application/pdf', data: 'JVBERi0x', name: 'a.pdf' } };
+  assert.equal(modelSupportsUploadedFile(iceman, pdf), false);
 });

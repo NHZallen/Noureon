@@ -1,6 +1,14 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "19.0.2": [
+    "<strong>Noureon 19.0.2 Release Notes</strong>",
+    "This version adds NVIDIA's Mistral Large 4, adjusts the models of OpenCode Go, and puts a link for getting the key above every key in the settings.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>NVIDIA Mistral Large 4:</strong> NVIDIA's Mistral Large 4 is added (free). It reads pictures and calls tools; it does not read video, its thinking cannot be turned off, and the thinking has three levels: low, medium and high.</li><li><strong>OpenCode Go models:</strong> LongCat 2.5 Preview and Gemini 4 Argon Contributor, which are gone, are removed; Gemini 4 Argon takes its new id, and a conversation that had chosen an old model is moved to it and to LongCat 2.0. The hidden free test model Iceman Contributor Free is added; it handles text only, and the first time it is chosen a window says what a test model means.</li><li><strong>Links for the keys:</strong> in Settings → Model management and in the search settings, the key fields of Gemini, OpenRouter, NVIDIA, OpenCode Go, OpenAI and Tavily each have the address where the key is obtained above them.</li><li><strong>Sources panel:</strong> the tabs All, Web, Memory and Chats are fixed above the list, which scrolls under them, so the tabs can no longer be pulled with it, and the fade starts under the tabs; the tabs and the rows are smaller too.</li></ul>",
+    "<strong>Compatibility</strong>",
+    "This update needs no data migration."
+  ],
   "19.0.1": [
     "<strong>Noureon 19.0.1 Release Notes</strong>",
     "This version corrects the times in the step list, and makes the sources in the side panel the same as the ones under a reply.",

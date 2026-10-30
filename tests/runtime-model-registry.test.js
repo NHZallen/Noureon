@@ -8,6 +8,7 @@ import {
   COUNCIL_MIN_MODELS,
   MODELS,
   MODEL_CATALOG,
+  MODEL_REASONING_CONFIGS,
   TOOL_CALLING_MODEL_IDS,
   createModelRegistry,
   getCanonicalModelId,
@@ -256,6 +257,18 @@ test('model registry lists the Nemotron 3.5 Super VL and NVIDIA Step 5 Preview m
     assert.equal(modelSupportsUploadedFile(model, { type: 'image/png' }), true);
     assert.equal(modelSupportsUploadedFile(model, { type: 'video/mp4' }), id !== 'nvidia/stepfun-ai/step-5-preview', `${id}: only Step 5 Preview refuses a video`);
   }
+  // Mistral Large 4 on NVIDIA (the probe of 2026-10-30): pictures and tools, no video, free, and its thinking has three levels and cannot be turned off.
+  const mistral = find('nvidia/mistralai/mistral-large-4-1t-a52b');
+  assert.ok(mistral);
+  assert.equal(mistral.provider, 'nvidia');
+  assert.equal(mistral.apiId, 'mistralai/mistral-large-4-1t-a52b');
+  assert.deepEqual(getModelTiers(mistral), ['free']);
+  assert.equal(modelSupportsVision(mistral), true);
+  assert.equal(modelSupportsToolCalling(mistral), true);
+  assert.equal(modelSupportsUploadedFile(mistral, { type: 'image/png' }), true);
+  assert.equal(modelSupportsUploadedFile(mistral, { type: 'video/mp4' }), false);
+  assert.deepEqual(MODEL_REASONING_CONFIGS[mistral.id].options, ['low', 'medium', 'high']);
+  assert.equal(MODEL_REASONING_CONFIGS[mistral.id].providerParameter, 'nvidiaReasoningEffort');
   // The probe of 2026-10-16 on the other NVIDIA models: tools work on three, a video is refused (400) by DeepSeek V4.1 Flash and GLM-5.3 Flash, GLM-5.3 sees no pictures.
   for (const id of ['nvidia/deepseek-ai/deepseek-v4.1-flash', 'nvidia/z-ai/glm-5.3-flash', 'nvidia/z-ai/glm-5.3']) assert.equal(modelSupportsToolCalling(find(id)), true, `${id} calls tools`);
   for (const id of ['nvidia/deepseek-ai/deepseek-v4.1-flash', 'nvidia/z-ai/glm-5.3-flash']) {

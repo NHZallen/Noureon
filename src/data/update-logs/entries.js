@@ -2,6 +2,18 @@
 // content 為 zh-TW 的 HTML 字串（JSON 轉義、雙引號），目前不隨介面語言切換。
 export const updateLogEntries = [
   {
+    version: "19.0.2",
+    date: "2026-10-30",
+    content: [
+      "<strong>Noureon 19.0.2 發布說明</strong>",
+      "本版本新增 NVIDIA 的 Mistral Large 4，調整 OpenCode Go 的模型名單，並在設定裡為每個金鑰附上申請連結。",
+      "<strong>主要變更</strong>",
+      "<ul><li><strong>NVIDIA Mistral Large 4：</strong>新增 NVIDIA 的 Mistral Large 4（免費）。可以讀圖片、呼叫工具；不能讀影片，也不能關閉思考，思考分低、中、高三級。</li><li><strong>OpenCode Go 的模型：</strong>移除已下架的 LongCat 2.5 Preview 與 Gemini 4 Argon Contributor；Gemini 4 Argon 改用新的代號，原本選了舊模型的對話會自動換成它與 LongCat 2.0。新增隱藏的免費測試模型 Iceman Contributor Free，只能處理文字，第一次選用時會先說明測試模型的意義。</li><li><strong>金鑰申請連結：</strong>「設定 → 模型管理」與搜尋設定裡，Gemini、OpenRouter、NVIDIA、OpenCode Go、OpenAI 與 Tavily 的金鑰欄位上方都附上申請金鑰的網址。</li><li><strong>來源面板：</strong>「全部、網頁、記憶、對話」分頁固定在列表上方，列表在它下面捲動，分頁不會再被拉動，淡出效果從分頁下方開始；分頁與列的尺寸也縮小。</li></ul>",
+      "<strong>相容性</strong>",
+      "本次更新不需要資料遷移。"
+    ]
+  },
+  {
     version: "19.0.1",
     date: "2026-10-30",
     content: [

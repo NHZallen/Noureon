@@ -57,7 +57,7 @@ export function openReplySources({ window, document, message, language, i18n = {
   }
   const options = replySourcePanelOptions({ window, document, language, i18n });
   if (window.innerWidth >= 768) document.dispatchEvent(new window.CustomEvent('noureon:open-sources', { detail: { sources: groups.web, groups, panel: options } }));
-  else openSourceSheet({ document, sources: groups.web, all: true, language, title: sandboxText(language, 'sourcesTab'), renderContent: (list) => list.append(createSourcePanel(document, groups, options)) });
+  else openSourceSheet({ document, sources: groups.web, all: true, language, title: sandboxText(language, 'sourcesTab'), renderContent: (list) => { list.classList.add('is-panel'); list.append(createSourcePanel(document, groups, options)); } });
 }
 
 /**

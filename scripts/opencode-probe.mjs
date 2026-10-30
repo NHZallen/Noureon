@@ -10,11 +10,15 @@
 //   OPENCODE_GO_KEY=... node scripts/opencode-probe.mjs --only kimi-k3    one or more models (comma between)
 //   OPENCODE_GO_KEY=... node scripts/opencode-probe.mjs --model beam-free,minimax-m3.1-flash-free:messages
 //                                                                          any id, in the list of the register or not (`id` alone: the form of its API is guessed and the others are tried
-//                                                                          when it is refused; `id:chat`, `id:responses` or `id:messages` says it)
-//   node scripts/opencode-probe.mjs --new                                  the ids the service lists that this probe does not know yet (public, no key, costs nothing)
+//                                                                          when it is refused; `id:chat`, `id:responses`, `id:messages` or `id:gemini` says it)
+//   node scripts/opencode-probe.mjs --new                                  the ids the service lists that this probe does not know yet, and the ones of the probe (the app's list) that the service no longer lists
+//                                                                          (public, no key, costs nothing). A hidden test model (Beam, Iceman) is not in the list: whether it is still there is `--only beam-free --tests basic`
+//   Models to add (2026-10-30): the hidden Iceman Contributor Free and Gemini 4 Argon (the page now says it without "Contributor"; Google's form):
+//     OPENCODE_GO_KEY=... node scripts/opencode-probe.mjs --model iceman-contributor-free --tests basic,stream,effort,thinking,tools,toolloop,vision,document,office,maxout --max-tokens 1500
+//     OPENCODE_GO_KEY=... node scripts/opencode-probe.mjs --model gemini-4-argon:gemini --tests basic,stream,effort,thinking,tools,toolloop,vision,document,auth --max-tokens 1500
 //   OPENCODE_GO_KEY=... node scripts/opencode-probe.mjs --tests basic,stream
 //   node scripts/opencode-probe.mjs --list                                the list of models of the service (public, no key, costs nothing)
-//   (Gemini 4 Argon Contributor, Google's own form: `--only gemini-4-argon-contributor --tests basic,stream,effort,thinking,tools,toolloop,vision,document,auth --max-tokens 1500`)
+//   (Gemini 4 Argon, Google's own form: `--only gemini-4-argon --tests basic,stream,effort,thinking,tools,toolloop,vision,document,auth --max-tokens 1500`)
 //   Word and PowerPoint sent as they are, to the models that read a PDF: `--tests office --only <models>` (the answer holds MANGO when the file was read; "text" shows it)
 //   OPENCODE_GO_KEY=... node scripts/opencode-probe.mjs --tests shown                    which models give the text of their thinking (stream): by default, only when asked for it
 //                                                                          (a summary: `thinking.display`, `reasoning.summary`, `includeThoughts`), or not at all; a table at the end
@@ -34,9 +38,9 @@ import { OPENCODE_REASONING_CONFIGS, opencodeThinkingFields } from '../src/app/r
 export const BASE = 'https://opencode.ai/inference/go/v1';
 export const TESTS = Object.freeze(['basic', 'stream', 'tools', 'toolloop', 'params', 'effort', 'vision', 'document', 'office', 'converted', 'pdfimage', 'thinking', 'shown', 'maxout', 'auth', 'errors']);
 
-// The models of the app: the ones on the page of limits of OpenCode (the owner's screenshots of 2026-10-23, 29 models), each with the form of its API and whether it is free.
+// The models of the app: the ones on the page of limits of OpenCode (the owner's screenshots of 2026-10-30, 30 models), each with the form of its API and whether it is free.
 // Another id is tried with `--model <id>` (`--new` lists what the service has that is not here).
-const chat = ['glm-5.3-flash', 'glm-5.3', 'glm-5.2', 'kimi-k3.1-pro', 'kimi-k3', 'kimi-k2.7-code', 'longcat-2.0', 'deepseek-v4.1-flash', 'deepseek-v4-pro', 'mimo-v2.6-pro', 'mimo-v2.6-flash', 'mimo-v2.5-pro', 'mimo-v2.5', 'hy4-preview', 'hy3', 'longcat-2.5-preview-free', 'step-5-preview', 'beam-free'];
+const chat = ['glm-5.3-flash', 'glm-5.3', 'glm-5.2', 'kimi-k3.1-pro', 'kimi-k3', 'kimi-k2.7-code', 'longcat-2.0', 'deepseek-v4.1-flash', 'deepseek-v4-pro', 'mimo-v2.6-pro', 'mimo-v2.6-flash', 'mimo-v2.5-pro', 'mimo-v2.5', 'hy4-preview', 'hy3', 'step-5-preview', 'beam-free', 'iceman-contributor-free'];
 const responses = ['grok-4.7', 'gpt-6-luna', 'gpt-5.6-luna', 'muse-spark-1.3-contributor', 'muse-spark-1.2-contributor'];
 // `minimax-m3.1-flash` and `step-5-preview` are the ids of the models that were free before (`-free` ids that the service now refuses: 410 "deprecated", "Model is unavailable");
 // they are guessed from the page of limits, where they have a price and no "Free": the probe says whether the service knows them.
@@ -46,7 +50,7 @@ export const MODELS = Object.freeze([
   ...responses.map((id) => ({ id, family: 'responses', free: false })),
   ...messages.map((id) => ({ id, family: 'messages', free: false, ...(id === 'minimax-m3.1-flash' ? { guess: true } : {}) })),
   // Google's own form (2026-10-14, told by the owner): only `models/<id>:generateContent` answers; the stream, the depths of thinking, documents and the key are what the probe finds out.
-  { id: 'gemini-4-argon-contributor', family: 'gemini', free: false }
+  { id: 'gemini-4-argon', family: 'gemini', free: false }
 ]);
 
 const PATH = { chat: '/chat/completions', responses: '/responses', messages: '/messages' };
@@ -602,7 +606,7 @@ const argOf = (args, name) => {
 export const modelsNamed = (text) => String(text || '').split(',').map((entry) => entry.trim()).filter(Boolean).map((entry) => {
   const [id, form] = entry.split(':');
   const known = MODELS.find((model) => model.id === id);
-  if (PATH[form]) return { id, family: form, free: /free/.test(id), ...(known?.free ? { free: true } : {}) };
+  if (PATH[form] || form === 'gemini') return { id, family: form, free: /free/.test(id), ...(known?.free ? { free: true } : {}) };
   return known || { id, family: 'chat', free: /free/.test(id), guess: true };
 });
 
@@ -611,7 +615,7 @@ export async function newModels({ fetchImpl = fetch, base = BASE } = {}) {
   const listed = await listModels({ fetchImpl, base });
   const ids = (Array.isArray(listed.body?.data) ? listed.body.data : Array.isArray(listed.body) ? listed.body : []).map((entry) => String(entry?.id ?? entry)).filter(Boolean);
   const known = new Set(MODELS.map((model) => model.id));
-  return { status: listed.status, listed: ids.length, new: ids.filter((id) => !known.has(id)) };
+  return { status: listed.status, listed: ids.length, new: ids.filter((id) => !known.has(id)), gone: MODELS.map((model) => model.id).filter((id) => ids.length && !ids.includes(id)) };
 }
 
 export async function main(args = process.argv.slice(2), env = process.env, out = console, fetchImpl = fetch) {
@@ -628,7 +632,7 @@ export async function main(args = process.argv.slice(2), env = process.env, out 
   if (args.includes('--new')) {
     try {
       const found = await newModels({ fetchImpl, base });
-      out.log(found.listed ? `${found.listed} models listed by the service; not in the probe yet: ${found.new.length ? found.new.join(', ') : '(none)'}` : `The service gave no list (status ${found.status}).`);
+      out.log(found.listed ? `${found.listed} models listed by the service; not in the probe yet: ${found.new.length ? found.new.join(', ') : '(none)'}; in the probe but no longer listed: ${found.gone.length ? found.gone.join(', ') : '(none)'}` : `The service gave no list (status ${found.status}).`);
       return found.listed ? 0 : 1;
     } catch (error) {
       out.error(`The list could not be read: ${plain(error?.message || error)}`);
