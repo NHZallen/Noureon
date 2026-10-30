@@ -1,17 +1,17 @@
-// The terminal glyph of the CLI tools (the store's entry, the "@" menu, the chip of a tool): a rounded screen with a prompt, one line.
+// The icons of the extensions (Lucide, ISC licence): the terminal of the CLI tools (the store's entry, the "@" menu, the chip of a tool), the plug of the connectors and the wrench of the skills.
 
 import { OFFICIAL_SKILL_ICONS, SKILL_ICON_PATHS } from '../../../data/skill-icons.js';
 
-export const terminalIcon = (size = 20, className = '') => `<svg class="${className}" viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="18" height="15" rx="3.2"/><path d="m7.5 9.5 3 2.5-3 2.5"/><path d="M13 14.5h3.5"/></svg>`;
+export const terminalIcon = (size = 20, className = '') => `<svg class="${className}" viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d='M12 19h8' /><path d='m4 17 6-6-6-6' /></svg>`;
 
 /** The four squares of the Extensions page (the entry of the left menu, the page's title). */
 export const extensionsIcon = (size = 20, className = '') => `<svg class="${className}" viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.8"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.8"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.8"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.8"/></svg>`;
 
 /** The plug of the connectors. */
-export const plugIcon = (size = 20, className = '') => `<svg class="${className}" viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21.5V17M9 8V2.5M15 8V2.5M18.5 8v4.5a4.5 4.5 0 0 1-4.5 4.5h-4a4.5 4.5 0 0 1-4.5-4.5V8z"/></svg>`;
+export const plugIcon = (size = 20, className = '') => `<svg class="${className}" viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d='M12 22v-5' /><path d='M15 8V2' /><path d='M17 8a1 1 0 0 1 1 1v4a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1z' /><path d='M9 8V2' /></svg>`;
 
-/** The star of the skills. */
-export const skillIcon = (size = 20, className = '') => `<svg class="${className}" viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3.2 2.5 5.3 5.8.8-4.2 4 1 5.7L12 16.2 6.9 19l1-5.7-4.2-4 5.8-.8z"/></svg>`;
+/** The wrench of the skills (a skill with no title at all). */
+export const skillIcon = (size = 20, className = '') => `<svg class="${className}" viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d='M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z' /></svg>`;
 
 const escapeLetter = (value = '') => String(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[char]));
 
