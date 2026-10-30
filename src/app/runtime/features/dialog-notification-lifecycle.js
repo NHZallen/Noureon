@@ -64,7 +64,7 @@ export function createDialogNotificationLifecycle({
 
   const showCustomDialog = (options) => {
     return new Promise((resolve) => {
-      const { title, message, messageParts = null, input = null, checkbox = null, buttons, dialogClass = '' } = options;
+      const { title, message, messageParts = null, input = null, checkbox = null, checklist = null, preformatted = false, buttons, dialogClass = '' } = options;
       const dialogBox = elements.customDialogModal.querySelector('.bg-\\[var\\(--modal-bg\\)\\]');
       if (dialogClass) {
         dialogBox.classList.add(dialogClass);
@@ -89,6 +89,8 @@ export function createDialogNotificationLifecycle({
       } else {
         elements.customDialogMessage.textContent = message || '';
       }
+      // A message of several lines (a list of what happened) keeps its line breaks.
+      elements.customDialogMessage.style.whiteSpace = preformatted ? 'pre-wrap' : '';
       // An optional tick box under the message ("don't ask again"); its state goes to the button's `value`.
       let checkboxInput = null;
       if (checkbox) {
@@ -99,6 +101,19 @@ export function createDialogNotificationLifecycle({
         checkboxInput.className = 'h-4 w-4 cursor-pointer';
         label.append(checkboxInput, document.createTextNode(checkbox.label));
         elements.customDialogMessage.appendChild(label);
+      }
+      // An optional list of tick boxes ([{ id, label, checked }]): the ids that are ticked go to the button's `value` as its third argument.
+      const checklistInputs = [];
+      for (const item of Array.isArray(checklist) ? checklist : []) {
+        const label = document.createElement('label');
+        label.className = 'mt-3 flex cursor-pointer select-none items-center gap-2 text-sm';
+        const box = document.createElement('input');
+        box.type = 'checkbox';
+        box.className = 'h-4 w-4 cursor-pointer';
+        box.checked = item.checked !== false;
+        label.append(box, document.createTextNode(item.label));
+        elements.customDialogMessage.appendChild(label);
+        checklistInputs.push({ id: item.id, box });
       }
       if (input) {
         elements.customDialogInput.type = input.type || 'text';
@@ -119,7 +134,7 @@ export function createDialogNotificationLifecycle({
             dialogBox.classList.remove(dialogClass);
           }
           const inputValue = input ? elements.customDialogInput.value : null;
-          resolve(btnInfo.value(inputValue, Boolean(checkboxInput?.checked)));
+          resolve(btnInfo.value(inputValue, Boolean(checkboxInput?.checked), checklistInputs.filter((entry) => entry.box.checked).map((entry) => entry.id)));
         };
         elements.customDialogButtons.appendChild(button);
       });
@@ -129,13 +144,16 @@ export function createDialogNotificationLifecycle({
   };
 
   // With `remember` (the label of a tick box) it answers `{ accepted, remember }` instead of a plain true or false.
-  const showCustomConfirm = (message, title = null, { remember = null } = {}) => showCustomDialog({
+  // With `checklist` ([{ id, label, checked }]) it answers `{ accepted, selected: [ids] }`; with `okOnly` it has no Cancel (a message to read); `preformatted` keeps the line breaks.
+  const showCustomConfirm = (message, title = null, { remember = null, checklist = null, preformatted = false, okOnly = false } = {}) => showCustomDialog({
     title: title || getText('pleaseConfirm', '請確認'),
     message,
+    preformatted,
     ...(remember ? { checkbox: { label: remember } } : {}),
+    ...(checklist ? { checklist } : {}),
     buttons: [
-      { text: getText('cancel', '取消'), class: 'bg-[var(--hover-bg)] px-4 py-2 rounded-md hover:bg-[var(--active-bg)]', value: () => (remember ? { accepted: false, remember: false } : false) },
-      { text: getText('confirm', '確定'), class: 'px-4 py-2 rounded-md btn-primary', value: (_input, checked) => (remember ? { accepted: true, remember: checked } : true) }
+      ...(okOnly ? [] : [{ text: getText('cancel', '取消'), class: 'bg-[var(--hover-bg)] px-4 py-2 rounded-md hover:bg-[var(--active-bg)]', value: () => (remember || checklist ? { accepted: false, remember: false, ...(checklist ? { selected: [] } : {}) } : false) }]),
+      { text: getText('confirm', '確定'), class: 'px-4 py-2 rounded-md btn-primary', value: (_input, checked, selected) => (remember || checklist ? { accepted: true, remember: checked, ...(checklist ? { selected } : {}) } : true) }
     ]
   });
   const showCustomPrompt = (message, title = null, inputType = 'text') => showCustomDialog({ title: title || getText('dialogPromptTitle', '請輸入'), message, input: { type: inputType, placeholder: getText('dialogInputPlaceholder', '請在此輸入…') }, buttons: [{ text: getText('cancel', '取消'), class: 'bg-[var(--hover-bg)] px-4 py-2 rounded-md hover:bg-[var(--active-bg)]', value: () => null }, { text: getText('confirm', '確定'), class: 'px-4 py-2 rounded-md btn-primary', value: (val) => val }] });

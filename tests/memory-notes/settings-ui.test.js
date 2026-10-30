@@ -313,21 +313,11 @@ test('the texts of the search by meaning exist in all five languages and say wha
   }
 });
 
-test('the notes can be imported from a file of the export, and a file that is not one is refused', async () => {
-  const { buildNotesExport } = await import('../../src/app/runtime/memory-notes/notes-transfer.js');
-  const { memory, root, notices, window } = await setup({ notes: [dog] });
-  const picker = root().querySelector('input[type=file]');
-  assert.ok(picker, 'a file picker is there');
-  const fileOf = (content) => ({ text: async () => content });
-  const file = JSON.stringify(buildNotesExport([tea], () => '2026-10-30T00:00:00.000Z'));
-  Object.defineProperty(picker, 'files', { value: [fileOf(file)], configurable: true });
-  picker.dispatchEvent(new window.Event('change'));
-  await tick();
-  await tick();
-  assert.ok(memory.getStore().getNotes().some((note) => note.text === 'The user prefers jasmine tea'));
-  assert.match(notices.at(-1).message, /imported: 1 added/);
-  Object.defineProperty(picker, 'files', { value: [fileOf('not json')], configurable: true });
-  picker.dispatchEvent(new window.Event('change'));
-  await tick();
-  assert.equal(notices.at(-1).kind, 'error');
+test('the notes page has no import or export of its own: they are in the data settings, and the page says so', async () => {
+  const { root } = await setup({ notes: [dog] });
+  assert.equal(root().querySelector('input[type=file]'), null, 'no file picker here');
+  const labels = [...root().querySelectorAll('button')].map((button) => button.textContent);
+  assert.equal(labels.includes('Import'), false);
+  assert.equal(labels.includes('Export'), false);
+  assert.match(root().textContent, /Export and import are in Settings → Data/);
 });

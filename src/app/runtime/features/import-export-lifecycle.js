@@ -378,15 +378,51 @@ export function createImportExportLifecycle({
   }
 
   // The notes of a backup go into the memory, checked as every write is; a backup without them, or a memory that is not loaded, is left as it is.
-  async function importMemoryNotes(data) {
-    if (!data?.memoryNotes) return;
+  async function importMemoryNotes(data, { selected = true } = {}) {
+    if (!data?.memoryNotes || !selected) return null;
     try {
       const result = await (await import('../memory-store/notes-transfer.js')).importNotes({ data: data.memoryNotes });
       if (result.ok) showNotification(text('mnImportDone', 'Memory notes imported: {added} added, {skipped} left out.').replace('{added}', result.added).replace('{skipped}', Object.values(result.skipped).reduce((sum, count) => sum + count, 0)), 'success');
       else showNotification(text('mnImportBad', 'The memory notes in this file could not be imported.'), 'warning');
+      return result;
     } catch (error) {
       logger.warn?.('The memory notes of the backup could not be imported.', error);
+      return null;
     }
+  }
+
+  // What the file holds, said before anything is replaced; with notes in it, the person may leave them out. Resolves { accepted, notes }.
+  async function confirmImportOf(data, message, title) {
+    const held = data?.memoryNotes;
+    if (!Array.isArray(held?.notes)) return { accepted: Boolean(await showCustomConfirm(message, title)), notes: false };
+    const parts = [
+      Array.isArray(data.conversations) && data.conversations.length ? text('importHasChats', '對話 {n}').replace('{n}', data.conversations.length) : '',
+      Array.isArray(data.folders) && data.folders.length ? text('importHasFolders', '資料夾 {n}').replace('{n}', data.folders.length) : '',
+      Array.isArray(data.astras) && data.astras.length ? text('importHasAstras', 'Nouras {n}').replace('{n}', data.astras.length) : '',
+      data.settings ? text('importHasSettings', '設定') : ''
+    ].filter(Boolean);
+    const answer = await showCustomConfirm(
+      `${message}${parts.length ? `\n\n${text('importFileHas', '檔案內容：{parts}').replace('{parts}', parts.join('、'))}` : ''}`,
+      title,
+      { preformatted: true, checklist: [{ id: 'notes', checked: true, label: text('importMemoryChoice', '記憶筆記（{n} 條，忘記的關鍵字 {m} 個）').replace('{n}', held.notes.length).replace('{m}', Array.isArray(held.blocked) ? held.blocked.length : 0) }] }
+    );
+    // (A confirm that only answers yes or no takes the notes along.)
+    if (typeof answer === 'boolean') return { accepted: answer, notes: true };
+    return { accepted: Boolean(answer?.accepted), notes: Boolean(answer?.selected?.includes('notes')) };
+  }
+
+  // After the import: which notes came in and which were left out, and why.
+  async function showMemoryImportDetail(result) {
+    if (!result?.ok) return;
+    const lines = [text('importMemoryAdded', '新增 {n} 條').replace('{n}', result.added)];
+    for (const note of result.details?.added || []) lines.push(`・${note}`);
+    const left = Object.values(result.skipped).reduce((sum, count) => sum + count, 0);
+    if (left) {
+      lines.push('', text('importMemorySkipped', '略過 {n} 條').replace('{n}', left));
+      for (const item of result.details?.skipped || []) lines.push(`・${item.text}（${text(`importSkip_${item.reason}`, item.reason)}）`);
+    }
+    if (result.blocked) lines.push('', text('importMemoryBlocked', '另外加入 {n} 個「不要再學」的關鍵字').replace('{n}', result.blocked));
+    await showCustomConfirm(lines.join('\n'), text('importMemoryTitle', '記憶匯入結果'), { preformatted: true, okOnly: true });
   }
 
   async function performImport(data) {
@@ -401,9 +437,10 @@ export function createImportExportLifecycle({
     });
     await saveAppData();
     applySettings(data.settings);
-    await importMemoryNotes(data);
+    const memoryResult = await importMemoryNotes(data);
     await mergeApiKeys(await resolveImportedApiKeys(data));
     await saveConfig();
+    await showMemoryImportDetail(memoryResult);
   }
 
   async function handleImport() {
@@ -465,17 +502,16 @@ export function createImportExportLifecycle({
       }
 
       const backupUsername = getBackupUsername(rawData);
-      if (backupUsername && backupUsername !== getCurrentUser().username) {
-        const confirmed = await showCustomConfirm(
+      const confirmedImport = backupUsername && backupUsername !== getCurrentUser().username
+        ? await confirmImportOf(
+          rawData,
           text('importUserMismatch', '備份使用者 {backupUser} 與目前使用者 {currentUser} 不同。')
             .replace('{backupUser}', backupUsername)
             .replace('{currentUser}', getCurrentUser().username),
           text('importUserMismatchTitle', '使用者不符')
-        );
-        if (!confirmed) throw new Error(IMPORT_CANCELLED);
-      } else if (!(await showCustomConfirm(text('importOverwriteWarning', '匯入將覆蓋目前資料。'), text('importConfirmation', '確認匯入')))) {
-        throw new Error(IMPORT_CANCELLED);
-      }
+        )
+        : await confirmImportOf(rawData, text('importOverwriteWarning', '匯入將覆蓋目前資料。'), text('importConfirmation', '確認匯入'));
+      if (!confirmedImport.accepted) throw new Error(IMPORT_CANCELLED);
 
       const importedApiKeys = await resolveImportedApiKeys(rawData);
 
@@ -491,7 +527,7 @@ export function createImportExportLifecycle({
       applySettings(rawData.settings);
       await mergeApiKeys(importedApiKeys);
       await saveConfig();
-      await importMemoryNotes(rawData);
+      const memoryResult = await importMemoryNotes(rawData, { selected: confirmedImport.notes });
 
       const astrasToImport = rawData.astras || [];
       if (astrasToImport.length > 0) {
@@ -582,6 +618,7 @@ export function createImportExportLifecycle({
       const firstConversation = getConversations().find((conversation) => !conversation.archived && !conversation.deletedAt);
       if (firstConversation) loadChat(firstConversation.id);
       else startNewChat();
+      await showMemoryImportDetail(memoryResult);
     } catch (error) {
       if (error.message === IMPORT_CANCELLED) {
         showNotification(getRuntimeText(getConfig().uiLanguage, 'importCancelled'), 'info');
@@ -597,6 +634,18 @@ export function createImportExportLifecycle({
       confirmImportBtn.textContent = text('confirmAndImport', '確認並匯入');
     }
   }
+
+  // The tick box of the notes says how many there are when the export opens.
+  async function showExportMemoryCount() {
+    try {
+      const data = await (await import('../memory-store/notes-transfer.js')).exportNotes();
+      const label = elements.exportMemoryCheck?.closest?.('label')?.querySelector?.('span');
+      if (data && label) label.textContent = `${text('exportPersonalMemory', '記憶筆記')}（${data.notes.length}）`;
+    } catch {
+      // The label stays as it is.
+    }
+  }
+  elements.exportDataBtn?.addEventListener?.('click', () => { void showExportMemoryCount(); });
 
   return {
     handleExport,

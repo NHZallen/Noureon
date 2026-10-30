@@ -297,3 +297,25 @@ test('the dialog lifecycle stays free of runtime bindings and unrelated systems'
     /^import\s+[\s\S]*?from\s+['"][^'"]*(?:runtime-entry|app-bootstrap|startup-lifecycle|sidebar|settings|submit|input)[^'"]*['"]/m
   );
 });
+
+test('a confirmation can carry a list of tick boxes and answers with the ones that are ticked; with only an OK it has no Cancel and keeps its line breaks', async () => {
+  const harness = createHarness();
+  try {
+    const answer = harness.functions.showCustomConfirm('Import?', 'Import', { checklist: [{ id: 'notes', label: 'Notes', checked: true }, { id: 'settings', label: 'Settings', checked: true }] });
+    const boxes = [...harness.elements.customDialogMessage.querySelectorAll('input[type="checkbox"]')];
+    assert.equal(boxes.length, 2);
+    boxes[1].checked = false;
+    harness.elements.customDialogButtons.children[1].onclick();
+    assert.deepEqual(await answer, { accepted: true, remember: false, selected: ['notes'] });
+    const cancelled = harness.functions.showCustomConfirm('Import?', 'Import', { checklist: [{ id: 'notes', label: 'Notes' }] });
+    harness.elements.customDialogButtons.children[0].onclick();
+    assert.deepEqual(await cancelled, { accepted: false, remember: false, selected: [] });
+    const info = harness.functions.showCustomConfirm('a\nb', 'Result', { okOnly: true, preformatted: true });
+    assert.equal(harness.elements.customDialogButtons.children.length, 1, 'only an OK');
+    assert.equal(harness.elements.customDialogMessage.style.whiteSpace, 'pre-wrap');
+    harness.elements.customDialogButtons.children[0].onclick();
+    assert.equal(await info, true);
+  } finally {
+    harness.window.close();
+  }
+});

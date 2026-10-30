@@ -46,6 +46,9 @@ export function planNotesImport(notes, data, { createId, now = () => new Date().
   let next = [...notes];
   let added = 0;
   let blocked = 0;
+  // What was added and what was left out and why, for the person to read after an import (a short text for each, never more than sixty of either).
+  const details = { added: [], skipped: [] };
+  const keep = (list, entry) => { if (list.length < 60) list.push(entry); };
   // What the person deleted comes first, so that a note of the same file that it stands for is not added.
   for (const entry of (Array.isArray(data.blocked) ? data.blocked : []).slice(0, MAX_IMPORT_NOTES)) {
     const keywords = normalizeKeywords(entry?.keywords);
@@ -59,11 +62,11 @@ export function planNotesImport(notes, data, { createId, now = () => new Date().
     const text = squash(entry?.text).slice(0, LIMITS.maxText);
     if (!text) { skipped.empty += 1; continue; }
     const refusal = refusalFor(text);
-    if (refusal) { skipped[refusal] += 1; continue; }
-    if (next.filter(isActive).length >= LIMITS.maxActive) { skipped.full += 1; continue; }
-    if (next.some((note) => isActive(note) && same(note.text, text))) { skipped.duplicate += 1; continue; }
+    if (refusal) { skipped[refusal] += 1; keep(details.skipped, { text: text.slice(0, 80), reason: refusal }); continue; }
+    if (next.filter(isActive).length >= LIMITS.maxActive) { skipped.full += 1; keep(details.skipped, { text: text.slice(0, 80), reason: 'full' }); continue; }
+    if (next.some((note) => isActive(note) && same(note.text, text))) { skipped.duplicate += 1; keep(details.skipped, { text: text.slice(0, 80), reason: 'duplicate' }); continue; }
     const keywords = normalizeKeywords(Array.isArray(entry.keywords) ? entry.keywords : []);
-    if (findTombstone({ text, keywords, messageIds: [] }, next)) { skipped.forgotten += 1; continue; }
+    if (findTombstone({ text, keywords, messageIds: [] }, next)) { skipped.forgotten += 1; keep(details.skipped, { text: text.slice(0, 80), reason: 'forgotten' }); continue; }
     const at = now();
     let note = createNote({
       id: createId(),
@@ -80,6 +83,7 @@ export function planNotesImport(notes, data, { createId, now = () => new Date().
     if (entry.standing === true && canBeStanding(note) && next.filter((other) => isActive(other) && other.standing).length < LIMITS.maxStanding) note = { ...note, standing: true };
     next.push(note);
     added += 1;
+    keep(details.added, text.slice(0, 80));
   }
-  return { ok: true, notes: next, added, skipped, blocked };
+  return { ok: true, notes: next, added, skipped, blocked, details };
 }
