@@ -1,6 +1,6 @@
 // The search by meaning on this page (docs/superpowers/specs/2026-10-30-memory-redesign-design.md, §4.9, D15). It is OFF until the person turns it on and agrees: only then are the texts of
-// their past conversations sent, in groups, to the embedding model of a provider they have a key for (Gemini or OpenAI), and the vectors that come back are kept in this browser only
-// (vector-store.js). The question of a search is turned into a vector the same way; the pieces of past conversations nearest to it are put together with what the keywords found
+// their past conversations, and the pictures, videos, sounds and documents they attached, sent to Gemini Embedding 2 (straight, or through OpenRouter, with their own key), and the vectors that
+// come back are kept in this browser (vector-store.js) and, when the person also chose to sync them, in their cloud (vector-sync.js). The question of a search is turned into a vector the same way; the pieces of past conversations nearest to it are put together with what the keywords found
 // (page-history.js). Without a key, without consent, or when the provider fails, the search just uses the keywords: nothing here may break a reply. Turning it off throws the vectors away.
 
 import { fuseRanks, textHash, topByCosine } from '../memory-notes/vector-math.js';
@@ -9,7 +9,7 @@ import { createIdbBackend, createMemoryBackend, createVectorStore } from './vect
 
 export const VECTOR = Object.freeze({ minChars: 12, batchTexts: 32, batchChars: 16_000, failures: 3, minCosine: 0.5, pauseMs: 150, tokensPerChar: 0.4 });
 
-const hashed = (piece) => textHash(piece.text);
+const hashed = (piece) => piece.hash || textHash(piece.text);
 
 export function createPageVectors({ getStore, getHistory, getApiKeyForProvider = () => '', indexedDB = null, userKey = () => 'local', fetchImpl, now = () => new Date().toISOString(), wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), logger = console, options = {} }) {
   const config = { ...VECTOR, ...options };
@@ -26,8 +26,10 @@ export function createPageVectors({ getStore, getHistory, getApiKeyForProvider =
     return state;
   };
   const settings = () => getStore()?.getSettings?.()?.vector || { enabled: false, consentAt: null, provider: '' };
-  // A piece of a few words ("Sure.") says nothing a vector could find, so it is not sent.
-  const worth = () => (getHistory()?.pieces() || []).filter((piece) => piece.text.length >= config.minChars);
+  // A piece of a few words ("Sure.") says nothing a vector could find, so it is not sent. The files of the messages are pieces of their own (one request each).
+  const textPieces = () => (getHistory()?.pieces() || []).filter((piece) => piece.text.length >= config.minChars);
+  const mediaPieces = () => getHistory()?.mediaPieces?.() || [];
+  const worth = () => [...textPieces(), ...mediaPieces()];
   const hasKey = (name) => Boolean(getApiKeyForProvider(name));
   const providerNow = () => pickEmbeddingProvider({ chosen: settings().provider, hasKey });
   const enabled = () => settings().enabled === true && Boolean(providerNow());
@@ -76,7 +78,11 @@ export function createPageVectors({ getStore, getHistory, getApiKeyForProvider =
       set({ done: pieces.length - missing.length, total: pieces.length });
       const client = clientFor(provider);
       let failures = 0;
-      for (const group of groups(missing)) {
+      const stopped = (error) => {
+        failures += 1;
+        return failures >= config.failures || error?.status === 401 || error?.status === 403 ? set({ status: 'error', error: String(error?.message || error).slice(0, 160) }) : null;
+      };
+      for (const group of groups(missing.filter((piece) => !piece.media))) {
         if (stopRequested) break;
         try {
           const made = await client.embed(group.map((piece) => piece.text), { kind: 'document' });
@@ -84,11 +90,26 @@ export function createPageVectors({ getStore, getHistory, getApiKeyForProvider =
           set({ done: Math.min(state.total, state.done + group.length) });
           failures = 0;
         } catch (error) {
-          failures += 1;
-          if (failures >= config.failures || error?.status === 401 || error?.status === 403) {
-            return set({ status: 'error', error: String(error?.message || error).slice(0, 160) });
+          const end = stopped(error);
+          if (end) return end;
+        }
+        if (config.pauseMs) await wait(config.pauseMs);
+      }
+      // A file is a request of its own. One the model cannot read (too long, a kind it does not take) is marked, so that it is not tried at every build.
+      for (const piece of missing.filter((entry) => entry.media)) {
+        if (stopRequested) break;
+        try {
+          const vector = await client.embedMedia(piece.media);
+          await vectors.putMany([{ id: piece.id, hash: hashed(piece), vector }]);
+          failures = 0;
+        } catch (error) {
+          if ([400, 413, 415, 422].includes(error?.status)) await vectors.putMany([{ id: piece.id, hash: hashed(piece), vector: new Float32Array(0), failed: true }]);
+          else {
+            const end = stopped(error);
+            if (end) return end;
           }
         }
+        set({ done: Math.min(state.total, state.done + 1) });
         if (config.pauseMs) await wait(config.pauseMs);
       }
       return set({ status: 'idle', error: '' });
@@ -111,7 +132,7 @@ export function createPageVectors({ getStore, getHistory, getApiKeyForProvider =
     estimate() {
       const pieces = worth();
       const chars = pieces.reduce((sum, piece) => sum + piece.text.length, 0);
-      return { provider: providerNow(), pieces: pieces.length, chars, tokens: Math.round(chars * config.tokensPerChar) };
+      return { provider: providerNow(), pieces: pieces.length, media: pieces.filter((piece) => piece.media).length, chars, tokens: Math.round(chars * config.tokensPerChar) };
     },
     /** The person agreed: remember the time of the consent and the provider, and start building. Resolves false when there is no key. */
     async enable(chosen = '') {
@@ -156,7 +177,7 @@ export function createPageVectors({ getStore, getHistory, getApiKeyForProvider =
         const byId = new Map(worth().map((piece) => [piece.id, piece]));
         const taken = new Set();
         const found = [];
-        for (const hit of topByCosine(vector, store.entries(), { limit: limit * 4, minCosine })) {
+        for (const hit of topByCosine(vector, store.entries().filter((entry) => entry.vector.length), { limit: limit * 4, minCosine })) {
           const piece = byId.get(hit.id);
           if (!piece || piece.conversationId === excludeConversationId || taken.has(piece.conversationId)) continue;
           taken.add(piece.conversationId);

@@ -33,7 +33,7 @@ export function renderVectorCard({ vectors, el, button, text, ask, showNotificat
       const estimate = vectors.estimate();
       const agreed = await ask({
         title: text('mnVecConsentTitle'),
-        message: text('mnVecConsent', { provider: EMBEDDING_PROVIDERS[provider].label, pieces: number(estimate.pieces), chars: number(estimate.chars), tokens: number(estimate.tokens) }),
+        message: text('mnVecConsent', { provider: EMBEDDING_PROVIDERS[provider].label, pieces: number(estimate.pieces - estimate.media), media: number(estimate.media), chars: number(estimate.chars), tokens: number(estimate.tokens) }),
         confirmLabel: text('mnVecConsentOk')
       });
       if (!agreed) return;

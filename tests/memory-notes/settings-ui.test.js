@@ -247,7 +247,7 @@ test('the card of the search by meaning: needs a key, shows what will be sent be
   };
   const noKey = await setup({ makeVectors: make({}) });
   assert.match(noKey.root().textContent, /Search by meaning \(optional\)/);
-  assert.match(noKey.root().textContent, /A Gemini or OpenAI API key is needed/);
+  assert.match(noKey.root().textContent, /A Gemini or OpenRouter API key is needed/);
   assert.equal([...noKey.root().querySelectorAll('button')].some((button) => button.textContent === 'Turn on…'), false);
 
   const keyed = await setup({ makeVectors: make({ gemini: 'g-key' }) });

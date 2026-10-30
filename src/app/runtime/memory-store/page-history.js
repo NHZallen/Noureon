@@ -3,6 +3,7 @@
 
 import { summarizeFileBlocks } from '../../ui/files/file-history-compaction.js';
 import { createHistoryIndex } from '../memory-notes/history-index.js';
+import { mediaPiecesOfAll } from '../memory-notes/media-pieces.js';
 
 export function createPageHistory({ getConversations }) {
   // A file the person attached or a reply made is in the text as a block: the index sees a short summary of it, not the whole body.
@@ -25,6 +26,8 @@ export function createPageHistory({ getConversations }) {
       fresh();
       return index.pieces();
     },
+    /** The files of the conversations (pictures, videos, sounds, documents) as pieces for the vectors; the keyword index does not hold them. */
+    mediaPieces: () => mediaPiecesOfAll(getConversations()),
     /** The search by meaning, when the person turned it on (page-vectors.js); the tool then puts it together with the keywords. */
     setVectors(value) { vectors = value || null; },
     /** For the tool, async: the keyword hits, and when the search by meaning is on, the nearest in meaning, put together. Always resolves a list. */

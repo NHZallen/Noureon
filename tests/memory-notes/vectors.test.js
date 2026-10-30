@@ -70,34 +70,58 @@ test('Gemini: a group of texts is one request with the document format, a query 
   assert.deepEqual(singleCalls.map((call) => call.url.split(':').pop()), ['batchEmbedContents', 'embedContent', 'embedContent']);
 });
 
-test('OpenAI: one request with the texts and the size of the vectors, answers put back in order', async () => {
-  let seen = null;
+test('OpenRouter: the same model through its own address, the size asked for, answers put back in order, and a route that refuses the size is asked again without it', async () => {
+  const seen = [];
   const client = createEmbeddingClient({
-    provider: 'openai',
+    provider: 'openrouter',
     getApiKey: () => 'o-key',
     fetchImpl: async (url, options) => {
-      seen = { url, body: JSON.parse(options.body), auth: options.headers.Authorization };
-      return Response.json({ data: [{ index: 1, embedding: embedText('invoice') }, { index: 0, embedding: embedText('dog') }] });
+      const body = JSON.parse(options.body);
+      seen.push({ url, body, auth: options.headers.Authorization });
+      if (body.dimensions && seen.length === 1) return new Response('no dimensions here', { status: 400 });
+      return Response.json({ data: [{ index: 1, embedding: [...embedText('invoice'), 0.5] }, { index: 0, embedding: [...embedText('dog'), 0.5] }] });
     }
   });
   const [first, second] = await client.embed(['dog', 'invoice']);
-  assert.equal(seen.url, 'https://api.openai.com/v1/embeddings');
-  assert.equal(seen.auth, 'Bearer o-key');
-  assert.equal(seen.body.model, 'text-embedding-3-small');
-  assert.equal(seen.body.dimensions, DIMS);
+  assert.equal(seen[0].url, 'https://openrouter.ai/api/v1/embeddings');
+  assert.equal(seen[0].auth, 'Bearer o-key');
+  assert.equal(seen[0].body.model, 'google/gemini-embedding-2');
+  assert.equal(seen[0].body.dimensions, DIMS);
+  assert.equal(seen[1].body.dimensions, undefined, 'asked again without the size');
+  assert.equal(seen[1].body.input[0], 'title: none | text: dog');
   assert.ok(first[0] > 0.9 && second[1] > 0.9, 'index 0 is the first text');
+  assert.equal(first.length, DIMS, 'an answer longer than the size is cut');
+  assert.ok(Math.abs(dot(first, first) - 1) < 1e-5);
 });
 
-test('no key, a refusal, or a wrong count is an error; the provider is chosen by the key the person has', async () => {
+test('files: Gemini takes them inline, OpenRouter as content blocks of their kind', async () => {
+  const geminiCalls = [];
+  const gemini = createEmbeddingClient({ provider: 'gemini', getApiKey: () => 'g', fetchImpl: async (url, options) => { geminiCalls.push({ url, body: JSON.parse(options.body) }); return Response.json({ embedding: { values: embedText('dog') } }); } });
+  const vector = await gemini.embedMedia({ mimeType: 'image/png', data: 'QUJD', kind: 'image' });
+  assert.match(geminiCalls[0].url, /gemini-embedding-2:embedContent$/);
+  assert.deepEqual(geminiCalls[0].body.content.parts, [{ inline_data: { mime_type: 'image/png', data: 'QUJD' } }]);
+  assert.equal(geminiCalls[0].body.outputDimensionality, DIMS);
+  assert.ok(vector[0] > 0.9);
+  const sent = [];
+  const router = createEmbeddingClient({ provider: 'openrouter', getApiKey: () => 'o', fetchImpl: async (url, options) => { sent.push(JSON.parse(options.body).input[0].content[0]); return Response.json({ data: [{ index: 0, embedding: embedText('trip') }] }); } });
+  for (const [mimeType, kind] of [['image/jpeg', 'image'], ['video/mp4', 'video'], ['audio/mpeg', 'audio'], ['application/pdf', 'document']]) await router.embedMedia({ mimeType, data: 'QUJD', kind });
+  assert.deepEqual(sent.map((block) => block.type), ['image_url', 'video_url', 'input_audio', 'file']);
+  assert.equal(sent[0].image_url.url, 'data:image/jpeg;base64,QUJD');
+  assert.deepEqual(sent[2].input_audio, { data: 'QUJD', format: 'mpeg' });
+});
+
+test('no key, a refusal, or a wrong count is an error; the provider is chosen by the key the person has; both providers make the same kind of vectors', async () => {
   await assert.rejects(createEmbeddingClient({ provider: 'gemini', getApiKey: () => '' }).embed(['x']), /Gemini key/);
-  await assert.rejects(createEmbeddingClient({ provider: 'openai', getApiKey: () => 'k', fetchImpl: async () => new Response('no', { status: 401 }) }).embed(['x']), (error) => error.status === 401);
-  await assert.rejects(createEmbeddingClient({ provider: 'openai', getApiKey: () => 'k', fetchImpl: async () => Response.json({ data: [] }) }).embed(['x']), /one vector/);
-  assert.deepEqual(await createEmbeddingClient({ provider: 'openai', getApiKey: () => 'k' }).embed([]), []);
-  assert.throws(() => createEmbeddingClient({ provider: 'nobody' }), /no embedding provider/);
-  assert.equal(pickEmbeddingProvider({ chosen: 'openai', hasKey: (name) => name === 'openai' || name === 'gemini' }), 'openai');
-  assert.equal(pickEmbeddingProvider({ chosen: 'openai', hasKey: (name) => name === 'gemini' }), 'gemini');
+  await assert.rejects(createEmbeddingClient({ provider: 'openrouter', getApiKey: () => 'k', fetchImpl: async () => new Response('no', { status: 401 }) }).embed(['x']), (error) => error.status === 401);
+  await assert.rejects(createEmbeddingClient({ provider: 'openrouter', getApiKey: () => 'k', fetchImpl: async () => Response.json({ data: [] }) }).embed(['x']), /one vector/);
+  assert.deepEqual(await createEmbeddingClient({ provider: 'openrouter', getApiKey: () => 'k' }).embed([]), []);
+  assert.throws(() => createEmbeddingClient({ provider: 'openai' }), /no embedding provider/);
+  assert.equal(pickEmbeddingProvider({ chosen: 'openrouter', hasKey: () => true }), 'openrouter');
+  assert.equal(pickEmbeddingProvider({ chosen: 'openrouter', hasKey: (name) => name === 'gemini' }), 'gemini');
+  assert.equal(pickEmbeddingProvider({ chosen: 'openai', hasKey: (name) => name === 'openrouter' }), 'openrouter', 'a provider that is not supported (any more) is not chosen');
   assert.equal(pickEmbeddingProvider({ hasKey: () => false }), '');
-  assert.match(versionOf('gemini'), /^gemini:gemini-embedding-2:768:v1$/);
+  assert.equal(versionOf('gemini'), 'gemini-embedding-2:768:v1');
+  assert.equal(versionOf('openrouter'), versionOf('gemini'), 'one index serves both');
 });
 
 test('the store keeps vectors with the hash of their text, drops the pieces that are gone, and throws all away when the model changes', async () => {
@@ -259,4 +283,51 @@ test('turning it off deletes the vectors of this device and sends nothing more',
 test('the settings of a person who never agreed do not turn it on, whatever the provider field says', async () => {
   const { vectors } = await setup({ settings: { vector: { enabled: true, provider: 'gemini' } } });
   assert.equal(vectors.isEnabled(), false, 'enabled needs the time of the consent');
+});
+
+const { mediaPiecesOf, mediaPiecesOfAll, mediaKindOf, MAX_MEDIA_CHARS } = await import('../../src/app/runtime/memory-notes/media-pieces.js');
+const withMedia = (id, parts, extra = {}) => ({ id, lastUpdatedAt: '2026-10-02T00:00:00.000Z', messages: [{ role: 'user', parts, createdAt: '2026-10-02T00:00:00.000Z' }], ...extra });
+
+test('the files of the messages are pieces of their own, with a label, and only the ones that are here and small enough', () => {
+  assert.equal(mediaKindOf('image/png'), 'image');
+  assert.equal(mediaKindOf('Video/MP4'), 'video');
+  assert.equal(mediaKindOf('audio/mpeg'), 'audio');
+  assert.equal(mediaKindOf('application/pdf'), 'document');
+  assert.equal(mediaKindOf('application/zip'), '');
+  const conversation = withMedia('m1', [{ text: 'my receipt from the dog shop' }, { inlineData: { mimeType: 'image/png', data: 'QUJD' } }, { inlineData: { mimeType: 'application/zip', data: 'QUJD' } }, { inlineData: { mimeType: 'image/png', __astraCloudAsset: {} } }, { inlineData: { mimeType: 'video/mp4', data: 'x'.repeat(MAX_MEDIA_CHARS + 1) } }]);
+  const pieces = mediaPiecesOf(conversation);
+  assert.equal(pieces.length, 1);
+  assert.equal(pieces[0].id, 'm1:0:m1');
+  assert.match(pieces[0].text, /^\[image: image\/png\] my receipt from the dog shop/);
+  assert.equal(pieces[0].media.kind, 'image');
+  assert.equal(mediaPiecesOf(withMedia('m1', [{ inlineData: { mimeType: 'image/png', data: 'QUJE' } }]))[0].hash === pieces[0].hash, false, 'another file, another hash');
+  assert.deepEqual(mediaPiecesOfAll([conversation, { ...conversation, id: 't', isTemporary: true }, { ...conversation, id: 'd', deletedAt: 'x' }]).map((piece) => piece.conversationId), ['m1']);
+});
+
+test('the files go into the vectors one request each, with the consent that names them; one the model cannot read is marked and not tried again', async () => {
+  const media = [
+    withMedia('photo', [{ text: 'receipt photo' }, { inlineData: { mimeType: 'image/png', data: 'QUJD' } }]),
+    withMedia('long', [{ inlineData: { mimeType: 'video/mp4', data: 'VklERU8=' } }])
+  ];
+  const calls = [];
+  const fetchImpl = async (url, options) => {
+    const body = JSON.parse(options.body);
+    calls.push({ url, body });
+    if (body.content?.parts?.[0]?.inline_data?.mime_type === 'video/mp4') return new Response('too long', { status: 400 });
+    if (body.content?.parts?.[0]?.inline_data) return Response.json({ embedding: { values: embedText('invoice receipt tax') } });
+    return Response.json({ embeddings: body.requests.map((request) => ({ values: embedText(request.content.parts[0].text) })) });
+  };
+  const { vectors, store } = await setup({ conversations: [...CONVERSATIONS, ...media], fetchImpl });
+  assert.equal(vectors.estimate().media, 2);
+  await vectors.enable('gemini');
+  await vectors.sync();
+  assert.equal(vectors.getState().status, 'idle');
+  assert.equal(calls.filter((call) => call.url.endsWith(':embedContent')).length, 2, 'one request for each file');
+  const before = calls.length;
+  await vectors.sync();
+  assert.equal(calls.length, before, 'the file that failed is not tried again');
+  const found = await vectors.search('tax invoice', { limit: 5 });
+  assert.ok(found.some((hit) => hit.conversationId === 'photo' && hit.text.startsWith('[image: image/png]')), 'the picture is found by a question about what it shows');
+  assert.equal(found.some((hit) => hit.conversationId === 'long'), false);
+  assert.equal(store.getSettings().vector.enabled, true);
 });

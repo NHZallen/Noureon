@@ -89,7 +89,7 @@ export function createVectorStore({ backend }) {
         await backend.setMeta('version', wanted);
       } else {
         held.clear();
-        for (const record of await backend.readAll()) held.set(record.id, { id: record.id, hash: record.hash, vector: record.vector instanceof Float32Array ? record.vector : Float32Array.from(record.vector || []) });
+        for (const record of await backend.readAll()) held.set(record.id, { id: record.id, hash: record.hash, ...(record.failed ? { failed: true } : {}), vector: record.vector instanceof Float32Array ? record.vector : Float32Array.from(record.vector || []) });
       }
       version = wanted;
       loaded = true;
