@@ -360,3 +360,13 @@ Linear：A 在專案「記憶系統重做」，B 是獨立的單（都在 Backlo
   - **這輪沒做**：①「用過去對話建立記憶」的伺服器版——執行環境的 run 都綁在一則訊息上（寫訊息、重新連線、金鑰保管），做這個要先決定新的 run 種類（沒有訊息的背景工作）怎麼進 `run-spec`／`runs.js`，頁面版（可暫停、可接續）原樣保留；②每一輪自動帶的便條仍不用向量（0.7 秒等待的做法已核可，等伺服器版查詢穩定後再加）。
 - **E 文字**：隱私權政策與協助中心的過去對話段落五語改寫（Gemini Embedding 2、附件進向量、本機備份、獨立的雲端同步開關、伺服器讀文字與回覆結束就丟的金鑰），`PRIVACY.md` 重新產生。
 - **要 Allen 套用到 Supabase 的檔案（順序）**：`20261030010000_add_workspace_memory_records.sql`（如果還沒套）、`20261031010000_add_workspace_memory_vectors.sql`、`20261031020000_add_server_read_history.sql`；先套 staging 專案，確認 pgvector 擴充可用（`create extension vector` 在 Supabase 要啟用 Database → Extensions → vector）再套正式。
+
+### 第三輪（2026-10-30，staging 實測之後；Linear NOU-157 到 NOU-160）
+- **漏洞**：伺服器回覆的 metadata 是空的。原因：頁面存訊息時只讀自己的 trace（`memory-trace.js`），伺服器在 `kept` 裡寫的 `memoryUsed`／`memoryUpdated` 從沒被讀回，同步時又蓋掉了伺服器寫的。修法：`followServerReply` 把 `row.metadata` 的 `memoryUsed`、`memoryUpdated`、`memoryHistory` 帶回（`outcome.memory`），記進 trace，存訊息時一起存；`memoryHistory` 加進 `cloud-sync-v2-codecs.js` 的保留清單。
+- **查過的對話只存名稱與日期**（Allen 決定「不存片段」）：`memoryHistory: [{ id, title, at }]`，最多 5 個。標題在查的當下由頁面讀（`setHistoryTitle`），對話之後被刪也還有名字，顯示「原對話已刪除」。
+- **來源面板**（Allen 選方案 2 分頁籤）：`ui/citations/source-panel.js`，分頁「全部／網頁／記憶／對話」，記憶列顯示筆記與「與這題無關」（常駐的不給標，因為每次都帶），對話列顯示標題日期與「打開這個對話」；寬螢幕在右側面板，手機是底部面板（`runtime/features/reply-sources-actions.js`）。回覆底下的「來源」按鈕在只有記憶或對話時也會出現，圖示堆疊多出 brain 與 messages-square。回覆下方原本的「用了 N 條記憶」晶片和「參考了 N 個對話」那一行都併進來源，不再各自存在；「記憶已更新」晶片留著（有復原）。
+- **圖示**（Allen 定案，Lucide／Tabler／Phosphor，ISC 與 MIT）：`ui/icons/memory-icons.js`；步驟列的圖示用 CSS mask（`styles/step-icons.css`，蓋過 `ledger.css` 裡舊的技能與連接器圖示）：已回憶 Tabler book、已回顧 history、已更新 pencil、技能 wrench、連接器 plug。筆記管理頁的標籤與篩選也有圖示（常駐 pin、偏好 heart、事實 badge-check、專案 folder、人與寵物 users、日常 sun）。**沒做**：命令工具 terminal 與「Python 步驟換 code-xml」（Allen 還沒決定）。
+- **資料管理**（Allen 要求跟資料匯出匯入整合、可勾選）：匯出視窗裡「記憶筆記」勾選框會顯示條數；匯入時確認視窗先說檔案裡有什麼（對話、資料夾、Nouras、設定），筆記是一個可取消的勾選框，匯入後跳出明細（新增哪幾條、略過哪幾條與原因、加入幾個不要再學的關鍵字）。記憶管理頁自己的匯入匯出按鈕拿掉，改成一句話指向設定 → 資料管理。`showCustomConfirm` 多了 `checklist`、`okOnly`、`preformatted` 三個選項。對話與資料夾還是整批取代，沒做成可個別勾選。
+- **常駐筆記**：顯示「常駐，每次都會帶」，不再顯示「還沒用過」。
+- **隱私文字**：隱私權政策過去對話段落補一句：回覆為了來源會記下查過的對話的名稱與日期（不記內容）；`PRIVACY.md` 已重新產生。
+- **還沒驗證**：以上全是測試加手寫的畫面，沒有在 staging 用真資料看過（來源面板、匯入明細、新的步驟圖示都要 Allen 在 staging 看）。

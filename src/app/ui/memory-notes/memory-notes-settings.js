@@ -4,11 +4,13 @@
 // Everything is drawn with textContent (a note is the person's text), and colours come from the tokens in memory-notes.css.
 
 import { renderVectorCard } from './memory-vector-card.js';
+import { memoryIcon } from '../icons/memory-icons.js';
 import { addByUser, deleteByUser, describeEvent, describeTidy, editByUser, filterNotes, joinTidyEvents, setNeverByUser, setStandingByUser, summarize, undoEvent } from '../../runtime/memory-notes/manage.js';
 import { NOTE_KINDS, isActive } from '../../runtime/memory-notes/notes.js';
 
 const PAGE = 50;
 const RECENT = 3;
+const KIND_ICON = Object.freeze({ preference: 'heart', fact: 'fact', project: 'project', relationship: 'people', routine: 'daily' });
 const KIND_KEY = Object.freeze({ preference: 'mnKindPreference', fact: 'mnKindFact', project: 'mnKindProject', relationship: 'mnKindRelationship', routine: 'mnKindRoutine' });
 const ERROR_KEY = Object.freeze({ full: 'mnErrFull', duplicate: 'mnErrDuplicate', empty: 'mnErrEmpty', cannot: 'mnErrCannotPin', missing: 'mnErrMissing' });
 
@@ -278,17 +280,29 @@ export function createMemoryNotesSettings({
     return card;
   };
 
-  const chip = (label, active, onClick) => button(label, `mn-chip${active ? ' mn-chip-on' : ''}`, onClick);
+  const chip = (label, active, onClick, icon = '') => {
+    const node = button(label, `mn-chip${active ? ' mn-chip-on' : ''}`, onClick);
+    if (icon) node.prepend(memoryIcon(document, icon, { size: 14 }));
+    return node;
+  };
+  // A small label (the kind of a note, that it is standing), with its icon in front.
+  const tag = (label, className, icon) => {
+    const node = el('span', className);
+    if (icon) node.append(memoryIcon(document, icon, { size: 13 }));
+    node.append(document.createTextNode(label));
+    return node;
+  };
 
   const noteRow = (note) => {
     const row = el('div', 'mn-note');
     const body = el('div', 'mn-note-body');
     body.append(el('div', 'mn-note-text', note.text));
     const meta = el('div', 'mn-meta');
-    meta.append(el('span', 'mn-tag', text(KIND_KEY[note.kind])));
-    if (note.standing) meta.append(el('span', 'mn-tag mn-tag-strong', text('mnTagStanding')));
+    meta.append(tag(text(KIND_KEY[note.kind]), 'mn-tag', KIND_ICON[note.kind]));
+    if (note.standing) meta.append(tag(text('mnTagStanding'), 'mn-tag mn-tag-strong', 'pin'));
     if (note.surface === 'never') meta.append(el('span', 'mn-tag', text('mnTagNever')));
-    meta.append(el('span', '', note.lastUsedAt ? text('mnLastUsed', { when: relative(note.lastUsedAt) }) : text('mnNeverUsed')));
+    // A standing note comes with every reply, so "not used yet" would be wrong for it.
+    meta.append(el('span', '', note.standing ? text('mnStandingEveryTime') : note.lastUsedAt ? text('mnLastUsed', { when: relative(note.lastUsedAt) }) : text('mnNeverUsed')));
     body.append(meta);
     if (state.menu === note.id) {
       const menu = el('div', 'mn-actions');
@@ -323,8 +337,8 @@ export function createMemoryNotesSettings({
     tools.append(search, button(`＋ ${text('mnAdd')}`, 'btn-primary mn-btn', () => void actions.add()));
     const chips = el('div', 'mn-chips');
     chips.append(chip(text('mnFilterAll'), state.filter === 'active' && !state.kind, () => go({ filter: 'active', kind: '', shown: PAGE })));
-    chips.append(chip(text('mnFilterStanding'), state.filter === 'standing', () => go({ filter: 'standing', kind: '', shown: PAGE })));
-    for (const kind of NOTE_KINDS) chips.append(chip(text(KIND_KEY[kind]), state.filter === 'active' && state.kind === kind, () => go({ filter: 'active', kind, shown: PAGE })));
+    chips.append(chip(text('mnFilterStanding'), state.filter === 'standing', () => go({ filter: 'standing', kind: '', shown: PAGE }), 'pin'));
+    for (const kind of NOTE_KINDS) chips.append(chip(text(KIND_KEY[kind]), state.filter === 'active' && state.kind === kind, () => go({ filter: 'active', kind, shown: PAGE }), KIND_ICON[kind]));
     if (stats.archived) chips.append(chip(`${text('mnFilterArchived')} ${stats.archived}`, state.filter === 'archived', () => go({ filter: 'archived', kind: '', shown: PAGE })));
     const list = el('div', 'mn-list');
     renderList(live, list);

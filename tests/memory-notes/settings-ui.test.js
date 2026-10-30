@@ -321,3 +321,18 @@ test('the notes page has no import or export of its own: they are in the data se
   assert.equal(labels.includes('Export'), false);
   assert.match(root().textContent, /Export and import are in Settings → Data/);
 });
+
+test('on the manage page each kind and the standing tag have an icon, and a standing note says it comes with every reply instead of "not used yet"', async () => {
+  const standing = { ...createNote({ id: 'zh', text: 'Always answer in Traditional Chinese', kind: 'preference' }), standing: true };
+  const { window, root, click } = await setup({ notes: [dog, standing] });
+  await click('Manage notes →');
+  const rows = [...root().querySelectorAll('.mn-note')];
+  const ofText = (word) => rows.find((row) => row.textContent.includes(word));
+  assert.match(ofText('Shiba').textContent, /Not used yet/);
+  assert.match(ofText('Traditional Chinese').textContent, /Standing: brought to every reply/);
+  assert.doesNotMatch(ofText('Traditional Chinese').textContent, /Not used yet/);
+  assert.ok(ofText('Shiba').querySelector('.mn-tag .mi-svg'), 'the kind has an icon');
+  assert.equal(ofText('Traditional Chinese').querySelectorAll('.mn-tag .mi-svg').length, 2, 'the kind and the pin');
+  assert.ok(root().querySelector('.mn-chips .mn-chip .mi-svg'), 'the filters have icons too');
+  window.happyDOM.abort();
+});

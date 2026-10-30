@@ -63,3 +63,4 @@
 #settings-modal .mn-root .mn-rebuild-body .pz-sub { margin: 0; line-height: 1.6; }
 #settings-modal .mn-root .mn-rebuild-status { margin: 0; font-size: 0.875rem; }
 #settings-modal .mn-root .mn-rebuild-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+#settings-modal .mn-root .mn-tag, #settings-modal .mn-root .mn-chip { display: inline-flex; align-items: center; gap: 0.3rem; }
