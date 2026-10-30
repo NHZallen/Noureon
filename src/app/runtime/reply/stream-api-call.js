@@ -1,4 +1,5 @@
 import { formatMemoryContextForModel } from '../memory/memory-context-builder.js';
+import { recordUsed, toolsOffered } from '../memory-store/memory-trace.js';
 import { NOURAS_REQUEST_PURPOSE, resolveNourasInstructions, shouldApplyNouras } from '../nouras/nouras-policy.js';
 import { compactFileHistoryForApi } from '../../ui/files/file-history-compaction.js';
 import { compactSandboxRunsForApi } from '../../ui/sandbox/sandbox-run-block.js';
@@ -686,7 +687,7 @@ export function createStreamApiCall({
     const notesMode = config.memorySystem === 'notes';
     const canUseMemory = !(conversation?.retentionMode === 'ephemeral' && conversation?.memoryAccessEnabled === false);
     const notes = notesMode && !instructionGiven && canUseMemory && !requestOptions.skipMemoryContext && !requestOptions.skipConversationSystemContext
-      ? getNotesMemory()?.contextFor({ question: getMessageTextForGuidance(currentMessageForApi) }) || NO_NOTES
+      ? getNotesMemory()?.contextFor({ question: getMessageTextForGuidance(currentMessageForApi), canSearch: toolsOffered(conversation?.id) }) || NO_NOTES
       : NO_NOTES;
     if (!notesMode && !instructionGiven && !requestOptions.skipMemoryContext && config.memorySystemVersion === 2) {
       try {
@@ -745,7 +746,10 @@ export function createStreamApiCall({
       const currentMessageForApi = requestOptions.currentMessageForApi || { role: 'user', parts };
       const { instruction: systemInstruction, notes } = await resolveSystemInstruction({ config: getConfig(), conversation, currentMessageForApi, historyForApi, requestOptions });
       // The slip goes to the server with the request (it adds it after the message); the use of the notes is recorded once, for the reply that is really made.
-      if (requestOptions.markMemoryUsed === true && notes.noteIds.length) void getNotesMemory()?.markUsed(notes.noteIds);
+      if (requestOptions.markMemoryUsed === true && notes.noteIds.length) {
+        void getNotesMemory()?.markUsed(notes.noteIds);
+        recordUsed(conversation?.id, notes.noteIds);
+      }
       return { systemInstructionText: (systemInstruction?.parts || []).map((part) => part.text).filter(Boolean).join('\n\n'), ...(notes.slipText ? { memorySlipText: notes.slipText } : {}) };
     }
     const activeConversation = getActiveConversation();
@@ -788,6 +792,7 @@ export function createStreamApiCall({
     if (typeof slipText === 'string' && slipText) currentMessageForApi = withMemorySlip(currentMessageForApi, slipText);
     if (notes.noteIds.length && !(requestOptions.toolTurns || []).length) {
       void getNotesMemory()?.markUsed(notes.noteIds);
+      recordUsed(conversation?.id, notes.noteIds);
       if (typeof requestOptions.onNotesUsed === 'function') requestOptions.onNotesUsed({ noteIds: notes.noteIds });
     }
 

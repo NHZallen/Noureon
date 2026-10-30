@@ -4,7 +4,6 @@
 // Everything a service says (a tool's description, the result of a call) is data from a third party, never the person's instructions: it is shown to the
 // model in a block that says so and cannot be closed from inside. What each tool may do is the person's: 'deny' is never called, 'ask' waits for them.
 
-import { availableSkillsInstruction } from '../../src/data/skill-tool.js';
 import { ConnectorError } from './connections.js';
 import { McpError } from './client.js';
 import { sandboxText } from '../../src/app/runtime/sandbox/sandbox-texts.js';
@@ -172,20 +171,4 @@ export function createConnectorLoader({ connectors, callTool, ask = async () => 
   };
 }
 
-/** One loader out of several (the skills and the connectors): the loops that run a reply see one object with the shape of the loader of skills. Null ones are left out; none left gives null. */
-export function combineLoaders(...loaders) {
-  const parts = loaders.filter(Boolean);
-  if (!parts.length) return null;
-  if (parts.length === 1) return parts[0];
-  const owner = (name) => parts.find((part) => part.handles(name));
-  return {
-    get list() { return parts.flatMap((part) => part.list || []); },
-    get instruction() { return parts.map((part) => (typeof part.instruction === 'string' ? part.instruction : availableSkillsInstruction(part.list))).filter(Boolean).join('\n\n'); },
-    get used() { return parts.reduce((sum, part) => sum + (part.used || 0), 0); },
-    get tools() { return parts.flatMap((part) => part.tools); },
-    handles: (name) => parts.some((part) => part.handles(name)),
-    noteFor: (call) => owner(call.name)?.noteFor(call) ?? null,
-    stepEvent: (call, language) => owner(call.name)?.stepEvent?.(call, language) ?? null,
-    run: (call) => owner(call.name).run(call)
-  };
-}
+export { combineLoaders } from '../../src/data/combine-loaders.js';

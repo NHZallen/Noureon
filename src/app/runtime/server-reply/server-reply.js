@@ -7,6 +7,7 @@ import { pictureOffsets } from '../../../data/picture-interleave.js';
 import { serverReplyText } from './server-reply-texts.js';
 import { readRunStream } from './server-stream.js';
 import { netPolicyForRun } from '../cli/net-state.js';
+import { takeTrace } from '../memory-store/memory-trace.js';
 import { imageGenerationForReply } from '../tool-models/image-generation-request.js';
 
 export const SERVER_PROTOCOL_VERSION = 2;
@@ -235,7 +236,7 @@ export function createServerReply({
    * Hands a reply to the server. Resolves { ok: true, run } when it was accepted (the server has it now) or { ok: false, reason,
    * notify } when it was not and the reply is to be made here ('notify' is true when the person should be told).
    */
-  const begin = async (path, { conversation, modelInfo, requestParts, webSearch = 'off', advanced = false, designs = null, inputs = [], cli = [], cliChosen = [], skills = [], connectors = false, visionCheck = null, documents = null, research = null, vision = null, assistantMessageId, sequence, uiLanguage, config = {}, requestOptions = {}, getHistorySourceIds = () => [] }) => {
+  const begin = async (path, { conversation, modelInfo, requestParts, webSearch = 'off', advanced = false, designs = null, inputs = [], cli = [], cliChosen = [], skills = [], connectors = false, memory = null, visionCheck = null, documents = null, research = null, vision = null, assistantMessageId, sequence, uiLanguage, config = {}, requestOptions = {}, getHistorySourceIds = () => [] }) => {
     const providerKey = getApiKeyForProvider(modelInfo?.provider);
     if (!providerKey) return { ok: false, reason: 'no-key', notify: false };
     let search = null;
@@ -260,7 +261,9 @@ export function createServerReply({
     const history = await withCloudFiles((conversation.messages || []).slice(0, -1).map((message) => ({ role: message.role, parts: message.parts })), { pictures: Boolean(config?.toolModels?.image) });
     // A text model that may draw pictures by itself (the picture model the person chose in the settings): not for a deep research or a visual check, nor with Gemini's own search.
     const drawing = research || vision || webSearch === 'grounding' ? null : imageGenerationForReply({ config, modelInfo, getApiKeyForProvider });
-    const metadata = historySourceIds.length ? { historySourceConversationIds: historySourceIds } : null;
+    // The notes of the memory given to the model for this reply (the slip) stay with the message; what the model looks up and writes the server adds when the reply ends.
+    const memoryUsed = takeTrace(conversation.id).used;
+    const metadata = historySourceIds.length || memoryUsed.length ? { ...(historySourceIds.length ? { historySourceConversationIds: historySourceIds } : {}), ...(memoryUsed.length ? { memoryUsed } : {}) } : null;
     const spec = {
       protocol: SERVER_PROTOCOL_VERSION,
       // A deep research: its topic is what the person typed (the server plans, searches and writes from it).
@@ -301,6 +304,8 @@ export function createServerReply({
         ...(skills.length ? { skills } : {}),
         // The connectors the person logged in to may be used (the server reads which ones from the person's own connections).
         ...(connectors ? { connectors: true } : {}),
+        // The memory of notes: the server gives the model search_memory and memory_write (it reads the notes from the table, checks a write and saves it there).
+        ...(memory ? { memory } : {}),
         // The check of a presentation the reply writes (the page's setting is on and the model can see images): the server makes it too.
         ...(visionCheck ? { visionCheck } : {}),
         ...(drawing ? { imageGeneration: drawing.imageGeneration } : {})

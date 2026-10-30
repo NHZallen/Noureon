@@ -446,6 +446,20 @@ export function validateRunSpec(input) {
         if (tools.visionCheck.advanced !== undefined && typeof tools.visionCheck.advanced !== 'boolean') fail('tools.visionCheck.advanced', 'must be true or false');
       }
     }
+    // The memory of notes (docs/superpowers/specs/2026-10-30-memory-redesign-design.md, §5): the reply may look up and write notes. The server reads the notes themselves from the
+    // table of the person (so it works on what is there now); the page says whether writing is allowed, and gives the person's own messages of the conversation that a write is checked against.
+    if (tools.memory !== undefined) {
+      if (!isObject(tools.memory)) fail('tools.memory', 'must be an object');
+      else {
+        if (typeof tools.memory.canWrite !== 'boolean') fail('tools.memory.canWrite', 'must be true or false');
+        if (!Array.isArray(tools.memory.messages) || tools.memory.messages.length > LIMITS.maxMemoryMessages) fail('tools.memory.messages', `must be a list of at most ${LIMITS.maxMemoryMessages} messages`);
+        else {
+          tools.memory.messages.forEach((message, index) => {
+            if (!isObject(message) || !text(message.id, 120) || typeof message.text !== 'string' || message.text.length > LIMITS.maxMemoryMessageChars || (message.at !== undefined && !text(message.at, 40))) fail(`tools.memory.messages[${index}]`, `must have an id and a text of at most ${LIMITS.maxMemoryMessageChars} characters`);
+          });
+        }
+      }
+    }
     // The CLI tools (命令工具) the person chose with "@" for this message: ids of the store's tools. They run in the sandbox, so this is a reply
     // with Python (`advanced`).
     if (tools.cli !== undefined) {
@@ -572,6 +586,7 @@ export function validateRunSpec(input) {
         ...(tools.advanced === true && isObject(tools.net) ? { net: { mode: normalizeNetMode(tools.net.mode), rules: normalizeNetRules(tools.net.rules), ...(tools.net.enabled === false ? { enabled: false } : {}) } } : {}),
         ...(Array.isArray(tools.skills) && listedSkills(tools.skills).length ? { skills: listedSkills(tools.skills) } : {}),
         ...(tools.connectors === true ? { connectors: true } : {}),
+        ...(isObject(tools.memory) ? { memory: { canWrite: tools.memory.canWrite === true, messages: tools.memory.messages.map((message) => ({ id: message.id, text: message.text, ...(message.at ? { at: message.at } : {}) })) } } : {}),
         ...(imageGeneration ? { imageGeneration } : {}),
         ...(tools.inputs?.length ? { inputs: tools.inputs.map((file) => ({ name: file.name, mimeType: file.mimeType || '', data: file.data })) } : {})
       },

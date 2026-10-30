@@ -518,6 +518,42 @@
     {
       "path": "src/data/picture-interleave.js",
       "note": "Reviewed 2026-10-22: no browser globals (where the pictures a text model drew stand among the words of its reply)."
+    },
+    {
+      "path": "src/data/combine-loaders.js",
+      "note": "Reviewed 2026-10-30: no browser globals (one loader out of the loaders of skills, connectors, pictures and memory; moved here from server/mcp/tool-loader.js so the page can use it; docs/superpowers/specs/2026-10-30-memory-redesign-design.md)."
+    },
+    {
+      "path": "src/app/runtime/memory-notes/bm25.js",
+      "note": "Reviewed 2026-10-30: no browser globals (the search over notes; docs/superpowers/specs/2026-10-30-memory-redesign-design.md)."
+    },
+    {
+      "path": "src/app/runtime/memory-notes/inject.js",
+      "note": "Reviewed 2026-10-30: no browser globals (the first page, the slip and the search of notes; docs/superpowers/specs/2026-10-30-memory-redesign-design.md)."
+    },
+    {
+      "path": "src/app/runtime/memory-notes/lifecycle.js",
+      "note": "Reviewed 2026-10-30: no browser globals (reinforce, expire, fade of notes; docs/superpowers/specs/2026-10-30-memory-redesign-design.md)."
+    },
+    {
+      "path": "src/app/runtime/memory-notes/standing.js",
+      "note": "Reviewed 2026-10-30: no browser globals (which notes are on the first page; docs/superpowers/specs/2026-10-30-memory-redesign-design.md)."
+    },
+    {
+      "path": "src/app/runtime/memory-notes/tombstone.js",
+      "note": "Reviewed 2026-10-30: no browser globals (what the person deleted is not learned again; docs/superpowers/specs/2026-10-30-memory-redesign-design.md)."
+    },
+    {
+      "path": "src/app/runtime/memory-notes/write-check.js",
+      "note": "Reviewed 2026-10-30: no browser globals (the check every write into the memory goes through; docs/superpowers/specs/2026-10-30-memory-redesign-design.md)."
+    },
+    {
+      "path": "src/app/runtime/memory-store/memory-trace.js",
+      "note": "Reviewed 2026-10-30: no browser globals (what the memory did in the reply being made (a small registry); docs/superpowers/specs/2026-10-30-memory-redesign-design.md)."
+    },
+    {
+      "path": "src/data/memory-tool.js",
+      "note": "Reviewed 2026-10-30: no browser globals (the tools search_memory and memory_write and their loader; docs/superpowers/specs/2026-10-30-memory-redesign-design.md)."
     }
   ]
 }

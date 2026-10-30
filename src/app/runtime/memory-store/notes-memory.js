@@ -59,6 +59,8 @@ export function createNotesMemory({ getSupabase = () => null, storage = null, no
       return attaching;
     },
     isReady: () => Boolean(store?.isLoaded()),
+    /** Resolves the store once the memory has loaded (or null when it could not): a reply waits for this before it decides about the memory tools. */
+    ready: () => (attaching ? attaching.then(() => store) : Promise.resolve(store)),
     /** The last try to load the memory failed (the table is missing, the network is down): the part that shows the notes says so. */
     failed: () => failed,
     getStore: () => store,
@@ -95,9 +97,3 @@ export function createNotesMemory({ getSupabase = () => null, storage = null, no
     }
   };
 }
-
-let shared = null;
-
-/** The memory of this page: made once, by the code that starts it (see start-notes-memory.js); the request code only asks for it. */
-export const getNotesMemory = () => shared;
-export const setNotesMemory = (memory) => { shared = memory; return shared; };

@@ -3,6 +3,7 @@ import { normalizeHistorySourceConversationIds } from '../memory/history-source-
 import { isStaleChunkError, offerReloadForNewVersion, staleChunkMessage } from '../../../pwa/stale-chunk-recovery.js';
 import { placePictures } from '../../../data/picture-interleave.js';
 import { revealArrival } from '../../ui/motion/arrival-reveal.js';
+import { takeTrace } from '../memory-store/memory-trace.js';
 
 const getEmptyResponseMessage = (uiLanguage) => getRuntimeText(uiLanguage, 'emptyResponse');
 
@@ -110,6 +111,15 @@ export async function finalizeAssistantResponse({
     finalAiMessage.metadata = {
       ...(finalAiMessage.metadata || {}),
       historySourceConversationIds: normalizedHistorySourceConversationIds
+    };
+  }
+  // What the memory did for this reply (notes given to the model, changes it made): shown under the reply, kept with the message.
+  const memoryTrace = takeTrace(conversation?.id);
+  if (memoryTrace.used.length || memoryTrace.events.length) {
+    finalAiMessage.metadata = {
+      ...(finalAiMessage.metadata || {}),
+      ...(memoryTrace.used.length ? { memoryUsed: memoryTrace.used } : {}),
+      ...(memoryTrace.events.length ? { memoryUpdated: memoryTrace.events } : {})
     };
   }
   if (includeCouncilMetadata) {

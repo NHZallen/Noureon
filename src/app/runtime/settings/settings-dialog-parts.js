@@ -6,7 +6,7 @@ import { createSettingsHistoryRecallControls } from './settings-history-recall-c
 import { createSettingsMemorySummaryControls } from './settings-memory-summary-controls.js';
 import { ensureVisionCheckSettingsControl } from './settings-vision-check-section.js';
 import { createMemoryNotesSettings } from '../../ui/memory-notes/memory-notes-settings.js';
-import { getNotesMemory } from '../memory-store/notes-memory.js';
+import { getNotesMemory } from '../memory-store/memory-ref.js';
 import { getAnnouncedUser } from '../features/user-ready.js';
 
 export function createSettingsDialogParts({

@@ -11,6 +11,9 @@ import { getAvailableSkills, lookupSkill, readSkillFile, resolveInvokedSkills } 
 import { invokedSkillsInstruction, skillNamesOfParts } from '../../../data/skill-prompt.js';
 import { decisionsFor, verdictOf } from '../decisions/decision-store.js';
 import { mayNeedFileGuidance } from '../../ui/files/file-intent.js';
+import { combineLoaders } from '../../../data/combine-loaders.js';
+import { getNotesMemory } from '../memory-store/memory-ref.js';
+import { resetTrace } from '../memory-store/memory-trace.js';
 
 export const textOfParts = (parts = []) => parts.map((part) => part?.text || '').join('\n');
 
@@ -60,7 +63,15 @@ export async function prepareReply({ getConfig, supportsToolCalling, webResearch
   // The skills the model may load by itself (the ones it is told about, and not those it was just given whole): only for a model that calls tools.
   const availableSkills = canCallTools ? await getAvailableSkills(skillNamesOfParts(userParts)) : [];
   const { createSkillLoader } = availableSkills.length && !ownSearchReply ? await import('../../../data/skill-tool.js') : {};
-  const makeSkillLoader = (lookup = lookupSkill) => (createSkillLoader ? createSkillLoader({ available: availableSkills, lookup, readFile: readSkillFile }) : null);
+  // The memory of notes (when the person chose it): its two tools join the loader of skills, for a model that calls tools and a reply that may be given tools. A reply that cannot have them
+  // (a provider's own search) learns afterwards by the curator instead.
+  resetTrace(conversation?.id);
+  const memoryTools = canCallTools && !ownSearchReply && getConfig().memorySystem === 'notes'
+    ? await (await import('../memory-store/page-memory-loader.js')).createPageMemoryTools({ getConfig, getMemory: getNotesMemory, conversation }).catch(() => null)
+    : null;
+  if (memoryTools) resetTrace(conversation?.id, { toolsOffered: true });
+  const uiLanguage = getConfig().uiLanguage;
+  const makeSkillLoader = (lookup = lookupSkill) => combineLoaders(createSkillLoader ? createSkillLoader({ available: availableSkills, lookup, readFile: readSkillFile }) : null, memoryTools ? memoryTools.make(uiLanguage) : null);
   // Advanced mode is the default, so most replies are "advanced" by the setting alone. Python is only needed when the request is
   // about files or data, or the conversation already has some; any other reply is the same without it, and the server makes it.
   // The CLI tools chosen with "@" (and those the person lets the model use by itself) run in the same sandbox, so they need it whatever the
@@ -94,6 +105,7 @@ export async function prepareReply({ getConfig, supportsToolCalling, webResearch
     invokedSkills,
     skillOptions,
     availableSkills,
+    memoryTools,
     makeSkillLoader,
     readsAddresses,
     hasAddresses,

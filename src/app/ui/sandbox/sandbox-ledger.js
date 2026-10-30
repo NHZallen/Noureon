@@ -364,15 +364,15 @@ export function createSandboxLedger({ document, host, before = null, language = 
   // line said the work was over. When more work follows, the line goes back to running.
   let answered = false;
   const handle = (event) => {
-      if (answered && ['round', 'searching', 'step', 'skill', 'connector', 'image'].includes(event.type)) {
+      if (answered && ['round', 'searching', 'step', 'skill', 'connector', 'image', 'memory'].includes(event.type)) {
         answered = false;
         if (line && line.state !== 'running') {
           line.resume();
           line.node.classList.remove('is-quiet');
         }
       }
-      if (event.type === 'skill') {
-        // The model loads a skill: a row of its own, over when the next thing begins.
+      if (event.type === 'skill' || event.type === 'memory') {
+        // The model loads a skill, or looks up or writes the memory: a row of its own, over when the next thing begins.
         begin(event.label, { kind: 'skill' });
       } else if (event.type === 'connector') {
         // The model uses a connector: a row of its own (the call), and the card that asks when the person set the tool to ask.

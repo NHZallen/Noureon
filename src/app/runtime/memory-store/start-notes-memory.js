@@ -4,7 +4,8 @@
 
 import { getAnnouncedUser, USER_READY_EVENT } from '../features/user-ready.js';
 import { getSupabaseClient } from '../../auth/supabase-client.js';
-import { createNotesMemory, setNotesMemory } from './notes-memory.js';
+import { createNotesMemory } from './notes-memory.js';
+import { setNotesMemory } from './memory-ref.js';
 
 export function startNotesMemory({ document, getConfig, storage = null, logger = console }) {
   const memory = setNotesMemory(createNotesMemory({

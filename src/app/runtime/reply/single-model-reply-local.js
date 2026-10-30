@@ -113,7 +113,7 @@ export function createLocalReply({ streamApiCall, buildSingleModelTranslatedRequ
         onSources: reply.addSearchSources,
         skills: makeSkillLoader(),
         onEvent: (event) => {
-          if (event.type === 'searching' || event.type === 'skill' || event.type === 'connector') {
+          if (event.type === 'searching' || event.type === 'skill' || event.type === 'connector' || event.type === 'memory') {
             begin();
             view.workResumed();
           }

@@ -47,6 +47,8 @@ export function createRunManager({
   skills = null,
   // The services a person has logged in to (server/mcp/connections.js), or null: then no connector is offered to a reply.
   connectors = null,
+  // The person's memory of notes (server/memory-records.js), or null: then a reply is given no memory tools.
+  memory = null,
   // Where the pictures an image run makes are kept (server/file-store.js), or null: then images are not made here.
   files = null,
   // The visual check that follows a reply with a presentation (server/vision-check.js): whether the server can draw slides, and how.
@@ -246,6 +248,7 @@ export function createRunManager({
     const credentialControl = { answer: null };
     // And for the question about whether a tool of a connector may run (server/mcp/ask.js).
     const connectorControl = { answer: null };
+    const memoryOut = { used: [], events: [] };
     // And for the question a text model's picture tool asks (whether it may draw): server/image-ask.js.
     const imageControl = { answer: null };
     // How a person's request to let one model of a council leave reaches the council (it sets `exit`).
@@ -406,6 +409,8 @@ export function createRunManager({
         credentials,
         skills,
         connectors,
+        memory,
+        memoryOut,
         netControl,
         credentialControl,
         connectorControl,
@@ -446,7 +451,9 @@ export function createRunManager({
         return;
       }
       // What the person added that no boundary of the reply took: the page sends it as the next message (what the model did see is in the reply's run record).
-      await writer.finish(result.parts, 'complete', steer?.left().length ? { steersLeft: steer.left() } : null);
+      // What the memory did in this reply (the notes it looked up, the changes it made) stays with the message.
+      const kept = { ...(steer?.left().length ? { steersLeft: steer.left() } : {}), ...(memoryOut.used.length ? { memoryUsed: memoryOut.used.slice(0, 20) } : {}), ...(memoryOut.events.length ? { memoryUpdated: memoryOut.events.slice(0, 20) } : {}) };
+      await writer.finish(result.parts, 'complete', Object.keys(kept).length ? kept : null);
       finalStatus = 'complete';
       await store.finish(runId, { status: result.status === 'stopped' ? 'stopped' : 'done', usage: { toolCalls: result.toolCalls, elapsedMs: result.run?.elapsedMs, ...(result.rounds?.length ? { rounds: result.rounds } : {}) }, ...(isImage ? { clearSpec: true } : {}) });
       // A reply that wrote a presentation is looked at next, as a run of its own (recorded before the page is told this one is over).

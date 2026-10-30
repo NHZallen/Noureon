@@ -25,6 +25,7 @@ import { withSearchPacket } from './search-packet.js';
 import { withDocumentPrep } from './document-prep.js';
 import { createConnectorAsk } from './mcp/ask.js';
 import { combineLoaders, createConnectorLoader } from './mcp/tool-loader.js';
+import { createMemoryLoader } from '../src/data/memory-tool.js';
 import { placePictures } from '../src/data/picture-interleave.js';
 
 export const CHECKPOINT_VERSION = 1;
@@ -78,13 +79,15 @@ export class ReplyError extends Error {
  * and `userId`; it is made again from its start when it is taken up after a restart (the sandbox was lost with the process). When the
  * sandbox cannot be had before any answer was written and a page is watching (`watching()`), it ends with a ReplyError of code
  * `sandbox_unavailable`: the page then makes the reply itself, with its own Python.
+ * `memory` (server/memory-records.js) is the person's memory of notes: with `spec.tools.memory` the reply is given search_memory and memory_write, reading the notes from the table (so what is there now
+ * counts) and writing what the check of writes accepts straight into it. `memoryOut` is told, as the reply goes, which notes it looked up ({ used }) and which changes it made ({ events }): the message keeps them.
  * `skills` (server/skills.js) reads the text of a skill the model loads by itself (the names it may load are in `spec.tools.skills`).
  * `connectors` (server/mcp/connections.js) gives the services the person has logged in to (the tools of them are offered when `spec.tools.connectors`), and
  * `connectorControl` is what the run manager answers the person's question about a tool with (the reply sets `answer`).
  * With CLI tools, `credentials` (server/cli-credentials.js) gives the person's secure credentials for them, and `netControl` is what the run manager
  * answers the person's questions about sites with (it is given the function that does so once the sandbox is there).
  */
-export async function executeReply({ spec, secrets, signal, steer = null, onSegment = null, resume: resumeFrom = null, userId = '', sandboxHost = null, files = null, credentials = null, skills = null, connectors = null, netControl = null, credentialControl = null, connectorControl = null, imageControl = null, credentialWaitMs = 10 * 60 * 1000, knownSources = [], onPaused = () => {}, watching = () => false, onUpdate = () => {}, onLive = () => {}, onCheckpoint = async () => {}, onProblem = () => {}, fetchImpl = fetch, now = Date.now }) {
+export async function executeReply({ spec, secrets, signal, steer = null, onSegment = null, resume: resumeFrom = null, userId = '', sandboxHost = null, files = null, credentials = null, skills = null, connectors = null, netControl = null, credentialControl = null, connectorControl = null, imageControl = null, memory = null, memoryOut = null, credentialWaitMs = 10 * 60 * 1000, knownSources = [], onPaused = () => {}, watching = () => false, onUpdate = () => {}, onLive = () => {}, onCheckpoint = async () => {}, onProblem = () => {}, fetchImpl = fetch, now = Date.now }) {
   const resume = spec.tools.advanced ? null : resumeFrom;
   const mode = spec.tools.webSearch;
   const language = spec.request.language;
@@ -220,10 +223,42 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
   // The skills the model may load by itself: not with Gemini's own search (the provider refuses its tools next to that search).
   const skillList = skills && mode !== 'grounding' ? spec.tools.skills || [] : [];
   const makeSkillsOnly = ({ lookup = (name) => skills.body(userId, name) } = {}) => (skillList.length ? createSkillLoader({ available: skillList, lookup, readFile: skills.readFile ? (name, path) => skills.readFile(userId, name, path) : null }) : null);
+  // The memory of notes: the notes are read from the table now (not from the page), and an accepted write goes straight into it. Not with Gemini's own search (it refuses the tools beside it).
+  let memoryLoader = null;
+  if (memory && spec.tools.memory && mode !== 'grounding' && userId) {
+    try {
+      const conversationId = spec.conversationId;
+      let loaded = await memory.load(userId, { conversationId });
+      if (loaded.settings.use) {
+        const used = new Set(spec.request.messageMetadata?.memoryUsed || []);
+        const events = [];
+        if (memoryOut) { memoryOut.used = [...used]; memoryOut.events = events; }
+        const appliedOps = [...loaded.cursor.appliedOps];
+        const canWrite = spec.tools.memory.canWrite === true && loaded.settings.learn && !loaded.settings.paused;
+        memoryLoader = createMemoryLoader({
+          getNotes: () => loaded.notes,
+          getContext: () => ({ conversationId, messages: spec.tools.memory.messages.map((message) => ({ id: message.id, role: 'user', text: message.text, at: message.at })), appliedOps }),
+          commit: async (result) => {
+            await memory.saveWrite(userId, { before: loaded, result, conversationId });
+            loaded = await memory.load(userId, { conversationId });
+          },
+          canWrite,
+          onUsed: ({ ids }) => { ids.forEach((id) => used.add(id)); if (memoryOut) memoryOut.used = [...used]; },
+          onWrite: ({ event }) => { if (event?.id) { events.push(event.id); if (memoryOut) memoryOut.events = events; } },
+          language,
+          createId: () => crypto.randomUUID(),
+          now: () => new Date(now()).toISOString()
+        });
+      }
+    } catch (error) {
+      memoryLoader = null;
+      onProblem('memory_unavailable', error);
+    }
+  }
   // What the reply's loops are given: the skills and the connectors as one loader (either may be missing).
-  const makeSkillLoader = (options) => combineLoaders(makeSkillsOnly(options), connectorLoader, imageLoader);
+  const makeSkillLoader = (options) => combineLoaders(makeSkillsOnly(options), connectorLoader, imageLoader, memoryLoader);
   // A skill being loaded is a row of the step list the pages show (the other steps of a reply without Python are not).
-  const skillEvents = (event) => { if (event.type === 'skill' || event.type === 'connector' || event.type === 'image') onLive({ ev: { ...event, t: Math.max(0, now() - startedAt) } }); };
+  const skillEvents = (event) => { if (event.type === 'skill' || event.type === 'connector' || event.type === 'image' || event.type === 'memory') onLive({ ev: { ...event, t: Math.max(0, now() - startedAt) } }); };
 
   // The connectors (連接器): the services the person logged in to, with the tools they let a reply use. Not with Gemini's own search either (it refuses the tools beside it).
   // The question about a tool is a card in the step list, and the time the reply waits for the answer is not the reply's (as with a tool's login).
