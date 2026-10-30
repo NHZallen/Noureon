@@ -369,7 +369,7 @@ export function createSandboxLedger({ document, host, before = null, language = 
     if (row && list.rows.includes(row)) {
       if (list.current !== row) {
         endCurrent();
-        row.resume();
+        row.resume({ own: true });
       }
       return;
     }
@@ -467,6 +467,8 @@ export function createSandboxLedger({ document, host, before = null, language = 
     /** The reply's clock was set back (time spent waiting for the person is not counted): the time shown at the end follows. */
     setStartedAt(ms) {
       if (!Number.isFinite(ms)) return;
+      // The clock moved forward: the work waited for the person, and the rows that are running did not run meanwhile (a small move is only the clocks differing).
+      if (ms - startedAt > 1000) list.shiftRunning(ms - startedAt);
       startedAt = ms;
       // The line that is running says the same time as the one at the end.
       line?.setStartedAt(ms);

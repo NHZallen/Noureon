@@ -2,6 +2,18 @@
 // content 為 zh-TW 的 HTML 字串（JSON 轉義、雙引號），目前不隨介面語言切換。
 export const updateLogEntries = [
   {
+    version: "19.0.1",
+    date: "2026-10-30",
+    content: [
+      "<strong>Noureon 19.0.1 發布說明</strong>",
+      "本版本修正步驟清單的時間，並讓右側欄的來源與回覆下方的來源一致。",
+      "<strong>主要變更</strong>",
+      "<ul><li><strong>連接器的時間：</strong>每個連接器的列只計算它自己執行的時間，不再把中間其他工作與等你回答的時間算進去，各列的時間不會再超過整個回覆的時間。</li><li><strong>右側欄的來源：</strong>從頂端按鈕打開右側欄的「來源」時，也會列出最新一則回覆用過的記憶與查過的對話，與回覆下方的「來源」按鈕打開的內容一致。</li></ul>",
+      "<strong>相容性</strong>",
+      "本次更新不需要資料遷移。"
+    ]
+  },
+  {
     version: "19.0.0",
     date: "2026-10-30",
     content: [

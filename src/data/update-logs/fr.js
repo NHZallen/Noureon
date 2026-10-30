@@ -1,6 +1,14 @@
 // The update notes in French (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "19.0.1": [
+    "<strong>Noureon 19.0.1 Notes de version</strong>",
+    "Cette version corrige les durées de la liste des étapes et aligne les sources du panneau latéral sur celles sous une réponse.",
+    "<strong>Principaux changements</strong>",
+    "<ul><li><strong>Durée des connecteurs :</strong> la ligne de chaque connecteur ne compte que le temps pendant lequel il a tourné, plus le travail intermédiaire ni l'attente de votre réponse ; les durées des lignes ne dépassent donc plus la durée de toute la réponse.</li><li><strong>Sources dans le panneau latéral :</strong> Sources, ouvert depuis le bouton du haut, liste maintenant aussi la mémoire utilisée par la dernière réponse et les conversations qu'elle a consultées, comme le bouton Sources sous une réponse.</li></ul>",
+    "<strong>Compatibilité</strong>",
+    "Cette mise à jour ne nécessite aucune migration de données."
+  ],
   "19.0.0": [
     "<strong>Noureon 19.0.0 Notes de version</strong>",
     "Cette version remplace la mémoire par une mémoire de notes, et montre, pour chaque réponse, quelle mémoire elle a utilisée et quelles conversations passées elle a consultées.",

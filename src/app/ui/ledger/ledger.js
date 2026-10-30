@@ -66,6 +66,8 @@ export function createLedger({ document, host, before = null }) {
     list.append(node);
 
     let startedAt = clock();
+    // The time of the earlier runs of a row that ran again (a connector is one row however many calls): `startedAt` is the start of the run it is in.
+    let spent = 0;
     let state = 'running';
     let finishedAt = null;
     let expandable = body;
@@ -87,7 +89,7 @@ export function createLedger({ document, host, before = null }) {
       ['running', 'done', 'failed', 'pending'].forEach((name) => {
         if (node.classList.contains(`is-${name}`) !== (name === state)) node.classList.toggle(`is-${name}`, name === state);
       });
-      setText(time, formatElapsed((finishedAt ?? Date.now()) - startedAt));
+      setText(time, formatElapsed(spent + (finishedAt ?? Date.now()) - startedAt));
       if (head.classList.contains('is-expandable') !== expandable) head.classList.toggle('is-expandable', expandable);
       const expanded = expandable ? String(open) : 'false';
       if (head.getAttribute('aria-expanded') !== expanded) head.setAttribute('aria-expanded', expanded);
@@ -168,11 +170,22 @@ export function createLedger({ document, host, before = null }) {
         startedAt = ms;
         draw();
       },
-      // The work went on after the row was called done: it runs again, its clock with it.
-      resume() {
+      // The work went on after the row was called done: it runs again, its clock with it. With `own`, the time between the runs is not the row's:
+      // it counts what it ran for, not the whole time since its first start.
+      resume({ own = false } = {}) {
         if (state === 'running') return;
+        if (own && finishedAt !== null) {
+          spent += finishedAt - startedAt;
+          startedAt = clock();
+        }
         state = 'running';
         finishedAt = null;
+        draw();
+      },
+      // Time that was spent waiting for the person while the row ran is not the row's: it began that much later.
+      shiftStart(ms) {
+        if (state !== 'running' || !(ms > 0)) return;
+        startedAt += ms;
         draw();
       },
       finish(next = 'done') {
@@ -199,6 +212,8 @@ export function createLedger({ document, host, before = null }) {
     get current() { return [...rows].reverse().find((row) => row.state === 'running') || null; },
     // Folds the rows that are done, so the newest is the one open. A row the reader opened stays open until the reader closes it, and so does `keep`.
     foldFinished(keep = null) { rows.filter((row) => row !== keep && row.state !== 'running' && !row.openedByReader).forEach((row) => row.setOpen(false)); },
+    // The work waited for the person for `ms` (the answer is in): the rows that are running did not run during it.
+    shiftRunning(ms) { rows.forEach((row) => row.shiftStart(ms)); },
     // Every row is done and the ledger stays on the page: nothing needs the clock any more.
     stopClock() {
       if (timer) window.clearInterval(timer);

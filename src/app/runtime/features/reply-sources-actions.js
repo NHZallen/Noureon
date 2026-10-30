@@ -21,6 +21,31 @@ export function sourcesOfReply(message) {
   return { web: listableSources(run?.sources), notes: store?.isLoaded?.() ? found.notes : [], conversations: found.conversations };
 }
 
+/** What the panel's rows do: mark a note as not relevant, open a conversation that is still there. */
+export function replySourcePanelOptions({ window, document, language, i18n = {} }) {
+  const store = getNotesMemory()?.getStore?.();
+  return {
+    language,
+    kindLabel: (kind) => i18n[language]?.[KIND_KEY[kind]] || '',
+    onNotRelevant: async (id) => { await store.commitNotes(store.getNotes().map((note) => (note.id === id ? markNotRelevant(note) : note))); },
+    onOpenChat: (id) => {
+      closeSourceSheet();
+      document.dispatchEvent(new window.CustomEvent('noureon:open-history-source', { detail: { id } }));
+    }
+  };
+}
+
+/** The sources of the newest reply of `conversation` that has any (pages, notes, conversations): { web, notes, conversations }, or null. The Sources tab of the side panel shows it when no reply asked for its own. */
+export function latestReplySources(conversation) {
+  const messages = conversation?.messages || [];
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    if (messages[index]?.role !== 'model') continue;
+    const groups = sourcesOfReply(messages[index]);
+    if (groups.web.length || groups.notes.length || groups.conversations.length) return groups;
+  }
+  return null;
+}
+
 export function openReplySources({ window, document, message, language, i18n = {} }) {
   const groups = sourcesOfReply(message);
   const extra = groups.notes.length > 0 || groups.conversations.length > 0;
@@ -30,16 +55,7 @@ export function openReplySources({ window, document, message, language, i18n = {
     else openSourceSheet({ document, sources: groups.web, all: true, language });
     return;
   }
-  const store = getNotesMemory()?.getStore?.();
-  const options = {
-    language,
-    kindLabel: (kind) => i18n[language]?.[KIND_KEY[kind]] || '',
-    onNotRelevant: async (id) => { await store.commitNotes(store.getNotes().map((note) => (note.id === id ? markNotRelevant(note) : note))); },
-    onOpenChat: (id) => {
-      closeSourceSheet();
-      document.dispatchEvent(new window.CustomEvent('noureon:open-history-source', { detail: { id } }));
-    }
-  };
+  const options = replySourcePanelOptions({ window, document, language, i18n });
   if (window.innerWidth >= 768) document.dispatchEvent(new window.CustomEvent('noureon:open-sources', { detail: { sources: groups.web, groups, panel: options } }));
   else openSourceSheet({ document, sources: groups.web, all: true, language, title: sandboxText(language, 'sourcesTab'), renderContent: (list) => list.append(createSourcePanel(document, groups, options)) });
 }

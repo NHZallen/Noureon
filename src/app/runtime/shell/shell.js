@@ -376,7 +376,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             getNamingText: () => getText('naming', 'AI is naming...'),
             requestAnimationFrame,
             setTimeout,
-            setupMessageIntersectionObserver: (...args) => setupMessageIntersectionObserver(...args)
+            setupMessageIntersectionObserver: (...args) => setupMessageIntersectionObserver(...args), i18n
         });
         const {
             setupHistorySidebarInteractions,

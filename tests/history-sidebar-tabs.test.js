@@ -194,3 +194,24 @@ test('an open panel follows the chat: another chat, a new reply', () => {
   harness.settle();
   harness.window.close();
 });
+
+test('the Sources tab, opened with the button of the top bar, shows the memory and the conversations of the newest reply with the pages', async () => {
+  const { setNotesMemory, setPageHistory } = await import('../src/app/runtime/memory-store/memory-ref.js');
+  const note = { id: 'n1', text: 'Lives in Banqiao', status: 'active', kind: 'fact', surface: 'normal', keywords: [], observedAt: '2026-10-01T00:00:00.000Z', createdAt: '2026-10-01T00:00:00.000Z', updatedAt: '2026-10-01T00:00:00.000Z', lastUsedAt: null, recallCount: 0, version: 1 };
+  setNotesMemory({ getStore: () => ({ isLoaded: () => true, getNotes: () => [note], commitNotes: async () => 1 }) });
+  setPageHistory({ conversations: () => [{ id: 'c1', title: 'Scooter commute', lastUpdatedAt: '2026-10-21T00:00:00.000Z' }] });
+  const message = { ...reply('Rain tomorrow [1].'), metadata: { memoryUsed: ['n1'], memoryHistory: [{ id: 'c1', title: 'Scooter commute', at: '2026-10-21T00:00:00.000Z' }] } };
+  const { window, document, elements, helpers, settle } = createHarness({ messages: [message] });
+  try {
+    helpers.toggleHistorySidebar(true, { tab: 'sources' });
+    settle();
+    const tabs = [...document.querySelectorAll('.source-panel-tab')].map((tab) => tab.textContent);
+    assert.deepEqual(tabs, ['All4', 'Web2', 'Memory1', 'Chats1']);
+    assert.match(elements.historySidebar.querySelector('#history-sources-list').textContent, /Lives in Banqiao/);
+    assert.match(elements.historySidebar.querySelector('#history-sources-list').textContent, /Scooter commute/);
+  } finally {
+    setNotesMemory(null);
+    setPageHistory(null);
+    window.happyDOM.abort();
+  }
+});

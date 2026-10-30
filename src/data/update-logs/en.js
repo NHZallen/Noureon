@@ -1,6 +1,14 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "19.0.1": [
+    "<strong>Noureon 19.0.1 Release Notes</strong>",
+    "This version corrects the times in the step list, and makes the sources in the side panel the same as the ones under a reply.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Time of connectors:</strong> the row of each connector counts only the time it was running, no longer the other work in between or the time spent waiting for your answer, so the times of the rows no longer add up to more than the whole reply.</li><li><strong>Sources in the side panel:</strong> Sources, opened from the button at the top, now also lists the memory the newest reply used and the conversations it looked at, the same as the Sources button under a reply.</li></ul>",
+    "<strong>Compatibility</strong>",
+    "This update needs no data migration."
+  ],
   "19.0.0": [
     "<strong>Noureon 19.0.0 Release Notes</strong>",
     "This version replaces the memory with a memory of notes, and shows, for every reply, which memory it used and which past conversations it looked at.",
