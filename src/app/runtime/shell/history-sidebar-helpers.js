@@ -3,6 +3,7 @@ import { liftSandboxRunBlock } from '../../ui/sandbox/sandbox-run-block.js';
 import { listableSources, stripCitationMarkers } from '../../ui/citations/citation-model.js';
 import { fillSourceList } from '../../ui/citations/source-list.js';
 import { createSourcePanel } from '../../ui/citations/source-panel.js';
+import { latestReplySources, replySourcePanelOptions } from '../features/reply-sources-actions.js';
 import { plainMarkdown } from '../../ui/citations/plain-text.js';
 import { trackPointedRow } from '../../ui/scroll/pointed-row.js';
 
@@ -43,7 +44,8 @@ export function createHistorySidebarHelpers({
   getNamingText,
   requestAnimationFrame,
   setTimeout,
-  setupMessageIntersectionObserver
+  setupMessageIntersectionObserver,
+  i18n = {}
 }) {
   const win = document.defaultView;
   // Wide enough, the panel takes its place beside the chat (and the chat gives way); narrower, it lies over it.
@@ -66,10 +68,14 @@ export function createHistorySidebarHelpers({
     highlight = pinned?.highlight ?? null;
     sources = pinned?.sources ?? null;
     // A reply that drew on the memory or on past conversations opens its sources as one panel with tabs.
-    const extra = pinned?.groups && ((pinned.groups.notes?.length || 0) + (pinned.groups.conversations?.length || 0) > 0) ? pinned : null;
+    // Opened without a reply asking for its own, the tab shows the newest reply that has sources, the memory and the conversations among them.
+    const latest = pinned ? null : latestReplySources(getActiveConversation());
+    const extra = pinned?.groups && ((pinned.groups.notes?.length || 0) + (pinned.groups.conversations?.length || 0) > 0)
+      ? pinned
+      : latest && latest.notes.length + latest.conversations.length > 0 ? { groups: latest, panel: replySourcePanelOptions({ window: win, document, language: language(), i18n }) } : null;
     const timelineList = historySidebar.querySelector('#history-sidebar-list');
     const sourcesList = historySidebar.querySelector('#history-sources-list');
-    const shown = sources ? listableSources(sources) : latestSources(getActiveConversation());
+    const shown = sources ? listableSources(sources) : latest ? latest.web : [];
     const shownCount = extra ? shown.length + extra.groups.notes.length + extra.groups.conversations.length : shown.length;
     historySidebar.querySelectorAll('[data-history-tab]').forEach((button) => {
       button.setAttribute('aria-selected', String(button.dataset.historyTab === activeTab));
