@@ -93,7 +93,7 @@ test('a model that searches by itself: its calls are answered, pages are numbere
 test('a model that searches by itself shows its search and the pages it opened to the pages watching, as the steps of the list', async () => {
   const live = [];
   let round = 0;
-  await executeReply({
+  const result = await executeReply({
     spec: specFor({ tools: { webSearch: 'research', searchProvider: 'tavily', advanced: false } }),
     secrets,
     onLive: (event) => live.push(event),
@@ -109,6 +109,8 @@ test('a model that searches by itself shows its search and the pages it opened t
   assert.match(search.label, /weather today/);
   assert.ok(Number.isFinite(search.t), 'it says when it happened, so every page draws the same times');
   assert.ok(steps.some((step) => step.type === 'sources' && step.sources.length === 1), 'and so are the pages it found');
+  const { run } = liftSandboxRunBlock(result.parts[0].text);
+  assert.deepEqual(run.web, [{ kind: 'search', target: 'weather today', ns: [1] }], 'the saved reply keeps the search as a row of its own, with the page it gave back');
 });
 
 test('a reply taken up after a restart carries on from its checkpoint, with the pages numbered as before', async () => {

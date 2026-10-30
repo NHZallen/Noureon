@@ -54,6 +54,8 @@
 .sources-button-icons { display: inline-flex; align-items: center; }
 .sources-button-icon { width: 1.15rem; height: 1.15rem; box-shadow: 0 0 0 2px var(--chat-bg, #ffffff); background: var(--chat-bg, var(--modal-bg)); }
 .sources-button-icon + .sources-button-icon { margin-left: -0.4rem; }
+/* A round icon of notes or chats is drawn thin: the one after it covers less of it, so it still reads. */
+.sources-button-icon.is-kind + .sources-button-icon { margin-left: -0.2rem; }
 .message-footer-left { display: flex; align-items: center; gap: 0.25rem; min-width: 0; }
 
 /* A row of the sources list (the sheet and the panel): the site, the page's title, its date, the start of its text. */
@@ -259,5 +261,3 @@ main.flex-1 > header { z-index: 11; }
 .mi-svg { fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
 .mi-svg.is-fill { fill: currentColor; stroke: none; }
 .sources-button-icon.is-kind { display: inline-grid; place-items: center; background: var(--hover-bg); color: var(--text-primary); border-radius: 9999px; }
-/* The round icons of notes and chats sit apart from their neighbours (overlapped, the thin lines of the two icons ran into each other). */
-.sources-button-icon + .sources-button-icon.is-kind, .sources-button-icon.is-kind + .sources-button-icon { margin-left: 0.2rem; }

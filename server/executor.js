@@ -9,7 +9,7 @@ import { createWebResearchTools } from '../src/app/runtime/features/web-research
 import { NOURAS_REQUEST_PURPOSE } from '../src/app/runtime/nouras/nouras-policy.js';
 import { insertGroundingMarkers } from '../src/app/ui/citations/citation-model.js';
 import { addNumberedSources } from '../src/app/ui/citations/source-numbering.js';
-import { RUN_STATUS, formatSandboxRunBlock, noteToolEnd } from '../src/app/ui/sandbox/sandbox-run-block.js';
+import { RUN_STATUS, formatSandboxRunBlock, noteToolEnd, noteWebStep } from '../src/app/ui/sandbox/sandbox-run-block.js';
 import { briefingPart, runSearchBriefing } from '../src/app/runtime/sandbox/search-briefing.js';
 import { CLI_PLATFORM, cliInstallCommand, cliPipCommands, getCliTool, isCliReady } from '../src/data/cli-catalog.js';
 import { effectiveNetPolicy } from '../src/data/cli-net.js';
@@ -108,6 +108,8 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
   const usedConnectors = new Map();
   // The skills loaded and the memory lookups and writes of the reply (each skill once): the saved reply shows a row for each, as the live step list did.
   const usedTools = [];
+  // The searches and pages the model opened by itself, one row each (what the step list showed).
+  const usedWeb = [];
   const record = (status) => ({
     status,
     steps: [],
@@ -117,6 +119,7 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
     ...(sources.length && sourceBase ? { sourcesBefore: Math.min(sourceBase, sources.length) } : {}),
     ...(usedConnectors.size ? { connectors: [...usedConnectors.values()] } : {}),
     ...(usedTools.length ? { tools: usedTools.slice(0, 20) } : {}),
+    ...(usedWeb.length ? { web: usedWeb } : {}),
     ...(pictureSteps().length ? { pictures: pictureSteps() } : {}),
     ...(thought.text ? { thought: thought.text, thoughtKind: thought.kind, ...(thought.first && thought.last > thought.first ? { thoughtMs: thought.last - thought.first } : {}) } : {})
   });
@@ -168,6 +171,7 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
       trimStart = true;
       usedConnectors.clear();
       usedTools.length = 0;
+      usedWeb.length = 0;
       drawnParts.length = 0;
       drawnAt.length = 0;
       pictureBase = imageLoader?.record?.length || 0;
@@ -322,6 +326,7 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
     if (event.type === 'skill' && event.name && !usedTools.some((tool) => tool.kind === 'skill' && tool.name === event.name)) usedTools.push({ kind: 'skill', name: String(event.name).slice(0, 60) });
     if (event.type === 'memory' && event.key) usedTools.push({ kind: 'memory', key: event.key });
     else noteToolEnd(usedTools, event);
+    noteWebStep(usedWeb, event);
     // Every step of the loops goes to the pages watching (the search, the pages it opened, the answer beginning) as well as the skills and the memory: they draw the same step list
     // as a reply made on the page, and a page that joins late is given the steps so far (runs.js keeps them).
     if (typeof event?.type === 'string') onLive({ ev: { ...event, t: Math.max(0, now() - startedAt) } });
@@ -700,6 +705,7 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
     if (sources.length) run.sources = sources;
     if (usedConnectors.size) run.connectors = [...usedConnectors.values()];
     if (usedTools.length || run.tools?.length) run.tools = [...(run.tools || []), ...usedTools].slice(0, 20);
+    if (usedWeb.length && !run.web?.length) run.web = usedWeb;
     if (pictureSteps().length) run.pictures = pictureSteps();
     // Python's steps are the whole reply's: what an earlier message of it already shows is not shown again.
     if (stepBase > 0) run.steps = run.steps.slice(stepBase);

@@ -312,9 +312,11 @@ export function createSandboxLedger({ document, host, before = null, language = 
 
   // A web search that runs before the model: a row in progress, which becomes the finished, folded row that opens
   // to the pages it found (or goes, if it found none).
-  const startSearch = ({ label }) => {
-    const row = begin(label, { body: true, kind: 'search' });
+  const startSearch = ({ label, doneLabel }) => {
+    const row = begin(label, { body: !doneLabel, kind: 'search' });
     row.searching = true;
+    // A search or a page the model asked for by itself stays as a row of its own, with the pages it gave back (searchOnce below); the ones before the model do not.
+    if (doneLabel) row.callLabel = doneLabel;
   };
   // The sites a reply looked at are one row however many searches and pages that took: the row of the first grows, and the
   // rows of the calls after it are only there while they run.
@@ -322,6 +324,20 @@ export function createSandboxLedger({ document, host, before = null, language = 
   let webSources = [];
   const addSources = ({ sources }) => {
     const searching = list.current?.searching ? list.current : null;
+    if (searching?.callLabel) {
+      // The call's own row: its words in the past, and the pages it gave back to open (a call that found none says so by having nothing to open).
+      const found = mergeSources(sources || []);
+      searching.setLabel(searching.callLabel);
+      searching.searching = false;
+      if (found.length) {
+        searching.body.append(createSourceChips(document, found));
+        putFirstSiteIcon(document, searching.node, found);
+        searching.enableBody(false);
+      }
+      searching.finish('done');
+      webSources = mergeSources(webSources, sources || []);
+      return;
+    }
     const all = mergeSources(webSources, sources || []);
     if (!all.length) {
       searching?.discard();

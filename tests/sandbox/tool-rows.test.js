@@ -3,7 +3,7 @@ import test from 'node:test';
 
 import { Window } from 'happy-dom';
 
-import { formatSandboxRunBlock, normalizeTools, liftSandboxRunBlock, noteToolEnd, toolOfEvent } from '../../src/app/ui/sandbox/sandbox-run-block.js';
+import { formatSandboxRunBlock, normalizeTools, liftSandboxRunBlock, noteToolEnd, noteWebStep, normalizeWebSteps, toolOfEvent } from '../../src/app/ui/sandbox/sandbox-run-block.js';
 import { createSandboxLedger } from '../../src/app/ui/sandbox/sandbox-ledger.js';
 import { createSandboxRunElement } from '../../src/app/ui/sandbox/sandbox-run-view.js';
 import { SANDBOX_TEXT_LANGUAGES, loaderEndEvent, memoryDoneLabel, sandboxText } from '../../src/app/runtime/sandbox/sandbox-texts.js';
@@ -149,5 +149,51 @@ test('a memory step keeps which notes and which conversations it gave back (ids 
     setNotesMemory(null);
     setPageHistory(null);
     window.happyDOM.abort();
+  }
+});
+
+test('each search and each page the model opened stays as a row, live and in the saved reply, with the pages it gave back', () => {
+  const pages = (...numbers) => numbers.map((n) => ({ n, url: `https://site${n}.example/p`, title: `Page ${n}` }));
+  const events = [
+    { type: 'searching', kind: 'search', target: 'strawberry cake recipe', label: 'Searching: strawberry cake recipe', doneLabel: 'Searched: strawberry cake recipe' },
+    { type: 'sources', sources: pages(1, 2) },
+    { type: 'searching', kind: 'page', target: 'icook.tw', label: 'Reading page: icook.tw', doneLabel: 'Read page: icook.tw' },
+    { type: 'sources', sources: pages(3) },
+    { type: 'searching', kind: 'search', target: 'sponge cake temperature', label: 'x', doneLabel: 'Searched: sponge cake temperature' },
+    { type: 'sources', sources: [] },
+    { type: 'searching', label: 'Searching…' },
+    { type: 'sources', sources: pages(9) }
+  ];
+
+  const window = new Window();
+  const { document } = window;
+  const message = document.createElement('div');
+  document.body.append(message);
+  const list = createSandboxLedger({ document, host: message, language: 'en' });
+  for (const event of events) list.event(event);
+  const rows = [...message.querySelectorAll('.ledger-row[data-kind="search"]')];
+  assert.deepEqual(rows.slice(0, 3).map((row) => row.querySelector('.ledger-label').textContent), ['Searched: strawberry cake recipe', 'Read page: icook.tw', 'Searched: sponge cake temperature'], 'none of them went away when the next began');
+  assert.equal(rows[0].querySelectorAll('.run-source-chip').length, 2, 'the pages it gave back are in it');
+  assert.equal(rows[2].querySelector('summary, .ledger-row-head').classList.contains('is-expandable'), false, 'a call that gave back nothing has nothing to open');
+  assert.equal(rows[0].classList.contains('is-running'), false);
+  window.happyDOM.abort();
+
+  const web = [];
+  for (const event of events) noteWebStep(web, event);
+  assert.deepEqual(web.map(({ pending, ...step }) => step), [{ kind: 'search', target: 'strawberry cake recipe', ns: [1, 2] }, { kind: 'page', target: 'icook.tw', ns: [3] }, { kind: 'search', target: 'sponge cake temperature' }]);
+  assert.deepEqual(normalizeWebSteps([{ kind: 'x', target: 'a' }, { kind: 'search', target: '' }, { kind: 'search', target: ' q ', ns: [2, 'x', -1, 5] }]), [{ kind: 'search', target: 'q', ns: [2, 5] }]);
+
+  const run = { status: 'done', steps: [], elapsedMs: 9000, sources: [...pages(1, 2, 3)], web };
+  const saved = liftSandboxRunBlock(formatSandboxRunBlock(run)).run;
+  assert.equal(saved.web.length, 3);
+  for (const language of SANDBOX_TEXT_LANGUAGES) {
+    const view = new Window();
+    const element = createSandboxRunElement(view.document, saved, { language });
+    const labels = [...element.querySelectorAll('.ledger-label')].map((node) => node.textContent);
+    assert.ok(labels.some((label) => label.includes('strawberry cake recipe')), language);
+    assert.ok(labels.some((label) => label.includes('icook.tw')), language);
+    assert.ok(labels.every((label) => label && !label.includes('{')), language);
+    assert.equal(element.querySelectorAll('.run-source-chip').length >= 3, true, language);
+    view.happyDOM.abort();
   }
 });

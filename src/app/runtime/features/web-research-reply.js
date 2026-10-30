@@ -217,7 +217,7 @@ export function createResearchCalls({
     const query = typeof call.args?.query === 'string' ? call.args.query.trim() : '';
     if (!query) return 'The call had no "query" argument.';
     const topic = call.args?.topic === 'news' ? 'news' : 'general';
-    onEvent({ type: 'searching', kind: 'search', label: sandboxText(language, 'webSearchingFor', { query: cut(query, 80) }) });
+    onEvent({ type: 'searching', kind: 'search', target: cut(query, 80), label: sandboxText(language, 'webSearchingFor', { query: cut(query, 80) }), doneLabel: sandboxText(language, 'webSearched', { query: cut(query, 80) }) });
     const { key, promise } = searchOnce(query, topic);
     try {
       const data = await promise;
@@ -238,7 +238,7 @@ export function createResearchCalls({
 
   const load = async (url) => {
     if (shown.has(url) && settled.has(url)) return settled.get(url);
-    onEvent({ type: 'searching', kind: 'page', label: sandboxText(language, 'webOpeningPage', { host: hostOf(url) }) });
+    onEvent({ type: 'searching', kind: 'page', target: hostOf(url), label: sandboxText(language, 'webOpeningPage', { host: hostOf(url) }), doneLabel: sandboxText(language, 'webOpened', { host: hostOf(url) }) });
     try {
       const outcome = await pageOnce(url);
       shown.add(url);

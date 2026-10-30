@@ -121,6 +121,35 @@ export function normalizeTools(tools) {
 /** The row a step event of a tool leaves in the saved reply ({ kind, name | key }), or null (the event is not one of a skill or the memory). */
 export const toolOfEvent = (event) => (event?.type === 'skill' && event.name ? { kind: 'skill', name: event.name } : event?.type === 'memory' && event.key ? { kind: 'memory', key: event.key } : null);
 
+// Each search and each page a model opened by itself is a row of the step list that stays: its words (the query, the site) and the numbers of the pages it gave back.
+const MAX_WEB_STEPS = 40;
+export function normalizeWebSteps(steps) {
+  const out = [];
+  for (const step of Array.isArray(steps) ? steps : []) {
+    if (step?.kind !== 'search' && step?.kind !== 'page') continue;
+    const target = String(step.target ?? '').replace(/\s+/g, ' ').trim().slice(0, 120);
+    if (!target) continue;
+    const ns = (Array.isArray(step.ns) ? step.ns : []).filter((n) => Number.isInteger(n) && n > 0 && n < 1000).slice(0, 12);
+    out.push({ kind: step.kind, target, ...(ns.length ? { ns } : {}) });
+    if (out.length >= MAX_WEB_STEPS) break;
+  }
+  return out;
+}
+
+/** The events of the loops that search and open pages, put on the list that is kept with the reply: a `searching` begins a step, the `sources` that follow say which pages it gave back. */
+export function noteWebStep(list, event) {
+  if (!Array.isArray(list)) return;
+  if (event?.type === 'searching' && (event.kind === 'search' || event.kind === 'page') && event.doneLabel && event.target) {
+    list.push({ kind: event.kind, target: String(event.target), pending: true });
+  } else if (event?.type === 'sources') {
+    const open = list.findLast((step) => step.pending);
+    if (!open) return;
+    delete open.pending;
+    const ns = (Array.isArray(event.sources) ? event.sources : []).map((source) => source?.n).filter((n) => Number.isInteger(n));
+    if (ns.length) open.ns = ns;
+  }
+}
+
 /** The answer of a memory search ends its row (`tool-end` with the count of notes or past conversations that came back): the last memory row without a count gets it. */
 export function noteToolEnd(tools, event) {
   if (event?.type !== 'tool-end' || !Number.isInteger(event.count) || !Array.isArray(tools)) return;
@@ -173,6 +202,7 @@ export function normalizeSandboxRun(run = {}) {
     ...(normalizeSources(run.sources).length && Number.isInteger(run.sourcesBefore) && run.sourcesBefore > 0 ? { sourcesBefore: Math.min(run.sourcesBefore, 1000) } : {}),
     ...(normalizeConnectors(run.connectors).length ? { connectors: normalizeConnectors(run.connectors) } : {}),
     ...(normalizeTools(run.tools).length ? { tools: normalizeTools(run.tools) } : {}),
+    ...(normalizeWebSteps(run.web).length ? { web: normalizeWebSteps(run.web) } : {}),
     // A message of a reply that was cut where the person added a message: its process line is drawn even when it has nothing but the time.
     ...(run.segment ? { segment: true } : {}),
     // The pictures a text model looked at, asked about and drew (data/picture-steps.js).

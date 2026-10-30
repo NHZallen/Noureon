@@ -4,7 +4,7 @@
 
 import { insertGroundingMarkers } from '../../ui/citations/citation-model.js';
 import { getRuntimeText } from '../i18n/runtime-texts.js';
-import { formatSandboxRunBlock, normalizeTools } from '../../ui/sandbox/sandbox-run-block.js';
+import { formatSandboxRunBlock, normalizeTools, normalizeWebSteps } from '../../ui/sandbox/sandbox-run-block.js';
 
 /**
  * The run record of the reply as it ends (called whether it ended well or not). `thought` is the live view's; `aborted`: the person
@@ -14,6 +14,8 @@ export function recordReplyRun({ reply, thought, answered, advanced, serverRun, 
   if (reply.searchSources.length) reply.sandboxRun = { status: 'done', steps: [], elapsedMs, ...(reply.sandboxRun || {}), sources: reply.searchSources };
   // The skills the model loaded and the memory it looked up or wrote (the server's reply keeps its own in its run record).
   if (reply.usedTools?.length && !serverRun) reply.sandboxRun = { status: 'done', steps: [], elapsedMs, ...(reply.sandboxRun || {}), tools: normalizeTools(reply.usedTools) };
+  // The searches and pages the model opened by itself, one row each (the server's reply keeps its own in its run record).
+  if (reply.webSteps?.length && !serverRun) reply.sandboxRun = { status: 'done', steps: [], elapsedMs, ...(reply.sandboxRun || {}), web: normalizeWebSteps(reply.webSteps) };
   // (For a reply the server made, the time it thought is the server's, kept in its run record.)
   if (thought.text && !advanced && !serverRun) {
     reply.sandboxRun = { status: 'done', steps: [], ...(reply.sandboxRun || {}), thought: thought.text, thoughtKind: thought.kind, thoughtMs: thought.endedAt - thought.startedAt, ...(aborted && !answered ? { thoughtInterrupted: true } : {}) };

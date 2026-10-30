@@ -5,7 +5,7 @@
 
 import { MAX_RUNS_PER_REPLY, MAX_RUNS_WITH_CLI, RUN_COMMAND_TOOL, RUN_PYTHON_TOOL, RUN_PYTHON_TOOL_SERVER, RUN_PYTHON_TOOL_SERVER_NET, REQUEST_CREDENTIALS_TOOL, getCliGuidance, getSandboxGuidance } from './sandbox-guidance.js';
 import { loaderEndEvent, loaderStepEvent, sandboxText } from './sandbox-texts.js';
-import { RUN_STATUS, applyToolEnd, toolOfEvent } from '../../ui/sandbox/sandbox-run-block.js';
+import { RUN_STATUS, applyToolEnd, noteWebStep, toolOfEvent } from '../../ui/sandbox/sandbox-run-block.js';
 import { partialJsonString } from '../features/tool-call-formats.js';
 import { RESEARCH_TOOLS, createResearchCalls, researchGuidance } from '../features/web-research-reply.js';
 import { loaderInstruction } from '../../../data/skill-tool.js';
@@ -270,7 +270,7 @@ export async function runSandboxReply({
 
   const guidance = [getSandboxGuidance({ inputFiles, designs, host, network: host === 'server' && network }), useCli ? getCliGuidance(cliTools.map((tool) => ({ ...tool, file: tool.program?.file || tool.pip?.command || tool.image?.command })), { canAsk: typeof askCredentials === 'function' }) : '', researchTools ? researchGuidance() : '', skillLoader ? loaderInstruction(skillLoader) : ''].filter(Boolean).join('\n\n');
   const research = researchTools
-    ? createResearchCalls({ ...researchTools, language, signal, onEvent })
+    ? createResearchCalls({ ...researchTools, language, signal, onEvent: (event) => { noteWebStep((run.web ||= []), event); onEvent(event); } })
     : null;
 
   for (;;) {

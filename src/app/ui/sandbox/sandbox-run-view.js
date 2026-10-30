@@ -57,7 +57,15 @@ function thoughtRow(document, thought, language, { interrupted = false, label } 
 const ownSources = (run) => (run.sources || []).slice(run.sourcesBefore || 0);
 
 // "Searched 2 sites": the sites the reply looked at, found by a search or read in full, as one row of chips.
-function sourcesRows(document, sources, language) {
+function sourcesRows(document, sources, language, web = []) {
+  // The model's own searches and pages are a row each (what the live step list showed), with the pages each gave back; the others are one row.
+  if (web.length) {
+    const byNumber = new Map(sources.filter((source) => Number.isInteger(source.n)).map((source) => [source.n, source]));
+    return web.map((step) => {
+      const found = mergeSources((step.ns || []).map((n) => byNumber.get(n)).filter(Boolean));
+      return renderRow(document, { kind: 'search', label: sandboxText(language, step.kind === 'page' ? 'webOpened' : 'webSearched', { query: step.target, host: step.target }), body: found.length ? [createSourceChips(document, found)] : [], ...(found.length ? { sources: found } : {}) });
+    });
+  }
   const all = mergeSources(sources);
   return all.length ? [renderRow(document, { kind: 'search', label: sourcesRowLabel(language, all), body: [createSourceChips(document, all)], sources: all })] : [];
 }
@@ -167,7 +175,7 @@ function councilRunElement(document, container, run, language) {
   const timeline = element(document, 'div', 'council-tl-saved');
   timeline.innerHTML = councilTimelineHTML({ ...run.council, stage: 'completed' }, { language });
   list.append(timeline);
-  if (ownSources(run).length) list.append(...sourcesRows(document, ownSources(run), language));
+  if (ownSources(run).length) list.append(...sourcesRows(document, ownSources(run), language, run.web));
   list.append(...connectorRows(document, run, language));
   run.steps.forEach((step, index) => {
     if (step.thought) list.append(thoughtRow(document, step.thought, language));
@@ -211,7 +219,7 @@ export function createSandboxRunElement(document, run, { language = 'zh-TW' } = 
     const details = element(document, 'details', 'sandbox-run-details');
     const summary = element(document, 'summary', 'sandbox-run-summary', summaryText(run, language));
     const list = element(document, 'div', 'sandbox-run-steps');
-    list.append(...sourcesRows(document, ownSources(run), language), ...connectorRows(document, run, language), ...pictureRows(document, run, language));
+    list.append(...sourcesRows(document, ownSources(run), language, run.web), ...connectorRows(document, run, language), ...pictureRows(document, run, language));
     if (run.thought) list.append(thoughtRow(document, run.thought, language, { interrupted: run.thoughtInterrupted, label: thinkingLabel(run, language) }));
     details.append(summary, list);
     animateDetails(details);
@@ -220,7 +228,7 @@ export function createSandboxRunElement(document, run, { language = 'zh-TW' } = 
   }
   if (!run.steps.length) {
     // A reply without Python: the pages it searched, and how the model thought before it answered.
-    if (ownSources(run).length) container.append(...sourcesRows(document, ownSources(run), language));
+    if (ownSources(run).length) container.append(...sourcesRows(document, ownSources(run), language, run.web));
     container.append(...connectorRows(document, run, language), ...pictureRows(document, run, language));
     if (run.thought) container.append(renderReplyThinking(document, run, language));
     // Nothing else to say above the answer: only where it was made.
@@ -230,7 +238,7 @@ export function createSandboxRunElement(document, run, { language = 'zh-TW' } = 
   const details = element(document, 'details', 'sandbox-run-details');
   const summary = element(document, 'summary', 'sandbox-run-summary', summaryText(run, language));
   const list = element(document, 'div', 'sandbox-run-steps');
-  if (ownSources(run).length) list.append(...sourcesRows(document, ownSources(run), language));
+  if (ownSources(run).length) list.append(...sourcesRows(document, ownSources(run), language, run.web));
   list.append(...connectorRows(document, run, language), ...pictureRows(document, run, language));
   run.steps.forEach((step, index) => {
     if (step.thought) list.append(thoughtRow(document, step.thought, language));

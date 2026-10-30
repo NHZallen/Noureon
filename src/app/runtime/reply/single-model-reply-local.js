@@ -2,7 +2,7 @@
 // words (Standard), with the model searching by itself or loading skills when it can.
 
 import { sandboxText } from '../sandbox/sandbox-texts.js';
-import { noteToolEnd, toolOfEvent } from '../../ui/sandbox/sandbox-run-block.js';
+import { noteToolEnd, noteWebStep, toolOfEvent } from '../../ui/sandbox/sandbox-run-block.js';
 import { lookupSkill, openSkillFiles } from '../skill/skill-bridge.js';
 import { collectSandboxInputs, createSandboxFileParts, sandboxDocumentBlocks, sandboxDocumentNames, withoutDuplicatedFileBlocks, withoutEmptyDocumentBlocks } from '../../ui/sandbox/sandbox-files.js';
 
@@ -106,6 +106,7 @@ export function createLocalReply({ streamApiCall, buildSingleModelTranslatedRequ
     const tool = toolOfEvent(event);
     if (tool) (reply.usedTools ||= []).push(tool);
     else noteToolEnd(reply.usedTools, event);
+    noteWebStep((reply.webSteps ||= []), event);
   };
 
   const runStandard = async (onChunk) => {
