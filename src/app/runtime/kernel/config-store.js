@@ -22,6 +22,8 @@ export function createRuntimeConfigStore({ defaultModelId } = {}) {
     lastUsedModel: null,
     acknowledgedStealthModelTerms: [],
     memorySystemVersion: 2,
+    // Which memory the model is given: 'classic' (the old summary) or 'notes' (the notes of memory-store/; docs/superpowers/specs/2026-10-30-memory-redesign-design.md).
+    memorySystem: 'classic',
     // Memory work deliberately has its own model. It must never inherit the active chat model.
     memoryModelId: 'gemini-3.5-flash-lite',
     memoryProfileEnabled: true,

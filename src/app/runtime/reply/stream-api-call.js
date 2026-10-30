@@ -144,12 +144,18 @@ const getRuntimeLearningModeInstruction = async (config, includePrecedence) => {
   return buildLearningModeInstruction(config.uiLanguage, includePrecedence);
 };
 
+const NO_NOTES = Object.freeze({ systemText: '', slipText: '', noteIds: [], historyIds: [] });
+
+// The message as the model gets it, with the slip of the memory after what the person wrote: a copy, so the saved message never carries it.
+const withMemorySlip = (message, slipText) => ({ ...message, parts: [...(Array.isArray(message?.parts) ? message.parts : []), { text: `\n\n${slipText}` }] });
+
 const buildSystemInstruction = async ({
   config,
   conversation,
   astras,
   personalMemories,
   memoryContext,
+  notesText,
   additionalSystemInstruction,
   chartAuthoringGuidance,
   fileAuthoringGuidance,
@@ -175,7 +181,10 @@ const buildSystemInstruction = async ({
   );
 
   const canUseMemory = !(conversation?.retentionMode === 'ephemeral' && conversation?.memoryAccessEnabled === false);
-  if (canUseMemory && config.memorySystemVersion === 2 && memoryContext) {
+  if (config.memorySystem === 'notes') {
+    // The memory of notes: its first page goes in here, the slip goes after the message (see streamApiCall); the old memory is not used beside it.
+    if (canUseMemory) systemInstruction = appendInstructionText(systemInstruction, notesText);
+  } else if (canUseMemory && config.memorySystemVersion === 2 && memoryContext) {
     systemInstruction = appendInstructionText(
       systemInstruction,
       formatMemoryContextForModel(memoryContext)
@@ -650,6 +659,8 @@ export function createStreamApiCall({
   getAstras,
   getPersonalMemories,
   getMemoryContext = () => null,
+  // The memory of notes (memory-store/notes-memory.js): null until the page has started it.
+  getNotesMemory = () => null,
   modelSupportsUploadedFile,
   modelSupportsVision,
   // Reads the Word, PowerPoint and Excel files the model cannot read into text (and pictures): in the history too (src/app/ui/files/office-text/).
@@ -671,7 +682,13 @@ export function createStreamApiCall({
     // it is used as it is, and nothing is looked up for it here.
     const instructionGiven = typeof requestOptions.systemInstructionText === 'string';
     let memoryContext = null;
-    if (!instructionGiven && !requestOptions.skipMemoryContext && config.memorySystemVersion === 2) {
+    // The memory of notes: the first page for the system instruction and the slip for after the message (nothing when the person is in a chat that may not use memory).
+    const notesMode = config.memorySystem === 'notes';
+    const canUseMemory = !(conversation?.retentionMode === 'ephemeral' && conversation?.memoryAccessEnabled === false);
+    const notes = notesMode && !instructionGiven && canUseMemory && !requestOptions.skipMemoryContext && !requestOptions.skipConversationSystemContext
+      ? getNotesMemory()?.contextFor({ question: getMessageTextForGuidance(currentMessageForApi) }) || NO_NOTES
+      : NO_NOTES;
+    if (!notesMode && !instructionGiven && !requestOptions.skipMemoryContext && config.memorySystemVersion === 2) {
       try {
         memoryContext = await getMemoryContext({
           config,
@@ -694,7 +711,7 @@ export function createStreamApiCall({
       deckDesign: conversation?.deckDesign,
       documentDesign: conversation?.documentDesign
     });
-    return instructionGiven
+    const instruction = instructionGiven
       ? appendInstructionText(requestOptions.systemInstructionText ? { parts: [{ text: requestOptions.systemInstructionText }] } : null, requestOptions.additionalSystemInstruction)
       : requestOptions.skipConversationSystemContext ? null : await buildSystemInstruction({
         config,
@@ -702,11 +719,13 @@ export function createStreamApiCall({
         astras: getAstras(),
         personalMemories: getPersonalMemories(),
         memoryContext,
+        notesText: notes.systemText,
         additionalSystemInstruction: requestOptions.additionalSystemInstruction,
         chartAuthoringGuidance,
         fileAuthoringGuidance,
         requestPurpose: requestOptions.requestPurpose
       });
+    return { instruction, notes };
   };
 
   return async function streamApiCall(
@@ -724,8 +743,10 @@ export function createStreamApiCall({
         requestOptions.historyForApi || (conversation?.messages || []).slice(0, -1)
       ))));
       const currentMessageForApi = requestOptions.currentMessageForApi || { role: 'user', parts };
-      const systemInstruction = await resolveSystemInstruction({ config: getConfig(), conversation, currentMessageForApi, historyForApi, requestOptions });
-      return { systemInstructionText: (systemInstruction?.parts || []).map((part) => part.text).filter(Boolean).join('\n\n') };
+      const { instruction: systemInstruction, notes } = await resolveSystemInstruction({ config: getConfig(), conversation, currentMessageForApi, historyForApi, requestOptions });
+      // The slip goes to the server with the request (it adds it after the message); the use of the notes is recorded once, for the reply that is really made.
+      if (requestOptions.markMemoryUsed === true && notes.noteIds.length) void getNotesMemory()?.markUsed(notes.noteIds);
+      return { systemInstructionText: (systemInstruction?.parts || []).map((part) => part.text).filter(Boolean).join('\n\n'), ...(notes.slipText ? { memorySlipText: notes.slipText } : {}) };
     }
     const activeConversation = getActiveConversation();
     const conversation = requestOptions.conversation || activeConversation || {
@@ -753,7 +774,7 @@ export function createStreamApiCall({
     ))))), readableOptions);
     const [readCurrentMessage] = await officeReader.expandMessages(stampMessageLabels([requestOptions.currentMessageForApi || { role: 'user', parts }]), readableOptions);
     const historyForApi = expandMessageLabels(readHistory);
-    const [currentMessageForApi] = expandMessageLabels([readCurrentMessage]);
+    let [currentMessageForApi] = expandMessageLabels([readCurrentMessage]);
     const generationConfig = requestOptions.genConfig || conversation.genConfig || getDefaultGenConfig();
     const disableReasoning = requestOptions.disableReasoning === true;
     const reasoningConfig = disableReasoning ? null : getModelReasoningConfig(modelInfo);
@@ -761,7 +782,14 @@ export function createStreamApiCall({
       ? normalizeReasoningEffort(modelInfo, requestOptions.reasoningEffort ?? conversation.reasoningEffort)
       : null;
     const config = getConfig();
-    const systemInstruction = await resolveSystemInstruction({ config, conversation, currentMessageForApi: readCurrentMessage, historyForApi: readHistory, requestOptions });
+    const { instruction: systemInstruction, notes } = await resolveSystemInstruction({ config, conversation, currentMessageForApi: readCurrentMessage, historyForApi: readHistory, requestOptions });
+    // The slip of the memory goes after the message, in the copy of the request only (a reply the server makes is given its slip with the request).
+    const slipText = typeof requestOptions.systemInstructionText === 'string' ? requestOptions.memorySlipText : notes.slipText;
+    if (typeof slipText === 'string' && slipText) currentMessageForApi = withMemorySlip(currentMessageForApi, slipText);
+    if (notes.noteIds.length && !(requestOptions.toolTurns || []).length) {
+      void getNotesMemory()?.markUsed(notes.noteIds);
+      if (typeof requestOptions.onNotesUsed === 'function') requestOptions.onNotesUsed({ noteIds: notes.noteIds });
+    }
 
     // Advanced mode: the Python tool and the tool rounds of this reply so far.
     const toolOptions = { tools: requestOptions.tools || [], toolTurns: requestOptions.toolTurns || [] };

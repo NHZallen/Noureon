@@ -207,6 +207,8 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
     genConfig: spec.request.generation || { ...DEFAULT_GENERATION },
     reasoningEffort: spec.request.reasoningEffort,
     systemInstructionText: spec.request.systemInstruction,
+    // What bears on this message from the memory of notes (the page chose it); streamApiCall puts it after the message in the copy of the request.
+    ...(spec.request.memorySlip ? { memorySlipText: spec.request.memorySlip } : {}),
     webSearchEnabled: mode === 'grounding',
     requestPurpose: NOURAS_REQUEST_PURPOSE.USER_VISIBLE_ANSWER,
     onReasoning,

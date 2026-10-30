@@ -41,6 +41,8 @@ export const LIMITS = Object.freeze({
   createPerMinute: 10,
   maxRequestBytes: 25 * 1024 * 1024,
   maxSystemInstructionChars: 400_000,
+  // The slip of the memory (the notes and old conversations that bear on a message): at most two notes and two pieces of conversation, a few thousand characters.
+  maxMemorySlipChars: 4_000,
   maxHistoryMessages: 2000,
   // Tool calls in one reply (the same number the browser uses).
   maxToolCalls: 20,

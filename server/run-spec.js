@@ -413,6 +413,8 @@ export function validateRunSpec(input) {
     }
     if (!isObject(request.currentMessage) || !Array.isArray(request.currentMessage.parts) || request.currentMessage.parts.length === 0) fail('request.currentMessage', 'must have parts');
     if (typeof request.systemInstruction !== 'string' || request.systemInstruction.length > LIMITS.maxSystemInstructionChars) fail('request.systemInstruction', `must be a text of at most ${LIMITS.maxSystemInstructionChars} characters`);
+    // The slip of the memory (what bears on this message): the server puts it after the message, in the copy of the request only.
+    if (request.memorySlip !== undefined && (typeof request.memorySlip !== 'string' || request.memorySlip.length > LIMITS.maxMemorySlipChars)) fail('request.memorySlip', `must be a text of at most ${LIMITS.maxMemorySlipChars} characters`);
     if (request.generation !== undefined && !isObject(request.generation)) fail('request.generation', 'must be an object');
     if (request.reasoningEffort !== undefined && request.reasoningEffort !== null && !text(request.reasoningEffort, 40)) fail('request.reasoningEffort', 'must be a short text');
     if (request.messageMetadata !== undefined && (!isObject(request.messageMetadata) || JSON.stringify(request.messageMetadata).length > 8192)) fail('request.messageMetadata', 'must be an object of at most 8 KB');
@@ -551,6 +553,7 @@ export function validateRunSpec(input) {
         history: request.history,
         currentMessage: request.currentMessage,
         systemInstruction: request.systemInstruction,
+        ...(request.memorySlip ? { memorySlip: request.memorySlip } : {}),
         ...(request.generation ? { generation: request.generation } : {}),
         ...(request.reasoningEffort ? { reasoningEffort: request.reasoningEffort } : {}),
         ...(request.messageMetadata ? { messageMetadata: request.messageMetadata } : {}),

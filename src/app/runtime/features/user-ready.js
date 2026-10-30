@@ -6,7 +6,12 @@ import { setOpenAiUserId } from '../reply/openai-request.js';
 
 export const USER_READY_EVENT = 'noureon:user-ready';
 
+// The last person announced: a part that is loaded after the page has started asks for it, because it missed the event.
+let announced = null;
+export const getAnnouncedUser = () => announced;
+
 export function announceUser(document, user) {
+  announced = user || null;
   // OpenAI's anonymous identifier is made from the account (reply/openai-request.js).
   setOpenAiUserId(user?.supabaseUserId || user?.username || '');
   try {

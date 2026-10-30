@@ -12,6 +12,7 @@ import {
 } from '../reply/model-request-formatting.js';
 import { createStreamApiCall } from '../reply/stream-api-call.js';
 import { getOpenAiSafetyIdentifier, setOpenAiConfigReader } from '../reply/openai-request.js';
+import { getNotesMemory } from '../memory-store/notes-memory.js';
 import { createCurrentMemoryContextProvider } from '../memory/current-memory-context-provider.js';
 import { createCouncilResponseLifecycle } from '../council/council-response-lifecycle.js';
 import { createProviderRequestSupport } from '../reply/provider-request-support.js';
@@ -50,6 +51,7 @@ export function createModelRequestEngine({
         getAstras: () => astras,
         getPersonalMemories: () => personalMemories,
         getMemoryContext,
+        getNotesMemory,
         modelSupportsUploadedFile,
         modelSupportsVision,
         getModelReasoningConfig,

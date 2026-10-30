@@ -250,7 +250,7 @@ export function createServerReply({
     if (translator && translator.provider !== modelInfo?.provider && !translatorKey) return { ok: false, reason: 'no-key', notify: false };
     let described;
     try {
-      described = await describeRequest(requestParts, { ...requestOptions, conversation, modelInfo });
+      described = await describeRequest(requestParts, { ...requestOptions, conversation, modelInfo, markMemoryUsed: true });
     } catch (error) {
       warn('Putting the request for the server together failed; the reply is made here.', error);
       return { ok: false, reason: 'prepare-failed', notify: false };
@@ -276,6 +276,7 @@ export function createServerReply({
         history,
         currentMessage: { parts: requestParts },
         systemInstruction: described.systemInstructionText || '',
+        ...(described.memorySlipText ? { memorySlip: described.memorySlipText } : {}),
         generation: conversation.genConfig || getDefaultGenConfig(),
         ...(conversation.reasoningEffort ? { reasoningEffort: conversation.reasoningEffort } : {}),
         ...(metadata ? { messageMetadata: metadata } : {}),

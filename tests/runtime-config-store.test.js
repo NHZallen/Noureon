@@ -28,6 +28,7 @@ const expectedConfig = (defaultModelId) => ({
   lastUsedModel: null,
   acknowledgedStealthModelTerms: [],
   memorySystemVersion: 2,
+  memorySystem: 'classic',
   memoryModelId: 'gemini-3.5-flash-lite',
   memoryProfileEnabled: true,
   historyRecallEnabled: false,

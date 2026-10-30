@@ -211,6 +211,8 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
         }
         // The round picture of the account (the left menu, the User tab): the Google photo, the one the person chose, or the first letter.
         import('/src/app/ui/user-avatar/user-avatar.js').then(({ startUserAvatar }) => startUserAvatar({ document, getLanguage: () => runtimeConfigAccess.getConfig().uiLanguage, showNotification: (...args) => showNotification(...args) })).catch((error) => console.warn('The picture of the account did not start.', error));
+        // The memory of notes (the new memory; used only when the settings choose it): loaded when the page knows who is signed in.
+        import('/src/app/runtime/memory-store/start-notes-memory.js').then(({ startNotesMemory }) => startNotesMemory({ document, getConfig: () => runtimeConfigAccess.getConfig() })).catch((error) => console.warn('The memory of notes did not start.', error));
         // The usage rings of the providers (OpenCode Go, OpenRouter) above the Extensions entry; each only with its key; loaded after the page.
         import('/src/app/ui/provider-quota/start-quota.js').then(({ startProviderQuota }) => startProviderQuota({ document, getApiKeyForProvider, getLanguage: () => runtimeConfigAccess.getConfig().uiLanguage })).catch((error) => console.warn('The usage rings did not start.', error));
         function normalizeConversationModel(conv) {
