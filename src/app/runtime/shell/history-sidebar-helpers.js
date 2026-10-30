@@ -99,6 +99,8 @@ export function createHistorySidebarHelpers({
     }
     if (!sourcesList) return;
     sourcesList.replaceChildren();
+    // The panel with tabs scrolls inside itself, under its tabs; the list of pages alone scrolls as a whole.
+    sourcesList.classList.toggle('is-panel', Boolean(extra));
     if (extra) {
       sourcesList.append(createSourcePanel(document, { ...extra.groups, web: shown }, { ...extra.panel }));
       return;

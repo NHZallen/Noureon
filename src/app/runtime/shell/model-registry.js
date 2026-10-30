@@ -20,6 +20,7 @@ const MODEL_RELEASE_METADATA = Object.freeze({
     'nvidia/nvidia/nemotron-3.5-super-vl-120b-a12b': { releasedAt: 20261014, outputPricePerMillion: 0 },
     'nvidia/stepfun-ai/step-5-preview': { releasedAt: 20261008, outputPricePerMillion: 0 },
     'nvidia/minimaxai/minimax-m3.1-flash': { releasedAt: 20261024, outputPricePerMillion: 0 },
+    'nvidia/mistralai/mistral-large-4-1t-a52b': { releasedAt: 20261030, outputPricePerMillion: 0 },
     'anthropic/claude-haiku-5.5': { releasedAt: 20261007, outputPricePerMillion: 0.5 },
     'anthropic/claude-sonnet-5.5': { releasedAt: 20260928, outputPricePerMillion: 10 },
     'anthropic/claude-opus-5.5': { releasedAt: 20260922, outputPricePerMillion: 20 },
@@ -100,6 +101,9 @@ export const MODEL_CATALOG = [
     // Asked for by the owner on 2026-10-24; the probe of the same day (scripts/nvidia-probe.mjs) found the id right: a call and the answer of the tool, pictures and video are read, a PDF as a file part is refused (400);
     // the thinking cannot be turned off and its depth changes nothing (`reasoning_effort` and `enable_thinking` are taken and make no difference), so it has no setting of its depth.
     { id: 'nvidia/minimaxai/minimax-m3.1-flash', apiId: 'minimaxai/minimax-m3.1-flash', name: 'NVIDIA MiniMax M3.1 Flash', provider: 'nvidia', descriptionKey: 'model_nvidia_minimax_m3_1_flash_desc', tier: ['free'], category: 'general' },
+    // Asked for by the owner on 2026-10-30; the probe of the same day: pictures are read (as data, an http address is refused: 403), a call and the answer of the tool (also two calls at once), JSON,
+    // and a 260,000-token text are taken; a video and a PDF as a file part are refused (400). The thinking cannot be turned off (`reasoning_effort: none` is refused: 400); low, medium and high are taken.
+    { id: 'nvidia/mistralai/mistral-large-4-1t-a52b', apiId: 'mistralai/mistral-large-4-1t-a52b', name: 'NVIDIA Mistral Large 4', provider: 'nvidia', descriptionKey: 'model_nvidia_mistral_large_4_desc', tier: ['free'], category: 'general' },
 
     // OpenCode Go: the list is in opencode-models.js (the form of API of each model, pictures, tools).
     ...OPENCODE_GO_MODELS,
@@ -230,14 +234,16 @@ export const OPENROUTER_VISION_MODELS = [
     'x-ai/grok-4.6'
 ];
 // Models that see pictures but refuse a video (400 on a video_url: Step 5 Preview, DeepSeek V4.1 Flash and GLM-5.3 Flash on NVIDIA; the probe of 2026-10-16).
-export const NO_VIDEO_MODEL_IDS = Object.freeze(['deepseek/deepseek-v4.1-flash-1017', 'nvidia/stepfun-ai/step-5-preview', 'nvidia/deepseek-ai/deepseek-v4.1-flash', 'nvidia/z-ai/glm-5.3-flash', 'openai/gpt-6.1-terra']);
+export const NO_VIDEO_MODEL_IDS = Object.freeze(['deepseek/deepseek-v4.1-flash-1017', 'nvidia/stepfun-ai/step-5-preview', 'nvidia/deepseek-ai/deepseek-v4.1-flash', 'nvidia/z-ai/glm-5.3-flash', 'nvidia/mistralai/mistral-large-4-1t-a52b', 'openai/gpt-6.1-terra']);
 export const NVIDIA_VISION_MODELS = [
     'deepseek-ai/deepseek-v4.1-flash',
     'z-ai/glm-5.3-flash',
     'nvidia/nemotron-3.5-super-vl-120b-a12b',
     'stepfun-ai/step-5-preview',
     // The probe of 2026-10-24: a picture and a video are read (a PDF as a file part is refused: 400).
-    'minimaxai/minimax-m3.1-flash'
+    'minimaxai/minimax-m3.1-flash',
+    // The probe of 2026-10-30: pictures are read (a video and a PDF are refused: 400).
+    'mistralai/mistral-large-4-1t-a52b'
 ];
 // Models that can call tools, which Advanced mode (Python in the browser)
 // needs. OpenRouter's list was checked against the `tools` entry of
@@ -272,6 +278,8 @@ export const TOOL_CALLING_MODEL_IDS = Object.freeze([
     'nvidia/stepfun-ai/step-5-preview',
     // The probe of 2026-10-24: a call, and the answer after the result of the tool.
     'nvidia/minimaxai/minimax-m3.1-flash',
+    // The probe of 2026-10-30: a call, two calls at once, and the answer after the result of the tool.
+    'nvidia/mistralai/mistral-large-4-1t-a52b',
     'openai/gpt-6-astra',
     'openai/gpt-6-luna',
     'openai/gpt-6.1-terra',
@@ -326,6 +334,8 @@ export const MODEL_REASONING_CONFIGS = Object.freeze({ ...createReasoningConfigs
     // Nemotron also takes "none" (fast, no thinking: 3 tokens for the answer); Step 5 Preview still thinks with "none", so it cannot be turned off.
     [NVIDIA_REASONING_EFFORT, ['none', 'low', 'medium', 'high'], 'medium', ['nvidia/nvidia/nemotron-3.5-super-vl-120b-a12b']],
     [NVIDIA_REASONING_EFFORT, LOW_MEDIUM_HIGH, 'medium', ['nvidia/stepfun-ai/step-5-preview']],
+    // Mistral Large 4 on NVIDIA: low, medium and high are taken; "none" is refused (400), so the thinking cannot be turned off (the probe of 2026-10-30).
+    [NVIDIA_REASONING_EFFORT, LOW_MEDIUM_HIGH, 'medium', ['nvidia/mistralai/mistral-large-4-1t-a52b']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'medium', ['anthropic/claude-haiku-5.5']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'high', ['anthropic/claude-sonnet-5.5']],
     [OPENROUTER_REASONING_EFFORT, ['low', 'medium', 'high', 'xhigh', 'max'], 'high', ['anthropic/claude-fable-5.1']],
