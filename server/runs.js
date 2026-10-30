@@ -454,7 +454,7 @@ export function createRunManager({
       }
       // What the person added that no boundary of the reply took: the page sends it as the next message (what the model did see is in the reply's run record).
       // What the memory did in this reply (the notes it looked up, the changes it made) stays with the message.
-      const kept = { ...(steer?.left().length ? { steersLeft: steer.left() } : {}), ...(memoryOut.used.length ? { memoryUsed: memoryOut.used.slice(0, 20) } : {}), ...(memoryOut.events.length ? { memoryUpdated: memoryOut.events.slice(0, 20) } : {}) };
+      const kept = { ...(steer?.left().length ? { steersLeft: steer.left() } : {}), ...(memoryOut.used.length ? { memoryUsed: memoryOut.used.slice(0, 20) } : {}), ...(memoryOut.events.length ? { memoryUpdated: memoryOut.events.slice(0, 20) } : {}), ...(memoryOut.history?.length ? { memoryHistory: memoryOut.history.slice(0, 5) } : {}) };
       await writer.finish(result.parts, 'complete', Object.keys(kept).length ? kept : null);
       finalStatus = 'complete';
       await store.finish(runId, { status: result.status === 'stopped' ? 'stopped' : 'done', usage: { toolCalls: result.toolCalls, elapsedMs: result.run?.elapsedMs, ...(result.rounds?.length ? { rounds: result.rounds } : {}) }, ...(isImage ? { clearSpec: true } : {}) });

@@ -8,6 +8,7 @@ import { MODELS } from '../shell/model-registry.js';
 import { getMemoryModelRunner, setNotesMemory, setPageHistory, setPageVectors, setRebuildController } from './memory-ref.js';
 import { createRebuildController } from './page-rebuild.js';
 import { createPageHistory } from './page-history.js';
+import { setHistoryTitle } from './memory-trace.js';
 import { createPageVectors } from './page-vectors.js';
 
 export function startNotesMemory({ document, configAccess, dataStore, getActiveConversation = () => null, getApiKeyForProvider = () => '', i18n = {}, storage = null, logger = console }) {
@@ -22,6 +23,8 @@ export function startNotesMemory({ document, configAccess, dataStore, getActiveC
   }));
   // The past conversations are searched with an index made from what the page holds (no model, nothing leaves the device).
   const history = createPageHistory({ getConversations });
+  // A conversation the model looked into keeps its name with the reply (memory-trace.js), for when it is deleted later.
+  setHistoryTitle((id) => String((getConversations() || []).find((entry) => entry.id === id)?.title || ''));
   memory.setHistorySearch((question, options) => history.search(question, options));
   setPageHistory(history);
   // The search by meaning is off until the person turns it on and agrees (page-vectors.js); when it is on, the vectors of the past conversations are brought up to date a little after the page has loaded.

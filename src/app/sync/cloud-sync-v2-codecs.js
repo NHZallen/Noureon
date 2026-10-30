@@ -109,8 +109,8 @@ function conversationMetadata(conversation = {}) {
 }
 
 // councilTurn: a message sent to a council, so that a conversation stays known as a council's after it is opened again or comes from another device.
-// memoryUsed, memoryUpdated: the notes of the memory that were given to the model for a reply and the changes it made (ids), shown under the reply.
-const KEPT_MESSAGE_METADATA = ['visionCheck', 'visionChecked', 'serverError', 'councilTurn', 'steer', 'memoryUsed', 'memoryUpdated'];
+// memoryUsed, memoryUpdated: the notes of the memory that were given to the model for a reply and the changes it made (ids), shown under the reply. memoryHistory: the conversations it looked into ({ id, title, at }), shown in the sources.
+const KEPT_MESSAGE_METADATA = ['visionCheck', 'visionChecked', 'serverError', 'councilTurn', 'steer', 'memoryUsed', 'memoryUpdated', 'memoryHistory'];
 const KEPT_METADATA_CHARS = 20_000;
 
 function messageMetadata(message = {}) {

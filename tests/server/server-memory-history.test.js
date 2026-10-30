@@ -174,3 +174,21 @@ test('the notes a reply looked up are marked as used, so the list in the setting
   assert.deepEqual(memoryOut.used, ['n1']);
   assert.equal(await memory.markUsed(USER, ['gone']), 0, 'a note that is not there is left alone');
 });
+
+test('the conversations a reply looked into are kept for the message by id and day, with none of their words', async () => {
+  const table = createFakeTable();
+  const memory = Object.assign(createMemoryRecords({ db: table.service }), { history: createHistorySearch({ db: fakeDb(), logger: quiet }) });
+  const memoryOut = {};
+  let round = 0;
+  await executeReply({
+    spec: validateRunSpec(specWith({ history: true })).spec,
+    secrets: { providerKey: 'sk-provider' },
+    userId: USER,
+    memory,
+    memoryOut,
+    fetchImpl: async () => { round += 1; return round === 1 ? sse(toolCall('c1', 'search_memory', { query: 'puppy not eating', scope: 'history' })) : sse(content('ok')); }
+  });
+  assert.equal(memoryOut.history.length, 1);
+  assert.equal(memoryOut.history[0].id, DOGS);
+  assert.equal(JSON.stringify(memoryOut.history).includes('puppy'), false, 'no words of the conversation');
+});

@@ -60,7 +60,7 @@ test('a write the model makes is saved in the store and noted for the message un
   const trace = takeTrace('conv-1');
   assert.deepEqual(trace.used, ['dog']);
   assert.equal(trace.events.length, 1);
-  assert.deepEqual(takeTrace('conv-1'), { used: [], events: [] }, 'taken once');
+  assert.deepEqual(takeTrace('conv-1'), { used: [], events: [], history: [] }, 'taken once');
 });
 
 test('with learning off nothing is written, and the model has no write tool', async () => {
@@ -89,11 +89,11 @@ test('the trace starts afresh with each reply, and says whether the model has th
   recordEvent('c9', 'e1');
   resetTrace('c9', { toolsOffered: true });
   assert.equal(toolsOffered('c9'), true);
-  assert.deepEqual(takeTrace('c9'), { used: [], events: [] });
+  assert.deepEqual(takeTrace('c9'), { used: [], events: [], history: [] });
   recordUsed('c9', ['a', 'b', 'a']);
   recordEvent('c9', 'e1');
   recordEvent('c9', 'e1');
-  assert.deepEqual(takeTrace('c9'), { used: ['a', 'b'], events: ['e1'] });
+  assert.deepEqual(takeTrace('c9'), { used: ['a', 'b'], events: ['e1'], history: [] });
   resetTrace('c9');
   assert.equal(toolsOffered('c9'), false);
 });
@@ -111,4 +111,21 @@ test('a reply made by the server is told it may look back through the past conve
   assert.deepEqual(meaning.vector, { provider: 'gemini' });
   assert.equal(meaning.embeddingKey, 'g-key', 'the key goes to the part of the request that holds secrets, which server-reply.js splits off');
   assert.equal('history' in (await createPageMemoryTools({ getConfig: config(), getMemory: () => memory, conversation: conversation() })).snapshot(), false);
+});
+
+test('the conversations the model looked into are kept with the reply by name and day, never by their words, at most five', async () => {
+  const { setHistoryTitle } = await import('../../src/app/runtime/memory-store/memory-trace.js');
+  setHistoryTitle((id) => ({ c1: 'Scooter commute' }[id] || ''));
+  const memory = await memoryWith();
+  resetTrace('conv-1');
+  const hits = Array.from({ length: 7 }, (_, index) => ({ conversationId: `c${index + 1}`, at: '2026-10-21T00:00:00.000Z', role: 'user', text: 'a private sentence' }));
+  const tools = await createPageMemoryTools({ getConfig: config(), getMemory: () => memory, getHistory: () => ({ lookup: () => hits }), conversation: conversation() });
+  const loader = tools.make('en');
+  const answer = await loader.run({ name: 'search_memory', args: { query: 'scooter', scope: 'history' } });
+  assert.match(answer, /private sentence/, 'the model is given the words');
+  const taken = takeTrace('conv-1');
+  assert.equal(taken.history.length, 5);
+  assert.deepEqual(taken.history[0], { id: 'c1', title: 'Scooter commute', at: '2026-10-21T00:00:00.000Z' });
+  assert.equal(JSON.stringify(taken).includes('private sentence'), false, 'but none of the words is kept');
+  setHistoryTitle(null);
 });

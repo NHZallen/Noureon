@@ -6,7 +6,7 @@ const traces = new Map();
 const offered = new Map();
 const entry = (conversationId) => {
   const key = String(conversationId || '');
-  if (!traces.has(key)) traces.set(key, { used: new Set(), events: [] });
+  if (!traces.has(key)) traces.set(key, { used: new Set(), events: [], history: new Map() });
   return traces.get(key);
 };
 
@@ -20,10 +20,23 @@ export const toolsOffered = (conversationId) => offered.get(String(conversationI
 export const recordUsed = (conversationId, ids) => { for (const id of ids || []) entry(conversationId).used.add(String(id)); };
 export const recordEvent = (conversationId, eventId) => { if (eventId && !entry(conversationId).events.includes(eventId)) entry(conversationId).events.push(String(eventId)); };
 
-/** Takes what was kept for the conversation: { used: [note ids], events: [event ids] }; it is empty afterwards. */
+// The conversations the model looked into, kept as { id, title, at } (the title is read when they are looked into, so that the source still has a name once the conversation is deleted).
+// No piece of the text is kept. `setHistoryTitle(fn)` says how to find the title of a conversation.
+let titleOf = () => '';
+export const setHistoryTitle = (fn) => { titleOf = typeof fn === 'function' ? fn : () => ''; };
+export const recordHistory = (conversationId, entries) => {
+  const kept = entry(conversationId).history;
+  for (const item of entries || []) {
+    const id = String(item?.id || item?.conversationId || '');
+    if (!id || kept.has(id) || kept.size >= 5) continue;
+    kept.set(id, { id, title: String(item?.title || titleOf(id) || '').slice(0, 80), ...(item?.at ? { at: String(item.at).slice(0, 40) } : {}) });
+  }
+};
+
+/** Takes what was kept for the conversation: { used: [note ids], events: [event ids], history: [{ id, title, at }] }; it is empty afterwards. */
 export function takeTrace(conversationId) {
   const key = String(conversationId || '');
   const found = traces.get(key);
   traces.delete(key);
-  return { used: found ? [...found.used].slice(0, 20) : [], events: found ? found.events.slice(0, 20) : [] };
+  return { used: found ? [...found.used].slice(0, 20) : [], events: found ? found.events.slice(0, 20) : [], history: found ? [...found.history.values()] : [] };
 }

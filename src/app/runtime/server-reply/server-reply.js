@@ -633,7 +633,9 @@ export function createServerReply({
           // What the person added that the reply never reached a boundary for (the page sends it as the next message).
           // The reply was cut after this message: the messages of the person that follow it, and the message the reply goes on in.
           segment: cutOf(row.metadata?.segment),
-          steersLeft: (Array.isArray(row.metadata?.steersLeft) ? row.metadata.steersLeft : []).map((entry) => String(entry?.text ?? '').trim()).filter(Boolean) };
+          steersLeft: (Array.isArray(row.metadata?.steersLeft) ? row.metadata.steersLeft : []).map((entry) => String(entry?.text ?? '').trim()).filter(Boolean),
+          // What the memory did on the server for this reply (the notes looked up, the changes it made, the conversations looked into): the message the page saves keeps it.
+          memory: { used: Array.isArray(row.metadata?.memoryUsed) ? row.metadata.memoryUsed : [], events: Array.isArray(row.metadata?.memoryUpdated) ? row.metadata.memoryUpdated : [], history: Array.isArray(row.metadata?.memoryHistory) ? row.metadata.memoryHistory : [] } };
       }
     }
   });

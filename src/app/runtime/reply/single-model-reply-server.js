@@ -6,6 +6,7 @@ import { NOURAS_REQUEST_PURPOSE } from '../nouras/nouras-policy.js';
 import { getRuntimeText } from '../i18n/runtime-texts.js';
 import { cliIdsForReply } from '../cli/cli-state.js';
 import { registerSandboxFileParts } from '../../ui/sandbox/sandbox-files.js';
+import { recordEvent, recordHistory, recordUsed } from '../memory-store/memory-trace.js';
 
 // What the server says it is doing with the message's files and addresses, as the stage the wait row draws (the page's own names for them).
 const DOCUMENT_STAGES = { reading: 'fileReading', pdf: 'makingPdf', translating: 'documentTranslation', links: 'linkedPages' };
@@ -70,7 +71,7 @@ export async function handOverToServer({ serverReply, getConfig, supportsVision 
  * (sources, run, files); `view` is single-model-reply-live-view.js; `progress(stage, message)` draws the wait row. `runHere(onChunk)` makes
  * the reply on this device instead, when the server lost its Python before it had an answer. Resolves the text of the answer.
  */
-export async function followServerReply({ serverReply, now, setRunStartedAt, getRunStartedAt }, { serverRun, reply, view, progress, signal, uiLanguage, assistantMessageId, targetElement, advanced, runHere }, onChunk) {
+export async function followServerReply({ serverReply, now, setRunStartedAt, getRunStartedAt }, { serverRun, reply, view, progress, signal, uiLanguage, assistantMessageId, targetElement, conversationId = '', advanced, runHere }, onChunk) {
   let documentStageShown = false;
   try {
     const outcome = await serverRun.follow({
@@ -117,6 +118,12 @@ export async function followServerReply({ serverReply, now, setRunStartedAt, get
       if (outcome.run.sources?.length) reply.searchSources = outcome.run.sources;
     }
     reply.steersLeft = outcome.steersLeft || [];
+    // What the server's memory did for this reply goes where the page's own would (the message takes it from there when it is saved).
+    if (outcome.memory) {
+      recordUsed(conversationId, outcome.memory.used);
+      (outcome.memory.events || []).forEach((id) => recordEvent(conversationId, id));
+      recordHistory(conversationId, outcome.memory.history);
+    }
     reply.cut = outcome.segment || null;
     if (outcome.rewritten && targetElement?.dataset) targetElement.dataset.streamRendered = 'false';
     // The server may check the presentations of the reply too: the page then follows that check and makes none of its own.

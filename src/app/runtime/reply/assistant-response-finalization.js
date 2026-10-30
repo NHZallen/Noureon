@@ -116,12 +116,13 @@ export async function finalizeAssistantResponse({
   // What the memory did for this reply (notes given to the model, changes it made): shown under the reply, kept with the message.
   const memoryTrace = takeTrace(conversation?.id);
   let memoryLineAfterDraw = false;
-  if (memoryTrace.used.length || memoryTrace.events.length) {
+  if (memoryTrace.used.length || memoryTrace.events.length || memoryTrace.history.length) {
     memoryLineAfterDraw = true;
     finalAiMessage.metadata = {
       ...(finalAiMessage.metadata || {}),
       ...(memoryTrace.used.length ? { memoryUsed: memoryTrace.used } : {}),
-      ...(memoryTrace.events.length ? { memoryUpdated: memoryTrace.events } : {})
+      ...(memoryTrace.events.length ? { memoryUpdated: memoryTrace.events } : {}),
+      ...(memoryTrace.history.length ? { memoryHistory: memoryTrace.history } : {})
     };
   }
   if (includeCouncilMetadata) {

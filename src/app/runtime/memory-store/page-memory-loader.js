@@ -3,7 +3,7 @@
 // loaded, the person switched the use of memory off, or the chat may not use memory. Writes are offered only when learning is on and the chat is not temporary.
 
 import { createMemoryLoader } from '../../../data/memory-tool.js';
-import { recordEvent, recordUsed } from './memory-trace.js';
+import { recordEvent, recordHistory, recordUsed } from './memory-trace.js';
 
 // The messages of the person that go with a reply made by the server (server/protocol.js: maxMemoryMessages, maxMemoryMessageChars).
 const MAX_SNAPSHOT_MESSAGES = 12;
@@ -55,7 +55,12 @@ export async function createPageMemoryTools({ getConfig, getMemory, getHistory =
       },
       onWrite: ({ event }) => recordEvent(conversationId, event?.id),
       // The past conversations (history index on this page): the search then takes a scope. The conversation being written is left out.
-      searchHistory: getHistory() ? async (query, limit) => (getHistory().lookupHybrid || getHistory().lookup).call(getHistory(), query, limit, { excludeConversationId: conversationId }) : null,
+      searchHistory: getHistory() ? async (query, limit) => {
+        const hits = await (getHistory().lookupHybrid || getHistory().lookup).call(getHistory(), query, limit, { excludeConversationId: conversationId });
+        // The conversations that were looked into stay with the reply (their names, not their words).
+        recordHistory(conversationId, (hits || []).map((hit) => ({ id: hit.conversationId, at: hit.at })));
+        return hits;
+      } : null,
       language,
       createId,
       now

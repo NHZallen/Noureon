@@ -281,9 +281,18 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
           },
           canWrite,
           // Looking back through the past conversations (scope "history" or "both"): from the cloud workspace, by meaning too when the person synced their vectors and the page gave a key for this run.
-          searchHistory: spec.tools.memory.history === true && memory.history
-            ? memory.history.forReply({ userId, conversationId, vector: spec.tools.memory.vector && secrets.embeddingKey ? { provider: spec.tools.memory.vector.provider, key: secrets.embeddingKey } : null, signal })
-            : null,
+          searchHistory: spec.tools.memory.history === true && memory.history ? (() => {
+            const search = memory.history.forReply({ userId, conversationId, vector: spec.tools.memory.vector && secrets.embeddingKey ? { provider: spec.tools.memory.vector.provider, key: secrets.embeddingKey } : null, signal });
+            // The conversations looked into stay with the message (their ids and days, never their words).
+            return async (query, limit) => {
+              const hits = await search(query, limit);
+              if (memoryOut) {
+                const seen = memoryOut.history || (memoryOut.history = []);
+                for (const hit of hits) if (seen.length < 5 && !seen.some((entry) => entry.id === hit.conversationId)) seen.push({ id: hit.conversationId, ...(hit.at ? { at: String(hit.at).slice(0, 40) } : {}) });
+              }
+              return hits;
+            };
+          })() : null,
           onUsed: ({ ids }) => {
             ids.forEach((id) => used.add(id));
             if (memoryOut) memoryOut.used = [...used];
