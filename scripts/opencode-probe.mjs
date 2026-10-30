@@ -18,7 +18,7 @@
 //     OPENCODE_GO_KEY=... node scripts/opencode-probe.mjs --model gemini-4-argon:gemini --tests basic,stream,effort,thinking,tools,toolloop,vision,document,auth --max-tokens 1500
 //   OPENCODE_GO_KEY=... node scripts/opencode-probe.mjs --tests basic,stream
 //   node scripts/opencode-probe.mjs --list                                the list of models of the service (public, no key, costs nothing)
-//   (Gemini 4 Argon Contributor, Google's own form: `--only gemini-4-argon-contributor --tests basic,stream,effort,thinking,tools,toolloop,vision,document,auth --max-tokens 1500`)
+//   (Gemini 4 Argon, Google's own form: `--only gemini-4-argon --tests basic,stream,effort,thinking,tools,toolloop,vision,document,auth --max-tokens 1500`)
 //   Word and PowerPoint sent as they are, to the models that read a PDF: `--tests office --only <models>` (the answer holds MANGO when the file was read; "text" shows it)
 //   OPENCODE_GO_KEY=... node scripts/opencode-probe.mjs --tests shown                    which models give the text of their thinking (stream): by default, only when asked for it
 //                                                                          (a summary: `thinking.display`, `reasoning.summary`, `includeThoughts`), or not at all; a table at the end
@@ -38,9 +38,9 @@ import { OPENCODE_REASONING_CONFIGS, opencodeThinkingFields } from '../src/app/r
 export const BASE = 'https://opencode.ai/inference/go/v1';
 export const TESTS = Object.freeze(['basic', 'stream', 'tools', 'toolloop', 'params', 'effort', 'vision', 'document', 'office', 'converted', 'pdfimage', 'thinking', 'shown', 'maxout', 'auth', 'errors']);
 
-// The models of the app: the ones on the page of limits of OpenCode (the owner's screenshots of 2026-10-23, 29 models), each with the form of its API and whether it is free.
+// The models of the app: the ones on the page of limits of OpenCode (the owner's screenshots of 2026-10-30, 30 models), each with the form of its API and whether it is free.
 // Another id is tried with `--model <id>` (`--new` lists what the service has that is not here).
-const chat = ['glm-5.3-flash', 'glm-5.3', 'glm-5.2', 'kimi-k3.1-pro', 'kimi-k3', 'kimi-k2.7-code', 'longcat-2.0', 'deepseek-v4.1-flash', 'deepseek-v4-pro', 'mimo-v2.6-pro', 'mimo-v2.6-flash', 'mimo-v2.5-pro', 'mimo-v2.5', 'hy4-preview', 'hy3', 'longcat-2.5-preview-free', 'step-5-preview', 'beam-free'];
+const chat = ['glm-5.3-flash', 'glm-5.3', 'glm-5.2', 'kimi-k3.1-pro', 'kimi-k3', 'kimi-k2.7-code', 'longcat-2.0', 'deepseek-v4.1-flash', 'deepseek-v4-pro', 'mimo-v2.6-pro', 'mimo-v2.6-flash', 'mimo-v2.5-pro', 'mimo-v2.5', 'hy4-preview', 'hy3', 'step-5-preview', 'beam-free', 'iceman-contributor-free'];
 const responses = ['grok-4.7', 'gpt-6-luna', 'gpt-5.6-luna', 'muse-spark-1.3-contributor', 'muse-spark-1.2-contributor'];
 // `minimax-m3.1-flash` and `step-5-preview` are the ids of the models that were free before (`-free` ids that the service now refuses: 410 "deprecated", "Model is unavailable");
 // they are guessed from the page of limits, where they have a price and no "Free": the probe says whether the service knows them.
@@ -50,7 +50,7 @@ export const MODELS = Object.freeze([
   ...responses.map((id) => ({ id, family: 'responses', free: false })),
   ...messages.map((id) => ({ id, family: 'messages', free: false, ...(id === 'minimax-m3.1-flash' ? { guess: true } : {}) })),
   // Google's own form (2026-10-14, told by the owner): only `models/<id>:generateContent` answers; the stream, the depths of thinking, documents and the key are what the probe finds out.
-  { id: 'gemini-4-argon-contributor', family: 'gemini', free: false }
+  { id: 'gemini-4-argon', family: 'gemini', free: false }
 ]);
 
 const PATH = { chat: '/chat/completions', responses: '/responses', messages: '/messages' };

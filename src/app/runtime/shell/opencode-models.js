@@ -31,19 +31,22 @@ const ROWS = [
   ['longcat-2.0', 'LongCat 2.0', 'meituan', 'chat', false, DESC.go],
   ['hy4-preview', 'Hy4 Preview', 'tencent', 'chat', false, DESC.go],
   ['hy3', 'Hy3', 'tencent', 'chat', false, DESC.go],
-  ['longcat-2.5-preview-free', 'LongCat 2.5 Preview', 'meituan', 'chat', true, DESC.free, 'free'],
   ['step-5-preview', 'Step 5 Preview', 'stepfun', 'chat', true, DESC.go],
   // The probe of 2026-10-20 (scripts/opencode-probe.mjs, the owner ran it): the ids were guessed right. MiniMax M3.1 Flash speaks the Messages form, sees pictures, reads a PDF (and the pictures in it).
   // Beam is text only (a picture is refused: "Beam supports text input only"; a file part is refused too) and a test model (the owner, 2026-10-20): hidden, with the window the first time it is chosen,
   // like Cat Jam. Neither has a price: they are free for a time.
   ['minimax-m3.1-flash', 'MiniMax M3.1 Flash', 'minimax', 'messages', true, DESC.go],
   ['beam-free', 'Beam', 'opencode', 'chat', false, DESC.hidden, 'free', true],
+  // The probe of 2026-10-30: Iceman Contributor Free is a hidden test model like Beam, text only (a picture, a PDF, a Word or a PowerPoint file are refused: 400), it calls tools (a call and the answer of the tool),
+  // takes a text of 262139 tokens (131072 for a reply), and its thinking cannot be turned off (`none`, `minimal` and `max` are refused; low, medium, high and xhigh are taken).
+  ['iceman-contributor-free', 'Iceman Contributor Free', 'opencode', 'chat', false, DESC.hidden, 'free', true],
   ['grok-4.7', 'Grok 4.7', 'x-ai', 'responses', true, DESC.go30],
   ['gpt-6-luna', 'GPT-6 Luna', 'openai', 'responses', true, DESC.go30],
   ['gpt-5.6-luna', 'GPT-5.6 Luna', 'openai', 'responses', true, DESC.go30],
   ['muse-spark-1.3-contributor', 'Muse Spark 1.3 Contributor', 'meta', 'responses', true, DESC.muse],
   ['muse-spark-1.2-contributor', 'Muse Spark 1.2 Contributor', 'meta', 'responses', true, DESC.muse],
-  ['gemini-4-argon-contributor', 'Gemini 4 Argon Contributor', 'google', 'gemini', true, DESC.argon],
+  // The probe of 2026-10-30 (the owner ran it): the page now says Gemini 4 Argon (no "Contributor") and the id is `gemini-4-argon`, in Google's form: pictures, a PDF (MANGO), tools and thinking low to high are taken.
+  ['gemini-4-argon', 'Gemini 4 Argon', 'google', 'gemini', true, DESC.argon],
   ['claude-haiku-5-5', 'Claude Haiku 5.5', 'anthropic', 'messages', true, DESC.go30],
   ['minimax-m3', 'MiniMax M3', 'minimax', 'messages', true, DESC.go],
   ['qwen3.8-max', 'Qwen3.8 Max', 'qwen', 'messages', true, DESC.go],
@@ -54,10 +57,12 @@ const ROWS = [
 // The day the models were put in the list (the order of the menu is by day, then name: no price per token is known, the limit is the one of the plan).
 const ADDED_AT = 20261013;
 
-// The list is the one OpenCode shows on its page of limits (the owner's screenshots of 2026-10-23: 29 models). A model that left it, or took another id, is still
+// The list is the one OpenCode shows on its page of limits (the owner's screenshots of 2026-10-30: LongCat 2.5 Preview and Gemini 4 Argon Contributor are gone, Gemini 4 Argon and Iceman are there). A model that left it, or took another id, is still
 // known by its old id: a conversation or a choice that names it goes to the model that replaces it (Space Bunny and Cat Jam had none).
 const LEGACY_API_IDS = {
   'deepseek-v4.1-flash': ['deepseek-v4-flash', 'deepseek-v4-flash-vision-exp'],
+  'gemini-4-argon': ['gemini-4-argon-contributor'],
+  'longcat-2.0': ['longcat-2.5-preview-free'],
   'grok-4.7': ['grok-4.6'],
   'minimax-m3': ['minimax-m2.7'],
   'minimax-m3.1-flash': ['minimax-m3.1-flash-free'],
@@ -97,7 +102,7 @@ const VISION_IDS = new Set(OPENCODE_GO_MODELS.filter((model) => model.opencodeVi
 const PDF_API_IDS = new Set([
   'hy4-preview', 'hy3',
   'grok-4.7', 'gpt-6-luna', 'gpt-5.6-luna',
-  'muse-spark-1.3-contributor', 'muse-spark-1.2-contributor', 'gemini-4-argon-contributor',
+  'muse-spark-1.3-contributor', 'muse-spark-1.2-contributor', 'gemini-4-argon',
   'claude-haiku-5-5', 'minimax-m3', 'qwen3.8-max', 'qwen3.8-flash', 'qwen3.7-plus',
   // The probe of 2026-10-20: a one-page PDF answered MANGO, and the word written in a picture of a PDF answered BANANA.
   'minimax-m3.1-flash'
@@ -106,7 +111,8 @@ const PDF_API_IDS = new Set([
 // The models that also read a Word (.docx) and a PowerPoint (.pptx) file as they are (the probe of 2026-10-14, test `office`: both files, each with "The secret word
 // is MANGO.", were sent in the form of each model's API; these answered MANGO to both). Every other model of the PDF list refused the file (400) or took it and
 // did not read it, so a Word or PowerPoint file is translated for them as before. Only these two kinds were tried.
-const OFFICE_API_IDS = new Set(['grok-4.7', 'gpt-6-luna', 'gpt-5.6-luna', 'gemini-4-argon-contributor']);
+// (Gemini 4 Argon read them as "Contributor"; the new id has only been tried with a PDF, so its Word and PowerPoint files are turned into a PDF until `--tests office` says it reads them.)
+const OFFICE_API_IDS = new Set(['grok-4.7', 'gpt-6-luna', 'gpt-5.6-luna']);
 const OFFICE_MIME_TYPES = new Set([
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   'application/vnd.openxmlformats-officedocument.presentationml.presentation'
@@ -164,20 +170,21 @@ const THINKING = {
   'hy3': ['effort', ['none', 'high'], 'high'],
   'step-5-preview': ['effort', ['low', 'medium', 'high', 'max'], 'high'],
   'longcat-2.0': ['toggle', ['none', 'high'], 'high'],
-  'longcat-2.5-preview-free': ['toggle', ['none', 'high'], 'high'],
   'grok-4.7': ['responses', ['low', 'medium', 'high', 'xhigh'], 'high'],
   'gpt-6-luna': ['responses', ['none', 'low', 'medium', 'high', 'xhigh', 'max'], 'medium'],
   'gpt-5.6-luna': ['responses', ['none', 'low', 'medium', 'high', 'xhigh', 'max'], 'medium'],
   'muse-spark-1.3-contributor': ['responses', ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'], 'medium'],
   'muse-spark-1.2-contributor': ['responses', ['minimal', 'low', 'medium', 'high', 'xhigh'], 'medium'],
   // Google's form (the probe of 2026-10-14): low, medium and high are taken, minimal is refused (400), the thinking cannot be turned off (a budget of 0 or 1024 changes nothing).
-  'gemini-4-argon-contributor': ['gemini', ['low', 'medium', 'high'], 'medium'],
+  'gemini-4-argon': ['gemini', ['low', 'medium', 'high'], 'medium'],
   'claude-haiku-5-5': ['adaptive', ['low', 'medium', 'high', 'xhigh', 'max'], 'medium'],
   'minimax-m3': ['toggle', ['none', 'high'], 'high'],
   // The probe of 2026-10-20: the thinking cannot be turned off ("requires adaptive thinking; disabled is not allowed"); low to max are taken, as for Claude Haiku.
   'minimax-m3.1-flash': ['adaptive', ['low', 'medium', 'high', 'xhigh', 'max'], 'medium'],
   // The probe of 2026-10-20: it always thinks (`reasoning_content`); `none` and `minimal` are refused (400), low to max are taken; `thinking` and `enable_thinking` are unknown to it.
   'beam-free': ['effort', ['low', 'medium', 'high', 'xhigh', 'max'], 'high'],
+  // The probe of 2026-10-30: `none`, `minimal` and `max` are refused (400: supported values low, medium, high, xhigh); the thinking comes in `reasoning`.
+  'iceman-contributor-free': ['effort', ['low', 'medium', 'high', 'xhigh'], 'high'],
   'qwen3.8-max': ['adaptiveOrOff', ['none', 'low', 'medium', 'high', 'xhigh'], 'high'],
   'qwen3.8-flash': ['adaptiveOrOff', ['none', 'low', 'medium', 'high', 'xhigh'], 'high'],
   'qwen3.7-plus': ['toggle', ['none', 'high'], 'high']

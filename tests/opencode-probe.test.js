@@ -13,7 +13,7 @@ const reply = (status, body) => ({ status, text: async () => (typeof body === 's
 test('the models of the probe are those of the app (the page of limits of OpenCode): four forms of API, and only the two named free ones are free', () => {
   assert.equal(MODELS.length, 30);
   assert.deepEqual([...new Set(MODELS.map((model) => model.family))].sort(), ['chat', 'gemini', 'messages', 'responses']);
-  assert.deepEqual(MODELS.filter((model) => model.free).map((model) => model.id), ['longcat-2.5-preview-free', 'beam-free']);
+  assert.deepEqual(MODELS.filter((model) => model.free).map((model) => model.id), ['beam-free', 'iceman-contributor-free']);
   assert.equal(MODELS.find((model) => model.id === 'claude-haiku-5-5').family, 'messages');
   assert.equal(MODELS.find((model) => model.id === 'gpt-6-luna').family, 'responses');
   for (const family of ['chat', 'responses', 'messages', 'gemini']) assert.ok(THINKING[family].length >= 2);
@@ -266,7 +266,7 @@ test('the probe of Google\'s form: the model in the path, the body in Google\'s 
     const answer = { candidates: [{ content: { parts: [{ text: 'hm', thought: true }, { text: 'ok' }, { functionCall: { name: 'get_time', args: { city: 'Paris' } } }] } }], usageMetadata: { candidatesTokenCount: 4, thoughtsTokenCount: 9, totalTokenCount: 20 } };
     return { status: 200, ok: true, ms: 1, raw: options.stream ? `data: ${JSON.stringify(answer)}\n\n` : JSON.stringify(answer), stream: Boolean(options.stream) };
   };
-  const result = await probeModel({ model: { id: 'gemini-4-argon-contributor', family: 'gemini' }, tests: ['basic', 'stream', 'effort', 'vision', 'document', 'auth'], run, key: 'oc_sk_secret' });
+  const result = await probeModel({ model: { id: 'gemini-4-argon', family: 'gemini' }, tests: ['basic', 'stream', 'effort', 'vision', 'document', 'auth'], run, key: 'oc_sk_secret' });
   assert.equal(result.basic.text, 'ok');
   assert.equal(result.basic.thinking, true);
   assert.deepEqual(result.basic.tokens, { output: 4, thinking: 9 });
@@ -276,7 +276,7 @@ test('the probe of Google\'s form: the model in the path, the body in Google\'s 
   assert.deepEqual(Object.keys(result.effort), ['minimal', 'low', 'medium', 'high']);
   const effortBody = seen.find((entry) => entry.body.generationConfig?.thinkingConfig?.thinkingLevel === 'low').body;
   assert.equal(effortBody.generationConfig.maxOutputTokens, 1500);
-  assert.equal(effortBody.__model, 'gemini-4-argon-contributor');
+  assert.equal(effortBody.__model, 'gemini-4-argon');
   assert.ok(seen.find((entry) => entry.body.contents?.[0].parts.some((part) => part.inlineData?.mimeType === 'image/png')));
   assert.ok(seen.find((entry) => entry.body.contents?.[0].parts.some((part) => part.inlineData?.mimeType === 'application/pdf')));
   assert.deepEqual(Object.keys(result.auth), ['bearerOnly', 'xGoogApiKeyOnly', 'both']);
@@ -284,10 +284,10 @@ test('the probe of Google\'s form: the model in the path, the body in Google\'s 
 
   // The request itself: the model is in the path, not in the body, and the stream asks for lines.
   let sent = null;
-  await send({ fetchImpl: async (url, options) => { sent = { url, body: JSON.parse(options.body) }; return reply(200, {}); }, key: KEY, family: 'gemini', body: buildBody('gemini', 'gemini-4-argon-contributor'), stream: true });
-  assert.match(sent.url, /\/models\/gemini-4-argon-contributor:streamGenerateContent\?alt=sse$/);
+  await send({ fetchImpl: async (url, options) => { sent = { url, body: JSON.parse(options.body) }; return reply(200, {}); }, key: KEY, family: 'gemini', body: buildBody('gemini', 'gemini-4-argon'), stream: true });
+  assert.match(sent.url, /\/models\/gemini-4-argon:streamGenerateContent\?alt=sse$/);
   assert.equal('__model' in sent.body || 'model' in sent.body, false);
-  await send({ fetchImpl: async (url) => { sent = { url }; return reply(200, {}); }, key: KEY, family: 'gemini', body: buildBody('gemini', 'gemini-4-argon-contributor') });
+  await send({ fetchImpl: async (url) => { sent = { url }; return reply(200, {}); }, key: KEY, family: 'gemini', body: buildBody('gemini', 'gemini-4-argon') });
   assert.match(sent.url, /:generateContent$/);
   assert.equal(parseEvents('[{"a":1},{"b":2}]').length, 2);
 });
