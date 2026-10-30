@@ -43,7 +43,7 @@ test('a row of a memory call is over when its answer is in, not when the next th
   const step = loader.stepEvent({ name: 'search_memory', args: { query: 'q', scope: 'history' } }, 'en');
   assert.equal(step.key, 'memoryReviewing');
   list.event(step);
-  const row = () => message.querySelector('.ledger-row[data-kind="skill"]');
+  const row = () => message.querySelector('.ledger-row[data-kind="memory-review"]');
   assert.equal(row().classList.contains('is-running'), true, 'running while it looks');
   list.event({ type: 'tool-end' });
   assert.equal(row().classList.contains('is-running'), false, 'over as soon as the answer is in, whatever the model does next');

@@ -132,6 +132,11 @@ export function createMessageListLifecycle({
         });
     };
 
+    // A conversation named in the sources of a reply (ui/citations/source-panel.js) is opened from there.
+    document.addEventListener?.('noureon:open-history-source', (event) => {
+        if (event.detail?.id) openHistorySourceConversation(event.detail.id);
+    });
+
     const isActiveConversationViewCurrent = () => {
         const conversation = getActiveConversation();
         const messageList = elements.messageList;

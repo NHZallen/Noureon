@@ -373,10 +373,10 @@ export function createSandboxLedger({ document, host, before = null, language = 
       }
       if (event.type === 'tool-end') {
         // The skill or memory call has its answer: its row is over now, not when the next thing begins (the model's thinking after it is not the call's time).
-        if (list.current?.node?.dataset?.kind === 'skill') endCurrent();
+        if (['skill', 'memory-recall', 'memory-review', 'memory-write'].includes(list.current?.node?.dataset?.kind)) endCurrent();
       } else if (event.type === 'skill' || event.type === 'memory') {
-        // The model loads a skill, or looks up or writes the memory: a row of its own, over when the next thing begins.
-        begin(event.label, { kind: 'skill' });
+        // The model loads a skill, or looks up or writes the memory: a row of its own (its own icon), over when the call has its answer.
+        begin(event.label, { kind: { memorySearching: 'memory-recall', memoryReviewing: 'memory-review', memoryWriting: 'memory-write' }[event.key] || 'skill' });
       } else if (event.type === 'connector') {
         // The model uses a connector: a row of its own (the call), and the card that asks when the person set the tool to ask.
         if (event.event === 'call') connectorCall(event);

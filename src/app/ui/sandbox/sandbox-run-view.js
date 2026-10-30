@@ -66,7 +66,7 @@ function sourcesRows(document, sources, language) {
 function connectorRows(document, run, language) {
   const tools = (run.tools || []).map((tool) => renderRow(document, tool.kind === 'skill'
     ? { kind: 'skill', label: sandboxText(language, 'skillLoaded', { name: tool.name }), body: [] }
-    : { kind: 'skill', label: sandboxText(language, { memorySearching: 'memoryRecalled', memoryReviewing: 'memoryReviewed', memoryWriting: 'memoryWrote' }[tool.key]), body: [] }));
+    : { kind: { memorySearching: 'memory-recall', memoryReviewing: 'memory-review', memoryWriting: 'memory-write' }[tool.key], label: sandboxText(language, { memorySearching: 'memoryRecalled', memoryReviewing: 'memoryReviewed', memoryWriting: 'memoryWrote' }[tool.key]), body: [] }));
   return [...tools, ...(run.connectors || []).map((name) => renderRow(document, { kind: 'connector', label: sandboxText(language, 'connectorUsing', { connector: name }), body: [] }))];
 }
 

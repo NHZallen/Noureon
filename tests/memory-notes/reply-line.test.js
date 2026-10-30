@@ -53,9 +53,9 @@ async function setup({ forgetTea = true } = {}) {
 
 const label = (node) => [...node.querySelectorAll('.memory-line-chip')].map((chip) => chip.textContent);
 
-test('under a reply: "Memory updated" and "Used 1 notes" chips, quiet, only for a reply the memory touched', async () => {
+test('under a reply: a "Memory updated" chip, quiet, only for a reply the memory changed (the notes it used are in its sources)', async () => {
   const { element } = await setup();
-  assert.deepEqual(label(element(1)), ['Memory updated', 'Used 1 notes from memory']);
+  assert.deepEqual(label(element(1)), ['Memory updated']);
   assert.deepEqual(label(element(0)), [], 'a message of the person has none');
 });
 
@@ -74,24 +74,7 @@ test('opening "Memory updated" lists the change with Undo, and Undo brings the n
   await tick();
   assert.equal(memory.getStore().getNotes().find((note) => note.id === 'tea').status, 'active');
   assert.equal(memory.getStore().getEvents().length, 0);
-  assert.deepEqual(label(node), ['Used 1 notes from memory'], 'the line is drawn again without the update');
-});
-
-test('opening "Used 1 notes" shows the note and "Not relevant here" counts against it; a note that is gone says so', async () => {
-  const { memory, element } = await setup({ forgetTea: false });
-  const node = element(1);
-  const used = [...node.querySelectorAll('.memory-line-chip')].find((chip) => chip.textContent.startsWith('Used'));
-  used.click();
-  assert.match(node.querySelector('.memory-line-panel').textContent, /jasmine tea/);
-  [...node.querySelectorAll('.memory-line-link')].find((button) => button.textContent === 'Not relevant here').click();
-  await tick();
-  assert.equal(memory.getStore().getNotes().find((note) => note.id === 'tea').notRelevant, 1);
-  assert.match(node.querySelector('.memory-line-panel').textContent, /Marked/);
-
-  const gone = await setup();
-  const goneNode = gone.element(1);
-  [...goneNode.querySelectorAll('.memory-line-chip')].find((chip) => chip.textContent.startsWith('Used')).click();
-  assert.match(goneNode.querySelector('.memory-line-panel').textContent, /this note is gone/);
+  assert.deepEqual(label(node), [], 'the line is drawn again without the update, and nothing is left of it');
 });
 
 test('the lines are drawn again when the memory changed after the reply', async () => {
@@ -100,5 +83,5 @@ test('the lines are drawn again when the memory changed after the reply', async 
   node.querySelector('.memory-line')?.remove();
   assert.deepEqual(label(node), []);
   announceMemoryUpdated(document, { conversationId: conversation.id });
-  assert.deepEqual(label(node), ['Memory updated', 'Used 1 notes from memory']);
+  assert.deepEqual(label(node), ['Memory updated']);
 });
