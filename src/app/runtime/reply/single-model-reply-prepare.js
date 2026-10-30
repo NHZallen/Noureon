@@ -63,12 +63,10 @@ export async function prepareReply({ getConfig, supportsToolCalling, webResearch
   // The skills the model may load by itself (the ones it is told about, and not those it was just given whole): only for a model that calls tools.
   const availableSkills = canCallTools ? await getAvailableSkills(skillNamesOfParts(userParts)) : [];
   const { createSkillLoader } = availableSkills.length && !ownSearchReply ? await import('../../../data/skill-tool.js') : {};
-  // The memory of notes (when the person chose it): its two tools join the loader of skills, for a model that calls tools and a reply that may be given tools. A reply that cannot have them
+  // The memory of notes: its two tools join the loader of skills, for a model that calls tools and a reply that may be given tools. A reply that cannot have them
   // (a provider's own search) learns afterwards by the curator instead.
   resetTrace(conversation?.id);
-  const memoryAccess = getConfig().memorySystem === 'notes'
-    ? await (await import('../memory-store/page-memory-loader.js')).createPageMemoryTools({ getConfig, getMemory: getNotesMemory, getHistory: getPageHistory, conversation }).catch(() => null)
-    : null;
+  const memoryAccess = await (await import('../memory-store/page-memory-loader.js')).createPageMemoryTools({ getConfig, getMemory: getNotesMemory, getHistory: getPageHistory, conversation }).catch(() => null);
   const memoryTools = memoryAccess && canCallTools && !ownSearchReply ? memoryAccess : null;
   if (memoryTools) resetTrace(conversation?.id, { toolsOffered: true });
   const uiLanguage = getConfig().uiLanguage;

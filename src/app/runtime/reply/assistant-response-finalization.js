@@ -1,5 +1,5 @@
 import { getRuntimeText } from '../i18n/runtime-texts.js';
-import { normalizeHistorySourceConversationIds } from '../memory/history-source-references.js';
+import { normalizeHistorySourceConversationIds } from '../memory-notes/history-sources.js';
 import { isStaleChunkError, offerReloadForNewVersion, staleChunkMessage } from '../../../pwa/stale-chunk-recovery.js';
 import { placePictures } from '../../../data/picture-interleave.js';
 import { revealArrival } from '../../ui/motion/arrival-reveal.js';
@@ -69,15 +69,14 @@ export async function finalizeAssistantResponse({
   responseRenderedInRealtime,
   targetElement,
   uiLanguage,
-  memoryEnabled,
-  autoMemoryEnabled,
+  learnEnabled,
   historySourceConversationIds = [],
   persistAppData,
   completeSingleModelView,
   restoreRealtimeCouncilDetails,
   renderRealtimeCouncilFinal,
   playbackCouncilResponse,
-  extractPersonalMemory,
+  learnFromTurn,
   completeImageView = null,
   // A text reply that has pictures in it (a text model drew them itself): the message is drawn again whole, so the pictures are there at once.
   showMessageWithPictures = null,
@@ -163,8 +162,9 @@ export async function finalizeAssistantResponse({
     scheduleVisionCheck({ conversation, message: finalAiMessage, targetElement });
   }
 
-  if (!hasFinalParts && !signal.aborted && memoryEnabled && autoMemoryEnabled) {
-    queueBackgroundTask(() => extractPersonalMemory(userMessageText, fullResponse, conversation));
+  // The memory of notes learns from the turn (memory-store/page-curator.js), once the reply is written.
+  if (!hasFinalParts && !signal.aborted && learnEnabled) {
+    queueBackgroundTask(() => learnFromTurn(conversation));
   }
 
   return {

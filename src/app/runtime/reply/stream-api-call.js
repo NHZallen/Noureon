@@ -1,4 +1,3 @@
-import { formatMemoryContextForModel } from '../memory/memory-context-builder.js';
 import { recordUsed, toolsOffered } from '../memory-store/memory-trace.js';
 import { NOURAS_REQUEST_PURPOSE, resolveNourasInstructions, shouldApplyNouras } from '../nouras/nouras-policy.js';
 import { compactFileHistoryForApi } from '../../ui/files/file-history-compaction.js';
@@ -154,8 +153,6 @@ const buildSystemInstruction = async ({
   config,
   conversation,
   astras,
-  personalMemories,
-  memoryContext,
   notesText,
   additionalSystemInstruction,
   chartAuthoringGuidance,
@@ -181,27 +178,9 @@ const buildSystemInstruction = async ({
     await getRuntimeLearningModeInstruction(config, hasAstraInstructions)
   );
 
+  // The memory of notes: its first page goes in here, the slip goes after the message (see streamApiCall). Nothing in a chat that may not use memory.
   const canUseMemory = !(conversation?.retentionMode === 'ephemeral' && conversation?.memoryAccessEnabled === false);
-  if (config.memorySystem === 'notes') {
-    // The memory of notes: its first page goes in here, the slip goes after the message (see streamApiCall); the old memory is not used beside it.
-    if (canUseMemory) systemInstruction = appendInstructionText(systemInstruction, notesText);
-  } else if (canUseMemory && config.memorySystemVersion === 2 && memoryContext) {
-    systemInstruction = appendInstructionText(
-      systemInstruction,
-      formatMemoryContextForModel(memoryContext)
-    );
-  } else if (canUseMemory && config.memoryEnabled1) {
-    const enabledMemories = personalMemories
-      .filter((memory) => memory.enabled)
-      .map((memory) => memory.content)
-      .join('\n');
-    if (enabledMemories) {
-      systemInstruction = appendInstructionText(
-        systemInstruction,
-        `個人習慣記憶：\n${enabledMemories}\n`
-      );
-    }
-  }
+  if (canUseMemory) systemInstruction = appendInstructionText(systemInstruction, notesText);
 
   systemInstruction = appendInstructionText(
     systemInstruction,
@@ -658,8 +637,6 @@ export function createStreamApiCall({
   getDefaultGenConfig,
   getConfig,
   getAstras,
-  getPersonalMemories,
-  getMemoryContext = () => null,
   // The memory of notes (memory-store/notes-memory.js): null until the page has started it.
   getNotesMemory = () => null,
   modelSupportsUploadedFile,
@@ -682,28 +659,12 @@ export function createStreamApiCall({
     // The server runs a reply whose system instruction the browser has already put together (memory, Noura, guidance and all):
     // it is used as it is, and nothing is looked up for it here.
     const instructionGiven = typeof requestOptions.systemInstructionText === 'string';
-    let memoryContext = null;
     // The memory of notes: the first page for the system instruction and the slip for after the message (nothing when the person is in a chat that may not use memory).
-    const notesMode = config.memorySystem === 'notes';
     const canUseMemory = !(conversation?.retentionMode === 'ephemeral' && conversation?.memoryAccessEnabled === false);
-    const notes = notesMode && !instructionGiven && canUseMemory && !requestOptions.skipMemoryContext && !requestOptions.skipConversationSystemContext
+    const notes = !instructionGiven && canUseMemory && !requestOptions.skipMemoryContext && !requestOptions.skipConversationSystemContext
       ? getNotesMemory()?.contextFor({ question: getMessageTextForGuidance(currentMessageForApi), canSearch: toolsOffered(conversation?.id), excludeConversationId: conversation?.id || '' }) || NO_NOTES
       : NO_NOTES;
-    if (!notesMode && !instructionGiven && !requestOptions.skipMemoryContext && config.memorySystemVersion === 2) {
-      try {
-        memoryContext = await getMemoryContext({
-          config,
-          conversation,
-          currentMessage: currentMessageForApi
-        });
-      } catch (error) {
-        warn('Memory context retrieval failed; continuing without it.', error);
-      }
-    }
-    if (memoryContext && typeof requestOptions.onMemoryContextResolved === 'function') {
-      requestOptions.onMemoryContextResolved(memoryContext);
-    }
-    // The past conversations the slip drew on are shown under the reply like the old memory's ("references").
+    // The past conversations the slip drew on are shown under the reply ("references").
     if (notes.historyIds.length && typeof requestOptions.onMemoryContextResolved === 'function') {
       requestOptions.onMemoryContextResolved({ historyResults: notes.historyIds.map((conversationId) => ({ conversationId })) });
     }
@@ -722,8 +683,6 @@ export function createStreamApiCall({
         config,
         conversation,
         astras: getAstras(),
-        personalMemories: getPersonalMemories(),
-        memoryContext,
         notesText: notes.systemText,
         additionalSystemInstruction: requestOptions.additionalSystemInstruction,
         chartAuthoringGuidance,

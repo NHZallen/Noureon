@@ -85,8 +85,6 @@ export function createSettingsAuthProviderLifecycle(dependencies = {}) {
         uploads,
         reply,
         quote,
-        // The memory functions (memory-runtime.js), or null while memory is not set up.
-        getMemory = () => null,
         // Starts the chat page after signing in.
         initChatApp,
         runtimeStorageAdapter,
@@ -167,9 +165,7 @@ export function createSettingsAuthProviderLifecycle(dependencies = {}) {
 
     const config = createLiveObject(() => runtimeConfigAccess.getConfig());
     const astras = createLiveObject(() => runtimeAppDataStore.getAstras());
-    const personalMemories = createLiveObject(() => runtimeAppDataStore.getPersonalMemories());
     const uploadedFiles = createLiveObject(() => uploads.getUploadedFiles());
-    const getMemoryState = () => runtimeAppDataStore.getMemoryState();
     const {
         streamApiCall,
         runMemoryModel,
@@ -183,7 +179,7 @@ export function createSettingsAuthProviderLifecycle(dependencies = {}) {
     } = createModelRequestRuntime({
         // Loaded ahead a few seconds after the start, when the page is idle, so the first message does not wait for it.
         whenIdle: (run) => window?.setTimeout?.(() => (window.requestIdleCallback ? window.requestIdleCallback(run, { timeout: 8000 }) : run()), 4000),
-        fetch, console, elements: ALL_ELEMENTS, getMemoryState, getMemory, models: MODELS, i18n, config, astras, personalMemories,
+        fetch, console, elements: ALL_ELEMENTS, models: MODELS, i18n, config, astras,
         cheapModelId: CHEAP_MODEL_ID, councilResponseCharLimit: COUNCIL_RESPONSE_CHAR_LIMIT, councilRetryDelayMs: COUNCIL_RETRY_DELAY_MS,
         councilMaxModels: COUNCIL_MAX_MODELS, getActiveConversation, normalizeConversationModel, getModelApiId, getApiKeyForProvider,
         getDefaultGenConfig, modelSupportsUploadedFile, modelSupportsVision, modelSupportsDocumentUpload, modelUsesTavilySearch,
@@ -313,7 +309,7 @@ export function createSettingsAuthProviderLifecycle(dependencies = {}) {
         syncSettingsSectionForViewport
     } = desktopSectionHelper;
     const { setupSettingsModal, saveSettings } = createSettingsModalLifecycle({
-        window, document, console, elements: ALL_ELEMENTS, getCurrentUser: session.getCurrentUser, getMemoryState, getMemory,
+        window, document, console, elements: ALL_ELEMENTS, getCurrentUser: session.getCurrentUser,
         runtimeStorageAdapter, models: MODELS, i18n, config,
         getSettingsText, getTavilySearchDepth, getApiKeyForProvider, saveConfig, showNotification, showCustomPrompt, showCustomDialog,
         showCustomConfirm, toggleModal, applyUiTheme, applyLanguage, renderModelSwitcher, renderStore, renderTrash, renderUiColorOptions,

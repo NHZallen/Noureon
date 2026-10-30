@@ -16,12 +16,10 @@ export function createPageFeatures({
     ResizeObserver, IntersectionObserver, requestAnimationFrame, setTimeout, clearTimeout, crypto, console,
     elements: ALL_ELEMENTS, runtimeConfigAccess, runtimeAppDataStore, liveConversationsBridge, runtimeDialogCoordinator, i18n,
     OFFICIAL_ASTRAS, updateLogs, productVersion, UI_THEME_COLORS,
-    // The memory functions (memory-runtime.js), or null while memory is not set up.
-    getMemory = () => null,
     updateInputState, setTheme, updateThemeButtons, saveConfig, saveAppData,
     deleteConversationsFromCloud, deleteAstrasFromCloud = async () => {},
     showNotification, showCustomConfirm, toggleModal, escapeHTML, sanitizeTrustedHTML,
-    renderAll, renderAstras, renderInputIndicators, renderCouncilControls = () => {}, renderPersonalMemoryList,
+    renderAll, renderAstras, renderInputIndicators, renderCouncilControls = () => {},
     showRenameModal, togglePinChat, archiveChat, deleteChat, moveConversationToFolder, renderBatchMoveModal,
     showFolderSettingsModal, deleteFolder, deleteAstras, editAstras,
     formatFullTimestamp, renderUserText, renderMarkdownWithFormulas, bindGeneratedImageAssets = async () => {}
@@ -68,7 +66,6 @@ export function createPageFeatures({
         window, document, elements: ALL_ELEMENTS, i18n, updateInputState, console,
         renderAstras, renderInputIndicators, renderCouncilControls, renderStore,
         renderTrash: (...args) => renderTrash(...args),
-        renderPersonalMemoryList: (...args) => renderPersonalMemoryList(...args)
     });
     const { showMobileContextMenu, showMobileContextMenuForFolder, showMobileContextMenuForAstras } = createMobileContextMenus({
         document, elements: ALL_ELEMENTS, i18n, getUiLanguage, getConversations,
@@ -110,14 +107,6 @@ export function createPageFeatures({
         showNotification,
         showCoordinatedNotification: (...args) => runtimeDialogCoordinator.showNotification(...args),
         deleteConversationsFromCloud,
-        invalidateConversationMemory: options => {
-            const invalidate = getMemory()?.invalidateConversation;
-            return typeof invalidate === 'function' ? invalidate(options) : Promise.resolve();
-        },
-        rebuildHistoryIndex: options => {
-            const rebuild = getMemory()?.rebuildHistoryIndex;
-            return typeof rebuild === 'function' ? rebuild(options) : Promise.resolve();
-        },
         toggleModal,
         formatFullTimestamp,
         renderUserText,

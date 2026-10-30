@@ -1,10 +1,12 @@
 // The search over the past conversations of this page (memory-notes/history-index.js): made from the conversations the page holds, brought up to date when it is used (only what changed is cut
 // again), with no model and nothing sent anywhere. The slip of the memory and the tool `search_memory` use it. Temporary conversations, deleted ones and the one being written are left out.
 
+import { summarizeFileBlocks } from '../../ui/files/file-history-compaction.js';
 import { createHistoryIndex } from '../memory-notes/history-index.js';
 
 export function createPageHistory({ getConversations }) {
-  const index = createHistoryIndex();
+  // A file the person attached or a reply made is in the text as a block: the index sees a short summary of it, not the whole body.
+  const index = createHistoryIndex({ clean: summarizeFileBlocks });
   const fresh = () => index.update(getConversations() || []);
   let vectors = null;
   return {

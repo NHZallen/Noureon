@@ -183,7 +183,6 @@ export function normalizeLoadedLegacyConfig({
   normalizedConfig.netMode = normalizeNetMode(normalizedConfig.netMode);
   normalizedConfig.sandboxNetwork = normalizedConfig.sandboxNetwork === 'off' ? 'off' : 'on';
   normalizedConfig.replyInputMode = ['steer', 'queue', 'send-now'].includes(normalizedConfig.replyInputMode) ? normalizedConfig.replyInputMode : 'steer';
-  normalizedConfig.memorySystem = normalizedConfig.memorySystem === 'notes' ? 'notes' : 'classic';
   normalizedConfig.openaiWebSearch = normalizedConfig.openaiWebSearch === 'provider' ? 'provider' : 'official';
   normalizedConfig.openaiSafetyIdentifier = normalizedConfig.openaiSafetyIdentifier !== false;
   normalizedConfig.netRules = normalizeNetRules(normalizedConfig.netRules);

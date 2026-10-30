@@ -15,7 +15,6 @@ import { repairCloudWorkspaceGeneratedImageKeys } from './cloud-workspace-image-
 import { ensureWorkspaceRecoveryBackup } from './workspace-recovery-backup.js';
 import { initializeConversationShadowSync } from './cloud-sync-v2.js';
 import { getActiveWorkspaceStore } from '../runtime/kernel/workspace-store-registry.js';
-import { initializeMemorySummaryCloudSync } from './memory-summary-cloud-sync.js';
 import { getCloudSyncBootstrapPendingKey } from './cloud-sync-bootstrap-queue.js';
 import { createConversationRealtimeRefreshScheduler } from './cloud-sync-realtime-refresh.js';
 import { withWorkspaceStorageExclusive } from './workspace-storage-coordinator.js';
@@ -523,7 +522,6 @@ export async function initializeCloudWorkspaceSync({ window, session, bootstrapQ
   }
 
   let conversationShadowSync = null;
-  let memorySummarySync = null;
   const conversationRefreshScheduler = createConversationRealtimeRefreshScheduler({
     getSync: () => conversationShadowSync,
     logger: console
@@ -679,20 +677,6 @@ export async function initializeCloudWorkspaceSync({ window, session, bootstrapQ
   } catch (error) {
     console.warn('Noureon conversation refresh did not block local runtime startup:', error);
   }
-  memorySummarySync = (deps.initializeMemorySummaryCloudSync || initializeMemorySummaryCloudSync)({
-    window,
-    supabase,
-    storage,
-    user,
-    username,
-    appDataKey: keys.appData,
-    getWorkspaceStore
-  });
-  try {
-    await memorySummarySync.ready;
-  } catch (error) {
-    console.warn('Noureon memory summary sync did not block local runtime startup:', error);
-  }
   conversationRefreshScheduler.resume();
   api.stop = () => {
     window.removeEventListener?.('online', handleOnline);
@@ -701,8 +685,7 @@ export async function initializeCloudWorkspaceSync({ window, session, bootstrapQ
     conversationShadowSync.stop();
     return Promise.all([
       supabase.removeChannel(realtimeChannel),
-      supabase.removeChannel(conversationRealtimeChannel),
-      memorySummarySync?.stop()
+      supabase.removeChannel(conversationRealtimeChannel)
     ]);
   };
   return api;

@@ -1,12 +1,11 @@
 // The workspace features of the chat page: the search, the uploads and the sidebar; the batch actions, the import and export and the
-// voice input; the memory (memory-runtime.js) and its dashboard, made the first time it is used; the warning on the API key; the
+// voice input; the dashboard, made the first time it is used; the warning on the API key; the
 // closing of popovers and the copy to the clipboard. Made once by the application shell (shell.js), which hands in what they use.
 
 import { createBatchImportVoiceLifecycle } from './batch-import-voice-lifecycle.js';
 import { createSearchUploadSidebarLifecycle } from './search-upload-sidebar-lifecycle.js';
 import { createApiKeyWarningBadgeUpdater } from './api-key-warning-badge.js';
 import { createLazyFunctions } from '../kernel/lazy-functions.js';
-import { createMemoryRuntime } from '../memory/memory-runtime.js';
 import { getNotesMemory, setMemoryModelRunner } from '../memory-store/memory-ref.js';
 
 export function createWorkspaceFeatures({
@@ -30,9 +29,6 @@ export function createWorkspaceFeatures({
     processInChunks, getBackupUsername, createPasswordRecord, getUserKey, setItem,
     logger = console
 }) {
-    // The memory functions (memory-runtime.js, made further down), or null before.
-    let memory = null;
-    const getMemory = () => memory;
     const getConfig = () => runtimeConfigAccess.getConfig();
     const getConversations = () => liveConversationsBridge.getConversations();
     // The speech recognition of the voice input running now, and the chart of the dashboard drawn last.
@@ -88,7 +84,6 @@ export function createWorkspaceFeatures({
         File,
         loadArchiveVendor,
         elements: ALL_ELEMENTS,
-        getMemory,
         setupSettingsModal,
         initChatApp,
         runtimeStorageAdapter,
@@ -165,69 +160,35 @@ export function createWorkspaceFeatures({
         toggleVoiceInput
     } = batchImportVoiceLifecycle;
 
-    const {
-        replaceMemoryState,
-        captureCompletedTurnAndPersist,
-        invalidateMemoryConversation,
-        memoryWorkScheduler,
-        ensureMemorySummaryFresh,
-        memory: memoryFunctions
-    } = createMemoryRuntime({
-        document, Event, fetch, crypto, setTimeout, clearTimeout, console, runtimeConfigAccess, runtimeAppDataStore, liveConversationsBridge,
-        getCurrentUser: session.getCurrentUser, runtimeStorageAdapter,
-        models: MODELS, runMemoryModel, modelSupportsVision, getApiKeyForProvider, hashString, saveAppData, saveConfig
-    });
-    memory = memoryFunctions;
     // The memory of notes reads the old conversations with the same small-request runner (memory-store/page-rebuild.js).
     setMemoryModelRunner((...args) => runMemoryModel(...args));
 
     const updateApiKeyWarningBadge = createApiKeyWarningBadgeUpdater({
         elements: ALL_ELEMENTS, getActiveConversation, normalizeConversationModel, isCouncilEnabled, getCouncilValidation, getApiKeyForProvider
     });
-    // The memory list, the memories taken from replies and the dashboard (model-memory-dashboard-lifecycle.js) load the first time one
-    // of them is used.
+    // What the memory of notes learns from a turn (memory-store/page-curator.js), loaded the first time a reply is finished.
+    const learnFromTurn = (conversation) => import('../memory-store/page-curator.js').then(({ curateNotesTurn }) => curateNotesTurn({ conversation, getConfig, getMemory: getNotesMemory, runMemoryModel, models: MODELS, getApiKeyForProvider, saveAppData, document }));
+    // The dashboard loads the first time it is opened.
     const {
-        renderPersonalMemoryList,
-        refineAndStoreMemories,
-        extractPersonalMemory,
         openDashboard,
         renderDashboardStats,
         renderModelUsageChart
-    } = createLazyFunctions(() => import('./model-memory-dashboard-lifecycle.js').then(({ createModelMemoryDashboardLifecycle }) => createModelMemoryDashboardLifecycle({
+    } = createLazyFunctions(() => import('./dashboard-lifecycle.js').then(({ createDashboardLifecycle }) => createDashboardLifecycle({
         Chart,
         document,
-        requestAnimationFrame,
-        crypto,
         elements: ALL_ELEMENTS,
         getConfig,
         getConversations,
         getFolders: () => runtimeAppDataStore.getFolders(),
-        getPersonalMemories: () => runtimeAppDataStore.getPersonalMemories(),
-        replacePersonalMemories: (nextPersonalMemories) => runtimeAppDataStore.replacePersonalMemories(nextPersonalMemories),
-        getMemoryState: () => runtimeAppDataStore.getMemoryState?.() || null,
-        replaceMemoryState,
-        captureCompletedTurn: options => captureCompletedTurnAndPersist(options),
-        curateNotesTurn: (conversation) => import('../memory-store/page-curator.js').then(({ curateNotesTurn }) => curateNotesTurn({ conversation, getConfig, getMemory: getNotesMemory, runMemoryModel, models: MODELS, getApiKeyForProvider, saveAppData, document })),
-        enqueueMemoryCapture: options => memoryWorkScheduler.enqueueCapture(options),
-        hashString,
         getModelPieChart: () => modelPieChart,
         setModelPieChart: (chart) => {
             modelPieChart = chart;
         },
         models: MODELS,
         i18n,
-        saveAppData,
-        runtimeDialogCoordinator,
-        showNotification,
-        showCustomConfirm,
-        showCustomPrompt,
         toggleModal,
-        callApiWithSchema,
-        getActiveConversation,
-        setupTimeAnalysis,
-        console
-    })), ['renderPersonalMemoryList', 'refineAndStoreMemories', 'extractPersonalMemory', 'openDashboard', 'renderDashboardStats',
-        'renderModelUsageChart']);
+        setupTimeAnalysis
+    })), ['openDashboard', 'renderDashboardStats', 'renderModelUsageChart']);
 
     function closeAllPopovers() {
         document.querySelectorAll('.popover.visible').forEach(popover => {
@@ -269,9 +230,7 @@ export function createWorkspaceFeatures({
     }
 
     return {
-        renderPersonalMemoryList,
-        refineAndStoreMemories,
-        extractPersonalMemory,
+        learnFromTurn,
         updateApiKeyWarningBadge,
         openDashboard,
         renderDashboardStats,
@@ -296,10 +255,6 @@ export function createWorkspaceFeatures({
         setupVoiceInput,
         toggleVoiceInput,
         closeAllPopovers,
-        copyTextToClipboard,
-        cancelMemoryCapture: conversationId => memoryWorkScheduler.cancelConversation(conversationId),
-        invalidateMemoryConversation,
-        ensureMemorySummaryFresh,
-        getMemory
+        copyTextToClipboard
     };
 }

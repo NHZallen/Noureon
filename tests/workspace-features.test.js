@@ -208,7 +208,7 @@ function createHarness(overrides = {}) {
 test('the workspace features are made at once and handed out by name', () => {
   const { lifecycle } = createHarness();
   for (const name of [
-    'renderPersonalMemoryList',
+    'learnFromTurn',
     'openDashboard',
     'performSearchAndRenderResults',
     'toggleSidebar',
@@ -226,12 +226,8 @@ test('the workspace features are made at once and handed out by name', () => {
   }
 });
 
-test('hands out the memory functions once they are made, and works on the live shell state', async () => {
+test('works on the live shell state', async () => {
   const { elements, lifecycle, state, shell } = createHarness();
-
-  assert.equal(typeof lifecycle.getMemory().rebuildHistoryIndex, 'function');
-  assert.equal(typeof lifecycle.getMemory().retrieveHistory, 'function');
-  assert.equal(typeof lifecycle.ensureMemorySummaryFresh, 'function');
 
   lifecycle.toggleSidebar(true);
   assert.equal(shell.sidebar.isSidebarOpen(), true, 'the sidebar writes the sidebar store it was given');
@@ -240,34 +236,6 @@ test('hands out the memory functions once they are made, and works on the live s
   state.folders = [{ id: 'f2', name: 'Folder Two', conversationIds: [] }];
   lifecycle.renderBatchMoveModal();
   assert.ok(elements.batchMoveFolderList.children.some((button) => button.textContent === 'Folder Two'));
-});
-
-test('a rebuild never replaces a persisted index when the workspace is temporarily empty', async () => {
-  const values = new Map([['noureon:history-index:v1:anonymous', {
-    schemaVersion: 1,
-    records: [{
-      recordId: 'capsule:historical',
-      recordType: 'conversation-capsule',
-      conversationId: 'historical',
-      sourceHash: 'historical-hash',
-      vector: [1, 0]
-    }]
-  }]]);
-  const harness = createHarness({
-    runtimeStorageAdapter: {
-      getItem: async key => values.get(key) ?? null,
-      setItem: async (key, value) => values.set(key, value),
-      removeItem: async key => values.delete(key)
-    }
-  });
-  harness.state.conversations = [];
-
-  await harness.lifecycle.getMemory().rebuildHistoryIndex();
-
-  assert.deepEqual(
-    values.get('noureon:history-index:v1:anonymous').records.map(record => record.recordId),
-    ['capsule:historical']
-  );
 });
 
 test('closing the popovers also collapses the model and thinking buttons', () => {

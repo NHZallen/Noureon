@@ -1,7 +1,6 @@
 import { createAppBootstrapComposition } from './app-bootstrap-composition.js';
 import { createStoreNavigationLifecycle } from './store-navigation-lifecycle.js';
 import { createP2PLifecycle } from './p2p-lifecycle.js';
-import { addConfirmedProfileEntry } from '../memory/memory-profile-management.js';
 import { openWhenBuilt, prepareWhenIdle } from './open-settings-when-built.js';
 import { installFileCardInteractions } from '../../ui/files/file-card-interactions.js';
 import { fitPopoverToViewport } from '../../ui/dom/fit-popover-to-viewport.js';
@@ -29,9 +28,6 @@ export function createAppBootstrapLifecycle({
     getConversations,
     getFolders,
     getAstras,
-    getPersonalMemories,
-    getMemoryState = () => ({ profileEntries: [] }),
-    replaceMemoryState = () => {},
     setSidebarOpen,
     setSendConfirmed,
     getAbortController,
@@ -81,7 +77,6 @@ export function createAppBootstrapLifecycle({
     createNewFolder,
     createAstras,
     handleSaveAstras,
-    renderPersonalMemoryList,
     handleDeleteAllData,
     applyLanguage,
     applyUiTheme,
@@ -98,7 +93,6 @@ export function createAppBootstrapLifecycle({
     postJsonWithReadableError,
     setupHistorySidebarInteractions,
     setupHistorySidebarTriggers,
-    requestMemorySummaryBootstrap = () => Promise.resolve({ skipped: true }),
     escapeHTML,
     getDefaultFolder,
     isMobileSettingsViewport,
@@ -134,9 +128,6 @@ export function createAppBootstrapLifecycle({
             scheduleAnimationFrame, scheduleTimeout, clearScheduledTimeout
         });
         await startNewChat();
-        void requestMemorySummaryBootstrap().catch((error) => {
-            logger.warn('Memory summary bootstrap could not start.', error);
-        });
         updateFunctionButtonsState();
         resolveEventsUpdateInputState();
         setupVoiceInput();
@@ -322,18 +313,6 @@ export function createAppBootstrapLifecycle({
         ALL_ELEMENTS.newAstrasBtn.addEventListener('click', createAstras);
         ALL_ELEMENTS.saveAstrasBtn.addEventListener('click', handleSaveAstras);
         ALL_ELEMENTS.cancelAstrasBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.astrasCreateModal, false));
-        ALL_ELEMENTS.addPersonalMemoryBtn.addEventListener('click', async () => {
-            const content = await showCustomPrompt(i18n[config.uiLanguage].enterNewMemory, i18n[config.uiLanguage].addMemory);
-            if (content) {
-                replaceMemoryState(addConfirmedProfileEntry(getMemoryState(), {
-                    id: randomUUID(),
-                    content
-                }));
-                await saveAppData();
-                renderPersonalMemoryList();
-                showNotification(i18n[config.uiLanguage].memoryAdded);
-            }
-        });
         ALL_ELEMENTS.deleteAllDataBtn.addEventListener('click', handleDeleteAllData);
         ALL_ELEMENTS.uiLanguageSelect.addEventListener('change', (e) => {
             config.uiLanguage = e.target.value;

@@ -80,7 +80,7 @@ export function startMemoryLines({ document, getConfig, getMemory, getConversati
     try {
       const stack = element?.querySelector?.('.message-stack');
       stack?.querySelector?.(`.${LINE_CLASS}`)?.remove();
-      if (!stack || message?.role === 'user' || getConfig()?.memorySystem !== 'notes') return;
+      if (!stack || message?.role === 'user') return;
       const live = store();
       if (!live?.isLoaded()) return;
       const updatedIds = firstUpdated(conversation, message) ? asIds(message?.metadata?.memoryUpdated) : [];

@@ -11,8 +11,6 @@ export const SERVICES = Object.freeze({
   workspaceSyncReady: 'workspace-sync-ready',
   // The files kept in the person's cloud storage: hydrate, externalize (src/app/sync/cloud-assets.js).
   cloudAssets: 'cloud-assets',
-  // The sync of the memory summaries (src/app/sync/memory-summary-cloud-sync.js).
-  memorySummarySync: 'memory-summary-sync',
   // Called once the page's runtime is up, so the live cloud workspace may be applied (cloud-workspace-live-lifecycle.js).
   cloudRuntimeReady: 'cloud-runtime-ready',
   // The dialog that offers a new version (startup-lifecycle.js), for the service worker and the recovery from a missing chunk.

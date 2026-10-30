@@ -1,9 +1,6 @@
 // The heavier parts of the settings dialog (settings-modal-lifecycle.js): the visual check row with the Privacy and Permissions tabs and
-// the storage lines, the memory summary controls, and the recall of past conversations with its index tools.
-// They are loaded when the dialog is first built, not with the page.
+// the storage lines, and the memory of notes. They are loaded when the dialog is first built, not with the page.
 
-import { createSettingsHistoryRecallControls } from './settings-history-recall-controls.js';
-import { createSettingsMemorySummaryControls } from './settings-memory-summary-controls.js';
 import { ensureVisionCheckSettingsControl } from './settings-vision-check-section.js';
 import { createMemoryNotesSettings } from '../../ui/memory-notes/memory-notes-settings.js';
 import { getNotesMemory, getMemoryModelRunner, getPageHistory, getPageVectors } from '../memory-store/memory-ref.js';
@@ -11,28 +8,9 @@ import { createRebuildController } from '../memory-store/page-rebuild.js';
 import { getAnnouncedUser } from '../features/user-ready.js';
 
 export function createSettingsDialogParts({
-    document, elements: ALL_ELEMENTS, getMemoryState, getMemory, models: MODELS, i18n, config, getApiKeyForProvider, saveConfig,
+    document, elements: ALL_ELEMENTS, models: MODELS, i18n, config, getApiKeyForProvider, saveConfig,
     showNotification, showCustomPrompt, showCustomDialog
 }) {
-    const historyRecallControls = createSettingsHistoryRecallControls({
-        document,
-        elements: ALL_ELEMENTS,
-        getMemory,
-        getConfig: () => config,
-        getText: (key, fallback) => i18n[config.uiLanguage]?.[key] || fallback
-    });
-    const memorySummaryControls = createSettingsMemorySummaryControls({
-        document,
-        models: MODELS,
-        getConfig: () => config,
-        getMemoryState,
-        getMemory,
-        saveConfig,
-        isModelReady: model => Boolean(getApiKeyForProvider?.(model?.provider)),
-        showNotification,
-        showCustomPrompt,
-        showCustomDialog
-    });
     const rebuildController = createRebuildController({
         getStore: () => getNotesMemory()?.getStore?.() || null,
         getConversations: () => getPageHistory()?.conversations() || [],
@@ -54,27 +32,11 @@ export function createSettingsDialogParts({
         const fresh = !built;
         built = true;
         ensureVisionCheckSettingsControl({ document, elements: ALL_ELEMENTS, config, saveConfig, showNotification });
-        memorySummaryControls.ensureControls();
-        historyRecallControls.ensureHistoryRecallSettingsControl();
-        historyRecallControls.bindHistoryIndexRebuild();
-        historyRecallControls.bindHistoryIndexAudit({ showCustomDialog });
-        historyRecallControls.bindHistoryIndexStatusUpdates();
         if (ALL_ELEMENTS.visionCheckToggleSwitch) ALL_ELEMENTS.visionCheckToggleSwitch.checked = config.visionCheckEnabled !== false;
         if (ALL_ELEMENTS.processToggle) ALL_ELEMENTS.processToggle.checked = config.processOpen === true;
-        if (ALL_ELEMENTS.memoryToggle1?.isConnected) ALL_ELEMENTS.memoryToggle1.checked = config.memoryProfileEnabled !== false;
-        if (ALL_ELEMENTS.autoMemoryToggleSwitch?.isConnected) ALL_ELEMENTS.autoMemoryToggleSwitch.checked = config.enableAutoMemory;
-        if (ALL_ELEMENTS.historyRecallToggleSwitch) {
-            ALL_ELEMENTS.historyRecallToggleSwitch.checked = config.historyRecallEnabled === true;
-        }
-        void historyRecallControls.refreshHistoryRecallStatus();
-        memorySummaryControls.render();
-        // The memory of notes sits at the top of the memory section (after the old controls made it).
+        // The memory of notes fills the memory section.
         memoryNotesSettings.mount();
         return fresh;
     };
-    return {
-        build,
-        refreshHistoryRecallStatus: historyRecallControls.refreshHistoryRecallStatus,
-        resolveHistoryRecallEnabled: historyRecallControls.resolveHistoryRecallEnabled
-    };
+    return { build };
 }

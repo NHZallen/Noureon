@@ -18,8 +18,8 @@ async function withMemory({ notes = [], settings } = {}) {
   return memory;
 }
 
-const prepare = ({ memorySystem = 'notes', canCallTools = true, webSearchEnabled = false } = {}) => prepareReply(
-  { getConfig: () => ({ memorySystem, uiLanguage: 'en', aiDefaultLanguage: 'en' }), supportsToolCalling: () => canCallTools, webResearch: null, serverReply: null, getWindow: () => ({}) },
+const prepare = ({ canCallTools = true, webSearchEnabled = false } = {}) => prepareReply(
+  { getConfig: () => ({ uiLanguage: 'en', aiDefaultLanguage: 'en' }), supportsToolCalling: () => canCallTools, webResearch: null, serverReply: null, getWindow: () => ({}) },
   { userParts: [{ text: 'I live in Taipei' }], modelInfo: { id: 'm', provider: 'openrouter' }, conversation: { id: 'conv-prep', messages: [{ role: 'user', parts: [{ text: 'I live in Taipei' }], createdAt: '2026-10-30T00:00:00.000Z' }] }, webSearchEnabled }
 );
 
@@ -30,13 +30,6 @@ test('with the notes chosen, a model that calls tools gets the memory tools in t
   const prep = await prepare();
   assert.deepEqual(prep.makeSkillLoader().tools.map((tool) => tool.name).sort(), ['memory_write', 'search_memory']);
   assert.equal(toolsOffered('conv-prep'), true, 'the first page may say that notes can be looked up');
-});
-
-test('with the old memory, no loader is made for the memory', async () => {
-  await withMemory({ notes: [dog] });
-  const prep = await prepare({ memorySystem: 'classic' });
-  assert.equal(prep.makeSkillLoader(), null);
-  assert.equal(toolsOffered('conv-prep'), false);
 });
 
 test('a model that cannot call tools, or a reply with the provider\'s own search, has no memory tools (the curator learns after it)', async () => {

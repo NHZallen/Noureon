@@ -68,9 +68,9 @@ const lastUserText = (requests) => {
 
 const QUESTION = 'How should I train my Shiba Inu dog Mochi?';
 
-test('the notes: the first page goes in the system instruction and the slip after the message, the old memory is not used', async () => {
+test('the notes: the first page goes in the system instruction and the slip after the message, and nothing of the old memory', async () => {
   const { memory } = await loadedMemory();
-  const { streamApiCall, requests, conversation } = harness({ config: { memorySystem: 'notes' }, memory });
+  const { streamApiCall, requests, conversation } = harness({ memory });
   await streamApiCall([{ text: QUESTION }], () => {});
   const system = systemOf(requests);
   assert.match(system, /Standing preferences/);
@@ -86,24 +86,15 @@ test('the notes: the first page goes in the system instruction and the slip afte
 
 test('the notes: a question that bears on no note brings no slip, the first page is still there', async () => {
   const { memory } = await loadedMemory();
-  const { streamApiCall, requests } = harness({ config: { memorySystem: 'notes' }, memory });
+  const { streamApiCall, requests } = harness({ memory });
   await streamApiCall([{ text: 'What is the capital of France?' }], () => {});
   assert.doesNotMatch(lastUserText(requests), /memory-context/);
   assert.match(systemOf(requests), /concise answers/);
 });
 
-test('the old memory stays as it was when the notes are not chosen', async () => {
-  const { memory } = await loadedMemory();
-  const { streamApiCall, requests } = harness({ config: { memorySystem: 'classic', memoryEnabled1: true }, memory });
-  await streamApiCall([{ text: QUESTION }], () => {});
-  assert.match(systemOf(requests), /Legacy memory line/);
-  assert.doesNotMatch(systemOf(requests), /Standing preferences/);
-  assert.doesNotMatch(lastUserText(requests), /memory-context/);
-});
-
 test('a chat that may not use memory gets nothing from the notes', async () => {
   const { memory } = await loadedMemory();
-  const { streamApiCall, requests } = harness({ config: { memorySystem: 'notes' }, memory, conversation: { retentionMode: 'ephemeral', memoryAccessEnabled: false } });
+  const { streamApiCall, requests } = harness({ memory, conversation: { retentionMode: 'ephemeral', memoryAccessEnabled: false } });
   await streamApiCall([{ text: QUESTION }], () => {});
   assert.doesNotMatch(systemOf(requests), /concise answers/);
   assert.doesNotMatch(lastUserText(requests), /memory-context/);
@@ -111,7 +102,7 @@ test('a chat that may not use memory gets nothing from the notes', async () => {
 
 test('switching the use of memory off gives nothing, and a memory that did not load gives nothing', async () => {
   const off = await loadedMemory({ settings: { use: false } });
-  const first = harness({ config: { memorySystem: 'notes' }, memory: off.memory });
+  const first = harness({ memory: off.memory });
   await first.streamApiCall([{ text: QUESTION }], () => {});
   assert.doesNotMatch(systemOf(first.requests), /concise answers/);
   assert.doesNotMatch(lastUserText(first.requests), /memory-context/);
@@ -119,14 +110,14 @@ test('switching the use of memory off gives nothing, and a memory that did not l
   const broken = createNotesMemory({ storage: { getItem() { throw new Error('storage is blocked'); }, setItem() {} }, logger: { warn() {} } });
   await assert.doesNotReject(broken.attach({ username: 'tester' }));
   assert.equal(broken.isReady(), false);
-  const second = harness({ config: { memorySystem: 'notes' }, memory: broken });
+  const second = harness({ memory: broken });
   await second.streamApiCall([{ text: QUESTION }], () => {});
   assert.doesNotMatch(lastUserText(second.requests), /memory-context/);
 });
 
 test('a reply the server makes: describeOnly hands over the slip, and the server puts it after the message', async () => {
   const { memory } = await loadedMemory();
-  const page = harness({ config: { memorySystem: 'notes' }, memory });
+  const page = harness({ memory });
   const described = await page.streamApiCall([{ text: QUESTION }], null, undefined, false, { describeOnly: true, markMemoryUsed: true });
   assert.match(described.systemInstructionText, /concise answers/);
   assert.match(described.memorySlipText, /Mochi/);
@@ -140,7 +131,7 @@ test('a reply the server makes: describeOnly hands over the slip, and the server
 
 test('the use of the notes of a slip is recorded once, for the reply that is made', async () => {
   const { memory } = await loadedMemory();
-  const { streamApiCall } = harness({ config: { memorySystem: 'notes' }, memory });
+  const { streamApiCall } = harness({ memory });
   await streamApiCall([{ text: QUESTION }], () => {}, undefined, false, { toolTurns: [] });
   await new Promise((resolve) => setTimeout(resolve, 20));
   const dog = memory.getStore().getNotes().find((note) => note.id === 'n-dog');
@@ -156,7 +147,7 @@ test('the use of the notes of a slip is recorded once, for the reply that is mad
 
 test('the slip is also built for a reply with a tool round, and carried by every round', async () => {
   const { memory } = await loadedMemory();
-  const { streamApiCall, requests } = harness({ config: { memorySystem: 'notes' }, memory });
+  const { streamApiCall, requests } = harness({ memory });
   await streamApiCall([{ text: QUESTION }], () => {}, undefined, false, { toolTurns: [{ calls: [] }] });
   assert.match(lastUserText(requests), /<memory-context>/);
 });

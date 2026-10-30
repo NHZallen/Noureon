@@ -22,7 +22,6 @@ export function userMessagesOf(conversation) {
 
 /** `canUse(conversation)`: the chat may use memory at all. Resolves `{ make(language) }` (each call gives a new loader for one loop of the reply), or null. */
 export async function createPageMemoryTools({ getConfig, getMemory, getHistory = () => null, conversation, createId = () => globalThis.crypto.randomUUID(), now = () => new Date().toISOString() }) {
-  if (getConfig()?.memorySystem !== 'notes') return null;
   if (conversation?.retentionMode === 'ephemeral' && conversation?.memoryAccessEnabled === false) return null;
   const memory = getMemory();
   if (!memory) return null;

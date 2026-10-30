@@ -153,9 +153,6 @@
       "note": "Reviewed 2026-10-13: no browser globals (the list of OpenCode Go models: the form of API of each, pictures)."
     },
     {
-      "path": "src/app/runtime/memory/memory-context-builder.js"
-    },
-    {
       "path": "src/app/runtime/nouras/nouras-policy.js"
     },
     {

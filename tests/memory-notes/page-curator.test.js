@@ -25,7 +25,7 @@ const conversation = (extra = {}) => ({
   ...extra
 });
 
-function run({ memory, conv = conversation(), config = { memorySystem: 'notes', memoryModelId: 'gemini-3.5-flash-lite' }, output = '{"ops":[]}', keys = () => 'key' }) {
+function run({ memory, conv = conversation(), config = { memoryModelId: 'gemini-3.5-flash-lite' }, output = '{"ops":[]}', keys = () => 'key' }) {
   const calls = [];
   const saved = [];
   return {
@@ -65,7 +65,7 @@ test('for a model with no memory tools, the curator reads the turn with the chea
   assert.equal(memory.getStore().getEvents().length, 1);
 });
 
-test('nothing is read or written when learning is off, paused, the memory is off, or the chat is temporary', async () => {
+test('nothing is read or written when learning is off, paused, the memory is off, there is no conversation, or the chat is temporary', async () => {
   resetTrace('conv-cur');
   for (const [settings, conv, why] of [
     [{ learn: false }, conversation(), 'learn off'],
@@ -81,7 +81,7 @@ test('nothing is read or written when learning is off, paused, the memory is off
     assert.equal(memory.getStore().getNotes().length, 0, `${why}: nothing is written`);
   }
   const memory = await memoryWith();
-  const { calls, done } = run({ memory, config: { memorySystem: 'classic' }, output: ADD });
+  const { calls, done } = run({ memory, conv: { id: '', messages: [] }, output: ADD });
   assert.equal((await done).skipped, 'off');
   assert.equal(calls.length, 0);
 });
@@ -99,7 +99,7 @@ test('no usable model, a model that fails, and a message too short all leave the
   resetTrace('conv-cur');
   const memory = await memoryWith();
   assert.equal((await run({ memory, keys: () => '' }).done).skipped, 'no_model');
-  const failing = curateNotesTurn({ conversation: conversation(), getConfig: () => ({ memorySystem: 'notes' }), getMemory: () => memory, runMemoryModel: async () => { throw new Error('rate limited'); }, models: MODELS, getApiKeyForProvider: () => 'key', wait: async () => {}, logger: { warn() {} } });
+  const failing = curateNotesTurn({ conversation: conversation(), getConfig: () => ({}), getMemory: () => memory, runMemoryModel: async () => { throw new Error('rate limited'); }, models: MODELS, getApiKeyForProvider: () => 'key', wait: async () => {}, logger: { warn() {} } });
   assert.equal((await failing).skipped, 'model_failed');
   const short = conversation({ messages: [{ role: 'user', parts: [{ text: 'ok' }], createdAt: '2026-10-30T08:00:00.000Z' }, { role: 'model', parts: [{ text: 'hi' }] }] });
   const { calls, done } = run({ memory, conv: short, output: ADD });

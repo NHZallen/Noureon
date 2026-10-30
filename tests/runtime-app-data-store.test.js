@@ -14,19 +14,7 @@ test('app data store creates empty pointer groups by default', () => {
   assert.deepEqual(store.getFolders(), []);
   assert.deepEqual(store.getAstras(), []);
   assert.deepEqual(store.getPersonalMemories(), []);
-  assert.deepEqual(store.getMemoryState(), {
-    version: 2,
-    profileEntries: [],
-    profileCandidates: [],
-    resolvedProfileCandidateIds: [],
-    recentConversationStates: [],
-    mediaMemories: [],
-    conversationCapsules: [],
-    longTermTopicSummaries: [],
-    resolvedTopicSummaryIds: [],
-    suppressionRules: [],
-    legacyInbox: []
-  });
+  assert.deepEqual(store.getMemoryState(), {});
   assert.deepEqual(store.getSnapshot(), {
     conversations: store.getConversations(),
     folders: store.getFolders(),

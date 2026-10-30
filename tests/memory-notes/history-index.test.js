@@ -77,7 +77,7 @@ test('a request reports the past conversations the slip drew on, for the referen
   const encoder = new TextEncoder();
   const call = createStreamApiCall({
     getActiveConversation: () => conversation, normalizeConversationModel: () => model, getModelApiId: (info) => info.apiId, getApiKeyForProvider: () => 'key',
-    getDefaultGenConfig: () => ({ temperature: 0.7, topP: 0.95, maxTokens: null }), getConfig: () => ({ aiDefaultLanguage: 'en', memorySystem: 'notes' }),
+    getDefaultGenConfig: () => ({ temperature: 0.7, topP: 0.95, maxTokens: null }), getConfig: () => ({ aiDefaultLanguage: 'en' }),
     getAstras: () => [], getPersonalMemories: () => [], getNotesMemory: () => memory, modelSupportsUploadedFile: () => true, modelSupportsVision: () => true,
     fetchImpl: async (url, options) => { requests.push(JSON.parse(options.body)); return { ok: true, status: 200, statusText: 'OK', body: new ReadableStream({ start(controller) { controller.enqueue(encoder.encode('data: {"choices":[{"delta":{"content":"Hi"}}]}\n\ndata: [DONE]\n\n')); controller.close(); } }) }; },
     warn() {}
@@ -93,7 +93,7 @@ test('search_memory takes a scope on this page and gives pieces of past conversa
   const memory = createNotesMemory({ storage: { getItem: (key) => data.get(key) ?? null, setItem: (key, value) => { data.set(key, value); } }, logger: { warn() {} } });
   await memory.attach({ username: 'tester' });
   const history = createPageHistory({ getConversations: () => [OLD, OTHER] });
-  const tools = await createPageMemoryTools({ getConfig: () => ({ memorySystem: 'notes' }), getMemory: () => memory, getHistory: () => history, conversation: { id: 'other', messages: [] } });
+  const tools = await createPageMemoryTools({ getConfig: () => ({}), getMemory: () => memory, getHistory: () => history, conversation: { id: 'other', messages: [] } });
   const loader = tools.make('en');
   const answer = JSON.parse(await loader.run({ name: 'search_memory', args: { query: 'Shiba chewing sofa', scope: 'history' } }));
   assert.equal(answer.conversations[0].conversationId, 'old');

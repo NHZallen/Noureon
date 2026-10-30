@@ -15,14 +15,14 @@ import { createFakeIndexedDb } from '../helpers/fake-indexeddb.js';
 const noteRow = (note) => ({ record_key: `note:${note.id}`, payload: note, version: 1, updated_at: note.updatedAt, deleted_at: null });
 const tick = () => new Promise((resolve) => setTimeout(resolve, 15));
 
-async function setup({ language = 'en', memorySystem = 'classic', notes = [], extraRows = [], conversations = [], makeVectors = () => null } = {}) {
+async function setup({ language = 'en', notes = [], extraRows = [], conversations = [], makeVectors = () => null } = {}) {
   const window = new Window();
   const { document } = window;
-  document.body.innerHTML = '<div id="memory-section"><div id="memory-summary-settings">old summary</div></div>';
+  document.body.innerHTML = '<div id="memory-section"></div>';
   const data = new Map([['noureon.memoryNotes.v1.tester', JSON.stringify({ version: 1, rows: [...notes.map(noteRow), ...extraRows] })]]);
   const memory = createNotesMemory({ storage: { getItem: (key) => data.get(key) ?? null, setItem: (key, value) => { data.set(key, value); } }, logger: { warn() {} } });
   await memory.attach({ username: 'tester' });
-  const config = { uiLanguage: language, memorySystem };
+  const config = { uiLanguage: language };
   const notices = [];
   let counter = 0;
   const answers = [];
@@ -57,37 +57,17 @@ async function setup({ language = 'en', memorySystem = 'classic', notes = [], ex
 const dog = createNote({ id: 'dog', text: 'The user has a Shiba Inu named Mochi', kind: 'relationship' });
 const tea = createNote({ id: 'tea', text: 'The user prefers jasmine tea', kind: 'preference' });
 
-test('with the old memory in use, only the switch is shown and the old summary stays', async () => {
-  const { document, root } = await setup();
-  assert.ok(root().querySelector('input[type=checkbox]'));
-  assert.equal(root().querySelectorAll('input[type=checkbox]').length, 1);
-  assert.equal(document.getElementById('memory-summary-settings').hidden, false);
-  assert.match(root().textContent, /Use the new memory system/);
-});
-
-test('switching to the new memory hides the old summary and shows the switches and the summary', async () => {
-  const { document, config, root } = await setup({ notes: [dog, tea] });
-  const toggle = root().querySelector('input[type=checkbox]');
-  toggle.checked = true;
-  toggle.dispatchEvent(new document.defaultView.Event('change'));
-  await tick();
-  assert.equal(config.memorySystem, 'notes');
-  assert.equal(document.getElementById('memory-summary-settings').hidden, true);
-  assert.equal(root().querySelectorAll('input[type=checkbox]').length, 3, 'the master switch, use and learn');
+test('the memory section shows the title, the switches and the summary of the notes', async () => {
+  const { root } = await setup({ notes: [dog, tea] });
   assert.match(root().textContent, /Manage notes/);
   assert.match(root().textContent, /2notes/);
-  toggle.checked = false;
-  const again = root().querySelector('input[type=checkbox]');
-  again.checked = false;
-  again.dispatchEvent(new document.defaultView.Event('change'));
-  await tick();
-  assert.equal(config.memorySystem, 'classic');
-  assert.equal(document.getElementById('memory-summary-settings').hidden, false, 'it comes back when the switch is off');
+  assert.equal(root().querySelectorAll('input[type=checkbox]').length, 2, 'use and learn');
+  assert.doesNotMatch(root().textContent, /Use the new memory system/);
 });
 
 test('the use and learn switches are saved in the settings of the memory', async () => {
-  const { document, memory, root } = await setup({ memorySystem: 'notes', notes: [dog] });
-  const [, use, learn] = [...root().querySelectorAll('input[type=checkbox]')];
+  const { document, memory, root } = await setup({ notes: [dog] });
+  const [use, learn] = [...root().querySelectorAll('input[type=checkbox]')];
   use.checked = false;
   use.dispatchEvent(new document.defaultView.Event('change'));
   learn.checked = false;
@@ -98,7 +78,7 @@ test('the use and learn switches are saved in the settings of the memory', async
 });
 
 test('the manage page lists notes, searches them, adds one, pins one, and deletes one', async () => {
-  const { window, memory, answers, notices, root, click } = await setup({ memorySystem: 'notes', notes: [dog, tea] });
+  const { window, memory, answers, notices, root, click } = await setup({ notes: [dog, tea] });
   await click('Manage notes →');
   assert.match(root().textContent, /Shiba Inu named Mochi/);
   assert.match(root().textContent, /jasmine tea/);
@@ -145,7 +125,6 @@ test('a change of the model is listed with Undo, and Undo brings the note back',
   });
   assert.equal(written.ok, true);
   const { memory, root, click } = await setup({
-    memorySystem: 'notes',
     notes: [written.notes[0]],
     extraRows: [{ record_key: `event:${written.event.id}`, payload: written.event, version: 1, updated_at: written.event.at, deleted_at: null }]
   });
@@ -159,7 +138,7 @@ test('a change of the model is listed with Undo, and Undo brings the note back',
 });
 
 test('clearing all memory asks first and leaves nothing in the list', async () => {
-  const { memory, answers, root, click } = await setup({ memorySystem: 'notes', notes: [dog, tea] });
+  const { memory, answers, root, click } = await setup({ notes: [dog, tea] });
   answers.push(null);
   await click('Clear all memory');
   assert.equal(memory.getStore().getNotes().length, 2, 'cancel keeps everything');
@@ -171,11 +150,11 @@ test('clearing all memory asks first and leaves nothing in the list', async () =
 
 test('every language has the text of the screen, and a note is drawn as text, never as markup', async () => {
   for (const language of ['zh-TW', 'en', 'fr', 'ru', 'es']) {
-    const { root } = await setup({ language, memorySystem: 'notes', notes: [dog] });
+    const { root } = await setup({ language, notes: [dog] });
     assert.doesNotMatch(root().textContent, /\bmn[A-Z]/, `${language} has no missing key`);
   }
   const risky = createNote({ id: 'x', text: '<img src=x onerror=alert(1)> bold', kind: 'fact' });
-  const { root, click } = await setup({ memorySystem: 'notes', notes: [risky] });
+  const { root, click } = await setup({ notes: [risky] });
   await click('Manage notes →');
   assert.equal(root().querySelector('img'), null);
   assert.match(root().textContent, /<img src=x/);
@@ -187,13 +166,13 @@ test('a memory that could not be loaded says so and does not break the screen', 
   document.body.innerHTML = '<div id="memory-section"></div>';
   const memory = createNotesMemory({ storage: { getItem() { throw new Error('blocked'); }, setItem() {} }, logger: { warn() {} } });
   await memory.attach({ username: 'tester' });
-  const ui = createMemoryNotesSettings({ document, getConfig: () => ({ uiLanguage: 'en', memorySystem: 'notes' }), saveConfig: async () => {}, getMemory: () => memory, getText: (key) => i18n.en[key] || '', showCustomDialog: async () => null });
+  const ui = createMemoryNotesSettings({ document, getConfig: () => ({ uiLanguage: 'en' }), saveConfig: async () => {}, getMemory: () => memory, getText: (key) => i18n.en[key] || '', showCustomDialog: async () => null });
   assert.equal(ui.mount(), true);
   assert.match(document.getElementById('memory-notes-settings').textContent, /cannot be read right now/);
 });
 
 test('the curator model can be chosen, and automatic is the first choice', async () => {
-  const { document, memory, root } = await setup({ memorySystem: 'notes', notes: [dog] });
+  const { document, memory, root } = await setup({ notes: [dog] });
   const select = root().querySelector('select');
   assert.equal(select.value, '', 'automatic by default');
   assert.deepEqual([...select.options].map((option) => option.value), ['', 'gemini-3.5-flash-lite', 'gemini-3.8-flash']);
@@ -208,20 +187,20 @@ test('the card that builds the memory from old conversations: start, progress, d
     { id: 'a', model: 'm1', lastUpdatedAt: '2026-03-01T00:00:00.000Z', messages: [{ role: 'user', parts: [{ text: 'I live in Taipei and work as a nurse' }], createdAt: '2026-03-01T00:00:00.000Z' }, { role: 'model', parts: [{ text: 'ok' }] }] },
     { id: 'b', model: 'm1', lastUpdatedAt: '2026-04-01T00:00:00.000Z', messages: [{ role: 'user', parts: [{ text: 'I moved to Hsinchu for a new hospital' }], createdAt: '2026-04-01T00:00:00.000Z' }, { role: 'model', parts: [{ text: 'ok' }] }] }
   ];
-  const empty = await setup({ memorySystem: 'notes', conversations });
+  const empty = await setup({ conversations });
   assert.match(empty.root().textContent, /Build memory from past conversations/);
   await empty.click('Start');
   await tick();
   await tick();
   assert.match(empty.root().textContent, /Done: read 2 conversations, added 0 notes\./);
 
-  const withNotes = await setup({ memorySystem: 'notes', notes: [dog], conversations });
+  const withNotes = await setup({ notes: [dog], conversations });
   assert.ok([...withNotes.root().querySelectorAll('button')].some((button) => button.textContent === 'Clear and build again'));
   withNotes.answers.push(null);
   await withNotes.click('Clear and build again');
   assert.equal(withNotes.memory.getStore().getNotes().filter((note) => note.status === 'active').length, 1, 'cancel keeps the notes');
 
-  const none = await setup({ memorySystem: 'notes', conversations: [] });
+  const none = await setup({ conversations: [] });
   assert.match(none.root().textContent, /There are no conversations to read yet/);
 });
 
@@ -231,7 +210,6 @@ test('the tidy card says when the notes were last tidied, tidies on a click, and
   const tidy = await runConsolidation({ notes: [trip, tea], settings: {}, commit: async () => {}, createId: () => 'tidy1', now: () => '2026-10-30T01:00:00.000Z' });
   assert.equal(tidy.events.length, 1);
   const { memory, root, click, notices } = await setup({
-    memorySystem: 'notes',
     notes: tidy.notes,
     extraRows: [{ record_key: 'event:tidy1', payload: tidy.events[0], version: 1, updated_at: tidy.events[0].at, deleted_at: null }]
   });
@@ -267,12 +245,12 @@ test('the card of the search by meaning: needs a key, shows what will be sent be
     history.setVectors(vectors);
     return vectors;
   };
-  const noKey = await setup({ memorySystem: 'notes', makeVectors: make({}) });
+  const noKey = await setup({ makeVectors: make({}) });
   assert.match(noKey.root().textContent, /Search by meaning \(optional\)/);
   assert.match(noKey.root().textContent, /A Gemini or OpenAI API key is needed/);
   assert.equal([...noKey.root().querySelectorAll('button')].some((button) => button.textContent === 'Turn on…'), false);
 
-  const keyed = await setup({ memorySystem: 'notes', makeVectors: make({ gemini: 'g-key' }) });
+  const keyed = await setup({ makeVectors: make({ gemini: 'g-key' }) });
   const asked = [];
   keyed.answers.push(null);
   await keyed.click('Turn on…');

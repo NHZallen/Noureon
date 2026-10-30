@@ -153,19 +153,7 @@ test('loaded app data falls back to empty collections and normalizes every recor
     folders: [],
     astras: [],
     personalMemories: [],
-    memoryState: {
-      version: 2,
-      profileEntries: [],
-      profileCandidates: [],
-      resolvedProfileCandidateIds: [],
-      recentConversationStates: [],
-      mediaMemories: [],
-      conversationCapsules: [],
-      longTermTopicSummaries: [],
-      resolvedTopicSummaryIds: [],
-      suppressionRules: [],
-      legacyInbox: []
-    }
+    memoryState: {}
   });
 
   const rawData = {
@@ -211,10 +199,11 @@ test('loaded app data falls back to empty collections and normalizes every recor
   assert.equal(normalized.personalMemories, rawData.personalMemories);
 });
 
-test('loaded app data creates a non-active memory migration inbox from legacy memories', () => {
+test('the old memory summary in loaded app data is dropped, and the old personal memories are kept as they were', () => {
   const normalized = normalizeLoadedLegacyAppData({
     rawData: {
-      personalMemories: [{ id: 'legacy-1', content: '使用者叫 Allen', enabled: true }]
+      personalMemories: [{ id: 'legacy-1', content: '使用者叫 Allen', enabled: true }],
+      memoryState: { profileEntries: [{ id: 'x' }] }
     },
     defaultFolder,
     defaultGenConfig,
@@ -223,10 +212,8 @@ test('loaded app data creates a non-active memory migration inbox from legacy me
     normalizeConversationModel: () => {}
   });
 
-  assert.deepEqual(normalized.memoryState.profileEntries, []);
-  assert.equal(normalized.memoryState.legacyInbox.length, 1);
-  assert.equal(normalized.memoryState.legacyInbox[0].legacyId, 'legacy-1');
-  assert.equal(normalized.memoryState.legacyInbox[0].status, 'review');
+  assert.deepEqual(normalized.memoryState, {});
+  assert.equal(normalized.personalMemories.length, 1);
 });
 
 test('app data normalization module remains pure kernel logic', () => {

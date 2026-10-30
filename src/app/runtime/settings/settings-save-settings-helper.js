@@ -32,13 +32,6 @@ export function collectSettingsSaveFormValues({
         openaiWebSearch: elements.openaiWebSearchSelect ? (elements.openaiWebSearchSelect.value === 'provider' ? 'provider' : 'official') : (config.openaiWebSearch === 'provider' ? 'provider' : 'official'),
         openaiSafetyIdentifier: elements.openaiSafetyIdToggle ? elements.openaiSafetyIdToggle.checked : config.openaiSafetyIdentifier !== false,
         autoNaming: elements.autoNamingToggleSwitch.checked,
-        memoryEnabled1: elements.memoryToggle1?.isConnected !== false
-            ? elements.memoryToggle1.checked
-            : config.memoryEnabled1 !== false,
-        historyRecallEnabled: elements.historyRecallToggleSwitch?.checked === true,
-        enableAutoMemory: elements.autoMemoryToggleSwitch?.isConnected !== false
-            ? elements.autoMemoryToggleSwitch.checked
-            : config.enableAutoMemory !== false,
         uiLanguage: elements.uiLanguageSelect.value,
         aiDefaultLanguage: elements.aiLanguageSelect.value,
         enableUpdateNotifications: elements.enableUpdateNotificationsToggle.checked,

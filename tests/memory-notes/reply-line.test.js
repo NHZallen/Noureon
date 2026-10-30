@@ -13,7 +13,7 @@ const row = (key, payload) => ({ record_key: key, payload, version: 1, updated_a
 const tick = () => new Promise((resolve) => setTimeout(resolve, 15));
 const tea = createNote({ id: 'tea', text: 'The user prefers jasmine tea', kind: 'preference', keywords: ['tea', 'jasmine'] });
 
-async function setup({ memorySystem = 'notes', forgetTea = true } = {}) {
+async function setup({ forgetTea = true } = {}) {
   const window = new Window();
   const { document } = window;
   document.body.innerHTML = '';
@@ -39,7 +39,7 @@ async function setup({ memorySystem = 'notes', forgetTea = true } = {}) {
       { role: 'model', parts: [{ text: 'b' }], metadata: { memoryUpdated: event ? [event.id] : [] } }
     ]
   };
-  startMemoryLines({ document, getConfig: () => ({ memorySystem }), getMemory: () => memory, getConversation: () => conversation, getText: (key) => i18n.en[key] || '' });
+  startMemoryLines({ document, getConfig: () => ({}), getMemory: () => memory, getConversation: () => conversation, getText: (key) => i18n.en[key] || '' });
   const element = (index) => {
     const node = document.createElement('div');
     node.dataset.messageIndex = String(index);
@@ -94,9 +94,7 @@ test('opening "Used 1 notes" shows the note and "Not relevant here" counts again
   assert.match(goneNode.querySelector('.memory-line-panel').textContent, /this note is gone/);
 });
 
-test('with the old memory in use nothing is drawn; the lines are drawn again when the memory changed after the reply', async () => {
-  const classic = await setup({ memorySystem: 'classic' });
-  assert.deepEqual(label(classic.element(1)), []);
+test('the lines are drawn again when the memory changed after the reply', async () => {
   const { document, element, conversation } = await setup();
   const node = element(1);
   node.querySelector('.memory-line')?.remove();

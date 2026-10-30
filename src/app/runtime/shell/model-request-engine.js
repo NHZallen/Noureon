@@ -13,7 +13,6 @@ import {
 import { createStreamApiCall } from '../reply/stream-api-call.js';
 import { getOpenAiSafetyIdentifier, setOpenAiConfigReader } from '../reply/openai-request.js';
 import { getNotesMemory } from '../memory-store/memory-ref.js';
-import { createCurrentMemoryContextProvider } from '../memory/current-memory-context-provider.js';
 import { createCouncilResponseLifecycle } from '../council/council-response-lifecycle.js';
 import { createProviderRequestSupport } from '../reply/provider-request-support.js';
 import { createSettingsProviderStructuredHelpers } from '../settings/settings-provider-structured-helpers.js';
@@ -24,7 +23,7 @@ import { opencodeModelReadsOfficeViaPdf } from './opencode-models.js';
 import { createPageCouncilMembers } from '../council/council-members-page.js';
 
 export function createModelRequestEngine({
-    fetch, console, elements: ALL_ELEMENTS, getMemoryState, getMemory = () => null, models: MODELS, i18n, config, astras, personalMemories,
+    fetch, console, elements: ALL_ELEMENTS, models: MODELS, i18n, config, astras,
     cheapModelId: CHEAP_MODEL_ID, councilResponseCharLimit: COUNCIL_RESPONSE_CHAR_LIMIT, councilRetryDelayMs: COUNCIL_RETRY_DELAY_MS,
     councilMaxModels: COUNCIL_MAX_MODELS, getActiveConversation, normalizeConversationModel, getModelApiId, getApiKeyForProvider,
     getDefaultGenConfig, modelSupportsUploadedFile, modelSupportsVision, modelSupportsDocumentUpload, modelUsesTavilySearch,
@@ -32,14 +31,6 @@ export function createModelRequestEngine({
     getCouncilRuntimeTexts, getCouncilAttachmentTranslationNeed, getCouncilTranslatorModel, renderHistorySidebar, conversationStateAccess,
     saveAppData, showNotification
 }) {
-    const getMemoryContext = createCurrentMemoryContextProvider({
-        getMemoryState,
-        retrieveHistory: async options => {
-            const retrieve = getMemory()?.retrieveHistory;
-            return typeof retrieve === 'function' ? retrieve(options) : [];
-        }
-    });
-
     setOpenAiConfigReader(() => config);
     const streamApiCall = createStreamApiCall({
         getActiveConversation,
@@ -49,8 +40,6 @@ export function createModelRequestEngine({
         getDefaultGenConfig,
         getConfig: () => config,
         getAstras: () => astras,
-        getPersonalMemories: () => personalMemories,
-        getMemoryContext,
         getNotesMemory,
         modelSupportsUploadedFile,
         modelSupportsVision,

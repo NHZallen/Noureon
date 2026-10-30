@@ -27,7 +27,7 @@ async function memoryWith({ notes = NOTES, settings = {} } = {}) {
 }
 
 const supersede = JSON.stringify({ ops: [{ type: 'supersede', keep: 'taichung', drop: 'taipei' }] });
-const common = (store, runner) => ({ store, getConfig: () => ({ memorySystem: 'notes', memoryModelId: 'gemini-3.8-flash' }), getRunner: () => runner, models: MODELS, getApiKeyForProvider: () => 'key', now: () => NOW, createId: (() => { let count = 0; return () => `ev${(count += 1)}`; })(), logger: { warn() {} } });
+const common = (store, runner) => ({ store, getConfig: () => ({ memoryModelId: 'gemini-3.8-flash' }), getRunner: () => runner, models: MODELS, getApiKeyForProvider: () => 'key', now: () => NOW, createId: (() => { let count = 0; return () => `ev${(count += 1)}`; })(), logger: { warn() {} } });
 
 test('the page tidies the notes: the older note is archived, the time of the tidy is kept, and the change is one event that can be undone', async () => {
   const { store } = await memoryWith();
@@ -95,13 +95,13 @@ test('events older than thirty days are taken away after a tidy', async () => {
   assert.equal(store.getEvents().some((event) => event.id === 'old'), false);
 });
 
-test('the tidy follows the turn the page curated: it runs when due, and a turn that is skipped still lets it run', async () => {
+test('the tidy follows the turn the page curated: a turn that is skipped still lets it run', async () => {
   resetTrace?.();
   const { memory, store } = await memoryWith();
   const calls = [];
   await curateNotesTurn({
     conversation: { id: 'conv-tidy', model: 'gemini-3.8-flash', retentionMode: 'ephemeral', messages: [{ role: 'user', parts: [{ text: 'hello there friend' }] }] },
-    getConfig: () => ({ memorySystem: 'notes', memoryModelId: 'gemini-3.5-flash-lite' }),
+    getConfig: () => ({ memoryModelId: 'gemini-3.5-flash-lite' }),
     getMemory: () => memory,
     runMemoryModel: async (options) => { calls.push(options.prompt); return supersede; },
     models: MODELS,
@@ -112,9 +112,4 @@ test('the tidy follows the turn the page curated: it runs when due, and a turn t
   });
   assert.equal(calls.length, 1, 'only the tidy asked the model (the turn was temporary)');
   assert.equal(store.getNotes().find((note) => note.id === 'taipei').status, 'archived');
-  // The old memory system does not tidy.
-  const classic = await memoryWith();
-  const quiet = [];
-  await curateNotesTurn({ conversation: { id: 'c2', messages: [] }, getConfig: () => ({ memorySystem: 'classic' }), getMemory: () => classic.memory, runMemoryModel: async () => { quiet.push(1); return supersede; }, models: MODELS, getApiKeyForProvider: () => 'key', logger: { warn() {} } });
-  assert.deepEqual(quiet, []);
 });

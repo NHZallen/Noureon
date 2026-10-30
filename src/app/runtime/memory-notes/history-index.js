@@ -32,12 +32,15 @@ export function cutIntoPieces(text, size = PIECE_CHARS) {
   return pieces;
 }
 
-/** The pieces of one conversation: [{ id, conversationId, at, role, text }]. */
-export function piecesOf(conversation) {
+/**
+ * The pieces of one conversation: [{ id, conversationId, at, role, text }]. `clean(text)` may shorten a text first (the page gives it a summary of the files in a message, so that the body of an
+ * attached file is not indexed).
+ */
+export function piecesOf(conversation, clean = (text) => text) {
   const out = [];
   (conversation?.messages || []).forEach((message, index) => {
     if (message?.role !== 'user' && message?.role !== 'model') return;
-    cutIntoPieces(textOf(message)).forEach((text, part) => {
+    cutIntoPieces(clean(textOf(message))).forEach((text, part) => {
       if (out.length < MAX_PIECES_PER_CONVERSATION) out.push({ id: `${conversation.id}:${index}:${part}`, conversationId: conversation.id, at: message.createdAt || conversation.lastUpdatedAt || conversation.createdAt || '', role: message.role, text });
     });
   });
@@ -51,7 +54,7 @@ const signatureOf = (conversation) => `${conversation.messages?.length || 0}|${c
  * The index. `update(conversations)` takes the conversations as they are now: the ones that changed are cut again, the ones gone (or deleted, or temporary) leave. `search(question, options)` gives
  * [{ conversationId, at, role, text, norm, strong }], the best first, at most one piece for each conversation.
  */
-export function createHistoryIndex() {
+export function createHistoryIndex({ clean = (text) => text } = {}) {
   const byConversation = new Map();
   let bm25 = null;
   let all = [];
@@ -71,7 +74,7 @@ export function createHistoryIndex() {
         seen.add(conversation.id);
         const signature = signatureOf(conversation);
         if (byConversation.get(conversation.id)?.signature === signature) continue;
-        byConversation.set(conversation.id, { signature, pieces: piecesOf(conversation) });
+        byConversation.set(conversation.id, { signature, pieces: piecesOf(conversation, clean) });
         dirty = true;
       }
       for (const id of [...byConversation.keys()]) {

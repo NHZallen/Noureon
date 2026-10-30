@@ -26,7 +26,7 @@ const conversation = (extra = {}) => ({
   ],
   ...extra
 });
-const config = (memorySystem = 'notes') => () => ({ memorySystem });
+const config = () => () => ({});
 
 test('the messages of the person are read for the check of a write: their text only, with a stable id', () => {
   const messages = userMessagesOf(conversation());
@@ -35,9 +35,8 @@ test('the messages of the person are read for the check of a write: their text o
   assert.equal(messages.every((message) => message.role === 'user'), true);
 });
 
-test('no tools when the notes are not chosen, the memory is not loaded, use is off, or the chat may not use memory', async () => {
+test('no tools when the memory is not loaded, use is off, or the chat may not use memory', async () => {
   const memory = await memoryWith();
-  assert.equal(await createPageMemoryTools({ getConfig: config('classic'), getMemory: () => memory, conversation: conversation() }), null);
   assert.equal(await createPageMemoryTools({ getConfig: config(), getMemory: () => null, conversation: conversation() }), null);
   const broken = createNotesMemory({ storage: { getItem() { throw new Error('blocked'); }, setItem() {} }, logger: { warn() {} } });
   await broken.attach({ username: 'tester' });

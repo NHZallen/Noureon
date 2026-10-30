@@ -35,7 +35,6 @@ export function createMemoryNotesSettings({
   let stopListening = null;
   let stopRebuild = null;
   let stopVectors = null;
-  const hiddenByUs = new Set();
 
   const text = (key, values = {}) => Object.entries(values).reduce((out, [name, value]) => out.replaceAll(`{${name}}`, String(value)), getText(key) || key);
   const store = () => getMemory()?.getStore?.() || null;
@@ -159,17 +158,11 @@ export function createMemoryNotesSettings({
     return text(key, { text: info.text, before: info.beforeText });
   };
 
-  const renderMasterCard = (config) => {
+  const renderMasterCard = () => {
     const card = el('section', 'pz-card');
     const head = el('div', 'pz-head mn-head');
-    head.append(el('h3', '', text('mnTitle')), el('span', 'mn-beta', text('mnBeta')));
+    head.append(el('h3', '', text('mnTitle')));
     card.append(head, el('p', 'pz-sub mn-intro text-[var(--text-secondary)]', text('mnIntro')));
-    card.append(switchRow(text('mnUseNew'), text('mnUseNewDesc'), config.memorySystem === 'notes', async (on) => {
-      config.memorySystem = on ? 'notes' : 'classic';
-      await saveConfig();
-      if (on) void getMemory()?.attach?.(getUser());
-      render();
-    }));
     return card;
   };
 
@@ -364,19 +357,9 @@ export function createMemoryNotesSettings({
 
   function render() {
     if (!container) return;
-    const config = getConfig();
-    const section = container.parentElement;
-    const notesMode = config.memorySystem === 'notes';
-    // The old memory summary has its own controls in the same section: it is out of the way while the notes are in use.
-    for (const child of section ? [...section.children] : []) {
-      if (child === container) continue;
-      if (notesMode && !child.hidden) { child.hidden = true; hiddenByUs.add(child); }
-      else if (!notesMode && hiddenByUs.has(child)) { child.hidden = false; hiddenByUs.delete(child); }
-    }
     if (!stopListening) stopListening = getMemory()?.onChange?.(render) || null;
-    // The page that manages the notes stands alone (with a way back); every other view starts with the switch to the new memory.
-    container.replaceChildren(...(notesMode && state.view === 'manage' && store()?.isLoaded() ? [] : [renderMasterCard(config)]));
-    if (!notesMode) return;
+    // The page that manages the notes stands alone (with a way back); every other view starts with the title.
+    container.replaceChildren(...(state.view === 'manage' && store()?.isLoaded() ? [] : [renderMasterCard()]));
     const live = store();
     if (!live?.isLoaded()) {
       container.append(el('p', 'pz-sub mn-pad text-[var(--text-secondary)]', text(getMemory()?.failed?.() ? 'mnUnavailable' : 'mnLoading')));

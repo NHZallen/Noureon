@@ -17,7 +17,7 @@ const textOf = (message) => (Array.isArray(message?.parts) ? message.parts.filte
 
 async function curateTurn({ conversation, getConfig, getMemory, runMemoryModel, models, getApiKeyForProvider, saveAppData = async () => {}, document = null, createId = () => globalThis.crypto.randomUUID(), now = () => new Date().toISOString(), wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), logger = console }) {
   try {
-    if (getConfig()?.memorySystem !== 'notes' || !conversation?.id) return { skipped: 'off' };
+    if (!conversation?.id) return { skipped: 'off' };
     if (conversation.retentionMode === 'ephemeral') return { skipped: 'temporary' };
     if (toolsOffered(conversation.id)) return { skipped: 'wrote_itself' };
     const memory = getMemory();
@@ -67,12 +67,10 @@ async function curateTurn({ conversation, getConfig, getMemory, runMemoryModel, 
 export async function curateNotesTurn(args) {
   const result = await curateTurn(args);
   try {
-    if (args.getConfig()?.memorySystem === 'notes') {
-      const store = await args.getMemory()?.ready();
-      await tidyNotes({ store, getConfig: args.getConfig, getRunner: () => args.runMemoryModel, models: args.models, getApiKeyForProvider: args.getApiKeyForProvider, logger: args.logger });
-      // The new messages of this conversation get their vectors too, if the search by meaning is on.
-      void getPageVectors()?.sync();
-    }
+    const store = await args.getMemory()?.ready();
+    await tidyNotes({ store, getConfig: args.getConfig, getRunner: () => args.runMemoryModel, models: args.models, getApiKeyForProvider: args.getApiKeyForProvider, logger: args.logger });
+    // The new messages of this conversation get their vectors too, if the search by meaning is on.
+    void getPageVectors()?.sync();
   } catch (error) {
     (args.logger || console).warn?.('The memory could not be tidied after the turn.', error);
   }

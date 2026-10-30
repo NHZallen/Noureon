@@ -5,7 +5,7 @@ import { ensureLanguage, isLanguageLoaded } from '../../i18n/language-packs.js';
 
 export function createLanguageApply({
     window, document, elements: ALL_ELEMENTS, i18n, updateInputState, console,
-    renderAstras, renderInputIndicators, renderCouncilControls, renderStore, renderTrash, renderPersonalMemoryList
+    renderAstras, renderInputIndicators, renderCouncilControls, renderStore, renderTrash
 }) {
     let lastAppliedLanguage = null;
     const applyLanguage = (lang) => {
@@ -93,7 +93,6 @@ export function createLanguageApply({
             // language change while the store is showing) switches immediately.
             renderStore();
             renderTrash();
-            renderPersonalMemoryList();
         }
     };
     return applyLanguage;
