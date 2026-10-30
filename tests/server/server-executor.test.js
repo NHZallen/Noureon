@@ -90,6 +90,27 @@ test('a model that searches by itself: its calls are answered, pages are numbere
   assert.equal(JSON.stringify(checkpoints).includes(KEY), false, 'a checkpoint never holds a key');
 });
 
+test('a model that searches by itself shows its search and the pages it opened to the pages watching, as the steps of the list', async () => {
+  const live = [];
+  let round = 0;
+  await executeReply({
+    spec: specFor({ tools: { webSearch: 'research', searchProvider: 'tavily', advanced: false } }),
+    secrets,
+    onLive: (event) => live.push(event),
+    fetchImpl: async (url) => {
+      if (String(url) === 'https://api.tavily.com/search') return new Response(JSON.stringify({ results: [{ title: 'Weather today', url: 'https://weather.example/today', content: 'Sunny, 24 degrees.' }] }), { status: 200 });
+      round += 1;
+      return streamResponse(round === 1 ? sse(toolCall('call_1', 'web_search', { query: 'weather today' })) : sse(content('It is sunny [1].')));
+    }
+  });
+  const steps = live.filter((event) => event.ev).map((event) => event.ev);
+  const search = steps.find((step) => step.type === 'searching' && step.kind === 'search');
+  assert.ok(search, 'the search is a step of the list while it happens');
+  assert.match(search.label, /weather today/);
+  assert.ok(Number.isFinite(search.t), 'it says when it happened, so every page draws the same times');
+  assert.ok(steps.some((step) => step.type === 'sources' && step.sources.length === 1), 'and so are the pages it found');
+});
+
 test('a reply taken up after a restart carries on from its checkpoint, with the pages numbered as before', async () => {
   let checkpoint = null;
   let round = 0;

@@ -56,7 +56,7 @@ test('a memory search says how many notes or past conversations came back: in th
   const loader = createMemoryLoader({ getNotes: () => notes, getContext: () => ({}), commit: async () => {}, searchHistory: async () => pieces, createId: () => 'x', now: () => '2026-10-30T00:00:00.000Z' });
   const reviewing = { name: 'search_memory', args: { query: 'taipei', scope: 'history' } };
   await loader.run(reviewing);
-  assert.deepEqual(loaderEndEvent(loader, reviewing, 'en'), { type: 'tool-end', count: 2, label: 'Past conversations reviewed: 2' });
+  assert.deepEqual(loaderEndEvent(loader, reviewing, 'en'), { type: 'tool-end', count: 2, label: 'Past conversations reviewed: 2', chats: [{ id: 'a', at: '2026-10-01' }, { id: 'b', at: '2026-10-02' }] });
   assert.deepEqual(loaderEndEvent(loader, reviewing, 'en'), { type: 'tool-end' }, 'the count is told once');
   const recalling = { name: 'search_memory', args: { query: 'taipei', scope: 'notes' } };
   await loader.run(recalling);
@@ -92,4 +92,62 @@ test('a memory search says how many notes or past conversations came back: in th
   list.event({ type: 'tool-end', count: 2, label: 'Past conversations reviewed: 2' });
   assert.equal(message.querySelector('.ledger-row[data-kind="memory-review"] .ledger-label').textContent, 'Past conversations reviewed: 2');
   window.happyDOM.abort();
+});
+
+test('a memory step keeps which notes and which conversations it gave back (ids and days only), opens to them, and a conversation in it can be opened', async () => {
+  const { fillMemoryRow } = await import('../../src/app/runtime/features/reply-sources-actions.js');
+  const { setNotesMemory, setPageHistory } = await import('../../src/app/runtime/memory-store/memory-ref.js');
+  const { applyToolEnd } = await import('../../src/app/ui/sandbox/sandbox-run-block.js');
+  const note = (id, text, status = 'active') => ({ id, text, status, kind: 'fact', surface: 'normal', keywords: ['k'], observedAt: '2026-10-01T00:00:00.000Z', createdAt: '2026-10-01T00:00:00.000Z', updatedAt: '2026-10-01T00:00:00.000Z', lastUsedAt: null, recallCount: 0, version: 1 });
+  const notes = [note('n1', 'Lives in Taipei'), note('n2', 'Was a nurse', 'archived')];
+  const loader = createMemoryLoader({ getNotes: () => notes, getContext: () => ({}), commit: async () => {}, searchHistory: async () => [{ conversationId: 'a', at: '2026-10-21', role: 'user', text: 'secret words' }, { conversationId: 'a', at: '2026-10-22', role: 'user', text: 'again' }, { conversationId: 'gone', at: '2026-09-01', role: 'user', text: 'x' }], createId: () => 'x', now: () => '2026-10-30T00:00:00.000Z' });
+
+  const reviewing = { name: 'search_memory', args: { query: 'taipei', scope: 'history' } };
+  await loader.run(reviewing);
+  const reviewed = loaderEndEvent(loader, reviewing, 'en');
+  assert.deepEqual(reviewed.chats, [{ id: 'a', at: '2026-10-21' }, { id: 'gone', at: '2026-09-01' }], 'one for each conversation, no words');
+  const recalling = { name: 'search_memory', args: { query: 'taipei', scope: 'notes' } };
+  await loader.run(recalling);
+  const recalled = loaderEndEvent(loader, recalling, 'en');
+  assert.deepEqual(recalled.ids, ['n1']);
+
+  const tools = [{ kind: 'memory', key: 'memorySearching' }];
+  applyToolEnd(tools[0], recalled);
+  tools.push({ kind: 'memory', key: 'memoryReviewing' });
+  noteToolEnd(tools, reviewed);
+  const record = { status: 'done', steps: [], elapsedMs: 1000, tools };
+  const saved = liftSandboxRunBlock(formatSandboxRunBlock(record)).run.tools;
+  assert.deepEqual(saved, [{ kind: 'memory', key: 'memorySearching', count: 1, ids: ['n1'] }, { kind: 'memory', key: 'memoryReviewing', count: 3, chats: reviewed.chats }]);
+  assert.equal(JSON.stringify(saved).includes('secret words'), false, 'no part of a conversation is kept');
+  assert.deepEqual(normalizeTools([{ kind: 'memory', key: 'memorySearching', ids: [1, '', 'ok', 'x'.repeat(200)], chats: [{ id: 'c', at: 5 }, { id: '' }, null] }]), [{ kind: 'memory', key: 'memorySearching', ids: ['ok'], chats: [{ id: 'c', at: '5' }] }]);
+
+  const window = new Window();
+  const { document } = window;
+  const element = createSandboxRunElement(document, { ...record, tools: saved }, { language: 'en' });
+  const rows = [...element.querySelectorAll('.ledger-row')];
+  assert.ok(rows.every((row) => row.querySelector('summary').classList.contains('is-expandable')), 'both steps can be opened');
+  const [recallRow, reviewRow] = rows;
+  assert.equal(recallRow.querySelector('.memory-row-list').children.length, 0, 'the list is filled when the step opens');
+
+  setNotesMemory({ getStore: () => ({ isLoaded: () => true, getNotes: () => notes }) });
+  setPageHistory({ conversations: () => [{ id: 'a', title: 'Scooter commute', lastUpdatedAt: '2026-10-22T00:00:00.000Z' }] });
+  try {
+    fillMemoryRow({ document, row: recallRow, language: 'en' });
+    assert.deepEqual([...recallRow.querySelectorAll('.memory-row-item')].map((node) => node.textContent), ['Lives in Taipei']);
+    fillMemoryRow({ document, row: reviewRow, language: 'en' });
+    const chats = [...reviewRow.querySelectorAll('.memory-row-chat')];
+    assert.equal(chats.length, 2);
+    assert.match(chats[0].textContent, /Scooter commute/);
+    assert.equal(chats[0].querySelector('[data-open-chat]').dataset.openChat, 'a', 'a conversation that is still there can be opened');
+    assert.match(chats[1].textContent, /Untitled chat/);
+    assert.match(chats[1].textContent, /deleted/);
+    assert.equal(chats[1].querySelector('[data-open-chat]'), null, 'one that is gone cannot');
+    setNotesMemory({ getStore: () => ({ isLoaded: () => true, getNotes: () => [] }) });
+    fillMemoryRow({ document, row: recallRow, language: 'en' });
+    assert.match(recallRow.querySelector('.memory-row-item').textContent, /deleted/, 'a note forgotten since says so');
+  } finally {
+    setNotesMemory(null);
+    setPageHistory(null);
+    window.happyDOM.abort();
+  }
 });

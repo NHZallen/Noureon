@@ -3,7 +3,7 @@
 
 import { codeOfCard } from '../../ui/sandbox/run-code-card.js';
 import { openSourceUrl } from '../../ui/sandbox/run-sources.js';
-import { openReplySources } from './reply-sources-actions.js';
+import { fillMemoryRow, openReplySources } from './reply-sources-actions.js';
 import { copyableAnswerText, sourcesOfPill } from '../../ui/citations/citation-pills.js';
 import { openSourceSheet } from '../../ui/citations/source-sheet.js';
 
@@ -57,6 +57,14 @@ export function bindMessageListActions({ window, document, elements: ALL_ELEMENT
             const item = sourcesButton.closest('.message-item');
             const reply = getActiveConversation()?.messages?.[parseInt(item?.dataset.messageIndex, 10)];
             openReplySources({ window, document, message: reply, language: getConfig().uiLanguage, i18n });
+            return;
+        }
+        // A memory step ("Recalled 2 notes") is filled with its notes or conversations when it is about to open; a conversation in it can be opened.
+        const memoryRow = e.target.closest('summary')?.parentElement;
+        if (memoryRow?.dataset?.memoryItems && !memoryRow.open) fillMemoryRow({ document, row: memoryRow, language: getConfig().uiLanguage });
+        const openChat = e.target.closest('[data-open-chat]');
+        if (openChat) {
+            document.dispatchEvent(new window.CustomEvent('noureon:open-history-source', { detail: { id: openChat.dataset.openChat } }));
             return;
         }
         const copyBtn = e.target.closest('.copy-content-btn');

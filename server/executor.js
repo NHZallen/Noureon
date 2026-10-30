@@ -322,7 +322,9 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
     if (event.type === 'skill' && event.name && !usedTools.some((tool) => tool.kind === 'skill' && tool.name === event.name)) usedTools.push({ kind: 'skill', name: String(event.name).slice(0, 60) });
     if (event.type === 'memory' && event.key) usedTools.push({ kind: 'memory', key: event.key });
     else noteToolEnd(usedTools, event);
-    if (event.type === 'skill' || event.type === 'connector' || event.type === 'image' || event.type === 'memory' || event.type === 'tool-end') onLive({ ev: { ...event, t: Math.max(0, now() - startedAt) } });
+    // Every step of the loops goes to the pages watching (the search, the pages it opened, the answer beginning) as well as the skills and the memory: they draw the same step list
+    // as a reply made on the page, and a page that joins late is given the steps so far (runs.js keeps them).
+    if (typeof event?.type === 'string') onLive({ ev: { ...event, t: Math.max(0, now() - startedAt) } });
   };
 
   // The connectors (連接器): the services the person logged in to, with the tools they let a reply use. Not with Gemini's own search either (it refuses the tools beside it).

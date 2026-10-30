@@ -258,4 +258,6 @@ main.flex-1 > header { z-index: 11; }
 .mi { display: inline-grid; place-items: center; flex: none; }
 .mi-svg { fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
 .mi-svg.is-fill { fill: currentColor; stroke: none; }
-.sources-button-icon.is-kind { display: inline-grid; place-items: center; background: var(--hover-bg); color: var(--text-primary); }
+.sources-button-icon.is-kind { display: inline-grid; place-items: center; background: var(--hover-bg); color: var(--text-primary); border-radius: 9999px; }
+/* The round icons of notes and chats sit apart from their neighbours (overlapped, the thin lines of the two icons ran into each other). */
+.sources-button-icon + .sources-button-icon.is-kind, .sources-button-icon.is-kind + .sources-button-icon { margin-left: 0.2rem; }

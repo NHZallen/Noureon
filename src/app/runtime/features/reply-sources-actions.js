@@ -9,6 +9,7 @@ import { sandboxText } from '../sandbox/sandbox-texts.js';
 import { markNotRelevant } from '../memory-notes/standing.js';
 import { getNotesMemory, getPageHistory } from '../memory-store/memory-ref.js';
 import { collectReplySources } from '../memory-store/reply-sources.js';
+import { formatSourceDate } from '../../ui/citations/source-list.js';
 
 const KIND_KEY = { preference: 'mnKindPreference', fact: 'mnKindFact', project: 'mnKindProject', relationship: 'mnKindRelationship', routine: 'mnKindRoutine' };
 
@@ -41,4 +42,54 @@ export function openReplySources({ window, document, message, language, i18n = {
   };
   if (window.innerWidth >= 768) document.dispatchEvent(new window.CustomEvent('noureon:open-sources', { detail: { sources: groups.web, groups, panel: options } }));
   else openSourceSheet({ document, sources: groups.web, all: true, language, title: sandboxText(language, 'sourcesTab'), renderContent: (list) => list.append(createSourcePanel(document, groups, options)) });
+}
+
+/**
+ * The list inside a memory step of a saved reply ("Recalled 2 notes", "Reviewed 10 conversations"), filled when the step is opened: the notes as they are now (one that was deleted
+ * says so) or the conversations with their names and days (one that is gone says so, one that is still there can be opened). `row.dataset.memoryItems` holds the ids kept with the step.
+ */
+export function fillMemoryRow({ document, row, language }) {
+  const list = row?.querySelector?.('.memory-row-list');
+  if (!list) return false;
+  let items = [];
+  try {
+    items = JSON.parse(row.dataset.memoryItems || '[]');
+  } catch {
+    items = [];
+  }
+  const text = (key) => sandboxText(language, key);
+  const make = (tag, className, content) => {
+    const node = document.createElement(tag);
+    node.className = className;
+    if (content !== undefined) node.textContent = content;
+    return node;
+  };
+  const lines = [];
+  if (row.dataset.kind === 'memory-recall') {
+    const store = getNotesMemory()?.getStore?.();
+    const byId = new Map((store?.isLoaded?.() ? store.getNotes() : []).map((note) => [note.id, note]));
+    for (const id of items) {
+      const note = byId.get(id);
+      lines.push(!note || note.status !== 'active' ? make('p', 'memory-row-item is-faint', text('sourceNoteGone')) : make('p', 'memory-row-item', note.text));
+    }
+  } else {
+    const byId = new Map((getPageHistory()?.conversations?.() || []).map((conversation) => [conversation.id, conversation]));
+    for (const entry of items) {
+      const conversation = byId.get(entry?.id);
+      const available = Boolean(conversation) && !conversation.deletedAt;
+      const line = make('div', 'memory-row-item memory-row-chat');
+      line.append(make('span', 'memory-row-title', (available && conversation.title) || text('sourceUntitledChat')));
+      const meta = [formatSourceDate(entry.at || (available ? conversation.lastUpdatedAt : ''), language), available ? '' : text('sourceChatGone')].filter(Boolean).join('・');
+      if (meta) line.append(make('span', 'memory-row-meta', meta));
+      if (available) {
+        const open = make('button', 'source-row-action', text('sourceOpenChat'));
+        open.type = 'button';
+        open.dataset.openChat = entry.id;
+        line.append(open);
+      }
+      lines.push(line);
+    }
+  }
+  list.replaceChildren(...lines);
+  return true;
 }

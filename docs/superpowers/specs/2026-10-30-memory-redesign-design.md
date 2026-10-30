@@ -386,3 +386,9 @@ Linear：A 在專案「記憶系統重做」，B 是獨立的單（都在 Backlo
 - **步驟標題帶數量**：回憶與回顧的步驟，在呼叫有答案時改成「已回憶 N 條記憶」「已回顧 N 個對話」，找不到時「沒有找到相關的記憶／對話」（五語；英文等用「…：N」的寫法避免單複數）。做法：`createMemoryLoader` 的 `outcome()` 回報這次搜尋的 `{ key, count }`（讀一次就清掉；回顧看的是找到的對話數，回憶是筆記數）；`loaderEndEvent`（`sandbox-texts.js`）把它放進 `tool-end` 事件（`count`、`label`）；三個迴圈（技能、網頁研究、Python）都改發這個事件。存起來的回覆：`run.tools` 的記憶項多了 `count`（`normalizeTools` 只留 0 到 1000 的整數；`noteToolEnd` 把數量寫到剛結束的那一列，頁面與伺服器 `executor.js` 都用它），重新打開時 `memoryDoneLabel` 照樣顯示。舊的回覆沒有 `count`，顯示原本的「已回憶」。**契約**：`tool-end` 事件多兩個欄位、`run.tools` 的記憶項多 `count`，舊頁面會忽略。
 - **匯入逐項勾選**：匯入確認視窗列出檔案裡有的項目，各自一個勾選框（預設全勾）：對話、資料夾、Nouras、設定、API 金鑰、記憶筆記。只有勾選的會被取代，沒勾的維持現狀（以前是整批覆蓋）；一個都沒勾就不動任何東西。只回答是／否的確認（舊的呼叫方式）仍視為全部匯入。**還是整類取代，不是一則一則挑對話**；若要挑單一對話，需要另外做合併，不在這次。舊的「檔案內容：…」摘要文字拿掉（`importFileHas`），新增 `importHasApiKeys`、`importChooseItems`、`importNothingChosen`。
 - **舊摘要表清理**：migration `20261031030000_drop_workspace_memory_summary_records.sql`（刪 `upsert_workspace_memory_summary_records` 與 `workspace_memory_summary_records`）。**不可復原；先套測試專案，正式專案要等帶筆記記憶的版本上線之後再套**（舊版頁面還會寫這張表）。測試裡 `forPeople` 的函式清單也拿掉了這一個。
+
+### 第四輪補充（2026-10-30，Allen 看了 staging 之後）
+- **來源按鈕圖示**：記憶與對話的圖示是方塊底色又互相疊在一起（兩個細線圖示疊出一條直線）。改成圓形、與鄰近圖示留 0.2rem 間隔（`citations.css`）。
+- **「與此對話無關」**：來源面板上的動作改名（`sourceNotRelevant`，五語）。注意：這個動作記的是筆記自己的「不相關」次數（`notRelevant`，到上限常駐就取消），不分是哪個對話；名稱說的是此對話，行為還是全域計數，若要改成真的只對這個對話有效，要另外存「每個對話排除的筆記」。
+- **回憶／回顧步驟可展開**：步驟記錄多了 `ids`（回憶：筆記 id，最多 10）與 `chats`（回顧：`{ id, at }`，最多 10）；不存任何對話內容。展開時才由頁面填入（`reply-sources-actions.js` 的 `fillMemoryRow`）：筆記顯示現在的文字（之後被刪掉的會寫「這條記憶已刪除」）；對話顯示現在的名稱與日期，還在的有「打開這個對話」。`tool-end` 事件多帶 `ids`／`chats`。舊回覆沒有這些欄位，所以不能展開。
+- **伺服器回覆搜尋時運行中沒有步驟（Allen 在 staging 看到）**：模型自己搜尋的伺服器回覆（`mode === 'research'`），迴圈的事件經 `skillEvents` 送給頁面，但只放行技能、連接器、圖片、記憶與 `tool-end`，`searching`、`sources`、`answering` 被擋下，所以運行中只有「正在思考」，搜完才一次出現「已搜尋 N 個網站」。改成每個有 `type` 的事件都送（`server/executor.js`），頁面用跟本機回覆同一個步驟清單畫；晚加入的頁面由 `runs.js` 記下的事件補齊。測試：`server-executor.test.js` 新增一則，沒修之前會失敗。

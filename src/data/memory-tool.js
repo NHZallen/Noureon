@@ -85,7 +85,10 @@ export function createMemoryLoader({ getNotes, getContext, commit, canWrite = tr
     }
     if (found.length) onUsed?.({ ids: found.map((note) => note.id) });
     // What the row of the step list says once the call is answered: the past conversations that came back (when looking into them) or the notes.
-    lastOutcome = scope === 'notes' ? { key: 'memorySearching', count: found.length } : { key: 'memoryReviewing', count: pieces.length };
+    // (The ids of the notes and the conversations are kept with the step so that it can be opened later and say which; never the words of a conversation.)
+    const seen = new Set();
+    const chats = pieces.filter((piece) => piece?.conversationId && !seen.has(piece.conversationId) && seen.add(piece.conversationId)).map((piece) => ({ id: String(piece.conversationId), at: String(piece.at || '') })).slice(0, 10);
+    lastOutcome = scope === 'notes' ? { key: 'memorySearching', count: found.length, ids: found.map((note) => note.id).slice(0, 10) } : { key: 'memoryReviewing', count: pieces.length, chats };
     if (!found.length && !pieces.length) return 'Nothing in the memory matches that. Go on without it, and do not say you looked.';
     return JSON.stringify({
       note: 'What is known about the user. It may be out of date: what the user says now wins. Do not announce that you looked this up.',
@@ -134,7 +137,7 @@ export function createMemoryLoader({ getNotes, getContext, commit, canWrite = tr
     },
     handles: (name) => isMemoryToolName(name),
     noteFor: (call) => ({ name: call?.name }),
-    /** What the last search gave back, `{ key, count }` (once; null after a write or when nothing was searched). */
+    /** What the last search gave back, `{ key, count, ids | chats }` (once; null after a write or when nothing was searched). */
     outcome() {
       const outcome = lastOutcome;
       lastOutcome = null;

@@ -5,7 +5,7 @@
 
 import { MAX_RUNS_PER_REPLY, MAX_RUNS_WITH_CLI, RUN_COMMAND_TOOL, RUN_PYTHON_TOOL, RUN_PYTHON_TOOL_SERVER, RUN_PYTHON_TOOL_SERVER_NET, REQUEST_CREDENTIALS_TOOL, getCliGuidance, getSandboxGuidance } from './sandbox-guidance.js';
 import { loaderEndEvent, loaderStepEvent, sandboxText } from './sandbox-texts.js';
-import { RUN_STATUS, toolOfEvent } from '../../ui/sandbox/sandbox-run-block.js';
+import { RUN_STATUS, applyToolEnd, toolOfEvent } from '../../ui/sandbox/sandbox-run-block.js';
 import { partialJsonString } from '../features/tool-call-formats.js';
 import { RESEARCH_TOOLS, createResearchCalls, researchGuidance } from '../features/web-research-reply.js';
 import { loaderInstruction } from '../../../data/skill-tool.js';
@@ -416,7 +416,7 @@ export async function runSandboxReply({
         results.push(keepToolResult(call, await skillLoader.run(call)));
         if (step) {
           const ended = loaderEndEvent(skillLoader, call, language);
-          if (tool && ended.count !== undefined) tool.count = ended.count;
+          applyToolEnd(tool, ended);
           onEvent(ended);
         }
         continue;

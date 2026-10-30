@@ -64,9 +64,14 @@ function sourcesRows(document, sources, language) {
 
 // "Using connector: GitHub": a row for each connector the reply used (the same row the live step list had; which tools it called is not kept).
 function connectorRows(document, run, language) {
-  const tools = (run.tools || []).map((tool) => renderRow(document, tool.kind === 'skill'
-    ? { kind: 'skill', label: sandboxText(language, 'skillLoaded', { name: tool.name }), body: [] }
-    : { kind: { memorySearching: 'memory-recall', memoryReviewing: 'memory-review', memoryWriting: 'memory-write' }[tool.key], label: memoryDoneLabel(language, tool.key, tool.count), body: [] }));
+  const tools = (run.tools || []).map((tool) => {
+    if (tool.kind === 'skill') return renderRow(document, { kind: 'skill', label: sandboxText(language, 'skillLoaded', { name: tool.name }), body: [] });
+    // A step that says which notes or conversations it gave back opens to them; the list is filled when it opens (the page knows the notes and the chats as they are then).
+    const items = tool.key === 'memorySearching' ? tool.ids : tool.key === 'memoryReviewing' ? tool.chats : null;
+    const row = renderRow(document, { kind: { memorySearching: 'memory-recall', memoryReviewing: 'memory-review', memoryWriting: 'memory-write' }[tool.key], label: memoryDoneLabel(language, tool.key, tool.count), body: items?.length ? [element(document, 'div', 'memory-row-list')] : [] });
+    if (items?.length) row.dataset.memoryItems = JSON.stringify(items);
+    return row;
+  });
   return [...tools, ...(run.connectors || []).map((name) => renderRow(document, { kind: 'connector', label: sandboxText(language, 'connectorUsing', { connector: name }), body: [] }))];
 }
 

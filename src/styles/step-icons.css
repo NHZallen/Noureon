@@ -6,3 +6,10 @@
 .ledger-row[data-kind='memory-write'] { --run-icon: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='black'%20stroke-width='1.75'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d='M21.174%206.812a1%201%200%200%200-3.986-3.987L3.842%2016.174a2%202%200%200%200-.5.83l-1.321%204.352a.5.5%200%200%200%20.623.622l4.353-1.32a2%202%200%200%200%20.83-.497z'%20/%3E%20%3Cpath%20d='m15%205%204%204'%20/%3E%3C/svg%3E"); }
 
 .ledger-row[data-kind='code'] { --run-icon: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%20fill='none'%20stroke='black'%20stroke-width='1.75'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d='m18%2016%204-4-4-4'%20/%3E%20%3Cpath%20d='m6%208-4%204%204%204'%20/%3E%20%3Cpath%20d='m14.5%204-5%2016'%20/%3E%3C/svg%3E"); }
+
+/* What a memory step of a saved reply opens to: the notes it recalled, or the conversations it reviewed (names and days only). */
+.memory-row-list { display: flex; flex-direction: column; gap: 0.4rem; padding: 0.15rem 0; }
+.memory-row-item { margin: 0; font-size: 0.88rem; line-height: 1.45; color: var(--text-primary); overflow-wrap: anywhere; }
+.memory-row-item.is-faint, .memory-row-meta { color: var(--text-secondary); }
+.memory-row-chat { display: flex; flex-wrap: wrap; align-items: center; gap: 0.15rem 0.6rem; }
+.memory-row-meta { font-size: 0.8rem; }

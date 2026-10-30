@@ -91,10 +91,24 @@ export function normalizeSources(sources) {
 // The skills the model loaded and the times it looked up or wrote the memory, one row each (kept so that the saved reply shows them as the live step list did).
 const MAX_TOOLS = 20;
 const MEMORY_KEYS = ['memorySearching', 'memoryReviewing', 'memoryWriting'];
+const MAX_MEMORY_ITEMS = 10;
+// Which notes (their ids) and which past conversations (id and day) a memory step gave back, so that the step can be opened: never the words of either.
+const memoryItemsOf = (tool) => {
+  const ids = (Array.isArray(tool.ids) ? tool.ids : []).filter((id) => typeof id === 'string' && id && id.length <= 80).slice(0, MAX_MEMORY_ITEMS);
+  const chats = (Array.isArray(tool.chats) ? tool.chats : []).filter((chat) => typeof chat?.id === 'string' && chat.id && chat.id.length <= 80).slice(0, MAX_MEMORY_ITEMS).map((chat) => ({ id: chat.id, at: String(chat.at || '').slice(0, 40) }));
+  return { ...(ids.length ? { ids } : {}), ...(chats.length ? { chats } : {}) };
+};
+/** The answer of a memory search put on its step: how many, and which (`tool-end` event → the record's tool). */
+export function applyToolEnd(tool, event) {
+  if (!tool || !Number.isInteger(event?.count)) return;
+  tool.count = event.count;
+  if (Array.isArray(event.ids) && event.ids.length) tool.ids = event.ids;
+  if (Array.isArray(event.chats) && event.chats.length) tool.chats = event.chats;
+}
 export function normalizeTools(tools) {
   const out = [];
   for (const tool of Array.isArray(tools) ? tools : []) {
-    if (tool?.kind === 'memory' && MEMORY_KEYS.includes(tool.key)) out.push({ kind: 'memory', key: tool.key, ...(Number.isInteger(tool.count) && tool.count >= 0 ? { count: Math.min(tool.count, 1000) } : {}) });
+    if (tool?.kind === 'memory' && MEMORY_KEYS.includes(tool.key)) out.push({ kind: 'memory', key: tool.key, ...(Number.isInteger(tool.count) && tool.count >= 0 ? { count: Math.min(tool.count, 1000) } : {}), ...memoryItemsOf(tool) });
     else if (tool?.kind === 'skill') {
       const name = String(tool.name ?? '').replace(/\s+/g, ' ').trim().slice(0, 60);
       if (name && !out.some((entry) => entry.kind === 'skill' && entry.name === name)) out.push({ kind: 'skill', name });
@@ -111,7 +125,7 @@ export const toolOfEvent = (event) => (event?.type === 'skill' && event.name ? {
 export function noteToolEnd(tools, event) {
   if (event?.type !== 'tool-end' || !Number.isInteger(event.count) || !Array.isArray(tools)) return;
   const last = [...tools].reverse().find((tool) => tool.kind === 'memory');
-  if (last && last.count === undefined) last.count = event.count;
+  if (last && last.count === undefined) applyToolEnd(last, event);
 }
 
 // The names of the connectors a reply used, each once.

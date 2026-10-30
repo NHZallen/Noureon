@@ -86,7 +86,7 @@ const TEXTS = Object.freeze({
     sourceTabChats: '對話',
     sourceNoteGone: '這條記憶已刪除',
     sourceStanding: '常駐，每次都會帶',
-    sourceNotRelevant: '與這題無關',
+    sourceNotRelevant: '與此對話無關',
     sourceMarked: '已標記',
     sourceOpenChat: '打開這個對話',
     sourceChatGone: '原對話已刪除',
@@ -251,7 +251,7 @@ const TEXTS = Object.freeze({
     sourceTabChats: 'Chats',
     sourceNoteGone: 'This note was deleted',
     sourceStanding: 'Standing: brought to every reply',
-    sourceNotRelevant: 'Not relevant here',
+    sourceNotRelevant: 'Not relevant to this chat',
     sourceMarked: 'Marked',
     sourceOpenChat: 'Open this chat',
     sourceChatGone: 'The chat was deleted',
@@ -416,7 +416,7 @@ const TEXTS = Object.freeze({
     sourceTabChats: 'Discussions',
     sourceNoteGone: 'Cette note a été supprimée',
     sourceStanding: 'Permanente : jointe à chaque réponse',
-    sourceNotRelevant: 'Hors sujet ici',
+    sourceNotRelevant: 'Sans rapport avec cette discussion',
     sourceMarked: 'Marqué',
     sourceOpenChat: 'Ouvrir cette discussion',
     sourceChatGone: 'La discussion a été supprimée',
@@ -581,7 +581,7 @@ const TEXTS = Object.freeze({
     sourceTabChats: 'Диалоги',
     sourceNoteGone: 'Эта заметка удалена',
     sourceStanding: 'Постоянная: берётся в каждый ответ',
-    sourceNotRelevant: 'Не по теме',
+    sourceNotRelevant: 'Не относится к этому диалогу',
     sourceMarked: 'Отмечено',
     sourceOpenChat: 'Открыть этот диалог',
     sourceChatGone: 'Диалог удалён',
@@ -746,7 +746,7 @@ const TEXTS = Object.freeze({
     sourceTabChats: 'Conversaciones',
     sourceNoteGone: 'Esta nota fue eliminada',
     sourceStanding: 'Fija: se añade a cada respuesta',
-    sourceNotRelevant: 'No relevante aquí',
+    sourceNotRelevant: 'No relevante para esta conversación',
     sourceMarked: 'Marcado',
     sourceOpenChat: 'Abrir esta conversación',
     sourceChatGone: 'La conversación fue eliminada',
@@ -857,7 +857,9 @@ export function memoryDoneLabel(language, key, count) {
 /** The event that ends the row of a call once the loader has answered it: for a memory search it says how many notes or past conversations came back, with the row's label. */
 export function loaderEndEvent(loader, call, language) {
   const outcome = loader.outcome?.(call);
-  return outcome && Number.isInteger(outcome.count) ? { type: 'tool-end', count: outcome.count, label: memoryDoneLabel(language, outcome.key, outcome.count) } : { type: 'tool-end' };
+  return outcome && Number.isInteger(outcome.count)
+    ? { type: 'tool-end', count: outcome.count, label: memoryDoneLabel(language, outcome.key, outcome.count), ...(outcome.ids?.length ? { ids: outcome.ids } : {}), ...(outcome.chats?.length ? { chats: outcome.chats } : {}) }
+    : { type: 'tool-end' };
 }
 
 const SKIPPED_KEYS = Object.freeze({ 'file-too-large': 'sandboxSkippedLarge', 'total-too-large': 'sandboxSkippedTotal', 'too-many-files': 'sandboxSkippedCount', 'blocked-type': 'sandboxSkippedBlocked', 'not-saved': 'sandboxSkippedNotSaved', quota: 'sandboxSkippedQuota' });
