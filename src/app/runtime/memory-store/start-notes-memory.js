@@ -5,7 +5,7 @@ import { getAnnouncedUser, USER_READY_EVENT } from '../features/user-ready.js';
 import { getSupabaseClient } from '../../auth/supabase-client.js';
 import { createNotesMemory } from './notes-memory.js';
 import { MODELS } from '../shell/model-registry.js';
-import { getMemoryModelRunner, setNotesMemory, setPageHistory, setPageVectors, setRebuildController } from './memory-ref.js';
+import { getMemoryModelRunner, getProjectPieces, setNotesMemory, setPageHistory, setPageVectors, setRebuildController } from './memory-ref.js';
 import { createRebuildController } from './page-rebuild.js';
 import { createPageHistory } from './page-history.js';
 import { startServerRebuild, stopServerRebuild } from './server-rebuild.js';
@@ -33,7 +33,7 @@ export function startNotesMemory({ document, configAccess, dataStore, getActiveC
   setPageHistory(history);
   // The search by meaning is off until the person turns it on and agrees (page-vectors.js); when it is on, the vectors of the past conversations are brought up to date a little after the page has loaded.
   let lastUser = getAnnouncedUser();
-  const vectors = setPageVectors(createPageVectors({ getStore: () => memory.getStore(), getHistory: () => history, getApiKeyForProvider, getCloud: () => { const supabase = lastUser?.supabaseUserId ? (() => { try { return getSupabaseClient(); } catch { return null; } })() : null; return supabase ? { supabase, userId: String(lastUser.supabaseUserId) } : null; }, indexedDB: globalThis.indexedDB || null, userKey: () => String(lastUser?.supabaseUserId || lastUser?.username || 'local'), logger }));
+  const vectors = setPageVectors(createPageVectors({ getStore: () => memory.getStore(), getHistory: () => history, getProjectPieces, getApiKeyForProvider, getCloud: () => { const supabase = lastUser?.supabaseUserId ? (() => { try { return getSupabaseClient(); } catch { return null; } })() : null; return supabase ? { supabase, userId: String(lastUser.supabaseUserId) } : null; }, indexedDB: globalThis.indexedDB || null, userKey: () => String(lastUser?.supabaseUserId || lastUser?.username || 'local'), logger }));
   history.setVectors(vectors);
   // Building the memory from the past conversations (the settings show it); the first time it starts by itself, a little after the page has loaded.
   const rebuild = setRebuildController(createRebuildController({ getStore: () => memory.getStore(), getConversations: () => history.conversations().filter((entry) => !scopeOfConversationId(entry.id)), getConfig, getModelRunner: getMemoryModelRunner, models: MODELS, getApiKeyForProvider,

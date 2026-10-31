@@ -3,7 +3,8 @@
 
 // 2 (2026-10-22): a reply may carry `tools.imageGeneration` and `secrets.imageKey` (a text model that draws pictures by itself); a server of version 1 would refuse them.
 // 3 (2026-10-30): `tools.memory` may carry `history` and `vector`, and `secrets` an `embeddingKey` (the reply looks back through the person's past conversations, by meaning when they synced their vectors); a server of version 2 would refuse the key.
-export const PROTOCOL_VERSION = 3;
+// 4 (2026-11-01): `tools.projectFiles` may carry `vector`, and `secrets.embeddingKey` may go with it (the search over the files of a project by meaning); a server of version 3 would refuse the key.
+export const PROTOCOL_VERSION = 4;
 
 /** Codes the browser turns into its messages (in all five languages). They are part of the protocol: do not rename them. */
 export const ERROR_CODES = Object.freeze({

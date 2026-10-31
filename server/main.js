@@ -18,6 +18,7 @@ import { createSandboxHost } from './sandbox-client.js';
 import { createServerSkills } from './skills.js';
 import { createMemoryRecords } from './memory-records.js';
 import { createHistorySearch } from './memory-history.js';
+import { createProjectVectorSearch } from './project-vectors.js';
 import { createRebuildJobs } from './memory-rebuild.js';
 import { createSkillBundleStore } from './skill-bundles.js';
 import { createDerivedPdfStore } from './derived-pdf-store.js';
@@ -79,7 +80,7 @@ if (config.runsConfigured) {
     const vault = createKeyVault(config.encryptionKeys);
     credentials = createCredentialStore({ db, vault });
     connectors = createConnectorService({ db, vault, log, config: { allowed: config.connectorAllowed, mailer: createMailer({ apiKey: config.mailKey, from: config.mailFrom }), waitlistTo: config.waitlistTo, preregistered: config.connectorPreregistered, redirectUri: config.connectorRedirectUri, cimdUrl: config.connectorClientId, identity: { clientUri: config.siteUrl, logoUri: `${config.siteUrl}/logo.png`, tosUri: `${config.siteUrl}/terms`, policyUri: `${config.siteUrl}/privacy` }, clientStore: createDbClientStore(db, vault) } });
-    runs = createRunManager({ store: createRunStore({ db, limits: LIMITS }), db, vault, sandbox, files, credentials, connectors, skills: createServerSkills({ db, bundles: skillBundles }), memory: Object.assign(createMemoryRecords({ db }), { history: createHistorySearch({ db }) }), vision: { available: canDrawSlides, execute: executeVisionCheck, getKit: getFontKit }, limits: LIMITS, log });
+    runs = createRunManager({ store: createRunStore({ db, limits: LIMITS }), db, vault, sandbox, files, credentials, connectors, skills: createServerSkills({ db, bundles: skillBundles }), memory: Object.assign(createMemoryRecords({ db }), { history: createHistorySearch({ db }), projectVectors: createProjectVectorSearch({ db }) }), vision: { available: canDrawSlides, execute: executeVisionCheck, getKit: getFontKit }, limits: LIMITS, log });
     // The rebuild of the memory from the past conversations, which goes on when the page is closed (server/memory-rebuild.js).
     memoryRebuild = createRebuildJobs({ memory: createMemoryRecords({ db }), db, log });
     shares = createShares({ db, store: createShareStore({ url: config.supabaseUrl, serviceKey: config.serviceKey }), log, reportMail: createShareReportMailer({ db, mailer: createMailer({ apiKey: config.mailKey, from: config.mailFrom }), to: config.reportTo, appUrl: config.appUrl, log }) });

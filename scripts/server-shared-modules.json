@@ -615,6 +615,10 @@
     {
       "path": "src/data/project-files-tool.js",
       "note": "Reviewed 2026-11-01: no browser globals (search_project_files and read_project_file over the text of the files of a project; docs/superpowers/specs/2026-10-31-projects-design.md, §16)."
+    },
+    {
+      "path": "src/data/project-piece-id.js",
+      "note": "Reviewed 2026-11-01: pure functions (how the vector of a passage of a project file is named); no browser globals."
     }
   ]
 }

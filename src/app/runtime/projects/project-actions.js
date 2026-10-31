@@ -31,6 +31,8 @@ export function createProjectActions({
   dropFiles = async () => {},
   // Takes away the notes a project kept for itself (the page's memory); called when the project is deleted.
   dropNotes = async () => {},
+  // The sources of a project changed (one came, one went, or the project went): the vectors of the files are brought up to date.
+  onSourcesChanged = () => {},
   randomUUID = () => globalThis.crypto.randomUUID()
 } = {}) {
   const folders = () => dataStore.getFolders();
@@ -132,6 +134,7 @@ export function createProjectActions({
     folder.sources = [...current, source];
     dataStore.replaceFolders([...folders()]);
     await saveAppData();
+    onSourcesChanged();
     return { ok: true, id: source.id };
   }
 
@@ -145,6 +148,7 @@ export function createProjectActions({
     dataStore.replaceFolders([...folders()]);
     await saveAppData();
     await dropFiles(unusedFiles([gone.file]));
+    onSourcesChanged();
     return { ok: true };
   }
 
@@ -179,6 +183,7 @@ export function createProjectActions({
     if (withChats && inside.some((conversation) => conversation.id === openId)) await startNewChat({ keepSidebarOpen: true });
     await saveAppData(withChats ? { immediateCloudSync: true } : undefined);
     renderSidebar();
+    if (Array.isArray(folder.sources) && folder.sources.length) onSourcesChanged();
     return { ok: true, chats: inside.length, withChats };
   }
 

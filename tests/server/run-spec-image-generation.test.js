@@ -27,7 +27,7 @@ const good = (extra = {}) => ({
 });
 
 test('the protocol is version 2', () => {
-  assert.equal(PROTOCOL_VERSION, 3);
+  assert.equal(PROTOCOL_VERSION, 4);
   const old = validateRunSpec({ ...good(), protocol: 1 });
   assert.equal(old.ok, false);
   assert.equal(old.unsupportedProtocol, true, 'a page of version 1 is told to make the reply itself');

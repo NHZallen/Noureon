@@ -55,7 +55,7 @@ const PROJECT_FILES_TEXT_TOTAL_MAX = 400_000;
 const HASH = /^[0-9a-f]{64}$/;
 const projectFileEntries = (value) => (isObject(value) && Array.isArray(value.entries) ? value.entries : null);
 function normalizeProjectFiles(value) {
-  return { entries: projectFileEntries(value).map((entry) => ({
+  return { ...(isObject(value.vector) ? { vector: { provider: value.vector.provider } } : {}), entries: projectFileEntries(value).map((entry) => ({
     id: entry.id, name: entry.name, size: Math.max(0, Math.floor(Number(entry.size) || 0)),
     ...(typeof entry.text === 'string' ? { text: entry.text } : { file: { hash: entry.file.hash, ...(entry.file.mimeType ? { mimeType: entry.file.mimeType } : {}), ...(entry.file.name ? { name: entry.file.name } : {}) } })
   })) };
@@ -497,6 +497,8 @@ export function validateRunSpec(input) {
         });
         if (total > PROJECT_FILES_TEXT_TOTAL_MAX) fail('tools.projectFiles', `the texts must be at most ${PROJECT_FILES_TEXT_TOTAL_MAX} characters together`);
       }
+      // `vector`: the search may also be by meaning, with the key of `secrets.embeddingKey` (the vectors of the files are in the person's cloud only when they synced them).
+      if (tools.projectFiles.vector !== undefined && (!isObject(tools.projectFiles.vector) || !['gemini', 'openrouter'].includes(tools.projectFiles.vector.provider))) fail('tools.projectFiles.vector', 'must name the provider of the embedding model (gemini or openrouter)');
     }
     // The CLI tools (命令工具) the person chose with "@" for this message: ids of the store's tools. They run in the sandbox, so this is a reply
     // with Python (`advanced`).
@@ -587,8 +589,9 @@ export function validateRunSpec(input) {
     if (secrets.imageKey !== undefined && (!text(secrets.imageKey, 600) || !imageGeneration)) fail('secrets.imageKey', 'must be a key, and only with tools.imageGeneration');
     if (imageGeneration && !text(secrets.imageKey, 600)) fail('secrets.imageKey', 'is needed to draw pictures');
     // The key of the embedding model for the question of a search by meaning: kept for this run only, like the others.
-    if (secrets.embeddingKey !== undefined && (!text(secrets.embeddingKey, 600) || !isObject(tools?.memory?.vector))) fail('secrets.embeddingKey', 'must be a key, and only with tools.memory.vector');
-    if (isObject(tools?.memory?.vector) && !text(secrets.embeddingKey, 600)) fail('secrets.embeddingKey', 'is needed for a search by meaning');
+    const searchesByMeaning = isObject(tools?.memory?.vector) || isObject(tools?.projectFiles?.vector);
+    if (secrets.embeddingKey !== undefined && (!text(secrets.embeddingKey, 600) || !searchesByMeaning)) fail('secrets.embeddingKey', 'must be a key, and only with tools.memory.vector or tools.projectFiles.vector');
+    if (searchesByMeaning && !text(secrets.embeddingKey, 600)) fail('secrets.embeddingKey', 'is needed for a search by meaning');
     for (const name of Object.keys(secrets)) if (!['providerKey', 'searchKey', 'searchKeyAlt', 'translatorKey', 'imageKey', 'embeddingKey'].includes(name)) fail(`secrets.${name}`, 'is not a known field');
   }
 

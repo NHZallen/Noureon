@@ -6,6 +6,10 @@
 
 import { createBm25Index } from '../app/runtime/memory-notes/bm25.js';
 import { terms } from '../app/runtime/memory-notes/tokenize.js';
+import { fuseRanks, textHash } from '../app/runtime/memory-notes/vector-math.js';
+import { pieceIdOf } from './project-piece-id.js';
+
+export { PIECE_PREFIX, pieceIdOf, sourceOfPieceId } from './project-piece-id.js';
 import { sandboxText } from '../app/runtime/sandbox/sandbox-texts.js';
 
 export const SEARCH_PROJECT_FILES_TOOL = Object.freeze({
@@ -66,6 +70,23 @@ export function passagesOf(text, { size = PASSAGE_CHARS, overlap = OVERLAP } = {
   return out;
 }
 
+/**
+ * The passages of the files of one project as the search and the vectors both see them: `files` is [{ id, name, text }], read in order up to `budget` characters. Each is
+ * { file, number, id (the piece id), start, end, text }. One function for both, so that a vector found for a passage is the vector of the very passage the search shows.
+ */
+export function projectPassages(files, { budget = SEARCHED_CHARS_MAX } = {}) {
+  const out = [];
+  let left = budget;
+  for (const file of files) {
+    const text = String(file.text ?? '');
+    if (!text || left <= 0) continue;
+    const slice = text.slice(0, left);
+    left -= slice.length;
+    passagesOf(slice).forEach((passage, number) => out.push({ file, number, id: pieceIdOf(file.id, number), ...passage }));
+  }
+  return out;
+}
+
 /** The list of the files of the project as the instructions tell it: a line for each file, with what it is. */
 export function projectFilesListText(entries) {
   return entries.map((entry) => `- ${entry.name} (${entry.kindText || entry.kind}${entry.size ? `, ${entry.size >= 1048576 ? `${(entry.size / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(entry.size / 1024))} KB`}` : ''})`).join('\n');
@@ -74,8 +95,10 @@ export function projectFilesListText(entries) {
 /**
  * `entries`: [{ id, name, kind, size }] (the files that can be looked into; `id` is unique). `readText(entry)` resolves the text of a file ('' when it has none, as a scan; it may throw).
  * `onUsed({ files })` is told which files a search or a read brought something from. `language` is the language of the rows of the step list.
+ * `vectorSearch(query, { fileIds, limit })` (optional) resolves [{ id, hash, cosine }] (the nearest in meaning, as piece ids; any failure is []): with it a search puts what the keywords
+ * find and what the vectors find together; without it, or when it finds nothing, the keywords are used alone.
  */
-export function createProjectFilesLoader({ entries, readText, language = 'zh-TW', maxCalls = MAX_PROJECT_FILE_CALLS, onUsed = null }) {
+export function createProjectFilesLoader({ entries, readText, language = 'zh-TW', maxCalls = MAX_PROJECT_FILE_CALLS, onUsed = null, vectorSearch = null }) {
   const files = entries.map((entry) => ({ ...entry }));
   const texts = new Map();
   let calls = 0;
@@ -110,21 +133,17 @@ export function createProjectFilesLoader({ entries, readText, language = 'zh-TW'
   async function buildIndex() {
     if (index) return index;
     indexed ||= (async () => {
-      const documents = [];
-      const passages = [];
-      let budget = SEARCHED_CHARS_MAX;
+      const readable = [];
       for (const entry of files) {
         const text = await load(entry);
-        if (!text || budget <= 0) continue;
-        const slice = text.slice(0, budget);
-        budget -= slice.length;
-        for (const passage of passagesOf(slice)) {
-          const id = passages.length;
-          passages.push({ file: entry, ...passage });
-          documents.push({ id, terms: terms(`${entry.name} ${passage.text}`) });
-        }
+        if (text) readable.push({ id: entry.id, name: entry.name, text, entry });
       }
-      index = { bm25: createBm25Index(documents), passages };
+      const documents = [];
+      const passages = projectPassages(readable).map((passage, position) => {
+        documents.push({ id: position, terms: terms(`${passage.file.name} ${passage.text}`) });
+        return { ...passage, file: passage.file.entry };
+      });
+      index = { bm25: createBm25Index(documents), passages, byPiece: new Map(passages.map((passage, position) => [passage.id, position])) };
       return index;
     })();
     return indexed;
@@ -147,12 +166,27 @@ export function createProjectFilesLoader({ entries, readText, language = 'zh-TW'
     const limit = Math.min(10, Math.max(1, Math.floor(Number(call?.args?.k) || 6)));
     const only = call?.args?.file ? resolve(call.args.file) : null;
     if (call?.args?.file && !only) return `There is no such file. The files of the project: ${listText()}.`;
-    const { bm25, passages } = await buildIndex();
+    const { bm25, passages, byPiece } = await buildIndex();
     const queryTerms = terms(query);
-    const hits = bm25.search(queryTerms, { limit: limit * 4, minNorm: 0.04 })
-      .map((hit) => passages[hit.id])
-      .filter((passage) => !only || passage.file.id === only.id)
-      .slice(0, limit);
+    const byKeywords = bm25.search(queryTerms, { limit: limit * 4, minNorm: 0.04 })
+      .map((hit) => hit.id)
+      .filter((position) => !only || passages[position].file.id === only.id);
+    // What the vectors find: only a vector of the very text that is there now counts (the hash), and only in the files asked about.
+    let byMeaning = [];
+    if (vectorSearch) {
+      try {
+        const found = await vectorSearch(query, { fileIds: (only ? [only] : files).map((entry) => entry.id), limit: limit * 4 });
+        byMeaning = (Array.isArray(found) ? found : [])
+          .map((hit) => ({ position: byPiece.get(hit.id), hash: hit.hash }))
+          .filter((hit) => hit.position !== undefined && textHash(passages[hit.position].text) === hit.hash && (!only || passages[hit.position].file.id === only.id))
+          .map((hit) => hit.position);
+      } catch {
+        byMeaning = [];
+      }
+    }
+    const order = byMeaning.length ? fuseRanks([byKeywords, byMeaning], { limit }) : byKeywords.slice(0, limit);
+    const hits = order.map((position) => passages[position]);
+    const how = byMeaning.length ? 'keywords and meaning' : 'keywords';
     lastOutcome = { key: 'projectFilesSearching', count: hits.length };
     if (hits.length) onUsed?.({ files: [...new Set(hits.map((hit) => hit.file.name))] });
     const empty = await unreadable();
@@ -161,6 +195,7 @@ export function createProjectFilesLoader({ entries, readText, language = 'zh-TW'
     }
     return JSON.stringify({
       note: 'Passages of the files of the project. Use read_project_file with the "start" of a passage to read more around it.',
+      search: how,
       passages: hits.map((hit) => ({ file: hit.file.name, start: hit.start, end: hit.end, text: hit.text.trim() })),
       ...(empty.length ? { no_text: empty } : {})
     });

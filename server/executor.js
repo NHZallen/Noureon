@@ -332,7 +332,11 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
     const readText = createProjectFileTextReader({ files, userId, signal });
     const byId = new Map(spec.tools.projectFiles.entries.map((entry) => [entry.id, entry]));
     const entries = spec.tools.projectFiles.entries.map((entry) => ({ id: entry.id, name: entry.name, size: entry.size, kind: 'file' }));
-    projectFilesLoader = createProjectFilesLoader({ entries, language, readText: (entry) => readText(byId.get(entry.id)) });
+    // By meaning too, when the person synced the vectors of their files and the page gave a key for this reply (it lives only for the run).
+    const vectorSearch = spec.tools.projectFiles.vector && secrets.embeddingKey && memory?.projectVectors
+      ? memory.projectVectors.forReply({ userId, vector: { provider: spec.tools.projectFiles.vector.provider, key: secrets.embeddingKey }, signal })
+      : null;
+    projectFilesLoader = createProjectFilesLoader({ entries, language, vectorSearch, readText: (entry) => readText(byId.get(entry.id)) });
   }
   // What the reply's loops are given: the skills, the connectors, the pictures, the memory and the files of the project as one loader (any may be missing).
   const makeSkillLoader = (options) => combineLoaders(makeSkillsOnly(options), connectorLoader, imageLoader, memoryLoader, projectFilesLoader);

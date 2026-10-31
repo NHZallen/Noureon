@@ -69,3 +69,15 @@ test('the server reads the text of the finished messages of one person through i
     assert.match((await client.error('select public.server_read_history($1)', [bob]))?.message || 'it worked', /permission denied/);
   }
 });
+
+test('the project search is for the server only, and the project vectors leave with their project', async () => {
+  for (const client of [A, B, database.anon]) {
+    assert.match((await client.error("select * from public.match_project_vectors($1, 'm', '[1]', array['s1'], 5, 0.5)", [bob]))?.message || 'it worked', /permission denied/);
+  }
+  const folder = crypto.randomUUID();
+  await callWith(B, 'upsert_workspace_folders', [{ id: folder, name: 'Trip', sources: [{ id: 'src-a', kind: 'text', title: 'a' }, { id: 'src-b', kind: 'text', title: 'b' }] }]);
+  for (const piece of ['src:src-a:0', 'src:src-a:1', 'src:src-b:0', 'src:other-project:0', 'conversation-piece']) await insert(database.service, bob, piece);
+  await B.query('select public.permanently_delete_workspace_folder($1)', [folder]);
+  const left = (await database.service.query('select piece_id from public.workspace_memory_vectors where user_id = $1 order by piece_id', [bob])).map((row) => row.piece_id);
+  assert.deepEqual(left, ['conversation-piece', 'src:other-project:0'], 'the vectors of its sources are gone, nobody else\'s and not a conversation\'s');
+});

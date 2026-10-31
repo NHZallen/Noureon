@@ -16,6 +16,11 @@ let vectors = null;
 export const getPageVectors = () => vectors;
 export const setPageVectors = (value) => { vectors = value; return vectors; };
 
+/** The passages of the files of the projects for the vectors (projects/project-pieces.js), or null until the projects have started. */
+let projectPieces = null;
+export const getProjectPieces = () => projectPieces;
+export const setProjectPieces = (value) => { projectPieces = value; return projectPieces; };
+
 /** The controller that builds the memory from the past conversations (page-rebuild.js), made by the page when it starts; the settings use the same one. */
 let rebuildController = null;
 export const getRebuildController = () => rebuildController;

@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
 
-import { createProjectFilesLoader, passagesOf, projectFilesListText, READ_PROJECT_FILE_TOOL, SEARCH_PROJECT_FILES_TOOL } from '../src/data/project-files-tool.js';
+import { createProjectFilesLoader, passagesOf, pieceIdOf, projectFilesListText, projectPassages, READ_PROJECT_FILE_TOOL, SEARCH_PROJECT_FILES_TOOL, sourceOfPieceId } from '../src/data/project-files-tool.js';
+import { textHash } from '../src/app/runtime/memory-notes/vector-math.js';
 import { extractProjectFileText, textKindOf } from '../src/app/runtime/projects/project-file-text.js';
 import { createOfficeReader } from '../src/app/ui/files/office-text/office-reader.js';
 import { memoryDoneLabel } from '../src/app/runtime/sandbox/sandbox-texts.js';
@@ -133,4 +134,51 @@ trailer<</Root 1 0 R/Size 6>>
   const deck = new Uint8Array(fs.readFileSync(new URL('./fixtures/free-deck.pptx', import.meta.url)));
   const deckText = await extractProjectFileText({ bytes: deck, name: 'free-deck.pptx', mime: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', officeReader });
   assert.ok(deckText.length > 20, 'the words of the slides');
+});
+
+test('the piece of a passage is named by its source and its number, and the search and the vectors cut the same passages', () => {
+  assert.equal(pieceIdOf('abc-1', 3), 'src:abc-1:3');
+  assert.equal(sourceOfPieceId('src:abc-1:3'), 'abc-1');
+  assert.equal(sourceOfPieceId('src:a:b:12'), 'a:b', 'the number is what follows the last colon');
+  assert.equal(sourceOfPieceId('conv:x:1'), '', 'a piece of a past conversation is not one of a project');
+  const passages = projectPassages([{ id: 'f1', name: 'budget.txt', text: BUDGET }, { id: 'f2', name: 'poems.md', text: POEM }, { id: 'f9', name: 'empty', text: '' }]);
+  assert.deepEqual(passages.map((passage) => passage.id).slice(0, 2), ['src:f1:0', 'src:f2:0']);
+  assert.deepEqual(passages.map((passage) => passage.number), passages.map((passage) => Number(passage.id.split(':')[2])));
+  assert.equal(passages.every((passage) => passage.text && passage.end > passage.start), true);
+  assert.equal(projectPassages([{ id: 'f1', name: 'a', text: 'x'.repeat(5000) }, { id: 'f2', name: 'b', text: 'y'.repeat(5000) }], { budget: 5500 }).filter((passage) => passage.file.id === 'f2').every((passage) => passage.end <= 500), true, 'the budget is shared by the files in order');
+});
+
+test('the search puts the keywords and the vectors together; a vector of text that changed, or one that fails, does not count', async () => {
+  const poems = projectPassages([{ id: 'f2', name: 'poems.md', text: POEM }]);
+  const spring = poems[0];
+  const asked = [];
+  // The vectors find the poem when the words of the question are not in it at all.
+  const meaning = async (query, options) => { asked.push({ query, options }); return [{ id: spring.id, hash: textHash(spring.text), cosine: 0.8 }]; };
+  const { loader } = loaderWith({ vectorSearch: meaning });
+  const found = JSON.parse(await loader.run({ name: 'search_project_files', args: { query: 'zzzz qqqq' } }));
+  assert.equal(found.search, 'keywords and meaning');
+  assert.equal(found.passages[0].file, 'poems.md');
+  assert.deepEqual(asked[0].options.fileIds, ['f1', 'f2', 'f3'], 'asked about every file, a file the tools cannot read included');
+  // The same hit with the hash of other text: not used.
+  const stale = loaderWith({ vectorSearch: async () => [{ id: spring.id, hash: 'old', cosine: 0.9 }] }).loader;
+  assert.match(await stale.run({ name: 'search_project_files', args: { query: 'zzzz qqqq' } }), /Nothing in the project files matches/);
+  // A passage that is not in the files, and a failing search: the keywords alone.
+  const odd = loaderWith({ vectorSearch: async () => [{ id: 'src:nowhere:0', hash: 'x', cosine: 0.9 }] }).loader;
+  assert.equal(JSON.parse(await odd.run({ name: 'search_project_files', args: { query: 'budget Taipei' } })).search, 'keywords');
+  const broken = loaderWith({ vectorSearch: async () => { throw new Error('offline'); } }).loader;
+  const fallback = JSON.parse(await broken.run({ name: 'search_project_files', args: { query: 'budget Taipei' } }));
+  assert.equal(fallback.search, 'keywords');
+  assert.equal(fallback.passages[0].file, 'budget.txt');
+  // A call about one file looks only in that file, for the keywords and for the vectors.
+  const only = loaderWith({ vectorSearch: async () => [{ id: spring.id, hash: textHash(spring.text), cosine: 0.8 }] }).loader;
+  assert.match(await only.run({ name: 'search_project_files', args: { query: 'zzzz qqqq', file: 'budget.txt' } }), /Nothing in the project files matches/);
+});
+
+test('what both find ranks above what only one finds', async () => {
+  const both = projectPassages([{ id: 'f1', name: 'budget.txt', text: BUDGET }, { id: 'f2', name: 'poems.md', text: POEM }]);
+  const budgetPiece = both.find((passage) => passage.file.id === 'f1');
+  const poemPiece = both.find((passage) => passage.file.id === 'f2');
+  const { loader } = loaderWith({ vectorSearch: async () => [{ id: poemPiece.id, hash: textHash(poemPiece.text), cosine: 0.9 }, { id: budgetPiece.id, hash: textHash(budgetPiece.text), cosine: 0.7 }] });
+  const found = JSON.parse(await loader.run({ name: 'search_project_files', args: { query: 'budget Taipei hiring' } }));
+  assert.equal(found.passages[0].file, 'budget.txt', 'the keywords and the vectors agree on it');
 });

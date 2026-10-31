@@ -3,6 +3,7 @@
 // come back are kept in this browser (vector-store.js) and, when the person also chose to sync them, in their cloud (vector-sync.js). The question of a search is turned into a vector the same way; the pieces of past conversations nearest to it are put together with what the keywords found
 // (page-history.js). Without a key, without consent, or when the provider fails, the search just uses the keywords: nothing here may break a reply. Turning it off throws the vectors away.
 
+import { sourceOfPieceId } from '../../../data/project-piece-id.js';
 import { fuseRanks, textHash, topByCosine } from '../memory-notes/vector-math.js';
 import { createEmbeddingClient, EMBEDDING_PROVIDERS, pickEmbeddingProvider, versionOf } from './embedding-client.js';
 import { createVectorSync } from './vector-sync.js';
@@ -12,7 +13,7 @@ export const VECTOR = Object.freeze({ minChars: 12, batchTexts: 32, batchChars: 
 
 const hashed = (piece) => piece.hash || textHash(piece.text);
 
-export function createPageVectors({ getStore, getHistory, getApiKeyForProvider = () => '', getCloud = () => null, indexedDB = null, userKey = () => 'local', fetchImpl, now = () => new Date().toISOString(), wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), logger = console, options = {} }) {
+export function createPageVectors({ getStore, getHistory, getProjectPieces = () => null, getApiKeyForProvider = () => '', getCloud = () => null, indexedDB = null, userKey = () => 'local', fetchImpl, now = () => new Date().toISOString(), wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), logger = console, options = {} }) {
   const config = { ...VECTOR, ...options };
   const listeners = new Set();
   let state = { status: 'off', done: 0, total: 0, error: '' };
@@ -20,6 +21,7 @@ export function createPageVectors({ getStore, getHistory, getApiKeyForProvider =
   let storeKey = '';
   let running = null;
   let stopRequested = false;
+  let again = false;
 
   const set = (patch) => {
     state = { ...state, ...patch };
@@ -30,7 +32,9 @@ export function createPageVectors({ getStore, getHistory, getApiKeyForProvider =
   // A piece of a few words ("Sure.") says nothing a vector could find, so it is not sent. The files of the messages are pieces of their own (one request each).
   const textPieces = () => (getHistory()?.pieces() || []).filter((piece) => piece.text.length >= config.minChars);
   const mediaPieces = () => getHistory()?.mediaPieces?.() || [];
-  const worth = () => [...textPieces(), ...mediaPieces()];
+  // The passages of the files of the projects (runtime/projects/project-pieces.js): made from the sources and kept in the same store under `src:` ids. `refresh()` reads what changed.
+  const projectPieces = () => (getProjectPieces()?.pieces?.() || []).filter((piece) => piece.text.length >= config.minChars);
+  const worth = () => [...textPieces(), ...mediaPieces(), ...projectPieces()];
   const hasKey = (name) => Boolean(getApiKeyForProvider(name));
   const hasKey_ = (name) => hasKey(EMBEDDING_PROVIDERS[name].keyProvider);
   const providerNow = () => pickEmbeddingProvider({ chosen: settings().provider, hasKey });
@@ -79,6 +83,8 @@ export function createPageVectors({ getStore, getHistory, getApiKeyForProvider =
     set({ status: 'building', error: '' });
     try {
       const vectors = await ensureStore(provider);
+      // What the projects hold now (a source may have come or gone): read first, so that the pieces below are the ones there are.
+      try { await getProjectPieces()?.refresh?.(); } catch (error) { logger.warn?.('The files of the projects could not be read for the vectors.', error); }
       const pieces = worth();
       await vectors.prune(pieces.map((piece) => piece.id));
       // What another device already made is taken from the cloud first (it costs nothing); when the cloud cannot be reached the page goes on with its own.
@@ -205,11 +211,17 @@ export function createPageVectors({ getStore, getHistory, getApiKeyForProvider =
       return true;
     },
     /** Builds the vectors that are missing (and drops those of pieces that are gone). One run at a time; does nothing when it is off. */
-    sync() {
+    sync({ rerun = false } = {}) {
       if (!enabled()) return Promise.resolve(set({ status: 'off' }));
-      if (running) return running;
+      // Asked again while it builds with `rerun` (a source was added): one more run follows, so that nothing made after it started is missed.
+      if (running) { if (rerun) again = true; return running; }
       stopRequested = false;
-      running = build().finally(() => { running = null; });
+      running = build().finally(() => {
+        running = null;
+        const more = again && !stopRequested;
+        again = false;
+        if (more) void this.sync();
+      });
       return running;
     },
     stop() {
@@ -230,7 +242,8 @@ export function createPageVectors({ getStore, getHistory, getApiKeyForProvider =
         const found = [];
         for (const hit of topByCosine(vector, store.entries().filter((entry) => entry.vector.length), { limit: limit * 4, minCosine })) {
           const piece = byId.get(hit.id);
-          if (!piece || piece.conversationId === excludeConversationId || taken.has(piece.conversationId) || (allow && !allow(piece.conversationId))) continue;
+          // A passage of a project file is not a piece of a past conversation.
+          if (!piece || piece.kind === 'project' || piece.conversationId === excludeConversationId || taken.has(piece.conversationId) || (allow && !allow(piece.conversationId))) continue;
           taken.add(piece.conversationId);
           found.push({ conversationId: piece.conversationId, at: piece.at, role: piece.role, text: piece.text, cosine: hit.cosine });
           if (found.length >= limit) break;
@@ -238,6 +251,25 @@ export function createPageVectors({ getStore, getHistory, getApiKeyForProvider =
         return found;
       } catch (error) {
         logger.warn?.('The search by meaning failed; the keywords are used alone.', error);
+        return [];
+      }
+    },
+    /**
+     * The passages of project files nearest in meaning to `query`, among the sources `sourceIds`: [{ id, hash, cosine }] (`id` is the piece id; the hash lets the caller see that the
+     * passage is still the one the vector was made from). Resolves [] when it is off, has no vectors yet, or fails.
+     */
+    async searchProject(query, { sourceIds = [], limit = 20, minCosine = config.minCosine, signal } = {}) {
+      try {
+        const provider = providerNow();
+        const wanted = new Set(sourceIds);
+        if (!enabled() || !store?.isLoaded() || !store.size || !wanted.size || !String(query || '').trim()) return [];
+        const entries = store.entries().filter((entry) => entry.vector.length && wanted.has(sourceOfPieceId(entry.id)));
+        if (!entries.length) return [];
+        const [vector] = await clientFor(provider).embed([String(query).slice(0, 2000)], { kind: 'query', signal });
+        const hashes = new Map(entries.map((entry) => [entry.id, entry.hash]));
+        return topByCosine(vector, entries, { limit, minCosine }).map((hit) => ({ id: hit.id, hash: hashes.get(hit.id), cosine: hit.cosine }));
+      } catch (error) {
+        logger.warn?.('The search by meaning over the project files failed; the keywords are used alone.', error);
         return [];
       }
     },

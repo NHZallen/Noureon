@@ -124,3 +124,23 @@
 - 伺服器：`tools.projectFiles` 新欄位驗證、向量查詢前綴過濾、只讀自己的資料、媒體不暫存（仿 `tests/server/server-project-files.test.js`、`server-memory-history.test.js`）。
 - 資料庫：新 migration 用 `tests/database/` 的 PGlite 測（仿 `tests/database/project-instructions.test.js`、`memory-vectors.test.js`）。
 - 議會：請求驗證不再拒絕、成員拿得到工具（仿議會工具的既有測試）。
+
+## 9. Allen 的決定（2026-11-01）與計劃的修改
+
+回答 §6 的問題後定下的，**以這一節為準，與前面衝突的地方照這一節**：
+
+1. **R3 一次到位**：`view_project_file` 同時做四種供應商格式（Messages、Chat、Responses、Gemini），不先做一家。工具結果帶圖的共用模組（`src/data/tool-result.js`、`features/tool-call-formats.js`、`reply/anthropic-messages-format.js`）在做文字模型畫圖時已經有了，直接用。
+2. **圖片、影片、聲音、純圖片檔案（掃描 PDF 等）維持原本「隨訊息附上」的做法，額度由 8 MB 提高到 10 MB，四種共用同一份額度**。§3.3 末段「工具模式下不再自動附上所有圖片」**取消**。文字類檔案仍是工具模式，不變。
+3. **向量照做，用途是「額度放不下時找得到、挑得準」**：媒體超過 10 MB 時，有向量就依這次問題的相關度挑要附哪幾個（沒有向量就照加入順序），其餘留在清單，模型用 `search_project_files` 與 `view_project_file` 自己拿。
+4. **沒有向量模型（沒金鑰或沒同意）就只用關鍵字，不提供另外的開關**。同意仍是向量功能原有的那一個。
+5. **嵌入不另外詢問費用**：每檔上限內的直接嵌入；超過每檔上限的不嵌入，標成「太大」。專案單檔 20 MB、全部 100 MB 的上限不調。
+6. **專案這條線先不上線**；每個階段都推 `staging` 給 Allen 試過，才做下一個階段。
+7. 沿用：看不懂圖的模型不讀圖片，不用別的模型先替它讀；向量沿用同一個同意。
+
+### R1 的做法（文字段向量，2026-11-01 開工）
+
+- **piece 的編號**：`src:<來源 id>:<段落序號>`，序號是 `passagesOf` 切出來的順序；`hash` 是該段文字的 `textHash`。搜尋工具與建立向量用**同一個函式** `projectPassages`（`src/data/project-files-tool.js`），所以兩邊的編號一定對得上。
+- **頁面**：`runtime/projects/project-pieces.js` 把所有專案的可搜尋來源切成 pieces，交給頁面向量庫（`page-vectors.js`）一起建（`worth()` 多一種 piece；`prune` 因此不會把它們刪掉；過去對話的搜尋要略過它們）。來源新增、刪除、專案刪除時觸發重建。
+- **搜尋**：`search_project_files` 把關鍵字（BM25）與向量的結果用 `fuseRanks` 合併；向量的結果只在 `hash` 與現在的文字相同時才算；步驟與回傳寫明這次是只用關鍵字還是也用了語意。
+- **伺服器**：`tools.projectFiles.vector = { provider }` 加上 `secrets.embeddingKey`（只活在這次回覆）；`server/project-vectors.js` 把問題算成向量，呼叫新的資料庫函式 `match_project_vectors`（只回這個使用者、這幾個來源的 `src:` piece）。沒同步向量時只用關鍵字。
+- **資料庫**：新函式 `match_project_vectors`；既有的 `match_workspace_memory_vectors`（過去對話用）改成**排除 `src:` 開頭**，否則專案的向量會擠掉過去對話的搜尋結果；刪專案時，專案來源的向量一併刪除。

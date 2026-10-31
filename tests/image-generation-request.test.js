@@ -59,7 +59,7 @@ const start = async (args) => {
 test('the request to the server carries the tool and the picture model\'s key, and the run can send the answer to its question', async () => {
   const { result, spec } = await start({});
   assert.equal(result.ok, true);
-  assert.equal(spec.protocol, 3);
+  assert.equal(spec.protocol, 4);
   assert.equal(spec.tools.imageGeneration.permission, 'ask');
   assert.equal(spec.tools.imageGeneration.model.provider, 'openrouter');
   assert.equal(spec.secrets.imageKey, 'sk-or-key');

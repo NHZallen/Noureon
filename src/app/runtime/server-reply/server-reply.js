@@ -10,7 +10,7 @@ import { netPolicyForRun } from '../cli/net-state.js';
 import { takeTrace } from '../memory-store/memory-trace.js';
 import { imageGenerationForReply } from '../tool-models/image-generation-request.js';
 
-export const SERVER_PROTOCOL_VERSION = 3;
+export const SERVER_PROTOCOL_VERSION = 4;
 // Where the server is: api.noureon.com, or the one of the test site (staging) when its build sets VITE_SERVER_API_URL (docs/superpowers/specs/2026-10-11-staging-design.md).
 export const resolveServerApiUrl = (value) => {
   const text = String(value ?? '').trim().replace(/\/+$/, '');
@@ -240,7 +240,10 @@ export function createServerReply({
     const providerKey = getApiKeyForProvider(modelInfo?.provider);
     if (!providerKey) return { ok: false, reason: 'no-key', notify: false };
     // The key for the question of a search by meaning goes in `secrets`, not in the memory part of the request.
-    const { embeddingKey, ...memoryTools } = memory || {};
+    const { embeddingKey: memoryEmbeddingKey, ...memoryTools } = memory || {};
+    // The files of the project may be searched by meaning too, with a key for this reply only (the page gives it with them).
+    const { embeddingKey: filesEmbeddingKey, ...projectFilesTools } = projectFiles || {};
+    const embeddingKey = memoryEmbeddingKey || filesEmbeddingKey;
     let search = null;
     // The addresses of the message are read with the search source's key too.
     if (webSearch === 'research' || webSearch === 'packet' || documents?.linkedPages) {
@@ -309,7 +312,7 @@ export function createServerReply({
         // The memory of notes: the server gives the model search_memory and memory_write (it reads the notes from the table, checks a write and saves it there).
         ...(memory ? { memory: memoryTools } : {}),
         // The files of the project the model may look into (data/project-files-tool.js): their names, and the text or where the server reads them from the cloud.
-        ...(projectFiles ? { projectFiles } : {}),
+        ...(projectFiles ? { projectFiles: projectFilesTools } : {}),
         // The check of a presentation the reply writes (the page's setting is on and the model can see images): the server makes it too.
         ...(visionCheck ? { visionCheck } : {}),
         ...(drawing ? { imageGeneration: drawing.imageGeneration } : {})

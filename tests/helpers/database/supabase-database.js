@@ -35,7 +35,7 @@ alter default privileges in schema public grant all on sequences to anon, authen
 // PGlite does not carry pgvector, so a migration that uses it is run with the vector column as plain text and the extension line taken out (the tables, the rules and the grants are
 // what the tests look at). The distance function is not run here; Supabase has the real extension.
 function withoutPgvector(sql) {
-  if (!/create extension if not exists vector/i.test(sql)) return sql;
+  if (!/create extension if not exists vector|extensions\.vector/i.test(sql)) return sql;
   return `set check_function_bodies = off;\n${sql.replace(/create extension if not exists vector[^;]*;/i, '').replaceAll('extensions.vector(768)', 'text').replaceAll('extensions.vector', 'text')}`;
 }
 
