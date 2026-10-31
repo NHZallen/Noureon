@@ -44,7 +44,7 @@ export function openCameraDialog({ document, root, text, onCapture, onError = ()
     canvas.getContext('2d').drawImage(video, 0, 0, width, height);
     canvas.toBlob((blob) => {
       if (!blob) return;
-      const stamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
+      const stamp = new Date().toISOString().replace(/\D/g, '').slice(0, 14);
       sheet.close();
       onCapture(new win.File([blob], `photo-${stamp}.jpg`, { type: 'image/jpeg' }));
     }, 'image/jpeg', 0.92);
