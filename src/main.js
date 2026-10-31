@@ -1,6 +1,7 @@
 import 'cropperjs/dist/cropper.css';
 import 'katex/dist/katex.min.css';
 import './styles/main.css';
+import './styles/share-page.css';
 
 import { loadKatex } from './app/vendors/katex-vendor.js';
 import { loadVendorScript } from './app/bootstrap/load-vendor-script.js';
@@ -26,6 +27,7 @@ import { resolveStartupIdentity } from './app/auth/startup-identity.js';
 import { ensureLanguage, setStartupLanguage } from './app/i18n/language-packs.js';
 import { detectSystemLanguage, readLastUiLanguage, readLoginLanguage } from './app/runtime/features/login-language.js';
 import { isPasswordRecoveryRoute } from './app/auth/password-recovery-route.js';
+import { isShareRoute } from './app/share-page/share-route.js';
 import { loadArchiveVendor } from './app/vendors/archive-vendor.js';
 import { scheduleArchiveVendorPrewarm } from './app/vendors/archive-vendor-prewarm.js';
 import { installCloudSyncBootstrapQueue } from './app/sync/cloud-sync-bootstrap-queue.js';
@@ -63,6 +65,13 @@ async function bootstrap() {
       STARTUP_MARKS.PASSWORD_RECOVERY_INTERACTIVE,
       STARTUP_MEASURES.TO_PASSWORD_RECOVERY_INTERACTIVE
     );
+    return;
+  }
+
+  // A link someone shared (noureon.com/s/<code>) opens the page that reads it, not the app.
+  if (isShareRoute(window.location.pathname)) {
+    const { initializeSharePage } = await import('./app/share-page/share-page.js');
+    await initializeSharePage({ window, document });
     return;
   }
 

@@ -9,6 +9,11 @@ export function isSupabaseConfigured() {
   return Boolean(supabaseUrl && supabasePublishableKey);
 }
 
+/** The address of the project (the public files of a share are read from its storage). */
+export function getSupabaseUrl() {
+  return supabaseUrl;
+}
+
 export function getSupabaseClient() {
   if (!isSupabaseConfigured()) return null;
   if (!client) {
