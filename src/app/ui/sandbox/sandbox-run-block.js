@@ -90,7 +90,7 @@ export function normalizeSources(sources) {
 
 // The skills the model loaded and the times it looked up or wrote the memory, one row each (kept so that the saved reply shows them as the live step list did).
 const MAX_TOOLS = 20;
-const MEMORY_KEYS = ['memorySearching', 'memoryReviewing', 'memoryWriting'];
+const MEMORY_KEYS = ['memorySearching', 'memoryReviewing', 'memoryWriting', 'projectFilesSearching', 'projectFilesReading'];
 const MAX_MEMORY_ITEMS = 10;
 // Which notes (their ids) and which past conversations (id and day) a memory step gave back, so that the step can be opened: never the words of either.
 const memoryItemsOf = (tool) => {

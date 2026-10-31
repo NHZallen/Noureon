@@ -450,7 +450,7 @@ test('the sources tab: add a text, add files (read, refused with the reason), re
     await t.actions.addSource('f2', { text: 'x'.repeat(70_000), title: 'Huge' });
     t.$('.pj-tab[aria-selected="false"]').click();
     t.byText('.pj-tab', 'Sources').click();
-    assert.match(t.$('.pj-sources').textContent, /1 source\(s\) are more than one reply can carry/);
+    assert.doesNotMatch(t.$('.pj-sources').textContent, /more than one reply can carry/, 'a text the model can look into with its tools is not left out');
   } finally { await t.finish(); }
 });
 

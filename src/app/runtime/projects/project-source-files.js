@@ -122,12 +122,16 @@ const oneLine = (value, max) => String(value ?? '').replace(/\s+/g, ' ').trim().
  * The files of the project a conversation is in, as parts of a message: a line that says what they are, then for each a line with its name and the file. A file the model cannot read (a
  * picture for a model that cannot see) is left out, as is what does not fit in the size of a request. [] when there is nothing to give.
  */
-export async function projectFilePartsFor(conversation, modelInfo) {
+export async function projectFilePartsFor(conversation, modelInfo, { skipIds = null } = {}) {
   const folder = projectOf(conversation);
   if (!folder || !deps.store) return [];
   const parts = [];
   // What does not fit in a reply is not given (it waits for the search); of what fits, the model that cannot read a kind of file gets none of that kind.
-  for (const source of projectFilesBudget(folder).used) {
+  // The files the model looks into with its tools are not counted: only what is given whole has to fit in a request.
+  const given = skipIds ? { ...folder, sources: (folder.sources || []).filter((source) => !skipIds.has(source.id)) } : folder;
+  for (const source of projectFilesBudget(given).used) {
+    // A file the model looks into with its tools (project-files-access.js) is not given whole.
+    if (skipIds?.has(source.id)) continue;
     if (!deps.supports(modelInfo, { mimeType: source.file.mimeType, name: source.file.name })) continue;
     const loaded = await deps.store.load(source.file);
     if (!loaded) continue;
@@ -141,9 +145,9 @@ export async function projectFilePartsFor(conversation, modelInfo) {
 }
 
 /** The parts of the message the person sent, with the files of the project in front. The message itself is not changed. */
-export async function withProjectFiles(userParts, conversation, modelInfo) {
+export async function withProjectFiles(userParts, conversation, modelInfo, options = {}) {
   try {
-    const files = await projectFilePartsFor(conversation, modelInfo);
+    const files = await projectFilePartsFor(conversation, modelInfo, options);
     return files.length ? [...files, ...(Array.isArray(userParts) ? userParts : [])] : userParts;
   } catch {
     return userParts;

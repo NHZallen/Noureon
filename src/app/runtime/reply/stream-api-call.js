@@ -689,7 +689,7 @@ export function createStreamApiCall({
         conversation,
         astras: getAstras(),
         notesText: notes.systemText,
-        projectInstructionText: shouldApplyNouras(requestOptions.requestPurpose) ? projectInstructionTextFor(conversation) : '',
+        projectInstructionText: shouldApplyNouras(requestOptions.requestPurpose) ? projectInstructionTextFor(conversation, { filesCatalog: requestOptions.projectFilesCatalog || '' }) : '',
         additionalSystemInstruction: requestOptions.additionalSystemInstruction,
         chartAuthoringGuidance,
         fileAuthoringGuidance,

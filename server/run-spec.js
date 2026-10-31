@@ -47,6 +47,20 @@ function checkModelOf(model, path, fail) {
 }
 const text = (value, max) => typeof value === 'string' && value.length > 0 && value.length <= max;
 
+// The files of the project the model may look into (docs/superpowers/specs/2026-10-31-projects-design.md, §16): at most 20, each with a name and either its text or where it is kept
+// (the hash is the name of the file in the person's cloud storage; the server checks that it is the person's own when it reads it).
+const PROJECT_FILES_MAX = 20;
+const PROJECT_FILE_TEXT_MAX = 100_000;
+const PROJECT_FILES_TEXT_TOTAL_MAX = 400_000;
+const HASH = /^[0-9a-f]{64}$/;
+const projectFileEntries = (value) => (isObject(value) && Array.isArray(value.entries) ? value.entries : null);
+function normalizeProjectFiles(value) {
+  return { entries: projectFileEntries(value).map((entry) => ({
+    id: entry.id, name: entry.name, size: Math.max(0, Math.floor(Number(entry.size) || 0)),
+    ...(typeof entry.text === 'string' ? { text: entry.text } : { file: { hash: entry.file.hash, ...(entry.file.mimeType ? { mimeType: entry.file.mimeType } : {}), ...(entry.file.name ? { name: entry.file.name } : {}) } })
+  })) };
+}
+
 // A text model that draws pictures by itself (src/data/tool-models.js): the picture model (OpenRouter's images endpoint) and whether the person is asked
 // before each picture. The key of the picture model is `secrets.imageKey`.
 function checkImageGeneration(value, path, fail) {
@@ -468,6 +482,22 @@ export function validateRunSpec(input) {
         }
       }
     }
+    // The files of the project the model may look into by itself (search_project_files and read_project_file).
+    if (tools.projectFiles !== undefined) {
+      const entries = projectFileEntries(tools.projectFiles);
+      if (!entries || entries.length < 1 || entries.length > PROJECT_FILES_MAX) fail('tools.projectFiles', `must have a list "entries" of one to ${PROJECT_FILES_MAX} files`);
+      else {
+        let total = 0;
+        entries.forEach((entry, index) => {
+          if (!isObject(entry) || !text(entry.id, 80) || !text(entry.name, 200)) fail(`tools.projectFiles.entries[${index}]`, 'must have an id and a name');
+          else if (typeof entry.text === 'string') {
+            total += entry.text.length;
+            if (entry.text.length > PROJECT_FILE_TEXT_MAX) fail(`tools.projectFiles.entries[${index}].text`, `must be at most ${PROJECT_FILE_TEXT_MAX} characters`);
+          } else if (!isObject(entry.file) || typeof entry.file.hash !== 'string' || !HASH.test(entry.file.hash) || (entry.file.mimeType !== undefined && typeof entry.file.mimeType !== 'string') || (entry.file.name !== undefined && typeof entry.file.name !== 'string')) fail(`tools.projectFiles.entries[${index}]`, 'must have a text, or a file with the hash of its bytes');
+        });
+        if (total > PROJECT_FILES_TEXT_TOTAL_MAX) fail('tools.projectFiles', `the texts must be at most ${PROJECT_FILES_TEXT_TOTAL_MAX} characters together`);
+      }
+    }
     // The CLI tools (命令工具) the person chose with "@" for this message: ids of the store's tools. They run in the sandbox, so this is a reply
     // with Python (`advanced`).
     if (tools.cli !== undefined) {
@@ -597,6 +627,7 @@ export function validateRunSpec(input) {
         ...(tools.advanced === true && isObject(tools.net) ? { net: { mode: normalizeNetMode(tools.net.mode), rules: normalizeNetRules(tools.net.rules), ...(tools.net.enabled === false ? { enabled: false } : {}) } } : {}),
         ...(Array.isArray(tools.skills) && listedSkills(tools.skills).length ? { skills: listedSkills(tools.skills) } : {}),
         ...(tools.connectors === true ? { connectors: true } : {}),
+        ...(projectFileEntries(tools.projectFiles)?.length ? { projectFiles: normalizeProjectFiles(tools.projectFiles) } : {}),
         ...(isObject(tools.memory) ? { memory: { canWrite: tools.memory.canWrite === true, ...(text(tools.memory.scope, 80) ? { scope: tools.memory.scope } : {}), ...(tools.memory.curator === true ? { curator: true } : {}), ...(tools.memory.history === true ? { history: true } : {}), ...(isObject(tools.memory.vector) ? { vector: { provider: tools.memory.vector.provider } } : {}), messages: tools.memory.messages.map((message) => ({ id: message.id, text: message.text, ...(message.at ? { at: message.at } : {}) })) } } : {}),
         ...(imageGeneration ? { imageGeneration } : {}),
         ...(tools.inputs?.length ? { inputs: tools.inputs.map((file) => ({ name: file.name, mimeType: file.mimeType || '', data: file.data })) } : {})

@@ -236,7 +236,7 @@ export function createServerReply({
    * Hands a reply to the server. Resolves { ok: true, run } when it was accepted (the server has it now) or { ok: false, reason,
    * notify } when it was not and the reply is to be made here ('notify' is true when the person should be told).
    */
-  const begin = async (path, { conversation, modelInfo, requestParts, webSearch = 'off', advanced = false, designs = null, inputs = [], cli = [], cliChosen = [], skills = [], connectors = false, memory = null, visionCheck = null, documents = null, research = null, vision = null, assistantMessageId, sequence, uiLanguage, config = {}, requestOptions = {}, getHistorySourceIds = () => [] }) => {
+  const begin = async (path, { conversation, modelInfo, requestParts, webSearch = 'off', advanced = false, designs = null, inputs = [], cli = [], cliChosen = [], skills = [], connectors = false, memory = null, projectFiles = null, visionCheck = null, documents = null, research = null, vision = null, assistantMessageId, sequence, uiLanguage, config = {}, requestOptions = {}, getHistorySourceIds = () => [] }) => {
     const providerKey = getApiKeyForProvider(modelInfo?.provider);
     if (!providerKey) return { ok: false, reason: 'no-key', notify: false };
     // The key for the question of a search by meaning goes in `secrets`, not in the memory part of the request.
@@ -308,6 +308,8 @@ export function createServerReply({
         ...(connectors ? { connectors: true } : {}),
         // The memory of notes: the server gives the model search_memory and memory_write (it reads the notes from the table, checks a write and saves it there).
         ...(memory ? { memory: memoryTools } : {}),
+        // The files of the project the model may look into (data/project-files-tool.js): their names, and the text or where the server reads them from the cloud.
+        ...(projectFiles ? { projectFiles } : {}),
         // The check of a presentation the reply writes (the page's setting is on and the model can see images): the server makes it too.
         ...(visionCheck ? { visionCheck } : {}),
         ...(drawing ? { imageGeneration: drawing.imageGeneration } : {})

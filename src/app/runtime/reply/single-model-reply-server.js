@@ -41,6 +41,8 @@ export async function handOverToServer({ serverReply, getConfig, supportsVision 
     connectors: canCallTools && !ownSearchReply,
     // The memory of notes: whether the reply may write to it and what the person said in this conversation (the server reads the notes from the person's table).
     memory: memoryAccess ? memoryAccess.snapshot({ curator: !memoryTools }) : null,
+    // The files of the project the model may look into by itself (the server reads them from the cloud).
+    projectFiles: request.projectFiles?.snapshot() || null,
     // The message goes as the person sent it; the server prepares its files and addresses (the translator is the one set in Settings).
     documents: serverPrepares ? { linkedPages: hasAddresses } : null,
     inputs: userParts.filter((part) => part?.inlineData?.data).map((part) => ({
@@ -52,7 +54,7 @@ export async function handOverToServer({ serverReply, getConfig, supportsVision 
     sequence,
     uiLanguage,
     config: getConfig(),
-    requestOptions: { onMemoryContextResolved, requestPurpose: NOURAS_REQUEST_PURPOSE.USER_VISIBLE_ANSWER, ...skillOptions },
+    requestOptions: { onMemoryContextResolved, requestPurpose: NOURAS_REQUEST_PURPOSE.USER_VISIBLE_ANSWER, projectFilesCatalog: request.projectFiles?.catalogText || '', ...skillOptions },
     getHistorySourceIds
   });
   if (started.ok) return { serverRun: started.run, madeHere: false };

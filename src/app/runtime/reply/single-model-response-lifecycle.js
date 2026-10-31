@@ -22,6 +22,7 @@ import { replyCut } from './reply-cut.js';
 import { sendAnchor } from '../features/send-anchor.js';
 import { liftSandboxRunBlock } from '../../ui/sandbox/sandbox-run-block.js';
 import { withProjectFiles } from '../projects/project-source-files.js';
+import { projectOf } from '../projects/project-instructions.js';
 
 // What a reply makes as it goes: the request as it stands, the pages searched (kept with the reply, shown as "Searched N sites"), its run record,
 // its files and documents, and where the provider's own search cites its pages.
@@ -137,7 +138,9 @@ export function createSingleModelResponseLifecycle({
   }) => {
     if (synthesis) webSearchEnabled = false;
     // The pictures of the project this chat is in go with the message, for a model that can see them (src/app/runtime/projects/project-source-files.js).
-    if (!synthesis && !resumeRun) userParts = await withProjectFiles(userParts, conversation, modelInfo);
+    // A model that calls tools looks into the files of the project by itself (project-files-access.js); what it cannot look into (a picture) goes with the message, for a model that can read it.
+    const projectFiles = !synthesis && !resumeRun && projectOf(conversation)?.sources?.length ? (await import('../projects/project-files-access.js')).createProjectFilesAccess({ conversation, toolsAllowed: Boolean(supportsToolCalling?.(modelInfo)) && !(webSearchEnabled && !webResearch?.canUse(modelInfo)) }) : null;
+    if (!synthesis && !resumeRun) userParts = await withProjectFiles(userParts, conversation, modelInfo, { skipIds: projectFiles?.searchableIds });
     stepsShown = false;
     stop();
     const startedAt = now();
@@ -150,7 +153,7 @@ export function createSingleModelResponseLifecycle({
       elapsedMs: 0,
       receivedChars: 0
     };
-    const request = { userParts, modelInfo, conversation, webSearchEnabled, onMemoryContextResolved, signal, uiLanguage, assistantMessageId, sequence, getHistorySourceIds, resumeRun, synthesis };
+    const request = { userParts, modelInfo, conversation, webSearchEnabled, onMemoryContextResolved, signal, uiLanguage, assistantMessageId, sequence, getHistorySourceIds, resumeRun, synthesis, projectFiles };
     const progress = (stage, message, extra) => renderProgress(targetElement, startedAt, stage, message, extra);
     // The wait row while the files, the search packet and the addresses of the message are prepared on this page.
     const prepareHere = (options) => {
@@ -202,7 +205,7 @@ export function createSingleModelResponseLifecycle({
       getRunStartedAt: () => runStartedAt,
       onStepsShown: () => { stepsShown = true; }
     });
-    const streamOptions = { modelInfo, conversation, webSearchEnabled, onMemoryContextResolved, onSources: reply.addSearchSources, onSupports: (supports) => { reply.groundingSupports = supports; }, requestPurpose: NOURAS_REQUEST_PURPOSE.USER_VISIBLE_ANSWER, ...prep.skillOptions,
+    const streamOptions = { projectFilesCatalog: projectFiles?.catalogText || '', modelInfo, conversation, webSearchEnabled, onMemoryContextResolved, onSources: reply.addSearchSources, onSupports: (supports) => { reply.groundingSupports = supports; }, requestPurpose: NOURAS_REQUEST_PURPOSE.USER_VISIBLE_ANSWER, ...prep.skillOptions,
       ...(synthesis ? { historyForApi: [], ignoreConversationWebSearch: true, requestPurpose: NOURAS_REQUEST_PURPOSE.COUNCIL_SYNTHESIS, additionalSystemInstruction: [prep.skillOptions.additionalSystemInstruction, synthesis.instruction].filter(Boolean).join('\n\n') } : {}) };
     // 3. Made here, or followed from the server.
     const local = createLocalReply({ streamApiCall, buildSingleModelTranslatedRequestParts, getConfig, webResearch, now }, { request, prep, reply, view, streamOptions });

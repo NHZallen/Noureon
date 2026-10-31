@@ -76,7 +76,7 @@ function connectorRows(document, run, language) {
     if (tool.kind === 'skill') return renderRow(document, { kind: 'skill', label: sandboxText(language, 'skillLoaded', { name: tool.name }), body: [] });
     // A step that says which notes or conversations it gave back opens to them; the list is filled when it opens (the page knows the notes and the chats as they are then).
     const items = tool.key === 'memorySearching' ? tool.ids : tool.key === 'memoryReviewing' ? tool.chats : null;
-    const row = renderRow(document, { kind: { memorySearching: 'memory-recall', memoryReviewing: 'memory-review', memoryWriting: 'memory-write' }[tool.key], label: memoryDoneLabel(language, tool.key, tool.count), body: items?.length ? [element(document, 'div', 'memory-row-list')] : [] });
+    const row = renderRow(document, { kind: { memorySearching: 'memory-recall', memoryReviewing: 'memory-review', memoryWriting: 'memory-write', projectFilesSearching: 'skill', projectFilesReading: 'skill' }[tool.key], label: memoryDoneLabel(language, tool.key, tool.count), body: items?.length ? [element(document, 'div', 'memory-row-list')] : [] });
     if (items?.length) row.dataset.memoryItems = JSON.stringify(items);
     return row;
   });

@@ -32,7 +32,7 @@ const conversationHasFiles = (conversation) => (conversation?.messages || []).so
  * the reply (userParts, modelInfo, conversation, webSearchEnabled, resumeRun, synthesis, assistantMessageId).
  */
 export async function prepareReply({ getConfig, supportsToolCalling, webResearch, serverReply, getWindow }, {
-  userParts, modelInfo, conversation, webSearchEnabled, resumeRun, synthesis, assistantMessageId
+  userParts, modelInfo, conversation, webSearchEnabled, resumeRun, synthesis, assistantMessageId, projectFiles = null
 }) {
   const replyMode = supportsToolCalling ? resolveReplyMode({
     conversation,
@@ -70,7 +70,7 @@ export async function prepareReply({ getConfig, supportsToolCalling, webResearch
   const memoryTools = memoryAccess && canCallTools && !ownSearchReply ? memoryAccess : null;
   if (memoryTools) resetTrace(conversation?.id, { toolsOffered: true });
   const uiLanguage = getConfig().uiLanguage;
-  const makeSkillLoader = (lookup = lookupSkill) => combineLoaders(createSkillLoader ? createSkillLoader({ available: availableSkills, lookup, readFile: readSkillFile }) : null, memoryTools ? memoryTools.make(uiLanguage) : null);
+  const makeSkillLoader = (lookup = lookupSkill) => combineLoaders(createSkillLoader ? createSkillLoader({ available: availableSkills, lookup, readFile: readSkillFile }) : null, memoryTools ? memoryTools.make(uiLanguage) : null, projectFiles ? projectFiles.make(uiLanguage) : null);
   // Advanced mode is the default, so most replies are "advanced" by the setting alone. Python is only needed when the request is
   // about files or data, or the conversation already has some; any other reply is the same without it, and the server makes it.
   // The CLI tools chosen with "@" (and those the person lets the model use by itself) run in the same sandbox, so they need it whatever the

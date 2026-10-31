@@ -29,6 +29,8 @@ import { createMemoryLoader } from '../src/data/memory-tool.js';
 import { pickCuratorModel, runCurator } from '../src/data/memory-curator.js';
 import { createServerTidy } from './memory-tidy.js';
 import { scopedMemory } from './memory-scope.js';
+import { createProjectFilesLoader } from '../src/data/project-files-tool.js';
+import { createProjectFileTextReader } from './project-file-text.js';
 import { createMemoryModelRunner } from '../src/app/runtime/shell/memory-model-runner.js';
 import { MODELS } from '../src/app/runtime/shell/model-registry.js';
 import { placePictures } from '../src/data/picture-interleave.js';
@@ -324,8 +326,16 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
       onProblem('memory_unavailable', error);
     }
   }
-  // What the reply's loops are given: the skills and the connectors as one loader (either may be missing).
-  const makeSkillLoader = (options) => combineLoaders(makeSkillsOnly(options), connectorLoader, imageLoader, memoryLoader);
+  // The files of the project the model may look into by itself (src/data/project-files-tool.js): the text comes with the request or is read from the person's cloud storage.
+  let projectFilesLoader = null;
+  if (spec.tools.projectFiles && userId && mode !== 'grounding') {
+    const readText = createProjectFileTextReader({ files, userId, signal });
+    const byId = new Map(spec.tools.projectFiles.entries.map((entry) => [entry.id, entry]));
+    const entries = spec.tools.projectFiles.entries.map((entry) => ({ id: entry.id, name: entry.name, size: entry.size, kind: 'file' }));
+    projectFilesLoader = createProjectFilesLoader({ entries, language, readText: (entry) => readText(byId.get(entry.id)) });
+  }
+  // What the reply's loops are given: the skills, the connectors, the pictures, the memory and the files of the project as one loader (any may be missing).
+  const makeSkillLoader = (options) => combineLoaders(makeSkillsOnly(options), connectorLoader, imageLoader, memoryLoader, projectFilesLoader);
   // A skill being loaded is a row of the step list the pages show (the other steps of a reply without Python are not).
   const skillEvents = (event) => {
     if (event.type === 'skill' && event.name && !usedTools.some((tool) => tool.kind === 'skill' && tool.name === event.name)) usedTools.push({ kind: 'skill', name: String(event.name).slice(0, 60) });

@@ -603,6 +603,18 @@
     {
       "path": "src/app/runtime/projects/project-source-model.js",
       "note": "Reviewed 2026-10-31: no browser globals (the shape and the limits of the sources of a project; used by the prompt above and by the sync)."
+    },
+    {
+      "path": "src/app/runtime/projects/project-file-text.js",
+      "note": "Reviewed 2026-11-01: no browser globals (the text of a file of a project: text, a PDF by pdf.js given by the caller, Office files by the reader given by the caller; docs/superpowers/specs/2026-10-31-projects-design.md, §16)."
+    },
+    {
+      "path": "src/app/runtime/projects/project-source-reader.js",
+      "note": "Reviewed 2026-11-01: no browser globals at load (the kind of a file by its name and type; the reading of a File is only done where one is given)."
+    },
+    {
+      "path": "src/data/project-files-tool.js",
+      "note": "Reviewed 2026-11-01: no browser globals (search_project_files and read_project_file over the text of the files of a project; docs/superpowers/specs/2026-10-31-projects-design.md, §16)."
     }
   ]
 }

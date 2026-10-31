@@ -24,13 +24,13 @@ export function projectOf(conversation) {
 }
 
 /** The text added to the system instruction of a reply in a conversation of a project: its instructions, then its sources ('' when there is nothing to add). */
-export function projectInstructionTextFor(conversation) {
+export function projectInstructionTextFor(conversation, { filesCatalog = '' } = {}) {
   const folder = projectOf(conversation);
   const text = String(folder?.instructions || '').trim().slice(0, PROJECT_INSTRUCTIONS_MAX);
   const name = oneLine(folder?.name, 80);
   const instructions = text ? `Project instructions${name ? ` (this chat is in the project "${name}")` : ''}. Follow them in every reply of this chat; where they conflict with the general instructions above, these win:\n\n${text}` : '';
-  // The sources of the project come after the instructions, in the same place of the system instruction.
-  return [instructions, folder ? projectSourcesFor(folder).text : ''].filter(Boolean).join('\n\n');
+  // The sources of the project come after the instructions, in the same place of the system instruction: their text, or (when the model has the tools to look into them) the list of their names.
+  return [instructions, folder ? (filesCatalog || projectSourcesFor(folder).text) : ''].filter(Boolean).join('\n\n');
 }
 
 /** The scope of the notes of a conversation: the id of its project when that keeps its notes for itself, '' for every other chat (memory-notes/scope.js). */

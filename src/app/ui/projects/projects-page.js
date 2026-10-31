@@ -5,8 +5,8 @@
 import { cameraAvailable, openCameraDialog } from './project-camera.js';
 import { isWide, make, ICONS, openActionSheet, openMenu, projectMark, sourceTile, toneOfName } from './project-parts.js';
 import { openCreateSheet, openDeleteSheet, openEditSheet, openInstructionsSheet, openRenameChatSheet, openSourceTextSheet, sourceFailureText } from './project-sheets.js';
+import { searchableKindOf } from '../../runtime/projects/project-files-access.js';
 import { PROJECT_SOURCES_MAX } from '../../runtime/projects/project-source-model.js';
-import { projectSourcesFor } from '../../runtime/projects/project-source-prompt.js';
 import { projectFilesBudget } from '../../runtime/projects/project-source-files.js';
 import { PROJECTS_PATH, projectPath, projectsRouteFromPath } from './project-path.js';
 
@@ -368,7 +368,8 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     add.addEventListener('keydown', (event) => { if (event.target === add && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); openAdd(); } });
     box.appendChild(add);
     for (const source of list) box.appendChild(sourceRow(project, source, drawProject));
-    const left = projectSourcesFor(project).left.length + projectFilesBudget(project).left.length;
+    // What a model with tools can look into is not left out (data/project-files-tool.js): only the files it cannot read as text and that do not fit in a reply are.
+    const left = projectFilesBudget(project).left.filter((source) => !searchableKindOf(source)).length;
     if (left) box.appendChild(make(document, 'p', 'pj-note', text('pjSourcesLeftOut', { n: left })));
     return box;
   };
