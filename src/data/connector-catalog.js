@@ -423,7 +423,8 @@ export const CONNECTORS = Object.freeze([
     name: 'Pally',
     category: 'office',
     endpoint: 'https://agent.pally.com/mcp',
-    // Pally has no organisation at GitHub: the page draws the first letter of its name.
+    // Pally has no organisation at GitHub: its picture is the favicon of its own site, loaded by the page (the first letter of the name takes its place if it cannot be loaded).
+    icon: 'https://pally.com/favicon.ico',
     // Pally's login is OAuth 2.1 with dynamic client registration and PKCE (agent.pally.com/.well-known/oauth-authorization-server); it announces no scopes to ask for.
     scopes: Object.freeze({ readwrite: Object.freeze([]) }),
     description: Object.freeze({
@@ -524,8 +525,8 @@ export function connectorProblems(connector) {
   if (!String(connector?.name || '').trim()) problems.push('name');
   if (!CONNECTOR_CATEGORIES.includes(connector?.category)) problems.push('category');
   if (!/^https:\/\/[^\s/]+(?:\/[^\s]*)?$/.test(String(connector?.endpoint || ''))) problems.push('endpoint');
-  // The picture is the avatar of the service's organisation at GitHub; a service with no organisation there has none, and the page draws the first letter of its name.
-  if (connector?.icon !== undefined && !/^https:\/\/github\.com\/[A-Za-z0-9-]{1,39}\.png\?size=\d{2,3}$/.test(String(connector.icon))) problems.push('icon');
+  // The picture is the avatar of the service's organisation at GitHub, or the favicon of the service's own site (the page loads it itself); without one, or when it cannot be loaded, the page draws the first letter of the name.
+  if (connector?.icon !== undefined && !/^https:\/\/github\.com\/[A-Za-z0-9-]{1,39}\.png\?size=\d{2,3}$|^https:\/\/[a-z0-9][a-z0-9.-]{1,80}\.[a-z]{2,}\/favicon\.ico$/.test(String(connector.icon))) problems.push('icon');
   if (connector?.registration !== undefined && connector.registration !== 'dcr') problems.push('registration');
   if (connector?.clientAuth !== undefined && connector.clientAuth !== 'post') problems.push('clientAuth');
   if (!connector?.scopes?.readwrite) problems.push('scopes');

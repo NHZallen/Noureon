@@ -528,7 +528,7 @@ test('the picture of a connector is its logo, and its first letter takes its pla
   assert.equal(mark.querySelector('img'), null);
   assert.equal(mark.textContent, 'L');
   assert.equal(connectorMark(document, { name: 'Zed' }).textContent, 'Z');
-  for (const connector of CONNECTORS.filter((entry) => entry.icon)) assert.match(connector.icon, /^https:\/\/github\.com\/[A-Za-z0-9-]+\.png\?size=\d+$/, connector.id);
+  for (const connector of CONNECTORS.filter((entry) => entry.icon)) assert.match(connector.icon, /^https:\/\/github\.com\/[A-Za-z0-9-]+\.png\?size=\d+$|^https:\/\/pally\.com\/favicon\.ico$/, connector.id);
 });
 
 test('the card that asks shows the logo of the connector', () => {
