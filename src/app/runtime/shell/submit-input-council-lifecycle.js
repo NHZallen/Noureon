@@ -222,6 +222,9 @@ export function createSubmitInputCouncilLifecycle(dependencies = {}) {
 
   ({ renderCouncilControls, openModelPicker, noteConversationModels } = createCouncilControlsLifecycle({
     closeAllPopovers,
+    getApiKeyForProvider,
+    updateInputState: () => updateInputState(),
+    updateApiKeyWarningBadge: () => updateApiKeyWarningBadge(),
     councilMaxModels,
     document,
     escapeHTML,

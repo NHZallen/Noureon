@@ -123,16 +123,16 @@ export function createSettingsHistoryMenuHelper(dependencies = {}) {
     const conv = conversations.find((conversation) => conversation.id === convId);
     const pinText = conv.pinned ? (texts.unpin || '取消釘選') : (texts.pin || '釘選');
     const moveOptionsHTML = conv.folderId
-      ? `<button data-id="${convId}" class="move-out-of-folder-btn w-full text-left px-4 py-2 hover:bg-[var(--hover-bg)] text-sm">${texts.moveOutOfFolder || '移出資料夾'}</button>`
+      ? `<button data-id="${convId}" class="move-out-of-folder-btn w-full text-left px-4 py-2 hover:bg-[var(--hover-bg)] text-sm">${texts.moveOutOfFolder || '移出專案'}</button>`
       : `
             <div class="relative group">
                 <button class="w-full text-left px-4 py-2 hover:bg-[var(--hover-bg)] text-sm flex justify-between items-center">
-                    <span>${texts.moveToFolder || '移至資料夾'}</span>
+                    <span>${texts.moveToFolder || '移至專案'}</span>
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
                 </button>
                 <div class="absolute left-full top-0 w-48 rounded-lg border border-[var(--border-color)] bg-[var(--modal-bg)] hidden group-hover:block">
                     ${buildMoveToFolderOptions(folders)}
-                        <button class="new-folder-from-menu-btn w-full text-left px-4 py-2 hover:bg-[var(--hover-bg)] text-sm">${texts.createNewFolder || '建立新資料夾'}</button>
+                        <button class="new-folder-from-menu-btn w-full text-left px-4 py-2 hover:bg-[var(--hover-bg)] text-sm">${texts.createNewFolder || '建立新專案'}</button>
                     </div>
                 </div>
             `;
@@ -178,7 +178,7 @@ export function createSettingsHistoryMenuHelper(dependencies = {}) {
     if (newFolderBtn) {
       newFolderBtn.addEventListener('click', async () => {
         popover.remove();
-        const folderName = await showCustomPrompt(texts.enterFolderName || '請輸入新資料夾的名稱：', texts.createNewFolder || '建立新資料夾');
+        const folderName = await showCustomPrompt(texts.enterFolderName || '請輸入新專案的名稱：', texts.createNewFolder || '建立新專案');
         if (folderName) {
           const newFolderId = createNewFolder(folderName);
           moveConversationToFolder(convId, newFolderId);

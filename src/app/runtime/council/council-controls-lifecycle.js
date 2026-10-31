@@ -56,6 +56,9 @@ export function createCouncilControlsLifecycle(deps) {
     normalizeCouncilConfig = (value) => value,
     normalizeReasoningEffort = () => null,
     persistCouncilConfig = async () => {},
+    getApiKeyForProvider = () => 'key',
+    updateInputState = () => {},
+    updateApiKeyWarningBadge = () => {},
     renderInputIndicators = () => {},
     renderSidebar = () => {},
     requestFrame = (callback) => callback(),
@@ -279,7 +282,8 @@ export function createCouncilControlsLifecycle(deps) {
 
   const { chooseModel, DEPTH_KEYS, paintDepth, commitDepth } = createPickerChoices({
     document, models, getActiveConversation, getConfig, getI18n, showCustomDialog, getModelReasoningConfig, normalizeReasoningEffort,
-    normalizeConversationModel, renderSidebar, renderInputIndicators, saveAppData, saveConfig, afterPaint
+    normalizeConversationModel, renderSidebar, renderInputIndicators, saveAppData, saveConfig, afterPaint,
+    updateInputState, updateApiKeyWarningBadge, getApiKeyForProvider, showNotification
   });
 
   // Bound when the control is first drawn; by then every helper below exists.

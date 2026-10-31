@@ -206,7 +206,7 @@ export function createBatchImportVoiceLifecycle(dependencies = {}) {
         container.dataset.singleConvId = singleConvId || '';
         container.innerHTML = `
                 <button class="w-full text-left p-2 rounded-md hover:bg-[var(--hover-bg)]" data-folder-id="none">
-                    ${texts.moveOutOfFolder || '移出資料夾'}
+                    ${texts.moveOutOfFolder || '移出專案'}
                 </button>
             `;
         getFolders().forEach(folder => {
@@ -218,10 +218,10 @@ export function createBatchImportVoiceLifecycle(dependencies = {}) {
         });
         const newFolderOption = document.createElement('button');
         newFolderOption.className = 'w-full text-left p-2 rounded-md hover:bg-[var(--hover-bg)] flex items-center gap-2 border-t border-[var(--border-color)] mt-2';
-        newFolderOption.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"></path><line x1="12" y1="10" x2="12" y2="16"></line><line x1="9" y1="13" x2="15" y2="13"></line></svg>${texts.createNewFolder || '建立新資料夾'}`;
+        newFolderOption.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"></path><line x1="12" y1="10" x2="12" y2="16"></line><line x1="9" y1="13" x2="15" y2="13"></line></svg>${texts.createNewFolder || '建立新專案'}`;
         newFolderOption.addEventListener('click', async () => {
             toggleModal(ALL_ELEMENTS.batchMoveModal, false);
-            const name = await showCustomPrompt(texts.enterFolderName || '請輸入新資料夾名稱：', texts.createFolder || '建立資料夾');
+            const name = await showCustomPrompt(texts.enterFolderName || '請輸入新專案名稱：', texts.createFolder || '建立專案');
             if (name) {
                 const newId = createNewFolder(name);
                 batchMoveToFolder(newId);

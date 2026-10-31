@@ -643,3 +643,21 @@ test('how much each model thinks in a conversation goes to the cloud and comes b
   assert.equal('reasoningEffort' in old, false);
   assert.equal('reasoningEfforts' in old, false);
 });
+
+test('the instructions of a project go to the cloud and come back; a folder from before projects has an empty text and is the same as one with an empty text', async () => {
+  const folderId = '44444444-4444-4444-8444-444444444444';
+  const encoded = await encodeWorkspaceConversationShadow({
+    userId,
+    cryptoProvider: webcrypto,
+    workspace: { folders: [{ id: folderId, name: 'Translation', instructions: 'Answer in English.', conversationIds: [] }], conversations: [] }
+  });
+  assert.equal(encoded.folders[0].instructions, 'Answer in English.');
+  assert.equal(decodeWorkspaceConversationShadow(encoded).folders[0].instructions, 'Answer in English.');
+  const old = { ...encoded.folders[0] };
+  delete old.instructions;
+  assert.equal(decodeWorkspaceConversationShadow({ folders: [old] }).folders[0].instructions, '');
+  assert.equal(shadowRowsEqual(old, { ...old, instructions: '' }), true);
+  assert.equal(shadowRowsEqual(old, { ...old, instructions: 'x' }), false);
+  const without = await encodeWorkspaceConversationShadow({ userId, cryptoProvider: webcrypto, workspace: { folders: [{ id: folderId, name: 'Plain', conversationIds: [] }], conversations: [] } });
+  assert.equal(without.folders[0].instructions, '');
+});

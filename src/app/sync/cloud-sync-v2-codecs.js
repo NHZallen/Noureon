@@ -30,7 +30,9 @@ function canonicalizeFirstValidTimestamp(...values) {
 }
 
 function canonicalizeShadowRow(value) {
-  const row = canonicalize(value || {});
+  // A folder written before projects has no instructions: the same as an empty text.
+  const source = value && typeof value === 'object' && 'text_color' in value && value.instructions == null ? { ...value, instructions: '' } : value;
+  const row = canonicalize(source || {});
   for (const key of ['created_at', 'updated_at', 'deleted_at']) {
     if (row[key]) row[key] = canonicalizeTimestamp(row[key]);
   }
@@ -141,6 +143,8 @@ function folderFromRow(row = {}, conversationIds = []) {
     color: row.color || 'gray',
     icon: row.icon || 'default',
     textColor: row.text_color || row.textColor || 'gray',
+    // The instructions of the project (a folder of an older version has none).
+    instructions: typeof row.instructions === 'string' ? row.instructions : '',
     deletedAt: row.deleted_at || null
   };
 }
@@ -394,6 +398,7 @@ export async function encodeWorkspaceConversationShadow({
       color: String(folder.color || 'gray'),
       icon: String(folder.icon || 'default'),
       text_color: String(folder.textColor || folder.text_color || 'gray'),
+      instructions: String(folder.instructions || ''),
       deleted_at: folder.deletedAt || null
     }));
   const conversations = [];

@@ -399,7 +399,7 @@ export function createImportExportLifecycle({
     const has = (list) => Array.isArray(list) && list.length > 0;
     const items = [
       has(data?.conversations) && { id: 'chats', label: text('importHasChats', '對話 {n}').replace('{n}', data.conversations.length) },
-      has(data?.folders) && { id: 'folders', label: text('importHasFolders', '資料夾 {n}').replace('{n}', data.folders.length) },
+      has(data?.folders) && { id: 'folders', label: text('importHasFolders', '專案 {n}').replace('{n}', data.folders.length) },
       has(data?.astras) && { id: 'astras', label: text('importHasAstras', 'Nouras {n}').replace('{n}', data.astras.length) },
       data?.settings && { id: 'settings', label: text('importHasSettings', '設定') },
       (data?.encryptedApiKeys || data?.apiKeys) && { id: 'keys', label: text('importHasApiKeys', 'API 金鑰') },

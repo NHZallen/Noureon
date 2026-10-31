@@ -12,8 +12,8 @@ const AVATAR_ICON_SVG = '<svg xmlns="http://www.w3.org/2000/svg" fill="none" vie
 
 export function buildConversationMobileContextMenuMarkup({ title, folderId, pinned, text = {} } = {}) {
   const moveOptionsHTML = folderId
-    ? `<div class="menu-item" data-action="move-out">${MOVE_OUT_ICON_SVG}<span>${text.moveOutOfFolder || '移出資料夾'}</span></div>`
-    : `<div class="menu-item" data-action="move-to">${MOVE_TO_ICON_SVG}<span>${text.moveToFolder || '移至資料夾'}</span></div>`;
+    ? `<div class="menu-item" data-action="move-out">${MOVE_OUT_ICON_SVG}<span>${text.moveOutOfFolder || '移出專案'}</span></div>`
+    : `<div class="menu-item" data-action="move-to">${MOVE_TO_ICON_SVG}<span>${text.moveToFolder || '移至專案'}</span></div>`;
   const pinText = pinned ? (text.unpin || '取消釘選') : (text.pin || '釘選');
   return `
                 <div class="menu-header">${escapeHTML(title)}</div>
@@ -46,7 +46,7 @@ export function buildFolderMobileContextMenuMarkup({ name, text = {} } = {}) {
 
                     <div class="menu-item delete" data-action="delete-folder">
                         ${DELETE_ICON_SVG}
-                        <span>${text.deleteFolder || '刪除資料夾'}</span>
+                        <span>${text.deleteFolder || '刪除專案'}</span>
                     </div>
                 </div>
             `;

@@ -103,6 +103,9 @@ const createHarness = (overrides = {}) => {
     normalizeReasoningEffort: (model, value) => (REASONING.options.includes(value) ? value : REASONING.defaultEffort),
     persistCouncilConfig: overrides.persistCouncilConfig || (async () => calls.push(['persistCouncilConfig'])),
     renderInputIndicators: () => calls.push(['renderInputIndicators']),
+    updateInputState: () => calls.push(['updateInputState']),
+    updateApiKeyWarningBadge: () => calls.push(['updateApiKeyWarningBadge']),
+    getApiKeyForProvider: overrides.getApiKeyForProvider || (() => 'key'),
     renderSidebar: () => calls.push(['renderSidebar']),
     requestFrame: overrides.requestFrame || ((callback) => callback()),
     saveAppData: overrides.saveAppData || (async () => calls.push(['saveAppData'])),
@@ -112,7 +115,7 @@ const createHarness = (overrides = {}) => {
       if (!target.council.participantModelIds?.length) target.council.participantModelIds = ['model-a'];
     },
     showCustomDialog: async (options) => { dialogs.push(options); return true; },
-    showNotification: (message, type) => calls.push(['showNotification', message, type])
+    showNotification: overrides.showNotification || ((message, type) => calls.push(['showNotification', message, type]))
   });
   return { calls, cleanup, config, conversation, document, lifecycle };
 };
@@ -243,6 +246,34 @@ test('going to another model and coming back leaves the level chosen for the fir
     await settle();
     assert.equal(conversation.model, 'model-a');
     assert.equal(conversation.reasoningEffort, 'high', 'back on the first model: the level chosen for it');
+  } finally {
+    cleanup();
+  }
+});
+
+test('choosing a model whose provider has no key shuts the box and says so at once, not at the first thing typed', async () => {
+  const notices = [];
+  const { calls, cleanup, conversation, document, lifecycle } = createHarness({
+    conversation: singleConversation({}),
+    getApiKeyForProvider: (provider) => (provider === 'gemini' ? 'key' : ''),
+    i18n: { en: { modelNeedsKeyNotice: 'No key for "{model}"' } },
+    showNotification: (message, type) => notices.push([message, type])
+  });
+  try {
+    lifecycle.renderCouncilControls();
+    document.querySelector('#model-picker-btn').click();
+    document.querySelector('[data-mp-model="model-b"]').click();
+    await settle();
+    assert.equal(conversation.model, 'model-b');
+    assert.ok(calls.some((call) => call[0] === 'updateInputState'), 'the box of the message is made again');
+    assert.ok(calls.some((call) => call[0] === 'updateApiKeyWarningBadge'), 'so is the warning of the header');
+    assert.deepEqual(notices, [['No key for "Model B"', 'warning']]);
+    // A model whose provider has a key says nothing.
+    notices.length = 0;
+    document.querySelector('#model-picker-btn').click();
+    document.querySelector('[data-mp-model="model-a"]').click();
+    await settle();
+    assert.deepEqual(notices, []);
   } finally {
     cleanup();
   }

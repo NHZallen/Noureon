@@ -6,7 +6,9 @@ import { chooseEffort, switchEffort } from '../shell/reasoning-memory.js';
 
 export function createPickerChoices({
   document, models, getActiveConversation, getConfig, getI18n, showCustomDialog, getModelReasoningConfig, normalizeReasoningEffort,
-  normalizeConversationModel, renderSidebar, renderInputIndicators, saveAppData, saveConfig, afterPaint
+  normalizeConversationModel, renderSidebar, renderInputIndicators, saveAppData, saveConfig, afterPaint,
+  // The box of the message and the warning in the header follow the model at once (a model whose provider has no key shuts the box and says why), not at the first thing typed.
+  updateInputState = () => {}, updateApiKeyWarningBadge = () => {}, getApiKeyForProvider = () => 'key', showNotification = () => {}
 }) {
   const chooseModel = async (modelId) => {
     const conv = getActiveConversation();
@@ -57,6 +59,12 @@ export function createPickerChoices({
     config.recentModelIds = noteRecent(config.recentModelIds, [modelId]);
     renderSidebar();
     renderInputIndicators();
+    updateInputState();
+    updateApiKeyWarningBadge();
+    if (!conv.council?.enabled && !getApiKeyForProvider(info.provider)) {
+      const template = translations.modelNeedsKeyNotice || 'No API key is set for "{model}" yet. Enter it in Settings → Model management to send messages.';
+      showNotification(template.replace('{model}', info.name || info.id), 'warning');
+    }
     afterPaint(async () => {
       await saveAppData();
       await saveConfig();

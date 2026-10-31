@@ -9,6 +9,7 @@ import { buildMessageRenderView } from '/src/app/runtime/messages/message-markup
 import { buildQuotedUserParts, createQuoteInquiryLifecycle } from '/src/app/runtime/messages/quote-inquiry-lifecycle.js';
 import { createSidebarAstrasLifecycle } from '/src/app/runtime/features/sidebar-astras-lifecycle.js';
 import { createConversationStateAccess } from '/src/app/runtime/kernel/conversation-state-access.js';
+import { setProjectFoldersReader } from '/src/app/runtime/projects/project-instructions.js';
 import { createRuntimeRenderCoordinator } from '/src/app/runtime/kernel/runtime-render-coordinator.js';
 import { createRuntimeDialogCoordinator } from '/src/app/runtime/kernel/runtime-dialog-coordinator.js';
 import { createRuntimeConfigAccess } from '/src/app/runtime/kernel/runtime-config-access.js';
@@ -78,6 +79,7 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
             defaultModelId: MODELS[0].id
         });
         const runtimeAppDataStore = runtimeAppKernel.appDataStore;
+        setProjectFoldersReader(() => runtimeAppDataStore.getFolders());
         const liveConversationsBridge = createLiveConversationsBridge({
             getConversations: () => runtimeAppDataStore.getConversations(),
             replaceConversations: (nextConversations) => runtimeAppDataStore.replaceConversations(nextConversations)
@@ -210,6 +212,8 @@ const sanitizeTrustedHTML = createTrustedHtmlSanitizer({ sanitizer: DOMPurify })
         import('/src/app/ui/user-avatar/user-avatar.js').then(({ startUserAvatar }) => startUserAvatar({ document, getLanguage: () => runtimeConfigAccess.getConfig().uiLanguage, showNotification: (...args) => showNotification(...args) })).catch((error) => console.warn('The picture of the account did not start.', error));
         // The memory of notes (the new memory, used only when the settings choose it).
         import('/src/app/runtime/memory-store/start-notes-memory.js').then(({ startNotesMemory }) => startNotesMemory({ document, configAccess: runtimeConfigAccess, dataStore: runtimeAppDataStore, getActiveConversation, getApiKeyForProvider, i18n })).catch((error) => console.warn('The memory of notes did not start.', error));
+        // The projects (the folders of the workspace): the entry of the left menu, the page of the projects and of one project; loaded after the page.
+        import('/src/app/runtime/projects/start-projects.js').then(({ startProjects }) => startProjects({ document, configAccess: runtimeConfigAccess, dataStore: runtimeAppDataStore, i18n, getDefaultFolder, saveAppData: (...args) => saveAppData(...args), renderSidebar: () => renderSidebar(), showNotification: (...args) => showNotification(...args), deleteFolderFromCloud: (...args) => deleteFolderFromCloud(...args), deferConversationFolderSync: (id) => getService(SERVICES.cloudSync)?.deferConversationFolderSync?.([id]), startNewChat: (...args) => startNewChat(...args), loadChat: (...args) => loadChat(...args), archiveChat: (...args) => archiveChat(...args), deleteChat: (...args) => deleteChat(...args), getCurrentConversationId: () => conversationStateAccess.getCurrentConversationId(), getMessageInput: () => ALL_ELEMENTS.messageInput, submitChatForm: () => submitChatForm() })).catch((error) => console.warn('The projects did not start.', error));
         // Sharing a conversation (the dialog, the card of the settings, the tags, the warning before a delete); loaded after the page.
         import('/src/app/runtime/share/start-shares.js').then(({ startShares }) => startShares({ document, configAccess: runtimeConfigAccess, dataStore: runtimeAppDataStore, i18n, saveAppData: (...args) => saveAppData(...args), showNotification: (...args) => showNotification(...args), showCustomConfirm: (...args) => showCustomConfirm(...args), renderSidebar: () => renderSidebar(), openConversation: (id) => loadChat(id) })).catch((error) => console.warn('Sharing did not start.', error));
         // The usage rings of the providers (OpenCode Go, OpenRouter) above the Extensions entry; each only with its key; loaded after the page.

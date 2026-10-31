@@ -170,6 +170,14 @@
       "destination": "/index.html"
     },
     {
+      "source": "/projects",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/projects/:id",
+      "destination": "/index.html"
+    },
+    {
       "source": "/s/:code",
       "destination": "/index.html"
     },

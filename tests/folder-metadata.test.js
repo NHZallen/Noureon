@@ -25,7 +25,23 @@ test('folder metadata exports the legacy keys in order', () => {
     'heart',
     'lightning',
     'book',
-    'code'
+    'code',
+    'dollar',
+    'graduation',
+    'pencil',
+    'music',
+    'chart',
+    'globe',
+    'plane',
+    'tool',
+    'terminal',
+    'flask',
+    'notes',
+    'home',
+    'calendar',
+    'mail',
+    'camera',
+    'pin'
   ]);
   assert.deepEqual(Object.keys(FOLDER_TEXT_COLORS), ['gray', 'black', 'white']);
 });
@@ -45,11 +61,11 @@ test('folder SVG metadata preserves exact legacy values', () => {
   );
 });
 
-test('folder SVG metadata includes safe rounded outline book and code icons', () => {
-  for (const key of ['book', 'code']) {
+test('folder SVG metadata includes safe rounded outline icons', () => {
+  for (const key of Object.keys(FOLDER_SVGS).slice(10)) {
     const markup = FOLDER_SVGS[key];
 
-    assert.match(markup, /^<(?:path|g)\b/);
+    assert.match(markup, /^<(?:path|g|circle|line|polyline|rect)\b/);
     assert.match(markup, /stroke-linecap="round"/);
     assert.match(markup, /stroke-linejoin="round"/);
     assert.doesNotMatch(markup, /<svg|<script|onload\s*=|onclick\s*=/i);

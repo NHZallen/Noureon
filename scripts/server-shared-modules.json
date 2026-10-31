@@ -583,6 +583,10 @@
     {
       "path": "src/data/memory-rebuild.js",
       "note": "Reviewed 2026-10-30: no browser globals (which conversations are read and how the curator is run over them; the server runs the same rebuild as the page; docs/superpowers/specs/2026-10-30-memory-redesign-design.md)."
+    },
+    {
+      "path": "src/app/runtime/projects/project-instructions.js",
+      "note": "Reviewed 2026-10-31: no browser globals (the instructions of the project a conversation is in, put into the system instruction by stream-api-call.js; the page tells where the folders are through one function; docs/superpowers/specs/2026-10-31-projects-design.md)."
     }
   ]
 }

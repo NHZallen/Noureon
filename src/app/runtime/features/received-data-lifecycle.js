@@ -95,6 +95,7 @@ export function createReceivedDataLifecycle({
                     newFolder.color = folder.color;
                     newFolder.icon = folder.icon;
                     newFolder.textColor = folder.textColor;
+                    newFolder.instructions = typeof folder.instructions === 'string' ? folder.instructions : '';
 
                     folder.conversationIds.forEach(oldConvId => {
                         const newConvId = idMap[oldConvId];

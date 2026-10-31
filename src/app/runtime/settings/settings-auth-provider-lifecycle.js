@@ -199,7 +199,8 @@ export function createSettingsAuthProviderLifecycle(dependencies = {}) {
         getApiKeyForProvider,
         conversationNeedsTavilySearch,
         getCouncilValidation,
-        isCouncilEnabled
+        isCouncilEnabled,
+        notify: showNotification
     });
     const {
         updateInputState

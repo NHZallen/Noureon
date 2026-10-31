@@ -18,6 +18,7 @@ import chatActionsAndErrors from './chat-actions-and-errors.js';
 import openai from './openai.js';
 import memoryNotes from './memory-notes.js';
 import share from './share.js';
+import projects from './projects.js';
 
 const parts = [
     login,
@@ -38,7 +39,8 @@ const parts = [
     chatActionsAndErrors,
     openai,
     memoryNotes,
-    share
+    share,
+    projects
 ];
 
 const mergeLocale = (locale) => Object.assign({}, ...parts.map((part) => part[locale]));

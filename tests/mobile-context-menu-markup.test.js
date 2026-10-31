@@ -45,7 +45,7 @@ test('builds conversation mobile menu fallback labels for an unpinned root conve
 
   assert.deepEqual(getActions(markup), ['rename', 'pin', 'move-to', 'share', 'archive', 'delete']);
   assert.match(markup, /<span>釘選<\/span>/);
-  assert.match(markup, /<span>移至資料夾<\/span>/);
+  assert.match(markup, /<span>移至專案<\/span>/);
   assert.match(markup, /<span>重新命名<\/span>/);
   assert.match(markup, /<span>分享對話<\/span>/);
   assert.match(markup, /<span>封存<\/span>/);

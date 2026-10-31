@@ -96,3 +96,14 @@
 ## 10. 狀態
 
 §2 的決定都已由 Allen 確認（2026-10-31），沒有待決的題目。P1 動工前：在 Linear 寫相容性說明（`contract` 標籤，內容是 `instructions` 欄位與同步 codec），由 Allen 確認；migration 由 Claude 寫、Allen 套。
+
+## 11. P1 實作備註（2026-10-31，已推 `staging`，等 Allen 在測試站試）
+
+- 資料：`supabase/migrations/20261031090000_add_project_instructions.sql`（`workspace_folders.instructions`；`upsert_workspace_folders` 收到沒帶 `instructions` 的資料列時保留原值，舊版頁面寫回不會蓋掉）。**要先套 migration 再部署前端**：同步會 select 這一欄。`fetch_workspace_delta` 回整列，不用改。
+- 同步：codec、`COMPARABLE_FIELDS`、`FOLDER_COLUMNS` 都加了 `instructions`；缺這個欄位的列視為空字串（沒套 migration 的資料庫不會每次都重傳）。
+- 回覆：`runtime/projects/project-instructions.js`（頁面唯一一處加進系統指示，位置見 §2；`shouldApplyNouras` 同一組用途才帶；臨時對話不帶）；伺服器版、議會拿頁面組好的文字，伺服器格式沒變。此模組在 `scripts/server-shared-modules.json`。
+- 畫面：`ui/projects/`（`projects-page.js`、`project-sheets.js`、`project-parts.js`、`project-path.js`）、`styles/projects.css`（只用 `tokens.css` 的名稱）、`runtime/projects/`（`project-actions.js`、`start-projects.js`）；網址 `/projects`、`/projects/<id>`（`vercel.json` 加了兩條 rewrite）；側邊欄「專案」入口在「擴充」下面。手機的面板幾乎滿版（Allen 給的 ChatGPT 畫面），完成鈕在右上、跟著鍵盤上移；確認類的小面板（刪除、重新命名對話）維持小。
+- 文字：`i18n/parts/projects.js`（五語）；原本的「資料夾」字樣（選單、對話框、通知、P2P、匯出匯入、隱私權政策與協助中心五語）全部改成「專案」，程式內部名稱不變。圖示補了 16 個（`folder-metadata.js`），共 28 個。
+- **沒做**：專案「釘選」（資料夾沒有 pinned 欄位，要另加欄位與側邊欄位置，留到之後）、資料來源頁籤（P2）、電腦版專門的排版（沿用手機同一套，置中窄欄）。
+- 附帶修的 bug：切換到沒有金鑰的提供商時輸入框不會先擋、第一個字之後才卡住（單模型的選擇沒有更新輸入框與標頭警告）；現在選的當下就更新、跳出通知，點被擋住的輸入框也會再說一次。
+

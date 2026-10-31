@@ -17,8 +17,19 @@ export function createSettingsUpdateInputStateHelper({
     getApiKeyForProvider,
     conversationNeedsTavilySearch,
     getCouncilValidation,
-    isCouncilEnabled
+    isCouncilEnabled,
+    notify = () => {}
 }) {
+    // What the box of the message says when its model has no API key: a tap on the shut box tells it again (the box alone only shakes).
+    let blockedNotice = '';
+    let noticeAt = 0;
+    const tellBlocked = () => {
+        const now = Date.now();
+        if (!blockedNotice || now - noticeAt < 2500) return;
+        noticeAt = now;
+        notify(blockedNotice, 'warning');
+    };
+    try { elements.messageInput?.addEventListener?.('pointerdown', tellBlocked); } catch { /* the box is not there yet: it only shakes */ }
     const updateInputState = () => {
         const config = getConfig();
         const uploadedFiles = getUploadedFiles();
@@ -55,6 +66,8 @@ export function createSettingsUpdateInputStateHelper({
             : !!getApiKeyForProvider(provider);
         const canSubmitWithSearch = hasTavilyKey;
         const hasApiKey = hasModelApiKey && canSubmitWithSearch;
+        const texts = i18n[config.uiLanguage] || {};
+        blockedNotice = hasModelApiKey || isCouncilEnabled(conv) ? '' : String(texts.modelNeedsKeyNotice || texts.enterApiKeyPlaceholder || '').replace('{model}', modelInfo?.name || modelInfo?.id || '');
         elements.messageInput.disabled = !hasModelApiKey;
         elements.messageInput.placeholder = hasModelApiKey
             ? (isCouncilEnabled(conv) && !councilValidation.ok ? councilValidation.message : i18n[config.uiLanguage].enterMessagePlaceholder)

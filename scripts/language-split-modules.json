@@ -134,6 +134,10 @@
       "table": "default"
     },
     {
+      "path": "src/data/i18n/parts/projects.js",
+      "table": "default"
+    },
+    {
       "path": "src/app/share-page/share-texts.js",
       "table": "SHARE_PAGE_TEXTS"
     }

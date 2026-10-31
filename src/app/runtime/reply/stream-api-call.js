@@ -1,5 +1,6 @@
 import { recordUsed, toolsOffered } from '../memory-store/memory-trace.js';
 import { NOURAS_REQUEST_PURPOSE, resolveNourasInstructions, shouldApplyNouras } from '../nouras/nouras-policy.js';
+import { projectInstructionTextFor } from '../projects/project-instructions.js';
 import { compactFileHistoryForApi } from '../../ui/files/file-history-compaction.js';
 import { compactSandboxRunsForApi } from '../../ui/sandbox/sandbox-run-block.js';
 import { researchReportsForApi } from '../../ui/research/research-history.js';
@@ -154,6 +155,7 @@ const buildSystemInstruction = async ({
   conversation,
   astras,
   notesText,
+  projectInstructionText,
   additionalSystemInstruction,
   chartAuthoringGuidance,
   fileAuthoringGuidance,
@@ -181,6 +183,8 @@ const buildSystemInstruction = async ({
   // The memory of notes: its first page goes in here, the slip goes after the message (see streamApiCall). Nothing in a chat that may not use memory.
   const canUseMemory = !(conversation?.retentionMode === 'ephemeral' && conversation?.memoryAccessEnabled === false);
   if (canUseMemory) systemInstruction = appendInstructionText(systemInstruction, notesText);
+  // The instructions of the project the chat is in: after the Noura and the memory, before the guidance for charts and files.
+  systemInstruction = appendInstructionText(systemInstruction, projectInstructionText);
 
   systemInstruction = appendInstructionText(
     systemInstruction,
@@ -685,6 +689,7 @@ export function createStreamApiCall({
         conversation,
         astras: getAstras(),
         notesText: notes.systemText,
+        projectInstructionText: shouldApplyNouras(requestOptions.requestPurpose) ? projectInstructionTextFor(conversation) : '',
         additionalSystemInstruction: requestOptions.additionalSystemInstruction,
         chartAuthoringGuidance,
         fileAuthoringGuidance,

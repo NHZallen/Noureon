@@ -12,9 +12,9 @@ In one sentence: Noureon is "local first" by default, so conversations, settings
 
 ## 1. Data at a glance
 
-- In your browser: conversations, folders and the archive, settings, Nouras, memory notes (for a local account, and a copy of the notes of a cloud account for when the server cannot be reached), the local index of past conversations and, if you turn it on, their vectors, API keys, appearance preferences, local account data.
+- In your browser: conversations, projects and the archive, settings, Nouras, memory notes (for a local account, and a copy of the notes of a cloud account for when the server cannot be reached), the local index of past conversations and, if you turn it on, their vectors, API keys, appearance preferences, local account data.
 - Sent to AI and search providers: your prompts, conversation context, attachments, system instructions and the model options you choose (section 6).
-- In Noureon's cloud (when you sign in and sync): workspace data (conversations, messages, folders, Nouras, memory notes), uploaded and generated files, an encrypted copy of the sync password, skills and skill packs, the logins and tool settings of connectors, secure credentials (section 4 and section 8).
+- In Noureon's cloud (when you sign in and sync): workspace data (conversations, messages, projects, Nouras, memory notes), uploaded and generated files, an encrypted copy of the sync password, skills and skill packs, the logins and tool settings of connectors, secure credentials (section 4 and section 8).
 - Passing through Noureon's server for a while (when you choose server-side running): the history, system instructions and your key that one reply needs, deleted when the reply ends (section 7).
 - Third-party infrastructure: Supabase, Cloudflare Turnstile, GitHub, Vercel, PeerJS and others (section 17).
 
@@ -24,7 +24,7 @@ Noureon is operated by its development team. For privacy, account, sync, mail or
 
 ## 3. Data kept in your browser
 
-- By default Noureon keeps conversations and messages, folders and the archive, app settings, Nouras, memory notes (for a local account, and a copy of the notes of a cloud account for when the server cannot be reached), the local index of past conversations and, if you turn on the search by meaning, its vectors, provider API keys, appearance preferences, generated-image information and the local profile in the browser's storage (IndexedDB and localStorage).
+- By default Noureon keeps conversations and messages, projects and the archive, app settings, Nouras, memory notes (for a local account, and a copy of the notes of a cloud account for when the server cannot be reached), the local index of past conversations and, if you turn on the search by meaning, its vectors, provider API keys, appearance preferences, generated-image information and the local profile in the browser's storage (IndexedDB and localStorage).
 - localStorage also holds a copy of your light/dark choice, so the page has the right theme when it opens.
 - The public pages (Help Center, Terms of Use, Privacy Policy, update history) also remember in localStorage the language you chose there; it is sent to no one.
 - As a PWA, the service worker caches only the files of the app itself (programs, styles, icons), not your conversations or personal data.
@@ -39,7 +39,7 @@ Noureon uses no advertising or tracking cookies and has no third-party analytics
 - Your picture: when you sign in with Google, the page shows the photo of your Google account (its address comes with the sign-in; the image is loaded from Google's servers) until you choose another. If you choose your own, a small round picture (256 × 256, webp) is kept in your cloud account in Supabase Storage (a private bucket that only you can read), with a row in your profile saying it exists; you can change or remove it in Settings → User, and removing it deletes the file. It is shown only to you (in the left menu and the User tab), never to other people, and it is also kept in this browser so that it loads fast.
 - Registration, sign-in, password recovery and the feedback form use Cloudflare Turnstile as a bot check, so Cloudflare sees browser and connection details.
 - The mail we send is used only for account access and recovery: confirmation of registration, password reset (a code), the link for a forgotten sync password, and notices that a sign-in method was added or the password changed.
-- With cloud sync on, Supabase keeps what is needed for cross-device sync: folders, conversations, messages (with their metadata), Nouras, memory notes and the record of their changes, the vectors of your past conversations (only if you turn on syncing them), sync metadata, deletion markers (tombstones), and the files you upload or make (in Supabase Storage).
+- With cloud sync on, Supabase keeps what is needed for cross-device sync: projects, conversations, messages (with their metadata), Nouras, memory notes and the record of their changes, the vectors of your past conversations (only if you turn on syncing them), sync metadata, deletion markers (tombstones), and the files you upload or make (in Supabase Storage).
 - The sync password: keys and other sensitive content are first encrypted in the browser with your sync password before they go into the cloud vault; without a sync password, provider API keys are not uploaded. The sync password itself is kept encrypted with a server-side key, for cross-device and Email recovery, and the database holds no plain text. Note that this means recovery of the sync password is carried out with the help of the service; it is not true in every case that only you can unlock it.
 - You can choose not to sign in to a cloud account; then none of this data leaves your device (apart from the requests you send to providers).
 
@@ -55,7 +55,7 @@ Noureon uses no advertising or tracking cookies and has no third-party analytics
 
 ## 6. What is sent to providers
 
-- When you send a message, the needed prompt content, conversation context, attachments you choose and inputs of generated media, system instructions (including your memories, the Noura in use, and the full text of skills you chose with / or the model loaded) and model options go to the model provider you chose; when a search is needed, the search terms and the addresses you pasted go to the search provider.
+- When you send a message, the needed prompt content, conversation context, attachments you choose and inputs of generated media, system instructions (including your memories, the Noura in use, the instructions of the project the conversation is in, and the full text of skills you chose with / or the model loaded) and model options go to the model provider you chose; when a search is needed, the search terms and the addresses you pasted go to the search provider.
 - The Model Council, deep research and the visual check send requests of the same kind to each of the models you chose.
 - Attachments some models cannot read are first turned into a text packet by the translation model you set, and then handed on to the models that need them.
 - The file name of each attachment, with its number in the message, is sent to the model together with the attachment (for example "File 1 of 2 in this message: contract.pdf"), so that it can tell which one you mean; a file name can hold personal information, so name files with that in mind.

@@ -272,3 +272,30 @@ test('a chat whose last message is under its visual check cannot send until it i
     chatsUnderVisionCheck.clear();
   }
 });
+
+test('a tap on the box that is shut for want of a key says why (and not twice in a row), a model with a key says nothing', () => {
+  const listeners = [];
+  const notices = [];
+  const { helper, elements, conversation } = createHarness({
+    elements: { messageInput: { value: '', disabled: false, placeholder: '', addEventListener: (type, listener) => listeners.push([type, listener]) } },
+    i18n: { en: { enterMessagePlaceholder: 'Type a message', enterApiKeyPlaceholder: 'Enter API key', modelNeedsKeyNotice: 'No key for "{model}"' } },
+    dependencies: { notify: (message, type) => notices.push([message, type]) },
+    conversation: { provider: 'openai', model: 'gpt-x' }
+  });
+  assert.deepEqual(listeners.map(([type]) => type), ['pointerdown']);
+  const tap = listeners[0][1];
+  tap();
+  assert.deepEqual(notices, [], 'nothing is said before the state is known');
+  helper.updateInputState();
+  assert.equal(elements.messageInput.disabled, true);
+  tap();
+  assert.deepEqual(notices, [['No key for "gpt-x"', 'warning']]);
+  tap();
+  assert.equal(notices.length, 1, 'not twice in a row');
+  conversation.provider = 'gemini';
+  helper.updateInputState();
+  assert.equal(elements.messageInput.disabled, false);
+  notices.length = 0;
+  tap();
+  assert.deepEqual(notices, [], 'a model with a key says nothing');
+});

@@ -250,7 +250,7 @@ export function createFolderLifecycle({
       <button data-id="${folderId}" class="rename-folder-btn w-full text-left px-4 py-2 hover:bg-[var(--hover-bg)] text-sm">${getTexts().rename || '重新命名'}</button>
       <button data-id="${folderId}" class="customize-folder-btn w-full text-left px-4 py-2 hover:bg-[var(--hover-bg)] text-sm">${getTexts().customize || '自訂'}</button>
       <div class="border-t my-1 border-[var(--border-color)]"></div>
-      <button data-id="${folderId}" class="delete-folder-btn w-full text-left px-4 py-2 text-red-600 hover:bg-red-500/10 text-sm">${getTexts().deleteFolder || '刪除資料夾'}</button>
+      <button data-id="${folderId}" class="delete-folder-btn w-full text-left px-4 py-2 text-red-600 hover:bg-red-500/10 text-sm">${getTexts().deleteFolder || '刪除專案'}</button>
     `;
     document.body.appendChild(popover);
     scheduleAnimationFrame(() => popover.classList.add('visible'));
