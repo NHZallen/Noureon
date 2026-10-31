@@ -86,7 +86,7 @@ export function openMenu({ document, root, anchor, point = null, items, onClose 
 
 /**
  * A sheet that is a page over the page, as the Settings page is (`dialog: true` makes it a small dialog in the middle, for a question): a title, a button that closes it - or `action`,
- * { label, onClick }, a pill at the right of the head that takes its place - a body and, when given, a button at the foot. It follows the keyboard of a phone: it is as high as what is left above the keyboard.
+ * { label, onClick }, a pill at the right of the head that takes its place - a body and, when given, a button at the foot.
  * `onClose` is told when it is gone. Returns { close, element, body, setError }.
  */
 export function openSheet({ document, root, title, label, body, footer = null, action = null, close: closeLabel = '', onClose = () => {}, className = '', dialog = false }) {
@@ -113,26 +113,16 @@ export function openSheet({ document, root, title, label, body, footer = null, a
   const error = make(document, 'p', 'pj-error');
   error.setAttribute('role', 'alert');
   error.hidden = true;
-  sheet.append(head, content, error);
-  if (footer) sheet.appendChild(footer);
+  sheet.appendChild(head);
+  sheet.appendChild(content);
   backdrop.appendChild(sheet);
   root.appendChild(backdrop);
   let closed = false;
   const opener = document.activeElement;
-  const viewport = win.visualViewport || null;
-  // The keyboard of a phone covers the foot of the page: the sheet is made as high as what is left above it.
-  const fit = () => {
-    if (!viewport) return;
-    backdrop.style.top = `${Math.round(viewport.offsetTop)}px`;
-    backdrop.style.height = `${Math.round(viewport.height)}px`;
-    backdrop.style.bottom = 'auto';
-  };
   const close = () => {
     if (closed) return;
     closed = true;
     win.removeEventListener('keydown', onKey, true);
-    viewport?.removeEventListener('resize', fit);
-    viewport?.removeEventListener('scroll', fit);
     backdrop.remove();
     try { opener?.focus?.(); } catch { /* the opener may be gone */ }
     onClose();
@@ -146,10 +136,9 @@ export function openSheet({ document, root, title, label, body, footer = null, a
   closeButton.addEventListener('click', () => { if (action) { close(); action.onClick(); } else close(); });
   if (dialog) backdrop.addEventListener('pointerdown', (event) => { if (event.target === backdrop) close(); });
   win.addEventListener('keydown', onKey, true);
-  viewport?.addEventListener('resize', fit);
-  viewport?.addEventListener('scroll', fit);
-  fit();
   if (body) body(content, { close });
+  // The button of a page sits under what is written, in the flow: nothing is pinned to the bottom, so the keyboard of a phone moves nothing. A dialog has it at its foot.
+  if (dialog) { sheet.append(error, ...(footer ? [footer] : [])); } else { content.appendChild(error); if (footer) content.appendChild(footer); }
   const first = sheet.querySelector('input, textarea, button.pj-primary');
   first?.focus?.();
   return { close, element: sheet, body: content, setError: (message) => { error.textContent = message || ''; error.hidden = !message; } };
