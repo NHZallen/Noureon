@@ -19,13 +19,20 @@ import { ensureSharedItemsCard } from '../../ui/share/shared-items-card.js';
 
 export const SHARE_EVENT = 'astra:share-conversation';
 const PENDING_MAX_MS = 60 * 60 * 1000;
+const LIST_WAIT_MS = 8000;
+
+/** `promise`, or { ok: false, code: 'timeout' } when it has not answered in `ms`. */
+const waitAtMost = (promise, ms) => new Promise((resolve) => {
+  const timer = setTimeout(() => resolve({ ok: false, code: 'timeout' }), ms);
+  Promise.resolve(promise).then((value) => { clearTimeout(timer); resolve(value); }, () => { clearTimeout(timer); resolve({ ok: false, code: 'failed' }); });
+});
 
 const nameOf = (user) => {
   const candidate = String(user?.displayName || user?.username || '').trim();
   return candidate && !candidate.includes('@') ? candidate : '';
 };
 
-export function startShares({ document, window = globalThis.window, configAccess, dataStore, i18n, saveAppData, showNotification, showCustomConfirm, renderSidebar, openConversation = () => {}, client = null, storage = null, supabase = null, quota = getStorageUsage }) {
+export function startShares({ document, window = globalThis.window, configAccess, dataStore, i18n, saveAppData, showNotification, showCustomConfirm, renderSidebar, openConversation = () => {}, client = null, storage = null, supabase = null, quota = getStorageUsage, lookupWaitMs = 1500 }) {
   const state = createShareState();
   const shareClientSupabase = () => { if (supabase) return supabase; try { return getSupabaseClient(); } catch { return null; } };
   const shareClient = client || createShareClient({ getSupabase: shareClientSupabase });
@@ -39,7 +46,8 @@ export function startShares({ document, window = globalThis.window, configAccess
 
   async function reload() {
     if (!cloudOn()) { state.clear(); return; }
-    loading = loading || shareClient.list().then((result) => { if (result.ok) state.replace(result.items); return result; }).finally(() => { loading = null; });
+    // A list that never answers must not stay "being read" for good: after a while it is given up, and the next call asks again.
+    loading = loading || waitAtMost(shareClient.list(), LIST_WAIT_MS).then((result) => { if (result.ok) state.replace(result.items); return result; }).finally(() => { loading = null; });
     return loading;
   }
   // The conversation has to be in the cloud before the server can read it.
@@ -65,12 +73,17 @@ export function startShares({ document, window = globalThis.window, configAccess
     });
   }
 
+  // The warning is a help, never a gate: when the shares cannot be looked up (slow, an error), the conversation is deleted as it always was.
   async function confirmDelete(ids) {
-    if (!cloudOn()) return true;
-    if (!state.isLoaded()) await reload();
-    const count = [...ids].reduce((sum, id) => sum + state.activeFor(id).length, 0);
-    if (count === 0) return true;
-    return showCustomConfirm(text('csDeleteBody', { n: count }), text('csDeleteTitle'));
+    try {
+      if (!cloudOn()) return true;
+      if (!state.isLoaded()) await waitAtMost(reload(), lookupWaitMs);
+      const count = [...ids].reduce((sum, id) => sum + state.activeFor(id).length, 0);
+      if (count === 0) return true;
+      return await showCustomConfirm(text('csDeleteBody', { n: count }), text('csDeleteTitle'));
+    } catch {
+      return true;
+    }
   }
 
   // ----- "Copy to my conversations": the viewer leaves the code in the storage of the site and sends the person here; it is taken once there is a cloud account.
