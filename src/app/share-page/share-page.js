@@ -15,7 +15,9 @@ import { createMediaAttachmentRenderer } from '../runtime/messages/media-attachm
 import { createMediaPreviewLifecycle } from '../runtime/messages/media-preview-lifecycle.js';
 import { escapeHTML, renderUserText } from '../runtime/shell/shell-utilities.js';
 import { applyRememberedAccent } from '../../utils/accent-mirror.js';
-import { watchSourceIcons } from '../ui/sandbox/run-sources.js';
+import { openSourceUrl, watchSourceIcons } from '../ui/sandbox/run-sources.js';
+import { sourcesOfPill } from '../ui/citations/citation-pills.js';
+import { openSourceSheet } from '../ui/citations/source-sheet.js';
 import { easeSavedDetails } from '../ui/motion/collapse-motion.js';
 import { markPageAsPrivate } from './private-page.js';
 import { PENDING_SHARE_KEY, isReviewRequest, shareCodeOf } from './share-route.js';
@@ -186,6 +188,16 @@ export async function initializeSharePage({ window, document, supabase = getSupa
     list.id = 'sp-messages';
     main.appendChild(list);
     viewer.renderConversationMessages({ conversation: { messages: snapshot.messages }, contentContainer: list, emptyHTML: '' });
+    // The pages a reply found, as in the app: a chip opens its page in a new tab; a label that cites sources opens its page, or the sheet of them when there are several.
+    list.addEventListener('click', (event) => {
+      const chip = event.target.closest('.run-source-chip');
+      if (chip) { openSourceUrl(chip.dataset.url, (...args) => window.open(...args)); return; }
+      const pill = event.target.closest('.cite-pill');
+      if (!pill) return;
+      const cited = sourcesOfPill(pill);
+      if (cited.length === 1) openSourceUrl(cited[0].url, (...args) => window.open(...args));
+      else if (cited.length) openSourceSheet({ document, sources: cited, language });
+    });
     if (missingFiles > 0) main.appendChild(el(document, 'p', 'sp-note', text('fileGone')));
     drawFooter();
   }
