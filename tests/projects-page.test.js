@@ -696,14 +696,50 @@ test('the ⋯ of a project (on the list and on its page) and of a chat closes it
   } finally { await t.finish(); }
 });
 
-test('the list of the projects is a page of its own on a computer: cards, the + with its words, and the class that the wide styles hang on', async () => {
+test('the list of the projects on a computer keeps what the list has (pills, search, +, pin, count, ⋯) with the search and the + in the title bar', async () => {
   const t = setup({ wide: true });
   try {
     t.open();
     assert.equal(t.$('.pj').classList.contains('is-list'), true);
+    assert.ok(t.$('.pj-head .pj-head-actions .pj-search-input'), 'the search is in the title bar');
     assert.equal(t.$('.pj-head .pj-round.has-label .pj-round-label').textContent, 'New project');
+    assert.equal(t.$$('.pj-bar .pj-tab').length, 3, 'the pills are under the title bar');
+    assert.equal(t.$('.pj-foot'), null, 'no foot with the search on a computer');
+    assert.equal(t.$$('.pj-row').length, 2);
+    assert.ok(t.$('.pj-row .pj-more'), 'each row has its menu');
+    t.type(t.$('.pj-search-input'), 'Trip');
+    assert.deepEqual(t.$$('.pj-row .pj-row-title').map((node) => node.textContent), ['Trip <b>plans</b>']);
     t.$('.pj-row').click();
     assert.equal(t.$('.pj').classList.contains('is-list'), false, 'a project has its own page');
+  } finally { await t.finish(); }
+});
+
+test('one project on a computer is three columns: the projects (to go to another), the box and the chats, the instructions and the sources', async () => {
+  const folders = [
+    { id: 'f1', name: 'Research', icon: 'globe', color: 'blue', conversationIds: [], instructions: 'Be brief.', sources: [{ id: 's1', kind: 'text', title: 'Brief', mime: '', size: 5, text: 'hello', addedAt: '' }] },
+    { id: 'f2', name: 'Plans', icon: 'book', color: 'green', conversationIds: [], instructions: '', pinned: true, sources: [] }
+  ];
+  const t = setup({ folders, conversations: [{ id: 'c1', title: 'Chat one', folderId: 'f1', lastUpdatedAt: '2026-10-20T00:00:00.000Z', messages: [] }], wide: true });
+  try {
+    t.open({ id: 'f1' }, { sourcesEnabled: true });
+    assert.equal(t.$('.pj').classList.contains('is-project'), true);
+    assert.equal(t.$$('.pj-three > *').length, 3);
+    assert.deepEqual(t.$$('.pj-side-row').map((row) => row.dataset.projectId), ['f2', 'f1'], 'the projects, the pinned one first');
+    assert.equal(t.$('.pj-side-row.is-current').dataset.projectId, 'f1');
+    assert.ok(t.$('.pj-main .pj-composer'), 'the box is at the top of the middle column');
+    assert.deepEqual(t.$$('.pj-main .pj-chat').map((row) => row.dataset.conversationId), ['c1']);
+    assert.equal(t.$('.pj-panel .pj-card-text').textContent, 'Be brief.');
+    assert.deepEqual(t.$$('.pj-panel .pj-sources .pj-row-title').map((node) => node.textContent), ['Brief']);
+    assert.equal(t.$('.pj-tabs'), null, 'no pills: nothing is hidden behind a tab');
+    // The list at the left goes to another project; its search narrows the list.
+    t.type(t.$('.pj-side .pj-search-input'), 'Pla');
+    assert.deepEqual(t.$$('.pj-side-row').map((row) => row.dataset.projectId), ['f2']);
+    t.$('.pj-side-row').click();
+    assert.equal(t.$('.pj-title-text').textContent, 'Plans');
+    assert.match(t.$('.pj-panel .pj-card-text').textContent, /No instructions yet/);
+    // The pencil opens the instructions, the + of the sources opens the list of what can be added.
+    t.$('.pj-panel .pj-card-head .pj-more').click();
+    assert.ok(t.$('.pj-textarea'), 'the instructions are open');
   } finally { await t.finish(); }
 });
 

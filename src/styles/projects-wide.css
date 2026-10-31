@@ -1,53 +1,60 @@
-/* The pages of the projects on a computer (split from projects.css to keep each style file small). They are built after two pages the app already has: the list of the projects like the store of the
-   Nouras (a title bar with its action at the right, a bar of pills and a search under it, cards in a grid), and one project like the Extensions page (a list of its parts at the left, a column
-   beside it with rows between hairlines). The page is drawn for the width it has and carries `.is-wide` (projects-page.js); a phone keeps what projects.css gives it.
-   Colours are the names of tokens.css; the rules of the style are in docs/superpowers/specs/2026-10-31-ui-style-rules.md. */
+/* The pages of the projects on a computer (split from projects.css to keep each style file small). The list is the old list of the projects given room: a title bar with the search and the + in it,
+   the pills under it, and the projects as rows between hairlines in a column. One project is three columns: the projects at the left (to go from one to another), the box that writes to the
+   project and its chats in the middle, its instructions and its sources at the right. The page is drawn for the width it has and carries `.is-wide` (projects-page.js); a phone keeps what
+   projects.css gives it. Colours are the names of tokens.css; the rules of the style are in docs/superpowers/specs/2026-10-31-ui-style-rules.md. */
 
 .pj-round-label { display: none; }
 
 .pj.is-wide { --pj-gutter: 2rem; }
-.pj.is-wide .pj-head { max-width: none; grid-template-columns: 2.25rem minmax(0, 1fr) auto; padding: 1.1rem 1.5rem 0.7rem; }
 .pj.is-wide .pj-title { text-align: left; }
-.pj.is-wide .pj-title.is-project { justify-content: flex-start; }
 .pj.is-wide .pj-round.has-label { width: auto; display: inline-flex; align-items: center; gap: 0.45rem; padding: 0 1rem 0 0.7rem; }
 .pj.is-wide .pj-round.has-label .pj-round-label { display: inline; white-space: nowrap; }
 
 /* ----- the list of the projects */
-.pj.is-wide.is-list .pj-head { padding: 1rem 2rem; border-bottom: 1px solid var(--border-color); }
-.pj.is-wide.is-list .pj-head > .pj-round:not(.has-label) { border-color: transparent; border-radius: 0.6rem; background: transparent; }
-.pj.is-wide.is-list .pj-head > .pj-round:not(.has-label):hover { background: var(--hover-bg); }
+.pj.is-wide.is-list .pj-head { max-width: none; grid-template-columns: 2.25rem minmax(0, 1fr) auto; padding: 1rem 1.75rem; border-bottom: 1px solid var(--border-color); }
+.pj-head-actions { display: flex; align-items: center; gap: 0.75rem; }
+.pj-head-actions .pj-search { width: 17.5rem; padding: 0.45rem 0.9rem; border: 0; background: var(--hover-bg); }
 .pj.is-wide.is-list .pj-round.has-label { border-color: transparent; background: var(--gpt-primary-action-bg); color: var(--gpt-primary-action-text); }
 .pj.is-wide.is-list .pj-round.has-label:hover { background: var(--gpt-primary-action-bg); opacity: 0.88; }
-.pj-bar { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.9rem 2rem; border-bottom: 1px solid var(--border-color); }
-.pj-bar .pj-tabs { margin: 0; min-width: 0; }
+.pj-bar { flex: none; padding: 0.8rem 1.75rem; border-bottom: 1px solid var(--border-color); }
+.pj-bar .pj-tabs { margin: 0; }
 .pj-bar .pj-tab { border: 1px solid var(--border-color); }
 .pj-bar .pj-tab:hover { border-color: var(--text-secondary); }
 .pj-bar .pj-tab[aria-selected="true"] { border-color: transparent; background: var(--gpt-primary-action-bg); color: var(--gpt-primary-action-text); }
-.pj-bar .pj-search { flex: none; width: min(22rem, 40%); padding: 0.5rem 1rem; }
-.pj.is-wide.is-list .pj-body { flex: 1; max-width: none; padding: 2rem; }
-.pj.is-wide.is-list .pj-list { grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: 1.5rem; }
-.pj.is-wide.is-list .pj-row { position: relative; flex-direction: column; justify-content: center; gap: 0.9rem; padding: 1.75rem 1.25rem 1.5rem; border: 1px solid var(--border-color); border-radius: 1rem; background: var(--sidebar-bg); text-align: center; }
-.pj.is-wide.is-list .pj-row:hover, .pj.is-wide.is-list .pj-row:focus-visible { border-color: var(--text-secondary); background: var(--hover-bg); }
-.pj.is-wide.is-list .pj-mark.is-row { width: 4.5rem; height: 4.5rem; border-radius: 1.3rem; }
-.pj.is-wide.is-list .pj-row-text { justify-items: center; width: 100%; }
-.pj.is-wide.is-list .pj-row-name { justify-content: center; max-width: 100%; }
-.pj.is-wide.is-list .pj-row .pj-more { position: absolute; top: 0.6rem; right: 0.6rem; }
-.pj.is-wide.is-list .pj-none, .pj.is-wide.is-list .pj-empty { grid-column: 1 / -1; }
+.pj.is-wide.is-list .pj-body { flex: 1; max-width: 51rem; padding: 0.9rem 0 2.5rem; }
+.pj.is-wide.is-list .pj-row { position: relative; gap: 1rem; padding: 0.85rem 0.6rem; border-radius: 0.9rem; }
+.pj.is-wide.is-list .pj-row + .pj-row::before { content: ""; position: absolute; left: 0.6rem; right: 0.6rem; top: 0; border-top: 1px solid var(--border-color); }
+.pj.is-wide.is-list .pj-row:hover::before, .pj.is-wide.is-list .pj-row:hover + .pj-row::before { border-color: transparent; }
+.pj.is-wide.is-list .pj-mark.is-row { width: 2.75rem; height: 2.75rem; border-radius: 0.8rem; }
 
-/* ----- one project: the parts at the left, the part in a column (the box that writes to the project on top of the chats); the title bar is as wide as the parts below it */
-.pj.is-wide.is-project .pj-head { max-width: 58.5rem; padding-left: 1.5rem; padding-right: 1.5rem; }
-.pj-split { flex: 1; min-height: 0; display: grid; grid-template-columns: 11rem minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); width: 100%; max-width: 58.5rem; margin: 0 auto; box-sizing: border-box; padding-right: 1.5rem; }
-.pj-split.has-no-nav { grid-template-columns: minmax(0, 1fr); }
-.pj-nav { display: grid; gap: 0.15rem; align-content: start; padding: 0.4rem 0 0 1.5rem; }
-.pj-nav-item { display: flex; align-items: center; gap: 0.6rem; width: 100%; padding: 0.6rem 0.8rem; border: 0; border-radius: 0.8rem; background: transparent; color: var(--text-secondary); text-align: left; }
-.pj-nav-item:hover { background: var(--hover-bg); }
-.pj-nav-item[aria-selected="true"] { background: var(--hover-bg); color: var(--text-primary); }
-.pj.is-wide .pj-split .pj-body { max-width: 46rem; margin: 0; padding: 0.4rem 0.4rem 2.5rem; }
-.pj.is-wide .pj-split.has-no-nav .pj-body { margin: 0 auto; }
-.pj.is-wide .pj-body > .pj-composer { margin: 0 0 1.2rem; padding: 0.55rem 0.6rem 0.55rem 1.2rem; }
-.pj.is-wide .pj-chat, .pj.is-wide .pj-body .pj-sources .pj-row { position: relative; padding: 0.85rem 0.5rem; border-radius: 1rem; }
-.pj.is-wide .pj-chat + .pj-chat::before, .pj.is-wide .pj-body .pj-sources .pj-row + .pj-row::before { content: ""; position: absolute; left: 0.5rem; right: 0.5rem; top: 0; border-top: 1px solid var(--border-color); }
-.pj.is-wide .pj-chat:hover::before, .pj.is-wide .pj-chat:hover + .pj-chat::before, .pj.is-wide .pj-body .pj-sources .pj-row:hover::before, .pj.is-wide .pj-body .pj-sources .pj-row:hover + .pj-row::before { border-color: transparent; }
+/* ----- one project: three columns */
+.pj-three { flex: 1; min-height: 0; display: grid; grid-template-columns: 18rem minmax(0, 1fr) 19.5rem; }
+.pj-side { display: flex; flex-direction: column; gap: 0.8rem; min-height: 0; padding: 1.1rem 0.9rem; border-right: 1px solid var(--border-color); }
+.pj-side-head { display: flex; align-items: center; gap: 0.5rem; }
+.pj-side-head .pj-title { flex: 1; min-width: 0; }
+.pj-side-head .pj-round { width: 2rem; height: 2rem; }
+.pj-side .pj-search { padding: 0.45rem 0.8rem; border-radius: 0.8rem; }
+.pj-side-list { display: grid; gap: 0.1rem; align-content: start; min-height: 0; overflow-y: auto; }
+.pj-side-row { display: flex; align-items: center; gap: 0.75rem; width: 100%; padding: 0.5rem 0.6rem; border: 0; border-radius: 0.8rem; background: transparent; text-align: left; }
+.pj-side-row:hover, .pj-side-row.is-current { background: var(--hover-bg); }
+.pj-side-row .pj-row-title { max-width: 11rem; }
+.pj-main { min-width: 0; min-height: 0; overflow-y: auto; padding: 1.1rem 1.6rem 2.5rem; }
+.pj-main .pj-head { max-width: none; grid-template-columns: minmax(0, 1fr) auto; padding: 0 0 1rem; }
+.pj-main .pj-head-gap { display: none; }
+.pj-main .pj-title.is-project { justify-content: flex-start; }
+.pj-main-title { margin: 1.3rem 0.25rem 0.2rem; color: var(--text-secondary); font-size: var(--pj-small); }
+.pj-main .pj-chat { position: relative; padding: 0.85rem 0.5rem; border-radius: 1rem; }
+.pj-main .pj-chat + .pj-chat::before { content: ""; position: absolute; left: 0.5rem; right: 0.5rem; top: 0; border-top: 1px solid var(--border-color); }
+.pj-main .pj-chat:hover::before, .pj-main .pj-chat:hover + .pj-chat::before { border-color: transparent; }
+.pj-panel { display: grid; gap: 0.9rem; align-content: start; min-height: 0; overflow-y: auto; padding: 1.1rem 1.4rem 1.1rem 0; }
+.pj-card { padding: 1rem; border: 1px solid var(--border-color); border-radius: 1rem; }
+.pj-card-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.3rem; }
+.pj-card-title { font-weight: 500; }
+.pj-card-count { margin-left: 0.45rem; color: var(--text-secondary); font-size: var(--pj-small); font-weight: 400; }
+.pj-card-text { margin: 0.3rem 0 0; color: var(--text-secondary); font-size: var(--pj-small); line-height: 1.5; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; }
+.pj-panel .pj-sources { gap: 0; }
+.pj-panel .pj-row { position: relative; padding: 0.6rem 0.1rem; }
+.pj-panel .pj-row + .pj-row::before { content: ""; position: absolute; left: 0; right: 0; top: 0; border-top: 1px solid var(--border-color); }
 
 /* a folder or files dragged over the sheet that makes a project */
 .pj-backdrop.is-dropping .pj-folder-box { border-style: dashed; border-color: var(--text-secondary); }

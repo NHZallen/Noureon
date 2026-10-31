@@ -198,18 +198,22 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     const plus = round('plus', text('pjNew'), () => newProject());
     plus.classList.add('has-label');
     plus.append(make(document, 'span', 'pj-round-label', text('pjNew')));
-    const head = header({ left: round('back', text('pjBack'), () => close()), title, right: plus });
     root.classList.add('is-list');
     root.classList.remove('is-project');
     listBody = make(document, 'div', 'pj-list');
     const body = make(document, 'main', 'pj-body');
     const tabBar = tabs([['all', text('pjTabAll')], ['mine', text('pjTabMine')], ['shared', text('pjTabShared')]], state.listTab, (key) => { state.listTab = key; drawList(); }, text('pjTitle'));
     if (wide) {
+      // A computer: the search and the + are in the title bar, the pills under it, the projects in a column of rows below (projects-wide.css).
+      const actionsBox = make(document, 'div', 'pj-head-actions');
+      actionsBox.append(makeSearch(), plus);
+      const head = header({ left: round('back', text('pjBack'), () => close()), title, right: actionsBox });
       const bar = make(document, 'div', 'pj-bar');
-      bar.append(tabBar, makeSearch());
+      bar.appendChild(tabBar);
       body.appendChild(listBody);
       root.replaceChildren(head, bar, body);
     } else {
+      const head = header({ left: round('back', text('pjBack'), () => close()), title, right: plus });
       body.append(tabBar, listBody);
       const foot = make(document, 'footer', 'pj-foot');
       foot.appendChild(makeSearch());
@@ -446,56 +450,8 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     if (left) box.appendChild(make(document, 'p', 'pj-note', text('pjSourcesLeftOut', { n: left })));
     return box;
   };
-  const drawProject = () => {
-    root.classList.remove('is-list');
-    root.classList.add('is-project');
-    closeMenu();
-    const project = projectOrNull(state.projectId);
-    if (!project) { go({ list: true }, false); return; }
-    state.view = 'project';
-    const wide = isWide(document);
-    root.classList.toggle('is-wide', wide);
-    const title = headingOf(document, 'pj-title is-project');
-    title.append(projectMark(document, project, 'is-small'), make(document, 'span', 'pj-title-text', project.name || ''));
-    const more = round('dots', text('pjMore'), () => projectMenu(project, more, null, { fromPage: true }));
-    const head = header({ left: round('back', text('pjBack'), () => back()), title, right: more });
-    const body = make(document, 'main', 'pj-body');
-    const choose = (key) => { state.tab = key; drawProject(); };
-    // A computer: the parts of the project in a list at the left and the part in a column beside it, as the Extensions page has them; a phone: pills over the part.
-    let nav = null;
-    if (sourcesEnabled && wide) {
-      nav = make(document, 'nav', 'pj-nav');
-      nav.setAttribute('role', 'tablist');
-      nav.setAttribute('aria-orientation', 'vertical');
-      nav.setAttribute('aria-label', project.name || '');
-      for (const [key, label, icon] of [['chats', text('pjTabChats'), 'chat'], ['sources', text('pjTabSources'), 'file']]) {
-        const item = make(document, 'button', 'pj-nav-item');
-        item.type = 'button';
-        item.dataset.tab = key;
-        item.setAttribute('role', 'tab');
-        item.setAttribute('aria-selected', String(key === state.tab));
-        item.innerHTML = ICONS[icon](18);
-        item.append(make(document, 'span', '', label));
-        item.addEventListener('click', () => choose(key));
-        nav.appendChild(item);
-      }
-    } else if (sourcesEnabled) {
-      body.appendChild(tabs([['chats', text('pjTabChats')], ['sources', text('pjTabSources')]], state.tab, choose, project.name || ''));
-    }
-    const place = (...parts) => {
-      if (!wide) { root.replaceChildren(head, body, ...parts, ...inputs); return; }
-      const split = make(document, 'div', `pj-split${nav ? '' : ' has-no-nav'}`);
-      if (nav) split.appendChild(nav);
-      split.appendChild(body);
-      root.replaceChildren(head, split, ...inputs);
-    };
-    if (sourcesEnabled && state.tab === 'sources') {
-      body.appendChild(sourcesView(project));
-      place();
-      return;
-    }
-    chatsBody = make(document, 'div', 'pj-chats');
-    // The box that writes to the project: a message sent from it starts a chat in the project.
+  // The box that writes to the project: a message sent from it starts a chat in the project.
+  const makeComposer = (project) => {
     const box = make(document, 'form', 'pj-composer');
     const area = make(document, 'textarea', 'pj-composer-input');
     area.rows = 1;
@@ -521,16 +477,117 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
       close();
     });
     box.append(area, send);
-    if (wide) {
-      // On a computer the box is at the top of the column, over the chats (as the page of a project of ChatGPT has it).
-      body.append(box, chatsBody);
-      place();
-    } else {
-      body.appendChild(chatsBody);
-      const foot = make(document, 'footer', 'pj-foot');
-      foot.appendChild(box);
-      place(foot);
+    return box;
+  };
+
+  // A computer: the project is a page of three columns — the projects at the left (to go from one to another), the box and the chats in the middle, the instructions and the sources at the right.
+  const projectSide = (project) => {
+    const side = make(document, 'aside', 'pj-side');
+    const top = make(document, 'div', 'pj-side-head');
+    const title = headingOf(document, 'pj-title');
+    title.textContent = text('pjTitle');
+    top.append(round('back', text('pjBack'), () => back()), title, round('plus', text('pjNew'), () => newProject()));
+    const list = make(document, 'div', 'pj-side-list');
+    const draw = () => {
+      const query = state.query.trim().toLowerCase();
+      list.replaceChildren();
+      for (const folder of actions.list()) {
+        if (query && !String(folder.name || '').toLowerCase().includes(query)) continue;
+        const row = make(document, 'button', `pj-side-row${folder.id === project.id ? ' is-current' : ''}`);
+        row.type = 'button';
+        row.dataset.projectId = folder.id;
+        if (folder.id === project.id) row.setAttribute('aria-current', 'page');
+        const words = make(document, 'span', 'pj-row-text');
+        const name = make(document, 'span', 'pj-row-name');
+        if (folder.pinned) { const pin = make(document, 'span', 'pj-row-pin'); pin.innerHTML = ICONS.pin(13); name.appendChild(pin); }
+        name.appendChild(make(document, 'span', 'pj-row-title', folder.name || ''));
+        words.append(name, make(document, 'span', 'pj-row-meta', text('pjCount', { n: actions.countOf(folder.id) })));
+        row.append(projectMark(document, folder, 'is-small'), words);
+        row.addEventListener('click', () => { if (folder.id !== project.id) go({ id: folder.id }, true); });
+        list.appendChild(row);
+      }
+    };
+    const search = makeSearch();
+    search.querySelector('input').addEventListener('input', draw);
+    side.append(top, search, list);
+    draw();
+    return side;
+  };
+  const projectPanel = (project) => {
+    const panel = make(document, 'aside', 'pj-panel');
+    // The instructions: a few lines, and a pencil that opens them.
+    const instructions = make(document, 'section', 'pj-card');
+    const instructionsHead = make(document, 'div', 'pj-card-head');
+    const instructionsEdit = make(document, 'button', 'pj-more');
+    instructionsEdit.type = 'button';
+    instructionsEdit.setAttribute('aria-label', text('pjMenuInstructions'));
+    instructionsEdit.innerHTML = ICONS.edit(16);
+    instructionsEdit.addEventListener('click', () => openInstructionsSheet({ document, root, text, actions, project: actions.folderOf(project.id) || project, notify, onSaved: drawProject, advanced: true }));
+    instructionsHead.append(make(document, 'span', 'pj-card-title', text('pjInstructionsTitle')), instructionsEdit);
+    const written = String(project.instructions || '').trim();
+    instructions.append(instructionsHead, make(document, 'p', `pj-card-text${written ? '' : ' is-empty'}`, written || text('pjInstructionsNone')));
+    panel.appendChild(instructions);
+    if (sourcesEnabled) {
+      const list = actions.sourcesOf(project.id);
+      const card = make(document, 'section', 'pj-card');
+      const head = make(document, 'div', 'pj-card-head');
+      const add = make(document, 'button', 'pj-more');
+      add.type = 'button';
+      add.setAttribute('aria-label', text('pjSourcesAdd'));
+      add.innerHTML = ICONS.plus(16);
+      add.addEventListener('click', () => openAddSources(project, drawProject));
+      const title = make(document, 'span', 'pj-card-title', text('pjTabSources'));
+      title.appendChild(make(document, 'span', 'pj-card-count', text('pjSourcesCount', { n: list.length, max: PROJECT_SOURCES_MAX })));
+      head.append(title, add);
+      const rows = make(document, 'div', 'pj-sources');
+      for (const source of list) rows.appendChild(sourceRow(project, source, drawProject));
+      if (!list.length) rows.appendChild(make(document, 'p', 'pj-card-text is-empty', text('pjSourcesNone')));
+      // What a model with tools can look into is not left out (data/project-files-tool.js): only the files it cannot read as text and that do not fit in a reply are.
+      const left = projectFilesBudget(project).left.filter((source) => !searchableKindOf(source)).length;
+      card.append(head, rows);
+      if (left) card.appendChild(make(document, 'p', 'pj-card-text', text('pjSourcesLeftOut', { n: left })));
+      panel.appendChild(card);
     }
+    return panel;
+  };
+
+  const drawProject = () => {
+    root.classList.remove('is-list');
+    root.classList.add('is-project');
+    closeMenu();
+    const project = projectOrNull(state.projectId);
+    if (!project) { go({ list: true }, false); return; }
+    state.view = 'project';
+    const wide = isWide(document);
+    root.classList.toggle('is-wide', wide);
+    const title = headingOf(document, 'pj-title is-project');
+    title.append(projectMark(document, project, 'is-small'), make(document, 'span', 'pj-title-text', project.name || ''));
+    const more = round('dots', text('pjMore'), () => projectMenu(project, more, null, { fromPage: true }));
+    if (wide) {
+      const main = make(document, 'main', 'pj-main');
+      const head = header({ title, right: more });
+      chatsBody = make(document, 'div', 'pj-chats');
+      main.append(head, makeComposer(project), make(document, 'div', 'pj-main-title', text('pjTabChats')), chatsBody);
+      const grid = make(document, 'div', 'pj-three');
+      grid.append(projectSide(project), main, projectPanel(project));
+      root.replaceChildren(grid, ...inputs);
+      drawChats();
+      return;
+    }
+    const head = header({ left: round('back', text('pjBack'), () => back()), title, right: more });
+    const body = make(document, 'main', 'pj-body');
+    const choose = (key) => { state.tab = key; drawProject(); };
+    if (sourcesEnabled) body.appendChild(tabs([['chats', text('pjTabChats')], ['sources', text('pjTabSources')]], state.tab, choose, project.name || ''));
+    if (sourcesEnabled && state.tab === 'sources') {
+      body.appendChild(sourcesView(project));
+      root.replaceChildren(head, body, ...inputs);
+      return;
+    }
+    chatsBody = make(document, 'div', 'pj-chats');
+    body.appendChild(chatsBody);
+    const foot = make(document, 'footer', 'pj-foot');
+    foot.appendChild(makeComposer(project));
+    root.replaceChildren(head, body, foot, ...inputs);
     drawChats();
   };
 
