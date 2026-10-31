@@ -10,7 +10,7 @@ const SHADOW_COLLECTIONS = Object.freeze([
 const SERVER_ONLY_FIELDS = new Set(['updated_at', 'sync_seq']);
 const COMPARABLE_FIELDS = Object.freeze({
   folders: Object.freeze([
-    'id', 'user_id', 'name', 'color', 'icon', 'text_color', 'instructions', 'pinned', 'deleted_at'
+    'id', 'user_id', 'name', 'color', 'icon', 'text_color', 'instructions', 'pinned', 'sources', 'deleted_at'
   ]),
   conversations: Object.freeze([
     'id', 'user_id', 'folder_id', 'title', 'summary', 'model', 'provider',
@@ -48,8 +48,8 @@ function normalizeComparableRow(collection, row, { local = false } = {}) {
       continue;
     }
     // A folder from before projects has no instructions: the same as an empty text (the column may not be in a database that is not yet migrated).
-    if (collection === 'folders' && (field === 'instructions' || field === 'pinned') && !Object.prototype.hasOwnProperty.call(row, field)) {
-      normalized[field] = field === 'pinned' ? false : '';
+    if (collection === 'folders' && (field === 'instructions' || field === 'pinned' || field === 'sources') && !Object.prototype.hasOwnProperty.call(row, field)) {
+      normalized[field] = field === 'pinned' ? false : field === 'sources' ? [] : '';
       continue;
     }
     if (!Object.prototype.hasOwnProperty.call(row, field)) return null;

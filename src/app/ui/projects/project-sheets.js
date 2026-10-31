@@ -5,6 +5,7 @@ import { FOLDER_SVGS } from '../../runtime/features/folder-metadata.js';
 import { FOLDER_COLORS } from '../../runtime/shell/runtime-ui-colors.js';
 import { PROJECT_INSTRUCTIONS_MAX } from '../../runtime/projects/project-instructions.js';
 import { PROJECT_NAME_MAX } from '../../runtime/projects/project-actions.js';
+import { PROJECT_SOURCE_CHARS_MAX, PROJECT_SOURCE_TITLE_MAX } from '../../runtime/projects/project-source-model.js';
 import { colorOf, make, openSheet, projectMark } from './project-parts.js';
 
 // What a project can be made with one tap: its name, icon and colour.
@@ -195,6 +196,59 @@ export function openInstructionsSheet({ document, root, text, actions, project, 
     onSaved();
   });
   return sheet;
+}
+
+/** The sheet where a text is added to the sources of a project: a title (optional) and the text. */
+export function openSourceTextSheet({ document, root, text, actions, project, notify = () => {}, onSaved = () => {} }) {
+  let busy = false;
+  const { foot, button } = footerButton(document, text('pjSave'));
+  button.disabled = true;
+  const title = make(document, 'input', 'pj-text-input');
+  title.type = 'text';
+  title.maxLength = PROJECT_SOURCE_TITLE_MAX;
+  title.placeholder = text('pjSourceTitleField');
+  title.setAttribute('aria-label', text('pjSourceTitleField'));
+  const area = make(document, 'textarea', 'pj-textarea');
+  area.maxLength = PROJECT_SOURCE_CHARS_MAX;
+  area.placeholder = text('pjSourceTextPlaceholder');
+  area.setAttribute('aria-label', text('pjSourceTextField'));
+  const count = make(document, 'p', 'pj-count');
+  const redraw = () => {
+    count.textContent = text('pjInstructionsCount', { n: area.value.length, max: PROJECT_SOURCE_CHARS_MAX });
+    button.disabled = busy || !area.value.trim();
+  };
+  area.addEventListener('input', redraw);
+  redraw();
+  const sheet = openSheet({ document, root, title: text('pjSourceTextTitle'), close: text('pjCancel'), footer: foot, body: (body) => body.append(title, area, count) });
+  title.focus?.();
+  button.addEventListener('click', async () => {
+    if (busy) return;
+    busy = true;
+    button.disabled = true;
+    sheet.setError('');
+    const result = await actions.addSource(project.id, { kind: 'text', title: title.value.trim() || text('pjSourceUntitled'), text: area.value }).catch(() => ({ ok: false }));
+    busy = false;
+    redraw();
+    if (!result.ok) { sheet.setError(sourceFailureText(text, result)); return; }
+    sheet.close();
+    notify(text('pjSourceAdded'), 'success');
+    onSaved();
+  });
+  return sheet;
+}
+
+/** The words for a source that could not be added or read (`result.code`), with the name of the file when there is one. */
+export function sourceFailureText(text, result = {}, name = '') {
+  const vars = { name, max: result.max ?? 20 };
+  switch (result.code) {
+    case 'full': return text('pjSourcesFull', { max: 20 });
+    case 'too_much': return text('pjSourcesTooMuch');
+    case 'unsupported': return text('pjSourceUnsupported', vars);
+    case 'empty': return name ? text('pjSourceEmpty', vars) : text('pjFailed');
+    case 'too_big': return text('pjSourceTooBig', vars);
+    case 'unreadable': return text('pjSourceUnreadable', vars);
+    default: return text('pjFailed');
+  }
 }
 
 /** The sheet before a project is deleted: with chats in it the person says what happens to them; without, it is a plain question. `onDeleted(result)` is called after. */

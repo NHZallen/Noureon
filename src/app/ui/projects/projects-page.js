@@ -3,7 +3,9 @@
 // noureon.com/projects/<id>. Names and titles are put in with textContent; colours are the tokens (styles/projects.css) and the colour a person chose for a project.
 
 import { make, ICONS, openMenu, projectMark } from './project-parts.js';
-import { openCreateSheet, openDeleteSheet, openEditSheet, openInstructionsSheet, openRenameChatSheet } from './project-sheets.js';
+import { openCreateSheet, openDeleteSheet, openEditSheet, openInstructionsSheet, openRenameChatSheet, openSourceTextSheet, sourceFailureText } from './project-sheets.js';
+import { PROJECT_SOURCES_MAX } from '../../runtime/projects/project-source-model.js';
+import { projectSourcesFor } from '../../runtime/projects/project-source-prompt.js';
 import { PROJECTS_PATH, projectPath, projectsRouteFromPath } from './project-path.js';
 
 let current = null;
@@ -35,9 +37,10 @@ const previewOf = (conversation) => {
 /**
  * Opens the page, once (opened again it only turns to `route`). `route` is { list: true } or { id }.
  * deps: document, text(key, vars), actions (runtime/projects/project-actions.js), chats { archive(id), remove(id) } (the app's own, which ask what has to be asked), openChat(id),
- * notify(message, type), sourcesEnabled (the tab of the sources, when there is a part for it), onClose().
+ * notify(message, type), sourcesEnabled (the tab of the sources, when there is a part for it), readFile(file) (reads a file into
+ * { ok, title, mime, size, text, truncated } or { ok: false, code }: runtime/projects/project-source-reader.js), onClose().
  */
-export function openProjectsPage({ document, text, actions, chats = {}, openChat = () => {}, notify = () => {}, route = { list: true }, sourcesEnabled = false, onClose = () => {} }) {
+export function openProjectsPage({ document, text, actions, chats = {}, openChat = () => {}, notify = () => {}, route = { list: true }, sourcesEnabled = false, readFile = async () => ({ ok: false, code: 'unsupported' }), onClose = () => {} }) {
   if (current) {
     current.go(route);
     return current;
@@ -240,6 +243,75 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
       chatsBody.appendChild(row);
     }
   };
+  // ----- the sources of a project: texts and files that every chat of the project reads
+  const sizeText = (source) => {
+    const size = Number(source.size) || source.text.length;
+    return size >= 1048576 ? `${(size / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(size / 1024))} KB`;
+  };
+  const fileInput = make(document, 'input', 'pj-file-input');
+  fileInput.type = 'file';
+  fileInput.multiple = true;
+  fileInput.hidden = true;
+  fileInput.accept = '.txt,.md,.markdown,.csv,.tsv,.json,.xml,.html,.htm,.yaml,.yml,.log,.pdf,.docx,.pptx,.xlsx,.py,.js,.ts,.java,.c,.cpp,.go,.rs,.sql,.css,text/*,application/pdf';
+  root.appendChild(fileInput);
+  fileInput.addEventListener('change', async () => {
+    const project = projectOrNull(state.projectId);
+    const files = [...(fileInput.files || [])];
+    fileInput.value = '';
+    if (!project) return;
+    for (const file of files) {
+      const read = await readFile(file).catch(() => ({ ok: false, code: 'unreadable' }));
+      if (!read.ok) { notify(sourceFailureText(text, read, file.name), 'error'); continue; }
+      const added = await actions.addSource(project.id, { kind: 'file', title: read.title, mime: read.mime, size: read.size, text: read.text }).catch(() => ({ ok: false }));
+      if (!added.ok) { notify(sourceFailureText(text, added, file.name), 'error'); if (added.code === 'full' || added.code === 'too_much') break; continue; }
+      notify(read.truncated ? text('pjSourceTruncated', { name: read.title, max: '100,000' }) : text('pjSourceAdded'), 'success');
+    }
+    if (state.view === 'project' && state.tab === 'sources') drawProject();
+  });
+  const sourcesView = (project) => {
+    const box = make(document, 'div', 'pj-sources');
+    const list = actions.sourcesOf(project.id);
+    box.appendChild(make(document, 'p', 'pj-note', text('pjSourcesHint')));
+    const add = make(document, 'div', 'pj-row pj-source-add');
+    add.setAttribute('role', 'button');
+    add.tabIndex = 0;
+    const plus = make(document, 'span', 'pj-source-tile');
+    plus.innerHTML = ICONS.plus(18);
+    const words = make(document, 'span', 'pj-row-text');
+    words.append(make(document, 'span', 'pj-row-title', text('pjSourcesAdd')), make(document, 'span', 'pj-row-meta', text('pjSourcesCount', { n: list.length, max: PROJECT_SOURCES_MAX })));
+    add.append(plus, words);
+    const openAdd = () => {
+      closeMenu();
+      menu = openMenu({
+        document, root, anchor: add, onClose: () => { menu = null; },
+        items: [
+          { label: text('pjSourceAddFile'), icon: 'file', action: () => fileInput.click() },
+          { label: text('pjSourceAddText'), icon: 'notes', action: () => openSourceTextSheet({ document, root, text, actions, project, notify, onSaved: drawProject }) }
+        ]
+      });
+    };
+    add.addEventListener('click', openAdd);
+    add.addEventListener('keydown', (event) => { if (event.target === add && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); openAdd(); } });
+    box.appendChild(add);
+    for (const source of list) {
+      const row = make(document, 'div', 'pj-row pj-source');
+      row.dataset.sourceId = source.id;
+      const tile = make(document, 'span', 'pj-source-tile');
+      tile.innerHTML = (source.kind === 'file' ? ICONS.file : ICONS.notes)(18);
+      const meta = make(document, 'span', 'pj-row-text');
+      meta.append(make(document, 'span', 'pj-row-title', source.title || text('pjSourceUntitled')), make(document, 'span', 'pj-row-meta', `${text(source.kind === 'file' ? 'pjSourceKindFile' : 'pjSourceKindText')} · ${sizeText(source)}`));
+      const remove = make(document, 'button', 'pj-more');
+      remove.type = 'button';
+      remove.setAttribute('aria-label', text('pjSourceRemove'));
+      remove.innerHTML = ICONS.trash(18);
+      remove.addEventListener('click', async () => { const result = await actions.removeSource(project.id, source.id); if (result.ok) notify(text('pjSourceRemoved'), 'success'); drawProject(); });
+      row.append(tile, meta, remove);
+      box.appendChild(row);
+    }
+    const left = projectSourcesFor(project).left;
+    if (left.length) box.appendChild(make(document, 'p', 'pj-note', text('pjSourcesLeftOut', { n: left.length })));
+    return box;
+  };
   const drawProject = () => {
     closeMenu();
     const project = projectOrNull(state.projectId);
@@ -251,6 +323,11 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     const head = header({ left: round('back', text('pjBack'), () => back()), title, right: more });
     const body = make(document, 'main', 'pj-body');
     if (sourcesEnabled) body.appendChild(tabs([['chats', text('pjTabChats')], ['sources', text('pjTabSources')]], state.tab, (key) => { state.tab = key; drawProject(); }, project.name || ''));
+    if (sourcesEnabled && state.tab === 'sources') {
+      body.appendChild(sourcesView(project));
+      root.replaceChildren(head, body, fileInput);
+      return;
+    }
     chatsBody = make(document, 'div', 'pj-chats');
     body.appendChild(chatsBody);
     // The box that writes to the project: a message sent from it starts a chat in the project.
@@ -281,7 +358,7 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     box.append(area, send);
     const foot = make(document, 'footer', 'pj-foot');
     foot.appendChild(box);
-    root.replaceChildren(head, body, foot);
+    root.replaceChildren(head, body, foot, fileInput);
     drawChats();
   };
 

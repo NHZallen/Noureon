@@ -104,7 +104,7 @@
 - 回覆：`runtime/projects/project-instructions.js`（頁面唯一一處加進系統指示，位置見 §2；`shouldApplyNouras` 同一組用途才帶；臨時對話不帶）；伺服器版、議會拿頁面組好的文字，伺服器格式沒變。此模組在 `scripts/server-shared-modules.json`。
 - 畫面：`ui/projects/`（`projects-page.js`、`project-sheets.js`、`project-parts.js`、`project-path.js`）、`styles/projects.css`（只用 `tokens.css` 的名稱）、`runtime/projects/`（`project-actions.js`、`start-projects.js`）；網址 `/projects`、`/projects/<id>`（`vercel.json` 加了兩條 rewrite）；側邊欄「專案」入口在「擴充」下面。
 - 文字：`i18n/parts/projects.js`（五語）；原本的「資料夾」字樣（選單、對話框、通知、P2P、匯出匯入、隱私權政策與協助中心五語）全部改成「專案」，程式內部名稱不變。圖示補了 16 個（`folder-metadata.js`），共 28 個。
-- **沒做**：資料來源頁籤（P2）、電腦版專門的排版（沿用手機同一套，置中窄欄）。
+- **沒做**：資料來源頁籤（P2a 做了，見 §13）、電腦版專門的排版（沿用手機同一套，置中窄欄）。
 - 附帶修的 bug：切換到沒有金鑰的提供商時輸入框不會先擋、第一個字之後才卡住（單模型的選擇沒有更新輸入框與標頭警告）；現在選的當下就更新、跳出通知，點被擋住的輸入框也會再說一次。
 
 
@@ -115,3 +115,16 @@
 - **樣式**：不用粗體（400 與 500）、字級統一、圖示吃使用者選的顏色（全站 `body svg` 要用 `svg { color: inherit }` 蓋掉）、顏色那排滑到螢幕兩邊、清單一列縮小（`2.25rem` 圖示）。規範寫在 `2026-10-31-ui-style-rules.md`，`tests/ui-style-rules.test.js` 檢查。
 - **每列右邊 `⋯`**：新的專案對話（開一個空的專案對話並關掉專案頁）、釘選／取消釘選、專案設定（名稱與圖示）、刪除專案。專案頁右上的 `•••` 多一項釘選。
 - **面板整頁**：建立、編輯、指示、選圖示都是整頁（像設定頁，沒有遮罩）；刪除確認與重新命名對話維持置中小對話框。
+
+## 13. P2 資料來源：分三步，第一步（P2a）的做法（2026-10-31）
+
+§3 原本寫的是新表 `workspace_project_sources`、檔案放 `user-assets` 並計入 500 MB。動工前看過現有程式後改成分步，P2a 先做「文字與讀出文字的檔案」，不需要新表、不用額度：
+
+- **存法**：`workspace_folders.sources jsonb`（`supabase/migrations/20261031110000_add_project_sources.sql`，最多 20 筆）。一筆來源是 `{ id, kind: 'text' | 'file', title, mime, size, text, addedAt }`。因為它是專案那一列的欄位，雲端同步、本機帳號、匯入匯出、伺服器版都不用另外做；沒帶 `sources` 的舊頁面寫回時保留原值。
+- **只存文字**：加檔案時在頁面讀出文字（純文字與程式碼檔、Word / PowerPoint / Excel 用聊天已有的 office 讀取器、PDF 用 `pdfjs-dist` 的文字層），**原檔不保存**。所以 P2a 不碰 `user-assets` 與 500 MB 額度。圖片、掃描檔沒有文字，會明確說讀不了（不是默默丟掉）。
+- **上限**：每筆 100 000 字、全部加起來 400 000 字、25 MB 以內的檔案、20 筆。
+- **回覆怎麼帶**：`project-source-prompt.js` 把來源組成一段文字，接在專案指示後面，同一個位置（`projectInstructionTextFor`），所以頁面、伺服器版、議會都自動帶到，伺服器格式沒變。預算 60 000 字（約 15 000 token），照加入順序放到放不下為止；放不下的列出標題並告訴模型「沒讀」，專案頁的資料來源頁籤也會寫出有幾個沒帶入。文字被當成參考資料而不是指示（防止檔案內容改寫指令）。
+- **P2b（下一步）**：太大放不下的來源改用檢索。沿用記憶的向量（`workspace_memory_vectors`、Gemini embedding 768 維、同步開關），來源切塊後 `piece_id` 用 `src:<來源 id>:<序號>`；提問時檢索相關片段放進回覆，取代「放不下就不讀」。
+- **P2c**：圖片與掃描檔（需要保存原檔，才計入 `user-assets` 與 500 MB）、回覆下方「來源」顯示用了哪個專案來源、拍照與新增照片。
+- 畫面：專案頁「資料來源」頁籤，第一列「新增資料來源」開選單（新增檔案、新增文字），下面每列圖示＋標題＋類型與大小＋垃圾桶；新增文字是整頁面板（標題選填、文字、儲存）。照 `2026-10-31-ui-style-rules.md`。
+- 隱私：資料來源的文字隨專案同步到雲端（和專案指示一樣），回覆時會送給使用者選的模型供應商；五語隱私權政策與使用條款已寫入，`PRIVACY.md` 重新產生。

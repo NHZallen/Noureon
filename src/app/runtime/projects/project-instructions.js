@@ -1,6 +1,8 @@
 // The instructions of a project (a folder of the workspace, docs/superpowers/specs/2026-10-31-projects-design.md): every conversation in the project carries them. The reply puts them
 // together with the rest of its system instruction (reply/stream-api-call.js), after the Noura, the learning mode and the memory, so inside the project they are the last word.
 
+import { projectSourcesFor } from './project-source-prompt.js';
+
 export const PROJECT_INSTRUCTIONS_MAX = 4000;
 
 let readFolders = () => [];
@@ -20,11 +22,12 @@ export function projectOf(conversation) {
   return folder || null;
 }
 
-/** The text added to the system instruction of a reply in a conversation of a project ('' when there is nothing to add). */
+/** The text added to the system instruction of a reply in a conversation of a project: its instructions, then its sources ('' when there is nothing to add). */
 export function projectInstructionTextFor(conversation) {
   const folder = projectOf(conversation);
   const text = String(folder?.instructions || '').trim().slice(0, PROJECT_INSTRUCTIONS_MAX);
-  if (!text) return '';
-  const name = oneLine(folder.name, 80);
-  return `Project instructions${name ? ` (this chat is in the project "${name}")` : ''}. Follow them in every reply of this chat; where they conflict with the general instructions above, these win:\n\n${text}`;
+  const name = oneLine(folder?.name, 80);
+  const instructions = text ? `Project instructions${name ? ` (this chat is in the project "${name}")` : ''}. Follow them in every reply of this chat; where they conflict with the general instructions above, these win:\n\n${text}` : '';
+  // The sources of the project come after the instructions, in the same place of the system instruction.
+  return [instructions, folder ? projectSourcesFor(folder).text : ''].filter(Boolean).join('\n\n');
 }

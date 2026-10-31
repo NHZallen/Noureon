@@ -41,7 +41,8 @@ export function startProjects({
     opening = opening || loadPage().finally(() => { opening = null; });
     const page = await opening;
     return page.openProjectsPage({
-      document, text, actions, route,
+      document, text, actions, route, sourcesEnabled: true,
+      readFile: async (file) => { const [reader, browser] = await Promise.all([import('./project-source-reader.js'), import('./project-source-browser.js')]); return reader.readSourceFile(file, browser); },
       chats: { archive: (id) => archiveChat(id), remove: (id) => deleteChat(id) },
       openChat: (id) => loadChat(id),
       notify: (message, type = 'success') => showNotification(message, type)

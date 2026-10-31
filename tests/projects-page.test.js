@@ -393,3 +393,50 @@ test('opened again the page only turns to the route; Escape leaves a project, th
     assert.equal(t.document.documentElement.classList.contains('pj-open'), false);
   } finally { await t.finish(); }
 });
+
+test('the sources tab: add a text, add files (read, refused with the reason), remove one; what does not fit in a reply is told', async () => {
+  const t = setup();
+  try {
+    const reads = [];
+    t.open({ id: 'f2' }, {
+      sourcesEnabled: true,
+      readFile: async (file) => { reads.push(file.name); return file.name.endsWith('.png') ? { ok: false, code: 'unsupported' } : { ok: true, title: file.name, mime: 'text/plain', size: 2048, text: `text of ${file.name}`, truncated: false }; }
+    });
+    assert.deepEqual(t.$$('.pj-tab').map((tab) => tab.textContent), ['Chats', 'Sources']);
+    t.byText('.pj-tab', 'Sources').click();
+    assert.equal(t.$('.pj-composer'), null, 'no box to write in on this tab');
+    assert.match(t.$('.pj-source-add .pj-row-meta').textContent, /0 of 20/);
+
+    t.$('.pj-source-add').click();
+    assert.deepEqual(t.$$('.pj-menu-item').map((item) => item.textContent), ['Add a file', 'Add text']);
+    t.byText('.pj-menu-item', 'Add text').click();
+    assert.equal(t.byText('.pj-sheet .pj-button', 'Save').disabled, true, 'nothing to save yet');
+    t.type(t.$('.pj-sheet .pj-text-input'), 'My notes');
+    t.type(t.$('.pj-sheet .pj-textarea'), 'The facts.');
+    t.byText('.pj-sheet .pj-button', 'Save').click();
+    await t.tick();
+    assert.deepEqual(t.state.folders.find((folder) => folder.id === 'f2').sources.map((source) => [source.title, source.kind, source.text]), [['My notes', 'text', 'The facts.']]);
+    assert.deepEqual(t.state.notified.at(-1), ['Source added.', 'success']);
+    assert.equal(t.$$('.pj-source').length, 1);
+
+    const input = t.$('.pj-file-input');
+    Object.defineProperty(input, 'files', { value: [{ name: 'report.txt' }, { name: 'photo.png' }], configurable: true });
+    input.dispatchEvent(new t.window.Event('change'));
+    await t.tick();
+    assert.deepEqual(reads, ['report.txt', 'photo.png']);
+    assert.deepEqual(t.$$('.pj-source .pj-row-title').map((node) => node.textContent), ['My notes', 'report.txt']);
+    assert.match(t.$$('.pj-source .pj-row-meta')[1].textContent, /File · 2 KB/);
+    assert.match(t.state.notified.at(-1)[0], /"photo.png" is a kind of file that cannot be read yet/);
+    assert.equal(t.state.notified.at(-1)[1], 'error');
+
+    t.$$('.pj-source .pj-more')[0].click();
+    await t.tick();
+    assert.deepEqual(t.$$('.pj-source .pj-row-title').map((node) => node.textContent), ['report.txt']);
+    assert.deepEqual(t.state.notified.at(-1), ['Source removed.', 'success']);
+
+    await t.actions.addSource('f2', { text: 'x'.repeat(70_000), title: 'Huge' });
+    t.$('.pj-tab[aria-selected="false"]').click();
+    t.byText('.pj-tab', 'Sources').click();
+    assert.match(t.$('.pj-sources').textContent, /1 source\(s\) are too big/);
+  } finally { await t.finish(); }
+});

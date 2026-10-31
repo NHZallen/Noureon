@@ -587,6 +587,14 @@
     {
       "path": "src/app/runtime/projects/project-instructions.js",
       "note": "Reviewed 2026-10-31: no browser globals (the instructions of the project a conversation is in, put into the system instruction by stream-api-call.js; the page tells where the folders are through one function; docs/superpowers/specs/2026-10-31-projects-design.md)."
+    },
+    {
+      "path": "src/app/runtime/projects/project-source-prompt.js",
+      "note": "Reviewed 2026-10-31: no browser globals (the sources of a project as the text of a reply, within a budget; used by project-instructions.js; docs/superpowers/specs/2026-10-31-projects-design.md, section 13)."
+    },
+    {
+      "path": "src/app/runtime/projects/project-source-model.js",
+      "note": "Reviewed 2026-10-31: no browser globals (the shape and the limits of the sources of a project; used by the prompt above and by the sync)."
     }
   ]
 }

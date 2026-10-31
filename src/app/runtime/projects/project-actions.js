@@ -5,6 +5,7 @@ import { FOLDER_SVGS } from '../features/folder-metadata.js';
 import { FOLDER_COLORS } from '../shell/runtime-ui-colors.js';
 import { confirmDeleteShared } from '../share/share-ref.js';
 import { PROJECT_INSTRUCTIONS_MAX } from './project-instructions.js';
+import { normalizeSource, normalizeSources, PROJECT_SOURCES_CHARS_MAX, PROJECT_SOURCES_MAX, sourcesCharsOf } from './project-source-model.js';
 
 export const PROJECT_NAME_MAX = 80;
 
@@ -97,6 +98,35 @@ export function createProjectActions({
     return { ok: true, pinned: folder.pinned };
   }
 
+  /** The sources of a project (texts and files that were read), in the order they were added. */
+  const sourcesOf = (id) => normalizeSources(folderOf(id)?.sources);
+
+  /** Adds a source ({ kind, title, mime, size, text }). Refused with code 'full' (20 already), 'too_much' (the texts together would pass 400 000 characters), 'empty' or 'gone'. */
+  async function addSource(id, input = {}) {
+    const folder = folderOf(id);
+    if (!folder) return { ok: false, code: 'gone' };
+    const current = sourcesOf(id);
+    if (current.length >= PROJECT_SOURCES_MAX) return { ok: false, code: 'full' };
+    const source = normalizeSource({ ...input, id: randomUUID(), addedAt: new Date().toISOString() });
+    if (!source) return { ok: false, code: 'empty' };
+    if (sourcesCharsOf(current) + source.text.length > PROJECT_SOURCES_CHARS_MAX) return { ok: false, code: 'too_much' };
+    folder.sources = [...current, source];
+    dataStore.replaceFolders([...folders()]);
+    await saveAppData();
+    return { ok: true, id: source.id };
+  }
+
+  async function removeSource(id, sourceId) {
+    const folder = folderOf(id);
+    if (!folder) return { ok: false, code: 'gone' };
+    const current = sourcesOf(id);
+    if (!current.some((source) => source.id === sourceId)) return { ok: false, code: 'gone' };
+    folder.sources = current.filter((source) => source.id !== sourceId);
+    dataStore.replaceFolders([...folders()]);
+    await saveAppData();
+    return { ok: true };
+  }
+
   /** Deletes a project. `withChats`: its conversations go to the trash too (they can be restored); otherwise they are kept, outside any project. */
   async function remove(id, { withChats = false } = {}) {
     const folder = folderOf(id);
@@ -176,5 +206,5 @@ export function createProjectActions({
     return { ok: true, conversationId: conversation.id };
   }
 
-  return { list, chatsOf, countOf, folderOf, create, update, remove, removeChat, renameChat, togglePin, togglePinProject, startChat };
+  return { list, sourcesOf, addSource, removeSource, chatsOf, countOf, folderOf, create, update, remove, removeChat, renameChat, togglePin, togglePinProject, startChat };
 }

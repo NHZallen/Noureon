@@ -1,3 +1,5 @@
+import { normalizeSources } from '../projects/project-source-model.js';
+
 export function createReceivedDataLifecycle({
     BlobCtor = Blob,
     // Loads JSZip the first time a share is received (app/vendors/archive-vendor.js).
@@ -97,6 +99,7 @@ export function createReceivedDataLifecycle({
                     newFolder.textColor = folder.textColor;
                     newFolder.instructions = typeof folder.instructions === 'string' ? folder.instructions : '';
                     newFolder.pinned = folder.pinned === true;
+                    newFolder.sources = normalizeSources(folder.sources);
 
                     folder.conversationIds.forEach(oldConvId => {
                         const newConvId = idMap[oldConvId];

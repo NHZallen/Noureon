@@ -68,3 +68,19 @@ test('a folder is pinned or not, and a page that sends no pin (an older version)
   assert.equal(await pinned(), false);
   assert.equal((await folderRow(folderId)).instructions, 'x', 'and a write without the instructions keeps them');
 });
+
+test('the sources of a project are saved with the folder, an older page that sends none keeps them, and more than 20 are refused', async () => {
+  const folderId = id();
+  const sourcesOf = async () => (await database.service.query('select sources from public.workspace_folders where id = $1', [folderId]))[0].sources;
+  const source = (n) => ({ id: `s${n}`, kind: 'text', title: `Note ${n}`, mime: '', size: 5, text: 'hello', addedAt: '2026-10-31T00:00:00.000Z' });
+  await callWith(A, 'upsert_workspace_folders', [{ id: folderId, name: 'P' }]);
+  assert.deepEqual(await sourcesOf(), [], 'a folder starts with none');
+  await callWith(A, 'upsert_workspace_folders', [{ id: folderId, name: 'P', sources: [source(1), source(2)] }]);
+  assert.equal((await sourcesOf()).length, 2);
+  assert.match(JSON.stringify(await delta()), /Note 2/, 'and they come back in the delta');
+  await callWith(A, 'upsert_workspace_folders', [{ id: folderId, name: 'P renamed' }]);
+  assert.equal((await sourcesOf()).length, 2, 'a write without them keeps them');
+  await callWith(A, 'upsert_workspace_folders', [{ id: folderId, name: 'P renamed', sources: [] }]);
+  assert.deepEqual(await sourcesOf(), [], 'an empty list takes them away');
+  await assert.rejects(callWith(A, 'upsert_workspace_folders', [{ id: folderId, name: 'P', sources: Array.from({ length: 21 }, (_, n) => source(n)) }]), /sources_check|check constraint/);
+});

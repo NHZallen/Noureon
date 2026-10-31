@@ -150,3 +150,10 @@ html.pj-open { overflow: hidden; }
 
 /* the instructions */
 .pj-textarea { width: 100%; min-height: 13rem; box-sizing: border-box; padding: 0.8rem 1rem; border: 0; border-radius: 1rem; outline: 0; resize: vertical; background: var(--hover-bg); color: var(--text-primary); line-height: 1.5; }
+
+/* the sources of a project */
+.pj-sources { display: grid; gap: 0.1rem; }
+.pj-sources > .pj-note { margin: 0 0 0.6rem; }
+.pj-source-tile { flex: none; display: inline-grid; place-items: center; width: 2.25rem; height: 2.25rem; border-radius: 0.6rem; background: var(--hover-bg); color: var(--text-secondary); }
+.pj-source-add .pj-source-tile { color: var(--text-primary); }
+.pj-source .pj-more { color: var(--text-secondary); }

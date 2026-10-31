@@ -1,4 +1,5 @@
 import { mergeConversationVersions } from './cloud-sync-versioning.js';
+import { normalizeSources } from '../runtime/projects/project-source-model.js';
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MESSAGE_STATUSES = new Set(['streaming', 'complete', 'error']);
@@ -31,8 +32,8 @@ function canonicalizeFirstValidTimestamp(...values) {
 
 function canonicalizeShadowRow(value) {
   // A folder written before projects has no instructions and is not pinned: the same as an empty text and no pin.
-  const source = value && typeof value === 'object' && 'text_color' in value && (value.instructions == null || value.pinned == null)
-    ? { ...value, instructions: value.instructions ?? '', pinned: value.pinned ?? false }
+  const source = value && typeof value === 'object' && 'text_color' in value && (value.instructions == null || value.pinned == null || value.sources == null)
+    ? { ...value, instructions: value.instructions ?? '', pinned: value.pinned ?? false, sources: value.sources ?? [] }
     : value;
   const row = canonicalize(source || {});
   for (const key of ['created_at', 'updated_at', 'deleted_at']) {
@@ -148,6 +149,7 @@ function folderFromRow(row = {}, conversationIds = []) {
     // The instructions of the project (a folder of an older version has none).
     instructions: typeof row.instructions === 'string' ? row.instructions : '',
     pinned: row.pinned === true,
+    sources: normalizeSources(row.sources),
     deletedAt: row.deleted_at || null
   };
 }
@@ -403,6 +405,7 @@ export async function encodeWorkspaceConversationShadow({
       text_color: String(folder.textColor || folder.text_color || 'gray'),
       instructions: String(folder.instructions || ''),
       pinned: folder.pinned === true,
+      sources: normalizeSources(folder.sources),
       deleted_at: folder.deletedAt || null
     }));
   const conversations = [];

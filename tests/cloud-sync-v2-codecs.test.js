@@ -674,3 +674,16 @@ test('a pinned project goes to the cloud and comes back; a folder without the pi
   assert.equal(shadowRowsEqual(old, { ...old, pinned: true }), false);
 });
 
+
+test('the sources of a project go to the cloud in a fixed shape and come back; a folder without them has none and equals one with an empty list', async () => {
+  const folderId = '66666666-6666-4666-8666-666666666666';
+  const source = { id: 's1', kind: 'file', title: '  Report.pdf ', mime: 'application/pdf', size: 1234, text: 'Some text', addedAt: '2026-10-31T00:00:00.000Z', stray: 'x' };
+  const encoded = await encodeWorkspaceConversationShadow({ userId, cryptoProvider: webcrypto, workspace: { folders: [{ id: folderId, name: 'S', sources: [source, { id: 'empty', text: '  ' }], conversationIds: [] }], conversations: [] } });
+  assert.deepEqual(encoded.folders[0].sources, [{ id: 's1', kind: 'file', title: 'Report.pdf', mime: 'application/pdf', size: 1234, text: 'Some text', addedAt: '2026-10-31T00:00:00.000Z' }], 'cleaned, without what is not a source');
+  assert.deepEqual(decodeWorkspaceConversationShadow(encoded).folders[0].sources, encoded.folders[0].sources);
+  const old = { ...encoded.folders[0] };
+  delete old.sources;
+  assert.deepEqual(decodeWorkspaceConversationShadow({ folders: [old] }).folders[0].sources, []);
+  assert.equal(shadowRowsEqual(old, { ...old, sources: [] }), true);
+  assert.equal(shadowRowsEqual(old, { ...old, sources: encoded.folders[0].sources }), false);
+});
