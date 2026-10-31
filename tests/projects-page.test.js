@@ -765,3 +765,28 @@ test('a folder dropped on the sheet that makes a project is read with what is in
     assert.deepEqual(read.sort(), ['a.txt', 'b.md', 'loose.txt']);
   } finally { await t.finish(); }
 });
+
+test('the cards of the right column fold and unfold, and what was folded is remembered', async () => {
+  const folders = [{ id: 'f1', name: 'Research', icon: 'globe', color: 'blue', conversationIds: [], instructions: 'Be brief.', sources: Array.from({ length: 4 }, (_, n) => ({ id: `s${n}`, kind: 'text', title: `Note ${n}`, mime: '', size: 5, text: 'hello', addedAt: '' })) }];
+  const t = setup({ folders, conversations: [], wide: true });
+  try {
+    t.open({ id: 'f1' }, { sourcesEnabled: true });
+    const toggle = () => t.$('.pj-card-toggle[data-card="sources"]');
+    const card = () => toggle().closest('.pj-card');
+    assert.equal(toggle().getAttribute('aria-expanded'), 'true');
+    assert.equal(card().classList.contains('is-folded'), false);
+    assert.equal(t.$$('.pj-panel .pj-sources .pj-row').length, 4);
+    toggle().click();
+    assert.equal(card().classList.contains('is-folded'), true);
+    assert.equal(toggle().getAttribute('aria-expanded'), 'false');
+    assert.equal(t.$('.pj-card-toggle[data-card="instructions"]').closest('.pj-card').classList.contains('is-folded'), false, 'the other card is not folded');
+    assert.deepEqual(JSON.parse(t.window.localStorage.getItem('noureon.projectPanels.v1')), ['sources']);
+    // Drawn again (another project, a source added) it stays folded; the count is still in the title.
+    t.$('.pj-side-row').click();
+    assert.equal(card().classList.contains('is-folded'), true);
+    assert.match(toggle().textContent, /4 of 20/);
+    toggle().click();
+    assert.equal(card().classList.contains('is-folded'), false);
+    assert.deepEqual(JSON.parse(t.window.localStorage.getItem('noureon.projectPanels.v1')), []);
+  } finally { await t.finish(); }
+});

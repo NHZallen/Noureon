@@ -93,19 +93,26 @@ export function startProjects({
   const ensureEntry = () => {
     const list = document.querySelector('#sidebar .overflow-y-auto');
     if (!list) return null;
+    // The entry is in the page from its first paint (templates/fragments/00-shell.fragment.js), with its label; here it gets its click. Without it (a test, an older template) one is made.
     let entry = document.getElementById(ENTRY_ID);
+    const created = !entry;
     if (!entry) {
       entry = document.createElement('button');
       entry.id = ENTRY_ID;
       entry.type = 'button';
       entry.className = 'sidebar-item cli-sidebar-entry w-full text-left rounded-lg flex items-center';
       entry.innerHTML = `${folderIcon}<span class="cli-sidebar-label"></span>`;
+    }
+    if (entry.dataset.bound !== 'true') {
+      entry.dataset.bound = 'true';
       entry.addEventListener('click', () => {
         // On a phone the menu is a drawer over the chat: it goes away as the page comes.
         const overlay = document.getElementById('sidebar-overlay');
         if (overlay?.classList.contains('visible')) overlay.click();
         void open({ list: true });
       });
+    }
+    if (created) {
       const extensions = document.getElementById('open-cli-store-btn');
       if (extensions?.parentNode === list) list.insertBefore(entry, extensions.nextSibling);
       else list.insertBefore(entry, list.firstChild);

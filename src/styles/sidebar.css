@@ -195,9 +195,22 @@
 }
 
 
-/* On a computer the Projects section of the menu (sidebar-projects.js) is the one place for the projects; the entry that opens their page is only for a phone. */
+/* On a computer the Projects section of the menu (sidebar-projects.js) is the one place for the projects; the entry that opens their page is only for a phone, and the section is only for a computer.
+   Both are in the page from its first paint (the templates), so nothing waits for the part that fills them. */
 @media (min-width: 768px) {
     #open-projects-btn {
         display: none;
     }
+}
+@media (max-width: 767.98px) {
+    .sidebar-section[data-section="projects"] {
+        display: none;
+    }
+}
+/* While the projects are not read yet the section shows two quiet bars in the place of the rows. */
+.pj-side-skeleton {
+    height: 2.5rem;
+    margin: 0.25rem 0.5rem;
+    border-radius: 0.75rem;
+    background: var(--hover-bg);
 }

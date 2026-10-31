@@ -11,10 +11,10 @@ import i18nParts from '../src/data/i18n/parts/projects.js';
 const i18n = { 'zh-TW': i18nParts['zh-TW'], en: i18nParts.en, fr: i18nParts.fr };
 const tick = () => new Promise((resolve) => setTimeout(resolve, 20));
 
-const setup = ({ url = 'https://noureon.test/', language = 'en', withExtensions = true } = {}) => {
+const setup = ({ url = 'https://noureon.test/', language = 'en', withExtensions = true, staticEntry = false } = {}) => {
   const window = new Window({ url });
   const { document } = window;
-  document.body.innerHTML = `<aside id="sidebar"><div class="overflow-y-auto">${withExtensions ? '<button id="open-cli-store-btn">Extensions</button>' : ''}<div id="rest">history</div></div></aside><div id="sidebar-overlay"></div>`;
+  document.body.innerHTML = `<aside id="sidebar"><div class="overflow-y-auto">${staticEntry ? '<button id="open-projects-btn" class="sidebar-item"><span class="cli-sidebar-label">專案</span></button>' : ''}${withExtensions ? '<button id="open-cli-store-btn">Extensions</button>' : ''}<div id="rest">history</div></div></aside><div id="sidebar-overlay"></div>`;
   const config = { language };
   const opened = [];
   const state = { folders: [{ id: 'f1', name: 'Trip', conversationIds: [] }], conversations: [] };
@@ -102,5 +102,20 @@ test('an ordinary address opens nothing', async () => {
   t.document.dispatchEvent(new t.window.CustomEvent('noureon:user-ready'));
   await tick();
   assert.deepEqual(t.opened, []);
+  await t.window.happyDOM.abort();
+});
+
+test('an entry that is in the page from its first paint gets its label and its click, and is not made twice', async () => {
+  const t = setup({ staticEntry: true });
+  assert.equal(t.document.querySelectorAll('#open-projects-btn').length, 1);
+  const entry = t.$('#open-projects-btn');
+  assert.equal(entry.querySelector('.cli-sidebar-label').textContent, 'Projects', 'the label is in the language of the page');
+  entry.click();
+  await tick();
+  assert.deepEqual(t.opened, [{ list: true }], 'one click opens the list once');
+  t.started.ensureEntry();
+  entry.click();
+  await tick();
+  assert.equal(t.opened.length, 2, 'drawn again, it still has one click, not two');
   await t.window.happyDOM.abort();
 });

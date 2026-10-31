@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
 
 import { Window } from 'happy-dom';
 import { createProjectActions } from '../src/app/runtime/projects/project-actions.js';
@@ -142,4 +143,35 @@ test('the ⋯ that opened the menu of a project closes it when it is pressed aga
   t.$('.folder-item[data-id="b"]').dispatchEvent(new t.window.PointerEvent('pointerdown', { bubbles: true }));
   await tick();
   assert.equal(t.$$('.pj-menu').length, 0, 'a press elsewhere closes it');
+});
+
+test('the section that the page has from its first paint is taken as it is: its list is filled, its + makes a project, and no second section is made', () => {
+  const calls = [];
+  const t = setup();
+  t.document.body.innerHTML = '<aside id="sidebar"><div class="sidebar-section" data-section="projects" data-open="true"><header class="sidebar-section-header"><div class="title-group"><span>Projects</span></div><div class="actions-group"><button id="sidebar-projects-new-btn" type="button">+</button></div></header><div class="sidebar-section-content"><div id="sidebar-projects-list"><div class="pj-side-skeleton"></div></div></div></div><div class="sidebar-section" data-section="history" data-open="true"><header class="sidebar-section-header"></header><div id="history-list"></div></div></aside>';
+  const sidebar = createSidebarProjects({
+    document: t.document, text, actions: t.actions, openProject() {}, openSettings() {}, askDelete() {}, openChat() {},
+    createProject: () => calls.push('create'), getCurrentConversationId: () => null
+  });
+  sidebar.render();
+  assert.equal(t.$$('.sidebar-section[data-section="projects"]').length, 1, 'the one that was there');
+  assert.equal(t.$('.pj-side-skeleton'), null, 'the bars that stood in the place of the rows are gone');
+  assert.deepEqual(t.$$('.folder-item').map((item) => item.dataset.id), ['b', 'a']);
+  const section = t.$('.sidebar-section[data-section="projects"]');
+  t.$('#sidebar-projects-new-btn').click();
+  assert.deepEqual(calls, ['create']);
+  assert.equal(section.dataset.open, 'true', 'the + does not fold it');
+  sidebar.render();
+  t.$('#sidebar-projects-new-btn').click();
+  assert.deepEqual(calls, ['create', 'create'], 'drawn again, one click is one call');
+});
+
+test('the templates have the entry and the section from the first paint, with texts the page translates', () => {
+  const shell = readFileSync(new URL('../src/templates/fragments/00-shell.fragment.js', import.meta.url), 'utf8');
+  const side = readFileSync(new URL('../src/templates/fragments/01-shell.fragment.js', import.meta.url), 'utf8');
+  assert.match(shell, /id=\\"open-projects-btn\\"[^>]*>.*data-lang-key=\\"pjEntry\\"/);
+  assert.match(side, /data-section=\\"projects\\"/);
+  assert.match(side, /id=\\"sidebar-projects-list\\"/);
+  assert.match(side, /id=\\"sidebar-projects-new-btn\\"[^>]*data-lang-key-title=\\"pjNew\\"/);
+  assert.ok(side.indexOf('data-section=\\"projects\\"') < side.indexOf('data-section=\\"history\\"'), 'the section is above the history');
 });

@@ -513,6 +513,28 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     draw();
     return side;
   };
+  // The two cards of the right column fold (a project with many sources has a long column); what was folded is remembered in this browser.
+  const PANEL_KEY = 'noureon.projectPanels.v1';
+  const folded = (() => { try { return new Set(JSON.parse(win.localStorage?.getItem(PANEL_KEY) || '[]')); } catch { return new Set(); } })();
+  const foldTitle = (key, label, count = '') => {
+    const toggle = make(document, 'button', 'pj-card-toggle');
+    toggle.type = 'button';
+    toggle.dataset.card = key;
+    toggle.setAttribute('aria-expanded', String(!folded.has(key)));
+    toggle.innerHTML = ICONS.chevron(16);
+    toggle.append(make(document, 'span', 'pj-card-title', label));
+    if (count) toggle.appendChild(make(document, 'span', 'pj-card-count', count));
+    return toggle;
+  };
+  const foldable = (card, toggle, key) => {
+    card.classList.toggle('is-folded', folded.has(key));
+    toggle.addEventListener('click', () => {
+      if (folded.has(key)) folded.delete(key); else folded.add(key);
+      try { win.localStorage?.setItem(PANEL_KEY, JSON.stringify([...folded])); } catch { /* the fold is only a convenience */ }
+      card.classList.toggle('is-folded', folded.has(key));
+      toggle.setAttribute('aria-expanded', String(!folded.has(key)));
+    });
+  };
   const projectPanel = (project) => {
     const panel = make(document, 'aside', 'pj-panel');
     // The instructions: a few lines, and a pencil that opens them.
@@ -523,7 +545,9 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     instructionsEdit.setAttribute('aria-label', text('pjMenuInstructions'));
     instructionsEdit.innerHTML = ICONS.edit(16);
     instructionsEdit.addEventListener('click', () => openInstructionsSheet({ document, root, text, actions, project: actions.folderOf(project.id) || project, notify, onSaved: drawProject, advanced: true }));
-    instructionsHead.append(make(document, 'span', 'pj-card-title', text('pjInstructionsTitle')), instructionsEdit);
+    const instructionsToggle = foldTitle('instructions', text('pjInstructionsTitle'));
+    instructionsHead.append(instructionsToggle, instructionsEdit);
+    foldable(instructions, instructionsToggle, 'instructions');
     const written = String(project.instructions || '').trim();
     instructions.append(instructionsHead, make(document, 'p', `pj-card-text${written ? '' : ' is-empty'}`, written || text('pjInstructionsNone')));
     panel.appendChild(instructions);
@@ -536,9 +560,9 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
       add.setAttribute('aria-label', text('pjSourcesAdd'));
       add.innerHTML = ICONS.plus(16);
       add.addEventListener('click', () => openAddSources(project, drawProject));
-      const title = make(document, 'span', 'pj-card-title', text('pjTabSources'));
-      title.appendChild(make(document, 'span', 'pj-card-count', text('pjSourcesCount', { n: list.length, max: PROJECT_SOURCES_MAX })));
-      head.append(title, add);
+      const sourcesToggle = foldTitle('sources', text('pjTabSources'), text('pjSourcesCount', { n: list.length, max: PROJECT_SOURCES_MAX }));
+      head.append(sourcesToggle, add);
+      foldable(card, sourcesToggle, 'sources');
       const rows = make(document, 'div', 'pj-sources');
       for (const source of list) rows.appendChild(sourceRow(project, source, drawProject));
       if (!list.length) rows.appendChild(make(document, 'p', 'pj-card-text is-empty', text('pjSourcesNone')));

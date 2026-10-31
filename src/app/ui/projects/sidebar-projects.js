@@ -34,6 +34,17 @@ export function createSidebarProjects({ document, text, actions, openProject, op
 
   function ensureSection() {
     if (section?.isConnected) return section;
+    // The page has the section from its first paint (templates/fragments/01-shell.fragment.js): its header, its + and an empty list. It is taken as it is: the page's own fold is on its header
+    // already, and the + gets its click here. A page without it (a test, an older template) gets one made below.
+    const made = document.querySelector('.sidebar-section[data-section="projects"]');
+    if (made) {
+      section = made;
+      list = made.querySelector('#sidebar-projects-list');
+      made.querySelector('#sidebar-projects-new-btn')?.addEventListener('click', (event) => { event.stopPropagation(); createProject(); });
+      if (list) return section;
+      section = null;
+      made.remove();
+    }
     const history = document.querySelector('.sidebar-section[data-section="history"]');
     if (!history?.parentNode) return null;
     section = make(document, 'div', 'sidebar-section');
@@ -148,6 +159,11 @@ export function createSidebarProjects({ document, text, actions, openProject, op
     const found = ensureSection();
     if (!found) return;
     found.hidden = !wide();
+    // The words of the section that the page made are put in the language of the page now (the page translates its own texts a little later, from the part that is loaded with it).
+    const title = found.querySelector('.title-group > span');
+    if (title && title.textContent !== text('pjEntry')) title.textContent = text('pjEntry');
+    const add = found.querySelector('#sidebar-projects-new-btn');
+    if (add) { add.title = text('pjNew'); add.setAttribute('aria-label', text('pjNew')); }
     if (!wide()) return;
     const projects = actions.list();
     const rows = projects.map(projectRow);
