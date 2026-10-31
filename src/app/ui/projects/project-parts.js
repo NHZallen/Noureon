@@ -28,6 +28,10 @@ export const ICONS = {
   trash: (size) => svg('<polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"></path>', size),
   edit: (size) => svg('<path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4z"></path>', size),
   sliders: (size) => svg('<line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line>', size),
+  text: (size) => svg('<polyline points="4 7 4 4 20 4 20 7"></polyline><line x1="9" y1="20" x2="15" y2="20"></line><line x1="12" y1="4" x2="12" y2="20"></line>', size),
+  camera: (size) => svg('<path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"></path><circle cx="12" cy="13" r="4"></circle>', size),
+  image: (size) => svg('<rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline>', size),
+  attach: (size) => svg('<path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"></path>', size),
   file: (size) => svg('<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline>', size),
   notes: (size) => svg('<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="8" y1="13" x2="16" y2="13"></line><line x1="8" y1="17" x2="14" y2="17"></line>', size),
   folder: (size) => svg(FOLDER_SVGS.default, size)
@@ -155,4 +159,50 @@ export function openSheet({ document, root, title, label, body, footer = null, a
   const first = sheet.querySelector('input, textarea, button.pj-primary');
   first?.focus?.();
   return { close, element: sheet, body: content, setError: (message) => { error.textContent = message || ''; error.hidden = !message; } };
+}
+
+/**
+ * A list of choices that comes up from below after an "add" button (the way the phone's own apps ask what to add): a title, and rows of an icon and a word. It is in the middle on a wide
+ * screen. A tap outside, Escape or a choice closes it. `items` are [{ label, icon, action }]. Returns { close, element }.
+ */
+export function openActionSheet({ document, root, title, items, onClose = () => {} }) {
+  const win = document.defaultView;
+  const backdrop = make(document, 'div', 'pj-backdrop is-bottom');
+  const sheet = make(document, 'div', 'pj-sheet pj-action-sheet');
+  sheet.setAttribute('role', 'dialog');
+  sheet.setAttribute('aria-modal', 'true');
+  sheet.setAttribute('aria-label', title || '');
+  const heading = make(document, 'div', 'pj-action-title', title || '');
+  heading.setAttribute('role', 'heading');
+  heading.setAttribute('aria-level', '2');
+  sheet.appendChild(heading);
+  let closed = false;
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    win.removeEventListener('keydown', onKey, true);
+    backdrop.remove();
+    onClose();
+  };
+  const onKey = (event) => {
+    if (event.key !== 'Escape' || backdrop !== [...root.querySelectorAll('.pj-backdrop')].at(-1)) return;
+    event.stopPropagation();
+    event.preventDefault();
+    close();
+  };
+  for (const item of items) {
+    const row = make(document, 'button', 'pj-action-item');
+    row.type = 'button';
+    const icon = make(document, 'span', 'pj-menu-icon');
+    icon.innerHTML = ICONS[item.icon]?.(22) || '';
+    row.append(icon, make(document, 'span', 'pj-menu-label', item.label));
+    row.addEventListener('click', () => { close(); void item.action(); });
+    sheet.appendChild(row);
+  }
+  backdrop.appendChild(sheet);
+  backdrop.addEventListener('pointerdown', (event) => { if (event.target === backdrop) close(); });
+  win.addEventListener('keydown', onKey, true);
+  root.appendChild(backdrop);
+  sheet.querySelector('button')?.focus();
+  return { close, element: sheet };
 }

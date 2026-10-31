@@ -1,5 +1,5 @@
 // The sources of a project (docs/superpowers/specs/2026-10-31-projects-design.md, §13): texts that are typed and files whose text was read. A source is { id, kind, title, mime, size, text,
-// addedAt }; the list is a column of the folder, so it is synced with it. Pure: no window, no document, no browser storage (the sync and the server may use it).
+// addedAt } (`kind`: a typed text, a file whose text was read, or a picture that a model looked at and wrote down); the list is a column of the folder, so it is synced with it. Pure: no window, no document, no browser storage (the sync and the server may use it).
 
 export const PROJECT_SOURCES_MAX = 20;
 /** The most characters of one source, and of all the sources of a project. */
@@ -7,7 +7,7 @@ export const PROJECT_SOURCE_CHARS_MAX = 100_000;
 export const PROJECT_SOURCES_CHARS_MAX = 400_000;
 export const PROJECT_SOURCE_TITLE_MAX = 120;
 
-const KINDS = new Set(['text', 'file']);
+const KINDS = new Set(['text', 'file', 'image']);
 
 /** One source in its fixed shape (so two pages that write it write the same), or null when it is not one. */
 export function normalizeSource(value) {

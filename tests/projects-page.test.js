@@ -408,8 +408,10 @@ test('the sources tab: add a text, add files (read, refused with the reason), re
     assert.match(t.$('.pj-source-add .pj-row-meta').textContent, /0 of 20/);
 
     t.$('.pj-source-add').click();
-    assert.deepEqual(t.$$('.pj-menu-item').map((item) => item.textContent), ['Add a file', 'Add text']);
-    t.byText('.pj-menu-item', 'Add text').click();
+    assert.equal(t.$('.pj-action-title').textContent, 'Add a source');
+    assert.deepEqual(t.$$('.pj-action-item').map((item) => item.textContent), ['Take a photo', 'Add photos', 'Add a file', 'Add text']);
+    t.byText('.pj-action-item', 'Add text').click();
+    assert.equal(t.$('.pj-action-sheet'), null, 'a choice closes the list');
     assert.equal(t.byText('.pj-sheet .pj-button', 'Save').disabled, true, 'nothing to save yet');
     t.type(t.$('.pj-sheet .pj-text-input'), 'My notes');
     t.type(t.$('.pj-sheet .pj-textarea'), 'The facts.');
@@ -425,13 +427,21 @@ test('the sources tab: add a text, add files (read, refused with the reason), re
     await t.tick();
     assert.deepEqual(reads, ['report.txt', 'photo.png']);
     assert.deepEqual(t.$$('.pj-source .pj-row-title').map((node) => node.textContent), ['My notes', 'report.txt']);
-    assert.match(t.$$('.pj-source .pj-row-meta')[1].textContent, /File · 2 KB/);
+    assert.match(t.$$('.pj-source .pj-row-meta')[1].textContent, /^TXT · 2 KB$/, 'the kind of a file is its extension');
     assert.match(t.state.notified.at(-1)[0], /"photo.png" is a kind of file that cannot be read yet/);
     assert.equal(t.state.notified.at(-1)[1], 'error');
 
+    const photos = t.$$('.pj-file-input').find((node) => node.accept === 'image/*' && !node.getAttribute('capture'));
+    assert.ok(photos && t.$$('.pj-file-input').some((node) => node.getAttribute('capture') === 'environment'), 'a photo input and a camera input');
+    Object.defineProperty(photos, 'files', { value: [{ name: 'receipt.jpg', type: 'image/jpeg' }], configurable: true });
+    photos.dispatchEvent(new t.window.Event('change'));
+    await t.tick();
+    assert.deepEqual(t.state.folders.find((folder) => folder.id === 'f2').sources.map((source) => source.kind), ['text', 'file', 'image']);
+    assert.match(t.$$('.pj-source .pj-row-meta')[2].textContent, /^Picture · 2 KB$/);
+
     t.$$('.pj-source .pj-more')[0].click();
     await t.tick();
-    assert.deepEqual(t.$$('.pj-source .pj-row-title').map((node) => node.textContent), ['report.txt']);
+    assert.deepEqual(t.$$('.pj-source .pj-row-title').map((node) => node.textContent), ['report.txt', 'receipt.jpg']);
     assert.deepEqual(t.state.notified.at(-1), ['Source removed.', 'success']);
 
     await t.actions.addSource('f2', { text: 'x'.repeat(70_000), title: 'Huge' });

@@ -5,6 +5,7 @@ import { createProjectActions } from '../src/app/runtime/projects/project-action
 import { projectInstructionTextFor, setProjectFoldersReader } from '../src/app/runtime/projects/project-instructions.js';
 import { PROJECT_SOURCES_MAX, PROJECT_SOURCE_CHARS_MAX, normalizeSource, normalizeSources } from '../src/app/runtime/projects/project-source-model.js';
 import { PROJECT_SOURCES_CONTEXT_CHARS, projectSourcesFor } from '../src/app/runtime/projects/project-source-prompt.js';
+import { createVisionReader, pickVisionModel } from '../src/app/runtime/projects/project-source-vision.js';
 import { readSourceFile, sourceFileKind } from '../src/app/runtime/projects/project-source-reader.js';
 
 // The sources of a project: their shape and limits, the text a reply is given (within a budget), the files read into text, and adding and removing them.
@@ -60,8 +61,8 @@ const file = (name, type, content) => {
   return { name, type, size: bytes.length, text: async () => new TextDecoder().decode(bytes), arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) };
 };
 
-test('which files can be read: text and code, Word, PowerPoint and Excel, PDF; not pictures, video or programs', () => {
-  for (const [name, type, kind] of [['a.txt', 'text/plain', 'text'], ['notes.md', '', 'text'], ['data.csv', 'text/csv', 'text'], ['x.json', 'application/json', 'text'], ['main.py', '', 'text'], ['a.docx', '', 'office'], ['b.pptx', '', 'office'], ['c.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'office'], ['r.pdf', 'application/pdf', 'pdf'], ['r.PDF', '', 'pdf'], ['p.png', 'image/png', ''], ['v.mp4', 'video/mp4', ''], ['a.exe', 'application/octet-stream', '']]) {
+test('which files can be read: text and code, Word, PowerPoint and Excel, PDF, pictures (a model looks at them); not video or programs', () => {
+  for (const [name, type, kind] of [['a.txt', 'text/plain', 'text'], ['notes.md', '', 'text'], ['data.csv', 'text/csv', 'text'], ['x.json', 'application/json', 'text'], ['main.py', '', 'text'], ['a.docx', '', 'office'], ['b.pptx', '', 'office'], ['c.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'office'], ['r.pdf', 'application/pdf', 'pdf'], ['r.PDF', '', 'pdf'], ['p.png', 'image/png', 'image'], ['p.HEIC', '', 'image'], ['v.mp4', 'video/mp4', ''], ['a.exe', 'application/octet-stream', '']]) {
     assert.equal(sourceFileKind({ name, type }), kind, name);
   }
 });
@@ -72,7 +73,8 @@ test('a file is read into text; a PDF through the PDF reader; empty, too big, un
   const pdf = await readSourceFile(file('r.pdf', 'application/pdf', new Uint8Array([1, 2, 3])), { readPdfText: async (bytes) => `pdf of ${bytes.length} bytes` });
   assert.equal(pdf.text, 'pdf of 3 bytes');
   assert.deepEqual(await readSourceFile(file('scan.pdf', 'application/pdf', new Uint8Array([1])), { readPdfText: async () => '  ' }), { ok: false, code: 'empty' });
-  assert.deepEqual(await readSourceFile(file('p.png', 'image/png', 'x')), { ok: false, code: 'unsupported' });
+  assert.deepEqual(await readSourceFile(file('p.png', 'image/png', 'x')), { ok: false, code: 'unsupported' }, 'a picture with no way to look at it');
+  assert.deepEqual(await readSourceFile(file('v.mp4', 'video/mp4', 'x')), { ok: false, code: 'unsupported' });
   assert.deepEqual(await readSourceFile({ name: 'big.txt', type: 'text/plain', size: 30 * 1024 * 1024 }), { ok: false, code: 'too_big' });
   assert.deepEqual(await readSourceFile(file('bad.pdf', 'application/pdf', new Uint8Array([1])), { readPdfText: async () => { throw new Error('encrypted'); } }), { ok: false, code: 'unreadable' });
   assert.deepEqual(await readSourceFile(file('bad.docx', '', 'not a zip'), { loadOfficeDeps: async () => ({ JSZip: { loadAsync: async () => { throw new Error('not a zip'); } }, DOMParser: class {} }) }), { ok: false, code: 'unreadable' });
@@ -103,4 +105,46 @@ test('a source is added and removed; 20 at most, 400 000 characters together; an
   assert.equal(actions.sourcesOf('f1').length, 3);
   const full = setup([{ id: 'f1', name: 'P', sources: Array.from({ length: 20 }, (_, n) => src(n)) }]);
   assert.deepEqual(await full.actions.addSource('f1', { text: 'one more' }), { ok: false, code: 'full' });
+});
+
+test('a picture is read by a model that sees: the chat\'s own when it can, else the first one with a key; a scanned PDF is read page by page; no such model says so', async () => {
+  const models = [{ id: 'text-only', provider: 'a' }, { id: 'sees-nokey', provider: 'b', vision: true }, { id: 'sees', provider: 'c', vision: true }, { id: 'painter', provider: 'c', vision: true, outputModality: 'image' }];
+  const supportsVision = (model) => Boolean(model.vision);
+  const hasKey = (provider) => provider === 'a' || provider === 'c';
+  assert.equal(pickVisionModel({ models, currentId: 'text-only', supportsVision, hasKey }), 'sees', 'the chat\'s model does not see');
+  assert.equal(pickVisionModel({ models, currentId: 'sees', supportsVision, hasKey }), 'sees');
+  assert.equal(pickVisionModel({ models, currentId: 'sees-nokey', supportsVision, hasKey }), 'sees', 'no key for it');
+  assert.equal(pickVisionModel({ models: [models[0], models[3]], supportsVision, hasKey }), '', 'a model that draws is not one that reads');
+
+  const calls = [];
+  const reader = createVisionReader({
+    getModels: () => models, supportsVision, hasKey, getCurrentModelId: () => 'text-only',
+    getRunner: () => async (request) => { calls.push(request); return 'Total: 42\nA receipt.'; },
+    shrinkImage: async (image) => ({ ...image, shrunk: true }),
+    renderPdfPages: async (bytes, { maxPages }) => [{ mimeType: 'image/jpeg', bytes: new Uint8Array([1]) }, { mimeType: 'image/jpeg', bytes: new Uint8Array([2]) }].slice(0, maxPages)
+  });
+  assert.equal(reader.available(), true);
+  const seen = await readSourceFile(file('receipt.jpg', 'image/jpeg', new Uint8Array([9, 9])), { readImage: reader.readImage });
+  assert.equal(seen.ok, true);
+  assert.equal(seen.text, '[Picture: receipt.jpg]\nTotal: 42\nA receipt.');
+  assert.equal(calls[0].modelId, 'sees');
+  assert.match(calls[0].parts[0].text, /all the text that is visible/);
+  assert.equal(calls[0].parts[1].inlineData.mimeType, 'image/jpeg');
+
+  const scan = await readSourceFile(file('scan.pdf', 'application/pdf', new Uint8Array([1])), { readPdfText: async () => '', readScan: reader.readScan });
+  assert.equal(scan.ok, true);
+  assert.equal(calls[1].parts.filter((part) => part.inlineData).length, 2, 'both pages in one request');
+  assert.match(calls[1].parts[0].text, /pages of a document/);
+  const withText = await readSourceFile(file('t.pdf', 'application/pdf', new Uint8Array([1])), { readPdfText: async () => 'has text', readScan: reader.readScan });
+  assert.equal(withText.text, 'has text');
+  assert.equal(calls.length, 2, 'a PDF with text is not looked at');
+
+  const blind = createVisionReader({ getModels: () => [models[0]], supportsVision, hasKey, getRunner: () => async () => 'x' });
+  assert.equal(blind.available(), false);
+  assert.deepEqual(await readSourceFile(file('a.png', 'image/png', 'x'), { readImage: blind.readImage }), { ok: false, code: 'no_vision_model' });
+  assert.deepEqual(await readSourceFile(file('s.pdf', 'application/pdf', new Uint8Array([1])), { readPdfText: async () => '', readScan: blind.readScan }), { ok: false, code: 'no_vision_model' });
+  const failing = createVisionReader({ getModels: () => models, supportsVision, hasKey, getRunner: () => async () => { throw new Error('quota'); } });
+  assert.deepEqual(await readSourceFile(file('a.png', 'image/png', 'x'), { readImage: failing.readImage }), { ok: false, code: 'unreadable' });
+  const empty = createVisionReader({ getModels: () => models, supportsVision, hasKey, getRunner: () => async () => '  ' });
+  assert.deepEqual(await readSourceFile(file('a.png', 'image/png', 'x'), { readImage: empty.readImage }), { ok: false, code: 'empty' });
 });

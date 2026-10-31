@@ -2,7 +2,7 @@
 // with you; a search at the foot) and one project (its chats, a box to write to it, a menu with edit, instructions and delete). They open over the chat at noureon.com/projects and
 // noureon.com/projects/<id>. Names and titles are put in with textContent; colours are the tokens (styles/projects.css) and the colour a person chose for a project.
 
-import { make, ICONS, openMenu, projectMark } from './project-parts.js';
+import { make, ICONS, openActionSheet, openMenu, projectMark } from './project-parts.js';
 import { openCreateSheet, openDeleteSheet, openEditSheet, openInstructionsSheet, openRenameChatSheet, openSourceTextSheet, sourceFailureText } from './project-sheets.js';
 import { PROJECT_SOURCES_MAX } from '../../runtime/projects/project-source-model.js';
 import { projectSourcesFor } from '../../runtime/projects/project-source-prompt.js';
@@ -244,30 +244,47 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     }
   };
   // ----- the sources of a project: texts and files that every chat of the project reads
+  // What a source is, in a word: the extension of a file (PDF, DOCX...), a picture, a text.
+  const kindLabel = (source) => {
+    if (source.kind === 'image') return text('pjSourceKindImage');
+    if (source.kind !== 'file') return text('pjSourceKindText');
+    const extension = String(source.title || '').includes('.') ? String(source.title).split('.').pop().toUpperCase() : '';
+    return extension && extension.length <= 5 ? extension : text('pjSourceKindFile');
+  };
   const sizeText = (source) => {
     const size = Number(source.size) || source.text.length;
     return size >= 1048576 ? `${(size / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(size / 1024))} KB`;
   };
-  const fileInput = make(document, 'input', 'pj-file-input');
-  fileInput.type = 'file';
-  fileInput.multiple = true;
-  fileInput.hidden = true;
-  fileInput.accept = '.txt,.md,.markdown,.csv,.tsv,.json,.xml,.html,.htm,.yaml,.yml,.log,.pdf,.docx,.pptx,.xlsx,.py,.js,.ts,.java,.c,.cpp,.go,.rs,.sql,.css,text/*,application/pdf';
-  root.appendChild(fileInput);
-  fileInput.addEventListener('change', async () => {
+  // Three hidden inputs: files, photos from the library, and the camera of a phone (the same as the chat's own).
+  const makeInput = (accept, { capture = '', multiple = true } = {}) => {
+    const input = make(document, 'input', 'pj-file-input');
+    input.type = 'file';
+    input.multiple = multiple;
+    input.hidden = true;
+    input.accept = accept;
+    if (capture) input.setAttribute('capture', capture);
+    return input;
+  };
+  const fileInput = makeInput('.txt,.md,.markdown,.csv,.tsv,.json,.xml,.html,.htm,.yaml,.yml,.log,.pdf,.docx,.pptx,.xlsx,.py,.js,.ts,.java,.c,.cpp,.go,.rs,.sql,.css,text/*,application/pdf');
+  const photoInput = makeInput('image/*');
+  const cameraInput = makeInput('image/*', { capture: 'environment', multiple: false });
+  const inputs = [fileInput, photoInput, cameraInput];
+  const ingest = async (input) => {
     const project = projectOrNull(state.projectId);
-    const files = [...(fileInput.files || [])];
-    fileInput.value = '';
+    const files = [...(input.files || [])];
+    input.value = '';
     if (!project) return;
     for (const file of files) {
       const read = await readFile(file).catch(() => ({ ok: false, code: 'unreadable' }));
       if (!read.ok) { notify(sourceFailureText(text, read, file.name), 'error'); continue; }
-      const added = await actions.addSource(project.id, { kind: 'file', title: read.title, mime: read.mime, size: read.size, text: read.text }).catch(() => ({ ok: false }));
+      const kind = String(file.type || '').startsWith('image/') ? 'image' : 'file';
+      const added = await actions.addSource(project.id, { kind, title: read.title, mime: read.mime, size: read.size, text: read.text }).catch(() => ({ ok: false }));
       if (!added.ok) { notify(sourceFailureText(text, added, file.name), 'error'); if (added.code === 'full' || added.code === 'too_much') break; continue; }
       notify(read.truncated ? text('pjSourceTruncated', { name: read.title, max: '100,000' }) : text('pjSourceAdded'), 'success');
     }
     if (state.view === 'project' && state.tab === 'sources') drawProject();
-  });
+  };
+  for (const input of inputs) input.addEventListener('change', () => { void ingest(input); });
   const sourcesView = (project) => {
     const box = make(document, 'div', 'pj-sources');
     const list = actions.sourcesOf(project.id);
@@ -282,11 +299,13 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     add.append(plus, words);
     const openAdd = () => {
       closeMenu();
-      menu = openMenu({
-        document, root, anchor: add, onClose: () => { menu = null; },
+      openActionSheet({
+        document, root, title: text('pjSourcesAdd'),
         items: [
-          { label: text('pjSourceAddFile'), icon: 'file', action: () => fileInput.click() },
-          { label: text('pjSourceAddText'), icon: 'notes', action: () => openSourceTextSheet({ document, root, text, actions, project, notify, onSaved: drawProject }) }
+          { label: text('pjSourceTakePhoto'), icon: 'camera', action: () => cameraInput.click() },
+          { label: text('pjSourceAddPhoto'), icon: 'image', action: () => photoInput.click() },
+          { label: text('pjSourceAddFile'), icon: 'attach', action: () => fileInput.click() },
+          { label: text('pjSourceAddText'), icon: 'text', action: () => openSourceTextSheet({ document, root, text, actions, project, notify, onSaved: drawProject }) }
         ]
       });
     };
@@ -296,10 +315,11 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     for (const source of list) {
       const row = make(document, 'div', 'pj-row pj-source');
       row.dataset.sourceId = source.id;
+      const label = kindLabel(source);
       const tile = make(document, 'span', 'pj-source-tile');
-      tile.innerHTML = (source.kind === 'file' ? ICONS.file : ICONS.notes)(18);
+      if (source.kind === 'file' && label.length <= 4) { tile.classList.add('is-label'); tile.textContent = label; } else tile.innerHTML = (source.kind === 'image' ? ICONS.image : source.kind === 'file' ? ICONS.file : ICONS.text)(18);
       const meta = make(document, 'span', 'pj-row-text');
-      meta.append(make(document, 'span', 'pj-row-title', source.title || text('pjSourceUntitled')), make(document, 'span', 'pj-row-meta', `${text(source.kind === 'file' ? 'pjSourceKindFile' : 'pjSourceKindText')} · ${sizeText(source)}`));
+      meta.append(make(document, 'span', 'pj-row-title', source.title || text('pjSourceUntitled')), make(document, 'span', 'pj-row-meta', `${label} · ${sizeText(source)}`));
       const remove = make(document, 'button', 'pj-more');
       remove.type = 'button';
       remove.setAttribute('aria-label', text('pjSourceRemove'));
@@ -325,7 +345,7 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     if (sourcesEnabled) body.appendChild(tabs([['chats', text('pjTabChats')], ['sources', text('pjTabSources')]], state.tab, (key) => { state.tab = key; drawProject(); }, project.name || ''));
     if (sourcesEnabled && state.tab === 'sources') {
       body.appendChild(sourcesView(project));
-      root.replaceChildren(head, body, fileInput);
+      root.replaceChildren(head, body, ...inputs);
       return;
     }
     chatsBody = make(document, 'div', 'pj-chats');
@@ -358,7 +378,7 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     box.append(area, send);
     const foot = make(document, 'footer', 'pj-foot');
     foot.appendChild(box);
-    root.replaceChildren(head, body, foot, fileInput);
+    root.replaceChildren(head, body, foot, ...inputs);
     drawChats();
   };
 

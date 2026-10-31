@@ -157,3 +157,13 @@ html.pj-open { overflow: hidden; }
 .pj-source-tile { flex: none; display: inline-grid; place-items: center; width: 2.25rem; height: 2.25rem; border-radius: 0.6rem; background: var(--hover-bg); color: var(--text-secondary); }
 .pj-source-add .pj-source-tile { color: var(--text-primary); }
 .pj-source .pj-more { color: var(--text-secondary); }
+.pj-source-tile.is-label { font-size: 0.6875rem; letter-spacing: 0; color: var(--text-primary); }
+
+/* the list of choices after an add button: from below on a phone, in the middle on a wide screen */
+.pj-backdrop.is-bottom { align-items: center; justify-content: flex-end; background: var(--scrim); }
+.pj-action-sheet { flex: none; width: 100%; max-width: 30rem; box-sizing: border-box; padding: 1.1rem var(--pj-gutter, 1.5rem) calc(1rem + env(safe-area-inset-bottom, 0px)); border-radius: 1.5rem 1.5rem 0 0; background: var(--modal-bg); box-shadow: var(--shadow-xl); }
+.pj-action-title { padding-bottom: 0.9rem; margin-bottom: 0.3rem; border-bottom: 1px solid var(--border-color); font-size: var(--pj-title, 1.0625rem); font-weight: 500; }
+.pj-action-item { display: flex; align-items: center; gap: 1rem; width: 100%; min-height: 3.25rem; padding: 0.4rem 0; border: 0; background: transparent; text-align: left; }
+.pj-action-item:hover, .pj-action-item:focus-visible { background: var(--hover-bg); outline: none; }
+.pj-action-item .pj-menu-icon { width: 1.4rem; }
+@media (min-width: 640px) { .pj-backdrop.is-bottom { justify-content: center; } .pj-action-sheet { border-radius: 1.5rem; } }

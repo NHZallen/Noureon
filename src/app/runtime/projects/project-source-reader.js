@@ -1,5 +1,5 @@
 // A file a person adds to a project as a source, read into text (docs/superpowers/specs/2026-10-31-projects-design.md, §13). Plain text and code are read as they are, Word, PowerPoint and Excel
-// files by the office reader the chats use, and PDFs by their text layer. A picture or a scan has no text to read here: it is told, not dropped quietly. The readers that need the browser
+// files by the office reader the chats use, and PDFs by their text layer. A picture, or a PDF that is only pictures, is looked at by a model that sees (project-source-vision.js); when there is none it is told, not dropped quietly. The readers that need the browser
 // (JSZip, DOMParser, the PDF library) come from `deps`, so this module can be tested without one. Only the text is kept: the file itself is not stored.
 
 import { extractOffice, officeKindOf } from '../../ui/files/office-text/office-text.js';
@@ -16,9 +16,13 @@ const extensionOf = (name) => (String(name || '').includes('.') ? String(name).t
 const isPdf = (file) => file.type === 'application/pdf' || extensionOf(file.name) === 'pdf';
 const isPlainText = (file) => String(file.type || '').startsWith('text/') || TEXT_MIMES.has(file.type) || TEXT_EXTENSIONS.has(extensionOf(file.name));
 
-/** The kind of the file this reader knows: 'text', 'office', 'pdf' or '' (a picture, a video, a program...). */
+const IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/heic', 'image/heif']);
+const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'webp', 'gif', 'heic', 'heif']);
+
+/** The kind of the file this reader knows: 'text', 'office', 'pdf', 'image' (a model looks at it) or '' (a video, a program...). */
 export function sourceFileKind(file) {
   if (isPdf(file)) return 'pdf';
+  if (IMAGE_TYPES.has(String(file.type || '').toLowerCase()) || (!file.type && IMAGE_EXTENSIONS.has(extensionOf(file.name)))) return 'image';
   if (officeKindOf({ mimeType: file.type || '', name: file.name || '' })) return 'office';
   return isPlainText(file) ? 'text' : '';
 }
@@ -27,18 +31,32 @@ const clean = (text) => String(text ?? '').replace(/\r\n?/g, '\n').replaceAll(St
 
 /**
  * Reads a File. Gives { ok: true, title, mime, size, text, truncated } or { ok: false, code } with code one of
- * 'unsupported' (a kind of file with no text to read), 'too_big', 'empty' (nothing to read: a scan, an empty file) and 'unreadable' (damaged or protected).
- * deps: { loadOfficeDeps() -> { JSZip, DOMParser }, readPdfText(bytes) -> text }.
+ * 'unsupported' (a kind of file with no text to read), 'too_big', 'empty' (nothing to read: an empty file), 'unreadable' (damaged or protected) and 'no_vision_model' (a picture
+ * and no model that sees has a key). deps: { loadOfficeDeps() -> { JSZip, DOMParser }, readPdfText(bytes) -> text, readImage(file) -> { ok, text, code } (a model looks at the picture),
+ * readScan(bytes) -> { ok, text, code } (a PDF with no text layer: its pages are looked at as pictures) }.
  */
-export async function readSourceFile(file, { loadOfficeDeps, readPdfText } = {}) {
+export async function readSourceFile(file, { loadOfficeDeps, readPdfText, readImage, readScan } = {}) {
   const kind = sourceFileKind(file);
   if (!kind) return { ok: false, code: 'unsupported' };
   if (file.size > PROJECT_SOURCE_FILE_MAX_BYTES) return { ok: false, code: 'too_big' };
   let text = '';
   try {
-    if (kind === 'text') text = await file.text();
-    else if (kind === 'pdf') text = await readPdfText(new Uint8Array(await file.arrayBuffer()));
-    else {
+    if (kind === 'image') {
+      if (!readImage) return { ok: false, code: 'unsupported' };
+      const seen = await readImage(file);
+      if (!seen?.ok) return { ok: false, code: seen?.code || 'unreadable' };
+      text = seen.text;
+    } else if (kind === 'text') text = await file.text();
+    else if (kind === 'pdf') {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      text = await readPdfText(bytes);
+      // A PDF that is only pictures (a scan) has no text layer: its pages are looked at, when a model that sees is there.
+      if (!clean(text) && readScan) {
+        const seen = await readScan(bytes);
+        if (!seen?.ok) return { ok: false, code: seen?.code === 'no_vision_model' ? 'no_vision_model' : seen?.code || 'empty' };
+        text = seen.text;
+      }
+    } else {
       const deps = await loadOfficeDeps();
       const content = await extractOffice({ data: new Uint8Array(await file.arrayBuffer()), mimeType: file.type || '', name: file.name || '' }, { ...deps, maxImages: 0 });
       text = content?.text || '';
