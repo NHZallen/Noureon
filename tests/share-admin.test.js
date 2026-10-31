@@ -65,10 +65,7 @@ test('the owner sees each reported share with what was said as text, and can res
     button(words.restore).click();
     await tick();
     assert.deepEqual(calls.find((call) => call[0] === 'admin_set_share_status')[1], { p_id: 's1', p_status: 'active' });
-    const second = document.querySelector('.sp-admin-card');
-    [...second.querySelectorAll('button')].find((node) => node.textContent === words.dismiss).click();
-    await tick();
-    assert.ok(calls.some((call) => call[0] === 'admin_dismiss_share_reports'));
+    assert.equal(button(words.dismiss), undefined, 'a paused share is restored, not "cleared"');
     const del = [...document.querySelector('.sp-admin-card').querySelectorAll('button')].find((node) => node.textContent === words.remove);
     del.click();
     assert.equal(calls.some((call) => call[0] === 'admin_remove_share'), false, 'taking down asks once more');
@@ -104,4 +101,15 @@ test('a share taken down is a record: it can only be deleted, and the person see
   state.replace((await client.list()).items);
   assert.equal(state.all()[0].removed, true);
   assert.equal(state.active().length, 0);
+});
+
+test('"clear reports" is only for a share that still works; a share taken down has only the record to delete', async () => {
+  const labels = async (status) => {
+    const { window } = await open({ rows: [{ ...REPORTED, status }] });
+    try { return [...window.document.querySelectorAll('.sp-admin-card button')].map((node) => node.textContent); } finally { await window.happyDOM.abort(); }
+  };
+  const words = SHARE_ADMIN_TEXTS.en;
+  assert.ok((await labels('active')).includes(words.dismiss));
+  assert.equal((await labels('suspended')).includes(words.dismiss), false);
+  assert.deepEqual(await labels('removed'), [words.deleteRecord]);
 });

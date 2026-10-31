@@ -90,7 +90,8 @@ export async function initializeShareAdminPage({ window, document, supabase = ge
       }
       if (row.status === 'suspended') act(text('restore'), () => supabase.rpc('admin_set_share_status', { p_id: row.share_id, p_status: 'active' }), { primary: true });
       if (row.status === 'active') act(text('pause'), () => supabase.rpc('admin_set_share_status', { p_id: row.share_id, p_status: 'suspended' }));
-      if (row.total_reports > 0) act(text('dismiss'), () => supabase.rpc('admin_dismiss_share_reports', { p_id: row.share_id }));
+      // Clearing the reports only means something for a share that still works (the decision was that it is fine): a paused one is restored, a taken-down one is only a record.
+      if (row.status === 'active' && row.total_reports > 0) act(text('dismiss'), () => supabase.rpc('admin_dismiss_share_reports', { p_id: row.share_id }));
       if (row.status === 'active' || row.status === 'suspended') act(text('remove'), () => supabase.rpc('admin_remove_share', { p_id: row.share_id }), { confirm: true });
       else act(text('deleteRecord'), () => supabase.rpc('admin_delete_share', { p_id: row.share_id }), { confirm: true });
       card.appendChild(actions);
