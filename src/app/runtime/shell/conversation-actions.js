@@ -20,7 +20,7 @@ export function createConversationActions({
     runtimeConfigAccess, liveConversationsBridge, conversationStateAccess, runtimeAppDataStore, runtimeDialogCoordinator,
     cloneCouncilConfig, getText, toggleModal, saveAppData, renderMarkdown, bindGeneratedImageAssets,
     getActiveConversation, renderAll, renderSidebar, adjustTextareaHeight, updateInputState, updateApiKeyWarningBadge,
-    getQuoteInquiry, cancelPendingMemoryCapture, invalidateConversationMemory
+    getQuoteInquiry
 }) {
     let itemToRename = { id: null, type: null };
     const createBaseConversation = (title) => {
@@ -111,7 +111,6 @@ export function createConversationActions({
     const deleteChat = async (id, event) => {
         event?.stopPropagation();
         if (!(await confirmDeleteShared([id]))) return;
-        cancelPendingMemoryCapture(id);
         const currentConversations = liveConversationsBridge.getConversations();
         const conv = currentConversations.find(c => c.id === id);
         if (conv) {
@@ -133,7 +132,6 @@ export function createConversationActions({
             } else {
                 renderSidebar();
             }
-            await invalidateConversationMemory({ conversationId: id });
             await saveAppData({ immediateCloudSync: true });
             runtimeDialogCoordinator.showNotification(i18n[runtimeConfigAccess.getUiLanguage()].chatMovedToTrash || 'Chat moved to trash.', 'success');
         }

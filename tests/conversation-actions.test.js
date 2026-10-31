@@ -49,9 +49,8 @@ function harness({ conversations = [], folders = [], currentId = null, config = 
     adjustTextareaHeight: () => {},
     updateInputState: () => log.push('input state'),
     updateApiKeyWarningBadge: () => {},
-    getQuoteInquiry: () => ({ clearQuote: () => log.push('quote cleared') }),
-    cancelPendingMemoryCapture: (id) => log.push(['memory capture cancelled', id]),
-    invalidateConversationMemory: async (args) => log.push(['memory invalidated', args])
+    getQuoteInquiry: () => ({ clearQuote: () => log.push('quote cleared') })
+    // The shell gives no hooks of the old memory any more (the notes memory does not need them): deleting must not call any.
   });
   return { log, uploads, deps, list: () => list, current: () => current, actions: (doc) => createConversationActions(deps(doc)) };
 }
@@ -105,7 +104,7 @@ test('moving the open conversation to the trash leaves it first, then saves at o
   assert.equal(deleted.folderId, null);
   assert.deepEqual(folder.conversationIds, ['b']);
   assert.notEqual(h.current(), 'a', 'a blank conversation was opened');
-  const order = ['stopped', 'memory capture cancelled', 'renderAll', 'memory invalidated', 'save', 'notify'];
+  const order = ['stopped', 'renderAll', 'save', 'notify'];
   const positions = order.map((name) => h.log.findIndex((entry) => entry === name || entry[0] === name));
   assert.deepEqual([...positions].sort((x, y) => x - y), positions, `in order: ${order.join(', ')}`);
   assert.deepEqual(h.log.find((entry) => entry[0] === 'save')[1], { immediateCloudSync: true });
