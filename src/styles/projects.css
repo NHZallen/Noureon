@@ -99,16 +99,16 @@ html.pj-open { overflow: hidden; }
 /* The body is as wide as the screen, so what has to reach the edges (the colours) can; the rest sits in a column. */
 .pj-sheet-body { flex: 1; min-height: 0; overflow-y: auto; display: grid; grid-template-columns: minmax(var(--pj-gutter), 1fr) minmax(0, 36rem) minmax(var(--pj-gutter), 1fr); align-content: start; row-gap: 1.1rem; padding: 0.6rem 0 1.5rem; }
 .pj-sheet-body > * { grid-column: 2; }
-.pj-sheet-foot { display: grid; width: 100%; padding-top: 0.5rem; }
+.pj-sheet-foot { flex: none; display: grid; width: 100%; max-width: 40rem; margin: 0 auto; box-sizing: border-box; padding: 0.6rem var(--pj-gutter) calc(0.9rem + env(safe-area-inset-bottom, 0px)); }
 .pj-sheet-foot.is-stacked { gap: 0.5rem; }
-.pj-error { margin: 0; text-align: center; color: var(--state-danger); }
+.pj-error { margin: 0 auto; width: 100%; max-width: 40rem; padding: 0 var(--pj-gutter); box-sizing: border-box; text-align: center; color: var(--state-danger); }
 .pj-error[hidden] { display: none; }
 .pj-intro { margin: 0; color: var(--text-secondary); text-align: center; text-wrap: balance; }
 .pj-note, .pj-count { margin: 0; color: var(--text-secondary); font-size: var(--pj-small); }
 .pj-count { text-align: right; }
 .pj-backdrop.is-dialog .pj-sheet { flex: none; width: min(100% - 2rem, 24rem); max-height: 90%; border-radius: 1.25rem; background: var(--modal-bg); box-shadow: var(--shadow-xl); overflow: hidden; }
 .pj-backdrop.is-dialog .pj-sheet-head { max-width: none; }
-.pj-backdrop.is-dialog .pj-sheet-foot { box-sizing: border-box; padding: 0.8rem 1.25rem 1.25rem; }
+.pj-backdrop.is-dialog .pj-sheet-foot { max-width: none; padding: 0.8rem 1.25rem 1.25rem; }
 .pj-backdrop.is-dialog .pj-sheet-head { grid-template-columns: 1fr; padding: 1.25rem 1.25rem 0.5rem; }
 .pj-backdrop.is-dialog .pj-sheet-head .pj-round { display: none; }
 .pj-backdrop.is-dialog .pj-sheet-title { grid-column: 1; }

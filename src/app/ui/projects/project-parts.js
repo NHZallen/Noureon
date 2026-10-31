@@ -113,16 +113,26 @@ export function openSheet({ document, root, title, label, body, footer = null, a
   const error = make(document, 'p', 'pj-error');
   error.setAttribute('role', 'alert');
   error.hidden = true;
-  sheet.appendChild(head);
-  sheet.appendChild(content);
+  sheet.append(head, content, error);
+  if (footer) sheet.appendChild(footer);
   backdrop.appendChild(sheet);
   root.appendChild(backdrop);
   let closed = false;
   const opener = document.activeElement;
+  const viewport = win.visualViewport || null;
+  // The keyboard of a phone covers the foot of the page: the sheet is made as high as what is left above it, so the button stays above the keyboard.
+  const fit = () => {
+    if (!viewport) return;
+    backdrop.style.top = `${Math.round(viewport.offsetTop)}px`;
+    backdrop.style.height = `${Math.round(viewport.height)}px`;
+    backdrop.style.bottom = 'auto';
+  };
   const close = () => {
     if (closed) return;
     closed = true;
     win.removeEventListener('keydown', onKey, true);
+    viewport?.removeEventListener('resize', fit);
+    viewport?.removeEventListener('scroll', fit);
     backdrop.remove();
     try { opener?.focus?.(); } catch { /* the opener may be gone */ }
     onClose();
@@ -136,9 +146,10 @@ export function openSheet({ document, root, title, label, body, footer = null, a
   closeButton.addEventListener('click', () => { if (action) { close(); action.onClick(); } else close(); });
   if (dialog) backdrop.addEventListener('pointerdown', (event) => { if (event.target === backdrop) close(); });
   win.addEventListener('keydown', onKey, true);
+  viewport?.addEventListener('resize', fit);
+  viewport?.addEventListener('scroll', fit);
+  fit();
   if (body) body(content, { close });
-  // The button of a page sits under what is written, in the flow: nothing is pinned to the bottom, so the keyboard of a phone moves nothing. A dialog has it at its foot.
-  if (dialog) { sheet.append(error, ...(footer ? [footer] : [])); } else { content.appendChild(error); if (footer) content.appendChild(footer); }
   const first = sheet.querySelector('input, textarea, button.pj-primary');
   first?.focus?.();
   return { close, element: sheet, body: content, setError: (message) => { error.textContent = message || ''; error.hidden = !message; } };
