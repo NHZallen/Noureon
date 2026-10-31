@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
 
 import { Window } from 'happy-dom';
 import { createProjectActions } from '../src/app/runtime/projects/project-actions.js';
@@ -588,4 +589,86 @@ test('on a computer the settings of a project list its sources with an add butto
     assert.match(t.$('.pj-memory-shown-block').textContent, /only uses its own notes/);
     assert.equal(t.$('.pj-readonly').textContent, 'Project only');
   } finally { await t.finish(); }
+});
+
+test('asked from the + of the left menu on a computer only the sheet that makes a project is on the page (no list behind it); a cancel takes the page away, and a project made opens its page', async () => {
+  const t = setup({ folders: [], conversations: [], wide: true });
+  try {
+    t.open({ create: true }, { sourcesEnabled: true });
+    assert.equal(t.$('.pj').classList.contains('pj-dialog-only'), true);
+    assert.equal(t.$('.pj-list, .pj-row, .pj-tabs'), null, 'no list of the projects was drawn');
+    assert.equal(t.$$('.pj-backdrop').length, 1);
+    assert.equal(t.window.location.pathname, '/', 'the address is still the chat');
+    t.$('.pj-sheet-head .pj-round').click();
+    await t.tick();
+    assert.ok(!getProjectsPage(), 'the page went away with the sheet');
+    assert.equal(t.$('.pj'), null);
+    t.open({ create: true }, { sourcesEnabled: true });
+    t.type(t.$('.pj-name-input'), 'Fresh');
+    t.byText('.pj-sheet .pj-button', 'Create project').click();
+    await t.tick(); await t.tick();
+    assert.equal(t.state.folders.length, 1);
+    assert.ok(getProjectsPage(), 'the page stays');
+    assert.equal(t.$('.pj').classList.contains('pj-dialog-only'), false);
+    assert.equal(t.$('.pj-title-text').textContent, 'Fresh', 'the page of the new project is open');
+    assert.equal(t.window.location.pathname, `/projects/${t.state.folders[0].id}`);
+  } finally { await t.finish(); }
+});
+
+test('on a computer the sheet that makes a project lists the files and texts to add; nothing is read or kept until the project is made, and a removed one is not added', async () => {
+  const t = setup({ folders: [], conversations: [], wide: true });
+  const read = [];
+  try {
+    t.open({ create: true }, { sourcesEnabled: true, readFile: async (file) => { read.push(file.name); return { ok: true, title: file.name, mime: 'text/plain', size: 5, text: 'hello' }; } });
+    t.type(t.$('.pj-name-input'), 'With sources');
+    assert.equal(t.$('.pj-sources-head .pj-section-title').textContent, 'Available sources');
+    assert.match(t.$('.pj-sources-list').textContent, /No sources yet/);
+    const input = t.$$('input[type="file"]').find((entry) => !entry.hasAttribute('webkitdirectory') && !entry.accept);
+    Object.defineProperty(input, 'files', { value: [new t.window.File(['hello'], 'a.txt'), new t.window.File(['world'], 'b.txt')], configurable: true });
+    t.byText('.pj-sources-head .pj-chip', 'Add').click();
+    t.byText('.pj-action-item', 'Add a file').click();
+    input.dispatchEvent(new t.window.Event('change', { bubbles: true }));
+    await t.tick();
+    assert.deepEqual(t.$$('.pj-sources-list .pj-row-title').map((node) => node.textContent), ['a.txt', 'b.txt']);
+    assert.deepEqual(read, [], 'not read yet');
+    assert.equal(t.state.folders.length, 0, 'no project yet');
+    // A written text goes into the list too.
+    t.byText('.pj-sources-head .pj-chip', 'Add').click();
+    t.byText('.pj-action-item', 'Add text').click();
+    const area = t.$('.pj-textarea');
+    area.value = 'My notes';
+    area.dispatchEvent(new t.window.Event('input', { bubbles: true }));
+    t.byText('.pj-sheet-foot .pj-button', 'Save').click();
+    await t.tick();
+    assert.deepEqual(t.$$('.pj-sources-list .pj-row-title').map((node) => node.textContent), ['a.txt', 'b.txt', 'Untitled text']);
+    assert.equal(t.state.folders.length, 0, 'the text is not kept either');
+    // A bin takes one out of the list.
+    t.$$('.pj-sources-list .pj-more')[1].click();
+    assert.deepEqual(t.$$('.pj-sources-list .pj-row-title').map((node) => node.textContent), ['a.txt', 'Untitled text']);
+    t.byText('.pj-sheet .pj-button', 'Create project').click();
+    await t.tick(); await t.tick(); await t.tick();
+    assert.deepEqual(read, ['a.txt']);
+    assert.deepEqual(t.state.folders[0].sources.map((source) => source.title), ['a.txt', 'Untitled text']);
+  } finally { await t.finish(); }
+});
+
+test('the styles keep the icon search working (a hidden icon is not drawn), colour every icon of the picker with the colour chosen, and keep the box of the icons inside the dialog', () => {
+  const css = readFileSync(new URL('../src/styles/projects.css', import.meta.url), 'utf8');
+  assert.match(css, /\.pj-icon-option\[hidden\]\s*\{\s*display:\s*none/, '`display: grid` would win over the hidden attribute');
+  assert.match(css, /\.pj-icon-option\s*\{[^}]*color:\s*var\(--pj-color/, 'every icon takes the colour that was chosen');
+  assert.match(css, /\.pj-popover\s*\{[^}]*overflow:\s*hidden/);
+});
+
+test('the box of the icons on a computer is no taller than what is left in the dialog under the name', () => {
+  const t = setup({ folders: [], conversations: [], wide: true });
+  try {
+    t.open({ list: true }, { sourcesEnabled: true });
+    t.$$('.pj-head .pj-round').at(-1).click();
+    const sheet = t.$('.pj-sheet');
+    const rect = (top, bottom) => ({ top, bottom, left: 0, right: 100, width: 100, height: bottom - top });
+    sheet.getBoundingClientRect = () => rect(100, 600);
+    t.$('.pj-name-input').parentElement.getBoundingClientRect = () => rect(170, 220);
+    t.$('.pj-name-icon').click();
+    assert.equal(t.$('.pj-popover').style.maxHeight, `${600 - 220 - 6 - 12}px`);
+  } finally { t.window.close(); }
 });

@@ -96,6 +96,9 @@ function openIconPopover({ document, sheet, anchor, text, draft, onChange }) {
   box.style.top = `${Math.round(place.bottom - around.top + 6)}px`;
   box.style.left = `${Math.round(place.left - around.left)}px`;
   box.style.width = `${Math.round(Math.min(place.width, 30 * 16))}px`;
+  // It stays inside the dialog: no taller than what is left under the name (the icons scroll when there are more than fit).
+  const room = Math.floor(around.bottom - place.bottom - 6 - 12);
+  if (room > 0) box.style.maxHeight = `${room}px`;
   let closed = false;
   const close = () => {
     if (closed) return;
@@ -277,8 +280,31 @@ export function pickFolderFiles(files, max = PROJECT_SOURCES_MAX) {
   return { name, files: usable.slice(0, max), skipped: files.length - Math.min(usable.length, max) };
 }
 
-/** The sheet that makes a project. `onCreated(id)` is called after it is made; `onFolderFiles(id, files)` is given the files of the folder that was chosen (a computer), to be added as sources. */
-export function openCreateSheet({ document, root, text, actions, notify = () => {}, onCreated = () => {}, onFolderFiles = null }) {
+/** "Available sources": a head with the add button and the list of the sources (a bin on each). `sources` is { list(), row(source, refresh), add(refresh) }. Returns { head, list, refresh }. */
+function sourcesSection(document, text, sources) {
+  const head = make(document, 'div', 'pj-sources-head');
+  head.appendChild(make(document, 'div', 'pj-section-title', text('pjSourcesAvailable')));
+  const add = make(document, 'button', 'pj-chip');
+  add.type = 'button';
+  add.innerHTML = ICONS.plus(16);
+  add.append(make(document, 'span', 'pj-chip-label', text('pjFolderAdd')));
+  const list = make(document, 'div', 'pj-sources-list');
+  const refresh = () => {
+    list.replaceChildren(...sources.list().map((source) => sources.row(source, refresh)));
+    if (!list.children.length) list.appendChild(make(document, 'p', 'pj-note', text('pjSourcesNone')));
+  };
+  add.addEventListener('click', () => sources.add(refresh));
+  head.appendChild(add);
+  refresh();
+  return { head, list, refresh };
+}
+
+/**
+ * The sheet that makes a project. `onCreated(id)` is called after it is made; `onFolderFiles(id, files)` is given the files of the folder that was chosen (a computer), to be added as sources.
+ * On a computer `sources` ({ list(), row(source, refresh), add(refresh) }, the same as for the settings of a project) lists what is to be added: nothing is kept until "Create project" is pressed,
+ * which then calls `onCreated` and `commitSources(id)`. `onClose()` is called when the sheet goes away (by a cancel, the cross, Escape or the end of a creation).
+ */
+export function openCreateSheet({ document, root, text, actions, notify = () => {}, onCreated = () => {}, onFolderFiles = null, sources = null, commitSources = null, onClose = () => {} }) {
   let busy = false;
   let memoryScope = 'default';
   let folder = { files: [], skipped: 0, name: '' };
@@ -294,7 +320,7 @@ export function openCreateSheet({ document, root, text, actions, notify = () => 
   });
   button.disabled = true;
   sheet = openSheet({
-    document, root, title: text('pjNew'), close: text('pjCancel'), footer: foot,
+    document, root, title: text('pjNew'), close: text('pjCancel'), footer: foot, onClose,
     body: (body) => {
       body.appendChild(make(document, 'p', 'pj-intro', text('pjNewIntro')));
       body.appendChild(field.element);
@@ -308,6 +334,7 @@ export function openCreateSheet({ document, root, text, actions, notify = () => 
         chips.appendChild(chip);
       }
       body.appendChild(chips);
+      if (wide && sources) { const section = sourcesSection(document, text, sources); body.append(section.head, section.list); }
       if (wide && onFolderFiles) body.appendChild(folderChoice(document, text, (picked) => { folder = picked; }));
       if (!wide) body.appendChild(memoryChoice(document, text, (value) => { memoryScope = value; }));
     }
@@ -323,8 +350,12 @@ export function openCreateSheet({ document, root, text, actions, notify = () => 
     sheet.close();
     notify(text('pjCreated'), 'success');
     onCreated(result.id);
-    // The files of the chosen folder are added after the project is there (the sources are read and kept one by one).
-    if (folder.files.length && onFolderFiles) void onFolderFiles(result.id, folder.files);
+    // What was listed in the sheet is added now that the project is there (one by one: each is read and kept).
+    // The files of the chosen folder come after them (both go through the same limits, one after the other).
+    void (async () => {
+      if (commitSources) await commitSources(result.id);
+      if (folder.files.length && onFolderFiles) await onFolderFiles(result.id, folder.files);
+    })();
   });
   return sheet;
 }
@@ -356,21 +387,8 @@ export function openEditSheet({ document, root, text, actions, project, notify =
       // Where the notes are kept was chosen when the project was made and is only shown here.
       if (project.memoryScope === 'project') body.appendChild(make(document, 'p', 'pj-note pj-memory-shown', text('pjMemoryBadge')));
       if (wide && sources) {
-        const head = make(document, 'div', 'pj-sources-head');
-        head.appendChild(make(document, 'div', 'pj-section-title', text('pjSourcesAvailable')));
-        const add = make(document, 'button', 'pj-chip');
-        add.type = 'button';
-        add.innerHTML = ICONS.plus(16);
-        add.append(make(document, 'span', 'pj-chip-label', text('pjFolderAdd')));
-        const list = make(document, 'div', 'pj-sources-list');
-        const refresh = () => {
-          list.replaceChildren(...sources.list().map((source) => sources.row(source, refresh)));
-          if (!list.children.length) list.appendChild(make(document, 'p', 'pj-note', text('pjSourcesNone')));
-        };
-        add.addEventListener('click', () => sources.add(refresh));
-        head.appendChild(add);
-        refresh();
-        body.append(head, list);
+        const section = sourcesSection(document, text, sources);
+        body.append(section.head, section.list);
       }
     }
   });

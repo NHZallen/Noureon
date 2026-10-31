@@ -3,6 +3,8 @@
    a person chose for a project. No translucent glass: that is the phone's own. The rules of the style (sizes, weights, what to reuse) are in docs/superpowers/specs/2026-10-31-ui-style-rules.md. */
 
 html.pj-open { overflow: hidden; }
+/* made from the + of the left menu: only the sheet that makes a project is on the page, over the chat that was there */
+.pj.pj-dialog-only { background: transparent; }
 .pj { --pj-text: 0.9375rem; --pj-small: 0.8125rem; --pj-title: 1.0625rem; --pj-column: 40rem; --pj-gutter: 1.5rem; position: fixed; inset: 0; z-index: 1150; display: flex; flex-direction: column; background: var(--chat-bg); color: var(--text-primary); font-size: var(--pj-text); font-weight: 400; }
 :where(.pj, .pj-backdrop) :where(button, input, textarea) { font: inherit; color: inherit; }
 :where(.pj, .pj-backdrop) :where(button) { cursor: pointer; }
@@ -159,7 +161,9 @@ html.pj-open { overflow: hidden; }
 /* the ring is a pseudo element: the page switches the box-shadow of buttons off */
 .pj-dot[aria-checked="true"]::after { content: ""; position: absolute; inset: -5px; border: 2px solid var(--text-primary); border-radius: 9999px; }
 .pj-icons { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 0.25rem; padding-top: 0.2rem; }
-.pj-icon-option { display: grid; place-items: center; aspect-ratio: 1; padding: 0; border: 0; border-radius: 0.8rem; background: transparent; color: var(--text-primary); }
+.pj-icon-option { display: grid; place-items: center; aspect-ratio: 1; padding: 0; border: 0; border-radius: 0.8rem; background: transparent; color: var(--pj-color, var(--text-primary)); }
+/* the search hides the icons it does not match: `display: grid` above would win over the hidden attribute */
+.pj-icon-option[hidden] { display: none; }
 .pj-icon-option:hover { background: var(--hover-bg); }
 .pj-icon-option[aria-checked="true"] { background: var(--hover-bg); color: var(--pj-color); }
 
@@ -191,9 +195,10 @@ body > .picker-dialog { z-index: 1301; }
 /* ---------- a computer: the sheets are dialogs in the middle (as in the apps of a computer), with the title at the left and the buttons in a row at the foot */
 .pj-icon-search { width: 100%; box-sizing: border-box; padding: 0.55rem 0.8rem; border: 1px solid var(--border-color); border-radius: 0.7rem; outline: 0; background: transparent; color: var(--text-primary); }
 .pj-icon-search:focus { border-color: var(--text-secondary); }
-.pj-popover { position: absolute; z-index: 3; display: flex; flex-direction: column; gap: 0.5rem; padding: 0.75rem; box-sizing: border-box; border: 1px solid var(--border-color); border-radius: 1rem; background: var(--modal-bg); box-shadow: var(--shadow-xl); }
-.pj-popover .pj-colors { grid-column: auto; padding: 0.4rem 0.1rem 0.5rem; border-bottom: 0; overflow-x: auto; }
-.pj-popover .pj-icons { grid-template-columns: repeat(7, minmax(0, 1fr)); max-height: 12.5rem; overflow-y: auto; }
+.pj-popover { position: absolute; z-index: 3; display: flex; flex-direction: column; gap: 0.5rem; padding: 0.75rem; box-sizing: border-box; overflow: hidden; border: 1px solid var(--border-color); border-radius: 1rem; background: var(--modal-bg); box-shadow: var(--shadow-xl); }
+.pj-popover .pj-colors { grid-column: auto; flex: none; padding: 0.4rem 0.1rem 0.5rem; border-bottom: 0; overflow-x: auto; }
+.pj-popover .pj-icon-search { flex: none; }
+.pj-popover .pj-icons { grid-template-columns: repeat(7, minmax(0, 1fr)); max-height: 12.5rem; min-height: 0; overflow-y: auto; }
 .pj-dropdown { position: relative; margin-right: auto; }
 .pj-dropdown-button { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.55rem 0.9rem; border: 0; border-radius: 9999px; background: var(--hover-bg); }
 .pj-dropdown-caret { color: var(--text-secondary); font-size: var(--pj-small); }

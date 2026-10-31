@@ -294,6 +294,8 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
   // The project the files that are chosen now go to, and what to redraw afterwards: the project that is open, or the one whose settings are open (a computer lists the sources there too).
   let addTarget = null;
   const addAll = async (project, files) => {
+    // The sheet that makes a project only lists what is to be added: nothing is read or kept until the project is there (commitStaged).
+    if (project.staging) { stageFiles(files); return; }
     for (const file of files) {
       const result = await addFile(project, file);
       if (!result.ok && (result.code === 'full' || result.code === 'too_much' || result.code === 'files_too_much')) break;
@@ -335,13 +337,47 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
         { label: text('pjSourceTakePhoto'), icon: 'camera', action: via(() => (cameraAvailable(document) ? openCameraDialog({ document, root, text, onCapture: async (file) => { await addAll(project, [file]); afterAdd(); }, onError: () => notify(text('pjCameraFailed'), 'error') }) : cameraInput.click())) },
         { label: text('pjSourceAddPhoto'), icon: 'image', action: via(() => photoInput.click()) },
         { label: text('pjSourceAddFile'), icon: 'attach', action: via(() => fileInput.click()) },
-        { label: text('pjSourceAddText'), icon: 'text', action: () => openSourceTextSheet({ document, root, text, actions, project, notify, onSaved: () => { addTarget = null; onDone?.(); drawProject(); } }) },
+        { label: text('pjSourceAddText'), icon: 'text', action: () => openSourceTextSheet({ document, root, text, actions: project.staging ? stagingActions : actions, project, notify: project.staging ? () => {} : notify, onSaved: () => { addTarget = null; onDone?.(); if (!project.staging) drawProject(); } }) },
         ...(drive ? [{ label: text('pjSourceAddDrive'), icon: 'driveColor', action: via(() => pickFromDrive(project)) }] : [])
       ]
     });
   };
+  // ----- the sources listed in the sheet that makes a project (a computer): kept in memory until "Create project" is pressed
+  const staged = [];
+  const stagingTarget = { id: 'staging', staging: true };
+  const stageFull = () => staged.length >= PROJECT_SOURCES_MAX;
+  const stageFiles = (files) => {
+    for (const file of files) {
+      if (stageFull()) { notify(sourceFailureText(text, { code: 'full' }), 'error'); break; }
+      staged.push({ id: `s${staged.length}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, kind: String(file.type || '').startsWith('image/') ? 'image' : 'file', title: file.name, size: file.size, text: '', file });
+    }
+  };
+  // The sheet of a written text asks its `actions` to add the source: here it only goes into the list.
+  const stagingActions = { addSource: async (_id, source) => {
+    if (stageFull()) return { ok: false, code: 'full' };
+    staged.push({ id: `t${staged.length}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, kind: 'text', title: source.title, size: source.text.length, text: source.text });
+    return { ok: true };
+  } };
+  const stagedSources = {
+    list: () => staged,
+    row: (item, after) => sourceRow(stagingTarget, item, after, () => { const at = staged.findIndex((entry) => entry.id === item.id); if (at >= 0) staged.splice(at, 1); }),
+    add: (after) => openAddSources(stagingTarget, after)
+  };
+  // The project is there: what was listed is read and kept as its sources, one by one (the limits are the same as when a source is added to a project that exists).
+  const commitStaged = async (id) => {
+    const project = projectOrNull(id);
+    const items = staged.splice(0, staged.length);
+    if (!project) return;
+    for (const item of items) {
+      const result = item.kind === 'text'
+        ? await actions.addSource(id, { kind: 'text', title: item.title, text: item.text }).then((added) => { if (!added.ok) notify(sourceFailureText(text, added, item.title), 'error'); return added; }).catch(() => ({ ok: false }))
+        : await addFile(project, item.file);
+      if (!result.ok && (result.code === 'full' || result.code === 'too_much' || result.code === 'files_too_much')) break;
+    }
+    if (state.view === 'project' && state.tab === 'sources') drawProject();
+  };
   // One source as a row: its tile, its title and kind and size, and a bin. `after` is called once it is removed.
-  const sourceRow = (project, source, after) => {
+  const sourceRow = (project, source, after, onRemove = null) => {
     const row = make(document, 'div', 'pj-row pj-source');
     row.dataset.sourceId = source.id;
     const label = kindLabel(source);
@@ -354,7 +390,12 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     remove.type = 'button';
     remove.setAttribute('aria-label', text('pjSourceRemove'));
     remove.innerHTML = ICONS.trash(18);
-    remove.addEventListener('click', async () => { const result = await actions.removeSource(project.id, source.id); if (result.ok) notify(text('pjSourceRemoved'), 'success'); after(); });
+    remove.addEventListener('click', async () => {
+      if (onRemove) { onRemove(); after(); return; }
+      const result = await actions.removeSource(project.id, source.id);
+      if (result.ok) notify(text('pjSourceRemoved'), 'success');
+      after();
+    });
     row.append(tile, meta, remove);
     return row;
   };
@@ -452,11 +493,23 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     if (pushed && win.history.state?.projects) win.history.back();
     else go({ list: true }, false);
   }
-  const newProject = () => openCreateSheet({
-    document, root, text, actions, notify, onCreated: (id) => go({ id }, true),
-    // A computer: the files of the folder that was chosen are added to the new project one after another.
-    onFolderFiles: sourcesEnabled ? async (id, files) => { const project = projectOrNull(id); if (project) { await addAll(project, files); if (state.view === 'project' && state.tab === 'sources') drawProject(); } } : null
-  });
+  // `alone`: the sheet was asked for from the left menu with no page behind it (root.pj-dialog-only): the page goes away with the sheet unless a project was made.
+  const newProject = ({ alone = false } = {}) => {
+    staged.length = 0;
+    // The hidden inputs of the files and photos are in the page while the sheet is open (the sheet lists what they bring).
+    for (const input of inputs) if (!input.isConnected) root.appendChild(input);
+    let made = false;
+    return openCreateSheet({
+      document, root, text, actions, notify,
+      onCreated: (id) => { made = true; root.classList.remove('pj-dialog-only'); go({ id }, true); },
+      // A computer: what is listed in the sheet (camera, photos, files, texts, Google Drive) and the files of the folder that was chosen are added to the new project one after another.
+      sources: sourcesEnabled ? stagedSources : null,
+      commitSources: sourcesEnabled ? (id) => commitStaged(id) : null,
+      onFolderFiles: sourcesEnabled ? async (id, files) => { const project = projectOrNull(id); if (project) { await addAll(project, files); if (state.view === 'project' && state.tab === 'sources') drawProject(); } } : null,
+      // The sheet closes just before the page is told that a project was made (and the listed sources are taken to be added): what is decided after that is whether it was a cancel.
+      onClose: () => { Promise.resolve().then(() => { if (made) return; staged.length = 0; if (alone) close(); }); }
+    });
+  };
 
   const onPopState = () => {
     const route = projectsRouteFromPath(win.location.pathname);
@@ -492,7 +545,13 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
   const first = route?.id && projectOrNull(route.id) ? route : { list: true, ...(route?.create ? { create: true } : {}) };
   // The page opened by its address starts where the address says; opened by a tap it adds an entry to the history.
   const addressRoute = projectsRouteFromPath(win.location.pathname);
-  go(first, !addressRoute);
   current = { close, go: (next) => go(next, true), element: root, state, refresh: () => { if (state.view === 'project') drawProject(); else drawList(); } };
+  // From the + of the left menu on a computer (`create` and no `list`): only the sheet that makes a project, over the chat; the page and its list are drawn once a project is made.
+  if (route?.create && !route.list && !route.id) {
+    root.classList.add('pj-dialog-only');
+    newProject({ alone: true });
+  } else {
+    go(first, !addressRoute);
+  }
   return current;
 }
