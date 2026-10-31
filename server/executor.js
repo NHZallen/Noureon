@@ -29,6 +29,7 @@ import { createMemoryLoader } from '../src/data/memory-tool.js';
 import { pickCuratorModel, runCurator } from '../src/data/memory-curator.js';
 import { createServerTidy } from './memory-tidy.js';
 import { scopedMemory } from './memory-scope.js';
+import { makeThumbnail } from './picture-thumb.js';
 import { createProjectFilesLoader } from '../src/data/project-files-tool.js';
 import { createProjectFileTextReader } from './project-file-text.js';
 import { createMemoryModelRunner } from '../src/app/runtime/shell/memory-model-runner.js';
@@ -336,7 +337,15 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
     const vectorSearch = spec.tools.projectFiles.vector && secrets.embeddingKey && memory?.projectVectors
       ? memory.projectVectors.forReply({ userId, vector: { provider: spec.tools.projectFiles.vector.provider, key: secrets.embeddingKey }, signal })
       : null;
-    projectFilesLoader = createProjectFilesLoader({ entries, mediaEntries: (spec.tools.projectFiles.media || []).map((entry) => ({ ...entry, kind: 'image' })), language, vectorSearch, readText: (entry) => readText(byId.get(entry.id)) });
+    const canView = spec.tools.projectFiles.canView === true;
+    projectFilesLoader = createProjectFilesLoader({
+      entries, mediaEntries: (spec.tools.projectFiles.media || []).map((entry) => ({ ...entry, kind: 'image' })), canView,
+      // A small copy of the picture, read from the person's cloud storage like the text of a file (the bytes are not kept).
+      viewMedia: canView ? async (entry) => {
+        const bytes = await files.load({ userId, marker: { __astraCloudAsset: { path: `${userId}/${entry.fileHash}`, mimeType: entry.mimeType || '', encoding: 'base64' } } });
+        return bytes ? makeThumbnail(bytes, entry.mimeType || 'image/png') : null;
+      } : null,
+      language, vectorSearch, readText: (entry) => readText(byId.get(entry.id)) });
   }
   // What the reply's loops are given: the skills, the connectors, the pictures, the memory and the files of the project as one loader (any may be missing).
   const makeSkillLoader = (options) => combineLoaders(makeSkillsOnly(options), connectorLoader, imageLoader, memoryLoader, projectFilesLoader);

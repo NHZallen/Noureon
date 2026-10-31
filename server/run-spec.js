@@ -55,7 +55,7 @@ const PROJECT_FILES_TEXT_TOTAL_MAX = 400_000;
 const HASH = /^[0-9a-f]{64}$/;
 const projectFileEntries = (value) => (isObject(value) && Array.isArray(value.entries) ? value.entries : null);
 function normalizeProjectFiles(value) {
-  return { ...(isObject(value.vector) ? { vector: { provider: value.vector.provider } } : {}), ...(Array.isArray(value.media) && value.media.length ? { media: value.media.map((entry) => ({ id: entry.id, name: entry.name, size: Math.max(0, Math.floor(Number(entry.size) || 0)), fileHash: entry.fileHash, attached: entry.attached === true })) } : {}), entries: projectFileEntries(value).map((entry) => ({
+  return { ...(isObject(value.vector) ? { vector: { provider: value.vector.provider } } : {}), ...(Array.isArray(value.media) && value.media.length ? { media: value.media.map((entry) => ({ id: entry.id, name: entry.name, size: Math.max(0, Math.floor(Number(entry.size) || 0)), fileHash: entry.fileHash, ...(entry.mimeType ? { mimeType: String(entry.mimeType).slice(0, 100) } : {}), attached: entry.attached === true })), ...(value.canView === true ? { canView: true } : {}) } : {}), entries: projectFileEntries(value).map((entry) => ({
     id: entry.id, name: entry.name, size: Math.max(0, Math.floor(Number(entry.size) || 0)),
     ...(typeof entry.text === 'string' ? { text: entry.text } : { file: { hash: entry.file.hash, ...(entry.file.mimeType ? { mimeType: entry.file.mimeType } : {}), ...(entry.file.name ? { name: entry.file.name } : {}) } })
   })) };
@@ -486,7 +486,9 @@ export function validateRunSpec(input) {
     // The files of the project the model may look into by itself (search_project_files and read_project_file).
     if (tools.projectFiles !== undefined) {
       const entries = projectFileEntries(tools.projectFiles);
-      if (!entries || entries.length < 1 || entries.length > PROJECT_FILES_MAX) fail('tools.projectFiles', `must have a list "entries" of one to ${PROJECT_FILES_MAX} files`);
+      // A project of pictures only has no entries: it needs the pictures and a model that can look at them.
+      const onlyPictures = Array.isArray(tools.projectFiles.media) && tools.projectFiles.media.length > 0 && tools.projectFiles.canView === true;
+      if (!entries || (entries.length < 1 && !onlyPictures) || entries.length > PROJECT_FILES_MAX) fail('tools.projectFiles', `must have a list "entries" of one to ${PROJECT_FILES_MAX} files (or pictures to look at)`);
       else {
         let total = 0;
         entries.forEach((entry, index) => {
@@ -499,11 +501,13 @@ export function validateRunSpec(input) {
         if (total > PROJECT_FILES_TEXT_TOTAL_MAX) fail('tools.projectFiles', `the texts must be at most ${PROJECT_FILES_TEXT_TOTAL_MAX} characters together`);
       }
       // `media`: the pictures of the project (no text; the search may name them): [{ id, name, size, fileHash, attached }], `attached` when the picture went with the message.
+      // `canView`: the model can look at pictures, so it gets view_project_file for them (the page decides from the model).
+      if (tools.projectFiles.canView !== undefined && typeof tools.projectFiles.canView !== 'boolean') fail('tools.projectFiles.canView', 'must be true or false');
       if (tools.projectFiles.media !== undefined) {
         const media = tools.projectFiles.media;
         if (!Array.isArray(media) || media.length > PROJECT_FILES_MAX) fail('tools.projectFiles.media', `must be a list of at most ${PROJECT_FILES_MAX} pictures`);
         else media.forEach((entry, index) => {
-          if (!isObject(entry) || !text(entry.id, 80) || !text(entry.name, 200) || typeof entry.fileHash !== 'string' || !HASH.test(entry.fileHash) || typeof entry.attached !== 'boolean') fail(`tools.projectFiles.media[${index}]`, 'must have an id, a name, the hash of the file and whether it came with the message');
+          if (!isObject(entry) || !text(entry.id, 80) || !text(entry.name, 200) || typeof entry.fileHash !== 'string' || !HASH.test(entry.fileHash) || typeof entry.attached !== 'boolean' || (entry.mimeType !== undefined && typeof entry.mimeType !== 'string')) fail(`tools.projectFiles.media[${index}]`, 'must have an id, a name, the hash of the file and whether it came with the message');
         });
       }
       // `vector`: the search may also be by meaning, with the key of `secrets.embeddingKey` (the vectors of the files are in the person's cloud only when they synced them).
@@ -639,7 +643,7 @@ export function validateRunSpec(input) {
         ...(tools.advanced === true && isObject(tools.net) ? { net: { mode: normalizeNetMode(tools.net.mode), rules: normalizeNetRules(tools.net.rules), ...(tools.net.enabled === false ? { enabled: false } : {}) } } : {}),
         ...(Array.isArray(tools.skills) && listedSkills(tools.skills).length ? { skills: listedSkills(tools.skills) } : {}),
         ...(tools.connectors === true ? { connectors: true } : {}),
-        ...(projectFileEntries(tools.projectFiles)?.length ? { projectFiles: normalizeProjectFiles(tools.projectFiles) } : {}),
+        ...(projectFileEntries(tools.projectFiles)?.length || tools.projectFiles?.media?.length ? { projectFiles: normalizeProjectFiles(tools.projectFiles) } : {}),
         ...(isObject(tools.memory) ? { memory: { canWrite: tools.memory.canWrite === true, ...(text(tools.memory.scope, 80) ? { scope: tools.memory.scope } : {}), ...(text(tools.memory.project, 80) ? { project: tools.memory.project } : {}), ...(tools.memory.curator === true ? { curator: true } : {}), ...(tools.memory.history === true ? { history: true } : {}), ...(isObject(tools.memory.vector) ? { vector: { provider: tools.memory.vector.provider } } : {}), messages: tools.memory.messages.map((message) => ({ id: message.id, text: message.text, ...(message.at ? { at: message.at } : {}) })) } } : {}),
         ...(imageGeneration ? { imageGeneration } : {}),
         ...(tools.inputs?.length ? { inputs: tools.inputs.map((file) => ({ name: file.name, mimeType: file.mimeType || '', data: file.data })) } : {})

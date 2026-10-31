@@ -156,3 +156,12 @@
 - **搜尋命中圖片**：`search_project_files` 的結果多一個 `pictures`（檔名、`in_this_message`：這張圖有沒有跟著這次訊息附上），圖片靠檔名的字與向量（hash 對得上才算）。**沒有 `view_project_file` 之前，沒附上的圖模型看不到**（結果與清單都這樣寫明），那是 R3。專案只有圖片、沒有任何文字來源時還沒有搜尋工具（R3 會改）。
 - **伺服器**：`tools.projectFiles.media`（`[{ id, name, size, fileHash, attached }]`）進 `run-spec.js` 驗證與 `executor.js` 的 loader；資料庫不用改（`match_project_vectors` 本來就是 `src:<id>:` 前綴）。
 - **畫面**：來源列多一行索引狀態（索引中、已建立索引、無法建立索引、檔案太大未建立索引），只在向量開著時出現；向量建完自動更新那一行，不重畫整頁。
+
+### R3 的做法（`view_project_file`，2026-11-01）
+
+- **工具**：`view_project_file({ file })`（`src/data/project-files-tool.js`），只對**看得懂圖**的模型提供（頁面用 `supportsVision(modelInfo)` 算出 `canViewPictures`，伺服器用請求的 `tools.projectFiles.canView`），且專案裡要有圖片。回傳 `{ content, images: [{ label, mimeType, data }] }`，也就是文字模型畫圖時已有的「工具結果帶圖」那條路（`data/tool-result.js`）；**四種格式（Gemini、Chat、Responses、Messages）本來就接好了**，這一階段只加測試確認 `view_project_file` 的結果每一種都到得了模型。
+- **給模型的是縮圖**，不是原檔：最長邊 1280、JPEG、不超過一個工具答案能帶的大小（`MAX_RESULT_IMAGE_CHARS`）。頁面用瀏覽器的 canvas（`runtime/projects/project-picture-thumb.js`，依序試 1280、900、600），伺服器用 `server/picture-thumb.js` 從使用者雲端資料夾讀原檔後縮（位元組不留）。縮不出來的圖不給，並明說。
+- **額度**：一次回覆模型主動看的圖，原檔合計最多 10 MB（`PROJECT_VIEW_BYTES_MAX`）；已經隨訊息附上的圖不重複給、也不算額度；達到上限就告訴模型。
+- **只有圖片的專案**現在也有工具（搜尋與看圖，沒有讀檔）；請求的 `entries` 可以是空的，只要有 `media` 而且 `canView`。
+- **伺服器欄位**：`tools.projectFiles.canView`、`media[].mimeType`（都選填）。
+- 影片與聲音（R4）、掃描 PDF 逐頁（R5）還沒有；`view_project_file` 目前只看圖片。

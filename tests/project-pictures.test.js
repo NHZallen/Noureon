@@ -178,3 +178,77 @@ test('the search names the pictures that match (by their names, and by the vecto
   assert.deepEqual(JSON.parse(await plain.run({ name: 'search_project_files', args: { query: 'receipt' } })).pictures.map((entry) => entry.file), ['tax-receipt.png']);
   assert.match(await plain.run({ name: 'search_project_files', args: { query: 'zzzz qqqq' } }), /Nothing in the project files matches/);
 });
+
+// ---------- R3: view_project_file
+
+const pictures = () => [
+  { id: 'p1', name: 'receipt.png', kind: 'image', size: 3 * MB, fileHash: 'a'.repeat(64), attached: false },
+  { id: 'p2', name: 'trip.png', kind: 'image', size: 3 * MB, fileHash: 'b'.repeat(64), attached: true },
+  { id: 'p3', name: 'plan.png', kind: 'image', size: 5 * MB, fileHash: 'c'.repeat(64), attached: false },
+  { id: 'p4', name: 'map.png', kind: 'image', size: 2 * MB, fileHash: 'd'.repeat(64), attached: false }
+];
+const names = (loader) => loader.tools.map((tool) => tool.name);
+
+test('view_project_file is given only to a model that can see, and only when the project has pictures; a project of pictures alone has the search too', () => {
+  const texts = [{ id: 't', name: 'notes.md', kind: 'text', size: 10 }];
+  const view = async () => ({ mimeType: 'image/jpeg', data: 'QUJD' });
+  assert.deepEqual(names(createProjectFilesLoader({ entries: texts, mediaEntries: pictures(), canView: true, viewMedia: view, readText: async () => 'x' })), ['search_project_files', 'read_project_file', 'view_project_file']);
+  assert.deepEqual(names(createProjectFilesLoader({ entries: texts, mediaEntries: pictures(), canView: false, viewMedia: view, readText: async () => 'x' })), ['search_project_files', 'read_project_file'], 'a model that cannot see: no such tool');
+  assert.deepEqual(names(createProjectFilesLoader({ entries: texts, mediaEntries: [], canView: true, viewMedia: view, readText: async () => 'x' })), ['search_project_files', 'read_project_file'], 'no pictures');
+  assert.deepEqual(names(createProjectFilesLoader({ entries: [], mediaEntries: pictures(), canView: true, viewMedia: view, readText: async () => '' })), ['search_project_files', 'view_project_file'], 'pictures alone: nothing to read');
+  assert.deepEqual(names(createProjectFilesLoader({ entries: [], mediaEntries: pictures(), canView: false, readText: async () => '' })), [], 'pictures alone and a model that cannot see: nothing');
+});
+
+test('view_project_file gives the picture back as a small copy with the answer; one that came with the message is not given again; the pictures of a reply are limited', async () => {
+  const shown = [];
+  const loader = createProjectFilesLoader({
+    entries: [{ id: 't', name: 'notes.md', kind: 'text', size: 10 }], mediaEntries: pictures(), canView: true, readText: async () => 'x',
+    viewMedia: async (entry) => { shown.push(entry.name); return entry.name === 'map.png' ? null : { mimeType: 'image/jpeg', data: `data-of-${entry.name}` }; }
+  });
+  const first = await loader.run({ name: 'view_project_file', args: { file: 'receipt.png' } });
+  assert.equal(first.content, 'The picture "receipt.png" follows.');
+  assert.deepEqual(first.images, [{ label: 'receipt.png', mimeType: 'image/jpeg', data: 'data-of-receipt.png' }]);
+  assert.deepEqual(loader.outcome(), { key: 'projectFilesViewing', count: 1 });
+  assert.match(await loader.run({ name: 'view_project_file', args: { file: 'trip.png' } }), /already in front of you/);
+  assert.deepEqual(shown, ['receipt.png'], 'a picture that came with the message is not read again');
+  assert.match(await loader.run({ name: 'view_project_file', args: { file: 'nothing.png' } }), /There is no such picture/);
+  // 3 MB used; plan.png is 5 MB (8 so far); map.png is 2 MB (10) but cannot be shown; a further 3 MB would pass 10.
+  assert.equal((await loader.run({ name: 'view_project_file', args: { file: 'plan' } })).images[0].label, 'plan.png', 'a name that holds the words');
+  assert.match(await loader.run({ name: 'view_project_file', args: { file: 'map.png' } }), /could not be shown now/);
+  const more = createProjectFilesLoader({ entries: [], mediaEntries: [{ ...pictures()[2], size: 6 * MB }, { ...pictures()[0], size: 5 * MB }], canView: true, readText: async () => '', viewMedia: async () => ({ mimeType: 'image/jpeg', data: 'QUJD' }) });
+  assert.ok((await more.run({ name: 'view_project_file', args: { file: 'plan.png' } })).images);
+  assert.match(await more.run({ name: 'view_project_file', args: { file: 'receipt.png' } }), /limit of 10 MB of pictures/);
+  // The step row.
+  assert.equal(loader.stepEvent({ name: 'view_project_file' }, 'en').key, 'projectFilesViewing');
+});
+
+test('the page shrinks a picture to a JPEG that fits an answer, trying smaller sides, and gives it as it is only when it is small', async () => {
+  const { makeViewThumbnail, VIEW_SIDES } = await import('../src/app/runtime/projects/project-picture-thumb.js');
+  const sizes = [];
+  const deps = {
+    createImageBitmap: async () => ({ width: 4000, height: 2000 }),
+    makeCanvas: (width, height) => { sizes.push([width, height]); return { getContext: () => ({ fillRect() {}, drawImage() {} }), toBlob: async () => new Blob([new Uint8Array(sizes.length === 1 ? 400_000 : 1000)]) }; }
+  };
+  const big = await makeViewThumbnail({ mimeType: 'image/png', data: Buffer.from('x'.repeat(10)).toString('base64') }, deps);
+  assert.equal(big.mimeType, 'image/jpeg');
+  assert.deepEqual(sizes, [[1280, 640], [900, 450]], 'the first copy was too big for an answer, the second fits');
+  assert.equal(VIEW_SIDES[0], 1280);
+  const broken = { createImageBitmap: async () => { throw new Error('no'); } };
+  assert.deepEqual(await makeViewThumbnail({ mimeType: 'image/png', data: 'QUJD' }, broken), { mimeType: 'image/png', data: 'QUJD' });
+  assert.equal(await makeViewThumbnail({ mimeType: 'image/png', data: 'x'.repeat(300_000) }, broken), null, 'a big picture that cannot be shrunk is not shown');
+  assert.equal(await makeViewThumbnail({ mimeType: 'application/pdf', data: 'QUJD' }, broken), null);
+});
+
+test('the picture of view_project_file reaches the model in each of the four forms (Gemini, chat, Responses, Messages)', async () => {
+  const { keepToolResult } = await import('../src/data/tool-result.js');
+  const { applyGeminiTools, applyOpenAiTools, applyResponsesTools } = await import('../src/app/runtime/features/tool-call-formats.js');
+  const { applyAnthropicTools } = await import('../src/app/runtime/reply/anthropic-messages-format.js');
+  const loader = createProjectFilesLoader({ entries: [], mediaEntries: pictures(), canView: true, readText: async () => '', viewMedia: async () => ({ mimeType: 'image/jpeg', data: 'QUJD' }) });
+  const call = { id: 'c1', geminiId: 'g1', name: 'view_project_file', arguments: '{"file":"receipt.png"}', args: { file: 'receipt.png' } };
+  const turn = { assistant: { text: '', toolCalls: [call] }, results: [keepToolResult(call, await loader.run(call))] };
+  assert.equal(turn.results[0].content, 'The picture "receipt.png" follows.');
+  assert.deepEqual(applyGeminiTools({ contents: [] }, { toolTurns: [turn] }).contents.at(-1).parts.slice(1), [{ text: 'receipt.png' }, { inlineData: { mimeType: 'image/jpeg', data: 'QUJD' } }]);
+  assert.deepEqual(applyOpenAiTools({ messages: [] }, { toolTurns: [turn] }).messages.at(-1).content, [{ type: 'text', text: 'receipt.png' }, { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,QUJD' } }]);
+  assert.deepEqual(applyResponsesTools({ input: [] }, { toolTurns: [turn] }).input.at(-1).content, [{ type: 'input_text', text: 'receipt.png' }, { type: 'input_image', image_url: 'data:image/jpeg;base64,QUJD' }]);
+  assert.deepEqual(applyAnthropicTools({ messages: [] }, { toolTurns: [turn] }).messages.at(-1).content.slice(1), [{ type: 'text', text: 'receipt.png' }, { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: 'QUJD' } }]);
+});

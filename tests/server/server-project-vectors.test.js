@@ -157,3 +157,42 @@ test('the request may name the pictures of the project (with the hash of the fil
   const answer = requests[1].messages.filter((entry) => entry.role === 'tool').map((entry) => entry.content).join('\n');
   assert.match(answer, /"pictures":\[\{"file":"tax-receipt.png","in_this_message":false\}\]/);
 });
+
+test('on the server the model looks at a picture of the project with view_project_file: it is read from the cloud storage of the person, shown to the model in the next round, and a model that cannot see is not given the tool', async () => {
+  const HASH_A = 'a'.repeat(64);
+  const media = [{ id: 'p1', name: 'receipt.png', size: 90, fileHash: HASH_A, mimeType: 'image/png', attached: false }];
+  const loads = [];
+  const files = { load: async ({ userId, marker }) => { loads.push([userId, marker.__astraCloudAsset.path]); return new Uint8Array([137, 80, 78, 71, 1, 2, 3, 4]); } };
+  const run = async (projectFiles) => {
+    const requests = [];
+    let round = 0;
+    const result = await executeReply({
+      spec: spec(projectFiles, { providerKey: 'sk-provider-secret-value' }),
+      secrets: { providerKey: 'sk-provider-secret-value' },
+      userId: USER,
+      files,
+      memory: null,
+      fetchImpl: async (url, options) => {
+        requests.push(JSON.parse(options.body));
+        round += 1;
+        if (round === 1) return streamResponse(sse(toolCall('c1', 'view_project_file', { file: 'receipt.png' })));
+        return streamResponse(sse(content('It is a receipt.')));
+      }
+    });
+    return { result, requests };
+  };
+  // A project of pictures alone, and a model that can see.
+  const seeing = await run({ entries: [], media, canView: true });
+  assert.equal(seeing.result.status, 'done');
+  const toolNames = seeing.requests[0].tools.map((tool) => tool.function?.name || tool.name);
+  assert.deepEqual(toolNames.filter((name) => /project_file/.test(name)), ['search_project_files', 'view_project_file']);
+  assert.deepEqual(loads, [[USER, `${USER}/${HASH_A}`]], 'the file of the person, from the folder of the person');
+  const shown = JSON.stringify(seeing.requests[1].messages);
+  assert.match(shown, /image_url/);
+  assert.match(shown, /data:image\/(png|jpeg);base64,/);
+  // The same request from a model that cannot see: the pictures can be found but not looked at, and no tool of the project is offered for pictures alone.
+  const blind = validateRunSpec(spec({ entries: [], media, canView: false }, { providerKey: 'sk-provider-secret-value' }));
+  assert.equal(blind.ok, false, 'pictures alone and no way to look at them: nothing to give the model');
+  const withText = await run({ entries: FILES.entries, media, canView: false });
+  assert.equal(withText.requests[0].tools.some((tool) => (tool.function?.name || tool.name) === 'view_project_file'), false);
+});

@@ -76,6 +76,8 @@ const TEXTS = Object.freeze({
     memoryWriting: '更新記憶',
     projectFilesSearching: '正在查閱專案檔案…',
     projectFilesReading: '正在閱讀專案檔案…',
+    projectFilesViewing: '正在查看專案圖片…',
+    projectFilesViewed: '查看了專案圖片',
     projectFilesSearched: '查閱了專案檔案',
     projectFilesSearchedCount: '查閱專案檔案，找到 {n} 段',
     projectFilesSearchedNone: '查閱專案檔案，沒有相關內容',
@@ -249,6 +251,8 @@ const TEXTS = Object.freeze({
     memoryWriting: 'Updating memory',
     projectFilesSearching: 'Looking through the project files…',
     projectFilesReading: 'Reading a project file…',
+    projectFilesViewing: 'Looking at a project picture…',
+    projectFilesViewed: 'Looked at a project picture',
     projectFilesSearched: 'Looked through the project files',
     projectFilesSearchedCount: 'Looked through the project files: {n} passages',
     projectFilesSearchedNone: 'Looked through the project files: nothing relevant',
@@ -422,6 +426,8 @@ const TEXTS = Object.freeze({
     memoryWriting: 'Mise à jour de la mémoire',
     projectFilesSearching: 'Consultation des fichiers du projet…',
     projectFilesReading: 'Lecture d’un fichier du projet…',
+    projectFilesViewing: 'Examen d’une image du projet…',
+    projectFilesViewed: 'Image du projet examinée',
     projectFilesSearched: 'Fichiers du projet consultés',
     projectFilesSearchedCount: 'Fichiers du projet consultés : {n} passages',
     projectFilesSearchedNone: 'Fichiers du projet consultés : rien de pertinent',
@@ -595,6 +601,8 @@ const TEXTS = Object.freeze({
     memoryWriting: 'Обновление памяти',
     projectFilesSearching: 'Просматриваю файлы проекта…',
     projectFilesReading: 'Читаю файл проекта…',
+    projectFilesViewing: 'Смотрю изображение проекта…',
+    projectFilesViewed: 'Просмотрено изображение проекта',
     projectFilesSearched: 'Просмотрены файлы проекта',
     projectFilesSearchedCount: 'Просмотрены файлы проекта: отрывков {n}',
     projectFilesSearchedNone: 'Просмотрены файлы проекта: ничего подходящего',
@@ -768,6 +776,8 @@ const TEXTS = Object.freeze({
     memoryWriting: 'Actualizando la memoria',
     projectFilesSearching: 'Consultando los archivos del proyecto…',
     projectFilesReading: 'Leyendo un archivo del proyecto…',
+    projectFilesViewing: 'Mirando una imagen del proyecto…',
+    projectFilesViewed: 'Imagen del proyecto vista',
     projectFilesSearched: 'Archivos del proyecto consultados',
     projectFilesSearchedCount: 'Archivos del proyecto consultados: {n} pasajes',
     projectFilesSearchedNone: 'Archivos del proyecto consultados: nada relevante',
@@ -890,6 +900,7 @@ export const loaderStepEvent = (loader, call, language) => loader.stepEvent?.(ca
 export function memoryDoneLabel(language, key, count) {
   // The looks into the files of a project (data/project-files-tool.js).
   if (key === 'projectFilesReading') return sandboxText(language, 'projectFilesRead');
+  if (key === 'projectFilesViewing') return sandboxText(language, 'projectFilesViewed');
   if (key === 'projectFilesSearching') return !Number.isInteger(count) || count < 0 ? sandboxText(language, 'projectFilesSearched') : count > 0 ? sandboxText(language, 'projectFilesSearchedCount', { n: count }) : sandboxText(language, 'projectFilesSearchedNone');
   const reviewing = key === 'memoryReviewing';
   if (!Number.isInteger(count) || count < 0) return sandboxText(language, key === 'memoryWriting' ? 'memoryWrote' : reviewing ? 'memoryReviewed' : 'memoryRecalled');

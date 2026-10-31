@@ -115,3 +115,39 @@ trailer<</Root 1 0 R/Size 4>>
     assert.deepEqual(parts.filter((part) => part.inlineData).map((part) => part.inlineData.name), ['scan.pdf'], 'it is given whole');
   } finally { setProjectFoldersReader(null); setProjectFileDeps(null); }
 });
+
+test('a model that can see gets view_project_file for the pictures of the project; the pictures that did not come with the message are named for it; a project of pictures alone has the tools too', async () => {
+  await withFolder(async () => {
+    const made = [];
+    const makeThumb = async ({ mimeType, data }) => { made.push([mimeType, data]); return { mimeType: 'image/jpeg', data: 'SMALL' }; };
+    const access = await createProjectFilesAccess({ conversation: { folderId: 'f1' }, canViewPictures: true, makeThumb });
+    assert.ok(access);
+    assert.match(access.catalogText, /Pictures of the project that did not come with this message \(look at one with view_project_file\):\n- photo\.png/);
+    const loader = access.make('en');
+    assert.deepEqual(loader.tools.map((tool) => tool.name), ['search_project_files', 'read_project_file', 'view_project_file']);
+    const shown = await loader.run({ name: 'view_project_file', args: { file: 'photo.png' } });
+    assert.deepEqual(shown.images, [{ label: 'photo.png', mimeType: 'image/jpeg', data: 'SMALL' }]);
+    assert.deepEqual(made, [['image/png', Buffer.from([1, 2, 3]).toString('base64')]], 'the picture of the person was read from the kept file');
+    // The message is made first: a picture that came with it is not "not come".
+    const second = await createProjectFilesAccess({ conversation: { folderId: 'f1' }, canViewPictures: true, makeThumb });
+    second.setAttached(['s3']);
+    assert.doesNotMatch(second.catalogText, /did not come with this message/);
+    assert.deepEqual(second.snapshot().media.map((entry) => [entry.id, entry.mimeType, entry.attached]), [['s3', 'image/png', true]]);
+    assert.equal(second.snapshot().canView, true);
+    // A model that cannot see: the pictures are named by the search only.
+    const blind = await createProjectFilesAccess({ conversation: { folderId: 'f1' }, canViewPictures: false, makeThumb });
+    assert.deepEqual(blind.make('en').tools.map((tool) => tool.name), ['search_project_files', 'read_project_file']);
+    assert.match(blind.catalogText, /you cannot see them in this reply/);
+    assert.equal('canView' in blind.snapshot(), false);
+  });
+  // Pictures alone.
+  setProjectFoldersReader(() => [{ id: 'f2', name: 'Pics', sources: [file('s3', 'photo.png', 'h-photo', 'image/png')] }]);
+  setProjectFileDeps({ store: createProjectFileStore({ backend: createMemoryFileBackend() }), supports: () => true });
+  try {
+    assert.equal(await createProjectFilesAccess({ conversation: { folderId: 'f2' }, canViewPictures: false }), null, 'nothing to look at');
+    const access = await createProjectFilesAccess({ conversation: { folderId: 'f2' }, canViewPictures: true });
+    assert.deepEqual(access.make('en').tools.map((tool) => tool.name), ['search_project_files', 'view_project_file']);
+    assert.deepEqual(access.snapshot().entries, []);
+    assert.match(access.catalogText, /with the tools search_project_files when/);
+  } finally { setProjectFoldersReader(null); setProjectFileDeps(null); }
+});

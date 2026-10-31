@@ -40,10 +40,24 @@ export const READ_PROJECT_FILE_TOOL = Object.freeze({
   })
 });
 
+export const VIEW_PROJECT_FILE_TOOL = Object.freeze({
+  name: 'view_project_file',
+  description: 'Look at one picture of this project: it is shown to you with the answer. Use it for a picture that search_project_files named and that did not come with the message (in_this_message false), or when the question is about what a picture of the project shows. A picture that came with the message is already in front of you. Look at one at a time, only what the question needs. Do not say that you looked unless the user asked.',
+  parameters: Object.freeze({
+    type: 'object',
+    properties: {
+      file: { type: 'string', maxLength: 200, description: 'The name of the picture, as in the list of project files or in the result of the search.' }
+    },
+    required: ['file']
+  })
+});
+
+/** The most bytes of pictures (the originals) the model may ask for with view_project_file in one reply: the same 10 MB as the originals that go with a message. */
+export const PROJECT_VIEW_BYTES_MAX = 10 * 1024 * 1024;
 export const MAX_PROJECT_FILE_CALLS = 14;
 export const PASSAGE_CHARS = 900;
 const OVERLAP = 120;
-const NAMES = new Set([SEARCH_PROJECT_FILES_TOOL.name, READ_PROJECT_FILE_TOOL.name]);
+const NAMES = new Set([SEARCH_PROJECT_FILES_TOOL.name, READ_PROJECT_FILE_TOOL.name, VIEW_PROJECT_FILE_TOOL.name]);
 export const isProjectFilesToolName = (name) => NAMES.has(name);
 /** The most characters of one file the search looks at (the rest of a very long file is still read with read_project_file). */
 export const SEARCHED_CHARS_MAX = 2_000_000;
@@ -100,8 +114,10 @@ export function projectFilesListText(entries) {
  * `onUsed({ files })` is told which files a search or a read brought something from. `language` is the language of the rows of the step list.
  * `vectorSearch(query, { fileIds, limit })` (optional) resolves [{ id, hash, cosine }] (the nearest in meaning, as piece ids; any failure is []): with it a search puts what the keywords
  * find and what the vectors find together; without it, or when it finds nothing, the keywords are used alone.
+ * `canView` (the model can see pictures) and `viewMedia(entry)` (resolves { mimeType, data (base64) } of a small copy of the picture, or null: the page and the server each make it) give the model
+ * the tool view_project_file for the pictures in `mediaEntries`.
  */
-export function createProjectFilesLoader({ entries, readText, language = 'zh-TW', maxCalls = MAX_PROJECT_FILE_CALLS, onUsed = null, vectorSearch = null, mediaEntries = [] }) {
+export function createProjectFilesLoader({ entries, readText, language = 'zh-TW', maxCalls = MAX_PROJECT_FILE_CALLS, onUsed = null, vectorSearch = null, mediaEntries = [], canView = false, viewMedia = null }) {
   const files = entries.map((entry) => ({ ...entry }));
   // The pictures of the project: [{ id, name, size, fileHash, attached }] (`attached`: it went with the message of this reply). They have no text: a search finds them by their name and, with the
   // vectors, by what they show; it says which they are and whether the model has them in front of it.
@@ -139,6 +155,14 @@ export function createProjectFilesLoader({ entries, readText, language = 'zh-TW'
     const wanted = clean(name, 200).toLowerCase();
     return wanted ? media.find((entry) => entry.name.toLowerCase() === wanted) || null : null;
   };
+  // The picture a call names: its name as it is in the list, else (when only one) a name that holds the words, else (when it is the only picture) that one.
+  const resolvePicture = (name) => {
+    const wanted = clean(name, 200).toLowerCase();
+    if (!wanted) return media.length === 1 ? media[0] : null;
+    const near = media.filter((entry) => entry.name.toLowerCase().includes(wanted) || wanted.includes(entry.name.toLowerCase()));
+    return resolveMedia(name) || (near.length === 1 ? near[0] : null);
+  };
+  let viewedBytes = 0;
 
   async function buildIndex() {
     if (index) return index;
@@ -229,6 +253,38 @@ export function createProjectFilesLoader({ entries, readText, language = 'zh-TW'
     });
   }
 
+  async function view(call) {
+    if (calls >= maxCalls) return `The limit of ${maxCalls} looks into the project files per reply is reached. Go on with what you have.`;
+    if (!canView || !viewMedia) return 'You cannot look at pictures in this reply.';
+    const entry = resolvePicture(call?.args?.file);
+    if (!entry) return `There is no such picture. The pictures of the project: ${media.map((item) => item.name).join(', ') || '(none)'}.`;
+    calls += 1;
+    if (entry.attached === true) {
+      lastOutcome = { key: 'projectFilesViewing', count: 0 };
+      return `"${entry.name}" came with the message: it is already in front of you.`;
+    }
+    const size = Number(entry.size) || 0;
+    if (viewedBytes + size > PROJECT_VIEW_BYTES_MAX) {
+      lastOutcome = { key: 'projectFilesViewing', count: 0 };
+      return `The limit of ${Math.round(PROJECT_VIEW_BYTES_MAX / 1048576)} MB of pictures to look at in one reply is reached. Go on with what you have.`;
+    }
+    let shown = null;
+    try {
+      shown = await viewMedia(entry);
+    } catch {
+      shown = null;
+    }
+    if (!shown?.data) {
+      lastOutcome = { key: 'projectFilesViewing', count: 0 };
+      return `The picture "${entry.name}" could not be shown now. Go on without it.`;
+    }
+    viewedBytes += size;
+    entry.viewed = true;
+    lastOutcome = { key: 'projectFilesViewing', count: 1 };
+    onUsed?.({ files: [entry.name] });
+    return { content: `The picture "${entry.name}" follows.`, images: [{ label: entry.name, mimeType: shown.mimeType, data: shown.data }] };
+  }
+
   async function read(call) {
     if (calls >= maxCalls) return `The limit of ${maxCalls} looks into the project files per reply is reached. Go on with what you have.`;
     const entry = resolve(call?.args?.file);
@@ -256,8 +312,13 @@ export function createProjectFilesLoader({ entries, readText, language = 'zh-TW'
     instruction: '',
     get used() { return calls; },
     get tools() {
-      if (!files.length || calls >= maxCalls) return [];
-      return [SEARCH_PROJECT_FILES_TOOL, READ_PROJECT_FILE_TOOL];
+      if (calls >= maxCalls) return [];
+      const seeing = canView && Boolean(viewMedia) && media.length > 0;
+      const list = [];
+      if (files.length || seeing) list.push(SEARCH_PROJECT_FILES_TOOL);
+      if (files.length) list.push(READ_PROJECT_FILE_TOOL);
+      if (seeing) list.push(VIEW_PROJECT_FILE_TOOL);
+      return list;
     },
     /** Which pictures went with the message of this reply (their ids): the rest are named in the search as not in front of the model. */
     setAttached(ids) {
@@ -272,11 +333,11 @@ export function createProjectFilesLoader({ entries, readText, language = 'zh-TW'
       return outcome;
     },
     stepEvent: (call, lang = language) => {
-      const key = call?.name === READ_PROJECT_FILE_TOOL.name ? 'projectFilesReading' : 'projectFilesSearching';
+      const key = call?.name === READ_PROJECT_FILE_TOOL.name ? 'projectFilesReading' : call?.name === VIEW_PROJECT_FILE_TOOL.name ? 'projectFilesViewing' : 'projectFilesSearching';
       return { type: 'memory', event: 'call', tool: call?.name, key, label: sandboxText(lang, key) };
     },
     async run(call) {
-      return call?.name === READ_PROJECT_FILE_TOOL.name ? read(call) : search(call);
+      return call?.name === READ_PROJECT_FILE_TOOL.name ? read(call) : call?.name === VIEW_PROJECT_FILE_TOOL.name ? view(call) : search(call);
     }
   };
 }
