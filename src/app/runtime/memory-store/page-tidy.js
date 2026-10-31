@@ -4,19 +4,20 @@
 // what it changed is one event that can be undone for thirty days.
 
 import { runConsolidation, pickTidyModel } from '../../../data/memory-consolidate.js';
-import { scopedView } from '../memory-notes/scope.js';
+import { memoryProjectName } from '../projects/project-instructions.js';
+import { consolidatedAtOf, consolidatedPatch, scopedView, scopesOfNotes } from '../memory-notes/scope.js';
 
 let running = false;
 
 /**
  * `store` is the memory store, `getRunner()` gives `runMemoryModel` (or null), `force` ignores the schedule. Resolves the result of runConsolidation (`{ ran, skipped?, ... }`).
  */
-export async function tidyNotes({ store: wholeStore, getConfig, getRunner = () => null, models = [], getApiKeyForProvider = () => '', force = false, createId = () => globalThis.crypto.randomUUID(), now = () => new Date().toISOString(), logger = console }) {
+export async function tidyNotes({ store: wholeStore, getConfig, getRunner = () => null, models = [], getApiKeyForProvider = () => '', force = false, isProject = (id) => Boolean(memoryProjectName(id)), createId = () => globalThis.crypto.randomUUID(), now = () => new Date().toISOString(), logger = console }) {
   if (running) return { ran: false, skipped: 'busy' };
   running = true;
   try {
-    // Only the memory of the account is tidied: the notes of a project that keeps its notes for itself are not looked at together with it (memory-notes/scope.js).
-    const store = scopedView(wholeStore, '');
+    // Each scope is tidied on its own: the memory of the account, and the notes of every project that keeps its own; a model only ever sees the notes of one of them (memory-notes/scope.js).
+    const store = wholeStore;
     if (!store?.isLoaded()) return { ran: false, skipped: 'not_loaded' };
     const settings = store.getSettings();
     if (!settings.use || settings.paused) return { ran: false, skipped: 'off' };
@@ -24,20 +25,26 @@ export async function tidyNotes({ store: wholeStore, getConfig, getRunner = () =
     const model = typeof runner === 'function' && settings.learn
       ? pickTidyModel({ settingsId: settings.curatorModelId, currentId: getConfig?.()?.memoryModelId || '', models, hasKey: (provider) => Boolean(getApiKeyForProvider(provider)) })
       : null;
-    const result = await runConsolidation({
-      notes: store.getNotes(),
-      settings,
-      callModel: model ? (prompt) => runner({ modelId: model.id, prompt }) : null,
-      claim: (at) => store.setSettings({ consolidatedAt: at }),
-      commit: async ({ notes, events }) => {
-        const [first, ...rest] = events;
-        await store.commitWrite({ notes, events: first ? [first] : [] });
-        for (const event of rest) await store.commitWrite({ notes, events: [event] });
-      },
-      createId,
-      now,
-      force
-    });
+    let result = { ran: false, skipped: 'not_due' };
+    for (const scopeId of scopesOfNotes(store.getNotes(), isProject)) {
+      const view = scopedView(store, scopeId);
+      const done = await runConsolidation({
+        notes: view.getNotes(),
+        settings: { ...store.getSettings(), consolidatedAt: consolidatedAtOf(store.getSettings(), scopeId) },
+        callModel: model ? (prompt) => runner({ modelId: model.id, prompt }) : null,
+        claim: (at) => store.setSettings(consolidatedPatch(store.getSettings(), scopeId, at)),
+        commit: async ({ notes, events }) => {
+          const [first, ...rest] = events;
+          await view.commitWrite({ notes, events: first ? [first] : [] });
+          for (const event of rest) await view.commitWrite({ notes, events: [event] });
+        },
+        createId,
+        now,
+        force
+      });
+      // The account's own result is the one reported; a project's counts when the account had nothing to do.
+      if (!scopeId || (!result.ran && done.ran)) result = done;
+    }
     await store.pruneEvents().catch(() => 0);
     return result;
   } catch (error) {

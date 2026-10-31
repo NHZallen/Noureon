@@ -104,3 +104,17 @@ test('the memory of a project is chosen when it is made and never changes; the s
   assert.deepEqual(read.project_folders, [folderId]);
   assert.equal(read.conversations.find((entry) => entry.id === conversation.id).folder_id, folderId);
 });
+
+test('deleting a project for good takes the notes it kept for itself with it, and leaves every other note', async () => {
+  const folderId = id();
+  const other = id();
+  await callWith(A, 'upsert_workspace_folders', [{ id: folderId, name: 'Private', memory_scope: 'project' }, { id: other, name: 'Other', memory_scope: 'project' }]);
+  const note = (key, extra = {}) => database.service.query('insert into public.workspace_memory_records (user_id, record_key, payload) values ($1, $2, $3)', [ada, key, JSON.stringify({ text: 'x', ...extra })]);
+  await note('note:inside', { projectId: folderId });
+  await note('note:elsewhere', { projectId: other });
+  await note('note:account');
+  await A.query('select public.permanently_delete_workspace_folder($1::uuid)', [folderId]);
+  const rows = await database.service.query("select record_key, deleted_at is not null as gone, version from public.workspace_memory_records where user_id = $1 and record_key in ('note:inside','note:elsewhere','note:account') order by record_key", [ada]);
+  assert.deepEqual(rows.map((row) => [row.record_key, row.gone]), [['note:account', false], ['note:elsewhere', false], ['note:inside', true]]);
+  assert.equal(Number(rows.find((row) => row.record_key === 'note:inside').version), 2, 'the version moves on, so another device hears it');
+});

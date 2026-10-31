@@ -133,3 +133,29 @@ test('the look back through past chats stays inside the scope of the chat that a
   const wrapped = scopedMemory({ history }, PROJECT);
   assert.deepEqual((await wrapped.history.forReply({ userId: USER })('quarterly budget', 5)).map((hit) => hit.conversationId), [IN], 'the wrapped memory asks with its own scope');
 });
+
+test('the server tidies each scope on its own, and says when each was tidied', async () => {
+  const { createServerTidy } = await import('../../server/memory-tidy.js');
+  const table = createFakeTable();
+  const put = (id, text, keywords, extra = {}) => table.write({ user_id: USER, record_key: `note:${id}`, payload: { ...createNote({ id, text, keywords, observedAt: id.includes('old') ? '2026-03-02T00:00:00.000Z' : '2026-08-15T00:00:00.000Z' }), ...extra } });
+  put('a-old', 'The user lives in Taipei and works as a nurse', ['taipei', 'nurse', 'lives']);
+  put('a-new', 'The user lives in Taichung and works as a nurse', ['taichung', 'nurse', 'lives']);
+  put('p-old', 'The project ships on Mondays', ['ships', 'mondays'], { projectId: PROJECT });
+  put('p-new', 'The project ships on Fridays', ['ships', 'fridays'], { projectId: PROJECT });
+  const memory = createMemoryRecords({ db: table.service });
+  const prompts = [];
+  const tidy = createServerTidy({
+    memory, userId: USER, replyModel: { id: 'm' }, provider: 'gemini',
+    models: [{ id: 'm', provider: 'gemini' }, { id: 'm-lite', provider: 'gemini' }],
+    makeRunner: () => async ({ prompt }) => { prompts.push(prompt); return JSON.stringify({ ops: [{ type: 'supersede', keep: prompts.length === 1 ? 'a-new' : 'p-new', drop: prompts.length === 1 ? 'a-old' : 'p-old' }] }); },
+    now: () => Date.parse('2026-10-31T00:00:00.000Z'), createId: (() => { let n = 0; return () => `e${++n}`; })()
+  });
+  await tidy();
+  assert.equal(prompts.length, 2);
+  assert.doesNotMatch(prompts[0].split('The notes:')[1], /ships on/);
+  assert.doesNotMatch(prompts[1].split('The notes:')[1], /Taipei|Taichung/);
+  const status = (id) => rowsOf(table).find((row) => row.record_key === `note:${id}`).payload.status;
+  assert.deepEqual([status('a-old'), status('p-old')], ['archived', 'archived']);
+  const settings = (await memory.load(USER, { conversationId: '' })).settings;
+  assert.ok(settings.consolidatedAt && settings.consolidatedScopes[PROJECT]);
+});

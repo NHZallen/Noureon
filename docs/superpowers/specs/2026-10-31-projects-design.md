@@ -178,10 +178,14 @@
 ### 14.3 這一步沒有做的
 
 - 沒有「把一般記憶的筆記搬進專案」或反過來；沒有在專案頁上直接管理專案筆記（先在設定 → 記憶）。
-- 專案筆記不參與整理（合併相近、淘汰）；上限仍是每個範圍各 300 條。
-- 另一台裝置刪專案後留下的孤兒筆記沒有自動清理。
+- 上限仍是每個範圍各 300 條。
 
 ### 14.4 要 Allen 做的
 
 - 先在**測試專案**套用 `supabase/migrations/20261031120000_add_project_memory_scope.sql`（這個檔案也改了 `server_read_history`，伺服器要重新部署才認得 `tools.memory.scope`）；正式專案等「上線」時再套。
 - 在測試站試：建一個「僅限這個專案」的專案，在裡面叫它記一件事；到專案外的新對話確認不知道；回專案內的新對話確認記得；在設定 → 記憶看到帶專案標籤；刪掉專案後筆記消失。
+
+### 14.5 補上的兩項（2026-10-31，Allen：不能省）
+
+- **每個範圍各自整理**：`settings.consolidatedScopes`（`{ 專案id: 上次整理時間 }`）加上原本的 `consolidatedAt`（一般記憶）；`scope.js` 的 `scopesOfNotes`、`consolidatedAtOf`、`consolidatedPatch`。頁面 `page-tidy.js` 與伺服器 `memory-tidy.js` 都是先整理一般記憶，再依序整理每個有筆記的專案（頁面只整理還在的專案）；每次只把同一範圍的筆記交給模型，兩個範圍的筆記不會出現在同一個提示裡。伺服器的模型時間預算（20 秒）是整次整理共用一份。
+- **刪專案由資料庫清筆記**：migration `20261031130000_drop_project_notes_with_project.sql` 改了 `permanently_delete_workspace_folder`，專案被刪（任何裝置）時，把 `payload.projectId` 等於該專案的筆記列標為刪除並把版本加一（其他裝置聽得到），不留墓碑。頁面端的 `dropNotes` 仍保留，讓這台立刻乾淨。

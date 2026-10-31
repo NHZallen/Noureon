@@ -30,6 +30,8 @@ const DEFAULT_SETTINGS = Object.freeze({
   rebuiltAt: null,
   /** When the notes were last tidied (src/data/memory-consolidate.js): the tidy is due after a week, or when twenty notes changed since. */
   consolidatedAt: null,
+  /** The same for each project that keeps its notes for itself (memory-notes/scope.js): { [projectId]: when }. */
+  consolidatedScopes: Object.freeze({}),
   /** How the rebuild from the past conversations that the SERVER makes stands (server/memory-rebuild.js): { status: 'running' | 'done' | 'stopped' | 'failed', done, total, added, startedAt, updatedAt, error }, or null. */
   rebuildJob: null,
   /** The search by meaning over the conversations (needs the consent of the person). */
@@ -45,6 +47,14 @@ export function normalizeRebuildJob(raw) {
   return { status: raw.status, done: countOf(raw.done), total: countOf(raw.total), added: countOf(raw.added), startedAt: timeOr(raw.startedAt), updatedAt: timeOr(raw.updatedAt), error: typeof raw.error === 'string' ? raw.error.slice(0, 120) : '' };
 }
 
+/** `{ [projectId]: time }` as kept: valid times only, at most a hundred projects. */
+function normalizeScopeTimes(raw) {
+  const out = {};
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return out;
+  for (const [id, at] of Object.entries(raw).slice(0, 100)) if (id && id.length <= 80 && timeOr(at)) out[id] = at;
+  return out;
+}
+
 /** The settings as they are used, from whatever was saved. */
 export function normalizeSettings(raw) {
   const value = raw && typeof raw === 'object' ? raw : {};
@@ -56,6 +66,7 @@ export function normalizeSettings(raw) {
     curatorModelId: typeof value.curatorModelId === 'string' ? value.curatorModelId.slice(0, 120) : '',
     rebuiltAt: typeof value.rebuiltAt === 'string' && !Number.isNaN(Date.parse(value.rebuiltAt)) ? value.rebuiltAt : null,
     consolidatedAt: typeof value.consolidatedAt === 'string' && !Number.isNaN(Date.parse(value.consolidatedAt)) ? value.consolidatedAt : null,
+    consolidatedScopes: normalizeScopeTimes(value.consolidatedScopes),
     rebuildJob: normalizeRebuildJob(value.rebuildJob),
     vector: {
       enabled: vector.enabled === true && typeof vector.consentAt === 'string',

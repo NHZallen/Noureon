@@ -314,9 +314,9 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
         });
       }
       // Once the reply is written, the notes are tidied if that is due (memory-tidy.js).
-      // Only the memory of the account is tidied, not the notes a project keeps for itself.
-      if (memoryOut && loaded.settings.use && !scopeId) {
-        afterSteps.push(createServerTidy({ memory: scopedStore, userId, replyModel: spec.model.info, provider: spec.model.provider, models: MODELS, makeRunner: (model) => createMemoryModelRunner({ streamApiCall: access.streamApiCall, models: [model] }), signal, now }));
+      // The notes are tidied scope by scope (memory-tidy.js), whichever chat made this reply.
+      if (memoryOut && loaded.settings.use) {
+        afterSteps.push(createServerTidy({ memory, userId, replyModel: spec.model.info, provider: spec.model.provider, models: MODELS, makeRunner: (model) => createMemoryModelRunner({ streamApiCall: access.streamApiCall, models: [model] }), signal, now }));
         memoryOut.afterReply = async () => { for (const step of afterSteps) { try { await step(); } catch (error) { onProblem('memory_after_reply_failed', error); } } };
       }
     } catch (error) {

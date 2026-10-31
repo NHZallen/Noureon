@@ -24,6 +24,22 @@ export function scopeOfConversation(conversation, folders) {
 /** The notes of one scope. */
 export const notesInScope = (notes, scopeId = '') => (Array.isArray(notes) ? notes : []).filter((note) => noteScopeOf(note) === scopeId);
 
+/** The scopes the notes are in, the memory of the account ('') first, then each project that has notes (`keep(id)` leaves out the ones to skip). */
+export function scopesOfNotes(notes, keep = () => true) {
+  const ids = new Set();
+  for (const note of Array.isArray(notes) ? notes : []) {
+    const id = noteScopeOf(note);
+    if (id && keep(id)) ids.add(id);
+  }
+  return ['', ...ids];
+}
+
+/** When the notes of a scope were last tidied (the settings keep one time for the account and one for each project). */
+export const consolidatedAtOf = (settings, scopeId = '') => (scopeId ? settings?.consolidatedScopes?.[scopeId] || null : settings?.consolidatedAt || null);
+
+/** The change to the settings that says the notes of a scope were tidied at `at`. */
+export const consolidatedPatch = (settings, scopeId, at) => (scopeId ? { consolidatedScopes: { ...(settings?.consolidatedScopes || {}), [scopeId]: at } } : { consolidatedAt: at });
+
 /** `note` as it is kept in the scope: a note with no scope of its own takes the scope given; a note that has one keeps it. */
 function tagged(note, scopeId, known) {
   if (!scopeId || known.has(note.id) || typeof note.projectId === 'string') return note;

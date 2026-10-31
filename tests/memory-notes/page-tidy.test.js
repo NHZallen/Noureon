@@ -113,3 +113,32 @@ test('the tidy follows the turn the page curated: a turn that is skipped still l
   assert.equal(calls.length, 1, 'only the tidy asked the model (the turn was temporary)');
   assert.equal(store.getNotes().find((note) => note.id === 'taipei').status, 'archived');
 });
+
+test('the notes of a project that keeps its own are tidied on their own, with their own time; a model never sees notes of two scopes together', async () => {
+  const inProject = (note) => ({ ...note, projectId: 'proj-a' });
+  const notes = [...NOTES, inProject(make('p-old', 'The project ships on Mondays', ['ships', 'mondays'], '2026-03-02T00:00:00.000Z')), inProject(make('p-new', 'The project ships on Fridays', ['ships', 'fridays'], '2026-08-15T00:00:00.000Z'))];
+  const { store } = await memoryWith({ notes });
+  const prompts = [];
+  const runner = async ({ prompt }) => { prompts.push(prompt); return JSON.stringify({ ops: [{ type: 'supersede', keep: prompts.length === 1 ? 'taichung' : 'p-new', drop: prompts.length === 1 ? 'taipei' : 'p-old' }] }); };
+  const result = await tidyNotes({ ...common(store, runner), isProject: (id) => id === 'proj-a' });
+  assert.equal(result.ran, true);
+  assert.equal(prompts.length, 2, 'one run for the account and one for the project');
+  assert.doesNotMatch(prompts[0].split('The notes:')[1], /ships on/, 'the notes of the project are not shown with the account\'s');
+  assert.doesNotMatch(prompts[1].split('The notes:')[1], /Taipei|Taichung/, 'and the account\'s notes are not shown with the project\'s');
+  const byId = new Map(store.getNotes().map((note) => [note.id, note]));
+  assert.equal(byId.get('p-old').status, 'archived');
+  assert.equal(byId.get('p-old').projectId, 'proj-a', 'an archived note stays in its project');
+  assert.equal(byId.get('taipei').status, 'archived');
+  const settings = store.getSettings();
+  assert.ok(settings.consolidatedAt && settings.consolidatedScopes['proj-a'], 'each scope has its own time');
+  const again = await tidyNotes({ ...common(store, runner), isProject: (id) => id === 'proj-a' });
+  assert.equal(again.ran, false, 'neither is due again');
+  assert.equal(prompts.length, 2);
+});
+
+test('the notes of a project that is gone are not tidied', async () => {
+  const notes = [...NOTES, { ...make('lost', 'The lost project did things', ['lost'], '2026-03-02T00:00:00.000Z'), projectId: 'gone' }];
+  const { store } = await memoryWith({ notes });
+  await tidyNotes({ ...common(store, async () => supersede), isProject: () => false });
+  assert.equal(store.getSettings().consolidatedScopes.gone, undefined);
+});
