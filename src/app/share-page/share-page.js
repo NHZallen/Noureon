@@ -198,7 +198,9 @@ export async function initializeSharePage({ window, document, supabase = getSupa
     try {
       // The owner of the service reads a share whatever its status (?review=1): the database answers only an account it knows; for anyone else this falls back to the ordinary read.
       if (isReviewRequest(window.location.search)) {
-        const review = await supabase.rpc('admin_get_shared_conversation', { p_code: code }).catch(() => null);
+        // (The answer of the database client can be waited for but has no `catch` of its own.)
+        let review = null;
+        try { review = await supabase.rpc('admin_get_shared_conversation', { p_code: code }); } catch { review = null; }
         if (review && !review.error && review.data) { data = review.data; reviewStatus = review.data.status || 'active'; }
       }
       if (!data) {

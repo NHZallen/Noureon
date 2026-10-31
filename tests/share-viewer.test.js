@@ -155,3 +155,16 @@ test('?review=1 reads a share through the administrator function, and falls back
   const plain = await open(`/s/${CODE}`, { rpc: async (name) => { assert.equal(name, 'get_shared_conversation', 'no review without ?review=1'); return { data: null, error: null }; } });
   await plain.window.happyDOM.abort();
 });
+
+test('the database client answers with something that can be waited for but has no catch: the review read still works', async () => {
+  const snapshot = { v: 1, title: 'T', messages: [{ role: 'user', parts: [{ text: 'q' }] }] };
+  const window = new Window({ url: `https://noureon.test/s/${CODE}?review=1` });
+  window.document.body.innerHTML = '<div id="app"></div>';
+  const thenable = (value) => ({ then: (resolve, reject) => Promise.resolve(value).then(resolve, reject) });
+  const supabase = { rpc: (name) => thenable(name === 'admin_get_shared_conversation' ? { data: { title: 'T', mode: 'view', status: 'suspended', createdAt: '2026-10-30T00:00:00Z', updatedAt: '2026-10-30T00:00:00Z', snapshot }, error: null } : { data: null, error: null }) };
+  try {
+    await initializeSharePage({ window, document: window.document, supabase, fetchImpl: async () => ({ ok: false }), baseUrl: 'https://x.supabase.co', renderMarkdown: (text) => `<p>${text}</p>` });
+    assert.ok(window.document.querySelector('#sp-messages'), 'the share is drawn');
+    assert.equal(window.document.querySelector('.sp-notice'), null);
+  } finally { await window.happyDOM.abort(); }
+});
