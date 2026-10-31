@@ -1,10 +1,11 @@
 // noureon.com/admin/shares: where the owner of the service reviews the reports of shared conversations (docs/superpowers/specs/2026-10-31-conversation-share-design.md, §11). Only an account the owner
-// added to `service_admins` gets anything: for everyone else the page says "not found", as it would for an address that is not there. Every call is checked again by the database.
+// added to `service_admins` gets anything: for everyone else (signed out included) the page is the platform's own 404, as it is for an address that is not there. Every call is checked again by the database.
 
 import { getSupabaseClient } from '../auth/supabase-client.js';
 import { ensureLanguage } from '../i18n/language-packs.js';
 import { detectSystemLanguage, readLastUiLanguage, readLoginLanguage } from '../runtime/features/login-language.js';
 import { applyRememberedAccent } from '../../utils/accent-mirror.js';
+import { showPlatformNotFound } from './not-found-page.js';
 import { markPageAsPrivate } from './private-page.js';
 import { shareAdminText } from './share-admin-texts.js';
 
@@ -16,7 +17,17 @@ const el = (document, tag, className, text) => {
   return node;
 };
 
-export async function initializeShareAdminPage({ window, document, supabase = getSupabaseClient() } = {}) {
+export async function initializeShareAdminPage({ window, document, supabase = getSupabaseClient(), fetchImpl } = {}) {
+  // Nothing of this page is built until the account is known to be the owner's: anyone else (signed out included) gets what an address that is not there gets, so the page cannot be found by asking.
+  const hide = async () => { await showPlatformNotFound({ window, document, fetchImpl }); return { handled: true, admin: false }; };
+  if (!supabase) return hide();
+  let session = null;
+  try { session = (await supabase.auth.getSession())?.data?.session || null; } catch { /* treated as signed out */ }
+  if (!session) return hide();
+  let admin = false;
+  try { admin = (await supabase.rpc('is_service_admin'))?.data === true; } catch { admin = false; }
+  if (!admin) return hide();
+
   markPageAsPrivate(document);
   applyRememberedAccent(document.documentElement, window.localStorage);
   const language = supported(readLoginLanguage()) || supported(readLastUiLanguage()) || supported(detectSystemLanguage()) || 'zh-TW';
@@ -39,14 +50,6 @@ export async function initializeShareAdminPage({ window, document, supabase = ge
   root.append(header, main);
   app.appendChild(root);
   const say = (message) => { main.replaceChildren(el(document, 'p', 'sp-loading', message)); };
-
-  if (!supabase) { say(text('notFound')); return { handled: true, admin: false }; }
-  let session = null;
-  try { session = (await supabase.auth.getSession())?.data?.session || null; } catch { /* treated as signed out */ }
-  if (!session) { say(text('signIn')); return { handled: true, admin: false }; }
-  let admin = false;
-  try { admin = (await supabase.rpc('is_service_admin'))?.data === true; } catch { admin = false; }
-  if (!admin) { say(text('notFound')); return { handled: true, admin: false }; }
 
   const STATUS = { active: 'statusActive', suspended: 'statusSuspended', conversation_deleted: 'statusDeleted', removed: 'statusRemoved' };
   async function draw() {

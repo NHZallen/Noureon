@@ -11,14 +11,16 @@ import { createShareClient } from '../src/app/runtime/share/share-client.js';
 const tick = () => new Promise((resolve) => setTimeout(resolve, 20));
 const REPORTED = { share_id: 's1', code: 'A'.repeat(32), title: 'Strawberry <cake>', mode: 'continue', status: 'suspended', owner_id: 'u1', owner_email: 'ada@example.test', readers: 3, total_reports: 4, reasons: ['it is rude', '<b>x</b>'] };
 
-const open = async ({ session = { user: {} }, admin = true, rows = [REPORTED], calls = [], errors = {} } = {}) => {
+const NOT_FOUND = '<!doctype html><html><head><title>404: NOT_FOUND</title></head><body><h1>404: NOT_FOUND</h1></body></html>';
+const open = async ({ session = { user: {} }, admin = true, rows = [REPORTED], calls = [], errors = {}, asked = [] } = {}) => {
   const window = new Window({ url: 'https://noureon.test/admin/shares' });
   window.document.body.innerHTML = '<div id="app"></div>';
   const supabase = {
     auth: { getSession: async () => ({ data: { session } }) },
     rpc: async (name, args) => { calls.push([name, args]); if (name === 'is_service_admin') return { data: admin, error: null }; if (name === 'admin_list_share_reports') return { data: rows, error: null }; if (errors[name]) return { data: null, error: new Error(errors[name]) }; return { data: true, error: null }; }
   };
-  const result = await initializeShareAdminPage({ window, document: window.document, supabase });
+  const fetchImpl = async (path) => { asked.push(path); return { status: 404, text: async () => NOT_FOUND }; };
+  const result = await initializeShareAdminPage({ window, document: window.document, supabase, fetchImpl });
   return { window, result, calls };
 };
 
@@ -36,17 +38,34 @@ test('every language of the review page has the same words', () => {
   for (const [language, table] of Object.entries(SHARE_ADMIN_TEXTS)) assert.deepEqual(Object.keys(table).sort(), keys, language);
 });
 
-test('someone who is not signed in, or not named by the owner, gets nothing and is not told the page exists', async () => {
-  const signedOut = await open({ session: null });
-  const stranger = await open({ admin: false });
+test('someone who is not signed in, or not named by the owner, gets the 404 an address that is not there gets, and nothing of this page', async () => {
+  const askedOut = [];
+  const askedStranger = [];
+  const signedOut = await open({ session: null, asked: askedOut });
+  const stranger = await open({ admin: false, asked: askedStranger });
   try {
-    assert.equal(signedOut.result.admin, false);
+    for (const [one, asked] of [[signedOut, askedOut], [stranger, askedStranger]]) {
+      assert.equal(one.result.admin, false);
+      assert.equal(asked.length, 1, 'the real 404 is asked for');
+      assert.doesNotMatch(asked[0], /admin|shares/, 'with an address that cannot be this one');
+      assert.match(one.window.document.body.textContent, /404: NOT_FOUND/);
+      assert.equal(one.window.document.querySelector('.sp-root'), null, 'nothing of the page is built');
+      assert.doesNotMatch(one.window.document.documentElement.textContent, /Noureon|請先登入|Sign in/, 'no word that says the page exists');
+    }
     assert.equal(signedOut.calls.length, 0);
-    assert.equal(stranger.result.admin, false);
     assert.deepEqual(stranger.calls.map((call) => call[0]), ['is_service_admin'], 'the list is not even asked for');
-    assert.equal(stranger.window.document.querySelectorAll('.sp-admin-card').length, 0);
-    assert.equal(stranger.window.document.querySelector('meta[name="robots"]').content.startsWith('noindex'), true);
   } finally { await signedOut.window.happyDOM.abort(); await stranger.window.happyDOM.abort(); }
+});
+
+test('when the real 404 cannot be read, the page is a bare 404 and still not a page of Noureon', async () => {
+  const window = new Window({ url: 'https://noureon.test/admin/shares' });
+  window.document.body.innerHTML = '<div id="app"></div>';
+  try {
+    const result = await initializeShareAdminPage({ window, document: window.document, supabase: { auth: { getSession: async () => ({ data: { session: null } }) } }, fetchImpl: async () => { throw new Error('offline'); } });
+    assert.equal(result.admin, false);
+    assert.equal(window.document.body.textContent, '404: NOT_FOUND');
+    assert.equal(window.document.title, '404: NOT_FOUND');
+  } finally { await window.happyDOM.abort(); }
 });
 
 test('the owner sees each reported share with what was said as text, and can restore, clear and delete', async () => {
