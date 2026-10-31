@@ -114,9 +114,10 @@
 ### 11.1 暫停之後與下架（2026-10-31）
 
 - **暫停中的連結**：任何人打開看到「此對話正在審查中」（`get_shared_conversation` 回 `{ status: 'suspended' }`，沒有任何內容）。
-- **下架**：管理頁的「下架」（`admin_remove_share`）把分享改成 `removed`、清掉快照（檔案之後由掃除器刪），紀錄留著。打開連結的人看到「此分享經審查後已下架」；分享者在「已分享內容」看到「已被審查下架」，只能移除紀錄。
+- **下架**：管理頁的「下架」（`admin_remove_share`）把分享改成 `removed`，紀錄留著。打開連結的人看到「此分享經審查後已下架」；分享者在「已分享內容」看到「已被審查下架」，只能移除紀錄。（20261031080000 之後）下架**不清快照也不刪檔案**（對讀者仍隱藏，`get_shared_conversation` 只回狀態），好讓下架可以撤銷；管理頁「刪除紀錄」或分享者移除紀錄才會連內容一起刪，對話被刪也會清掉。
 - **寄信給分享者**：下架時伺服器（同一個掃除器）用分享者帳號的 email 寄一封英文信（伺服器不知道對方讀哪種語言；Allen 決定只用英文），可直接回信（reply-to 是 `REPORT_TO`）。每次下架只取一次（`removal_mailed_at`），寄失敗放回佇列。沒有 email 的帳號不寄。暫停沒有寄信。
 - **下架的對話不能再分享**：`blocked_share_conversations` 記著（分享者 id + 對話 id），`server_create_conversation_share` 遇到就拒絕（`share_removed` → 409 `reason: removed`），分享者移除紀錄也解不開。換一個新的對話（例如複製內容）不受限，這個做法擋不到。
 - migration：`20261031060000_share_under_review_notice.sql`（在 05 之後）。
+- **撤銷下架**（`20261031080000_share_takedown_can_be_undone.sql`）：管理頁已下架的卡片有「看內容」（`admin_get_shared_conversation` 也讀 `removed`）、「撤銷下架」（按兩次，`admin_restore_share`）、「刪除紀錄」。撤銷：`removed` → `active`、清掉檢舉、`blocked_share_conversations.lifted_at` 記下（對話又可以分享；`server_create_conversation_share` 只擋 `lifted_at is null`），並寄一封英文信給分享者（`lift_notified_at` 是佇列，伺服器 `server_take_restored_shares_to_mail`，失敗 `server_requeue_restored_shares`）。下架信還沒寄出就撤銷的，兩封都不寄。這個 migration 之前下架的分享快照已經被清掉：撤銷回 `content_gone`，管理頁顯示「無法撤銷」，只能刪除紀錄。分享者先自己移除了紀錄的，內容已刪，也沒有東西可以撤銷（封鎖仍在）。
 
 - 信件樣式（`server/mail-layout.js`）和 Allen 已經收到的 Noureon 認證信完全一樣（`docs/email-templates/build-emails.py` 的版面：卡片、圓形圖示、標題、一般段落、紫色按鈕、細線、灰色小字、卡片下的「Open Noureon ・ Contact support」與一行灰字、深色模式）；不另外畫方框或表格；有 HTML 與純文字兩個版本。

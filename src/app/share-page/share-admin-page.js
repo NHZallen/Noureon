@@ -79,15 +79,17 @@ export async function initializeShareAdminPage({ window, document, supabase = ge
         button.addEventListener('click', async () => {
           if (confirm && !armed) { armed = true; button.textContent = text('sure'); return; }
           button.disabled = true;
-          try { const { error } = await run(); if (error) throw error; await draw(); } catch { button.disabled = false; button.textContent = text('failed'); }
+          try { const { error } = await run(); if (error) throw error; await draw(); } catch (error) { button.disabled = false; button.textContent = text(/content_gone/.test(String(error?.message || '')) ? 'contentGone' : 'failed'); }
         });
         actions.appendChild(button);
       };
-      if (row.status === 'active' || row.status === 'suspended') {
+      if (row.status === 'active' || row.status === 'suspended' || row.status === 'removed') {
         const open = el(document, 'a', 'sp-btn', text('open'));
         open.href = `/s/${row.code}?review=1`; open.target = '_blank'; open.rel = 'noopener noreferrer';
         actions.appendChild(open);
       }
+      // A taken-down share keeps its content, hidden, until the takedown is taken back (the link works again and its owner is mailed) or the record is deleted.
+      if (row.status === 'removed') act(text('restoreTakedown'), () => supabase.rpc('admin_restore_share', { p_id: row.share_id }), { primary: true, confirm: true });
       if (row.status === 'suspended') act(text('restore'), () => supabase.rpc('admin_set_share_status', { p_id: row.share_id, p_status: 'active' }), { primary: true });
       if (row.status === 'active') act(text('pause'), () => supabase.rpc('admin_set_share_status', { p_id: row.share_id, p_status: 'suspended' }));
       // Clearing the reports only means something for a share that still works (the decision was that it is fine): a paused one is restored, a taken-down one is only a record.

@@ -63,6 +63,28 @@ export function removedMailFor(row) {
   };
 }
 
+/** The mail to the owner of a share whose takedown was taken back (a row of `server_take_restored_shares_to_mail`). English, like the one about the takedown. */
+export function restoredMailFor(row) {
+  const title = oneLine(row.title, 60);
+  const first = title ? `Noureon looked at the share of "${title}" again and took the takedown back.` : 'Noureon looked at a conversation you shared again and took the takedown back.';
+  const second = 'Its link works again, and you can share this conversation again. Nothing else changed.';
+  const third = 'If you have questions, just reply to this mail.';
+  return {
+    subject: '[Noureon] Your shared conversation is back',
+    text: [first, second, third].join('\n\n'),
+    html: renderMail({
+      preheader: 'Its link works again, and you can share this conversation again.',
+      title: 'Your shared conversation is back',
+      blocks: [
+        { kind: 'p', parts: title ? ['Noureon looked at the share of ', { b: title }, ' again and took the takedown back.'] : [first] },
+        { kind: 'small', parts: [second] },
+        { kind: 'rule' },
+        { kind: 'muted', parts: [third] }
+      ]
+    })
+  };
+}
+
 export function createShareReportMailer({ db, mailer, to, appUrl, log = () => {}, now = Date.now }) {
   /** One pass; resolves how many mails were sent. Never throws. */
   async function mailOnce() {
@@ -73,7 +95,7 @@ export function createShareReportMailer({ db, mailer, to, appUrl, log = () => {}
       rows = await db.rpc('server_take_share_reports_to_mail', { p_limit: 50 });
     } catch (error) {
       log('share_report_take_failed', { name: error?.name || 'Error', status: error?.status || 0 });
-      return mailRemovalsOnce();
+      return mailOwnersOnce();
     }
     let sent = 0;
     const failed = [];
@@ -90,16 +112,18 @@ export function createShareReportMailer({ db, mailer, to, appUrl, log = () => {}
       try { await db.rpc('server_requeue_share_reports', { p_share_ids: failed, p_since: startedAt }); } catch { /* the reports stay marked; the admin page still lists them */ }
     }
     if (sent) log('share_report_mail', { sent });
-    return sent + await mailRemovalsOnce();
+    return sent + await mailOwnersOnce();
   }
 
-  /** The owners of the shares that were taken down are told once; the address is the one of their own account. */
-  async function mailRemovalsOnce() {
+  const mailOwnersOnce = async () => await mailRemovalsOnce() + await mailRestoredOnce();
+
+  /** The owners of a share that was taken down, or whose takedown was taken back, are told once; the address is the one of their own account. */
+  async function mailOwners({ take, requeue, build, name }) {
     let rows;
     try {
-      rows = await db.rpc('server_take_removed_shares_to_mail', { p_limit: 20 });
+      rows = await db.rpc(take, { p_limit: 20 });
     } catch (error) {
-      log('share_removed_take_failed', { name: error?.name || 'Error', status: error?.status || 0 });
+      log(`${name}_take_failed`, { name: error?.name || 'Error', status: error?.status || 0 });
       return 0;
     }
     let sent = 0;
@@ -108,18 +132,20 @@ export function createShareReportMailer({ db, mailer, to, appUrl, log = () => {}
       // An account without an address (or one that cannot be mailed) is not tried again.
       if (!row.owner_email) continue;
       try {
-        await mailer.send({ to: row.owner_email, replyTo: to, ...removedMailFor(row) });
+        await mailer.send({ to: row.owner_email, replyTo: to, ...build(row) });
         sent += 1;
       } catch (error) {
         failed.push(row.share_id);
-        log('share_removed_mail_failed', { code: error?.code || 'error', status: error?.status || 0 });
+        log(`${name}_mail_failed`, { code: error?.code || 'error', status: error?.status || 0 });
       }
     }
     if (failed.length) {
-      try { await db.rpc('server_requeue_removed_shares', { p_share_ids: failed }); } catch { /* the owner sees it in the list of shared items */ }
+      try { await db.rpc(requeue, { p_share_ids: failed }); } catch { /* the owner sees it in the list of shared items */ }
     }
-    if (sent) log('share_removed_mail', { sent });
+    if (sent) log(`${name}_mail`, { sent });
     return sent;
   }
-  return { mailOnce, mailRemovalsOnce };
+  const mailRemovalsOnce = () => mailOwners({ take: 'server_take_removed_shares_to_mail', requeue: 'server_requeue_removed_shares', build: removedMailFor, name: 'share_removed' });
+  const mailRestoredOnce = () => mailOwners({ take: 'server_take_restored_shares_to_mail', requeue: 'server_requeue_restored_shares', build: restoredMailFor, name: 'share_restored' });
+  return { mailOnce, mailRemovalsOnce, mailRestoredOnce };
 }

@@ -11,12 +11,12 @@ import { createShareClient } from '../src/app/runtime/share/share-client.js';
 const tick = () => new Promise((resolve) => setTimeout(resolve, 20));
 const REPORTED = { share_id: 's1', code: 'A'.repeat(32), title: 'Strawberry <cake>', mode: 'continue', status: 'suspended', owner_id: 'u1', owner_email: 'ada@example.test', readers: 3, total_reports: 4, reasons: ['it is rude', '<b>x</b>'] };
 
-const open = async ({ session = { user: {} }, admin = true, rows = [REPORTED], calls = [] } = {}) => {
+const open = async ({ session = { user: {} }, admin = true, rows = [REPORTED], calls = [], errors = {} } = {}) => {
   const window = new Window({ url: 'https://noureon.test/admin/shares' });
   window.document.body.innerHTML = '<div id="app"></div>';
   const supabase = {
     auth: { getSession: async () => ({ data: { session } }) },
-    rpc: async (name, args) => { calls.push([name, args]); if (name === 'is_service_admin') return { data: admin, error: null }; if (name === 'admin_list_share_reports') return { data: rows, error: null }; return { data: true, error: null }; }
+    rpc: async (name, args) => { calls.push([name, args]); if (name === 'is_service_admin') return { data: admin, error: null }; if (name === 'admin_list_share_reports') return { data: rows, error: null }; if (errors[name]) return { data: null, error: new Error(errors[name]) }; return { data: true, error: null }; }
   };
   const result = await initializeShareAdminPage({ window, document: window.document, supabase });
   return { window, result, calls };
@@ -87,13 +87,14 @@ test('a share with nothing reported says so; a paused share of the person is lis
   assert.equal(state.activeFor('c').length, 0);
 });
 
-test('a share taken down is a record: it can only be deleted, and the person sees it as taken down and not counted', async () => {
+test('a share taken down can be read, taken back or deleted, and the person sees it as taken down and not counted', async () => {
   const taken = await open({ rows: [{ ...REPORTED, status: 'removed' }] });
   try {
     const card = taken.window.document.querySelector('.sp-admin-card');
-    assert.equal(card.querySelector('a.sp-btn'), null, 'nothing to read');
+    assert.equal(card.querySelector('a.sp-btn').getAttribute('href'), `/s/${'A'.repeat(32)}?review=1`, 'its content is kept, so it can be read before deciding');
     const labels = [...card.querySelectorAll('button')].map((node) => node.textContent);
     assert.ok(labels.includes(SHARE_ADMIN_TEXTS.en.deleteRecord));
+    assert.ok(labels.includes(SHARE_ADMIN_TEXTS.en.restoreTakedown));
     assert.equal(labels.includes(SHARE_ADMIN_TEXTS.en.remove), false);
   } finally { await taken.window.happyDOM.abort(); }
   const client = createShareClient({ getSupabase: () => ({ rpc: async () => ({ data: [{ id: 'a', conversation_id: 'c', code: 'x', mode: 'view', show_name: false, title: 'T', status: 'removed', created_at: 'x', updated_at: 'x' }], error: null }) }) });
@@ -111,5 +112,28 @@ test('"clear reports" is only for a share that still works; a share taken down h
   const words = SHARE_ADMIN_TEXTS.en;
   assert.ok((await labels('active')).includes(words.dismiss));
   assert.equal((await labels('suspended')).includes(words.dismiss), false);
-  assert.deepEqual(await labels('removed'), [words.deleteRecord]);
+  assert.deepEqual(await labels('removed'), [words.restoreTakedown, words.deleteRecord]);
+});
+
+test('undoing a takedown asks once more, then calls the restore; a takedown whose content is gone says so', async () => {
+  const calls = [];
+  const { window } = await open({ rows: [{ ...REPORTED, status: 'removed' }], calls });
+  try {
+    const words = SHARE_ADMIN_TEXTS.en;
+    const button = () => [...window.document.querySelectorAll('.sp-admin-card button')].find((node) => node.textContent === words.restoreTakedown || node.textContent === words.sure);
+    button().click();
+    assert.equal(calls.some((call) => call[0] === 'admin_restore_share'), false, 'asks once more');
+    button().click();
+    await tick();
+    assert.deepEqual(calls.find((call) => call[0] === 'admin_restore_share')[1], { p_id: 's1' });
+  } finally { await window.happyDOM.abort(); }
+  const gone = await open({ rows: [{ ...REPORTED, status: 'removed' }], errors: { admin_restore_share: 'content_gone' } });
+  try {
+    const words = SHARE_ADMIN_TEXTS.en;
+    const button = () => [...gone.window.document.querySelectorAll('.sp-admin-card button')].find((node) => node.textContent === words.restoreTakedown || node.textContent === words.sure);
+    button().click();
+    button().click();
+    await tick();
+    assert.ok([...gone.window.document.querySelectorAll('.sp-admin-card button')].some((node) => node.textContent === words.contentGone));
+  } finally { await gone.window.happyDOM.abort(); }
 });
