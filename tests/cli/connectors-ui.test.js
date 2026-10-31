@@ -531,6 +531,10 @@ test('the picture of a connector is its logo, and its first letter takes its pla
   for (const connector of CONNECTORS.filter((entry) => entry.icon)) assert.match(connector.icon, /^https:\/\/github\.com\/[A-Za-z0-9-]+\.png\?size=\d+$|^https:\/\/pally\.com\/favicon\.ico$/, connector.id);
 });
 
+test('ether.fi is registered as a client of its own first (the address of our metadata document was refused as invalid_client)', () => {
+  assert.equal(CONNECTORS.find((entry) => entry.id === 'etherfi').registration, 'dcr');
+});
+
 test('the card that asks shows the logo of the connector', () => {
   const { document, cards } = cardSetup();
   cards.handle({ ...ASK, connector: { id: 'linear', name: 'Linear' }, tool: 'create_issue' });
