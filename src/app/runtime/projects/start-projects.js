@@ -134,6 +134,8 @@ export function startProjects({
       sheets.openDeleteSheet({ document, root: document.body, text, actions, project, notify: (message, type = 'success') => showNotification(message, type), onDeleted: () => {} });
     },
     openChat: (id) => loadChat(id),
+    createProject: () => { void open({ list: true, create: true }); },
+    openList: () => { void open({ list: true }); },
     getCurrentConversationId,
     loadParts: () => loadPage().then(() => {}),
     storage: (() => { try { return win.localStorage; } catch { return null; } })()

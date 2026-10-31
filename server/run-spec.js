@@ -471,6 +471,7 @@ export function validateRunSpec(input) {
         // `history`: the reply may also look back through the person's past conversations in the cloud workspace (a cloud account). `vector`: and by meaning, with the key of `secrets.embeddingKey`.
         // `scope`: the project whose notes this chat keeps for itself (memory-notes/scope.js); none for a chat that uses the memory of the account.
         if (tools.memory.scope !== undefined && !text(tools.memory.scope, 80)) fail('tools.memory.scope', 'must be the id of a project');
+        if (tools.memory.project !== undefined && !text(tools.memory.project, 80)) fail('tools.memory.project', 'must be the id of a project');
         if (tools.memory.history !== undefined && typeof tools.memory.history !== 'boolean') fail('tools.memory.history', 'must be true or false');
         if (tools.memory.vector !== undefined && (!isObject(tools.memory.vector) || !['gemini', 'openrouter'].includes(tools.memory.vector.provider))) fail('tools.memory.vector', 'must name the provider of the embedding model (gemini or openrouter)');
         if (isObject(tools.memory.vector) && tools.memory.history !== true) fail('tools.memory.vector', 'is only for a reply that may look back through the past conversations');
@@ -631,7 +632,7 @@ export function validateRunSpec(input) {
         ...(Array.isArray(tools.skills) && listedSkills(tools.skills).length ? { skills: listedSkills(tools.skills) } : {}),
         ...(tools.connectors === true ? { connectors: true } : {}),
         ...(projectFileEntries(tools.projectFiles)?.length ? { projectFiles: normalizeProjectFiles(tools.projectFiles) } : {}),
-        ...(isObject(tools.memory) ? { memory: { canWrite: tools.memory.canWrite === true, ...(text(tools.memory.scope, 80) ? { scope: tools.memory.scope } : {}), ...(tools.memory.curator === true ? { curator: true } : {}), ...(tools.memory.history === true ? { history: true } : {}), ...(isObject(tools.memory.vector) ? { vector: { provider: tools.memory.vector.provider } } : {}), messages: tools.memory.messages.map((message) => ({ id: message.id, text: message.text, ...(message.at ? { at: message.at } : {}) })) } } : {}),
+        ...(isObject(tools.memory) ? { memory: { canWrite: tools.memory.canWrite === true, ...(text(tools.memory.scope, 80) ? { scope: tools.memory.scope } : {}), ...(text(tools.memory.project, 80) ? { project: tools.memory.project } : {}), ...(tools.memory.curator === true ? { curator: true } : {}), ...(tools.memory.history === true ? { history: true } : {}), ...(isObject(tools.memory.vector) ? { vector: { provider: tools.memory.vector.provider } } : {}), messages: tools.memory.messages.map((message) => ({ id: message.id, text: message.text, ...(message.at ? { at: message.at } : {}) })) } } : {}),
         ...(imageGeneration ? { imageGeneration } : {}),
         ...(tools.inputs?.length ? { inputs: tools.inputs.map((file) => ({ name: file.name, mimeType: file.mimeType || '', data: file.data })) } : {})
       },

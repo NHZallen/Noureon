@@ -6,6 +6,7 @@
 
 import { summarizeFileBlocks } from '../src/app/ui/files/file-history-compaction.js';
 import { createHistoryIndex } from '../src/app/runtime/memory-notes/history-index.js';
+import { canSearchConversation } from '../src/app/runtime/memory-notes/scope.js';
 import { fuseRanks, textHash } from '../src/app/runtime/memory-notes/vector-math.js';
 import { createEmbeddingClient, versionOf } from '../src/app/runtime/memory-store/embedding-client.js';
 
@@ -19,7 +20,7 @@ export async function readConversations(db, userId, limits = HISTORY) {
   const read = await db.rpc('server_read_history', { p_user_id: userId, p_max_conversations: limits.conversations, p_max_messages: limits.messages });
   // `scopeId`: the id of the project when the conversation is in one that keeps its notes for itself (memory-notes/scope.js), '' otherwise.
   const projects = new Set(Array.isArray(read?.project_folders) ? read.project_folders : []);
-  const byConversation = new Map((read?.conversations || []).map((row) => [row.id, { id: row.id, lastUpdatedAt: row.updated_at, scopeId: row.folder_id && projects.has(row.folder_id) ? row.folder_id : '', messages: [] }]));
+  const byConversation = new Map((read?.conversations || []).map((row) => [row.id, { id: row.id, lastUpdatedAt: row.updated_at, scopeId: row.folder_id && projects.has(row.folder_id) ? row.folder_id : '', projectId: row.folder_id || '', messages: [] }]));
   for (const message of read?.messages || []) byConversation.get(message.conversation_id)?.messages.push({ role: message.role, parts: Array.isArray(message.parts) ? message.parts : [], createdAt: message.created_at });
   return [...byConversation.values()];
 }
@@ -34,7 +35,7 @@ export function createHistorySearch({ db, now = () => Date.now(), fetchImpl = (.
     const index = createHistoryIndex({ clean: summarizeFileBlocks });
     const conversations = await conversationsOf(userId);
     index.update(conversations);
-    const entry = { at: now(), index, scopes: new Map(conversations.map((conversation) => [conversation.id, conversation.scopeId || ''])) };
+    const entry = { at: now(), index, projects: new Map(conversations.map((conversation) => [conversation.id, conversation.projectId || ''])) };
     cache.set(userId, entry);
     if (cache.size > 50) cache.delete(cache.keys().next().value);
     return entry;
@@ -45,15 +46,15 @@ export function createHistorySearch({ db, now = () => Date.now(), fetchImpl = (.
      * The search for one reply: `search(query, limit)` resolves the pieces of past conversations ([{ conversationId, at, role, text }]), the keyword hits and, when `vector` is given
      * ({ provider, key }) and the person synced their vectors, the nearest in meaning, put together. Never throws.
      */
-    forReply({ userId, conversationId = '', scopeId = '', vector = null, signal }) {
+    forReply({ userId, conversationId = '', scopeId = '', projectId = '', vector = null, signal }) {
       return async (query, limit = 5) => {
         let index;
         let allow;
         try {
           const held = await indexOf(userId);
           index = held.index;
-          // A chat looks back only through the chats of its own scope: a project that keeps its notes for itself, or the rest (memory-notes/scope.js).
-          allow = (id) => (held.scopes.get(id) || '') === scopeId;
+          // The chats of a project are seen from that project only; a chat outside looks through the chats outside (memory-notes/scope.js, canSearchConversation).
+          allow = (id) => canSearchConversation({ scopeId, projectId }, held.projects.get(id) || '');
         } catch (error) {
           logger.warn?.('The past conversations could not be read for a search.', error?.message || error);
           return [];

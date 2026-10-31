@@ -246,7 +246,7 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
       const conversationId = spec.conversationId;
       // The scope of the chat (memory-notes/scope.js): the project that keeps its notes for itself, or '' (the memory of the account; the notes of such projects are left out).
       const scopeId = spec.tools.memory.scope || '';
-      const scopedStore = scopedMemory(memory, scopeId);
+      const scopedStore = scopedMemory(memory, scopeId, spec.tools.memory.project || '');
       let loaded = await scopedStore.load(userId, { conversationId });
       if (loaded.settings.use && spec.tools.memory.curator === true) {
         // No tools for this model: after the reply (and its message is written) a small model reads the turn and the program keeps what the check accepts (runs.js calls this).

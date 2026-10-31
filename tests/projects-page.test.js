@@ -26,7 +26,7 @@ const setup = ({ folders, conversations, url = 'https://noureon.test/', wide = f
       { id: 'f2', name: 'Trip <b>plans</b>', icon: 'plane', color: 'green', conversationIds: [], instructions: '' }
     ],
     conversations: conversations || [
-      { id: 'c1', title: 'Chinese to English', folderId: 'f1', lastUpdatedAt: '2026-10-20T00:00:00.000Z', messages: [{ role: 'user', parts: [{ text: 'translate' }] }, { role: 'model', parts: [{ text: 'Here is **the** translation' }] }] },
+      { id: 'c1', title: 'Chinese to English', folderId: 'f1', lastUpdatedAt: '2026-10-20T00:00:00.000Z', messages: [{ role: 'user', parts: [{ text: 'translate' }] }, { role: 'model', parts: [{ text: '```noureon-run\n{"v":1,"status":"done","steps":[],"elapsedMs":61513,"sources":[{"n":1,"title":"A page","url":"https://example.com"}]}\n```\nHere is **the** translation [1]\n\n## Notes\n- one' }] }] },
       { id: 'c2', title: 'Glossary', folderId: 'f1', lastUpdatedAt: '2026-10-10T00:00:00.000Z', pinned: true, messages: [] }
     ],
     notified: [], opened: [], sent: [], archived: [], deleted: [], newChats: 0, cloud: [], closed: 0
@@ -168,7 +168,7 @@ test('a project page lists its chats (the pinned first) with a preview, opens on
     const chats = t.$$('.pj-chat');
     assert.deepEqual(chats.map((row) => row.dataset.conversationId), ['c2', 'c1'], 'the pinned one first');
     assert.equal(chats[1].querySelector('.pj-chat-title').textContent, 'Chinese to English');
-    assert.equal(chats[1].querySelector('.pj-chat-preview').textContent, 'Here is **the** translation');
+    assert.equal(chats[1].querySelector('.pj-chat-preview').textContent, 'Here is the translation Notes one', 'no record of the run, no marker of a source, no Markdown');
     assert.equal(t.$('.pj-composer-input').placeholder, 'Message Translation');
     chats[1].click();
     assert.deepEqual(t.state.opened, ['c1']);

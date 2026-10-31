@@ -21,6 +21,23 @@ export function scopeOfConversation(conversation, folders) {
   return scopeOfFolder(folder);
 }
 
+/** The project a conversation is in (any project, whatever its memory), '' for a chat outside every project, a temporary one, a deleted one or one whose project is gone. */
+export function projectOfConversation(conversation, folders) {
+  if (!conversation?.folderId || conversation.retentionMode === 'ephemeral' || conversation.deletedAt) return '';
+  const folder = Array.isArray(folders) ? folders.find((item) => item?.id === conversation.folderId) : null;
+  return folder && !folder.deletedAt && typeof folder.id === 'string' ? folder.id : '';
+}
+
+/**
+ * Whether a chat may look into a past conversation that is in `targetProjectId` ('' when it is in no project). The chats of a project are seen from that project only, never from a chat outside it;
+ * a chat outside every project sees the others outside; a chat of a project that keeps its notes for itself (`scopeId`) sees its own project's chats only; a chat of any other project
+ * sees its own project's chats and the ones outside (it reads the memory of the account too). `projectId` is the project of the chat that asks ('' outside).
+ */
+export const canSearchConversation = ({ scopeId = '', projectId = '' } = {}, targetProjectId = '') => {
+  const own = projectId || scopeId;
+  return targetProjectId === own || (targetProjectId === '' && !scopeId);
+};
+
 /** The notes of one scope. */
 export const notesInScope = (notes, scopeId = '') => (Array.isArray(notes) ? notes : []).filter((note) => noteScopeOf(note) === scopeId);
 

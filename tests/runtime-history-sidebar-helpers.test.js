@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs';
 import test from 'node:test';
 import { Window } from 'happy-dom';
 import { readSource } from './helpers/source-guards.js';
+import { setProjectFoldersReader } from '../src/app/runtime/projects/project-instructions.js';
 
 const helperPath = 'src/app/runtime/shell/history-sidebar-helpers.js';
 const helperUrl = new URL(`../${helperPath}`, import.meta.url);
@@ -230,22 +231,26 @@ test('conversation history rendering preserves filtering, pinned ordering, namin
     { id: 'deleted', deletedAt: '2026-06-07T00:00:00.000Z', createdAt: '2026-06-07T00:00:00.000Z' },
     { id: 'ephemeral', retentionMode: 'ephemeral', createdAt: '2026-06-08T00:00:00.000Z' }
   ];
+  conversations.push({ id: 'orphan', folderId: 'folder-gone', createdAt: '2026-06-01T00:00:00.000Z' });
   const originalOrder = conversations.map((conversation) => conversation.id);
   const harness = createHarness({ conversations });
+  setProjectFoldersReader(() => [{ id: 'folder-1', name: 'A project' }]);
   try {
     harness.helpers.renderHistorySidebar();
 
     const historyList = harness.document.getElementById('history-list');
-    assert.deepEqual(harness.renderedConversations.map((conversation) => conversation.id), ['pinned', 'foldered', 'newest', 'restored-old'], 'a chat of a project is in the history too');
+    assert.deepEqual(harness.renderedConversations.map((conversation) => conversation.id), ['pinned', 'newest', 'orphan', 'restored-old'], 'a chat of a project is listed under the project, not in the history; one whose project is gone is in the history');
     assert.deepEqual(conversations.map((conversation) => conversation.id), originalOrder);
     assert.equal(historyList.children.length, 5);
     assert.equal(historyList.children[0].dataset.conversationId, 'pinned');
-    assert.equal(historyList.children[1].dataset.conversationId, 'foldered');
-    assert.equal(historyList.children[2].dataset.conversationId, 'newest');
-    assert.match(historyList.children[3].textContent, /Naming\.\.\./);
+    assert.equal(historyList.children[1].dataset.conversationId, 'newest');
+    assert.match(historyList.children[2].textContent, /Naming\.\.\./);
+    assert.equal(historyList.children[3].dataset.conversationId, 'orphan');
     assert.equal(historyList.children[4].dataset.conversationId, 'restored-old');
     assert.equal(historyList.querySelector('[data-conversation-id="temporary"]'), null);
+    assert.equal(historyList.querySelector('[data-conversation-id="foldered"]'), null);
   } finally {
+    setProjectFoldersReader(null);
     harness.window.close();
   }
 });

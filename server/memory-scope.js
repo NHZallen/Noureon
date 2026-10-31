@@ -4,7 +4,7 @@
 
 import { noteScopeOf, notesInScope } from '../src/app/runtime/memory-notes/scope.js';
 
-export function scopedMemory(memory, scopeId = '') {
+export function scopedMemory(memory, scopeId = '', projectId = '') {
   if (!memory) return memory;
   return {
     ...memory,
@@ -20,6 +20,6 @@ export function scopedMemory(memory, scopeId = '') {
         .map((note) => (scopeId && !known.has(note.id) && typeof note.projectId !== 'string' ? { ...note, projectId: scopeId } : note));
       return memory.saveWrite(userId, { ...args, result: { ...args.result, notes } });
     },
-    history: memory.history ? { ...memory.history, forReply: (options) => memory.history.forReply({ ...options, scopeId }) } : memory.history
+    history: memory.history ? { ...memory.history, forReply: (options) => memory.history.forReply({ ...options, scopeId, projectId }) } : memory.history
   };
 }

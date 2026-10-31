@@ -88,12 +88,38 @@ test('the menu of a project: pin, settings and delete', async () => {
   assert.deepEqual(t.state.deletes, ['a']);
 });
 
-test('on a phone the section is hidden, and with no project there is nothing to show', () => {
+test('on a phone the section is hidden; on a computer with no project it stays, with the + to make the first one', () => {
   const phone = setup({ wide: false });
   phone.sidebar.render();
   assert.equal(phone.$('.sidebar-section[data-section="projects"]').hidden, true);
   const none = setup();
   none.state.folders = [];
   none.sidebar.render();
-  assert.equal(none.$('.sidebar-section[data-section="projects"]').hidden, true);
+  assert.equal(none.$('.sidebar-section[data-section="projects"]').hidden, false);
+  assert.equal(none.$$('.folder-item').length, 0);
+  assert.equal(none.$('[data-projects-all]'), null, 'no row for all the projects when there is none');
+  assert.ok(none.$('#sidebar-projects-new-btn'));
+});
+
+test('the header folds the section once even when the page binds its own fold to it, the + makes a project without folding, and the last row opens the page of all the projects', () => {
+  const calls = [];
+  const t = setup();
+  // The page binds a listener to every header that is there when it starts (app-bootstrap-lifecycle.js): here one is added after the header is made.
+  const sidebar = createSidebarProjects({
+    document: t.document, text, actions: t.actions, openProject() {}, openSettings() {}, askDelete() {}, openChat() {},
+    createProject: () => calls.push('create'), openList: () => calls.push('list'), getCurrentConversationId: () => null
+  });
+  sidebar.render();
+  const section = t.$('.sidebar-section[data-section="projects"]');
+  const header = section.querySelector('.sidebar-section-header');
+  header.addEventListener('click', (event) => { if (event.target.closest('button')) return; section.dataset.open = String(section.dataset.open !== 'true'); });
+  assert.equal(section.dataset.open, 'true');
+  header.querySelector('.title-group').click();
+  assert.equal(section.dataset.open, 'false', 'folded');
+  header.querySelector('.title-group').click();
+  assert.equal(section.dataset.open, 'true', 'and open again');
+  header.querySelector('#sidebar-projects-new-btn').click();
+  assert.equal(section.dataset.open, 'true');
+  section.querySelector('[data-projects-all]').click();
+  assert.deepEqual(calls, ['create', 'list']);
 });

@@ -136,11 +136,14 @@ test('a search over past chats stays inside the scope of the chat that asks', ()
     { id: 'c-a', lastUpdatedAt: '2026-10-30T00:00:00.000Z', folderId: 'proj-a', messages: [{ role: 'user', parts: [{ text: 'The quarterly budget for project A is secret' }] }] }
   ];
   const scopes = { 'c-plain': '', 'c-a': 'proj-a' };
-  const history = createPageHistory({ getConversations: () => conversations, getScopeOf: (id) => scopes[id] || '' });
+  const history = createPageHistory({ getConversations: () => conversations, getProjectOf: (id) => scopes[id] || '' });
   const ids = (hits) => hits.map((hit) => hit.conversationId);
   assert.deepEqual(ids(history.lookup('quarterly budget', 5, { scopeId: 'proj-a' })), ['c-a']);
   assert.deepEqual(ids(history.lookup('quarterly budget', 5, {})), ['c-plain'], 'a chat outside any such project never reaches into one');
   assert.deepEqual(ids(history.search('quarterly budget review', { scopeId: 'proj-a' })).includes('c-plain'), false);
+  // A project that shares the memory of the account (a chat in it has no scope of its own): it sees its own chats and the ones outside; a chat outside never sees the ones inside it.
+  assert.deepEqual(ids(history.lookup('quarterly budget', 5, { projectId: 'proj-a' })).sort(), ['c-a', 'c-plain']);
+  assert.deepEqual(ids(history.lookup('quarterly budget', 5, { projectId: 'proj-other' })), ['c-plain'], 'another project does not see the chats of proj-a');
   const reader = conversationScopeReader(() => conversations.map((entry) => ({ id: entry.id, folderId: entry.folderId })));
   setProjectFoldersReader(() => FOLDERS);
   try {

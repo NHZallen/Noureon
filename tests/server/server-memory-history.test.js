@@ -192,3 +192,15 @@ test('the conversations a reply looked into are kept for the message by id and d
   assert.equal(memoryOut.history[0].id, DOGS);
   assert.equal(JSON.stringify(memoryOut.history).includes('puppy'), false, 'no words of the conversation');
 });
+
+test('the chats of a project are not found from a chat outside it, and are found from a chat of that project', async () => {
+  const PROJECT = '55555555-5555-4555-8555-555555555555';
+  const read = { ...HISTORY_READ, conversations: [{ id: DOGS, updated_at: '2026-10-02T00:00:00.000Z', folder_id: PROJECT }, { id: TAX, updated_at: '2026-10-01T00:00:00.000Z' }], project_folders: [] };
+  const db = { rpc: async () => read };
+  const history = createHistorySearch({ db, logger: quiet });
+  assert.deepEqual(await history.forReply({ userId: USER })('puppy not eating', 5), [], 'a chat outside every project does not see a chat of a project');
+  assert.equal((await history.forReply({ userId: USER, projectId: PROJECT })('puppy not eating', 5))[0].conversationId, DOGS, 'a chat of the project sees it');
+  assert.equal((await history.forReply({ userId: USER, projectId: PROJECT })('quarterly tax invoice', 5))[0].conversationId, TAX, 'a project that shares the memory of the account also sees the chats outside');
+  assert.deepEqual(await history.forReply({ userId: USER, scopeId: PROJECT, projectId: PROJECT })('quarterly tax invoice', 5), [], 'a project that keeps its notes for itself sees only its own chats');
+  assert.deepEqual(await history.forReply({ userId: USER, projectId: '66666666-6666-4666-8666-666666666666' })('puppy not eating', 5), [], 'another project does not see it either');
+});

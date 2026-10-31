@@ -43,6 +43,14 @@ test('the scope of the chat travels with the request, and only as the id of a pr
   for (const scope of ['', 5, 'x'.repeat(81)]) assert.equal(validateRunSpec(goodSpec({ canWrite: true, scope, messages: [] })).ok, false, JSON.stringify(scope));
 });
 
+test('the project of the chat travels with the request too (the chats of a project are seen from it only), as the id of a project', () => {
+  const ok = validateRunSpec(goodSpec({ canWrite: true, project: PROJECT, messages: [{ id: 'm1', text: MESSAGE }] }));
+  assert.equal(ok.ok, true);
+  assert.equal(ok.spec.tools.memory.project, PROJECT);
+  assert.equal('project' in validateRunSpec(goodSpec({ canWrite: true, messages: [] })).spec.tools.memory, false);
+  for (const project of ['', 5, 'x'.repeat(81)]) assert.equal(validateRunSpec(goodSpec({ canWrite: true, project, messages: [] })).ok, false, JSON.stringify(project));
+});
+
 test('a wrapped memory shows one scope and tags what is new, leaving the rest of the table alone', async () => {
   const table = createFakeTable();
   const own = createNote({ id: 'own', text: 'The user prefers jasmine tea', keywords: ['tea'] });

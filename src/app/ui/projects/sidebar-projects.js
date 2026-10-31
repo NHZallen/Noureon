@@ -1,5 +1,6 @@
-// The projects in the left menu on a computer (docs/superpowers/specs/2026-10-31-projects-design.md, §15): a "Projects" section above the history, one row for each project (its icon in its colour,
-// its name, a ⋯ menu) that opens its page and folds out to show its newest chats. Pinned projects come first. A phone has the entry "Projects" only (the page of the projects), so the section is hidden
+// The projects in the left menu on a computer (docs/superpowers/specs/2026-10-31-projects-design.md, §15): the one "Projects" section above the history (its arrow folds it, its + makes a project, its
+// last row opens the page with all the projects), one row for each project (its icon in its colour, its name, a ⋯ menu) that opens its page and folds out to show its newest chats. Pinned projects come
+// first. The chats of a project are listed here only, not in the history. A phone has the entry "Projects" only (the page of the projects; the entry is hidden on a computer by sidebar.css), so the section is hidden
 // there. It draws itself again whenever the history is drawn again (that is when a chat or a project changed). Names and titles are put in with textContent.
 
 import { FOLDER_SVGS } from '../../runtime/features/folder-metadata.js';
@@ -16,10 +17,10 @@ function readOpen(storage) {
 
 /**
  * deps: document, text(key, vars), actions (runtime/projects/project-actions.js), openProject(id), openSettings(id), askDelete(id) (open the page of the project, its settings, the
- * question about deleting it), openChat(id), getCurrentConversationId(), loadParts() (resolves when the styles of the menus are there), storage.
+ * question about deleting it), createProject() (the dialog that makes one), openList() (the page with all the projects), openChat(id), getCurrentConversationId(), loadParts() (resolves when the styles of the menus are there), storage.
  * Returns { render(), mount(), stop() }.
  */
-export function createSidebarProjects({ document, text, actions, openProject, openSettings, askDelete, openChat, getCurrentConversationId = () => null, loadParts = async () => {}, storage = null }) {
+export function createSidebarProjects({ document, text, actions, openProject, openSettings, askDelete, openChat, createProject = () => {}, openList = () => {}, getCurrentConversationId = () => null, loadParts = async () => {}, storage = null }) {
   const win = document.defaultView;
   const open = readOpen(storage);
   let section = null;
@@ -43,7 +44,22 @@ export function createSidebarProjects({ document, text, actions, openProject, op
     title.append(make(document, 'span', '', text('pjEntry')));
     title.insertAdjacentHTML('beforeend', '<svg class="section-toggle-arrow" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>');
     header.appendChild(title);
-    header.addEventListener('click', () => { section.dataset.open = String(section.dataset.open !== 'true'); });
+    const actionsGroup = make(document, 'div', 'actions-group');
+    const add = make(document, 'button', 'section-action-btn');
+    add.type = 'button';
+    add.id = 'sidebar-projects-new-btn';
+    add.title = text('pjNew');
+    add.setAttribute('aria-label', text('pjNew'));
+    add.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>';
+    add.addEventListener('click', (event) => { event.stopPropagation(); createProject(); });
+    actionsGroup.appendChild(add);
+    header.appendChild(actionsGroup);
+    // The page folds every section with a listener of its own, put on the headers that were there when it started; a header made later may get it too, so this one stops the others (one fold, not two).
+    header.addEventListener('click', (event) => {
+      event.stopImmediatePropagation();
+      if (event.target.closest?.('button')) return;
+      section.dataset.open = String(section.dataset.open !== 'true');
+    });
     const content = make(document, 'div', 'sidebar-section-content');
     list = make(document, 'div', 'space-y-1');
     list.id = 'sidebar-projects-list';
@@ -132,8 +148,16 @@ export function createSidebarProjects({ document, text, actions, openProject, op
     found.hidden = !wide();
     if (!wide()) return;
     const projects = actions.list();
-    found.hidden = !projects.length;
-    list.replaceChildren(...projects.map(projectRow));
+    const rows = projects.map(projectRow);
+    if (projects.length) {
+      const all = make(document, 'button', 'sidebar-item w-full text-left rounded-lg p-2 text-sm text-[var(--text-secondary)]');
+      all.type = 'button';
+      all.dataset.projectsAll = 'true';
+      all.textContent = text('pjSidebarAll');
+      all.addEventListener('click', () => openList());
+      rows.push(all);
+    }
+    list.replaceChildren(...rows);
   }
   const later = () => { win.clearTimeout(timer); timer = win.setTimeout(render, 60); };
 

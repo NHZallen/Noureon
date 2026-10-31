@@ -1,7 +1,7 @@
 // The instructions of a project (a folder of the workspace, docs/superpowers/specs/2026-10-31-projects-design.md): every conversation in the project carries them. The reply puts them
 // together with the rest of its system instruction (reply/stream-api-call.js), after the Noura, the learning mode and the memory, so inside the project they are the last word.
 
-import { scopeOfConversation } from '../memory-notes/scope.js';
+import { projectOfConversation, scopeOfConversation } from '../memory-notes/scope.js';
 import { projectSourcesFor } from './project-source-prompt.js';
 
 export const PROJECT_INSTRUCTIONS_MAX = 8000;
@@ -35,6 +35,17 @@ export function projectInstructionTextFor(conversation, { filesCatalog = '' } = 
 
 /** The scope of the notes of a conversation: the id of its project when that keeps its notes for itself, '' for every other chat (memory-notes/scope.js). */
 export const memoryScopeOf = (conversation) => scopeOfConversation(conversation, readFolders());
+
+/** The id of the project a conversation is in (any project), '' outside every project (memory-notes/scope.js, projectOfConversation). */
+export const projectIdOf = (conversation) => projectOfConversation(conversation, readFolders());
+
+/** Tells which project each conversation id is in, for the searches over the past conversations: a function from the id of a conversation to its project ('' outside). */
+export function conversationProjectReader(getConversations) {
+  return (conversationId) => {
+    const conversation = (getConversations() || []).find((entry) => entry?.id === conversationId);
+    return conversation ? projectIdOf(conversation) : '';
+  };
+}
 
 /** Tells which scope each conversation id has, for the searches over the past conversations: a function from the id of a conversation to its scope. */
 export function conversationScopeReader(getConversations) {

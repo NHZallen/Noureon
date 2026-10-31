@@ -58,7 +58,7 @@ export function createNotesMemory({ getSupabase = () => null, storage = null, no
   };
 
   // The slip and the system text for a message. `meaningPieces` (from the search by meaning) stand in for the keyword hits of the past conversations when given.
-  const compose = ({ question = '', canSearch = false, excludeConversationId = '', scopeId = '' }, meaningPieces) => {
+  const compose = ({ question = '', canSearch = false, excludeConversationId = '', scopeId = '', projectId = '' }, meaningPieces) => {
     if (!store?.isLoaded()) return EMPTY;
     const settings = store.getSettings();
     if (!settings.use) return EMPTY;
@@ -67,7 +67,7 @@ export function createNotesMemory({ getSupabase = () => null, storage = null, no
     let history = meaningPieces || [];
     if (!meaningPieces) {
       try {
-        history = historySearch ? historySearch(question, { excludeConversationId, scopeId }) : [];
+        history = historySearch ? historySearch(question, { excludeConversationId, scopeId, projectId }) : [];
       } catch (error) {
         logger.warn?.('The history could not be searched.', error);
       }
@@ -127,7 +127,7 @@ export function createNotesMemory({ getSupabase = () => null, storage = null, no
       const first = compose(options, null);
       if (first.historyIds.length || !historyMeaning || !store?.isLoaded() || !store.getSettings().use) return first;
       try {
-        const found = await historyMeaning(options.question || '', { excludeConversationId: options.excludeConversationId || '', scopeId: options.scopeId || '', waitMs });
+        const found = await historyMeaning(options.question || '', { excludeConversationId: options.excludeConversationId || '', scopeId: options.scopeId || '', projectId: options.projectId || '', waitMs });
         return Array.isArray(found) && found.length ? compose(options, found) : first;
       } catch (error) {
         logger.warn?.('The search by meaning for the slip failed.', error);

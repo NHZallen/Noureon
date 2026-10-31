@@ -6,6 +6,7 @@ import { createSourcePanel } from '../../ui/citations/source-panel.js';
 import { latestReplySources, replySourcePanelOptions } from '../features/reply-sources-actions.js';
 import { plainMarkdown } from '../../ui/citations/plain-text.js';
 import { trackPointedRow } from '../../ui/scroll/pointed-row.js';
+import { projectIdOf } from '../projects/project-instructions.js';
 
 // A message as the timeline names it: the start of what it says. The record of what the model did (and the markers that
 // cite sources) are kept in the message's text but are not what it says.
@@ -341,6 +342,8 @@ export function createHistorySidebarHelpers({
     historyList.innerHTML = '';
     const sortedConversations = conversations
       .filter(isVisibleConversation)
+      // The chats of a project are listed under that project (ui/projects/sidebar-projects.js), not in the history.
+      .filter((conversation) => !projectIdOf(conversation))
       .sort((a, b) => {
         if (a.pinned && !b.pinned) return -1;
         if (!a.pinned && b.pinned) return 1;

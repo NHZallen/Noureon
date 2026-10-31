@@ -11,7 +11,7 @@ import { createPageHistory } from './page-history.js';
 import { startServerRebuild, stopServerRebuild } from './server-rebuild.js';
 import { setHistoryTitle } from './memory-trace.js';
 import { createPageVectors } from './page-vectors.js';
-import { conversationScopeReader } from '../projects/project-instructions.js';
+import { conversationProjectReader, conversationScopeReader } from '../projects/project-instructions.js';
 
 export function startNotesMemory({ document, configAccess, dataStore, getActiveConversation = () => null, getApiKeyForProvider = () => '', i18n = {}, storage = null, logger = console }) {
   const getConfig = () => configAccess.getConfig();
@@ -25,7 +25,7 @@ export function startNotesMemory({ document, configAccess, dataStore, getActiveC
   }));
   // The past conversations are searched with an index made from what the page holds (no model, nothing leaves the device).
   const scopeOfConversationId = conversationScopeReader(getConversations);
-  const history = createPageHistory({ getConversations, getScopeOf: scopeOfConversationId });
+  const history = createPageHistory({ getConversations, getProjectOf: conversationProjectReader(getConversations) });
   // A conversation the model looked into keeps its name with the reply (memory-trace.js), for when it is deleted later.
   setHistoryTitle((id) => String((getConversations() || []).find((entry) => entry.id === id)?.title || ''));
   memory.setHistorySearch((question, options) => history.search(question, options));

@@ -3,6 +3,9 @@
 // noureon.com/projects/<id>. Names and titles are put in with textContent; colours are the tokens (styles/projects.css) and the colour a person chose for a project.
 
 import { cameraAvailable, openCameraDialog } from './project-camera.js';
+import { liftSandboxRunBlock } from '../sandbox/sandbox-run-block.js';
+import { stripCitationMarkers } from '../citations/citation-model.js';
+import { plainMarkdown } from '../citations/plain-text.js';
 import { isWide, make, ICONS, openActionSheet, openMenu, projectMark, sourceTile, toneOfName } from './project-parts.js';
 import { openCreateSheet, openDeleteSheet, openEditSheet, openInstructionsSheet, openRenameChatSheet, openSourceTextSheet, sourceFailureText } from './project-sheets.js';
 import { searchableKindOf } from '../../runtime/projects/project-files-access.js';
@@ -27,10 +30,14 @@ const headingOf = (document, className, level = 1) => {
   return node;
 };
 
+// What a chat says, as the list of the chats of a project shows it: the last message that has words, without the record of what the model did (the ```noureon-run block at the start of a reply),
+// the markers that cite sources, the files that went with it, or the marks of Markdown.
 const previewOf = (conversation) => {
   const messages = Array.isArray(conversation?.messages) ? conversation.messages : [];
   for (let index = messages.length - 1; index >= 0; index -= 1) {
-    const text = (messages[index]?.parts || []).map((part) => part?.text || '').join(' ').replace(/\s+/g, ' ').trim();
+    const raw = (messages[index]?.parts || []).map((part) => part?.text || '').join('\n');
+    const { run, text: said } = liftSandboxRunBlock(raw);
+    const text = plainMarkdown(stripCitationMarkers(said, run?.sources).replace(/(`{3,})file[^\n]*\n[\s\S]*?(?:\1`*|$)/g, ' ')).replace(/\s+/g, ' ').trim();
     if (text) return text.slice(0, 160);
   }
   return '';
@@ -437,6 +444,8 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
       state.projectId = null;
       setAddress(PROJECTS_PATH, push);
       drawList();
+      // Asked from the + of the left menu: the dialog that makes a project is open at once.
+      if (next?.create) newProject();
     }
   }
   function back() {
@@ -480,7 +489,7 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
   document.body.appendChild(root);
   win.addEventListener('popstate', onPopState);
   win.addEventListener('keydown', onKey);
-  const first = route?.id && projectOrNull(route.id) ? route : { list: true };
+  const first = route?.id && projectOrNull(route.id) ? route : { list: true, ...(route?.create ? { create: true } : {}) };
   // The page opened by its address starts where the address says; opened by a tap it adds an entry to the history.
   const addressRoute = projectsRouteFromPath(win.location.pathname);
   go(first, !addressRoute);

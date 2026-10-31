@@ -193,3 +193,11 @@
     -ms-user-select: none;
     user-select: none;
 }
+
+
+/* On a computer the Projects section of the menu (sidebar-projects.js) is the one place for the projects; the entry that opens their page is only for a phone. */
+@media (min-width: 768px) {
+    #open-projects-btn {
+        display: none;
+    }
+}
