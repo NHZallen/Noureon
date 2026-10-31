@@ -68,7 +68,7 @@ test('a failing database does not stop the sweep of the shares', async () => {
   assert.ok(logs.includes('share_report_take_failed'));
 });
 
-test('the owner of a share that was taken down is told once, at the address of their account, in the five languages, and a failed mail goes back', async () => {
+test('the owner of a share that was taken down is told once, at the address of their account, in English, and a failed mail goes back', async () => {
   const mailer = mailerOf(['ok', 'fail']);
   const calls = [];
   const rows = [{ share_id: 's1', owner_email: 'ada@example.test', title: 'Strawberry\ncake' }, { share_id: 's2', owner_email: 'bob@example.test', title: 'Other' }, { share_id: 's3', owner_email: null, title: 'No address' }];
@@ -78,11 +78,9 @@ test('the owner of a share that was taken down is told once, at the address of t
   assert.equal(mailer.sent[0].to, 'ada@example.test');
   assert.equal(mailer.sent[0].replyTo, 'me@example.test');
   assert.doesNotMatch(mailer.sent[0].subject, /[\r\n]/);
-  assert.match(mailer.sent[0].text, /已下架/);
-  assert.match(mailer.sent[0].text, /taken down by Noureon/);
-  assert.match(mailer.sent[0].text, /retirée par Noureon/);
-  assert.match(mailer.sent[0].text, /удалена Noureon/);
-  assert.match(mailer.sent[0].text, /retirada por Noureon/);
+  assert.match(mailer.sent[0].subject, /taken down/);
+  assert.match(mailer.sent[0].text, /"Strawberry cake", was taken down by Noureon after review/);
+  assert.doesNotMatch(mailer.sent[0].text, /[\u4e00-\u9fff]/, 'English only');
   assert.deepEqual(calls.find((call) => call[0] === 'server_requeue_removed_shares')[1], { p_share_ids: ['s2'] });
 });
 
