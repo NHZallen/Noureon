@@ -32,7 +32,7 @@ const nameOf = (user) => {
   return candidate && !candidate.includes('@') ? candidate : '';
 };
 
-export function startShares({ document, window = globalThis.window, configAccess, dataStore, i18n, saveAppData, showNotification, showCustomConfirm, renderSidebar, openConversation = () => {}, client = null, storage = null, supabase = null, quota = getStorageUsage, lookupWaitMs = 1500 }) {
+export function startShares({ document, window = globalThis.window, configAccess, dataStore, i18n, saveAppData, showNotification, showCustomConfirm, renderSidebar, openConversation = () => {}, client = null, storage = null, supabase = null, quota = getStorageUsage }) {
   const state = createShareState();
   const shareClientSupabase = () => { if (supabase) return supabase; try { return getSupabaseClient(); } catch { return null; } };
   const shareClient = client || createShareClient({ getSupabase: shareClientSupabase });
@@ -73,11 +73,12 @@ export function startShares({ document, window = globalThis.window, configAccess
     });
   }
 
-  // The warning is a help, never a gate: when the shares cannot be looked up (slow, an error), the conversation is deleted as it always was.
+  // The warning is a help, never a gate: it uses only what is already known (the list is read when the account is ready), and deleting never waits for the network. A list that is not
+  // there yet is asked for in the background, and the conversation is deleted as it always was.
   async function confirmDelete(ids) {
     try {
       if (!cloudOn()) return true;
-      if (!state.isLoaded()) await waitAtMost(reload(), lookupWaitMs);
+      if (!state.isLoaded()) { void reload(); return true; }
       const count = [...ids].reduce((sum, id) => sum + state.activeFor(id).length, 0);
       if (count === 0) return true;
       return await showCustomConfirm(text('csDeleteBody', { n: count }), text('csDeleteTitle'));

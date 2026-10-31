@@ -90,27 +90,26 @@ test('the app takes the code the viewer left, once there is a cloud account, and
   }
 });
 
-test('deleting a conversation is never held up by the lookup of its shares: a lookup that hangs or fails lets the delete go on', async () => {
+test('deleting a conversation never waits for the lookup of its shares: with the list not read yet it goes on at once, with the list known the person is asked', async () => {
   const window = new Window({ url: 'https://noureon.test/' });
+  const make = (extra) => startShares({
+    document: window.document, window, configAccess: { getUiLanguage: () => 'en', getConfig: () => ({}) }, dataStore: { getConversations: () => [] }, i18n: { en },
+    saveAppData: async () => {}, showNotification: () => {}, renderSidebar: () => {}, storage: { getItem: () => null, removeItem() {}, setItem() {} }, ...extra
+  });
   try {
     provideService(SERVICES.cloudSync, { getStatus: () => ({ enabled: true }), flush: async () => {} });
-    for (const list of [() => new Promise(() => {}), async () => { throw new Error('down'); }]) {
-      const api = startShares({
-        document: window.document, window, configAccess: { getUiLanguage: () => 'en', getConfig: () => ({}) }, dataStore: { getConversations: () => [] }, i18n: { en },
-        saveAppData: async () => {}, showNotification: () => {}, showCustomConfirm: async () => { throw new Error('asked'); }, renderSidebar: () => {}, client: { list }, lookupWaitMs: 20, storage: { getItem: () => null, removeItem() {}, setItem() {} }
-      });
-      const started = Date.now();
-      assert.equal(await api.confirmDelete(['c1']), true);
-      assert.ok(Date.now() - started < 1000);
-    }
-    // With the shares known, the person is asked, and the answer decides.
-    const api = startShares({
-      document: window.document, window, configAccess: { getUiLanguage: () => 'en', getConfig: () => ({}) }, dataStore: { getConversations: () => [] }, i18n: { en },
-      saveAppData: async () => {}, showNotification: () => {}, showCustomConfirm: async () => false, renderSidebar: () => {},
-      client: { list: async () => ({ ok: true, items: [{ id: 'a', conversationId: 'c1', code: 'x', mode: 'view', title: 'T', deleted: false }] }) }, lookupWaitMs: 200, storage: { getItem: () => null, removeItem() {}, setItem() {} }
-    });
-    assert.equal(await api.confirmDelete(['c1']), false);
-    assert.equal(await api.confirmDelete(['other']), true);
+    let asked = 0;
+    const hanging = make({ client: { list: () => new Promise(() => {}) }, showCustomConfirm: async () => { asked += 1; return false; } });
+    const started = Date.now();
+    assert.equal(await hanging.confirmDelete(['c1']), true, 'a list that has not come does not hold the delete');
+    assert.ok(Date.now() - started < 100);
+    assert.equal(asked, 0);
+    const broken = make({ client: { list: async () => { throw new Error('down'); } }, showCustomConfirm: async () => { throw new Error('asked'); } });
+    assert.equal(await broken.confirmDelete(['c1']), true);
+    const known = make({ client: { list: async () => ({ ok: true, items: [{ id: 'a', conversationId: 'c1', code: 'x', mode: 'view', title: 'T', deleted: false }] }) }, showCustomConfirm: async () => false });
+    await known.reload();
+    assert.equal(await known.confirmDelete(['c1']), false, 'the person said no');
+    assert.equal(await known.confirmDelete(['other']), true);
   } finally {
     provideService(SERVICES.cloudSync, null);
     await window.happyDOM.abort();
