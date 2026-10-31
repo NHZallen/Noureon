@@ -21,16 +21,23 @@ export function reportMailFor(row, { appUrl }) {
   const lines = ['有人檢舉了一個分享。', '', `對話名稱：${title}`, `權限：${mode}`, `狀態：${state}`, `${counts}。`];
   if (reasons.length) lines.push('', '讀者寫的原因：', ...reasons.map((reason) => `- ${reason}`));
   if (!gone) lines.push('', `看內容：${review}`, `處理：${admin}`);
-  const html = renderMail({
-    preheader: `${title}：${state}`,
-    heading: paused ? '有分享被檢舉，已暫停' : '有人檢舉了一個分享',
-    intro: [paused ? '同一個分享被三位不同的讀者檢舉，連結已經先暫停，等你看過再決定。' : '有讀者檢舉了下面這個分享，目前連結仍然有效。'],
-    details: [['對話名稱：', title], ['權限：', mode], ['狀態：', state], ['檢舉：', counts]],
-    list: reasons.length ? { label: '讀者寫的原因：', items: reasons } : null,
-    buttons: gone ? [] : [{ label: '看內容', href: review }, { label: '前往後台', href: admin }],
-    footer: ['這封信是 Noureon 伺服器自動寄出的，寄到 REPORT_TO 設定的信箱。'],
-    contact: false
-  });
+  const blocks = [
+    { kind: 'p', parts: [paused ? '同一個分享被三位不同的讀者檢舉，連結已經先暫停，等你看過再決定。' : '有讀者檢舉了下面這個分享，目前連結仍然有效。'] },
+    { kind: 'p', parts: [{ b: '對話名稱：' }, title] },
+    { kind: 'small', parts: [{ b: '權限：' }, mode, '　', { b: '狀態：' }, state] },
+    { kind: 'small', parts: [{ b: '檢舉：' }, counts] }
+  ];
+  if (!gone) blocks.push({ kind: 'button', label: '看內容', href: review });
+  if (reasons.length) {
+    blocks.push({ kind: 'rule' });
+    blocks.push({ kind: 'small', parts: [{ b: '讀者寫的原因：' }] });
+    for (const reason of reasons) blocks.push({ kind: 'small', parts: ['・', reason] });
+  }
+  if (!gone) {
+    blocks.push({ kind: 'rule' });
+    blocks.push({ kind: 'muted', parts: ['處理（暫停、恢復、清除檢舉、下架）：', { a: admin, text: admin }] });
+  }
+  const html = renderMail({ preheader: `${title}：${state}`, title: paused ? '有分享被檢舉，已暫停' : '有人檢舉了一個分享', blocks });
   return { subject: oneLine(`[Noureon] 分享被檢舉${paused ? '，已暫停' : ''}：${title}`, 120), text: lines.join('\n'), html };
 }
 
@@ -45,10 +52,13 @@ export function removedMailFor(row) {
     text: [first, second, third].join('\n\n'),
     html: renderMail({
       preheader: 'Its link no longer works and it can no longer be shared. Nothing was deleted from your account.',
-      heading: 'Your shared conversation was taken down',
-      intro: [title ? ['Noureon took down the share of ', { b: title }, ' after a review.'] : first],
-      outro: [second, third],
-      footer: ['You are receiving this because the conversation was shared from your Noureon account.']
+      title: 'Your shared conversation was taken down',
+      blocks: [
+        { kind: 'p', parts: title ? ['Noureon took down the share of ', { b: title }, ' after a review.'] : [first] },
+        { kind: 'small', parts: [second] },
+        { kind: 'rule' },
+        { kind: 'muted', parts: [third] }
+      ]
     })
   };
 }

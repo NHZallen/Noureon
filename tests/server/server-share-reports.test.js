@@ -97,10 +97,11 @@ test('the mails come with an HTML version that has the mark, the words and the b
   const mail = reportMailFor(row({ title: evil, reasons: [evil, '<script>x</script>'], status: 'suspended', readers: 3 }), { appUrl: 'https://noureon.com' });
   assert.match(mail.html, /^<!doctype html>/);
   assert.match(mail.html, /https:\/\/noureon\.com\/icon-192\.png/);
-  assert.match(mail.html, /background:#000000/, 'one black button, as in the notification mails of the services the owner uses');
-  assert.doesNotMatch(mail.html, /#5b4fcf/, 'no colour of its own');
+  assert.match(mail.html, /background:#5b4fcf/, 'the purple button of the mails of Noureon the owner already receives');
+  assert.match(mail.html, /border-radius:12px/, 'the card');
+  assert.doesNotMatch(mail.html, /text-transform:uppercase|background:#f6f6fa/, 'no boxes and no capital labels');
   assert.match(mail.html, /prefers-color-scheme: dark/);
-  assert.match(mail.html, /support@noureon\.com/);
+  assert.match(mail.html, /Contact support/);
   assert.doesNotMatch(mail.html, /<img src=x|<script>/, 'what a person wrote is not markup');
   assert.match(mail.html, /&lt;img src=x onerror=alert\(1\)&gt; &amp; &quot;quotes&quot;/);
   assert.match(mail.html, new RegExp(`href="https://noureon.com/s/${'A'.repeat(32)}\\?review=1"`));
@@ -126,7 +127,8 @@ test('the mailer sends the HTML too when it is given, and never a link that is n
   await mailer.send({ to: 'a@example.test', subject: 's', text: 'plain' });
   assert.equal(seen[0].html, '<p>hi</p>');
   assert.equal('html' in seen[1], false);
-  const html = renderMail({ heading: 'H', buttons: [{ label: 'bad', href: 'javascript:alert(1)' }, { label: 'ok', href: 'https://noureon.com/x' }] });
+  const html = renderMail({ title: 'H', blocks: [{ kind: 'button', label: 'bad', href: 'javascript:alert(1)' }, { kind: 'button', label: 'ok', href: 'https://noureon.com/x' }, { kind: 'p', parts: [{ a: 'javascript:alert(2)', text: 'trap' }, { a: 'https://noureon.com/y', text: 'fine' }] }] });
   assert.doesNotMatch(html, /javascript:/);
   assert.match(html, /href="https:\/\/noureon.com\/x"/);
+  assert.match(html, /href="https:\/\/noureon.com\/y"/);
 });
