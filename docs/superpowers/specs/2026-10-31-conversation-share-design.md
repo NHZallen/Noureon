@@ -37,7 +37,7 @@
 { v: 1, title, model, createdAt, messages: [ { role: 'user'|'model', createdAt, parts: [...] } ] }
 ```
 
-`parts` 照訊息原樣，但：拿掉每則訊息的 `metadata`；訊息文字開頭的處理紀錄（` ```nouras-run ` 區塊）裡拿掉記憶步驟（`tools` 中 `kind: 'memory'` 的項目）；附件與檔案的雲端標記（`__astraCloudAsset`）改指向分享專用的儲存桶。
+`parts` 照訊息原樣，但：拿掉每則訊息的 `metadata`；訊息文字開頭的處理紀錄（` ```noureon-run ` 區塊）裡拿掉記憶步驟（`tools` 中 `kind: 'memory'` 的項目）；附件與檔案的雲端標記（`__astraCloudAsset`）改指向分享專用的儲存桶。
 
 ### 3.3 附件
 
@@ -58,8 +58,7 @@
 
 - `POST /v1/shares`：`{ conversationId, mode, showName }` → 建立（檢查上限 30、大小、對話屬於這個人、不是暫時對話）。
 - `POST /v1/shares/:id/refresh`：用目前的內容重做快照。
-- `DELETE /v1/shares/:id`：撤銷。
-- 列表與「移除紀錄」走資料庫函式（頁面直接呼叫）。
+- 撤銷、列表與「移除紀錄」不經伺服器：頁面直接呼叫資料庫函式 `revoke_conversation_share(id)`（刪掉那一列，對話已刪除的紀錄也是同一個）與 `list_my_conversation_shares()`。
 
 ## 5. 畫面
 
@@ -91,3 +90,12 @@
 ## 9. 協作與契約
 
 新資料表與函式、新端點、新的儲存桶、訊息的 `metadata.sharedFrom` 欄位，都是契約變更：在 Linear 開 `contract` 單，由 Allen 確認。涉及金鑰權限、儲存桶與刪除規則，Allen 與 Sun 都要看。migration 只寫檔案，由 Allen 先套測試專案，再套正式專案。
+
+## 10. 實作紀錄（2026-10-31）
+
+- **資料庫**：`supabase/migrations/20261031040000_add_conversation_shares.sql`（資料表 `conversation_shares`、`share_reports`、儲存桶 `shared-assets`、函式、觸發器）；測試 `tests/database/conversation-shares.test.js`。
+- **伺服器**：`server/shares.js`（快照、複製檔案、掃除）、`server/share-store.js`、路由 `POST /v1/shares`、`POST /v1/shares/:id/refresh`；測試 `tests/server/server-shares.test.js`。
+- **頁面（分享者）**：`src/app/runtime/share/`（`share-client.js`、`share-state.js`、`share-ref.js`、`start-shares.js`）、`src/app/ui/share/`（`share-dialog.js`、`shared-items-card.js`）、`src/styles/share.css`、文字 `src/data/i18n/parts/share.js`（前綴 `cs`）。入口：對話選單（桌面 `settings-history-menu-helper.js`、手機 `mobile-context-menu-markup.js`）送出事件 `astra:share-conversation`；側邊欄標籤 `shareTagsHtml`；刪除前提醒 `confirmDeleteShared`（單筆與批次）。
+- **閱覽頁**：`src/app/share-page/`（`share-page.js`、`share-assets.js`、`share-route.js`、`share-texts.js`）、`src/styles/share-page.css`。`src/main.js` 遇到 `/s/<代號>` 就顯示閱覽頁而不是應用程式（和密碼救援同一做法）；`vercel.json` 把 `/s/:code` 導到 `index.html`，並對 `/s/*` 加 `X-Robots-Tag: noindex, nofollow, noarchive` 與 `Referrer-Policy: no-referrer`；頁面也加 `<meta name="robots">`、`<meta name="referrer">`，並拿掉指向首頁的 canonical。連結預覽用的是 `index.html` 原有的通用標籤。
+- **接著聊**：閱覽頁的按鈕把代號放進 `localStorage['noureon:pending-share']` 後回到首頁；`start-shares.js` 等到有雲端帳號就用 `share-import.js` 做出新對話（`sharedFrom: { at, name }` 隨對話同步，見 `cloud-sync-v2-codecs.js`），model 用對方自己的設定。雲端空間不夠時只複製文字。模型畫的圖在複製時變成附加的圖片。
+- **文件**：隱私權政策、使用條款、協助中心五語各加一段（`src/data/legal/`），`PRIVACY.md` 已重新產生。更新日期與「適用版本」的字樣留給發版時改。

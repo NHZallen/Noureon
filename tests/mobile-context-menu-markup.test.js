@@ -28,7 +28,7 @@ test('builds conversation mobile menu markup for a foldered pinned conversation'
   });
 
   assert.match(markup, /^\n\s*<div class="menu-header">Roadmap<\/div>/);
-  assert.deepEqual(getActions(markup), ['rename', 'pin', 'move-out', 'archive', 'delete']);
+  assert.deepEqual(getActions(markup), ['rename', 'pin', 'move-out', 'share', 'archive', 'delete']);
   assert.match(markup, /<span>Unpin<\/span>/);
   assert.match(markup, /<span>Move out<\/span>/);
   assert.doesNotMatch(markup, /data-action="move-to"/);
@@ -43,10 +43,11 @@ test('builds conversation mobile menu fallback labels for an unpinned root conve
     text: {}
   });
 
-  assert.deepEqual(getActions(markup), ['rename', 'pin', 'move-to', 'archive', 'delete']);
+  assert.deepEqual(getActions(markup), ['rename', 'pin', 'move-to', 'share', 'archive', 'delete']);
   assert.match(markup, /<span>釘選<\/span>/);
   assert.match(markup, /<span>移至資料夾<\/span>/);
   assert.match(markup, /<span>重新命名<\/span>/);
+  assert.match(markup, /<span>分享對話<\/span>/);
   assert.match(markup, /<span>封存<\/span>/);
   assert.match(markup, /<span>刪除<\/span>/);
 });

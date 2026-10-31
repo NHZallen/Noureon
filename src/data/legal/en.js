@@ -48,7 +48,8 @@ export default {
             'Temporary chat: use it and go; no record is kept, and the reply is made on your own device, never on the server.',
             'Searching history: search conversations by title keyword, content keyword or natural language; a timeline lets you jump to a message in a long conversation.',
             'Personal dashboard: total conversations, number of folders, most used model, share of use by model and the time distribution of messages, all counted on your device.',
-            'Smart features: in Settings you can switch "automatic conversation naming" and "smart search" on or off.'
+            'Smart features: in Settings you can switch "automatic conversation naming" and "smart search" on or off.',
+            'Sharing a conversation: in a conversation\'s menu choose "Share conversation", pick "Read only" or "Can continue" (people signed in with a cloud account can copy it into their own conversations and carry on with their own keys), tick "Show my name" if you want it, and copy the link. The link shows the conversation as it was when you pressed the button; "Update link" makes it again from the current content and "Stop sharing" makes the link stop working at once. Memory, a Noura\'s instructions and your keys are never shared. Up to 30 shares can be active at once, and they need a cloud account. A conversation with a share shows the tag "Shared" in the sidebar; one copied from a share shows "From a share", for good.'
           ]
         ]
       },
@@ -202,7 +203,8 @@ export default {
             'Export and import (Settings → Data management): export .json or .zip (conversation history with the archive and folders, Nouras, app settings, confirmed personal preferences; API keys need a sync password to be exported safely). Importing replaces your current data, so check first. Review an exported file before sharing it, especially if you chose to include sensitive data.',
             'Peer-to-peer transfer: in Settings, "Cross-device sync (P2P)", choose "I want to send" or "I want to receive", connect with an 8-character code or by scanning a QR code, and the items you chose go straight between the two devices; Nouras can be shared this way too.',
             'Storage: cloud attachments and made files together are limited to 500 MB per user; generated images are not stopped by that limit.',
-            'Danger zone: "Clear all records and data" permanently deletes everything in this browser and cannot be undone. When you are signed in and syncing, deletion and restoration are also synced to the cloud.'
+            'Danger zone: "Clear all records and data" permanently deletes everything in this browser and cannot be undone. When you are signed in and syncing, deletion and restoration are also synced to the cloud.',
+            'Shared items (Settings → Data management): every link you shared with its conversation, permission and date, which you can revoke; for a conversation that was deleted, the record stays ("This conversation was deleted") and you can press "Remove record". Moving a shared conversation to the trash or deleting it makes all its links stop working for everyone (conversations other people already copied are not affected), and you are asked before it happens.'
           ]
         ]
       },
@@ -297,7 +299,8 @@ export default {
             'The prompts you type, the files you upload, the Nouras, skills and memories you create and the outputs you obtain belong to you or their original rights holders; we do not claim to own them.',
             'You allow us to process this content to the extent needed to provide the features you use, for example saving it in your cloud workspace, sending it to the provider you chose, running it in the sandbox, making files or summaries. We do not use your content for other purposes and we do not sell personal data (see the Privacy Policy).',
             'You must make sure you have the right to use what you upload or ask us to process (including other people\'s works, personal data and confidential information) and you bear the responsibility that follows.',
-            'AI output may be similar to what others receive; we do not promise that output is original or that it does not infringe third-party rights.'
+            'AI output may be similar to what others receive; we do not promise that output is original or that it does not infringe third-party rights.',
+            'When you share a conversation with a link, you decide who gets the link and you are responsible for what it shows; anyone who has the link can read it, and Noureon does not review what is shared. Share only what you have the right to share and are happy to make public.'
           ]
         ]
       },
@@ -365,7 +368,8 @@ export default {
             'use the service to harm others, or to create false identities or information that misleads people.',
             'attack, probe or disturb the service, its servers, its account system or the sandbox, or try to get around rate limits, verification and security measures.',
             'access the service by automation beyond normal use, or consume resources in a way that affects other users.',
-            'break the terms and usage policies of the third-party providers you use.'
+            'break the terms and usage policies of the third-party providers you use.',
+            'use the sharing feature to spread illegal content, content that infringes other people\'s rights, other people\'s personal data, or content of the kinds listed above. When we receive a report or learn of it, we may disable and remove the link.'
           ],
           'If you do, we may limit or stop your access, remove the related content and, where necessary, cooperate with investigations as the law requires.'
         ]
@@ -570,7 +574,8 @@ export default {
             'Secure credentials: a credential you add for a tool (for example the login cookie of an account) is kept encrypted with AES-256-GCM on the server, under a master key that lives only in the server\'s environment and bound to you and the credential\'s name, in a table only the server can read. It is put in the environment of the tool (or in the login file the tool would save itself, for one command only) only while your own tool runs; what the command prints is scrubbed of the credential before the model or the page sees it, and the model never receives the value. You can look at, replace or delete it in Settings → Permissions; it is deleted when you delete it or the account.',
             'Connectors: when you connect one (for now Google, Notion, Linear, Miro, Canva, Context7, Upstash, Vercel, GitHub, Supabase and Hugging Face), you log in on the service\'s own page (Noureon never sees your password); the server keeps the access token and the refresh token encrypted with AES-256-GCM under a master key that lives only in the server\'s environment, bound to you and the connector, in a table only the server can read, and never gives them to the browser or the model. The server also keeps the list of the service\'s tools and what you let each tool do (allow, ask or refuse). Connectors work only in replies the server makes, not in temporary chats. When the model uses a tool, the server calls the service with your token and sends what the service returns (for example the content of a page or an issue) to the model provider you chose, as part of the conversation; a tool you set to ask shows its exact inputs in a card first. A reply makes at most 30 calls to services, and a result is cut at 30,000 characters. Disconnecting revokes the token at the service where it offers that and deletes everything kept here; GitHub offers no revocation, so to cancel the authorisation there, remove Noureon under Settings → Applications at GitHub. The Extensions page, the confirmation card and the settings load the logo of each connector from GitHub, so GitHub sees that request.',
             'Icons and names of cited sources: beside a source in an answer the site\'s small icon and name are shown. Noureon\'s server fetches these (reading the site\'s own page markup, public sites only, with a size and time limit and every redirect checked), so the sites you looked at stay between you and Noureon\'s server and no third-party icon service is asked.',
-            'Feedback and Noura proposals: these forms are optional and send only the fields you fill in, only through this site\'s same-origin proxy (/api/google-form-submit, which requires a Turnstile check); if the operator has not set a receiving endpoint the proxy forwards nothing. What is sent goes to the Google Form the operator set up.'
+            'Feedback and Noura proposals: these forms are optional and send only the fields you fill in, only through this site\'s same-origin proxy (/api/google-form-submit, which requires a Turnstile check); if the operator has not set a receiving endpoint the proxy forwards nothing. What is sent goes to the Google Form the operator set up.',
+            'Sharing a conversation: when you share one, the server reads that conversation from your cloud workspace and keeps its content as it is at that moment (a snapshot) in a record of the share, with its title, the permission you chose and a link code; your name is added only if you tick "Show my name". The files the conversation uses (attachments, made files and pictures) are copied into a public storage folder. Memory (notes and what was recalled), a Noura\'s instructions, your keys and system instructions are not copied. Anyone who has the link can read the snapshot without signing in; the page asks search engines not to index it and sends no address along when a link on it is followed, but treat the link as public. A share that "can continue" lets a person signed in with a cloud account copy the snapshot into their own conversations in their own browser, without changing yours. Noureon keeps no list of who read a share. Anyone can report a share from its page; the report (with an optional note of up to 500 characters) is kept with the share for review.'
           ]
         ]
       },
@@ -638,7 +643,8 @@ export default {
             'Secure credentials: until you delete them or delete the account.',
             'Connector logins: until you disconnect (the token is then revoked at the service where it offers that, and deleted here) or delete the account.',
             'Server logs: only event records without content, kept as operations require. Run records (without keys) are kept until they are removed; the prompt and reference pictures of an image are deleted when the image ends.',
-            'Mail sent to support: kept to deal with your question and, where needed, deleted at your request.'
+            'Mail sent to support: kept to deal with your question and, where needed, deleted at your request.',
+            'Shared conversations: a share is kept until you revoke it, or until its conversation is moved to the trash or deleted, which makes the link stop working at once and clears the snapshot; the record of it (only the title, the permission and the date) stays in Settings → Data management → Shared items until you remove it. The files copied for a share are deleted by the clean-up after it ends. Reports about a share are kept until it has been reviewed. A conversation someone copied from a share is theirs and stays after the share ends.'
           ]
         ]
       },
