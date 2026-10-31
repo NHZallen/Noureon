@@ -173,21 +173,8 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
       listBody.appendChild(row);
     }
   };
-  const drawList = () => {
-    closeMenu();
-    state.view = 'list';
-    const title = headingOf(document, 'pj-title');
-    title.textContent = text('pjTitle');
-    // On a computer the + has its words with it ("New project"): the page is wide there (projects.css, .is-list).
-    const plus = round('plus', text('pjNew'), () => newProject());
-    plus.classList.add('has-label');
-    plus.append(make(document, 'span', 'pj-round-label', text('pjNew')));
-    const head = header({ left: round('back', text('pjBack'), () => close()), title, right: plus });
-    root.classList.add('is-list');
-    listBody = make(document, 'div', 'pj-list');
-    const body = make(document, 'main', 'pj-body');
-    body.appendChild(tabs([['all', text('pjTabAll')], ['mine', text('pjTabMine')], ['shared', text('pjTabShared')]], state.listTab, (key) => { state.listTab = key; drawList(); }, text('pjTitle')));
-    body.appendChild(listBody);
+  // The search box of the list (at the foot of a phone's page, in the bar under the title on a computer).
+  const makeSearch = () => {
     const search = make(document, 'div', 'pj-search');
     const input = make(document, 'input', 'pj-search-input');
     input.type = 'search';
@@ -198,9 +185,36 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     const lens = make(document, 'span', 'pj-search-icon');
     lens.innerHTML = ICONS.search(20);
     search.append(lens, input);
-    const foot = make(document, 'footer', 'pj-foot');
-    foot.appendChild(search);
-    root.replaceChildren(head, body, foot);
+    return search;
+  };
+  const drawList = () => {
+    closeMenu();
+    state.view = 'list';
+    const wide = isWide(document);
+    root.classList.toggle('is-wide', wide);
+    const title = headingOf(document, 'pj-title');
+    title.textContent = text('pjTitle');
+    // On a computer the + has its words with it ("New project"): the page is built like the store of the Nouras, a bar under the title and cards (projects-wide.css).
+    const plus = round('plus', text('pjNew'), () => newProject());
+    plus.classList.add('has-label');
+    plus.append(make(document, 'span', 'pj-round-label', text('pjNew')));
+    const head = header({ left: round('back', text('pjBack'), () => close()), title, right: plus });
+    root.classList.add('is-list');
+    root.classList.remove('is-project');
+    listBody = make(document, 'div', 'pj-list');
+    const body = make(document, 'main', 'pj-body');
+    const tabBar = tabs([['all', text('pjTabAll')], ['mine', text('pjTabMine')], ['shared', text('pjTabShared')]], state.listTab, (key) => { state.listTab = key; drawList(); }, text('pjTitle'));
+    if (wide) {
+      const bar = make(document, 'div', 'pj-bar');
+      bar.append(tabBar, makeSearch());
+      body.appendChild(listBody);
+      root.replaceChildren(head, bar, body);
+    } else {
+      body.append(tabBar, listBody);
+      const foot = make(document, 'footer', 'pj-foot');
+      foot.appendChild(makeSearch());
+      root.replaceChildren(head, body, foot);
+    }
     drawListBody();
   };
 
@@ -434,23 +448,53 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
   };
   const drawProject = () => {
     root.classList.remove('is-list');
+    root.classList.add('is-project');
     closeMenu();
     const project = projectOrNull(state.projectId);
     if (!project) { go({ list: true }, false); return; }
     state.view = 'project';
+    const wide = isWide(document);
+    root.classList.toggle('is-wide', wide);
     const title = headingOf(document, 'pj-title is-project');
     title.append(projectMark(document, project, 'is-small'), make(document, 'span', 'pj-title-text', project.name || ''));
     const more = round('dots', text('pjMore'), () => projectMenu(project, more, null, { fromPage: true }));
     const head = header({ left: round('back', text('pjBack'), () => back()), title, right: more });
     const body = make(document, 'main', 'pj-body');
-    if (sourcesEnabled) body.appendChild(tabs([['chats', text('pjTabChats')], ['sources', text('pjTabSources')]], state.tab, (key) => { state.tab = key; drawProject(); }, project.name || ''));
+    const choose = (key) => { state.tab = key; drawProject(); };
+    // A computer: the parts of the project in a list at the left and the part in a column beside it, as the Extensions page has them; a phone: pills over the part.
+    let nav = null;
+    if (sourcesEnabled && wide) {
+      nav = make(document, 'nav', 'pj-nav');
+      nav.setAttribute('role', 'tablist');
+      nav.setAttribute('aria-orientation', 'vertical');
+      nav.setAttribute('aria-label', project.name || '');
+      for (const [key, label, icon] of [['chats', text('pjTabChats'), 'chat'], ['sources', text('pjTabSources'), 'file']]) {
+        const item = make(document, 'button', 'pj-nav-item');
+        item.type = 'button';
+        item.dataset.tab = key;
+        item.setAttribute('role', 'tab');
+        item.setAttribute('aria-selected', String(key === state.tab));
+        item.innerHTML = ICONS[icon](18);
+        item.append(make(document, 'span', '', label));
+        item.addEventListener('click', () => choose(key));
+        nav.appendChild(item);
+      }
+    } else if (sourcesEnabled) {
+      body.appendChild(tabs([['chats', text('pjTabChats')], ['sources', text('pjTabSources')]], state.tab, choose, project.name || ''));
+    }
+    const place = (...parts) => {
+      if (!wide) { root.replaceChildren(head, body, ...parts, ...inputs); return; }
+      const split = make(document, 'div', `pj-split${nav ? '' : ' has-no-nav'}`);
+      if (nav) split.appendChild(nav);
+      split.appendChild(body);
+      root.replaceChildren(head, split, ...inputs);
+    };
     if (sourcesEnabled && state.tab === 'sources') {
       body.appendChild(sourcesView(project));
-      root.replaceChildren(head, body, ...inputs);
+      place();
       return;
     }
     chatsBody = make(document, 'div', 'pj-chats');
-    body.appendChild(chatsBody);
     // The box that writes to the project: a message sent from it starts a chat in the project.
     const box = make(document, 'form', 'pj-composer');
     const area = make(document, 'textarea', 'pj-composer-input');
@@ -477,9 +521,16 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
       close();
     });
     box.append(area, send);
-    const foot = make(document, 'footer', 'pj-foot');
-    foot.appendChild(box);
-    root.replaceChildren(head, body, foot, ...inputs);
+    if (wide) {
+      // On a computer the box is at the top of the column, over the chats (as the page of a project of ChatGPT has it).
+      body.append(box, chatsBody);
+      place();
+    } else {
+      body.appendChild(chatsBody);
+      const foot = make(document, 'footer', 'pj-foot');
+      foot.appendChild(box);
+      place(foot);
+    }
     drawChats();
   };
 
@@ -541,6 +592,7 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     closeMenu();
     win.removeEventListener('popstate', onPopState);
     win.removeEventListener('keydown', onKey);
+    media?.removeEventListener?.('change', onMedia);
     document.documentElement.classList.remove('pj-open');
     root.remove();
     current = null;
@@ -550,6 +602,10 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     onClose();
   }
 
+  // The page is drawn for the width it has (a phone's or a computer's): it is drawn again when the window crosses that width.
+  const media = win.matchMedia?.('(min-width: 768px)') || null;
+  const onMedia = () => { if (closed || root.classList.contains('pj-dialog-only')) return; if (state.view === 'project') drawProject(); else drawList(); };
+  media?.addEventListener?.('change', onMedia);
   document.documentElement.classList.add('pj-open');
   document.body.appendChild(root);
   win.addEventListener('popstate', onPopState);
