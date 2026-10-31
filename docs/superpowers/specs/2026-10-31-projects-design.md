@@ -208,7 +208,7 @@ Allen：「全部檔案先檢索，讓模型自己拿需要的，不用一開始
 ### 16.1 做法
 
 - **工具**（`src/data/project-files-tool.js`，頁面與伺服器共用，同 `search_memory` 的形式，接進 `combineLoaders`）：`search_project_files({ query, file?, k? })` 回最相關的片段（檔名、起訖位置、文字），`read_project_file({ file, start?, length? })` 從某個位置讀一段（最多 12000 字，回應告訴下一段從哪開始）。搜尋是記憶用的 BM25（`memory-notes/bm25.js`，中文也行）加上每約 900 字一段（`passagesOf`，在換行或句號附近切，重疊 120 字）。每次回覆最多 14 次呼叫；每個檔案的文字第一次需要時才讀，一次回覆內只讀一次。找不到時回檔案清單與「沒有文字」的檔案（掃描檔、圖片）；不會編造內容。
-- **哪些來源能查**（`project-files-access.js` 的 `searchableKindOf`）：打字加入的文字、讀成文字的文字檔、有文字層的 PDF、Word／PowerPoint／Excel。圖片和沒有文字的檔案查不了，仍照 §13.1 原樣隨訊息送給看得懂的模型（不佔工具模式的 8 MB 額度的是能查的檔案，不是圖片）。
+- **哪些來源能查**（`project-files-access.js` 的 `searchableKindOf`）：打字加入的文字、讀成文字的文字檔、有文字層的 PDF、Word／PowerPoint／Excel。圖片和沒有文字的檔案查不了（掃描 PDF 也是：建立回覆時先讀一次文字層，沒有字就當成圖片），仍照 §13.1 原樣隨訊息送給看得懂的模型（不佔工具模式的 8 MB 額度的是能查的檔案，不是圖片）。
 - **什麼時候用工具模式**：模型會用工具、而且不是「供應商自己搜尋」（那種回覆不給工具）。其他情況（沒有工具的模型）仍是原來的做法：來源文字放進系統指示、檔案原樣附上（60k 字、8 MB 額度）。
 - **系統指示**：工具模式下，專案指示照舊，但來源不再塞文字，改放「這個專案的檔案」清單（檔名、類型、大小）加一句說明（`projectInstructionTextFor(conversation, { filesCatalog })`）。
 - **取文字**（`runtime/projects/project-file-text.js`，共用）：文字照原樣、PDF 用 pdf.js 讀文字層（每頁前加 `[Page n]`）、Office 用附件那個閱讀器（`office-reader.js`），圖片與其他沒有文字。頁面：從本機（IndexedDB）或雲端取回原檔，pdf.js 與閱讀器都是頁面自己的，讀過的存在記憶體（以檔案雜湊為鍵）。

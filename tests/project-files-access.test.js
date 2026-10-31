@@ -41,17 +41,17 @@ test('what can be searched: a typed text, a text file, a PDF or an Office file; 
 
 test('no files for a reply without tools, a chat outside a project, or a project with nothing to search', async () => {
   await withFolder(async () => {
-    assert.equal(createProjectFilesAccess({ conversation: { folderId: 'f1' }, toolsAllowed: false }), null);
-    assert.equal(createProjectFilesAccess({ conversation: {}, toolsAllowed: true }), null);
-    assert.equal(createProjectFilesAccess({ conversation: { folderId: 'f1', retentionMode: 'ephemeral' }, toolsAllowed: true }), null);
+    assert.equal(await createProjectFilesAccess({ conversation: { folderId: 'f1' }, toolsAllowed: false }), null);
+    assert.equal(await createProjectFilesAccess({ conversation: {}, toolsAllowed: true }), null);
+    assert.equal(await createProjectFilesAccess({ conversation: { folderId: 'f1', retentionMode: 'ephemeral' }, toolsAllowed: true }), null);
   });
   setProjectFoldersReader(() => [{ id: 'f2', name: 'Pictures', sources: [SOURCES[2]] }]);
-  try { assert.equal(createProjectFilesAccess({ conversation: { folderId: 'f2' } }), null); } finally { setProjectFoldersReader(null); }
+  try { assert.equal(await createProjectFilesAccess({ conversation: { folderId: 'f2' } }), null); } finally { setProjectFoldersReader(null); }
 });
 
 test('the list names the files (a second file with the same name gets its number), and the instructions carry it instead of the text of the sources', async () => {
   await withFolder(async () => {
-    const access = createProjectFilesAccess({ conversation: { folderId: 'f1' } });
+    const access = await createProjectFilesAccess({ conversation: { folderId: 'f1' } });
     assert.deepEqual(access.entries.map((entry) => entry.name), ['Brief', 'plan.md', 'report.docx', 'brief.txt', 'brief.txt (2)']);
     assert.deepEqual([...access.searchableIds], ['s1', 's2', 's4', 's5', 's6']);
     assert.match(access.catalogText, /search_project_files and read_project_file/);
@@ -66,7 +66,7 @@ test('the list names the files (a second file with the same name gets its number
 
 test('the tools read a typed text and a file kept on this device', async () => {
   await withFolder(async () => {
-    const access = createProjectFilesAccess({ conversation: { folderId: 'f1' } });
+    const access = await createProjectFilesAccess({ conversation: { folderId: 'f1' } });
     const loader = access.make('en');
     assert.match(await loader.run({ name: 'search_project_files', args: { query: 'launch date March' } }), /ninth of March/);
     assert.match(await loader.run({ name: 'read_project_file', args: { file: 'plan.md' } }), /ships on Friday/);
@@ -77,7 +77,7 @@ test('the tools read a typed text and a file kept on this device', async () => {
 
 test('a reply made by the server is told the text, or the hash and place of each file', async () => {
   await withFolder(async () => {
-    const snapshot = createProjectFilesAccess({ conversation: { folderId: 'f1' } }).snapshot();
+    const snapshot = (await createProjectFilesAccess({ conversation: { folderId: 'f1' } })).snapshot();
     assert.equal(snapshot.entries.length, 5);
     assert.equal(snapshot.entries[0].text, 'The launch date is the ninth of March.');
     assert.equal(snapshot.entries[1].file.hash, 'h-plan');
@@ -88,10 +88,30 @@ test('a reply made by the server is told the text, or the hash and place of each
 
 test('a picture is still given whole, and the files that are searched are not (and do not take the room of the picture)', async () => {
   await withFolder(async () => {
-    const access = createProjectFilesAccess({ conversation: { folderId: 'f1' } });
+    const access = await createProjectFilesAccess({ conversation: { folderId: 'f1' } });
     const parts = await projectFilePartsFor({ folderId: 'f1' }, {}, { skipIds: access.searchableIds });
     assert.deepEqual(parts.filter((part) => part.inlineData).map((part) => part.inlineData.name), ['photo.png']);
     const all = await projectFilePartsFor({ folderId: 'f1' }, {});
     assert.deepEqual(all.filter((part) => part.inlineData).map((part) => part.inlineData.name), ['plan.md', 'photo.png'], 'without the tools every file that is here is given');
   });
+});
+
+test('a PDF with no text (a scan) is not searched: it goes with the message like a picture', async () => {
+  // A one-page PDF with a picture only: no text layer.
+  const scan = new TextEncoder().encode(`%PDF-1.4
+1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
+2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj
+3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 100 100]>>endobj
+trailer<</Root 1 0 R/Size 4>>
+%%EOF`);
+  setProjectFoldersReader(() => [{ id: 'f3', name: 'Scans', sources: [text('t1', 'Brief', 'Some words.'), file('s1', 'scan.pdf', 'h-scan', 'application/pdf')] }]);
+  const backend = createMemoryFileBackend();
+  await backend.put({ id: 'h-scan', mimeType: 'application/pdf', bytes: scan });
+  setProjectFileDeps({ store: createProjectFileStore({ backend }), supports: () => true });
+  try {
+    const access = await createProjectFilesAccess({ conversation: { folderId: 'f3' }, getPdfjs: () => import('pdfjs-dist/legacy/build/pdf.mjs') });
+    assert.deepEqual(access.entries.map((entry) => entry.name), ['Brief'], 'the scan is not in the list of what can be looked into');
+    const parts = await projectFilePartsFor({ folderId: 'f3' }, {}, { skipIds: access.searchableIds });
+    assert.deepEqual(parts.filter((part) => part.inlineData).map((part) => part.inlineData.name), ['scan.pdf'], 'it is given whole');
+  } finally { setProjectFoldersReader(null); setProjectFileDeps(null); }
 });
