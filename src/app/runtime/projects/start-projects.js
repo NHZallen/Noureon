@@ -6,6 +6,8 @@ import { projectsRouteFromPath } from '../../ui/projects/project-path.js';
 import { createProjectActions } from './project-actions.js';
 import { createIdbFileBackend, createMemoryFileBackend, createProjectFileStore, setProjectFileDeps } from './project-source-files.js';
 import { PROJECT_SOURCE_FILE_BYTES_MAX } from './project-source-model.js';
+import { createDriveSource } from './project-source-drive.js';
+import { readFromConnector } from '../connector/connectors-client.js';
 import { modelSupportsUploadedFile } from '../shell/model-registry.js';
 import { SERVICES, getService } from '../services.js';
 
@@ -47,6 +49,9 @@ export function startProjects({
   setProjectFileDeps({ store: files, supports: (modelInfo, inlineData) => modelSupportsUploadedFile(modelInfo, { inlineData }) });
   const actions = createProjectActions({ dataStore, getDefaultFolder, saveAppData, renderSidebar, deleteFolderFromCloud, deferConversationFolderSync, startNewChat, getCurrentConversationId, sendText, dropFiles: (descriptions) => files.drop(descriptions) });
 
+  // The files of Google Drive, read through the person's own Google connector (the server keeps the login).
+  const drive = createDriveSource({ call: (tool, args) => readFromConnector('google', tool, args) });
+
   // A file a person adds: read into text, or kept as it is (a picture, a scan) for the models that can read it.
   const readProjectFile = async (file) => {
     const [reader, browser] = await Promise.all([import('./project-source-reader.js'), import('./project-source-browser.js')]);
@@ -72,7 +77,7 @@ export function startProjects({
     const page = await opening;
     return page.openProjectsPage({
       document, text, actions, route, sourcesEnabled: true,
-      readFile: (file) => readProjectFile(file),
+      readFile: (file) => readProjectFile(file), drive,
       chats: { archive: (id) => archiveChat(id), remove: (id) => deleteChat(id) },
       openChat: (id) => loadChat(id),
       notify: (message, type = 'success') => showNotification(message, type)

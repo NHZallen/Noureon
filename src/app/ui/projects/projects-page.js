@@ -3,7 +3,7 @@
 // noureon.com/projects/<id>. Names and titles are put in with textContent; colours are the tokens (styles/projects.css) and the colour a person chose for a project.
 
 import { make, ICONS, openActionSheet, openMenu, projectMark } from './project-parts.js';
-import { openCreateSheet, openDeleteSheet, openEditSheet, openInstructionsSheet, openRenameChatSheet, openSourceTextSheet, sourceFailureText } from './project-sheets.js';
+import { openCreateSheet, openDeleteSheet, openEditSheet, openInstructionsSheet, openDriveSheet, openRenameChatSheet, openSourceTextSheet, sourceFailureText } from './project-sheets.js';
 import { PROJECT_SOURCES_MAX } from '../../runtime/projects/project-source-model.js';
 import { projectSourcesFor } from '../../runtime/projects/project-source-prompt.js';
 import { PROJECTS_PATH, projectPath, projectsRouteFromPath } from './project-path.js';
@@ -38,9 +38,10 @@ const previewOf = (conversation) => {
  * Opens the page, once (opened again it only turns to `route`). `route` is { list: true } or { id }.
  * deps: document, text(key, vars), actions (runtime/projects/project-actions.js), chats { archive(id), remove(id) } (the app's own, which ask what has to be asked), openChat(id),
  * notify(message, type), sourcesEnabled (the tab of the sources, when there is a part for it), readFile(file) (reads a file into
- * { ok, title, mime, size, text, truncated } or { ok: false, code }: runtime/projects/project-source-reader.js), onClose().
+ * { ok, title, mime, size, text, truncated } or { ok: false, code }: runtime/projects/project-source-reader.js), drive ({ search(text), read(file) }: the files of Google Drive, runtime/projects/project-source-drive.js;
+ * none: no such choice), onClose().
  */
-export function openProjectsPage({ document, text, actions, chats = {}, openChat = () => {}, notify = () => {}, route = { list: true }, sourcesEnabled = false, readFile = async () => ({ ok: false, code: 'unsupported' }), onClose = () => {} }) {
+export function openProjectsPage({ document, text, actions, chats = {}, openChat = () => {}, notify = () => {}, route = { list: true }, sourcesEnabled = false, readFile = async () => ({ ok: false, code: 'unsupported' }), drive = null, onClose = () => {} }) {
   if (current) {
     current.go(route);
     return current;
@@ -305,7 +306,8 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
           { label: text('pjSourceTakePhoto'), icon: 'camera', action: () => cameraInput.click() },
           { label: text('pjSourceAddPhoto'), icon: 'image', action: () => photoInput.click() },
           { label: text('pjSourceAddFile'), icon: 'attach', action: () => fileInput.click() },
-          { label: text('pjSourceAddText'), icon: 'text', action: () => openSourceTextSheet({ document, root, text, actions, project, notify, onSaved: drawProject }) }
+          { label: text('pjSourceAddText'), icon: 'text', action: () => openSourceTextSheet({ document, root, text, actions, project, notify, onSaved: drawProject }) },
+          ...(drive ? [{ label: text('pjSourceAddDrive'), icon: 'drive', action: () => openDriveSheet({ document, root, text, actions, project, drive, notify, onSaved: drawProject }) }] : [])
         ]
       });
     };

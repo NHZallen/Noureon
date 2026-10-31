@@ -167,3 +167,9 @@ html.pj-open { overflow: hidden; }
 .pj-action-item:hover, .pj-action-item:focus-visible { background: var(--hover-bg); outline: none; }
 .pj-action-item .pj-menu-icon { width: 1.4rem; }
 @media (min-width: 640px) { .pj-backdrop.is-bottom { justify-content: center; } .pj-action-sheet { border-radius: 1.5rem; } }
+
+/* the files of Google Drive */
+.pj-drive-list { display: grid; gap: 0.1rem; }
+.pj-drive-note { text-align: center; margin: 1.5rem 0; }
+.pj-drive-row[aria-checked="true"] { background: var(--hover-bg); }
+.pj-source-tile.is-on { background: var(--gpt-primary-action-bg); color: var(--gpt-primary-action-text); }

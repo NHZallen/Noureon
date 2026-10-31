@@ -368,7 +368,7 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
         return;
       }
       // The person's connectors: the state of each, and what they do about it.
-      const connectorPath = /^\/v1\/connectors(?:\/([a-z][a-z0-9-]{1,31})(?:\/(connect|disconnect|permissions|refresh|waitlist))?)?$/.exec(url.pathname);
+      const connectorPath = /^\/v1\/connectors(?:\/([a-z][a-z0-9-]{1,31})(?:\/(connect|disconnect|permissions|refresh|waitlist|call))?)?$/.exec(url.pathname);
       if (connectorPath) {
         const user = await authenticate(request);
         if (!connectors) throw new RequestError(ERROR_CODES.runsUnavailable, 'Connectors are not set up yet.');
@@ -390,6 +390,12 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
             if (!connectorLimiter.take(user.id)) throw new RequestError(ERROR_CODES.rateLimited, 'Too many requests; wait a minute.');
             await connectors.refreshTools(user.id, id);
             send(response, 200, { ok: true, connectors: (await connectors.list(user.id, { email: user.email })).filter((entry) => entry.id === id) }, origin);
+          } else if (request.method === 'POST' && id && action === 'call') {
+            // A read the person's page asks for (the files of Google Drive to add to a project): the connector service says which tools those are.
+            if (!connectorLimiter.take(user.id)) throw new RequestError(ERROR_CODES.rateLimited, 'Too many requests; wait a minute.');
+            const body = await readJson(request, 8 * 1024);
+            if (typeof body?.tool !== 'string') throw new RequestError(ERROR_CODES.badRequest, 'A tool is needed.');
+            send(response, 200, await connectors.callForPage(user.id, id, body.tool, body.args), origin);
           } else if (request.method === 'PUT' && id && action === 'permissions') {
             const body = await readJson(request, 32 * 1024);
             const states = body?.tools;

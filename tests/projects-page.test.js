@@ -451,3 +451,53 @@ test('the sources tab: add a text, add files (read, refused with the reason), re
     assert.match(t.$('.pj-sources').textContent, /1 source\(s\) are too big/);
   } finally { await t.finish(); }
 });
+
+test('the Google Drive choice: only when the page has a way to read it; search, tick files, add them as sources; not connected is said', async () => {
+  const t = setup();
+  try {
+    const files = [{ id: 'd1', name: 'Budget', mimeType: 'x', kind: 'doc', modifiedTime: '2026-10-30T10:00:00.000Z' }, { id: 'd2', name: 'Plan', mimeType: 'y', kind: 'sheet', modifiedTime: '2026-10-29T10:00:00.000Z' }];
+    const searched = [];
+    const drive = {
+      search: async (query) => { searched.push(query); return query === 'nothing' ? { ok: true, files: [] } : query === 'offline' ? { ok: false, code: 'not_connected' } : { ok: true, files }; },
+      read: async (file) => (file.id === 'd2' ? { ok: false, code: 'failed' } : { ok: true, title: file.name, mime: 'x', size: 6, text: 'budget', truncated: false })
+    };
+    t.open({ id: 'f2' }, { sourcesEnabled: true });
+    t.byText('.pj-tab', 'Sources').click();
+    t.$('.pj-source-add').click();
+    assert.equal(t.$$('.pj-action-item').length, 4, 'no Drive without a way to read it');
+    t.$('.pj-action-item').click();
+    await t.finish();
+
+    const d = setup();
+    d.open({ id: 'f2' }, { sourcesEnabled: true, drive });
+    d.byText('.pj-tab', 'Sources').click();
+    d.$('.pj-source-add').click();
+    assert.equal(d.$$('.pj-action-item').at(-1).textContent, 'Add from Google Drive');
+    d.byText('.pj-action-item', 'Add from Google Drive').click();
+    await d.tick();
+    assert.deepEqual(d.$$('.pj-drive-row .pj-row-title').map((node) => node.textContent), ['Budget', 'Plan']);
+    assert.match(d.$('.pj-drive-row .pj-row-meta').textContent, /^Document · 2026-10-30$/);
+    const addButton = () => d.$('.pj-sheet .pj-button');
+    assert.equal(addButton().disabled, true);
+    d.$$('.pj-drive-row')[0].click();
+    d.$$('.pj-drive-row')[1].click();
+    assert.equal(addButton().textContent, 'Add 2');
+    addButton().click();
+    await d.tick();
+    await d.tick();
+    assert.deepEqual(d.state.folders.find((folder) => folder.id === 'f2').sources.map((source) => [source.title, source.kind, source.text]), [['Budget', 'file', 'budget']], 'the one that could not be read is told, the other added');
+    assert.match(d.state.notified.find((entry) => entry[1] === 'error')[0], /"Plan" could not be read/);
+    assert.ok(d.$('.pj-sheet'), 'the sheet stays while one is not added');
+    assert.equal(addButton().textContent, 'Add 1');
+
+    const input = d.$('.pj-sheet .pj-text-input');
+    d.type(input, 'nothing');
+    await new Promise((resolve) => setTimeout(resolve, 420));
+    assert.match(d.$('.pj-drive-note').textContent, /No file that can be read/);
+    d.type(input, 'offline');
+    await new Promise((resolve) => setTimeout(resolve, 420));
+    assert.match(d.$('.pj-drive-note').textContent, /Google is not connected yet/);
+    assert.deepEqual(searched, ['', 'nothing', 'offline']);
+    await d.finish();
+  } finally { await t.finish(); }
+});

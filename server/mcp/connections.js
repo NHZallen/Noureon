@@ -22,6 +22,8 @@ const EMAIL_PATTERN = /^[^\s@<>",;]+@[^\s@<>",;]+\.[^\s@<>",;]+$/;
 const WAITLIST_PER_HOUR = 30;
 const MAX_DESCRIPTION_CHARS = 2000;
 const MAX_SCHEMA_CHARS = 20_000;
+// The tools the page of the person may call by itself (to let them choose what to add to a project): only reads, and only of these connectors. A reply's tools go through `clientFor` and the asking of the loop.
+export const PAGE_READS = Object.freeze({ google: new Set(['drive_search_files', 'drive_read_file']) });
 
 export class ConnectorError extends Error {
   /** `code`: 'unknown_connector', 'not_connected', 'login_needed' (the person must log in again), 'bad_state', 'denied', 'failed', 'bad_request'. */
@@ -418,6 +420,18 @@ export function createConnectorService({ db, vault, fetchImpl = fetch, now = Dat
         }
       }));
       return found.filter(Boolean);
+    },
+    /**
+     * A read of the person's own, asked for by their page (the picker of Google Drive for the sources of a project): one of `PAGE_READS`, on a connection that is connected, and not
+     * one the person turned off. Gives { text, isError } like a tool does for a reply.
+     */
+    async callForPage(userId, connectorId, toolName, args, { signal } = {}) {
+      if (!PAGE_READS[connectorId]?.has(toolName)) throw new ConnectorError('bad_request', 'That tool is not one the page may call.');
+      const found = await service.freshConnection(userId, connectorId);
+      if (!found) throw new ConnectorError('not_connected', 'This connector is not connected.');
+      if (effectiveState(found.connector, found.row, toolName) === 'deny') throw new ConnectorError('bad_request', 'This tool is turned off in the settings of the connector.');
+      const { text, isError } = await clientFor(userId, connectorId).callTool(toolName, args && typeof args === 'object' && !Array.isArray(args) ? args : {}, { signal });
+      return { text, isError: Boolean(isError) };
     },
     /** The tools list is asked for again when it is an hour old (or never asked). */
     async freshConnection(userId, connectorId) {
