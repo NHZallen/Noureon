@@ -105,6 +105,8 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
   };
 
   // ----- the menu of a project: the same on the list (the ⋯ of a row) and on the page of the project
+  // The settings of a project (a dialog on a computer): the name and icon, and on a computer its sources.
+  const openEdit = (project, onSaved) => openEditSheet({ document, root, text, actions, project, notify, onSaved, sources: sourcesEnabled ? { list: () => actions.sourcesOf(project.id), row: (source, after) => sourceRow(project, source, after), add: (after) => openAddSources(project, after) } : null });
   const projectMenu = (project, anchor, point = null, { fromPage = false } = {}) => {
     closeMenu();
     const refresh = () => { if (state.view === 'project') drawProject(); else drawList(); };
@@ -112,7 +114,7 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     if (!fromPage) items.push({ label: text('pjMenuNewChat'), icon: 'plus', action: async () => { const result = await actions.startChat(project.id, '').catch(() => ({ ok: false })); if (result.ok) close(); else notify(text('pjFailed'), 'error'); } });
     items.push(
       { label: project.pinned ? text('pjMenuUnpin') : text('pjMenuPin'), icon: 'pin', action: async () => { await actions.togglePinProject(project.id); refresh(); } },
-      { label: text(fromPage ? 'pjMenuEdit' : 'pjMenuSettings'), icon: 'edit', action: () => openEditSheet({ document, root, text, actions, project, notify, onSaved: refresh, sources: sourcesEnabled ? { list: () => actions.sourcesOf(project.id), row: (source, after) => sourceRow(project, source, after), add: (after) => openAddSources(project, after) } : null }) }
+      { label: text(fromPage ? 'pjMenuEdit' : 'pjMenuSettings'), icon: 'edit', action: () => openEdit(project, refresh) }
     );
     if (fromPage && !isWide(document)) items.push({ label: text('pjMenuInstructions'), icon: 'sliders', action: () => openInstructionsSheet({ document, root, text, actions, project, notify, onSaved: refresh }) });
     items.push({ label: text('pjMenuDelete'), icon: 'trash', danger: true, action: () => openDeleteSheet({ document, root, text, actions, project, notify, onDeleted: () => go({ list: true }, false) }) });
@@ -428,6 +430,8 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
       state.tab = 'chats';
       setAddress(projectPath(next.id), push);
       drawProject();
+      // Asked from the left menu: the settings of the project are open at once.
+      if (next.edit) openEdit(projectOrNull(next.id), drawProject);
     } else {
       state.projectId = null;
       setAddress(PROJECTS_PATH, push);

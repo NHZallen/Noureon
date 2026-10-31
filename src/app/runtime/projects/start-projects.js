@@ -3,6 +3,7 @@
 
 import { USER_READY_EVENT, getAnnouncedUser } from '../features/user-ready.js';
 import { projectsRouteFromPath } from '../../ui/projects/project-path.js';
+import { createSidebarProjects } from '../../ui/projects/sidebar-projects.js';
 import { createProjectActions } from './project-actions.js';
 import { createIdbFileBackend, createMemoryFileBackend, createProjectFileStore, setProjectFileDeps } from './project-source-files.js';
 import { PROJECT_SOURCE_FILE_BYTES_MAX } from './project-source-model.js';
@@ -116,6 +117,26 @@ export function startProjects({
   try { new win.MutationObserver(() => ensureEntry()).observe(document.documentElement, { attributes: true, attributeFilter: ['lang'] }); } catch { /* the label stays in the language it was drawn in */ }
   document.addEventListener(USER_READY_EVENT, ensureEntry);
 
+  // ----- the projects in the left menu (a computer): drawn again whenever the history is
+  const sidebarProjects = createSidebarProjects({
+    document, text, actions,
+    openProject: (id) => { void open({ id }); },
+    openSettings: (id) => { void open({ id, edit: true }); },
+    askDelete: async (id) => {
+      const project = actions.folderOf(id);
+      if (!project) return;
+      const [page, sheets] = await Promise.all([loadPage(), import('../../ui/projects/project-sheets.js')]);
+      void page;
+      sheets.openDeleteSheet({ document, root: document.body, text, actions, project, notify: (message, type = 'success') => showNotification(message, type), onDeleted: () => {} });
+    },
+    openChat: (id) => loadChat(id),
+    getCurrentConversationId,
+    loadParts: () => loadPage().then(() => {}),
+    storage: (() => { try { return win.localStorage; } catch { return null; } })()
+  });
+  sidebarProjects.mount();
+  document.addEventListener(USER_READY_EVENT, () => sidebarProjects.render());
+
   // ----- the address: opened by it, the page starts at the project it names (or at the list when that project is not there)
   const route = projectsRouteFromPath(win.location?.pathname);
   if (route) {
@@ -130,5 +151,5 @@ export function startProjects({
     if (getAnnouncedUser()) void start();
     else document.addEventListener(USER_READY_EVENT, () => { void start(); }, { once: true });
   }
-  return { open, actions, ensureEntry };
+  return { open, actions, ensureEntry, sidebarProjects };
 }
