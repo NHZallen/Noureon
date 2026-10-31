@@ -434,7 +434,6 @@ test('initChatApp binds settings, import/export, trash, P2P, file, and form list
     ['messageInput', 'keydown'],
     ['chatForm', 'submit'],
     ['share-astras-btn', 'click'],
-    ['share-folders-btn', 'click'],
     ['p2p-start-scan-btn', 'click']
   ]) {
     findListener(harness.listeners, id, type);

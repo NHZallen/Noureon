@@ -85,19 +85,23 @@ export function openMenu({ document, root, anchor, point = null, items, onClose 
 }
 
 /**
- * A sheet that comes up from below and covers almost the whole screen on a phone (a card in the middle on a wide one): a title, a button that closes it - or `action`, { label, onClick },
- * a pill at the right of the head that takes its place - a body and, when given, a button at the foot. It follows the keyboard of a phone: it is as high as what is left above the keyboard.
+ * A sheet that is a page over the page, as the Settings page is (`dialog: true` makes it a small dialog in the middle, for a question): a title, a button that closes it - or `action`,
+ * { label, onClick }, a pill at the right of the head that takes its place - a body and, when given, a button at the foot. It follows the keyboard of a phone: it is as high as what is left above the keyboard.
  * `onClose` is told when it is gone. Returns { close, element, body, setError }.
  */
-export function openSheet({ document, root, title, label, body, footer = null, action = null, close: closeLabel = '', onClose = () => {}, className = '' }) {
+export function openSheet({ document, root, title, label, body, footer = null, action = null, close: closeLabel = '', onClose = () => {}, className = '', dialog = false }) {
   const win = document.defaultView;
-  const backdrop = make(document, 'div', 'pj-backdrop');
+  const backdrop = make(document, 'div', `pj-backdrop${dialog ? ' is-dialog' : ''}`);
   const sheet = make(document, 'div', `pj-sheet${className ? ` ${className}` : ''}`);
   sheet.setAttribute('role', 'dialog');
   sheet.setAttribute('aria-modal', 'true');
   sheet.setAttribute('aria-label', label || title || '');
   const head = make(document, 'div', 'pj-sheet-head');
-  head.appendChild(make(document, 'h2', 'pj-sheet-title', title || ''));
+  // A div, not a heading: the page forces every heading to the bold weight, and the style of the projects has none.
+  const heading = make(document, 'div', 'pj-sheet-title', title || '');
+  heading.setAttribute('role', 'heading');
+  heading.setAttribute('aria-level', '2');
+  head.appendChild(heading);
   const closeButton = action ? make(document, 'button', 'pj-pill', action.label) : make(document, 'button', 'pj-round');
   closeButton.type = 'button';
   if (!action) {
@@ -140,7 +144,7 @@ export function openSheet({ document, root, title, label, body, footer = null, a
     close();
   };
   closeButton.addEventListener('click', () => { if (action) { close(); action.onClick(); } else close(); });
-  backdrop.addEventListener('pointerdown', (event) => { if (event.target === backdrop) close(); });
+  if (dialog) backdrop.addEventListener('pointerdown', (event) => { if (event.target === backdrop) close(); });
   win.addEventListener('keydown', onKey, true);
   viewport?.addEventListener('resize', fit);
   viewport?.addEventListener('scroll', fit);

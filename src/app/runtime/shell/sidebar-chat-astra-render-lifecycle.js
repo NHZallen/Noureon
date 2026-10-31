@@ -1,7 +1,3 @@
-import {
-  FOLDER_SVGS,
-  FOLDER_TEXT_COLORS
-} from '../features/folder-metadata.js';
 import { createMediaAttachmentRenderer as createMessageMediaAttachmentRenderer } from '../messages/media-attachment-renderer.js';
 import { createMediaPreviewLifecycle as createMessageMediaPreviewLifecycle } from '../messages/media-preview-lifecycle.js';
 import { createMessageListLifecycle } from '../messages/message-list-lifecycle.js';
@@ -82,21 +78,16 @@ export function createSidebarChatAstraRenderLifecycle(dependencies = {}) {
     normalizeConversationModel = (conversation) => conversation?.model,
     isCouncilEnabled = () => false,
     getCouncilTexts = () => ({ title: '' }),
-    resolveFolderColor = (color, _palette, fallback) => color || fallback,
-    folderColors = {},
     saveAppData,
-    saveFolderUiState,
     renderAstras,
     renderAll,
     renderBatchActionBar,
     loadChat,
     createHistoryMenu,
-    createFolderMenu,
     deleteChat,
     showArchivedChatPreview,
     unarchiveChat,
     showMobileContextMenu,
-    showMobileContextMenuForFolder,
     openAvatarEditor = () => {},
     syncComposerLayout = () => {},
     toggleModal,
@@ -120,7 +111,6 @@ export function createSidebarChatAstraRenderLifecycle(dependencies = {}) {
 
   const getConfig = () => runtimeConfigAccess.getConfig();
   const getConversations = () => liveConversationsBridge.getConversations();
-  const getFolders = () => runtimeAppDataStore.getFolders();
   const getAstras = () => runtimeAppDataStore.getAstras();
   const getCurrentUser = () => session.getCurrentUser();
   const getCurrentUserDisplayName = () => {
@@ -139,95 +129,8 @@ export function createSidebarChatAstraRenderLifecycle(dependencies = {}) {
     ))
   );
 
-  const renderFolders = () => {
-    const folderList = runtimeDomAccess.getRequiredElement('folderList');
-    folderList.innerHTML = '';
-    getFolders().forEach(folder => {
-      const folderConvs = folder.conversationIds
-        .map(id => getConversations().find(c => c.id === id))
-        .filter(c => c && !c.archived && !c.deletedAt)
-        .sort((a, b) => {
-          if (a.pinned && !b.pinned) return -1;
-          if (!a.pinned && b.pinned) return 1;
-          const dateB = b.lastUpdatedAt || b.createdAt;
-          const dateA = a.lastUpdatedAt || a.createdAt;
-          return new Date(dateB) - new Date(dateA);
-        });
-      const folderElement = document.createElement('div');
-      folderElement.className = 'folder-item text-sm';
-      folderElement.dataset.id = folder.id;
-      folderElement.dataset.open = folder.isOpen;
-      const svgPath = FOLDER_SVGS[folder.icon] || FOLDER_SVGS.default;
-      const iconColor = resolveFolderColor(folder.color, folderColors, folderColors.gray);
-      const textColor = FOLDER_TEXT_COLORS[folder.textColor] || FOLDER_TEXT_COLORS.gray;
-
-      folderElement.innerHTML = `
-                    <div class="folder-summary sidebar-item p-3 rounded-lg flex items-center justify-between">
-                        <div class="flex items-center gap-2 truncate">
-                            <svg class="folder-arrow flex-shrink-0" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                            <span class="folder-icon mr-1 flex-shrink-0" style="--folder-icon-color: ${iconColor}; color: ${iconColor};">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="folder-icon-svg">
-                                    ${svgPath}
-                                </svg>
-                            </span>
-                            <span class="font-medium truncate" style="color: ${textColor};">${escapeMarkup(folder.name)}</span>
-                        </div>
-                        <button data-id="${escapeMarkup(folder.id)}" class="folder-options-btn flex-shrink-0 w-6 h-6 rounded-md hover:bg-[var(--active-bg)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)]"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg></button>
-                    </div>
-                    <div class="folder-content-container">
-                        <div class="pl-4 mt-1 space-y-1">
-                        </div>
-                    </div>
-                `;
-
-      const contentContainer = folderElement.querySelector('.folder-content-container > div');
-      folderConvs.forEach(conv => {
-        contentContainer.appendChild(createConversationElement(conv));
-      });
-      const folderSummary = folderElement.querySelector('.folder-summary');
-      let pressTimer = null;
-      let touchMoved = false;
-      const startPress = (event) => {
-        if (window.innerWidth >= 768 || getIsSelectionMode()) return;
-        touchMoved = false;
-        pressTimer = setTimeout(() => {
-          event.preventDefault();
-          showMobileContextMenuForFolder(folder.id);
-          pressTimer = null;
-        }, 500);
-      };
-      const cancelPress = () => {
-        clearTimeout(pressTimer);
-        pressTimer = null;
-      };
-      const handleClick = async (event) => {
-        if (pressTimer || !touchMoved) {
-          cancelPress();
-          if (event.target.closest('.folder-options-btn')) return;
-          const folderItem = event.currentTarget.closest('.folder-item');
-          const folderObj = getFolders().find(f => f.id === folderItem.dataset.id);
-          if (folderObj) {
-            folderObj.isOpen = !folderObj.isOpen;
-            folderItem.dataset.open = folderObj.isOpen;
-            await saveFolderUiState(getFolders());
-          }
-        }
-      };
-      folderSummary.addEventListener('touchstart', startPress, { passive: true });
-      folderSummary.addEventListener('touchend', cancelPress);
-      folderSummary.addEventListener('touchmove', () => { touchMoved = true; cancelPress(); }, { passive: true });
-      folderSummary.addEventListener('mousedown', startPress);
-      folderSummary.addEventListener('mouseup', cancelPress);
-      folderSummary.addEventListener('mouseleave', cancelPress);
-      folderSummary.addEventListener('click', handleClick);
-      const folderOptionsBtn = folderElement.querySelector('.folder-options-btn');
-      folderOptionsBtn.addEventListener('click', (event) => {
-        event.stopPropagation();
-        createFolderMenu(folder.id, folderOptionsBtn);
-      });
-      folderList.appendChild(folderElement);
-    });
-  };
+  // The folders are the projects now: they are no longer drawn in the left menu (their own page opens from the entry "Projects"; the chats in them are in the history like the others).
+  const renderFolders = () => {};
 
   const createConversationElement = (conv) => {
     const item = document.createElement('div');

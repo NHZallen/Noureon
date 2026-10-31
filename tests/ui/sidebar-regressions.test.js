@@ -42,15 +42,16 @@ test('desktop startup keeps sidebar closed while preserving manual and mobile to
 
 test('folder color rendering supports saved css color values without falling back', () => {
   const runtime01 = readUiSource('src/app/runtime/shell/shell.js');
-  const sidebarChatAstraRenderSource = readUiSource('src/app/runtime/shell/sidebar-chat-astra-render-lifecycle.js');
+  const projectPartsSource = readUiSource('src/app/ui/projects/project-parts.js');
   const runtime02 = readUiSource('src/app/runtime/shell/shell.js');
   const runtime00 = readUiSource('src/app/runtime/shell/shell.js');
   const css = readUiSource('src/styles/main.css');
 
   assert.match(runtime00, /resolveFolderColor/);
   assert.match(runtime01, /folderColors:\s*FOLDER_COLORS/);
-  assert.match(sidebarChatAstraRenderSource, /resolveFolderColor\(folder\.color,\s*folderColors,\s*folderColors\.gray\)/);
-  assert.match(sidebarChatAstraRenderSource, /--folder-icon-color:\s*\$\{iconColor\}/);
+  // The folders are drawn only by the pages of the projects now; a saved css colour is resolved there.
+  assert.match(projectPartsSource, /resolveFolderColor\(key,\s*FOLDER_COLORS,\s*FOLDER_COLORS\.gray\)/);
+  assert.match(projectPartsSource, /--pj-color/);
   assert.match(runtime02, /normalizeFolderColorSelection\(selectedColor,\s*FOLDER_COLORS\)/);
   assert.match(css, /\.folder-icon\s*\{[^}]*color:\s*var\(--folder-icon-color,\s*inherit\)\s!important;/s);
 });

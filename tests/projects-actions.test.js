@@ -145,14 +145,30 @@ test('a chat is taken out of a project, renamed and pinned', async () => {
 
 test('a message written to a project starts a chat in it and sends the text', async () => {
   const { actions, state } = setup({ folders: [{ id: 'f1', name: 'Trip', conversationIds: [] }] });
-  assert.deepEqual(await actions.startChat('f1', '   '), { ok: false, code: 'empty' });
   assert.deepEqual(await actions.startChat('nope', 'hi'), { ok: false, code: 'gone' });
+  const empty = await actions.startChat('f1', '   ');
+  assert.equal(empty.ok, true, 'without a text it is an empty chat in the project');
+  assert.deepEqual(state.sent, [], 'nothing is sent');
+  assert.equal(state.conversations.find((entry) => entry.id === empty.conversationId).folderId, 'f1');
+  state.sent.length = 0;
+  state.synced.length = 0;
+  state.folders[0].conversationIds = [];
   const result = await actions.startChat('f1', '  Plan day one  ');
   assert.equal(result.ok, true);
-  assert.equal(state.newChats, 1);
+  assert.equal(state.newChats, 2);
   const conversation = state.conversations.find((entry) => entry.id === result.conversationId);
   assert.equal(conversation.folderId, 'f1');
   assert.deepEqual(state.folders[0].conversationIds, [conversation.id]);
   assert.deepEqual(state.synced, [conversation.id]);
   assert.deepEqual(state.sent, ['Plan day one']);
+});
+
+test('a project is pinned and unpinned, and the pinned ones come first in the list', async () => {
+  const { actions, state } = setup({ folders: [{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }, { id: 'c', name: 'C' }] });
+  assert.deepEqual(await actions.togglePinProject('nope'), { ok: false, code: 'gone' });
+  assert.deepEqual(await actions.togglePinProject('a'), { ok: true, pinned: true });
+  assert.equal(state.folders[0].pinned, true);
+  assert.deepEqual(actions.list().map((folder) => folder.id), ['a', 'c', 'b'], 'the pinned one first, then the newest made');
+  assert.deepEqual(await actions.togglePinProject('a'), { ok: true, pinned: false });
+  assert.deepEqual(actions.list().map((folder) => folder.id), ['c', 'b', 'a']);
 });

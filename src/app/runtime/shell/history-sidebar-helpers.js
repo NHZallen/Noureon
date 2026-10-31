@@ -333,7 +333,6 @@ export function createHistorySidebarHelpers({
 
   const isVisibleConversation = (conversation) =>
     !conversation.archived
-    && !conversation.folderId
     && !conversation.deletedAt
     && conversation.retentionMode !== 'ephemeral';
 

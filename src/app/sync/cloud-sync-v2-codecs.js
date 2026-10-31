@@ -30,8 +30,10 @@ function canonicalizeFirstValidTimestamp(...values) {
 }
 
 function canonicalizeShadowRow(value) {
-  // A folder written before projects has no instructions: the same as an empty text.
-  const source = value && typeof value === 'object' && 'text_color' in value && value.instructions == null ? { ...value, instructions: '' } : value;
+  // A folder written before projects has no instructions and is not pinned: the same as an empty text and no pin.
+  const source = value && typeof value === 'object' && 'text_color' in value && (value.instructions == null || value.pinned == null)
+    ? { ...value, instructions: value.instructions ?? '', pinned: value.pinned ?? false }
+    : value;
   const row = canonicalize(source || {});
   for (const key of ['created_at', 'updated_at', 'deleted_at']) {
     if (row[key]) row[key] = canonicalizeTimestamp(row[key]);
@@ -145,6 +147,7 @@ function folderFromRow(row = {}, conversationIds = []) {
     textColor: row.text_color || row.textColor || 'gray',
     // The instructions of the project (a folder of an older version has none).
     instructions: typeof row.instructions === 'string' ? row.instructions : '',
+    pinned: row.pinned === true,
     deletedAt: row.deleted_at || null
   };
 }
@@ -399,6 +402,7 @@ export async function encodeWorkspaceConversationShadow({
       icon: String(folder.icon || 'default'),
       text_color: String(folder.textColor || folder.text_color || 'gray'),
       instructions: String(folder.instructions || ''),
+      pinned: folder.pinned === true,
       deleted_at: folder.deletedAt || null
     }));
   const conversations = [];

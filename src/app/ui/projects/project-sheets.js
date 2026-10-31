@@ -213,7 +213,7 @@ export function openDeleteSheet({ document, root, text, actions, project, notify
   if (chats) foot.append(withChats);
   foot.append(cancel);
   const sheet = openSheet({
-    document, root, title: text('pjDeleteTitle'), close: text('pjCancel'), footer: foot, className: 'pj-sheet-small',
+    document, root, title: text('pjDeleteTitle'), close: text('pjCancel'), footer: foot, className: 'pj-sheet-small', dialog: true,
     body: (body) => body.appendChild(make(document, 'p', 'pj-intro', chats ? text('pjDeleteBody', { name: project.name, n: chats }) : text('pjDeleteEmptyBody', { name: project.name })))
   });
   const run = (withChatsToo) => async () => {
@@ -247,7 +247,7 @@ export function openRenameChatSheet({ document, root, text, actions, conversatio
   input.setAttribute('aria-label', text('pjChatRename'));
   input.addEventListener('input', () => { button.disabled = busy || !input.value.trim(); });
   input.addEventListener('keydown', (event) => { if (event.key === 'Enter' && !event.isComposing) { event.preventDefault(); if (!button.disabled) button.click(); } });
-  const sheet = openSheet({ document, root, title: text('pjChatRename'), close: text('pjCancel'), footer: foot, className: 'pj-sheet-small', body: (body) => body.appendChild(input) });
+  const sheet = openSheet({ document, root, title: text('pjChatRename'), close: text('pjCancel'), footer: foot, className: 'pj-sheet-small', dialog: true, body: (body) => body.appendChild(input) });
   input.select?.();
   button.addEventListener('click', async () => {
     if (busy) return;

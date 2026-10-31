@@ -31,7 +31,7 @@ export function createProjectActions({
   const conversations = () => dataStore.getConversations();
   const folderOf = (id) => folders().find((folder) => folder.id === id && !folder.deletedAt) || null;
 
-  /** The projects, the one with the newest chat first (a project without a chat after them, newest made first). */
+  /** The projects, the pinned ones first, then the one with the newest chat first (a project without a chat after them, newest made first). */
   const list = () => {
     const newest = new Map();
     for (const conversation of conversations()) {
@@ -41,7 +41,7 @@ export function createProjectActions({
     return folders()
       .filter((folder) => !folder.deletedAt)
       .map((folder, index) => ({ folder, index, at: newest.get(folder.id) || 0 }))
-      .sort((left, right) => right.at - left.at || right.index - left.index)
+      .sort((left, right) => Number(Boolean(right.folder.pinned)) - Number(Boolean(left.folder.pinned)) || right.at - left.at || right.index - left.index)
       .map((entry) => entry.folder);
   };
 
@@ -85,6 +85,16 @@ export function createProjectActions({
     await saveAppData();
     renderSidebar();
     return { ok: true };
+  }
+
+  async function togglePinProject(id) {
+    const folder = folderOf(id);
+    if (!folder) return { ok: false, code: 'gone' };
+    folder.pinned = !folder.pinned;
+    dataStore.replaceFolders([...folders()]);
+    await saveAppData();
+    renderSidebar();
+    return { ok: true, pinned: folder.pinned };
   }
 
   /** Deletes a project. `withChats`: its conversations go to the trash too (they can be restored); otherwise they are kept, outside any project. */
@@ -151,20 +161,20 @@ export function createProjectActions({
     return { ok: true, pinned: conversation.pinned };
   }
 
-  /** A new chat in the project, with the text as its first message. */
+  /** A new chat in the project, with the text as its first message (without a text: an empty chat in the project, for the person to write in). */
   async function startChat(projectId, text) {
     const folder = folderOf(projectId);
     const message = String(text ?? '').trim();
-    if (!folder || !message) return { ok: false, code: folder ? 'empty' : 'gone' };
+    if (!folder) return { ok: false, code: 'gone' };
     await startNewChat({ keepSidebarOpen: false });
     const conversation = conversations().find((entry) => entry.id === getCurrentConversationId());
     if (!conversation) return { ok: false, code: 'failed' };
     conversation.folderId = projectId;
     if (!(folder.conversationIds || []).includes(conversation.id)) folder.conversationIds = [...(folder.conversationIds || []), conversation.id];
     deferConversationFolderSync(conversation.id);
-    sendText(message);
+    if (message) sendText(message);
     return { ok: true, conversationId: conversation.id };
   }
 
-  return { list, chatsOf, countOf, folderOf, create, update, remove, removeChat, renameChat, togglePin, startChat };
+  return { list, chatsOf, countOf, folderOf, create, update, remove, removeChat, renameChat, togglePin, togglePinProject, startChat };
 }

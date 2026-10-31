@@ -236,13 +236,14 @@ test('conversation history rendering preserves filtering, pinned ordering, namin
     harness.helpers.renderHistorySidebar();
 
     const historyList = harness.document.getElementById('history-list');
-    assert.deepEqual(harness.renderedConversations.map((conversation) => conversation.id), ['pinned', 'newest', 'restored-old']);
+    assert.deepEqual(harness.renderedConversations.map((conversation) => conversation.id), ['pinned', 'foldered', 'newest', 'restored-old'], 'a chat of a project is in the history too');
     assert.deepEqual(conversations.map((conversation) => conversation.id), originalOrder);
-    assert.equal(historyList.children.length, 4);
+    assert.equal(historyList.children.length, 5);
     assert.equal(historyList.children[0].dataset.conversationId, 'pinned');
-    assert.equal(historyList.children[1].dataset.conversationId, 'newest');
-    assert.match(historyList.children[2].textContent, /Naming\.\.\./);
-    assert.equal(historyList.children[3].dataset.conversationId, 'restored-old');
+    assert.equal(historyList.children[1].dataset.conversationId, 'foldered');
+    assert.equal(historyList.children[2].dataset.conversationId, 'newest');
+    assert.match(historyList.children[3].textContent, /Naming\.\.\./);
+    assert.equal(historyList.children[4].dataset.conversationId, 'restored-old');
     assert.equal(historyList.querySelector('[data-conversation-id="temporary"]'), null);
   } finally {
     harness.window.close();

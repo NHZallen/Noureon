@@ -254,7 +254,7 @@ test('activating a Noura while learning mode is on explains the combined rules',
   );
 });
 
-test('renderFolders reads live folders and conversations', () => {
+test('renderFolders draws nothing: the folders are the projects and have their own page', () => {
   const dependencies = createDependencies();
   const lifecycle = createSidebarChatAstraRenderLifecycle(dependencies);
 
@@ -267,7 +267,7 @@ test('renderFolders reads live folders and conversations', () => {
 
   lifecycle.renderFolders();
 
-  assert.equal(dependencies._folderList.children.length, 1);
+  assert.equal(dependencies._folderList.children.length, 0);
 });
 
 test('sidebar identifies a council conversation by the council label instead of its fallback model', () => {
@@ -289,7 +289,7 @@ test('sidebar identifies a council conversation by the council label instead of 
   assert.doesNotMatch(renderedContent, /Fallback model/);
 });
 
-test('folder and archived conversation renderers escape imported markup', () => {
+test('the archived conversation renderer escapes imported markup', () => {
   const dependencies = createDependencies();
   const lifecycle = createSidebarChatAstraRenderLifecycle(dependencies);
   const maliciousText = '<img src=x onerror="stealKeys()">安全名稱';
@@ -313,9 +313,8 @@ test('folder and archived conversation renderers escape imported markup', () => 
   lifecycle.renderFolders();
   lifecycle.renderArchivedChats();
 
-  const folderMarkup = dependencies._createdElements[0].innerHTML;
-  const archivedMarkup = dependencies._createdElements[1].innerHTML;
-  for (const markup of [folderMarkup, archivedMarkup]) {
+  const archivedMarkup = dependencies._createdElements[0].innerHTML;
+  for (const markup of [archivedMarkup]) {
     assert.doesNotMatch(markup, /<img\b/i);
     assert.doesNotMatch(markup, /onclick="stealKeys\(\)"/i);
     assert.match(markup, /&lt;img src=x onerror=&quot;stealKeys\(\)&quot;&gt;安全名稱/);
@@ -347,16 +346,6 @@ test('sidebar keeps the council label after the council toggle is disabled', () 
   const renderedContent = dependencies._createdElements.map(element => element.innerHTML).join('\n');
   assert.match(renderedContent, /Model Council/);
   assert.doesNotMatch(renderedContent, /Fallback model/);
-});
-
-test('folder expansion persists device-local UI state instead of app data', () => {
-  const source = readSource('src/app/runtime/shell/sidebar-chat-astra-render-lifecycle.js');
-  const renderFoldersStart = source.indexOf('const renderFolders = () => {');
-  const createConversationStart = source.indexOf('const createConversationElement =', renderFoldersStart);
-  const renderFoldersBody = source.slice(renderFoldersStart, createConversationStart);
-
-  assert.match(renderFoldersBody, /await\s+saveFolderUiState\(getFolders\(\)\)/);
-  assert.doesNotMatch(renderFoldersBody, /await\s+saveAppData\(\)/);
 });
 
 test('Astra delete path uses injected replacement bridge and live conversations', async () => {

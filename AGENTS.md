@@ -54,5 +54,6 @@ Rules that always apply:
 - Tag every minor release (`x.y.0`) as `v<version>` on its release commit (see `RELEASING.md`); patch releases need no tag.
 - Every feature and text covers zh-TW, en, fr, ru and es.
 - Colours: use the names of `src/styles/tokens.css` (`var(--text-primary)`, `var(--modal-bg)`…) and never write a colour of your own in a stylesheet; the light and the dark theme depend on it.
+- Style of new screens and panels (weights 400/500 only, three font sizes, full-page panels, ⋯ menus on rows, the `svg` colour gotcha; `tests/ui-style-rules.test.js` checks the listed style files): [`docs/superpowers/specs/2026-10-31-ui-style-rules.md`](docs/superpowers/specs/2026-10-31-ui-style-rules.md). Follow it; do not invent a new look for each feature.
 - Base visual designs on real vendor designs with references; the owner prefers minimal black and white. Ask before deciding user-facing layout.
 - Before finishing: `npm test`, `npm run build`, `npm run check:sizes`, `npm run check:shell`, `npm run check:server`, `npm run lint`, `npm audit --omit=dev`.

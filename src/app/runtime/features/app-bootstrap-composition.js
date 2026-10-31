@@ -22,16 +22,10 @@ export function createAppBootstrapComposition({
       setupHistorySidebarTriggers();
 
       allElements.shareAstrasBtn = getElementById('share-astras-btn');
-      allElements.shareFoldersBtn = getElementById('share-folders-btn');
 
       allElements.shareAstrasBtn.addEventListener('click', (event) => {
         event.stopPropagation();
         initP2P('astras');
-      });
-
-      allElements.shareFoldersBtn.addEventListener('click', (event) => {
-        event.stopPropagation();
-        initP2P('folders');
       });
 
       getElementById('close-p2p-modal-btn').addEventListener('click', () => {

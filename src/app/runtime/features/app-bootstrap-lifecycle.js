@@ -303,13 +303,6 @@ export function createAppBootstrapLifecycle({
                 }
             });
         });
-        ALL_ELEMENTS.newFolderBtn.addEventListener('click', async () => {
-            const name = await showCustomPrompt(i18n[config.uiLanguage].enterFolderName, i18n[config.uiLanguage].createFolder);
-            if (name) {
-                createNewFolder(name);
-                showNotification(i18n[config.uiLanguage].folderCreated);
-            }
-        });
         ALL_ELEMENTS.newAstrasBtn.addEventListener('click', createAstras);
         ALL_ELEMENTS.saveAstrasBtn.addEventListener('click', handleSaveAstras);
         ALL_ELEMENTS.cancelAstrasBtn.addEventListener('click', () => toggleModal(ALL_ELEMENTS.astrasCreateModal, false));

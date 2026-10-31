@@ -661,3 +661,16 @@ test('the instructions of a project go to the cloud and come back; a folder from
   const without = await encodeWorkspaceConversationShadow({ userId, cryptoProvider: webcrypto, workspace: { folders: [{ id: folderId, name: 'Plain', conversationIds: [] }], conversations: [] } });
   assert.equal(without.folders[0].instructions, '');
 });
+
+test('a pinned project goes to the cloud and comes back; a folder without the pin is not pinned and equals one with pinned false', async () => {
+  const folderId = '55555555-5555-4555-8555-555555555555';
+  const encoded = await encodeWorkspaceConversationShadow({ userId, cryptoProvider: webcrypto, workspace: { folders: [{ id: folderId, name: 'Pinned', pinned: true, conversationIds: [] }], conversations: [] } });
+  assert.equal(encoded.folders[0].pinned, true);
+  assert.equal(decodeWorkspaceConversationShadow(encoded).folders[0].pinned, true);
+  const old = { ...encoded.folders[0] };
+  delete old.pinned;
+  assert.equal(decodeWorkspaceConversationShadow({ folders: [old] }).folders[0].pinned, false);
+  assert.equal(shadowRowsEqual(old, { ...old, pinned: false }), true);
+  assert.equal(shadowRowsEqual(old, { ...old, pinned: true }), false);
+});
+

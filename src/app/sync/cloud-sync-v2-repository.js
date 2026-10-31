@@ -8,7 +8,7 @@ import { SCHEMA_VERSION, TRASH_SYNC_CAPABILITY, messageSequenceKey } from './clo
 const REMOTE_FETCH_PAGE_SIZE = 1000;
 const REMOTE_DELTA_PAGE_SIZE = 500;
 const FOLDER_COLUMNS = [
-  'id', 'user_id', 'name', 'color', 'icon', 'text_color', 'instructions', 'deleted_at'
+  'id', 'user_id', 'name', 'color', 'icon', 'text_color', 'instructions', 'pinned', 'deleted_at'
 ].join(',');
 const CONVERSATION_COLUMNS = [
   'id', 'user_id', 'folder_id', 'title', 'summary', 'model', 'provider', 'metadata',

@@ -54,3 +54,17 @@ test('several folders in one write each keep their own instructions, and a long 
   assert.equal((await folderRow(one)).instructions, 'a');
   assert.equal((await folderRow(two)).instructions, 'c');
 });
+
+test('a folder is pinned or not, and a page that sends no pin (an older version) keeps what is saved', async () => {
+  const folderId = id();
+  await callWith(A, 'upsert_workspace_folders', [{ id: folderId, name: 'P' }]);
+  const pinned = async () => (await database.service.query('select pinned from public.workspace_folders where id = $1', [folderId]))[0].pinned;
+  assert.equal(await pinned(), false);
+  await callWith(A, 'upsert_workspace_folders', [{ id: folderId, name: 'P', pinned: true }]);
+  assert.equal(await pinned(), true);
+  await callWith(A, 'upsert_workspace_folders', [{ id: folderId, name: 'P renamed', instructions: 'x' }]);
+  assert.equal(await pinned(), true, 'a write without the pin keeps it');
+  await callWith(A, 'upsert_workspace_folders', [{ id: folderId, name: 'P renamed', pinned: false }]);
+  assert.equal(await pinned(), false);
+  assert.equal((await folderRow(folderId)).instructions, 'x', 'and a write without the instructions keeps them');
+});

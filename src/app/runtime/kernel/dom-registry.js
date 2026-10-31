@@ -15,8 +15,6 @@ const RUNTIME_DOM_ELEMENT_IDS = [
   ['newChatBtnHeader', 'new-chat-btn-header'],
   ['openSearchBtn', 'open-search-btn'],
   ['historyList', 'history-list'],
-  ['folderList', 'folder-list'],
-  ['newFolderBtn', 'new-folder-btn'],
   ['settingsBtn', 'settings-btn'],
   ['headerTitle', 'header-title'],
   ['modelSwitcherContainer', 'model-switcher-container'],

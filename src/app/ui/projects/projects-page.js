@@ -14,6 +14,15 @@ export const closeProjectsPage = () => current?.close();
 
 const LONG_PRESS_MS = 500;
 
+// A heading is a div with the role: the page forces every h1 to h6 to the bold weight, and the style of the projects has none (docs/superpowers/specs/2026-10-31-ui-style-rules.md).
+const headingOf = (document, className, level = 1) => {
+  const node = document.createElement('div');
+  node.className = className;
+  node.setAttribute('role', 'heading');
+  node.setAttribute('aria-level', String(level));
+  return node;
+};
+
 const previewOf = (conversation) => {
   const messages = Array.isArray(conversation?.messages) ? conversation.messages : [];
   for (let index = messages.length - 1; index >= 0; index -= 1) {
@@ -90,6 +99,22 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     return bar;
   };
 
+  // ----- the menu of a project: the same on the list (the ⋯ of a row) and on the page of the project
+  const projectMenu = (project, anchor, point = null, { fromPage = false } = {}) => {
+    closeMenu();
+    const refresh = () => { if (state.view === 'project') drawProject(); else drawList(); };
+    const items = [];
+    if (!fromPage) items.push({ label: text('pjMenuNewChat'), icon: 'plus', action: async () => { const result = await actions.startChat(project.id, '').catch(() => ({ ok: false })); if (result.ok) close(); else notify(text('pjFailed'), 'error'); } });
+    items.push(
+      { label: project.pinned ? text('pjMenuUnpin') : text('pjMenuPin'), icon: 'pin', action: async () => { await actions.togglePinProject(project.id); refresh(); } },
+      { label: text(fromPage ? 'pjMenuEdit' : 'pjMenuSettings'), icon: 'edit', action: () => openEditSheet({ document, root, text, actions, project, notify, onSaved: refresh }) }
+    );
+    if (fromPage) items.push({ label: text('pjMenuInstructions'), icon: 'sliders', action: () => openInstructionsSheet({ document, root, text, actions, project, notify, onSaved: refresh }) });
+    items.push({ label: text('pjMenuDelete'), icon: 'trash', danger: true, action: () => openDeleteSheet({ document, root, text, actions, project, notify, onDeleted: () => go({ list: true }, false) }) });
+    anchor?.setAttribute?.('aria-expanded', 'true');
+    menu = openMenu({ document, root, anchor, point, items, onClose: () => { anchor?.removeAttribute?.('aria-expanded'); menu = null; } });
+  };
+
   // ----- the list of the projects
   let listBody = null;
   const drawListBody = () => {
@@ -105,26 +130,43 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     if (!all.length) { listBody.appendChild(emptyState(text('pjEmpty'), text('pjEmptyHint'))); return; }
     if (!shown.length) { listBody.appendChild(make(document, 'p', 'pj-none', text('pjNoMatch'))); return; }
     for (const folder of shown) {
-      const row = make(document, 'button', 'pj-row');
-      row.type = 'button';
+      const row = make(document, 'div', 'pj-row');
+      row.setAttribute('role', 'button');
+      row.tabIndex = 0;
       row.dataset.projectId = folder.id;
       const words = make(document, 'span', 'pj-row-text');
-      words.append(make(document, 'span', 'pj-row-name', folder.name || ''), make(document, 'span', 'pj-row-meta', text('pjCount', { n: actions.countOf(folder.id) })));
-      row.append(projectMark(document, folder, 'is-row'), words);
+      const name = make(document, 'span', 'pj-row-name');
+      if (folder.pinned) {
+        const pin = make(document, 'span', 'pj-row-pin');
+        pin.innerHTML = ICONS.pin(13);
+        name.appendChild(pin);
+      }
+      name.appendChild(make(document, 'span', 'pj-row-title', folder.name || ''));
+      words.append(name, make(document, 'span', 'pj-row-meta', text('pjCount', { n: actions.countOf(folder.id) })));
+      const more = make(document, 'button', 'pj-more');
+      more.type = 'button';
+      more.setAttribute('aria-label', text('pjMore'));
+      more.setAttribute('aria-haspopup', 'menu');
+      more.innerHTML = ICONS.dots(18);
+      more.addEventListener('click', (event) => { event.stopPropagation(); projectMenu(folder, more); });
+      row.append(projectMark(document, folder, 'is-row'), words, more);
       row.addEventListener('click', () => go({ id: folder.id }, true));
+      row.addEventListener('keydown', (event) => { if (event.target === row && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); go({ id: folder.id }, true); } });
+      row.addEventListener('contextmenu', (event) => { event.preventDefault(); projectMenu(folder, null, { x: event.clientX, y: event.clientY }); });
       listBody.appendChild(row);
     }
   };
   const drawList = () => {
     closeMenu();
     state.view = 'list';
-    const title = make(document, 'h1', 'pj-title', text('pjTitle'));
+    const title = headingOf(document, 'pj-title');
+    title.textContent = text('pjTitle');
     const head = header({ left: round('back', text('pjBack'), () => close()), title, right: round('plus', text('pjNew'), () => newProject()) });
     listBody = make(document, 'div', 'pj-list');
     const body = make(document, 'main', 'pj-body');
     body.appendChild(tabs([['all', text('pjTabAll')], ['mine', text('pjTabMine')], ['shared', text('pjTabShared')]], state.listTab, (key) => { state.listTab = key; drawList(); }, text('pjTitle')));
     body.appendChild(listBody);
-    const search = make(document, 'label', 'pj-search');
+    const search = make(document, 'div', 'pj-search');
     const input = make(document, 'input', 'pj-search-input');
     input.type = 'search';
     input.placeholder = text('pjSearch');
@@ -173,7 +215,7 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
         title.prepend(pin);
       }
       words.append(title, make(document, 'span', 'pj-chat-preview', previewOf(conversation)));
-      const more = make(document, 'button', 'pj-chat-more');
+      const more = make(document, 'button', 'pj-more');
       more.type = 'button';
       more.setAttribute('aria-label', text('pjMore'));
       more.innerHTML = ICONS.dots(18);
@@ -203,19 +245,9 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     const project = projectOrNull(state.projectId);
     if (!project) { go({ list: true }, false); return; }
     state.view = 'project';
-    const title = make(document, 'h1', 'pj-title is-project');
+    const title = headingOf(document, 'pj-title is-project');
     title.append(projectMark(document, project, 'is-small'), make(document, 'span', 'pj-title-text', project.name || ''));
-    const more = round('dots', text('pjMore'), () => {
-      closeMenu();
-      menu = openMenu({
-        document, root, anchor: more, onClose: () => { menu = null; },
-        items: [
-          { label: text('pjMenuEdit'), icon: 'edit', action: () => openEditSheet({ document, root, text, actions, project, notify, onSaved: drawProject }) },
-          { label: text('pjMenuInstructions'), icon: 'sliders', action: () => openInstructionsSheet({ document, root, text, actions, project, notify, onSaved: drawProject }) },
-          { label: text('pjMenuDelete'), icon: 'trash', danger: true, action: () => openDeleteSheet({ document, root, text, actions, project, notify, onDeleted: () => go({ list: true }, false) }) }
-        ]
-      });
-    });
+    const more = round('dots', text('pjMore'), () => projectMenu(project, more, null, { fromPage: true }));
     const head = header({ left: round('back', text('pjBack'), () => back()), title, right: more });
     const body = make(document, 'main', 'pj-body');
     if (sourcesEnabled) body.appendChild(tabs([['chats', text('pjTabChats')], ['sources', text('pjTabSources')]], state.tab, (key) => { state.tab = key; drawProject(); }, project.name || ''));

@@ -96,6 +96,7 @@ export function createReceivedDataLifecycle({
                     newFolder.icon = folder.icon;
                     newFolder.textColor = folder.textColor;
                     newFolder.instructions = typeof folder.instructions === 'string' ? folder.instructions : '';
+                    newFolder.pinned = folder.pinned === true;
 
                     folder.conversationIds.forEach(oldConvId => {
                         const newConvId = idMap[oldConvId];

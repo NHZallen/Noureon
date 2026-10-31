@@ -102,8 +102,16 @@
 - 資料：`supabase/migrations/20261031090000_add_project_instructions.sql`（`workspace_folders.instructions`；`upsert_workspace_folders` 收到沒帶 `instructions` 的資料列時保留原值，舊版頁面寫回不會蓋掉）。**要先套 migration 再部署前端**：同步會 select 這一欄。`fetch_workspace_delta` 回整列，不用改。
 - 同步：codec、`COMPARABLE_FIELDS`、`FOLDER_COLUMNS` 都加了 `instructions`；缺這個欄位的列視為空字串（沒套 migration 的資料庫不會每次都重傳）。
 - 回覆：`runtime/projects/project-instructions.js`（頁面唯一一處加進系統指示，位置見 §2；`shouldApplyNouras` 同一組用途才帶；臨時對話不帶）；伺服器版、議會拿頁面組好的文字，伺服器格式沒變。此模組在 `scripts/server-shared-modules.json`。
-- 畫面：`ui/projects/`（`projects-page.js`、`project-sheets.js`、`project-parts.js`、`project-path.js`）、`styles/projects.css`（只用 `tokens.css` 的名稱）、`runtime/projects/`（`project-actions.js`、`start-projects.js`）；網址 `/projects`、`/projects/<id>`（`vercel.json` 加了兩條 rewrite）；側邊欄「專案」入口在「擴充」下面。手機的面板幾乎滿版（Allen 給的 ChatGPT 畫面），完成鈕在右上、跟著鍵盤上移；確認類的小面板（刪除、重新命名對話）維持小。
+- 畫面：`ui/projects/`（`projects-page.js`、`project-sheets.js`、`project-parts.js`、`project-path.js`）、`styles/projects.css`（只用 `tokens.css` 的名稱）、`runtime/projects/`（`project-actions.js`、`start-projects.js`）；網址 `/projects`、`/projects/<id>`（`vercel.json` 加了兩條 rewrite）；側邊欄「專案」入口在「擴充」下面。
 - 文字：`i18n/parts/projects.js`（五語）；原本的「資料夾」字樣（選單、對話框、通知、P2P、匯出匯入、隱私權政策與協助中心五語）全部改成「專案」，程式內部名稱不變。圖示補了 16 個（`folder-metadata.js`），共 28 個。
-- **沒做**：專案「釘選」（資料夾沒有 pinned 欄位，要另加欄位與側邊欄位置，留到之後）、資料來源頁籤（P2）、電腦版專門的排版（沿用手機同一套，置中窄欄）。
+- **沒做**：資料來源頁籤（P2）、電腦版專門的排版（沿用手機同一套，置中窄欄）。
 - 附帶修的 bug：切換到沒有金鑰的提供商時輸入框不會先擋、第一個字之後才卡住（單模型的選擇沒有更新輸入框與標頭警告）；現在選的當下就更新、跳出通知，點被擋住的輸入框也會再說一次。
 
+
+## 12. 試用後的修改（2026-10-31，Allen 在測試站用 iPhone 深色試過）
+
+- **釘選做了**：`workspace_folders.pinned`（`supabase/migrations/20261031100000_add_project_pinned.sql`，沒帶 `pinned` 的舊頁面寫回不會蓋掉；要先套 migration 再部署前端）；codec、`COMPARABLE_FIELDS`、`FOLDER_COLUMNS` 都帶 `pinned`；清單釘選的排前面並有小圖釘。
+- **側邊欄舊的資料夾區塊刪掉**：只剩「專案」入口；專案內的對話照常出現在對話歷史（不再因為有 `folderId` 被濾掉）。
+- **樣式**：不用粗體（400 與 500）、字級統一、圖示吃使用者選的顏色（全站 `body svg` 要用 `svg { color: inherit }` 蓋掉）、顏色那排滑到螢幕兩邊、清單一列縮小（`2.25rem` 圖示）。規範寫在 `2026-10-31-ui-style-rules.md`，`tests/ui-style-rules.test.js` 檢查。
+- **每列右邊 `⋯`**：新的專案對話（開一個空的專案對話並關掉專案頁）、釘選／取消釘選、專案設定（名稱與圖示）、刪除專案。專案頁右上的 `•••` 多一項釘選。
+- **面板整頁**：建立、編輯、指示、選圖示都是整頁（像設定頁，沒有遮罩）；刪除確認與重新命名對話維持置中小對話框。

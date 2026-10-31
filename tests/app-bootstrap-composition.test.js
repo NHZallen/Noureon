@@ -20,7 +20,6 @@ test('runs late bootstrap callbacks and binds P2P controls in legacy order', () 
   const events = [];
   const buttons = new Map([
     ['share-astras-btn', createButton('share-astras-btn', events)],
-    ['share-folders-btn', createButton('share-folders-btn', events)],
     ['close-p2p-modal-btn', createButton('close-p2p-modal-btn', events)],
     ['p2p-role-sender', createButton('p2p-role-sender', events)],
     ['p2p-role-receiver', createButton('p2p-role-receiver', events)],
@@ -53,7 +52,6 @@ test('runs late bootstrap callbacks and binds P2P controls in legacy order', () 
   assert.deepEqual(calls, ['history-interactions', 'history-triggers']);
   assert.deepEqual(events, [
     'share-astras-btn:click',
-    'share-folders-btn:click',
     'close-p2p-modal-btn:click',
     'p2p-role-sender:click',
     'p2p-role-receiver:click',
@@ -62,7 +60,7 @@ test('runs late bootstrap callbacks and binds P2P controls in legacy order', () 
     'p2p-start-scan-btn:click'
   ]);
   assert.equal(allElements.shareAstrasBtn, buttons.get('share-astras-btn'));
-  assert.equal(allElements.shareFoldersBtn, buttons.get('share-folders-btn'));
+  assert.equal(allElements.shareFoldersBtn, undefined, 'the sidebar no longer has a button that shares the folders');
 });
 
 test('P2P click handlers preserve injected handoffs without scanner implementation ownership', () => {
@@ -70,7 +68,6 @@ test('P2P click handlers preserve injected handoffs without scanner implementati
   const events = [];
   const buttons = new Map([
     ['share-astras-btn', createButton('share-astras-btn', events)],
-    ['share-folders-btn', createButton('share-folders-btn', events)],
     ['close-p2p-modal-btn', createButton('close-p2p-modal-btn', events)],
     ['p2p-role-sender', createButton('p2p-role-sender', events)],
     ['p2p-role-receiver', createButton('p2p-role-receiver', events)],
@@ -98,7 +95,6 @@ test('P2P click handlers preserve injected handoffs without scanner implementati
   }).runLateBootstrapBindings();
 
   buttons.get('share-astras-btn').handler({ stopPropagation: () => calls.push('stop') });
-  buttons.get('share-folders-btn').handler({ stopPropagation: () => calls.push('stop') });
   buttons.get('p2p-role-sender').handler();
   buttons.get('p2p-role-receiver').handler();
   buttons.get('p2p-confirm-selection-btn').handler();
@@ -108,8 +104,6 @@ test('P2P click handlers preserve injected handoffs without scanner implementati
   assert.deepEqual(calls, [
     'stop',
     'init:astras',
-    'stop',
-    'init:folders',
     'mode:sender',
     'selection',
     'mode:receiver',
@@ -124,7 +118,6 @@ test('P2P scan handoff resolves the scanner callback only when the button is cli
   const events = [];
   const buttons = new Map([
     ['share-astras-btn', createButton('share-astras-btn', events)],
-    ['share-folders-btn', createButton('share-folders-btn', events)],
     ['close-p2p-modal-btn', createButton('close-p2p-modal-btn', events)],
     ['p2p-role-sender', createButton('p2p-role-sender', events)],
     ['p2p-role-receiver', createButton('p2p-role-receiver', events)],
@@ -166,7 +159,6 @@ test('P2P scan handoff resolves the scanner callback only when the button is cli
 test('P2P scan button dispatches a real click event to the injected scanner handoff', () => {
   const buttons = new Map([
     'share-astras-btn',
-    'share-folders-btn',
     'close-p2p-modal-btn',
     'p2p-role-sender',
     'p2p-role-receiver',
@@ -206,7 +198,6 @@ test('invalid P2P connect code preserves the legacy warning handoff', () => {
   const events = [];
   const buttons = new Map([
     ['share-astras-btn', createButton('share-astras-btn', events)],
-    ['share-folders-btn', createButton('share-folders-btn', events)],
     ['close-p2p-modal-btn', createButton('close-p2p-modal-btn', events)],
     ['p2p-role-sender', createButton('p2p-role-sender', events)],
     ['p2p-role-receiver', createButton('p2p-role-receiver', events)],

@@ -78,9 +78,9 @@ test('the list shows the projects with the newest chat first and how many chats 
     assert.equal(t.$('.pj-title').textContent, 'Projects');
     const rows = t.$$('.pj-row');
     assert.deepEqual(rows.map((row) => row.dataset.projectId), ['f1', 'f2']);
-    assert.equal(rows[0].querySelector('.pj-row-name').textContent, 'Translation');
+    assert.equal(rows[0].querySelector('.pj-row-title').textContent, 'Translation');
     assert.equal(rows[0].querySelector('.pj-row-meta').textContent, 'Chats: 2');
-    assert.equal(rows[1].querySelector('.pj-row-name').textContent, 'Trip <b>plans</b>');
+    assert.equal(rows[1].querySelector('.pj-row-title').textContent, 'Trip <b>plans</b>');
     assert.equal(rows[1].querySelectorAll('b').length, 0, 'a name is not markup');
     assert.equal(t.$('.pj-mark').style.getPropertyValue('--pj-color') !== '', true, 'the colour of the project');
     assert.equal(t.window.location.pathname, '/projects');
@@ -204,7 +204,7 @@ test('the menu of a chat: pin, rename, take out of the project, archive and dele
   const t = setup();
   try {
     t.open({ id: 'f1' });
-    const menuOf = (id) => { t.$(`.pj-chat[data-conversation-id="${id}"] .pj-chat-more`).click(); return t.$$('.pj-menu-item').map((item) => item.textContent); };
+    const menuOf = (id) => { t.$(`.pj-chat[data-conversation-id="${id}"] .pj-more`).click(); return t.$$('.pj-menu-item').map((item) => item.textContent); };
     assert.deepEqual(menuOf('c1'), ['Pin', 'Rename', 'Remove from project', 'Archive', 'Delete']);
     t.byText('.pj-menu-item', 'Pin').click();
     await t.tick();
@@ -263,7 +263,7 @@ test('the menu of a project: edit its name and icon, write its instructions, del
     t.open({ id: 'f1' });
     const more = () => t.$('.pj-head .pj-round:last-child');
     more().click();
-    assert.deepEqual(t.$$('.pj-menu-item').map((item) => item.textContent), ['Edit project', 'Edit instructions', 'Delete project']);
+    assert.deepEqual(t.$$('.pj-menu-item').map((item) => item.textContent), ['Pin', 'Edit project', 'Edit instructions', 'Delete project']);
     t.byText('.pj-menu-item', 'Edit project').click();
     assert.equal(t.$('.pj-name-input').value, 'Translation');
     t.type(t.$('.pj-name-input'), 'Translations');
@@ -282,6 +282,40 @@ test('the menu of a project: edit its name and icon, write its instructions, del
     await t.tick();
     assert.equal(t.state.folders[0].instructions, 'Answer in French.');
     assert.deepEqual(t.state.notified.at(-1), ['Saved.', 'success']);
+  } finally { await t.finish(); }
+});
+
+test('a row of the list has a ⋯ menu: new chat in the project, pin, settings, delete; the row itself opens the project', async () => {
+  const t = setup();
+  try {
+    t.open();
+    const rowOf = (id) => t.$(`.pj-row[data-project-id="${id}"]`);
+    const menuOf = (id) => { rowOf(id).querySelector('.pj-more').click(); return t.$$('.pj-menu-item').map((item) => item.textContent); };
+    assert.deepEqual(menuOf('f2'), ['New project chat', 'Pin', 'Project settings', 'Delete project']);
+    assert.equal(t.$('.pj-title-text'), null, 'the menu did not open the project');
+
+    t.byText('.pj-menu-item', 'Pin').click();
+    await t.tick();
+    assert.equal(t.state.folders.find((folder) => folder.id === 'f2').pinned, true);
+    assert.deepEqual(t.$$('.pj-row').map((row) => row.dataset.projectId), ['f2', 'f1'], 'a pinned project comes first');
+    assert.ok(rowOf('f2').querySelector('.pj-row-pin'), 'and shows a pin');
+    assert.equal(menuOf('f2')[1], 'Unpin');
+    t.byText('.pj-menu-item', 'Unpin').click();
+    await t.tick();
+    assert.deepEqual(t.$$('.pj-row').map((row) => row.dataset.projectId), ['f1', 'f2']);
+
+    menuOf('f1');
+    t.byText('.pj-menu-item', 'Project settings').click();
+    assert.equal(t.$('.pj-name-input').value, 'Translation');
+    t.$('.pj-sheet-head .pj-round').click();
+
+    menuOf('f2');
+    t.byText('.pj-menu-item', 'New project chat').click();
+    await t.tick();
+    assert.equal(t.state.newChats, 1, 'a chat was started');
+    assert.equal(t.state.conversations[0].folderId, 'f2', 'in the project');
+    assert.equal(t.state.sent.length, 0, 'without sending anything');
+    assert.equal(t.state.closed, 1, 'and the page is closed to show it');
   } finally { await t.finish(); }
 });
 
