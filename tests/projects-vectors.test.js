@@ -101,6 +101,15 @@ test('the search over the past conversations does not return passages of project
   assert.deepEqual(await vectors.searchProject('   ', { sourceIds: ['s1'] }), []);
 });
 
+test('many passages of project files that match better do not take the places of the conversations in the search over the past', async () => {
+  const many = () => [{ id: 'p1', sources: Array.from({ length: 12 }, (_, index) => ({ id: `m${index}`, title: `dogs${index}.md`, text: 'puppy dog invoice tax puppy dog invoice tax' })) }];
+  const { vectors } = await setup({ folders: many });
+  await vectors.enable('gemini');
+  await vectors.sync();
+  const history = await vectors.search('puppy dog invoice', { limit: 1 });
+  assert.deepEqual(history.map((hit) => hit.conversationId), ['c1'], 'the 4 places asked for were not filled by the files');
+});
+
 test('a source that goes loses its vectors at the next build, and one that comes gets them', async () => {
   let current = FOLDERS();
   const calls = [];

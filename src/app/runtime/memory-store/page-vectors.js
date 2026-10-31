@@ -240,10 +240,10 @@ export function createPageVectors({ getStore, getHistory, getProjectPieces = () 
         const byId = new Map(worth().map((piece) => [piece.id, piece]));
         const taken = new Set();
         const found = [];
-        for (const hit of topByCosine(vector, store.entries().filter((entry) => entry.vector.length), { limit: limit * 4, minCosine })) {
+        for (const hit of topByCosine(vector, store.entries().filter((entry) => entry.vector.length && byId.get(entry.id)?.kind !== 'project'), { limit: limit * 4, minCosine })) {
           const piece = byId.get(hit.id);
-          // A passage of a project file is not a piece of a past conversation.
-          if (!piece || piece.kind === 'project' || piece.conversationId === excludeConversationId || taken.has(piece.conversationId) || (allow && !allow(piece.conversationId))) continue;
+          // (Passages of project files are left out above, so that they do not take the places of the conversations.)
+          if (!piece || piece.conversationId === excludeConversationId || taken.has(piece.conversationId) || (allow && !allow(piece.conversationId))) continue;
           taken.add(piece.conversationId);
           found.push({ conversationId: piece.conversationId, at: piece.at, role: piece.role, text: piece.text, cosine: hit.cosine });
           if (found.length >= limit) break;
