@@ -97,13 +97,16 @@ test('the mails come with an HTML version that has the mark, the words and the b
   const mail = reportMailFor(row({ title: evil, reasons: [evil, '<script>x</script>'], status: 'suspended', readers: 3 }), { appUrl: 'https://noureon.com' });
   assert.match(mail.html, /^<!doctype html>/);
   assert.match(mail.html, /https:\/\/noureon\.com\/icon-192\.png/);
+  assert.match(mail.html, /#5b4fcf/, 'the purple of the other mails of Noureon');
+  assert.match(mail.html, /prefers-color-scheme: dark/);
+  assert.match(mail.html, /Contact support/);
   assert.doesNotMatch(mail.html, /<img src=x|<script>/, 'what a person wrote is not markup');
   assert.match(mail.html, /&lt;img src=x onerror=alert\(1\)&gt; &amp; &quot;quotes&quot;/);
   assert.match(mail.html, new RegExp(`href="https://noureon.com/s/${'A'.repeat(32)}\\?review=1"`));
   assert.match(mail.html, /href="https:\/\/noureon.com\/admin\/shares"/);
   assert.ok(mail.text.length > 20, 'the text version stays');
   const gone = reportMailFor(row({ code: null, status: null }), { appUrl: 'https://noureon.com' });
-  assert.doesNotMatch(gone.html, /<a /, 'nothing to open for a share that is gone');
+  assert.doesNotMatch(gone.html, /\/s\/|admin\/shares/, 'nothing to open for a share that is gone');
   const taken = removed({ title: 'Strawberry <b>cake</b>' });
   assert.match(taken.html, /Strawberry &lt;b&gt;cake&lt;\/b&gt;/);
   assert.match(taken.html, /Your shared conversation was taken down/);

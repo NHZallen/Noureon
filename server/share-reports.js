@@ -28,8 +28,9 @@ export function reportMailFor(row, { appUrl }) {
     quote: { label: '對話名稱', text: title },
     details: [['權限', mode], ['狀態', state], ['檢舉', counts]],
     list: reasons.length ? { label: '讀者寫的原因', items: reasons } : null,
-    buttons: gone ? [] : [{ label: '看內容', href: review, primary: true }, { label: '前往後台', href: admin }],
-    footer: '這封信是 Noureon 伺服器自動寄出的，寄到 REPORT_TO 設定的信箱。'
+    buttons: gone ? [] : [{ label: '看內容', href: review }, { label: '前往後台', href: admin }],
+    muted: ['這封信是 Noureon 伺服器自動寄出的，寄到 REPORT_TO 設定的信箱。'],
+    footer: 'notice'
   });
   return { subject: oneLine(`[Noureon] 分享被檢舉${paused ? '，已暫停' : ''}：${title}`, 120), text: lines.join('\n'), html };
 }
@@ -49,7 +50,7 @@ export function removedMailFor(row) {
       intro: [title ? 'Noureon took down the share of this conversation after a review.' : first],
       quote: title ? { label: 'Conversation', text: title } : null,
       outro: [second, third],
-      footer: 'You are receiving this because the conversation was shared from your Noureon account.'
+      muted: ['You are receiving this because the conversation was shared from your Noureon account.']
     })
   };
 }
