@@ -10,6 +10,7 @@ import { isWide, make, ICONS, openActionSheet, openMenu, projectMark, sourceTile
 import { openCreateSheet, openDeleteSheet, openEditSheet, openInstructionsSheet, openRenameChatSheet, openSourceTextSheet, sourceFailureText } from './project-sheets.js';
 import { searchableKindOf } from '../../runtime/projects/project-files-access.js';
 import { PROJECT_SOURCES_MAX } from '../../runtime/projects/project-source-model.js';
+import { pictureOf } from '../../runtime/projects/project-pieces.js';
 import { projectFilesBudget } from '../../runtime/projects/project-source-files.js';
 import { PROJECTS_PATH, projectPath, projectsRouteFromPath } from './project-path.js';
 
@@ -46,10 +47,10 @@ const previewOf = (conversation) => {
 /**
  * Opens the page, once (opened again it only turns to `route`). `route` is { list: true } or { id }.
  * deps: document, text(key, vars), actions (runtime/projects/project-actions.js), chats { archive(id), remove(id) } (the app's own, which ask what has to be asked), openChat(id),
- * notify(message, type), sourcesEnabled (the tab of the sources, when there is a part for it), readFile(file) (reads a file into
+ * vectors ({ status(sourceId), subscribe(listener) }: where the vectors of a source are, runtime/memory-store/page-vectors.js; none: no line about it), notify(message, type), sourcesEnabled (the tab of the sources, when there is a part for it), readFile(file) (reads a file into
  * { ok, title, mime, size, text, truncated } or { ok: false, code }: runtime/projects/project-source-reader.js), drive ({ warm(), pick() }: Google's own file picker, runtime/projects/google-picker.js; none: no such choice), onClose().
  */
-export function openProjectsPage({ document, text, actions, chats = {}, openChat = () => {}, notify = () => {}, route = { list: true }, sourcesEnabled = false, readFile = async () => ({ ok: false, code: 'unsupported' }), drive = null, onClose = () => {} }) {
+export function openProjectsPage({ document, text, actions, chats = {}, openChat = () => {}, notify = () => {}, route = { list: true }, sourcesEnabled = false, readFile = async () => ({ ok: false, code: 'unsupported' }), drive = null, vectors = null, onClose = () => {} }) {
   if (current) {
     current.go(route);
     return current;
@@ -406,6 +407,23 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     if (state.view === 'project' && state.tab === 'sources') drawProject();
   };
   // One source as a row: its tile, its title and kind and size, and a bin. `after` is called once it is removed.
+  // The line of a source about its vectors; empty when they are off or the source has none.
+  const indexStatusInto = (node, source) => {
+    const state = vectors?.status?.(source.id) || 'off';
+    const picture = pictureOf(source);
+    const key = state === 'pending' ? 'pjIndexPending' : state === 'ready' ? 'pjIndexReady' : state === 'failed' ? 'pjIndexFailed' : state === 'none' && picture?.tooBig ? 'pjIndexTooBig' : '';
+    node.textContent = key ? text(key) : '';
+    node.hidden = !key;
+    node.dataset.state = key ? state : '';
+  };
+  // The lines are brought up to date when the vectors change (a build ends), without drawing the page again.
+  const unsubscribeVectors = vectors?.subscribe?.(() => {
+    if (closed) return;
+    for (const node of root.querySelectorAll('.pj-row-status')) {
+      const source = actions.folderOf(state.projectId)?.sources?.find((entry) => entry.id === node.dataset.sourceId);
+      if (source) indexStatusInto(node, source);
+    }
+  });
   const sourceRow = (project, source, after, onRemove = null) => {
     const row = make(document, 'div', 'pj-row pj-source');
     row.dataset.sourceId = source.id;
@@ -415,6 +433,11 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
       : sourceTile(document, { tone, icon: (source.kind === 'image' ? ICONS.image : source.kind === 'file' ? ICONS.file : ICONS.text)(18) });
     const meta = make(document, 'span', 'pj-row-text');
     meta.append(make(document, 'span', 'pj-row-title', source.title || text('pjSourceUntitled')), make(document, 'span', 'pj-row-meta', `${label} · ${sizeText(source)}`));
+    // Where the vectors of the source are (only when they are turned on): being made, made, not possible, or too big.
+    const status = make(document, 'span', 'pj-row-status');
+    status.dataset.sourceId = source.id;
+    indexStatusInto(status, source);
+    meta.appendChild(status);
     const remove = make(document, 'button', 'pj-more');
     remove.type = 'button';
     remove.setAttribute('aria-label', text('pjSourceRemove'));
@@ -674,6 +697,7 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     win.removeEventListener('popstate', onPopState);
     win.removeEventListener('keydown', onKey);
     media?.removeEventListener?.('change', onMedia);
+    unsubscribeVectors?.();
     document.documentElement.classList.remove('pj-open');
     root.remove();
     current = null;

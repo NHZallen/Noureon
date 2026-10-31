@@ -140,7 +140,7 @@ export function createSingleModelResponseLifecycle({
     // The pictures of the project this chat is in go with the message, for a model that can see them (src/app/runtime/projects/project-source-files.js).
     // A model that calls tools looks into the files of the project by itself (project-files-access.js); what it cannot look into (a picture) goes with the message, for a model that can read it.
     const projectFiles = !synthesis && !resumeRun && projectOf(conversation)?.sources?.length ? await (await import('../projects/project-files-access.js')).createProjectFilesAccess({ conversation, toolsAllowed: Boolean(supportsToolCalling?.(modelInfo)) && !(webSearchEnabled && !webResearch?.canUse(modelInfo)) }) : null;
-    if (!synthesis && !resumeRun) userParts = await withProjectFiles(userParts, conversation, modelInfo, { skipIds: projectFiles?.searchableIds });
+    if (!synthesis && !resumeRun) userParts = await withProjectFiles(userParts, conversation, modelInfo, { skipIds: projectFiles?.searchableIds, onPicked: ({ attached }) => projectFiles?.setAttached?.(attached) });
     stepsShown = false;
     stop();
     const startedAt = now();

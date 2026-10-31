@@ -147,3 +147,12 @@
 - **搜尋**：`search_project_files` 把關鍵字（BM25）與向量的結果用 `fuseRanks` 合併；向量的結果只在 `hash` 與現在的文字相同時才算；步驟與回傳寫明這次是只用關鍵字還是也用了語意。
 - **伺服器**：`tools.projectFiles.vector = { provider }` 加上 `secrets.embeddingKey`（只活在這次回覆）；`server/project-vectors.js` 把問題算成向量，呼叫新的資料庫函式 `match_project_vectors`（只回這個使用者、這幾個來源的 `src:` piece）。沒同步向量時只用關鍵字。
 - **資料庫**：新函式 `match_project_vectors`；既有的 `match_workspace_memory_vectors`（過去對話用）改成**排除 `src:` 開頭**，否則專案的向量會擠掉過去對話的搜尋結果；刪專案時，專案來源的向量一併刪除。
+
+### R2 的做法（圖片進向量，2026-11-01）
+
+- **額度**：`PROJECT_FILES_REPLY_BYTES_MAX` 8 → 10 MB（圖片、影片、聲音、純圖片檔案共用，沒有別處寫死 8 MB）。
+- **圖片的 piece**：一張圖一個 piece，`src:<來源 id>:0`（文字段是 `0..n`，同一個來源不會兩種都有）；`hash` 是 `mediaPieceHash(檔案雜湊)`（`src/data/project-files-tool.js`，頁面與伺服器共用，伺服器不用位元組就能核對向量是不是這個檔案的）。位元組不放在 piece 裡，輪到嵌入時才用 `loadMedia()` 讀（頁面向量 `page-vectors.js` 的 `isMedia`）。單檔上限 9 MB（`PROJECT_MEDIA_EMBED_BYTES_MAX`，與聊天附件同值），超過的不送，標成「太大」；向量圖（SVG）不送；模型讀不了的（400／413／415／422）標 `failed`，不再重試；現在讀不到位元組的下次再試。沒同意向量時一個位元組都不送。
+- **超額時挑哪幾個**：`projectFilePartsFor` 在檔案放不下時，用 `deps.rank(問題, 來源 id)`（頁面向量的 `rankProjectSources`，依最近的圖片 piece 排）決定先附哪幾個，其餘照加入順序；放得下就不查向量。`onPicked({ attached, left, ranked })` 告訴回覆實際附上了哪些。
+- **搜尋命中圖片**：`search_project_files` 的結果多一個 `pictures`（檔名、`in_this_message`：這張圖有沒有跟著這次訊息附上），圖片靠檔名的字與向量（hash 對得上才算）。**沒有 `view_project_file` 之前，沒附上的圖模型看不到**（結果與清單都這樣寫明），那是 R3。專案只有圖片、沒有任何文字來源時還沒有搜尋工具（R3 會改）。
+- **伺服器**：`tools.projectFiles.media`（`[{ id, name, size, fileHash, attached }]`）進 `run-spec.js` 驗證與 `executor.js` 的 loader；資料庫不用改（`match_project_vectors` 本來就是 `src:<id>:` 前綴）。
+- **畫面**：來源列多一行索引狀態（索引中、已建立索引、無法建立索引、檔案太大未建立索引），只在向量開著時出現；向量建完自動更新那一行，不重畫整頁。

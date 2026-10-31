@@ -790,3 +790,29 @@ test('the cards of the right column fold and unfold, and what was folded is reme
     assert.deepEqual(JSON.parse(t.window.localStorage.getItem('noureon.projectPanels.v1')), []);
   } finally { await t.finish(); }
 });
+
+test('a source says where its vectors are (only when they are on), and the line changes when the vectors change', async () => {
+  const hash = (c) => c.repeat(64);
+  const folders = [{ id: 'f1', name: 'Research', icon: 'globe', color: 'blue', conversationIds: [], sources: [
+    { id: 'a', kind: 'text', title: 'Note', mime: '', size: 5, text: 'hello', addedAt: '' },
+    { id: 'b', kind: 'image', title: 'small.png', mime: 'image/png', size: 100, text: '', file: { hash: hash('b'), name: 'small.png', mimeType: 'image/png', size: 100 }, addedAt: '' },
+    { id: 'c', kind: 'image', title: 'huge.png', mime: 'image/png', size: 20 * 1024 * 1024, text: '', file: { hash: hash('c'), name: 'huge.png', mimeType: 'image/png', size: 20 * 1024 * 1024 }, addedAt: '' }
+  ] }];
+  const t = setup({ folders, conversations: [], wide: true });
+  const states = { a: 'off', b: 'off', c: 'off' };
+  let listener = null;
+  try {
+    t.open({ id: 'f1' }, { sourcesEnabled: true, vectors: { status: (id) => states[id], subscribe: (fn) => { listener = fn; return () => { listener = null; }; } } });
+    const lines = () => t.$$('.pj-panel .pj-row-status').filter((node) => !node.hidden).map((node) => `${node.dataset.sourceId}:${node.textContent}`);
+    assert.deepEqual(lines(), [], 'the vectors are off: no line');
+    Object.assign(states, { a: 'ready', b: 'pending', c: 'none' });
+    listener();
+    assert.deepEqual(lines(), ['a:Indexed', 'b:Indexing…', 'c:Too big to index']);
+    states.b = 'failed';
+    listener();
+    assert.equal(lines()[1], 'b:Could not be indexed');
+    Object.assign(states, { a: 'none' });
+    listener();
+    assert.deepEqual(lines().map((line) => line.split(':')[0]), ['b', 'c'], 'a source with nothing in the vectors has no line');
+  } finally { await t.finish(); }
+});

@@ -99,6 +99,8 @@ export function createVectorStore({ backend }) {
     version: () => version,
     get size() { return held.size; },
     has: (id, hash) => held.get(id)?.hash === hash,
+    /** The record of a piece ({ id, hash, vector, failed? }) or undefined. */
+    get: (id) => held.get(id),
     entries: () => [...held.values()],
     async putMany(records) {
       if (!records.length) return 0;

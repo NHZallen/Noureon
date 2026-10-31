@@ -12,6 +12,8 @@ import { createIdbBackend, createMemoryBackend, createVectorStore } from './vect
 export const VECTOR = Object.freeze({ minChars: 12, batchTexts: 32, batchChars: 16_000, failures: 3, minCosine: 0.5, slipCosine: 0.6, slipWaitMs: 700, pauseMs: 150, tokensPerChar: 0.4 });
 
 const hashed = (piece) => piece.hash || textHash(piece.text);
+// A piece that is a file: its bytes are in it (a file of a message) or come from `loadMedia()` when it is its turn (a picture of a project: the bytes are not all held in memory at once).
+const isMedia = (piece) => Boolean(piece.media || piece.loadMedia);
 
 export function createPageVectors({ getStore, getHistory, getProjectPieces = () => null, getApiKeyForProvider = () => '', getCloud = () => null, indexedDB = null, userKey = () => 'local', fetchImpl, now = () => new Date().toISOString(), wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)), logger = console, options = {} }) {
   const config = { ...VECTOR, ...options };
@@ -98,7 +100,7 @@ export function createPageVectors({ getStore, getHistory, getProjectPieces = () 
         failures += 1;
         return failures >= config.failures || error?.status === 401 || error?.status === 403 ? set({ status: 'error', error: String(error?.message || error).slice(0, 160) }) : null;
       };
-      for (const group of groups(missing.filter((piece) => !piece.media))) {
+      for (const group of groups(missing.filter((piece) => !isMedia(piece)))) {
         if (stopRequested) break;
         try {
           const made = await client.embed(group.map((piece) => piece.text), { kind: 'document' });
@@ -112,10 +114,13 @@ export function createPageVectors({ getStore, getHistory, getProjectPieces = () 
         if (config.pauseMs) await wait(config.pauseMs);
       }
       // A file is a request of its own. One the model cannot read (too long, a kind it does not take) is marked, so that it is not tried at every build.
-      for (const piece of missing.filter((entry) => entry.media)) {
+      for (const piece of missing.filter(isMedia)) {
         if (stopRequested) break;
         try {
-          const vector = await client.embedMedia(piece.media);
+          const media = piece.media || await piece.loadMedia();
+          // A file that cannot be read now (not here, not in the cloud yet) is left for the next build.
+          if (!media) { set({ done: Math.min(state.total, state.done + 1) }); continue; }
+          const vector = await client.embedMedia(media);
           await vectors.putMany([{ id: piece.id, hash: hashed(piece), vector }]);
           failures = 0;
         } catch (error) {
@@ -156,7 +161,7 @@ export function createPageVectors({ getStore, getHistory, getProjectPieces = () 
     estimate() {
       const pieces = worth();
       const chars = pieces.reduce((sum, piece) => sum + piece.text.length, 0);
-      return { provider: providerNow(), pieces: pieces.length, media: pieces.filter((piece) => piece.media).length, chars, tokens: Math.round(chars * config.tokensPerChar) };
+      return { provider: providerNow(), pieces: pieces.length, media: pieces.filter(isMedia).length, chars, tokens: Math.round(chars * config.tokensPerChar) };
     },
     /** The person agreed: remember the time of the consent and the provider, and start building. Resolves false when there is no key. */
     async enable(chosen = '') {
@@ -272,6 +277,32 @@ export function createPageVectors({ getStore, getHistory, getProjectPieces = () 
         logger.warn?.('The search by meaning over the project files failed; the keywords are used alone.', error);
         return [];
       }
+    },
+    /**
+     * The sources (of the ids given) in the order of how near they are in meaning to `question`: [id, ...], the nearest first; only sources that have a vector are in it. Resolves [] when it is
+     * off, has no vectors yet, or fails (the caller then keeps the order the sources were added in).
+     */
+    async rankProjectSources(question, sourceIds = [], { signal } = {}) {
+      const hits = await this.searchProject(question, { sourceIds, limit: Math.max(20, sourceIds.length * 40), minCosine: -1, signal });
+      return [...new Set(hits.map((hit) => sourceOfPieceId(hit.id)))];
+    },
+    /**
+     * Where the vectors of a source are: 'off' (the vectors are not turned on), 'pending' (still to build), 'ready', 'failed' (the model could not read the file; it is not tried again) or
+     * 'none' (nothing of this source goes to the vectors: it has no text and is not a picture, or it is too big).
+     */
+    sourceStatus(sourceId) {
+      if (!enabled()) return 'off';
+      const mine = projectPieces().filter((piece) => piece.sourceId === sourceId);
+      if (!mine.length) return 'none';
+      let pending = false;
+      let failed = 0;
+      for (const piece of mine) {
+        const record = store?.isLoaded?.() ? store.get(piece.id) : null;
+        if (!record || record.hash !== hashed(piece)) pending = true;
+        else if (record.failed) failed += 1;
+      }
+      if (pending) return 'pending';
+      return failed === mine.length ? 'failed' : 'ready';
     },
     /** The keyword hits and the vector hits put together into one list of at most `limit` pieces (one for each conversation). */
     fuse(keywordHits, vectorHits, limit = 5) {

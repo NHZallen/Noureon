@@ -62,5 +62,10 @@
 .pj-panel .pj-row { position: relative; padding: 0.6rem 0.1rem; }
 .pj-panel .pj-row + .pj-row::before { content: ""; position: absolute; left: 0; right: 0; top: 0; border-top: 1px solid var(--border-color); }
 
+/* the line of a source about its vectors (indexing, indexed, could not be, too big) */
+.pj-row-status { color: var(--text-secondary); font-size: var(--pj-small); }
+.pj-row-status[hidden] { display: none; }
+.pj-row-status[data-state="failed"] { color: var(--state-danger); }
+
 /* a folder or files dragged over the sheet that makes a project */
 .pj-backdrop.is-dropping .pj-folder-box { border-style: dashed; border-color: var(--text-secondary); }

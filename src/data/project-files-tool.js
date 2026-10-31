@@ -87,6 +87,9 @@ export function projectPassages(files, { budget = SEARCHED_CHARS_MAX } = {}) {
   return out;
 }
 
+/** The hash a picture's piece carries: of the file (its bytes' hash), so that the page that makes the vector and the server that finds it agree without the bytes (id: `src:<source>:0`). */
+export const mediaPieceHash = (fileHash) => textHash(`image|${String(fileHash || '')}`);
+
 /** The list of the files of the project as the instructions tell it: a line for each file, with what it is. */
 export function projectFilesListText(entries) {
   return entries.map((entry) => `- ${entry.name} (${entry.kindText || entry.kind}${entry.size ? `, ${entry.size >= 1048576 ? `${(entry.size / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(entry.size / 1024))} KB`}` : ''})`).join('\n');
@@ -98,8 +101,11 @@ export function projectFilesListText(entries) {
  * `vectorSearch(query, { fileIds, limit })` (optional) resolves [{ id, hash, cosine }] (the nearest in meaning, as piece ids; any failure is []): with it a search puts what the keywords
  * find and what the vectors find together; without it, or when it finds nothing, the keywords are used alone.
  */
-export function createProjectFilesLoader({ entries, readText, language = 'zh-TW', maxCalls = MAX_PROJECT_FILE_CALLS, onUsed = null, vectorSearch = null }) {
+export function createProjectFilesLoader({ entries, readText, language = 'zh-TW', maxCalls = MAX_PROJECT_FILE_CALLS, onUsed = null, vectorSearch = null, mediaEntries = [] }) {
   const files = entries.map((entry) => ({ ...entry }));
+  // The pictures of the project: [{ id, name, size, fileHash, attached }] (`attached`: it went with the message of this reply). They have no text: a search finds them by their name and, with the
+  // vectors, by what they show; it says which they are and whether the model has them in front of it.
+  const media = Array.isArray(mediaEntries) ? mediaEntries : [];
   const texts = new Map();
   let calls = 0;
   let lastOutcome = null;
@@ -129,6 +135,10 @@ export function createProjectFilesLoader({ entries, readText, language = 'zh-TW'
     return near.length === 1 ? near[0] : null;
   };
   const listText = () => files.map((entry) => entry.name).join(', ');
+  const resolveMedia = (name) => {
+    const wanted = clean(name, 200).toLowerCase();
+    return wanted ? media.find((entry) => entry.name.toLowerCase() === wanted) || null : null;
+  };
 
   async function buildIndex() {
     if (index) return index;
@@ -164,39 +174,57 @@ export function createProjectFilesLoader({ entries, readText, language = 'zh-TW'
     if (calls >= maxCalls) return `The limit of ${maxCalls} looks into the project files per reply is reached. Go on with what you have.`;
     calls += 1;
     const limit = Math.min(10, Math.max(1, Math.floor(Number(call?.args?.k) || 6)));
-    const only = call?.args?.file ? resolve(call.args.file) : null;
-    if (call?.args?.file && !only) return `There is no such file. The files of the project: ${listText()}.`;
+    const onlyPicture = call?.args?.file ? resolveMedia(call.args.file) : null;
+    const only = call?.args?.file && !onlyPicture ? resolve(call.args.file) : null;
+    if (call?.args?.file && !only && !onlyPicture) return `There is no such file. The files of the project: ${[listText(), ...media.map((entry) => entry.name)].filter(Boolean).join(', ')}.`;
     const { bm25, passages, byPiece } = await buildIndex();
     const queryTerms = terms(query);
-    const byKeywords = bm25.search(queryTerms, { limit: limit * 4, minNorm: 0.04 })
+    const byKeywords = onlyPicture ? [] : bm25.search(queryTerms, { limit: limit * 4, minNorm: 0.04 })
       .map((hit) => hit.id)
       .filter((position) => !only || passages[position].file.id === only.id);
     // What the vectors find: only a vector of the very text that is there now counts (the hash), and only in the files asked about.
     let byMeaning = [];
+    let pictureByMeaning = [];
     if (vectorSearch) {
       try {
-        const found = await vectorSearch(query, { fileIds: (only ? [only] : files).map((entry) => entry.id), limit: limit * 4 });
-        byMeaning = (Array.isArray(found) ? found : [])
+        const pool = onlyPicture ? [onlyPicture] : only ? [only] : [...files, ...media];
+        const found = await vectorSearch(query, { fileIds: pool.map((entry) => entry.id), limit: limit * 4 });
+        const list = Array.isArray(found) ? found : [];
+        byMeaning = list
           .map((hit) => ({ position: byPiece.get(hit.id), hash: hit.hash }))
           .filter((hit) => hit.position !== undefined && textHash(passages[hit.position].text) === hit.hash && (!only || passages[hit.position].file.id === only.id))
           .map((hit) => hit.position);
+        // A picture counts only when the vector is the one of the very file that is there now.
+        const wanted = new Map(media.filter((entry) => !onlyPicture || entry.id === onlyPicture.id).map((entry) => [pieceIdOf(entry.id, 0), entry]));
+        pictureByMeaning = list.filter((hit) => wanted.get(hit.id) && mediaPieceHash(wanted.get(hit.id).fileHash) === hit.hash).map((hit) => wanted.get(hit.id).id);
       } catch {
         byMeaning = [];
+        pictureByMeaning = [];
       }
     }
     const order = byMeaning.length ? fuseRanks([byKeywords, byMeaning], { limit }) : byKeywords.slice(0, limit);
     const hits = order.map((position) => passages[position]);
-    const how = byMeaning.length ? 'keywords and meaning' : 'keywords';
-    lastOutcome = { key: 'projectFilesSearching', count: hits.length };
-    if (hits.length) onUsed?.({ files: [...new Set(hits.map((hit) => hit.file.name))] });
+    // The pictures: by the words of their names, and (with the vectors) by what they show.
+    const pictureByName = media
+      .filter((entry) => !only && (!onlyPicture || entry.id === onlyPicture.id))
+      .map((entry) => ({ id: entry.id, shared: terms(entry.name.replace(/[._\-()\[\]]+/g, ' ')).filter((term) => queryTerms.includes(term)).length }))
+      .filter((entry) => entry.shared > 0)
+      .sort((left, right) => right.shared - left.shared)
+      .map((entry) => entry.id);
+    const pictureOrder = pictureByMeaning.length || pictureByName.length ? fuseRanks([pictureByName, pictureByMeaning], { limit: Math.min(4, limit) }) : [];
+    const pictures = pictureOrder.map((id) => media.find((entry) => entry.id === id)).filter(Boolean);
+    const how = byMeaning.length || pictureByMeaning.length ? 'keywords and meaning' : 'keywords';
+    lastOutcome = { key: 'projectFilesSearching', count: hits.length + pictures.length };
+    if (hits.length || pictures.length) onUsed?.({ files: [...new Set([...hits.map((hit) => hit.file.name), ...pictures.map((entry) => entry.name)])] });
     const empty = await unreadable();
-    if (!hits.length) {
-      return `Nothing in the project files matches that. The files: ${listText()}.${empty.length ? ` No text could be read from: ${empty.join(', ')} (a scan or a picture).` : ''} You may read a file from its start with read_project_file, or go on without.`;
+    if (!hits.length && !pictures.length) {
+      return `Nothing in the project files matches that. The files: ${[listText(), ...media.map((entry) => entry.name)].filter(Boolean).join(', ')}.${empty.length ? ` No text could be read from: ${empty.join(', ')} (a scan or a picture).` : ''} You may read a file from its start with read_project_file, or go on without.`;
     }
     return JSON.stringify({
       note: 'Passages of the files of the project. Use read_project_file with the "start" of a passage to read more around it.',
       search: how,
       passages: hits.map((hit) => ({ file: hit.file.name, start: hit.start, end: hit.end, text: hit.text.trim() })),
+      ...(pictures.length ? { pictures: pictures.map((entry) => ({ file: entry.name, in_this_message: entry.attached === true })), pictures_note: 'Pictures of the project that match. "in_this_message" true: the picture came with the message and you can see it; false: it did not fit with this reply, so you cannot see it now (say so if the answer depends on it).' } : {}),
       ...(empty.length ? { no_text: empty } : {})
     });
   }
@@ -230,6 +258,11 @@ export function createProjectFilesLoader({ entries, readText, language = 'zh-TW'
     get tools() {
       if (!files.length || calls >= maxCalls) return [];
       return [SEARCH_PROJECT_FILES_TOOL, READ_PROJECT_FILE_TOOL];
+    },
+    /** Which pictures went with the message of this reply (their ids): the rest are named in the search as not in front of the model. */
+    setAttached(ids) {
+      const set = new Set(ids || []);
+      for (const entry of media) entry.attached = set.has(entry.id);
     },
     handles: (name) => isProjectFilesToolName(name),
     noteFor: (call) => ({ name: call?.name }),

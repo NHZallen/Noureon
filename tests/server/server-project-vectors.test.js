@@ -130,3 +130,30 @@ test('without the key or the vectors of the person the search of the model is by
   });
   assert.match(requests[1].messages.filter((entry) => entry.role === 'tool').map((entry) => entry.content).join('\n'), /"search":"keywords"/);
 });
+
+test('the request may name the pictures of the project (with the hash of the file and whether it came with the message), and the search of the model on the server names the ones that match', async () => {
+  const HASH_A = 'a'.repeat(64);
+  const media = [{ id: 'p1', name: 'tax-receipt.png', size: 90, fileHash: HASH_A, attached: false }];
+  const ok = validateRunSpec(spec({ entries: FILES.entries, media }, { providerKey: 'sk-provider-secret-value' }));
+  assert.equal(ok.ok, true);
+  assert.deepEqual(ok.spec.tools.projectFiles.media, media);
+  for (const bad of [[{ ...media[0], fileHash: 'nope' }], [{ ...media[0], attached: 'yes' }], [{ ...media[0], name: '' }], 'p1', Array.from({ length: 60 }, (_, n) => ({ ...media[0], id: `m${n}` }))]) {
+    assert.equal(validateRunSpec(spec({ entries: FILES.entries, media: bad }, { providerKey: 'sk-provider-secret-value' })).ok, false, JSON.stringify(bad).slice(0, 60));
+  }
+  const requests = [];
+  let round = 0;
+  await executeReply({
+    spec: spec({ entries: FILES.entries, media }, { providerKey: 'sk-provider-secret-value' }),
+    secrets: { providerKey: 'sk-provider-secret-value' },
+    userId: USER,
+    memory: null,
+    fetchImpl: async (url, options) => {
+      requests.push(JSON.parse(options.body));
+      round += 1;
+      if (round === 1) return streamResponse(sse(toolCall('c1', 'search_project_files', { query: 'receipt' })));
+      return streamResponse(sse(content('Done.')));
+    }
+  });
+  const answer = requests[1].messages.filter((entry) => entry.role === 'tool').map((entry) => entry.content).join('\n');
+  assert.match(answer, /"pictures":\[\{"file":"tax-receipt.png","in_this_message":false\}\]/);
+});

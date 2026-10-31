@@ -55,7 +55,7 @@ const PROJECT_FILES_TEXT_TOTAL_MAX = 400_000;
 const HASH = /^[0-9a-f]{64}$/;
 const projectFileEntries = (value) => (isObject(value) && Array.isArray(value.entries) ? value.entries : null);
 function normalizeProjectFiles(value) {
-  return { ...(isObject(value.vector) ? { vector: { provider: value.vector.provider } } : {}), entries: projectFileEntries(value).map((entry) => ({
+  return { ...(isObject(value.vector) ? { vector: { provider: value.vector.provider } } : {}), ...(Array.isArray(value.media) && value.media.length ? { media: value.media.map((entry) => ({ id: entry.id, name: entry.name, size: Math.max(0, Math.floor(Number(entry.size) || 0)), fileHash: entry.fileHash, attached: entry.attached === true })) } : {}), entries: projectFileEntries(value).map((entry) => ({
     id: entry.id, name: entry.name, size: Math.max(0, Math.floor(Number(entry.size) || 0)),
     ...(typeof entry.text === 'string' ? { text: entry.text } : { file: { hash: entry.file.hash, ...(entry.file.mimeType ? { mimeType: entry.file.mimeType } : {}), ...(entry.file.name ? { name: entry.file.name } : {}) } })
   })) };
@@ -497,6 +497,14 @@ export function validateRunSpec(input) {
           } else if (!isObject(entry.file) || typeof entry.file.hash !== 'string' || !HASH.test(entry.file.hash) || (entry.file.mimeType !== undefined && typeof entry.file.mimeType !== 'string') || (entry.file.name !== undefined && typeof entry.file.name !== 'string')) fail(`tools.projectFiles.entries[${index}]`, 'must have a text, or a file with the hash of its bytes');
         });
         if (total > PROJECT_FILES_TEXT_TOTAL_MAX) fail('tools.projectFiles', `the texts must be at most ${PROJECT_FILES_TEXT_TOTAL_MAX} characters together`);
+      }
+      // `media`: the pictures of the project (no text; the search may name them): [{ id, name, size, fileHash, attached }], `attached` when the picture went with the message.
+      if (tools.projectFiles.media !== undefined) {
+        const media = tools.projectFiles.media;
+        if (!Array.isArray(media) || media.length > PROJECT_FILES_MAX) fail('tools.projectFiles.media', `must be a list of at most ${PROJECT_FILES_MAX} pictures`);
+        else media.forEach((entry, index) => {
+          if (!isObject(entry) || !text(entry.id, 80) || !text(entry.name, 200) || typeof entry.fileHash !== 'string' || !HASH.test(entry.fileHash) || typeof entry.attached !== 'boolean') fail(`tools.projectFiles.media[${index}]`, 'must have an id, a name, the hash of the file and whether it came with the message');
+        });
       }
       // `vector`: the search may also be by meaning, with the key of `secrets.embeddingKey` (the vectors of the files are in the person's cloud only when they synced them).
       if (tools.projectFiles.vector !== undefined && (!isObject(tools.projectFiles.vector) || !['gemini', 'openrouter'].includes(tools.projectFiles.vector.provider))) fail('tools.projectFiles.vector', 'must name the provider of the embedding model (gemini or openrouter)');

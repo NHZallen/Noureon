@@ -48,7 +48,7 @@ export function startProjects({
     backend: { get: (id) => backend().get(id), put: (record) => backend().put(record), remove: (id) => backend().remove(id) },
     getAssets: () => getService(SERVICES.cloudAssets), cryptoProvider: win.crypto || globalThis.crypto
   });
-  setProjectFileDeps({ store: files, supports: (modelInfo, inlineData) => modelSupportsUploadedFile(modelInfo, { inlineData }) });
+  setProjectFileDeps({ store: files, supports: (modelInfo, inlineData) => modelSupportsUploadedFile(modelInfo, { inlineData }), rank: async (question, sourceIds) => (await getPageVectors()?.rankProjectSources?.(question, sourceIds)) || [] });
   // The passages of the files of the projects are made into vectors with the ones of the past conversations (memory-store/page-vectors.js, when the person turned that on); a source that
   // comes or goes, or a project that goes, has the vectors brought up to date.
   setProjectPieces(createProjectPieces({ getFolders: () => dataStore.getFolders() }));
@@ -83,6 +83,7 @@ export function startProjects({
     return page.openProjectsPage({
       document, text, actions, route, sourcesEnabled: true,
       readFile: (file) => readProjectFile(file), drive,
+      vectors: { status: (sourceId) => getPageVectors()?.sourceStatus?.(sourceId) || 'off', subscribe: (listener) => getPageVectors()?.subscribe?.(listener) },
       chats: { archive: (id) => archiveChat(id), remove: (id) => deleteChat(id) },
       openChat: (id) => loadChat(id),
       notify: (message, type = 'success') => showNotification(message, type)

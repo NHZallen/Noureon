@@ -336,7 +336,7 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
     const vectorSearch = spec.tools.projectFiles.vector && secrets.embeddingKey && memory?.projectVectors
       ? memory.projectVectors.forReply({ userId, vector: { provider: spec.tools.projectFiles.vector.provider, key: secrets.embeddingKey }, signal })
       : null;
-    projectFilesLoader = createProjectFilesLoader({ entries, language, vectorSearch, readText: (entry) => readText(byId.get(entry.id)) });
+    projectFilesLoader = createProjectFilesLoader({ entries, mediaEntries: (spec.tools.projectFiles.media || []).map((entry) => ({ ...entry, kind: 'image' })), language, vectorSearch, readText: (entry) => readText(byId.get(entry.id)) });
   }
   // What the reply's loops are given: the skills, the connectors, the pictures, the memory and the files of the project as one loader (any may be missing).
   const makeSkillLoader = (options) => combineLoaders(makeSkillsOnly(options), connectorLoader, imageLoader, memoryLoader, projectFilesLoader);
