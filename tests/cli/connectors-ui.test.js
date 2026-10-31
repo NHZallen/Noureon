@@ -64,8 +64,8 @@ const names = (t, selector) => [...t.host.querySelectorAll(selector)].map((node)
 test('the list: the connectors are in their groups, each with its words, "Connected" or "Connect", and a search finds one', async () => {
   const t = setup();
   await settle(t);
-  assert.deepEqual(names(t, '.cs-section-title'), ['辦公與日常', '筆記與專案', '設計與白板', '開發']);
-  assert.deepEqual(names(t, '.cs-name-text'), ['Google', 'Notion', 'Linear', 'Miro', 'Canva', 'Context7', 'Upstash', 'Vercel', 'GitHub', 'Supabase', 'Hugging Face']);
+  assert.deepEqual(names(t, '.cs-section-title'), ['辦公與日常', '筆記與專案', '設計與白板', '開發', '金融']);
+  assert.deepEqual(names(t, '.cs-name-text'), ['Google', 'Pally', 'Notion', 'Linear', 'Miro', 'Canva', 'Context7', 'Upstash', 'Vercel', 'GitHub', 'Supabase', 'Hugging Face', 'ether.fi']);
   assert.equal(t.host.querySelector('[data-connector-id="linear"] .cs-conn-status').textContent, '已連線');
   assert.match(t.host.querySelector('[data-connector-id="notion"] .cs-connect').textContent, /連線/);
   assert.equal(t.calls.filter(([method, path]) => path === '/v1/connectors' && method === 'GET').length, 1, 'read once, not at every drawing');
@@ -528,7 +528,7 @@ test('the picture of a connector is its logo, and its first letter takes its pla
   assert.equal(mark.querySelector('img'), null);
   assert.equal(mark.textContent, 'L');
   assert.equal(connectorMark(document, { name: 'Zed' }).textContent, 'Z');
-  for (const connector of CONNECTORS) assert.match(connector.icon, /^https:\/\/github\.com\/[A-Za-z0-9-]+\.png\?size=\d+$/, connector.id);
+  for (const connector of CONNECTORS.filter((entry) => entry.icon)) assert.match(connector.icon, /^https:\/\/github\.com\/[A-Za-z0-9-]+\.png\?size=\d+$/, connector.id);
 });
 
 test('the card that asks shows the logo of the connector', () => {
