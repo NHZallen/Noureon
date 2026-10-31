@@ -123,3 +123,23 @@ test('the header folds the section once even when the page binds its own fold to
   section.querySelector('[data-projects-all]').click();
   assert.deepEqual(calls, ['create', 'list']);
 });
+
+test('the ⋯ that opened the menu of a project closes it when it is pressed again (the press on it is not "outside")', async () => {
+  const t = setup();
+  t.sidebar.render();
+  const more = () => t.$('.folder-item[data-id="a"] .folder-options-btn');
+  more().click();
+  await tick();
+  assert.equal(t.$$('.pj-menu').length, 1);
+  // What a mouse does at the second press: pointerdown, then click.
+  more().dispatchEvent(new t.window.PointerEvent('pointerdown', { bubbles: true }));
+  more().click();
+  await tick();
+  assert.equal(t.$$('.pj-menu').length, 0, 'closed, not opened again');
+  more().click();
+  await tick();
+  assert.equal(t.$$('.pj-menu').length, 1, 'a press after that opens it');
+  t.$('.folder-item[data-id="b"]').dispatchEvent(new t.window.PointerEvent('pointerdown', { bubbles: true }));
+  await tick();
+  assert.equal(t.$$('.pj-menu').length, 0, 'a press elsewhere closes it');
+});

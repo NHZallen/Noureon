@@ -82,7 +82,8 @@ export function openMenu({ document, root, anchor, point = null, items, onClose 
     menu.remove();
     onClose();
   };
-  const onOutside = (event) => { if (!menu.contains(event.target)) { event.stopPropagation(); close(); } };
+  // A press on the button that opened the menu does not close it here: the click that follows is the button's own, which closes it (so a second press shuts the menu and does not open it again).
+  const onOutside = (event) => { if (!menu.contains(event.target) && !anchor?.contains?.(event.target)) { event.stopPropagation(); close(); } };
   const onKey = (event) => { if (event.key === 'Escape') { event.stopPropagation(); event.preventDefault(); close(); } };
   for (const item of items) {
     const entry = make(document, 'button', `pj-menu-item${item.danger ? ' is-danger' : ''}`);
@@ -107,7 +108,7 @@ export function openMenu({ document, root, anchor, point = null, items, onClose 
   win.addEventListener('pointerdown', onOutside, true);
   win.addEventListener('keydown', onKey, true);
   menu.querySelector('button')?.focus();
-  return { close, element: menu };
+  return { close, element: menu, anchor };
 }
 
 /**

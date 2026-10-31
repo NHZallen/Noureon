@@ -114,7 +114,10 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
   // ----- the menu of a project: the same on the list (the ⋯ of a row) and on the page of the project
   // The settings of a project (a dialog on a computer): the name and icon, and on a computer its sources.
   const openEdit = (project, onSaved) => openEditSheet({ document, root, text, actions, project, notify, onSaved, sources: sourcesEnabled ? { list: () => actions.sourcesOf(project.id), row: (source, after) => sourceRow(project, source, after), add: (after) => openAddSources(project, after) } : null });
+  // The button that opened the menu closes it when it is pressed again.
+  const toggledOff = (anchor) => { if (anchor && menu?.anchor === anchor) { closeMenu(); return true; } return false; };
   const projectMenu = (project, anchor, point = null, { fromPage = false } = {}) => {
+    if (toggledOff(anchor)) return;
     closeMenu();
     const refresh = () => { if (state.view === 'project') drawProject(); else drawList(); };
     const items = [];
@@ -175,7 +178,12 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     state.view = 'list';
     const title = headingOf(document, 'pj-title');
     title.textContent = text('pjTitle');
-    const head = header({ left: round('back', text('pjBack'), () => close()), title, right: round('plus', text('pjNew'), () => newProject()) });
+    // On a computer the + has its words with it ("New project"): the page is wide there (projects.css, .is-list).
+    const plus = round('plus', text('pjNew'), () => newProject());
+    plus.classList.add('has-label');
+    plus.append(make(document, 'span', 'pj-round-label', text('pjNew')));
+    const head = header({ left: round('back', text('pjBack'), () => close()), title, right: plus });
+    root.classList.add('is-list');
     listBody = make(document, 'div', 'pj-list');
     const body = make(document, 'main', 'pj-body');
     body.appendChild(tabs([['all', text('pjTabAll')], ['mine', text('pjTabMine')], ['shared', text('pjTabShared')]], state.listTab, (key) => { state.listTab = key; drawList(); }, text('pjTitle')));
@@ -199,6 +207,7 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
   // ----- one project
   let chatsBody = null;
   const chatMenu = (conversation, anchor, point) => {
+    if (toggledOff(anchor)) return;
     closeMenu();
     const items = [
       { label: conversation.pinned ? text('pjChatUnpin') : text('pjChatPin'), icon: 'pin', action: async () => { await actions.togglePin(conversation.id); drawChats(); } },
@@ -361,7 +370,9 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
   const stagedSources = {
     list: () => staged,
     row: (item, after) => sourceRow(stagingTarget, item, after, () => { const at = staged.findIndex((entry) => entry.id === item.id); if (at >= 0) staged.splice(at, 1); }),
-    add: (after) => openAddSources(stagingTarget, after)
+    add: (after) => openAddSources(stagingTarget, after),
+    // Files dragged onto the sheet.
+    drop: (files) => stageFiles(files)
   };
   // The project is there: what was listed is read and kept as its sources, one by one (the limits are the same as when a source is added to a project that exists).
   const commitStaged = async (id) => {
@@ -422,6 +433,7 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     return box;
   };
   const drawProject = () => {
+    root.classList.remove('is-list');
     closeMenu();
     const project = projectOrNull(state.projectId);
     if (!project) { go({ list: true }, false); return; }

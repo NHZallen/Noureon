@@ -659,7 +659,7 @@ test('the styles keep the icon search working (a hidden icon is not drawn), colo
   assert.match(css, /\.pj-popover\s*\{[^}]*overflow:\s*hidden/);
 });
 
-test('the box of the icons on a computer is no taller than what is left in the dialog under the name', () => {
+test('the box of the icons on a computer is no taller than what is left in the dialog under the name', async () => {
   const t = setup({ folders: [], conversations: [], wide: true });
   try {
     t.open({ list: true }, { sourcesEnabled: true });
@@ -670,5 +670,62 @@ test('the box of the icons on a computer is no taller than what is left in the d
     t.$('.pj-name-input').parentElement.getBoundingClientRect = () => rect(170, 220);
     t.$('.pj-name-icon').click();
     assert.equal(t.$('.pj-popover').style.maxHeight, `${600 - 220 - 6 - 12}px`);
-  } finally { t.window.close(); }
+  } finally { await t.finish(); }
+});
+
+test('the ⋯ of a project (on the list and on its page) and of a chat closes its menu when it is pressed again', async () => {
+  const t = setup();
+  try {
+    t.open();
+    const press = (button) => { button.dispatchEvent(new t.window.PointerEvent('pointerdown', { bubbles: true })); button.click(); };
+    const rowMore = () => t.$('.pj-row .pj-more');
+    press(rowMore());
+    assert.equal(t.$$('.pj-menu').length, 1);
+    press(rowMore());
+    assert.equal(t.$$('.pj-menu').length, 0, 'closed, not opened again');
+    press(rowMore());
+    assert.equal(t.$$('.pj-menu').length, 1);
+    t.$('.pj-row').dispatchEvent(new t.window.PointerEvent('pointerdown', { bubbles: true }));
+    assert.equal(t.$$('.pj-menu').length, 0, 'a press elsewhere closes it');
+    t.$('.pj-row').click();
+    const headMore = () => t.$$('.pj-head .pj-round').at(-1);
+    press(headMore());
+    assert.equal(t.$$('.pj-menu').length, 1);
+    press(headMore());
+    assert.equal(t.$$('.pj-menu').length, 0);
+  } finally { await t.finish(); }
+});
+
+test('the list of the projects is a page of its own on a computer: cards, the + with its words, and the class that the wide styles hang on', async () => {
+  const t = setup({ wide: true });
+  try {
+    t.open();
+    assert.equal(t.$('.pj').classList.contains('is-list'), true);
+    assert.equal(t.$('.pj-head .pj-round.has-label .pj-round-label').textContent, 'New project');
+    t.$('.pj-row').click();
+    assert.equal(t.$('.pj').classList.contains('is-list'), false, 'a project has its own page');
+  } finally { await t.finish(); }
+});
+
+test('a folder dropped on the sheet that makes a project is read with what is in it and becomes the source folder; single files go to the list of sources', async () => {
+  const t = setup({ folders: [], conversations: [], wide: true });
+  const read = [];
+  const file = (name, size = 5) => new t.window.File(['x'.repeat(size)], name);
+  const fileEntry = (name, size) => ({ isFile: true, isDirectory: false, name, file: (done) => done(file(name, size)) });
+  const dirEntry = (name, children) => ({ isFile: false, isDirectory: true, name, createReader: () => { let given = false; return { readEntries: (done) => { done(given ? [] : children); given = true; } }; } });
+  try {
+    t.open({ create: true }, { sourcesEnabled: true, readFile: async (f) => { read.push(f.name); return { ok: true, title: f.name, mime: 'text/plain', size: 5, text: 'hello' }; } });
+    t.type(t.$('.pj-name-input'), 'Dropped');
+    const tree = dirEntry('Docs', [fileEntry('a.txt'), fileEntry('.env'), dirEntry('sub', [fileEntry('b.md')]), dirEntry('node_modules', [fileEntry('x.js')]), fileEntry('empty.txt', 0)]);
+    const drop = new t.window.Event('drop', { bubbles: true, cancelable: true });
+    Object.defineProperty(drop, 'dataTransfer', { value: { types: ['Files'], items: [{ kind: 'file', webkitGetAsEntry: () => tree, getAsFile: () => null }, { kind: 'file', webkitGetAsEntry: () => fileEntry('loose.txt'), getAsFile: () => file('loose.txt') }] } });
+    t.$('.pj-backdrop').dispatchEvent(drop);
+    await t.tick(); await t.tick();
+    assert.equal(drop.defaultPrevented, true);
+    assert.match(t.$('.pj-folder-result').textContent, /2 files from "Docs"/);
+    assert.deepEqual(t.$$('.pj-sources-list .pj-row-title').map((node) => node.textContent), ['loose.txt']);
+    t.byText('.pj-sheet .pj-button', 'Create project').click();
+    for (let n = 0; n < 6; n += 1) await t.tick();
+    assert.deepEqual(read.sort(), ['a.txt', 'b.md', 'loose.txt']);
+  } finally { await t.finish(); }
 });

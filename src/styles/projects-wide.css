@@ -1,0 +1,24 @@
+/* The wide parts of the pages of the projects (split from projects.css to keep each style file small): the list of the projects as cards on a computer, and the drop of a folder on the sheet that makes a project.
+   Colours are the names of tokens.css; the rules of the style are in docs/superpowers/specs/2026-10-31-ui-style-rules.md. */
+
+/* ---------- the list of the projects on a computer: a wide page, the search under the title, the projects as cards in a grid, the + with its words */
+.pj-round-label { display: none; }
+@media (min-width: 768px) {
+  .pj.is-list { --pj-column: 64rem; --pj-gutter: 2rem; }
+  .pj.is-list .pj-head { grid-template-columns: 2.25rem minmax(0, 1fr) auto; padding-top: 1.5rem; padding-bottom: 0.9rem; }
+  .pj.is-list .pj-title { text-align: left; }
+  .pj-round.has-label { width: auto; display: inline-flex; align-items: center; gap: 0.45rem; padding: 0 1rem 0 0.7rem; }
+  .pj-round.has-label .pj-round-label { display: inline; }
+  /* the search comes up under the title (the foot of the page is first in the column), then the tabs, then the cards */
+  .pj.is-list .pj-foot { order: 1; padding-top: 0; padding-bottom: 0.4rem; }
+  .pj.is-list .pj-body { order: 2; padding-top: 0.4rem; padding-bottom: 2rem; }
+  .pj.is-list .pj-search { padding-top: 0.55rem; padding-bottom: 0.55rem; border-radius: 0.9rem; }
+  .pj.is-list .pj-list { grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr)); gap: 0.75rem; }
+  .pj.is-list .pj-row { align-items: flex-start; gap: 0.9rem; padding: 1rem 0.6rem 1rem 1rem; border: 1px solid var(--border-color); border-radius: 1rem; }
+  .pj.is-list .pj-row-text { align-self: center; }
+  .pj.is-list .pj-mark.is-row { width: 2.75rem; height: 2.75rem; border-radius: 0.8rem; }
+  .pj.is-list .pj-none, .pj.is-list .pj-empty { grid-column: 1 / -1; }
+}
+
+/* a folder or files dragged over the sheet that makes a project */
+.pj-backdrop.is-dropping .pj-folder-box { border-style: dashed; border-color: var(--text-secondary); }

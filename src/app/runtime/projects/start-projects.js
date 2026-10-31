@@ -72,7 +72,7 @@ export function startProjects({
 
   // The page and its styles are a separate part, loaded the first time (the page still opens plain if the styles fail).
   const loadPage = load || (async () => {
-    const [page] = await Promise.all([import('../../ui/projects/projects-page.js'), import('../../../styles/projects.css').catch((error) => { console.warn('Loading the styles of the projects failed.', error); })]);
+    const [page] = await Promise.all([import('../../ui/projects/projects-page.js'), import('../../../styles/projects.css').catch((error) => { console.warn('Loading the styles of the projects failed.', error); }), import('../../../styles/projects-wide.css').catch(() => {})]);
     return page;
   });
   let opening = null;

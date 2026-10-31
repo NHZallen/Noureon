@@ -269,7 +269,37 @@ function folderChoice(document, text, onChange) {
   clear.addEventListener('click', () => { result.hidden = true; hint.hidden = false; add.hidden = false; onChange({ files: [], skipped: 0, name: '' }); });
   area.append(hint, add, result, input);
   box.appendChild(area);
+  // A folder dropped on the sheet is taken the same way as one chosen with the button.
+  box.setPicked = (picked) => { if (!picked.files.length && !picked.skipped) return; show(picked); onChange(picked); };
   return box;
+}
+
+const DROP_FILES_MAX = 2000;
+const readBatch = (reader) => new Promise((resolve) => { reader.readEntries((entries) => resolve(entries || []), () => resolve([])); });
+const fileOf = (entry) => new Promise((resolve) => { entry.file((file) => resolve(file), () => resolve(null)); });
+
+/**
+ * The files under a dropped folder (`entry` is what `webkitGetAsEntry()` gave): each file gets `webkitRelativePath` like the files of a chosen folder ("Docs/sub/a.txt"), so that
+ * `pickFolderFiles` treats both the same. Folders of tools and hidden ones are not walked into (they are left out anyway), and at most DROP_FILES_MAX files are read.
+ */
+export async function filesOfDroppedFolder(entry, limit = DROP_FILES_MAX) {
+  const out = [];
+  const walk = async (current, path) => {
+    if (out.length >= limit) return;
+    if (current.isFile) {
+      const file = await fileOf(current);
+      if (file) { try { Object.defineProperty(file, 'webkitRelativePath', { value: path, configurable: true }); } catch { /* the path is only for the filter */ } out.push(file); }
+      return;
+    }
+    if (!current.isDirectory || (path !== entry.name && FOLDER_SKIP.test(`${path}/`))) return;
+    const reader = current.createReader();
+    for (let batch = await readBatch(reader); batch.length; batch = await readBatch(reader)) {
+      for (const child of batch) await walk(child, `${path}/${child.name}`);
+      if (out.length >= limit) return;
+    }
+  };
+  await walk(entry, entry.name);
+  return out;
 }
 
 const FOLDER_SKIP = /(^|\/)(\.|node_modules\/|__pycache__\/|dist\/|build\/)/;
@@ -313,6 +343,8 @@ export function openCreateSheet({ document, root, text, actions, notify = () => 
   // On a computer the choice of memory sits at the left of the foot, and the button at the right.
   if (wide) foot.prepend(memoryDropdown(document, text, (value) => { memoryScope = value; }));
   let sheet;
+  let folderBox = null;
+  let sourcesBox = null;
   const field = nameField({
     document, root, text, initial: {},
     onChange: (state) => { button.disabled = busy || !state.name.trim(); },
@@ -334,11 +366,34 @@ export function openCreateSheet({ document, root, text, actions, notify = () => 
         chips.appendChild(chip);
       }
       body.appendChild(chips);
-      if (wide && sources) { const section = sourcesSection(document, text, sources); body.append(section.head, section.list); }
-      if (wide && onFolderFiles) body.appendChild(folderChoice(document, text, (picked) => { folder = picked; }));
+      if (wide && sources) { sourcesBox = sourcesSection(document, text, sources); body.append(sourcesBox.head, sourcesBox.list); }
+      if (wide && onFolderFiles) { folderBox = folderChoice(document, text, (picked) => { folder = picked; }); body.appendChild(folderBox); }
       if (!wide) body.appendChild(memoryChoice(document, text, (value) => { memoryScope = value; }));
     }
   });
+  // A computer: folders and files dragged from the desktop onto the sheet. A folder (with what is in it) goes to "Source folder", single files to the list of the sources.
+  if (wide && (folderBox || sourcesBox)) {
+    // The whole screen behind the sheet takes the drop: a file dropped beside it must not open in the browser.
+    const zone = sheet.element.parentElement || sheet.element;
+    const hasFiles = (event) => [...(event.dataTransfer?.types || [])].includes('Files');
+    zone.addEventListener('dragover', (event) => { if (hasFiles(event)) { event.preventDefault(); zone.classList.add('is-dropping'); } });
+    zone.addEventListener('dragleave', (event) => { if (event.target === zone) zone.classList.remove('is-dropping'); });
+    zone.addEventListener('drop', async (event) => {
+      zone.classList.remove('is-dropping');
+      if (!hasFiles(event)) return;
+      event.preventDefault();
+      // The entries have to be taken now: the list of the drop is empty once the event is over.
+      const items = [...(event.dataTransfer.items || [])].filter((item) => item.kind === 'file');
+      const entries = items.map((item) => ({ entry: item.webkitGetAsEntry?.() || null, file: item.getAsFile?.() || null }));
+      const folders = entries.filter((item) => item.entry?.isDirectory).map((item) => item.entry);
+      const plain = entries.filter((item) => !item.entry?.isDirectory).map((item) => item.file || null).filter(Boolean);
+      if (folders.length && folderBox) {
+        const found = (await Promise.all(folders.map((entry) => filesOfDroppedFolder(entry)))).flat();
+        folderBox.setPicked(pickFolderFiles(found));
+      }
+      if (plain.length && sources?.drop) { sources.drop(plain); sourcesBox?.refresh(); }
+    });
+  }
   button.addEventListener('click', async () => {
     if (busy) return;
     busy = true;

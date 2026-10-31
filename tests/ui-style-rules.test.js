@@ -4,7 +4,7 @@ import test from 'node:test';
 
 // The style rules (docs/superpowers/specs/2026-10-31-ui-style-rules.md) for the style files of the pages that follow them: no weight above 500, no colour of its own (only the names of
 // tokens.css), no heading elements (the page forces them to the bold weight). A new page is added to the list.
-const FILES = ['src/styles/projects.css'];
+const FILES = ['src/styles/projects.css', 'src/styles/projects-wide.css'];
 
 const stripComments = (css) => css.replace(/\/\*[\s\S]*?\*\//g, '');
 

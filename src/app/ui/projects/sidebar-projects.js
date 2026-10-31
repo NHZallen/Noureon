@@ -79,6 +79,8 @@ export function createSidebarProjects({ document, text, actions, openProject, op
   };
 
   const showMenu = async (project, anchor) => {
+    // The ⋯ that opened the menu closes it when it is pressed again.
+    if (menu && menu.anchor === anchor) { menu.close(); return; }
     menu?.close();
     await loadParts();
     menu = openMenu({
