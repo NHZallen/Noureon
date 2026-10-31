@@ -55,7 +55,8 @@ export function ensureSharedItemsCard({ document, config, elements, state, clien
       list.appendChild(el(document, 'p', 'cs-card-desc', text('csCardEmpty')));
     }
     for (const item of state.isLoaded() ? state.all() : []) {
-      const gone = item.deleted || item.suspended;
+      const record = item.deleted || item.removed;
+      const gone = record || item.suspended;
       const row = el(document, 'div', `cs-item${gone ? ' is-gone' : ''}`);
       const main = el(document, 'div', 'cs-item-main');
       main.appendChild(el(document, 'span', 'cs-item-title', item.title || text('csRowUntitled')));
@@ -63,6 +64,7 @@ export function ensureSharedItemsCard({ document, config, elements, state, clien
       const meta = el(document, 'span', 'cs-item-meta');
       meta.append(el(document, 'span', 'cs-pill', item.mode === 'continue' ? text('csModeContinue') : text('csModeView')), el(document, 'span', null, dateText(item.createdAt, config?.uiLanguage)));
       if (item.deleted) meta.appendChild(el(document, 'span', 'cs-item-note', text('csRowDeleted')));
+      else if (item.removed) meta.appendChild(el(document, 'span', 'cs-item-note', text('csRowRemoved')));
       else if (item.suspended) meta.appendChild(el(document, 'span', 'cs-item-note', text('csRowSuspended')));
       main.appendChild(meta);
       const actions = el(document, 'div', 'cs-item-actions');
@@ -72,13 +74,13 @@ export function ensureSharedItemsCard({ document, config, elements, state, clien
         copyBtn.addEventListener('click', async () => { const ok = await copy(addressOf(document, item.code)); notify(ok ? text('csCopied') : text('csErrGeneric'), ok ? 'success' : 'error'); });
         actions.appendChild(copyBtn);
       }
-      const drop = el(document, 'button', `cs-btn${item.deleted ? '' : ' is-danger-text'}`, item.deleted ? text('csRowRemove') : text('csRowRevoke'));
+      const drop = el(document, 'button', `cs-btn${record ? '' : ' is-danger-text'}`, record ? text('csRowRemove') : text('csRowRevoke'));
       drop.type = 'button';
       drop.addEventListener('click', async () => {
-        if (!item.deleted && !(await confirm(text('csRevokeConfirm', { title: item.title || text('csRowUntitled') }), text('csRevokeTitle')))) return;
+        if (!record && !(await confirm(text('csRevokeConfirm', { title: item.title || text('csRowUntitled') }), text('csRevokeTitle')))) return;
         drop.disabled = true;
         const result = await client.revoke(item.id);
-        if (result.ok) { state.remove(item.id); if (!item.deleted) notify(text('csRevoked'), 'success'); } else { drop.disabled = false; notify(text('csErrGeneric'), 'error'); }
+        if (result.ok) { state.remove(item.id); if (!record) notify(text('csRevoked'), 'success'); } else { drop.disabled = false; notify(text('csErrGeneric'), 'error'); }
       });
       actions.appendChild(drop);
       row.append(main, actions);

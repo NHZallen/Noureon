@@ -69,12 +69,12 @@ test('the owner sees each reported share with what was said as text, and can res
     [...second.querySelectorAll('button')].find((node) => node.textContent === words.dismiss).click();
     await tick();
     assert.ok(calls.some((call) => call[0] === 'admin_dismiss_share_reports'));
-    const del = [...document.querySelector('.sp-admin-card').querySelectorAll('button')].find((node) => node.textContent === words.delete);
+    const del = [...document.querySelector('.sp-admin-card').querySelectorAll('button')].find((node) => node.textContent === words.remove);
     del.click();
-    assert.equal(calls.some((call) => call[0] === 'admin_delete_share'), false, 'a delete asks once more');
+    assert.equal(calls.some((call) => call[0] === 'admin_remove_share'), false, 'taking down asks once more');
     del.click();
     await tick();
-    assert.deepEqual(calls.find((call) => call[0] === 'admin_delete_share')[1], { p_id: 's1' });
+    assert.deepEqual(calls.find((call) => call[0] === 'admin_remove_share')[1], { p_id: 's1' });
   } finally { await window.happyDOM.abort(); }
 });
 
@@ -88,4 +88,20 @@ test('a share with nothing reported says so; a paused share of the person is lis
   assert.equal(state.all()[0].suspended, true);
   assert.equal(state.active().length, 0);
   assert.equal(state.activeFor('c').length, 0);
+});
+
+test('a share taken down is a record: it can only be deleted, and the person sees it as taken down and not counted', async () => {
+  const taken = await open({ rows: [{ ...REPORTED, status: 'removed' }] });
+  try {
+    const card = taken.window.document.querySelector('.sp-admin-card');
+    assert.equal(card.querySelector('a.sp-btn'), null, 'nothing to read');
+    const labels = [...card.querySelectorAll('button')].map((node) => node.textContent);
+    assert.ok(labels.includes(SHARE_ADMIN_TEXTS.en.deleteRecord));
+    assert.equal(labels.includes(SHARE_ADMIN_TEXTS.en.remove), false);
+  } finally { await taken.window.happyDOM.abort(); }
+  const client = createShareClient({ getSupabase: () => ({ rpc: async () => ({ data: [{ id: 'a', conversation_id: 'c', code: 'x', mode: 'view', show_name: false, title: 'T', status: 'removed', created_at: 'x', updated_at: 'x' }], error: null }) }) });
+  const state = createShareState();
+  state.replace((await client.list()).items);
+  assert.equal(state.all()[0].removed, true);
+  assert.equal(state.active().length, 0);
 });

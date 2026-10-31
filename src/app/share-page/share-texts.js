@@ -2,6 +2,8 @@
 
 export const SHARE_PAGE_TEXTS = {
   'zh-TW': {
+    removedTitle: '此分享經審查後已下架', removedBody: '這個分享的內容經 Noureon 審查後已下架，連結不再有效。',
+    underReviewTitle: '此對話正在審查中', underReviewBody: '多位讀者檢舉了這個分享，連結暫時失效，等審查後才會決定是否恢復。', reviewFailed: '審查檢視失敗：{reason}',
     reviewNote: '審查檢視（只有管理員看得到）：目前{status}。', reviewActive: '有效', reviewSuspended: '已暫停',
     title: '分享的對話', loading: '載入中…', goToApp: '前往 Noureon',
     sharedBy: '由 {name} 分享', sharedOn: '分享於 {date}', snapshotNote: '這是分享當時的內容，之後的新訊息不會出現在這裡。',
@@ -13,6 +15,8 @@ export const SHARE_PAGE_TEXTS = {
     reportSend: '送出', reportCancel: '取消', reportThanks: '已收到檢舉，謝謝。', reportFailed: '送出失敗，請稍後再試。', model: '模型'
   },
   en: {
+    removedTitle: 'This share was taken down after review', removedBody: 'The content of this share was taken down by Noureon after review, and the link no longer works.',
+    underReviewTitle: 'This conversation is under review', underReviewBody: 'Several readers reported this share, so its link is paused until it has been reviewed.', reviewFailed: 'The review view failed: {reason}',
     reviewNote: 'Review view (only the administrator sees this): {status} now.', reviewActive: 'active', reviewSuspended: 'paused',
     title: 'Shared conversation', loading: 'Loading…', goToApp: 'Go to Noureon',
     sharedBy: 'Shared by {name}', sharedOn: 'Shared on {date}', snapshotNote: 'This is the conversation as it was when it was shared. Later messages do not appear here.',
@@ -24,6 +28,8 @@ export const SHARE_PAGE_TEXTS = {
     reportSend: 'Send', reportCancel: 'Cancel', reportThanks: 'Report received, thank you.', reportFailed: 'Could not send. Please try again later.', model: 'Model'
   },
   fr: {
+    removedTitle: 'Ce partage a été retiré après examen', removedBody: 'Le contenu de ce partage a été retiré par Noureon après examen ; le lien ne fonctionne plus.',
+    underReviewTitle: 'Cette conversation est en cours d’examen', underReviewBody: 'Plusieurs lecteurs ont signalé ce partage : son lien est suspendu jusqu’à l’examen.', reviewFailed: 'La vue d’examen a échoué : {reason}',
     reviewNote: 'Vue d’examen (seul l’administrateur la voit) : {status} actuellement.', reviewActive: 'actif', reviewSuspended: 'suspendu',
     title: 'Conversation partagée', loading: 'Chargement…', goToApp: 'Aller sur Noureon',
     sharedBy: 'Partagé par {name}', sharedOn: 'Partagé le {date}', snapshotNote: 'Voici la conversation telle qu’elle était au moment du partage. Les messages suivants n’apparaissent pas ici.',
@@ -35,6 +41,8 @@ export const SHARE_PAGE_TEXTS = {
     reportSend: 'Envoyer', reportCancel: 'Annuler', reportThanks: 'Signalement reçu, merci.', reportFailed: 'Envoi impossible. Réessayez plus tard.', model: 'Modèle'
   },
   ru: {
+    removedTitle: 'Эта ссылка удалена после проверки', removedBody: 'Содержимое этой ссылки было удалено Noureon после проверки, ссылка больше не работает.',
+    underReviewTitle: 'Эта беседа на проверке', underReviewBody: 'На эту ссылку пожаловались несколько читателей, поэтому она приостановлена до проверки.', reviewFailed: 'Не удалось открыть режим проверки: {reason}',
     reviewNote: 'Режим проверки (его видит только администратор): сейчас {status}.', reviewActive: 'действует', reviewSuspended: 'приостановлена',
     title: 'Беседа по ссылке', loading: 'Загрузка…', goToApp: 'Перейти в Noureon',
     sharedBy: 'Поделился(-ась): {name}', sharedOn: 'Дата: {date}', snapshotNote: 'Это беседа в том виде, в каком ею поделились. Более поздние сообщения здесь не появятся.',
@@ -46,6 +54,8 @@ export const SHARE_PAGE_TEXTS = {
     reportSend: 'Отправить', reportCancel: 'Отмена', reportThanks: 'Жалоба получена, спасибо.', reportFailed: 'Не удалось отправить. Повторите попытку позже.', model: 'Модель'
   },
   es: {
+    removedTitle: 'Este enlace se retiró tras la revisión', removedBody: 'Noureon retiró el contenido de este enlace tras revisarlo y el enlace ya no funciona.',
+    underReviewTitle: 'Esta conversación está en revisión', underReviewBody: 'Varios lectores denunciaron este enlace, así que está en pausa hasta que se revise.', reviewFailed: 'La vista de revisión falló: {reason}',
     reviewNote: 'Vista de revisión (solo la ve el administrador): ahora {status}.', reviewActive: 'activo', reviewSuspended: 'en pausa',
     title: 'Conversación compartida', loading: 'Cargando…', goToApp: 'Ir a Noureon',
     sharedBy: 'Compartido por {name}', sharedOn: 'Compartido el {date}', snapshotNote: 'Esta es la conversación tal como estaba al compartirla. Los mensajes posteriores no aparecen aquí.',

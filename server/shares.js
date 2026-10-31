@@ -13,7 +13,7 @@ const SHARED_MARKER = '__astraSharedAsset';
 const SWEEP_EVERY_MS = 2 * 60 * 1000;
 
 export class ShareError extends Error {
-  /** `code`: 'not_found', 'limit', 'too_large', 'not_active', 'storage', 'database'. */
+  /** `code`: 'not_found', 'limit', 'too_large', 'not_active', 'removed', 'storage', 'database'. */
   constructor(message, code, extra = {}) {
     super(message);
     this.name = 'ShareError';
@@ -154,6 +154,7 @@ export function createShares({ db, store, log = () => {}, now = Date.now, limits
       await db.rpc('server_create_conversation_share', { p_share_id: shareId, p_user_id: userId, p_conversation_id: conversationId, p_code: code, p_mode: mode, p_show_name: showName === true, p_owner_name: name, p_title: read.conversation.title, p_limit: limits.shares });
     } catch (error) {
       if (/share_limit/.test(String(error?.message))) throw new ShareError('The limit of shares is reached.', 'limit', { limit: limits.shares });
+      if (/share_removed/.test(String(error?.message))) throw new ShareError('A share of this conversation was taken down; it cannot be shared again.', 'removed');
       throw new ShareError('The share could not be made.', 'database');
     }
     try {

@@ -48,7 +48,7 @@ export async function initializeShareAdminPage({ window, document, supabase = ge
   try { admin = (await supabase.rpc('is_service_admin'))?.data === true; } catch { admin = false; }
   if (!admin) { say(text('notFound')); return { handled: true, admin: false }; }
 
-  const STATUS = { active: 'statusActive', suspended: 'statusSuspended', conversation_deleted: 'statusDeleted' };
+  const STATUS = { active: 'statusActive', suspended: 'statusSuspended', conversation_deleted: 'statusDeleted', removed: 'statusRemoved' };
   async function draw() {
     let rows;
     try {
@@ -83,7 +83,7 @@ export async function initializeShareAdminPage({ window, document, supabase = ge
         });
         actions.appendChild(button);
       };
-      if (row.status !== 'conversation_deleted') {
+      if (row.status === 'active' || row.status === 'suspended') {
         const open = el(document, 'a', 'sp-btn', text('open'));
         open.href = `/s/${row.code}?review=1`; open.target = '_blank'; open.rel = 'noopener noreferrer';
         actions.appendChild(open);
@@ -91,7 +91,8 @@ export async function initializeShareAdminPage({ window, document, supabase = ge
       if (row.status === 'suspended') act(text('restore'), () => supabase.rpc('admin_set_share_status', { p_id: row.share_id, p_status: 'active' }), { primary: true });
       if (row.status === 'active') act(text('pause'), () => supabase.rpc('admin_set_share_status', { p_id: row.share_id, p_status: 'suspended' }));
       if (row.total_reports > 0) act(text('dismiss'), () => supabase.rpc('admin_dismiss_share_reports', { p_id: row.share_id }));
-      act(text('delete'), () => supabase.rpc('admin_delete_share', { p_id: row.share_id }), { confirm: true });
+      if (row.status === 'active' || row.status === 'suspended') act(text('remove'), () => supabase.rpc('admin_remove_share', { p_id: row.share_id }), { confirm: true });
+      else act(text('deleteRecord'), () => supabase.rpc('admin_delete_share', { p_id: row.share_id }), { confirm: true });
       card.appendChild(actions);
       main.appendChild(card);
     }

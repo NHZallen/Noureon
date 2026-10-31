@@ -21,6 +21,7 @@ export function failureText(text, result) {
     case 'limit': return text('csErrLimit', { max: result.max || SHARE_MAX });
     case 'too_large': return text('csErrTooLarge', { what: result.what === 'files' ? text('csErrTooLargeFiles', { limit: LIMIT_FILES }) : text('csErrTooLargeText', { limit: LIMIT_TEXT }) });
     case 'gone': return text('csErrGone');
+    case 'removed': return text('csErrRemoved');
     case 'sign_in': return text('csErrSignIn');
     default: return text('csErrGeneric');
   }

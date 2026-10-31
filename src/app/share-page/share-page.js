@@ -100,10 +100,13 @@ export async function initializeSharePage({ window, document, supabase = getSupa
 
   const dateText = (value) => { const date = new Date(value); return Number.isNaN(date.getTime()) ? '' : date.toLocaleDateString(language, { year: 'numeric', month: 'long', day: 'numeric' }); };
 
-  function drawMessage(title, body, retry = null) {
+  // A notice (not found, paused, taken down, failed) is kept as the keys of its words, so that it is written again when the language changes.
+  let notice = null;
+  function drawMessage(titleKey, bodyKey, retry = null, values = {}) {
+    notice = { titleKey, bodyKey, retry, values };
     main.replaceChildren();
     const box = el(document, 'section', 'sp-notice');
-    box.append(el(document, 'h1', null, title), el(document, 'p', null, body));
+    box.append(el(document, 'h1', null, text(titleKey)), el(document, 'p', null, text(bodyKey, values)));
     if (retry) { const button = el(document, 'button', 'sp-btn', text('retry')); button.type = 'button'; button.addEventListener('click', retry); box.appendChild(button); }
     main.appendChild(box);
   }
@@ -205,7 +208,7 @@ export async function initializeSharePage({ window, document, supabase = getSupa
   async function load() {
     main.replaceChildren(el(document, 'p', 'sp-loading', text('loading')));
     drawFooter();
-    if (!code || !supabase) { drawMessage(text('notFoundTitle'), text('notFoundBody')); return; }
+    if (!code || !supabase) { drawMessage('notFoundTitle', 'notFoundBody'); return; }
     let data;
     try {
       // The owner of the service reads a share whatever its status (?review=1): the database answers only an account it knows; for anyone else this falls back to the ordinary read.
@@ -214,6 +217,8 @@ export async function initializeSharePage({ window, document, supabase = getSupa
         let review = null;
         try { review = await supabase.rpc('admin_get_shared_conversation', { p_code: code }); } catch { review = null; }
         if (review && !review.error && review.data) { data = review.data; reviewStatus = review.data.status || 'active'; }
+        // The administrator is told why the review view did not open (anyone else is not allowed and reads the share as everyone does).
+        else if (review?.error && !/not allowed/i.test(String(review.error.message || ''))) { drawMessage('title', 'reviewFailed', load, { reason: String(review.error.message || review.error.code || '').slice(0, 200) }); return; }
       }
       if (!data) {
         const result = await supabase.rpc('get_shared_conversation', { p_code: code });
@@ -221,10 +226,13 @@ export async function initializeSharePage({ window, document, supabase = getSupa
         data = result.data;
       }
     } catch {
-      drawMessage(text('title'), text('failed'), load);
+      drawMessage('title', 'failed', load);
       return;
     }
-    if (!data || !data.snapshot) { drawMessage(text('notFoundTitle'), text('notFoundBody')); return; }
+    // A paused link (reported by several readers) says so, without anything of the conversation.
+    if (data?.status === 'suspended' && !data.snapshot) { drawMessage('underReviewTitle', 'underReviewBody'); return; }
+    if (data?.status === 'removed' && !data.snapshot) { drawMessage('removedTitle', 'removedBody'); return; }
+    if (!data || !data.snapshot) { drawMessage('notFoundTitle', 'notFoundBody'); return; }
     const hydrated = await hydrateSharedSnapshot(data.snapshot, { baseUrl, fetchImpl });
     missingFiles = hydrated.missing;
     loaded = { share: { mode: data.mode, ownerName: data.ownerName || '', createdAt: data.createdAt, updatedAt: data.updatedAt, title: data.title }, snapshot: { ...hydrated.snapshot, messages: Array.isArray(hydrated.snapshot.messages) ? hydrated.snapshot.messages : [] } };
@@ -240,7 +248,8 @@ export async function initializeSharePage({ window, document, supabase = getSupa
     language = supported(select.value) || language;
     await ensureLanguage(language).catch(() => {});
     applyLanguage();
-    if (loaded) drawReady(); else drawFooter();
+    if (loaded) drawReady();
+    else { if (notice) drawMessage(notice.titleKey, notice.bodyKey, notice.retry, notice.values); drawFooter(); }
   });
 
   applyLanguage();

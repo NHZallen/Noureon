@@ -13,6 +13,7 @@ const failure = (result) => {
   const error = result?.data?.error || {};
   const reason = error.reason || '';
   if (result?.status === 401 || result?.code === 'unauthorized') return { ok: false, code: 'sign_in' };
+  if (reason === 'removed') return { ok: false, code: 'removed' };
   if (reason === 'limit') return { ok: false, code: 'limit', max: Number(error.limit) || SHARE_MAX };
   if (reason === 'too_large') return { ok: false, code: 'too_large', what: error.what === 'files' ? 'files' : 'text' };
   if (result?.status === 404 || reason === 'not_active') return { ok: false, code: 'gone' };
@@ -29,6 +30,8 @@ const fromRow = (row) => ({
   deleted: row.status === 'conversation_deleted',
   // Paused after reports from several readers: the link does not work until the owner of the service has looked at it.
   suspended: row.status === 'suspended',
+  // Taken down by the owner of the service after a review: the record stays, the link says so.
+  removed: row.status === 'removed',
   createdAt: row.created_at,
   updatedAt: row.updated_at
 });

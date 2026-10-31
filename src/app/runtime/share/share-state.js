@@ -11,8 +11,8 @@ export function createShareState() {
     isLoaded: () => loaded,
     all: () => items,
     /** The shares that work (the conversation is still there and the share is not paused), newest first. */
-    active: () => items.filter((item) => !item.deleted && !item.suspended),
-    activeFor: (conversationId) => items.filter((item) => !item.deleted && !item.suspended && item.conversationId === conversationId),
+    active: () => items.filter((item) => !item.deleted && !item.suspended && !item.removed),
+    activeFor: (conversationId) => items.filter((item) => !item.deleted && !item.suspended && !item.removed && item.conversationId === conversationId),
     replace(next) { items = Array.isArray(next) ? next : []; loaded = true; emit(); },
     upsert(item) { items = [item, ...items.filter((existing) => existing.id !== item.id)]; emit(); },
     remove(id) { items = items.filter((item) => item.id !== id); emit(); },

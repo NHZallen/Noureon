@@ -41,7 +41,7 @@ test('each share with new reports gets one mail to the address of the settings',
   const sent = await createShareReportMailer({ db, mailer, to: 'me@example.test', appUrl: 'https://noureon.com' }).mailOnce();
   assert.equal(sent, 2);
   assert.deepEqual(mailer.sent.map((mail) => mail.to), ['me@example.test', 'me@example.test']);
-  assert.deepEqual(calls.map((call) => call[0]), ['server_take_share_reports_to_mail']);
+  assert.deepEqual(calls.map((call) => call[0]), ['server_take_share_reports_to_mail', 'server_take_removed_shares_to_mail']);
 });
 
 test('a mail that cannot be sent puts its reports back, and nothing is asked when mail is not set up', async () => {
@@ -66,4 +66,29 @@ test('a failing database does not stop the sweep of the shares', async () => {
   });
   await shares.sweepOnce();
   assert.ok(logs.includes('share_report_take_failed'));
+});
+
+test('the owner of a share that was taken down is told once, at the address of their account, in the five languages, and a failed mail goes back', async () => {
+  const mailer = mailerOf(['ok', 'fail']);
+  const calls = [];
+  const rows = [{ share_id: 's1', owner_email: 'ada@example.test', title: 'Strawberry\ncake' }, { share_id: 's2', owner_email: 'bob@example.test', title: 'Other' }, { share_id: 's3', owner_email: null, title: 'No address' }];
+  const db = { rpc: async (name, params) => { calls.push([name, params]); return name === 'server_take_removed_shares_to_mail' ? rows : []; } };
+  const sent = await createShareReportMailer({ db, mailer, to: 'me@example.test', appUrl: 'https://noureon.com' }).mailRemovalsOnce();
+  assert.equal(sent, 1);
+  assert.equal(mailer.sent[0].to, 'ada@example.test');
+  assert.equal(mailer.sent[0].replyTo, 'me@example.test');
+  assert.doesNotMatch(mailer.sent[0].subject, /[\r\n]/);
+  assert.match(mailer.sent[0].text, /已下架/);
+  assert.match(mailer.sent[0].text, /taken down by Noureon/);
+  assert.match(mailer.sent[0].text, /retirée par Noureon/);
+  assert.match(mailer.sent[0].text, /удалена Noureon/);
+  assert.match(mailer.sent[0].text, /retirada por Noureon/);
+  assert.deepEqual(calls.find((call) => call[0] === 'server_requeue_removed_shares')[1], { p_share_ids: ['s2'] });
+});
+
+test('a failing take of the reports does not stop the mails about removals', async () => {
+  const mailer = mailerOf();
+  const db = { rpc: async (name) => { if (name === 'server_take_share_reports_to_mail') throw new Error('down'); return name === 'server_take_removed_shares_to_mail' ? [{ share_id: 's1', owner_email: 'ada@example.test', title: 'T' }] : []; } };
+  const sent = await createShareReportMailer({ db, mailer, to: 'me@example.test', appUrl: 'https://noureon.com' }).mailOnce();
+  assert.equal(sent, 1);
 });

@@ -168,3 +168,39 @@ test('the database client answers with something that can be waited for but has 
     assert.equal(window.document.querySelector('.sp-notice'), null);
   } finally { await window.happyDOM.abort(); }
 });
+
+test('a paused link says the conversation is under review, and the review view says why it failed', async () => {
+  const paused = await open(`/s/${CODE}`, { rpc: async () => ({ data: { status: 'suspended' }, error: null }) });
+  try {
+    assert.ok(paused.window.document.querySelector('.sp-notice'));
+    assert.match(paused.window.document.querySelector('.sp-notice h1').textContent, /under review|審查中/);
+    assert.equal(paused.window.document.querySelector('.sp-messages'), null);
+  } finally { await paused.window.happyDOM.abort(); }
+  const failed = await open(`/s/${CODE}?review=1`, { rpc: async (name) => (name === 'admin_get_shared_conversation' ? { data: null, error: { message: 'boom: something' } } : { data: null, error: null }) });
+  try {
+    assert.match(failed.window.document.querySelector('.sp-notice').textContent, /boom: something/);
+    assert.ok(failed.window.document.querySelector('.sp-notice .sp-btn'), 'it can be tried again');
+  } finally { await failed.window.happyDOM.abort(); }
+});
+
+test('a notice is written again in the language the reader chooses, and a share taken down after review says so', async () => {
+  const gone = await open(`/s/${CODE}`, { rpc: async () => ({ data: null, error: null }) });
+  try {
+    const { document } = gone.window;
+    const before = document.querySelector('.sp-notice h1').textContent;
+    const select = document.querySelector('.sp-lang');
+    select.value = select.value === 'fr' ? 'en' : 'fr';
+    select.dispatchEvent(new gone.window.Event('change'));
+    await tick();
+    await tick();
+    const after = document.querySelector('.sp-notice h1').textContent;
+    assert.notEqual(after, before, 'the title follows the language');
+    assert.equal(after, SHARE_PAGE_TEXTS[select.value].notFoundTitle);
+    assert.equal(document.querySelector('.sp-disclaimer').textContent.startsWith(SHARE_PAGE_TEXTS[select.value].disclaimer), true);
+  } finally { await gone.window.happyDOM.abort(); }
+  const removed = await open(`/s/${CODE}`, { rpc: async () => ({ data: { status: 'removed' }, error: null }) });
+  try {
+    assert.match(removed.window.document.querySelector('.sp-notice h1').textContent, /taken down|下架/);
+    assert.equal(removed.window.document.querySelector('.sp-messages'), null);
+  } finally { await removed.window.happyDOM.abort(); }
+});

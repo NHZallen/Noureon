@@ -446,7 +446,7 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
           if (!(error instanceof ShareError)) throw error;
           if (error.code === 'not_found') throw new RequestError(ERROR_CODES.conversationNotFound, error.message);
           if (error.code === 'bad_request') throw new RequestError(ERROR_CODES.badRequest, error.message);
-          if (error.code === 'limit' || error.code === 'not_active') throw new RequestError(ERROR_CODES.wrongPhase, error.message, { reason: error.code, ...error.extra });
+          if (error.code === 'limit' || error.code === 'not_active' || error.code === 'removed') throw new RequestError(ERROR_CODES.wrongPhase, error.message, { reason: error.code, ...error.extra });
           if (error.code === 'too_large') throw new RequestError(ERROR_CODES.requestTooLarge, error.message, { reason: 'too_large', ...error.extra });
           throw new RequestError(ERROR_CODES.runsUnavailable, error.message, { reason: error.code });
         }
