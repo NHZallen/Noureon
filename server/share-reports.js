@@ -25,12 +25,11 @@ export function reportMailFor(row, { appUrl }) {
     preheader: `${title}：${state}`,
     heading: paused ? '有分享被檢舉，已暫停' : '有人檢舉了一個分享',
     intro: [paused ? '同一個分享被三位不同的讀者檢舉，連結已經先暫停，等你看過再決定。' : '有讀者檢舉了下面這個分享，目前連結仍然有效。'],
-    quote: { label: '對話名稱', text: title },
-    details: [['權限', mode], ['狀態', state], ['檢舉', counts]],
-    list: reasons.length ? { label: '讀者寫的原因', items: reasons } : null,
+    details: [['對話名稱：', title], ['權限：', mode], ['狀態：', state], ['檢舉：', counts]],
+    list: reasons.length ? { label: '讀者寫的原因：', items: reasons } : null,
     buttons: gone ? [] : [{ label: '看內容', href: review }, { label: '前往後台', href: admin }],
-    muted: ['這封信是 Noureon 伺服器自動寄出的，寄到 REPORT_TO 設定的信箱。'],
-    footer: 'notice'
+    footer: ['這封信是 Noureon 伺服器自動寄出的，寄到 REPORT_TO 設定的信箱。'],
+    contact: false
   });
   return { subject: oneLine(`[Noureon] 分享被檢舉${paused ? '，已暫停' : ''}：${title}`, 120), text: lines.join('\n'), html };
 }
@@ -47,10 +46,9 @@ export function removedMailFor(row) {
     html: renderMail({
       preheader: 'Its link no longer works and it can no longer be shared. Nothing was deleted from your account.',
       heading: 'Your shared conversation was taken down',
-      intro: [title ? 'Noureon took down the share of this conversation after a review.' : first],
-      quote: title ? { label: 'Conversation', text: title } : null,
+      intro: [title ? ['Noureon took down the share of ', { b: title }, ' after a review.'] : first],
       outro: [second, third],
-      muted: ['You are receiving this because the conversation was shared from your Noureon account.']
+      footer: ['You are receiving this because the conversation was shared from your Noureon account.']
     })
   };
 }

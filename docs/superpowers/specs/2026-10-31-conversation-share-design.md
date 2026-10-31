@@ -119,4 +119,4 @@
 - **下架的對話不能再分享**：`blocked_share_conversations` 記著（分享者 id + 對話 id），`server_create_conversation_share` 遇到就拒絕（`share_removed` → 409 `reason: removed`），分享者移除紀錄也解不開。換一個新的對話（例如複製內容）不受限，這個做法擋不到。
 - migration：`20261031060000_share_under_review_notice.sql`（在 05 之後）。
 
-- 信件樣式（`server/mail-layout.js`）照 `docs/email-templates/build-emails.py` 的設計做（卡片、圓形圖示、紫色按鈕、頁尾兩個連結、深色模式），和 Supabase 的認證信一致；有 HTML 與純文字兩個版本。
+- 信件樣式（`server/mail-layout.js`）照 Allen 收到的 Vercel、Linear 通知信做：純白頁面、不用卡片和方框、左上小圖示、標題加一般段落、一個黑色按鈕、細線與灰色頁尾、深色模式（黑底淺字、淺色按鈕）；有 HTML 與純文字兩個版本。Allen 說過「太 AI、不好看」的卡片＋紫色版本已不用。
