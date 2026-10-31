@@ -39,8 +39,8 @@ export function openShareDialog({ document, text, client, state, conversation, o
     let message = '';
     let messageKind = '';
 
-    const overlay = el(document, 'div', 'modal fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50 cs-overlay');
-    const box = el(document, 'div', 'bg-[var(--modal-bg)] rounded-lg shadow-xl w-full max-w-md cs-box');
+    const overlay = el(document, 'div', 'cs-overlay');
+    const box = el(document, 'div', 'cs-box');
     overlay.setAttribute('role', 'dialog');
     overlay.setAttribute('aria-modal', 'true');
     overlay.appendChild(box);

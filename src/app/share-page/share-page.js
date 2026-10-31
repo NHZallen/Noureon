@@ -14,6 +14,9 @@ import { createConversationViewRenderer } from '../runtime/messages/conversation
 import { createMediaAttachmentRenderer } from '../runtime/messages/media-attachment-renderer.js';
 import { createMediaPreviewLifecycle } from '../runtime/messages/media-preview-lifecycle.js';
 import { escapeHTML, renderUserText } from '../runtime/shell/shell-utilities.js';
+import { applyRememberedAccent } from '../../utils/accent-mirror.js';
+import { watchSourceIcons } from '../ui/sandbox/run-sources.js';
+import { easeSavedDetails } from '../ui/motion/collapse-motion.js';
 import { PENDING_SHARE_KEY, shareCodeOf } from './share-route.js';
 import { hydrateSharedSnapshot } from './share-assets.js';
 import { sharePageText } from './share-texts.js';
@@ -44,6 +47,10 @@ export function markPageAsPrivate(document) {
 export async function initializeSharePage({ window, document, supabase = getSupabaseClient(), fetchImpl = window.fetch.bind(window), baseUrl = getSupabaseUrl(), renderMarkdown = null } = {}) {
   const code = shareCodeOf(window.location.pathname);
   markPageAsPrivate(document);
+  // The colours the person chose in the app (the accent, the bubble), when they open the page in the same browser.
+  applyRememberedAccent(document.documentElement, window.localStorage);
+  watchSourceIcons(document);
+  easeSavedDetails(document);
   let language = supported(readLoginLanguage()) || supported(readLastUiLanguage()) || supported(detectSystemLanguage()) || 'zh-TW';
   await ensureLanguage(language).catch(() => {});
   const text = (key, values) => sharePageText(language, key, values);

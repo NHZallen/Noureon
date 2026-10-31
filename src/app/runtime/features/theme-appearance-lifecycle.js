@@ -3,6 +3,7 @@ import {
     getTextColorForBackground as getThemeTextColorForBackground,
 } from '../../../utils/color-contrast.js';
 import { bubbleColorsFor } from '../../../utils/accent-bubble.js';
+import { rememberAccent } from '../../../utils/accent-mirror.js';
 import { createColorScheme } from './color-scheme.js';
 import { syncPictureNumbers } from '../tool-models/picture-numbers.js';
 
@@ -37,6 +38,8 @@ export function createThemeAppearanceLifecycle(dependencies = {}) {
         const bubble = bubbleColorsFor(chosen || UI_THEME_COLORS.default, theme, UI_THEME_COLORS);
         root.style.setProperty('--user-bubble-bg', bubble.bg);
         root.style.setProperty('--user-bubble-text', bubble.text);
+        // The page of a shared conversation puts the same colours on itself (utils/accent-mirror.js).
+        rememberAccent({ theme, primary: primaryBg, primaryText: getThemeTextColorForBackground(primaryBg), bubbleBg: bubble.bg, bubbleText: bubble.text });
         shownTheme = theme;
         syncPictureNumbers(root, getConfig());
         refreshColorChoices();

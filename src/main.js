@@ -1,7 +1,6 @@
 import 'cropperjs/dist/cropper.css';
 import 'katex/dist/katex.min.css';
 import './styles/main.css';
-import './styles/share-page.css';
 
 import { loadKatex } from './app/vendors/katex-vendor.js';
 import { loadVendorScript } from './app/bootstrap/load-vendor-script.js';
@@ -70,6 +69,7 @@ async function bootstrap() {
 
   // A link someone shared (noureon.com/s/<code>) opens the page that reads it, not the app.
   if (isShareRoute(window.location.pathname)) {
+    await import('./app/share-page/share-page-styles.js');
     const { initializeSharePage } = await import('./app/share-page/share-page.js');
     await initializeSharePage({ window, document });
     return;
