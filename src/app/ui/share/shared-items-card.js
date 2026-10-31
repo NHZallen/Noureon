@@ -55,16 +55,18 @@ export function ensureSharedItemsCard({ document, config, elements, state, clien
       list.appendChild(el(document, 'p', 'cs-card-desc', text('csCardEmpty')));
     }
     for (const item of state.isLoaded() ? state.all() : []) {
-      const row = el(document, 'div', `cs-item${item.deleted ? ' is-gone' : ''}`);
+      const gone = item.deleted || item.suspended;
+      const row = el(document, 'div', `cs-item${gone ? ' is-gone' : ''}`);
       const main = el(document, 'div', 'cs-item-main');
       main.appendChild(el(document, 'span', 'cs-item-title', item.title || text('csRowUntitled')));
       main.appendChild(el(document, 'span', 'cs-item-url', addressOf(document, item.code)));
       const meta = el(document, 'span', 'cs-item-meta');
       meta.append(el(document, 'span', 'cs-pill', item.mode === 'continue' ? text('csModeContinue') : text('csModeView')), el(document, 'span', null, dateText(item.createdAt, config?.uiLanguage)));
       if (item.deleted) meta.appendChild(el(document, 'span', 'cs-item-note', text('csRowDeleted')));
+      else if (item.suspended) meta.appendChild(el(document, 'span', 'cs-item-note', text('csRowSuspended')));
       main.appendChild(meta);
       const actions = el(document, 'div', 'cs-item-actions');
-      if (!item.deleted) {
+      if (!gone) {
         const copyBtn = el(document, 'button', 'cs-btn', text('csRowCopy'));
         copyBtn.type = 'button';
         copyBtn.addEventListener('click', async () => { const ok = await copy(addressOf(document, item.code)); notify(ok ? text('csCopied') : text('csErrGeneric'), ok ? 'success' : 'error'); });

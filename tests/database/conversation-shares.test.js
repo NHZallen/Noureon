@@ -161,3 +161,82 @@ test('the files of the public bucket that no share points to are the orphans', a
   await A.query('select public.revoke_conversation_share($1)', [shareId]);
   assert.ok((await database.service.query('select * from public.orphan_shared_assets(100)')).some((row) => row.name === `${shareId}/${hash}`), 'a share taken away leaves its files as orphans');
 });
+
+// ---------- reports (supabase/migrations/20261031050000_add_share_report_review.sql)
+
+const reportFrom = (address, shareCode, reason = '') => database.anonFrom(address).query('select public.report_shared_conversation($1, $2) as ok', [shareCode, reason]);
+const statusOf = async (shareId) => (await database.service.query('select status from public.conversation_shares where id = $1', [shareId]))[0]?.status;
+
+test('a share with reports from three different readers is paused at once; one reader cannot do it alone', async () => {
+  const conversationId = await conversationOf(A);
+  const { shareId, shareCode } = await share(ada, conversationId);
+  for (let index = 0; index < 5; index += 1) await reportFrom('203.0.113.7', shareCode, 'spam');
+  assert.equal(await statusOf(shareId), 'active', 'five reports of one reader count once');
+  assert.ok(await publicRead(database.anon, shareCode));
+  await reportFrom('203.0.113.8', shareCode);
+  assert.equal(await statusOf(shareId), 'active');
+  await reportFrom('203.0.113.9', shareCode, 'illegal');
+  assert.equal(await statusOf(shareId), 'suspended');
+  assert.equal(await publicRead(database.anon, shareCode), null, 'the link stops working');
+  assert.equal((await reportFrom('198.51.100.1', shareCode))[0].ok, false, 'a paused share takes no more reports');
+  const mine = await A.query('select status from public.list_my_conversation_shares() where id = $1', [shareId]);
+  assert.equal(mine[0].status, 'suspended', 'the owner still sees it, paused');
+});
+
+test('a paused share keeps its snapshot, goes with its conversation, and the owner can still take it away', async () => {
+  const conversationId = await conversationOf(A);
+  const { shareId, shareCode } = await share(ada, conversationId);
+  for (const address of ['1.1.1.1', '2.2.2.2', '3.3.3.3']) await reportFrom(address, shareCode);
+  assert.ok((await database.service.query('select snapshot_bytes from public.conversation_shares where id = $1', [shareId]))[0].snapshot_bytes >= 0);
+  assert.notDeepEqual((await database.service.query('select snapshot from public.conversation_shares where id = $1', [shareId]))[0].snapshot, {});
+  await database.service.query("update public.workspace_conversations set deleted_at = now() where id = $1", [conversationId]);
+  assert.equal(await statusOf(shareId), 'conversation_deleted');
+  const other = await share(ada, await conversationOf(A));
+  for (const address of ['1.1.1.1', '2.2.2.2', '3.3.3.3']) await reportFrom(address, other.shareCode);
+  assert.equal((await A.query('select public.revoke_conversation_share($1) as ok', [other.shareId]))[0].ok, true);
+});
+
+test('the server takes each report once for the mail, with how many readers and what they said', async () => {
+  await database.service.query('delete from public.share_reports');
+  const { shareId, shareCode } = await share(ada, await conversationOf(A));
+  await reportFrom('9.9.9.9', shareCode, 'it is rude');
+  await reportFrom('9.9.9.10', shareCode, '');
+  const taken = await database.service.query('select * from public.server_take_share_reports_to_mail(50)');
+  assert.equal(taken.length, 1);
+  assert.equal(taken[0].share_id, shareId);
+  assert.equal(taken[0].new_reports, 2);
+  assert.equal(taken[0].readers, 2);
+  assert.deepEqual(taken[0].reasons, ['it is rude']);
+  assert.equal(taken[0].code, shareCode);
+  assert.equal((await database.service.query('select * from public.server_take_share_reports_to_mail(50)')).length, 0, 'taken once');
+  assert.match((await A.error('select * from public.server_take_share_reports_to_mail(50)'))?.message || 'it worked', /permission denied/);
+});
+
+test('only an account the owner of the service named may review: list, pause, restore, dismiss, delete and read a paused share', async () => {
+  const boss = await database.createUser('boss@example.test');
+  const BOSS = database.asUser(boss);
+  const { shareId, shareCode } = await share(ada, await conversationOf(A));
+  for (const address of ['5.5.5.1', '5.5.5.2', '5.5.5.3']) await reportFrom(address, shareCode, 'bad');
+  for (const client of [A, B, database.anon]) {
+    assert.ok(await client.error('select * from public.admin_list_share_reports()'), 'a person or a visitor is turned away');
+  }
+  assert.equal((await A.query('select public.is_service_admin() as yes'))[0].yes, false);
+  assert.match((await A.error('select public.admin_delete_share($1)', [shareId]))?.message || 'it worked', /Not allowed/);
+  await database.service.query('insert into public.service_admins (user_id) values ($1)', [boss]);
+  assert.equal((await BOSS.query('select public.is_service_admin() as yes'))[0].yes, true);
+  const listed = await BOSS.query('select * from public.admin_list_share_reports() where share_id = $1', [shareId]);
+  assert.equal(listed[0].status, 'suspended');
+  assert.equal(listed[0].readers, 3);
+  assert.equal(listed[0].owner_email, 'ada@example.test');
+  assert.deepEqual(listed[0].reasons, ['bad', 'bad', 'bad']);
+  assert.equal((await BOSS.query('select public.admin_get_shared_conversation($1) as s', [shareCode]))[0].s.snapshot.v, 1);
+  assert.equal((await BOSS.query("select public.admin_set_share_status($1, 'active') as ok", [shareId]))[0].ok, true);
+  assert.equal(await statusOf(shareId), 'active');
+  assert.ok(await publicRead(database.anon, shareCode), 'works again');
+  assert.equal((await database.service.query('select count(*)::int as n from public.share_reports where share_id = $1', [shareId]))[0].n, 0, 'a restored share starts with no reports');
+  await reportFrom('6.6.6.1', shareCode, 'x');
+  assert.equal((await BOSS.query('select public.admin_dismiss_share_reports($1) as n', [shareId]))[0].n, 1);
+  assert.equal((await BOSS.query("select public.admin_set_share_status($1, 'banana') as ok", [shareId]).catch((error) => ({ error })))?.error?.message, 'Unknown status');
+  assert.equal((await BOSS.query('select public.admin_delete_share($1) as ok', [shareId]))[0].ok, true);
+  assert.equal(await statusOf(shareId), undefined);
+});

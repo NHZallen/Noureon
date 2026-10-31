@@ -24,6 +24,7 @@ import { createDerivedPdfStore } from './derived-pdf-store.js';
 import { createOfficePdfConverter, setOfficePdfConverter } from './office-pdf.js';
 import { createServiceClient } from './supabase-rest.js';
 import { createShares } from './shares.js';
+import { createShareReportMailer } from './share-reports.js';
 import { createShareStore } from './share-store.js';
 import { canDrawSlides } from './slides/available.js';
 import { getFontKit } from './slides/font-kit.js';
@@ -81,7 +82,7 @@ if (config.runsConfigured) {
     runs = createRunManager({ store: createRunStore({ db, limits: LIMITS }), db, vault, sandbox, files, credentials, connectors, skills: createServerSkills({ db, bundles: skillBundles }), memory: Object.assign(createMemoryRecords({ db }), { history: createHistorySearch({ db }) }), vision: { available: canDrawSlides, execute: executeVisionCheck, getKit: getFontKit }, limits: LIMITS, log });
     // The rebuild of the memory from the past conversations, which goes on when the page is closed (server/memory-rebuild.js).
     memoryRebuild = createRebuildJobs({ memory: createMemoryRecords({ db }), db, log });
-    shares = createShares({ db, store: createShareStore({ url: config.supabaseUrl, serviceKey: config.serviceKey }), log });
+    shares = createShares({ db, store: createShareStore({ url: config.supabaseUrl, serviceKey: config.serviceKey }), log, reportMail: createShareReportMailer({ db, mailer: createMailer({ apiKey: config.mailKey, from: config.mailFrom }), to: config.reportTo, appUrl: config.appUrl, log }) });
   } catch (error) {
     log('config_error', { message: error.message });
     process.exit(1);

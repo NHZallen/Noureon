@@ -14,3 +14,10 @@ export const shareCodeOf = (pathname) => {
   const code = ROUTE.exec(String(pathname || ''))?.[1] || '';
   return CODE.test(code) ? code : '';
 };
+
+/** noureon.com/admin/shares: where the owner of the service reviews the reports. */
+export const ADMIN_SHARES_ROUTE = '/admin/shares';
+export const isAdminSharesRoute = (pathname) => String(pathname || '').replace(/\/+$/, '') === ADMIN_SHARES_ROUTE;
+
+/** `?review=1` on the address of a share: the owner of the service reads it whatever its status. */
+export const isReviewRequest = (search) => new URLSearchParams(String(search || '')).get('review') === '1';

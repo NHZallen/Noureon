@@ -39,7 +39,7 @@ export function textForShare(text, role) {
   return `${formatSandboxRunBlock({ ...others, ...(tools.length ? { tools } : {}) })}${rest}`;
 }
 
-export function createShares({ db, store, log = () => {}, now = Date.now, limits = SHARE_LIMITS, setRepeat = setInterval, clearRepeat = clearInterval } = {}) {
+export function createShares({ db, store, log = () => {}, now = Date.now, limits = SHARE_LIMITS, setRepeat = setInterval, clearRepeat = clearInterval, reportMail = null } = {}) {
   let repeat = null;
 
   /**
@@ -207,6 +207,8 @@ export function createShares({ db, store, log = () => {}, now = Date.now, limits
       log('share_sweep_failed', { name: error?.name || 'Error', status: error?.status || 0 });
     }
     if (result.removed || result.dropped) log('share_sweep', result);
+    // The reports not yet told of (server/share-reports.js) go by mail on the same rounds.
+    try { await reportMail?.mailOnce(); } catch (error) { log('share_report_failed', { name: error?.name || 'Error' }); }
     return result;
   }
 

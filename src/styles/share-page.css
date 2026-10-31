@@ -32,3 +32,11 @@ html.share-page, html.share-page body { height: 100%; overflow: hidden; }
 .sp-report-row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
 .sp-report-note { font-size: 0.75rem; color: var(--text-secondary); }
 @media (max-width: 560px) { .sp-header { padding: 0.6rem 1rem; } .sp-main, .sp-footer { padding-left: 1rem; padding-right: 1rem; } .sp-title { font-size: 1.25rem; } }
+
+/* The page of the owner of the service (share-admin-page.js). */
+.sp-admin-card { margin: 1rem 0; padding: 1rem; border: 1px solid var(--border-color); border-radius: 0.75rem; }
+.sp-admin-title { margin: 0; font-size: 1.05rem; overflow-wrap: anywhere; }
+.sp-admin-reasons { margin: 0.25rem 0 0.75rem; padding-left: 1.1rem; font-size: 0.8125rem; color: var(--text-secondary); overflow-wrap: anywhere; }
+.sp-admin-card .sp-report-row { margin-top: 0.75rem; }
+.sp-admin-card a.sp-btn { text-decoration: none; display: inline-block; }
+.sp-banner { margin: 0.75rem 0; padding: 0.6rem 0.9rem; border: 1px dashed var(--border-color); border-radius: 0.6rem; font-size: 0.8125rem; color: var(--text-secondary); }

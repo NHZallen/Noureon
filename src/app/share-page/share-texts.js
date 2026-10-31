@@ -2,6 +2,7 @@
 
 export const SHARE_PAGE_TEXTS = {
   'zh-TW': {
+    reviewNote: '審查檢視（只有管理員看得到）：目前{status}。', reviewActive: '有效', reviewSuspended: '已暫停',
     title: '分享的對話', loading: '載入中…', goToApp: '前往 Noureon',
     sharedBy: '由 {name} 分享', sharedOn: '分享於 {date}', snapshotNote: '這是分享當時的內容，之後的新訊息不會出現在這裡。',
     notFoundTitle: '找不到這個分享', notFoundBody: '連結可能已被撤銷、對話已被刪除，或網址不完整。',
@@ -12,6 +13,7 @@ export const SHARE_PAGE_TEXTS = {
     reportSend: '送出', reportCancel: '取消', reportThanks: '已收到檢舉，謝謝。', reportFailed: '送出失敗，請稍後再試。', model: '模型'
   },
   en: {
+    reviewNote: 'Review view (only the administrator sees this): {status} now.', reviewActive: 'active', reviewSuspended: 'paused',
     title: 'Shared conversation', loading: 'Loading…', goToApp: 'Go to Noureon',
     sharedBy: 'Shared by {name}', sharedOn: 'Shared on {date}', snapshotNote: 'This is the conversation as it was when it was shared. Later messages do not appear here.',
     notFoundTitle: 'This share was not found', notFoundBody: 'The link may have been revoked, the conversation deleted, or the address is incomplete.',
@@ -22,6 +24,7 @@ export const SHARE_PAGE_TEXTS = {
     reportSend: 'Send', reportCancel: 'Cancel', reportThanks: 'Report received, thank you.', reportFailed: 'Could not send. Please try again later.', model: 'Model'
   },
   fr: {
+    reviewNote: 'Vue d’examen (seul l’administrateur la voit) : {status} actuellement.', reviewActive: 'actif', reviewSuspended: 'suspendu',
     title: 'Conversation partagée', loading: 'Chargement…', goToApp: 'Aller sur Noureon',
     sharedBy: 'Partagé par {name}', sharedOn: 'Partagé le {date}', snapshotNote: 'Voici la conversation telle qu’elle était au moment du partage. Les messages suivants n’apparaissent pas ici.',
     notFoundTitle: 'Ce partage est introuvable', notFoundBody: 'Le lien a peut-être été révoqué, la conversation supprimée, ou l’adresse est incomplète.',
@@ -32,6 +35,7 @@ export const SHARE_PAGE_TEXTS = {
     reportSend: 'Envoyer', reportCancel: 'Annuler', reportThanks: 'Signalement reçu, merci.', reportFailed: 'Envoi impossible. Réessayez plus tard.', model: 'Modèle'
   },
   ru: {
+    reviewNote: 'Режим проверки (его видит только администратор): сейчас {status}.', reviewActive: 'действует', reviewSuspended: 'приостановлена',
     title: 'Беседа по ссылке', loading: 'Загрузка…', goToApp: 'Перейти в Noureon',
     sharedBy: 'Поделился(-ась): {name}', sharedOn: 'Дата: {date}', snapshotNote: 'Это беседа в том виде, в каком ею поделились. Более поздние сообщения здесь не появятся.',
     notFoundTitle: 'Ссылка не найдена', notFoundBody: 'Возможно, ссылка отозвана, беседа удалена или адрес неполный.',
@@ -42,6 +46,7 @@ export const SHARE_PAGE_TEXTS = {
     reportSend: 'Отправить', reportCancel: 'Отмена', reportThanks: 'Жалоба получена, спасибо.', reportFailed: 'Не удалось отправить. Повторите попытку позже.', model: 'Модель'
   },
   es: {
+    reviewNote: 'Vista de revisión (solo la ve el administrador): ahora {status}.', reviewActive: 'activo', reviewSuspended: 'en pausa',
     title: 'Conversación compartida', loading: 'Cargando…', goToApp: 'Ir a Noureon',
     sharedBy: 'Compartido por {name}', sharedOn: 'Compartido el {date}', snapshotNote: 'Esta es la conversación tal como estaba al compartirla. Los mensajes posteriores no aparecen aquí.',
     notFoundTitle: 'No se encuentra este enlace', notFoundBody: 'Puede que el enlace se haya revocado, la conversación se haya eliminado o la dirección esté incompleta.',

@@ -99,3 +99,14 @@
 - **閱覽頁**：`src/app/share-page/`（`share-page.js`、`share-assets.js`、`share-route.js`、`share-texts.js`）、`src/styles/share-page.css`。`src/main.js` 遇到 `/s/<代號>` 就顯示閱覽頁而不是應用程式（和密碼救援同一做法）；`vercel.json` 把 `/s/:code` 導到 `index.html`，並對 `/s/*` 加 `X-Robots-Tag: noindex, nofollow, noarchive` 與 `Referrer-Policy: no-referrer`；頁面也加 `<meta name="robots">`、`<meta name="referrer">`，並拿掉指向首頁的 canonical。連結預覽用的是 `index.html` 原有的通用標籤。
 - **接著聊**：閱覽頁的按鈕把代號放進 `localStorage['noureon:pending-share']` 後回到首頁；`start-shares.js` 等到有雲端帳號就用 `share-import.js` 做出新對話（`sharedFrom: { at, name }` 隨對話同步，見 `cloud-sync-v2-codecs.js`），model 用對方自己的設定。雲端空間不夠時只複製文字。模型畫的圖在複製時變成附加的圖片。
 - **文件**：隱私權政策、使用條款、協助中心五語各加一段（`src/data/legal/`），`PRIVACY.md` 已重新產生。更新日期與「適用版本」的字樣留給發版時改。
+
+## 11. 檢舉怎麼處理（2026-10-31，Allen 決定）
+
+- 檢舉寫進 `share_reports`（原因最多 500 字、讀者網路位址的單向指紋 `reporter_hash`，只用來算有幾位不同的讀者）。
+- **自動暫停**：同一個分享有 3 位不同讀者檢舉 → `status = 'suspended'`：連結立刻失效，快照與檔案保留供審查（掃除器不刪）；分享者在「已分享內容」看到「已暫停」，只能撤銷。同一位讀者重複檢舉只算一次。
+- **寄信**：伺服器掃除器每 2 分鐘取出還沒通知的檢舉（`server_take_share_reports_to_mail`，每筆只取一次），每個分享一封純文字信寄到環境變數 `REPORT_TO`（沒設就用 `WAITLIST_TO`），用既有的 Resend（`RESEND_API_KEY`）。寄失敗的檢舉放回佇列（`server_requeue_share_reports`）。
+- **管理頁**：`noureon.com/admin/shares`（`src/app/share-page/share-admin-page.js`）。只有寫在 `service_admins` 的帳號看得到內容，其他人（含沒登入）只看到「找不到頁面」；每個動作資料庫再檢查一次。可以：看內容（`/s/<代號>?review=1`，用 `admin_get_shared_conversation` 讀任何狀態的快照）、暫停、恢復（恢復後檢舉歸零）、清除檢舉、刪除（要按兩次）。
+- **第一次要做**：migration `20261031050000_add_share_report_review.sql` 套用後，把管理員帳號加進去：
+  `insert into public.service_admins (user_id) select id from auth.users where email = '<帳號的 email>';`
+  伺服器環境要有 `RESEND_API_KEY`、`MAIL_FROM`（已有就不用動），要寄到別的信箱再設 `REPORT_TO`。
+- 隱私權政策、使用條款、協助中心五語已補（暫停、寄信、指紋）。

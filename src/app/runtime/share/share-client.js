@@ -27,6 +27,8 @@ const fromRow = (row) => ({
   showName: row.show_name === true,
   title: row.title || '',
   deleted: row.status === 'conversation_deleted',
+  // Paused after reports from several readers: the link does not work until the owner of the service has looked at it.
+  suspended: row.status === 'suspended',
   createdAt: row.created_at,
   updatedAt: row.updated_at
 });

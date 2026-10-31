@@ -135,3 +135,23 @@ test('a share that is gone, a code that cannot be one, and a failing database ea
     assert.equal(gone.window.document.querySelector('.sp-footer .sp-link'), null, 'nothing to report when there is no conversation');
   } finally { for (const { window } of [gone, wrong, broken]) await window.happyDOM.abort(); }
 });
+
+test('?review=1 reads a share through the administrator function, and falls back to the ordinary read for anyone else', async () => {
+  const snapshot = { v: 1, title: 'T', messages: [{ role: 'user', parts: [{ text: 'q' }] }] };
+  const calls = [];
+  const admin = await open(`/s/${CODE}?review=1`, { rpc: async (name) => { calls.push(name); return name === 'admin_get_shared_conversation' ? { data: { title: 'T', mode: 'view', status: 'suspended', createdAt: '2026-10-30T00:00:00Z', updatedAt: '2026-10-30T00:00:00Z', snapshot }, error: null } : { data: null, error: null }; } });
+  try {
+    assert.deepEqual(calls, ['admin_get_shared_conversation']);
+    assert.match(admin.window.document.querySelector('.sp-banner').textContent, /paused|已暫停/);
+    assert.ok(admin.window.document.querySelector('#sp-messages'));
+  } finally { await admin.window.happyDOM.abort(); }
+  const otherCalls = [];
+  const other = await open(`/s/${CODE}?review=1`, { rpc: async (name) => { otherCalls.push(name); return name === 'admin_get_shared_conversation' ? { data: null, error: { message: 'Not allowed' } } : { data: null, error: null }; } });
+  try {
+    assert.deepEqual(otherCalls, ['admin_get_shared_conversation', 'get_shared_conversation']);
+    assert.equal(other.window.document.querySelector('.sp-banner'), null);
+    assert.ok(other.window.document.querySelector('.sp-notice'), 'a paused share is not there for anyone else');
+  } finally { await other.window.happyDOM.abort(); }
+  const plain = await open(`/s/${CODE}`, { rpc: async (name) => { assert.equal(name, 'get_shared_conversation', 'no review without ?review=1'); return { data: null, error: null }; } });
+  await plain.window.happyDOM.abort();
+});

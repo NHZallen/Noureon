@@ -17,7 +17,8 @@ import { escapeHTML, renderUserText } from '../runtime/shell/shell-utilities.js'
 import { applyRememberedAccent } from '../../utils/accent-mirror.js';
 import { watchSourceIcons } from '../ui/sandbox/run-sources.js';
 import { easeSavedDetails } from '../ui/motion/collapse-motion.js';
-import { PENDING_SHARE_KEY, shareCodeOf } from './share-route.js';
+import { markPageAsPrivate } from './private-page.js';
+import { PENDING_SHARE_KEY, isReviewRequest, shareCodeOf } from './share-route.js';
 import { hydrateSharedSnapshot } from './share-assets.js';
 import { sharePageText } from './share-texts.js';
 
@@ -31,18 +32,7 @@ const el = (document, tag, className, text) => {
   return node;
 };
 
-/** Tells search engines and link followers to keep away, and drops what would point them to the site's home page as the address of this one. */
-export function markPageAsPrivate(document) {
-  const put = (name, content) => {
-    let meta = document.querySelector(`meta[name="${name}"]`);
-    if (!meta) { meta = document.createElement('meta'); meta.setAttribute('name', name); document.head.appendChild(meta); }
-    meta.setAttribute('content', content);
-  };
-  put('robots', 'noindex, nofollow, noarchive');
-  put('referrer', 'no-referrer');
-  document.querySelector('link[rel="canonical"]')?.remove();
-  document.querySelector('meta[property="og:url"]')?.remove();
-}
+export { markPageAsPrivate };
 
 export async function initializeSharePage({ window, document, supabase = getSupabaseClient(), fetchImpl = window.fetch.bind(window), baseUrl = getSupabaseUrl(), renderMarkdown = null } = {}) {
   const code = shareCodeOf(window.location.pathname);
@@ -81,6 +71,7 @@ export async function initializeSharePage({ window, document, supabase = getSupa
 
   let loaded = null; // { share, snapshot } once the page has the conversation
   let missingFiles = 0;
+  let reviewStatus = '';
 
   const renderModelText = renderMarkdown || createMarkdownRenderingHelpers({
     marked, sanitizer: DOMPurify, DOMParser: window.DOMParser, katex: getKatex(), getUiLanguage: () => language,
@@ -174,6 +165,7 @@ export async function initializeSharePage({ window, document, supabase = getSupa
     head.appendChild(meta);
     head.appendChild(el(document, 'p', 'sp-note', text('snapshotNote')));
     main.appendChild(head);
+    if (reviewStatus) main.appendChild(el(document, 'p', 'sp-banner', text('reviewNote', { status: text(reviewStatus === 'suspended' ? 'reviewSuspended' : 'reviewActive') })));
 
     const action = el(document, 'section', 'sp-action');
     if (share.mode === 'continue') {
@@ -204,9 +196,16 @@ export async function initializeSharePage({ window, document, supabase = getSupa
     if (!code || !supabase) { drawMessage(text('notFoundTitle'), text('notFoundBody')); return; }
     let data;
     try {
-      const result = await supabase.rpc('get_shared_conversation', { p_code: code });
-      if (result.error) throw result.error;
-      data = result.data;
+      // The owner of the service reads a share whatever its status (?review=1): the database answers only an account it knows; for anyone else this falls back to the ordinary read.
+      if (isReviewRequest(window.location.search)) {
+        const review = await supabase.rpc('admin_get_shared_conversation', { p_code: code }).catch(() => null);
+        if (review && !review.error && review.data) { data = review.data; reviewStatus = review.data.status || 'active'; }
+      }
+      if (!data) {
+        const result = await supabase.rpc('get_shared_conversation', { p_code: code });
+        if (result.error) throw result.error;
+        data = result.data;
+      }
     } catch {
       drawMessage(text('title'), text('failed'), load);
       return;

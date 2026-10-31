@@ -1,0 +1,69 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+
+import { createShareReportMailer, reportMailFor } from '../../server/share-reports.js';
+import { createShares } from '../../server/shares.js';
+
+const row = (extra = {}) => ({ share_id: 's1', code: 'A'.repeat(32), title: 'Strawberry cake', mode: 'continue', status: 'active', owner_id: 'u', readers: 1, new_reports: 1, reasons: ['it is rude'], ...extra });
+
+test('the mail says which share, what state it is in, what was written, and where to look and to act', () => {
+  const mail = reportMailFor(row(), { appUrl: 'https://noureon.com' });
+  assert.equal(mail.subject, '[Noureon] 分享被檢舉：Strawberry cake');
+  assert.match(mail.text, /權限：可接著聊/);
+  assert.match(mail.text, /狀態：仍有效/);
+  assert.match(mail.text, /- it is rude/);
+  assert.match(mail.text, new RegExp(`https://noureon.com/s/${'A'.repeat(32)}\\?review=1`));
+  assert.match(mail.text, /https:\/\/noureon.com\/admin\/shares/);
+  const paused = reportMailFor(row({ status: 'suspended', readers: 3 }), { appUrl: 'https://noureon.com' });
+  assert.match(paused.subject, /已暫停/);
+  assert.match(paused.text, /已暫停（3 位不同讀者檢舉/);
+  const gone = reportMailFor(row({ code: null, status: null, title: null, mode: null }), { appUrl: 'https://noureon.com' });
+  assert.match(gone.text, /已經不在了/);
+  assert.doesNotMatch(gone.text, /admin\/shares/);
+});
+
+test('what a reader or an owner wrote cannot break the subject or run on', () => {
+  const mail = reportMailFor(row({ title: 'a\r\nBcc: x@y.z\n'.repeat(30), reasons: ['x'.repeat(2000), 'line\nbreak'] }), { appUrl: 'https://noureon.com' });
+  assert.doesNotMatch(mail.subject, /[\r\n]/);
+  assert.ok(mail.subject.length <= 120);
+  assert.ok(mail.text.split('\n').every((line) => line.length < 700));
+});
+
+const mailerOf = (outcomes = []) => {
+  const sent = [];
+  return { sent, configured: true, send: async (mail) => { if (outcomes.shift() === 'fail') throw Object.assign(new Error('x'), { code: 'refused', status: 500 }); sent.push(mail); } };
+};
+
+test('each share with new reports gets one mail to the address of the settings', async () => {
+  const mailer = mailerOf();
+  const calls = [];
+  const db = { rpc: async (name, params) => { calls.push([name, params]); return name === 'server_take_share_reports_to_mail' ? [row(), row({ share_id: 's2', title: 'Other' })] : 0; } };
+  const sent = await createShareReportMailer({ db, mailer, to: 'me@example.test', appUrl: 'https://noureon.com' }).mailOnce();
+  assert.equal(sent, 2);
+  assert.deepEqual(mailer.sent.map((mail) => mail.to), ['me@example.test', 'me@example.test']);
+  assert.deepEqual(calls.map((call) => call[0]), ['server_take_share_reports_to_mail']);
+});
+
+test('a mail that cannot be sent puts its reports back, and nothing is asked when mail is not set up', async () => {
+  const mailer = mailerOf(['ok', 'fail']);
+  const calls = [];
+  const db = { rpc: async (name, params) => { calls.push([name, params]); return name === 'server_take_share_reports_to_mail' ? [row(), row({ share_id: 's2' })] : 0; } };
+  const sent = await createShareReportMailer({ db, mailer, to: 'me@example.test', appUrl: 'https://noureon.com', now: () => 1_000_000 }).mailOnce();
+  assert.equal(sent, 1);
+  const requeue = calls.find((call) => call[0] === 'server_requeue_share_reports');
+  assert.deepEqual(requeue[1].p_share_ids, ['s2']);
+  const idle = [];
+  assert.equal(await createShareReportMailer({ db: { rpc: async (...args) => { idle.push(args); } }, mailer: { configured: false }, to: 'me@example.test', appUrl: 'x' }).mailOnce(), 0);
+  assert.equal(idle.length, 0);
+});
+
+test('a failing database does not stop the sweep of the shares', async () => {
+  const logs = [];
+  const shares = createShares({
+    db: { rpc: async (name) => { if (name === 'server_take_share_reports_to_mail') throw new Error('down'); return name === 'orphan_shared_assets' ? [] : 0; } },
+    store: { list: async () => [], removeAll: async () => 0 }, log: (event) => logs.push(event),
+    reportMail: createShareReportMailer({ db: { rpc: async () => { throw new Error('down'); } }, mailer: { configured: true }, to: 'me@example.test', appUrl: 'x', log: (event) => logs.push(event) })
+  });
+  await shares.sweepOnce();
+  assert.ok(logs.includes('share_report_take_failed'));
+});
