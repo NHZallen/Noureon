@@ -57,15 +57,17 @@ test('the table of the old memory summaries is gone, and the notes of the new me
 test('the functions the page may call are exactly the ones named here, and nothing that acts for the server can be called by a person', async () => {
   const rows = (await database.db.query(`select p.proname, p.prosecdef, p.proconfig, p.prorettype::regtype::text as returns, has_function_privilege('anon', p.oid, 'execute') as anon, has_function_privilege('authenticated', p.oid, 'execute') as authenticated, has_function_privilege('service_role', p.oid, 'execute') as service from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public'`)).rows;
   const securityDefiners = rows.filter((row) => row.prosecdef);
+  // The two functions that anyone with a link may call (read a share, report it): they give or take only what a share that is active allows.
+  const forAnyone = new Set(['get_shared_conversation', 'report_shared_conversation']);
   for (const row of securityDefiners) {
     assert.ok((row.proconfig || []).some((entry) => /^search_path=/.test(entry)), `${row.proname} fixes its search_path`);
-    assert.equal(row.anon, false, `${row.proname} is not for anyone signed out`);
+    assert.equal(row.anon, forAnyone.has(row.proname), `${row.proname} is ${forAnyone.has(row.proname) ? 'for anyone with a link' : 'not for anyone signed out'}`);
   }
   const forPeople = securityDefiners.filter((row) => row.authenticated).map((row) => row.proname).sort();
-  assert.deepEqual(forPeople, ['fetch_workspace_delta', 'permanently_delete_workspace_conversations', 'permanently_delete_workspace_folder', 'upsert_workspace_conversations', 'upsert_workspace_folders', 'upsert_workspace_messages']);
+  assert.deepEqual(forPeople, ['fetch_workspace_delta', 'get_shared_conversation', 'list_my_conversation_shares', 'permanently_delete_workspace_conversations', 'permanently_delete_workspace_folder', 'report_shared_conversation', 'revoke_conversation_share', 'upsert_workspace_conversations', 'upsert_workspace_folders', 'upsert_workspace_messages']);
   // (The functions of triggers cannot be called by hand, and workspace_safe_timestamptz is the helper of the functions above.)
   const forTheServer = securityDefiners.filter((row) => row.service && !row.authenticated && row.returns !== 'trigger').map((row) => row.proname).sort();
-  assert.deepEqual(forTheServer, ['orphan_skill_bundles', 'orphan_user_assets', 'orphan_user_avatars', 'orphan_user_derived', 'server_claim_stale_runs', 'server_read_history', 'server_start_run', 'server_upsert_workspace_message', 'user_asset_usage', 'workspace_safe_timestamptz']);
+  assert.deepEqual(forTheServer, ['orphan_shared_assets', 'orphan_skill_bundles', 'orphan_user_assets', 'orphan_user_avatars', 'orphan_user_derived', 'server_claim_stale_runs', 'server_create_conversation_share', 'server_drop_stale_building_shares', 'server_finish_conversation_share', 'server_read_conversation_for_share', 'server_read_history', 'server_start_run', 'server_upsert_workspace_message', 'user_asset_usage', 'workspace_safe_timestamptz']);
 });
 
 // ---------- one person never sees or changes another's
