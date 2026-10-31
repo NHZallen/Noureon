@@ -1,6 +1,7 @@
 import { createLazyFunctions } from '../kernel/lazy-functions.js';
 import { compressImage } from '../utils/image-compression.js';
 import { dictationTip } from '../../ui/voice/dictation-texts.js';
+import { confirmDeleteShared } from '../share/share-ref.js';
 
 // Speech recognition follows the interface language. Noureon stores bare subtags for four of
 // the five languages, so map them to the regional codes browsers expect for recognition.
@@ -147,6 +148,7 @@ export function createBatchImportVoiceLifecycle(dependencies = {}) {
         const count = selectedConversationIds.size;
         if (count === 0) return;
         if (!(await showCustomConfirm(`${texts.confirmBatchMoveToTrash || '您確定要將這'} ${count} ${texts.conversations || '個對話'} ${texts.moveToTrashConfirmText || '移至垃圾桶嗎？'}`))) return;
+        if (!(await confirmDeleteShared([...selectedConversationIds]))) return;
         const deletedAt = new Date().toISOString();
         selectedConversationIds.forEach(id => {
             const conv = conversations.find(c => c.id === id);

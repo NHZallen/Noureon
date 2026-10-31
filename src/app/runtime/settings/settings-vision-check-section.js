@@ -8,6 +8,7 @@ import { ensureWorkspaceStorageStatus } from './settings-workspace-storage-statu
 import { ensureProcessOpenSettingsControl } from './settings-vision-check-control.js';
 import { ensureOpenAiSettingsControls } from './settings-openai-controls.js';
 import { ensureReplyInputSettingsControl } from './settings-reply-input-control.js';
+import { ensureSharedItemsCardLater } from '../share/share-ref.js';
 import { visionText } from '../../ui/files/vision/vision-texts.js';
 
 export function ensureVisionCheckSettingsControl({ document, elements, config, saveConfig, showNotification }) {
@@ -18,6 +19,8 @@ export function ensureVisionCheckSettingsControl({ document, elements, config, s
   // The cloud space line is loaded with the settings, not with the page.
   void import('./settings-storage-usage.js').then(({ ensureStorageUsageBlock }) => ensureStorageUsageBlock({ document, elements, config })).catch(() => {});
   ensureWorkspaceStorageStatus({ document, elements, config });
+  // The card of what the person shared, drawn once the sharing code has loaded (it is loaded after the page).
+  ensureSharedItemsCardLater({ document, elements, config });
   const section = document.getElementById('accessibility-section');
   if (!section) return;
   let row = document.getElementById('vision-check-setting-row');

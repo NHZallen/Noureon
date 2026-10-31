@@ -7,6 +7,7 @@ import { createMediaPreviewLifecycle as createArchivedMediaPreviewLifecycle } fr
 import { createConversationViewRenderer as createArchivedConversationViewRenderer } from '../messages/conversation-view-renderer.js';
 import { createDisabledCouncilConfig, disableConversationCouncil } from './conversation-council-state.js';
 import { escapeHTML, renderUserText } from './shell-utilities.js';
+import { confirmDeleteShared } from '../share/share-ref.js';
 import { MODELS, getModelReasoningConfig, normalizeReasoningEffort } from './model-registry.js';
 import { startingChoice } from './reasoning-memory.js';
 import { getRuntimeTexts } from '../i18n/runtime-texts.js';
@@ -109,6 +110,7 @@ export function createConversationActions({
     };
     const deleteChat = async (id, event) => {
         event?.stopPropagation();
+        if (!(await confirmDeleteShared([id]))) return;
         cancelPendingMemoryCapture(id);
         const currentConversations = liveConversationsBridge.getConversations();
         const conv = currentConversations.find(c => c.id === id);

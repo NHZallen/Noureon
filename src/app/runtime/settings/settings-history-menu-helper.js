@@ -141,6 +141,7 @@ export function createSettingsHistoryMenuHelper(dependencies = {}) {
         <button data-id="${convId}" class="rename-conv-btn w-full text-left px-4 py-2 hover:bg-[var(--hover-bg)] text-sm">${texts.rename || '重新命名'}</button>
         <button data-id="${convId}" class="pin-btn w-full text-left px-4 py-2 hover:bg-[var(--hover-bg)] text-sm">${pinText}</button>
         ${moveOptionsHTML}
+        <button data-id="${convId}" class="share-conv-btn w-full text-left px-4 py-2 hover:bg-[var(--hover-bg)] text-sm">${texts.csMenu || '分享對話'}</button>
         <button data-id="${convId}" class="archive-btn w-full text-left px-4 py-2 hover:bg-[var(--hover-bg)] text-sm">${texts.archive || '封存'}</button>
         <div class="border-t my-1 border-[var(--border-color)]"></div>
         <button data-id="${convId}" class="delete-btn w-full text-left px-4 py-2 text-red-600 hover:bg-red-500/10 text-sm">${texts.delete || '刪除'}</button>
@@ -154,6 +155,10 @@ export function createSettingsHistoryMenuHelper(dependencies = {}) {
     });
     popover.querySelector('.pin-btn').addEventListener('click', (event) => {
       togglePinChat(convId, event);
+      popover.remove();
+    });
+    popover.querySelector('.share-conv-btn').addEventListener('click', () => {
+      window.dispatchEvent(new window.CustomEvent('astra:share-conversation', { detail: { id: convId } }));
       popover.remove();
     });
     popover.querySelector('.archive-btn').addEventListener('click', (event) => {

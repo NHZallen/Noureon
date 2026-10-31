@@ -1,0 +1,52 @@
+/* Sharing a conversation (src/app/ui/share/, src/app/runtime/share/): the dialog, the card "Shared items" of the settings and the tags of the sidebar. Colours are the tokens of tokens.css. */
+.cs-box { display: flex; flex-direction: column; max-height: 90vh; overflow: hidden; }
+.cs-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.25rem 1.5rem 0.75rem; }
+.cs-title { margin: 0; font-size: 1.25rem; font-weight: 700; }
+.cs-x { flex: none; width: 2rem; height: 2rem; border-radius: 9999px; font-size: 1.5rem; line-height: 1; color: var(--text-secondary); }
+.cs-x:hover { background: var(--hover-bg); }
+.cs-body { padding: 0 1.5rem 0.5rem; overflow-y: auto; }
+.cs-conv { margin: 0 0 1rem; font-size: 0.875rem; color: var(--text-secondary); overflow-wrap: anywhere; }
+.cs-label { margin: 0 0 0.4rem; font-size: 0.8125rem; font-weight: 600; color: var(--text-secondary); }
+.cs-options { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.9rem; }
+.cs-option, .cs-check { display: flex; align-items: flex-start; gap: 0.7rem; padding: 0.7rem 0.8rem; border: 1px solid var(--border-color); border-radius: 0.6rem; cursor: pointer; }
+.cs-option.is-on { border-color: var(--text-primary); background: var(--hover-bg); }
+.cs-option input, .cs-check input { flex: none; margin-top: 0.2rem; accent-color: var(--text-primary); }
+.cs-option-text { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
+.cs-option-label { font-size: 0.9375rem; font-weight: 600; }
+.cs-option-desc { font-size: 0.8125rem; color: var(--text-secondary); }
+.cs-notice { margin: 0.9rem 0 0.5rem; font-size: 0.8125rem; line-height: 1.5; color: var(--text-secondary); }
+.cs-message { margin: 0.5rem 0 0; font-size: 0.8125rem; color: var(--text-secondary); }
+.cs-message.is-error { color: var(--state-danger); }
+.cs-mode-line { margin: 0 0 0.6rem; }
+.cs-pill { display: inline-block; padding: 0.1rem 0.55rem; border: 1px solid var(--border-color); border-radius: 9999px; font-size: 0.75rem; color: var(--text-secondary); }
+.cs-link { display: flex; gap: 0.5rem; }
+.cs-link input { flex: 1; min-width: 0; padding: 0.5rem 0.65rem; border: 1px solid var(--border-color); border-radius: 0.5rem; background: var(--input-field-bg); font-size: 0.8125rem; }
+.cs-foot { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.6rem; padding: 0.9rem 1.5rem 1.25rem; }
+.cs-btn { padding: 0.5rem 1rem; border-radius: 0.5rem; background: var(--hover-bg); font-size: 0.875rem; white-space: nowrap; }
+.cs-btn:hover:not(:disabled) { background: var(--active-bg); }
+.cs-btn:disabled { opacity: 0.55; cursor: default; }
+.cs-btn.is-primary { background: var(--button-primary-bg); color: var(--button-primary-text); }
+.cs-btn.is-primary:hover:not(:disabled) { background: var(--button-primary-hover-bg); }
+.cs-btn.is-danger-text { color: var(--state-danger); }
+.cs-btn.is-danger { margin-right: auto; background: transparent; color: var(--state-danger); }
+.cs-btn.is-danger:hover:not(:disabled) { background: var(--hover-bg); }
+@media (max-width: 480px) { .cs-btn.is-danger { margin-right: 0; } .cs-foot { justify-content: stretch; } .cs-foot .cs-btn { flex: 1 1 auto; } }
+
+/* The card "Shared items" of the Data tab. */
+.cs-card-desc { margin: 0.15rem 0 0; font-size: 0.8125rem; color: var(--text-secondary); }
+.cs-count { margin-left: 0.5rem; font-size: 0.8125rem; font-weight: 400; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.cs-list { display: flex; flex-direction: column; }
+.cs-item { display: flex; align-items: center; justify-content: space-between; gap: 0.8rem; padding: 0.75rem 0; border-top: 1px solid var(--border-color); }
+.cs-item:first-child { border-top: 0; }
+.cs-item-main { min-width: 0; display: flex; flex-direction: column; gap: 0.2rem; }
+.cs-item-title { font-size: 0.9375rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cs-item-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; font-size: 0.75rem; color: var(--text-secondary); }
+.cs-item-url { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.75rem; color: var(--text-secondary); }
+.cs-item.is-gone .cs-item-title, .cs-item.is-gone .cs-item-url { color: var(--text-tertiary); text-decoration: line-through; }
+.cs-item.is-gone .cs-item-note { color: var(--text-secondary); text-decoration: none; }
+.cs-item-actions { flex: none; display: flex; gap: 0.4rem; }
+.cs-item-actions .cs-btn { padding: 0.35rem 0.7rem; font-size: 0.8125rem; }
+@media (max-width: 560px) { .cs-item { flex-direction: column; align-items: stretch; } .cs-item-actions { justify-content: flex-end; } }
+
+/* The small tags beside a title in the sidebar. */
+.cs-tag { display: inline-block; margin-left: 0.4rem; padding: 0 0.4rem; border: 1px solid var(--border-color); border-radius: 0.3rem; font-size: 0.6875rem; line-height: 1.25rem; color: var(--text-secondary); vertical-align: middle; white-space: nowrap; }
