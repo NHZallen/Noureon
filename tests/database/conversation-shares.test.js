@@ -258,24 +258,23 @@ test('a share the owner of the service takes down says so to whoever opens it, k
   assert.equal((await A.query('select public.revoke_conversation_share($1) as ok', [shareId]))[0].ok, true, 'the owner can remove the record');
 });
 
-test('a conversation whose share was taken down cannot be shared again, even when the owner removes the record; the removal is taken once for the mail', async () => {
+test('a conversation whose share was taken down cannot be shared again, even when the owner removes the record; the owner is told once even then', async () => {
   const boss = await database.createUser('boss3@example.test');
   await database.service.query('insert into public.service_admins (user_id) values ($1)', [boss]);
   const BOSS = database.asUser(boss);
   const conversationId = await conversationOf(A);
   const { shareId } = await share(ada, conversationId);
+  await database.service.query('select * from public.server_take_removed_shares_to_mail(100)'); // what earlier tests left in the queue
   await BOSS.query('select public.admin_remove_share($1)', [shareId]);
-  const taken = await database.service.query('select * from public.server_take_removed_shares_to_mail(20) where share_id = $1', [shareId]);
-  assert.equal(taken.length, 1);
-  assert.equal(taken[0].owner_email, 'ada@example.test');
-  assert.equal((await database.service.query('select * from public.server_take_removed_shares_to_mail(20) where share_id = $1', [shareId])).length, 0, 'taken once');
-  await database.service.query('select public.server_requeue_removed_shares($1::uuid[])', [[shareId]]);
-  assert.equal((await database.service.query('select * from public.server_take_removed_shares_to_mail(20) where share_id = $1', [shareId])).length, 1, 'a mail that failed goes back');
-  const again = await database.service.query('select public.server_create_conversation_share($1, $2, $3, $4, $5, $6, $7, $8, $9)', [id(), ada, conversationId, code(), 'view', false, 'Ada', 'x', 30]).catch((error) => error);
-  assert.match(String(again?.message || 'it worked'), /share_removed/);
+  // The owner removes the record at once, before the server has looked.
   await A.query('select public.revoke_conversation_share($1)', [shareId]);
-  const stillBlocked = await database.service.query('select public.server_create_conversation_share($1, $2, $3, $4, $5, $6, $7, $8, $9)', [id(), ada, conversationId, code(), 'view', false, 'Ada', 'x', 30]).catch((error) => error);
-  assert.match(String(stillBlocked?.message || 'it worked'), /share_removed/, 'removing the record does not lift it');
-  const other = await conversationOf(A);
-  await share(ada, other);
+  assert.equal(await statusOf(shareId), undefined);
+  const taken = await database.service.query("select * from public.server_take_removed_shares_to_mail(20) where owner_email = 'ada@example.test' and title = 'Strawberry cake'");
+  assert.equal(taken.length, 1, 'the mail does not need the share any more');
+  assert.equal((await database.service.query("select * from public.server_take_removed_shares_to_mail(20) where owner_email = 'ada@example.test' and title = 'Strawberry cake'")).length, 0, 'taken once');
+  await database.service.query('select public.server_requeue_removed_shares($1::uuid[])', [[taken[0].share_id]]);
+  assert.equal((await database.service.query("select * from public.server_take_removed_shares_to_mail(20) where owner_email = 'ada@example.test' and title = 'Strawberry cake'")).length, 1, 'a mail that failed goes back');
+  const blocked = await database.service.query('select public.server_create_conversation_share($1, $2, $3, $4, $5, $6, $7, $8, $9)', [id(), ada, conversationId, code(), 'view', false, 'Ada', 'x', 30]).catch((error) => error);
+  assert.match(String(blocked?.message || 'it worked'), /share_removed/, 'removing the record does not lift it');
+  await share(ada, await conversationOf(A));
 });
