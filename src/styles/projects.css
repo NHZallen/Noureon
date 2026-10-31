@@ -168,3 +168,7 @@ html.pj-open { overflow: hidden; }
 .pj-action-item:hover, .pj-action-item:focus-visible { background: var(--hover-bg); outline: none; }
 .pj-action-item .pj-menu-icon { width: 1.4rem; }
 @media (min-width: 640px) { .pj-backdrop.is-bottom { justify-content: center; } .pj-action-sheet { border-radius: 1.5rem; } }
+
+/* Google's file picker is put on the page by Google's own script with the layers 1000 and 1001, under this page (1150) and its sheets (1210): it is lifted above all of them, or it opens behind the page. */
+body > .picker-dialog-bg { z-index: 1300; }
+body > .picker-dialog { z-index: 1301; }

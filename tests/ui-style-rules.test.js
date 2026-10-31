@@ -27,3 +27,11 @@ for (const file of FILES) {
     assert.deepEqual(used, []);
   });
 }
+
+test('Google\'s file picker is above the pages and the sheets of the projects', () => {
+  const css = stripComments(readFileSync(new URL('../src/styles/projects.css', import.meta.url), 'utf8'));
+  const layer = (selector) => Number(new RegExp(`${selector.replace(/[.>]/g, '\\$&')}\\s*\\{[^}]*z-index:\\s*(\\d+)`).exec(css)?.[1]);
+  const highest = Math.max(...[...css.matchAll(/z-index:\s*(\d+)/g)].map((match) => Number(match[1])).filter((value) => value < 1300));
+  assert.ok(layer('body > .picker-dialog-bg') > highest, 'the dim layer of the picker');
+  assert.ok(layer('body > .picker-dialog') > layer('body > .picker-dialog-bg'), 'the picker itself');
+});
