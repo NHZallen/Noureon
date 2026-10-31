@@ -352,7 +352,8 @@ export function createImportExportLifecycle({
 
       const shareFile = new File([blob], fileName, { type: 'application/zip' });
       if (navigator.share && navigator.canShare && navigator.canShare({ files: [shareFile] }) && /Mobi|Android/i.test(navigator.userAgent)) {
-        await navigator.share({ files: [shareFile], title: 'Noureon Backup', text: 'Noureon workspace backup.' });
+        // Only the file: a title or a text beside it is put into the message as words by the apps that take it.
+        await navigator.share({ files: [shareFile] });
       } else {
         const url = URL.createObjectURL(blob);
         const anchor = document.createElement('a');

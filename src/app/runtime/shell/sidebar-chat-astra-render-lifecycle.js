@@ -6,6 +6,7 @@ import { createMediaAttachmentRenderer as createMessageMediaAttachmentRenderer }
 import { createMediaPreviewLifecycle as createMessageMediaPreviewLifecycle } from '../messages/media-preview-lifecycle.js';
 import { createMessageListLifecycle } from '../messages/message-list-lifecycle.js';
 import { escapeHTML as escapeMarkup } from './shell-utilities.js';
+import { shareTagsHtml } from '../share/share-ref.js';
 import { isHighRiskCustomNouras } from '../nouras/nouras-policy.js';
 import { createTemporaryChatLifecycle } from '../features/temporary-chat-lifecycle.js';
 import { visionRetryOffered } from '../features/vision-retry-state.js';
@@ -241,7 +242,7 @@ export function createSidebarChatAstraRenderLifecycle(dependencies = {}) {
     contentWrapper.className = 'flex-1 flex items-center justify-between min-w-0';
     contentWrapper.innerHTML = `
                 <div class="conversation-sidebar-copy flex-1 min-w-0">
-                    <span class="conversation-title-text">${escapeHTML(conv.title)}${conv.pinned ? ' <span class="pinned-icon">📌</span>' : ''}</span>
+                    <span class="conversation-title-text">${escapeHTML(conv.title)}${conv.pinned ? ' <span class="pinned-icon">📌</span>' : ''}${shareTagsHtml(conv, (key) => i18n[runtimeConfigAccess.getUiLanguage()]?.[key] || '')}</span>
                     ${modelNameSuffix}
                  </div>
                 <button class="chat-options-btn flex-shrink-0 w-6 h-6 rounded-md hover:bg-[var(--hover-bg)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)]"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg></button>

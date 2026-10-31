@@ -1,0 +1,42 @@
+/* The page of a shared conversation (src/app/share-page/share-page.js). It sits on the same tokens as the app, so the light and the dark theme apply. */
+html.share-page, html.share-page body { height: 100%; overflow: hidden; }
+.sp-root { position: fixed; inset: 0; display: flex; flex-direction: column; overflow-y: auto; background: var(--chat-bg); color: var(--text-primary); }
+.sp-header { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.75rem 1.25rem; background: var(--chat-bg); border-bottom: 1px solid var(--border-color); }
+.sp-brand { display: inline-flex; align-items: center; gap: 0.5rem; font-size: 1.2rem; font-weight: 650; letter-spacing: -0.01em; color: var(--text-primary); text-decoration: none; }
+.sp-mark { border-radius: 0.4rem; }
+.sp-tools { display: flex; align-items: center; gap: 0.75rem; }
+.sp-lang { height: 2rem; padding: 0 0.5rem; border: 1px solid var(--border-color); border-radius: 0.5rem; background: var(--input-field-bg); color: var(--text-primary); font-size: 0.8125rem; }
+.sp-go { padding: 0.35rem 0.8rem; border-radius: 0.5rem; background: var(--button-primary-bg); color: var(--button-primary-text); font-size: 0.8125rem; text-decoration: none; white-space: nowrap; }
+.sp-main { flex: 1 0 auto; width: 100%; max-width: 48rem; margin: 0 auto; padding: 1.5rem 1.25rem 1rem; box-sizing: border-box; }
+.sp-title { margin: 0; font-size: 1.5rem; font-weight: 700; overflow-wrap: anywhere; }
+.sp-meta { margin: 0.4rem 0 0; font-size: 0.875rem; color: var(--text-secondary); }
+.sp-note { margin: 0.4rem 0 0; font-size: 0.8125rem; color: var(--text-tertiary); }
+.sp-action { margin: 1rem 0 1.5rem; padding: 0.9rem 1rem; border: 1px solid var(--border-color); border-radius: 0.75rem; font-size: 0.875rem; color: var(--text-secondary); }
+.sp-action p { margin: 0 0 0.6rem; }
+.sp-action p:last-child { margin-bottom: 0; }
+.sp-messages { display: flex; flex-direction: column; gap: 1.25rem; padding-bottom: 1.5rem; }
+.sp-notice { padding: 3rem 0; text-align: center; }
+.sp-notice h1 { margin: 0 0 0.5rem; font-size: 1.25rem; }
+.sp-notice p, .sp-loading { margin: 0 0 1rem; color: var(--text-secondary); }
+.sp-loading { padding: 3rem 0; text-align: center; }
+.sp-btn { padding: 0.5rem 1rem; border-radius: 0.5rem; background: var(--hover-bg); color: var(--text-primary); font-size: 0.875rem; }
+.sp-btn:hover:not(:disabled) { background: var(--active-bg); }
+.sp-btn.is-primary { background: var(--button-primary-bg); color: var(--button-primary-text); }
+.sp-btn.is-primary:hover:not(:disabled) { background: var(--button-primary-hover-bg); }
+.sp-btn:disabled { opacity: 0.55; }
+.sp-footer { flex: none; max-width: 48rem; width: 100%; margin: 0 auto; padding: 1rem 1.25rem 2rem; box-sizing: border-box; font-size: 0.75rem; color: var(--text-tertiary); border-top: 1px solid var(--border-color); }
+.sp-disclaimer { margin: 0; }
+.sp-link { padding: 0; background: none; color: var(--text-secondary); font-size: inherit; text-decoration: underline; cursor: pointer; }
+.sp-report { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.75rem; color: var(--text-secondary); }
+.sp-report textarea { width: 100%; padding: 0.5rem 0.65rem; border: 1px solid var(--border-color); border-radius: 0.5rem; background: var(--input-field-bg); color: var(--text-primary); font-size: 0.8125rem; box-sizing: border-box; }
+.sp-report-row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.sp-report-note { font-size: 0.75rem; color: var(--text-secondary); }
+@media (max-width: 560px) { .sp-header { padding: 0.6rem 1rem; } .sp-main, .sp-footer { padding-left: 1rem; padding-right: 1rem; } .sp-title { font-size: 1.25rem; } }
+
+/* The page of the owner of the service (share-admin-page.js). */
+.sp-admin-card { margin: 1rem 0; padding: 1rem; border: 1px solid var(--border-color); border-radius: 0.75rem; }
+.sp-admin-title { margin: 0; font-size: 1.05rem; overflow-wrap: anywhere; }
+.sp-admin-reasons { margin: 0.25rem 0 0.75rem; padding-left: 1.1rem; font-size: 0.8125rem; color: var(--text-secondary); overflow-wrap: anywhere; }
+.sp-admin-card .sp-report-row { margin-top: 0.75rem; }
+.sp-admin-card a.sp-btn { text-decoration: none; display: inline-block; }
+.sp-banner { margin: 0.75rem 0; padding: 0.6rem 0.9rem; border: 1px dashed var(--border-color); border-radius: 0.6rem; font-size: 0.8125rem; color: var(--text-secondary); }

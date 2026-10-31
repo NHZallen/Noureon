@@ -84,7 +84,8 @@ export function createMediaPreviewLifecycle({
                 const blob = await (await fetch(src)).blob();
                 const file = new File([blob], name, { type: mimeType });
                 if (navigator.canShare?.({ files: [file] })) {
-                    await navigator.share({ files: [file], title: name });
+                    // Only the file: a title or a text beside it is put into the message as words by the apps that take it (the file name appeared as text).
+                    await navigator.share({ files: [file] });
                 }
             } catch (error) {
                 logWarn('Media share failed:', error);

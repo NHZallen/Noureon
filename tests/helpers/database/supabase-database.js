@@ -55,13 +55,15 @@ export async function createDatabase({ upTo = null } = {}) {
   }
 
   /** The database as one role sees it: a request of that role (with that person for `authenticated`), one transaction for each call. */
-  const as = (role, userId = null) => ({
+  const as = (role, userId = null, headers = null) => ({
     role,
     userId,
     async query(sql, params = []) {
       return db.transaction(async (tx) => {
         await tx.exec(`set local role ${role}`);
         await tx.exec(`select set_config('request.jwt.claim.sub', ${quote(userId || '')}, true), set_config('request.jwt.claim.role', ${quote(role)}, true)`);
+        // The headers of the request (the gateway of the project puts the address of the caller in them).
+        if (headers) await tx.exec(`select set_config('request.headers', ${quote(JSON.stringify(headers))}, true)`);
         return (await tx.query(sql, params)).rows;
       });
     },
@@ -75,6 +77,8 @@ export async function createDatabase({ upTo = null } = {}) {
     db,
     as,
     anon: as('anon'),
+    /** A request that comes from one network address. */
+    anonFrom: (address) => as('anon', null, { 'x-forwarded-for': address }),
     service: as('service_role'),
     asUser: (userId) => as('authenticated', userId),
     /** A person of the sign-in service. */

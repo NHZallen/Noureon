@@ -64,7 +64,8 @@ export async function deliverFile({ window, document, blob, fileName }) {
     if (!navigator.canShare || navigator.canShare({ files: [file] })) {
       if (navigator.userActivation && !navigator.userActivation.isActive) return 'needs-tap';
       try {
-        await navigator.share({ files: [file], title: fileName });
+        // Only the file: a title beside it is put into the message as words by the apps that take it (the file name appeared as text).
+        await navigator.share({ files: [file] });
         return 'shared';
       } catch (error) {
         if (error?.name === 'AbortError') return 'cancelled';

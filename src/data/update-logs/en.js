@@ -1,6 +1,14 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "19.1.0": [
+    "<strong>Noureon 19.1.0 Release Notes</strong>",
+    "This version adds conversation sharing with reports and review, adds the Pally and ether.fi connectors, and fixes deleting a conversation from the sidebar and the mobile menu doing nothing.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Sharing a conversation:</strong> choose \"Share\" in the menu of a conversation, pick \"Read only\" or \"Can continue\", choose whether your name is shown, and you get a link (starting with noureon.com/s/). Whoever has the link can read it without signing in; what is shared is the conversation as it is at that moment, and memory, a Noura's instructions and keys are not attached. \"Can continue\" lets a person who is signed in copy it into their own conversations, without changing yours. The page of a link asks search engines not to index it, and following a link on it sends no address along.</li><li><strong>Managing shares:</strong> \"Settings → Data management\" gets \"Shared items\", which lists your shares (up to 30) and lets you revoke a link or remove a record; conversations in the sidebar are tagged \"Shared\" or \"From a share\"; deleting a shared conversation asks first.</li><li><strong>Reports and review:</strong> readers can report a share from its page. A share reported by three different readers is paused, and whoever opens it is told it is under review; after review it can be restored or taken down. When a share is taken down, its sharer gets a mail and that conversation can no longer be shared; a takedown can also be taken back, and then the link works again and the sharer is mailed again.</li><li><strong>New connectors:</strong> Pally and ether.fi are added (both sign in with OAuth), with a new \"Finance\" group.</li><li><strong>Fixes:</strong> deleting a conversation from the sidebar and the mobile menu did nothing (since 19.0.0); sharing a file now sends only the file, with no title or text beside it.</li></ul>",
+    "<strong>Compatibility</strong>",
+    "This version needs five new database migrations (sharing, report review, under review and taken down, the queue of the takedown mails, undoing a takedown), and the front end and the server must be updated together; mails need the mail service to be set up on the server. Existing data is not affected."
+  ],
   "19.0.2": [
     "<strong>Noureon 19.0.2 Release Notes</strong>",
     "This version adds NVIDIA's Mistral Large 4, adjusts the models of OpenCode Go, and puts a link for getting the key above every key in the settings.",

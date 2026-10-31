@@ -102,6 +102,8 @@ function conversationMetadata(conversation = {}) {
       ? { legacyFolderId: conversation.folderId }
       : {}),
     ...(conversation.messagesCutAt ? { messagesCutAt: conversation.messagesCutAt } : {}),
+    // Made from a link someone shared (src/app/runtime/share/): kept for good, the tag "from a share" is drawn from it.
+    ...(conversation.sharedFrom && typeof conversation.sharedFrom === 'object' ? { sharedFrom: conversation.sharedFrom } : {}),
     clientUpdatedAt: conversation.lastUpdatedAt || conversation.updatedAt || null,
     stateUpdatedAt: conversation.stateUpdatedAt || conversation.lastUpdatedAt || conversation.updatedAt || null,
     ...(trashStateUpdatedAt ? { trashStateUpdatedAt } : {})
@@ -169,7 +171,8 @@ function conversationFromRow(row = {}, messages = []) {
     isWebSearchEnabled: Boolean(metadata.isWebSearchEnabled),
     isTemporary: Boolean(metadata.isTemporary),
     isNaming: false,
-    ...(canonicalizeTimestamp(metadata.messagesCutAt) ? { messagesCutAt: canonicalizeTimestamp(metadata.messagesCutAt) } : {})
+    ...(canonicalizeTimestamp(metadata.messagesCutAt) ? { messagesCutAt: canonicalizeTimestamp(metadata.messagesCutAt) } : {}),
+    ...(metadata.sharedFrom && typeof metadata.sharedFrom === 'object' && !Array.isArray(metadata.sharedFrom) ? { sharedFrom: metadata.sharedFrom } : {})
   };
 }
 

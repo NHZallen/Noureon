@@ -7,7 +7,7 @@ const LANGUAGES = Object.freeze(['zh-TW', 'en', 'fr', 'ru', 'es']);
 const ID = /^[a-z][a-z0-9-]{1,31}$/;
 
 /** The groups the list is shown in, in this order (the words are in the page's texts, `connectors.category.<id>`). */
-export const CONNECTOR_CATEGORIES = Object.freeze(['office', 'notes', 'design', 'dev']);
+export const CONNECTOR_CATEGORIES = Object.freeze(['office', 'notes', 'design', 'dev', 'finance']);
 
 // `scopes`: what the login asks for. `readonly` and `readwrite` are the two kinds of login a person may choose when the service lets the login itself say
 // it (Linear: the scope `read` alone gives a token that cannot write); a service with only `readwrite` gives one token for everything, and what a reply
@@ -417,6 +417,71 @@ export const CONNECTORS = Object.freeze([
     }),
     reads: Object.freeze(['search-designs', 'get-design', 'get-design-content', 'get-design-pages', 'get-assets', 'list-brand-kits', 'list-comments', 'list-replies', 'get-export-formats', 'search-folders', 'list-folder-items']),
     writes: Object.freeze(['generate-design', 'create-design-from-candidate', 'resize-design', 'export-design', 'upload-asset-from-url', 'comment-on-design', 'reply-to-comment', 'start-editing-transaction', 'perform-editing-operations', 'commit-editing-transaction', 'create-folder', 'move-item-to-folder'])
+  }),
+  Object.freeze({
+    id: 'pally',
+    name: 'Pally',
+    category: 'office',
+    endpoint: 'https://agent.pally.com/mcp',
+    // Pally has no organisation at GitHub: its picture is the favicon of its own site, loaded by the page (the first letter of the name takes its place if it cannot be loaded).
+    icon: 'https://pally.com/favicon.ico',
+    // Pally's login is OAuth 2.1 with dynamic client registration and PKCE (agent.pally.com/.well-known/oauth-authorization-server); it announces no scopes to ask for.
+    scopes: Object.freeze({ readwrite: Object.freeze([]) }),
+    description: Object.freeze({
+      'zh-TW': '和你的 Pally 個人助理對話：把訊息交給它，取得它的回覆。',
+      en: 'Talk to your Pally personal assistant: hand it a message and get its reply.',
+      fr: 'Parler à votre assistant personnel Pally : lui transmettre un message et recevoir sa réponse.',
+      ru: 'Разговор с вашим личным помощником Pally: передайте ему сообщение и получите ответ.',
+      es: 'Habla con tu asistente personal Pally: pásale un mensaje y recibe su respuesta.'
+    }),
+    details: Object.freeze({
+      'zh-TW': '連接 Pally 後，模型可以把訊息傳給你的 Pally 並取得它的回覆，也能在回覆較慢時再去取。Pally 收到訊息後會照你在 Pally 裡的設定處理，所以「傳訊息」會改變 Pally 那邊的內容，預設每次都會先問你；只取回覆的工具則直接可用。具體有哪些工具由 Pally 決定，登入後可以在這裡逐一設定。',
+      en: 'Once Pally is connected, the model can send a message to your Pally and read its reply, and fetch a reply that takes longer. Pally then handles the message as you have set it up in Pally, so sending a message changes things on the Pally side and asks you each time by default; the tool that only fetches a reply is available at once. Which tools exist is up to Pally; after the login you can set each one here.',
+      fr: 'Une fois Pally connecté, le modèle peut envoyer un message à votre Pally et lire sa réponse, et aller chercher une réponse qui tarde. Pally traite ensuite le message comme vous l’avez configuré chez Pally : envoyer un message modifie donc des choses côté Pally et demande par défaut votre accord à chaque fois ; l’outil qui ne fait que récupérer une réponse est disponible tout de suite. Les outils proposés dépendent de Pally ; après la connexion, vous réglez chacun ici.',
+      ru: 'После подключения Pally модель может отправить сообщение вашему Pally и прочитать ответ, а также забрать ответ, который приходит дольше. Pally обрабатывает сообщение так, как вы настроили его у себя, поэтому отправка сообщения что-то меняет на стороне Pally и по умолчанию каждый раз спрашивает вас; инструмент, который только забирает ответ, доступен сразу. Какие инструменты есть, решает Pally; после входа вы настроите каждый здесь.',
+      es: 'Una vez conectado Pally, el modelo puede enviar un mensaje a tu Pally y leer su respuesta, y recoger una respuesta que tarda más. Pally trata el mensaje como lo hayas configurado en Pally, así que enviar un mensaje cambia cosas del lado de Pally y por defecto te pregunta cada vez; la herramienta que solo recoge una respuesta está disponible al instante. Qué herramientas hay lo decide Pally; tras iniciar sesión puedes ajustar cada una aquí.'
+    }),
+    examples: Object.freeze({
+      'zh-TW': Object.freeze(['請 Pally 提醒我明天下午三點要交報告', '問問我的 Pally 這週有哪些待辦', '把這段會議重點傳給我的 Pally 存起來']),
+      en: Object.freeze(['Ask Pally to remind me to hand in the report tomorrow at 3 pm', 'Ask my Pally what is on my to-do list this week', 'Send these meeting notes to my Pally to keep']),
+      fr: Object.freeze(['Demande à Pally de me rappeler de rendre le rapport demain à 15 h', 'Demande à mon Pally ce qu’il y a sur ma liste de tâches cette semaine', 'Envoie ces notes de réunion à mon Pally pour qu’il les garde']),
+      ru: Object.freeze(['Попроси Pally напомнить мне сдать отчёт завтра в 15:00', 'Спроси мой Pally, какие у меня дела на этой неделе', 'Отправь эти заметки со встречи моему Pally на хранение']),
+      es: Object.freeze(['Pídele a Pally que me recuerde entregar el informe mañana a las 15:00', 'Pregunta a mi Pally qué tengo pendiente esta semana', 'Envía estas notas de la reunión a mi Pally para que las guarde'])
+    }),
+    reads: Object.freeze(['check_pally']),
+    writes: Object.freeze(['message_pally'])
+  }),
+  Object.freeze({
+    id: 'etherfi',
+    name: 'ether.fi',
+    category: 'finance',
+    endpoint: 'https://mcp.ether.fi/mcp',
+    icon: 'https://github.com/etherfi-protocol.png?size=96',
+    // The login is the service's own (OAuth); no scopes are known to ask for, so none are asked for.
+    scopes: Object.freeze({ readwrite: Object.freeze([]) }),
+    description: Object.freeze({
+      'zh-TW': '查詢 ether.fi（以太坊流動性質押與再質押協議）的資料與你的質押情況。',
+      en: 'Look up ether.fi (the Ethereum liquid staking and restaking protocol) and your staking.',
+      fr: 'Consulter ether.fi (le protocole de staking liquide et de restaking d’Ethereum) et votre staking.',
+      ru: 'Данные ether.fi (протокола ликвидного стейкинга и рестейкинга Ethereum) и вашего стейкинга.',
+      es: 'Consulta ether.fi (el protocolo de staking líquido y restaking de Ethereum) y tu staking.'
+    }),
+    details: Object.freeze({
+      'zh-TW': '連接 ether.fi 後，模型可以查詢這個協議的資料，也能在你的授權下看你的質押情況。具體有哪些工具由 ether.fi 決定：名稱看起來只是查詢的工具預設直接可用，其他任何可能改變你的資產、發出或準備交易的工具預設都會先問你，你也可以在登入後逐一改成不允許。模型的回答只是資訊，不是投資建議；任何涉及資金的動作，請你自己在錢包裡確認再簽署。',
+      en: 'Once ether.fi is connected, the model can look up the protocol and, with your authorisation, see your staking. Which tools exist is up to ether.fi: the ones whose names only look things up are available at once, and any that could change your assets or send or prepare a transaction ask you first by default; after the login you can set each one to not allowed. What the model says is information, not investment advice; for anything that involves funds, check and sign it yourself in your wallet.',
+      fr: 'Une fois ether.fi connecté, le modèle peut consulter le protocole et, avec votre autorisation, voir votre staking. Les outils proposés dépendent d’ether.fi : ceux dont le nom ne fait que consulter sont disponibles tout de suite, et tout outil susceptible de modifier vos actifs ou d’envoyer ou préparer une transaction demande d’abord votre accord par défaut ; après la connexion, vous pouvez mettre chacun sur « refusé ». Ce que dit le modèle est une information, pas un conseil en investissement ; pour tout ce qui touche à des fonds, vérifiez et signez vous-même dans votre portefeuille.',
+      ru: 'После подключения ether.fi модель может смотреть данные протокола и, с вашего разрешения, ваш стейкинг. Какие инструменты есть, решает ether.fi: те, чьи названия только смотрят данные, доступны сразу, а любые, что могут изменить ваши активы или отправить либо подготовить транзакцию, по умолчанию сначала спрашивают вас; после входа каждый можно запретить. Ответы модели — информация, а не инвестиционный совет; всё, что связано со средствами, проверяйте и подписывайте сами в своём кошельке.',
+      es: 'Una vez conectado ether.fi, el modelo puede consultar el protocolo y, con tu autorización, ver tu staking. Qué herramientas hay lo decide ether.fi: las que por su nombre solo consultan están disponibles al instante, y cualquiera que pueda cambiar tus activos o enviar o preparar una transacción te pregunta antes por defecto; tras iniciar sesión puedes poner cada una en «no permitida». Lo que dice el modelo es información, no asesoramiento de inversión; para cualquier cosa que implique fondos, compruébalo y fírmalo tú mismo en tu monedero.'
+    }),
+    examples: Object.freeze({
+      'zh-TW': Object.freeze(['ether.fi 現在的質押年化報酬大概是多少？', '幫我看一下我的 eETH 持倉與最近的收益', '把 ETH 質押到 ether.fi 要經過哪些步驟？先不要執行']),
+      en: Object.freeze(['What is the staking yield on ether.fi right now?', 'Show my eETH position and my recent rewards', 'What steps does staking ETH on ether.fi take? Do not execute anything yet']),
+      fr: Object.freeze(['Quel est le rendement du staking sur ether.fi en ce moment ?', 'Montre ma position eETH et mes gains récents', 'Quelles sont les étapes pour staker de l’ETH sur ether.fi ? N’exécute rien pour l’instant']),
+      ru: Object.freeze(['Какая сейчас доходность стейкинга на ether.fi?', 'Покажи мою позицию eETH и недавние награды', 'Какие шаги нужны, чтобы застейкать ETH на ether.fi? Пока ничего не выполняй']),
+      es: Object.freeze(['¿Cuál es ahora el rendimiento del staking en ether.fi?', 'Muéstrame mi posición de eETH y mis recompensas recientes', '¿Qué pasos hay que seguir para hacer staking de ETH en ether.fi? No ejecutes nada todavía'])
+    }),
+    reads: Object.freeze([]),
+    writes: Object.freeze([])
   })
 ]);
 
@@ -460,7 +525,8 @@ export function connectorProblems(connector) {
   if (!String(connector?.name || '').trim()) problems.push('name');
   if (!CONNECTOR_CATEGORIES.includes(connector?.category)) problems.push('category');
   if (!/^https:\/\/[^\s/]+(?:\/[^\s]*)?$/.test(String(connector?.endpoint || ''))) problems.push('endpoint');
-  if (!/^https:\/\/github\.com\/[A-Za-z0-9-]{1,39}\.png\?size=\d{2,3}$/.test(String(connector?.icon || ''))) problems.push('icon');
+  // The picture is the avatar of the service's organisation at GitHub, or the favicon of the service's own site (the page loads it itself); without one, or when it cannot be loaded, the page draws the first letter of the name.
+  if (connector?.icon !== undefined && !/^https:\/\/github\.com\/[A-Za-z0-9-]{1,39}\.png\?size=\d{2,3}$|^https:\/\/[a-z0-9][a-z0-9.-]{1,80}\.[a-z]{2,}\/favicon\.ico$/.test(String(connector.icon))) problems.push('icon');
   if (connector?.registration !== undefined && connector.registration !== 'dcr') problems.push('registration');
   if (connector?.clientAuth !== undefined && connector.clientAuth !== 'post') problems.push('clientAuth');
   if (!connector?.scopes?.readwrite) problems.push('scopes');

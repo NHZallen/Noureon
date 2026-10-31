@@ -75,6 +75,7 @@ export function createMobileContextMenus({
             switch (action) {
                 case 'rename': showRenameModal(convId, 'conversation', e); break;
                 case 'pin': togglePinChat(convId, e); break;
+                case 'share': document.defaultView.dispatchEvent(new document.defaultView.CustomEvent('astra:share-conversation', { detail: { id: convId } })); break;
                 case 'archive': archiveChat(convId, e); break;
                 case 'delete': deleteChat(convId, e); break;
                 case 'move-out': moveConversationToFolder(convId, null); break;

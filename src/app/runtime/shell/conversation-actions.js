@@ -7,6 +7,7 @@ import { createMediaPreviewLifecycle as createArchivedMediaPreviewLifecycle } fr
 import { createConversationViewRenderer as createArchivedConversationViewRenderer } from '../messages/conversation-view-renderer.js';
 import { createDisabledCouncilConfig, disableConversationCouncil } from './conversation-council-state.js';
 import { escapeHTML, renderUserText } from './shell-utilities.js';
+import { confirmDeleteShared } from '../share/share-ref.js';
 import { MODELS, getModelReasoningConfig, normalizeReasoningEffort } from './model-registry.js';
 import { startingChoice } from './reasoning-memory.js';
 import { getRuntimeTexts } from '../i18n/runtime-texts.js';
@@ -19,7 +20,7 @@ export function createConversationActions({
     runtimeConfigAccess, liveConversationsBridge, conversationStateAccess, runtimeAppDataStore, runtimeDialogCoordinator,
     cloneCouncilConfig, getText, toggleModal, saveAppData, renderMarkdown, bindGeneratedImageAssets,
     getActiveConversation, renderAll, renderSidebar, adjustTextareaHeight, updateInputState, updateApiKeyWarningBadge,
-    getQuoteInquiry, cancelPendingMemoryCapture, invalidateConversationMemory
+    getQuoteInquiry
 }) {
     let itemToRename = { id: null, type: null };
     const createBaseConversation = (title) => {
@@ -109,7 +110,7 @@ export function createConversationActions({
     };
     const deleteChat = async (id, event) => {
         event?.stopPropagation();
-        cancelPendingMemoryCapture(id);
+        if (!(await confirmDeleteShared([id]))) return;
         const currentConversations = liveConversationsBridge.getConversations();
         const conv = currentConversations.find(c => c.id === id);
         if (conv) {
@@ -131,7 +132,6 @@ export function createConversationActions({
             } else {
                 renderSidebar();
             }
-            await invalidateConversationMemory({ conversationId: id });
             await saveAppData({ immediateCloudSync: true });
             runtimeDialogCoordinator.showNotification(i18n[runtimeConfigAccess.getUiLanguage()].chatMovedToTrash || 'Chat moved to trash.', 'success');
         }

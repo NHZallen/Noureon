@@ -61,8 +61,11 @@ export function loadConfig(env = process.env) {
   const mailKey = String(env.RESEND_API_KEY || '');
   const mailFrom = String(env.MAIL_FROM || 'Noureon <noreply@noureon.com>');
   const waitlistTo = String(env.WAITLIST_TO || 'support@noureon.com');
+  // Where the mail about a reported share goes (REPORT_TO; the address of the waitlist when not set).
+  const reportTo = String(env.REPORT_TO || waitlistTo);
   if (!/^[^\r\n]{3,160}$/.test(mailFrom) || !mailFrom.includes('@')) problems.push('MAIL_FROM must be an address, or Name <address>');
   if (!/^[^\s<>,;"]{1,64}@[^\s<>,;"]{1,255}$/.test(waitlistTo)) problems.push('WAITLIST_TO must be an email address');
+  if (!/^[^\s<>,;"]{1,64}@[^\s<>,;"]{1,255}$/.test(reportTo)) problems.push('REPORT_TO must be an email address');
   for (const [name, value] of [['APP_URL', appUrl], ['CONNECTOR_REDIRECT_URI', connectorRedirectUri], ['CONNECTOR_CLIENT_ID', connectorClientId]]) if (!/^https:\/\/[^\s]+$/i.test(value)) problems.push(`${name} must be an https address`);
   if (problems.length) throw new Error(`Server settings are not right: ${problems.join('; ')}`);
   return Object.freeze({
@@ -83,6 +86,7 @@ export function loadConfig(env = process.env) {
     mailKey,
     mailFrom,
     waitlistTo,
+    reportTo,
     allowedOrigins: Object.freeze(list(env.ALLOWED_ORIGINS, DEFAULT_ALLOWED_ORIGINS)),
     // The version of the server (shown by /healthz): the Git commit when the deployment gives it.
     build: String(env.SOURCE_COMMIT || env.GIT_COMMIT || 'dev').slice(0, 12)
