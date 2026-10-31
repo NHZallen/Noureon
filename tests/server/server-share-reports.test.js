@@ -90,3 +90,39 @@ test('a failing take of the reports does not stop the mails about removals', asy
   const sent = await createShareReportMailer({ db, mailer, to: 'me@example.test', appUrl: 'https://noureon.com' }).mailOnce();
   assert.equal(sent, 1);
 });
+
+test('the mails come with an HTML version that has the mark, the words and the buttons, and whatever a person wrote is text in it', async () => {
+  const { removedMailFor: removed } = await import('../../server/share-reports.js');
+  const evil = '<img src=x onerror=alert(1)> & "quotes"';
+  const mail = reportMailFor(row({ title: evil, reasons: [evil, '<script>x</script>'], status: 'suspended', readers: 3 }), { appUrl: 'https://noureon.com' });
+  assert.match(mail.html, /^<!doctype html>/);
+  assert.match(mail.html, /https:\/\/noureon\.com\/icon-192\.png/);
+  assert.doesNotMatch(mail.html, /<img src=x|<script>/, 'what a person wrote is not markup');
+  assert.match(mail.html, /&lt;img src=x onerror=alert\(1\)&gt; &amp; &quot;quotes&quot;/);
+  assert.match(mail.html, new RegExp(`href="https://noureon.com/s/${'A'.repeat(32)}\\?review=1"`));
+  assert.match(mail.html, /href="https:\/\/noureon.com\/admin\/shares"/);
+  assert.ok(mail.text.length > 20, 'the text version stays');
+  const gone = reportMailFor(row({ code: null, status: null }), { appUrl: 'https://noureon.com' });
+  assert.doesNotMatch(gone.html, /<a /, 'nothing to open for a share that is gone');
+  const taken = removed({ title: 'Strawberry <b>cake</b>' });
+  assert.match(taken.html, /Strawberry &lt;b&gt;cake&lt;\/b&gt;/);
+  assert.match(taken.html, /Your shared conversation was taken down/);
+  assert.match(taken.text, /"Strawberry <b>cake<\/b>", was taken down/);
+  const untitled = removed({ title: '' });
+  assert.doesNotMatch(untitled.text, /"—"/);
+  assert.match(untitled.text, /^A conversation you shared was taken down by Noureon after review\./);
+});
+
+test('the mailer sends the HTML too when it is given, and never a link that is not https', async () => {
+  const { createMailer } = await import('../../server/mailer.js');
+  const { renderMail } = await import('../../server/mail-layout.js');
+  const seen = [];
+  const mailer = createMailer({ apiKey: 'k', from: 'Noureon <noreply@noureon.com>', fetchImpl: async (url, init) => { seen.push(JSON.parse(init.body)); return { ok: true, body: { cancel: async () => {} } }; } });
+  await mailer.send({ to: 'a@example.test', subject: 's', text: 'plain', html: '<p>hi</p>' });
+  await mailer.send({ to: 'a@example.test', subject: 's', text: 'plain' });
+  assert.equal(seen[0].html, '<p>hi</p>');
+  assert.equal('html' in seen[1], false);
+  const html = renderMail({ heading: 'H', buttons: [{ label: 'bad', href: 'javascript:alert(1)' }, { label: 'ok', href: 'https://noureon.com/x' }] });
+  assert.doesNotMatch(html, /javascript:/);
+  assert.match(html, /href="https:\/\/noureon.com\/x"/);
+});

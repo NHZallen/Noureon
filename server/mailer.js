@@ -1,4 +1,4 @@
-// Sends a mail through Resend (https://resend.com/docs/api-reference/emails/send-email): what the server has to tell us by mail (a request for a waitlist). Plain text only, to one address
+// Sends a mail through Resend (https://resend.com/docs/api-reference/emails/send-email): what the server has to tell us by mail (a request for a waitlist). Plain text, with an HTML version when one is given (the text stays for the clients that show only text), to one address
 // that the settings name, never to an address a person gave. The key is only ever in the Authorization header, to Resend's own address.
 
 const ENDPOINT = 'https://api.resend.com/emails';
@@ -19,7 +19,7 @@ export function createMailer({ apiKey = '', from, fetchImpl = fetch }) {
   return {
     configured: Boolean(apiKey),
     /** `to`: one address; `replyTo`: the address an answer goes to (the person who asked). The subject and the text are one line and plain text. */
-    async send({ to, subject, text, replyTo = '' }) {
+    async send({ to, subject, text, html = '', replyTo = '' }) {
       if (!apiKey) throw new MailError('not_configured', 'Mail is not set up.');
       if (/[\r\n]/.test(String(subject)) || /[\r\n]/.test(String(replyTo))) throw new MailError('refused', 'A header may not have a line break.');
       let response;
@@ -29,7 +29,7 @@ export function createMailer({ apiKey = '', from, fetchImpl = fetch }) {
           redirect: 'error',
           signal: AbortSignal.timeout(TIMEOUT_MS),
           headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
-          body: JSON.stringify({ from, to: [to], subject, text, ...(replyTo ? { reply_to: replyTo } : {}) })
+          body: JSON.stringify({ from, to: [to], subject, text, ...(html ? { html } : {}), ...(replyTo ? { reply_to: replyTo } : {}) })
         });
       } catch {
         throw new MailError('unreachable', 'The mail service could not be reached.');

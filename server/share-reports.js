@@ -1,39 +1,56 @@
 // The mail about a reported share (docs/superpowers/specs/2026-10-31-conversation-share-design.md, §11): once in a while the server takes the reports it has not told of, and writes one mail
 // for each share to the owner of the service (REPORT_TO). What the readers wrote is plain text in a plain mail. A mail that cannot be sent puts its reports back, to be told of next time.
 
+import { renderMail } from './mail-layout.js';
+
 const LABELS = { view: '唯讀', continue: '可接著聊' };
 const oneLine = (value, max) => String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
 
-/** The subject and the text of the mail for one share (a row of `server_take_share_reports_to_mail`). */
+/** The subject, the text and the HTML of the mail for one share (a row of `server_take_share_reports_to_mail`). */
 export function reportMailFor(row, { appUrl }) {
   const paused = row.status === 'suspended';
   const gone = !row.code;
   const title = oneLine(row.title, 60) || '（沒有名稱）';
   const readers = Number(row.readers) || 0;
-  const lines = [
-    '有人檢舉了一個分享。',
-    '',
-    `對話名稱：${title}`,
-    `權限：${LABELS[row.mode] || row.mode || '不明'}`,
-    gone ? '狀態：這個分享已經不在了' : paused ? `狀態：已暫停（${readers} 位不同讀者檢舉，連結已失效）` : row.status === 'removed' ? '狀態：已下架' : row.status === 'conversation_deleted' ? '狀態：對話已刪除，連結已失效' : '狀態：仍有效',
-    `這次新增 ${Number(row.new_reports) || 0} 筆，共 ${readers} 位不同讀者。`
-  ];
+  const mode = LABELS[row.mode] || row.mode || '不明';
+  const state = gone ? '這個分享已經不在了' : paused ? `已暫停（${readers} 位不同讀者檢舉，連結已失效）` : row.status === 'removed' ? '已下架' : row.status === 'conversation_deleted' ? '對話已刪除，連結已失效' : '仍有效';
+  const counts = `這次新增 ${Number(row.new_reports) || 0} 筆，共 ${readers} 位不同讀者`;
   const reasons = (Array.isArray(row.reasons) ? row.reasons : []).map((reason) => oneLine(reason, 500)).filter(Boolean).slice(0, 10);
+  const review = gone ? '' : `${appUrl}/s/${row.code}?review=1`;
+  const admin = gone ? '' : `${appUrl}/admin/shares`;
+  const lines = ['有人檢舉了一個分享。', '', `對話名稱：${title}`, `權限：${mode}`, `狀態：${state}`, `${counts}。`];
   if (reasons.length) lines.push('', '讀者寫的原因：', ...reasons.map((reason) => `- ${reason}`));
-  if (!gone) lines.push('', `看內容：${appUrl}/s/${row.code}?review=1`, `處理：${appUrl}/admin/shares`);
-  return { subject: oneLine(`[Noureon] 分享被檢舉${paused ? '，已暫停' : ''}：${title}`, 120), text: lines.join('\n') };
+  if (!gone) lines.push('', `看內容：${review}`, `處理：${admin}`);
+  const html = renderMail({
+    preheader: `${title}：${state}`,
+    heading: paused ? '有分享被檢舉，已暫停' : '有人檢舉了一個分享',
+    intro: [paused ? '同一個分享被三位不同的讀者檢舉，連結已經先暫停，等你看過再決定。' : '有讀者檢舉了下面這個分享，目前連結仍然有效。'],
+    quote: { label: '對話名稱', text: title },
+    details: [['權限', mode], ['狀態', state], ['檢舉', counts]],
+    list: reasons.length ? { label: '讀者寫的原因', items: reasons } : null,
+    buttons: gone ? [] : [{ label: '看內容', href: review, primary: true }, { label: '前往後台', href: admin }],
+    footer: '這封信是 Noureon 伺服器自動寄出的，寄到 REPORT_TO 設定的信箱。'
+  });
+  return { subject: oneLine(`[Noureon] 分享被檢舉${paused ? '，已暫停' : ''}：${title}`, 120), text: lines.join('\n'), html };
 }
 
 /** The mail to the owner of a share that was taken down (a row of `server_take_removed_shares_to_mail`). It is in English: the server does not know which language the person reads. */
 export function removedMailFor(row) {
-  const title = oneLine(row.title, 60) || '—';
+  const title = oneLine(row.title, 60);
+  const first = title ? `The conversation you shared, "${title}", was taken down by Noureon after review.` : 'A conversation you shared was taken down by Noureon after review.';
+  const second = 'Its link no longer works and this conversation can no longer be shared. The conversation itself is still in your account; nothing was deleted.';
+  const third = 'If you have questions, just reply to this mail.';
   return {
     subject: '[Noureon] Your shared conversation was taken down',
-    text: [
-      `The conversation you shared, "${title}", was taken down by Noureon after review.`,
-      'Its link no longer works and this conversation can no longer be shared. The conversation itself is still in your account; nothing was deleted.',
-      'If you have questions, just reply to this mail.'
-    ].join('\n\n')
+    text: [first, second, third].join('\n\n'),
+    html: renderMail({
+      preheader: 'Its link no longer works and it can no longer be shared. Nothing was deleted from your account.',
+      heading: 'Your shared conversation was taken down',
+      intro: [title ? 'Noureon took down the share of this conversation after a review.' : first],
+      quote: title ? { label: 'Conversation', text: title } : null,
+      outro: [second, third],
+      footer: 'You are receiving this because the conversation was shared from your Noureon account.'
+    })
   };
 }
 
