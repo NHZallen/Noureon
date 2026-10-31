@@ -187,3 +187,47 @@ html.pj-open { overflow: hidden; }
 /* Google's file picker is put on the page by Google's own script with the layers 1000 and 1001, under this page (1150) and its sheets (1210): it is lifted above all of them, or it opens behind the page. */
 body > .picker-dialog-bg { z-index: 1300; }
 body > .picker-dialog { z-index: 1301; }
+
+/* ---------- a computer: the sheets are dialogs in the middle (as in the apps of a computer), with the title at the left and the buttons in a row at the foot */
+.pj-icon-search { width: 100%; box-sizing: border-box; padding: 0.55rem 0.8rem; border: 1px solid var(--border-color); border-radius: 0.7rem; outline: 0; background: transparent; color: var(--text-primary); }
+.pj-icon-search:focus { border-color: var(--text-secondary); }
+.pj-popover { position: absolute; z-index: 3; display: flex; flex-direction: column; gap: 0.5rem; padding: 0.75rem; box-sizing: border-box; border: 1px solid var(--border-color); border-radius: 1rem; background: var(--modal-bg); box-shadow: var(--shadow-xl); }
+.pj-popover .pj-colors { grid-column: auto; padding: 0.4rem 0.1rem 0.5rem; border-bottom: 0; overflow-x: auto; }
+.pj-popover .pj-icons { grid-template-columns: repeat(7, minmax(0, 1fr)); max-height: 12.5rem; overflow-y: auto; }
+.pj-dropdown { position: relative; margin-right: auto; }
+.pj-dropdown-button { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.55rem 0.9rem; border: 0; border-radius: 9999px; background: var(--hover-bg); }
+.pj-dropdown-caret { color: var(--text-secondary); font-size: var(--pj-small); }
+.pj-dropdown-list { position: absolute; left: 0; bottom: calc(100% + 0.4rem); z-index: 3; display: flex; flex-direction: column; min-width: 18rem; padding: 0.35rem; border: 1px solid var(--border-color); border-radius: 1rem; background: var(--modal-bg); box-shadow: var(--shadow-xl); }
+.pj-dropdown-item { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.75rem; padding: 0.6rem 0.7rem; border: 0; border-radius: 0.7rem; background: transparent; text-align: left; }
+.pj-dropdown-item:hover { background: var(--hover-bg); }
+.pj-dropdown-check { flex: none; color: var(--text-primary); }
+.pj-folder { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1.2rem; }
+.pj-folder-box { display: flex; flex-direction: column; align-items: center; gap: 0.6rem; padding: 1rem; border: 1px solid var(--border-color); border-radius: 1rem; text-align: center; }
+.pj-folder-hint { color: var(--text-secondary); font-size: var(--pj-small); }
+.pj-folder-result { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; width: 100%; text-align: left; }
+.pj-folder-result[hidden], .pj-folder-hint[hidden], .pj-folder-add[hidden] { display: none; }
+.pj-folder-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.pj-sources-head { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; margin-top: 1.2rem; }
+.pj-sources-list { display: flex; flex-direction: column; gap: 0.4rem; margin-top: 0.5rem; max-height: 14rem; overflow-y: auto; }
+.pj-sources-list .pj-row { border: 1px solid var(--border-color); border-radius: 0.9rem; }
+.pj-memory-shown-block { display: flex; flex-direction: column; gap: 0.4rem; margin-top: 1.2rem; }
+.pj-readonly { padding: 0.6rem 0.9rem; border: 1px solid var(--border-color); border-radius: 0.9rem; color: var(--text-secondary); }
+.pj-camera-video { display: block; width: 100%; max-height: 24rem; border-radius: 0.9rem; background: var(--hover-bg); object-fit: cover; }
+.pj-foot-left { margin-right: auto; display: inline-flex; align-items: center; gap: 0.4rem; }
+
+@media (min-width: 768px) {
+  .pj-backdrop:not(.is-bottom) { align-items: center; justify-content: center; padding-top: 0; background: var(--scrim); }
+  .pj-backdrop:not(.is-bottom):not(.is-dialog) .pj-sheet { position: relative; flex: none; width: min(100% - 2rem, 40rem); max-height: min(92%, 46rem); border-radius: 1.25rem; background: var(--modal-bg); box-shadow: var(--shadow-xl); }
+  .pj-backdrop:not(.is-bottom):not(.is-dialog) .pj-sheet-head { grid-template-columns: minmax(0, 1fr) auto; max-width: none; padding: 1.25rem 1.5rem 0.4rem; }
+  .pj-backdrop:not(.is-bottom):not(.is-dialog) .pj-sheet-title { grid-column: 1; text-align: left; }
+  .pj-backdrop:not(.is-bottom):not(.is-dialog) .pj-sheet-head .pj-round, .pj-backdrop:not(.is-bottom):not(.is-dialog) .pj-sheet-head .pj-pill { grid-column: 2; }
+  .pj-backdrop:not(.is-bottom):not(.is-dialog) .pj-sheet-body { display: block; padding: 0.3rem 1.5rem 0.5rem; }
+  .pj-backdrop:not(.is-bottom):not(.is-dialog) .pj-intro { text-align: left; margin-bottom: 1rem; }
+  .pj-backdrop:not(.is-bottom):not(.is-dialog) .pj-chips { margin-top: 0.9rem; }
+  .pj-backdrop:not(.is-bottom):not(.is-dialog) .pj-sheet-foot { display: flex; align-items: center; justify-content: flex-end; gap: 0.6rem; max-width: none; padding: 0.9rem 1.5rem 1.25rem; }
+  .pj-backdrop:not(.is-bottom):not(.is-dialog) .pj-sheet-foot .pj-button { width: auto; min-width: 6rem; }
+  .pj-backdrop:not(.is-bottom):not(.is-dialog) .pj-sheet-foot.is-stacked { flex-direction: column; align-items: stretch; }
+}
+.pj-popover .pj-colors { gap: 0.45rem; }
+.pj-popover .pj-dot { width: 1.7rem; height: 1.7rem; }
+.pj-popover .pj-dot[aria-checked="true"]::after { inset: -4px; }

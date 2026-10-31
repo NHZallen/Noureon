@@ -2,7 +2,8 @@
 // with you; a search at the foot) and one project (its chats, a box to write to it, a menu with edit, instructions and delete). They open over the chat at noureon.com/projects and
 // noureon.com/projects/<id>. Names and titles are put in with textContent; colours are the tokens (styles/projects.css) and the colour a person chose for a project.
 
-import { make, ICONS, openActionSheet, openMenu, projectMark, sourceTile, toneOfName } from './project-parts.js';
+import { cameraAvailable, openCameraDialog } from './project-camera.js';
+import { isWide, make, ICONS, openActionSheet, openMenu, projectMark, sourceTile, toneOfName } from './project-parts.js';
 import { openCreateSheet, openDeleteSheet, openEditSheet, openInstructionsSheet, openRenameChatSheet, openSourceTextSheet, sourceFailureText } from './project-sheets.js';
 import { PROJECT_SOURCES_MAX } from '../../runtime/projects/project-source-model.js';
 import { projectSourcesFor } from '../../runtime/projects/project-source-prompt.js';
@@ -111,9 +112,9 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     if (!fromPage) items.push({ label: text('pjMenuNewChat'), icon: 'plus', action: async () => { const result = await actions.startChat(project.id, '').catch(() => ({ ok: false })); if (result.ok) close(); else notify(text('pjFailed'), 'error'); } });
     items.push(
       { label: project.pinned ? text('pjMenuUnpin') : text('pjMenuPin'), icon: 'pin', action: async () => { await actions.togglePinProject(project.id); refresh(); } },
-      { label: text(fromPage ? 'pjMenuEdit' : 'pjMenuSettings'), icon: 'edit', action: () => openEditSheet({ document, root, text, actions, project, notify, onSaved: refresh }) }
+      { label: text(fromPage ? 'pjMenuEdit' : 'pjMenuSettings'), icon: 'edit', action: () => openEditSheet({ document, root, text, actions, project, notify, onSaved: refresh, sources: sourcesEnabled ? { list: () => actions.sourcesOf(project.id), row: (source, after) => sourceRow(project, source, after), add: (after) => openAddSources(project, after) } : null }) }
     );
-    if (fromPage) items.push({ label: text('pjMenuInstructions'), icon: 'sliders', action: () => openInstructionsSheet({ document, root, text, actions, project, notify, onSaved: refresh }) });
+    if (fromPage && !isWide(document)) items.push({ label: text('pjMenuInstructions'), icon: 'sliders', action: () => openInstructionsSheet({ document, root, text, actions, project, notify, onSaved: refresh }) });
     items.push({ label: text('pjMenuDelete'), icon: 'trash', danger: true, action: () => openDeleteSheet({ document, root, text, actions, project, notify, onDeleted: () => go({ list: true }, false) }) });
     anchor?.setAttribute?.('aria-expanded', 'true');
     menu = openMenu({ document, root, anchor, point, items, onClose: () => { anchor?.removeAttribute?.('aria-expanded'); menu = null; } });
@@ -281,16 +282,27 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     notify(read.truncated ? text('pjSourceTruncated', { name: read.title, max: '100,000' }) : text('pjSourceAdded'), 'success');
     return { ok: true };
   };
-  const ingest = async (input) => {
-    const project = projectOrNull(state.projectId);
-    const files = [...(input.files || [])];
-    input.value = '';
-    if (!project) return;
+  // The project the files that are chosen now go to, and what to redraw afterwards: the project that is open, or the one whose settings are open (a computer lists the sources there too).
+  let addTarget = null;
+  const addAll = async (project, files) => {
     for (const file of files) {
       const result = await addFile(project, file);
       if (!result.ok && (result.code === 'full' || result.code === 'too_much' || result.code === 'files_too_much')) break;
     }
+  };
+  const afterAdd = () => {
+    const done = addTarget?.onDone;
+    addTarget = null;
+    done?.();
     if (state.view === 'project' && state.tab === 'sources') drawProject();
+  };
+  const ingest = async (input) => {
+    const project = addTarget?.project || projectOrNull(state.projectId);
+    const files = [...(input.files || [])];
+    input.value = '';
+    if (!project) return;
+    await addAll(project, files);
+    afterAdd();
   };
   for (const input of inputs) input.addEventListener('change', () => { void ingest(input); });
   // Google's own picker (its tabs, its search, its folders): the files chosen come back as files and are added like ones from the device.
@@ -298,11 +310,44 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     const picked = await drive.pick().catch(() => ({ ok: false, code: 'failed' }));
     if (!picked.ok) { if (picked.code !== 'cancelled') notify(text('pjDriveFailed'), 'error'); return; }
     for (const failure of picked.failed || []) notify(failure.code === 'too_big' ? text('pjSourceTooBig', { name: failure.name }) : text('pjDriveReadFailed', { name: failure.name }), 'error');
-    for (const file of picked.files) {
-      const result = await addFile(project, file);
-      if (!result.ok && (result.code === 'full' || result.code === 'too_much' || result.code === 'files_too_much')) break;
-    }
-    if (state.view === 'project' && state.tab === 'sources') drawProject();
+    await addAll(project, picked.files);
+    afterAdd();
+  };
+  // The list of what can be added (a phone's own choices, and on a computer the camera of the computer): shared by the tab of the sources and the settings of a project.
+  const openAddSources = (project, onDone) => {
+    closeMenu();
+    // What is chosen below goes to this project, and `onDone` is told afterwards (set when a choice is made, so a list that was closed with no choice leaves nothing behind).
+    const via = (run) => () => { addTarget = { project, onDone }; return run(); };
+    // Google's scripts are loaded now, so the sign-in window can open the moment the choice is tapped (a browser lets a window open only from a tap).
+    drive?.warm?.();
+    openActionSheet({
+      document, root, title: text('pjSourcesAdd'),
+      items: [
+        { label: text('pjSourceTakePhoto'), icon: 'camera', action: via(() => (cameraAvailable(document) ? openCameraDialog({ document, root, text, onCapture: async (file) => { await addAll(project, [file]); afterAdd(); }, onError: () => notify(text('pjCameraFailed'), 'error') }) : cameraInput.click())) },
+        { label: text('pjSourceAddPhoto'), icon: 'image', action: via(() => photoInput.click()) },
+        { label: text('pjSourceAddFile'), icon: 'attach', action: via(() => fileInput.click()) },
+        { label: text('pjSourceAddText'), icon: 'text', action: () => openSourceTextSheet({ document, root, text, actions, project, notify, onSaved: () => { addTarget = null; onDone?.(); drawProject(); } }) },
+        ...(drive ? [{ label: text('pjSourceAddDrive'), icon: 'driveColor', action: via(() => pickFromDrive(project)) }] : [])
+      ]
+    });
+  };
+  // One source as a row: its tile, its title and kind and size, and a bin. `after` is called once it is removed.
+  const sourceRow = (project, source, after) => {
+    const row = make(document, 'div', 'pj-row pj-source');
+    row.dataset.sourceId = source.id;
+    const label = kindLabel(source);
+    const tone = source.kind === 'image' ? 'picture' : source.kind === 'file' ? toneOfName(source.title) : '';
+    const tile = tone && source.kind === 'file' && label.length <= 4 ? sourceTile(document, { tone, label })
+      : sourceTile(document, { tone, icon: (source.kind === 'image' ? ICONS.image : source.kind === 'file' ? ICONS.file : ICONS.text)(18) });
+    const meta = make(document, 'span', 'pj-row-text');
+    meta.append(make(document, 'span', 'pj-row-title', source.title || text('pjSourceUntitled')), make(document, 'span', 'pj-row-meta', `${label} · ${sizeText(source)}`));
+    const remove = make(document, 'button', 'pj-more');
+    remove.type = 'button';
+    remove.setAttribute('aria-label', text('pjSourceRemove'));
+    remove.innerHTML = ICONS.trash(18);
+    remove.addEventListener('click', async () => { const result = await actions.removeSource(project.id, source.id); if (result.ok) notify(text('pjSourceRemoved'), 'success'); after(); });
+    row.append(tile, meta, remove);
+    return row;
   };
   const sourcesView = (project) => {
     const box = make(document, 'div', 'pj-sources');
@@ -316,41 +361,11 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     const words = make(document, 'span', 'pj-row-text');
     words.append(make(document, 'span', 'pj-row-title', text('pjSourcesAdd')), make(document, 'span', 'pj-row-meta', text('pjSourcesCount', { n: list.length, max: PROJECT_SOURCES_MAX })));
     add.append(plus, words);
-    const openAdd = () => {
-      closeMenu();
-      // Google's scripts are loaded now, so the sign-in window can open the moment the choice is tapped (a browser lets a window open only from a tap).
-      drive?.warm?.();
-      openActionSheet({
-        document, root, title: text('pjSourcesAdd'),
-        items: [
-          { label: text('pjSourceTakePhoto'), icon: 'camera', action: () => cameraInput.click() },
-          { label: text('pjSourceAddPhoto'), icon: 'image', action: () => photoInput.click() },
-          { label: text('pjSourceAddFile'), icon: 'attach', action: () => fileInput.click() },
-          { label: text('pjSourceAddText'), icon: 'text', action: () => openSourceTextSheet({ document, root, text, actions, project, notify, onSaved: drawProject }) },
-          ...(drive ? [{ label: text('pjSourceAddDrive'), icon: 'driveColor', action: () => pickFromDrive(project) }] : [])
-        ]
-      });
-    };
+    const openAdd = () => openAddSources(project, drawProject);
     add.addEventListener('click', openAdd);
     add.addEventListener('keydown', (event) => { if (event.target === add && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); openAdd(); } });
     box.appendChild(add);
-    for (const source of list) {
-      const row = make(document, 'div', 'pj-row pj-source');
-      row.dataset.sourceId = source.id;
-      const label = kindLabel(source);
-      const tone = source.kind === 'image' ? 'picture' : source.kind === 'file' ? toneOfName(source.title) : '';
-      const tile = tone && source.kind === 'file' && label.length <= 4 ? sourceTile(document, { tone, label })
-        : sourceTile(document, { tone, icon: (source.kind === 'image' ? ICONS.image : source.kind === 'file' ? ICONS.file : ICONS.text)(18) });
-      const meta = make(document, 'span', 'pj-row-text');
-      meta.append(make(document, 'span', 'pj-row-title', source.title || text('pjSourceUntitled')), make(document, 'span', 'pj-row-meta', `${label} · ${sizeText(source)}`));
-      const remove = make(document, 'button', 'pj-more');
-      remove.type = 'button';
-      remove.setAttribute('aria-label', text('pjSourceRemove'));
-      remove.innerHTML = ICONS.trash(18);
-      remove.addEventListener('click', async () => { const result = await actions.removeSource(project.id, source.id); if (result.ok) notify(text('pjSourceRemoved'), 'success'); drawProject(); });
-      row.append(tile, meta, remove);
-      box.appendChild(row);
-    }
+    for (const source of list) box.appendChild(sourceRow(project, source, drawProject));
     const left = projectSourcesFor(project).left.length + projectFilesBudget(project).left.length;
     if (left) box.appendChild(make(document, 'p', 'pj-note', text('pjSourcesLeftOut', { n: left })));
     return box;
@@ -423,7 +438,11 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     if (pushed && win.history.state?.projects) win.history.back();
     else go({ list: true }, false);
   }
-  const newProject = () => openCreateSheet({ document, root, text, actions, notify, onCreated: (id) => go({ id }, true) });
+  const newProject = () => openCreateSheet({
+    document, root, text, actions, notify, onCreated: (id) => go({ id }, true),
+    // A computer: the files of the folder that was chosen are added to the new project one after another.
+    onFolderFiles: sourcesEnabled ? async (id, files) => { const project = projectOrNull(id); if (project) { await addAll(project, files); if (state.view === 'project' && state.tab === 'sources') drawProject(); } } : null
+  });
 
   const onPopState = () => {
     const route = projectsRouteFromPath(win.location.pathname);

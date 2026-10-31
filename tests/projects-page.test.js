@@ -14,8 +14,10 @@ const tick = () => new Promise((resolve) => setTimeout(resolve, 15));
 const texts = i18nParts.en;
 const text = (key, values = {}) => String(texts[key] ?? key).replace(/\{(\w+)\}/g, (_, name) => values[name] ?? '');
 
-const setup = ({ folders, conversations, url = 'https://noureon.test/' } = {}) => {
+// `wide`: a computer (the dialogs are in the middle, the icon is chosen in a box at the name); without it the page is a phone's.
+const setup = ({ folders, conversations, url = 'https://noureon.test/', wide = false } = {}) => {
   const window = new Window({ url });
+  window.matchMedia = (query) => ({ matches: wide, media: query, addEventListener() {}, removeEventListener() {} });
   const { document } = window;
   document.body.innerHTML = '<div id="app"></div>';
   const state = {
@@ -513,5 +515,77 @@ test('the sheet that makes a project asks where its notes are kept (default or t
     t.byText('.pj-sheet .pj-button', 'Create project').click();
     await t.tick();
     assert.equal(t.state.folders[0].memoryScope, 'project');
+  } finally { await t.finish(); }
+});
+
+test('on a computer the create dialog has the memory choice as a list at the foot, the source folder, and the icon box with a search at the name', async () => {
+  const t = setup({ folders: [], conversations: [], wide: true });
+  try {
+    t.open({ list: true }, { sourcesEnabled: true });
+    t.$$('.pj-head .pj-round').at(-1).click();
+    assert.equal(t.$$('.pj-memory-row').length, 0, 'no rows of radio on a computer');
+    assert.ok(t.$('.pj-sheet-foot .pj-dropdown-button'), 'the choice is a button at the left of the foot');
+    assert.match(t.$('.pj-dropdown-button').textContent, /Default memory/);
+    t.$('.pj-dropdown-button').click();
+    assert.deepEqual(t.$$('.pj-dropdown-item .pj-memory-name').map((node) => node.textContent), ['Default memory', 'Project only']);
+    t.$$('.pj-dropdown-item')[1].click();
+    assert.match(t.$('.pj-dropdown-button').textContent, /Project only/);
+    assert.equal(t.$('.pj-dropdown-list'), null, 'the list closes at a choice');
+    assert.ok(t.$('.pj-folder'), 'the source folder block is there');
+    t.type(t.$('.pj-name-input'), 'Music');
+    t.$('.pj-name-icon').click();
+    assert.equal(t.$$('.pj-backdrop').length, 1, 'the icon is chosen in a box, not in a sheet of its own');
+    assert.ok(t.$('.pj-popover .pj-icon-search'));
+    const visible = () => t.$$('.pj-icon-option').filter((icon) => !icon.hidden).map((icon) => icon.dataset.icon);
+    assert.ok(visible().length >= 28);
+    t.type(t.$('.pj-icon-search'), 'music');
+    assert.deepEqual(visible(), ['music']);
+    t.$$('.pj-icon-option').find((icon) => icon.dataset.icon === 'music').click();
+    t.$$('.pj-dot').find((dot) => dot.dataset.color === 'purple').click();
+    t.byText('.pj-sheet .pj-button', 'Create project').click();
+    await t.tick();
+    assert.deepEqual([t.state.folders[0].name, t.state.folders[0].icon, t.state.folders[0].color, t.state.folders[0].memoryScope], ['Music', 'music', 'purple', 'project']);
+  } finally { await t.finish(); }
+});
+
+test('the files of a chosen folder are added to the new project after it is made; hidden files and folders of tools are left out', async () => {
+  const t = setup({ folders: [], conversations: [], wide: true });
+  const added = [];
+  try {
+    t.open({ list: true }, { sourcesEnabled: true, readFile: async (file) => { added.push(file.name); return { ok: true, title: file.name, mime: 'text/plain', size: 5, text: 'hello' }; } });
+    t.$$('.pj-head .pj-round').at(-1).click();
+    t.type(t.$('.pj-name-input'), 'From folder');
+    const input = t.$('.pj-folder input[type="file"]');
+    const file = (name, path, size = 5) => { const entry = new t.window.File(['x'.repeat(size)], name); Object.defineProperty(entry, 'webkitRelativePath', { value: path }); return entry; };
+    Object.defineProperty(input, 'files', { value: [file('a.txt', 'Docs/a.txt'), file('b.md', 'Docs/sub/b.md'), file('.env', 'Docs/.env'), file('x.js', 'Docs/node_modules/x.js'), file('empty.txt', 'Docs/empty.txt', 0)], configurable: true });
+    input.dispatchEvent(new t.window.Event('change', { bubbles: true }));
+    assert.match(t.$('.pj-folder-result').textContent, /2 files from "Docs"/);
+    assert.match(t.$('.pj-folder-result').textContent, /3 more were not added/);
+    t.byText('.pj-sheet .pj-button', 'Create project').click();
+    await t.tick(); await t.tick();
+    assert.deepEqual(added.sort(), ['a.txt', 'b.md']);
+    assert.equal(t.state.folders[0].sources.length, 2);
+  } finally { await t.finish(); }
+});
+
+test('on a computer the settings of a project list its sources with an add button, and "Advanced" opens the instructions and shows where the notes are kept', async () => {
+  const folders = [{ id: 'f1', name: 'Research', icon: 'globe', color: 'blue', conversationIds: [], instructions: 'Be brief.', memoryScope: 'project', sources: [{ id: 's1', kind: 'text', title: 'Brief', mime: '', size: 5, text: 'hello', addedAt: '' }] }];
+  const t = setup({ folders, conversations: [], wide: true });
+  try {
+    t.open({ id: 'f1' }, { sourcesEnabled: true });
+    t.$$('.pj-head .pj-round').at(-1).click();
+    t.byText('.pj-menu-item', 'Edit project').click();
+    assert.equal(t.$('.pj-section-title').textContent, 'Available sources');
+    assert.deepEqual(t.$$('.pj-sources-list .pj-row-title').map((node) => node.textContent), ['Brief']);
+    t.$('.pj-sources-list .pj-more').click();
+    await t.tick();
+    assert.equal(t.state.folders[0].sources.length, 0, 'a source is removed from the list in the dialog');
+    assert.match(t.$('.pj-sources-list').textContent, /No sources yet/);
+    t.byText('.pj-sheet-foot .pj-foot-left', 'Advanced').click();
+    assert.equal(t.$$('.pj-backdrop').length, 2);
+    assert.match(t.$$('.pj-sheet-title').at(-1).textContent, /Advanced settings/);
+    assert.equal(t.$('.pj-textarea').value, 'Be brief.');
+    assert.match(t.$('.pj-memory-shown-block').textContent, /only uses its own notes/);
+    assert.equal(t.$('.pj-readonly').textContent, 'Project only');
   } finally { await t.finish(); }
 });

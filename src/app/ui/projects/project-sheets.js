@@ -5,8 +5,9 @@ import { FOLDER_SVGS } from '../../runtime/features/folder-metadata.js';
 import { FOLDER_COLORS } from '../../runtime/shell/runtime-ui-colors.js';
 import { PROJECT_INSTRUCTIONS_MAX } from '../../runtime/projects/project-instructions.js';
 import { PROJECT_NAME_MAX } from '../../runtime/projects/project-actions.js';
-import { PROJECT_SOURCE_CHARS_MAX, PROJECT_SOURCE_TITLE_MAX } from '../../runtime/projects/project-source-model.js';
-import { colorOf, make, openSheet, projectMark } from './project-parts.js';
+import { PROJECT_SOURCES_MAX, PROJECT_SOURCE_CHARS_MAX, PROJECT_SOURCE_TITLE_MAX } from '../../runtime/projects/project-source-model.js';
+import { iconMatches } from '../../../data/project-icon-words.js';
+import { ICONS, colorOf, isWide, make, openSheet, projectMark } from './project-parts.js';
 
 // What a project can be made with one tap: its name, icon and colour.
 export const PROJECT_PRESETS = Object.freeze([
@@ -26,10 +27,14 @@ const footerButton = (document, label, className = 'pj-primary') => {
   return { foot, button };
 };
 
-/** The sheet where the icon and the colour are chosen; `onDone({ icon, color })` is called as it is closed with "Done". */
-export function openIconPicker({ document, root, text, draft, onDone }) {
+/** The search box, the colours and the icons of the picker (the same in the sheet of a phone and in the box of a computer). `onChange({ icon, color })` is told at each choice. */
+function iconPickerContent({ document, text, draft, onChange = () => {} }) {
   let { icon, color } = draft;
-  const preview = make(document, 'div', 'pj-picker-preview');
+  const language = text('pjIconLang');
+  const search = make(document, 'input', 'pj-icon-search');
+  search.type = 'search';
+  search.placeholder = text('pjIconSearch');
+  search.setAttribute('aria-label', text('pjIconSearch'));
   const colors = make(document, 'div', 'pj-colors');
   colors.setAttribute('role', 'radiogroup');
   colors.setAttribute('aria-label', text('pjColor'));
@@ -37,10 +42,11 @@ export function openIconPicker({ document, root, text, draft, onDone }) {
   icons.setAttribute('role', 'radiogroup');
   icons.setAttribute('aria-label', text('pjIcon'));
   const redraw = () => {
-    preview.replaceChildren(projectMark(document, { icon, color }, 'is-large'));
     for (const button of colors.children) button.setAttribute('aria-checked', String(button.dataset.color === color));
-    for (const button of icons.children) button.setAttribute('aria-checked', String(button.dataset.icon === icon));
-    for (const button of icons.children) button.style.setProperty('--pj-color', colorOf(color));
+    for (const button of icons.children) {
+      button.setAttribute('aria-checked', String(button.dataset.icon === icon));
+      button.style.setProperty('--pj-color', colorOf(color));
+    }
   };
   for (const key of Object.keys(FOLDER_COLORS)) {
     const dot = make(document, 'button', 'pj-dot');
@@ -49,7 +55,7 @@ export function openIconPicker({ document, root, text, draft, onDone }) {
     dot.setAttribute('role', 'radio');
     dot.setAttribute('aria-label', key);
     dot.style.setProperty('--pj-dot', FOLDER_COLORS[key]);
-    dot.addEventListener('click', () => { color = key; redraw(); });
+    dot.addEventListener('click', () => { color = key; redraw(); onChange({ icon, color }); });
     colors.appendChild(dot);
   }
   for (const key of Object.keys(FOLDER_SVGS)) {
@@ -59,14 +65,52 @@ export function openIconPicker({ document, root, text, draft, onDone }) {
     button.setAttribute('role', 'radio');
     button.setAttribute('aria-label', key);
     button.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${FOLDER_SVGS[key]}</svg>`;
-    button.addEventListener('click', () => { icon = key; redraw(); });
+    button.addEventListener('click', () => { icon = key; redraw(); onChange({ icon, color }); });
     icons.appendChild(button);
   }
-  // "Done" is at the right of the head, in the place of the cross (as in ChatGPT's): what was chosen is kept only by it.
-  const sheet = openSheet({ document, root, title: text('pjChooseIcon'), action: { label: text('pjDone'), onClick: () => onDone({ icon, color }) }, body: (body) => body.append(preview, colors, icons) });
+  // The icons that do not match what was typed are hidden.
+  search.addEventListener('input', () => { for (const button of icons.children) button.hidden = !iconMatches(button.dataset.icon, search.value, language); });
   redraw();
-  return sheet;
-};
+  return { search, colors, icons, value: () => ({ icon, color }) };
+}
+
+/** The sheet where the icon and the colour are chosen (on a phone); `onDone({ icon, color })` is called as it is closed with "Done". */
+export function openIconPicker({ document, root, text, draft, onDone }) {
+  let chosen = { icon: draft.icon, color: draft.color };
+  const preview = make(document, 'div', 'pj-picker-preview');
+  const content = iconPickerContent({ document, text, draft, onChange: (value) => { chosen = value; preview.replaceChildren(projectMark(document, chosen, 'is-large')); } });
+  preview.replaceChildren(projectMark(document, chosen, 'is-large'));
+  // "Done" is at the right of the head, in the place of the cross (as in ChatGPT's): what was chosen is kept only by it.
+  return openSheet({ document, root, title: text('pjChooseIcon'), action: { label: text('pjDone'), onClick: () => onDone(chosen) }, body: (body) => body.append(preview, content.search, content.colors, content.icons) });
+}
+
+/** The box of the icon on a computer: under the name, with a search box, the colours and the icons; a choice counts at once, and a click outside (or Escape) closes it. */
+function openIconPopover({ document, sheet, anchor, text, draft, onChange }) {
+  const win = document.defaultView;
+  const box = make(document, 'div', 'pj-popover');
+  const content = iconPickerContent({ document, text, draft, onChange });
+  box.append(content.search, content.colors, content.icons);
+  sheet.appendChild(box);
+  const place = anchor.getBoundingClientRect();
+  const around = sheet.getBoundingClientRect();
+  box.style.top = `${Math.round(place.bottom - around.top + 6)}px`;
+  box.style.left = `${Math.round(place.left - around.left)}px`;
+  box.style.width = `${Math.round(Math.min(place.width, 30 * 16))}px`;
+  let closed = false;
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    win.removeEventListener('pointerdown', onOutside, true);
+    win.removeEventListener('keydown', onKey, true);
+    box.remove();
+  };
+  const onOutside = (event) => { if (!box.contains(event.target) && !anchor.contains(event.target)) close(); };
+  const onKey = (event) => { if (event.key === 'Escape') { event.stopPropagation(); event.preventDefault(); close(); } };
+  win.addEventListener('pointerdown', onOutside, true);
+  win.addEventListener('keydown', onKey, true);
+  content.search.focus();
+  return { close, element: box };
+}
 
 /** The field of a name with the button of its icon at the left. Returns { element, input, value(), icon(), color(), set(partial) }. */
 function nameField({ document, root, text, initial, onChange = () => {}, onSubmit = () => {} }) {
@@ -85,7 +129,18 @@ function nameField({ document, root, text, initial, onChange = () => {}, onSubmi
   draw();
   input.addEventListener('input', () => { state.name = input.value; onChange(state); });
   input.addEventListener('keydown', (event) => { if (event.key === 'Enter' && !event.isComposing) { event.preventDefault(); onSubmit(); } });
-  iconButton.addEventListener('click', () => openIconPicker({ document, root, text, draft: state, onDone: ({ icon, color }) => { state.icon = icon; state.color = color; draw(); onChange(state); } }));
+  const choose = ({ icon, color }) => { state.icon = icon; state.color = color; draw(); onChange(state); };
+  let popover = null;
+  iconButton.addEventListener('click', () => {
+    // A computer: a box under the name; a phone: a sheet of its own.
+    const sheet = field.closest?.('.pj-sheet');
+    if (isWide(document) && sheet) {
+      if (popover?.element.isConnected) { popover.close(); popover = null; return; }
+      popover = openIconPopover({ document, sheet, anchor: field, text, draft: state, onChange: choose });
+      return;
+    }
+    openIconPicker({ document, root, text, draft: state, onDone: choose });
+  });
   field.append(iconButton, input);
   return {
     element: field,
@@ -95,14 +150,16 @@ function nameField({ document, root, text, initial, onChange = () => {}, onSubmi
   };
 }
 
-/** The choice of where the notes of the chats are kept, shown when a project is made (it cannot be changed afterwards): two rows, one ticked. */
+const MEMORY_OPTIONS = [['default', 'pjMemoryDefault', 'pjMemoryDefaultBody'], ['project', 'pjMemoryProject', 'pjMemoryProjectBody']];
+
+/** The choice of where the notes of the chats are kept, shown when a project is made (it cannot be changed afterwards): two rows, one ticked (on a phone). */
 function memoryChoice(document, text, onChange) {
   const group = make(document, 'div', 'pj-memory');
   group.setAttribute('role', 'radiogroup');
   group.setAttribute('aria-label', text('pjMemoryTitle'));
   group.appendChild(make(document, 'div', 'pj-section-title', text('pjMemoryTitle')));
   const rows = [];
-  for (const [value, title, body] of [['default', 'pjMemoryDefault', 'pjMemoryDefaultBody'], ['project', 'pjMemoryProject', 'pjMemoryProjectBody']]) {
+  for (const [value, title, body] of MEMORY_OPTIONS) {
     const row = make(document, 'button', 'pj-memory-row');
     row.type = 'button';
     row.setAttribute('role', 'radio');
@@ -125,11 +182,110 @@ function memoryChoice(document, text, onChange) {
   return group;
 }
 
-/** The sheet that makes a project. `onCreated(id)` is called after it is made. */
-export function openCreateSheet({ document, root, text, actions, notify = () => {}, onCreated = () => {} }) {
+/** The same choice on a computer: a button at the left of the foot ("Default memory ▾") that opens a list with a word under each choice, as in the apps of a computer. */
+function memoryDropdown(document, text, onChange) {
+  const win = document.defaultView;
+  const wrap = make(document, 'div', 'pj-dropdown');
+  const button = make(document, 'button', 'pj-dropdown-button');
+  button.type = 'button';
+  button.setAttribute('aria-haspopup', 'listbox');
+  button.setAttribute('aria-expanded', 'false');
+  let value = 'default';
+  let list = null;
+  const label = () => { button.replaceChildren(make(document, 'span', '', text(MEMORY_OPTIONS.find((entry) => entry[0] === value)[1])), make(document, 'span', 'pj-dropdown-caret', '▾')); };
+  const closeList = () => {
+    if (!list) return;
+    list.remove();
+    list = null;
+    button.setAttribute('aria-expanded', 'false');
+    win.removeEventListener('pointerdown', onOutside, true);
+    win.removeEventListener('keydown', onKey, true);
+  };
+  const onOutside = (event) => { if (!wrap.contains(event.target)) closeList(); };
+  const onKey = (event) => { if (event.key === 'Escape') { event.stopPropagation(); event.preventDefault(); closeList(); } };
+  button.addEventListener('click', () => {
+    if (list) { closeList(); return; }
+    list = make(document, 'div', 'pj-dropdown-list');
+    list.setAttribute('role', 'listbox');
+    for (const [key, title, body] of MEMORY_OPTIONS) {
+      const item = make(document, 'button', 'pj-dropdown-item');
+      item.type = 'button';
+      item.setAttribute('role', 'option');
+      item.setAttribute('aria-selected', String(key === value));
+      const words = make(document, 'span', 'pj-memory-text');
+      words.append(make(document, 'span', 'pj-memory-name', text(title)), make(document, 'span', 'pj-memory-body', text(body)));
+      item.append(words, make(document, 'span', 'pj-dropdown-check', key === value ? '✓' : ''));
+      item.addEventListener('click', () => { value = key; label(); onChange(value); closeList(); });
+      list.appendChild(item);
+    }
+    wrap.appendChild(list);
+    button.setAttribute('aria-expanded', 'true');
+    win.addEventListener('pointerdown', onOutside, true);
+    win.addEventListener('keydown', onKey, true);
+  });
+  label();
+  wrap.appendChild(button);
+  return wrap;
+}
+
+/** The place to take the files of a folder of the computer from (a computer only): "Source folder", a box with a button that opens the choice of a folder, and what was chosen. */
+function folderChoice(document, text, onChange) {
+  const box = make(document, 'div', 'pj-folder');
+  box.appendChild(make(document, 'div', 'pj-section-title', text('pjSourceFolder')));
+  const area = make(document, 'div', 'pj-folder-box');
+  const hint = make(document, 'div', 'pj-folder-hint', text('pjFolderHint'));
+  const input = make(document, 'input', 'pj-file-input');
+  input.type = 'file';
+  input.hidden = true;
+  input.multiple = true;
+  input.setAttribute('webkitdirectory', '');
+  const add = make(document, 'button', 'pj-chip pj-folder-add');
+  add.type = 'button';
+  add.innerHTML = ICONS.folder(16);
+  add.append(make(document, 'span', 'pj-chip-label', text('pjFolderAdd')));
+  add.addEventListener('click', () => input.click());
+  const result = make(document, 'div', 'pj-folder-result');
+  result.hidden = true;
+  const clear = make(document, 'button', 'pj-more');
+  clear.type = 'button';
+  clear.setAttribute('aria-label', text('pjSourceRemove'));
+  clear.innerHTML = ICONS.close(16);
+  input.addEventListener('change', () => {
+    const picked = pickFolderFiles([...(input.files || [])]);
+    input.value = '';
+    if (!picked.files.length && !picked.skipped) return;
+    show(picked);
+    onChange(picked);
+  });
+  const show = (picked) => {
+    result.replaceChildren(make(document, 'span', 'pj-folder-name', text('pjFolderPicked', { n: picked.files.length, name: picked.name })), ...(picked.skipped ? [make(document, 'span', 'pj-row-meta', text('pjFolderSkipped', { n: picked.skipped }))] : []), clear);
+    result.hidden = !picked.files.length;
+    hint.hidden = Boolean(picked.files.length);
+    add.hidden = Boolean(picked.files.length);
+  };
+  clear.addEventListener('click', () => { result.hidden = true; hint.hidden = false; add.hidden = false; onChange({ files: [], skipped: 0, name: '' }); });
+  area.append(hint, add, result, input);
+  box.appendChild(area);
+  return box;
+}
+
+const FOLDER_SKIP = /(^|\/)(\.|node_modules\/|__pycache__\/|dist\/|build\/)/;
+/** The files of a chosen folder that are worth adding as sources: no hidden files and no folders of tools, at most as many as a project holds; `skipped` says how many were left out. */
+export function pickFolderFiles(files, max = PROJECT_SOURCES_MAX) {
+  const name = String(files[0]?.webkitRelativePath || '').split('/')[0] || '';
+  const usable = files.filter((file) => file.size > 0 && !FOLDER_SKIP.test(String(file.webkitRelativePath || file.name)));
+  return { name, files: usable.slice(0, max), skipped: files.length - Math.min(usable.length, max) };
+}
+
+/** The sheet that makes a project. `onCreated(id)` is called after it is made; `onFolderFiles(id, files)` is given the files of the folder that was chosen (a computer), to be added as sources. */
+export function openCreateSheet({ document, root, text, actions, notify = () => {}, onCreated = () => {}, onFolderFiles = null }) {
   let busy = false;
   let memoryScope = 'default';
+  let folder = { files: [], skipped: 0, name: '' };
+  const wide = isWide(document);
   const { foot, button } = footerButton(document, text('pjCreate'));
+  // On a computer the choice of memory sits at the left of the foot, and the button at the right.
+  if (wide) foot.prepend(memoryDropdown(document, text, (value) => { memoryScope = value; }));
   let sheet;
   const field = nameField({
     document, root, text, initial: {},
@@ -152,7 +308,8 @@ export function openCreateSheet({ document, root, text, actions, notify = () => 
         chips.appendChild(chip);
       }
       body.appendChild(chips);
-      body.appendChild(memoryChoice(document, text, (value) => { memoryScope = value; }));
+      if (wide && onFolderFiles) body.appendChild(folderChoice(document, text, (picked) => { folder = picked; }));
+      if (!wide) body.appendChild(memoryChoice(document, text, (value) => { memoryScope = value; }));
     }
   });
   button.addEventListener('click', async () => {
@@ -166,24 +323,55 @@ export function openCreateSheet({ document, root, text, actions, notify = () => 
     sheet.close();
     notify(text('pjCreated'), 'success');
     onCreated(result.id);
+    // The files of the chosen folder are added after the project is there (the sources are read and kept one by one).
+    if (folder.files.length && onFolderFiles) void onFolderFiles(result.id, folder.files);
   });
   return sheet;
 }
 
-/** The sheet that changes the name, the icon and the colour of a project. */
-export function openEditSheet({ document, root, text, actions, project, notify = () => {}, onSaved = () => {} }) {
+/**
+ * The sheet that changes the name, the icon and the colour of a project. On a computer it also lists the sources ("Available sources", with an add button and a bin on each) and has an
+ * "Advanced" button at the left of the foot that opens the instructions; `sources` is { list(), row(source, refresh), add(refresh) } from the page (without it a computer shows the name only).
+ */
+export function openEditSheet({ document, root, text, actions, project, notify = () => {}, onSaved = () => {}, sources = null }) {
   let busy = false;
+  const wide = isWide(document);
   const { foot, button } = footerButton(document, text('pjSave'));
+  if (wide) {
+    const advanced = make(document, 'button', 'pj-button pj-secondary pj-foot-left');
+    advanced.type = 'button';
+    advanced.innerHTML = ICONS.sliders(16);
+    advanced.append(make(document, 'span', '', text('pjAdvanced')));
+    advanced.addEventListener('click', () => openInstructionsSheet({ document, root, text, actions, project: actions.folderOf?.(project.id) || project, notify, onSaved, advanced: true }));
+    foot.prepend(advanced);
+  }
   const field = nameField({
     document, root, text, initial: { name: project.name, icon: project.icon, color: project.color },
     onChange: (state) => { button.disabled = busy || !state.name.trim(); },
     onSubmit: () => { if (!button.disabled) button.click(); }
   });
-  const sheet = openSheet({ document, root, title: text('pjEditTitle'), close: text('pjCancel'), footer: foot,
+  const sheet = openSheet({ document, root, title: text('pjEditTitle'), close: text('pjCancel'), footer: foot, className: wide ? 'pj-sheet-settings' : '',
     body: (body) => {
       body.appendChild(field.element);
       // Where the notes are kept was chosen when the project was made and is only shown here.
       if (project.memoryScope === 'project') body.appendChild(make(document, 'p', 'pj-note pj-memory-shown', text('pjMemoryBadge')));
+      if (wide && sources) {
+        const head = make(document, 'div', 'pj-sources-head');
+        head.appendChild(make(document, 'div', 'pj-section-title', text('pjSourcesAvailable')));
+        const add = make(document, 'button', 'pj-chip');
+        add.type = 'button';
+        add.innerHTML = ICONS.plus(16);
+        add.append(make(document, 'span', 'pj-chip-label', text('pjFolderAdd')));
+        const list = make(document, 'div', 'pj-sources-list');
+        const refresh = () => {
+          list.replaceChildren(...sources.list().map((source) => sources.row(source, refresh)));
+          if (!list.children.length) list.appendChild(make(document, 'p', 'pj-note', text('pjSourcesNone')));
+        };
+        add.addEventListener('click', () => sources.add(refresh));
+        head.appendChild(add);
+        refresh();
+        body.append(head, list);
+      }
     }
   });
   button.addEventListener('click', async () => {
@@ -202,7 +390,7 @@ export function openEditSheet({ document, root, text, actions, project, notify =
 }
 
 /** The sheet where the instructions of a project are written. */
-export function openInstructionsSheet({ document, root, text, actions, project, notify = () => {}, onSaved = () => {} }) {
+export function openInstructionsSheet({ document, root, text, actions, project, notify = () => {}, onSaved = () => {}, advanced = false }) {
   let busy = false;
   const { foot, button } = footerButton(document, text('pjSave'));
   const area = make(document, 'textarea', 'pj-textarea');
@@ -215,9 +403,14 @@ export function openInstructionsSheet({ document, root, text, actions, project, 
   area.addEventListener('input', redraw);
   redraw();
   const sheet = openSheet({
-    document, root, title: text('pjInstructionsTitle'), close: text('pjCancel'), footer: foot,
+    document, root, title: text(advanced ? 'pjAdvancedTitle' : 'pjInstructionsTitle'), close: text('pjCancel'), footer: foot,
     body: (body) => {
       body.append(make(document, 'p', 'pj-intro', text('pjInstructionsHint')), area, count, make(document, 'p', 'pj-note', text('pjInstructionsNote')));
+      // Where the notes are kept was chosen when the project was made: shown, not changeable.
+      const kept = project.memoryScope === 'project';
+      const memory = make(document, 'div', 'pj-memory-shown-block');
+      memory.append(make(document, 'div', 'pj-section-title', text('pjMemoryTitle')), make(document, 'p', 'pj-note', text(kept ? 'pjMemoryShownProject' : 'pjMemoryShownDefault')), make(document, 'div', 'pj-readonly', text(kept ? 'pjMemoryProject' : 'pjMemoryDefault')));
+      body.appendChild(memory);
     }
   });
   button.addEventListener('click', async () => {

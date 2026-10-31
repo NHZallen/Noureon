@@ -54,6 +54,9 @@ export function sourceTile(document, { tone = '', icon = '', label = '' } = {}) 
   return tile;
 }
 
+/** A wide screen (a computer): the sheets are dialogs in the middle and the icon is chosen in a small box at the name, as in the apps of a computer. */
+export const isWide = (document) => document.defaultView?.matchMedia?.('(min-width: 768px)')?.matches === true;
+
 /** The colour of a project as CSS (the colours of the folders, a gray one when it is not known). */
 export const colorOf = (key) => resolveFolderColor(key, FOLDER_COLORS, FOLDER_COLORS.gray);
 
@@ -162,6 +165,8 @@ export function openSheet({ document, root, title, label, body, footer = null, a
   };
   const onKey = (event) => {
     if (event.key !== 'Escape' || backdrop !== [...root.querySelectorAll('.pj-backdrop')].at(-1)) return;
+    // A box open inside the dialog (the icons, the choice of memory) takes the key first and closes alone.
+    if (backdrop.querySelector('.pj-popover, .pj-dropdown-list')) return;
     event.stopPropagation();
     event.preventDefault();
     close();
