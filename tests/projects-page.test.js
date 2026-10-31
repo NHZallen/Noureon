@@ -275,9 +275,9 @@ test('the menu of a project: edit its name and icon, write its instructions, del
     more().click();
     t.byText('.pj-menu-item', 'Edit instructions').click();
     assert.equal(t.$('.pj-textarea').value, 'Answer in English.');
-    assert.equal(t.$('.pj-count').textContent, '18 / 4000');
+    assert.equal(t.$('.pj-count').textContent, '18 / 8000');
     t.type(t.$('.pj-textarea'), 'Answer in French.');
-    assert.equal(t.$('.pj-count').textContent, '17 / 4000');
+    assert.equal(t.$('.pj-count').textContent, '17 / 8000');
     t.byText('.pj-sheet .pj-button', 'Save').click();
     await t.tick();
     assert.equal(t.state.folders[0].instructions, 'Answer in French.');

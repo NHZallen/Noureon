@@ -3,7 +3,7 @@
 
 import { projectSourcesFor } from './project-source-prompt.js';
 
-export const PROJECT_INSTRUCTIONS_MAX = 4000;
+export const PROJECT_INSTRUCTIONS_MAX = 8000;
 
 let readFolders = () => [];
 
