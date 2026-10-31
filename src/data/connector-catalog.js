@@ -457,6 +457,8 @@ export const CONNECTORS = Object.freeze([
     category: 'finance',
     endpoint: 'https://mcp.ether.fi/mcp',
     icon: 'https://github.com/etherfi-protocol.png?size=96',
+    // Registered first (a client of its own), not by the address of our metadata document: with the document, its login page answered {"error":"invalid_client"} (no registration was ever made on either database).
+    registration: 'dcr',
     // The login is the service's own (OAuth); no scopes are known to ask for, so none are asked for.
     scopes: Object.freeze({ readwrite: Object.freeze([]) }),
     description: Object.freeze({
