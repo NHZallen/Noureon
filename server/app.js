@@ -8,6 +8,7 @@ import { validateRunSpec } from './run-spec.js';
 import { CREDENTIAL_NAME, CredentialError } from './cli-credentials.js';
 import { ConnectorError } from './mcp/connections.js';
 import { TOOL_STATES } from '../src/data/connector-catalog.js';
+import { ShareError } from './shares.js';
 
 const STATUS_FOR = {
   [ERROR_CODES.unauthorized]: 401,
@@ -72,13 +73,14 @@ export function clientAddress(request) {
 }
 
 /** Returns the function that answers one request: `(request, response) => Promise<void>`. */
-export function createApp({ config, fetchImpl = fetch, log = createLogger(), now = Date.now, runs = null, credentials = null, files = null, connectors = null, memoryRebuild = null } = {}) {
+export function createApp({ config, fetchImpl = fetch, log = createLogger(), now = Date.now, runs = null, credentials = null, files = null, connectors = null, memoryRebuild = null, shares = null } = {}) {
   const verify = createTokenVerifier({ supabaseUrl: config.supabaseUrl, anonKey: config.supabaseAnonKey, fetchImpl, now });
   const startLimiter = createRateLimiter({ limit: LIMITS.createPerMinute, windowMs: 60_000, now });
   const credentialLimiter = createRateLimiter({ limit: 30, windowMs: 60_000, now });
   const connectorLimiter = createRateLimiter({ limit: 30, windowMs: 60_000, now });
   const callbackLimiter = createRateLimiter({ limit: 30, windowMs: 60_000, now });
   const memoryLimiter = createRateLimiter({ limit: 10, windowMs: 60_000, now });
+  const shareLimiter = createRateLimiter({ limit: 20, windowMs: 60_000, now });
   const startedAt = now();
 
   const corsHeaders = (origin) => (origin && config.allowedOrigins.includes(origin)
@@ -421,6 +423,33 @@ export function createApp({ config, fetchImpl = fetch, log = createLogger(), now
         send(response, 202, { started: true }, origin);
         status = 202;
         return;
+      }
+      // Sharing a conversation (server/shares.js): make a share of a conversation, or make the snapshot of one again. The page of the share reads it from the database, not from here.
+      const shareRefresh = /^\/v1\/shares\/([0-9a-f-]{36})\/refresh$/i.exec(url.pathname);
+      if (route === 'POST /v1/shares' || (request.method === 'POST' && shareRefresh)) {
+        const user = await authenticate(request);
+        if (!shares) throw new RequestError(ERROR_CODES.runsUnavailable, 'Sharing is not set up on the server.');
+        if (!shareLimiter.take(user.id)) throw new RequestError(ERROR_CODES.rateLimited, 'Too many requests.');
+        try {
+          if (shareRefresh) {
+            send(response, 200, { share: await shares.refresh({ userId: user.id, shareId: shareRefresh[1].toLowerCase() }) }, origin);
+            status = 200;
+            return;
+          }
+          const body = await readJson(request, 2048);
+          const conversationId = String(body?.conversationId || '').toLowerCase();
+          if (!/^[0-9a-f-]{36}$/.test(conversationId)) throw new RequestError(ERROR_CODES.badRequest, 'The conversation is not named right.');
+          send(response, 201, { share: await shares.create({ userId: user.id, conversationId, mode: String(body?.mode || ''), showName: body?.showName === true, ownerName: String(body?.ownerName || '').slice(0, 200) }) }, origin);
+          status = 201;
+          return;
+        } catch (error) {
+          if (!(error instanceof ShareError)) throw error;
+          if (error.code === 'not_found') throw new RequestError(ERROR_CODES.conversationNotFound, error.message);
+          if (error.code === 'bad_request') throw new RequestError(ERROR_CODES.badRequest, error.message);
+          if (error.code === 'limit' || error.code === 'not_active') throw new RequestError(ERROR_CODES.wrongPhase, error.message, { reason: error.code, ...error.extra });
+          if (error.code === 'too_large') throw new RequestError(ERROR_CODES.requestTooLarge, error.message, { reason: 'too_large', ...error.extra });
+          throw new RequestError(ERROR_CODES.runsUnavailable, error.message, { reason: error.code });
+        }
       }
       // How much of the person's space in the cloud is used: { usedBytes, quotaBytes } (usedBytes is null when it cannot be known).
       if (route === 'GET /v1/storage') {

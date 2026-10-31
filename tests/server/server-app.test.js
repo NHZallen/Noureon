@@ -12,14 +12,14 @@ const USER = '123e4567-e89b-12d3-a456-426614174000';
 const TOKEN = 'good-token-good-token-good-token';
 const KEY = 'sk-live-provider-key-value';
 
-async function withServer(run, { auth = true, runs = null, credentials = null, files = null, memoryRebuild = null } = {}) {
+async function withServer(run, { auth = true, runs = null, credentials = null, files = null, memoryRebuild = null, shares = null } = {}) {
   const lines = [];
   const config = loadConfig({ SUPABASE_URL: 'https://project.supabase.example', SUPABASE_ANON_KEY: 'anon', SOURCE_COMMIT: 'abc123' });
   const fetchImpl = async (url, options) => {
     if (!auth) throw new Error('offline');
     return options.headers.Authorization === `Bearer ${TOKEN}` ? new Response(JSON.stringify({ id: USER }), { status: 200 }) : new Response('{}', { status: 401 });
   };
-  const server = createServer(createApp({ config, fetchImpl, runs, credentials, files, memoryRebuild, log: createLogger((line) => lines.push(line)) }));
+  const server = createServer(createApp({ config, fetchImpl, runs, credentials, files, memoryRebuild, shares, log: createLogger((line) => lines.push(line)) }));
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
   try {
@@ -503,5 +503,38 @@ test('the rebuild of the memory: only for a signed-in person, with the key passe
   await withServer(async ({ base }) => {
     const response = await fetch(`${base}/v1/memory/rebuild`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${TOKEN}` }, body: '{}' });
     assert.equal(response.status, 503, 'a server without the memory says so');
+  });
+});
+
+test('POST /v1/shares makes a share of a conversation and POST /v1/shares/:id/refresh makes it again; the errors say why', async () => {
+  const { ShareError } = await import('../../server/shares.js');
+  const calls = [];
+  let failure = null;
+  const shares = {
+    create: async (args) => { calls.push(['create', args]); if (failure) throw failure; return { id: 's1', code: 'C'.repeat(32), mode: args.mode, showName: args.showName, title: 't', createdAt: 'now' }; },
+    refresh: async (args) => { calls.push(['refresh', args]); if (failure) throw failure; return { id: args.shareId, code: 'C'.repeat(32), mode: 'view', showName: false, title: 't', createdAt: 'now' }; }
+  };
+  const conversationId = '123e4567-e89b-12d3-a456-426614174000';
+  await withServer(async ({ base }) => {
+    const send = (path, body, token = TOKEN) => fetch(`${base}${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify(body) });
+    assert.equal((await send('/v1/shares', { conversationId, mode: 'view' }, null)).status, 401);
+    const made = await send('/v1/shares', { conversationId, mode: 'continue', showName: true, ownerName: 'Allen' });
+    assert.equal(made.status, 201);
+    assert.equal((await made.json()).share.code.length, 32);
+    assert.deepEqual(calls[0], ['create', { userId: USER, conversationId, mode: 'continue', showName: true, ownerName: 'Allen' }]);
+    assert.equal((await send('/v1/shares', { conversationId: 'nope', mode: 'view' })).status, 400);
+    const again = await send(`/v1/shares/${conversationId}/refresh`, {});
+    assert.equal(again.status, 200);
+    assert.deepEqual(calls.at(-1), ['refresh', { userId: USER, shareId: conversationId }]);
+    for (const [code, extra, status, reason] of [['limit', { limit: 30 }, 409, 'limit'], ['not_active', {}, 409, 'not_active'], ['too_large', { what: 'files' }, 413, 'too_large'], ['not_found', {}, 404, undefined], ['storage', {}, 503, 'storage']]) {
+      failure = new ShareError('x', code, extra);
+      const refused = await send('/v1/shares', { conversationId, mode: 'view' });
+      assert.equal(refused.status, status, code);
+      if (reason) assert.equal((await refused.json()).error.reason, reason);
+    }
+  }, { shares });
+  await withServer(async ({ base }) => {
+    const response = await fetch(`${base}/v1/shares`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${TOKEN}` }, body: '{}' });
+    assert.equal(response.status, 503, 'a server without sharing says so');
   });
 });

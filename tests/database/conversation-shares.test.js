@@ -95,6 +95,16 @@ test('the person has at most the limit of shares, a code must be long and plain,
   assert.equal((await database.service.query('select count(*)::int as n from public.conversation_shares where id = $1', [stale.shareId]))[0].n, 0);
 });
 
+test('the server reads one share of a person and drops one it could not finish', async () => {
+  const conversationId = await conversationOf(A);
+  const { shareId } = await share(ada, conversationId, { activate: false });
+  const row = (await database.service.query('select public.server_get_conversation_share($1, $2) as s', [ada, shareId]))[0].s;
+  assert.deepEqual([row.status, row.mode, row.conversation_id], ['building', 'view', conversationId]);
+  assert.equal((await database.service.query('select public.server_get_conversation_share($1, $2) as s', [bob, shareId]))[0].s, null, 'only the owner\'s');
+  assert.equal((await database.service.query('select public.server_drop_conversation_share($1, $2) as ok', [bob, shareId]))[0].ok, false);
+  assert.equal((await database.service.query('select public.server_drop_conversation_share($1, $2) as ok', [ada, shareId]))[0].ok, true);
+});
+
 test('a person lists only their own shares (without the snapshot) and takes away only their own', async () => {
   const conversationId = await conversationOf(A);
   const mine = await share(ada, conversationId);

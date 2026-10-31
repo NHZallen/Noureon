@@ -23,6 +23,8 @@ import { createSkillBundleStore } from './skill-bundles.js';
 import { createDerivedPdfStore } from './derived-pdf-store.js';
 import { createOfficePdfConverter, setOfficePdfConverter } from './office-pdf.js';
 import { createServiceClient } from './supabase-rest.js';
+import { createShares } from './shares.js';
+import { createShareStore } from './share-store.js';
 import { canDrawSlides } from './slides/available.js';
 import { getFontKit } from './slides/font-kit.js';
 import { executeVisionCheck } from './vision-check.js';
@@ -40,6 +42,7 @@ let runs = null;
 let credentials = null;
 let connectors = null;
 let memoryRebuild = null;
+let shares = null;
 let files = null;
 let sweeper = null;
 let checkRunsStore = async () => {};
@@ -78,13 +81,14 @@ if (config.runsConfigured) {
     runs = createRunManager({ store: createRunStore({ db, limits: LIMITS }), db, vault, sandbox, files, credentials, connectors, skills: createServerSkills({ db, bundles: skillBundles }), memory: Object.assign(createMemoryRecords({ db }), { history: createHistorySearch({ db }) }), vision: { available: canDrawSlides, execute: executeVisionCheck, getKit: getFontKit }, limits: LIMITS, log });
     // The rebuild of the memory from the past conversations, which goes on when the page is closed (server/memory-rebuild.js).
     memoryRebuild = createRebuildJobs({ memory: createMemoryRecords({ db }), db, log });
+    shares = createShares({ db, store: createShareStore({ url: config.supabaseUrl, serviceKey: config.serviceKey }), log });
   } catch (error) {
     log('config_error', { message: error.message });
     process.exit(1);
   }
 }
 
-const server = createServer(createApp({ config, log, runs, credentials, files, connectors, memoryRebuild }));
+const server = createServer(createApp({ config, log, runs, credentials, files, connectors, memoryRebuild, shares }));
 // A long request (a reply that streams) is never cut by these; the replies themselves run apart from the request.
 server.requestTimeout = 60_000;
 server.headersTimeout = 30_000;
@@ -96,12 +100,14 @@ server.listen(config.port, () => {
   void checkSlides();
   runs?.startSweeping();
   sweeper?.start();
+  shares?.start();
 });
 
 const stop = async (signal) => {
   log('stopping', { signal });
   server.close();
   sweeper?.stop();
+  shares?.stop();
   // The replies that are running are put down where they are and handed over for the next process to take up.
   const handedOver = await runs?.shutdown().catch(() => 0);
   log('stopped', { handedOver: handedOver || 0 });

@@ -7,6 +7,8 @@
 --   server_read_conversation_for_share   the conversation and its finished messages, and how many shares the person has now (service role only).
 --   server_create_conversation_share     a row with the status `building` (the limit of 30 is checked here); the files are copied while it is `building`.
 --   server_finish_conversation_share     puts the snapshot in and makes it `active` (also for a refresh of an active one).
+--   server_get_conversation_share        one share of a person (for a refresh).
+--   server_drop_conversation_share       takes away one share of a person (a copy that failed).
 --   server_drop_stale_building_shares    takes away the rows that stayed `building` (a copy that did not finish).
 --   get_shared_conversation(code)        for anyone: the snapshot of an active share (title, mode, the name only when the person chose to show it), or nothing.
 --   report_shared_conversation(code, why)  for anyone: one line for the owner of the service to read.
@@ -140,6 +142,33 @@ begin
       status = 'active',
       updated_at = now()
   where id = p_share_id and owner_id = p_user_id and status in ('building', 'active');
+  get diagnostics v_rows = row_count;
+  return v_rows = 1;
+end;
+$$;
+
+create or replace function public.server_get_conversation_share(p_user_id uuid, p_share_id uuid)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select jsonb_build_object('id', s.id, 'conversation_id', s.conversation_id, 'code', s.code, 'mode', s.mode, 'show_name', s.show_name, 'owner_name', s.owner_name, 'title', s.title, 'status', s.status, 'created_at', s.created_at)
+  from public.conversation_shares s
+  where s.id = p_share_id and s.owner_id = p_user_id;
+$$;
+
+create or replace function public.server_drop_conversation_share(p_user_id uuid, p_share_id uuid)
+returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_rows integer;
+begin
+  delete from public.conversation_shares where id = p_share_id and owner_id = p_user_id;
   get diagnostics v_rows = row_count;
   return v_rows = 1;
 end;
@@ -288,6 +317,8 @@ for each row execute function public.conversation_shares_follow_conversation();
 revoke all on function public.server_read_conversation_for_share(uuid, uuid, integer) from public, anon, authenticated;
 revoke all on function public.server_create_conversation_share(uuid, uuid, uuid, text, text, boolean, text, text, integer) from public, anon, authenticated;
 revoke all on function public.server_finish_conversation_share(uuid, uuid, text, jsonb, integer, boolean, text) from public, anon, authenticated;
+revoke all on function public.server_get_conversation_share(uuid, uuid) from public, anon, authenticated;
+revoke all on function public.server_drop_conversation_share(uuid, uuid) from public, anon, authenticated;
 revoke all on function public.server_drop_stale_building_shares(interval) from public, anon, authenticated;
 revoke all on function public.orphan_shared_assets(integer) from public, anon, authenticated;
 revoke all on function public.get_shared_conversation(text) from public;
@@ -299,6 +330,8 @@ revoke all on function public.conversation_shares_follow_conversation() from pub
 grant execute on function public.server_read_conversation_for_share(uuid, uuid, integer) to service_role;
 grant execute on function public.server_create_conversation_share(uuid, uuid, uuid, text, text, boolean, text, text, integer) to service_role;
 grant execute on function public.server_finish_conversation_share(uuid, uuid, text, jsonb, integer, boolean, text) to service_role;
+grant execute on function public.server_get_conversation_share(uuid, uuid) to service_role;
+grant execute on function public.server_drop_conversation_share(uuid, uuid) to service_role;
 grant execute on function public.server_drop_stale_building_shares(interval) to service_role;
 grant execute on function public.orphan_shared_assets(integer) to service_role;
 grant execute on function public.get_shared_conversation(text) to anon, authenticated, service_role;
