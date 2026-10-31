@@ -39,7 +39,8 @@ export function createRebuildJobs({ memory, db, models = MODELS, fetchImpl = (..
       const spec = { conversationId: '', model: { provider: model.provider, id: model.apiId || model.id, info: model }, request: { language }, tools: { searchProvider: 'tavily', searchDepth: 'basic' }, documents: null };
       const access = createModelAccess({ spec, secrets: { providerKey: key }, fetchImpl, userId, signal: controller.signal });
       const runModel = createMemoryModelRunner({ streamApiCall: access.streamApiCall, models: [model] });
-      const conversations = await readConversations(db, userId);
+      // The memory of the account is built from the chats outside the projects that keep their notes for themselves.
+      const conversations = (await readConversations(db, userId)).filter((conversation) => !conversation.scopeId);
       let loaded = await memory.load(userId, { conversationId: '' });
       const store = {
         getNotes: () => loaded.notes,

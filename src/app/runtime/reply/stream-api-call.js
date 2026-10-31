@@ -1,6 +1,6 @@
 import { recordUsed, toolsOffered } from '../memory-store/memory-trace.js';
 import { NOURAS_REQUEST_PURPOSE, resolveNourasInstructions, shouldApplyNouras } from '../nouras/nouras-policy.js';
-import { projectInstructionTextFor } from '../projects/project-instructions.js';
+import { memoryScopeOf, projectInstructionTextFor } from '../projects/project-instructions.js';
 import { compactFileHistoryForApi } from '../../ui/files/file-history-compaction.js';
 import { compactSandboxRunsForApi } from '../../ui/sandbox/sandbox-run-block.js';
 import { researchReportsForApi } from '../../ui/research/research-history.js';
@@ -667,7 +667,7 @@ export function createStreamApiCall({
     const canUseMemory = !(conversation?.retentionMode === 'ephemeral' && conversation?.memoryAccessEnabled === false);
     // When the keywords find no past conversation for the question, the slip also asks the vectors (if the person turned them on), waiting at most 0.7 s.
     const memory = !instructionGiven && canUseMemory && !requestOptions.skipMemoryContext && !requestOptions.skipConversationSystemContext ? getNotesMemory() : null;
-    const slipOptions = { question: getMessageTextForGuidance(currentMessageForApi), canSearch: toolsOffered(conversation?.id), excludeConversationId: conversation?.id || '' };
+    const slipOptions = { question: getMessageTextForGuidance(currentMessageForApi), canSearch: toolsOffered(conversation?.id), excludeConversationId: conversation?.id || '', scopeId: memoryScopeOf(conversation) };
     const notes = (memory?.contextWithMeaning ? await memory.contextWithMeaning(slipOptions) : memory?.contextFor(slipOptions)) || NO_NOTES;
     // The past conversations the slip drew on are shown under the reply ("references").
     if (notes.historyIds.length && typeof requestOptions.onMemoryContextResolved === 'function') {

@@ -84,3 +84,23 @@ test('the sources of a project are saved with the folder, an older page that sen
   assert.deepEqual(await sourcesOf(), [], 'an empty list takes them away');
   await assert.rejects(callWith(A, 'upsert_workspace_folders', [{ id: folderId, name: 'P', sources: Array.from({ length: 21 }, (_, n) => source(n)) }]), /sources_check|check constraint/);
 });
+
+test('the memory of a project is chosen when it is made and never changes; the server read of the history tells which projects keep their notes', async () => {
+  const folderId = id();
+  const scopeOf = async () => (await database.service.query('select memory_scope from public.workspace_folders where id = $1', [folderId]))[0].memory_scope;
+  await callWith(A, 'upsert_workspace_folders', [{ id: folderId, name: 'Private', memory_scope: 'project' }]);
+  assert.equal(await scopeOf(), 'project');
+  await callWith(A, 'upsert_workspace_folders', [{ id: folderId, name: 'Private', memory_scope: 'default' }]);
+  assert.equal(await scopeOf(), 'project', 'a later write cannot change it');
+  await callWith(A, 'upsert_workspace_folders', [{ id: folderId, name: 'Private again' }]);
+  assert.equal(await scopeOf(), 'project', 'and a write without it keeps it');
+  const other = id();
+  await callWith(A, 'upsert_workspace_folders', [{ id: other, name: 'Old' }]);
+  assert.equal((await database.service.query('select memory_scope from public.workspace_folders where id = $1', [other]))[0].memory_scope, 'default', 'a folder that never had it is the default');
+  assert.match(JSON.stringify(await delta()), /"memory_scope": ?"project"/, 'it comes back in the delta');
+  const conversation = { id: id(), title: 'In the project', model: 'm', provider: 'p', folder_id: folderId, created_at: new Date().toISOString() };
+  await callWith(A, 'upsert_workspace_conversations', [conversation]);
+  const [{ read }] = await database.service.query('select public.server_read_history($1) as read', [ada]);
+  assert.deepEqual(read.project_folders, [folderId]);
+  assert.equal(read.conversations.find((entry) => entry.id === conversation.id).folder_id, folderId);
+});

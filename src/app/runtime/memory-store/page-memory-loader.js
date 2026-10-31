@@ -3,6 +3,8 @@
 // loaded, the person switched the use of memory off, or the chat may not use memory. Writes are offered only when learning is on and the chat is not temporary.
 
 import { createMemoryLoader } from '../../../data/memory-tool.js';
+import { scopedView } from '../memory-notes/scope.js';
+import { memoryScopeOf } from '../projects/project-instructions.js';
 import { recordEvent, recordHistory, recordUsed } from './memory-trace.js';
 
 // The messages of the person that go with a reply made by the server (server/protocol.js: maxMemoryMessages, maxMemoryMessageChars).
@@ -25,8 +27,11 @@ export async function createPageMemoryTools({ getConfig, getMemory, getHistory =
   if (conversation?.retentionMode === 'ephemeral' && conversation?.memoryAccessEnabled === false) return null;
   const memory = getMemory();
   if (!memory) return null;
-  const store = await memory.ready();
-  if (!store?.isLoaded()) return null;
+  const held = await memory.ready();
+  if (!held?.isLoaded()) return null;
+  // A chat of a project that keeps its notes for itself reads and writes those only; every other chat leaves them out (memory-notes/scope.js).
+  const scopeId = memoryScopeOf(conversation);
+  const store = scopedView(held, scopeId);
   const settings = store.getSettings();
   if (!settings.use) return null;
   const canWrite = settings.learn && !settings.paused && conversation?.retentionMode !== 'ephemeral';
@@ -37,6 +42,7 @@ export async function createPageMemoryTools({ getConfig, getMemory, getHistory =
     /** What a reply the server makes is told: whether it may write, and the last messages of the person (the server reads the notes themselves from the table). */
     snapshot: ({ curator = false } = {}) => ({
       canWrite,
+      ...(scopeId ? { scope: scopeId } : {}),
       ...(curator ? { curator: true } : {}),
       // A person on a cloud account has their conversations there, so the server can look back through them too; with the vectors synced it can also search by meaning (with a key for this run only).
       ...(getVectors()?.canSync?.() ? { history: true } : {}),
@@ -56,7 +62,7 @@ export async function createPageMemoryTools({ getConfig, getMemory, getHistory =
       onWrite: ({ event }) => recordEvent(conversationId, event?.id),
       // The past conversations (history index on this page): the search then takes a scope. The conversation being written is left out.
       searchHistory: getHistory() ? async (query, limit) => {
-        const hits = await (getHistory().lookupHybrid || getHistory().lookup).call(getHistory(), query, limit, { excludeConversationId: conversationId });
+        const hits = await (getHistory().lookupHybrid || getHistory().lookup).call(getHistory(), query, limit, { excludeConversationId: conversationId, scopeId });
         // The conversations that were looked into stay with the reply (their names, not their words).
         recordHistory(conversationId, (hits || []).map((hit) => ({ id: hit.conversationId, at: hit.at })));
         return hits;

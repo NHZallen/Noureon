@@ -150,3 +150,38 @@
 ### 13.3 檢索（下一步，P2b）
 
 - 超過一次回覆能帶的檔案不再被略過，改成：加入或第一次需要時，在頁面從原檔取出文字（PDF 文字層、Office、純文字；掃描與圖片沒有文字，仍然只能整個給看得懂的模型）、切塊、用記憶已有的向量（Gemini embedding 768 維）建索引，提問時取出相關片段放進回覆。索引存本機，開了「向量同步」就同步（`workspace_memory_vectors`，`piece_id` 用 `src:<來源 id>:<序號>`）。設計細節動工前再補。
+
+## 14. 專案記憶：預設／僅限這個專案（2026-10-31，Allen 決定）
+
+記憶系統是 2026-10-30 剛重做的（筆記清單、常駐頁、小抄、`search_memory`／`memory_write`、策展、整理；`2026-10-30-memory-redesign-design.md`）。專案記憶不改它的做法，只在「筆記屬於哪個範圍」上加一層。
+
+### 14.1 Allen 的決定
+
+1. **建立專案時選，建立後不能改**：「預設記憶」（用帳號的一般記憶，跟現在一樣）或「僅限這個專案」。不能改是因為改了以後筆記該往哪走沒有好答案。
+2. 「僅限這個專案」的對話**不讀一般記憶的筆記**，只讀這個專案自己的筆記。
+3. 這種對話裡學到的筆記**標上專案**，專案外的對話看不到、搜不到；過去對話的搜尋，專案內的對話只看同一專案的對話；專案外的對話也不會搜到專案內的對話（所以「僅限」是雙向的）。
+4. **刪除專案就直接刪它的筆記**（不留墓碑：墓碑是為了「不再學到被刪的東西」，專案沒了，這個考慮也沒了）。
+5. 匯入本機資料夾當來源（P2b 檢索做完後再做）不在這一步。
+
+### 14.2 做法
+
+- **範圍的記法**：筆記多一個選填欄位 `projectId`（沒有＝一般記憶）。`memory-notes/scope.js`（頁面與伺服器共用，已列入 `server-shared-modules.json`）有 `noteScopeOf`、`notesInScope`、`scopeOfConversation(對話, 資料夾們)`、`scopedView(store, scopeId)`。筆記存在 `workspace_memory_records` 的 jsonb 內，所以**筆記不需要 migration**。
+- **對話的範圍**＝它所在專案的 id（專案的 `memoryScope` 是 `project`、專案沒被刪、對話不是暫時對話），否則是 `''`（一般記憶）。**一般記憶的範圍會排除所有專案筆記**，所以專案筆記不會漏到專案外。
+- **資料夾欄位**：`workspace_folders.memory_scope`（`'default'|'project'`，預設 `default`，check 限制），migration `20261031120000_add_project_memory_scope.sql`。`upsert_workspace_folders` 新增時寫入、**更新時不改**（所以「建立後不能改」在資料庫也守住；舊版頁面不送這個欄位也不會改掉）。同步的編碼、解碼、比較、倉庫欄位、收到資料時的欄位都加了 `memoryScope`；沒有這個欄位的舊資料等於 `default`。
+- **頁面**：`scopedView` 是「這個範圍看到的筆記庫」：`getNotes` 只回這個範圍的筆記；`commitNotes`／`commitWrite` 把**新**筆記標上範圍、其餘原樣寫回，從不碰範圍外的筆記；`clearAll` 只清這個範圍。用在：首頁小抄與常駐頁（`notes-memory.js` 的 `compose`，`scopeId` 由 `stream-api-call.js` 從對話算出）、工具 `search_memory`／`memory_write`（`page-memory-loader.js`）、策展（`page-curator.js`）。**整理（`page-tidy.js`）與從過去對話重建（`page-rebuild.js`）只做一般記憶**，專案筆記不被合併進去、也不被重建覆蓋；重建時也略過專案內的對話。
+- **過去對話搜尋**：`history-index.js`、`page-vectors.js` 的搜尋多一個 `allow(conversationId)`；`page-history.js` 用 `getScopeOf` 把 `scopeId` 變成 `allow`。預設範圍是 `''`，沒帶範圍的呼叫也不會搜進專案內的對話。
+- **伺服器**：頁面把 `tools.memory.scope`（專案 id）放進回覆請求（`run-spec.js` 驗證，最多 80 字）；`server/memory-scope.js` 的 `scopedMemory(memory, scopeId)` 包住記憶（`load` 過濾、`saveWrite` 標新筆記、`history.forReply` 帶範圍）；`executor.js` 的記憶區塊整段用它，範圍不為空時**不做整理**。`server_read_history` 多回每個對話的 `folder_id` 和「僅限專案的專案清單」，`memory-history.js` 據此給每個對話 `scopeId`，搜尋只留同範圍的；伺服器版的重建略過專案內的對話。
+- **刪除專案**（`project-actions.js` 的 `remove`）：專案的 `memoryScope` 是 `project` 時，雲端刪除成功後呼叫 `dropNotes(id)`（`start-projects.js` 接到 `store.clearAll({ keepTombstones: false, scopeId })`）。在另一台裝置上專案被刪時，專案筆記會留在表裡但沒有任何範圍讀得到，也不會顯示（設定頁只顯示專案還在的筆記）；之後有需要再加清理。
+- **畫面**：建立專案的面板多一段「記憶」兩列單選（預設記憶／僅限這個專案），下面寫「建立後無法更改；刪除專案時，它的記憶也會一起刪除」；編輯面板在專案是「僅限」時顯示一行唯讀說明。設定 → 記憶的筆記清單照樣列出專案筆記，筆記列多一個「專案：名稱」標籤；**匯出筆記只含一般記憶**。
+- **隱私**：隱私權政策第 9 節與協助中心記憶段（五語）各加一段；`PRIVACY.md` 重新產生。專案筆記的保存與送出方式跟一般筆記一樣，只是範圍不同。
+
+### 14.3 這一步沒有做的
+
+- 沒有「把一般記憶的筆記搬進專案」或反過來；沒有在專案頁上直接管理專案筆記（先在設定 → 記憶）。
+- 專案筆記不參與整理（合併相近、淘汰）；上限仍是每個範圍各 300 條。
+- 另一台裝置刪專案後留下的孤兒筆記沒有自動清理。
+
+### 14.4 要 Allen 做的
+
+- 先在**測試專案**套用 `supabase/migrations/20261031120000_add_project_memory_scope.sql`（這個檔案也改了 `server_read_history`，伺服器要重新部署才認得 `tools.memory.scope`）；正式專案等「上線」時再套。
+- 在測試站試：建一個「僅限這個專案」的專案，在裡面叫它記一件事；到專案外的新對話確認不知道；回專案內的新對話確認記得；在設定 → 記憶看到帶專案標籤；刪掉專案後筆記消失。

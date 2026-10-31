@@ -100,8 +100,9 @@ export function createHistoryIndex({ clean = (text) => text } = {}) {
     /**
      * The bar for a piece: it shares at least `minStrong` words of weight with the question and covers `coverage` of the question's strong words (a piece of a long text holds each word once, so
      * its BM25 share is lower than a note's; coverage is what says it is about the same thing); a question of one or two words may be met by one word that only this piece holds.
+     * `allow(conversationId)` leaves out the conversations it refuses (the chats of other projects, see scope.js).
      */
-    search(question, { excludeConversationId = '', limit = 2, minNorm = 0.25, minStrong = 2, coverage = 0.6, soleNorm = 0.3 } = {}) {
+    search(question, { excludeConversationId = '', allow = null, limit = 2, minNorm = 0.25, minStrong = 2, coverage = 0.6, soleNorm = 0.3 } = {}) {
       if (dirty) rebuild();
       if (!bm25) return [];
       const queryTerms = terms(question);
@@ -114,7 +115,7 @@ export function createHistoryIndex({ clean = (text) => text } = {}) {
         || (queryStrong <= 2 && candidate.strong >= 1 && candidate.specific >= 1 && candidate.norm >= soleNorm);
       for (const hit of bm25.search(queryTerms, { limit: 40, minNorm, accept })) {
         const piece = byId.get(hit.id);
-        if (!piece || piece.conversationId === excludeConversationId || taken.has(piece.conversationId)) continue;
+        if (!piece || piece.conversationId === excludeConversationId || taken.has(piece.conversationId) || (allow && !allow(piece.conversationId))) continue;
         taken.add(piece.conversationId);
         found.push({ conversationId: piece.conversationId, at: piece.at, role: piece.role, text: piece.text, norm: hit.norm, strong: hit.strong });
         if (found.length >= limit) break;

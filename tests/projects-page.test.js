@@ -497,3 +497,21 @@ test('the Google Drive choice: only when the page has the picker; it is warmed w
     await d.finish();
   } finally { await t.finish(); }
 });
+
+test('the sheet that makes a project asks where its notes are kept (default or this project only) and says it cannot be changed later', async () => {
+  const t = setup({ folders: [], conversations: [] });
+  try {
+    t.open();
+    t.$$('.pj-head .pj-round').at(-1).click();
+    const rows = t.$$('.pj-memory-row');
+    assert.deepEqual(rows.map((row) => row.querySelector('.pj-memory-name').textContent), ['Default memory', 'Project only']);
+    assert.deepEqual(rows.map((row) => row.getAttribute('aria-checked')), ['true', 'false'], 'the memory of the account is ticked at first');
+    assert.match(t.$('.pj-memory-note').textContent, /Cannot be changed after the project is made/);
+    rows[1].click();
+    assert.deepEqual(t.$$('.pj-memory-row').map((row) => row.getAttribute('aria-checked')), ['false', 'true']);
+    t.byText('.pj-chip', 'Code').click();
+    t.byText('.pj-sheet .pj-button', 'Create project').click();
+    await t.tick();
+    assert.equal(t.state.folders[0].memoryScope, 'project');
+  } finally { await t.finish(); }
+});

@@ -9,6 +9,7 @@ import { PROJECT_SOURCE_FILE_BYTES_MAX } from './project-source-model.js';
 import { createGooglePicker, googlePickerConfigured } from './google-picker.js';
 import { modelSupportsUploadedFile } from '../shell/model-registry.js';
 import { SERVICES, getService } from '../services.js';
+import { getNotesMemory } from '../memory-store/memory-ref.js';
 
 const ENTRY_ID = 'open-projects-btn';
 const folderIcon = '<svg class="cli-sidebar-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>';
@@ -46,7 +47,7 @@ export function startProjects({
     getAssets: () => getService(SERVICES.cloudAssets), cryptoProvider: win.crypto || globalThis.crypto
   });
   setProjectFileDeps({ store: files, supports: (modelInfo, inlineData) => modelSupportsUploadedFile(modelInfo, { inlineData }) });
-  const actions = createProjectActions({ dataStore, getDefaultFolder, saveAppData, renderSidebar, deleteFolderFromCloud, deferConversationFolderSync, startNewChat, getCurrentConversationId, sendText, dropFiles: (descriptions) => files.drop(descriptions) });
+  const actions = createProjectActions({ dataStore, getDefaultFolder, saveAppData, renderSidebar, deleteFolderFromCloud, deferConversationFolderSync, startNewChat, getCurrentConversationId, sendText, dropFiles: (descriptions) => files.drop(descriptions), dropNotes: async (projectId) => { const store = await getNotesMemory()?.ready(); await store?.clearAll?.({ keepTombstones: false, scopeId: projectId }); } });
 
   // Google's own file picker (its tabs, search and folders), when the page has the keys for it (VITE_GOOGLE_PICKER_*, see .env.example); without them the choice is not shown.
   const pickerConfig = { clientId: import.meta.env?.VITE_GOOGLE_PICKER_CLIENT_ID?.trim() || '', apiKey: import.meta.env?.VITE_GOOGLE_PICKER_API_KEY?.trim() || '', appId: import.meta.env?.VITE_GOOGLE_PICKER_APP_ID?.trim() || '' };

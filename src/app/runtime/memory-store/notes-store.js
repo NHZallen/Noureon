@@ -4,6 +4,7 @@
 // what is there and written again, so nothing is lost; what another device changes is heard and folded in. Writes go one after another.
 // No `window`, no `document`: shared by the page and its tests.
 
+import { noteScopeOf } from '../memory-notes/scope.js';
 import { changedNotes, cursorKey, defaultSettings, eventKey, expiredEventKeys, keyId, keyKind, mergeNotes, noteFromRow, noteKey, normalizeCursor, normalizeSettings, SETTINGS_KEY } from '../memory-notes/records.js';
 
 const ATTEMPTS = 4;
@@ -136,9 +137,15 @@ export function createNotesStore({ backend, now = () => new Date().toISOString()
       emit();
       return old.length;
     }),
-    /** Marks every row as taken away (the person cleared the memory; `keepTombstones` leaves the notes the person deleted, so they are not learned again). */
-    clearAll: ({ keepTombstones = true } = {}) => enqueue(async () => {
-      const targets = [...rows.values()].filter((row) => !row.deleted_at && keyKind(row.record_key) !== 'meta' && !(keepTombstones && keyKind(row.record_key) === 'note' && row.payload?.status === 'deleted'));
+    /**
+     * Marks every row as taken away (the person cleared the memory; `keepTombstones` leaves the notes the person deleted, so they are not learned again). With `scopeId` only the notes
+     * of that scope go ('' is the memory of the account, an id is a project that keeps its notes for itself, memory-notes/scope.js); events and the other rows stay.
+     */
+    clearAll: ({ keepTombstones = true, scopeId } = {}) => enqueue(async () => {
+      const scoped = typeof scopeId === 'string';
+      const targets = [...rows.values()].filter((row) => !row.deleted_at && keyKind(row.record_key) !== 'meta'
+        && !(scoped && (keyKind(row.record_key) !== 'note' || noteScopeOf(row.payload) !== scopeId))
+        && !(keepTombstones && keyKind(row.record_key) === 'note' && row.payload?.status === 'deleted'));
       await persist(targets.map((row) => ({ key: row.record_key, payload: row.payload, deleted: true })), (change, remote) => (remote ? { ...change, payload: remote.payload } : null));
       emit();
       return targets.length;

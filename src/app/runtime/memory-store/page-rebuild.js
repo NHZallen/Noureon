@@ -5,6 +5,7 @@
 import { pickCuratorModel } from '../../../data/memory-curator.js';
 import { REBUILD, pickConversations, rebuildFromHistory } from '../../../data/memory-rebuild.js';
 import { tidyNotes } from './page-tidy.js';
+import { scopedView } from '../memory-notes/scope.js';
 
 // `serverRebuild` ({ canUse(), start({ modelId, key, language }), stop() }) lets the server make the first build, so that it goes on when the page is closed (server/memory-rebuild.js).
 export function createRebuildController({ getStore, getConversations, getConfig, getModelRunner, models, getApiKeyForProvider, serverRebuild = null, createId = () => globalThis.crypto.randomUUID(), now = () => new Date().toISOString(), logger = console }) {
@@ -58,7 +59,8 @@ export function createRebuildController({ getStore, getConversations, getConfig,
   };
 
   async function run({ clearFirst, skip }) {
-    const store = getStore();
+    // The memory of the account is built from the chats outside the projects that keep their notes for themselves (getConversations leaves those out); the notes of those projects are not touched.
+    const store = scopedView(getStore(), '');
     if (!store?.isLoaded()) return set({ status: 'error', error: 'not_loaded' });
     if (state.status === 'running') return state;
     stopRequested = false;
@@ -113,7 +115,7 @@ export function createRebuildController({ getStore, getConversations, getConfig,
       const store = getStore();
       if (!store?.isLoaded() || state.status === 'running') return false;
       const settings = store.getSettings();
-      if (!settings.use || !settings.learn || settings.paused || settings.rebuiltAt || store.getNotes().length) return false;
+      if (!settings.use || !settings.learn || settings.paused || settings.rebuiltAt || scopedView(store, '').getNotes().length) return false;
       if (!pickConversations(getConversations(), { limit: REBUILD.conversations }).length) return false;
       if (typeof getModelRunner() !== 'function') return false;
       const current = models.find((model) => model.id === getConfig()?.memoryModelId);

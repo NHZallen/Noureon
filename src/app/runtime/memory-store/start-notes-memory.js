@@ -11,6 +11,7 @@ import { createPageHistory } from './page-history.js';
 import { startServerRebuild, stopServerRebuild } from './server-rebuild.js';
 import { setHistoryTitle } from './memory-trace.js';
 import { createPageVectors } from './page-vectors.js';
+import { conversationScopeReader } from '../projects/project-instructions.js';
 
 export function startNotesMemory({ document, configAccess, dataStore, getActiveConversation = () => null, getApiKeyForProvider = () => '', i18n = {}, storage = null, logger = console }) {
   const getConfig = () => configAccess.getConfig();
@@ -23,7 +24,8 @@ export function startNotesMemory({ document, configAccess, dataStore, getActiveC
     logger
   }));
   // The past conversations are searched with an index made from what the page holds (no model, nothing leaves the device).
-  const history = createPageHistory({ getConversations });
+  const scopeOfConversationId = conversationScopeReader(getConversations);
+  const history = createPageHistory({ getConversations, getScopeOf: scopeOfConversationId });
   // A conversation the model looked into keeps its name with the reply (memory-trace.js), for when it is deleted later.
   setHistoryTitle((id) => String((getConversations() || []).find((entry) => entry.id === id)?.title || ''));
   memory.setHistorySearch((question, options) => history.search(question, options));
@@ -34,7 +36,7 @@ export function startNotesMemory({ document, configAccess, dataStore, getActiveC
   const vectors = setPageVectors(createPageVectors({ getStore: () => memory.getStore(), getHistory: () => history, getApiKeyForProvider, getCloud: () => { const supabase = lastUser?.supabaseUserId ? (() => { try { return getSupabaseClient(); } catch { return null; } })() : null; return supabase ? { supabase, userId: String(lastUser.supabaseUserId) } : null; }, indexedDB: globalThis.indexedDB || null, userKey: () => String(lastUser?.supabaseUserId || lastUser?.username || 'local'), logger }));
   history.setVectors(vectors);
   // Building the memory from the past conversations (the settings show it); the first time it starts by itself, a little after the page has loaded.
-  const rebuild = setRebuildController(createRebuildController({ getStore: () => memory.getStore(), getConversations: () => history.conversations(), getConfig, getModelRunner: getMemoryModelRunner, models: MODELS, getApiKeyForProvider,
+  const rebuild = setRebuildController(createRebuildController({ getStore: () => memory.getStore(), getConversations: () => history.conversations().filter((entry) => !scopeOfConversationId(entry.id)), getConfig, getModelRunner: getMemoryModelRunner, models: MODELS, getApiKeyForProvider,
     // The first build can be made by the server (an account in the cloud, and the person did not choose to keep replies on this device).
     serverRebuild: { canUse: () => Boolean(lastUser?.supabaseUserId) && getConfig()?.replyRunLocation !== 'local', start: startServerRebuild, stop: stopServerRebuild },
     logger }));

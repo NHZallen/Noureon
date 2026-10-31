@@ -5,6 +5,7 @@
 // exported are theirs: each keeps its own words as its source. Pure functions; shared by the page and the tests: no window, no document, no browser storage.
 
 import { LIMITS, NOTE_KINDS, SURFACES, createNote, isActive, isTombstone, normalizeKeywords } from './notes.js';
+import { notesInScope } from './scope.js';
 import { canBeStanding } from './standing.js';
 import { findTombstone, makeTombstone } from './tombstone.js';
 import { refusalFor } from './write-check.js';
@@ -17,7 +18,9 @@ const same = (left, right) => squash(left).toLowerCase() === squash(right).toLow
 const isoOr = (value, fallback) => (typeof value === 'string' && !Number.isNaN(Date.parse(value)) ? value : fallback);
 
 /** The file: `{ version, exportedAt, notes: [...], blocked: [{ keywords, hint }] }`. Notes in use only; the deleted ones are only their words. */
-export function buildNotesExport(notes, now = () => new Date().toISOString()) {
+export function buildNotesExport(allNotes, now = () => new Date().toISOString()) {
+  // The memory of the account only: the notes a project keeps for itself stay in that project (scope.js).
+  const notes = notesInScope(allNotes, '');
   return {
     version: TRANSFER_VERSION,
     exportedAt: now(),

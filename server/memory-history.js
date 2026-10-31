@@ -17,7 +17,9 @@ const short = (hit) => ({ conversationId: hit.conversationId, at: hit.at, role: 
 /** The conversations of the person as the page holds them: { id, lastUpdatedAt, messages: [{ role, parts, createdAt }] }. The server has no grant on the workspace tables: it asks a function of the database. */
 export async function readConversations(db, userId, limits = HISTORY) {
   const read = await db.rpc('server_read_history', { p_user_id: userId, p_max_conversations: limits.conversations, p_max_messages: limits.messages });
-  const byConversation = new Map((read?.conversations || []).map((row) => [row.id, { id: row.id, lastUpdatedAt: row.updated_at, messages: [] }]));
+  // `scopeId`: the id of the project when the conversation is in one that keeps its notes for itself (memory-notes/scope.js), '' otherwise.
+  const projects = new Set(Array.isArray(read?.project_folders) ? read.project_folders : []);
+  const byConversation = new Map((read?.conversations || []).map((row) => [row.id, { id: row.id, lastUpdatedAt: row.updated_at, scopeId: row.folder_id && projects.has(row.folder_id) ? row.folder_id : '', messages: [] }]));
   for (const message of read?.messages || []) byConversation.get(message.conversation_id)?.messages.push({ role: message.role, parts: Array.isArray(message.parts) ? message.parts : [], createdAt: message.created_at });
   return [...byConversation.values()];
 }
@@ -28,12 +30,14 @@ export function createHistorySearch({ db, now = () => Date.now(), fetchImpl = (.
 
   async function indexOf(userId) {
     const held = cache.get(userId);
-    if (held && now() - held.at < limits.cacheMs) return held.index;
+    if (held && now() - held.at < limits.cacheMs) return held;
     const index = createHistoryIndex({ clean: summarizeFileBlocks });
-    index.update(await conversationsOf(userId));
-    cache.set(userId, { at: now(), index });
+    const conversations = await conversationsOf(userId);
+    index.update(conversations);
+    const entry = { at: now(), index, scopes: new Map(conversations.map((conversation) => [conversation.id, conversation.scopeId || ''])) };
+    cache.set(userId, entry);
     if (cache.size > 50) cache.delete(cache.keys().next().value);
-    return index;
+    return entry;
   }
 
   return {
@@ -41,16 +45,20 @@ export function createHistorySearch({ db, now = () => Date.now(), fetchImpl = (.
      * The search for one reply: `search(query, limit)` resolves the pieces of past conversations ([{ conversationId, at, role, text }]), the keyword hits and, when `vector` is given
      * ({ provider, key }) and the person synced their vectors, the nearest in meaning, put together. Never throws.
      */
-    forReply({ userId, conversationId = '', vector = null, signal }) {
+    forReply({ userId, conversationId = '', scopeId = '', vector = null, signal }) {
       return async (query, limit = 5) => {
         let index;
+        let allow;
         try {
-          index = await indexOf(userId);
+          const held = await indexOf(userId);
+          index = held.index;
+          // A chat looks back only through the chats of its own scope: a project that keeps its notes for itself, or the rest (memory-notes/scope.js).
+          allow = (id) => (held.scopes.get(id) || '') === scopeId;
         } catch (error) {
           logger.warn?.('The past conversations could not be read for a search.', error?.message || error);
           return [];
         }
-        const keywords = index.search(query, { limit, minNorm: 0.1, minStrong: 1, coverage: 0, soleNorm: 0.1, excludeConversationId: conversationId }).map(short);
+        const keywords = index.search(query, { limit, minNorm: 0.1, minStrong: 1, coverage: 0, soleNorm: 0.1, excludeConversationId: conversationId, allow }).map(short);
         if (!vector?.key) return keywords;
         try {
           const client = createEmbeddingClient({ provider: vector.provider, getApiKey: () => vector.key, fetchImpl });
@@ -64,7 +72,7 @@ export function createHistorySearch({ db, now = () => Date.now(), fetchImpl = (.
           for (const hit of Array.isArray(hits) ? hits : []) {
             const piece = pieces.get(hit.piece_id);
             // A vector counts only while the text is the one it was made from.
-            if (!piece || piece.conversationId === conversationId || taken.has(piece.conversationId) || textHash(piece.text) !== hit.hash) continue;
+            if (!piece || piece.conversationId === conversationId || !allow(piece.conversationId) || taken.has(piece.conversationId) || textHash(piece.text) !== hit.hash) continue;
             taken.add(piece.conversationId);
             meaning.push(short(piece));
             if (meaning.length >= limit) break;

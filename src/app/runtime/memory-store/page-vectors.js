@@ -220,7 +220,7 @@ export function createPageVectors({ getStore, getHistory, getApiKeyForProvider =
     /**
      * The pieces of past conversations nearest in meaning to `query`, one for each conversation: [{ conversationId, at, role, text, cosine }]. Resolves [] on any failure.
      */
-    async search(query, { limit = 5, excludeConversationId = '', minCosine = config.minCosine, signal } = {}) {
+    async search(query, { limit = 5, excludeConversationId = '', allow = null, minCosine = config.minCosine, signal } = {}) {
       try {
         const provider = providerNow();
         if (!enabled() || !store?.isLoaded() || !store.size || !String(query || '').trim()) return [];
@@ -230,7 +230,7 @@ export function createPageVectors({ getStore, getHistory, getApiKeyForProvider =
         const found = [];
         for (const hit of topByCosine(vector, store.entries().filter((entry) => entry.vector.length), { limit: limit * 4, minCosine })) {
           const piece = byId.get(hit.id);
-          if (!piece || piece.conversationId === excludeConversationId || taken.has(piece.conversationId)) continue;
+          if (!piece || piece.conversationId === excludeConversationId || taken.has(piece.conversationId) || (allow && !allow(piece.conversationId))) continue;
           taken.add(piece.conversationId);
           found.push({ conversationId: piece.conversationId, at: piece.at, role: piece.role, text: piece.text, cosine: hit.cosine });
           if (found.length >= limit) break;

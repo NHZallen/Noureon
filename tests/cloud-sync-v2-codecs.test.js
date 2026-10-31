@@ -687,3 +687,15 @@ test('the sources of a project go to the cloud in a fixed shape and come back; a
   assert.equal(shadowRowsEqual(old, { ...old, sources: [] }), true);
   assert.equal(shadowRowsEqual(old, { ...old, sources: encoded.folders[0].sources }), false);
 });
+
+test('where the notes of a project are kept goes to the cloud and comes back; a folder without it is the default and equals one that says so', async () => {
+  const folderId = '77777777-7777-4777-8777-777777777777';
+  const encoded = await encodeWorkspaceConversationShadow({ userId, cryptoProvider: webcrypto, workspace: { folders: [{ id: folderId, name: 'Private', memoryScope: 'project', conversationIds: [] }, { id: '88888888-8888-4888-8888-888888888888', name: 'Plain', conversationIds: [] }], conversations: [] } });
+  assert.deepEqual(encoded.folders.map((row) => row.memory_scope), ['project', 'default']);
+  assert.deepEqual(decodeWorkspaceConversationShadow(encoded).folders.map((folder) => folder.memoryScope), ['project', 'default']);
+  const old = { ...encoded.folders[1] };
+  delete old.memory_scope;
+  assert.equal(decodeWorkspaceConversationShadow({ folders: [old] }).folders[0].memoryScope, 'default');
+  assert.equal(shadowRowsEqual(old, { ...old, memory_scope: 'default' }), true);
+  assert.equal(shadowRowsEqual(old, { ...old, memory_scope: 'project' }), false);
+});

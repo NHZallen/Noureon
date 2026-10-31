@@ -28,6 +28,7 @@ import { combineLoaders, createConnectorLoader } from './mcp/tool-loader.js';
 import { createMemoryLoader } from '../src/data/memory-tool.js';
 import { pickCuratorModel, runCurator } from '../src/data/memory-curator.js';
 import { createServerTidy } from './memory-tidy.js';
+import { scopedMemory } from './memory-scope.js';
 import { createMemoryModelRunner } from '../src/app/runtime/shell/memory-model-runner.js';
 import { MODELS } from '../src/app/runtime/shell/model-registry.js';
 import { placePictures } from '../src/data/picture-interleave.js';
@@ -241,13 +242,16 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
   if (memory && spec.tools.memory && (mode !== 'grounding' || spec.tools.memory.curator === true) && userId) {
     try {
       const conversationId = spec.conversationId;
-      let loaded = await memory.load(userId, { conversationId });
+      // The scope of the chat (memory-notes/scope.js): the project that keeps its notes for itself, or '' (the memory of the account; the notes of such projects are left out).
+      const scopeId = spec.tools.memory.scope || '';
+      const scopedStore = scopedMemory(memory, scopeId);
+      let loaded = await scopedStore.load(userId, { conversationId });
       if (loaded.settings.use && spec.tools.memory.curator === true) {
         // No tools for this model: after the reply (and its message is written) a small model reads the turn and the program keeps what the check accepts (runs.js calls this).
         const turnMessages = spec.tools.memory.messages;
         if (memoryOut) {
           afterSteps.push(async () => {
-            const fresh = await memory.load(userId, { conversationId });
+            const fresh = await scopedStore.load(userId, { conversationId });
             const settings = fresh.settings;
             const current = turnMessages[turnMessages.length - 1];
             if (!current || !settings.use || !settings.learn || settings.paused || spec.tools.memory.canWrite !== true) return;
@@ -260,8 +264,8 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
               turn: { messages: turnMessages, current, assistantExcerpt: answer.slice(0, 400) },
               callModel: (prompt) => runModel({ modelId: model.id, prompt, signal }),
               commit: async (result) => {
-                await memory.saveWrite(userId, { before: state, result, conversationId });
-                state = await memory.load(userId, { conversationId });
+                await scopedStore.saveWrite(userId, { before: state, result, conversationId });
+                state = await scopedStore.load(userId, { conversationId });
               },
               conversationId,
               appliedOps: fresh.cursor.appliedOps,
@@ -280,13 +284,13 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
           getNotes: () => loaded.notes,
           getContext: () => ({ conversationId, messages: spec.tools.memory.messages.map((message) => ({ id: message.id, role: 'user', text: message.text, at: message.at })), appliedOps }),
           commit: async (result) => {
-            await memory.saveWrite(userId, { before: loaded, result, conversationId });
-            loaded = await memory.load(userId, { conversationId });
+            await scopedStore.saveWrite(userId, { before: loaded, result, conversationId });
+            loaded = await scopedStore.load(userId, { conversationId });
           },
           canWrite,
           // Looking back through the past conversations (scope "history" or "both"): from the cloud workspace, by meaning too when the person synced their vectors and the page gave a key for this run.
-          searchHistory: spec.tools.memory.history === true && memory.history ? (() => {
-            const search = memory.history.forReply({ userId, conversationId, vector: spec.tools.memory.vector && secrets.embeddingKey ? { provider: spec.tools.memory.vector.provider, key: secrets.embeddingKey } : null, signal });
+          searchHistory: spec.tools.memory.history === true && scopedStore.history ? (() => {
+            const search = scopedStore.history.forReply({ userId, conversationId, vector: spec.tools.memory.vector && secrets.embeddingKey ? { provider: spec.tools.memory.vector.provider, key: secrets.embeddingKey } : null, signal });
             // The conversations looked into stay with the message (their ids and days, never their words).
             return async (query, limit) => {
               const hits = await search(query, limit);
@@ -310,8 +314,9 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
         });
       }
       // Once the reply is written, the notes are tidied if that is due (memory-tidy.js).
-      if (memoryOut && loaded.settings.use) {
-        afterSteps.push(createServerTidy({ memory, userId, replyModel: spec.model.info, provider: spec.model.provider, models: MODELS, makeRunner: (model) => createMemoryModelRunner({ streamApiCall: access.streamApiCall, models: [model] }), signal, now }));
+      // Only the memory of the account is tidied, not the notes a project keeps for itself.
+      if (memoryOut && loaded.settings.use && !scopeId) {
+        afterSteps.push(createServerTidy({ memory: scopedStore, userId, replyModel: spec.model.info, provider: spec.model.provider, models: MODELS, makeRunner: (model) => createMemoryModelRunner({ streamApiCall: access.streamApiCall, models: [model] }), signal, now }));
         memoryOut.afterReply = async () => { for (const step of afterSteps) { try { await step(); } catch (error) { onProblem('memory_after_reply_failed', error); } } };
       }
     } catch (error) {

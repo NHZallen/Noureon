@@ -32,8 +32,8 @@ function canonicalizeFirstValidTimestamp(...values) {
 
 function canonicalizeShadowRow(value) {
   // A folder written before projects has no instructions and is not pinned: the same as an empty text and no pin.
-  const source = value && typeof value === 'object' && 'text_color' in value && (value.instructions == null || value.pinned == null || value.sources == null)
-    ? { ...value, instructions: value.instructions ?? '', pinned: value.pinned ?? false, sources: value.sources ?? [] }
+  const source = value && typeof value === 'object' && 'text_color' in value && (value.instructions == null || value.pinned == null || value.sources == null || value.memory_scope == null)
+    ? { ...value, instructions: value.instructions ?? '', pinned: value.pinned ?? false, sources: value.sources ?? [], memory_scope: value.memory_scope ?? 'default' }
     : value;
   const row = canonicalize(source || {});
   for (const key of ['created_at', 'updated_at', 'deleted_at']) {
@@ -150,6 +150,8 @@ function folderFromRow(row = {}, conversationIds = []) {
     instructions: typeof row.instructions === 'string' ? row.instructions : '',
     pinned: row.pinned === true,
     sources: normalizeSources(row.sources),
+    // Where the notes of its chats are kept: 'project' (only in this project) or 'default' (the memory of the account); set when the project is made and never changed.
+    memoryScope: row.memory_scope === 'project' ? 'project' : 'default',
     deletedAt: row.deleted_at || null
   };
 }
@@ -406,6 +408,7 @@ export async function encodeWorkspaceConversationShadow({
       instructions: String(folder.instructions || ''),
       pinned: folder.pinned === true,
       sources: normalizeSources(folder.sources),
+      memory_scope: folder.memoryScope === 'project' ? 'project' : 'default',
       deleted_at: folder.deletedAt || null
     }));
   const conversations = [];

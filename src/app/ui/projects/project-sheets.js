@@ -95,9 +95,40 @@ function nameField({ document, root, text, initial, onChange = () => {}, onSubmi
   };
 }
 
+/** The choice of where the notes of the chats are kept, shown when a project is made (it cannot be changed afterwards): two rows, one ticked. */
+function memoryChoice(document, text, onChange) {
+  const group = make(document, 'div', 'pj-memory');
+  group.setAttribute('role', 'radiogroup');
+  group.setAttribute('aria-label', text('pjMemoryTitle'));
+  group.appendChild(make(document, 'div', 'pj-section-title', text('pjMemoryTitle')));
+  const rows = [];
+  for (const [value, title, body] of [['default', 'pjMemoryDefault', 'pjMemoryDefaultBody'], ['project', 'pjMemoryProject', 'pjMemoryProjectBody']]) {
+    const row = make(document, 'button', 'pj-memory-row');
+    row.type = 'button';
+    row.setAttribute('role', 'radio');
+    const label = make(document, 'span', 'pj-memory-text');
+    label.append(make(document, 'span', 'pj-memory-name', text(title)), make(document, 'span', 'pj-memory-body', text(body)));
+    row.append(make(document, 'span', 'pj-memory-dot'), label);
+    row.addEventListener('click', () => select(value));
+    rows.push({ value, row });
+    group.appendChild(row);
+  }
+  function select(value) {
+    for (const entry of rows) {
+      entry.row.setAttribute('aria-checked', String(entry.value === value));
+      entry.row.classList.toggle('is-selected', entry.value === value);
+    }
+    onChange(value);
+  }
+  select('default');
+  group.appendChild(make(document, 'p', 'pj-memory-note', text('pjMemoryFixed')));
+  return group;
+}
+
 /** The sheet that makes a project. `onCreated(id)` is called after it is made. */
 export function openCreateSheet({ document, root, text, actions, notify = () => {}, onCreated = () => {} }) {
   let busy = false;
+  let memoryScope = 'default';
   const { foot, button } = footerButton(document, text('pjCreate'));
   let sheet;
   const field = nameField({
@@ -121,6 +152,7 @@ export function openCreateSheet({ document, root, text, actions, notify = () => 
         chips.appendChild(chip);
       }
       body.appendChild(chips);
+      body.appendChild(memoryChoice(document, text, (value) => { memoryScope = value; }));
     }
   });
   button.addEventListener('click', async () => {
@@ -128,7 +160,7 @@ export function openCreateSheet({ document, root, text, actions, notify = () => 
     busy = true;
     button.disabled = true;
     sheet.setError('');
-    const result = await actions.create({ name: field.state.name, icon: field.state.icon, color: field.state.color }).catch(() => ({ ok: false }));
+    const result = await actions.create({ name: field.state.name, icon: field.state.icon, color: field.state.color, memoryScope }).catch(() => ({ ok: false }));
     busy = false;
     if (!result.ok) { button.disabled = !field.state.name.trim(); sheet.setError(failureText(text, result)); return; }
     sheet.close();
@@ -147,7 +179,13 @@ export function openEditSheet({ document, root, text, actions, project, notify =
     onChange: (state) => { button.disabled = busy || !state.name.trim(); },
     onSubmit: () => { if (!button.disabled) button.click(); }
   });
-  const sheet = openSheet({ document, root, title: text('pjEditTitle'), close: text('pjCancel'), footer: foot, body: (body) => body.appendChild(field.element) });
+  const sheet = openSheet({ document, root, title: text('pjEditTitle'), close: text('pjCancel'), footer: foot,
+    body: (body) => {
+      body.appendChild(field.element);
+      // Where the notes are kept was chosen when the project was made and is only shown here.
+      if (project.memoryScope === 'project') body.appendChild(make(document, 'p', 'pj-note pj-memory-shown', text('pjMemoryBadge')));
+    }
+  });
   button.addEventListener('click', async () => {
     if (busy) return;
     busy = true;

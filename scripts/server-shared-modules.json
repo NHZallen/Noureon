@@ -18,6 +18,10 @@
       "note": "Reviewed 2026-10-30: no browser globals (the shape of a note of the memory and its limits; docs/superpowers/specs/2026-10-30-memory-redesign-design.md)."
     },
     {
+      "path": "src/app/runtime/memory-notes/scope.js",
+      "note": "Reviewed 2026-10-31: no browser globals (which notes a chat of a project that keeps its notes for itself may read and write; docs/superpowers/specs/2026-10-31-projects-design.md, §14)."
+    },
+    {
       "path": "src/app/runtime/reply/steer-queue.js",
       "note": "Reviewed 2026-10-26: no browser globals (the messages a person adds while a reply is made, kept until the next boundary of its loop)."
     },

@@ -100,6 +100,7 @@ export function createReceivedDataLifecycle({
                     newFolder.instructions = typeof folder.instructions === 'string' ? folder.instructions : '';
                     newFolder.pinned = folder.pinned === true;
                     newFolder.sources = normalizeSources(folder.sources);
+                    newFolder.memoryScope = folder.memoryScope === 'project' ? 'project' : 'default';
 
                     folder.conversationIds.forEach(oldConvId => {
                         const newConvId = idMap[oldConvId];

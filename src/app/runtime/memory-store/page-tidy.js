@@ -4,16 +4,19 @@
 // what it changed is one event that can be undone for thirty days.
 
 import { runConsolidation, pickTidyModel } from '../../../data/memory-consolidate.js';
+import { scopedView } from '../memory-notes/scope.js';
 
 let running = false;
 
 /**
  * `store` is the memory store, `getRunner()` gives `runMemoryModel` (or null), `force` ignores the schedule. Resolves the result of runConsolidation (`{ ran, skipped?, ... }`).
  */
-export async function tidyNotes({ store, getConfig, getRunner = () => null, models = [], getApiKeyForProvider = () => '', force = false, createId = () => globalThis.crypto.randomUUID(), now = () => new Date().toISOString(), logger = console }) {
+export async function tidyNotes({ store: wholeStore, getConfig, getRunner = () => null, models = [], getApiKeyForProvider = () => '', force = false, createId = () => globalThis.crypto.randomUUID(), now = () => new Date().toISOString(), logger = console }) {
   if (running) return { ran: false, skipped: 'busy' };
   running = true;
   try {
+    // Only the memory of the account is tidied: the notes of a project that keeps its notes for itself are not looked at together with it (memory-notes/scope.js).
+    const store = scopedView(wholeStore, '');
     if (!store?.isLoaded()) return { ran: false, skipped: 'not_loaded' };
     const settings = store.getSettings();
     if (!settings.use || settings.paused) return { ran: false, skipped: 'off' };

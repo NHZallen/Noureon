@@ -64,7 +64,7 @@ test('the server reads the text of the finished messages of one person through i
   assert.equal(read.messages.length, 1, 'a message still being written is not read');
   assert.deepEqual(read.messages[0].parts, [{ text: 'My puppy will not eat' }], 'only the text, never a file');
   const [{ read: other }] = await database.service.query('select public.server_read_history($1) as read', [crypto.randomUUID()]);
-  assert.deepEqual(other, { conversations: [], messages: [] }, 'someone else\'s conversations are not in it');
+  assert.deepEqual(other, { conversations: [], messages: [], project_folders: [] }, 'someone else\'s conversations are not in it');
   for (const client of [A, B, database.anon]) {
     assert.match((await client.error('select public.server_read_history($1)', [bob]))?.message || 'it worked', /permission denied/);
   }

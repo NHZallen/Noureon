@@ -136,6 +136,21 @@ html.pj-open { overflow: hidden; }
 .pj-chip { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.3rem 0.85rem 0.3rem 0.45rem; border: 1px solid var(--border-color); border-radius: 9999px; background: transparent; }
 .pj-chip:hover { background: var(--hover-bg); }
 
+/* where the notes of the chats are kept: two rows, one ticked (the choice is made once, when the project is made) */
+.pj-memory { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1.2rem; }
+.pj-section-title { color: var(--text-secondary); font-size: var(--pj-small); }
+.pj-memory-row { display: flex; align-items: flex-start; gap: 0.75rem; width: 100%; padding: 0.7rem 0.8rem; border: 1px solid var(--border-color); border-radius: 0.9rem; background: transparent; color: var(--text-primary); text-align: left; }
+.pj-memory-row:hover { background: var(--hover-bg); }
+.pj-memory-row.is-selected { border-color: var(--text-primary); }
+.pj-memory-dot { position: relative; flex: none; width: 1.1rem; height: 1.1rem; margin-top: 0.15rem; border: 1.5px solid var(--text-secondary); border-radius: 9999px; box-sizing: border-box; }
+.pj-memory-row.is-selected .pj-memory-dot { border-color: var(--text-primary); }
+.pj-memory-row.is-selected .pj-memory-dot::after { content: ""; position: absolute; inset: 3px; border-radius: 9999px; background: var(--text-primary); }
+.pj-memory-text { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
+.pj-memory-name { font-weight: 500; }
+.pj-memory-body { color: var(--text-secondary); font-size: var(--pj-small); }
+.pj-memory-shown { margin-top: 1rem; }
+.pj-memory-note { margin: 0; color: var(--text-secondary); font-size: var(--pj-small); }
+
 /* the choice of the icon and the colour. The row of colours is the width of the screen (it leaves the column) and scrolls to both edges. */
 .pj-picker-preview { display: grid; place-items: center; padding: 0.4rem 0; }
 .pj-colors { grid-column: 1 / -1; display: flex; gap: 0.75rem; padding: 0.7rem max(var(--pj-gutter), calc((100% - 36rem) / 2)) 0.9rem; overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid var(--border-color); }

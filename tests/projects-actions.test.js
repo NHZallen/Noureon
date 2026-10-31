@@ -8,7 +8,7 @@ import { setShares } from '../src/app/runtime/share/share-ref.js';
 // What the page of the projects does to the workspace: make, change and delete a project (the choice of what happens to its chats), take a chat out of it, start a chat in it.
 
 const setup = ({ folders = [], conversations = [], deleteFolderFromCloud = async () => {}, openId = null } = {}) => {
-  const state = { folders, conversations, saved: [], rendered: 0, synced: [], newChats: 0, sent: [], cloud: [] };
+  const state = { folders, conversations, saved: [], rendered: 0, synced: [], newChats: 0, sent: [], cloud: [], droppedNotes: [] };
   let current = openId;
   const actions = createProjectActions({
     dataStore: {
@@ -23,6 +23,7 @@ const setup = ({ folders = [], conversations = [], deleteFolderFromCloud = async
     startNewChat: async () => { state.newChats += 1; const conversation = { id: `new-${state.newChats}`, title: 'New chat', messages: [], folderId: null }; state.conversations.unshift(conversation); current = conversation.id; },
     getCurrentConversationId: () => current,
     sendText: (text) => state.sent.push(text),
+    dropNotes: async (id) => { state.droppedNotes.push(id); },
     randomUUID: (() => { let n = 0; return () => `project-${++n}`; })()
   });
   return { actions, state };
@@ -171,4 +172,18 @@ test('a project is pinned and unpinned, and the pinned ones come first in the li
   assert.deepEqual(actions.list().map((folder) => folder.id), ['a', 'c', 'b'], 'the pinned one first, then the newest made');
   assert.deepEqual(await actions.togglePinProject('a'), { ok: true, pinned: false });
   assert.deepEqual(actions.list().map((folder) => folder.id), ['c', 'b', 'a']);
+});
+
+test('where the notes are kept is chosen when the project is made, and a project that keeps its own takes them with it when it is deleted', async () => {
+  const { actions, state } = setup();
+  await actions.create({ name: 'Plain' });
+  await actions.create({ name: 'Private', memoryScope: 'project' });
+  await actions.create({ name: 'Odd', memoryScope: 'everything' });
+  assert.deepEqual(state.folders.map((folder) => folder.memoryScope), ['default', 'project', 'default']);
+  await actions.update('project-2', { name: 'Private renamed', memoryScope: 'default' });
+  assert.equal(state.folders[1].memoryScope, 'project', 'it cannot be changed afterwards');
+  await actions.remove('project-1');
+  assert.deepEqual(state.droppedNotes, [], 'a project with the memory of the account has no notes of its own to take away');
+  await actions.remove('project-2');
+  assert.deepEqual(state.droppedNotes, ['project-2']);
 });

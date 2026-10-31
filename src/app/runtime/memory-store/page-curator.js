@@ -9,6 +9,8 @@ import { toolsOffered } from './memory-trace.js';
 import { announceMemoryUpdated } from '../../ui/memory-notes/memory-events.js';
 import { tidyNotes } from './page-tidy.js';
 import { getPageVectors } from './memory-ref.js';
+import { scopedView } from '../memory-notes/scope.js';
+import { memoryScopeOf } from '../projects/project-instructions.js';
 
 const DELAY_MS = 2000;
 
@@ -21,8 +23,10 @@ async function curateTurn({ conversation, getConfig, getMemory, runMemoryModel, 
     if (conversation.retentionMode === 'ephemeral') return { skipped: 'temporary' };
     if (toolsOffered(conversation.id)) return { skipped: 'wrote_itself' };
     const memory = getMemory();
-    const store = await memory?.ready();
-    if (!store?.isLoaded()) return { skipped: 'not_loaded' };
+    const held = await memory?.ready();
+    if (!held?.isLoaded()) return { skipped: 'not_loaded' };
+    // The notes of a chat of a project that keeps its notes for itself are kept in that project (memory-notes/scope.js).
+    const store = scopedView(held, memoryScopeOf(conversation));
     const settings = store.getSettings();
     if (!settings.use || !settings.learn || settings.paused) return { skipped: 'learning_off' };
     const users = userMessagesOf(conversation);

@@ -26,6 +26,8 @@ export function createMemoryNotesSettings({
   getRebuild = () => null,
   // The search by meaning (memory-store/page-vectors.js), or null.
   getVectors = () => null,
+  // The name of a project that keeps its notes for itself (its notes are shown with it); '' for one that is gone (its notes are then not shown).
+  getProjectName = () => '',
   getText,
   showNotification = () => {},
   showCustomDialog,
@@ -34,6 +36,8 @@ export function createMemoryNotesSettings({
 }) {
   const state = { view: 'summary', query: '', kind: '', filter: 'active', shown: PAGE, menu: '' };
   let container = null;
+  // The notes the person manages: those of the account and those of the projects that still keep their own.
+  const shownNotes = (live) => live.getNotes().filter((note) => !note.projectId || getProjectName(note.projectId));
   let stopListening = null;
   let stopRebuild = null;
   let stopVectors = null;
@@ -192,7 +196,7 @@ export function createMemoryNotesSettings({
   };
 
   const renderSummary = (live) => {
-    const stats = summarize(live.getNotes());
+    const stats = summarize(shownNotes(live));
     const card = el('section', 'pz-card mn-summary');
     const tiles = el('div', 'mn-stats');
     const tile = (value, label) => { const box = el('div', 'mn-stat'); box.append(el('b', '', String(value)), el('span', 'text-[var(--text-secondary)]', label)); return box; };
@@ -265,7 +269,7 @@ export function createMemoryNotesSettings({
     if (status) body.append(el('p', 'mn-rebuild-status', text(status, { done: state.done, total: state.total, added: state.added, error: state.error })));
     else if (!available) body.append(el('p', 'mn-rebuild-status mn-faint', text('mnRebuildNone')));
     const actions = el('div', 'mn-rebuild-actions');
-    const hasNotes = live.getNotes().some(isActive);
+    const hasNotes = shownNotes(live).some(isActive);
     if (state.status === 'running') actions.append(button(text('mnRebuildPause'), 'mn-btn', () => controller.pause()));
     else {
       if (state.status === 'paused' || state.error === 'interrupted') actions.append(button(text('mnRebuildContinue'), 'btn-primary mn-btn', () => void controller.start()));
@@ -299,6 +303,8 @@ export function createMemoryNotesSettings({
     body.append(el('div', 'mn-note-text', note.text));
     const meta = el('div', 'mn-meta');
     meta.append(tag(text(KIND_KEY[note.kind]), 'mn-tag', KIND_ICON[note.kind]));
+    // A note a project keeps for itself says which project.
+    if (note.projectId) meta.append(tag(text('mnTagProject', { name: getProjectName(note.projectId) }), 'mn-tag', 'project'));
     if (note.standing) meta.append(tag(text('mnTagStanding'), 'mn-tag mn-tag-strong', 'pin'));
     if (note.surface === 'never') meta.append(el('span', 'mn-tag', text('mnTagNever')));
     // A standing note comes with every reply, so "not used yet" would be wrong for it.
@@ -321,7 +327,7 @@ export function createMemoryNotesSettings({
   const renderManage = (live) => {
     const page = el('section', 'pz-card mn-page');
     const back = button(`← ${text('mnBack')}`, 'mn-back', () => go({ view: 'summary', query: '', kind: '', filter: 'active', menu: '' }));
-    const stats = summarize(live.getNotes());
+    const stats = summarize(shownNotes(live));
     const head = el('div', 'mn-page-head');
     head.append(el('h3', '', text('mnManageTitle')), el('span', 'mn-faint', `${stats.active} / 300`));
     const tools = el('div', 'mn-tools');
@@ -348,9 +354,9 @@ export function createMemoryNotesSettings({
 
   function renderList(live, list) {
     list.replaceChildren();
-    const all = filterNotes(live.getNotes(), { view: state.filter, kind: state.kind, query: state.query });
+    const all = filterNotes(shownNotes(live), { view: state.filter, kind: state.kind, query: state.query });
     if (!all.length) {
-      list.append(el('p', 'pz-sub mn-pad text-[var(--text-secondary)]', text(live.getNotes().some(isActive) ? 'mnNoMatch' : 'mnEmpty')));
+      list.append(el('p', 'pz-sub mn-pad text-[var(--text-secondary)]', text(shownNotes(live).some(isActive) ? 'mnNoMatch' : 'mnEmpty')));
       return;
     }
     const box = el('div', 'mn-notes');

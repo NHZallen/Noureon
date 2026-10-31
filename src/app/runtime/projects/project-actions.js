@@ -15,6 +15,7 @@ const stamp = (conversation) => Date.parse(conversation?.lastUpdatedAt || conver
 /**
  * deps: dataStore (getFolders, replaceFolders, getConversations), getDefaultFolder(), saveAppData(options), renderSidebar(), deleteFolderFromCloud(id, { folder }),
  * deferConversationFolderSync(conversationId), startNewChat(options), getCurrentConversationId(), sendText(text) (puts the text in the box of the message and sends it), randomUUID(),
+ * dropNotes(projectId) (takes away the notes of a project that kept them for itself),
  * dropFiles(descriptions) (forgets the kept originals of sources on this device when no source uses them any more).
  */
 export function createProjectActions({
@@ -28,6 +29,8 @@ export function createProjectActions({
   getCurrentConversationId = () => null,
   sendText = () => {},
   dropFiles = async () => {},
+  // Takes away the notes a project kept for itself (the page's memory); called when the project is deleted.
+  dropNotes = async () => {},
   randomUUID = () => globalThis.crypto.randomUUID()
 } = {}) {
   const folders = () => dataStore.getFolders();
@@ -55,7 +58,7 @@ export function createProjectActions({
 
   const countOf = (id) => conversations().filter((conversation) => conversation.folderId === id && !conversation.deletedAt && conversation.retentionMode !== 'ephemeral').length;
 
-  async function create({ name, icon, color } = {}) {
+  async function create({ name, icon, color, memoryScope } = {}) {
     const title = cleanName(name);
     if (!title) return { ok: false, code: 'no_name' };
     const folder = {
@@ -65,7 +68,9 @@ export function createProjectActions({
       ...getDefaultFolder(),
       ...(icon in FOLDER_SVGS ? { icon } : {}),
       ...(color in FOLDER_COLORS ? { color } : {}),
-      instructions: ''
+      instructions: '',
+      // Where the notes of its chats are kept; chosen here and never changed (docs/superpowers/specs/2026-10-31-projects-design.md, §14).
+      memoryScope: memoryScope === 'project' ? 'project' : 'default'
     };
     dataStore.replaceFolders([...folders(), folder]);
     await saveAppData();
@@ -166,6 +171,8 @@ export function createProjectActions({
       }
     }
     dataStore.replaceFolders(folders().filter((entry) => entry.id !== id));
+    // A project that kept its notes for itself takes them with it.
+    if (folder.memoryScope === 'project') await Promise.resolve(dropNotes(id)).catch(() => {});
     await dropFiles(unusedFiles(normalizeSources(folder.sources).map((source) => source.file)));
     // The conversation that is open and went to the trash is left at once, for a new chat.
     const openId = getCurrentConversationId();

@@ -87,6 +87,8 @@ export function normalizeNote(raw, { now = () => new Date().toISOString() } = {}
     status,
     supersededBy: typeof raw.supersededBy === 'string' && raw.supersededBy ? raw.supersededBy : null
   };
+  // The project whose notes these are (a project that keeps its notes for itself, memory-notes/scope.js); none for the memory of the account.
+  if (typeof raw.projectId === 'string' && raw.projectId) note.projectId = raw.projectId.slice(0, 80);
   // A tombstone remembers what it was about, not what was said: the words, and a few of them as a hint.
   if (status === NOTE_STATUS.deleted) {
     note.keywords = note.keywords.length ? note.keywords : normalizeKeywords(plainWords(raw.hint || ''));

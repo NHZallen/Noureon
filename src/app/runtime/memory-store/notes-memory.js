@@ -8,6 +8,7 @@
 
 import { buildPrefetch, buildSystemText } from '../memory-notes/inject.js';
 import { isActive } from '../memory-notes/notes.js';
+import { notesInScope } from '../memory-notes/scope.js';
 import { createCloudBackend, createLocalBackend, createMirroredBackend } from './backends.js';
 import { carriedNotes, clearCarried, joinCarried } from './notes-carry.js';
 import { createNotesStore } from './notes-store.js';
@@ -57,15 +58,16 @@ export function createNotesMemory({ getSupabase = () => null, storage = null, no
   };
 
   // The slip and the system text for a message. `meaningPieces` (from the search by meaning) stand in for the keyword hits of the past conversations when given.
-  const compose = ({ question = '', canSearch = false, excludeConversationId = '' }, meaningPieces) => {
+  const compose = ({ question = '', canSearch = false, excludeConversationId = '', scopeId = '' }, meaningPieces) => {
     if (!store?.isLoaded()) return EMPTY;
     const settings = store.getSettings();
     if (!settings.use) return EMPTY;
-    const notes = store.getNotes();
+    // A chat of a project that keeps its notes for itself reads those only; every other chat leaves them out (memory-notes/scope.js).
+    const notes = notesInScope(store.getNotes(), scopeId);
     let history = meaningPieces || [];
     if (!meaningPieces) {
       try {
-        history = historySearch ? historySearch(question, { excludeConversationId }) : [];
+        history = historySearch ? historySearch(question, { excludeConversationId, scopeId }) : [];
       } catch (error) {
         logger.warn?.('The history could not be searched.', error);
       }
@@ -125,7 +127,7 @@ export function createNotesMemory({ getSupabase = () => null, storage = null, no
       const first = compose(options, null);
       if (first.historyIds.length || !historyMeaning || !store?.isLoaded() || !store.getSettings().use) return first;
       try {
-        const found = await historyMeaning(options.question || '', { excludeConversationId: options.excludeConversationId || '', waitMs });
+        const found = await historyMeaning(options.question || '', { excludeConversationId: options.excludeConversationId || '', scopeId: options.scopeId || '', waitMs });
         return Array.isArray(found) && found.length ? compose(options, found) : first;
       } catch (error) {
         logger.warn?.('The search by meaning for the slip failed.', error);
