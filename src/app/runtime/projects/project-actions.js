@@ -5,7 +5,7 @@ import { FOLDER_SVGS } from '../features/folder-metadata.js';
 import { FOLDER_COLORS } from '../shell/runtime-ui-colors.js';
 import { confirmDeleteShared } from '../share/share-ref.js';
 import { PROJECT_INSTRUCTIONS_MAX } from './project-instructions.js';
-import { normalizeSource, normalizeSources, PROJECT_SOURCES_CHARS_MAX, PROJECT_SOURCES_MAX, sourcesCharsOf } from './project-source-model.js';
+import { normalizeSource, normalizeSources, PROJECT_SOURCE_FILE_BYTES_MAX, PROJECT_SOURCE_FILES_BYTES_MAX, PROJECT_SOURCES_CHARS_MAX, PROJECT_SOURCES_MAX, sourceFilesBytesOf, sourcesCharsOf } from './project-source-model.js';
 
 export const PROJECT_NAME_MAX = 80;
 
@@ -14,7 +14,8 @@ const stamp = (conversation) => Date.parse(conversation?.lastUpdatedAt || conver
 
 /**
  * deps: dataStore (getFolders, replaceFolders, getConversations), getDefaultFolder(), saveAppData(options), renderSidebar(), deleteFolderFromCloud(id, { folder }),
- * deferConversationFolderSync(conversationId), startNewChat(options), getCurrentConversationId(), sendText(text) (puts the text in the box of the message and sends it), randomUUID().
+ * deferConversationFolderSync(conversationId), startNewChat(options), getCurrentConversationId(), sendText(text) (puts the text in the box of the message and sends it), randomUUID(),
+ * dropFiles(descriptions) (forgets the kept originals of sources on this device when no source uses them any more).
  */
 export function createProjectActions({
   dataStore,
@@ -26,6 +27,7 @@ export function createProjectActions({
   startNewChat = async () => {},
   getCurrentConversationId = () => null,
   sendText = () => {},
+  dropFiles = async () => {},
   randomUUID = () => globalThis.crypto.randomUUID()
 } = {}) {
   const folders = () => dataStore.getFolders();
@@ -101,15 +103,27 @@ export function createProjectActions({
   /** The sources of a project (texts and files that were read), in the order they were added. */
   const sourcesOf = (id) => normalizeSources(folderOf(id)?.sources);
 
-  /** Adds a source ({ kind, title, mime, size, text }). Refused with code 'full' (20 already), 'too_much' (the texts together would pass 400 000 characters), 'empty' or 'gone'. */
+  // The kept originals no source of any project uses (so they can be forgotten on this device).
+  const unusedFiles = (candidates) => {
+    const used = new Set(folders().flatMap((folder) => (Array.isArray(folder.sources) ? folder.sources : []).map((source) => source?.file?.hash).filter(Boolean)));
+    return (candidates || []).filter((file) => file?.hash && !used.has(file.hash));
+  };
+
+  /**
+   * Adds a source ({ kind, title, mime, size, text, file }): `file` is the description of a kept original (a picture, a scan). Refused with code 'full' (20 already), 'too_much' (the texts
+   * together would pass 400 000 characters), 'too_big' / 'files_too_much' (an original over 20 MB, or the originals of the project over 100 MB), 'empty' or 'gone'.
+   */
   async function addSource(id, input = {}) {
     const folder = folderOf(id);
     if (!folder) return { ok: false, code: 'gone' };
     const current = sourcesOf(id);
-    if (current.length >= PROJECT_SOURCES_MAX) return { ok: false, code: 'full' };
     const source = normalizeSource({ ...input, id: randomUUID(), addedAt: new Date().toISOString() });
     if (!source) return { ok: false, code: 'empty' };
-    if (sourcesCharsOf(current) + source.text.length > PROJECT_SOURCES_CHARS_MAX) return { ok: false, code: 'too_much' };
+    const refuse = async (code) => { await dropFiles(unusedFiles([source.file])); return { ok: false, code }; };
+    if (current.length >= PROJECT_SOURCES_MAX) return refuse('full');
+    if (sourcesCharsOf(current) + source.text.length > PROJECT_SOURCES_CHARS_MAX) return refuse('too_much');
+    if (source.file && source.file.size > PROJECT_SOURCE_FILE_BYTES_MAX) return refuse('too_big');
+    if (source.file && sourceFilesBytesOf(current) + source.file.size > PROJECT_SOURCE_FILES_BYTES_MAX) return refuse('files_too_much');
     folder.sources = [...current, source];
     dataStore.replaceFolders([...folders()]);
     await saveAppData();
@@ -120,10 +134,12 @@ export function createProjectActions({
     const folder = folderOf(id);
     if (!folder) return { ok: false, code: 'gone' };
     const current = sourcesOf(id);
-    if (!current.some((source) => source.id === sourceId)) return { ok: false, code: 'gone' };
+    const gone = current.find((source) => source.id === sourceId);
+    if (!gone) return { ok: false, code: 'gone' };
     folder.sources = current.filter((source) => source.id !== sourceId);
     dataStore.replaceFolders([...folders()]);
     await saveAppData();
+    await dropFiles(unusedFiles([gone.file]));
     return { ok: true };
   }
 
@@ -150,6 +166,7 @@ export function createProjectActions({
       }
     }
     dataStore.replaceFolders(folders().filter((entry) => entry.id !== id));
+    await dropFiles(unusedFiles(normalizeSources(folder.sources).map((source) => source.file)));
     // The conversation that is open and went to the trash is left at once, for a new chat.
     const openId = getCurrentConversationId();
     if (withChats && inside.some((conversation) => conversation.id === openId)) await startNewChat({ keepSidebarOpen: true });

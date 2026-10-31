@@ -3,9 +3,9 @@ import test from 'node:test';
 
 import { createProjectActions } from '../src/app/runtime/projects/project-actions.js';
 import { projectInstructionTextFor, setProjectFoldersReader } from '../src/app/runtime/projects/project-instructions.js';
-import { PROJECT_SOURCES_MAX, PROJECT_SOURCE_CHARS_MAX, normalizeSource, normalizeSources } from '../src/app/runtime/projects/project-source-model.js';
+import { PROJECT_SOURCES_MAX, PROJECT_SOURCE_CHARS_MAX, PROJECT_SOURCE_FILES_BYTES_MAX, normalizeSource, normalizeSources } from '../src/app/runtime/projects/project-source-model.js';
 import { PROJECT_SOURCES_CONTEXT_CHARS, projectSourcesFor } from '../src/app/runtime/projects/project-source-prompt.js';
-import { createVisionReader, pickVisionModel } from '../src/app/runtime/projects/project-source-vision.js';
+import { PROJECT_FILES_REPLY_BYTES_MAX, createMemoryFileBackend, createProjectFileStore, projectFilePartsFor, setProjectFileDeps, withProjectFiles } from '../src/app/runtime/projects/project-source-files.js';
 import { readSourceFile, sourceFileKind } from '../src/app/runtime/projects/project-source-reader.js';
 
 // The sources of a project: their shape and limits, the text a reply is given (within a budget), the files read into text, and adding and removing them.
@@ -69,13 +69,17 @@ test('which files can be read: text and code, Word, PowerPoint and Excel, PDF, p
 
 test('a file is read into text; a PDF through the PDF reader; empty, too big, unsupported and damaged files say why', async () => {
   const text = await readSourceFile(file('a.txt', 'text/plain', 'Hello\r\n\r\n\r\n\r\n\r\nworld  \n'));
-  assert.deepEqual({ ...text, size: undefined }, { ok: true, title: 'a.txt', mime: 'text/plain', size: undefined, text: 'Hello\n\n\nworld', truncated: false });
+  assert.deepEqual({ ...text, size: undefined }, { ok: true, title: 'a.txt', mime: 'text/plain', size: undefined, text: 'Hello\n\n\nworld', truncated: false, original: false });
   const pdf = await readSourceFile(file('r.pdf', 'application/pdf', new Uint8Array([1, 2, 3])), { readPdfText: async (bytes) => `pdf of ${bytes.length} bytes` });
   assert.equal(pdf.text, 'pdf of 3 bytes');
-  assert.deepEqual(await readSourceFile(file('scan.pdf', 'application/pdf', new Uint8Array([1])), { readPdfText: async () => '  ' }), { ok: false, code: 'empty' });
-  assert.deepEqual(await readSourceFile(file('p.png', 'image/png', 'x')), { ok: false, code: 'unsupported' }, 'a picture with no way to look at it');
+  const picture = await readSourceFile(file('p.png', 'image/png', new Uint8Array([1, 2, 3])));
+  assert.deepEqual({ ...picture }, { ok: true, title: 'p.png', mime: 'image/png', size: 3, text: '', truncated: false, original: true }, 'a picture has no text: it is kept as it is');
+  assert.equal((await readSourceFile(file('r.pdf', 'application/pdf', new Uint8Array([1])), { readPdfText: async () => 'words' })).original, false, 'a PDF with text is read');
+  const scan = await readSourceFile(file('scan.pdf', 'application/pdf', new Uint8Array([1, 2])), { readPdfText: async () => '  ' });
+  assert.deepEqual([scan.ok, scan.text, scan.original], [true, '', true], 'a PDF with no text is a scan: kept as it is');
   assert.deepEqual(await readSourceFile(file('v.mp4', 'video/mp4', 'x')), { ok: false, code: 'unsupported' });
   assert.deepEqual(await readSourceFile({ name: 'big.txt', type: 'text/plain', size: 30 * 1024 * 1024 }), { ok: false, code: 'too_big' });
+  assert.deepEqual(await readSourceFile(file('empty.txt', 'text/plain', '  ')), { ok: false, code: 'empty' });
   assert.deepEqual(await readSourceFile(file('bad.pdf', 'application/pdf', new Uint8Array([1])), { readPdfText: async () => { throw new Error('encrypted'); } }), { ok: false, code: 'unreadable' });
   assert.deepEqual(await readSourceFile(file('bad.docx', '', 'not a zip'), { loadOfficeDeps: async () => ({ JSZip: { loadAsync: async () => { throw new Error('not a zip'); } }, DOMParser: class {} }) }), { ok: false, code: 'unreadable' });
   const long = await readSourceFile(file('long.txt', 'text/plain', 'x'.repeat(PROJECT_SOURCE_CHARS_MAX + 5)));
@@ -107,44 +111,80 @@ test('a source is added and removed; 20 at most, 400 000 characters together; an
   assert.deepEqual(await full.actions.addSource('f1', { text: 'one more' }), { ok: false, code: 'full' });
 });
 
-test('a picture is read by a model that sees: the chat\'s own when it can, else the first one with a key; a scanned PDF is read page by page; no such model says so', async () => {
-  const models = [{ id: 'text-only', provider: 'a' }, { id: 'sees-nokey', provider: 'b', vision: true }, { id: 'sees', provider: 'c', vision: true }, { id: 'painter', provider: 'c', vision: true, outputModality: 'image' }];
-  const supportsVision = (model) => Boolean(model.vision);
-  const hasKey = (provider) => provider === 'a' || provider === 'c';
-  assert.equal(pickVisionModel({ models, currentId: 'text-only', supportsVision, hasKey }), 'sees', 'the chat\'s model does not see');
-  assert.equal(pickVisionModel({ models, currentId: 'sees', supportsVision, hasKey }), 'sees');
-  assert.equal(pickVisionModel({ models, currentId: 'sees-nokey', supportsVision, hasKey }), 'sees', 'no key for it');
-  assert.equal(pickVisionModel({ models: [models[0], models[3]], supportsVision, hasKey }), '', 'a model that draws is not one that reads');
+test('a source can be only a kept file (a picture): it has no text, and the file is a small description', () => {
+  const description = { name: 'a.png', mimeType: 'image/png', size: 5, hash: 'abc', asset: { marker: 1 }, stray: 'x' };
+  assert.deepEqual(normalizeSource({ id: 'p', kind: 'image', title: 'a.png', text: '', file: description }), { id: 'p', kind: 'image', title: 'a.png', mime: '', size: 5, text: '', file: { name: 'a.png', mimeType: 'image/png', size: 5, hash: 'abc', asset: { marker: 1 } }, addedAt: '' });
+  assert.equal(normalizeSource({ id: 'p', text: '', file: { name: 'a', size: 1 } }), null, 'a file with no hash is not one');
+  assert.equal(normalizeSource({ id: 'p', text: '' }), null);
+  assert.equal(projectSourcesFor({ sources: [normalizeSource({ id: 'p', kind: 'image', file: description }), src(1, 'words')] }).used.length, 1, 'a picture is not in the text of a reply');
+});
 
-  const calls = [];
-  const reader = createVisionReader({
-    getModels: () => models, supportsVision, hasKey, getCurrentModelId: () => 'text-only',
-    getRunner: () => async (request) => { calls.push(request); return 'Total: 42\nA receipt.'; },
-    shrinkImage: async (image) => ({ ...image, shrunk: true }),
-    renderPdfPages: async (bytes, { maxPages }) => [{ mimeType: 'image/jpeg', bytes: new Uint8Array([1]) }, { mimeType: 'image/jpeg', bytes: new Uint8Array([2]) }].slice(0, maxPages)
-  });
-  assert.equal(reader.available(), true);
-  const seen = await readSourceFile(file('receipt.jpg', 'image/jpeg', new Uint8Array([9, 9])), { readImage: reader.readImage });
-  assert.equal(seen.ok, true);
-  assert.equal(seen.text, '[Picture: receipt.jpg]\nTotal: 42\nA receipt.');
-  assert.equal(calls[0].modelId, 'sees');
-  assert.match(calls[0].parts[0].text, /all the text that is visible/);
-  assert.equal(calls[0].parts[1].inlineData.mimeType, 'image/jpeg');
+test('the originals are kept by their hash, here and in the cloud, and found again here, or from the cloud on another device', async () => {
+  const kept = [];
+  const assets = { externalize: async (value) => { kept.push(value); return { mimeType: value.mimeType, data: { __cloud: `path/${value.data.length}` } }; }, hydrate: async (marker) => (marker.__cloud === 'path/8' ? 'AQIDBAUG' : null) };
+  const backend = createMemoryFileBackend();
+  const store = createProjectFileStore({ backend, getAssets: () => assets });
+  const description = await store.save(file('a.png', 'image/png', new Uint8Array([1, 2, 3, 4, 5, 6])));
+  assert.deepEqual({ ...description, hash: description.hash.length }, { name: 'a.png', mimeType: 'image/png', size: 6, hash: 64, asset: { __cloud: 'path/8' } });
+  assert.equal(kept.length, 1);
+  assert.deepEqual(await store.load(description), { mimeType: 'image/png', data: 'AQIDBAUG' }, 'here');
+  const other = createProjectFileStore({ backend: createMemoryFileBackend(), getAssets: () => assets });
+  assert.deepEqual(await other.load(description), { mimeType: 'image/png', data: 'AQIDBAUG' }, 'from the cloud on another device');
+  assert.equal(await (createProjectFileStore({ backend: createMemoryFileBackend() })).load({ ...description, asset: undefined }), null, 'nowhere');
+  await store.drop([description]);
+  assert.equal(await backend.get(description.hash), null);
+  const offline = createProjectFileStore({ backend: createMemoryFileBackend(), getAssets: () => ({ externalize: async () => { throw new Error('offline'); } }) });
+  assert.equal((await offline.save(file('b.png', 'image/png', new Uint8Array([9])))).asset, undefined, 'kept here only when the cloud cannot be reached');
+});
 
-  const scan = await readSourceFile(file('scan.pdf', 'application/pdf', new Uint8Array([1])), { readPdfText: async () => '', readScan: reader.readScan });
-  assert.equal(scan.ok, true);
-  assert.equal(calls[1].parts.filter((part) => part.inlineData).length, 2, 'both pages in one request');
-  assert.match(calls[1].parts[0].text, /pages of a document/);
-  const withText = await readSourceFile(file('t.pdf', 'application/pdf', new Uint8Array([1])), { readPdfText: async () => 'has text', readScan: reader.readScan });
-  assert.equal(withText.text, 'has text');
-  assert.equal(calls.length, 2, 'a PDF with text is not looked at');
+test('the files of the project go with a message only for a model that can read them, and only what fits in a request', async () => {
+  const backend = createMemoryFileBackend();
+  const store = createProjectFileStore({ backend });
+  const picture = await store.save(file('a.png', 'image/png', new Uint8Array([1, 2, 3])));
+  const sheet = await store.save(file('s.pdf', 'application/pdf', new Uint8Array([4, 5])));
+  const huge = { ...picture, hash: 'huge', size: PROJECT_FILES_REPLY_BYTES_MAX + 1 };
+  setProjectFoldersReader(() => [{ id: 'f1', name: 'Trip', sources: [normalizeSource({ id: 'a', kind: 'image', title: 'Photo', file: picture }), normalizeSource({ id: 'b', kind: 'file', title: 'Scan', file: sheet }), normalizeSource({ id: 'c', kind: 'image', title: 'Huge', file: huge }), src(1)] }]);
+  try {
+    setProjectFileDeps({ store, supports: (_model, inlineData) => inlineData.mimeType.startsWith('image/') });
+    const seeing = await projectFilePartsFor({ folderId: 'f1' }, { id: 'm' });
+    assert.match(seeing[0].text, /Files of the project "Trip"/);
+    assert.deepEqual(seeing.slice(1).map((part) => part.text || `${part.inlineData.mimeType}:${part.inlineData.data}`), ['[Project file: Photo]', 'image/png:AQID']);
+    assert.equal('name' in seeing[2].inlineData, false, 'not numbered as an attachment of the message');
+    setProjectFileDeps({ store, supports: () => false });
+    assert.deepEqual(await projectFilePartsFor({ folderId: 'f1' }, { id: 'blind' }), [], 'a model that cannot read them gets none');
+    setProjectFileDeps({ store, supports: () => true });
+    assert.equal((await projectFilePartsFor({ folderId: 'f1' }, {})).filter((part) => part.inlineData).length, 2, 'the one that does not fit is left out');
+    assert.deepEqual(await projectFilePartsFor({ folderId: 'none' }, {}), [], 'not in a project');
+    assert.deepEqual(await projectFilePartsFor({ folderId: 'f1', retentionMode: 'ephemeral' }, {}), [], 'a temporary chat');
+    const sent = [{ text: 'hello' }];
+    const parts = await withProjectFiles(sent, { folderId: 'f1' }, {});
+    assert.equal(parts.at(-1), sent[0]);
+    assert.equal(parts.length, 6);
+    assert.deepEqual(sent, [{ text: 'hello' }], 'the message is not changed');
+    setProjectFileDeps(null);
+    assert.equal(await withProjectFiles(sent, { folderId: 'f1' }, {}), sent, 'nothing wired, nothing added');
+  } finally { setProjectFoldersReader(null); setProjectFileDeps(null); }
+});
 
-  const blind = createVisionReader({ getModels: () => [models[0]], supportsVision, hasKey, getRunner: () => async () => 'x' });
-  assert.equal(blind.available(), false);
-  assert.deepEqual(await readSourceFile(file('a.png', 'image/png', 'x'), { readImage: blind.readImage }), { ok: false, code: 'no_vision_model' });
-  assert.deepEqual(await readSourceFile(file('s.pdf', 'application/pdf', new Uint8Array([1])), { readPdfText: async () => '', readScan: blind.readScan }), { ok: false, code: 'no_vision_model' });
-  const failing = createVisionReader({ getModels: () => models, supportsVision, hasKey, getRunner: () => async () => { throw new Error('quota'); } });
-  assert.deepEqual(await readSourceFile(file('a.png', 'image/png', 'x'), { readImage: failing.readImage }), { ok: false, code: 'unreadable' });
-  const empty = createVisionReader({ getModels: () => models, supportsVision, hasKey, getRunner: () => async () => '  ' });
-  assert.deepEqual(await readSourceFile(file('a.png', 'image/png', 'x'), { readImage: empty.readImage }), { ok: false, code: 'empty' });
+test('an original is refused over 20 MB and over 100 MB together, and is forgotten with its source and its project', async () => {
+  const dropped = [];
+  const state = { folders: [{ id: 'f1', name: 'P', conversationIds: [] }, { id: 'f2', name: 'Q', conversationIds: [] }] };
+  let n = 0;
+  const actions = createProjectActions({ dataStore: { getFolders: () => state.folders, replaceFolders: (next) => { state.folders = next; }, getConversations: () => [] }, saveAppData: async () => {}, dropFiles: async (files) => dropped.push(...files.map((entry) => entry.hash)), randomUUID: () => `id-${++n}` });
+  const kept = (hash, size) => ({ name: `${hash}.png`, mimeType: 'image/png', size, hash });
+  assert.equal((await actions.addSource('f1', { kind: 'image', title: 'a', text: '', file: kept('h1', 1000) })).ok, true);
+  assert.deepEqual(await actions.addSource('f1', { kind: 'image', title: 'big', text: '', file: kept('h2', 21 * 1024 * 1024) }), { ok: false, code: 'too_big' });
+  assert.deepEqual(dropped, ['h2'], 'what was kept for a refused source is forgotten');
+  for (let index = 0; index < 4; index += 1) assert.equal((await actions.addSource('f1', { kind: 'image', title: 'x', text: '', file: kept(`m${index}`, 20 * 1024 * 1024) })).ok, true);
+  assert.deepEqual(await actions.addSource('f1', { kind: 'image', title: 'x', text: '', file: kept('m5', 20 * 1024 * 1024) }), { ok: false, code: 'files_too_much' });
+  assert.ok(PROJECT_SOURCE_FILES_BYTES_MAX >= 100 * 1024 * 1024);
+  dropped.length = 0;
+  await actions.addSource('f2', { kind: 'image', title: 'same', text: '', file: kept('h1', 1000) });
+  await actions.removeSource('f1', 'id-1');
+  assert.deepEqual(dropped, [], 'another source still uses the file');
+  await actions.removeSource('f2', actions.sourcesOf('f2')[0].id);
+  assert.deepEqual(dropped, ['h1'], 'nothing uses it: forgotten');
+  dropped.length = 0;
+  await actions.remove('f1');
+  assert.equal(dropped.length, 4, 'a project that goes forgets its originals');
 });

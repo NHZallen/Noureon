@@ -12,7 +12,8 @@ const body = (text) => String(text).replace(/<\/?source\b/gi, '< source');
 
 /** { text, used: [source], left: [source] } for the sources of a folder: `text` is '' when there are none. */
 export function projectSourcesFor(folder, { budget = PROJECT_SOURCES_CONTEXT_CHARS } = {}) {
-  const sources = normalizeSources(folder?.sources);
+  // A picture or a scan has no text: it is given to the model as a file (project-source-files.js), when the model can see it.
+  const sources = normalizeSources(folder?.sources).filter((source) => source.text);
   const used = [];
   const left = [];
   let remaining = budget;

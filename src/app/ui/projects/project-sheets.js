@@ -245,7 +245,7 @@ export function sourceFailureText(text, result = {}, name = '') {
     case 'too_much': return text('pjSourcesTooMuch');
     case 'unsupported': return text('pjSourceUnsupported', vars);
     case 'empty': return name ? text('pjSourceEmpty', vars) : text('pjFailed');
-    case 'no_vision_model': return text('pjSourceNoVision');
+    case 'files_too_much': return text('pjSourceFilesTooMuch');
     case 'too_big': return text('pjSourceTooBig', vars);
     case 'unreadable': return text('pjSourceUnreadable', vars);
     default: return text('pjFailed');

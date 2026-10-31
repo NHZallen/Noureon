@@ -4,20 +4,21 @@
 import { USER_READY_EVENT, getAnnouncedUser } from '../features/user-ready.js';
 import { projectsRouteFromPath } from '../../ui/projects/project-path.js';
 import { createProjectActions } from './project-actions.js';
-import { createVisionReader } from './project-source-vision.js';
-import { getMemoryModelRunner } from '../memory-store/memory-ref.js';
+import { createIdbFileBackend, createMemoryFileBackend, createProjectFileStore, setProjectFileDeps } from './project-source-files.js';
+import { PROJECT_SOURCE_FILE_BYTES_MAX } from './project-source-model.js';
+import { modelSupportsUploadedFile } from '../shell/model-registry.js';
+import { SERVICES, getService } from '../services.js';
 
 const ENTRY_ID = 'open-projects-btn';
 const folderIcon = '<svg class="cli-sidebar-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>';
 
 /**
  * deps: document, configAccess (getUiLanguage), dataStore, i18n, getDefaultFolder(), saveAppData, renderSidebar, showNotification, deleteFolderFromCloud, deferConversationFolderSync,
- * startNewChat, loadChat, archiveChat, deleteChat (the app's own, which ask what has to be asked), getCurrentConversationId, getMessageInput(), submitChatForm(),
- * getApiKeyForProvider(provider) and getActiveConversation() (a picture added to a project is looked at by a model that sees: the chat's own when it has a key, else another).
+ * startNewChat, loadChat, archiveChat, deleteChat (the app's own, which ask what has to be asked), getCurrentConversationId, getMessageInput(), submitChatForm().
  */
 export function startProjects({
   document, configAccess, dataStore, i18n, getDefaultFolder, saveAppData, renderSidebar, showNotification = () => {}, deleteFolderFromCloud, deferConversationFolderSync,
-  startNewChat, loadChat, archiveChat, deleteChat, getCurrentConversationId, getMessageInput = () => null, submitChatForm = () => {}, getApiKeyForProvider = () => '', getActiveConversation = () => null, load = null
+  startNewChat, loadChat, archiveChat, deleteChat, getCurrentConversationId, getMessageInput = () => null, submitChatForm = () => {}, load = null
 }) {
   const win = document.defaultView || globalThis;
   const text = (key, values = {}) => {
@@ -31,7 +32,33 @@ export function startProjects({
     input.dispatchEvent(new win.Event('input', { bubbles: true }));
     submitChatForm();
   };
-  const actions = createProjectActions({ dataStore, getDefaultFolder, saveAppData, renderSidebar, deleteFolderFromCloud, deferConversationFolderSync, startNewChat, getCurrentConversationId, sendText });
+  // The originals of pictures and scans: on this device (IndexedDB, one database for each person) and, with a cloud account, in the cloud storage of the files (project-source-files.js).
+  const backends = new Map();
+  const backend = () => {
+    const user = getAnnouncedUser();
+    const key = String(user?.supabaseUserId || user?.username || 'local');
+    if (!backends.has(key)) backends.set(key, win.indexedDB ? createIdbFileBackend({ indexedDB: win.indexedDB, name: `noureon-project-files:${key}` }) : createMemoryFileBackend());
+    return backends.get(key);
+  };
+  const files = createProjectFileStore({
+    backend: { get: (id) => backend().get(id), put: (record) => backend().put(record), remove: (id) => backend().remove(id) },
+    getAssets: () => getService(SERVICES.cloudAssets), cryptoProvider: win.crypto || globalThis.crypto
+  });
+  setProjectFileDeps({ store: files, supports: (modelInfo, inlineData) => modelSupportsUploadedFile(modelInfo, { inlineData }) });
+  const actions = createProjectActions({ dataStore, getDefaultFolder, saveAppData, renderSidebar, deleteFolderFromCloud, deferConversationFolderSync, startNewChat, getCurrentConversationId, sendText, dropFiles: (descriptions) => files.drop(descriptions) });
+
+  // A file a person adds: read into text, or kept as it is (a picture, a scan) for the models that can read it.
+  const readProjectFile = async (file) => {
+    const [reader, browser] = await Promise.all([import('./project-source-reader.js'), import('./project-source-browser.js')]);
+    const read = await reader.readSourceFile(file, browser);
+    if (!read.ok || !read.original) return read;
+    if (file.size > PROJECT_SOURCE_FILE_BYTES_MAX) return { ok: false, code: 'too_big' };
+    try {
+      return { ...read, file: await files.save(file) };
+    } catch {
+      return { ok: false, code: 'unreadable' };
+    }
+  };
 
   // The page and its styles are a separate part, loaded the first time (the page still opens plain if the styles fail).
   const loadPage = load || (async () => {
@@ -45,14 +72,7 @@ export function startProjects({
     const page = await opening;
     return page.openProjectsPage({
       document, text, actions, route, sourcesEnabled: true,
-      readFile: async (file) => {
-        const [reader, browser, registry, shrink] = await Promise.all([import('./project-source-reader.js'), import('./project-source-browser.js'), import('../shell/model-registry.js'), import('../../ui/files/office-text/shrink-image-browser.js')]);
-        const vision = createVisionReader({
-          getModels: () => registry.MODELS, supportsVision: registry.modelSupportsVision, hasKey: (provider) => Boolean(getApiKeyForProvider(provider)),
-          getCurrentModelId: () => getActiveConversation()?.model?.id || getActiveConversation()?.model || '', getRunner: getMemoryModelRunner, shrinkImage: shrink.shrinkImage, renderPdfPages: browser.renderPdfPages
-        });
-        return reader.readSourceFile(file, { ...browser, readImage: vision.readImage, readScan: vision.readScan });
-      },
+      readFile: (file) => readProjectFile(file),
       chats: { archive: (id) => archiveChat(id), remove: (id) => deleteChat(id) },
       openChat: (id) => loadChat(id),
       notify: (message, type = 'success') => showNotification(message, type)

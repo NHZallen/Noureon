@@ -1,4 +1,4 @@
-// The readers that need the browser for the sources of a project: JSZip and the DOMParser for the office files, the PDF library for the text layer of a PDF and for drawing its pages. Loaded only
+// The readers that need the browser for the sources of a project: JSZip and the DOMParser for the office files, the PDF library for the text layer of a PDF. Loaded only
 // when a person adds a file (the PDF library is big), by the page of the projects.
 
 export const loadOfficeDeps = async () => ({ JSZip: (await import('jszip')).default, DOMParser: globalThis.DOMParser });
@@ -32,25 +32,4 @@ export async function readPdfText(bytes) {
     await pdf.destroy();
   }
   return pages.filter(Boolean).join('\n\n');
-}
-
-/** The first pages of a PDF drawn as pictures (JPEG, about 1500 pixels on the longest side) for a model that sees, when the PDF has no text layer. */
-export async function renderPdfPages(bytes, { maxPages = 8 } = {}) {
-  const pdf = await open(bytes);
-  const pages = [];
-  try {
-    for (let number = 1; number <= Math.min(pdf.numPages, maxPages); number += 1) {
-      const page = await pdf.getPage(number);
-      const base = page.getViewport({ scale: 1 });
-      const viewport = page.getViewport({ scale: Math.min(2, 1500 / Math.max(base.width, base.height)) });
-      const canvas = new OffscreenCanvas(Math.ceil(viewport.width), Math.ceil(viewport.height));
-      await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
-      const blob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.85 });
-      pages.push({ mimeType: 'image/jpeg', bytes: new Uint8Array(await blob.arrayBuffer()) });
-      page.cleanup();
-    }
-  } finally {
-    await pdf.destroy();
-  }
-  return pages;
 }

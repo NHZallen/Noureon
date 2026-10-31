@@ -400,7 +400,7 @@ test('the sources tab: add a text, add files (read, refused with the reason), re
     const reads = [];
     t.open({ id: 'f2' }, {
       sourcesEnabled: true,
-      readFile: async (file) => { reads.push(file.name); return file.name.endsWith('.png') ? { ok: false, code: 'unsupported' } : { ok: true, title: file.name, mime: 'text/plain', size: 2048, text: `text of ${file.name}`, truncated: false }; }
+      readFile: async (file) => { reads.push(file.name); return file.name.endsWith('.png') ? { ok: false, code: 'unsupported' } : file.name.endsWith('.jpg') ? { ok: true, title: file.name, mime: 'image/jpeg', size: 2048, text: '', truncated: false, original: true, file: { name: file.name, mimeType: 'image/jpeg', size: 2048, hash: 'hash-1' } } : { ok: true, title: file.name, mime: 'text/plain', size: 2048, text: `text of ${file.name}`, truncated: false }; }
     });
     assert.deepEqual(t.$$('.pj-tab').map((tab) => tab.textContent), ['Chats', 'Sources']);
     t.byText('.pj-tab', 'Sources').click();
@@ -438,6 +438,7 @@ test('the sources tab: add a text, add files (read, refused with the reason), re
     await t.tick();
     assert.deepEqual(t.state.folders.find((folder) => folder.id === 'f2').sources.map((source) => source.kind), ['text', 'file', 'image']);
     assert.match(t.$$('.pj-source .pj-row-meta')[2].textContent, /^Picture · 2 KB$/);
+    assert.equal(t.state.folders.find((folder) => folder.id === 'f2').sources[2].file.hash, 'hash-1', 'the kept original is described in the source');
 
     t.$$('.pj-source .pj-more')[0].click();
     await t.tick();

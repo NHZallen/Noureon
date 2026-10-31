@@ -278,7 +278,7 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
       const read = await readFile(file).catch(() => ({ ok: false, code: 'unreadable' }));
       if (!read.ok) { notify(sourceFailureText(text, read, file.name), 'error'); continue; }
       const kind = String(file.type || '').startsWith('image/') ? 'image' : 'file';
-      const added = await actions.addSource(project.id, { kind, title: read.title, mime: read.mime, size: read.size, text: read.text }).catch(() => ({ ok: false }));
+      const added = await actions.addSource(project.id, { kind, title: read.title, mime: read.mime, size: read.size, text: read.text, ...(read.file ? { file: read.file } : {}) }).catch(() => ({ ok: false }));
       if (!added.ok) { notify(sourceFailureText(text, added, file.name), 'error'); if (added.code === 'full' || added.code === 'too_much') break; continue; }
       notify(read.truncated ? text('pjSourceTruncated', { name: read.title, max: '100,000' }) : text('pjSourceAdded'), 'success');
     }
