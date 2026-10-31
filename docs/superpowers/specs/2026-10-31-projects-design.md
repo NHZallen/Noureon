@@ -129,18 +129,24 @@
 - 畫面：專案頁「資料來源」頁籤，第一列「新增資料來源」開選單（新增檔案、新增文字），下面每列圖示＋標題＋類型與大小＋垃圾桶；新增文字是整頁面板（標題選填、文字、儲存）。照 `2026-10-31-ui-style-rules.md`。
 - 隱私：資料來源的文字隨專案同步到雲端（和專案指示一樣），回覆時會送給使用者選的模型供應商；五語隱私權政策與使用條款已寫入，`PRIVACY.md` 重新產生。
 
-### 13.1 圖片與掃描檔（2026-10-31，Allen：模型不支援圖片就不用，不要給別的模型先讀；圖片要保存）
+### 13.1 檔案（2026-10-31，Allen：專案不該比一般模式窄；模型不支援就不用，不要給別的模型先讀；檔案要保存）
 
-- **不用別的模型先讀**。圖片、沒有文字層的 PDF（掃描）**保存原檔**，回覆時當作這則訊息的附件帶給對話的模型；模型看不懂這種檔案（`modelSupportsUploadedFile`）就不帶，直接略過。有文字層的 PDF 與 Word、PowerPoint、Excel 仍然是讀出文字，不保存原檔（PDF 裡嵌的圖片在這一步讀不到）。
-- **存在哪**：專案那一列是整份重寫的（工作空間的「共用」記錄），所以原檔**不放在 `sources` 裡**，來源只放一個小描述 `file: { name, mimeType, size, hash, asset? }`。位元組在本機 IndexedDB（每個人一個資料庫 `noureon-project-files:<人>`，用內容的 SHA-256 當鍵），有雲端帳號時也上傳到使用者檔案儲存（`user-assets`，跟對話附件同一個地方與同一個傳輸層，`asset` 是小標記）；別的裝置本機沒有就從雲端抓、再快取。`orphan_user_assets` 會看到 `workspace_folders` 裡的路徑，所以不會被當成孤兒清掉。
-- **帶入的方式**：`single-model-response-lifecycle.js` 一行，回覆開始時把專案的檔案放在這則訊息的前面（`project-source-files.js` 的 `withProjectFiles`），本機回覆與伺服器版都走這個請求；每則回覆最多 15 MB，放不下的略過；附件編號不計入這些檔案。議會、深度研究、技能回覆等不經這個流程的回覆目前不帶專案檔案。
-- **上限**：單檔 20 MB，一個專案的原檔加起來 100 MB；刪掉來源或專案時，沒有其他來源用到的原檔從本機刪掉（雲端的交給孤兒清理）。
-- 新增資料來源選單照 Allen 給的 ChatGPT 畫面：底部面板「新增資料來源」，拍照、新增照片、新增檔案、新增文字（T 圖示）。
+- **任何檔案**都收。文字檔與程式碼讀成文字（文字就是來源）；**其他一律保存原檔**（PDF、Word、PowerPoint、Excel、圖片、影片、音訊、壓縮檔…），不在加入時讀文字。
+- **回覆時走對話附件同一套流程**：原檔當作這則訊息的附件放在最前面（`single-model-response-lifecycle.js` 一行、議會 `council-response-lifecycle.js` 一行；技能、進階模式 Python、網路研究這些從單一模型回覆分出去的路徑用同一份 `requestParts`，所以也有）。因此：模型看得懂就直接給原檔（PDF 的圖片、Word 的版面都在）；模型讀不了 Word、PowerPoint、Excel 時，本機回覆把它轉成文字，伺服器版轉成 PDF（LibreOffice，見 office-to-pdf 設計）；整個種類都讀不了（例如不看圖的模型遇到圖片）就不放。不用其他模型先讀圖。深度研究只有題目，不帶專案檔案。
+- **帶多少**：每則回覆最多 8 MB 的原檔，照加入順序放到放不下為止；放不下的略過，專案頁「資料來源」寫「有 N 個資料來源超過一次回覆能帶的大小」。**不是全部塞進去**：大檔案要靠檢索（見 §13.3）。附件標籤「第 N 個，共 M 個」不計入專案檔案。
+- **存在哪**：專案那一列是整份重寫的（工作空間的「共用」記錄），所以原檔**不放在 `sources` 裡**，來源只放小描述 `file: { name, mimeType, size, hash, asset? }`。位元組在本機 IndexedDB（每人一個資料庫 `noureon-project-files:<人>`，鍵是內容的 SHA-256），有雲端帳號時也上傳到使用者檔案儲存（`user-assets`，跟對話附件同一個傳輸層，`asset` 是小標記）；別的裝置本機沒有就從雲端抓、再快取。`orphan_user_assets` 看得到 `workspace_folders` 裡的路徑，不會被當孤兒清掉。
+- **上限**：單檔 20 MB，一個專案的原檔加起來 100 MB；刪掉來源或專案時，沒有別處用到的原檔從本機刪掉（雲端的交給孤兒清理）。
+- 新增資料來源選單照 Allen 給的 ChatGPT 畫面：底部面板「新增資料來源」，拍照、新增照片、新增檔案、新增文字（T 圖示）、從 Google 雲端硬碟新增（彩色標誌）。
 
-### 13.2 從 Google 雲端硬碟新增（2026-10-31，Allen：連接器都有了）
+### 13.2 從 Google 雲端硬碟新增（2026-10-31，Allen：要叫出 Google 官方那個頁面，不要自己做）
 
-- 用現有的 Google 連接器（原生連接器，伺服器代為呼叫 Google；登入與令牌都在伺服器，頁面拿不到）。新增資料來源選單最後一項「從 Google 雲端硬碟新增」：整頁面板，搜尋框、最近的可讀檔案、每列打勾、底部「新增 N 個」；選的檔案一個個讀成文字，變成資料來源（只存文字，同 P2a）。Slack 不做。
-- 可讀的種類就是連接器的 `drive_read_file` 讀得了的：Google 文件、簡報（文字）、試算表（第一個工作表的 CSV）、純文字與 markdown、CSV、JSON。Drive 裡的 PDF、Office、圖片連接器讀不了（連接器設計文件 §5 寫明沒做），所以不列出；要用請下載後從「新增檔案」加入。
-- **伺服器新增一個端點**（要 Allen 確認並重新部署）：`POST /v1/connectors/:id/call`，body `{ tool, args }`。只有 `server/mcp/connections.js` 的 `PAGE_READS` 列出的讀取工具能被頁面呼叫（現在只有 google 的 `drive_search_files`、`drive_read_file`），連接器要是已連接、而且使用者沒有把該工具設成關閉；寫入工具與其他連接器一律 400。每分鐘次數限制與其他連接器端點共用。
-- 沒連接 Google 時，面板說「還沒連接 Google，請先到擴充頁連接」。
-- 隱私：被選的檔案的文字會複製進專案（跟資料來源一樣同步到雲端、回覆時送給使用者選的模型）；五語隱私權政策已寫入。
+- 用 **Google 官方選檔器（Google Picker API）**：就是手機與 ChatGPT 彈出來的那個視窗（近期、我的雲端硬碟、與我共用、已加星號、搜尋、資料夾都是 Google 做的）。我們先做過一個用 Google 連接器自己拼的選檔面板，Allen 說不要，已經整個拿掉（連同伺服器端點）。
+- 做法：頁面載入 Google 的兩個腳本（`apis.google.com/js/api.js`、`accounts.google.com/gsi/client`），用 Google Identity Services 要一個**只有 `drive.file` 範圍**的令牌（頁面只讀得到使用者自己選的檔案，讀不到其他雲端硬碟內容），顯示 Picker，選好的檔案由頁面用這個令牌直接從 Google 下載（Google 文件、簡報、試算表匯出成 PDF，其他原樣；單檔 20 MB），再當成「從裝置加檔案」同一條流程加入。令牌只放在頁面記憶體一小時；**這跟 Google 連接器是兩回事**（連接器的登入留在伺服器，頁面拿不到），所以不需要連接器、不用動伺服器。
+- 選單的「從 Google 雲端硬碟新增」在選單一打開就預先載入腳本（瀏覽器只讓使用者點的當下開登入視窗）；沒設定金鑰時選項不顯示。
+- **Allen 要先設定**（`.env.example` 有說明）：在 Google Cloud 專案啟用 Google Picker API 與 Google Drive API；建一個 Web 類型的 OAuth 用戶端，授權的 JavaScript 來源加 `https://noureon.com` 與 `https://staging.noureon.com`（`drive.file` 是非敏感範圍，不用 Google 審查）；建一個限制為 Picker API 與這兩個網址的 API 金鑰；然後在 Vercel 設 `VITE_GOOGLE_PICKER_CLIENT_ID`、`VITE_GOOGLE_PICKER_API_KEY`、`VITE_GOOGLE_PICKER_APP_ID`（專案編號）。
+- `vercel.json` 的內容安全政策加了 Google 的網址：script-src（`apis.google.com`、`accounts.google.com/gsi/client`）、frame-src（`docs.google.com`、`accounts.google.com/gsi/`）、connect-src（`www.googleapis.com`、`accounts.google.com/gsi/`）、style-src（`accounts.google.com/gsi/style`）。正式站是「只報告」模式，測試站是強制；**我沒辦法用真的 Google 試**，所以測試站要實際點一次，CSP 若擋掉什麼，瀏覽器主控台會寫是哪個網址。
+- 隱私：被選的檔案複製進專案（跟其他資料來源一樣同步到雲端、回覆時送給使用者選的模型）；選檔器與登入的腳本來自 Google（Google 看得到這個請求）；五語隱私權政策已寫入。
+
+### 13.3 檢索（下一步，P2b）
+
+- 超過一次回覆能帶的檔案不再被略過，改成：加入或第一次需要時，在頁面從原檔取出文字（PDF 文字層、Office、純文字；掃描與圖片沒有文字，仍然只能整個給看得懂的模型）、切塊、用記憶已有的向量（Gemini embedding 768 維）建索引，提問時取出相關片段放進回覆。索引存本機，開了「向量同步」就同步（`workspace_memory_vectors`，`piece_id` 用 `src:<來源 id>:<序號>`）。設計細節動工前再補。

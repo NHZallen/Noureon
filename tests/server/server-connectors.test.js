@@ -369,7 +369,6 @@ function fakeService() {
     startLogin: async (userId, id, mode) => { calls.push(['connect', userId, id, mode]); if (id === 'nothing') throw new ConnectorError('unknown_connector', 'There is no such connector.'); if (id === 'refused') throw new ConnectorError('failed', 'This service cannot be logged in to right now.', 'registration_refused 403'); return { url: 'https://auth.linear.app/authorize?x=1' }; },
     disconnect: async (userId, id) => { calls.push(['disconnect', userId, id]); return { revoked: true }; },
     refreshTools: async (userId, id) => { calls.push(['refresh', userId, id]); },
-    callForPage: async (userId, id, tool, args) => { calls.push(['page', userId, id, tool, args]); if (id === 'notion') throw new ConnectorError('not_connected', 'This connector is not connected.'); if (tool === 'gmail_send_message') throw new ConnectorError('bad_request', 'That tool is not one the page may call.'); return { text: '[]', isError: false }; },
     setPermissions: async (userId, id, states) => { calls.push(['permissions', userId, id, states]); if (id === 'notion') throw new ConnectorError('not_connected', 'This connector is not connected.'); },
     completeLogin: async (params) => { calls.push(['complete', params]); return params.state === 'good-state-good-state-good' ? { ok: true, connectorId: 'linear' } : { ok: false, connectorId: params.error ? 'linear' : undefined, error: params.error === 'access_denied' ? 'denied' : 'bad_state' }; }
   };
@@ -406,23 +405,6 @@ test('the connectors endpoints: a signed-in person lists theirs, begins a login,
     assert.equal((await notConnected.json()).error.reason, 'not_connected');
     assert.equal((await fetch(`${base}/v1/connectors/linear/refresh`, { method: 'POST', headers: auth })).status, 200);
     assert.equal((await fetch(`${base}/v1/connectors/linear/other`, { method: 'POST', headers: auth })).status, 404);
-  }, { connectors: service });
-});
-
-test('a page may read from a connector with a tool the service allows, as the signed-in person; anything else is refused', async () => {
-  const service = fakeService();
-  await withServer(async ({ base }) => {
-    const post = (path, body, headers = { ...auth, ...json }) => fetch(`${base}/v1/connectors/${path}`, { method: 'POST', headers, body: body === undefined ? undefined : JSON.stringify(body) });
-    assert.equal((await post('google/call', { tool: 'drive_search_files' }, json)).status, 401);
-    const found = await post('google/call', { tool: 'drive_search_files', args: { text: 'budget' } });
-    assert.equal(found.status, 200);
-    assert.deepEqual(await found.json(), { text: '[]', isError: false });
-    assert.deepEqual(service.calls.at(-1), ['page', USER, 'google', 'drive_search_files', { text: 'budget' }]);
-    assert.equal((await post('google/call', {})).status, 400, 'a tool is needed');
-    assert.equal((await post('google/call', { tool: 5 })).status, 400);
-    const sending = await post('google/call', { tool: 'gmail_send_message', args: {} });
-    assert.equal(sending.status, 400, 'a write is not for the page');
-    assert.equal((await post('notion/call', { tool: 'drive_search_files' })).status, 409, 'not connected');
   }, { connectors: service });
 });
 

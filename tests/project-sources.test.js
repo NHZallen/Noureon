@@ -5,7 +5,8 @@ import { createProjectActions } from '../src/app/runtime/projects/project-action
 import { projectInstructionTextFor, setProjectFoldersReader } from '../src/app/runtime/projects/project-instructions.js';
 import { PROJECT_SOURCES_MAX, PROJECT_SOURCE_CHARS_MAX, PROJECT_SOURCE_FILES_BYTES_MAX, normalizeSource, normalizeSources } from '../src/app/runtime/projects/project-source-model.js';
 import { PROJECT_SOURCES_CONTEXT_CHARS, projectSourcesFor } from '../src/app/runtime/projects/project-source-prompt.js';
-import { PROJECT_FILES_REPLY_BYTES_MAX, createMemoryFileBackend, createProjectFileStore, projectFilePartsFor, setProjectFileDeps, withProjectFiles } from '../src/app/runtime/projects/project-source-files.js';
+import { PROJECT_FILES_REPLY_BYTES_MAX, createMemoryFileBackend, createProjectFileStore, projectFilesBudget, projectFilePartsFor, setProjectFileDeps, withProjectFiles } from '../src/app/runtime/projects/project-source-files.js';
+import { stampAttachmentLabels } from '../src/app/runtime/messages/attachment-labels.js';
 import { readSourceFile, sourceFileKind } from '../src/app/runtime/projects/project-source-reader.js';
 
 // The sources of a project: their shape and limits, the text a reply is given (within a budget), the files read into text, and adding and removing them.
@@ -61,30 +62,25 @@ const file = (name, type, content) => {
   return { name, type, size: bytes.length, text: async () => new TextDecoder().decode(bytes), arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) };
 };
 
-test('which files can be read: text and code, Word, PowerPoint and Excel, PDF, pictures (a model looks at them); not video or programs', () => {
-  for (const [name, type, kind] of [['a.txt', 'text/plain', 'text'], ['notes.md', '', 'text'], ['data.csv', 'text/csv', 'text'], ['x.json', 'application/json', 'text'], ['main.py', '', 'text'], ['a.docx', '', 'office'], ['b.pptx', '', 'office'], ['c.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'office'], ['r.pdf', 'application/pdf', 'pdf'], ['r.PDF', '', 'pdf'], ['p.png', 'image/png', 'image'], ['p.HEIC', '', 'image'], ['v.mp4', 'video/mp4', ''], ['a.exe', 'application/octet-stream', '']]) {
+test('which kind a file is: text and code are text; a PDF, an office file, a picture and the rest are kept as they are', () => {
+  for (const [name, type, kind] of [['a.txt', 'text/plain', 'text'], ['notes.md', '', 'text'], ['data.csv', 'text/csv', 'text'], ['x.json', 'application/json', 'text'], ['main.py', '', 'text'], ['a.docx', '', 'office'], ['b.pptx', '', 'office'], ['c.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'office'], ['r.pdf', 'application/pdf', 'pdf'], ['r.PDF', '', 'pdf'], ['p.png', 'image/png', 'image'], ['p.HEIC', '', 'image'], ['v.mp4', 'video/mp4', 'other'], ['a.zip', 'application/zip', 'other']]) {
     assert.equal(sourceFileKind({ name, type }), kind, name);
   }
 });
 
-test('a file is read into text; a PDF through the PDF reader; empty, too big, unsupported and damaged files say why', async () => {
+test('a text file becomes text; any other file is kept as it is; empty and too big files say so', async () => {
   const text = await readSourceFile(file('a.txt', 'text/plain', 'Hello\r\n\r\n\r\n\r\n\r\nworld  \n'));
   assert.deepEqual({ ...text, size: undefined }, { ok: true, title: 'a.txt', mime: 'text/plain', size: undefined, text: 'Hello\n\n\nworld', truncated: false, original: false });
-  const pdf = await readSourceFile(file('r.pdf', 'application/pdf', new Uint8Array([1, 2, 3])), { readPdfText: async (bytes) => `pdf of ${bytes.length} bytes` });
-  assert.equal(pdf.text, 'pdf of 3 bytes');
-  const picture = await readSourceFile(file('p.png', 'image/png', new Uint8Array([1, 2, 3])));
-  assert.deepEqual({ ...picture }, { ok: true, title: 'p.png', mime: 'image/png', size: 3, text: '', truncated: false, original: true }, 'a picture has no text: it is kept as it is');
-  assert.equal((await readSourceFile(file('r.pdf', 'application/pdf', new Uint8Array([1])), { readPdfText: async () => 'words' })).original, false, 'a PDF with text is read');
-  const scan = await readSourceFile(file('scan.pdf', 'application/pdf', new Uint8Array([1, 2])), { readPdfText: async () => '  ' });
-  assert.deepEqual([scan.ok, scan.text, scan.original], [true, '', true], 'a PDF with no text is a scan: kept as it is');
-  assert.deepEqual(await readSourceFile(file('v.mp4', 'video/mp4', 'x')), { ok: false, code: 'unsupported' });
-  assert.deepEqual(await readSourceFile({ name: 'big.txt', type: 'text/plain', size: 30 * 1024 * 1024 }), { ok: false, code: 'too_big' });
-  assert.deepEqual(await readSourceFile(file('empty.txt', 'text/plain', '  ')), { ok: false, code: 'empty' });
-  assert.deepEqual(await readSourceFile(file('bad.pdf', 'application/pdf', new Uint8Array([1])), { readPdfText: async () => { throw new Error('encrypted'); } }), { ok: false, code: 'unreadable' });
-  assert.deepEqual(await readSourceFile(file('bad.docx', '', 'not a zip'), { loadOfficeDeps: async () => ({ JSZip: { loadAsync: async () => { throw new Error('not a zip'); } }, DOMParser: class {} }) }), { ok: false, code: 'unreadable' });
+  for (const [name, type, bytes] of [['p.png', 'image/png', [1, 2, 3]], ['r.pdf', 'application/pdf', [1]], ['a.docx', '', [1, 2]], ['v.mp4', 'video/mp4', [1]], ['a.zip', 'application/zip', [1]]]) {
+    const kept = await readSourceFile(file(name, type, new Uint8Array(bytes)));
+    assert.deepEqual({ ...kept }, { ok: true, title: name, mime: type, size: bytes.length, text: '', truncated: false, original: true }, name);
+  }
   const long = await readSourceFile(file('long.txt', 'text/plain', 'x'.repeat(PROJECT_SOURCE_CHARS_MAX + 5)));
   assert.equal(long.text.length, PROJECT_SOURCE_CHARS_MAX);
   assert.equal(long.truncated, true);
+  assert.deepEqual(await readSourceFile({ name: 'big.pdf', type: 'application/pdf', size: 30 * 1024 * 1024 }), { ok: false, code: 'too_big' });
+  assert.deepEqual(await readSourceFile(file('empty.txt', 'text/plain', '  ')), { ok: false, code: 'empty' });
+  assert.deepEqual(await readSourceFile(file('empty.pdf', 'application/pdf', new Uint8Array(0))), { ok: false, code: 'empty' });
 });
 
 const setup = (folders = [{ id: 'f1', name: 'P', conversationIds: [] }]) => {
@@ -148,18 +144,20 @@ test('the files of the project go with a message only for a model that can read 
     setProjectFileDeps({ store, supports: (_model, inlineData) => inlineData.mimeType.startsWith('image/') });
     const seeing = await projectFilePartsFor({ folderId: 'f1' }, { id: 'm' });
     assert.match(seeing[0].text, /Files of the project "Trip"/);
-    assert.deepEqual(seeing.slice(1).map((part) => part.text || `${part.inlineData.mimeType}:${part.inlineData.data}`), ['[Project file: Photo]', 'image/png:AQID']);
-    assert.equal('name' in seeing[2].inlineData, false, 'not numbered as an attachment of the message');
+    assert.deepEqual(seeing.slice(1).map((part) => [part.inlineData.mimeType, part.inlineData.data, part.inlineData.name, part.inlineData.attachmentLabel]), [['image/png', 'AQID', 'a.png', 'Project file: a.png']]);
+    const stamped = stampAttachmentLabels([...seeing, { inlineData: { mimeType: 'image/png', data: 'x', name: 'mine.png' } }]);
+    assert.equal(stamped.at(-1).inlineData.attachmentLabel, 'Image 1 of 1 in this message: mine.png', 'the files of the project are not counted with the ones of the message');
     setProjectFileDeps({ store, supports: () => false });
     assert.deepEqual(await projectFilePartsFor({ folderId: 'f1' }, { id: 'blind' }), [], 'a model that cannot read them gets none');
     setProjectFileDeps({ store, supports: () => true });
     assert.equal((await projectFilePartsFor({ folderId: 'f1' }, {})).filter((part) => part.inlineData).length, 2, 'the one that does not fit is left out');
+    assert.deepEqual(projectFilesBudget({ sources: [normalizeSource({ id: 'a', kind: 'image', file: picture }), normalizeSource({ id: 'c', kind: 'image', file: huge }), normalizeSource({ id: 'b', kind: 'file', file: sheet })] }).left.map((source) => source.id), ['c'], 'the budget says what waits');
     assert.deepEqual(await projectFilePartsFor({ folderId: 'none' }, {}), [], 'not in a project');
     assert.deepEqual(await projectFilePartsFor({ folderId: 'f1', retentionMode: 'ephemeral' }, {}), [], 'a temporary chat');
     const sent = [{ text: 'hello' }];
     const parts = await withProjectFiles(sent, { folderId: 'f1' }, {});
     assert.equal(parts.at(-1), sent[0]);
-    assert.equal(parts.length, 6);
+    assert.equal(parts.length, 4);
     assert.deepEqual(sent, [{ text: 'hello' }], 'the message is not changed');
     setProjectFileDeps(null);
     assert.equal(await withProjectFiles(sent, { folderId: 'f1' }, {}), sent, 'nothing wired, nothing added');

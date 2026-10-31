@@ -28,8 +28,7 @@ export const ICONS = {
   trash: (size) => svg('<polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"></path>', size),
   edit: (size) => svg('<path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4z"></path>', size),
   sliders: (size) => svg('<line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line>', size),
-  drive: (size) => svg('<path d="M8.5 3h7L22 14.5 18.5 21h-13L2 14.5z"></path><path d="M8.5 3L15 14.5"></path><path d="M2 14.5h13"></path><path d="M15 14.5l3.5 6.5"></path>', size),
-  check: (size) => svg('<polyline points="20 6 9 17 4 12"></polyline>', size),
+  driveColor: (size = 22) => `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 87.3 78" aria-hidden="true"><path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/><path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0-1.2 4.5h27.5z" fill="#00ac47"/><path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z" fill="#ea4335"/><path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/><path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/><path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 28h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/></svg>`,
   text: (size) => svg('<polyline points="4 7 4 4 20 4 20 7"></polyline><line x1="9" y1="20" x2="15" y2="20"></line><line x1="12" y1="4" x2="12" y2="20"></line>', size),
   camera: (size) => svg('<path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"></path><circle cx="12" cy="13" r="4"></circle>', size),
   image: (size) => svg('<rect x="3" y="3" width="18" height="18" rx="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline>', size),
@@ -38,6 +37,22 @@ export const ICONS = {
   notes: (size) => svg('<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="8" y1="13" x2="16" y2="13"></line><line x1="8" y1="17" x2="14" y2="17"></line>', size),
   folder: (size) => svg(FOLDER_SVGS.default, size)
 };
+
+// The colours of kinds of file (the colours the apps of those files wear: a PDF red, Word blue, Excel green, PowerPoint orange, Google's Slides yellow). They are given to a tile as --pj-tone,
+// so the tile and its letters take them and the stylesheet has none of its own.
+export const TONES = Object.freeze({ pdf: '#ea4335', word: '#4285f4', excel: '#0f9d58', powerpoint: '#e8710a', slides: '#f4b400', picture: '#a142f4' });
+const EXTENSION_TONES = Object.freeze({ pdf: 'pdf', doc: 'word', docx: 'word', odt: 'word', xls: 'excel', xlsx: 'excel', csv: 'excel', ods: 'excel', ppt: 'powerpoint', pptx: 'powerpoint', odp: 'powerpoint', png: 'picture', jpg: 'picture', jpeg: 'picture', webp: 'picture', gif: 'picture', heic: 'picture' });
+
+/** The tone key of a file name by its ending ('' when the kind has none). */
+export const toneOfName = (name) => EXTENSION_TONES[String(name || '').includes('.') ? String(name).toLowerCase().split('.').pop() : ''] || '';
+
+/** The tile at the left of a source or a Drive file: in the tone of its kind when it has one (the tile and its icon or letters), else neutral. `content` is an icon (svg) or letters. */
+export function sourceTile(document, { tone = '', icon = '', label = '' } = {}) {
+  const tile = make(document, 'span', `pj-source-tile${tone ? ' is-tone' : ''}${label ? ' is-label' : ''}`);
+  if (tone && TONES[tone]) tile.style.setProperty('--pj-tone', TONES[tone]);
+  if (label) tile.textContent = label; else tile.innerHTML = icon;
+  return tile;
+}
 
 /** The colour of a project as CSS (the colours of the folders, a gray one when it is not known). */
 export const colorOf = (key) => resolveFolderColor(key, FOLDER_COLORS, FOLDER_COLORS.gray);

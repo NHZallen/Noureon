@@ -40,7 +40,8 @@ test('staging enforces the very policy the other hosts only report on, and sends
 
 test('the policy lets the page compile WebAssembly (font embedding) and nothing runs from the page itself', () => {
   const policy = getGlobalHeaders()['Content-Security-Policy-Report-Only'];
-  assert.match(policy, /script-src 'self' 'wasm-unsafe-eval' https:\/\/challenges\.cloudflare\.com;/);
+  // Google's file picker and its sign-in (the sources of a project) are the only scripts from elsewhere besides Turnstile.
+  assert.match(policy, /script-src 'self' 'wasm-unsafe-eval' https:\/\/challenges\.cloudflare\.com https:\/\/apis\.google\.com https:\/\/accounts\.google\.com\/gsi\/client;/);
   assert.doesNotMatch(policy, /'unsafe-eval'|script-src[^;]*'unsafe-inline'/);
 });
 

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import test from 'node:test';
 
-import { PAGE_READS, createConnectorService, createDbClientStore, effectiveState, keptTools } from '../../server/mcp/connections.js';
+import { createConnectorService, createDbClientStore, effectiveState, keptTools } from '../../server/mcp/connections.js';
 import { createKeyVault } from '../../server/key-vault.js';
 import { getConnector } from '../../src/data/connector-catalog.js';
 
@@ -361,12 +361,4 @@ test('the store of registered clients seals the secret, gives it back, and treat
   // Another master key cannot open the secret: the client is registered again.
   const other = createDbClientStore(db, createKeyVault([{ version: 1, key: randomBytes(32).toString('base64') }]));
   assert.equal(await other.get('supabase|https://api.supabase.example|https://api.noureon.com/mcp/callback'), null);
-});
-
-test('the page may call only the reads of the list, on a connection that is there', async () => {
-  const { service } = setup();
-  assert.deepEqual([...PAGE_READS.google], ['drive_search_files', 'drive_read_file']);
-  await assert.rejects(service.callForPage(USER, 'google', 'gmail_send_message', {}), (error) => error.code === 'bad_request', 'a write is refused');
-  await assert.rejects(service.callForPage(USER, 'linear', 'list_issues', {}), (error) => error.code === 'bad_request', 'a connector that is not in the list');
-  await assert.rejects(service.callForPage(USER, 'google', 'drive_search_files', {}), (error) => error.code === 'not_connected', 'not connected');
 });

@@ -32,15 +32,15 @@ const hasName = (inlineData) => Boolean(cleanName(inlineData?.name));
 export function stampAttachmentLabels(parts) {
   if (!Array.isArray(parts)) return parts;
   const counts = { image: 0, video: 0, file: 0 };
-  const named = parts.filter((part) => part?.inlineData?.data && hasName(part.inlineData));
+  // A part that has its label already (a file of the project the chat is in) is not counted: the numbers are those of what the person attached to this message.
+  const named = parts.filter((part) => part?.inlineData?.data && hasName(part.inlineData) && !part.inlineData.attachmentLabel);
   if (!named.length) return parts;
   named.forEach((part) => { counts[attachmentKind(part.inlineData)] += 1; });
   const seen = { image: 0, video: 0, file: 0 };
   return parts.map((part) => {
-    if (!part?.inlineData?.data || !hasName(part.inlineData)) return part;
+    if (!part?.inlineData?.data || !hasName(part.inlineData) || part.inlineData.attachmentLabel) return part;
     const kind = attachmentKind(part.inlineData);
     seen[kind] += 1;
-    if (part.inlineData.attachmentLabel) return part;
     return { ...part, inlineData: { ...part.inlineData, attachmentLabel: attachmentLabelText(kind, seen[kind], counts[kind], part.inlineData.name) } };
   });
 }

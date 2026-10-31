@@ -6,8 +6,7 @@ import { projectsRouteFromPath } from '../../ui/projects/project-path.js';
 import { createProjectActions } from './project-actions.js';
 import { createIdbFileBackend, createMemoryFileBackend, createProjectFileStore, setProjectFileDeps } from './project-source-files.js';
 import { PROJECT_SOURCE_FILE_BYTES_MAX } from './project-source-model.js';
-import { createDriveSource } from './project-source-drive.js';
-import { readFromConnector } from '../connector/connectors-client.js';
+import { createGooglePicker, googlePickerConfigured } from './google-picker.js';
 import { modelSupportsUploadedFile } from '../shell/model-registry.js';
 import { SERVICES, getService } from '../services.js';
 
@@ -49,13 +48,13 @@ export function startProjects({
   setProjectFileDeps({ store: files, supports: (modelInfo, inlineData) => modelSupportsUploadedFile(modelInfo, { inlineData }) });
   const actions = createProjectActions({ dataStore, getDefaultFolder, saveAppData, renderSidebar, deleteFolderFromCloud, deferConversationFolderSync, startNewChat, getCurrentConversationId, sendText, dropFiles: (descriptions) => files.drop(descriptions) });
 
-  // The files of Google Drive, read through the person's own Google connector (the server keeps the login).
-  const drive = createDriveSource({ call: (tool, args) => readFromConnector('google', tool, args) });
+  // Google's own file picker (its tabs, search and folders), when the page has the keys for it (VITE_GOOGLE_PICKER_*, see .env.example); without them the choice is not shown.
+  const pickerConfig = { clientId: import.meta.env?.VITE_GOOGLE_PICKER_CLIENT_ID?.trim() || '', apiKey: import.meta.env?.VITE_GOOGLE_PICKER_API_KEY?.trim() || '', appId: import.meta.env?.VITE_GOOGLE_PICKER_APP_ID?.trim() || '' };
+  const drive = googlePickerConfigured(pickerConfig) ? createGooglePicker({ config: pickerConfig, document, getLanguage: () => ({ 'zh-TW': 'zh-TW', en: 'en', fr: 'fr', ru: 'ru', es: 'es' })[configAccess.getUiLanguage()] || 'en' }) : null;
 
-  // A file a person adds: read into text, or kept as it is (a picture, a scan) for the models that can read it.
+  // A file a person adds: text and code as text, anything else kept as it is, for the model to read like an attachment.
   const readProjectFile = async (file) => {
-    const [reader, browser] = await Promise.all([import('./project-source-reader.js'), import('./project-source-browser.js')]);
-    const read = await reader.readSourceFile(file, browser);
+    const read = await (await import('./project-source-reader.js')).readSourceFile(file);
     if (!read.ok || !read.original) return read;
     if (file.size > PROJECT_SOURCE_FILE_BYTES_MAX) return { ok: false, code: 'too_big' };
     try {

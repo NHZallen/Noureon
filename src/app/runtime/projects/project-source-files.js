@@ -1,13 +1,13 @@
-// The originals of the sources of a project that have no text of their own: a picture, a PDF that is only pictures (docs/superpowers/specs/2026-10-31-projects-design.md, §13.1). They are kept as
+// The originals of the sources of a project that are files: a PDF, a Word, PowerPoint or Excel file, a picture, anything but text (docs/superpowers/specs/2026-10-31-projects-design.md, §13.1). They are kept as
 // files, apart from the folder (which is rewritten whole whenever anything changes): the bytes are on this device in IndexedDB under the hash of the bytes, and, with a cloud account, in the person's
 // cloud storage too (the same place as the files of the conversations, so another device and the clean-up of orphans know them); the source holds only the small description of the file.
-// Every reply of a chat in the project gets them as files of the message, like attachments, and only a model that can read such a file is given it: for the others the file is left out.
+// Every reply of a chat in the project gets them as files of the message, like attachments: the reply goes the way an attachment does, so a model that cannot read a Word file has it turned into text (or a PDF by the server), and one that cannot read the kind at all is given none.
 // The page gives what it has through `setProjectFileDeps`; nothing here touches `window`.
 
 import { projectOf } from './project-instructions.js';
 
 /** The most bytes of originals given with one reply (the rest is left out): a request is only so big. */
-export const PROJECT_FILES_REPLY_BYTES_MAX = 15 * 1024 * 1024;
+export const PROJECT_FILES_REPLY_BYTES_MAX = 8 * 1024 * 1024;
 
 const toBase64 = (bytes) => {
   let binary = '';
@@ -101,6 +101,21 @@ export function setProjectFileDeps(next) {
 }
 export const getProjectFileStore = () => deps.store;
 
+/** The sources of a folder that keep an original, in the order they were added. */
+export const sourcesWithFiles = (folder) => (Array.isArray(folder?.sources) ? folder.sources : []).filter((source) => source?.file?.hash);
+
+/** Which of them fit in a reply (in order, up to the size of a request) and which do not: { used, left }. The others wait for the search of the sources (docs/superpowers/specs/2026-10-31-projects-design.md, §13.3). */
+export function projectFilesBudget(folder, { budget = PROJECT_FILES_REPLY_BYTES_MAX } = {}) {
+  const used = [];
+  const left = [];
+  let bytes = 0;
+  for (const source of sourcesWithFiles(folder)) {
+    const size = Number(source.file.size) || 0;
+    if (bytes + size <= budget) { used.push(source); bytes += size; } else left.push(source);
+  }
+  return { used, left };
+}
+
 const oneLine = (value, max) => String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
 
 /**
@@ -109,18 +124,16 @@ const oneLine = (value, max) => String(value ?? '').replace(/\s+/g, ' ').trim().
  */
 export async function projectFilePartsFor(conversation, modelInfo) {
   const folder = projectOf(conversation);
-  const sources = (Array.isArray(folder?.sources) ? folder.sources : []).filter((source) => source?.file?.hash);
-  if (!sources.length || !deps.store) return [];
+  if (!folder || !deps.store) return [];
   const parts = [];
-  let bytes = 0;
-  for (const source of sources) {
-    const size = Number(source.file.size) || 0;
-    if (bytes + size > PROJECT_FILES_REPLY_BYTES_MAX) continue;
+  // What does not fit in a reply is not given (it waits for the search); of what fits, the model that cannot read a kind of file gets none of that kind.
+  for (const source of projectFilesBudget(folder).used) {
     if (!deps.supports(modelInfo, { mimeType: source.file.mimeType, name: source.file.name })) continue;
     const loaded = await deps.store.load(source.file);
     if (!loaded) continue;
-    bytes += size;
-    parts.push({ text: `[Project file: ${oneLine(source.title || source.file.name, 120)}]` }, { inlineData: { mimeType: loaded.mimeType, data: loaded.data } });
+    // The label is made here, so the files of the project are not counted with the attachments of the message ("Image 2 of 3 in this message": src/app/runtime/messages/attachment-labels.js).
+    const name = oneLine(source.file.name || source.title, 120);
+    parts.push({ inlineData: { mimeType: loaded.mimeType, data: loaded.data, name, attachmentLabel: `Project file: ${name}` } });
   }
   if (!parts.length) return [];
   const name = oneLine(folder.name, 80);

@@ -2,10 +2,11 @@
 // with you; a search at the foot) and one project (its chats, a box to write to it, a menu with edit, instructions and delete). They open over the chat at noureon.com/projects and
 // noureon.com/projects/<id>. Names and titles are put in with textContent; colours are the tokens (styles/projects.css) and the colour a person chose for a project.
 
-import { make, ICONS, openActionSheet, openMenu, projectMark } from './project-parts.js';
-import { openCreateSheet, openDeleteSheet, openEditSheet, openInstructionsSheet, openDriveSheet, openRenameChatSheet, openSourceTextSheet, sourceFailureText } from './project-sheets.js';
+import { make, ICONS, openActionSheet, openMenu, projectMark, sourceTile, toneOfName } from './project-parts.js';
+import { openCreateSheet, openDeleteSheet, openEditSheet, openInstructionsSheet, openRenameChatSheet, openSourceTextSheet, sourceFailureText } from './project-sheets.js';
 import { PROJECT_SOURCES_MAX } from '../../runtime/projects/project-source-model.js';
 import { projectSourcesFor } from '../../runtime/projects/project-source-prompt.js';
+import { projectFilesBudget } from '../../runtime/projects/project-source-files.js';
 import { PROJECTS_PATH, projectPath, projectsRouteFromPath } from './project-path.js';
 
 let current = null;
@@ -38,8 +39,7 @@ const previewOf = (conversation) => {
  * Opens the page, once (opened again it only turns to `route`). `route` is { list: true } or { id }.
  * deps: document, text(key, vars), actions (runtime/projects/project-actions.js), chats { archive(id), remove(id) } (the app's own, which ask what has to be asked), openChat(id),
  * notify(message, type), sourcesEnabled (the tab of the sources, when there is a part for it), readFile(file) (reads a file into
- * { ok, title, mime, size, text, truncated } or { ok: false, code }: runtime/projects/project-source-reader.js), drive ({ search(text), read(file) }: the files of Google Drive, runtime/projects/project-source-drive.js;
- * none: no such choice), onClose().
+ * { ok, title, mime, size, text, truncated } or { ok: false, code }: runtime/projects/project-source-reader.js), drive ({ warm(), pick() }: Google's own file picker, runtime/projects/google-picker.js; none: no such choice), onClose().
  */
 export function openProjectsPage({ document, text, actions, chats = {}, openChat = () => {}, notify = () => {}, route = { list: true }, sourcesEnabled = false, readFile = async () => ({ ok: false, code: 'unsupported' }), drive = null, onClose = () => {} }) {
   if (current) {
@@ -266,26 +266,44 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     if (capture) input.setAttribute('capture', capture);
     return input;
   };
-  const fileInput = makeInput('.txt,.md,.markdown,.csv,.tsv,.json,.xml,.html,.htm,.yaml,.yml,.log,.pdf,.docx,.pptx,.xlsx,.py,.js,.ts,.java,.c,.cpp,.go,.rs,.sql,.css,text/*,application/pdf');
+  // Any file: what the model cannot read is turned into text or left out when a reply is made, as with a file attached to a chat.
+  const fileInput = makeInput('');
   const photoInput = makeInput('image/*');
   const cameraInput = makeInput('image/*', { capture: 'environment', multiple: false });
   const inputs = [fileInput, photoInput, cameraInput];
+  // One file added as a source (from the device or from Drive): read, kept, described in the source. Gives { ok, code } and tells the person what happened.
+  const addFile = async (project, file) => {
+    const read = await readFile(file).catch(() => ({ ok: false, code: 'unreadable' }));
+    if (!read.ok) { notify(sourceFailureText(text, read, file.name), 'error'); return { ok: false, code: read.code };}
+    const kind = String(file.type || '').startsWith('image/') ? 'image' : 'file';
+    const added = await actions.addSource(project.id, { kind, title: read.title, mime: read.mime, size: read.size, text: read.text, ...(read.file ? { file: read.file } : {}) }).catch(() => ({ ok: false }));
+    if (!added.ok) { notify(sourceFailureText(text, added, file.name), 'error'); return { ok: false, code: added.code }; }
+    notify(read.truncated ? text('pjSourceTruncated', { name: read.title, max: '100,000' }) : text('pjSourceAdded'), 'success');
+    return { ok: true };
+  };
   const ingest = async (input) => {
     const project = projectOrNull(state.projectId);
     const files = [...(input.files || [])];
     input.value = '';
     if (!project) return;
     for (const file of files) {
-      const read = await readFile(file).catch(() => ({ ok: false, code: 'unreadable' }));
-      if (!read.ok) { notify(sourceFailureText(text, read, file.name), 'error'); continue; }
-      const kind = String(file.type || '').startsWith('image/') ? 'image' : 'file';
-      const added = await actions.addSource(project.id, { kind, title: read.title, mime: read.mime, size: read.size, text: read.text, ...(read.file ? { file: read.file } : {}) }).catch(() => ({ ok: false }));
-      if (!added.ok) { notify(sourceFailureText(text, added, file.name), 'error'); if (added.code === 'full' || added.code === 'too_much') break; continue; }
-      notify(read.truncated ? text('pjSourceTruncated', { name: read.title, max: '100,000' }) : text('pjSourceAdded'), 'success');
+      const result = await addFile(project, file);
+      if (!result.ok && (result.code === 'full' || result.code === 'too_much' || result.code === 'files_too_much')) break;
     }
     if (state.view === 'project' && state.tab === 'sources') drawProject();
   };
   for (const input of inputs) input.addEventListener('change', () => { void ingest(input); });
+  // Google's own picker (its tabs, its search, its folders): the files chosen come back as files and are added like ones from the device.
+  const pickFromDrive = async (project) => {
+    const picked = await drive.pick().catch(() => ({ ok: false, code: 'failed' }));
+    if (!picked.ok) { if (picked.code !== 'cancelled') notify(text('pjDriveFailed'), 'error'); return; }
+    for (const failure of picked.failed || []) notify(failure.code === 'too_big' ? text('pjSourceTooBig', { name: failure.name }) : text('pjDriveReadFailed', { name: failure.name }), 'error');
+    for (const file of picked.files) {
+      const result = await addFile(project, file);
+      if (!result.ok && (result.code === 'full' || result.code === 'too_much' || result.code === 'files_too_much')) break;
+    }
+    if (state.view === 'project' && state.tab === 'sources') drawProject();
+  };
   const sourcesView = (project) => {
     const box = make(document, 'div', 'pj-sources');
     const list = actions.sourcesOf(project.id);
@@ -300,6 +318,8 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     add.append(plus, words);
     const openAdd = () => {
       closeMenu();
+      // Google's scripts are loaded now, so the sign-in window can open the moment the choice is tapped (a browser lets a window open only from a tap).
+      drive?.warm?.();
       openActionSheet({
         document, root, title: text('pjSourcesAdd'),
         items: [
@@ -307,7 +327,7 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
           { label: text('pjSourceAddPhoto'), icon: 'image', action: () => photoInput.click() },
           { label: text('pjSourceAddFile'), icon: 'attach', action: () => fileInput.click() },
           { label: text('pjSourceAddText'), icon: 'text', action: () => openSourceTextSheet({ document, root, text, actions, project, notify, onSaved: drawProject }) },
-          ...(drive ? [{ label: text('pjSourceAddDrive'), icon: 'drive', action: () => openDriveSheet({ document, root, text, actions, project, drive, notify, onSaved: drawProject }) }] : [])
+          ...(drive ? [{ label: text('pjSourceAddDrive'), icon: 'driveColor', action: () => pickFromDrive(project) }] : [])
         ]
       });
     };
@@ -318,8 +338,9 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
       const row = make(document, 'div', 'pj-row pj-source');
       row.dataset.sourceId = source.id;
       const label = kindLabel(source);
-      const tile = make(document, 'span', 'pj-source-tile');
-      if (source.kind === 'file' && label.length <= 4) { tile.classList.add('is-label'); tile.textContent = label; } else tile.innerHTML = (source.kind === 'image' ? ICONS.image : source.kind === 'file' ? ICONS.file : ICONS.text)(18);
+      const tone = source.kind === 'image' ? 'picture' : source.kind === 'file' ? toneOfName(source.title) : '';
+      const tile = tone && source.kind === 'file' && label.length <= 4 ? sourceTile(document, { tone, label })
+        : sourceTile(document, { tone, icon: (source.kind === 'image' ? ICONS.image : source.kind === 'file' ? ICONS.file : ICONS.text)(18) });
       const meta = make(document, 'span', 'pj-row-text');
       meta.append(make(document, 'span', 'pj-row-title', source.title || text('pjSourceUntitled')), make(document, 'span', 'pj-row-meta', `${label} · ${sizeText(source)}`));
       const remove = make(document, 'button', 'pj-more');
@@ -330,8 +351,8 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
       row.append(tile, meta, remove);
       box.appendChild(row);
     }
-    const left = projectSourcesFor(project).left;
-    if (left.length) box.appendChild(make(document, 'p', 'pj-note', text('pjSourcesLeftOut', { n: left.length })));
+    const left = projectSourcesFor(project).left.length + projectFilesBudget(project).left.length;
+    if (left) box.appendChild(make(document, 'p', 'pj-note', text('pjSourcesLeftOut', { n: left })));
     return box;
   };
   const drawProject = () => {

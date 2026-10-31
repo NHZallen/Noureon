@@ -400,7 +400,7 @@ test('the sources tab: add a text, add files (read, refused with the reason), re
     const reads = [];
     t.open({ id: 'f2' }, {
       sourcesEnabled: true,
-      readFile: async (file) => { reads.push(file.name); return file.name.endsWith('.png') ? { ok: false, code: 'unsupported' } : file.name.endsWith('.jpg') ? { ok: true, title: file.name, mime: 'image/jpeg', size: 2048, text: '', truncated: false, original: true, file: { name: file.name, mimeType: 'image/jpeg', size: 2048, hash: 'hash-1' } } : { ok: true, title: file.name, mime: 'text/plain', size: 2048, text: `text of ${file.name}`, truncated: false }; }
+      readFile: async (file) => { reads.push(file.name); return file.name.endsWith('.png') ? { ok: false, code: 'too_big' } : file.name.endsWith('.jpg') ? { ok: true, title: file.name, mime: 'image/jpeg', size: 2048, text: '', truncated: false, original: true, file: { name: file.name, mimeType: 'image/jpeg', size: 2048, hash: 'hash-1' } } : { ok: true, title: file.name, mime: 'text/plain', size: 2048, text: `text of ${file.name}`, truncated: false }; }
     });
     assert.deepEqual(t.$$('.pj-tab').map((tab) => tab.textContent), ['Chats', 'Sources']);
     t.byText('.pj-tab', 'Sources').click();
@@ -428,7 +428,7 @@ test('the sources tab: add a text, add files (read, refused with the reason), re
     assert.deepEqual(reads, ['report.txt', 'photo.png']);
     assert.deepEqual(t.$$('.pj-source .pj-row-title').map((node) => node.textContent), ['My notes', 'report.txt']);
     assert.match(t.$$('.pj-source .pj-row-meta')[1].textContent, /^TXT · 2 KB$/, 'the kind of a file is its extension');
-    assert.match(t.state.notified.at(-1)[0], /"photo.png" is a kind of file that cannot be read yet/);
+    assert.match(t.state.notified.at(-1)[0], /"photo.png" is over 20 MB/);
     assert.equal(t.state.notified.at(-1)[1], 'error');
 
     const photos = t.$$('.pj-file-input').find((node) => node.accept === 'image/*' && !node.getAttribute('capture'));
@@ -448,56 +448,52 @@ test('the sources tab: add a text, add files (read, refused with the reason), re
     await t.actions.addSource('f2', { text: 'x'.repeat(70_000), title: 'Huge' });
     t.$('.pj-tab[aria-selected="false"]').click();
     t.byText('.pj-tab', 'Sources').click();
-    assert.match(t.$('.pj-sources').textContent, /1 source\(s\) are too big/);
+    assert.match(t.$('.pj-sources').textContent, /1 source\(s\) are more than one reply can carry/);
   } finally { await t.finish(); }
 });
 
-test('the Google Drive choice: only when the page has a way to read it; search, tick files, add them as sources; not connected is said', async () => {
+test('the Google Drive choice: only when the page has the picker; it is warmed when the list opens, and the files that come back are added like files from the device', async () => {
   const t = setup();
   try {
-    const files = [{ id: 'd1', name: 'Budget', mimeType: 'x', kind: 'doc', modifiedTime: '2026-10-30T10:00:00.000Z' }, { id: 'd2', name: 'Plan', mimeType: 'y', kind: 'sheet', modifiedTime: '2026-10-29T10:00:00.000Z' }];
-    const searched = [];
-    const drive = {
-      search: async (query) => { searched.push(query); return query === 'nothing' ? { ok: true, files: [] } : query === 'offline' ? { ok: false, code: 'not_connected' } : { ok: true, files }; },
-      read: async (file) => (file.id === 'd2' ? { ok: false, code: 'failed' } : { ok: true, title: file.name, mime: 'x', size: 6, text: 'budget', truncated: false })
-    };
     t.open({ id: 'f2' }, { sourcesEnabled: true });
     t.byText('.pj-tab', 'Sources').click();
     t.$('.pj-source-add').click();
-    assert.equal(t.$$('.pj-action-item').length, 4, 'no Drive without a way to read it');
-    t.$('.pj-action-item').click();
+    assert.equal(t.$$('.pj-action-item').length, 4, 'no Drive without the picker');
     await t.finish();
 
+    const log = { warmed: 0, picks: 0 };
+    const results = [
+      { ok: true, files: [{ name: 'Plan.pdf', type: 'application/pdf', size: 3 }, { name: 'photo.png', type: 'image/png', size: 3 }], failed: [{ name: 'big.zip', code: 'too_big' }, { name: 'Survey', code: 'failed' }] },
+      { ok: false, code: 'cancelled' },
+      { ok: false, code: 'blocked' }
+    ];
+    const drive = { warm: () => { log.warmed += 1; }, pick: async () => results[log.picks++] };
     const d = setup();
-    d.open({ id: 'f2' }, { sourcesEnabled: true, drive });
+    d.open({ id: 'f2' }, { sourcesEnabled: true, drive, readFile: async (file) => ({ ok: true, title: file.name, mime: file.type, size: 3, text: '', truncated: false, original: true, file: { name: file.name, mimeType: file.type, size: 3, hash: `hash-${file.name}` } }) });
     d.byText('.pj-tab', 'Sources').click();
     d.$('.pj-source-add').click();
-    assert.equal(d.$$('.pj-action-item').at(-1).textContent, 'Add from Google Drive');
-    d.byText('.pj-action-item', 'Add from Google Drive').click();
-    await d.tick();
-    assert.deepEqual(d.$$('.pj-drive-row .pj-row-title').map((node) => node.textContent), ['Budget', 'Plan']);
-    assert.match(d.$('.pj-drive-row .pj-row-meta').textContent, /^Document · 2026-10-30$/);
-    const addButton = () => d.$('.pj-sheet .pj-button');
-    assert.equal(addButton().disabled, true);
-    d.$$('.pj-drive-row')[0].click();
-    d.$$('.pj-drive-row')[1].click();
-    assert.equal(addButton().textContent, 'Add 2');
-    addButton().click();
+    assert.equal(log.warmed, 1, 'the scripts are loaded as soon as the choices show');
+    const last = d.$$('.pj-action-item').at(-1);
+    assert.equal(last.textContent, 'Add from Google Drive');
+    assert.ok(last.querySelector('svg path[fill]'), 'its icon has the colours of Drive');
+    last.click();
     await d.tick();
     await d.tick();
-    assert.deepEqual(d.state.folders.find((folder) => folder.id === 'f2').sources.map((source) => [source.title, source.kind, source.text]), [['Budget', 'file', 'budget']], 'the one that could not be read is told, the other added');
-    assert.match(d.state.notified.find((entry) => entry[1] === 'error')[0], /"Plan" could not be read/);
-    assert.ok(d.$('.pj-sheet'), 'the sheet stays while one is not added');
-    assert.equal(addButton().textContent, 'Add 1');
+    assert.deepEqual(d.state.folders.find((folder) => folder.id === 'f2').sources.map((source) => [source.title, source.kind, source.text, source.file.hash]), [['Plan.pdf', 'file', '', 'hash-Plan.pdf'], ['photo.png', 'image', '', 'hash-photo.png']]);
+    const errors = d.state.notified.filter((entry) => entry[1] === 'error').map((entry) => entry[0]);
+    assert.ok(errors.some((message) => /"big.zip" is over 20 MB/.test(message)));
+    assert.ok(errors.some((message) => /"Survey" could not be read/.test(message)));
+    assert.equal(d.$$('.pj-source').length, 2, 'the list shows them');
 
-    const input = d.$('.pj-sheet .pj-text-input');
-    d.type(input, 'nothing');
-    await new Promise((resolve) => setTimeout(resolve, 420));
-    assert.match(d.$('.pj-drive-note').textContent, /No file that can be read/);
-    d.type(input, 'offline');
-    await new Promise((resolve) => setTimeout(resolve, 420));
-    assert.match(d.$('.pj-drive-note').textContent, /Google is not connected yet/);
-    assert.deepEqual(searched, ['', 'nothing', 'offline']);
+    const before = d.state.notified.length;
+    d.$('.pj-source-add').click();
+    d.$$('.pj-action-item').at(-1).click();
+    await d.tick();
+    assert.equal(d.state.notified.length, before, 'a cancel says nothing');
+    d.$('.pj-source-add').click();
+    d.$$('.pj-action-item').at(-1).click();
+    await d.tick();
+    assert.match(d.state.notified.at(-1)[0], /Google Drive picker could not be opened/);
     await d.finish();
   } finally { await t.finish(); }
 });

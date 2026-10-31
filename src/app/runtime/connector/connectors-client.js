@@ -39,13 +39,3 @@ export async function requestWaitlist(id, email = '') {
   const result = await serverRequest('POST', `/v1/connectors/${encodeURIComponent(id)}/waitlist`, { body: JSON.stringify({ email: String(email || '').trim() }) });
   return result.ok ? { ok: true, already: result.data?.already === true, open: result.data?.open === true } : failure(result);
 }
-
-/**
- * A read the person asks for through a connector they have connected (only the reads the server lists, such as the files of Google Drive): { ok, text, isError } or { ok: false, code }
- * with code 'not_connected' when the connector is not connected.
- */
-export async function readFromConnector(id, tool, args = {}) {
-  const result = await serverRequest('POST', `/v1/connectors/${encodeURIComponent(id)}/call`, { body: JSON.stringify({ tool, args }) });
-  if (result.ok) return { ok: true, text: String(result.data?.text ?? ''), isError: result.data?.isError === true };
-  return result.data?.error?.reason === 'not_connected' ? { ok: false, code: 'not_connected' } : failure(result);
-}

@@ -3,6 +3,7 @@ import { NOURAS_REQUEST_PURPOSE } from '../nouras/nouras-policy.js';
 import { resolveInvokedSkills } from '../skill/skill-bridge.js';
 import { invokedSkillsInstruction, skillNamesOfParts } from '../../../data/skill-prompt.js';
 import { createMemberSteps } from './council-member-steps.js';
+import { withProjectFiles } from '../projects/project-source-files.js';
 
 export function createCouncilResponseLifecycle({
   getSearchCurrentDate,
@@ -263,6 +264,8 @@ export function createCouncilResponseLifecycle({
       synthesize = null
   } = {}) {
       const conv = conversation || getActiveConversation();
+      // The files of the project this chat is in go with the message to every member (each member's own capability and the translators of the council decide what it reads: project-source-files.js).
+      parts = await withProjectFiles(parts, conv, null);
       const { council, participants, synthesizer } = getCouncilSelectedModels(conv);
       const texts = getCouncilTexts();
       const runtimeTexts = getCouncilRuntimeTexts();

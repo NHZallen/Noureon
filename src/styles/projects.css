@@ -157,7 +157,8 @@ html.pj-open { overflow: hidden; }
 .pj-source-tile { flex: none; display: inline-grid; place-items: center; width: 2.25rem; height: 2.25rem; border-radius: 0.6rem; background: var(--hover-bg); color: var(--text-secondary); }
 .pj-source-add .pj-source-tile { color: var(--text-primary); }
 .pj-source .pj-more { color: var(--text-secondary); }
-.pj-source-tile.is-label { font-size: 0.6875rem; letter-spacing: 0; color: var(--text-primary); }
+.pj-source-tile.is-tone { background: color-mix(in srgb, var(--pj-tone) 16%, var(--chat-bg)); color: var(--pj-tone); }
+.pj-source-tile.is-label { font-size: 0.6875rem; letter-spacing: 0; }
 
 /* the list of choices after an add button: from below on a phone, in the middle on a wide screen */
 .pj-backdrop.is-bottom { align-items: center; justify-content: flex-end; background: var(--scrim); }
@@ -167,9 +168,3 @@ html.pj-open { overflow: hidden; }
 .pj-action-item:hover, .pj-action-item:focus-visible { background: var(--hover-bg); outline: none; }
 .pj-action-item .pj-menu-icon { width: 1.4rem; }
 @media (min-width: 640px) { .pj-backdrop.is-bottom { justify-content: center; } .pj-action-sheet { border-radius: 1.5rem; } }
-
-/* the files of Google Drive */
-.pj-drive-list { display: grid; gap: 0.1rem; }
-.pj-drive-note { text-align: center; margin: 1.5rem 0; }
-.pj-drive-row[aria-checked="true"] { background: var(--hover-bg); }
-.pj-source-tile.is-on { background: var(--gpt-primary-action-bg); color: var(--gpt-primary-action-text); }

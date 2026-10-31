@@ -6,7 +6,7 @@ import { FOLDER_COLORS } from '../../runtime/shell/runtime-ui-colors.js';
 import { PROJECT_INSTRUCTIONS_MAX } from '../../runtime/projects/project-instructions.js';
 import { PROJECT_NAME_MAX } from '../../runtime/projects/project-actions.js';
 import { PROJECT_SOURCE_CHARS_MAX, PROJECT_SOURCE_TITLE_MAX } from '../../runtime/projects/project-source-model.js';
-import { colorOf, ICONS, make, openSheet, projectMark } from './project-parts.js';
+import { colorOf, make, openSheet, projectMark } from './project-parts.js';
 
 // What a project can be made with one tap: its name, icon and colour.
 export const PROJECT_PRESETS = Object.freeze([
@@ -237,94 +237,12 @@ export function openSourceTextSheet({ document, root, text, actions, project, no
   return sheet;
 }
 
-/**
- * The sheet where files of Google Drive are chosen to be added to a project (drive: runtime/projects/project-source-drive.js): a search, the latest readable files, a tick on each, and a button
- * that reads the ticked ones one after the other into sources.
- */
-export function openDriveSheet({ document, root, text, actions, project, drive, notify = () => {}, onSaved = () => {} }) {
-  const chosen = new Map();
-  let busy = false;
-  let timer = null;
-  let asked = 0;
-  // The page behind is drawn again when the sheet is gone (drawing it now would take the sheet away).
-  let addedAny = false;
-  const { foot, button } = footerButton(document, text('pjDriveAdd'));
-  button.disabled = true;
-  const input = make(document, 'input', 'pj-text-input');
-  input.type = 'search';
-  input.placeholder = text('pjDriveSearch');
-  input.setAttribute('aria-label', text('pjDriveSearch'));
-  const list = make(document, 'div', 'pj-drive-list');
-  const redrawButton = () => {
-    button.textContent = chosen.size ? text('pjDriveAddN', { n: chosen.size }) : text('pjDriveAdd');
-    button.disabled = busy || !chosen.size;
-  };
-  const note = (message) => { list.replaceChildren(make(document, 'p', 'pj-note pj-drive-note', message)); };
-  const kindName = (kind) => text(kind === 'doc' ? 'pjDriveKindDoc' : kind === 'slides' ? 'pjDriveKindSlides' : kind === 'sheet' ? 'pjDriveKindSheet' : 'pjDriveKindText');
-  const dateOf = (iso) => { const at = Date.parse(iso); return Number.isFinite(at) ? new Date(at).toISOString().slice(0, 10) : ''; };
-  const draw = (files) => {
-    list.replaceChildren();
-    if (!files.length) { note(text('pjDriveEmpty')); return; }
-    for (const file of files) {
-      const row = make(document, 'div', 'pj-row pj-drive-row');
-      row.setAttribute('role', 'checkbox');
-      row.tabIndex = 0;
-      row.dataset.fileId = file.id;
-      const tile = make(document, 'span', 'pj-source-tile');
-      const words = make(document, 'span', 'pj-row-text');
-      words.append(make(document, 'span', 'pj-row-title', file.name || text('pjSourceUntitled')), make(document, 'span', 'pj-row-meta', [kindName(file.kind), dateOf(file.modifiedTime)].filter(Boolean).join(' · ')));
-      const mark = () => { const on = chosen.has(file.id); row.setAttribute('aria-checked', String(on)); tile.innerHTML = on ? ICONS.check(18) : ICONS.drive(18); tile.classList.toggle('is-on', on); };
-      const toggle = () => { if (busy) return; if (chosen.has(file.id)) chosen.delete(file.id); else chosen.set(file.id, file); mark(); redrawButton(); };
-      mark();
-      row.append(tile, words);
-      row.addEventListener('click', toggle);
-      row.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); toggle(); } });
-      list.appendChild(row);
-    }
-  };
-  const search = async () => {
-    const mine = ++asked;
-    note(text('pjDriveLoading'));
-    const found = await drive.search(input.value).catch(() => ({ ok: false, code: 'failed' }));
-    if (mine !== asked) return;
-    if (!found.ok) { note(text(found.code === 'not_connected' ? 'pjDriveNotConnected' : 'pjDriveFailed')); return; }
-    draw(found.files);
-  };
-  input.addEventListener('input', () => { if (timer) clearTimeout(timer); timer = setTimeout(search, 350); });
-  const sheet = openSheet({ document, root, title: text('pjDriveTitle'), close: text('pjCancel'), footer: foot, onClose: () => { if (timer) clearTimeout(timer); asked += 1; if (addedAny) onSaved(); }, body: (body) => body.append(input, list) });
-  button.addEventListener('click', async () => {
-    if (busy || !chosen.size) return;
-    busy = true;
-    redrawButton();
-    sheet.setError('');
-    let added = 0;
-    let stop = false;
-    for (const file of [...chosen.values()]) {
-      const read = await drive.read(file).catch(() => ({ ok: false, code: 'failed' }));
-      if (!read.ok) { notify(read.code === 'empty' ? text('pjSourceEmpty', { name: file.name }) : text('pjDriveReadFailed', { name: file.name }), 'error'); continue; }
-      const result = await actions.addSource(project.id, { kind: 'file', title: read.title, mime: read.mime, size: read.size, text: read.text }).catch(() => ({ ok: false }));
-      if (!result.ok) { notify(sourceFailureText(text, result, file.name), 'error'); if (result.code === 'full' || result.code === 'too_much') stop = true; if (stop) break; continue; }
-      added += 1;
-      addedAny = true;
-      chosen.delete(file.id);
-      const row = list.querySelector(`[data-file-id="${file.id}"]`);
-      if (row) { row.setAttribute('aria-checked', 'false'); row.querySelector('.pj-source-tile')?.classList.remove('is-on'); }
-    }
-    busy = false;
-    redrawButton();
-    if (added && !chosen.size) { sheet.close(); notify(text('pjSourceAdded'), 'success'); }
-  });
-  void search();
-  return sheet;
-}
-
 /** The words for a source that could not be added or read (`result.code`), with the name of the file when there is one. */
 export function sourceFailureText(text, result = {}, name = '') {
   const vars = { name, max: result.max ?? 20 };
   switch (result.code) {
     case 'full': return text('pjSourcesFull', { max: 20 });
     case 'too_much': return text('pjSourcesTooMuch');
-    case 'unsupported': return text('pjSourceUnsupported', vars);
     case 'empty': return name ? text('pjSourceEmpty', vars) : text('pjFailed');
     case 'files_too_much': return text('pjSourceFilesTooMuch');
     case 'too_big': return text('pjSourceTooBig', vars);
