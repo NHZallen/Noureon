@@ -83,3 +83,9 @@
 - `page-transcription.js`：開啟後，送出訊息前（`single-model-response-lifecycle.js`，顯示「正在把錄音和影片裡說的話轉成文字」與進度）替沒有逐字稿的錄音與影片補上 `part.transcript`（`{text, model, at}`，存在訊息的那一段裡，跟對話一起同步）；每個檔案只轉一次，失敗就不轉、下次再試。
 - `transcript-parts.js`（頁面與伺服器共用）：不能直接收這種檔案的模型，請求裡用逐字稿文字取代檔案（`provider-request-support.js` 的 `buildSingleModelTranslatedRequestParts`，伺服器回覆的文件準備步驟也跑同一段）。本來就收錄音的模型（Gemini 等）維持整檔送。
 - 還沒有的：影片的畫面（步驟 2）；逐字稿很長時目前整段放進請求（上限 6 萬字元，超過截斷並註明），搜尋與讀一段的工具等步驟 2 一起做；理事會（步驟 4）；專案（步驟 3）。
+
+### 真金鑰試過的結果（Allen 跑 `scripts/stt-probe.mjs`，2026-11-02）
+
+- **OpenAI `whisper-1`**：成功（約 3 秒），英文測試句轉對。
+- **OpenRouter `openai/whisper-large-v3`**：第二次成功（0.85 秒），英文測試句轉對，所以請求格式可用；第一次回 429「OpenRouter could not verify available credits for this request in time. Retry shortly.」（暫時性）。→ 三家的客戶端都改成遇到 429／500／502／503／504 等 1.5 秒、再等 4 秒各重試一次（最多三次），401／402／403 不重試。
+- **Gemini `gemini-3.5-flash-lite`**：回 409 `{"error":"ambiguous_account","provider":"google"}`，不是 Google 標準的錯誤格式，看起來是 Allen 那把金鑰（或中間的閘道）的帳號問題，不是我們的請求格式問題；Gemini 在順序裡排第三，先不處理。`stt-probe.mjs` 多了 `STT_GEMINI_MODEL` 環境變數，想換模型 id 試時用。

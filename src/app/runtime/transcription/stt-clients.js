@@ -11,6 +11,9 @@ export const STT_PROVIDERS = Object.freeze({
 });
 
 /** The order a provider is picked in when the person did not choose: the ones with a key first, the browser last (it needs no key). */
+const RETRY_STATUSES = new Set([429, 500, 502, 503, 504]);
+const RETRY_WAITS_MS = Object.freeze([1500, 4000]);
+
 export const STT_ORDER = Object.freeze(['openrouter', 'openai', 'gemini', 'browser']);
 
 /** The provider to use: the one the person chose when it can be used (it has a key, or it is the browser), else the first of STT_ORDER that can; '' when none. */
@@ -41,7 +44,7 @@ const formatOf = (mimeType) => (/wav/i.test(mimeType) ? 'wav' : /mpeg|mp3/i.test
  * `provider`: 'openrouter' | 'openai' | 'gemini' | 'browser'. `getApiKey()` gives the key of the provider (not for the browser). `model` replaces the default. For the browser, `runWhisper({ mimeType, data }, { signal })`
  * resolves the text (whisper-browser.js). Throws when there is no key or the provider refuses (the error has `status`).
  */
-export function createTranscriber({ provider, getApiKey = () => '', model = '', fetchImpl = (...args) => globalThis.fetch(...args), runWhisper = null }) {
+export function createTranscriber({ provider, getApiKey = () => '', model = '', fetchImpl = (...args) => globalThis.fetch(...args), runWhisper = null, sleep = (ms, signal) => new Promise((resolve) => { const timer = setTimeout(resolve, ms); signal?.addEventListener?.('abort', () => { clearTimeout(timer); resolve(); }, { once: true }); }) }) {
   const spec = STT_PROVIDERS[provider];
   if (!spec) throw new Error(`There is no speech to text provider "${provider}".`);
   const key = () => {
@@ -96,15 +99,27 @@ export function createTranscriber({ provider, getApiKey = () => '', model = '', 
     return clean((Array.isArray(parts) ? parts : []).map((part) => part?.text || '').join(' '));
   }
 
+  const once = async (audio, { signal, language }) => {
+    if (provider === 'openrouter') return openRouter(audio, { signal, language });
+    if (provider === 'openai') return openAi(audio, { signal, language });
+    if (provider === 'gemini') return gemini(audio, { signal });
+    if (typeof runWhisper !== 'function') throw new Error('Whisper in this browser is not available.');
+    return clean(await runWhisper(audio, { signal, language }));
+  };
+
   return {
     provider,
     model: used,
+    // A provider that is busy (429, or a 5xx; OpenRouter says "could not verify available credits in time, retry shortly") is asked again after a short wait, twice at most; any other refusal ends it.
     async transcribe(audio, { signal, language = '' } = {}) {
-      if (provider === 'openrouter') return openRouter(audio, { signal, language });
-      if (provider === 'openai') return openAi(audio, { signal, language });
-      if (provider === 'gemini') return gemini(audio, { signal });
-      if (typeof runWhisper !== 'function') throw new Error('Whisper in this browser is not available.');
-      return clean(await runWhisper(audio, { signal, language }));
+      for (let attempt = 0; ; attempt += 1) {
+        try {
+          return await once(audio, { signal, language });
+        } catch (error) {
+          if (!RETRY_STATUSES.has(error?.status) || attempt >= RETRY_WAITS_MS.length || signal?.aborted) throw error;
+          await sleep(RETRY_WAITS_MS[attempt], signal);
+        }
+      }
     }
   };
 }

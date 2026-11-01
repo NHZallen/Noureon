@@ -1,6 +1,7 @@
 // Tries the speech to text routes with a real key (docs/superpowers/specs/2026-11-02-chat-video-audio-design.md, §3), the way the other probes in this folder do:
 //   OPENROUTER_API_KEY=... node scripts/stt-probe.mjs speech.wav          (a short 16 kHz mono WAV with speech)
 //   OPENAI_API_KEY=... GEMINI_API_KEY=... node scripts/stt-probe.mjs speech.wav
+// STT_OPENROUTER_MODEL and STT_GEMINI_MODEL replace the default model ids.
 // It prints what each provider answered and the words, so the form of OpenRouter's request (JSON with `input_audio`, or a multipart file) and the model ids can be checked.
 
 import { readFileSync } from 'node:fs';
@@ -12,7 +13,7 @@ const audio = { mimeType: 'audio/wav', data: new Uint8Array(readFileSync(file)) 
 const tries = [
   ['openrouter', process.env.OPENROUTER_API_KEY, process.env.STT_OPENROUTER_MODEL || ''],
   ['openai', process.env.OPENAI_API_KEY, ''],
-  ['gemini', process.env.GEMINI_API_KEY, '']
+  ['gemini', process.env.GEMINI_API_KEY, process.env.STT_GEMINI_MODEL || '']
 ];
 for (const [provider, key, model] of tries) {
   if (!key) { console.log(`${provider}: no key, skipped`); continue; }

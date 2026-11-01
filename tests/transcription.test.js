@@ -133,3 +133,26 @@ test('the browser loads the library and the model once, on the first piece, and 
   assert.equal(log.env.backends.onnx.wasm.numThreads, 1);
   assert.deepEqual(log.calls, [[4, 'chinese', 30], [2, undefined, 30]]);
 });
+
+test('a provider that is busy is asked again after a short wait (twice at most); a refusal of the key is not, and a stop ends the waiting', async () => {
+  const waits = [];
+  const sleep = async (ms) => { waits.push(ms); };
+  let calls = 0;
+  const busy = async () => { calls += 1; return calls < 3 ? new Response('{"error":{"message":"retry shortly"}}', { status: 429 }) : Response.json({ text: 'ok' }); };
+  assert.equal(await createTranscriber({ provider: 'openrouter', getApiKey: () => 'k', fetchImpl: busy, sleep }).transcribe(AUDIO), 'ok');
+  assert.deepEqual(waits, [1500, 4000]);
+  calls = 0;
+  waits.length = 0;
+  const always = createTranscriber({ provider: 'openai', getApiKey: () => 'k', fetchImpl: async () => { calls += 1; return new Response('x', { status: 503 }); }, sleep });
+  await assert.rejects(() => always.transcribe(AUDIO), (error) => error.status === 503);
+  assert.equal(calls, 3);
+  calls = 0;
+  const refused = createTranscriber({ provider: 'openai', getApiKey: () => 'k', fetchImpl: async () => { calls += 1; return new Response('x', { status: 401 }); }, sleep });
+  await assert.rejects(() => refused.transcribe(AUDIO), (error) => error.status === 401);
+  assert.equal(calls, 1);
+  const controller = new AbortController();
+  controller.abort();
+  calls = 0;
+  await assert.rejects(() => createTranscriber({ provider: 'openai', getApiKey: () => 'k', fetchImpl: async () => { calls += 1; return new Response('x', { status: 429 }); }, sleep }).transcribe(AUDIO, { signal: controller.signal }));
+  assert.equal(calls, 1, 'no more tries after a stop');
+});
