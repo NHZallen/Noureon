@@ -116,28 +116,26 @@ trailer<</Root 1 0 R/Size 4>>
   } finally { setProjectFoldersReader(null); setProjectFileDeps(null); }
 });
 
-test('a model that can see gets view_project_file for the pictures of the project; the pictures that did not come with the message are named for it; a project of pictures alone has the tools too', async () => {
+test('a model that can see gets view_project_file for the pictures of the project; the pictures are all named for it, none goes with the message; a project of pictures alone has the tools too', async () => {
   await withFolder(async () => {
     const made = [];
     const makeThumb = async ({ mimeType, data }) => { made.push([mimeType, data]); return { mimeType: 'image/jpeg', data: 'SMALL' }; };
+    setProjectFoldersReader(() => [{ ...FOLDER, sources: [...SOURCES, file('s7', 'clip.mp4', 'h-clip', 'video/mp4')] }]);
     const access = await createProjectFilesAccess({ conversation: { folderId: 'f1' }, canViewPictures: true, makeThumb });
     assert.ok(access);
-    assert.match(access.catalogText, /Pictures of the project that did not come with this message \(look at one with view_project_file\):\n- photo\.png/);
+    assert.match(access.catalogText, /Pictures of the project \(they are not shown to you unless you ask: search_project_files names the ones that match, view_project_file looks at one\)\. When the person mentions a photo, a picture, a screenshot or a drawing, search first:\n- photo\.png/);
+    assert.match(access.catalogText, /Other files of the project that cannot be looked into yet[^\n]*clip\.mp4/, 'a file of a kind that is not read is named, and the model is told');
     const loader = access.make('en');
     assert.deepEqual(loader.tools.map((tool) => tool.name), ['search_project_files', 'read_project_file', 'view_project_file']);
     const shown = await loader.run({ name: 'view_project_file', args: { file: 'photo.png' } });
     assert.deepEqual(shown.images, [{ label: 'photo.png', mimeType: 'image/jpeg', data: 'SMALL' }]);
     assert.deepEqual(made, [['image/png', Buffer.from([1, 2, 3]).toString('base64')]], 'the picture of the person was read from the kept file');
-    // The message is made first: a picture that came with it is not "not come".
-    const second = await createProjectFilesAccess({ conversation: { folderId: 'f1' }, canViewPictures: true, makeThumb });
-    second.setAttached(['s3']);
-    assert.doesNotMatch(second.catalogText, /did not come with this message/);
-    assert.deepEqual(second.snapshot().media.map((entry) => [entry.id, entry.mimeType, entry.attached]), [['s3', 'image/png', true]]);
-    assert.equal(second.snapshot().canView, true);
+    assert.deepEqual(access.snapshot().media.map((entry) => [entry.id, entry.mimeType, entry.attached]), [['s3', 'image/png', false]]);
+    assert.equal(access.snapshot().canView, true);
     // A model that cannot see: the pictures are named by the search only.
     const blind = await createProjectFilesAccess({ conversation: { folderId: 'f1' }, canViewPictures: false, makeThumb });
     assert.deepEqual(blind.make('en').tools.map((tool) => tool.name), ['search_project_files', 'read_project_file']);
-    assert.match(blind.catalogText, /you cannot see them in this reply/);
+    assert.match(blind.catalogText, /you cannot look at pictures in this reply/);
     assert.equal('canView' in blind.snapshot(), false);
   });
   // Pictures alone.

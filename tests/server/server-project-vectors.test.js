@@ -155,7 +155,7 @@ test('the request may name the pictures of the project (with the hash of the fil
     }
   });
   const answer = requests[1].messages.filter((entry) => entry.role === 'tool').map((entry) => entry.content).join('\n');
-  assert.match(answer, /"pictures":\[\{"file":"tax-receipt.png","in_this_message":false\}\]/);
+  assert.match(answer, /"pictures":\[\{"file":"tax-receipt.png"\}\]/);
 });
 
 test('on the server the model looks at a picture of the project with view_project_file: it is read from the cloud storage of the person, shown to the model in the next round, and a model that cannot see is not given the tool', async () => {

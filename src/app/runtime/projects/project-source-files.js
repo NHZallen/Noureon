@@ -1,7 +1,9 @@
 // The originals of the sources of a project that are files: a PDF, a Word, PowerPoint or Excel file, a picture, anything but text (docs/superpowers/specs/2026-10-31-projects-design.md, §13.1). They are kept as
 // files, apart from the folder (which is rewritten whole whenever anything changes): the bytes are on this device in IndexedDB under the hash of the bytes, and, with a cloud account, in the person's
 // cloud storage too (the same place as the files of the conversations, so another device and the clean-up of orphans know them); the source holds only the small description of the file.
-// Every reply of a chat in the project gets them as files of the message, like attachments: the reply goes the way an attachment does, so a model that cannot read a Word file has it turned into text (or a PDF by the server), and one that cannot read the kind at all is given none.
+// A reply of one model does NOT take them with the message any more (docs/superpowers/specs/2026-11-01-project-files-multimodal-design.md, §10): a picture, a video or a sound is too big for a model to take whole, so the
+// model looks into them by itself (the vectors find which file and which part, view_project_file shows it: project-files-access.js). Only the council still takes them as files of the message (withProjectFiles), until its members
+// have the tools too: the reply then goes the way an attachment does, so a model that cannot read a Word file has it turned into text (or a PDF by the server), and one that cannot read the kind at all is given none.
 // The page gives what it has through `setProjectFileDeps`; nothing here touches `window`.
 
 import { projectOf } from './project-instructions.js';

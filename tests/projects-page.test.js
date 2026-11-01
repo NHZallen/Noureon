@@ -796,7 +796,7 @@ test('a source says where its vectors are (only when they are on), and the line 
   const folders = [{ id: 'f1', name: 'Research', icon: 'globe', color: 'blue', conversationIds: [], sources: [
     { id: 'a', kind: 'text', title: 'Note', mime: '', size: 5, text: 'hello', addedAt: '' },
     { id: 'b', kind: 'image', title: 'small.png', mime: 'image/png', size: 100, text: '', file: { hash: hash('b'), name: 'small.png', mimeType: 'image/png', size: 100 }, addedAt: '' },
-    { id: 'c', kind: 'image', title: 'huge.png', mime: 'image/png', size: 20 * 1024 * 1024, text: '', file: { hash: hash('c'), name: 'huge.png', mimeType: 'image/png', size: 20 * 1024 * 1024 }, addedAt: '' }
+    { id: 'c', kind: 'image', title: 'huge.png', mime: 'image/png', size: 21 * 1024 * 1024, text: '', file: { hash: hash('c'), name: 'huge.png', mimeType: 'image/png', size: 21 * 1024 * 1024 }, addedAt: '' }
   ] }];
   const t = setup({ folders, conversations: [], wide: true });
   const states = { a: 'off', b: 'off', c: 'off' };

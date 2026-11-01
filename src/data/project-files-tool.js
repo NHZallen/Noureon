@@ -42,7 +42,7 @@ export const READ_PROJECT_FILE_TOOL = Object.freeze({
 
 export const VIEW_PROJECT_FILE_TOOL = Object.freeze({
   name: 'view_project_file',
-  description: 'Look at one picture of this project: it is shown to you with the answer. Use it for a picture that search_project_files named and that did not come with the message (in_this_message false), or when the question is about what a picture of the project shows. A picture that came with the message is already in front of you. Look at one at a time, only what the question needs. Do not say that you looked unless the user asked.',
+  description: 'Look at one picture of this project: it is shown to you with the answer. Use it for a picture that search_project_files named, or when the question is about what a picture of the project shows. Look at one at a time, only what the question needs. Do not say that you looked unless the user asked.',
   parameters: Object.freeze({
     type: 'object',
     properties: {
@@ -231,7 +231,7 @@ export function createProjectFilesLoader({ entries, readText, language = 'zh-TW'
     // The pictures: by the words of their names, and (with the vectors) by what they show.
     const pictureByName = media
       .filter((entry) => !only && (!onlyPicture || entry.id === onlyPicture.id))
-      .map((entry) => ({ id: entry.id, shared: terms(entry.name.replace(/[._\-()\[\]]+/g, ' ')).filter((term) => queryTerms.includes(term)).length }))
+      .map((entry) => ({ id: entry.id, shared: terms(entry.name.replace(/[._()[\]-]+/g, ' ')).filter((term) => queryTerms.includes(term)).length }))
       .filter((entry) => entry.shared > 0)
       .sort((left, right) => right.shared - left.shared)
       .map((entry) => entry.id);
@@ -248,7 +248,7 @@ export function createProjectFilesLoader({ entries, readText, language = 'zh-TW'
       note: 'Passages of the files of the project. Use read_project_file with the "start" of a passage to read more around it.',
       search: how,
       passages: hits.map((hit) => ({ file: hit.file.name, start: hit.start, end: hit.end, text: hit.text.trim() })),
-      ...(pictures.length ? { pictures: pictures.map((entry) => ({ file: entry.name, in_this_message: entry.attached === true })), pictures_note: 'Pictures of the project that match. "in_this_message" true: the picture came with the message and you can see it; false: it did not fit with this reply, so you cannot see it now (say so if the answer depends on it).' } : {}),
+      ...(pictures.length ? { pictures: pictures.map((entry) => ({ file: entry.name, ...(entry.attached === true ? { in_this_message: true } : {}) })), pictures_note: canView && viewMedia ? 'Pictures of the project that match. Look at one with view_project_file (one at a time, only what the question needs); one marked in_this_message is already in front of you.' : 'Pictures of the project that match. You cannot look at pictures in this reply: say which they are, and that you cannot see what they show.' } : {}),
       ...(empty.length ? { no_text: empty } : {})
     });
   }

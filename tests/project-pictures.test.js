@@ -28,6 +28,7 @@ const picture = (n, extra = {}) => ({ id: `p${n}`, kind: 'image', title: `pic${n
 
 test('a picture is one piece made from the file; a big one, a vector drawing and a file with no kept original are not', () => {
   assert.deepEqual(pictureOf(picture(1)), { tooBig: false });
+  assert.equal(PROJECT_MEDIA_EMBED_BYTES_MAX, 20 * MB, 'a picture is sent as a small copy: only what a project cannot hold is too big');
   assert.deepEqual(pictureOf(picture(1, { size: PROJECT_MEDIA_EMBED_BYTES_MAX + 1 })), { tooBig: true });
   assert.equal(pictureOf(picture(1, { mimeType: 'image/svg+xml' })), null);
   assert.equal(pictureOf({ id: 's', kind: 'text', text: 'x' }), null);
@@ -162,8 +163,8 @@ test('the search names the pictures that match (by their names, and by the vecto
   });
   const result = JSON.parse(await loader.run({ name: 'search_project_files', args: { query: 'receipt photo' } }));
   assert.deepEqual(asked[0].sort(), ['p1', 'p2', 'p3', 't'], 'the pictures are searched too');
-  assert.deepEqual(result.pictures.map((entry) => [entry.file, entry.in_this_message]), [['tax-receipt.png', true], ['IMG_4412.png', false]], 'by name and by meaning; the stale vector of p3 is not believed');
-  assert.match(result.pictures_note, /cannot see it/);
+  assert.deepEqual(result.pictures.map((entry) => [entry.file, entry.in_this_message]), [['tax-receipt.png', true], ['IMG_4412.png', undefined]], 'by name and by meaning; the stale vector of p3 is not believed');
+  assert.match(result.pictures_note, /You cannot look at pictures in this reply/, 'a loader that cannot show pictures says so');
   assert.equal(result.search, 'keywords and meaning');
   // A file named in the call that is a picture: only it.
   const only = JSON.parse(await loader.run({ name: 'search_project_files', args: { query: 'receipt', file: 'IMG_4412.png' } }));
@@ -172,7 +173,9 @@ test('the search names the pictures that match (by their names, and by the vecto
   // The ones told later (setAttached) change what the search says.
   loader.setAttached(['p2']);
   const again = JSON.parse(await loader.run({ name: 'search_project_files', args: { query: 'receipt photo' } }));
-  assert.deepEqual(again.pictures.map((entry) => [entry.file, entry.in_this_message]), [['tax-receipt.png', false], ['IMG_4412.png', true]]);
+  assert.deepEqual(again.pictures.map((entry) => [entry.file, entry.in_this_message]), [['tax-receipt.png', undefined], ['IMG_4412.png', true]]);
+  const seeing = createProjectFilesLoader({ entries, mediaEntries: media, canView: true, viewMedia: async () => ({ mimeType: 'image/jpeg', data: 'QUJD' }), readText: async () => 'x' });
+  assert.match(JSON.parse(await seeing.run({ name: 'search_project_files', args: { query: 'receipt' } })).pictures_note, /Look at one with view_project_file/);
   // Without the vectors only the names are used, and a query that matches nothing says so.
   const plain = createProjectFilesLoader({ entries, mediaEntries: media, readText: async () => 'Notes about a trip to Japan.' });
   assert.deepEqual(JSON.parse(await plain.run({ name: 'search_project_files', args: { query: 'receipt' } })).pictures.map((entry) => entry.file), ['tax-receipt.png']);
@@ -251,4 +254,57 @@ test('the picture of view_project_file reaches the model in each of the four for
   assert.deepEqual(applyOpenAiTools({ messages: [] }, { toolTurns: [turn] }).messages.at(-1).content, [{ type: 'text', text: 'receipt.png' }, { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,QUJD' } }]);
   assert.deepEqual(applyResponsesTools({ input: [] }, { toolTurns: [turn] }).input.at(-1).content, [{ type: 'input_text', text: 'receipt.png' }, { type: 'input_image', image_url: 'data:image/jpeg;base64,QUJD' }]);
   assert.deepEqual(applyAnthropicTools({ messages: [] }, { toolTurns: [turn] }).messages.at(-1).content.slice(1), [{ type: 'text', text: 'receipt.png' }, { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: 'QUJD' } }]);
+});
+
+// ---------- R4: pictures are sent small, and nothing of the media goes with the message
+
+test('a picture is made small before it goes to the model of the vectors; one the browser cannot open goes as it is only when it is a PNG or a JPEG that is not too big; else it is marked and not tried again', async () => {
+  const { makeEmbedThumbnail, EMBED_SIDES } = await import('../src/app/runtime/projects/project-picture-thumb.js');
+  const sizes = [];
+  const deps = { createImageBitmap: async () => ({ width: 6000, height: 4000 }), makeCanvas: (width, height) => { sizes.push([width, height]); return { getContext: () => ({ fillRect() {}, drawImage() {} }), toBlob: async () => new Blob([new Uint8Array(50_000)]) }; } };
+  const small = await makeEmbedThumbnail({ mimeType: 'image/heic', data: Buffer.from('x').toString('base64') }, deps);
+  assert.equal(small.mimeType, 'image/jpeg');
+  assert.deepEqual(sizes, [[1024, 683]], 'at most 1024 on the longest side, whatever the kind of picture');
+  assert.deepEqual(EMBED_SIDES, [1024, 768]);
+  const broken = { createImageBitmap: async () => { throw new Error('cannot open'); } };
+  assert.deepEqual(await makeEmbedThumbnail({ mimeType: 'image/png', data: 'QUJD' }, broken), { mimeType: 'image/png', data: 'QUJD' });
+  assert.equal(await makeEmbedThumbnail({ mimeType: 'image/gif', data: 'QUJD' }, broken), null, 'the model of the vectors takes PNG and JPEG only');
+  assert.equal(await makeEmbedThumbnail({ mimeType: 'image/png', data: 'A'.repeat(13 * 1024 * 1024) }, broken), null, 'too big to send as it is');
+  // The piece: the bytes come made small; a picture that cannot be sent is marked `unreadable`.
+  const folders = [{ id: 'f', sources: [picture(1), picture(2)] }];
+  setProjectFileDeps({ store: { load: async (file) => ({ mimeType: file.mimeType, data: 'QUJD' }) }, supports: () => true });
+  try {
+    const pieces = createProjectPieces({ getFolders: () => folders, makeThumb: async ({ data }) => (data === 'QUJD' && sizes.length < 2 ? (sizes.push('seen'), { mimeType: 'image/jpeg', data: 'SMALL' }) : null), loadAccess: async () => ({ searchableKindOf: () => '', sourceTextOf: async () => '' }), logger: { warn() {} } });
+    await pieces.refresh();
+    const [first, second] = pieces.pieces();
+    assert.deepEqual(await first.loadMedia(), { mimeType: 'image/jpeg', data: 'SMALL', kind: 'image' });
+    assert.deepEqual(await second.loadMedia(), { unreadable: true });
+  } finally { setProjectFileDeps(null); }
+});
+
+test('a picture that cannot be sent in any form is marked failed at once and not tried again', async () => {
+  const folders = [{ id: 'f', sources: [picture(1)] }];
+  setProjectFileDeps({ store: { load: async (file) => ({ mimeType: file.mimeType, data: 'QUJD' }) }, supports: () => true });
+  let calls = 0;
+  const memoryOf = async () => {
+    const rows = [{ record_key: 'meta:settings', payload: {}, version: 1, updated_at: '2026-10-30T00:00:00.000Z', deleted_at: null }];
+    const data = new Map([['noureon.memoryNotes.v1.tester', JSON.stringify({ version: 1, rows })]]);
+    const memory = createNotesMemory({ storage: { getItem: (key) => data.get(key) ?? null, setItem: (key, value) => { data.set(key, value); } }, logger: { warn() {} } });
+    await memory.attach({ username: 'tester' });
+    return memory;
+  };
+  const memory = await memoryOf();
+  const history = createPageHistory({ getConversations: () => [] });
+  const projectPieces = createProjectPieces({ getFolders: () => folders, makeThumb: async () => { calls += 1; return null; }, loadAccess: async () => ({ searchableKindOf: () => '', sourceTextOf: async () => '' }), logger: { warn() {} } });
+  const vectors = createPageVectors({ getStore: () => memory.getStore(), getHistory: () => history, getProjectPieces: () => projectPieces, getApiKeyForProvider: (name) => (name === 'gemini' ? 'g-key' : ''), indexedDB: createFakeIndexedDb(), userKey: () => 'tester', fetchImpl: async () => { throw new Error('nothing may be sent'); }, wait: async () => {}, logger: { warn() {} }, options: { pauseMs: 0 } });
+  history.setVectors(vectors);
+  try {
+    await projectPieces.refresh();
+    await vectors.enable('gemini');
+    await vectors.sync();
+    assert.equal(vectors.sourceStatus('p1'), 'failed');
+    const before = calls;
+    await vectors.sync();
+    assert.equal(calls, before, 'it is not read again at the next build');
+  } finally { setProjectFileDeps(null); }
 });

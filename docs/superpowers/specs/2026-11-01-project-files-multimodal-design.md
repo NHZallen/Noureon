@@ -245,3 +245,11 @@
 - **圖片**一律縮成長邊 1024 的 JPEG 再嵌入。
 
 **階段（更新）**：R4 改底（不再自動附媒體、目錄列全部媒體、圖片縮圖嵌入）→ R5 ffmpeg（伺服器映像加 ffmpeg；頁面 ffmpeg.wasm；統一的「切段／抽畫面」介面與測試）→ R6 影片 → R7 聲音 → R8 掃描 PDF → R9 議會 → R10 收尾（隱私政策五語、`PRIVACY.md`、Linear contract）。
+
+### R4 的做法（改底，2026-11-01）
+
+- **專案的媒體不再隨訊息附上**（單一模型）：`single-model-response-lifecycle.js` 不再呼叫 `withProjectFiles`。議會暫時照舊（直到 R9 給成員工具）。沒有工具能力的模型因此看不到專案的圖片與其他檔案，文字來源仍照舊放進指示。
+- **目錄列出全部媒體**（`project-files-access.js` 的 `catalogText`）：圖片（看得懂圖的模型：「要看用 view_project_file；使用者提到照片、圖片、截圖、圖畫就先搜尋」；看不懂圖的：只能被搜尋點名）、還不能開啟的檔案（影片、聲音、掃描檔、不讀的種類，老實寫「還不能看」）。
+- **搜尋結果**的 `pictures`：不再有 `in_this_message: false`；說明依模型能不能看圖（`canView`）寫「用 view_project_file 看」或「你在這次回覆看不到圖」。
+- **圖片嵌入前先縮**：`makeEmbedThumbnail`（長邊 ≤1024 的 JPEG，試 1024、768）；瀏覽器開不了的檔，是 PNG／JPEG 且不超過約 9 MB 就原樣送，否則標 `failed`（`loadMedia` 回 `{ unreadable: true }`，不再重試）。圖片**不再有 9 MB 上限**，只有專案單檔 20 MB；「太大」只剩超過 20 MB 的。
+- **移除**專案頁來源頁籤與右欄的「有 N 個來源超過一次回覆能帶的大小」提示（i18n 鍵 `pjSourcesLeftOut` 留著沒用）。

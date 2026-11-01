@@ -8,10 +8,8 @@ import { stripCitationMarkers } from '../citations/citation-model.js';
 import { plainMarkdown } from '../citations/plain-text.js';
 import { isWide, make, ICONS, openActionSheet, openMenu, projectMark, sourceTile, toneOfName } from './project-parts.js';
 import { openCreateSheet, openDeleteSheet, openEditSheet, openInstructionsSheet, openRenameChatSheet, openSourceTextSheet, sourceFailureText } from './project-sheets.js';
-import { searchableKindOf } from '../../runtime/projects/project-files-access.js';
 import { PROJECT_SOURCES_MAX } from '../../runtime/projects/project-source-model.js';
 import { pictureOf } from '../../runtime/projects/project-pieces.js';
-import { projectFilesBudget } from '../../runtime/projects/project-source-files.js';
 import { PROJECTS_PATH, projectPath, projectsRouteFromPath } from './project-path.js';
 
 let current = null;
@@ -304,7 +302,7 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     if (capture) input.setAttribute('capture', capture);
     return input;
   };
-  // Any file: what the model cannot read is turned into text or left out when a reply is made, as with a file attached to a chat.
+  // Any file: the model looks into it by itself (the texts, the pictures: project-files-access.js); what it cannot open yet is named to it as such.
   const fileInput = makeInput('');
   const photoInput = makeInput('image/*');
   const cameraInput = makeInput('image/*', { capture: 'environment', multiple: false });
@@ -468,9 +466,6 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
     add.addEventListener('keydown', (event) => { if (event.target === add && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); openAdd(); } });
     box.appendChild(add);
     for (const source of list) box.appendChild(sourceRow(project, source, drawProject));
-    // What a model with tools can look into is not left out (data/project-files-tool.js): only the files it cannot read as text and that do not fit in a reply are.
-    const left = projectFilesBudget(project).left.filter((source) => !searchableKindOf(source)).length;
-    if (left) box.appendChild(make(document, 'p', 'pj-note', text('pjSourcesLeftOut', { n: left })));
     return box;
   };
   // The box that writes to the project: a message sent from it starts a chat in the project.
@@ -589,10 +584,7 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
       const rows = make(document, 'div', 'pj-sources');
       for (const source of list) rows.appendChild(sourceRow(project, source, drawProject));
       if (!list.length) rows.appendChild(make(document, 'p', 'pj-card-text is-empty', text('pjSourcesNone')));
-      // What a model with tools can look into is not left out (data/project-files-tool.js): only the files it cannot read as text and that do not fit in a reply are.
-      const left = projectFilesBudget(project).left.filter((source) => !searchableKindOf(source)).length;
       card.append(head, rows);
-      if (left) card.appendChild(make(document, 'p', 'pj-card-text', text('pjSourcesLeftOut', { n: left })));
       panel.appendChild(card);
     }
     return panel;

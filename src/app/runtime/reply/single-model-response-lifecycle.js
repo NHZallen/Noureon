@@ -21,7 +21,6 @@ import { replySteering } from '../features/reply-steering.js';
 import { replyCut } from './reply-cut.js';
 import { sendAnchor } from '../features/send-anchor.js';
 import { liftSandboxRunBlock } from '../../ui/sandbox/sandbox-run-block.js';
-import { withProjectFiles } from '../projects/project-source-files.js';
 import { projectOf } from '../projects/project-instructions.js';
 
 // What a reply makes as it goes: the request as it stands, the pages searched (kept with the reply, shown as "Searched N sites"), its run record,
@@ -137,10 +136,9 @@ export function createSingleModelResponseLifecycle({
     synthesis = null
   }) => {
     if (synthesis) webSearchEnabled = false;
-    // The pictures of the project this chat is in go with the message, for a model that can see them (src/app/runtime/projects/project-source-files.js).
-    // A model that calls tools looks into the files of the project by itself (project-files-access.js); what it cannot look into (a picture) goes with the message, for a model that can read it.
+    // A model that calls tools looks into the files of the project by itself (project-files-access.js): the texts, and the pictures (found by their vectors, looked at with view_project_file).
+    // Nothing of the media of a project goes with the message: it is too big for a model to take whole.
     const projectFiles = !synthesis && !resumeRun && projectOf(conversation)?.sources?.length ? await (await import('../projects/project-files-access.js')).createProjectFilesAccess({ conversation, toolsAllowed: Boolean(supportsToolCalling?.(modelInfo)) && !(webSearchEnabled && !webResearch?.canUse(modelInfo)), canViewPictures: Boolean(supportsVision?.(modelInfo)) }) : null;
-    if (!synthesis && !resumeRun) userParts = await withProjectFiles(userParts, conversation, modelInfo, { skipIds: projectFiles?.searchableIds, onPicked: ({ attached }) => projectFiles?.setAttached?.(attached) });
     stepsShown = false;
     stop();
     const startedAt = now();

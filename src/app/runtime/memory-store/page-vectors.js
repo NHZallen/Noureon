@@ -120,6 +120,8 @@ export function createPageVectors({ getStore, getHistory, getProjectPieces = () 
           const media = piece.media || await piece.loadMedia();
           // A file that cannot be read now (not here, not in the cloud yet) is left for the next build.
           if (!media) { set({ done: Math.min(state.total, state.done + 1) }); continue; }
+          // A file that cannot be sent in any form is marked, so that it is not tried at every build.
+          if (media.unreadable) { await vectors.putMany([{ id: piece.id, hash: hashed(piece), vector: new Float32Array(0), failed: true }]); set({ done: Math.min(state.total, state.done + 1) }); continue; }
           const vector = await client.embedMedia(media);
           await vectors.putMany([{ id: piece.id, hash: hashed(piece), vector }]);
           failures = 0;

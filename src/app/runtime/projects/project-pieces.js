@@ -6,10 +6,12 @@
 import { mediaPieceHash, projectPassages } from '../../../data/project-files-tool.js';
 import { pieceIdOf } from '../../../data/project-piece-id.js';
 import { textHash } from '../memory-notes/vector-math.js';
+import { PROJECT_SOURCE_FILE_BYTES_MAX } from './project-source-model.js';
+import { makeEmbedThumbnail } from './project-picture-thumb.js';
 import { getProjectFileStore } from './project-source-files.js';
 
-/** The biggest picture sent to the model of the vectors (the same as for the files of a message: media-pieces.js, about 9 MB of file). A bigger one is not sent: it shows as too big. */
-export const PROJECT_MEDIA_EMBED_BYTES_MAX = 9 * 1024 * 1024;
+/** The biggest picture that is made into vectors: the biggest file a project holds. (It is sent as a small copy, so its size is no obstacle; a source cannot be bigger anyway.) */
+export const PROJECT_MEDIA_EMBED_BYTES_MAX = PROJECT_SOURCE_FILE_BYTES_MAX;
 
 /** Whether a source is a picture the vectors take (a raster picture with a kept file), and whether it is small enough. */
 export const pictureOf = (source) => {
@@ -22,7 +24,7 @@ export const pictureOf = (source) => {
  * `getFolders()` gives the projects ([{ id, deletedAt, sources }]). `loadAccess()` resolves the module that knows how to read a source (project-files-access.js). Returns { pieces(), refresh() }:
  * `pieces()` is what the last `refresh()` made ([{ id, text, hash, kind: 'project', sourceId }]); a source that cannot be read now is left out (it is tried again at the next refresh).
  */
-export function createProjectPieces({ getFolders, loadAccess = () => import('./project-files-access.js'), logger = console }) {
+export function createProjectPieces({ getFolders, loadAccess = () => import('./project-files-access.js'), makeThumb = makeEmbedThumbnail, logger = console }) {
   let held = [];
   let refreshing = null;
 
@@ -39,10 +41,13 @@ export function createProjectPieces({ getFolders, loadAccess = () => import('./p
           const name = String(source.file.name || source.title || '').replace(/\s+/g, ' ').trim().slice(0, 120);
           pieces.push({
             id: pieceIdOf(source.id, 0), text: `[image] ${name}`, hash: mediaPieceHash(source.file.hash), kind: 'project', sourceId: source.id,
+            // The file is read and made small now (a copy of at most 1024 on the longest side); one that cannot be made small and cannot be sent as it is is marked: `unreadable`.
             loadMedia: async () => {
               try {
                 const loaded = await getProjectFileStore()?.load(source.file);
-                return loaded ? { mimeType: loaded.mimeType || source.file.mimeType, data: loaded.data, kind: 'image' } : null;
+                if (!loaded) return null;
+                const small = await makeThumb({ mimeType: loaded.mimeType || source.file.mimeType, data: loaded.data });
+                return small ? { mimeType: small.mimeType, data: small.data, kind: 'image' } : { unreadable: true };
               } catch { return null; }
             }
           });
