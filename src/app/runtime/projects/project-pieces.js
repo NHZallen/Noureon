@@ -8,7 +8,7 @@ import { mediaKindOfMime } from '../../../data/project-media.js';
 import { mediaPieceHash, projectPassages } from '../../../data/project-files-tool.js';
 import { CHAT_VIDEO_PREFIX, pieceIdOf } from '../../../data/project-piece-id.js';
 import { textHash } from '../memory-notes/vector-math.js';
-import { PROJECT_SOURCE_FILE_BYTES_MAX } from './project-source-model.js';
+import { PROJECT_SOURCE_FILE_BYTES_MAX, transcriptSourcesOf } from './project-source-model.js';
 import { makeEmbedThumbnail } from './project-picture-thumb.js';
 import { createMediaSources } from './project-media-source.js';
 import { getProjectFileStore } from './project-source-files.js';
@@ -103,6 +103,8 @@ export function createProjectPieces({ getFolders, getConversations = () => [], l
           logger.warn?.('A file of a project could not be read for the vectors.', error?.message || error);
         }
       }
+      // The transcripts of the videos and recordings are texts of their own (project-source-model.js): passages like any file's.
+      for (const source of transcriptSourcesOf(folder.sources)) files.push({ id: source.id, name: source.title, text: source.text });
       for (const passage of projectPassages(files)) pieces.push({ id: passage.id, text: passage.text, hash: textHash(passage.text), kind: 'project', sourceId: passage.file.id });
     }
     // The videos attached to the messages (at most one request's worth of windows each, like a video of a project).

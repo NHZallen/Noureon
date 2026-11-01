@@ -7,6 +7,7 @@ import { createProjectFilesLoader, projectFilesListText } from '../../../data/pr
 import { createOfficeReader } from '../../ui/files/office-text/office-reader.js';
 import { extractProjectFileText, textKindOf } from './project-file-text.js';
 import { projectOf } from './project-instructions.js';
+import { transcriptSourcesOf } from './project-source-model.js';
 import { getProjectFileStore } from './project-source-files.js';
 import { getPageVectors } from '../memory-store/memory-ref.js';
 import { formatTime } from '../../../data/project-media.js';
@@ -60,7 +61,9 @@ export async function createProjectFilesAccess({ conversation, toolsAllowed = tr
   // The videos attached to the message the reply is for (chat-video.js) are looked at with the same tool, in a chat with or without a project.
   const attached = Array.isArray(attachments) ? attachments : [];
   if (!folder && !attached.length) return null;
-  const projectSources = Array.isArray(folder?.sources) ? folder.sources : [];
+  // The words said in the videos and recordings (their transcripts) are texts of their own, searched and read like any file.
+  const ownSources = Array.isArray(folder?.sources) ? folder.sources : [];
+  const projectSources = [...ownSources, ...transcriptSourcesOf(ownSources)];
   const candidates = projectSources.filter((source) => searchableKindOf(source));
   // A PDF or Office file that has no text (a scan) cannot be looked into: it goes with the message instead, for a model that can read it. The text is read here (once for the page), which is
   // also what the tools use; a file that cannot be read on this device stays in (the server may read it from the cloud).

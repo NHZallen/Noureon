@@ -10,6 +10,7 @@ export const PROJECT_SOURCE_FILE_BYTES_MAX = 30 * 1024 * 1024;
 export const PROJECT_SOURCE_FILES_BYTES_MAX = 200 * 1024 * 1024;
 
 const KINDS = new Set(['text', 'file', 'image']);
+export const TRANSCRIPT_SUFFIX = '~tr';
 
 /** The original of a source kept as a file (a picture, a scan): its name, type, size, the hash of its bytes (the key where it is kept on this device) and, once it is in the cloud, where. */
 export function normalizeSourceFile(value) {
@@ -24,6 +25,23 @@ export function normalizeSourceFile(value) {
   return file;
 }
 
+/** The words said in a video or a recording of a source, written by speech to text (runtime/transcription/): { text (lines `[m:ss] words`), model, at }. An empty text means: it was listened to, nothing was said. */
+export function normalizeTranscript(value) {
+  if (!value || typeof value !== 'object' || typeof value.text !== 'string') return null;
+  return { text: value.text.slice(0, PROJECT_SOURCE_CHARS_MAX), model: String(value.model ?? '').slice(0, 120), at: typeof value.at === 'string' ? value.at : '' };
+}
+
+/** The transcripts of the sources as sources of their own (text the files tools search and read, and the vectors take): `<id>~tr`, called "<name> (transcript)". Not kept: made each time from the sources. */
+export function transcriptSourcesOf(list) {
+  const out = [];
+  for (const source of Array.isArray(list) ? list : []) {
+    const text = String(source?.transcript?.text || '');
+    if (!source?.id || !text.trim()) continue;
+    out.push({ id: `${source.id}${TRANSCRIPT_SUFFIX}`, kind: 'text', title: `${source.file?.name || source.title || 'Untitled'} (transcript)`.slice(0, PROJECT_SOURCE_TITLE_MAX + 20), mime: 'text/plain', size: text.length, text, addedAt: source.transcript.at || '' });
+  }
+  return out;
+}
+
 /** One source in its fixed shape (so two pages that write it write the same), or null when it is not one: it has a text, or a file that is given to a model that sees. */
 export function normalizeSource(value) {
   if (!value || typeof value !== 'object') return null;
@@ -31,6 +49,7 @@ export function normalizeSource(value) {
   const text = typeof value.text === 'string' ? value.text.slice(0, PROJECT_SOURCE_CHARS_MAX) : '';
   const file = normalizeSourceFile(value.file);
   if (!id || (!text.trim() && !file)) return null;
+  const transcript = file ? normalizeTranscript(value.transcript) : null;
   const kind = KINDS.has(value.kind) ? value.kind : 'text';
   const size = Number.isFinite(Number(value.size)) && Number(value.size) >= 0 ? Math.floor(Number(value.size)) : (file?.size || text.length);
   return {
@@ -41,6 +60,7 @@ export function normalizeSource(value) {
     size,
     text: text.trim() ? text : '',
     ...(file ? { file } : {}),
+    ...(transcript ? { transcript } : {}),
     addedAt: typeof value.addedAt === 'string' ? value.addedAt : ''
   };
 }

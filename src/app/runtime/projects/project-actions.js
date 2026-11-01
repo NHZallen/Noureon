@@ -5,7 +5,7 @@ import { FOLDER_SVGS } from '../features/folder-metadata.js';
 import { FOLDER_COLORS } from '../shell/runtime-ui-colors.js';
 import { confirmDeleteShared } from '../share/share-ref.js';
 import { PROJECT_INSTRUCTIONS_MAX } from './project-instructions.js';
-import { normalizeSource, normalizeSources, PROJECT_SOURCE_FILE_BYTES_MAX, PROJECT_SOURCE_FILES_BYTES_MAX, PROJECT_SOURCES_CHARS_MAX, PROJECT_SOURCES_MAX, sourceFilesBytesOf, sourcesCharsOf } from './project-source-model.js';
+import { normalizeSource, normalizeSources, normalizeTranscript, PROJECT_SOURCE_FILE_BYTES_MAX, PROJECT_SOURCE_FILES_BYTES_MAX, PROJECT_SOURCES_CHARS_MAX, PROJECT_SOURCES_MAX, sourceFilesBytesOf, sourcesCharsOf } from './project-source-model.js';
 
 export const PROJECT_NAME_MAX = 80;
 
@@ -152,6 +152,19 @@ export function createProjectActions({
     return { ok: true };
   }
 
+  /** Keeps the words said in a video or a recording of a source (written by speech to text); the files tools and the vectors take them up. */
+  async function setTranscript(id, sourceId, transcript) {
+    const folder = folderOf(id);
+    const next = normalizeTranscript(transcript);
+    const current = sourcesOf(id);
+    if (!folder || !next || !current.some((source) => source.id === sourceId && source.file)) return { ok: false, code: 'gone' };
+    folder.sources = current.map((source) => (source.id === sourceId ? { ...source, transcript: next } : source));
+    dataStore.replaceFolders([...folders()]);
+    await saveAppData();
+    onSourcesChanged();
+    return { ok: true };
+  }
+
   /** Deletes a project. `withChats`: its conversations go to the trash too (they can be restored); otherwise they are kept, outside any project. */
   async function remove(id, { withChats = false } = {}) {
     const folder = folderOf(id);
@@ -235,5 +248,5 @@ export function createProjectActions({
     return { ok: true, conversationId: conversation.id };
   }
 
-  return { list, sourcesOf, addSource, removeSource, chatsOf, countOf, folderOf, create, update, remove, removeChat, renameChat, togglePin, togglePinProject, startChat };
+  return { list, sourcesOf, addSource, removeSource, setTranscript, chatsOf, countOf, folderOf, create, update, remove, removeChat, renameChat, togglePin, togglePinProject, startChat };
 }

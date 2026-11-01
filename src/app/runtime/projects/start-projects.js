@@ -9,8 +9,9 @@ import { createIdbFileBackend, createMemoryFileBackend, createProjectFileStore, 
 import { PROJECT_SOURCE_FILE_BYTES_MAX } from './project-source-model.js';
 import { createGooglePicker, googlePickerConfigured } from './google-picker.js';
 import { SERVICES, getService } from '../services.js';
-import { getNotesMemory, getPageVectors, setProjectPieces } from '../memory-store/memory-ref.js';
+import { getNotesMemory, getPageTranscription, getPageVectors, setProjectPieces } from '../memory-store/memory-ref.js';
 import { createProjectPieces } from './project-pieces.js';
+import { createProjectTranscripts } from './project-transcripts.js';
 
 const ENTRY_ID = 'open-projects-btn';
 const folderIcon = '<svg class="cli-sidebar-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>';
@@ -51,7 +52,13 @@ export function startProjects({
   // The passages of the files of the projects are made into vectors with the ones of the past conversations (memory-store/page-vectors.js, when the person turned that on); a source that
   // comes or goes, or a project that goes, has the vectors brought up to date.
   setProjectPieces(createProjectPieces({ getFolders: () => dataStore.getFolders(), getConversations: () => dataStore.getConversations() }));
-  const actions = createProjectActions({ onSourcesChanged: () => { void getPageVectors()?.sync?.({ rerun: true }); }, dataStore, getDefaultFolder, saveAppData, renderSidebar, deleteFolderFromCloud, deferConversationFolderSync, startNewChat, getCurrentConversationId, sendText, dropFiles: (descriptions) => files.drop(descriptions), dropNotes: async (projectId) => { const store = await getNotesMemory()?.ready(); await store?.clearAll?.({ keepTombstones: false, scopeId: projectId }); } });
+  // The words said in the videos and recordings of the projects are written down in the background when speech to text is on (project-transcripts.js).
+  let transcripts = null;
+  const actions = createProjectActions({ onSourcesChanged: () => { void getPageVectors()?.sync?.({ rerun: true }); void transcripts?.run(); }, dataStore, getDefaultFolder, saveAppData, renderSidebar, deleteFolderFromCloud, deferConversationFolderSync, startNewChat, getCurrentConversationId, sendText, dropFiles: (descriptions) => files.drop(descriptions), dropNotes: async (projectId) => { const store = await getNotesMemory()?.ready(); await store?.clearAll?.({ keepTombstones: false, scopeId: projectId }); } });
+
+  transcripts = createProjectTranscripts({ getFolders: () => dataStore.getFolders(), getTranscription: () => getPageTranscription(), getStore: () => files, setTranscript: (projectId, sourceId, transcript) => actions.setTranscript(projectId, sourceId, transcript) });
+  const first = win.setTimeout(() => { void transcripts.run(); }, 10_000);
+  first?.unref?.();
 
   // Google's own file picker (its tabs, search and folders), when the page has the keys for it (VITE_GOOGLE_PICKER_*, see .env.example); without them the choice is not shown.
   const pickerConfig = { clientId: import.meta.env?.VITE_GOOGLE_PICKER_CLIENT_ID?.trim() || '', apiKey: import.meta.env?.VITE_GOOGLE_PICKER_API_KEY?.trim() || '', appId: import.meta.env?.VITE_GOOGLE_PICKER_APP_ID?.trim() || '' };

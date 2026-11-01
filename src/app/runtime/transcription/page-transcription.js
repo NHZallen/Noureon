@@ -37,7 +37,12 @@ export function createPageTranscription({
   };
 
   const settings = () => normalizeSpeech(getSettings());
-  const keep = async (next) => { setSettings(normalizeSpeech(next)); await saver(); };
+  const changed = new Set();
+  const keep = async (next) => {
+    setSettings(normalizeSpeech(next));
+    await saver();
+    for (const listener of [...changed]) { try { listener(); } catch { /* A broken listener must not stop the others. */ } }
+  };
   const hasKey = (name) => Boolean(getApiKeyForProvider(name));
   const providerNow = () => pickSttProvider({ chosen: settings().provider, hasKey });
   const enabled = () => settings().enabled === true && Boolean(providerNow());
@@ -72,6 +77,11 @@ export function createPageTranscription({
     subscribe(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);
+    },
+    /** `listener()` is called after the settings were changed (by the person). Returns the way to stop. */
+    subscribeSettings(listener) {
+      changed.add(listener);
+      return () => changed.delete(listener);
     },
     isEnabled: enabled,
     /** The way it would be done now ('' when none can be: no key, and Whisper in this browser is not picked). */
