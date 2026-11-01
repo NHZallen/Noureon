@@ -412,7 +412,7 @@ test('the sources tab: add a text, add files (read, refused with the reason), re
 
     t.$('.pj-source-add').click();
     assert.equal(t.$('.pj-action-title').textContent, 'Add a source');
-    assert.deepEqual(t.$$('.pj-action-item').map((item) => item.textContent), ['Take a photo', 'Add photos', 'Add a file', 'Add text']);
+    assert.deepEqual(t.$$('.pj-action-item').map((item) => item.textContent), ['Take a photo', 'Add photos or videos', 'Add a file', 'Add text']);
     t.byText('.pj-action-item', 'Add text').click();
     assert.equal(t.$('.pj-action-sheet'), null, 'a choice closes the list');
     assert.equal(t.byText('.pj-sheet .pj-button', 'Save').disabled, true, 'nothing to save yet');
@@ -434,8 +434,8 @@ test('the sources tab: add a text, add files (read, refused with the reason), re
     assert.match(t.state.notified.at(-1)[0], /"photo.png" is over 20 MB/);
     assert.equal(t.state.notified.at(-1)[1], 'error');
 
-    const photos = t.$$('.pj-file-input').find((node) => node.accept === 'image/*' && !node.getAttribute('capture'));
-    assert.ok(photos && t.$$('.pj-file-input').some((node) => node.getAttribute('capture') === 'environment'), 'a photo input and a camera input');
+    const photos = t.$$('.pj-file-input').find((node) => node.accept === 'image/*,video/*' && !node.getAttribute('capture'));
+    assert.ok(photos && t.$$('.pj-file-input').some((node) => node.getAttribute('capture') === 'environment'), 'a photo input (that lists videos too) and a camera input');
     Object.defineProperty(photos, 'files', { value: [{ name: 'receipt.jpg', type: 'image/jpeg' }], configurable: true });
     photos.dispatchEvent(new t.window.Event('change'));
     await t.tick();

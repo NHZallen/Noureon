@@ -304,7 +304,8 @@ export function openProjectsPage({ document, text, actions, chats = {}, openChat
   };
   // Any file: the model looks into it by itself (the texts, the pictures: project-files-access.js); what it cannot open yet is named to it as such.
   const fileInput = makeInput('');
-  const photoInput = makeInput('image/*');
+  // The photo library of a phone lists videos too when the input accepts them.
+  const photoInput = makeInput('image/*,video/*');
   const cameraInput = makeInput('image/*', { capture: 'environment', multiple: false });
   const inputs = [fileInput, photoInput, cameraInput];
   // One file added as a source (from the device or from Drive): read, kept, described in the source. Gives { ok, code } and tells the person what happened.
