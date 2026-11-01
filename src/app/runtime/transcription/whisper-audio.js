@@ -1,6 +1,11 @@
 // The sound for Whisper in this browser (whisper-browser.js): the samples of the 16 kHz mono WAV the pieces are cut as, and the name Whisper gives a language. Pure: no window, no document.
 
-export const WHISPER_MODEL = 'onnx-community/whisper-base';
+// The sizes of Whisper that can be run (the same files in the browser and on the server): the bigger one writes down far better, above all for Chinese, and is slower and heavier (about 250 MB against 80 MB to fetch).
+export const WHISPER_MODELS = Object.freeze({ base: 'onnx-community/whisper-base', small: 'onnx-community/whisper-small' });
+export const WHISPER_SIZES = Object.freeze(Object.keys(WHISPER_MODELS));
+export const DEFAULT_WHISPER_SIZE = 'small';
+export const whisperModelOf = (size) => WHISPER_MODELS[size] || WHISPER_MODELS[DEFAULT_WHISPER_SIZE];
+export const WHISPER_MODEL = WHISPER_MODELS.base;
 
 // Whisper in this browser does not find the language by itself (it takes English when none is given), so the language of the app's screen is the hint; the providers' own Whisper finds it.
 const WHISPER_LANGUAGES = Object.freeze({ 'zh-TW': 'chinese', zh: 'chinese', en: 'english', fr: 'french', ru: 'russian', es: 'spanish' });

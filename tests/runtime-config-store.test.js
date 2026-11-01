@@ -55,6 +55,7 @@ const expectedConfig = (defaultModelId) => ({
   netRules: {},
   toolModels: { image: null },
   permissions: { imageGeneration: 'ask' },
+  speechToText: { enabled: false, consentAt: null, provider: '', whisperSize: 'small' },
   cliStamps: {},
   cliUseStamps: {},
   netStamps: {},

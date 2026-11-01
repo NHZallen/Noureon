@@ -1,3 +1,4 @@
+import { normalizeSpeech } from '../../../data/speech-settings.js';
 import { normalizeColorScheme } from '../../../data/color-scheme-choices.js';
 import { normalizeCliIds, normalizeCliVersions } from '../../../data/cli-catalog.js';
 import { normalizeNetHost, normalizeNetMode, normalizeNetRules } from '../../../data/cli-net.js';
@@ -189,6 +190,7 @@ export function normalizeLoadedLegacyConfig({
   // The picture model a text model draws with, and whether the person is asked before each picture.
   normalizedConfig.toolModels = normalizeToolModels(normalizedConfig.toolModels);
   normalizedConfig.permissions = normalizePermissions(normalizedConfig.permissions);
+  normalizedConfig.speechToText = normalizeSpeech(normalizedConfig.speechToText);
   // When each item of those lists last changed: what lets devices merge them item by item.
   normalizedConfig.cliStamps = normalizeStamps(normalizedConfig.cliStamps, (key) => (/^[a-z][a-z0-9-]{1,39}$/.test(String(key)) ? String(key) : ''));
   normalizedConfig.cliUseStamps = normalizeStamps(normalizedConfig.cliUseStamps, (key) => (/^[a-z][a-z0-9-]{1,39}$/.test(String(key)) ? String(key) : ''));

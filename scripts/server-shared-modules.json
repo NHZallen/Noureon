@@ -629,6 +629,10 @@
       "note": "Reviewed 2026-11-02: pure (the samples of a WAV file for Whisper, the names of its languages)."
     },
     {
+      "path": "src/data/speech-settings.js",
+      "note": "Reviewed 2026-11-02: pure (the settings of speech to text and their normal form); no browser globals."
+    },
+    {
       "path": "src/app/runtime/transcription/transcript-parts.js",
       "note": "Reviewed 2026-11-02: pure (a recording or video that has a transcript as the text of its words); no browser globals."
     },

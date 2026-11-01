@@ -97,3 +97,9 @@
 - **伺服器上的 Whisper**（`server/whisper-runner.js`）：跟瀏覽器同一個模型（`onnx-community/whisper-base` q8），用 `@huggingface/transformers` 的 Node 版（onnxruntime-node，只留 Linux x64，不要 GPU 函式庫）。第一次用才載入、閒置 10 分鐘釋放（約 700 MB 記憶體）、一次只做一段；模型在建映像時抓進 `/app/.whisper`（`Dockerfile`、`server/whisper-download.mjs`，抓不到也不擋建置）。在這台 CPU 上試過：11 秒錄音約 2 秒轉完。**映像會變大約 200 MB，要重新建映像。**
 - 設定頁與隱私政策、協助中心五語言都改成：Whisper 在頁面做回覆時在瀏覽器跑、聲音不離開裝置；伺服器做回覆時聲音送到 Noureon 的伺服器在那裡跑 Whisper，只用在那一則回覆、不保留。
 - 真金鑰試過：OpenAI、OpenRouter、Gemini 都成功（Gemini 的 409 是 Allen 的測試環境注入金鑰的問題，不是程式）。
+
+### 設定位置與 Whisper 大小（2026-11-02，Allen 決定）
+
+- 語音轉文字的設定從「記憶」搬到**模型管理頁，API 金鑰下面**（`settings-speech-section.js`），存在 `config.speechToText`（`{ enabled, consentAt, provider, whisperSize }`，`data/speech-settings.js`），不再依賴記憶開關（原本記憶關掉時根本打不開）。
+- Allen 貼來一段錄音在 `whisper-base` 轉成「把鑊子放在鑊子上…」不斷重複的亂碼（Whisper 小模型的重複迴圈，對短錄音、有停頓、非英文特別容易發生）。處理：**換較大的 Whisper**。預設改成 `small`（約 250 MB；在這台 CPU 上 11 秒錄音約 3.4 秒，記憶體約 1.3 GB；用一段中間有停頓、同一句重複兩次的測試音檔，base 只轉出第一句，small 兩句都轉出來），設定可選 `small`／`base`。伺服器映像內建 `small`（`base` 第一次用到才抓，快取目錄給 `node` 使用者寫入），瀏覽器第一次用才下載。請求 `tools.transcription.model`（`'base'`／`'small'`，只給 `whisper`）。
+- 還沒做（Allen 這次沒選）：靜音段不送去轉、偵測重複並改用較大模型或有金鑰的供應商重試、「聽不清楚」標示、可選口說語言。注意：只用 `no_repeat_ngram_size` 擋重複會把真的重複的句子也吃掉（用測試音檔試過）。

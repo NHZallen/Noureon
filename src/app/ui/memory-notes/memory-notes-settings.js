@@ -4,7 +4,6 @@
 // Everything is drawn with textContent (a note is the person's text), and colours come from the tokens in memory-notes.css.
 
 import { renderVectorCard } from './memory-vector-card.js';
-import { renderTranscriptionCard } from './transcription-card.js';
 import { memoryIcon } from '../icons/memory-icons.js';
 import { addByUser, deleteByUser, describeEvent, describeTidy, editByUser, filterNotes, joinTidyEvents, setNeverByUser, setStandingByUser, summarize, undoEvent } from '../../runtime/memory-notes/manage.js';
 import { NOTE_KINDS, isActive } from '../../runtime/memory-notes/notes.js';
@@ -27,8 +26,6 @@ export function createMemoryNotesSettings({
   getRebuild = () => null,
   // The search by meaning (memory-store/page-vectors.js), or null.
   getVectors = () => null,
-  // Speech to text (runtime/transcription/page-transcription.js), or null.
-  getTranscription = () => null,
   // The name of a project that keeps its notes for itself (its notes are shown with it); '' for one that is gone (its notes are then not shown).
   getProjectName = () => '',
   getText,
@@ -223,11 +220,10 @@ export function createMemoryNotesSettings({
     const rebuild = rebuildCard(live);
     const tidy = tidyCard(live);
     const vector = renderVectorCard({ vectors: getVectors(), el, button, text, ask, showNotification, render });
-    const speech = renderTranscriptionCard({ transcription: getTranscription(), el, button, text, ask, showNotification, render });
     const foot = el('section', 'pz-card mn-foot');
     // Taking the notes out and putting them in again is in Settings → Data, ticked among the rest.
     foot.append(el('p', 'pz-sub mn-faint', text('mnTransferHint')), button(text('mnClear'), 'mn-btn mn-danger', () => void actions.clear()));
-    return [card, ...(rebuild ? [rebuild] : []), ...(tidy ? [tidy] : []), ...(vector ? [vector] : []), ...(speech ? [speech] : []), recent, foot];
+    return [card, ...(rebuild ? [rebuild] : []), ...(tidy ? [tidy] : []), ...(vector ? [vector] : []), recent, foot];
   };
 
   // The tidy of the notes (memory-store/page-tidy.js): when it last ran, and a button to run it now.

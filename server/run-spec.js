@@ -2,6 +2,7 @@
 // together everything the reply needs; this checks its shape and size before anything is done with it. Errors name a place in the
 // request and say what is wrong, and never repeat a value: a key must not end up in an error message or a log.
 
+import { WHISPER_SIZES } from '../src/app/runtime/transcription/whisper-audio.js';
 import { getCliTool, isCliReady } from '../src/data/cli-catalog.js';
 import { NET_MAX_RULES, NET_MODES, NET_RULES, normalizeNetHost, normalizeNetMode, normalizeNetRules } from '../src/data/cli-net.js';
 import { IMAGE_ASPECT_RATIOS, IMAGE_RESOLUTIONS } from '../src/app/runtime/images/image-generation-config.js';
@@ -528,6 +529,7 @@ export function validateRunSpec(input) {
     // The files of the project the model may look into by itself (search_project_files, read_project_file and view_project_file).
     if (tools.projectFiles !== undefined) checkProjectFilesTool(tools, fail);
     // Speech to text for the recordings and videos of the message, made by the server (so that the reply goes on when the page is closed): which way (the key for this reply is `secrets.sttKey`; Whisper runs on the server).
+    if (tools.transcription !== undefined && isObject(tools.transcription) && tools.transcription.model !== undefined && (tools.transcription.provider !== 'whisper' || !WHISPER_SIZES.includes(tools.transcription.model))) fail('tools.transcription.model', `is the size of Whisper (${WHISPER_SIZES.join(' or ')}) and only for the way whisper`);
     if (tools.transcription !== undefined && (!isObject(tools.transcription) || !STT_PROVIDERS.includes(tools.transcription.provider))) fail('tools.transcription', `must name a way: ${STT_PROVIDERS.join(', ')}`);
     // The CLI tools (命令工具) the person chose with "@" for this message: ids of the store's tools. They run in the sandbox, so this is a reply
     // with Python (`advanced`).
@@ -666,7 +668,7 @@ export function validateRunSpec(input) {
         ...(projectFileEntries(tools.projectFiles)?.length || tools.projectFiles?.media?.length ? { projectFiles: normalizeProjectFiles(tools.projectFiles) } : {}),
         ...(isObject(tools.memory) ? { memory: { canWrite: tools.memory.canWrite === true, ...(text(tools.memory.scope, 80) ? { scope: tools.memory.scope } : {}), ...(text(tools.memory.project, 80) ? { project: tools.memory.project } : {}), ...(tools.memory.curator === true ? { curator: true } : {}), ...(tools.memory.history === true ? { history: true } : {}), ...(isObject(tools.memory.vector) ? { vector: { provider: tools.memory.vector.provider } } : {}), messages: tools.memory.messages.map((message) => ({ id: message.id, text: message.text, ...(message.at ? { at: message.at } : {}) })) } } : {}),
         ...(imageGeneration ? { imageGeneration } : {}),
-        ...(isObject(tools.transcription) ? { transcription: { provider: tools.transcription.provider } } : {}),
+        ...(isObject(tools.transcription) ? { transcription: { provider: tools.transcription.provider, ...(tools.transcription.model ? { model: tools.transcription.model } : {}) } } : {}),
         ...(tools.inputs?.length ? { inputs: tools.inputs.map((file) => ({ name: file.name, mimeType: file.mimeType || '', data: file.data })) } : {})
       },
       ...(input.documents ? { documents: { linkedPages: input.documents.linkedPages === true, ...(translator ? { translator } : {}) } } : {}),

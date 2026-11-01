@@ -2,12 +2,12 @@
 // quantized) is fetched from Hugging Face the first time and kept by the browser; the library and its WebAssembly (about 10 MB) come from this site and are loaded only when the person picks
 // this way of turning speech into text. It runs on the CPU in one thread (a page that is not isolated across origins has no shared memory for more). Page only.
 
-import { samplesOfWav, whisperLanguageOf, WHISPER_MODEL } from './whisper-audio.js';
+import { samplesOfWav, whisperLanguageOf, whisperModelOf, WHISPER_MODEL } from './whisper-audio.js';
 
 export { samplesOfWav, whisperLanguageOf, WHISPER_MODEL };
 
 /** `onProgress({ status, file, progress })` is told while the model is fetched. Resolves `run({ mimeType, data }, { language }) -> text`; the model is loaded by the first call. */
-export function createWhisperRunner({ onProgress = () => {}, loadLibrary = () => import('@huggingface/transformers'), loadAssets = () => import('./whisper-assets.js') } = {}) {
+export function createWhisperRunner({ size = 'small', onProgress = () => {}, loadLibrary = () => import('@huggingface/transformers'), loadAssets = () => import('./whisper-assets.js') } = {}) {
   let loading = null;
   const load = () => {
     loading ||= (async () => {
@@ -15,7 +15,7 @@ export function createWhisperRunner({ onProgress = () => {}, loadLibrary = () =>
       library.env.allowLocalModels = false;
       library.env.backends.onnx.wasm.numThreads = 1;
       library.env.backends.onnx.wasm.wasmPaths = { mjs: assets.ortMjs, wasm: assets.ortWasm };
-      return library.pipeline('automatic-speech-recognition', WHISPER_MODEL, { dtype: 'q8', device: 'wasm', progress_callback: onProgress });
+      return library.pipeline('automatic-speech-recognition', whisperModelOf(size), { dtype: 'q8', device: 'wasm', progress_callback: onProgress });
     })().catch((error) => { loading = null; throw error; });
     return loading;
   };

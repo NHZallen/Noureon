@@ -3,22 +3,23 @@ import test from 'node:test';
 
 import { createPageTranscription } from '../src/app/runtime/transcription/page-transcription.js';
 import { hasTranscript, transcriptTextPart, withTranscriptText, TRANSCRIPT_IN_REQUEST_CHARS } from '../src/app/runtime/transcription/transcript-parts.js';
-import { normalizeSettings } from '../src/app/runtime/memory-notes/records.js';
+import { normalizeSpeech } from '../src/data/speech-settings.js';
 import { MODELS } from '../src/app/runtime/shell/model-registry.js';
 
 // Speech to text on the page: off until agreed; a recording or a video of a message gets its transcript once; a model that cannot take the file is given the words instead.
 
 const b64 = (bytes) => Buffer.from(bytes).toString('base64');
+// The settings are `config.speechToText`: a holder with the same two functions the page gives.
 const fakeStore = (initial = {}) => {
-  let settings = normalizeSettings(initial);
-  return { isLoaded: () => true, getSettings: () => settings, setSettings: async (patch) => { settings = normalizeSettings({ ...settings, ...patch }); } };
+  const holder = { speechToText: normalizeSpeech(initial) };
+  return { holder, getSettings: () => holder.speechToText, setSettings: (next) => { holder.speechToText = next; } };
 };
 const fakeToolbox = (log) => ({ open: async ({ name }) => { log.opened.push(name); return { probe: async () => ({ duration: 130, hasAudio: true, hasVideo: false }), audioWindow: async (start) => ({ mimeType: 'audio/wav', data: new Uint8Array([start]) }), close: async () => { log.closed += 1; } }; } });
 
 function make({ keys = { openrouter: 'or-key' }, store = fakeStore(), text = (start) => `words at ${start}` } = {}) {
   const log = { opened: [], closed: 0, sent: [] };
   const fetchImpl = async (url, options) => { const body = JSON.parse(options.body); log.sent.push(url); return Response.json({ text: text(Buffer.from(body.input_audio.data, 'base64')[0]) }); };
-  const transcription = createPageTranscription({ getStore: () => store, getApiKeyForProvider: (name) => keys[name] || '', getToolbox: async () => fakeToolbox(log), fetchImpl, now: () => '2026-11-02T00:00:00.000Z', logger: { warn() {} } });
+  const transcription = createPageTranscription({ getSettings: store.getSettings, setSettings: store.setSettings, getApiKeyForProvider: (name) => keys[name] || '', getToolbox: async () => fakeToolbox(log), fetchImpl, now: () => '2026-11-02T00:00:00.000Z', logger: { warn() {} } });
   return { transcription, log, store };
 }
 const part = (mimeType, name, bytes = [1, 2, 3]) => ({ inlineData: { mimeType, name, data: b64(bytes) } });
@@ -29,14 +30,21 @@ test('the settings keep when and how it was agreed to; nothing is done before', 
   assert.equal(await transcription.ensureParts([part('audio/mpeg', 'a.mp3')]), 0, 'off: nothing is sent');
   assert.deepEqual(transcription.providers().map((way) => [way.name, way.current]), [['openrouter', true], ['browser', false]]);
   assert.equal(await transcription.enable('openrouter'), true);
-  assert.deepEqual({ ...store.getSettings().transcription }, { enabled: true, consentAt: '2026-11-02T00:00:00.000Z', provider: 'openrouter' });
+  assert.deepEqual({ ...store.getSettings() }, { enabled: true, consentAt: '2026-11-02T00:00:00.000Z', provider: 'openrouter', whisperSize: 'small' });
   assert.equal(transcription.isEnabled(), true);
   assert.equal(await transcription.setProvider('openai'), false, 'no key for it');
   assert.equal(await transcription.setProvider('browser'), true);
   assert.equal(transcription.provider(), 'browser');
   await transcription.disable();
   assert.equal(transcription.isEnabled(), false);
-  assert.equal(normalizeSettings({ transcription: { enabled: true } }).transcription.enabled, false, 'no consent time, not on');
+  assert.equal(normalizeSpeech({ enabled: true }).enabled, false, 'no consent time, not on');
+  assert.equal(await transcription.setWhisperSize('base'), true);
+  assert.equal(transcription.whisperSize(), 'base');
+  assert.equal(await transcription.setWhisperSize('large'), false, 'only the sizes that can be run');
+  const saved = [];
+  transcription.setSaver(async () => { saved.push(true); });
+  await transcription.setWhisperSize('small');
+  assert.equal(saved.length, 1, 'the settings are saved when they change');
 });
 
 test('a recording and a video get their transcript once, with the time of each minute; a picture, a file that has one and a part with no data are left alone', async () => {
@@ -102,8 +110,8 @@ test('a reply the server makes is told the way and the key for that reply; the b
   await withKey.transcription.enable('openai');
   assert.deepEqual(withKey.transcription.serverAccess(), { provider: 'openai', key: 'sk' });
   await withKey.transcription.setProvider('browser');
-  assert.deepEqual(withKey.transcription.serverAccess(), { provider: 'whisper' });
+  assert.deepEqual(withKey.transcription.serverAccess(), { provider: 'whisper', model: 'small' });
   const noKey = make({ keys: {} });
   await noKey.transcription.enable();
-  assert.deepEqual(noKey.transcription.serverAccess(), { provider: 'whisper' }, 'no key at all: Whisper');
+  assert.deepEqual(noKey.transcription.serverAccess(), { provider: 'whisper', model: 'small' }, 'no key at all: Whisper');
 });

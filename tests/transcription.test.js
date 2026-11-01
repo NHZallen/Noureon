@@ -128,10 +128,13 @@ test('the browser loads the library and the model once, on the first piece, and 
   assert.equal(await run({ data: wav([1, 2, 3, 4]) }, { language: 'zh-TW' }), ' hello ');
   await run({ data: wav([1, 2]) }, {});
   assert.equal(log.loads, 1);
-  assert.deepEqual(log.task, ['automatic-speech-recognition', 'onnx-community/whisper-base', 'q8', 'wasm']);
+  assert.deepEqual(log.task, ['automatic-speech-recognition', 'onnx-community/whisper-small', 'q8', 'wasm'], 'the bigger Whisper is the default');
   assert.deepEqual(log.env.backends.onnx.wasm.wasmPaths, { mjs: '/ort.mjs', wasm: '/ort.wasm' });
   assert.equal(log.env.backends.onnx.wasm.numThreads, 1);
   assert.deepEqual(log.calls, [[4, 'chinese', 30], [2, undefined, 30]]);
+  const base = createWhisperRunner({ size: 'base', loadLibrary: async () => library, loadAssets: async () => ({ ortMjs: '/ort.mjs', ortWasm: '/ort.wasm' }) });
+  await base({ data: wav([1, 2]) }, {});
+  assert.equal(log.task[1], 'onnx-community/whisper-base');
 });
 
 test('a provider that is busy is asked again after a short wait (twice at most); a refusal of the key is not, and a stop ends the waiting', async () => {

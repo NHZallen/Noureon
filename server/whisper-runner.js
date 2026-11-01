@@ -2,20 +2,24 @@
 // that a reply the server makes can turn a recording into text when the page is closed. The model is loaded by the first piece and let go after a while of nothing to do (it holds about 700 MB);
 // one piece is done at a time (it uses the processor). The model files are in the image (Dockerfile, `server/whisper-download.mjs`) and fetched when they are not. The sound is not kept.
 
-import { samplesOfWav, whisperLanguageOf, WHISPER_MODEL } from '../src/app/runtime/transcription/whisper-audio.js';
+import { DEFAULT_WHISPER_SIZE, samplesOfWav, whisperLanguageOf, whisperModelOf } from '../src/app/runtime/transcription/whisper-audio.js';
 
 export const WHISPER_SERVER = Object.freeze({ idleMs: 10 * 60_000, cacheDir: process.env.WHISPER_CACHE_DIR || '/app/.whisper' });
 
-/** Resolves `run({ mimeType, data (Uint8Array) }, { language }) -> text`; `release()` lets the model go now. `loadLibrary` and `now`/`setTimer` are given by the tests. */
+/** Resolves `run({ mimeType, data (Uint8Array) }, { language, size: 'base' | 'small' }) -> text`; `release()` lets the model go now. `loadLibrary` and `now`/`setTimer` are given by the tests. */
 export function createServerWhisper({ loadLibrary = () => import('@huggingface/transformers'), cacheDir = WHISPER_SERVER.cacheDir, idleMs = WHISPER_SERVER.idleMs, setTimer = setTimeout, clearTimer = clearTimeout } = {}) {
   let loading = null;
+  let loadedSize = '';
   let timer = null;
   let tail = Promise.resolve();
-  const load = () => {
+  // One size is held at a time (each is hundreds of MB): another size replaces it.
+  const load = (size) => {
+    if (loading && loadedSize !== size) release();
+    loadedSize = size;
     loading ||= (async () => {
       const library = await loadLibrary();
       library.env.cacheDir = cacheDir;
-      return library.pipeline('automatic-speech-recognition', WHISPER_MODEL, { dtype: 'q8', device: 'cpu' });
+      return library.pipeline('automatic-speech-recognition', whisperModelOf(size), { dtype: 'q8', device: 'cpu' });
     })().catch((error) => { loading = null; throw error; });
     return loading;
   };
@@ -26,11 +30,11 @@ export function createServerWhisper({ loadLibrary = () => import('@huggingface/t
     loading = null;
     void held?.then((pipe) => pipe?.dispose?.()).catch(() => {});
   };
-  const run = ({ data }, { language = '' } = {}) => {
+  const run = ({ data }, { language = '', size = DEFAULT_WHISPER_SIZE } = {}) => {
     const job = tail.then(async () => {
       clearTimer(timer);
       const { samples } = samplesOfWav(data);
-      const pipe = await load();
+      const pipe = await load(size);
       const out = await pipe(samples, { chunk_length_s: 30, task: 'transcribe', return_timestamps: false, ...(whisperLanguageOf(language) ? { language: whisperLanguageOf(language) } : {}) });
       timer = setTimer(release, idleMs);
       timer.unref?.();

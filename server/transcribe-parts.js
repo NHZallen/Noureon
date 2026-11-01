@@ -7,6 +7,7 @@ import { createTranscriber } from '../src/app/runtime/transcription/stt-clients.
 import { transcribeMedia, TRANSCRIPT } from '../src/app/runtime/transcription/transcribe-file.js';
 import { transcriptTextPart } from '../src/app/runtime/transcription/transcript-parts.js';
 import { createServerMediaToolbox } from './ffmpeg-runner.js';
+import { DEFAULT_WHISPER_SIZE, WHISPER_SIZES, whisperModelOf } from '../src/app/runtime/transcription/whisper-audio.js';
 import { createServerWhisper } from './whisper-runner.js';
 
 export const SERVER_STT_PROVIDERS = Object.freeze(['openrouter', 'openai', 'gemini', 'whisper']);
@@ -23,11 +24,12 @@ const whisper = () => (sharedWhisper ||= createServerWhisper());
 export async function transcribeServerParts({ parts, spec, key = '', signal, loadFile = async () => null, onPhase = () => {}, language = '', toolbox = createServerMediaToolbox({ signal }), createRunner = () => whisper(), fetchImpl, logger = console }) {
   const setting = spec.tools?.transcription;
   if (!setting || !SERVER_STT_PROVIDERS.includes(setting.provider)) return parts;
+  const size = WHISPER_SIZES.includes(setting.model) ? setting.model : DEFAULT_WHISPER_SIZE;
   const wanted = parts.filter(needs);
   const videos = (spec.tools?.projectFiles?.media || []).filter((entry) => entry.transcribe === true && entry.kind === 'video');
   if (!wanted.length && !videos.length) return parts;
   const transcriber = setting.provider === 'whisper'
-    ? createTranscriber({ provider: 'browser', runWhisper: createRunner() })
+    ? createTranscriber({ provider: 'browser', model: whisperModelOf(size), runWhisper: (audio, options) => createRunner()(audio, { ...options, size }) })
     : createTranscriber({ provider: setting.provider, getApiKey: () => key, fetchImpl });
   onPhase();
   const done = async (bytes, name, mime) => {

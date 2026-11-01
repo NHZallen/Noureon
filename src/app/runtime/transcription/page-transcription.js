@@ -3,7 +3,9 @@
 // the transcript is kept in the part of the message (`part.transcript`: { text, model, at }), so it is synced with the conversation and is never made twice. Nothing here may break a reply:
 // a file that cannot be turned into text is left as it was. Page only.
 
+import { normalizeSpeech } from '../../../data/speech-settings.js';
 import { createTranscriber, pickSttProvider, STT_PROVIDERS } from './stt-clients.js';
+import { whisperModelOf } from './whisper-audio.js';
 import { transcribeMedia } from './transcribe-file.js';
 
 const isTimed = (mimeType) => /^(audio|video)\//i.test(String(mimeType || ''));
@@ -12,7 +14,9 @@ const fromBase64 = (data) => Uint8Array.from(atob(data), (character) => characte
 export const TRANSCRIBE_CHARS_MAX = 42 * 1024 * 1024;
 
 export function createPageTranscription({
-  getStore,
+  // The settings (`config.speechToText`, data/speech-settings.js) and how they are kept: `setSettings(next)` replaces them in the config; the settings screen gives the saving (`setSaver`).
+  getSettings = () => null,
+  setSettings = () => {},
   getApiKeyForProvider = () => '',
   getLanguage = () => 'en',
   getToolbox = async () => (await import('../projects/ffmpeg-wasm.js')).mediaToolbox,
@@ -24,21 +28,29 @@ export function createPageTranscription({
   const listeners = new Set();
   let state = { status: 'idle', done: 0, total: 0, name: '', model: '' };
   let whisper = null;
+  let whisperSize = '';
+  let saver = async () => {};
   const inflight = new Map();
   const set = (patch) => {
     state = { ...state, ...patch };
     for (const listener of [...listeners]) { try { listener(state); } catch { /* A broken listener must not stop the others. */ } }
   };
 
-  const settings = () => getStore()?.getSettings?.()?.transcription || { enabled: false, consentAt: null, provider: '' };
+  const settings = () => normalizeSpeech(getSettings());
+  const keep = async (next) => { setSettings(normalizeSpeech(next)); await saver(); };
   const hasKey = (name) => Boolean(getApiKeyForProvider(name));
   const providerNow = () => pickSttProvider({ chosen: settings().provider, hasKey });
   const enabled = () => settings().enabled === true && Boolean(providerNow());
 
   const transcriberFor = (provider) => {
     if (provider === 'browser') {
-      whisper ||= createWhisper({ onProgress: (event) => { if (event?.status === 'progress' && event.file) set({ status: 'loading-model', name: event.file, done: Math.round(event.progress || 0), total: 100 }); } });
-      return createTranscriber({ provider, runWhisper: async (audio, options) => (await whisper)(audio, options) });
+      // The model is the size chosen in the settings; a runner of another size is made again.
+      if (!whisper || whisperSize !== settings().whisperSize) {
+        whisperSize = settings().whisperSize;
+        whisper = createWhisper({ size: whisperSize, onProgress: (event) => { if (event?.status === 'progress' && event.file) set({ status: 'loading-model', name: event.file, done: Math.round(event.progress || 0), total: 100 }); } });
+      }
+      const runner = whisper;
+      return createTranscriber({ provider, model: whisperModelOf(whisperSize), runWhisper: async (audio, options) => (await runner)(audio, options) });
     }
     return createTranscriber({ provider, getApiKey: () => getApiKeyForProvider(STT_PROVIDERS[provider].keyProvider), fetchImpl });
   };
@@ -71,31 +83,39 @@ export function createPageTranscription({
     serverAccess() {
       const provider = providerNow();
       if (!enabled() || !provider) return null;
-      if (provider === 'browser') return { provider: 'whisper' };
+      if (provider === 'browser') return { provider: 'whisper', model: settings().whisperSize };
       const key = getApiKeyForProvider(STT_PROVIDERS[provider].keyProvider);
       return key ? { provider, key } : null;
     },
     /** The ways that can be used ([{ name, label, model, current }]): the ones the person has a key for, and Whisper in this browser. */
     providers() {
       const now = providerNow();
-      return Object.keys(STT_PROVIDERS).filter((name) => name === 'browser' || hasKey(STT_PROVIDERS[name].keyProvider)).map((name) => ({ name, label: STT_PROVIDERS[name].label, model: STT_PROVIDERS[name].model, current: name === now }));
+      return Object.keys(STT_PROVIDERS).filter((name) => name === 'browser' || hasKey(STT_PROVIDERS[name].keyProvider)).map((name) => ({ name, label: STT_PROVIDERS[name].label, model: name === 'browser' ? whisperModelOf(settings().whisperSize) : STT_PROVIDERS[name].model, current: name === now }));
     },
-    /** The person agreed: remember the time and the way. Resolves false when it cannot be turned on (the settings are not loaded). */
+    /** The settings screen gives how the settings are saved (the config is saved as a whole). */
+    setSaver(next) { saver = typeof next === 'function' ? next : async () => {}; },
+    /** The size of Whisper chosen ('base' or 'small'). */
+    whisperSize: () => settings().whisperSize,
+    /** The person agreed: remember the time and the way. Resolves false when it cannot be turned on. */
     async enable(chosen = '') {
-      if (!getStore()?.isLoaded?.()) return false;
       const provider = pickSttProvider({ chosen, hasKey });
       if (!provider) return false;
-      await getStore().setSettings({ transcription: { enabled: true, consentAt: now(), provider } });
+      await keep({ ...settings(), enabled: true, consentAt: now(), provider });
       return true;
     },
     async disable() {
-      if (!getStore()?.isLoaded?.()) return false;
-      await getStore().setSettings({ transcription: { enabled: false, consentAt: null, provider: settings().provider } });
+      await keep({ ...settings(), enabled: false, consentAt: null });
       return true;
     },
     async setProvider(name) {
-      if (!STT_PROVIDERS[name] || (name !== 'browser' && !hasKey(STT_PROVIDERS[name].keyProvider)) || !getStore()?.isLoaded?.()) return false;
-      await getStore().setSettings({ transcription: { ...settings(), provider: name } });
+      if (!STT_PROVIDERS[name] || (name !== 'browser' && !hasKey(STT_PROVIDERS[name].keyProvider))) return false;
+      await keep({ ...settings(), provider: name });
+      return true;
+    },
+    async setWhisperSize(size) {
+      const next = normalizeSpeech({ ...settings(), whisperSize: size });
+      if (next.whisperSize !== size) return false;
+      await keep({ ...settings(), whisperSize: size });
       return true;
     },
     /** Whether a part is a recording or a video that has no transcript yet and can be turned into text. */

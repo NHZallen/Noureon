@@ -61,6 +61,8 @@ export function createRuntimeConfigStore({ defaultModelId } = {}) {
     // The models a text model may call by itself (the picture model it draws with) and the permission for it: data/tool-models.js.
     toolModels: { image: null },
     permissions: { imageGeneration: 'ask' },
+    // Speech to text for the recordings and videos that are attached (data/speech-settings.js): off until the person agrees.
+    speechToText: { enabled: false, consentAt: null, provider: '', whisperSize: 'small' },
     // When each item of those settings last changed (so devices merge them item by item: see sync/cloud-cli-settings-merge.js).
     cliStamps: {},
     cliUseStamps: {},

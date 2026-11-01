@@ -7,6 +7,7 @@ import { memoryProjectName } from '../projects/project-instructions.js';
 import { getNotesMemory, getMemoryModelRunner, getPageHistory, getPageTranscription, getPageVectors, getRebuildController } from '../memory-store/memory-ref.js';
 import { createRebuildController } from '../memory-store/page-rebuild.js';
 import { getAnnouncedUser } from '../features/user-ready.js';
+import { createSpeechSettings } from './settings-speech-section.js';
 
 export function createSettingsDialogParts({
     document, elements: ALL_ELEMENTS, models: MODELS, i18n, config, getApiKeyForProvider, saveConfig,
@@ -23,12 +24,13 @@ export function createSettingsDialogParts({
     const memoryNotesSettings = createMemoryNotesSettings({
         getRebuild: () => rebuildController,
         getVectors: getPageVectors,
-        getTranscription: getPageTranscription,
         getProjectName: memoryProjectName,
         document, getConfig: () => config, saveConfig, getMemory: getNotesMemory, getUser: getAnnouncedUser,
         getModels: () => MODELS.filter((model) => model.category !== 'image_generation' && model.outputModality !== 'image' && getApiKeyForProvider?.(model.provider)).map((model) => ({ id: model.id, name: model.name })),
         getText: (key) => i18n[config.uiLanguage]?.[key] || i18n['zh-TW']?.[key] || '', showNotification, showCustomDialog
     });
+    // Speech to text, in the Models settings below the API keys (the keys it may use are there).
+    const speechSettings = createSpeechSettings({ document, getTranscription: getPageTranscription, saveConfig, getText: (key) => i18n[config.uiLanguage]?.[key] || i18n['zh-TW']?.[key] || '', showNotification, showCustomDialog });
     let built = false;
     /** Builds the controls (once) and fills them from the settings. True when they were built now. */
     const build = () => {
@@ -39,6 +41,7 @@ export function createSettingsDialogParts({
         if (ALL_ELEMENTS.processToggle) ALL_ELEMENTS.processToggle.checked = config.processOpen === true;
         // The memory of notes fills the memory section.
         memoryNotesSettings.mount();
+        speechSettings.mount();
         return fresh;
     };
     return { build };

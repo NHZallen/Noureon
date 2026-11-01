@@ -27,6 +27,18 @@ export function renderTranscriptionCard({ transcription, el, button, text, ask, 
       }
       body.append(choices);
     }
+    // Whisper has two sizes: the bigger writes down far better (above all Chinese) and is slower and heavier.
+    if (current.name === 'browser') {
+      body.append(el('h4', 'pz-sub', text('mnSttSizeTitle')), el('p', 'pz-sub text-[var(--text-secondary)]', text('mnSttSizeDesc')));
+      const sizes = el('div', 'mn-rebuild-actions');
+      for (const size of ['small', 'base']) {
+        sizes.append(button(text(size === 'small' ? 'mnSttSizeSmall' : 'mnSttSizeBase'), transcription.whisperSize() === size ? 'btn-primary mn-btn' : 'mn-btn', async () => {
+          if (transcription.whisperSize() !== size) await transcription.setWhisperSize(size);
+          render();
+        }));
+      }
+      body.append(sizes);
+    }
     actions.append(button(text('mnSttOff'), 'mn-btn', async () => {
       await transcription.disable();
       showNotification(text('mnSttOffDone'), 'success');

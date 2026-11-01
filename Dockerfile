@@ -17,7 +17,7 @@ RUN mkdir /tmp/whisper && cd /tmp/whisper && npm init -y > /dev/null && npm inst
  && cp -r node_modules/. /app/node_modules/ && cd / && rm -rf /tmp/whisper \
  && (cd /app/node_modules/onnxruntime-node/bin/napi-v6 && rm -rf darwin win32 linux/arm64 linux/x64/libonnxruntime_providers_cuda.so linux/x64/libonnxruntime_providers_tensorrt.so)
 COPY server ./server
-RUN WHISPER_CACHE_DIR=/app/.whisper node server/whisper-download.mjs
+RUN WHISPER_CACHE_DIR=/app/.whisper node server/whisper-download.mjs && mkdir -p /app/.whisper && chown -R node:node /app/.whisper
 # The shared modules the server reuses from the app (scripts/server-shared-modules.json); without them the server cannot start.
 COPY src ./src
 USER node
