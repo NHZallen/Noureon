@@ -48,10 +48,19 @@ export function councilSynthesisTools({ conversation, config = {}, synthesizer, 
 
 // The files of the project the chat is in, as the page knows them (null when there are none): the catalog for the members and the snapshot the server reads from. Whether a member can look at
 // pictures is decided on the server from its model, so `canView` is not sent.
-async function projectFilesFor(conversation, loadAccess = () => import('../projects/project-files-access.js')) {
+async function projectFilesFor(conversation, loadAccess = () => import('../projects/project-files-access.js'), { userParts = [], keepFile = null, prepareVideos = async (parts) => (await import('../messages/chat-video.js')).prepareChatVideos(parts, null, true, { all: true }) } = {}) {
   try {
-    if (!conversation?.folderId) return null;
-    const access = await (await loadAccess()).createProjectFilesAccess({ conversation, toolsAllowed: true, canViewPictures: true });
+    // The videos attached to the message are looked at with the same tools; the server reads each from the copy kept in the person's cloud, so the copy is made first (one that cannot be kept is left out).
+    let attachments = [];
+    if (keepFile && userParts.some((part) => /^video\//i.test(String(part?.inlineData?.mimeType || '')))) {
+      const prepared = await prepareVideos(userParts).catch(() => null);
+      for (const part of prepared?.parts || []) {
+        const path = await keepFile({ mimeType: part.inlineData.mimeType, data: part.inlineData.data });
+        if (path && path.endsWith(`/${part.mediaInfo?.hash}`)) attachments.push(prepared.byPart.get(part));
+      }
+    }
+    if (!conversation?.folderId && !attachments.length) return null;
+    const access = await (await loadAccess()).createProjectFilesAccess({ conversation, toolsAllowed: true, canViewPictures: true, attachments });
     if (!access) return null;
     const { canView: _decidedPerMember, ...snapshot } = access.snapshot();
     return { catalogText: access.catalogText, snapshot };
@@ -66,7 +75,7 @@ async function projectFilesFor(conversation, loadAccess = () => import('../proje
  * together here, once for each purpose), and the key of every provider the models use. `deps` is what server-reply.js has for it. Resolves like
  * a reply's hand-over: { ok: true, run } or { ok: false, reason, notify } (the council is then held here).
  */
-export async function startCouncilRun({ getApiKeyForProvider, describeRequest, searchKeyFor, withCloudFiles, request, flushSync, warn, clientVersion, createRun, reasons, protocol, maxChars, loadProjectAccess = () => import('../projects/project-files-access.js') }, { conversation, council, participants, synthesizer, translator = null, userParts, webSearch = 'off', config = {}, assistantMessageId, sequence = 0, uiLanguage = 'en', onMemoryContextResolved = () => {}, getHistorySourceIds = () => [] }) {
+export async function startCouncilRun({ getApiKeyForProvider, describeRequest, searchKeyFor, withCloudFiles, keepFile = null, prepareVideos, request, flushSync, warn, clientVersion, createRun, reasons, protocol, maxChars, loadProjectAccess = () => import('../projects/project-files-access.js') }, { conversation, council, participants, synthesizer, translator = null, userParts, webSearch = 'off', config = {}, assistantMessageId, sequence = 0, uiLanguage = 'en', onMemoryContextResolved = () => {}, getHistorySourceIds = () => [] }) {
   const entry = (model) => ({ provider: model.provider, id: model.id, info: model });
   const keys = {};
   for (const model of [...participants, synthesizer, ...(translator ? [translator] : [])]) {
@@ -86,7 +95,7 @@ export async function startCouncilRun({ getApiKeyForProvider, describeRequest, s
     const describe = async (extra) => (await describeRequest(userParts, { conversation, modelInfo: synthesizer, ...(skillText ? { additionalSystemInstruction: skillText } : {}), ...extra })).systemInstructionText || '';
     const memberBase = await describe({ requestPurpose: NOURAS_REQUEST_PURPOSE.COUNCIL_PARTICIPANT });
     // The files of the project the chat is in: the members are told their names and look into them with their own tools on the server (read-only; the synthesis is not given them).
-    projectFiles = await projectFilesFor(conversation, loadProjectAccess);
+    projectFiles = await projectFilesFor(conversation, loadProjectAccess, { userParts, keepFile, ...(prepareVideos ? { prepareVideos } : {}) });
     const member = [memberBase, projectFiles?.catalogText].filter(Boolean).join('\n\n');
     instructions = { participant: member, deliberation: member, synthesis: await describe({ requestPurpose: NOURAS_REQUEST_PURPOSE.COUNCIL_SYNTHESIS, historyForApi: [], onMemoryContextResolved }) };
   } catch (error) {

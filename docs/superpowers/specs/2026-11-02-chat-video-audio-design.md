@@ -103,3 +103,22 @@
 - 語音轉文字的設定從「記憶」搬到**模型管理頁，API 金鑰下面**（`settings-speech-section.js`），存在 `config.speechToText`（`{ enabled, consentAt, provider, whisperSize }`，`data/speech-settings.js`），不再依賴記憶開關（原本記憶關掉時根本打不開）。
 - Allen 貼來一段錄音在 `whisper-base` 轉成「把鑊子放在鑊子上…」不斷重複的亂碼（Whisper 小模型的重複迴圈，對短錄音、有停頓、非英文特別容易發生）。處理：**換較大的 Whisper**。預設改成 `small`（約 250 MB；在這台 CPU 上 11 秒錄音約 3.4 秒，記憶體約 1.3 GB；用一段中間有停頓、同一句重複兩次的測試音檔，base 只轉出第一句，small 兩句都轉出來），設定可選 `small`／`base`。伺服器映像內建 `small`（`base` 第一次用到才抓，快取目錄給 `node` 使用者寫入），瀏覽器第一次用才下載。請求 `tools.transcription.model`（`'base'`／`'small'`，只給 `whisper`）。
 - 還沒做（Allen 這次沒選）：靜音段不送去轉、偵測重複並改用較大模型或有金鑰的供應商重試、「聽不清楚」標示、可選口說語言。注意：只用 `no_repeat_ngram_size` 擋重複會把真的重複的句子也吃掉（用測試音檔試過）。
+
+## 8. Whisper 的防護與口說語言（2026-11-01，Allen 說「依序全部做完」）
+
+- `transcription/speech-guards.js`（頁面與伺服器共用）：
+  - **靜音不送**：一段聲音的最大振幅低於 0.01 或平均能量低於 0.003（約 -40／-50 dBFS）就當成沒有聲音，不送給任何供應商，Whisper 也不載入模型（小 Whisper 會從靜音或雜訊編出字，也省錢）。不是 16 位元單聲道 WAV 的檔案照舊送出。
+  - **重複迴圈**：同一個詞組連續出現很多次（單字 8 次、2～3 字 5 次、更長 4 次）才算迴圈；說了兩次的句子不算。Whisper 轉出迴圈時，用 `repetition_penalty: 1.3` 重轉一次，還是迴圈就只留一次。供應商（API）轉出的迴圈也只留一次（`transcribe-file.js`）。只用 `no_repeat_ngram_size` 會把真的重複的句子吃掉，所以不用。
+- **口說語言**：設定（模型管理 → 語音轉文字卡）多一排選項：跟隨畫面（預設）、中文、English、日本語、한국어、Français、Русский、Español、Deutsch；存在 `config.speechToText.language`。選了語言就當提示傳給 Whisper（瀏覽器與伺服器）和 OpenRouter／OpenAI（Gemini 不用）；沒選時 Whisper 用畫面語言，API 供應商自己判斷。請求 `tools.transcription.language`（選用，不在清單的值會被拒絕）。
+- 預設仍是 Whisper（Allen 決定，有金鑰也不自動改用 API）。
+
+## 9. 專案裡的影片與錄音有逐字稿（步驟 3）
+
+- 逐字稿存在專案來源上（`source.transcript { text, model, at }`，`project-source-model.js` 驗證，只給有 `file` 的來源，隨專案同步，不需要 migration）；空字串表示「聽過了，沒有人說話」，不會再轉。
+- `projects/project-transcripts.js`：語音轉文字開著時，背景一個一個替沒有逐字稿的影片與錄音轉（來源變動、剛開啟語音轉文字、頁面啟動後 10 秒會觸發；失敗的檔案這次開頁面期間不再試）；轉完由 `actions.setTranscript` 存起來並通知向量重建。頁面要開著才會轉。
+- 逐字稿在工具眼裡是一個獨立的文字來源 `<來源 id>~tr`，名稱「<檔名> (transcript)」（`transcriptSourcesOf`，每次由來源算出，不另外存）：`search_project_files` 搜得到、`read_project_file` 讀得到、進向量（`src:<id>~tr:<n>`），一行行 `[m:ss] 文字` 讓模型知道要去影片的哪一秒看；伺服器回覆則直接拿到它的文字。
+
+## 10. 對話影片的向量（步驟 2b）與理事會（步驟 4）
+
+- **2b**：訊息裡已經量過的影片（`part.mediaInfo`，由 `chat-video.js` 量）也切成 30 秒的窗進向量，piece id `src:att-<hash 前 16 碼>:v<秒>`，跟專案影片同一套（`project-pieces.js` 的 `chatVideoSourcesOf`；已刪除與暫時對話不處理；單檔不超過 30 MB）。所以 `search_project_files` 可以用語意找「哪一秒有狗」，雲端同步與伺服器回覆（`match_project_vectors`）不用改。沒量過的影片仍只整支當一個向量（原本的 `media-pieces.js`）。**接觸表（6 張畫面）沒做**：不給 `at` 時 `view_project_file` 本來就給整支均勻 4 張。
+- **4**：理事會成員拿到訊息裡影片的工具（頁面開會與伺服器開會兩條路都有）：訊息裡有影片時，用 `prepareChatVideos(parts, null, true, { all: true })`（每支影片都取，不論成員的模型收不收影片）量好，伺服器開會時先 `keepFile` 把影片存到雲端（存不上去的不列出），再把它們當 `attachments` 交給 `createProjectFilesAccess`；成員自己的模型決定能不能用 `view_project_file`（看得到圖的才有），其他成員只有搜尋與逐字稿。沒有專案的對話也行。成員收到的訊息本身不變（原本的翻譯員流程照舊）。

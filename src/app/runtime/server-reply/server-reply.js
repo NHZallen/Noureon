@@ -207,6 +207,16 @@ export function createServerReply({
   // A picture drawn earlier keeps only its local copy on this page (the place in the cloud is dropped once it is brought here): the text model's picture
   // tool reads it from the cloud, so with that tool on, the request names the place again.
   const needsCloudFile = (part, pictures) => typeof part?.sandboxFile?.data === 'string' || (pictures && part?.generatedImage?.storageKey && !part.generatedImage.cloudAsset);
+  // A file kept in the cloud on its own (a video a council's members look at with the tool): resolves where it is kept (`<user>/<hash of the bytes>`), or '' when it could not be kept.
+  const keepFile = async ({ mimeType, data }) => {
+    try {
+      const [kept] = await externalizeParts([{ inlineData: { mimeType, data } }]);
+      return String(kept?.inlineData?.data?.__astraCloudAsset?.path || '');
+    } catch (error) {
+      warn('Keeping a video in the cloud failed; the council looks at it no further.', error);
+      return '';
+    }
+  };
   const withCloudFiles = async (history, { pictures = false } = {}) => {
     const result = [];
     for (const message of history) {
@@ -364,7 +374,7 @@ export function createServerReply({
    * held (server-council.js): most pages never hold one. Resolves like `begin`: { ok: true, run } or { ok: false, reason, notify }.
    */
   const startCouncil = async (args) => (await import('./server-council.js')).startCouncilRun({
-    getApiKeyForProvider, describeRequest, searchKeyFor, withCloudFiles, request, flushSync, warn, clientVersion, createRun, reasons: LOCAL_REASONS, protocol: SERVER_PROTOCOL_VERSION, maxChars: MAX_REQUEST_CHARS
+    getApiKeyForProvider, describeRequest, searchKeyFor, withCloudFiles, keepFile, request, flushSync, warn, clientVersion, createRun, reasons: LOCAL_REASONS, protocol: SERVER_PROTOCOL_VERSION, maxChars: MAX_REQUEST_CHARS
   }, args);
   // A deep research: the server makes the plan, waits for the person, researches and writes the report (server/research.js).
   const startResearch = (args) => begin('/v1/research', { ...args, webSearch: 'research', advanced: false, visionCheck: null });

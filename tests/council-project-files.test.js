@@ -69,3 +69,43 @@ test('the council handed to the server carries the files of the project (without
   assert.equal('projectFiles' in sent[0].tools, false);
   assert.equal('embeddingKey' in sent[0].secrets, false);
 });
+
+// The videos attached to the message (docs/superpowers/specs/2026-11-02-chat-video-audio-design.md, §10): the members look at them with the same tools, in a chat with or without a project.
+const VIDEO_PART = { inlineData: { mimeType: 'video/mp4', name: 'trip.mp4', data: 'AAAA' }, mediaInfo: { hash: 'h'.repeat(64), duration: 40 } };
+const prepared = () => {
+  const entry = { id: `att-${'h'.repeat(16)}`, name: 'trip.mp4', kind: 'video', fileHash: 'h'.repeat(64), duration: 40, mimeType: 'video/mp4', attached: false };
+  return { entries: [entry], parts: [VIDEO_PART], byPart: new Map([[VIDEO_PART, entry]]) };
+};
+
+test('a council on this page gives the members the videos of the message to look at, even in a chat outside a project', async () => {
+  const given = [];
+  const createMembers = createPageCouncilMembers({
+    streamApiCall: async () => {}, support: { hasSearchKey: () => false }, getConfig: () => ({ uiLanguage: 'en' }), modelSupportsToolCalling: () => true, modelUsesNativeWebSearch: () => false,
+    prepareVideos: async () => prepared(),
+    loadProjectAccess: async () => ({ createProjectFilesAccess: async (options) => { given.push(options.attachments.map((entry) => entry.name)); return fakeAccess([]); } })
+  });
+  const members = await createMembers({ id: 'c' }, [{ text: 'Look' }, VIDEO_PART]);
+  assert.deepEqual(given, [['trip.mp4']]);
+  assert.equal(members.projectFilesCatalog, 'CATALOG: plan.md');
+  given.length = 0;
+  await createMembers({ id: 'd' }, [{ text: 'No video' }]);
+  assert.deepEqual(given, [], 'a message without a video, outside a project, asks for nothing');
+});
+
+test('the council handed to the server keeps each video in the cloud first and names only the ones that were kept', async () => {
+  const sent = [];
+  const kept = [];
+  const model = (id) => ({ provider: 'openrouter', id, name: id });
+  const run = (keepFile) => startCouncilRun({
+    getApiKeyForProvider: () => 'key', describeRequest: async () => ({ systemInstructionText: 'SYS' }), searchKeyFor: () => null, withCloudFiles: async (history) => history, keepFile,
+    request: async (method, path, { body }) => { sent.push(JSON.parse(body)); return { ok: true, data: { runId: 'r1' } }; }, flushSync: async () => {}, warn() {}, clientVersion: '19.1.0', createRun: (value) => value, reasons: { tooLarge: 'too-large' }, protocol: 4, maxChars: 5_000_000,
+    prepareVideos: async () => prepared(),
+    loadProjectAccess: async () => ({ createProjectFilesAccess: async (options) => ({ catalogText: 'CATALOG', snapshot: () => ({ media: options.attachments.map((entry) => ({ id: entry.id, name: entry.name, kind: 'video', fileHash: entry.fileHash })) }) }) })
+  }, { conversation: { id: 'c', messages: [] }, council: { mode: 'consensus' }, participants: [model('a')], synthesizer: model('s'), userParts: [{ text: 'Look' }, VIDEO_PART], assistantMessageId: 'm1' });
+  await run(async ({ mimeType }) => { kept.push(mimeType); return `user/${'h'.repeat(64)}`; });
+  assert.deepEqual(kept, ['video/mp4']);
+  assert.deepEqual(sent[0].tools.projectFiles.media.map((entry) => entry.name), ['trip.mp4']);
+  assert.match(sent[0].request.systemInstructions.participant, /CATALOG/);
+  await run(async () => '');
+  assert.equal(sent[1].tools.projectFiles, undefined, 'a video that could not be kept in the cloud is not offered');
+});

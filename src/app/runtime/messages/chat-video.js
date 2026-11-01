@@ -40,12 +40,13 @@ async function learn(part, { getToolbox, cryptoProvider }) {
 
 /**
  * Learns the videos of `parts` to be looked at. Resolves the entries for the tool ([{ id, name, kind: 'video', size, fileHash, mimeType, duration, attached, bytes() }], `bytes()` gives the
- * file as { mimeType, data (base64) } for the page's own frames) and the parts they come from. A video that cannot be read is left out (it goes as it did before).
+ * file as { mimeType, data (base64) } for the page's own frames) and the parts they come from. With `{ all: true }` every video of the message is taken, whatever the model. A video that cannot be read is left out (it goes as it did before).
  */
-export async function prepareChatVideos(parts, modelInfo, canLook, { getToolbox = async () => (await import('../projects/ffmpeg-wasm.js')).mediaToolbox, cryptoProvider = globalThis.crypto } = {}) {
+export async function prepareChatVideos(parts, modelInfo, canLook, { all = false, getToolbox = async () => (await import('../projects/ffmpeg-wasm.js')).mediaToolbox, cryptoProvider = globalThis.crypto } = {}) {
   const found = [];
   const used = new Set();
-  for (const part of lookableVideoParts(parts, modelInfo, canLook)) {
+  // `all`: every video of the message (a council: the members take the video or not by their own models; the tools are for all of them).
+  for (const part of all ? (Array.isArray(parts) ? parts.filter(isVideo) : []) : lookableVideoParts(parts, modelInfo, canLook)) {
     if (!(await learn(part, { getToolbox, cryptoProvider }))) continue;
     const base = String(part.inlineData.name || 'video').replace(/\s+/g, ' ').trim().slice(0, 120) || 'video';
     let name = base;
