@@ -202,27 +202,73 @@ test('view_project_file is given only to a model that can see, and only when the
   assert.deepEqual(names(createProjectFilesLoader({ entries: [], mediaEntries: pictures(), canView: false, readText: async () => '' })), [], 'pictures alone and a model that cannot see: nothing');
 });
 
-test('view_project_file gives the picture back as a small copy with the answer; one that came with the message is not given again; the pictures of a reply are limited', async () => {
+test('view_project_file gives pictures back as small copies (up to 4 in a call); one that came with the message or was shown before is not given again; what is counted is the copies, not the originals', async () => {
   const shown = [];
   const loader = createProjectFilesLoader({
     entries: [{ id: 't', name: 'notes.md', kind: 'text', size: 10 }], mediaEntries: pictures(), canView: true, readText: async () => 'x',
     viewMedia: async (entry) => { shown.push(entry.name); return entry.name === 'map.png' ? null : { mimeType: 'image/jpeg', data: `data-of-${entry.name}` }; }
   });
   const first = await loader.run({ name: 'view_project_file', args: { file: 'receipt.png' } });
-  assert.equal(first.content, 'The picture "receipt.png" follows.');
+  assert.equal(first.content, 'The picture follows: "receipt.png".');
   assert.deepEqual(first.images, [{ label: 'receipt.png', mimeType: 'image/jpeg', data: 'data-of-receipt.png' }]);
   assert.deepEqual(loader.outcome(), { key: 'projectFilesViewing', count: 1 });
   assert.match(await loader.run({ name: 'view_project_file', args: { file: 'trip.png' } }), /already in front of you/);
-  assert.deepEqual(shown, ['receipt.png'], 'a picture that came with the message is not read again');
-  assert.match(await loader.run({ name: 'view_project_file', args: { file: 'nothing.png' } }), /There is no such picture/);
-  // 3 MB used; plan.png is 5 MB (8 so far); map.png is 2 MB (10) but cannot be shown; a further 3 MB would pass 10.
-  assert.equal((await loader.run({ name: 'view_project_file', args: { file: 'plan' } })).images[0].label, 'plan.png', 'a name that holds the words');
-  assert.match(await loader.run({ name: 'view_project_file', args: { file: 'map.png' } }), /could not be shown now/);
-  const more = createProjectFilesLoader({ entries: [], mediaEntries: [{ ...pictures()[2], size: 6 * MB }, { ...pictures()[0], size: 5 * MB }], canView: true, readText: async () => '', viewMedia: async () => ({ mimeType: 'image/jpeg', data: 'QUJD' }) });
-  assert.ok((await more.run({ name: 'view_project_file', args: { file: 'plan.png' } })).images);
-  assert.match(await more.run({ name: 'view_project_file', args: { file: 'receipt.png' } }), /limit of 10 MB of pictures/);
-  // The step row.
+  assert.match(await loader.run({ name: 'view_project_file', args: { file: 'receipt.png' } }), /shown to you earlier in this reply/);
+  assert.deepEqual(shown, ['receipt.png'], 'what came with the message, or was shown, is not read again');
+  assert.match(await loader.run({ name: 'view_project_file', args: { file: 'nothing.png' } }), /There is no picture called "nothing.png"/);
+  assert.match(await loader.run({ name: 'view_project_file', args: {} }), /Say which picture/);
+  // Several in a call, in the order asked; a name that holds the words; one that cannot be shown is told, the others still follow.
+  const many = await loader.run({ name: 'view_project_file', args: { files: ['plan', 'map.png', 'receipt.png'] } });
+  assert.deepEqual(many.images.map((image) => image.label), ['plan.png']);
+  assert.match(many.content, /The picture follows: "plan.png"\./);
+  assert.match(many.content, /"map.png" could not be shown now|The picture "map.png" could not be shown now/);
+  assert.match(many.content, /shown to you earlier/);
   assert.equal(loader.stepEvent({ name: 'view_project_file' }, 'en').key, 'projectFilesViewing');
+});
+
+test('the pictures of a reply are limited by how many there are and how big the small copies are together (every round sends the earlier ones again), never by the size of the originals', async () => {
+  const { PROJECT_VIEW_CHARS_MAX, PROJECT_VIEW_PICTURES_MAX, PROJECT_VIEW_PICTURES_PER_CALL } = await import('../src/data/project-files-tool.js');
+  // Twelve pictures of 9 MB each: the originals together are far above any limit, the copies are small.
+  const big = Array.from({ length: 12 }, (_, n) => ({ id: `b${n}`, name: `IMG_${n}.jpeg`, kind: 'image', size: 9 * MB, fileHash: String(n).padStart(64, '0'), attached: false }));
+  const loader = createProjectFilesLoader({ entries: [], mediaEntries: big, canView: true, readText: async () => '', viewMedia: async () => ({ mimeType: 'image/jpeg', data: 'A'.repeat(200_000) }) });
+  let looked = 0;
+  for (let n = 0; n < 12; n += 1) {
+    const result = await loader.run({ name: 'view_project_file', args: { file: `IMG_${n}.jpeg` } });
+    if (typeof result === 'string') break;
+    looked += result.images.length;
+  }
+  assert.equal(looked, 12, 'twelve pictures of 9 MB are looked at one after the other: the originals do not count');
+  const { MAX_PROJECT_VIEW_CALLS } = await import('../src/data/project-files-tool.js');
+  assert.equal(MAX_PROJECT_VIEW_CALLS, 12);
+  assert.match(await loader.run({ name: 'view_project_file', args: { file: 'IMG_0.jpeg' } }), /The limit of 12 calls to look at pictures/);
+  assert.equal(loader.tools.some((tool) => tool.name === 'view_project_file'), false, 'no more calls: the tool is not offered');
+  // The copies are what is counted: 6 MB of them in a reply, 24 pictures at most, 4 in a call.
+  assert.equal(PROJECT_VIEW_PICTURES_PER_CALL, 4);
+  assert.equal(PROJECT_VIEW_PICTURES_MAX, 24);
+  assert.equal(PROJECT_VIEW_CHARS_MAX, 6_000_000);
+  const heavy = createProjectFilesLoader({ entries: [], mediaEntries: big, canView: true, readText: async () => '', viewMedia: async () => ({ mimeType: 'image/jpeg', data: 'A'.repeat(390_000) }) });
+  let got = 0;
+  let last = '';
+  for (let n = 0; n < 12 && !last; n += 1) {
+    const result = await heavy.run({ name: 'view_project_file', args: { files: [`IMG_${n}.jpeg`] } });
+    if (typeof result === 'string') last = result; else got += result.images.length;
+  }
+  assert.equal(got, 12, '12 x 390 000 = 4.7 MB is under the limit');
+  const crowd = createProjectFilesLoader({ entries: [], mediaEntries: [...big, ...Array.from({ length: 20 }, (_, n) => ({ ...big[0], id: `c${n}`, name: `more_${n}.jpeg` }))], canView: true, readText: async () => '', viewMedia: async () => ({ mimeType: 'image/jpeg', data: 'A'.repeat(399_000) }) });
+  let total = 0;
+  let stopped = '';
+  const crowdNames = [...big, ...Array.from({ length: 20 }, (_, n) => ({ name: `more_${n}.jpeg` }))].map((entry) => entry.name);
+  for (let n = 0; n < crowdNames.length && !stopped; n += 2) {
+    const result = await crowd.run({ name: 'view_project_file', args: { files: [crowdNames[n], crowdNames[n + 1]] } });
+    if (typeof result === 'string') stopped = result; else { total += result.images.length; if (/most one reply can carry|as many as one reply/.test(result.content)) stopped = result.content; }
+  }
+  assert.ok(total * 399_000 <= PROJECT_VIEW_CHARS_MAX, 'never above the limit of the copies');
+  assert.match(stopped, /say which are left so that the person can ask again/, 'the model is told which are left, not that a file is too big');
+  // Four in a call; the others are asked for again.
+  const four = createProjectFilesLoader({ entries: [], mediaEntries: big, canView: true, readText: async () => '', viewMedia: async () => ({ mimeType: 'image/jpeg', data: 'QUJD' }) });
+  const answer = await four.run({ name: 'view_project_file', args: { files: big.slice(0, 6).map((entry) => entry.name) } });
+  assert.equal(answer.images.length, 4);
+  assert.match(answer.content, /Only the first 4 were looked at/);
 });
 
 test('the page shrinks a picture to a JPEG that fits an answer, trying smaller sides, and gives it as it is only when it is small', async () => {
@@ -249,7 +295,7 @@ test('the picture of view_project_file reaches the model in each of the four for
   const loader = createProjectFilesLoader({ entries: [], mediaEntries: pictures(), canView: true, readText: async () => '', viewMedia: async () => ({ mimeType: 'image/jpeg', data: 'QUJD' }) });
   const call = { id: 'c1', geminiId: 'g1', name: 'view_project_file', arguments: '{"file":"receipt.png"}', args: { file: 'receipt.png' } };
   const turn = { assistant: { text: '', toolCalls: [call] }, results: [keepToolResult(call, await loader.run(call))] };
-  assert.equal(turn.results[0].content, 'The picture "receipt.png" follows.');
+  assert.equal(turn.results[0].content, 'The picture follows: "receipt.png".');
   assert.deepEqual(applyGeminiTools({ contents: [] }, { toolTurns: [turn] }).contents.at(-1).parts.slice(1), [{ text: 'receipt.png' }, { inlineData: { mimeType: 'image/jpeg', data: 'QUJD' } }]);
   assert.deepEqual(applyOpenAiTools({ messages: [] }, { toolTurns: [turn] }).messages.at(-1).content, [{ type: 'text', text: 'receipt.png' }, { type: 'image_url', image_url: { url: 'data:image/jpeg;base64,QUJD' } }]);
   assert.deepEqual(applyResponsesTools({ input: [] }, { toolTurns: [turn] }).input.at(-1).content, [{ type: 'input_text', text: 'receipt.png' }, { type: 'input_image', image_url: 'data:image/jpeg;base64,QUJD' }]);

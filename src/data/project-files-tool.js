@@ -42,19 +42,27 @@ export const READ_PROJECT_FILE_TOOL = Object.freeze({
 
 export const VIEW_PROJECT_FILE_TOOL = Object.freeze({
   name: 'view_project_file',
-  description: 'Look at one picture of this project: it is shown to you with the answer. Use it for a picture that search_project_files named, or when the question is about what a picture of the project shows. Look at one at a time, only what the question needs. Do not say that you looked unless the user asked.',
+  description: 'Look at pictures of this project: they are shown to you with the answer. Use it for a picture that search_project_files named, or when the question is about what a picture of the project shows. Give one name in "file", or up to 4 names in "files" to compare or to find the right one; look only at what the question needs. Do not say that you looked unless the user asked.',
   parameters: Object.freeze({
     type: 'object',
     properties: {
-      file: { type: 'string', maxLength: 200, description: 'The name of the picture, as in the list of project files or in the result of the search.' }
-    },
-    required: ['file']
+      file: { type: 'string', maxLength: 200, description: 'The name of the picture, as in the list of project files or in the result of the search.' },
+      files: { type: 'array', maxItems: 4, items: { type: 'string', maxLength: 200 }, description: 'The names of up to 4 pictures to look at together (instead of "file").' }
+    }
   })
 });
 
-/** The most bytes of pictures (the originals) the model may ask for with view_project_file in one reply: the same 10 MB as the originals that go with a message. */
-export const PROJECT_VIEW_BYTES_MAX = 10 * 1024 * 1024;
+/**
+ * What one reply may look at with view_project_file. The model is shown small copies (a few hundred KB at most), and every round of the reply sends the pictures of the earlier rounds again, so what
+ * counts is the size of the copies and how many there are, not the size of the originals: up to PROJECT_VIEW_PICTURES_PER_CALL a call, PROJECT_VIEW_PICTURES_MAX a reply, and
+ * PROJECT_VIEW_CHARS_MAX characters (base64) of copies together.
+ */
+export const PROJECT_VIEW_PICTURES_PER_CALL = 4;
+export const PROJECT_VIEW_PICTURES_MAX = 24;
+export const PROJECT_VIEW_CHARS_MAX = 6_000_000;
 export const MAX_PROJECT_FILE_CALLS = 14;
+/** The calls of view_project_file a reply may make (apart from the searches and reads above: the pictures have their own limits, PROJECT_VIEW_*). */
+export const MAX_PROJECT_VIEW_CALLS = 12;
 export const PASSAGE_CHARS = 900;
 const OVERLAP = 120;
 const NAMES = new Set([SEARCH_PROJECT_FILES_TOOL.name, READ_PROJECT_FILE_TOOL.name, VIEW_PROJECT_FILE_TOOL.name]);
@@ -162,7 +170,10 @@ export function createProjectFilesLoader({ entries, readText, language = 'zh-TW'
     const near = media.filter((entry) => entry.name.toLowerCase().includes(wanted) || wanted.includes(entry.name.toLowerCase()));
     return resolveMedia(name) || (near.length === 1 ? near[0] : null);
   };
-  let viewedBytes = 0;
+  let viewCalls = 0;
+  let viewedCount = 0;
+  let viewedChars = 0;
+  const viewed = new Set();
 
   async function buildIndex() {
     if (index) return index;
@@ -254,35 +265,39 @@ export function createProjectFilesLoader({ entries, readText, language = 'zh-TW'
   }
 
   async function view(call) {
-    if (calls >= maxCalls) return `The limit of ${maxCalls} looks into the project files per reply is reached. Go on with what you have.`;
+    if (viewCalls >= MAX_PROJECT_VIEW_CALLS) return `The limit of ${MAX_PROJECT_VIEW_CALLS} calls to look at pictures per reply is reached. Answer with what you have, and say which pictures are left so that the person can ask again.`;
     if (!canView || !viewMedia) return 'You cannot look at pictures in this reply.';
-    const entry = resolvePicture(call?.args?.file);
-    if (!entry) return `There is no such picture. The pictures of the project: ${media.map((item) => item.name).join(', ') || '(none)'}.`;
-    calls += 1;
-    if (entry.attached === true) {
-      lastOutcome = { key: 'projectFilesViewing', count: 0 };
-      return `"${entry.name}" came with the message: it is already in front of you.`;
+    const asked = (Array.isArray(call?.args?.files) && call.args.files.length ? call.args.files : [call?.args?.file]).filter((name) => typeof name === 'string' && name.trim());
+    if (!asked.length) return `Say which picture: give its name in "file". The pictures of the project: ${media.map((item) => item.name).join(', ') || '(none)'}.`;
+    viewCalls += 1;
+    const notes = [];
+    const images = [];
+    const names = [];
+    for (const name of asked.slice(0, PROJECT_VIEW_PICTURES_PER_CALL)) {
+      const entry = resolvePicture(name);
+      if (!entry) { notes.push(`There is no picture called "${clean(name, 80)}".`); continue; }
+      if (entry.attached === true) { notes.push(`"${entry.name}" came with the message: it is already in front of you.`); continue; }
+      if (viewed.has(entry.id)) { notes.push(`"${entry.name}" was shown to you earlier in this reply.`); continue; }
+      if (viewedCount >= PROJECT_VIEW_PICTURES_MAX) { notes.push(`You have looked at ${viewedCount} pictures in this reply, the most one reply can carry: "${entry.name}" and the others still to look at are left. Answer with what you have, and say which are left so that the person can ask again.`); break; }
+      let shown = null;
+      try {
+        shown = await viewMedia(entry);
+      } catch {
+        shown = null;
+      }
+      if (!shown?.data) { notes.push(`The picture "${entry.name}" could not be shown now.`); continue; }
+      if (viewedChars + shown.data.length > PROJECT_VIEW_CHARS_MAX) { notes.push(`The pictures of this reply are as many as one reply can carry: "${entry.name}" and the others still to look at are left. Answer with what you have, and say which are left so that the person can ask again.`); break; }
+      viewedCount += 1;
+      viewedChars += shown.data.length;
+      viewed.add(entry.id);
+      images.push({ label: entry.name, mimeType: shown.mimeType, data: shown.data });
+      names.push(entry.name);
     }
-    const size = Number(entry.size) || 0;
-    if (viewedBytes + size > PROJECT_VIEW_BYTES_MAX) {
-      lastOutcome = { key: 'projectFilesViewing', count: 0 };
-      return `The limit of ${Math.round(PROJECT_VIEW_BYTES_MAX / 1048576)} MB of pictures to look at in one reply is reached. Go on with what you have.`;
-    }
-    let shown = null;
-    try {
-      shown = await viewMedia(entry);
-    } catch {
-      shown = null;
-    }
-    if (!shown?.data) {
-      lastOutcome = { key: 'projectFilesViewing', count: 0 };
-      return `The picture "${entry.name}" could not be shown now. Go on without it.`;
-    }
-    viewedBytes += size;
-    entry.viewed = true;
-    lastOutcome = { key: 'projectFilesViewing', count: 1 };
-    onUsed?.({ files: [entry.name] });
-    return { content: `The picture "${entry.name}" follows.`, images: [{ label: entry.name, mimeType: shown.mimeType, data: shown.data }] };
+    if (asked.length > PROJECT_VIEW_PICTURES_PER_CALL) notes.push(`Only the first ${PROJECT_VIEW_PICTURES_PER_CALL} were looked at: ask again for the others.`);
+    lastOutcome = { key: 'projectFilesViewing', count: images.length };
+    if (!images.length) return notes.join(' ');
+    onUsed?.({ files: names });
+    return { content: [`${images.length === 1 ? 'The picture follows' : 'The pictures follow, in this order'}: ${names.map((name) => `"${name}"`).join(', ')}.`, ...notes].join(' '), images };
   }
 
   async function read(call) {
@@ -312,11 +327,11 @@ export function createProjectFilesLoader({ entries, readText, language = 'zh-TW'
     instruction: '',
     get used() { return calls; },
     get tools() {
-      if (calls >= maxCalls) return [];
-      const seeing = canView && Boolean(viewMedia) && media.length > 0;
+      const seeing = canView && Boolean(viewMedia) && media.length > 0 && viewCalls < MAX_PROJECT_VIEW_CALLS;
+      const open = calls < maxCalls;
       const list = [];
-      if (files.length || seeing) list.push(SEARCH_PROJECT_FILES_TOOL);
-      if (files.length) list.push(READ_PROJECT_FILE_TOOL);
+      if ((files.length || seeing) && open) list.push(SEARCH_PROJECT_FILES_TOOL);
+      if (files.length && open) list.push(READ_PROJECT_FILE_TOOL);
       if (seeing) list.push(VIEW_PROJECT_FILE_TOOL);
       return list;
     },
