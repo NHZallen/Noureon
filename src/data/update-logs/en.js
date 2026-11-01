@@ -1,6 +1,14 @@
 // The update notes in English (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "19.2.1": [
+    "<strong>Noureon 19.2.1 Release Notes</strong>",
+    "This version changes the attachment menu and spares you from signing in again every time you pick files from Google Drive.",
+    "<strong>Main changes</strong>",
+    "<ul><li><strong>Attachment menu:</strong> \"Image\" is renamed \"Photo library\"; \"Google Drive\" is new, and the files you pick from Drive are put in the message box like files chosen from your device. It appears only when the site has the keys for the Google picker, and when the model takes pictures or documents.</li><li><strong>Signing in to Google Drive:</strong> the token of the hour is kept in this tab, so reloading the page or moving between a conversation and a project no longer asks you to sign in; when it has run out, it is renewed silently with the Google account you used last time, without asking which account to use or for permission again. Adding a source to a project and attaching a file to a conversation share the same sign-in. A token that Google says is not valid is cleared, and the next time you sign in again. The sign-in stays in the browser of this device and is not synced across devices.</li></ul>",
+    "<strong>Compatibility</strong>",
+    "This update needs no data migration and no rebuild of the server image."
+  ],
   "19.2.0": [
     "<strong>Noureon 19.2.0 Release Notes</strong>",
     "This version adds projects (the former folders), makes videos, recordings and scanned PDFs searchable and viewable, adds speech to text, and lets models look at the videos of a regular conversation with tools.",

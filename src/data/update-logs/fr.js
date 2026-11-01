@@ -1,6 +1,14 @@
 // The update notes in French (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "19.2.1": [
+    "<strong>Notes de version de Noureon 19.2.1</strong>",
+    "Cette version modifie le menu des pièces jointes et vous évite de vous reconnecter à chaque fois que vous choisissez des fichiers dans Google Drive.",
+    "<strong>Changements principaux</strong>",
+    "<ul><li><strong>Menu des pièces jointes :</strong> « Image » devient « Photothèque » ; « Google Drive » est nouveau, et les fichiers choisis dans Drive sont placés dans la zone de message comme des fichiers choisis sur l’appareil. Il n’apparaît que si le site a les clés du sélecteur Google et si le modèle accepte les images ou les documents.</li><li><strong>Connexion à Google Drive :</strong> le jeton d’une heure est conservé dans cet onglet, donc recharger la page ou passer d’une conversation à un projet ne demande plus de se reconnecter ; quand il a expiré, il est renouvelé silencieusement avec le compte Google utilisé la dernière fois, sans demander quel compte utiliser ni une nouvelle autorisation. L’ajout d’une source à un projet et la pièce jointe d’une conversation partagent la même connexion. Un jeton que Google dit invalide est effacé, et la fois suivante vous vous reconnectez. La connexion reste dans le navigateur de cet appareil et n’est pas synchronisée entre les appareils.</li></ul>",
+    "<strong>Compatibilité</strong>",
+    "Cette mise à jour ne nécessite aucune migration de données ni reconstruction de l’image du serveur."
+  ],
   "19.2.0": [
     "<strong>Notes de version de Noureon 19.2.0</strong>",
     "Cette version ajoute les projets (les anciens dossiers), rend les vidéos, les enregistrements et les PDF numérisés cherchables et consultables, ajoute la parole en texte, et permet aux modèles de regarder avec des outils les vidéos d’une conversation ordinaire.",

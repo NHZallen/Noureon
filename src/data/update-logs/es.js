@@ -1,6 +1,14 @@
 // The update notes in Spanish (see translations.js): `{ "<version>": [the strings of the note in src/data/update-logs/entries.js, translated] }`.
 // Every version that has notes is here, with the same number of strings and the same HTML tags in the same order as the original (tests/update-logs-translations.test.js).
 export default {
+  "19.2.1": [
+    "<strong>Notas de la versión de Noureon 19.2.1</strong>",
+    "Esta versión cambia el menú de adjuntos y evita que tengas que iniciar sesión de nuevo cada vez que eliges archivos de Google Drive.",
+    "<strong>Cambios principales</strong>",
+    "<ul><li><strong>Menú de adjuntos:</strong> «Imagen» pasa a llamarse «Galería»; «Google Drive» es nuevo, y los archivos que eliges en Drive se ponen en el cuadro de mensaje como los archivos elegidos en tu dispositivo. Solo aparece si el sitio tiene las claves del selector de Google y si el modelo admite imágenes o documentos.</li><li><strong>Inicio de sesión en Google Drive:</strong> el token de una hora se guarda en esta pestaña, así que recargar la página o pasar de una conversación a un proyecto ya no pide iniciar sesión; cuando ha caducado, se renueva en silencio con la cuenta de Google que usaste la última vez, sin preguntar qué cuenta usar ni pedir permiso de nuevo. Añadir una fuente a un proyecto y adjuntar un archivo a una conversación comparten el mismo inicio de sesión. Un token que Google dice que no es válido se borra, y la próxima vez inicias sesión de nuevo. El inicio de sesión se queda en el navegador de este dispositivo y no se sincroniza entre dispositivos.</li></ul>",
+    "<strong>Compatibilidad</strong>",
+    "Esta actualización no necesita migración de datos ni reconstruir la imagen del servidor."
+  ],
   "19.2.0": [
     "<strong>Notas de la versión de Noureon 19.2.0</strong>",
     "Esta versión añade los proyectos (las antiguas carpetas), hace que los vídeos, las grabaciones y los PDF escaneados se puedan buscar y consultar, añade voz a texto y permite que los modelos miren con herramientas los vídeos de una conversación normal.",
