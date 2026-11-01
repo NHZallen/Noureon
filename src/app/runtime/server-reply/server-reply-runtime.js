@@ -187,6 +187,16 @@ export function createBrowserServerReply({
     // A visual check asked for again (vision-retry.js): made by the server when it can (the same rules as for an image), else here.
     planVision: (context) => planServerImage({ config: getConfig(), ...context, hasAccount: hasAccount() }),
     startVision: (args) => serverReply.startVision(args),
+    // A file kept in the person's cloud storage (a video the model is to look at on the server): resolves the place it is kept at (`<user>/<hash of the bytes>`), or '' when it could not be kept.
+    keepFile: async ({ mimeType, data }) => {
+      try {
+        const [kept] = await externalizeParts([{ inlineData: { mimeType, data } }]);
+        return String(kept?.inlineData?.data?.__astraCloudAsset?.path || '');
+      } catch (error) {
+        warn('Keeping a video in the cloud failed; the reply is made here.', error);
+        return '';
+      }
+    },
     find: (conversationId) => serverReply.find(conversationId),
     // The error message of a reply the server failed while the chat was left (or that it could not write), as a message to put in the chat, or null:
     // only for a chat that ends with the person's own message, for a run that came after it, and once for each run.

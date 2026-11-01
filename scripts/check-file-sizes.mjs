@@ -149,7 +149,7 @@ const shellChunk = buildJsFiles.find((file) => /^shell-[\w-]{6,}\.js$/.test(base
 // File generator and preview libraries load only when someone makes or
 // previews that kind of file (and the service worker never precaches them),
 // so they have a budget of their own instead of counting as startup code.
-const ON_DEMAND_CHUNK = /^vendor-(?:docx|xlsx|pptx|pdf)(?:-preview)?-/;
+const ON_DEMAND_CHUNK = /^vendor-(?:docx|xlsx|pptx|pdf|whisper)(?:-preview)?-/;
 // MathJax with its glyph outlines, loaded only for PDFs with display formulas.
 const MATH_CHUNK = /^vendor-pdf-math-/;
 const mathChunk = buildJsFiles.find((file) => MATH_CHUNK.test(basename(file.filePath)));

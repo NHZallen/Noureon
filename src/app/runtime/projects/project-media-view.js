@@ -8,7 +8,8 @@ import { getProjectFileStore } from './project-source-files.js';
 /** `view(source, entry, { at, page })` resolves an array of { mimeType, data (base64), at? } (the frames), one { mimeType, data } for a page, or null. */
 export function createMediaViewer({ getStore = getProjectFileStore, getToolbox = defaultToolbox, openPdf = defaultOpenPdf } = {}) {
   return async function view(source, entry, { at = null, page = null } = {}) {
-    const loaded = source?.file ? await getStore()?.load(source.file) : null;
+    // The video of a message (not a source of a project) gives its own bytes.
+    const loaded = typeof entry.bytes === 'function' ? await entry.bytes() : source?.file ? await getStore()?.load(source.file) : null;
     if (!loaded) return null;
     const bytes = fromBase64(loaded.data);
     if (entry.kind === 'scan') {
@@ -21,7 +22,7 @@ export function createMediaViewer({ getStore = getProjectFileStore, getToolbox =
       }
     }
     if (entry.kind !== 'video') return null;
-    const media = await (await getToolbox()).open({ data: bytes, name: source.file.name || source.title || '', mime: loaded.mimeType || source.file.mimeType || '' });
+    const media = await (await getToolbox()).open({ data: bytes, name: source?.file?.name || entry.name || '', mime: loaded.mimeType || source?.file?.mimeType || '' });
     if (!media) return null;
     try {
       const duration = entry.duration || (await media.probe()).duration;

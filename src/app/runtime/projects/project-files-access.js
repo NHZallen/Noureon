@@ -55,10 +55,13 @@ export const sourceTextOf = (source) => textOfSource(source);
  * The files of the project a conversation is in, for a reply that may be given tools (`toolsAllowed`); null when it is not (no project, no tools, or nothing that can be searched).
  * Resolves (async) { entries, searchableIds, catalogText, make(language, onUsed), snapshot() }.
  */
-export async function createProjectFilesAccess({ conversation, toolsAllowed = true, canViewPictures = false, getPdfjs = defaultPdfjs, makeThumb = makeViewThumbnail, viewer = null, mediaInfo = sharedMediaInfo }) {
+export async function createProjectFilesAccess({ conversation, toolsAllowed = true, canViewPictures = false, getPdfjs = defaultPdfjs, makeThumb = makeViewThumbnail, viewer = null, mediaInfo = sharedMediaInfo, attachments = [] }) {
   const folder = toolsAllowed ? projectOf(conversation) : null;
-  if (!folder) return null;
-  const candidates = (Array.isArray(folder.sources) ? folder.sources : []).filter((source) => searchableKindOf(source));
+  // The videos attached to the message the reply is for (chat-video.js) are looked at with the same tool, in a chat with or without a project.
+  const attached = Array.isArray(attachments) ? attachments : [];
+  if (!folder && !attached.length) return null;
+  const projectSources = Array.isArray(folder?.sources) ? folder.sources : [];
+  const candidates = projectSources.filter((source) => searchableKindOf(source));
   // A PDF or Office file that has no text (a scan) cannot be looked into: it goes with the message instead, for a model that can read it. The text is read here (once for the page), which is
   // also what the tools use; a file that cannot be read on this device stays in (the server may read it from the cloud).
   const checked = await Promise.all(candidates.map(async (source) => {
@@ -69,10 +72,10 @@ export async function createProjectFilesAccess({ conversation, toolsAllowed = tr
   // A PDF that has no text is a scan: a file of pictures (one for each page) that the search finds by what the pages show, and that the model can look at page by page.
   const scanIds = new Set(candidates.filter((source, index) => !checked[index] && searchableKindOf(source) === 'pdf' && source.file?.hash).map((source) => source.id));
   const mediaKindOf = (source) => (pictureOf(source) ? 'image' : timedMediaOf(source) || (scanIds.has(source.id) ? 'scan' : ''));
-  const mediaSources = (Array.isArray(folder.sources) ? folder.sources : []).filter((source) => mediaKindOf(source));
+  const mediaSources = projectSources.filter((source) => mediaKindOf(source));
   // Pictures and scans are useful to a model that can look at them; a video or a recording is useful to any model (the search says where in it).
   const hasMedia = mediaSources.some((source) => canViewPictures || mediaKindOf(source) === 'video' || mediaKindOf(source) === 'audio');
-  if (!sources.length && !hasMedia) return null;
+  if (!sources.length && !hasMedia && !attached.length) return null;
   const used = new Set();
   const entries = sources.map((source) => {
     const kind = searchableKindOf(source);
@@ -102,9 +105,16 @@ export async function createProjectFilesAccess({ conversation, toolsAllowed = tr
     const detail = kind === 'video' || kind === 'audio' ? (duration ? ` ${formatTime(duration)}` : '') : kind === 'scan' && pages ? ` ${pages} pages` : '';
     return { id: source.id, name, kind, kindText: `${KIND_WORDS[kind]}${detail}`, size: Number(source.file.size) || 0, fileHash: source.file.hash, mimeType: String(source.file.mimeType || ''), ...(duration ? { duration } : {}), ...(pages ? { pages } : {}), attached: false };
   });
+  // The videos attached to the message: they are looked at like the videos of a project (their names are made different from the project's files).
+  for (const item of attached) {
+    let name = item.name;
+    for (let count = 2; taken.has(name); count += 1) name = `${item.name.replace(/ \(\d+\)$/, '')} (${count})`;
+    taken.add(name);
+    media.push({ ...item, name });
+  }
   // The files that are neither read as text nor pictures: they are named, and the model is told they cannot be opened yet.
   const readable = new Set(sources.map((source) => source.id));
-  const unreachable = (Array.isArray(folder.sources) ? folder.sources : []).filter((source) => source?.file?.hash && !readable.has(source.id) && !mediaKindOf(source)).map((source) => ({ name: String(source.file.name || source.title || 'Untitled').replace(/\s+/g, ' ').trim().slice(0, 120) }));
+  const unreachable = projectSources.filter((source) => source?.file?.hash && !readable.has(source.id) && !mediaKindOf(source)).map((source) => ({ name: String(source.file.name || source.title || 'Untitled').replace(/\s+/g, ' ').trim().slice(0, 120) }));
   return {
     entries,
     searchableIds: new Set(sources.map((source) => source.id)),
@@ -125,7 +135,7 @@ export async function createProjectFilesAccess({ conversation, toolsAllowed = tr
     },
     /** The files that were looked into during the reply (their names). */
     usedNames: () => [...used],
-    make: (language, onUsed = null, { canView = canViewPictures } = {}) => createProjectFilesLoader({ entries, mediaEntries: media, canView, viewMedia: canView ? async (entry, place) => { const source = (folder.sources || []).find((item) => item.id === entry.id); if (!source?.file) return null; if (entry.kind === 'image') { const loaded = await getProjectFileStore()?.load(source.file); return loaded ? makeThumb({ mimeType: loaded.mimeType || source.file.mimeType, data: loaded.data }) : null; } return (viewer ||= createMediaViewer({ getStore: getProjectFileStore }))(source, entry, place); } : null, language, vectorSearch: (query, options) => getPageVectors()?.searchProject?.(query, { sourceIds: options.fileIds, limit: options.limit }) ?? [], readText: (entry) => textOfSource(byId.get(entry.id), getPdfjs), onUsed: (event) => { event.files.forEach((name) => used.add(name)); onUsed?.(event); } }),
+    make: (language, onUsed = null, { canView = canViewPictures } = {}) => createProjectFilesLoader({ entries, mediaEntries: media, canView, viewMedia: canView ? async (entry, place) => { if (typeof entry.bytes === 'function') return (viewer ||= createMediaViewer({ getStore: getProjectFileStore }))(null, entry, place); const source = projectSources.find((item) => item.id === entry.id); if (!source?.file) return null; if (entry.kind === 'image') { const loaded = await getProjectFileStore()?.load(source.file); return loaded ? makeThumb({ mimeType: loaded.mimeType || source.file.mimeType, data: loaded.data }) : null; } return (viewer ||= createMediaViewer({ getStore: getProjectFileStore }))(source, entry, place); } : null, language, vectorSearch: (query, options) => getPageVectors()?.searchProject?.(query, { sourceIds: options.fileIds, limit: options.limit }) ?? [], readText: (entry) => textOfSource(byId.get(entry.id), getPdfjs), onUsed: (event) => { event.files.forEach((name) => used.add(name)); onUsed?.(event); } }),
     /** What a reply made by the server is told: for each file its name and either its text or where the file is kept (the server reads it from the cloud). */
     snapshot: () => ({
       // The vectors of the files (a search by meaning on the server): only when the person turned them on and synced them, with the key of the embedding model for this reply only.

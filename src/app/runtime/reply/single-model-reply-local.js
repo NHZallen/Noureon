@@ -133,7 +133,7 @@ export function createLocalReply({ streamApiCall, buildSingleModelTranslatedRequ
       }), onAnswer);
       if (text !== null) return text;
       // A provider that refuses the tools answers with the search done first, as the others do.
-      reply.requestParts = await buildSingleModelTranslatedRequestParts(userParts, modelInfo, signal, () => {}, {
+      reply.requestParts = await buildSingleModelTranslatedRequestParts(request.requestUserParts || userParts, modelInfo, signal, () => {}, {
         webSearchEnabled, conversation, onSources: reply.addSearchSources
       });
     }

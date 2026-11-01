@@ -127,6 +127,9 @@ function chunkName(id) {
   if (id.includes('/node_modules/pdfjs-dist/')) return 'vendor-pdf-preview';
   // Syntax colouring, loaded the first time a code block is shown.
   if (id.includes('/node_modules/highlight.js/')) return 'vendor-highlight';
+  // Whisper in the browser (speech to text) and ffmpeg.wasm (videos and recordings) are loaded only when one is needed.
+  if (id.includes('/node_modules/@huggingface/') || id.includes('/node_modules/onnxruntime-')) return 'vendor-whisper';
+  if (id.includes('/node_modules/@ffmpeg/')) return 'vendor-ffmpeg';
   // Formula typesetting for PDFs, loaded for documents with formulas.
   if (/\/node_modules\/(?:mathjax-full|mhchemparser|mj-context-menu|speech-rule-engine)\//.test(id)) return 'vendor-pdf-math';
   if (id.includes('marked') || id.includes('dompurify')) return 'vendor-markdown';

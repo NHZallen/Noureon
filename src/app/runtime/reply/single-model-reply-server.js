@@ -22,6 +22,11 @@ export async function handOverToServer({ serverReply, getConfig, supportsVision 
   if (!canCallTools && cliIdsForReply(getConfig(), userParts).chosen.length) serverReply.notify('cli-tool-model', uiLanguage);
   else if (!plan.ok && cli.chosen.length) serverReply.notify('cli-local', uiLanguage);
   if (!plan.ok) return { serverRun: null, madeHere: false };
+  // A video the model looks at with the tool is read by the server from the copy kept in the person's cloud: the copy is made first (a reply the server cannot read it for is made here).
+  for (const part of request.chatVideoParts || []) {
+    const path = await serverReply.keepFile?.({ mimeType: part.inlineData.mimeType, data: part.inlineData.data });
+    if (!path || !path.endsWith(`/${part.mediaInfo?.hash}`)) return { serverRun: null, madeHere: false };
+  }
   const started = await serverReply.start({
     conversation,
     modelInfo,
@@ -45,7 +50,8 @@ export async function handOverToServer({ serverReply, getConfig, supportsVision 
     projectFiles: request.projectFiles?.snapshot() || null,
     // The message goes as the person sent it; the server prepares its files and addresses (the translator is the one set in Settings).
     documents: serverPrepares ? { linkedPages: hasAddresses } : null,
-    inputs: userParts.filter((part) => part?.inlineData?.data).map((part) => ({
+    // A video that is looked at with the tool is not sent as a file: the server reads the copy in the cloud.
+    inputs: userParts.filter((part) => part?.inlineData?.data && !request.chatVideoParts?.includes(part)).map((part) => ({
       name: part.inlineData.name || `attachment.${String(part.inlineData.mimeType || '').split('/')[1] || 'bin'}`,
       mimeType: part.inlineData.mimeType || '',
       data: part.inlineData.data

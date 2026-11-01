@@ -6,6 +6,7 @@
 //   single-model-reply-finish.js      the run record and the text saved
 // This file joins them, and draws the wait row before the first words.
 
+import { lookableVideoParts, prepareChatVideos, withChatVideoNotes } from '../messages/chat-video.js';
 import { getPageTranscription } from '../memory-store/memory-ref.js';
 import { addNumberedSources } from '../../ui/citations/source-numbering.js';
 import { watchCitations } from '../../ui/citations/citation-pills.js';
@@ -139,7 +140,7 @@ export function createSingleModelResponseLifecycle({
     if (synthesis) webSearchEnabled = false;
     // A model that calls tools looks into the files of the project by itself (project-files-access.js): the texts, and the pictures (found by their vectors, looked at with view_project_file).
     // Nothing of the media of a project goes with the message: it is too big for a model to take whole.
-    const projectFiles = !synthesis && !resumeRun && projectOf(conversation)?.sources?.length ? await (await import('../projects/project-files-access.js')).createProjectFilesAccess({ conversation, toolsAllowed: Boolean(supportsToolCalling?.(modelInfo)) && !(webSearchEnabled && !webResearch?.canUse(modelInfo)), canViewPictures: Boolean(supportsVision?.(modelInfo)) }) : null;
+    let projectFiles = !synthesis && !resumeRun && projectOf(conversation)?.sources?.length ? await (await import('../projects/project-files-access.js')).createProjectFilesAccess({ conversation, toolsAllowed: Boolean(supportsToolCalling?.(modelInfo)) && !(webSearchEnabled && !webResearch?.canUse(modelInfo)), canViewPictures: Boolean(supportsVision?.(modelInfo)) }) : null;
     stepsShown = false;
     stop();
     const startedAt = now();
@@ -163,18 +164,36 @@ export function createSingleModelResponseLifecycle({
       startTicker(targetElement, startedAt);
       await transcription.ensureParts(userParts, { signal, onProgress: ({ name, done, total, file, files }) => progress('preparing', `${getRuntimeText(uiLanguage, 'transcribingSpeech')}${files > 1 ? ` (${file}/${files})` : ''}${name ? ` — ${name}` : ''}${total ? ` ${done}/${total}` : ''}`) });
     }
+    // A video attached to this message, for a model that sees pictures and calls tools but cannot take a video whole: the model is told what the video is and looks at it with view_project_file
+    // (messages/chat-video.js). The message keeps the video; the request has a note in its place, and for the server the copy kept in the person's cloud is what the tool reads.
+    const filesToolsAllowed = Boolean(supportsToolCalling?.(modelInfo)) && !(webSearchEnabled && !webResearch?.canUse(modelInfo));
+    let chatVideos = null;
+    if (!synthesis && !resumeRun && filesToolsAllowed && supportsVision?.(modelInfo) && lookableVideoParts(userParts, modelInfo, true).length) {
+      stop();
+      progress('preparing', getRuntimeText(uiLanguage, 'readingVideo'));
+      startTicker(targetElement, startedAt);
+      const prepared = await prepareChatVideos(userParts, modelInfo, true);
+      if (prepared.entries.length) {
+        chatVideos = prepared;
+        projectFiles = await (await import('../projects/project-files-access.js')).createProjectFilesAccess({ conversation, toolsAllowed: filesToolsAllowed, canViewPictures: true, attachments: prepared.entries });
+        request.projectFiles = projectFiles;
+      }
+    }
+    // What the request is made from: the message with a note in place of each video that is looked at with the tool.
+    request.requestUserParts = chatVideos ? withChatVideoNotes(userParts, chatVideos) : userParts;
+    request.chatVideoParts = chatVideos?.parts || [];
     // The wait row while the files, the search packet and the addresses of the message are prepared on this page.
     const prepareHere = (options) => {
       stop();
       progress('preparing', 'Checking model capabilities');
       startTicker(targetElement, startedAt);
-      return buildSingleModelTranslatedRequestParts(userParts, modelInfo, signal, (stage, message) => progress(stage, message), { conversation, onSources: reply.addSearchSources, ...options });
+      return buildSingleModelTranslatedRequestParts(request.requestUserParts, modelInfo, signal, (stage, message) => progress(stage, message), { conversation, onSources: reply.addSearchSources, ...options });
     };
 
     // 1. What kind of reply this is.
     const prep = await prepareReply({ getConfig, supportsToolCalling, webResearch, serverReply, getWindow }, request);
     const { replyMode, researchByModel, serverSearches, serverPrepares } = prep;
-    const reply = createReplyRecord({ userParts, synthesis, replyMode });
+    const reply = createReplyRecord({ userParts: request.requestUserParts, synthesis, replyMode });
     if (prep.hasTranslationInputs) {
       reply.requestParts = await prepareHere({
         webSearchEnabled: webSearchEnabled && !researchByModel && !serverSearches,
