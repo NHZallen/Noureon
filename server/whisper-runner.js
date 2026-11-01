@@ -3,6 +3,7 @@
 // one piece is done at a time (it uses the processor). The model files are in the image (Dockerfile, `server/whisper-download.mjs`) and fetched when they are not. The sound is not kept.
 
 import { DEFAULT_WHISPER_SIZE, samplesOfWav, whisperLanguageOf, whisperModelOf } from '../src/app/runtime/transcription/whisper-audio.js';
+import { isSilent, runGuardedWhisper } from '../src/app/runtime/transcription/speech-guards.js';
 
 export const WHISPER_SERVER = Object.freeze({ idleMs: 10 * 60_000, cacheDir: process.env.WHISPER_CACHE_DIR || '/app/.whisper' });
 
@@ -34,11 +35,15 @@ export function createServerWhisper({ loadLibrary = () => import('@huggingface/t
     const job = tail.then(async () => {
       clearTimer(timer);
       const { samples } = samplesOfWav(data);
+      // A silent piece does not even load the model.
+      if (isSilent(samples)) { timer = setTimer(release, idleMs); timer.unref?.(); return ''; }
       const pipe = await load(size);
-      const out = await pipe(samples, { chunk_length_s: 30, task: 'transcribe', return_timestamps: false, ...(whisperLanguageOf(language) ? { language: whisperLanguageOf(language) } : {}) });
-      timer = setTimer(release, idleMs);
-      timer.unref?.();
-      return String(Array.isArray(out) ? out.map((item) => item.text).join(' ') : out?.text || '');
+      try {
+        return await runGuardedWhisper(pipe, samples, { chunk_length_s: 30, task: 'transcribe', return_timestamps: false, ...(whisperLanguageOf(language) ? { language: whisperLanguageOf(language) } : {}) });
+      } finally {
+        timer = setTimer(release, idleMs);
+        timer.unref?.();
+      }
     });
     tail = job.catch(() => {});
     return job;

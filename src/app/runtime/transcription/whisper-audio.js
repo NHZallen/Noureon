@@ -8,7 +8,9 @@ export const whisperModelOf = (size) => WHISPER_MODELS[size] || WHISPER_MODELS[D
 export const WHISPER_MODEL = WHISPER_MODELS.base;
 
 // Whisper in this browser does not find the language by itself (it takes English when none is given), so the language of the app's screen is the hint; the providers' own Whisper finds it.
-const WHISPER_LANGUAGES = Object.freeze({ 'zh-TW': 'chinese', zh: 'chinese', en: 'english', fr: 'french', ru: 'russian', es: 'spanish' });
+const WHISPER_LANGUAGES = Object.freeze({ 'zh-TW': 'chinese', zh: 'chinese', en: 'english', fr: 'french', ru: 'russian', es: 'spanish', ja: 'japanese', ko: 'korean', de: 'german' });
+/** The languages the person can say a recording is in (the codes of the providers' own Whisper too); '' is the language of the app's screen. */
+export const SPEECH_LANGUAGES = Object.freeze(['zh', 'en', 'ja', 'ko', 'fr', 'ru', 'es', 'de']);
 export const whisperLanguageOf = (code) => WHISPER_LANGUAGES[code] || WHISPER_LANGUAGES[String(code || '').split('-')[0]] || '';
 
 /** The samples (Float32, -1 to 1, 16 kHz) of a 16-bit PCM WAV file that is mono: what ffmpeg makes for the pieces (project-media.js). Throws for anything else. */

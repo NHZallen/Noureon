@@ -61,7 +61,7 @@ export function createPageTranscription({
     const media = await (await getToolbox()).open({ data: fromBase64(part.inlineData.data), name: part.inlineData.name || '', mime: part.inlineData.mimeType });
     if (!media) return { text: '', model: transcriber.model };
     try {
-      return await transcribeMedia({ media, transcriber, language: provider === 'browser' ? getLanguage() : '', signal, onProgress });
+      return await transcribeMedia({ media, transcriber, language: settings().language || (provider === 'browser' ? getLanguage() : ''), signal, onProgress });
     } finally {
       await media.close();
     }
@@ -83,9 +83,10 @@ export function createPageTranscription({
     serverAccess() {
       const provider = providerNow();
       if (!enabled() || !provider) return null;
-      if (provider === 'browser') return { provider: 'whisper', model: settings().whisperSize };
+      const language = settings().language;
+      if (provider === 'browser') return { provider: 'whisper', model: settings().whisperSize, ...(language ? { language } : {}) };
       const key = getApiKeyForProvider(STT_PROVIDERS[provider].keyProvider);
-      return key ? { provider, key } : null;
+      return key ? { provider, key, ...(language ? { language } : {}) } : null;
     },
     /** The ways that can be used ([{ name, label, model, current }]): the ones the person has a key for, and Whisper in this browser. */
     providers() {
@@ -96,6 +97,14 @@ export function createPageTranscription({
     setSaver(next) { saver = typeof next === 'function' ? next : async () => {}; },
     /** The size of Whisper chosen ('base' or 'small'). */
     whisperSize: () => settings().whisperSize,
+    /** The language chosen for the recordings ('' follows the screen). */
+    language: () => settings().language,
+    async setLanguage(code) {
+      const next = normalizeSpeech({ ...settings(), language: code });
+      if (next.language !== (code || '')) return false;
+      await keep({ ...settings(), language: code || '' });
+      return true;
+    },
     /** The person agreed: remember the time and the way. Resolves false when it cannot be turned on. */
     async enable(chosen = '') {
       const provider = pickSttProvider({ chosen, hasKey });

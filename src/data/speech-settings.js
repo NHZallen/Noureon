@@ -1,7 +1,7 @@
 // Speech to text as the settings keep it (`speechToText` of the config, in the Models settings; docs/superpowers/specs/2026-11-02-chat-video-audio-design.md, §3): whether it is on (and when the person
-// agreed), the way it is done ('openrouter', 'openai', 'gemini' or 'browser': Whisper, run in this browser and, for a reply the server makes, on the server) and the size of Whisper. Pure: no window.
+// agreed), the way it is done ('openrouter', 'openai', 'gemini' or 'browser': Whisper, run in this browser and, for a reply the server makes, on the server), the size of Whisper and the language spoken. Pure: no window.
 
-import { DEFAULT_WHISPER_SIZE, WHISPER_SIZES } from '../app/runtime/transcription/whisper-audio.js';
+import { DEFAULT_WHISPER_SIZE, SPEECH_LANGUAGES, WHISPER_SIZES } from '../app/runtime/transcription/whisper-audio.js';
 
 export const SPEECH_PROVIDERS = Object.freeze(['openrouter', 'openai', 'gemini', 'browser']);
 
@@ -13,6 +13,8 @@ export function normalizeSpeech(value) {
     enabled: raw.enabled === true && Boolean(consentAt),
     consentAt,
     provider: SPEECH_PROVIDERS.includes(raw.provider) ? raw.provider : '',
-    whisperSize: WHISPER_SIZES.includes(raw.whisperSize) ? raw.whisperSize : DEFAULT_WHISPER_SIZE
+    whisperSize: WHISPER_SIZES.includes(raw.whisperSize) ? raw.whisperSize : DEFAULT_WHISPER_SIZE,
+    // The language spoken in the recordings; '' follows the language of the screen (and lets the providers' own Whisper find it).
+    language: SPEECH_LANGUAGES.includes(raw.language) ? raw.language : ''
   };
 }

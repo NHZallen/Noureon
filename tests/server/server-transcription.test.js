@@ -45,6 +45,8 @@ test('the request may ask the server for speech to text: which way, and the key 
   const ok = validateRunSpec(specFor({ parts, transcription: { provider: 'openai' }, secrets: { sttKey: 'sk-openai' } }));
   assert.deepEqual(ok.spec.tools.transcription, { provider: 'openai' });
   assert.equal(ok.spec.secrets.sttKey, 'sk-openai');
+  assert.deepEqual(validateRunSpec(specFor({ parts, transcription: { provider: 'whisper', model: 'base', language: 'ja' } })).spec.tools.transcription, { provider: 'whisper', model: 'base', language: 'ja' }, 'the language spoken is kept');
+  assert.equal(validateRunSpec(specFor({ parts, transcription: { provider: 'whisper', language: 'klingon' } })).ok, false, 'a language that is not listed is refused');
   for (const bad of [specFor({ parts, transcription: { provider: 'openrouter' } }), specFor({ parts, transcription: { provider: 'nobody' }, secrets: { sttKey: 'k' } }), specFor({ parts, transcription: 'whisper' }), specFor({ parts, secrets: { sttKey: 'k' } }), specFor({ parts, transcription: { provider: 'whisper' }, secrets: { sttKey: 'k' } })]) {
     assert.equal(validateRunSpec(bad).ok, false);
   }
@@ -54,7 +56,7 @@ test('Whisper on the server loads its model on the first piece, does one piece a
   const log = { loads: 0, running: 0, most: 0, disposed: 0, calls: [] };
   const library = { env: {}, pipeline: async () => { log.loads += 1; return Object.assign(async (samples, options) => { log.running += 1; log.most = Math.max(log.most, log.running); await new Promise((resolve) => setTimeout(resolve, 5)); log.running -= 1; log.calls.push([samples.length, options.language]); return { text: ' words ' }; }, { dispose: async () => { log.disposed += 1; } }); } };
   const timers = [];
-  const wav = new Uint8Array([...Buffer.from('RIFF')].concat([40, 0, 0, 0], [...Buffer.from('WAVE')], [...Buffer.from('fmt ')], [16, 0, 0, 0, 1, 0, 1, 0, 128, 62, 0, 0, 0, 125, 0, 0, 2, 0, 16, 0], [...Buffer.from('data')], [4, 0, 0, 0, 1, 0, 2, 0]));
+  const wav = new Uint8Array([...Buffer.from('RIFF')].concat([40, 0, 0, 0], [...Buffer.from('WAVE')], [...Buffer.from('fmt ')], [16, 0, 0, 0, 1, 0, 1, 0, 128, 62, 0, 0, 0, 125, 0, 0, 2, 0, 16, 0], [...Buffer.from('data')], [4, 0, 0, 0, 0, 64, 0, 192]));
   const run = createServerWhisper({ loadLibrary: async () => library, cacheDir: '/cache', setTimer: (fn, ms) => { const timer = { fn, ms, unref() {} }; timers.push(timer); return timer; }, clearTimer() {} });
   assert.equal(log.loads, 0);
   const [one, two] = await Promise.all([run({ data: wav }, { language: 'zh-TW' }), run({ data: wav }, {})]);

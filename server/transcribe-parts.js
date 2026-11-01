@@ -36,7 +36,7 @@ export async function transcribeServerParts({ parts, spec, key = '', signal, loa
     const media = await toolbox.open({ data: bytes, name, mime });
     if (!media) return null;
     try {
-      return await transcribeMedia({ media, transcriber, language: setting.provider === 'whisper' ? language : '', signal });
+      return await transcribeMedia({ media, transcriber, language: setting.language || (setting.provider === 'whisper' ? language : ''), signal });
     } finally {
       await media.close();
     }

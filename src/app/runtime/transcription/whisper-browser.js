@@ -3,6 +3,7 @@
 // this way of turning speech into text. It runs on the CPU in one thread (a page that is not isolated across origins has no shared memory for more). Page only.
 
 import { samplesOfWav, whisperLanguageOf, whisperModelOf, WHISPER_MODEL } from './whisper-audio.js';
+import { runGuardedWhisper } from './speech-guards.js';
 
 export { samplesOfWav, whisperLanguageOf, WHISPER_MODEL };
 
@@ -22,7 +23,6 @@ export function createWhisperRunner({ size = 'small', onProgress = () => {}, loa
   return async ({ data }, { language = '' } = {}) => {
     const { samples } = samplesOfWav(data);
     const pipe = await load();
-    const out = await pipe(samples, { chunk_length_s: 30, task: 'transcribe', return_timestamps: false, ...(whisperLanguageOf(language) ? { language: whisperLanguageOf(language) } : {}) });
-    return String(Array.isArray(out) ? out.map((item) => item.text).join(' ') : out?.text || '');
+    return runGuardedWhisper(pipe, samples, { chunk_length_s: 30, task: 'transcribe', return_timestamps: false, ...(whisperLanguageOf(language) ? { language: whisperLanguageOf(language) } : {}) });
   };
 }

@@ -117,7 +117,8 @@ test('the samples of a WAV are read as numbers between -1 and 1, past other chun
   assert.throws(() => samplesOfWav(new Uint8Array(60)), /Not a WAV/);
   assert.equal(whisperLanguageOf('zh-TW'), 'chinese');
   assert.equal(whisperLanguageOf('fr'), 'french');
-  assert.equal(whisperLanguageOf('de'), '');
+  assert.equal(whisperLanguageOf('de'), 'german');
+  assert.equal(whisperLanguageOf('xx'), '');
 });
 
 test('the browser loads the library and the model once, on the first piece, and gives the words of each piece with the language of the screen', async () => {
@@ -125,15 +126,15 @@ test('the browser loads the library and the model once, on the first piece, and 
   const library = { env: log.env, pipeline: async (task, model, options) => { log.loads += 1; log.task = [task, model, options.dtype, options.device]; return async (samples, options2) => { log.calls.push([samples.length, options2.language, options2.chunk_length_s]); return { text: ' hello ' }; }; } };
   const run = createWhisperRunner({ loadLibrary: async () => library, loadAssets: async () => ({ ortMjs: '/ort.mjs', ortWasm: '/ort.wasm' }) });
   assert.equal(log.loads, 0, 'nothing is loaded before the first piece');
-  assert.equal(await run({ data: wav([1, 2, 3, 4]) }, { language: 'zh-TW' }), ' hello ');
-  await run({ data: wav([1, 2]) }, {});
+  assert.equal(await run({ data: wav([9000, -9000, 9000, -9000]) }, { language: 'zh-TW' }), ' hello ');
+  await run({ data: wav([9000, -9000]) }, {});
   assert.equal(log.loads, 1);
   assert.deepEqual(log.task, ['automatic-speech-recognition', 'onnx-community/whisper-small', 'q8', 'wasm'], 'the bigger Whisper is the default');
   assert.deepEqual(log.env.backends.onnx.wasm.wasmPaths, { mjs: '/ort.mjs', wasm: '/ort.wasm' });
   assert.equal(log.env.backends.onnx.wasm.numThreads, 1);
   assert.deepEqual(log.calls, [[4, 'chinese', 30], [2, undefined, 30]]);
   const base = createWhisperRunner({ size: 'base', loadLibrary: async () => library, loadAssets: async () => ({ ortMjs: '/ort.mjs', ortWasm: '/ort.wasm' }) });
-  await base({ data: wav([1, 2]) }, {});
+  await base({ data: wav([9000, -9000]) }, {});
   assert.equal(log.task[1], 'onnx-community/whisper-base');
 });
 

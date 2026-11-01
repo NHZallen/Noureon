@@ -30,7 +30,7 @@ test('the settings keep when and how it was agreed to; nothing is done before', 
   assert.equal(await transcription.ensureParts([part('audio/mpeg', 'a.mp3')]), 0, 'off: nothing is sent');
   assert.deepEqual(transcription.providers().map((way) => [way.name, way.current]), [['openrouter', true], ['browser', false]]);
   assert.equal(await transcription.enable('openrouter'), true);
-  assert.deepEqual({ ...store.getSettings() }, { enabled: true, consentAt: '2026-11-02T00:00:00.000Z', provider: 'openrouter', whisperSize: 'small' });
+  assert.deepEqual({ ...store.getSettings() }, { enabled: true, consentAt: '2026-11-02T00:00:00.000Z', provider: 'openrouter', whisperSize: 'small', language: '' });
   assert.equal(transcription.isEnabled(), true);
   assert.equal(await transcription.setProvider('openai'), false, 'no key for it');
   assert.equal(await transcription.setProvider('browser'), true);
@@ -114,4 +114,18 @@ test('a reply the server makes is told the way and the key for that reply; the b
   const noKey = make({ keys: {} });
   await noKey.transcription.enable();
   assert.deepEqual(noKey.transcription.serverAccess(), { provider: 'whisper', model: 'small' }, 'no key at all: Whisper');
+});
+
+test('the language chosen for the recordings goes to the server with the way, and a language that does not exist is refused', async () => {
+  const made = make({ keys: { openai: 'sk' } });
+  await made.transcription.enable('openai');
+  assert.equal(made.transcription.language(), '');
+  assert.equal(await made.transcription.setLanguage('zh'), true);
+  assert.deepEqual(made.transcription.serverAccess(), { provider: 'openai', key: 'sk', language: 'zh' });
+  await made.transcription.setProvider('browser');
+  assert.deepEqual(made.transcription.serverAccess(), { provider: 'whisper', model: 'small', language: 'zh' });
+  assert.equal(await made.transcription.setLanguage('klingon'), false);
+  assert.equal(made.transcription.language(), 'zh');
+  assert.equal(await made.transcription.setLanguage(''), true);
+  assert.deepEqual(made.transcription.serverAccess(), { provider: 'whisper', model: 'small' });
 });

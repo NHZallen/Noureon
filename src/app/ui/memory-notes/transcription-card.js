@@ -2,6 +2,9 @@
 // of a provider they have a key for (a piece of a minute at a time), or nowhere (Whisper runs in this browser). Once on, it says how it is done and lets them change that or turn it off.
 // Drawn with textContent only. The page gives `transcription` (runtime/transcription/page-transcription.js) and the helpers of the settings screen.
 
+// The names of the languages are the ones the people who speak them use.
+const LANGUAGE_NAMES = Object.freeze({ zh: '中文', en: 'English', ja: '日本語', ko: '한국어', fr: 'Français', ru: 'Русский', es: 'Español', de: 'Deutsch' });
+
 export function renderTranscriptionCard({ transcription, el, button, text, ask, showNotification, render }) {
   if (!transcription) return null;
   const card = el('section', 'pz-card mn-root mn-rebuild');
@@ -39,6 +42,16 @@ export function renderTranscriptionCard({ transcription, el, button, text, ask, 
       }
       body.append(sizes);
     }
+    // The language spoken in the recordings: it is the hint Whisper needs (and the providers' own Whisper is told it too).
+    body.append(el('h4', 'pz-sub', text('mnSttLangTitle')), el('p', 'pz-sub text-[var(--text-secondary)]', text('mnSttLangDesc')));
+    const languages = el('div', 'mn-rebuild-actions');
+    for (const code of ['', ...Object.keys(LANGUAGE_NAMES)]) {
+      languages.append(button(code ? LANGUAGE_NAMES[code] : text('mnSttLangAuto'), transcription.language() === code ? 'btn-primary mn-btn' : 'mn-btn', async () => {
+        if (transcription.language() !== code) await transcription.setLanguage(code);
+        render();
+      }));
+    }
+    body.append(languages);
     actions.append(button(text('mnSttOff'), 'mn-btn', async () => {
       await transcription.disable();
       showNotification(text('mnSttOffDone'), 'success');

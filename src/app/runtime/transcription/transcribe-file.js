@@ -4,6 +4,7 @@
 // error is thrown. Page only: the cutting tool and the speech model are given.
 
 import { AUDIO_WINDOW, formatTime } from '../../../data/project-media.js';
+import { collapseLoops, isSilentWav } from './speech-guards.js';
 
 export const TRANSCRIPT = Object.freeze({ pieceSeconds: AUDIO_WINDOW.length, maxSeconds: 3600, parallel: 3 });
 /** The most characters a transcript keeps (a source of a project keeps 100 000). */
@@ -39,7 +40,8 @@ export async function transcribeMedia({ media, transcriber, duration = 0, langua
       next += 1;
       try {
         const cut = await media.audioWindow(starts[index]);
-        const text = cut ? await transcriber.transcribe({ mimeType: cut.mimeType, data: cut.data }, { signal, language }) : '';
+        // A piece with nothing in it is not sent (it costs, and a speech model makes words up out of silence); a text that loops is cut down to one saying.
+        const text = cut && !isSilentWav(cut.data) ? collapseLoops(await transcriber.transcribe({ mimeType: cut.mimeType, data: cut.data }, { signal, language })) : '';
         pieces[index] = { start: starts[index], text };
       } catch (error) {
         if (signal?.aborted || error?.name === 'AbortError') throw error;
