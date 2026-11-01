@@ -55,3 +55,24 @@
 3. 沒開向量時給模型一張 6 張畫面的接觸表當起點，可以嗎？
 4. 逐字稿放在頁面快取與請求裡就夠，還是要同步到雲端？
 5. 理事會成員：看不到圖的成員只拿搜尋與逐字稿，可以嗎？
+
+## 6. Allen 的決定（2026-11-02）與選定的轉錄模型
+
+1. 供應商順序 OpenRouter → OpenAI → Gemini **照舊，再加瀏覽器裡跑 Whisper**（這一輪就做，當最後一個選擇，也是沒有任何金鑰時唯一的選擇）。
+2. 開關打開後**自動轉**（單檔上限 60 分鐘）。
+3. 沒開向量時先給模型 6 張畫面的接觸表當起點。
+4. 逐字稿要**同步到雲端**：存在附件的訊息（`part.transcript`）或專案來源（`source.transcript`）的紀錄裡，跟著對話與專案一起同步，不另開資料表（不用 migration）。
+5. 理事會裡看不到圖的成員只拿搜尋與逐字稿。
+
+**選定的模型**（OpenRouter 的公開模型清單查過，價錢是每秒）：
+- OpenRouter：`openai/whisper-large-v3`（約 0.027 美元／小時；Whisper 最大的多語言模型）。備選 `openai/whisper-large-v3-turbo`（更便宜、品質略低）、`qwen/qwen3-asr-1.7b`（中文可能更好，沒試過）。
+- OpenAI 直連：`whisper-1`。
+- Gemini 直連：`gemini-3.5-flash-lite`（用 `generateContent` 加提示轉逐字稿）。
+- 瀏覽器：`onnx-community/whisper-base`（transformers.js，`q8` 量化，CPU 單執行緒；模型約 80 MB 第一次從 Hugging Face 抓，函式庫與 WebAssembly 約 14 MB 來自本站）。**已在真的 Chromium 驗過**：11 秒的英文錄音完整轉對，含載入模型共約 19 秒。限制：不會自動判斷語言（不給就當英文），所以用畫面語言當提示（繁中／英／法／俄／西）；中文輸出可能是簡體。
+- 切段改成**每段 1 分鐘、不重疊**（原本寫 5 分鐘，太粗：時間只準到 5 分鐘）；每段約 1.9 MB，遠低於各家 25 MB 上限，也避開 gpt-4o-transcribe 8 到 9 分鐘截斷的問題；最多 60 段（60 分鐘）。
+- OpenRouter 的轉錄請求格式我**查不到官方文件**（公告頁讀不到），所以 `stt-clients.js` 先送 JSON（`input_audio`），被拒（400／415／422）就改送 multipart 檔案，記住成功的那一種；`scripts/stt-probe.mjs` 讓 Allen 用真的金鑰跑一次確認。
+
+## 7. 進度
+
+- 完成：`src/app/runtime/transcription/`（四個供應商、切段、逐字稿、瀏覽器 Whisper）與測試；`vercel.json` 的 `connect-src` 加 `https://huggingface.co https://*.hf.co`；套件 `@huggingface/transformers` 4.3.2。
+- 還沒做：設定頁的開關與同意說明（新的資料流）、逐字稿存進附件／專案來源、一般對話附件的檔案工具（P1）、專案與理事會（P3、P4）、隱私政策與協助中心五語言。
