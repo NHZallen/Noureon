@@ -192,6 +192,11 @@
         opacity: 0.82;
     }
 
+    /* The icon of Google Drive is a logo with its own colours: it is shown whole (the dimming of the others would turn its yellow brown on the dark page). */
+    #file-options-popover:not(.message-edit-shared-popover) > #upload-drive-btn > .composer-menu-icon {
+        opacity: 1;
+    }
+
     #chat-workspace:has(#file-options-popover.visible:not(.message-edit-shared-popover)) #scroll-to-bottom-btn {
         opacity: 0;
         pointer-events: none;
