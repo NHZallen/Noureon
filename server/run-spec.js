@@ -54,6 +54,7 @@ const PROJECT_FILE_TEXT_MAX = 100_000;
 const PROJECT_FILES_TEXT_TOTAL_MAX = 400_000;
 const HASH = /^[0-9a-f]{64}$/;
 const PROJECT_MEDIA_MAX = 60;
+const STT_PROVIDERS = ['openrouter', 'openai', 'gemini', 'whisper'];
 const PROJECT_MEDIA_KINDS = ['image', 'video', 'audio', 'scan'];
 const projectFileEntries = (value) => (isObject(value) && Array.isArray(value.entries) ? value.entries : null);
 /** Checks `tools.projectFiles` (the files of the project the model may look into by itself), for a reply and for the members of a council. */
@@ -80,7 +81,7 @@ function checkProjectFilesTool(tools, fail) {
     const media = tools.projectFiles.media;
     if (!Array.isArray(media) || media.length > PROJECT_MEDIA_MAX) fail('tools.projectFiles.media', `must be a list of at most ${PROJECT_MEDIA_MAX} files`);
     else media.forEach((entry, index) => {
-      if (!isObject(entry) || !text(entry.id, 80) || !text(entry.name, 200) || typeof entry.fileHash !== 'string' || !HASH.test(entry.fileHash) || typeof entry.attached !== 'boolean' || (entry.mimeType !== undefined && typeof entry.mimeType !== 'string') || (entry.kind !== undefined && !PROJECT_MEDIA_KINDS.includes(entry.kind)) || (entry.duration !== undefined && !(Number(entry.duration) >= 0)) || (entry.pages !== undefined && !(Number(entry.pages) >= 0))) fail(`tools.projectFiles.media[${index}]`, 'must have an id, a name, the hash of the file and whether it came with the message (and, if given, a kind, a duration and a number of pages that fit)');
+      if (!isObject(entry) || !text(entry.id, 80) || !text(entry.name, 200) || typeof entry.fileHash !== 'string' || !HASH.test(entry.fileHash) || typeof entry.attached !== 'boolean' || (entry.mimeType !== undefined && typeof entry.mimeType !== 'string') || (entry.kind !== undefined && !PROJECT_MEDIA_KINDS.includes(entry.kind)) || (entry.duration !== undefined && !(Number(entry.duration) >= 0)) || (entry.pages !== undefined && !(Number(entry.pages) >= 0)) || (entry.transcribe !== undefined && typeof entry.transcribe !== 'boolean')) fail(`tools.projectFiles.media[${index}]`, 'must have an id, a name, the hash of the file and whether it came with the message (and, if given, a kind, a duration and a number of pages that fit)');
     });
   }
   // `vector`: the search may also be by meaning, with the key of `secrets.embeddingKey` (the vectors of the files are in the person's cloud only when they synced them).
@@ -89,7 +90,7 @@ function checkProjectFilesTool(tools, fail) {
 }
 
 function normalizeProjectFiles(value) {
-  return { ...(isObject(value.vector) ? { vector: { provider: value.vector.provider } } : {}), ...(Array.isArray(value.media) && value.media.length ? { media: value.media.map((entry) => ({ id: entry.id, name: entry.name, kind: PROJECT_MEDIA_KINDS.includes(entry.kind) ? entry.kind : 'image', size: Math.max(0, Math.floor(Number(entry.size) || 0)), fileHash: entry.fileHash, ...(entry.mimeType ? { mimeType: String(entry.mimeType).slice(0, 100) } : {}), ...(Number(entry.duration) > 0 ? { duration: Math.min(86_400, Number(entry.duration)) } : {}), ...(Number(entry.pages) > 0 ? { pages: Math.min(100_000, Math.floor(Number(entry.pages))) } : {}), attached: entry.attached === true })), ...(value.canView === true ? { canView: true } : {}) } : {}), entries: projectFileEntries(value).map((entry) => ({
+  return { ...(isObject(value.vector) ? { vector: { provider: value.vector.provider } } : {}), ...(Array.isArray(value.media) && value.media.length ? { media: value.media.map((entry) => ({ id: entry.id, name: entry.name, kind: PROJECT_MEDIA_KINDS.includes(entry.kind) ? entry.kind : 'image', size: Math.max(0, Math.floor(Number(entry.size) || 0)), fileHash: entry.fileHash, ...(entry.mimeType ? { mimeType: String(entry.mimeType).slice(0, 100) } : {}), ...(Number(entry.duration) > 0 ? { duration: Math.min(86_400, Number(entry.duration)) } : {}), ...(Number(entry.pages) > 0 ? { pages: Math.min(100_000, Math.floor(Number(entry.pages))) } : {}), ...(entry.transcribe === true ? { transcribe: true } : {}), attached: entry.attached === true })), ...(value.canView === true ? { canView: true } : {}) } : {}), entries: projectFileEntries(value).map((entry) => ({
     id: entry.id, name: entry.name, size: Math.max(0, Math.floor(Number(entry.size) || 0)),
     ...(typeof entry.text === 'string' ? { text: entry.text } : { file: { hash: entry.file.hash, ...(entry.file.mimeType ? { mimeType: entry.file.mimeType } : {}), ...(entry.file.name ? { name: entry.file.name } : {}) } })
   })) };
@@ -526,6 +527,8 @@ export function validateRunSpec(input) {
     }
     // The files of the project the model may look into by itself (search_project_files, read_project_file and view_project_file).
     if (tools.projectFiles !== undefined) checkProjectFilesTool(tools, fail);
+    // Speech to text for the recordings and videos of the message, made by the server (so that the reply goes on when the page is closed): which way (the key for this reply is `secrets.sttKey`; Whisper runs on the server).
+    if (tools.transcription !== undefined && (!isObject(tools.transcription) || !STT_PROVIDERS.includes(tools.transcription.provider))) fail('tools.transcription', `must name a way: ${STT_PROVIDERS.join(', ')}`);
     // The CLI tools (命令工具) the person chose with "@" for this message: ids of the store's tools. They run in the sandbox, so this is a reply
     // with Python (`advanced`).
     if (tools.cli !== undefined) {
@@ -618,7 +621,11 @@ export function validateRunSpec(input) {
     const searchesByMeaning = isObject(tools?.memory?.vector) || isObject(tools?.projectFiles?.vector);
     if (secrets.embeddingKey !== undefined && (!text(secrets.embeddingKey, 600) || !searchesByMeaning)) fail('secrets.embeddingKey', 'must be a key, and only with tools.memory.vector or tools.projectFiles.vector');
     if (searchesByMeaning && !text(secrets.embeddingKey, 600)) fail('secrets.embeddingKey', 'is needed for a search by meaning');
-    for (const name of Object.keys(secrets)) if (!['providerKey', 'searchKey', 'searchKeyAlt', 'translatorKey', 'imageKey', 'embeddingKey'].includes(name)) fail(`secrets.${name}`, 'is not a known field');
+    // The key of the speech to text provider, for this reply only (Whisper on the server needs none).
+    const needsSttKey = isObject(tools?.transcription) && tools.transcription.provider !== 'whisper';
+    if (secrets.sttKey !== undefined && (!text(secrets.sttKey, 600) || !needsSttKey)) fail('secrets.sttKey', 'must be a key, and only with tools.transcription of a provider');
+    if (needsSttKey && !text(secrets.sttKey, 600)) fail('secrets.sttKey', 'is needed for speech to text');
+    for (const name of Object.keys(secrets)) if (!['providerKey', 'searchKey', 'searchKeyAlt', 'translatorKey', 'imageKey', 'embeddingKey', 'sttKey'].includes(name)) fail(`secrets.${name}`, 'is not a known field');
   }
 
   if (errors.length) return { ok: false, errors: errors.slice(0, 20) };
@@ -659,10 +666,11 @@ export function validateRunSpec(input) {
         ...(projectFileEntries(tools.projectFiles)?.length || tools.projectFiles?.media?.length ? { projectFiles: normalizeProjectFiles(tools.projectFiles) } : {}),
         ...(isObject(tools.memory) ? { memory: { canWrite: tools.memory.canWrite === true, ...(text(tools.memory.scope, 80) ? { scope: tools.memory.scope } : {}), ...(text(tools.memory.project, 80) ? { project: tools.memory.project } : {}), ...(tools.memory.curator === true ? { curator: true } : {}), ...(tools.memory.history === true ? { history: true } : {}), ...(isObject(tools.memory.vector) ? { vector: { provider: tools.memory.vector.provider } } : {}), messages: tools.memory.messages.map((message) => ({ id: message.id, text: message.text, ...(message.at ? { at: message.at } : {}) })) } } : {}),
         ...(imageGeneration ? { imageGeneration } : {}),
+        ...(isObject(tools.transcription) ? { transcription: { provider: tools.transcription.provider } } : {}),
         ...(tools.inputs?.length ? { inputs: tools.inputs.map((file) => ({ name: file.name, mimeType: file.mimeType || '', data: file.data })) } : {})
       },
       ...(input.documents ? { documents: { linkedPages: input.documents.linkedPages === true, ...(translator ? { translator } : {}) } } : {}),
-      secrets: { providerKey: secrets.providerKey, ...(secrets.searchKey ? { searchKey: secrets.searchKey } : {}), ...(secrets.searchKeyAlt ? { searchKeyAlt: secrets.searchKeyAlt } : {}), ...(secrets.translatorKey ? { translatorKey: secrets.translatorKey } : {}), ...(secrets.imageKey ? { imageKey: secrets.imageKey } : {}), ...(secrets.embeddingKey ? { embeddingKey: secrets.embeddingKey } : {}) }
+      secrets: { providerKey: secrets.providerKey, ...(secrets.searchKey ? { searchKey: secrets.searchKey } : {}), ...(secrets.searchKeyAlt ? { searchKeyAlt: secrets.searchKeyAlt } : {}), ...(secrets.translatorKey ? { translatorKey: secrets.translatorKey } : {}), ...(secrets.sttKey ? { sttKey: secrets.sttKey } : {}), ...(secrets.imageKey ? { imageKey: secrets.imageKey } : {}), ...(secrets.embeddingKey ? { embeddingKey: secrets.embeddingKey } : {}) }
     }
   };
 }

@@ -11,7 +11,13 @@ RUN mkdir /tmp/deps && cd /tmp/deps && npm init -y > /dev/null && npm install --
 RUN mkdir /tmp/native && cd /tmp/native && npm init -y > /dev/null && (npm install --omit=dev --ignore-scripts --no-audit --no-fund @napi-rs/canvas@1.0.9 @resvg/resvg-js@2.6.2 && cp -r node_modules/. /app/node_modules/ || echo "drawing slides is not available in this image"); rm -rf /tmp/native
 # ffmpeg, to cut the videos and recordings of a project into the windows the search by meaning reads and to take frames from a video (server/ffmpeg-runner.js). Without it the server still runs; those files are then left aside.
 RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && rm -rf /var/lib/apt/lists/*
+# Whisper for speech to text, so that a reply the server makes can turn a recording into text when the page is closed (server/whisper-runner.js): the model the browser runs too, with onnxruntime for Node.
+# Only the Linux x64 runtime is kept (the GPU libraries and the other systems' are left out). The model is fetched into the image (server/whisper-download.mjs); without it the first piece waits for the download.
+RUN mkdir /tmp/whisper && cd /tmp/whisper && npm init -y > /dev/null && npm install --omit=dev --ignore-scripts --no-audit --no-fund @huggingface/transformers@4.3.2 \
+ && cp -r node_modules/. /app/node_modules/ && cd / && rm -rf /tmp/whisper \
+ && (cd /app/node_modules/onnxruntime-node/bin/napi-v6 && rm -rf darwin win32 linux/arm64 linux/x64/libonnxruntime_providers_cuda.so linux/x64/libonnxruntime_providers_tensorrt.so)
 COPY server ./server
+RUN WHISPER_CACHE_DIR=/app/.whisper node server/whisper-download.mjs
 # The shared modules the server reuses from the app (scripts/server-shared-modules.json); without them the server cannot start.
 COPY src ./src
 USER node

@@ -140,7 +140,7 @@ export async function createProjectFilesAccess({ conversation, toolsAllowed = tr
     snapshot: () => ({
       // The vectors of the files (a search by meaning on the server): only when the person turned them on and synced them, with the key of the embedding model for this reply only.
       ...(getPageVectors()?.embeddingAccess?.() ? { vector: { provider: getPageVectors().embeddingAccess().provider }, embeddingKey: getPageVectors().embeddingAccess().key } : {}),
-      ...(media.length ? { media: media.map((entry) => ({ id: entry.id, name: entry.name, kind: entry.kind, size: entry.size, fileHash: entry.fileHash, mimeType: entry.mimeType, ...(entry.duration ? { duration: entry.duration } : {}), ...(entry.pages ? { pages: entry.pages } : {}), attached: entry.attached === true })), ...(canViewPictures ? { canView: true } : {}) } : {}),
+      ...(media.length ? { media: media.map((entry) => ({ id: entry.id, name: entry.name, kind: entry.kind, size: entry.size, fileHash: entry.fileHash, mimeType: entry.mimeType, ...(entry.duration ? { duration: entry.duration } : {}), ...(entry.pages ? { pages: entry.pages } : {}), ...(entry.transcribe ? { transcribe: true } : {}), attached: entry.attached === true })), ...(canViewPictures ? { canView: true } : {}) } : {}),
       entries: sources.map((source, index) => ({
         id: source.id, name: entries[index].name, size: entries[index].size,
         ...(String(source.text || '').trim() ? { text: source.text } : { file: { hash: source.file.hash, mimeType: source.file.mimeType || '', name: source.file.name || '', ...(source.file.asset ? { asset: source.file.asset } : {}) } })

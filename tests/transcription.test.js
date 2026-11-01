@@ -156,3 +156,13 @@ test('a provider that is busy is asked again after a short wait (twice at most);
   await assert.rejects(() => createTranscriber({ provider: 'openai', getApiKey: () => 'k', fetchImpl: async () => { calls += 1; return new Response('x', { status: 429 }); }, sleep }).transcribe(AUDIO, { signal: controller.signal }));
   assert.equal(calls, 1, 'no more tries after a stop');
 });
+
+import { planServerReply } from '../src/app/runtime/server-reply/server-reply.js';
+
+test('a reply with a recording to turn into text is one the server prepares (so that it goes on when the page is closed), with no translator needed', () => {
+  const context = { config: {}, conversation: { id: 'c' }, provider: 'nvidia', hasAccount: true, documentsToPrepare: true };
+  assert.equal(planServerReply(context).documents, undefined, 'files and no translator: the page prepares them');
+  assert.equal(planServerReply({ ...context, transcribes: true }).documents, true);
+  assert.equal(planServerReply({ ...context, transcribes: true, documentsToPrepare: false }).documents, undefined, 'nothing attached');
+  assert.equal(planServerReply({ ...context, transcribes: true, hasAccount: false }).ok, false, 'no cloud account: made here');
+});

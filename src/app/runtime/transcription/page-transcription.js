@@ -64,6 +64,17 @@ export function createPageTranscription({
     isEnabled: enabled,
     /** The way it would be done now ('' when none can be: no key, and Whisper in this browser is not picked). */
     provider: providerNow,
+    /**
+     * The way a reply the server makes does it, with the key for that one reply: { provider: 'openrouter' | 'openai' | 'gemini' | 'whisper' (Whisper run by the server), key }, or null when it is off.
+     * The browser's Whisper is the server's Whisper there: the sound is run through it on the server and not kept.
+     */
+    serverAccess() {
+      const provider = providerNow();
+      if (!enabled() || !provider) return null;
+      if (provider === 'browser') return { provider: 'whisper' };
+      const key = getApiKeyForProvider(STT_PROVIDERS[provider].keyProvider);
+      return key ? { provider, key } : null;
+    },
     /** The ways that can be used ([{ name, label, model, current }]): the ones the person has a key for, and Whisper in this browser. */
     providers() {
       const now = providerNow();

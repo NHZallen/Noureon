@@ -89,3 +89,11 @@
 - **OpenAI `whisper-1`**：成功（約 3 秒），英文測試句轉對。
 - **OpenRouter `openai/whisper-large-v3`**：第二次成功（0.85 秒），英文測試句轉對，所以請求格式可用；第一次回 429「OpenRouter could not verify available credits for this request in time. Retry shortly.」（暫時性）。→ 三家的客戶端都改成遇到 429／500／502／503／504 等 1.5 秒、再等 4 秒各重試一次（最多三次），401／402／403 不重試。
 - **Gemini `gemini-3.5-flash-lite`**：回 409 `{"error":"ambiguous_account","provider":"google"}`，不是 Google 標準的錯誤格式，看起來是 Allen 那把金鑰（或中間的閘道）的帳號問題，不是我們的請求格式問題；Gemini 在順序裡排第三，先不處理。`stt-probe.mjs` 多了 `STT_GEMINI_MODEL` 環境變數，想換模型 id 試時用。
+
+### 步驟 2a 與伺服器端語音轉文字做完了（2026-11-02）
+
+- **對話附件的影片**（`messages/chat-video.js`）：看得到圖片、會呼叫工具、但不能整支收影片的模型，請求裡的影片換成一則說明（名字、長度、怎麼用 `view_project_file`、有逐字稿就附上），訊息本身仍留著影片。頁面第一次會用 ffmpeg 量長度與 sha256（存在 `part.mediaInfo`，跟訊息同步）。工具直接用專案那一套：`createProjectFilesAccess({ attachments })`（不在專案裡的對話也行）。伺服器回覆時，頁面先把影片存到雲端（`serverReply.keepFile`，路徑 `<user>/<sha256>`），請求只帶 `tools.projectFiles.media`（`kind: 'video'`、`fileHash`、`duration`），伺服器從雲端讀檔取畫面；存不上去就在頁面做回覆。**還沒做：影片的向量片段與語意搜尋（沒開向量時模型靠秒數與逐字稿；步驟 2b）、接觸表。**
+- **伺服器端語音轉文字，關掉頁面也會繼續**（`server/transcribe-parts.js`）：請求新增 `tools.transcription: { provider: 'openrouter' | 'openai' | 'gemini' | 'whisper' }` 與 `secrets.sttKey`（只在這一則回覆用、不保留；Whisper 不需要）。轉文字開著而且回覆交給伺服器時，頁面不先轉，伺服器在「準備檔案」那一步（`document-prep.js`）：附件的錄音與影片切成一分鐘一段（伺服器的 ffmpeg）→ 供應商或伺服器上的 Whisper → 帶時間的逐字稿，代替檔案放進請求；影片被工具看的，逐字稿另外加一段文字（`media[].transcribe`），從雲端副本讀檔。頁面看得到步驟「正在把錄音和影片裡說的話轉成文字」（`dp: 'transcribing'`）。伺服器轉的逐字稿**只用在那一則回覆、不存回訊息**（頁面開著也一樣，之後同一個檔案再附會再轉一次）。伺服器做不了（沒有雲端帳號、太大、伺服器沒回應）就退回頁面轉（`speechHere`）。
+- **伺服器上的 Whisper**（`server/whisper-runner.js`）：跟瀏覽器同一個模型（`onnx-community/whisper-base` q8），用 `@huggingface/transformers` 的 Node 版（onnxruntime-node，只留 Linux x64，不要 GPU 函式庫）。第一次用才載入、閒置 10 分鐘釋放（約 700 MB 記憶體）、一次只做一段；模型在建映像時抓進 `/app/.whisper`（`Dockerfile`、`server/whisper-download.mjs`，抓不到也不擋建置）。在這台 CPU 上試過：11 秒錄音約 2 秒轉完。**映像會變大約 200 MB，要重新建映像。**
+- 設定頁與隱私政策、協助中心五語言都改成：Whisper 在頁面做回覆時在瀏覽器跑、聲音不離開裝置；伺服器做回覆時聲音送到 Noureon 的伺服器在那裡跑 Whisper，只用在那一則回覆、不保留。
+- 真金鑰試過：OpenAI、OpenRouter、Gemini 都成功（Gemini 的 409 是 Allen 的測試環境注入金鑰的問題，不是程式）。

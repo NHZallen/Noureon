@@ -23,6 +23,7 @@ import { ERROR_CODES } from './protocol.js';
 import { createModelAccess, DEFAULT_GENERATION } from './model-access.js';
 import { withSearchPacket } from './search-packet.js';
 import { withDocumentPrep } from './document-prep.js';
+import { transcribeServerParts } from './transcribe-parts.js';
 import { createConnectorAsk } from './mcp/ask.js';
 import { combineLoaders, createConnectorLoader } from './mcp/tool-loader.js';
 import { createMemoryLoader } from '../src/data/memory-tool.js';
@@ -429,6 +430,13 @@ export async function executeReply({ spec, secrets, signal, steer = null, onSegm
         signal,
         onPhase: (phase) => onLive({ dp: phase }),
         onSources: addSources,
+        // Speech to text for the recordings and videos of the message (transcribe-parts.js), so that the reply goes on when the page is closed.
+        transcribe: spec.tools.transcription ? (current) => transcribeServerParts({
+          parts: current, spec, key: secrets.sttKey || '', signal, language, fetchImpl,
+          loadFile: async (entry) => (files ? files.load({ userId, marker: { __astraCloudAsset: { path: `${userId}/${entry.fileHash}`, mimeType: entry.mimeType || '', encoding: 'base64' } } }) : null),
+          onPhase: () => onLive({ dp: 'transcribing' }),
+          logger: { warn: (what, error) => onProblem('transcription_failed', error) }
+        }) : null,
         errorFor: (message) => new ReplyError(scrubMessage(message, secrets), 'provider_error'),
         getErrorMessage,
         readErrorBody

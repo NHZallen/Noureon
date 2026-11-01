@@ -7,7 +7,7 @@ export const STT_PROVIDERS = Object.freeze({
   openrouter: Object.freeze({ model: 'openai/whisper-large-v3', keyProvider: 'openrouter', label: 'OpenRouter' }),
   openai: Object.freeze({ model: 'whisper-1', keyProvider: 'openai', label: 'OpenAI' }),
   gemini: Object.freeze({ model: 'gemini-3.5-flash-lite', keyProvider: 'gemini', label: 'Gemini' }),
-  browser: Object.freeze({ model: 'onnx-community/whisper-base', keyProvider: '', label: 'Whisper (this browser)' })
+  browser: Object.freeze({ model: 'onnx-community/whisper-base', keyProvider: '', label: 'Whisper' })
 });
 
 /** The order a provider is picked in when the person did not choose: the ones with a key first, the browser last (it needs no key). */

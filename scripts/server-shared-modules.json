@@ -617,6 +617,18 @@
       "note": "Reviewed 2026-11-01: pure functions (how the vector of a passage of a project file is named); no browser globals."
     },
     {
+      "path": "src/app/runtime/transcription/stt-clients.js",
+      "note": "Reviewed 2026-11-02: no browser globals (the speech to text providers; fetch, FormData and Blob are given or global in Node too)."
+    },
+    {
+      "path": "src/app/runtime/transcription/transcribe-file.js",
+      "note": "Reviewed 2026-11-02: no browser globals (a file cut into pieces of a minute and turned into lines with times; the cutting tool and the speech model are given)."
+    },
+    {
+      "path": "src/app/runtime/transcription/whisper-audio.js",
+      "note": "Reviewed 2026-11-02: pure (the samples of a WAV file for Whisper, the names of its languages)."
+    },
+    {
       "path": "src/app/runtime/transcription/transcript-parts.js",
       "note": "Reviewed 2026-11-02: pure (a recording or video that has a transcript as the text of its words); no browser globals."
     },

@@ -48,6 +48,8 @@ export async function handOverToServer({ serverReply, getConfig, supportsVision 
     memory: memoryAccess ? memoryAccess.snapshot({ curator: !memoryTools }) : null,
     // The files of the project the model may look into by itself (the server reads them from the cloud).
     projectFiles: request.projectFiles?.snapshot() || null,
+    // Speech to text made by the server (so that the reply goes on when the page is closed), when the person turned it on and the message has a file to do.
+    transcription: request.serverTranscription || null,
     // The message goes as the person sent it; the server prepares its files and addresses (the translator is the one set in Settings).
     documents: serverPrepares ? { linkedPages: hasAddresses } : null,
     // A video that is looked at with the tool is not sent as a file: the server reads the copy in the cloud.
@@ -100,6 +102,8 @@ export async function followServerReply({ serverReply, now, setRunStartedAt, get
       // The server is preparing the message's files and addresses: the same lines the page shows when it does that itself.
       onDocumentPhase: (phase) => {
         if (view.answered) return;
+        // The server is turning the speech of the recordings and videos into text.
+        if (phase === 'transcribing') { progress('preparing', getRuntimeText(uiLanguage, 'transcribingSpeech')); documentStageShown = true; return; }
         const stage = DOCUMENT_STAGES[phase];
         if (stage) progress(stage);
         else if (documentStageShown) progress('preparing', 'Checking model capabilities');

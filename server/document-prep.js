@@ -13,6 +13,7 @@ import { createServerOfficeReader } from './office-deps.js';
 
 // The stages the page's code names, and what the pages that watch are told.
 const PHASES = Object.freeze({ fileReading: 'reading', documentTranslation: 'translating', linkedPages: 'links' });
+// (Speech to text is the phase 'transcribing', told before the page's own steps.)
 // A Word or PowerPoint file being turned into a PDF (for a model that reads it better so: opencode-models.js) is told as its own step, 'pdf'.
 
 /**
@@ -32,7 +33,9 @@ export async function withDocumentPrep({
   readErrorBody,
   createSupport = createProviderRequestSupport,
   // (onConvert) => the reader of Word, PowerPoint and Excel files; `onConvert()` is called before a file is turned into a PDF.
-  createOfficeReader = (onConvert) => createServerOfficeReader({ userId, signal, onConvert })
+  createOfficeReader = (onConvert) => createServerOfficeReader({ userId, signal, onConvert }),
+  // (parts) => the parts with the transcripts of the recordings and videos in them (transcribe-parts.js), or null: no speech to text.
+  transcribe = null
 }) {
   const { config, keyFor, modelInfo, streamApiCall, upstreamFetch } = access;
   const translator = spec.documents?.translator?.info || null;
@@ -66,6 +69,7 @@ export async function withDocumentPrep({
   });
 
   try {
+    if (transcribe) parts = await transcribe(parts);
     return await support.buildSingleModelTranslatedRequestParts(
       parts,
       modelInfo,

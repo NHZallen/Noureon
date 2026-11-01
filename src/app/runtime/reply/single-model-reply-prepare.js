@@ -32,7 +32,7 @@ const conversationHasFiles = (conversation) => (conversation?.messages || []).so
  * the reply (userParts, modelInfo, conversation, webSearchEnabled, resumeRun, synthesis, assistantMessageId).
  */
 export async function prepareReply({ getConfig, supportsToolCalling, webResearch, serverReply, getWindow }, {
-  userParts, modelInfo, conversation, webSearchEnabled, resumeRun, synthesis, assistantMessageId, projectFiles = null
+  userParts, modelInfo, conversation, webSearchEnabled, resumeRun, synthesis, assistantMessageId, projectFiles = null, transcribes = false
 }) {
   const replyMode = supportsToolCalling ? resolveReplyMode({
     conversation,
@@ -84,7 +84,7 @@ export async function prepareReply({ getConfig, supportsToolCalling, webResearch
   const hasAttachments = userParts.some((part) => part.inlineData);
   // Whether the server makes this reply, and so (for a model that cannot search) the search too.
   const plan = !resumeRun && !synthesis && serverReply && assistantMessageId
-    ? serverReply.plan({ conversation, advanced: needsPython, webSearchEnabled, researchByModel, provider: modelInfo?.provider, documentsToPrepare: hasAttachments || hasAddresses,
+    ? serverReply.plan({ conversation, advanced: needsPython, webSearchEnabled, researchByModel, provider: modelInfo?.provider, documentsToPrepare: hasAttachments || hasAddresses, transcribes,
       // A Word or PowerPoint file for a model that reads it better as a PDF: only the server makes the PDF, so it prepares the files then.
       officeViaPdf: userParts.some((part) => part?.inlineData && opencodeModelReadsOfficeViaPdf(modelInfo, part.inlineData.mimeType)) })
     : null;

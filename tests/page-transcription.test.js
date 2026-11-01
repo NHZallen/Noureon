@@ -95,3 +95,15 @@ test('a model that cannot take the file is given the words in its place, one tha
   assert.match(transcriptTextPart(long).text, /The transcript goes on; it was cut here\.\]$/);
   assert.match(transcriptTextPart(long).text, /Only the words are given/);
 });
+
+test('a reply the server makes is told the way and the key for that reply; the browser\'s Whisper is the server\'s Whisper there (no key), and off is nothing', async () => {
+  const withKey = make({ keys: { openrouter: 'or-key', openai: 'sk' } });
+  assert.equal(withKey.transcription.serverAccess(), null, 'off');
+  await withKey.transcription.enable('openai');
+  assert.deepEqual(withKey.transcription.serverAccess(), { provider: 'openai', key: 'sk' });
+  await withKey.transcription.setProvider('browser');
+  assert.deepEqual(withKey.transcription.serverAccess(), { provider: 'whisper' });
+  const noKey = make({ keys: {} });
+  await noKey.transcription.enable();
+  assert.deepEqual(noKey.transcription.serverAccess(), { provider: 'whisper' }, 'no key at all: Whisper');
+});

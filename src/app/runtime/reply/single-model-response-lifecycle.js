@@ -155,15 +155,21 @@ export function createSingleModelResponseLifecycle({
     };
     const request = { userParts, modelInfo, conversation, webSearchEnabled, onMemoryContextResolved, signal, uiLanguage, assistantMessageId, sequence, getHistorySourceIds, resumeRun, synthesis, projectFiles };
     const progress = (stage, message, extra) => renderProgress(targetElement, startedAt, stage, message, extra);
-    // A recording or a video attached to this message gets the words said in it written down first, when the person turned speech to text on (transcription/page-transcription.js): the text is
-    // kept with the message, and the request puts it in place of the file for a model that cannot take the file itself (provider-request-support.js).
+    // A recording or a video attached to this message gets the words said in it written down, when the person turned speech to text on (transcription/page-transcription.js): by the server when it makes
+    // the reply (so that it goes on when the page is closed), else here before the request is put together. The text is kept with the message, and the request puts it in place of the file for a model that
+    // cannot take the file itself (provider-request-support.js).
     const transcription = !synthesis && !resumeRun ? getPageTranscription() : null;
-    if (transcription?.isEnabled() && userParts.some((part) => transcription.needs(part))) {
+    const wantsSpeech = Boolean(transcription?.isEnabled() && userParts.some((part) => transcription.needs(part)));
+    request.transcribes = wantsSpeech;
+    const speechHere = async () => {
+      if (!wantsSpeech) return;
       stop();
       progress('preparing', getRuntimeText(uiLanguage, 'transcribingSpeech'));
       startTicker(targetElement, startedAt);
       await transcription.ensureParts(userParts, { signal, onProgress: ({ name, done, total, file, files }) => progress('preparing', `${getRuntimeText(uiLanguage, 'transcribingSpeech')}${files > 1 ? ` (${file}/${files})` : ''}${name ? ` — ${name}` : ''}${total ? ` ${done}/${total}` : ''}`) });
-    }
+      // The note for a video that is looked at with the tool has the words said in it.
+      if (chatVideos) request.requestUserParts = withChatVideoNotes(userParts, chatVideos);
+    };
     // A video attached to this message, for a model that sees pictures and calls tools but cannot take a video whole: the model is told what the video is and looks at it with view_project_file
     // (messages/chat-video.js). The message keeps the video; the request has a note in its place, and for the server the copy kept in the person's cloud is what the tool reads.
     const filesToolsAllowed = Boolean(supportsToolCalling?.(modelInfo)) && !(webSearchEnabled && !webResearch?.canUse(modelInfo));
@@ -193,6 +199,11 @@ export function createSingleModelResponseLifecycle({
     // 1. What kind of reply this is.
     const prep = await prepareReply({ getConfig, supportsToolCalling, webResearch, serverReply, getWindow }, request);
     const { replyMode, researchByModel, serverSearches, serverPrepares } = prep;
+    // The server makes the speech into text when it makes the reply and prepares the files; the videos looked at with the tool are then done from the copy in the cloud.
+    if (wantsSpeech && serverPrepares) {
+      request.serverTranscription = transcription.serverAccess();
+      for (const entry of chatVideos?.entries || []) if (!chatVideos.parts.find((part) => chatVideos.byPart.get(part) === entry)?.transcript) entry.transcribe = Boolean(request.serverTranscription);
+    } else await speechHere();
     const reply = createReplyRecord({ userParts: request.requestUserParts, synthesis, replyMode });
     if (prep.hasTranslationInputs) {
       reply.requestParts = await prepareHere({
@@ -212,6 +223,7 @@ export function createSingleModelResponseLifecycle({
     // The server did not take the reply (or there is no account to make it with): the search it was to make, and the files and addresses it
     // was to prepare, are done here, as before (the files not yet prepared: the message is prepared whole, not added to).
     const preparesHere = serverPrepares && !serverRun;
+    if (preparesHere) { request.serverTranscription = null; await speechHere(); }
     if ((serverSearches || preparesHere) && !serverRun) {
       reply.requestParts = await prepareHere({
         webSearchEnabled: Boolean(webSearchEnabled && !researchByModel),
