@@ -617,6 +617,10 @@
       "note": "Reviewed 2026-11-01: pure functions (how the vector of a passage of a project file is named); no browser globals."
     },
     {
+      "path": "src/app/runtime/transcription/transcript-parts.js",
+      "note": "Reviewed 2026-11-02: pure (a recording or video that has a transcript as the text of its words); no browser globals."
+    },
+    {
       "path": "src/data/project-pdf-page.js",
       "note": "Reviewed 2026-11-01: pure (a page of a PDF drawn with the pdf.js and the canvas that are given); no browser globals."
     },

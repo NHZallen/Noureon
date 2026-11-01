@@ -5,7 +5,8 @@ import { getAnnouncedUser, USER_READY_EVENT } from '../features/user-ready.js';
 import { getSupabaseClient } from '../../auth/supabase-client.js';
 import { createNotesMemory } from './notes-memory.js';
 import { MODELS } from '../shell/model-registry.js';
-import { getMemoryModelRunner, getProjectPieces, setNotesMemory, setPageHistory, setPageVectors, setRebuildController } from './memory-ref.js';
+import { getMemoryModelRunner, getProjectPieces, setNotesMemory, setPageHistory, setPageTranscription, setPageVectors, setRebuildController } from './memory-ref.js';
+import { createPageTranscription } from '../transcription/page-transcription.js';
 import { createRebuildController } from './page-rebuild.js';
 import { createPageHistory } from './page-history.js';
 import { startServerRebuild, stopServerRebuild } from './server-rebuild.js';
@@ -35,6 +36,8 @@ export function startNotesMemory({ document, configAccess, dataStore, getActiveC
   let lastUser = getAnnouncedUser();
   const vectors = setPageVectors(createPageVectors({ getStore: () => memory.getStore(), getHistory: () => history, getProjectPieces, getApiKeyForProvider, getCloud: () => { const supabase = lastUser?.supabaseUserId ? (() => { try { return getSupabaseClient(); } catch { return null; } })() : null; return supabase ? { supabase, userId: String(lastUser.supabaseUserId) } : null; }, indexedDB: globalThis.indexedDB || null, userKey: () => String(lastUser?.supabaseUserId || lastUser?.username || 'local'), logger }));
   history.setVectors(vectors);
+  // Speech to text for the recordings and videos that are attached: off until the person agrees (transcription/page-transcription.js).
+  setPageTranscription(createPageTranscription({ getStore: () => memory.getStore(), getApiKeyForProvider, getLanguage: () => getConfig()?.uiLanguage || 'en', logger }));
   // Building the memory from the past conversations (the settings show it); the first time it starts by itself, a little after the page has loaded.
   const rebuild = setRebuildController(createRebuildController({ getStore: () => memory.getStore(), getConversations: () => history.conversations().filter((entry) => !scopeOfConversationId(entry.id)), getConfig, getModelRunner: getMemoryModelRunner, models: MODELS, getApiKeyForProvider,
     // The first build can be made by the server (an account in the cloud, and the person did not choose to keep replies on this device).

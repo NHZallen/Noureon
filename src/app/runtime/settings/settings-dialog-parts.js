@@ -4,7 +4,7 @@
 import { ensureVisionCheckSettingsControl } from './settings-vision-check-section.js';
 import { createMemoryNotesSettings } from '../../ui/memory-notes/memory-notes-settings.js';
 import { memoryProjectName } from '../projects/project-instructions.js';
-import { getNotesMemory, getMemoryModelRunner, getPageHistory, getPageVectors, getRebuildController } from '../memory-store/memory-ref.js';
+import { getNotesMemory, getMemoryModelRunner, getPageHistory, getPageTranscription, getPageVectors, getRebuildController } from '../memory-store/memory-ref.js';
 import { createRebuildController } from '../memory-store/page-rebuild.js';
 import { getAnnouncedUser } from '../features/user-ready.js';
 
@@ -23,6 +23,7 @@ export function createSettingsDialogParts({
     const memoryNotesSettings = createMemoryNotesSettings({
         getRebuild: () => rebuildController,
         getVectors: getPageVectors,
+        getTranscription: getPageTranscription,
         getProjectName: memoryProjectName,
         document, getConfig: () => config, saveConfig, getMemory: getNotesMemory, getUser: getAnnouncedUser,
         getModels: () => MODELS.filter((model) => model.category !== 'image_generation' && model.outputModality !== 'image' && getApiKeyForProvider?.(model.provider)).map((model) => ({ id: model.id, name: model.name })),

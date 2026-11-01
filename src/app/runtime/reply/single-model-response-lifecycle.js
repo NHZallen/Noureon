@@ -6,6 +6,7 @@
 //   single-model-reply-finish.js      the run record and the text saved
 // This file joins them, and draws the wait row before the first words.
 
+import { getPageTranscription } from '../memory-store/memory-ref.js';
 import { addNumberedSources } from '../../ui/citations/source-numbering.js';
 import { watchCitations } from '../../ui/citations/citation-pills.js';
 import { patchHTML } from '../../ui/dom/patch-html.js';
@@ -153,6 +154,15 @@ export function createSingleModelResponseLifecycle({
     };
     const request = { userParts, modelInfo, conversation, webSearchEnabled, onMemoryContextResolved, signal, uiLanguage, assistantMessageId, sequence, getHistorySourceIds, resumeRun, synthesis, projectFiles };
     const progress = (stage, message, extra) => renderProgress(targetElement, startedAt, stage, message, extra);
+    // A recording or a video attached to this message gets the words said in it written down first, when the person turned speech to text on (transcription/page-transcription.js): the text is
+    // kept with the message, and the request puts it in place of the file for a model that cannot take the file itself (provider-request-support.js).
+    const transcription = !synthesis && !resumeRun ? getPageTranscription() : null;
+    if (transcription?.isEnabled() && userParts.some((part) => transcription.needs(part))) {
+      stop();
+      progress('preparing', getRuntimeText(uiLanguage, 'transcribingSpeech'));
+      startTicker(targetElement, startedAt);
+      await transcription.ensureParts(userParts, { signal, onProgress: ({ name, done, total, file, files }) => progress('preparing', `${getRuntimeText(uiLanguage, 'transcribingSpeech')}${files > 1 ? ` (${file}/${files})` : ''}${name ? ` — ${name}` : ''}${total ? ` ${done}/${total}` : ''}`) });
+    }
     // The wait row while the files, the search packet and the addresses of the message are prepared on this page.
     const prepareHere = (options) => {
       stop();

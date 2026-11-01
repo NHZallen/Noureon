@@ -16,6 +16,11 @@ let vectors = null;
 export const getPageVectors = () => vectors;
 export const setPageVectors = (value) => { vectors = value; return vectors; };
 
+/** Speech to text (transcription/page-transcription.js), or null until the page has started it. */
+let transcription = null;
+export const getPageTranscription = () => transcription;
+export const setPageTranscription = (value) => { transcription = value; return transcription; };
+
 /** The passages of the files of the projects for the vectors (projects/project-pieces.js), or null until the projects have started. */
 let projectPieces = null;
 export const getProjectPieces = () => projectPieces;

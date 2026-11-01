@@ -35,7 +35,8 @@ const DEFAULT_SETTINGS = Object.freeze({
   /** How the rebuild from the past conversations that the SERVER makes stands (server/memory-rebuild.js): { status: 'running' | 'done' | 'stopped' | 'failed', done, total, added, startedAt, updatedAt, error }, or null. */
   rebuildJob: null,
   /** The search by meaning over the conversations (needs the consent of the person). */
-  vector: Object.freeze({ enabled: false, consentAt: null, provider: '', sync: false })
+  vector: Object.freeze({ enabled: false, consentAt: null, provider: '', sync: false }),
+  transcription: Object.freeze({ enabled: false, consentAt: null, provider: '' })
 });
 
 const JOB_STATUS = ['running', 'done', 'stopped', 'failed'];
@@ -59,6 +60,7 @@ function normalizeScopeTimes(raw) {
 export function normalizeSettings(raw) {
   const value = raw && typeof raw === 'object' ? raw : {};
   const vector = value.vector && typeof value.vector === 'object' ? value.vector : {};
+  const transcription = value.transcription && typeof value.transcription === 'object' ? value.transcription : {};
   return {
     learn: value.learn !== false,
     use: value.use !== false,
@@ -74,6 +76,12 @@ export function normalizeSettings(raw) {
       provider: typeof vector.provider === 'string' ? vector.provider.slice(0, 40) : '',
       /** Whether the vectors are also kept in the cloud account (a separate choice; a local account has none). */
       sync: vector.sync === true
+    },
+    // Speech to text for the recordings and videos that are attached (transcription/page-transcription.js): off until the person agrees to the sound being sent to the provider.
+    transcription: {
+      enabled: transcription.enabled === true && typeof transcription.consentAt === 'string',
+      consentAt: typeof transcription.consentAt === 'string' ? transcription.consentAt : null,
+      provider: typeof transcription.provider === 'string' ? transcription.provider.slice(0, 40) : ''
     }
   };
 }

@@ -1,3 +1,4 @@
+import { withTranscriptText } from '../transcription/transcript-parts.js';
 import { contextText, searchPacketSection, withContextSection } from './search-packet-parts.js';
 import { getRuntimeText } from '../i18n/runtime-texts.js';
 import { NOURAS_REQUEST_PURPOSE } from '../nouras/nouras-policy.js';
@@ -243,6 +244,8 @@ Output requirements:
         hasTranslator: Boolean(getSingleDocumentTranslatorModel())
       }));
     }
+    // A recording or a video the model cannot read, that has its transcript (made on the page when the person agreed: transcription/page-transcription.js), is given as the words said in it.
+    if (!baseParts) parts = withTranscriptText(parts, modelInfo, (part) => (part.inlineData.attachmentLabel ? `[${part.inlineData.attachmentLabel}]` : ''));
     const documentParts = baseParts ? [] : getUnsupportedSingleDocumentParts(parts, modelInfo);
     if (documentParts.length > 0) {
       const translatorModel = getSingleDocumentTranslatorModel();

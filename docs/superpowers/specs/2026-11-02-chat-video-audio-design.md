@@ -76,3 +76,10 @@
 
 - 完成：`src/app/runtime/transcription/`（四個供應商、切段、逐字稿、瀏覽器 Whisper）與測試；`vercel.json` 的 `connect-src` 加 `https://huggingface.co https://*.hf.co`；套件 `@huggingface/transformers` 4.3.2。
 - 還沒做：設定頁的開關與同意說明（新的資料流）、逐字稿存進附件／專案來源、一般對話附件的檔案工具（P1）、專案與理事會（P3、P4）、隱私政策與協助中心五語言。
+
+### 步驟 1 做完了（設定開關 + 一般對話的錄音與影片逐字稿）
+
+- 設定 → 記憶 多一張「語音轉文字」卡（`transcription-card.js`）：預設關閉，開啟要同意（說明聲音送去哪裡；API 與瀏覽器 Whisper 兩種文案），可換方式、可關閉；設定存在記憶的設定裡（`settings.transcription`，跟著帳號同步）。
+- `page-transcription.js`：開啟後，送出訊息前（`single-model-response-lifecycle.js`，顯示「正在把錄音和影片裡說的話轉成文字」與進度）替沒有逐字稿的錄音與影片補上 `part.transcript`（`{text, model, at}`，存在訊息的那一段裡，跟對話一起同步）；每個檔案只轉一次，失敗就不轉、下次再試。
+- `transcript-parts.js`（頁面與伺服器共用）：不能直接收這種檔案的模型，請求裡用逐字稿文字取代檔案（`provider-request-support.js` 的 `buildSingleModelTranslatedRequestParts`，伺服器回覆的文件準備步驟也跑同一段）。本來就收錄音的模型（Gemini 等）維持整檔送。
+- 還沒有的：影片的畫面（步驟 2）；逐字稿很長時目前整段放進請求（上限 6 萬字元，超過截斷並註明），搜尋與讀一段的工具等步驟 2 一起做；理事會（步驟 4）；專案（步驟 3）。
