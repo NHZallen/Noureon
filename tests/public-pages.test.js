@@ -65,7 +65,7 @@ test('the update page has every version once, with a link target for each', () =
 test('the update notes are grouped by month, newest first, and the index has a year, a month and a version level that all lead to the notes', () => {
   const months = groupByMonth(updateLogEntries);
   assert.equal(months.reduce((sum, month) => sum + month.logs.length, 0), updateLogEntries.length, 'every version is in a month');
-  assert.equal(months[0].key, '2026-10');
+  assert.equal(months[0].key, '2026-11');
   assert.deepEqual(groupByMonth([{ date: '2025-10-8' }, { date: '2025-10-2' }, { date: '2025-9-26' }]).map((month) => [month.key, month.logs.length]), [['2025-10', 2], ['2025-09', 1]], 'a day or month without a zero still groups');
   const html = renderPublicPage('updates');
   for (const month of months) {
@@ -161,7 +161,7 @@ test('the script chooses the remembered language, then the browser one, and reme
 test('the index lights the version being read and its month, opens only that month and its year, and writes the month in the bar', () => {
   const world = openPage('updates', { languages: ['zh-TW'] });
   const open = (root = world.document) => [...root.querySelectorAll('.pg-toc .pg-im.is-open')].map((node) => node.querySelector('.pg-im-a').getAttribute('href'));
-  assert.deepEqual(open(), ['#m2026-10'], 'at first the month of the newest version is open');
+  assert.deepEqual(open(), ['#m2026-11'], 'at first the month of the newest version is open');
   world.observe([{ target: { id: 'v17.13.0' }, isIntersecting: true }]);
   assert.deepEqual(lit(world), ['#m2026-10', '#v17.13.0']);
   world.observe([{ target: { id: 'v17.12.1' }, isIntersecting: true }]);
@@ -243,7 +243,7 @@ test('the bar gets a shadow once it sticks to the top, and shows the first month
   world.window.dispatchEvent(new world.window.Event('scroll'));
   assert.equal(stick.className.includes('is-stuck'), false);
   assert.equal(up.className.includes('is-on'), false);
-  assert.equal(world.document.getElementById('pg-cur').textContent, '2026-10', 'back in place it tells the first month again');
+  assert.equal(world.document.getElementById('pg-cur').textContent, '2026-11', 'back in place it tells the first month again');
 });
 
 test('the help, terms and privacy pages have the button to the top and no index of versions', () => {
@@ -257,7 +257,7 @@ test('the help, terms and privacy pages have the button to the top and no index 
 
 test('the page has the bar of the index, its sheet and the button to the top, in every language', () => {
   const html = renderPublicPage('updates');
-  assert.match(html, /<div class="pg-stick"><span class="pg-cur" id="pg-cur">2026-10<\/span><button type="button" class="pg-ix-btn" aria-expanded="false" aria-controls="pg-sheet">/);
+  assert.match(html, /<div class="pg-stick"><span class="pg-cur" id="pg-cur">2026-11<\/span><button type="button" class="pg-ix-btn" aria-expanded="false" aria-controls="pg-sheet">/);
   assert.match(html, /<div class="pg-sheet" id="pg-sheet"><\/div>/);
   for (const name of Object.keys(PUBLIC_PAGES)) {
     const page = renderPublicPage(name);
