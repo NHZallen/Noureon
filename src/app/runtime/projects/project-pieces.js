@@ -4,8 +4,9 @@
 // there is something to read). Page only.
 
 import { mediaKindOfMime } from '../../../data/project-media.js';
+
 import { mediaPieceHash, projectPassages } from '../../../data/project-files-tool.js';
-import { pieceIdOf } from '../../../data/project-piece-id.js';
+import { CHAT_VIDEO_PREFIX, pieceIdOf } from '../../../data/project-piece-id.js';
 import { textHash } from '../memory-notes/vector-math.js';
 import { PROJECT_SOURCE_FILE_BYTES_MAX } from './project-source-model.js';
 import { makeEmbedThumbnail } from './project-picture-thumb.js';
@@ -29,11 +30,37 @@ export const timedMediaOf = (source) => {
 };
 
 /**
- * `getFolders()` gives the projects ([{ id, deletedAt, sources }]). `loadAccess()` resolves the module that knows how to read a source (project-files-access.js). Returns { pieces(), refresh() }:
+ * `getFolders()` gives the projects ([{ id, deletedAt, sources }]); `getConversations()` the conversations, whose videos (attached to a message and already measured by chat-video.js: `part.mediaInfo`)
+ * are cut into windows like the videos of a project, under the id `att-<hash>` that the tool gives them. `loadAccess()` resolves the module that knows how to read a source (project-files-access.js). Returns { pieces(), refresh() }:
  * `pieces()` is what the last `refresh()` made ([{ id, text, hash, kind: 'project', sourceId }]); a source that cannot be read now is left out (it is tried again at the next refresh).
  */
-export function createProjectPieces({ getFolders, loadAccess = () => import('./project-files-access.js'), makeThumb = makeEmbedThumbnail, media = null, logger = console }) {
+/** The videos attached to messages that have been measured, as sources the windows are cut from: [{ source, data (base64) }], once for each file. */
+export function chatVideoSourcesOf(conversations) {
+  const found = new Map();
+  for (const conversation of conversations || []) {
+    if (!conversation?.id || conversation.deletedAt || conversation.isTemporary || conversation.retentionMode === 'ephemeral') continue;
+    for (const message of conversation.messages || []) {
+      if (message?.role !== 'user') continue;
+      for (const part of Array.isArray(message.parts) ? message.parts : []) {
+        const inline = part?.inlineData;
+        const hash = part?.mediaInfo?.hash;
+        if (!inline || typeof inline.data !== 'string' || !inline.data || !hash || !(part.mediaInfo.duration > 0) || mediaKindOfMime(inline.mimeType) !== 'video') continue;
+        const size = Math.floor(inline.data.length * 0.75);
+        const id = `${CHAT_VIDEO_PREFIX}${hash.slice(0, 16)}`;
+        if (size > PROJECT_MEDIA_EMBED_BYTES_MAX || found.has(id)) continue;
+        const name = String(inline.name || 'video').replace(/\s+/g, ' ').trim().slice(0, 120) || 'video';
+        found.set(id, { source: { id, title: name, file: { hash, name, mimeType: inline.mimeType, size } }, data: inline.data });
+      }
+    }
+  }
+  return [...found.values()];
+}
+
+export function createProjectPieces({ getFolders, getConversations = () => [], loadAccess = () => import('./project-files-access.js'), makeThumb = makeEmbedThumbnail, media = null, chatMedia = null, logger = console }) {
   const sources = media || createMediaSources({ logger });
+  // The videos of the messages are read from the messages themselves (not from the kept files of a project): by the hash of the file.
+  const attached = new Map();
+  const chatSources = chatMedia || createMediaSources({ getStore: () => ({ load: async (file) => (attached.has(file.hash) ? { data: attached.get(file.hash), mimeType: file.mimeType } : null) }), logger });
   let held = [];
   let refreshing = null;
 
@@ -78,6 +105,12 @@ export function createProjectPieces({ getFolders, loadAccess = () => import('./p
       }
       for (const passage of projectPassages(files)) pieces.push({ id: passage.id, text: passage.text, hash: textHash(passage.text), kind: 'project', sourceId: passage.file.id });
     }
+    // The videos attached to the messages (at most one request's worth of windows each, like a video of a project).
+    attached.clear();
+    for (const { source, data } of chatVideoSourcesOf(getConversations())) {
+      attached.set(source.file.hash, data);
+      try { pieces.push(...await chatSources.piecesFor(source, 'video')); } catch (error) { logger.warn?.('A video of a message could not be cut for the vectors.', error?.message || error); }
+    }
     held = pieces;
     return held;
   }
@@ -85,9 +118,9 @@ export function createProjectPieces({ getFolders, loadAccess = () => import('./p
   return {
     pieces: () => held,
     /** 'pending' or 'failed' for a video, a recording or a scan that has no pieces (yet), else ''. */
-    stateOf: (sourceId) => sources.stateOf(sourceId),
+    stateOf: (sourceId) => sources.stateOf(sourceId) || chatSources.stateOf(sourceId),
     /** Lets go of the file that was kept open for the cuts. */
-    release: () => sources.release(),
+    release: async () => { await sources.release(); await chatSources.release(); attached.clear(); },
     /** Reads the sources again (one run at a time; a call while one runs waits for it). */
     refresh() {
       refreshing ||= build().finally(() => { refreshing = null; });

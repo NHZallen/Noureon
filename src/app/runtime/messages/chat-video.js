@@ -7,7 +7,9 @@ import { modelSupportsUploadedFile } from '../shell/model-registry.js';
 import { hasTranscript } from '../transcription/transcript-parts.js';
 import { formatTime } from '../../../data/project-media.js';
 
-export const CHAT_VIDEO_PREFIX = 'att-';
+import { CHAT_VIDEO_PREFIX } from '../../../data/project-piece-id.js';
+
+export { CHAT_VIDEO_PREFIX };
 const isVideo = (part) => Boolean(part?.inlineData && /^video\//i.test(String(part.inlineData.mimeType || '')) && typeof part.inlineData.data === 'string' && part.inlineData.data);
 const fromBase64 = (data) => Uint8Array.from(atob(data), (character) => character.charCodeAt(0));
 const hex = (buffer) => [...new Uint8Array(buffer)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
@@ -57,7 +59,7 @@ export async function prepareChatVideos(parts, modelInfo, canLook, { getToolbox 
 /** The note that stands for a video in the request (with the transcript, when there is one). */
 export function chatVideoNote(part, entry) {
   const label = part.inlineData.attachmentLabel ? `[${part.inlineData.attachmentLabel}]` : `[Video: ${entry.name}]`;
-  const lines = [`${label} A video of ${formatTime(entry.duration)}. You cannot watch it whole: look at it with the tool view_project_file (file: "${entry.name}"). "at" is the second to look from: you are shown 4 frames over the next 30 seconds; with no "at", 4 frames over the whole video. Look only at what the question needs, and do not say that you looked unless asked.`];
+  const lines = [`${label} A video of ${formatTime(entry.duration)}. You cannot watch it whole: look at it with the tool view_project_file (file: "${entry.name}"). "at" is the second to look from: you are shown 4 frames over the next 30 seconds; with no "at", 4 frames over the whole video. To find where something is shown or said, search_project_files (file: "${entry.name}") names the moments that match. Look only at what the question needs, and do not say that you looked unless asked.`];
   if (hasTranscript(part)) lines.push(`Transcript of what is said in the video, written by a speech to text model (${part.transcript.model || 'unknown model'}), each line with the second it starts at. It may have mistakes.\n${part.transcript.text.trim()}`);
   else lines.push('No transcript of what is said in it is given.');
   return { text: lines.join('\n') };

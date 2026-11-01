@@ -2,6 +2,8 @@
 // of the passage in the file>`. A module of its own so that the page's vectors and the database functions agree on the one form. Pure: no window, no document, no browser storage.
 
 export const PIECE_PREFIX = 'src:';
+/** The start of the id of a video attached to a message (followed by the start of the hash of the file): it is looked at with the tools of the files of a project, and has vectors like one. */
+export const CHAT_VIDEO_PREFIX = 'att-';
 
 export const pieceIdOf = (sourceId, number) => `${PIECE_PREFIX}${sourceId}:${number}`;
 

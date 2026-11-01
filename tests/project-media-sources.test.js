@@ -103,7 +103,7 @@ test('a scanned PDF is a picture for each page, drawn when its turn comes', asyn
 const DIMS = EMBEDDING_PROVIDERS.gemini.dimensions;
 const unit = (axis) => { const vector = new Array(DIMS).fill(0); vector[axis] = 1; vector[DIMS - 1] = 0.01; return vector; };
 
-async function setup({ folders, media }) {
+async function setup({ folders, media, conversations = [], chatMedia = null }) {
   const rows = [{ record_key: 'meta:settings', payload: {}, version: 1, updated_at: '2026-10-30T00:00:00.000Z', deleted_at: null }];
   const data = new Map([['noureon.memoryNotes.v1.tester', JSON.stringify({ version: 1, rows })]]);
   const memory = createNotesMemory({ storage: { getItem: (key) => data.get(key) ?? null, setItem: (key, value) => { data.set(key, value); } }, logger: { warn() {} } });
@@ -118,7 +118,7 @@ async function setup({ folders, media }) {
     sent.push(part.inline_data ? [part.inline_data.mime_type, part.inline_data.data] : part.text);
     return Response.json({ embedding: { values: part.inline_data ? unit(Buffer.from(part.inline_data.data, 'base64')[1] % 50) : unit(25 % 50) } });
   };
-  const projectPieces = createProjectPieces({ getFolders: () => folders, loadAccess: async () => ({ searchableKindOf: (source) => (source.file?.mimeType === 'application/pdf' ? 'pdf' : ''), sourceTextOf: async () => '' }), media, logger: { warn() {} } });
+  const projectPieces = createProjectPieces({ getFolders: () => folders, getConversations: () => conversations, chatMedia, loadAccess: async () => ({ searchableKindOf: (source) => (source.file?.mimeType === 'application/pdf' ? 'pdf' : ''), sourceTextOf: async () => '' }), media, logger: { warn() {} } });
   const vectors = createPageVectors({ getStore: () => memory.getStore(), getHistory: () => history, getProjectPieces: () => projectPieces, getApiKeyForProvider: (name) => (name === 'gemini' ? 'g-key' : ''), indexedDB: createFakeIndexedDb(), userKey: () => 'tester', fetchImpl, wait: async () => {}, logger: { warn() {} }, options: { pauseMs: 0 } });
   history.setVectors(vectors);
   return { vectors, projectPieces, sent };
@@ -161,4 +161,28 @@ test('a PDF with no text layer is read page by page into the vectors', async () 
   assert.equal(vectors.sourceStatus('p1'), 'ready');
   assert.equal(sent.length, 3);
   assert.ok(sent.every((item) => item[0] === 'image/jpeg'));
+});
+
+test('a video attached to a message (already measured) is cut into windows with the id the tool gives it, and found by meaning', async () => {
+  const { log, toolbox, openPdf } = fakes();
+  const hash = 'c'.repeat(64);
+  const part = { inlineData: { mimeType: 'video/mp4', name: 'trip.mp4', data: b64([9, 9, 9]) }, mediaInfo: { hash, duration: 70 } };
+  const unmeasured = { inlineData: { mimeType: 'video/mp4', name: 'other.mp4', data: b64([1]) } };
+  const conversations = [
+    { id: 'c1', messages: [{ role: 'user', parts: [{ text: 'look' }, part, unmeasured] }, { role: 'model', parts: [{ text: 'ok' }] }] },
+    { id: 'c2', deletedAt: '2026-11-01T00:00:00.000Z', messages: [{ role: 'user', parts: [{ inlineData: { mimeType: 'video/mp4', name: 'gone.mp4', data: b64([5]) }, mediaInfo: { hash: 'd'.repeat(64), duration: 30 } }] }] }
+  ];
+  const seenBytes = [];
+  const chatMedia = createMediaSources({ getStore: () => ({ load: async (file) => { seenBytes.push(file.hash); return { data: b64([9, 9, 9]), mimeType: file.mimeType }; } }), getToolbox: async () => toolbox, openPdf, info: memoryInfo(), logger: { warn() {} } });
+  const { vectors, sent } = await setup({ folders: [], media: createMediaSources({ getStore: () => null, getToolbox: async () => toolbox, info: memoryInfo(), logger: { warn() {} } }), conversations, chatMedia });
+  await vectors.enable('gemini');
+  await vectors.sync();
+  const id = `att-${hash.slice(0, 16)}`;
+  assert.equal(vectors.sourceStatus(id), 'ready');
+  assert.ok(sent.filter((item) => item[0] === 'video/mp4').length >= 3, 'a window of every 25 seconds is sent');
+  assert.ok(seenBytes.every((seen) => seen === hash), 'only the measured video of the live conversation is read');
+  const found = await vectors.searchProject('dogs', { sourceIds: [id], limit: 2, minCosine: 0.5 });
+  assert.equal(found[0].id, `src:${id}:v25`);
+  assert.equal(found[0].hash, mediaPieceHash(hash, 'v25'));
+  assert.equal(log.closed >= 1, true);
 });

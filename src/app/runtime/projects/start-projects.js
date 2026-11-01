@@ -50,7 +50,7 @@ export function startProjects({
   setProjectFileDeps({ store: files });
   // The passages of the files of the projects are made into vectors with the ones of the past conversations (memory-store/page-vectors.js, when the person turned that on); a source that
   // comes or goes, or a project that goes, has the vectors brought up to date.
-  setProjectPieces(createProjectPieces({ getFolders: () => dataStore.getFolders() }));
+  setProjectPieces(createProjectPieces({ getFolders: () => dataStore.getFolders(), getConversations: () => dataStore.getConversations() }));
   const actions = createProjectActions({ onSourcesChanged: () => { void getPageVectors()?.sync?.({ rerun: true }); }, dataStore, getDefaultFolder, saveAppData, renderSidebar, deleteFolderFromCloud, deferConversationFolderSync, startNewChat, getCurrentConversationId, sendText, dropFiles: (descriptions) => files.drop(descriptions), dropNotes: async (projectId) => { const store = await getNotesMemory()?.ready(); await store?.clearAll?.({ keepTombstones: false, scopeId: projectId }); } });
 
   // Google's own file picker (its tabs, search and folders), when the page has the keys for it (VITE_GOOGLE_PICKER_*, see .env.example); without them the choice is not shown.
