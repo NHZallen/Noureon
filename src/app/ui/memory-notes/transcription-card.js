@@ -4,7 +4,7 @@
 
 export function renderTranscriptionCard({ transcription, el, button, text, ask, showNotification, render }) {
   if (!transcription) return null;
-  const card = el('section', 'pz-card mn-rebuild');
+  const card = el('section', 'pz-card mn-root mn-rebuild');
   const head = el('div', 'pz-head');
   head.append(el('h3', '', text('mnSttTitle')));
   const body = el('div', 'mn-rebuild-body');

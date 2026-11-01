@@ -61,6 +61,7 @@
 /* The card that builds the memory from the old conversations. */
 #settings-modal .mn-root .mn-rebuild-body { display: grid; gap: 0.6rem; padding: 0 1.15rem 1.1rem; }
 #settings-modal .mn-root .mn-rebuild-body .pz-sub { margin: 0; line-height: 1.6; }
+#settings-modal .mn-root.pz-card .mn-rebuild-body h4.pz-sub { margin-top: 0.4rem; color: var(--text-primary); }
 #settings-modal .mn-root .mn-rebuild-status { margin: 0; font-size: 0.875rem; }
 #settings-modal .mn-root .mn-rebuild-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 #settings-modal .mn-root .mn-tag, #settings-modal .mn-root .mn-chip { display: inline-flex; align-items: center; gap: 0.3rem; }
